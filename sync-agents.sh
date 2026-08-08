@@ -835,6 +835,66 @@ validate_user_agent_values() {
   return $rc
 }
 
+# --- runners.<name> shim-pin value validation (change 0269) -------------------
+# runner_key's value class consumes the rest of the line, so a quoted value would ride into the
+# emitted frontmatter WITH its quotes and a present-but-empty key would read as "unset" — either
+# way a wrong pin persisted in a generated file. Same posture and same two-leg diagnostic split as
+# validate_user_agent_values: collect every offender across every layer, report them all, and fail
+# BEFORE any wrapper is written.
+#
+# Deliberately does NOT call runner_key: that function returns the RESOLVED value from the winning
+# layer, while this gate must report every offender in every layer, including ones precedence would
+# mask — a bad value shadowed today goes live the moment the higher layer is edited.
+#
+# Only REGISTERED runners are walked. An unregistered `runners:` sub-block is inert config that
+# generates nothing, and hard-failing a repo over it would punish a cosmetic typo in a block no
+# pass reads — the same reasoning that exempts the pre-0046 flat agents shape.
+validate_runner_shim_values() {
+  local rc=0 f r k blk line raw trimmed
+  for f in "$LOCAL_CFG" "$DOCKET_YML" "$GLOBAL_CFG"; do
+    [ -f "$f" ] || continue
+    for r in $REGISTERED_RUNNERS; do
+      # AGENTS.md: never `producer | early-exiting-consumer` under `set -o pipefail`. section_body's
+      # awk `exit`s the moment the block ends, so piping one into the next would leave the producer
+      # taking a SIGPIPE. Capture, then feed in — the same shape runner_key uses.
+      blk="$(section_body runners < "$f")"
+      [ -n "$blk" ] || continue
+      blk="$(section_body "$r" <<<"$blk")"
+      [ -n "$blk" ] || continue
+      for k in shim_model shim_effort; do
+        line="$(awk -v key="$k" '
+          { nc=$0; sub(/#.*/, "", nc) }
+          nc ~ ("^[[:space:]]*" key "[[:space:]]*:") { print nc; exit }
+        ' <<<"$blk")"
+        # Key absent from this block is normal — both knobs are optional in every layer.
+        [ -n "$line" ] || continue
+        raw="$(sed -E -e 's/^[[:space:]]*[A-Za-z0-9._-]+[[:space:]]*:[[:space:]]*//' -e 's/[[:space:]]+$//' <<<"$line")"
+        if [ -z "$raw" ]; then
+          log "runners.$r.$k is present but has no value ($f)"
+          rc=1
+          continue
+        fi
+        trimmed="$raw"
+        case "$trimmed" in *[[:space:]]*)
+          log "runners.$r.$k value '$raw' is not a bare scalar — write shim_model/shim_effort values unquoted and space-free ($f)"
+          rc=1
+          continue
+          ;;
+        esac
+        case "$trimmed" in '"'*|"'"*)
+          # The quote leg catches what the whitespace leg structurally CANNOT see: a quoted but
+          # space-free value has no embedded space, so the quotes would ride into the emitted pin
+          # verbatim while the diagnostic's own remedy text tells the user to write them unquoted.
+          log "runners.$r.$k value '$raw' is not a bare scalar — write shim_model/shim_effort values unquoted and space-free ($f)"
+          rc=1
+          ;;
+        esac
+      done
+    done
+  done
+  return $rc
+}
+
 # Log an accumulated gate diagnostic AT MOST ONCE per exact string (change 0220). Reads and appends
 # to the caller's `seen` (bash dynamic scoping; bash-3.2-safe — no associative arrays).
 #
@@ -1964,6 +2024,10 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     # fewer triples than that loop later emits. Before 0220 the gate used per_repo_opted_in while
     # leg (c) used the strictly weaker gitignore_block_wanted, and a global agent_harnesses: list
     # omitting claude let a bad claude runner: reach leg (c)'s emit_wrapper unchecked.
+    if ! validate_runner_shim_values; then
+      log "check: runner shim-pin configuration is invalid — a real run would refuse to write wrappers."
+      exit 1
+    fi
     if ! validate_runner_config; then
       log "check: runner configuration is invalid — a real run would refuse to write wrappers."
       exit 1
@@ -1991,6 +2055,12 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
   # Gate 3 — see validate_runner_config. Must stay BELOW resolve_global_agent_harnesses (USER_TARGETS
   # needs the post-migration $GLOBAL_CFG) and ABOVE user_level_pass (the first mkdir -p or
   # emit_wrapper redirection past this point is already a partial generation).
+  # Same placement bound as Gate 3 directly below: ABOVE user_level_pass, because the first
+  # `mkdir -p` or emit_wrapper redirection past this point is already a partial generation.
+  if ! validate_runner_shim_values; then
+    log "ERROR runner shim-pin configuration is invalid — no wrappers were written."
+    exit 1
+  fi
   if ! validate_runner_config; then
     log "ERROR runner configuration is invalid — no wrappers were written."
     exit 1
