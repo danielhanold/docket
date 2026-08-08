@@ -53,22 +53,33 @@ n_files="$(scope_files | wc -l | tr -d ' ')"
 assert "the scan reaches at least $MIN_FILES in-scope files (it reached $n_files)" \
   '[ "$n_files" -ge "$MIN_FILES" ]'
 
-# Every `mv` invocation whose first argument is a double-quoted word. Two patterns, never one
-# combined alternation: column-0 `mv`, and `mv` preceded by any character that is not part of a
-# longer word or a trailing option cluster. They are disjoint, so no line is reported twice.
-hits_mv(){
+# Every `mv` invocation whose first argument is a double-quoted word, minus the allowances. Two
+# patterns, never one combined alternation: column-0 `mv`, and `mv` preceded by any character that
+# is not part of a longer word or a trailing option cluster. They are disjoint, so no line is
+# reported twice.
+#
+# ALLOWANCES MATCH CONTENT, NOT LOCATION. The allowance filters run BEFORE the `$f:` path prefix is
+# prepended, so only the source line itself can satisfy them. Prefixing first would let a *path*
+# decide the verdict: `[^|]*` spans `/` and `:`, so any checkout or filename containing `git` — a
+# repo cloned to ~/git, or docket's own gitignore-block library — would exempt every bare `mv` in
+# it, and the guard would evaporate for a whole tree. `grep -n` still leaves a `LINENO:` prefix on
+# the matched text, which carries no path and cannot bridge the allowance ERE.
+#
+# The `git`/`$GIT` allowance is keyed on the invocation shape actually present in the tree:
+# archive-change.sh spells its rename `$GIT -C "$WT" mv …`, so a literal `git mv` allowance would
+# never fire and the guard would redden on the carve-out. `git mv` is a different tool with
+# different prompting semantics, and `-f` there means force-overwrite a tracked target — a
+# semantics change, not a hardening. Its gap class excludes every shell command separator, not just
+# `|`: `$GIT rev-parse …; mv "$t" "$f"` is two commands on one line, and only the first is git.
+offenders_mv(){
   local f
   while IFS= read -r f; do
-    "$GREP" -nE '^mv "' "$f" | sed "s|^|$f:|"
-    "$GREP" -nE '[^-[:alnum:]]mv "' "$f" | sed "s|^|$f:|"
+    { "$GREP" -nE '^mv "' "$f"; "$GREP" -nE '[^-[:alnum:]]mv "' "$f"; } \
+      | "$GREP" -vE 'mv -f ' \
+      | "$GREP" -vE '(git|\$GIT)[^|;&]* mv ' \
+      | sed "s|^|$f:|"
   done < <(scope_files)
 }
-
-# An allowance keyed on the invocation shape actually present in the tree: archive-change.sh spells
-# its rename `$GIT -C "$WT" mv …`, so a literal `git mv` allowance would never fire and the guard
-# would redden on the carve-out. `git mv` is a different tool with different prompting semantics,
-# and `-f` there means force-overwrite a tracked target — a semantics change, not a hardening.
-offenders_mv(){ hits_mv | "$GREP" -vE 'mv -f ' | "$GREP" -vE '(git|\$GIT)[^|]* mv '; }
 
 bad_mv="$(offenders_mv)"
 assert "every mv that replaces a file passes -f, so it cannot prompt on a tty" \
