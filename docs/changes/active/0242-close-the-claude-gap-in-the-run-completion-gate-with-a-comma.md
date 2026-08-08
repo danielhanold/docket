@@ -11,7 +11,7 @@ depends_on: [237]
 related: [212, 237]
 discovered_from: [237]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-08-close-the-claude-gap-in-the-run-completion-gate-with-a-comma-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-08-close-the-claude-gap-in-the-run-completion-gate-with-a-comma-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-08-close-the-claude-gap-in-the-run-completion-gate-with-a-comma-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -52,29 +55,22 @@ family is about; only the command type qualifies.
 
 ## What changes
 
-To be settled at groom time. The shape is a command-type `Stop`/`SubagentStop` hook that shells
-`docket.sh verify-run` and exits 2 on `run-incomplete`.
+A Claude-specific adapter onto 0237's oracle: `scripts/claude-stop-hook.sh` (+ contract),
+registered for both `Stop` and `SubagentStop` as a command-type hook in user-level
+`~/.claude/settings.json` via the existing `ensure-docket-env.sh` install seam — one
+registration per machine, covering every docket repo on it, self-gating to a fast exit 0
+everywhere else. The hook attributes the stopping session to its run transcript-derivedly
+(harness-written evidence, with a `claimed_at`-epoch fallback via
+`verify-run --in-progress-ids --with-claimed-at`), shells `docket.sh verify-run <id>`, and on
+`run-incomplete` exits 2 — blocking the stop and feeding the unmet conjuncts back to the
+still-alive agent — at most once per session×change, then allows. Fail-open on any internal
+error. A blocking build-time spike re-probes the hook protocol and transcript format at the
+current Claude Code version. Full design in the linked spec.
 
 ## Out of scope
 
 - Re-deriving 0237's verdict logic. This wires to the existing oracle or it is not worth doing.
 - Any prompt-type hook.
-
-## Open questions
-
-- **Where does it get registered?** User-level `settings.json` (docket's existing
-  `ensure-docket-env.sh` seam, but fires on every turn end in every repo on the machine),
-  per-repo gitignored `settings.local.json` (scoped, but per-machine drift), or a committed
-  per-repo `.claude/settings.json` (travels with the repo, but registers a Claude-specific hook
-  in harness-neutral config and runs on every teammate's turn end without their opt-in).
-  The blast radius is the decision.
-- **How does the hook know the stopping session owns an incomplete run?** 0237's snapshot-diff
-  discriminator needs a before/after pair around a hand-off, which a Stop hook does not have.
-  Candidates: the `session_id` on stdin matched against something the run stamps, or a
-  presence-encoded run marker (with the `presence-encoded-state` removal obligation it brings).
-  Neither is designed.
-- **Livelock bound.** 0237's runner-side gate is capped at one re-dispatch. A Stop hook needs its
-  own cap, or a hard error wedges the session with no recourse but editing `settings.json`.
-- **Does this generalize?** If a second harness later exposes a comparable stop event, is there a
-  shared shape, or is each harness its own adapter — the question `runner-dispatch.sh` already
-  answered once for delegation.
+- Any second harness's stop event or shared stop-gate abstraction; any change to
+  `verify-run.sh` / `runner-dispatch.sh` / `board-checks.sh`; any metadata write by the hook;
+  any new config knob.
