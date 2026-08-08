@@ -1014,7 +1014,7 @@ noop_candidate_triple(){ return 0; }
 # The LAYER dimension stays unscoped on purpose: runner_key reads all three layers for a consumed
 # runner regardless of which layer opted the repo in, so any of them can supply the winning value.
 validate_runner_shim_values() {
-  local rc=0 f r k rblk blk raw
+  local rc=0 f r k rblk blk raw inline
   resolve_candidate_runners
   # Nothing delegates this run, so there is no runner dimension to iterate and nothing to judge.
   # Explicit rather than left to the inner `for r in $CANDIDATE_RUNNERS` no-op: with the `runners:`
@@ -1032,6 +1032,27 @@ validate_runner_shim_values() {
     rblk="$(section_body runners < "$f")"
     [ -n "$rblk" ] || continue
     for r in $CANDIDATE_RUNNERS; do
+      # FLOW STYLE IS REFUSED, NOT IGNORED (0269 whole-branch review, finding 6). section_body
+      # recognizes only a BARE `<runner>:` header, so `codex: { shim_model: haiku }` yields no
+      # block, no key, no gate hit and a silent fallback to inherit/low — the user configured a pin
+      # and nothing anywhere told them it was dropped. That style is not exotic: the `agents:`
+      # entries configured directly above it in the same file are written exactly that way.
+      # Refusing is deliberate over parsing it: reading flow style here would make this gate a
+      # SECOND reader of the block, disagreeing with the emitter's
+      # (LEARNINGS: duplicated-gate-copies-the-whole-predicate) — unifying the two `runners:`
+      # parsers is change #0256's scope, and a flow-map class belongs there if it belongs anywhere.
+      #
+      # The value tail comes from the SAME primitive the block reader uses, so there is one spelling
+      # of "the key line and its value": a bare header returns the empty string (rc 0), a runner
+      # absent from this layer returns rc 1, and only a non-empty tail is an offender. Scoped to
+      # CANDIDATE_RUNNERS with the rest of the gate — a flow-style block for a runner nothing
+      # delegates to is inert config, and hard-failing on it is the machine-wide refusal the
+      # scoping above exists to prevent.
+      if inline="$(runner_block_value "$r" <<<"$rblk")" && [ -n "$inline" ]; then
+        log "runners.$r must be a block mapping — write shim_model/shim_effort as indented lines under 'runners.$r:', not inline flow style ($f)"
+        rc=1
+        continue
+      fi
       blk="$(section_body "$r" <<<"$rblk")"
       [ -n "$blk" ] || continue
       for k in shim_model shim_effort; do
@@ -1043,18 +1064,25 @@ validate_runner_shim_values() {
           rc=1
           continue
         fi
-        case "$raw" in *[[:space:]]*)
+        # AN ALLOWLIST, NOT A LIST OF BAD SHAPES (0269 whole-branch review, finding 5). The earlier
+        # form named three rejected shapes — whitespace-bearing, leading-quote, and the empty case
+        # above — and passed everything else into the emitted `model:` pin VERBATIM while promising
+        # a bare scalar in its diagnostic. `>` and `|` (block-scalar indicators), `[a]` and `{m:x}`
+        # (flow collections), `*ref` and `&anchor` (alias and anchor) and a value quoted only on the
+        # RIGHT all survived it. A blocklist can only ever cover the shapes someone thought of
+        # (LEARNINGS: byte-pattern-guard-matches-a-spelling), so the test is inverted: the value
+        # must be spellable as the diagnostic's own remedy — unquoted and space-free.
+        #
+        # The class is deliberately WIDER than [A-Za-z0-9._-]: `/` and `:` are first-class in real
+        # model IDs (`anthropic/claude-opus-5`, `openrouter:vendor/model` — change 0173 made exactly
+        # that the rule for the child pin, and the shim pin takes an ID of the same shape), so
+        # narrowing to word characters would trade this fail-open for a fail-CLOSED on legitimate
+        # configuration. It still admits none of the YAML indicators above, and it covers `inherit`,
+        # `auto` and every effort word.
+        case "$raw" in *[!A-Za-z0-9._:/-]*)
           log "runners.$r.$k value '$raw' is not a bare scalar — write shim_model/shim_effort values unquoted and space-free ($f)"
           rc=1
           continue
-          ;;
-        esac
-        case "$raw" in '"'*|"'"*)
-          # The quote leg catches what the whitespace leg structurally CANNOT see: a quoted but
-          # space-free value has no embedded space, so the quotes would ride into the emitted pin
-          # verbatim while the diagnostic's own remedy text tells the user to write them unquoted.
-          log "runners.$r.$k value '$raw' is not a bare scalar — write shim_model/shim_effort values unquoted and space-free ($f)"
-          rc=1
           ;;
         esac
       done

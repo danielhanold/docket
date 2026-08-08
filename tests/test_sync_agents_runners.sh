@@ -250,6 +250,83 @@ assert "0269: the shim gate walks the resolved candidate set instead" \
 assert "0269: validate_runner_config judges the shared candidate-triple walk" \
   'grep -qF "for_each_candidate_triple check_triple_runner_config" "$SYNC"'
 
+# ---- change 0269 (whole-branch review, finding 5): the bare-scalar rule is an ALLOWLIST ---------
+# The predicate used to name three REJECTED shapes — empty, whitespace-bearing, leading quote — and
+# passed everything else through into the emitted `model:` pin VERBATIM, while its own diagnostic
+# promised a bare scalar. Every value below is a YAML shape that is not a bare scalar and that none
+# of those three legs can see: two block-scalar indicators, two flow collections, an alias, an
+# anchor, and a value quoted only on the RIGHT. Inverting the predicate into an allowlist is what
+# makes the rule the diagnostic's own remedy text rather than a list of the shapes someone thought
+# of (LEARNINGS: byte-pattern-guard-matches-a-spelling — a blocklist covers spellings, never the
+# property). Each must refuse the run, name the offender, and leave no wrapper behind.
+for bad in '>' '|' '[a]' '{m:x}' '*ref' '&anchor' 'haiku"'; do
+  mkgitrepo
+  mkdir -p "$SBX/.claude"
+  printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\nrunners:\n  codex:\n    shim_model: %s\n' "$bad" > "$SBX/.docket.yml"
+  err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"; rc=$?
+  assert "0269/F5: a non-bare-scalar shim_model '$bad' refuses the run" '[ "$rc" != "0" ]'
+  assert "0269/F5: ... naming runners.codex.shim_model ('$bad')" \
+    'grep -qF "runners.codex.shim_model" <<<"$err"'
+  assert "0269/F5: ... and writing no wrapper ('$bad')" \
+    '[ ! -f "$SBX/.claude/agents/docket-status.md" ]'
+  rm -rf "$SBX"
+done
+
+# THE PAIRED HALF, and it is not decorative: inverting a blocklist into an allowlist trades a
+# fail-open for a fail-CLOSED the moment the class is drawn too narrowly. The values below are the
+# ones real configs carry — the two documented defaults (.docket.example.yml ships `inherit` and
+# `low`), a full Claude model ID, and the provider-prefixed forms change 0173 made first-class for
+# the child pin, which carry `/` and `:`. Each must generate AND land verbatim in the frontmatter;
+# "the run succeeded" alone would not catch a value that was silently truncated on the way through.
+for good in inherit auto low claude-haiku-4-5-20251001 anthropic/claude-opus-5 openrouter:vendor/model; do
+  mkgitrepo
+  mkdir -p "$SBX/.claude"
+  printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\nrunners:\n  codex:\n    shim_model: %s\n' "$good" > "$SBX/.docket.yml"
+  ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 ); rc=$?
+  assert "0269/F5: a legitimate shim_model '$good' still generates" '[ "$rc" = "0" ]'
+  assert "0269/F5: ... and lands verbatim in the shim frontmatter ('$good')" \
+    '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "'"$good"'" ]'
+  rm -rf "$SBX"
+done
+
+# ---- change 0269 (whole-branch review, finding 6): a FLOW-STYLE runner block is REFUSED ---------
+# section_body recognizes only a bare `<runner>:` header, so `codex: { shim_model: haiku }` yielded
+# no block, no key, no gate hit and a silent fallback to inherit/low. That style is not exotic: the
+# `agents:` entries configured directly above it in the same file are written exactly that way.
+# Configured-but-never-applied with zero feedback is the defect class this change exists to remove,
+# so the gate refuses it rather than reading it — parsing flow style would be a second, divergent
+# reader of the same block (LEARNINGS: duplicated-gate-copies-the-whole-predicate).
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\nrunners:\n  codex: { shim_model: claude-haiku-4-5-20251001 }\n' > "$SBX/.docket.yml"
+err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"; rc=$?
+assert "0269/F6: a flow-style runners.codex block refuses the run" '[ "$rc" != "0" ]'
+assert "0269/F6: the diagnostic names the runner" 'grep -qF "runners.codex" <<<"$err"'
+assert "0269/F6: the diagnostic says a block mapping is required" 'grep -qiF "block mapping" <<<"$err"'
+assert "0269/F6: a refused run writes NO wrapper" '[ ! -f "$SBX/.claude/agents/docket-status.md" ]'
+# NON-VACUITY: the SAME pin, same fixture, written as a block mapping must generate and land — so
+# the refusal above is attributable to the style and not to anything else in the fixture.
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\nrunners:\n  codex:\n    shim_model: claude-haiku-4-5-20251001\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 ); rc=$?
+assert "0269/F6: the same pin in BLOCK form still generates" '[ "$rc" = "0" ]'
+assert "0269/F6: ... and lands in the shim frontmatter" \
+  '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ]'
+rm -rf "$SBX"
+
+# SCOPED exactly like every other leg of this gate — the flow-style refusal stays inside the
+# candidate-runner scoping the fix above established, or one flow-style block in a machine's global
+# config would refuse `sync-agents.sh` in every repo that never delegates to that runner.
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\nrunners:\n  cursor: { shim_model: haiku }\n' > "$SBX/.docket.yml"
+err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"; rc=$?
+assert "0269/F6: a flow-style block on an UNREFERENCED runner does not refuse the run" '[ "$rc" = "0" ]'
+assert "0269/F6: ... and the gate says nothing about that runner" \
+  '! grep -qF "runners.cursor" <<<"$err"'
+assert "0269/F6: fixture sanity — the run really did generate the codex shim" \
+  'grep -qF -- "--runner codex" "$SBX/.claude/agents/docket-status.md"'
+rm -rf "$SBX"
+
 # ---- change 0206: build-* shims bake --worktree as a required slot -------------------
 # BIDIRECTIONAL by construction (LEARNINGS: correspondence-guard-runs-one-way). This is a MIRROR
 # correspondence, not a subset: build-* shims must carry the flag AND non-build shims must not, so
