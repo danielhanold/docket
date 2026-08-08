@@ -38,7 +38,8 @@ agents:                                 # harness-first: reserved `default:` + h
   claude:                               # runner: delegates the whole run to a child harness
     status: { model: gpt-5.1-codex, runner: codex }   # (change 0079; see below)
   # Write model/effort values unquoted and space-free; `#` cannot appear inside the `{…}` flow map
-  # — comments are stripped before parsing, so an in-map `#` truncates the value.
+  # — docket strips comments before parsing, so an in-map `#` truncates the value. Both validators
+  # refuse it rather than shipping a clipped pin.
   # Resolution is field-by-field, first non-empty wins: agents.<harness>.<agent> -> agents.default.<agent> -> that harness's shipped built-in (agents/harness-defaults.yml).
   # effort: auto explicitly drops the effort line (inherit the model default); omitting the
   # effort: key instead keeps the built-in effort — auto and omitted are NOT equivalent.
