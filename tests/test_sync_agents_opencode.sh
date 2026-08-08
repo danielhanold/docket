@@ -75,4 +75,32 @@ printf 'agent_harnesses: [claude]\n' > "$R2/.docket.yml"
 assert "block stripped when no AGENTS.md-dispatch harness is targeted" \
   '! grep -q "docket:dispatch:start" "$R2/AGENTS.md" 2>/dev/null'
 
+# --- two AGENTS.md-dispatch harnesses share ONE block (change 0245) ----------
+# The discriminating fixture: every existing fixture above configures exactly ONE dispatch harness,
+# and a single-owner fixture produces identical output under "is opencode listed" and "is ANY
+# dispatch harness listed" — so a suite of them is green against code that never learned to share
+# (learnings: shared-resource-keeps-first-owner-assumptions).
+R3="$WORK/repo3"; mkdir -p "$R3"; git -C "$R3" init -q 2>/dev/null || true
+printf 'agent_harnesses: [codex, opencode]\n' > "$R3/.docket.yml"
+( cd "$R3" && DOCKET_HARNESS_ROOT="$WORK/home3" bash "$REPO/sync-agents.sh" >/dev/null 2>&1 ) || true
+A3="$R3/AGENTS.md"
+assert "two dispatch harnesses get the block EXACTLY once" \
+  '[ "$(grep -c "docket:dispatch:start" "$A3")" = "1" ]'
+assert "two dispatch harnesses: exactly one closing marker" \
+  '[ "$(grep -c "docket:dispatch:end" "$A3")" = "1" ]'
+assert "two dispatch harnesses: the block still lists every wrapper source once" \
+  '[ "$(grep -c "^- \*\*docket-" "$A3")" = "16" ]'
+
+# De-list ONE of the two: the block must SURVIVE. This is the assert no single-owner fixture reaches.
+printf 'agent_harnesses: [opencode]\n' > "$R3/.docket.yml"
+( cd "$R3" && DOCKET_HARNESS_ROOT="$WORK/home3" bash "$REPO/sync-agents.sh" >/dev/null 2>&1 ) || true
+assert "de-listing codex leaves the block in place (opencode still targets it)" \
+  'grep -q "docket:dispatch:start" "$A3"'
+
+# De-list the LAST one: now it goes.
+printf 'agent_harnesses: [claude]\n' > "$R3/.docket.yml"
+( cd "$R3" && DOCKET_HARNESS_ROOT="$WORK/home3" bash "$REPO/sync-agents.sh" >/dev/null 2>&1 ) || true
+assert "de-listing the LAST dispatch harness strips the block" \
+  '! grep -q "docket:dispatch:start" "$A3" 2>/dev/null'
+
 echo "---"; [ "$fail" = "0" ] && echo "ALL PASS" || echo "FAILURES"; exit $fail

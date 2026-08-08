@@ -49,9 +49,11 @@ own `agent_harnesses` doesn't call for. Making per-repo targeting come from the 
 committed (or machine-local) config keeps the committed artifact deterministic across every
 clone. Global `agent_harnesses` is therefore scoped to the user-level pass only.
 
-> Note: when Codex is de-listed from an opted-in repo, `sync-agents.sh` **removes** the
-> `AGENTS.md` dispatch block (and prints a one-time commit notice). Your own `AGENTS.md`
-> content outside the docket markers is preserved untouched.
+> Note: because the block is shared with opencode, it is removed only when the **last**
+> `AGENTS.md`-dispatch harness is de-listed. De-listing Codex from a repo that still targets
+> opencode (or the reverse) leaves the block in place, correctly; de-listing the last one removes
+> it and prints a one-time commit notice. Your own `AGENTS.md` content outside the docket markers
+> is preserved untouched.
 
 ## Pinning models and effort
 
