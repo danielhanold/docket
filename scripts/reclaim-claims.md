@@ -62,8 +62,10 @@ without a network round-trip, and is the documented, accepted cost of staying gi
 
 ## Behavior
 
-The script sources `lib/docket-frontmatter.sh` (`field`, `int_field`, `iso_to_epoch`) and
-walks `active/*.md` in sorted glob order. A change is **reclaimable** iff ALL of:
+The script sources `lib/docket-frontmatter.sh` (`field`, `fm_field`, `int_field`, `iso_to_epoch`) and
+walks `active/*.md` in sorted glob order. The optional `claimed_at:` and `branch:` reads below use
+the **anchored** `fm_field` — either key may be absent, and an unanchored read would return body
+prose instead (the selection rule lives in the `scripts/lib/docket-frontmatter.sh` header). A change is **reclaimable** iff ALL of:
 
 1. `status: in-progress`.
 2. `claimed_at:` is present **and** `NOW - iso_to_epoch(claimed_at) > lease_ttl_hours*3600`.
