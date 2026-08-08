@@ -28,6 +28,15 @@ subagent, and never load a review skill.
   record of what you finished; nothing reads the marks.
 - Repository instructions — `AGENTS.md`, `CLAUDE.md`, and any nested equivalents — **override**
   this generic contract wherever they conflict. Read them before you write code.
+- **Stage by explicit path — only paths your task changed.** Never `git add -A`, `git add .`, or
+  `git commit -a`: the worktree is shared, and a sweep puts work that is not yours into your
+  commit. What your task changed is defined by the **task contract, not** by diffing `git status`:
+  a derived file your task's own command regenerates is yours to stage, while a dirty path you
+  cannot attribute to your task is not — leave it in place and name it in `NOTES`. If you were
+  dispatched as an escalated worker, an inherited path you revised, replaced, or deliberately kept
+  within the task's scope is one of your task's paths and is staged normally; an inherited path
+  outside the task boundary is accounted for but not staged, taking the same leave-and-report
+  posture.
 - If you were dispatched as an **escalated** worker, the worktree may already hold uncommitted
   changes from the weaker worker's attempt. Inspect and account for every one of them. You may
   revise or replace them, but never discard them blindly and never `git checkout .` over them.
@@ -47,6 +56,14 @@ Where a meaningful behavioral test is possible:
 4. Re-run the focused test set. Focused, not the whole suite: the controller runs the full suite
    once after every task.
 5. Self-review the diff, then commit.
+
+When the narrowest honest verification is still a run that may outlast a single foreground call —
+on this repo, often the full suite — run it under the capabilities in
+[`../docket-build/references/gate-execution.md`](../docket-build/references/gate-execution.md), and
+read that file before you start such a run. You are a dispatched worker with no resumption channel:
+**never yield to await the run.** Observe it by blocking — short foreground reads of the durable
+result — keep the observation **finite**, and treat a run still unfinished when you stop observing
+as **not green**: report it unverified and fail closed, never infer success.
 
 Two obligations the cycle does not relax:
 

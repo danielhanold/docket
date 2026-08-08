@@ -801,6 +801,24 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # the claim commit itself. A rule parked in a rare-edges reference is unread precisely when it must
 # intervene (the same argument the 0113 and 0137 entries above record). Measured 4467 words -> 4500
 # (33 words of margin, above the 25-word threshold). The LINE budget was NOT raised.
+# skills/docket-build-task/SKILL.md's budget was raised 130/1150 -> 145/1350 by change 0249, which
+# added two normative clauses to the worker contract: a pointer in ## The cycle to the gate's
+# execution capabilities plus the worker-shaped consequence inline (never yield, observe by
+# blocking, finite observation, unfinished is not green), and a ## Scope bullet requiring staging by
+# explicit path with its escalation carve-out.
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above: skills/docket-build-task/ has NO
+# references/ tree, so the only candidate home is one that would have to be created, and creating it
+# is wrong here for the reason the 0212 and 0231 entries above already record for this same file —
+# the body reaches a worker's context by wrapper preload (agents/docket-build-*.md carry
+# skills: [docket-build-task]), and a rule that must bind a worker at the moment it is about to
+# stage or about to yield cannot sit in a file the wrapper does not preload. The other candidate,
+# skills/docket-build/references/gate-execution.md, is where the pointer POINTS and already holds
+# everything extractable: it states the harness capabilities, not the worker's conduct, so the
+# never-yield / finite-observation / fail-closed consequence has no home there. Set per the rounding
+# rule above from the measured actuals: 139 lines -> the next multiple of 5 is 140, which leaves ONE
+# line — the near-zero mode this block's 0102 and 0137 entries exist to forbid — so the multiple
+# after: 145. 1319 words -> the next multiple of 50 is 1350, a 31-word margin, above the 25-word
+# threshold, so 1350 stands.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -810,7 +828,7 @@ skills/docket-build/SKILL.md                               335 3150
 skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            120 1000
 skills/docket-build/references/task-routing.md              50  500
-skills/docket-build-task/SKILL.md                          130 1150
+skills/docket-build-task/SKILL.md                          145 1350
 skills/docket-convention/SKILL.md                          345 6000
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         190 2150
