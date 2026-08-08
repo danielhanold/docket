@@ -2,9 +2,9 @@
 slug: shell-portability
 hook: "Treat awk whitespace classes, --leading grep patterns, and symlinked temp paths as suspect — and test each on both GNU and BSD."
 topics: [shell, grep, awk]
-changes: [25, 38, 46, 71, 117, 186, 250]
+changes: [25, 38, 46, 71, 117, 186, 250, 255]
 created: 2026-06-19
-updated: 2026-08-07
+updated: 2026-08-08
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -72,3 +72,11 @@ not prompt.
   Rule: **any grep pattern containing a shell-ish `$` must be fixed-string (`-F`)**, and a
   verification command that returns 0 is not evidence until you have proven the pattern can match
   anything at all.
+- 2026-08-08 (#255, PR #182) — Two awk traps, both of which cost real build time and neither of
+  which looks like a logic bug. (a) **No literal apostrophe may appear anywhere inside an awk
+  program embedded in a single-quoted shell word — comments included.** One was introduced during a
+  fix; the shell word truncated silently, `bash -n` still **passed**, and the failure surfaced only
+  when the file was sourced. Write `\047` / `\042` instead. (b) **macOS ships BWK awk, where
+  `close` is a builtin and cannot be used as a parameter name.** It is a parse error that surfaces
+  only at runtime and makes every awk-path assert fail simultaneously, which reads as a broad
+  logic regression rather than a naming collision. Both are invisible to a GNU-awk-only check.

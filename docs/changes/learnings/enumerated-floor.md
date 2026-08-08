@@ -2,9 +2,9 @@
 slug: enumerated-floor
 hook: "Every hand-written enumeration is a floor, not the set — derive the sites from a whole-repo grep, then treat that grep as a floor too."
 topics: [process, inventory, review]
-changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 78, 84, 96, 98, 99, 167, 184]
+changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 78, 84, 96, 98, 99, 167, 184, 255]
 created: 2026-06-12
-updated: 2026-08-05
+updated: 2026-08-08
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -130,3 +130,15 @@ enumerated.
   anchor-rationale comment. That is the case for the whole-tree form stated as cheaply as it gets:
   no per-file assert can see a surface nobody thought to list. The guard's polarity is the load-
   bearing detail — it forbids the OLD names rather than confirming the new ones ([[assert-detects-removal-not-replacement]]).
+- 2026-08-08 (#255, PR #182) — **The inventory was complete for every site that LOOKED like the
+  pattern.** The spec enumerated the two validators needing ADR-0065's quote leg (`hd_validate`,
+  `validate_user_agent_values`), both recognizable as a `field`/`field_raw` reader pair. A third
+  existed: `validate_harness_defaults` in `sync-agents.sh`, which short-circuits to `hd_validate`
+  only on Bash < 4 — so on Bash 4+ (the default, and both call sites) a single awk program inlining
+  both readings runs instead, carrying the same whitespace-only `consumed != raw` test. It was the
+  site that mattered most: a quoted pin passed and shipped on the **primary execution path** with
+  the entire suite green. Nothing keyword-searchable distinguished it, because it has no
+  `field`/`field_raw` functions to grep for — only a semantic whole-branch read found it. The
+  durable form of the fix was not a better grep but ADR-0076: state the rule so it binds by **role**
+  (any code judging whether a config value is consumable) rather than by reader **shape**, the same
+  move #99 made when it replaced a drifting roster with a scoping property.

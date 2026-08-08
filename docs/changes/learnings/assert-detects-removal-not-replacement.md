@@ -2,9 +2,9 @@
 slug: assert-detects-removal-not-replacement
 hook: "A guard written to CONFIRM the wording you just introduced detects nothing — write the assert that DETECTS the state you just removed, and prove the mutation actually landed before believing it passed."
 topics: [testing, guards, mutation]
-changes: [135, 167, 193, 226]
+changes: [135, 167, 193, 226, 255]
 created: 2026-07-28
-updated: 2026-08-07
+updated: 2026-08-08
 promotion_state: candidate
 promoted_to:
 ---
@@ -85,3 +85,16 @@ sentinel does and does not pin).
   is a **common noun or a bare identifier** rather than a verbatim slice of the claim — such a term
   is almost always present for reasons unrelated to the property, so the guard is satisfied before
   the change it demands is even written.
+- 2026-08-08 (#255, PR #182) — Both faces of this finding in one change, plus its corollary.
+  (1) The `#`-leg fire probe used `{ model: c#5, effort: low }`, which strips to an *unterminated*
+  map — so `effort` read as missing and the validator returned 1 **before** the change too. The
+  assert was green for a reason unrelated to the leg it existed to prove; the discriminating input
+  is `{ model: claude-opus-5, effort: lo#w }`, where both fields stay readable post-strip and rc
+  genuinely flips 0 → 1. (2) All five documentation sentinels grepped for `unquoted and space-free`,
+  which **already existed** — the clause this change actually added (`#` cannot appear inside the
+  flow map) was unguarded at every one of the five sites, and deleting it from all five files left
+  the suite green: the textbook confirm-the-old-wording assert. (3) The corollary bit as well: the
+  plan's mutation-landing check `grep -c "case \"$raw\" in"` ran through PATH `grep` (ugrep), which
+  reads the `$` as an anchor and returns **0 on an unmutated file** — indistinguishable from a
+  landed mutation, which would have made every mutation test in the change a false green. All
+  landing checks moved to `/usr/bin/grep -cF`.
