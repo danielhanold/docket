@@ -1,6 +1,6 @@
 # Backlog
 
-**272 changes** — 🟢 2 in progress · 🟡 31 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 162 done · 🗑️ 72 killed
+**273 changes** — 🟢 2 in progress · 🟡 32 proposed · ⚪ 4 deferred · ✅ 163 done · 🗑️ 72 killed
 
 ## 🟢 In progress (2)
 
@@ -9,7 +9,7 @@
 | [0258](active/0258-guard-the-config-suite-s-enumerated-claims-export-order-and.md) | Guard the config-suite's enumerated claims: export order and rung pairs | `medium` | `chore` | [spec](../superpowers/specs/2026-08-07-guard-the-config-suite-s-enumerated-claims-export-order-and-design.md) | `feat/guard-the-config-suite-s-enumerated-claims-export-order-and` |
 | [0269](active/0269-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child.md) | Decouple the shim wrapper's own pin from the delegated child's | `high` | `fix` | [spec](../superpowers/specs/2026-08-08-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child-design.md) | `feat/decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child` |
 
-## 🟡 Proposed (31)
+## 🟡 Proposed (32)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -44,6 +44,7 @@
 | [0270](active/0270-machine-local-runner-config-is-unreachable-from-a-feature-wo.md) | Machine-local runner config is unreachable from a feature worktree (opencode permissions locality) | `medium` | `fix` | needs-brainstorm |
 | [0271](active/0271-runner-delegation-has-no-execution-posture-for-a-child-that.md) | Runner delegation has no execution posture for a child that outlives its foreground call | `high` | `fix` | ⏳ waiting on #269 — not yet built |
 | [0272](active/0272-de-duplicate-the-gitignore-block-writer-s-second-copy-of-the.md) | De-duplicate the gitignore-block writer's second copy of the write orchestration | `medium` | `fix` | needs-brainstorm |
+| [0273](active/0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md) | Put runtime budgets on a host-relative basis and re-seed the table | `medium` | `refactor` | ⏳ waiting on #251 — not yet built |
 
 ## ⚪ Deferred (4)
 
@@ -53,12 +54,6 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0242](active/0242-close-the-claude-gap-in-the-run-completion-gate-with-a-comma.md) | Close the Claude gap in the run-completion gate with a caller-side verify in the dispatch rules | `high` | `feat` | [#186](https://github.com/danielhanold/docket/pull/186) |  |
 
 ```mermaid
 graph TD
@@ -78,7 +73,6 @@ graph TD
   0237 --> 0208
   0221
   0211 --> 0222
-  0237 --> 0242
   0247
   0248
   0251
@@ -100,13 +94,14 @@ graph TD
   0270
   0269 --> 0271
   0272
+  0251 --> 0273
   0192:::done
   0211:::done
   0237:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (234)</summary>
+<details><summary>✅🗑️ Archive — done + killed (235)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -118,6 +113,7 @@ graph TD
 | [0246](archive/2026-08-08-0246-make-the-docket-example-yml-guard-suite-bite.md) | Make the docket-example-yml guard suite bite | 2026-08-08 |
 | [0245](archive/2026-08-08-0245-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md) | Harden sync-agents wrapper generation and clear the 0192 findings | 2026-08-08 |
 | [0244](archive/2026-08-08-0244-one-selection-rule-for-the-four-frontmatter-read-shapes.md) | One selection rule for the four frontmatter read shapes | 2026-08-08 |
+| [0242](archive/2026-08-08-0242-close-the-claude-gap-in-the-run-completion-gate-with-a-comma.md) | Close the Claude gap in the run-completion gate with a caller-side verify in the dispatch rules | 2026-08-08 |
 | [0237](archive/2026-08-08-0237-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md) | Prose levers fail to hold the step boundary — give the disposition contract a consumer | 2026-08-08 |
 | [0200](archive/2026-08-08-0200-clear-the-unfixed-review-findings-from-change-0191.md) | Board-checks hardening — sanitize LF escape, capture-shape mutation, minor-finding clearance | 2026-08-08 |
 | [0140](archive/2026-08-08-0140-normalize-the-inherit-model-sentinel-once-for-every-runner-a.md) | Normalize the inherit model sentinel once for every runner adapter | 2026-08-08 |
@@ -134,7 +130,6 @@ graph TD
 | [0231](archive/2026-08-07-0231-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla.md) | A presumed-dead build worker can wake and race its own replacement in one worktree | 2026-08-07 |
 | [0230](archive/2026-08-07-0230-a-self-scanning-population-floor-pins-test-docket-config-sh.md) | a self-scanning population floor pins test_docket_config.sh's size and blocks sharding | 2026-08-07 |
 | [0229](archive/2026-08-07-0229-the-runner-s-budget-slack-factor-is-a-hardware-dependent-con.md) | the runner's budget slack factor is a hardware-dependent constant | 2026-08-07 |
-| [0228](archive/2026-08-07-0228-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator.md) | finalize's auto-detect suite loop has no failure accumulator, so a mid-suite red merges | 2026-08-07 |
 | [0225](archive/2026-08-07-0225-the-test-suite-has-grown-into-the-harness-s-foreground-ceilin.md) | The test suite has grown into the harness's foreground ceiling — cut its wall-clock runtime | 2026-08-07 |
 | [0204](archive/2026-08-07-0204-restore-rationale-dropped-by-round-three-compression-finaliz.md) | Restore dropped doc rationale (compression losses) and complete AGENTS.md's frontmatter-edit rule | 2026-08-07 |
 | [0199](archive/2026-08-07-0199-harden-the-role-self-description-guard-co-occurrence-gap-har.md) | Harden the role-self-description guard — co-occurrence gap, hardcoded population, broad default matcher | 2026-08-07 |
@@ -202,7 +197,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 29 done |
+| [2026-08](archive/) | 30 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
