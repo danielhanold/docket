@@ -896,19 +896,28 @@ assert "0249: the cycle points at docket-build/references/gate-execution.md" \
 assert "0249: the cycle forbids yielding to await the run" \
   'grep -qiE "\b(never|do not)\b[^.]{0,60}yield to await" <<<"$worker_cycle_flat"'
 
-# (1c) Fail-closed, bound to its subject with ONE gap: it is the UNFINISHED run that is not green.
+# (1c) The observation is BOUNDED. "never yield" plus "observe by blocking" without this clause
+# converts the measured yield-and-stall failure into an unbounded silent block — the reference file
+# states harness capabilities, not agent conduct, so nothing else in the pointer supplies the bound.
+# A rewrite that deletes "keep the observation **finite**" leaves every other 0249 assert green, so
+# this one is what detects its removal. One bounded gap spans the markdown emphasis on "finite" and
+# binds it to the imperative, not to a bare mention of observing.
+assert "0249: the cycle bounds the blocking observation as finite" \
+  'grep -qiE "keep the observation[^.]{0,40}finite" <<<"$worker_cycle_flat"'
+
+# (1d) Fail-closed, bound to its subject with ONE gap: it is the UNFINISHED run that is not green.
 # A bare presence grep for "not green" survives a rewrite that keeps the words and drops the rule.
 assert "0249: an unfinished run at the observation bound is not green" \
   'grep -qiE "unfinished[^.]{0,80}not green" <<<"$worker_cycle_flat"'
 
-# (1d) ...and fail-closed names the OUTCOME to return. "## Outcomes" enumerates exactly three, and
+# (1e) ...and fail-closed names the OUTCOME to return. "## Outcomes" enumerates exactly three, and
 # the controller halts on a NEEDS_ESCALATION carrying no capacity reason — so a clause that says
 # what not to claim without saying what to return leaves the malformed escalation as the likely
 # worker move. One bounded gap binds the failure posture to the outcome literal.
 assert "0249: failing closed on an unfinished run returns BLOCKED" \
   'grep -qiE "fail closed[^.]{0,60}BLOCKED" <<<"$worker_cycle_flat"'
 
-# (1e) The pointer's trigger is reconciled with step 4, whose rule is focused-not-the-whole-suite:
+# (1f) The pointer's trigger is reconciled with step 4, whose rule is focused-not-the-whole-suite:
 # the long run it addresses is the FOCUSED set, not a licence to run the suite. The clause also has
 # to stay repo-neutral — this contract body ships into consuming repos, whose own instructions
 # override it, so a hardcoded claim about docket's suite is false there. One bounded gap binds the
