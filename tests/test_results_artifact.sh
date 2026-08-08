@@ -42,6 +42,22 @@ assert "status health check covers results: link (owned by scripts/board-checks.
 assert "finalize mentions appending to the results file" \
   'grep -q "append interactive-verification" skills/docket-finalize-change/SKILL.md'
 
+# 5b. The merged-artifact freeze clause (change 0200). It is normative prose on the always-loaded
+# Step-0 surface and nothing else pins it, so a slim or a size-budget squeeze could delete it
+# silently. Owned here because this file owns the results-artifact convention end-to-end — its
+# field, its template, and its close-out/finalize lifecycle; the freeze rule IS that lifecycle's
+# terminal state. (test_artifact_backlink_coverage.sh is a producer-coverage sentinel over which
+# skills invoke the renderer, not a statement about what merged artifacts may become.)
+# The clause is wrapped prose, so collapse whitespace to one line first — otherwise a pure re-flow
+# reddens the assert. Each slice binds the phrase to the claim it makes, not to a bare noun.
+CONV_FLAT="$(tr '\n' ' ' < skills/docket-convention/SKILL.md | tr -s ' ')"
+assert "convention freezes merged plans + results against hand-editing" \
+  'grep -qF -- "**Merged plans and results are frozen build records.** Once a change'"'"'s PR merges, its \`plan:\` and \`results:\` files are never hand-edited again" <<<"$CONV_FLAT"'
+assert "freeze clause carves out only the generated backlink re-stamp" \
+  'grep -qF -- "The one writer allowed to touch them afterward is \`render-artifact-backlink.sh\`, re-stamping the generated \`docket:backlink\` block at terminal publish; authored content never changes." <<<"$CONV_FLAT"'
+assert "freeze clause routes corrections into a new change" \
+  'grep -qF -- "Corrections go in a new change, never in the merged artifact." <<<"$CONV_FLAT"'
+
 # 6. Design spec + README reconciled.
 assert "design spec has results-artifact decision" \
   'grep -qi "results artifact" docs/superpowers/specs/2026-05-30-docket-design.md'
