@@ -180,8 +180,10 @@ reconciled: false         # set true after the just-in-time reconcile pass
 ```
 
 **Merged plans and results are frozen build records.** Once a change's PR merges, its `plan:` and
-`results:` files are never edited again — not to correct a stale line reference, not to update a
-superseded instruction. They record what a build was *told* to do at the time it ran, which is the
+`results:` files are never hand-edited again — not to correct a stale line reference, not to update a
+superseded instruction. The one writer allowed to touch them afterward is `render-artifact-backlink.sh`,
+re-stamping the generated `docket:backlink` block at terminal publish; authored content never changes.
+They record what a build was *told* to do at the time it ran, which is the
 only thing that makes a completed run auditable; editing one destroys that record while silently
 changing what a re-read of the artifact would say the build was asked for. Corrections go in a new
 change, never in the merged artifact.
