@@ -91,7 +91,7 @@ title: Golf feature
 status: blocked
 priority: medium
 depends_on: []
-blocked_by: upstream API frozen until Q3
+blocked_by: PR #69 is stale, predating the rework
 EOF
 cat > "$tmp/active/0008-hotel.md" <<'EOF'
 ---
@@ -182,7 +182,7 @@ cat > "$golden" <<'EOF'
 
 | # | Title | Priority | Type | Blocked by |
 |---|-------|----------|------|------------|
-| [0007](active/0007-golf.md) | Golf feature | `medium` | `untyped` | upstream API frozen until Q3 |
+| [0007](active/0007-golf.md) | Golf feature | `medium` | `untyped` | PR #69 is stale, predating the rework |
 
 ## ⚪ Deferred (1)
 

@@ -2005,7 +2005,7 @@ title: Waiting thing
 status: blocked
 priority: high
 depends_on: []
-blocked_by: needs decision from platform team on auth flow
+blocked_by: PR #69 is stale, predating the auth-flow rework
 EOF
 cat > "$judg_dir/docs/changes/active/0013-not-blocked.md" <<'EOF'
 ---
@@ -2021,7 +2021,7 @@ judg_out="$( cd "$judg_dir" && \
   DOCKET_MODE=main CHANGES_DIR=docs/changes \
   bash -c '. "'"$SCRIPT"'"; emit_judgment' )"
 assert "emit_judgment: blocked change emits judgment line with id and blocked_by text" \
-  'printf "%s\n" "$judg_out" | grep -qF "judgment blocked 12 needs decision from platform team on auth flow"'
+  'printf "%s\n" "$judg_out" | grep -qF "judgment blocked 12 PR #69 is stale, predating the auth-flow rework"'
 assert "emit_judgment: non-blocked change emits nothing" \
   '! printf "%s\n" "$judg_out" | grep -q " 13 "'
 
