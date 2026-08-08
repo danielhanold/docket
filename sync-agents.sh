@@ -289,20 +289,46 @@ repo_wants_claude_surface(){ case " $HARNESSES " in *" claude "*) return 0;; *) 
 # exists to serve. The walk is bounded so a symlink cycle cannot hang the sync; a cycle exits the
 # loop still pointing at a link, which is the honest answer for a path that has no physical form.
 resolve_physical_path(){  # $1 = path
-  local p="$1" d b t n=0
+  local p="$1" d b t nd n=0
   d="$(dirname -- "$p")"; b="$(basename -- "$p")"
   d="$(cd "$d" 2>/dev/null && pwd -P)" || { printf '%s\n' "$p"; return 0; }
   while [ -L "$d/$b" ] && [ "$n" -lt 32 ]; do
     t="$(readlink "$d/$b")"
     [ -n "$t" ] || break
+    # Land the hop in a SCRATCH variable, never in `d` itself: `d="$(failing-substitution)" || break`
+    # assigns the failed command's empty output BEFORE the break is taken, and an empty `d` prints
+    # as `/<basename>` — a path at the filesystem ROOT that the write pass would go on to act on.
+    # A hop can fail on any dangling link whose parent directory is missing or unreadable (a
+    # committed link to a path outside the checkout, a dotfiles target absent on this machine, an
+    # unmounted volume), and a dangling link reaches here because it is `-L` and so is never
+    # replaced by claude_surface_target. Falling back to the last resolvable value keeps the answer
+    # inside the tree we were walking.
     case "$t" in
-      /*) d="$(cd "$(dirname -- "$t")" 2>/dev/null && pwd -P)" || break ;;
-      *)  d="$(cd "$d/$(dirname -- "$t")" 2>/dev/null && pwd -P)" || break ;;
+      /*) nd="$(cd "$(dirname -- "$t")" 2>/dev/null && pwd -P)" || break ;;
+      *)  nd="$(cd "$d/$(dirname -- "$t")" 2>/dev/null && pwd -P)" || break ;;
     esac
+    d="$nd"
     b="$(basename -- "$t")"
     n=$((n+1))
   done
   printf '%s/%s\n' "$d" "$b"
+}
+
+# Print this repository's own PHYSICAL root — the containment yardstick below. $REPO is $PWD, which
+# is LOGICAL, so it must be canonicalised exactly the way resolve_physical_path canonicalises the
+# directories it walks; otherwise a checkout reached through a symlinked parent (macOS's
+# /tmp -> /private/tmp, a symlinked worktree root) fails its own containment test and docket would
+# refuse to write the surfaces it does own.
+repo_physical_root(){ ( cd "$REPO" 2>/dev/null && pwd -P ) || printf '%s\n' "$REPO"; }
+
+# True when a RESOLVED physical path lies inside the repository. Both dispatch-surface passes gate
+# on this, and both evaluate it on the very path they hand to the block helpers — never on a
+# pre-resolution spelling (LEARNINGS decide-and-act-on-the-same-copy). AGENTS.md and CLAUDE.md are
+# ordinary files a user may symlink anywhere: to a shared instructions file in a sibling checkout,
+# to ~/dotfiles, to a mount. Docket owns the block only inside the checkout it was run in, so a
+# surface that resolves elsewhere is neither written into nor stripped.
+path_inside_repo(){  # $1 = resolved physical path ; $2 = physical repo root
+  case "$1" in "$2"/*) return 0;; *) return 1;; esac
 }
 
 # Print the physical file the Claude block must be written into, creating the surface when absent.
@@ -1371,12 +1397,18 @@ HEAD
 # The strip pass only ever removes; `remove_managed_block` no-ops on a file with no block, so a
 # surface docket does not own is read and left exactly as it was.
 sync_dispatch_surfaces(){
-  local block targets="" seen="" f phys status
+  local block targets="" seen="" f phys status root
   block="$(assemble_agents_md_dispatch)"
+  root="$(repo_physical_root)"
 
   if repo_wants_agents_md_dispatch; then targets="$REPO/AGENTS.md"; fi
   if repo_wants_claude_surface; then
-    f="$(claude_surface_target)" && [ -n "$f" ] && targets="$targets${targets:+$'\n'}$f"
+    # claude_surface_target is called for its SIDE EFFECT — creating the surface when absent — and
+    # its resolved answer is discarded in favour of the literal spelling, which the loop below
+    # resolves identically (resolution is idempotent). Two reasons: the diagnostics then name the
+    # file the user actually has rather than printing "X resolves to X", and the target list becomes
+    # the same pair of literals the --check twin walks.
+    claude_surface_target >/dev/null && targets="$targets${targets:+$'\n'}$REPO/CLAUDE.md"
   fi
 
   # Write pass — deduped by physical path.
@@ -1385,7 +1417,13 @@ sync_dispatch_surfaces(){
       [ -n "$f" ] || continue
       phys="$(resolve_physical_path "$f")"
       case "$seen" in *"|$phys|"*) continue;; esac
+      # `seen` records every DECIDED path, refusals included, so a refusal warns once and the strip
+      # pass below does not revisit — let alone strip — a surface this pass declined to write.
       seen="$seen|$phys|"
+      if ! path_inside_repo "$phys" "$root"; then
+        log "WARN $f resolves to $phys, outside this repository ($root) — SKIPPED: docket writes its dispatch block only inside the checkout it was run in. Repoint or remove that symlink to get the block."
+        continue
+      fi
       status="$(ensure_managed_block "$phys" "$DISPATCH_START" "$DISPATCH_END" "$block")"
       case "$status" in
         wrote)   log "wrote/updated the docket dispatch block in $phys — COMMIT THIS (machine-neutral; no model IDs).";;
@@ -1400,6 +1438,11 @@ sync_dispatch_surfaces(){
     [ -e "$f" ] || continue
     phys="$(resolve_physical_path "$f")"
     case "$seen" in *"|$phys|"*) continue;; esac
+    seen="$seen|$phys|"
+    if ! path_inside_repo "$phys" "$root"; then
+      log "WARN $f resolves to $phys, outside this repository ($root) — SKIPPED: docket strips its dispatch block only inside the checkout it was run in. Remove the block by hand if that file should not carry one."
+      continue
+    fi
     status="$(remove_managed_block "$phys" "$DISPATCH_START" "$DISPATCH_END")"
     case "$status" in
       removed) log "removed the docket dispatch block from $phys (no dispatch harness targets it) — COMMIT THIS.";;
@@ -1613,7 +1656,12 @@ check_project_level() {  # three legs: (a) gitignore block current [CI-meaningfu
   # weaker: a docket branch alone satisfies it, and in such a repo HARNESSES falls back to its
   # default, which contains `claude` — so an ungated leg would demand a CLAUDE.md from every
   # non-opted-in repo while the write pass returns before creating one.
-  local am_want am_have phys targets="" seen="" f
+  #
+  # Containment is mirrored too, for the same reason the halves are: a surface resolving OUTSIDE the
+  # checkout is one sync_dispatch_surfaces refuses to touch, so reporting it stale would demand a
+  # write that `bash sync-agents.sh` will never perform — a red CI leg with no green path out.
+  local am_want am_have phys targets="" seen="" f root
+  root="$(repo_physical_root)"
   if project_wrappers_generated; then
     am_want="$(assemble_agents_md_dispatch)"
     repo_wants_agents_md_dispatch && targets="$REPO/AGENTS.md"
@@ -1625,6 +1673,10 @@ check_project_level() {  # three legs: (a) gitignore block current [CI-meaningfu
         phys="$(resolve_physical_path "$f")"
         case "$seen" in *"|$phys|"*) continue;; esac
         seen="$seen|$phys|"
+        if ! path_inside_repo "$phys" "$root"; then
+          log "check: $f resolves to $phys, outside this repository ($root) — not checked; the sync refuses to write there."
+          continue
+        fi
         if [ "$am_want" != "$(_docket_gi_current_block "$phys" "$DISPATCH_START" "$DISPATCH_END")" ]; then
           log "check: the docket dispatch block in $phys is missing or stale — run: bash sync-agents.sh and commit it"
           rc=1
@@ -1639,6 +1691,10 @@ check_project_level() {  # three legs: (a) gitignore block current [CI-meaningfu
       phys="$(resolve_physical_path "$f")"
       case "$seen" in *"|$phys|"*) continue;; esac
       seen="$seen|$phys|"
+      if ! path_inside_repo "$phys" "$root"; then
+        log "check: $f resolves to $phys, outside this repository ($root) — not checked; the sync refuses to strip there."
+        continue
+      fi
       am_have="$(_docket_gi_current_block "$phys" "$DISPATCH_START" "$DISPATCH_END")"
       if [ -n "$am_have" ]; then
         log "check: $phys carries a docket dispatch block but no harness in agent_harnesses targets it as a dispatch surface (claude, $(printf '%s' "$AGENTS_MD_DISPATCH_HARNESSES" | sed 's/ /, /g')) — run: bash sync-agents.sh and commit it"
