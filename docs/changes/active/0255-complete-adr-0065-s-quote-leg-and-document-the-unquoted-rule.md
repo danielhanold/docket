@@ -12,12 +12,12 @@ related: [256]
 discovered_from: [180, 181]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-08-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-plan.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule
-claimed_at: 2026-08-08T05:09:20Z
+claimed_at: 2026-08-08T05:17:02Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-design.md) |
+| Plan | [2026-08-08-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-plan.md](https://github.com/danielhanold/docket/blob/feat/complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule/docs/superpowers/plans/2026-08-08-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-plan.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
