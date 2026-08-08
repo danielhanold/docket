@@ -1408,10 +1408,6 @@ sync_dispatch_surfaces(){
   done
 }
 
-# Task-3 shim (change 0242): project_level_pass() still calls the old name until the wiring task
-# retires it. One line, no behaviour of its own.
-sync_agents_md_dispatch(){ sync_dispatch_surfaces; }
-
 # --- managed .gitignore block (change 0051; mechanics moved into scripts/lib/docket-gitignore-block.sh
 # in change 0057, which sync-agents.sh sources — that lib is the single home for ALL docket-owned
 # ignores and is shared by all three writers: migrate-to-docket.sh, docket-config.sh --bootstrap, and
@@ -1571,9 +1567,10 @@ project_level_pass() {  # built-in ⊕ local ⊕ committed ⊕ global -> <repo>/
     harness_has_dispatch_rule "$h" || continue
     write_dispatch_rule "$REPO/.$h"
   done
-  # The committed AGENTS.md dispatch block, shared by every AGENTS_MD_DISPATCH_HARNESSES harness
-  # (changes 0077, 0192).
-  sync_agents_md_dispatch
+  # Every parent-facing dispatch surface: the committed AGENTS.md shared by every
+  # AGENTS_MD_DISPATCH_HARNESSES harness (changes 0077, 0192) and the Claude surface (change 0242),
+  # written once per distinct physical file and stripped from whatever no harness targets.
+  sync_dispatch_surfaces
 }
 
 check_project_level() {  # three legs: (a) gitignore block current [CI-meaningful], (b) nothing
@@ -1595,22 +1592,59 @@ check_project_level() {  # three legs: (a) gitignore block current [CI-meaningfu
     log "check: .gitignore docket block missing or stale (a legacy docket:generated block upgrades on the next run) — run: bash sync-agents.sh and commit .gitignore"
     rc=1
   fi
-  # AGENTS.md dispatch block currency (change 0077) — CI-meaningful, symmetric with the
-  # .gitignore leg. The block is committed (exempt from the tracked-file leg); assert it
-  # is present & current when an AGENTS.md-dispatch harness is targeted, and absent when none is.
-  local am_want am_have
-  am_want="$(assemble_agents_md_dispatch)"
-  am_have="$(_docket_gi_current_block "$REPO/AGENTS.md" "$DISPATCH_START" "$DISPATCH_END")"
-  if repo_wants_agents_md_dispatch; then
-    if [ "$am_want" != "$am_have" ]; then
-      log "check: AGENTS.md docket dispatch block missing or stale — run: bash sync-agents.sh and commit AGENTS.md"
-      rc=1
+  # Dispatch-surface currency (changes 0077, 0242) — CI-meaningful, symmetric with the .gitignore
+  # leg. The blocks are committed (exempt from the tracked-file leg).
+  #
+  # This is a CORRESPONDENCE guard, so it is written as the read-only twin of sync_dispatch_surfaces
+  # and mirrors BOTH of its halves against one shared `seen` set: a write half (every targeted
+  # surface must carry the current block) and a strip half (every OTHER existing surface must carry
+  # none). Mirroring only the first half would certify a repo whose Claude surface had drifted, and
+  # mirroring the second half only when *no* harness is targeted would miss the commonest de-list —
+  # dropping `claude` from a repo that still targets codex, where the write pass strips a distinct
+  # CLAUDE.md that this leg would never have looked at (LEARNINGS correspondence-guard-runs-one-way).
+  #
+  # Read-only by construction: the targets are spelled as literal paths and resolved with
+  # resolve_physical_path, never via claude_surface_target — that resolver CREATES the surface as a
+  # side effect, and `--check` must not write. The cost is exact: a claude-targeted repo with no
+  # CLAUDE.md reads as an empty current block, which is correctly stale rather than silently healed.
+  #
+  # Gated on project_wrappers_generated — the SAME predicate project_level_pass writes the surfaces
+  # under, for the same reason leg (c) is. gitignore_block_wanted (checked above) is strictly
+  # weaker: a docket branch alone satisfies it, and in such a repo HARNESSES falls back to its
+  # default, which contains `claude` — so an ungated leg would demand a CLAUDE.md from every
+  # non-opted-in repo while the write pass returns before creating one.
+  local am_want am_have phys targets="" seen="" f
+  if project_wrappers_generated; then
+    am_want="$(assemble_agents_md_dispatch)"
+    repo_wants_agents_md_dispatch && targets="$REPO/AGENTS.md"
+    repo_wants_claude_surface && targets="$targets${targets:+$'\n'}$REPO/CLAUDE.md"
+    # Write half — every targeted surface carries the current block, once per physical file.
+    if [ -n "$targets" ]; then
+      while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        phys="$(resolve_physical_path "$f")"
+        case "$seen" in *"|$phys|"*) continue;; esac
+        seen="$seen|$phys|"
+        if [ "$am_want" != "$(_docket_gi_current_block "$phys" "$DISPATCH_START" "$DISPATCH_END")" ]; then
+          log "check: the docket dispatch block in $phys is missing or stale — run: bash sync-agents.sh and commit it"
+          rc=1
+        fi
+      done <<<"$targets"
     fi
-  else
-    if [ -n "$am_have" ]; then
-      log "check: AGENTS.md carries a docket dispatch block but no AGENTS.md-dispatch harness ($(printf '%s' "$AGENTS_MD_DISPATCH_HARNESSES" | sed 's/ /, /g')) is in agent_harnesses — run: bash sync-agents.sh and commit AGENTS.md"
-      rc=1
-    fi
+    # Strip half — every OTHER existing surface carries none. `seen` spares a mere ALIAS of a live
+    # surface (a user's CLAUDE.md -> AGENTS.md link in a codex-only repo), exactly as the write pass
+    # does, so this reports only what a real run would actually change.
+    for f in "$REPO/AGENTS.md" "$REPO/CLAUDE.md"; do
+      [ -e "$f" ] || continue
+      phys="$(resolve_physical_path "$f")"
+      case "$seen" in *"|$phys|"*) continue;; esac
+      seen="$seen|$phys|"
+      am_have="$(_docket_gi_current_block "$phys" "$DISPATCH_START" "$DISPATCH_END")"
+      if [ -n "$am_have" ]; then
+        log "check: $phys carries a docket dispatch block but no harness in agent_harnesses targets it as a dispatch surface (claude, $(printf '%s' "$AGENTS_MD_DISPATCH_HARNESSES" | sed 's/ /, /g')) — run: bash sync-agents.sh and commit it"
+        rc=1
+      fi
+    done
   fi
   # committed-config shape (the committed .docket.yml is CI-visible): legacy bare agent keys.
   legacy="$(legacy_agent_keys "$DOCKET_YML" 1)"

@@ -157,4 +157,53 @@ wait "$syncpid" 2>/dev/null
 assert "cycle: the sync terminates (the link walk is bounded)" '[ "$hung" = "0" ]'
 assert "cycle: AGENTS.md still got its block" '[ "$(blocks_in "$SBX/AGENTS.md")" = "1" ]'
 
+# --- --check iterates the SAME surface set the write pass does (change 0242) ------------------
+# The correspondence property, asserted in both directions: --check must fail on exactly the
+# surfaces `bash sync-agents.sh` would go on to change, and pass once it has changed them. A check
+# that walked only AGENTS.md would certify a repo whose Claude surface had drifted (learnings:
+# correspondence-guard-runs-one-way).
+run_check(){ ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check >/dev/null 2>&1 ); }
+# Corrupt a managed block's BODY, leaving both markers intact and correctly ordered — this must
+# exercise the staleness path, not the malformed-marker path, which refuses rather than reports.
+stale_block(){  # $1 = a real (non-symlink) file carrying the block
+  awk '{ print } /docket:dispatch:start/ { print "STALE" }' "$1" > "$1.staletmp" \
+    && mv -f "$1.staletmp" "$1"
+}
+
+mk_repo "[claude]" none
+run_check; rc=$?
+assert "check: a freshly synced claude-only tree passes" '[ "$rc" = "0" ]'
+
+stale_block "$SBX/CLAUDE.md"
+run_check; rc=$?
+assert "check: a stale Claude-surface block fails the check" '[ "$rc" = "1" ]'
+run_sync; run_check; rc=$?
+assert "check: re-running the sync clears the Claude-surface staleness" '[ "$rc" = "0" ]'
+
+# The other direction of the same correspondence: a DISTINCT surface whose harness was de-listed.
+# The write pass strips it (its physical path is absent from the write pass's `seen` set), so the
+# check must report it — even though another dispatch harness is still targeted, which is the leg
+# a "no harness at all" else-branch would never reach.
+mk_repo "[claude, codex]" both
+printf 'agent_harnesses: [codex]\n' > "$SBX/.docket.yml"
+run_check; rc=$?
+assert "check: a de-listed DISTINCT surface's stray block fails the check" '[ "$rc" = "1" ]'
+run_sync; run_check; rc=$?
+assert "check: the strip pass clears exactly what the check reported" '[ "$rc" = "0" ]'
+assert "de-listed distinct: its block is gone" '[ "$(blocks_in "$SBX/CLAUDE.md")" = "0" ]'
+assert "de-listed distinct: the live surface kept its block" '[ "$(blocks_in "$SBX/AGENTS.md")" = "1" ]'
+
+# --check is READ-ONLY: it must never call the creating resolver. Synced first, then the surface is
+# deleted, so the ONLY thing left for the check to trip on is the missing Claude surface itself —
+# an unsynced sandbox would fail on the .gitignore leg and prove nothing about this one.
+mk_repo "[claude]" none
+rm -f "$SBX/CLAUDE.md"
+run_check; rc=$?
+assert "check: a missing Claude surface fails the check" '[ "$rc" = "1" ]'
+assert "check: ...and was NOT created by the check" '[ ! -e "$SBX/CLAUDE.md" ] && [ ! -L "$SBX/CLAUDE.md" ]'
+
+# The shim is retired: one name owns the surface write.
+assert "no sync_agents_md_dispatch caller or definition survives" \
+  '[ "$(grep -c "sync_agents_md_dispatch" "$SYNC")" = "0" ]'
+
 echo; [ "$fail" = 0 ] && echo "ALL PASS" || echo "FAILURES"; exit "$fail"

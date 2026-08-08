@@ -303,14 +303,33 @@ else
 fi
 rm -rf "$SBX"
 
-# --- --check: codex de-listed but AGENTS.md block still present => CI-meaningful failure ---
+# --- --check: no dispatch-surface harness left but the AGENTS.md block is still present =>
+# CI-meaningful failure. De-listed to [cursor], NOT to [claude]: since change 0242 claude is itself
+# a dispatch-surface harness, and mk_codex_repo's own [claude, codex] run left a CLAUDE.md symlink
+# pointing AT this AGENTS.md — so under [claude] the block is still live through that link, not
+# leftover, and a real sync would keep it. The claim being guarded is unchanged: a block no
+# targeted harness owns must fail the check.
+#
+# Both de-list directions run against ONE generated fixture — a second mk_codex_repo would put this
+# file over its runtime budget, and neither direction mutates anything the other reads.
 mk_codex_repo
 git -C "$SBX" add -A >/dev/null 2>&1
-printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"   # de-list codex, do NOT re-run sync (block left behind)
+# Direction 1 — de-listed to [claude] alone: the block stays LIVE, because mk_codex_repo's CLAUDE.md
+# link resolves to this very AGENTS.md. The check must PASS; reporting it would tell CI to run a
+# sync that would change nothing.
+printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"
 if ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check >/dev/null 2>&1 ); then
-  echo "NOT OK - check: leftover AGENTS.md block with codex de-listed fails --check"; fail=1
+  echo "ok - check: codex de-listed to claude keeps the block live through the CLAUDE.md link"
 else
-  echo "ok - check: leftover AGENTS.md block with codex de-listed fails --check"
+  echo "NOT OK - check: codex de-listed to claude keeps the block live through the CLAUDE.md link"; fail=1
+fi
+# Direction 2 — de-listed to [cursor]: now NO harness targets a dispatch surface, so the block is
+# genuinely leftover and the check must FAIL.
+printf 'agent_harnesses: [cursor]\n' > "$SBX/.docket.yml"   # de-list every surface harness, do NOT re-run sync
+if ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check >/dev/null 2>&1 ); then
+  echo "NOT OK - check: leftover AGENTS.md block with every surface harness de-listed fails --check"; fail=1
+else
+  echo "ok - check: leftover AGENTS.md block with every surface harness de-listed fails --check"
 fi
 rm -rf "$SBX"
 
