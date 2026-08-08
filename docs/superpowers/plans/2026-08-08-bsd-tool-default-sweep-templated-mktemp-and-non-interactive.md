@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0254 — BSD tool-default sweep: templated mktemp and non-interactive mv](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0254-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md)**
+> ↩ **[Change 0254 — BSD tool-default sweep: templated mktemp and non-interactive mv](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-08-0254-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md)**
 <!-- docket:backlink:end -->
 
 # BSD tool-default sweep: templated mktemp and non-interactive mv — Implementation Plan
