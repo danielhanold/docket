@@ -1329,10 +1329,13 @@ orphan_mutrun(){
 # goes SILENT: the prose value reads as a recorded PR and the candidate is skipped. Fixture 271,
 # which has no body pr: line, still fires — proving the arm broke the READ and not the leg.
 orphan_mutreseed
-omut1_before="$(grep -cF 'fm_field "$f" pr' "$ORPHAN_MUTSCRIPT")"
+# The counter carries the closing paren — exactly the token the awk sub below rewrites. A bare
+# `fm_field "$f" pr` prefix also matches `fm_field "$f" promotion_state` (change 0244), which the
+# mutation does not touch, so the count would never fall to 0.
+omut1_before="$(grep -cF 'fm_field "$f" pr)' "$ORPHAN_MUTSCRIPT")"
 awk '{ sub(/fm_field "\$f" pr\)/, "field \"$f\" pr)"); print }' "$ORPHAN_MUTSCRIPT" > "$ORPHAN_MUTSCRIPT.t"
 mv "$ORPHAN_MUTSCRIPT.t" "$ORPHAN_MUTSCRIPT"
-omut1_after="$(grep -cF 'fm_field "$f" pr' "$ORPHAN_MUTSCRIPT")"
+omut1_after="$(grep -cF 'fm_field "$f" pr)' "$ORPHAN_MUTSCRIPT")"
 omut1_out="$(orphan_mutrun)"
 assert "orphan mutation 1 landed: the pr: read is unanchored (fm_field count 1 -> 0)" \
   '[ "$omut1_before" = 1 ] && [ "$omut1_after" = 0 ]'

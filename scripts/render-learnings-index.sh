@@ -112,12 +112,12 @@ for f in "${FILES[@]}"; do
   slug="$(field "$f" slug)"; [ -n "$slug" ] || continue
   F_HOOK["$slug"]="$(dequote "$(field_raw "$f" hook)")"
   F_TOPICS["$slug"]="$(list_field "$f" topics)"
-  state="$(field "$f" promotion_state)"
+  state="$(fm_field "$f" promotion_state)"   # anchored: optional key (ADR-0057)
   # Positive off-state (ADR-0032): an unset/unknown state is NOT silently "retained" for the
   # purposes of the hint surface — it renders as retained, but only `promoted` leaves the groups
   # and only `candidate` earns the marker, so an empty value degrades to the safe, visible tier.
   F_STATE["$slug"]="${state:-retained}"
-  F_TO["$slug"]="$(field "$f" promoted_to)"
+  F_TO["$slug"]="$(fm_field "$f" promoted_to)"   # anchored: optional key
   SLUGS+="$slug"$'\n'
 done
 
