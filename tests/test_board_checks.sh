@@ -1029,14 +1029,41 @@ assert "mutation 3b (read blocked_by through the comment-stripping fm_field_raw)
 assert "mutation 3b: the colon-space blocked_by 92 still fires (only the comment leg is blinded)" \
   'has_finding "$m3bout" scalar-form 92'
 
-# Mutation 4 — drop the whole scalar-form probe block: every red fixture goes GREEN.
+# Mutation 4 — drop the whole scalar-form probe: every red fixture goes GREEN. TWO regions, not one
+# (change 0200). The definition now sits at TOP LEVEL, so the old marker-to-marker range delete
+# (`# --- scalar-form:` .. `# --- broken-spec:`) would also swallow the FILES mapfile, the walk's
+# own `for` line, and every check between, leaving an orphaned `done`. That copy is syntactically
+# dead — and mrun discards stderr, so the landed assert and every "goes GREEN" assert below would
+# pass without the script having run at all — observed, not theorised: with the old awk against the
+# hoisted script this whole file still reported a fully green run. Region 1 is the hoisted definition,
+# bounded by its own start marker and the NAMED end marker; region 2 is the four call-site lines
+# inside the walk, matched individually. The `bash -n` assert is what makes a future regression of
+# this exact shape impossible to miss — it is the assert this arm has never had.
 mreseed
 m4_before="$(grep -c 'scalar_form_check' "$MUTSCRIPT")"
-awk '/# --- scalar-form:/{insf=1;next} /# --- broken-spec:/{insf=0;print;next} !insf{print}' "$MUTSCRIPT" > "$MUTSCRIPT.trim"; mv "$MUTSCRIPT.trim" "$MUTSCRIPT"
+m4_for_before="$(grep -c '^for f in ' "$MUTSCRIPT")"
+awk '
+  /^# --- scalar-form:/               { insf=1; next }
+  /^# --- end scalar-form helper ---/ { insf=0; next }
+  insf                                { next }
+  /^  sf_title=/                      { next }
+  /^  sf_blocked_by=/                 { next }
+  /^  scalar_form_check title /       { next }
+  /^  scalar_form_check blocked_by /  { next }
+  { print }
+' "$MUTSCRIPT" > "$MUTSCRIPT.trim"; mv "$MUTSCRIPT.trim" "$MUTSCRIPT"
 m4_after="$(grep -c 'scalar_form_check' "$MUTSCRIPT")"
+m4_for_after="$(grep -c '^for f in ' "$MUTSCRIPT")"
 m4out="$(mrun)"
-assert "mutation 4 landed: the scalar-form probe block is gone (scalar_form_check count 3 -> 0)" \
+assert "mutation 4 landed: the scalar-form probe is gone from BOTH regions (scalar_form_check count 3 -> 0)" \
   '[ "$m4_before" = 3 ] && [ "$m4_after" = 0 ]'
+assert "mutation 4 landed: the mutated copy is STILL VALID BASH — a range delete that spanned the walk would not be" \
+  'bash -n "$MUTSCRIPT"'
+# The walk's `for f in "${FILES[@]}"` opening is the first of the script's two top-level `for f in`
+# lines and is exactly what a marker-to-marker range spanning the walk would eat. Pinned as
+# before-and-after rather than a bare literal so the assert survives a third walk being added.
+assert "mutation 4 landed: the walk survived the delete (both top-level for-loop openings are still there)" \
+  '[ "$m4_for_before" = 2 ] && [ "$m4_for_after" = 2 ]'
 assert "mutation 4 (drop whole probe block): colon-space title 90 goes GREEN" \
   '! has_finding "$m4out" scalar-form 90'
 assert "mutation 4 (drop whole probe block): boolean title 91 goes GREEN" \
@@ -1049,6 +1076,17 @@ assert "mutation 4 (drop whole probe block): uppercase boolean title 85 goes GRE
   '! has_finding "$m4out" scalar-form 85'
 assert "mutation 4 (drop whole probe block): trailing-colon title 86 goes GREEN" \
   '! has_finding "$m4out" scalar-form 86'
+# NON-VACUITY for the six GREEN asserts above. It deliberately is NOT "$m4out is non-empty": the MUT
+# fixture set is built so that scalar-form is the ONLY check that fires, so an empty $m4out is the
+# CORRECT result here and could never discriminate. What discriminates is that the mutant RAN — mrun
+# sends stderr to /dev/null, which is exactly how a syntactically dead copy fakes six green asserts,
+# so this re-runs it capturing stderr INSTEAD of stdout and demands both a silent stderr and a
+# normal exit. A range delete spanning the walk leaves an orphaned `done`: bash prints "syntax error
+# near unexpected token \`done'" and exits 2, and both halves of this assert go red.
+m4_err="$(NOW=$NOW_EPOCH bash "$MUTSCRIPT" --changes-dir "$MUT/docs/changes" --metadata-branch docket --integration-branch main 2>&1 >/dev/null)"
+m4_rc=$?
+assert "mutation 4: the mutated copy still RUNS — no stderr, normal exit (mrun's 2>/dev/null hides both)" \
+  '[ -z "$m4_err" ] && [ "$m4_rc" = 0 ]'
 rm -rf "$mcopy"
 
 # ============================ aborted-run, leg A (change 0113) ============================
