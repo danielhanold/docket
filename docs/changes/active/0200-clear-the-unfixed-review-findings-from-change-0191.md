@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/clear-the-unfixed-review-findings-from-change-0191
-claimed_at: 2026-08-08T03:29:29Z
+claimed_at: 2026-08-08T03:31:14Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -126,6 +126,37 @@ prices two consequences the stub missed: the frozen-plans paragraph forces a min
 docket-convention row in `tests/test_skill_size_budgets.sh` (with the change-0201 in-diff
 argument), and the `scalar_form_check` hoist forces a redesign of mutation 4's marker-range
 extraction plus its missing `bash -n` landed assert.
+
+## Reconcile log
+
+**2026-08-08** — Reconciled at claim against `origin/main` @ `1d5fe445`. Scope stands as specced;
+no item dropped, no item added. Verified against current code:
+
+- **Dependency 224 is now `done`** (archived `2026-08-07-0224-…`, PR merged). The spec's
+  *Assumptions* entry priced it as `implemented`/open with a file collision on
+  `tests/test_skill_size_budgets.sh`; that collision is now sequenced away exactly as designed —
+  0224's budget-row edit is already on `main`, and this change's row edit lands on top of it.
+- **(a) hoist** — `scalar_form_check(){` still at `scripts/board-checks.sh:355` inside the walk
+  opened at 226; the `# --- scalar-form:` marker still at 320; `renders_row` still at 214. Mutation
+  4's marker-range extraction hazard is unchanged and still requires the specced redesign.
+- **(b) sanitize** — `sanitize` still at line 142 with the TAB/CR-only pair; `branch_only_artifact`
+  still reads `ls-tree -r -z` at line 127. Gap real.
+- **(c) mutation letter** — re-verified A–N are all taken on current `main` (last is N,
+  `test_board_checks.sh:2682`); **O is free**, as specced.
+- **(d) dead guard** — `[ -n "$boa_p" ] || continue` still present at line 125. Baseline comment
+  still reads "fires exactly the three expected findings" at line 2305 while five asserts follow it.
+- **Fixture id for the new ARQ-family fixture: 249.** The spec deferred to the suite's allocation
+  comment; enumerating current usage, 220–226 (ARM), 230–231 (ARQ), 232–248 and 260–263 are taken,
+  so 249 is the next free id — not 232 as the older allocation comment's wording might suggest.
+- **Size-budget numbers moved and the raise is still required.** The spec cited the row as
+  `345 5900` with the file at ~342/5865; on current `main` the row is `345 6000`
+  (`tests/test_skill_size_budgets.sh:832`) and `skills/docket-convention/SKILL.md` measures
+  **343 lines / 5971 words** — 2 lines and 29 words of headroom, which the frozen-plans paragraph
+  will exceed. The producer-comment obligation and the change-0201 in-diff `references/`-considered
+  argument are unchanged; only the literals to raise from differ.
+
+Auto-capture: enabled; no discovery cleared the six admission gates this pass — every item in view
+is either in this change's own scope or a defect in its own diff. 0 stubs minted.
 
 ## Consolidation note
 
