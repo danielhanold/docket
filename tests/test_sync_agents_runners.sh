@@ -140,27 +140,38 @@ assert "0269: the empty-shim_model diagnostic says present but has no value" \
 #   1. Bring the fixture to a --check-CLEAN baseline first (a real run writes the .gitignore block
 #      and the wrappers), and assert that baseline exits 0. Every other --check leg is then known
 #      satisfied, so a later nonzero is attributable.
-#   2. Put the bad value on a REGISTERED but UNUSED runner (cursor; the agent delegates to codex).
-#      validate_runner_shim_values walks every registered runner regardless of use, so the gate
-#      still fires — while generation output is byte-identical, leaving leg (c)'s drift loop with
-#      nothing to report. Hanging the bad value off codex would change the emitted shim pin and
-#      make leg (c) red on its own, restoring the vacuity through the back door.
+#   2. Choose a bad value whose ABSENCE would emit the SAME BYTES. A present-but-empty shim_model
+#      on the runner the agent really delegates to (codex) resolves through runner_key to '' either
+#      way, so emit_wrapper falls back to `inherit` and the wrapper is byte-identical to the clean
+#      baseline — leg (c)'s drift loop has nothing to report, and only this gate can turn --check
+#      red.
+#
+#      Two fixtures that look equivalent and are not. A QUOTED value on codex CHANGES the emitted
+#      pin, so leg (c) goes red on its own and restores the vacuity through the back door. A bad
+#      value on a registered-but-UNREFERENCED runner (cursor) was this block's first construction,
+#      and it relied on the gate walking every registered runner regardless of use — the unscoped
+#      walk that the 0269 whole-branch review found and the scoping block further down now pins
+#      as WRONG. Scoped, cursor's block is inert config the gate is right to ignore, so that
+#      fixture would have gone green for a brand-new wrong reason.
 #
 # The rc assert is then paired with a grep for the gate's OWN diagnostic — the one string no other
-# --check failure emits — so neither an unrelated red nor a deleted gate can be mistaken for a pass.
-# The old "--check wrote no wrapper" assert is gone rather than repaired: `--check` writes no
-# wrapper on ANY path, gate or no gate, so it was true unconditionally.
+# --check failure emits — and with a negative assert that no drift was reported, so neither an
+# unrelated red nor a deleted gate can be mistaken for a pass. The old "--check wrote no wrapper"
+# assert is gone rather than repaired: `--check` writes no wrapper on ANY path, gate or no gate, so
+# it was true unconditionally.
 mkgitrepo
 mkdir -p "$SBX/.claude"
 printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check >/dev/null 2>&1 ); rc=$?
 assert "0269: fixture sanity — --check is CLEAN before the bad shim value is introduced" '[ "$rc" = "0" ]'
-printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\nrunners:\n  cursor:\n    shim_model: "quoted"\n' > "$SBX/.docket.yml"
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\nrunners:\n  codex:\n    shim_model:\n' > "$SBX/.docket.yml"
 err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1 >/dev/null )"; rc=$?
 assert "0269: --check also refuses a bad shim value" '[ "$rc" != "0" ]'
 assert "0269: --check fails on the SHIM gate specifically, not an unrelated leg" \
   'grep -qF "check: runner shim-pin configuration is invalid" <<<"$err"'
+assert "0269: the bad value moved no emitted byte — leg (c) reported no drift of its own" \
+  '! grep -qF "drift in" <<<"$err"'
 
 # A VALID bare scalar is accepted — the positive control, without which every assert above is
 # consistent with a gate that refuses everything.
@@ -170,6 +181,74 @@ printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 ); rc=$?
 assert "0269: a bare-scalar shim_model generates cleanly" '[ "$rc" = "0" ]'
 assert "0269: the accepted run DID write the wrapper" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+
+# ---- change 0269 (whole-branch review): the shim gate is SCOPED to the runners this run CONSUMES
+# The finding: the gate walked REGISTERED_RUNNERS x every layer unconditionally, so one typo'd
+# shim_model in ~/.config/docket/config.yml — for a runner no agent references — hard-failed
+# `sync-agents.sh` and `--check` in EVERY repo on the machine, including repos with no `runners:`
+# usage at all. It now walks the runners for_each_candidate_triple actually resolves, which is the
+# same population validate_runner_config enumerates (LEARNINGS:
+# guard-keyed-on-presence-not-provenance — key on what got USED, not on what a layer merely HOLDS).
+#
+# Every assert below comes in a MATCHED PAIR, because the fix has two ways to be wrong: too wide
+# (the original finding) and too narrow (a gate that quietly stopped firing). Each silent case is
+# paired with a near-identical config that DOES refuse, so a fail-open regression cannot hide in
+# the silence.
+
+# (1) Registered but referenced by NO agent: inert config, must not refuse the run.
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\nrunners:\n  cursor:\n    shim_model: "quoted"\n' > "$SBX/.docket.yml"
+err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"; rc=$?
+assert "0269: a bad shim value on an UNREFERENCED registered runner does not refuse the run" \
+  '[ "$rc" = "0" ]'
+assert "0269: ... and the gate says nothing about that runner" \
+  '! grep -qF "runners.cursor.shim_model" <<<"$err"'
+# NON-VACUITY: without this, a generation that died before the gate would pass the two asserts above.
+assert "0269: fixture sanity — the run really did generate the codex shim" \
+  'grep -qF -- "--runner codex" "$SBX/.claude/agents/docket-status.md"'
+# The paired half: the SAME bad value, same file, moved onto the runner the agent DOES delegate to.
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\nrunners:\n  codex:\n    shim_model: "quoted"\n' > "$SBX/.docket.yml"
+err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"; rc=$?
+assert "0269: the same bad value on the REFERENCED runner still refuses the run" '[ "$rc" != "0" ]'
+assert "0269: ... naming that runner in the diagnostic" 'grep -qF "runners.codex.shim_model" <<<"$err"'
+
+# (2) THE MACHINE-WIDE CASE from the finding: the typo lives in the user's global config and the
+#     repo delegates nothing at all. This pair is also what separates a whole-predicate copy from
+#     one that only copied validate_runner_config's PROJECT-level leg (LEARNINGS:
+#     duplicated-gate-copies-the-whole-predicate): nothing here opts the repo in, so only the
+#     USER-LEVEL leg of for_each_candidate_triple can ever see the delegating triple below.
+mkgitrepo
+mkdir -p "$SBX/.claude" "$SBX/.config/docket"
+printf 'runners:\n  cursor:\n    shim_model: "quoted"\n' > "$SBX/.config/docket/config.yml"
+err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"; rc=$?
+assert "0269: a global shim typo does not refuse a repo that delegates nothing" '[ "$rc" = "0" ]'
+assert "0269: fixture sanity — that run generated wrappers" \
+  '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+assert "0269: fixture sanity — and not one of them delegates" \
+  '! grep -qF "docket.sh runner-dispatch" "$SBX/.claude/agents/docket-status.md"'
+# The paired half: the same global file now delegates ONE agent to that same runner.
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: cursor }\nrunners:\n  cursor:\n    shim_model: "quoted"\n' > "$SBX/.config/docket/config.yml"
+err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"; rc=$?
+assert "0269: the USER-LEVEL leg alone still catches the same bad value" '[ "$rc" != "0" ]'
+assert "0269: ... naming the runner that user-level entry delegates to" \
+  'grep -qF "runners.cursor.shim_model" <<<"$err"'
+
+# STRUCTURAL TRIPWIRES, not behavioral asserts. Both gates must keep judging ONE shared walk; a
+# future edit that re-forks either into its own copy of the population is exactly the
+# duplicated-gate-copies-the-whole-predicate failure, and it would stay green under every fixture
+# above until the day the two copies disagree. The gate's body is sliced out and searched for the
+# unscoped population it used to walk — the fixtures above cannot see the difference between a gate
+# that never regressed and one that regressed and was re-scoped by a second, divergent predicate.
+shim_body="$(awk '/^validate_runner_shim_values\(\)/{inb=1} inb{print} inb && /^\}/{exit}' "$SYNC")"
+assert "0269: fixture sanity — the shim gate's body was really extracted" \
+  '[ "$(grep -c . <<<"$shim_body")" -gt 10 ]'
+assert "0269: the shim gate does not walk the whole runner registry" \
+  '! grep -qF "REGISTERED_RUNNERS" <<<"$shim_body"'
+assert "0269: the shim gate walks the resolved candidate set instead" \
+  'grep -qF "CANDIDATE_RUNNERS" <<<"$shim_body"'
+assert "0269: validate_runner_config judges the shared candidate-triple walk" \
+  'grep -qF "for_each_candidate_triple check_triple_runner_config" "$SYNC"'
 
 # ---- change 0206: build-* shims bake --worktree as a required slot -------------------
 # BIDIRECTIONAL by construction (LEARNINGS: correspondence-guard-runs-one-way). This is a MIRROR
@@ -485,8 +564,10 @@ assert "0220/D1c: and prune_orphans calls the raw per_repo_opted_in nowhere" \
 
 # ---- change 0220 / D2: the gate's USER-LEVEL leg, exercised through the GLOBAL layer -----------
 # Every other runner: fixture writes .docket.yml (the project layer), so the whole
-# `for harness in $USER_TARGETS` block in validate_runner_config was mutation-survivable: delete it
-# and nothing reddened. This is the leg that protects ~/.claude/agents — the widest blast radius of
+# `for harness in $USER_TARGETS` block — inline in validate_runner_config then, in the gates' shared
+# for_each_candidate_triple walk now — was mutation-survivable: delete it and nothing reddened.
+# (Change 0269's review gave the shim-pin gate the same walk, so this leg now protects both.)
+# This is the leg that protects ~/.claude/agents — the widest blast radius of
 # the original change-0079/0205 bug. The repo here has NO .docket.yml and NO .docket.local.yml, so
 # per_repo_opted_in is false and the project-level leg `continue`s: only the user-level leg can
 # catch this, and rc != 0 is therefore attributable to it alone.
