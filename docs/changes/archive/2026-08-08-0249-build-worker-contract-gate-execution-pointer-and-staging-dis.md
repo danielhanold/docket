@@ -2,7 +2,7 @@
 id: 249
 slug: build-worker-contract-gate-execution-pointer-and-staging-dis
 title: 'Build-worker contract: gate-execution pointer and staging discipline'
-status: implemented
+status: done
 priority: medium
 type: fix
 created: 2026-08-07
@@ -17,7 +17,7 @@ results: docs/results/2026-08-08-build-worker-contract-gate-execution-pointer-an
 trivial: false
 auto_groomable: true
 branch: feat/build-worker-contract-gate-execution-pointer-and-staging-dis
-claimed_at: 2026-08-08T01:29:17Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/178
 blocked_by:
 reconciled: true
