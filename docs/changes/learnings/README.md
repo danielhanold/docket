@@ -14,6 +14,10 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [config-shape-change-strands-outer-layers](config-shape-change-strands-outer-layers.md) — A repo-committed config migration cannot reach the machine-local and global layers — change an existing key's SHAPE, or make an optional one REQUIRED, and every install with an override breaks the moment the PR merges. · also: migration, compat
 - [opt-in-signal-not-file-presence](opt-in-signal-not-file-presence.md) — Gate output-generating behavior on an explicit opt-in key, never on the mere presence of the config file. · also: adoption, compat
 
+## contracts
+
+- [prohibition-needs-a-return-value](prohibition-needs-a-return-value.md) — A prohibition added to a contract with a CLOSED return vocabulary is incomplete until it names which return it maps to — otherwise the most likely response to a correctly-written rule is a malformed return. · also: subagents, design
+
 ## design
 
 - [best-effort-helper-on-a-sole-deliverable-path](best-effort-helper-on-a-sole-deliverable-path.md) — Reusing a deliberately best-effort helper on a path where its output IS the deliverable converts a soft failure into a silent exit 0. · also: shell, contracts
@@ -27,6 +31,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 ## docs
 
+- [distributed-body-has-no-local-repo](distributed-body-has-no-local-repo.md) — Inside a skill body that ships into other repos, the reader is a worker in an unknown repo — a sentence that is only true HERE is a defect even when it is locally accurate. · also: contracts, skills
 - [restatement-accumulates-its-own-guards](restatement-accumulates-its-own-guards.md) — Deleting a restatement is never a one-file edit — tests grep the COPY, not the source, so the copy has quietly become load-bearing. · also: testing, refactoring ⟨needs promotion⟩
 - [shared-resource-keeps-first-owner-assumptions](shared-resource-keeps-first-owner-assumptions.md) — When a single-owner resource gains a second owner, the prose and predicates written for the first owner stay valid-looking and become wrong — and single-owner fixtures pass against the old predicate, so nothing goes red. · also: testing, guards ⟨needs promotion⟩
 
@@ -103,6 +108,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [fixture-order-decides-the-diagnostic](fixture-order-decides-the-diagnostic.md) — Under set -u a fixture that dereferences a value must run AFTER the assert that the value is emitted — otherwise the missing export kills the suite inside the harness and the assert that exists to name it never runs. · also: errexit, fixtures ⟨needs promotion⟩
 - [foundational-test-discipline](foundational-test-discipline.md) — Sentinel greps are sampling, not parsing — pair them with a whole-branch review that reads for meaning. · also: sentinels, review
 - [green-suite-untested-branch](green-suite-untested-branch.md) — Green tests are not proof the hard branch was exercised — a mock that omits the tool routes every test through the degrade path. · also: fixtures, mocks
+- [guard-the-widened-clause](guard-the-widened-clause.md) — When a clause was WIDENED during design, re-derive the guard from the widened text — a guard written against the original shape leaves the added part free, and every assert stays green when it is deleted. · also: guards, spec ⟨needs promotion⟩
 - [marker-scoped-guard-needs-a-population-floor](marker-scoped-guard-needs-a-population-floor.md) — A marker-keyed guard validates only the markers it finds — separately assert that the marker EXISTS, sits where you meant, and covers the case you care about; "at least one" pins a population, not coverage. · also: sentinels, guards ⟨needs promotion⟩
 - [metadata-branch-invisible-to-suite](metadata-branch-invisible-to-suite.md) — A hermetic suite sees only its fixtures and the integration-branch checkout — verify metadata-branch artifacts and real-history behavior at build time, and record it in the results file. · also: metadata-branch, docket
 - [mutation-restore-needs-a-backup-copy](mutation-restore-needs-a-backup-copy.md) — `git checkout -- <file>` restores to HEAD, not to your uncommitted edit — as a mutation-test restore step it silently destroys the work being tested and produces a meaningless reading. · also: git, mutation ⟨needs promotion⟩

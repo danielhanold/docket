@@ -2,9 +2,9 @@
 slug: phrase-grep-over-wrapped-prose
 hook: "A grep whose pattern can span a line break silently doubles as a line-wrap guard — collapse whitespace before matching, or a pure re-flow reddens asserts about policy that never changed."
 topics: [testing, grep, docs]
-changes: [218, 231, 224]
+changes: [218, 231, 224, 249]
 created: 2026-08-06
-updated: 2026-08-07
+updated: 2026-08-08
 promotion_state: candidate
 promoted_to:
 ---
@@ -38,3 +38,11 @@ stream is identical.
   count check reported `MUTATION DID NOT LAND` instead of letting a never-applied mutation read as a
   guard that correctly survived. Two independent recurrences in the verification step (#231, #224)
   say the mitigation belongs in the probe *template*, not in each author's care.
+- 2026-08-08 (#249, PR #178) — the fourth hit, and the third in the verification step. The edited
+  file was `skills/docket-build-task/SKILL.md`, whose Scope bullets are hard-wrapped, so several
+  guarded phrases (`adding another commit, never by amending`, `You may revise or replace them`)
+  span a line break and a literal `perl -0pi` substitution against them silently no-ops. This
+  build did not get caught, because the authors already knew the rule: every mutation was
+  confirmed with a `grep -c` before/after taken through a whitespace-flattened copy, and the fix
+  workers wrote `\s+` between words. That the mitigation had to be re-applied by hand a fourth
+  time is the argument, not a new failure — the probe template should carry it.
