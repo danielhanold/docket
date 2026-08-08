@@ -86,4 +86,19 @@ run_cell noglobal-opted 0 'agent_harnesses: [claude]'
 assert "#0082: no global + repo opted in stays silent" \
   '! grep -qF "'"$HINT"'" "$WORK/cell-noglobal-opted.err"'
 
+# The hint must name the path the run ACTUALLY read, which is derived from GLOBAL_CFG:
+#   ${XDG_CONFIG_HOME:-$DOCKET_HARNESS_ROOT-or-$HOME/.config}/docket/config.yml
+# Every cell above sets XDG_CONFIG_HOME, so a hint that re-derived the fallback as $HOME/.config
+# would still match them. This cell leaves XDG_CONFIG_HOME UNSET so the harness-root fallback is
+# the live branch, and asserts on the computed path rather than a literal.
+XH="$WORK/h-xdgless"; mkdir -p "$XH/.config/docket"
+printf 'agent_harnesses: [claude, cursor]\n' > "$XH/.config/docket/config.yml"
+XD="$WORK/cell-xdgless"; mkdir -p "$XD"; git -C "$XD" init -q 2>/dev/null || true
+( cd "$XD" && unset XDG_CONFIG_HOME; DOCKET_HARNESS_ROOT="$XH" bash "$REPO/sync-agents.sh" ) \
+  >/dev/null 2>"$WORK/cell-xdgless.err" || true
+assert "#0082: XDG unset — the hint still fires" \
+  'grep -qF "'"$HINT"'" "$WORK/cell-xdgless.err"'
+assert "#0082: XDG unset — the hint names the global config the run actually read" \
+  'grep -qF "$XH/.config/docket/config.yml" "$WORK/cell-xdgless.err"'
+
 echo "---"; [ "$fail" = "0" ] && echo "ALL PASS" || echo "FAILURES"; exit $fail

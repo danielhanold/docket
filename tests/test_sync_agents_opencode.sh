@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # tests/test_sync_agents_opencode.sh — the opencode emitter contract (change 0192).
 # opencode agent definitions are markdown with YAML frontmatter in .opencode/agents/.
-# Verified against opencode 1.18.11: `mode: subagent` is honored, an unrecognized frontmatter key
-# is forwarded to the provider under `options`, and a double-prefixed OpenRouter model ID parses
-# into providerID + modelID. See docs/opencode/setup.md.
+# Verified against opencode 1.18.11 and re-verified at 1.18.14: `mode: subagent` is honored, an
+# unrecognized frontmatter key is forwarded to the provider under `options`, and a double-prefixed
+# OpenRouter model ID parses into providerID + modelID. The 1.18.14 probe also showed opencode
+# honors a `reasoningEffort` with no `model:` — docket's effort-drop below is a docket design
+# choice (no effort without a named model), not an opencode limitation. See docs/opencode/setup.md.
 # run: bash tests/test_sync_agents_opencode.sh
 set -u
 fail=0
