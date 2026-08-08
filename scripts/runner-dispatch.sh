@@ -38,6 +38,15 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$RUNNER" ] || die "--runner is required"
 [ -n "$AGENT" ]  || die "--agent is required"
+# `inherit` is DOCKET'S OWN no-pin sentinel (never a vendor model ID), normalized to "no model"
+# HERE — the one layer every adapter is dispatched through — so no adapter re-decides it. The
+# handoff below already gates the flag on `[ -n "$MODEL" ]`, which makes the sentinel
+# indistinguishable from "no model supplied": exactly the model-less hand path every adapter
+# contract documents. NORMALIZE, not reject — ADR-0067 already rejects the sentinel at GENERATION
+# time (sync-agents.sh's runner_config_error), so a dispatch-time `inherit` is a hand invocation,
+# and the hand contract is tolerant. This is sentinel normalization, NOT model-ID validation
+# (ADR-0015): no vendor value is inspected and no allowlist is introduced.
+[ "$MODEL" = "inherit" ] && MODEL=""
 # The runner name becomes a path component below — reject anything that could traverse out
 # of RUNNERS_DIR (the facade family is a finite table, never an escape hatch).
 case "$RUNNER" in

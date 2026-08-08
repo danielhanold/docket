@@ -291,6 +291,51 @@ assert "0173 rd: and it still MASKS the lower layer (per-key precedence preserve
   '[ "$tol_out" = "<unset>" ]'
 rm -rf "$SBX"
 
+# ---- 0140: `inherit` is DOCKET'S OWN no-pin sentinel, owned by the FACADE ------------
+# The facade normalizes `inherit` -> empty right after argument parsing, so no adapter re-decides
+# it. These asserts route through a THROWAWAY PROBE ADAPTER (the same RUNNERS_DIR seam the 0173
+# value-class asserts use), never through codex.sh: codex.sh carries its own defensive twin, so an
+# assert dispatched through it would pass on the strength of either layer and would stay green with
+# the facade's line deleted — an outcome assert, not a mechanism one. The probe records the argv the
+# FACADE handed the adapter, which is the only place the facade's own decision is observable.
+# DOCKET_HARNESS_ROOT is pinned into the sandbox so the global config layer cannot reach the
+# developer's real ~/.config/docket/config.yml.
+make_fixture
+mkdir -p "$SBX/runners"
+cat > "$SBX/runners/probe.sh" <<'PROBE'
+#!/usr/bin/env bash
+printf '%s\n' "$@" > "$MOCK_ARGV"
+PROBE
+chmod +x "$SBX/runners/probe.sh"
+PARGV="$SBX/probe-argv.txt"
+dispatch_probe(){  # $@ = extra facade args -> fills PARGV with the adapter's argv, one entry per line
+  : > "$PARGV"
+  ( cd "$SBX" && RUNNERS_DIR="$SBX/runners" DOCKET_HARNESS_ROOT="$SBX" MOCK_ARGV="$PARGV" \
+      bash "$FACADE" --runner probe --agent status "$@" >/dev/null 2>&1 )
+}
+
+dispatch_probe --model inherit --effort high
+pargv="$(cat "$PARGV")"
+assert "0140 rd: inherit sentinel => no --model flag reaches the adapter" \
+  '! grep -qxF -- "--model" <<<"$pargv"'
+assert "0140 rd: the literal sentinel never reaches the adapter" \
+  '! grep -qxF -- "inherit" <<<"$pargv"'
+# Effort is a SEPARATE knob: normalizing the model must not disturb it. Without this, dropping the
+# whole flag pair would satisfy both asserts above.
+assert "0140 rd: --effort survives model normalization" \
+  'grep -qxF -- "--effort" <<<"$pargv" && grep -qxF -- "high" <<<"$pargv"'
+
+# Non-regression control (ADR-0015): a REAL model ID is not a sentinel and still passes verbatim.
+# Without this leg, deleting the `[ -n "$MODEL" ]` guard outright — i.e. never forwarding a model at
+# all — would keep every assert above green.
+dispatch_probe --model gpt-5.1-codex
+pargv="$(cat "$PARGV")"
+assert "0140 rd: a real model ID still passes verbatim (ADR-0015)" \
+  'grep -qxF -- "gpt-5.1-codex" <<<"$pargv"'
+assert "0140 rd: ... carried by its own --model flag" \
+  'grep -qxF -- "--model" <<<"$pargv"'
+rm -rf "$SBX"
+
 # ---- 0237: exec -> call-and-return, exit code preserved verbatim -------------------
 # The facade must regain control after the adapter (that is the whole seam the run gate hangs on),
 # and every path where the gate takes no action must be byte-identical to the pre-0237 exec.

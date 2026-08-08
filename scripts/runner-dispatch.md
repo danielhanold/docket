@@ -30,6 +30,11 @@ docket.sh runner-dispatch --runner <name> --agent <agent> [--model <m>] [--effor
   a value that came from docket's shipped `agents/harness-defaults.yml` is never forwarded. Since
   change 0205 a `runner:`-bearing agent with **no** user-configured model is a generation-time
   error, so the model-less case reaches this facade only on a direct hand invocation.
+  **`--model inherit` is docket's own no-pin sentinel, never a vendor model ID** — this facade
+  normalizes it to "no model" for **every** adapter, so a sentinel dispatch is byte-identical to
+  omitting `--model` and no adapter re-decides it. Normalizing docket's own sentinel is **not
+  model-ID validation**: the ADR-0015 boundary is unamended, no vendor value is inspected, and no
+  allowlist of model IDs is introduced.
 - `--worktree <path>` (optional) — the run anchor. Resolved through `docket_anchor_path`, so an
   absolute path passes through and a **relative** one joins to the main worktree (never to the
   caller's cwd). Absent ⇒ the main worktree, byte-identical to pre-0206 behavior. **Required for
@@ -74,6 +79,9 @@ run gate (change 0237) — `VERIFY_RUN` (the disposition reader, default `script
    [--effort e] -- <args…>`, foreground, **call-and-return** (change 0237 — no longer `exec`).
    The adapter's stdout/stderr pass through and its exit code is propagated **verbatim** on every
    path where the run gate takes no action.
+   `--model` is omitted whenever no model resolved — including when the caller passed the
+   `inherit` sentinel, which is normalized to empty right after argument parsing, above every
+   adapter.
 5. **Run gate (change 0237)** — engages **only** for `--agent implement-next`. The facade re-syncs
    the metadata worktree and records the set of `in-progress` change ids
    (`verify-run --in-progress-ids`), then stamps the clock; after the handoff it re-syncs **again**
@@ -154,6 +162,9 @@ The full post-re-dispatch matrix, second verdict → exit: `run-complete` → `0
   worktree (ADR-0034 unamended). A relative `--worktree` joins to the main worktree, so the
   argument inherits that cwd-independence rather than reintroducing the hazard.
 - Never runs a child harness itself; all child specifics live in the adapter.
+- `inherit` is docket's own no-pin sentinel and is normalized to "no model" **here**, once, for
+  every adapter — adapters keep a one-line defensive twin for their documented hand-invocation
+  path, never as a second decision. Real model IDs are untouched (ADR-0015).
 - The adapter's exit code is propagated verbatim whenever the run gate takes no action; the
   two-strikes abort (`1`) and the halt stop (`3`) are the only new non-zeros, and both are on paths
   that were previously silent.
