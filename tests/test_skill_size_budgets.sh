@@ -801,6 +801,19 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # the claim commit itself. A rule parked in a rare-edges reference is unread precisely when it must
 # intervene (the same argument the 0113 and 0137 entries above record). Measured 4467 words -> 4500
 # (33 words of margin, above the 25-word threshold). The LINE budget was NOT raised.
+# Change 0200 raised docket-convention/SKILL.md 345/6000 -> 355/6100 to record that merged
+# plan and results artifacts are FROZEN build records. The references/ file considered and rejected
+# is skills/docket-convention/references/terminal-close-out.md — it is the natural topical home
+# (it already owns what happens to artifacts at close-out), and it is the wrong one: a references/
+# file is read ON DEMAND, and this rule has to be in hand BEFORE an agent decides to touch a merged
+# plan, which is a decision taken while doing something else entirely. Step 0 loads SKILL.md
+# unconditionally for every workflow skill, so that is the only surface where the rule fires before
+# the action it forbids. The rule's own origin is the proof: change 0217 surfaced it because a
+# merged plan's verification grep had gone stale and the reflex was to edit the plan. Set per the
+# rounding rule above from the measured actuals: 350 lines -> the next multiple of 5 is 350 itself,
+# leaving ZERO margin — the near-zero mode this block repeatedly records raising past — so the
+# multiple after: 355. 6064 words -> the next multiple of 50 is 6100, a 36-word margin, above the
+# 25-word threshold, so 6100 stands.
 # skills/docket-build-task/SKILL.md's budget was raised 130/1150 -> 145/1350 by change 0249, which
 # added two normative clauses to the worker contract: a pointer in ## The cycle to the gate's
 # execution capabilities plus the worker-shaped consequence inline (never yield, observe by
@@ -829,7 +842,7 @@ skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            120 1000
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          145 1350
-skills/docket-convention/SKILL.md                          345 6000
+skills/docket-convention/SKILL.md                          355 6100
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         190 2150
 skills/docket-convention/references/auto-capture.md        130 1250
