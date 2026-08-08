@@ -32,11 +32,10 @@ subagent, and never load a review skill.
   `git commit -a`: the worktree is shared, and a sweep puts work that is not yours into your
   commit. What your task changed is defined by the **task contract, not** by diffing `git status`:
   a derived file your task's own command regenerates is yours to stage, while a dirty path you
-  cannot attribute to your task is not — leave it in place and name it in `NOTES`. If you were
-  dispatched as an escalated worker, an inherited path you revised, replaced, or deliberately kept
-  within the task's scope is one of your task's paths and is staged normally; an inherited path
-  outside the task boundary is accounted for but not staged, taking the same leave-and-report
-  posture.
+  cannot attribute to your task is not — leave it in place and name it in `NOTES`. As an escalated
+  worker (below), an inherited path you revised, replaced, or deliberately kept within the task's
+  scope is one of your task's paths and is staged normally; an inherited path outside the task
+  boundary is accounted for but not staged, taking the same leave-and-report posture.
 - If you were dispatched as an **escalated** worker, the worktree may already hold uncommitted
   changes from the weaker worker's attempt. Inspect and account for every one of them. You may
   revise or replace them, but never discard them blindly and never `git checkout .` over them.
