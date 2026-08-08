@@ -1,8 +1,8 @@
 # Backlog
 
-**264 changes** — 🟡 29 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 157 done · 🗑️ 72 killed
+**265 changes** — 🟡 30 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 158 done · 🗑️ 72 killed
 
-## 🟡 Proposed (29)
+## 🟡 Proposed (30)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -35,6 +35,7 @@
 | [0262](active/0262-ban-the-single-backslash-word-boundary-form-too-not-just-its.md) | Ban the single-backslash word-boundary form too, not just its escaped spelling | `medium` | `fix` | needs-brainstorm |
 | [0263](active/0263-guard-the-remaining-agents-md-shell-rules-across-scripts-tes.md) | Guard the remaining AGENTS.md Shell rules across scripts, tests, and agent-executed markdown | `medium` | `chore` | needs-brainstorm |
 | [0264](active/0264-measure-the-claude-harness-s-forked-mode-gate-verdict-and-pi.md) | Measure the claude harness's forked-mode gate verdict and pin a surviving launch shape | `medium` | `docs` | needs-brainstorm |
+| [0265](active/0265-branch-the-adr-0065-quote-leg-diagnostic-so-it-stops-claimin.md) | Branch the ADR-0065 quote-leg diagnostic so it stops claiming a truncation that did not happen | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -45,12 +46,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0246](active/0246-make-the-docket-example-yml-guard-suite-bite.md) | Make the docket-example-yml guard suite bite | `medium` | `fix` | [#179](https://github.com/danielhanold/docket/pull/179) |  |
-| [0255](active/0255-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule.md) | Complete ADR-0065's quote leg and document the unquoted rule | `medium` | `fix` | [#182](https://github.com/danielhanold/docket/pull/182) |  |
 
 ```mermaid
 graph TD
@@ -80,7 +80,6 @@ graph TD
   0251
   0252
   0253
-  0255
   0256
   0257
   0258
@@ -89,17 +88,19 @@ graph TD
   0262
   0263
   0264
+  0265
   0192:::done
   0211:::done
   0237:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (229)</summary>
+<details><summary>✅🗑️ Archive — done + killed (230)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0259](archive/2026-08-08-0259-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md) | Harden render-board: sanitize feeder values and settle the failure contract | 2026-08-08 |
+| [0255](archive/2026-08-08-0255-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule.md) | Complete ADR-0065's quote leg and document the unquoted rule | 2026-08-08 |
 | [0254](archive/2026-08-08-0254-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md) | BSD tool-default sweep: templated mktemp and non-interactive mv | 2026-08-08 |
 | [0250](archive/2026-08-08-0250-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs.md) | Repo-scope detect-merged's fallback and guard the idle-secs duplication | 2026-08-08 |
 | [0249](archive/2026-08-08-0249-build-worker-contract-gate-execution-pointer-and-staging-dis.md) | Build-worker contract: gate-execution pointer and staging discipline | 2026-08-08 |
@@ -124,7 +125,6 @@ graph TD
 | [0225](archive/2026-08-07-0225-the-test-suite-has-grown-into-the-harness-s-foreground-ceilin.md) | The test suite has grown into the harness's foreground ceiling — cut its wall-clock runtime | 2026-08-07 |
 | [0224](archive/2026-08-07-0224-the-build-gate-contract-never-says-green-red-is-the-exit-code.md) | The build gate contract never says green/red is the exit code, so an output-shape match passes as a gate | 2026-08-07 |
 | [0223](archive/2026-08-07-0223-the-build-gate-contract-never-states-an-execution-posture-for.md) | The build gate contract never states an execution posture for a suite that outgrows a single foreground call | 2026-08-07 |
-| [0220](archive/2026-08-07-0220-clear-the-unfixed-review-findings-from-change-0207.md) | clear the unfixed review findings from change 0207 | 2026-08-07 |
 | [0204](archive/2026-08-07-0204-restore-rationale-dropped-by-round-three-compression-finaliz.md) | Restore dropped doc rationale (compression losses) and complete AGENTS.md's frontmatter-edit rule | 2026-08-07 |
 | [0199](archive/2026-08-07-0199-harden-the-role-self-description-guard-co-occurrence-gap-har.md) | Harden the role-self-description guard — co-occurrence gap, hardcoded population, broad default matcher | 2026-08-07 |
 | [0198](archive/2026-08-07-0198-settle-the-role-self-description-rule-s-positive-half-docket.md) | Settle the role-self-description rule's positive half — docket-review names no skills.review binding | 2026-08-07 |
@@ -191,7 +191,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 24 done |
+| [2026-08](archive/) | 25 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
