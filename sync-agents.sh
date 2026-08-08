@@ -1205,11 +1205,23 @@ SHIM
   if [ -n "$wt_rule" ]; then printf '\n%s\n' "$wt_rule"; fi
 }
 
-# Assemble the Cursor dispatch rule to stdout: static head + one subsection per built-in agent
-# (glob order). A built-in agent with a fragment uses it verbatim; one without gets a minimal
-# auto-block derived from its description + a warning (a new agent is never silently un-dispatched).
+# The caller-side run gate (change 0242). ONE source — cursor-rules/run-gate.md — rendered verbatim
+# into every parent-facing surface: the Cursor rule, the committed AGENTS.md block, and (change
+# 0242) the Claude surface, which inherits it through the AGENTS.md block assembler. The gate is a
+# whole predicate, not a threshold: a second hand-written copy would agree on the ordinary case and
+# diverge on exactly the halted/incomplete states it exists to distinguish (LEARNINGS
+# duplicated-gate-copies-the-whole-predicate). Printed with no surrounding blank line; each caller
+# owns its own spacing.
+assemble_run_gate() { cat "$CURSOR_RULES_SRC/run-gate.md"; }
+
+# Assemble the Cursor dispatch rule to stdout: static head + the run gate + one subsection per
+# built-in agent (glob order). A built-in agent with a fragment uses it verbatim; one without gets a
+# minimal auto-block derived from its description + a warning (a new agent is never silently
+# un-dispatched).
 assemble_dispatch_rule() {
   cat "$CURSOR_RULES_SRC/dispatch.head.md"
+  printf '\n'
+  assemble_run_gate
   local src name frag desc
   for src in "$AGENTS_SRC"/docket-*.md; do
     [ -e "$src" ] || continue
@@ -1270,6 +1282,8 @@ the hosting harness's native named-agent dispatch either way — the pin is not 
 the agent also carries the skill's dispatch contract and preload. Pass the request through
 unchanged, including any change or ADR id.
 HEAD
+  printf '\n'
+  assemble_run_gate
   printf '\n'
   local src name desc
   for src in "$AGENTS_SRC"/docket-*.md; do
