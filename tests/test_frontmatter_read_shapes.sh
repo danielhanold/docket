@@ -11,8 +11,12 @@
 # Plain bash; hermetic fixtures; no network. Run: bash tests/test_frontmatter_read_shapes.sh
 #
 # Every pattern here is a fixed string or a `case` glob — never bounded repetition. PATH grep is
-# ugrep and accepts `{0,600}`; BSD /usr/bin/grep rejects it, so a shape test that used one would
-# pass locally and fail on a stock macOS host (change 0130).
+# ugrep and accepts a repetition bound of 600; BSD /usr/bin/grep rejects any bound above 255
+# ("maximum repetition exceeds 255"), so a shape test that used one would pass locally and fail on
+# a stock macOS host (change 0130). The example bound is spelled in words rather than written as a
+# brace interval on purpose: tests/test_grep_portability.sh is a STATIC SOURCE scan over every
+# tracked non-docs path, and it does not — must not — exempt comments, since an exemption a comment
+# can claim is an exemption an offending pattern can claim by being moved into one.
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIB="$ROOT/scripts/lib/docket-frontmatter.sh"
