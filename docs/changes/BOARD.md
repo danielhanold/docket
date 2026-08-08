@@ -1,6 +1,6 @@
 # Backlog
 
-**268 changes** — 🟢 2 in progress · 🟡 28 proposed · ⚪ 4 deferred · ✅ 162 done · 🗑️ 72 killed
+**269 changes** — 🟢 2 in progress · 🟡 29 proposed · ⚪ 4 deferred · ✅ 162 done · 🗑️ 72 killed
 
 ## 🟢 In progress (2)
 
@@ -9,7 +9,7 @@
 | [0242](active/0242-close-the-claude-gap-in-the-run-completion-gate-with-a-comma.md) | Close the Claude gap in the run-completion gate with a caller-side verify in the dispatch rules | `high` | `feat` | [spec](../superpowers/specs/2026-08-08-close-the-claude-gap-in-the-run-completion-gate-with-a-comma-design.md) | `feat/close-the-claude-gap-in-the-run-completion-gate-with-a-comma` |
 | [0258](active/0258-guard-the-config-suite-s-enumerated-claims-export-order-and.md) | Guard the config-suite's enumerated claims: export order and rung pairs | `medium` | `chore` | [spec](../superpowers/specs/2026-08-07-guard-the-config-suite-s-enumerated-claims-export-order-and-design.md) | `feat/guard-the-config-suite-s-enumerated-claims-export-order-and` |
 
-## 🟡 Proposed (28)
+## 🟡 Proposed (29)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -41,6 +41,7 @@
 | [0266](active/0266-deterministic-frontmatter-field-writer-no-skill-hand-rolls-a.md) | Deterministic frontmatter field writer — no skill hand-rolls a manifest edit | `medium` | `feat` | needs-brainstorm |
 | [0267](active/0267-correct-the-stale-field-quote-handling-claim-in-script-contr.md) | Correct the stale field() quote-handling claim in script contracts | `medium` | `docs` | needs-brainstorm |
 | [0268](active/0268-de-flake-the-reclaim-leg-of-test-docket-status-under-paralle.md) | De-flake the reclaim leg of test_docket_status under parallel contention | `medium` | `fix` | needs-brainstorm |
+| [0269](active/0269-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child.md) | Decouple the shim wrapper's own pin from the delegated child's | `high` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
 
@@ -87,6 +88,7 @@ graph TD
   0266
   0267
   0268
+  0269
   0192:::done
   0211:::done
   0237:::done
