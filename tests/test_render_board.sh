@@ -2269,8 +2269,12 @@ assert "0259 M4: the well-formed archive row still renders alongside the shifted
   '/usr/bin/grep -qF -- "| [0001](archive/2026-08-01-0001-ok.md) | Fine Row | 2026-08-01 |" <<<"$m4_md"'
 assert "0259 M4: a shifted feeder tuple produces no rendered row" \
   '! /usr/bin/grep -qF -- "Tab Name" <<<"$m4_md"'
-assert "0259 M4: a shifted feeder tuple is diagnosed on stderr" \
-  '/usr/bin/grep -qF -- "archive feeder tuple" <<<"$m4_err"'
+# The DIAGNOSTIC now comes from M5's upfront path check, not from the feeder round trip: M5
+# ("path contains a TAB or CR") runs above the feeder over both directories, so it claims this
+# case first and the feeder conjunct became defence in depth. Asserted on the exact reason text so
+# the assert pins the MECHANISM rather than "something rejected it".
+assert "0259 M4: a TAB-in-filename archive file is diagnosed by M5's upfront path check" \
+  '/usr/bin/grep -qF -- "render-board: malformed change file: $m4/archive/2026-08-02-0002-tab\\tname.md: path contains a TAB or CR" <<<"$m4_err"'
 assert "0259 M4: a shifted feeder tuple makes the run exit 3" '[ "$m4_rc" -eq 3 ]'
 # The diagnostic names a path that itself carries the TAB. It must be escaped for the same reason a
 # malformed VALUE is: the stderr stream must never carry a raw control character.
@@ -2291,8 +2295,8 @@ assert "0259 M4: the <summary> tally matches the number of rendered archive rows
 m4_dg="$(bash "$SCRIPT" --changes-dir "$m4" --format digest 2>/dev/null)"; m4_dg_rc=$?
 m4_dg_err="$(bash "$SCRIPT" --changes-dir "$m4" --format digest 2>&1 >/dev/null)"
 assert "0259 M4: the digest render also exits 3 on a shifted feeder tuple" '[ "$m4_dg_rc" -eq 3 ]'
-assert "0259 M4: the digest render also diagnoses the shifted tuple on stderr" \
-  '/usr/bin/grep -qF -- "archive feeder tuple" <<<"$m4_dg_err"'
+assert "0259 M4: the digest render also diagnoses the TAB-in-filename path on stderr" \
+  '/usr/bin/grep -qF -- "path contains a TAB or CR" <<<"$m4_dg_err"'
 assert "0259 M4: the rejected file is excluded from the digest done rollup" \
   '/usr/bin/grep -qxF "backlog done 1" <<<"$m4_dg"'
 assert "0259 M4: the digest still emits its ready line under the rejection" \
@@ -2304,6 +2308,50 @@ assert "0259 M4: the rejected file is styled as no mermaid done node" \
 assert "0259 M4: no dangling classDef when every done node was rejected" \
   '! /usr/bin/grep -qF -- "classDef done" <<<"$m4_md"'
 rm -rf "$m4"
+
+# --- change 0259 (M5): a TAB in an ACTIVE filename is rejected upfront -------------------------
+# The ACTIVE side joins `id<TAB>file` into SECTION and splits it back at FOUR consumers
+# (print_section, the digest `change` loop, the mermaid loop, the ready-queue loop) — the same
+# exposure M4 closes on the archive side, with no per-consumer guard anywhere. Before M5 this
+# fixture rendered `| [0005](active/0005-tab<TAB>active.md) | Tab Active | … |` and emitted
+# `change 5 proposed build-ready tabactive`, BOTH at rc=0 with empty stderr. M5 rejects it in the
+# upfront pass, which covers all four consumers at once.
+m5="$(mktemp -d)"
+mkdir -p "$m5/active" "$m5/archive"
+printf -- '---\nid: 4\nslug: sane\ntitle: Sane Active\nstatus: proposed\npriority: medium\ncreated: 2026-08-04\nspec: docs/x.md\n---\n' \
+  > "$m5/active/0004-sane.md"
+printf -- '---\nid: 5\nslug: tabactive\ntitle: Tab Active\nstatus: proposed\npriority: medium\ncreated: 2026-08-05\nspec: docs/x.md\n---\n' \
+  > "$m5/active/$(printf '0005-tab\tactive.md')"
+m5_md="$(bash "$SCRIPT" --changes-dir "$m5" 2>/dev/null)"; m5_rc=$?
+m5_err="$(bash "$SCRIPT" --changes-dir "$m5" 2>&1 >/dev/null)"
+m5_dg="$(bash "$SCRIPT" --changes-dir "$m5" --format digest 2>/dev/null)"; m5_dg_rc=$?
+
+assert "0259 M5: a TAB in an ACTIVE filename makes the markdown render exit 3" '[ "$m5_rc" -eq 3 ]'
+assert "0259 M5: a TAB in an ACTIVE filename makes the digest render exit 3" '[ "$m5_dg_rc" -eq 3 ]'
+# MECHANISM: the exact upfront reason text, naming the file, with the TAB escaped as \t.
+assert "0259 M5: stderr names the TAB-named active file with the TAB escaped and the M5 reason" \
+  '/usr/bin/grep -qF -- "render-board: malformed change file: $m5/active/0005-tab\\tactive.md: path contains a TAB or CR" <<<"$m5_err"'
+assert "0259 M5: exactly one diagnostic — the sane sibling is not implicated" \
+  '[ "$(/usr/bin/grep -c "malformed change file:" <<<"$m5_err")" = 1 ]'
+assert "0259 M5: no raw TAB survives into the diagnostic stream" \
+  '! /usr/bin/grep -q "$(printf "\t")" <<<"$m5_err"'
+# Excluded from BOTH projections, and the sibling still renders (so the assert is not satisfiable
+# by a renderer that simply drops everything).
+assert "0259 M5: the TAB-named row is excluded from the markdown section table" \
+  '! /usr/bin/grep -qF -- "Tab Active" <<<"$m5_md"'
+assert "0259 M5: no raw TAB survives into the rendered markdown" \
+  '! /usr/bin/grep -q "$(printf "\t")" <<<"$m5_md"'
+assert "0259 M5: the well-formed active sibling still renders" \
+  '/usr/bin/grep -qF -- "Sane Active" <<<"$m5_md"'
+assert "0259 M5: the proposed tally counts one row, not two" \
+  '/usr/bin/grep -qF -- "Proposed (1)" <<<"$m5_md"'
+assert "0259 M5: the digest emits no change line for the rejected id" \
+  '! /usr/bin/grep -q "^change 5 " <<<"$m5_dg"'
+assert "0259 M5: the digest proposed rollup excludes the rejected file" \
+  '/usr/bin/grep -qxF "backlog proposed 1" <<<"$m5_dg"'
+assert "0259 M5: the ready queue carries only the well-formed change" \
+  '/usr/bin/grep -qxF "ready 4" <<<"$m5_dg"'
+rm -rf "$m5"
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

@@ -153,6 +153,14 @@ sanitize(){ local v="$1"; v="${v//$'\t'/\\t}"; v="${v//$'\r'/\\r}"; printf '%s' 
 #      because a control-char value can never match one of the seven closed names. Rejection by
 #      vocabulary IS the sanitization for `status:`, applied before the value ever reaches the
 #      archive TAB join or an ARC_COUNT/SECTION array subscript.
+#   M5 path carrying a TAB or CR — the one control-character source that never passes through a
+#      frontmatter read, so no value check can see it. It is checked HERE, upfront over both
+#      directories, rather than at a feeder: the ACTIVE side joins `id<TAB>file` into SECTION and
+#      splits it back at FOUR consumers (print_section, the digest `change` loop, the mermaid loop,
+#      the ready-queue loop), so a per-consumer read-back guard would have to be written four times
+#      and would still miss the fifth consumer somebody adds. One upfront path check covers every
+#      active consumer AND the archive feeder at once.
+# M5 is numbered after M4 because M4 shipped first; it nevertheless runs in THIS pass, above it.
 # Deliberately NOT malformed: a vocabulary-valid status in the "wrong" directory (`done` in
 # active/ is legitimate mid-sweep state — failing on it would make docket-status's own sweep window
 # a renderer failure); an unknown or absent type: (change 0127 — a type problem must never affect a
@@ -183,6 +191,12 @@ total=$(( total + ${#ARCFILES[@]} ))
 # full-vocabulary iteration count is pinned at 2 by tests/test_render_board.sh, and membership here
 # goes through docket_status_is_member so the vocabulary keeps exactly one source.
 for f in ${AFILES[@]+"${AFILES[@]}"} ${ARCFILES[@]+"${ARCFILES[@]}"}; do
+  # M5 first: a control character in the PATH corrupts every downstream TAB join and would be
+  # rendered raw into a markdown link, whatever the frontmatter says.
+  if [ "$f" != "${f//[$'\t\r']/}" ]; then
+    mark_malformed "$f" "path contains a TAB or CR"
+    continue
+  fi
   v_id="$(int_field "$f" id)"
   if [ -z "$v_id" ]; then
     mark_malformed "$f" "unusable id (absent, empty, or non-integer)"
@@ -238,6 +252,10 @@ count_of(){ rows_sorted "$1" | grep -c . ; }
 # final field: such a path resolves on disk and carries a valid status, yet emitting it would write
 # a raw control character into the rendered link. That is the conjunct a TAB in a FILENAME trips,
 # and it is why M4 is not a duplicate of M1-M3 — a filename never passes through a frontmatter read.
+# Since M5 ("path contains a TAB or CR") now rejects such a path UPFRONT over both directories,
+# this conjunct is DEFENCE IN DEPTH rather than the sole owner of that case: unobservable today,
+# kept deliberately so a future edit feeding this loop from somewhere other than the validated
+# ARCFILES still fails loud.
 ARC_ROWS=()
 for f in "${ARCFILES[@]}"; do
   [ -z "${BAD[$f]:-}" ] || continue
