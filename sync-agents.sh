@@ -372,8 +372,20 @@ validate_harness_defaults() {  # $1=file $2=sources-dir
         for (key in values) {
           raw=values[key]
           consumed=raw; sub(/[[:space:]].*$/, "", consumed)
+          lead=substr(raw, 1, 1)
+          # Two legs (ADR-0065), duplicated BY VALUE from hd_validate — the shipped-data reader is
+          # deliberately not coupled to the user-config readers, so parity here is held by test
+          # (tests/test_harness_defaults_flow_map.sh), not by a shared helper. The `consumed != raw`
+          # leg catches whatever the value class cannot express (an embedded space). The quote leg
+          # catches what that comparison structurally CANNOT see: the value class of hd_field,
+          # [^,}[:space:]]+, consumes the quotes whole, so a quoted but space-free pin has
+          # consumed == raw and would ride into the emitted wrapper verbatim while this very
+          # diagnostic tells the reader to write it unquoted. Single quotes included — the remedy
+          # says "unquoted", not "double-unquoted". \042 and \047 are the string escapes for the
+          # two quote characters; this whole program sits inside a single-quoted shell word, so a
+          # literal apostrophe cannot appear anywhere in it, comments included.
           if (consumed == "") diag(h "/" a " is missing a non-empty \047" key "\047")
-          else if (consumed != raw) diag(h "/" a " \047" key "\047 value \047" raw "\047 is not a bare scalar — the reader consumes only \047" consumed "\047; write model/effort values unquoted and space-free")
+          else if (consumed != raw || lead == "\042" || lead == "\047") diag(h "/" a " \047" key "\047 value \047" raw "\047 is not a bare scalar — the reader consumes only \047" consumed "\047; write model/effort values unquoted and space-free")
         }
       }
     }
