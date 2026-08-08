@@ -2,7 +2,7 @@
 id: 246
 slug: make-the-docket-example-yml-guard-suite-bite
 title: 'Make the docket-example-yml guard suite bite'
-status: implemented
+status: done
 priority: medium
 type: fix
 created: 2026-08-07
@@ -17,7 +17,7 @@ results: docs/results/2026-08-08-make-the-docket-example-yml-guard-suite-bite-re
 trivial: false
 auto_groomable: true
 branch: feat/make-the-docket-example-yml-guard-suite-bite
-claimed_at: 2026-08-08T03:11:00Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/179
 blocked_by:
 reconciled: true
