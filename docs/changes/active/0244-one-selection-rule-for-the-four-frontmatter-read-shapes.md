@@ -12,12 +12,12 @@ related: [235]
 discovered_from: [134, 240]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-one-selection-rule-for-the-four-frontmatter-read-shapes-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-08-one-selection-rule-for-the-four-frontmatter-read-shapes.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/one-selection-rule-for-the-four-frontmatter-read-shapes
-claimed_at: 2026-08-08T08:39:24Z
+claimed_at: 2026-08-08T08:45:34Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-one-selection-rule-for-the-four-frontmatter-read-shapes-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-one-selection-rule-for-the-four-frontmatter-read-shapes-design.md) |
+| Plan | [2026-08-08-one-selection-rule-for-the-four-frontmatter-read-shapes.md](https://github.com/danielhanold/docket/blob/feat/one-selection-rule-for-the-four-frontmatter-read-shapes/docs/superpowers/plans/2026-08-08-one-selection-rule-for-the-four-frontmatter-read-shapes.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
