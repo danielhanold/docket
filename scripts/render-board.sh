@@ -166,6 +166,15 @@ sanitize(){ local v="$1"; v="${v//$'\t'/\\t}"; v="${v//$'\r'/\\r}"; printf '%s' 
 # a renderer failure); an unknown or absent type: (change 0127 — a type problem must never affect a
 # row); a malformed created: (change 0094's 9999-99-99 sentinel already owns it).
 declare -A BAD       # file path -> 1 when excluded from every projection
+# The upfront pass already reads `id:` and `status:` out of every file, so it CACHES both rather
+# than discarding them: every later consumer (the SECTION loop, the archive feeder, ARC_COUNT, the
+# digest `change` loop, the done-node loop) reads the cache instead of re-parsing the file. That is
+# a measured saving on a several-hundred-file backlog, and it also removes the possibility of two
+# passes disagreeing if a file changes mid-run. Keys are the VERBATIM path, exactly as `BAD` is
+# keyed, so a cache read and a BAD gate always speak about the same file. Only a file that survived
+# every class is cached — a `${VALID_ID[$f]:-}` miss and a BAD hit are the same set.
+declare -A VALID_ID  # file path -> validated integer id  (populated only for non-BAD files)
+declare -A VALID_ST  # file path -> validated lifecycle status
 MALFORMED=0
 # The PATH is sanitized too, not only the offending value: a control character can live in a
 # filename (M4's case), and the diagnostic stream must never carry a raw one. `BAD` is still keyed
@@ -211,18 +220,21 @@ for f in ${AFILES[@]+"${AFILES[@]}"} ${ARCFILES[@]+"${ARCFILES[@]}"}; do
     mark_malformed "$f" "status '$(sanitize "$v_st")' is not one of the seven lifecycle statuses"
     continue
   fi
+  VALID_ID["$f"]="$v_id"
+  VALID_ST["$f"]="$v_st"
 done
 
 # The BAD gate here is DEFENCE IN DEPTH and is currently unobservable — deliberately recorded so a
 # reader does not mistake it for tested behaviour. M1/M2 are each already caught by this loop's own
-# `[ -n … ]` guards, and an M3 status can only ever become a SECTION key nobody reads (every
+# `[ -n … ]` guards — which now read the cache, so a miss and a BAD hit coincide by construction —
+# and an M3 status can only ever become a SECTION key nobody reads (every
 # consumer iterates DOCKET_STATUSES_ACTIVE). Removing this line reddens no assert. It stays so that
 # `BAD` means exactly one thing — "excluded from every projection" — at all three consumers, which
 # is what keeps a future consumer from inheriting the hole.
 for f in "${AFILES[@]}"; do
   [ -z "${BAD[$f]:-}" ] || continue
-  id="$(int_field "$f" id)"; [ -n "$id" ] || continue
-  st="$(field "$f" status)"; [ -n "$st" ] || continue
+  id="${VALID_ID[$f]:-}"; [ -n "$id" ] || continue
+  st="${VALID_ST[$f]:-}"; [ -n "$st" ] || continue
   SECTION["$st"]+="$id"$'\t'"$f"$'\n'
 done
 
@@ -259,7 +271,7 @@ count_of(){ rows_sorted "$1" | grep -c . ; }
 ARC_ROWS=()
 for f in "${ARCFILES[@]}"; do
   [ -z "${BAD[$f]:-}" ] || continue
-  base="$(basename "$f")"; d="${base:0:10}"; id="$(int_field "$f" id)"; st="$(field "$f" status)"
+  base="$(basename "$f")"; d="${base:0:10}"; id="${VALID_ID[$f]:-}"; st="${VALID_ST[$f]:-}"
   [ -n "$id" ] && [ -n "$st" ] || continue
   tuple="$d"$'\t'"$id"$'\t'"$st"$'\t'"$f"
   IFS=$'\t' read -r r_d r_id r_st r_f <<<"$tuple"
@@ -278,7 +290,7 @@ declare -A ARC_COUNT  # terminal-status counts (archive)
 # board-row-dropped's territory.
 for f in "${ARCFILES[@]}"; do
   [ -z "${BAD[$f]:-}" ] || continue
-  st="$(field "$f" status)"; [ -n "$st" ] || continue
+  st="${VALID_ST[$f]:-}"; [ -n "$st" ] || continue
   ARC_COUNT["$st"]=$(( ${ARC_COUNT[$st]:-0} + 1 ))
 done
 
@@ -322,7 +334,7 @@ if [ "$FORMAT" = digest ]; then
   while IFS=$'\t' read -r id f; do
     [ -n "$id" ] || continue
     digest_admits "$f" || continue
-    st="$(field "$f" status)"
+    st="${VALID_ST[$f]:-}"
     printf 'change %s %s %s %s\n' \
       "$id" "$st" "$(digest_readiness "$f" "$id" "$st")" "$(field "$f" slug)"
   done < <(
@@ -490,7 +502,7 @@ done < <(
 # stylable as a node while being absent from the table, the tally, and the digest.
 mapfile -t DONE_IDS < <(for f in "${ARCFILES[@]}"; do
   [ -z "${BAD[$f]:-}" ] || continue
-  [ "$(field "$f" status)" = "done" ] && { v="$(int_field "$f" id)"; [ -n "$v" ] && printf '%s\n' "$v"; }; done | sort -n)
+  [ "${VALID_ST[$f]:-}" = "done" ] && { v="${VALID_ID[$f]:-}"; [ -n "$v" ] && printf '%s\n' "$v"; }; done | sort -n)
 done_shown=0
 for id in "${DONE_IDS[@]}"; do
   [ -n "$id" ] || continue
