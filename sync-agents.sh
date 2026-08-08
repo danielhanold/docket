@@ -1008,10 +1008,16 @@ emit_cursor_md(){  # $1=src md  $2=model  $3=effort   (both FINAL resolved value
 #
 # opencode has NO first-class reasoning-effort field. It forwards unrecognized agent-frontmatter
 # keys to the provider as model options, so `reasoningEffort` is a real per-agent effort rather
-# than a decorative key: verified against opencode 1.18.11, where `opencode debug agent <name>`
-# reports it as `options.reasoningEffort`. Effort is dropped when no model resolves — that is
-# DOCKET's design choice (a provider option with no provider selected has nothing to name), pinned
-# by tests/test_sync_agents_opencode.sh's effort-drop asserts, not a verified opencode behavior.
+# than a decorative key. Re-verified against opencode 1.18.14: `opencode debug agent docket-status`
+# reported `options: {reasoningEffort: "low"}` alongside
+# `model: {providerID: "openrouter", modelID: "deepseek/deepseek-v4-flash-0731"}`.
+#
+# Effort is dropped when no model resolves. That is DOCKET's choice, and the reason is positive:
+# docket refuses to pin an effort it cannot attribute to a resolved model, so a generated file never
+# carries an effort whose target is unnamed. It is NOT a workaround for an opencode limitation — the
+# same 1.18.14 probe showed a hand-written agent with `reasoningEffort: high` and no `model:` still
+# reporting `options: {reasoningEffort: "high"}`, i.e. opencode would have honored the orphan effort.
+# The drop is pinned by tests/test_sync_agents_opencode.sh's effort-drop asserts.
 #
 # Docket keeps NO allowlist of opencode model IDs or effort tokens (ADR-0015). IDs reached through
 # OpenRouter are double-prefixed (`openrouter/<vendor>/<model>`); opencode splits that into a
@@ -1415,7 +1421,7 @@ project_level_pass() {  # built-in ⊕ local ⊕ committed ⊕ global -> <repo>/
     # set a knob, ran the tool, and got neither wrappers nor a word. Generation path only — one
     # authoritative copy of the hint, at the moment the user acted and the no-op bit.
     if [ "${USER_HARNESSES_SET:-0}" = "1" ]; then
-      log "global agent_harnesses is set (${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml) but this repo has not opted in, so no per-repo wrappers were generated. To opt in, add 'agent_harnesses:' to .docket.local.yml (machine-local) or .docket.yml (committed)."
+      log "global agent_harnesses is set ($GLOBAL_CFG) but this repo has not opted in, so no per-repo wrappers were generated. To opt in, add 'agent_harnesses:' to .docket.local.yml (machine-local) or .docket.yml (committed)."
     fi
     return 0
   fi
