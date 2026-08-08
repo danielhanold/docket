@@ -2,11 +2,11 @@
 id: 244
 slug: one-selection-rule-for-the-four-frontmatter-read-shapes
 title: 'One selection rule for the four frontmatter read shapes'
-status: proposed
+status: in-progress
 priority: medium
 type: refactor
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-08
 depends_on: []
 related: [235]
 discovered_from: [134, 240]
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/one-selection-rule-for-the-four-frontmatter-read-shapes
+claimed_at: 2026-08-08T08:37:35Z
 pr:
 blocked_by:
 reconciled: false
