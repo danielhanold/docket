@@ -36,7 +36,9 @@ GATE_LINES="$(grep -c "" "$GATE_SRC" 2>/dev/null || echo 0)"
 # mandatory facade prefix, since `docket.sh` is on no PATH. Correctness over the plan-time guess.
 # Raised 18 -> 23 (finding 3): the symmetric metadata re-sync — two `preflight` commands at full
 # facade spelling, plus the sentence saying why both reads must be fresh.
-assert "gate text is at most 23 lines" '[ "$GATE_LINES" -ge 1 ] && [ "$GATE_LINES" -le 23 ]'
+# Raised 23 -> 25 (finding 4): the multi-candidate abort clause in step 3 — the cardinality rule
+# scripts/runner-dispatch.sh enforces ("this run claims at most one") had no prose counterpart.
+assert "gate text is at most 25 lines" '[ "$GATE_LINES" -ge 1 ] && [ "$GATE_LINES" -le 25 ]'
 
 # --- the behavioral claims, each bound to what it is asserted ABOUT ---
 # (learnings: prose-guard-binds-phrase-to-claim — never a bare phrase-presence grep)
@@ -57,6 +59,16 @@ assert "gate: re-syncs metadata again before the AFTER snapshot" \
   '[[ "$G" == *"After the return"*"docket.sh preflight"*"verify-run --in-progress-ids"* ]]'
 assert "gate: says both snapshots must read fresh origin state" \
   '[[ "$G" == *"both snapshots"*"FRESH ORIGIN"* ]]'
+# Attribution is not just a set diff: scripts/runner-dispatch.sh ABORTS on more than one candidate
+# ("this run claims at most one change, so two or more candidates means at least one is not ours and
+# none can be told apart"). Without the cardinality rule a parent re-dispatches onto every new id,
+# including one a concurrent /loop is holding. Bound to the STEP-3 window, not to $G: step 4 already
+# says "never re-dispatch" (about a halt), so a whole-file window matches with this clause deleted.
+# The window's named terminator is step 4's "report line".
+STEP3="${G#*After the return}"; STEP3="${STEP3%%report line*}"
+assert "gate: step 3 exists to be asserted about" '[ -n "$STEP3" ] && [ "$STEP3" != "$G" ]'
+assert "gate: more than one new id aborts the gate instead of re-dispatching" \
+  '[[ "$STEP3" == *"MORE THAN ONE id is new"*"at most one change"*"never re-dispatch"* ]]'
 assert "gate: run-halted never re-dispatches" \
   '[[ "$G" == *"run-halted"*"never re-dispatch"* ]]'
 assert "gate: run-incomplete re-dispatches exactly ONCE, then stops" \
