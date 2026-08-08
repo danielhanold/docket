@@ -27,9 +27,14 @@ EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS
                     # in the same diff with the shared state that forced it.
 EXPECTED_TOTAL=1435 # the sum of every ceiling, seeded with the table from the measured serial run.
                     # 1415 -> 1435 (change 0245): the new-test-file case named below —
-                    # tests/test_sync_agents_harness_gaps.sh brings its own row; it runs four full
-                    # sync-agents generations (two real, two --check), sized to 20s against the
-                    # 10s-15s the sibling sync-agents suites measure for one or two.
+                    # tests/test_sync_agents_harness_gaps.sh brings its own row; it invokes
+                    # sync-agents.sh EIGHT times — the RK and RC generations, their two --check
+                    # re-runs, and one generation per run_cell cell (global-noopt / global-opted
+                    # each driving a full user-level pass over [claude, cursor]). Measured
+                    # SERIALLY at 14s (scripts/run-tests.sh -j 1 --timings, three consecutive
+                    # runs, all 14s) and sized to 20s. A row is a serial claim: the ~33s this
+                    # file shows in a parallel full-suite run is runner contention, which the
+                    # runner's own comparison factor already absorbs, not the file's cost.
                     # 1405 -> 1415 (change 0244): the new-test-file case named below —
                     # tests/test_frontmatter_read_shapes.sh brings its own row, floored to the
                     # table's 10s minimum.
