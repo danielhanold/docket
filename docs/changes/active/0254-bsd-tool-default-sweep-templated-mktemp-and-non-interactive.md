@@ -12,12 +12,12 @@ related: [118]
 discovered_from: [188, 189]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-bsd-tool-default-sweep-templated-mktemp-and-non-interactive-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-08-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/bsd-tool-default-sweep-templated-mktemp-and-non-interactive
-claimed_at: 2026-08-08T02:24:12Z
+claimed_at: 2026-08-08T02:29:31Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-bsd-tool-default-sweep-templated-mktemp-and-non-interactive-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-bsd-tool-default-sweep-templated-mktemp-and-non-interactive-design.md) |
+| Plan | [2026-08-08-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md](https://github.com/danielhanold/docket/blob/feat/bsd-tool-default-sweep-templated-mktemp-and-non-interactive/docs/superpowers/plans/2026-08-08-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
