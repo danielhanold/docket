@@ -2,7 +2,7 @@
 id: 254
 slug: bsd-tool-default-sweep-templated-mktemp-and-non-interactive
 title: 'BSD tool-default sweep: templated mktemp and non-interactive mv'
-status: implemented
+status: done
 priority: medium
 type: fix
 created: 2026-08-07
@@ -17,7 +17,7 @@ results: docs/results/2026-08-08-bsd-tool-default-sweep-templated-mktemp-and-non
 trivial: false
 auto_groomable: true
 branch: feat/bsd-tool-default-sweep-templated-mktemp-and-non-interactive
-claimed_at: 2026-08-08T03:21:13Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/180
 blocked_by:
 reconciled: true
