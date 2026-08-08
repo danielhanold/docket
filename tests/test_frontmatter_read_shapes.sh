@@ -380,7 +380,7 @@ whose subject matter is the field names:
 
 spec: docs/superpowers/specs/PROSE-NOT-A-VALUE.md
 plan: docs/superpowers/plans/PROSE-NOT-A-VALUE.md
-results: docs/results/PROSE-NOT-A-VALUE.md
+results: docs/PROSE-NOT-A-VALUE.md
 pr: https://github.com/danielhanold/docket/pull/99999
 EOF
 render_cl "$cf1" >/dev/null 2>&1; rc1=$?
