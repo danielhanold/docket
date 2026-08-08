@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0200 — Board-checks hardening — sanitize LF escape, capture-shape mutation, minor-finding clearance](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0200-clear-the-unfixed-review-findings-from-change-0191.md)**
+> ↩ **[Change 0200 — Board-checks hardening — sanitize LF escape, capture-shape mutation, minor-finding clearance](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-08-0200-clear-the-unfixed-review-findings-from-change-0191.md)**
 <!-- docket:backlink:end -->
 
 # Board-checks hardening — sanitize LF escape, capture-shape mutation, minor-finding clearance — results
