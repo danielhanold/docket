@@ -4,6 +4,27 @@
 # The example is PURE DOCUMENTATION — no docket tooling reads it — so these tests are the only
 # thing keeping it honest. Replaces tests/test_config_example.sh.
 set -uo pipefail
+# --- BASH VERSION GATE (change 0246) -------------------------------------------------------------
+# THIS MUST STAY AT THE TOP OF THE FILE, above every function and heredoc.
+#
+# WHY: bash 3.2's $(...) parser cannot see heredocs — it scans the heredoc BODY as shell. The
+# scope_guard_awk assignment below (`scope_guard_awk="$(cat <<'SCOPE_GUARD_AWK'`) has a backtick
+# inside a comment in its body, so under 3.2 the whole file from that point to EOF fails to parse.
+# Observed directly: `PATH=/usr/bin:/bin bash tests/test_docket_example_yml.sh` ran 103 of this
+# file's asserts, printed zero failures, then died with "unexpected EOF while looking for matching
+# `" and exit 2. The 290 asserts that never ran include the ENTIRE mirror and round-trip family.
+#
+# scripts/run-tests.sh never hits this — it re-execs itself under a Bash 4.3+ runtime and runs every
+# test file with $TEST_BASH. The exposed path is DIRECT invocation, which is this file's own
+# documented run line (see the header above), on any machine whose PATH resolves bash to 3.2 first
+# (stock macOS). Bash parses incrementally, so this gate executes before the line-684 construct is
+# ever parsed — which is exactly why it must not be moved down or wrapped in a function.
+#
+# The floor here is 4, not run-tests.sh's 4.3: that file needs `wait -n`, this one does not.
+if [ "${BASH_VERSINFO[0]:-0}" -lt 4 ]; then
+  printf '%s\n' "test_docket_example_yml.sh requires bash >= 4 (running ${BASH_VERSION:-unknown} from ${BASH:-unknown}). Bash 3.2 cannot parse this file's heredoc-in-\$() constructs and silently skips most of its asserts. Re-run with a bash 4+ binary, or use scripts/run-tests.sh." >&2
+  exit 2
+fi
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 EX="$REPO/.docket.example.yml"
 CFGSCRIPT="$REPO/scripts/docket-config.sh"
