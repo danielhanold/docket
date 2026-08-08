@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0259 — Harden render-board: sanitize feeder values and settle the failure contract](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0259-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md)**
+> ↩ **[Change 0259 — Harden render-board: sanitize feeder values and settle the failure contract](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-08-0259-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md)**
 <!-- docket:backlink:end -->
 
 # Harden render-board: sanitize feeder values and settle the failure contract — results
