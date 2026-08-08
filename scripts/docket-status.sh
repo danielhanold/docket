@@ -1044,7 +1044,7 @@ learnings_regen_index(){
     return 1
   fi
   chmod 644 "$tmp"
-  mv "$tmp" "$ldir/README.md"
+  mv -f "$tmp" "$ldir/README.md"
 }
 
 # learnings_advisories LDIR — the two needs-you channels (ADR-0028's digest-is-a-report-channel

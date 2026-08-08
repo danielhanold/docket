@@ -342,7 +342,7 @@ touch "$GITIGNORE"
 for entry in $DOCKET_GI_CORE_ENTRIES; do
   bare="${entry%/}"
   tmp="$(mktemp)"; grep -F -x -v -- "$bare" "$GITIGNORE" | grep -F -x -v -- "$bare/" > "$tmp" || true
-  mv "$tmp" "$GITIGNORE"
+  mv -f "$tmp" "$GITIGNORE"
 done
 ensure_docket_gitignore_block "$PRUNE_WT"
 git -C "$PRUNE_WT" add .gitignore

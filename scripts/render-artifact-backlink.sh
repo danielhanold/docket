@@ -114,4 +114,4 @@ else
     { print }
   ' "$ARTIFACT_FILE" > "$out"
 fi
-mv "$out" "$ARTIFACT_FILE"
+mv -f "$out" "$ARTIFACT_FILE"

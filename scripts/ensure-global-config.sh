@@ -166,6 +166,6 @@ else
   printf 'docket: wrote %s (pointer config plus managed runtime.bash)\n' "$DEST"
 fi
 chmod "$_dest_mode" "$_tmp" || die "cannot preserve config permissions"
-mv "$_tmp" "$DEST" || die "cannot atomically replace $DEST"
+mv -f "$_tmp" "$DEST" || die "cannot atomically replace $DEST"
 trap - EXIT HUP INT TERM
 exit 0

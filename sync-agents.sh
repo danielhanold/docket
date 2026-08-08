@@ -125,7 +125,7 @@ migrate_legacy_global(){
     printf 'agents:\n'
     sed 's/^\(.\)/  \1/' "$LEGACY_GLOBAL_CFG"    # indent every non-empty line under agents:
   } >> "$GLOBAL_CFG"
-  mv "$LEGACY_GLOBAL_CFG" "$LEGACY_GLOBAL_CFG.migrated"
+  mv -f "$LEGACY_GLOBAL_CFG" "$LEGACY_GLOBAL_CFG.migrated"
   log "MIGRATED global agent config: $LEGACY_GLOBAL_CFG -> agents: block in $GLOBAL_CFG (original kept at $LEGACY_GLOBAL_CFG.migrated)"
 }
 

@@ -145,7 +145,7 @@ set_field(){
       ' "$f" > "$t"; then
     rm -f "$t"; return 1
   fi
-  mv "$t" "$f"
+  mv -f "$t" "$f"
 }
 
 # dup_of SLUG — print the id of an ACTIVE change whose slug OR title slugifies to SLUG; empty if none.
@@ -198,7 +198,7 @@ write_stub(){
   if ! sed -E 's/[[:space:]]+#.*$//' "$tmp" > "$tmp2"; then
     rm -f "$tmp" "$tmp2"; die "template comment-strip failed for stub $id"
   fi
-  mv "$tmp2" "$tmp"
+  mv -f "$tmp2" "$tmp"
   set_field "$tmp" id "$id"                  || die "set_field id failed for stub $id"
   set_field "$tmp" slug "$SLUG"               || die "set_field slug failed for stub $id"
   # title is the ONE free-text prose value here (slug is slugified; id/created/updated/type are

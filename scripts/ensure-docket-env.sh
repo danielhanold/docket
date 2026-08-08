@@ -89,7 +89,7 @@ awk -v o="$MARK_OPEN" -v c="$MARK_CLOSE" '
 ' "$prof" > "$tmp" || die "cannot preserve $prof"
 printf '%s\n%s\n%s\n%s\n' "$MARK_OPEN" "$script_line" "$bash_line" "$MARK_CLOSE" >> "$tmp" || die "cannot write profile block"
 chmod "$_prof_mode" "$tmp" || die "cannot preserve profile permissions"
-mv "$tmp" "$prof" || die "cannot atomically replace $prof"
+mv -f "$tmp" "$prof" || die "cannot atomically replace $prof"
 trap - EXIT HUP INT TERM
 say "wrote DOCKET_SCRIPTS_DIR and DOCKET_BASH_PATH -> $prof ($shell)"
 
@@ -116,7 +116,7 @@ if command -v jq >/dev/null 2>&1; then
         [ -z "$_seed" ] || rm -f "$_seed"
         die "cannot preserve settings permissions — $settings left unchanged"
       fi
-      if ! mv "$t" "$settings"; then
+      if ! mv -f "$t" "$settings"; then
         rm -f "$t"
         [ -z "$_seed" ] || rm -f "$_seed"
         die "cannot atomically replace $settings"
