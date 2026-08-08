@@ -57,16 +57,25 @@ the escalation path.
 
 ## What changes
 
-The caller-side gate, carried by machinery docket already generates: the per-harness
-`docket-implement-next` dispatch rule (written by `sync-agents.sh` into each harness's
-agent-instructions file, read by the parent session) grows 0237's gate shape executed by the
-parent — snapshot the in-progress set before dispatching (`verify-run --in-progress-ids`), diff
-after the fork returns to attribute this run's claim, `verify-run <id>`, and on
-`run-incomplete` one bounded re-dispatch with the unmet conjuncts, then stop-and-report loudly.
-`run-halted` never re-dispatches. Same oracle, same discriminator, same cap as the runner-side
-gate; every step a single transcript-visible facade command. Plus a one-sentence pointer in the
-convention's *Composition* prose naming this as the mechanical form of the caller's
-verify-the-child obligation. Full design in the linked spec.
+Two pieces, settled at the post-reconcile re-groom (2026-08-08):
+
+**The surface** — the reconcile's finding was that no parent-facing generated file exists for
+Claude (ADR-0024 solved routing natively, so none was ever needed). `sync-agents.sh` now
+creates it: when `claude` is enabled, the parent-facing block targets `CLAUDE.md`'s `realpath`
+if the file exists, else creates `CLAUDE.md` as a committed symlink to `AGENTS.md` (one
+physical instructions file — this also finally delivers the promoted learnings to Claude
+sessions, verified undelivered today), else seeds a fresh `CLAUDE.md`. Blocks are written once
+per distinct physical file. Routing (`context: fork`) is untouched; a new parallel ADR records
+the surface-vs-routing distinction and the symlink policy.
+
+**The gate** — the shared dispatch-block template (assembled into the `AGENTS.md` block, the
+cursor rule, and the Claude surface) grows 0237's gate shape executed by the parent: snapshot
+the in-progress set before dispatching (`verify-run --in-progress-ids`), diff after the fork
+returns to attribute this run's claim, `verify-run <id>`, and on `run-incomplete` one bounded
+re-dispatch with the unmet conjuncts, then stop-and-report loudly. `run-halted` never
+re-dispatches. Same oracle, discriminator, and cap as the runner-side gate; every step a single
+transcript-visible facade command. Plus a one-sentence pointer in the convention's
+*Composition* prose. Full design in the linked spec.
 
 ## Out of scope
 
