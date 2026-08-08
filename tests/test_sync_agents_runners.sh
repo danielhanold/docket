@@ -131,13 +131,36 @@ assert "0269: a present-but-empty shim_model fails generation nonzero" '[ "$rc" 
 assert "0269: the empty-shim_model diagnostic says present but has no value" \
   'grep -qiF "present but has no value" <<<"$err"'
 
-# --check reports the same failure without writing anything (parity with the other two gates).
+# --check reports the same failure (parity with the other two gates).
+#
+# NON-VACUITY (whole-branch review of 0269): the obvious fixture — a bare mkgitrepo carrying only
+# the bad value — proves nothing. A fresh repo has no .gitignore, so check_project_level's leg (a)
+# already sets rc=1 and `--check` exits nonzero with this gate deleted. Two constructions fix that:
+#
+#   1. Bring the fixture to a --check-CLEAN baseline first (a real run writes the .gitignore block
+#      and the wrappers), and assert that baseline exits 0. Every other --check leg is then known
+#      satisfied, so a later nonzero is attributable.
+#   2. Put the bad value on a REGISTERED but UNUSED runner (cursor; the agent delegates to codex).
+#      validate_runner_shim_values walks every registered runner regardless of use, so the gate
+#      still fires — while generation output is byte-identical, leaving leg (c)'s drift loop with
+#      nothing to report. Hanging the bad value off codex would change the emitted shim pin and
+#      make leg (c) red on its own, restoring the vacuity through the back door.
+#
+# The rc assert is then paired with a grep for the gate's OWN diagnostic — the one string no other
+# --check failure emits — so neither an unrelated red nor a deleted gate can be mistaken for a pass.
+# The old "--check wrote no wrapper" assert is gone rather than repaired: `--check` writes no
+# wrapper on ANY path, gate or no gate, so it was true unconditionally.
 mkgitrepo
 mkdir -p "$SBX/.claude"
-printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\nrunners:\n  codex:\n    shim_model: "quoted"\n' > "$SBX/.docket.yml"
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check >/dev/null 2>&1 ); rc=$?
+assert "0269: fixture sanity — --check is CLEAN before the bad shim value is introduced" '[ "$rc" = "0" ]'
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\nrunners:\n  cursor:\n    shim_model: "quoted"\n' > "$SBX/.docket.yml"
 err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1 >/dev/null )"; rc=$?
 assert "0269: --check also refuses a bad shim value" '[ "$rc" != "0" ]'
-assert "0269: --check wrote no wrapper" '[ ! -f "$SBX/.claude/agents/docket-status.md" ]'
+assert "0269: --check fails on the SHIM gate specifically, not an unrelated leg" \
+  'grep -qF "check: runner shim-pin configuration is invalid" <<<"$err"'
 
 # A VALID bare scalar is accepted — the positive control, without which every assert above is
 # consistent with a gate that refuses everything.
