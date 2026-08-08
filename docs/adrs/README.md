@@ -75,6 +75,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0074](0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md) — The build gate's verdict is tri-state — a runner-defined non-failure exit is a halt (Accepted) ← change #224
 - [ADR-0075](0075-run-gate-attributes-a-claim-conservatively-and-reports-a-halt-with-its-own-exit-code.md) — The run gate attributes a claim conservatively and reports a halt with its own exit code (Accepted) ← change #237
 - [ADR-0076](0076-quote-leg-rule-binds-by-role-not-reader-shape.md) — ADR-0065's quote-leg rule binds by role, not by reader shape (Accepted) ← change #255 · relates to ADR-0065, ADR-0072
+- [ADR-0077](0077-orphan-effort-dropped-as-docket-policy-not-vendor-constraint.md) — An effort with no resolved model is dropped as docket policy, not because opencode would reject it (Accepted) ← change #245 · relates to ADR-0015, ADR-0060
 
 ## Superseded / Reversed
 
