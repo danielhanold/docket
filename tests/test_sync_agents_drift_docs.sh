@@ -478,28 +478,49 @@ assert "0050 doc: agent-layer ref Agent layer global row points at config.yml ag
 # tripping the gate — the gate self-described only once tripped. Each assert is scoped to the
 # `agents:` example block in its file, so the sentence drifting into unrelated prose reddens.
 rule_re='unquoted and space-free'
+# `unquoted and space-free` predates 0255 (it is the gate's own remedy text), so it alone would
+# assert only the half of the rule that already existed. The NEW clause is the `#` prohibition, so
+# each slice is checked for a second literal too — otherwise deleting the `#` clause from all five
+# sites leaves this guard green (detects removal of the sentence, not replacement of it).
+flow_re='inside the `{…}` flow map'
+# Hazard being defended against: the clause wraps mid-sentence in README.md and .docket.example.yml,
+# so a multi-word grep over the raw slice would double as a line-wrap guard and redden on a pure
+# re-flow. Every slice is therefore normalized (newlines -> spaces, whitespace runs collapsed)
+# before matching, so wrapping is invisible to both literals. Matching is /usr/bin/grep -F: the
+# `…` is multi-byte UTF-8 and must be compared literally, never as a regex.
+norm() { tr '\n' ' ' | tr -s '[:space:]' ' '; }
 
 # Anchored on the "— optional; applies to every repo" variant: the bare path also heads an earlier
 # change_types example, and a range starting there would span both blocks.
-readme_global="$(sed -n '/^# ~\/\.config\/docket\/config\.yml — optional/,/^```$/p' "$READMEF")"
+readme_global="$(sed -n '/^# ~\/\.config\/docket\/config\.yml — optional/,/^```$/p' "$READMEF" | norm)"
 assert "0255 docs: README global config.yml example states the rule" \
   '/usr/bin/grep -qF "$rule_re" <<<"$readme_global"'
+assert "0255 docs: README global config.yml example states the no-\`#\` clause" \
+  '/usr/bin/grep -qF "$flow_re" <<<"$readme_global"'
 
-readme_local="$(sed -n '/^# <repo>\/\.docket\.local\.yml/,/^```$/p' "$READMEF")"
+readme_local="$(sed -n '/^# <repo>\/\.docket\.local\.yml/,/^```$/p' "$READMEF" | norm)"
 assert "0255 docs: README .docket.local.yml example states the rule" \
   '/usr/bin/grep -qF "$rule_re" <<<"$readme_local"'
+assert "0255 docs: README .docket.local.yml example states the no-\`#\` clause" \
+  '/usr/bin/grep -qF "$flow_re" <<<"$readme_local"'
 
-skill_agents_line="$(/usr/bin/grep -n '^agents:' "$CONV" || true)"
+skill_agents_line="$(/usr/bin/grep -n '^agents:' "$CONV" | norm || true)"
 assert "0255 docs: convention SKILL.md agents: schema line states the rule" \
   '/usr/bin/grep -qF "$rule_re" <<<"$skill_agents_line"'
+assert "0255 docs: convention SKILL.md agents: schema line states the no-\`#\` clause" \
+  '/usr/bin/grep -qF "$flow_re" <<<"$skill_agents_line"'
 
-layer_example="$(sed -n '/^agents:  */,/^```$/p' "$AGL")"
+layer_example="$(sed -n '/^agents:  */,/^```$/p' "$AGL" | norm)"
 assert "0255 docs: agent-layer.md example block states the rule" \
   '/usr/bin/grep -qF "$rule_re" <<<"$layer_example"'
+assert "0255 docs: agent-layer.md example block states the no-\`#\` clause" \
+  '/usr/bin/grep -qF "$flow_re" <<<"$layer_example"'
 
-example_intro="$(sed -n '/^# agents — per-skill subagent model\/effort/,/^# agents:$/p' "$REPO/.docket.example.yml")"
+example_intro="$(sed -n '/^# agents — per-skill subagent model\/effort/,/^# agents:$/p' "$REPO/.docket.example.yml" | norm)"
 assert "0255 docs: .docket.example.yml agents: intro states the rule" \
   '/usr/bin/grep -qF "$rule_re" <<<"$example_intro"'
+assert "0255 docs: .docket.example.yml agents: intro states the no-\`#\` clause" \
+  '/usr/bin/grep -qF "$flow_re" <<<"$example_intro"'
 
 # Non-vacuity: every slice above must be non-empty, or a renamed heading turns all five asserts
 # into vacuous greens against nothing.
