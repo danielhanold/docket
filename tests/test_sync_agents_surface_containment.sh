@@ -82,6 +82,19 @@ assert "dangling surface: nothing was created at the filesystem root" '[ ! -e /C
 assert "dangling surface: the real AGENTS.md still got its block" '[ "$(blocks_in "$SBX/AGENTS.md")" = "1" ]'
 assert "dangling surface: the broken link is left exactly as it was" \
   '[ -L "$SBX/CLAUDE.md" ] && [ "$(readlink "$SBX/CLAUDE.md")" = "docs/AGENTS.md" ]'
+# ...and the run must not CLAIM it wrote that file. The dangling link resolves to a path inside the
+# repo, so containment passes it through to the write, where the redirect fails on the missing
+# target — `ensure_managed_block` used to return `wrote` regardless of the redirect's fate, so the
+# sync printed "wrote/updated … — COMMIT THIS" for bytes that were never written and sent the user
+# to commit a file that does not exist (change 0242 review, finding 8). This fixture is the one that
+# already reaches an always-failing write, so the claim is asserted on ITS log, with no extra sync.
+# Bound to the path, not asserted as two independent greps: a run that wrote correctly elsewhere
+# also emits a "wrote/updated" line.
+NAMED="$(grep -F -- "$PHYSSBX/CLAUDE.md" <<<"$LOG")"
+assert "dangling surface: nothing claims to have written the unwritable target" \
+  '! grep -q "wrote/updated" <<<"$NAMED"'
+assert "dangling surface: one diagnostic names the target and reports the write FAILED" \
+  '[ -n "$NAMED" ] && grep -q "could not write" <<<"$NAMED"'
 
 # --- end-to-end: a surface pointing OUT of the checkout is neither written nor stripped --------
 # The markers are read out of sync-agents.sh rather than transcribed: a fixture seeding a block that
@@ -133,5 +146,47 @@ assert "out-of-repo strip: one diagnostic names the RESOLVED path and says why i
 # at it. Same failure mode as the write half: a stray block out there is not docket's to remove.
 run_check; rc=$?
 assert "out-of-repo strip: --check does not demand a strip the sync refuses to make" '[ "$rc" = "0" ]'
+
+# --- a surface docket SEEDED, emptied by the strip: advised, never deleted -----------------------
+# Change 0242 review, finding 9. On a claude-only repo with neither surface present,
+# claude_surface_target creates a REAL CLAUDE.md whose only content is the managed block. De-listing
+# claude then strips that block and leaves a one-byte file docket created and nobody owns. Docket
+# must not delete it — at strip time nothing records who created the file, and the identical shape
+# is reachable for a file the USER created and emptied — so the contract is a named advisory.
+# Housed in this shard rather than in tests/test_sync_agents_claude_surface.sh, which owns the
+# seeding cases but sits at 41s against a 45s ceiling (tests/runtime-budgets.tsv; tests/README.md,
+# "extend a sibling shard or start a new one"); this shard already captures the sync's diagnostics.
+new_sandbox
+printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"
+run_sync_log >/dev/null
+assert "seeded surface: a claude-only repo got a REAL CLAUDE.md carrying the block" \
+  '[ -f "$SBX/CLAUDE.md" ] && [ ! -L "$SBX/CLAUDE.md" ] && [ "$(blocks_in "$SBX/CLAUDE.md")" = "1" ]'
+printf 'agent_harnesses: [cursor]\n' > "$SBX/.docket.yml"
+# Negative control, stripped by the SAME run: a second surface carrying user prose around its block.
+# An advisory keyed on "the strip ran" rather than on "nothing is left" would fire for this one too,
+# telling the user a file full of their own text is empty. Seeded now, so only the strip pass sees
+# it, and with the markers read out of sync-agents.sh above rather than transcribed.
+{ printf '# keep me\n'; printf '%s\n' "$DSTART"; printf 'STALE\n'; printf '%s\n' "$DEND"; } > "$SBX/AGENTS.md"
+LOG="$(run_sync_log)"
+assert "seeded surface, de-listed: the block is stripped"        '[ "$(blocks_in "$SBX/CLAUDE.md")" = "0" ]'
+assert "seeded surface, de-listed: the file is NOT deleted"      '[ -f "$SBX/CLAUDE.md" ]'
+# The precondition for the advisory being about anything: strip really did leave it contentless.
+assert "seeded surface, de-listed: what remains is empty"        '[ -z "$(tr -d "[:space:]" < "$SBX/CLAUDE.md")" ]'
+# One line must name the file AND say docket is leaving it — the removal line already names the same
+# path, so two independent greps over the log would pass with the advisory deleted.
+NAMED="$(grep -F -- "$PHYSSBX/CLAUDE.md" <<<"$LOG")"
+assert "seeded surface, de-listed: one diagnostic names the now-empty file" \
+  '[ -n "$NAMED" ] && grep -q "now EMPTY" <<<"$NAMED"'
+assert "seeded surface, de-listed: that diagnostic says docket will not delete it" \
+  'grep -q "delete it by hand" <<<"$NAMED"'
+# The negative control seeded above: its block went, its prose stayed, and no advisory named it.
+# Two steps, never a pipe into `grep -q` (AGENTS.md, shell: SIGPIPE under pipefail).
+AGM_NAMED="$(grep -F -- "$PHYSSBX/AGENTS.md" <<<"$LOG" || true)"
+assert "negative control: the prose-carrying surface was stripped too" \
+  '[ "$(blocks_in "$SBX/AGENTS.md")" = "0" ] && grep -qxF "# keep me" "$SBX/AGENTS.md"'
+assert "negative control: it was named by the run, so the advisory assert is not vacuous" \
+  '[ -n "$AGM_NAMED" ]'
+assert "negative control: no advisory is emitted for a file that was NOT emptied" \
+  '! grep -q "now EMPTY" <<<"$AGM_NAMED"'
 
 echo; [ "$fail" = 0 ] && echo "ALL PASS" || echo "FAILURES"; exit "$fail"

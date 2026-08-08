@@ -1370,8 +1370,14 @@ the agent also carries the skill's dispatch contract and preload. Pass the reque
 unchanged, including any change or ADR id.
 HEAD
   printf '\n'
-  assemble_run_gate
-  printf '\n'
+  # The roster follows its OWN head, and the gate comes after both. This is a markdown document
+  # with headings, so order is structure: with `## Run gate` spliced between the head and the
+  # bullets, the head's "run one of the docket skills below" pointed across an unrelated section and
+  # a reader sectioning the file read the agent roster as part of the gate (change 0242 review,
+  # finding 10). The Cursor assembler keeps the opposite order on purpose — there each agent
+  # fragment carries its own `## docket-<name>` heading, so the gate is not sitting on top of an
+  # unheaded list. The two surroundings genuinely differ; flattening them into one shared assembler
+  # is what caused an earlier finding on this branch.
   local src name desc
   for src in "$AGENTS_SRC"/docket-*.md; do
     [ -e "$src" ] || continue
@@ -1381,6 +1387,8 @@ HEAD
     desc="$(agent_description "$src")"
     printf -- '- **docket-%s** — %s Delegate to the `docket-%s` agent.\n' "$name" "$desc" "$name"
   done
+  printf '\n'
+  assemble_run_gate
   printf '%s\n' "$DISPATCH_END"
 }
 
@@ -1428,6 +1436,12 @@ sync_dispatch_surfaces(){
       case "$status" in
         wrote)   log "wrote/updated the docket dispatch block in $phys — COMMIT THIS (machine-neutral; no model IDs).";;
         refused) log "WARN $phys has a malformed docket:dispatch block — refusing to rewrite; repair the markers by hand and re-run.";;
+        # The write was ATTEMPTED and the shell could not open the target (read-only mount,
+        # permission denied, a link resolving onto a directory, a dangling link whose parent dir is
+        # missing — all reachable now that this pass follows symlinks). Announcing the write here
+        # would send the user to commit bytes that were never written, so the failure is reported as
+        # itself. The shell's own "cannot create" diagnostic has already gone to stderr above.
+        failed)  log "WARN could not write the docket dispatch block to $phys — the target is not writable (see the shell diagnostic above); this run changed nothing there.";;
       esac
     done <<<"$targets"
   fi
@@ -1445,7 +1459,22 @@ sync_dispatch_surfaces(){
     fi
     status="$(remove_managed_block "$phys" "$DISPATCH_START" "$DISPATCH_END")"
     case "$status" in
-      removed) log "removed the docket dispatch block from $phys (no dispatch harness targets it) — COMMIT THIS.";;
+      removed) log "removed the docket dispatch block from $phys (no dispatch harness targets it) — COMMIT THIS."
+               # A surface docket itself seeded (claude_surface_target's "neither surface existed"
+               # arm creates a real, empty CLAUDE.md) holds nothing but the block, so the strip
+               # leaves a lone newline: a file docket created and now nobody owns, invisible to
+               # tracked_docket_files because it must stay committable. ADVISE, never delete: at
+               # strip time there is no record of who created the file, and the same empty shape is
+               # reachable for a file the USER created and emptied — deleting on a guess destroys
+               # bytes docket does not own, which is the one failure this whole pass is built to
+               # avoid (change 0242 review, finding 9). Whitespace-only, not `! -s`: the strip
+               # writes a newline, so the byte count is 1 rather than 0.
+               # Spelled as an `if`, never `test && log`: this is the last command in the arm, so a
+               # false test would make the whole case exit 1 and trip the script's errexit.
+               if [ -z "$(tr -d '[:space:]' < "$phys")" ]; then
+                 log "note: $phys is now EMPTY — the dispatch block was all it held. Docket does not delete it (it cannot tell a file it seeded from one you emptied); delete it by hand if you do not want it."
+               fi
+               ;;
       refused) log "WARN $phys has a malformed docket:dispatch block — refusing to strip; repair the markers by hand.";;
     esac
   done
