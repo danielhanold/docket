@@ -8,6 +8,10 @@ Owns everything child-specific — permission gating, preflight, prompt assembly
 foreground execution, relay. Invoked only by `runner-dispatch.sh` (behind
 `docket.sh runner-dispatch`), never directly by skills or shims.
 
+The shim's own frontmatter `model:`/`effort:` pin the PARENT-side relay agent, not this child — they
+come from `runners.<name>.shim_model` / `shim_effort` (defaults `inherit` / `low`) and must name
+something the parent harness can resolve.
+
 The motivating use is cost asymmetry: opencode reaches OpenRouter models, so docket's four
 build profile workers can be delegated to cheap models while the review rungs stay native on the
 parent's own subscription. Because build and review are already separate wrappered agents

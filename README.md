@@ -805,7 +805,8 @@ foreground call to `docket.sh runner-dispatch`, which resolves the `runners.code
 runs `codex exec` (blocking, sandboxed, final-message relay via `--output-last-message`). Every
 invocation path (skill fork, `@docket-status`, composition from another skill) inherits the
 delegation unchanged. `model:` is passed to the child verbatim (ADR-0015); `effort:` maps to
-Codex's `model_reasoning_effort` (docket's `max` → codex `xhigh`).
+Codex's `model_reasoning_effort` (docket's `max` → codex `xhigh`). The wrapper's own frontmatter
+pin is a separate value — see the shim-pin rule below.
 
 Rules and limits:
 
@@ -823,6 +824,13 @@ Rules and limits:
   reports the same failure without writing anything.
 - Delegation is never a policy bypass: do not delegate `docket-finalize-change` to sidestep
   merge-approval gates (see ADR-0043).
+- **The wrapper's own `model:`/`effort:` are not the child's.** A generated shim is two agents in
+  one file: a relay that Claude Code runs, and the child run it dispatches. The frontmatter pins the
+  relay and must therefore name a model *Claude Code* can resolve — it defaults to `inherit` (the
+  parent conversation's model) and is retuned per runner with `runners.<name>.shim_model` /
+  `shim_effort`. The child's identity travels in the baked `--model` / `--effort` arguments, from
+  the `model:` you set under `agents:`. Setting `shim_model` to a cheap model is a pure cost
+  optimization: the relay only blocks on the child and passes its output back.
 - **A delegated agent must carry an explicit `model:` in your config.** Docket never forwards its
   own shipped default to another harness — that ID means nothing to the child — so a model-less
   `runner:` is a loud generation-time error rather than a silent run on the child's own default,

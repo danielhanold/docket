@@ -26,7 +26,10 @@ bash scripts/runners/cursor.sh --agent <name> [--model <m>] [--effort <e>] [--] 
   `inherit` no-pin sentinel is normalized to "no flag" and never reaches `cursor-agent`;
   `runner-dispatch.sh` owns that normalization for every adapter and this adapter keeps a
   defensive twin for the hand path above. Because Cursor encodes effort inside the model value,
-  the sentinel behaves exactly like no model at all — the effort-dropped WARN below fires.
+  the sentinel behaves exactly like no model at all — the effort-dropped WARN below fires. The
+  shim's own frontmatter `model:`/`effort:` pin the PARENT-side relay agent, not this child — they
+  come from `runners.<name>.shim_model` / `shim_effort` (defaults `inherit` / `low`) and must name
+  something the parent harness can resolve.
 - `--effort <e>` (optional) — Cursor has **no effort flag**. Reasoning effort is a model parameter
   encoded inside the model value, so the adapter passes `--model <model>[effort=<effort>]` — the
   same encoding the wrapper emitter uses. With **no model resolved** the effort has nowhere to

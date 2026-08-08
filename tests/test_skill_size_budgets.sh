@@ -847,6 +847,26 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # — so the multiple after: 6150 (51 words). agent-layer.md 2160 words -> 2200 (40 words of margin,
 # above the 25-word threshold). Lines: 352/355 and 187/190, 3 lines each, the half-step margin the
 # 0167 and 0201 entries above accept.
+# Change 0269 raised references/agent-layer.md 190/2200 -> 205/2350. The change makes a delegated
+# shim's frontmatter `model:`/`effort:` describe the PARENT-side relay agent instead of the child,
+# via runners.<name>.shim_model / shim_effort; the *Model and effort on a delegated agent* paragraph
+# previously closed by stating the opposite ("the parent's effort stays in the wrapper frontmatter
+# and never reaches the child"), so the false clause is deleted and replaced by a paragraph naming
+# the third value, its two config keys, their layering, their defaults, and the failure a wrong pin
+# produces.
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above: README's Runner delegation rules
+# list (which DOES now carry the user-facing bullet) and the three scripts/runners/<name>.md
+# contracts (which DO now each carry the one-sentence statement). It cannot live only there for the
+# reason the 0205 entry above already records for this same paragraph — this reference is what an
+# agent loads while WRITING an `agents:`/`runners:` entry, and a pin rule that only appears in a
+# README intervenes after the wrapper has already been generated wrong. The added prose is a
+# replacement for a deleted false sentence in the paragraph it belongs to, not a new section.
+# Set per the rounding rule above from the measured actuals: 197 lines -> the next multiple of 5 is
+# 200, 3 lines of margin — the same half-step margin the 0167 and 0201 entries accept — but the
+# WORD figure lands badly: 2299 words -> the next multiple of 50 is 2300, ONE word of margin, the
+# exact near-zero mode this block forbids, so the multiple after: 2350 (51 words). The line budget
+# is taken to 205 to match, keeping the two figures a consistent step apart rather than pairing a
+# generous word budget with a half-step line budget.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -859,7 +879,7 @@ skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          145 1350
 skills/docket-convention/SKILL.md                          355 6150
 skills/docket-convention/github-board-mirror.md             19  462
-skills/docket-convention/references/agent-layer.md         190 2200
+skills/docket-convention/references/agent-layer.md         205 2350
 skills/docket-convention/references/auto-capture.md        130 1250
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458

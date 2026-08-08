@@ -243,6 +243,10 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
     github_project)       echo 'elsewhere:scripts/docket-config.sh' ;;
     agents)               echo 'elsewhere:sync-agents.sh' ;;
     agent_harnesses)      echo 'elsewhere:sync-agents.sh' ;;
+    # Read by the GENERATOR, not by an adapter: these govern the shim wrapper's own frontmatter
+    # pin (the parent-side relay agent), which is decided at generation time — change 0269.
+    runners.codex.shim_model)  echo 'elsewhere:sync-agents.sh' ;;
+    runners.codex.shim_effort) echo 'elsewhere:sync-agents.sh' ;;
     runners.codex.sandbox) echo 'elsewhere:scripts/runners/codex.sh' ;;
     runners.codex.network) echo 'elsewhere:scripts/runners/codex.sh' ;;
     runners.opencode.permissions) echo 'elsewhere:scripts/runners/opencode.sh' ;;
@@ -291,7 +295,7 @@ is_header_key(){
 # a sentence of English prose satisfied (change 0102's `timeout`-in-a-heredoc false positive).
 #
 # Two conditions: the line is not a comment (first non-space character is not `#`), and the key
-# occurs in one of three shapes, each DERIVED from a real mention in the six entries' named
+# occurs in one of four shapes, each DERIVED from a real mention in the entries' named
 # consumers rather than guessed:
 #
 #   1. `:`-adjacency   — `agents[[:space:]]*:` (sync-agents.sh, a quoted YAML-key regex) and
@@ -304,6 +308,24 @@ is_header_key(){
 #                        runners.codex.sandbox's QUALIFIED form appears nowhere in its consumer;
 #                        the flag is the only real mention, which is why this shape is required
 #                        and not decorative.
+#   4. shell assignment — `shim_model="$(runner_key "$runner" shim_model)"` (sync-agents.sh, change
+#                        0269). Added because runners.codex.shim_model / shim_effort are read by
+#                        the GENERATOR, whose reader is a layered lookup assigned into a shell
+#                        variable of the key's own name: the key never appears there as a literal
+#                        YAML key (the awk pattern is built from a `$k` variable), never
+#                        dot-qualified (the diagnostics interpolate `runners.$r.$k`), and never as
+#                        a flag. Without this shape those two entries have no anchor at all — and
+#                        the shape-exemption list is not the answer, since it exists for keys with
+#                        NO reader, which is the opposite of these. Bounded on both sides — line
+#                        start plus indentation on the left, a mandatory `=` on the right — so it
+#                        matches an assignment STATEMENT rather than any occurrence of the name:
+#                        neither `--sandbox "$SANDBOX"` nor a sentence of prose can satisfy it,
+#                        which is what the negative controls below re-verify. The left boundary is
+#                        line-start, NOT any whitespace, and that is load-bearing: a whitespace
+#                        boundary also matched the reader's own fallback
+#                        (`[ -n "$shim_model" ] || shim_model="inherit"`), so deleting the layered
+#                        lookup left the anchor standing on the default it falls back to —
+#                        mutation-tested, and red only once the boundary was tightened here.
 #
 # Every shape carries a LEFT boundary (change 0246 whole-branch review, IMPORTANT 2). Without one,
 # shapes 1 and 3 matched the key as a SUBSTRING of the consumer's own name: `sync-agents:` in a log
@@ -332,7 +354,7 @@ code_shaped_mention(){ # $1=leaf key  $2=file
   local k="$1" f="$2" body
   [ -f "$f" ] || return 1
   body="$(grep -vE '^[[:space:]]*#' "$f")" || true
-  grep -qE "(^|[^[:alnum:]_-])$k(\[\[:space:\]\]\*)?:|(^|[^[:alnum:]_])--?$k|[A-Za-z0-9_]\.$k" <<<"$body"
+  grep -qE "(^|[^[:alnum:]_-])$k(\[\[:space:\]\]\*)?:|(^|[^[:alnum:]_])--?$k|[A-Za-z0-9_]\.$k|^[[:space:]]*$k=" <<<"$body"
 }
 
 
@@ -547,7 +569,7 @@ assert "elsewhere: the shape exemption holds exactly github_project (got '$elsew
 assert "elsewhere: shape control — a real flag-argument mention is code-shaped" \
   'code_shaped_mention sandbox "$REPO/scripts/runners/codex.sh"'
 # PER-SHAPE positive controls (change 0246 whole-branch review, finding 7). The doc block above
-# justifies all three shapes as SEPARATELY load-bearing, but only shape 3 had a control, so a typo
+# justifies all four shapes as SEPARATELY load-bearing, but only shape 3 had a control, so a typo
 # in the `:`-adjacency or dot-qualified alternative would have gone undetected: several live keys
 # match by more than one route, which is precisely why these use FIXTURES rather than a real
 # consumer. Each fixture exercises exactly ONE alternative, so removing that alternative from the
@@ -560,6 +582,18 @@ _shape_fx_dot="$tmp/shape-dot.sh"
 printf '%s\n' 'die "runners.opencode.permissions must be set"' > "$_shape_fx_dot"
 assert "elsewhere: shape control — shape 2 (dot-qualified) alone is code-shaped" \
   'code_shaped_mention permissions "$_shape_fx_dot"'
+# Shape 4's fixture is sync-agents.sh's real reader line, which matches by shape 4 ONLY: there is
+# no `shim_model:`, no `<word>.shim_model`, and no `--shim_model` anywhere in it.
+_shape_fx_assign="$tmp/shape-assign.sh"
+printf '%s\n' '  shim_model="$(runner_key "$runner" shim_model)"' > "$_shape_fx_assign"
+assert "elsewhere: shape control — shape 4 (shell assignment) alone is code-shaped" \
+  'code_shaped_mention shim_model "$_shape_fx_assign"'
+# And the shape must be an assignment STATEMENT, not the name appearing anywhere: the same line
+# with the assignment removed (the key surviving only as a bare argument word) must NOT anchor.
+_shape_fx_argword="$tmp/shape-argword.sh"
+printf '%s\n' '  resolve_pin "$runner" shim_model' > "$_shape_fx_argword"
+assert "elsewhere: shape control — a bare argument word is NOT a code-shaped mention" \
+  '! code_shaped_mention shim_model "$_shape_fx_argword"'
 # NEGATIVE control reproducing the historical false positive (change 0102): a key appearing ONLY as
 # an English word in prose, inside an embedded heredoc prompt, on non-comment lines. A bare
 # word-boundary grep passes this; the shape predicate must not. Comment-region exclusion alone
@@ -613,7 +647,8 @@ assert "elsewhere: shape control — the real '^agents[[:space:]]*:' reader IS a
 # intentional-growth remedy this count is guarding. This is the single source for that count: the
 # condition and the failure message below both read it, so bumping it in one place updates both
 # instead of leaving one stale.
-expected_key_count=45
+# change 0269 took it from 45 to 47 (runners.codex.shim_model and runners.codex.shim_effort).
+expected_key_count=47
 # RAW FLOOR (change 0102 whole-branch review, MINOR 3): example_keys_raw feeds BOTH this section's
 # manifest loop (via example_keys, deduped) and the duplicate-leaf check directly below (also
 # fed from example_keys_raw, undeduped). Without this assert, an edit that makes the raw pipeline
@@ -695,6 +730,10 @@ assert "completeness: runners.codex.network present" \
   'grep -Eq "^[[:space:]]+network:[[:space:]]*true[[:space:]]*(#.*)?$" "$EX"'
 assert "completeness: runners.opencode.permissions present" \
   'grep -Eq "^[[:space:]]+permissions:[[:space:]]*ask[[:space:]]*(#.*)?$" "$EX"'
+assert "completeness: runners.codex.shim_model present" \
+  'grep -Eq "^[[:space:]]*shim_model:" "$EX"'
+assert "completeness: runners.codex.shim_effort present" \
+  'grep -Eq "^[[:space:]]*shim_effort:" "$EX"'
 assert "completeness: runners block header present" 'grep -Eq "^runners:" "$EX"'
 
 # change 0102: require_pr_approval is now RESOLVER-read and global-able, so it carries the
@@ -949,8 +988,14 @@ fi
 # 2 reclaim.*, 1 build.checkpoint, 2 review.* (change 0218 — min_fix_severity, and max_fix_tasks
 # added when the fix loop's cap became configurable; EACH carries its OWN `# scope: any layer` tag,
 # so both are covered by rule 1, not by adjacency), 2 auto_capture.*,
-# runners.codex + its 2 leaves, runners.opencode + its 1 leaf, 5 skills.*.
-expected_nested_key_count=23
+# runners.codex + its 4 leaves, runners.opencode + its 1 leaf, 5 skills.*.
+#
+# Change 0269 took it from 23 to 25: runners.codex gained shim_model and shim_effort. Both are
+# covered by rule 2 — the `runners:` header's own window carries the `# scope: any layer` tag and
+# neither leaf carries one of its own — which is the same coverage its sandbox/network siblings
+# already have, so expected_adjacency_inherit_count below deliberately does NOT move: rule 4 only
+# fires for a key that is otherwise UNCOVERED, and these two never are.
+expected_nested_key_count=25
 assert "scope tag: the pass enumerated exactly $expected_nested_key_count keys at depth > 0 (got ${nested_key_count:-0}; if you added or removed a nested key in .docket.example.yml, first CONFIRM the new key carries its own scope: tag or sits directly under a tagged header — bumping expected_nested_key_count alone, with no tag and no header, ships an untagged key that this guard will never catch again — then bump expected_nested_key_count in the same commit)" \
   '[ "${nested_key_count:-0}" = "$expected_nested_key_count" ]'
 
