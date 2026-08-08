@@ -2591,20 +2591,50 @@ rm -rf "$armcopy"
 # The two "still present" asserts matter as much as the landed ones — they prove this arm reproduces
 # the CAPTURE defect specifically and has not accidentally degenerated into mutation F.
 armreseed
-armO_ps_before="$(grep -cF 'done < <("$GIT" -C "$CHANGES_DIR" ls-tree -r -z' "$ARMSCRIPT")"
+# THE CAPTURE LINE IS DERIVED, NEVER RESTATED. This arm used to hand-write a second copy of
+# board-checks.sh's real listing command into its awk program. Two costs, both paid here (change
+# 0200): a duplicate drifts the moment the real command is edited — the mutant would then capture
+# a stale command while every assert stayed green — and, because the duplicate had to SPELL
+# `ls-tree … -- <dir>`, it read to tests/test_skip_allowlist_invisibility.sh's limb 2 as a genuine
+# unbounded tree walk in this file. That extractor is textual and cannot tell a described walk
+# from a performed one, and the right answer to a guard that cannot distinguish them is to stop
+# writing the thing that looks like one, not to declare an exemption for prose.
+#
+# So the transform LIFTS the command out of the `done < <(…)` feed that is already in the script
+# and re-emits it in capture position: pass 1 (NR == FNR) reads the feed, pass 2 rewrites. The
+# awk anchors on `^  done < <(` — the indent matters, board-checks.sh has a second, column-0
+# process-substituted feed for an unrelated `log` walk — and armO_ps_before pins that exactly one
+# line matches, which is the precondition the derivation rests on.
+armO_ps_before="$(grep -c '^  done < <(' "$ARMSCRIPT" || true)"
+armO_srcline="$(grep '^  done < <(' "$ARMSCRIPT" || true)"
+# The prefix goes through a VARIABLE, and the trailing paren is quoted: an unbalanced `<(` or `)`
+# written inline inside a ${…} operator is scanned by bash before it is a pattern, and the file
+# stops parsing at the unmatched one.
+armO_feed='  done < <('
+armO_cmd="${armO_srcline#"$armO_feed"}"; armO_cmd="${armO_cmd%")"}"
 awk '
+  NR == FNR {
+    if ($0 ~ /^  done < <\(/) {
+      boa_cmd = $0; sub(/^  done < <\(/, "", boa_cmd); sub(/\)[[:space:]]*$/, "", boa_cmd)
+    }
+    next
+  }
   $0 ~ /^  while IFS= read -r -d .. boa_p; do$/ {
-    print "  boa_list=\"$(\"$GIT\" -C \"$CHANGES_DIR\" ls-tree -r -z --name-only --full-tree \"$boa_ref\" -- \"$boa_dir\" 2>/dev/null)\"";
+    print "  boa_list=\"$(" boa_cmd ")\""
     print; next
   }
-  $0 ~ /^  done < <\("\$GIT" -C "\$CHANGES_DIR" ls-tree -r -z/ { print "  done <<<\"$boa_list\""; next }
+  $0 ~ /^  done < <\(/ { print "  done <<<\"$boa_list\""; next }
   { print }
-' "$ARMSCRIPT" > "$ARMSCRIPT.t"; mv "$ARMSCRIPT.t" "$ARMSCRIPT"
-armO_ps_after="$(grep -cF 'done < <("$GIT" -C "$CHANGES_DIR" ls-tree -r -z' "$ARMSCRIPT")"
+' "$ARMSCRIPT" "$ARMSCRIPT" > "$ARMSCRIPT.t"; mv "$ARMSCRIPT.t" "$ARMSCRIPT"
+armO_ps_after="$(grep -c '^  done < <(' "$ARMSCRIPT" || true)"
 armO_hs="$(grep -cF 'done <<<"$boa_list"' "$ARMSCRIPT")"
-armO_cap="$(grep -cF 'boa_list="$("$GIT" -C "$CHANGES_DIR" ls-tree -r -z' "$ARMSCRIPT")"
+# The capture line must be the feed's command VERBATIM, in capture position — not merely "a
+# capture of something". $armO_want is built from the pre-mutation line read above, so a drift in
+# board-checks.sh moves both sides together and this assert keeps meaning the same thing.
+armO_capline="$(grep -F 'boa_list="$(' "$ARMSCRIPT" || true)"
+armO_want="  boa_list=\"\$($armO_cmd)\""
 # 1, not 2: the rewrite REPLACES the `done < <(…)` line, so the only surviving occurrence of the
-# `-z --name-only` text is the capture line the awk inserts. Measured on a hand-built mutant, not
+# `-z --name-only` text is the capture line the awk emits. Measured on a hand-built mutant, not
 # reasoned about. The exact count is load-bearing — under mutation F this same grep reads 0, which
 # is what makes this assert discriminate the capture defect from the -z revert.
 armO_z="$(grep -cF 'ls-tree -r -z --name-only' "$ARMSCRIPT")"
@@ -2612,7 +2642,8 @@ armO_d="$(grep -cF "read -r -d ''" "$ARMSCRIPT")"
 assert "mutation O landed: the process-substituted listing is gone (count 1 -> 0)" \
   '[ "$armO_ps_before" = 1 ] && [ "$armO_ps_after" = 0 ]'
 assert "mutation O landed: the forbidden here-string consumption is in place" '[ "$armO_hs" = 1 ]'
-assert "mutation O landed: the listing is captured into a variable first" '[ "$armO_cap" = 1 ]'
+assert "mutation O landed: the listing is captured into a variable first, VERBATIM from the feed it replaced" \
+  '[ -n "$armO_cmd" ] && [ "$armO_capline" = "$armO_want" ]'
 assert "mutation O landed: the mutated copy is still valid bash — the broken shape is SYNTACTICALLY FINE" \
   'bash -n "$ARMSCRIPT"'
 assert "mutation O is the CAPTURE defect, not mutation F: -z survives the rewrite" \
