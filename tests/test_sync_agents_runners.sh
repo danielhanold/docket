@@ -33,7 +33,19 @@ mkdir -p "$SBX/.claude"
 printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, effort: high, runner: codex }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
 G="$SBX/.claude/agents/docket-status.md"
-assert "0079: shim keeps frontmatter model (bookkeeping)" '[ "$(fm "$G" model)" = "gpt-5.1-codex" ]'
+# change 0269: the shim's frontmatter pin governs the PARENT-side shim agent (Claude Code runs the
+# relay), so it must be resolvable by the parent — never the child's model, which Claude Code cannot
+# resolve. This replaces 0079's "shim keeps frontmatter model (bookkeeping)" assert, whose premise
+# was false: Claude Code reads the line as the live pin, so every delegated wrapper was born broken.
+assert "0269: shim frontmatter model defaults to inherit" '[ "$(fm "$G" model)" = "inherit" ]'
+assert "0269: shim frontmatter effort defaults to low" '[ "$(fm "$G" effort)" = "low" ]'
+# THE REGRESSION ASSERT — the check whose absence let the defect ship. Derived from the two values
+# rather than hardcoded, so it keeps biting when the fixture's model ID changes.
+_fm_model="$(fm "$G" model)"
+_baked_model="$(sed -n 's/.*--model \([^ ]*\).*/\1/p' "$G" | sed -n 1p)"
+assert "0269: fixture sanity — a model IS baked into the dispatch line" '[ -n "$_baked_model" ]'
+assert "0269: shim frontmatter model is NEVER the value baked into --model" \
+  '[ "$_fm_model" != "$_baked_model" ]'
 assert "0079: shim body invokes docket.sh runner-dispatch" 'grep -qF "docket.sh runner-dispatch" "$G"'
 assert "0079: shim body pins --runner codex" 'grep -qF -- "--runner codex" "$G"'
 assert "0079: shim body pins --agent status" 'grep -qF -- "--agent status" "$G"'
@@ -62,6 +74,33 @@ cp "$SBX/native-status.md" "$G"
 chk="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1 )"
 assert "0079: --check flags a de-shimmed wrapper as drift" 'grep -qF "drift in .claude/agents/docket-status.md" <<<"$chk"'
 rm -rf "$SBX"
+
+# ---- change 0269: runners.<name>.shim_model / shim_effort govern the shim's OWN pin -------------
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, effort: high, runner: codex }\nrunners:\n  codex:\n    shim_model: claude-haiku-4-5-20251001\n    shim_effort: medium\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+G="$SBX/.claude/agents/docket-status.md"
+assert "0269: configured shim_model lands in the shim frontmatter" \
+  '[ "$(fm "$G" model)" = "claude-haiku-4-5-20251001" ]'
+assert "0269: configured shim_effort lands in the shim frontmatter" \
+  '[ "$(fm "$G" effort)" = "medium" ]'
+# The child's values are untouched by the knobs — they still ride the baked dispatch arguments.
+assert "0269: the child model still rides --model" 'grep -qF -- "--model gpt-5.1-codex" "$G"'
+assert "0269: the child effort still rides --effort" 'grep -qF -- "--effort high" "$G"'
+assert "0269: the shim pin is not baked as the child model" '! grep -qF -- "--model claude-haiku-4-5-20251001" "$G"'
+
+# Machine-local layer wins per key, and an unset key still defaults (per-key precedence, not
+# per-block): .docket.local.yml supplies only shim_model, so shim_effort must still resolve to low.
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, effort: high, runner: codex }\nrunners:\n  codex:\n    shim_model: from-committed\n    shim_effort: high\n' > "$SBX/.docket.yml"
+printf 'runners:\n  codex:\n    shim_model: from-local\n' > "$SBX/.docket.local.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+G="$SBX/.claude/agents/docket-status.md"
+assert "0269: .docket.local.yml wins for shim_model" '[ "$(fm "$G" model)" = "from-local" ]'
+assert "0269: precedence is PER KEY — committed shim_effort still applies" \
+  '[ "$(fm "$G" effort)" = "high" ]'
 
 # ---- change 0206: build-* shims bake --worktree as a required slot -------------------
 # BIDIRECTIONAL by construction (LEARNINGS: correspondence-guard-runs-one-way). This is a MIRROR
@@ -450,7 +489,7 @@ assert "0220/D3: (non-vacuity) a matching \$2 still emits successfully" '[ "$d3_
 # second argument, so anchoring on `emit_wrapper(){` searches only the body and would be satisfied
 # by the body's own assertion even with the whole header deleted.
 assert "0220/D3: emit_wrapper's header states the \$2 contract" \
-  'grep -qF "CALLING CONTRACT (change 0220)" "$REPO/sync-agents.sh"'
+  'grep -qF "CALLING CONTRACT (change 0220, amended by change 0269)" "$REPO/sync-agents.sh"'
 
 # ---- change 0220 / D6: each distinct diagnostic is reported exactly once ------------------------
 # A bad runner: in the GLOBAL layer is visible to BOTH gate legs — the user-level leg resolves over
@@ -596,14 +635,15 @@ assert "0169: and neither shipped EFFORT leaked into the runner flags" \
   '! grep -qF -- "--effort $(hd_field "$HD" claude status effort)" "$S" && ! grep -qF -- "--effort $(hd_field "$HD" codex status effort)" "$S"'
 assert "0169: nor did the shipped CODEX model" \
   '! grep -qF -- "$(hd_field "$HD" codex status model)" "$S"'
-assert "0168: runner shim frontmatter still carries the resolved native effort (bookkeeping)" \
-  '[ "$(fm "$S" effort)" = "$(hd_field "$HD" claude status effort)" ]'
-# The MODEL half of that same bookkeeping claim. The 0205 migration re-pointed the effort assert but
-# dropped this one, leaving "the shim's frontmatter carries the resolved pin" only half pinned. Here
-# the resolved model IS the user value (the required-model rule guarantees one), so this asserts the
-# frontmatter tracks the resolution rather than being left empty or stale by the shim path.
-assert "0168: runner shim frontmatter still carries the resolved native model (bookkeeping)" \
-  '[ "$(fm "$S" model)" = "user-picked-id" ]'
+# change 0269 replaces 0168's two "the shim frontmatter carries the resolved native pin
+# (bookkeeping)" asserts — the effort half and the model half of one claim whose premise was false.
+# The shim runs in the PARENT harness, so its frontmatter is the parent-side relay's own pin: the
+# runners.<name> knobs, here unset and therefore at their defaults. The resolved native values
+# belong to the CHILD and reach it only through the baked flags asserted above.
+assert "0269: an unconfigured runner shim's frontmatter effort is the shim default, not the resolved native effort" \
+  '[ "$(fm "$S" effort)" = "low" ] && [ "$(fm "$S" effort)" != "$(hd_field "$HD" claude status effort)" ]'
+assert "0269: an unconfigured runner shim's frontmatter model is the shim default, not the child's resolved model" \
+  '[ "$(fm "$S" model)" = "inherit" ] && [ "$(fm "$S" model)" != "user-picked-id" ]'
 
 # A user-configured pair is policy, not a shipped guess: it still passes through to the child.
 cat > "$SBX/.docket.yml" <<'YML'

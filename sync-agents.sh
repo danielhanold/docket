@@ -374,6 +374,45 @@ section_body() {  # $1=key ; reads stdin
   '
 }
 
+# --- runners.<name>.<key>: per-key across layers (change 0269) ----------------
+# The shim wrapper runs in the PARENT harness and does one thing: a foreground `docket.sh
+# runner-dispatch` call plus a stdout relay. Its frontmatter pin therefore governs the parent-side
+# agent and must be resolvable by the parent — the child's pin is the baked `--model` argument and
+# only that. These two knobs are what the frontmatter carries.
+#
+# Layering is repo-local > repo-committed > global, PER KEY: the first layer that carries the key
+# wins, and a layer supplying only one of the two leaves the other to resolve further down (or to
+# its default). Same rule runner-dispatch.sh already applies to the rest of the block.
+#
+# Composed from section_body rather than re-implementing the dedenting walk. This makes
+# sync-agents.sh the SECOND independent consumer of the `runners:` block — runner-dispatch.sh's
+# `runner_block`/`yaml_section` pair is the first — which is a knowing deferral, not an oversight:
+# unifying the two parsers is change #0256's scope, and it should absorb both readers when it lands.
+# The value class here is the BLOCK-mapping one (rest of the line, comment stripped, trimmed), not
+# the `{…}` flow-map class the agents entries use; a block mapping has one key per line.
+runner_key() {  # $1=runner  $2=key  -> the value from the highest-precedence layer carrying it, else ''
+  local f blk line v
+  for f in "$LOCAL_CFG" "$DOCKET_YML" "$GLOBAL_CFG"; do
+    [ -f "$f" ] || continue
+    # AGENTS.md: never `producer | early-exiting-consumer` under `set -o pipefail`. section_body's
+    # awk `exit`s the moment the block ends, so piping one into the next would leave the producer
+    # taking a SIGPIPE on any config large enough to outrun the pipe buffer. Capture, then feed in.
+    blk="$(section_body runners < "$f")"
+    [ -n "$blk" ] || continue
+    blk="$(section_body "$1" <<<"$blk")"
+    [ -n "$blk" ] || continue
+    line="$(awk -v k="$2" '
+      { nc=$0; sub(/#.*/, "", nc) }
+      nc ~ ("^[[:space:]]*" k "[[:space:]]*:") { print nc; exit }
+    ' <<<"$blk")"
+    [ -n "$line" ] || continue
+    v="$(sed -E -e 's/^[[:space:]]*[A-Za-z0-9._-]+[[:space:]]*:[[:space:]]*//' -e 's/[[:space:]]+$//' <<<"$line")"
+    printf '%s' "$v"
+    return 0
+  done
+  return 0
+}
+
 if [ "${BASH_VERSINFO[0]}" -ge 4 ]; then
   declare -A _LAYER_BODY_CACHE=()
 else
@@ -1188,14 +1227,21 @@ runner_config_error(){  # $1=harness $2=agent $3=runner $4=flag_model  (diagnost
 # with no USER-configured model — live in runner_config_error and are gated up front by
 # validate_runner_config; the call below is only a can't-happen assertion.
 #
-# CALLING CONTRACT (change 0220): $2 MUST be the RES_MODEL that resolve_agent_layers just resolved
-# for this exact (harness, agent) pair, and $3 the matching RES_EFFORT. $2 is used TWICE and for
-# two different things — as emit_shim's frontmatter pin, and (provenance-filtered through
-# RES_MODEL_FROM_USER) as the baked --model flag — so a caller that passes a post-processed model
-# would split the wrapper against itself. This is why the provenance filter here is a second
-# spelling of user_flag_model's rather than a call to it: rerouting only the flag would leave the
-# frontmatter pin on $2 and emit a wrapper whose two halves disagree, silently. The assertion at the
-# top of the body is what makes the contract enforced rather than merely conventional.
+# CALLING CONTRACT (change 0220, amended by change 0269): $2 MUST be the RES_MODEL that
+# resolve_agent_layers just resolved for this exact (harness, agent) pair, and $3 the matching
+# RES_EFFORT. On the native path they are the wrapper's pin directly; on the delegated path they
+# reach the child ONLY as the baked --model/--effort flags, provenance-filtered through
+# RES_MODEL_FROM_USER. Either way a caller that passes a post-processed model sends the wrong
+# identity to the harness that runs the work, which is what the assertion at the top of the body
+# exists to prevent.
+#
+# Change 0269 removed $2's SECOND use: the delegated shim's frontmatter pin now comes from
+# `runners.<name>.shim_model`, not from $2. Both halves of a delegated wrapper are still resolved
+# here, but they now answer two different questions — "what can the PARENT harness run this relay
+# on" (the frontmatter, via runner_key) and "what should the CHILD run the work on" (the baked
+# flag, via $2). That is why the provenance filter stays a second spelling of user_flag_model's
+# rather than a call to it: the two values are no longer the same value wearing two hats, and the
+# filter belongs to the flag alone.
 emit_wrapper(){  # $1=src $2=model $3=effort $4=runner $5=harness $6=agent-name  (stdout)
   # Enforce the calling contract stated in the header above. ABOVE the `[ -z "$runner" ]`
   # short-circuit deliberately: the header states the contract for EVERY call, so enforcing it only
@@ -1242,15 +1288,28 @@ emit_wrapper(){  # $1=src $2=model $3=effort $4=runner $5=harness $6=agent-name 
     log "ERROR $rc_err"
     exit 1
   fi
-  emit_shim "$1" "$2" "$3" "$runner" "$6" "$flag_model" "$flag_effort"
+  # change 0269: $2/$3 are the CHILD's resolved pin and reach the shim only as the baked flags
+  # above. The shim's own frontmatter gets the parent-side knobs, defaulting to `inherit`/`low`.
+  # `inherit` is deliberate: emit() passes it through VERBATIM on the claude harness (Claude Code
+  # documents it as "run on the parent conversation's model", a real value distinct from omitting
+  # the key), so every currently-broken wrapper is repaired by regeneration alone with no config
+  # edit. The knob is a cost optimization on top, never a prerequisite.
+  local shim_model shim_effort
+  shim_model="$(runner_key "$runner" shim_model)"
+  [ -n "$shim_model" ] || shim_model="inherit"
+  shim_effort="$(runner_key "$runner" shim_effort)"
+  [ -n "$shim_effort" ] || shim_effort="low"
+  emit_shim "$1" "$shim_model" "$shim_effort" "$runner" "$6" "$flag_model" "$flag_effort"
 }
 
-# The shim: native frontmatter carrying the FULLY RESOLVED pin (bookkeeping for the claude parent —
-# the effective pin for the delegated work is the baked --model argument), body = one foreground
-# facade call + relay + verify rules. The baked flags come from $6/$7, which carry USER-configured
-# values only (change 0168); an empty one bakes NO flag, so the child harness applies its own
-# default rather than inheriting a default that was only ever meant for this harness.
-emit_shim(){  # $1=src $2=model $3=effort $4=runner $5=agent-name $6=flag-model $7=flag-effort  (stdout)
+# The shim: native frontmatter carrying the SHIM'S OWN pin (change 0269 — this agent runs in the
+# claude parent and does one foreground facade call plus a stdout relay, so its pin must name
+# something the PARENT can resolve; the pin for the delegated work is the baked --model argument),
+# body = one foreground facade call + relay + verify rules. The baked flags come from $6/$7, which
+# carry USER-configured values only (change 0168); an empty one bakes NO flag, so the child harness
+# applies its own default rather than inheriting a default that was only ever meant for this
+# harness. This function stays a pure emitter — its caller resolves both pins and hands them down.
+emit_shim(){  # $1=src $2=shim-model $3=shim-effort $4=runner $5=agent-name $6=flag-model $7=flag-effort  (stdout)
   emit "$1" "$2" "$3" | awk '/^---[[:space:]]*$/{d++; print; next} d<2{print}'
   local flags="--runner $4 --agent $5"
   [ -n "${6:-}" ] && flags="$flags --model $6"
