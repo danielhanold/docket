@@ -10,14 +10,14 @@ updated: 2026-08-08
 depends_on: [237]
 related: [212, 237]
 discovered_from: [237]
-adrs: []
+adrs: [78]
 spec: docs/superpowers/specs/2026-08-08-close-the-claude-gap-in-the-run-completion-gate-with-a-comma-design.md
 plan: docs/superpowers/plans/2026-08-08-close-the-claude-gap-caller-side-run-gate.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/close-the-claude-gap-in-the-run-completion-gate-with-a-comma
-claimed_at: 2026-08-08T16:12:39Z
+claimed_at: 2026-08-08T20:08:30Z
 pr:
 blocked_by:
 reconciled: true
@@ -30,6 +30,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-08-close-the-claude-gap-in-the-run-completion-gate-with-a-comma-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-08-close-the-claude-gap-in-the-run-completion-gate-with-a-comma-design.md) |
 | Plan | [2026-08-08-close-the-claude-gap-caller-side-run-gate.md](https://github.com/danielhanold/docket/blob/feat/close-the-claude-gap-in-the-run-completion-gate-with-a-comma/docs/superpowers/plans/2026-08-08-close-the-claude-gap-caller-side-run-gate.md) |
+| ADRs | [ADR-0078](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
