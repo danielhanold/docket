@@ -2,7 +2,7 @@
 id: 254
 slug: bsd-tool-default-sweep-templated-mktemp-and-non-interactive
 title: 'BSD tool-default sweep: templated mktemp and non-interactive mv'
-status: in-progress
+status: implemented
 priority: medium
 type: fix
 created: 2026-08-07
@@ -13,12 +13,12 @@ discovered_from: [188, 189]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-bsd-tool-default-sweep-templated-mktemp-and-non-interactive-design.md
 plan: docs/superpowers/plans/2026-08-08-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md
-results:
+results: docs/results/2026-08-08-bsd-tool-default-sweep-templated-mktemp-and-non-interactive-results.md
 trivial: false
 auto_groomable: true
 branch: feat/bsd-tool-default-sweep-templated-mktemp-and-non-interactive
-claimed_at: 2026-08-08T02:29:31Z
-pr:
+claimed_at: 2026-08-08T03:21:13Z
+pr: https://github.com/danielhanold/docket/pull/180
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-bsd-tool-default-sweep-templated-mktemp-and-non-interactive-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-bsd-tool-default-sweep-templated-mktemp-and-non-interactive-design.md) |
 | Plan | [2026-08-08-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md](https://github.com/danielhanold/docket/blob/feat/bsd-tool-default-sweep-templated-mktemp-and-non-interactive/docs/superpowers/plans/2026-08-08-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md) |
+| Results | [2026-08-08-bsd-tool-default-sweep-templated-mktemp-and-non-interactive-results.md](https://github.com/danielhanold/docket/blob/feat/bsd-tool-default-sweep-templated-mktemp-and-non-interactive/docs/results/2026-08-08-bsd-tool-default-sweep-templated-mktemp-and-non-interactive-results.md) |
+| PR | [#180](https://github.com/danielhanold/docket/pull/180) |
 <!-- docket:artifacts:end -->
 
 ## Why
