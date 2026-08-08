@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/guard-the-config-suite-s-enumerated-claims-export-order-and
-claimed_at: 2026-08-08T19:06:25Z
+claimed_at: 2026-08-08T19:12:42Z
 pr:
 blocked_by:
 reconciled: true
@@ -85,62 +85,8 @@ design is carried forward unchanged.
 - **Auto-capture (site A).** Nothing minted: the pass surfaced no work outside this change's
   scope that clears the six admission gates.
 
-## Run halted
+### 2026-08-08 — resumed at Step 5 (no scope change)
 
-2026-08-08 — `docket-implement-next` halted at Step 5 (build) for the **second** time, on the
-same root cause, now fully diagnosed. Steps 0-4 remain landed: the change is claimed and
-reconciled, `feat/guard-the-config-suite-s-enumerated-claims-export-order-and` is cut from
-`origin/main`, and the plan is committed on it at `7bd45872` with `plan:` recorded here. This
-session **pushed that branch to origin** so the plan is no longer local-only. No build work was
-performed; the branch still carries no test changes.
-
-**What stopped the run.** The `docket-build-*` profile wrappers this session loaded still carry
-the change-0079 cross-harness delegation body:
-
-```
-This agent is DELEGATED to the `opencode` runner (cross-harness runner delegation, change 0079).
-… docket.sh runner-dispatch --runner opencode --agent build-standard \
-  --model openrouter/deepseek/deepseek-v4-flash-0731 --effort high --worktree <feature worktree>
-```
-
-Verified this session by probing `docket-build-economy` and `docket-build-standard` directly:
-both quoted that text back out of their own instructions. The wrapper additionally forbids the
-inline fallback — "never run the skill inline on this harness as a fallback."
-
-**Root cause (confirmed).** The wrappers are gitignored generated artifacts
-(`.gitignore:9` → `.claude/agents/docket-*.md`). Those in the `docket.change-258` worktree — this
-session's cwd, and therefore its project-scoped agent source — were **stale**; the primary tree's
-`/Users/homer/dev/docket/.claude/agents/` copies had already been regenerated to the correct
-inline form (`model: claude-opus-5`, no runner delegation). Project-scoped wrappers outrank the
-user-level ones, so the stale copies won.
-
-Current resolved config agrees the delegation is superseded: `.docket.local.yml` sets
-`agent_harnesses: [claude,cursor]` (opencode is no longer a target for this repo) and pins
-`agents.claude.build-*` to `claude-opus-5`. The baked `openrouter/deepseek/deepseek-v4-flash-0731`
-model id appears in no config layer any more.
-
-**Repair already applied.** This session copied the four correct `docket-build-*.md` wrappers from
-the primary tree into `docket.change-258/.claude/agents/`. On disk they are now inline and correct.
-
-**Why the run still halted.** Claude Code registers subagent definitions **only at process start**,
-so the refreshed files are invisible to this session — re-probing `docket-build-standard` after the
-copy still returned the opencode delegation body. And `skills.build` resolves to `docket-build`,
-not `auto`, so the convention's Tier C (discipline dispatch) makes this abort-and-report, never
-authorization to execute the plan inline. Routing every task to `docket-build-max` — the one
-profile whose stale wrapper happened to be inline already — was rejected as a deliberate corruption
-of the routing contract and of the reviewer-rung selection that keys off the build record.
-
-Note for the record: `runners.opencode.permissions: auto-approve` **is** now set in
-`~/.config/docket/config.yml` (it was absent at the first halt) and `opencode` 1.18.15 is on PATH,
-so the original hard refusal is gone. Delegation was still not taken, because it would run the
-build on a runner and model this repo's current configuration has removed.
-
-**What a human must do.** Start a **fresh** session with cwd
-`/Users/homer/dev/docket.change-258` and re-run `docket-implement-next 258`, telling it Steps 0-4
-are landed and Step 5 has not started. The wrappers are already correct on disk; only the process
-restart is missing. Optionally re-run `install.sh` / `sync-agents.sh` first so no other worktree
-carries stale copies.
-
-**State left behind (safe to resume).** `status: in-progress`, `claimed_at` refreshed. The
-worktree `.worktrees/guard-the-config-suite-s-enumerated-claims-export-order-and`, its branch, and
-the plan commit are preserved and now also on `origin`.
+`origin/main` is still `487bfdc5`, unchanged since the pass above, so the reconcile is carried
+forward as-is under the resume-safety guard. The previous run's `## Run halted` section is
+removed by this commit — git history keeps it — because the run is live again.
