@@ -1,0 +1,33 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0245 — Harden sync-agents wrapper generation and clear the 0192 findings](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0245-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md)**
+<!-- docket:backlink:end -->
+
+# Harden sync-agents wrapper generation and clear the 0192 findings — results
+
+Change: #0245 · Branch: feat/harden-sync-agents-wrapper-generation-and-clear-the-0192-fin · PR: (see change manifest) · Plan: docs/superpowers/plans/2026-08-08-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md · ADRs: 0077
+
+## Verify (human)
+
+- [ ] **The AGENTS.md dispatch head now renders lowercase harness tokens.** The head's roster is derived from `$HD_SHIPPED_HARNESSES`, so it reads `claude, cursor, codex, opencode` where the prose previously said "Claude, Cursor, Codex and opencode". A capitalized rendering cannot be derived without reintroducing the literal the review flagged. This block is **committed into consumer repos** — confirm the wording reads acceptably to you, because every opted-in repo will see one `--check` staleness → re-run → commit cycle to pick it up.
+- [ ] **Consumer repos will report a stale AGENTS.md block after this merges.** Two separate edits change the committed block: the head-claim rescope and the derived roster. That refresh cycle is the designed path, not a defect — but you may want to warn anyone running docket against another repo.
+
+## Findings
+
+- **A live probe falsified a source comment, and it became ADR-0077.** The plan carried a conditional step: probe `opencode` for the claim that effort is dropped because "a provider option with no provider selected has nothing to reach", and reword the comment if the probe failed to confirm it. It failed. Against **opencode 1.18.14**, `opencode debug agent` on a hand-written agent carrying `reasoningEffort: high` with **no** `model:` still reports `options: {reasoningEffort: "high"}` — opencode *would* have honored the orphan effort. The drop is docket's own policy, not a vendor constraint, and is now recorded as **ADR-0077** (relates to ADR-0015, ADR-0060). The same probe re-confirmed the surviving `options.reasoningEffort` forwarding claim, previously verified only at 1.18.11.
+
+- **Whole-branch review returned 8 findings — 0 blocker, 3 important, 5 minor — and all 8 were fixed in-branch.** Dispositions are in the PR body. Three are worth carrying forward:
+  - The rescoped AGENTS.md head claim *replaced one hard-coded roster with another* (finding 1). The same change derived the sibling `--check` diagnostic from its variable and then did not apply that pattern to the hand-list it introduced beside it. Now derived from `$HD_SHIPPED_HARNESSES` and guarded in both directions.
+  - Two asserts in the new `test_sync_agents_harness_gaps.sh` were **two independent greps over the whole stderr** (finding 3), and the first passed with the feature deleted — `warn_fallback_model` already emits 16 lines naming `kiro`. Both are now anchored on a single emitted line. This is the `restatement-accumulates-its-own-guards` class inverted: the assert grepped a stream that already carried the token before the feature existed.
+  - The #0082 hint **re-derived** the global config path (`${XDG_CONFIG_HOME:-$HOME/.config}`) instead of naming `$GLOBAL_CFG`, whose real fallback is `$HARNESS_ROOT/.config` (finding 4). With `DOCKET_HARNESS_ROOT` set and `XDG_CONFIG_HOME` unset, the hint named a file docket never read — and the fixture always set `XDG_CONFIG_HOME`, so the suite could not see it. A second derivation of a single variable, inside the very change removing that defect class.
+
+- **One review finding was partially rejected, with measurement.** Finding 2 claimed the new suite's 20s budget row understated its cost, citing a 33s observation. The fix worker measured the file serially three times — **14s, 14s, 14s** — and `scripts/run-tests.sh`'s own contract states a budget row is a claim about **serial** cost, with a slack factor absorbing parallel contention. Re-sizing the row to 35 would have restated the claim in units the table does not use and bought ~37s of unearned slack, which the budget guard's header calls out as the quiet evasion. So the row stayed at 20 and `EXPECTED_TOTAL` at 1435. The finding's *other* half was real and is fixed: the rationale comment miscounted the file's `sync-agents.sh` invocations as four when there are eight.
+
+- **Task 1's byte-identity gate was verified more broadly than the plan specified.** The plan's snapshot covered the project-level pass; the worker additionally diffed the **user-level** pass (which reaches `emit_for_harness`'s second caller, unreached by the plan's snippet) and a purpose-built fixture pinning all four combinations of `{model: inherit | real id} × {effort: auto | xhigh}` across all four harnesses, running the pre-refactor script from `git show HEAD:sync-agents.sh` against the post-refactor one. All clean, stderr included — so the asymmetric sentinel logic was genuinely *executed*, not merely observed to still be present.
+
+## Follow-ups
+
+- **#0268 — De-flake the reclaim leg of `test_docket_status` under parallel contention** (auto-captured this run, `discovered_from: 245`). The first full-suite gate run failed one assert, `reclaim(auto off): prints the state-valid remedy naming docket.sh reclaim-claims`. It passes standalone and passed on re-run; this branch touches none of `tests/test_docket_status.sh`, `scripts/docket-status.sh`, or `scripts/reclaim-claims.sh`. Pre-existing flake, not a regression.
+
+- **Budget breaches under load are advisory and were not acted on.** The post-fix gate run (wall 171s) reported 8 files `OVER BUDGET`, most of them files this branch never touches (`test_board_checks`, `test_harness_defaults`, `test_harness_defaults_validator`). The identical suite on an unloaded machine (wall 142s) reported **zero**. Contention artifact — consistent with the `tolerance-constant-calibrated-on-one-machine` learning and the slack factor's change-0229 calibration note. Not filed as its own change, since that calibration is already known territory; raised here so a reader of the gate log does not mistake it for a regression.
+
+- **The `agents` token now WARNs during `tests/test_sync_agents.sh`.** That suite uses `agents` as a fixture harness token, which is accepted-but-unmapped, so it legitimately trips the new once-per-run WARN on its stderr. The suite passes unmodified. Removing `agents`/`kiro`/`windsurf` from the token vocabulary was explicitly out of scope for this change and remains an open decision.
