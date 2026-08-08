@@ -3,10 +3,10 @@ id: 242
 slug: close-the-claude-gap-in-the-run-completion-gate-with-a-comma
 title: Close the Claude gap in the run-completion gate with a command-type Stop hook
 status: proposed
-priority: medium
+priority: high
 type: feat
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-08
 depends_on: [237]
 related: [212, 237]
 discovered_from: [237]
