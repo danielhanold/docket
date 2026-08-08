@@ -46,7 +46,7 @@ done
 # time (sync-agents.sh's runner_config_error), so a dispatch-time `inherit` is a hand invocation,
 # and the hand contract is tolerant. This is sentinel normalization, NOT model-ID validation
 # (ADR-0015): no vendor value is inspected and no allowlist is introduced.
-[ "$MODEL" = "inherit" ] && MODEL=""
+case "$MODEL" in inherit) MODEL="" ;; esac
 # The runner name becomes a path component below — reject anything that could traverse out
 # of RUNNERS_DIR (the facade family is a finite table, never an escape hatch).
 case "$RUNNER" in
