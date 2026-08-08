@@ -324,6 +324,8 @@ assert "0140 rd: the literal sentinel never reaches the adapter" \
 # whole flag pair would satisfy both asserts above.
 assert "0140 rd: --effort survives model normalization" \
   'grep -qxF -- "--effort" <<<"$pargv" && grep -qxF -- "high" <<<"$pargv"'
+assert "0140 rd: the adapter still ran (the negated asserts are not vacuous)" \
+  'grep -qxF -- "--agent" <<<"$pargv"'
 
 # Non-regression control (ADR-0015): a REAL model ID is not a sentinel and still passes verbatim.
 # Without this leg, deleting the `[ -n "$MODEL" ]` guard outright — i.e. never forwarding a model at
