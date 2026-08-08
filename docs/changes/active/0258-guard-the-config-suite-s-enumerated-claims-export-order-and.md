@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/guard-the-config-suite-s-enumerated-claims-export-order-and
-claimed_at: 2026-08-08T18:34:30Z
+claimed_at: 2026-08-08T18:41:00Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -52,3 +52,35 @@ Posture ruled at grooming (2026-08-07, autonomous, critic-gated): **guard both c
 
 - Adding config layers or keys; changing emission order.
 - The population-floor/sharding rework of the same file — owned by #0251; coordinate at build time (same test file; whichever lands second rebases, per 0251's spec assumptions 7/9).
+
+## Reconcile log
+
+### 2026-08-08 — reconcile at claim (no scope change)
+
+Re-verified every premise of the spec against `origin/main` @ `487bfdc5`; all hold, so the
+design is carried forward unchanged.
+
+- **Leg 1 doc side.** `scripts/docket-config.md` still opens `### Emit` with "printed as
+  `KEY=value` lines to stdout in this order", followed by one fenced block of **34** entries
+  (`DOCKET_MODE` … `BOOTSTRAP`), `REPO_ROOT` annotated `(plain format only — see below)`, and the
+  prose sentence "33 lines in `shell` format; 34 in `plain` format". Counts match the spec's
+  33/34; no doc edit has landed since grooming.
+- **Leg 1 runtime side.** A live `docket.sh preflight` emits the fence's sequence exactly,
+  `REPO_ROOT` in position 6. The claim is true today, which is what makes it worth pinning.
+- **Leg 2 resolver side.** `config_scalar_get` (`scripts/docket-config.sh`) still dispatches
+  exactly three layer arms — `committed` / `global` / `local`, each calling
+  `config_scalar_from_lines … "${CONFIG_LINES_<LAYER>[@]}"` — plus the `*)` die arm. n = 3,
+  n·(n−1) = 6, matching section (S4-S9)'s six fixtures.
+- **Leg 2 pinned side.** `tests/test_docket_config.sh` section `(S4-S9)` (changes 0106 + 0112)
+  carries fixtures s4–s9 and states the six-pair enumeration only in its header comment, as the
+  spec describes. The six pairs are unchanged: s4 local→committed, s5 committed→global,
+  s6 global→committed, s7 committed→local, s8 global→local, s9 local→global.
+- **ADR-0054** ("Cross-references … anchor on symbols or quoted clauses, never line numbers") is
+  `Accepted`, so the leg-2 source-shape anchor remains licensed.
+- **#0251 coupling.** Still `proposed` / build-ready — the `test_docket_config*.sh` split has NOT
+  landed, so the family glob currently resolves to the single file. The corpus-indifference
+  constraint (no `BASH_SOURCE` whole-file scans; iterate the glob) is honored regardless, per
+  spec assumption 8; whichever change lands second rebases. No `depends_on` added.
+- **Auto-capture (site A).** Nothing minted: the pass surfaced no work outside this change's
+  scope that clears the six admission gates.
+
