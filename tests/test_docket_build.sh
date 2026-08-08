@@ -908,6 +908,15 @@ assert "0249: an unfinished run at the observation bound is not green" \
 assert "0249: failing closed on an unfinished run returns BLOCKED" \
   'grep -qiE "fail closed[^.]{0,60}BLOCKED" <<<"$worker_cycle_flat"'
 
+# (1e) The pointer's trigger is reconciled with step 4, whose rule is focused-not-the-whole-suite:
+# the long run it addresses is the FOCUSED set, not a licence to run the suite. The clause also has
+# to stay repo-neutral — this contract body ships into consuming repos, whose own instructions
+# override it, so a hardcoded claim about docket's suite is false there. One bounded gap binds the
+# outlasting run to step 4's set; the second grep rejects the repo-specific aside it replaced.
+assert "0249: the long-run pointer is reconciled with step 4's focused set" \
+  'grep -qiE "outlast[^.]{0,60}step 4.{0,20}focused set" <<<"$worker_cycle_flat" &&
+   ! grep -qiF -- "on this repo" <<<"$worker_cycle_flat"'
+
 # (2) The staging prohibition, scoped through the 0231 "## Scope" extractor above. Three asserts
 # with ONE bounded gap each, never one ERE with three: stacked gaps backtrack catastrophically on
 # non-matching input, so the mutation test hangs instead of reddening (learnings:
