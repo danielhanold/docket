@@ -1,8 +1,14 @@
 # Backlog
 
-**266 changes** — 🟡 30 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 159 done · 🗑️ 72 killed
+**266 changes** — 🟢 1 in progress · 🟡 29 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 159 done · 🗑️ 72 killed
 
-## 🟡 Proposed (30)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0244](active/0244-one-selection-rule-for-the-four-frontmatter-read-shapes.md) | One selection rule for the four frontmatter read shapes | `medium` | `refactor` | [spec](../superpowers/specs/2026-08-07-one-selection-rule-for-the-four-frontmatter-read-shapes-design.md) | `feat/one-selection-rule-for-the-four-frontmatter-read-shapes` |
+
+## 🟡 Proposed (29)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -19,7 +25,6 @@
 | [0221](active/0221-assert-executes-backticks-in-its-test-description-so-a-verba.md) | assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell | `medium` | `fix` | build-ready |
 | [0222](active/0222-raise-docket-s-minimum-bash-from-4-to-4-4.md) | Raise docket's minimum Bash from 4+ to 4.4 | `medium` | `chore` | build-ready |
 | [0242](active/0242-close-the-claude-gap-in-the-run-completion-gate-with-a-comma.md) | Close the Claude gap in the run-completion gate with a command-type Stop hook | `medium` | `feat` | needs-brainstorm |
-| [0244](active/0244-one-selection-rule-for-the-four-frontmatter-read-shapes.md) | One selection rule for the four frontmatter read shapes | `medium` | `refactor` | build-ready |
 | [0245](active/0245-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md) | Harden sync-agents wrapper generation and clear the 0192 findings | `medium` | `refactor` | build-ready |
 | [0247](active/0247-make-shared-metadata-worktree-contention-survivable-and-scop.md) | Make shared metadata worktree contention survivable and scope its commits | `high` | `fix` | needs-brainstorm |
 | [0248](active/0248-role-self-description-enforce-the-positive-half-and-harden-t.md) | Role self-description: enforce the positive half and harden the guard | `medium` | `chore` | build-ready |
