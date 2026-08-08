@@ -241,6 +241,90 @@ renders_row(){
   esac
 }
 
+# --- scalar-form: an unquoted frontmatter scalar that is not well-formed YAML (change 0191).
+# The well-formedness leg of the house yaml-scalar rule (AGENTS.md + ADR-0065): a BARE scalar
+# carrying a ': ' (colon-space) or exactly matching a YAML 1.1 boolean keyword is read
+# ambiguously by any YAML consumer, so it must be quoted or reworded. Covers the only two
+# free-text string scalars docket reads that are not already shape/domain-gated — title and the
+# optional blocked_by. The natively-boolean fields (trivial, auto_groomable, reconciled) hold a
+# bare true/false BY DESIGN and are not scanned. Reads the RAW token (field_raw for title,
+# fm_field_verbatim for blocked_by): field()/fm_field() unwrap surrounding quotes, which would make
+# a quoted colon-space look exactly like a bad bare one. blocked_by goes through the ANCHORED
+# accessor so an ABSENT blocked_by does not fall through to a body-prose line, and through the
+# VERBATIM one so the value arrives as authored: fm_field_raw strips a whitespace-preceded `#...`
+# before returning, which IS the truncation the comment-introducer leg exists to report, so reading
+# through it would make that leg unreachable for this field (the real `blocked_by: PR #69 is stale
+# ...` on the metadata branch would arrive as `PR` and pass silently). title needs no such twin —
+# field_raw has no comment strip. At most ONE finding per field — the predicate
+# reports the FIRST matching leg and stops, since one reason is enough to demand a quote; warn-only;
+# never marks EXPLAINED (a malformed scalar does not drop a board row). One skip leg here, then
+# docket_scalar_quote_reason's own empty-value early return, then its five syntax legs — in
+# evaluation order:
+#   skip               — empty, or the raw value opens with " or ' (quoted is well-formed by
+#                        definition; never inspect the interior). This leg lives here, not in the
+#                        predicate.
+#   empty              — the predicate's own first act is an early return on an empty value (an
+#                        empty scalar is well-formed bare); the skip leg above already caught it.
+#   colon-space        — the unquoted raw value contains a colon followed by a space.
+#   trailing-colon     — the unquoted raw value ends in a colon (the shape that let change 0173
+#                        through unreported, change 0235).
+#   bare-boolean       — the unquoted raw value is exactly one of on off yes no true false,
+#                        whole-value and case-insensitive (YAML 1.1).
+#   comment-introducer — the unquoted raw value contains whitespace (a space OR a tab, the
+#                        [[:space:]] class) followed by a hash, which opens a YAML comment and
+#                        silently TRUNCATES the value rather than aborting the parse.
+#   indicator          — the unquoted raw value opens with a YAML indicator character. A leading
+#                        hash is one of them, and is the maximal form of the leg above: the
+#                        comment opens at character one, so the WHOLE value parses to null.
+scalar_form_check(){ # scalar_form_check FIELD RAW
+  local sfc_field="$1" sfc_raw="$2" sfc_reason
+  case "$sfc_raw" in
+    ''|\"*|\'*) return 0 ;;   # skip leg: empty, or opens with a quote -> well-formed, never inspected
+  esac
+  # The syntax legs live in ONE place — lib/docket-frontmatter.sh's docket_scalar_quote_reason —
+  # so the checker and any future consumer cannot drift into two copies of the same rule
+  # (change 0235). The skip arm above stays here: it is the only leg that needs the RAW token,
+  # and pushing it into the predicate would wrongly skip a value that logically STARTS with a
+  # quote character. The messages stay here too, because a finding is this script's output shape.
+  #
+  # The capture below FORKS — twice per change file, once for title and once for blocked_by.
+  # Deliberate, and recorded here rather than left silent (change 0235 review). The house
+  # "no subshell, no fork" property lib/docket-frontmatter.sh states for _docket_unwrap_quotes is
+  # a property of a helper's BODY — use bash parameter expansion, not sed/tr — and
+  # docket_scalar_quote_reason honours it exactly: its body is nothing but `case` arms. Neither
+  # helper avoids the caller's capture subshell; field() spends the identical one on
+  # $(_docket_unwrap_quotes …). Making the predicate assign a global instead would buy back two of
+  # the ~38 command substitutions this per-file loop already spends — most of them forking sed or
+  # awk — in exchange for an order-dependent out-parameter that every assert and the
+  # docket_scalar_needs_quoting wrapper would have to read. Stdout stays the contract.
+  sfc_reason="$(docket_scalar_quote_reason "$sfc_raw")"
+  case "$sfc_reason" in
+    colon-space)
+      emit scalar-form "$cid" "$sfc_field: unquoted scalar contains ': ' — quote it or reword (well-formed YAML)"
+      ;;
+    trailing-colon)
+      emit scalar-form "$cid" "$sfc_field: unquoted scalar ends with ':' — quote it or reword (well-formed YAML)"
+      ;;
+    bare-boolean)
+      emit scalar-form "$cid" "$sfc_field: unquoted bare YAML boolean ($sfc_raw) — quote it or reword (well-formed YAML)"
+      ;;
+    comment-introducer)
+      emit scalar-form "$cid" "$sfc_field: unquoted scalar contains whitespace followed by '#', a YAML comment introducer that silently truncates it — quote it or reword (well-formed YAML)"
+      ;;
+    indicator)
+      emit scalar-form "$cid" "$sfc_field: unquoted scalar opens with a YAML indicator character — quote it or reword (well-formed YAML)"
+      ;;
+  esac
+}
+# --- end scalar-form helper ---
+# The definition lives at TOP LEVEL (hoisted by change 0200) instead of inside the per-file walk,
+# where it was redefined once per change file. Its body still reads the walk's loop variable $cid
+# unqualified: bash resolves that dynamically at call time, so the hoist is behavior-neutral and
+# the call sites below stay the only place $cid has to be in scope.
+# The end marker above is NOT decoration. It is the named terminator mutation 4's first region
+# delete bounds on — without it the range would run past this point into the walk and produce a
+# syntactically dead copy that still passes every assert.
+
 # Walk every change file (active + archive); per-check filters apply inside.
 mapfile -t FILES < <(find "$CHANGES_DIR/active" "$CHANGES_DIR/archive" -maxdepth 1 -name '*.md' 2>/dev/null | sort)
 for f in "${FILES[@]}"; do
@@ -337,81 +421,8 @@ for f in "${FILES[@]}"; do
     esac
   fi
 
-  # --- scalar-form: an unquoted frontmatter scalar that is not well-formed YAML (change 0191).
-  # The well-formedness leg of the house yaml-scalar rule (AGENTS.md + ADR-0065): a BARE scalar
-  # carrying a ': ' (colon-space) or exactly matching a YAML 1.1 boolean keyword is read
-  # ambiguously by any YAML consumer, so it must be quoted or reworded. Covers the only two
-  # free-text string scalars docket reads that are not already shape/domain-gated — title and the
-  # optional blocked_by. The natively-boolean fields (trivial, auto_groomable, reconciled) hold a
-  # bare true/false BY DESIGN and are not scanned. Reads the RAW token (field_raw for title,
-  # fm_field_verbatim for blocked_by): field()/fm_field() unwrap surrounding quotes, which would make
-  # a quoted colon-space look exactly like a bad bare one. blocked_by goes through the ANCHORED
-  # accessor so an ABSENT blocked_by does not fall through to a body-prose line, and through the
-  # VERBATIM one so the value arrives as authored: fm_field_raw strips a whitespace-preceded `#...`
-  # before returning, which IS the truncation the comment-introducer leg exists to report, so reading
-  # through it would make that leg unreachable for this field (the real `blocked_by: PR #69 is stale
-  # ...` on the metadata branch would arrive as `PR` and pass silently). title needs no such twin —
-  # field_raw has no comment strip. At most ONE finding per field — the predicate
-  # reports the FIRST matching leg and stops, since one reason is enough to demand a quote; warn-only;
-  # never marks EXPLAINED (a malformed scalar does not drop a board row). One skip leg here, then
-  # docket_scalar_quote_reason's own empty-value early return, then its five syntax legs — in
-  # evaluation order:
-  #   skip               — empty, or the raw value opens with " or ' (quoted is well-formed by
-  #                        definition; never inspect the interior). This leg lives here, not in the
-  #                        predicate.
-  #   empty              — the predicate's own first act is an early return on an empty value (an
-  #                        empty scalar is well-formed bare); the skip leg above already caught it.
-  #   colon-space        — the unquoted raw value contains a colon followed by a space.
-  #   trailing-colon     — the unquoted raw value ends in a colon (the shape that let change 0173
-  #                        through unreported, change 0235).
-  #   bare-boolean       — the unquoted raw value is exactly one of on off yes no true false,
-  #                        whole-value and case-insensitive (YAML 1.1).
-  #   comment-introducer — the unquoted raw value contains whitespace (a space OR a tab, the
-  #                        [[:space:]] class) followed by a hash, which opens a YAML comment and
-  #                        silently TRUNCATES the value rather than aborting the parse.
-  #   indicator          — the unquoted raw value opens with a YAML indicator character. A leading
-  #                        hash is one of them, and is the maximal form of the leg above: the
-  #                        comment opens at character one, so the WHOLE value parses to null.
-  scalar_form_check(){ # scalar_form_check FIELD RAW
-    local sfc_field="$1" sfc_raw="$2" sfc_reason
-    case "$sfc_raw" in
-      ''|\"*|\'*) return 0 ;;   # skip leg: empty, or opens with a quote -> well-formed, never inspected
-    esac
-    # The syntax legs live in ONE place — lib/docket-frontmatter.sh's docket_scalar_quote_reason —
-    # so the checker and any future consumer cannot drift into two copies of the same rule
-    # (change 0235). The skip arm above stays here: it is the only leg that needs the RAW token,
-    # and pushing it into the predicate would wrongly skip a value that logically STARTS with a
-    # quote character. The messages stay here too, because a finding is this script's output shape.
-    #
-    # The capture below FORKS — twice per change file, once for title and once for blocked_by.
-    # Deliberate, and recorded here rather than left silent (change 0235 review). The house
-    # "no subshell, no fork" property lib/docket-frontmatter.sh states for _docket_unwrap_quotes is
-    # a property of a helper's BODY — use bash parameter expansion, not sed/tr — and
-    # docket_scalar_quote_reason honours it exactly: its body is nothing but `case` arms. Neither
-    # helper avoids the caller's capture subshell; field() spends the identical one on
-    # $(_docket_unwrap_quotes …). Making the predicate assign a global instead would buy back two of
-    # the ~38 command substitutions this per-file loop already spends — most of them forking sed or
-    # awk — in exchange for an order-dependent out-parameter that every assert and the
-    # docket_scalar_needs_quoting wrapper would have to read. Stdout stays the contract.
-    sfc_reason="$(docket_scalar_quote_reason "$sfc_raw")"
-    case "$sfc_reason" in
-      colon-space)
-        emit scalar-form "$cid" "$sfc_field: unquoted scalar contains ': ' — quote it or reword (well-formed YAML)"
-        ;;
-      trailing-colon)
-        emit scalar-form "$cid" "$sfc_field: unquoted scalar ends with ':' — quote it or reword (well-formed YAML)"
-        ;;
-      bare-boolean)
-        emit scalar-form "$cid" "$sfc_field: unquoted bare YAML boolean ($sfc_raw) — quote it or reword (well-formed YAML)"
-        ;;
-      comment-introducer)
-        emit scalar-form "$cid" "$sfc_field: unquoted scalar contains whitespace followed by '#', a YAML comment introducer that silently truncates it — quote it or reword (well-formed YAML)"
-        ;;
-      indicator)
-        emit scalar-form "$cid" "$sfc_field: unquoted scalar opens with a YAML indicator character — quote it or reword (well-formed YAML)"
-        ;;
-    esac
-  }
+  # --- scalar-form call sites (the definition is hoisted to top level; change 0200). Mutation 4
+  # deletes these four lines as its SECOND region, matched individually.
   sf_title="$(field_raw "$f" title)"
   sf_blocked_by="$(fm_field_verbatim "$f" blocked_by)"
   scalar_form_check title "$sf_title"
