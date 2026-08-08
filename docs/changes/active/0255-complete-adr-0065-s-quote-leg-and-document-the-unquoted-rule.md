@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule
-claimed_at: 2026-08-08T05:07:10Z
+claimed_at: 2026-08-08T05:09:20Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -54,3 +54,23 @@ Settled design in the linked spec (auto-groomed 2026-08-07; critic-gated, one re
 
 - Consolidating the readers themselves — that is the config-reader consolidation change.
 - Widening what values are legal (quoting support) — ADR-0065 chose validation, not tolerance.
+
+## Reconcile log
+
+### 2026-08-08 — build-time reconcile (docket-implement-next)
+
+Re-read the spec, `related: [256]`, `discovered_from: [180, 181]`, ADR-0065/ADR-0015/ADR-0058, and the current code on `origin/main` (`79ee3e23`). **The design holds unchanged — no scope adjustment.** Verified against current sources:
+
+- `hd_validate` still carries only the `[ "$v" != "$raw" ]` leg (`scripts/lib/harness-defaults.sh`, in the `for k in model effort` loop). The quote gap is live.
+- The two-legged reference implementation is intact in `validate_user_agent_values` (`sync-agents.sh`) — `[ "$raw" != "$consumed" ] || case "$raw" in '"'*|"'"*)` — so the inline copy the spec prescribes still has an exact source.
+- `_hd_entry_line` already exists as the shared entry-line helper for `hd_field`/`hd_field_raw`, so the pre-strip companion the spec calls for is a small sibling rather than new structure. `_hd_block` still strips comments via `sub(/#.*/,"",nc)`, and `harness_agent_line` still strips on both the bash-3.2 sed path and the bash-4 cache path (`${line%%#*}`) — the `#` corner is real in both files.
+- Zero hits for "unquoted" across `README.md`, `skills/docket-convention/`, and `.docket.example.yml` — the documentation gap is unchanged. All five documentation targets exist; **line numbers in the spec have drifted** (the `.docket.example.yml` `agents:` intro is now ~line 337-371, not 330-352; README's two examples remain at ~395 and ~423). Locate by content, not by the spec's line numbers.
+
+Two couplings noted, neither blocking:
+
+- **#0246 (`implemented`, PR open)** hardens `tests/test_docket_example_yml.sh` by ~350 lines. This change edits `.docket.example.yml`'s `agents:` **intro comment only** — never the mirrored default values the equality guard pins — so the branches should not collide semantically; finalize's rebase-retest gate is the backstop if the hardened suite asserts on comment structure.
+- **#0256** (config-reader consolidation) remains forward-linked only. This change's deliberate no-helper-extraction stance adds two new leg sites 0256 must later consolidate or keep byte-identical. `depends_on:` correctly stays empty — no build-order dependency either way.
+
+README line ~580 ("consult docket-convention's Agent layer rather than copying field examples here") was checked as a possible conflict with the five-point documentation plan: it governs the *Model & effort tiers* section further down, not the two Configuration-section `agents:` examples the spec targets, so the plan stands.
+
+Auto-capture: enabled; nothing surfaced this pass that clears the six admission gates — every observation above is either in-scope for this change or already tracked by #0246/#0256.
