@@ -7,11 +7,11 @@ priority: high
 type: fix
 created: 2026-08-08
 updated: 2026-08-08
-depends_on: []
+depends_on: [269]
 related: [223, 249, 237, 269, 231, 227]
 discovered_from: [258]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-08-runner-delegation-detached-execution-posture-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-08-runner-delegation-detached-execution-posture-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-08-runner-delegation-detached-execution-posture-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -209,11 +212,13 @@ Keep `verify-run.sh` a pure reader; only `runner-dispatch.sh` acts on a verdict.
 
 ### 5. Budget
 
-Reuse `gate_observation_budget` / `GATE_OBSERVATION_BUDGET` if a delegation's budget is honestly the
-same quantity, or add a sibling key with the same layering shape and fail-closed integer check
-(`scripts/docket-config.sh:670-691`, documented at `scripts/docket-config.md:134`,
-`.docket.example.yml:216-227`). Note 0223's semantics: a budget of `0` is legal and buys exactly one
-observation, not a disabled gate.
+Add a sibling key `delegation_observation_budget` (default **60**) with the same layering shape and
+fail-closed integer check as `gate_observation_budget` (`scripts/docket-config.sh:670-691`,
+`scripts/docket-config.md:134`, `.docket.example.yml:216-227`), exported as
+`DELEGATION_OBSERVATION_BUDGET`. 0223's semantics carry over: a budget of `0` is legal and buys
+exactly one observation, not a disabled gate. On budget exhaustion the facade kills the detached
+session before reporting failure — no unwatched agent ever keeps working after the run was declared
+failed (honors 0231).
 
 ### 6. Guards
 
@@ -241,36 +246,21 @@ including its non-vacuity floor.
   dispatched child observes by blocking) applies here unchanged.
 - Any change to what the dispatch flags mean or how their values resolve.
 
-## Open questions
+## Design decisions (settled at grooming, 2026-08-08)
 
-- **`verify-run.sh` has no time floor**, and its header states that this is sound *only* because of
-  where it is called: "at a seam where the child process has already returned, so 'stopped' and
-  'still working' are not ambiguous." Detaching the adapter destroys that precondition — the facade
-  would observe while the child is still alive. Two candidate answers: (a) the reader grows a floor,
-  which its own header calls out as the thing `board-checks.sh` needs and it deliberately avoids; or
-  (b) the durable result artifact carries the terminal sentinel, so liveness is never inferred from
-  git state at all. (b) is more consistent with capability 3 and is probably right, but it means the
-  gate reads **two** sources — the artifact for liveness, git for correctness — and the design must
-  say which one wins on disagreement.
-- **Signal handling and orphans.** The facade installs no traps by deliberate decision. Its header
-  already records that a pid-directed TERM kills the facade and **orphans** the still-running
-  adapter, and explicitly defers forwarding traps as "a design decision for the run gate's own error
-  posture, not a silent side effect of this refactor." Detaching makes that orphan the normal case.
-  Who reaps a detached adapter whose observer gave up at budget exhaustion? What does the next
-  observation of that dispatch see?
-- **Resumability.** Should a delegated child that outlived its dispatch be re-enterable, or is the
-  honest contract that the caller only ever re-observes? Change 0231 (a presumed-dead build worker
-  can wake and race its own replacement) is directly relevant and its resolution should be honored,
-  not re-litigated.
-- **Concurrency.** Durable result locations must not collide between concurrent dispatches — 0223's
-  clause 2 says the same for gates. Does the per-dispatch key come from the change id, the worktree
-  path, the agent name, or a mint?
-- **Does the run gate's one-re-dispatch policy transfer to `build-*`?** For `implement-next` a
-  re-dispatch is cheap and idempotent-ish. Re-dispatching a build task that already left a partial
-  commit is exactly the "never escalate onto a stray commit" hazard `docket-build`'s halting
-  conditions name. Likely answer: observe-only for `build-*`, no automatic re-dispatch.
-- **Does the caller still get a meaningful exit code?** Today the facade propagates the adapter's
-  code verbatim on every non-gate path. Under detachment there is no adapter exit code at dispatch
-  time. The wrapper's rule is bare-non-zero ("if the dispatch exits non-zero, abort-and-report"), so
-  the facade must synthesize a code from the disposition — and the mapping needs stating, alongside
-  the existing 1 / 3 / 0 gate codes.
+All open questions resolved in the spec:
+
+- **Liveness vs correctness:** done-file sentinel written as the detached child's last act answers
+  "is it done"; `verify-run.sh` git verdicts answer "did it succeed"; a sentinel claiming success
+  with no matching git evidence is a failure. No time floor in `verify-run.sh`; it stays a pure
+  reader.
+- **Orphans:** kill on giving up — budget exhaustion terminates the detached session before
+  reporting failure.
+- **Resumability:** none — observe, kill, or complete; never re-enter.
+- **Concurrency key:** agent name + mint (timestamp + PID), in a docket-owned durable dir.
+- **`build-*` re-dispatch:** observe-only, no auto-retry; `implement-next` keeps its existing
+  one-re-dispatch policy.
+- **Exit codes:** synthesized from disposition (0 complete / 3 halted / 1 failed or unavailable,
+  distinct diagnostics), stated normatively in `scripts/runner-dispatch.md`.
+- **Shim shape:** launch-then-observe — one `--launch` facade call that detaches and returns, then
+  bounded short `--observe` calls; still one dispatch seam (ADR-0038), never yield (ADR-0024).
