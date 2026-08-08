@@ -59,6 +59,26 @@ assert "gate: re-syncs metadata again before the AFTER snapshot" \
   '[[ "$G" == *"After the return"*"docket.sh preflight"*"verify-run --in-progress-ids"* ]]'
 assert "gate: says both snapshots must read fresh origin state" \
   '[[ "$G" == *"both snapshots"*"FRESH ORIGIN"* ]]'
+# Step 2 must carry its OWN blocking claim on every surface. It used to say "as above", which
+# resolves only in the cursor rule — assemble_dispatch_rule splices the gate after
+# cursor-rules/dispatch.head.md, whose "Required dispatch pattern" item 2 supplies the foreground /
+# never-poll directive. assemble_agents_md_dispatch splices the same text after a head that never
+# mentions blocking, so on the Claude and AGENTS.md surfaces the reference dangled — and a yielded
+# dispatch returns a half-done run the caller reads as completed, which is the exact failure this
+# gate exists to catch. Bound to the STEP-2 window (from the end of step 1's snapshot command to
+# step 3's opener), not to $G: the words below also occur in the dispatch head that precedes the
+# gate in one rendering, so a whole-file grep would be vacuous.
+STEP2="${G#*verify-run --in-progress-ids}"; STEP2="${STEP2%%After the return*}"
+assert "gate: step 2 exists to be asserted about" '[ -n "$STEP2" ] && [ "$STEP2" != "$G" ]'
+assert "gate: step 2 carries its own foreground/blocking claim" \
+  '[[ "$STEP2" == *"Dispatch"*"foreground"*"block on the return"* ]]'
+assert "gate: step 2 forbids backgrounding and polling" \
+  '[[ "$STEP2" == *"never background it"*"never poll"* ]]'
+# The dangling cross-reference itself must stay gone: it is only ever resolvable in one of the two
+# renderings, so any reappearance is the same defect.
+assert "gate: no 'as above' cross-reference out of the gate's own text" \
+  '[[ "$G" != *"as above"* ]]'
+
 # Attribution is not just a set diff: scripts/runner-dispatch.sh ABORTS on more than one candidate
 # ("this run claims at most one change, so two or more candidates means at least one is not ours and
 # none can be told apart"). Without the cardinality rule a parent re-dispatches onto every new id,

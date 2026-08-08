@@ -9,7 +9,7 @@ and is attributed to this run.
 1. **Before dispatching** `docket-implement-next`, re-sync the metadata worktree with
    `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh preflight`, then snapshot the claimed
    set: `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh verify-run --in-progress-ids`.
-2. Dispatch and block on the return, as above.
+2. Dispatch **foreground** and block on the return; never background it and never poll.
 3. **After the return**, re-sync again with
    `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh preflight` and re-run
    `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh verify-run --in-progress-ids`. Any id
