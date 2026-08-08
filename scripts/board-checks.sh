@@ -117,12 +117,16 @@ branch_ref(){
 # its remaining output discarded — harmless for a pure reader like ls-tree, and the reason never to
 # swap in a producer with side effects.
 #
-# No empty-listing early-out is needed: an empty listing yields zero loop iterations and falls
-# through to `return 1`.
+# No emptiness guard is needed at EITHER level, and change 0200 removed the one that was here.
+# Whole listing: an empty listing yields zero loop iterations and falls through to `return 1`.
+# Per record: under -z, ls-tree never emits an empty record, and at EOF `read -d ''` returns
+# nonzero with an empty accumulator, ending the loop before the body runs — so a
+# `[ -n "$boa_p" ] || continue` inside the loop was unreachable. It is not re-added: by this repo's
+# own rule an unenforced comment is decoration, and dead code invites "what does this protect?"
+# archaeology.
 branch_only_artifact(){
   local boa_ref="$1" boa_dir="$2" boa_p
   while IFS= read -r -d '' boa_p; do
-    [ -n "$boa_p" ] || continue
     git_has "$INTEGRATION_BRANCH" "$boa_p" || { printf '%s' "$boa_p"; return 0; }
   done < <("$GIT" -C "$CHANGES_DIR" ls-tree -r -z --name-only --full-tree "$boa_ref" -- "$boa_dir" 2>/dev/null)
   return 1
