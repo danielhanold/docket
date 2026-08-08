@@ -22,7 +22,7 @@ RK="$WORK/kiro"; mk_repo "$RK" 'agent_harnesses: [claude, kiro]'
 ( cd "$RK" && DOCKET_HARNESS_ROOT="$WORK/home-kiro" bash "$REPO/sync-agents.sh" ) >"$WORK/kiro.out" 2>"$WORK/kiro.err" || true
 
 assert "unmapped token 'kiro' produces a WARN" \
-  'grep -q "WARN" "$WORK/kiro.err" && grep -q "kiro" "$WORK/kiro.err"'
+  'grep -q "WARN harness .kiro. has no named emitter" "$WORK/kiro.err"'
 assert "the WARN names the unverified Claude-shaped wrapper" \
   'grep -qi "claude-shaped" "$WORK/kiro.err"'
 # 16 agents are generated per harness; a per-wrapper warn would print 16 lines.
@@ -41,7 +41,7 @@ assert "no unmapped WARN for the four named harnesses" \
 # --- (2) --check surfaces it as a NON-failing advisory ----------------------
 ( cd "$RK" && DOCKET_HARNESS_ROOT="$WORK/home-kiro" bash "$REPO/sync-agents.sh" --check ) >"$WORK/chk.out" 2>"$WORK/chk.err"; chk_rc=$?
 assert "--check prints an advisory for the unmapped token" \
-  'grep -q "advisory:" "$WORK/chk.err" && grep -q "kiro" "$WORK/chk.err"'
+  'grep -q "advisory: harness .kiro." "$WORK/chk.err"'
 assert "--check advisory does NOT fail the run (rc unchanged)" '[ "'"$chk_rc"'" = "0" ]'
 
 ( cd "$RC" && DOCKET_HARNESS_ROOT="$WORK/home-claude" bash "$REPO/sync-agents.sh" --check ) >/dev/null 2>"$WORK/chk2.err" || true
