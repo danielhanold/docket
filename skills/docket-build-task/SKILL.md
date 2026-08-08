@@ -58,7 +58,7 @@ Where a meaningful behavioral test is possible:
 5. Self-review the diff, then commit.
 
 When the narrowest honest verification is still a run that may outlast a single foreground call —
-on this repo, often the full suite — run it under the capabilities in
+step 4's focused set may itself be such a run — run it under the capabilities in
 [`../docket-build/references/gate-execution.md`](../docket-build/references/gate-execution.md), and
 read that file before you start such a run. You are a dispatched worker with no resumption channel:
 **never yield to await the run.** Observe it by blocking — short foreground reads of the durable
