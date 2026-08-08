@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0237 — Prose levers fail to hold the step boundary — give the disposition contract a consumer](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0237-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md)**
+> ↩ **[Change 0237 — Prose levers fail to hold the step boundary — give the disposition contract a consumer](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-08-0237-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md)**
 <!-- docket:backlink:end -->
 
 # Prose levers fail to hold the step boundary — give the disposition contract a consumer — results
