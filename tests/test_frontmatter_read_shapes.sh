@@ -200,6 +200,7 @@ adrs: []
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Sentinel | FIXTURE-1-PRE-RENDER-SENTINEL |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -212,7 +213,7 @@ plan: docs/superpowers/plans/PROSE-NOT-A-VALUE.md
 results: docs/results/PROSE-NOT-A-VALUE.md
 pr: https://github.com/danielhanold/docket/pull/99999
 EOF
-render_cl "$cf1" >/dev/null 2>&1
+render_cl "$cf1" >/dev/null 2>&1; rc1=$?
 # Scope the assertion to the RENDERED block: the fixture's own body carries the prose lines by
 # construction, so a whole-file grep can never distinguish a leak from the bait.
 block(){ awk '/docket:artifacts:start/,/docket:artifacts:end/' "$1"; }
@@ -226,9 +227,18 @@ for leaked in \
     ok "absent-key read returned empty rather than body prose ($leaked)"
   fi
 done
-# Positive floor: the renderer DID run and DID rewrite the block, so the two asserts above are
-# not passing vacuously against an unwritten file.
-assert "renderer rewrote the marker-bounded block" \
+# Positive floor, in two halves that fail DIFFERENTLY so a reader can tell a crashed renderer from
+# a no-op one. An end-marker grep alone would be vacuous here: with all five optional reads empty
+# and `adrs: []` the emitted block is START+END with no rows, which is byte-identical to an
+# untouched marker block — so it cannot distinguish "rendered" from "never ran".
+#   (a) exit status — a render-change-links.sh that dies on cf1 (bad argument, config resolution
+#       failure) must not leave the leak asserts above green by never writing anything;
+#   (b) sentinel — the fixture ships a row INSIDE the marker block that only a real rewrite can
+#       remove, so its absence is positive proof the block was regenerated.
+assert "renderer exited 0 on fixture 1" '[ "$rc1" -eq 0 ]'
+assert "renderer rewrote the marker-bounded block (pre-render sentinel row is gone)" \
+  '! grep -qF "FIXTURE-1-PRE-RENDER-SENTINEL" <<<"$body1"'
+assert "fixture 1 markers survived the rewrite" \
   'printf "%s\n" "$body1" | grep -qF "docket:artifacts:end"'
 
 # --- Fixture 2: branch ABSENT from frontmatter, PRESENT as body prose, plan SET ---
