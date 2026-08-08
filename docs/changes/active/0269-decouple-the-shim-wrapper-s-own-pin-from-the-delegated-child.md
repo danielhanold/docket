@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child
-claimed_at: 2026-08-08T19:27:10Z
+claimed_at: 2026-08-08T19:29:51Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -90,3 +90,34 @@ None. The 0256 boundary was considered and deliberately deferred; see the spec.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-08 — reconciled at claim
+
+Design confirmed against current `origin/main`. The defect is live and unchanged: `emit_shim`
+(`sync-agents.sh`, repo ROOT — not `scripts/`) still does `emit "$1" "$2" "$3"` with the resolved
+child model, `REGISTERED_RUNNERS` is still the static `"codex cursor opencode"` with no `runners:`
+reader, and both cited ADRs (0038, 0067) are still `Accepted`. Scope and the two deferral boundaries
+(0256 config-reader consolidation; the opencode permissions locality defect) hold as written.
+
+Four corrections folded in, none scope-changing:
+
+- **Test home.** The spec's *Testing* section names `tests/test_sync_agents.sh`. The runner-shim
+  tests actually live in `tests/test_sync_agents_runners.sh`, and that file already carries the
+  assert that encodes the false premise: `0079: shim keeps frontmatter model (bookkeeping)`, which
+  asserts the shim's frontmatter model equals the configured child model. That assert must be
+  inverted, not merely joined by a new one — the regression assert and the existing assert are the
+  same claim with opposite signs, so leaving both would make the suite unsatisfiable.
+- **`emit_wrapper`'s calling contract (change 0220)** is a second documented statement of the false
+  premise: its header says `$2` "is used TWICE and for two different things — as emit_shim's
+  frontmatter pin, and … the baked --model flag." After this change `$2` reaches only the baked
+  flag. The header and the reasoning it carries (why the provenance filter is a second spelling
+  rather than a call) must be restated, and the `$2 != RES_MODEL` assertion itself stays — it
+  constrains `emit_wrapper`'s own input, not what it forwards to `emit_shim`.
+- **Reader placement.** `section_body` in `sync-agents.sh` is the existing dedenting awk twin of
+  `runner-dispatch.sh`'s `yaml_section`; the new reader composes it (`section_body runners |
+  section_body <name>`) rather than adding a third parse shape. The 0256 deferral is unchanged, but
+  the duplication it will absorb should be the twin pattern, not a novel one.
+- **ADR number.** The highest ADR on `docket` is 0077, so the superseding ADR lands at 0078.
+
+Auto-capture: the out-of-scope opencode `permissions` locality defect was unminted and clears all
+six admission gates — minted as stub **0270** (`type: fix`, `discovered_from: [269]`).
