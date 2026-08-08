@@ -393,6 +393,8 @@ runtime:
 skills:                      # rebind workflow roles for all your repos
   build: auto
 agents:                      # agent model/effort defaults (same agents: shape as .docket.yml)
+                             # Write model/effort values unquoted and space-free; `#` cannot
+                             # appear inside the `{…}` flow map.
   default:
     implement-next: { model: claude-opus-5, effort: medium }
 auto_groom: false
@@ -420,7 +422,8 @@ runtime:
   bash: /usr/local/bin/bash   # optional override for this clone; never commit it
 skills:
   build: auto
-agents:
+agents:                       # Write model/effort values unquoted and space-free; `#` cannot
+                              # appear inside the `{…}` flow map.
   default:
     implement-next: { model: claude-opus-5, effort: medium }
 agent_harnesses: [claude]     # can opt a tracking-only repo into per-repo agent generation on

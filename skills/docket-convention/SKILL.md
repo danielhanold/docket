@@ -41,7 +41,7 @@ learnings:                   # the build-loop memory subsystem (change 0067)
 github_project:              # {owner, number} of the auto-managed Projects v2 board; unset ⇒ auto-create on first github sync
 agent_harnesses: [claude]    # harnesses the per-repo agent pass generates wrapper files for;
                              # default [claude], e.g. [claude, cursor] for a Cursor repo.
-agents:                      # harness-first per-skill subagent model/effort; see "Agent layer" below
+agents:                      # harness-first per-skill subagent model/effort — write values unquoted and space-free, no `#` inside the `{…}` flow map; see "Agent layer" below
 skills:                      # pluggable workflow skills; unset key = the superpowers default shown
   brainstorm: superpowers:brainstorming
   plan:       superpowers:writing-plans
