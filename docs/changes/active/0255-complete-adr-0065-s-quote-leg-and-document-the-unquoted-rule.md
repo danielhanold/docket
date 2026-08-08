@@ -2,11 +2,11 @@
 id: 255
 slug: complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule
 title: 'Complete ADR-0065''s quote leg and document the unquoted rule'
-status: proposed
+status: in-progress
 priority: medium
 type: fix
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-08
 depends_on: []
 related: [256]
 discovered_from: [180, 181]
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule
+claimed_at: 2026-08-08T05:07:10Z
 pr:
 blocked_by:
 reconciled: false
