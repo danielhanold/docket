@@ -178,4 +178,4 @@ else
     /^---[[:space:]]*$/ { n++; if (n==2) { print ""; print "## Artifacts"; print ""; printf "%s", block } }
   ' "$CHANGE_FILE" > "$out"
 fi
-mv "$out" "$CHANGE_FILE"
+mv -f "$out" "$CHANGE_FILE"

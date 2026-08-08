@@ -113,7 +113,7 @@ if [ "$MODE" = remove ]; then
   # A marker WAS present and just got stripped: trim any trailing blank lines that left behind,
   # then restore a single terminating newline.
   awk 'BEGIN{n=0} {lines[++n]=$0} END{ last=n; while (last>0 && lines[last]=="") last--; for(i=1;i<=last;i++) print lines[i] }' "$tmp" > "$tmp.2" || die "trim failed"
-  mv "$tmp.2" "$CHANGE_FILE" || die "write failed"
+  mv -f "$tmp.2" "$CHANGE_FILE" || die "write failed"
   exit 0
 fi
 
@@ -189,5 +189,5 @@ out_bytes="$(wc -c < "$tmp.3")" || die "render postcondition: cannot size the re
 [ "$out_bytes" -ge "$base_bytes" ] \
   || die "render postcondition: rendered file ($out_bytes bytes) is smaller than the body it was built from ($base_bytes bytes) — refusing to overwrite $CHANGE_FILE"
 
-mv "$tmp.3" "$CHANGE_FILE" || die "write failed"
+mv -f "$tmp.3" "$CHANGE_FILE" || die "write failed"
 exit 0

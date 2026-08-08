@@ -65,7 +65,7 @@ if jq --arg rule "$RULE" '
         else .
         end
     ' "$SETTINGS" > "$tmp"; then
-  mv "$tmp" "$SETTINGS"
+  mv -f "$tmp" "$SETTINGS"
 else
   rm -f "$tmp"; die "failed to update $SETTINGS"
 fi

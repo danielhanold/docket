@@ -125,6 +125,6 @@ fi
 # mktemp creates the temp file at 0600; normalize to 0644 (the git-tracked, pushed board's mode)
 # before the rename so a successful write matches what a plain `> BOARD.md` redirect would leave.
 chmod 644 "$tmp_board"
-mv "$tmp_board" "$CHANGES_DIR/BOARD.md" || { printf 'board-refresh: failed to replace BOARD.md\n' >&2; exit 1; }
+mv -f "$tmp_board" "$CHANGES_DIR/BOARD.md" || { printf 'board-refresh: failed to replace BOARD.md\n' >&2; exit 1; }
 printf 'board-refresh: inline rendered %s\n' "$CHANGES_DIR/BOARD.md"
 exit 0
