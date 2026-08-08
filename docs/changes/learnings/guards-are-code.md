@@ -2,9 +2,9 @@
 slug: guards-are-code
 hook: "A guard is code — mutation-test it (strip the feature, watch it go red) or it is decoration."
 topics: [testing, sentinels, mutation]
-changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 102, 106, 107, 111, 116, 126, 169, 184]
+changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 102, 106, 107, 111, 116, 126, 169, 184, 244]
 created: 2026-06-17
-updated: 2026-08-01
+updated: 2026-08-08
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -294,3 +294,14 @@ lib. A snippet the PLAN hands you is unvetted code: mutation-test it like any as
   undefended state. Also from this change: the new pair-distinctness asserts each carry a
   non-vacuity half (four non-empty values counted before `sort -u`) so a deleted row cannot collapse
   into a silent pass.
+- 2026-08-08 (#244, PR #184) — **Two guard bugs in opposite directions on one branch.** A mutation
+  counter in `tests/test_docket_status.sh` grepped `fm_field "$f" pr`, which is a literal *prefix*
+  of the newly-added `fm_field "$f" promotion_state` — the count went 1→1 instead of 1→0 and the
+  "mutation landed" assert failed loudly (the safe direction). The census fragment parser required
+  exactly one space after the accessor name, making a tab-separated call site **invisible** — fail
+  open, the dangerous direction — while a double-space one produced a spurious violation. Also:
+  two whole-repo shape guards fired on the new test file's own content (a literal bounded-repetition
+  interval written *inside the comment explaining why it is banned*, and a fixture bait line). Both
+  were right to fire — a guard that exempted comments could be evaded by relocating a pattern into
+  one. Note `test_skip_allowlist_invisibility` scans **committed HEAD**, not the working tree, so
+  its counts are stale until a commit lands.

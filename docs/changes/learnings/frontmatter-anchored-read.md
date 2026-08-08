@@ -2,9 +2,9 @@
 slug: frontmatter-anchored-read
 hook: "A first-match-anywhere field read is safe only for keys that are ALWAYS present — for an optional key it falls through into the body and returns prose."
 topics: [yaml, frontmatter, reads]
-changes: [127, 202, 219]
+changes: [127, 202, 219, 244]
 created: 2026-07-23
-updated: 2026-08-07
+updated: 2026-08-08
 promotion_state: candidate
 promoted_to:
 ---
@@ -61,3 +61,22 @@ green. One absent-key fixture and one mutation arm **per read**.
   the per-key rule above. The recurrence inside a change whose author knew the rule is the argument
   for the anchoring decision living in the *helper*: knowing the hazard did not prevent reaching for
   `field` at a fresh call site.
+- 2026-08-08 (#244, PR #184) — **The rule got written down, and the written criterion contradicted
+  its own classification.** This change consolidated the four read shapes into one selection table
+  in the library header. The first draft defined "guaranteed present" as *the template ships it* —
+  but the change template ships `spec:`, `plan:`, `results:`, `branch:`, `pr:`, `blocked_by:` and
+  `trivial:`, every one of which the rule correctly anchors, and all seven are present in 266 of
+  266 change files today. Applying the header's own test would have promoted them straight back to
+  the unanchored `field()`, and the census guard's failure message actively invited it. The
+  criterion is now **semantic optionality** — *can any file this call site reads legitimately omit
+  the key* — with template presence demoted to one sufficient reason a key is NOT guaranteed.
+  Corpus presence today is a snapshot; the question is what a hand-edited file may legitimately do
+  tomorrow. Second half of the same lesson: the census guard matched on **key name alone**, so
+  `field "$f" priority` in an ADR walker or `field "$f" title` in a learnings walker would have
+  passed while reading a key its corpus does not carry — the precise failure the change exists to
+  close. The allowlist is now keyed on **(corpus class, key)** and fails closed when a call site's
+  corpus cannot be determined. Also worth carrying: both `fm_field_verbatim` adoptions
+  (`blocked_by` in `docket-status.sh` and `render-board.sh`) were unpinned by anything — every
+  fixture used a `#`-free value, so both sites passed identically under `fm_field` and a later
+  "consistency" swap would have silently restored the ` #…` truncation the verbatim read exists to
+  prevent.

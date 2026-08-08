@@ -2,7 +2,7 @@
 slug: enumerated-floor
 hook: "Every hand-written enumeration is a floor, not the set — derive the sites from a whole-repo grep, then treat that grep as a floor too."
 topics: [process, inventory, review]
-changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 78, 84, 96, 98, 99, 167, 184, 255]
+changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 78, 84, 96, 98, 99, 167, 184, 255, 244]
 created: 2026-06-12
 updated: 2026-08-08
 promotion_state: promoted
@@ -142,3 +142,14 @@ enumerated.
   durable form of the fix was not a better grep but ADR-0076: state the rule so it binds by **role**
   (any code judging whether a config value is consumable) rather than by reader **shape**, the same
   move #99 made when it replaced a drifting roster with a scoping property.
+- 2026-08-08 (#244, PR #184) — **The spec's census had drifted before the build started.** Roughly
+  a third of the call sites it enumerated were already migrated by intervening changes
+  (`board-checks.sh`'s archive leg, `docket-status.sh:636/641`, `github-mirror.sh` and
+  `render-board.sh` type reads, all of `render-artifact-backlink.sh`), and one consumer was absent
+  from the census entirely — `scripts/verify-run.sh` — which already read `status`/`pr`/`branch`/
+  `claimed_at` correctly without ever having been told the rule. Reconcile re-took the census
+  rather than inheriting it. The durable fix was to stop shipping the enumeration as data: the
+  census guard now **parses the guaranteed sets out of the library header's own sentence** instead
+  of restating them, so the guard cannot drift from the rule it guards. The one enumeration that
+  survives — the (script, file-argument) corpus map — is a known floor, and its logged follow-up is
+  to derive the corpus from the walker's directory literal instead.

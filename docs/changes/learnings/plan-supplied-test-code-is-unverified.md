@@ -2,7 +2,7 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234, 237, 200]
+changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234, 237, 200, 244]
 created: 2026-07-19
 updated: 2026-08-08
 promotion_state: candidate
@@ -305,3 +305,10 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   (`2>&1 >/dev/null`) and demands empty stderr plus rc 0 — exactly what the runner's `2>/dev/null`
   was hiding. The general shape: a plan's non-vacuity assert is as unverified as the assert it
   guards, and it is written by the same author who could not run either.
+- 2026-08-08 (#244, PR #184) — **The anti-vacuity floor was itself vacuous.** The plan supplied a
+  fixture asserting the renderer had run by grepping the output for `docket:artifacts:end` — but
+  the fixture ships that marker in its own body, and with every optional read empty the rendered
+  block is byte-identical to the pre-render one. The assert could not distinguish "rendered" from
+  "never touched". Worse, the render call discarded its exit status, so a renderer crashing with
+  exit 2 left all three asserts green. Carried over verbatim from the plan because it *looked* like
+  a floor. A floor has to be a claim the un-run case fails.
