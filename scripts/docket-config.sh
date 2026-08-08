@@ -257,7 +257,7 @@ CFG=""
 FETCH_ERR=""
 trap 'rm -f "$CFG" "$FETCH_ERR"' EXIT
 g rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "not a git repo: $REPO_DIR"
-FETCH_ERR="$(mktemp)" || die "could not create git-fetch diagnostic file"
+FETCH_ERR="$(mktemp "${TMPDIR:-/tmp}/docket-config.XXXXXX")" || die "could not create git-fetch diagnostic file"
 if ! g fetch --quiet origin 2>"$FETCH_ERR"; then
   printf 'docket-config: git fetch origin failed\n' >&2
   cat "$FETCH_ERR" >&2
@@ -271,7 +271,7 @@ DEFAULT_BRANCH="${DEFAULT_BRANCH#origin/}"
 [ -n "$DEFAULT_BRANCH" ] || die "origin/HEAD is unresolvable after set-head"
 
 # --- Stage 2: read + resolve .docket.yml (authoritative via git show origin/HEAD) ---
-CFG="$(mktemp)"
+CFG="$(mktemp "${TMPDIR:-/tmp}/docket-config.XXXXXX")"
 g show "origin/HEAD:.docket.yml" >"$CFG" 2>/dev/null || : >"$CFG"   # absent file => defaults (NOT an error)
 
 # --- Stage 2b: global config layer (change 0050) ------------------------------

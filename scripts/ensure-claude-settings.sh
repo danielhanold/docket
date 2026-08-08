@@ -56,7 +56,7 @@ if jq -e --arg r "$RULE" '(.permissions.allow // []) | index($r)' "$SETTINGS" >/
 fi
 
 # --- idempotently merge the rule, preserving every existing key/rule + order ---
-tmp="$(mktemp)"
+tmp="$(mktemp "${TMPDIR:-/tmp}/ensure-claude-settings.XXXXXX")"
 if jq --arg rule "$RULE" '
       .permissions //= {}
       | .permissions.allow //= []

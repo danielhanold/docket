@@ -79,4 +79,31 @@ n_mv_f_sites="$("$GREP" -hcE 'mv -f ' $(scope_files) 2>/dev/null | awk '{s+=$1} 
 assert "at least $MIN_MV_F non-interactive mv sites exist, so the check above is not vacuous (found $n_mv_f_sites)" \
   '[ "$n_mv_f_sites" -ge "$MIN_MV_F" ] || { echo "  RULE: this floor exists because a negative grep also passes when the scan finds nothing. A drop means either the scan broke or an install path stopped replacing files — check which before touching this number." >&2; false; }'
 
+# Post-sweep floor on templated mktemp calls: 23 swept here plus 6 pre-existing beside-destination
+# sites. Same reason as the mv floor — a negative grep is also green when it scans nothing.
+MIN_MKTEMP_TEMPLATED=29
+
+# Every line invoking mktemp through command substitution. One predicate for BOTH the -d and the
+# file form: no option parsing, so a future flag cannot slip a site past the check.
+hits_mktemp(){
+  local f
+  while IFS= read -r f; do
+    "$GREP" -nF '$(mktemp' "$f" | sed "s|^|$f:|"
+  done < <(scope_files)
+}
+
+# TEMPLATE-required, deliberately NOT TMPDIR-required. Six in-scope sites are templated BESIDE
+# their destination so the following mv is a same-filesystem atomic rename — a documented
+# guarantee. A TMPDIR-required predicate would redden on those correct sites and push the next
+# author into breaking that atomicity to get back to green.
+offenders_mktemp(){ hits_mktemp | "$GREP" -vF 'XXXXXX'; }
+
+bad_mktemp="$(offenders_mktemp)"
+assert "every mktemp call passes a template, so TMPDIR is honored" \
+  '[ -z "$bad_mktemp" ] || { echo "$bad_mktemp" | sed "s|^$ROOT/|  |" >&2; echo "  RULE: bare mktemp ignores TMPDIR on macOS, so a redirect meant to contain the scratch dir is a no-op and the debris lands outside it. Write: mktemp [-d] \"\${TMPDIR:-/tmp}/<script-name>.XXXXXX\" — or, when the temp file must sit beside its destination for an atomic rename, template it there instead." >&2; false; }'
+
+n_tmpl="$(hits_mktemp | "$GREP" -cF 'XXXXXX')"
+assert "at least $MIN_MKTEMP_TEMPLATED templated mktemp sites exist, so the check above is not vacuous (found $n_tmpl)" \
+  '[ "$n_tmpl" -ge "$MIN_MKTEMP_TEMPLATED" ] || { echo "  RULE: this floor exists because a negative grep also passes when the scan finds nothing. A drop means either the scan broke or scratch files stopped being created — check which before touching this number." >&2; false; }'
+
 exit "$fail"

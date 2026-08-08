@@ -86,7 +86,7 @@ if [ "$SANDBOX" = "workspace-write" ] && [ "$NETWORK" = "true" ]; then
 fi
 [ -n "$MODEL" ]  && cmd+=( -m "$MODEL" )
 [ -n "$EFFORT" ] && cmd+=( -c "model_reasoning_effort=$EFFORT" )
-last_msg="$(mktemp)"
+last_msg="$(mktemp "${TMPDIR:-/tmp}/codex.XXXXXX")"
 cmd+=( --output-last-message "$last_msg" "$prompt" )
 
 # --- foreground execution + final-message relay ------------------------------------

@@ -67,7 +67,7 @@ cas_push(){
 # set_field FILE KEY VALUE — replace a top-level frontmatter scalar in place (portable sed).
 # Only touches the first ---...--- frontmatter block; never rewrites matching prose in the body.
 set_field(){
-  local f="$1" k="$2" v="$3" t; t="$(mktemp)"
+  local f="$1" k="$2" v="$3" t; t="$(mktemp "${TMPDIR:-/tmp}/archive-change.XXXXXX")"
   sed -E "/^---$/,/^---$/ s|^($k:)[[:space:]]*.*|\1 $v|" "$f" > "$t" && mv -f "$t" "$f"
 }
 

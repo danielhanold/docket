@@ -341,7 +341,7 @@ touch "$GITIGNORE"
 # historical bares (the lib's dedup advisory has nothing left to flag on a migrate-seeded file).
 for entry in $DOCKET_GI_CORE_ENTRIES; do
   bare="${entry%/}"
-  tmp="$(mktemp)"; grep -F -x -v -- "$bare" "$GITIGNORE" | grep -F -x -v -- "$bare/" > "$tmp" || true
+  tmp="$(mktemp "${TMPDIR:-/tmp}/migrate-to-docket.XXXXXX")"; grep -F -x -v -- "$bare" "$GITIGNORE" | grep -F -x -v -- "$bare/" > "$tmp" || true
   mv -f "$tmp" "$GITIGNORE"
 done
 ensure_docket_gitignore_block "$PRUNE_WT"

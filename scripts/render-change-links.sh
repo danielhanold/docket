@@ -154,14 +154,14 @@ rows="$(printf '%s' "$rows" | sed '/^$/d')"
 [ -n "$rows" ] && rows="$rows"$'\n'
 
 # Assemble the marker-bounded block into a temp file.
-block_file="$(mktemp)"; trap 'rm -f "$block_file"' EXIT
+block_file="$(mktemp "${TMPDIR:-/tmp}/render-change-links.XXXXXX")"; trap 'rm -f "$block_file"' EXIT
 {
   printf '%s\n' "$START_MARKER"
   if [ -n "$rows" ]; then printf '| Artifact | Link |\n|---|---|\n'; printf '%s' "$rows"; fi
   printf '%s\n' "$END_MARKER"
 } > "$block_file"
 
-out="$(mktemp)"
+out="$(mktemp "${TMPDIR:-/tmp}/render-change-links.XXXXXX")"
 if grep -qF "$START_MARKER" "$CHANGE_FILE"; then
   # Replace inclusive marker block (fixed-string match via index()).
   awk -v startm="$START_MARKER" -v endm="$END_MARKER" -v blk="$block_file" '

@@ -1361,7 +1361,7 @@ check_project_level() {  # three legs: (a) gitignore block current [CI-meaningfu
     return $rc
   fi
   local src name got tmp d harness
-  tmp="$(mktemp -d)"
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/sync-agents.XXXXXX")"
   for src in "$AGENTS_SRC"/docket-*.md; do
     [ -e "$src" ] || continue
     name="$(short_name "$src")"
@@ -1379,7 +1379,7 @@ check_project_level() {  # three legs: (a) gitignore block current [CI-meaningfu
   done
   rm -rf "$tmp"
   local h rule_got rule_tmp rd
-  rule_tmp="$(mktemp)"
+  rule_tmp="$(mktemp "${TMPDIR:-/tmp}/sync-agents.XXXXXX")"
   assemble_dispatch_rule > "$rule_tmp"
   for h in $HARNESSES; do
     harness_has_dispatch_rule "$h" || continue

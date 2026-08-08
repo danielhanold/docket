@@ -110,7 +110,7 @@ done
 # --- apply: stage every rewrite, then install ---------------------------------------------------
 # Staged into a scratch dir first and only moved into place once every file rewrote cleanly, so a
 # failure partway through cannot leave the backlog half-migrated.
-stage="$(mktemp -d)"; trap 'rm -rf "$stage"' EXIT
+stage="$(mktemp -d "${TMPDIR:-/tmp}/backfill-change-types.XXXXXX")"; trap 'rm -rf "$stage"' EXIT
 wrote=0
 for id in "${!WANT[@]}"; do
   src="${FILE_OF[$id]}"

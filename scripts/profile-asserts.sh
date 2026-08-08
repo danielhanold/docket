@@ -70,7 +70,7 @@ cd "$ROOT" || exit 2
 
 # Deliberately NOT removed on exit: the TSV is this script's artifact and its path is printed at
 # the end, so a cleanup trap would delete exactly what the caller was told to go read.
-tmp="$(mktemp -d)"
+tmp="$(mktemp -d "${TMPDIR:-/tmp}/profile-asserts.XXXXXX")"
 : "${TSV:=$tmp/asserts.tsv}"
 : > "$TSV" || { printf 'profile-asserts: cannot write --tsv path: %s\n' "$TSV" >&2; exit 2; }
 
