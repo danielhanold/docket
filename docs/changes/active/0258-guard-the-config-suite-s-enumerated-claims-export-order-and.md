@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/guard-the-config-suite-s-enumerated-claims-export-order-and
-claimed_at: 2026-08-08T18:55:00Z
+claimed_at: 2026-08-08T19:12:00Z
 pr:
 blocked_by:
 reconciled: true
@@ -84,4 +84,53 @@ design is carried forward unchanged.
   spec assumption 8; whichever change lands second rebases. No `depends_on` added.
 - **Auto-capture (site A).** Nothing minted: the pass surfaced no work outside this change's
   scope that clears the six admission gates.
+
+## Run halted
+
+2026-08-08 — `docket-implement-next` halted at Step 5 (build). Steps 0-4 completed and are
+landed: the change is claimed, reconciled, `feat/guard-the-config-suite-s-enumerated-claims-export-order-and`
+is cut from `origin/main`, and the plan is committed on it at `7bd45872` with `plan:` recorded
+here. No build work was performed and the feature branch carries no test changes.
+
+**What stopped the run.** Every `docket-build` profile dispatch from this session routes to the
+`opencode` runner and dies before the worker starts:
+
+```
+runners/opencode: runners.opencode.permissions is 'ask' (the default) — a delegated run cannot
+answer opencode's approval prompts and would hang. Set 'runners.opencode.permissions:
+auto-approve' ... or drop 'runner: opencode' from this agent.
+```
+
+**Root cause.** The session's working directory is the `docket.change-258` worktree, and its
+project-scoped `.claude/agents/docket-build-standard.md` is a stale cross-harness runner-delegation
+wrapper (change 0079) pinning `model: openrouter/deepseek/deepseek-v4-flash-0731` and delegating to
+`runner: opencode`. Project-scoped wrappers outrank the user-level ones, so the correct wrapper at
+`~/.claude/agents/docket-build-standard.md` (`model: claude-opus-5`) is never reached. All four
+`docket-build-*` profiles carry the same stale wrapper in that worktree and in the primary tree's
+`.claude/agents/`. The first dispatch attempt surfaced the same broken model id as a bare harness
+error ("openrouter/deepseek/deepseek-v4-flash-0731 ... may not exist or you may not have access").
+
+Neither `runners:` nor an `opencode:` agents block exists in `~/.config/docket/config.yml`, though
+`agent_harnesses` there lists `[claude,codex,opencode]`.
+
+**Why the run did not build inline instead.** `skills.build` resolves to `docket-build`, not `auto`,
+so per the convention's Tier C (discipline dispatch) this is abort-and-report, not authorization to
+execute the plan inline. The operator also directed the run to stop rather than use runner
+delegation.
+
+**What a human must decide.**
+
+1. Whether the `docket-build-*` profile wrappers in `<worktree>/.claude/agents/` should be
+   regenerated without `runner: opencode` (re-run `install.sh` / `sync-agents.sh`, then start a
+   fresh session — wrappers register only at process start), or
+2. whether opencode delegation is wanted, in which case `runners.opencode.permissions:
+   auto-approve` must be set, and the `openrouter/deepseek/deepseek-v4-flash-0731` model id
+   verified as reachable.
+
+Configuration changes are the human's call; this run made none.
+
+**State left behind (safe to resume).** `status: in-progress`, `claimed_at` refreshed. The worktree
+`.worktrees/guard-the-config-suite-s-enumerated-claims-export-order-and` and its branch are
+preserved with the plan commit. A resume should be given the explicit id (`258`) and told that
+Steps 0-4 are done and Step 5 has not started.
 
