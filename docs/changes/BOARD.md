@@ -1,14 +1,15 @@
 # Backlog
 
-**261 changes** — 🟢 1 in progress · 🟡 29 proposed · ⚪ 4 deferred · ✅ 155 done · 🗑️ 72 killed
+**261 changes** — 🟢 2 in progress · 🟡 28 proposed · ⚪ 4 deferred · ✅ 155 done · 🗑️ 72 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0246](active/0246-make-the-docket-example-yml-guard-suite-bite.md) | Make the docket-example-yml guard suite bite | `medium` | `fix` | [spec](../superpowers/specs/2026-08-07-make-the-docket-example-yml-guard-suite-bite-design.md) | `feat/make-the-docket-example-yml-guard-suite-bite` |
+| [0254](active/0254-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md) | BSD tool-default sweep: templated mktemp and non-interactive mv | `medium` | `fix` | [spec](../superpowers/specs/2026-08-07-bsd-tool-default-sweep-templated-mktemp-and-non-interactive-design.md) | `feat/bsd-tool-default-sweep-templated-mktemp-and-non-interactive` |
 
-## 🟡 Proposed (29)
+## 🟡 Proposed (28)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -34,7 +35,6 @@
 | [0251](active/0251-retune-the-run-tests-budget-regime-for-portability-and-shard.md) | Retune the run-tests budget regime for portability and sharding | `medium` | `refactor` | build-ready |
 | [0252](active/0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md) | Harden test fixtures and hermeticity into tests-lib | `medium` | `chore` | build-ready |
 | [0253](active/0253-settle-and-enforce-the-prose-anchored-guard-house-pattern.md) | Settle and enforce the prose-anchored guard house pattern | `medium` | `chore` | build-ready |
-| [0254](active/0254-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md) | BSD tool-default sweep: templated mktemp and non-interactive mv | `medium` | `fix` | build-ready |
 | [0255](active/0255-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule.md) | Complete ADR-0065's quote leg and document the unquoted rule | `medium` | `fix` | build-ready |
 | [0256](active/0256-config-reader-consolidation-one-extractor-or-a-recorded-adr.md) | Config-reader consolidation: one extractor or a recorded ADR | `medium` | `refactor` | build-ready |
 | [0257](active/0257-clear-the-residual-review-findings-from-0193-and-0201.md) | Clear the residual review findings from 0193 and 0201 | `medium` | `chore` | build-ready |
