@@ -1195,7 +1195,15 @@ printf '  walks:  %s sites — scoped %s, wrapped %s | reaching %s (excluded %s,
   "$n_walk_total" "$n_walk_scoped" "$n_walk_wrapped" \
   "$n_walk_reaching" "$n_walk_excluded" "$n_walk_filtered" "$n_walk_declared" "$n_walk_hazard"
 
-walk_class_at(){ awk -F'\t' -v f="$1" -v l="$2" '$2 == f && $3 == l {print $1}' <<<"$3"; }
+# The named probes below bind on a code SLICE — the same binding the walk DECLARATIONS use — and
+# never on a line number. A line number is checkable by nothing and rots the moment anything ABOVE
+# the walk is edited (AGENTS.md, ADR-0054), which is exactly what happened when change 0246 added a
+# second scan class to the head of test_grep_portability.sh and pushed its walk down the file. The
+# slice names the walk's own output variable, so it moves WITH the walk and dies with it.
+# Double-quoted on purpose: a single-quoted spelling is live code to this file's own walk scan.
+GP_WALK_SLICE="-t ALL_FILES"
+walk_class_of(){ awk -F'\t' -v f="$1" -v s="$2" '$2 == f && index($4, s) > 0 {print $1}' <<<"$3"; }
+walk_sites_of(){ walk_class_of "$1" "$2" "$3" | awk 'END {print NR}'; }
 
 assert "the walk derivation reaches at least $WALK_FLOOR tree-walk sites under tests/ and scripts/" \
   '[ "$n_walk_total" -ge "$WALK_FLOOR" ]  || { echo "  found $n_walk_total, floor $WALK_FLOOR." >&2; echo "  A DROP means the derivation went blind, not that the suite stopped walking: check that the rev and the tests/scripts pathspec still resolve, and that the invocation shapes this file recognises still match how the suite spells a walk." >&2; false; }'
@@ -1203,8 +1211,12 @@ assert "the walk derivation reaches at least $WALK_FLOOR tree-walk sites under t
 # EXISTS for are among the sites reached, because the property migrates to whichever site satisfies
 # it most cheaply (repo learning: marker-scoped-guard-needs-a-population-floor). So both are named,
 # with the class each is supposed to earn.
+# A slice anchor that matches nothing — or two things — makes the probe below vacuous rather than
+# red, so its resolution is asserted separately from its verdict.
+assert "the whole-index walk probe's slice anchor resolves to exactly one walk site" \
+  '[ "$(walk_sites_of tests/test_grep_portability.sh "$GP_WALK_SLICE" "$WALK_RESULT")" = 1 ] || { grep "test_grep_portability" <<<"$WALK_RESULT" >&2; echo "  The probe below binds on the slice [$GP_WALK_SLICE], which now matches a different number of walk sites in that file — so it is aimed at nothing, or at two things, and proves neither. Re-read the file and re-derive the anchor from the surviving walk; do NOT relax it back to a line number." >&2; false; }'
 assert "the derivation reaches test_grep_portability.sh's whole-index walk, and it is FILTERED" \
-  '[ "$(walk_class_at tests/test_grep_portability.sh 102 "$WALK_RESULT")" = FILTERED ] || { grep "test_grep_portability" <<<"$WALK_RESULT" >&2; echo "  This is the walk that enumerates every tracked path and drops the results tree only through its docs/ case arm. If it moved, re-find it and re-point the probe; if it lost the filter, that is the finding." >&2; false; }'
+  '[ "$(walk_class_of tests/test_grep_portability.sh "$GP_WALK_SLICE" "$WALK_RESULT")" = FILTERED ] || { grep "test_grep_portability" <<<"$WALK_RESULT" >&2; echo "  This is the walk that enumerates every tracked path and drops the results tree only through its docs/ case arm. If it moved, re-find it and re-point the probe; if it lost the filter, that is the finding." >&2; false; }'
 assert "the derivation reaches test_comment_anchor_style.sh's pathspec walk, and it is SCOPED" \
   '[ -n "$(awk -F"\t" '"'"'$2 == "tests/test_comment_anchor_style.sh" && $1 == "SCOPED"'"'"' <<<"$WALK_RESULT")" ]'
 
@@ -1312,6 +1324,11 @@ assert "control: the UNMUTATED file reports no hazard (the mutation is what redd
   '[ "$(count_class HAZARD "$GP_CLEAN")" = 0 ] && [ "$(count_class FILTERED "$GP_CLEAN")" -ge 1 ]'
 assert "control: narrowing the filter below the results tree is REPORTED as a HAZARD walk" \
   '[ "$(count_class HAZARD "$GP_MUT")" -ge 1 ]'
+# ...and the NAMED probe above tracks that class rather than merely resolving: the same slice
+# anchor, over the mutated copy, must report HAZARD. This is the mutation evidence for the anchor
+# itself — an anchor that reported FILTERED whatever the file said would be decoration.
+assert "control: the named probe's slice anchor follows the class, reporting HAZARD on the mutant" \
+  '[ "$(walk_class_of tests/test_grep_portability.sh "$GP_WALK_SLICE" "$GP_MUT")" = HAZARD ]'
 
 # The same, for the other invisible shape: test_comment_anchor_style.sh excludes docs/ only by
 # never naming it, so widening its pathspec is the way that walk goes bad.
