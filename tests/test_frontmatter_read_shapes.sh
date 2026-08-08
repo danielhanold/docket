@@ -46,10 +46,16 @@ rule_says(){ # rule_says DESCRIPTION FIXED-STRING
 # merely mention the name, so deleting a row from the table leaves it green (verified by mutation:
 # dropping the free-prose row did not redden a bare-name grep).
 rule_says "guaranteed-present keys may use field()"       'key guaranteed present, logical value                  | field'
-rule_says "an absent-capable key takes the anchored tier" 'key may be ABSENT'
+rule_says "an absent-capable key takes the anchored tier" 'key may be ABSENT, ordinary structured value'
 rule_says "structured anchored values use fm_field"       'ordinary structured value           | fm_field'
 rule_says "free-prose blocked_by uses fm_field_verbatim"  'is DATA (blocked_by)       | fm_field_verbatim'
 rule_says "own-decoding callers use the raw tier"         'caller decodes quotes itself   | field_raw'
+# The raw/anchored quadrant: pinned by its own row, and by the sentence the orphan pin's failure
+# message tells the reader to update. Without both, that quadrant can be deleted with a green suite.
+rule_says "absent-capable own-decoding callers use fm_field_raw" \
+  'key may be ABSENT, caller decodes quotes itself        | fm_field_raw'
+rule_says "the header states fm_field_raw's caller count is zero" \
+  'fm_field_raw has ZERO production callers today'
 rule_says "when unsure, anchor"                           'When unsure'
 # The criterion for GUARANTEED PRESENT is possibility-of-omission, not template presence and not
 # how many files carry the key today — seven absent-capable keys ARE shipped by the current change
@@ -151,10 +157,32 @@ corpus_of(){ # corpus_of RELPATH ARGTOKEN -> corpus on stdout, or exit 1
   return 1
 }
 
-# Split each line on `$(` and keep the fragments that OPEN with an accessor name, so several reads
-# on one line are all seen (`spec="$(field "$f" spec)"; trivial="$(field "$f" trivial)"`).
+# Split each line on a substitution opener and keep the fragments that OPEN with an accessor name,
+# so several reads on one line are all seen (`spec="$(field "$f" spec)"; trivial="$(field "$f" trivial)"`).
 # awk, not `sed 's/x/\n/g'` — BSD sed inserts a literal `n` there.
-census_frags(){ awk '{ n = split($0, p, /\$\(/); for (i = 2; i <= n; i++) print p[i] }' "$1"; }
+#
+# Two deliberate widenings, both against fail-OPEN gaps (a read the census never sees is a read the
+# rule never reaches):
+#   - runs of blank space collapse to one space FIRST, so `field<TAB>"$f" key` and `field  "$f" key`
+#     parse identically to the single-space spelling. The downstream `case` arm and `${rest#* }`
+#     tokenizer both assume exactly one space; normalizing here keeps that assumption true instead
+#     of making every consumer defensive.
+#   - a fragment starts at `$(`, at a backtick, OR at the start of the line (index 1 is emitted),
+#     so a bare invocation (`field "$f" k > out`) and a pipeline head are seen too, not just
+#     command substitutions.
+# Both directions fail CLOSED: a fragment that parses to a nonsense key is an unguaranteed key and
+# therefore a violation, never a pass.
+#
+# Whole-comment lines are skipped, and only those: a comment is not a call site, and this repo's
+# scripts discuss the accessor names in backticked prose (`... NO `id:` field at all ...`), which the
+# backtick widening would otherwise read as a fragment opening with `field `. This is a narrowing of
+# the widening, not an allowlist of a construct — no executable shape is exempted by it.
+census_frags(){ awk '{
+    gsub(/[ \t]+/, " ")
+    if (substr($0, 1, 1) == "#" || substr($0, 1, 2) == " #") next
+    n = split($0, p, /\$\(|`/)
+    for (i = 1; i <= n; i++) { frag = p[i]; sub(/^ /, "", frag); print frag }
+  }' "$1"; }
 
 census_files=()
 while IFS= read -r f; do
