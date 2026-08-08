@@ -441,5 +441,54 @@ assert "needs_quoting true for a colon-space value" 'docket_scalar_needs_quoting
 assert "needs_quoting false for a clean value"      '! docket_scalar_needs_quoting "Cap the widget"'
 assert "needs_quoting false for the empty value"    '! docket_scalar_needs_quoting ""'
 
+# --- readiness(): spec:/trivial: are OPTIONAL, so the reads must be anchored (change 0244) ---
+# Without anchoring, a needs-brainstorm change whose BODY opens a `spec:` line reports build-ready
+# and the autonomous builder claims an undesigned change. The fixture must OMIT the key: a change
+# that HAS spec: in frontmatter reports build-ready under both implementations.
+rdy="$(mktemp -d)"
+mkdir -p "$rdy/active" "$rdy/archive"
+cat > "$rdy/active/0902-prose-spec.md" <<'EOF'
+---
+id: 902
+slug: prose-spec
+title: Prose spec
+status: proposed
+priority: medium
+created: 2026-08-08
+updated: 2026-08-08
+depends_on: []
+---
+
+## Why
+
+The design will live at
+spec: docs/superpowers/specs/2026-08-08-not-a-real-value-design.md
+once someone writes it.
+EOF
+cat > "$rdy/active/0903-prose-trivial.md" <<'EOF'
+---
+id: 903
+slug: prose-trivial
+title: Prose trivial
+status: proposed
+priority: medium
+created: 2026-08-08
+updated: 2026-08-08
+depends_on: []
+---
+
+## Why
+
+Whether this is
+trivial: true
+is exactly the open question.
+EOF
+resolve_deps "$rdy"
+assert "readiness: body-prose spec: does not make a change build-ready" \
+  '[ "$(readiness "$rdy/active/0902-prose-spec.md")" = "needs-brainstorm" ]'
+assert "readiness: body-prose trivial: does not make a change build-ready" \
+  '[ "$(readiness "$rdy/active/0903-prose-trivial.md")" = "needs-brainstorm" ]'
+rm -rf "$rdy"
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

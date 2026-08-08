@@ -361,7 +361,12 @@ readiness(){ # readiness FILE  (only meaningful for a proposed change)
   local f="$1" id spec trivial
   id="$(int_field "$f" id)"
   if [ "${DEP_STATE[$id]:-clear}" = "waiting" ]; then printf 'waiting'; return; fi
-  spec="$(field "$f" spec)"; trivial="$(field "$f" trivial)"
+  # ANCHORED (change 0244; ADR-0057). Both keys are optional, and this is the one migration that
+  # changes behavior for every caller of readiness() at once (docket-status, render-board,
+  # github-mirror). It differs only when spec:/trivial: is absent from frontmatter while body
+  # prose opens such a line — where the OLD behavior reported build-ready for an undesigned
+  # change, which is the autonomous builder claiming work that was never designed.
+  spec="$(fm_field "$f" spec)"; trivial="$(fm_field "$f" trivial)"
   if [ -z "$spec" ] && [ "$trivial" != "true" ]; then
     if has_section "$f" "## Auto-groom blocked"; then printf 'auto-groom-blocked'
     else printf 'needs-brainstorm'; fi
