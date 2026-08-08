@@ -31,15 +31,26 @@
 # runs at the build gate over committed work — and the self-membership assert makes the gap loud.
 #
 # TWO CLASSES, ONE WALK (change 0246): this file scans for two independent portability defects over
-# the same population. (1) an ERE repetition bound above 255. (2) the ESCAPED double-quoted word-
-# boundary form — two source backslashes before b, < or > — which is how a \b reaches grep from
-# inside a double-quoted shell string. BSD grep's and git-grep's ERE do not support \b/\</\>; they
-# return zero matches SILENTLY, so such a guard goes blind rather than red, which is the same
-# fail-open shape as the interval class. The SINGLE-backslash form inside single quotes is NOT
-# banned: ~26 tracked sites use it as deliberate, comment-blessed PATH-grep idiom (see
-# tests/test_docket_build.sh, which blesses them explicitly), and banning it would redden healthy
-# code. Change 0246 converted the only three escaped-form sites (all in
-# tests/test_docket_example_yml.sh), so the tree is provably clean as this class lands.
+# the same population. (1) an ERE repetition bound above 255. (2) the TWO-BACKSLASH SOURCE SPELLING
+# of the word-boundary form — two source backslashes before b, < or >. BSD grep's and git-grep's
+# ERE do not support \b/\</\>; they return zero matches SILENTLY, so such a guard goes blind rather
+# than red, which is the same fail-open shape as the interval class. Change 0246 converted the only
+# three two-backslash sites (all in tests/test_docket_example_yml.sh), so the tree is provably clean
+# for this SPELLING as the class lands.
+#
+# WHAT THIS CLASS DOES **NOT** COVER — READ BEFORE TRUSTING IT. The scanner is a pure byte pattern
+# with no shell-quote awareness, so what it gates is a SPELLING, not the defect class. A
+# double-quoted SINGLE-backslash "\b" delivers the very same two bytes to grep — b is not a
+# recognised double-quote escape in bash, so the one- and two-backslash source spellings are
+# byte-identical at the grep boundary — and this class matches only the two-backslash one. The
+# one-backslash spelling is therefore UNGUARDED, and the residual gap is
+# real, not theoretical: tests/test_docket_metadata_branch.sh ('"--yes\b|\b-y\b"') and
+# tests/test_cursor_dispatch_rule.sh ('"\b(Task|Agent)\b"') both carry it today and pass this class
+# clean. The single-backslash form is left unmatched DELIBERATELY on this branch, not because it is
+# safe: ~26 tracked sites use it, many as deliberate comment-blessed PATH-grep idiom (see
+# tests/test_docket_build.sh, which blesses them explicitly), and separating the blessed ones from
+# the defective ones is its own change. The negative control below ASSERTS this limitation rather
+# than merely describing it, so nobody can mistake a green run for full coverage of the defect.
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SELF_REL="tests/$(basename "${BASH_SOURCE[0]}")"
@@ -69,9 +80,10 @@ INTERVAL='\\?\{[0-9]+(,[0-9]*)?\\?\}'
 # blind. -I skips binaries; -o emits one interval per line; -n prefixes the source line number.
 scan_file(){ grep -InoE "$INTERVAL" "$1" 2>/dev/null; }
 
-# The escaped double-quoted word-boundary form. Written with an assembled backslash literal for the
-# same self-membership reason as the fixtures below: this pattern is itself scanned. Two source
-# backslashes, then b, < or >.
+# The TWO-BACKSLASH source spelling of the word-boundary form. Written with an assembled backslash
+# literal for the same self-membership reason as the fixtures below: this pattern is itself
+# scanned. Two source backslashes, then b, < or >. It is byte-level only: a double-quoted
+# single-backslash "\b" reaches grep identically and is NOT matched here (see the header).
 WORD_BOUNDARY="$(printf '%s%s[b<>]' '\\' '\\')"
 
 # Human-readable spellings of the two forms, for assert messages. ASSEMBLED for the same reason the
@@ -213,9 +225,9 @@ else
 fi
 
 if [ -z "$wb_violations" ]; then
-  ok "no escaped $WB_ESC word-boundary form in maintained source"
+  ok "no two-backslash $WB_ESC spelling in maintained source (single-backslash spelling NOT covered)"
 else
-  nok "escaped word-boundary form found — BSD grep and git-grep ERE return zero for these SILENTLY; use an explicit [^[:alnum:]_] class instead:"
+  nok "two-backslash word-boundary spelling found — BSD grep and git-grep ERE return zero for these SILENTLY; use an explicit [^[:alnum:]_] class instead:"
   printf '%s' "$wb_violations" | sed 's/^/       /'
 fi
 
@@ -273,19 +285,25 @@ wb_clean="$tmp/wb-ok.txt"
 # forms for a human reader without ever putting the banned byte pair in this file's source.
 printf 'grep -qE "%s%sb$k%s%sb" "$f"\n' "$BS" "$BS" "$BS" "$BS" > "$wb_over"
 printf 'grep -qE "%s%s<$k" "$f"\n'      "$BS" "$BS"             >> "$wb_over"
-# Legal neighbours that must NOT be flagged: the blessed single-quoted form, a literal backslash-b
-# in a printf, and a doubled backslash not followed by b/</>.
+# Neighbours that must NOT be flagged: the blessed single-quoted form, a literal backslash-b in a
+# printf, and a doubled backslash not followed by b/</>.
 printf "grep -qE '%sb\$k%sb' \"\$f\"\n" "$BS" "$BS" > "$wb_clean"
 printf 'printf "%s%sn"\n'               "$BS" "$BS" >> "$wb_clean"
+# ...and the KNOWN GAP, asserted rather than merely commented: a DOUBLE-quoted single-backslash
+# "\b" delivers bytes identical to the two-backslash spelling at the grep boundary, yet this class
+# does not match it. Kept in the clean fixture so the limitation is pinned — if someone later
+# widens the pattern to catch the real defect class, this control reddens and forces them to
+# revisit the ~26 tracked single-backslash sites deliberately instead of by accident.
+printf 'grep -qE "%sb(Task|Agent)%sb" "$f"\n' "$BS" "$BS" >> "$wb_clean"
 
 wb_pos="$(scan_word_boundary "$wb_over")"
 [ -n "$wb_pos" ] \
-  && ok "word-boundary positive control: the escaped $WB_ESC form is reported" \
-  || nok "word-boundary positive control FAILED: the escaped form is not reported — the class is vacuous"
+  && ok "word-boundary positive control: the two-backslash $WB_ESC spelling is reported" \
+  || nok "word-boundary positive control FAILED: the two-backslash spelling is not reported — the class is vacuous"
 
 wb_neg="$(scan_word_boundary "$wb_clean")"
 [ -z "$wb_neg" ] \
-  && ok "word-boundary negative control: the single-quoted $WB_ONE idiom and a plain backslash are not flagged" \
-  || nok "word-boundary negative control FAILED: a legal single-backslash form was flagged — ~26 blessed sites would redden"
+  && ok "word-boundary negative control: single- AND double-quoted $WB_ONE (the known, unguarded gap) and a plain backslash are not flagged" \
+  || nok "word-boundary negative control FAILED: a single-backslash form was flagged — this class gates a SPELLING, not the defect class; widening it reddens ~26 tracked sites and belongs in its own change"
 
 exit "$fail"
