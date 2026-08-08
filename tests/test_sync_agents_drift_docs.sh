@@ -473,4 +473,38 @@ assert "0050 doc: convention states the coordination-key fence" 'grep -qi "fence
 assert "0050 doc: agent-layer ref Agent layer global row points at config.yml agents: block" \
   'grep -qE "^\| Global \|.*config\.yml" "$AGL"'
 
+# ---- 0255: the unquoted / no-`#` rule is stated at the five points of use --------------------
+# The finding this guards: before change 0255 the rule appeared NOWHERE a user reads before
+# tripping the gate — the gate self-described only once tripped. Each assert is scoped to the
+# `agents:` example block in its file, so the sentence drifting into unrelated prose reddens.
+rule_re='unquoted and space-free'
+
+# Anchored on the "— optional; applies to every repo" variant: the bare path also heads an earlier
+# change_types example, and a range starting there would span both blocks.
+readme_global="$(sed -n '/^# ~\/\.config\/docket\/config\.yml — optional/,/^```$/p' "$READMEF")"
+assert "0255 docs: README global config.yml example states the rule" \
+  '/usr/bin/grep -qF "$rule_re" <<<"$readme_global"'
+
+readme_local="$(sed -n '/^# <repo>\/\.docket\.local\.yml/,/^```$/p' "$READMEF")"
+assert "0255 docs: README .docket.local.yml example states the rule" \
+  '/usr/bin/grep -qF "$rule_re" <<<"$readme_local"'
+
+skill_agents_line="$(/usr/bin/grep -n '^agents:' "$CONV" || true)"
+assert "0255 docs: convention SKILL.md agents: schema line states the rule" \
+  '/usr/bin/grep -qF "$rule_re" <<<"$skill_agents_line"'
+
+layer_example="$(sed -n '/^agents:  */,/^```$/p' "$AGL")"
+assert "0255 docs: agent-layer.md example block states the rule" \
+  '/usr/bin/grep -qF "$rule_re" <<<"$layer_example"'
+
+example_intro="$(sed -n '/^# agents — per-skill subagent model\/effort/,/^# agents:$/p' "$REPO/.docket.example.yml")"
+assert "0255 docs: .docket.example.yml agents: intro states the rule" \
+  '/usr/bin/grep -qF "$rule_re" <<<"$example_intro"'
+
+# Non-vacuity: every slice above must be non-empty, or a renamed heading turns all five asserts
+# into vacuous greens against nothing.
+assert "0255 docs: every doc slice is non-empty" \
+  '[ -n "$readme_global" ] && [ -n "$readme_local" ] && [ -n "$skill_agents_line" ] &&
+   [ -n "$layer_example" ] && [ -n "$example_intro" ]'
+
 exit $fail
