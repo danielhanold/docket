@@ -207,7 +207,7 @@ These steps execute after the copy-set is assembled:
    `.gitignore` entry or `.worktrees/` slug collision), then:
 
    ```bash
-   pub="$(mktemp -d)/pub"
+   pub="$(mktemp -d "${TMPDIR:-/tmp}/terminal-publish.XXXXXX")/pub"
    git worktree prune                                         # clear any leaked registration
    git worktree add -B "pub-<T>" "$pub" origin/<int_branch>  # -B: reset-or-create (re-run safe)
    ```
