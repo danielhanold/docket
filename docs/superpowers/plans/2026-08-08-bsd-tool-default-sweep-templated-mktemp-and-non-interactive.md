@@ -456,8 +456,12 @@ This is a direct rule addition through the PR gate, exactly like the existing `#
 `tests/test_runtime_budgets.sh` asserts that every `tests/test_*.sh` has a budget row and that the table's ceilings sum to `EXPECTED_TOTAL`. A new test file bringing its own row is one of the two cases that message names as legitimate.
 
 ```bash
-scripts/run-tests.sh -j 1 --timings tests/test_bsd_tool_defaults.sh
+scripts/run-tests.sh -j 1 --timings /tmp/0254-timings.tsv tests/test_bsd_tool_defaults.sh
 ```
+
+**`--timings` takes a PATH argument.** Omitting it makes the runner consume the following test
+file as the timings output path and **truncate that file to zero bytes** — write the destination
+explicitly, as above.
 
 Add a row to `tests/runtime-budgets.tsv`, tab-separated, in the file's existing sort position, using the measured value rounded up the way neighboring rows are (the comparable shape-scan guard `tests/test_grep_portability.sh` is budgeted at 10s):
 
