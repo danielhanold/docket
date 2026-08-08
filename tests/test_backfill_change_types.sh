@@ -182,6 +182,31 @@ assert "padded ids: ...and the type lands in that file" \
 refuses "a padded but absent id" "1=fix,2=docs,4=chore,0077=docs"
 diag    "a padded but absent id" "1=fix,2=docs,4=chore,0077=docs" "77 is not an active change"
 
+# --- TMPDIR is honored (platform-independent) --------------------------------
+# The other behavioral TMPDIR pin below rides on an immutable-flag remnant and therefore runs on
+# macOS only, leaving the templated-mktemp property with no behavioral coverage where the suite
+# usually runs. This probe needs no chflags and no failure: it shims `mktemp` onto PATH, records
+# what the real one actually created, and runs an ordinary successful invocation under a redirected
+# TMPDIR. One assert pins the property in general; it is deliberately not a per-script matrix.
+#
+# Why the created path and not the argv: the argv only shows a template was passed, while the
+# returned path is where the scratch dir really landed — the property the rule is about.
+tdp="$tmp/tmpdir-probe"; mkfix "$tdp"; mkdir -p "$tdp/redirect" "$tdp/bin"
+real_mktemp="$(command -v mktemp)"
+tdp_log="$tdp/created.txt"
+{ printf '#!/usr/bin/env bash\n'
+  printf 'p="$(%s "$@")" || exit $?\n' "$real_mktemp"
+  printf 'printf "%%s\\n" "$p" >> %s\n' "$tdp_log"
+  printf 'printf "%%s\\n" "$p"\n'
+} > "$tdp/bin/mktemp"
+chmod +x "$tdp/bin/mktemp"
+PATH="$tdp/bin:$PATH" TMPDIR="$tdp/redirect" bash "$SCRIPT" --changes-dir "$tdp" \
+  --map "1=fix,2=docs,4=chore" >/dev/null 2>&1
+# Non-empty is half the assert: an empty log would mean the script never reached mktemp at all, and
+# a "nothing landed outside the redirect" check alone would pass vacuously on that.
+assert "TMPDIR: the script's scratch dir is created under a redirected TMPDIR" \
+  '[ -s "$tdp_log" ] && [ -z "$(grep -v "^$tdp/redirect/" "$tdp_log")" ]'
+
 # --- install-phase rollback --------------------------------------------------
 # Staging protects the REWRITE phase only. The install itself is a loop of `mv`, and a bare loop is
 # NOT all-or-none: a failure at file k leaves 1..k-1 installed and k..N not — exactly the
