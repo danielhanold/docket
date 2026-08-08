@@ -886,9 +886,12 @@ assert "0249: the worker ## The cycle section is extractable" \
 
 # (1a) The pointer names the reference file by path. -F because the path carries regex
 # metacharacters, and the whole point is that the worker is sent to the harness-neutral capability
-# file rather than to docket-build's controller-vocabulary posture section.
+# file rather than to docket-build's controller-vocabulary posture section. Also pins that the
+# named path actually resolves, so a future rename/move of gate-execution.md reddens here instead
+# of leaving this guard green over a dangling pointer.
 assert "0249: the cycle points at docket-build/references/gate-execution.md" \
-  'grep -qF -- "docket-build/references/gate-execution.md" <<<"$worker_cycle_flat"'
+  'grep -qF -- "docket-build/references/gate-execution.md" <<<"$worker_cycle_flat" &&
+   [ -f "$REPO/skills/docket-build/references/gate-execution.md" ]'
 
 # (1b) ...and the worker-shaped consequence, not the path alone: a rewrite that keeps the pointer
 # while inverting the conduct must redden. Word-anchored so the negation cannot match inside
