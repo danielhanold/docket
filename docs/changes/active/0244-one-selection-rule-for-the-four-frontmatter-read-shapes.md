@@ -2,7 +2,7 @@
 id: 244
 slug: one-selection-rule-for-the-four-frontmatter-read-shapes
 title: 'One selection rule for the four frontmatter read shapes'
-status: in-progress
+status: implemented
 priority: medium
 type: refactor
 created: 2026-08-07
@@ -13,12 +13,12 @@ discovered_from: [134, 240]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-one-selection-rule-for-the-four-frontmatter-read-shapes-design.md
 plan: docs/superpowers/plans/2026-08-08-one-selection-rule-for-the-four-frontmatter-read-shapes.md
-results:
+results: docs/results/2026-08-08-one-selection-rule-for-the-four-frontmatter-read-shapes-results.md
 trivial: false
 auto_groomable: true
 branch: feat/one-selection-rule-for-the-four-frontmatter-read-shapes
-claimed_at: 2026-08-08T08:45:34Z
-pr:
+claimed_at: 2026-08-08T10:22:24Z
+pr: https://github.com/danielhanold/docket/pull/184
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-one-selection-rule-for-the-four-frontmatter-read-shapes-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-one-selection-rule-for-the-four-frontmatter-read-shapes-design.md) |
 | Plan | [2026-08-08-one-selection-rule-for-the-four-frontmatter-read-shapes.md](https://github.com/danielhanold/docket/blob/feat/one-selection-rule-for-the-four-frontmatter-read-shapes/docs/superpowers/plans/2026-08-08-one-selection-rule-for-the-four-frontmatter-read-shapes.md) |
+| Results | [2026-08-08-one-selection-rule-for-the-four-frontmatter-read-shapes-results.md](https://github.com/danielhanold/docket/blob/feat/one-selection-rule-for-the-four-frontmatter-read-shapes/docs/results/2026-08-08-one-selection-rule-for-the-four-frontmatter-read-shapes-results.md) |
+| PR | [#184](https://github.com/danielhanold/docket/pull/184) |
 <!-- docket:artifacts:end -->
 
 ## Why
