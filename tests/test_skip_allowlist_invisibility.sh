@@ -192,7 +192,17 @@ FLOOR=56
 #   CURATED  hand-declared occurrences that open nothing but whose shape no rule expresses.
 #   EXEMPT   hand-declared genuine reads that an addition under the tree cannot move.
 # All four measured live at build time (change 0190, base f7fb123f), never copied from a plan.
-EXPECTED_BENIGN=15
+EXPECTED_BENIGN=16
+# BENIGN moved 15 -> 16 in change 0244, DATA class. The added occurrence is
+# tests/test_frontmatter_read_shapes.sh's `results: <results_dir>/PROSE-NOT-A-VALUE.md`, a line of a
+# QUOTED heredoc (`<<'EOF'`) that writes a fixture change file into a mktemp dir. It provably opens
+# nothing: no command word, no separator and no substitution anywhere on the logical line, so no
+# program receives the path as an operand — the DATA rule that claimed it is the rule that applies.
+# It is bait, not a value: the fixture omits `results:` from its frontmatter and puts this line in
+# the BODY, and the test asserts the anchored read returns empty instead of picking the prose up.
+# Nothing resolves or opens it even if that read regressed — render-change-links.sh renders the
+# value into a link, it does not stat the tree. Same shape as the four sibling DATA occurrences in
+# test_board_checks.sh, test_render_change_links.sh and test_terminal_publish.sh.
 EXPECTED_OPTVAL=2
 EXPECTED_CURATED=3
 EXPECTED_EXEMPT=2
