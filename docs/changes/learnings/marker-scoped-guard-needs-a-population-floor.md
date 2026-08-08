@@ -2,9 +2,9 @@
 slug: marker-scoped-guard-needs-a-population-floor
 hook: "A marker-keyed guard validates only the markers it finds — separately assert that the marker EXISTS, sits where you meant, and covers the case you care about; \"at least one\" pins a population, not coverage."
 topics: [testing, sentinels, guards]
-changes: [108, 120, 145, 164, 250]
+changes: [108, 120, 140, 145, 164, 250]
 created: 2026-07-21
-updated: 2026-08-07
+updated: 2026-08-08
 promotion_state: candidate
 promoted_to:
 ---
@@ -106,3 +106,16 @@ elements) trades one drift surface for another.
   Generalize: **an existence-and-agreement guard over a constant pins the declaration, not the
   dependency** — pair it with a floor on the constant's *uses*, or the guarded code can stop
   depending on the guarded value without ever reddening.
+- 2026-08-08 (#140, PR #183 — merged) — Same shape, **negated-assert** scope, and the cheapest
+  instance of it yet. A test proving that `runner-dispatch.sh` normalizes docket's `inherit`
+  sentinel away routed a dispatch through a throwaway probe adapter that captures its argv to a
+  file, then asserted absence twice: `! grep -qxF -- "--model"` and `! grep -qxF -- "inherit"`.
+  Both are satisfied by an **empty argv file** — if the probe never ran, was never dispatched to,
+  or wrote nothing, the group reads exactly as it reads on success. The whole-branch review caught
+  it and the mutation arm reproduced it live: with the probe helper neutered to write an empty
+  argv file, both negated asserts **stayed green**. Generalize past markers and scopes to the
+  assertion *form* itself: **a group of purely negative asserts carries no evidence that its
+  subject exists at all**, so every absence-shaped assert needs a positive control beside it — one
+  assert that reddens when the fixture produced nothing. The floor is cheap (assert some flag the
+  adapter *does* receive) and it is the only thing separating "the sentinel was normalized away"
+  from "nothing was ever observed."
