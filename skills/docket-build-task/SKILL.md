@@ -63,7 +63,8 @@ on this repo, often the full suite — run it under the capabilities in
 read that file before you start such a run. You are a dispatched worker with no resumption channel:
 **never yield to await the run.** Observe it by blocking — short foreground reads of the durable
 result — keep the observation **finite**, and treat a run still unfinished when you stop observing
-as **not green**: report it unverified and fail closed, never infer success.
+as **not green**: never infer success — report it unverified and fail closed by returning
+`BLOCKED`, naming the verification you could not finish.
 
 Two obligations the cycle does not relax:
 

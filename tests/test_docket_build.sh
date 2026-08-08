@@ -901,6 +901,13 @@ assert "0249: the cycle forbids yielding to await the run" \
 assert "0249: an unfinished run at the observation bound is not green" \
   'grep -qiE "unfinished[^.]{0,80}not green" <<<"$worker_cycle_flat"'
 
+# (1d) ...and fail-closed names the OUTCOME to return. "## Outcomes" enumerates exactly three, and
+# the controller halts on a NEEDS_ESCALATION carrying no capacity reason — so a clause that says
+# what not to claim without saying what to return leaves the malformed escalation as the likely
+# worker move. One bounded gap binds the failure posture to the outcome literal.
+assert "0249: failing closed on an unfinished run returns BLOCKED" \
+  'grep -qiE "fail closed[^.]{0,60}BLOCKED" <<<"$worker_cycle_flat"'
+
 # (2) The staging prohibition, scoped through the 0231 "## Scope" extractor above. Three asserts
 # with ONE bounded gap each, never one ERE with three: stacked gaps backtrack catastrophically on
 # non-matching input, so the mutation test hangs instead of reddening (learnings:
