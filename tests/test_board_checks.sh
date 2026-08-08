@@ -1388,6 +1388,45 @@ assert "0202: fixture 231's branch really does carry the non-ASCII plan (assert 
 assert "0202: fixture 231's non-ASCII plan is also on main (that is what makes it inherited)" \
   'git -C "$ARQ2" cat-file -e "main:$AR_PLAN_UTF8"'
 
+# ARQ3 — a branch-only plan whose PATH embeds an interior newline (change 0200). Since change 0202
+# leg A reads the listing NUL-delimited, so a git path arrives RAW and $ar_hit carries the LF all
+# the way into emit. sanitize must escape it: otherwise one finding becomes TWO TSV records, and
+# the caller (docket-status.sh's health_checks, `IFS=$'\t' read -r check_id change_id message`)
+# reads the orphaned tail as a finding of its own — and the trailing `sort` reorders it anywhere.
+AR_PLAN_LF="$(printf 'docs/superpowers/plans/2026-06-01-multi\nline-plan.md')"
+AR_LF_ESCAPED='multi\nline-plan.md'
+read -r ARQ3 _ < <(new_repo)
+ar_branch "$ARQ3" feat/arq3 "$AR_PLAN_LF"
+cat > "$ARQ3/docs/changes/active/0249-lf-path-branchonly.md" <<EOF
+---
+id: 249
+slug: lf-path-branchonly
+title: Plan path with an embedded newline committed on the branch only
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/arq3
+plan:
+results:
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+arq3out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$ARQ3/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "0200: leg A fires for a branch-only plan whose path embeds a newline (id 249)" \
+  'has_finding "$arq3out" aborted-run 249'
+# Non-vacuity, through the same tree the check reads: without this, the discriminating assert below
+# could be measuring "the fixture never had an LF-named plan" rather than "the LF was escaped".
+assert "0200: fixture 249's branch really carries the LF-named plan (assert is not vacuous)" \
+  'git -C "$ARQ3" cat-file -e "feat/arq3:$AR_PLAN_LF"'
+# THE DISCRIMINATOR — and note what it deliberately is NOT. A "exactly one line matches the
+# aborted-run<TAB>249<TAB> prefix" count passes in BOTH directions: unfixed, that prefix line still
+# exists, it just ends at "…multi" with "line-plan.md) but plan: is unset …" orphaned on the next
+# record. What only the fixed script can produce is the two-character escape \n WITH the post-LF
+# tail on the SAME line.
+arq3line="$(grep -E "$(printf "^aborted-run\t249\t")" <<<"$arq3out")"
+assert "0200: the leg-A finding stays ONE TSV record — the interior LF is escaped to a visible \\n" \
+  'grep -qF "$AR_LF_ESCAPED" <<<"$arq3line"'
+
 read -r AR10 _ < <(new_repo)
 cat > "$AR10/docs/changes/active/0210-stale-claim.md" <<EOF
 ---
