@@ -12,12 +12,12 @@ related: [150]
 discovered_from: [178, 187, 121]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-make-the-docket-example-yml-guard-suite-bite-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-08-make-the-docket-example-yml-guard-suite-bite.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/make-the-docket-example-yml-guard-suite-bite
-claimed_at: 2026-08-08T01:40:00Z
+claimed_at: 2026-08-08T01:58:00Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-make-the-docket-example-yml-guard-suite-bite-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-make-the-docket-example-yml-guard-suite-bite-design.md) |
+| Plan | [2026-08-08-make-the-docket-example-yml-guard-suite-bite.md](https://github.com/danielhanold/docket/blob/feat/make-the-docket-example-yml-guard-suite-bite/docs/superpowers/plans/2026-08-08-make-the-docket-example-yml-guard-suite-bite.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
