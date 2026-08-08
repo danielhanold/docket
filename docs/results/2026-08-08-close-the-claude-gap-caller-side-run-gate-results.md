@@ -19,10 +19,70 @@ Change: #0242 · Branch: feat/close-the-claude-gap-in-the-run-completion-gate-wi
   mechanical gate (fe77d45f).
 - Reachability and convention-pointer guards (5a1240a7).
 
-Full suite green at the Task 3 and Task 4 gates: **95 files, 7120 asserts, exit 0**. The advisory
-`OVER BUDGET` trailer named `test_sync_agents`, `test_sync_agents_codex`, and
-`test_sync_agents_runners` — all `rc=0`, parallel-contention noise on this machine, consistent with
-the slack-factor calibration note; not acted on.
+Full suite green at the Task 3 and Task 4 gates: **95 files, 7120 asserts, exit 0**.
+
+## The `OVER BUDGET` trailer, measured
+
+The build's last full-suite run trailed `OVER BUDGET: test_board_checks test_harness_defaults
+test_harness_defaults_validator test_sync_agents test_sync_agents_codex test_sync_agents_runners`,
+and an earlier draft of this file dismissed it as contention noise and did not act on it. That was
+wrong on the repo's own terms — `AGENTS.md` says a trailing `OVER BUDGET:` line is a finding to act
+on precisely because nothing else will catch it — and the list had grown from three files to six
+during the build. It was measured instead.
+
+**Method.** `scripts/run-tests.sh -j 1 --no-budget-check --timings`, against this branch and against
+the merge-base (`487bfdc5`, checked out in a detached worktree), the two **interleaved** so a
+drifting machine could not masquerade as a diff. Four paired passes: base-first twice, then
+branch-first twice, because the first ordering alone puts the branch consistently later in time.
+Seconds, serial:
+
+| file | sync invocations | base (487bfdc5) | this branch |
+|---|---|---|---|
+| `test_sync_agents.sh` | 30 | 60, 59 | 56, 55 |
+| `test_sync_agents_defaults.sh` | 35 | 58, 54 | 56, 55 |
+| `test_sync_agents_drift_docs.sh` | 41 | 61, 59 | 55, 60 |
+| `test_sync_agents_codex.sh` | 14 | 56, 67, 53, 53 | 63, 75, 57, 56 |
+| `test_sync_agents_runners.sh` | 39 | 66, 76, 61, 62 | 73, 81, 65, 63 |
+
+**What that says.**
+
+- *The premise that every sync-agents test got heavier is not supported.* The change does make every
+  `sync-agents.sh` run resolve and write a Claude surface, so the expectation was growth
+  proportional to invocation count. The three files with the **most** invocations (30/35/41) are the
+  three that did not grow at all — `test_sync_agents.sh` is faster on the branch in every paired
+  pass. Whatever the surface write costs, it is below this measurement's resolution.
+- *`test_sync_agents_codex.sh` did grow, and it is the file this change reshaped.* Paired deltas
+  +7/+8/+4/+3s, the same sign in both orderings. It is the added third `sync-agents.sh --check`
+  invocation (the de-list block's direction-1 leg), not a per-invocation tax — 14 invocations is the
+  family's smallest count.
+- *Every one of these files breaches on the merge-base too.* Absolute levels moved 20–25% between
+  the loaded and quiet passes (`test_sync_agents_codex.sh` base measured 67s and 53s on the same
+  commit hours apart). The rows are not lying about the *branch*; the machine is slower than the one
+  the rows were seeded on. Re-seeding them upward would be the evasion `tests/runtime-budgets.tsv`
+  and `scripts/run-tests.md` both name: a ceiling moves when a file is **re-shaped**, not when the
+  machine gets slower.
+
+**Acted on: `test_sync_agents_codex.sh` is sharded.** At 56–57s serial it sat past its own 55s row
+with the hard 60s ceiling inside the noise band, so there was no honest row to write for it. It is
+cut at its own `# --- AGENTS.md dispatch block` banner into `test_sync_agents_codex.sh` (the
+per-repo `.codex/agents/*.toml` wrappers) and the new `tests/test_sync_agents_codex_dispatch.sh`
+(the committed `AGENTS.md` dispatch block). The 74 asserts split 44/30 with none lost, both halves
+green. Re-measured standalone over three consecutive serial runs — 21/19/22s and 41/38/41s — and
+rowed at 30 and 50 by the table's own sizing rule; `EXPECTED_TOTAL` 1510 → 1535.
+`tests/README.md`'s claim that this file had "no internal section banners, so there is no mechanical
+boundary" was already inaccurate and is corrected there.
+
+**Recorded, not acted on: five pre-existing breaches.** `test_sync_agents.sh`,
+`test_sync_agents_defaults.sh`, and `test_sync_agents_drift_docs.sh` are untouched by this change
+and measure **at or below** the merge-base. `test_sync_agents_runners.sh` is untouched and does show
+a small consistent +1 to +7s, but it breaches on the merge-base as well (61–76s against a 60s row),
+so its breach is not this branch's to absorb — sharding an 845-line file on that evidence would be
+scope this change cannot justify. The three non-family files in the trailer were measured once
+serially and are likewise pre-existing: `test_board_checks.sh` 61s (row 55),
+`test_harness_defaults.sh` 50s (row 45), `test_harness_defaults_validator.sh` 53s (row 50) — the
+same ~10% overshoot the family shows on its base side, on files this branch never touched. Whether
+the whole table wants re-seeding on a quiet machine is a question for its own change, filed as a
+follow-up below rather than settled here.
 
 ## Human verification
 
@@ -86,4 +146,9 @@ a solo-maintainer macOS project.
 
 ## Follow-ups
 
-None filed.
+- **Re-seed `tests/runtime-budgets.tsv` from a quiet machine.** Eight files now measure above their
+  rows on the merge-base as well as on this branch, with 20–25% spread between loaded and quiet
+  passes on the *same commit*. Either the rows were seeded on a faster machine-state than today's or
+  the table has drifted; a per-file wall-clock table that breaches on an untouched base is a table
+  nobody will read. This is the contention-independent basis change **0229** already owns — worth
+  attaching the numbers above to it rather than opening a second change.
