@@ -835,6 +835,108 @@ validate_user_agent_values() {
   return $rc
 }
 
+# --- the candidate-triple population, shared by both runner gates -------------
+# Walks every (harness, agent) pair a generating pass would write and calls $1 once per pair with
+# resolve_agent_layers' state (RES_MODEL, RES_RUNNER, RES_*_FROM_USER) still live:
+#
+#     $1 <harness> <agent>
+#
+# The callback MUST return 0: `set -e` is active and this walk is not wrapped.
+#
+# EXTRACTED, NOT COPIED (change 0269 review). Two gates now have to judge exactly the config that
+# generates something, and THIS WALK IS THE DEFINITION of "something" — the user-level leg over
+# USER_TARGETS resolved against the global layer only, plus the project-level leg gated by
+# project_wrappers_generated. A second hand-written copy of it would agree on every ordinary repo
+# and diverge on precisely the states these guards exist to exclude: a non-opted-in repo, a global
+# agent_harnesses list that narrows the user-level targets (LEARNINGS:
+# duplicated-gate-copies-the-whole-predicate). Sharing one body makes that divergence
+# unrepresentable rather than merely tested for.
+#
+# It loops every agent x every harness and lets each caller's callback decide applicability —
+# narrowing to `claude`, or to a runner-bearing entry, here would put the rule's scope in a second
+# place, and the day that scope moves this walk would silently under-enumerate.
+#
+# USER_TARGETS is computed by user_level_pass, which runs BELOW both gates; on the --check path
+# neither compute_user_targets nor resolve_global_agent_harnesses has run at all, so under `set -u`
+# both USER_TARGETS and USER_HARNESSES_SET are unset. Resolve them here rather than reading
+# `${USER_TARGETS:-}`: an empty list would silently skip the whole user-level leg, and a skipped
+# leg is precisely the under-enumeration these gates exist to prevent. Both are idempotent config
+# reads; the `-n` test keeps the real run — and the second gate of the pair — from re-emitting
+# resolve_global_agent_harnesses' "unknown agent_harnesses token" warnings.
+#
+# Runs in the CALLER's shell, never under `$(…)`: the two globals above, CANDIDATE_RUNNERS below,
+# and prime_layer_body's cache must all survive the walk.
+#
+# SIDE PRODUCT: every walk refreshes CANDIDATE_RUNNERS from scratch, whatever the callback does —
+# see resolve_candidate_runners. A walk is always complete, so the set can never be left partial or
+# stale WITHIN a run; it would only go stale across a config rewrite, and the only one this script
+# performs (migrate_legacy_global) is fixed ABOVE both gates by the placement bounds below.
+for_each_candidate_triple() {  # $1 = callback function name
+  local cb="$1" src name harness
+  [ -n "${USER_HARNESSES_SET:-}" ] || resolve_global_agent_harnesses
+  compute_user_targets
+  CANDIDATE_RUNNERS=""
+  for src in "$AGENTS_SRC"/docket-*.md; do
+    [ -e "$src" ] || continue
+    name="$(short_name "$src")"
+    # user-level pass: USER_TARGETS resolved over the global layer only
+    for harness in $USER_TARGETS; do
+      resolve_agent_layers "$harness" "$name" "$GLOBAL_CFG"
+      collect_candidate_runner
+      "$cb" "$harness" "$name"
+    done
+    # project-level pass: HARNESSES resolved over local + committed + global.
+    # `continue`, not an early `return 0` hoisted out of the loop: it skips only THIS agent's
+    # project-level leg, leaving the user-level leg above intact for a non-opted-in repo.
+    project_wrappers_generated || continue
+    for harness in $HARNESSES; do
+      resolve_agent_layers "$harness" "$name" "$LOCAL_CFG" "$DOCKET_YML" "$GLOBAL_CFG"
+      collect_candidate_runner
+      "$cb" "$harness" "$name"
+    done
+  done
+  CANDIDATE_RUNNERS_RESOLVED=1
+  return 0
+}
+
+# The runners THIS run's triples actually resolve to — space-separated, unique, registered only.
+# Written only by the walk above; read by validate_runner_shim_values.
+CANDIDATE_RUNNERS=""
+CANDIDATE_RUNNERS_RESOLVED=0
+
+# Fold the triple resolve_agent_layers just resolved into CANDIDATE_RUNNERS. Not a callback: the
+# walk does this for EVERY caller, so no caller can obtain a partial set.
+collect_candidate_runner(){
+  [ -n "${RES_RUNNER:-}" ] || return 0
+  # Registration is tested with is_registered_runner and nowhere else. An unregistered runner never
+  # reaches emit_shim — validate_runner_config refuses the run before any wrapper is written — so
+  # its `runners:` sub-block is inert, which is the carve-out validate_runner_shim_values already
+  # made for unregistered names.
+  is_registered_runner "$RES_RUNNER" || return 0
+  # Deliberately NOT narrowed to the claude harness, even though emit_shim is reached only there.
+  # runner_config_error's header states that `runner:`'s harness scope lives in that one function;
+  # a second copy of the test here is exactly the drift that header warns about. Erring wider is
+  # also the safe direction — it can only make the gate judge one more runner the user really did
+  # name in an `agents:` entry, never fewer.
+  case " $CANDIDATE_RUNNERS " in *" $RES_RUNNER "*) return 0;; esac
+  CANDIDATE_RUNNERS="$CANDIDATE_RUNNERS $RES_RUNNER"
+  return 0
+}
+
+# Guarantee CANDIDATE_RUNNERS is populated, walking only if nothing has walked yet this run.
+#
+# The gate ORDER at the two call sites (validate_runner_config first) is what makes this a no-op in
+# practice — one walk serves both gates. That ordering is a PERFORMANCE choice and nothing else:
+# this function walks on its own if it is reached first, so re-ordering the gates costs a second
+# walk and changes no verdict. Skipping the walk entirely is what must never happen — an empty
+# CANDIDATE_RUNNERS is a gate that judges nothing, which is fail-OPEN.
+resolve_candidate_runners(){
+  if [ "$CANDIDATE_RUNNERS_RESOLVED" = "1" ]; then return 0; fi
+  for_each_candidate_triple noop_candidate_triple
+  return 0
+}
+noop_candidate_triple(){ return 0; }
+
 # --- runners.<name> shim-pin value validation (change 0269) -------------------
 # runner_key's value class consumes the rest of the line, so a quoted value would ride into the
 # emitted frontmatter WITH its quotes and a present-but-empty key would read as "unset" — either
@@ -846,14 +948,26 @@ validate_user_agent_values() {
 # layer, while this gate must report every offender in every layer, including ones precedence would
 # mask — a bad value shadowed today goes live the moment the higher layer is edited.
 #
-# Only REGISTERED runners are walked. An unregistered `runners:` sub-block is inert config that
-# generates nothing, and hard-failing a repo over it would punish a cosmetic typo in a block no
-# pass reads — the same reasoning that exempts the pre-0046 flat agents shape.
+# SCOPED TO THE RUNNERS THIS RUN ACTUALLY CONSUMES (change 0269 review). The runner dimension comes
+# from resolve_candidate_runners — the same population validate_runner_config enumerates, via the
+# same walk — not from REGISTERED_RUNNERS. A `runners:` sub-block for a runner no `agents:` entry
+# delegates to generates nothing, exactly like the unregistered sub-block already excused above and
+# like the dead-config carve-outs in validate_user_agent_values; hard-failing over it would let one
+# typo'd shim_model in ~/.config/docket/config.yml refuse `sync-agents.sh` and `--check` in every
+# repo on the machine, including repos with no `runners:` usage at all
+# (LEARNINGS: guard-keyed-on-presence-not-provenance — a guard must key on what got USED, not on
+# what a layer merely HOLDS). The gate stays fail-CLOSED for every runner that is consumed: an
+# unreferenced runner is not warned-and-continued, it is not this gate's business at all, and the
+# moment an `agents:` entry names it the same bad value refuses the run.
+#
+# The LAYER dimension stays unscoped on purpose: runner_key reads all three layers for a consumed
+# runner regardless of which layer opted the repo in, so any of them can supply the winning value.
 validate_runner_shim_values() {
   local rc=0 f r k blk line raw trimmed
+  resolve_candidate_runners
   for f in "$LOCAL_CFG" "$DOCKET_YML" "$GLOBAL_CFG"; do
     [ -f "$f" ] || continue
-    for r in $REGISTERED_RUNNERS; do
+    for r in $CANDIDATE_RUNNERS; do
       # AGENTS.md: never `producer | early-exiting-consumer` under `set -o pipefail`. section_body's
       # awk `exit`s the moment the block ends, so piping one into the next would leave the producer
       # taking a SIGPIPE. Capture, then feed in — the same shape runner_key uses.
@@ -913,6 +1027,17 @@ report_runner_error_once(){  # $1=diagnostic ; requires a caller-scoped `seen`
   return 0
 }
 
+# Gate 3's per-triple judgement, as a for_each_candidate_triple callback. Reads and writes the
+# caller-scoped `rc` and `seen` (bash dynamic scoping; bash-3.2-safe — no associative arrays), the
+# same convention report_runner_error_once already uses.
+check_triple_runner_config(){  # $1=harness $2=agent ; requires caller-scoped `rc` and `seen`
+  local err
+  if ! err="$(runner_config_error "$1" "$2" "$RES_RUNNER" "$(user_flag_model)")"; then
+    report_runner_error_once "$err"; rc=1
+  fi
+  return 0
+}
+
 # Gate 3 (change 0207): every `runner:` rule, checked across every candidate triple, BEFORE the
 # first wrapper write. Wrapper generation is atomic — a run regenerates every WRAPPER or changes no
 # wrapper on disk, so a configuration error leaves the previously generated wrappers in place on
@@ -933,41 +1058,15 @@ report_runner_error_once(){  # $1=diagnostic ; requires a caller-scoped `seen`
 # deliberately not contiguous.)
 #
 # ACCUMULATES rather than short-circuits: one run names every offender, so the fix is a single edit
-# and a re-run. It loops every agent x every harness and lets runner_config_error decide
-# applicability — narrowing to `claude` here would put the rule's scope in a second place, and the
-# day that scope moves this gate would silently under-enumerate.
+# and a re-run. It walks every candidate triple (for_each_candidate_triple) and lets
+# runner_config_error decide applicability — narrowing to `claude` here would put the rule's scope
+# in a second place, and the day that scope moves this gate would silently under-enumerate.
+#
+# The walk itself lives in for_each_candidate_triple because validate_runner_shim_values must judge
+# the SAME population; see that function's header for why it is shared rather than copied.
 validate_runner_config() {
-  local rc=0 src name harness err seen=""
-  # USER_TARGETS is computed by user_level_pass, which runs BELOW this gate; on the --check path
-  # neither compute_user_targets nor resolve_global_agent_harnesses has run at all, so under `set -u`
-  # both USER_TARGETS and USER_HARNESSES_SET are unset. Resolve them here rather than reading
-  # `${USER_TARGETS:-}`: an empty list would silently skip the whole user-level leg, and a skipped
-  # leg is precisely the under-enumeration this gate exists to prevent. Both are idempotent config
-  # reads; the `-n` test keeps the real run — where resolve_global_agent_harnesses has already run —
-  # from re-emitting its "unknown agent_harnesses token" warnings a second time.
-  [ -n "${USER_HARNESSES_SET:-}" ] || resolve_global_agent_harnesses
-  compute_user_targets
-  for src in "$AGENTS_SRC"/docket-*.md; do
-    [ -e "$src" ] || continue
-    name="$(short_name "$src")"
-    # user-level pass: USER_TARGETS resolved over the global layer only
-    for harness in $USER_TARGETS; do
-      resolve_agent_layers "$harness" "$name" "$GLOBAL_CFG"
-      if ! err="$(runner_config_error "$harness" "$name" "$RES_RUNNER" "$(user_flag_model)")"; then
-        report_runner_error_once "$err"; rc=1
-      fi
-    done
-    # project-level pass: HARNESSES resolved over local + committed + global.
-    # `continue`, not an early `return 0` hoisted out of the loop: it skips only THIS agent's
-    # project-level leg, leaving the user-level leg above intact for a non-opted-in repo.
-    project_wrappers_generated || continue
-    for harness in $HARNESSES; do
-      resolve_agent_layers "$harness" "$name" "$LOCAL_CFG" "$DOCKET_YML" "$GLOBAL_CFG"
-      if ! err="$(runner_config_error "$harness" "$name" "$RES_RUNNER" "$(user_flag_model)")"; then
-        report_runner_error_once "$err"; rc=1
-      fi
-    done
-  done
+  local rc=0 seen=""
+  for_each_candidate_triple check_triple_runner_config
   return $rc
 }
 
@@ -2018,18 +2117,22 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
       log "check: user agent config has unconsumable values — a real run would refuse to write wrappers."
       exit 1
     fi
-    # This leg reads PRE-migration config — the same asymmetry the two gates above already have.
-    # It matches what check_project_level's leg (c) drift loop resolves, and since change 0220 the
-    # two are gated by the SAME predicate (project_wrappers_generated), so the gate cannot see
+    # These two legs read PRE-migration config — the same asymmetry the two gates above already
+    # have. They match what check_project_level's leg (c) drift loop resolves, and since change 0220
+    # they are gated by the SAME predicate (project_wrappers_generated), so neither gate can see
     # fewer triples than that loop later emits. Before 0220 the gate used per_repo_opted_in while
     # leg (c) used the strictly weaker gitignore_block_wanted, and a global agent_harnesses: list
     # omitting claude let a bad claude runner: reach leg (c)'s emit_wrapper unchecked.
-    if ! validate_runner_shim_values; then
-      log "check: runner shim-pin configuration is invalid — a real run would refuse to write wrappers."
-      exit 1
-    fi
+    #
+    # ORDER (change 0269 review): validate_runner_config first, so its walk is the one that
+    # populates CANDIDATE_RUNNERS and the shim gate does not repeat it. Performance only — see
+    # resolve_candidate_runners; either order reaches the same verdicts.
     if ! validate_runner_config; then
       log "check: runner configuration is invalid — a real run would refuse to write wrappers."
+      exit 1
+    fi
+    if ! validate_runner_shim_values; then
+      log "check: runner shim-pin configuration is invalid — a real run would refuse to write wrappers."
       exit 1
     fi
     if check_project_level; then exit 0; else exit 1; fi
@@ -2054,15 +2157,15 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
   resolve_global_agent_harnesses
   # Gate 3 — see validate_runner_config. Must stay BELOW resolve_global_agent_harnesses (USER_TARGETS
   # needs the post-migration $GLOBAL_CFG) and ABOVE user_level_pass (the first mkdir -p or
-  # emit_wrapper redirection past this point is already a partial generation).
-  # Same placement bound as Gate 3 directly below: ABOVE user_level_pass, because the first
-  # `mkdir -p` or emit_wrapper redirection past this point is already a partial generation.
-  if ! validate_runner_shim_values; then
-    log "ERROR runner shim-pin configuration is invalid — no wrappers were written."
-    exit 1
-  fi
+  # emit_wrapper redirection past this point is already a partial generation). The shim-pin gate
+  # shares both bounds — it walks the same candidate triples — and runs SECOND so that Gate 3's walk
+  # is the one that populates CANDIDATE_RUNNERS (performance only; see resolve_candidate_runners).
   if ! validate_runner_config; then
     log "ERROR runner configuration is invalid — no wrappers were written."
+    exit 1
+  fi
+  if ! validate_runner_shim_values; then
+    log "ERROR runner shim-pin configuration is invalid — no wrappers were written."
     exit 1
   fi
   user_level_pass
