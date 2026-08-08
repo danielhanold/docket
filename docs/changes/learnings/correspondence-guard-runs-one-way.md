@@ -2,9 +2,9 @@
 slug: correspondence-guard-runs-one-way
 hook: "A guard over a correspondence between two sets proves only the direction it iterates — write the reverse loop too, and anchor it on the consuming code, not an allowlist."
 topics: [testing, coverage, sentinels]
-changes: [101, 107, 104, 102, 111, 234]
+changes: [101, 107, 104, 102, 111, 234, 246]
 created: 2026-07-20
-updated: 2026-08-07
+updated: 2026-08-08
 promotion_state: candidate
 promoted_to:
 ---
@@ -119,3 +119,18 @@ change existed to end ([[verify-the-claim]]).
   the enumerated-floor failure ([[enumerated-floor]]) wearing a different hat, since it proves the
   file is big, never that it is the right file. Closed by content-shaped asserts on the destination
   (the ladder's distinguishing figures) alongside the removal asserts on the source.
+- 2026-08-08 (#246, PR #179) — **The reverse loop was written and still had the forward loop's blind
+  spot, because both drew from the same population.** This change existed partly to add the missing
+  `example ⊆ sidecar` direction to a mirror guard that only proved `sidecar ⊆ example`. The new
+  reverse loop built its population from the `build-max`-terminated slice — and `build-max` is the
+  **last row of every harness block**, so an orphan row appended after it, which is the most natural
+  place anyone would append one, was invisible to the orphan check *and* to the arity check. Two
+  loops, two directions, one shared blind spot. Fixed by populating from a shape-detected partition
+  of the whole commented block rather than from a slice.
+  What this adds: after asking "which direction does it iterate," ask **"where does each direction
+  get its population, and are they the same place?"** A reverse loop that inherits the forward
+  loop's extraction inherits its gaps — so the mutation matrix has to place the phantom entry at the
+  extraction's *edges*, immediately after the terminator or before the first entry, not in the
+  comfortable middle where any extraction would find it. Related:
+  [[section-slice-needs-a-named-terminator]] (the extraction defect underneath),
+  [[marker-scoped-guard-needs-a-population-floor]].

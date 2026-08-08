@@ -2,7 +2,7 @@
 slug: fix-reintroduces-its-own-defect-class
 hook: "New code added by a change that fixes a defect class is the likeliest place for that class to reappear — audit the change's OWN additions against its thesis before review, and check the twin it did not touch."
 topics: [review, refactoring, contracts]
-changes: [135, 173, 113, 212, 220, 228, 259, 254, 200]
+changes: [135, 173, 113, 212, 220, 228, 259, 254, 200, 246]
 created: 2026-07-28
 updated: 2026-08-08
 promotion_state: candidate
@@ -153,3 +153,18 @@ Related: [[escape-ere-metacharacters-in-key]] (the un-fixed twin of a duplicated
   before the rewrite, the plan predicted mutation 4 would go red and it stayed 419/419 green; that
   green *was* the defect, since the old awk applied to the hoisted script left a `bash -n` syntax
   error and a script that never ran, with every "goes GREEN" assert passing.
+- 2026-08-08 (#246, PR #179) — **The twin surfaced itself, from a file the change was not touching,
+  by going red.** The change's thesis is "a guard must not depend on a hand-written literal that the
+  file will grow past." Its own additions moved 27 lines into `tests/test_grep_portability.sh` — and
+  `tests/test_skip_allowlist_invisibility.sh`, untouched by this branch, pinned its probe of that
+  file's whole-index walk to hard-coded **line 102**, now line 129. That red was the build's only
+  one. The instructive part is what the diagnostic said: *"if it moved, re-find it and re-point the
+  probe"* — an instruction that reproduces the defect on every future move. The repair re-pointed
+  the probe onto a **derived slice anchor** instead, applying the branch's thesis to the file the
+  branch had no other reason to open.
+  What this adds: the twin does not always have to be hunted. When a change's thesis is about
+  brittleness, the brittle siblings tend to **announce themselves as unrelated test failures** — so
+  read a red in an untouched file as a candidate instance of the thesis before treating it as
+  collateral to be patched back to green. The cheap wrong fix (bump 102 → 129) is always available
+  and always leaves the class in place. Related: [[guards-are-code]],
+  [[section-slice-needs-a-named-terminator]].

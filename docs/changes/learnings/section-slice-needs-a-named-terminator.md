@@ -2,9 +2,9 @@
 slug: section-slice-needs-a-named-terminator
 hook: "A generic /^## / terminator ends the slice at the first heading-shaped line — including one inside a fenced example — so name the terminator, and assert the terminator exists."
 topics: [testing, guards, markdown]
-changes: [226, 224]
+changes: [226, 224, 246]
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-08
 promotion_state: retained
 promoted_to:
 ---
@@ -55,3 +55,21 @@ than care.
   yield a byte-identical slice (47 non-blank lines both ways), so it hardened the guard with zero
   behavioral drift — worth doing whenever a terminator is tightened, since a silently *narrower*
   slice would quietly stop covering what the asserts claim to cover.
+- 2026-08-08 (#246, PR #179) — **Two ways a *named* terminator still fails**, both live in one file,
+  neither visible to the existence assert this finding already prescribes.
+  (a) **The name is prefix-weak.** The terminator literal `claude-opus-5` is a prefix of cursor's
+  `claude-opus-5-high`, so deleting claude's own last row closed the range on *cursor's* block
+  instead. The existence assert stayed green (the terminator still matched — just the wrong
+  occurrence), and so did the guard over the slice's last line, because the over-wide slice's final
+  row is still a `build-max:` row. A terminator needs a **boundary class**, not merely a name;
+  identity requires that nothing longer also matches.
+  (b) **The name is a hand-written literal that content later grows past.** The round-trip slice
+  ended on a cursor `finalize-change` literal that sat above cursor's own build rows and above the
+  entire opencode block. Change 0192 shipped opencode and nothing noticed that sixteen rows had
+  stopped reaching the resolver under test — the terminator still existed, still matched, still
+  named a real line, and the slice it produced had quietly become a minority of the thing it claimed
+  to round-trip. The fix in both cases was to stop writing the anchor down: derive it (the last
+  harness block's sidecar-derived `build-max` row) and assert the derivation covers the shipped
+  harness headers. Rule 1 of this finding says *name* the terminator; this adds the next turn of the
+  screw — **a name is an identity claim, so bound it and derive it**, or the slice silently narrows
+  every time the file grows.
