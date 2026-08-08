@@ -427,15 +427,20 @@ field_of_raw() {  # $1=line  $2=field
 
 # Print the `agents.<harness>.<agent>` entry line from <file>. under_agents=1 => the harness map is
 # nested under a top-level `agents:` key (.docket.yml); 0 => the harness map is the whole file (global).
-harness_agent_line() {  # $1=file  $2=harness  $3=agent  $4=under_agents(0|1)
-  local key body line stripped sub hbody matched
+# keep_comments=1 returns the line WITHOUT the comment strip, for validate_user_agent_values' check
+# that no `#` sits inside the flow map; every other caller wants the stripped default. Both bash
+# paths match on the STRIPPED view in both modes, so they cannot select different lines.
+harness_agent_line() {  # $1=file  $2=harness  $3=agent  $4=under_agents(0|1)  [$5=keep_comments]
+  local key body line stripped sub hbody matched keep="${5:-0}"
   if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
     [ -f "$1" ] || return 0
     if [ "$4" = "1" ]; then sub="$(section_body agents < "$1")"; else sub="$(cat "$1")"; fi
     hbody="$(printf '%s\n' "$sub" | section_body "$2" || true)"
-    stripped="$(printf '%s\n' "$hbody" | sed 's/#.*//')"
-    matched="$(printf '%s\n' "$stripped" | grep -E "^[[:space:]]*$3[[:space:]]*:" || true)"
-    head -n1 <<<"$matched"
+    matched="$(awk -v a="$3" -v keep="$keep" '
+      { nc=$0; sub(/#.*/,"",nc) }
+      nc ~ ("^[[:space:]]*" a "[[:space:]]*:") { print (keep == "1" ? $0 : nc); exit }
+    ' <<<"$hbody")"
+    printf '%s\n' "$matched"
     return 0
   fi
   key="${1}"$'\x1f'"${2}"$'\x1f'"${4}"
@@ -443,10 +448,37 @@ harness_agent_line() {  # $1=file  $2=harness  $3=agent  $4=under_agents(0|1)
   while IFS= read -r line || [ -n "$line" ]; do
     stripped="${line%%#*}"
     if [[ $stripped =~ ^[[:space:]]*${3}[[:space:]]*: ]]; then
-      printf '%s' "$stripped"
+      if [ "$keep" = "1" ]; then printf '%s' "$line"; else printf '%s' "$stripped"; fi
       return 0
     fi
   done <<<"$body"
+}
+
+# Does <raw entry line> carry a `#` INSIDE its `{…}` flow map? Returns 0 (fires) when it does.
+#
+# Comments are stripped before either field reader sees a line, so a `#` inside the flow map
+# truncates the entry silently — `{ model: c#5 }` becomes `{ model: c` and every value-comparison
+# leg agrees the value is fine. Such a `#` is OUT OF CONTRACT; the strip order is deliberately
+# unchanged (reordering it would break the legitimate trailing and full-line comments used across
+# every layer), and this predicate makes the corner a loud refusal instead.
+#
+# The rule, exactly: it APPLIES only when the entry's first `{` precedes any `#` on the line (a `#`
+# before the first `{`, or no `{` at all, never fires). It then FIRES iff, after that `{`, a `#`
+# appears before the first `}`, or a `#` appears with no `}` at all. So a trailing comment after
+# `}`, a full-line comment, and a commented-out map all stay legal.
+#
+# Twin: `_hd_flow_map_has_comment` in scripts/lib/harness-defaults.sh — same body, different name.
+# Duplicated by value on purpose: that library's header forbids coupling the shipped-data reader to
+# these user-config readers, and extracting the shared helper is change #0256's scope.
+flow_map_has_comment() {  # $1=raw entry line
+  local l="$1" after
+  case "$l" in *'{'*) : ;; *) return 1 ;; esac
+  case "${l%%\{*}" in *'#'*) return 1 ;; esac          # a `#` before the first `{` never fires
+  after="${l#*\{}"
+  case "$after" in *'#'*) : ;; *) return 1 ;; esac     # no `#` after the `{` at all
+  case "$after" in *'}'*) : ;; *) return 0 ;; esac     # `#` present, no `}` at all -> truncation
+  case "${after%%\}*}" in *'#'*) return 0 ;; esac      # `#` before the first `}` -> truncation
+  return 1
 }
 
 # Resolve (harness, agent) per-field across the given layer files, highest precedence
@@ -568,7 +600,7 @@ agents_block_harnesses() {  # $1=file  (docket.yml, under_agents=1)
 # Only the harness-first shape is walked. The pre-0046 flat shape is warned about and DROPPED by
 # warn_legacy_shape/legacy_agent_keys, so validating it would reject config that is already ignored.
 validate_user_agent_values() {
-  local rc=0 f h a k line raw consumed
+  local rc=0 f h a k line rawline raw consumed
   for f in "$LOCAL_CFG" "$DOCKET_YML" "$GLOBAL_CFG"; do
     [ -f "$f" ] || continue
     while IFS= read -r h; do
@@ -594,6 +626,15 @@ validate_user_agent_values() {
         [ -f "$AGENTS_SRC/docket-$a.md" ] || continue
         line="$(harness_agent_line "$f" "$h" "$a" 1)"
         [ -n "$line" ] || continue
+        # A `#` inside the `{…}` flow map truncates the entry before any reader sees it, so the
+        # value legs below structurally cannot catch it — see `flow_map_has_comment`. This check
+        # sits INSIDE the dead-config carve-outs above (the harness skip and the wrapper-source
+        # test) so config that generates nothing still cannot hard-fail a repo.
+        rawline="$(harness_agent_line "$f" "$h" "$a" 1 1)"
+        if flow_map_has_comment "$rawline"; then
+          log "$h/$a entry contains '#' inside the flow map — comments cannot appear inside {…}; docket strips them before parsing ($f)"
+          rc=1
+        fi
         for k in model effort runner; do
           # Key absent from this entry is normal — every field is optional in user config.
           # Herestring, not `printf … | grep -Eq`: under `set -o pipefail` an early-exiting consumer
