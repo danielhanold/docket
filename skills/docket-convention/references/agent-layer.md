@@ -92,8 +92,16 @@ child. Only user-configured values cross. Two consequences, runner-wide, not per
 away) `runner:` entry is a generation-time error (ADR-0067), reversing the old "omitted ⇒ child
 default" posture. **`effort:` stays optional, but omitting ≠ opting out** — it defers to lower
 *user* layers, whose value IS forwarded, while `effort: auto` suppresses the flag outright. With no
-flag baked the child uses its own default for the chosen model; the parent's effort stays in the
-wrapper frontmatter and never reaches the child.
+flag baked the child uses its own default for the chosen model.
+
+**The shim's own pin is a third value (change 0269).** A shim wrapper is executed by the PARENT
+harness — its whole body is one foreground `docket.sh runner-dispatch` call plus a stdout relay — so
+its frontmatter `model:`/`effort:` govern that relay and must be resolvable by the parent, never by
+the child. They come from `runners.<name>.shim_model` and `runners.<name>.shim_effort`, resolved
+per-key across the same layers as the rest of the block, defaulting to `inherit` and `low`. The
+child's pin is the baked `--model` / `--effort` argument and only that. Pinning a shim to the
+child's model tells the parent harness to run the relay on a model it cannot resolve, which kills
+the run before the dispatch script is ever reached.
 
 ## Generation scope: agent_harnesses
 

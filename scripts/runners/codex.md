@@ -28,7 +28,9 @@ bash scripts/runners/codex.sh --agent <name> [--model <m>] [--effort <e>] [--] [
   `runner-dispatch.sh` owns that normalization for every adapter and this adapter keeps a
   defensive twin for the hand path above. Unlike Cursor, **effort survives** the model-less case
   here, because `model_reasoning_effort` is a separate flag rather than an encoding inside the
-  model value.
+  model value. The shim's own frontmatter `model:`/`effort:` pin the PARENT-side relay agent, not
+  this child — they come from `runners.<name>.shim_model` / `shim_effort` (defaults `inherit` /
+  `low`) and must name something the parent harness can resolve.
 - `--effort <e>` (optional) — mapped to Codex's `model_reasoning_effort` config override.
   Values pass through verbatim except docket's `max`, which maps to codex's `xhigh` (the top
   of Codex's vocabulary). Omitted ⇒ no override (child default). Effort stays genuinely optional,

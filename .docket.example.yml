@@ -473,6 +473,15 @@ runners:
   codex:
     sandbox: workspace-write   # workspace-write (default) | danger-full-access
     network: true              # default true — git push and gh need it
+    # shim_model / shim_effort — what the small relay agent in YOUR harness runs on. Delegation
+    # generates a two-part wrapper: a relay that runs here in Claude Code and makes one call out to
+    # the child, and the child that does the actual work on the `model:` you set under `agents:`.
+    # These two keys pin the RELAY; they never touch the child. Leave them alone and the relay runs
+    # on whatever model your session is using (`inherit`), which is always correct. Set shim_model
+    # to a cheap model if you would rather not spend session-model tokens on a call that only waits
+    # for output and passes it back. Available under every runner, not just codex.
+    shim_model: inherit        # default inherit — any model ID YOUR harness can run
+    shim_effort: low           # default low
   opencode:
     permissions: ask           # ask (default — REFUSES to delegate) | auto-approve
 
