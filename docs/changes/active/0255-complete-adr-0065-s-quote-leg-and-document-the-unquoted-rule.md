@@ -10,7 +10,7 @@ updated: 2026-08-08
 depends_on: []
 related: [256]
 discovered_from: [180, 181]
-adrs: []
+adrs: [76]
 spec: docs/superpowers/specs/2026-08-07-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-design.md
 plan: docs/superpowers/plans/2026-08-08-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-plan.md
 results:
