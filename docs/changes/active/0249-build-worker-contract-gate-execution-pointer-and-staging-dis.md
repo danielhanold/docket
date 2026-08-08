@@ -2,7 +2,7 @@
 id: 249
 slug: build-worker-contract-gate-execution-pointer-and-staging-dis
 title: 'Build-worker contract: gate-execution pointer and staging discipline'
-status: in-progress
+status: implemented
 priority: medium
 type: fix
 created: 2026-08-07
@@ -13,12 +13,12 @@ discovered_from: [232, 238]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-build-worker-contract-gate-execution-pointer-and-staging-dis-design.md
 plan: docs/superpowers/plans/2026-08-08-build-worker-contract-gate-execution-pointer-and-staging-dis.md
-results:
+results: docs/results/2026-08-08-build-worker-contract-gate-execution-pointer-and-staging-dis-results.md
 trivial: false
 auto_groomable: true
 branch: feat/build-worker-contract-gate-execution-pointer-and-staging-dis
-claimed_at: 2026-08-08T00:25:28Z
-pr:
+claimed_at: 2026-08-08T01:29:17Z
+pr: https://github.com/danielhanold/docket/pull/178
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-build-worker-contract-gate-execution-pointer-and-staging-dis-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-build-worker-contract-gate-execution-pointer-and-staging-dis-design.md) |
 | Plan | [2026-08-08-build-worker-contract-gate-execution-pointer-and-staging-dis.md](https://github.com/danielhanold/docket/blob/feat/build-worker-contract-gate-execution-pointer-and-staging-dis/docs/superpowers/plans/2026-08-08-build-worker-contract-gate-execution-pointer-and-staging-dis.md) |
+| Results | [2026-08-08-build-worker-contract-gate-execution-pointer-and-staging-dis-results.md](https://github.com/danielhanold/docket/blob/feat/build-worker-contract-gate-execution-pointer-and-staging-dis/docs/results/2026-08-08-build-worker-contract-gate-execution-pointer-and-staging-dis-results.md) |
+| PR | [#178](https://github.com/danielhanold/docket/pull/178) |
 <!-- docket:artifacts:end -->
 
 ## Why
