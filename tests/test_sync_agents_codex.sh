@@ -211,6 +211,23 @@ else
   assert "agentsmd: still carries NO model id (machine-neutral even now that pins exist)" \
     '! grep -qE "claude-|gpt-|model_reasoning_effort|model[[:space:]]*=" "$A"'
 fi
+# 0245 whole-branch review, finding 1. The head's shipped-harness roster must be DERIVED from
+# HD_SHIPPED_HARNESSES, not hand-listed: this block is committed into consumer repos and
+# --check-enforced, so a hand-list goes silently false the day a fifth harness ships defaults.
+# Scoped to the head (start marker .. first agent bullet) so the per-agent descriptions below
+# cannot satisfy it. Case-sensitive on purpose: the derived list is lowercase, so a capitalized
+# literal reintroduced alongside it reddens here.
+head_txt="$(awk '/docket:dispatch:start/{f=1} f && /^- \*\*docket-/{exit} f' "$A")"
+for tok in $HD_SHIPPED_HARNESSES; do
+  assert "agentsmd: head names shipped harness '$tok' (derived roster)" \
+    'printf "%s\n" "$head_txt" | grep -qw -- "$tok"'
+done
+for tok in $HD_KNOWN_HARNESSES windsurf aider zed gemini copilot; do
+  case " $HD_SHIPPED_HARNESSES " in *" $tok "*) continue;; esac
+  assert "agentsmd: head does not name unshipped harness '$tok'" \
+    '! printf "%s\n" "$head_txt" | grep -qwi -- "$tok"'
+done
+
 # Population floor: without this, an emptied codex block would take the else arm out of service and
 # BOTH arms would be satisfied by whichever branch happened to run. Anchored on the source glob so a
 # seventeenth wrapper does not redden it.

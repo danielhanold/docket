@@ -1237,12 +1237,20 @@ write_dispatch_rule() {  # $1 = <root>/.<harness> base path
 # (codex and opencode), so its prose names no harness's artifact path and no harness's model
 # vocabulary — a claim true for Codex only would be false in an opencode repo. The default store is
 # agents/harness-defaults.yml, whose blocks are complete for every shipped harness, so the head
-# states the pinned truth. The dispatch is required either way — the agent carries the skill's
-# contract and preload, not just a model. Guarded, against the sidecar rather than a literal, in
+# states the pinned truth — and names that roster by interpolating HD_SHIPPED_HARNESSES, so a fifth
+# shipped harness cannot leave a stale hand-list behind. The dispatch is required either way — the
+# agent carries the skill's contract and preload, not just a model. Guarded, against the sidecar rather than a literal, in
 # tests/test_sync_agents_codex.sh and tests/test_sync_agents_opencode.sh.
 assemble_agents_md_dispatch(){
   printf '%s\n' "$DISPATCH_START"
-  cat <<'HEAD'
+  # The shipped-harness roster is DERIVED from HD_SHIPPED_HARNESSES, never hand-listed: this head is
+  # committed into consumer repos and --check-enforced, so a literal would ship a false claim the day
+  # a fifth harness starts shipping defaults. Rendered as the lowercase harness tokens themselves —
+  # a capitalized restatement alongside it would be exactly the literal this avoids. The heredoc is
+  # unquoted so this interpolates; its body carries no $, backtick, or backslash.
+  local shipped_list
+  shipped_list="$(printf '%s' "$HD_SHIPPED_HARNESSES" | sed 's/ /, /g')"
+  cat <<HEAD
 ## Docket agents — dispatch, don't run inline
 
 Docket generates an agent definition per docket skill in your harness's own agents directory. When
@@ -1250,7 +1258,7 @@ you are asked to run one of the docket skills below, run the matching **agent** 
 the skill inline at the session model: the agent carries that skill's dispatch contract, its skill
 preload, and whatever model and reasoning effort your config layers pin for it. Docket ships a
 validated model and reasoning effort for every one of these agents on the harnesses it ships
-defaults for — Claude, Cursor, Codex and opencode — so they are pinned out of the box there; your
+defaults for — $shipped_list — so they are pinned out of the box there; your
 config layers override either field per agent, and set them for any other harness. Dispatch through
 the hosting harness's native named-agent dispatch either way — the pin is not the only reason, since
 the agent also carries the skill's dispatch contract and preload. Pass the request through
