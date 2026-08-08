@@ -32,7 +32,9 @@ assert "sync-agents.sh does not restate the gate commands inline" \
 
 # --- brevity: the block rides always-loaded context in every harness (spec Risks) ---
 GATE_LINES="$(grep -c "" "$GATE_SRC" 2>/dev/null || echo 0)"
-assert "gate text is at most 14 lines" '[ "$GATE_LINES" -ge 1 ] && [ "$GATE_LINES" -le 14 ]'
+# Bound raised 14 -> 18 (change 0242 review, finding 1): every command must carry the convention's
+# mandatory facade prefix, since `docket.sh` is on no PATH. Correctness over the plan-time guess.
+assert "gate text is at most 18 lines" '[ "$GATE_LINES" -ge 1 ] && [ "$GATE_LINES" -le 18 ]'
 
 # --- the four behavioral claims, each bound to what it is asserted ABOUT ---
 # (learnings: prose-guard-binds-phrase-to-claim — never a bare phrase-presence grep)
@@ -70,6 +72,19 @@ assert "the AGENTS.md block renders the template verbatim" \
   'diff -q "$GATE_SRC" "$SBX/.gate-agents" >/dev/null'
 assert "the two rendered gates are byte-identical" \
   'diff -q "$SBX/.gate-cursor" "$SBX/.gate-agents" >/dev/null'
+# --- runnability: no BARE `docket.sh` survives into either rendered surface ---
+# `docket.sh` is on no PATH — ensure-docket-env.sh exports DOCKET_SCRIPTS_DIR and nothing else — and
+# the parent session reading this managed block has never loaded docket-convention, so it has no
+# referent for the bare spelling. Keyed on shape, not on an enumerated command list: every
+# `docket.sh` occurrence must be the tail of a DOCKET_SCRIPTS_DIR expansion (`…}"/docket.sh`).
+sh_total(){ grep -oE 'docket\.sh' "$1" | grep -c ""; }
+sh_prefixed(){ grep -oE 'DOCKET_SCRIPTS_DIR[^"]*\}"/docket\.sh' "$1" | grep -c ""; }
+for rendered in "$SBX/.gate-cursor" "$SBX/.gate-agents"; do
+  T="$(sh_total "$rendered")"; P="$(sh_prefixed "$rendered")"
+  assert "rendered gate ($(basename "$rendered")) mentions the facade at all" '[ "$P" -ge 1 ]'
+  assert "rendered gate ($(basename "$rendered")) has no bare docket.sh" '[ "$T" = "$P" ]'
+done
+
 # The AGENTS.md block must still close: the gate is spliced INSIDE the managed block, and an
 # unterminated block is a corrupt managed region, not a rendering detail.
 assert "the AGENTS.md dispatch end marker exists" 'grep -q "docket:dispatch:end" "$AGM"'
