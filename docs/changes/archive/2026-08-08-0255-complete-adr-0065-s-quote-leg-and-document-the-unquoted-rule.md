@@ -29,8 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-design.md) |
-| Plan | [2026-08-08-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-plan.md](https://github.com/danielhanold/docket/blob/feat/complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule/docs/superpowers/plans/2026-08-08-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-plan.md) |
-| Results | [2026-08-08-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-results.md](https://github.com/danielhanold/docket/blob/feat/complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule/docs/results/2026-08-08-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-results.md) |
+| Plan | [2026-08-08-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-plan.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-08-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-plan.md) |
+| Results | [2026-08-08-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-08-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-results.md) |
 | PR | [#182](https://github.com/danielhanold/docket/pull/182) |
 | ADRs | [ADR-0076](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0076-quote-leg-rule-binds-by-role-not-reader-shape.md) |
 <!-- docket:artifacts:end -->

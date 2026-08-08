@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0255 — Complete ADR-0065's quote leg and document the unquoted rule](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0255-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule.md)**
+> ↩ **[Change 0255 — Complete ADR-0065's quote leg and document the unquoted rule](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-08-0255-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule.md)**
 <!-- docket:backlink:end -->
 
 # Complete ADR-0065's quote leg and document the unquoted rule — design
