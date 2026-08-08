@@ -135,6 +135,38 @@ done
 # unterminated block is a corrupt managed region, not a rendering detail.
 assert "the AGENTS.md dispatch end marker exists" 'grep -q "docket:dispatch:end" "$AGM"'
 
+# --- section ORDER: the roster belongs to the dispatch head, not to the gate ---
+# Change 0242 review, finding 10. These are markdown documents with headings, so order is structure.
+# The gate used to be spliced BETWEEN the dispatch head and the agent bullets, which left the head's
+# own sentence — "run one of the docket skills below" — pointing across an unrelated `## Run gate`
+# section, and made a reader sectioning the file read the roster as part of the gate.
+# The two surfaces are asserted SEPARATELY and in opposite directions on purpose: the Cursor rule's
+# per-agent fragments each carry their own `## docket-<name>` heading, so there the gate sitting
+# above them heads nothing it does not own. Flattening the two assemblers is what produced an
+# earlier finding on this branch, so the divergence is pinned rather than assumed away.
+# Line numbers via awk, never `grep -n | head` (AGENTS.md, shell: SIGPIPE under pipefail).
+first_line(){ awk -v p="$1" '$0 ~ p { print NR; exit }' "$2"; }
+last_line(){  awk -v p="$1" '$0 ~ p { n=NR } END { print n+0 }' "$2"; }
+AGM_HEAD="$(first_line '^## Docket agents' "$AGM")"
+# Bracket expressions, never `\*`: awk's -v does escape processing on the value, and `\*` is an
+# undefined escape whose handling differs across awks — BWK awk (macOS) drops the backslash, leaving
+# the repetition operator `**` and a pattern that matches no bullet at all. A silently non-matching
+# pattern here would have made `last_line` print 0 and the ordering assert below pass vacuously.
+AGM_BULLET1="$(first_line '^- [*][*]docket-' "$AGM")"
+AGM_BULLETN="$(last_line  '^- [*][*]docket-' "$AGM")"
+AGM_GATE="$(first_line '^## Run gate' "$AGM")"
+assert "AGENTS.md: head, roster and gate are all present to be ordered" \
+  '[ "$AGM_HEAD" -ge 1 ] && [ "$AGM_BULLET1" -ge 1 ] && [ "$AGM_GATE" -ge 1 ] && [ "$AGM_BULLETN" -ge "$AGM_BULLET1" ]'
+assert "AGENTS.md: the gate comes AFTER the whole agent roster" '[ "$AGM_GATE" -gt "$AGM_BULLETN" ]'
+# The head's "below" must reach the roster with no other section in between — a stronger claim than
+# "the gate is elsewhere", and the one that stays true if a third section is ever added.
+assert "AGENTS.md: no heading separates the dispatch head from its roster" \
+  '[ "$(awk -v a="$AGM_HEAD" -v b="$AGM_BULLET1" "NR>a && NR<b && /^## /" "$AGM" | grep -c "")" = "0" ]'
+CUR_GATE="$(first_line '^## Run gate' "$CUR")"
+CUR_FRAG="$(first_line '^## docket-' "$CUR")"
+assert "cursor rule: its own order is unchanged — gate above the per-agent sections" \
+  '[ "$CUR_GATE" -ge 1 ] && [ "$CUR_FRAG" -ge 1 ] && [ "$CUR_GATE" -lt "$CUR_FRAG" ]'
+
 # --- reachability: the gate arrives at a Claude parent, not merely at a template ---
 mk_repo "[claude]"
 assert "reachability: a claude-only repo has a Claude surface" '[ -e "$SBX/CLAUDE.md" ]'
