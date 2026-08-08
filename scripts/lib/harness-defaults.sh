@@ -27,14 +27,17 @@ HD_KNOWN_HARNESSES="claude cursor codex opencode"
 # blocks today.
 HD_SHIPPED_HARNESSES="claude cursor codex opencode"
 
-# Print the body lines under `  <harness>:` (four-space-indented entries), comments stripped.
-_hd_block(){ # $1=file $2=harness
+# Print the body lines under `  <harness>:` (four-space-indented entries).
+# keep_comments=1 prints each entry line RAW (comments intact); anything else strips them, which is
+# what every reader wants. Block-boundary logic keys on the STRIPPED view in both modes, so the two
+# views can never select a different set of lines — only a different rendering of the same ones.
+_hd_block(){ # $1=file $2=harness [$3=keep_comments]
   [ -f "$1" ] || return 0
-  awk -v h="$2" '
+  awk -v h="$2" -v keep="${3:-0}" '
     { nc=$0; sub(/#.*/,"",nc) }
     nc ~ "^  "h"[[:space:]]*:[[:space:]]*$" { inb=1; next }
     inb && nc ~ /^  [A-Za-z0-9._-]+[[:space:]]*:/ { inb=0 }
-    inb && nc ~ /^    [A-Za-z0-9._-]+[[:space:]]*:/ { print nc }
+    inb && nc ~ /^    [A-Za-z0-9._-]+[[:space:]]*:/ { print (keep == "1" ? $0 : nc) }
   ' "$1"
 }
 
@@ -64,13 +67,40 @@ hd_agents(){ # $1=file $2=harness
 
 # Print the entry line for (harness, agent), or nothing. Shared by the two field readers so they
 # can never disagree about WHICH line they are reading.
-_hd_entry_line(){ # $1=file $2=harness $3=agent
+_hd_entry_line(){ # $1=file $2=harness $3=agent [$4=keep_comments]
   local block line
-  block="$(_hd_block "$1" "$2")"
+  block="$(_hd_block "$1" "$2" "${4:-0}")"
   [ -n "$block" ] || return 0
   line="$(grep -E "^    $3[[:space:]]*:" <<<"$block" || true)"
   [ -n "$line" ] || return 0
   printf '%s' "${line%%$'\n'*}"                # first match only; no `| head` under pipefail
+}
+
+# Does <raw entry line> carry a `#` INSIDE its `{…}` flow map? Returns 0 (fires) when it does.
+#
+# Comments are stripped before either field reader sees a line, so a `#` inside the flow map
+# truncates the entry silently — `{ model: c#5 }` becomes `{ model: c` and every value-comparison
+# leg agrees the value is fine. Such a `#` is OUT OF CONTRACT; the strip order is deliberately
+# unchanged, and this predicate makes the corner a loud refusal instead.
+#
+# The rule, exactly: it APPLIES only when the entry's first `{` precedes any `#` on the line (a `#`
+# before the first `{`, or no `{` at all, never fires). It then FIRES iff, after that `{`, a `#`
+# appears before the first `}`, or a `#` appears with no `}` at all (a commented-away closing brace
+# is the same truncation). So a trailing comment after `}`, a full-line comment, and a commented-out
+# map all stay legal.
+#
+# Twin: `flow_map_has_comment` in sync-agents.sh — same body, different name. Duplicated by value on
+# purpose: this library's header forbids coupling the shipped-data reader to the user-config
+# readers, and extracting the shared helper is change #0256's scope.
+_hd_flow_map_has_comment(){ # $1=raw entry line
+  local l="$1" after
+  case "$l" in *'{'*) : ;; *) return 1 ;; esac
+  case "${l%%\{*}" in *'#'*) return 1 ;; esac          # a `#` before the first `{` never fires
+  after="${l#*\{}"
+  case "$after" in *'#'*) : ;; *) return 1 ;; esac     # no `#` after the `{` at all
+  case "$after" in *'}'*) : ;; *) return 0 ;; esac     # `#` present, no `}` at all -> truncation
+  case "${after%%\}*}" in *'#'*) return 0 ;; esac      # `#` before the first `}` -> truncation
+  return 1
 }
 
 # Print the value of <field> for (harness, agent), or nothing.
@@ -108,7 +138,7 @@ hd_field_raw(){ # $1=file $2=harness $3=agent $4=model|effort
 
 # Validate the sidecar against <sources-dir> (agents/). Exit 1 with diagnostics on stderr.
 hd_validate(){ # $1=file $2=sources-dir
-  local f="$1" src="$2" rc=0 h a line k v raw n fields
+  local f="$1" src="$2" rc=0 h a line rawline k v raw n fields
   # This library is SOURCED, so it inherits whatever IFS the caller left behind. Several loops
   # below word-split an unquoted expansion; under a clobbered IFS ("") the field-name loop stops
   # splitting, which both fails the pristine sidecar and silently disarms the `runner` guard.
@@ -137,6 +167,13 @@ hd_validate(){ # $1=file $2=sources-dir
       a="$(printf '%s' "$line" | sed -e 's/^    //' -e 's/[[:space:]]*:.*//')"
       [ -f "$src/docket-$a.md" ] || {
         echo "harness-defaults: $h/$a names no wrapper source ($src/docket-$a.md)" >&2; rc=1; }
+      # A `#` inside the flow map is judged on the PRE-STRIP view: every reader below sees the line
+      # with comments already removed, so the truncation is invisible to them. Wrapper emission keeps
+      # reading the stripped line; the corner is rejected here, never silently emitted.
+      rawline="$(_hd_entry_line "$f" "$h" "$a" 1)"
+      if _hd_flow_map_has_comment "$rawline"; then
+        echo "harness-defaults: $h/$a entry contains '#' inside the flow map — comments cannot appear inside {…}; docket strips them before parsing" >&2; rc=1
+      fi
       # exactly the allowed fields
       fields="$(printf '%s' "$line" | sed -nE 's/.*\{(.*)\}.*/\1/p' | tr ',' '\n' | sed -nE 's/^[[:space:]]*([A-Za-z0-9._-]+)[[:space:]]*:.*/\1/p')"
       for k in $fields; do
