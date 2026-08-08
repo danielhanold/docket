@@ -326,6 +326,10 @@ is_header_key(){
 #                        (`[ -n "$shim_model" ] || shim_model="inherit"`), so deleting the layered
 #                        lookup left the anchor standing on the default it falls back to —
 #                        mutation-tested, and red only once the boundary was tightened here.
+#                        The assignment's LHS is matched in either casing (the reader's variable is
+#                        a global today, `SHIM_MODEL=`); see shape_ere's header for why that is the
+#                        same anchor rather than a widening, and the population floor below for
+#                        what keeps shape 4 from becoming a general-purpose escape hatch.
 #
 # Every shape carries a LEFT boundary (change 0246 whole-branch review, IMPORTANT 2). Without one,
 # shapes 1 and 3 matched the key as a SUBSTRING of the consumer's own name: `sync-agents:` in a log
@@ -350,11 +354,39 @@ is_header_key(){
 # Shell). `|| true` absorbs grep -v's exit 1 on an all-comment file, which is a legitimate empty
 # body and not an error. The ERE uses explicit character classes, never `\b`/`\<`/`\>` — BSD grep
 # does not support those and fails silently (change 0246; tests/test_grep_portability.sh).
-code_shaped_mention(){ # $1=leaf key  $2=file
+# The shapes live in ONE function, selectable, because two consumers now need them at different
+# widths: code_shaped_mention (all four) and the shape-4 population floor below (shapes 1-3 and
+# shape 4 separately, to ask which entries shape 4 is the SOLE anchor for). A second, hand-copied
+# spelling of the same ERE would drift from this one and the floor would then be measuring a
+# predicate the manifest does not use (LEARNINGS: duplicated-gate-copies-the-whole-predicate).
+#
+# Shape 4 accepts the key's name AND its upper-case spelling, and that is not a widening for
+# convenience: a layered lookup assigned into a shell variable is spelled `KEY=` exactly when the
+# variable is a global, which is what sync-agents.sh's shim-pin reader became when it grew a
+# run-scoped memo (`SHIM_MODEL="$(runner_key "$runner" shim_model)"`). Same read, same statement,
+# same anchor; only the shell's own casing convention differs. Restricting the shape to the
+# lower-case spelling would make the anchor a property of a variable NAME rather than of the read
+# (LEARNINGS: byte-pattern-guard-matches-a-spelling — the pattern covered one spelling of the
+# property, and the equivalent one failed green by going red for the wrong reason). The left
+# boundary stays line-start-plus-indent, so the reader's own fallback
+# (`[ -n "$SHIM_MODEL" ] || SHIM_MODEL="inherit"`) still does NOT anchor — the property the
+# tightened boundary bought is unchanged, and its control below is now asserted in both casings.
+shape_ere(){ # $1=leaf key  $2=shape selector: all (default) | 123 | 4
+  local k="$1" ku s123 s4
+  ku="$(printf '%s' "$k" | tr '[:lower:]' '[:upper:]')"
+  s123="(^|[^[:alnum:]_-])$k(\[\[:space:\]\]\*)?:|(^|[^[:alnum:]_])--?$k|[A-Za-z0-9_]\.$k"
+  s4="^[[:space:]]*($k|$ku)="
+  case "${2:-all}" in
+    123) printf '%s' "$s123" ;;
+    4)   printf '%s' "$s4" ;;
+    *)   printf '%s|%s' "$s123" "$s4" ;;
+  esac
+}
+code_shaped_mention(){ # $1=leaf key  $2=file  [$3=shape selector, default all]
   local k="$1" f="$2" body
   [ -f "$f" ] || return 1
   body="$(grep -vE '^[[:space:]]*#' "$f")" || true
-  grep -qE "(^|[^[:alnum:]_-])$k(\[\[:space:\]\]\*)?:|(^|[^[:alnum:]_])--?$k|[A-Za-z0-9_]\.$k|^[[:space:]]*$k=" <<<"$body"
+  grep -qE "$(shape_ere "$k" "${3:-all}")" <<<"$body"
 }
 
 
@@ -407,6 +439,7 @@ manifest_bad_correspondence=""
 manifest_bad_consumer=""
 manifest_bad_header=""
 manifest_bad_keyshape=""
+manifest_shape4_only=""
 # QUALIFIED extraction (change 0127). A key emits its FULL ancestor path (`learnings.enabled`,
 # `runners.codex.sandbox`); a top-level key stays bare. Ancestry is tracked with an indent stack
 # rather than "nearest column-0 key", so a doubly-nested leaf is qualified by both its parents
@@ -539,6 +572,13 @@ for k in $example_keys; do
           *)
             code_shaped_mention "$leaf_k" "$REPO/$consumer" \
               || manifest_bad_consumer="$manifest_bad_consumer $k(no code-shaped mention in $consumer)"
+            # POPULATION of shape 4 (change 0269 whole-branch review, finding 10). Record every
+            # entry shape 4 is the SOLE anchor for — matched by shape 4 and by none of shapes 1-3.
+            # Asserted against an exact set below; see that assert for why the count matters.
+            if code_shaped_mention "$leaf_k" "$REPO/$consumer" 4 \
+               && ! code_shaped_mention "$leaf_k" "$REPO/$consumer" 123; then
+              manifest_shape4_only="$manifest_shape4_only $leaf_k"
+            fi
             ;;
         esac
       fi
@@ -564,6 +604,24 @@ assert "manifest: every leaf key is ERE-safe to interpolate — ^[A-Za-z0-9_]+$ 
 # manifest exists to prevent. Widening this list is a deliberate act that must redden here first.
 assert "elsewhere: the shape exemption holds exactly github_project (got '$elsewhere_shape_exempt')" \
   '[ "$elsewhere_shape_exempt" = "github_project" ]'
+# THE SAME DISCIPLINE FOR SHAPE 4 (change 0269 whole-branch review, finding 10). Shape 4 widens
+# what counts as an anchor for ALL of the manifest's keys, while exactly two entries motivated it.
+# The cost of that width is silent and specific: any key whose name happens to coincide with a
+# shell variable assigned statement-initially somewhere in its declared consumer becomes anchored
+# on that assignment — even after the consumer stops reading the YAML key at all, which is the
+# decayed-into-an-allowlist failure this whole manifest exists to prevent.
+#
+# So the population is MEASURED, never written (LEARNINGS: marker-scoped-guard-needs-a-population-
+# floor — "at least one entry uses shape 4" pins a population and buys nothing; and
+# backstop-must-compute-not-reenumerate). The set is computed in the loop above from the same
+# predicate the manifest itself uses, and pinned here to exactly the two entries the shape exists
+# for. It reddens in BOTH directions: a shape-4 spelling that stops matching the shim-pin reader
+# empties the set, and a third key acquiring a shape-4-only anchor grows it — either way the shape
+# gets re-justified deliberately instead of drifting. Mirrors elsewhere_shape_exempt's assert
+# directly above, for the same reason.
+manifest_shape4_only="$(printf '%s\n' $manifest_shape4_only | sort -u | tr '\n' ' ' | sed -e 's/^ *//' -e 's/ *$//')"
+assert "elsewhere: shape 4 is the SOLE anchor for exactly shim_effort + shim_model (got '$manifest_shape4_only')" \
+  '[ "$manifest_shape4_only" = "shim_effort shim_model" ]'
 # Positive control: the shape predicate must FIRE on a real consumer mention, or every green
 # above it is consistent with a predicate that can never match anything.
 assert "elsewhere: shape control — a real flag-argument mention is code-shaped" \
@@ -594,6 +652,21 @@ _shape_fx_argword="$tmp/shape-argword.sh"
 printf '%s\n' '  resolve_pin "$runner" shim_model' > "$_shape_fx_argword"
 assert "elsewhere: shape control — a bare argument word is NOT a code-shaped mention" \
   '! code_shaped_mention shim_model "$_shape_fx_argword"'
+# The reader's real spelling today: the layered lookup assigned into a shell GLOBAL, which the
+# shell's own convention upper-cases. Same statement, same read; only the casing differs, so
+# shape 4 must anchor it (see shape_ere's header).
+_shape_fx_assign_glob="$tmp/shape-assign-global.sh"
+printf '%s\n' '  SHIM_MODEL="$(runner_key "$runner" shim_model)"' > "$_shape_fx_assign_glob"
+assert "elsewhere: shape control — shape 4 anchors the upper-cased global assignment too" \
+  'code_shaped_mention shim_model "$_shape_fx_assign_glob" 4'
+# And the LEFT boundary survives the casing: the reader's own default fallback is an assignment,
+# but not a statement-initial one, so it must still fail to anchor. This is the property that made
+# deleting the layered lookup redden (mutation-tested at change 0269); it is re-asserted here in
+# the upper-case spelling so the widening above cannot quietly give it back.
+_shape_fx_fallback="$tmp/shape-fallback.sh"
+printf '%s\n' '  [ -n "$SHIM_MODEL" ] || SHIM_MODEL="inherit"' > "$_shape_fx_fallback"
+assert "elsewhere: shape control — the reader's own fallback assignment does NOT anchor" \
+  '! code_shaped_mention shim_model "$_shape_fx_fallback"'
 # NEGATIVE control reproducing the historical false positive (change 0102): a key appearing ONLY as
 # an English word in prose, inside an embedded heredoc prompt, on non-comment lines. A bare
 # word-boundary grep passes this; the shape predicate must not. Comment-region exclusion alone
