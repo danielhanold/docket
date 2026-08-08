@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0245 — Harden sync-agents wrapper generation and clear the 0192 findings](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0245-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md)**
+> ↩ **[Change 0245 — Harden sync-agents wrapper generation and clear the 0192 findings](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-08-0245-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md)**
 <!-- docket:backlink:end -->
 
 # Harden sync-agents wrapper generation and clear the 0192 findings — design
