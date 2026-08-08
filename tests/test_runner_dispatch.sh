@@ -336,6 +336,34 @@ assert "0140 rd: ... carried by its own --model flag" \
   'grep -qxF -- "--model" <<<"$pargv"'
 rm -rf "$SBX"
 
+# ---- 0140: codex adapter DEFENSIVE TWIN ---------------------------------------------
+# runner-dispatch.sh owns the sentinel (asserted above, through the probe seam). The adapter keeps
+# its own one-line normalization because codex.md documents direct hand invocation that bypasses
+# the facade, and this file exercises the adapter directly — exactly that path. Mirrors the
+# existing inherit groups in tests/test_runner_cursor.sh and tests/test_runner_opencode.sh, with
+# one deliberate difference: on codex, effort SURVIVES the model-less case, because codex carries
+# reasoning effort on a separate `-c model_reasoning_effort=` flag rather than encoding it inside
+# the model value. That asymmetry is correct, not a bug, and pinning it is what stops a later
+# "make the adapters consistent" edit from silently deleting a working effort pin.
+make_fixture
+run_adapter --agent status --model inherit --effort high >/dev/null 2>&1
+argv="$(cat "$LOG")"
+assert "0140 codex: inherit sentinel => no -m flag" '! grep -qxF -- "-m" <<<"$argv"'
+assert "0140 codex: the literal sentinel never reaches codex exec" \
+  '! grep -qxF -- "inherit" <<<"$argv"'
+assert "0140 codex: effort SURVIVES the model-less case (separate -c flag)" \
+  'grep -qxF -- "model_reasoning_effort=high" <<<"$argv"'
+assert "0140 codex: child still ran (normalization is not an abort)" \
+  'grep -qxF -- "--output-last-message" <<<"$argv"'
+# Non-regression control (ADR-0015): a real model ID still reaches codex exec verbatim.
+: > "$LOG"
+run_adapter --agent status --model gpt-5.1-codex >/dev/null 2>&1
+argv="$(cat "$LOG")"
+assert "0140 codex: a real model ID still passes verbatim (ADR-0015)" \
+  'grep -qxF -- "gpt-5.1-codex" <<<"$argv"'
+assert "0140 codex: ... carried by its own -m flag" 'grep -qxF -- "-m" <<<"$argv"'
+rm -rf "$SBX"
+
 # ---- 0237: exec -> call-and-return, exit code preserved verbatim -------------------
 # The facade must regain control after the adapter (that is the whole seam the run gate hangs on),
 # and every path where the gate takes no action must be byte-identical to the pre-0237 exec.
