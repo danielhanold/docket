@@ -858,5 +858,80 @@ assert "0224: under a per-file loop the aggregate is the deciding status" \
 assert "0224: the rule binds the repair worker's post-fix re-run" \
   'grep -qiF -- "including the repair worker'"'"'s post-fix re-run" <<<"$gate_flat"'
 
+# ---------------------------------------------------------------------------
+# Change 0249 — the worker contract carries the gate-execution pointer and a
+# staging rule.
+#
+# Two mechanisms of the change-0223 incident that change 0231 did not close. (1) The gate execution
+# posture lives in docket-build's SKILL.md and its references/gate-execution.md — files a dispatched
+# worker never loads, because a worker is dispatched with its task, not with its controller's
+# contract — so workers running the full suite as their honest focused verification each re-invented
+# background-the-suite-and-yield. (2) "## Scope" forbade EDITING unrelated work but said nothing
+# about STAGING, so `git add -A` could sweep another agent's dirty paths into the worker's one
+# commit, which is how the 0223 double-write started.
+# ---------------------------------------------------------------------------
+
+# The pointer lives in "## The cycle", beside step 4's focused-not-the-whole-suite note. Slice to
+# that section rather than grepping the file: the reference path and the never-yield words would
+# also match a future summary line or a frontmatter description, and a whole-file grep cannot
+# observe the rule being removed from the section that owns it.
+worker_cycle="$(awk '/^## The cycle$/{f=1;next} f&&/^## /{exit} f' <<<"$worker_body")"
+worker_cycle_flat="$(flat "$worker_cycle")"
+
+# Non-vacuity through the SAME extractor, anchored on a clause that PREDATES this change, so a
+# renamed heading or a broken awk range reddens HERE instead of greening every assert below.
+assert "0249: the worker ## The cycle section is extractable" \
+  '[ -n "$worker_cycle" ] &&
+   grep -qF -- "fails for the intended reason" <<<"$worker_cycle_flat"'
+
+# (1a) The pointer names the reference file by path. -F because the path carries regex
+# metacharacters, and the whole point is that the worker is sent to the harness-neutral capability
+# file rather than to docket-build's controller-vocabulary posture section.
+assert "0249: the cycle points at docket-build/references/gate-execution.md" \
+  'grep -qF -- "docket-build/references/gate-execution.md" <<<"$worker_cycle_flat"'
+
+# (1b) ...and the worker-shaped consequence, not the path alone: a rewrite that keeps the pointer
+# while inverting the conduct must redden. Word-anchored so the negation cannot match inside
+# "whenever" or "however".
+assert "0249: the cycle forbids yielding to await the run" \
+  'grep -qiE "\b(never|do not)\b[^.]{0,60}yield to await" <<<"$worker_cycle_flat"'
+
+# (1c) Fail-closed, bound to its subject with ONE gap: it is the UNFINISHED run that is not green.
+# A bare presence grep for "not green" survives a rewrite that keeps the words and drops the rule.
+assert "0249: an unfinished run at the observation bound is not green" \
+  'grep -qiE "unfinished[^.]{0,80}not green" <<<"$worker_cycle_flat"'
+
+# (2) The staging prohibition, scoped through the 0231 "## Scope" extractor above. Three asserts
+# with ONE bounded gap each, never one ERE with three: stacked gaps backtrack catastrophically on
+# non-matching input, so the mutation test hangs instead of reddening (learnings:
+# stacked-gap-regex-hangs-instead-of-failing). The gap class excludes the colon that terminates the
+# prohibition clause, so no gap can bind across the sentence into unrelated Scope prose.
+assert "0249: Scope forbids git add -A" \
+  'grep -qiE "\bnever\b[^:]{0,80}git add -A" <<<"$worker_scope_flat"'
+assert "0249: Scope forbids git add ." \
+  'grep -qiE "\bnever\b[^:]{0,80}git add \." <<<"$worker_scope_flat"'
+assert "0249: Scope forbids git commit -a" \
+  'grep -qiE "\bnever\b[^:]{0,80}git commit -a" <<<"$worker_scope_flat"'
+
+# (3) The positive rule the three prohibitions implement. Without it the bullet is a list of banned
+# spellings, and the next sweep idiom nobody enumerated walks straight through.
+assert "0249: Scope states the explicit-path staging rule" \
+  'grep -qiF -- "Stage by explicit path" <<<"$worker_scope_flat"'
+
+# (4) The observability half — the part a lazy rewrite drops first — bound to what it displaces, so
+# a rewrite that redefines the rule back onto `git status` diffing reddens.
+assert "0249: what the task changed is defined by the task contract, not git status" \
+  'grep -qiE "task contract, not[^.]{0,60}git status" <<<"$worker_scope_flat"'
+
+# (5) The escalation carve-out, pinned in BOTH directions with one gap each. A single assert on the
+# permissive half alone would stay green through a rewrite that re-licensed the sweep for exactly
+# the worker most likely to be in a dirty shared tree — the first-draft wording the critic gate
+# rejected. These are companions to, never replacements of, the 0231 pin
+# "You may revise or replace them", which must stay green above.
+assert "0249: an inherited path within the task boundary is staged normally" \
+  'grep -qiE "within the task[^.]{0,80}staged normally" <<<"$worker_scope_flat"'
+assert "0249: an inherited path outside the task boundary is not staged" \
+  'grep -qiE "outside the task boundary[^.]{0,60}not staged" <<<"$worker_scope_flat"'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
