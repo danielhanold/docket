@@ -64,10 +64,13 @@ eligible(){
   local f="$1" status claimed epoch branch base slug
   [ -f "$f" ] || return 1
   status="$(field "$f" status)"; [ "$status" = "in-progress" ] || return 1
-  claimed="$(field "$f" claimed_at)"; [ -n "$claimed" ] || return 1     # (2a) no positive evidence of expiry
+  # anchored: claimed_at:/branch: are optional (ADR-0057). Body prose reaching (2a) would be
+  # positive "evidence" of a lease that was never stamped — this function flips status back to
+  # proposed on the strength of it.
+  claimed="$(fm_field "$f" claimed_at)"; [ -n "$claimed" ] || return 1  # (2a) no positive evidence of expiry
   epoch="$(iso_to_epoch "$claimed")" || return 1                        # unparseable ⇒ treat as no evidence
   [ "$(( NOW - epoch ))" -gt "$TTL_SECS" ] || return 1                  # (2b) lease not yet expired
-  branch="$(field "$f" branch)"
+  branch="$(fm_field "$f" branch)"
   base="$(basename "$f")"; slug="${base%.md}"; slug="${slug#*-}"
   any_branch_ref "$branch" "feat/$slug" && return 1                     # (3) branch exists ⇒ never reclaim here
   printf '%s' "$(( (NOW - epoch) / 3600 ))"; return 0
