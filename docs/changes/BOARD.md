@@ -1,13 +1,18 @@
 # Backlog
 
-**265 changes** — 🟡 30 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 158 done · 🗑️ 72 killed
+**265 changes** — 🟢 1 in progress · 🟡 29 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 158 done · 🗑️ 72 killed
 
-## 🟡 Proposed (30)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0140](active/0140-normalize-the-inherit-model-sentinel-once-for-every-runner-a.md) | Normalize the inherit model sentinel once for every runner adapter | `medium` | `fix` | [spec](../superpowers/specs/2026-08-07-normalize-the-inherit-model-sentinel-once-for-every-runner-a-design.md) | `feat/normalize-the-inherit-model-sentinel-once-for-every-runner-a` |
+
+## 🟡 Proposed (29)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
 | [0118](active/0118-decide-whether-the-sweep-s-skip-publish-path-should-also-mar.md) | Decide whether the sweep's skip-publish path should also mark an unpublished terminal record | `medium` | `fix` | build-ready |
-| [0140](active/0140-normalize-the-inherit-model-sentinel-once-for-every-runner-a.md) | Normalize the inherit model sentinel once for every runner adapter | `medium` | `fix` | build-ready |
 | [0150](active/0150-pin-or-report-the-resolved-shell-toolchain-across-the-test-s.md) | Pin or report the resolved shell toolchain across the test suite | `medium` | `chore` | build-ready |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | build-ready |
 | [0158](active/0158-batch-mode-for-docket-implement-next-build-several-coupled-c.md) | Batch mode for docket-implement-next — build several coupled changes on one branch | `medium` | `feat` | needs-brainstorm |
