@@ -23,7 +23,8 @@ Copied verbatim from the spec and from `AGENTS.md` (always-in-context repo rules
 - **A guard is code: mutation-test it.** After every new assert, revert the production edit it guards, confirm the assert goes RED, restore, confirm GREEN. Confirm each mutation actually landed with `grep -c` before and after — a substitution that silently fails to match yields a green run with nothing mutated.
 - **Cross-references in maintained source anchor on a symbol name or a verbatim-quoted clause, never a line number.** `tests/test_comment_anchor_style.sh` rejects the filename-plus-line-number form. Write "the reference implementation in `sync-agents.sh`'s `validate_user_agent_values`", never "sync-agents.sh:606".
 - **Run the whole suite at the build gate**, not just the tests this plan names: `scripts/run-tests.sh` (this repo's resolved `finalize.test_command`).
-- **Use `/usr/bin/grep`, not bare `grep`, in new test asserts that pin a regex** — PATH `grep` here is ugrep and accepts syntax BSD grep rejects. The existing asserts in `tests/test_sync_agents_validator.sh` already do this; match the file's local idiom in each file you touch.
+- **Use `/usr/bin/grep`, not bare `grep`, in new test asserts that pin a regex** — PATH `grep` here is ugrep and accepts syntax BSD grep rejects. The existing asserts in `tests/test_sync_agents_validator.sh` already do this; match the file's local idiom in each file you touch. **This binds mutation-test landing checks too:** `grep -c "case \"$raw\" in"` through PATH `grep` treats the `$` as an anchor and reports `0` on an *unmutated* file, which reads exactly like a landed mutation. Always `/usr/bin/grep -cF` for a landing check.
+- **Never raise an existing row in `tests/runtime-budgets.tsv`.** `tests/test_runtime_budgets.sh` pins the table's TOTAL (`EXPECTED_TOTAL`) precisely so that a quiet per-row raise reddens, and its remedy text refuses the raise by name: *"A ceiling describes what a file already costs, so it moves when the file is re-shaped, not when it gets slower: shard the file, or move its new assertions into a shard with room."* The total legitimately moves in exactly two cases, and this change uses the first: **a new test file brings its own row**. Re-seed `EXPECTED_TOTAL` in the same diff with a dated comment naming the case, following the precedent comments already in that file. A row may never exceed the hard 60s ceiling, and the table's floor for a small file is 10s.
 - The one sentence added by Task 4, byte-identical at all five sites:
   `Write model/effort values unquoted and space-free; \`#\` cannot appear inside the \`{…}\` flow map.`
 
@@ -34,8 +35,9 @@ Copied verbatim from the spec and from `AGENTS.md` (always-in-context repo rules
 | File | Responsibility | Task |
 |---|---|---|
 | `scripts/lib/harness-defaults.sh` | Modify: quote leg in `hd_validate`; `keep_comments` mode on `_hd_block`/`_hd_entry_line`; new `_hd_flow_map_has_comment`; `#` leg in `hd_validate` | 1, 2 |
-| `tests/test_harness_defaults_validator.sh` | Modify: quote fire probes, `#` fire/ignore probes | 1, 2 |
-| `tests/runtime-budgets.tsv` | Modify: raise `test_harness_defaults_validator.sh`'s budget to cover the added `hd_validate` sweeps | 1 |
+| `tests/test_harness_defaults_flow_map.sh` | **Create**: every new `hd_validate` probe this change adds — quote fire probes (Task 1), `#` fire/ignore probes and the reader assert (Task 2) | 1, 2 |
+| `tests/runtime-budgets.tsv` | Modify: add the new shard's own row (the guard's permitted new-test-file case) | 1 |
+| `tests/test_runtime_budgets.sh` | Modify: re-seed `EXPECTED_TOTAL` by the new row, naming the case | 1 |
 | `sync-agents.sh` | Modify: `keep_comments` 5th arg on `harness_agent_line` (both bash paths); new `flow_map_has_comment`; `#` leg in `validate_user_agent_values` | 3 |
 | `tests/test_sync_agents_validator.sh` | Modify: `#` fire/ignore probes (0173's quote probes untouched) | 3 |
 | `README.md` | Modify: the two `agents:` config examples | 4 |
@@ -53,8 +55,11 @@ ADR-0065's rule, applied to the twin the rule was generalized *from*. A quoted b
 
 **Files:**
 - Modify: `scripts/lib/harness-defaults.sh` — the `elif [ "$v" != "$raw" ]` branch inside `hd_validate`'s `for k in model effort` loop
-- Modify: `tests/runtime-budgets.tsv` — the `tests/test_harness_defaults_validator.sh` row
-- Test: `tests/test_harness_defaults_validator.sh`
+- Create: `tests/test_harness_defaults_flow_map.sh` — a new shard holding every `hd_validate` probe this change adds
+- Modify: `tests/runtime-budgets.tsv` — add the new shard's row
+- Modify: `tests/test_runtime_budgets.sh` — re-seed `EXPECTED_TOTAL`
+
+**Why a new shard rather than more asserts in `tests/test_harness_defaults_validator.sh`:** that file sits at 49.5s against a 50s row (measured), so its own margin is already gone, and every assert here costs a full `hd_validate` sweep (~3.3s). Adding this change's ~10 new sweeps to it would breach both its row and the hard 60s ceiling, and raising the row is exactly what the budget guard refuses. A new file is the guard's own first sanctioned case and the one with repeated precedent in `EXPECTED_TOTAL`'s comment history.
 
 **Interfaces:**
 - Consumes: `hd_field`, `hd_field_raw`, `hd_validate` (all existing, unchanged signatures)
@@ -62,7 +67,29 @@ ADR-0065's rule, applied to the twin the rule was generalized *from*. A quoted b
 
 - [ ] **Step 1: Write the failing tests**
 
-Add to `tests/test_harness_defaults_validator.sh`, immediately after the existing `reject: quoted scalar diagnostic names bareness, not absence` assert (the space-bearing `"claude opus 5"` probe) and before the `reject: missing file` assert. The existing probe uses a value **with spaces**, which the `!=` leg already catches; these use space-free values, which it cannot.
+Create `tests/test_harness_defaults_flow_map.sh`. Its harness preamble mirrors `tests/test_harness_defaults_validator.sh`'s exactly — same `set -uo pipefail`, `REPO`, `assert`, library source, `HD`/`SRC`, `T`/`mut` scaffolding, and the same trailing `rm -rf "$T"` / `PASS`/`FAIL` epilogue — so the two shards stay recognizably one family:
+
+```bash
+#!/usr/bin/env bash
+# tests/test_harness_defaults_flow_map.sh — value-level probes for hd_validate's two change-0255
+# legs: the ADR-0065 quote leg, and the `#`-inside-the-flow-map leg. A separate shard from
+# test_harness_defaults_validator.sh purely on cost: every assert here is one full hd_validate
+# sweep (~3.3s), and that file's 50s row has no margin left.
+# Run: bash tests/test_harness_defaults_flow_map.sh
+set -uo pipefail
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+fail=0
+assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+
+. "$REPO/scripts/lib/harness-defaults.sh"
+HD="$REPO/agents/harness-defaults.yml"
+SRC="$REPO/agents"
+
+T="$(mktemp -d "${TMPDIR:-/tmp}/hd-flow-map.XXXXXX")"
+mut(){ cp "$HD" "$T/hd.yml"; }
+```
+
+Then the quote probes. The probe already in `test_harness_defaults_validator.sh` uses a value **with spaces**, which the `!=` leg already catches; these use space-free values, which it cannot. Leave that existing probe where it is — do not move it.
 
 ```bash
 # 0255 / ADR-0065: a quoted but SPACE-FREE value. `"claude-opus-5"` has consumed == raw under both
@@ -80,10 +107,21 @@ mut; sed -i.bak "s|^    adr:.*|    adr:                   { model: 'claude-opus-
 assert "reject: single-quoted SPACE-FREE scalar" '! hd_validate "$T/hd.yml" "$SRC" 2>/dev/null'
 ```
 
+Close the file with the same epilogue the sibling shard uses:
+
+```bash
+rm -rf "$T"
+
+[ "$fail" = 0 ] && echo "PASS" || echo "FAIL"
+exit "$fail"
+```
+
+Make it executable (`chmod +x`) to match its siblings.
+
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `bash tests/test_harness_defaults_validator.sh`
-Expected: FAIL — the three new asserts print `NOT OK`, because `hd_validate` currently returns 0 for a quoted space-free value. The pre-existing asserts stay `ok`.
+Run: `bash tests/test_harness_defaults_flow_map.sh`
+Expected: FAIL — all three asserts print `NOT OK`, because `hd_validate` currently returns 0 for a quoted space-free value.
 
 - [ ] **Step 3: Add the quote leg**
 
@@ -106,43 +144,65 @@ Keep the existing comment lines that the new comment replaces only where they ar
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `bash tests/test_harness_defaults_validator.sh`
-Expected: `PASS`, exit 0, with every new assert `ok`.
+Run: `bash tests/test_harness_defaults_flow_map.sh`
+Expected: `PASS`, exit 0, with every assert `ok`.
 
 - [ ] **Step 5: Mutation-test the new asserts**
 
+Note the landing check uses `/usr/bin/grep -cF`: PATH `grep` is ugrep, which reads the `$` in the pattern as an anchor and reports `0` on an **unmutated** file — indistinguishable from a landed mutation, and the exact false-green this step exists to rule out.
+
 ```bash
 cd /Users/homer/dev/docket/.worktrees/complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule
-grep -c "case \"\$raw\" in" scripts/lib/harness-defaults.sh                     # expect 1
-cp scripts/lib/harness-defaults.sh /tmp/hd-backup.sh                            # NOT `git checkout --`: that restores HEAD and destroys this task's uncommitted work
+/usr/bin/grep -cF 'case "$raw" in' scripts/lib/harness-defaults.sh              # expect 1
+cp scripts/lib/harness-defaults.sh "${TMPDIR:-/tmp}/hd-backup.sh"               # NOT `git checkout --`: that restores HEAD and destroys this task's uncommitted work
 perl -pi -e "s/ \|\| case \"\\\$raw\" in '\"'\*\|\"'\"\*\) true;; \*\) false;; esac//" scripts/lib/harness-defaults.sh
-grep -c "case \"\$raw\" in" scripts/lib/harness-defaults.sh                     # expect 0 — proves the mutation LANDED
-bash tests/test_harness_defaults_validator.sh; echo "rc=$?"                     # expect FAIL / rc=1
-cp /tmp/hd-backup.sh scripts/lib/harness-defaults.sh && rm /tmp/hd-backup.sh
-bash tests/test_harness_defaults_validator.sh; echo "rc=$?"                     # expect PASS / rc=0
+/usr/bin/grep -cF 'case "$raw" in' scripts/lib/harness-defaults.sh             # expect 0 — proves the mutation LANDED
+bash tests/test_harness_defaults_flow_map.sh; echo "rc=$?"                      # expect FAIL / rc=1
+cp "${TMPDIR:-/tmp}/hd-backup.sh" scripts/lib/harness-defaults.sh && rm "${TMPDIR:-/tmp}/hd-backup.sh"
+bash tests/test_harness_defaults_flow_map.sh; echo "rc=$?"                      # expect PASS / rc=0
 ```
 
-If the `perl` substitution reports 1 both times, the mutation did not land — fix the pattern and re-run. A green suite under a mutation that never applied is not evidence.
+If the landing check reports 1 both times, the mutation did not land — fix the pattern and re-run. A green suite under a mutation that never applied is not evidence.
 
-- [ ] **Step 6: Re-measure the file's runtime and update its budget**
+- [ ] **Step 6: Give the new shard its budget row**
 
-Every assert in this file costs one full `hd_validate` sweep (~3.3s on the reference machine); the file holds 13 such calls against a 50s budget, and this task adds 3 more. Measure and raise the budget rather than letting the suite report `OVER BUDGET:` — that line is a finding to act on, not noise.
+The new file has no row yet, so `tests/test_runtime_budgets.sh` assertion (2) — completeness, both directions — fails until you add one. Measure first:
 
 ```bash
-time bash tests/test_harness_defaults_validator.sh
+time bash tests/test_harness_defaults_flow_map.sh
 ```
 
-Then edit the `tests/test_harness_defaults_validator.sh` row of `tests/runtime-budgets.tsv`, raising the second column to a value comfortably above the measured wall clock (round up to the next 5s, keeping the `parallel` third column). Record the measured number in the commit message — a tolerance constant with no recorded measurement is wrong in both directions on any other machine.
+Add the row to `tests/runtime-budgets.tsv` in the file's existing sort position, tab-separated, third column `parallel`:
+
+```
+tests/test_harness_defaults_flow_map.sh	<seconds>	parallel
+```
+
+Size `<seconds>` from the measurement **with headroom for Task 2**, which appends roughly six more `hd_validate` sweeps to this same file (~20s more). Sizing it once here avoids a second move of the pinned total inside one change. The table's floor is 10s and the hard ceiling is 60s; stay under 60 with real margin.
+
+Then re-seed `EXPECTED_TOTAL` in `tests/test_runtime_budgets.sh` by exactly that row's value, adding a comment line at the TOP of the existing precedent list in the same style:
+
+```
+EXPECTED_TOTAL=<1365 + row>
+                    # 1365 -> <new> (change 0255): the new-test-file case named below —
+                    # tests/test_harness_defaults_flow_map.sh brings its own row, measured
+                    # standalone at <measured>s and sized to <row>s to cover the `#`-leg probes
+                    # task 2 appends to the same file.
+```
+
+Record the measured number in the commit message — a tolerance constant with no recorded measurement is wrong in both directions on any other machine.
+
+**Do not touch the `tests/test_harness_defaults_validator.sh` row.** This change adds no assertions to that file, so its cost is unchanged.
 
 - [ ] **Step 7: Run the whole suite**
 
 Run: `scripts/run-tests.sh`
-Expected: every file passes; no `OVER BUDGET:` line for `tests/test_harness_defaults_validator.sh`.
+Expected: every file passes, `tests/test_runtime_budgets.sh` included. No `OVER BUDGET:` line for either harness-defaults shard.
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add scripts/lib/harness-defaults.sh tests/test_harness_defaults_validator.sh tests/runtime-budgets.tsv
+git add scripts/lib/harness-defaults.sh tests/test_harness_defaults_flow_map.sh tests/runtime-budgets.tsv tests/test_runtime_budgets.sh
 git commit -m "fix(0255): add ADR-0065's quote leg to hd_validate"
 ```
 
@@ -154,7 +214,7 @@ git commit -m "fix(0255): add ADR-0065's quote leg to hd_validate"
 
 **Files:**
 - Modify: `scripts/lib/harness-defaults.sh` — `_hd_block`, `_hd_entry_line`, new `_hd_flow_map_has_comment`, `hd_validate`'s per-entry loop
-- Test: `tests/test_harness_defaults_validator.sh`
+- Test: `tests/test_harness_defaults_flow_map.sh` (the shard Task 1 created)
 
 **Interfaces:**
 - Consumes: `_hd_block(file, harness)`, `_hd_entry_line(file, harness, agent)` — both from Task 0 state, both extended here
@@ -167,7 +227,7 @@ git commit -m "fix(0255): add ADR-0065's quote leg to hd_validate"
 
 - [ ] **Step 1: Write the failing tests**
 
-Add to `tests/test_harness_defaults_validator.sh`, after Task 1's quote probes and before the `reject: missing file` assert.
+Append to `tests/test_harness_defaults_flow_map.sh`, after Task 1's quote probes and before the closing `rm -rf "$T"` epilogue.
 
 ```bash
 # 0255: a `#` INSIDE the flow map. _hd_block strips comments before either reader runs, so
@@ -213,7 +273,7 @@ assert "reader: keep_comments view returns the same entry, comments intact" \
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `bash tests/test_harness_defaults_validator.sh`
+Run: `bash tests/test_harness_defaults_flow_map.sh`
 Expected: FAIL. The `reject: '#' inside the flow map` asserts fail (validator returns 0 today) and the `keep_comments` reader assert fails (the flag is ignored, so both calls return identical stripped text). The two accept-probes may already pass — that is expected; they are the over-rejection floor for Step 3, and a guard that is green before AND after the change is only meaningful as a floor.
 
 - [ ] **Step 3: Add the `keep_comments` mode and the predicate**
@@ -293,12 +353,12 @@ Wrapper emission continues to read the stripped line; the corner is rejected at 
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
-Run: `bash tests/test_harness_defaults_validator.sh`
+Run: `bash tests/test_harness_defaults_flow_map.sh`
 Expected: `PASS`, exit 0.
 
 - [ ] **Step 6: Mutation-test the new asserts**
 
-Run each mutation, confirming with `grep -c` that it landed, that the suite reddens, and that restoring makes it green again. Back up with `cp`, never `git checkout --` (that restores HEAD and would destroy Task 1's committed-but-then-modified state and any uncommitted work).
+Run each mutation, confirming with `/usr/bin/grep -cF` that it landed, that the suite reddens, and that restoring makes it green again. Back up with `cp`, never `git checkout --` (that restores HEAD and would destroy Task 1's committed-but-then-modified state and any uncommitted work).
 
 1. Delete the `if _hd_flow_map_has_comment` block from `hd_validate` → the fire probes must redden.
 2. Change `_hd_flow_map_has_comment`'s first-`{`-precedes-`#` guard (`case "${l%%\{*}" in *'#'*) return 1 ;; esac`) to `return 1` unconditionally → nothing fires; the fire probes redden.
@@ -310,14 +370,24 @@ If any mutation leaves the suite green, that assert is decoration — fix the as
 - [ ] **Step 7: Run the whole suite**
 
 Run: `scripts/run-tests.sh`
-Expected: all green. Pay attention to `tests/test_harness_defaults.sh` and `tests/test_sync_agents_defaults.sh` — they consume `_hd_block`/`_hd_entry_line` through their default (no-flag) path, which must be byte-identical to today's behavior. Re-check the budget line for `tests/test_harness_defaults_validator.sh`; raise it again in `tests/runtime-budgets.tsv` if the added sweeps pushed it over.
+Expected: all green. Pay attention to `tests/test_harness_defaults.sh` and `tests/test_sync_agents_defaults.sh` — they consume `_hd_block`/`_hd_entry_line` through their default (no-flag) path, which must be byte-identical to today's behavior.
+
+Check the shard's measured cost against the row Task 1 sized:
+
+```bash
+time bash tests/test_harness_defaults_flow_map.sh
+```
+
+If it still fits the row, change nothing — that is the intended outcome of Task 1 sizing with headroom. If it does not fit, adjust **that one new row** and `EXPECTED_TOTAL` together, and update Task 1's `EXPECTED_TOTAL` comment so it states the final size. This is still the single new-test-file case being sized before it ever merges, not a raise of an existing ceiling — but it must stay under the 60s hard ceiling. If it cannot, stop and report rather than reaching for a serial pin.
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add scripts/lib/harness-defaults.sh tests/test_harness_defaults_validator.sh tests/runtime-budgets.tsv
+git add scripts/lib/harness-defaults.sh tests/test_harness_defaults_flow_map.sh
 git commit -m "fix(0255): reject a '#' inside an agents: flow map in hd_validate"
 ```
+
+(Add `tests/runtime-budgets.tsv tests/test_runtime_budgets.sh` to the `git add` only if Step 7 required resizing the row.)
 
 ---
 
@@ -655,4 +725,6 @@ git commit -m "docs(0255): state the unquoted / no-'#' rule at its five points o
 
 **Deliberate non-goals, restated so no task drifts into them.** No shared helper extracted between the two files (deferred to #0256). No change to the strip order. No widening of what values are legal. No vendor model allowlist.
 
-**Known risk to surface at review.** `tests/test_harness_defaults_validator.sh` sits at a 50s budget with ~13 full `hd_validate` sweeps; this plan adds roughly 7 more across Tasks 1 and 2. Step 6 of Task 1 and Step 7 of Task 2 both re-measure and raise `tests/runtime-budgets.tsv`. If the measured total approaches the point where the file dominates the parallel suite's wall clock, sharding it is a reasonable follow-up to raise at review — but it is out of scope here, not a silent decision to make mid-build.
+**Plan correction, 2026-08-08 (recorded rather than silently rewritten).** This plan's first draft told Tasks 1 and 2 to add their `hd_validate` probes to `tests/test_harness_defaults_validator.sh` and to *raise that file's budget row*. The Task 1 worker returned `BLOCKED` against it, correctly: `tests/test_runtime_budgets.sh` pins the table's TOTAL precisely so a per-row raise reddens, and its remedy text refuses the raise by name, directing instead to "shard the file, or move its new assertions into a shard with room." The worker also measured the file at **49.5s against its 50s row** — its margin was already gone before this change added anything. The plan now routes every new probe into a new shard, `tests/test_harness_defaults_flow_map.sh`, which brings its own row: the guard's own first sanctioned case, with repeated precedent in `EXPECTED_TOTAL`'s comment history. The same worker also caught that the original mutation landing check used PATH `grep` (ugrep) with an unescaped `$`, which reports `0` on an unmutated file and would have made every mutation test a false green; the Global Constraints now require `/usr/bin/grep -cF` there.
+
+**Known risk to surface at review.** The new shard is sized once, in Task 1, with headroom for the probes Task 2 appends, so the pinned total moves exactly once inside this change. If Task 2's measurement overruns that row, Task 2 Step 7 resizes the same new row rather than touching any existing one — and if it cannot fit under the 60s hard ceiling, the plan directs a stop-and-report instead of a serial pin.
