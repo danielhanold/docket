@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/make-the-docket-example-yml-guard-suite-bite
-claimed_at: 2026-08-08T01:58:00Z
+claimed_at: 2026-08-08T02:05:00Z
 pr:
 blocked_by:
 reconciled: true
@@ -83,3 +83,21 @@ part 2 → part 3).
 the bash-3.2 `$()`-heredoc parse hazard — fails admission gate 2 (independent value): every other
 test file is reached only through `run-tests.sh`'s `$TEST_BASH` re-exec, so the hazard has no
 live exposure there. Reported, not filed.
+
+### 2026-08-08 — resume re-reconcile (origin/main advanced; no drift, no scope change)
+
+The first run was interrupted mid-Task-4. `origin/main` has since advanced 483c5dad → 760cac67
+(changes 0237, 0250, 0259 landing), so the resume-safety guard re-ran the pass rather than
+trusting the earlier one. **Zero intersection with this change's surface**: no commit in
+`483c5dad..760cac67` touches `tests/test_docket_example_yml.sh`,
+`tests/test_grep_portability.sh`, `docs/docket-example.yml`, or
+`agents/harness-defaults.yml` — the new work sits in `scripts/render-board.sh`,
+`scripts/docket-status.sh`, `scripts/runner-dispatch.sh`, `scripts/verify-run.sh` and their
+suites. #0150 is still unbuilt, so the A7 collision on `test_grep_portability.sh`'s prologue
+stays hypothetical and no `depends_on:` is added.
+
+Tasks 1–3 are committed on the branch (ecb07a38, b5f22bcd, fa1f0d66). The interrupted run's
+uncommitted partial Task 4 was **discarded, not adopted** — the build restarts Task 4 from the
+plan under the normal test-first contract. Build resumes at plan Task 4.
+
+**Auto-capture:** nothing new surfaced this pass; nothing minted.
