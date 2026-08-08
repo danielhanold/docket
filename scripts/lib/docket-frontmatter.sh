@@ -43,6 +43,58 @@
 #   docket_priority_is_member VALUE  — exit 0 iff VALUE is a declared priority (empty is false).
 #   docket_priority_rank VALUE       — print the rank index; empty/unknown uses the default rank.
 #
+# --- THE SELECTION RULE (canonical; change 0244) ------------------------------------------------
+# Four scalar read shapes with silently different behavior. The question that picks one is never
+# "is this read anchored?" but "CAN THIS KEY BE ABSENT from the frontmatter of every file this
+# call site reads?" — because an unanchored read of an absent key does not return empty, it runs
+# past the closing `---` and returns whatever body line happens to open with that word. In a repo
+# whose subject matter IS the field names, body prose opening `pr:` or `spec:` is not a contrived
+# fixture; it is the normal content of a change file.
+#
+#   caller needs                                          | accessor
+#   ------------------------------------------------------|---------------------
+#   key guaranteed present, logical value                  | field
+#   key guaranteed present, caller decodes quotes itself   | field_raw
+#   key may be ABSENT, ordinary structured value           | fm_field
+#   key may be ABSENT, caller decodes quotes itself        | fm_field_raw
+#   key may be ABSENT, caller JUDGES the YAML form as authored, or the value is free prose where
+#     a whitespace-preceded `#` is DATA (blocked_by)       | fm_field_verbatim
+#
+# GUARANTEED PRESENT means every file the call site reads carries the key, by template. Today that
+# is: change files — id, status, slug, title, priority, created, updated; ADRs — id, status, title,
+# change, date; learnings findings — slug, hook, topics. Those sites stay on field()/field_raw()
+# with no churn: the frontmatter line is necessarily the first match, so whole-file scanning is a
+# safe optimization, grandfathered rather than recommended.
+#
+# EVERY OTHER KEY takes an anchored read — never field() (ADR-0057). In docket's own schema the
+# absent-capable set is spec, plan, results, branch, pr, issue, blocked_by, type, claimed_at,
+# trivial, auto_groomable, promotion_state, promoted_to, discovered_from.
+#
+# Within the anchored tier, fm_field is the default. fm_field_verbatim is for exactly two jobs:
+# a consumer JUDGING the scalar's YAML form as authored (board-checks's scalar_form_check, which
+# cannot be handed a value the reader already repaired), and a free-prose value where the comment
+# strip would TRUNCATE data — blocked_by, whose `PR #69 is stale` arrives as `PR` through fm_field.
+# The accepted cost is that a hand-quoted blocked_by renders with its quotes intact.
+#
+# The raw tier (field_raw / fm_field_raw) is for a caller doing its OWN quote/escape decoding
+# (ADR-0058). Two live callers, both field_raw on always-present keys: render-learnings-index.sh's
+# dequote() on hook, and board-checks.sh's scalar_form_check on title, which must see the quotes to
+# know whether a colon-space is quoted or bare. fm_field_raw has ZERO production callers today —
+# tests/test_frontmatter_read_shapes.sh pins that at zero. It is kept deliberately, not by neglect:
+# it is the documented raw twin the next optional-key decoding consumer reaches for, and without it
+# the raw/anchored quadrant of the table above would be empty. Neither adopt nor delete it silently.
+#
+# When unsure whether a key is optional, use the anchored shape. Anchoring is always correct;
+# whole-file is only ever an optimization. This rule is guarded by the (accessor, key) census in
+# tests/test_frontmatter_read_shapes.sh — adding a genuinely always-present key there is a
+# conscious one-line edit, which is the point.
+#
+# The list_field/int_field wrappers deliberately keep delegating to field(): their live production
+# keys (id, depends_on, adrs, topics, supersedes/reverses/relates_to, pr) are empirically 0-missing
+# across the tree. related/discovered_from have test-only wrapper callers, and discovered_from: is
+# genuinely ABSENT from ~96 pre-template change files — so they are test-only, NOT
+# template-guaranteed. Migrating the wrappers themselves is out of scope for 0244.
+#
 # resolve_deps globals (keyed by integer id):
 #   STATUS_OF[id]   the change's own status
 #   DEP_STATE[id]   clear | waiting
