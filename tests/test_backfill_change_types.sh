@@ -219,6 +219,13 @@ if chflags uchg "$drb/active/0002-b.md" 2>/dev/null; then
   assert "rollback: the archive is byte-identical" '[ "$(arc_hash "$drb")" = "$rbarc" ]'
   assert "rollback: no rollback-failure warning was emitted" \
     '! grep -q "rollback failed" <<<"$rberr"'
+  # TMPDIR-honoring, pinned behaviorally. The script's scratch dir holds the rollback copies, which
+  # inherit the immutable flag, so its own `rm -rf` trap cannot remove it and a remnant survives.
+  # A bare `mktemp -d` ignores TMPDIR on macOS, so that remnant would land OUTSIDE this fixture and
+  # leak undeletably; templated, it lands under the redirect where the cleanup trap above reaches
+  # it. Asserting the remnant is here is what makes the template load-bearing rather than cosmetic.
+  assert "rollback: the script's scratch dir honored the redirected TMPDIR" \
+    '[ -n "$(find "$drb/tmpdir" -maxdepth 1 -name "backfill-change-types.*" -print -quit)" ]'
 else
   # No way to make one destination unwritable here (root, or a filesystem without chflags).
   echo "skip - rollback: cannot make an install destination unwritable in this environment"
