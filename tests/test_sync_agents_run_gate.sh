@@ -34,15 +34,29 @@ assert "sync-agents.sh does not restate the gate commands inline" \
 GATE_LINES="$(grep -c "" "$GATE_SRC" 2>/dev/null || echo 0)"
 # Bound raised 14 -> 18 (change 0242 review, finding 1): every command must carry the convention's
 # mandatory facade prefix, since `docket.sh` is on no PATH. Correctness over the plan-time guess.
-assert "gate text is at most 18 lines" '[ "$GATE_LINES" -ge 1 ] && [ "$GATE_LINES" -le 18 ]'
+# Raised 18 -> 23 (finding 3): the symmetric metadata re-sync — two `preflight` commands at full
+# facade spelling, plus the sentence saying why both reads must be fresh.
+assert "gate text is at most 23 lines" '[ "$GATE_LINES" -ge 1 ] && [ "$GATE_LINES" -le 23 ]'
 
-# --- the four behavioral claims, each bound to what it is asserted ABOUT ---
+# --- the behavioral claims, each bound to what it is asserted ABOUT ---
 # (learnings: prose-guard-binds-phrase-to-claim — never a bare phrase-presence grep)
 G="$(flat "$GATE_SRC" 2>/dev/null)"
 assert "gate: snapshots the in-progress set BEFORE dispatching" \
   '[[ "$G" == *"Before dispatching"*"verify-run --in-progress-ids"* ]]'
 assert "gate: verifies the attributed id after the return" \
   '[[ "$G" == *"After the return"*"verify-run <id>"* ]]'
+# `verify-run --in-progress-ids` is a pure LOCAL reader, so an asymmetric re-sync attributes an
+# earlier session's abandoned claim to this run (scripts/runner-dispatch.sh: "not merely imprecise,
+# it is actively wrong"). Each side's re-sync is bound to ITS OWN snapshot, not merely present:
+# BEFORE_HALF is the prose up to the FIRST `--in-progress-ids`, so a step-1 preflight cannot be
+# satisfied by step 3's, and the "After the return" window is already past step 1's.
+BEFORE_HALF="${G%%verify-run --in-progress-ids*}"
+assert "gate: re-syncs metadata before the BEFORE snapshot" \
+  '[[ "$BEFORE_HALF" == *"Before dispatching"*"docket.sh preflight"* ]]'
+assert "gate: re-syncs metadata again before the AFTER snapshot" \
+  '[[ "$G" == *"After the return"*"docket.sh preflight"*"verify-run --in-progress-ids"* ]]'
+assert "gate: says both snapshots must read fresh origin state" \
+  '[[ "$G" == *"both snapshots"*"FRESH ORIGIN"* ]]'
 assert "gate: run-halted never re-dispatches" \
   '[[ "$G" == *"run-halted"*"never re-dispatch"* ]]'
 assert "gate: run-incomplete re-dispatches exactly ONCE, then stops" \
