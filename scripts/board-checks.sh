@@ -152,10 +152,10 @@ FINDINGS=""                            # accumulate "<check>\t<id>\t<msg>\n"; so
 # emit raw. The escape therefore lives HERE, wrapping both embedded columns of every emit, rather
 # than at that one call site: every current and future caller is covered without an audit.
 #
-# The LF coverage is deliberately partial and record-shaped, not a completeness guarantee: leg A's
-# call sites capture branch_only_artifact through $(…), which strips a TRAILING newline before
-# sanitize is ever reached, so only INTERIOR newlines are ever seen here. That is the whole job —
-# keep one finding on one record.
+# The LF coverage is deliberately partial and record-shaped, not a completeness guarantee: every
+# LF is escaped wherever it sits; leg A's $(…) capture happens to strip a trailing one earlier, so
+# a truncated-path message is a fidelity limit of that call site, not of this escape. That is the
+# whole job — keep one finding on one record.
 #
 # Pure bash parameter expansion: BSD sed does not interpret \t in a pattern, so a sed form would be
 # silently wrong.
