@@ -2653,6 +2653,20 @@ assert "mutation O is the CAPTURE defect, not mutation F: the NUL read form surv
 armOout="$(armrun_at "$ARQ1")"
 assert "mutation O (capture the -z listing): the branch-only fixture 230 goes GREEN — NULs stripped, the loop never runs" \
   '! has_finding "$armOout" aborted-run 230'
+# NON-VACUITY for the GREEN assert above — the guard mutation 4 carries, adapted. For the ARQ1
+# fixture under mutation O the CORRECT $armOout is entirely EMPTY, so `! has_finding` passes
+# identically whether the capture defect was reproduced or the mutant never ran at all; armrun_at
+# sends stderr to /dev/null, which is exactly how a copy that aborts at runtime fakes a green
+# assert. So re-run capturing stderr INSTEAD of stdout. It CANNOT demand silence the way mutation
+# 4's does: capturing a NUL-bearing listing is the whole point of this mutant, and bash announces
+# it ("ignored null byte in input") on every such substitution — a silence assert here would be
+# red on the correct mutant. What it pins instead is a normal exit AND the absence of any
+# syntax/abort diagnostic, which is what a dead copy emits and a working one never does.
+armO_err="$(NOW=$NOW_EPOCH bash "$ARMSCRIPT" --changes-dir "$ARQ1/docs/changes" \
+  --metadata-branch docket --integration-branch main 2>&1 >/dev/null)"
+armO_rc=$?
+assert "mutation O: the mutated copy still RUNS — normal exit, no abort diagnostic (armrun_at's 2>/dev/null hides both)" \
+  '[ "$armO_rc" = 0 ] && ! grep -qE "syntax error|unexpected token|command not found|unbound variable|No such file or directory" <<<"$armO_err"'
 rm -rf "$armcopy"
 
 # ---------------- leg C mutations (change 0211) ----------------
