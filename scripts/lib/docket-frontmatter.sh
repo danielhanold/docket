@@ -96,9 +96,12 @@
 # the raw/anchored quadrant of the table above would be empty. Neither adopt nor delete it silently.
 #
 # When unsure whether a key is optional, use the anchored shape. Anchoring is always correct;
-# whole-file is only ever an optimization. This rule is guarded by the (accessor, key) census in
-# tests/test_frontmatter_read_shapes.sh — adding a genuinely always-present key there is a
-# conscious one-line edit, which is the point.
+# whole-file is only ever an optimization. This rule is guarded by the (corpus, accessor, key)
+# census in tests/test_frontmatter_read_shapes.sh, which PARSES the three guaranteed sets out of the
+# "Today that is:" sentence above rather than restating them — so promoting a genuinely
+# always-present key is a conscious edit to THIS sentence, which is the point. The census decides a
+# call site's corpus per call site, from the (script, file-argument) pair; a site it cannot classify
+# is a violation, never a pass.
 #
 # The list_field/int_field wrappers deliberately keep delegating to field(): their live production
 # keys (id, depends_on, adrs, topics, supersedes/reverses/relates_to, pr) are empirically 0-missing
