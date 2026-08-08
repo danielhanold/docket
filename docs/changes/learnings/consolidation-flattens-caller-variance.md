@@ -2,9 +2,9 @@
 slug: consolidation-flattens-caller-variance
 hook: "Restatements across N callers are not pure duplication — diff them against each other before templating, or the shared source silently rewrites the callers that differed."
 topics: [refactoring, docs, contracts]
-changes: [85, 133, 135]
+changes: [85, 133, 135, 245]
 created: 2026-07-17
-updated: 2026-07-28
+updated: 2026-08-08
 promotion_state: retained
 promoted_to:
 ---
@@ -69,3 +69,18 @@ Two traps specific to this move:
   variance survived: a `--word-diff` over `cursor-rules/` shows zero word deletions across all
   nine. That proof is the move worth copying — on a fan-out edit, assert the *deletion count*, since
   no sentinel can tell you what a template silently overwrote.
+- 2026-08-08 (#245, PR #185) — The scope line is the finding, not the merge. `sync-agents.sh`'s three
+  named emitters (`emit_codex_toml`, `emit_cursor_md`, `emit_opencode_md`) re-derived `name`,
+  `description`, `skills`, and the body with byte-identical `sed`/`awk` — genuine duplication, safely
+  collapsed into one `parse_wrapper_source()` setting fixed `WSRC_*` globals. What was **left alone**
+  is the lesson: serialization, the per-harness skills-preamble sentence, and the `inherit`/`auto`
+  sentinel handling are asymmetric *by design* (codex tests at emit position; cursor and opencode
+  normalize up front; claude passes through). Folding those in is the exact regression an earlier
+  round's review already caught. Draw the consolidation boundary at the code that is
+  character-for-character equal, and treat anything requiring a per-caller conditional as evidence the
+  variance is real. The gate was **byte-identity** of generated output, verified three ways — the
+  project-level pass, the user-level pass (which reaches the second `emit_for_harness` caller), and a
+  fixture over all four combinations of `{model: inherit | real id} × {effort: auto | xhigh}` across
+  all four harnesses, running the pre-refactor script against the post-refactor one, stderr included.
+  Zero diffs, and the four existing generation suites passed unmodified — a stronger proof than any
+  assertion a new test could add.
