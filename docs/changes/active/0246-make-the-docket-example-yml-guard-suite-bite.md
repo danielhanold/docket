@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/make-the-docket-example-yml-guard-suite-bite
-claimed_at: 2026-08-08T01:32:46Z
+claimed_at: 2026-08-08T01:40:00Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -52,3 +52,33 @@ Per the linked spec, in binding order:
 - The suite-wide toolchain pin/report decision — that is #0150 (related: its groomed spec touches `test_grep_portability.sh`'s prologue; disjoint regions, reconcile-time collision only, no dependency).
 - `(2c)` orphan-key nested-key extension — #0147 killed as subsumed by `(2b)`.
 - De-backticking the heredoc or auditing other files for the bash-3.2 `$()`-heredoc hazard — the version gate plus run-tests.sh's `$TEST_BASH` cover both paths.
+
+## Reconcile log
+
+### 2026-08-08 — reconciled at claim (no scope change)
+
+Re-validated the spec against `origin/main` @ 483c5dad. Every load-bearing claim still holds:
+
+- **Truncation reproduces exactly.** `PATH=/usr/bin:/bin bash tests/test_docket_example_yml.sh`
+  → 103 asserts run, then `line 1710: unexpected EOF while looking for matching \`` and
+  `line 1717: syntax error`. Under `/opt/homebrew/bin/bash` the file runs 393 asserts, all green.
+  The 103/393 split the spec measured is unchanged.
+- **The three `\\b` sites are still at 376, 409, 585**, and are still the only `\\b`/`\\<`/`\\>`
+  escaped-form occurrences outside `docs/` in the tracked tree.
+- **The `$()`-heredoc construct is still at line 684**, with the backtick-bearing comment at 688.
+- **The round-trip slice still terminates on the cursor `finalize-change` anchor** (~line 1005),
+  and the "all thirty-nine rows" comment is still there and still stale.
+- **The `github_project` classifier entry and its documentation-only comment** are still at
+  `test_docket_example_yml.sh:205-213`, unchanged.
+- **`tests/test_grep_portability.sh` is still 225 lines** with only the `INTERVAL` class; its
+  prologue (:84-93) is untouched, so #0150 has NOT landed and step 3 extends the file the spec
+  described. #0150 remains `proposed build-ready` — the A7 reconcile-time collision is still
+  hypothetical, and whichever change builds second absorbs it. No `depends_on:` added.
+
+No drift, no scope adjustment, no fold-in. Build proceeds on the spec's binding order (part 1 →
+part 2 → part 3).
+
+**Auto-capture:** nothing minted. The one adjacent candidate — auditing the rest of `tests/` for
+the bash-3.2 `$()`-heredoc parse hazard — fails admission gate 2 (independent value): every other
+test file is reached only through `run-tests.sh`'s `$TEST_BASH` re-exec, so the hazard has no
+live exposure there. Reported, not filed.
