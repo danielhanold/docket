@@ -151,10 +151,20 @@ hd_validate(){ # $1=file $2=sources-dir
         raw="$(hd_field_raw "$f" "$h" "$a" "$k")"
         if [ -z "$v" ]; then
           echo "harness-defaults: $h/$a is missing a non-empty '$k'" >&2; rc=1
-        elif [ "$v" != "$raw" ]; then
-          # The reader consumes bare scalars only. Without this leg a quoted or space-bearing value
-          # is silently clipped to a prefix that still passes the non-empty check above — and when
-          # the clip is empty, the diagnostic blames ABSENCE for what is really a quoting problem.
+        elif [ "$v" != "$raw" ] || case "$raw" in '"'*|"'"*) true;; *) false;; esac; then
+          # The reader consumes bare scalars only. Without the `!=` leg a quoted or space-bearing
+          # value is silently clipped to a prefix that still passes the non-empty check above — and
+          # when the clip is empty, the diagnostic blames ABSENCE for what is really a quoting
+          # problem.
+          #
+          # Two legs (ADR-0065). The `!=` leg catches anything the value class cannot express (an
+          # embedded space). The quote leg catches what `!=` structurally CANNOT see: a quoted but
+          # space-free value has v == raw, so the quotes would ride into the emitted pin verbatim
+          # while this diagnostic's own remedy text tells the user to write them unquoted. Single
+          # quotes included — the remedy says "unquoted", not "double-unquoted". Copied by value
+          # from the reference implementation in sync-agents.sh's `validate_user_agent_values`;
+          # this library's header forbids coupling the shipped-data reader to the user-config
+          # readers, and extracting a shared helper is change #0256's scope, not this one's.
           echo "harness-defaults: $h/$a '$k' value '$raw' is not a bare scalar — the reader consumes only '$v'; write model/effort values unquoted and space-free" >&2; rc=1
         fi
       done

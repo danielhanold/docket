@@ -62,6 +62,7 @@ tests/test_github_mirror.sh	10	parallel
 tests/test_grep_portability.sh	10	parallel
 tests/test_groom_recap.sh	10	parallel
 tests/test_harness_defaults.sh	45	parallel
+tests/test_harness_defaults_flow_map.sh	40	parallel
 tests/test_harness_defaults_validator.sh	50	parallel
 tests/test_inline_role_stop_scoping.sh	10	parallel
 tests/test_install.sh	10	parallel
