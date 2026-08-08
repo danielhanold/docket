@@ -262,9 +262,13 @@ assert "agentsmd: malformed markers left untouched" '[ "$before" = "$(cat "$SBX/
 rm -rf "$SBX"
 
 # --- de-list codex: dispatch block stripped (but user content kept) ---
+# The replacement harness must target NO parent-facing surface at all. Since change 0242 `claude`
+# is itself a surface harness that adopts AGENTS.md through a CLAUDE.md symlink, so de-listing
+# codex TO claude keeps the block alive — a correct outcome, covered by
+# tests/test_sync_agents_claude_surface.sh, and the wrong fixture for this assert's claim.
 mk_codex_repo
 printf '# keep me\n' >> "$SBX/AGENTS.md"   # note: block is above; add trailing user line to prove strip keeps it
-printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"
+printf 'agent_harnesses: [cursor]\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
 assert "agentsmd delist: block removed" '! grep -qF "docket:dispatch:start" "$SBX/AGENTS.md"'
 assert "agentsmd delist: trailing user line preserved" 'grep -qxF "# keep me" "$SBX/AGENTS.md"'

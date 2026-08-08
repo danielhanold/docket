@@ -271,6 +271,67 @@ repo_wants_agents_md_dispatch(){
 DISPATCH_START='<!-- docket:dispatch:start (managed by docket — do not hand-edit) -->'
 DISPATCH_END='<!-- docket:dispatch:end -->'
 
+# --- the Claude parent-facing surface (change 0242) ---------------------------
+# ADR-0024 solved Claude's *routing* natively (context: fork — "no generated file"), so no
+# parent-facing Claude surface was ever built. The run gate is not routing: it is what the parent
+# does AFTER a routed run returns, and it needs an always-loaded surface to live on. Claude Code's
+# documented always-loaded file is CLAUDE.md; we target that documented surface rather than betting
+# on a given version also reading AGENTS.md (LEARNINGS harness-behavior-is-mode-and-version-scoped).
+repo_wants_claude_surface(){ case " $HARNESSES " in *" claude "*) return 0;; *) return 1;; esac; }
+
+# Print $1 with every symlink resolved, absolute. A missing path prints its own absolute form, so
+# this never fails and is safe to call on a surface the write pass is about to create.
+#
+# Bash-only by necessity: stock macOS ships no coreutils `realpath` and `readlink -f` is GNU-only
+# (AGENTS.md, shell portability). Every hop re-canonicalises the DIRECTORY with `cd`/`pwd -P` —
+# including the absolute-target hop, whose own spelling may route through a symlinked parent and
+# would otherwise yield a second, non-equal name for one physical file, defeating the dedupe this
+# exists to serve. The walk is bounded so a symlink cycle cannot hang the sync; a cycle exits the
+# loop still pointing at a link, which is the honest answer for a path that has no physical form.
+resolve_physical_path(){  # $1 = path
+  local p="$1" d b t n=0
+  d="$(dirname -- "$p")"; b="$(basename -- "$p")"
+  d="$(cd "$d" 2>/dev/null && pwd -P)" || { printf '%s\n' "$p"; return 0; }
+  while [ -L "$d/$b" ] && [ "$n" -lt 32 ]; do
+    t="$(readlink "$d/$b")"
+    [ -n "$t" ] || break
+    case "$t" in
+      /*) d="$(cd "$(dirname -- "$t")" 2>/dev/null && pwd -P)" || break ;;
+      *)  d="$(cd "$d/$(dirname -- "$t")" 2>/dev/null && pwd -P)" || break ;;
+    esac
+    b="$(basename -- "$t")"
+    n=$((n+1))
+  done
+  printf '%s/%s\n' "$d" "$b"
+}
+
+# Print the physical file the Claude block must be written into, creating the surface when absent.
+# Three cases, in the spec's order:
+#   CLAUDE.md exists (file or symlink) -> its physical path; never replaced, only written into.
+#   absent, AGENTS.md wanted or present -> create CLAUDE.md as a committed relative symlink to it,
+#                                         so Claude loads ONE physical instructions file (the gate
+#                                         AND everything else AGENTS.md carries, e.g. promoted
+#                                         learnings), identically to codex/opencode.
+#   neither                            -> create a real, empty CLAUDE.md to seed the block into.
+# The symlink predicate is "will this repo have an AGENTS.md", not "does it have one right now": on
+# a virgin [claude, codex] repo AGENTS.md is created by the very write pass that resolves this
+# target, and asking about the present tense there seeds a second real file carrying a duplicate of
+# the same managed block forever after.
+claude_surface_target(){
+  repo_wants_claude_surface || return 1
+  local c="$REPO/CLAUDE.md"
+  if [ ! -e "$c" ] && [ ! -L "$c" ]; then
+    if [ -e "$REPO/AGENTS.md" ] || repo_wants_agents_md_dispatch; then
+      ( cd "$REPO" && ln -s AGENTS.md CLAUDE.md ) || return 1
+      log "created CLAUDE.md as a symlink to AGENTS.md (one physical instructions file) — COMMIT THIS."
+    else
+      : > "$c" || return 1
+      log "created CLAUDE.md to carry the docket dispatch block — COMMIT THIS."
+    fi
+  fi
+  resolve_physical_path "$c"
+}
+
 # --- config helpers ----------------------------------------------------------
 # Print the body nested under the first bare `<key>:` header from stdin, DEDENTED to column 0
 # at the block's base indent (so a nested doc's harness keys land at column 0 regardless of the
@@ -1297,25 +1358,59 @@ HEAD
   printf '%s\n' "$DISPATCH_END"
 }
 
-# Write the AGENTS.md dispatch block when an AGENTS.md-dispatch harness (codex, opencode) is a
-# targeted per-repo harness; strip it when the last one is de-listed (within an opted-in repo).
-# Logs a one-time commit notice on write/remove.
-sync_agents_md_dispatch(){
-  local f="$REPO/AGENTS.md" status
-  if repo_wants_agents_md_dispatch; then
-    status="$(ensure_managed_block "$f" "$DISPATCH_START" "$DISPATCH_END" "$(assemble_agents_md_dispatch)")"
-    case "$status" in
-      wrote)   log "wrote/updated the docket dispatch block in $f — COMMIT THIS (machine-neutral; no model IDs).";;
-      refused) log "WARN $f has a malformed docket:dispatch block — refusing to rewrite; repair the markers by hand and re-run.";;
-    esac
-  else
-    status="$(remove_managed_block "$f" "$DISPATCH_START" "$DISPATCH_END")"
-    case "$status" in
-      removed) log "removed the docket dispatch block from $f (no AGENTS.md-dispatch harness targeted) — COMMIT THIS.";;
-      refused) log "WARN $f has a malformed docket:dispatch block — refusing to strip; repair the markers by hand.";;
-    esac
+# Write the managed dispatch block into every parent-facing surface this repo targets — the
+# committed AGENTS.md for codex/opencode (change 0077) and the Claude surface (change 0242) — ONCE
+# PER DISTINCT PHYSICAL FILE, then strip it from every surface no harness targets any more.
+#
+# The physical-path set is the whole design. A CLAUDE.md symlinked to AGENTS.md is ONE file wearing
+# two names, so it must be decided once and acted on once (LEARNINGS
+# decide-and-act-on-the-same-copy). Both passes consult the SAME `seen` set, which is what keeps the
+# strip half safe: a name that is merely an ALIAS of a live surface — a user's own CLAUDE.md ->
+# AGENTS.md link in a codex-only repo — resolves into `seen` and is skipped, instead of being
+# stripped straight through the link and deleting the live block from the file it points at.
+# The strip pass only ever removes; `remove_managed_block` no-ops on a file with no block, so a
+# surface docket does not own is read and left exactly as it was.
+sync_dispatch_surfaces(){
+  local block targets="" seen="" f phys status
+  block="$(assemble_agents_md_dispatch)"
+
+  if repo_wants_agents_md_dispatch; then targets="$REPO/AGENTS.md"; fi
+  if repo_wants_claude_surface; then
+    f="$(claude_surface_target)" && [ -n "$f" ] && targets="$targets${targets:+$'\n'}$f"
   fi
+
+  # Write pass — deduped by physical path.
+  if [ -n "$targets" ]; then
+    while IFS= read -r f; do
+      [ -n "$f" ] || continue
+      phys="$(resolve_physical_path "$f")"
+      case "$seen" in *"|$phys|"*) continue;; esac
+      seen="$seen|$phys|"
+      status="$(ensure_managed_block "$phys" "$DISPATCH_START" "$DISPATCH_END" "$block")"
+      case "$status" in
+        wrote)   log "wrote/updated the docket dispatch block in $phys — COMMIT THIS (machine-neutral; no model IDs).";;
+        refused) log "WARN $phys has a malformed docket:dispatch block — refusing to rewrite; repair the markers by hand and re-run.";;
+      esac
+    done <<<"$targets"
+  fi
+
+  # Strip pass — a surface whose harness is no longer targeted loses its block. Existing files only:
+  # this pass must never bring a surface into being.
+  for f in "$REPO/AGENTS.md" "$REPO/CLAUDE.md"; do
+    [ -e "$f" ] || continue
+    phys="$(resolve_physical_path "$f")"
+    case "$seen" in *"|$phys|"*) continue;; esac
+    status="$(remove_managed_block "$phys" "$DISPATCH_START" "$DISPATCH_END")"
+    case "$status" in
+      removed) log "removed the docket dispatch block from $phys (no dispatch harness targets it) — COMMIT THIS.";;
+      refused) log "WARN $phys has a malformed docket:dispatch block — refusing to strip; repair the markers by hand.";;
+    esac
+  done
 }
+
+# Task-3 shim (change 0242): project_level_pass() still calls the old name until the wiring task
+# retires it. One line, no behaviour of its own.
+sync_agents_md_dispatch(){ sync_dispatch_surfaces; }
 
 # --- managed .gitignore block (change 0051; mechanics moved into scripts/lib/docket-gitignore-block.sh
 # in change 0057, which sync-agents.sh sources — that lib is the single home for ALL docket-owned

@@ -68,11 +68,14 @@ assert "block prose is harness-neutral about the generated path" \
 assert "block prose names the hosting harness generically" \
   'grep -qi "hosting harness" "$A"'
 
-# De-list: dropping the only AGENTS.md-dispatch harness strips the block.
+# De-list: dropping the only AGENTS.md-dispatch harness strips the block. The replacement harness
+# must target NO parent-facing surface: since change 0242 `claude` is itself one, adopting AGENTS.md
+# through a CLAUDE.md symlink, so de-listing TO claude correctly keeps the block (covered by
+# tests/test_sync_agents_claude_surface.sh) and cannot express this assert's claim.
 R2="$WORK/repo2"; mk_opencode_repo "$R2"
 ( cd "$R2" && DOCKET_HARNESS_ROOT="$WORK/home2" bash "$REPO/sync-agents.sh" >/dev/null 2>&1 ) || true
 assert "block present before de-list" 'grep -q "docket:dispatch:start" "$R2/AGENTS.md"'
-printf 'agent_harnesses: [claude]\n' > "$R2/.docket.yml"
+printf 'agent_harnesses: [cursor]\n' > "$R2/.docket.yml"
 ( cd "$R2" && DOCKET_HARNESS_ROOT="$WORK/home2" bash "$REPO/sync-agents.sh" >/dev/null 2>&1 ) || true
 assert "block stripped when no AGENTS.md-dispatch harness is targeted" \
   '! grep -q "docket:dispatch:start" "$R2/AGENTS.md" 2>/dev/null'
@@ -99,8 +102,8 @@ printf 'agent_harnesses: [opencode]\n' > "$R3/.docket.yml"
 assert "de-listing codex leaves the block in place (opencode still targets it)" \
   'grep -q "docket:dispatch:start" "$A3"'
 
-# De-list the LAST one: now it goes.
-printf 'agent_harnesses: [claude]\n' > "$R3/.docket.yml"
+# De-list the LAST one: now it goes. `cursor`, not `claude` — see the R2 de-list note above.
+printf 'agent_harnesses: [cursor]\n' > "$R3/.docket.yml"
 ( cd "$R3" && DOCKET_HARNESS_ROOT="$WORK/home3" bash "$REPO/sync-agents.sh" >/dev/null 2>&1 ) || true
 assert "de-listing the LAST dispatch harness strips the block" \
   '! grep -q "docket:dispatch:start" "$A3" 2>/dev/null'
