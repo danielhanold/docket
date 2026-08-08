@@ -1,6 +1,6 @@
 # Backlog
 
-**261 changes** — 🟢 1 in progress · 🟡 29 proposed · ⚪ 4 deferred · 🔵 4 implemented · ✅ 151 done · 🗑️ 72 killed
+**261 changes** — 🟢 1 in progress · 🟡 29 proposed · ⚪ 4 deferred · 🔵 3 implemented · ✅ 152 done · 🗑️ 72 killed
 
 ## 🟢 In progress (1)
 
@@ -23,10 +23,10 @@
 | [0172](active/0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md) | Normalize the banned producer-pipe shape across tests and helpers | `medium` | `chore` | build-ready |
 | [0195](active/0195-retune-the-opencode-shipped-model-defaults-for-cost.md) | Retune the opencode shipped model defaults for cost | `medium` | `chore` | needs-brainstorm |
 | [0200](active/0200-clear-the-unfixed-review-findings-from-change-0191.md) | Board-checks hardening — sanitize LF escape, capture-shape mutation, minor-finding clearance | `medium` | `fix` | build-ready |
-| [0208](active/0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) | Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards | `medium` | `fix` | ⏳ waiting on #237 — needs your merge |
+| [0208](active/0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) | Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards | `medium` | `fix` | build-ready |
 | [0221](active/0221-assert-executes-backticks-in-its-test-description-so-a-verba.md) | assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell | `medium` | `fix` | build-ready |
 | [0222](active/0222-raise-docket-s-minimum-bash-from-4-to-4-4.md) | Raise docket's minimum Bash from 4+ to 4.4 | `medium` | `chore` | build-ready |
-| [0242](active/0242-close-the-claude-gap-in-the-run-completion-gate-with-a-comma.md) | Close the Claude gap in the run-completion gate with a command-type Stop hook | `medium` | `feat` | ⏳ waiting on #237 — needs your merge |
+| [0242](active/0242-close-the-claude-gap-in-the-run-completion-gate-with-a-comma.md) | Close the Claude gap in the run-completion gate with a command-type Stop hook | `medium` | `feat` | needs-brainstorm |
 | [0244](active/0244-one-selection-rule-for-the-four-frontmatter-read-shapes.md) | One selection rule for the four frontmatter read shapes | `medium` | `refactor` | build-ready |
 | [0245](active/0245-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md) | Harden sync-agents wrapper generation and clear the 0192 findings | `medium` | `refactor` | build-ready |
 | [0247](active/0247-make-shared-metadata-worktree-contention-survivable-and-scop.md) | Make shared metadata worktree contention survivable and scope its commits | `high` | `fix` | needs-brainstorm |
@@ -51,11 +51,10 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (4)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
-| [0237](active/0237-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md) | Prose levers fail to hold the step boundary — give the disposition contract a consumer | `high` | `fix` | [#176](https://github.com/danielhanold/docket/pull/176) |  |
 | [0249](active/0249-build-worker-contract-gate-execution-pointer-and-staging-dis.md) | Build-worker contract: gate-execution pointer and staging discipline | `medium` | `fix` | [#178](https://github.com/danielhanold/docket/pull/178) |  |
 | [0250](active/0250-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs.md) | Repo-scope detect-merged's fallback and guard the idle-secs duplication | `medium` | `fix` | [#175](https://github.com/danielhanold/docket/pull/175) |  |
 | [0259](active/0259-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md) | Harden render-board: sanitize feeder values and settle the failure contract | `medium` | `fix` | [#177](https://github.com/danielhanold/docket/pull/177) |  |
@@ -80,7 +79,6 @@ graph TD
   0237 --> 0208
   0221
   0211 --> 0222
-  0219 --> 0237
   0237 --> 0242
   0244
   0245
@@ -102,15 +100,16 @@ graph TD
   0261
   0192:::done
   0211:::done
-  0219:::done
   0224:::done
+  0237:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (223)</summary>
+<details><summary>✅🗑️ Archive — done + killed (224)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0237](archive/2026-08-08-0237-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md) | Prose levers fail to hold the step boundary — give the disposition contract a consumer | 2026-08-08 |
 | [0243](archive/2026-08-07-0243-make-test-suite-git-fixture-setup-fail-loudly-instead-of-fla.md) | Make test-suite git fixture setup fail loudly instead of flaking | 2026-08-07 |
 | [0241](archive/2026-08-07-0241-correspondence-guard-over-leg-c-s-by-value-duplicated-predic.md) | Correspondence guard over leg C's by-value duplicated predicate (ADR-0072 drift risk) | 2026-08-07 |
 | [0240](archive/2026-08-07-0240-audit-which-frontmatter-accessor-each-call-site-should-use-n.md) | Audit which frontmatter accessor each call site should use, now that three anchored read shapes exist | 2026-08-07 |
@@ -175,7 +174,6 @@ graph TD
 | [0214](archive/2026-08-05-0214-agents-md-s-promoted-frontmatter-rule-omits-the-whitespace-c.md) | AGENTS.md's promoted frontmatter rule omits the whitespace-class half that corrupted two field writes | 2026-08-05 |
 | [0213](archive/2026-08-05-0213-settle-the-bash-4-4-mapfile-d-floor-inconsistency-between-te.md) | Settle the bash 4.4 mapfile -d floor inconsistency between tests and shipped scripts | 2026-08-05 |
 | [0212](archive/2026-08-05-0212-an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco.md) | An inlined role skill's terminal stop ends the whole run — scope docket-build's stop and enforce the run disposition | 2026-08-05 |
-| [0211](archive/2026-08-05-0211-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com.md) | aborted-run is blind to a run that stops after the build: commits on an unpushed branch, every field coherent | 2026-08-05 |
 | [0210](archive/2026-08-05-0210-a-valueless-trailing-flag-hangs-runner-dispatch-forever-inst.md) | A valueless trailing flag hangs runner-dispatch forever instead of aborting | 2026-08-05 |
 | [0209](archive/2026-08-05-0209-the-worktree-requirement-covers-build-only-leaving-three-fea.md) | The --worktree requirement covers build-* only, leaving three feature-scoped agent families ungated | 2026-08-05 |
 | [0183](archive/2026-08-01-0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | 2026-08-01 |
@@ -203,7 +201,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 18 done |
+| [2026-08](archive/) | 19 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
