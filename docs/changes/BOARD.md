@@ -1,12 +1,6 @@
 # Backlog
 
-**261 changes** — 🟢 1 in progress · 🟡 31 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 151 done · 🗑️ 72 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0259](active/0259-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md) | Harden render-board: sanitize feeder values and settle the failure contract | `medium` | `fix` | [spec](../superpowers/specs/2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa-design.md) | `feat/harden-render-board-sanitize-feeder-values-and-settle-the-fa` |
+**261 changes** — 🟡 31 proposed · ⚪ 4 deferred · 🔵 3 implemented · ✅ 151 done · 🗑️ 72 killed
 
 ## 🟡 Proposed (31)
 
@@ -53,12 +47,13 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0237](active/0237-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md) | Prose levers fail to hold the step boundary — give the disposition contract a consumer | `high` | `fix` | [#176](https://github.com/danielhanold/docket/pull/176) |  |
 | [0250](active/0250-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs.md) | Repo-scope detect-merged's fallback and guard the idle-secs duplication | `medium` | `fix` | [#175](https://github.com/danielhanold/docket/pull/175) |  |
+| [0259](active/0259-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md) | Harden render-board: sanitize feeder values and settle the failure contract | `medium` | `fix` | [#177](https://github.com/danielhanold/docket/pull/177) |  |
 
 ```mermaid
 graph TD
