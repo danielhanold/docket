@@ -948,6 +948,14 @@ assert "0249: Scope states the explicit-path staging rule" \
 assert "0249: what the task changed is defined by the task contract, not git status" \
   'grep -qiE "task contract, not[^.]{0,60}git status" <<<"$worker_scope_flat"'
 
+# (4b) The action half of the same rule (spec assumption A6): the posture for a path the worker
+# cannot attribute is leave-and-report, never stage and never clean up — cleaning is exactly the
+# sweep this change forbids. Assert (4) above pins only the DEFINITION half, so a compression pass
+# that keeps "task contract, not ... git status" while dropping "leave it in place and name it in
+# NOTES" would leave the worker with no instruction for the path it just decided is not its own.
+assert "0249: an unattributable path is left in place and reported, never swept" \
+  'grep -qiE "cannot attribute[^.]{0,80}(leave it in place|NOTES)" <<<"$worker_scope_flat"'
+
 # (5) The escalation carve-out, pinned in BOTH directions with one gap each. A single assert on the
 # permissive half alone would stay green through a rewrite that re-licensed the sweep for exactly
 # the worker most likely to be in a dirty shared tree — the first-draft wording the critic gate
