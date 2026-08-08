@@ -2,7 +2,7 @@
 id: 245
 slug: harden-sync-agents-wrapper-generation-and-clear-the-0192-fin
 title: 'Harden sync-agents wrapper generation and clear the 0192 findings'
-status: in-progress
+status: implemented
 priority: medium
 type: refactor
 created: 2026-08-07
@@ -13,13 +13,13 @@ discovered_from: [141, 142, 196, 82]
 adrs: [77]
 spec: docs/superpowers/specs/2026-08-07-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin-design.md
 plan: docs/superpowers/plans/2026-08-08-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md
-results:
+results: docs/results/2026-08-08-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin-results.md
 trivial: false
 auto_groomable: true
 branch: feat/harden-sync-agents-wrapper-generation-and-clear-the-0192-fin
-pr:
+pr: https://github.com/danielhanold/docket/pull/185
 blocked_by:
-claimed_at: 2026-08-08T12:18:28Z
+claimed_at: 2026-08-08T12:21:41Z
 reconciled: true
 ---
 
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin-design.md) |
 | Plan | [2026-08-08-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md](https://github.com/danielhanold/docket/blob/feat/harden-sync-agents-wrapper-generation-and-clear-the-0192-fin/docs/superpowers/plans/2026-08-08-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md) |
+| Results | [2026-08-08-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin-results.md](https://github.com/danielhanold/docket/blob/feat/harden-sync-agents-wrapper-generation-and-clear-the-0192-fin/docs/results/2026-08-08-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin-results.md) |
+| PR | [#185](https://github.com/danielhanold/docket/pull/185) |
 | ADRs | [ADR-0077](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0077-orphan-effort-dropped-as-docket-policy-not-vendor-constraint.md) |
 <!-- docket:artifacts:end -->
 
