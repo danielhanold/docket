@@ -121,7 +121,9 @@ exactly what lets docket drive non-Claude harnesses.
 **Per-harness wrapper shapes.** The generated wrapper is **not one uniform document** — each harness gets its
 target harness's documented shape, from its own named emitter in `sync-agents.sh`. A harness with no named
 emitter falls to the generic `*)` branch, which emits **Claude's** shape: a best guess, not a supported mapping
-(change 0135; the Cursor defect shipped that way).
+(change 0135; the Cursor defect shipped that way). Reaching this branch is not silent: generation prints a
+one-time WARN naming the harness as unverified, and `sync-agents.sh --check` reports the same token as a
+non-failing advisory rather than a check failure.
 
 | harness | file | model | effort | skills |
 |---|---|---|---|---|

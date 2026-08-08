@@ -319,6 +319,9 @@ auto_capture:
 # `agents:` set anywhere, generates no wrappers and keeps `sync-agents.sh --check` a no-op.
 # To enable another harness: add it here AND uncomment that harness's block under `agents:`,
 # then re-run install.sh. Model IDs pass through verbatim; unknown tokens are warned + dropped.
+# A KNOWN-but-unmapped harness token (no named emitter, e.g. `agents`, `kiro`, `windsurf`) is a
+# different case: it is warned and KEPT — its wrappers still generate, Claude-shaped and
+# unverified (ADR-0060) — and `sync-agents.sh --check` reports it as a non-failing advisory.
 # A GLOBAL value (~/.config/docket/config.yml) means something different: it scopes
 # sync-agents.sh's USER-LEVEL pass only (which harnesses get ~/.claude/agents/docket-*.md, etc.)
 # and never opts any repo into the per-repo generation pass above — that opt-in is presence in a
