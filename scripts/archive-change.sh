@@ -117,9 +117,12 @@ cas_push "$branch"
 [ -e "$dest" ]                                            || die "postcondition: archive file missing"
 [ "$(field "$dest" status)"  = "$OUTCOME" ]              || die "postcondition: status not $OUTCOME"
 [ "$(field "$dest" updated)" = "$DATE" ]                 || die "postcondition: updated not $DATE"
-[ -z "$(field "$dest" claimed_at)" ]                     || die "postcondition: claimed_at not cleared"
+# anchored: claimed_at:/results: are optional (ADR-0057). A body-prose match would make the
+# cleared-lease postcondition fail on a correctly-archived change — a fail-closed check that
+# misfires is as bad as one that misses.
+[ -z "$(fm_field "$dest" claimed_at)" ]                  || die "postcondition: claimed_at not cleared"
 if [ "$OUTCOME" = done ] && [ -n "$RESULTS" ]; then
-  [ "$(field "$dest" results)" = "$RESULTS" ] || die "postcondition: results not set to $RESULTS"
+  [ "$(fm_field "$dest" results)" = "$RESULTS" ] || die "postcondition: results not set to $RESULTS"
 fi
 [ "$($GIT -C "$WT" rev-parse @)" = "$($GIT -C "$WT" rev-parse "$REMOTE/$branch")" ] \
   || die "postcondition: push did not land on $REMOTE/$branch"

@@ -245,7 +245,7 @@ else
       || die "the '$MARKER' marker survives on $metaref after the removal push — refusing to publish a marker-carrying record onto $INT_BRANCH"
   fi
   $GIT show "$metaref:$change_path" > "$tmpd/change.md" || die "cannot read $change_path"
-  spec_path="$(field "$tmpd/change.md" spec)"
+  spec_path="$(fm_field "$tmpd/change.md" spec)"   # anchored: spec: is optional (ADR-0057)
   adr_ids="$(list_field "$tmpd/change.md" adrs)"
   copyset=("$change_path")
   [ -n "$spec_path" ] && copyset+=("$spec_path")
@@ -308,7 +308,9 @@ refresh_adr_index(){
 restamp_build_artifacts(){
   [ -n "$ID" ] || return 0
   local rel art
-  for rel in "$(field "$tmpd/change.md" plan)" "$(field "$tmpd/change.md" results)"; do
+  # anchored: plan:/results: are optional — an unanchored read would hand a body-prose PATH to
+  # the backlink re-stamp, on a record being published onto the integration branch.
+  for rel in "$(fm_field "$tmpd/change.md" plan)" "$(fm_field "$tmpd/change.md" results)"; do
     [ -n "$rel" ] || continue
     art="$pub/$rel"
     [ -f "$art" ] || continue
