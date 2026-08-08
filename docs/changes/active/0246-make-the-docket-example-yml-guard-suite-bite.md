@@ -2,7 +2,7 @@
 id: 246
 slug: make-the-docket-example-yml-guard-suite-bite
 title: 'Make the docket-example-yml guard suite bite'
-status: in-progress
+status: implemented
 priority: medium
 type: fix
 created: 2026-08-07
@@ -13,12 +13,12 @@ discovered_from: [178, 187, 121]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-make-the-docket-example-yml-guard-suite-bite-design.md
 plan: docs/superpowers/plans/2026-08-08-make-the-docket-example-yml-guard-suite-bite.md
-results:
+results: docs/results/2026-08-08-make-the-docket-example-yml-guard-suite-bite-results.md
 trivial: false
 auto_groomable: true
 branch: feat/make-the-docket-example-yml-guard-suite-bite
-claimed_at: 2026-08-08T02:05:00Z
-pr:
+claimed_at: 2026-08-08T03:11:00Z
+pr: https://github.com/danielhanold/docket/pull/179
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-make-the-docket-example-yml-guard-suite-bite-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-make-the-docket-example-yml-guard-suite-bite-design.md) |
 | Plan | [2026-08-08-make-the-docket-example-yml-guard-suite-bite.md](https://github.com/danielhanold/docket/blob/feat/make-the-docket-example-yml-guard-suite-bite/docs/superpowers/plans/2026-08-08-make-the-docket-example-yml-guard-suite-bite.md) |
+| Results | [2026-08-08-make-the-docket-example-yml-guard-suite-bite-results.md](https://github.com/danielhanold/docket/blob/feat/make-the-docket-example-yml-guard-suite-bite/docs/results/2026-08-08-make-the-docket-example-yml-guard-suite-bite-results.md) |
+| PR | [#179](https://github.com/danielhanold/docket/pull/179) |
 <!-- docket:artifacts:end -->
 
 ## Why
