@@ -103,4 +103,36 @@ printf 'agent_harnesses: [claude]\n' > "$R3/.docket.yml"
 assert "de-listing the LAST dispatch harness strips the block" \
   '! grep -q "docket:dispatch:start" "$A3" 2>/dev/null'
 
+# --- the opencode emitter's BODY and skills preamble (change 0245) -----------
+# codex and cursor both assert their emitted body survives and carries the preamble; opencode had
+# neither, so a regression to an empty prompt would have shipped green.
+OC="$D/docket-status.md"
+assert "opencode: emitted body is non-empty" \
+  '[ -n "$(awk "/^---[[:space:]]*$/ && d<2 {d++; next} d>=2 {print}" "$OC" | tr -d "[:space:]")" ]'
+assert "opencode: body preamble tells the child to LOAD its skills" \
+  'grep -qiF "load these docket skills" "$OC"'
+assert "opencode: preamble names the opencode skills directory" \
+  'grep -qiF "opencode skills directory" "$OC"'
+assert "opencode: preamble names the agent's own skill" 'grep -qF "docket-status" "$OC"'
+assert "opencode: preamble names docket-convention"     'grep -qF "docket-convention" "$OC"'
+assert "opencode: wrapper body survives verbatim"       'grep -qi "refresh docket state" "$OC"'
+
+# --- effort is DROPPED when no model resolves (change 0245) ------------------
+# Docket's own half of the "a provider option with no provider selected has nothing to reach"
+# rationale: pinned by test regardless of whether the opencode CLI is present to probe the other
+# half. The fixture pins model to the `inherit` sentinel, which normalizes to "no model".
+R4="$WORK/repo4"; mkdir -p "$R4"; git -C "$R4" init -q 2>/dev/null || true
+cat > "$R4/.docket.yml" <<'YML'
+agent_harnesses: [opencode]
+agents:
+  opencode:
+    status: {model: inherit, effort: high}
+YML
+( cd "$R4" && DOCKET_HARNESS_ROOT="$WORK/home4" bash "$REPO/sync-agents.sh" ) >/dev/null 2>"$WORK/oc4.err" || true
+F4="$R4/.opencode/agents/docket-status.md"
+assert "opencode effort-drop: no model line is emitted"  '! grep -qE "^model:" "$F4"'
+assert "opencode effort-drop: NO reasoningEffort key is emitted" '! grep -qE "^reasoningEffort:" "$F4"'
+assert "opencode effort-drop: the drop is WARNed, not silent" \
+  'grep -q "effort .high. dropped" "$WORK/oc4.err"'
+
 echo "---"; [ "$fail" = "0" ] && echo "ALL PASS" || echo "FAILURES"; exit $fail
