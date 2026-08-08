@@ -265,6 +265,27 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
 # tabs are handled identically. Mutation-tested (task-4-report.md): all six real headers
 # (codex/finalize/learnings/reclaim/runners/skills) still pass; relabeling require_pr_approval to
 # elsewhere:HEADER still reddens; a bare childless "newsub:" injected under finalize: reddens too.
+is_header_key(){
+  awk -v k="$1" '
+    { line[NR] = $0 }
+    END {
+      pat = "^[[:space:]]*" k ":[[:space:]]*$"
+      found = 0
+      for (i = 1; i <= NR && !found; i++) {
+        if (line[i] !~ pat) continue
+        ind = match(line[i], /[^[:space:]]/) - 1
+        for (j = i + 1; j <= NR; j++) {
+          if (line[j] ~ /^[[:space:]]*$/) continue
+          cind = match(line[j], /[^[:space:]]/) - 1
+          if (cind > ind) found = 1
+          break
+        }
+      }
+      if (found) print "1"
+    }
+  ' "$2"
+}
+
 # code_shaped_mention <leaf-key> <file> -> exit 0 iff a NON-COMMENT line of the file mentions the
 # key in a code-shaped context. Backs the elsewhere: arm, replacing a bare word-boundary grep that
 # a sentence of English prose satisfied (change 0102's `timeout`-in-a-heredoc false positive).
@@ -314,26 +335,6 @@ code_shaped_mention(){ # $1=leaf key  $2=file
   grep -qE "(^|[^[:alnum:]_-])$k(\[\[:space:\]\]\*)?:|(^|[^[:alnum:]_])--?$k|[A-Za-z0-9_]\.$k" <<<"$body"
 }
 
-is_header_key(){
-  awk -v k="$1" '
-    { line[NR] = $0 }
-    END {
-      pat = "^[[:space:]]*" k ":[[:space:]]*$"
-      found = 0
-      for (i = 1; i <= NR && !found; i++) {
-        if (line[i] !~ pat) continue
-        ind = match(line[i], /[^[:space:]]/) - 1
-        for (j = i + 1; j <= NR; j++) {
-          if (line[j] ~ /^[[:space:]]*$/) continue
-          cind = match(line[j], /[^[:space:]]/) - 1
-          if (cind > ind) found = 1
-          break
-        }
-      }
-      if (found) print "1"
-    }
-  ' "$2"
-}
 
 # PRESENCE-SENSITIVE pseudo-keys: keys that ship COMMENTED because merely uncommenting them
 # (even at their default values) changes behavior — see (3) below, which asserts their marker
