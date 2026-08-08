@@ -14,7 +14,9 @@ and is attributed to this run.
    `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh preflight` and re-run
    `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh verify-run --in-progress-ids`. Any id
    absent from the snapshot is this run's claim; an empty diff (drained, or a lost claim race) ends
-   the gate.
+   the gate. If MORE THAN ONE id is new, stop and report: this run claims at most one change, so at
+   least one of them is a concurrent run's and none can be told apart — never re-dispatch onto a
+   change another agent may be holding.
 4. Run `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh verify-run <id>` and key on its
    report line, never its exit code:
    - `run-complete` / `run-unclaimed` — done.
