@@ -1,8 +1,8 @@
 # Backlog
 
-**266 changes** — 🟡 29 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 159 done · 🗑️ 72 killed
+**267 changes** — 🟡 30 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 160 done · 🗑️ 72 killed
 
-## 🟡 Proposed (29)
+## 🟡 Proposed (30)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -35,6 +35,7 @@
 | [0264](active/0264-measure-the-claude-harness-s-forked-mode-gate-verdict-and-pi.md) | Measure the claude harness's forked-mode gate verdict and pin a surviving launch shape | `medium` | `docs` | needs-brainstorm |
 | [0265](active/0265-branch-the-adr-0065-quote-leg-diagnostic-so-it-stops-claimin.md) | Branch the ADR-0065 quote-leg diagnostic so it stops claiming a truncation that did not happen | `medium` | `fix` | needs-brainstorm |
 | [0266](active/0266-deterministic-frontmatter-field-writer-no-skill-hand-rolls-a.md) | Deterministic frontmatter field writer — no skill hand-rolls a manifest edit | `medium` | `feat` | needs-brainstorm |
+| [0267](active/0267-correct-the-stale-field-quote-handling-claim-in-script-contr.md) | Correct the stale field() quote-handling claim in script contracts | `medium` | `docs` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -45,11 +46,10 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
-| [0244](active/0244-one-selection-rule-for-the-four-frontmatter-read-shapes.md) | One selection rule for the four frontmatter read shapes | `medium` | `refactor` | [#184](https://github.com/danielhanold/docket/pull/184) |  |
 | [0246](active/0246-make-the-docket-example-yml-guard-suite-bite.md) | Make the docket-example-yml guard suite bite | `medium` | `fix` | [#179](https://github.com/danielhanold/docket/pull/179) |  |
 
 ```mermaid
@@ -71,7 +71,6 @@ graph TD
   0221
   0211 --> 0222
   0237 --> 0242
-  0244
   0245
   0246
   0247
@@ -89,13 +88,14 @@ graph TD
   0264
   0265
   0266
+  0267
   0192:::done
   0211:::done
   0237:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (231)</summary>
+<details><summary>✅🗑️ Archive — done + killed (232)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -104,6 +104,7 @@ graph TD
 | [0254](archive/2026-08-08-0254-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md) | BSD tool-default sweep: templated mktemp and non-interactive mv | 2026-08-08 |
 | [0250](archive/2026-08-08-0250-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs.md) | Repo-scope detect-merged's fallback and guard the idle-secs duplication | 2026-08-08 |
 | [0249](archive/2026-08-08-0249-build-worker-contract-gate-execution-pointer-and-staging-dis.md) | Build-worker contract: gate-execution pointer and staging discipline | 2026-08-08 |
+| [0244](archive/2026-08-08-0244-one-selection-rule-for-the-four-frontmatter-read-shapes.md) | One selection rule for the four frontmatter read shapes | 2026-08-08 |
 | [0237](archive/2026-08-08-0237-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md) | Prose levers fail to hold the step boundary — give the disposition contract a consumer | 2026-08-08 |
 | [0200](archive/2026-08-08-0200-clear-the-unfixed-review-findings-from-change-0191.md) | Board-checks hardening — sanitize LF escape, capture-shape mutation, minor-finding clearance | 2026-08-08 |
 | [0140](archive/2026-08-08-0140-normalize-the-inherit-model-sentinel-once-for-every-runner-a.md) | Normalize the inherit model sentinel once for every runner adapter | 2026-08-08 |
@@ -124,7 +125,6 @@ graph TD
 | [0227](archive/2026-08-07-0227-parallel-test-suite-runner.md) | Parallel test-suite runner — 4x+ wall-clock speedup | 2026-08-07 |
 | [0226](archive/2026-08-07-0226-reframe-auto-capture-as-capability-discovery-with-strict-adm.md) | Reframe auto-capture as capability discovery with strict admission gates | 2026-08-07 |
 | [0225](archive/2026-08-07-0225-the-test-suite-has-grown-into-the-harness-s-foreground-ceilin.md) | The test suite has grown into the harness's foreground ceiling — cut its wall-clock runtime | 2026-08-07 |
-| [0224](archive/2026-08-07-0224-the-build-gate-contract-never-says-green-red-is-the-exit-code.md) | The build gate contract never says green/red is the exit code, so an output-shape match passes as a gate | 2026-08-07 |
 | [0204](archive/2026-08-07-0204-restore-rationale-dropped-by-round-three-compression-finaliz.md) | Restore dropped doc rationale (compression losses) and complete AGENTS.md's frontmatter-edit rule | 2026-08-07 |
 | [0199](archive/2026-08-07-0199-harden-the-role-self-description-guard-co-occurrence-gap-har.md) | Harden the role-self-description guard — co-occurrence gap, hardcoded population, broad default matcher | 2026-08-07 |
 | [0198](archive/2026-08-07-0198-settle-the-role-self-description-rule-s-positive-half-docket.md) | Settle the role-self-description rule's positive half — docket-review names no skills.review binding | 2026-08-07 |
@@ -191,7 +191,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 26 done |
+| [2026-08](archive/) | 27 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
