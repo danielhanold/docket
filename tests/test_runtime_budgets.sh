@@ -26,6 +26,9 @@ EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
 EXPECTED_TOTAL=1365 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1355 -> 1365 (change 0254): the new-test-file case named below —
+                    # tests/test_bsd_tool_defaults.sh brings its own row, floored to the table's
+                    # 10s minimum.
                     # 1345 -> 1355 (change 0237): the new-test-file case named below —
                     # tests/test_verify_run.sh brings its own row, measured serially at 1.4s,
                     # floored to the table's 10s minimum.

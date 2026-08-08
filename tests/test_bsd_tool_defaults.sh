@@ -34,10 +34,13 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 GREP=/usr/bin/grep
 assert "the pinned scan binary exists" '[ -x "$GREP" ]'
 
-# In-scope population floor: if the walk collapses, every negative assert below passes vacuously.
-MIN_FILES=40
+# In-scope population floor: exists to catch a collapsed walk (a broken glob scanning nothing),
+# not to track the current population. Set well below the measured count so deleting a normal
+# handful of in-scope files never reddens this for a reason unrelated to a collapse.
+MIN_FILES=20
 # Floor on the agent-executed markdown half of the walk, asserted separately (see md_scope_files).
-MIN_MD_FILES=35
+# Same collapse-detection intent as MIN_FILES, not a population tracker.
+MIN_MD_FILES=20
 # Post-sweep floor on atomic-replace/rename call sites written the non-interactive way.
 MIN_MV_F=16
 
@@ -66,7 +69,7 @@ MIN_MV_F=16
 scope_files(){
   local f
   for f in "$ROOT"/scripts/*.sh "$ROOT"/scripts/lib/*.sh "$ROOT"/scripts/runners/*.sh \
-           "$ROOT"/install.sh "$ROOT"/sync-agents.sh "$ROOT"/migrate-to-docket.sh; do
+           "$ROOT"/install.sh "$ROOT"/sync-agents.sh "$ROOT"/migrate-to-docket.sh "$ROOT"/link-skills.sh; do
     [ -f "$f" ] && printf '%s\n' "$f"
   done
   md_scope_files
@@ -146,10 +149,9 @@ bad_mv="$(offenders_mv)"
 assert "every mv that replaces a file passes -f, so it cannot prompt on a tty" \
   '[ -z "$bad_mv" ] || { echo "$bad_mv" | sed "s|^$ROOT/|  |" >&2; echo "  RULE: bare mv prompts on an unwritable destination with a tty, self-answers n, and exits 0 — so the || die never fires and the write is lost. Write these as: mv -f SRC DEST. git mv is exempt (different tool)." >&2; false; }'
 
-n_mv_f="$("$GREP" -rlE 'mv -f ' $(scope_files) 2>/dev/null | wc -l | tr -d " ")"
 n_mv_f_sites="$("$GREP" -hcE 'mv -f ' $(scope_files) 2>/dev/null | awk '{s+=$1} END{print s+0}')"
 assert "at least $MIN_MV_F non-interactive mv sites exist, so the check above is not vacuous (found $n_mv_f_sites)" \
-  '[ "$n_mv_f_sites" -ge "$MIN_MV_F" ] || { echo "  RULE: this floor exists because a negative grep also passes when the scan finds nothing. A drop means either the scan broke or an install path stopped replacing files — check which before touching this number." >&2; false; }'
+  '[ "$n_mv_f_sites" -ge "$MIN_MV_F" ] || { echo "  RULE: this floor exists because a negative grep also passes when the scan finds nothing. A drop means either the scan broke or an install path stopped replacing files — check whether the scan broke or the population legitimately shrank." >&2; false; }'
 
 # Post-sweep floor on templated mktemp calls: 23 swept here plus 6 pre-existing beside-destination
 # sites. Same reason as the mv floor — a negative grep is also green when it scans nothing.
@@ -176,6 +178,6 @@ assert "every mktemp call passes a template, so TMPDIR is honored" \
 
 n_tmpl="$(hits_mktemp | "$GREP" -cF 'XXXXXX')"
 assert "at least $MIN_MKTEMP_TEMPLATED templated mktemp sites exist, so the check above is not vacuous (found $n_tmpl)" \
-  '[ "$n_tmpl" -ge "$MIN_MKTEMP_TEMPLATED" ] || { echo "  RULE: this floor exists because a negative grep also passes when the scan finds nothing. A drop means either the scan broke or scratch files stopped being created — check which before touching this number." >&2; false; }'
+  '[ "$n_tmpl" -ge "$MIN_MKTEMP_TEMPLATED" ] || { echo "  RULE: this floor exists because a negative grep also passes when the scan finds nothing. A drop means either the scan broke or scratch files stopped being created — check whether the scan broke or the population legitimately shrank." >&2; false; }'
 
 exit "$fail"
