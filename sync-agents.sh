@@ -1009,8 +1009,9 @@ emit_cursor_md(){  # $1=src md  $2=model  $3=effort   (both FINAL resolved value
 # opencode has NO first-class reasoning-effort field. It forwards unrecognized agent-frontmatter
 # keys to the provider as model options, so `reasoningEffort` is a real per-agent effort rather
 # than a decorative key: verified against opencode 1.18.11, where `opencode debug agent <name>`
-# reports it as `options.reasoningEffort`. That is also why effort is dropped when no model
-# resolves — a provider option with no provider selected has nothing to reach.
+# reports it as `options.reasoningEffort`. Effort is dropped when no model resolves — that is
+# DOCKET's design choice (a provider option with no provider selected has nothing to name), pinned
+# by tests/test_sync_agents_opencode.sh's effort-drop asserts, not a verified opencode behavior.
 #
 # Docket keeps NO allowlist of opencode model IDs or effort tokens (ADR-0015). IDs reached through
 # OpenRouter are double-prefixed (`openrouter/<vendor>/<model>`); opencode splits that into a
