@@ -37,8 +37,9 @@ by grep, never from this list):
 
 ### 2. `mv -f` at every bare atomic-replace/rename `mv`
 
-Uniform `mv -f` (0186's form, `backfill-change-types.sh:169` with rationale at `:152`). 17 sites:
-the stub's 15 in `scripts/*.sh` (`archive-change.sh:71`, `board-refresh.sh:128`,
+Uniform `mv -f` (0186's form, `backfill-change-types.sh:169` with rationale at `:152`). 16 sites
+(re-derived 2026-08-08 at build claim; the stub's "15 in `scripts/`" counted the `git mv` this
+section then carves out): 14 in `scripts/*.sh` (`archive-change.sh:71`, `board-refresh.sh:128`,
 `docket-status.sh:1042`, `ensure-claude-settings.sh:68`, `ensure-docket-env.sh:92,119`,
 `ensure-global-config.sh:169`, `mark-publish-deferred.sh:116,192`, `mint-stub.sh:148,201`,
 `reclaim-claims.sh:49`, `render-artifact-backlink.sh:117`, `render-change-links.sh:181`) plus

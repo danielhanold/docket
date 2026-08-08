@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/bsd-tool-default-sweep-templated-mktemp-and-non-interactive
-claimed_at: 2026-08-08T02:22:06Z
+claimed_at: 2026-08-08T02:24:12Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -51,7 +51,7 @@ scripts the stub itself names (`sync-agents.sh`) plus `install.sh`/`migrate-to-d
 - Template every untemplated `mktemp` (both forms) to `"${TMPDIR:-/tmp}/<script-name>.XXXXXX"`
   (the `migrate-to-docket.sh` precedent). Six existing beside-destination templated sites are
   correct (atomic same-filesystem rename) and stay untouched.
-- Convert the 17 bare atomic-replace/rename `mv` sites (15 in `scripts/` + 2 repo-root) to
+- Convert the 16 bare atomic-replace/rename `mv` sites (14 in `scripts/` + 2 repo-root) to
   `mv -f`. Carve out `archive-change.sh:95`'s `git mv` — different tool, different prompting
   semantics; the guard's allowance keys on its actual `$GIT … mv` spelling.
 - New shape-keyed guard `tests/test_bsd_tool_defaults.sh`: no bare `mv "` (two split ERE
@@ -71,3 +71,29 @@ scripts the stub itself names (`sync-agents.sh`) plus `install.sh`/`migrate-to-d
 
 - Sweeping existing leaked `uchg` debris from past runs (age-gated cleanup, if ever, is separate).
 - `tests/` fixtures (test-side hygiene is owned by the tests/lib fixture change).
+
+## Reconcile log
+
+### 2026-08-08 — build claim
+
+Re-derived every inventory the spec names against the current working tree (`/usr/bin/grep`, not
+PATH ugrep). The design survives intact; four notes:
+
+- **`mktemp` inventory holds.** 7 bare `mktemp -d` and 16 bare file-`mktemp` sites, exactly the
+  spec's set. Only line numbers drifted (`docket-status.sh`'s templated learnings-index site is
+  now `:1037`, its `mv` `:1047`) — the spec already directs the build to re-derive by grep rather
+  than trust the listed lines, so this is expected, not drift in the design.
+- **`mv` count corrected: 16 conversions, not 17.** The stub's "15 sites in `scripts/`" counted
+  `archive-change.sh:95` — the `git mv` the spec then carves out — so the arithmetic double-counts
+  it. Live set: 14 in `scripts/*.sh` + 2 repo-root (`sync-agents.sh:128`,
+  `migrate-to-docket.sh:345`) = **16**. The carve-out and every other design decision are
+  unaffected; only the number in §2 was wrong.
+- **cp/rm audit re-verified (spec §6, A8): still zero.** No `cp -i` site in scope; every `rm`
+  carries `-f`/`-rf`. Exactly the predicted chaff appeared and nothing more — two `git rm`
+  invocations (`sync-agents.sh:1197` inside a constructed remedy string,
+  `migrate-to-docket.sh:322`) plus comment mentions. No code change; recorded in the results file.
+- **`tests/test_bsd_tool_defaults.sh` does not exist**, so §3 is a clean create.
+
+Coupling with 0118 (A9) unchanged: still `proposed`, still `related:`, no rebase interaction
+beyond the same-file/different-function edit the assumption already anticipated. No new ADRs are
+implied — every decision the build makes was settled at groom time in A1–A10.
