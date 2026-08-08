@@ -2,7 +2,7 @@
 id: 255
 slug: complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule
 title: 'Complete ADR-0065''s quote leg and document the unquoted rule'
-status: implemented
+status: done
 priority: medium
 type: fix
 created: 2026-08-07
@@ -17,7 +17,7 @@ results: docs/results/2026-08-08-complete-adr-0065-s-quote-leg-and-document-the-
 trivial: false
 auto_groomable: true
 branch: feat/complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule
-claimed_at: 2026-08-08T07:43:08Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/182
 blocked_by:
 reconciled: true
