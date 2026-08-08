@@ -2,7 +2,7 @@
 id: 200
 slug: clear-the-unfixed-review-findings-from-change-0191
 title: Board-checks hardening — sanitize LF escape, capture-shape mutation, minor-finding clearance
-status: implemented
+status: done
 priority: medium
 type: fix
 created: 2026-08-03
@@ -17,7 +17,7 @@ results: docs/results/2026-08-08-clear-the-unfixed-review-findings-from-change-0
 trivial: false
 auto_groomable: true
 branch: feat/clear-the-unfixed-review-findings-from-change-0191
-claimed_at: 2026-08-08T04:59:23Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/181
 blocked_by:
 reconciled: true
