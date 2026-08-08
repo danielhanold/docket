@@ -128,7 +128,7 @@ emitter falls to the generic `*)` branch, which emits **Claude's** shape: a best
 | claude | `.md` | `model:` | `effort:` | `skills:` frontmatter |
 | cursor | `.md` | `model: <id>[effort=<e>]` | *(inside the model value)* | body preamble |
 | codex | `.toml` | `model =` | `model_reasoning_effort =` | `developer_instructions` preamble |
-| opencode | `.opencode/agents/docket-<name>.md` | `model:` (`openrouter/<vendor>/<id>`) | `reasoningEffort:` (a provider model option, not a first-class field) | body preamble |
+| opencode | `.md` | `model:` (`openrouter/<vendor>/<id>`) | `reasoningEffort:` (a provider model option, not a first-class field) | body preamble |
 
 Cursor's frontmatter is `name`, `description`, `model`, `readonly`, `is_background` — no standalone `effort:` key
 and no `skills:` preload; docket emits the first three and leaves the rest at Cursor's defaults, which suit
