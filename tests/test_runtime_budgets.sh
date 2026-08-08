@@ -25,7 +25,22 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1510 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1535 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1510 -> 1535 (change 0242 review, finding 7): the SHARD-RE-CUT case, not a
+                    # raise. tests/test_sync_agents_codex.sh carried one 55s row over two
+                    # independent surfaces — the per-repo .codex/agents/*.toml wrappers and the
+                    # committed AGENTS.md dispatch block — and this change added a second `--check`
+                    # leg to the dispatch half. Measured SERIALLY at 56/57s (branch) against 53/53s
+                    # (merge-base 487bfdc5, same machine, interleaved), i.e. already past its own
+                    # row and inside the hard 60s ceiling's noise band, so the table's remedy
+                    # applies: shard, never a bigger number. Cut at the "AGENTS.md dispatch block"
+                    # banner into tests/test_sync_agents_codex.sh (wrappers) and
+                    # tests/test_sync_agents_codex_dispatch.sh (dispatch block); the 74 asserts
+                    # split 44/30 with none lost. Re-measured standalone across three consecutive
+                    # serial runs: 21/19/22s and 41/38/41s. The sizing rule (next multiple of 5
+                    # plus a 5s margin, min 10s) puts those at 30 and 50. The sum grows by 25
+                    # because the +5 margin is now paid twice AND because the single 55s row had
+                    # never been sized on the whole file.
                     # +20 (change 0242 review): the new-test-file case again —
                     # tests/test_sync_agents_surface_containment.sh brings its own row. The
                     # containment guard (docket writes and strips its dispatch block only inside

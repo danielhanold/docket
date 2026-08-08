@@ -1345,7 +1345,7 @@ write_dispatch_rule() {  # $1 = <root>/.<harness> base path
 # states the pinned truth — and names that roster by interpolating HD_SHIPPED_HARNESSES, so a fifth
 # shipped harness cannot leave a stale hand-list behind. The dispatch is required either way — the
 # agent carries the skill's contract and preload, not just a model. Guarded, against the sidecar rather than a literal, in
-# tests/test_sync_agents_codex.sh and tests/test_sync_agents_opencode.sh.
+# tests/test_sync_agents_codex_dispatch.sh and tests/test_sync_agents_opencode.sh.
 assemble_agents_md_dispatch(){
   printf '%s\n' "$DISPATCH_START"
   # The shipped-harness roster is DERIVED from HD_SHIPPED_HARNESSES, never hand-listed: this head is

@@ -50,9 +50,15 @@ asserts that the resolved `finalize.test_command` runs the runner and does not p
 `--no-budget-check`. The total is what catches the quiet edit: a row moved from 35 to 60 breaks no
 ceiling and pins nothing serial, but it moves the sum, so it reddens on its own. If a file legitimately
 cannot be split, that is a decision to argue in the diff, not a number to bump. Two files were
-argued that way at change 0227 and both are still whole:
+argued that way at change 0227; one of them has since been split:
 
-- `test_sync_agents_codex.sh` — no internal section banners, so there is no mechanical boundary.
+- `test_sync_agents_codex.sh` — argued whole at change 0227 on the grounds that it had "no internal
+  section banners, so there is no mechanical boundary". That was already inaccurate then and the
+  file was split at change 0242's review: its `# ---` banners mark two independent surfaces, and
+  the banner "AGENTS.md dispatch block: created, machine-neutral, committed-style" is the boundary
+  — nothing above it reads the `AGENTS.md` fixture, nothing below it reads a `.toml` wrapper. The
+  dispatch half is now `test_sync_agents_codex_dispatch.sh`. Recorded here because "there is no
+  boundary" is the claim a later reader would otherwise trust instead of re-checking.
 - `test_docket_config.sh` — it carries the change-0126 prelude-correspondence guard, which scans
   its own `${BASH_SOURCE[0]}` and asserts a whole-file floor of **≥60 `eval` sites** against a
   64-site corpus, with a derived cross-check over the same file. Any split halves the corpus and
