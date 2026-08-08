@@ -1,12 +1,6 @@
 # Backlog
 
-**264 changes** — 🟢 1 in progress · 🟡 29 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 157 done · 🗑️ 72 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0255](active/0255-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule.md) | Complete ADR-0065's quote leg and document the unquoted rule | `medium` | `fix` | [spec](../superpowers/specs/2026-08-07-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-design.md) | `feat/complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule` |
+**264 changes** — 🟡 29 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 157 done · 🗑️ 72 killed
 
 ## 🟡 Proposed (29)
 
@@ -51,11 +45,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0246](active/0246-make-the-docket-example-yml-guard-suite-bite.md) | Make the docket-example-yml guard suite bite | `medium` | `fix` | [#179](https://github.com/danielhanold/docket/pull/179) |  |
+| [0255](active/0255-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule.md) | Complete ADR-0065's quote leg and document the unquoted rule | `medium` | `fix` | [#182](https://github.com/danielhanold/docket/pull/182) |  |
 
 ```mermaid
 graph TD
