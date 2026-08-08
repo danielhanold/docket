@@ -74,6 +74,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0073](0073-scalar-quote-predicate-has-no-flow-collection-exemption.md) — The needs-quoting predicate answers a scalar-domain question, so it carries no flow-collection exemption (Accepted) ← change #235 · relates to ADR-0065, ADR-0071
 - [ADR-0074](0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md) — The build gate's verdict is tri-state — a runner-defined non-failure exit is a halt (Accepted) ← change #224
 - [ADR-0075](0075-run-gate-attributes-a-claim-conservatively-and-reports-a-halt-with-its-own-exit-code.md) — The run gate attributes a claim conservatively and reports a halt with its own exit code (Accepted) ← change #237
+- [ADR-0076](0076-quote-leg-rule-binds-by-role-not-reader-shape.md) — ADR-0065's quote-leg rule binds by role, not by reader shape (Accepted) ← change #255 · relates to ADR-0065, ADR-0072
 
 ## Superseded / Reversed
 
