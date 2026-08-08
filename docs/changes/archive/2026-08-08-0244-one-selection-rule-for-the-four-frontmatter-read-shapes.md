@@ -29,8 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-one-selection-rule-for-the-four-frontmatter-read-shapes-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-one-selection-rule-for-the-four-frontmatter-read-shapes-design.md) |
-| Plan | [2026-08-08-one-selection-rule-for-the-four-frontmatter-read-shapes.md](https://github.com/danielhanold/docket/blob/feat/one-selection-rule-for-the-four-frontmatter-read-shapes/docs/superpowers/plans/2026-08-08-one-selection-rule-for-the-four-frontmatter-read-shapes.md) |
-| Results | [2026-08-08-one-selection-rule-for-the-four-frontmatter-read-shapes-results.md](https://github.com/danielhanold/docket/blob/feat/one-selection-rule-for-the-four-frontmatter-read-shapes/docs/results/2026-08-08-one-selection-rule-for-the-four-frontmatter-read-shapes-results.md) |
+| Plan | [2026-08-08-one-selection-rule-for-the-four-frontmatter-read-shapes.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-08-one-selection-rule-for-the-four-frontmatter-read-shapes.md) |
+| Results | [2026-08-08-one-selection-rule-for-the-four-frontmatter-read-shapes-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-08-one-selection-rule-for-the-four-frontmatter-read-shapes-results.md) |
 | PR | [#184](https://github.com/danielhanold/docket/pull/184) |
 <!-- docket:artifacts:end -->
 

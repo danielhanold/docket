@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0244 — One selection rule for the four frontmatter read shapes](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0244-one-selection-rule-for-the-four-frontmatter-read-shapes.md)**
+> ↩ **[Change 0244 — One selection rule for the four frontmatter read shapes](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-08-0244-one-selection-rule-for-the-four-frontmatter-read-shapes.md)**
 <!-- docket:backlink:end -->
 
 # One selection rule for the four frontmatter read shapes — design
