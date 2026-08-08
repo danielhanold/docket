@@ -384,6 +384,7 @@ manifest_bad_export=""
 manifest_bad_correspondence=""
 manifest_bad_consumer=""
 manifest_bad_header=""
+manifest_bad_keyshape=""
 # QUALIFIED extraction (change 0127). A key emits its FULL ancestor path (`learnings.enabled`,
 # `runners.codex.sandbox`); a top-level key stays bare. Ancestry is tracked with an indent stack
 # rather than "nearest column-0 key", so a doubly-nested leaf is qualified by both its parents
@@ -429,6 +430,18 @@ for k in $example_keys; do
   # leaf (`yaml_get "$LEARN_BLK" enabled`). The greps below therefore anchor on the leaf while the
   # manifest arm, the reporting, and the duplicate checks all stay qualified.
   leaf_k="${k##*.}"
+  # ERE-SAFETY OF THE INTERPOLATED KEY (change 0246 whole-branch review, finding 8). Both
+  # code_shaped_mention and the exempt branch below interpolate $leaf_k straight into an ERE. Safe
+  # today — every elsewhere: leaf key is [a-z_]+ — but a future key carrying `.`, `+` or `[` would
+  # SILENTLY widen or break its match rather than redden, against this repo's own
+  # escape-ERE-metacharacters-in-key learning. Guarded by an assert rather than by routing through
+  # ere_escape (defined far below, for the harness slices): escaping makes a metacharacter key
+  # merely work, quietly, whereas this makes it LOUD at the moment it is introduced — which is what
+  # the manifest wants, since such a key would also need the doc block above rethought. Cheaper,
+  # and it fails closed for both interpolation sites at once.
+  case "$leaf_k" in
+    *[!A-Za-z0-9_]*) manifest_bad_keyshape="$manifest_bad_keyshape $k" ;;
+  esac
   cls="$(classify_key "$k")"
   case "$cls" in
     '')
@@ -521,6 +534,8 @@ assert "manifest: every elsewhere: entry's named consumer mentions the key (${ma
   '[ -z "$manifest_bad_consumer" ]'
 assert "manifest: every elsewhere:HEADER entry is a real bare block opener (${manifest_bad_header:-none bad})" \
   '[ -z "$manifest_bad_header" ]'
+assert "manifest: every leaf key is ERE-safe to interpolate — ^[A-Za-z0-9_]+$ (${manifest_bad_keyshape:-none bad})" \
+  '[ -z "$manifest_bad_keyshape" ]'
 # --- elsewhere: shape guard, its exemption, and its false-positive fixture (change 0246) ---------
 # The exemption list is asserted to hold EXACTLY the one key it is allowed to hold. An exemption
 # list that can grow silently is a bare allowlist wearing a different name — the drift this whole
@@ -531,6 +546,20 @@ assert "elsewhere: the shape exemption holds exactly github_project (got '$elsew
 # above it is consistent with a predicate that can never match anything.
 assert "elsewhere: shape control — a real flag-argument mention is code-shaped" \
   'code_shaped_mention sandbox "$REPO/scripts/runners/codex.sh"'
+# PER-SHAPE positive controls (change 0246 whole-branch review, finding 7). The doc block above
+# justifies all three shapes as SEPARATELY load-bearing, but only shape 3 had a control, so a typo
+# in the `:`-adjacency or dot-qualified alternative would have gone undetected: several live keys
+# match by more than one route, which is precisely why these use FIXTURES rather than a real
+# consumer. Each fixture exercises exactly ONE alternative, so removing that alternative from the
+# ERE reddens exactly this assert (mutation-tested, one alternative at a time).
+_shape_fx_colon="$tmp/shape-colon.sh"
+printf '%s\n' 'sed -n "s/^agents[[:space:]]*:.*/&/p" "$f"' > "$_shape_fx_colon"
+assert "elsewhere: shape control — shape 1 (\`:\`-adjacency) alone is code-shaped" \
+  'code_shaped_mention agents "$_shape_fx_colon"'
+_shape_fx_dot="$tmp/shape-dot.sh"
+printf '%s\n' 'die "runners.opencode.permissions must be set"' > "$_shape_fx_dot"
+assert "elsewhere: shape control — shape 2 (dot-qualified) alone is code-shaped" \
+  'code_shaped_mention permissions "$_shape_fx_dot"'
 # NEGATIVE control reproducing the historical false positive (change 0102): a key appearing ONLY as
 # an English word in prose, inside an embedded heredoc prompt, on non-comment lines. A bare
 # word-boundary grep passes this; the shape predicate must not. Comment-region exclusion alone
@@ -1284,10 +1313,15 @@ assert "round-trip: claude status model mirrors the shipped sidecar" \
 assert "round-trip: a cursor wrapper was generated" '[ -f "$SB/.cursor/agents/docket-status.md" ]'
 assert "round-trip: cursor status model came from the example block" \
   '[ "$(fm "$SB/.cursor/agents/docket-status.md" model)" = "cursor-grok-4.5-low-fast" ]'
-# A cursor BUILD row (change 0246). Before the terminator was re-derived, the slice ended above
-# cursor's build rows entirely, so no build profile on this harness was ever resolved. Same
-# "both sides move together" caveat as the codex and opencode legs — this catches a VALUE drift
-# between example and sidecar, not a missing example row; the sentinel block below owns provenance.
+# A cursor BUILD row (change 0246). READ THE CAVEAT BEFORE TRUSTING THESE TWO ASSERTS: neither one
+# can detect the truncated slice they were added for (whole-branch review, finding 6).
+# sync-agents.sh generates one wrapper per shipped agent for EVERY enabled harness regardless of
+# config content, resolving a missing row through hd_field, so the `-f` assert passed under the old
+# terminator too; and the model assert compares wrapper-against-sidecar on both sides, which move
+# together. What they DO catch is a VALUE drift between example and sidecar, and that is the whole
+# of it. Kept for that; the widening's real evidence is the cursor build-max SENTINEL below, and
+# the slice's reach across harnesses is proved by "round-trip: the slice reaches every shipped
+# harness block".
 assert "round-trip: a cursor build-max wrapper was generated" '[ -f "$SB/.cursor/agents/docket-build-max.md" ]'
 assert "round-trip: cursor build-max model came from the example block" \
   '[ -n "$(hd_field "$HD" cursor build-max model)" ] &&
@@ -1344,15 +1378,24 @@ rm -rf "$_sbs"
 # Method: rewrite ONE model value in the uncommented slice to a sentinel that exists in neither the
 # sidecar nor any other block, then assert the sentinel reaches the generated wrapper. Only the
 # example's own row can put it there. This is spec Tier-1 property 9's second clause.
-probe_slice(){ # $1 = harness key, $2 = old model literal, $3 = sentinel
-  awk -v h="$1" -v old="$2" -v new="$3" '
+#
+# The ROW is a parameter, not hardcoded to `status:` (change 0246 whole-branch review, finding 6).
+# The cursor `build-max` probe below is what puts real provenance evidence in the region the
+# WIDENED slice newly reaches: before the terminator was re-derived, the slice ended above cursor's
+# build rows, so a build-max sentinel could not have survived into a wrapper at all. A plain
+# `[ -f docket-build-max.md ]` assert cannot show this — sync-agents.sh generates one wrapper per
+# shipped agent for every enabled harness regardless of config content, falling back to the sidecar
+# through hd_field — which is exactly why the evidence lives here instead.
+probe_slice(){ # $1 = harness key, $2 = old model literal, $3 = sentinel, $4 = row key (default status)
+  awk -v h="$1" -v old="$2" -v new="$3" -v row="^    ${4:-status}:" '
     /^  [A-Za-z0-9_-]+:[[:space:]]*$/ { cur=$1; sub(/:$/,"",cur) }
-    cur==h && /^    status:/ { sub(old, new, $0) }
+    cur==h && $0 ~ row { sub(old, new, $0) }
     { print }'
 }
 stage2_probe="$(printf '%s\n' "$stage2" \
   | probe_slice codex  'gpt-5\.6-luna'            'gpt-5.6-probe' \
-  | probe_slice cursor 'cursor-grok-4\.5-low-fast' 'cursor-grok-4.5-probe')"
+  | probe_slice cursor 'cursor-grok-4\.5-low-fast' 'cursor-grok-4.5-probe' \
+  | probe_slice cursor 'claude-opus-5-high'        'cursor-opus-5-bm-probe' build-max)"
 # Fixture sanity FIRST: a substitution that silently missed would leave every assert below vacuous
 # (the example would carry the shipped value, the wrapper would too, and nothing would notice).
 # Exactly one occurrence each, and the sentinels must be absent from the shipped sidecar so a hit
@@ -1361,8 +1404,11 @@ assert "sentinel: exactly one codex model was rewritten in the example slice" \
   '[ "$(grep -cF "gpt-5.6-probe" <<<"$stage2_probe")" = "1" ]'
 assert "sentinel: exactly one cursor model was rewritten in the example slice" \
   '[ "$(grep -cF "cursor-grok-4.5-probe" <<<"$stage2_probe")" = "1" ]'
-assert "sentinel: neither sentinel exists in the shipped sidecar" \
-  '! grep -qF "gpt-5.6-probe" "$HD" && ! grep -qF "cursor-grok-4.5-probe" "$HD"'
+assert "sentinel: exactly one cursor build-max model was rewritten in the example slice" \
+  '[ "$(grep -cF "cursor-opus-5-bm-probe" <<<"$stage2_probe")" = "1" ]'
+assert "sentinel: no sentinel exists in the shipped sidecar" \
+  '! grep -qF "gpt-5.6-probe" "$HD" && ! grep -qF "cursor-grok-4.5-probe" "$HD" &&
+   ! grep -qF "cursor-opus-5-bm-probe" "$HD"'
 
 SBP="$(mktemp -d)"; _sbps="$SBP"
 mkdir -p "$SBP/.claude/agents" "$SBP/.cursor/agents" "$SBP/.codex/agents" "$SBP/.config/docket"
@@ -1377,6 +1423,13 @@ assert "sentinel: the codex wrapper carries the EXAMPLE's value, not the sidecar
   '[ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SBP/.codex/agents/docket-status.toml")" = "gpt-5.6-probe" ]'
 assert "sentinel: the cursor wrapper carries the EXAMPLE's value, not the sidecar's" \
   '[ "$(fm "$SBP/.cursor/agents/docket-status.md" model)" = "cursor-grok-4.5-probe" ]'
+# The WIDENED slice's own evidence: build-max is the LAST row of the cursor block, and before the
+# terminator was re-derived the slice stopped above cursor's build rows entirely. A sentinel that
+# reaches this wrapper can only have come from the example's own build-max row — the sidecar does
+# not carry it. This is the assert that actually proves the widening; the `-f` and value asserts in
+# the round-trip above pass either way.
+assert "sentinel: the cursor build-max wrapper carries the EXAMPLE's value — the widened slice reaches the block's last row" \
+  '[ "$(fm "$SBP/.cursor/agents/docket-build-max.md" model)" = "cursor-opus-5-bm-probe" ]'
 # Unprobed rows still resolve, so the probe did not corrupt the slice into a one-row config.
 assert "sentinel: an unprobed codex row still resolves from the example" \
   '[ -n "$(hd_field "$HD" codex build-max model)" ] &&

@@ -47,10 +47,14 @@
 # real, not theoretical: tests/test_docket_metadata_branch.sh ('"--yes\b|\b-y\b"') and
 # tests/test_cursor_dispatch_rule.sh ('"\b(Task|Agent)\b"') both carry it today and pass this class
 # clean. The single-backslash form is left unmatched DELIBERATELY on this branch, not because it is
-# safe: ~26 tracked sites use it, many as deliberate comment-blessed PATH-grep idiom (see
-# tests/test_docket_build.sh, which blesses them explicitly), and separating the blessed ones from
-# the defective ones is its own change. The negative control below ASSERTS this limitation rather
-# than merely describing it, so nobody can mistake a green run for full coverage of the defect.
+# safe: a substantial tracked population uses it, much of it as deliberate comment-blessed
+# PATH-grep idiom (see tests/test_docket_build.sh, which blesses them explicitly), and separating
+# the blessed ones from the defective ones is its own change. HOW MANY is deliberately NOT written
+# here or in any assert message: a hand-written figure is exactly the staleness this suite exists
+# to catch, and a prior one (~26) was already wrong by the time it was read. The count is COMPUTED
+# from the same walk (see ONE_BACKSLASH below) and reported informationally, so it is
+# self-maintaining. The negative control below ASSERTS this limitation rather than merely
+# describing it, so nobody can mistake a green run for full coverage of the defect.
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SELF_REL="tests/$(basename "${BASH_SOURCE[0]}")"
@@ -96,6 +100,14 @@ WB_ONE="$(printf '%sb' "$BS")"
 # as scan_file: routing every caller through one function means neutering the scan anywhere neuters
 # it everywhere, so a control cannot stay green while the loop goes blind.
 scan_word_boundary(){ grep -InoE "$WORD_BOUNDARY" "$1" 2>/dev/null; }
+
+# The ONE-backslash source spelling — a single source backslash before b, < or >. This is NOT a
+# gate: it is the population the header calls unguarded, measured instead of guessed. Assembled at
+# runtime for the same self-membership reason as WORD_BOUNDARY. Note the two-backslash spelling is
+# a superset match of this one (the second backslash + b matches), so the sites unique to the
+# one-backslash form are the SET DIFFERENCE of the two per-line hit sets, computed below.
+ONE_BACKSLASH="$(printf '%s[b<>]' '\\')"
+scan_one_backslash(){ grep -InoE "$ONE_BACKSLASH" "$1" 2>/dev/null; }
 
 # Report every bound above MAX_BOUND in "lineno:interval" input. Reads scan_file output on stdin.
 # Pure text + arithmetic; no regex expresses "greater than 255" readably, and attempting one would
@@ -181,6 +193,9 @@ grep -qxF "$SELF_REL" <<<"$files_joined" \
 # --- the check -----------------------------------------------------------------------------------
 violations=""
 wb_violations=""
+# Informational populations for the computed single-backslash count (never a gate).
+ob_sites=""   # file:lineno carrying a one-backslash \b / \< / \>
+wb_sites=""   # file:lineno carrying the two-backslash spelling (a subset of the above)
 scanned=0
 skipped=""
 if [ "$n_files" -gt 0 ]; then
@@ -194,7 +209,14 @@ if [ "$n_files" -gt 0 ]; then
     if [ -n "$wb_hits" ]; then
       while IFS= read -r l; do
         wb_violations+="$f:$l"$'\n'
+        wb_sites+="$f:${l%%:*}"$'\n'
       done <<<"$wb_hits"
+    fi
+    ob_hits="$(scan_one_backslash "$ROOT/$f")"
+    if [ -n "$ob_hits" ]; then
+      while IFS= read -r l; do
+        ob_sites+="$f:${l%%:*}"$'\n'
+      done <<<"$ob_hits"
     fi
     hits="$(scan_file "$ROOT/$f")"
     [ -n "$hits" ] || continue
@@ -230,6 +252,19 @@ else
   nok "two-backslash word-boundary spelling found — BSD grep and git-grep ERE return zero for these SILENTLY; use an explicit [^[:alnum:]_] class instead:"
   printf '%s' "$wb_violations" | sed 's/^/       /'
 fi
+
+# --- COMPUTED, NON-GATING: how large is the unguarded single-backslash population? ---------------
+# The header explains that the one-backslash spelling is deliberately left unmatched, and the size
+# of that population is the justification for not widening the class here. That figure used to be
+# hand-written (in two places, both stale). It is derived instead: every file:line carrying a
+# one-backslash form, minus the file:line sites that carry the two-backslash spelling (already
+# gated above, and a superset match of the one-backslash pattern). Sorted -u first because comm
+# requires sorted input and a single source line can yield several -o matches.
+_ob_sorted="$(printf '%s' "$ob_sites" | sort -u)"
+_wb_sorted="$(printf '%s' "$wb_sites" | sort -u)"
+one_bs_sites="$(comm -23 <(printf '%s\n' "$_ob_sorted") <(printf '%s\n' "$_wb_sorted") | grep -c ':' || true)"
+printf '#    - unguarded single-backslash %s sites in scope: %s (computed, not gating)\n' \
+  "$WB_ONE" "$one_bs_sites"
 
 # --- controls: prove the predicate FIRES and where its boundary sits ------------------------------
 # Without these, every assert above is consistent with a pattern that can never match anything.
@@ -293,7 +328,8 @@ printf 'printf "%s%sn"\n'               "$BS" "$BS" >> "$wb_clean"
 # "\b" delivers bytes identical to the two-backslash spelling at the grep boundary, yet this class
 # does not match it. Kept in the clean fixture so the limitation is pinned — if someone later
 # widens the pattern to catch the real defect class, this control reddens and forces them to
-# revisit the ~26 tracked single-backslash sites deliberately instead of by accident.
+# revisit the tracked single-backslash sites deliberately instead of by accident — the computed
+# count printed above says how many there are, so no figure is restated here.
 printf 'grep -qE "%sb(Task|Agent)%sb" "$f"\n' "$BS" "$BS" >> "$wb_clean"
 
 wb_pos="$(scan_word_boundary "$wb_over")"
@@ -304,6 +340,6 @@ wb_pos="$(scan_word_boundary "$wb_over")"
 wb_neg="$(scan_word_boundary "$wb_clean")"
 [ -z "$wb_neg" ] \
   && ok "word-boundary negative control: single- AND double-quoted $WB_ONE (the known, unguarded gap) and a plain backslash are not flagged" \
-  || nok "word-boundary negative control FAILED: a single-backslash form was flagged — this class gates a SPELLING, not the defect class; widening it reddens ~26 tracked sites and belongs in its own change"
+  || nok "word-boundary negative control FAILED: a single-backslash form was flagged — this class gates a SPELLING, not the defect class; widening it reddens $one_bs_sites tracked sites and belongs in its own change"
 
 exit "$fail"
