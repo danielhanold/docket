@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0140 — Normalize the inherit model sentinel once for every runner adapter](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0140-normalize-the-inherit-model-sentinel-once-for-every-runner-a.md)**
+> ↩ **[Change 0140 — Normalize the inherit model sentinel once for every runner adapter](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-08-0140-normalize-the-inherit-model-sentinel-once-for-every-runner-a.md)**
 <!-- docket:backlink:end -->
 
 # Normalize the `inherit` model sentinel once for every runner adapter — results
