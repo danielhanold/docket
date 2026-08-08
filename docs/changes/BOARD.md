@@ -1,6 +1,6 @@
 # Backlog
 
-**261 changes** — 🟢 1 in progress · 🟡 29 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 153 done · 🗑️ 72 killed
+**261 changes** — 🟢 1 in progress · 🟡 29 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 154 done · 🗑️ 72 killed
 
 ## 🟢 In progress (1)
 
@@ -51,12 +51,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0249](active/0249-build-worker-contract-gate-execution-pointer-and-staging-dis.md) | Build-worker contract: gate-execution pointer and staging discipline | `medium` | `fix` | [#178](https://github.com/danielhanold/docket/pull/178) |  |
-| [0259](active/0259-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md) | Harden render-board: sanitize feeder values and settle the failure contract | `medium` | `fix` | [#177](https://github.com/danielhanold/docket/pull/177) |  |
 
 ```mermaid
 graph TD
@@ -93,7 +92,6 @@ graph TD
   0256
   0257
   0258
-  0259
   0260
   0261
   0192:::done
@@ -103,10 +101,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (225)</summary>
+<details><summary>✅🗑️ Archive — done + killed (226)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0259](archive/2026-08-08-0259-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md) | Harden render-board: sanitize feeder values and settle the failure contract | 2026-08-08 |
 | [0250](archive/2026-08-08-0250-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs.md) | Repo-scope detect-merged's fallback and guard the idle-secs duplication | 2026-08-08 |
 | [0237](archive/2026-08-08-0237-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md) | Prose levers fail to hold the step boundary — give the disposition contract a consumer | 2026-08-08 |
 | [0243](archive/2026-08-07-0243-make-test-suite-git-fixture-setup-fail-loudly-instead-of-fla.md) | Make test-suite git fixture setup fail loudly instead of flaking | 2026-08-07 |
@@ -166,7 +165,6 @@ graph TD
 | [0100](archive/2026-08-07-0100-force-push-lease-classifier-denial.md) | Force-push-with-lease denied by the auto-mode classifier — unblock finalize's merge gate | 2026-08-07 |
 | [0082](archive/2026-08-07-0082-global-harnesses-per-repo-generation.md) | Global agent_harnesses doesn't reach per-repo generation — silent no-op | 2026-08-07 |
 | [0019](archive/2026-08-07-0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | 2026-08-07 |
-| [0218](archive/2026-08-06-0218-fix-review-findings-in-branch-instead-of-minting-a-stub-for.md) | Fix review findings in-branch instead of minting a stub for every one | 2026-08-06 |
 | [0217](archive/2026-08-05-0217-clear-change-0202-s-three-minor-findings-dead-guard-stale-ba.md) | Clear change 0202's three minor findings: dead guard, stale baseline comment, wrong plan pattern | 2026-08-05 |
 | [0216](archive/2026-08-05-0216-guard-the-capture-shape-constraint-in-branch-only-artifact-w.md) | Guard the capture-shape constraint in branch_only_artifact with a mutation G | 2026-08-05 |
 | [0215](archive/2026-08-05-0215-escape-newlines-in-board-checks-sanitize-now-that-z-can-deli.md) | Escape newlines in board-checks sanitize now that -z can deliver a raw LF | 2026-08-05 |
@@ -199,7 +197,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 20 done |
+| [2026-08](archive/) | 21 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
