@@ -1090,6 +1090,33 @@ ex_slice_field(){ # $1=slice  $2=agent  $3=field(model|effort)
 ex_agent_keys(){ # $1=slice
   sed -nE 's/^[[:space:]]+([A-Za-z0-9_-]+):[[:space:]]*\{.*/\1/p' <<<"$1"
 }
+# HARNESS PARTITION (change 0246, finding 3). The build-max-terminated slice above is the right
+# window for the FORWARD value comparison — it is anchored on a row the sidecar names — but it is
+# the wrong window for the REVERSE one. build-max is the LAST row of every block, so a stale or
+# typo'd agent row appended after it falls outside the slice entirely: the orphan set stays empty
+# and the arity stays equal while the very row the reverse loop exists to catch sits in the file.
+# The end of a block is the most natural place to append a row, so that is the likeliest orphan
+# location, not an exotic one.
+#
+# So the reverse direction reads a partition instead: from this harness's header to the line before
+# the NEXT block header, or to the end of the agents region for the last block. The region ends at
+# the first truly blank line at or after `# agents:` — inside the block the separators are bare `#`
+# comment lines, and the blank line before the `# runners` prose is the first real one. Boundaries
+# are any bare `#   <key>:` header line, not an enumerated harness list: a fifth harness, or a
+# misspelled header, partitions correctly (and any row under a misspelled header then lands in the
+# preceding harness's partition and shows up as an orphan, which is the right answer).
+ex_partition(){ # $1=harness — the harness's whole commented block, uncommented
+  awk -v h="$1" '
+    !ina { if ($0 == "# agents:") ina = 1; next }
+    /^[[:space:]]*$/ { exit }
+    /^#[[:space:]]+[A-Za-z0-9_-]+:[[:space:]]*$/ {
+      hdr = $0
+      sub(/^#[[:space:]]+/, "", hdr); sub(/:[[:space:]]*$/, "", hdr)
+      on = (hdr == h)
+    }
+    on { print }
+  ' "$EX" | sed -E 's/^[[:space:]]*#[[:space:]]?//'
+}
 # Population AND terminator are both derived — from HD_SHIPPED_HARNESSES and from the sidecar's own
 # build-max row. A literal `claude cursor codex` list here would be a fourth restatement of what
 # the shipped set already knows, and it is precisely a hand-maintained harness list that let a stale
@@ -1142,8 +1169,20 @@ for h in $HD_SHIPPED_HARNESSES; do
   # MIRROR, not a proper subset: the example claims to reproduce the shipped defaults value for
   # value, so the reverse loop is mandatory here. Set membership plus arity; values need no second
   # comparison, because the forward loop already compares both fields row by row.
+  # Read the PARTITION, not the build-max-terminated slice: see ex_partition's note — the slice
+  # cannot see a row appended after build-max, which is where an orphan is likeliest to appear.
   hd_keys="$(hd_agents "$HD" "$h")"
-  ex_keys="$(ex_agent_keys "$slice")"
+  part="$(ex_partition "$h")"
+  part_first="${part%%$'\n'*}"; part_first="${part_first#"${part_first%%[![:space:]]*}"}"
+  # Partition guard, the mirror of the slice's terminator guard: an empty or mis-anchored partition
+  # would make both reverse asserts vacuous — no rows means no orphans. The partition must be
+  # non-empty, must open on this harness's own header, and must be at least as wide as the
+  # build-max slice (it is a superset of it by construction, so a shorter one means the region or
+  # boundary detection broke).
+  assert "$h mirror (reverse): the $h partition was isolated and opens on its own header" \
+    '[ -n "$part" ] && [ "$part_first" = "'"$h"':" ] &&
+     [ "$(grep -c . <<<"$part")" -ge "$(grep -c . <<<"$slice")" ]'
+  ex_keys="$(ex_agent_keys "$part")"
   ex_orphans=""
   while IFS= read -r ek; do
     [ -n "$ek" ] || continue
