@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0246 — Make the docket-example-yml guard suite bite](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0246-make-the-docket-example-yml-guard-suite-bite.md)**
+> ↩ **[Change 0246 — Make the docket-example-yml guard suite bite](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-08-0246-make-the-docket-example-yml-guard-suite-bite.md)**
 <!-- docket:backlink:end -->
 
 # Make the docket-example-yml guard suite bite — results
