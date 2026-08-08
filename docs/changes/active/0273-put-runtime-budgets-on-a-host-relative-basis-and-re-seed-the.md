@@ -62,6 +62,30 @@ absolute-speed problem as a residual in its spec's assumption 2 — "budget tabl
 the calibration host's absolute speed … a serial-canary rescale is the named follow-up shape."
 This change is that named follow-up. It should land **after** 0251, on top of the corrected regime.
 
+### Corroborating evidence — a full serial sweep (2026-08-08)
+
+A whole-suite **serial** run (`-j 1`, 96 files, 874s wall, on 0242's rebased branch) measured the
+same overshoot directly, with no contention term to argue about. Every row below is a file this
+change proposes to re-base; **none of them is a file 0242 touched**:
+
+| file | row | serial | ratio |
+|---|---|---|---|
+| `test_board_checks.sh` | 55 | 69 | 1.25 |
+| `test_sync_agents_runners.sh` | 60 | 73 | 1.22 |
+| `test_docket_config.sh` | 55 | 67 | 1.22 |
+| `test_harness_defaults.sh` | 45 | 54 | 1.20 |
+| `test_sync_agents.sh` | 50 | 56 | 1.12 |
+| `test_harness_defaults_validator.sh` | 50 | 55 | 1.10 |
+| `test_sync_agents_defaults.sh` | 50 | 54 | 1.08 |
+| `test_sync_agents_drift_docs.sh` | 55 | 58 | 1.05 |
+
+The ratios cluster in a 1.05–1.25 band with no relation to what any file does — the signature of a
+uniform host-speed difference, which is exactly what a host-relative basis cancels and what
+per-file row edits cannot. The two files 0242 re-shaped land **under** their freshly-cut rows
+(`test_sync_agents_codex.sh` 22 vs 30, `test_sync_agents_codex_dispatch.sh` 41 vs 50), and its new
+`test_sync_agents_claude_surface.sh` measures 49 against a 45 row — ratio 1.09, mid-band, i.e.
+indistinguishable from the untouched files and not a mis-cut row.
+
 ## What changes
 
 To be settled at grooming. The shape the evidence points at:
