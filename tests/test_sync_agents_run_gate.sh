@@ -74,4 +74,20 @@ assert "the two rendered gates are byte-identical" \
 # unterminated block is a corrupt managed region, not a rendering detail.
 assert "the AGENTS.md dispatch end marker exists" 'grep -q "docket:dispatch:end" "$AGM"'
 
+# --- reachability: the gate arrives at a Claude parent, not merely at a template ---
+mk_repo "[claude]"
+assert "reachability: a claude-only repo has a Claude surface" '[ -e "$SBX/CLAUDE.md" ]'
+assert "reachability: the gate is readable through that surface" \
+  'grep -q -- "verify-run --in-progress-ids" "$SBX/CLAUDE.md"'
+
+# --- the convention's pointer names the gate and binds it to the verification obligation ---
+# Bound to the Composition paragraph itself, not the whole file: `verify-run` and `once` both occur
+# elsewhere in the convention, so a whole-file window matches even with the pointer sentence deleted
+# (mutation-proven vacuous). The paragraph is the named terminator here — it is one physical line.
+CONV="$REPO/skills/docket-convention/SKILL.md"
+C="$(grep -m1 '^\*\*Composition' "$CONV" | tr -s '[:space:]' ' ')"
+assert "convention: the Composition paragraph exists to be asserted about" '[ -n "$C" ]'
+assert "convention: Composition points at the managed-block gate" \
+  '[[ "$C" == *"uncommitted working-tree files"*"verify-run"*"once"* ]]'
+
 echo; [ "$fail" = 0 ] && echo "ALL PASS" || echo "FAILURES"; exit "$fail"
