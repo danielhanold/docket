@@ -157,8 +157,18 @@ Two validation passes run before any projection is built — an upfront pass ove
 | M2 | Empty `status:`. | upfront pass |
 | M3 | `status:` outside the seven-name `DOCKET_STATUSES` vocabulary. This **subsumes** any status carrying an interior TAB or CR: a control-character value can never match a closed vocabulary name, so rejection-by-vocabulary *is* the sanitization — no such value ever reaches the archive TAB join or an `ARC_COUNT`/`SECTION` array subscript. | upfront pass |
 | M4 | The archive sort feeder's `date<TAB>id<TAB>status<TAB>path` tuple did not survive a round trip through the consumer's own split. | feeder pass |
+| M5 | The change file's **path** contains a TAB or CR. | upfront pass |
 
-M1–M3 validate the values the producer **reads**; M4 validates the tuple as **split**, which is a
+M1–M3 validate the values the producer **reads**; M5 validates the one control-character source that
+never passes through a frontmatter read at all — the *filename*. It is checked upfront over both
+directories rather than at any feeder because the **active** side has the same exposure the archive
+side does: `SECTION` joins `id<TAB>file` and four separate consumers split it back with
+`IFS=$'\t' read -r id f` (`print_section`, the digest `change` loop, the mermaid loop, the
+ready-queue loop). A per-consumer read-back guard would have to be written four times and would
+still miss the fifth consumer somebody adds; one upfront path check covers all four **and** the
+archive feeder. (M5 is numbered after M4 only because M4 shipped first — it runs above it.)
+
+M4 validates the tuple as **split**, which is a
 different failure surface — a control character in a *filename* reaches the TAB join without passing
 through any frontmatter read, so no upfront value check can see it. M4 is therefore
 belt-and-suspenders against a future control-character path, not a duplicate of M3. It is a genuine
@@ -169,11 +179,14 @@ consumer's own `IFS=$'\t' read -r date id st f`, and requires
    split and rebinds every later field; and
 2. the path to carry **no residual TAB or CR** — otherwise the tuple is not re-joinable.
 
-The second requirement is the one a TAB in a filename actually trips, and it is why the first is not
+The second requirement is the one a TAB in a filename would trip, and it is why the first is not
 sufficient on its own: `read` assigns the **unsplit remainder** to the final field, so an embedded
 TAB lands wholly inside `f` and round-trips intact without shifting anything. Such a path resolves
 on disk and carries a valid status, yet rendering it would write a raw control character into the
-emitted link. Rejection keys on the **authoritative** path the feeder started from, never on the
+emitted link. **M5 now claims that case first**, upfront, so this second conjunct is defence in
+depth rather than its sole owner — unobservable today, kept deliberately so a future edit that
+feeds the feeder loop from somewhere other than the validated file list still fails loud.
+Rejection keys on the **authoritative** path the feeder started from, never on the
 field that came back out — a slid tuple's final field is a fragment, and marking a fragment would
 leave the real file counted.
 
