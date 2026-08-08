@@ -1,6 +1,10 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0242 — Close the Claude gap in the run-completion gate with a caller-side verify in the dispatch rules](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0242-close-the-claude-gap-in-the-run-completion-gate-with-a-comma.md)**
+<!-- docket:backlink:end -->
+
 # Close the Claude gap in the run-completion gate with a caller-side verify — results
 
-Change: #0242 · Branch: feat/close-the-claude-gap-in-the-run-completion-gate-with-a-comma · PR: (opened at close of this run) · Plan: docs/superpowers/plans/2026-08-08-close-the-claude-gap-caller-side-run-gate.md · ADRs: none at build time — Decision 3's parallel ADR is authored by the review-time `docket-adr` dispatch
+Change: #0242 · Branch: feat/close-the-claude-gap-in-the-run-completion-gate-with-a-comma · PR: #186 · Plan: docs/superpowers/plans/2026-08-08-close-the-claude-gap-caller-side-run-gate.md · ADRs: ADR-0078
 
 ## What was built
 
