@@ -68,6 +68,11 @@ through the shared `field()`/`fm_field()` readers (`scripts/lib/docket-frontmatt
 a single matched pair of surrounding YAML quotes, so a title that was double-quoted at write time
 (because it contains a comma or apostrophe) renders without the quotes (change 0138).
 
+**Blocked-by cell renders quoted.** Unlike titles, the `Blocked by` cell shows the value exactly as
+authored — quotes included — because it is read through `fm_field_verbatim`
+(`scripts/lib/docket-frontmatter.sh`), the shape that preserves a whitespace-preceded `#` as data
+and so necessarily preserves quotes too.
+
 **Readiness cell (proposed).** Calls `readiness()` from `lib/docket-frontmatter.sh`; maps the
 token: `waiting` → `⏳ waiting on #N — <reason>`; `auto-groom-blocked` → `auto-groom blocked —
 needs you`; `needs-brainstorm` → `needs-brainstorm`; `build-ready` → `build-ready`.
