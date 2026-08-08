@@ -2,11 +2,11 @@
 id: 140
 slug: normalize-the-inherit-model-sentinel-once-for-every-runner-a
 title: Normalize the inherit model sentinel once for every runner adapter
-status: proposed
+status: in-progress
 priority: medium
 type: fix
 created: 2026-07-27
-updated: 2026-08-07
+updated: 2026-08-08
 depends_on: []
 related: [135, 205]
 discovered_from: [135]
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/normalize-the-inherit-model-sentinel-once-for-every-runner-a
+claimed_at: 2026-08-08T07:52:04Z
 pr:
 blocked_by:
 reconciled: false
