@@ -1248,8 +1248,9 @@ Docket generates an agent definition per docket skill in your harness's own agen
 you are asked to run one of the docket skills below, run the matching **agent** instead of executing
 the skill inline at the session model: the agent carries that skill's dispatch contract, its skill
 preload, and whatever model and reasoning effort your config layers pin for it. Docket ships a
-validated model and reasoning effort for every one of these agents on every harness it supports, so
-they are pinned out of the box; your config layers override either field per agent. Dispatch through
+validated model and reasoning effort for every one of these agents on the harnesses it ships
+defaults for — Claude, Cursor, Codex and opencode — so they are pinned out of the box there; your
+config layers override either field per agent, and set them for any other harness. Dispatch through
 the hosting harness's native named-agent dispatch either way — the pin is not the only reason, since
 the agent also carries the skill's dispatch contract and preload. Pass the request through
 unchanged, including any change or ADR id.
@@ -1473,7 +1474,7 @@ check_project_level() {  # three legs: (a) gitignore block current [CI-meaningfu
     fi
   else
     if [ -n "$am_have" ]; then
-      log "check: AGENTS.md carries a docket dispatch block but no AGENTS.md-dispatch harness (codex, opencode) is in agent_harnesses — run: bash sync-agents.sh and commit AGENTS.md"
+      log "check: AGENTS.md carries a docket dispatch block but no AGENTS.md-dispatch harness ($(printf '%s' "$AGENTS_MD_DISPATCH_HARNESSES" | sed 's/ /, /g')) is in agent_harnesses — run: bash sync-agents.sh and commit AGENTS.md"
       rc=1
     fi
   fi
