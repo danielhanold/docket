@@ -2,11 +2,11 @@
 id: 200
 slug: clear-the-unfixed-review-findings-from-change-0191
 title: Board-checks hardening — sanitize LF escape, capture-shape mutation, minor-finding clearance
-status: proposed
+status: in-progress
 priority: medium
 type: fix
 created: 2026-08-03
-updated: 2026-08-07
+updated: 2026-08-08
 depends_on: [224]
 related: [213, 215, 216, 217, 222]
 discovered_from: [191, 202]
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/clear-the-unfixed-review-findings-from-change-0191
+claimed_at: 2026-08-08T03:29:29Z
 pr:
 blocked_by:
 reconciled: false
