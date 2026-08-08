@@ -149,7 +149,13 @@ bad_mv="$(offenders_mv)"
 assert "every mv that replaces a file passes -f, so it cannot prompt on a tty" \
   '[ -z "$bad_mv" ] || { echo "$bad_mv" | sed "s|^$ROOT/|  |" >&2; echo "  RULE: bare mv prompts on an unwritable destination with a tty, self-answers n, and exits 0 — so the || die never fires and the write is lost. Write these as: mv -f SRC DEST. git mv is exempt (different tool)." >&2; false; }'
 
-n_mv_f_sites="$("$GREP" -hcE 'mv -f ' $(scope_files) 2>/dev/null | awk '{s+=$1} END{print s+0}')"
+# Counted through the same read loop the hit-scanning helpers use, never by word-splitting an
+# unquoted `$(scope_files)` into grep's operands. Splitting undercounts silently on a checkout path
+# containing whitespace, and — if every glob in the walk stopped matching — leaves grep with no file
+# operands at all, at which point it reads STDIN and this floor becomes a hang or a bogus zero.
+# Errors are deliberately not redirected to /dev/null: a scan that cannot read a file must say so.
+n_mv_f_sites="$({ while IFS= read -r f; do "$GREP" -hcE 'mv -f ' "$f"; done < <(scope_files); } \
+  | awk '{s+=$1} END{print s+0}')"
 assert "at least $MIN_MV_F non-interactive mv sites exist, so the check above is not vacuous (found $n_mv_f_sites)" \
   '[ "$n_mv_f_sites" -ge "$MIN_MV_F" ] || { echo "  RULE: this floor exists because a negative grep also passes when the scan finds nothing. A drop means either the scan broke or an install path stopped replacing files — check whether the scan broke or the population legitimately shrank." >&2; false; }'
 
@@ -157,12 +163,18 @@ assert "at least $MIN_MV_F non-interactive mv sites exist, so the check above is
 # sites. Same reason as the mv floor — a negative grep is also green when it scans nothing.
 MIN_MKTEMP_TEMPLATED=29
 
-# Every line invoking mktemp through command substitution. One predicate for BOTH the -d and the
-# file form: no option parsing, so a future flag cannot slip a site past the check.
+# Every line invoking mktemp through `$(…)` command substitution, with or without inner padding.
+# One predicate for BOTH the -d and the file form, and it does no option parsing — so a future FLAG
+# cannot slip a site past the check. That flag claim is the whole of the coverage: this is a
+# command-substitution predicate, not a general `mktemp` one. A backticked `` `mktemp` `` and a
+# `mktemp` invoked outside a substitution are NOT matched, and the backtick form deliberately so —
+# markdown is in scope, and a backticked bare `mktemp` in prose is byte-identical to a backticked
+# invocation, so matching it would redden on every sentence that names the defect. `$(` has no such
+# prose twin. The residual gap is a real one and is stated here rather than papered over.
 hits_mktemp(){
   local f
   while IFS= read -r f; do
-    "$GREP" -nF '$(mktemp' "$f" | sed "s|^|$f:|"
+    "$GREP" -nE '\$\([[:space:]]*mktemp' "$f" | sed "s|^|$f:|"
   done < <(scope_files)
 }
 
