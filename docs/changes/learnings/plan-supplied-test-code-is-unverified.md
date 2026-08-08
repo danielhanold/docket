@@ -2,9 +2,9 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234]
+changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234, 237]
 created: 2026-07-19
-updated: 2026-08-07
+updated: 2026-08-08
 promotion_state: candidate
 promoted_to:
 ---
@@ -283,3 +283,12 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   the file) before believing the guard's response*; and the plan's own verification greps were
   written `^(NOT )?ok` while this runner prints `NOT OK` uppercase, so a RED line was invisible to
   the filter rather than reported.
+- 2026-08-08 (#237, PR #176) — **The plan was docket's own, and its supplied guard was vacuous by
+  quoting.** The assert proving `runner-dispatch.sh` no longer `exec`s was written with a `\$`
+  inside an `eval`'d double-quoted string; the escape collapsed to a bare `$`, which `grep -E` then
+  read as an **end-of-line anchor**, so the pattern matched the *unchanged* file and the guard was
+  green before the change existed. Replaced with a shape-anchored static guard plus a runtime
+  `$PPID`-vs-`$$` check, both red-before / green-after. Nothing new in the mechanism — what this
+  entry adds is the provenance: this finding is already `promotion_state: candidate` and the plan
+  that tripped it was authored inside the same repo that carries the finding. A rule that must fire
+  unprompted does not fire because it is written down nearby.
