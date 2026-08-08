@@ -34,9 +34,11 @@ Reached from a consuming repo as:
 **Validation.** Exits 2 if `--learnings-dir` is missing or is not a directory.
 
 **File scan.** Finds all `*.md` files in `--learnings-dir` (non-recursive, `maxdepth 1`), excluding
-`README.md`. Files without a valid `slug:` frontmatter field are silently skipped. Field values
-(`hook`, `topics`, `promotion_state`, `promoted_to`) are read via `lib/docket-frontmatter.sh`'s
-`field`/`list_field`.
+`README.md`. Files without a valid `slug:` frontmatter field are silently skipped. Field values are
+read via `lib/docket-frontmatter.sh`: `hook` and `topics` through the whole-file readers, and the
+optional `promotion_state`/`promoted_to` through the **anchored** `fm_field` — those two keys may be
+absent, and an unanchored read would return body prose instead (the selection rule lives in the
+`scripts/lib/docket-frontmatter.sh` header).
 
 **Dequoting.** `field()` returns the raw scalar with surrounding quotes intact. `hook:` is required
 to be quoted (it carries a colon-space, putting it in the YAML-scalar-that-must-be-quoted family),
