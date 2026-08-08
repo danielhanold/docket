@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/close-the-claude-gap-in-the-run-completion-gate-with-a-comma
-claimed_at: 2026-08-08T16:05:01Z
+claimed_at: 2026-08-08T16:07:36Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -111,4 +111,33 @@ an oversight to patch around — it is a recorded decision: ADR-0024 chose nativ
 `context: fork` frontmatter for Claude Code explicitly as "**no generated file, no hook, no
 CLAUDE.md routing**", and states `HARNESS_HAS_DISPATCH_RULES` stays **Cursor-only**.
 
-See `## Run halted` for what this means for the design and what a human must decide.
+See the `## Run halted` record (removed on re-claim; preserved in git at `7a28bd1f`) for what this
+meant for the design and what the human was asked to decide.
+
+### 2026-08-08 — reconcile (docket-implement-next), resumed
+
+The halt above was answered by the human's post-reconcile re-groom (`09422ebb`): the spec's
+Decision 2 now has docket **create** the missing Claude parent surface rather than assuming one,
+and Decision 3 records why that leaves ADR-0024's routing decision untouched. The `## Run halted`
+record was cleared as part of the re-claim, per the claim's ownership of that transition.
+
+Re-verified against current `origin/main` (`487bfdc5`, unadvanced since the halted pass) — every
+premise the re-groomed spec rests on holds:
+
+- `sync-agents.sh:257` `HARNESS_HAS_DISPATCH_RULES="$DOCKET_GI_DISPATCH_HARNESSES"` (= `"cursor"`)
+  and `:262` `AGENTS_MD_DISPATCH_HARNESSES="codex opencode"` — Claude is in neither, as the spec
+  now states rather than assumes.
+- The two assembly seams the gate text must reach are `assemble_dispatch_rule()` (`:1211`, static
+  head `cursor-rules/dispatch.head.md` + per-agent fragments) and `assemble_agents_md_dispatch()`
+  (`:1250`, an inline `HEAD` heredoc). The gate text is **single-sourced across neither today** —
+  the spec's §2 single-source requirement is therefore net-new build work, not a refactor of an
+  existing shared template. Called out here because it is the design's main structural risk.
+- `scripts/verify-run.sh` exposes `--in-progress-ids` / `--with-claimed-at` and the four report
+  lines (`run-complete`, `run-halted`, `run-incomplete <unmet…>`, `run-unclaimed`), exiting 0
+  whenever a verdict was produced — the gate keys on the line, never the exit code.
+- This repo is the spec's `AGENTS.md`-only combo: `AGENTS.md` present, no `CLAUDE.md`. Building
+  this change will therefore create the committed symlink in docket's own root.
+- Dependency 0237 is `done`; `runner-dispatch.sh` and `board-checks.sh` are untouched consumers.
+
+No scope drift found; no adjacent follow-up work cleared the auto-capture gates. Proceeding to
+plan.
