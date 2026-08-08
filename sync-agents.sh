@@ -336,6 +336,31 @@ validate_harness_defaults() {  # $1=file $2=sources-dir
     function has(words, word) { return index(" " words " ", " " word " ") != 0 }
     function trim(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); return s }
     function diag(s) { print "harness-defaults: " s > "/dev/stderr"; rc=1 }
+    # Does the RAW line carry a `#` INSIDE its flow map? Twin of `flow_map_has_comment` below and of
+    # `_hd_flow_map_has_comment` in scripts/lib/harness-defaults.sh — same rule, duplicated BY VALUE
+    # for the same reason the quote leg is (the shipped-data reader is deliberately not coupled to
+    # the user-config readers; extracting the shared helper is change #0256). Parity is held by test,
+    # in tests/test_harness_defaults_flow_map.sh.
+    #
+    # The rule, exactly: it APPLIES only when the first `{` precedes any `#` on the line (a `#`
+    # before the first `{`, or no `{` at all, never fires). It then FIRES iff, after that `{`, a `#`
+    # appears before the first `}`, or a `#` appears with no `}` at all. A trailing comment after
+    # `}`, a full-line comment, and a commented-out map all stay legal. index(), not a regex: both
+    # braces are regex metacharacters, and there is nothing here a substring search cannot decide.
+    # The closing-brace local is `shut`, not `close`: `close` is a BWK awk builtin (the awk macOS
+    # ships) and using it as a parameter is a hard parse error, not a shadowing warning.
+    function flow_comment(l,   b, hash, after, shut) {
+      b = index(l, "{")
+      if (b == 0) return 0
+      hash = index(l, "#")
+      if (hash != 0 && hash < b) return 0
+      after = substr(l, b + 1)
+      hash = index(after, "#")
+      if (hash == 0) return 0
+      shut = index(after, "}")
+      if (shut == 0) return 1
+      return hash < shut
+    }
     {
       if ($0 ~ /^agents:[[:space:]]*$/) top=1
       nc=$0; sub(/#.*/, "", nc)
@@ -352,6 +377,17 @@ validate_harness_defaults() {  # $1=file $2=sources-dir
         entry_count[h SUBSEP a]++
         present[h SUBSEP a]=1
         if (!has(sources, a)) diag(h "/" a " names no wrapper source (" source_dir "/docket-" a ".md)")
+        # Judged on $0, the PRE-STRIP line: everything below reads `nc`, with the comment already
+        # removed, so the truncation is structurally invisible to it. Without this leg the input is
+        # still rejected — but only INCIDENTALLY, by the unterminated map falling into the
+        # field-absent branch, which blames bareness and names neither the `#` nor the flow map.
+        # `next` because every check below now judges a knowingly truncated line: emitting an
+        # ABSENCE complaint on top of the accurate sentence is the wrong-cause diagnostic this leg
+        # exists to remove, and hd_validate emits the flow-map sentence alone for the same input.
+        if (flow_comment($0)) {
+          diag(h "/" a " entry contains \047#\047 inside the flow map — comments cannot appear inside {…}; docket strips them before parsing")
+          next
+        }
         fields=nc
         if (fields !~ /\{.*\}/) { model=""; effort="" }
         else {
