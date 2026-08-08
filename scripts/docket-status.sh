@@ -1019,7 +1019,9 @@ emit_judgment(){
     status="$(field "$f" status)"
     [ "$status" = blocked ] || continue
     id="$(field "$f" id)"
-    blocked_by="$(field "$f" blocked_by)"
+    # VERBATIM, not fm_field: blocked_by is free prose where a whitespace-preceded `#` is DATA
+    # (`PR #69 is stale`), and fm_field's comment strip would truncate it to `PR`.
+    blocked_by="$(fm_field_verbatim "$f" blocked_by)"
     echo "judgment blocked $id $blocked_by"
   done
   return 0
@@ -1058,7 +1060,7 @@ learnings_advisories(){
   local ldir="$1" f state active=0 candidates=0
   while IFS= read -r f; do
     [ -n "$f" ] || continue
-    state="$(field "$f" promotion_state)"
+    state="$(fm_field "$f" promotion_state)"   # anchored: optional key (ADR-0057)
     state="${state:-retained}"
     [ "$state" = "promoted" ] && continue
     active=$((active + 1))

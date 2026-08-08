@@ -418,7 +418,7 @@ readiness_cell(){ # readiness_cell FILE ID  (proposed)
 implemented_cell(){ # implemented_cell FILE  (implemented)
   if finalize_blocked "$1"; then printf 'finalize blocked — needs you'; fi
 }
-pr_cell(){ local f="$1" pr num; pr="$(field "$f" pr)"
+pr_cell(){ local f="$1" pr num; pr="$(fm_field "$f" pr)"   # anchored: pr: is optional (ADR-0057)
   [ -n "$pr" ] || { printf ''; return; }
   num="${pr##*/}"                                   # trailing PR number, whether pr: is a full URL or bare
   case "$pr" in
@@ -446,16 +446,18 @@ print_section(){ # print_section STATUS HEADER_SUFFIX
     ctype="$(type_cell "$f")"
     local base; base="$(basename "$f")"
     # row_format_mapping
+    # Optional keys go through the ANCHORED accessors (ADR-0057; rule table in
+    # lib/docket-frontmatter.sh). blocked_by uses the VERBATIM shape because its ` #…` is data.
     case "$st" in
       in-progress)
         printf '| [%s](active/%s) | %s | `%s` | `%s` | [spec](%s) | `%s` |\n' \
-          "$(pad "$id")" "$base" "$title" "$priority" "$ctype" "$(spec_link "$(field "$f" spec)")" "$(field "$f" branch)" ;;
+          "$(pad "$id")" "$base" "$title" "$priority" "$ctype" "$(spec_link "$(fm_field "$f" spec)")" "$(fm_field "$f" branch)" ;;
       proposed)
         printf '| [%s](active/%s) | %s | `%s` | `%s` | %s |\n' \
           "$(pad "$id")" "$base" "$title" "$priority" "$ctype" "$(readiness_cell "$f" "$id")" ;;
       blocked)
         printf '| [%s](active/%s) | %s | `%s` | `%s` | %s |\n' \
-          "$(pad "$id")" "$base" "$title" "$priority" "$ctype" "$(field "$f" blocked_by)" ;;
+          "$(pad "$id")" "$base" "$title" "$priority" "$ctype" "$(fm_field_verbatim "$f" blocked_by)" ;;
       deferred)
         printf '| [%s](active/%s) | %s | `%s` | `%s` |\n' "$(pad "$id")" "$base" "$title" "$priority" "$ctype" ;;
       implemented)

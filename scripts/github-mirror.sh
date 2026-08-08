@@ -110,7 +110,7 @@ declare -A ISSUE_NUM            # id -> issue number; seeded from issue:, update
 mapfile -t FILES < <(find "$CHANGES_DIR/active" "$CHANGES_DIR/archive" -maxdepth 1 -name '*.md' 2>/dev/null | sort)
 for f in "${FILES[@]}"; do
   id="$(field "$f" id)"; [ -n "$id" ] || continue
-  iss="$(field "$f" issue)"; [ -n "$iss" ] && ISSUE_NUM["$id"]="$iss"
+  iss="$(fm_field "$f" issue)"; [ -n "$iss" ] && ISSUE_NUM["$id"]="$iss"   # anchored: optional
 done
 
 # --- href builders ------------------------------------------------------------
@@ -154,9 +154,9 @@ build_body(){ # build_body FILE SUBDIR FILENAME
   local f="$1" subdir="$2" fname="$3"
   local id title status priority spec plan results ctype
   id="$(field "$f" id)"; title="$(field "$f" title)"; status="$(field "$f" status)"
-  priority="$(field "$f" priority)"; spec="$(field "$f" spec)"
+  priority="$(field "$f" priority)"; spec="$(fm_field "$f" spec)"   # spec: optional -> anchored
   ctype="$(fm_field "$f" type)"; ctype="${ctype:-untyped}"   # anchored read — type may be ABSENT
-  plan="$(field "$f" plan)"; results="$(field "$f" results)"
+  plan="$(fm_field "$f" plan)"; results="$(fm_field "$f" results)"  # optional -> anchored
   printf '> **Generated mirror** of `%s/%s/%s` on the `%s` branch. ' \
     "$CHANGES_PATH" "$subdir" "$fname" "$META_BRANCH"
   printf 'Edits and comments here are not read back — the change file is the source of truth.\n\n'
@@ -200,7 +200,7 @@ mirror_change(){
   local f="$1"
   local id status issue subdir fname
   id="$(field "$f" id)"; status="$(field "$f" status)"
-  issue="$(field "$f" issue)"
+  issue="$(fm_field "$f" issue)"   # anchored: optional key (ADR-0057)
   fname="$(basename "$f")"
   case "$f" in *"/archive/"*) subdir="archive" ;; *) subdir="active" ;; esac
   [ -n "$id" ] || return 0

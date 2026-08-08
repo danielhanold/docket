@@ -360,7 +360,10 @@ for f in "${FILES[@]}"; do
   case "$f" in
     */active/*)  ID_ACTIVE["$id"]=1 ;;
   esac
-  spec="$(field "$f" spec)"; trivial="$(field "$f" trivial)"
+  # anchored: spec:/trivial: are optional (ADR-0057) — and a body-prose `spec:` makes a
+  # needs-brainstorm change read as build-ready, which is the autonomous builder claiming an
+  # undesigned change.
+  spec="$(fm_field "$f" spec)"; trivial="$(fm_field "$f" trivial)"
 
   # --- field-domain: a value that is well-formed TEXT but outside its field's DOMAIN (change 0104).
   # These four fields are what the board renderers consume. A value outside the domain does not
@@ -439,7 +442,7 @@ for f in "${FILES[@]}"; do
   # Carve-out: never flag an 'implemented' change — those files still live on the unmerged feature branch.
   if [ "$status" = "done" ]; then
     for key in plan results; do
-      val="$(field "$f" "$key")"
+      val="$(fm_field "$f" "$key")"   # anchored; $key is plan|results, both optional
       [ -n "$val" ] || continue
       git_has "$INTEGRATION_BRANCH" "$val" || emit broken-plan-results "$id" "$key not found on $INTEGRATION_BRANCH: $val"
     done
@@ -450,8 +453,8 @@ for f in "${FILES[@]}"; do
   # blind spot (branch ref absent). The reclaimable subset (expired AND no branch ref) carries the
   # trailing [reclaimable] marker — the machine contract docket-status keys on for its remedy print.
   if [ "$status" = "in-progress" ]; then
-    branch="$(field "$f" branch)"
-    claimed="$(field "$f" claimed_at)"
+    branch="$(fm_field "$f" branch)"        # anchored: optional keys (ADR-0057)
+    claimed="$(fm_field "$f" claimed_at)"
     has_branch=0
     if branch_ref "$branch" >/dev/null; then has_branch=1; fi
     lease_secs="$(( LEASE_TTL_HOURS * 3600 ))"
