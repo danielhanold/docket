@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0250 — Repo-scope detect-merged's fallback and guard the idle-secs duplication](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0250-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs.md)**
+> ↩ **[Change 0250 — Repo-scope detect-merged's fallback and guard the idle-secs duplication](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-08-0250-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs.md)**
 <!-- docket:backlink:end -->
 
 # Repo-scope detect_merged's fallback and guard the idle-secs duplication — design
