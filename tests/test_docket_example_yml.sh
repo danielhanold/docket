@@ -971,6 +971,12 @@ ex_slice_field(){ # $1=slice  $2=agent  $3=field(model|effort)
   line="${line%%$'\n'*}"
   sed -nE "s/.*[{,[:space:]]$3[[:space:]]*:[[:space:]]*([^,}[:space:]]+).*/\1/p" <<<"$line"
 }
+# Agent keys carried by an uncommented example slice. The `\{` requirement is what excludes the
+# slice's own first line (the bare `<harness>:` header, which has no flow map) without needing to
+# special-case it.
+ex_agent_keys(){ # $1=slice
+  sed -nE 's/^[[:space:]]+([A-Za-z0-9_-]+):[[:space:]]*\{.*/\1/p' <<<"$1"
+}
 # Population AND terminator are both derived — from HD_SHIPPED_HARNESSES and from the sidecar's own
 # build-max row. A literal `claude cursor codex` list here would be a fourth restatement of what
 # the shipped set already knows, and it is precisely a hand-maintained harness list that let a stale
@@ -987,7 +993,14 @@ ere_escape(){ sed -E 's/[][\.^$*+?(){}|]/\\&/g' <<<"$1"; }
 for h in $HD_SHIPPED_HARNESSES; do
   bm_model="$(hd_field "$HD" "$h" build-max model)"
   assert "$h mirror: the sidecar supplies a build-max model to anchor the slice on" '[ -n "$bm_model" ]'
-  slice="$(ex_slice "$h" "build-max:.*$(ere_escape "$bm_model")")"
+  # BOUNDARY CLASS on the model (change 0246): without it the terminator is prefix-weak. claude's
+  # build-max model is `claude-opus-5` and cursor's is `claude-opus-5-high`, so with claude's own
+  # build-max row deleted this range would run past the codex block and close on CURSOR's row — an
+  # over-wide slice whose last line is still a `build-max:` line, so the terminator guard below
+  # stayed green while the asserts read another harness's values. The example writes every flow map
+  # as `{ model: X, effort: Y }`, so a real terminator's model is always followed by a comma;
+  # whitespace and `}` are admitted too so a reformat does not falsely redden.
+  slice="$(ex_slice "$h" "build-max:.*$(ere_escape "$bm_model")[,[:space:]}]")"
   # Terminator guard: an unclosed sed range silently runs to EOF, pulling in neighbouring blocks and
   # surrounding prose, while every assert below stays green on the over-wide slice. Pinning the
   # slice's FIRST and LAST lines catches both over-run and under-run. First/last taken by parameter
@@ -1009,6 +1022,26 @@ for h in $HD_SHIPPED_HARNESSES; do
       '[ -n "$(ex_slice_field "$slice" "'"$a"'" effort)" ] &&
        [ "$(ex_slice_field "$slice" "'"$a"'" effort)" = "$(hd_field "$HD" '"$h"' "'"$a"'" effort)" ]'
   done < <(hd_agents "$HD" "$h")
+  # REVERSE DIRECTION (change 0246). The loop above iterates the SIDECAR, so it proves only
+  # sidecar ⊆ example: an agent row sitting in the example with no sidecar counterpart — a stale
+  # entry left behind by a removal, or a typo'd agent name — is structurally invisible to it, and
+  # to every neighbouring assert too (they are all keyed on sidecar rows). This correspondence is a
+  # MIRROR, not a proper subset: the example claims to reproduce the shipped defaults value for
+  # value, so the reverse loop is mandatory here. Set membership plus arity; values need no second
+  # comparison, because the forward loop already compares both fields row by row.
+  hd_keys="$(hd_agents "$HD" "$h")"
+  ex_keys="$(ex_agent_keys "$slice")"
+  ex_orphans=""
+  while IFS= read -r ek; do
+    [ -n "$ek" ] || continue
+    grep -qxF "$ek" <<<"$hd_keys" || ex_orphans="$ex_orphans $ek"
+  done <<<"$ex_keys"
+  assert "$h mirror (reverse): every example $h row exists in the shipped sidecar (${ex_orphans:-none orphaned})" \
+    '[ -z "$ex_orphans" ]'
+  n_ex="$(grep -c . <<<"$ex_keys")"
+  n_hd="$(grep -c . <<<"$hd_keys")"
+  assert "$h mirror (reverse): example row count equals sidecar row count (example $n_ex, sidecar $n_hd)" \
+    '[ "$n_ex" = "$n_hd" ] && [ "$n_ex" -gt 0 ]'
   assert "$h mirror: every shipped $h entry was checked (floor 16; got $mirrored)" \
     '[ "$mirrored" -ge 16 ]'
 done
