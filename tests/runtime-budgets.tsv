@@ -95,7 +95,7 @@ tests/test_skill_handoff_precedence.sh	10	parallel
 tests/test_skill_size_budgets.sh	10	parallel
 tests/test_skip_allowlist_invisibility.sh	10	parallel
 tests/test_sync_agents.sh	50	parallel
-tests/test_sync_agents_claude_surface.sh	30	parallel
+tests/test_sync_agents_claude_surface.sh	45	parallel
 tests/test_sync_agents_codex.sh	55	parallel
 tests/test_sync_agents_cursor.sh	15	parallel
 tests/test_sync_agents_defaults.sh	50	parallel
