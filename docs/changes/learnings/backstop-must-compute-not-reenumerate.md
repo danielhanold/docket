@@ -2,9 +2,9 @@
 slug: backstop-must-compute-not-reenumerate
 hook: "A backstop that re-enumerates the causes it backs up is a fourth restatement wearing the word invariant — derive its predicate from the real consumer, and mutation-test its POPULATION, not only its suppression."
 topics: [testing, guards, invariants]
-changes: [104, 127]
+changes: [104, 127, 259]
 created: 2026-07-20
-updated: 2026-07-23
+updated: 2026-08-08
 promotion_state: candidate
 promoted_to:
 ---
@@ -70,3 +70,12 @@ it is the last line).
   "non-zero exit + nothing written", so deleting the conflicting-overwrite guard left the block
   green because a downstream post-write verification caught it too; each refusal is now pinned to
   its **own diagnostic**. See [[guards-are-code]].
+- 2026-08-08 (#259, PR #177 — merged) — Reject and tally are separate acts, and the backstop modelled
+  only one. M4 fired **after** both tally loops and never populated `BAD`, so a rejected archive file
+  stayed in `ARC_COUNT`, the `<summary>` header, and the digest rollup — a fixture rendered
+  `Archive — done (2)` above exactly one row. `board-checks.sh`'s `board-row-dropped` backstop cannot
+  catch this class: its `renders_row` predicate models an archive file with a usable id and a terminal
+  status as rendered, which is exactly what the rejected file still looked like. The same review found
+  a **fourth** `ARCFILES` consumer with no gate at all (the mermaid `DONE_IDS` loop), contradicting the
+  in-code claim that `BAD` was honored "at all three consumers" — the enumeration in the comment was
+  the backstop's real population model, and it was wrong.

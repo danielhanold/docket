@@ -2,9 +2,9 @@
 slug: fix-reintroduces-its-own-defect-class
 hook: "New code added by a change that fixes a defect class is the likeliest place for that class to reappear — audit the change's OWN additions against its thesis before review, and check the twin it did not touch."
 topics: [review, refactoring, contracts]
-changes: [135, 173, 113, 212, 220, 228]
+changes: [135, 173, 113, 212, 220, 228, 259]
 created: 2026-07-28
-updated: 2026-08-07
+updated: 2026-08-08
 promotion_state: candidate
 promoted_to:
 ---
@@ -117,3 +117,11 @@ Related: [[escape-ere-metacharacters-in-key]] (the un-fixed twin of a duplicated
   defect class is "a status nobody looked at," the new assert that looks at only one direction is
   the same defect wearing a test's clothes. Both directions, or it is decoration
   ([[guards-are-code]], [[assert-pins-outcome-not-mechanism]]).
+- 2026-08-08 (#259, PR #177 — merged) — The twin the change did not touch had the identical hole,
+  undisclosed. `render-board.sh`'s archive feeder got M4 to guard a "future control-character path";
+  the **ACTIVE** feeder (`SECTION`) uses the same `id<TAB>file` join, the same two-variable split,
+  and had **four consumers and no guard at all** — so a TAB in an active filename rendered a raw TAB
+  into `BOARD.md` at exit 0. The hazard M4 was written against was already reachable one function
+  away. Found at whole-branch review, not by the change that wrote M4. The fix chose an **upfront
+  rejection class (M5)** over a per-consumer guard precisely because guarding one of four sites
+  leaves three open plus any fifth added later ([[enumerated-floor]]).

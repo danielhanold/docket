@@ -2,9 +2,9 @@
 slug: exit-code-encodes-a-non-failure
 hook: "A new exit code for a non-failure condition reads as a hard failure at every bare non-zero consumer — enumerate the callers before minting it, and default the advisory case to 0."
 topics: [exit-codes, contracts, gates]
-changes: [227, 224]
+changes: [227, 224, 259]
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-08
 promotion_state: candidate
 promoted_to:
 ---
@@ -75,4 +75,13 @@ it later.
   own documented contract rather than to an exit-code taxonomy in the consumer, which would go stale
   the moment a repo configures a different runner. That delegation is a real, stated cost (ADR-0074
   names it): docket cannot mechanically enforce that a runner documents its non-failure exits.
-
+- 2026-08-08 (#259, PR #177 — merged) — The mirror image, and this learning's own core claim made
+  concrete: `render-board.sh`'s M4 read-back guard sat **inside the archive rendering block, below
+  `--format digest`'s early exit**, so identical malformed input produced exit 3 with a diagnostic
+  on the markdown path and **exit 0 with empty stderr and a wrong `backlog done` tally** on the
+  digest path. `board-refresh.sh` froze the board while `docket-status.sh`'s `digest_only_pass`
+  handed `docket-implement-next` a queue built from a corrupt archive. Three places already
+  asserted the opposite and were false. Caught at whole-branch review as the branch's only blocker;
+  fixed by hoisting validation into a feeder pass **above both emission paths**. A documented
+  exit-code table constrains nobody — only the wiring does, and a guard's *placement relative to
+  every early exit* is part of that wiring.

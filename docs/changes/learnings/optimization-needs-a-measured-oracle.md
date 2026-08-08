@@ -2,9 +2,9 @@
 slug: optimization-needs-a-measured-oracle
 hook: "A performance change has no oracle in the suite — correctness asserts pass identically whether the optimization happened or not, so scope it and accept it on measured wall clock."
 topics: [testing, performance, planning]
-changes: [174, 175, 176]
+changes: [174, 175, 176, 259]
 created: 2026-07-31
-updated: 2026-08-01
+updated: 2026-08-08
 promotion_state: candidate
 promoted_to:
 ---
@@ -63,3 +63,12 @@ whose value depends on the property the change exists to deliver.
   Restoring the repeated external scans raised the count to 173 and reddened the guard. The complete
   suite remained a correctness oracle only; the timed median and mutation-proven mechanism metric
   were the evidence that the optimization itself landed.
+- 2026-08-08 (#259, PR #177 — merged) — The hardening pass's validation feeder re-read and
+  discarded every field, measuring ~16% slower on the live backlog. Caching the validated id/status
+  landed at ~31% faster than the pre-fix branch and faster than `origin/main` (10.97/10.98/11.06s →
+  7.58/7.63/7.63s). No suite assert could go red either way, so acceptance rested on a **byte-
+  identical diff of both projections over the 261-file live backlog** plus the wall-clock A/B — and
+  the results file routes it to the human `## Verify` list rather than claiming the tests covered
+  it. Note the direction: here the *hardening* was the regression and the optimization paid it
+  back; a correctness fix is as capable of costing wall clock as a perf change is of costing
+  correctness, and neither has an oracle in the other's tests.

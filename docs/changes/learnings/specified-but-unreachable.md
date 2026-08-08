@@ -2,9 +2,9 @@
 slug: specified-but-unreachable
 hook: "Sentinels over prose assert a claim is PRESENT, never that it is REACHABLE — where a contract has a producer and a consumer, anchor one assert on the producer."
 topics: [testing, sentinels, review]
-changes: [87, 94, 203, 220, 226]
+changes: [87, 94, 203, 220, 226, 259]
 created: 2026-07-19
-updated: 2026-08-07
+updated: 2026-08-08
 promotion_state: candidate
 promoted_to:
 ---
@@ -71,3 +71,13 @@ this?* If the answer is only "the section that describes it," the feature is dec
   specifically — reachability is not just "does some path write this," it is **does the path that
   reads it fire early enough to change behavior**. A reference loaded after the decision it exists
   to inform is as inert as one nothing loads at all.
+- 2026-08-08 (#259, PR #177 — merged) — Reachability lost, then disclosed rather than papered over.
+  Review asked for a fixture exercising M4's shifted-tuple conjuncts; the M5 fix (rejecting any
+  TAB/CR-bearing path upfront) made that **structurally impossible** — M5 pre-empts the path case
+  and M3 subsumes the interior-TAB status, so M4's conjuncts and the SECTION-loop `BAD` gate became
+  unreachable by construction. Mutation-tested to zero failures, which is the diagnostic signature:
+  a clause you can break without reddening anything. Kept deliberately as defence in depth, labelled
+  as such in both the code and `scripts/render-board.md`, and the residual risk — three guard
+  clauses with no assert that can go red — written into the results file as **disclosure, not
+  coverage**. When a later fix strands an earlier guard, the honest options are delete it or say so
+  in writing; silently retaining it as if tested is the failure ([[guards-are-code]]).
