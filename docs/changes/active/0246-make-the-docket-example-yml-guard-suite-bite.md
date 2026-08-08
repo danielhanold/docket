@@ -2,11 +2,11 @@
 id: 246
 slug: make-the-docket-example-yml-guard-suite-bite
 title: 'Make the docket-example-yml guard suite bite'
-status: proposed
+status: in-progress
 priority: medium
 type: fix
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-08
 depends_on: []
 related: [150]
 discovered_from: [178, 187, 121]
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/make-the-docket-example-yml-guard-suite-bite
+claimed_at: 2026-08-08T01:32:46Z
 pr:
 blocked_by:
 reconciled: false
