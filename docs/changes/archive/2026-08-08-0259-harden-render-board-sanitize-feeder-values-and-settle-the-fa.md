@@ -2,7 +2,7 @@
 id: 259
 slug: harden-render-board-sanitize-feeder-values-and-settle-the-fa
 title: 'Harden render-board: sanitize feeder values and settle the failure contract'
-status: implemented
+status: done
 priority: medium
 type: fix
 created: 2026-08-07
@@ -17,7 +17,7 @@ results: docs/results/2026-08-07-harden-render-board-sanitize-feeder-values-and-
 trivial: false
 auto_groomable: true
 branch: feat/harden-render-board-sanitize-feeder-values-and-settle-the-fa
-claimed_at: 2026-08-08T00:15:45Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/177
 blocked_by:
 reconciled: true
