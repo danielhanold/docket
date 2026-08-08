@@ -36,15 +36,48 @@ assert "the pinned scan binary exists" '[ -x "$GREP" ]'
 
 # In-scope population floor: if the walk collapses, every negative assert below passes vacuously.
 MIN_FILES=40
+# Floor on the agent-executed markdown half of the walk, asserted separately (see md_scope_files).
+MIN_MD_FILES=35
 # Post-sweep floor on atomic-replace/rename call sites written the non-interactive way.
 MIN_MV_F=16
 
 # The guarded surface: shipped shell, entry scripts included. tests/ is excluded — test-side
 # hygiene is owned elsewhere, and this file's own patterns would match themselves.
+#
+# MARKDOWN THAT AN AGENT EXECUTES IS SHELL. A `.sh`-only walk cannot see the copies of these same
+# operations that live as literal bash inside agent-run markdown — a skill body's atomic index
+# replace is the identical `mktemp`/`mv` pair as the script's, and prompts identically. Three
+# markdown surfaces are therefore in scope, chosen because an agent runs the bash in them
+# verbatim: the script contracts (`scripts/*.md`), the skill procedures (`skills/*/SKILL.md`), and
+# the procedure references those bodies delegate to (`skills/*/references/*.md`).
+#
+# ALL markdown is deliberately NOT in scope, and the exclusion is a correctness requirement, not a
+# convenience. `docs/` is dominated by point-in-time records — archived changes, results files,
+# historical plans — which this repo's rules forbid rewriting: they must keep whatever was true
+# when written, and several of them quote bare `mv`/untemplated `mktemp` precisely BECAUSE those
+# are the defect under discussion. A whole-markdown walk would demand edits that falsify history,
+# and the only way back to green would be an allowlist — which ADR-0050 forbids.
+#
+# A DEFECTIVE FORM QUOTED AS AN EXAMPLE IS TOLERATED BY SHAPE. Prose naming the bad call writes it
+# as a bare code span — `` `mv` `` with no operands — which the invocation predicate (command plus
+# whitespace) never matches. Prose naming the GOOD call writes `` `mv -f` ``, whose closing
+# backtick is why the exemption below is boundary-terminated rather than requiring a literal
+# trailing space. Neither needed a file listed anywhere.
 scope_files(){
   local f
   for f in "$ROOT"/scripts/*.sh "$ROOT"/scripts/lib/*.sh "$ROOT"/scripts/runners/*.sh \
            "$ROOT"/install.sh "$ROOT"/sync-agents.sh "$ROOT"/migrate-to-docket.sh; do
+    [ -f "$f" ] && printf '%s\n' "$f"
+  done
+  md_scope_files
+}
+
+# Split out from scope_files so the markdown half carries its own population floor: folded into one
+# list, a glob that stopped matching would hide inside the combined count and the markdown scan
+# would go silently vacuous while the total still cleared MIN_FILES.
+md_scope_files(){
+  local f
+  for f in "$ROOT"/scripts/*.md "$ROOT"/skills/*/SKILL.md "$ROOT"/skills/*/references/*.md; do
     [ -f "$f" ] && printf '%s\n' "$f"
   done
 }
@@ -52,6 +85,10 @@ scope_files(){
 n_files="$(scope_files | wc -l | tr -d ' ')"
 assert "the scan reaches at least $MIN_FILES in-scope files (it reached $n_files)" \
   '[ "$n_files" -ge "$MIN_FILES" ]'
+
+n_md="$(md_scope_files | wc -l | tr -d ' ')"
+assert "the scan reaches at least $MIN_MD_FILES agent-executed markdown files (it reached $n_md)" \
+  '[ "$n_md" -ge "$MIN_MD_FILES" ]'
 
 # Every `mv` invocation, minus the allowances. Two patterns, never one combined alternation:
 # column-0 `mv`, and `mv` preceded by any character that is not part of a longer word, a path
@@ -96,7 +133,10 @@ offenders_mv(){
     lines="$({ "$GREP" -nE '^mv[[:space:]]' "$f"; "$GREP" -nE '[^-[:alnum:]_./]mv[[:space:]]' "$f"; } \
       | "$GREP" -vE '^[0-9][0-9]*:[[:space:]]*#')"
     [ -n "$lines" ] || continue
-    { printf '%s\n' "$lines" | "$GREP" -vE 'mv -f ' | "$GREP" -vE '(git|\$GIT)[^|;&]* mv '
+    # The exemption ends on a word boundary, not a literal space: in markdown the hardened form is
+    # quoted as a code span and closes on a backtick, and `mv -f ` would redden on prose stating
+    # the very rule. The class still refuses `-f` glued to a longer word.
+    { printf '%s\n' "$lines" | "$GREP" -vE 'mv -f([^-[:alnum:]_]|$)' | "$GREP" -vE '(git|\$GIT)[^|;&]* mv '
       printf '%s\n' "$lines" | "$GREP" -E 'mv -[in][[:space:]]'
     } | sort -u | sed "s|^|$f:|"
   done < <(scope_files)
