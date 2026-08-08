@@ -2,11 +2,11 @@
 id: 250
 slug: repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs
 title: 'Repo-scope detect-merged''s fallback and guard the idle-secs duplication'
-status: implemented
+status: done
 priority: medium
 type: fix
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-08
 depends_on: []
 related: []
 discovered_from: [239, 241]
@@ -17,7 +17,7 @@ results: docs/results/2026-08-07-repo-scope-detect-merged-s-fallback-and-guard-t
 trivial: false
 auto_groomable: true
 branch: feat/repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs
-claimed_at: 2026-08-07T22:46:10Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/175
 blocked_by:
 reconciled: true
