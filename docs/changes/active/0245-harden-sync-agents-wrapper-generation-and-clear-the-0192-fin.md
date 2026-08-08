@@ -12,14 +12,14 @@ related: []
 discovered_from: [141, 142, 196, 82]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-08-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/harden-sync-agents-wrapper-generation-and-clear-the-0192-fin
 pr:
 blocked_by:
-claimed_at: 2026-08-08T10:35:01Z
+claimed_at: 2026-08-08T10:40:49Z
 reconciled: true
 ---
 
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin-design.md) |
+| Plan | [2026-08-08-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md](https://github.com/danielhanold/docket/blob/feat/harden-sync-agents-wrapper-generation-and-clear-the-0192-fin/docs/superpowers/plans/2026-08-08-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
