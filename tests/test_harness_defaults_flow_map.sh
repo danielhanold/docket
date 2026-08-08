@@ -116,6 +116,40 @@ assert "awk validator rejects: the space-bearing control still fires" '[ "$vhd_s
 assert "awk validator rejects: space-bearing control keeps the shared sentence" \
   '/usr/bin/grep -qF "is not a bare scalar" <<<"$vhd_sp"'
 
+# 0255: the SAME `#`-inside-the-flow-map leg, on the awk path. The awk program judges every entry on
+# `nc`, the comment-STRIPPED line, so `{ model: claude-opus-5, effort: lo#w }` arrives as an
+# unterminated map and the `fields !~ /\{.*\}/` branch reports BOTH fields absent. That rejects the
+# input only incidentally, and with the wrong cause — it blames bareness, names neither the `#` nor
+# the flow map, and offers no remedy: exactly the failure the hd_validate probes above forbid. The
+# two validators duplicate this rule by value, so only this block holds them in parity.
+mut; sed -i.bak 's|^    adr:.*|    adr:                   { model: claude-opus-5, effort: lo#w }|' "$T/hd.yml"
+vhd_h="$(vhd "$T/hd.yml")"; vhd_h_rc=$?
+assert "awk validator rejects: '#' inside the flow map" '[ "$vhd_h_rc" != "0" ]'
+assert "awk validator rejects: '#' diagnostic names the flow map" \
+  '/usr/bin/grep -qF "inside the flow map" <<<"$vhd_h"'
+# The wrong-cause guard. hd_validate emits ONLY the flow-map sentence for this input (its readers
+# still see both values on the truncated line); the awk path must not answer the same input with a
+# contradictory ABSENCE complaint depending on which bash the operator happens to run.
+assert "awk validator rejects: '#' diagnostic does not blame absence" \
+  '! /usr/bin/grep -qF "missing a non-empty" <<<"$vhd_h"'
+
+# Ignore probes — the carve-outs, on the awk path. Over-rejection here would hard-abort generation
+# on comment styles used throughout .docket.example.yml and this very sidecar.
+mut; sed -i.bak 's|^    adr:.*|    adr:                   { model: claude-opus-5, effort: low }   # a trailing note|' "$T/hd.yml"
+vhd_tc="$(vhd "$T/hd.yml")"; vhd_tc_rc=$?
+assert "awk validator accepts: a trailing comment AFTER the closing brace is legal" \
+  '[ "$vhd_tc_rc" = "0" ]'
+
+# A commented-out map is field-absent post-strip. In the SIDECAR that is already an error — but the
+# CORRECT one (missing field), not a truncation complaint. Pinning WHICH diagnostic fires is the
+# point, and it is the same pairing the hd_validate probes above assert.
+mut; sed -i.bak 's|^    adr:.*|    adr:                   # { model: c#5, effort: low }|' "$T/hd.yml"
+vhd_co="$(vhd "$T/hd.yml")"
+assert "awk validator accepts: a commented-out map does not fire the '#' leg" \
+  '! /usr/bin/grep -qF "inside the flow map" <<<"$vhd_co"'
+assert "awk validator rejects: a commented-out map is a MISSING-field error instead" \
+  '/usr/bin/grep -qF "missing a non-empty" <<<"$vhd_co"'
+
 # Over-rejection floor: the pristine shipped sidecar must still validate clean, or the quote leg
 # would hard-abort every real run instead of catching the corner it was written for.
 vhd_ok="$(vhd "$HD")"; vhd_ok_rc=$?
