@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/normalize-the-inherit-model-sentinel-once-for-every-runner-a
-claimed_at: 2026-08-08T07:52:04Z
+claimed_at: 2026-08-08T07:53:57Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -72,3 +72,37 @@ Per the linked spec:
 
 - Changing what `inherit` means, or adding any other sentinel.
 - Validating or rewriting real model IDs (ADR-0015 passthrough stands).
+
+## Reconcile log
+
+### 2026-08-08 — build-time reconcile (claim → plan)
+
+Re-read the spec against `origin/main` at `17ff6eed`. **The design holds unchanged; scope is
+unchanged.** Every defect the spec asserts was re-verified in today's tree:
+
+- `scripts/runner-dispatch.sh` still does **not** normalize the sentinel — it forwards
+  `--model "$MODEL"` verbatim into the adapter argv (now the `args=()` assembly at lines
+  131–133, not line 122 as the spec cites; change 0237's run gate was inserted **below** the
+  handoff assembly, so the "immediately after argument parsing" insertion point the spec names is
+  unaffected).
+- `scripts/runners/codex.sh` still forwards `-m inherit` verbatim (line 87). Its `auto` effort
+  sentinel **is** normalized (line 80), which makes the model-sentinel asymmetry starker, not
+  smaller — the same file already carries the "docket's own sentinel, normalize before mapping"
+  pattern for the sibling knob.
+- `cursor.sh:82` and `opencode.sh:94` still carry their local normalization with comments claiming
+  local ownership.
+- Assumption 3 re-verified: the generation-time gate is intact, at
+  `runner_config_error()` in **`sync-agents.sh` at the repo root** (not `scripts/` — the spec's
+  path is loose; the function is at line ~1038). It rejects an empty-or-`inherit` model for any
+  `runner:`-bearing claude agent. Its comment at line 1089 already asserts *"every adapter
+  normalizes it to 'no flag'"* — a claim that is **false today for codex.sh** and that this change
+  makes true, which strengthens the case for the codex twin rather than weakening it.
+- Test homes confirmed: `tests/test_runner_dispatch.sh` is both the facade's and the codex
+  adapter's test home (`ADAPTER=scripts/runners/codex.sh`, line 22); the cursor/opencode inherit
+  tests are at `test_runner_cursor.sh:75–88` and `test_runner_opencode.sh:104–114` and stay
+  untouched.
+
+No scope adjustment, no folded-in work, no new constraints. Nothing dropped as done-elsewhere.
+
+**Auto-capture:** nothing minted — no discovery cleared the six admission gates (the one adjacent
+observation, sync-agents.sh's now-true-by-this-change comment, is inside this change's own scope).
