@@ -29,6 +29,17 @@
 #
 # TRACKED-FILES-ONLY: a brand-new file is invisible here until it is staged. Accepted — the guard
 # runs at the build gate over committed work — and the self-membership assert makes the gap loud.
+#
+# TWO CLASSES, ONE WALK (change 0246): this file scans for two independent portability defects over
+# the same population. (1) an ERE repetition bound above 255. (2) the ESCAPED double-quoted word-
+# boundary form — two source backslashes before b, < or > — which is how a \b reaches grep from
+# inside a double-quoted shell string. BSD grep's and git-grep's ERE do not support \b/\</\>; they
+# return zero matches SILENTLY, so such a guard goes blind rather than red, which is the same
+# fail-open shape as the interval class. The SINGLE-backslash form inside single quotes is NOT
+# banned: ~26 tracked sites use it as deliberate, comment-blessed PATH-grep idiom (see
+# tests/test_docket_build.sh, which blesses them explicitly), and banning it would redden healthy
+# code. Change 0246 converted the only three escaped-form sites (all in
+# tests/test_docket_example_yml.sh), so the tree is provably clean as this class lands.
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SELF_REL="tests/$(basename "${BASH_SOURCE[0]}")"
@@ -57,6 +68,22 @@ INTERVAL='\\?\{[0-9]+(,[0-9]*)?\\?\}'
 # scan path anywhere neuters it everywhere, so a control cannot stay green while the loop goes
 # blind. -I skips binaries; -o emits one interval per line; -n prefixes the source line number.
 scan_file(){ grep -InoE "$INTERVAL" "$1" 2>/dev/null; }
+
+# The escaped double-quoted word-boundary form. Written with an assembled backslash literal for the
+# same self-membership reason as the fixtures below: this pattern is itself scanned. Two source
+# backslashes, then b, < or >.
+WORD_BOUNDARY="$(printf '%s%s[b<>]' '\\' '\\')"
+
+# Human-readable spellings of the two forms, for assert messages. ASSEMBLED for the same reason the
+# pattern is: a message that spelled the banned form literally would make this guard flag itself.
+BS='\'
+WB_ESC="$(printf '%s%sb / %s%s< / %s%s>' "$BS" "$BS" "$BS" "$BS" "$BS" "$BS")"
+WB_ONE="$(printf '%sb' "$BS")"
+
+# ONE scan implementation for this class, used by the main loop AND both controls — same discipline
+# as scan_file: routing every caller through one function means neutering the scan anywhere neuters
+# it everywhere, so a control cannot stay green while the loop goes blind.
+scan_word_boundary(){ grep -InoE "$WORD_BOUNDARY" "$1" 2>/dev/null; }
 
 # Report every bound above MAX_BOUND in "lineno:interval" input. Reads scan_file output on stdin.
 # Pure text + arithmetic; no regex expresses "greater than 255" readably, and attempting one would
@@ -141,6 +168,7 @@ grep -qxF "$SELF_REL" <<<"$files_joined" \
 
 # --- the check -----------------------------------------------------------------------------------
 violations=""
+wb_violations=""
 scanned=0
 skipped=""
 if [ "$n_files" -gt 0 ]; then
@@ -150,6 +178,12 @@ if [ "$n_files" -gt 0 ]; then
       continue
     fi
     scanned=$(( scanned + 1 ))
+    wb_hits="$(scan_word_boundary "$ROOT/$f")"
+    if [ -n "$wb_hits" ]; then
+      while IFS= read -r l; do
+        wb_violations+="$f:$l"$'\n'
+      done <<<"$wb_hits"
+    fi
     hits="$(scan_file "$ROOT/$f")"
     [ -n "$hits" ] || continue
     bad="$(offenders <<<"$hits")"
@@ -176,6 +210,13 @@ if [ -z "$violations" ]; then
 else
   nok "ERE repetition bound above $MAX_BOUND found — BSD grep rejects these; rewrite the pattern:"
   printf '%s' "$violations" | sed 's/^/       /'
+fi
+
+if [ -z "$wb_violations" ]; then
+  ok "no escaped $WB_ESC word-boundary form in maintained source"
+else
+  nok "escaped word-boundary form found — BSD grep and git-grep ERE return zero for these SILENTLY; use an explicit [^[:alnum:]_] class instead:"
+  printf '%s' "$wb_violations" | sed 's/^/       /'
 fi
 
 # --- controls: prove the predicate FIRES and where its boundary sits ------------------------------
@@ -221,5 +262,30 @@ neg="$(offenders <<<"$(scan_file "$tmp/clean.txt")")"
 [ -n "$neg" ] \
   && nok "negative control FAILED: a legal bound (ERE $MAX_BOUND, BRE 0,1) or a non-regex brace was flagged" \
   || ok "negative control: legal ERE/BRE bounds and non-regex braces are not flagged"
+
+# --- word-boundary class controls (change 0246) --------------------------------------------------
+wb_over="$tmp/wb-bad.txt"
+wb_clean="$tmp/wb-ok.txt"
+# ASSEMBLED AT RUNTIME, exactly like the MAX_BOUND fixtures above and for the same reason: this
+# guard is in its own scanned population (see the self-membership assert), so writing the banned
+# form literally here would make the guard fail its own scan. That applies to the ASSERT MESSAGES
+# too, not just the fixtures — hence WB_ESC/WB_ONE beside the pattern above, which spell the two
+# forms for a human reader without ever putting the banned byte pair in this file's source.
+printf 'grep -qE "%s%sb$k%s%sb" "$f"\n' "$BS" "$BS" "$BS" "$BS" > "$wb_over"
+printf 'grep -qE "%s%s<$k" "$f"\n'      "$BS" "$BS"             >> "$wb_over"
+# Legal neighbours that must NOT be flagged: the blessed single-quoted form, a literal backslash-b
+# in a printf, and a doubled backslash not followed by b/</>.
+printf "grep -qE '%sb\$k%sb' \"\$f\"\n" "$BS" "$BS" > "$wb_clean"
+printf 'printf "%s%sn"\n'               "$BS" "$BS" >> "$wb_clean"
+
+wb_pos="$(scan_word_boundary "$wb_over")"
+[ -n "$wb_pos" ] \
+  && ok "word-boundary positive control: the escaped $WB_ESC form is reported" \
+  || nok "word-boundary positive control FAILED: the escaped form is not reported — the class is vacuous"
+
+wb_neg="$(scan_word_boundary "$wb_clean")"
+[ -z "$wb_neg" ] \
+  && ok "word-boundary negative control: the single-quoted $WB_ONE idiom and a plain backslash are not flagged" \
+  || nok "word-boundary negative control FAILED: a legal single-backslash form was flagged — ~26 blessed sites would redden"
 
 exit "$fail"
