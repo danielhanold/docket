@@ -390,8 +390,35 @@ section_body() {  # $1=key ; reads stdin
 # unifying the two parsers is change #0256's scope, and it should absorb both readers when it lands.
 # The value class here is the BLOCK-mapping one (rest of the line, comment stripped, trimmed), not
 # the `{…}` flow-map class the agents entries use; a block mapping has one key per line.
+
+# THE extraction primitive for that value class — one spelling of the key match and the value strip,
+# shared by the reader (runner_key) and the gate (validate_runner_shim_values). The two differ in
+# how they WALK the layers, not in how they read a key out of one already-resolved block: the reader
+# stops at the first layer carrying the key (precedence), the gate visits every layer including the
+# ones precedence masks. Keeping the walks separate is deliberate (see the gate's header); keeping
+# TWO copies of the extraction was not — a fix to one (anchoring the key regex, changing the
+# comment-strip rule, handling a quoted value) would leave the other behind, and the failure mode is
+# the gate blessing one value while the emitter writes a different one into the frontmatter
+# (LEARNINGS: duplicated-gate-copies-the-whole-predicate).
+#
+# PRESENT-BUT-EMPTY IS NOT ABSENT, and the return code is what carries the difference: returns 0
+# having printed the value (possibly the empty string) when the block carries the key, 1 when it
+# does not. Both callers need that split — the reader must let `shim_model:` with no value END the
+# precedence walk (an explicit empty is a decision, not a fall-through), and the gate must report it
+# as an offender rather than skip it.
+runner_block_value() {  # $1=key ; runners.<name> block body on STDIN -> value; rc 1 = key absent
+  local line
+  line="$(awk -v k="$1" '
+    { nc=$0; sub(/#.*/, "", nc) }
+    nc ~ ("^[[:space:]]*" k "[[:space:]]*:") { print nc; exit }
+  ')"
+  [ -n "$line" ] || return 1
+  sed -E -e 's/^[[:space:]]*[A-Za-z0-9._-]+[[:space:]]*:[[:space:]]*//' -e 's/[[:space:]]+$//' <<<"$line"
+  return 0
+}
+
 runner_key() {  # $1=runner  $2=key  -> the value from the highest-precedence layer carrying it, else ''
-  local f blk line v
+  local f blk v
   for f in "$LOCAL_CFG" "$DOCKET_YML" "$GLOBAL_CFG"; do
     [ -f "$f" ] || continue
     # AGENTS.md: never `producer | early-exiting-consumer` under `set -o pipefail`. section_body's
@@ -401,15 +428,35 @@ runner_key() {  # $1=runner  $2=key  -> the value from the highest-precedence la
     [ -n "$blk" ] || continue
     blk="$(section_body "$1" <<<"$blk")"
     [ -n "$blk" ] || continue
-    line="$(awk -v k="$2" '
-      { nc=$0; sub(/#.*/, "", nc) }
-      nc ~ ("^[[:space:]]*" k "[[:space:]]*:") { print nc; exit }
-    ' <<<"$blk")"
-    [ -n "$line" ] || continue
-    v="$(sed -E -e 's/^[[:space:]]*[A-Za-z0-9._-]+[[:space:]]*:[[:space:]]*//' -e 's/[[:space:]]+$//' <<<"$line")"
-    printf '%s' "$v"
-    return 0
+    if v="$(runner_block_value "$2" <<<"$blk")"; then
+      printf '%s' "$v"
+      return 0
+    fi
   done
+  return 0
+}
+
+# Run-scoped memo of the two shim pins per runner, WITH their defaults applied. runner_key costs a
+# section_body pair plus the primitive's awk and sed on every layer for every key, and emit_wrapper
+# asks for both keys on every delegated wrapper — the same answer, recomputed once per wrapper.
+#
+# Bash-3.2-safe by construction: a newline-separated string scanned with the shell's own `read`, not
+# an associative array, and no fork on the hit path. Sound because the config layers this reads are
+# FIXED for the run below migrate_legacy_global — the one rewrite this script performs sits above
+# every generation pass (see validate_runner_config's placement bounds). If a future call site puts
+# emit_wrapper inside a command substitution the memo simply stops carrying across calls; that costs
+# the optimization, never a wrong answer.
+_SHIM_PIN_MEMO=""
+resolve_shim_pins() {  # $1=runner -> sets SHIM_MODEL, SHIM_EFFORT
+  local runner="$1" r m e
+  while IFS=$'\x1f' read -r r m e; do
+    if [ "$r" = "$runner" ]; then SHIM_MODEL="$m"; SHIM_EFFORT="$e"; return 0; fi
+  done <<<"$_SHIM_PIN_MEMO"
+  SHIM_MODEL="$(runner_key "$runner" shim_model)"
+  [ -n "$SHIM_MODEL" ] || SHIM_MODEL="inherit"
+  SHIM_EFFORT="$(runner_key "$runner" shim_effort)"
+  [ -n "$SHIM_EFFORT" ] || SHIM_EFFORT="low"
+  _SHIM_PIN_MEMO="$_SHIM_PIN_MEMO$runner"$'\x1f'"$SHIM_MODEL"$'\x1f'"$SHIM_EFFORT"$'\n'
   return 0
 }
 
@@ -946,7 +993,11 @@ noop_candidate_triple(){ return 0; }
 #
 # Deliberately does NOT call runner_key: that function returns the RESOLVED value from the winning
 # layer, while this gate must report every offender in every layer, including ones precedence would
-# mask — a bad value shadowed today goes live the moment the higher layer is edited.
+# mask — a bad value shadowed today goes live the moment the higher layer is edited. That argument
+# covers the LAYER WALK and only that: the per-block extraction is one shared primitive
+# (runner_block_value), so the value this gate judges is by construction the value the emitter
+# writes. Two spellings of the extraction is exactly the "two halves disagree silently" defect this
+# change exists to remove.
 #
 # SCOPED TO THE RUNNERS THIS RUN ACTUALLY CONSUMES (change 0269 review). The runner dimension comes
 # from resolve_candidate_runners — the same population validate_runner_config enumerates, via the
@@ -963,39 +1014,42 @@ noop_candidate_triple(){ return 0; }
 # The LAYER dimension stays unscoped on purpose: runner_key reads all three layers for a consumed
 # runner regardless of which layer opted the repo in, so any of them can supply the winning value.
 validate_runner_shim_values() {
-  local rc=0 f r k blk line raw trimmed
+  local rc=0 f r k rblk blk raw
   resolve_candidate_runners
+  # Nothing delegates this run, so there is no runner dimension to iterate and nothing to judge.
+  # Explicit rather than left to the inner `for r in $CANDIDATE_RUNNERS` no-op: with the `runners:`
+  # read hoisted per layer (below), an empty candidate set would otherwise still parse every config
+  # file once to answer a question no one asked — the common case in a repo that delegates nothing.
+  [ -n "$CANDIDATE_RUNNERS" ] || return 0
   for f in "$LOCAL_CFG" "$DOCKET_YML" "$GLOBAL_CFG"; do
     [ -f "$f" ] || continue
+    # AGENTS.md: never `producer | early-exiting-consumer` under `set -o pipefail`. section_body's
+    # awk `exit`s the moment the block ends, so piping one into the next would leave the producer
+    # taking a SIGPIPE. Capture, then feed in — the same shape runner_key uses.
+    #
+    # Hoisted out of the runner loop: the top-level `runners:` body depends on the LAYER only, so
+    # re-reading it per runner re-parsed the same file once per candidate.
+    rblk="$(section_body runners < "$f")"
+    [ -n "$rblk" ] || continue
     for r in $CANDIDATE_RUNNERS; do
-      # AGENTS.md: never `producer | early-exiting-consumer` under `set -o pipefail`. section_body's
-      # awk `exit`s the moment the block ends, so piping one into the next would leave the producer
-      # taking a SIGPIPE. Capture, then feed in — the same shape runner_key uses.
-      blk="$(section_body runners < "$f")"
-      [ -n "$blk" ] || continue
-      blk="$(section_body "$r" <<<"$blk")"
+      blk="$(section_body "$r" <<<"$rblk")"
       [ -n "$blk" ] || continue
       for k in shim_model shim_effort; do
-        line="$(awk -v key="$k" '
-          { nc=$0; sub(/#.*/, "", nc) }
-          nc ~ ("^[[:space:]]*" key "[[:space:]]*:") { print nc; exit }
-        ' <<<"$blk")"
-        # Key absent from this block is normal — both knobs are optional in every layer.
-        [ -n "$line" ] || continue
-        raw="$(sed -E -e 's/^[[:space:]]*[A-Za-z0-9._-]+[[:space:]]*:[[:space:]]*//' -e 's/[[:space:]]+$//' <<<"$line")"
+        # rc 1 = the key is absent from this block, which is normal — both knobs are optional in
+        # every layer. Present-but-empty returns 0 with an empty value and IS an offender below.
+        raw="$(runner_block_value "$k" <<<"$blk")" || continue
         if [ -z "$raw" ]; then
           log "runners.$r.$k is present but has no value ($f)"
           rc=1
           continue
         fi
-        trimmed="$raw"
-        case "$trimmed" in *[[:space:]]*)
+        case "$raw" in *[[:space:]]*)
           log "runners.$r.$k value '$raw' is not a bare scalar — write shim_model/shim_effort values unquoted and space-free ($f)"
           rc=1
           continue
           ;;
         esac
-        case "$trimmed" in '"'*|"'"*)
+        case "$raw" in '"'*|"'"*)
           # The quote leg catches what the whitespace leg structurally CANNOT see: a quoted but
           # space-free value has no embedded space, so the quotes would ride into the emitted pin
           # verbatim while the diagnostic's own remedy text tells the user to write them unquoted.
@@ -1453,12 +1507,11 @@ emit_wrapper(){  # $1=src $2=model $3=effort $4=runner $5=harness $6=agent-name 
   # documents it as "run on the parent conversation's model", a real value distinct from omitting
   # the key), so every currently-broken wrapper is repaired by regeneration alone with no config
   # edit. The knob is a cost optimization on top, never a prerequisite.
-  local shim_model shim_effort
-  shim_model="$(runner_key "$runner" shim_model)"
-  [ -n "$shim_model" ] || shim_model="inherit"
-  shim_effort="$(runner_key "$runner" shim_effort)"
-  [ -n "$shim_effort" ] || shim_effort="low"
-  emit_shim "$1" "$shim_model" "$shim_effort" "$runner" "$6" "$flag_model" "$flag_effort"
+  # Both pins (and both defaults) come from resolve_shim_pins, which memoizes them per runner for
+  # the run; see its header. It sets SHIM_MODEL/SHIM_EFFORT in the CALLER's shell, so it must not be
+  # wrapped in a command substitution here.
+  resolve_shim_pins "$runner"
+  emit_shim "$1" "$SHIM_MODEL" "$SHIM_EFFORT" "$runner" "$6" "$flag_model" "$flag_effort"
 }
 
 # The shim: native frontmatter carrying the SHIM'S OWN pin (change 0269 — this agent runs in the
