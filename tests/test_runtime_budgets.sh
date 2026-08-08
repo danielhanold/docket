@@ -25,7 +25,50 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1435 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1535 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1510 -> 1535 (change 0242 review, finding 7): the SHARD-RE-CUT case, not a
+                    # raise. tests/test_sync_agents_codex.sh carried one 55s row over two
+                    # independent surfaces — the per-repo .codex/agents/*.toml wrappers and the
+                    # committed AGENTS.md dispatch block — and this change added a second `--check`
+                    # leg to the dispatch half. Measured SERIALLY at 56/57s (branch) against 53/53s
+                    # (merge-base 487bfdc5, same machine, interleaved), i.e. already past its own
+                    # row and inside the hard 60s ceiling's noise band, so the table's remedy
+                    # applies: shard, never a bigger number. Cut at the "AGENTS.md dispatch block"
+                    # banner into tests/test_sync_agents_codex.sh (wrappers) and
+                    # tests/test_sync_agents_codex_dispatch.sh (dispatch block); the 74 asserts
+                    # split 44/30 with none lost. Re-measured standalone across three consecutive
+                    # serial runs: 21/19/22s and 41/38/41s. The sizing rule (next multiple of 5
+                    # plus a 5s margin, min 10s) puts those at 30 and 50. The sum grows by 25
+                    # because the +5 margin is now paid twice AND because the single 55s row had
+                    # never been sized on the whole file.
+                    # +20 (change 0242 review): the new-test-file case again —
+                    # tests/test_sync_agents_surface_containment.sh brings its own row. The
+                    # containment guard (docket writes and strips its dispatch block only inside
+                    # the checkout it was run in) could not go into
+                    # tests/test_sync_agents_claude_surface.sh: that file already measures ~40s
+                    # against its 45s row, and the combined file measured 56.8s — past the 60s hard
+                    # ceiling, so the table's own remedy is a sibling shard, not a bigger number.
+                    # The new file runs sync-agents.sh five times (three generations and two
+                    # --check re-reads) plus two source-and-call probes of resolve_physical_path,
+                    # and measures 11.8/14.1/11.2s across three consecutive standalone runs; the
+                    # sizing rule (next multiple of 5 plus a 5s margin, min 10s) puts that at 20.
+                    # 1475 -> 1490 (change 0242): still the SAME new-test-file case as the line
+                    # below, re-seeded on the finished file rather than on a mid-change snapshot.
+                    # tests/test_sync_agents_claude_surface.sh was sized at 30 when it covered the
+                    # surface WRITE only; the change's next task appended its --check half — four
+                    # more sandboxes and six more sync-agents.sh invocations — and the completed
+                    # file measures 39.7/40.0/39.8s across three consecutive standalone runs. The
+                    # table's own sizing rule (next multiple of 5 plus a 5s margin, min 10s) puts
+                    # that at 45. Not a file that got slower: a row that was never sized on the
+                    # whole file. This is the last task that adds to it.
+                    # +30 (change 0242): the new test file tests/test_sync_agents_claude_surface.sh
+                    # brought its own row, measured standalone at 25s.
+                    # 1435 -> 1445 (change 0242): the new-test-file case named below —
+                    # tests/test_sync_agents_run_gate.sh brings its own row. It invokes
+                    # sync-agents.sh ONCE (a single [cursor, codex] generation); everything else it
+                    # asserts is file reads. Measured standalone at 2-3s across three consecutive
+                    # runs, so the table's own sizing rule — next multiple of 5 plus a 5s margin,
+                    # min 10s — floors it at the 10s minimum.
                     # 1415 -> 1435 (change 0245): the new-test-file case named below —
                     # tests/test_sync_agents_harness_gaps.sh brings its own row; it invokes
                     # sync-agents.sh EIGHT times — the RK and RC generations, their two --check
