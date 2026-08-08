@@ -12,12 +12,12 @@ related: [213, 215, 216, 217, 222]
 discovered_from: [191, 202]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-clear-the-unfixed-review-findings-from-change-0191-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-08-clear-the-unfixed-review-findings-from-change-0191-plan.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/clear-the-unfixed-review-findings-from-change-0191
-claimed_at: 2026-08-08T03:31:14Z
+claimed_at: 2026-08-08T03:38:25Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-clear-the-unfixed-review-findings-from-change-0191-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-clear-the-unfixed-review-findings-from-change-0191-design.md) |
+| Plan | [2026-08-08-clear-the-unfixed-review-findings-from-change-0191-plan.md](https://github.com/danielhanold/docket/blob/feat/clear-the-unfixed-review-findings-from-change-0191/docs/superpowers/plans/2026-08-08-clear-the-unfixed-review-findings-from-change-0191-plan.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
