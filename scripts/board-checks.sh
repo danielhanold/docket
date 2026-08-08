@@ -276,8 +276,8 @@ renders_row(){
 #   indicator          — the unquoted raw value opens with a YAML indicator character. A leading
 #                        hash is one of them, and is the maximal form of the leg above: the
 #                        comment opens at character one, so the WHOLE value parses to null.
-scalar_form_check(){ # scalar_form_check FIELD RAW
-  local sfc_field="$1" sfc_raw="$2" sfc_reason
+scalar_form_check(){ # scalar_form_check FIELD RAW CID
+  local sfc_field="$1" sfc_raw="$2" sfc_cid="$3" sfc_reason
   case "$sfc_raw" in
     ''|\"*|\'*) return 0 ;;   # skip leg: empty, or opens with a quote -> well-formed, never inspected
   esac
@@ -300,27 +300,29 @@ scalar_form_check(){ # scalar_form_check FIELD RAW
   sfc_reason="$(docket_scalar_quote_reason "$sfc_raw")"
   case "$sfc_reason" in
     colon-space)
-      emit scalar-form "$cid" "$sfc_field: unquoted scalar contains ': ' — quote it or reword (well-formed YAML)"
+      emit scalar-form "$sfc_cid" "$sfc_field: unquoted scalar contains ': ' — quote it or reword (well-formed YAML)"
       ;;
     trailing-colon)
-      emit scalar-form "$cid" "$sfc_field: unquoted scalar ends with ':' — quote it or reword (well-formed YAML)"
+      emit scalar-form "$sfc_cid" "$sfc_field: unquoted scalar ends with ':' — quote it or reword (well-formed YAML)"
       ;;
     bare-boolean)
-      emit scalar-form "$cid" "$sfc_field: unquoted bare YAML boolean ($sfc_raw) — quote it or reword (well-formed YAML)"
+      emit scalar-form "$sfc_cid" "$sfc_field: unquoted bare YAML boolean ($sfc_raw) — quote it or reword (well-formed YAML)"
       ;;
     comment-introducer)
-      emit scalar-form "$cid" "$sfc_field: unquoted scalar contains whitespace followed by '#', a YAML comment introducer that silently truncates it — quote it or reword (well-formed YAML)"
+      emit scalar-form "$sfc_cid" "$sfc_field: unquoted scalar contains whitespace followed by '#', a YAML comment introducer that silently truncates it — quote it or reword (well-formed YAML)"
       ;;
     indicator)
-      emit scalar-form "$cid" "$sfc_field: unquoted scalar opens with a YAML indicator character — quote it or reword (well-formed YAML)"
+      emit scalar-form "$sfc_cid" "$sfc_field: unquoted scalar opens with a YAML indicator character — quote it or reword (well-formed YAML)"
       ;;
   esac
 }
 # --- end scalar-form helper ---
 # The definition lives at TOP LEVEL (hoisted by change 0200) instead of inside the per-file walk,
-# where it was redefined once per change file. Its body still reads the walk's loop variable $cid
-# unqualified: bash resolves that dynamically at call time, so the hoist is behavior-neutral and
-# the call sites below stay the only place $cid has to be in scope.
+# where it was redefined once per change file. The change-id every finding is attributed to arrives
+# as the THIRD parameter (FIELD RAW CID, per the usage note on the definition line above), so the
+# function depends on nothing in its caller's scope: a call from anywhere — including the later
+# walk in this file that also assigns `cid`, or a future call at top level where no `cid` exists —
+# reports the id the caller named rather than whichever `cid` happens to be live.
 # The end marker above is NOT decoration. It is the named terminator mutation 4's first region
 # delete bounds on — without it the range would run past this point into the walk and produce a
 # syntactically dead copy that still passes every assert.
@@ -425,8 +427,8 @@ for f in "${FILES[@]}"; do
   # deletes these four lines as its SECOND region, matched individually.
   sf_title="$(field_raw "$f" title)"
   sf_blocked_by="$(fm_field_verbatim "$f" blocked_by)"
-  scalar_form_check title "$sf_title"
-  scalar_form_check blocked_by "$sf_blocked_by"
+  scalar_form_check title "$sf_title" "$cid"
+  scalar_form_check blocked_by "$sf_blocked_by" "$cid"
 
   # --- broken-spec: spec set, not trivial, path absent on the metadata branch ---
   if [ -n "$spec" ] && [ "$trivial" != "true" ]; then
