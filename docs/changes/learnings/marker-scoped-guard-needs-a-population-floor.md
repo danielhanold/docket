@@ -2,9 +2,9 @@
 slug: marker-scoped-guard-needs-a-population-floor
 hook: "A marker-keyed guard validates only the markers it finds — separately assert that the marker EXISTS, sits where you meant, and covers the case you care about; \"at least one\" pins a population, not coverage."
 topics: [testing, sentinels, guards]
-changes: [108, 120, 145, 164]
+changes: [108, 120, 145, 164, 250]
 created: 2026-07-21
-updated: 2026-07-29
+updated: 2026-08-07
 promotion_state: candidate
 promoted_to:
 ---
@@ -96,3 +96,13 @@ elements) trades one drift surface for another.
   vacuity case that looks most like coverage** — every assert still runs, just against more text
   than intended. Fixed by pinning the slice's last line, mutation-verified in both directions
   (unmutated 182 ok / 0 red; mutated 181 ok / 1 red, the red being exactly the new assert).
+- 2026-08-07 (#250, PR #175 — merged) — Same shape, **consumption** scope. A new correspondence
+  guard over two by-value duplicated constants (`ORPHAN_PR_IDLE_SECS` / `ABORTED_RUN_IDLE_SECS`,
+  the cost ADR-0072 accepted) asserted exactly-one assignment line per file and that the two
+  evaluate equal. Both asserts are satisfied by a state where the constants are assigned, agree,
+  and **neither is read** — inlining a literal at the predicate site keeps the guard green while
+  deleting the property it exists to protect. The whole-branch review caught it; the fix adds a
+  per-file consumption floor (`>= 2` occurrences: the assignment plus at least one use).
+  Generalize: **an existence-and-agreement guard over a constant pins the declaration, not the
+  dependency** — pair it with a floor on the constant's *uses*, or the guarded code can stop
+  depending on the guarded value without ever reddening.

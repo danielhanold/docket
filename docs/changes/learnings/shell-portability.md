@@ -2,16 +2,18 @@
 slug: shell-portability
 hook: "Treat awk whitespace classes, --leading grep patterns, and symlinked temp paths as suspect — and test each on both GNU and BSD."
 topics: [shell, grep, awk]
-changes: [25, 38, 46, 71, 117, 186]
+changes: [25, 38, 46, 71, 117, 186, 250]
 created: 2026-06-19
-updated: 2026-08-01
+updated: 2026-08-07
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
 
 ## Apply
 When a plan hands you awk/shell it authored, treat whitespace classes, `--`-leading patterns, and
-symlinked temp paths as suspect, and test each on both GNU and BSD. Declare a `--`-leading pattern with
+symlinked temp paths as suspect, and test each on both GNU and BSD. Any grep pattern carrying a
+shell-ish `$` must be fixed-string (`-F`) — PATH grep is ugrep and reads a mid-pattern `$` as an
+end-of-line anchor, returning 0 on a file that does match. Declare a `--`-leading pattern with
 `grep -E -e "<pat>"` or `grep -qF -- "<pat>"`; use `[^[:space:]]` never `[^ ]` for awk indent classes and
 test tab-indented input; `pwd -P` both the path and the prefix before stripping a worktree prefix.
 A non-interactive flag on a tool that CAN prompt is load-bearing, not style: BSD `mv` onto an
@@ -58,3 +60,15 @@ not prompt.
   `grep -c 'mv -f "$out"'` as an end-of-line anchor and returns `0` even on the fixed file
   ([[grep-is-ugrep]] hazard, in a new place — a falsified *guard verification* rather than a
   portability bug). 15 further bare-`mv` install sites are tracked as #0189.
+- 2026-08-07 (#250, PR #175 — merged) — **The ugrep `$` hazard is the mirror case, and it recurred
+  twice in one change.** The repo's standing rule ([[grep-is-ugrep]]) is phrased around PATH `grep`
+  being ugrep 7.5.0 and therefore *more permissive* than `/usr/bin/grep` — it accepts patterns BSD
+  grep rejects, so portability bugs pass locally. This is the opposite direction: ugrep is
+  **stricter** on a mid-pattern `$`, reading `grep -c 'mv -f "$out"'` or `grep -c '$sha'` as an
+  end-of-line anchor and returning **0 against a genuinely matching file**. First seen falsifying
+  #186's mutation evidence; here it appeared again in *two* places in one change — once in the
+  plan's hand-run verification command, once latent in the committed guard's mutation-landed
+  witness, where it would have been a permanently false-clear alarm. Fix both times: `grep -cF`.
+  Rule: **any grep pattern containing a shell-ish `$` must be fixed-string (`-F`)**, and a
+  verification command that returns 0 is not evidence until you have proven the pattern can match
+  anything at all.
