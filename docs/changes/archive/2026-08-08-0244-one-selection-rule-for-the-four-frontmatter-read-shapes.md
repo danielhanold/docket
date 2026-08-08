@@ -2,7 +2,7 @@
 id: 244
 slug: one-selection-rule-for-the-four-frontmatter-read-shapes
 title: 'One selection rule for the four frontmatter read shapes'
-status: implemented
+status: done
 priority: medium
 type: refactor
 created: 2026-08-07
@@ -17,7 +17,7 @@ results: docs/results/2026-08-08-one-selection-rule-for-the-four-frontmatter-rea
 trivial: false
 auto_groomable: true
 branch: feat/one-selection-rule-for-the-four-frontmatter-read-shapes
-claimed_at: 2026-08-08T10:22:24Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/184
 blocked_by:
 reconciled: true
