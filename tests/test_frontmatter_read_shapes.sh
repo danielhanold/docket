@@ -75,11 +75,81 @@ assert "board-checks.md points at the library header rule" \
 # and would age straight into the gap it was written to close. The allowlist below is instead the
 # closed set of keys the TEMPLATES guarantee, so adding to it is a conscious one-line edit.
 #
+# The guarantee is per CORPUS, not per key name. The library header names three disjoint sets —
+# change files, ADRs, learnings findings — and a flat union of their key names admits exactly the
+# reads the rule forbids: `field "$f" priority` in an ADR walker, `field "$f" date` in a change-file
+# walker, `field "$f" status` over a learnings finding. So the census keys on (corpus, key), and the
+# sets are PARSED OUT OF THE LIBRARY HEADER rather than restated here: the header is the canonical
+# statement of what each template guarantees, and a second copy would drift from it silently. A
+# parse that yields an empty set fails closed (every read in that corpus becomes a violation) and is
+# asserted non-empty besides.
+#
+# The corpus of a call site is decided PER CALL SITE — (script, file-argument token) — never per
+# file: terminal-publish.sh reads a change file AND an ADR, and granting such a file the union of
+# both corpora would just reproduce the flattening one level down. This map is the one
+# hand-maintained thing here, and a hand-maintained list of exceptions ages into the gap it was
+# written to close — so its failure mode is UNKNOWN SITE -> VIOLATION, never unknown site -> pass.
+# A new call site must be classified deliberately, and a corroboration assert below requires each
+# mapped script to actually reference its corpus's directory variable, so a careless map entry
+# reddens rather than silently widening the guard.
+#
 # The library itself is path-excluded: list_field/int_field legitimately delegate to field(), and
 # field() delegates to field_raw(). Those are the shapes' own plumbing, not consumer call sites.
 # ---------------------------------------------------------------------------
-ALLOW_FIELD=' id status slug title priority created updated change date '
-ALLOW_FIELD_RAW=' title hook '
+
+# --- the guaranteed sets, parsed from the library header's own sentence ---
+guar_sentence="$(printf '%s\n' "$header" | sed 's/^#//' | tr '\n' ' ')"
+guar_sentence="${guar_sentence#*Today that is: }"
+guar_sentence="${guar_sentence%%.*}"
+corpus_keys(){ # corpus_keys LABEL -> " k1 k2 … " (empty when the label or its dash is missing)
+  printf '%s\n' "$guar_sentence" | awk -v lab="$1" 'BEGIN{RS=";"} index($0, lab) {
+      gsub(/—/, "@"); n = split($0, part, "@"); if (n < 2) next
+      m = split(part[2], a, ","); out = " "
+      for (j = 1; j <= m; j++) { gsub(/[^a-z]/, "", a[j]); if (a[j] != "") out = out a[j] " " }
+      printf "%s", out
+    }'
+}
+GUAR_change="$(corpus_keys 'change files')"
+GUAR_adr="$(corpus_keys 'ADRs')"
+GUAR_learnings="$(corpus_keys 'learnings findings')"
+assert "guaranteed set for change files parsed from the header" '[ -n "${GUAR_change# }" ]'
+assert "guaranteed set for ADRs parsed from the header"         '[ -n "${GUAR_adr# }" ]'
+assert "guaranteed set for learnings findings parsed from the header" '[ -n "${GUAR_learnings# }" ]'
+# The three sets must actually DIFFER — a parse that handed every corpus the same keys would be the
+# flat allowlist again, wearing a corpus-shaped costume.
+assert "the parsed corpus sets are not all identical" \
+  '[ "$GUAR_change" != "$GUAR_adr" ] && [ "$GUAR_adr" != "$GUAR_learnings" ]'
+
+# The raw tier is a further narrowing, not a widening: field_raw is for a caller decoding quotes
+# itself, and the library header names exactly two such callers (title, hook). A raw read must clear
+# BOTH this pin and its corpus's presence set.
+RAW_CALLERS=' title hook '
+
+# --- (script, file-argument token) -> corpus. Unknown pair = violation. ---
+CORPUS_MAP='scripts/adr-checks.sh|"$f"|adr
+scripts/render-adr-index.sh|"$f"|adr
+scripts/terminal-publish.sh|"$tmpd/adr.md"|adr
+scripts/terminal-publish.sh|"$tmpd/change.md"|change
+scripts/render-learnings-index.sh|"$f"|learnings
+scripts/archive-change.sh|"$dest"|change
+scripts/backfill-change-types.sh|"$f"|change
+scripts/board-checks.sh|"$f"|change
+scripts/docket-status.sh|"$f"|change
+scripts/docket-status.sh|"$active"|change
+scripts/github-mirror.sh|"$f"|change
+scripts/mint-stub.sh|"$f"|change
+scripts/reclaim-claims.sh|"$f"|change
+scripts/render-board.sh|"$f"|change
+scripts/render-board.sh|"$1"|change
+scripts/render-change-links.sh|"$CHANGE_FILE"|change'
+
+corpus_of(){ # corpus_of RELPATH ARGTOKEN -> corpus on stdout, or exit 1
+  local k="$1|$2|" line
+  while IFS= read -r line; do
+    case "$line" in "$k"*) printf '%s' "${line#$k}"; return 0 ;; esac
+  done <<<"$CORPUS_MAP"
+  return 1
+}
 
 # Split each line on `$(` and keep the fragments that OPEN with an accessor name, so several reads
 # on one line are all seen (`spec="$(field "$f" spec)"; trivial="$(field "$f" trivial)"`).
@@ -95,7 +165,9 @@ assert "census scanned a non-empty script population" '[ "${#census_files[@]}" -
 
 census_violations=""
 census_seen=0
+census_corpora=""
 for f in "${census_files[@]}"; do
+  rel="${f#$ROOT/}"
   while IFS= read -r frag; do
     case "$frag" in
       'field '*)     acc=field ;;
@@ -104,42 +176,103 @@ for f in "${census_files[@]}"; do
     esac
     census_seen=$((census_seen + 1))
     rest="${frag#* }"        # "$f" key)…      (drop the accessor)
-    rest="${rest#* }"        # key)…           (drop the FILE argument)
+    argtok="${rest%% *}"     # "$f"            (the FILE argument, verbatim)
+    rest="${rest#* }"        # key)…
     key="${rest%%)*}"        # key
-    case "$acc" in
-      field)     allow="$ALLOW_FIELD" ;;
-      field_raw) allow="$ALLOW_FIELD_RAW" ;;
+    if ! corpus="$(corpus_of "$rel" "$argtok")"; then
+      census_violations+="  $rel: $acc $key — UNCLASSIFIED call site (file argument $argtok)"$'\n'
+      continue
+    fi
+    census_corpora="$census_corpora $corpus"
+    case "$corpus" in
+      change)    allow="$GUAR_change" ;;
+      adr)       allow="$GUAR_adr" ;;
+      learnings) allow="$GUAR_learnings" ;;
+      *)         census_violations+="  $rel: $acc $key — unknown corpus '$corpus' in the map"$'\n'
+                 continue ;;
     esac
     case "$allow" in
       *" $key "*) ;;
-      *) census_violations+="  ${f#$ROOT/}: $acc $key"$'\n' ;;
+      *) census_violations+="  $rel: $acc $key — '$key' is not guaranteed for corpus '$corpus'"$'\n'
+         continue ;;
     esac
+    if [ "$acc" = field_raw ]; then
+      case "$RAW_CALLERS" in
+        *" $key "*) ;;
+        *) census_violations+="  $rel: field_raw $key — the raw tier is for a caller decoding quotes itself"$'\n' ;;
+      esac
+    fi
   done < <(census_frags "$f")
 done
 
 # Population floor: a guard that found nothing to check is not a passing guard.
 assert "census found real field()/field_raw() reads to check" '[ "$census_seen" -gt 20 ]'
+# Discrimination floor: all three corpora must be exercised. A classifier that quietly collapsed
+# every site into one corpus would still clear the count floor above.
+for cps in change adr learnings; do
+  case "$census_corpora" in
+    *" $cps"*) ok "census classified at least one call site as corpus '$cps'" ;;
+    *)         no "census classified NO call site as corpus '$cps' — the classifier collapsed" ;;
+  esac
+done
 
 if [ -z "$census_violations" ]; then
-  ok "census: every unanchored read names a guaranteed-present key"
+  ok "census: every unanchored read names a key its own corpus guarantees"
 else
-  no "census: unanchored read of a key that may be ABSENT — use fm_field (or fm_field_verbatim for
-free-prose values where a whitespace-preceded '#' is data). See the selection rule in
-scripts/lib/docket-frontmatter.sh. Only if NO file the site reads can legitimately omit the key --
-not a hand-authored one, not one minted under an earlier template -- add it to this test's
-ALLOW_FIELD/ALLOW_FIELD_RAW deliberately; the key being present in every file TODAY is not that.
+  no "census: unanchored read of a key that may be ABSENT for the corpus this site reads — use
+fm_field (or fm_field_verbatim for free-prose values where a whitespace-preceded '#' is data). See
+the selection rule in scripts/lib/docket-frontmatter.sh; the guaranteed sets are parsed from its
+header, so widening one means changing the RULE, not this test. An UNCLASSIFIED site is a new call
+site: add its (script, file-argument) pair to CORPUS_MAP with the corpus it actually reads — never
+the union of two corpora for a file that reads both.
 Offending sites:
 $census_violations"
 fi
 
 # A variable-key read (`field "$f" "$key"`) must FAIL by default, so the census cannot be routed
-# around by hoisting the key into a variable. Prove that rather than asserting it in a comment.
+# around by hoisting the key into a variable. Prove that rather than asserting it in a comment —
+# and prove it for EVERY corpus, since a per-corpus set that happened to admit it would reopen the
+# route through whichever walker uses that corpus.
 vk_frag='field "$f" "$key")'
 vk_rest="${vk_frag#* }"; vk_rest="${vk_rest#* }"; vk_key="${vk_rest%%)*}"
-case "$ALLOW_FIELD" in
-  *" $vk_key "*) no "census: a variable-key read would pass the allowlist" ;;
-  *)             ok "census: a variable-key read fails the allowlist by default" ;;
-esac
+vk_bad=0
+for vk_allow in "$GUAR_change" "$GUAR_adr" "$GUAR_learnings"; do
+  case "$vk_allow" in *" $vk_key "*) vk_bad=1 ;; esac
+done
+if [ "$vk_bad" -eq 0 ]; then
+  ok "census: a variable-key read fails every corpus's guaranteed set by default"
+else
+  no "census: a variable-key read would pass some corpus's guaranteed set"
+fi
+
+# Corroboration: a mapped script must actually reference its corpus's directory variable. This does
+# not prove the map right — a script touching both directories satisfies either arm — but it makes a
+# careless entry (mapping a change-file renderer to the ADR corpus) redden instead of widening the
+# guard silently.
+map_violations=""
+while IFS='|' read -r map_rel map_arg map_corpus; do
+  [ -n "$map_rel" ] || continue
+  # Two tokens per corpus, because a script may reach its corpus by DIRECTORY (it walks the tree)
+  # or by ARGUMENT (render-change-links.sh is handed one file via --change-file and never names
+  # CHANGES_DIR). Either is corroboration; neither alone is proof.
+  case "$map_corpus" in
+    change)    dirvar=CHANGES_DIR;    argflag=--change-file ;;
+    adr)       dirvar=ADRS_DIR;       argflag=--adrs-dir ;;
+    learnings) dirvar=LEARNINGS_DIR;  argflag=--learnings-dir ;;
+    *) map_violations+="  $map_rel ($map_arg): unknown corpus '$map_corpus'"$'\n'; continue ;;
+  esac
+  if [ ! -f "$ROOT/$map_rel" ]; then
+    map_violations+="  $map_rel ($map_arg): mapped script does not exist"$'\n'
+  elif ! grep -qF "$dirvar" "$ROOT/$map_rel" && ! grep -qF -- "$argflag" "$ROOT/$map_rel"; then
+    map_violations+="  $map_rel ($map_arg): mapped to '$map_corpus' but references neither $dirvar nor $argflag"$'\n'
+  fi
+done <<<"$CORPUS_MAP"
+if [ -z "$map_violations" ]; then
+  ok "corpus map: every entry names a real script that references its corpus's directory"
+else
+  no "corpus map: entries that do not corroborate against the script they classify:
+$map_violations"
+fi
 
 # ---------------------------------------------------------------------------
 # (3) Orphan pin: fm_field_raw has ZERO production callers. Both directions matter — a silent
