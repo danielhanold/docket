@@ -8,7 +8,7 @@ type: chore
 created: 2026-08-07
 updated: 2026-08-07
 depends_on: []
-related: [252, 172, 260]
+related: [172, 247, 252, 260]
 discovered_from: [171, 233]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-settle-and-enforce-the-prose-anchored-guard-house-pattern-design.md
