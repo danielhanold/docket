@@ -147,7 +147,7 @@ readiness_label(){
 why_distilled(){ # first non-empty lines under "## Why", capped at two sentences
   awk '/^## Why/{f=1;next} f&&/^## /{exit} f&&NF{print}' "$1" \
     | tr '\n' ' ' | sed 's/  */ /g' \
-    | grep -oE '^([^.]*\.){1,2}' | head -n1 | sed 's/^ *//'
+    | grep -oE '^([^.]*\.){1,2}' | sed -n 1p | sed 's/^ *//'
 }
 
 build_body(){ # build_body FILE SUBDIR FILENAME
@@ -172,7 +172,7 @@ build_body(){ # build_body FILE SUBDIR FILENAME
   local adr advpath
   for adr in $(list_field "$f" adrs); do
     if [ -n "$ADRS_DIR" ]; then
-      advpath="$(find "$ADRS_DIR" -maxdepth 1 -name "*${adr}-*.md" 2>/dev/null | head -n1)"
+      advpath="$(find "$ADRS_DIR" -maxdepth 1 -name "*${adr}-*.md" 2>/dev/null | sed -n 1p)"
       [ -n "$advpath" ] && printf -- '- [ADR-%s](%s)\n' "$adr" \
         "$(blob "$META_BRANCH" "${advpath#"$ADRS_DIR"/}")" && continue
     fi
@@ -223,7 +223,7 @@ mirror_change(){
     # CREATE — capture the new number, emit a mint line for the caller to persist.
     local created num
     created="$(run_gh issue create ${REPO:+-R "$REPO"} --title "$title" --body "$body" "${label_args[@]}")"
-    num="$(printf '%s' "$created" | grep -oE '[0-9]+$' | tail -n1)"
+    num="$(grep <<<"$created" -oE '[0-9]+$' | tail -n1)"
     if [ "$DRY" = 1 ]; then
       printf 'issue-minted %s (dry-run)\n' "$id"          # number unknown without a real create
     elif [ -n "$num" ]; then
@@ -270,18 +270,18 @@ mirror_change(){
 proj_field_id(){
   [ "$DRY" = 1 ] && { printf 'DRYFIELD'; return; }
   run_gh project field-list "$2" --owner "$1" --format json \
-    --jq ".fields[]|select(.name==\"$STATUS_FIELD_NAME\")|.id" 2>/dev/null | head -n1
+    --jq ".fields[]|select(.name==\"$STATUS_FIELD_NAME\")|.id" 2>/dev/null | sed -n 1p
 }
 # proj_option_id OWNER NUMBER STATUS — option id for one status value within our field.
 proj_option_id(){
   [ "$DRY" = 1 ] && { printf 'DRYOPT'; return; }
   run_gh project field-list "$2" --owner "$1" --format json \
-    --jq ".fields[]|select(.name==\"$STATUS_FIELD_NAME\").options[]|select(.name==\"$3\")|.id" 2>/dev/null | head -n1
+    --jq ".fields[]|select(.name==\"$STATUS_FIELD_NAME\").options[]|select(.name==\"$3\")|.id" 2>/dev/null | sed -n 1p
 }
 # proj_node_id OWNER NUMBER — the project's own node id (needed by item-edit).
 proj_node_id(){
   [ "$DRY" = 1 ] && { printf 'DRYPID'; return; }
-  run_gh project view "$2" --owner "$1" --format json --jq '.id' 2>/dev/null | head -n1
+  run_gh project view "$2" --owner "$1" --format json --jq '.id' 2>/dev/null | sed -n 1p
 }
 
 sync_projects(){
@@ -298,7 +298,7 @@ sync_projects(){
       number="DRYNUM"
       printf 'project-minted %s (dry-run)\n' "$owner"     # number unknown without a real create
     else
-      number="$(printf '%s' "$cj" | grep -oE '"number":[0-9]+' | head -n1 | grep -oE '[0-9]+')"
+      number="$(grep <<<"$cj" -oE '"number":[0-9]+' | sed -n 1p | grep -oE '[0-9]+')"
       [ -n "$number" ] || { log "Projects: board create returned no number — skipping this pass"; return 0; }
       printf 'project-minted %s %s\n' "$owner" "$number"  # caller writes github_project into .docket.yml
     fi
@@ -326,7 +326,7 @@ sync_projects(){
     docket_status_is_terminal "$st" && continue
     [ -n "$pid" ] && [ -n "$fid" ] || continue
     if [ "$DRY" = 1 ]; then itemid="DRYITEM"
-    else itemid="$(printf '%s' "$ij" | grep -oE '"id":"[^"]+"' | head -n1 | sed 's/.*:"//;s/"$//')"; fi
+    else itemid="$(grep <<<"$ij" -oE '"id":"[^"]+"' | sed -n 1p | sed 's/.*:"//;s/"$//')"; fi
     [ -n "$itemid" ] || continue
     oid="$(proj_option_id "$owner" "$number" "$st")"
     [ -n "$oid" ] || continue

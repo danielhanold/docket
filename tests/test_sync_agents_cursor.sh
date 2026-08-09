@@ -15,7 +15,7 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 
 # Single-line frontmatter scalar. Anchored to the FIRST --- block would be stricter, but these
 # generated wrappers are emitter output with a known shape and no body prose using these keys.
-fm(){ sed -n "s/^$2:[[:space:]]*//p" "$1" | head -n1 | sed 's/[[:space:]]*$//'; }
+fm(){ sed -n "s/^$2:[[:space:]]*//p" "$1" | sed -n 1p | sed 's/[[:space:]]*$//'; }
 # Frontmatter = lines between the first two --- fences. Key-absence asserts MUST scope to it:
 # a bare `grep -q '^effort:'` over the whole file would also match wrapper body prose.
 front(){ awk '/^---[[:space:]]*$/{d++; next} d==1{print} d>=2{exit}' "$1"; }

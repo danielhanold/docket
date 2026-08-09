@@ -18,7 +18,7 @@ REV="$REPO/skills/docket-review/SKILL.md"
 # --- the skill exists and declares itself -------------------------------------------------
 assert "docket-review skill exists" '[ -f "$REV" ]'
 assert "docket-review frontmatter name is docket-review" \
-  'awk "/^---$/{n++; next} n==1" "$REV" | grep -qE "^name: docket-review$"'
+  'awk "/^---$/{n++; next} n==1" "$REV" | grep >/dev/null -E "^name: docket-review$"'
 
 # --- read-only conduct: the properties that make the verdict trustworthy -------------------
 # Each is a distinct promise; a single "read-only" mention would not prove any of them.
@@ -105,7 +105,7 @@ assert "the cap-rung invariant was checked on every shipped harness" '[ "$n_cap"
 # reverse-correspondence population. The four docket-build-* workers set the precedent: they are
 # referred to as profile agents, never in the `name`-near-"subagent" shape that guard derives on.
 assert "rung dispatch prose avoids the derived-dispatch-site shape" \
-  '! grep -rohE --include="*.md" "\`docket-review-[a-z]+\`[^\`]{0,20}subagent" "$REPO/skills/" | grep -q .'
+  '! grep -rohE --include="*.md" "\`docket-review-[a-z]+\`[^\`]{0,20}subagent" "$REPO/skills/" | grep >/dev/null .'
 
 # --- the build-evidence chain: producer ----------------------------------------------------
 # Per the learnings finding `specified-but-unreachable`: a contract with a producer and a consumer
@@ -166,7 +166,7 @@ FIX="$REPO/skills/docket-implement-next/references/fix-loop.md"
 assert "fix-loop: the reference exists" '[ -f "$FIX" ]'
 fix_body="$(cat "$FIX" 2>/dev/null)"
 assert "fix-loop: reference is non-vacuous (>= 30 lines)" \
-  '[ "$(printf "%s\n" "$fix_body" | grep -c .)" -ge 30 ]'
+  '[ "$(grep <<<"$fix_body" -c .)" -ge 30 ]'
 
 # Every assert below whose pattern can SPAN A LINE BREAK reads a newline-FLATTENED haystack. grep
 # matches within a line, so a phrase-spanning assert over hard-wrapped markdown silently doubles as
@@ -437,7 +437,7 @@ ac_body="$(cat "$AC" 2>/dev/null)"
 # Floor raised 20 -> 60 by 0226: the file roughly doubled, and a floor that a half-deleted file
 # still clears is not a non-vacuity anchor.
 assert "auto-capture: reference is non-vacuous (>= 60 lines)" \
-  '[ "$(printf "%s\n" "$ac_body" | grep -c .)" -ge 60 ]'
+  '[ "$(grep <<<"$ac_body" -c .)" -ge 60 ]'
 ac_flat="$(flatten <<<"$ac_body")"
 # Scoped to the Materiality bar SECTION, not the whole file: a whole-file grep would match the
 # clause wherever it landed, including a passing mention in the mint paragraph, which is not where
@@ -673,7 +673,7 @@ done
 EP="$REPO/skills/docket-implement-next/references/edge-paths.md"
 ep_body="$(cat "$EP" 2>/dev/null)"
 assert "edge-paths: reference is non-vacuous (>= 15 lines)" \
-  '[ "$(printf "%s\n" "$ep_body" | grep -c .)" -ge 15 ]'
+  '[ "$(grep <<<"$ep_body" -c .)" -ge 15 ]'
 assert "edge-paths: the PR body carries the findings disposition table" \
   'grep -qiF -- "disposition table" <<<"$ep_body"'
 assert "edge-paths: no longer parks importants/minors for merge-time judgment alone" \
@@ -683,7 +683,7 @@ assert "edge-paths: no longer parks importants/minors for merge-time judgment al
 RT="$REPO/skills/docket-implement-next/results-template.md"
 rt_body="$(cat "$RT" 2>/dev/null)"
 assert "results-template: is non-vacuous (>= 15 lines)" \
-  '[ "$(printf "%s\n" "$rt_body" | grep -c .)" -ge 15 ]'
+  '[ "$(grep <<<"$rt_body" -c .)" -ge 15 ]'
 assert "results-template: Verify (human) excludes fixed findings" \
   'grep -qiE "fixed finding[^.]{0,80}(never|not)|(never|not)[^.]{0,80}fixed finding" <<<"$rt_body"'
 

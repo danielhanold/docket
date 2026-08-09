@@ -9,7 +9,7 @@ SKILL="$REPO/skills/docket-adr/SKILL.md"
 fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 # has_finding OUTPUT CHECK-ID ADR-ID — literal-TAB ERE (portable; no grep -P).
-has_finding(){ printf '%s' "$1" | grep -qE "$(printf '^%s\t%s\t' "$2" "$3")"; }
+has_finding(){ grep <<<"$1" -qE "$(printf '^%s\t%s\t' "$2" "$3")"; }
 
 mkadr(){ # mkadr DIR ID STATUS SUPERSEDES REVERSES RELATES  (lists like "[]" or "[4]")
   cat > "$1/$(printf '%04d' "$2")-a$2.md" <<EOF

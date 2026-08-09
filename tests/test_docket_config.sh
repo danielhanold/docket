@@ -169,7 +169,7 @@ assert "main-mode: BOOTSTRAP PROCEED"                  '[ "$BOOTSTRAP" = PROCEED
 # (no /.docket suffix), covering the MW_EMIT="$REPO_ABS" branch in scripts/docket-config.sh.
 b_abs="$(cd "$tmp/b" && pwd -P)"
 b_plain="$(run "$tmp/b" --export --format plain)"
-assert "plain format absolutizes METADATA_WORKTREE (main-mode => repo root)" 'printf "%s\n" "$b_plain" | grep -qxF "METADATA_WORKTREE=$b_abs"'
+assert "plain format absolutizes METADATA_WORKTREE (main-mode => repo root)" 'grep <<<"$b_plain" -qxF "METADATA_WORKTREE=$b_abs"'
 
 # --- (C) explicit config (main-mode to skip bootstrap): dirs, gate, surfaces, escaping
 mkrepo "$tmp/c"
@@ -219,11 +219,11 @@ git -C "$tmp/d" add .docket.yml; git -C "$tmp/d" commit --quiet -m cfg
 git -C "$tmp/d" push --quiet origin main
 out="$(run "$tmp/d" --export)"
 out_plain="$(run "$tmp/d" --export --format plain)"
-assert "board []: emits BOARD_SURFACES=none"           'printf "%s\n" "$out" | grep -qxF "BOARD_SURFACES=none"'
+assert "board []: emits BOARD_SURFACES=none"           'grep <<<"$out" -qxF "BOARD_SURFACES=none"'
 assert "board []: plain format never emits an empty BOARD_SURFACES" \
-  '! printf "%s\n" "$out_plain" | grep -qxF "BOARD_SURFACES="'
+  '! grep <<<"$out_plain" -qxF "BOARD_SURFACES="'
 assert "board []: shell format never emits quoted-empty BOARD_SURFACES" \
-  '! printf "%s\n" "$out" | grep -qxF "BOARD_SURFACES='\'''\''"'
+  '! grep <<<"$out" -qxF "BOARD_SURFACES='\'''\''"'
 BOARD_SURFACES=__poison__
 eval "$out"
 assert "board []: BOARD_SURFACES is the none token"     '[ "$BOARD_SURFACES" = none ]'
@@ -237,7 +237,7 @@ mkdir -p "$tmp/d2.xdg/docket"
 printf 'board_surfaces: [github]\n' > "$tmp/d2.xdg/docket/config.yml"
 out="$(rung "$tmp/d2.xdg" "$tmp/d2" --export 2>/dev/null)"
 assert "board fenced-to-empty: emits BOARD_SURFACES=none" \
-  'printf "%s\n" "$out" | grep -qxF "BOARD_SURFACES=none"'
+  'grep <<<"$out" -qxF "BOARD_SURFACES=none"'
 
 # --- (E) direct-pipe caller (LEARNINGS #22: $() hides a dropped trailing \n) -
 n="$(run "$tmp/c" --export | grep -c '=')"
@@ -312,7 +312,7 @@ w2gi="$tmp/w2gi"; mkrepo "$w2gi"                       # fresh docket-mode repo 
 head_before="$(git -C "$w2gi" rev-parse HEAD 2>/dev/null || echo none)"
 bs_err="$(run "$w2gi" --bootstrap --export 2>&1 >/dev/null)"
 assert "0057 bootstrap: block seeded in primary tree" 'grep -qxF "# docket:start (managed by docket — do not hand-edit)" "$w2gi/.gitignore"'
-assert "0057 bootstrap: loud COMMIT notice printed"   'printf "%s" "$bs_err" | grep -qi "commit"'
+assert "0057 bootstrap: loud COMMIT notice printed"   'grep <<<"$bs_err" -qi "commit"'
 assert "0057 bootstrap: nothing auto-committed"       '[ "$(git -C "$w2gi" rev-parse HEAD 2>/dev/null || echo none)" = "$head_before" ]'
 assert "0057 bootstrap: .gitignore left UNstaged"     '[ -z "$(git -C "$w2gi" diff --cached --name-only 2>/dev/null)" ]'
 
@@ -406,12 +406,12 @@ git -C "$tmp/f4" add .docket.yml; git -C "$tmp/f4" commit --quiet -m cfg
 git -C "$tmp/f4" push --quiet origin main
 assert "bad metadata_branch: nonzero exit" '[ "$(run_rc "$tmp/f4" --export)" -ne 0 ]'
 err="$(bash "$SCRIPT" --repo-dir "$tmp/f4" --export 2>&1 >/dev/null)"
-assert "bad metadata_branch: diagnostic mentions metadata_branch" 'printf "%s" "$err" | grep -q metadata_branch'
+assert "bad metadata_branch: diagnostic mentions metadata_branch" 'grep <<<"$err" -q metadata_branch'
 
 # (F5) --repo-dir with no following argument -> usage error (exit≠0 + diagnostic), no set -u crash
 rc5=0; err5="$(bash "$SCRIPT" --repo-dir 2>&1 >/dev/null)" || rc5=$?
 assert "F5 --repo-dir no arg: nonzero exit" '[ "$rc5" -ne 0 ]'
-assert "F5 --repo-dir no arg: diagnostic mentions --repo-dir" 'printf "%s" "$err5" | grep -q -- "--repo-dir"'
+assert "F5 --repo-dir no arg: diagnostic mentions --repo-dir" 'grep <<<"$err5" -q -- "--repo-dir"'
 
 # --- skill-wiring sentinels (the SKILLs are code on the integration branch) ------
 CONV="$REPO/skills/docket-convention/SKILL.md"
@@ -559,7 +559,7 @@ git -C "$tmp/j" add .docket.yml; git -C "$tmp/j" commit --quiet -m cfg; git -C "
 jerr="$(run "$tmp/j" --export 2>&1 >/dev/null)"
 SKILL_PLAN=__poison__
 out="$(run "$tmp/j" --export 2>/dev/null)"; eval "$out"
-assert "skills unknown key: warned on stderr"       'printf "%s" "$jerr" | grep -qi "unknown skills role"'
+assert "skills unknown key: warned on stderr"       'grep <<<"$jerr" -qi "unknown skills role"'
 assert "skills unknown key: known PLAN still parsed" '[ "$SKILL_PLAN" = auto ]'
 assert "skills unknown key: does not abort (exit 0)" '[ "$(run_rc "$tmp/j" --export)" -eq 0 ]'
 
@@ -633,9 +633,9 @@ EOF
 merr="$(rung "$tmp/m.xdg" "$tmp/m" --export 2>&1 >/dev/null)"
 AUTO_GROOM=__poison__; CHANGES_DIR=__poison__; METADATA_BRANCH=__poison__
 out="$(rung "$tmp/m.xdg" "$tmp/m" --export 2>/dev/null)"; eval "$out"
-assert "0050 M: fence warns metadata_branch"        'printf "%s" "$merr" | grep -q "metadata_branch"'
-assert "0050 M: fence names per-repo-only"          'printf "%s" "$merr" | grep -qi "per-repo-only"'
-assert "0050 M: fence warns changes_dir"            'printf "%s" "$merr" | grep -q "changes_dir"'
+assert "0050 M: fence warns metadata_branch"        'grep <<<"$merr" -q "metadata_branch"'
+assert "0050 M: fence names per-repo-only"          'grep <<<"$merr" -qi "per-repo-only"'
+assert "0050 M: fence warns changes_dir"            'grep <<<"$merr" -q "changes_dir"'
 assert "0050 M: global metadata_branch NOT honored" '[ "$METADATA_BRANCH" = docket ]'
 assert "0050 M: CHANGES_DIR stays default"          '[ "$CHANGES_DIR" = docs/changes ]'
 assert "0050 M: global-able key in same file still honored" '[ "$AUTO_GROOM" = true ]'
@@ -648,12 +648,12 @@ printf 'board_surfaces: [inline, github]\n' > "$tmp/n.xdg/docket/config.yml"
 nerr="$(rung "$tmp/n.xdg" "$tmp/n" --export 2>&1 >/dev/null)"
 BOARD_SURFACES=__poison__
 out="$(rung "$tmp/n.xdg" "$tmp/n" --export 2>/dev/null)"; eval "$out"
-assert "0050 N: global github token warned"         'printf "%s" "$nerr" | grep -q "github"'
+assert "0050 N: global github token warned"         'grep <<<"$nerr" -q "github"'
 assert "0050 N: global github token dropped"        '[ "$BOARD_SURFACES" = inline ]'
 printf 'board_surfaces: []\n' > "$tmp/n.xdg/docket/config.yml"
 out="$(rung "$tmp/n.xdg" "$tmp/n" --export 2>/dev/null)"
 assert "0050 N: global [] honored (board disabled, encoded as none)" \
-  'printf "%s\n" "$out" | grep -qxF "BOARD_SURFACES=none"'
+  'grep <<<"$out" -qxF "BOARD_SURFACES=none"'
 eval "$out"
 # per-repo github is untouched by the fence:
 mkrepo "$tmp/n2"
@@ -664,7 +664,7 @@ n2err="$(rung "$tmp/n.xdg" "$tmp/n2" --export 2>&1 >/dev/null)"
 BOARD_SURFACES=__poison__
 out="$(rung "$tmp/n.xdg" "$tmp/n2" --export 2>/dev/null)"; eval "$out"
 assert "0050 N: per-repo github honored"            '[ "$BOARD_SURFACES" = "inline github" ]'
-assert "0050 N: per-repo github NOT warned"         '! printf "%s" "$n2err" | grep -q "board_surfaces token github"'
+assert "0050 N: per-repo github NOT warned"         '! grep <<<"$n2err" -q "board_surfaces token github"'
 
 # --- (O) misplacement guard: ~/.config/docket/.docket.yml is warned, never read ---
 mkrepo "$tmp/o"
@@ -673,7 +673,7 @@ printf 'auto_groom: true\n' > "$tmp/o.xdg/docket/.docket.yml"
 oerr="$(rung "$tmp/o.xdg" "$tmp/o" --export 2>&1 >/dev/null)"
 AUTO_GROOM=__poison__
 out="$(rung "$tmp/o.xdg" "$tmp/o" --export 2>/dev/null)"; eval "$out"
-assert "0050 O: misplacement warned, names config.yml" 'printf "%s" "$oerr" | grep -q "config.yml"'
+assert "0050 O: misplacement warned, names config.yml" 'grep <<<"$oerr" -q "config.yml"'
 assert "0050 O: misplaced file NOT read (auto_groom default)" '[ "$AUTO_GROOM" = false ]'
 assert "0050 O: misplacement not fatal (exit 0)"    '[ "$(rung_rc "$tmp/o.xdg" "$tmp/o" --export)" -eq 0 ]'
 
@@ -683,7 +683,7 @@ mkdir -p "$tmp/p.xdg/docket/config.yml"            # a DIRECTORY at the config p
 perr="$(rung "$tmp/p.xdg" "$tmp/p" --export 2>&1 >/dev/null)"
 AUTO_GROOM=__poison__
 out="$(rung "$tmp/p.xdg" "$tmp/p" --export 2>/dev/null)"; eval "$out"
-assert "0050 P: malformed global warned"            'printf "%s" "$perr" | grep -qi "not a readable regular file"'
+assert "0050 P: malformed global warned"            'grep <<<"$perr" -qi "not a readable regular file"'
 assert "0050 P: built-ins fallback (auto_groom)"    '[ "$AUTO_GROOM" = false ]'
 assert "0050 P: malformed global not fatal (exit 0)" '[ "$(rung_rc "$tmp/p.xdg" "$tmp/p" --export)" -eq 0 ]'
 
@@ -821,8 +821,8 @@ tperr="$(rung "$tmp/tp3.xdg" "$tmp/tp3" --export 2>&1 >/dev/null)"
 # `set -u` whether the eval set it or left it unset.
 unset TERMINAL_PUBLISH
 out="$(rung "$tmp/tp3.xdg" "$tmp/tp3" --export 2>/dev/null)"; eval "$out"
-assert "0064 fence: global terminal_publish warns"        'printf "%s" "$tperr" | grep -q "terminal_publish"'
-assert "0064 fence: warning says per-repo-only"           'printf "%s" "$tperr" | grep -qi "per-repo-only"'
+assert "0064 fence: global terminal_publish warns"        'grep <<<"$tperr" -q "terminal_publish"'
+assert "0064 fence: warning says per-repo-only"           'grep <<<"$tperr" -qi "per-repo-only"'
 assert "0064 fence: global value NOT honored (stays false)" '[ "${TERMINAL_PUBLISH-unset}" = false ]'
 assert "0064 fence: global terminal_publish is not fatal"  '[ "$(rung_rc "$tmp/tp3.xdg" "$tmp/tp3" --export)" -eq 0 ]'
 
@@ -836,8 +836,8 @@ lerr="$(run "$tmp/tp4" --export 2>&1 >/dev/null)"; rc=$?
 # leftover "false" from an earlier block.
 unset TERMINAL_PUBLISH
 out="$(run "$tmp/tp4" --export 2>/dev/null)"; eval "$out"
-assert "0064 fence: .docket.local.yml terminal_publish warns" 'printf "%s" "$lerr" | grep -q "terminal_publish"'
-assert "0064 fence: local names .docket.local.yml"            'printf "%s" "$lerr" | grep -q ".docket.local.yml"'
+assert "0064 fence: .docket.local.yml terminal_publish warns" 'grep <<<"$lerr" -q "terminal_publish"'
+assert "0064 fence: local names .docket.local.yml"            'grep <<<"$lerr" -q ".docket.local.yml"'
 assert "0064 fence: local value NOT honored (stays false)"     '[ "${TERMINAL_PUBLISH-unset}" = false ]'
 assert "0064 fence: local terminal_publish is not fatal (rc=0)" '[ "$rc" -eq 0 ]'
 
@@ -875,19 +875,19 @@ git -C "$tmp/fmt" fetch --quiet origin docket 2>/dev/null
 
 # shell format (default) is UNCHANGED: %q-quoted, eval-able, empty => KEY=''
 shell_out="$(run "$tmp/fmt" --export)"
-assert "shell format still %q-quotes empty values" 'printf "%s" "$shell_out" | grep -qxF "FINALIZE_TEST_COMMAND='\'''\''"'
-assert "shell format METADATA_WORKTREE stays relative .docket" 'printf "%s" "$shell_out" | grep -qxF "METADATA_WORKTREE=.docket"'
+assert "shell format still %q-quotes empty values" 'grep <<<"$shell_out" -qxF "FINALIZE_TEST_COMMAND='\'''\''"'
+assert "shell format METADATA_WORKTREE stays relative .docket" 'grep <<<"$shell_out" -qxF "METADATA_WORKTREE=.docket"'
 
 # plain format: raw KEY=value, no %q, no export prefix, empty => bare "KEY="
 plain_out="$(run "$tmp/fmt" --export --format plain)"
-assert "plain format emits raw empty value (no quotes)" 'printf "%s\n" "$plain_out" | grep -qxF "FINALIZE_TEST_COMMAND="'
-assert "plain format has no export prefix" '! printf "%s\n" "$plain_out" | grep -q "^export "'
-assert "plain format emits BOOTSTRAP" 'printf "%s\n" "$plain_out" | grep -qxF "BOOTSTRAP=PROCEED"'
-assert "plain format emits raw enum values unquoted" 'printf "%s\n" "$plain_out" | grep -qxF "DOCKET_MODE=docket"'
+assert "plain format emits raw empty value (no quotes)" 'grep <<<"$plain_out" -qxF "FINALIZE_TEST_COMMAND="'
+assert "plain format has no export prefix" '! grep <<<"$plain_out" -q "^export "'
+assert "plain format emits BOOTSTRAP" 'grep <<<"$plain_out" -qxF "BOOTSTRAP=PROCEED"'
+assert "plain format emits raw enum values unquoted" 'grep <<<"$plain_out" -qxF "DOCKET_MODE=docket"'
 # METADATA_WORKTREE absolutized in plain mode
 fmt_abs="$(cd "$tmp/fmt" && pwd -P)"
-assert "plain format absolutizes METADATA_WORKTREE (docket-mode)" 'printf "%s\n" "$plain_out" | grep -qxF "METADATA_WORKTREE=$fmt_abs/.docket"'
-assert "plain format keeps CHANGES_DIR as repo-relative subpath" 'printf "%s\n" "$plain_out" | grep -qxF "CHANGES_DIR=docs/changes"'
+assert "plain format absolutizes METADATA_WORKTREE (docket-mode)" 'grep <<<"$plain_out" -qxF "METADATA_WORKTREE=$fmt_abs/.docket"'
+assert "plain format keeps CHANGES_DIR as repo-relative subpath" 'grep <<<"$plain_out" -qxF "CHANGES_DIR=docs/changes"'
 
 # plain mode still fails closed on an aborting resolver: nothing on stdout, non-zero exit
 # (#64b: clear the asserted capture first so a prior value can never masquerade as success).
@@ -913,22 +913,22 @@ mkdir -p "$tmp/z/sub"
 # plain format from the MAIN ROOT: REPO_ROOT present and absolute.
 z_root_plain="$(cd "$tmp/z" && bash "$SCRIPT" --export --format plain)"
 assert "0075 plain: REPO_ROOT emitted, absolute, = the main worktree" \
-  'printf "%s\n" "$z_root_plain" | grep -qxF "REPO_ROOT=$z_abs"'
+  'grep <<<"$z_root_plain" -qxF "REPO_ROOT=$z_abs"'
 
 # plain format from the .docket/ LINKED WORKTREE: byte-identical REPO_ROOT and METADATA_WORKTREE.
 # Pre-0075 this yielded REPO_ROOT=<repo>/.docket and METADATA_WORKTREE=<repo>/.docket/.docket.
 z_dk_plain="$(cd "$tmp/z/.docket" && bash "$SCRIPT" --export --format plain)"
 assert "0075 plain: REPO_ROOT from the .docket/ worktree is the MAIN root, not .docket" \
-  'printf "%s\n" "$z_dk_plain" | grep -qxF "REPO_ROOT=$z_abs"'
+  'grep <<<"$z_dk_plain" -qxF "REPO_ROOT=$z_abs"'
 assert "0075 plain: METADATA_WORKTREE from .docket/ is <root>/.docket, NOT <root>/.docket/.docket" \
-  'printf "%s\n" "$z_dk_plain" | grep -qxF "METADATA_WORKTREE=$z_abs/.docket"'
+  'grep <<<"$z_dk_plain" -qxF "METADATA_WORKTREE=$z_abs/.docket"'
 
 # plain format from a SUBDIRECTORY: the spec's stated behavior CHANGE (§1) — pinned deliberately.
 z_sub_plain="$(cd "$tmp/z/sub" && bash "$SCRIPT" --export --format plain)"
 assert "0075 plain: REPO_ROOT from <repo>/sub is the repo root (§1 behavior change, pinned)" \
-  'printf "%s\n" "$z_sub_plain" | grep -qxF "REPO_ROOT=$z_abs"'
+  'grep <<<"$z_sub_plain" -qxF "REPO_ROOT=$z_abs"'
 assert "0075 plain: METADATA_WORKTREE from <repo>/sub is <root>/.docket, not <sub>/.docket" \
-  'printf "%s\n" "$z_sub_plain" | grep -qxF "METADATA_WORKTREE=$z_abs/.docket"'
+  'grep <<<"$z_sub_plain" -qxF "METADATA_WORKTREE=$z_abs/.docket"'
 
 # The machine-local layer is read from the REPO ROOT even when invoked from a subdirectory
 # (§1: LCFG="$REPO_DIR/.docket.local.yml"). auto_groom is a global-able (non-fenced) key.
@@ -944,16 +944,16 @@ rm -f "$tmp/z/.docket.local.yml"
 # the guard is provably able to fire (a bare `! grep` that can never match proves nothing).
 z_shell="$(cd "$tmp/z" && bash "$SCRIPT" --export)"
 assert "0075 shell: REPO_ROOT is NOT emitted (would capture ensure-claude-settings.sh's own var)" \
-  '! printf "%s\n" "$z_shell" | grep -q "^REPO_ROOT="'
+  '! grep <<<"$z_shell" -q "^REPO_ROOT="'
 assert "0075 control: the plain export DOES carry REPO_ROOT (proves the absence-assert can fire)" \
-  'printf "%s\n" "$z_root_plain" | grep -q "^REPO_ROOT="'
+  'grep <<<"$z_root_plain" -q "^REPO_ROOT="'
 
 # --repo-dir still overrides verbatim, from anywhere (the whole existing suite depends on it).
 mkrepo "$tmp/z2"
 z2_abs="$(cd "$tmp/z2" && pwd -P)"
 z2_plain="$(cd "$tmp/z/.docket" && bash "$SCRIPT" --repo-dir "$tmp/z2" --export --format plain)"
 assert "0075: --repo-dir still overrides the anchor verbatim" \
-  'printf "%s\n" "$z2_plain" | grep -qxF "REPO_ROOT=$z2_abs"'
+  'grep <<<"$z2_plain" -qxF "REPO_ROOT=$z2_abs"'
 
 # ============================================================================
 # Change 0067 — the learnings: block (LEARNINGS_ENABLED, LEARNINGS_CAP)
@@ -997,7 +997,7 @@ lrn_c_err="$(rung "$tmp/lrn-c.xdg" "$tmp/lrn-c" --export 2>&1 >/dev/null)"
 out="$(rung "$tmp/lrn-c.xdg" "$tmp/lrn-c" --export 2>/dev/null)"; eval "$out"
 assert "learnings.enabled is global-able (not fenced)" '[ "$LEARNINGS_ENABLED" = "false" ]'
 assert "learnings.cap is global-able (not fenced)"     '[ "$LEARNINGS_CAP" = "42" ]'
-assert "no fence warning for learnings keys" '! printf "%s" "$lrn_c_err" | grep -qi "learnings.*per-repo-only"'
+assert "no fence warning for learnings keys" '! grep <<<"$lrn_c_err" -qi "learnings.*per-repo-only"'
 
 # --- (LRN-d) repo-local layer wins over repo-committed -------------------------
 unset LEARNINGS_ENABLED LEARNINGS_CAP
@@ -1041,7 +1041,7 @@ git -C "$tmp/lrn-f1" push --quiet origin main
 lrn_f1_err="$(bash "$SCRIPT" --repo-dir "$tmp/lrn-f1" --export 2>&1 >/dev/null)"
 assert "unparseable learnings.enabled: nonzero exit" '[ "$(run_rc "$tmp/lrn-f1" --export)" -ne 0 ]'
 assert "unparseable learnings.enabled: mentions learnings.enabled" \
-  'printf "%s" "$lrn_f1_err" | grep -qF "learnings.enabled"'
+  'grep <<<"$lrn_f1_err" -qF "learnings.enabled"'
 
 mkrepo "$tmp/lrn-f2"
 cat > "$tmp/lrn-f2/.docket.yml" <<'EOF'
@@ -1054,7 +1054,7 @@ git -C "$tmp/lrn-f2" push --quiet origin main
 lrn_f2_err="$(bash "$SCRIPT" --repo-dir "$tmp/lrn-f2" --export 2>&1 >/dev/null)"
 assert "non-integer learnings.cap: nonzero exit" '[ "$(run_rc "$tmp/lrn-f2" --export)" -ne 0 ]'
 assert "non-integer learnings.cap: mentions learnings.cap" \
-  'printf "%s" "$lrn_f2_err" | grep -qF "learnings.cap"'
+  'grep <<<"$lrn_f2_err" -qF "learnings.cap"'
 
 # ============================================================================
 # Change 0089 — the reclaim: block (RECLAIM_LEASE_TTL, RECLAIM_AUTO)
@@ -1080,8 +1080,8 @@ run_resolver_with(){
 unset RECLAIM_LEASE_TTL RECLAIM_AUTO
 mkrepo "$tmp/rcl-a"
 out="$(run "$tmp/rcl-a" --export)"; eval "$out"
-assert "RECLAIM_LEASE_TTL defaults to 72" 'echo "$out" | grep -qxF "RECLAIM_LEASE_TTL=72"'
-assert "RECLAIM_AUTO defaults to false"   'echo "$out" | grep -qxF "RECLAIM_AUTO=false"'
+assert "RECLAIM_LEASE_TTL defaults to 72" 'grep <<<"$out" -qxF "RECLAIM_LEASE_TTL=72"'
+assert "RECLAIM_AUTO defaults to false"   'grep <<<"$out" -qxF "RECLAIM_AUTO=false"'
 
 # --- (RCL-b) repo-committed block is honored -----------------------------------
 unset RECLAIM_LEASE_TTL RECLAIM_AUTO
@@ -1095,8 +1095,8 @@ EOF
 git -C "$tmp/rcl-b" add .docket.yml; git -C "$tmp/rcl-b" commit --quiet -m cfg
 git -C "$tmp/rcl-b" push --quiet origin main
 out2="$(run "$tmp/rcl-b" --export)"; eval "$out2"
-assert "RECLAIM_LEASE_TTL reads the block" 'echo "$out2" | grep -qxF "RECLAIM_LEASE_TTL=12"'
-assert "RECLAIM_AUTO reads the block"      'echo "$out2" | grep -qxF "RECLAIM_AUTO=true"'
+assert "RECLAIM_LEASE_TTL reads the block" 'grep <<<"$out2" -qxF "RECLAIM_LEASE_TTL=12"'
+assert "RECLAIM_AUTO reads the block"      'grep <<<"$out2" -qxF "RECLAIM_AUTO=true"'
 
 # --- (RCL-c) BOTH keys are global-able (ADR-0019 — NOT fenced) -----------------
 unset RECLAIM_LEASE_TTL RECLAIM_AUTO
@@ -1111,7 +1111,7 @@ rcl_c_err="$(rung "$tmp/rcl-c.xdg" "$tmp/rcl-c" --export 2>&1 >/dev/null)"
 out="$(rung "$tmp/rcl-c.xdg" "$tmp/rcl-c" --export 2>/dev/null)"; eval "$out"
 assert "reclaim.lease_ttl is global-able (not fenced)" '[ "$RECLAIM_LEASE_TTL" = "6" ]'
 assert "reclaim.auto is global-able (not fenced)"      '[ "$RECLAIM_AUTO" = "true" ]'
-assert "no fence warning for reclaim keys" '! printf "%s" "$rcl_c_err" | grep -qi "reclaim.*per-repo-only"'
+assert "no fence warning for reclaim keys" '! grep <<<"$rcl_c_err" -qi "reclaim.*per-repo-only"'
 
 # --- (RCL-d) repo-local layer wins over repo-committed -------------------------
 unset RECLAIM_LEASE_TTL RECLAIM_AUTO
@@ -1150,10 +1150,10 @@ assert "non-bool auto aborts nonzero"         '! run_resolver_with "reclaim:\n  
 
 rcl_f1_err="$(run_resolver_with "reclaim:\n  lease_ttl: soon\n" 2>&1 >/dev/null)"
 assert "unparseable reclaim.lease_ttl: mentions reclaim.lease_ttl" \
-  'printf "%s" "$rcl_f1_err" | grep -qF "reclaim.lease_ttl"'
+  'grep <<<"$rcl_f1_err" -qF "reclaim.lease_ttl"'
 rcl_f2_err="$(run_resolver_with "reclaim:\n  auto: maybe\n" 2>&1 >/dev/null)"
 assert "unparseable reclaim.auto: mentions reclaim.auto" \
-  'printf "%s" "$rcl_f2_err" | grep -qF "reclaim.auto"'
+  'grep <<<"$rcl_f2_err" -qF "reclaim.auto"'
 
 # ============================================================================
 # Change 0167 — the build: block (BUILD_CHECKPOINT)
@@ -1165,7 +1165,7 @@ assert "unparseable reclaim.auto: mentions reclaim.auto" \
 unset BUILD_CHECKPOINT
 mkrepo "$tmp/bld-a"
 out="$(run "$tmp/bld-a" --export)"; eval "$out"
-assert "BUILD_CHECKPOINT defaults to false" 'echo "$out" | grep -qxF "BUILD_CHECKPOINT=false"'
+assert "BUILD_CHECKPOINT defaults to false" 'grep <<<"$out" -qxF "BUILD_CHECKPOINT=false"'
 
 # --- (BLD-b) repo-committed block is honored ----------------------------------
 unset BUILD_CHECKPOINT
@@ -1178,7 +1178,7 @@ EOF
 git -C "$tmp/bld-b" add .docket.yml; git -C "$tmp/bld-b" commit --quiet -m cfg
 git -C "$tmp/bld-b" push --quiet origin main
 out2="$(run "$tmp/bld-b" --export)"; eval "$out2"
-assert "BUILD_CHECKPOINT reads the block" 'echo "$out2" | grep -qxF "BUILD_CHECKPOINT=true"'
+assert "BUILD_CHECKPOINT reads the block" 'grep <<<"$out2" -qxF "BUILD_CHECKPOINT=true"'
 
 # --- (BLD-c) global-able (ADR-0019 — NOT coordination-fenced) -----------------
 unset BUILD_CHECKPOINT
@@ -1191,7 +1191,7 @@ EOF
 bld_c_err="$(rung "$tmp/bld-c.xdg" "$tmp/bld-c" --export 2>&1 >/dev/null)"
 out="$(rung "$tmp/bld-c.xdg" "$tmp/bld-c" --export 2>/dev/null)"; eval "$out"
 assert "build.checkpoint is global-able (not fenced)" '[ "$BUILD_CHECKPOINT" = "true" ]'
-assert "no fence warning for build.checkpoint" '! printf "%s" "$bld_c_err" | grep -qi "build.*per-repo-only"'
+assert "no fence warning for build.checkpoint" '! grep <<<"$bld_c_err" -qi "build.*per-repo-only"'
 
 # --- (BLD-d) repo-local layer wins over repo-committed ------------------------
 unset BUILD_CHECKPOINT
@@ -1226,7 +1226,7 @@ assert "a foreign block's checkpoint: does not shadow build.checkpoint" '[ "$BUI
 assert "non-bool checkpoint aborts nonzero" '! run_resolver_with "build:\n  checkpoint: maybe\n" >/dev/null 2>&1'
 bld_f_err="$(run_resolver_with "build:\n  checkpoint: maybe\n" 2>&1 >/dev/null)"
 assert "unparseable build.checkpoint: mentions build.checkpoint" \
-  'printf "%s" "$bld_f_err" | grep -qF "build.checkpoint"'
+  'grep <<<"$bld_f_err" -qF "build.checkpoint"'
 
 # --- (BLD-g) export presence and POSITION -------------------------------------
 # Position matters: scripts/docket-config.md documents the order as a contract, and pipe
@@ -1273,7 +1273,7 @@ unset REVIEW_MIN_FIX_SEVERITY
 mkrepo "$tmp/rmf-a"
 out="$(run "$tmp/rmf-a" --export)"; eval "$out"
 assert "REVIEW_MIN_FIX_SEVERITY defaults to minor" \
-  'echo "$out" | grep -qxF "REVIEW_MIN_FIX_SEVERITY=minor"'
+  'grep <<<"$out" -qxF "REVIEW_MIN_FIX_SEVERITY=minor"'
 
 # --- (RMF-b) export presence, POSITION, and both formats ----------------------
 out_rmf="$(run "$tmp/rmf-a" --export)"
@@ -1298,7 +1298,7 @@ git -C "$tmp/rmf-c" add .docket.yml; git -C "$tmp/rmf-c" commit --quiet -m cfg
 git -C "$tmp/rmf-c" push --quiet origin main
 out2="$(run "$tmp/rmf-c" --export)"; eval "$out2"
 assert "REVIEW_MIN_FIX_SEVERITY reads the block" \
-  'echo "$out2" | grep -qxF "REVIEW_MIN_FIX_SEVERITY=important"'
+  'grep <<<"$out2" -qxF "REVIEW_MIN_FIX_SEVERITY=important"'
 
 # --- (RMF-d) global-able (ADR-0019 — NOT coordination-fenced) -----------------
 unset REVIEW_MIN_FIX_SEVERITY
@@ -1590,7 +1590,7 @@ assert "docket-config.md lists the export name" \
 # four-layer resolution and still fails CLOSED on a non-boolean.
 mkrepo "$tmp/ac-a"
 out_ac="$(run "$tmp/ac-a" --export --format plain 2>/dev/null)"
-assert "AUTO_CAPTURE_ENABLED defaults to false" 'echo "$out_ac" | grep -qxF "AUTO_CAPTURE_ENABLED=false"'
+assert "AUTO_CAPTURE_ENABLED defaults to false" 'grep <<<"$out_ac" -qxF "AUTO_CAPTURE_ENABLED=false"'
 
 # (AC-b) repo-committed .docket.yml wins over the built-in
 mkrepo "$tmp/ac-b"
@@ -1599,7 +1599,7 @@ git -C "$tmp/ac-b" add .docket.yml >/dev/null 2>&1
 git -C "$tmp/ac-b" commit -qm "cfg" >/dev/null 2>&1
 git -C "$tmp/ac-b" push -q origin HEAD:main >/dev/null 2>&1
 out_ac_b="$(run "$tmp/ac-b" --export --format plain 2>/dev/null)"
-assert "AUTO_CAPTURE_ENABLED reads repo .docket.yml" 'echo "$out_ac_b" | grep -qxF "AUTO_CAPTURE_ENABLED=true"'
+assert "AUTO_CAPTURE_ENABLED reads repo .docket.yml" 'grep <<<"$out_ac_b" -qxF "AUTO_CAPTURE_ENABLED=true"'
 
 # (AC-c) global layer is honored (NOT fenced) and emits no per-repo-only warning
 mkrepo "$tmp/ac-c"
@@ -1607,8 +1607,8 @@ mkdir -p "$tmp/ac-c.xdg/docket"
 printf 'auto_capture:\n  enabled: true\n' > "$tmp/ac-c.xdg/docket/config.yml"
 ac_c_out="$(rung "$tmp/ac-c.xdg" "$tmp/ac-c" --export --format plain 2>/dev/null)"
 ac_c_err="$(rung "$tmp/ac-c.xdg" "$tmp/ac-c" --export --format plain 2>&1 >/dev/null)"
-assert "auto_capture is global-able (not fenced)" 'echo "$ac_c_out" | grep -qxF "AUTO_CAPTURE_ENABLED=true"'
-assert "no fence warning for auto_capture" '! printf "%s" "$ac_c_err" | grep -qi "auto_capture.*per-repo-only"'
+assert "auto_capture is global-able (not fenced)" 'grep <<<"$ac_c_out" -qxF "AUTO_CAPTURE_ENABLED=true"'
+assert "no fence warning for auto_capture" '! grep <<<"$ac_c_err" -qi "auto_capture.*per-repo-only"'
 
 # (AC-d) repo-local .docket.local.yml outranks repo-committed AND global
 mkrepo "$tmp/ac-d"
@@ -1621,7 +1621,7 @@ git -C "$tmp/ac-d" push -q origin HEAD:main >/dev/null 2>&1
 printf 'auto_capture:\n  enabled: true\n' > "$tmp/ac-d/.docket.local.yml"
 ac_d_out="$(rung "$tmp/ac-d.xdg" "$tmp/ac-d" --export --format plain 2>/dev/null)"
 assert "repo-local auto_capture.enabled outranks repo-committed and global" \
-  'echo "$ac_d_out" | grep -qxF "AUTO_CAPTURE_ENABLED=true"'
+  'grep <<<"$ac_d_out" -qxF "AUTO_CAPTURE_ENABLED=true"'
 
 # (AC-e) fail closed on garbage, and the diagnostic names the leaf
 mkrepo "$tmp/ac-e"
@@ -1632,17 +1632,17 @@ git -C "$tmp/ac-e" push -q origin HEAD:main >/dev/null 2>&1
 assert "non-bool auto_capture.enabled aborts nonzero" '! run "$tmp/ac-e" --export >/dev/null 2>&1'
 ac_e_err="$(run "$tmp/ac-e" --export 2>&1 >/dev/null)"
 assert "unparseable auto_capture.enabled names the leaf" \
-  'printf "%s" "$ac_e_err" | grep -qF "auto_capture.enabled"'
+  'grep <<<"$ac_e_err" -qF "auto_capture.enabled"'
 
 # (AC-f) emit ORDER is pinned: the three change-0127 exports follow AUTO_GROOM in a fixed sequence
 # (scripts/docket-config.md lists them in this order; a reordering there is a silent contract
 # break). Identity, not just adjacency: each variable's OWN line number is looked up by name, so a
 # swap within the group is caught rather than passing vacuously.
 ac_f_out="$(run "$tmp/ac-a" --export --format plain 2>/dev/null)"
-ac_g_line="$(printf '%s\n' "$ac_f_out" | grep -n '^AUTO_GROOM=' | cut -d: -f1)"
-ac_ct_line="$(printf '%s\n' "$ac_f_out" | grep -n '^CHANGE_TYPES=' | cut -d: -f1)"
-ac_ace_line="$(printf '%s\n' "$ac_f_out" | grep -n '^AUTO_CAPTURE_ENABLED=' | cut -d: -f1)"
-ac_act_line="$(printf '%s\n' "$ac_f_out" | grep -n '^AUTO_CAPTURE_TYPES=' | cut -d: -f1)"
+ac_g_line="$(grep <<<"$ac_f_out" -n '^AUTO_GROOM=' | cut -d: -f1)"
+ac_ct_line="$(grep <<<"$ac_f_out" -n '^CHANGE_TYPES=' | cut -d: -f1)"
+ac_ace_line="$(grep <<<"$ac_f_out" -n '^AUTO_CAPTURE_ENABLED=' | cut -d: -f1)"
+ac_act_line="$(grep <<<"$ac_f_out" -n '^AUTO_CAPTURE_TYPES=' | cut -d: -f1)"
 assert "CHANGE_TYPES is emitted directly after AUTO_GROOM" \
   '[ -n "$ac_g_line" ] && [ -n "$ac_ct_line" ] && [ "$ac_ct_line" -eq "$(( ac_g_line + 1 ))" ]'
 assert "AUTO_CAPTURE_ENABLED is emitted directly after CHANGE_TYPES" \
@@ -2381,7 +2381,7 @@ assert "0127 ct: auto_capture.types may name that custom type" \
   '[ "$(ct_get AUTO_CAPTURE_TYPES "$ct_out")" = "spike fix" ]'
 # The removal half of "replaced, never merged": perf is a built-in, and dropping it must stick.
 assert "0127 ct: a built-in dropped from the list is genuinely gone" \
-  '! printf "%s" "$(ct_get CHANGE_TYPES "$ct_out")" | grep -qw perf'
+  '! grep <<<"$(ct_get CHANGE_TYPES "$ct_out")" -qw perf'
 
 # --- cross-layer precedence: repo-local > repo-committed > global > built-in -
 mkrepo "$tmp/ct-prec"

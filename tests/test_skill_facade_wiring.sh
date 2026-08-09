@@ -106,21 +106,21 @@ for f in "${SCOPE[@]}"; do
   hay="$(printf '%s\n' "$units" | strip_canonical)"
 
   assert "no non-facade / non-byte-exact helper invocation prefix survives in $rel" \
-    '! printf "%s" "$hay" | grep -qF "$P_PREFIX"'
+    '! grep <<<"$hay" -qF "$P_PREFIX"'
   assert "no eval-preamble shape in code spans of $rel" \
-    '! printf "%s" "$hay" | grep -qF "$P_EVAL"'
+    '! grep <<<"$hay" -qF "$P_EVAL"'
   assert "no inline \`fetch origin\` in code spans of $rel" \
-    '! printf "%s" "$hay" | grep -qF "$P_FETCH"'
+    '! grep <<<"$hay" -qF "$P_FETCH"'
   assert "no inline \`pull --rebase\` in code spans of $rel" \
-    '! printf "%s" "$hay" | grep -qF "$P_REBASE"'
+    '! grep <<<"$hay" -qF "$P_REBASE"'
 
   # every `docket.sh <op>` in this file's code units must name an inventory op
   # (checked on RAW units, incl. the canonical facade form).
   bad_ops=""
   while read -r op; do
     [ -z "$op" ] && continue
-    printf '%s\n' "$INVENTORY" | grep -qxF "$op" || bad_ops="$bad_ops $op"
-  done < <(printf '%s\n' "$units" | grep -oE 'docket\.sh [a-z-]+' | awk '{print $2}' | sort -u)
+    grep <<<"$INVENTORY" -qxF "$op" || bad_ops="$bad_ops $op"
+  done < <(grep <<<"$units" -oE 'docket\.sh [a-z-]+' | awk '{print $2}' | sort -u)
   assert "every \`docket.sh <op>\` in $rel names an inventory op (off-inventory:[$bad_ops])" \
     '[ -z "$bad_ops" ]'
 done
@@ -208,7 +208,7 @@ for f in "${SCOPE3[@]}"; do
   assert "no --surfaces flag survives anywhere in $rel" \
     '! grep -qF -- "$B_SURF_FLAG" "$f"'
   assert "no direct board-refresh invocation in code units of $rel" \
-    '! printf "%s" "$units" | grep -qF -- "$B_REFRESH_CALL"'
+    '! grep <<<"$units" -qF -- "$B_REFRESH_CALL"'
   assert "no direct board-refresh invocation survives anywhere in $rel" \
     '! grep -qF -- "$B_REFRESH_CALL" "$f"'
 

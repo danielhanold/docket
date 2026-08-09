@@ -73,7 +73,7 @@ cd "$REPO_ROOT"
 yaml_get() {  # yaml_get <file> <key>
   [ -f "$1" ] || return 1
   sed -n -E "s/^[[:space:]]*$2[[:space:]]*:[[:space:]]*([^#]*).*/\1/p" "$1" \
-    | head -n1 \
+    | sed -n 1p \
     | sed -E 's/[[:space:]]+$//; s/^"(.*)"$/\1/; s/^'\''(.*)'\''$/\1/'
 }
 

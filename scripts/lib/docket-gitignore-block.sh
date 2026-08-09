@@ -63,7 +63,7 @@ _docket_gi_dedup_advisory(){  # $1=text outside the block
   local e bare hit=0
   for e in $DOCKET_GI_CORE_ENTRIES; do
     bare="${e%/}"
-    if printf '%s\n' "$1" | grep -F -x -q -- "$bare" || printf '%s\n' "$1" | grep -F -x -q -- "$bare/"; then hit=1; fi
+    if grep <<<"$1" -F -x -q -- "$bare" || grep <<<"$1" -F -x -q -- "$bare/"; then hit=1; fi
   done
   [ "$hit" -eq 1 ] && _docket_gi_log "advisory: old docket bare entries found outside the managed block in .gitignore — safe to delete by hand (duplicates are harmless)."
   return 0

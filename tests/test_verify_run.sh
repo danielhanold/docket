@@ -315,7 +315,7 @@ flat(){ tr '\n' ' ' < "$1" | tr -s ' '; }
 assert "0237 prose: the convention lists '## Run halted' as a body section" \
   'grep -qF -- "- \`## Run halted\`" "$CONV"'
 assert "0237 prose: the convention's entry names it presence-encoded" \
-  'grep -F "## Run halted" "$CONV" | grep -qiF "presence-encoded"'
+  'grep -F "## Run halted" "$CONV" | grep >/dev/null -iF "presence-encoded"'
 
 # PRODUCER — anchored on the halted disposition prose that performs the write, not on a section
 # that merely defines what the write means. Scoped to Step 3 with awk FIRST, so each pattern needs
@@ -329,7 +329,7 @@ assert "0237 prose: Step 3's halted disposition WRITES the section" \
 # emits a heading the reader never sees. The instruction must name the heading as bare/undated,
 # exactly as the twin `## Finalize blocked` marker's doc already does.
 assert "0237 prose: the producer names the '## Run halted' heading as bare/undated" \
-  'flat "$IMPL" | grep -qiE "## Run halted.{0,120}(bare|undated|never dated)"'
+  'flat "$IMPL" | grep >/dev/null -iE "## Run halted.{0,120}(bare|undated|never dated)"'
 assert "0237 prose: the halted write is described as a COMMITTED git act" \
   'grep -qiE "## Run halted[^.]{0,250}commit" <<<"$step3"'
 
@@ -343,7 +343,7 @@ assert "0237 prose: and states removal, not merely mentions the section" \
 # board-checks.md gains the pointer sentence and NOTHING in board-checks.sh changed.
 assert "0237 prose: board-checks.md points at verify-run" 'grep -qF "verify-run" "$BCMD"'
 assert "0237 prose: the pointer says the check is floor-free at a dispatch seam" \
-  'flat "$BCMD" | grep -qiE "verify-run[^.]{0,200}(floor-free|no floor|without a floor|dispatch seam)"'
+  'flat "$BCMD" | grep >/dev/null -iE "verify-run[^.]{0,200}(floor-free|no floor|without a floor|dispatch seam)"'
 
 # ---- change 0271: the build verdict family --------------------------------------
 # A SECOND family, never the implement-next conjuncts stretched to fit: a build task's

@@ -24,7 +24,7 @@ worker_body="$(cat "$WORKER" 2>/dev/null)"
 # Non-vacuity floor: every negative/shape assert below reads $worker_body, so an empty or
 # unreadable file must redden HERE rather than passing every grep by default.
 assert "worker: contract is non-vacuous (>= 40 lines)" \
-  '[ "$(printf "%s\n" "$worker_body" | grep -c .)" -ge 40 ]'
+  '[ "$(grep <<<"$worker_body" -c .)" -ge 40 ]'
 
 # The three outcome tokens are the controller's entire input vocabulary — each must be defined
 # by its Outcomes-section bullet (the shape a token-presence-anywhere grep cannot observe being
@@ -176,7 +176,7 @@ CTRL="$REPO/skills/docket-build/SKILL.md"
 assert "controller: SKILL.md exists" '[ -f "$CTRL" ]'
 ctrl_body="$(cat "$CTRL" 2>/dev/null)"
 assert "controller: contract is non-vacuous (>= 50 lines)" \
-  '[ "$(printf "%s\n" "$ctrl_body" | grep -c .)" -ge 50 ]'
+  '[ "$(grep <<<"$ctrl_body" -c .)" -ge 50 ]'
 
 # It must dispatch by AGENT NAME — the whole point of the change is that model and effort are
 # properties of a named agent rather than an ad-hoc per-dispatch argument.
@@ -196,7 +196,7 @@ routing_body="$(cat "$ROUTING" 2>/dev/null)"
 # Non-vacuity floor, this file's standard: every negative assert below reads $routing_body, so a
 # missing or unreadable reference must redden HERE rather than passing every `! grep` by default.
 assert "routing: reference is non-vacuous (>= 20 lines)" \
-  '[ "$(printf "%s\n" "$routing_body" | grep -c .)" -ge 20 ]'
+  '[ "$(grep <<<"$routing_body" -c .)" -ge 20 ]'
 
 # The rubric itself now lives in the reference, not the controller. The economy/standard bullets
 # keep the "^- **`token`**" structural idiom this file already uses for the worker's outcome
@@ -538,7 +538,7 @@ assert "controller: the concurrency ban binds a controller that believes the fir
 # The four build-profile wrappers (change 0167; retiered to four by change 0184)
 # ---------------------------------------------------------------------------
 fmv(){ awk 'NR==1 && $0=="---"{f=1;next} f && $0=="---"{exit} f{print}' "$1" \
-        | sed -n "s/^$2:[[:space:]]*//p" | head -n1 | sed 's/[[:space:]]*$//'; }
+        | sed -n "s/^$2:[[:space:]]*//p" | sed -n 1p | sed 's/[[:space:]]*$//'; }
 
 # Change 0168 moved the shipped model/effort out of the wrapper frontmatter and into the
 # harness-indexed sidecar, so the profile-ladder invariants are read from THERE. The wrapper

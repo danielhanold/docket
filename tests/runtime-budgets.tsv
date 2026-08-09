@@ -74,6 +74,7 @@ tests/test_loop_continuation.sh	10	parallel
 tests/test_mark_publish_deferred.sh	10	parallel
 tests/test_metadata_worktree_hooks.sh	10	parallel
 tests/test_mint_stub.sh	15	parallel
+tests/test_pipe_shapes.sh	10	parallel
 tests/test_readme_finalize_docs.sh	10	parallel
 tests/test_readme_skill_catalog.sh	10	parallel
 tests/test_reclaim_claims.sh	10	parallel

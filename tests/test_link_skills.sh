@@ -25,7 +25,7 @@ assert "all skills linked" '[ "$(find "$tmp/.claude/skills" -maxdepth 1 -type l 
 
 # Idempotency: a second run creates nothing new.
 out="$(DOCKET_HARNESS_ROOT="$tmp" bash "$REPO/link-skills.sh")"
-assert "second run idempotent (Created: 0)" 'echo "$out" | grep -q "Created: 0"'
+assert "second run idempotent (Created: 0)" 'grep <<<"$out" -q "Created: 0"'
 
 # A pre-existing entry at a link path is left untouched (not clobbered).
 rm "$tmp/.agents/skills/docket-adr"; echo "do not touch" > "$tmp/.agents/skills/docket-adr"

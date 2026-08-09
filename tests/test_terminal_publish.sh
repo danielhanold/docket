@@ -19,14 +19,14 @@ assert "script exists and is executable" '[ -x "$SCRIPT" ]'
 
 err="$(bash "$SCRIPT" --id abc 2>&1)"; rc=$?
 assert "--id abc exits non-zero"        '[ "$rc" -ne 0 ]'
-assert "--id abc diagnostic names id"   'printf "%s" "$err" | grep -qiE "id"'
+assert "--id abc diagnostic names id"   'grep <<<"$err" -qiE "id"'
 
 err="$(bash "$SCRIPT" --adr 1.5 2>&1)"; rc=$?
 assert "--adr 1.5 exits non-zero"       '[ "$rc" -ne 0 ]'
 
 # a valid integer id passes the int-guard (it dies later on a DIFFERENT, missing-arg error)
 err="$(bash "$SCRIPT" --id 5 2>&1)"; rc=$?
-assert "--id 5 passes the int guard"    '[ "$rc" -ne 0 ] && ! printf "%s" "$err" | grep -qi "non-integer"'
+assert "--id 5 passes the int guard"    '[ "$rc" -ne 0 ] && ! grep <<<"$err" -qi "non-integer"'
 
 # --- change 0084: the --enabled contract ------------------------------------------------------
 # Publish is opt-in. An OMITTED --enabled is a caller bug rather than a decision, so it no-ops
@@ -39,23 +39,23 @@ pub_args=(--id 5 --outcome done --integration-branch main --metadata-branch dock
 
 err="$(bash "$SCRIPT" "${pub_args[@]}" 2>&1)"; rc=$?
 assert "omitted --enabled exits zero (never aborts a close-out)" '[ "$rc" -eq 0 ]'
-assert "omitted --enabled warns on stderr"                       'printf "%s" "$err" | grep -q "WARNING"'
-assert "omitted --enabled says NOTHING was published"            'printf "%s" "$err" | grep -qi "nothing was published"'
-assert "omitted --enabled names the fix (--enabled true)"        'printf "%s" "$err" | grep -q -- "--enabled true"'
+assert "omitted --enabled warns on stderr"                       'grep <<<"$err" -q "WARNING"'
+assert "omitted --enabled says NOTHING was published"            'grep <<<"$err" -qi "nothing was published"'
+assert "omitted --enabled names the fix (--enabled true)"        'grep <<<"$err" -q -- "--enabled true"'
 
 err="$(bash "$SCRIPT" "${pub_args[@]}" --enabled false 2>&1)"; rc=$?
 assert "explicit --enabled false exits zero"                     '[ "$rc" -eq 0 ]'
-assert "explicit --enabled false is SILENT (no WARNING)"          '! printf "%s" "$err" | grep -q "WARNING"'
-assert "explicit --enabled false logs the suppression"           'printf "%s" "$err" | grep -q "terminal_publish: false"'
+assert "explicit --enabled false is SILENT (no WARNING)"          '! grep <<<"$err" -q "WARNING"'
+assert "explicit --enabled false logs the suppression"           'grep <<<"$err" -q "terminal_publish: false"'
 
 err="$(bash "$SCRIPT" "${pub_args[@]}" --enabled maybe 2>&1)"; rc=$?
 assert "invalid --enabled exits non-zero"                        '[ "$rc" -ne 0 ]'
-assert "invalid --enabled diagnostic names the value"            'printf "%s" "$err" | grep -q "maybe"'
+assert "invalid --enabled diagnostic names the value"            'grep <<<"$err" -q "maybe"'
 
 # an explicit EMPTY value stays fail-closed — it must not be mistaken for an omitted flag
 err="$(bash "$SCRIPT" "${pub_args[@]}" --enabled "" 2>&1)"; rc=$?
 assert "empty --enabled exits non-zero (not treated as omitted)" '[ "$rc" -ne 0 ]'
-assert "empty --enabled does NOT warn"                           '! printf "%s" "$err" | grep -q "WARNING"'
+assert "empty --enabled does NOT warn"                           '! grep <<<"$err" -q "WARNING"'
 
 # --- change 0083: remove the `## Publish deferred` marker on a successful publish ---------------
 # Needs a real repo (the arg-guard tests above do not): the removal writes and pushes on the

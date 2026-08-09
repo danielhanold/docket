@@ -16,12 +16,12 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 
 # Minimal TOML top-level scalar reader: prints the value (unquoted) of a bare `key = "..."`.
 # Good enough for name/description/model/model_reasoning_effort (single-line basic strings).
-toml_get(){ sed -n -E 's/^'"$2"'[[:space:]]*=[[:space:]]*"(.*)"[[:space:]]*$/\1/p' "$1" | head -n1; }
+toml_get(){ sed -n -E 's/^'"$2"'[[:space:]]*=[[:space:]]*"(.*)"[[:space:]]*$/\1/p' "$1" | sed -n 1p; }
 toml_has_key(){ grep -qE "^$2[[:space:]]*=" "$1"; }
 
 # Markdown frontmatter readers — needed since change 0168 to state what the CLAUDE side of a codex
 # run must still look like (byte identity with the source is gone; see the assert block below).
-fm(){ sed -n "s/^$2:[[:space:]]*//p" "$1" | head -n1 | sed 's/[[:space:]]*$//'; }
+fm(){ sed -n "s/^$2:[[:space:]]*//p" "$1" | sed -n 1p | sed 's/[[:space:]]*$//'; }
 body_of(){ awk '/^---[[:space:]]*$/ && d<2 {d++; next} d>=2 {print}' "$1"; }
 
 # Opt a sandbox repo into [claude, codex] and generate.
@@ -142,9 +142,9 @@ Above the rule.
 Below the rule.
 FIX
 DIVOUT="$( . "$REPO/sync-agents.sh"; set +e +u; emit_codex_toml "$DIVDIR/docket-divfixture.md" "" "" )"
-assert "codex TOML: --- divider line inside body is preserved" 'printf "%s\n" "$DIVOUT" | grep -qxF -- "---"'
-assert "codex TOML: body text above the divider preserved"    'printf "%s\n" "$DIVOUT" | grep -qF "Above the rule."'
-assert "codex TOML: body text below the divider preserved"    'printf "%s\n" "$DIVOUT" | grep -qF "Below the rule."'
+assert "codex TOML: --- divider line inside body is preserved" 'grep <<<"$DIVOUT" -qxF -- "---"'
+assert "codex TOML: body text above the divider preserved"    'grep <<<"$DIVOUT" -qF "Above the rule."'
+assert "codex TOML: body text below the divider preserved"    'grep <<<"$DIVOUT" -qF "Below the rule."'
 rm -rf "$DIVDIR"
 
 # --- orphan prune: a removed built-in drops its codex .toml wrapper ---

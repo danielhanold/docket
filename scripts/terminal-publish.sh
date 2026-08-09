@@ -122,7 +122,7 @@ if [ -n "$ADR" ]; then
   T="adr-$apad"
   [ -n "$MESSAGE" ] || MESSAGE="docket(adr-$apad): publish ADR-$apad"
   adr_tree="$($GIT ls-tree -r --name-only "$metaref" -- "$ADRS_DIR")"
-  apath="$(printf '%s\n' "$adr_tree" | grep -E "/$apad-[^/]*\.md$")"
+  apath="$(grep <<<"$adr_tree" -E "/$apad-[^/]*\.md$")"
   apath="${apath%%$'\n'*}"
   [ -n "$apath" ] || die "no ADR file for id $ADR on $metaref"
   copyset=("$apath")
@@ -133,7 +133,7 @@ else
   T="$ID"
   [ -n "$MESSAGE" ] || MESSAGE="docket($pad): publish terminal record ($OUTCOME)"
   tree="$($GIT ls-tree -r --name-only "$metaref" -- "$CHANGES_DIR/archive")"
-  change_path="$(printf '%s\n' "$tree" | grep -E "/[0-9]{4}-[0-9]{2}-[0-9]{2}-$pad-[^/]*\.md$")"
+  change_path="$(grep <<<"$tree" -E "/[0-9]{4}-[0-9]{2}-[0-9]{2}-$pad-[^/]*\.md$")"
   change_path="${change_path%%$'\n'*}"
   [ -n "$change_path" ] || die "no archived change file for id $ID on $metaref"
   # --- change 0083: clear a `## Publish deferred` marker BEFORE the copy-set is read ------------
@@ -253,7 +253,7 @@ else
   adr_tree="$($GIT ls-tree -r --name-only "$metaref" -- "$ADRS_DIR")"
   for aid in $adr_ids; do
     apad="$(printf '%04d' "$aid")"
-    apath="$(printf '%s\n' "$adr_tree" | grep -E "/$apad-[^/]*\.md$")"
+    apath="$(grep <<<"$adr_tree" -E "/$apad-[^/]*\.md$")"
     apath="${apath%%$'\n'*}"
     [ -n "$apath" ] || { log "adr $aid: file not found on $metaref; skipping"; continue; }
     $GIT show "$metaref:$apath" > "$tmpd/adr.md" || { log "adr $aid: unreadable; skipping"; continue; }

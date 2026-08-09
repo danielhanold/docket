@@ -14,7 +14,7 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 frontmatter(){ awk 'NR==1 && $0=="---"{f=1;next} f && $0=="---"{exit} f{print}' "$1"; }
 # Extract a single-line frontmatter scalar value ("" if absent). Scoped to the frontmatter
 # block so a body line like "agent:" can never satisfy the assertion.
-fmval(){ frontmatter "$1" | sed -n "s/^$2:[[:space:]]*//p" | head -n1 | sed 's/[[:space:]]*$//'; }
+fmval(){ frontmatter "$1" | sed -n "s/^$2:[[:space:]]*//p" | sed -n 1p | sed 's/[[:space:]]*$//'; }
 
 # The four headless-safe autonomous skills that MUST fork into their pinned wrapper.
 FORKED="docket-status docket-adr docket-implement-next docket-auto-groom"

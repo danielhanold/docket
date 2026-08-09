@@ -128,57 +128,57 @@ out="$(bash "$SCRIPT" --dry-run --changes-dir "$tmp" --repo o/r --metadata-branc
         --changes-path docs/changes 2>&1)"
 
 assert "creates an issue for a change with empty issue:" \
-  'echo "$out" | grep -qE "issue create"'
+  'grep <<<"$out" -qE "issue create"'
 assert "edits (not creates) a change that already has issue: 142" \
-  'echo "$out" | grep -qE "issue edit 142"'
+  'grep <<<"$out" -qE "issue edit 142"'
 assert "does NOT create a second issue for the already-mirrored change (only one create)" \
-  '[ "$(echo "$out" | grep -cE "issue create")" -eq 1 ]'
+  '[ "$(grep <<<"$out" -cE "issue create")" -eq 1 ]'
 
 # status -> close reason mapping
 assert "done change closes as completed" \
-  'echo "$out" | grep -qE "issue close 88 .*--reason completed"'
+  'grep <<<"$out" -qE "issue close 88 .*--reason completed"'
 assert "killed change closes as not planned" \
-  'echo "$out" | grep -qE "issue close 77 .*--reason (not.planned|\"not planned\")"'
+  'grep <<<"$out" -qE "issue close 77 .*--reason (not.planned|\"not planned\")"'
 assert "active (in-progress) change is not closed" \
-  '! echo "$out" | grep -qE "issue (close|reopen) .*github-issues-board-mirror"'
+  '! grep <<<"$out" -qE "issue (close|reopen) .*github-issues-board-mirror"'
 
 # labels — docket: namespace only
-assert "emits docket:status/ label" 'echo "$out" | grep -qF "docket:status/in-progress"'
-assert "emits docket:priority/ label" 'echo "$out" | grep -qF "docket:priority/medium"'
+assert "emits docket:status/ label" 'grep <<<"$out" -qF "docket:status/in-progress"'
+assert "emits docket:priority/ label" 'grep <<<"$out" -qF "docket:priority/medium"'
 assert "emits a needs-brainstorm readiness label for the proposed no-spec change" \
-  'echo "$out" | grep -qF "docket:readiness/needs-brainstorm"'
+  'grep <<<"$out" -qF "docket:readiness/needs-brainstorm"'
 assert "proposed change waiting on an implemented dep emits the needs-your-merge waiting label" \
-  'echo "$out" | grep -qF "docket:waiting/needs-your-merge"'
+  'grep <<<"$out" -qF "docket:waiting/needs-your-merge"'
 assert "every mirror label is docket:-namespaced" \
-  '! echo "$out" | grep -oE -- "--(add-label|label) [^ ]+" | grep -vqE "docket:|--(add-label|label)$"'
+  '! grep <<<"$out" -oE -- "--(add-label|label) [^ ]+" | grep >/dev/null -vE "docket:|--(add-label|label)$"'
 
 # readiness parity (change 0097): the mirror carries readiness for the two statuses the
 # board/digest owner (render-board.sh) declares — proposed (four tokens) and implemented
 # (finalize-blocked) — and for no other status.
 assert "implemented change WITH ## Finalize blocked self-provisions the finalize-blocked label" \
-  'echo "$out" | grep -qF "label create docket:readiness/finalize-blocked"'
+  'grep <<<"$out" -qF "label create docket:readiness/finalize-blocked"'
 assert "implemented change WITH ## Finalize blocked attaches the finalize-blocked label" \
-  'echo "$out" | grep -qF -- "--add-label docket:readiness/finalize-blocked"'
+  'grep <<<"$out" -qF -- "--add-label docket:readiness/finalize-blocked"'
 assert "exactly one change carries the finalize-blocked readiness label (only the marked implemented one)" \
-  '[ "$(echo "$out" | grep -cF "label create docket:readiness/finalize-blocked")" -eq 1 ]'
+  '[ "$(grep <<<"$out" -cF "label create docket:readiness/finalize-blocked")" -eq 1 ]'
 assert "only proposed(needs-brainstorm) + implemented(finalize-blocked) carry ANY docket:readiness/ label — implemented-without-marker and every non-owning status carry none" \
-  '[ "$(echo "$out" | grep -cF "label create docket:readiness/")" -eq 2 ]'
+  '[ "$(grep <<<"$out" -cF "label create docket:readiness/")" -eq 2 ]'
 
 # body content
 assert "issue body carries the one-way banner" \
-  'echo "$out" | grep -qiF "edits and comments here are not read"'
+  'grep <<<"$out" -qiF "edits and comments here are not read"'
 assert "issue body links to the change file on the metadata branch" \
-  'echo "$out" | grep -qF "blob/docket/docs/changes/active/0011-github-issues-board-mirror.md"'
+  'grep <<<"$out" -qF "blob/docket/docs/changes/active/0011-github-issues-board-mirror.md"'
 assert "issue body links to the spec when set" \
-  'echo "$out" | grep -qF "2026-06-14-github-issues-board-mirror-design.md"'
+  'grep <<<"$out" -qF "2026-06-14-github-issues-board-mirror-design.md"'
 
 # one-way invariant: the sync never uses Closes #N
 assert "script output never contains a Closes-#N auto-close directive" \
-  '! echo "$out" | grep -qiE "closes #"'
+  '! grep <<<"$out" -qiE "closes #"'
 
 # mint emission so the caller can persist issue:
 assert "emits a machine-readable mint line for newly created issues" \
-  'echo "$out" | grep -qE "issue-minted 11 "'
+  'grep <<<"$out" -qE "issue-minted 11 "'
 
 # === B. PROJECTS degradation =================================================
 # No --project and no --auto-create -> Projects skipped cleanly, issues still emitted, exit 0.
@@ -187,26 +187,26 @@ assert "exits 0 when no project is configured (Projects skipped, issues still mi
   '[ "'$rcB'" -eq 0 ]'
 noproj="$(bash "$SCRIPT" --dry-run --changes-dir "$tmp" --repo o/r 2>&1)"
 assert "no project + no --auto-create-project: never mints a board" \
-  '! echo "$noproj" | grep -qE "project create"'
+  '! grep <<<"$noproj" -qE "project create"'
 assert "no project + no --auto-create-project: logs the skip notice" \
-  'echo "$noproj" | grep -qiF "no project configured"'
+  'grep <<<"$noproj" -qiF "no project configured"'
 
 # With an existing --project: link items, never create a board.
 projout="$(bash "$SCRIPT" --dry-run --changes-dir "$tmp" --repo o/r --project o/7 2>&1)"
 assert "with --project, adds mirrored issues to the board (item-add)" \
-  'echo "$projout" | grep -qE "project item-add 7 --owner o"'
+  'grep <<<"$projout" -qE "project item-add 7 --owner o"'
 assert "with --project, links an existing issue by its URL" \
-  'echo "$projout" | grep -qF "https://github.com/o/r/issues/142"'
+  'grep <<<"$projout" -qF "https://github.com/o/r/issues/142"'
 assert "with --project, sets the item Status field (item-edit)" \
-  'echo "$projout" | grep -qE "project item-edit .*--single-select-option-id"'
+  'grep <<<"$projout" -qE "project item-edit .*--single-select-option-id"'
 assert "with --project, never mints a board (only --auto-create-project does)" \
-  '! echo "$projout" | grep -qE "project create"'
+  '! grep <<<"$projout" -qE "project create"'
 
 # === D. PROJECTS auto-create =================================================
 # --auto-create-project with no --project: mint a private board, seed the field, emit project-minted.
 autoout="$(bash "$SCRIPT" --dry-run --changes-dir "$tmp" --repo o/r --auto-create-project 2>&1)"
 assert "auto-create mints a board under the repo owner" \
-  'echo "$autoout" | grep -qE "project create --owner o"'
+  'grep <<<"$autoout" -qE "project create --owner o"'
 assert "auto-create seeds a SINGLE_SELECT Status field with the five active statuses" \
   'grep -qE "project field-create .*--data-type SINGLE_SELECT" <<<"$autoout" && grep -qF "in-progress,proposed,blocked,deferred,implemented" <<<"$autoout"'
 status_options_line="$(grep -nF 'STATUS_OPTIONS=' "$SCRIPT" | cut -d: -f1)"
@@ -216,16 +216,16 @@ assert "Project status options derive from the active-status array" \
 assert "Project status options are assigned after the vocabulary library is sourced" \
   '[ "$status_options_line" -gt "$library_source_line" ]'
 assert "auto-create emits a machine-readable project-minted line for write-back" \
-  'echo "$autoout" | grep -qE "project-minted o( |$)"'
+  'grep <<<"$autoout" -qE "project-minted o( |$)"'
 assert "auto-create then links the mirrored issues as items" \
-  'echo "$autoout" | grep -qE "project item-add DRYNUM --owner o"'
+  'grep <<<"$autoout" -qE "project item-add DRYNUM --owner o"'
 # Capture first (don't pipe the live script into grep -q: grep exits on first match, the still-
 # writing script takes SIGPIPE, and pipefail would turn that 141 into a flaky failure).
 ownerout="$(bash "$SCRIPT" --dry-run --changes-dir "$tmp" --repo o/r --auto-create-project --project-owner acme 2>&1)"
 assert "auto-create respects --project-owner override" \
-  'echo "$ownerout" | grep -qE "project create --owner acme"'
+  'grep <<<"$ownerout" -qE "project create --owner acme"'
 assert "terminal (done/killed) changes get no Status column value" \
-  '! echo "$autoout" | grep -qE "issues/(88|77)\""'
+  '! grep <<<"$autoout" -qE "issues/(88|77)\""'
 
 # === E. WRONG-TREE GUARD =====================================================
 # An empty active/ next to a populated archive/ = the pruned integration-branch checkout signature.
@@ -233,13 +233,13 @@ wrong="$(mktemp -d)"; mkdir -p "$wrong/active" "$wrong/archive"
 cp "$tmp/archive/2026-06-12-0006-donezo.md" "$wrong/archive/"
 guardout="$(bash "$SCRIPT" --dry-run --changes-dir "$wrong" --repo o/r 2>&1)"
 assert "warns when active/ is empty but archive/ is populated (wrong-tree footgun)" \
-  'echo "$guardout" | grep -qiE "integration-branch checkout|active.* is empty"'
+  'grep <<<"$guardout" -qiE "integration-branch checkout|active.* is empty"'
 assert "guard still mirrors the archived changes (best-effort, never aborts)" \
-  'echo "$guardout" | grep -qE "issue edit 88"'
+  'grep <<<"$guardout" -qE "issue edit 88"'
 rm -rf "$wrong"
 # A healthy tree (active/ populated) must NOT warn.
 assert "no wrong-tree warning when active/ is populated" \
-  '! echo "$out" | grep -qiF "integration-branch checkout"'
+  '! grep <<<"$out" -qiF "integration-branch checkout"'
 
 # === C. REAL invocation through the mock gh (idempotent, best-effort) ========
 GH_LOG="$tmp/gh.log" GH="$mock/gh" bash "$SCRIPT" --changes-dir "$tmp" --repo o/r \
@@ -386,7 +386,7 @@ close_reason_labels="$({
 } | sort -u)"
 expected_terminal="$(printf '%s\n' "${DOCKET_STATUSES_TERMINAL[@]}" | sort -u)"
 assert "close-reason extractor found exactly 2 mapping arms" \
-  '[ "$(printf "%s\n" "$close_reason_labels" | grep -c .)" = 2 ]'
+  '[ "$(grep <<<"$close_reason_labels" -c .)" = 2 ]'
 assert "issue close-reason case arms are EXACTLY DOCKET_STATUSES_TERMINAL" \
   '[ "$close_reason_labels" = "$expected_terminal" ]'
 

@@ -250,7 +250,7 @@ bareout="$(bash "$SCRIPT" --changes-dir "$bare" --repo o/r 2>/dev/null)"
 assert "pr: full URL renders [#N](url) without double-wrapping (Hotel #8 in the golden)" \
   'grep -qF "[#142](https://github.com/o/r/pull/142)" "$rendered"'
 assert "pr: bare number falls back to [#N](built-url) via --repo" \
-  'printf "%s" "$bareout" | grep -qF "[#77](https://github.com/o/r/pull/77)"'
+  'grep <<<"$bareout" -qF "[#77](https://github.com/o/r/pull/77)"'
 rm -rf "$bare"
 
 # --- change 0087: the `## Finalize blocked` cell on the implemented table -----------------------
@@ -967,8 +967,12 @@ assert "guard1 stays GREEN on a pipeline with no redirect (| grep -c)" \
 #      the surviving token holds no `>`. NOTE what this row does NOT pin: the SPACE after `2>&1` is
 #      already a right boundary, so this fixture stays GREEN even if `|` were dropped from the
 #      boundary class. Row 17b is the one that actually pins the `|`.
+# The fixture's pipe is ASSEMBLED from $_pipe so the whole-repo pipe-shape guard
+# (tests/test_pipe_shapes.sh) does not read this DATA line as a live `| head` pipeline —
+# the written fixture file is byte-identical either way.
+_pipe='|'
 printf '%s\n' '#!/usr/bin/env bash' \
-  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" 2>&1 | head -1)"' \
+  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" 2>&1 '"$_pipe"' head -1)"' \
   > "$mut/pipeline-fddup.sh"
 assert "guard1 stays GREEN on a 2>&1 fd dup piped into a reader (2>&1 | head)" \
   'render_board_write_free "$mut/pipeline-fddup.sh" >/dev/null'
@@ -979,7 +983,7 @@ assert "guard1 stays GREEN on a 2>&1 fd dup piped into a reader (2>&1 | head)" \
 #      the `>` of `2>&1` survives into the token and the guard reddens on a call that writes
 #      nothing. Row 17's spaced twin cannot detect that mutation; this one can.
 printf '%s\n' '#!/usr/bin/env bash' \
-  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" 2>&1| head -1)"' \
+  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" 2>&1'"$_pipe"' head -1)"' \
   > "$mut/pipeline-fddup-nospace.sh"
 assert "guard1 stays GREEN on a no-space fd dup against a pipe (2>&1| head — pins | in the boundary class)" \
   'render_board_write_free "$mut/pipeline-fddup-nospace.sh" >/dev/null'
@@ -1115,7 +1119,7 @@ assert "guard1 stays GREEN when a DIFFERENT variable is redirected beside a clea
 #      `>` is a write.
 printf '%s\n' '#!/usr/bin/env bash' \
   'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" --format digest 2>&2)"' \
-  'if [ -n "$out" ] && printf "%s" "$out" | grep -qc "^change "; then echo yes; fi' \
+  'if [ -n "$out" ] && grep <<<"$out" -qc "^change "; then echo yes; fi' \
   > "$mut/taint-compare-only.sh"
 assert "guard1 stays GREEN on a tainted variable merely compared and grepped (no redirect)" \
   'render_board_write_free "$mut/taint-compare-only.sh" >/dev/null'
@@ -1285,19 +1289,19 @@ REDIRECT_RE='render-board\.sh.{0,200}[[:space:]]>[[:space:]].{0,200}/BOARD\.md'
 # so it can no longer cross placeholder brackets, this assertion fails — not the silent scan.
 HISTORICAL_REDIRECT='"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-board.sh --changes-dir <metadata working tree>/<changes_dir> > <metadata working tree>/<changes_dir>/BOARD.md'
 assert "guard regex flags the historical bracket-placeholder redirect (positive control)" \
-  'printf "%s" "$HISTORICAL_REDIRECT" | tr "\n" " " | grep -Eq "$REDIRECT_RE"'
+  'printf "%s" "$HISTORICAL_REDIRECT" | tr "\n" " " | grep >/dev/null -E "$REDIRECT_RE"'
 
 # Negative control (change 0070): a flattened markdown blockquote must NOT trip the regex. This is
 # the false-positive class that keeps it narrow — assert it, don't just describe it. The
 # `/BOARD\.md` slash requirement is what saves this string: the prose word is a bare "BOARD.md".
 BLOCKQUOTE_PROSE='Run render-board.sh to regenerate the board. > Never hand-edit BOARD.md — it is generated.'
 assert "guard regex does NOT flag a flattened markdown blockquote (false-positive control)" \
-  '! printf "%s" "$BLOCKQUOTE_PROSE" | tr "\n" " " | grep -Eq "$REDIRECT_RE"'
+  '! printf "%s" "$BLOCKQUOTE_PROSE" | tr "\n" " " | grep >/dev/null -E "$REDIRECT_RE"'
 
 # Negative scan: no CURRENT skill body redirects render-board.sh stdout into BOARD.md.
 redirect_found=0
 for f in "$REPO"/skills/*/SKILL.md; do
-  if tr '\n' ' ' < "$f" | grep -Eq "$REDIRECT_RE"; then
+  if tr '\n' ' ' < "$f" | grep >/dev/null -E "$REDIRECT_RE"; then
     echo "  (direct render-board.sh -> BOARD.md redirect found in: $f)"
     redirect_found=1
   fi
@@ -1320,7 +1324,7 @@ assert "the skills/*/SKILL.md scan is not vacuous" \
 # the very file board-refresh.sh is supposed to own. This scan guards the WRITE, not the flag; the
 # two catch different holes, so both stay.
 status_redirect=0
-if tr '\n' ' ' < "$REPO/scripts/docket-status.sh" | grep -Eq "$REDIRECT_RE"; then
+if tr '\n' ' ' < "$REPO/scripts/docket-status.sh" | grep >/dev/null -E "$REDIRECT_RE"; then
   echo "  (direct render-board.sh -> BOARD.md redirect found in: scripts/docket-status.sh)"
   status_redirect=1
 fi
@@ -1402,7 +1406,7 @@ for onlyg1 in "$mut/comp-nospace-var.sh" "$mut/amp-redirect.sh" "$mut/taint-live
   assert "complementarity A: guard1 flags ${onlyg1##*/} (a REAL write)" \
     '! render_board_write_free "$onlyg1" >/dev/null'
   assert "complementarity A: REDIRECT_RE is BLIND to ${onlyg1##*/} — so guard1 may not be deleted" \
-    '! tr "\n" " " < "$onlyg1" | grep -Eq "$REDIRECT_RE"'
+    '! tr "\n" " " < "$onlyg1" | grep >/dev/null -E "$REDIRECT_RE"'
 done
 
 # --- direction B: shapes ONLY REDIRECT_RE can see (Guard 1 carries NO variable across the boundary)
@@ -1420,7 +1424,7 @@ printf '%s\n' '#!/usr/bin/env bash' \
   > "$mut/comp-wrapper-fn.sh"
 for onlyre in "$mut/comp-brace-group.sh" "$mut/comp-wrapper-fn.sh"; do
   assert "complementarity B: REDIRECT_RE flags ${onlyre##*/} — so the script scan may not be deleted" \
-    'tr "\n" " " < "$onlyre" | grep -Eq "$REDIRECT_RE"'
+    'tr "\n" " " < "$onlyre" | grep >/dev/null -E "$REDIRECT_RE"'
   assert "complementarity B: guard1 is BOUNDED — it does NOT see ${onlyre##*/} (no variable crosses the statement)" \
     'render_board_write_free "$onlyre" >/dev/null'
 done
@@ -1439,7 +1443,7 @@ printf '%s\n' '#!/usr/bin/env bash' \
 assert "complementarity OVERLAP: guard1 (stage 8 taint) now flags comp-capture-write.sh" \
   '! render_board_write_free "$mut/comp-capture-write.sh" >/dev/null'
 assert "complementarity OVERLAP: REDIRECT_RE also flags comp-capture-write.sh (the literal spelling)" \
-  'tr "\n" " " < "$mut/comp-capture-write.sh" | grep -Eq "$REDIRECT_RE"'
+  'tr "\n" " " < "$mut/comp-capture-write.sh" | grep >/dev/null -E "$REDIRECT_RE"'
 
 # --- malformed id is skipped (active + archive), renderer still succeeds ---
 printf -- '---\nid: abc\nslug: bad\ntitle: Bad Active\nstatus: proposed\npriority: low\ndepends_on: []\n---\n' > "$tmp/active/0099-bad.md"
@@ -1449,8 +1453,8 @@ mout="$("$SCRIPT" --changes-dir "$tmp" 2>/tmp/render-board-stderr.$$)"; mrc=$?
 # unchanged — but the run no longer exits 0. Exiting 0 here was the silent-corruption channel 0259
 # exists to close.
 assert "render-board exits 3 with a malformed-id file present" '[ "$mrc" -eq 3 ]'
-assert "render-board skips malformed active row (title absent)"  '! printf "%s" "$mout" | grep -q "Bad Active"'
-assert "render-board skips malformed archive row (title absent)" '! printf "%s" "$mout" | grep -q "Bad Archive"'
+assert "render-board skips malformed active row (title absent)"  '! grep <<<"$mout" -q "Bad Active"'
+assert "render-board skips malformed archive row (title absent)" '! grep <<<"$mout" -q "Bad Archive"'
 assert "render-board diagnoses both malformed-id files on stderr" \
   '[ "$(/usr/bin/grep -c "malformed change file:" /tmp/render-board-stderr.$$)" = 2 ]'
 rm -f "$tmp/active/0099-bad.md" "$tmp/archive/2026-06-01-0098-badarc.md" /tmp/render-board-stderr.$$
@@ -1933,13 +1937,13 @@ row_format_labels="$({
 # Non-vacuity: a tokenizer that parses nothing passes everything. Assert the COUNT it found before
 # trusting the comparison below (learnings: guards-are-code).
 assert "case_labels extracted all 7 emoji_for arms (tokenizer sees the function)" \
-  '[ "$(printf "%s\n" "$emoji_labels" | grep -c .)" = 7 ]'
+  '[ "$(grep <<<"$emoji_labels" -c .)" = 7 ]'
 assert "case_labels extracted all 5 label_for_title arms (tokenizer sees the function)" \
-  '[ "$(printf "%s\n" "$title_labels" | grep -c .)" = 5 ]'
+  '[ "$(grep <<<"$title_labels" -c .)" = 5 ]'
 assert "case_labels extracted all 5 table_header_for arms (tokenizer sees the function)" \
-  '[ "$(printf "%s\n" "$header_labels" | grep -c .)" = 5 ]'
+  '[ "$(grep <<<"$header_labels" -c .)" = 5 ]'
 assert "row-format extractor found exactly 5 mapping arms" \
-  '[ "$(printf "%s\n" "$row_format_labels" | grep -c .)" = 5 ]'
+  '[ "$(grep <<<"$row_format_labels" -c .)" = 5 ]'
 exp_all="$(printf '%s\n' "${DOCKET_STATUSES[@]}" | sort -u)"
 exp_active="$(printf '%s\n' "${DOCKET_STATUSES_ACTIVE[@]}" | sort -u)"
 assert "emoji_for's case arms are EXACTLY DOCKET_STATUSES (both directions)" \
@@ -2112,9 +2116,9 @@ spec: docs/superpowers/specs/2026-07-24-tango.md
 EOF
 qout="$(bash "$SCRIPT" --changes-dir "$qtmp" --repo o/r 2>/dev/null)"
 assert "quoted title renders without its surrounding quotes" \
-  'printf "%s" "$qout" | grep -qF "| Tango, with a comma |"'
+  'grep <<<"$qout" -qF "| Tango, with a comma |"'
 assert "quoted title does not render the literal double quotes" \
-  '! printf "%s" "$qout" | grep -qF "\"Tango, with a comma\""'
+  '! grep <<<"$qout" -qF "\"Tango, with a comma\""'
 rm -rf "$qtmp"
 
 # --- change 0143: empty id/status must not collapse the TAB-joined archive sort feeder ---

@@ -23,7 +23,7 @@ build_flat="$(flatten <<<"$build_body")"
 # Non-vacuity floor: every assert below reads these variables, so an unreadable file must redden
 # HERE rather than passing every negative grep by default.
 assert "build: body is non-vacuous (>= 150 lines)" \
-  '[ "$(printf "%s\n" "$build_body" | grep -c .)" -ge 150 ]'
+  '[ "$(grep <<<"$build_body" -c .)" -ge 150 ]'
 
 # --- (1) the posture subsection exists, INSIDE the build gate -------------------
 # LINE-anchored on purpose: the heading level is the signal — a `##` here would make the posture a
@@ -158,7 +158,7 @@ assert "posture: points at the per-harness reference" \
 assert "reference: the file exists" '[ -f "$REF" ]'
 ref_body="$(cat "$REF" 2>/dev/null)"
 assert "reference: is non-vacuous (>= 40 lines)" \
-  '[ "$(printf "%s\n" "$ref_body" | grep -c .)" -ge 40 ]'
+  '[ "$(grep <<<"$ref_body" -c .)" -ge 40 ]'
 # Six capabilities, counted rather than spot-checked: dropping one is the drift that matters. The
 # count is SLICED to the section that owns the enumeration, using the same awk pattern group (10)
 # uses. A whole-file count over `^[0-9]+\. ` is the same defect the slices elsewhere in this file
@@ -186,7 +186,7 @@ assert "finalize: SKILL.md exists" '[ -f "$FIN" ]'
 fin_body="$(cat "$FIN" 2>/dev/null)"
 fin_flat="$(flatten <<<"$fin_body")"
 assert "finalize: body is non-vacuous (>= 100 lines)" \
-  '[ "$(printf "%s\n" "$fin_body" | grep -c .)" -ge 100 ]'
+  '[ "$(grep <<<"$fin_body" -c .)" -ge 100 ]'
 # The POSITIVES read the gate flow's item-5 `local` bullet, not the whole file. That bullet IS the
 # run this posture governs, and the plan's file-wide draft would be satisfied by the phrase turning
 # up anywhere in the file — including a mention that leaves the gate's own run uncited, which is the
@@ -398,7 +398,7 @@ evid_body="$(cat "$EVID" 2>/dev/null)"
 # back into one file with the evidence DELETED rather than moved, and every assert here would
 # still pass on an empty sibling.
 assert "evidence: is non-vacuous (>= 40 lines)" \
-  '[ "$(printf "%s\n" "$evid_body" | grep -c .)" -ge 40 ]'
+  '[ "$(grep <<<"$evid_body" -c .)" -ge 40 ]'
 # Closes the reverse direction of the absence assert below: that one proves the Method section LEFT
 # the kept file, this one proves it ARRIVED here rather than being deleted outright. Keyed on the
 # heading, so it pins structure, not prose — a rewrite of the evidence text does not rot it.

@@ -240,7 +240,7 @@ SCRATCH="$(mktemp -d)"; cp -R "$REPO/agents" "$REPO/cursor-rules" "$REPO/scripts
 rm -f "$SCRATCH/cursor-rules/dispatch/docket-status.md"
 gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48F" bash "$SCRATCH/sync-agents.sh" 2>&1 >/dev/null)"
 RULE="$SBX/.cursor/rules/docket-dispatch.mdc"
-assert "0048 auto-block: warns about the missing fragment" 'printf "%s" "$gen_err" | grep -qi "no dispatch fragment for docket-status"'
+assert "0048 auto-block: warns about the missing fragment" 'grep <<<"$gen_err" -qi "no dispatch fragment for docket-status"'
 assert "0048 auto-block: still emits a docket-status subsection" 'grep -q "^## docket-status — dispatch only" "$RULE"'
 # 0135: the auto-block instructs by CAPABILITY, not by a tool name (ADR-0059 §2) — it must still
 # name the agent it dispatches to, so this pins the dispatch sentence, not the old `subagent_type:`.
@@ -260,14 +260,14 @@ printf '\n<!-- tampered -->\n' >> "$SBX/.cursor/rules/docket-dispatch.mdc"
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48C" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "0048 rule-check: advisory-flags a hand-edited rule (rc=0)" '[ "$chk_rc" = "0" ]'
 assert "0048 rule-check: names the dispatch rule in the advisory report" \
-  'printf "%s" "$chk_out" | grep -q "advisory" && printf "%s" "$chk_out" | grep -q "docket-dispatch.mdc"'
+  'grep <<<"$chk_out" -q "advisory" && grep <<<"$chk_out" -q "docket-dispatch.mdc"'
 # Delete the committed rule -> advisory (missing local file).
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48C" bash "$SYNC" >/dev/null )   # regenerate clean
 rm -f "$SBX/.cursor/rules/docket-dispatch.mdc"
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48C" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "0048 rule-check: advisory-flags a missing committed rule (rc=0)" '[ "$chk_rc" = "0" ]'
 assert "0048 rule-check: missing-rule advisory names it" \
-  'printf "%s" "$chk_out" | grep -q "advisory" && printf "%s" "$chk_out" | grep -q "docket-dispatch.mdc"'
+  'grep <<<"$chk_out" -q "advisory" && grep <<<"$chk_out" -q "docket-dispatch.mdc"'
 rm -rf "$SBX" "$HROOT48C"
 
 # 0048 Piece 3 — removing a built-in agent prunes its generated files (both layers) + rule subsection.
@@ -321,7 +321,7 @@ printf 'agent_harnesses: [claude]\nagents:\n  default:\n    status: { model: son
 : > "$SBX/.claude/agents/docket-bogus.md"           # an orphan: no built-in docket-bogus
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48O" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "0048 orphan-check: advisory-flags the orphan (rc=0)" '[ "$chk_rc" = "0" ]'
-assert "0048 orphan-check: names the orphaned file" 'printf "%s" "$chk_out" | grep -q "advisory" && printf "%s" "$chk_out" | grep -q "docket-bogus.md"'
+assert "0048 orphan-check: names the orphaned file" 'grep <<<"$chk_out" -q "advisory" && grep <<<"$chk_out" -q "docket-bogus.md"'
 assert "0048 orphan-check: --check does NOT delete the orphan" '[ -f "$SBX/.claude/agents/docket-bogus.md" ]'
 rm -rf "$SBX" "$HROOT48O"
 
@@ -397,7 +397,7 @@ sed -i.bak 's/^model: sonnet/model: haiku/' "$SBX/.claude/agents/docket-auto-gro
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT2" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "--check advisory-flags critic drift (rc=0)" '[ "$chk_rc" = "0" ]'
 assert "--check advisory-flags critic drift (names file)" \
-  'printf "%s" "$chk_out" | grep -q "advisory" && printf "%s" "$chk_out" | grep -q "docket-auto-groom-critic.md"'
+  'grep <<<"$chk_out" -q "advisory" && grep <<<"$chk_out" -q "docket-auto-groom-critic.md"'
 rm -rf "$SBX" "$HROOT2"
 
 # ---- Task 1c: the two finalize-gate wrappers (wrap NO skill) ----------------
@@ -444,7 +444,7 @@ sed -i.bak 's/^model: sonnet/model: haiku/' "$SBX/.claude/agents/docket-rebase-r
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT3" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "--check advisory-flags rebase-resolver drift (rc=0)" '[ "$chk_rc" = "0" ]'
 assert "--check advisory-flags rebase-resolver drift (names file)" \
-  'printf "%s" "$chk_out" | grep -q "advisory" && printf "%s" "$chk_out" | grep -q "docket-rebase-resolver.md"'
+  'grep <<<"$chk_out" -q "advisory" && grep <<<"$chk_out" -q "docket-rebase-resolver.md"'
 rm -rf "$SBX" "$HROOT3"
 
 exit $fail

@@ -760,10 +760,10 @@ expected_key_count=52
 # which reads as "no duplicates" — green forever) even though mf_count's OWN assert below would
 # already have caught the manifest-loop side. Asserted against the same expected_key_count rather
 # than a second magic number: the raw list is always >= the deduped one.
-raw_count="$(printf '%s\n' "$example_keys_raw" | grep -c .)"
+raw_count="$(grep <<<"$example_keys_raw" -c .)"
 assert "manifest: raw key extraction is non-vacuous (>= $expected_key_count; got $raw_count)" \
   '[ "$raw_count" -ge "$expected_key_count" ]'
-mf_count="$(printf '%s\n' "$example_keys" | grep -c .)"
+mf_count="$(grep <<<"$example_keys" -c .)"
 assert "manifest: key extraction count is exactly $expected_key_count (got $mf_count; if intentional, bump expected_key_count and add the key's classify_key arm in the same commit)" \
   '[ "$mf_count" = "$expected_key_count" ]'
 # DUPLICATE LEAF NAMES: derived from the SAME example_keys_raw captured above (change 0102
@@ -1074,7 +1074,7 @@ SCOPE_GUARD_AWK
 scope_guard_out="$(awk "$scope_guard_awk" "$EX")"
 nested_key_count="$(printf '%s\n' "$scope_guard_out" | sed -n 's/^COUNT //p')"
 adjacency_inherit_count="$(printf '%s\n' "$scope_guard_out" | sed -n 's/^ADJINHERIT //p')"
-untagged_keys="$(printf '%s\n' "$scope_guard_out" | grep -v '^COUNT ' | grep -v '^ADJINHERIT ')"
+untagged_keys="$(grep <<<"$scope_guard_out" -v '^COUNT ' | grep -v '^ADJINHERIT ')"
 assert "scope tag: every ACTIVE SCALAR key at every depth is covered by a scope tag" \
   '[ -z "$untagged_keys" ]'
 if [ -n "$untagged_keys" ]; then
@@ -1489,7 +1489,7 @@ err="$(cd "$SB" && HOME="$SB" XDG_CONFIG_HOME="$SB/.config" DOCKET_HARNESS_ROOT=
        bash "$REPO/sync-agents.sh" 2>&1 >/dev/null)"; rc=$?
 assert "round-trip: sync-agents resolves the uncommented example (exit 0)" '[ "$rc" = "0" ]'
 assert "round-trip: no unknown-harness-token warning" \
-  '! printf "%s" "$err" | grep -qiE "unknown agent_harnesses token"'
+  '! grep <<<"$err" -qiE "unknown agent_harnesses token"'
 assert "round-trip: a claude wrapper was generated" '[ -f "$SB/.claude/agents/docket-status.md" ]'
 assert "round-trip: claude status model mirrors the shipped sidecar" \
   '[ -n "$(hd_field "$HD" claude status model)" ] &&
@@ -1642,8 +1642,8 @@ assert "scaffold: has one ordered installer-managed runtime block" \
 active_scaffold="$(grep -vE '^[[:space:]]*(#.*)?$' "$GC" 2>/dev/null)"
 assert "scaffold: only active keys are runtime.bash with an absolute path" \
   '[ "$(printf "%s\n" "$active_scaffold" | wc -l | tr -d " ")" = "2" ] &&
-   printf "%s\n" "$active_scaffold" | sed -n "1p" | grep -Eq "^runtime:[[:space:]]*$" &&
-   printf "%s\n" "$active_scaffold" | sed -n "2p" | grep -Eq "^[[:space:]]+bash:[[:space:]]+'\''/[^'\'']+'\''[[:space:]]*$"'
+   printf "%s\n" "$active_scaffold" | sed -n "1p" | grep >/dev/null -E "^runtime:[[:space:]]*$" &&
+   printf "%s\n" "$active_scaffold" | sed -n "2p" | grep >/dev/null -E "^[[:space:]]+bash:[[:space:]]+'\''/[^'\'']+'\''[[:space:]]*$"'
 assert "scaffold: points at .docket.example.yml" 'grep -qF ".docket.example.yml" "$GC"'
 assert "scaffold: names the layer precedence"    'grep -qiE "repo-local|precedence" "$GC"'
 # Non-destructive: when the block must be inserted, unrelated user bytes remain an exact suffix,
@@ -1765,10 +1765,10 @@ ex_flat="$(flatten_yaml < "$EX")"
 # remedy for a genuine, intentional addition is inline in the message below (not just in this
 # comment), so it survives into CI output: bump the literal 5 AND add the key to
 # .docket.example.yml, in the same commit.
-sn_count="$(printf '%s\n' "$sn_flat" | grep -c .)"
+sn_count="$(grep <<<"$sn_flat" -c .)"
 assert "(8) snippet flattened key count is exactly 5 (floor against extraction going silently empty, ceiling against undocumented growth; if intentional, bump this literal 5 and add the key to .docket.example.yml; got $sn_count)" \
   '[ "$sn_count" = "5" ]'
-ex_count="$(printf '%s\n' "$ex_flat" | grep -c .)"
+ex_count="$(grep <<<"$ex_flat" -c .)"
 assert "(8) example flattened non-empty (guard against a silently empty comparison side; got $ex_count)" \
   '[ "$ex_count" -ge 20 ]'
 
@@ -1857,7 +1857,7 @@ TAB9="$(printf '\t')"
 # is why this asserts the value and not just the path.
 hyph_fix="$(printf 'agents:\n  default:\n    implement-next: { model: x, effort: y }\n')"
 hyph_out="$(printf '%s\n' "$hyph_fix" | flatten_yaml)"
-hyph_paths="$(printf '%s\n' "$hyph_out" | grep -c .)"
+hyph_paths="$(grep <<<"$hyph_out" -c .)"
 hyph_val="$(printf '%s\n' "$hyph_out" | awk -F"$TAB9" '$1=="agents.default.implement-next"{print $2}')"
 assert "(9) flatten_yaml keeps a HYPHENATED key as its own path (got $hyph_paths paths, want 3)" \
   '[ "$hyph_paths" = "3" ]'
@@ -2024,9 +2024,9 @@ scan_fences(){
     [ "$token" = "ignore" ] && continue
     body="$(fence_body "$md" "$line" "$ind")"
     flatout="$(printf '%s\n' "$body" | flatten_yaml)"
-    flat="$(printf '%s\n' "$flatout" | grep -c .)"
+    flat="$(grep <<<"$flatout" -c .)"
     if [ "$flat" -eq 0 ]; then echo "empty $line"; continue; fi
-    raw="$(printf '%s\n' "$body" | grep -vE '^[[:space:]]*$' | grep -vcE '^[[:space:]]*#')"
+    raw="$(grep <<<"$body" -vE '^[[:space:]]*$' | grep -vcE '^[[:space:]]*#')"
     [ "$raw" = "$flat" ] || echo "drop $line raw=$raw flat=$flat"
     while IFS="$TAB9" read -r p pv; do
       [ -n "$p" ] || continue
@@ -2055,13 +2055,13 @@ OPENERS
 }
 
 findings9="$(scan_fences "$README")"
-f9_miss="$(printf '%s\n' "$findings9" | grep '^miss ' | sed 's/^miss //' | tr '\n' ' ' | sed 's/ *$//')"
+f9_miss="$(grep <<<"$findings9" '^miss ' | sed 's/^miss //' | tr '\n' ' ' | sed 's/ *$//')"
 assert "(9) every README config-fence key exists in .docket.example.yml (fence-line + key path shown; ${f9_miss:-none missing})" \
   '[ -z "$f9_miss" ]'
 
 # NON-VACUITY FLOOR 2 — a fence that flattens to ZERO paths contributes nothing to the existence
 # loop above, so it would be silently unguarded rather than reported.
-f9_empty="$(printf '%s\n' "$findings9" | grep '^empty ' | sed 's/^empty //' | tr '\n' ' ' | sed 's/ *$//')"
+f9_empty="$(grep <<<"$findings9" '^empty ' | sed 's/^empty //' | tr '\n' ' ' | sed 's/ *$//')"
 assert "(9) every config fence flattens to at least one key (fence lines listed; ${f9_empty:-none empty})" \
   '[ -z "$f9_empty" ]'
 
@@ -2074,11 +2074,11 @@ assert "(9) every config fence flattens to at least one key (fence lines listed;
 # followed by `  - inline` on its own line yields `drop <line> raw=2 flat=1` here — that is a
 # syntax-convention violation in the fence, not a flattener defect, so don't go hunting for a key
 # spelling problem when this floor names it.
-f9_drop="$(printf '%s\n' "$findings9" | grep '^drop ' | sed 's/^drop //' | tr '\n' ' ' | sed 's/ *$//')"
+f9_drop="$(grep <<<"$findings9" '^drop ' | sed 's/^drop //' | tr '\n' ' ' | sed 's/ *$//')"
 assert "(9) the flattener drops no key-shaped line in any fence (raw content lines vs flattened, per fence; ${f9_drop:-none dropped})" \
   '[ -z "$f9_drop" ]'
 
-f9_marker="$(printf '%s\n' "$findings9" | grep '^marker ' | sed 's/^marker //' | tr '\n' ' ' | sed 's/ *$//')"
+f9_marker="$(grep <<<"$findings9" '^marker ' | sed 's/^marker //' | tr '\n' ' ' | sed 's/ *$//')"
 assert "(9) every docket:config-fence marker parses (fence-line + reason; ${f9_marker:-none malformed})" \
   '[ -z "$f9_marker" ]'
 
@@ -2090,9 +2090,9 @@ assert "(9) every docket:config-fence marker parses (fence-line + reason; ${f9_m
 # fail-open-and-silent mode this whole section exists to end. `seen` (added above, emitted for
 # every fence BEFORE any skip) gives two floors against it: an exact count of fences reached, and
 # a floor that at least one of them is values-marked.
-f9_seen="$(printf '%s\n' "$findings9" | grep -c '^seen ')"
+f9_seen="$(grep <<<"$findings9" -c '^seen ')"
 assert "(9) scan_fences visited all 19 fences — same literal as NON-VACUITY FLOOR 1's fence-count assert above; if you added a fence, see that assert's message for the remedy (got $f9_seen)" '[ "$f9_seen" = "19" ]'
-f9_vmarked="$(printf '%s\n' "$findings9" | grep -c '^seen .* values$')"
+f9_vmarked="$(grep <<<"$findings9" -c '^seen .* values$')"
 assert "(9) at least one fence is values-marked — floor against the marker being deleted entirely; it does NOT prove the marker sits on the RIGHT fence (see the positive control immediately below for that) (got $f9_vmarked)" \
   '[ "$f9_vmarked" -ge 1 ]'
 
@@ -2110,7 +2110,7 @@ assert "(9) at least one fence is values-marked — floor against the marker bei
 fx9e="$tmp/README-value-control.md"
 sed 's/^  lease_ttl: 72/  lease_ttl: 99/' "$README" > "$fx9e"
 fx9e_findings="$(scan_fences "$fx9e")"
-fx9e_value="$(printf '%s\n' "$fx9e_findings" | grep '^value .*reclaim\.lease_ttl ')"
+fx9e_value="$(grep <<<"$fx9e_findings" '^value .*reclaim\.lease_ttl ')"
 assert "(9) the reclaim: fence's value coverage is live — pins that lease_ttl drift is caught even if the values marker moved elsewhere (got [${fx9e_value}])" '[ -n "$fx9e_value" ]'
 
 # NON-VACUITY FLOOR 5 — ORPHAN MARKER DETECTION. fence_marker only ever looks at the two nearest
@@ -2144,7 +2144,7 @@ assert "(9) the reclaim: fence's value coverage is live — pins that lease_ttl 
 # substring `docket:config-fence`, or document the marker grammar in this test file instead (see the
 # MARKER GRAMMAR comment above, where it already lives) rather than in the README.
 md_markers="$(grep -c 'docket:config-fence' "$README")"
-f9_marked="$(printf '%s\n' "$findings9" | grep '^seen ' | grep -vc ' none$')"
+f9_marked="$(grep <<<"$findings9" '^seen ' | grep -vc ' none$')"
 assert "(9) every docket:config-fence line in the README is attached to a fence (file has $md_markers, fences consumed $f9_marked)" \
   '[ "$md_markers" = "$f9_marked" ]'
 
@@ -2155,7 +2155,7 @@ assert "(9) every docket:config-fence line in the README is attached to a fence 
 # illustrate non-default values. Fence 209 is therefore double-covered by (8) (existence + values)
 # and (9) (existence only); that overlap is accepted rather than special-cased — (8)'s fence is
 # simply left unmarked, and since no unmarked fence gets a value assert, no special-casing exists.
-f9_value="$(printf '%s\n' "$findings9" | grep '^value ' | sed 's/^value //' | tr '\n' ' ' | sed 's/ *$//')"
+f9_value="$(grep <<<"$findings9" '^value ' | sed 's/^value //' | tr '\n' ' ' | sed 's/ *$//')"
 assert "(9) values-marked fences match the example exactly (${f9_value:-none mismatched})" \
   '[ -z "$f9_value" ]'
 
@@ -2175,10 +2175,10 @@ fx9_findings="$(scan_fences "$fx9")"
 # correctly. Checked separately, and POSITIVELY, right below: the ignore fixture's own seen
 # record must carry the ignore token, so the ignore branch is proven exercised rather than the
 # fixture being invisible to the scanner in a different way than before.
-fx9_non_seen="$(printf '%s\n' "$fx9_findings" | grep -v '^seen ')"
+fx9_non_seen="$(grep <<<"$fx9_findings" -v '^seen ')"
 assert "(9) an ignore-marked fence is skipped entirely — its non-schema key raises nothing (got [${fx9_non_seen}])" \
   '[ -z "$fx9_non_seen" ]'
-fx9_seen_ignore="$(printf '%s\n' "$fx9_findings" | grep '^seen .* ignore$')"
+fx9_seen_ignore="$(grep <<<"$fx9_findings" '^seen .* ignore$')"
 assert "(9) the ignore fixture's fence is recorded as ignore-marked in its seen record (got [${fx9_seen_ignore}])" \
   '[ -n "$fx9_seen_ignore" ]'
 
@@ -2187,7 +2187,7 @@ assert "(9) the ignore fixture's fence is recorded as ignore-marked in its seen 
 fx9b="$tmp/fence-fixture-unmarked.md"
 printf '# Fixture\n\n```yaml\nnot_a_docket_key: true\n```\n' > "$fx9b"
 fx9b_findings="$(scan_fences "$fx9b")"
-fx9b_non_seen="$(printf '%s\n' "$fx9b_findings" | grep -v '^seen ')"
+fx9b_non_seen="$(grep <<<"$fx9b_findings" -v '^seen ')"
 assert "(9) the same fence WITHOUT the ignore marker does report its key — proves the skip is the marker, not an invisible fixture (got [${fx9b_non_seen}])" \
   '[ "$fx9b_non_seen" = "miss 3 not_a_docket_key" ]'
 
@@ -2197,14 +2197,14 @@ assert "(9) the same fence WITHOUT the ignore marker does report its key — pro
 fx9c="$tmp/fence-fixture-empty.md"
 printf '# Fixture\n\n```yaml\n# just a comment, no keys here\n```\n' > "$fx9c"
 fx9c_findings="$(scan_fences "$fx9c")"
-fx9c_empty="$(printf '%s\n' "$fx9c_findings" | grep '^empty ')"
+fx9c_empty="$(grep <<<"$fx9c_findings" '^empty ')"
 assert "(9) a comment-only fence body trips NON-VACUITY FLOOR 2 with the exact empty finding (got [${fx9c_empty}])" \
   '[ "$fx9c_empty" = "empty 3" ]'
 
 fx9d="$tmp/fence-fixture-badmarker.md"
 printf '# Fixture\n\n<!-- docket:config-fence: bogus -->\n```yaml\nsome_key: true\n```\n' > "$fx9d"
 fx9d_findings="$(scan_fences "$fx9d")"
-fx9d_marker="$(printf '%s\n' "$fx9d_findings" | grep '^marker ')"
+fx9d_marker="$(grep <<<"$fx9d_findings" '^marker ')"
 assert "(9) an unknown docket:config-fence token hard-fails via the marker branch with the exact malformed-marker finding (got [${fx9d_marker}])" \
   '[ "$fx9d_marker" = "marker 4 malformed-marker" ]'
 
@@ -2217,18 +2217,22 @@ assert "(9) an unknown docket:config-fence token hard-fails via the marker branc
 # in prose is enforced by whoever remembers it; this pass enforces it mechanically, on the one
 # file that owns the repo's largest producer.
 #
-# DELIBERATELY SCOPED TO THIS FILE. The same shape appears at ~84 further sites across tests/,
-# most over small bounded payloads. Sweeping them is real work with its own risk and belongs in
-# its own change, not in a repair — so this guard does not pretend to repo-wide coverage, and a
-# reader should not infer any.
+# ORIGINALLY SCOPED TO THIS FILE; NOW SUBSUMED. This pass shipped file-scoped because the same
+# shape stood at ~84 further sites across tests/ and sweeping them was its own piece of work.
+# The very next gate run failed on one of those deferred sites, so the sweep landed in the same
+# repair after all, and tests/test_pipe_shapes.sh now guards every tracked shell file with a
+# STRICTER predicate: no producer exemption at all, and `q` caught anywhere in the flag bundle
+# (this pass requires `q` to close the bundle, so `-qF`/`-Eqi` spellings pass it unseen). This
+# self-scan stays as this file's own belt-and-braces; the repo-wide guard is the enforcement.
 #
-# WHAT IS EXEMPT, AND WHY IT IS A SHAPE RULE AND NOT A SPELLING LIST: the consumer half is keyed
-# on shape (any grep whose flag bundle carries -q, or head), never on an enumerated list of
-# invocations. The producer half exempts exactly one class — `printf`/`echo` of an
-# already-materialized shell variable — because bash writes those from a subshell with a payload
-# already bounded by what the test built, and it is this repo's house idiom at roughly 380 sites.
-# Every other producer (git, sed/awk/grep reading a file, a script invocation) has output bounded
-# only by its input, which is the class that broke.
+# WHAT IS EXEMPT, AND WHY THE EXEMPTION DID NOT SURVIVE REPO-WIDE: the consumer half is keyed
+# on shape (any grep whose flag bundle ENDS in q, or head), never on an enumerated list of
+# invocations. The producer half exempts one class — `printf`/`echo` of an already-materialized
+# shell variable — on the theory that the payload is bounded by what the test built. The second
+# change-0276 gate failure disproved that theory as a safety claim: a materialized payload larger
+# than the loaded pipe capacity (`printf "%s\n" "$(cat …)" | grep -qF …` over a docket-status
+# transcript) SIGPIPEs exactly like a streamed one. The exemption is tolerable HERE only because
+# the sweep removed every such site and tests/test_pipe_shapes.sh reddens on any new one.
 #
 # KNOWN IMPRECISION, stated rather than hidden: the producer word is read from the first pipeline
 # stage ON THE SAME LINE, so a pipeline whose producer sits on a previous continuation line

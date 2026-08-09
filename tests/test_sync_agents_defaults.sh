@@ -43,7 +43,7 @@ printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"
 sw_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT51A" bash "$SYNC" 2>&1 >/dev/null)"
 assert "0051 4L: global agents value reaches the per-repo generated file" \
   '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "global-model-x" ]'
-assert "0051 4L: the 0050 SHADOWED stopgap warning is gone" '! printf "%s" "$sw_err" | grep -q "SHADOWED"'
+assert "0051 4L: the 0050 SHADOWED stopgap warning is gone" '! grep <<<"$sw_err" -q "SHADOWED"'
 rm -rf "$SBX" "$HROOT51A"
 
 # (4L-b) full chain: local beats committed beats global; per-FIELD independence
@@ -101,7 +101,7 @@ printf 'agents:\n  default:\n    status: { model: committed-m }\n' > "$SBX/.dock
 mkdir "$SBX/.docket.local.yml"
 mf_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT51F" bash "$SYNC" 2>&1 >/dev/null)"; mf_rc=$?
 assert "0051 malformed local: not fatal (rc=0)"        '[ "$mf_rc" = "0" ]'
-assert "0051 malformed local: warns and names the file" 'printf "%s" "$mf_err" | grep -qi "docket.local.yml"'
+assert "0051 malformed local: warns and names the file" 'grep <<<"$mf_err" -qi "docket.local.yml"'
 assert "0051 malformed local: committed layer still applies" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "committed-m" ]'
 rm -rf "$SBX" "$HROOT51F"
 
@@ -155,7 +155,7 @@ printf '    phantom-not-a-wrapper: { model: x, effort: low }\n' >> "$SCR168/agen
 hd_rc=0
 hd_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT168B" bash "$SCR168/sync-agents.sh" 2>&1 >/dev/null)" || hd_rc=$?
 assert "0168 gate: invalid sidecar fails the run (rc!=0)"  '[ "$hd_rc" != "0" ]'
-assert "0168 gate: the diagnostic names harness-defaults"  'printf "%s" "$hd_err" | grep -q "harness-defaults"'
+assert "0168 gate: the diagnostic names harness-defaults"  'grep <<<"$hd_err" -q "harness-defaults"'
 assert "0168 gate: no per-repo wrapper was written"        '[ "$(find "$SBX" -name "docket-*.md" -path "*/agents/*" | wc -l | tr -d " ")" = "0" ]'
 assert "0168 gate: no user-level wrapper was written"      '[ "$(find "$HROOT168B" -name "docket-*.md" | wc -l | tr -d " ")" = "0" ]'
 rm -rf "$SBX" "$HROOT168B" "$SCR168"
@@ -177,15 +177,15 @@ assert "0051 gi: block ignores .docket.local.yml"            'grep -q "^\.docket
 assert "0051 gi: block ignores claude agents pattern"        'grep -q "^\.claude/agents/docket-\*\.md$" "$GI"'
 assert "0051 gi: block ignores cursor agents pattern"        'grep -q "^\.cursor/agents/docket-\*\.md$" "$GI"'
 assert "0051 gi: block ignores the cursor dispatch rule"     'grep -q "^\.cursor/rules/docket-dispatch\.mdc$" "$GI"'
-assert "0051 gi: loud commit-this notice"                    'printf "%s" "$gi_err" | grep -qi "commit"'
+assert "0051 gi: loud commit-this notice"                    'grep <<<"$gi_err" -qi "commit"'
 assert "0051 gi: every block line is docket-scoped (starts with . or #)" \
-  '! awk "/# docket:start/,/# docket:end/" "$GI" | grep -qvE "^(#|\.)"'
+  '! awk "/# docket:start/,/# docket:end/" "$GI" | grep >/dev/null -vE "^(#|\.)"'
 
 # (gi-b) idempotent: second run leaves .gitignore byte-identical and prints no notice.
 gi_before="$(cat "$GI")"
 gi_err2="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTGA" bash "$SYNC" 2>&1 >/dev/null)"
 assert "0051 gi: second run byte-identical"    '[ "$gi_before" = "$(cat "$GI")" ]'
-assert "0051 gi: second run no UPDATED notice" '! printf "%s" "$gi_err2" | grep -q "managed block"'
+assert "0051 gi: second run no UPDATED notice" '! grep <<<"$gi_err2" -q "managed block"'
 
 # (gi-c) hand-edit inside the block repaired; content OUTSIDE the markers preserved.
 printf 'my-own-ignore/\n%s\n' "$(cat "$GI")" > "$GI"          # user content above the block
@@ -271,7 +271,7 @@ printf '# docket:start (managed by docket — do not hand-edit)\n.docket.local.y
 gi_before="$(cat "$SBX/.gitignore")"
 gf_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTGF" bash "$SYNC" 2>&1 >/dev/null)"; gf_rc=$?
 assert "0051 gi-f: unterminated block run still succeeds (rc=0)" '[ "$gf_rc" = "0" ]'
-assert "0051 gi-f: warns the block is corrupt/unterminated" 'printf "%s" "$gf_err" | grep -qi "untermin\|corrupt"'
+assert "0051 gi-f: warns the block is corrupt/unterminated" 'grep <<<"$gf_err" -qi "untermin\|corrupt"'
 assert "0051 gi-f: file left byte-identical (user content preserved)" '[ "$gi_before" = "$(cat "$SBX/.gitignore")" ]'
 rm -rf "$SBX" "$HROOTGF"
 
@@ -294,15 +294,15 @@ printf 'stale 0048 rule\n'    > "$SBX/.cursor/rules/docket-dispatch.mdc"
 git -C "$SBX" add -A; git -C "$SBX" commit --quiet -m "0048-era state"
 mig_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTM" bash "$SYNC" 2>&1 >/dev/null)"; mig_rc=$?
 assert "0051 mig: run succeeds (rc=0)"                     '[ "$mig_rc" = "0" ]'
-assert "0051 mig: announces the migration"                 'printf "%s" "$mig_err" | grep -qi "migrat"'
-assert "0051 mig: prints git rm --cached instructions"     'printf "%s" "$mig_err" | grep -q -e "git rm" '
+assert "0051 mig: announces the migration"                 'grep <<<"$mig_err" -qi "migrat"'
+assert "0051 mig: prints git rm --cached instructions"     'grep <<<"$mig_err" -q -e "git rm" '
 assert "0051 mig: gitignore block written"                 'grep -q "^# docket:start" "$SBX/.gitignore"'
 assert "0051 mig: local files regenerated (fresh content)" 'grep -q "^model: sonnet" "$SBX/.claude/agents/docket-status.md"'
 assert "0051 mig: full local set regenerated"              '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "16" ]'
 # perform the printed migration commit; second run must NOT re-announce
 ( cd "$SBX" && git rm -r -q --cached '.claude/agents/docket-*.md' '.cursor/agents/docket-*.md' '.cursor/rules/docket-dispatch.mdc' && git add .gitignore && git commit -q -m "docket: agent files go machine-local" )
 mig_err2="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTM" bash "$SYNC" 2>&1 >/dev/null)"
-assert "0051 mig: idempotent — post-commit run is silent about migration" '! printf "%s" "$mig_err2" | grep -qi "migrat"'
+assert "0051 mig: idempotent — post-commit run is silent about migration" '! grep <<<"$mig_err2" -qi "migrat"'
 # and --check is fully green now (all three legs)
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTM" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "0051 mig: post-migration --check green (rc=0)" '[ "$chk_rc" = "0" ]'
@@ -318,10 +318,10 @@ printf 'stale 0048 wrapper\n' > "$SBX/.claude/agents/docket-status.md"
 git -C "$SBX" add -A; git -C "$SBX" commit --quiet -m "0048-era stale state"
 migb_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTMB" bash "$SYNC" 2>&1 >/dev/null)"; migb_rc=$?
 assert "0051 mig-b: run succeeds (rc=0)"                      '[ "$migb_rc" = "0" ]'
-assert "0051 mig-b: remedy omits git add .gitignore"          'printf "%s" "$migb_err" | grep -e "git rm" | grep -v -q "git add .gitignore"'
+assert "0051 mig-b: remedy omits git add .gitignore"          'grep <<<"$migb_err" -e "git rm" | grep >/dev/null -v "git add .gitignore"'
 assert "0051 mig-b: no .gitignore was created (not wanted)"   '[ ! -e "$SBX/.gitignore" ]'
 # the printed remedy must actually run: extract and eval it, then leg (b) goes green.
-remedy="$(printf '%s\n' "$migb_err" | sed -n 's/^sync-agents:[[:space:]]*\(git rm .*\)$/\1/p' | head -n1)"
+remedy="$(printf '%s\n' "$migb_err" | sed -n 's/^sync-agents:[[:space:]]*\(git rm .*\)$/\1/p' | sed -n 1p)"
 assert "0051 mig-b: a runnable remedy line was printed"       '[ -n "$remedy" ]'
 ( cd "$SBX" && eval "$remedy" ) >/dev/null 2>&1
 migb_chk="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTMB" bash "$SYNC" --check 2>&1)"; migb_chk_rc=$?
@@ -334,7 +334,7 @@ HROOTCA="$(mktemp -d)"; mkdir -p "$HROOTCA/.claude"
 printf 'agents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTCA" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "0051 chk-a: missing block fails --check (rc!=0)" '[ "$chk_rc" != "0" ]'
-assert "0051 chk-a: names the gitignore block"           'printf "%s" "$chk_out" | grep -qi "gitignore"'
+assert "0051 chk-a: names the gitignore block"           'grep <<<"$chk_out" -qi "gitignore"'
 # stale block (hand-pruned pattern) also fails:
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTCA" bash "$SYNC" >/dev/null 2>&1 )
 sed -i.bak '/docket-dispatch/d' "$SBX/.gitignore"; rm -f "$SBX/.gitignore.bak"
@@ -350,7 +350,7 @@ printf 'agents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.ym
 git -C "$SBX" add -A -f; git -C "$SBX" commit --quiet -m "wrongly track everything"
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTCB" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "0051 chk-b: tracked generated file fails --check (rc!=0)" '[ "$chk_rc" != "0" ]'
-assert "0051 chk-b: names a tracked path"                          'printf "%s" "$chk_out" | grep -q "docket-status.md"'
+assert "0051 chk-b: names a tracked path"                          'grep <<<"$chk_out" -q "docket-status.md"'
 rm -rf "$SBX" "$HROOTCB"
 
 # (chk-c) leg (c): content staleness is ADVISORY — rc stays 0, output says advisory.
@@ -361,7 +361,7 @@ printf 'agents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.ym
 sed -i.bak 's/^model: sonnet/model: haiku/' "$SBX/.claude/agents/docket-status.md"; rm -f "$SBX/.claude/agents/docket-status.md.bak"
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTCC" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "0051 chk-c: content drift is advisory (rc=0)"  '[ "$chk_rc" = "0" ]'
-assert "0051 chk-c: advisory names the drifted file"   'printf "%s" "$chk_out" | grep -q "advisory" && printf "%s" "$chk_out" | grep -q "docket-status.md"'
+assert "0051 chk-c: advisory names the drifted file"   'grep <<<"$chk_out" -q "advisory" && grep <<<"$chk_out" -q "docket-status.md"'
 rm -rf "$SBX" "$HROOTCC"
 
 # (chk-d) fresh clone of a MIGRATED repo: committed .docket.yml (opted-in) + committed

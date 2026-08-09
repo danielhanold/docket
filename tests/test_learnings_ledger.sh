@@ -121,7 +121,7 @@ learnings_block(){  # echoes the active lines nested under `learnings:`
   awk '/^learnings:[[:space:]]*$/{f=1;next} f&&/^[^[:space:]#]/{f=0} f' "$REPO/.docket.example.yml"
 }
 assert "the example documents both keys at their defaults" \
-  'learnings_block | grep -qE "^[[:space:]]+enabled: true$" && learnings_block | grep -qE "^[[:space:]]+cap: 300$"'
+  'learnings_block | grep >/dev/null -E "^[[:space:]]+enabled: true$" && learnings_block | grep >/dev/null -E "^[[:space:]]+cap: 300$"'
 assert "README presents learnings as a feature" 'grep -qF "## Learnings — the loop" "$REPO/README.md"'
 assert "README points at the convention rather than restating mechanics" \
   'grep -qF "Learnings ledger" "$REPO/README.md"'
