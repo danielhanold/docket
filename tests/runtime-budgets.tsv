@@ -86,6 +86,7 @@ tests/test_role_skill_self_description.sh	10	parallel
 tests/test_run_tests.sh	20	parallel
 tests/test_runner_cursor.sh	10	parallel
 tests/test_runner_dispatch.sh	10	parallel
+tests/test_runner_dispatch_detach.sh	60	parallel
 tests/test_runner_opencode.sh	10	parallel
 tests/test_runtime_budgets.sh	10	parallel
 tests/test_script_contracts_coverage.sh	10	parallel
