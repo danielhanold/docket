@@ -2,11 +2,11 @@
 id: 269
 slug: decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child
 title: Decouple the shim wrapper's own pin from the delegated child's
-status: implemented
+status: done
 priority: high
 type: fix
 created: 2026-08-08
-updated: 2026-08-08
+updated: 2026-08-09
 depends_on: []
 related: [195, 256]
 discovered_from: [258]
@@ -17,7 +17,7 @@ results: docs/results/2026-08-08-decouple-the-shim-wrapper-s-own-pin-from-the-de
 trivial: false
 auto_groomable:
 branch: feat/decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child
-claimed_at: 2026-08-08T23:29:25Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/187
 blocked_by:
 reconciled: true
