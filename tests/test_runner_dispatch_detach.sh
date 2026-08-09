@@ -290,6 +290,82 @@ reap "$lpgid"
 BUDGET=60
 FAKE_TAIL=0
 
+# ---- the budget kill signals only a group PROVEN to be the launched child's -------
+# The arm above is the positive half — the group really is the child's, and it dies. This is the
+# negative half: a pgid is a REUSABLE name, and the budget path is reached only when no sentinel
+# exists, which includes a child that died an hour earlier without one. By then the OS may have
+# handed that id to an unrelated tree, and a group-directed TERM/KILL reaches all of it.
+#
+# THE BYSTANDER stands in for that unrelated tree: a sleeper isolated into ITS OWN process group
+# under `set -m`, so a group-directed signal aimed at it can never reach the harness running this
+# file. The record is then rewritten to name the BYSTANDER's group while `child_pid` still names
+# the launched child — exactly the shape of a recycled pgid — and the measurement is that the
+# bystander is STILL ALIVE afterwards.
+make_fixture
+FAKE_SLEEP=30 FAKE_TAIL=0 FAKE_RC=0
+KEY="$(launch status)"
+DDIR="$(ddir_for "$KEY")"
+real_pgid="$(sed -n 's/^pgid=//p' "$DDIR/launch")"
+set -m
+( sleep 20 ) &
+by_pid=$!
+set +m
+by_pgid="$(ps -o pgid= -p "$by_pid" 2>/dev/null | tr -d ' ')"
+mypgid="$(ps -o pgid= -p $$ 2>/dev/null | tr -d ' ')"
+assert "0271: fixture sanity — the bystander leads its OWN group, not the test's" \
+  '[ -n "$by_pgid" ] && [ "$by_pgid" = "$by_pid" ] && [ "$by_pgid" != "$mypgid" ]'
+rec="$(sed "s/^pgid=.*/pgid=$by_pgid/" "$DDIR/launch")"
+printf '%s\n' "$rec" > "$DDIR/launch"
+BUDGET=0
+out="$(observe "$KEY" 2>&1)"; rc=$?
+BUDGET=60
+assert "0271: an unconfirmable group still reports unavailable (1)" '[ "$rc" = "1" ]'
+assert "0271: and says nothing was signalled" 'grep -qi "not signalling" <<<"$out"'
+# THE ASSERT THE GUARD EXISTS FOR. With the identity check removed, the bystander's whole group
+# takes TERM and then KILL, and this goes red.
+assert "0271: THE UNRELATED GROUP SURVIVED — no signal was sent to a pgid we could not confirm" \
+  'kill -0 "$by_pid" 2>/dev/null'
+assert "0271: the dispatch is still recorded terminal" '[ -f "$DDIR/killed" ]'
+assert "0271: the marker records that nothing was signalled, not that we killed it" \
+  'grep -qxF "reason=group-already-gone" "$DDIR/killed"'
+# IDEMPOTENCE across the terminal transition: the re-report is unavailable, deterministic, and
+# still sends nothing.
+BUDGET=0
+out2="$(observe "$KEY" 2>&1)"; rc2=$?
+out3="$(observe "$KEY" 2>&1)"; rc3=$?
+BUDGET=60
+assert "0271: re-observing an unsignalled kill stays unavailable (1)" '[ "$rc2" = "1" ] && [ "$rc3" = "1" ]'
+assert "0271: and re-reports identically forever" '[ "$out3" = "$out2" ]'
+assert "0271: the re-report does not claim a kill that never happened" \
+  '! grep -qi "was killed at budget exhaustion" <<<"$out2"'
+assert "0271: the bystander survives re-observation too" 'kill -0 "$by_pid" 2>/dev/null'
+reap "$by_pgid"
+reap "$real_pgid"
+
+# ---- pid->group agreement is not enough: the START TIME is checked too -----------
+# A recycled pid that leads a group of the SAME id satisfies the pid->group conjunct on its own —
+# pid reuse is precisely what makes the hazard reachable. The launch therefore records the OS's own
+# start time for the child as an opaque token, and the observation compares it verbatim. Driven
+# here by rewriting the token (the pid and the group are left REAL), so the surviving process is
+# the launched child itself.
+make_fixture
+FAKE_SLEEP=30 FAKE_TAIL=0 FAKE_RC=0
+KEY="$(launch status)"
+DDIR="$(ddir_for "$KEY")"
+real_pgid="$(sed -n 's/^pgid=//p' "$DDIR/launch")"
+assert "0271: the launch record carries the child's start-time token" \
+  'grep -qE "^child_lstart=.+" "$DDIR/launch"'
+rec="$(sed 's/^child_lstart=.*/child_lstart=Thu Jan  1 00:00:00 1970/' "$DDIR/launch")"
+printf '%s\n' "$rec" > "$DDIR/launch"
+BUDGET=0
+out="$(observe "$KEY" 2>&1)"; rc=$?
+BUDGET=60
+assert "0271: a start time that does not match the launch's is unavailable (1)" '[ "$rc" = "1" ]'
+assert "0271: the diagnostic names pid recycling" 'grep -qi "recycled" <<<"$out"'
+assert "0271: and the group whose leader looks recycled is NOT signalled" \
+  'kill -0 -"$real_pgid" 2>/dev/null'
+reap "$real_pgid"
+
 # ---- observe REFUSES to signal its OWN process group -----------------------------
 # Defense in depth: `--launch` already fails closed when the child did not separate, so a launch
 # record it wrote can only name a foreign group. This covers the record being wrong anyway — a

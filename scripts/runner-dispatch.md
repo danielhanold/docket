@@ -193,9 +193,14 @@ than reports: a child that never appears at all aborts, and a child still sharin
 group is `TERM`-ed and the launch aborts naming the key. A child that has already **finished** is
 established too — the sentinel proves it — and is not a refusal.
 
-**The launch record** — `<dir>/launch`, flat `KEY=value`: `pgid`, `child_pid`, `started_at`,
-`agent`, `runner`, `worktree`, `since_sha`, `branch`, `dispatch_epoch`. `pgid` is the group an
-observer must signal to reach the whole detached tree. `since_sha` is the repo's `HEAD` captured
+**The launch record** — `<dir>/launch`, flat `KEY=value`: `pgid`, `child_pid`, `child_lstart`,
+`started_at`, `agent`, `runner`, `worktree`, `since_sha`, `branch`, `dispatch_epoch`. `pgid` is the
+group an observer must signal to reach the whole detached tree, and `child_pid` plus `child_lstart`
+are what let a later observation prove that group is still *that* tree: `child_lstart` is the OS's
+own start time for the child (`ps -o lstart=`), recorded as an **opaque token** to be compared as an
+exact string rather than parsed, since its rendering is platform- and locale-dependent and both
+sides of the comparison come from the same `ps`. It is empty only for a child that had already
+finished by the time the group was measured. `since_sha` is the repo's `HEAD` captured
 **before** the child could commit anything — the direct analogue of the run gate's
 `DISPATCH_EPOCH`, so a commit landing in the gap is excluded either way; empty on a repo with no
 commits, which a later git-read verdict reports as unknown rather than guessing. `branch` is the
@@ -279,6 +284,27 @@ launch record naming the **observation's own process group**. `--launch` fails c
 child did not separate, so a record it wrote can only name a foreign group — but a record can be
 wrong anyway, and a group-directed signal aimed at our own group takes down the harness that ran
 it. That case reports result unavailable, writes no `killed` marker, and names the dispatch dir.
+
+**The identity check — a pgid is a reusable name.** The own-group refusal defends the harness; it
+defends nobody else. This path is reached **only** when no sentinel exists, which includes a child
+killed externally or dead without a sentinel an hour earlier — by which time the OS may have handed
+that group id to an unrelated tree. So the group is signalled only when the launch record proves it
+is still the launched one, on two conjuncts: the recorded `child_pid` must **still lead** the
+recorded `pgid` (the child is its group's leader by construction), and that pid's start time must
+still equal the recorded `child_lstart` — the first conjunct alone is satisfied by a **recycled pid**
+that happens to lead a group of the same id, which is an ordinary background job and not an exotic
+state. The token conjunct is skipped only when the launch recorded none.
+
+Failing either conjunct is not an error but the ordinary *that group is already gone* outcome: **no
+signal is sent**, the terminal `killed` marker is still written with `reason=group-already-gone`
+(so the dispatch stays terminal and a later observation re-reports it as unavailable, saying
+plainly that nothing was signalled rather than claiming a kill), and the verdict is **result
+unavailable** either way — the run outran its budget with no sentinel, so there is no result to
+report whether or not a signal went out. The **accepted residual**: a group whose leader died while
+processes it spawned keep running is not signalled, so those orphans outlive the budget; the same
+holds when `ps` cannot be read. Killing them would mean signalling a name that cannot be proven
+still theirs, and an unrelated process group dying is both the worse failure and the unrecoverable
+one, while an orphan is visible and reapable.
 
 **Liveness vs correctness.** The sentinel is the *only* source of liveness — the facade never
 infers "still running" from git state, and never infers "finished" from anything but the wrapper's
@@ -491,9 +517,13 @@ re-signalling or discovering a different state.
   diagnostic on stderr. A non-terminal (`4`) observation puts **nothing** on stdout, so a polling
   caller never accumulates partial output.
 - Giving up on a dispatch **kills its process group**, never the launcher's pid alone — an
-  observation that gave up must not leave the adapter running unwatched. The one exception is a
-  record naming the observer's **own** group, which is refused: the facade never signals the group
-  it is running in.
+  observation that gave up must not leave the adapter running unwatched. Two states are exceptions.
+  A record naming the observer's **own** group is refused outright: the facade never signals the
+  group it is running in. And a group the record cannot **prove** is still the launched child's —
+  `child_pid` no longer leading it, or leading it with a start time other than the recorded
+  `child_lstart` — is left alone: a pgid is a reusable name, so signalling an unconfirmed one can
+  reach an unrelated process group. That dispatch is still recorded terminal and still reports
+  result unavailable.
 - `4` is a **non-failure** exit and the only new code this verb mints. Its sole consumer loops on
   it; nothing else in docket reads this facade's exit code.
 - The `runners.<name>:` parse handles simple `key: value` scalars only — by design; a runner

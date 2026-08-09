@@ -44,6 +44,21 @@ DOCKET_FACADE="${DOCKET_FACADE:-$SELF_DIR/docket.sh}"
 
 die(){ printf 'runner-dispatch: %s\n' "$*" >&2; exit 1; }
 
+# The OS's own start time for a pid, as an OPAQUE identity token — captured at launch, compared at
+# observation. It exists because `pgid` and `child_pid` are both REUSABLE names: an hour after a
+# child died, neither one alone can still prove that the recorded group is the launched tree rather
+# than something the OS handed that id to since (see the budget kill's identity check).
+# Whitespace-normalized and then compared as an EXACT STRING, never parsed into a date: the
+# `ps -o lstart=` rendering is platform- and locale-dependent, and both sides of the comparison come
+# from the same `ps` on the same machine, so parsing it would add a failure mode and buy nothing.
+ps_lstart(){  # $1 = pid -> normalized start-time token, empty when the pid is gone or unreadable
+  local s
+  s="$(ps -o lstart= -p "${1:-0}" 2>/dev/null)"
+  s="$(tr -s '[:space:]' ' ' <<<"$s")"
+  s="${s# }"
+  printf '%s' "${s% }"
+}
+
 RUNNER=""; AGENT=""; MODEL=""; EFFORT=""; WORKTREE=""
 # Verb selection (change 0271). Empty = the legacy synchronous call-and-return, which stays the
 # default so no currently-shipped caller changes behavior. `--observe` is parsed HERE, with
@@ -294,6 +309,14 @@ if [ "$VERB" = "launch" ]; then
     die "launch failed — the child did not separate into its own process group; refusing to report a dispatch that a teardown would kill (key $KEY)"
   fi
 
+  # THE IDENTITY TOKEN for the observer's kill guard, captured from the same live process the group
+  # was just measured on. `pgid` and `child_pid` are reusable names, so the observer needs one value
+  # that a RECYCLED pid cannot reproduce: a pid that the OS later hands to an unrelated process
+  # leading a group of the same id matches both of those and only differs here. Empty when the child
+  # already finished (the `ps` above saw nothing) — the observer then degrades to the pgid check
+  # alone and says so, rather than treating an absent token as a match.
+  CHILD_LSTART="$(ps_lstart "$CHILD_PID")"
+
   # `pgid` is what an observer must signal to reach the whole detached tree, so it is recorded from
   # the MEASUREMENT wherever the measurement exists. The fallback fires only when `ps` could not see
   # the process at all — which, given the refusals above, means the child already finished — and it
@@ -314,9 +337,9 @@ if [ "$VERB" = "launch" ]; then
       GATE_EPOCH=""
     }
   fi
-  printf 'pgid=%s\nchild_pid=%s\nstarted_at=%s\nagent=%s\nrunner=%s\nworktree=%s\nsince_sha=%s\nbranch=%s\ndispatch_epoch=%s\n' \
-    "${CHILD_PGID:-$CHILD_PID}" "$CHILD_PID" "$STARTED_AT" "$AGENT" "$RUNNER" "$ANCHOR" "${SINCE_SHA:-}" \
-    "${SINCE_BRANCH:-}" "${GATE_EPOCH:-}" \
+  printf 'pgid=%s\nchild_pid=%s\nchild_lstart=%s\nstarted_at=%s\nagent=%s\nrunner=%s\nworktree=%s\nsince_sha=%s\nbranch=%s\ndispatch_epoch=%s\n' \
+    "${CHILD_PGID:-$CHILD_PID}" "$CHILD_PID" "${CHILD_LSTART:-}" "$STARTED_AT" "$AGENT" "$RUNNER" \
+    "$ANCHOR" "${SINCE_SHA:-}" "${SINCE_BRANCH:-}" "${GATE_EPOCH:-}" \
     > "$DDIR/launch.partial"
   mv -f "$DDIR/launch.partial" "$DDIR/launch"
 
@@ -490,9 +513,19 @@ if [ "$VERB" = "observe" ]; then
     return 0
   }
 
-  # 1. A prior budget kill is TERMINAL and re-reports identically forever (idempotence).
+  # 1. A prior budget kill is TERMINAL and re-reports identically forever (idempotence). The
+  #    marker's `reason` distinguishes the two ways that state is reached — a group actually
+  #    terminated, or one that could not be confirmed as the launched child's and so was left
+  #    alone (see the identity check below). Both are unavailable and both exit 1; reporting them
+  #    with one wording would tell a reader a kill happened when none did.
   if [ -f "$DDIR/killed" ]; then
-    printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (the detached run was killed at budget exhaustion)\n' "$OBSERVE_KEY" >&2
+    KREASON="$(sed -n 's/^reason=//p' "$DDIR/killed" 2>/dev/null)"
+    case "${KREASON%%$'\n'*}" in
+      group-already-gone)
+        printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (the budget was exhausted and the recorded process group could not be confirmed as the launched child'"'"'s, so nothing was signalled)\n' "$OBSERVE_KEY" >&2 ;;
+      *)
+        printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (the detached run was killed at budget exhaustion)\n' "$OBSERVE_KEY" >&2 ;;
+    esac
     exit 1
   fi
 
@@ -605,19 +638,82 @@ if [ "$VERB" = "observe" ]; then
       "$OBSERVE_KEY" "$LPGID" "$DDIR" >&2
     exit 1
   fi
-  if [ -n "$LPGID" ]; then
+  #    IDENTITY BEFORE SIGNAL, and the own-group refusal above is not it. A pgid is a REUSABLE
+  #    NAME, and this path is reached ONLY when no sentinel exists — which includes the child that
+  #    was killed externally, or died without the wrapper writing `done`, an hour before this
+  #    observation. By then the OS may have handed that id to an unrelated tree, and `kill -TERM
+  #    -<pgid>` reaches every process in it. Refusing to signal our OWN group defends the harness;
+  #    it defends nobody else. So the group is signalled only when it is provably STILL THE
+  #    LAUNCHED ONE, in two conjuncts against the launch record:
+  #      1. the recorded `child_pid` must STILL LEAD the recorded group. The child is the group
+  #         leader by construction (`set -m` creates a background job as one), so any other answer
+  #         — the pid is gone, or it now sits in a different group — means the launched group is no
+  #         longer reachable under that name.
+  #      2. that pid's START TIME must still be the token measured at launch, because conjunct 1
+  #         alone is satisfied by a RECYCLED pid that coincidentally leads a group of the same id
+  #         (pid reuse is what makes the whole hazard reachable in the first place, and a recycled
+  #         pid that calls setpgid(0,0) is an ordinary background job, not an exotic state).
+  #         Skipped only when the launch recorded no token, which it does only for a child that had
+  #         already finished.
+  #    Failing either conjunct is NOT an error — it is the ordinary "that group is already gone"
+  #    outcome. The kill is skipped, the terminal `killed` marker is STILL recorded (with a reason
+  #    that says nothing was signalled, so the dispatch stays terminal and re-observes identically),
+  #    and the verdict is RESULT UNAVAILABLE either way: the run outran its budget with no sentinel,
+  #    so there is no result to report whether or not a signal was sent.
+  #    THE RESIDUAL THIS ACCEPTS, deliberately: a group whose LEADER died while processes it spawned
+  #    keep running is not signalled, so those orphans outlive the budget. Killing them would mean
+  #    signalling a name we cannot prove is still theirs — an unrelated process group dying is the
+  #    worse of the two failures, and it is unrecoverable, while an orphan is visible and reapable.
+  #    An unreadable `ps` lands on the same side for the same reason.
+  KILL_REASON="budget-exhausted"
+  SIGNAL_GROUP=0
+  IDENTITY_WHY=""
+  LCHILD="$(launch_field "$DDIR" child_pid)"
+  LCHILD_LSTART="$(launch_field "$DDIR" child_lstart)"
+  NOW_PGID=""
+  NOW_LSTART=""
+  if [ -z "$LPGID" ]; then
+    IDENTITY_WHY="the launch record names no process group"
+  else
+    case "$LCHILD" in
+      ''|*[!0-9]*) IDENTITY_WHY="the launch record names no usable child pid" ;;
+      *)
+        NOW_PGID="$(ps -o pgid= -p "$LCHILD" 2>/dev/null | tr -d ' ')"
+        NOW_LSTART="$(ps_lstart "$LCHILD")"
+        if [ -z "$NOW_PGID" ]; then
+          IDENTITY_WHY="the launched child (pid $LCHILD) is gone, so the group is no longer provably its own"
+        elif [ "$NOW_PGID" != "$LPGID" ]; then
+          IDENTITY_WHY="pid $LCHILD now leads group $NOW_PGID, not the recorded $LPGID"
+        elif [ -n "$LCHILD_LSTART" ] && [ "$NOW_LSTART" != "$LCHILD_LSTART" ]; then
+          IDENTITY_WHY="pid $LCHILD started at '$NOW_LSTART', not at the launch's '$LCHILD_LSTART' — the pid was recycled"
+        else
+          SIGNAL_GROUP=1
+        fi ;;
+    esac
+  fi
+
+  if [ "$SIGNAL_GROUP" = 1 ]; then
     kill -TERM -"$LPGID" 2>/dev/null
     for _ in $(seq 1 20); do kill -0 -"$LPGID" 2>/dev/null || break; sleep 0.5; done
     kill -KILL -"$LPGID" 2>/dev/null
+  else
+    KILL_REASON="group-already-gone"
+    printf 'runner-dispatch: observe %s — NOT signalling process group %s: %s. A pgid is a reusable name, so an unconfirmed one may now belong to an unrelated process group; recording the dispatch as terminal without a kill\n' \
+      "$OBSERVE_KEY" "${LPGID:-<none>}" "$IDENTITY_WHY" >&2
   fi
   # `mv -f`, not `mv`: BSD `mv` onto an unwritable destination with a tty PROMPTS, self-answers
   # `n` at EOF, and exits 0 — the marker would be silently lost and the kill would re-fire on the
   # next observation.
-  printf 'killed_at=%s\nreason=budget-exhausted\nbudget_minutes=%s\n' \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$DELEGATION_OBSERVATION_BUDGET" > "$DDIR/killed.partial"
+  printf 'killed_at=%s\nreason=%s\nbudget_minutes=%s\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$KILL_REASON" "$DELEGATION_OBSERVATION_BUDGET" > "$DDIR/killed.partial"
   mv -f "$DDIR/killed.partial" "$DDIR/killed" || die "could not record the kill marker in $DDIR"
-  printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (budget of %sm exhausted; the detached process group was terminated)\n' \
-    "$OBSERVE_KEY" "$DELEGATION_OBSERVATION_BUDGET" >&2
+  if [ "$SIGNAL_GROUP" = 1 ]; then
+    printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (budget of %sm exhausted; the detached process group was terminated)\n' \
+      "$OBSERVE_KEY" "$DELEGATION_OBSERVATION_BUDGET" >&2
+  else
+    printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (budget of %sm exhausted; the recorded process group could not be confirmed as the launched child'"'"'s, so nothing was signalled — inspect %s)\n' \
+      "$OBSERVE_KEY" "$DELEGATION_OBSERVATION_BUDGET" "$DDIR" >&2
+  fi
   exit 1
 fi
 
