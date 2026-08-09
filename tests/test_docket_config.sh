@@ -2945,6 +2945,30 @@ emit_fence_tokens(){  # first fenced block after the `### Emit` heading; first t
     infence && NF            { print $1 }
   ' "$REPO/scripts/docket-config.md"
 }
+
+# The prose numerals that state the two counts live in the SENTENCE directly below that fence.
+# The numeral assert used to grep the raw whole document, so (learnings: prose-guard-binds-
+# phrase-to-claim) a stale duplicate count sentence anywhere else in the file would satisfy it —
+# and a whole-file grep is also reflow-fragile: it double-acts as a line-wrap guard over
+# hard-wrapped prose (learnings: phrase-grep-over-wrapped-prose). So the prose side slices the
+# text between the fence's CLOSING ``` and the named heading that actually follows in the doc
+# (`## Exit codes`) — never a generic /^## / terminator, which would end at the first
+# heading-shaped line, including one inside a fenced example
+# (learnings: section-slice-needs-a-named-terminator). The awk exits non-zero when the
+# terminator is never reached, so a slice that stops matching its bound reddens via the control
+# below instead of silently widening to EOF.
+emit_fence_prose(){  # non-fence prose after the `### Emit` block, up to the `## Exit codes` heading
+  awk '
+    /^### Emit[[:space:]]*$/  { seen = 1; next }
+    seen && /^```/            { if (infence) { infence = 0; grab = 1; next } infence = 1; next }
+    grab && /^## Exit codes[[:space:]]*$/ { found = 1; exit }
+    grab && NF                { print }
+    END { if (!found) exit 1 }
+  ' "$REPO/scripts/docket-config.md"
+}
+# Flatten a slice to a single whitespace-collapsed line (learnings: phrase-grep-over-wrapped-
+# prose), trimming the single boundary spaces `tr -s` leaves behind.
+flatten(){ tr -s '[:space:]' ' ' | sed -E 's/^ //; s/ $//'; }
 doc_plain_keys="$(emit_fence_tokens)"
 doc_shell_keys="$(grep -v '^REPO_ROOT$' <<<"$doc_plain_keys")"
 
@@ -2980,8 +3004,21 @@ assert "0258 L1: shell emission order equals the doc fence minus REPO_ROOT" \
 l1_plain_n="$(grep -c . <<<"$doc_plain_keys")"
 l1_shell_n="$(grep -c . <<<"$doc_shell_keys")"
 l1_sentence="$l1_shell_n lines in \`shell\` format; $l1_plain_n in \`plain\`"
+# Anti-vacuity controls for the prose slice (same discipline as the fence-side controls above),
+# then the match: against the FLATTENED slice only, never the whole document. A slice that runs
+# to EOF because `## Exit codes` stopped matching leaves `found` unset and the awk exits
+# non-zero, and a slice that comes back empty — both redden here, so a broken anchor cannot
+# compare green against nothing.
+l1_slice="$(emit_fence_prose)"; l1_slice_rc=$?
+assert "0258 L1 control: the \`### Emit\` prose slice is non-empty" \
+  '[ -n "$l1_slice" ]'
+assert "0258 L1 control: the prose slice reached its \`## Exit codes\` terminator" \
+  '[ "$l1_slice_rc" -eq 0 ]'
+l1_slice_flat="$(flatten <<<"$l1_slice")"
+assert "0258 L1 control: the flattened prose slice is non-empty" \
+  '[ -n "$l1_slice_flat" ]'
 assert "0258 L1: the doc's line-count prose tracks the fence ($l1_shell_n/$l1_plain_n)" \
-  'grep -qF -- "$l1_sentence" "$REPO/scripts/docket-config.md"'
+  'grep -qF -- "$l1_sentence" <<<"$l1_slice_flat"'
 
 # ============================================================================
 # Change 0258 leg 2 — rung-pair completeness, computed from the resolver
