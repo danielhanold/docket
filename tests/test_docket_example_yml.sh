@@ -75,8 +75,21 @@ git -C "$tmp/full" push --quiet origin main
 # failed, $tmp/full's origin/main would carry no .docket.yml, both sides would resolve as
 # no-config, and the byte-identity assert below would go green while proving nothing. Prove the
 # example actually reached the fixture's origin/main BEFORE trusting the comparison.
+#
+# CAPTURED FIRST, never `git show … | grep -q` (AGENTS.md § Shell). This assert was that pipeline
+# and it was an intermittent RED under parallel suite load — the failure this repair exists for.
+# The example is ~40KB, which is larger than a macOS pipe's 16KB default capacity; unloaded the
+# kernel grows the pipe to 64KB, the whole blob fits, and `git show` exits 0 before `grep -q` ever
+# closes the read end. Under the parallel runner the kernel declines to grow it, `git show` blocks
+# with the blob half-written, `grep -q` matches on the `metadata_branch:` line and exits, and
+# `git show` takes SIGPIPE — which `set -o pipefail` (line 6) promotes to the pipeline's 141.
+# Measured on the change-0276 hardware: 70/70 runs returned 141 under pipe-buffer pressure and
+# 0/70 unloaded, so file GROWTH was never the trigger — the pre-0276 example failed identically.
+# The emptiness leg keeps the guard's teeth: an unpushed fixture makes `git show` error to empty,
+# which reddens here rather than sailing into a vacuous byte-identity comparison.
+pushed_example="$(git -C "$tmp/full" show origin/main:.docket.yml 2>/dev/null)"
 assert "fidelity fixture: example reached the fixture's origin/main" \
-  'git -C "$tmp/full" show origin/main:.docket.yml 2>/dev/null | grep -q "^metadata_branch:"'
+  '[ -n "$pushed_example" ] && grep -q "^metadata_branch:" <<<"$pushed_example"'
 
 # --repo-dir differs between the two fixtures, and plain format emits absolute REPO_ROOT /
 # METADATA_WORKTREE paths — normalize those two lines out before diffing.
@@ -831,8 +844,12 @@ assert "completeness: runners block header present" 'grep -Eq "^runners:" "$EX"'
 # standard any-layer tag like its two finalize siblings. The pre-0102 example carried a bespoke
 # three-line note asserting the opposite (repo-committed only, silently ignored elsewhere) —
 # that text described a state that no longer exists, and this pair keeps it from coming back.
+# Window captured first, exactly like its 0190 sibling below — never `awk … | grep -q`, which
+# SIGPIPEs the producer under pipefail. An empty window still reddens here (grep finds nothing in
+# it), so this leg needs no separate non-vacuity anchor the way the NEGATED guards do.
+rpa_window="$(awk '/^  # require_pr_approval/,/^  require_pr_approval:/' "$EX")"
 assert "0102: require_pr_approval carries the any-layer scope tag" \
-  'awk "/^  # require_pr_approval/,/^  require_pr_approval:/" "$EX" | grep -qF "scope: any layer"'
+  'grep -qF "scope: any layer" <<<"$rpa_window"'
 assert "0102: the stale repo-committed-only note is gone" \
   '! grep -qF "read by the finalize SKILL BODY, not by the config" "$EX"'
 
@@ -1182,12 +1199,27 @@ assert "no ACTIVE agent_harnesses: header" '! grep -Eq "^agent_harnesses:" "$EX"
 # Scoped to the commented agents: excerpt (through the real, ACTIVE runners: header that follows
 # it): the whole-file pattern also matches runners.codex: (change 0079), which IS meant to ship
 # active — a real false positive caught while writing this guard.
+#
+# The excerpt is captured ONCE into a variable and searched with a here-string. As a pipeline
+# (`sed … "$EX" | grep -Eq …`) under this file's `set -o pipefail` these four guards were not
+# merely flaky, they were SELF-DEFEATING: SIGPIPE reaches the producer only when the consumer
+# exits EARLY, and `grep -Eq` exits early only when it MATCHES — that is, only when the guard is
+# supposed to fire. The 141 then inverts through the leading `!` into a green assert, so the one
+# case these asserts exist to catch is the one case they could not report. The excerpt is 7KB
+# today, under a 16KB pipe, so the inversion is still latent — but it grows by ~2KB per shipped
+# harness block, and nothing would have announced the crossing.
+agents_excerpt="$(sed -n '/^# agents:$/,/^runners:$/p' "$EX")"
+# NON-VACUITY ANCHOR for the four negated guards below: a renamed header would leave the sed range
+# empty, and an empty haystack satisfies every `! grep` in the group silently.
+assert "the commented agents: excerpt was located (non-vacuity anchor for the ACTIVE-header guards)" \
+  '[ -n "$agents_excerpt" ] && grep -qF "# agents:" <<<"$agents_excerpt" &&
+   grep -Eq "^runners:" <<<"$agents_excerpt"'
 assert "no ACTIVE codex: header under agents:" \
-  '! sed -n "/^# agents:$/,/^runners:$/p" "$EX" | grep -Eq "^[[:space:]]*codex:[[:space:]]*$"'
+  '! grep -Eq "^[[:space:]]*codex:[[:space:]]*$" <<<"$agents_excerpt"'
 assert "no ACTIVE cursor: header under agents:" \
-  '! sed -n "/^# agents:$/,/^runners:$/p" "$EX" | grep -Eq "^[[:space:]]*cursor:[[:space:]]*$"'
+  '! grep -Eq "^[[:space:]]*cursor:[[:space:]]*$" <<<"$agents_excerpt"'
 assert "no ACTIVE opencode: header under agents:" \
-  '! sed -n "/^# agents:$/,/^runners:$/p" "$EX" | grep -Eq "^[[:space:]]*opencode:[[:space:]]*$"'
+  '! grep -Eq "^[[:space:]]*opencode:[[:space:]]*$" <<<"$agents_excerpt"'
 presence_sensitive_marker_count="$(grep -cF "PRESENCE-SENSITIVE: uncommenting this key changes behavior" "$EX")"
 presence_sensitive_expected="$(printf '%s\n' $presence_sensitive_keys | grep -c .)"
 assert "PRESENCE-SENSITIVE marker count is exactly $presence_sensitive_expected, matching presence_sensitive_keys ($presence_sensitive_keys; got $presence_sensitive_marker_count; a new commented PRESENCE-SENSITIVE key must add its name to presence_sensitive_keys near the top of (2b), in the same commit as its marker comment)" \
@@ -1202,7 +1234,7 @@ assert "PRESENCE-SENSITIVE marker count is exactly $presence_sensitive_expected,
 assert "codex example is singly commented, like claude and cursor (all three mirror the sidecar)" \
   'grep -Eq "^#[[:space:]]+codex:[[:space:]]*$" "$EX" && ! grep -Eq "^#[[:space:]]+#[[:space:]]*codex:[[:space:]]*$" "$EX"'
 assert "no doubly-commented harness block survives under agents:" \
-  '! sed -n "/^# agents:$/,/^runners:$/p" "$EX" | grep -Eq "^#[[:space:]]+#[[:space:]]*[a-z]+:[[:space:]]*$"'
+  '! grep -Eq "^#[[:space:]]+#[[:space:]]*[a-z]+:[[:space:]]*$" <<<"$agents_excerpt"'
 # Both legs anchor the header at END OF LINE: prose that merely mentions `# cursor:` in a
 # neighbouring comment is not a block header, and matching it would fail this assert for a comment
 # reflow rather than for a comment-level change.
@@ -1221,7 +1253,15 @@ assert "opencode example is singly commented, like the other three mirrors" \
 # sidecar is what LEADS and this file mirrors. Reading the old side with fm() would not merely be
 # stale: fm() is a first-match-ANYWHERE read, so with no `model:` line left in a source's
 # frontmatter it scans on into the body and can return prose.
-fm(){ sed -n "s/^$2:[[:space:]]*//p" "$1" | head -n1 | sed 's/[[:space:]]*$//'; }
+# First match taken by parameter expansion, not `sed … | head -n1`: an early-exiting consumer
+# SIGPIPEs its producer under this file's `set -o pipefail` (AGENTS.md § Shell). Here that only
+# corrupted the pipeline's STATUS and not the value, since head has already emitted line 1 — but
+# the shape is the one the fidelity assert above lost a race to, and it is not kept alive here.
+fm(){ local _all _first
+  _all="$(sed -n "s/^$2:[[:space:]]*//p" "$1")"
+  _first="${_all%%$'\n'*}"
+  printf '%s\n' "${_first%"${_first##*[![:space:]]}"}"
+}
 # shellcheck source=/dev/null
 . "$REPO/scripts/lib/harness-defaults.sh"
 HD="$REPO/agents/harness-defaults.yml"
@@ -1394,7 +1434,10 @@ assert "mirror: at least four harnesses were mirrored (got $n_shipped)" '[ "$n_s
 # the sidecar. build-max is the ladder's top rung and closes every block.
 last_ex_harness=""; _last_ex_ln=0
 for _h in $HD_SHIPPED_HARNESSES; do
-  _ln="$(grep -nE "^#[[:space:]]*$_h:[[:space:]]*$" "$EX" | head -n1 | cut -d: -f1)"
+  # Captured, then first-line/first-field by parameter expansion — never `grep … | head -n1`,
+  # which SIGPIPEs grep under pipefail (AGENTS.md § Shell).
+  _hits="$(grep -nE "^#[[:space:]]*$_h:[[:space:]]*$" "$EX")"
+  _ln="${_hits%%$'\n'*}"; _ln="${_ln%%:*}"
   if [ -n "$_ln" ] && [ "$_ln" -gt "$_last_ex_ln" ]; then _last_ex_ln="$_ln"; last_ex_harness="$_h"; fi
 done
 assert "round-trip: a last shipped harness block was located in the example (got ${last_ex_harness:-none})" \
@@ -1432,7 +1475,8 @@ assert "round-trip: the slice reaches every shipped harness block (${rt_missing:
 stage2="$(printf '%s\n' "$agents_block" | sed -E 's/^#[[:space:]]?//')"
 # Derive the harness list from the REAL commented agent_harnesses: line (proving IT is valid too)
 # rather than hand-writing an unrelated literal, then extend it to enable cursor.
-harnesses_line="$(sed -n 's/^#[[:space:]]*\(agent_harnesses:.*\)/\1/p' "$EX" | head -n1)"
+harnesses_all="$(sed -n 's/^#[[:space:]]*\(agent_harnesses:.*\)/\1/p' "$EX")"
+harnesses_line="${harnesses_all%%$'\n'*}"
 harnesses_line="$(printf '%s' "$harnesses_line" | sed -E 's/\[claude\]/[claude, cursor, codex, opencode]/')"
 
 SB="$(mktemp -d)"; _sbs="$SB"
@@ -1795,7 +1839,8 @@ assert "(8) every README snippet value equals the example's (${sn_mismatched:-no
 # Matches on the link TARGET, not the link text: the target is what must resolve, so a correct,
 # non-rotted link whose anchor text is reworded (e.g. `[the canonical reference]
 # (.docket.example.yml)`) must stay green rather than reddening on wording alone.
-sn_ptr="$(snippet_section | sed -nE 's/.*\[[^]]*\]\(([^)]*\.docket\.example\.yml)\).*/\1/p' | head -n1)"
+sn_ptr_all="$(snippet_section | sed -nE 's/.*\[[^]]*\]\(([^)]*\.docket\.example\.yml)\).*/\1/p')"
+sn_ptr="${sn_ptr_all%%$'\n'*}"
 assert "(8) the section links to the canonical reference" '[ -n "$sn_ptr" ]'
 assert "(8) canonical-reference link target exists (${sn_ptr:-<no link>})" \
   '[ -n "$sn_ptr" ] && [ -f "$REPO/$sn_ptr" ]'
@@ -2162,5 +2207,80 @@ fx9d_findings="$(scan_fences "$fx9d")"
 fx9d_marker="$(printf '%s\n' "$fx9d_findings" | grep '^marker ')"
 assert "(9) an unknown docket:config-fence token hard-fails via the marker branch with the exact malformed-marker finding (got [${fx9d_marker}])" \
   '[ "$fx9d_marker" = "marker 4 malformed-marker" ]'
+
+# --- (10) SHELL-SHAPE SELF-GUARD: no producer piped into an early-exiting consumer -------------
+# WHY THIS FILE GUARDS ITSELF. AGENTS.md § Shell has forbidden `producer | early-exiting-consumer`
+# under `set -o pipefail` for a long time, and this suite hand-honours it in prose at a dozen
+# sites — yet the rule was still broken HERE, in the single most hazardous spot in the repo: the
+# fidelity fixture's `git show` of the ~40KB example piped into `grep -q`, which turned into an
+# intermittent 141 under the parallel runner and reddened the whole build. A rule that lives only
+# in prose is enforced by whoever remembers it; this pass enforces it mechanically, on the one
+# file that owns the repo's largest producer.
+#
+# DELIBERATELY SCOPED TO THIS FILE. The same shape appears at ~84 further sites across tests/,
+# most over small bounded payloads. Sweeping them is real work with its own risk and belongs in
+# its own change, not in a repair — so this guard does not pretend to repo-wide coverage, and a
+# reader should not infer any.
+#
+# WHAT IS EXEMPT, AND WHY IT IS A SHAPE RULE AND NOT A SPELLING LIST: the consumer half is keyed
+# on shape (any grep whose flag bundle carries -q, or head), never on an enumerated list of
+# invocations. The producer half exempts exactly one class — `printf`/`echo` of an
+# already-materialized shell variable — because bash writes those from a subshell with a payload
+# already bounded by what the test built, and it is this repo's house idiom at roughly 380 sites.
+# Every other producer (git, sed/awk/grep reading a file, a script invocation) has output bounded
+# only by its input, which is the class that broke.
+#
+# KNOWN IMPRECISION, stated rather than hidden: the producer word is read from the first pipeline
+# stage ON THE SAME LINE, so a pipeline whose producer sits on a previous continuation line
+# reports an empty command name rather than the real one. It still REPORTS — the line number is
+# in the finding — so the effect is a less-informative true positive, never a miss.
+sigpipe_guard_awk="$(cat <<'SIGPIPE_GUARD_AWK'
+{
+  if ($0 ~ /^[[:space:]]*#/) next
+  if ($0 !~ /\|[[:space:]]*(grep([[:space:]]+-[A-Za-z]+)*[[:space:]]+-[A-Za-z]*q([[:space:]]|$)|head([[:space:]]|$))/) next
+  i = index($0, "|"); first = substr($0, 1, i - 1)
+  do {
+    prev = first
+    sub(/^[[:space:]]+/, "", first)
+    sub(/^assert[[:space:]]+"[^"]*"[[:space:]]*\\?[[:space:]]*/, "", first)
+    sub(/^["\047]/, "", first)
+    sub(/^(!|\(|\{|&&)/, "", first)
+    sub(/^[A-Za-z_][A-Za-z0-9_]*=\$\(/, "", first)
+    sub(/^[A-Za-z_][A-Za-z0-9_]*\(\)[[:space:]]*\{?/, "", first)
+    sub(/^\$\(/, "", first)
+  } while (first != prev)
+  split(first, w, /[[:space:]]/); cmd = w[1]; sub(/^.*\//, "", cmd)
+  if (cmd == "printf" || cmd == "echo") next
+  print FNR ": " cmd
+}
+SIGPIPE_GUARD_AWK
+)"
+sigpipe_hits="$(awk "$sigpipe_guard_awk" "${BASH_SOURCE[0]}")"
+assert "(10) no producer is piped into an early-exiting consumer in this file (AGENTS.md § Shell)" \
+  '[ -z "$sigpipe_hits" ]'
+if [ -n "$sigpipe_hits" ]; then
+  echo "--- pipelines whose producer can take SIGPIPE (line: producer) ---"
+  printf '%s\n' "$sigpipe_hits"
+  echo "--- capture the producer into a variable, then search it with a here-string ---"
+fi
+
+# GUARD-THE-GUARD. The assert above is green both when the file is clean AND when the pass matches
+# nothing at all, so prove the pass goes RED on the exact shape it exists to catch and STAYS green
+# on the exempt one. Both fixtures run $sigpipe_guard_awk — literally the program that ships.
+#
+# The offending line is ASSEMBLED from $_bar rather than written literally, because this file is
+# its own haystack: a verbatim copy of the defective pipeline sitting in a fixture heredoc here
+# would be found by the whole-file pass above and redden the very assert it is meant to support.
+_bar='|'
+printf '%s\n' "assert \"x\" 'git -C \"\$d\" show origin/main:.docket.yml 2>/dev/null $_bar grep -q \"^k:\"'" \
+  > "$tmp/sigpipe-bad.sh"
+sigpipe_bad="$(awk "$sigpipe_guard_awk" "$tmp/sigpipe-bad.sh")"
+assert "(10) guard-the-guard: the exact defective shape this repair removed is REPORTED (got '${sigpipe_bad}')" \
+  '[ "$sigpipe_bad" = "1: git" ]'
+
+printf '%s\n' "assert \"x\" 'printf \"%s\" \"\$out\" $_bar grep -q \"^k:\"'" > "$tmp/sigpipe-ok.sh"
+sigpipe_ok="$(awk "$sigpipe_guard_awk" "$tmp/sigpipe-ok.sh")"
+assert "(10) guard-the-guard: the exempt printf-of-a-variable idiom is NOT reported (got '${sigpipe_ok}')" \
+  '[ -z "$sigpipe_ok" ]'
 
 exit $fail
