@@ -11,7 +11,7 @@ depends_on: [192]
 related: [164, 166, 181]
 discovered_from: [192]
 adrs: [15, 16]
-spec:
+spec: docs/superpowers/specs/2026-08-09-retune-the-opencode-shipped-model-defaults-for-cost-design.md
 plan:
 results:
 trivial: false
@@ -27,6 +27,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-08-09-retune-the-opencode-shipped-model-defaults-for-cost-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-retune-the-opencode-shipped-model-defaults-for-cost-design.md) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md) |
 <!-- docket:artifacts:end -->
 
@@ -140,26 +141,24 @@ requires in both directions.
 
 ## Open questions
 
-1. **`review-standard`: Luna or Grok?** The one row where the cheap pick and the coherent pick
-   genuinely conflict — and the row hit most often. Luna at $0.066 gives a review ladder of
-   49.9 / 51.3 / 56.9, where `standard` sits just 1.4 points above `lean` *and* runs at `medium`
-   while `lean` runs at `high` — so it is arguable whether standard is meaningfully stronger than
-   lean at all. Grok at $0.450 gives 49.9 / 53.8 / 56.9, a real ladder, for ~7× the price. The
-   table above assumes Luna. **This needs the human's call and is why `auto_groomable` is `false`.**
-2. **Is `openrouter/x-ai/grok-4.5` the correct ID?** Not verified — a guess. Model IDs are external
-   truth: docket keeps no vendor allowlist, and every mirror assert compares generated output
-   against the sidecar that generated it, so **no in-repo test can detect a wrong ID**. Must be
-   confirmed against `opencode models` before this ships, exactly as 0192's verify items required.
-3. **Does OpenRouter expose Grok 4.5's effort levels as separate model IDs or as a
-   `reasoningEffort` passthrough?** Cursor encodes the variant in the ID (`cursor-grok-4.5-high`).
-   If OpenRouter does the same, the `effort:` values on the three Grok rows are wrong and the
-   variant belongs inside the ID instead — which would also make the `build-premium` / `high`-effort
-   rows a different edit than the block above shows.
-4. **What does Grok 4.5 at `medium` actually cost?** The benchmark has no medium row, so
-   `build-premium`'s figure is unmeasured. The −48% claim is sound for the two `high` rows only.
-5. **Does this warrant a live re-certification pass?** 0192 certified the economy, standard, and
-   premium rungs against the *shipped* pins; `build-premium` changes model here. A `opencode debug
-   agent docket-build-premium` re-check is cheap and probably worth carrying as a verify item.
+All resolved by the 2026-08-09 auto-groom (design + adversarial critic pass; full audit trail in
+the linked spec's `## Assumptions`):
+
+1. **`review-standard`: Luna** — committed as the conservative default consistent with the
+   change's cost purpose and this stub's own savings table; risk bounded by `review-deep` (Kimi)
+   and the human merge gate; reversal is a one-line data edit. Rationale audited in the spec.
+2. **`openrouter/x-ai/grok-4.5` is a valid ID** — verified 2026-08-09 against the local
+   `opencode models` listing (independently reproduced by the critic); re-verified at build time
+   since model catalogs drift.
+3. **Effort is never ID-encoded on opencode** — the sync-agents native emitter writes `effort:`
+   as `reasoningEffort:` agent frontmatter (the path shipped rows feed; 0192 live-certified it),
+   and the listing carries no effort-suffixed Grok IDs. The three Grok rows' `effort:` values
+   are the right shape as drafted.
+4. **Grok medium cost** — unmeasured but bounded above by the $0.450 high figure, so the savings
+   direction holds; the exact −48% applies only to the two `high` rows.
+5. **Live re-certification** — yes: carried as a build verify item, as a live dispatch of 0192's
+   certification class (not merely `opencode debug agent`, which observes emission, not provider
+   acceptance).
 
 ## Reconcile log
 
