@@ -16,6 +16,9 @@
 # is `--observe <key>`: ONE short, idempotent look at that dispatch, synthesizing 0 (complete),
 # 1 (failed or unavailable) or 4 (still running — NOT a failure, observe again), and killing the
 # detached PROCESS GROUP when the observation budget is spent rather than orphaning the adapter.
+# On that seam sits the DISAGREEMENT RULE: a sentinel claiming success with no matching git evidence
+# is a failure. For a `build-*` agent the facade reads verify-run's build verdict and reports —
+# never re-dispatches, because a build task may have left partial commits.
 # Contract: scripts/runner-dispatch.md.
 # Mock seams: RUNNERS_DIR, GIT.
 set -uo pipefail
@@ -308,7 +311,35 @@ if [ "$VERB" = "observe" ]; then
         exit 1 ;;
     esac
     if [ "$SEC" = "0" ]; then
-      printf 'runner-dispatch: observe %s — complete (child exited 0)\n' "$OBSERVE_KEY" >&2
+      # LIVENESS said done; now CORRECTNESS decides. A sentinel claiming success with no matching
+      # git evidence is a FAILURE — the delegated run is the party being judged, so its own exit
+      # code can never be the last word. Change 0258's stranded +64 lines exited 0 at the adapter.
+      GITV=""
+      case "$AGENT" in
+        build-*)
+          LSINCE="$(launch_field "$DDIR" since_sha)"
+          # The branch is read from the anchor NOW rather than from the launch record, which does
+          # not carry one. That makes the verdict's `branch` conjunct non-binding here — it can
+          # only ever compare the anchor's HEAD to itself — so the disagreement this leg actually
+          # detects is the `tip` and `tree` pair, which is where change 0258's failure lived.
+          # Passing the branch is still load-bearing: it names the branch in the verdict line a
+          # human reads, and `--build` refuses without it.
+          LBRANCH="$("$GIT" -C "$ANCHOR" rev-parse --abbrev-ref HEAD 2>/dev/null)"
+          GITV="$("$DOCKET_BASH_PATH" "$VERIFY_RUN" --build --worktree "$ANCHOR" \
+                    --branch "${LBRANCH:-HEAD}" --since "${LSINCE:-}" 2>/dev/null)"
+          case "$GITV" in
+            task-committed*) : ;;
+            # OBSERVE-ONLY for build-*: never a re-dispatch. A build task may have left partial
+            # commits, and re-running on top of them is docket-build's "never escalate onto a
+            # stray commit" hazard. Report and stop. An empty verdict lands here too — a check
+            # that could not run is not evidence of success.
+            *) printf 'runner-dispatch: observe %s — FAILED (the child exited 0 but git disagrees: %s); work left in %s for inspection\n' \
+                 "$OBSERVE_KEY" "${GITV:-no-verdict}" "$ANCHOR" >&2
+               exit 1 ;;
+          esac ;;
+      esac
+      printf 'runner-dispatch: observe %s — complete (child exited 0%s)\n' \
+        "$OBSERVE_KEY" "${GITV:+; $GITV}" >&2
       exit 0
     fi
     printf 'runner-dispatch: observe %s — FAILED (child exited %s); see %s/stderr.log\n' \
@@ -379,6 +410,11 @@ fi
 # does not reach Step 7), so gating one would fire on every healthy build. status / adr /
 # review-* / finalize-change / auto-groom are likewise out of scope, and an unrecognised agent is
 # a no-op — never a guess.
+#
+# This SYNCHRONOUS path's gate stays scoped to implement-next. The build disposition is NOT bolted
+# on here: it lives on the `--observe` seam (change 0271), where a detached child's terminal state
+# is actually knowable and where the subject is a COMMIT on a feature branch rather than a change's
+# metadata status. The two never overlap, which is why this fence never grew a build leg.
 #
 # The snapshot must be taken BEFORE the handoff: the gate's subject is what THIS run claimed, and
 # that is only knowable as a diff across the hand-off. A snapshot that cannot be read disables the

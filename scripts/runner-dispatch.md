@@ -128,7 +128,9 @@ sides of the handoff, default `scripts/docket.sh`).
 
    `run-halted` never re-dispatches — a halt means a human is needed. A `build-*` delegation leaves
    its change `in-progress` by design, which is why the agent gate is load-bearing rather than an
-   optimization. An unrecognised agent is a no-op, never a guess. A snapshot that cannot be read, a
+   optimization; a build task's terminal state is a **commit on its feature branch**, not a change
+   status, so its disposition lives on the `--observe` seam (see *Liveness vs correctness* below)
+   rather than being bolted onto this synchronous gate. An unrecognised agent is a no-op, never a guess. A snapshot that cannot be read, a
    failed clock read, or an ambiguous claim set all **disable the gate with a warning** — none of
    them ever converts a healthy dispatch into a failure. A failed metadata re-sync (either side) is
    likewise best-effort: it warns and degrades the gate's freshness rather than failing a dispatch
@@ -207,10 +209,11 @@ validation and anchoring as every other call, then makes **one pass** over the d
 
 1. a `killed` marker ⇒ terminal, **result unavailable** (`1`) — and it re-reports identically
    forever, which is what makes the observation idempotent across a caller's retry loop;
-2. a `done` sentinel ⇒ the child is finished. `exit_code=0` ⇒ **complete** (`0`); a non-zero code
-   ⇒ **failed** (`1`), naming the code and the `stderr.log` to read; a sentinel that does not parse
-   ⇒ **result unavailable** (`1`), because a malformed sentinel means the *launcher* did not finish
-   cleanly and an exit code read out of garbage would be a fabricated verdict;
+2. a `done` sentinel ⇒ the child is finished. `exit_code=0` ⇒ **complete** (`0`), *unless* a git
+   read disagrees (see *Liveness vs correctness*); a non-zero code ⇒ **failed** (`1`), naming the
+   code and the `stderr.log` to read; a sentinel that does not parse ⇒ **result unavailable** (`1`),
+   because a malformed sentinel means the *launcher* did not finish cleanly and an exit code read
+   out of garbage would be a fabricated verdict;
 3. no sentinel ⇒ **still running** (`4`), unless the observation budget is spent.
 
 **The budget.** `delegation_observation_budget` minutes (the environment wins, so a caller can hand
@@ -236,7 +239,38 @@ it. That case reports result unavailable, writes no `killed` marker, and names t
 **Liveness vs correctness.** The sentinel is the *only* source of liveness — the facade never
 infers "still running" from git state, and never infers "finished" from anything but the wrapper's
 own sentinel. **Correctness** is a separate judgment, made from git rather than from the child's
-self-reported code; the dispositions that make it are described under the run gate above.
+self-reported code. Keeping the two sources apart is what lets the facade observe a *live* child
+without ever reading liveness out of git state.
+
+**The disagreement rule (change 0271).** A sentinel claiming success (`exit_code=0`) with no
+matching git evidence is a **failure** — correctness wins over liveness. The delegated run is the
+party being judged, so its own exit code can never be the last word about the work it left behind:
+change 0258 stranded +64 uncommitted lines and exited `0` at the adapter.
+
+The observe seam therefore carries a git-read disposition for two agent families, and only those:
+
+- **`implement-next`** — unchanged. Its disposition is the synchronous run gate above, with its
+  `verify-run <id>` verdicts, its **one** re-dispatch, and its `1` / `3` / `0` codes.
+- **`build-*`** — new. On `exit_code=0` the facade reads `verify-run.sh --build --worktree <anchor>
+  --branch <anchor HEAD> --since <the launch record's since_sha>`. `task-committed` ⇒ **complete**
+  (`0`), with the verdict echoed on the diagnostic line. Every other answer — `task-incomplete`,
+  `task-unverifiable`, or no verdict at all — ⇒ **failed** (`1`), naming the git verdict and the
+  worktree the work was left in. A check that could not run is not evidence of success.
+- every other agent (`status`, `adr`, `review-*`, `finalize-change`, `auto-groom`, an unrecognised
+  name) keeps the **sentinel-only** disposition. No git verdict is read and none is claimed.
+
+**`build-*` is observe-only — never re-dispatched.** A build task may have left partial commits, and
+re-running an adapter on top of them is `docket-build`'s "never escalate onto a stray commit"
+hazard. The facade reports and stops; the partial work stays in the worktree for a human or for the
+build role's own escalation to decide about.
+
+**`task-committed` proves clean completion, not semantic success.** Its three conjuncts say the task
+ran to its commit and stranded nothing. They do not certify that the commit implements the plan task
+correctly — that judgment stays with `docket-build`'s suite gate and the review role. One caveat a
+reader must not miss: the branch handed to `--build` is the anchor's HEAD read at observation time,
+because the launch record carries no branch, so the verdict's `branch` conjunct cannot bind here.
+The disagreement this leg actually detects is the `tip` and `tree` pair — which is where change
+0258's failure lived.
 
 ## Exit codes
 
@@ -268,8 +302,8 @@ The full post-re-dispatch matrix, second verdict → exit: `run-complete` → `0
 
 | Exit | Meaning |
 |---|---|
-| `0` | terminal — the dispatch completed |
-| `1` | terminal — failed, **or** the result is unavailable (a distinct stderr diagnostic tells them apart: a `FAILED` line names the child's code, a `RESULT UNAVAILABLE` line says why no code could be trusted) |
+| `0` | terminal — the dispatch completed: the sentinel says `exit_code=0` **and** no git read disagrees |
+| `1` | terminal — failed, **or** the result is unavailable (a distinct stderr diagnostic tells them apart: a `FAILED` line names the child's code *or* the git verdict that contradicts it, a `RESULT UNAVAILABLE` line says why no code could be trusted) |
 | `4` | **not terminal — still running; observe again** |
 | other | a usage error from the shared validation above (missing/invalid key, unknown key, rejected `--worktree`), which exits `1` like any other abort |
 
@@ -304,6 +338,10 @@ re-signalling or discovering a different state.
   re-dispatched, never exit-0. Stop and surface, per `docket-implement-next`'s disposition table.
 - The run gate is scoped to `--agent implement-next` and never writes docket state — it acts only
   by running an agent. It re-dispatches an unfinished change **at most once**.
+- The **observe** seam's git-read disposition covers `implement-next` and `build-*` and nothing
+  else. A sentinel claiming success that git contradicts is a failure — correctness outranks the
+  child's self-report — and for `build-*` that failure is **observe-only**: reported, never
+  re-dispatched, because a build task may have left partial commits.
 - The gate acts on at most one change per dispatch, and only on one whose `claimed_at` falls inside
   this dispatch's window. It never re-dispatches onto a claim it cannot attribute to itself.
 - Never degrades a delegation request to a native run.
