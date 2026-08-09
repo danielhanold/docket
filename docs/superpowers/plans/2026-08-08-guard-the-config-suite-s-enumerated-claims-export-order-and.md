@@ -31,6 +31,59 @@ Copied verbatim from the spec and `AGENTS.md`; every task's requirements implici
 
 ---
 
+## Amendment (2026-08-09) — the focused proof harness, and the state Task 1 resumes from
+
+Two corrections to the tasks below, made after two runs halted inside Task 1. **They change no
+assert, no guard, and no design** — only how the mutation proofs are executed and what Task 1
+starts from.
+
+**1. Use a focused proof harness for every mutation proof.** `tests/test_docket_config.sh` is a
+single monolithic script, so `bash tests/test_docket_config.sh` re-runs all ~490 asserts —
+**measured at 68 s per run**. Task 1 as originally written serialises seven such runs and Task 2
+six, which is what exhausted the dispatch window twice. Every mutation proof below therefore runs
+against a throwaway harness built from the file's helper preamble plus the change-0258 sections —
+**measured at 1 s**, with the eight `0258 L1` assert lines byte-identical to the full run.
+
+Build it, from the worktree root, and **rebuild it after any edit to the change-0258 blocks in**
+`tests/test_docket_config.sh`:
+
+```bash
+{ sed -n '1,116p' tests/test_docket_config.sh
+  sed -n '/^# Change 0258 leg 1 /,$p' tests/test_docket_config.sh | sed -n '/^assert "0174 template integrity/q;p'
+  echo 'exit $fail'
+} > tests/.focus-0258.sh
+bash tests/.focus-0258.sh 2>&1 | grep -E '0258|NOT OK'
+```
+
+Lines 1–116 are the preamble through `rung()` — `assert`, `mkrepo`, `ensure_test_runtime`, `rung`,
+`$REPO`, `$tmp` — which is everything both legs consume. The harness must live **inside
+`tests/`** (`$REPO` derives from `${BASH_SOURCE[0]}`) and must **not** be named
+`test_docket_config*.sh`, or it would join leg 2's family glob and double every marker. The
+leading `.` keeps it out of the suite runner's own glob.
+
+Constraints on its use:
+- The harness is a **proof accelerator, not the gate**. Each task still ends with **one** full
+  `bash tests/test_docket_config.sh` run before its commit, and Task 3's `scripts/run-tests.sh`
+  gate is unchanged.
+- Leg-2 proofs need no rebuild between mutations: the marker collection and the layer derivation
+  both read files from disk, so mutating `tests/test_docket_config.sh` or
+  `scripts/docket-config.sh` is observed by the harness as-is.
+- **Delete `tests/.focus-0258.sh` before every clean-check and commit.** It is untracked, so it
+  will show in `git status --porcelain` and must never be committed.
+
+**2. Task 1 resumes from work already in the tree.** A prior run left
+`tests/test_docket_config.sh` **modified but uncommitted** with the Task 1 Step 1 block already
+applied verbatim — verified green (eight `0258 L1` asserts, zero `NOT OK`) against the full suite
+on 2026-08-09. **Adopt that diff; do not rewrite it.** Confirm it first with
+`git diff -- tests/test_docket_config.sh` and check it matches Step 1's block. `scripts/docket-config.md`
+and `scripts/docket-config.sh` are clean — every earlier mutation was restored.
+
+**3. Task 1 Step 2's expected count is wrong.** It says "nine `ok - 0258 L1 …` lines"; the Step 1
+block contains exactly **eight** asserts, and eight is the correct expectation. Corrected in place
+below.
+
+---
+
 ## File Structure
 
 | File | Change | Responsibility |
@@ -129,12 +182,16 @@ assert "0258 L1: the doc's line-count prose tracks the fence ($l1_shell_n/$l1_pl
 
 This guard pins a claim that is **true today**, so the first run must pass. A red run here means the extraction is broken, not that the doc is wrong — debug the extractor, do not edit the doc.
 
-Run:
+Run the **full** file once here — this is the baseline confirmation, so it is worth the 68 s — then
+build the focused harness per the Amendment and confirm it reproduces the same eight lines.
+
 ```bash
 cd /Users/homer/dev/docket/.worktrees/guard-the-config-suite-s-enumerated-claims-export-order-and
-bash tests/test_docket_config.sh 2>&1 | grep '0258 L1'
+bash tests/test_docket_config.sh 2>&1 | grep -E '0258 L1|NOT OK'
 ```
-Expected: nine `ok - 0258 L1 …` lines, no `NOT OK`.
+Expected: **eight** `ok - 0258 L1 …` lines, no `NOT OK`. (The Step 1 block contains eight asserts;
+this step originally said nine — see Amendment item 3.) Every later proof in this task runs against
+the harness instead.
 
 - [ ] **Step 3: Mutation-prove it — doc-side reorder**
 
@@ -143,7 +200,7 @@ Swap two adjacent entries in the `### Emit` fence of `scripts/docket-config.md` 
 ```bash
 cp scripts/docket-config.md /tmp/dc-md.bak
 perl -0pi -e 's/^ADRS_DIR\nRESULTS_DIR$/RESULTS_DIR\nADRS_DIR/m' scripts/docket-config.md
-bash tests/test_docket_config.sh 2>&1 | grep '0258 L1'
+bash tests/.focus-0258.sh 2>&1 | grep '0258 L1'   # focused harness — see the Amendment
 cp -f /tmp/dc-md.bak scripts/docket-config.md
 ```
 Expected while mutated: `NOT OK - 0258 L1: plain emission order equals the doc fence…` **and** the shell-format assert. Record both lines.
@@ -155,7 +212,7 @@ Delete one fence entry, run, restore.
 ```bash
 cp scripts/docket-config.md /tmp/dc-md.bak
 perl -0pi -e 's/^LEARNINGS_CAP\n//m' scripts/docket-config.md
-bash tests/test_docket_config.sh 2>&1 | grep '0258 L1'
+bash tests/.focus-0258.sh 2>&1 | grep '0258 L1'   # focused harness — see the Amendment
 cp -f /tmp/dc-md.bak scripts/docket-config.md
 ```
 Expected while mutated: both sequence asserts red **and** `NOT OK - 0258 L1: the doc's line-count prose tracks the fence (32/33)` — the numerals derive from the extraction, so a shortened fence makes the doc's own sentence stale.
@@ -165,7 +222,7 @@ Then prove the numeral leg alone: with the fence untouched, edit only the prose 
 ```bash
 cp scripts/docket-config.md /tmp/dc-md.bak
 perl -pi -e 's/^33 lines in `shell` format; 34 in `plain`/32 lines in `shell` format; 34 in `plain`/' scripts/docket-config.md
-bash tests/test_docket_config.sh 2>&1 | grep '0258 L1'
+bash tests/.focus-0258.sh 2>&1 | grep '0258 L1'   # focused harness — see the Amendment
 cp -f /tmp/dc-md.bak scripts/docket-config.md
 ```
 Expected while mutated: only the prose assert reddens; both sequence asserts stay green.
@@ -177,7 +234,7 @@ Rename one fence entry without changing the count, run, restore.
 ```bash
 cp scripts/docket-config.md /tmp/dc-md.bak
 perl -0pi -e 's/^BOARD_SURFACES$/BOARD_SURFACE/m' scripts/docket-config.md
-bash tests/test_docket_config.sh 2>&1 | grep '0258 L1'
+bash tests/.focus-0258.sh 2>&1 | grep '0258 L1'   # focused harness — see the Amendment
 cp -f /tmp/dc-md.bak scripts/docket-config.md
 ```
 Expected while mutated: both sequence asserts red, prose assert green (count unchanged) — this is the mutation that the pre-existing presence greps and the count-only `(E')` guard both survive, so it is the one that proves the new guard earns its place.
@@ -187,7 +244,7 @@ Then the runtime side: comment out one `emit` call in `scripts/docket-config.sh`
 ```bash
 cp scripts/docket-config.sh /tmp/dc-sh.bak
 # comment out the single line that emits LEARNINGS_CAP
-bash tests/test_docket_config.sh 2>&1 | grep '0258 L1'
+bash tests/.focus-0258.sh 2>&1 | grep '0258 L1'   # focused harness — see the Amendment
 cp -f /tmp/dc-sh.bak scripts/docket-config.sh
 ```
 Expected while mutated: both sequence asserts red (other pre-existing asserts will also redden — that is fine; confirm the **new** guard fires).
@@ -199,17 +256,24 @@ Rename the heading the extractor anchors on, run, restore.
 ```bash
 cp scripts/docket-config.md /tmp/dc-md.bak
 perl -pi -e 's/^### Emit$/### Emitted values/' scripts/docket-config.md
-bash tests/test_docket_config.sh 2>&1 | grep '0258 L1'
+bash tests/.focus-0258.sh 2>&1 | grep '0258 L1'   # focused harness — see the Amendment
 cp -f /tmp/dc-md.bak scripts/docket-config.md
 ```
 Expected while mutated: `NOT OK - 0258 L1 control: the \`### Emit\` fence extraction is non-empty` plus the two sentinel controls — the guard fails loudly instead of silently comparing an empty doc side against an empty expectation.
 
 - [ ] **Step 7: Verify the file is byte-restored, then commit**
 
+Delete the focused harness first, then re-run the **full** file once so the commit is gated on the
+real suite file and not on the accelerator:
+
 ```bash
-git -C /Users/homer/dev/docket/.worktrees/guard-the-config-suite-s-enumerated-claims-export-order-and status --porcelain
+cd /Users/homer/dev/docket/.worktrees/guard-the-config-suite-s-enumerated-claims-export-order-and
+rm -f tests/.focus-0258.sh
+bash tests/test_docket_config.sh 2>&1 | grep -E '0258 L1|NOT OK'
+git status --porcelain
 ```
-Expected: only `docs/superpowers/plans/…` and ` M tests/test_docket_config.sh`. If `scripts/docket-config.md` or `scripts/docket-config.sh` show as modified, restore them with `git checkout --` before committing.
+Expected: eight `ok - 0258 L1 …` lines, no `NOT OK`; and ` M tests/test_docket_config.sh` as the
+only entry. If `scripts/docket-config.md` or `scripts/docket-config.sh` show as modified, restore them with `git checkout --` before committing. If `tests/.focus-0258.sh` still shows, delete it — it is never committed.
 
 ```bash
 git add tests/test_docket_config.sh
@@ -349,7 +413,7 @@ assert "0258 L2: the pinned rung pairs are exactly the resolver's ordered-pair s
 - [ ] **Step 4: Run it and confirm every new assert is GREEN**
 
 ```bash
-bash tests/test_docket_config.sh 2>&1 | grep '0258 L2'
+bash tests/.focus-0258.sh 2>&1 | grep '0258 L2'   # focused harness — see the Amendment
 ```
 Expected: seven `ok - 0258 L2 …` lines, no `NOT OK`. If the set-equality assert is red, print both sides to see which pair is missing or doubled:
 ```bash
@@ -364,7 +428,7 @@ Delete the s7 fixture together with its marker (the comment block, the marker li
 ```bash
 cp tests/test_docket_config.sh /tmp/tdc.bak
 # delete the entire (s7) block including its `# RUNG_PAIR:` line
-bash tests/test_docket_config.sh 2>&1 | grep '0258 L2'
+bash tests/.focus-0258.sh 2>&1 | grep '0258 L2'   # focused harness — see the Amendment
 cp -f /tmp/tdc.bak tests/test_docket_config.sh
 ```
 Expected while mutated: `NOT OK - 0258 L2: the pinned rung pairs are exactly the resolver's ordered-pair set` — five pinned pairs against six expected.
@@ -376,7 +440,7 @@ Duplicate one marker line, run, restore:
 ```bash
 cp tests/test_docket_config.sh /tmp/tdc.bak
 perl -0pi -e 's/^# RUNG_PAIR: local->committed\n/# RUNG_PAIR: local->committed\n# RUNG_PAIR: local->committed\n/m' tests/test_docket_config.sh
-bash tests/test_docket_config.sh 2>&1 | grep '0258 L2'
+bash tests/.focus-0258.sh 2>&1 | grep '0258 L2'   # focused harness — see the Amendment
 cp -f /tmp/tdc.bak tests/test_docket_config.sh
 ```
 Expected while mutated: the set-equality assert reddens — `sort` (not `sort -u`) keeps the duplicate, so seven pinned entries never equal six expected.
@@ -386,7 +450,7 @@ Then delete **all six** markers, run, restore:
 ```bash
 cp tests/test_docket_config.sh /tmp/tdc.bak
 perl -ni -e 'print unless /^# RUNG_PAIR: /' tests/test_docket_config.sh
-bash tests/test_docket_config.sh 2>&1 | grep '0258 L2'
+bash tests/.focus-0258.sh 2>&1 | grep '0258 L2'   # focused harness — see the Amendment
 cp -f /tmp/tdc.bak tests/test_docket_config.sh
 ```
 Expected while mutated: **both** `NOT OK - 0258 L2 control: the family glob yielded a non-empty pinned pair population` and the set-equality assert — an emptied population fails loudly rather than passing vacuously.
@@ -399,7 +463,7 @@ This is the failure mode the guard exists for. Add a `staging)` arm to `config_s
 cp scripts/docket-config.sh /tmp/dc-sh.bak
 perl -0pi -e 's/^(    local\)     config_scalar_from_lines "\$2" "\$\{CONFIG_LINES_LOCAL\[@\]\}" ;;\n)/$1    staging)   config_scalar_from_lines "\$2" "\${CONFIG_LINES_STAGING[@]}" ;;\n/m' scripts/docket-config.sh
 grep -n 'staging)' scripts/docket-config.sh   # confirm the arm landed
-bash tests/test_docket_config.sh 2>&1 | grep '0258 L2'
+bash tests/.focus-0258.sh 2>&1 | grep '0258 L2'   # focused harness — see the Amendment
 cp -f /tmp/dc-sh.bak scripts/docket-config.sh
 ```
 Expected while mutated: `0258 L2 control: config_scalar_get dispatches at least three config layers (n=4)` stays **green** (the floor grows, it does not redden — that is deliberate), `0258 L2 control: 4 layers imply 12 ordered pairs` stays green, and `NOT OK - 0258 L2: the pinned rung pairs are exactly the resolver's ordered-pair set` fires: six markers against twelve required pairs.
@@ -413,18 +477,23 @@ Rename the function the extraction anchors on, run, restore:
 ```bash
 cp scripts/docket-config.sh /tmp/dc-sh.bak
 perl -pi -e 's/^config_scalar_get\(\)/config_scalar_fetch()/' scripts/docket-config.sh
-bash tests/test_docket_config.sh 2>&1 | grep '0258 L2'
+bash tests/.focus-0258.sh 2>&1 | grep '0258 L2'   # focused harness — see the Amendment
 cp -f /tmp/dc-sh.bak scripts/docket-config.sh
 ```
 Expected while mutated: the `at least three config layers (n=0)` control and all three known-layer controls redden — a broken anchor cannot empty-compare green.
 
 - [ ] **Step 9: Verify byte-restoration, then commit**
 
+Delete the focused harness first, then re-run the **full** file once so the commit is gated on the
+real suite file:
+
 ```bash
+rm -f tests/.focus-0258.sh
+bash tests/test_docket_config.sh 2>&1 | grep -E '0258 L|NOT OK'
 git status --porcelain
 git diff --stat
 ```
-Expected: only `tests/test_docket_config.sh` modified (plus the untracked plan file, already committed in Task 1's tree). Restore any incidentally-modified `scripts/` file with `git checkout -- scripts/`.
+Expected: eight `0258 L1` plus seven `0258 L2` `ok` lines, no `NOT OK`; and only `tests/test_docket_config.sh` modified. Restore any incidentally-modified `scripts/` file with `git checkout -- scripts/`, and delete `tests/.focus-0258.sh` if it still shows — it is never committed.
 
 ```bash
 git add tests/test_docket_config.sh
