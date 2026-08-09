@@ -2,7 +2,7 @@
 id: 267
 slug: correct-the-stale-field-quote-handling-claim-in-script-contr
 title: 'Correct the stale field() quote-handling claim in script contracts'
-status: proposed
+status: killed
 priority: medium
 type: docs
 created: 2026-08-08
@@ -38,3 +38,11 @@ reconciled: false
 **Boundary** — documentation only: correct the `field()`/`field_raw()` quote-handling sentence wherever it appears in `scripts/*.md`. No code, no accessor behavior, no new guard.
 
 **Reason for deferral** — #0244's branch scope was the read-shape selection rule and its census guard; `hook` is not a read that change migrated, so editing this paragraph would have been scope creep on a branch already carrying 22 files.
+
+## Why killed
+
+Consolidated into #0265 at the 2026-08-09 backlog triage: both changes are small corrections of
+text the 0138/0244/0255 quote-handling lineage left wrong — 0265 branches the misleading
+ADR-0065 quote-leg diagnostic, this one corrects the stale `field()` contract claim. Same
+lineage, same review family, one small groom and one PR cover both. 0265 carries this stub's
+scope verbatim as its second leg.

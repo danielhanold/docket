@@ -8,7 +8,7 @@ type: fix
 created: 2026-08-08
 updated: 2026-08-08
 depends_on: []
-related: []
+related: [267]
 discovered_from: [255]
 adrs: []
 spec:
@@ -36,5 +36,16 @@ reconciled: false
 **Independent value** — stands with 0255 reverted: the wording is inherited from the 0173 twin and is misleading wherever the quote leg exists at all. 0255 only raised the cost by propagating it to two more validators.
 
 **Boundary** — diagnostic *wording* for the quote leg, in the validators that judge an `agents:` config value, plus whatever sentinels pin those strings. It does not touch the firing predicates, the strip order, the `#` leg, or which values are accepted — no behavior change beyond the text a user reads on refusal.
+
+**Second leg (absorbed from #0267, killed pointing here, 2026-08-09 triage) — correct the stale
+`field()` quote-handling claim in script contracts.** `scripts/render-learnings-index.md` still
+states "`field()` returns the raw scalar with surrounding quotes intact" — wrong since change
+0138: `field()` strips a matched quote pair; `field_raw()` is the accessor that preserves them.
+It sits in the paragraph immediately after one #0244 rewrote (PR #184), so a reader trusting the
+contract next to the corrected text gets the opposite of the truth. Sweep every `scripts/*.md`
+contract for the same stale claim while the context is loaded (0138 changed the behavior
+repo-wide). Docs only on that leg: no code, no accessor behavior, no new guard. Both legs are
+corrections of text the 0138/0244/0255 quote-handling lineage left wrong; one small groom covers
+them together.
 
 **Reason for deferral** — it inverts an assumption 0255's spec settled at groom time (byte-identical diagnostics), so it needs a human's call rather than a build decision, and reversing it mid-branch would have invalidated 0255's own sentinels.
