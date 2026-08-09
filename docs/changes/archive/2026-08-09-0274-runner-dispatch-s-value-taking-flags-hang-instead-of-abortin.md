@@ -2,7 +2,7 @@
 id: 274
 slug: runner-dispatch-s-value-taking-flags-hang-instead-of-abortin
 title: 'runner-dispatch''s value-taking flags hang instead of aborting when given with no value'
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-08-09
@@ -62,3 +62,13 @@ reasonable to scope separately.
 large (20 files, ~2900 lines) and carries its own blocker fixes. Folding an unrelated
 argument-parser repair for four flags it never touches would expand that branch's intended scope
 and blur what its review covered.
+
+## Why killed
+
+Consolidated into #0208 at the 2026-08-09 backlog triage: 0208's flag-parse leg (c) — absorbed
+from #0210, discovered by 0206's whole-branch review — already specifies the identical fix
+(`[ $# -ge 2 ] || die "--flag requires a value"` at all five `shift 2` sites, list derived by
+grep at build time) and the identical tests (one hang-regression leg per flag, bounded by a
+background+poll+kill helper). This stub re-discovered the same defect from 0271's build without
+knowing 0210 had already carried it into 0208. Its measured evidence (`timeout 3 … --runner`
+→ 124) is recorded in 0208's consolidation note.

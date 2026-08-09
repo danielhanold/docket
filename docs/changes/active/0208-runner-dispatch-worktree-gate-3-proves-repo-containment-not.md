@@ -8,7 +8,7 @@ type: fix
 created: 2026-08-05
 updated: 2026-08-07
 depends_on: [237]
-related: [209, 210, 220, 237]
+related: [209, 210, 220, 237, 274]
 discovered_from: [206]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-runner-dispatch-worktree-gate-3-proves-repo-containment-not-design.md
@@ -136,3 +136,9 @@ Flag-parse guards (c):
 2026-08-05: absorbed changes 0209 and 0210 (both killed pointing here). The original stubs'
 mutual "its own change" out-of-scope lines reflected per-stub scoping at mint time and are
 superseded by this merge.
+
+2026-08-09: absorbed change 0274 (killed pointing here) — it re-discovered leg (c) from 0271's
+build, independently of 0210. Fresh evidence it contributed: measured, not inferred —
+`timeout 3 bash scripts/runner-dispatch.sh --runner` returns 124 (observed 2026-08-09). The
+spec's leg (c) already prescribes the identical fix and per-flag hang-regression tests; no spec
+change needed.
