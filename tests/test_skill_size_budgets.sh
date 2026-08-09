@@ -908,6 +908,16 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # inside the 25-word floor, so the multiple after: 1300 (52). docket-implement-next's LINE figure
 # is the same near-zero mode — 164 lines against a 165 budget — so it is taken past the next
 # multiple of 5 to 170 rather than left at one line of headroom.
+# Change 0276's review round raises skills/docket-implement-next/SKILL.md's WORD budget again,
+# 4600 -> 4650: its dummy-mode pointer gained the `results` surface (the Step-6.5 close-out
+# artifact), which was a shipped surface token with no consumer in any skill body — a repo setting
+# `surfaces: [results]` got nothing at all. The extraction argument is the one the 0276 entry above
+# already settles for the other five pointers: the sentence exists to reach an agent that has NOT
+# loaded references/dummy-mode.md, in the body that authors the artifact, so moving it into that
+# reference is the reverse of a pointer. The clause is folded into the ONE pointer sentence the
+# skill already carries rather than added as a second one. Measured actual 4594 words against the
+# 4600 budget is 6 words of margin — the near-zero mode this block warns about — so the next
+# multiple of 50 is taken: 4650 (56 words). The LINE budget is untouched (164 against 170).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -929,7 +939,7 @@ skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     185 3850
 skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
-skills/docket-implement-next/SKILL.md                      170 4600
+skills/docket-implement-next/SKILL.md                      170 4650
 skills/docket-implement-next/references/edge-paths.md       35  500
 skills/docket-implement-next/references/fix-loop.md        185 1900
 skills/docket-implement-next/results-template.md            25  250
