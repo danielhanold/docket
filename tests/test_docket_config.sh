@@ -3040,8 +3040,10 @@ assert "0258 L1: the doc's line-count prose tracks the fence ($l1_shell_n/$l1_pl
 # instead of silently staying at six.
 #
 # The PINNED side is declared by the per-fixture marker lines added to s4-s9, collected across
-# the `tests/test_docket_config*.sh` family glob -- never a ${BASH_SOURCE[0]} whole-file scan,
-# so change 0251's split of this file cannot blind the collection.
+# the `tests/test_docket_config*.sh` family -- never a ${BASH_SOURCE[0]} whole-file scan, so
+# change 0251's split of this file cannot blind the collection -- restricted to GIT-TRACKED
+# members via `git ls-files`, so an untracked scratch or backup file cannot double the pinned
+# set and redden set equality while naming the fixtures instead of the intruder.
 #
 # The verdict is SET equality: a gap, a duplicate, and an unknown layer name all redden, and
 # count equality falls out of it (no hand-written "6", no ">= 6" floor).
@@ -3101,7 +3103,25 @@ rp_expected="$(awk '{ a[NR] = $0 }
 # fixture, so a bare marker parked away from every fixture is dropped here (and the raw-vs-
 # collected count assert then reddens). awk indent classes are `[^[:space:]]`-based per
 # AGENTS.md -- never a literal `[^ ]` space class, which drops tab-indented input.
+#
+# MEMBERSHIP: the collection reads GIT-TRACKED family files only, derived with
+# `git -C "$REPO" ls-files 'tests/test_docket_config*.sh'` -- never a bare shell glob -- so an
+# untracked scratch or backup file in tests/ (e.g. a `test_docket_config2.sh` left behind by a
+# scrapped edit) cannot sneak into the collection, double the pinned set, and redden set
+# equality with a message that names the fixtures rather than the intruder. `ls-files` prints
+# repo-root-relative paths, so each is prefixed with `"$REPO"/` below; the family names are
+# fixed test filenames containing no whitespace, so a newline-split read is a safe way to hand
+# them to awk as separate operands. If `ls-files` returns nothing (a degraded environment) the
+# tracked array stays empty, both collections read nothing, and the population control assert
+# below reddens -- there is deliberately no fallback to the raw glob, which would reintroduce
+# the intruder.
 RUNG_PAIR_WINDOW=10
+rp_family="$(git -C "$REPO" ls-files 'tests/test_docket_config*.sh')"
+rp_family_list="$(paste -sd, - <<<"$rp_family")"
+rp_tracked=()
+while IFS= read -r rp_f; do
+  [ -n "$rp_f" ] && rp_tracked+=("$REPO/$rp_f")
+done <<<"$rp_family"
 rp_pinned="$(awk -v window="$RUNG_PAIR_WINDOW" '
   function flush(   _i, _j) {
     for (_i = 1; _i <= _nm; _i++)
@@ -3114,11 +3134,11 @@ rp_pinned="$(awk -v window="$RUNG_PAIR_WINDOW" '
   { _lines[++_n] = $0 }
   /^# RUNG_PAIR: / { _mpair[++_nm] = substr($0, 14); _mline[_nm] = _n }
   END { flush() }
-' "$REPO"/tests/test_docket_config*.sh | LC_ALL=C sort)"
+' "${rp_tracked[@]}" </dev/null | LC_ALL=C sort)"
 rp_pinned_n="$(grep -c . <<<"$rp_pinned")"
-rp_markers_raw="$(awk '/^# RUNG_PAIR: / { n++ } END { print n + 0 }' "$REPO"/tests/test_docket_config*.sh)"
+rp_markers_raw="$(awk '/^# RUNG_PAIR: / { n++ } END { print n + 0 }' "${rp_tracked[@]}" </dev/null)"
 
-assert "0258 L2 control: the family glob yielded a non-empty pinned pair population" \
+assert "0258 L2 control: the tracked RUNG_PAIR family yielded a non-empty pinned pair population (family: $rp_family_list)" \
   '[ -n "$rp_pinned" ]'
 assert "0258 L2 control: $rp_n layers imply $(( rp_n * (rp_n - 1) )) ordered pairs" \
   '[ "$(grep -c . <<<"$rp_expected")" -eq "$(( rp_n * (rp_n - 1) ))" ]'
