@@ -1710,7 +1710,10 @@ assert "test_command AUTO is NOT the sentinel (case-sensitive)" '[ "$FINALIZE_TE
 # end of this file, computes the expected ordered-pair set from `config_scalar_get`'s layer
 # dispatch and asserts set equality against those markers -- so the markers, not this comment,
 # are the claim of record, and a FOURTH config layer grows the expected set from 6 pairs to 12
-# and reddens the guard until six new fixtures exist.
+# and reddens the guard until six new marker-carrying fixtures exist -- a marker alone does not
+# satisfy it: the leg-2 guard collects a marker only when a `mkrepo` fixture body follows it
+# within the attachment window, so a bare marker pasted without its fixture is dropped and the
+# raw-vs-collected count reddens rather than re-greening the set equality.
 # The forward cases (a higher `auto` masks a lower real command) are s4, s5 and s9; the reverse
 # cases (a lower `auto` must NOT wipe a higher real command) are s6, s7 and s8.
 # s7 is the one earned on unique discriminating power: a committed-rung-specific clear appended
@@ -3001,9 +3004,13 @@ assert "0258 L1: the doc's line-count prose tracks the fence ($l1_shell_n/$l1_pl
 # The verdict is SET equality: a gap, a duplicate, and an unknown layer name all redden, and
 # count equality falls out of it (no hand-written "6", no ">= 6" floor).
 #
-# Accepted residual (spec, Design): a marker line could outlive deletion of its fixture body.
-# The marker sits inside the fixture block so the natural edit removes both; a lying orphan is
-# the same trust class as a lying assert label and is left to review.
+# Accepted residual (spec, Design), narrowed by the attachment guard: a marker detached from its
+# own fixture body still collects when a real fixture's `mkrepo` happens to land within the
+# RUNG_PAIR_WINDOW beneath it -- the raw-vs-collected count can no longer see it, and set
+# equality still forces the pair it names to be a genuine ordered pair, so only a marker
+# duplicating a real pair escapes both asserts. A marker that simply outlives its fixture body's
+# deletion, with no `mkrepo` in the window, is caught by the count assert instead of silently
+# unpinning its masking cell. The remnant stays the same trust class as a lying assert label.
 rp_layers="$(sed -n '/^config_scalar_get()/,/^}/p' "$REPO/scripts/docket-config.sh" \
   | grep -E '^[[:space:]]*[a-z_]+\)[[:space:]]+config_scalar_from_lines' \
   | sed -E 's/^[[:space:]]*([a-z_]+)\).*/\1/' | LC_ALL=C sort)"
@@ -3020,13 +3027,35 @@ done
 rp_expected="$(awk '{ a[NR] = $0 }
   END { for (i = 1; i <= NR; i++) for (j = 1; j <= NR; j++) if (i != j) print a[i] "->" a[j] }' \
   <<<"$rp_layers" | LC_ALL=C sort)"
-rp_pinned="$(grep -hE '^# RUNG_PAIR: ' "$REPO"/tests/test_docket_config*.sh \
-  | sed -E 's/^# RUNG_PAIR: //' | LC_ALL=C sort)"
+# ATTACHMENT: a marker is collected only when a `mkrepo` fixture invocation follows it within
+# RUNG_PAIR_WINDOW lines. The s4-s9 markers sit on the line directly above their mkrepo; 10
+# leaves slack for interleaved comments while staying well under the ~28-line pitch to the next
+# fixture, so a bare marker parked away from every fixture is dropped here (and the raw-vs-
+# collected count assert then reddens). awk indent classes are `[^[:space:]]`-based per
+# AGENTS.md -- never a literal `[^ ]` space class, which drops tab-indented input.
+RUNG_PAIR_WINDOW=10
+rp_pinned="$(awk -v window="$RUNG_PAIR_WINDOW" '
+  function flush(   _i, _j) {
+    for (_i = 1; _i <= _nm; _i++)
+      for (_j = _mline[_i] + 1; _j <= _mline[_i] + window && _j <= _n; _j++)
+        if (_lines[_j] ~ /^[[:space:]]*mkrepo[[:space:]]/) { print _mpair[_i]; break }
+    _nm = 0
+    _n = 0
+  }
+  FNR == 1 && NR > 1 { flush() }
+  { _lines[++_n] = $0 }
+  /^# RUNG_PAIR: / { _mpair[++_nm] = substr($0, 14); _mline[_nm] = _n }
+  END { flush() }
+' "$REPO"/tests/test_docket_config*.sh | LC_ALL=C sort)"
+rp_pinned_n="$(grep -c . <<<"$rp_pinned")"
+rp_markers_raw="$(awk '/^# RUNG_PAIR: / { n++ } END { print n + 0 }' "$REPO"/tests/test_docket_config*.sh)"
 
 assert "0258 L2 control: the family glob yielded a non-empty pinned pair population" \
   '[ -n "$rp_pinned" ]'
 assert "0258 L2 control: $rp_n layers imply $(( rp_n * (rp_n - 1) )) ordered pairs" \
   '[ "$(grep -c . <<<"$rp_expected")" -eq "$(( rp_n * (rp_n - 1) ))" ]'
+assert "0258 L2: every RUNG_PAIR marker is attached to a fixture (collected=$rp_pinned_n, raw=$rp_markers_raw)" \
+  '[ "$rp_pinned_n" -eq "$rp_markers_raw" ]'
 assert "0258 L2: the pinned rung pairs are exactly the resolver's ordered-pair set" \
   '[ "$rp_pinned" = "$rp_expected" ]'
 
