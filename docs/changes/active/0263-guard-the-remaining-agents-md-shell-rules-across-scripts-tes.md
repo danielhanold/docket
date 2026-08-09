@@ -8,7 +8,7 @@ type: chore
 created: 2026-08-08
 updated: 2026-08-08
 depends_on: []
-related: []
+related: [262]
 discovered_from: [254]
 adrs: []
 spec:
@@ -55,6 +55,23 @@ surface, each with a population floor and mutation tests, plus whatever sweep th
 red run demands. It stops at the `## Shell` section: the `Frontmatter and generated blocks` and
 `Guards and tests` rules are a separate question with different shapes, and `docs/` stays excluded
 as immutable historical record (the exclusion `test_grep_portability.sh` already documents).
+
+Two scope rulings recorded at the 2026-08-09 triage:
+
+- **Producer-pipe rule split with #0172.** Groomed change 0172 owns that rule's `scripts/`/`tests/`
+  `*.sh` population (400+ sites, its own canonical forms, its own guard
+  `tests/test_pipefail_shape.sh`). This change's remit for the producer-pipe rule is the
+  **agent-executed markdown surface only**; for `*.sh` it adds nothing on top of 0172. Grooming
+  should decide whether the markdown leg extends 0172's guard or 0254's markdown walk.
+- **Fourth leg (absorbed from #0262, killed pointing here): the single-backslash word-boundary
+  spelling.** 0246's banned class in `tests/test_grep_portability.sh` matches only the
+  two-backslash source form; in bash `"\b"` delivers the identical byte pair to grep, so the
+  surviving spelling reintroduces the BSD-portability defect with the guard green — same
+  guard-the-class-not-the-spelling shape as the three rules above, same file, same
+  policy fork (convert the ~48 sites, or bless with an asserted-exact list per 0246's
+  `elsewhere_shape_exempt` precedent). Known live carriers in the surviving spelling:
+  `tests/test_docket_metadata_branch.sh:112`, `tests/test_cursor_dispatch_rule.sh:38,:93`.
+  The toolchain pin/report question stays #0150's.
 
 **Reason for deferral** — 0254's thesis is two specific BSD tool defaults, settled at groom time
 across assumptions A1–A10 with a scope its spec fixes deliberately. Adding three unrelated shell

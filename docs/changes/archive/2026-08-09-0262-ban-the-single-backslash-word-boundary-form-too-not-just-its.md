@@ -2,7 +2,7 @@
 id: 262
 slug: ban-the-single-backslash-word-boundary-form-too-not-just-its
 title: 'Ban the single-backslash word-boundary form too, not just its escaped spelling'
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-08-08
@@ -59,3 +59,12 @@ review estimated ~42 sites, and the computed figure the change now prints is 48.
 blessing 48 sites across many test files is a change's worth of work in its own right, and folding
 it into 0246 — a change whose scope was three named guard defects — would have expanded that branch
 well past what was groomed and specified.
+
+## Why killed
+
+Consolidated into #0263 at the 2026-08-09 backlog triage: both changes extend the same guard
+surface with the same shape of work — settle a convert-or-bless policy for a grep-derived
+population, sweep it, and extend a shape-keyed guard (`tests/test_grep_portability.sh` territory)
+with population floors and mutation tests. One brainstorm settles both. 0263 carries this stub's
+scope verbatim as its fourth leg, including the known live carriers and the
+`elsewhere_shape_exempt` blessing option.
