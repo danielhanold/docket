@@ -6,12 +6,12 @@ status: proposed
 priority: medium
 type: chore
 created: 2026-08-08
-updated: 2026-08-08
-depends_on: []
-related: [262]
+updated: 2026-08-09
+depends_on: [172]
+related: [262, 253]
 discovered_from: [254]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-09-guard-the-remaining-agents-md-shell-rules-across-scripts-tes-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-09-guard-the-remaining-agents-md-shell-rules-across-scripts-tes-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-guard-the-remaining-agents-md-shell-rules-across-scripts-tes-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -78,3 +81,34 @@ across assumptions A1–A10 with a scope its spec fixes deliberately. Adding thr
 rules and their sweeps would roughly double a change already at 27 files, and the pipefail rule in
 particular is likely to have live sites whose repair is real work rather than a mechanical flag
 insertion — that belongs in a diff a human reads on its own terms.
+
+## What changes
+
+Groomed 2026-08-09 (auto-groom; design in the linked spec, critic-gated, all assumptions sound).
+Three guard homes, one per rule class:
+
+- **Producer-pipe, agent-executed markdown only** — extends 0172's `tests/test_pipefail_shape.sh`
+  with the three-glob markdown surface as a separately-floored population, reusing 0172's taxonomy
+  and `pipefail-ok:` token verbatim. Creates the real dependency `depends_on: [172]` (the guard
+  file must exist first); the build's reconcile re-reads 0172's *built* guard, not its spec.
+- **Leading-`--` grep pattern + awk literal-space class** — one new guard,
+  `tests/test_shell_shape_rules.sh`, over the tracked-minus-docs walk. The leading-`--` leg is
+  guard-only (tree verified clean; compliant-population floor ~117 lines). The awk leg is an owned
+  widening (any `[^ ]` in awk program text, bless token `# awk-space-ok:`), detected with a
+  bounded in-program quote tracker; one live site converts.
+- **Single-backslash word boundary (leg absorbed from killed 0262)** — policy settled:
+  **convert-by-default, per-site `# word-boundary-ok:` bless token** for deliberate PATH-grep
+  idiom; widen the class in `tests/test_grep_portability.sh`, extend its assembled-spelling
+  discipline to its own header comments, add a whole-line-comment drop, and convert the derived
+  site population to explicit `[^[:alnum:]_]` classes with per-site inspection where conversion is
+  not verdict-trivial.
+
+All guards `/usr/bin/grep`-pinned, floored, mutation-tested, budgets-registered.
+
+## Out of scope
+
+- The producer-pipe rule on `*.sh` (0172's remit — the recorded split).
+- The `Frontmatter and generated blocks` and `Guards and tests` AGENTS.md sections.
+- `docs/` in every walk (immutable point-in-time records).
+- The toolchain pin/report (#0150); the prose-anchor house pattern (#0253 — file collision on
+  `test_docket_build.sh`/`test_docket_review.sh`, orderable either way, hence `related:`).
