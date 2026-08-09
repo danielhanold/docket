@@ -12,12 +12,12 @@ related: []
 discovered_from: []
 adrs: []
 spec: docs/superpowers/specs/2026-08-09-dummy-mode-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-09-dummy-mode-plan.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/dummy-mode
-claimed_at: 2026-08-09T18:31:16Z
+claimed_at: 2026-08-09T18:41:11Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-09-dummy-mode-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-dummy-mode-design.md) |
+| Plan | [2026-08-09-dummy-mode-plan.md](https://github.com/danielhanold/docket/blob/feat/dummy-mode/docs/superpowers/plans/2026-08-09-dummy-mode-plan.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
