@@ -400,6 +400,66 @@ assert "0271: the disagreement verdict is idempotent in output" '[ "$out2" = "$o
 assert "0271: no re-dispatch happened for a build agent" \
   '[ "$(git -C "$SBX" rev-list --count HEAD)" -le 2 ]'
 
+# (c2) THE BRANCH CONJUNCT BINDS ON THIS SEAM. The branch is recorded AT LAUNCH, before the child
+#      can move HEAD, so a child that ends somewhere else is caught. Read at observation time it
+#      compared the anchor's HEAD to itself and could never be unmet — one of three conjuncts dead
+#      in production while its unit test stayed green.
+mkbuildrepo
+cat > "$RDIR/fake.sh" <<'FAKE'
+#!/usr/bin/env bash
+cd "$DOCKET_REPO_ROOT" || exit 1
+git checkout -q -b feat/elsewhere
+git commit --allow-empty -qm "task work, on the wrong branch"
+exit 0
+FAKE
+chmod +x "$RDIR/fake.sh"
+KEY="$(blaunch)"
+assert "0271: the launch record carries the branch captured at launch" \
+  'grep -qxF "branch=feat/thing" "$(ddir_for "$KEY")/launch"'
+bsettle "$KEY"
+out="$(bobserve "$KEY" 2>&1)"; rc=$?
+assert "0271: a child that ends on a DIFFERENT branch observes as failed (1)" '[ "$rc" = "1" ]'
+assert "0271: and the verdict names the launched branch with branch unmet" \
+  'grep -qF "task-incomplete feat/thing branch" <<<"$out"'
+
+# (c3) a DETACHED HEAD at the end is likewise not the launched branch — the other half of the
+#      failure this conjunct exists for, and the half a wrong-branch-only test would miss.
+mkbuildrepo
+cat > "$RDIR/fake.sh" <<'FAKE'
+#!/usr/bin/env bash
+cd "$DOCKET_REPO_ROOT" || exit 1
+git commit --allow-empty -qm "task work"
+git checkout -q --detach
+exit 0
+FAKE
+chmod +x "$RDIR/fake.sh"
+KEY="$(blaunch)"
+bsettle "$KEY"
+out="$(bobserve "$KEY" 2>&1)"; rc=$?
+assert "0271: a child that ends on a DETACHED HEAD observes as failed (1)" '[ "$rc" = "1" ]'
+assert "0271: and branch is the unmet conjunct there too" \
+  'grep -qF "task-incomplete feat/thing branch" <<<"$out"'
+
+# (c4) NO SILENT FALLBACK. An older dispatch — or a detached HEAD at launch — records no branch.
+#      Re-reading the anchor's HEAD instead would reinstate the vacuity, so the absence is
+#      surfaced as no positive evidence, the same posture an empty verdict already gets.
+mkbuildrepo
+cat > "$RDIR/fake.sh" <<'FAKE'
+#!/usr/bin/env bash
+cd "$DOCKET_REPO_ROOT" || exit 1
+git commit --allow-empty -qm "task work"
+exit 0
+FAKE
+chmod +x "$RDIR/fake.sh"
+KEY="$(blaunch)"
+bsettle "$KEY"
+DDIR="$(ddir_for "$KEY")"
+rec="$(grep -v '^branch=' "$DDIR/launch")"; printf '%s\n' "$rec" > "$DDIR/launch"
+out="$(bobserve "$KEY" 2>&1)"; rc=$?
+assert "0271: a launch record with no branch is NOT verified against the current HEAD" '[ "$rc" = "1" ]'
+assert "0271: and the missing branch is surfaced as unverifiable" \
+  'grep -qF "task-unverifiable launch-branch-missing" <<<"$out"'
+
 # (d) a non-build, non-implement-next agent keeps the sentinel-only disposition
 make_fixture
 FAKE_SLEEP=0 FAKE_TAIL=0 FAKE_RC=0

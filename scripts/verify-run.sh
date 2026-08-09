@@ -12,10 +12,12 @@
 #        verify-run.sh --build --worktree DIR --branch NAME --since SHA
 #        verify-run.sh --iso-to-epoch <UTC ISO-8601 timestamp>
 #   Build-family verdict lines (change 0271; a build task's terminal state is a COMMIT, not a PR):
-#     task-committed <branch>                 on-branch, tip advanced, tree clean
+#     task-committed <branch>                 on-branch, tip a descendant of --since, tree clean
 #     task-incomplete <branch> <unmet…>       tokens: branch tip tree
 #     task-unverifiable <reason>              the worktree could not be read — never a guess
 #   `task-committed` proves CLEAN COMPLETION, never semantic success.
+#   `--branch` is the branch the worktree was on WHEN THE WORK WAS DISPATCHED — a value read back
+#   after the child ran makes the `branch` conjunct compare HEAD to itself and never bind.
 #   --iso-to-epoch (change 0271) prints one UTC ISO-8601 timestamp as epoch seconds, or nothing
 #   when it does not parse — the SAME `iso_to_epoch` --with-claimed-at uses, exposed so
 #   runner-dispatch.sh's observation budget does not grow a second portable timestamp parse.
@@ -95,11 +97,17 @@ if [ "$MODE" = "build" ]; then
   # 2. the tip advanced past the dispatch-time sha. `--since` is the direct analogue of
   #    DISPATCH_EPOCH: captured after the before-read, so a commit landing in the gap is
   #    excluded either way. An unresolvable since-sha is unverifiable, not "advanced".
+  #    DESCENDANCY, never inequality: "different from" is not "built on top of". A bad rebase or a
+  #    reset onto an unrelated history leaves a tip that differs from the dispatch-time sha while
+  #    the dispatched work is gone, and an inequality reports that as met.
   tip="$("$GIT" -C "$BUILD_WORKTREE" rev-parse HEAD 2>/dev/null)"
   if ! "$GIT" -C "$BUILD_WORKTREE" cat-file -e "${BUILD_SINCE}^{commit}" 2>/dev/null; then
     printf 'task-unverifiable unknown-since-sha\n'; exit 0
   fi
-  [ -n "$tip" ] && [ "$tip" != "$BUILD_SINCE" ] || bunmet+=(tip)
+  if [ -z "$tip" ] || [ "$tip" = "$BUILD_SINCE" ] \
+     || ! "$GIT" -C "$BUILD_WORKTREE" merge-base --is-ancestor "$BUILD_SINCE" "$tip" 2>/dev/null; then
+    bunmet+=(tip)
+  fi
   # 3. the working tree is clean — INCLUDING untracked files. The stranded-work case this
   #    whole change exists for (change 0258) left its +64 lines UNTRACKED, so a
   #    tracked-only check would have called that run clean.
