@@ -123,6 +123,9 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `auto_capture.enabled` | `false` | yes | read from the nested `auto_capture:` block; resolves repo-local > repo-committed > global; `true`/`false`, anything else aborts (change 0091; nested in change 0127) |
 | `auto_capture.types` | `all` | yes | read from the nested `auto_capture:` block; the literal scalar `all` (preserved verbatim, never expanded, so "every type including future ones" stays distinguishable from an explicit subset) or a list drawn from the effective `change_types`. Same whole-list replacement as `change_types`; leaves resolve INDEPENDENTLY, so a high layer may override `enabled` while inheriting `types`. Duplicates, an empty list, or a token outside the effective taxonomy abort (change 0127) |
 | ~~`auto_capture`~~ (scalar) | — | — | **REMOVED in change 0127.** The scalar form is a hard error with no compatibility shim; the diagnostic prints the nested replacement carrying the offending layer's own value |
+| `dummy_mode.enabled` | `false` | yes | read from the nested `dummy_mode:` block; resolves repo-local > repo-committed > global; `true`/`false`, anything else aborts (change 0276) |
+| `dummy_mode.persona` | the shipped default persona | yes | read from the nested `dummy_mode:` block. **Single-line scalar only** — a YAML block scalar (`>`, `|`, with any chomp/indent modifier) and a `#` inside the text each abort with a diagnostic, because the shared reader is line-oriented and strips from the first `#` before unquoting. The `#` refusal keys on the unbalanced leading quote that truncation leaves behind, so a persona whose text legitimately BEGINS with `"` or `'` trips it too — a known limitation, stated rather than papered over; the diagnostic names the real constraint either way. A blank or absent value exports the shipped default persona with a stderr **notice** (never a warning, never disabled), so consumers never special-case an empty persona (change 0276) |
+| `dummy_mode.surfaces` | `all` | yes | read from the nested `dummy_mode:` block; the literal scalar `all` (**preserved verbatim, never expanded** — the `auto_capture.types` precedent, so "every surface including future ones" stays distinguishable from an explicit subset) or an inline list drawn from `dialogue`, `reports`, `results`, `change-sections`, `pr`. An unknown token is warned-and-ignored; an empty list exports the empty string and means no eligible surface (change 0276) |
 | `terminal_publish` | `false` | no (fenced) | `true`/`false`; the default `false` makes `terminal-publish.sh` a no-op for BOTH shapes — archived change files, specs, and ADRs stay on the metadata branch. `true` opts in to the direct-commit publish onto the integration branch. Anything else aborts |
 | `learnings.enabled` | `true` | yes | read from the nested `learnings:` block; resolves repo-local > repo-committed > global; `true`/`false`, anything else aborts |
 | `learnings.cap` | `300` | yes | read from the nested `learnings:` block; resolves repo-local > repo-committed > global |
@@ -294,7 +297,8 @@ applies to it verbatim, same as the global layer.
 
 Precedence per field is the four-layer chain (the `.env` pattern): **repo-local >
 repo-committed > global > built-in.** This applies uniformly to `finalize.gate`,
-`finalize.test_command`, `auto_groom`, `auto_capture`, `board_surfaces`, and each `skills:` leaf.
+`finalize.test_command`, `auto_groom`, `auto_capture`, `dummy_mode`, `board_surfaces`, and each
+`skills:` leaf.
 
 **Guards, both warn-and-ignore, never fatal:**
 - `.docket.local.yml` exists but is not a readable regular file (e.g. a directory) → warned,
@@ -399,10 +403,13 @@ SKILL_PLAN
 SKILL_BUILD
 SKILL_REVIEW
 SKILL_FINISH
+DUMMY_MODE_ENABLED
+DUMMY_MODE_PERSONA
+DUMMY_MODE_SURFACES
 BOOTSTRAP
 ```
 
-34 lines in `shell` format; 35 in `plain` format, with `REPO_ROOT` inserted directly
+37 lines in `shell` format; 38 in `plain` format, with `REPO_ROOT` inserted directly
 after `METADATA_WORKTREE` and `DOCKET_BASH_PATH` following it (or following
 `METADATA_WORKTREE` in shell format). The last line is always `BOOTSTRAP=…`.
 
