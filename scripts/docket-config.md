@@ -132,6 +132,7 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `review.min_fix_severity` | `minor` | yes | read from the nested `review:` block; `minor`/`important`/`blocker`, anything else aborts; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — the minimum finding severity that enters `docket-implement-next`'s Step 6 fix loop |
 | `review.max_fix_tasks` | `10` | yes | read from the nested `review:` block; non-negative integer, anything else aborts; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — the most non-blocker fix **tasks** `docket-implement-next`'s Step 6 fix loop dispatches per run |
 | `gate_observation_budget` | `30` | yes | flat top-level key; integer number of **minutes**; resolves repo-local > repo-committed > global; a non-integer aborts. Behavioral, not coordination-fenced — it bounds how long a caller awaits a terminal build-gate result and is legitimately per-machine. Deliberately **not** nested under `finalize:` (it binds `docket-build`'s gate too) and deliberately **not** a new top-level `gate:` block (which would collide with `finalize.gate`, the gate *mode*) |
+| `delegation_observation_budget` | `60` | yes | flat top-level key; integer number of **minutes**; resolves repo-local > repo-committed > global; a non-integer aborts. Sibling of `gate_observation_budget` and deliberately separate — that key bounds awaiting one **suite run**, this one bounds awaiting a whole delegated **agent run**. Behavioral, not coordination-fenced. Bounds `runner-dispatch --observe`; `0` is legal and buys exactly one observation |
 
 **`finalize.skip_results_only_delta` (change 0190).** The arming switch for the second limb of
 `docket-finalize-change`'s post-rebase suite-skip predicate: with the key unset or `false`, the
@@ -432,6 +433,7 @@ emits no `KEY=value` output.
 | `terminal_publish` is neither `true` nor `false` | 1 |
 | `finalize.skip_results_only_delta` is neither `true` nor `false` | 1 |
 | `gate_observation_budget` is not a non-negative integer | 1 |
+| `delegation_observation_budget` is not a non-negative integer | 1 |
 | `runtime.bash` is absent, relative, non-executable, unversionable, nonnumeric, or Bash <4 | 1 |
 | `runtime.bash` is declared deeper than one level under `runtime:` | 1 |
 | `mktree`/`commit-tree`/push failed during orphan create | 1 |
