@@ -1,6 +1,6 @@
 # Backlog
 
-**278 changes** — 🟢 1 in progress · 🟡 31 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 165 done · 🗑️ 76 killed
+**279 changes** — 🟢 1 in progress · 🟡 32 proposed · ⚪ 4 deferred · ✅ 166 done · 🗑️ 76 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0276](active/0276-dummy-mode.md) | Dummy mode — persona-calibrated human-facing language simplification | `medium` | `feat` | [spec](../superpowers/specs/2026-08-09-dummy-mode-design.md) | `feat/dummy-mode` |
 
-## 🟡 Proposed (31)
+## 🟡 Proposed (32)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -43,6 +43,7 @@
 | [0273](active/0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md) | Put runtime budgets on a host-relative basis and re-seed the table | `medium` | `refactor` | ⏳ waiting on #251 — not yet built |
 | [0275](active/0275-run-gate-has-no-runnable-path-for-slash-command-or-backgroun.md) | Run gate has no runnable path for slash-command or backgrounded implement-next dispatch | `medium` | `fix` | needs-brainstorm |
 | [0277](active/0277-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode.md) | Delegated task briefs travel through shell argv, a lossy model-performed transformation | `medium` | `refactor` | needs-brainstorm |
+| [0279](active/0279-settle-the-walk-site-classifier-s-reachability-gap-and-re-la.md) | Settle the walk-site classifier's reachability gap and re-land 0258's reverted fixes | `medium` | `chore` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -52,12 +53,6 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0258](active/0258-guard-the-config-suite-s-enumerated-claims-export-order-and.md) | Guard the config-suite's enumerated claims: export order and rung pairs | `medium` | `chore` | [#189](https://github.com/danielhanold/docket/pull/189) |  |
 
 ```mermaid
 graph TD
@@ -84,7 +79,6 @@ graph TD
   0253
   0256
   0257
-  0258
   0260
   0261
   0263
@@ -98,13 +92,14 @@ graph TD
   0275
   0276
   0277
+  0279
   0192:::done
   0211:::done
   0237:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (241)</summary>
+<details><summary>✅🗑️ Archive — done + killed (242)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -114,6 +109,7 @@ graph TD
 | [0269](archive/2026-08-09-0269-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child.md) | Decouple the shim wrapper's own pin from the delegated child's | 2026-08-09 |
 | [0267](archive/2026-08-09-0267-correct-the-stale-field-quote-handling-claim-in-script-contr.md) | Correct the stale field() quote-handling claim in script contracts | 2026-08-09 |
 | [0262](archive/2026-08-09-0262-ban-the-single-backslash-word-boundary-form-too-not-just-its.md) | Ban the single-backslash word-boundary form too, not just its escaped spelling | 2026-08-09 |
+| [0258](archive/2026-08-09-0258-guard-the-config-suite-s-enumerated-claims-export-order-and.md) | Guard the config-suite's enumerated claims: export order and rung pairs | 2026-08-09 |
 | [0259](archive/2026-08-08-0259-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md) | Harden render-board: sanitize feeder values and settle the failure contract | 2026-08-08 |
 | [0255](archive/2026-08-08-0255-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule.md) | Complete ADR-0065's quote leg and document the unquoted rule | 2026-08-08 |
 | [0254](archive/2026-08-08-0254-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md) | BSD tool-default sweep: templated mktemp and non-interactive mv | 2026-08-08 |
@@ -132,7 +128,6 @@ graph TD
 | [0239](archive/2026-08-07-0239-detect-merged-s-gh-pr-list-fallback-ignores-repo-so-a-scoped.md) | detect_merged's gh pr list fallback ignores --repo, so a scoped pass queries the wrong repository | 2026-08-07 |
 | [0238](archive/2026-08-07-0238-a-build-worker-may-stage-paths-its-task-never-touched.md) | A build worker may stage paths its task never touched | 2026-08-07 |
 | [0236](archive/2026-08-07-0236-suppressed-execution-handoff-still-ends-run-at-plan.md) | A suppressed execution hand-off still ends the run at the plan — 0113 recurrence | 2026-08-07 |
-| [0235](archive/2026-08-07-0235-writers-emit-unquoted-yaml-title-scalars-so-six-change-files.md) | Writers emit unquoted YAML title scalars, so six change files fail to parse | 2026-08-07 |
 | [0233](archive/2026-08-07-0233-guard-against-stacked-gap-ere-patterns-that-hang-instead-of.md) | Guard against stacked-gap ERE patterns that hang instead of failing | 2026-08-07 |
 | [0232](archive/2026-08-07-0232-the-gate-execution-posture-never-reaches-the-build-workers-t.md) | The gate execution posture never reaches the build workers that also run the full suite | 2026-08-07 |
 | [0230](archive/2026-08-07-0230-a-self-scanning-population-floor-pins-test-docket-config-sh.md) | a self-scanning population floor pins test_docket_config.sh's size and blocks sharding | 2026-08-07 |
@@ -204,7 +199,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 32 done |
+| [2026-08](archive/) | 33 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
