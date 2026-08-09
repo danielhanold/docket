@@ -8,7 +8,7 @@ type: fix
 created: 2026-08-05
 updated: 2026-08-09
 depends_on: [237]
-related: [209, 210, 220, 237, 274]
+related: [209, 210, 220, 237, 270, 274]
 discovered_from: [206]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-runner-dispatch-worktree-gate-3-proves-repo-containment-not-design.md

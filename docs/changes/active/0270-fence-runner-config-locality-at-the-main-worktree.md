@@ -1,17 +1,17 @@
 ---
 id: 270
-slug: machine-local-runner-config-is-unreachable-from-a-feature-wo
-title: 'Machine-local runner config is unreachable from a feature worktree (opencode permissions locality)'
+slug: fence-runner-config-locality-at-the-main-worktree
+title: 'Fence runner-config locality at the main worktree (regression test + contract correction)'
 status: proposed
 priority: medium
-type: fix
+type: chore
 created: 2026-08-08
 updated: 2026-08-09
 depends_on: []
-related: []
+related: [208]
 discovered_from: [269]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-09-fence-runner-config-locality-at-the-main-worktree-design.md
 plan:
 results:
 trivial: false
@@ -25,74 +25,82 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-09-fence-runner-config-locality-at-the-main-worktree-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-fence-runner-config-locality-at-the-main-worktree-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-**Trigger** — surfaced while reconciling change 0269 (decoupling the shim wrapper's own frontmatter
-pin from the delegated child's). 0269's spec names this defect in its own `## Out of scope` as real,
-independently reproducible, and needing its own change; nothing has filed it.
+**Origin — a defect report whose premise was false.** This change was filed as
+*"machine-local runner config is unreachable from a feature worktree"*, inheriting a claim from
+change 0269's spec `## Out of scope`: that `runner-dispatch.sh` resolves `runners.<name>.permissions`
+from the `--worktree` anchor, so a `permissions: auto-approve` grant written in the gitignored
+`.docket.local.yml` would be invisible to a `build-*` delegation and the opencode adapter would
+refuse.
 
-**Opportunity** — `runners.<name>.permissions` is resolved from config anchored at
-`DOCKET_REPO_ROOT`, which `runner-dispatch.sh` sets to the `--worktree` anchor. A build worker is
-dispatched with `--worktree <feature worktree>`, and `.docket.local.yml` is gitignored — so a freshly
-created feature worktree carries no copy of it. A `permissions: auto-approve` grant written in the
-main worktree therefore resolves back to the default `ask` inside the feature worktree, and the
-opencode adapter refuses the dispatch. There is no mechanism today that makes a machine-local runner
-grant reachable from the worktree a delegated worker actually runs in.
+It does not. `runner-dispatch.sh` anchors its config-layer loop at `docket_main_worktree()` — the
+main worktree, never the anchor — and has since the loop was written (change 0079; change 0206 only
+moved the *`DOCKET_REPO_ROOT` export* to the anchor). The adapters open no config files at all;
+`runners/opencode.sh` reads the already-exported `DOCKET_RUNNER_CFG_PERMISSIONS` and uses
+`DOCKET_REPO_ROOT` solely as `--dir`. An empirical probe (grant in a main worktree only, dispatch
+from a sibling feature worktree, env-dumping fake adapter) exported `auto-approve`; an adversarial
+pass over the non-reproduction — nested dispatch, XDG / `DOCKET_HARNESS_ROOT`, hand invocation of
+the adapter, `--launch` detachment, worktree-list ordering — found no path either. The human who ran
+0269 confirms no dispatch ever refused: the claim was written from reading the code.
 
-**Independent value** — stands entirely with 0269 reverted. 0269 repairs the shim's parent-side
-frontmatter pin so the dispatch reaches `runner-dispatch.sh` at all; this defect fires strictly
-downstream of that, in the adapter, and would still block every opencode build delegation on a
-machine using `permissions: auto-approve`.
+**Why not simply kill it.** A competent author read this code and concluded the opposite, and the
+repo made that easy in two places. `tests/test_runner_dispatch.sh` tests worktree anchoring and
+config-layer precedence in two blocks that never cross, so nothing pins "a main-worktree grant
+survives a feature-worktree dispatch" — the invariant could be broken by an ordinary refactor with
+the suite green. And `scripts/runner-dispatch.md` step 3 writes the config paths as
+`<repo>/.docket.local.yml` immediately after step 2 has defined the anchor as possibly a feature
+worktree, with `<repo>` never bound; `scripts/runners/opencode.md`'s env table then names
+`DOCKET_REPO_ROOT` as "the main worktree unless the caller named a feature worktree" and introduces
+`runners.opencode.permissions` on the very next row without saying where *it* is read from.
 
-**Boundary** — the work is: decide and implement where a machine-local runner config is read from
-when the anchor is a feature worktree (main-worktree fallback, an explicit inherit, or an exported
-resolution), and cover it in the runner tests. It deliberately leaves alone the `--worktree` gates
-themselves (ADR-0034 anchoring, the build-* requirement), the permission semantics of any adapter,
-and the `runners:` config-reader duplication that change 0256 owns.
+The decoupling is load-bearing, not incidental: `.docket.local.yml` is gitignored, so anchoring the
+config loop at `--worktree` would silently drop every machine-local runner grant on exactly the
+`build-*` dispatches that require `--worktree`. An invariant that important should not rest on
+nobody refactoring it.
 
-**Reason for deferral** — 0269 is scoped to `sync-agents.sh`'s shim emission plus two new
-`runners.*` generation-time keys, and records an ADR about which harness must resolve a shim's
-frontmatter pin. Fixing config locality means changing how `runner-dispatch.sh` anchors its config
-layers at dispatch time — a different file, a different layer of the stack, and a change whose
-correctness argument is about gitignored-file reachability rather than about wrapper generation.
-Folding it in would put two unrelated failure modes behind one review and one PR.
+**Scope, therefore:** fence the invariant with a regression test and correct the two contracts that
+invited the misreading. No production code changes.
 
-## Auto-groom blocked
+## What changes
 
-**2026-08-09** — autonomous grooming abstains: the stub's factual premise fails reproduction, and
-the honest dispositions (kill, or repurpose) are human-only verdicts.
+Settled design in the linked spec; the shape:
 
-**Undecidable decision** — whether this defect exists at all. The stub (inheriting 0269's spec
-`## Out of scope`) claims `runners.<name>.permissions` is "resolved from config anchored at
-`DOCKET_REPO_ROOT`", the `--worktree` anchor, so a main-worktree `.docket.local.yml` grant is
-unreachable from a feature worktree. The code says otherwise: `runner-dispatch.sh`'s config-layer
-loop iterates `"$REPO_ROOT/.docket.local.yml" "$REPO_ROOT/.docket.yml" "$GLOBAL_CFG"` where
-`REPO_ROOT` is `docket_main_worktree` — the MAIN worktree, never the anchor — and has been anchored
-there since the loop's creation (change 0079; change 0206 only moved the `DOCKET_REPO_ROOT` export
-to the anchor). The adapters resolve no config files: `runners/opencode.sh` reads only the
-already-exported `DOCKET_RUNNER_CFG_PERMISSIONS` and uses `DOCKET_REPO_ROOT` solely as `--dir`. An
-empirical probe (fixture repo, grant in the main worktree's gitignored `.docket.local.yml` only,
-sibling feature worktree, env-dumping fake adapter, dispatch from inside the worktree with
-`--worktree` set) exported `PERMISSIONS=auto-approve` — the grant IS reachable. An adversarial
-critic pass independently attacked the non-reproduction claim (nested dispatch, XDG /
-`DOCKET_HARNESS_ROOT`, hand invocation of the adapter, `--launch` detachment, worktree-list
-ordering) and found no reproduction path; verdict sound on all counts.
+- **`tests/test_runner_dispatch.sh`** gains one section: a **real** linked worktree
+  (`git worktree add`, not a `mkdir` — a plain subdirectory makes the assert vacuous), the grant
+  written to the main worktree's `.docket.local.yml` only, and a dispatch issued from *inside* the
+  worktree with `--worktree` set. Three asserts: the grant reaches the child; the anchor handed to
+  the adapter **is** the linked worktree; and it is **not** the main worktree. The second and third
+  are the anti-vacuity pair — without them a regression that anchored config at `--worktree` *and*
+  let the anchor fall back would stay green.
+- **Mutation test, mandatory:** anchor the config loop at `$ANCHOR`, and separately export
+  `DOCKET_REPO_ROOT="$REPO_ROOT"`. Each must redden its assert; both reverted before commit;
+  results recorded.
+- **`scripts/runner-dispatch.md`** — step 3 binds the config tree explicitly to the main worktree,
+  states that it is independent of `--worktree`, and gives the gitignore reason.
+- **`scripts/runners/opencode.md`** — the `DOCKET_RUNNER_CFG_PERMISSIONS` env-table row and the
+  Prerequisites bullet each say which tree the grant is read from.
 
-**What context is missing** — 0269's spec calls the defect "real, independently reproducible" but
-records no reproduction. Only the human who ran 0269 can say whether a real field refusal was
-observed and, if so, what actually caused it (candidates: a quoted `"auto-approve"` value hitting
-the adapter's unknown-value leg, a hand invocation of the adapter bypassing the facade so no config
-was resolved at all, or a mistaken code reading when the spec was written).
+## Out of scope
 
-**What a human should supply** — the original failure transcript or a confirmation that none
-exists.
+- Editing change 0269's spec — a merged, point-in-time build record. Its stale claim is corrected
+  here, not rewritten there.
+- Any change to `runner-dispatch.sh` or the adapters. The invariant is already correct.
+- The `--worktree` gates themselves (ADR-0034 anchoring, the `build-*` requirement, gate 3's
+  membership test) — change 0208.
+- `runners:` config-reader duplication — change 0256.
+- Whether `permissions: auto-approve` behaves as documented against a real opencode binary; already
+  flagged **Unverified** in `opencode.md`, and an external truth no in-repo test can be an oracle
+  for.
 
-**Recommendation** — this change should probably be **killed** (premise disproven at
-`runner-dispatch.sh`'s config loop and `runners/opencode.sh`'s env-only permissions read), or
-**repurposed** into a small chore: a regression test pinning "a main-worktree `.docket.local.yml`
-`runners.*` grant reaches a feature-worktree dispatch", plus correcting the stale mechanism claim
-in `scripts/runners/opencode.md`'s env table. If repurposed, note the file collision with groomed
-change 0208 (also edits `scripts/runner-dispatch.sh`; disjoint concern — input gates) as a
-`related:` coupling at that point.
+## Coupling
+
+Change **0208** edits the same two files (`scripts/runner-dispatch.sh`'s tests and the adapter
+contracts) on a disjoint concern — input gates — and its spec already converts the existing
+`mkdir` worktree fixtures to real `git worktree add`. A `related:` coupling, not a dependency:
+#0270 stands alone. Whichever lands second rebases and prefers the other's fixture helper.
