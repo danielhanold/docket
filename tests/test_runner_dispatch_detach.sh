@@ -199,6 +199,25 @@ out2="$(observe "$KEY" 2>&1)"; rc2=$?
 assert "observe is idempotent in code" '[ "$rc2" = "$rc" ]'
 assert "observe is idempotent in output" '[ "$out2" = "$out" ]'
 
+# ---- THE RELAY: the child's stdout reaches observe's OWN stdout ------------------
+# `--launch` redirects the adapter's streams into the dispatch dir, so this is the ONLY channel by
+# which an in-context-report agent's result (a build worker's COMPLETE line, a reviewer's findings)
+# can reach its caller — the shim is told to "Relay that observe call's stdout as your result", and
+# without this that instruction is unsatisfiable. Captured with stderr DISCARDED, so nothing a
+# diagnostic prints can satisfy these asserts.
+rout="$(observe "$KEY" 2>/dev/null)"
+assert "0271: observe relays the child's stdout on ITS OWN stdout" \
+  'grep -qF "fake adapter stdout" <<<"$rout"'
+assert "0271: the relay carries the child's stdout only, never its stderr" \
+  '! grep -qF "fake adapter stderr" <<<"$rout"'
+# Diagnostics are all `runner-dispatch: …`-prefixed, so their absence is checked on the prefix
+# rather than on any one message's wording.
+assert "0271: no diagnostic leaks onto the relay stream" \
+  '! grep -qF "runner-dispatch:" <<<"$rout"'
+# VERBATIM: not merely "contains". A prefix, a banner, or a reformat would corrupt a report the
+# caller parses, so the relayed bytes must equal the child's stdout exactly.
+assert "0271: the relay is verbatim — no prefix, no reformat" '[ "$rout" = "fake adapter stdout" ]'
+
 # ---- a failed child -> 1 --------------------------------------------------------
 make_fixture
 FAKE_SLEEP=0 FAKE_TAIL=0 FAKE_RC=9
@@ -207,6 +226,30 @@ for _ in $(seq 1 30); do observe "$KEY" >/dev/null 2>&1; [ "$?" != "4" ] && brea
 out="$(observe "$KEY" 2>&1)"; rc=$?
 assert "a non-zero adapter code observes as failed (1)" '[ "$rc" = "1" ]'
 assert "the failure diagnostic reports the child's code" 'grep -qF "exited 9" <<<"$out"'
+# A failing child still said something, and that is what a caller has to report. The relay is a
+# terminal-path obligation, not a success-path one.
+rout="$(observe "$KEY" 2>/dev/null)"
+assert "0271: a failed child's stdout is relayed too" 'grep -qF "fake adapter stdout" <<<"$rout"'
+assert "0271: and the failure diagnostic still stays off stdout" \
+  '! grep -qF "runner-dispatch:" <<<"$rout"'
+
+# ---- a STILL-RUNNING observation relays NOTHING ---------------------------------
+# The shim observes repeatedly, so a partial relay on the `4` path would hand the caller the same
+# prefix once per pass. The fake is shaped to make that a real measurement: it writes its stdout
+# IMMEDIATELY and then lingers with no sentinel, so `stdout.log` is non-empty at the moment of the
+# still-running observation — an unconditional relay would emit it here and redden the assert.
+make_fixture
+FAKE_SLEEP=0 FAKE_TAIL=10 FAKE_RC=0
+KEY="$(launch status)"
+DDIR="$(ddir_for "$KEY")"
+live_pgid="$(sed -n 's/^pgid=//p' "$DDIR/launch")"
+for _ in $(seq 1 40); do [ -s "$DDIR/stdout.log" ] && break; sleep 0.2; done
+assert "0271: fixture sanity — the live child has already written stdout" '[ -s "$DDIR/stdout.log" ]'
+live_out="$(observe "$KEY" 2>/dev/null)"; live_rc=$?
+assert "0271: fixture sanity — that observation took the still-running path" '[ "$live_rc" = "4" ]'
+assert "0271: a still-running observation emits nothing on stdout" '[ -z "$live_out" ]'
+reap "$live_pgid"
+FAKE_TAIL=0
 
 # ---- a key that is not a live mint is a usage error, never a verdict ------------
 out="$(observe "no-such-key-0000" 2>&1)"; rc=$?

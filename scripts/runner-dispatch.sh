@@ -294,6 +294,25 @@ if [ "$VERB" = "observe" ]; then
   LPGID="$(launch_field "$DDIR" pgid)"
   LSTART="$(launch_field "$DDIR" started_at)"
 
+  # THE RELAY. `--launch` redirects the adapter's stdout into `$DDIR/stdout.log`, so this function
+  # is the ONLY channel by which a delegated agent's result reaches its caller: the generated shim
+  # is told to "Relay that observe call's stdout as your result" (sync-agents.sh's emit_shim), an
+  # instruction satisfiable only if `--observe` puts that captured stdout on ITS OWN stdout, so the
+  # two are one contract and move together. The adapters call the child's stdout the relay
+  # (codex.sh `cat`s the last message; opencode.sh and cursor.sh pass the formatted stdout through),
+  # so it is emitted VERBATIM — never summarized, prefixed, or reformatted; a caller parses it.
+  # Every diagnostic in this branch stays on stderr, which is what keeps the two from interleaving.
+  #
+  # Fired ONLY where the `done` sentinel exists — the child is finished, so its stdout is COMPLETE.
+  # The still-running (4) path deliberately emits nothing: the shim observes repeatedly, and a
+  # partial relay per pass would hand the caller the same prefix over and over. The budget-kill and
+  # own-group-refusal paths emit nothing either — there the run has no result to relay (and in the
+  # latter case it is still live and still writing).
+  relay_child_stdout(){
+    if [ -s "$DDIR/stdout.log" ]; then cat "$DDIR/stdout.log"; fi
+    return 0
+  }
+
   # 1. A prior budget kill is TERMINAL and re-reports identically forever (idempotence).
   if [ -f "$DDIR/killed" ]; then
     printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (the detached run was killed at budget exhaustion)\n' "$OBSERVE_KEY" >&2
@@ -308,6 +327,10 @@ if [ "$VERB" = "observe" ]; then
     case "$SEC" in
       ''|*[!0-9]*)
         printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (the sentinel is malformed; the launcher did not finish cleanly)\n' "$OBSERVE_KEY" >&2
+        # The child is finished either way, so whatever it managed to say is the only evidence left;
+        # relaying it costs nothing and is the difference between a diagnosable failure and a silent
+        # one. The verdict still comes from the exit code, never from the relayed text.
+        relay_child_stdout
         exit 1 ;;
     esac
     if [ "$SEC" = "0" ]; then
@@ -335,15 +358,18 @@ if [ "$VERB" = "observe" ]; then
             # that could not run is not evidence of success.
             *) printf 'runner-dispatch: observe %s — FAILED (the child exited 0 but git disagrees: %s); work left in %s for inspection\n' \
                  "$OBSERVE_KEY" "${GITV:-no-verdict}" "$ANCHOR" >&2
+               relay_child_stdout
                exit 1 ;;
           esac ;;
       esac
       printf 'runner-dispatch: observe %s — complete (child exited 0%s)\n' \
         "$OBSERVE_KEY" "${GITV:+; $GITV}" >&2
+      relay_child_stdout
       exit 0
     fi
     printf 'runner-dispatch: observe %s — FAILED (child exited %s); see %s/stderr.log\n' \
       "$OBSERVE_KEY" "$SEC" "$DDIR" >&2
+    relay_child_stdout
     exit 1
   fi
 

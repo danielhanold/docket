@@ -216,6 +216,18 @@ validation and anchoring as every other call, then makes **one pass** over the d
    out of garbage would be a fabricated verdict;
 3. no sentinel ⇒ **still running** (`4`), unless the observation budget is spent.
 
+**The relay — where the child's output surfaces.** `--launch` redirects the adapter's stdout into
+`<dir>/stdout.log`, so `--observe` is the **only** channel by which a delegated agent's result
+reaches its caller. On every path where the `done` sentinel exists — complete (`0`), a non-zero
+child code, a git disagreement, a malformed sentinel — the observation writes that captured stdout
+to **its own stdout**, byte-for-byte: never summarized, prefixed, or reformatted, because the
+adapter contracts call the child's stdout the relay and a caller parses it. **Every diagnostic this
+verb prints goes to stderr**, so the two streams never interleave and a caller can take stdout as
+the child's words alone. A **still-running** (`4`) observation relays **nothing**: the shim observes
+repeatedly, and a partial relay per pass would hand the caller the same prefix over and over. The
+budget-kill and own-group-refusal paths relay nothing either — there is no finished run to relay,
+and in the latter case the child is still writing.
+
 **The budget.** `delegation_observation_budget` minutes (the environment wins, so a caller can hand
 one down; otherwise it is resolved from config on this branch alone — a verb that needs no config
 must never be failed by config). Elapsed time is measured from the launch record's `started_at`
@@ -285,7 +297,9 @@ restate them.** What is specific here is the division of labour:
 - **The shim launches and observes.** It makes one `--launch` call and then bounded, short
   `--observe` calls. It never blocks for the child's duration and never yields between
   observations (ADR-0024 unamended: a dispatched child observes by *blocking* on short calls; only
-  a top-level session agent may background-and-await).
+  a top-level session agent may background-and-await). Its result is the terminal observation's
+  **stdout** — the relay above — which is what makes an in-context-report agent (`build-*`,
+  `review-*`) able to answer its caller at all.
 - **The facade owns detachment, observation, and disposition.** It starts the adapter in its own
   process group with every stream redirected to a durable per-dispatch directory, records a
   sentinel as the launcher's last act, bounds observation by `delegation_observation_budget`, and
@@ -337,6 +351,9 @@ The full post-re-dispatch matrix, second verdict → exit: `run-complete` → `0
 | `4` | **not terminal — still running; observe again** |
 | other | a usage error from the shared validation above (missing/invalid key, unknown key, rejected `--worktree`), which exits `1` like any other abort |
 
+Stdout on a terminal observation is the **relay** — the child's captured stdout, verbatim and
+alone (see *The relay* above); on `4` it is empty. Diagnostics are always on stderr.
+
 **`4` is not a failure.** It is the loop condition: it means nothing has been decided yet and the
 caller should observe again. Its **only** consumer is the generated shim wrapper, whose standing
 rule is "any non-zero ⇒ abort and report" — a rule that would read a healthy in-flight run as a
@@ -385,6 +402,9 @@ re-signalling or discovering a different state.
 - An observation is **short and idempotent**: it never waits for the child, and it never mutates the
   dispatch except for the one terminal `killed` marker, which exists precisely so that the kill is
   observed identically forever after rather than re-attempted.
+- A terminal observation puts the child's captured stdout on **its own stdout**, verbatim, and every
+  diagnostic on stderr. A non-terminal (`4`) observation puts **nothing** on stdout, so a polling
+  caller never accumulates partial output.
 - Giving up on a dispatch **kills its process group**, never the launcher's pid alone — an
   observation that gave up must not leave the adapter running unwatched. The one exception is a
   record naming the observer's **own** group, which is refused: the facade never signals the group

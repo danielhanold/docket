@@ -1592,13 +1592,15 @@ STEP 2 — observe. Using that key, make repeated SHORT foreground Bash calls:
 
     "\${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh runner-dispatch --observe <key> $flags$wt_slot
 
-Read the EXIT CODE, not the prose:
+Read the EXIT CODE, not the prose. The observe call's own STDOUT is the child's relayed
+output, verbatim; every diagnostic is on stderr, and a still-running observation relays
+nothing:
   - 4 — still running. This is NOT a failure. Observe again; keep going until another code.
-  - 0 — the run completed. Relay the child's final message as your result, and verify its
+  - 0 — the run completed. Relay that observe call's stdout as your result, and verify its
         contract exactly as a native caller would: git state on origin/docket for
         state-contract agents (status, adr); the relayed report for in-context-report agents.
   - any other non-zero — the run failed, halted for a human, or its result is unavailable.
-        Abort-and-report its stderr diagnostic.
+        Abort-and-report its stderr diagnostic, plus any relayed stdout it printed.
 
 Block on each observe call and never yield between them — never hand control back to your
 caller mid-run. The facade owns the observation budget and stops on its own.
