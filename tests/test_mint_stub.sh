@@ -270,7 +270,7 @@ BK="$(body 'newline injection guard')"
 MULTI_TITLE="$(printf 'Line one\ntrivial: true')"
 outK="$(run_mint "$WK" --title "$MULTI_TITLE" --body-file "$BK" --discovered-from 91 2>&1)"; rcK=$?
 assert "K: exit nonzero on multi-line --title" '[ "$rcK" -ne 0 ]'
-assert "K: exactly one diagnostic line"        '[ "$(printf "%s" "$outK" | grep -c .)" -eq 1 ]'
+assert "K: exactly one diagnostic line"        '[ "$(grep <<<"$outK" -c .)" -eq 1 ]'
 assert "K: diagnostic mentions newline"        'case "$outK" in *newline*) true ;; *) false ;; esac'
 assert "K: no 'minted' line printed"           'case "$outK" in *"minted "*) false ;; *) true ;; esac'
 assert "K: nothing written to active/"         '[ "$(ls "$WK/docs/changes/active" | grep -c .)" -eq 0 ]'
@@ -287,7 +287,7 @@ BK2="$(body 'slug newline guard')"
 MULTI_SLUG="$(printf 'line-one\ntrivial: true')"
 outK2="$(run_mint "$WK2" --title "Fine title" --slug "$MULTI_SLUG" --body-file "$BK2" --discovered-from 91 2>&1)"; rcK2=$?
 assert "K2: exit nonzero on multi-line --slug" '[ "$rcK2" -ne 0 ]'
-assert "K2: exactly one diagnostic line"       '[ "$(printf "%s" "$outK2" | grep -c .)" -eq 1 ]'
+assert "K2: exactly one diagnostic line"       '[ "$(grep <<<"$outK2" -c .)" -eq 1 ]'
 assert "K2: diagnostic mentions newline"       'case "$outK2" in *newline*) true ;; *) false ;; esac'
 assert "K2: nothing written to active/"        '[ "$(ls "$WK2/docs/changes/active" | grep -c .)" -eq 0 ]'
 assert "K2: no commit created (HEAD unchanged)" '[ "$(git -C "$WK2" rev-parse HEAD)" = "$BEFORE_K2" ]'

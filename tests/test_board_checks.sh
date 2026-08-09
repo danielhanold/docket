@@ -216,7 +216,7 @@ bash "$SCRIPT" --changes-dir "$C/docs/changes" --metadata-branch docket --integr
 assert "negative --lease-ttl-hours ⇒ exit 2" '[ "$rc" = 2 ]'
 bad_ttl_err="$(bash "$SCRIPT" --changes-dir "$C/docs/changes" --metadata-branch docket --integration-branch main --lease-ttl-hours abc 2>&1 >/dev/null)"
 assert "invalid --lease-ttl-hours names the offending value on stderr" \
-  'printf "%s" "$bad_ttl_err" | grep -qiF "lease-ttl-hours"'
+  'grep <<<"$bad_ttl_err" -qiF "lease-ttl-hours"'
 # A valid integer still passes (no regression): the clean repo stays exit 0.
 NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$C/docs/changes" --metadata-branch docket --integration-branch main --lease-ttl-hours 72 >/dev/null 2>&1; rc=$?
 assert "valid integer --lease-ttl-hours ⇒ exit 0 (no regression)" '[ "$rc" = 0 ]'
@@ -402,7 +402,7 @@ sout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S/docs/changes" --metadata
 assert "stale-in-progress fires for a branch idle >3 days (id 20)" \
   'has_finding "$sout" stale-in-progress 20'
 assert "id 20 branch-idle message text is unchanged (regression)" \
-  'printf "%s" "$sout" | grep -E "$(printf "^stale-in-progress\t20\t")" | grep -qF "branch feat/stale idle >3 days"'
+  'grep <<<"$sout" -E "$(printf "^stale-in-progress\t20\t")" | grep >/dev/null -F "branch feat/stale idle >3 days"'
 assert "stale-in-progress silent for a branch with a recent commit (id 21)" \
   '! has_finding "$sout" stale-in-progress 21'
 assert "stale-in-progress silent when branch: set but branch absent (id 22, carve-out)" \
@@ -410,23 +410,23 @@ assert "stale-in-progress silent when branch: set but branch absent (id 22, carv
 assert "stale-in-progress fires for expired lease + no branch (id 23)" \
   'has_finding "$sout" stale-in-progress 23'
 assert "id 23 finding carries the [reclaimable] marker" \
-  'printf "%s" "$sout" | grep -E "$(printf "^stale-in-progress\t23\t")" | grep -qF "[reclaimable]"'
+  'grep <<<"$sout" -E "$(printf "^stale-in-progress\t23\t")" | grep >/dev/null -F "[reclaimable]"'
 assert "id 23 message reports age in hours (100h)" \
-  'printf "%s" "$sout" | grep -E "$(printf "^stale-in-progress\t23\t")" | grep -qF "100h ago"'
+  'grep <<<"$sout" -E "$(printf "^stale-in-progress\t23\t")" | grep >/dev/null -F "100h ago"'
 assert "stale-in-progress fires for expired lease + branch ref exists (id 24)" \
   'has_finding "$sout" stale-in-progress 24'
 assert "id 24 finding does NOT carry [reclaimable] (branch exists ⇒ needs review, not auto-reclaimable)" \
-  '! (printf "%s" "$sout" | grep -E "$(printf "^stale-in-progress\t24\t")" | grep -qF "[reclaimable]")'
+  '! (grep <<<"$sout" -E "$(printf "^stale-in-progress\t24\t")" | grep >/dev/null -F "[reclaimable]")'
 assert "id 24 message names the branch and says not auto-reclaimable" \
-  'printf "%s" "$sout" | grep -E "$(printf "^stale-in-progress\t24\t")" | grep -qF "branch feat/fresh" \
-   && printf "%s" "$sout" | grep -E "$(printf "^stale-in-progress\t24\t")" | grep -qF "not auto-reclaimable"'
+  'grep <<<"$sout" -E "$(printf "^stale-in-progress\t24\t")" | grep >/dev/null -F "branch feat/fresh" \
+   && grep <<<"$sout" -E "$(printf "^stale-in-progress\t24\t")" | grep >/dev/null -F "not auto-reclaimable"'
 assert "stale-in-progress silent for a fresh lease with no branch (id 25)" \
   '! has_finding "$sout" stale-in-progress 25'
 assert "stale-in-progress emits exactly one finding when both branch-idle and lease-expired apply (id 26)" \
-  '[ "$(printf "%s" "$sout" | grep -cE "$(printf "^stale-in-progress\t26\t")")" = 1 ]'
+  '[ "$(grep <<<"$sout" -cE "$(printf "^stale-in-progress\t26\t")")" = 1 ]'
 assert "id 26 finding is the branch-idle message, not the reclaimable/expired one (priority: branch-idle wins)" \
-  'printf "%s" "$sout" | grep -E "$(printf "^stale-in-progress\t26\t")" | grep -qF "idle >3 days" \
-   && ! (printf "%s" "$sout" | grep -E "$(printf "^stale-in-progress\t26\t")" | grep -qF "[reclaimable]")'
+  'grep <<<"$sout" -E "$(printf "^stale-in-progress\t26\t")" | grep >/dev/null -F "idle >3 days" \
+   && ! (grep <<<"$sout" -E "$(printf "^stale-in-progress\t26\t")" | grep >/dev/null -F "[reclaimable]")'
 # --lease-ttl-hours override: id 25's 1h-old lease is silent under the default 72h TTL (asserted
 # above) but IS flagged under an explicit --lease-ttl-hours 0 — proves the flag is actually wired.
 touts="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S/docs/changes" --metadata-branch docket --integration-branch main --lease-ttl-hours 0 2>/dev/null)"
@@ -484,7 +484,7 @@ mout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$M/docs/changes" --metadata
 assert "merge-gate-stall fires for a build-ready change waiting on an implemented dep (id 31)" \
   'has_finding "$mout" merge-gate-stall 31'
 assert "merge-gate-stall names the blocking dep #30" \
-  'printf "%s" "$mout" | grep -E "$(printf "^merge-gate-stall\t31\t")" | grep -qF "#30"'
+  'grep <<<"$mout" -E "$(printf "^merge-gate-stall\t31\t")" | grep >/dev/null -F "#30"'
 assert "merge-gate-stall silent for a change waiting on a not-yet-built dep (id 33)" \
   '! has_finding "$mout" merge-gate-stall 33'
 
@@ -504,19 +504,19 @@ assert "malformed-id fires on a non-integer id, keyed on the filename-derived id
 assert "malformed-id no longer keys the change-id column on the raw frontmatter value" \
   '! has_finding "$out" malformed-id abc'
 assert "the raw value survives in the MESSAGE column (diagnosis is not lost)" \
-  'printf "%s" "$out" | grep -qF "non-integer id '"'"'abc'"'"'"'
+  'grep <<<"$out" -qF "non-integer id '"'"'abc'"'"'"'
 
 # TAB injection: an interior TAB in id: must not shift the message into the change-id field.
 read -r work2 _ <<<"$(new_repo)"
 printf -- '---\nid: 4\tEVIL\nslug: tabby\ntitle: Tabby\nstatus: proposed\npriority: low\ndepends_on: []\n---\n' > "$work2/docs/changes/active/0002-tabby.md"
 tout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$work2/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
 # Read the finding back exactly the way docket-status.sh does; all three columns must survive.
-IFS=$'\t' read -r t_check t_id t_msg <<<"$(printf '%s' "$tout" | grep '^malformed-id')"
+IFS=$'\t' read -r t_check t_id t_msg <<<"$(grep <<<"$tout" '^malformed-id')"
 assert "TAB-in-id: check_id column survives the caller's IFS split" '[ "$t_check" = "malformed-id" ]'
 assert "TAB-in-id: change-id column is the filename id, not a fragment of the raw value" '[ "$t_id" = "0002" ]'
 assert "TAB-in-id: the message column is non-empty (not shifted into the id field)" '[ -n "$t_msg" ]'
 assert "TAB-in-id: the embedded TAB is escaped to a visible \\t, not passed through raw" \
-  'printf "%s" "$t_msg" | grep -qF "4\\tEVIL"'
+  'grep <<<"$t_msg" -qF "4\\tEVIL"'
 
 # An archive filename (<date>-<id>-<slug>.md) still yields its id.
 read -r work3 _ <<<"$(new_repo)"
@@ -570,9 +570,9 @@ assert "field-domain fires for an EMPTY status (id 46, no documented default)" \
 
 # Messages name the field and quote the offending value, so a reader can act without opening the file.
 assert "the status finding names the field and the offending value" \
-  'printf "%s" "$fout" | grep -qF "status '"'"'proposed  # awaiting X'"'"'"'
+  'grep <<<"$fout" -qF "status '"'"'proposed  # awaiting X'"'"'"'
 assert "the title finding names the pipe as the board-row hazard" \
-  'printf "%s" "$fout" | grep -E "$(printf "^field-domain\t44\t")" | grep -qF "title"'
+  'grep <<<"$fout" -E "$(printf "^field-domain\t44\t")" | grep >/dev/null -F "title"'
 
 # Shape, not spelling: a slug with a TAB and a slug with an uppercase letter both fire, though
 # neither is an enumerated bad value.
@@ -582,7 +582,7 @@ sout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$F/docs/changes" --metadata
 assert "field-domain fires for a slug containing a TAB (shape check, id 47)"  'has_finding "$sout" field-domain 47'
 assert "field-domain fires for an uppercase slug (shape check, id 48)"        'has_finding "$sout" field-domain 48'
 assert "a TAB inside a slug value cannot shift the findings line's columns (id 47)" \
-  'printf "%s" "$sout" | grep -E "$(printf "^field-domain\t47\t")" | grep -qF "\\t"'
+  'grep <<<"$sout" -E "$(printf "^field-domain\t47\t")" | grep >/dev/null -F "\\t"'
 
 # Warn-only posture is preserved: findings present, exit still 0 without --strict.
 NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$F/docs/changes" --metadata-branch docket --integration-branch main >/dev/null 2>&1
@@ -629,10 +629,10 @@ tout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$T/docs/changes" --metadata
 
 assert "field-domain fires for a type containing a pipe (id 50)" 'has_finding "$tout" field-domain 50'
 assert "the type finding names the pipe as the board-row column-injection hazard (id 50)" \
-  'printf "%s" "$tout" | grep -E "$(printf "^field-domain\t50\t")" | grep -qF "type contains '\''|'\'', which injects columns into the board row"'
+  'grep <<<"$tout" -E "$(printf "^field-domain\t50\t")" | grep >/dev/null -F "type contains '\''|'\'', which injects columns into the board row"'
 assert "field-domain fires for a malformed type shape (id 51, uppercase)" 'has_finding "$tout" field-domain 51'
 assert "the malformed-type finding quotes the value and names the shape (id 51)" \
-  'printf "%s" "$tout" | grep -E "$(printf "^field-domain\t51\t")" | grep -qF "type '\''Feat'\'' is not ^[a-z][a-z0-9-]*\$"'
+  'grep <<<"$tout" -E "$(printf "^field-domain\t51\t")" | grep >/dev/null -F "type '\''Feat'\'' is not ^[a-z][a-z0-9-]*\$"'
 assert "field-domain SILENT for a well-formed type (id 52)" '! has_finding "$tout" field-domain 52'
 # The assert that stops the guard becoming a noise source: an ABSENT type: is legal (renders as
 # `untyped`), so every un-backfilled change during the migration must stay quiet.
@@ -2879,7 +2879,7 @@ read -r E _ < <(new_repo)
 printf -- '---\nid: 71\nslug: poison\ntitle: Poisoned\nstatus: proposed  # awaiting X\npriority: medium\ndepends_on: []\n---\n' \
   > "$E/docs/changes/active/0071-poison.md"
 eout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$E/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
-n71="$(printf '%s' "$eout" | grep -c .)"
+n71="$(grep <<<"$eout" -c .)"
 # A REAL suppression decision, not a self-cancelling pair: the DROPPED entry for 71 is written by the
 # computed predicate (renders_row — an unrecognized status is outside DOCKET_STATUSES_ACTIVE), while
 # EXPLAINED is marked by the field-domain `status` arm. They are populated at independent sites, so
@@ -2920,7 +2920,7 @@ read -r J _ < <(new_repo)
 printf -- '---\nid: 74\nslug: fine\ntitle: Fine\nstatus: proposed\npriority: medium\ndepends_on: []\n---\n' \
   > "$J/docs/changes/active/0074-fine.md"
 jout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$J/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
-assert "clean active tree emits no board-row-dropped finding" '! printf "%s" "$jout" | grep -q "^board-row-dropped"'
+assert "clean active tree emits no board-row-dropped finding" '! grep <<<"$jout" -q "^board-row-dropped"'
 
 # (f) THE COMPUTED-PREDICATE CASE: an active/ file carrying a TERMINAL status (`done`). Every
 # ENUMERATED check is correctly silent — `done` is in DOCKET_STATUSES so field-domain passes it, and
@@ -3129,7 +3129,7 @@ assert "unknown-commit-ref silent for a known archived id (id 53)" \
   '! has_finding "$oout" unknown-commit-ref 53'
 # evidence: the merged-orphan message names the evidence commit subject
 assert "merged-orphan names the evidence commit for id 50" \
-  'printf "%s" "$oout" | grep -E "$(printf "^merged-orphan\t50\t")" | grep -qF "docket(0050)"'
+  'grep <<<"$oout" -E "$(printf "^merged-orphan\t50\t")" | grep >/dev/null -F "docket(0050)"'
 
 # ============================ stale-finalize-blocked ============================
 # An 'implemented' change carrying `## Finalize blocked` whose change-file's last commit is older
@@ -3221,9 +3221,9 @@ fbout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$FB/docs/changes" --metada
 assert "stale-finalize-blocked fires for an implemented change with a stale marker (id 40)" \
   'has_finding "$fbout" stale-finalize-blocked 40'
 assert "stale-finalize-blocked message reports the marker age in hours (100h)" \
-  'printf "%s" "$fbout" | grep -E "$(printf "^stale-finalize-blocked\t40\t")" | grep -qF "100h"'
+  'grep <<<"$fbout" -E "$(printf "^stale-finalize-blocked\t40\t")" | grep >/dev/null -F "100h"'
 assert "stale-finalize-blocked message names re-run finalize with the id (id 40)" \
-  'printf "%s" "$fbout" | grep -E "$(printf "^stale-finalize-blocked\t40\t")" | grep -qF "finalize 40"'
+  'grep <<<"$fbout" -E "$(printf "^stale-finalize-blocked\t40\t")" | grep >/dev/null -F "finalize 40"'
 assert "stale-finalize-blocked silent for a recent marker (id 41)" \
   '! has_finding "$fbout" stale-finalize-blocked 41'
 assert "stale-finalize-blocked silent for an implemented change without the marker (id 42)" \

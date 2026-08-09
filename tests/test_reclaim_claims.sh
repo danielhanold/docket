@@ -109,15 +109,15 @@ assert "A Reclaim log body binds age + TTL args correctly" \
   'grep -qF "~100h" "$W/docs/changes/active/0001-a.md" && grep -qF "TTL 72h" "$W/docs/changes/active/0001-a.md"'
 assert "A reclaim preserves the Artifacts block (not regenerated)" \
   'grep -qF "## Artifacts" "$W/docs/changes/active/0001-a.md"'
-assert "A reclaim reports the change on stdout" 'printf "%s" "$out" | grep -qE "^reclaimed 1 a \(lease 100h, no branch\)$"'
+assert "A reclaim reports the change on stdout" 'grep <<<"$out" -qE "^reclaimed 1 a \(lease 100h, no branch\)$"'
 # CAS actually landed on origin (not just the working tree).
 assert "A reclaim CAS-pushed to origin/docket" \
-  'git -C "$W" show origin/docket:docs/changes/active/0001-a.md | grep -qxF "status: proposed"'
+  'git -C "$W" show origin/docket:docs/changes/active/0001-a.md | grep >/dev/null -xF "status: proposed"'
 
 # --- CASE B: expired but a branch ref EXISTS => NOT reclaimed (orphan/collision guard) ---
 assert "B expired + branch ref present is left in-progress" \
   '[ "$(field "$W/docs/changes/active/0002-b.md" status)" = in-progress ]'
-assert "B is not reported"  '! printf "%s" "$out" | grep -qE "^reclaimed 2 "'
+assert "B is not reported"  '! grep <<<"$out" -qE "^reclaimed 2 "'
 
 # --- CASE C: fresh lease => NOT reclaimed ---
 assert "C fresh lease is left in-progress" \
@@ -134,19 +134,19 @@ assert "E a proposed change is ignored" \
 # --- CASE F: errexit hygiene — a reclaimable change sorting AFTER the B/C/D/E skips still processes ---
 assert "F reclaimed after earlier skips (|| continue keeps the loop alive)" \
   '[ "$(field "$W/docs/changes/active/0006-f.md" status)" = proposed ]'
-assert "F reclaim reported on stdout" 'printf "%s" "$out" | grep -qE "^reclaimed 6 f \(lease 100h, no branch\)$"'
+assert "F reclaim reported on stdout" 'grep <<<"$out" -qE "^reclaimed 6 f \(lease 100h, no branch\)$"'
 
 # --- CASE G: branch: field diverges from convention feat/g; only the RECORDED name ("legacy-name")
 #     resolves as a LOCAL ref => guard still catches via the recorded-name arm ---
 assert "G recorded-name-only ref (diverging from convention) still blocks reclaim" \
   '[ "$(field "$W/docs/changes/active/0007-g.md" status)" = in-progress ]'
-assert "G is not reported" '! printf "%s" "$out" | grep -qE "^reclaimed 7 "'
+assert "G is not reported" '! grep <<<"$out" -qE "^reclaimed 7 "'
 
 # --- CASE H: branch: field diverges and does not resolve at all; only the CONVENTION name
 #     (feat/h) resolves as a LOCAL ref => guard still catches via the convention-name arm ---
 assert "H convention-name-only ref (recorded field bogus) still blocks reclaim" \
   '[ "$(field "$W/docs/changes/active/0008-h.md" status)" = in-progress ]'
-assert "H is not reported" '! printf "%s" "$out" | grep -qE "^reclaimed 8 "'
+assert "H is not reported" '! grep <<<"$out" -qE "^reclaimed 8 "'
 
 # --- CASE I: branch: field matches convention (feat/i); the ref exists ONLY as a
 #     REMOTE-TRACKING ref (no local ref) => guard still catches via the REMOTE arm ---
@@ -156,7 +156,7 @@ assert "I fixture has a remote-tracking ref (by construction)" \
   'git -C "$W" show-ref --verify --quiet refs/remotes/origin/feat/i'
 assert "I remote-tracking-only ref still blocks reclaim" \
   '[ "$(field "$W/docs/changes/active/0009-i.md" status)" = in-progress ]'
-assert "I is not reported" '! printf "%s" "$out" | grep -qE "^reclaimed 9 "'
+assert "I is not reported" '! grep <<<"$out" -qE "^reclaimed 9 "'
 
 # --- clean-sweep exit code + idempotency ---
 assert "clean sweep exits 0" '[ "$rc" = 0 ]'

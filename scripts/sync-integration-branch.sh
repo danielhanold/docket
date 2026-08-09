@@ -71,7 +71,7 @@ if [ -n "$porcelain" ]; then
   note "  Untracked (non-ignored) files also block the fast-forward, not only tracked edits."
   note "  Remedy: commit or stash tracked changes, and remove or .gitignore untracked paths, then re-run."
   note "  ${count} offending path(s) (git status --porcelain):"
-  printf '%s\n' "$porcelain" | head -5 | sed 's/^/    /' >&2
+  printf '%s\n' "$porcelain" | sed -n 1,5p | sed 's/^/    /' >&2
   exit 0
 fi
 

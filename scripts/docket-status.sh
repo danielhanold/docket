@@ -811,7 +811,7 @@ sweep_execute_one(){
   fi
 
   local active status
-  active="$(find "$cd_dir/active" -maxdepth 1 -name "${pad}-*.md" 2>/dev/null | head -n1)"
+  active="$(find "$cd_dir/active" -maxdepth 1 -name "${pad}-*.md" 2>/dev/null | sed -n 1p)"
   if [ -z "$active" ]; then
     return 0   # already archived — idempotent no-op
   fi
@@ -826,7 +826,7 @@ sweep_execute_one(){
   fi
 
   local archived
-  archived="$(find "$cd_dir/archive" -maxdepth 1 -name "${merged_date}-${pad}-*.md" 2>/dev/null | head -n1)"
+  archived="$(find "$cd_dir/archive" -maxdepth 1 -name "${merged_date}-${pad}-*.md" 2>/dev/null | sed -n 1p)"
   if [ -z "$archived" ]; then
     echo "sweep-failed $id archive archived-file-not-found"
     return 0

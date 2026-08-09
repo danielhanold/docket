@@ -60,10 +60,10 @@ git -C "$work" push --quiet origin "$(git -C "$work" commit-tree "$(git -C "$wor
 git -C "$work" fetch --quiet origin docket
 env_out="$(cd "$work" && XDG_CONFIG_HOME="$tmp/void" bash "$FACADE" env 2>/dev/null)"; env_rc=$?
 assert "env exits zero on a migrated repo" '[ "$env_rc" -eq 0 ]'
-assert "env emits raw BOOTSTRAP line" 'printf "%s\n" "$env_out" | grep -qxF "BOOTSTRAP=PROCEED"'
-assert "env emits no export prefix / no %q quotes" '! printf "%s\n" "$env_out" | grep -qE "^export |=.\x27.*\x27$"'
+assert "env emits raw BOOTSTRAP line" 'grep <<<"$env_out" -qxF "BOOTSTRAP=PROCEED"'
+assert "env emits no export prefix / no %q quotes" '! grep <<<"$env_out" -qE "^export |=.\x27.*\x27$"'
 work_abs="$(cd "$work" && pwd -P)"
-assert "env absolutizes METADATA_WORKTREE" 'printf "%s\n" "$env_out" | grep -qxF "METADATA_WORKTREE=$work_abs/.docket"'
+assert "env absolutizes METADATA_WORKTREE" 'grep <<<"$env_out" -qxF "METADATA_WORKTREE=$work_abs/.docket"'
 
 # env fails closed (#64b: clear capture first) — aborting resolver emits nothing, non-zero
 env_abort=""
@@ -93,7 +93,7 @@ The rule.
 - 2026-07-14 (#72, PR #79) — something happened.
 FINDING
 learning_out="$("$REPO/scripts/docket.sh" render-learnings-index --learnings-dir "$LD" 2>/dev/null)"
-assert "facade dispatches render-learnings-index" 'printf "%s" "$learning_out" | grep -qF "# Learnings"'
+assert "facade dispatches render-learnings-index" 'grep <<<"$learning_out" -qF "# Learnings"'
 rejection_out="$("$REPO/scripts/docket.sh" bogus-op 2>&1)"
 assert "render-learnings-index is listed in the rejection help text" \
   'grep -qF "render-learnings-index" <<<"$rejection_out"'
@@ -103,7 +103,7 @@ rm -rf "$work/.docket"
 pf_out="$(cd "$work" && XDG_CONFIG_HOME="$tmp/void" bash "$FACADE" preflight 2>/dev/null)"; pf_rc=$?
 assert "preflight exits zero on a migrated repo" '[ "$pf_rc" -eq 0 ]'
 assert "preflight created the metadata worktree" '[ -d "$work/.docket" ]'
-assert "preflight prints the env block (BOOTSTRAP present)" 'printf "%s\n" "$pf_out" | grep -qxF "BOOTSTRAP=PROCEED"'
+assert "preflight prints the env block (BOOTSTRAP present)" 'grep <<<"$pf_out" -qxF "BOOTSTRAP=PROCEED"'
 
 # --- (F) bootstrap verb: routes to docket-config.sh --bootstrap; the cell guard holds ---------
 # CREATE_ORPHAN cell (fresh: no docket branch, no live planning surface on main) → creates the orphan.
@@ -114,7 +114,7 @@ git -C "$fwork" checkout --quiet -b main; : > "$fwork/README.md"
 git -C "$fwork" add README.md; git -C "$fwork" commit --quiet -m init; git -C "$fwork" push --quiet -u origin main
 boot_out="$(cd "$fwork" && XDG_CONFIG_HOME="$tmp/void" bash "$FACADE" bootstrap 2>/dev/null)"; boot_rc=$?
 assert "bootstrap exits zero in the CREATE_ORPHAN cell" '[ "$boot_rc" -eq 0 ]'
-assert "bootstrap emits BOOTSTRAP=PROCEED after the orphan create" 'printf "%s\n" "$boot_out" | grep -qxF -- "BOOTSTRAP=PROCEED"'
+assert "bootstrap emits BOOTSTRAP=PROCEED after the orphan create" 'grep <<<"$boot_out" -qxF -- "BOOTSTRAP=PROCEED"'
 assert "bootstrap created + pushed the orphan docket branch" \
   'git -C "$fbare" rev-parse --verify --quiet refs/heads/docket >/dev/null'
 assert "bootstrap seeded the managed .gitignore block" \
@@ -122,7 +122,7 @@ assert "bootstrap seeded the managed .gitignore block" \
 # a subsequent preflight now verdicts PROCEED (the repo is migrated)
 pf_boot="$(cd "$fwork" && XDG_CONFIG_HOME="$tmp/void" bash "$FACADE" preflight 2>/dev/null)"; pf_boot_rc=$?
 assert "preflight after bootstrap exits zero" '[ "$pf_boot_rc" -eq 0 ]'
-assert "preflight after bootstrap verdicts PROCEED" 'printf "%s\n" "$pf_boot" | grep -qxF -- "BOOTSTRAP=PROCEED"'
+assert "preflight after bootstrap verdicts PROCEED" 'grep <<<"$pf_boot" -qxF -- "BOOTSTRAP=PROCEED"'
 
 # STOP_MIGRATE cell (live planning surface on main, no docket branch) → cell guard: NO write, exits 0.
 sbare="$tmp/s.git"; swork="$tmp/s"
@@ -137,7 +137,7 @@ smig_out="$(cd "$swork" && XDG_CONFIG_HOME="$tmp/void" bash "$FACADE" bootstrap 
 # fail-closed is preflight's job. The cell guard is about the WRITE, not the exit code.
 assert "bootstrap in STOP_MIGRATE cell exits zero (resolver reports the verdict)" '[ "$smig_rc" -eq 0 ]'
 assert "bootstrap in STOP_MIGRATE cell emits BOOTSTRAP=STOP_MIGRATE" \
-  'printf "%s\n" "$smig_out" | grep -qxF -- "BOOTSTRAP=STOP_MIGRATE"'
+  'grep <<<"$smig_out" -qxF -- "BOOTSTRAP=STOP_MIGRATE"'
 assert "bootstrap in STOP_MIGRATE cell writes NO docket branch" \
   '! git -C "$sbare" rev-parse --verify --quiet refs/heads/docket >/dev/null'
 assert "bootstrap in STOP_MIGRATE cell writes NO .gitignore" '[ ! -f "$swork/.gitignore" ]'
@@ -163,8 +163,8 @@ assert "every wrapped op maps to scripts/<op>.sh" '[ "$sentinel_ok" -eq 1 ]'
 
 # not-exposed scripts never appear as ops (dispatch table or contract table)
 for ne in docket-config disable-worktree-hooks render-board install migrate-to-docket sync-agents ensure-docket-env ensure-claude-settings; do
-  assert "not-exposed '$ne' is not a docket.sh op"  '! printf "%s\n" "$sh_ops" | grep -qxF "$ne"'
-  assert "not-exposed '$ne' is not a docket.md op"  '! printf "%s\n" "$md_ops" | grep -qxF "$ne"'
+  assert "not-exposed '$ne' is not a docket.sh op"  '! grep <<<"$sh_ops" -qxF "$ne"'
+  assert "not-exposed '$ne' is not a docket.md op"  '! grep <<<"$md_ops" -qxF "$ne"'
 done
 
 # no escape-hatch op name (including pipe-combined case labels); never calls eval at all
@@ -178,7 +178,7 @@ done
 # docket.sh's own header comments) before scanning for an actual eval invocation.
 code_no_comments="$(sed 's/#.*//' "$FSH")"
 assert "docket.sh never calls the eval builtin" \
-  '! printf "%s" "$code_no_comments" | grep -qE "(^|[;&|[:space:]])eval([[:space:]]|$)"'
+  '! grep <<<"$code_no_comments" -qE "(^|[;&|[:space:]])eval([[:space:]]|$)"'
 
 # The dispatch `case` itself is the routable surface — the op set the other assertions derive from
 # `WRAPPED_OPS` proves only "WRAPPED_OPS matches the doc", NOT "the dispatch matches the doc". A

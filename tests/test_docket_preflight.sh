@@ -72,7 +72,7 @@ assert "D2: preflight from inside .docket/ returns zero" '[ "$rc" -eq 0 ]'
 assert "D2: preflight from inside .docket/ creates NO second worktree" '[ "$before" = "$after" ]'
 assert "D2: no nested <repo>/.docket/.docket directory was minted" '[ ! -d "$work/.docket/.docket" ]'
 assert "D2: the worktree list contains no nested .docket/.docket entry" \
-  '! git -C "$work" worktree list --porcelain | grep -q "^worktree .*/\.docket/\.docket$"'
+  '! git -C "$work" worktree list --porcelain | grep >/dev/null "^worktree .*/\.docket/\.docket$"'
 
 # --- (E) D2, the harder shape: the target does not yet exist under the caller's CWD -------------
 # A fresh clone whose .docket/ has NOT been created yet, with the caller standing in a linked

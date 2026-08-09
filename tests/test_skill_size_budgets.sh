@@ -959,7 +959,7 @@ EOF
 missing=""
 while IFS= read -r f; do
   rel="${f#"$REPO"/}"
-  printf '%s' "$budgeted" | grep -qF -- " $rel" || missing="$missing $rel"
+  grep <<<"$budgeted" -qF -- " $rel" || missing="$missing $rel"
 done < <(find "$REPO/skills" -name '*.md' | sort)
 assert "every skills/**/*.md has a budget row (unbudgeted:[$missing])" '[ -z "$missing" ]'
 

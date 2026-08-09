@@ -15,7 +15,7 @@ assert "--check passes when committed agents match config (rc=0)" '[ "$chk_rc" =
 sed -i.bak 's/^model: sonnet/model: haiku/' "$SBX/.claude/agents/docket-status.md"; rm -f "$SBX/.claude/agents/docket-status.md.bak"
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "--check advisory-flags drift (rc=0)" '[ "$chk_rc" = "0" ]'
-assert "--check reports an advisory" 'printf "%s" "$chk_out" | grep -q "advisory"'
+assert "--check reports an advisory" 'grep <<<"$chk_out" -q "advisory"'
 
 # Local file removed after having been generated once (block already written) ->
 # advisory only (leg c; missing local file is never CI-fatal).
@@ -25,14 +25,14 @@ printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n' > "$
 rm -f "$SBX/.claude/agents/docket-status.md"
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "--check advisory-flags a missing local file (rc=0)" '[ "$chk_rc" = "0" ]'
-assert "--check reports the missing-local-file advisory" 'printf "%s" "$chk_out" | grep -q "advisory"'
+assert "--check reports the missing-local-file advisory" 'grep <<<"$chk_out" -q "advisory"'
 
 # leg (a): opted-in repo whose .gitignore block was never written (sync never ran) -> rc!=0.
 make_sandbox
 printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "--check leg-a: missing gitignore block fails (rc!=0)" '[ "$chk_rc" != "0" ]'
-assert "--check leg-a: names the gitignore block" 'printf "%s" "$chk_out" | grep -qi "gitignore"'
+assert "--check leg-a: names the gitignore block" 'grep <<<"$chk_out" -qi "gitignore"'
 
 # 0048 opt-in: a .docket.yml present for change-tracking only (no agents: / no agent_harnesses) does
 # NOT opt into per-repo generation — nothing is written and --check stays a no-op (backward-compat).
@@ -154,8 +154,8 @@ HROOTD="$(mktemp -d)"; mkdir -p "$HROOTD/.claude"
 printf 'agent_harnesses: [claude, bogus]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
 gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTD" bash "$SYNC" 2>&1 >/dev/null)"; gen_rc=$?
 assert "0045 unknown-token: generation not fatal (rc=0)" '[ "$gen_rc" = "0" ]'
-assert "0045 unknown-token: warns about the token" 'printf "%s" "$gen_err" | grep -qi "unknown agent_harnesses token"'
-assert "0045 unknown-token: names the bad token" 'printf "%s" "$gen_err" | grep -q "bogus"'
+assert "0045 unknown-token: warns about the token" 'grep <<<"$gen_err" -qi "unknown agent_harnesses token"'
+assert "0045 unknown-token: names the bad token" 'grep <<<"$gen_err" -q "bogus"'
 assert "0045 unknown-token: known harness still generated" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
 assert "0045 unknown-token: bad-token dir NOT created" '[ ! -e "$SBX/.bogus/agents" ]'
 rm -rf "$SBX" "$HROOTD"
@@ -182,12 +182,12 @@ assert "0045 check: passes when both harness files in sync (rc=0)" '[ "$chk_rc" 
 sed -i.bak 's/^model: sonnet/model: haiku/' "$SBX/.cursor/agents/docket-status.md"; rm -f "$SBX/.cursor/agents/docket-status.md.bak"
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTF" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "0045 check: advisory-flags .cursor/agents drift (rc=0)" '[ "$chk_rc" = "0" ]'
-assert "0045 check: advisory report names the cursor harness" 'printf "%s" "$chk_out" | grep -q "advisory" && printf "%s" "$chk_out" | grep -q "cursor"'
+assert "0045 check: advisory report names the cursor harness" 'grep <<<"$chk_out" -q "advisory" && grep <<<"$chk_out" -q "cursor"'
 # A listed-harness file never generated locally -> advisory (missing local file).
 rm -f "$SBX/.cursor/agents/docket-status.md"
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTF" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "0045 check: advisory-flags missing cursor file (rc=0)" '[ "$chk_rc" = "0" ]'
-assert "0045 check: missing-file advisory names cursor" 'printf "%s" "$chk_out" | grep -q "advisory" && printf "%s" "$chk_out" | grep -q "cursor"'
+assert "0045 check: missing-file advisory names cursor" 'grep <<<"$chk_out" -q "advisory" && grep <<<"$chk_out" -q "cursor"'
 rm -rf "$SBX" "$HROOTF"
 
 # Convention documents agent_harnesses + the direct-model-ID (harness-neutral) contract.
@@ -207,7 +207,7 @@ HROOTG="$(mktemp -d)"; mkdir -p "$HROOTG/.claude"
 printf 'agent_harnesses: [claude, *]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
 gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTG" bash "$SYNC" 2>&1 >/dev/null)"; gen_rc=$?
 assert "0045 glob-token: generation not fatal (rc=0)" '[ "$gen_rc" = "0" ]'
-assert "0045 glob-token: cwd decoy file did NOT leak into warnings" '! printf "%s" "$gen_err" | grep -q "DECOYFILE"'
+assert "0045 glob-token: cwd decoy file did NOT leak into warnings" '! grep <<<"$gen_err" -q "DECOYFILE"'
 assert "0045 glob-token: known harness still generated" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
 rm -rf "$SBX" "$HROOTG"
 
@@ -269,7 +269,7 @@ printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { mo
 gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTW" bash "$SYNC" 2>&1 >/dev/null)"; gen_rc=$?
 assert "0046 (h): generation not fatal (rc=0)" '[ "$gen_rc" = "0" ]'
 assert "0046 (h): warns cursor model came from agents.default" 'grep -qi "cursor/docket-status" <<<"$gen_err" && grep -qF "came from agents.default" <<<"$gen_err"'
-assert "0046 (h): does NOT warn for the claude harness" '! printf "%s" "$gen_err" | grep -qiE "claude/docket-status|WARN claude"'
+assert "0046 (h): does NOT warn for the claude harness" '! grep <<<"$gen_err" -qiE "claude/docket-status|WARN claude"'
 rm -rf "$SBX" "$HROOTW"
 
 # (h') warning suppressed when the cursor block supplies the model.
@@ -286,14 +286,14 @@ HROOTL="$(mktemp -d)"; mkdir -p "$HROOTL/.claude"
 printf 'agents:\n  status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"   # bare agent key, no default:/harness
 gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTL" bash "$SYNC" 2>&1 >/dev/null)"; gen_rc=$?
 assert "0046 (f): legacy shape not fatal (rc=0)" '[ "$gen_rc" = "0" ]'
-assert "0046 (f): warns about the legacy bare agent key" 'printf "%s" "$gen_err" | grep -qi "legacy" && printf "%s" "$gen_err" | grep -q "status"'
+assert "0046 (f): warns about the legacy bare agent key" 'grep <<<"$gen_err" -qi "legacy" && grep <<<"$gen_err" -q "status"'
 assert "0046 (f): legacy status NOT applied (no project file / shipped only)" '[ ! -f "$SBX/.claude/agents/docket-status.md" ] || [ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ]'
 # Pre-run a normal sync so the .gitignore block exists (leg a green) and the legacy
 # committed-config-shape leg is isolated (still rc!=0 — CI-meaningful, not advisory).
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTL" bash "$SYNC" >/dev/null 2>&1 )
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTL" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "0046 (g'): --check flags the legacy shape (rc!=0)" '[ "$chk_rc" != "0" ]'
-assert "0046 (g'): --check names the legacy shape" 'printf "%s" "$chk_out" | grep -qi "legacy"'
+assert "0046 (g'): --check names the legacy shape" 'grep <<<"$chk_out" -qi "legacy"'
 rm -rf "$SBX" "$HROOTL"
 
 # (e) Dead-config harness (a block in agents: not present in agent_harnesses) => warned + dropped.
@@ -302,7 +302,7 @@ HROOTX="$(mktemp -d)"; mkdir -p "$HROOTX/.claude"
 printf 'agent_harnesses: [claude]\nagents:\n  default:\n    status: { model: sonnet }\n  cursor:\n    status: { model: gpt-5.5-medium-fast }\n' > "$SBX/.docket.yml"
 gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTX" bash "$SYNC" 2>&1 >/dev/null)"; gen_rc=$?
 assert "0046 (e): dead-config not fatal (rc=0)" '[ "$gen_rc" = "0" ]'
-assert "0046 (e): warns cursor block is not in agent_harnesses" 'printf "%s" "$gen_err" | grep -qi "cursor" && printf "%s" "$gen_err" | grep -qi "agent_harnesses"'
+assert "0046 (e): warns cursor block is not in agent_harnesses" 'grep <<<"$gen_err" -qi "cursor" && grep <<<"$gen_err" -qi "agent_harnesses"'
 assert "0046 (e): cursor file NOT generated (dropped)" '[ ! -e "$SBX/.cursor/agents/docket-status.md" ]'
 assert "0046 (e): claude still generated from default" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
 rm -rf "$SBX" "$HROOTX"
@@ -319,7 +319,7 @@ printf 'default:\n  status: { model: haiku, effort: low }\n' > "$SBX/.config/doc
 mig_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null)"
 assert "0050 mig: config.yml gains an agents: block" 'grep -qE "^agents[[:space:]]*:" "$SBX/.config/docket/config.yml"'
 assert "0050 mig: old file renamed to .migrated" '[ -f "$SBX/.config/docket/agents.yaml.migrated" ] && [ ! -e "$SBX/.config/docket/agents.yaml" ]'
-assert "0050 mig: logs the migration loudly" 'printf "%s" "$mig_err" | grep -qi "migrat"'
+assert "0050 mig: logs the migration loudly" 'grep <<<"$mig_err" -qi "migrat"'
 assert "0050 mig: migrated values applied to wrappers" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
 # Idempotency: a second run leaves config.yml byte-identical (no duplicate agents: block).
 cfg_before="$(cat "$SBX/.config/docket/config.yml")"
@@ -357,7 +357,7 @@ mkdir -p "$SBX/.config/docket"
 printf 'agents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.config/docket/config.yml"
 printf 'default:\n  status: { model: haiku }\n' > "$SBX/.config/docket/agents.yaml"
 stale_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null)"
-assert "0050 stale: warns agents.yaml is stale/unread" 'printf "%s" "$stale_err" | grep -qi "stale"'
+assert "0050 stale: warns agents.yaml is stale/unread" 'grep <<<"$stale_err" -qi "stale"'
 assert "0050 stale: config.yml value wins" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
 assert "0050 stale: agents.yaml left in place" '[ -f "$SBX/.config/docket/agents.yaml" ]'
 rm -rf "$SBX"
@@ -409,7 +409,7 @@ mkdir -p "$SBX/.config/docket"
 printf 'agent_harnesses: [claude, bogus]\n' > "$SBX/.config/docket/config.yml"
 gah_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null)"; gah_rc=$?
 assert "0050 gah unknown: not fatal (rc=0)" '[ "$gah_rc" = "0" ]'
-assert "0050 gah unknown: warns and names the token" 'printf "%s" "$gah_err" | grep -qi "unknown agent_harnesses token" && printf "%s" "$gah_err" | grep -q "bogus"'
+assert "0050 gah unknown: warns and names the token" 'grep <<<"$gah_err" -qi "unknown agent_harnesses token" && grep <<<"$gah_err" -q "bogus"'
 assert "0050 gah unknown: known harness still written" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
 rm -rf "$SBX"
 

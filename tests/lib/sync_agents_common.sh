@@ -27,7 +27,7 @@ within(){
 }
 
 # Extract a single-line frontmatter scalar value from a markdown file.
-fm(){ sed -n "s/^$2:[[:space:]]*//p" "$1" | head -n1 | sed 's/[[:space:]]*$//'; }
+fm(){ sed -n "s/^$2:[[:space:]]*//p" "$1" | sed -n 1p | sed 's/[[:space:]]*$//'; }
 
 # Body = everything after the frontmatter's closing fence. Change 0168 made emit() strip-and-insert
 # the resolved model/effort, so a generated wrapper is no longer byte-identical to its source; what

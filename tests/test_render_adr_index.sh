@@ -167,7 +167,7 @@ emptyout="$(bash "$SCRIPT" --adrs-dir "$empty" 2>/dev/null)"
 assert "empty ledger: Active group renders _None._" \
   'printf "%s\n" "$emptyout" | awk "/## Active/{f=1;next} /## /{f=0} f&&/_None._/{ok=1} END{exit !ok}"'
 assert "empty ledger: three _None._ lines (one per group)" \
-  '[ "$(printf "%s\n" "$emptyout" | grep -c "^_None\._$")" -eq 3 ]'
+  '[ "$(grep <<<"$emptyout" -c "^_None\._$")" -eq 3 ]'
 rm -rf "$empty"
 
 # --- usage errors ---
@@ -181,7 +181,7 @@ assert "docket-adr Index/validate invokes render-adr-index (via the docket.sh fa
 printf -- '---\nid: xyz\nslug: bad\ntitle: Bad ADR\nstatus: Accepted\ndate: 2026-06-01\nsupersedes: []\nreverses: []\nrelates_to: []\nchange:\n---\n## Decision\nx.\n' > "$tmp/0099-bad.md"
 aout="$("$SCRIPT" --adrs-dir "$tmp" 2>/dev/null)"; arc=$?
 assert "render-adr-index exits 0 with malformed-id ADR present" '[ "$arc" -eq 0 ]'
-assert "render-adr-index skips malformed ADR (title absent)" '! printf "%s" "$aout" | grep -q "Bad ADR"'
+assert "render-adr-index skips malformed ADR (title absent)" '! grep <<<"$aout" -q "Bad ADR"'
 rm -f "$tmp/0099-bad.md"
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi

@@ -61,7 +61,7 @@ out="$("$HELPER" --clone-dir "$W" --integration-branch main 2>&1)"; rc=$?
 after="$(git -C "$W" rev-parse HEAD)"
 assert "dirty: exit 0"                     "[ $rc -eq 0 ]"
 assert "dirty: tip unchanged (no FF)"      "[ '$after' = '$before' ]"
-assert "dirty: note mentions clean/dirty"  "printf '%s' \"\$out\" | grep -qiE 'clean|dirty|uncommitted'"
+assert "dirty: note mentions clean/dirty"  "grep <<<\"\$out\" -qiE 'clean|dirty|uncommitted'"
 
 # --- Case 3: wrong branch — clone on a feature branch → skip even though origin advanced ---
 read -r W O < <(new_repo)
@@ -74,7 +74,7 @@ cur="$(git -C "$W" symbolic-ref --short -q HEAD)"
 assert "wrong-branch: exit 0"              "[ $rc -eq 0 ]"
 assert "wrong-branch: still on feat/x"     "[ '$cur' = 'feat/x' ]"
 assert "wrong-branch: main ref untouched"  "[ '$mainref_after' = '$mainref_before' ]"
-assert "wrong-branch: note mentions branch" "printf '%s' \"\$out\" | grep -qiE 'branch|not on'"
+assert "wrong-branch: note mentions branch" "grep <<<\"\$out\" -qiE 'branch|not on'"
 
 # --- Case 4: non-FF divergence — local has a commit origin doesn't → skip, no merge commit ---
 read -r W O < <(new_repo)
@@ -96,7 +96,7 @@ out="$("$HELPER" --clone-dir "$W" --integration-branch main 2>&1)"; rc=$?
 after="$(git -C "$W" rev-parse HEAD)"
 assert "current: exit 0"                   "[ $rc -eq 0 ]"
 assert "current: tip unchanged"            "[ '$after' = '$before' ]"
-assert "current: note mentions current"    "printf '%s' \"\$out\" | grep -qiE 'current|up.to.date|already'"
+assert "current: note mentions current"    "grep <<<\"\$out\" -qiE 'current|up.to.date|already'"
 
 # --- Case 6: fetch failure — origin advanced then made unreachable → skip with note ---
 read -r W O < <(new_repo)
@@ -107,7 +107,7 @@ out="$("$HELPER" --clone-dir "$W" --integration-branch main 2>&1)"; rc=$?
 after="$(git -C "$W" rev-parse HEAD)"
 assert "fetch-fail: exit 0"                "[ $rc -eq 0 ]"
 assert "fetch-fail: tip unchanged (no FF)" "[ '$after' = '$before' ]"
-assert "fetch-fail: note mentions fetch"   "printf '%s' \"\$out\" | grep -qiE 'fetch'"
+assert "fetch-fail: note mentions fetch"   "grep <<<\"\$out\" -qiE 'fetch'"
 
 # --- Case 7: usage error — missing required --integration-branch → exit 2 ---
 read -r W O < <(new_repo)
@@ -148,8 +148,8 @@ out="$("$HELPER" --clone-dir "$W" --integration-branch main 2>&1)"; rc=$?
 after="$(git -C "$W" rev-parse HEAD)"
 assert "untracked: exit 0"                               "[ $rc -eq 0 ]"
 assert "untracked: tip unchanged (no FF over untracked)" "[ '$after' = '$before' ]"
-assert "untracked: note names untracked as a blocker"    "printf '%s' \"\$out\" | grep -qi untracked"
-assert "untracked: note gives a remedy"                  "printf '%s' \"\$out\" | grep -qiE 'gitignore|stash|remove|commit'"
+assert "untracked: note names untracked as a blocker"    "grep <<<\"\$out\" -qi untracked"
+assert "untracked: note gives a remedy"                  "grep <<<\"\$out\" -qiE 'gitignore|stash|remove|commit'"
 
 if [ "$fail" -eq 0 ]; then echo "ALL PASS"; else echo "FAILURES"; fi
 exit "$fail"

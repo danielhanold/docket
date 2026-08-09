@@ -15,7 +15,7 @@ fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 
 assert "script exists and is executable" '[ -x "$SCRIPT" ]'
-assert "--help exits 0 and prints usage" '"$SCRIPT" --help 2>&1 | grep -qi "usage"'
+assert "--help exits 0 and prints usage" '"$SCRIPT" --help 2>&1 | grep >/dev/null -i "usage"'
 
 # Scratch dir shared by every fixture in this file: the continuation-joining battery below, the
 # bootstrap-gate fixtures via write_fixture() (further down), and everything after it.
@@ -740,11 +740,11 @@ detect_out="$( cd "$detect_dir" && \
   bash -c '. "'"$SCRIPT"'"; detect_merged' )"
 expected_line="$(printf '10\tmerged-thing\t101\t2026-07-05')"
 assert "detect_merged prints exactly the merged change" \
-  'printf "%s\n" "$detect_out" | grep -qF "$expected_line"'
+  'grep <<<"$detect_out" -qF "$expected_line"'
 assert "detect_merged does not print the open change" \
-  '! printf "%s\n" "$detect_out" | grep -q "open-thing"'
+  '! grep <<<"$detect_out" -q "open-thing"'
 assert "detect_merged output has exactly one candidate line" \
-  '[ "$(printf "%s\n" "$detect_out" | grep -c "$(printf "\t")")" -eq 1 ]'
+  '[ "$(grep <<<"$detect_out" -c "$(printf "\t")")" -eq 1 ]'
 
 cat > "$tmp/gh-detect-fail.sh" <<'EOF'
 #!/usr/bin/env bash
@@ -758,7 +758,7 @@ detect_fail_out="$( cd "$detect_dir" && \
   bash -c '. "'"$SCRIPT"'"; detect_merged' )"
 detect_fail_rc=$?
 assert "detect_merged with failing GH reports sweep-skipped" \
-  'printf "%s\n" "$detect_fail_out" | grep -q "^sweep-skipped"'
+  'grep <<<"$detect_fail_out" -q "^sweep-skipped"'
 assert "detect_merged with failing GH returns success (best-effort)" '[ $detect_fail_rc -eq 0 ]'
 
 # I1 regression: detect_merged's "sweep-skipped <reason>" line must survive the
@@ -769,9 +769,9 @@ pipe_out="$( cd "$detect_dir" && \
   SCRIPTS_DIR="$tmp/scripts-should-not-run" \
   bash -c '. "'"$SCRIPT"'"; detect_merged | sweep_execute' )"
 assert "detect_merged | sweep_execute: sweep-skipped reaches stdout through the pipe" \
-  'printf "%s\n" "$pipe_out" | grep -q "^sweep-skipped"'
+  'grep <<<"$pipe_out" -q "^sweep-skipped"'
 assert "detect_merged | sweep_execute: no bogus close-out output for the skip line" \
-  '! printf "%s\n" "$pipe_out" | grep -Eq "^(swept|harvest|sweep-failed) "'
+  '! grep <<<"$pipe_out" -Eq "^(swept|harvest|sweep-failed) "'
 
 # ---- detect_merged's FALLBACK arm is repo-scoped (change 0250) ----
 # The graphql arm names owner/name inside the query, so it always honored the resolution. The
@@ -817,7 +817,7 @@ assert "detect_merged fallback: the resolved repo REACHES the pr list call as --
   '[ -n "$detect_fb_prlist" ] && ! grep -qvF -- "--repo x/y" <<<"$detect_fb_prlist"'
 detect_fb_expected="$(printf '12\tfallback-thing\t301\t2026-07-06')"
 assert "detect_merged fallback: the argv-witness run still emits its merged candidate" \
-  'printf "%s\n" "$detect_fb_out" | grep -qF "$detect_fb_expected"'
+  'grep <<<"$detect_fb_out" -qF "$detect_fb_expected"'
 
 # REPO_FLAG end-to-end. REPO_FLAG is assigned AFTER sourcing on purpose: the source runs the
 # script's argument-parsing prologue, which resets REPO_FLAG to the empty string, so an environment
@@ -832,7 +832,7 @@ assert "detect_merged fallback: REPO_FLAG is honored end-to-end on every pr list
 assert "detect_merged fallback: with REPO_FLAG set no gh repo view subprocess is spent" \
   '! grep -q "^repo view" "$tmp/gh-detect-argv.log"'
 assert "detect_merged fallback: the REPO_FLAG run still emits its merged candidate" \
-  'printf "%s\n" "$detect_fb_flag_out" | grep -qF "$detect_fb_expected"'
+  'grep <<<"$detect_fb_flag_out" -qF "$detect_fb_expected"'
 
 # ============ detect_orphan_pr — the GitHub enrichment leg (change 0219) ============
 # Resolves the ambiguity board-checks.sh leg C leaves behind. Leg C is git-only by contract and can
@@ -987,11 +987,11 @@ orphan_out="$( cd "$orphan_dir" && \
 assert "detect_orphan_pr reports the OPEN PR it found, by number (id 270)" \
   'grep -q "^check aborted-run 270 " <<<"$orphan_out" && grep -qF "PR #777 is open" <<<"$orphan_out"'
 assert "the found-PR remedy is to RECORD it (id 270)" \
-  'grep -E "^check aborted-run 270 " <<<"$orphan_out" | grep -qF -- "pr: is unset — record it"'
+  'grep -E "^check aborted-run 270 " <<<"$orphan_out" | grep >/dev/null -F -- "pr: is unset — record it"'
 assert "detect_orphan_pr reports the NO-PR case distinctly (id 271)" \
-  'grep -q "^check aborted-run 271 " <<<"$orphan_out" && grep -E "^check aborted-run 271 " <<<"$orphan_out" | grep -qF "no PR on GitHub"'
+  'grep -q "^check aborted-run 271 " <<<"$orphan_out" && grep -E "^check aborted-run 271 " <<<"$orphan_out" | grep >/dev/null -F "no PR on GitHub"'
 assert "the two outcomes are DISTINGUISHABLE — 271 never claims a PR is open" \
-  '! grep -E "^check aborted-run 271 " <<<"$orphan_out" | grep -qF "is open"'
+  '! grep -E "^check aborted-run 271 " <<<"$orphan_out" | grep >/dev/null -F "is open"'
 assert "detect_orphan_pr SILENT below the 2h idle floor (id 272)" \
   '! grep -q "^check aborted-run 272 " <<<"$orphan_out"'
 assert "detect_orphan_pr SILENT when pr: is already recorded (id 273 — leg D's domain)" \
@@ -1292,7 +1292,7 @@ assert "the PUSHED finding still reports the missing PR (id 282)" \
 # The remote-less fixtures above must obey the same rule: $orphan_dir has no origin at all, so 271
 # was only ever a LOCAL branch and the pre-fix message called it pushed.
 assert "the remote-less fixture 271 no longer claims to be pushed either" \
-  '! grep -E "^check aborted-run 271 " <<<"$orphan_out" | grep -qF " is pushed"'
+  '! grep -E "^check aborted-run 271 " <<<"$orphan_out" | grep >/dev/null -F " is pushed"'
 
 # NO BASE RESOLVES — neither refs/heads/<integration> nor refs/remotes/origin/<integration> exists.
 # That is SILENCE (no positive evidence), never a finding computed against an empty base set: with
@@ -1523,7 +1523,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 pad="$(printf '%04d' "$id")"
-active="$(find "$changes_dir/active" -maxdepth 1 -name "${pad}-*.md" | head -n1)"
+active="$(find "$changes_dir/active" -maxdepth 1 -name "${pad}-*.md" | sed -n 1p)"
 [ -n "$active" ] || exit 1
 base="$(basename "$active")"
 slug="${base#"${pad}"-}"; slug="${slug%.md}"
@@ -1594,9 +1594,9 @@ sweep_out="$( cd "$sweep_dir/work" && \
   bash -c '. "'"$SCRIPT"'"; sweep_execute < "$SWEEP_INPUT"' )"
 
 assert "sweep_execute: clean change emits swept" \
-  'printf "%s\n" "$sweep_out" | grep -qE "^swept 20 2026-07-08$"'
+  'grep <<<"$sweep_out" -qE "^swept 20 2026-07-08$"'
 assert "sweep_execute: clean change emits harvest with archived path" \
-  'printf "%s\n" "$sweep_out" | grep -qE "^harvest 20 .*2026-07-08-0020-clean-thing\.md$"'
+  'grep <<<"$sweep_out" -qE "^harvest 20 .*2026-07-08-0020-clean-thing\.md$"'
 assert "sweep_execute: clean change calls all four stubs" \
   'grep -q -- "--id 20 " "$sweep_log" && grep -q "clean-thing" "$sweep_log" \
    && grep -q "^terminal-publish" "$sweep_log" && grep -q "^cleanup-feature-branch" "$sweep_log"'
@@ -1609,39 +1609,39 @@ assert "sweep_execute: terminal-publish invocation supplies --metadata-worktree"
   'tp_call="$(grep -m1 "^terminal-publish .*--id 20 " "$sweep_log")"; \
    [ -n "$tp_call" ] && grep -q -- "--metadata-worktree /" <<<"$tp_call"'
 assert "sweep_execute: broken-render change emits sweep-failed render-change-links" \
-  'printf "%s\n" "$sweep_out" | grep -qE "^sweep-failed 21 render-change-links "'
+  'grep <<<"$sweep_out" -qE "^sweep-failed 21 render-change-links "'
 assert "sweep_execute: broken-render change does NOT call terminal-publish" \
   '! grep -q "terminal-publish.*--id 21 " "$sweep_log"'
 assert "sweep_execute: broken-render change does not emit swept" \
-  '! printf "%s\n" "$sweep_out" | grep -qE "^swept 21 "'
+  '! grep <<<"$sweep_out" -qE "^swept 21 "'
 assert "sweep_execute: already-done (missing active file) is a silent no-op" \
-  '! printf "%s\n" "$sweep_out" | grep -qE " 22 "'
+  '! grep <<<"$sweep_out" -qE " 22 "'
 assert "sweep_execute: archive-change called before render-change-links (order)" \
-  'archive_line=$(grep -n "^archive-change" "$sweep_log" | grep " --id 20 " | head -n1 | cut -d: -f1); \
-   render_line=$(grep -n "^render-change-links" "$sweep_log" | grep "clean-thing" | head -n1 | cut -d: -f1); \
+  'archive_line=$(grep -n "^archive-change" "$sweep_log" | grep " --id 20 " | sed -n 1p | cut -d: -f1); \
+   render_line=$(grep -n "^render-change-links" "$sweep_log" | grep "clean-thing" | sed -n 1p | cut -d: -f1); \
    [ -n "$archive_line" ] && [ -n "$render_line" ] && [ "$archive_line" -lt "$render_line" ]'
 assert "sweep_execute: render-change-links called before terminal-publish (order, change 20)" \
-  'render_line=$(grep -n "^render-change-links" "$sweep_log" | grep "clean-thing" | head -n1 | cut -d: -f1); \
-   publish_line=$(grep -n "^terminal-publish" "$sweep_log" | grep -- "--id 20 " | head -n1 | cut -d: -f1); \
+  'render_line=$(grep -n "^render-change-links" "$sweep_log" | grep "clean-thing" | sed -n 1p | cut -d: -f1); \
+   publish_line=$(grep -n "^terminal-publish" "$sweep_log" | grep -- "--id 20 " | sed -n 1p | cut -d: -f1); \
    [ -n "$render_line" ] && [ -n "$publish_line" ] && [ "$render_line" -lt "$publish_line" ]'
 assert "sweep_execute: terminal-publish called before cleanup-feature-branch (order, change 20)" \
-  'publish_line=$(grep -n "^terminal-publish" "$sweep_log" | grep -- "--id 20 " | head -n1 | cut -d: -f1); \
-   cleanup_line=$(grep -n "^cleanup-feature-branch" "$sweep_log" | grep -- "--slug clean-thing" | head -n1 | cut -d: -f1); \
+  'publish_line=$(grep -n "^terminal-publish" "$sweep_log" | grep -- "--id 20 " | sed -n 1p | cut -d: -f1); \
+   cleanup_line=$(grep -n "^cleanup-feature-branch" "$sweep_log" | grep -- "--slug clean-thing" | sed -n 1p | cut -d: -f1); \
    [ -n "$publish_line" ] && [ -n "$cleanup_line" ] && [ "$publish_line" -lt "$cleanup_line" ]'
 assert "sweep_execute: cleanup failure emits sweep-failed cleanup" \
-  'printf "%s\n" "$sweep_out" | grep -qE "^sweep-failed 23 cleanup "'
+  'grep <<<"$sweep_out" -qE "^sweep-failed 23 cleanup "'
 assert "sweep_execute: cleanup failure still emits swept (terminal transition already durable)" \
-  'printf "%s\n" "$sweep_out" | grep -qE "^swept 23 2026-07-10$"'
+  'grep <<<"$sweep_out" -qE "^swept 23 2026-07-10$"'
 assert "sweep_execute: cleanup failure still emits harvest" \
-  'printf "%s\n" "$sweep_out" | grep -qE "^harvest 23 .*2026-07-10-0023-cleanup-broken\.md$"'
+  'grep <<<"$sweep_out" -qE "^harvest 23 .*2026-07-10-0023-cleanup-broken\.md$"'
 assert "sweep_execute: cleanup failure emits sweep-failed before swept/harvest (order)" \
-  'failed_line=$(printf "%s\n" "$sweep_out" | grep -n "^sweep-failed 23 cleanup " | head -n1 | cut -d: -f1); \
-   swept_line=$(printf "%s\n" "$sweep_out" | grep -n "^swept 23 " | head -n1 | cut -d: -f1); \
-   harvest_line=$(printf "%s\n" "$sweep_out" | grep -n "^harvest 23 " | head -n1 | cut -d: -f1); \
+  'failed_line=$(grep <<<"$sweep_out" -n "^sweep-failed 23 cleanup " | sed -n 1p | cut -d: -f1); \
+   swept_line=$(grep <<<"$sweep_out" -n "^swept 23 " | sed -n 1p | cut -d: -f1); \
+   harvest_line=$(grep <<<"$sweep_out" -n "^harvest 23 " | sed -n 1p | cut -d: -f1); \
    [ -n "$failed_line" ] && [ -n "$swept_line" ] && [ -n "$harvest_line" ] \
    && [ "$failed_line" -lt "$swept_line" ] && [ "$swept_line" -lt "$harvest_line" ]'
 assert "sweep_execute: cleanup failure does not block clean-thing (loop continues)" \
-  'printf "%s\n" "$sweep_out" | grep -qE "^swept 20 2026-07-08$"'
+  'grep <<<"$sweep_out" -qE "^swept 20 2026-07-08$"'
 
 # --- change 0083: a failed terminal-publish MARKS ITSELF on the archived change file -------------
 # This is the highest-volume automated path on which a publish does not complete. Before change
@@ -1662,8 +1662,8 @@ assert "0083: the mark carries the change id and the integration branch" \
   'mk="$(grep -m1 "^mark-publish-deferred .*publish-broken" "$sweep_log")"; \
    [ -n "$mk" ] && grep -q -- "--id 24" <<<"$mk" && grep -q -- "--integration-branch main" <<<"$mk"'
 assert "0083: the mark runs AFTER terminal-publish failed, not before it ran" \
-  'pub_line=$(grep -n "^terminal-publish .*--id 24 " "$sweep_log" | head -n1 | cut -d: -f1); \
-   mark_line=$(grep -n "^mark-publish-deferred .*publish-broken" "$sweep_log" | head -n1 | cut -d: -f1); \
+  'pub_line=$(grep -n "^terminal-publish .*--id 24 " "$sweep_log" | sed -n 1p | cut -d: -f1); \
+   mark_line=$(grep -n "^mark-publish-deferred .*publish-broken" "$sweep_log" | sed -n 1p | cut -d: -f1); \
    [ -n "$pub_line" ] && [ -n "$mark_line" ] && [ "$pub_line" -lt "$mark_line" ]'
 assert "0083: a SUCCESSFUL publish is never marked" \
   '! grep -q "^mark-publish-deferred .*clean-thing" "$sweep_log"'
@@ -1683,7 +1683,7 @@ assert "0083: the sweep left the shared metadata worktree CLEAN" \
 # A mark that FAILS must be invisible: identical report lines, identical control flow. `-c` on the
 # whole output, not a presence grep — an extra or duplicated line would pass a presence check.
 assert "0083: a FAILED mark still emits exactly the one sweep-failed line for that change" \
-  '[ "$(printf "%s\n" "$sweep_out" | grep -c "^sweep-failed 25 ")" -eq 1 ]'
+  '[ "$(grep <<<"$sweep_out" -c "^sweep-failed 25 ")" -eq 1 ]'
 assert "0083: a FAILED mark leaves the reason unchanged (terminal-publish script-error)" \
   'grep -qE "^sweep-failed 25 terminal-publish script-error$" <<<"$sweep_out"'
 assert "0083: a FAILED mark does not add swept/harvest" \
@@ -1751,7 +1751,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 pad="$(printf '%04d' "$id")"
-active="$(find "$changes_dir/active" -maxdepth 1 -name "${pad}-*.md" | head -n1)"
+active="$(find "$changes_dir/active" -maxdepth 1 -name "${pad}-*.md" | sed -n 1p)"
 [ -n "$active" ] || exit 1
 base="$(basename "$active")"
 slug="${base#"${pad}"-}"; slug="${slug%.md}"
@@ -1840,10 +1840,10 @@ assert "0064 gate(disabled): no sweep-failed lines (suppressed publish is not a 
   '! grep -q "sweep-failed 60" "$tmp/gate-disabled-out.txt"'
 git -C "$gate_dir/work" fetch origin main >/dev/null 2>&1
 assert "0064 gate(disabled): archived record NOT published to the integration branch" \
-  '! git -C "$gate_dir/work" ls-tree -r --name-only origin/main | grep -q "docs/changes/archive/2026-07-11-0060-gate-thing.md"'
+  '! git -C "$gate_dir/work" ls-tree -r --name-only origin/main | grep >/dev/null "docs/changes/archive/2026-07-11-0060-gate-thing.md"'
 git -C "$gate_dir/work" fetch origin docket >/dev/null 2>&1
 assert "0064 gate(disabled): the archive itself still landed on the metadata branch" \
-  'git -C "$gate_dir/work" ls-tree -r --name-only origin/docket | grep -q "docs/changes/archive/2026-07-11-0060-gate-thing.md"'
+  'git -C "$gate_dir/work" ls-tree -r --name-only origin/docket | grep >/dev/null "docs/changes/archive/2026-07-11-0060-gate-thing.md"'
 assert "0064 gate(disabled): terminal-publish logged the suppression" \
   'grep -q "terminal_publish: false" "$tmp/gate-disabled-err.txt"'
 assert "0064 gate(disabled): the sweep still cleaned up the feature worktree" \
@@ -1883,7 +1883,7 @@ assert "0064 gate(TERMINAL_PUBLISH unset): sweep emits swept" \
   'grep -qE "^swept 60 2026-07-11$" "$tmp/gate-enabled-out.txt"'
 git -C "$gate_dir2/work" fetch origin main >/dev/null 2>&1
 assert "0084 gate(TERMINAL_PUBLISH unset): defaults to DISABLED — archived record does NOT reach the integration branch" \
-  '! git -C "$gate_dir2/work" ls-tree -r --name-only origin/main | grep -q "docs/changes/archive/2026-07-11-0060-gate-thing.md"'
+  '! git -C "$gate_dir2/work" ls-tree -r --name-only origin/main | grep >/dev/null "docs/changes/archive/2026-07-11-0060-gate-thing.md"'
 
 # health_checks: prefixes board-checks.sh's TSV findings as "check <id> <change-id> <message>".
 # Mock board-checks.sh via SCRIPTS_DIR — this is a pure formatting/plumbing test, not a
@@ -1904,7 +1904,7 @@ health_out="$( cd "$health_dir" && \
   SCRIPTS_DIR="$tmp/mock-health" HEALTH_LOG="$health_log" \
   bash -c '. "'"$SCRIPT"'"; health_checks' )"
 assert "health_checks: prefixes board-checks finding as 'check <id> <change-id> <message>'" \
-  'printf "%s\n" "$health_out" | grep -qF "check broken-spec 12 spec path missing on docket"'
+  'grep <<<"$health_out" -qF "check broken-spec 12 spec path missing on docket"'
 assert "health_checks: invokes board-checks.sh with expected flags" \
   'grep -Eq -- "--changes-dir \./?docs/changes" "$health_log" && grep -q -- "--metadata-branch main" "$health_log" \
    && grep -q -- "--integration-branch origin/main" "$health_log"'
@@ -1975,7 +1975,7 @@ health_out_nodir="$( cd "$health_dir_nodir" && \
   SCRIPTS_DIR="$tmp/mock-health" HEALTH_LOG="$health_log_nodir" \
   bash -c '. "'"$SCRIPT"'"; health_checks' )"
 assert "C1: health_checks still emits check lines when ADRS_DIR points at a nonexistent dir" \
-  'printf "%s\n" "$health_out_nodir" | grep -qF "check broken-spec 12 spec path missing on docket"'
+  'grep <<<"$health_out_nodir" -qF "check broken-spec 12 spec path missing on docket"'
 assert "C1: health_checks does NOT pass --adrs-dir when the dir does not exist" \
   '! grep -q -- "--adrs-dir" "$health_log_nodir"'
 assert "C1: --terminal-publish is also withheld when --adrs-dir is withheld (gated on it existing)" \
@@ -2021,9 +2021,9 @@ judg_out="$( cd "$judg_dir" && \
   DOCKET_MODE=main CHANGES_DIR=docs/changes \
   bash -c '. "'"$SCRIPT"'"; emit_judgment' )"
 assert "emit_judgment: blocked change emits judgment line with id and blocked_by text" \
-  'printf "%s\n" "$judg_out" | grep -qF "judgment blocked 12 PR #69 is stale, predating the auth-flow rework"'
+  'grep <<<"$judg_out" -qF "judgment blocked 12 PR #69 is stale, predating the auth-flow rework"'
 assert "emit_judgment: non-blocked change emits nothing" \
-  '! printf "%s\n" "$judg_out" | grep -q " 13 "'
+  '! grep <<<"$judg_out" -q " 13 "'
 
 # Full-run wiring: main() runs health_checks/emit_judgment always, and gates integration_sync
 # on swept_count > 0. Mock every shared script via SCRIPTS_DIR so the run is hermetic; use
@@ -2065,7 +2065,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 pad="$(printf '%04d' "$id")"
-active="$(find "$changes_dir/active" -maxdepth 1 -name "${pad}-*.md" | head -n1)"
+active="$(find "$changes_dir/active" -maxdepth 1 -name "${pad}-*.md" | sed -n 1p)"
 [ -n "$active" ] || exit 1
 base="$(basename "$active")"
 slug="${base#"${pad}"-}"; slug="${slug%.md}"
@@ -2294,7 +2294,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 pad="$(printf '%04d' "$id")"
-active="$(find "$changes_dir/active" -maxdepth 1 -name "${pad}-*.md" | head -n1)"
+active="$(find "$changes_dir/active" -maxdepth 1 -name "${pad}-*.md" | sed -n 1p)"
 [ -n "$active" ] || exit 1
 base="$(basename "$active")"
 slug="${base#"${pad}"-}"; slug="${slug%.md}"
@@ -2399,7 +2399,7 @@ idem_out="$( cd "$done_dir" && \
   DOCKET_MODE=main CHANGES_DIR=docs/changes GH="$tmp/gh-det.sh" \
   bash -c '. "'"$SCRIPT"'"; detect_merged' )"
 assert "idempotence: detect_merged skips an already-done change (implemented-only filter)" \
-  '! printf "%s\n" "$idem_out" | grep -q "already-done"'
+  '! grep <<<"$idem_out" -q "already-done"'
 
 sweep_idem_input="$tmp/sweep-idem-input.tsv"
 printf '51\talready-done\t51\t2026-07-08\n' > "$sweep_idem_input"
@@ -2409,7 +2409,7 @@ sweep_idem_out="$( cd "$done_dir" && \
   SCRIPTS_DIR="$tmp/mock-det" \
   bash -c '. "'"$SCRIPT"'"; sweep_execute < "'"$sweep_idem_input"'"' )"
 assert "idempotence: sweep_execute over an already-done change emits no swept line" \
-  '! printf "%s\n" "$sweep_idem_out" | grep -qE "^swept 51 "'
+  '! grep <<<"$sweep_idem_out" -qE "^swept 51 "'
 
 # main-mode degradation: DOCKET_MODE=main, no .docket worktree anywhere — board renders
 # against the primary tree (mw="."), and integration_sync is a genuine no-op appropriate to
@@ -2595,7 +2595,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 pad="$(printf '%04d' "$id")"
-active="$(find "$changes_dir/active" -maxdepth 1 -name "${pad}-*.md" | head -n1)"
+active="$(find "$changes_dir/active" -maxdepth 1 -name "${pad}-*.md" | sed -n 1p)"
 [ -n "$active" ] || exit 1
 base="$(basename "$active")"
 slug="${base#"${pad}"-}"; slug="${slug%.md}"
@@ -2698,8 +2698,8 @@ assert "full pass digest gives the swept (now archived) change no change line at
 assert "full pass digest has no implemented rollup left" \
   '! grep -qE "^backlog implemented " "$tmp/fullpass-out.txt"'
 # (3) report order: board -> sweep -> checks/judgment -> digest -> pass ok.
-fp_swept_ln="$(grep -n "^swept 60 " "$tmp/fullpass-out.txt" | head -n1 | cut -d: -f1)"
-fp_digest_ln="$(grep -n "^backlog " "$tmp/fullpass-out.txt" | head -n1 | cut -d: -f1)"
+fp_swept_ln="$(grep -n "^swept 60 " "$tmp/fullpass-out.txt" | sed -n 1p | cut -d: -f1)"
+fp_digest_ln="$(grep -n "^backlog " "$tmp/fullpass-out.txt" | sed -n 1p | cut -d: -f1)"
 assert "full pass emits the digest AFTER the sweep lines" \
   '[ -n "$fp_swept_ln" ] && [ -n "$fp_digest_ln" ] && [ "$fp_digest_ln" -gt "$fp_swept_ln" ]'
 
@@ -2716,10 +2716,10 @@ BOARD_CONTRACT="$REPO/scripts/render-board.md"
 skill_desc="$(grep -m1 '^description:' "$SKILL_MD")"
 agent_desc="$(grep -m1 '^description:' "$AGENT_MD")"
 agent_body="$(sed -n '/^---$/,/^---$/!p' "$AGENT_MD")"
-assert "SKILL description does not promise BOARD.md" '! printf "%s" "$skill_desc" | grep -qF "BOARD.md"'
-assert "agent wrapper description does not promise BOARD.md" '! printf "%s" "$agent_desc" | grep -qF "BOARD.md"'
+assert "SKILL description does not promise BOARD.md" '! grep <<<"$skill_desc" -qF "BOARD.md"'
+assert "agent wrapper description does not promise BOARD.md" '! grep <<<"$agent_desc" -qF "BOARD.md"'
 assert "agent wrapper body does not promise to refresh the board" \
-  '! printf "%s" "$agent_body" | grep -qiF "refresh the board"'
+  '! grep <<<"$agent_body" -qiF "refresh the board"'
 
 # The thin-report rule and the never-probe prohibition — the two clauses that actually stop the
 # hunt. Anchored on the unique phrase each owns.
@@ -2746,7 +2746,7 @@ assert "SKILL summarizes from the digest, not the board file (Final summary, exa
 # a job/channel of the pass, not just the board/sweep/checks.
 skill_overview="$(sed -n '/^## Overview$/,/^## /p' "$SKILL_MD")"
 assert "SKILL Overview names the backlog digest as a job of the pass" \
-  'printf "%s" "$skill_overview" | grep -qF "backlog digest"'
+  'grep <<<"$skill_overview" -qF "backlog digest"'
 
 # The orchestrator contract documents every new line shape.
 assert "status contract documents board off"  'grep -qF "board off" "$STATUS_CONTRACT"'
@@ -2872,11 +2872,11 @@ assert "0075 §5: no sweep-failed line on the happy path" \
   '! grep -q "^sweep-failed 60 " "$tmp/a5-out.txt"'
 git -C "$a5/work" fetch origin docket >/dev/null 2>&1
 assert "0075 §5: the refreshed ## Artifacts block is COMMITTED on the metadata branch (the block was DEAD pre-0075)" \
-  '! git -C "$a5/work" show "origin/docket:$a5_archived" | grep -q "stale-placeholder"'
+  '! git -C "$a5/work" show "origin/docket:$a5_archived" | grep >/dev/null "stale-placeholder"'
 assert "0075 §5: the committed block is the REAL renderer's output (the PR row), not just a deletion" \
-  'git -C "$a5/work" show "origin/docket:$a5_archived" | grep -qF "| PR | 60 |"'
+  'git -C "$a5/work" show "origin/docket:$a5_archived" | grep >/dev/null -F "| PR | 60 |"'
 assert "0075 §5: the close-out still completed — terminal-publish landed the record on main" \
-  'git -C "$a5/work" fetch origin main >/dev/null 2>&1; git -C "$a5/work" ls-tree -r --name-only origin/main | grep -q "$a5_archived"'
+  'git -C "$a5/work" fetch origin main >/dev/null 2>&1; git -C "$a5/work" ls-tree -r --name-only origin/main | grep >/dev/null "$a5_archived"'
 assert "0075 §5: the close-out still completed — cleanup removed the feature worktree" \
   '[ ! -e "$a5/work/.worktrees/gate-thing" ]'
 
@@ -2905,7 +2905,7 @@ while read -r old new ref; do
       [ "$new" = "$zero" ] && continue
       range="$new"
       [ "$old" != "$zero" ] && range="$old..$new"
-      if git log $range --format=%s | grep -q "refresh artifacts links"; then
+      if git log $range --format=%s | grep >/dev/null "refresh artifacts links"; then
         echo "pre-receive: rejecting the artifacts-refresh push (0075 §5 test fixture)" >&2
         exit 1
       fi ;;
@@ -2924,9 +2924,9 @@ assert "0075 §5(landmine): the sweep still exits zero when the artifacts push f
 assert "0075 §5(landmine): the push failure is REPORTED on the report channel" \
   'grep -qE "^sweep-failed 60 render-change-links push-failed$" "$tmp/a5b-out.txt"'
 assert "0075 §5(landmine): the push really was rejected — the stale block survives on the metadata branch (cosmetic)" \
-  'git -C "$a5b/work" fetch origin docket >/dev/null 2>&1; git -C "$a5b/work" show "origin/docket:$a5_archived" | grep -q "stale-placeholder"'
+  'git -C "$a5b/work" fetch origin docket >/dev/null 2>&1; git -C "$a5b/work" show "origin/docket:$a5_archived" | grep >/dev/null "stale-placeholder"'
 assert "0075 §5(landmine): the failure does NOT abandon terminal-publish — the record still landed on main" \
-  'git -C "$a5b/work" fetch origin main >/dev/null 2>&1; git -C "$a5b/work" ls-tree -r --name-only origin/main | grep -q "$a5_archived"'
+  'git -C "$a5b/work" fetch origin main >/dev/null 2>&1; git -C "$a5b/work" ls-tree -r --name-only origin/main | grep >/dev/null "$a5_archived"'
 assert "0075 §5(landmine): the failure does NOT abandon cleanup — the feature worktree is gone" \
   '[ ! -e "$a5b/work/.worktrees/gate-thing" ]'
 assert "0075 §5(landmine): the failure does NOT abandon cleanup — the remote feat branch is gone" \
@@ -3022,7 +3022,7 @@ rc=$?
 out="$(cat "$tmp/learn-a-out.txt")"
 assert "learnings(a): pass exits zero" '[ $rc -eq 0 ]'
 assert "status re-renders a stale learnings index" \
-  'printf "%s" "$out" | grep -qE "^learnings index (clean|changed)"'
+  'grep <<<"$out" -qE "^learnings index (clean|changed)"'
 # Strengthens the assert above (which alone is satisfiable by either half of an OR — deleting the
 # "changed" branch would still pass it via "clean"): pin to the exact positive shape a genuinely
 # stale index must produce.
@@ -3030,9 +3030,9 @@ assert "learnings(a): the stale index really changed (not a false-positive clean
   'grep -qxF "learnings index changed pushed" "$tmp/learn-a-out.txt"'
 assert "learnings(a): the render reached origin, not just the local tree (change 0071 finding-3 discipline)" \
   'git -C "$learn_a_dir/work" fetch origin main >/dev/null 2>&1 \
-   && git -C "$learn_a_dir/work" show origin/main:docs/changes/learnings/README.md 2>/dev/null | grep -qF "guards-are-code"'
+   && git -C "$learn_a_dir/work" show origin/main:docs/changes/learnings/README.md 2>/dev/null | grep >/dev/null -F "guards-are-code"'
 assert "under-cap emits no over-cap advisory" \
-  '! printf "%s" "$out" | grep -qF "over-cap"'
+  '! grep <<<"$out" -qF "over-cap"'
 
 # Idempotence: a second run over the now-fresh index reports clean, not changed — the commit path
 # never fires twice for the same bytes.
@@ -3101,13 +3101,13 @@ trace_disabled="$(cat "$learn_trace" 2>/dev/null)"
 LD="$learn_b_dir/work/docs/changes/learnings"
 assert "learnings(b): pass exits zero" '[ $rc -eq 0 ]'
 assert "disabled emits exactly one learnings-disabled note" \
-  '[ "$(printf "%s" "$out_disabled" | grep -cF "learnings disabled")" = "1" ]'
+  '[ "$(grep <<<"$out_disabled" -cF "learnings disabled")" = "1" ]'
 assert "disabled never invokes the renderer" \
-  '! printf "%s" "$trace_disabled" | grep -qF "render-learnings-index"'
+  '! grep <<<"$trace_disabled" -qF "render-learnings-index"'
 assert "disabled leaves an existing finding file byte-untouched" \
   '[ "$(cat "$LD/seeded.md")" = "$SEEDED_BYTES" ]'
 assert "learnings(b): disabled emits no advisories" \
-  '! printf "%s" "$out_disabled" | grep -qE "over-cap|promotion-pending"'
+  '! grep <<<"$out_disabled" -qE "over-cap|promotion-pending"'
 assert "learnings(b): disabled never creates the index (no self-heal render at all)" \
   '[ ! -e "$LD/README.md" ]'
 
@@ -3128,7 +3128,7 @@ rc=$?
 out_overcap="$(cat "$tmp/learn-c-out.txt")"
 assert "learnings(c): pass exits zero" '[ $rc -eq 0 ]'
 assert "over-cap surfaces the needs-you advisory" \
-  'printf "%s" "$out_overcap" | grep -qF "learnings over-cap — needs curation"'
+  'grep <<<"$out_overcap" -qF "learnings over-cap — needs curation"'
 assert "learnings(c): the over-cap line names the real counts (2 active, cap 1)" \
   'grep -qxF "learnings over-cap — needs curation (2 active, cap 1)" "$tmp/learn-c-out.txt"'
 
@@ -3148,9 +3148,9 @@ rc=$?
 out_candidate="$(cat "$tmp/learn-d-out.txt")"
 assert "learnings(d): pass exits zero" '[ $rc -eq 0 ]'
 assert "a candidate finding surfaces promotion-pending 1" \
-  'printf "%s" "$out_candidate" | grep -qF "learnings promotion-pending 1"'
+  'grep <<<"$out_candidate" -qF "learnings promotion-pending 1"'
 assert "learnings(d): no over-cap advisory (well under cap)" \
-  '! printf "%s" "$out_candidate" | grep -qF "over-cap"'
+  '! grep <<<"$out_candidate" -qF "over-cap"'
 
 # (e) the cap counts ACTIVE findings — a promoted finding must not count. 3 promoted + 1 retained,
 # cap 2: if promoted findings counted, active=4 > cap(2) would (wrongly) fire over-cap.
@@ -3172,7 +3172,7 @@ rc=$?
 out_promoted_over="$(cat "$tmp/learn-e-out.txt")"
 assert "learnings(e): pass exits zero" '[ $rc -eq 0 ]'
 assert "promoted findings do not count toward the cap" \
-  '! printf "%s" "$out_promoted_over" | grep -qF "over-cap"'
+  '! grep <<<"$out_promoted_over" -qF "over-cap"'
 assert "learnings(e): the fixture really seeded 3 promoted + 1 retained finding (anti-vacuity)" \
   '[ "$(find "$learn_e_dir/work/docs/changes/learnings" -maxdepth 1 -name "*.md" ! -name README.md | wc -l)" -eq 4 ]'
 
@@ -3359,7 +3359,7 @@ assert "reclaim(auto off): full pass exits zero" '[ $rc -eq 0 ]'
 assert "reclaim(auto off): the [reclaimable] findings reached the report" \
   'grep -qF "[reclaimable]" "$tmp/reclaim-off-out.txt"'
 assert "reclaim(auto off): prints the state-valid remedy naming docket.sh reclaim-claims" \
-  'printf "%s\n" "$(cat "$tmp/reclaim-off-out.txt")" | grep -qF "docket.sh reclaim-claims"'
+  'grep <<<"$(cat "$tmp/reclaim-off-out.txt")" -qF "docket.sh reclaim-claims"'
 assert "reclaim(auto off): the remedy names the reclaimable count (2)" \
   'grep -qF "reclaim: 2 expired-lease change(s) can self-heal" "$tmp/reclaim-off-out.txt"'
 assert "reclaim(auto off): does NOT invoke reclaim-claims (no mutation)" \
@@ -3907,7 +3907,7 @@ assert "--digest-only emits a diagnostic on stderr for a render failure" \
   'grep -qi "digest" "$tmp/dg-renderfail-err.txt"'
 
 # --help documents the flag (the skill's author has to be able to find it).
-assert "--help mentions --digest-only" '"$SCRIPT" --help 2>&1 | grep -q -- "--digest-only"'
+assert "--help mentions --digest-only" '"$SCRIPT" --help 2>&1 | grep >/dev/null -- "--digest-only"'
 
 # ── change 0127: --type / --priority are REPORT filters ──────────────────────────────────────
 # They narrow the digest projection (`change` lines + the `ready` queue) and nothing else. Reuses
@@ -3937,8 +3937,8 @@ assert "0127: an invalid --priority exits non-zero" '[ "$?" -ne 0 ]'
 assert "0127: an invalid filter leaves the pre-existing BOARD.md byte-identical" \
   'diff -q "$tmp/dg-board-before.md" "$dg/work/.docket/docs/changes/BOARD.md" >/dev/null'
 
-assert "--help mentions --type"     '"$SCRIPT" --help 2>&1 | grep -q -- "--type"'
-assert "--help mentions --priority" '"$SCRIPT" --help 2>&1 | grep -q -- "--priority"'
+assert "--help mentions --type"     '"$SCRIPT" --help 2>&1 | grep >/dev/null -- "--type"'
+assert "--help mentions --priority" '"$SCRIPT" --help 2>&1 | grep >/dev/null -- "--priority"'
 
 # An invalid filter must fail closed in EVERY mode, not only --digest-only: backlog_pass is
 # best-effort by design, so without the exit-2 carve-out `--board-only --type Bogus` would print a

@@ -27,8 +27,8 @@ assert "recap frames open questions as the agenda" \
 assert "recap is an introduction, not a confirmation gate" \
   'grep -qF "introduction, not a confirmation gate" "$SKILL"'
 
-recap_line="$(grep -nF "recap of the selected stub" "$SKILL" | head -1 | cut -d: -f1)"
-brainstorm_line="$(grep -nF "resolved brainstorm skill" "$SKILL" | head -1 | cut -d: -f1)"
+recap_line="$(grep -nF "recap of the selected stub" "$SKILL" | sed -n 1p | cut -d: -f1)"
+brainstorm_line="$(grep -nF "resolved brainstorm skill" "$SKILL" | sed -n 1p | cut -d: -f1)"
 assert "recap comes before the brainstorm invocation" \
   '[ -n "$recap_line" ] && [ -n "$brainstorm_line" ] && [ "$recap_line" -lt "$brainstorm_line" ]'
 

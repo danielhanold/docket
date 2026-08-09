@@ -39,7 +39,7 @@ assert "header carries the named rule marker" '[ -n "$header" ]'
 # Bind each phrase to the accessor it is asserted ABOUT — a guard that merely asserts a phrase is
 # PRESENT survives a rewrite that keeps the words and drops the claim.
 rule_says(){ # rule_says DESCRIPTION FIXED-STRING
-  if printf '%s\n' "$header" | grep -qF -- "$2"; then ok "rule: $1"; else no "rule: $1 (missing: $2)"; fi
+  if grep <<<"$header" -qF -- "$2"; then ok "rule: $1"; else no "rule: $1 (missing: $2)"; fi
 }
 # The accessor asserts key on the TABLE ROW — the phrase plus the `| accessor` it resolves to.
 # A bare `fm_field_verbatim` / `field_raw` grep is satisfied by any of the prose paragraphs that
@@ -391,7 +391,7 @@ body1="$(block "$cf1")"
 for leaked in \
   'PROSE-NOT-A-VALUE' \
   '99999' ; do
-  if printf '%s\n' "$body1" | grep -qF -- "$leaked"; then
+  if grep <<<"$body1" -qF -- "$leaked"; then
     no "absent-key read leaked body prose into the Artifacts block ($leaked)"
   else
     ok "absent-key read returned empty rather than body prose ($leaked)"
@@ -409,7 +409,7 @@ assert "renderer exited 0 on fixture 1" '[ "$rc1" -eq 0 ]'
 assert "renderer rewrote the marker-bounded block (pre-render sentinel row is gone)" \
   '! grep -qF "FIXTURE-1-PRE-RENDER-SENTINEL" <<<"$body1"'
 assert "fixture 1 markers survived the rewrite" \
-  'printf "%s\n" "$body1" | grep -qF "docket:artifacts:end"'
+  'grep <<<"$body1" -qF "docket:artifacts:end"'
 
 # --- Fixture 2: branch ABSENT from frontmatter, PRESENT as body prose, plan SET ---
 # branch is invisible in fixture 1 (it only selects the blob ref for plan/results rows), so it
@@ -439,12 +439,12 @@ branch: feat/PROSE-NOT-A-BRANCH
 EOF
 render_cl "$cf2" >/dev/null 2>&1
 body2="$(block "$cf2")"
-if printf '%s\n' "$body2" | grep -qF -- 'PROSE-NOT-A-BRANCH'; then
+if grep <<<"$body2" -qF -- 'PROSE-NOT-A-BRANCH'; then
   no "absent branch: read leaked body prose into the plan row's blob ref"
 else
   ok "absent branch: read returned empty rather than body prose"
 fi
 assert "plan row rendered (fixture 2 is not vacuous)" \
-  'printf "%s\n" "$body2" | grep -qF "2026-08-08-absent-branch.md"'
+  'grep <<<"$body2" -qF "2026-08-08-absent-branch.md"'
 
 exit "$fail"

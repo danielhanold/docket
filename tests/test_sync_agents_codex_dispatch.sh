@@ -78,12 +78,12 @@ fi
 head_txt="$(awk '/docket:dispatch:start/{f=1} f && /^- \*\*docket-/{exit} f' "$A")"
 for tok in $HD_SHIPPED_HARNESSES; do
   assert "agentsmd: head names shipped harness '$tok' (derived roster)" \
-    'printf "%s\n" "$head_txt" | grep -qw -- "$tok"'
+    'grep <<<"$head_txt" -qw -- "$tok"'
 done
 for tok in $HD_KNOWN_HARNESSES windsurf aider zed gemini copilot; do
   case " $HD_SHIPPED_HARNESSES " in *" $tok "*) continue;; esac
   assert "agentsmd: head does not name unshipped harness '$tok'" \
-    '! printf "%s\n" "$head_txt" | grep -qwi -- "$tok"'
+    '! grep <<<"$head_txt" -qwi -- "$tok"'
 done
 
 # Population floor: without this, an emptied codex block would take the else arm out of service and

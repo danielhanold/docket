@@ -66,9 +66,9 @@ assert "auto-groom: never implements (markdown only)" \
   'grep -qF "never branches, worktrees, or code" "$AG"'
 
 # order: designer pass precedes critic pass precedes exits
-designer_line="$(grep -nF "### Step 2 — Designer pass" "$AG" | head -1 | cut -d: -f1)"
-critic_line="$(grep -nF "### Step 3 — Critic pass" "$AG" | head -1 | cut -d: -f1)"
-exit_line="$(grep -nF "### Step 4 — Exit" "$AG" | head -1 | cut -d: -f1)"
+designer_line="$(grep -nF "### Step 2 — Designer pass" "$AG" | sed -n 1p | cut -d: -f1)"
+critic_line="$(grep -nF "### Step 3 — Critic pass" "$AG" | sed -n 1p | cut -d: -f1)"
+exit_line="$(grep -nF "### Step 4 — Exit" "$AG" | sed -n 1p | cut -d: -f1)"
 assert "auto-groom: designer → critic → exit, in that order" \
   '[ -n "$designer_line" ] && [ -n "$critic_line" ] && [ -n "$exit_line" ] && [ "$designer_line" -lt "$critic_line" ] && [ "$critic_line" -lt "$exit_line" ]'
 
@@ -81,8 +81,8 @@ assert "groom-next: abstained stubs first" \
   'grep -qF "## Auto-groom blocked" "$GN"'
 assert "groom-next: auto-groomable stubs flagged, not hidden" \
   'grep -qF "docket-auto-groom will handle it unless you want it now" "$GN"'
-band1_off="$(grep -obF "abstained" "$GN" | head -1 | cut -d: -f1)"
-band3_off="$(grep -obF "will handle it unless you want it now" "$GN" | head -1 | cut -d: -f1)"
+band1_off="$(grep -obF "abstained" "$GN" | sed -n 1p | cut -d: -f1)"
+band3_off="$(grep -obF "will handle it unless you want it now" "$GN" | sed -n 1p | cut -d: -f1)"
 assert "groom-next: abstained band stated before auto-groomable band" \
   '[ -n "$band1_off" ] && [ -n "$band3_off" ] && [ "$band1_off" -lt "$band3_off" ]'
 

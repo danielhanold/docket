@@ -112,7 +112,7 @@ Older change with no marker block.
 EOF
 render "$cf2" >/dev/null 2>&1
 # Block must appear after the closing --- and before "## Why"; Spec row present.
-if awk '/^---[[:space:]]*$/{n++} n==2 && /docket:artifacts:start/{seen_start=1} /^## Why/{ if(seen_start) print "OK"; exit }' "$cf2" | grep -qx OK \
+if awk '/^---[[:space:]]*$/{n++} n==2 && /docket:artifacts:start/{seen_start=1} /^## Why/{ if(seen_start) print "OK"; exit }' "$cf2" | grep >/dev/null -x OK \
    && grep -qF '| Spec | [2026-06-21-nomark-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-21-nomark-design.md) |' "$cf2"; then
   ok "C: block inserted as first body section when markers absent"
 else

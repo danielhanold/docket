@@ -105,8 +105,8 @@ assert "integration-repair dispatch is tied to a red/failed suite" \
 
 # ---- local validation runs BEFORE the force-push (ordering is the contract) ----
 assert "finalize force-pushes with --force-with-lease" 'grep -q "force-with-lease" "$FIN"'
-local_ln="$(grep -ni "before any push" "$FIN" | head -n1 | cut -d: -f1)"
-push_ln="$(grep -ni "force-with-lease" "$FIN" | head -n1 | cut -d: -f1)"
+local_ln="$(grep -ni "before any push" "$FIN" | sed -n 1p | cut -d: -f1)"
+push_ln="$(grep -ni "force-with-lease" "$FIN" | sed -n 1p | cut -d: -f1)"
 assert "finalize states local validation precedes the push" '[ -n "$local_ln" ] && [ -n "$push_ln" ] && [ "$local_ln" -lt "$push_ln" ]'
 
 # ---- §6 sign-off: interactive prompt vs autonomous abort-and-report -----------

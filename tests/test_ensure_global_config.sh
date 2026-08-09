@@ -34,7 +34,7 @@ assert "fresh: contains the managed runtime.bash and no policy keys" \
   'grep -qF "# >>> docket (runtime.bash) >>>" "$DEST" && grep -qF "  bash: '\''$RUNTIME_ROOT/opt/homebrew/bin/bash'\''" "$DEST" && ! grep -qF "agent_harnesses:" "$DEST"'
 assert "fresh: points at .docket.example.yml" 'grep -qF ".docket.example.yml" "$DEST"'
 assert "fresh: names the layer precedence" 'grep -qiE "repo-local|precedence" "$DEST"'
-assert "fresh: logs a wrote line naming the dest" 'printf "%s" "$out" | grep -qF "wrote $DEST"'
+assert "fresh: logs a wrote line naming the dest" 'grep <<<"$out" -qF "wrote $DEST"'
 
 # Existing without a runtime: preserve the sentinel and append only the managed runtime block.
 SB2="$(mktemp -d)"; _tmpdirs+=("$SB2")
@@ -44,13 +44,13 @@ out2="$(HOME="$SB2" DOCKET_HARNESS_ROOT="$SB2" bash "$SCRIPT" 2>&1)"; rc2=$?
 assert "existing: exits 0" '[ "$rc2" = "0" ]'
 assert "existing: unrelated content is preserved" 'grep -qxF "sentinel: do-not-overwrite" "$DEST2"'
 assert "existing: receives the managed runtime" 'grep -qF "  bash: '\''$RUNTIME_ROOT/opt/homebrew/bin/bash'\''" "$DEST2"'
-assert "existing: logs a managed-runtime update" 'printf "%s" "$out2" | grep -qF "updating managed runtime.bash"'
+assert "existing: logs a managed-runtime update" 'grep <<<"$out2" -qF "updating managed runtime.bash"'
 
 # Idempotent: a second fresh-run over the just-written file leaves it untouched (now existing).
 before="$(cat "$DEST")"
 out3="$(HOME="$SB" DOCKET_HARNESS_ROOT="$SB" bash "$SCRIPT" 2>&1)"; rc3=$?
 assert "idempotent: second run exits 0" '[ "$rc3" = "0" ]'
-assert "idempotent: second run reports a managed-runtime update" 'printf "%s" "$out3" | grep -qF "updating managed runtime.bash"'
+assert "idempotent: second run reports a managed-runtime update" 'grep <<<"$out3" -qF "updating managed runtime.bash"'
 assert "idempotent: second run left the file byte-untouched" '[ "$(cat "$DEST")" = "$before" ]'
 
 # XDG_CONFIG_HOME wins when set.

@@ -1034,7 +1034,7 @@ w168d="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT168D" bash "$SYNC" 2>&1 >/dev/n
 assert "0168: agents.default overriding a COVERED cursor pair still warns" \
   'grep -qF "cursor/docket-status: model '"'"'claude-opus-4-8'"'"' came from agents.default" <<<"$w168d"'
 assert "0168: and the wrapper really does carry the foreign id (the warning is not a false alarm)" \
-  '[ "$(sed -n "s/^model:[[:space:]]*//p" "$SBX/.cursor/agents/docket-status.md" | head -n1)" = "claude-opus-4-8" ]'
+  '[ "$(sed -n "s/^model:[[:space:]]*//p" "$SBX/.cursor/agents/docket-status.md" | sed -n 1p)" = "claude-opus-4-8" ]'
 rm -rf "$SBX" "$HROOT168D"
 
 # ---- change 0168's two headline properties, asserted on a BARE opt-in --------

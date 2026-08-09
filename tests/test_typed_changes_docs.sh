@@ -118,9 +118,9 @@ assert "(B) every documented --type untyped inventory is --digest-only (a bare d
 assert "(B) non-vacuity floor: the inventory command is still documented in both README and the backfill runbook (got $b_count occurrence(s), want >= 2)" \
   '[ "${b_count:-0}" -ge 2 ]'
 assert "(B) the runbook explains WHY --digest-only is load-bearing, not just that it is there" \
-  'flat "$BF" | grep -Eqi -- "load.bearing" && flat "$BF" | grep -Eqi "commits and pushes .?BOARD\.md"'
+  'flat "$BF" | grep >/dev/null -Ei -- "load.bearing" && flat "$BF" | grep >/dev/null -Ei "commits and pushes .?BOARD\.md"'
 assert "(B) README's inventory step flags the read as write-free" \
-  'flat "$RM" | grep -Eqi -- "write.free"'
+  'flat "$RM" | grep >/dev/null -Ei -- "write.free"'
 
 # ── (C) every creation path — including the human one — writes a type: ─────────────────────────
 #
@@ -137,21 +137,21 @@ SCAN="$(section '## Scan mode' "$NC")"
 assert "(C) the Brainstorm-mode draft step was found" '[ -n "$DRAFT" ]'
 assert "(C) the Scan mode section was found" '[ -n "$SCAN" ]'
 assert "(C) the draft step writes type: into the frontmatter" \
-  'printf "%s\n" "$DRAFT" | grep -q "type:"'
+  'grep <<<"$DRAFT" -q "type:"'
 assert "(C) the draft step binds type: to a configured change_type" \
-  'printf "%s\n" "$DRAFT" | grep -q "change_type"'
+  'grep <<<"$DRAFT" -q "change_type"'
 assert "(C) the draft step says to REPLACE the template's comment (an unfilled type: line is neither a real type nor untyped — the fm_field hazard)" \
-  'printf "%s\n" "$DRAFT" | grep -qi "replace" &&
-   printf "%s\n" "$DRAFT" | grep -qi "template" &&
-   printf "%s\n" "$DRAFT" | grep -Eqi "unfilled|blank|empty|left as|comment"'
+  'grep <<<"$DRAFT" -qi "replace" &&
+   grep <<<"$DRAFT" -qi "template" &&
+   grep <<<"$DRAFT" -Eqi "unfilled|blank|empty|left as|comment"'
 assert "(C) the draft step names untyped as what an unfilled line is NOT" \
-  'printf "%s\n" "$DRAFT" | grep -q "untyped"'
+  'grep <<<"$DRAFT" -q "untyped"'
 assert "(C) Scan-mode stubs carry a type: too (scan is the bulk creation path — the one that grew the untyped set fastest)" \
-  'printf "%s\n" "$SCAN" | grep -q "type:"'
+  'grep <<<"$SCAN" -q "type:"'
 assert "(C) Scan mode restates the shrink-only invariant" \
-  'printf "%s\n" "$SCAN" | grep -q "untyped" && printf "%s\n" "$SCAN" | grep -Eqi "shrink"'
+  'grep <<<"$SCAN" -q "untyped" && grep <<<"$SCAN" -Eqi "shrink"'
 assert "(C) README still states the invariant the skill has to uphold" \
-  'flat "$RM" | grep -Eqi "creation path writes a type" && flat "$RM" | grep -Eqi "untyped set can only shrink"'
+  'flat "$RM" | grep >/dev/null -Ei "creation path writes a type" && flat "$RM" | grep >/dev/null -Ei "untyped set can only shrink"'
 
 # --- (D) THE TAXONOMY ITSELF IS DOCUMENTED, NOT JUST NAMED -------------------
 # The section heading promises `change_types`, but for a while the key appeared ONLY as a bare
@@ -162,24 +162,24 @@ assert "(C) README still states the invariant the skill has to uphold" \
 # because these docs are hard-wrapped and every sentence below straddles a line break.
 RMF="$(flat "$RM")"
 assert "(D) README names the default taxonomy in full" \
-  'printf "%s" "$RMF" | grep -Eq "chore.*docs.*feat.*fix.*refactor.*perf"'
+  'grep <<<"$RMF" -Eq "chore.*docs.*feat.*fix.*refactor.*perf"'
 assert "(D) README states the list is REPLACED, never merged" \
-  'printf "%s" "$RMF" | grep -Eqi "replace" && printf "%s" "$RMF" | grep -Eqi "never merge|not merge|rather than merg"'
+  'grep <<<"$RMF" -Eqi "replace" && grep <<<"$RMF" -Eqi "never merge|not merge|rather than merg"'
 assert "(D) README explains that replacement is how you REMOVE a built-in" \
-  'printf "%s" "$RMF" | grep -Eqi "unremovable|remove .*perf|never drop one"'
+  'grep <<<"$RMF" -Eqi "unremovable|remove .*perf|never drop one"'
 assert "(D) README gives the token grammar" \
-  'printf "%s" "$RMF" | grep -q "a-z0-9-"'
+  'grep <<<"$RMF" -q "a-z0-9-"'
 assert "(D) README names all/untyped as reserved, never stored types" \
-  'printf "%s" "$RMF" | grep -Eqi "reserved" && printf "%s" "$RMF" | grep -Eqi "all. and .untyped|untyped. are reserved|all./.untyped"'
+  'grep <<<"$RMF" -Eqi "reserved" && grep <<<"$RMF" -Eqi "all. and .untyped|untyped. are reserved|all./.untyped"'
 assert "(D) README shows a CUSTOM taxonomy example, not only the default restated" \
-  'grep -Eq "^change_types: \[.*(spike|[a-z-]+)\]" "$RM" && printf "%s" "$RMF" | grep -Eqi "spike"'
+  'grep -Eq "^change_types: \[.*(spike|[a-z-]+)\]" "$RM" && grep <<<"$RMF" -Eqi "spike"'
 assert "(D) README documents the report-only --type/--priority filters" \
-  'printf "%s" "$RMF" | grep -Eq "\-\-type" && printf "%s" "$RMF" | grep -Eq "\-\-priority" && printf "%s" "$RMF" | grep -Eqi "report.only|narrow the digest|digest only"'
+  'grep <<<"$RMF" -Eq "\-\-type" && grep <<<"$RMF" -Eq "\-\-priority" && grep <<<"$RMF" -Eqi "report.only|narrow the digest|digest only"'
 assert "(D) README says the filters never narrow writes (the property that makes them safe)" \
-  'printf "%s" "$RMF" | grep -Eqi "never .*(the board|narrow the board)" || printf "%s" "$RMF" | grep -Eqi "narrow the .{0,20}digest .{0,20}only"'
+  'grep <<<"$RMF" -Eqi "never .*(the board|narrow the board)" || grep <<<"$RMF" -Eqi "narrow the .{0,20}digest .{0,20}only"'
 # The per-layer validation rule is user-visible semantics: it is why a machine-local narrowing no
 # longer bricks a repo, so a reader who hits the same-layer error needs it stated somewhere.
 assert "(D) README explains auto_capture.types is checked against the SETTING layer's taxonomy" \
-  'printf "%s" "$RMF" | grep -Eqi "visible to the layer|layer that set it" && printf "%s" "$RMF" | grep -Eqi "independent"'
+  'grep <<<"$RMF" -Eqi "visible to the layer|layer that set it" && grep <<<"$RMF" -Eqi "independent"'
 
 exit $fail
