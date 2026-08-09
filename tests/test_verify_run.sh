@@ -345,4 +345,60 @@ assert "0237 prose: board-checks.md points at verify-run" 'grep -qF "verify-run"
 assert "0237 prose: the pointer says the check is floor-free at a dispatch seam" \
   'flat "$BCMD" | grep -qiE "verify-run[^.]{0,200}(floor-free|no floor|without a floor|dispatch seam)"'
 
+# ---- change 0271: the build verdict family --------------------------------------
+# A SECOND family, never the implement-next conjuncts stretched to fit: a build task's
+# terminal state is a commit on the feature branch, not a PR.
+mkbuildfixture(){   # sets BWT (a repo with a feature branch), BASE (the dispatch-time sha)
+  BWT="$(mktemp -d "${TMPDIR:-/tmp}/docket-bwt.XXXXXX")"; BWT="$(cd "$BWT" && pwd -P)"
+  git -C "$BWT" init --quiet
+  git -C "$BWT" config user.email t@t.test
+  git -C "$BWT" config user.name Test
+  ( cd "$BWT" && git commit --allow-empty -qm base )
+  git -C "$BWT" checkout -q -b feat/thing
+  BASE="$(git -C "$BWT" rev-parse HEAD)"
+}
+vr_build(){ bash "$ROOT/scripts/verify-run.sh" --build --worktree "$BWT" --branch feat/thing --since "$BASE" 2>&1; }
+
+# (a) nothing committed yet -> tip unmet
+mkbuildfixture
+v="$(vr_build)"; rc=$?
+assert "0271-a: no commit yet is task-incomplete" '[[ "$v" == task-incomplete* ]]'
+assert "0271-b: the unmet token is tip" '[[ "$v" == *"tip"* ]]'
+assert "0271-c: task-incomplete is a FINDING, exit 0" '[ "$rc" = "0" ]'
+
+# (b) a commit lands -> task-committed
+( cd "$BWT" && git commit --allow-empty -qm "task work" )
+v="$(vr_build)"; rc=$?
+assert "0271-d: an advanced tip on a clean tree is task-committed" '[[ "$v" == "task-committed feat/thing" ]]'
+assert "0271-e: task-committed exits 0" '[ "$rc" = "0" ]'
+
+# (c) a dirty tree -> tree unmet (the STRANDED-WORK case this change exists for:
+#     change 0258 left +64 lines uncommitted and the caller saw only exit 143)
+printf 'stranded\n' > "$BWT/stranded.txt"
+v="$(vr_build)"
+assert "0271-f: an untracked stranded file is task-incomplete" '[[ "$v" == task-incomplete* ]]'
+assert "0271-g: the unmet token is tree" '[[ "$v" == *"tree"* ]]'
+rm -f "$BWT/stranded.txt"
+
+# (d) wrong branch -> branch unmet
+git -C "$BWT" checkout -q -b feat/other
+v="$(vr_build)"
+assert "0271-h: the wrong branch is task-incomplete" '[[ "$v" == task-incomplete* ]]'
+assert "0271-i: the unmet token is branch" '[[ "$v" == *"branch"* ]]'
+
+# (e) a worktree that is not a repo -> task-unverifiable, never a synthesized failure
+BWT="$(mktemp -d "${TMPDIR:-/tmp}/docket-norepo.XXXXXX")"
+v="$(vr_build)"; rc=$?
+assert "0271-j: a non-repo worktree is task-unverifiable" '[[ "$v" == task-unverifiable* ]]'
+assert "0271-k: task-unverifiable still exits 0 (a verdict was produced)" '[ "$rc" = "0" ]'
+
+# (f) usage errors are exit 2, distinct from every verdict
+v="$(bash "$ROOT/scripts/verify-run.sh" --build --branch feat/thing 2>&1)"; rc=$?
+assert "0271-l: --build without --worktree is a usage error (2)" '[ "$rc" = "2" ]'
+assert "0271-m: the usage diagnostic is not a verdict line" '[[ "$v" != task-* ]]'
+
+# (g) the two families never collide: --build must not accept an <id>
+v="$(bash "$ROOT/scripts/verify-run.sh" --build 7 --worktree "$BWT" 2>&1)"; rc=$?
+assert "0271-n: --build rejects an id (families stay separate)" '[ "$rc" = "2" ]'
+
 exit $fail

@@ -9,6 +9,12 @@
 #
 # Usage: verify-run.sh <id> [--changes-dir DIR]
 #        verify-run.sh --in-progress-ids [--with-claimed-at] [--changes-dir DIR]
+#        verify-run.sh --build --worktree DIR --branch NAME --since SHA
+#   Build-family verdict lines (change 0271; a build task's terminal state is a COMMIT, not a PR):
+#     task-committed <branch>                 on-branch, tip advanced, tree clean
+#     task-incomplete <branch> <unmet…>       tokens: branch tip tree
+#     task-unverifiable <reason>              the worktree could not be read — never a guess
+#   `task-committed` proves CLEAN COMPLETION, never semantic success.
 #   --with-claimed-at widens each snapshot line to `<id> <claimed_at-epoch>`, or `<id> -` when the
 #   change carries no `claimed_at:` or one that does not parse. This script stays the SINGLE owner
 #   of frontmatter reading for the run gate: runner-dispatch.sh needs the claim instant to tell its
@@ -33,11 +39,16 @@ SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 die(){ printf 'verify-run: %s\n' "$*" >&2; exit 2; }
 
 ID=""; CHANGES_DIR=""; MODE="verdict"; WITH_CLAIMED_AT=0
+BUILD_WORKTREE=""; BUILD_BRANCH=""; BUILD_SINCE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --in-progress-ids) MODE="ids" ;;
     --with-claimed-at) WITH_CLAIMED_AT=1 ;;
     --changes-dir) CHANGES_DIR="${2:-}"; shift ;;
+    --build) MODE="build" ;;
+    --worktree) BUILD_WORKTREE="${2:-}"; shift ;;
+    --branch) BUILD_BRANCH="${2:-}"; shift ;;
+    --since) BUILD_SINCE="${2:-}"; shift ;;
     -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) die "unknown argument: $1" ;;
     *) [ -z "$ID" ] || die "unexpected extra argument: $1"; ID="$1" ;;
@@ -46,6 +57,55 @@ while [ $# -gt 0 ]; do
 done
 [ "$WITH_CLAIMED_AT" = 0 ] || [ "$MODE" = "ids" ] || die "--with-claimed-at is only valid with --in-progress-ids"
 [ "$MODE" != "ids" ] || [ -z "$ID" ] || die "an <id> cannot be combined with --in-progress-ids"
+[ "$MODE" != "build" ] || [ -z "$ID" ] || die "an <id> cannot be combined with --build"
+if [ "$MODE" = "build" ]; then
+  [ -n "$BUILD_WORKTREE" ] || die "--build requires --worktree"
+  [ -n "$BUILD_BRANCH" ]   || die "--build requires --branch"
+  [ -n "$BUILD_SINCE" ]    || die "--build requires --since"
+fi
+
+# --- the BUILD verdict family (change 0271) -----------------------------------
+# A SECOND family, deliberately not the implement-next conjuncts stretched to fit: a build
+# task's terminal state is a commit on its feature branch, never a PR. Reads a WORKTREE; it
+# needs no changes dir, which is why it returns above the resolver.
+#
+# NAMING: `task-committed`, never `task-complete`. These three conjuncts prove the task ran
+# to its commit and stranded nothing. They do NOT certify the commit implements the plan task
+# correctly — that judgment stays with docket-build's suite gate and the review role, and the
+# verdict name must not let a caller read more into it than it claims.
+if [ "$MODE" = "build" ]; then
+  # Every failure to READ is `task-unverifiable`, never a synthesized incompleteness: a
+  # missing worktree is an absence of evidence, and reporting it as unmet conjuncts would
+  # be a guess wearing a verdict's clothes.
+  [ -d "$BUILD_WORKTREE" ] \
+    || { printf 'task-unverifiable worktree-missing\n'; exit 0; }
+  "$GIT" -C "$BUILD_WORKTREE" rev-parse --git-dir >/dev/null 2>&1 \
+    || { printf 'task-unverifiable not-a-repo\n'; exit 0; }
+
+  bunmet=()
+  # 1. on the expected branch
+  cur="$("$GIT" -C "$BUILD_WORKTREE" rev-parse --abbrev-ref HEAD 2>/dev/null)"
+  [ "$cur" = "$BUILD_BRANCH" ] || bunmet+=(branch)
+  # 2. the tip advanced past the dispatch-time sha. `--since` is the direct analogue of
+  #    DISPATCH_EPOCH: captured after the before-read, so a commit landing in the gap is
+  #    excluded either way. An unresolvable since-sha is unverifiable, not "advanced".
+  tip="$("$GIT" -C "$BUILD_WORKTREE" rev-parse HEAD 2>/dev/null)"
+  if ! "$GIT" -C "$BUILD_WORKTREE" cat-file -e "${BUILD_SINCE}^{commit}" 2>/dev/null; then
+    printf 'task-unverifiable unknown-since-sha\n'; exit 0
+  fi
+  [ -n "$tip" ] && [ "$tip" != "$BUILD_SINCE" ] || bunmet+=(tip)
+  # 3. the working tree is clean — INCLUDING untracked files. The stranded-work case this
+  #    whole change exists for (change 0258) left its +64 lines UNTRACKED, so a
+  #    tracked-only check would have called that run clean.
+  dirty="$("$GIT" -C "$BUILD_WORKTREE" status --porcelain 2>/dev/null)"
+  [ -z "$dirty" ] || bunmet+=(tree)
+
+  if [ "${#bunmet[@]}" -eq 0 ]; then
+    printf 'task-committed %s\n' "$BUILD_BRANCH"; exit 0
+  fi
+  printf 'task-incomplete %s %s\n' "$BUILD_BRANCH" "${bunmet[*]}"
+  exit 0
+fi
 
 # --- changes dir: an explicit flag, else the resolver -------------------------
 # Resolving here (rather than making every caller pass it) is what makes `docket.sh verify-run <id>`
