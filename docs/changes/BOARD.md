@@ -1,6 +1,6 @@
 # Backlog
 
-**276 changes** — 🟢 1 in progress · 🟡 34 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 164 done · 🗑️ 72 killed
+**278 changes** — 🟢 1 in progress · 🟡 36 proposed · ⚪ 4 deferred · ✅ 165 done · 🗑️ 72 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0258](active/0258-guard-the-config-suite-s-enumerated-claims-export-order-and.md) | Guard the config-suite's enumerated claims: export order and rung pairs | `medium` | `chore` | [spec](../superpowers/specs/2026-08-07-guard-the-config-suite-s-enumerated-claims-export-order-and-design.md) | `feat/guard-the-config-suite-s-enumerated-claims-export-order-and` |
 
-## 🟡 Proposed (34)
+## 🟡 Proposed (36)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -46,6 +46,8 @@
 | [0274](active/0274-runner-dispatch-s-value-taking-flags-hang-instead-of-abortin.md) | runner-dispatch's value-taking flags hang instead of aborting when given with no value | `medium` | `fix` | needs-brainstorm |
 | [0275](active/0275-run-gate-has-no-runnable-path-for-slash-command-or-backgroun.md) | Run gate has no runnable path for slash-command or backgrounded implement-next dispatch | `medium` | `fix` | needs-brainstorm |
 | [0276](active/0276-dummy-mode.md) | Dummy mode — persona-calibrated human-facing language simplification | `medium` | `feat` | build-ready |
+| [0277](active/0277-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode.md) | Delegated task briefs travel through shell argv, a lossy model-performed transformation | `medium` | `refactor` | needs-brainstorm |
+| [0278](active/0278-test-docket-example-yml-s-fidelity-fixture-goes-intermittent.md) | test_docket_example_yml's fidelity fixture goes intermittently red under parallel contention | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -55,12 +57,6 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0271](active/0271-runner-delegation-has-no-execution-posture-for-a-child-that.md) | Runner delegation has no execution posture for a child that outlives its foreground call | `high` | `fix` | [#188](https://github.com/danielhanold/docket/pull/188) |  |
 
 ```mermaid
 graph TD
@@ -98,23 +94,24 @@ graph TD
   0267
   0268
   0270
-  0269 --> 0271
   0272
   0251 --> 0273
   0274
   0275
   0276
+  0277
+  0278
   0192:::done
   0211:::done
   0237:::done
-  0269:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (236)</summary>
+<details><summary>✅🗑️ Archive — done + killed (237)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0271](archive/2026-08-09-0271-runner-delegation-has-no-execution-posture-for-a-child-that.md) | Runner delegation has no execution posture for a child that outlives its foreground call | 2026-08-09 |
 | [0269](archive/2026-08-09-0269-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child.md) | Decouple the shim wrapper's own pin from the delegated child's | 2026-08-09 |
 | [0259](archive/2026-08-08-0259-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md) | Harden render-board: sanitize feeder values and settle the failure contract | 2026-08-08 |
 | [0255](archive/2026-08-08-0255-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule.md) | Complete ADR-0065's quote leg and document the unquoted rule | 2026-08-08 |
@@ -135,7 +132,6 @@ graph TD
 | [0238](archive/2026-08-07-0238-a-build-worker-may-stage-paths-its-task-never-touched.md) | A build worker may stage paths its task never touched | 2026-08-07 |
 | [0236](archive/2026-08-07-0236-suppressed-execution-handoff-still-ends-run-at-plan.md) | A suppressed execution hand-off still ends the run at the plan — 0113 recurrence | 2026-08-07 |
 | [0235](archive/2026-08-07-0235-writers-emit-unquoted-yaml-title-scalars-so-six-change-files.md) | Writers emit unquoted YAML title scalars, so six change files fail to parse | 2026-08-07 |
-| [0234](archive/2026-08-07-0234-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b.md) | Split gate-execution.md: probe evidence should not sit on a blocking-read surface | 2026-08-07 |
 | [0233](archive/2026-08-07-0233-guard-against-stacked-gap-ere-patterns-that-hang-instead-of.md) | Guard against stacked-gap ERE patterns that hang instead of failing | 2026-08-07 |
 | [0232](archive/2026-08-07-0232-the-gate-execution-posture-never-reaches-the-build-workers-t.md) | The gate execution posture never reaches the build workers that also run the full suite | 2026-08-07 |
 | [0230](archive/2026-08-07-0230-a-self-scanning-population-floor-pins-test-docket-config-sh.md) | a self-scanning population floor pins test_docket_config.sh's size and blocks sharding | 2026-08-07 |
@@ -207,7 +203,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 31 done |
+| [2026-08](archive/) | 32 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
