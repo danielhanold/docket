@@ -20,27 +20,55 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 
 FACADE="$ROOT/scripts/runner-dispatch.sh"
 
+# Every fixture is a `mktemp -d`, and this file mints several — register each as it is created so
+# an early exit (a `set -u` slip, a failing arm) cannot litter the machine.
+FIXTURES=()
+cleanup(){ local d; for d in "${FIXTURES[@]:-}"; do [ -n "$d" ] && rm -rf "$d"; done; }
+trap cleanup EXIT
+
+# Tear down a leftover detached group. It REFUSES to signal this file's own group: a
+# group-directed signal aimed at ourselves takes the harness running this file with it, which is
+# the same hazard the facade's own observe guard exists for.
+reap(){  # $1 = pgid
+  local pg="${1:-}" mine
+  case "$pg" in ''|*[!0-9]*) return 0 ;; esac
+  mine="$(ps -o pgid= -p $$ 2>/dev/null | tr -d ' ')"
+  [ "$pg" != "$mine" ] || return 0
+  kill -KILL -"$pg" 2>/dev/null
+  return 0
+}
+
 make_fixture(){  # sets SBX (repo), RDIR (fake runners dir)
   SBX="$(mktemp -d "${TMPDIR:-/tmp}/docket-detach.XXXXXX")"; SBX="$(cd "$SBX" && pwd -P)"
+  FIXTURES+=("$SBX")
   git -C "$SBX" init --quiet
   git -C "$SBX" config user.email t@t.test
   git -C "$SBX" config user.name Test
   ( cd "$SBX" && git commit --allow-empty -qm init )
   RDIR="$SBX/fake-runners"; mkdir -p "$RDIR"
-  # The fake adapter: sleeps FAKE_SLEEP, then writes a marker and exits FAKE_RC.
+  # The fake adapter: sleeps FAKE_SLEEP, then writes a marker, then LINGERS for FAKE_TAIL before
+  # exiting FAKE_RC. The tail defaults to 0, so every arm written before it existed is unchanged;
+  # it is what makes "the adapter never completed its work" a real measurement rather than a
+  # tautology — an adapter that only slept would have written no marker inside the observation
+  # window whether it was killed or not.
   cat > "$RDIR/fake.sh" <<'FAKE'
 #!/usr/bin/env bash
 sleep "${FAKE_SLEEP:-0}"
 printf 'adapter-ran\n' > "$FAKE_MARKER"
 printf 'fake adapter stdout\n'
 printf 'fake adapter stderr\n' >&2
+sleep "${FAKE_TAIL:-0}"
 exit "${FAKE_RC:-0}"
 FAKE
   chmod +x "$RDIR/fake.sh"
 }
 launch(){ ( cd "$SBX" && RUNNERS_DIR="$RDIR" FAKE_MARKER="$SBX/marker" \
-    FAKE_SLEEP="${FAKE_SLEEP:-0}" FAKE_RC="${FAKE_RC:-0}" \
+    FAKE_SLEEP="${FAKE_SLEEP:-0}" FAKE_TAIL="${FAKE_TAIL:-0}" FAKE_RC="${FAKE_RC:-0}" \
     bash "$FACADE" --launch --runner fake --agent "${1:-status}" ); }
+# The per-dispatch dir for KEY, resolved the way an outside reader must: from the repo's git
+# COMMON dir, never from the worktree.
+ddir_for(){ local c; c="$(cd "$SBX" && git rev-parse --git-common-dir)"
+  printf '%s/docket/dispatch/%s' "$(cd "$SBX/$c" 2>/dev/null || cd "$c"; pwd -P)" "$1"; }
 
 # ---- launch returns immediately with a key -------------------------------------
 make_fixture
@@ -137,5 +165,128 @@ wait "$bare_pid" 2>/dev/null; bare_rc=$?
 assert "a trailing --observe terminates instead of spinning in the parser" '[ "$bare_done" = "1" ]'
 assert "and it terminates by refusing, not by succeeding" '[ "$bare_rc" != "0" ]'
 
-rm -rf "$SBX"
+# ---- observe: still running -> 4, terminal -> 0 ---------------------------------
+observe(){ ( cd "$SBX" && RUNNERS_DIR="$RDIR" \
+    DELEGATION_OBSERVATION_BUDGET="${BUDGET:-60}" \
+    bash "$FACADE" --observe "$1" --runner fake --agent "${2:-status}" ); }
+
+make_fixture
+FAKE_SLEEP=6 FAKE_TAIL=0 FAKE_RC=0
+KEY="$(launch status)"
+out="$(observe "$KEY" 2>&1)"; rc=$?
+assert "observe on a live child exits 4 (still running)" '[ "$rc" = "4" ]'
+assert "observe says still running" 'grep -qi "still running" <<<"$out"'
+# The observation must be SHORT — it may not become the long foreground call all over again.
+start=$(date +%s)
+observe "$KEY" >/dev/null 2>&1
+assert "an observation is short-lived" '[ $(( $(date +%s) - start )) -lt 10 ]'
+
+# An unparseable budget is NOT "spent". Read as one it would kill a healthy child over a typo in
+# an environment variable, so the value is normalized to the shipped default instead.
+BUDGET="not-a-number"
+observe "$KEY" >/dev/null 2>&1; rc=$?
+BUDGET=60
+assert "an unparseable budget keeps observing rather than killing" '[ "$rc" = "4" ]'
+
+for _ in $(seq 1 40); do
+  observe "$KEY" >/dev/null 2>&1; [ "$?" != "4" ] && break; sleep 1
+done
+out="$(observe "$KEY" 2>&1)"; rc=$?
+assert "observe after a clean child exits 0" '[ "$rc" = "0" ]'
+
+# IDEMPOTENCE: same inputs, same verdict and code, every time.
+out2="$(observe "$KEY" 2>&1)"; rc2=$?
+assert "observe is idempotent in code" '[ "$rc2" = "$rc" ]'
+assert "observe is idempotent in output" '[ "$out2" = "$out" ]'
+
+# ---- a failed child -> 1 --------------------------------------------------------
+make_fixture
+FAKE_SLEEP=0 FAKE_TAIL=0 FAKE_RC=9
+KEY="$(launch status)"
+for _ in $(seq 1 30); do observe "$KEY" >/dev/null 2>&1; [ "$?" != "4" ] && break; sleep 1; done
+out="$(observe "$KEY" 2>&1)"; rc=$?
+assert "a non-zero adapter code observes as failed (1)" '[ "$rc" = "1" ]'
+assert "the failure diagnostic reports the child's code" 'grep -qF "exited 9" <<<"$out"'
+
+# ---- a key that is not a live mint is a usage error, never a verdict ------------
+out="$(observe "no-such-key-0000" 2>&1)"; rc=$?
+assert "an unknown dispatch key aborts" '[ "$rc" != "0" ]'
+assert "the unknown-key diagnostic names the key" 'grep -qF "no-such-key-0000" <<<"$out"'
+# The key becomes a path component, so it earns --runner's traversal refusal. `..` is the
+# discriminating case precisely because it names a directory that EXISTS: without a shape gate it
+# is observed as "still running" forever, a verdict manufactured out of a typo.
+out="$(observe ".." 2>&1)"; rc=$?
+assert "a traversing dispatch key is refused" '[ "$rc" = "1" ]'
+assert "the traversal refusal calls the key invalid" 'grep -qi "invalid dispatch key" <<<"$out"'
+
+# ---- budget exhaustion kills the GROUP and reports unavailable ------------------
+# The orphan policy (honors change 0231): no unwatched agent keeps working after the run was
+# declared failed. The fake is shaped so the ORPHAN HAZARD IS MEASURABLE — it writes its marker
+# 4s in and then lingers, so a signal aimed at the launcher PID instead of the GROUP leaves the
+# adapter alive to finish, and the marker assert below turns red.
+make_fixture
+FAKE_SLEEP=4 FAKE_TAIL=60 FAKE_RC=0
+BUDGET=0                       # legal, and buys exactly ONE observation
+KEY="$(launch status)"
+DDIR="$(ddir_for "$KEY")"
+lpgid="$(sed -n 's/^pgid=//p' "$DDIR/launch")"
+out="$(observe "$KEY" 2>&1)"; rc=$?
+assert "budget exhaustion exits 1" '[ "$rc" = "1" ]'
+assert "the diagnostic distinguishes unavailable from failed" 'grep -qi "unavailable" <<<"$out"'
+assert "the detached process group was killed" '! kill -0 -"$lpgid" 2>/dev/null'
+assert "a killed marker was recorded" '[ -f "$DDIR/killed" ]'
+# Waited PAST the instant a surviving adapter would have written its marker, which is what makes
+# the next assert a measurement of the group kill rather than of the clock.
+sleep 6
+assert "the adapter never completed its work" '[ ! -f "$SBX/marker" ]'
+# Deterministic re-observation AFTER the terminal kill.
+out2="$(observe "$KEY" 2>&1)"; rc2=$?
+assert "re-observing a killed dispatch stays unavailable (1)" '[ "$rc2" = "1" ]'
+assert "re-observation after the kill is deterministic" 'grep -qi "unavailable" <<<"$out2"'
+reap "$lpgid"
+BUDGET=60
+FAKE_TAIL=0
+
+# ---- observe REFUSES to signal its OWN process group -----------------------------
+# Defense in depth: `--launch` already fails closed when the child did not separate, so a launch
+# record it wrote can only name a foreign group. This covers the record being wrong anyway — a
+# hand-edited record, a pgid reused after the group died — because a group-directed signal aimed
+# at the observer's own group takes down the harness that ran it, the one failure this facade
+# must never cause.
+# The observation runs as a background job under `set -m`, so it LEADS ITS OWN GROUP: if this
+# guard is ever removed, the self-kill reaps only that job and never this test file.
+make_fixture
+FAKE_SLEEP=30 FAKE_TAIL=0 FAKE_RC=0
+KEY="$(launch status)"
+DDIR="$(ddir_for "$KEY")"
+real_pgid="$(sed -n 's/^pgid=//p' "$DDIR/launch")"
+set -m
+( sleep 2
+  BUDGET=0 observe "$KEY" >"$SBX/self.out" 2>&1
+  printf '%s\n' "$?" > "$SBX/self.rc" ) &
+self_pid=$!
+set +m
+self_pgid="$(ps -o pgid= -p "$self_pid" 2>/dev/null | tr -d ' ')"
+rec="$(sed "s/^pgid=.*/pgid=${self_pgid:-0}/" "$DDIR/launch")"
+printf '%s\n' "$rec" > "$DDIR/launch"
+wait "$self_pid" 2>/dev/null
+self_rc="$(sed -n 1p "$SBX/self.rc" 2>/dev/null)"
+self_out="$(sed -n '1,20p' "$SBX/self.out" 2>/dev/null)"
+assert "the observer's own group is never signalled (it refuses, code 1)" '[ "$self_rc" = "1" ]'
+assert "and it says so instead of dying of its own signal" 'grep -qi "own process group" <<<"$self_out"'
+assert "and nothing is recorded as killed, because nothing was killed" '[ ! -f "$DDIR/killed" ]'
+reap "$real_pgid"
+
+# ---- a malformed sentinel with a dead child is UNAVAILABLE, never a fake failure -
+make_fixture
+FAKE_SLEEP=0 FAKE_TAIL=0 FAKE_RC=0
+KEY="$(launch status)"
+DDIR="$(ddir_for "$KEY")"
+for _ in $(seq 1 30); do [ -f "$DDIR/done" ] && break; sleep 1; done
+printf 'garbage-not-a-schema\n' > "$DDIR/done"
+out="$(observe "$KEY" 2>&1)"; rc=$?
+assert "a malformed sentinel is unavailable, not a synthesized failure" '[ "$rc" = "1" ]'
+assert "the malformed-sentinel diagnostic says unavailable" 'grep -qi "unavailable" <<<"$out"'
+assert "no exit code was read out of garbage" '! grep -qi "exited garbage" <<<"$out"'
+
 exit "$fail"

@@ -12,7 +12,10 @@
 # Registration IS the adapter file's existence. Unknown runner => loud nonzero (abort-and-report).
 # Change 0271 added the `--launch` verb: the same validated request, but the adapter is started in
 # its OWN process group with every stream redirected into a durable per-dispatch dir, and the call
-# returns at once with a dispatch key instead of blocking for the child's whole run.
+# returns at once with a dispatch key instead of blocking for the child's whole run. Its other half
+# is `--observe <key>`: ONE short, idempotent look at that dispatch, synthesizing 0 (complete),
+# 1 (failed or unavailable) or 4 (still running — NOT a failure, observe again), and killing the
+# detached PROCESS GROUP when the observation budget is spent rather than orphaning the adapter.
 # Contract: scripts/runner-dispatch.md.
 # Mock seams: RUNNERS_DIR, GIT.
 set -uo pipefail
@@ -237,6 +240,137 @@ if [ "$VERB" = "launch" ]; then
 
   printf '%s\n' "$KEY"
   exit 0
+fi
+
+# Read one field from a dispatch record. Deliberately NOT `sed … | sed -n 1p`: a producer piped
+# into a consumer that may exit early takes SIGPIPE under `pipefail` (AGENTS.md, "Shell"), so the
+# first-line trim is a parameter expansion on a captured value instead.
+launch_field(){  # $1 = dispatch dir, $2 = field -> first value, empty when absent or unreadable
+  local raw
+  raw="$(sed -n "s/^$2=//p" "$1/launch" 2>/dev/null)"
+  printf '%s' "${raw%%$'\n'*}"
+}
+
+# --- verb: --observe (change 0271) --------------------------------------------------
+# ONE short, idempotent look. Never a long foreground call — that ceiling is the defect this
+# change removes, so re-introducing it here would defeat the whole design.
+#
+# LIVENESS comes from the sentinel, and from nothing else; CORRECTNESS comes from git. A sentinel
+# claiming success with no matching git evidence is a FAILURE — correctness wins, so the child's
+# own exit code is never the last word about the work. Keeping the two sources apart is what lets
+# the facade observe a LIVE child without ever reading liveness out of git state.
+if [ "$VERB" = "observe" ]; then
+  [ -n "$OBSERVE_KEY" ] || die "--observe requires a dispatch key"
+  # The key becomes a path component, exactly as `--runner` does above, so it earns the same
+  # shape-keyed refusal. `..` is the case that matters: it names a directory that EXISTS, so
+  # without this gate a typo is observed as "still running" forever — a verdict manufactured out
+  # of nothing rather than read off a dispatch.
+  case "$OBSERVE_KEY" in
+    *[!A-Za-z0-9._-]*|*..*) die "invalid dispatch key '$OBSERVE_KEY'" ;;
+  esac
+  DROOT="$(docket_dispatch_root "$ANCHOR")" || die "cannot resolve the dispatch root for $ANCHOR"
+  DDIR="$(docket_dispatch_dir "$DROOT" "$OBSERVE_KEY")" \
+    || die "unknown dispatch key '$OBSERVE_KEY' (no result directory under $DROOT)"
+
+  # The budget, in minutes. The caller's environment wins — that is how a shim hands one down —
+  # and otherwise it is resolved once, HERE: no other verb needs it, and resolving config a verb
+  # does not use is how a config failure becomes a dispatch failure.
+  if [ -z "${DELEGATION_OBSERVATION_BUDGET:-}" ]; then
+    _cfg="$("$DOCKET_BASH_PATH" "$SELF_DIR/docket-config.sh" --export 2>/dev/null)" \
+      && eval "$(grep -E '^DELEGATION_OBSERVATION_BUDGET=' <<<"$_cfg")"
+    DELEGATION_OBSERVATION_BUDGET="${DELEGATION_OBSERVATION_BUDGET:-60}"
+  fi
+  # An unparseable budget is NOT a spent one. `[ N -lt abc ]` is a shell ERROR, whose non-zero
+  # status is indistinguishable from "budget exceeded" at the `if` below — so a typo in an
+  # environment variable would kill a healthy child. Normalize to the shipped default instead;
+  # docket-config.sh already refuses a malformed configured value at its own boundary.
+  case "$DELEGATION_OBSERVATION_BUDGET" in
+    ''|*[!0-9]*) DELEGATION_OBSERVATION_BUDGET=60 ;;
+  esac
+
+  LPGID="$(launch_field "$DDIR" pgid)"
+  LSTART="$(launch_field "$DDIR" started_at)"
+
+  # 1. A prior budget kill is TERMINAL and re-reports identically forever (idempotence).
+  if [ -f "$DDIR/killed" ]; then
+    printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (the detached run was killed at budget exhaustion)\n' "$OBSERVE_KEY" >&2
+    exit 1
+  fi
+
+  # 2. A sentinel means the child is DONE. Well-formed vs malformed is the difference between a
+  #    clean adapter exit and a wrapper crash — the latter is `unavailable`, NEVER an exit code
+  #    read out of garbage.
+  if [ -f "$DDIR/done" ]; then
+    SEC="$(docket_sentinel_field "$DDIR" exit_code)"
+    case "$SEC" in
+      ''|*[!0-9]*)
+        printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (the sentinel is malformed; the launcher did not finish cleanly)\n' "$OBSERVE_KEY" >&2
+        exit 1 ;;
+    esac
+    if [ "$SEC" = "0" ]; then
+      printf 'runner-dispatch: observe %s — complete (child exited 0)\n' "$OBSERVE_KEY" >&2
+      exit 0
+    fi
+    printf 'runner-dispatch: observe %s — FAILED (child exited %s); see %s/stderr.log\n' \
+      "$OBSERVE_KEY" "$SEC" "$DDIR" >&2
+    exit 1
+  fi
+
+  # 3. No sentinel: still running, unless the budget is spent. `0` is legal and buys exactly ONE
+  #    observation — this one — so the comparison is `>=`, evaluated AFTER the sentinel read
+  #    above, which is what makes that single observation a real one.
+  NOW="$(date -u +%s 2>/dev/null)"
+  START_EPOCH=""
+  [ -n "$LSTART" ] && START_EPOCH="$("$DOCKET_BASH_PATH" "$VERIFY_RUN" --iso-to-epoch "$LSTART" 2>/dev/null)"
+  # Neither clock read is positive evidence that the budget is spent, so an unreadable one keeps
+  # observing rather than killing a healthy child on a guess. Same posture, twice.
+  case "${NOW:-}" in
+    ''|*[!0-9]*)
+      printf 'runner-dispatch: observe %s — still running (the clock could not be read; budget not enforced this pass)\n' "$OBSERVE_KEY" >&2
+      exit 4 ;;
+  esac
+  case "${START_EPOCH:-}" in
+    ''|*[!0-9]*)
+      printf 'runner-dispatch: observe %s — still running (start time unreadable; budget not enforced this pass)\n' "$OBSERVE_KEY" >&2
+      exit 4 ;;
+  esac
+  ELAPSED_MIN=$(( (NOW - START_EPOCH) / 60 ))
+  if [ "$ELAPSED_MIN" -lt "$DELEGATION_OBSERVATION_BUDGET" ]; then
+    printf 'runner-dispatch: observe %s — still running (%sm of %sm budget)\n' \
+      "$OBSERVE_KEY" "$ELAPSED_MIN" "$DELEGATION_OBSERVATION_BUDGET" >&2
+    exit 4
+  fi
+
+  # 4. Budget exhausted: KILL THE WHOLE GROUP, never a single pid. A single-PID kill reaps the
+  #    launcher shell and ORPHANS the adapter and its children — precisely the half-dead state
+  #    this change exists to eliminate. Honors change 0231: no presumed-dead worker wakes to race
+  #    its replacement. Partial work stays in the worktree for a human.
+  #
+  #    NEVER our own group, though. `--launch` fails closed when the child did not separate, so a
+  #    record it wrote can only name a foreign group — but a record can be wrong anyway (hand
+  #    edited, or a pgid reused after that group died), and a group-directed signal aimed at the
+  #    observer's own group takes down the harness that ran it. That is the one failure this
+  #    facade must not cause, so the impossible state is refused loudly instead of signalled.
+  MY_PGID="$(ps -o pgid= -p $$ 2>/dev/null | tr -d ' ')"
+  if [ -n "$LPGID" ] && [ -n "$MY_PGID" ] && [ "$LPGID" = "$MY_PGID" ]; then
+    printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (the launch record names THIS observation'"'"'s own process group (%s); refusing to signal it, so the dispatch was left running — inspect %s)\n' \
+      "$OBSERVE_KEY" "$LPGID" "$DDIR" >&2
+    exit 1
+  fi
+  if [ -n "$LPGID" ]; then
+    kill -TERM -"$LPGID" 2>/dev/null
+    for _ in $(seq 1 20); do kill -0 -"$LPGID" 2>/dev/null || break; sleep 0.5; done
+    kill -KILL -"$LPGID" 2>/dev/null
+  fi
+  # `mv -f`, not `mv`: BSD `mv` onto an unwritable destination with a tty PROMPTS, self-answers
+  # `n` at EOF, and exits 0 — the marker would be silently lost and the kill would re-fire on the
+  # next observation.
+  printf 'killed_at=%s\nreason=budget-exhausted\nbudget_minutes=%s\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$DELEGATION_OBSERVATION_BUDGET" > "$DDIR/killed.partial"
+  mv -f "$DDIR/killed.partial" "$DDIR/killed" || die "could not record the kill marker in $DDIR"
+  printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (budget of %sm exhausted; the detached process group was terminated)\n' \
+    "$OBSERVE_KEY" "$DELEGATION_OBSERVATION_BUDGET" >&2
+  exit 1
 fi
 
 # --- run gate (change 0237), part 1: the "before" snapshot --------------------------
