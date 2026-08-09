@@ -2,9 +2,9 @@
 slug: specified-but-unreachable
 hook: "Sentinels over prose assert a claim is PRESENT, never that it is REACHABLE — where a contract has a producer and a consumer, anchor one assert on the producer."
 topics: [testing, sentinels, review]
-changes: [87, 94, 203, 220, 226, 259]
+changes: [87, 94, 203, 220, 226, 259, 271]
 created: 2026-07-19
-updated: 2026-08-08
+updated: 2026-08-09
 promotion_state: candidate
 promoted_to:
 ---
@@ -81,3 +81,15 @@ this?* If the answer is only "the section that describes it," the feature is dec
   clauses with no assert that can go red — written into the results file as **disclosure, not
   coverage**. When a later fix strands an earlier guard, the honest options are delete it or say so
   in writing; silently retaining it as if tested is the failure ([[guards-are-code]]).
+- 2026-08-09 (#271, PR #188 — merged) — **Unreachable in the most literal sense: after `exit`.**
+  Change 0237's run gate lived as `GATE=0; [ "$AGENT" = "implement-next" ] && GATE=1` in the generated
+  shim. Rewriting the shim to always `--launch` left those lines sitting *after both verbs' `exit`* —
+  dead for every delegated run — while `runner-dispatch.md` still asserted "`implement-next` —
+  unchanged." A delegated run that halted, or stopped before opening its PR, would have exited 0 at
+  the adapter and been observed as `complete`: precisely the prose-level false-success 0237 exists to
+  eliminate, silently restored by a refactor that moved the control flow out from under it. The
+  producer/consumer audit generalizes to **control flow**, not just to who writes the artifact: when
+  a rewrite changes where a script `exit`s, every guard downstream of the new exit is a candidate for
+  having gone inert, and the documentation asserting it still works is the thing least likely to
+  notice. `--observe` now carries the attribution snapshot captured at launch and synthesizes `3` on
+  `run-halted`.

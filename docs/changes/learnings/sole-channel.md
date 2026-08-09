@@ -2,9 +2,9 @@
 slug: sole-channel
 hook: "When a channel becomes the SOLE source of some state, re-prove on the survivor every property the fallback used to give you free."
 topics: [design, contracts, retries]
-changes: [69, 71]
+changes: [69, 71, 271]
 created: 2026-07-13
-updated: 2026-07-14
+updated: 2026-08-09
 promotion_state: retained
 promoted_to:
 ---
@@ -34,3 +34,16 @@ legitimate line you forgot becomes an infinite loop.
   (c) **Terminality** — #71's first retry contract listed the three lines meaning "done" and retried on
   everything else, so a legitimate `board_surfaces: [github]` repo (which prints only `board github ok`)
   would have re-invoked forever.
+- 2026-08-09 (#271, PR #188 — merged) — **A redirect made a file the sole carrier, and nothing
+  carried it back.** Detached delegation rewrote the adapter launch to `--launch` the child with its
+  stdout and stderr redirected into the dispatch dir, and made every `--observe` diagnostic go to
+  stderr. Both halves are individually right; together they left **no path that writes the child's
+  captured stdout to the caller's stdout**. The child's report file was now the sole channel, and the
+  survivor property nobody re-proved was *delivery*. Every in-context-report agent —
+  `docket-build-*` returning COMPLETE/NEEDS_ESCALATION/BLOCKED, `docket-review-*` returning findings —
+  would have returned **nothing** to its caller, while the git-state agents (status, adr) kept
+  working, because their contract never used the channel that was removed. That asymmetry is the
+  tell: when a change removes a channel, the callers that break are exactly the ones that were using
+  it, so a smoke test over the git-state agents proves nothing. The relay is now sentinel-gated —
+  it fires only where the child is finished and its output complete, never on the still-running poll
+  path and never on the own-group refusal where the child is still writing.
