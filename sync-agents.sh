@@ -1543,9 +1543,12 @@ emit_wrapper(){  # $1=src $2=model $3=effort $4=runner $5=harness $6=agent-name 
 }
 
 # The shim: native frontmatter carrying the SHIM'S OWN pin (change 0269 — this agent runs in the
-# claude parent and does one foreground facade call plus a stdout relay, so its pin must name
+# claude parent and drives the facade plus a stdout relay, so its pin must name
 # something the PARENT can resolve; the pin for the delegated work is the baked --model argument),
-# body = one foreground facade call + relay + verify rules. The baked flags come from $6/$7, which
+# body = the launch-then-observe facade loop (change 0271) + relay + verify rules. Both the
+# `--launch` and the `--observe` calls are the same seam, so ADR-0038's chokepoint is intact:
+# two invocations, one facade, still no inline fallback and no silent retry.
+# The baked flags come from $6/$7, which
 # carry USER-configured values only (change 0168); an empty one bakes NO flag, so the child harness
 # applies its own default rather than inheriting a default that was only ever meant for this
 # harness. This function stays a pure emitter — its caller resolves both pins and hands them down.
@@ -1573,17 +1576,34 @@ worktree, abort-and-report — never guess a path, and never omit the flag."
 This agent is DELEGATED to the \`$4\` runner (cross-harness runner delegation, change 0079).
 Do NOT execute the skill inline and do NOT load its skills yourself.
 
-Make exactly ONE foreground Bash call, with the maximum timeout (600000):
+The delegated run MAY OUTLIVE the call that starts it, so this is a launch-then-observe
+dispatch, not a single blocking call (change 0271). Both steps go through the same facade —
+one dispatch seam, no inline fallback, no silent retry.
 
-    "\${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh runner-dispatch $flags$wt_slot [-- <caller args>]
+STEP 1 — launch. Make a single foreground Bash call:
+
+    "\${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh runner-dispatch --launch $flags$wt_slot [-- <caller args>]
 
 appending any caller-supplied task arguments after \`--\` (drop the brackets; omit entirely
-when there are none). Block until it completes — never background it, never poll. Then relay
-its stdout (the child's final message) as your result, and verify the child's contract
-exactly as a native caller would: git state on origin/docket for state-contract agents
-(status, adr); the relayed report for in-context-report agents. If the dispatch exits
-non-zero, abort-and-report its stderr diagnostic — never retry silently, and
-never run the skill inline on this harness as a fallback.
+when there are none). It detaches the child and returns immediately, printing a DISPATCH KEY
+on stdout. A non-zero exit here is a failed launch: abort-and-report its stderr diagnostic.
+
+STEP 2 — observe. Using that key, make repeated SHORT foreground Bash calls:
+
+    "\${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh runner-dispatch --observe <key> $flags$wt_slot
+
+Read the EXIT CODE, not the prose:
+  - 4 — still running. This is NOT a failure. Observe again; keep going until another code.
+  - 0 — the run completed. Relay the child's final message as your result, and verify its
+        contract exactly as a native caller would: git state on origin/docket for
+        state-contract agents (status, adr); the relayed report for in-context-report agents.
+  - any other non-zero — the run failed, halted for a human, or its result is unavailable.
+        Abort-and-report its stderr diagnostic.
+
+Block on each observe call and never yield between them — never hand control back to your
+caller mid-run. The facade owns the observation budget and stops on its own.
+Never retry a failed dispatch silently, and never run the skill inline on this harness
+as a fallback.
 SHIM
   # `if … fi`, never `[ -n "$wt_rule" ] && printf …`: as the function's last command the && form
   # returns 1 for a non-build shim, and emit_wrapper returns emit_shim's status. Emitted OUTSIDE

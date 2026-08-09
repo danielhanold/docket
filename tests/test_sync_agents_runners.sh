@@ -51,10 +51,33 @@ assert "0079: shim body pins --runner codex" 'grep -qF -- "--runner codex" "$G"'
 assert "0079: shim body pins --agent status" 'grep -qF -- "--agent status" "$G"'
 assert "0079: shim body bakes the resolved model" 'grep -qF -- "--model gpt-5.1-codex" "$G"'
 assert "0079: shim body bakes the resolved effort" 'grep -qF -- "--effort high" "$G"'
-assert "0079: shim body demands ONE foreground call" 'grep -qi "one foreground" "$G"'
-assert "0079: shim body forbids the inline fallback" 'grep -qiE "never.*inline" "$G"'
+# change 0271: the shim no longer bounds the whole delegated run inside one foreground call —
+# that ceiling (600000 ms, the Bash tool's maximum and not a tunable) is the defect. The
+# instruction is now launch-then-observe. This assert REPLACES 0079's "one foreground call"
+# guard: the old one is not restored, because keeping it green would reinstate the defect.
+assert "0271: shim bakes the --launch verb" 'grep -qF -- "--launch" "$G"'
+assert "0271: shim bakes the --observe verb" 'grep -qF -- "--observe" "$G"'
+# DETECTS THE REMOVAL, not the addition (LEARNINGS: assert-detects-removal-not-replacement).
+assert "0271: shim no longer forbids backgrounding the dispatch" \
+  '! grep -qi "never background it" "$G"'
+assert "0271: shim no longer demands ONE foreground call" \
+  '! grep -qi "one foreground" "$G"'
+assert "0271: shim no longer bakes the 600000 ceiling" '! grep -qF "600000" "$G"'
+# Exit 4 is NOT a failure, and this shim is its ONLY consumer — so the wrapper must name it
+# explicitly rather than inheriting the bare-non-zero rule
+# (LEARNINGS: exit-code-encodes-a-non-failure). Spelled with an explicit non-digit boundary
+# rather than `\b`: `\b` is a GNU/ugrep extension that BSD `grep -E` does not honor, and PATH
+# `grep` here is ugrep, so a `\b` spelling would pass locally and rot on a stock macOS grep.
+assert "0271: shim names exit 4 as the observe-again code" \
+  'grep -qE "(^|[^0-9])4([^0-9]|$)" "$G"'
+assert "0271: shim still forbids the inline fallback" 'grep -qiE "never.*inline" "$G"'
+# Shape, not spelling: the clause may name what is not retried between the verb and the adverb.
+assert "0271: shim still forbids a silent retry" 'grep -qiE "never retry[^.]*silently" "$G"'
 assert "0079: shim replaced the native body" '! grep -qF "Execute docket-status to refresh docket state" "$G"'
-assert "0079: exactly one dispatch invocation in the shim" '[ "$(grep -cF "docket.sh runner-dispatch" "$G")" = "1" ]'
+# 0271: two INVOCATIONS (launch + observe), still exactly ONE dispatch SEAM — both are the same
+# facade. ADR-0038's chokepoint property is about the seam, not the call count.
+assert "0271: exactly two dispatch invocations in the shim" \
+  '[ "$(grep -cF "docket.sh runner-dispatch" "$G")" = "2" ]'
 # unlisted agent stays native in the same repo
 assert "0079: agent without runner: stays native" 'grep -qF "abort-and-report" "$SBX/.claude/agents/docket-adr.md" && ! grep -qF "runner-dispatch" "$SBX/.claude/agents/docket-adr.md"'
 # effort auto + runner => no --effort flag in the shim
@@ -361,8 +384,11 @@ assert "0206: build-* shim tells the caller to abort rather than guess a path" \
 # Direction 2: a non-build shim does NOT. (grep -qF -- is mandatory: a bare leading `--` is parsed
 # as an option, exit 2, which inside this negation would be permanently, vacuously green.)
 assert "0206: non-build shim carries no --worktree" '! grep -qF -- "--worktree" "$S"'
-assert "0206: exactly one dispatch invocation in the build-* shim" \
-  '[ "$(grep -cF "docket.sh runner-dispatch" "$B")" = "1" ]'
+# 0271: the launch-then-observe rewrite makes it two invocations of the same one seam. The
+# property this assert defends is unchanged — every dispatch in a build-* shim goes through the
+# facade and nothing else — so the count moves with the shim rather than the assert being dropped.
+assert "0206: exactly two dispatch invocations in the build-* shim" \
+  '[ "$(grep -cF "docket.sh runner-dispatch" "$B")" = "2" ]'
 rm -rf "$SBX"
 
 # runner under a NON-claude harness key: warned-and-ignored (reserved), file stays native
