@@ -2,7 +2,7 @@
 id: 258
 slug: guard-the-config-suite-s-enumerated-claims-export-order-and
 title: 'Guard the config-suite''s enumerated claims: export order and rung pairs'
-status: implemented
+status: done
 priority: medium
 type: chore
 created: 2026-08-07
@@ -17,7 +17,7 @@ results: docs/results/2026-08-09-guard-the-config-suite-s-enumerated-claims-expo
 trivial: false
 auto_groomable: true
 branch: feat/guard-the-config-suite-s-enumerated-claims-export-order-and
-claimed_at: 2026-08-09T20:38:03Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/189
 blocked_by:
 reconciled: true
