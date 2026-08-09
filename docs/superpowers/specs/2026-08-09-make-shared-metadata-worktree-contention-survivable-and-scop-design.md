@@ -182,14 +182,18 @@ carrying the meaning. The guard keys on this literal string.
      **Key on the command string, not on prose describing it.** The obvious predicate — "the body
      names the metadata working tree" — yields the same seven today but is keyed on a *spelling*,
      which AGENTS.md forbids for exactly the reason visible in `docket-adr`: it already uses the
-     variant "metadata tree" **three** times against the canonical phrase **twice**, so an ordinary
-     slim that normalizes its two canonical mentions to its own dominant idiom would silently drop
-     it from coverage — a false green in the one channel Half 3 exists to guard. Nor is the Step-0
-     "All reads and writes land in the metadata working tree" line the structural anchor it looks
-     like: only four of the seven carry any form of it. `docket.sh preflight` is a literal invoked
-     command, immune to both reflow and rewording, and a skill cannot drop it and remain an
-     operating skill. (`Step-0 preamble` as a phrase yields the identical set and may be asserted
-     alongside it as a cheap second signal; the command string is the load-bearing one.)
+     variant "metadata tree" on **three** lines (four occurrences) against the canonical phrase on
+     **two**, so an ordinary slim that normalizes its two canonical mentions to its own dominant
+     idiom would silently drop it from coverage — a false green in the one channel Half 3 exists to
+     guard. Nor is the Step-0 "All reads and writes land in the metadata working tree" line the
+     structural anchor it looks like: only four of the seven carry any form of it. `docket.sh
+     preflight` is a literal invoked command, immune to both reflow and rewording. It is not
+     logically undroppable — `docket-finalize-change` and `docket-adr` carry it exactly once, in
+     the Step-0 gloss — but it is the most stable anchor available: all seven carry it in that
+     stereotyped line, five also carry it at mid-run re-sync sites as executable instruction, and
+     unlike the prose predicate it has no observed drift. (`Step-0 preamble` as a phrase yields the
+     identical set and may be asserted alongside it as a cheap second signal; the command string is
+     the load-bearing one.)
    - Mutation-test both groups: strip the marker from one skill body and from the convention
      sentence; each must redden its own assert.
 
