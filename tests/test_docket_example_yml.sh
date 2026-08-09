@@ -131,6 +131,7 @@ map_for(){ # map_for <EXPORT_KEY> -> ERE matching the example's line, or empty i
     AUTO_CAPTURE_TYPES)    echo '^[[:space:]]+types:[[:space:]]*all' ;;
     TERMINAL_PUBLISH)      echo '^terminal_publish:[[:space:]]*false' ;;
     GATE_OBSERVATION_BUDGET) echo '^gate_observation_budget:[[:space:]]*30[[:space:]]*$' ;;
+    DELEGATION_OBSERVATION_BUDGET) echo '^delegation_observation_budget:[[:space:]]*60[[:space:]]*$' ;;
     RECLAIM_LEASE_TTL)     echo '^[[:space:]]+lease_ttl:[[:space:]]*72' ;;
     RECLAIM_AUTO)          echo '^[[:space:]]+auto:[[:space:]]*false' ;;
     BUILD_CHECKPOINT)      echo '^[[:space:]]+checkpoint:[[:space:]]*false' ;;
@@ -221,6 +222,7 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
     auto_capture.types)   echo 'resolved:AUTO_CAPTURE_TYPES' ;;
     terminal_publish)     echo 'resolved:TERMINAL_PUBLISH' ;;
     gate_observation_budget)      echo 'resolved:GATE_OBSERVATION_BUDGET' ;;
+    delegation_observation_budget) echo 'resolved:DELEGATION_OBSERVATION_BUDGET' ;;
     reclaim.lease_ttl)            echo 'resolved:RECLAIM_LEASE_TTL' ;;
     reclaim.auto)                 echo 'resolved:RECLAIM_AUTO' ;;
     build.checkpoint)             echo 'resolved:BUILD_CHECKPOINT' ;;
@@ -721,7 +723,8 @@ assert "elsewhere: shape control — the real '^agents[[:space:]]*:' reader IS a
 # condition and the failure message below both read it, so bumping it in one place updates both
 # instead of leaving one stale.
 # change 0269 took it from 45 to 47 (runners.codex.shim_model and runners.codex.shim_effort).
-expected_key_count=47
+# change 0271 took it from 47 to 48 (the flat top-level delegation_observation_budget key).
+expected_key_count=48
 # RAW FLOOR (change 0102 whole-branch review, MINOR 3): example_keys_raw feeds BOTH this section's
 # manifest loop (via example_keys, deduped) and the duplicate-leaf check directly below (also
 # fed from example_keys_raw, undeduped). Without this assert, an edit that makes the raw pipeline
