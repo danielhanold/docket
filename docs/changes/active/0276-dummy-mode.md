@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/dummy-mode
-claimed_at: 2026-08-09T18:27:15Z
+claimed_at: 2026-08-09T18:31:16Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -67,3 +67,28 @@ building, reviewing).
 
 - Whether `DUMMY_MODE_SURFACES` exports `all` literally or pre-expanded to the token list
   (implementation's choice; state it in the script contract).
+
+## Reconcile log
+
+### 2026-08-09
+
+Reconciled against `origin/main` @ `324d2268` and the current `docket` tip. The design holds; three
+constraints from current reality are now folded into the spec, and one coupling is recorded.
+
+- **Persona must be a single-line scalar.** `docket-config.sh`'s snapshot readers
+  (`config_line_scalar_get` → `config_normalize_scalar`) parse one line and strip from the first
+  `#` before unquoting. The spec's gallery shipped folded (`persona: >`) examples, which the
+  resolver would read as the literal `>`. Resolution folded into the spec: a block-scalar persona
+  is a hard error with a diagnostic naming the quoted form, a `#`-truncated persona is detected and
+  refused rather than exported as a fragment, and the five gallery examples are rewritten as quoted
+  single-line strings. Extending the shared reader for one cosmetic key was rejected — every
+  skill's Step 0 runs through it.
+- **`.docket.example.yml` is a guarded surface.** `tests/test_docket_example_yml.sh` enumerates
+  nested keys, requires a `scope:` tag and a real consumer for each, and pins the count; adding
+  three leaves means updating that count in the same commit. Added as its own implementation step.
+- **Coupling — change 0258** (`in-progress`, plan committed, no implementation) touches the same
+  enumerated-export assertions this change extends by three exports. Not a dependency; whichever
+  lands second reconciles the enumeration.
+
+No scope was dropped and none added. Auto-capture: nothing cleared the six admission gates — the
+findings above are in-scope drift, recorded here rather than minted.

@@ -56,6 +56,18 @@ dummy_mode:
   An unknown `surfaces:` token is
   warned-and-ignored (typo must never abort a run); an empty list is equivalent to
   `enabled: false` for eligibility purposes.
+- **Persona scalar shape (reconcile 2026-08-09, binding).** `docket-config.sh`'s snapshot readers
+  (`config_line_scalar_get` → `config_normalize_scalar`) support a **single-line scalar only**, and
+  they strip everything from the first `#` **before** unquoting. Two consequences the build must
+  honor:
+  - A **YAML block scalar** (`persona: >`, `>-`, `|`, `|-`, with any chomp/indent modifier) is
+    **not supported in v1** and is a hard error with a diagnostic naming the quoted single-line
+    form. Extending the shared reader for one cosmetic key would put every skill's Step 0 at risk
+    for no functional gain; the folded form can be added later without breaking a single-line
+    persona. The gallery below therefore ships **quoted single-line personas**.
+  - A `#` anywhere in the persona text truncates it. The resolver must detect the truncation
+    signature (a resolved persona with an unbalanced leading `"`/`'`) and die with a diagnostic
+    saying `#` is unsupported in `dummy_mode.persona`, rather than silently exporting a fragment.
 - **Resolution:** `docket-config.sh --export` emits `DUMMY_MODE_ENABLED`,
   `DUMMY_MODE_PERSONA`, `DUMMY_MODE_SURFACES` (space-separated tokens, `all` expanded or
   passed literally — implementation's choice, stated in the script contract). Skills read
@@ -157,9 +169,20 @@ Convention-prose feature; no new scripts.
    (`reports`), `docket-auto-groom` (`reports`, `change-sections`).
 4. **Docs** (README + config docs) — the persona-example gallery below, verbatim or
    near-verbatim.
-5. **Tests** — config-resolution coverage (defaults, per-layer override, blank-persona
-   warn-and-disable, unknown-token warn-and-ignore, export names/order per the config
-   suite's conventions) plus guard tests keeping the skill-body pointers present.
+5. **`.docket.example.yml`** — the canonical all-key reference must document `dummy_mode:` and its
+   three leaves. `tests/test_docket_example_yml.sh` enumerates nested keys and requires each to
+   carry a `scope:` tag (or sit under a tagged header) *and* a real consumer, so the same commit
+   bumps that test's `expected_nested_key_count`. `tests/test_config_read_channel.sh` guards the
+   read channel — the new leaves must be read through the snapshot readers, never a fresh file read.
+6. **Tests** — config-resolution coverage (defaults, per-layer override, blank-persona → default
+   persona exported with a notice, block-scalar persona → hard error, `#`-truncated persona → hard
+   error, unknown-token warn-and-ignore, export names/order per the config suite's conventions)
+   plus guard tests keeping the skill-body pointers present.
+
+**Coupling (reconcile 2026-08-09).** Change 0258 (*guard the config suite's enumerated claims,
+export order …*) is `in-progress` on `feat/guard-the-config-suite-…` with a plan committed and no
+implementation yet. It targets the same enumerated-export assertions this change extends by three
+exports. No merge-order dependency is declared — whichever lands second reconciles the enumeration.
 
 ## Persona example gallery (ships in docs)
 
@@ -171,11 +194,7 @@ each shows the config as written and what it changes in practice.
 ```yaml
 dummy_mode:
   enabled: true
-  persona: >
-    Comfortable with git, GitHub PRs, and YAML. Cannot read bash or awk — explain
-    script behavior by outcome, never by code. Does not know docket's internal
-    vocabulary (worktree, CAS push, claim lease, orphan branch) — use each term only
-    with a one-clause gloss.
+  persona: "Comfortable with git, GitHub PRs, and YAML. Cannot read bash or awk — explain script behavior by outcome, never by code. Does not know docket's internal vocabulary (worktree, CAS push, claim lease, orphan branch) — use each term only with a one-clause gloss."
 ```
 
 Effect: a brainstorm question like "should the CAS retry re-run preflight before the
@@ -187,10 +206,7 @@ automatically re-sync and retry, or stop and ask you?"
 ```yaml
 dummy_mode:
   enabled: true
-  persona: >
-    Data analyst: fluent in SQL and pandas, reads simple Python. No infrastructure
-    background — Docker, Airflow scheduling internals, and IAM are unknown terms.
-    Frame trade-offs in terms of data freshness, correctness, and cost.
+  persona: "Data analyst: fluent in SQL and pandas, reads simple Python. No infrastructure background — Docker, Airflow scheduling internals, and IAM are unknown terms. Frame trade-offs in terms of data freshness, correctness, and cost."
   surfaces: [dialogue, reports]
 ```
 
@@ -199,10 +215,7 @@ dummy_mode:
 ```yaml
 dummy_mode:
   enabled: true
-  persona: >
-    Non-engineer founder: thinks in user flows and screens, not components or state.
-    Knows what an API is, not what REST vs GraphQL implies. Avoid all TypeScript
-    jargon; describe changes by what the user sees and what could break for them.
+  persona: "Non-engineer founder: thinks in user flows and screens, not components or state. Knows what an API is, not what REST vs GraphQL implies. Avoid all TypeScript jargon; describe changes by what the user sees and what could break for them."
 ```
 
 **4. Terraform/infrastructure repo — application-developer reader**
@@ -210,10 +223,7 @@ dummy_mode:
 ```yaml
 dummy_mode:
   enabled: true
-  persona: >
-    Backend application developer (Go, Postgres) new to infrastructure-as-code: plan
-    vs apply, state files, and drift are new concepts. Comfortable with networking
-    basics. Always spell out blast radius: what a change destroys or recreates.
+  persona: "Backend application developer (Go, Postgres) new to infrastructure-as-code: plan vs apply, state files, and drift are new concepts. Comfortable with networking basics. Always spell out blast radius: what a change destroys or recreates."
   surfaces: [dialogue, results, pr]
 ```
 
@@ -222,10 +232,7 @@ dummy_mode:
 ```yaml
 dummy_mode:
   enabled: true
-  persona: >
-    Backend engineer fluent in Java and REST APIs, new to mobile: SwiftUI, the app
-    lifecycle, and App Store review constraints are unfamiliar. Map iOS concepts to
-    server-side analogies where one exists; flag where the analogy breaks.
+  persona: "Backend engineer fluent in Java and REST APIs, new to mobile: SwiftUI, the app lifecycle, and App Store review constraints are unfamiliar. Map iOS concepts to server-side analogies where one exists; flag where the analogy breaks."
 ```
 
 The gallery's axes, stated in the docs so users can compose their own: **subject-matter
@@ -245,7 +252,8 @@ dimensions trade-offs should be expressed in).
 ## Testing
 
 - Config suite: new-key defaults, layer precedence, blank-persona → default persona
-  exported (with notice), unknown token → warned + ignored, export presence/order.
+  exported (with notice), block-scalar persona → hard error, `#`-bearing persona → hard error
+  rather than a silent fragment, unknown token → warned + ignored, export presence/order.
 - Guard tests: convention section exists; each eligible skill body carries its pointer;
   the agent-safety line present in the shared definition.
 - No runtime prose assertions — the simplification itself is LLM-authored and is exercised
