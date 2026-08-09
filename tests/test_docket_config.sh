@@ -241,7 +241,7 @@ assert "board fenced-to-empty: emits BOARD_SURFACES=none" \
 
 # --- (E) direct-pipe caller (LEARNINGS #22: $() hides a dropped trailing \n) -
 n="$(run "$tmp/c" --export | grep -c '=')"
-assert "direct-pipe: 34 KEY=value lines emitted"       '[ "$n" -eq 34 ]'
+assert "direct-pipe: 37 KEY=value lines emitted"       '[ "$n" -eq 37 ]'   # 34 -> 37: change 0276's DUMMY_MODE trio
 last="$(run "$tmp/c" --export | tail -n1)"
 assert "direct-pipe: last line is BOOTSTRAP"           'case "$last" in BOOTSTRAP=*) true;; *) false;; esac'
 
@@ -617,9 +617,10 @@ AUTO_GROOM=__poison__
 out="$(env -u XDG_CONFIG_HOME HOME="$tmp/q.home" bash "$SCRIPT" --repo-dir "$tmp/q" --export)"; eval "$out"
 assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = true ]'
 
-# --- (E') emit-interface guard: exactly 34 lines with a global file present ---
+# --- (E') emit-interface guard: exactly 37 lines with a global file present ---
+# 34 -> 37 (change 0276): the DUMMY_MODE_{ENABLED,PERSONA,SURFACES} trio.
 n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
-assert "0050 E': 34 KEY=value lines with global layer" '[ "$n50" -eq 34 ]'
+assert "0050 E': 37 KEY=value lines with global layer" '[ "$n50" -eq 37 ]'
 
 # --- (M) coordination-key fence: warned-and-ignored, never honored, never fatal ---
 mkrepo "$tmp/m"
@@ -3029,6 +3030,157 @@ assert "0258 L2 control: $rp_n layers imply $(( rp_n * (rp_n - 1) )) ordered pai
   '[ "$(grep -c . <<<"$rp_expected")" -eq "$(( rp_n * (rp_n - 1) ))" ]'
 assert "0258 L2: the pinned rung pairs are exactly the resolver's ordered-pair set" \
   '[ "$rp_pinned" = "$rp_expected" ]'
+
+# ---- change 0276: dummy_mode (DM-a … DM-l) ------------------------------------
+# Persona-calibrated human-facing prose. Three leaves in one nested block, read leaf-by-leaf
+# exactly like auto_capture:/learnings:, so a machine layer can flip `enabled` while inheriting
+# `persona`. Every assert reads emitted lines (the GOB header states why).
+#
+# PLAIN format throughout (the 0127 ct_get precedent): two of the three values carry SPACES, and
+# the default shell format is `%q`-quoted, so `DUMMY_MODE_SURFACES=dialogue pr` is emitted as
+# `DUMMY_MODE_SURFACES=dialogue\ pr` there and an exact-line assert would never match. dm_run_with
+# is run_resolver_with with that one difference — the shared helper is left alone rather than
+# grown a parameter its existing callers do not need.
+dm_run_with(){  # dm_run_with <yaml-fragment> -> resolver stdout in PLAIN format
+  local frag="$1" d="$tmp/dm-frag-$RANDOM"
+  mkrepo "$d"
+  printf 'metadata_branch: main\n%b' "$frag" > "$d/.docket.yml"
+  git -C "$d" add .docket.yml; git -C "$d" commit --quiet -m cfg
+  git -C "$d" push --quiet origin main
+  run "$d" --export --format plain
+}
+
+mkrepo "$tmp/dm-a"
+dm_out_default="$(run "$tmp/dm-a" --export --format plain)"
+assert "DM-a: enabled defaults to false" \
+  'grep -qxF "DUMMY_MODE_ENABLED=false" <<<"$dm_out_default"'
+assert "DM-a: surfaces defaults to the literal all" \
+  'grep -qxF "DUMMY_MODE_SURFACES=all" <<<"$dm_out_default"'
+
+# The default persona is emitted even when dummy mode is OFF: the spec's rule is that skills never
+# special-case an empty persona. Bound the assert to a distinctive clause rather than the whole
+# paragraph, so a re-wrap of the constant does not redden it.
+assert "DM-b: the shipped default persona is exported when none is configured" \
+  'grep -q "^DUMMY_MODE_PERSONA=.*mid-level software engineer" <<<"$dm_out_default"'
+assert "DM-b: the default persona glosses project-internal vocabulary" \
+  'grep -q "^DUMMY_MODE_PERSONA=.*one-clause explanation" <<<"$dm_out_default"'
+
+mkrepo "$tmp/dm-c"
+cat > "$tmp/dm-c/.docket.yml" <<'EOF'
+metadata_branch: main
+dummy_mode:
+  enabled: true
+  persona: "Reads YAML, not bash. Explain scripts by outcome."
+EOF
+git -C "$tmp/dm-c" add .docket.yml; git -C "$tmp/dm-c" commit --quiet -m cfg
+git -C "$tmp/dm-c" push --quiet origin main
+dm_out_committed="$(run "$tmp/dm-c" --export --format plain)"
+assert "DM-c: committed layer is honored for enabled" \
+  'grep -qxF "DUMMY_MODE_ENABLED=true" <<<"$dm_out_committed"'
+assert "DM-c: a quoted persona survives with its spaces and punctuation" \
+  'grep -qxF "DUMMY_MODE_PERSONA=Reads YAML, not bash. Explain scripts by outcome." <<<"$dm_out_committed"'
+assert "DM-c: an unset surfaces leaf still defaults to all" \
+  'grep -qxF "DUMMY_MODE_SURFACES=all" <<<"$dm_out_committed"'
+
+# Per-leaf fallback: the local layer flips one leaf and INHERITS the other two.
+mkrepo "$tmp/dm-d"
+cat > "$tmp/dm-d/.docket.yml" <<'EOF'
+metadata_branch: main
+dummy_mode:
+  enabled: false
+  persona: "Committed persona."
+EOF
+git -C "$tmp/dm-d" add .docket.yml; git -C "$tmp/dm-d" commit --quiet -m cfg
+git -C "$tmp/dm-d" push --quiet origin main
+printf 'dummy_mode:\n  enabled: true\n' > "$tmp/dm-d/.docket.local.yml"
+dm_out_local="$(run "$tmp/dm-d" --export --format plain)"
+assert "DM-d: repo-local outranks committed on the leaf it sets" \
+  'grep -qxF "DUMMY_MODE_ENABLED=true" <<<"$dm_out_local"'
+assert "DM-d: the leaf the local layer did NOT set is inherited, not defaulted" \
+  'grep -qxF "DUMMY_MODE_PERSONA=Committed persona." <<<"$dm_out_local"'
+
+# Blank persona with dummy mode ON: default persona + a NOTICE on stderr. Never a warning, never
+# disabled — the spec is explicit that a blank persona is a supported configuration.
+dm_blank_err="$(dm_run_with "dummy_mode:\n  enabled: true\n  persona: \"\"\n" 2>&1 >/dev/null)"
+dm_blank_out="$(dm_run_with "dummy_mode:\n  enabled: true\n  persona: \"\"\n" 2>/dev/null)"
+assert "DM-e: a blank persona does not abort the resolver" \
+  '[ -n "$dm_blank_out" ]'
+assert "DM-e: a blank persona still resolves enabled: true" \
+  'grep -qxF "DUMMY_MODE_ENABLED=true" <<<"$dm_blank_out"'
+assert "DM-e: a blank persona falls back to the default persona" \
+  'grep -q "^DUMMY_MODE_PERSONA=.*mid-level software engineer" <<<"$dm_blank_out"'
+# Bind the word "notice" to what it is a notice ABOUT, so a rewrite that keeps the word and drops
+# the subject reddens (learnings: prose-guard-binds-phrase-to-claim).
+assert "DM-e: the fallback prints a notice naming the persona" \
+  'grep -qE "notice:[^.]{0,120}persona" <<<"$dm_blank_err"'
+assert "DM-e: the fallback is not phrased as a warning" \
+  '! grep -qE "warning:[^.]{0,120}dummy_mode.persona" <<<"$dm_blank_err"'
+
+# A BLOCK SCALAR is a hard error. The reader is single-line, so `persona: >` would otherwise
+# resolve to the literal ">" and export a one-character persona that looks configured.
+dm_fold_rc=0
+dm_fold_err="$(dm_run_with "dummy_mode:\n  enabled: true\n  persona: >\n    folded text here\n" 2>&1 >/dev/null)" || dm_fold_rc=$?
+assert "DM-f: a folded block scalar aborts the resolver" '[ "$dm_fold_rc" -ne 0 ]'
+assert "DM-f: the diagnostic names the key and the supported form" \
+  'grep -qE "dummy_mode.persona[^.]{0,160}single-line" <<<"$dm_fold_err"'
+dm_lit_rc=0
+dm_lit_err="$(dm_run_with "dummy_mode:\n  enabled: true\n  persona: |-\n    literal text here\n" 2>&1 >/dev/null)" || dm_lit_rc=$?
+assert "DM-f: a literal block scalar with a chomp indicator also aborts" '[ "$dm_lit_rc" -ne 0 ]'
+assert "DM-f: the literal-form diagnostic also names the key" \
+  'grep -qF -- "dummy_mode.persona" <<<"$dm_lit_err"'
+
+# A `#` inside the persona is eaten by the shared reader BEFORE unquoting, leaving an unbalanced
+# leading quote. Refuse it loudly rather than exporting the fragment.
+dm_hash_rc=0
+dm_hash_err="$(dm_run_with "dummy_mode:\n  enabled: true\n  persona: \"knows git # and yaml\"\n" 2>&1 >/dev/null)" || dm_hash_rc=$?
+assert "DM-g: a persona containing '#' aborts instead of exporting a fragment" \
+  '[ "$dm_hash_rc" -ne 0 ]'
+assert "DM-g: the diagnostic names the offending character and the key" \
+  'grep -qE "dummy_mode.persona[^.]{0,160}#" <<<"$dm_hash_err"'
+
+# surfaces: an explicit subset is kept in order; an unknown token is warned-and-ignored, never fatal.
+dm_sub_out="$(dm_run_with "dummy_mode:\n  enabled: true\n  surfaces: [dialogue, pr]\n" 2>/dev/null)"
+assert "DM-h: an explicit subset replaces the literal all" \
+  'grep -qxF "DUMMY_MODE_SURFACES=dialogue pr" <<<"$dm_sub_out"'
+dm_unk_rc=0
+dm_unk_err="$(dm_run_with "dummy_mode:\n  enabled: true\n  surfaces: [dialogue, bogus]\n" 2>&1 >/dev/null)" || dm_unk_rc=$?
+dm_unk_out="$(dm_run_with "dummy_mode:\n  enabled: true\n  surfaces: [dialogue, bogus]\n" 2>/dev/null)"
+assert "DM-i: an unknown surface token does not abort the run" '[ "$dm_unk_rc" -eq 0 ]'
+assert "DM-i: the unknown token is dropped and the known one kept" \
+  'grep -qxF "DUMMY_MODE_SURFACES=dialogue" <<<"$dm_unk_out"'
+# `[^:]`, not the `[^.]` the other DM asserts use: the warning names the dotted key
+# (`dummy_mode.surfaces`) between "warning:" and the token, so a dot-excluding window can never
+# span it. A colon-excluding window keeps the same "one diagnostic, not two" binding.
+assert "DM-i: the unknown token is named in a warning" \
+  'grep -qE "warning:[^:]{0,160}bogus" <<<"$dm_unk_err"'
+
+# An empty list is legal and means "no eligible surface" — the spec's equivalent-to-disabled case.
+dm_empty_out="$(dm_run_with "dummy_mode:\n  enabled: true\n  surfaces: []\n" 2>/dev/null)"
+assert "DM-j: an empty surfaces list is legal" \
+  'grep -qxF "DUMMY_MODE_ENABLED=true" <<<"$dm_empty_out"'
+assert "DM-j: an empty surfaces list exports an empty value, not 'all'" \
+  'grep -qxF "DUMMY_MODE_SURFACES=" <<<"$dm_empty_out"'
+
+# enabled fails CLOSED on garbage, like learnings.enabled / auto_capture.enabled.
+dm_bad_rc=0
+dm_bad_err="$(dm_run_with "dummy_mode:\n  enabled: sometimes\n" 2>&1 >/dev/null)" || dm_bad_rc=$?
+assert "DM-k: a non-boolean enabled aborts the resolver" '[ "$dm_bad_rc" -ne 0 ]'
+assert "DM-k: the diagnostic names the key" \
+  'grep -qF -- "dummy_mode.enabled" <<<"$dm_bad_err"'
+
+# ORDER: the trio emits after SKILL_FINISH and before BOOTSTRAP. Line numbers are derived per key
+# so a missing key reads as an empty extraction rather than shifting a positional match.
+dm_ln(){ grep -n "^$1=" <<<"$dm_out_default" | cut -d: -f1; }
+dm_n_fin="$(dm_ln SKILL_FINISH)"
+dm_n_en="$(dm_ln DUMMY_MODE_ENABLED)"
+dm_n_pe="$(dm_ln DUMMY_MODE_PERSONA)"
+dm_n_su="$(dm_ln DUMMY_MODE_SURFACES)"
+dm_n_boot="$(dm_ln BOOTSTRAP)"
+assert "DM-l: all five emit positions were extracted (fin=$dm_n_fin en=$dm_n_en pe=$dm_n_pe su=$dm_n_su boot=$dm_n_boot)" \
+  '[ -n "$dm_n_fin" ] && [ -n "$dm_n_en" ] && [ -n "$dm_n_pe" ] && [ -n "$dm_n_su" ] && [ -n "$dm_n_boot" ]'
+assert "DM-l: the trio emits between SKILL_FINISH and BOOTSTRAP, in enabled/persona/surfaces order" \
+  '[ "${dm_n_en:-0}" -gt "${dm_n_fin:-0}" ] && [ "${dm_n_pe:-0}" -gt "${dm_n_en:-0}" ] \
+   && [ "${dm_n_su:-0}" -gt "${dm_n_pe:-0}" ] && [ "${dm_n_su:-0}" -lt "${dm_n_boot:-0}" ]'
 
 assert "0174 template integrity: the shared template is unmutated after the full run" \
   '[ "$(git -C "$MKREPO_TEMPLATE.origin.git" for-each-ref --format="%(refname) %(objectname)" | LC_ALL=C sort)" = "$tplint_refs" ] &&
