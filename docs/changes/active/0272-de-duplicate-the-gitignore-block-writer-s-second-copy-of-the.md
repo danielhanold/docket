@@ -3,10 +3,10 @@ id: 272
 slug: de-duplicate-the-gitignore-block-writer-s-second-copy-of-the
 title: 'De-duplicate the gitignore-block writer''s second copy of the write orchestration'
 status: proposed
-priority: medium
+priority: low
 type: fix
 created: 2026-08-08
-updated: 2026-08-08
+updated: 2026-08-09
 depends_on: []
 related: []
 discovered_from: [242]

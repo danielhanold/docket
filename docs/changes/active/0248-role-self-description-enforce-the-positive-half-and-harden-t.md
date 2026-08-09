@@ -3,10 +3,10 @@ id: 248
 slug: role-self-description-enforce-the-positive-half-and-harden-t
 title: 'Role self-description: enforce the positive half and harden the guard'
 status: proposed
-priority: medium
+priority: low
 type: chore
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-09
 depends_on: []
 related: [194]
 discovered_from: [198, 199]

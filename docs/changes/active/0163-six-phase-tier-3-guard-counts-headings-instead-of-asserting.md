@@ -3,10 +3,10 @@ id: 163
 slug: six-phase-tier-3-guard-counts-headings-instead-of-asserting
 title: Six-phase Tier 3 guard counts headings instead of asserting the phase set
 status: proposed
-priority: medium
+priority: low
 type: fix
 created: 2026-07-28
-updated: 2026-08-07
+updated: 2026-08-09
 depends_on: []
 related: []
 discovered_from: [135]

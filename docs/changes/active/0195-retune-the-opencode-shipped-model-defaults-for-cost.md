@@ -3,10 +3,10 @@ id: 195
 slug: retune-the-opencode-shipped-model-defaults-for-cost
 title: Retune the opencode shipped model defaults for cost
 status: proposed
-priority: medium
+priority: low
 type: chore
 created: 2026-08-02
-updated: 2026-08-02
+updated: 2026-08-09
 depends_on: [192]
 related: [164, 166, 181]
 discovered_from: [192]

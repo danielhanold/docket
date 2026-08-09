@@ -3,10 +3,10 @@ id: 257
 slug: clear-the-residual-review-findings-from-0193-and-0201
 title: 'Clear the residual review findings from 0193 and 0201'
 status: proposed
-priority: medium
+priority: low
 type: chore
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-09
 depends_on: []
 related: [253, 260]
 discovered_from: [197, 204]

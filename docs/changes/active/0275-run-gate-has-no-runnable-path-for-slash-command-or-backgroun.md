@@ -3,7 +3,7 @@ id: 275
 slug: run-gate-has-no-runnable-path-for-slash-command-or-backgroun
 title: 'Run gate has no runnable path for slash-command or backgrounded implement-next dispatch'
 status: proposed
-priority: medium
+priority: high
 type: fix
 created: 2026-08-09
 updated: 2026-08-09

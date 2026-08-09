@@ -3,10 +3,10 @@ id: 252
 slug: harden-test-fixtures-and-hermeticity-into-tests-lib
 title: 'Harden test fixtures and hermeticity into tests-lib'
 status: proposed
-priority: medium
+priority: high
 type: chore
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-09
 depends_on: []
 related: [253, 278, 222]
 discovered_from: [243, 177, 182]

@@ -3,10 +3,10 @@ id: 158
 slug: batch-mode-for-docket-implement-next-build-several-coupled-c
 title: Batch mode for docket-implement-next — build several coupled changes on one branch
 status: proposed
-priority: medium
+priority: low
 type: feat
 created: 2026-07-28
-updated: 2026-07-28
+updated: 2026-08-09
 depends_on: []
 related: [8, 157]
 discovered_from: [157]

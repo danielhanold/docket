@@ -3,10 +3,10 @@ id: 221
 slug: assert-executes-backticks-in-its-test-description-so-a-verba
 title: assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell
 status: proposed
-priority: medium
+priority: high
 type: fix
 created: 2026-08-05
-updated: 2026-08-07
+updated: 2026-08-09
 depends_on: []
 related: []
 discovered_from: [212]

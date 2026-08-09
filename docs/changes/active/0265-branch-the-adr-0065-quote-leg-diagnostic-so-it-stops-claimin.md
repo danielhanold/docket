@@ -3,10 +3,10 @@ id: 265
 slug: branch-the-adr-0065-quote-leg-diagnostic-so-it-stops-claimin
 title: 'Branch the ADR-0065 quote-leg diagnostic so it stops claiming a truncation that did not happen'
 status: proposed
-priority: medium
+priority: low
 type: fix
 created: 2026-08-08
-updated: 2026-08-08
+updated: 2026-08-09
 depends_on: []
 related: [267]
 discovered_from: [255]

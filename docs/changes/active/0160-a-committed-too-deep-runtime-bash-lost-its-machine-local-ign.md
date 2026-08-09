@@ -3,10 +3,10 @@ id: 160
 slug: a-committed-too-deep-runtime-bash-lost-its-machine-local-ign
 title: A committed too-deep runtime.bash lost its machine-local ignored advisory
 status: proposed
-priority: medium
+priority: low
 type: fix
 created: 2026-07-28
-updated: 2026-08-07
+updated: 2026-08-09
 depends_on: []
 related: []
 discovered_from: [157]

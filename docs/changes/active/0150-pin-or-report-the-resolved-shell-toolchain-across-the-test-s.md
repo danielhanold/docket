@@ -3,10 +3,10 @@ id: 150
 slug: pin-or-report-the-resolved-shell-toolchain-across-the-test-s
 title: Pin or report the resolved shell toolchain across the test suite
 status: proposed
-priority: medium
+priority: low
 type: chore
 created: 2026-07-28
-updated: 2026-08-07
+updated: 2026-08-09
 depends_on: []
 related: [151, 227]
 discovered_from: [130]
