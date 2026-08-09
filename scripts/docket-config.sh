@@ -823,6 +823,94 @@ if [ "$AUTO_CAPTURE_TYPES" != all ]; then
     || die "unparseable config: auto_capture.types has duplicate entries: ${act_dupes% }"
 fi
 
+# --- dummy_mode defaults (change 0276) -----------------------------------------
+# Declared HERE rather than in lib/docket-frontmatter.sh (where DOCKET_CHANGE_TYPES_DEFAULT lives):
+# that library is the change-type vocabulary shared with every consumer, while these two constants
+# have exactly one reader — this resolver.
+# The SHIPPED DEFAULT PERSONA lives here and nowhere else: docs quote it, skills read the export.
+# A defensible median reader for a technical repo — it strips expert idioms without going ELI5, and
+# it bakes in the universal half of the problem (project-internal jargon is unknown to every
+# newcomer at any skill level, so the default always glosses it).
+DOCKET_DUMMY_MODE_DEFAULT_PERSONA="A mid-level software engineer: solid grasp of software architecture and general engineering concepts — APIs, testing, CI, version control — but only working-level fluency in any specific programming language, so avoid language-specific idioms unless glossed. Assume no familiarity with this project's internal vocabulary; introduce each project-specific term with a one-clause explanation."
+# The five v1 surface tokens. docket-convention's shared definition owns their SEMANTICS; this is
+# only the admission list the resolver validates against.
+DOCKET_DUMMY_MODE_SURFACES=(dialogue reports results change-sections pr)
+
+# --- dummy_mode: persona-calibrated HUMAN-FACING prose (change 0276) -----------
+# Nested block, parsed leaf-by-leaf exactly like learnings:/reclaim:/auto_capture: — which is what
+# gives per-leaf fallback (a machine layer may flip `enabled` while inheriting `persona`) and what
+# keeps `enabled` from colliding with learnings.enabled under the snapshot scalar reader.
+# Global-able, NOT coordination-fenced: it changes prose tone, never shared non-re-derivable state.
+dm_key(){  # dm_key <leaf> <default> -> resolved value on stdout
+  local v; v="$(config_block_get local dummy_mode "$1")"
+  [ -n "$v" ] || v="$(config_block_get committed dummy_mode "$1")"
+  [ -n "$v" ] || v="$(config_block_get global dummy_mode "$1")"
+  printf '%s' "${v:-$2}"
+}
+DUMMY_MODE_ENABLED="$(dm_key enabled false)"
+case "$DUMMY_MODE_ENABLED" in
+  true|false) ;;
+  *) die "unparseable config: dummy_mode.enabled must be 'true' or 'false', got '$DUMMY_MODE_ENABLED'" ;;
+esac
+
+DUMMY_MODE_PERSONA="$(dm_key persona '')"
+# The shared scalar reader (`config_normalize_scalar`) is SINGLE-LINE and strips from the first `#`
+# BEFORE unquoting, so two YAML shapes that look right resolve to garbage. Both are refused loudly
+# rather than exported.
+#   1. A block scalar (`>`, `|`, with any chomp/indent modifier) resolves to just the indicator.
+#      v1 does not support it: extending the shared reader for one cosmetic key would put every
+#      skill's Step 0 at risk, and the folded form can be added later without breaking a
+#      single-line persona.
+#   2. A `#` anywhere in the value truncates it, leaving an UNBALANCED LEADING QUOTE — the
+#      signature this branch keys on, since a well-formed quoted scalar has both quotes stripped.
+#      Known limitation, stated rather than papered over: a persona whose text legitimately BEGINS
+#      with a quote character trips this too. That shape is vanishingly rare and the diagnostic
+#      names the real constraint either way.
+case "$DUMMY_MODE_PERSONA" in
+  '>'|'|'|'>'[-+]|'|'[-+]|'>'[0-9]*|'|'[0-9]*)
+    die "unparseable config: dummy_mode.persona must be a single-line quoted scalar — YAML block scalars (>, |, >-, |-) are not supported. Write it as: persona: \"<one line>\"" ;;
+esac
+case "$DUMMY_MODE_PERSONA" in
+  '"'*|\'*)
+    die "unparseable config: dummy_mode.persona looks truncated at a '#' — that character opens a YAML comment and is not supported inside a persona. Remove the '#' and keep the persona on one quoted line." ;;
+esac
+if [ -z "$DUMMY_MODE_PERSONA" ]; then
+  # A blank persona is a SUPPORTED configuration, not a misconfiguration: it selects the shipped
+  # default. Notice, never warning — and only when dummy mode is actually on, since the export
+  # carries the default unconditionally so skills never special-case an empty persona.
+  [ "$DUMMY_MODE_ENABLED" = true ] && printf 'docket-config: notice: dummy_mode is enabled with no persona set — using the shipped default persona\n' >&2
+  DUMMY_MODE_PERSONA="$DOCKET_DUMMY_MODE_DEFAULT_PERSONA"
+fi
+
+# `all` is preserved LITERALLY rather than expanded, on the auto_capture.types precedent: a
+# consumer can still tell "every surface, including ones added later" from an explicit subset.
+dm_surfaces_raw="$(dm_key surfaces all)"
+if [ "$dm_surfaces_raw" = all ]; then
+  DUMMY_MODE_SURFACES=all
+else
+  dm_kept=()
+  dm_norm="$(parse_inline_list "$dm_surfaces_raw")"
+  if [ -n "$dm_norm" ]; then
+    read -r -a dm_arr <<< "$dm_norm"
+    for dm_tok in "${dm_arr[@]}"; do
+      dm_known=0
+      for dm_ref in "${DOCKET_DUMMY_MODE_SURFACES[@]}"; do
+        [ "$dm_tok" = "$dm_ref" ] && { dm_known=1; break; }
+      done
+      if [ "$dm_known" -eq 1 ]; then
+        dm_kept+=("$dm_tok")
+      else
+        # Warned-and-ignored, never fatal: a typo in a tone knob must never abort a build.
+        printf 'docket-config: warning: unknown dummy_mode.surfaces token %s — ignored (known: %s)\n' \
+          "$dm_tok" "${DOCKET_DUMMY_MODE_SURFACES[*]}" >&2
+      fi
+    done
+  fi
+  # `${dm_kept[*]-}` (not `:-`): an EMPTY list is a legal value meaning "no eligible surface", so
+  # the empty case must resolve to the empty string rather than be defaulted away.
+  DUMMY_MODE_SURFACES="${dm_kept[*]-}"
+fi
+
 # --- Stage 3: bootstrap guard — evaluate the DOCKET/LIVE 2×2 (docket-mode only) ---
 BOOTSTRAP=PROCEED
 if [ "$DOCKET_MODE" = docket ]; then
@@ -907,5 +995,8 @@ if [ "$MODE" = export ]; then
   emit SKILL_BUILD "$SKILL_BUILD"
   emit SKILL_REVIEW "$SKILL_REVIEW"
   emit SKILL_FINISH "$SKILL_FINISH"
+  emit DUMMY_MODE_ENABLED "$DUMMY_MODE_ENABLED"
+  emit DUMMY_MODE_PERSONA "$DUMMY_MODE_PERSONA"
+  emit DUMMY_MODE_SURFACES "$DUMMY_MODE_SURFACES"
   emit BOOTSTRAP "$BOOTSTRAP"
 fi
