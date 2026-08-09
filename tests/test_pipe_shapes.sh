@@ -96,9 +96,36 @@ BAD_SHAPE="(^|[^|])[|][[:space:]]*${_C_PFX}(${_C_GREP}|${_C_HEAD}|${_C_AWK}|${_C
 # and BSD sed -E rejects some spellings of it.
 END_ACTION_RE='END[[:space:]]*[{][^{}]*[}]'
 
+# The scan reports WHAT IT READ, not what it was handed, through two files in $tmp — a file and not
+# a variable because every caller invokes scan() in a command substitution, and a subshell's
+# variables die with it. The non-vacuity floor reads the count; nothing else may.
+#   $SCAN_OPENED_FILE — how many files grep actually OPENED on the last call.
+#   $SCAN_ERR         — that call's grep diagnostics, verbatim. NOT /dev/null: swallowing them is
+#                       how a dropped path used to vanish (change 0276 review, finding 8).
+SCAN_OPENED_FILE="$tmp/scan.opened"
+SCAN_ERR="$tmp/scan.err"
+
 scan(){ # scan <file>... -> "file:line:content" per offending EXECUTABLE line
-  local raw line body
-  raw="$(grep -HnE "$BAD_SHAPE" "$@" 2>/dev/null)" || true
+  local roster raw line body opened=0
+  local -a offenders=()
+  : >"$SCAN_ERR"
+  # PASS 1 — the roster. `-c` with `-H` prints one `<file>:<count>` line for EVERY file grep opens,
+  # match or not, and reads each to EOF (no early exit, so no SIGPIPE hazard of its own). A path
+  # grep cannot open produces NO roster line and a diagnostic on stderr, so a dropped file shrinks
+  # the count the floor asserts on — which is the whole point: the floor must be a property of the
+  # scan, not of the list handed to it. `-e` because the pattern is data (AGENTS.md § Shell).
+  roster="$(grep -cHE -e "$BAD_SHAPE" -- "$@" 2>"$SCAN_ERR")" || true
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    opened=$((opened + 1))
+    case "$line" in *:0) continue;; esac
+    offenders+=("${line%:*}")
+  done <<<"$roster"
+  printf '%s\n' "$opened" >"$SCAN_OPENED_FILE"
+  # PASS 2 — line detail, over the roster's non-zero files ONLY. On a clean tree that list is empty
+  # and this pass does not run at all, so the two-pass shape costs one repo walk, not two.
+  [ "${#offenders[@]}" -gt 0 ] || return 0
+  raw="$(grep -HnE -e "$BAD_SHAPE" -- "${offenders[@]}" 2>>"$SCAN_ERR")" || true
   raw="$(grep -vE '^[^:]*:[0-9]+:[[:space:]]*#' <<<"$raw")" || true
   while IFS= read -r line; do
     [ -n "$line" ] || continue
@@ -110,14 +137,35 @@ scan(){ # scan <file>... -> "file:line:content" per offending EXECUTABLE line
 # --- the live tree -------------------------------------------------------------------------------
 # Derived, never hand-listed (AGENTS.md § Guards): every tracked shell file under tests/ and
 # scripts/ at any depth, plus the repo-root scripts.
+# NUL-delimited, into an array, expanded quoted: a path containing whitespace must reach grep whole.
+# A newline-joined list expanded unquoted (`scan $files`) split such a path into fragments grep could
+# not open — and the floor, counting LINES IN THE LIST, stayed green while the scanned population
+# silently shrank. Hence both halves of the repair: the hand-off below cannot split, and the floor
+# now counts what pass 1 OPENED (change 0276 review, finding 8).
 repo_sh_files(){
-  find "$REPO/tests" "$REPO/scripts" -type f -name '*.sh'
-  find "$REPO" -maxdepth 1 -type f -name '*.sh'
+  find "$REPO/tests" "$REPO/scripts" -type f -name '*.sh' -print0
+  find "$REPO" -maxdepth 1 -type f -name '*.sh' -print0
 }
-files="$(repo_sh_files)"
-assert "the scan population is non-vacuous (>=100 shell files)" \
-  '[ "$(wc -l <<<"$files")" -ge 100 ]'
-hits="$(scan $files)"
+files=()
+while IFS= read -r -d '' f; do files+=("$f"); done < <(repo_sh_files)
+# Fail closed before the array is expanded: under `set -u` an empty `"${files[@]}"` is an unbound
+# expansion on bash 3.2, which would abort inside a command substitution and read as an empty scan.
+[ "${#files[@]}" -gt 0 ] || { echo "NOT OK - the shell-file walk found nothing"; exit 1; }
+
+hits="$(scan "${files[@]}")"
+opened="$(cat "$SCAN_OPENED_FILE")"
+assert "the scan population is non-vacuous (>=100 shell files ACTUALLY OPENED, not merely listed)" \
+  '[ "$opened" -ge 100 ]'
+# The floor above proves the scan is BIG; this one proves it is COMPLETE. Both numbers are computed
+# from the walk and the roster — neither is written down, because a hand-carried population figure
+# is exactly the staleness this suite exists to catch. A single dropped path leaves the >=100 floor
+# green and only this equality reddens.
+assert "the scan opened every file it was handed — no path dropped, no grep diagnostics" \
+  '[ "$opened" -eq "${#files[@]}" ] && [ ! -s "$SCAN_ERR" ]'
+if [ -s "$SCAN_ERR" ]; then
+  echo "--- scan stderr: paths the scan could not open (handed ${#files[@]}, opened $opened) ---"
+  cat "$SCAN_ERR"
+fi
 # Title states the DELIVERED scope, not the aspiration: single-line pipelines, and the five consumer
 # shapes enumerated in the header. Indirect consumers and continuation-line pipelines are disclosed
 # under KNOWN IMPRECISION and are deliberately not claimed here.
