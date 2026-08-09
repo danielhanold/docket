@@ -82,6 +82,40 @@ assert "0079: shim replaced the native body" '! grep -qF "Execute docket-status 
 # facade. ADR-0038's chokepoint property is about the seam, not the call count.
 assert "0271: exactly two dispatch invocations in the shim" \
   '[ "$(grep -cF "docket.sh runner-dispatch" "$G")" = "2" ]'
+# The caller's task text is the child's ONLY input — it inherits no conversation. Rendered as an
+# optional trailing `[-- <caller args>]`, the model omitted it on live dispatches and the child
+# improvised from the worktree, so the run LOOKED successful. These asserts defend the two
+# properties that made the omission possible: the slot must be UNBRACKETED (not readable as
+# optional) and it must sit ON the launch line (not in trailing prose that can be skimmed past).
+# Captured into a variable before searching — `grep … | grep -q` would SIGPIPE the producer
+# under pipefail. `grep -qE --` is mandatory throughout: every pattern here leads with `--`, and
+# a bare leading `--` is parsed as an option (exit 2), which inside the negations below would be
+# permanently, vacuously green.
+launch_line="$(grep -F -- "--launch" "$G")"
+# Structural, not prose: a bare `--` terminator followed by a single-quoted angle-bracket
+# placeholder, anchored to end-of-line. Keyed on SHAPE so a reworded placeholder still passes and
+# a re-bracketed or deleted one still reddens.
+assert "0271: launch line ends with an unbracketed single-quoted task-text slot" \
+  'grep -qE -- "-- '\''<[^>]+>'\''[[:space:]]*$" <<<"$launch_line"'
+# DETECTS THE REMOVAL (LEARNINGS: assert-detects-removal-not-replacement): the bracketed spelling
+# is the defect itself, so it must not reappear anywhere in the shim, on the launch line or below.
+assert "0271: shim no longer renders the task slot as optional brackets" \
+  '! grep -qF -- "[--" "$G"'
+# MIRROR correspondence, not a subset: observe takes a KEY, never the brief. Without this, a
+# future edit that pastes the payload onto both lines passes every assert above while telling the
+# model to re-send a multi-KB brief on every poll.
+observe_line="$(grep -F -- "--observe" "$G")"
+assert "0271: observe line carries no task-text slot" \
+  '! grep -qE -- "-- '\''<" <<<"$observe_line"'
+# The two rules that make the slot survivable once it is seen: ONE argument (all three adapters
+# interpolate `$*`, so multiple args are joined on whitespace and a multi-line brief loses its
+# structure), and the fact that getting it wrong is SILENT — the child improvises rather than
+# erroring, which is why "it worked last time" is not evidence. Shape-tolerant alternations: the
+# clause may name the consequence either way round.
+assert "0271: shim requires the task text as ONE argument" \
+  'grep -qiE "one single-quoted argument|as ONE .*argument" "$G"'
+assert "0271: shim names the omission failure as silent" \
+  'grep -qiE "fails silently|does not error|looks successful" "$G"'
 # unlisted agent stays native in the same repo
 assert "0079: agent without runner: stays native" 'grep -qF "abort-and-report" "$SBX/.claude/agents/docket-adr.md" && ! grep -qF "runner-dispatch" "$SBX/.claude/agents/docket-adr.md"'
 # effort auto + runner => no --effort flag in the shim
