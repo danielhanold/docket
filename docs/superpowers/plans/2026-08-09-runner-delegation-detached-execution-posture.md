@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0271 — Runner delegation has no execution posture for a child that outlives its foreground call](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0271-runner-delegation-has-no-execution-posture-for-a-child-that.md)**
+> ↩ **[Change 0271 — Runner delegation has no execution posture for a child that outlives its foreground call](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-09-0271-runner-delegation-has-no-execution-posture-for-a-child-that.md)**
 <!-- docket:backlink:end -->
 
 # Runner delegation — detached execution posture Implementation Plan
