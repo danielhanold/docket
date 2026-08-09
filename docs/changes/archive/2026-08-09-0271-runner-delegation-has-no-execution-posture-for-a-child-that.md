@@ -2,7 +2,7 @@
 id: 271
 slug: runner-delegation-has-no-execution-posture-for-a-child-that
 title: 'Runner delegation has no execution posture for a child that outlives its foreground call'
-status: implemented
+status: done
 priority: high
 type: fix
 created: 2026-08-08
@@ -17,7 +17,7 @@ results: docs/results/2026-08-09-runner-delegation-has-no-execution-posture-for-
 trivial: false
 auto_groomable:
 branch: feat/runner-delegation-has-no-execution-posture-for-a-child-that
-claimed_at: 2026-08-09T07:03:55Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/188
 blocked_by:
 reconciled: true
