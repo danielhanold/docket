@@ -38,6 +38,8 @@ The default path for any non-trivial new change. Five steps:
 
 5. **Commit, push & Board pass** — commit the change + spec together (NOT `BOARD.md`) and PUSH to `origin/docket`, a **must-land** commit: retry (re-run `docket.sh preflight`, then re-push) until it lands. Run the must-land Board pass: `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh docket-status --board-only --must-land` — a non-zero exit means the board did not land; STOP and surface it (abort-and-report). STOP. Never implements.
 
+**Dummy mode:** when `DUMMY_MODE_ENABLED` is `true` (Step-0 export) — or the human asks for it in-session — write step 2's `dialogue` calibrated to `DUMMY_MODE_PERSONA`, per the convention's *Dummy mode* shared definition. The spec file itself is never simplified.
+
 ## Trivial path
 
 For a small mechanical change with no real design questions: skip the brainstorm, set `trivial: true`, write the change body directly — no spec, still build-ready. It still follows Brainstorm mode's steps 1 (Allocate), 3 (Scan related context), 4 (Draft — but omit `spec:`), and 5 (Commit, push & Board pass) — only step 2 (Brainstorm) is skipped.

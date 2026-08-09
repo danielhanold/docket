@@ -84,6 +84,8 @@ The driver's decision is binary: **continue on `advanced`/`contended`, stop on `
 
 The final report **enumerates** the change merged (if any), each change **skipped with its reason** (outside the id allowlist / not git-mergeable / unapproved under `require_pr_approval` / already carrying `## Finalize blocked` **on the auto-detect path only — a named id overrides that skip** / waiting on an unmerged `depends_on`), and which disposition ended the run.
 
+**Dummy mode:** when `DUMMY_MODE_ENABLED` is `true` (Step-0 export) — or the human asks for it in-session — write this skill's human-present prompts (`dialogue`) and its `reports` calibrated to `DUMMY_MODE_PERSONA`, and give any `change-sections` it writes (`## Finalize blocked`) an authored `### In plain terms` block alongside the full technical content, per the convention's *Dummy mode* shared definition.
+
 ## Per-change steps
 
 1. **Check the PR** (`gh`). Already merged → straight to step 2. Approved + mergeable but not merged → merge it into `<integration_branch>` (the exported `INTEGRATION_BRANCH`, never hard-coded). An explicit id IS the merge decision (and overrides `require_pr_approval`); under auto-detect, follow the Selection matrix. **Before the merge lands, run *The rebase-retest merge gate* below** (unless `finalize.gate` is `off`). The merge itself, and every step after it through the close-out, works from the repo's main worktree (see above).
