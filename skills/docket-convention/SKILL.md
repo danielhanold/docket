@@ -303,6 +303,8 @@ resolved as `DUMMY_MODE_ENABLED` / `DUMMY_MODE_PERSONA` / `DUMMY_MODE_SURFACES`)
 surfaces are eligible: `dialogue` and `reports` are **replaced** — written calibrated to the
 persona; `results`, `change-sections`, and `pr` are **additive** — the technical content is
 untouched and an authored `### In plain terms` block is written alongside it, in the same commit.
+**Apply a surface only when it is in `DUMMY_MODE_SURFACES`** — the literal `all` matches every
+token, an empty value matches none — no matter which surfaces a skill's own pointer names.
 `DUMMY_MODE_PERSONA` always carries a persona (the shipped default when none is configured), so no
 skill special-cases an empty one.
 

@@ -135,7 +135,7 @@ reports. `advanced` is claimable only when **Step 7's postcondition** holds — 
 
 The final report **enumerates** what happened: the change built (if any), each change **skipped with its reason** (needs-brainstorm / already `in-progress` / waiting on an unmerged `depends_on` / outside the id allowlist), any stubs **auto-captured** (plus every dedup skip and any cap overflow), and which disposition ended the run.
 
-**Dummy mode:** when `DUMMY_MODE_ENABLED` is `true` (Step-0 export) and the surface is in `DUMMY_MODE_SURFACES`, write this run's `reports` calibrated to `DUMMY_MODE_PERSONA`, and give its `pr` body, its close-out `results` file, and any `change-sections` it writes (`## Run halted`) an authored `### In plain terms` block alongside the full technical content — the convention's *Dummy mode* shared definition owns the mechanics, each block is written as its own artifact is authored so it rides that artifact's commit and is never retro-added, and the plain block is never a decision input.
+**Dummy mode:** when `DUMMY_MODE_ENABLED` is `true` (Step-0 export), write this run's `reports` calibrated to `DUMMY_MODE_PERSONA`, and give its `pr` body, its close-out `results` file, and any `change-sections` it writes (`## Run halted`) an authored `### In plain terms` block alongside the full technical content — the convention's *Dummy mode* shared definition owns the mechanics, each block is written as its own artifact is authored so it rides that artifact's commit and is never retro-added, and the plain block is never a decision input.
 
 ### Best-effort board refresh
 
