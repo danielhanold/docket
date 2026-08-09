@@ -11,7 +11,7 @@ depends_on: []
 related: []
 discovered_from: [242]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-09-gitignore-writer-redirect-status-keying-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-09-gitignore-writer-redirect-status-keying-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-gitignore-writer-redirect-status-keying-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -36,10 +39,16 @@ never wrote. Fixing it exposed that `ensure_docket_gitignore_block`, in the same
 its **own un-refactored copy** of that write orchestration and still has the identical latent
 false-success.
 
-**Opportunity** — one write path in the library, rather than two copies that must be remembered
-together. Either fold `ensure_docket_gitignore_block`'s orchestration onto the now-corrected
-`ensure_managed_block`, or give it the same redirect-status keying and a `failed` word its caller
-handles.
+**Settled design (auto-groomed 2026-08-09; see spec)** — the fold option is structurally blocked
+inside this stub's boundary (the legacy `docket:generated` upgrade needs a second marker pair
+`ensure_managed_block`'s signature cannot express without reopening it), so
+`ensure_docket_gitignore_block` gets the same redirect-status keying instead: key step (4)'s write
+on the redirect, report failure as a stderr `WARN FAILED` line (not a stdout word — all three
+callers are fire-and-forget and `docket-config.sh`'s stdout is machine-parsed), keep return 0, and
+gate the `UPDATED`/`UPGRADED … COMMIT THIS` claims on a successful write. Tests extend
+`tests/test_docket_gitignore_block.sh` with a directory-as-`.gitignore` unwritable-target fixture
+plus a mutation test of the keying. `remove_managed_block`'s unkeyed write is named out-of-boundary
+residue.
 
 **Independent value** — stands with 0242 fully reverted: the duplicate predates that change, and
 the defect is reachable on its own path (the managed `.gitignore` block) whenever the target is
