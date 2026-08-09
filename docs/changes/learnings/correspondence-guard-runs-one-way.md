@@ -2,9 +2,9 @@
 slug: correspondence-guard-runs-one-way
 hook: "A guard over a correspondence between two sets proves only the direction it iterates — write the reverse loop too, and anchor it on the consuming code, not an allowlist."
 topics: [testing, coverage, sentinels]
-changes: [101, 107, 104, 102, 111, 234, 246]
+changes: [101, 107, 104, 102, 111, 234, 246, 258]
 created: 2026-07-20
-updated: 2026-08-08
+updated: 2026-08-09
 promotion_state: candidate
 promoted_to:
 ---
@@ -134,3 +134,17 @@ change existed to end ([[verify-the-claim]]).
   comfortable middle where any extraction would find it. Related:
   [[section-slice-needs-a-named-terminator]] (the extraction defect underneath),
   [[marker-scoped-guard-needs-a-population-floor]].
+- 2026-08-09 (#258, PR #189) — **The cheapest reverse loop is one whole-sequence string compare.**
+  A documented `KEY=value` emission fence was pinned by per-key *presence* greps plus two adjacency
+  clusters: `documented ⊆ emitted` in spirit, with nothing at all on order. Replacing that cluster
+  with a single equality compare of the doc's extracted fence against a live `--export` run is
+  inherently two-way and catches four mutation classes at once — an addition, a removal, a reorder,
+  and a count-stable rename — on either side, with no second loop to write. It earned that on its
+  first contact with merged code: change #0271 landed on `main` while this branch was open, adding
+  `DELEGATION_OBSERVATION_BUDGET` to the resolver and to the doc's config-key and exit-code tables
+  but **not** to the `### Emit` fence. On rebase the equality assert reddened; every presence grep it
+  replaced stayed green. So when the two sides are both **ordered, closed enumerations rendered as
+  text**, do not write a forward and a reverse loop — compare the sequences, and spend the saved
+  effort on the extraction instead, which is now the only place a gap can hide
+  ([[section-slice-needs-a-named-terminator]]). The direction question this finding opens with
+  only needs asking when the correspondence is genuinely set-shaped.
