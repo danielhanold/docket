@@ -1,6 +1,6 @@
 # Backlog
 
-**273 changes** — 🟢 1 in progress · 🟡 32 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 163 done · 🗑️ 72 killed
+**273 changes** — 🟢 1 in progress · 🟡 32 proposed · ⚪ 4 deferred · ✅ 164 done · 🗑️ 72 killed
 
 ## 🟢 In progress (1)
 
@@ -41,7 +41,7 @@
 | [0267](active/0267-correct-the-stale-field-quote-handling-claim-in-script-contr.md) | Correct the stale field() quote-handling claim in script contracts | `medium` | `docs` | needs-brainstorm |
 | [0268](active/0268-de-flake-the-reclaim-leg-of-test-docket-status-under-paralle.md) | De-flake the reclaim leg of test_docket_status under parallel contention | `medium` | `fix` | needs-brainstorm |
 | [0270](active/0270-machine-local-runner-config-is-unreachable-from-a-feature-wo.md) | Machine-local runner config is unreachable from a feature worktree (opencode permissions locality) | `medium` | `fix` | needs-brainstorm |
-| [0271](active/0271-runner-delegation-has-no-execution-posture-for-a-child-that.md) | Runner delegation has no execution posture for a child that outlives its foreground call | `high` | `fix` | ⏳ waiting on #269 — needs your merge |
+| [0271](active/0271-runner-delegation-has-no-execution-posture-for-a-child-that.md) | Runner delegation has no execution posture for a child that outlives its foreground call | `high` | `fix` | build-ready |
 | [0272](active/0272-de-duplicate-the-gitignore-block-writer-s-second-copy-of-the.md) | De-duplicate the gitignore-block writer's second copy of the write orchestration | `medium` | `fix` | needs-brainstorm |
 | [0273](active/0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md) | Put runtime budgets on a host-relative basis and re-seed the table | `medium` | `refactor` | ⏳ waiting on #251 — not yet built |
 
@@ -53,12 +53,6 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0269](active/0269-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child.md) | Decouple the shim wrapper's own pin from the delegated child's | `high` | `fix` | [#187](https://github.com/danielhanold/docket/pull/187) |  |
 
 ```mermaid
 graph TD
@@ -95,7 +89,6 @@ graph TD
   0266
   0267
   0268
-  0269
   0270
   0269 --> 0271
   0272
@@ -103,13 +96,15 @@ graph TD
   0192:::done
   0211:::done
   0237:::done
+  0269:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (235)</summary>
+<details><summary>✅🗑️ Archive — done + killed (236)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0269](archive/2026-08-09-0269-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child.md) | Decouple the shim wrapper's own pin from the delegated child's | 2026-08-09 |
 | [0259](archive/2026-08-08-0259-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md) | Harden render-board: sanitize feeder values and settle the failure contract | 2026-08-08 |
 | [0255](archive/2026-08-08-0255-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule.md) | Complete ADR-0065's quote leg and document the unquoted rule | 2026-08-08 |
 | [0254](archive/2026-08-08-0254-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md) | BSD tool-default sweep: templated mktemp and non-interactive mv | 2026-08-08 |
@@ -132,7 +127,6 @@ graph TD
 | [0234](archive/2026-08-07-0234-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b.md) | Split gate-execution.md: probe evidence should not sit on a blocking-read surface | 2026-08-07 |
 | [0233](archive/2026-08-07-0233-guard-against-stacked-gap-ere-patterns-that-hang-instead-of.md) | Guard against stacked-gap ERE patterns that hang instead of failing | 2026-08-07 |
 | [0232](archive/2026-08-07-0232-the-gate-execution-posture-never-reaches-the-build-workers-t.md) | The gate execution posture never reaches the build workers that also run the full suite | 2026-08-07 |
-| [0231](archive/2026-08-07-0231-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla.md) | A presumed-dead build worker can wake and race its own replacement in one worktree | 2026-08-07 |
 | [0230](archive/2026-08-07-0230-a-self-scanning-population-floor-pins-test-docket-config-sh.md) | a self-scanning population floor pins test_docket_config.sh's size and blocks sharding | 2026-08-07 |
 | [0229](archive/2026-08-07-0229-the-runner-s-budget-slack-factor-is-a-hardware-dependent-con.md) | the runner's budget slack factor is a hardware-dependent constant | 2026-08-07 |
 | [0225](archive/2026-08-07-0225-the-test-suite-has-grown-into-the-harness-s-foreground-ceilin.md) | The test suite has grown into the harness's foreground ceiling — cut its wall-clock runtime | 2026-08-07 |
@@ -202,7 +196,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 30 done |
+| [2026-08](archive/) | 31 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
