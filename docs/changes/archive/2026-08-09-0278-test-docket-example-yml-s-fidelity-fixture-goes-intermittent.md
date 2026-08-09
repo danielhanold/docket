@@ -2,7 +2,7 @@
 id: 278
 slug: test-docket-example-yml-s-fidelity-fixture-goes-intermittent
 title: 'test_docket_example_yml''s fidelity fixture goes intermittently red under parallel contention'
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-08-09
@@ -63,3 +63,13 @@ scheduling in `scripts/run-tests.sh`, and the separately-tracked reclaim-leg fla
 contention-dependent git failure inside a test fixture, and re-proving the fix over repeated full
 parallel runs, is its own investigation with its own evidence burden, and folding it into 0271
 would have expanded that branch well past its stated scope.
+
+## Why killed
+
+Consolidated into #0252 at the 2026-08-09 backlog triage: 0252 (via absorbed #0243) already
+designs away exactly this defect — its spec names `test_docket_example_yml.sh`'s `mkrepo`
+(:24-32) *and* the fidelity-fixture `cp`/`add`/`commit`/`push` sequence (:45-50, "the site that
+reddened 0190's gate") as `fx`-adoption sites, converting every unchecked fixture step into a
+loud, named abort. This stub's sketch ("check each command's exit status, retry or abort naming
+the failing command") is `fx`, and its retry-or-abort question is already ruled there: hard
+abort, no retry. The 2026-08-09 live occurrence is recorded in 0252's Why as fresh evidence.
