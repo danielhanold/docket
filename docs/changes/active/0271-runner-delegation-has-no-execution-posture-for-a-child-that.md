@@ -12,12 +12,12 @@ related: [223, 249, 237, 269, 231, 227]
 discovered_from: [258]
 adrs: []
 spec: docs/superpowers/specs/2026-08-08-runner-delegation-detached-execution-posture-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-09-runner-delegation-detached-execution-posture.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/runner-delegation-has-no-execution-posture-for-a-child-that
-claimed_at: 2026-08-09T02:46:25Z
+claimed_at: 2026-08-09T02:59:46Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-08-runner-delegation-detached-execution-posture-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-08-runner-delegation-detached-execution-posture-design.md) |
+| Plan | [2026-08-09-runner-delegation-detached-execution-posture.md](https://github.com/danielhanold/docket/blob/feat/runner-delegation-has-no-execution-posture-for-a-child-that/docs/superpowers/plans/2026-08-09-runner-delegation-detached-execution-posture.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
