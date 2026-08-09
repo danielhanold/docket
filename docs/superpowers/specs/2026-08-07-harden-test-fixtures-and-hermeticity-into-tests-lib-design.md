@@ -88,7 +88,11 @@ suppress, so wrapping a tolerated-failure step turns the file permanently red.
 Never `fx`-wrap a `|| true` step. Files:
 - `tests/test_docket_example_yml.sh` (`mkrepo` :24-32 and the fidelity-fixture
   `cp`/`add`/`commit`/`push` at :45-50 — the site that reddened 0190's gate; its
-  hand-written non-vacuity guard stays, now backed by loud setup),
+  hand-written non-vacuity guard stays, now backed by loud setup). *Amendment
+  2026-08-09 (absorbed #0278): this exact site reddened a second live gate — 0271's
+  finalize merge, `SUITE files=100 passed=99 failed=1`, green on human-directed
+  re-run — confirming the flake is recurrent, not a one-off; the ruling here
+  (hard abort, no retry) stands,*
 - `tests/test_docket_config.sh`, `tests/test_ensure_claude_settings.sh` (`mkrepo`),
 - `tests/test_closeout.sh`, `tests/test_board_checks.sh` (template-based `new_repo`
   builders),
