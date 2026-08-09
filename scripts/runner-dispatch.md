@@ -19,6 +19,7 @@ the facade verifies in git that the delegated run actually reached its PR.
 
 ```
 docket.sh runner-dispatch [--launch] --runner <name> --agent <agent> [--model <m>] [--effort <e>] [--worktree <path>] [--] [<args…>]
+docket.sh runner-dispatch --observe <key> --runner <name> --agent <agent> [--worktree <path>]
 ```
 
 - `--runner <name>` (required) — the runner. **Registration is the adapter file's existence**:
@@ -47,6 +48,12 @@ docket.sh runner-dispatch [--launch] --runner <name> --agent <agent> [--model <m
   adapter in its **own process group**, redirects every stream into a durable per-dispatch
   directory, prints a **dispatch key** on stdout, and exits `0`. Absent, the call is the legacy
   synchronous call-and-return described below, byte-identical to pre-0271 behavior.
+- `--observe <key>` (change 0271) — the other half of the launch verb: **one short, idempotent
+  look** at what the dispatch named by `<key>` has left behind, returning a synthesized exit code.
+  It never waits for the child — an observation that blocked for the run would re-introduce the
+  single-foreground-call ceiling the verb exists to remove. The key must be a mint (the same
+  `[A-Za-z0-9._-]` shape `--runner` is held to), and an unknown one is a **usage error**, never a
+  verdict.
 - `-- <args…>` — forwarded to the adapter as caller task context.
 
 Mock seams: `RUNNERS_DIR` (adapter directory), `GIT` (the git binary — read by
@@ -193,6 +200,44 @@ temp files into `TMPDIR`, because the rename must be same-filesystem) then `mv -
 never sees a half-written sentinel, and a failing adapter records its real code just as a clean one
 does.
 
+### Observation (change 0271)
+
+`--observe <key>` is the only way to learn how a launched dispatch ended. It performs the same
+validation and anchoring as every other call, then makes **one pass** over the dispatch dir:
+
+1. a `killed` marker ⇒ terminal, **result unavailable** (`1`) — and it re-reports identically
+   forever, which is what makes the observation idempotent across a caller's retry loop;
+2. a `done` sentinel ⇒ the child is finished. `exit_code=0` ⇒ **complete** (`0`); a non-zero code
+   ⇒ **failed** (`1`), naming the code and the `stderr.log` to read; a sentinel that does not parse
+   ⇒ **result unavailable** (`1`), because a malformed sentinel means the *launcher* did not finish
+   cleanly and an exit code read out of garbage would be a fabricated verdict;
+3. no sentinel ⇒ **still running** (`4`), unless the observation budget is spent.
+
+**The budget.** `delegation_observation_budget` minutes (the environment wins, so a caller can hand
+one down; otherwise it is resolved from config on this branch alone — a verb that needs no config
+must never be failed by config). Elapsed time is measured from the launch record's `started_at`
+against `verify-run.sh --iso-to-epoch`, which keeps the portable ISO→epoch parse in the one script
+that already owns it. `0` is legal and buys exactly **one** observation, because the budget is
+compared only *after* the sentinel read. Anything that is not positive evidence of exhaustion —
+an unreadable clock, an unreadable `started_at`, a budget value that is not an integer — reports
+**still running** and enforces nothing this pass, rather than killing a healthy child on a guess.
+
+**Kill on giving up.** When the budget is exhausted the facade signals the **process group**
+recorded at launch (`TERM`, then `KILL` after a short wait), never the launcher's pid alone: a
+single-pid kill reaps the launcher shell and **orphans the adapter and its children**, which is the
+half-dead state this change exists to eliminate (it honors change 0231 — no presumed-dead worker
+wakes to race its replacement). It then records a `killed` marker and reports result unavailable.
+Partial work is left in the worktree for a human. One state is refused rather than signalled: a
+launch record naming the **observation's own process group**. `--launch` fails closed when the
+child did not separate, so a record it wrote can only name a foreign group — but a record can be
+wrong anyway, and a group-directed signal aimed at our own group takes down the harness that ran
+it. That case reports result unavailable, writes no `killed` marker, and names the dispatch dir.
+
+**Liveness vs correctness.** The sentinel is the *only* source of liveness — the facade never
+infers "still running" from git state, and never infers "finished" from anything but the wrapper's
+own sentinel. **Correctness** is a separate judgment, made from git rather than from the child's
+self-reported code; the dispositions that make it are described under the run gate above.
+
 ## Exit codes
 
 - `1` — validation failure, unknown runner, not inside a git repository, or a rejected
@@ -218,6 +263,28 @@ does.
 
 The full post-re-dispatch matrix, second verdict → exit: `run-complete` → `0`, `run-unclaimed` → `0`,
 `run-halted` → `3`, `run-incomplete` → `1`, anything else → the adapter's code.
+
+### `--observe` (change 0271)
+
+| Exit | Meaning |
+|---|---|
+| `0` | terminal — the dispatch completed |
+| `1` | terminal — failed, **or** the result is unavailable (a distinct stderr diagnostic tells them apart: a `FAILED` line names the child's code, a `RESULT UNAVAILABLE` line says why no code could be trusted) |
+| `4` | **not terminal — still running; observe again** |
+| other | a usage error from the shared validation above (missing/invalid key, unknown key, rejected `--worktree`), which exits `1` like any other abort |
+
+**`4` is not a failure.** It is the loop condition: it means nothing has been decided yet and the
+caller should observe again. Its **only** consumer is the generated shim wrapper, whose standing
+rule is "any non-zero ⇒ abort and report" — a rule that would read a healthy in-flight run as a
+failure, so that consumer is changed in this same change to **loop on `4`** and abort on every
+other non-zero. No other caller reads this facade's code, and no further non-zero was minted:
+`--observe` never returns the synchronous gate's `3`, and a shim that aborts on any non-`4`
+non-zero therefore handles a halt and a failure identically, as it already did.
+
+**Idempotence.** Same key, same dispatch state ⇒ same code and same diagnostic, every time. The
+`killed` marker is what makes that true across the one transition that is not a pure read: once the
+budget kill has fired, every later observation reports the same unavailable verdict rather than
+re-signalling or discovering a different state.
 
 ## Invariants
 
@@ -247,5 +314,14 @@ The full post-re-dispatch matrix, second verdict → exit: `run-complete` → `0
   reports a dispatch whose process group it could not confirm. The dispatch dir is the only channel
   between the two — the launch record and the sentinel are written by the **facade**, never by the
   agent being judged.
+- An observation is **short and idempotent**: it never waits for the child, and it never mutates the
+  dispatch except for the one terminal `killed` marker, which exists precisely so that the kill is
+  observed identically forever after rather than re-attempted.
+- Giving up on a dispatch **kills its process group**, never the launcher's pid alone — an
+  observation that gave up must not leave the adapter running unwatched. The one exception is a
+  record naming the observer's **own** group, which is refused: the facade never signals the group
+  it is running in.
+- `4` is a **non-failure** exit and the only new code this verb mints. Its sole consumer loops on
+  it; nothing else in docket reads this facade's exit code.
 - The `runners.<name>:` parse handles simple `key: value` scalars only — by design; a runner
   needing structured config gets it via its own adapter contract, not a richer facade parser.

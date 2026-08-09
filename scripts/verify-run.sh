@@ -10,11 +10,15 @@
 # Usage: verify-run.sh <id> [--changes-dir DIR]
 #        verify-run.sh --in-progress-ids [--with-claimed-at] [--changes-dir DIR]
 #        verify-run.sh --build --worktree DIR --branch NAME --since SHA
+#        verify-run.sh --iso-to-epoch <UTC ISO-8601 timestamp>
 #   Build-family verdict lines (change 0271; a build task's terminal state is a COMMIT, not a PR):
 #     task-committed <branch>                 on-branch, tip advanced, tree clean
 #     task-incomplete <branch> <unmet…>       tokens: branch tip tree
 #     task-unverifiable <reason>              the worktree could not be read — never a guess
 #   `task-committed` proves CLEAN COMPLETION, never semantic success.
+#   --iso-to-epoch (change 0271) prints one UTC ISO-8601 timestamp as epoch seconds, or nothing
+#   when it does not parse — the SAME `iso_to_epoch` --with-claimed-at uses, exposed so
+#   runner-dispatch.sh's observation budget does not grow a second portable timestamp parse.
 #   --with-claimed-at widens each snapshot line to `<id> <claimed_at-epoch>`, or `<id> -` when the
 #   change carries no `claimed_at:` or one that does not parse. This script stays the SINGLE owner
 #   of frontmatter reading for the run gate: runner-dispatch.sh needs the claim instant to tell its
@@ -39,13 +43,14 @@ SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 die(){ printf 'verify-run: %s\n' "$*" >&2; exit 2; }
 
 ID=""; CHANGES_DIR=""; MODE="verdict"; WITH_CLAIMED_AT=0
-BUILD_WORKTREE=""; BUILD_BRANCH=""; BUILD_SINCE=""
+BUILD_WORKTREE=""; BUILD_BRANCH=""; BUILD_SINCE=""; ISO_IN=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --in-progress-ids) MODE="ids" ;;
     --with-claimed-at) WITH_CLAIMED_AT=1 ;;
     --changes-dir) CHANGES_DIR="${2:-}"; shift ;;
     --build) MODE="build" ;;
+    --iso-to-epoch) MODE="iso"; ISO_IN="${2:-}"; shift ;;
     --worktree) BUILD_WORKTREE="${2:-}"; shift ;;
     --branch) BUILD_BRANCH="${2:-}"; shift ;;
     --since) BUILD_SINCE="${2:-}"; shift ;;
@@ -58,6 +63,7 @@ done
 [ "$WITH_CLAIMED_AT" = 0 ] || [ "$MODE" = "ids" ] || die "--with-claimed-at is only valid with --in-progress-ids"
 [ "$MODE" != "ids" ] || [ -z "$ID" ] || die "an <id> cannot be combined with --in-progress-ids"
 [ "$MODE" != "build" ] || [ -z "$ID" ] || die "an <id> cannot be combined with --build"
+[ "$MODE" != "iso" ] || [ -z "$ID" ] || die "an <id> cannot be combined with --iso-to-epoch"
 if [ "$MODE" = "build" ]; then
   [ -n "$BUILD_WORKTREE" ] || die "--build requires --worktree"
   [ -n "$BUILD_BRANCH" ]   || die "--build requires --branch"
@@ -104,6 +110,26 @@ if [ "$MODE" = "build" ]; then
     printf 'task-committed %s\n' "$BUILD_BRANCH"; exit 0
   fi
   printf 'task-incomplete %s %s\n' "$BUILD_BRANCH" "${bunmet[*]}"
+  exit 0
+fi
+
+# --- the ISO->epoch utility (change 0271) -------------------------------------
+# A tiny exposed conversion so runner-dispatch.sh's observation budget does not grow a SECOND
+# portable ISO->epoch parse: this script is already the single owner of that conversion for the
+# run gate (see the `--with-claimed-at` leg), and `iso_to_epoch` handles the GNU/BSD `date` split
+# once. PURE, like everything else here — it prints an integer or nothing and writes nothing.
+#
+# It needs the frontmatter library and NOTHING else, so it returns ABOVE the changes-dir resolver:
+# the same placement discipline the build family follows, and for the same reason — a caller that
+# needs no config must never be failed by config it does not use (an unmigrated repo would
+# otherwise turn a timestamp conversion into a `STOP_MIGRATE` abort).
+if [ "$MODE" = "iso" ]; then
+  [ -n "$ISO_IN" ] || die "--iso-to-epoch requires a timestamp"
+  # shellcheck source=/dev/null
+  source "$SELF_DIR/lib/docket-frontmatter.sh"
+  # An unparseable stamp prints NOTHING and still exits 0: "no positive evidence" is an answer this
+  # script is allowed to give, and the caller reads the shape of the output, never the code.
+  iso_to_epoch "$ISO_IN"
   exit 0
 fi
 

@@ -35,6 +35,14 @@ verify-run.sh --build --worktree DIR --branch NAME --since SHA
   `reclaim-claims.sh` and `board-checks.sh` take on an unreadable lease.
 - `--changes-dir DIR` — bypass config resolution and read this directory. For hermetic tests and
   for a caller that has already resolved a repo root.
+- `--iso-to-epoch <ts>` (change 0271) — print one UTC ISO-8601 second-precision timestamp as epoch
+  seconds, or **nothing** when it does not parse. The same shared `iso_to_epoch` that backs
+  `--with-claimed-at`, exposed so `runner-dispatch.sh`'s observation budget compares two integers
+  instead of growing a **second** portable GNU/BSD timestamp parse — this script stays the single
+  owner of that conversion. It needs no changes dir and no config, so like `--build` it returns
+  **above** the resolver: a caller that uses no config must never be failed by config. An
+  unparseable stamp is "no positive evidence", printed as empty output and still exit `0`; the
+  caller reads the shape of the output, never the code.
 
 Mock seams: `GIT`, `CONFIG_EXPORT_CMD`.
 
@@ -119,7 +127,8 @@ stays with `docket-build`'s suite gate and the review role.
   it as one.
 - `2` — the check could not run: bad usage, non-numeric or unknown id, unreadable change file,
   failed config export, non-`PROCEED` bootstrap verdict, missing changes dir, `--build` without
-  `--worktree`/`--branch`/`--since`, or `--build` combined with an `<id>`.
+  `--worktree`/`--branch`/`--since`, `--iso-to-epoch` without a timestamp, or `--build` /
+  `--iso-to-epoch` combined with an `<id>`.
 
 ## Invariants
 
