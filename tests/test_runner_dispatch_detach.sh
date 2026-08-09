@@ -289,4 +289,81 @@ assert "a malformed sentinel is unavailable, not a synthesized failure" '[ "$rc"
 assert "the malformed-sentinel diagnostic says unavailable" 'grep -qi "unavailable" <<<"$out"'
 assert "no exit code was read out of garbage" '! grep -qi "exited garbage" <<<"$out"'
 
+# ---- the gate now covers build-*, via the BUILD verdict family ------------------
+mkbuildrepo(){   # a repo + feature worktree the fake adapter can commit into
+  local outside
+  make_fixture
+  # These are the only arms whose verdict reads `git status` on the fixture repo, so they are the
+  # only ones for which make_fixture's RUNNERS_DIR placement matters: it sits INSIDE $SBX, where it
+  # is untracked scaffolding that would leave the `tree` conjunct unmet no matter what the child
+  # did — turning "clean build task" into a permanent failure and "stranded work" into a green
+  # assert that measures the fixture rather than the child. Move it out; nothing else about the
+  # dispatch depends on where the adapter lives.
+  outside="$(mktemp -d "${TMPDIR:-/tmp}/docket-detach-runners.XXXXXX")"
+  FIXTURES+=("$outside")
+  mv -f "$RDIR/fake.sh" "$outside/fake.sh"
+  rmdir "$RDIR"
+  RDIR="$outside"
+  git -C "$SBX" checkout -q -b feat/thing
+  WT="$SBX"     # the fake adapter runs with --worktree $SBX
+}
+# The build arms drive the facade directly rather than through `launch`/`observe`: those helpers
+# hard-code `--agent status` shape and omit `--worktree`, which gate 1 requires for build-*.
+blaunch(){ ( cd "$SBX" && RUNNERS_DIR="$RDIR" bash "$FACADE" --launch --runner fake \
+    --agent build-standard --worktree "$WT" ); }
+bobserve(){ ( cd "$SBX" && RUNNERS_DIR="$RDIR" bash "$FACADE" --observe "$1" --runner fake \
+    --agent build-standard --worktree "$WT" ); }
+bsettle(){ local _ ; for _ in $(seq 1 30); do bobserve "$1" >/dev/null 2>&1
+    [ "$?" != "4" ] && return 0; sleep 1; done; return 0; }
+
+# (a) the child commits cleanly -> task-committed -> observe 0
+mkbuildrepo
+cat > "$RDIR/fake.sh" <<'FAKE'
+#!/usr/bin/env bash
+cd "$DOCKET_REPO_ROOT" || exit 1
+git commit --allow-empty -qm "task work"
+exit 0
+FAKE
+chmod +x "$RDIR/fake.sh"
+KEY="$(blaunch)"
+bsettle "$KEY"
+out="$(bobserve "$KEY" 2>&1)"; rc=$?
+assert "0271: a clean build task observes as complete (0)" '[ "$rc" = "0" ]'
+assert "0271: the build gate reports task-committed" 'grep -qF "task-committed" <<<"$out"'
+
+# (b) THE DISAGREEMENT RULE — the child exits 0 but strands uncommitted work.
+#     This is change 0258's exact failure, and the sentinel alone would call it success.
+mkbuildrepo
+cat > "$RDIR/fake.sh" <<'FAKE'
+#!/usr/bin/env bash
+cd "$DOCKET_REPO_ROOT" || exit 1
+printf 'stranded work\n' > stranded.txt   # never committed
+exit 0
+FAKE
+chmod +x "$RDIR/fake.sh"
+KEY="$(blaunch)"
+bsettle "$KEY"
+out="$(bobserve "$KEY" 2>&1)"; rc=$?
+assert "0271: a sentinel-success with stranded work FAILS (correctness wins)" '[ "$rc" = "1" ]'
+assert "0271: the disagreement diagnostic names the git verdict" 'grep -qF "task-incomplete" <<<"$out"'
+assert "0271: the stranded file is still there for a human" '[ -f "$SBX/stranded.txt" ]'
+# The verdict is TERMINAL and re-reports identically — a disagreement must not oscillate between
+# a failure and a success across two reads of the same unchanged dispatch.
+out2="$(bobserve "$KEY" 2>&1)"; rc2=$?
+assert "0271: the disagreement verdict is idempotent in code" '[ "$rc2" = "$rc" ]'
+assert "0271: the disagreement verdict is idempotent in output" '[ "$out2" = "$out" ]'
+
+# (c) build-* is OBSERVE-ONLY: never a second adapter run on top of partial commits.
+assert "0271: no re-dispatch happened for a build agent" \
+  '[ "$(git -C "$SBX" rev-list --count HEAD)" -le 2 ]'
+
+# (d) a non-build, non-implement-next agent keeps the sentinel-only disposition
+make_fixture
+FAKE_SLEEP=0 FAKE_TAIL=0 FAKE_RC=0
+KEY="$(launch status)"
+for _ in $(seq 1 30); do observe "$KEY" >/dev/null 2>&1; [ "$?" != "4" ] && break; sleep 1; done
+out="$(observe "$KEY" 2>&1)"; rc=$?
+assert "0271: a status agent still observes as complete on the sentinel alone" '[ "$rc" = "0" ]'
+assert "0271: no build verdict is claimed for a status agent" '! grep -qF "task-committed" <<<"$out"'
+
 exit "$fail"
