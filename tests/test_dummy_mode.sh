@@ -38,6 +38,18 @@ assert "convention: the section points at its reference file" \
 # to one sentence — two sentences that happen to mention each thing separately do not satisfy it.
 assert "convention: the plain-terms block is bound to 'never a decision input'" \
   'grep -qE "In plain terms[^.]{0,200}never a decision input" <<<"$conv_section"'
+# The membership test has ONE home. Every skill body conditions on `DUMMY_MODE_ENABLED` alone, so
+# if the shared definition does not state "only when the surface is in DUMMY_MODE_SURFACES" as an
+# instruction, the knob resolves and exports and is then honored by nobody. Bound to one sentence so
+# a description of the map elsewhere in the section cannot satisfy it. Backticks reach grep from a
+# variable, per the idiom the reference asserts use below.
+dm_pat='[Aa]pply[^.]{0,200}in `DUMMY_MODE_SURFACES`'
+assert "convention: applying a surface is gated on DUMMY_MODE_SURFACES membership" \
+  'grep -qE "$dm_pat" <<<"$conv_section"'
+dm_pat='`DUMMY_MODE_SURFACES`[^.]{0,200}`all` matches every'
+assert "convention: the literal all is stated to match every token" \
+  'grep -qE "$dm_pat" <<<"$conv_section"'
+
 assert "convention: the three exports are named" \
   'grep -qF "DUMMY_MODE_ENABLED" "$CONV" && grep -qF "DUMMY_MODE_PERSONA" "$CONV" && grep -qF "DUMMY_MODE_SURFACES" "$CONV"'
 
@@ -117,6 +129,12 @@ for rel in skills/docket-new-change/SKILL.md skills/docket-groom-next/SKILL.md \
   cap=3
   [ "$rel" = "skills/docket-implement-next/SKILL.md" ] && cap=4
   assert "no restatement: $rel names at most $cap surface tokens (got $n)" '[ "$n" -le "$cap" ]'
+  # ...and none of them restates the membership test either. A pointer that spells
+  # `DUMMY_MODE_SURFACES` has taken a second copy of a rule the shared definition owns — the copy
+  # that five of the six bodies would then be missing, which is how the knob came to be honored by
+  # exactly one reader.
+  assert "no restatement: $rel leaves the DUMMY_MODE_SURFACES test to the shared definition" \
+    '! grep -qF -- "DUMMY_MODE_SURFACES" "$REPO/$rel"'
 done
 
 exit $fail
