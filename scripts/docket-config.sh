@@ -690,6 +690,25 @@ case "$GATE_OBSERVATION_BUDGET" in
   ''|*[!0-9]*) die "unparseable config: gate_observation_budget must be a non-negative integer (minutes), got '$GATE_OBSERVATION_BUDGET'" ;;
 esac
 
+# --- delegation_observation_budget: the delegation boundary's budget (change 0271) -----
+# SIBLING of gate_observation_budget, deliberately a SEPARATE key rather than a reuse.
+# The two bound different units: gate_observation_budget bounds awaiting one SUITE RUN
+# started by an agent; this bounds awaiting a whole delegated AGENT RUN, which contains
+# a plan task, its verification, and its commit. Folding them onto one number would force
+# whichever unit is larger to set the ceiling for both.
+# Integer MINUTES; default 60. Same fail-closed posture and the same full layering chain
+# (repo-local > repo-committed > global > built-in) — local execution timing is
+# legitimately per-machine, so it is global-able and NOT coordination-fenced.
+# 0 is legal and carries no magic: "observe once, then fail closed".
+# tests/test_docket_config.sh pins the chain and the boundary (DOB-a … DOB-f).
+DELEGATION_OBSERVATION_BUDGET="$(lcl delegation_observation_budget)"
+DELEGATION_OBSERVATION_BUDGET="${DELEGATION_OBSERVATION_BUDGET:-$(config_scalar_get committed delegation_observation_budget)}"
+DELEGATION_OBSERVATION_BUDGET="${DELEGATION_OBSERVATION_BUDGET:-$(gbl delegation_observation_budget)}"
+DELEGATION_OBSERVATION_BUDGET="${DELEGATION_OBSERVATION_BUDGET:-60}"
+case "$DELEGATION_OBSERVATION_BUDGET" in
+  ''|*[!0-9]*) die "unparseable config: delegation_observation_budget must be a non-negative integer (minutes), got '$DELEGATION_OBSERVATION_BUDGET'" ;;
+esac
+
 # --- change_types + auto_capture: the typed-capture policy (change 0127) -------
 # change_types is a LIST resolved with WHOLE-LIST REPLACEMENT: the first layer that sets it wins
 # entirely. Merging would make a built-in value unremovable — a user could only ever add types,
@@ -882,6 +901,7 @@ if [ "$MODE" = export ]; then
   emit REVIEW_MIN_FIX_SEVERITY "$REVIEW_MIN_FIX_SEVERITY"
   emit REVIEW_MAX_FIX_TASKS "$REVIEW_MAX_FIX_TASKS"
   emit GATE_OBSERVATION_BUDGET "$GATE_OBSERVATION_BUDGET"
+  emit DELEGATION_OBSERVATION_BUDGET "$DELEGATION_OBSERVATION_BUDGET"
   emit SKILL_BRAINSTORM "$SKILL_BRAINSTORM"
   emit SKILL_PLAN "$SKILL_PLAN"
   emit SKILL_BUILD "$SKILL_BUILD"

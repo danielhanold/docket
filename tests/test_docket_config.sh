@@ -241,7 +241,7 @@ assert "board fenced-to-empty: emits BOARD_SURFACES=none" \
 
 # --- (E) direct-pipe caller (LEARNINGS #22: $() hides a dropped trailing \n) -
 n="$(run "$tmp/c" --export | grep -c '=')"
-assert "direct-pipe: 33 KEY=value lines emitted"       '[ "$n" -eq 33 ]'
+assert "direct-pipe: 34 KEY=value lines emitted"       '[ "$n" -eq 34 ]'
 last="$(run "$tmp/c" --export | tail -n1)"
 assert "direct-pipe: last line is BOOTSTRAP"           'case "$last" in BOOTSTRAP=*) true;; *) false;; esac'
 
@@ -617,9 +617,9 @@ AUTO_GROOM=__poison__
 out="$(env -u XDG_CONFIG_HOME HOME="$tmp/q.home" bash "$SCRIPT" --repo-dir "$tmp/q" --export)"; eval "$out"
 assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = true ]'
 
-# --- (E') emit-interface guard: exactly 33 lines with a global file present ---
+# --- (E') emit-interface guard: exactly 34 lines with a global file present ---
 n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
-assert "0050 E': 33 KEY=value lines with global layer" '[ "$n50" -eq 33 ]'
+assert "0050 E': 34 KEY=value lines with global layer" '[ "$n50" -eq 34 ]'
 
 # --- (M) coordination-key fence: warned-and-ignored, never honored, never fatal ---
 mkrepo "$tmp/m"
@@ -2858,6 +2858,53 @@ assert "GOB-g: all three emit positions were extracted (rmx=$gob_n_rmx gob=$gob_
   '[ -n "$gob_n_rmx" ] && [ -n "$gob_n_gob" ] && [ -n "$gob_n_brs" ]'
 assert "GOB-g: emitted between REVIEW_MAX_FIX_TASKS and SKILL_BRAINSTORM" \
   '[ "${gob_n_gob:-0}" -gt "${gob_n_rmx:-0}" ] && [ "${gob_n_gob:-0}" -lt "${gob_n_brs:-0}" ]'
+
+# ---- change 0271: delegation_observation_budget (DOB-a … DOB-f) ----------------
+# Sibling of gate_observation_budget: same layering, same fail-closed integer check,
+# different default (60) because a delegated AGENT RUN is a longer unit than a suite run.
+# Fixtures use this file's existing mkrepo/run/run_resolver_with helpers — the same
+# fixture shape the GOB block above uses; every assert reads the EMITTED LINES rather
+# than eval-ing the export block, for the reasons the GOB header states.
+mkrepo "$tmp/dob-a"
+dob_out_default="$(run "$tmp/dob-a" --export)"
+assert "DOB-a: defaults to 60 with no config" \
+  'grep -qxF "DELEGATION_OBSERVATION_BUDGET=60" <<<"$dob_out_default"'
+
+mkrepo "$tmp/dob-b"
+cat > "$tmp/dob-b/.docket.yml" <<'EOF'
+metadata_branch: main
+delegation_observation_budget: 15
+EOF
+git -C "$tmp/dob-b" add .docket.yml; git -C "$tmp/dob-b" commit --quiet -m cfg
+git -C "$tmp/dob-b" push --quiet origin main
+dob_out_committed="$(run "$tmp/dob-b" --export)"
+assert "DOB-b: committed layer is honored" \
+  'grep -qxF "DELEGATION_OBSERVATION_BUDGET=15" <<<"$dob_out_committed"'
+
+mkrepo "$tmp/dob-c"
+cat > "$tmp/dob-c/.docket.yml" <<'EOF'
+metadata_branch: main
+delegation_observation_budget: 15
+EOF
+git -C "$tmp/dob-c" add .docket.yml; git -C "$tmp/dob-c" commit --quiet -m cfg
+git -C "$tmp/dob-c" push --quiet origin main
+printf 'delegation_observation_budget: 5\n' > "$tmp/dob-c/.docket.local.yml"
+dob_out_local="$(run "$tmp/dob-c" --export)"
+assert "DOB-c: repo-local outranks committed" \
+  'grep -qxF "DELEGATION_OBSERVATION_BUDGET=5" <<<"$dob_out_local"'
+
+# 0 is legal and carries no magic — it means "observe once, then fail closed".
+dob_out_zero="$(run_resolver_with "delegation_observation_budget: 0\n" 2>/dev/null)"
+assert "DOB-d: 0 is legal, not a disabled gate" \
+  'grep -qxF "DELEGATION_OBSERVATION_BUDGET=0" <<<"$dob_out_zero"'
+
+# Fail CLOSED on garbage — a typo'd budget silently defaulting would make the
+# fail-closed halt fire at a duration nobody chose.
+run_resolver_with "delegation_observation_budget: soon\n" >/dev/null 2>&1; dob_rc_bad=$?
+dob_err_bad="$(run_resolver_with "delegation_observation_budget: soon\n" 2>&1 >/dev/null)"
+assert "DOB-e: a non-integer budget is fatal" '[ "$dob_rc_bad" != "0" ]'
+assert "DOB-f: the diagnostic names the key" \
+  'grep -qF "delegation_observation_budget" <<<"$dob_err_bad"'
 
 assert "0174 template integrity: the shared template is unmutated after the full run" \
   '[ "$(git -C "$MKREPO_TEMPLATE.origin.git" for-each-ref --format="%(refname) %(objectname)" | LC_ALL=C sort)" = "$tplint_refs" ] &&

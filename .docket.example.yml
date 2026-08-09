@@ -226,6 +226,20 @@ review:
 # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
 gate_observation_budget: 30
 
+# delegation_observation_budget — (change 0271) how long, in MINUTES, docket is willing to await a
+# terminal result from a DELEGATED RUNNER CHILD it launched. Runner delegation detaches the child
+# so it can outlive the single foreground call that started it; the facade then observes a durable
+# sentinel rather than blocking on the child. This budget bounds that observation. When it expires
+# with no sentinel, the facade KILLS the detached process group and reports the run unavailable —
+# no unwatched agent keeps working on the repo after its run was declared failed.
+# Distinct from gate_observation_budget on purpose: that one bounds awaiting a suite run started by
+# an agent, this one bounds awaiting a whole agent run. It is docket execution policy, distinct from
+# any foreground-call timeout a particular harness imposes; no harness figure belongs here.
+# 0 is legal and means "observe once, then fail closed".
+# Anything that is not a non-negative integer is a config error, not a silent fallback.
+# scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+delegation_observation_budget: 60
+
 
 # ═══ Board surfaces ════════════════════════════════════════════════════════════════════════
 
