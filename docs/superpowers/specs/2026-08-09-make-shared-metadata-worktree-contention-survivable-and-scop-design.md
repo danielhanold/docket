@@ -171,12 +171,25 @@ carrying the meaning. The guard keys on this literal string.
      (`awk` range on the heading, as the handoff guard does), then assert it names the pathspec
      requirement and the marker.
    - **Group 2 — coverage, sites DERIVED, never hand-listed** (AGENTS.md: enumerated floor). A
-     skill is in scope iff its body **names the metadata working tree** — the shape that makes it a
-     metadata writer — with `docket-convention` excluded as the rule's home. Verified 2026-08-09,
+     skill is in scope iff its body **invokes `docket.sh preflight`** — the convention's Step-0
+     preamble, which is what *makes* a skill an operating skill that reads and writes on
+     `metadata_branch` — with `docket-convention` excluded as the rule's home. Verified 2026-08-09,
      that derivation yields exactly the right seven: `docket-implement-next`, `docket-groom-next`,
      `docket-auto-groom`, `docket-status`, `docket-new-change`, `docket-finalize-change`,
      `docket-adr` — and excludes `docket-build`/`docket-build-task` (feature worktree),
      `docket-review`, `docket-brainstorm`. Each in-scope body must carry the marker.
+
+     **Key on the command string, not on prose describing it.** The obvious predicate — "the body
+     names the metadata working tree" — yields the same seven today but is keyed on a *spelling*,
+     which AGENTS.md forbids for exactly the reason visible in `docket-adr`: it already uses the
+     variant "metadata tree" **three** times against the canonical phrase **twice**, so an ordinary
+     slim that normalizes its two canonical mentions to its own dominant idiom would silently drop
+     it from coverage — a false green in the one channel Half 3 exists to guard. Nor is the Step-0
+     "All reads and writes land in the metadata working tree" line the structural anchor it looks
+     like: only four of the seven carry any form of it. `docket.sh preflight` is a literal invoked
+     command, immune to both reflow and rewording, and a skill cannot drop it and remain an
+     operating skill. (`Step-0 preamble` as a phrase yields the identical set and may be asserted
+     alongside it as a cheap second signal; the command string is the load-bearing one.)
    - Mutation-test both groups: strip the marker from one skill body and from the convention
      sentence; each must redden its own assert.
 
@@ -193,14 +206,24 @@ carrying the meaning. The guard keys on this literal string.
    covered by the file's single marker. Both need contrived prose to exploit.
 
 4. **Skill size budgets — a required, verified part of this half.** `tests/test_skill_size_budgets.sh`
-   fails any skill that grows past its row, and a raise must be an **in-diff edit with a comment
-   naming the reason**. Word headroom measured 2026-08-09: `docket-implement-next` **11**,
-   `docket-convention` **14**, `docket-new-change` **14** — all three will need a raise for a
-   ~15-word marker sentence. `docket-auto-groom` (32) and `docket-finalize-change` (49) are close
-   enough to check rather than assume; `docket-adr` (128), `docket-status` (87) and
-   `docket-groom-next` (96) have room. Prefer absorbing the sentence into an existing line over
-   adding one — the line budgets are tighter than the word budgets (three files have ≤3 spare
-   lines).
+   fails any skill that grows past its row. Word headroom measured 2026-08-09:
+   `docket-implement-next` **11**, `docket-convention` **14**, `docket-new-change` **14** — all
+   three will need a raise for a ~15-word marker sentence. `docket-auto-groom` (32) and
+   `docket-finalize-change` (49) are close enough to check rather than assume; `docket-adr` (128),
+   `docket-status` (87) and `docket-groom-next` (96) have room. Prefer absorbing the sentence into
+   an existing line over adding one: `docket-implement-next` (162/165) and `docket-convention`
+   (352/355) have only **3** spare lines each, with `docket-new-change` and `docket-auto-groom`
+   next at 6.
+
+   **A raise must satisfy the test header's full rule, which is stricter than "edit the number."**
+   Per change 0201 it must additionally **name the `references/` file the new prose was considered
+   for and argue in-diff why it cannot live there** — "no other home" is argued, not asserted. Here
+   that argument is available and should be made explicitly rather than waved at: the marker is *a
+   rule that must intervene at the moment of action* — the header's own first example of prose that
+   cannot be moved behind a pointer, and the whole basis of Half 3 item 2. Apply change 0137's
+   rounding as well: lines to the next multiple of 5, words to the next multiple of 50, and if that
+   lands within 25 words of the actual, take the multiple after it — near-zero headroom is the
+   failure mode the table exists to forbid, not a tight fit to aim for.
 
 ## Out of scope
 
@@ -278,11 +301,17 @@ human's deferred audit trail.
     convention-only (evidence-backed as insufficient — see Half 3 item 2 and run 40), and
     per-site-only (leaves the direct-git *grant* sentence still unconstrained, so a new skill
     inherits the authority without the limit). The redundancy is deliberate.
-12. **Sites derived by "names the metadata working tree", not by heading or by an enumerated
-    list.** Rejected: heading-keyed derivation (verified 2026-08-09 — only 2 of 7 skills have a
-    commit heading, so it would false-green on five), and default-deny over every `commit` mention
-    in `skills/**` (104 matching lines, overwhelmingly prose; the exception list would exceed the
-    guarded set and rot immediately).
+12. **Sites derived by the invoked command `docket.sh preflight`, not by prose, heading, or an
+    enumerated list.** Rejected: **"names the metadata working tree"** — the first draft's
+    predicate, and the one an implementer will reach for again, so it is recorded here as rejected
+    rather than omitted: it yields the same seven today but is spelling-keyed, and `docket-adr`
+    already carries the escaping variant ("metadata tree" 3× vs the canonical 2×), so a routine
+    slim silently drops it (AGENTS.md: the spelling you miss is the target file's own house
+    idiom). Also rejected: the Step-0 "All reads and writes land in…" sentence as the anchor (only
+    4 of 7 carry any form of it); heading-keyed derivation (only 2 of 7 have a commit heading —
+    it would false-green on five); and default-deny over every `commit` mention in `skills/**`
+    (104 matching lines, overwhelmingly prose; the exception list would exceed the guarded set and
+    rot immediately). Caught by the 2026-08-09 critic pass.
 13. **`docket-build`/`docket-build-task` stay out of scope.** Their commits are feature-branch, in
     a per-change worktree that is not shared; `docket-build-task` already carries the discipline.
     Including them would imply the shared-tree hazard applies there and dilute the rule's reason.
