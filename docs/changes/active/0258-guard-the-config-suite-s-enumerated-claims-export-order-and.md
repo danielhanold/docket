@@ -2,7 +2,7 @@
 id: 258
 slug: guard-the-config-suite-s-enumerated-claims-export-order-and
 title: 'Guard the config-suite''s enumerated claims: export order and rung pairs'
-status: in-progress
+status: implemented
 priority: medium
 type: chore
 created: 2026-08-07
@@ -13,12 +13,12 @@ discovered_from: [123, 125]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-guard-the-config-suite-s-enumerated-claims-export-order-and-design.md
 plan: docs/superpowers/plans/2026-08-08-guard-the-config-suite-s-enumerated-claims-export-order-and.md
-results:
+results: docs/results/2026-08-09-guard-the-config-suite-s-enumerated-claims-export-order-and-results.md
 trivial: false
 auto_groomable: true
 branch: feat/guard-the-config-suite-s-enumerated-claims-export-order-and
-claimed_at: 2026-08-09T18:44:04Z
-pr:
+claimed_at: 2026-08-09T20:38:03Z
+pr: https://github.com/danielhanold/docket/pull/189
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-guard-the-config-suite-s-enumerated-claims-export-order-and-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-guard-the-config-suite-s-enumerated-claims-export-order-and-design.md) |
 | Plan | [2026-08-08-guard-the-config-suite-s-enumerated-claims-export-order-and.md](https://github.com/danielhanold/docket/blob/feat/guard-the-config-suite-s-enumerated-claims-export-order-and/docs/superpowers/plans/2026-08-08-guard-the-config-suite-s-enumerated-claims-export-order-and.md) |
+| Results | [2026-08-09-guard-the-config-suite-s-enumerated-claims-export-order-and-results.md](https://github.com/danielhanold/docket/blob/feat/guard-the-config-suite-s-enumerated-claims-export-order-and/docs/results/2026-08-09-guard-the-config-suite-s-enumerated-claims-export-order-and-results.md) |
+| PR | [#189](https://github.com/danielhanold/docket/pull/189) |
 <!-- docket:artifacts:end -->
 
 ## Why
