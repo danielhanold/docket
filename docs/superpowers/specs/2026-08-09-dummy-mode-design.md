@@ -42,7 +42,7 @@ The shape merges the two: a top-level `dummy_mode:` key with nested `enabled:` (
 # .docket.yml (primarily per-repo; all three layers resolve per-field as usual)
 dummy_mode:
   enabled: false          # default off
-  persona: ""             # who the reader is — required non-empty when enabled
+  persona: ""             # who the reader is — optional; blank falls back to the default persona
   surfaces: all           # `all` (default) or a subset list of the surface tokens
 ```
 
@@ -51,14 +51,54 @@ dummy_mode:
   describes this repo's reader — a user may be an SME in one repo's domain and a novice in
   another's — so the repo-committed file is the natural home, with the user-level and
   machine-local layers available per normal per-field resolution.
-- **Validation:** `enabled: true` with a blank/absent `persona:` is loudly warned and
-  treated as disabled — there is nothing to calibrate to. An unknown `surfaces:` token is
+- **Validation:** `enabled: true` with a blank/absent `persona:` falls back to the
+  **default persona** (below) with a one-line notice — never a warning, never disabled.
+  An unknown `surfaces:` token is
   warned-and-ignored (typo must never abort a run); an empty list is equivalent to
   `enabled: false` for eligibility purposes.
 - **Resolution:** `docket-config.sh --export` emits `DUMMY_MODE_ENABLED`,
   `DUMMY_MODE_PERSONA`, `DUMMY_MODE_SURFACES` (space-separated tokens, `all` expanded or
   passed literally — implementation's choice, stated in the script contract). Skills read
-  the exports, never re-parse YAML — the same pattern as `skills:`.
+  the exports, never re-parse YAML — the same pattern as `skills:`. When `persona:` is
+  blank, `DUMMY_MODE_PERSONA` carries the default persona string — skills never
+  special-case an empty persona.
+
+## Default persona
+
+The shipped fallback when `persona:` is unset, and the calibration ad-hoc enablement uses
+when the config defines none. Lives in exactly one place — `docket-config.sh` (and its
+contract) — and is quoted in the docs:
+
+> A mid-level software engineer: solid grasp of software architecture and general
+> engineering concepts — APIs, testing, CI, version control — but only working-level
+> fluency in any specific programming language, so avoid language-specific idioms unless
+> glossed. Assume no familiarity with this project's internal vocabulary; introduce each
+> project-specific term with a one-clause explanation.
+
+Rationale: a defensible median reader for a technical repo — strips expert idioms without
+going ELI5 — and it bakes in the universal half of the problem: project-internal jargon is
+unknown to every newcomer at any skill level, so the default always glosses it.
+
+## Ad-hoc session enablement
+
+A human may enable dummy mode **on demand** — "enable dummy mode" in any natural phrasing,
+when initiating an interactive skill (a groom, a new-change brainstorm) or mid-session.
+Semantics, owned by the shared definition in `docket-convention`:
+
+- **Effect:** the session treats `dummy_mode` as enabled for the eligible surfaces that
+  session authors — `dialogue` immediately, plus the `reports` and `change-sections` of any
+  skill run inline in that same session — regardless of the resolved `enabled`/`surfaces`
+  values.
+- **Persona:** the config's resolved `persona:` (which is the default persona when none is
+  configured). Ad-hoc enablement never defines its own.
+- **Duration:** the rest of the session. The reverse request ("disable dummy mode")
+  disables it the same way, also session-scoped.
+- **No writes:** no config edit, no env change — a prose rule: a human's in-session request
+  overrides the resolved config for the session's duration, the same precedence principle
+  the convention already applies to human steering of interactive sessions.
+- **Boundary:** session-scoped means *this* session only — a subagent dispatched with its
+  own context is not the session; the dispatching prose must carry the enablement forward
+  explicitly if its output is a covered surface.
 
 ## Surface tokens (v1)
 
@@ -105,11 +145,11 @@ line lives in the shared definition so every reader inherits it.
 Convention-prose feature; no new scripts.
 
 1. **`docket-config.sh`** — parse `dummy_mode.{enabled,persona,surfaces}` across the three
-   layers, validate per above, emit the three exports. Update the layer-classification
-   table and export list in `scripts/docket-config.md`.
+   layers, validate per above, emit the three exports with the default-persona fallback.
+   Update the layer-classification table and export list in `scripts/docket-config.md`.
 2. **`docket-convention`** — a new *Dummy mode (shared definition)* section owning the
-   token table, replace/additive semantics, the blank-persona rule, the agent-safety rule,
-   and the not-eligible list.
+   token table, replace/additive semantics, the default-persona fallback, the ad-hoc
+   session-enablement rule, the agent-safety rule, and the not-eligible list.
 3. **Eligible skill bodies** — one-line pointers (read the exports, apply the shared
    definition to the surfaces that skill owns): `docket-new-change`, `docket-groom-next`
    (`dialogue`), `docket-implement-next` (`pr`, `reports`, `change-sections` it writes),
@@ -204,8 +244,8 @@ dimensions trade-offs should be expressed in).
 
 ## Testing
 
-- Config suite: new-key defaults, layer precedence, blank-persona → warned + disabled,
-  unknown token → warned + ignored, export presence/order.
+- Config suite: new-key defaults, layer precedence, blank-persona → default persona
+  exported (with notice), unknown token → warned + ignored, export presence/order.
 - Guard tests: convention section exists; each eligible skill body carries its pointer;
   the agent-safety line present in the shared definition.
 - No runtime prose assertions — the simplification itself is LLM-authored and is exercised

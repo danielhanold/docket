@@ -49,7 +49,11 @@ results files, PR bodies, and the needs-you/terminal change sections get an **ad
 `### In plain terms` block authored alongside the technical content. A shared definition in
 `docket-convention` owns the token table, semantics, and the agent-safety rule (the plain
 block is never a decision input); eligible skill bodies carry one-line pointers; docs ship
-a gallery of 3–5 worked persona examples spanning application types and languages.
+a gallery of 3–5 worked persona examples spanning application types and languages. A blank
+persona falls back to a shipped default (mid-level engineer, architecture-literate,
+working-level in any given language, all project jargon glossed), and a human can enable
+dummy mode ad-hoc for the session ("enable dummy mode" at groom/brainstorm time) even where
+config leaves it off — config persona, session duration, no writes.
 
 ## Out of scope
 
