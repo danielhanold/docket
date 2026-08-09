@@ -1,12 +1,11 @@
 # Backlog
 
-**278 changes** — 🟢 2 in progress · 🟡 31 proposed · ⚪ 4 deferred · ✅ 165 done · 🗑️ 76 killed
+**278 changes** — 🟢 1 in progress · 🟡 31 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 165 done · 🗑️ 76 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
-| [0258](active/0258-guard-the-config-suite-s-enumerated-claims-export-order-and.md) | Guard the config-suite's enumerated claims: export order and rung pairs | `medium` | `chore` | [spec](../superpowers/specs/2026-08-07-guard-the-config-suite-s-enumerated-claims-export-order-and-design.md) | `feat/guard-the-config-suite-s-enumerated-claims-export-order-and` |
 | [0276](active/0276-dummy-mode.md) | Dummy mode — persona-calibrated human-facing language simplification | `medium` | `feat` | [spec](../superpowers/specs/2026-08-09-dummy-mode-design.md) | `feat/dummy-mode` |
 
 ## 🟡 Proposed (31)
@@ -53,6 +52,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0258](active/0258-guard-the-config-suite-s-enumerated-claims-export-order-and.md) | Guard the config-suite's enumerated claims: export order and rung pairs | `medium` | `chore` | [#189](https://github.com/danielhanold/docket/pull/189) |  |
 
 ```mermaid
 graph TD
