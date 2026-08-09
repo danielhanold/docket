@@ -1813,12 +1813,12 @@ sn_missing=""
 sn_mismatched=""
 while IFS="$(printf '\t')" read -r sn_path sn_val; do
   [ -n "$sn_path" ] || continue
-  ex_hit="$(printf '%s\n' "$ex_flat" | awk -F'\t' -v p="$sn_path" '$1==p{print "1"; exit}')"
+  ex_hit="$(awk -F'\t' -v p="$sn_path" '$1==p{print "1"; exit}' <<<"$ex_flat")"
   if [ -z "$ex_hit" ]; then
     sn_missing="$sn_missing $sn_path"
     continue
   fi
-  ex_val="$(printf '%s\n' "$ex_flat" | awk -F'\t' -v p="$sn_path" '$1==p{print $2; exit}')"
+  ex_val="$(awk -F'\t' -v p="$sn_path" '$1==p{print $2; exit}' <<<"$ex_flat")"
   if [ "$ex_val" != "$sn_val" ]; then
     sn_mismatched="$sn_mismatched $sn_path(README='$sn_val'!=example='$ex_val')"
   fi
