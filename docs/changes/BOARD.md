@@ -1,8 +1,8 @@
 # Backlog
 
-**280 changes** — 🟡 33 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 166 done · 🗑️ 76 killed
+**281 changes** — 🟡 34 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 166 done · 🗑️ 76 killed
 
-## 🟡 Proposed (33)
+## 🟡 Proposed (34)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -39,6 +39,7 @@
 | [0277](active/0277-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode.md) | Delegated task briefs travel through shell argv, a lossy model-performed transformation | `medium` | `refactor` | build-ready |
 | [0279](active/0279-settle-the-walk-site-classifier-s-reachability-gap-and-re-la.md) | Settle the walk-site classifier's reachability gap and re-land 0258's reverted fixes | `medium` | `chore` | build-ready |
 | [0280](active/0280-shard-or-re-budget-the-test-files-the-suite-runner-reports-o.md) | Shard or re-budget the test files the suite runner reports OVER BUDGET | `medium` | `chore` | needs-brainstorm |
+| [0281](active/0281-auto-groom-s-critic-verdict-return-channel-fails-under-backg.md) | Auto-groom's critic verdict return channel fails under background dispatch | `medium` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
 
@@ -95,6 +96,7 @@ graph TD
   0277
   0279
   0280
+  0281
   0192:::done
   0211:::done
   0237:::done
