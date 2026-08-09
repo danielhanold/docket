@@ -725,6 +725,8 @@ Each task carries at most one automatic escalation — an `economy` worker retri
 
 `gate_observation_budget` (default `30`, minutes, settable in any layer) bounds that gate run. The gate does not assume the suite fits inside one foreground call: it executes durably, records its outcome where a later look can read it, and the agent establishes completion from that record rather than from the completion signal of whatever command started it — which is why a run may go quiet for a while and why a stale "still running" report is not evidence that it crashed. Observation is bounded by this budget, and exhausting it with no terminal result **fails closed**: the build halts for a human rather than inferring either success or a red suite, since an unfinished run is not a failing one. It is docket's own policy value, deliberately independent of whatever foreground-call timeout your harness imposes. What each harness must be able to do to host such a gate — and the measured verdict for each one docket ships — is in [`gate-execution.md`](skills/docket-build/references/gate-execution.md).
 
+`delegation_observation_budget` (default `60`, minutes, settable in any layer) is its sibling for **runner delegation**: it bounds how long docket will await a terminal result from a delegated runner child it launched detached. Where `gate_observation_budget` bounds awaiting a suite run started by an agent, this one bounds awaiting a whole agent run. Expiry with no result also fails closed — and additionally **kills the detached process group**, so no unwatched agent keeps working on the repo after its run was declared failed. `0` is legal and means "observe once, then fail closed"; anything that is not a non-negative integer is a config error, not a silent fallback.
+
 **`docket-build` ships validated model IDs for Claude Code, Cursor, Codex, and opencode.** Every shipped default lives in [`agents/harness-defaults.yml`](agents/harness-defaults.yml), indexed by harness, and all four are complete — sixteen agents each, the four build profiles and the three review rungs among them — so any of the four harnesses gets profile-routed builds with no configuration at all. Codex takes a real reasoning-effort token per agent, so its rows carry a model/effort pair where Cursor's IDs encode their variant and use `auto`; opencode's rows carry a pair too, emitted as `reasoningEffort:` and forwarded to the provider as a model option. A harness docket does not yet map generates **unpinned**, letting that harness apply its own default rather than inherit an ID that means nothing there. To retune any pair, set the model yourself in a config layer — `.docket.example.yml` mirrors all four shipped blocks value for value. On Claude, `build-economy` ships Sonnet rather than Haiku deliberately: the worker contract is long and strict, and its failure modes halt the build instead of escalating. If you want a more cost-aggressive floor, set `build-economy` to `claude-haiku-4-5-20251001` in a config layer.
 
 ### docket-review — the bounded whole-branch reviewer
@@ -800,9 +802,13 @@ stay in the feature worktree on its branch, so a delegated build worker runs in 
 `--worktree`, which the generated `build-*` shims carry and which the dispatch facade refuses to
 run a `build-*` delegation without.
 
-How it works: `sync-agents.sh` generates that agent's wrapper with a **shim body** — one
-foreground call to `docket.sh runner-dispatch`, which resolves the `runners.codex` knobs and
-runs `codex exec` (blocking, sandboxed, final-message relay via `--output-last-message`). Every
+How it works: `sync-agents.sh` generates that agent's wrapper with a **shim body** — a
+**launch-then-observe** instruction over a single dispatch seam, `docket.sh runner-dispatch`. The
+launch call resolves the `runners.codex` knobs, starts `codex exec` (sandboxed, final-message relay
+via `--output-last-message`) **detached**, and returns a dispatch key immediately; the wrapper then
+makes bounded, short observe calls against that key until the run reports a terminal result. Two
+invocations, still exactly one dispatch seam — no delegated run is bounded by one foreground
+call's ceiling. Every
 invocation path (skill fork, `@docket-status`, composition from another skill) inherits the
 delegation unchanged. `model:` is passed to the child verbatim (ADR-0015); `effort:` maps to
 Codex's `model_reasoning_effort` (docket's `max` → codex `xhigh`). The wrapper's own frontmatter

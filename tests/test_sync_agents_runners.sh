@@ -68,8 +68,12 @@ assert "0271: shim no longer bakes the 600000 ceiling" '! grep -qF "600000" "$G"
 # (LEARNINGS: exit-code-encodes-a-non-failure). Spelled with an explicit non-digit boundary
 # rather than `\b`: `\b` is a GNU/ugrep extension that BSD `grep -E` does not honor, and PATH
 # `grep` here is ugrep, so a `\b` spelling would pass locally and rot on a stock macOS grep.
+# Keyed on the PAIRING, not on a bare digit: an isolated `4` appears in frontmatter and in baked
+# `--model` values, so a digit-only match stays green after the whole `4 — still running` bullet
+# is deleted, which is the one thing this guard exists to catch. Flattened to one line so the
+# code and its meaning must co-occur regardless of wrapping.
 assert "0271: shim names exit 4 as the observe-again code" \
-  'grep -qE "(^|[^0-9])4([^0-9]|$)" "$G"'
+  'grep -qE "(^|[^0-9])4[^0-9][^.]*still running" <<<"$(tr "\n" " " < "$G")"'
 assert "0271: shim still forbids the inline fallback" 'grep -qiE "never.*inline" "$G"'
 # Shape, not spelling: the clause may name what is not retried between the verb and the adverb.
 assert "0271: shim still forbids a silent retry" 'grep -qiE "never retry[^.]*silently" "$G"'

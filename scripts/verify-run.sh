@@ -4,8 +4,10 @@
 # postcondition** for one change and reports a verdict on stdout; or, in --in-progress-ids mode,
 # prints the ids of every in-progress change so a caller can diff the set across a hand-off.
 #
-# PURE READER. Git and filesystem only — no network, no `gh`, no harness, no status writes, no
-# file writes, no claim release. The only thing that ACTS on a verdict is runner-dispatch.sh.
+# PURE READER. Git and filesystem only — no network, no `gh`, no harness, no docket-state writes
+# (no change files, no board, no claim release). The only thing that ACTS on a verdict is
+# runner-dispatch.sh. Not literally write-free: git reads may touch git's own bookkeeping, which
+# is why the build family's `status` runs `--no-optional-locks` — see its call site.
 #
 # Usage: verify-run.sh <id> [--changes-dir DIR]
 #        verify-run.sh --in-progress-ids [--with-claimed-at] [--changes-dir DIR]
@@ -111,7 +113,9 @@ if [ "$MODE" = "build" ]; then
   # 3. the working tree is clean — INCLUDING untracked files. The stranded-work case this
   #    whole change exists for (change 0258) left its +64 lines UNTRACKED, so a
   #    tracked-only check would have called that run clean.
-  dirty="$("$GIT" -C "$BUILD_WORKTREE" status --porcelain 2>/dev/null)"
+  # `--no-optional-locks`: the plain form refreshes the index and takes `.git/index.lock` — a
+  # filesystem write into a worktree where the dispatched child may still be running git.
+  dirty="$("$GIT" -C "$BUILD_WORKTREE" --no-optional-locks status --porcelain 2>/dev/null)"
   [ -z "$dirty" ] || bunmet+=(tree)
 
   if [ "${#bunmet[@]}" -eq 0 ]; then

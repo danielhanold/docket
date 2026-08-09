@@ -224,7 +224,9 @@ if [ "$VERB" = "launch" ]; then
   STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   # The dispatch-time SHA: the direct analogue of DISPATCH_EPOCH, captured BEFORE the child can
   # commit anything, so a commit landing in the gap is excluded either way. Empty on a repo with
-  # no commits — the build verdict then reports unknown-since-sha rather than guessing.
+  # no commits — `verify-run --build` refuses an empty `--since` outright, so the observe leg
+  # gets NO verdict at all and reports the run failed rather than guessing it succeeded.
+  # (`unknown-since-sha` is the verdict for a non-empty sha git cannot resolve, not for this.)
   SINCE_SHA="$("$GIT" -C "$ANCHOR" rev-parse HEAD 2>/dev/null || true)"
   # The dispatch-time BRANCH, captured for the same reason and at the same instant: the build
   # verdict's `branch` conjunct asks whether the child ENDED where it was sent, which is only
@@ -281,12 +283,15 @@ if [ "$VERB" = "launch" ]; then
   # being judged. The write is atomic — a temp file BESIDE its destination (the one licensed
   # exception to templating temp files into TMPDIR, because the rename must be same-filesystem)
   # then `mv -f`; a reader therefore never sees a half-written sentinel.
+  # `pid` is `$BASHPID` — THIS backgrounded subshell's own pid, the same value `launch` records
+  # as `child_pid`. `$$` would be the facade's pid, which names a long-exited process by the time
+  # a human reads the sentinel.
   set -m
   {
     "$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" -- "$@"
     ec=$?
     printf 'exit_code=%s\nstarted_at=%s\nfinished_at=%s\npid=%s\ndispatch_key=%s\n' \
-      "$ec" "$STARTED_AT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$$" "$KEY" > "$DDIR/done.partial"
+      "$ec" "$STARTED_AT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$BASHPID" "$KEY" > "$DDIR/done.partial"
     mv -f "$DDIR/done.partial" "$DDIR/done"
   } >"$DDIR/stdout.log" 2>"$DDIR/stderr.log" </dev/null &
   CHILD_PID=$!
