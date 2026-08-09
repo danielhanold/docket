@@ -8,10 +8,10 @@ type: refactor
 created: 2026-08-09
 updated: 2026-08-09
 depends_on: []
-related: []
+related: [208, 270]
 discovered_from: [271]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-09-delegated-brief-file-channel-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-09-delegated-brief-file-channel-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-delegated-brief-file-channel-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -53,26 +56,24 @@ model must follow correctly every time, not a property of the mechanism.
 
 ## What
 
-Give `runner-dispatch` a non-argv path for the brief and make it the documented default:
-a file path, or stdin. `--launch` already creates a durable per-dispatch directory (change 0271),
-which is a natural place to carry the brief alongside the streams and the launch record.
+Groomed 2026-08-09 (auto-groom; design and full assumption audit in the linked spec). The settled
+shape:
 
-Open questions for the brainstorm, not decisions:
-
-- File path vs. stdin. A path composes with the existing detached launch; stdin does not survive
-  detachment without being spooled first.
-- Precedence when both a brief file and trailing argv are present — prefer one, refuse, or
-  concatenate. Refusing is the only option with no silent-wrong-answer mode.
-- Whether the adapters should switch `$*` to a `"$@"`-preserving construction regardless, so the
-  argv path stops being lossy even when it is used.
-- Lifecycle of the brief in the per-dispatch dir: it may contain the full plan text, so retention
-  and cleanup are a real decision, not an afterthought.
-- The shim template then has to teach a two-step (write the brief, then reference it), which is
-  MORE steps for the model than appending a string. That is the main risk this change carries:
-  it removes a lossiness failure mode and may widen the omission failure mode 0271 just closed.
-  Any design here must keep 0271's emphatic, unbracketed payload treatment rather than replacing
-  it with a bracketed `[--brief-file <path>]`, which would reintroduce the original defect in a
-  new spelling.
+- `runner-dispatch` gains `--brief-file <path>` (both `--launch` and the legacy foreground verb).
+  The caller writes the brief with a quoted-delimiter heredoc — no shell quoting of the content —
+  and passes the path. `--launch` spools the brief atomically into the per-dispatch dir as
+  `$DDIR/brief` (durable audit record, no caller-temp lifetime race) and hands the adapter the
+  durable copy; the legacy verb passes the caller's file through. Stdin rejected: it does not
+  survive detachment (`</dev/null` by design) without a hidden spool.
+- Both channels present (brief file AND trailing argv) ⇒ **refuse**, at the facade and
+  defensively in the adapters — the only shape with no silent-wrong-answer mode.
+- A `build-*` dispatch with no payload at all dies at the same pre-verb validation point as the
+  existing `build-*` `--worktree` gate (verb-neutral); non-build agents stay legal payload-free.
+- All three adapters switch `$*` to a newline-preserving `"$@"` join regardless, so the surviving
+  argv path stops being lossy; with `--brief-file` the prompt appends the file verbatim.
+- The shim template teaches ONE path (heredoc write, then `--brief-file`), rendered unbracketed
+  and emphatic per 0271's constraint; the single-quoting gymnastics paragraph is deleted with the
+  argv teaching. Brief retention rides the dispatch dir's existing prune — no new lifecycle.
 
 ## Notes
 
