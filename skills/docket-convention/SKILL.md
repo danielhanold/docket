@@ -295,6 +295,27 @@ follow-up work mid-run → read [`references/auto-capture.md`](references/auto-c
 the suppression list, the materiality bar, the per-site routing, what a captured discovery must say,
 and the deterministic mint with its exit codes and cross-site `--minted` carry-forward.
 
+### Dummy mode (shared definition)
+
+Docket's **human-facing** prose can be calibrated to a reader the repo describes. `dummy_mode`
+(a map: `enabled` default `false`, `persona` free text, `surfaces` default `all`; global-able —
+resolved as `DUMMY_MODE_ENABLED` / `DUMMY_MODE_PERSONA` / `DUMMY_MODE_SURFACES`) governs it. Five
+surfaces are eligible: `dialogue` and `reports` are **replaced** — written calibrated to the
+persona; `results`, `change-sections`, and `pr` are **additive** — the technical content is
+untouched and an authored `### In plain terms` block is written alongside it, in the same commit.
+`DUMMY_MODE_PERSONA` always carries a persona (the shipped default when none is configured), so no
+skill special-cases an empty one.
+
+**Agent-safety rule:** an `### In plain terms` block is written for the human and is **never a
+decision input** — reconcile, review, planning, and every worker read the technical content only.
+Agent-facing artifacts (plans, the spec file, learnings, build evidence) are never simplified;
+simplifying them would degrade the build loop itself.
+
+**When `DUMMY_MODE_ENABLED` is `true`, or a human asks for dummy mode in-session, and you are about
+to author any of the five surfaces → read [`references/dummy-mode.md`](references/dummy-mode.md)
+now (blocking)** — it owns the token table, the replace/additive mechanics, ad-hoc session
+enablement, the not-eligible list, and the authoring guidance.
+
 ### Learnings ledger
 
 `<changes_dir>/learnings/` — the project's **build-loop memory** (change 0067): one curated finding
