@@ -142,6 +142,9 @@ map_for(){ # map_for <EXPORT_KEY> -> ERE matching the example's line, or empty i
     SKILL_BUILD)           echo '^[[:space:]]+build:[[:space:]]*docket-build[[:space:]]*$' ;;
     SKILL_REVIEW)          echo '^[[:space:]]+review:[[:space:]]*docket-review[[:space:]]*$' ;;
     SKILL_FINISH)          echo '^[[:space:]]+finish:[[:space:]]*superpowers:finishing-a-development-branch' ;;
+    DUMMY_MODE_ENABLED)    echo '^[[:space:]]+enabled:[[:space:]]*false' ;;
+    DUMMY_MODE_PERSONA)    echo '^[[:space:]]+persona:[[:space:]]*""[[:space:]]*$' ;;
+    DUMMY_MODE_SURFACES)   echo '^[[:space:]]+surfaces:[[:space:]]*all[[:space:]]*$' ;;
     *) echo '' ;;
   esac
 }
@@ -191,7 +194,14 @@ done
 #   CHANGE_TYPES — change 0127. Same shape as BOARD_SURFACES: the value is assembled through
 #   intermediates (ct_raw / ct_body) and the built-in fallback reads a library array, so no
 #   `CHANGE_TYPES=` assignment line ever carries the literal leaf key "change_types".
-correspondence_exempt="BOARD_SURFACES DOCKET_BASH_PATH CHANGE_TYPES"
+#   DUMMY_MODE_SURFACES — change 0276. Same shape as BOARD_SURFACES and CHANGE_TYPES: the leaf is
+#   read into an intermediate (`dm_surfaces_raw="$(dm_key surfaces all)"`) and the export is then
+#   assigned either the literal `all` or the accumulated `${dm_kept[*]-}`, so no
+#   `DUMMY_MODE_SURFACES=` assignment line carries the literal leaf key "surfaces". Its two
+#   siblings are NOT exempt — `DUMMY_MODE_ENABLED="$(dm_key enabled false)"` and
+#   `DUMMY_MODE_PERSONA="$(dm_key persona '')"` each name their leaf on the assignment line, so
+#   they are tied back mechanically like every other entry.
+correspondence_exempt="BOARD_SURFACES DOCKET_BASH_PATH CHANGE_TYPES DUMMY_MODE_SURFACES"
 # The one elsewhere: key whose consumer mention cannot be code-shaped, and why (change 0246).
 # .docket.example.yml says github_project is NOT WIRED TODAY — no script reads it. Its only match in
 # docket-config.sh is the coordination-key FENCE list (`for _fkey in … github_project …`), which
@@ -220,6 +230,9 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
     change_types)         echo 'resolved:CHANGE_TYPES' ;;
     auto_capture.enabled) echo 'resolved:AUTO_CAPTURE_ENABLED' ;;
     auto_capture.types)   echo 'resolved:AUTO_CAPTURE_TYPES' ;;
+    dummy_mode.enabled)   echo 'resolved:DUMMY_MODE_ENABLED' ;;
+    dummy_mode.persona)   echo 'resolved:DUMMY_MODE_PERSONA' ;;
+    dummy_mode.surfaces)  echo 'resolved:DUMMY_MODE_SURFACES' ;;
     terminal_publish)     echo 'resolved:TERMINAL_PUBLISH' ;;
     gate_observation_budget)      echo 'resolved:GATE_OBSERVATION_BUDGET' ;;
     delegation_observation_budget) echo 'resolved:DELEGATION_OBSERVATION_BUDGET' ;;
@@ -234,7 +247,7 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
     skills.review)                echo 'resolved:SKILL_REVIEW' ;;
     skills.finish)                echo 'resolved:SKILL_FINISH' ;;
     # Block headers carry no value of their own; their children are classified above.
-    finalize|learnings|reclaim|build|review|skills|runners|runners.codex|runners.opencode|auto_capture) echo 'elsewhere:HEADER' ;;
+    finalize|learnings|reclaim|build|review|skills|runners|runners.codex|runners.opencode|auto_capture|dummy_mode) echo 'elsewhere:HEADER' ;;
     # Genuinely non-resolver-read keys, each with its real consumer named.
     #
     # github_project is the one exception to "real consumer": .docket.example.yml itself says
@@ -724,7 +737,9 @@ assert "elsewhere: shape control — the real '^agents[[:space:]]*:' reader IS a
 # instead of leaving one stale.
 # change 0269 took it from 45 to 47 (runners.codex.shim_model and runners.codex.shim_effort).
 # change 0271 took it from 47 to 48 (the flat top-level delegation_observation_budget key).
-expected_key_count=48
+# change 0276 took it from 48 to 52 (the dummy_mode: block header and its enabled/persona/surfaces
+# leaves).
+expected_key_count=52
 # RAW FLOOR (change 0102 whole-branch review, MINOR 3): example_keys_raw feeds BOTH this section's
 # manifest loop (via example_keys, deduped) and the duplicate-leaf check directly below (also
 # fed from example_keys_raw, undeduped). Without this assert, an edit that makes the raw pipeline
@@ -1071,7 +1086,11 @@ fi
 # neither leaf carries one of its own — which is the same coverage its sandbox/network siblings
 # already have, so expected_adjacency_inherit_count below deliberately does NOT move: rule 4 only
 # fires for a key that is otherwise UNCOVERED, and these two never are.
-expected_nested_key_count=25
+#
+# +3 (change 0276): dummy_mode.{enabled,persona,surfaces} — all three covered by rule 2, the
+# `dummy_mode:` header's own `# scope: any layer` tag; none inherits via rule-4 adjacency, so
+# expected_adjacency_inherit_count is unchanged at 2.
+expected_nested_key_count=28
 assert "scope tag: the pass enumerated exactly $expected_nested_key_count keys at depth > 0 (got ${nested_key_count:-0}; if you added or removed a nested key in .docket.example.yml, first CONFIRM the new key carries its own scope: tag or sits directly under a tagged header — bumping expected_nested_key_count alone, with no tag and no header, ships an untagged key that this guard will never catch again — then bump expected_nested_key_count in the same commit)" \
   '[ "${nested_key_count:-0}" = "$expected_nested_key_count" ]'
 
@@ -1881,8 +1900,11 @@ fence_marker(){
 # opposite direction (an undocumented fence added without keys in the example). The remedy is
 # inline in the message so it survives into CI output.
 fence_count="$(fence_openers "$README" | grep -c .)"
-assert "(9) README yaml fence count is exactly 13 — floor against discovery going silently empty, ceiling against an unguarded new fence; if you ADDED a config fence, bump this literal AND ensure its keys are in .docket.example.yml in the same commit; if this dropped to 12, check that the fence regex is still whitespace-tolerant (fence 576 is indented) before touching the literal (got $fence_count)" \
-  '[ "$fence_count" = "13" ]'
+# 13 -> 19 (change 0276): README's dummy_mode section adds six config fences — the key's own
+# example block plus the five-entry persona gallery, each of which is a real `dummy_mode:` block
+# whose keys (9) validates against .docket.example.yml like every other fence.
+assert "(9) README yaml fence count is exactly 19 — floor against discovery going silently empty, ceiling against an unguarded new fence; if you ADDED a config fence, bump this literal AND ensure its keys are in .docket.example.yml in the same commit; if this dropped to 18, check that the fence regex is still whitespace-tolerant (fence 576 is indented) before touching the literal (got $fence_count)" \
+  '[ "$fence_count" = "19" ]'
 
 # ANCHOR: .docket.example.yml, ONE HOP. Sections (2a)/(2b)/(2c) already bind the example to the
 # resolver in BOTH directions and prove it a faithful superset of everything the code reads, so
@@ -2024,7 +2046,7 @@ assert "(9) every docket:config-fence marker parses (fence-line + reason; ${f9_m
 # every fence BEFORE any skip) gives two floors against it: an exact count of fences reached, and
 # a floor that at least one of them is values-marked.
 f9_seen="$(printf '%s\n' "$findings9" | grep -c '^seen ')"
-assert "(9) scan_fences visited all 13 fences — same literal as NON-VACUITY FLOOR 1's fence-count assert above; if you added a fence, see that assert's message for the remedy (got $f9_seen)" '[ "$f9_seen" = "13" ]'
+assert "(9) scan_fences visited all 19 fences — same literal as NON-VACUITY FLOOR 1's fence-count assert above; if you added a fence, see that assert's message for the remedy (got $f9_seen)" '[ "$f9_seen" = "19" ]'
 f9_vmarked="$(printf '%s\n' "$findings9" | grep -c '^seen .* values$')"
 assert "(9) at least one fence is values-marked — floor against the marker being deleted entirely; it does NOT prove the marker sits on the RIGHT fence (see the positive control immediately below for that) (got $f9_vmarked)" \
   '[ "$f9_vmarked" -ge 1 ]'

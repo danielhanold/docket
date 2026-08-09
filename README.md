@@ -367,6 +367,109 @@ docket.sh docket-status --digest-only --type untyped
 docket.sh backfill-change-types --changes-dir .docket/docs/changes --map 7=feat,8=feat,9=fix
 ```
 
+### Speaking your language (`dummy_mode`)
+
+Docket talks to you in the vocabulary of the repo it is running in. If that repo is a pile of bash
+and you read YAML but not bash, or it is Terraform and you have never seen a state file, every
+brainstorm question and every run report arrives one translation short — and you end up asking
+"say that more simply" over and over. `dummy_mode` moves that translation to the source: you
+describe the reader once, and docket's **human-facing** prose is written for that reader from then
+on.
+
+```yaml
+dummy_mode:
+  enabled: true
+  persona: "Comfortable with git and YAML, cannot read bash. Explain scripts by outcome."
+  surfaces: all   # or a subset — see the tokens below
+```
+
+`persona` is free text and must be **one quoted line**: a YAML block scalar (`>` or `|`) and a `#`
+inside the text are both hard config errors, because the config reader is line-oriented. Leave it
+blank (or omit it) to get the shipped default — a mid-level engineer who knows architecture, has
+working-level fluency in any one language, and is told every project-internal term with a gloss.
+`enabled` is `false` by default, and the key is global-able: set it per-repo, in
+`~/.config/docket/config.yml`, or in `.docket.local.yml`. It is *primarily* a per-repo setting,
+since the same person is an expert in one repo's domain and a novice in another's.
+
+**Five surfaces are eligible**, in two modes:
+
+| Token | Covers | Mode |
+|---|---|---|
+| `dialogue` | brainstorm and groom conversation, and any human-present prompt | **replace** |
+| `reports` | the prose a skill prints back to you at the end of a run | **replace** |
+| `results` | the results file a change writes on close-out | **additive** |
+| `change-sections` | skill-authored sections in a change file (`## Run halted`, `## Finalize blocked`, …) | **additive** |
+| `pr` | the pull-request body | **additive** |
+
+**Replace** means the prose itself is written calibrated to your persona — there is no second,
+technical copy, because the decisions and the artifacts behind it are unchanged. **Additive** means
+the artifact keeps its full technical content and *gains* an authored `### In plain terms` block
+alongside it, written at the same moment as its parent.
+
+**Agent-facing artifacts are never simplified.** Plans, spec files, learnings findings, build
+evidence, and script contracts keep full technical density, and an `### In plain terms` block is
+never a decision input — reconcile, review, planning, and every build worker read the technical
+content only. Simplifying what the loop reads would degrade the loop.
+
+You can also ask for it **ad hoc**: say "enable dummy mode" in a session and the same rules apply
+for the rest of that session, using the same configured persona, writing nothing to disk. The
+reverse request turns it back off.
+
+#### Persona gallery
+
+Five worked examples, spanning different application types and languages.
+
+**1. Shell/CLI tooling repo (docket itself) — PM-technical reader**
+
+```yaml
+dummy_mode:
+  enabled: true
+  persona: "Comfortable with git, GitHub PRs, and YAML. Cannot read bash or awk — explain script behavior by outcome, never by code. Does not know docket's internal vocabulary (worktree, CAS push, claim lease, orphan branch) — use each term only with a one-clause gloss."
+```
+
+Effect: a brainstorm question like "should the CAS retry re-run preflight before the re-push?"
+becomes "when two sessions save at the same time, one loses — should the loser automatically
+re-sync and retry, or stop and ask you?"
+
+**2. Python data-pipeline repo — analyst reader**
+
+```yaml
+dummy_mode:
+  enabled: true
+  persona: "Data analyst: fluent in SQL and pandas, reads simple Python. No infrastructure background — Docker, Airflow scheduling internals, and IAM are unknown terms. Frame trade-offs in terms of data freshness, correctness, and cost."
+  surfaces: [dialogue, reports]
+```
+
+**3. TypeScript/React web app — designer/founder reader**
+
+```yaml
+dummy_mode:
+  enabled: true
+  persona: "Non-engineer founder: thinks in user flows and screens, not components or state. Knows what an API is, not what REST vs GraphQL implies. Avoid all TypeScript jargon; describe changes by what the user sees and what could break for them."
+```
+
+**4. Terraform/infrastructure repo — application-developer reader**
+
+```yaml
+dummy_mode:
+  enabled: true
+  persona: "Backend application developer (Go, Postgres) new to infrastructure-as-code: plan vs apply, state files, and drift are new concepts. Comfortable with networking basics. Always spell out blast radius: what a change destroys or recreates."
+  surfaces: [dialogue, results, pr]
+```
+
+**5. iOS/Swift app — backend-engineer reader**
+
+```yaml
+dummy_mode:
+  enabled: true
+  persona: "Backend engineer fluent in Java and REST APIs, new to mobile: SwiftUI, the app lifecycle, and App Store review constraints are unfamiliar. Map iOS concepts to server-side analogies where one exists; flag where the analogy breaks."
+```
+
+Compose your own along the axes those five use: **subject-matter gaps** (knows CI/CD, new to
+release engineering), **language gaps** (reads Python, not bash), **tooling/vocabulary gaps**
+(docket's own terms), and **framing preferences** (what dimensions trade-offs should be expressed
+in).
+
 ### Workflow roles — the `skills:` map
 
 docket is a lifecycle wrapper around a workflow engine, and superpowers is the default engine for three of the five roles — docket owns the `build` and `review` roles itself. Each of the **five workflow invocation points is a pluggable role**: an optional `skills:` map in any config layer rebinds a role to a different skill (the name is passed to the Skill tool verbatim) or to the sentinel `auto` (no skill — the running agent performs the step inline at its own model).
@@ -401,6 +504,10 @@ auto_groom: false
 auto_capture:                # a MAP since change 0127 — a bare scalar is a hard config error
   enabled: false
   types: all
+dummy_mode:                  # persona-calibrated human-facing prose; off by default
+  enabled: false
+  persona: ""
+  surfaces: all
 finalize:
   gate: local
 board_surfaces: [inline]     # the github token is per-repo-only and ignored here (see below)
@@ -434,6 +541,10 @@ auto_groom: false
 auto_capture:                 # a MAP since change 0127 — a bare scalar is a hard config error
   enabled: false
   types: all
+dummy_mode:                   # persona-calibrated human-facing prose; off by default
+  enabled: false
+  persona: ""
+  surfaces: all
 board_surfaces: [inline]      # the github token is fenced here too — per-repo-only
 ```
 
