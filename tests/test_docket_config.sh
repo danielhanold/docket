@@ -1704,10 +1704,15 @@ assert "test_command AUTO is NOT the sentinel (case-sensitive)" '[ "$FINALIZE_TE
 # becomes empty, the `:-` chain falls through, and the lower command resurfaces.
 # Sections s/s2/s3 above are all single-layer, so none of them can see this. These do.
 #
-# 0106 pinned three of the six ordered rung pairs; 0112 completes the matrix with s7/s8/s9.
-# Writing each pair as (rung holding `auto` -> rung holding the real command):
-#   forward (higher `auto` masks lower real):  local->committed s4 | committed->global s5 | local->global s9
-#   reverse (lower `auto` must NOT wipe higher real): global->committed s6 | committed->local s7 | global->local s8
+# 0106 pinned three of the ordered rung pairs; 0112 completed the matrix with s7/s8/s9.
+# Each fixture below carries a machine-readable marker line naming its pair as
+# (rung holding `auto` -> rung holding the real command). Change 0258's leg-2 guard, near the
+# end of this file, computes the expected ordered-pair set from `config_scalar_get`'s layer
+# dispatch and asserts set equality against those markers -- so the markers, not this comment,
+# are the claim of record, and a FOURTH config layer grows the expected set from 6 pairs to 12
+# and reddens the guard until six new fixtures exist.
+# The forward cases (a higher `auto` masks a lower real command) are s4, s5 and s9; the reverse
+# cases (a lower `auto` must NOT wipe a higher real command) are s6, s7 and s8.
 # s7 is the one earned on unique discriminating power: a committed-rung-specific clear appended
 # after the collapse leaves all five of 0106's asserts green and reddens s7 alone. s8 and s9 are
 # matrix-completeness witnesses that share s6's and s4/s5's mutations respectively -- no claim of
@@ -1719,6 +1724,7 @@ assert "test_command AUTO is NOT the sentinel (case-sensitive)" '[ "$FINALIZE_TE
 # `eval ""` would otherwise leave the previous fixture's value standing.
 
 # (s4) FORWARD, lcl() path: .docket.local.yml `auto` over a committed real command.
+# RUNG_PAIR: local->committed
 mkrepo "$tmp/s4"
 mkdir -p "$tmp/s4.xdg/docket"
 cat > "$tmp/s4/.docket.yml" <<'EOF'
@@ -1738,6 +1744,7 @@ out="$(rung "$tmp/s4.xdg" "$tmp/s4" --export)"; eval "$out"
 assert "0106 s4: local auto masks committed real command" '[ -z "$FINALIZE_TEST_COMMAND" ]'
 
 # (s5) FORWARD, gbl() path: committed `auto` over a global real command.
+# RUNG_PAIR: committed->global
 mkrepo "$tmp/s5"
 mkdir -p "$tmp/s5.xdg/docket"
 printf 'finalize:\n  test_command: make global\n' > "$tmp/s5.xdg/docket/config.yml"
@@ -1767,6 +1774,7 @@ assert "0106 s5: committed auto masks global real command" '[ -z "$FINALIZE_TEST
 # LOOSE; this proves it is not too TIGHT. A blanket "any layer says auto => unset" scan would
 # pass every forward case and fail only here. s6 deliberately does NOT redden under the
 # per-layer mutation that reddens s4/s5 — which is exactly why it needs its own mutation.
+# RUNG_PAIR: global->committed
 mkrepo "$tmp/s6"
 mkdir -p "$tmp/s6.xdg/docket"
 printf 'finalize:\n  test_command: auto\n' > "$tmp/s6.xdg/docket/config.yml"
@@ -1786,6 +1794,7 @@ assert "0106 s6: global auto does NOT wipe committed real command" '[ "$FINALIZE
 # The dangerous cell, and the reason this change exists. A real repo whose .docket.local.yml
 # sets a command over a committed `test_command: auto` must keep its local command; the
 # committed-rung-specific clear that would silently drop it passes every 0106 assert.
+# RUNG_PAIR: committed->local
 mkrepo "$tmp/s7"
 mkdir -p "$tmp/s7.xdg/docket"
 cat > "$tmp/s7/.docket.yml" <<'EOF'
@@ -1805,6 +1814,7 @@ assert "0112 s7: committed auto does NOT wipe local real command" '[ "$FINALIZE_
 # Committed rung leaves the KEY absent -- .docket.yml still exists and still pins main-mode,
 # matching s5's first phase. (Dropping the file entirely also resolves correctly; it would just
 # route this fixture through BOOTSTRAP=CREATE_ORPHAN, which is why the file is kept.)
+# RUNG_PAIR: global->local
 mkrepo "$tmp/s8"
 mkdir -p "$tmp/s8.xdg/docket"
 printf 'finalize:\n  test_command: auto\n' > "$tmp/s8.xdg/docket/config.yml"
@@ -1822,6 +1832,7 @@ assert "0112 s8: global auto does NOT wipe local real command (committed key abs
 # (s9) FORWARD, skip-rung: a local `auto` masks a GLOBAL real command, committed key absent.
 # Expects an EMPTY value, which is also what an absent key yields -- so it carries a control
 # assert first, the same reason s4 and s5 do.
+# RUNG_PAIR: local->global
 mkrepo "$tmp/s9"
 mkdir -p "$tmp/s9.xdg/docket"
 printf 'finalize:\n  test_command: make global\n' > "$tmp/s9.xdg/docket/config.yml"
@@ -2968,6 +2979,56 @@ l1_shell_n="$(grep -c . <<<"$doc_shell_keys")"
 l1_sentence="$l1_shell_n lines in \`shell\` format; $l1_plain_n in \`plain\`"
 assert "0258 L1: the doc's line-count prose tracks the fence ($l1_shell_n/$l1_plain_n)" \
   'grep -qF -- "$l1_sentence" "$REPO/scripts/docket-config.md"'
+
+# ============================================================================
+# Change 0258 leg 2 — rung-pair completeness, computed from the resolver
+# ============================================================================
+# Section (S4-S9) above pins the ordered rung pairs of the three-layer finalize.test_command
+# chain. Until this guard the "six pairs" claim lived only in that section's header comment,
+# so a FOURTH config layer would take the ordered-pair count from 6 to 12 and leave six
+# masking cells silently unpinned with nothing to say so.
+#
+# The EXPECTED side is derived from `config_scalar_get`'s layer dispatch in
+# scripts/docket-config.sh -- the single choke point every layer read funnels through, since
+# `lcl`/`gbl` are one-line wrappers over it and the committed read calls it directly, so a
+# fourth layer cannot land without adding an arm. The `*)` die arm is excluded by the
+# lowercase-name shape of the match.
+#
+# The PINNED side is declared by the per-fixture marker lines added to s4-s9, collected across
+# the `tests/test_docket_config*.sh` family glob -- never a ${BASH_SOURCE[0]} whole-file scan,
+# so change 0251's split of this file cannot blind the collection.
+#
+# The verdict is SET equality: a gap, a duplicate, and an unknown layer name all redden, and
+# count equality falls out of it (no hand-written "6", no ">= 6" floor).
+#
+# Accepted residual (spec, Design): a marker line could outlive deletion of its fixture body.
+# The marker sits inside the fixture block so the natural edit removes both; a lying orphan is
+# the same trust class as a lying assert label and is left to review.
+rp_layers="$(sed -n '/^config_scalar_get()/,/^}/p' "$REPO/scripts/docket-config.sh" \
+  | grep -E '^[[:space:]]*[a-z_]+\)[[:space:]]+config_scalar_from_lines' \
+  | sed -E 's/^[[:space:]]*([a-z_]+)\).*/\1/' | LC_ALL=C sort)"
+rp_n="$(grep -c . <<<"$rp_layers")"
+
+assert "0258 L2 control: config_scalar_get dispatches at least three config layers (n=$rp_n)" \
+  '[ "$rp_n" -ge 3 ]'
+for rp_l in committed global local; do
+  assert "0258 L2 control: layer $rp_l is dispatched by config_scalar_get" \
+    'grep -qx "$rp_l" <<<"$rp_layers"'
+done
+
+# All ordered pairs over the derived layer set: n*(n-1) of them.
+rp_expected="$(awk '{ a[NR] = $0 }
+  END { for (i = 1; i <= NR; i++) for (j = 1; j <= NR; j++) if (i != j) print a[i] "->" a[j] }' \
+  <<<"$rp_layers" | LC_ALL=C sort)"
+rp_pinned="$(grep -hE '^# RUNG_PAIR: ' "$REPO"/tests/test_docket_config*.sh \
+  | sed -E 's/^# RUNG_PAIR: //' | LC_ALL=C sort)"
+
+assert "0258 L2 control: the family glob yielded a non-empty pinned pair population" \
+  '[ -n "$rp_pinned" ]'
+assert "0258 L2 control: $rp_n layers imply $(( rp_n * (rp_n - 1) )) ordered pairs" \
+  '[ "$(grep -c . <<<"$rp_expected")" -eq "$(( rp_n * (rp_n - 1) ))" ]'
+assert "0258 L2: the pinned rung pairs are exactly the resolver's ordered-pair set" \
+  '[ "$rp_pinned" = "$rp_expected" ]'
 
 assert "0174 template integrity: the shared template is unmutated after the full run" \
   '[ "$(git -C "$MKREPO_TEMPLATE.origin.git" for-each-ref --format="%(refname) %(objectname)" | LC_ALL=C sort)" = "$tplint_refs" ] &&
