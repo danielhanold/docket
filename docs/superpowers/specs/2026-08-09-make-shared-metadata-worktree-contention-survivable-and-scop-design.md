@@ -16,13 +16,35 @@ Two halves of one concurrency defect in the shared `.docket` metadata worktree:
    dirty for another agent's entire multi-tool-call edit→commit window (seconds to minutes), so a
    concurrent preflight hard-fails on a perfectly normal transient state. Observed live (0109);
    reproducible by construction. No lock exists anywhere in `scripts/`.
-2. **Blast radius.** Two pathspec-less `git commit` calls in `scripts/docket-status.sh` — the one
+2. **Blast radius — script channel.** Two pathspec-less `git commit` calls in `scripts/docket-status.sh` — the one
    inside `commit_and_push_generated` and the sweep's `"docket($id): refresh artifacts links"`
    commit — sweep up whatever another agent has staged at that instant, committing someone else's
    in-flight work under this run's message and push. (#0119's audit confirmed these are the only
    two exposed sites; every other shared-tree commit already carries a pathspec, and
    `terminal-publish.sh`'s `$pub` commit is exclusive-worktree **and** index-driven, so it stays
    out of scope — a pathspec there would change behavior, not harden it.)
+3. **Blast radius — agent channel** (added 2026-08-09). The same defect reaches the shared tree
+   through a second, unguarded channel: **git commands an agent runs directly from skill prose.**
+   Not one skill body instructs staging by pathspec. `docket-convention`'s Step-0 preamble grants
+   the direct-git authority — *"plain git plumbing (`git add`/`commit`/`push`, `git -C` forms)
+   stays direct"* — and constrains it not at all; the six metadata-writing skills then say only
+   *"Commit the change-file edit + spec together in the metadata working tree"* (`docket-groom-next`
+   Step 5) or the equivalent. The one place the discipline **is** written down,
+   `docket-build-task` (*"Stage by explicit path — only paths your task changed. Never
+   `git add -A`, `git add .`"*), governs feature-branch commits — a **private** worktree, where the
+   hazard does not exist. The rule is present exactly where it is not needed and absent exactly
+   where the shared tree makes it load-bearing.
+
+   **Observed live, 2026-08-09.** During an interactive `docket-groom-next` of #0270, two
+   concurrent autonomous commits each swept up the interactive session's staged files: first the
+   staged rename (into `docs(0279): auto-groom to build-ready…`), then, after re-staging, all three
+   files (into `docket: arm 0195 0265 0272 for auto-groom (wave 5, triage 2026-08-09)`). The
+   groomer's own `git commit` returned **"nothing to commit, working tree clean."** Content survived
+   and pushed; the commit message did not, so the groom's entire rationale existed only in the
+   artifacts. Neither swallowing commit was a script commit, so Half 2's `scripts/**/*.sh` guard
+   would have stayed green through both. The same session then hit Half 1's contention defect on a
+   later `preflight` (`cannot pull with rebase: You have unstaged changes`) — independent
+   corroboration that both halves are live, not theoretical.
 
 ## Architecture decision — survivable, not impossible
 
@@ -42,7 +64,12 @@ discriminating retry in the preflight sync.** Rejected alternatives:
   benefit.
 - **Shrink the dirty window** (direct skills to write-and-commit in one call): narrows but never
   closes the race, and is prose discipline rather than mechanism; worth doing opportunistically
-  but not as the fix.
+  but not as the fix. **This rejection stands, and is narrower than it first reads** — it rejects
+  prose as a *race* fix. It does not reach prose as a *blast-radius* fix, which is Half 3: bounding
+  what a lost race can damage is the same correctness argument Half 2 already accepts, and staging
+  by pathspec is as absolute in an agent's commit as in a script's. Half 3 was added 2026-08-09
+  after the agent-authored channel was observed live (below); the original spec addressed only the
+  script channel.
 
 Record the decision as an ADR (survivable-over-impossible; correctness-over-availability posture
 below) via the standard build-time `docket-adr` step; list it in `adrs:`.
@@ -110,8 +137,81 @@ discriminating diagnostic; (d) untracked-only file never fails the sync.
    `docket-config.sh`'s local `g` wrapper (which writes the metadata branch). Mutation-test the
    guard: strip a pathspec from one of the two fixed sites and watch it redden.
 
+## Half 3 — scope the agent-authored commits; state the rule where it is read
+
+Same invariant as Half 2 — *no commit in the shared metadata worktree stages anything it did not
+write* — applied to the channel a shell guard cannot see. Half 2 hardens the mechanism; Half 3
+hardens the instruction.
+
+**Marker.** Reuse the phrase already in the repo rather than minting a second idiom:
+**`Stage by explicit path`** (from `docket-build-task`). One house token, greppable, already
+carrying the meaning. The guard keys on this literal string.
+
+1. **State the rule at the grant.** `docket-convention`'s Step-0 preamble sentence that authorizes
+   direct git plumbing is where the authority is issued, so it is where the constraint belongs:
+   direct `git add`/`commit` in the metadata working tree stages **by explicit pathspec**, never
+   `-A`/`.`/`-a`, because the tree is shared and a bare add commits whatever another agent has
+   staged at that instant. Name the observed consequence in one clause (another agent's work
+   committed under your message) — a rule whose cost is stated survives a slim; a bare imperative
+   does not.
+
+2. **Carry the marker at every call site.** Each metadata-writing skill's commit instruction states
+   `Stage by explicit path`. This is deliberately redundant with (1), and the redundancy is the
+   point: **a standing instruction already in context demonstrably loses to a specific instruction
+   at the moment of action.** That is not a guess — it is the finding
+   `tests/test_skill_handoff_precedence.sh` was built on (its own header records run 40, where the
+   wrapper's abort-and-report rule and §5's resolved-build statement were *both* in context and the
+   sub-skill's prompt still won). A convention-only fix would repeat the mistake that guard exists
+   to prevent.
+
+3. **Coverage guard**, extending `tests/test_shared_worktree_commit_scope.sh` (same file as Half 2 —
+   one invariant, two channels, one guard; a second file would split the exception lists). Built on
+   the two-group shape of `test_skill_handoff_precedence.sh`:
+   - **Group 1** — `docket-convention`'s Step-0 preamble states the rule: scope to the section
+     (`awk` range on the heading, as the handoff guard does), then assert it names the pathspec
+     requirement and the marker.
+   - **Group 2 — coverage, sites DERIVED, never hand-listed** (AGENTS.md: enumerated floor). A
+     skill is in scope iff its body **names the metadata working tree** — the shape that makes it a
+     metadata writer — with `docket-convention` excluded as the rule's home. Verified 2026-08-09,
+     that derivation yields exactly the right seven: `docket-implement-next`, `docket-groom-next`,
+     `docket-auto-groom`, `docket-status`, `docket-new-change`, `docket-finalize-change`,
+     `docket-adr` — and excludes `docket-build`/`docket-build-task` (feature worktree),
+     `docket-review`, `docket-brainstorm`. Each in-scope body must carry the marker.
+   - Mutation-test both groups: strip the marker from one skill body and from the convention
+     sentence; each must redden its own assert.
+
+   **`docket-status` is in scope on purpose,** though its commits are made by
+   `docket-status.sh` (Half 2's territory): the convention's Tier-A rule has the agent run that
+   same work **inline** when dispatch is unavailable, so the prose must carry the discipline the
+   script does.
+
+   **Two accepted limits, stated rather than papered over.** (a) Only two of the seven skills have
+   a commit-bearing heading (`### Step 5 — Commit, push, board`), so Group 2 is a **file-level**
+   token check for the other five — the marker could sit anywhere in the file and pass. Scoping to
+   a heading would silently skip five of seven, which is worse; the realistic drift (a marker
+   deleted or reflowed away) is still caught. (b) A skill that grows a *second* commit site is
+   covered by the file's single marker. Both need contrived prose to exploit.
+
+4. **Skill size budgets — a required, verified part of this half.** `tests/test_skill_size_budgets.sh`
+   fails any skill that grows past its row, and a raise must be an **in-diff edit with a comment
+   naming the reason**. Word headroom measured 2026-08-09: `docket-implement-next` **11**,
+   `docket-convention` **14**, `docket-new-change` **14** — all three will need a raise for a
+   ~15-word marker sentence. `docket-auto-groom` (32) and `docket-finalize-change` (49) are close
+   enough to check rather than assume; `docket-adr` (128), `docket-status` (87) and
+   `docket-groom-next` (96) have room. Prefer absorbing the sentence into an existing line over
+   adding one — the line budgets are tighter than the word budgets (three files have ≤3 spare
+   lines).
+
 ## Out of scope
 
+- **Enforcing the discipline on the agent at runtime.** Half 3 guards what the *instructions* say,
+  not what a model does with them; no in-repo test can be the oracle for the latter. The mechanism
+  half of the protection is Half 2 plus the fact that a correctly-scoped commit by every *other*
+  agent already makes an unscoped one harmless to them.
+- **Shrinking the write→commit window to a single tool call.** Rejected above and still rejected:
+  it narrows a race rather than bounding damage, and unlike the pathspec rule it has no checkable
+  shape. (The 2026-08-09 incident is not evidence for it — with pathspec-scoped commits on the
+  other side, the window's width would not have mattered.)
 - The sweep's skip-publish marking (#0118 — which edits adjacent `docket-status.sh` lines; build
   order should watch for the file collision, recorded in `related:`).
 - Parallel backlog drain (#0008, deferred) — this change only makes today's
@@ -161,7 +261,36 @@ human's deferred audit trail.
 6. **`terminal-publish.sh:$pub` stays unscoped and on the guard's exception list** — exclusive
    `mktemp -d` worktree, index-driven commit; a pathspec would change behavior (#0119, settled).
 7. **One ADR** records the survivable-over-impossible choice and the halt posture; no new config
-   knobs, no new lifecycle state.
-8. **Couplings**: `related: [8, 118]` (forward links only — #0008's revival re-opens the fork;
-   #0118 collides on `docket-status.sh`). #0110/#0119/#0130 are archived; `discovered_from:
+   knobs, no new lifecycle state. **Half 3 adds no second ADR** — it applies the blast-radius
+   decision already recorded to a second channel; the ADR's *Consequences* names both channels.
+8. **Couplings**: `related: [8, 118, 253]` (forward links only — #0008's revival re-opens the fork;
+   #0118 collides on `docket-status.sh`; #0253 owns the prose-guard house pattern Half 3's Group 2
+   must follow, see 14). #0110/#0119/#0130 are archived; `discovered_from:
    [110, 119]` already records lineage. No `depends_on:` — nothing must merge first.
+9. **Half 3 folded in rather than filed separately** (2026-08-09, human decision). It is the same
+   invariant, the same review, and it edits the same guard file; a separate change would split one
+   invariant across two PRs and two exception lists. Cost accepted: this change grows from two
+   halves to three, and now touches `skills/**` as well as `scripts/**` and `tests/**`.
+10. **Marker is `Stage by explicit path`, reused from `docket-build-task`, not a new token.**
+    Rejected: minting a `STAGE:`-style token parallel to `DIRECTED to:` (two idioms for one
+    discipline; the existing phrase already reads as an instruction and is already greppable).
+11. **Both the convention rule and the per-site marker, not either alone.** Rejected:
+    convention-only (evidence-backed as insufficient — see Half 3 item 2 and run 40), and
+    per-site-only (leaves the direct-git *grant* sentence still unconstrained, so a new skill
+    inherits the authority without the limit). The redundancy is deliberate.
+12. **Sites derived by "names the metadata working tree", not by heading or by an enumerated
+    list.** Rejected: heading-keyed derivation (verified 2026-08-09 — only 2 of 7 skills have a
+    commit heading, so it would false-green on five), and default-deny over every `commit` mention
+    in `skills/**` (104 matching lines, overwhelmingly prose; the exception list would exceed the
+    guarded set and rot immediately).
+13. **`docket-build`/`docket-build-task` stay out of scope.** Their commits are feature-branch, in
+    a per-change worktree that is not shared; `docket-build-task` already carries the discipline.
+    Including them would imply the shared-tree hazard applies there and dilute the rule's reason.
+14. **Half 3's marker check must be reflow-proof, and that is a live coupling to #0253.** A bare
+    `grep -qF 'Stage by explicit path'` reddens the moment an editor rewraps the sentence across a
+    line break — the exact fragility #0253 is settling with `flatten()` in a sourced
+    `tests/lib/prose_guard.sh`. **If #0253 has merged, source that helper**; if not, flatten
+    locally in the same single-gap shape #0253's house rule prescribes and leave a comment naming
+    #0253 as the consolidation target, so the follow-up is mechanically findable. Do **not** add a
+    `depends_on: [253]` — either order builds; only the implementation detail differs. Group 1's
+    section-scoped asserts inherit the same requirement.
