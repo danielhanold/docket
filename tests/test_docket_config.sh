@@ -3224,6 +3224,33 @@ assert "DM-i: the unknown token is dropped and the known one kept" \
 assert "DM-i: the unknown token is named in a warning" \
   'grep -qE "warning:[^:]{0,160}bogus" <<<"$dm_unk_err"'
 
+# `all` inside a LIST must never fall through the unknown-token path: `all` is not an admitted
+# surface token, so warn-and-drop would resolve `[all]` to the empty string — "no surfaces", the
+# exact inverse of what was asked. Aborts loudly, on the auto_capture.types precedent.
+dm_lall_rc=0
+dm_lall_err="$(dm_run_with "dummy_mode:\n  enabled: true\n  surfaces: [all]\n" 2>&1 >/dev/null)" || dm_lall_rc=$?
+dm_lall_out="$(dm_run_with "dummy_mode:\n  enabled: true\n  surfaces: [all]\n" 2>/dev/null || true)"
+assert "DM-h: 'all' inside a list aborts instead of resolving to no surfaces" \
+  '[ "$dm_lall_rc" -ne 0 ]'
+assert "DM-h: the diagnostic names the bare-scalar spelling" \
+  'grep -qF -- "dummy_mode.surfaces" <<<"$dm_lall_err" && grep -qF -- "surfaces: all" <<<"$dm_lall_err"'
+assert "DM-h: the inverted empty resolution never reaches the export" \
+  '! grep -qxF "DUMMY_MODE_SURFACES=" <<<"$dm_lall_out"'
+
+# The block-scalar refusal is keyed on SHAPE, not on an enumeration: YAML allows the chomp and
+# indent indicators in EITHER order, so `>-2` and `|+4` must be refused exactly like `>2-`/`|-`.
+dm_rev_rc=0
+dm_rev_err="$(dm_run_with "dummy_mode:\n  enabled: true\n  persona: >-2\n   folded reversed\n" 2>&1 >/dev/null)" || dm_rev_rc=$?
+assert "DM-f: a folded block scalar with reversed indicator order aborts" '[ "$dm_rev_rc" -ne 0 ]'
+assert "DM-f: the reversed-order diagnostic names the key" \
+  'grep -qF -- "dummy_mode.persona" <<<"$dm_rev_err"'
+dm_rev2_rc=0
+dm_rev2_out="$(dm_run_with "dummy_mode:\n  enabled: true\n  persona: |+4\n    literal reversed\n" 2>/dev/null || true)"
+dm_rev2_err="$(dm_run_with "dummy_mode:\n  enabled: true\n  persona: |+4\n    literal reversed\n" 2>&1 >/dev/null)" || dm_rev2_rc=$?
+assert "DM-f: a literal block scalar with reversed indicator order aborts too" '[ "$dm_rev2_rc" -ne 0 ]'
+assert "DM-f: the two-character persona is never exported" \
+  '! grep -qxF "DUMMY_MODE_PERSONA=|+4" <<<"$dm_rev2_out"'
+
 # An empty list is legal and means "no eligible surface" — the spec's equivalent-to-disabled case.
 dm_empty_out="$(dm_run_with "dummy_mode:\n  enabled: true\n  surfaces: []\n" 2>/dev/null)"
 assert "DM-j: an empty surfaces list is legal" \
