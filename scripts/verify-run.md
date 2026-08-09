@@ -95,11 +95,18 @@ Three conjuncts, each read straight from git:
 | Conjunct | Read | Token when unmet |
 |---|---|---|
 | on the expected branch | `rev-parse --abbrev-ref HEAD` equals `--branch` | `branch` |
-| the tip advanced | `rev-parse HEAD` differs from `--since` | `tip` |
+| the tip advanced | `rev-parse HEAD` differs from `--since` **and** `--since` is an ancestor of it | `tip` |
 | the tree is clean | `status --porcelain` is empty, **untracked files included** | `tree` |
 
 `--since` is the direct analogue of the run gate's `DISPATCH_EPOCH`: the sha captured before the
-child could commit anything, so a commit landing in the gap is excluded either way.
+child could commit anything, so a commit landing in the gap is excluded either way. The caller must
+pass the branch the worktree was **on when the work was dispatched**, not one read back at
+verification time: compared against a value read after the child ran, the `branch` conjunct
+compares HEAD to itself and can never be unmet.
+
+The `tip` conjunct is a **descendancy** check, not an inequality. "Different from `--since`" is not
+"built on top of `--since`": a bad rebase or a reset onto an unrelated history leaves a tip that
+differs while the dispatched work is gone, and an inequality reports that as met.
 
 The untracked leg is the point of the family, not an incidental strictness. The stranded-work case
 this exists for (change 0258) left its `+64` lines **untracked**, so a tracked-only cleanliness

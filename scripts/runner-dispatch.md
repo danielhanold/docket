@@ -194,11 +194,16 @@ group is `TERM`-ed and the launch aborts naming the key. A child that has alread
 established too — the sentinel proves it — and is not a refusal.
 
 **The launch record** — `<dir>/launch`, flat `KEY=value`: `pgid`, `child_pid`, `started_at`,
-`agent`, `runner`, `worktree`, `since_sha`, `dispatch_epoch`. `pgid` is the group an observer must
-signal to reach the whole detached tree. `since_sha` is the repo's `HEAD` captured **before** the
-child could commit anything — the direct analogue of the run gate's `DISPATCH_EPOCH`, so a commit
-landing in the gap is excluded either way; empty on a repo with no commits, which a later git-read
-verdict reports as unknown rather than guessing.
+`agent`, `runner`, `worktree`, `since_sha`, `branch`, `dispatch_epoch`. `pgid` is the group an
+observer must signal to reach the whole detached tree. `since_sha` is the repo's `HEAD` captured
+**before** the child could commit anything — the direct analogue of the run gate's
+`DISPATCH_EPOCH`, so a commit landing in the gap is excluded either way; empty on a repo with no
+commits, which a later git-read verdict reports as unknown rather than guessing. `branch` is the
+anchor's branch captured at the same instant and for the same reason: whether the child **ended
+where it was sent** is only answerable against a value recorded before it could move `HEAD`. A
+**detached** anchor records nothing rather than the literal `HEAD` that `--abbrev-ref` prints —
+`HEAD` is not a branch name, and recording it would let the conjunct hold for any other detached
+state.
 
 **The before-snapshot** — `<dir>/gate-before` (one change id per line) plus the record's
 `dispatch_epoch`, written for an **`implement-next`** launch only. They are the run gate's
@@ -294,10 +299,14 @@ The observe seam therefore carries a git-read disposition for two agent families
   stopped before its PR exits `0` at the adapter and observes as `complete (child exited 0)` —
   precisely the prose-level failure change 0237 was built to eliminate. Detail below.
 - **`build-*`** — new. On `exit_code=0` the facade reads `verify-run.sh --build --worktree <anchor>
-  --branch <anchor HEAD> --since <the launch record's since_sha>`. `task-committed` ⇒ **complete**
-  (`0`), with the verdict echoed on the diagnostic line. Every other answer — `task-incomplete`,
-  `task-unverifiable`, or no verdict at all — ⇒ **failed** (`1`), naming the git verdict and the
-  worktree the work was left in. A check that could not run is not evidence of success.
+  --branch <the launch record's branch> --since <the launch record's since_sha>`. Both inputs come
+  from the **launch record**, never from the anchor now: a branch re-read at observation time
+  compares `HEAD` to itself. `task-committed` ⇒ **complete** (`0`), with the verdict echoed on the
+  diagnostic line. Every other answer — `task-incomplete`, `task-unverifiable`, or no verdict at
+  all — ⇒ **failed** (`1`), naming the git verdict and the worktree the work was left in. A check
+  that could not run is not evidence of success. A launch record carrying **no** branch is one of
+  those answers: the facade reports `task-unverifiable launch-branch-missing` rather than falling
+  back to the observation-time branch, because that fallback is the vacuity itself.
 - every other agent (`status`, `adr`, `review-*`, `finalize-change`, `auto-groom`, an unrecognised
   name) keeps the **sentinel-only** disposition. No git verdict is read and none is claimed.
 
@@ -343,11 +352,10 @@ build role's own escalation to decide about.
 
 **`task-committed` proves clean completion, not semantic success.** Its three conjuncts say the task
 ran to its commit and stranded nothing. They do not certify that the commit implements the plan task
-correctly — that judgment stays with `docket-build`'s suite gate and the review role. One caveat a
-reader must not miss: the branch handed to `--build` is the anchor's HEAD read at observation time,
-because the launch record carries no branch, so the verdict's `branch` conjunct cannot bind here.
-The disagreement this leg actually detects is the `tip` and `tree` pair — which is where change
-0258's failure lived.
+correctly — that judgment stays with `docket-build`'s suite gate and the review role. All three
+conjuncts **bind** at this seam: `tree` and `tip` catch change 0258's stranded work, and `branch` —
+compared against the value the launch record captured, not one read back afterwards — catches a
+child that ended on another branch or on a detached `HEAD`.
 
 ## Delegation execution posture
 

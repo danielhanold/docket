@@ -208,6 +208,15 @@ if [ "$VERB" = "launch" ]; then
   # commit anything, so a commit landing in the gap is excluded either way. Empty on a repo with
   # no commits — the build verdict then reports unknown-since-sha rather than guessing.
   SINCE_SHA="$("$GIT" -C "$ANCHOR" rev-parse HEAD 2>/dev/null || true)"
+  # The dispatch-time BRANCH, captured for the same reason and at the same instant: the build
+  # verdict's `branch` conjunct asks whether the child ENDED where it was sent, which is only
+  # answerable against a value recorded BEFORE the child could move HEAD. Read back at observation
+  # time it compares the anchor's HEAD to itself and can never be unmet.
+  # A DETACHED anchor records NOTHING rather than the literal `HEAD` that `--abbrev-ref` prints:
+  # `HEAD` is not a branch name, and recording it would make the conjunct hold for any other
+  # detached state. Absent is the honest answer, and `--observe` reports it as unverifiable.
+  SINCE_BRANCH="$("$GIT" -C "$ANCHOR" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+  [ "$SINCE_BRANCH" != "HEAD" ] || SINCE_BRANCH=""
 
   # THE RUN GATE'S ATTRIBUTION INPUTS, captured here because they are only knowable BEFORE the child
   # runs. Change 0237's gate identifies a claimant by diffing the in-progress set across the
@@ -305,9 +314,9 @@ if [ "$VERB" = "launch" ]; then
       GATE_EPOCH=""
     }
   fi
-  printf 'pgid=%s\nchild_pid=%s\nstarted_at=%s\nagent=%s\nrunner=%s\nworktree=%s\nsince_sha=%s\ndispatch_epoch=%s\n' \
+  printf 'pgid=%s\nchild_pid=%s\nstarted_at=%s\nagent=%s\nrunner=%s\nworktree=%s\nsince_sha=%s\nbranch=%s\ndispatch_epoch=%s\n' \
     "${CHILD_PGID:-$CHILD_PID}" "$CHILD_PID" "$STARTED_AT" "$AGENT" "$RUNNER" "$ANCHOR" "${SINCE_SHA:-}" \
-    "${GATE_EPOCH:-}" \
+    "${SINCE_BRANCH:-}" "${GATE_EPOCH:-}" \
     > "$DDIR/launch.partial"
   mv -f "$DDIR/launch.partial" "$DDIR/launch"
 
@@ -517,15 +526,21 @@ if [ "$VERB" = "observe" ]; then
       case "$AGENT" in
         build-*)
           LSINCE="$(launch_field "$DDIR" since_sha)"
-          # The branch is read from the anchor NOW rather than from the launch record, which does
-          # not carry one. That makes the verdict's `branch` conjunct non-binding here — it can
-          # only ever compare the anchor's HEAD to itself — so the disagreement this leg actually
-          # detects is the `tip` and `tree` pair, which is where change 0258's failure lived.
-          # Passing the branch is still load-bearing: it names the branch in the verdict line a
-          # human reads, and `--build` refuses without it.
-          LBRANCH="$("$GIT" -C "$ANCHOR" rev-parse --abbrev-ref HEAD 2>/dev/null)"
-          GITV="$("$DOCKET_BASH_PATH" "$VERIFY_RUN" --build --worktree "$ANCHOR" \
-                    --branch "${LBRANCH:-HEAD}" --since "${LSINCE:-}" 2>/dev/null)"
+          # THE BRANCH COMES FROM THE LAUNCH RECORD, never from the anchor now. Re-reading it here
+          # compares the anchor's HEAD to itself, which made the verdict's `branch` conjunct
+          # structurally vacuous on its only consumer: a child that ended on the WRONG branch or on
+          # a DETACHED HEAD (a bad rebase, a stray `git checkout`) still satisfied `tip` and `tree`
+          # and was reported `task-committed`.
+          LBRANCH="$(launch_field "$DDIR" branch)"
+          if [ -z "$LBRANCH" ]; then
+            # An older dispatch, or a detached anchor at launch. Falling back to the observation-time
+            # branch would reinstate exactly the vacuity above, so this is NO POSITIVE EVIDENCE and
+            # is surfaced as such — the same posture the empty-verdict case below already takes.
+            GITV="task-unverifiable launch-branch-missing"
+          else
+            GITV="$("$DOCKET_BASH_PATH" "$VERIFY_RUN" --build --worktree "$ANCHOR" \
+                      --branch "$LBRANCH" --since "${LSINCE:-}" 2>/dev/null)"
+          fi
           case "$GITV" in
             task-committed*) : ;;
             # OBSERVE-ONLY for build-*: never a re-dispatch. A build task may have left partial

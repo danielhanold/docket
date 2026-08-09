@@ -386,6 +386,18 @@ v="$(vr_build)"
 assert "0271-h: the wrong branch is task-incomplete" '[[ "$v" == task-incomplete* ]]'
 assert "0271-i: the unmet token is branch" '[[ "$v" == *"branch"* ]]'
 
+# (d2) `tip` is a DESCENDANCY check, not an inequality. A tip that merely DIFFERS from the
+#      dispatch-time sha — a bad rebase, a reset onto an unrelated history — is not evidence that
+#      the task's work landed ON TOP of what was dispatched, and an inequality reports it as met.
+mkbuildfixture
+( cd "$BWT" && git checkout -q --orphan feat/rewritten \
+    && git commit --allow-empty -qm "unrelated history" \
+    && git branch -qM feat/thing )
+v="$(vr_build)"
+assert "0271-o: a tip that is not a descendant of the dispatch sha is task-incomplete" \
+  '[[ "$v" == task-incomplete* ]]'
+assert "0271-p: the unmet token is tip" '[[ "$v" == *"tip"* ]]'
+
 # (e) a worktree that is not a repo -> task-unverifiable, never a synthesized failure
 BWT="$(mktemp -d "${TMPDIR:-/tmp}/docket-norepo.XXXXXX")"
 v="$(vr_build)"; rc=$?
