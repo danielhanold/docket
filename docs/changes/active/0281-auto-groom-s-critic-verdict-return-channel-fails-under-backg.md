@@ -8,10 +8,10 @@ type: fix
 created: 2026-08-09
 updated: 2026-08-09
 depends_on: []
-related: []
+related: [247]
 discovered_from: [247]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-09-auto-groom-s-critic-verdict-return-channel-fails-under-backg-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-09-auto-groom-s-critic-verdict-return-channel-fails-under-backg-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-auto-groom-s-critic-verdict-return-channel-fails-under-backg-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -60,7 +63,31 @@ critic's transcript/report output — never an indefinite yield). The fix lands 
 dispatch-contract prose; no scripts are expected to change. Out of scope: the hosting harness's
 agent-naming implementation, and the shared-worktree contention family (change 0247).
 
-**Why grooming is needed** — choosing the leg (foreground-only vs resolvable return address vs
-collect-on-timeout) depends on the dispatch-capability taxonomy (change 0137 / the convention's
-Dispatch-capability resolution section) and on what each supported harness's messaging surface
-can actually resolve for a forked child; that judgment call is the spec's job.
+## What changes
+
+Design settled (2026-08-09 auto-groom, critic-gated 8/8 sound; full decision trail in the linked
+spec's `## Assumptions`). **Leg chosen: foreground-only.** The critic's verdict travels on exactly
+one channel — its final report, read as the dispatch's return value while the groom actively
+blocks; name-addressed message-back is banned as a verdict channel in both directions. Edits, all
+prose plus one guard:
+
+- **Critic agent source** (`agents/docket-auto-groom-critic.md`): a delivery clause binding at the
+  point the critic finishes — the verdict IS the final report; never message, address, or resolve
+  the dispatcher by name or agent-listing surface (no such address resolves for a dispatched
+  skill-agent).
+- **Groom skill Step 3** (`skills/docket-auto-groom/SKILL.md`): the receiving half (read the
+  verdict from the critic's return; never await out-of-band delivery) plus a bounded no-verdict
+  posture — one collect attempt from the child's completed report, one fresh foreground
+  re-dispatch, then Tier B **abstain** with the return-channel diagnostic. Never a third dispatch,
+  never an indefinite wait.
+- **Convention *Composition* paragraph**: reclassify the critic dispatch out of the
+  git-state-contract clause into the in-context-return family (alongside rebase-resolver /
+  integration-repair); foreground, unconditional, and never-yield all stand.
+- **Guard**: a mutation-tested prose sentinel binding the critic's final-report clause, Step 3's
+  no-verdict→abstain mapping, and the convention reclassification.
+
+## Out of scope
+
+The hosting harness's agent-naming implementation, and the shared-worktree contention family
+(change 0247; overlap confined to a different paragraph of `docket-convention/SKILL.md` —
+composes at rebase, no dependency).
