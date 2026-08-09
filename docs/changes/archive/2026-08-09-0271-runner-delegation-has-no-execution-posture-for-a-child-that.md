@@ -29,8 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-08-runner-delegation-detached-execution-posture-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-08-runner-delegation-detached-execution-posture-design.md) |
-| Plan | [2026-08-09-runner-delegation-detached-execution-posture.md](https://github.com/danielhanold/docket/blob/feat/runner-delegation-has-no-execution-posture-for-a-child-that/docs/superpowers/plans/2026-08-09-runner-delegation-detached-execution-posture.md) |
-| Results | [2026-08-09-runner-delegation-has-no-execution-posture-for-a-child-that-results.md](https://github.com/danielhanold/docket/blob/feat/runner-delegation-has-no-execution-posture-for-a-child-that/docs/results/2026-08-09-runner-delegation-has-no-execution-posture-for-a-child-that-results.md) |
+| Plan | [2026-08-09-runner-delegation-detached-execution-posture.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-09-runner-delegation-detached-execution-posture.md) |
+| Results | [2026-08-09-runner-delegation-has-no-execution-posture-for-a-child-that-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-09-runner-delegation-has-no-execution-posture-for-a-child-that-results.md) |
 | PR | [#188](https://github.com/danielhanold/docket/pull/188) |
 | ADRs | [ADR-0080](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0080-detached-delegation-execution-posture-launch-then-observe.md) |
 <!-- docket:artifacts:end -->
