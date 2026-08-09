@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0258 — Guard the config-suite's enumerated claims: export order and rung pairs](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0258-guard-the-config-suite-s-enumerated-claims-export-order-and.md)**
+> ↩ **[Change 0258 — Guard the config-suite's enumerated claims: export order and rung pairs](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-09-0258-guard-the-config-suite-s-enumerated-claims-export-order-and.md)**
 <!-- docket:backlink:end -->
 
 # Guard the config-suite's enumerated claims: export order and rung pairs — Implementation Plan
