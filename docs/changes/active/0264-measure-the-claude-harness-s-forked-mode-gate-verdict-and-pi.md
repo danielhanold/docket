@@ -6,12 +6,12 @@ status: proposed
 priority: medium
 type: docs
 created: 2026-08-08
-updated: 2026-08-08
+updated: 2026-08-09
 depends_on: []
 related: []
 discovered_from: [200]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-09-claude-forked-mode-gate-verdict-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-09-claude-forked-mode-gate-verdict-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-claude-forked-mode-gate-verdict-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -58,6 +61,25 @@ does not, in `references/gate-execution.md` and its evidence file. If a launch s
 forked mode is found, name it in the reference the way the codex row already names its
 race-free-new-session condition. Stops there: no change to the six required capabilities, no change
 to the posture clauses in `docket-build/SKILL.md`, and no re-probe of cursor, codex, or opencode.
+
+## What changes
+
+Groomed 2026-08-09 (auto-groom; design in the linked spec). The build runs a forked-mode probe of
+the claude harness — a dispatched-subagent operationalization of forked mode, using 0223's stand-in
+gate properties and a one-variable-per-run ladder led by a launcher-liveness control (the 0200
+trigger is explainable by macOS's missing `setsid(1)`) — and records the result in
+`skills/docket-build/references/gate-execution.md` (claude verdict line: dispatched-mode scope
+appended with its own version, interactive scope preserved verbatim) and
+`gate-execution-evidence.md` (a new forked/dispatched-mode section). The harness-native background
+launch is measured as a secondary shape. A never-started outcome stays "forked mode unmeasured"
+with a dated inconclusive record; only started-then-killed across all shapes may record
+`incompatible`.
+
+## Out of scope
+
+Re-probing cursor/codex/opencode or claude's interactive mode; the headless `claude -p` variant
+(recorded unobtainable); any change to the six capabilities, `docket-build/SKILL.md`, or the
+observation-budget machinery.
 
 **Reason for deferral** — 0200 is a board-checks hardening change; its branch touches
 `scripts/board-checks.sh`, that script's tests and contract, and one convention paragraph. Probing
