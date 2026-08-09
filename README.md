@@ -384,9 +384,11 @@ dummy_mode:
 ```
 
 `persona` is free text and must be **one quoted line**: a YAML block scalar (`>` or `|`) and a `#`
-inside the text are both hard config errors, because the config reader is line-oriented. Leave it
-blank (or omit it) to get the shipped default — a mid-level engineer who knows architecture, has
-working-level fluency in any one language, and is told every project-internal term with a gloss.
+inside the value — quoted or not — are both hard config errors, because the config reader is
+line-oriented and strips from the first `#`. A `#` *after* the closing quote is an ordinary
+trailing comment and is fine. Leave it blank (or omit it) to get the shipped default — a mid-level
+engineer who knows architecture, has working-level fluency in any one language, and is told every
+project-internal term with a gloss.
 `enabled` is `false` by default, and the key is global-able: set it per-repo, in
 `~/.config/docket/config.yml`, or in `.docket.local.yml`. It is *primarily* a per-repo setting,
 since the same person is an expert in one repo's domain and a novice in another's.

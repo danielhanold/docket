@@ -333,7 +333,9 @@ auto_capture:
 #              trade-offs should be framed. Leave it blank to get the shipped default (a mid-level
 #              engineer, architecture-literate, working-level in any one language, all project
 #              jargon glossed). ONE QUOTED LINE — a YAML block scalar (`>` or `|`) and a `#` inside
-#              the text are both hard errors, because the config reader is line-oriented.
+#              the value, quoted or not, are both hard errors, because the config reader is
+#              line-oriented and strips from the first `#`. A `#` after the closing quote is an
+#              ordinary trailing comment and is fine.
 #   surfaces — `all` (default) or a subset of: dialogue, reports, results, change-sections, pr.
 #              The first two are REWRITTEN for the persona; the last three keep their technical
 #              content and gain an authored "In plain terms" block. An empty list means none.
