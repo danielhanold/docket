@@ -17,6 +17,7 @@ status, releases no claim, and writes no file. The only thing that acts on a ver
 ```
 docket.sh verify-run <id>
 docket.sh verify-run --in-progress-ids [--with-claimed-at]
+verify-run.sh --build --worktree DIR --branch NAME --since SHA
 ```
 
 - `<id>` — the change id (integer; the file is located by its zero-padded name in `active/`, then
@@ -73,12 +74,52 @@ called: at a seam where the child process has already returned, so "stopped" and
 are not ambiguous. `board-checks.sh` cannot make that assumption and keeps its floors — it is
 deliberately untouched by change 0237.
 
+## Build verdicts (change 0271)
+
+`--build` is a **second verdict family**, deliberately not the implement-next conjuncts stretched
+to fit: a build task's terminal state is a **commit on its feature branch**, never a PR. It reads a
+worktree rather than the metadata tree, so it needs no changes dir and never resolves one — the
+family returns above the resolver, and `--build` combined with an `<id>` is a usage error so the two
+families can never collide.
+
+Three conjuncts, each read straight from git:
+
+| Conjunct | Read | Token when unmet |
+|---|---|---|
+| on the expected branch | `rev-parse --abbrev-ref HEAD` equals `--branch` | `branch` |
+| the tip advanced | `rev-parse HEAD` differs from `--since` | `tip` |
+| the tree is clean | `status --porcelain` is empty, **untracked files included** | `tree` |
+
+`--since` is the direct analogue of the run gate's `DISPATCH_EPOCH`: the sha captured before the
+child could commit anything, so a commit landing in the gap is excluded either way.
+
+The untracked leg is the point of the family, not an incidental strictness. The stranded-work case
+this exists for (change 0258) left its `+64` lines **untracked**, so a tracked-only cleanliness
+check would have called that run clean.
+
+Verdict lines, one on stdout:
+
+- `task-committed <branch>` — all three conjuncts hold.
+- `task-incomplete <branch> <unmet…>` — tokens in the fixed order `branch tip tree`. This is a
+  **finding, not a failure**: it exits `0`, like every other verdict.
+- `task-unverifiable <reason>` — returned for **every failure to read** the worktree
+  (`worktree-missing`, `not-a-repo`, `unknown-since-sha`), never a synthesized incompleteness. A
+  missing worktree is an absence of evidence; reporting it as unmet conjuncts would be a guess
+  wearing a verdict's clothes. It too exits `0` — a verdict was produced.
+
+**`task-committed` proves clean completion, not semantic success.** The name is load-bearing: it is
+`task-committed`, never `task-complete`. The conjuncts prove the task ran to its commit and stranded
+nothing; they do **not** certify that the commit implements the plan task correctly. That judgment
+stays with `docket-build`'s suite gate and the review role.
+
 ## Exit codes
 
-- `0` — **whenever a verdict was produced**, including `run-incomplete`. A finding is not a script
-  failure, and a bare non-zero consumer must not read it as one.
+- `0` — **whenever a verdict was produced**, including `run-incomplete`, `task-incomplete`, and
+  `task-unverifiable`. A finding is not a script failure, and a bare non-zero consumer must not read
+  it as one.
 - `2` — the check could not run: bad usage, non-numeric or unknown id, unreadable change file,
-  failed config export, non-`PROCEED` bootstrap verdict, missing changes dir.
+  failed config export, non-`PROCEED` bootstrap verdict, missing changes dir, `--build` without
+  `--worktree`/`--branch`/`--since`, or `--build` combined with an `<id>`.
 
 ## Invariants
 
