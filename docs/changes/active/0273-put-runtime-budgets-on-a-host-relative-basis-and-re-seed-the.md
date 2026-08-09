@@ -11,7 +11,7 @@ depends_on: [251]
 related: [251, 229]
 discovered_from: [242]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-09-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-09-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -88,18 +91,34 @@ indistinguishable from the untouched files and not a mis-cut row.
 
 ## What changes
 
-To be settled at grooming. The shape the evidence points at:
+Settled design (2026-08-09 auto-groom; detail in the linked spec, designed against #0251's
+screen-then-serial-confirm regime and landing on top of it):
 
-- A **host-relative basis** so the table stops encoding one machine's absolute speed — e.g. a serial
-  canary file measured at run time, with each ceiling compared after normalizing by the canary's
-  ratio to its own calibration value. This keeps the property the table exists to catch (a file that
-  doubles *its own* cost) while removing the property it accidentally encodes (the 0227 host was
-  faster than today's).
-- Whatever basis is chosen, **re-seed the rows once from a quiet machine** as part of the same
-  change, and record the seeding conditions alongside them so the next drift is diagnosable rather
-  than re-litigated.
-- Mutation-prove that the check still reddens on a file that genuinely doubles its serial cost —
-  the same bar 0229 set before it was consolidated.
+- **Run-time serial canary, no stored per-host state.** A dedicated workload script
+  (`tests/lib/budget-canary.sh`, fork/git/IO-profiled, self-timing in milliseconds) is measured
+  once per run when needed; `ratio = measured / calibrated` (calibration recorded as a structured
+  comment in the TSV header) scales **both** the 5/2 screen and the 3/2 serial verdict at
+  comparison time. Table values never change per-host; a file that doubles its own cost still
+  breaches, host-speed drift cancels. Ratio honored inside a [0.5, 3.0] clamp; outside it the run
+  falls back to ratio 1 with a named anomaly line and fail-closed `unconfirmed` candidates over
+  the clamp-floor pre-screen set.
+- **Lazy trigger.** The canary runs only when some measurement exceeds its clamp-floor-scaled
+  threshold (`ceiling * 0.5 * slack`); comfortably-green runs pay nothing. A budgets table with
+  no calibration line runs unscaled with one loud informational line (fixtures and downstream
+  repos keep today's semantics); the repo's own line is pinned by `tests/test_runtime_budgets.sh`.
+- **Whole-table re-seed, once.** Every row re-seeded from a quiet three-pass serial run on the
+  build host, unchanged sizing rule; canary calibrated standalone (3x, median) in the same
+  session so rows and calibration share one basis. Seeding conditions (date, host, method,
+  calibration) recorded in the TSV header; `EXPECTED_TOTAL` re-seeded with "basis re-seed" named
+  as a third legitimate move-case (only ever legitimate together with a same-diff canary
+  recalibration).
+- **Guards and proofs.** Mutation-proved in `tests/test_run_tests.sh`: 2x self-doubling still
+  confirms at ratio ~1; a healthy near-ceiling file on a simulated 2x-slow host clears; anomaly
+  path reports `unconfirmed` (exit 4 under `--strict-budget`, 0 at default); `--no-budget-check`
+  runs no canary. Truncating fixed-point arithmetic (fail-closed); docs move in the same change
+  (run-tests.sh comment block, run-tests.md budget sections, the stale "calibrated to one
+  machine" caveat retired).
+- Exit contract (0/1/3/4/2) and advisory-by-default posture byte-unchanged.
 
 ## Out of scope
 
@@ -109,6 +128,10 @@ To be settled at grooming. The shape the evidence points at:
 
 ## Open questions
 
-- Is a wall-clock table the right instrument at all once the contention axis is fixed, or should
-  absolute-speed drift be absorbed by a calibration step rather than encoded per-file?
-- Does the canary approach hold on CI hardware, or does it need a recorded per-host calibration?
+Resolved at grooming (2026-08-09 auto-groom, critic-gated: two rounds, 0 needs-human verdicts):
+the table stays the instrument — per-file ceilings are what catch a file doubling its own cost —
+with absolute-speed drift absorbed by the run-time canary rescale rather than encoded per-file
+(the shape #0251's spec names as this follow-up). The CI question dissolves by construction: the
+canary is measured fresh each run with no stored per-host state, so an ephemeral CI host
+calibrates itself; the clamp band bounds pathological readings. Couplings: `depends_on: [251]`
+(build order — this lands on 0251's confirm regime); no coupling to #0258 (different files).
