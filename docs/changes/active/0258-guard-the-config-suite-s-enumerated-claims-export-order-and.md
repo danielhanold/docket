@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/guard-the-config-suite-s-enumerated-claims-export-order-and
-claimed_at: 2026-08-09T15:41:13Z
+claimed_at: 2026-08-09T18:44:04Z
 pr:
 blocked_by:
 reconciled: true
@@ -110,124 +110,34 @@ hold — none of the three files this change reasons about moved:
 - **Auto-capture (site A).** Nothing minted. The dispatch-duration ceiling that halted the last
   two runs is already tracked as #0271, so filing it again would be a duplicate.
 
-## Run halted
+### 2026-08-09 — resumed at Step 3 after the rebase onto main @ 324d2268 (no scope change)
 
-**2026-08-09** — the build is COMPLETE and GREEN; the run halted inside Step 6's fix loop because
-the fix-worker dispatch could not complete. Nothing about the change's design or its code is in
-question.
+`origin/main` advanced from `05fbb224` to `324d2268` (change 0271 landed), so the resume-safety
+guard's re-reconcile fired. The design is carried forward unchanged; one in-scope code delta
+followed from the rebase.
 
-### What is already done and verified
-
-- Tasks 1 and 2 are committed on `feat/guard-the-config-suite-s-enumerated-claims-export-order-and`
-  (`42629ef7` leg 1, `46433f5f` leg 2). Worktree clean at `46433f5f`.
-- Task 3, the full-suite gate, RAN AND PASSED on this run: `scripts/run-tests.sh` →
-  **93/93 files, 7069 asserts, 0 failures, exit 0, wall 172s**. Build evidence is green at
-  `head_sha: 46433f5f59e8aeacf92b149aacd163b04d477a55`, which equals branch HEAD.
-- `tests/test_docket_config.sh` did **not** trip the advisory OVER BUDGET report (136s against a
-  55s ceiling with a 2.5x slack factor = 137.5s threshold). The six files that did trip it
-  (`test_board_checks`, `test_harness_defaults`, `test_harness_defaults_validator`,
-  `test_sync_agents`, `test_sync_agents_codex`, `test_sync_agents_runners`) are all outside this
-  branch's diff, which touches only `tests/test_docket_config.sh` plus the plan file.
-- `tests/test_runner_opencode.sh` and `tests/test_runner_cursor.sh` both PASSED (1s each). The
-  suspected `DOCKET_REPO_ROOT` / `DOCKET_RUNNER_CFG_PERMISSIONS` environment leak did not occur in
-  this run's launch environment — neither variable was set.
-- Review ran: rung `docket-review-standard` (no build record survived the earlier interrupted runs,
-  so the default sink applied; whole-branch diff is 717 changed lines, under the 1500-line bump
-  threshold). It returned **4 findings: 0 blocker, 2 important, 2 minor** — recorded below so the
-  next run does not have to re-review.
-
-### What stopped the run
-
-The first fix task was dispatched foreground to `docket-build-standard`. That wrapper delegates to
-the `opencode` runner through a single foreground `docket.sh runner-dispatch` Bash call, which ran
-to the Bash tool's maximum timeout of 600000 ms and was killed (SIGTERM, exit 143). No stdout was
-relayed and no child final message was produced.
-
-The worker verified git state rather than trusting prose and reported **BLOCKED**: HEAD still
-`46433f5f`, `git status --short` clean, no `tests/.focus-0258.sh` left behind. **The child produced
-nothing — no commit and no partial working-tree state — so the worktree needs no cleanup.**
-
-This is the known 600000 ms foreground dispatch-duration ceiling already tracked as **#0271**
-(`implemented`, PR #188). It is not a defect in 0258 and no duplicate stub was minted for it.
-
-Because a dispatch was resolved and ATTEMPTED and the attempt FAILED, dispatch capability is
-established as unavailable per the convention's *Dispatch-capability resolution*. The fix role is
-**Tier C, authorized-or-halt**, and `skills.build` resolves to `docket-build` — not the explicit
-`auto` that would authorize fixing inline — so the posture is abort-and-report. Recording all four
-findings and opening the PR anyway is explicitly NOT the fallback (`fix-loop.md`: "that fails the
-loop open silently").
-
-### What a human must decide
-
-Pick one and re-run `docket-implement-next 258`:
-
-1. **Raise or bypass the dispatch ceiling** — land #0271, or give `runner-dispatch` a backgrounded
-   durable-log path with a blocking monitor keyed on exit code, so a fix worker can outlive 600 s.
-2. **Make the child cheap enough to finish inside 600 s** — a faster model or lower effort for the
-   `docket-build-standard` / `docket-build-economy` profiles on this repo.
-3. **Set `skills.build: auto`** for this repo, which authorizes the fix loop to run inline and
-   removes the dispatch dependency entirely.
-4. **Accept the branch as-is** — deliberately, with the four findings unfixed — by opening the PR by
-   hand. The build is green and there are no blockers, but this bypasses the fix loop rather than
-   satisfying it, so it is a human's call and not the agent's.
-
-### Review findings carried forward (do not re-review)
-
-**F1 — important.** `tests/test_docket_config.sh`, leg 2. The `# RUNG_PAIR:` marker guard has an
-existence floor (`"0258 L2 control: the family glob yielded a non-empty pinned pair population"`)
-but no attachment or coverage floor: nothing binds a marker to a fixture body, so when a fourth
-layer grows the expected set from 6 pairs to 12, pasting six more marker lines re-greens the guard
-with zero new masking coverage. The reworded `(S4-S9)` header also overstates it — it says the
-guard reddens "until six new **fixtures** exist" when it reddens until six new **markers** exist.
-Fix: an awk attachment assert over the family glob (every marker followed within a small window by
-a `mkrepo`), a count-equality assert so a duplicated unbacked marker reddens, and a corrected
-header comment. Routed `standard`. **This is the fix task that was dispatched and never landed.**
-
-**F2 — important.** Runtime headroom. `tests/test_docket_config.sh` lands at 136s against a 137.5s
-advisory threshold, so leg 1's `l1` fixture consumes essentially all remaining slack; the next
-assert added to this file, or a busier host, trips OVER BUDGET for a reason unrelated to whoever
-adds it. Disposition: **deferred**, remedy owned by #0251's shard/re-baseline — the branch is
-correctly constrained not to touch `tests/runtime-budgets.tsv`. The reviewer's alternate remedy
-(drop the `l1` fixture's `git commit`/`git push`) was checked and is **invalid**:
-`scripts/docket-config.sh` reads the committed config via `git show "origin/HEAD:.docket.yml"`, so
-the push is load-bearing. Carry the 136s measurement into the PR body and results file.
-
-**F3 — minor.** The `l1_sentence` prose-numeral check greps a hard-wrapped markdown phrase against
-the raw whole document. Two issues: a pure re-flow of that paragraph would redden an assert about a
-claim that never changed (`phrase-grep-over-wrapped-prose`, a four-time recurrence in this repo),
-and scanning the whole file means the assert pins that the numerals exist somewhere, not that *this*
-sentence carries them. Fix: flatten whitespace before matching and restrict the haystack to the
-`### Emit` section slice the extractor already anchors on. Routed `standard`.
-
-**F4 — minor.** The family glob `"$REPO"/tests/test_docket_config*.sh` admits any similarly-named
-scratch or backup file in `tests/` — the hazard the plan's own amendment had to warn about for its
-throwaway proof harness. A stray file doubles the pinned set and reddens set equality with a
-diagnostic pointing at the markers instead of at the stray file. Fix: add the glob's matched file
-list to the assert's failure output, or restrict collection to files the suite runner schedules.
-Routed `economy`.
-
-The reviewer found no `pipefail` or early-exiting-consumer violations, no `${BASH_SOURCE[0]}`
-whole-file scan, no BSD-awk violations, and confirmed the R7 and AUTO_* adjacency asserts are
-intact. Leg 1's core design (independent populations, whole-sequence equality, anti-vacuity
-controls) and leg 2's computed expected side both check out.
-
-### Unvalidated — requires a fresh session
-
-The `docket-build-standard` wrapper at `.claude/agents/docket-build-standard.md` was hand-edited to
-fix its caller-args passthrough (the `--` payload). **That fix is NOT validated by this run and no
-verdict on it should be read into this record.** Claude Code caches agent definitions at process
-start and this session predates the edit, so the dispatch above necessarily used the stale cached
-definition. A `ps -eww` argv sampler was armed across the whole dispatch window and captured **zero**
-samples of this run's dispatch — its only match was PID 27068, a 12-hour-old orphan
-`runner-dispatch.sh --observe` belonging to an unrelated worktree. So the run produced **no argv
-observation at all**, in either direction: nothing here is evidence that the passthrough fix works,
-and nothing here is evidence that it fails. Re-probe from a session started after the edit.
-
-### Environment note (unrelated to this change)
-
-`DOCKET_SCRIPTS_DIR` currently exports
-`/Users/homer/dev/docket/.worktrees/runner-delegation-has-no-execution-posture-for-a-child-that/scripts`
-— a FEATURE worktree of another in-flight change, not the primary tree's `scripts/`. Preflight
-resolved `REPO_ROOT=/Users/homer/dev/docket` correctly and every facade call in this run behaved,
-so nothing was harmed, but docket helpers are being run from an unmerged branch's copy. Worth
-repointing at `/Users/homer/dev/docket/scripts`.
+- **0271 moved two of the three files this change reasons about.** `scripts/docket-config.sh` gained
+  `DELEGATION_OBSERVATION_BUDGET` in the resolver's emission, and `scripts/docket-config.md` gained
+  the key in its config-key table and its exit-code table — but **not** in the `### Emit` fence.
+  Leg 1's whole-sequence guard reddened on the rebase. That is the guard working as designed: the
+  per-key presence greps it replaces all stayed green. Commit `a0484a2f` adds the key to the fence
+  and moves the count prose from 33/34 to 34/35. In scope — the branch cannot be green without it.
+- **Leg 1 premises re-verified.** The fence is now 35 entries (34 in `shell`), `REPO_ROOT` still
+  annotated plain-only, and the prose sentence tracks at "34 lines in `shell` format; 35 in
+  `plain`". The extractor's `### Emit` heading anchor and the resolver's live emission still agree
+  entry for entry.
+- **Leg 2 premises re-verified.** `config_scalar_get` still dispatches exactly the three layer arms
+  (`committed` / `global` / `local`) plus the `*)` die arm. n = 3, n·(n−1) = 6, matching s4–s9.
+- **Rebase conflict resolution sanity-checked.** 0271's `DOB-a`..`DOB-f` block and 0258's leg-1
+  block collided additively at the tail of `tests/test_docket_config.sh`. Both are present and
+  intact, 0271's first, with disjoint variable prefixes (`dob_*` vs `doc_*`/`emit_*`/`l1_*`) and the
+  0174 template-integrity assert still last in the file.
+- **`tests/runtime-budgets.tsv`** still carries `tests/test_docket_config.sh	55	parallel`; the
+  branch does not touch it.
+- **#0251 still `proposed`**, so the `test_docket_config*.sh` family glob resolves to one file; the
+  corpus-indifference constraint is honored regardless.
+- The previous run's `## Run halted` section is removed by this commit — git history keeps it —
+  because the run is live again. Its four carried-forward review findings are re-triaged in this
+  run's own review pass rather than adopted as a verdict against a tree that no longer exists.
+- **Auto-capture (site A).** Nothing minted. The dispatch-duration ceiling that halted the last
+  three runs is #0271, which is now merged; this run is its real-world exercise.
