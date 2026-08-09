@@ -2,7 +2,7 @@
 id: 271
 slug: runner-delegation-has-no-execution-posture-for-a-child-that
 title: 'Runner delegation has no execution posture for a child that outlives its foreground call'
-status: in-progress
+status: implemented
 priority: high
 type: fix
 created: 2026-08-08
@@ -13,12 +13,12 @@ discovered_from: [258]
 adrs: [80]
 spec: docs/superpowers/specs/2026-08-08-runner-delegation-detached-execution-posture-design.md
 plan: docs/superpowers/plans/2026-08-09-runner-delegation-detached-execution-posture.md
-results:
+results: docs/results/2026-08-09-runner-delegation-has-no-execution-posture-for-a-child-that-results.md
 trivial: false
 auto_groomable:
 branch: feat/runner-delegation-has-no-execution-posture-for-a-child-that
-claimed_at: 2026-08-09T07:00:53Z
-pr:
+claimed_at: 2026-08-09T07:03:55Z
+pr: https://github.com/danielhanold/docket/pull/188
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-08-runner-delegation-detached-execution-posture-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-08-runner-delegation-detached-execution-posture-design.md) |
 | Plan | [2026-08-09-runner-delegation-detached-execution-posture.md](https://github.com/danielhanold/docket/blob/feat/runner-delegation-has-no-execution-posture-for-a-child-that/docs/superpowers/plans/2026-08-09-runner-delegation-detached-execution-posture.md) |
+| Results | [2026-08-09-runner-delegation-has-no-execution-posture-for-a-child-that-results.md](https://github.com/danielhanold/docket/blob/feat/runner-delegation-has-no-execution-posture-for-a-child-that/docs/results/2026-08-09-runner-delegation-has-no-execution-posture-for-a-child-that-results.md) |
+| PR | [#188](https://github.com/danielhanold/docket/pull/188) |
 | ADRs | [ADR-0080](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0080-detached-delegation-execution-posture-launch-then-observe.md) |
 <!-- docket:artifacts:end -->
 
