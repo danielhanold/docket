@@ -393,6 +393,7 @@ BUILD_CHECKPOINT
 REVIEW_MIN_FIX_SEVERITY
 REVIEW_MAX_FIX_TASKS
 GATE_OBSERVATION_BUDGET
+DELEGATION_OBSERVATION_BUDGET
 SKILL_BRAINSTORM
 SKILL_PLAN
 SKILL_BUILD
@@ -401,7 +402,7 @@ SKILL_FINISH
 BOOTSTRAP
 ```
 
-33 lines in `shell` format; 34 in `plain` format, with `REPO_ROOT` inserted directly
+34 lines in `shell` format; 35 in `plain` format, with `REPO_ROOT` inserted directly
 after `METADATA_WORKTREE` and `DOCKET_BASH_PATH` following it (or following
 `METADATA_WORKTREE` in shell format). The last line is always `BOOTSTRAP=…`.
 
