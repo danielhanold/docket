@@ -521,6 +521,78 @@ if [ "$VERB" = "observe" ]; then
     return 0
   }
 
+  # THE SENTINEL DISPOSITION, in one place. A sentinel means the child is DONE, and every reader of
+  # that fact must reach the same verdict, so this is a FUNCTION rather than a straight-line block:
+  # besides the ordinary read below, `terminate_dispatch` re-reads the sentinel on both sides of its
+  # kill and lands here when one appeared, and a second copy of the disposition would be the pair
+  # that drifts. Well-formed vs malformed is the difference between a clean adapter exit and a
+  # wrapper crash — the latter is `unavailable`, NEVER an exit code read out of garbage.
+  # NEVER RETURNS: every leg exits, which is what makes it safe to call from inside the give-up path.
+  report_done_disposition(){
+    SEC="$(docket_sentinel_field "$DDIR" exit_code)"
+    case "$SEC" in
+      ''|*[!0-9]*)
+        printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (the sentinel is malformed; the launcher did not finish cleanly)\n' "$OBSERVE_KEY" >&2
+        # The child is finished either way, so whatever it managed to say is the only evidence left;
+        # relaying it costs nothing and is the difference between a diagnosable failure and a silent
+        # one. The verdict still comes from the exit code, never from the relayed text.
+        relay_child_stdout
+        exit 1 ;;
+    esac
+    # The child is finished and its sentinel parses, which is the precondition for every git-read
+    # disposition on this seam. implement-next's runs FIRST and for both exit-code classes — see
+    # observe_implement_next's header for why the verdict outranks the child's own code in both
+    # directions. It exits on a positive finding and returns otherwise, leaving the sentinel-only
+    # disposition below in charge.
+    case "$AGENT" in
+      implement-next) observe_implement_next ;;
+    esac
+    if [ "$SEC" = "0" ]; then
+      # LIVENESS said done; now CORRECTNESS decides. A sentinel claiming success with no matching
+      # git evidence is a FAILURE — the delegated run is the party being judged, so its own exit
+      # code can never be the last word. Change 0258's stranded +64 lines exited 0 at the adapter.
+      GITV=""
+      case "$AGENT" in
+        build-*)
+          LSINCE="$(launch_field "$DDIR" since_sha)"
+          # THE BRANCH COMES FROM THE LAUNCH RECORD, never from the anchor now. Re-reading it here
+          # compares the anchor's HEAD to itself, which made the verdict's `branch` conjunct
+          # structurally vacuous on its only consumer: a child that ended on the WRONG branch or on
+          # a DETACHED HEAD (a bad rebase, a stray `git checkout`) still satisfied `tip` and `tree`
+          # and was reported `task-committed`.
+          LBRANCH="$(launch_field "$DDIR" branch)"
+          if [ -z "$LBRANCH" ]; then
+            # An older dispatch, or a detached anchor at launch. Falling back to the observation-time
+            # branch would reinstate exactly the vacuity above, so this is NO POSITIVE EVIDENCE and
+            # is surfaced as such — the same posture the empty-verdict case below already takes.
+            GITV="task-unverifiable launch-branch-missing"
+          else
+            GITV="$("$DOCKET_BASH_PATH" "$VERIFY_RUN" --build --worktree "$ANCHOR" \
+                      --branch "$LBRANCH" --since "${LSINCE:-}" 2>/dev/null)"
+          fi
+          case "$GITV" in
+            task-committed*) : ;;
+            # OBSERVE-ONLY for build-*: never a re-dispatch. A build task may have left partial
+            # commits, and re-running on top of them is docket-build's "never escalate onto a
+            # stray commit" hazard. Report and stop. An empty verdict lands here too — a check
+            # that could not run is not evidence of success.
+            *) printf 'runner-dispatch: observe %s — FAILED (the child exited 0 but git disagrees: %s); work left in %s for inspection\n' \
+                 "$OBSERVE_KEY" "${GITV:-no-verdict}" "$ANCHOR" >&2
+               relay_child_stdout
+               exit 1 ;;
+          esac ;;
+      esac
+      printf 'runner-dispatch: observe %s — complete (child exited 0%s)\n' \
+        "$OBSERVE_KEY" "${GITV:+; $GITV}" >&2
+      relay_child_stdout
+      exit 0
+    fi
+    printf 'runner-dispatch: observe %s — FAILED (child exited %s); see %s/stderr.log\n' \
+      "$OBSERVE_KEY" "$SEC" "$DDIR" >&2
+    relay_child_stdout
+    exit 1
+  }
+
   killed_field(){  # $1 = field -> first value from the kill marker, empty when absent
     local raw
     raw="$(sed -n "s/^$1=//p" "$DDIR/killed" 2>/dev/null)"
@@ -532,7 +604,8 @@ if [ "$VERB" = "observe" ]; then
   # end the dispatch, and both must kill the detached group under the same identity check — a
   # second copy of that check is exactly the duplication the guard's own comment warns against.
   # `$1` is the CAUSE (`budget-exhausted` or `budget-unenforceable`), `$2` the diagnostic detail
-  # for the latter. Never returns.
+  # for the latter. Never returns — it exits through the give-up verdict, or through the COMPLETED
+  # disposition when the sentinel turns up inside the kill window (the two re-reads below).
   terminate_dispatch(){
     local cause="$1" detail="${2:-}" what
     case "$cause" in
@@ -609,6 +682,13 @@ if [ "$VERB" = "observe" ]; then
     fi
 
     if [ "$signal_group" = 1 ]; then
+      # THE LAST LOOK BEFORE THE SIGNAL. The give-up path is entered off a "no sentinel" read taken
+      # a `date`, a SUBPROCESS (`verify-run --iso-to-epoch`) and two `ps` calls ago — tens of
+      # milliseconds in which the child can finish and write `done`. Signalling then would kill a
+      # run that had already delivered its work and report it unavailable. Re-read here, where
+      # nothing but the `kill` itself separates the test from the act, and hand a sentinel that
+      # appeared straight to the completed disposition.
+      [ -f "$DDIR/done" ] && report_done_disposition
       kill -TERM -"$LPGID" 2>/dev/null
       for _ in $(seq 1 20); do kill -0 -"$LPGID" 2>/dev/null || break; sleep 0.5; done
       kill -KILL -"$LPGID" 2>/dev/null
@@ -617,6 +697,16 @@ if [ "$VERB" = "observe" ]; then
       printf 'runner-dispatch: observe %s — NOT signalling process group %s: %s. A pgid is a reusable name, so an unconfirmed one may now belong to an unrelated process group; recording the dispatch as terminal without a kill\n' \
         "$OBSERVE_KEY" "${LPGID:-<none>}" "$identity_why" >&2
     fi
+    # AND AGAIN BEFORE THE MARKER. The read above closes the window up to the TERM; this one closes
+    # what is left of it — the instant between the pre-signal test and the signal actually landing
+    # (a wrapper whose `mv` completed as the TERM arrived), and the whole of the no-signal path,
+    # where the check above never ran at all. THE CORRECTNESS ARGUMENT is the same one that orders
+    # the sentinel ahead of the marker: the untrapped wrapper subshell is the only writer of `done`
+    # and a group TERM/KILL reaches it, so once the kill has been delivered a sentinel can no longer
+    # appear — a `done` visible HERE was therefore written BEFORE the signal, by a child that
+    # completed. Recording a `killed` marker over it would mask a finished run permanently, which is
+    # the defect this pair of re-reads removes.
+    [ -f "$DDIR/done" ] && report_done_disposition
     # `reason` keeps its established meaning — WHETHER a signal went out — and `cause` is the new,
     # orthogonal field saying WHY the facade gave up, so the terminal re-report above can word both
     # axes without a reader ever being told a kill happened when none did.
@@ -637,7 +727,26 @@ if [ "$VERB" = "observe" ]; then
     exit 1
   }
 
-  # 1. A prior give-up is TERMINAL and re-reports identically forever (idempotence). The marker
+  # 1. THE SENTINEL IS READ FIRST — ahead of the `killed` marker, deliberately. THE WRAPPER SUBSHELL
+  #    IS UNTRAPPED and it is the only writer of `done`, so a group-directed TERM/KILL reaches it and
+  #    it can never write a sentinel afterwards. A `done` sitting beside a `killed` marker therefore
+  #    proves the child COMPLETED BEFORE the signal — the give-up merely raced a run that had already
+  #    finished — and the completed disposition is the true one. Read the other way round (the
+  #    original order), a sentinel that landed anywhere between the give-up path's "no sentinel" read
+  #    and its marker write was masked FOREVER, reporting a completed run as RESULT UNAVAILABLE and
+  #    sending a human to hunt for work that is in fact committed.
+  #
+  #    IDEMPOTENCE IS UNHARMED by the precedence: neither file is ever removed, and a sentinel that
+  #    exists on one observation exists on every later one, so the verdict read from it is the same
+  #    forever after. The only transition this admits is unavailable -> complete, and it can happen
+  #    at most once, only on the no-signal (`reason=group-already-gone`) path where nothing was
+  #    actually killed, and only on the arrival of real evidence that the work finished. Reporting a
+  #    result the facade can see is not an oscillation.
+  if [ -f "$DDIR/done" ]; then
+    report_done_disposition
+  fi
+
+  # 2. A prior give-up is TERMINAL and re-reports identically forever (idempotence). The marker
   #    carries two orthogonal facts and both are spoken: `cause` says WHY the facade gave up (the
   #    budget ran out, or it could not be enforced at all), and `reason` says whether a group was
   #    actually terminated or left alone because it could not be confirmed as the launched child's
@@ -657,74 +766,6 @@ if [ "$VERB" = "observe" ]; then
       *)
         printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (%s; the detached run was killed)\n' "$OBSERVE_KEY" "$KWHAT" >&2 ;;
     esac
-    exit 1
-  fi
-
-  # 2. A sentinel means the child is DONE. Well-formed vs malformed is the difference between a
-  #    clean adapter exit and a wrapper crash — the latter is `unavailable`, NEVER an exit code
-  #    read out of garbage.
-  if [ -f "$DDIR/done" ]; then
-    SEC="$(docket_sentinel_field "$DDIR" exit_code)"
-    case "$SEC" in
-      ''|*[!0-9]*)
-        printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (the sentinel is malformed; the launcher did not finish cleanly)\n' "$OBSERVE_KEY" >&2
-        # The child is finished either way, so whatever it managed to say is the only evidence left;
-        # relaying it costs nothing and is the difference between a diagnosable failure and a silent
-        # one. The verdict still comes from the exit code, never from the relayed text.
-        relay_child_stdout
-        exit 1 ;;
-    esac
-    # The child is finished and its sentinel parses, which is the precondition for every git-read
-    # disposition on this seam. implement-next's runs FIRST and for both exit-code classes — see
-    # observe_implement_next's header for why the verdict outranks the child's own code in both
-    # directions. It exits on a positive finding and returns otherwise, leaving the sentinel-only
-    # disposition below in charge.
-    case "$AGENT" in
-      implement-next) observe_implement_next ;;
-    esac
-    if [ "$SEC" = "0" ]; then
-      # LIVENESS said done; now CORRECTNESS decides. A sentinel claiming success with no matching
-      # git evidence is a FAILURE — the delegated run is the party being judged, so its own exit
-      # code can never be the last word. Change 0258's stranded +64 lines exited 0 at the adapter.
-      GITV=""
-      case "$AGENT" in
-        build-*)
-          LSINCE="$(launch_field "$DDIR" since_sha)"
-          # THE BRANCH COMES FROM THE LAUNCH RECORD, never from the anchor now. Re-reading it here
-          # compares the anchor's HEAD to itself, which made the verdict's `branch` conjunct
-          # structurally vacuous on its only consumer: a child that ended on the WRONG branch or on
-          # a DETACHED HEAD (a bad rebase, a stray `git checkout`) still satisfied `tip` and `tree`
-          # and was reported `task-committed`.
-          LBRANCH="$(launch_field "$DDIR" branch)"
-          if [ -z "$LBRANCH" ]; then
-            # An older dispatch, or a detached anchor at launch. Falling back to the observation-time
-            # branch would reinstate exactly the vacuity above, so this is NO POSITIVE EVIDENCE and
-            # is surfaced as such — the same posture the empty-verdict case below already takes.
-            GITV="task-unverifiable launch-branch-missing"
-          else
-            GITV="$("$DOCKET_BASH_PATH" "$VERIFY_RUN" --build --worktree "$ANCHOR" \
-                      --branch "$LBRANCH" --since "${LSINCE:-}" 2>/dev/null)"
-          fi
-          case "$GITV" in
-            task-committed*) : ;;
-            # OBSERVE-ONLY for build-*: never a re-dispatch. A build task may have left partial
-            # commits, and re-running on top of them is docket-build's "never escalate onto a
-            # stray commit" hazard. Report and stop. An empty verdict lands here too — a check
-            # that could not run is not evidence of success.
-            *) printf 'runner-dispatch: observe %s — FAILED (the child exited 0 but git disagrees: %s); work left in %s for inspection\n' \
-                 "$OBSERVE_KEY" "${GITV:-no-verdict}" "$ANCHOR" >&2
-               relay_child_stdout
-               exit 1 ;;
-          esac ;;
-      esac
-      printf 'runner-dispatch: observe %s — complete (child exited 0%s)\n' \
-        "$OBSERVE_KEY" "${GITV:+; $GITV}" >&2
-      relay_child_stdout
-      exit 0
-    fi
-    printf 'runner-dispatch: observe %s — FAILED (child exited %s); see %s/stderr.log\n' \
-      "$OBSERVE_KEY" "$SEC" "$DDIR" >&2
-    relay_child_stdout
     exit 1
   fi
 
