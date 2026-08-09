@@ -8,17 +8,23 @@
 # RUN GATE: for an `implement-next` delegation only, an unfinished run gets ONE re-dispatch and a
 # second strike exits 1, a halted run stops the caller with 3, and a re-dispatch that drove the run
 # to completion exits 0 over a stale first code — the only three paths where the facade does not
-# return the adapter's own code.
+# return the adapter's own code. That synchronous seam now serves HAND invocations: every generated
+# shim launches, so the same gate follows the delegated run onto the `--observe` seam below.
 # Registration IS the adapter file's existence. Unknown runner => loud nonzero (abort-and-report).
 # Change 0271 added the `--launch` verb: the same validated request, but the adapter is started in
 # its OWN process group with every stream redirected into a durable per-dispatch dir, and the call
 # returns at once with a dispatch key instead of blocking for the child's whole run. Its other half
 # is `--observe <key>`: ONE short, idempotent look at that dispatch, synthesizing 0 (complete),
-# 1 (failed or unavailable) or 4 (still running — NOT a failure, observe again), and killing the
-# detached PROCESS GROUP when the observation budget is spent rather than orphaning the adapter.
+# 1 (failed or unavailable), 3 (a delegated implement-next run HALTED — the synchronous gate's own
+# code, reached from the seam a delegated run actually returns through) or 4 (still running — NOT a
+# failure, observe again), and killing the detached PROCESS GROUP when the observation budget is
+# spent rather than orphaning the adapter.
 # On that seam sits the DISAGREEMENT RULE: a sentinel claiming success with no matching git evidence
-# is a failure. For a `build-*` agent the facade reads verify-run's build verdict and reports —
-# never re-dispatches, because a build task may have left partial commits.
+# is a failure. For a `build-*` agent the facade reads verify-run's build verdict; for
+# `implement-next` it runs change 0237's run gate against the before-snapshot `--launch` recorded.
+# BOTH report and stop — an observation never re-dispatches: a build task may have left partial
+# commits, and re-launching a detached child out of a repeated short read would race the very run
+# being observed.
 # Contract: scripts/runner-dispatch.md.
 # Mock seams: RUNNERS_DIR, GIT.
 set -uo pipefail
@@ -166,6 +172,23 @@ args=( --agent "$AGENT" )
 [ -n "$MODEL" ]  && args+=( --model "$MODEL" )
 [ -n "$EFFORT" ] && args+=( --effort "$EFFORT" )
 
+# --- run-gate primitives, shared by all three verbs ---------------------------------
+# Defined HERE, above every verb, because the same three reads serve all of them: the synchronous
+# gate at the bottom of this file brackets its handoff with them, `--launch` captures the
+# ATTRIBUTION inputs with them, and `--observe` re-reads with them. ONE reader — verify-run stays
+# the single owner of frontmatter reading for the gate (its own header says so), and a second
+# reader growing beside this one is exactly what that ownership exists to prevent.
+in_progress_ids(){ "$DOCKET_BASH_PATH" "$VERIFY_RUN" --in-progress-ids 2>/dev/null; }
+in_progress_claims(){ "$DOCKET_BASH_PATH" "$VERIFY_RUN" --in-progress-ids --with-claimed-at 2>/dev/null; }
+# Best-effort metadata re-sync, used on BOTH sides of every hand-off — the synchronous gate's, and
+# the launch/observe pair's. Both snapshots must be reads of FRESH ORIGIN state
+# (LEARNINGS: cas-re-read-fresh-origin); an asymmetric pair attributes an ABANDONED claim from an
+# earlier session to this run. A failure degrades the gate's freshness; it never fails a dispatch.
+resync_metadata(){
+  "$DOCKET_BASH_PATH" "$DOCKET_FACADE" preflight >/dev/null 2>&1 \
+    || { printf 'runner-dispatch: run gate — metadata re-sync failed; verifying against local state\n' >&2; return 1; }
+}
+
 # --- verb: --launch (change 0271) ---------------------------------------------------
 # Detach the adapter so the delegated run can OUTLIVE this call, then return at once with the
 # dispatch key. The posture and its six required capabilities are cited, never restated:
@@ -185,6 +208,40 @@ if [ "$VERB" = "launch" ]; then
   # commit anything, so a commit landing in the gap is excluded either way. Empty on a repo with
   # no commits — the build verdict then reports unknown-since-sha rather than guessing.
   SINCE_SHA="$("$GIT" -C "$ANCHOR" rev-parse HEAD 2>/dev/null || true)"
+
+  # THE RUN GATE'S ATTRIBUTION INPUTS, captured here because they are only knowable BEFORE the child
+  # runs. Change 0237's gate identifies a claimant by diffing the in-progress set across the
+  # hand-off; under detachment the two halves of that diff land in two different processes, so the
+  # "before" half is recorded durably for `--observe` to read.
+  #
+  # Scoped to implement-next for exactly the reason the synchronous fence is: a build-* delegation
+  # leaves its change in-progress BY DESIGN, and a build task's terminal state is a commit, read on
+  # the observe seam by the build verdict family instead.
+  #
+  # The discipline is the synchronous gate's, unchanged: re-sync FIRST so the before-read is of
+  # fresh origin state, then stamp the clock AFTER that read, so a claim landing in the gap is
+  # either already in the before-set or stamped before the window and is excluded either way. The
+  # observe half re-syncs again, which is what keeps the pair SYMMETRIC — an asymmetric pair
+  # attributes an abandoned claim from an earlier session to this run
+  # (LEARNINGS: cas-re-read-fresh-origin).
+  #
+  # Tolerant, like every other gate read: a failed snapshot or clock read leaves the gate UNARMED
+  # and the dispatch untouched, never failed. `dispatch_epoch` in the launch record plus the
+  # `gate-before` file ARE the arming signal — with either absent, `--observe` falls back to the
+  # sentinel-only disposition rather than guessing at an attribution.
+  GATE_BEFORE=""; GATE_EPOCH=""; GATE_ARMED=0
+  if [ "$AGENT" = "implement-next" ]; then
+    resync_metadata || :
+    if GATE_BEFORE="$(in_progress_ids)"; then
+      GATE_EPOCH="$(date -u +%s 2>/dev/null)"
+      case "$GATE_EPOCH" in
+        ''|*[!0-9]*) printf 'runner-dispatch: run gate disabled — could not read the clock\n' >&2 ;;
+        *) GATE_ARMED=1 ;;
+      esac
+    else
+      printf 'runner-dispatch: run gate disabled — could not read the in-progress set\n' >&2
+    fi
+  fi
 
   # DETACHMENT, measured (2026-08-09): `set -m` makes a background job a PROCESS-GROUP LEADER,
   # so it survives the harness's teardown of THIS call's process group — capability 1's stronger
@@ -236,8 +293,21 @@ if [ "$VERB" = "launch" ]; then
   # `set -m` removed the fallback would record a pid that is no group's leader, which is exactly why
   # tests/test_runner_dispatch_detach.sh reads the group from the live process rather than from this
   # record ("the child is in its OWN process group, not the test's").
-  printf 'pgid=%s\nchild_pid=%s\nstarted_at=%s\nagent=%s\nrunner=%s\nworktree=%s\nsince_sha=%s\n' \
+  # The before-snapshot lands BEFORE the record that advertises it, so an observer that sees a
+  # readable `dispatch_epoch` can rely on the file being there. It is written even when EMPTY —
+  # "nothing was claimed at the handoff" is a real answer, and the arming signal is the record's
+  # epoch, never this file's size. `mv -f` for the reason it is used everywhere else here: BSD `mv`
+  # onto an unwritable destination with a tty prompts, self-answers `n`, and exits 0.
+  if [ "$GATE_ARMED" = 1 ]; then
+    printf '%s\n' "$GATE_BEFORE" > "$DDIR/gate-before.partial"
+    mv -f "$DDIR/gate-before.partial" "$DDIR/gate-before" || {
+      printf 'runner-dispatch: run gate disabled — could not record the before-snapshot in %s\n' "$DDIR" >&2
+      GATE_EPOCH=""
+    }
+  fi
+  printf 'pgid=%s\nchild_pid=%s\nstarted_at=%s\nagent=%s\nrunner=%s\nworktree=%s\nsince_sha=%s\ndispatch_epoch=%s\n' \
     "${CHILD_PGID:-$CHILD_PID}" "$CHILD_PID" "$STARTED_AT" "$AGENT" "$RUNNER" "$ANCHOR" "${SINCE_SHA:-}" \
+    "${GATE_EPOCH:-}" \
     > "$DDIR/launch.partial"
   mv -f "$DDIR/launch.partial" "$DDIR/launch"
 
@@ -313,6 +383,104 @@ if [ "$VERB" = "observe" ]; then
     return 0
   }
 
+  # THE RUN GATE ON THE OBSERVE SEAM — change 0237's disposition, reached through detachment.
+  # The generated shim always launches, so the synchronous fence at the bottom of this file is
+  # unreachable for every delegated implement-next run; without this leg such a run gets the
+  # SENTINEL-ONLY disposition, and one that HALTED or stopped before its PR exits 0 at the adapter
+  # and observes as "complete (child exited 0)". That is the prose-level failure change 0237 was
+  # built to eliminate, so the disposition follows the run onto whichever seam it actually returns
+  # through.
+  #
+  # It mirrors the synchronous gate's ATTRIBUTION exactly — the same symmetric fresh-origin
+  # re-sync, the same three filters, the same more-than-one-candidate stand-down, the same posture
+  # of acting only on a POSITIVE finding — and differs in exactly one respect, deliberately:
+  #
+  #   NO AUTO RE-DISPATCH. The synchronous gate's ONE bounded re-dispatch is not recreated here.
+  #   Re-launching a detached child out of an OBSERVATION is a different lifecycle: an observation
+  #   is a short, idempotent read that a shim makes repeatedly, so a re-dispatch on this path would
+  #   race the very run being observed and could mint a fresh detached child per pass. A
+  #   `run-incomplete` therefore reports 1 and the caller acts. This is a decision, not an omission
+  #   (scripts/runner-dispatch.md records it as one).
+  #
+  # The verdict outranks the child's own exit code in BOTH directions, which is why this runs
+  # before the exit_code split below rather than inside its zero leg: a halt is terminal whatever
+  # the adapter returned, and a positively green verdict describes a run that reached its PR
+  # despite a noisy adapter. Same rule as the disagreement rule — correctness outranks the
+  # self-report of the party being judged.
+  #
+  # EXITS on a positive finding; RETURNS (falling through to the sentinel-only disposition) on
+  # anything it could not establish.
+  observe_implement_next(){
+    local before after epoch verdict nid nclaimed
+    local new_ids=()
+    epoch="$(launch_field "$DDIR" dispatch_epoch)"
+    # No epoch = the gate was never armed at launch (an older dispatch, a non-implement-next one,
+    # or a snapshot/clock read that failed there and already said so). Silent: the launch side
+    # announced it, and a second warning per observation pass would be noise in a polling loop.
+    case "$epoch" in ''|*[!0-9]*) return 0 ;; esac
+    # The before-snapshot and the epoch are written TOGETHER at launch, so a readable epoch with no
+    # snapshot file is a half-written record: unarmed, never a before-set guessed as empty.
+    [ -f "$DDIR/gate-before" ] || {
+      printf 'runner-dispatch: observe %s — run gate disabled: the launch recorded no before-snapshot\n' "$OBSERVE_KEY" >&2
+      return 0
+    }
+    before="$(cat "$DDIR/gate-before" 2>/dev/null)"
+    # The AFTER read must come from FRESH ORIGIN state, symmetric with the launch-side read.
+    resync_metadata || :
+    after="$(in_progress_claims)" || {
+      printf 'runner-dispatch: observe %s — run gate disabled: could not re-read the in-progress set\n' "$OBSERVE_KEY" >&2
+      return 0
+    }
+    while IFS=' ' read -r nid nclaimed; do
+      [ -n "$nid" ] || continue
+      grep -qxF "$nid" <<<"$before" && continue
+      case "${nclaimed:-}" in
+        ''|*[!0-9]*)
+          printf 'runner-dispatch: observe %s — run gate: ignoring change %s: no readable claimed_at\n' "$OBSERVE_KEY" "$nid" >&2
+          continue ;;
+      esac
+      [ "$nclaimed" -ge "$epoch" ] || {
+        printf 'runner-dispatch: observe %s — run gate: ignoring change %s: claimed before this dispatch started\n' "$OBSERVE_KEY" "$nid" >&2
+        continue
+      }
+      new_ids+=("$nid")
+    done <<<"$after"
+
+    if [ "${#new_ids[@]}" -gt 1 ]; then
+      printf 'runner-dispatch: observe %s — run gate disabled: %s changes were claimed during this dispatch (%s); this run claims at most one, so none can be attributed to it\n' \
+        "$OBSERVE_KEY" "${#new_ids[@]}" "${new_ids[*]}" >&2
+      return 0
+    fi
+    # No candidate at all: drained, a lost claim race, or a run that finished and left its change
+    # `implemented` (which is not in-progress and so never appears in the after-set). All three are
+    # no-ops here, exactly as the empty diff is on the synchronous path.
+    [ "${#new_ids[@]}" -eq 1 ] || return 0
+    nid="${new_ids[0]}"
+    verdict="$("$DOCKET_BASH_PATH" "$VERIFY_RUN" "$nid" 2>/dev/null)"
+    printf 'runner-dispatch: observe %s — run gate: %s\n' "$OBSERVE_KEY" "${verdict:-run-unverifiable $nid}" >&2
+    case "$verdict" in
+      run-halted*)
+        # STOP + SURFACE with its own code, the same 3 the synchronous gate returns and the code
+        # the design spec's synthesized-exit table pins normatively under detachment. Never 0: a
+        # driver told 0 draws the next change, on a disposition that means a human is needed.
+        printf 'runner-dispatch: observe %s — RUN HALTED (%s); the delegated implement-next run stopped and needs a human — read the change file'"'"'s "## Run halted" section\n' \
+          "$OBSERVE_KEY" "$verdict" >&2
+        relay_child_stdout
+        exit 3 ;;
+      run-incomplete*)
+        printf 'runner-dispatch: observe %s — FAILED (%s); the delegated implement-next run did not reach its PR. No re-dispatch is made from an observation — the change stays in-progress with its claim intact, and board-checks'"'"' aborted-run leg remains the backstop\n' \
+          "$OBSERVE_KEY" "$verdict" >&2
+        relay_child_stdout
+        exit 1 ;;
+      run-complete*|run-unclaimed*)
+        printf 'runner-dispatch: observe %s — complete (%s)\n' "$OBSERVE_KEY" "$verdict" >&2
+        relay_child_stdout
+        exit 0 ;;
+    esac
+    # Empty or unparseable: no positive finding, so the sentinel-only disposition stands.
+    return 0
+  }
+
   # 1. A prior budget kill is TERMINAL and re-reports identically forever (idempotence).
   if [ -f "$DDIR/killed" ]; then
     printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (the detached run was killed at budget exhaustion)\n' "$OBSERVE_KEY" >&2
@@ -332,6 +500,14 @@ if [ "$VERB" = "observe" ]; then
         # one. The verdict still comes from the exit code, never from the relayed text.
         relay_child_stdout
         exit 1 ;;
+    esac
+    # The child is finished and its sentinel parses, which is the precondition for every git-read
+    # disposition on this seam. implement-next's runs FIRST and for both exit-code classes — see
+    # observe_implement_next's header for why the verdict outranks the child's own code in both
+    # directions. It exits on a positive finding and returns otherwise, leaving the sentinel-only
+    # disposition below in charge.
+    case "$AGENT" in
+      implement-next) observe_implement_next ;;
     esac
     if [ "$SEC" = "0" ]; then
       # LIVENESS said done; now CORRECTNESS decides. A sentinel claiming success with no matching
@@ -454,16 +630,15 @@ fi
 # the local .docket worktree is absent from a stale BEFORE and present in the freshly-synced AFTER,
 # so an ABANDONED claim from an earlier session (exactly what board-checks' `aborted-run` leg
 # exists for) would be attributed to this run and spend a whole agent run being re-dispatched.
+#
+# THIS FENCE IS FOR THE SYNCHRONOUS PATH ONLY, and it is still reachable: a hand invocation with no
+# `--launch` still blocks here. The DELEGATED path no longer passes through it at all — the
+# generated shim always launches — so the same disposition is carried on the `--observe` seam by
+# `observe_implement_next`, which mirrors this attribution exactly.
+#
+# `in_progress_ids`, `in_progress_claims` and `resync_metadata` are defined above the verbs so both
+# halves share one reader.
 GATE=0; [ "$AGENT" = "implement-next" ] && GATE=1
-
-in_progress_ids(){ "$DOCKET_BASH_PATH" "$VERIFY_RUN" --in-progress-ids 2>/dev/null; }
-in_progress_claims(){ "$DOCKET_BASH_PATH" "$VERIFY_RUN" --in-progress-ids --with-claimed-at 2>/dev/null; }
-# Best-effort metadata re-sync, used on BOTH sides of the handoff. A failure degrades the gate's
-# freshness; it never fails a dispatch.
-resync_metadata(){
-  "$DOCKET_BASH_PATH" "$DOCKET_FACADE" preflight >/dev/null 2>&1 \
-    || { printf 'runner-dispatch: run gate — metadata re-sync failed; verifying against local state\n' >&2; return 1; }
-}
 
 BEFORE=""; DISPATCH_EPOCH=""
 if [ "$GATE" = 1 ]; then

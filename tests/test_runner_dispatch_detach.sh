@@ -409,6 +409,169 @@ out="$(observe "$KEY" 2>&1)"; rc=$?
 assert "0271: a status agent still observes as complete on the sentinel alone" '[ "$rc" = "0" ]'
 assert "0271: no build verdict is claimed for a status agent" '! grep -qF "task-committed" <<<"$out"'
 
+# ---- the observe seam carries implement-next's RUN GATE (change 0237, reached detached) ----
+# Once the shim ALWAYS launches, the synchronous fence at the bottom of the facade is unreachable
+# for every delegated implement-next run. Without a disposition on this seam a run that HALTED, or
+# that stopped before its PR, exits 0 at the adapter and observes as `complete (child exited 0)` —
+# the shim then reports success, which is exactly the prose-level failure change 0237 exists to
+# eliminate. These arms drive the verdict through the VERIFY_RUN mock seam, so nothing here needs a
+# docket metadata tree.
+#
+# The claim stamp is in the FUTURE relative to the launch, because attribution keeps only a claim
+# stamped at or after the dispatch epoch; a stamp in the past is a different (already-covered)
+# property and would make every arm below vacuously green.
+GFUT=$(( $(date -u +%s) + 600 ))
+
+mkgatefixture(){   # $1 = the verdict line the stub reports for change 7
+  make_fixture
+  SNAP="$SBX/snap"; mkdir -p "$SNAP"
+  ORDER="$SBX/order.log"; : > "$ORDER"
+  : > "$SBX/ad.log"
+  printf '' > "$SNAP/before"                       # nothing claimed at the handoff
+  printf '%s %s\n' 7 "$GFUT" > "$SNAP/after"       # one claim, stamped inside this dispatch's window
+  printf '%s\n' "$1" > "$SNAP/verdict.7"
+  # The stub reader. It serves the two snapshot shapes from files the fixture controls and the
+  # verdict from a third, and it delegates ONLY `--iso-to-epoch` to the real script (pure, needs no
+  # config) so the still-running budget path behaves as it does in production.
+  cat > "$SBX/fake-vr.sh" <<VRE
+#!/usr/bin/env bash
+printf 'vr %s\n' "\$*" >> "${ORDER:?}"
+case "\$1" in --iso-to-epoch) exec "$ROOT/scripts/verify-run.sh" "\$@" ;; esac
+for a in "\$@"; do [ "\$a" = "--build" ] && { printf 'task-committed test-branch\n'; exit 0; }; done
+withca=0
+for a in "\$@"; do [ "\$a" = "--with-claimed-at" ] && withca=1; done
+for a in "\$@"; do
+  [ "\$a" = "--in-progress-ids" ] || continue
+  if [ "\$withca" = 1 ]; then cat "$SNAP/after"; else cat "$SNAP/before"; fi
+  exit 0
+done
+id=""
+for a in "\$@"; do case "\$a" in [0-9]*) id="\$a" ;; esac; done
+cat "$SNAP/verdict.\$id" 2>/dev/null
+exit 0
+VRE
+  chmod +x "$SBX/fake-vr.sh"
+  # The re-sync seam, logged so the ORDER of re-sync vs snapshot read is assertable: both reads
+  # must be of FRESH ORIGIN state, and an unsynced one attributes an abandoned claim to this run.
+  cat > "$SBX/fake-facade.sh" <<'FF'
+#!/usr/bin/env bash
+printf 'facade %s\n' "$*" >> "${ORDER_LOG:?}"
+exit 0
+FF
+  chmod +x "$SBX/fake-facade.sh"
+  # An adapter that APPENDS, so "no re-dispatch happened" is a count and not an overwrite.
+  cat > "$RDIR/fake.sh" <<'FAKE'
+#!/usr/bin/env bash
+printf 'ran\n' >> "${AD_LOG:?}"
+printf 'fake adapter stdout\n'
+exit "${FAKE_RC:-0}"
+FAKE
+  chmod +x "$RDIR/fake.sh"
+}
+gate_env(){ ( cd "$SBX" && RUNNERS_DIR="$RDIR" DELEGATION_OBSERVATION_BUDGET=60 \
+    ORDER_LOG="$ORDER" AD_LOG="$SBX/ad.log" FAKE_RC="${FAKE_RC:-0}" \
+    VERIFY_RUN="$SBX/fake-vr.sh" DOCKET_FACADE="$SBX/fake-facade.sh" \
+    bash "$FACADE" "$@" ); }
+# `shift`-then-"$@" rather than a `"${@:2}"` slice: the slice's behavior on an empty positional set
+# is the kind of thing that differs across the bash versions this suite is run under, and every arm
+# below calls these with no trailing flags at all.
+glaunch(){ local ag="${1:-implement-next}"; [ $# -gt 0 ] && shift
+  gate_env --launch --runner fake --agent "$ag" "$@"; }
+gobserve(){ local k="$1" ag; shift; ag="${1:-implement-next}"; [ $# -gt 0 ] && shift
+  gate_env --observe "$k" --runner fake --agent "$ag" "$@"; }
+gsettle(){ local _; for _ in $(seq 1 40); do [ -f "$(ddir_for "$1")/done" ] && return 0; sleep 0.5; done; return 0; }
+
+# (e) HALTED — the disposition the design spec pins normatively under detachment: exit 3, never 0.
+mkgatefixture "run-halted 7"
+KEY="$(glaunch)"
+DDIR="$(ddir_for "$KEY")"
+assert "0271-gate: the launch records the dispatch epoch" 'grep -qE "^dispatch_epoch=[0-9]+$" "$DDIR/launch"'
+assert "0271-gate: the launch records the before-snapshot" '[ -f "$DDIR/gate-before" ]'
+assert "0271-gate: the before-snapshot is preceded by a metadata re-sync" \
+  '[ "$(sed -n 1p "$ORDER")" = "facade preflight" ]'
+assert "0271-gate: and the before-read is the bare id form" \
+  '[ "$(sed -n 2p "$ORDER")" = "vr --in-progress-ids" ]'
+gsettle "$KEY"
+out="$(gobserve "$KEY" 2>&1)"; rc=$?
+assert "0271-gate: a HALTED delegated implement-next run observes as 3, not 0" '[ "$rc" = "3" ]'
+# Keyed on the phrase that separates a HALT from a failure, not on the verdict token: the verdict
+# line is echoed on every disposition, so `halted` alone stays green even with the halt mapping
+# removed — the assert would measure the echo rather than the disposition.
+assert "0271-gate: the halt diagnostic distinguishes stop-for-a-human from failed" \
+  'grep -qi "needs a human" <<<"$out"'
+assert "0271-gate: the after-read is re-synced too (fresh origin on BOTH sides)" \
+  '[ "$(grep -c "^facade preflight$" "$ORDER" | tr -d " ")" -ge "2" ]'
+assert "0271-gate: the after-read carries the claim stamps" \
+  'grep -qxF "vr --in-progress-ids --with-claimed-at" "$ORDER"'
+assert "0271-gate: a halt is never re-dispatched from an observation" \
+  '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "1" ]'
+rout="$(gobserve "$KEY" 2>/dev/null)"
+assert "0271-gate: a halted run still relays the child's stdout" 'grep -qF "fake adapter stdout" <<<"$rout"'
+out2="$(gobserve "$KEY" 2>&1)"; rc2=$?
+assert "0271-gate: the halt verdict is idempotent in code" '[ "$rc2" = "$rc" ]'
+
+# (f) COMPLETE — a positive green verdict observes as 0.
+mkgatefixture "run-complete 7"
+KEY="$(glaunch)"
+gsettle "$KEY"
+out="$(gobserve "$KEY" 2>&1)"; rc=$?
+assert "0271-gate: a completed delegated implement-next run observes as 0" '[ "$rc" = "0" ]'
+assert "0271-gate: the completion diagnostic names the verdict" 'grep -qF "run-complete 7" <<<"$out"'
+
+# (g) INCOMPLETE — stopped before its PR. Reported as a failure (1), and NEVER re-dispatched from
+#     an observation: the synchronous gate's one bounded re-dispatch is deliberately not recreated
+#     at this seam, because re-launching a detached child out of a repeated short read would race
+#     the very run being observed.
+mkgatefixture "run-incomplete 7 status pr branch"
+KEY="$(glaunch)"
+gsettle "$KEY"
+out="$(gobserve "$KEY" 2>&1)"; rc=$?
+assert "0271-gate: an unfinished delegated implement-next run observes as 1" '[ "$rc" = "1" ]'
+assert "0271-gate: the failure diagnostic names the unmet conjuncts" \
+  'grep -qF "run-incomplete 7 status pr branch" <<<"$out"'
+assert "0271-gate: an observation never re-dispatches the adapter" \
+  '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "1" ]'
+gobserve "$KEY" >/dev/null 2>&1
+assert "0271-gate: and re-observing still never re-dispatches" \
+  '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "1" ]'
+
+# (h) attribution — a claim that predates the dispatch epoch is another session's abandoned one and
+#     must not be verified. Same three filters as the synchronous gate, so the same fixture shape.
+mkgatefixture "run-halted 7"
+printf '%s %s\n' 7 "$(( $(date -u +%s) - 100000 ))" > "$SNAP/after"
+KEY="$(glaunch)"
+gsettle "$KEY"
+out="$(gobserve "$KEY" 2>&1)"; rc=$?
+assert "0271-gate: a claim stamped before the dispatch is not attributed to it" '[ "$rc" = "0" ]'
+assert "0271-gate: and its verdict is never read" '! grep -qxF "vr 7" "$ORDER"'
+assert "0271-gate: the skip is announced, not silent" 'grep -qi "run gate" <<<"$out"'
+
+# (i) attribution — two fresh claims cannot be told apart, so the gate stands down rather than
+#     reporting one run's disposition for another's change.
+mkgatefixture "run-halted 7"
+printf '%s %s\n' 7 "$GFUT" 9 "$GFUT" > "$SNAP/after"
+KEY="$(glaunch)"
+gsettle "$KEY"
+out="$(gobserve "$KEY" 2>&1)"; rc=$?
+assert "0271-gate: an ambiguous claim set stands down to the sentinel disposition (0)" '[ "$rc" = "0" ]'
+assert "0271-gate: an ambiguous claim set verifies nothing" '! grep -qxF "vr 7" "$ORDER"'
+
+# (j) a build-* observation is UNAFFECTED by the new leg. Non-vacuous: the same fixture would
+#     report a halt (3) if the disposition were keyed on the wrong agent family, and the
+#     implement-next leg is the only reader of `--with-claimed-at` at this seam.
+mkgatefixture "run-halted 7"
+git -C "$SBX" checkout -q -b feat/thing
+KEY="$(glaunch build-standard --worktree "$SBX")"
+gsettle "$KEY"
+out="$(gobserve "$KEY" build-standard --worktree "$SBX" 2>&1)"; rc=$?
+assert "0271-gate: a build-* observation never takes the implement-next disposition" '[ "$rc" != "3" ]'
+assert "0271-gate: a build-* observation reads the build verdict instead" \
+  'grep -qF "task-committed" <<<"$out"'
+assert "0271-gate: a build-* observation never reads the claim snapshot" \
+  '! grep -qF -- "--with-claimed-at" "$ORDER"'
+assert "0271-gate: a build-* launch records no dispatch epoch" \
+  '! grep -qE "^dispatch_epoch=[0-9]+$" "$(ddir_for "$KEY")/launch"'
+
 # ---- the posture cites gate-execution.md, never restates the six capabilities ----
 DOC="$ROOT/scripts/runner-dispatch.md"
 DEL="$ROOT/skills/docket-build/references/delegation-execution.md"
