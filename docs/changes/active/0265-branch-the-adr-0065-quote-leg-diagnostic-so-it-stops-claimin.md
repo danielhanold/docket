@@ -8,10 +8,10 @@ type: fix
 created: 2026-08-08
 updated: 2026-08-09
 depends_on: []
-related: [267]
+related: [256, 267]
 discovered_from: [255]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-09-branch-the-adr-0065-quote-leg-diagnostic-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-09-branch-the-adr-0065-quote-leg-diagnostic-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-branch-the-adr-0065-quote-leg-diagnostic-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -49,3 +52,29 @@ corrections of text the 0138/0244/0255 quote-handling lineage left wrong; one sm
 them together.
 
 **Reason for deferral** — it inverts an assumption 0255's spec settled at groom time (byte-identical diagnostics), so it needs a human's call rather than a build decision, and reversing it mid-branch would have invalidated 0255's own sentinels.
+
+## What changes
+
+Settled design in the linked spec (auto-groomed 2026-08-09; critic-gated, one revision round):
+
+- **Leg 1** — at the three diagnostic sites sharing the "consumes only" clause (the awk diagnostic
+  inside `validate_harness_defaults` and the bash `validate_user_agent_values`, both in
+  `sync-agents.sh`, plus `hd_validate` in `scripts/lib/harness-defaults.sh`), branch the message on
+  `consumed != raw`: truncation branch keeps today's message byte-for-byte; pure-quote branch
+  (`consumed == raw`, leading quote) gets a new middle clause with no truncation claim. Shared
+  prefix and remedy tail unchanged; firing predicates untouched; the runners-shim site untouched
+  (it never claimed a truncation).
+- **Leg 1 sentinels** — quote-leg fixtures gain paired asserts (quote-branch clause present,
+  `consumes only` absent on that firing); truncation probes unchanged. Exact assert list derived by
+  grep at plan time.
+- **Leg 2 (absorbed from killed #0267)** — correct `scripts/render-learnings-index.md`'s
+  "Dequoting" paragraph: `field_raw()` is the raw accessor; `field()`/`fm_field()` strip a matched
+  quote pair (change 0138). Groom-time sweep found this the only stale `scripts/*.md` site; the
+  build re-confirms the sweep. Docs only, no new guard.
+
+## Out of scope
+
+- Firing predicates, strip order, the `#` leg, which values are accepted.
+- Shared-helper extraction (that is #0256 — forward-linked in `related:`; the two new branched
+  copies are recorded there for the consolidator).
+- Any ADR change — message text and a docs correction change no decision.
