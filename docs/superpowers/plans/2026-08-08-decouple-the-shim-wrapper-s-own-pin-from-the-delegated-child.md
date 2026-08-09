@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0269 — Decouple the shim wrapper's own pin from the delegated child's](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0269-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child.md)**
+> ↩ **[Change 0269 — Decouple the shim wrapper's own pin from the delegated child's](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-09-0269-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child.md)**
 <!-- docket:backlink:end -->
 
 # Decouple the Shim Wrapper's Own Pin from the Delegated Child's — Implementation Plan

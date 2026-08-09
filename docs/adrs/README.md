@@ -76,6 +76,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0076](0076-quote-leg-rule-binds-by-role-not-reader-shape.md) — ADR-0065's quote-leg rule binds by role, not by reader shape (Accepted) ← change #255 · relates to ADR-0065, ADR-0072
 - [ADR-0077](0077-orphan-effort-dropped-as-docket-policy-not-vendor-constraint.md) — An effort with no resolved model is dropped as docket policy, not because opencode would reject it (Accepted) ← change #245 · relates to ADR-0015, ADR-0060
 - [ADR-0078](0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) — The parent-facing gate surface for Claude Code, and the one-physical-instructions-file symlink policy (Accepted) ← change #242 · relates to ADR-0024
+- [ADR-0079](0079-shim-wrapper-frontmatter-pin-governs-the-parent-side-agent.md) — A shim wrapper's frontmatter pin governs the parent-side agent (Accepted) ← change #269 → supersedes ADR-0038 · relates to ADR-0015, ADR-0067
 
 ## Superseded / Reversed
 
