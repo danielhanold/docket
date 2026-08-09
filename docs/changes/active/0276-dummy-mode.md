@@ -2,7 +2,7 @@
 id: 276
 slug: dummy-mode
 title: Dummy mode — persona-calibrated human-facing language simplification
-status: proposed
+status: in-progress
 priority: medium
 type: feat
 created: 2026-08-09
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/dummy-mode
+claimed_at: 2026-08-09T18:27:15Z
 pr:
 blocked_by:
 reconciled: false
