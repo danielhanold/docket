@@ -65,4 +65,50 @@ assert "reference: ad-hoc enablement is session-scoped and writes nothing" \
 assert "reference: agent-facing artifacts are named as never eligible" \
   'grep -qE "[Nn]ever eligible[^.]{0,200}plans" <<<"$ref_flat"'
 
+# --- skill-body pointers (change 0276) -----------------------------------------------------------
+# Each eligible skill body carries ONE pointer naming the surfaces IT owns and CITING the shared
+# definition rather than restating it. A bare "the file mentions dummy mode" would survive a
+# pointer copy-pasted into the wrong skill, so each token is bound to the phrase "dummy mode".
+#
+# BOUNDS. Every gap is a WITHIN-SENTENCE `[^.]{0,200}` — under the 255-char repetition ceiling BSD
+# grep enforces (tests/test_grep_portability.sh), and scoped tightly enough that two unrelated
+# sentences cannot satisfy a binding between them. The two directions of the token binding are two
+# SEPARATE greps rather than one alternation: a single ERE carrying two bounded repeats is a
+# catastrophic-backtracking shape, and nothing is gained by fusing them.
+check_pointer(){ # check_pointer <skill-relpath> <token>...
+  local rel="$1"; shift
+  local f="$REPO/$rel" body tok dm_def dm_fwd dm_rev
+  assert "pointer: $rel exists" '[ -f "$f" ]'
+  [ -f "$f" ] || return 0
+  body="$(flat "$f")"
+  dm_def="[Dd]ummy mode[^.]{0,200}shared definition"
+  assert "pointer: $rel names the shared definition" 'grep -qE "$dm_def" <<<"$body"'
+  for tok in "$@"; do
+    # Same expansion idiom as the reference asserts above: the backticks must reach grep from a
+    # variable, since a backtick written inside the eval'd string would be a command substitution.
+    dm_fwd="[Dd]ummy mode[^.]{0,200}\`$tok\`"
+    dm_rev="\`$tok\`[^.]{0,200}[Dd]ummy mode"
+    assert "pointer: $rel binds the $tok surface to dummy mode" \
+      'grep -qE "$dm_fwd" <<<"$body" || grep -qE "$dm_rev" <<<"$body"'
+  done
+}
+check_pointer skills/docket-new-change/SKILL.md      dialogue
+check_pointer skills/docket-groom-next/SKILL.md      dialogue
+check_pointer skills/docket-implement-next/SKILL.md  pr reports change-sections
+check_pointer skills/docket-finalize-change/SKILL.md dialogue reports change-sections
+check_pointer skills/docket-status/SKILL.md          reports
+check_pointer skills/docket-auto-groom/SKILL.md      reports change-sections
+
+# The reverse direction: no skill body RESTATES the token table, which is the restatement class
+# change 0154 exists to stop. A body that lists four or more tokens has copied the table.
+for rel in skills/docket-new-change/SKILL.md skills/docket-groom-next/SKILL.md \
+           skills/docket-implement-next/SKILL.md skills/docket-finalize-change/SKILL.md \
+           skills/docket-status/SKILL.md skills/docket-auto-groom/SKILL.md; do
+  n=0
+  for tok in dialogue reports results change-sections pr; do
+    grep -qF -- "\`$tok\`" "$REPO/$rel" && n=$((n+1))
+  done
+  assert "no restatement: $rel names at most 3 surface tokens (got $n)" '[ "$n" -le 3 ]'
+done
+
 exit $fail

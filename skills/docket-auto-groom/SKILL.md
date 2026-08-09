@@ -55,6 +55,8 @@ Commit the stub's outcome (change-file edit + spec when emitted) in the metadata
 
 Summarize the drain: groomed N (specs), trivial M, abstained K — each abstain with its one-line reason — plus anything skipped to a lost race. STOP. Grooming never implements; the build-ready output is `docket-implement-next`'s queue.
 
+**Dummy mode:** when `DUMMY_MODE_ENABLED` is `true` (Step-0 export), write this drain's `reports` calibrated to `DUMMY_MODE_PERSONA`, and give any `change-sections` it writes (`## Auto-groom blocked`) an authored `### In plain terms` block alongside the full technical content, per the convention's *Dummy mode* shared definition.
+
 ## Termination & concurrency
 
 Every exit shrinks the queue (spec/trivial ⇒ no longer needs-brainstorm; abstain ⇒ no longer effective auto-groomable), so the drain visits each stub at most once and provably terminates. No claim is taken — ADR-0004's final-push CAS stance, adopted for the autonomous case: its human-attended rationale does not apply here, but the load-bearing half does — each stub's writes land in a single final commit, so a late collision wastes minutes, not hours, and the post-rebase re-read is the arbiter.

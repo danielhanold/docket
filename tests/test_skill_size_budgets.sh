@@ -892,10 +892,26 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # generous word budget with a two-line one, the same pairing the 0201 agent-layer entry above
 # makes. references/dummy-mode.md measures 81 lines / 764 words -> 85 (next multiple of 5, four
 # lines) and 800 (next multiple of 50, 36 words, above the 25-word floor).
+# Change 0276's second wave raises four WORD budgets for the one-line dummy-mode pointer each
+# eligible skill body now carries: docket-new-change 1330 -> 1400, docket-implement-next
+# 4500 -> 4600 (its LINE budget 165 -> 170 with it), docket-finalize-change 3800 -> 3850, and
+# docket-auto-groom 1237 -> 1300. docket-groom-next and docket-status absorbed theirs inside the
+# existing margin and are NOT raised. The extraction argument the raise rule demands is settled by
+# what the added prose IS: a pointer at skills/docket-convention/references/dummy-mode.md, which is
+# the reference file it was considered for and already holds every mechanic. Moving the pointer
+# there is the reverse of a pointer — the sentence exists precisely to reach an agent that has not
+# loaded that file, in the step where it is about to author the surface, so a pointer to the
+# pointer buys nothing and costs the intervention. One sentence naming only the surfaces that skill
+# owns is the smallest form the content can take, and the guard's `no restatement` assert in
+# tests/test_dummy_mode.sh caps it there. Set per the rounding rule above from the measured
+# actuals: 1354 words -> 1400 (46), 4570 -> 4600 (30), 3808 -> 3850 (42), 1248 -> 1250 is 2 words,
+# inside the 25-word floor, so the multiple after: 1300 (52). docket-implement-next's LINE figure
+# is the same near-zero mode — 164 lines against a 165 budget — so it is taken past the next
+# multiple of 5 to 170 rather than left at one line of headroom.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
-skills/docket-auto-groom/SKILL.md                           66 1237
+skills/docket-auto-groom/SKILL.md                           66 1300
 skills/docket-brainstorm/SKILL.md                           84  692
 skills/docket-build/SKILL.md                               335 3150
 skills/docket-build/references/delegation-execution.md      85  850
@@ -910,15 +926,15 @@ skills/docket-convention/references/auto-capture.md        130 1250
 skills/docket-convention/references/dummy-mode.md           85  800
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
-skills/docket-finalize-change/SKILL.md                     185 3800
+skills/docket-finalize-change/SKILL.md                     185 3850
 skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
-skills/docket-implement-next/SKILL.md                      165 4500
+skills/docket-implement-next/SKILL.md                      170 4600
 skills/docket-implement-next/references/edge-paths.md       35  500
 skills/docket-implement-next/references/fix-loop.md        185 1900
 skills/docket-implement-next/results-template.md            25  250
 skills/docket-review/SKILL.md                              110  900
-skills/docket-new-change/SKILL.md                           61 1330
+skills/docket-new-change/SKILL.md                           61 1400
 skills/docket-new-change/change-template.md                 51  203
 skills/docket-status/SKILL.md                              118 2393
 "
