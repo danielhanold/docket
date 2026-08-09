@@ -1,6 +1,6 @@
 # Backlog
 
-**281 changes** — 🟡 34 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 166 done · 🗑️ 76 killed
+**281 changes** — 🟡 34 proposed · ⚪ 4 deferred · ✅ 167 done · 🗑️ 76 killed
 
 ## 🟡 Proposed (34)
 
@@ -50,12 +50,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0276](active/0276-dummy-mode.md) | Dummy mode — persona-calibrated human-facing language simplification | `medium` | `feat` | [#190](https://github.com/danielhanold/docket/pull/190) |  |
-
 ```mermaid
 graph TD
   0007
@@ -92,7 +86,6 @@ graph TD
   0272
   0251 --> 0273
   0275
-  0276
   0277
   0279
   0280
@@ -103,11 +96,12 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (242)</summary>
+<details><summary>✅🗑️ Archive — done + killed (243)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0278](archive/2026-08-09-0278-test-docket-example-yml-s-fidelity-fixture-goes-intermittent.md) | test_docket_example_yml's fidelity fixture goes intermittently red under parallel contention | 2026-08-09 |
+| [0276](archive/2026-08-09-0276-dummy-mode.md) | Dummy mode — persona-calibrated human-facing language simplification | 2026-08-09 |
 | [0274](archive/2026-08-09-0274-runner-dispatch-s-value-taking-flags-hang-instead-of-abortin.md) | runner-dispatch's value-taking flags hang instead of aborting when given with no value | 2026-08-09 |
 | [0271](archive/2026-08-09-0271-runner-delegation-has-no-execution-posture-for-a-child-that.md) | Runner delegation has no execution posture for a child that outlives its foreground call | 2026-08-09 |
 | [0269](archive/2026-08-09-0269-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child.md) | Decouple the shim wrapper's own pin from the delegated child's | 2026-08-09 |
@@ -125,7 +119,6 @@ graph TD
 | [0242](archive/2026-08-08-0242-close-the-claude-gap-in-the-run-completion-gate-with-a-comma.md) | Close the Claude gap in the run-completion gate with a caller-side verify in the dispatch rules | 2026-08-08 |
 | [0237](archive/2026-08-08-0237-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md) | Prose levers fail to hold the step boundary — give the disposition contract a consumer | 2026-08-08 |
 | [0200](archive/2026-08-08-0200-clear-the-unfixed-review-findings-from-change-0191.md) | Board-checks hardening — sanitize LF escape, capture-shape mutation, minor-finding clearance | 2026-08-08 |
-| [0140](archive/2026-08-08-0140-normalize-the-inherit-model-sentinel-once-for-every-runner-a.md) | Normalize the inherit model sentinel once for every runner adapter | 2026-08-08 |
 | [0243](archive/2026-08-07-0243-make-test-suite-git-fixture-setup-fail-loudly-instead-of-fla.md) | Make test-suite git fixture setup fail loudly instead of flaking | 2026-08-07 |
 | [0241](archive/2026-08-07-0241-correspondence-guard-over-leg-c-s-by-value-duplicated-predic.md) | Correspondence guard over leg C's by-value duplicated predicate (ADR-0072 drift risk) | 2026-08-07 |
 | [0240](archive/2026-08-07-0240-audit-which-frontmatter-accessor-each-call-site-should-use-n.md) | Audit which frontmatter accessor each call site should use, now that three anchored read shapes exist | 2026-08-07 |
@@ -203,7 +196,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 33 done |
+| [2026-08](archive/) | 34 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
