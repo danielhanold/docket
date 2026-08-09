@@ -31,7 +31,11 @@ mkdir -p "$empty"
 # value to the MAIN worktree's per-worktree config (git's guidance); if that cannot be done safely,
 # warn loudly, roll back the enable, and fail closed rather than leave it enabled blindly.
 if [ "$("$GIT" -C "$WT" config --local --get extensions.worktreeConfig 2>/dev/null || true)" != "true" ]; then
-  main_wt="$("$GIT" -C "$WT" worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')"
+  # Captured first, then read from a here-string: `worktree list … | awk '…{exit}'` would SIGPIPE the
+  # producer under pipefail once the list outgrows the pipe buffer (AGENTS.md § Shell — awk's `exit`
+  # closes stdin exactly like `grep -q`). git lists the MAIN worktree first, so this is its path.
+  wt_list="$("$GIT" -C "$WT" worktree list --porcelain 2>/dev/null || true)"
+  main_wt="$(awk '/^worktree /{print $2; exit}' <<<"$wt_list")"
   # git requires extensions.worktreeConfig enabled BEFORE any --worktree write, so enable it once
   # up front. If a needed relocation then fails, roll this back so the repo is never left with the
   # extension enabled but a core.worktree/core.bare value stranded (and now ignored) in common config.
