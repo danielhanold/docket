@@ -2,9 +2,9 @@
 slug: byte-pattern-guard-matches-a-spelling
 hook: "A grep-based ban or shape predicate matches a spelling, not the property — bound it on both sides, and where equivalent spellings survive, assert the limitation in the guard's header instead of writing it in a comment."
 topics: [guards, grep, testing]
-changes: [246]
+changes: [246, 276]
 created: 2026-08-08
-updated: 2026-08-08
+updated: 2026-08-09
 promotion_state: candidate
 promoted_to:
 ---
@@ -53,3 +53,12 @@ care), [[correspondence-guard-runs-one-way]].
   entries was unfalsifiable — `agents` matched `sync-agents.sh`'s own logging of its name. Closed
   with a left boundary class of `[^[:alnum:]_-]`; the reviewer's own suggested class omitted the
   hyphen and would have re-admitted exactly the match being removed.
+- 2026-08-09 (#276, PR #190) — **Too narrow again, this time in the guard written to close a class
+  that had just cost two merge-gate reds.** The new repo-wide pipe-shape guard enumerated its
+  early-exiting consumers as `grep` and `head`. `awk … exit` closes stdin exactly the same way, and
+  **three live sites survived the sweep — two of them inside the very file that had gone red twice**.
+  The enumeration was written from the two spellings that had actually failed, which is the most
+  seductive version of this mistake: the sample that motivated the guard becomes the guard's
+  definition of the property. Re-keyed on shape across `grep`, `head`, `awk … exit`, `sed … q`, and
+  `read`, with an optional path prefix, and its `KNOWN IMPRECISION` header widened to state what the
+  predicate actually delivers.

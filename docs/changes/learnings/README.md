@@ -60,6 +60,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [guard-keyed-on-presence-not-provenance](guard-keyed-on-presence-not-provenance.md) — A guard that suppresses itself when a source HOLDS a value must instead key on whether that source SUPPLIED the resolved one — under layered precedence the two diverge silently. · also: config, precedence ⟨needs promotion⟩
 - [guard-remedy-must-not-teach-the-evasion](guard-remedy-must-not-teach-the-evasion.md) — A count-based guard whose failure message says 'bump the expected count' teaches the evasion — budget the coverage-granting path with its own counter. · also: testing, invariants ⟨needs promotion⟩
 - [mirrored-guard-enforces-its-own-property](mirrored-guard-enforces-its-own-property.md) — A guard copied from a working twin enforces the property its ORIGINAL author needed — probe it by execution before naming a broader rule in your diagnostic. · also: spec, validation ⟨needs promotion⟩
+- [refusal-keyed-on-residue-not-condition](refusal-keyed-on-residue-not-condition.md) — A validator that keys on the residue a bad input leaves behind misses the inputs that leave no residue and fires on legal ones that happen to look like it — detect the condition itself, upstream of whatever normalization eats the evidence. · also: config, validation ⟨needs promotion⟩
 
 ## process
 
