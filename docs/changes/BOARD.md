@@ -1,14 +1,15 @@
 # Backlog
 
-**273 changes** — 🟢 1 in progress · 🟡 32 proposed · ⚪ 4 deferred · ✅ 164 done · 🗑️ 72 killed
+**273 changes** — 🟢 2 in progress · 🟡 31 proposed · ⚪ 4 deferred · ✅ 164 done · 🗑️ 72 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0258](active/0258-guard-the-config-suite-s-enumerated-claims-export-order-and.md) | Guard the config-suite's enumerated claims: export order and rung pairs | `medium` | `chore` | [spec](../superpowers/specs/2026-08-07-guard-the-config-suite-s-enumerated-claims-export-order-and-design.md) | `feat/guard-the-config-suite-s-enumerated-claims-export-order-and` |
+| [0271](active/0271-runner-delegation-has-no-execution-posture-for-a-child-that.md) | Runner delegation has no execution posture for a child that outlives its foreground call | `high` | `fix` | [spec](../superpowers/specs/2026-08-08-runner-delegation-detached-execution-posture-design.md) | `feat/runner-delegation-has-no-execution-posture-for-a-child-that` |
 
-## 🟡 Proposed (32)
+## 🟡 Proposed (31)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -41,7 +42,6 @@
 | [0267](active/0267-correct-the-stale-field-quote-handling-claim-in-script-contr.md) | Correct the stale field() quote-handling claim in script contracts | `medium` | `docs` | needs-brainstorm |
 | [0268](active/0268-de-flake-the-reclaim-leg-of-test-docket-status-under-paralle.md) | De-flake the reclaim leg of test_docket_status under parallel contention | `medium` | `fix` | needs-brainstorm |
 | [0270](active/0270-machine-local-runner-config-is-unreachable-from-a-feature-wo.md) | Machine-local runner config is unreachable from a feature worktree (opencode permissions locality) | `medium` | `fix` | needs-brainstorm |
-| [0271](active/0271-runner-delegation-has-no-execution-posture-for-a-child-that.md) | Runner delegation has no execution posture for a child that outlives its foreground call | `high` | `fix` | build-ready |
 | [0272](active/0272-de-duplicate-the-gitignore-block-writer-s-second-copy-of-the.md) | De-duplicate the gitignore-block writer's second copy of the write orchestration | `medium` | `fix` | needs-brainstorm |
 | [0273](active/0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md) | Put runtime budgets on a host-relative basis and re-seed the table | `medium` | `refactor` | ⏳ waiting on #251 — not yet built |
 
