@@ -2,9 +2,9 @@
 slug: duplicated-gate-copies-the-whole-predicate
 hook: "When a second site must AGREE with an existing gate, copy the whole predicate — copying only its threshold leaves a gate that agrees on the easy inputs and diverges on exactly the ones the original was written to exclude."
 topics: [design, duplication, gates]
-changes: [219]
+changes: [219, 269]
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-09
 promotion_state: candidate
 promoted_to:
 ---
@@ -58,3 +58,13 @@ shapes ([[correspondence-guard-runs-one-way]]).
   pushing it`. The duplication itself was then recorded as **ADR-0072** with its accepted cost
   stated: nothing links the two implementations, so a future retune of leg C's floor or its base
   handling breaks the agreement silently and no test will say so.
+- 2026-08-09 (#269, PR #187) — `sync-agents.sh` grew a new `runner_config_error` gate beside the
+  existing `validate_runner_config`. The sibling judges only the **resolved candidate set** — the
+  runners some agent actually references; the new gate walked **every registered runner across all
+  three config layers**, unconditionally. Same verdict on every ordinary input, and divergent on
+  exactly the state the sibling scopes itself to avoid: a typo'd `shim_model` in the user-level
+  `~/.config/docket/config.yml`, for a runner no agent in the repo names, would have hard-failed
+  `sync-agents.sh` in **every repo on the machine** — a machine-wide outage from a key nothing in
+  the repo reads. Caught at whole-branch review, not by the suite, because every fixture configured
+  runners it also referenced. Fixed by scoping the gate to the resolved candidate set and
+  **extracting** the population primitive rather than copying it, so the two sites cannot drift.

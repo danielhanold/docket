@@ -2,9 +2,9 @@
 slug: assert-detects-removal-not-replacement
 hook: "A guard written to CONFIRM the wording you just introduced detects nothing — write the assert that DETECTS the state you just removed, and prove the mutation actually landed before believing it passed."
 topics: [testing, guards, mutation]
-changes: [135, 167, 193, 226, 255]
+changes: [135, 167, 193, 226, 255, 269]
 created: 2026-07-28
-updated: 2026-08-08
+updated: 2026-08-09
 promotion_state: candidate
 promoted_to:
 ---
@@ -98,3 +98,12 @@ sentinel does and does not pin).
   reads the `$` as an anchor and returns **0 on an unmutated file** — indistinguishable from a
   landed mutation, which would have made every mutation test in the change a false green. All
   landing checks moved to `/usr/bin/grep -cF`.
+- 2026-08-09 (#269, PR #187) — The change's own two new `--check` asserts were **vacuous**: they
+  passed with the gate deleted. The bare fixture already failed `--check` on an unrelated
+  `.gitignore` leg, so the expected non-zero exit arrived for a reason that had nothing to do with
+  the shim-pin gate under test, and no mutation of that gate could move it. This is variant 3 of the
+  Apply list with the supplier being **the fixture's own pre-existing red** rather than an
+  environment string: when the oracle is a process exit code, any *other* failing leg in the same
+  fixture satisfies it. The discriminating fixture must be green on every leg but the one under
+  test — assert the *specific diagnostic*, not the exit code, whenever a fixture can fail more than
+  one way.
