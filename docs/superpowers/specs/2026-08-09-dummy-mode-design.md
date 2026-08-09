@@ -1,12 +1,12 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0274 — Dummy mode — persona-calibrated human-facing language simplification](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0274-dummy-mode.md)**
+> ↩ **[Change 0276 — Dummy mode — persona-calibrated human-facing language simplification](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0276-dummy-mode.md)**
 <!-- docket:backlink:end -->
 
 # Dummy mode — human-facing language simplification — design
 
 **Date:** 2026-08-09
 **Status:** Approved (brainstorm with Daniel, 2026-08-08/09)
-**Change:** 0274
+**Change:** 0276
 
 ## Problem
 

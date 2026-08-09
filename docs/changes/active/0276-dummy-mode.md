@@ -1,5 +1,5 @@
 ---
-id: 274
+id: 276
 slug: dummy-mode
 title: Dummy mode — persona-calibrated human-facing language simplification
 status: proposed
