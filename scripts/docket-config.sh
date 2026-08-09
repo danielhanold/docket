@@ -906,9 +906,13 @@ DUMMY_MODE_PERSONA="$(dm_key persona '')"
 # silently recalibrate every human-facing surface to a persona nobody wrote, on the evidence of one
 # stderr line that skill output buries. The blast radius that argues for warning is what keying on
 # raw text removes: these can now only fire on text the reader provably cannot carry.
+# Keyed on SHAPE — the first character — never on an enumeration of indicator spellings (AGENTS.md
+# § Guards and tests). YAML permits the chomp and indent indicators in either order (`>-2` and
+# `>2-` are both legal), so any enumeration misses half the grid; a resolved persona that BEGINS
+# with `>` or `|` is a block-scalar header the single-line reader collapsed, in every ordering.
 case "$DUMMY_MODE_PERSONA" in
-  '>'|'|'|'>'[-+]|'|'[-+]|'>'[0-9]*|'|'[0-9]*)
-    die "unparseable config: dummy_mode.persona must be a single-line quoted scalar — YAML block scalars (>, |, >-, |-) are not supported. Write it as: persona: \"<one line>\"" ;;
+  [\>\|]*)
+    die "unparseable config: dummy_mode.persona must be a single-line quoted scalar — a value beginning with a YAML block-scalar indicator (> or |, with any chomp/indent indicator in either order) is not supported. Write it as: persona: \"<one line>\"" ;;
 esac
 # Raw text from the layer that WON, resolved by the same first-non-empty rule dm_key uses: a broken
 # persona a higher layer already overrides changes nothing that gets exported, and refusing on it
@@ -955,6 +959,14 @@ else
   if [ -n "$dm_norm" ]; then
     read -r -a dm_arr <<< "$dm_norm"
     for dm_tok in "${dm_arr[@]}"; do
+      # `all` inside a LIST is a hard error, on the auto_capture.types precedent above: there,
+      # `types: [all]` dies because `all` is not a member of change_types. Warning-and-ignoring it
+      # here would invert the user's intent — `all` is not an admitted surface token, so the list
+      # would resolve to the empty string, which references/dummy-mode.md defines as "no surfaces".
+      # Asking for every surface must never quietly yield none, so this one token aborts loudly
+      # while every other unknown token keeps the warn-and-drop posture.
+      [ "$dm_tok" = all ] \
+        && die "unparseable config: dummy_mode.surfaces lists 'all' as a token — 'all' is only valid as the bare scalar. Write it as: surfaces: all"
       dm_known=0
       for dm_ref in "${DOCKET_DUMMY_MODE_SURFACES[@]}"; do
         [ "$dm_tok" = "$dm_ref" ] && { dm_known=1; break; }

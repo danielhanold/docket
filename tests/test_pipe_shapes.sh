@@ -2,10 +2,13 @@
 # tests/test_pipe_shapes.sh — run: bash tests/test_pipe_shapes.sh
 #
 # WHOLE-REPO SHELL-SHAPE GUARD: no producer piped into an early-exiting consumer (AGENTS.md
-# § Shell). Under `set -o pipefail` — which every shell file in this repo sets — a consumer that
-# exits before EOF (`grep -q`/`-m`, `head`, `awk … exit`, `sed … q`, `read`) SIGPIPEs its producer,
-# and the 141 surfaces as an
+# § Shell). Under `set -o pipefail`, a consumer that exits before EOF (`grep -q`/`-m`, `head`,
+# `awk … exit`, `sed … q`, `read`) SIGPIPEs its producer, and the 141 surfaces as an
 # INTERMITTENT failure that only fires when the payload outruns the pipe buffer under load.
+# The guard scans EVERY shell file, including the minority that set no pipefail of their own — most
+# of those are sourced libraries under `scripts/lib/`, which inherit whatever the caller set, so a
+# file's own `set` line does not tell you whether its pipelines run under pipefail. The shape is
+# forbidden repo-wide for that reason, not on a census of `set -o pipefail` occurrences.
 # The change-0276 build gate went red twice on exactly this class, in two different files:
 #   1. `git show … | grep -q …` over the ~40KB example (tests/test_docket_example_yml.sh, which
 #      now carries the measurement: 70/70 failures under pipe-buffer pressure, 0/70 unloaded);
