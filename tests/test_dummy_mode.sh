@@ -94,13 +94,19 @@ check_pointer(){ # check_pointer <skill-relpath> <token>...
 }
 check_pointer skills/docket-new-change/SKILL.md      dialogue
 check_pointer skills/docket-groom-next/SKILL.md      dialogue
-check_pointer skills/docket-implement-next/SKILL.md  pr reports change-sections
+check_pointer skills/docket-implement-next/SKILL.md  pr reports change-sections results
 check_pointer skills/docket-finalize-change/SKILL.md dialogue reports change-sections
 check_pointer skills/docket-status/SKILL.md          reports
 check_pointer skills/docket-auto-groom/SKILL.md      reports change-sections
 
 # The reverse direction: no skill body RESTATES the token table, which is the restatement class
-# change 0154 exists to stop. A body that lists four or more tokens has copied the table.
+# change 0154 exists to stop. A body that lists more tokens than it OWNS has copied the table.
+#
+# The cap is per-skill because ownership is: docket-implement-next authors four of the five
+# surfaces itself (`reports`, `pr`, `change-sections` — `## Run halted` — and the Step-6.5
+# `results` artifact), so a 3-cap would forbid it from naming a surface it actually writes rather
+# than forbidding a copied table. Its cap is 4; every other body keeps 3. Either way a body that
+# copied the table names all FIVE and still reddens.
 for rel in skills/docket-new-change/SKILL.md skills/docket-groom-next/SKILL.md \
            skills/docket-implement-next/SKILL.md skills/docket-finalize-change/SKILL.md \
            skills/docket-status/SKILL.md skills/docket-auto-groom/SKILL.md; do
@@ -108,7 +114,9 @@ for rel in skills/docket-new-change/SKILL.md skills/docket-groom-next/SKILL.md \
   for tok in dialogue reports results change-sections pr; do
     grep -qF -- "\`$tok\`" "$REPO/$rel" && n=$((n+1))
   done
-  assert "no restatement: $rel names at most 3 surface tokens (got $n)" '[ "$n" -le 3 ]'
+  cap=3
+  [ "$rel" = "skills/docket-implement-next/SKILL.md" ] && cap=4
+  assert "no restatement: $rel names at most $cap surface tokens (got $n)" '[ "$n" -le "$cap" ]'
 done
 
 exit $fail
