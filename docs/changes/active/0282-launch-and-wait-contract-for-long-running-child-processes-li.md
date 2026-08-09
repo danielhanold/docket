@@ -8,10 +8,10 @@ type: fix
 created: 2026-08-09
 updated: 2026-08-09
 depends_on: []
-related: []
+related: [251, 260, 273, 275, 277]
 discovered_from: [276]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-09-launch-and-wait-contract-for-long-running-child-processes-li-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-09-launch-and-wait-contract-for-long-running-child-processes-li-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-launch-and-wait-contract-for-long-running-child-processes-li-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -63,26 +66,29 @@ is paid in wall-clock on the longest, least-supervised runs.
 
 ## What changes
 
-Establish a single **launch-and-wait contract** for any long-running child process a docket skill
-shells out to (the suite is the motivating case; the rebase/build/publish long-poll sites are the
-same shape), and route the existing launch sites through it. The contract must fix both halves:
+Settled design (2026-08-09 auto-groom; critic-gated, two rounds, 0 needs-human; full decision
+trail in the linked spec's `## Assumptions`):
 
-- **Detached launch** — the child survives the tool call that started it, writing to a stable log.
-- **Liveness-keyed wait** — the wait predicate is anchored on the process being alive
-  (`kill -0`, or equivalent), never solely on a success marker that only a live process can emit.
-  A dead child ends the wait **promptly**, with the child's own last output as the diagnostic.
-- **Death is a distinct outcome from failure.** "The suite ran and went red" and "the suite never
-  finished" must not collapse into one report line — 0276's run had no vocabulary for the latter.
-
-Where this contract lives is the design question: a shared helper script (the ADR-0012
-script-vs-model boundary argues for it — one CAS-correct implementation instead of N hand-rolled
-poll loops, exactly the argument that produced `mint-stub.sh`), versus normative prose in
-`docket-convention` that each skill re-implements. Prefer the script if the wait shape is uniform
-enough to factor.
-
-Whichever shape wins, the guard must be mutation-tested per the repo's own rule: kill the child
-mid-wait and watch the wait return promptly with a death report. A wait loop that cannot be shown
-to notice a dead child is decoration.
+- A new shared helper, **`scripts/gate-run.sh`** (+ `gate-run.md` contract), with two verbs:
+  `--launch` (detached new-session start, every stream to a durable per-run dir, pid/pgid plus an
+  opaque identity token recorded, a separate atomic `EXIT=<code>` sentinel file written on child
+  exit) and `--observe` (one short-lived observation; five states — `running` / `passed` /
+  `failed` / `died` / `unavailable` — with liveness anchored on the identity-checked process
+  group, never solely on the sentinel). A dead child is detected on the next observation, not at
+  a wait-loop bound; callers key on the stdout report line.
+- **Death is a distinct outcome from failure.** `died` (never finished) never collapses into
+  `failed` (ran and went red) and never mints repair work.
+- Call-site posture on `died`: kill the recorded group, then **one** bounded relaunch — scoped to
+  idempotent children (the suite gate); non-idempotent sites keep their existing failure
+  postures. Second death is abort-and-report.
+- Site rewiring: `docket-build` § *Gate execution posture* + `references/gate-execution.md` name
+  the helper and the liveness-keyed rule; finalize inherits by citation; the full executable-site
+  scope is derived by whole-repo grep at plan time. `runner-dispatch.sh` is a conscious exclusion
+  (0277 churn; its own sentinel-only observe gap is a named residual with a follow-up stub minted
+  at reconcile).
+- Mutation-tested per the repo's own rule: `tests/test_gate_run.sh` kills the child mid-wait and
+  asserts a prompt `died` with the log tail, plus an identity-guard fixture so a recycled pgid
+  cannot read alive; new `runtime-budgets.tsv` row.
 
 ## Out of scope
 
@@ -95,11 +101,8 @@ to notice a dead child is decoration.
 
 ## Open questions
 
-- Shared helper script vs. normative convention prose — which, and if a script, does it own the
-  launch too or only the wait?
-- Which existing sites are in scope? A whole-repo sweep for launch/poll shapes is required
-  (per the repo's own rule against hand-listing sites), sorted into prose vs. executable.
-- Should a death mid-wait be `abort-and-report`, or is one bounded relaunch justified — given
-  0276's relaunch did succeed on the first retry?
-- Is there a bound past which a *live* child should still be abandoned, and does that interact
-  with `GATE_OBSERVATION_BUDGET`?
+Resolved at grooming (spec assumptions 1–12): helper script owning both launch and observe
+(convention prose rejected); site scope derived by grep at plan time, with `runner-dispatch.sh` a
+conscious, residual-named exclusion; death ⇒ group-kill then one bounded relaunch for idempotent
+children only, abort-and-report otherwise and on second death; live-slow children stay under the
+existing `GATE_OBSERVATION_BUDGET` fail-closed posture — no new knob.
