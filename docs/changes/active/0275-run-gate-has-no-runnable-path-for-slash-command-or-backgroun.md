@@ -8,10 +8,10 @@ type: fix
 created: 2026-08-09
 updated: 2026-08-09
 depends_on: []
-related: []
+related: [242, 271]
 discovered_from: [271]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-09-run-gate-detached-dispatch-path-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-09-run-gate-detached-dispatch-path-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-run-gate-detached-dispatch-path-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -47,16 +50,21 @@ exists to catch.
 
 ## What
 
-Define the gate's behavior for slash-command / backgrounded dispatch. Candidate directions, not a
-decision:
+Settled design (auto-groomed 2026-08-09; see the linked spec's Assumptions for the audit trail).
+Amend the gate template (`cursor-rules/run-gate.md`, single source) only — no script changes; the
+oracle already carries `--with-claimed-at` / `--iso-to-epoch` (0271):
 
-- Have the session take the before-snapshot when it *observes* a dispatch it did not itself make,
-  and treat a missing before-snapshot as a named, degraded mode rather than an unstated gap.
-- Give the identification half a fallback that does not depend on the agent's prose — e.g. derive
-  the claimed id from metadata written at claim time rather than from a two-snapshot diff.
-- Or scope the gate explicitly to foreground dispatch and state what the human should run instead
-  on the slash-command path.
-
-Also worth settling: the gate says verify *before* you report, and a session that receives the
-agent's completion notification has already been handed the report. The ordering obligation needs
-wording that survives that.
+- Keep the foreground path primary, with step 2's "never background" prohibition **scoped** so it
+  no longer countermands the new section on the same page.
+- Add a named **Detached dispatch** section. A session-issued backgrounded dispatch takes the
+  full before-snapshot plus a `DISPATCH_EPOCH` before launching, and attributes at the
+  notification with the runner gate's full three-filter rule (not-in-before-set, `claimed_at`
+  parses, `claimed_at` >= epoch); one survivor follows step 4's verdict table unchanged.
+- A slash-command / notification-first launch has no before-set, and a timestamp alone cannot
+  attribute (live foreign runs re-stamp `claimed_at`): it enters a named **unattributed** mode —
+  verify-and-report only, **never re-dispatch** (mirrors the runner facade's observe-only seam).
+- Reword the ordering obligation: the notification is the child's claim, not the session's
+  report — verify before *relaying* it as an outcome.
+- Delivery: raise the template test's 25-line brevity bound deliberately with recorded rationale,
+  adjust the step-2 asserts, and regenerate via the test's documented recipe (a bare
+  `sync-agents.sh` run is a no-op in this repo).
