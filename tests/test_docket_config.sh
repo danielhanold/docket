@@ -2905,6 +2905,69 @@ dob_err_bad="$(run_resolver_with "delegation_observation_budget: soon\n" 2>&1 >/
 assert "DOB-e: a non-integer budget is fatal" '[ "$dob_rc_bad" != "0" ]'
 assert "DOB-f: the diagnostic names the key" \
   'grep -qF "delegation_observation_budget" <<<"$dob_err_bad"'
+# ============================================================================
+# Change 0258 leg 1 — the doc's export fence vs the resolver's real emission
+# ============================================================================
+# scripts/docket-config.md's `### Emit` section sells SEQUENCE as contract ("printed as
+# `KEY=value` lines to stdout in this order"), and (R7) above cites that promise as the reason
+# its own adjacency assert exists. Until this guard the fence itself was pinned only by
+# per-key PRESENCE greps plus two adjacency clusters (R7; the AUTO_GROOM -> CHANGE_TYPES ->
+# AUTO_CAPTURE_* identity cluster), so a doc-side reorder stayed green. Those stay: they are
+# their own changes' mutation witnesses on their own fixtures.
+#
+# The verdict here is whole-sequence equality, not membership. One string compare is
+# inherently two-way -- a reorder, an addition, a removal, or a count-stable rename on EITHER
+# side reddens.
+#
+# The doc side anchors on the `### Emit` heading and the first fenced block after it (ADR-0054:
+# a quoted-clause anchor, never a line number), reducing each fence line to its first
+# whitespace-delimited token so the `REPO_ROOT ... (plain format only -- see below)` annotation
+# is stripped. An anchor that silently stops matching yields an EMPTY extraction, which would
+# compare green against nothing -- so the control asserts pin the population first.
+emit_fence_tokens(){  # first fenced block after the `### Emit` heading; first token per line
+  awk '
+    /^### Emit[[:space:]]*$/ { seen = 1; next }
+    seen && /^```/           { if (infence) exit; infence = 1; next }
+    infence && NF            { print $1 }
+  ' "$REPO/scripts/docket-config.md"
+}
+doc_plain_keys="$(emit_fence_tokens)"
+doc_shell_keys="$(grep -v '^REPO_ROOT$' <<<"$doc_plain_keys")"
+
+assert "0258 L1 control: the \`### Emit\` fence extraction is non-empty" \
+  '[ -n "$doc_plain_keys" ]'
+assert "0258 L1 control: the extracted fence contains DOCKET_MODE" \
+  'grep -qx DOCKET_MODE <<<"$doc_plain_keys"'
+assert "0258 L1 control: the extracted fence contains BOOTSTRAP" \
+  'grep -qx BOOTSTRAP <<<"$doc_plain_keys"'
+assert "0258 L1 control: dropping REPO_ROOT shortened the shell sequence by exactly one" \
+  '[ "$(grep -c . <<<"$doc_plain_keys")" -eq "$(( $(grep -c . <<<"$doc_shell_keys") + 1 ))" ]'
+
+mkrepo "$tmp/l1"
+mkdir -p "$tmp/l1.xdg/docket"
+cat > "$tmp/l1/.docket.yml" <<'EOF'
+metadata_branch: main
+integration_branch: main
+EOF
+git -C "$tmp/l1" add .docket.yml; git -C "$tmp/l1" commit --quiet -m cfg
+git -C "$tmp/l1" push --quiet origin main
+emit_plain_keys="$(rung "$tmp/l1.xdg" "$tmp/l1" --export --format plain | cut -d= -f1)"
+emit_shell_keys="$(rung "$tmp/l1.xdg" "$tmp/l1" --export | cut -d= -f1)"
+
+assert "0258 L1 control: the resolver emitted a non-empty key sequence" \
+  '[ -n "$emit_plain_keys" ] && [ -n "$emit_shell_keys" ]'
+assert "0258 L1: plain emission order equals the doc fence, in order and entry for entry" \
+  '[ "$emit_plain_keys" = "$doc_plain_keys" ]'
+assert "0258 L1: shell emission order equals the doc fence minus REPO_ROOT" \
+  '[ "$emit_shell_keys" = "$doc_shell_keys" ]'
+
+# The doc states the two counts in prose as well; derive them from the same extraction so
+# growing the fence forces the numerals to move with it.
+l1_plain_n="$(grep -c . <<<"$doc_plain_keys")"
+l1_shell_n="$(grep -c . <<<"$doc_shell_keys")"
+l1_sentence="$l1_shell_n lines in \`shell\` format; $l1_plain_n in \`plain\`"
+assert "0258 L1: the doc's line-count prose tracks the fence ($l1_shell_n/$l1_plain_n)" \
+  'grep -qF -- "$l1_sentence" "$REPO/scripts/docket-config.md"'
 
 assert "0174 template integrity: the shared template is unmutated after the full run" \
   '[ "$(git -C "$MKREPO_TEMPLATE.origin.git" for-each-ref --format="%(refname) %(objectname)" | LC_ALL=C sort)" = "$tplint_refs" ] &&
