@@ -1602,8 +1602,22 @@ nothing:
   - any other non-zero — the run failed, halted for a human, or its result is unavailable.
         Abort-and-report its stderr diagnostic, plus any relayed stdout it printed.
 
+PACE THE OBSERVATIONS. A delegated run takes minutes to tens of minutes, so put a BLOCKING
+WAIT of roughly a minute before every observe after the first — whichever blocking wait your
+harness offers (a sleep command if it permits one, otherwise its wait-for-condition helper).
+Never yield to your caller for it. Back-to-back observe calls burn your context on identical
+"still running" answers and tell you nothing a paced pass would not.
+
+YOUR OWN BOUND, independent of the facade's. The facade enforces the observation budget
+whenever it can measure elapsed time, and when it cannot — an unreadable clock, an
+unreadable launch record — it says so on stderr as \`budget not enforced this pass\` and
+gives up on its own after a few consecutive such passes. That is a narrow guarantee, not a
+promise that every loop ends: if you have seen roughly 60 observations, or 5 in a row
+carrying a \`budget not enforced\` diagnostic, STOP and abort-and-report the last stderr
+diagnostic plus the dispatch key. Never loop indefinitely on 4.
+
 Block on each observe call and never yield between them — never hand control back to your
-caller mid-run. The facade owns the observation budget and stops on its own.
+caller mid-run.
 Never retry a failed dispatch silently, and never run the skill inline on this harness
 as a fallback.
 SHIM

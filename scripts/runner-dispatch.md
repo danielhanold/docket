@@ -251,7 +251,8 @@ validation and anchoring as every other call, then makes **one pass** over the d
    correctness*) — and failing that the sentinel alone does: `exit_code=0` ⇒ **complete** (`0`),
    *unless* a `build-*` git read disagrees; a non-zero code ⇒ **failed** (`1`), naming the code and
    the `stderr.log` to read;
-3. no sentinel ⇒ **still running** (`4`), unless the observation budget is spent.
+3. no sentinel ⇒ **still running** (`4`), unless the observation budget is spent — or has been
+   **unenforceable** on three consecutive passes, which is terminal for the same reason (below).
 
 **The relay — where the child's output surfaces.** `--launch` redirects the adapter's stdout into
 `<dir>/stdout.log`, so `--observe` is the **only** channel by which a delegated agent's result
@@ -273,6 +274,20 @@ that already owns it. `0` is legal and buys exactly **one** observation, because
 compared only *after* the sentinel read. Anything that is not positive evidence of exhaustion —
 an unreadable clock, an unreadable `started_at`, a budget value that is not an integer — reports
 **still running** and enforces nothing this pass, rather than killing a healthy child on a guess.
+
+**When the budget cannot be enforced at all.** "Do not enforce" must not mean "never terminate".
+`4` is the caller's loop condition, so a state that returns it unconditionally is a state the loop
+can never leave — and an unreadable clock, an unreadable `started_at`, or a launch record that is
+missing or unparseable (an empty `started_at` alone puts *every* later observation there) are each
+such a state. So consecutive **budget-unenforceable** observations are counted in the dispatch dir,
+and the **3rd** converts into the same terminal give-up a spent budget takes: the identity-checked
+group kill, the `killed` marker, and **result unavailable** (`1`) with a diagnostic naming *why*
+the budget could not be enforced. `3` is chosen against which members of that family are transient:
+only a clock read failing under momentary load is, and a launch record that cannot be parsed never
+repairs itself, so a larger N is pure grace on a state that is already permanent. The counter
+**resets on any enforceable pass**, so one bad read in an otherwise healthy run never accumulates
+toward termination. An unwritable counter is itself terminal — a bound that cannot be persisted
+bounds nothing.
 
 **Kill on giving up.** When the budget is exhausted the facade signals the **process group**
 recorded at launch (`TERM`, then `KILL` after a short wait), never the launcher's pid alone: a
@@ -393,15 +408,20 @@ The six required capabilities are the same ones the build gate needs, and they a
 in `skills/docket-build/references/gate-execution.md`. **Read them there; this contract does not
 restate them.** What is specific here is the division of labour:
 
-- **The shim launches and observes.** It makes one `--launch` call and then bounded, short
-  `--observe` calls. It never blocks for the child's duration and never yields between
-  observations (ADR-0024 unamended: a dispatched child observes by *blocking* on short calls; only
-  a top-level session agent may background-and-await). Its result is the terminal observation's
-  **stdout** — the relay above — which is what makes an in-context-report agent (`build-*`,
-  `review-*`) able to answer its caller at all.
+- **The shim launches and observes, paced and bounded.** It makes one `--launch` call and then
+  short `--observe` calls **spaced by a blocking wait** (about a minute), not back to back: an
+  unpaced loop spends the parent's context re-reading the same "still running" answer. It never
+  blocks for the child's duration and never yields between observations (ADR-0024 unamended: a
+  dispatched child observes by *blocking* on short calls; only a top-level session agent may
+  background-and-await). It carries its **own** cap on the number of passes and on consecutive
+  `budget not enforced` diagnostics, independent of the facade's — the facade's bound is a
+  guarantee about states it can measure, not a promise that every loop ends. Its result is the
+  terminal observation's **stdout** — the relay above — which is what makes an in-context-report
+  agent (`build-*`, `review-*`) able to answer its caller at all.
 - **The facade owns detachment, observation, and disposition.** It starts the adapter in its own
   process group with every stream redirected to a durable per-dispatch directory, records a
-  sentinel as the launcher's last act, bounds observation by `delegation_observation_budget`, and
+  sentinel as the launcher's last act, bounds observation by `delegation_observation_budget` —
+  and, where that budget cannot be measured at all, by the consecutive-unenforceable counter — and
   kills the whole detached group before reporting a run unavailable.
 - **The agent owns none of it.** The delegated agent has no sentinel obligation and no knowledge of
   the result directory — a sentinel written by the party being judged would make "done" a claim
@@ -465,10 +485,18 @@ reachable from the seam a delegated run actually returns through. A shim that ab
 non-zero therefore handles a halt and a failure identically, as it already did — which is why the
 new `3` needs no shim change, only the stderr diagnostic to tell them apart.
 
-**Idempotence.** Same key, same dispatch state ⇒ same code and same diagnostic, every time. The
-`killed` marker is what makes that true across the one transition that is not a pure read: once the
-budget kill has fired, every later observation reports the same unavailable verdict rather than
-re-signalling or discovering a different state.
+**Idempotence, refined.** Every **terminal** state re-reports identically forever: a dispatch that
+completed, failed, halted or was given up on returns the same code and the same diagnostic on every
+later observation, which is the guarantee a caller's retry loop actually rests on. The `killed`
+marker is what makes that true across the give-up transition — once it exists, a later observation
+reports the same unavailable verdict rather than re-signalling or discovering a different state.
+
+The **still-running-and-unenforceable** path is deliberately *not* covered by that guarantee, and
+it is the only path that is not: it counts consecutive passes in the dispatch dir, so the 1st, 2nd
+and 3rd observations of an unenforceable dispatch differ (`4`, `4`, then terminal `1`). That is the
+whole point — an observation that could never differ from its predecessor is an observation the
+caller can never stop making. The counter is read and written **only** there, after every terminal
+disposition above has already been decided, so no terminal state can be perturbed by it.
 
 ## Invariants
 
@@ -510,9 +538,14 @@ re-signalling or discovering a different state.
   reports a dispatch whose process group it could not confirm. The dispatch dir is the only channel
   between the two — the launch record and the sentinel are written by the **facade**, never by the
   agent being judged.
-- An observation is **short and idempotent**: it never waits for the child, and it never mutates the
-  dispatch except for the one terminal `killed` marker, which exists precisely so that the kill is
-  observed identically forever after rather than re-attempted.
+- An observation is **short**, and it never waits for the child. It is **idempotent on every
+  terminal state**; the sole exception is the still-running-and-unenforceable path, which counts
+  consecutive passes so that state can end at all. It mutates the dispatch only through that
+  counter and the terminal `killed` marker, which exists precisely so that the give-up is observed
+  identically forever after rather than re-attempted.
+- Every state the observation can report is **reachable-terminal**: no dispatch state returns `4`
+  forever. The budget bounds a run whose clock is readable; the consecutive-unenforceable counter
+  bounds the run whose clock is not.
 - A terminal observation puts the child's captured stdout on **its own stdout**, verbatim, and every
   diagnostic on stderr. A non-terminal (`4`) observation puts **nothing** on stdout, so a polling
   caller never accumulates partial output.

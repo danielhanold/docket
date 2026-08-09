@@ -753,4 +753,85 @@ assert "0271: the reference says the gate verdicts do NOT transfer" \
 assert "0271: the reference records the hermetic mechanism measurement separately" \
   'grep -qiE "measured hermetically" "$DEL"'
 
+# ---- an UNENFORCEABLE budget must still TERMINATE, not return 4 forever ----------
+# `4` is the caller's loop condition, so a state that returns it unconditionally is a state the
+# loop can never leave: the facade's "no positive evidence, so do not enforce" posture used to make
+# an unreadable clock, an unreadable `started_at`, or a missing launch record permanent. Driven
+# hermetically by corrupting `started_at` — the record's own field, so no clock or `ps` is faked.
+make_fixture
+FAKE_SLEEP=30 FAKE_TAIL=0 FAKE_RC=0
+KEY="$(launch status)"
+DDIR="$(ddir_for "$KEY")"
+un_pgid="$(sed -n 's/^pgid=//p' "$DDIR/launch")"
+rec="$(sed 's/^started_at=.*/started_at=not-a-timestamp/' "$DDIR/launch")"
+printf '%s\n' "$rec" > "$DDIR/launch"
+un1="$(observe "$KEY" 2>&1)"; un_rc1=$?
+un2="$(observe "$KEY" 2>&1)"; un_rc2=$?
+un3="$(observe "$KEY" 2>&1)"; un_rc3=$?
+assert "0271: an unenforceable pass still observes as still-running (4)" '[ "$un_rc1" = "4" ] && [ "$un_rc2" = "4" ]'
+assert "0271: and says the budget was not enforced this pass" 'grep -qi "budget not enforced" <<<"$un1"'
+# THE ASSERT THIS ARM EXISTS FOR: the Nth consecutive unenforceable pass is TERMINAL.
+assert "0271: the 3rd consecutive unenforceable observation terminates (1)" '[ "$un_rc3" = "1" ]'
+assert "0271: the terminating diagnostic reports the result unavailable" 'grep -qi "unavailable" <<<"$un3"'
+assert "0271: and names WHY the budget could not be enforced" \
+  'grep -qi "could not be enforced" <<<"$un3" && grep -qi "start time" <<<"$un3"'
+# The give-up reuses the identity-checked kill path, so an identifiable group still dies rather
+# than being orphaned — the same obligation the exhausted-budget arm above measures.
+assert "0271: the unenforceable give-up still kills the detached group" '! kill -0 -"$un_pgid" 2>/dev/null'
+assert "0271: and records the dispatch as terminal" '[ -f "$DDIR/killed" ]'
+assert "0271: the marker names the CAUSE, not just whether a signal went out" \
+  'grep -qxF "cause=budget-unenforceable" "$DDIR/killed"'
+# IDEMPOTENCE ACROSS THE NEW TERMINAL TRANSITION: once given up on, it re-reports identically.
+un4="$(observe "$KEY" 2>&1)"; un_rc4=$?
+un5="$(observe "$KEY" 2>&1)"; un_rc5=$?
+assert "0271: re-observing an unenforceable give-up stays terminal (1)" '[ "$un_rc4" = "1" ] && [ "$un_rc5" = "1" ]'
+assert "0271: and re-reports identically forever" '[ "$un4" = "$un5" ]'
+assert "0271: the re-report still names the unenforceable cause" 'grep -qi "could not be enforced" <<<"$un4"'
+reap "$un_pgid"
+
+# ---- an ENFORCEABLE pass RESETS the counter --------------------------------------
+# A transient unreadable clock must not accumulate toward termination across an otherwise healthy
+# run. Without the reset the two passes after the good one would be the 3rd and 4th and the first
+# of them would terminate; with it they are the 1st and 2nd and both keep observing.
+make_fixture
+FAKE_SLEEP=30 FAKE_TAIL=0 FAKE_RC=0
+KEY="$(launch status)"
+DDIR="$(ddir_for "$KEY")"
+rs_pgid="$(sed -n 's/^pgid=//p' "$DDIR/launch")"
+good_start="$(sed -n 's/^started_at=//p' "$DDIR/launch")"
+assert "0271: fixture sanity — the launch recorded a start time to restore" '[ -n "$good_start" ]'
+corrupt_start(){ local r; r="$(sed 's/^started_at=.*/started_at=not-a-timestamp/' "$DDIR/launch")"; printf '%s\n' "$r" > "$DDIR/launch"; }
+restore_start(){ local r; r="$(sed "s/^started_at=.*/started_at=$good_start/" "$DDIR/launch")"; printf '%s\n' "$r" > "$DDIR/launch"; }
+corrupt_start
+observe "$KEY" >/dev/null 2>&1; rs_rc1=$?
+observe "$KEY" >/dev/null 2>&1; rs_rc2=$?
+assert "0271: fixture sanity — two unenforceable passes are still non-terminal" '[ "$rs_rc1" = "4" ] && [ "$rs_rc2" = "4" ]'
+restore_start
+rs_ok="$(observe "$KEY" 2>&1)"; rs_rc3=$?
+assert "0271: an enforceable pass observes against the real budget" \
+  '[ "$rs_rc3" = "4" ] && grep -qF "of 60m budget" <<<"$rs_ok"'
+assert "0271: and clears the consecutive-unenforceable counter" '[ ! -f "$DDIR/unenforceable" ]'
+corrupt_start
+observe "$KEY" >/dev/null 2>&1; rs_rc4=$?
+observe "$KEY" >/dev/null 2>&1; rs_rc5=$?
+assert "0271: the count restarts after an enforceable pass" '[ "$rs_rc4" = "4" ] && [ "$rs_rc5" = "4" ]'
+assert "0271: and the dispatch was NOT given up on" '[ ! -f "$DDIR/killed" ]'
+reap "$rs_pgid"
+
+# ---- the counter never touches a TERMINAL state's idempotence --------------------
+# The counter is mutable state written by an observation, which is exactly why its scope matters:
+# a completed dispatch must re-report identically forever, however many times it is observed.
+make_fixture
+FAKE_SLEEP=0 FAKE_TAIL=0 FAKE_RC=0
+KEY="$(launch status)"
+DDIR="$(ddir_for "$KEY")"
+for _ in $(seq 1 30); do [ -f "$DDIR/done" ] && break; sleep 1; done
+tid1="$(observe "$KEY" 2>&1)"; tid_rc1=$?
+tid2="$(observe "$KEY" 2>&1)"; tid_rc2=$?
+tid3="$(observe "$KEY" 2>&1)"; tid_rc3=$?
+assert "0271: a completed dispatch stays 0 across repeated observations" \
+  '[ "$tid_rc1" = "0" ] && [ "$tid_rc2" = "0" ] && [ "$tid_rc3" = "0" ]'
+assert "0271: and re-reports byte-identically" '[ "$tid1" = "$tid2" ] && [ "$tid2" = "$tid3" ]'
+assert "0271: a terminal state never writes the unenforceable counter" '[ ! -f "$DDIR/unenforceable" ]'
+
 exit "$fail"
