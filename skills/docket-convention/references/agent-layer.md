@@ -75,8 +75,10 @@ carries no `model` and no `effort`, and the harness applies its own default.
 
 **`runner:` — cross-harness delegation (change 0079).** An agent entry may carry `runner: <name>`
 naming a registered runner (shipped: `codex`, `cursor`, `opencode`); the generated wrapper body then becomes a shim that
-makes one foreground `docket.sh runner-dispatch` call, delegating the whole run to that child
-harness. `runner` resolves per-field through the same four layers and is global-able (a machine
+delegates the whole run to that child harness through `docket.sh runner-dispatch` — since change
+0271 a **launch-then-observe** pair, not one blocking call: a `--launch` that detaches and returns a
+dispatch key, then bounded short `--observe <key>` calls read for their exit code. Two verbs, still
+exactly one dispatch seam. `runner` resolves per-field through the same four layers and is global-able (a machine
 preference, like `model`/`effort` — it writes no shared state). It is honored under the `claude`
 harness key (or `default:` when generating claude's files); under any other harness key it is
 reserved and warned-and-ignored. An unregistered name is a loud generation-time error. Per-runner
@@ -95,8 +97,8 @@ default" posture. **`effort:` stays optional, but omitting ≠ opting out** — 
 flag baked the child uses its own default for the chosen model.
 
 **The shim's own pin is a third value (change 0269).** A shim wrapper is executed by the PARENT
-harness — its whole body is one foreground `docket.sh runner-dispatch` call plus a stdout relay — so
-its frontmatter `model:`/`effort:` govern that relay and must be resolvable by the parent, never by
+harness — its whole body is that launch-then-observe `docket.sh runner-dispatch` pair plus a stdout
+relay — so its frontmatter `model:`/`effort:` govern that relay and must be resolvable by the parent, never by
 the child. They come from `runners.<name>.shim_model` and `runners.<name>.shim_effort`, resolved
 per-key across the same layers as the rest of the block, defaulting to `inherit` and `low`. The
 child's pin is the baked `--model` / `--effort` argument and only that. Pinning a shim to the

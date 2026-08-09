@@ -867,12 +867,20 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # exact near-zero mode this block forbids, so the multiple after: 2350 (51 words). The line budget
 # is taken to 205 to match, keeping the two figures a consistent step apart rather than pairing a
 # generous word budget with a half-step line budget.
+# Change 0271 adds skills/docket-build/references/delegation-execution.md — a NEW file, so this is
+# a first row rather than a raise: the per-harness evidence for the ADAPTER launch shape, kept out
+# of gate-execution.md because that file's verdicts are scoped to the GATE launch and merging the
+# two would let a measured gate row read as evidence for an unmeasured adapter one. Set per the
+# rounding rule above from the measured actuals: 80 lines -> the next multiple of 5 is 80 itself
+# (zero margin, the forbidden mode), so 85; 794 words -> 800 is 6 words away, inside the 25-word
+# floor, so the multiple after: 850.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
 skills/docket-build/SKILL.md                               335 3150
+skills/docket-build/references/delegation-execution.md      85  850
 skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            120 1000
 skills/docket-build/references/task-routing.md              50  500

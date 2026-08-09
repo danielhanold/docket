@@ -272,6 +272,36 @@ because the launch record carries no branch, so the verdict's `branch` conjunct 
 The disagreement this leg actually detects is the `tip` and `tree` pair — which is where change
 0258's failure lived.
 
+## Delegation execution posture
+
+A delegated run **may outlive the call that launched it**. That is the contract, not an
+implementation detail: the parent harness's foreground-call ceiling does not bound a delegated
+agent run, and nothing on this path may re-introduce a bound that it does.
+
+The six required capabilities are the same ones the build gate needs, and they are defined once —
+in `skills/docket-build/references/gate-execution.md`. **Read them there; this contract does not
+restate them.** What is specific here is the division of labour:
+
+- **The shim launches and observes.** It makes one `--launch` call and then bounded, short
+  `--observe` calls. It never blocks for the child's duration and never yields between
+  observations (ADR-0024 unamended: a dispatched child observes by *blocking* on short calls; only
+  a top-level session agent may background-and-await).
+- **The facade owns detachment, observation, and disposition.** It starts the adapter in its own
+  process group with every stream redirected to a durable per-dispatch directory, records a
+  sentinel as the launcher's last act, bounds observation by `delegation_observation_budget`, and
+  kills the whole detached group before reporting a run unavailable.
+- **The agent owns none of it.** The delegated agent has no sentinel obligation and no knowledge of
+  the result directory — a sentinel written by the party being judged would make "done" a claim
+  rather than evidence.
+
+ADR-0038's chokepoint property is unchanged: two verbs, still exactly **one** dispatch seam, still
+no inline fallback and no silent retry.
+
+Evidence for the **adapter** launch shape — a different shape from the gate launch, which is why it
+does not inherit `gate-execution.md`'s verdicts — is in
+`skills/docket-build/references/delegation-execution.md`. Every row there is `unverified` today: the
+detachment *mechanism* was measured hermetically, no child CLI was.
+
 ## Exit codes
 
 - `1` — validation failure, unknown runner, not inside a git repository, or a rejected

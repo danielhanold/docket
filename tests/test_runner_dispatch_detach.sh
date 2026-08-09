@@ -366,4 +366,49 @@ out="$(observe "$KEY" 2>&1)"; rc=$?
 assert "0271: a status agent still observes as complete on the sentinel alone" '[ "$rc" = "0" ]'
 assert "0271: no build verdict is claimed for a status agent" '! grep -qF "task-committed" <<<"$out"'
 
+# ---- the posture cites gate-execution.md, never restates the six capabilities ----
+DOC="$ROOT/scripts/runner-dispatch.md"
+DEL="$ROOT/skills/docket-build/references/delegation-execution.md"
+assert "0271: the delegation verdicts reference exists" '[ -f "$DEL" ]'
+assert "0271: runner-dispatch.md states a delegation execution posture" \
+  'grep -qi "delegation execution posture" "$DOC"'
+# CITES rather than RESTATES (the change-0154 discipline): the posture must point at the
+# quarantine file, and must NOT grow its own copy of the numbered capability list. The citation
+# itself is the one permitted mention, which is what makes the ceiling non-vacuous — a pasted
+# copy of gate-execution.md's own section carries a second one and reddens this.
+assert "0271: the posture cites gate-execution.md" 'grep -qF "gate-execution.md" "$DOC"'
+assert "0271: the posture does not restate the six capabilities" \
+  '[ "$(grep -ciE "six (required )?capabilities" "$DOC")" -le 1 ]'
+assert "0271: the posture says a delegated run may outlive its launching call" \
+  'grep -qiE "outlive (the|its) call" "$DOC"'
+
+# Per-harness rows are DERIVED from the shipped roster, never hand-listed — and the population
+# is floored so an extractor returning nothing cannot read as parity holding
+# (LEARNINGS: marker-scoped-guard-needs-a-population-floor). The roster is read from its own
+# definition site, `HD_SHIPPED_HARNESSES` in scripts/lib/harness-defaults.sh, by sourcing that
+# reader the way every other harness-population guard in this suite does.
+# shellcheck source=/dev/null
+. "$ROOT/scripts/lib/harness-defaults.sh"
+n_h=0
+for h in $HD_SHIPPED_HARNESSES; do
+  # Read THIS harness's table row, not the file at large: a bare file-wide grep for the token
+  # would be satisfied by any other harness's row. `[|]` rather than `\|` so BSD ERE and ugrep
+  # agree the pipe is a literal and not an alternation.
+  assert "0271: delegation verdicts carry a row for harness '$h'" \
+    'row="$(grep -iE "^[|][[:space:]]*'"$h"'[[:space:]|]" "$DEL")"; [ -n "$row" ]'
+  # Honesty: an unmeasured adapter launch shape must read `unverified`, never inherit the gate's
+  # `supported`. gate-execution.md's own rule — a verdict is version- and scope-scoped.
+  assert "0271: harness '$h' ships unverified, never supported" \
+    'row="$(grep -iE "^[|][[:space:]]*'"$h"'[[:space:]|]" "$DEL")";
+     grep -qF "unverified" <<<"$row" && ! grep -qF "supported" <<<"$row"'
+  n_h=$((n_h+1))
+done
+assert "0271: the harness loop actually enumerated the roster (got $n_h)" '[ "$n_h" -ge 4 ]'
+assert "0271: the reference says the gate verdicts do NOT transfer" \
+  'grep -qiE "do(es)? not transfer|never inherit" "$DEL"'
+# The mechanism measurement and the per-harness gap are SEPARATE claims: a reader must not be able
+# to read the hermetic process-group result as evidence about any child CLI.
+assert "0271: the reference records the hermetic mechanism measurement separately" \
+  'grep -qiE "measured hermetically" "$DEL"'
+
 exit "$fail"
