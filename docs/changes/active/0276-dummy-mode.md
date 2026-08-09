@@ -2,7 +2,7 @@
 id: 276
 slug: dummy-mode
 title: Dummy mode — persona-calibrated human-facing language simplification
-status: in-progress
+status: implemented
 priority: medium
 type: feat
 created: 2026-08-09
@@ -13,12 +13,12 @@ discovered_from: []
 adrs: []
 spec: docs/superpowers/specs/2026-08-09-dummy-mode-design.md
 plan: docs/superpowers/plans/2026-08-09-dummy-mode-plan.md
-results:
+results: docs/results/2026-08-09-dummy-mode-results.md
 trivial: false
 auto_groomable:
 branch: feat/dummy-mode
-claimed_at: 2026-08-09T18:41:11Z
-pr:
+claimed_at: 2026-08-09T22:16:04Z
+pr: https://github.com/danielhanold/docket/pull/190
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-09-dummy-mode-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-dummy-mode-design.md) |
 | Plan | [2026-08-09-dummy-mode-plan.md](https://github.com/danielhanold/docket/blob/feat/dummy-mode/docs/superpowers/plans/2026-08-09-dummy-mode-plan.md) |
+| Results | [2026-08-09-dummy-mode-results.md](https://github.com/danielhanold/docket/blob/feat/dummy-mode/docs/results/2026-08-09-dummy-mode-results.md) |
+| PR | [#190](https://github.com/danielhanold/docket/pull/190) |
 <!-- docket:artifacts:end -->
 
 ## Why
