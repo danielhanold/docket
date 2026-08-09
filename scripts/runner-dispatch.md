@@ -96,7 +96,11 @@ sides of the handoff, default `scripts/docket.sh`).
    `--model` is omitted whenever no model resolved — including when the caller passed the
    `inherit` sentinel, which is normalized to empty right after argument parsing, above every
    adapter.
-5. **Run gate (change 0237)** — engages **only** for `--agent implement-next`. The facade re-syncs
+5. **Run gate (change 0237), synchronous path** — engages **only** for `--agent implement-next`,
+   and only on a call with no `--launch`; the detached path's half of the same gate is split across
+   `--launch` (the before-snapshot) and `--observe` (the verdict), described under *Observation*.
+   Both halves share one reader — `verify-run.sh` — and one attribution; only the re-dispatch
+   policy differs. The facade re-syncs
    the metadata worktree and records the set of `in-progress` change ids
    (`verify-run --in-progress-ids`), then stamps the clock; after the handoff it re-syncs **again**
    and re-reads the set with `verify-run --in-progress-ids --with-claimed-at`. The re-sync is
@@ -156,8 +160,10 @@ traps are a deliberate deferral, not an oversight.
 
 `--launch` runs steps 1–3 above unchanged — same validation, same anchor gates (including the
 `build-*` `--worktree` requirement), same `runners.<name>:` resolution and `DOCKET_RUNNER_CFG_*`
-exports — and then replaces step 4's blocking handoff. It never engages the run gate: the gate
-reads what a *finished* run left in git, and at launch time nothing has run yet.
+exports — and then replaces step 4's blocking handoff. It reaches no *verdict*: the gate reads what
+a *finished* run left in git, and at launch time nothing has run yet. For an `implement-next`
+delegation it does record the gate's **attribution inputs**, which are only knowable before the
+child runs — see *The before-snapshot* below.
 
 **Where the result lives.** `<git-common-dir>/docket/dispatch/<key>/`, the same family as
 `disable-worktree-hooks.sh`'s docket-owned directory inside the common git dir. Under `.git/`, so
@@ -188,11 +194,29 @@ group is `TERM`-ed and the launch aborts naming the key. A child that has alread
 established too — the sentinel proves it — and is not a refusal.
 
 **The launch record** — `<dir>/launch`, flat `KEY=value`: `pgid`, `child_pid`, `started_at`,
-`agent`, `runner`, `worktree`, `since_sha`. `pgid` is the group an observer must signal to reach
-the whole detached tree. `since_sha` is the repo's `HEAD` captured **before** the child could
-commit anything — the direct analogue of the run gate's `DISPATCH_EPOCH`, so a commit landing in
-the gap is excluded either way; empty on a repo with no commits, which a later git-read verdict
-reports as unknown rather than guessing.
+`agent`, `runner`, `worktree`, `since_sha`, `dispatch_epoch`. `pgid` is the group an observer must
+signal to reach the whole detached tree. `since_sha` is the repo's `HEAD` captured **before** the
+child could commit anything — the direct analogue of the run gate's `DISPATCH_EPOCH`, so a commit
+landing in the gap is excluded either way; empty on a repo with no commits, which a later git-read
+verdict reports as unknown rather than guessing.
+
+**The before-snapshot** — `<dir>/gate-before` (one change id per line) plus the record's
+`dispatch_epoch`, written for an **`implement-next`** launch only. They are the run gate's
+attribution inputs, and under detachment the two halves of its set diff land in two different
+processes, so the "before" half has to be durable. The discipline is the synchronous gate's,
+unchanged: the metadata worktree is re-synced **first** so the before-read is of fresh origin
+state, and the clock is stamped **after** that read, so a claim landing in the gap is either
+already in the before-set or stamped before the window and is excluded either way. `--observe`
+re-syncs again, which is what keeps the pair symmetric — an asymmetric pair attributes an
+**abandoned** claim from an earlier session to this run.
+
+The pair **is** the arming signal: the snapshot file is written even when empty (nothing claimed at
+the handoff is a real answer), so with either half missing or a `dispatch_epoch` that does not
+parse, `--observe` falls back to the sentinel-only disposition rather than guessing at an
+attribution. A snapshot or clock read that fails at launch warns, leaves the gate unarmed, and
+leaves the dispatch itself untouched — the same tolerant posture every other gate read takes. A
+non-`implement-next` launch records an empty `dispatch_epoch` and no snapshot file, so it is never
+armed.
 
 **The sentinel** — `<dir>/done`, flat `KEY=value`: `exit_code`, `started_at`, `finished_at`, `pid`,
 `dispatch_key`. **The wrapper writes it, never the agent**: "done" must not be a claim by the party
@@ -209,11 +233,14 @@ validation and anchoring as every other call, then makes **one pass** over the d
 
 1. a `killed` marker ⇒ terminal, **result unavailable** (`1`) — and it re-reports identically
    forever, which is what makes the observation idempotent across a caller's retry loop;
-2. a `done` sentinel ⇒ the child is finished. `exit_code=0` ⇒ **complete** (`0`), *unless* a git
-   read disagrees (see *Liveness vs correctness*); a non-zero code ⇒ **failed** (`1`), naming the
-   code and the `stderr.log` to read; a sentinel that does not parse ⇒ **result unavailable** (`1`),
-   because a malformed sentinel means the *launcher* did not finish cleanly and an exit code read
-   out of garbage would be a fabricated verdict;
+2. a `done` sentinel ⇒ the child is finished. A sentinel that does not parse ⇒ **result
+   unavailable** (`1`), because a malformed sentinel means the *launcher* did not finish cleanly
+   and an exit code read out of garbage would be a fabricated verdict. Otherwise the agent's
+   git-read disposition decides where it has one — for `implement-next` that is the run gate, whose
+   verdict can synthesize `3`, `1` or `0` over either exit-code class (see *Liveness vs
+   correctness*) — and failing that the sentinel alone does: `exit_code=0` ⇒ **complete** (`0`),
+   *unless* a `build-*` git read disagrees; a non-zero code ⇒ **failed** (`1`), naming the code and
+   the `stderr.log` to read;
 3. no sentinel ⇒ **still running** (`4`), unless the observation budget is spent.
 
 **The relay — where the child's output surfaces.** `--launch` redirects the adapter's stdout into
@@ -261,8 +288,11 @@ change 0258 stranded +64 uncommitted lines and exited `0` at the adapter.
 
 The observe seam therefore carries a git-read disposition for two agent families, and only those:
 
-- **`implement-next`** — unchanged. Its disposition is the synchronous run gate above, with its
-  `verify-run <id>` verdicts, its **one** re-dispatch, and its `1` / `3` / `0` codes.
+- **`implement-next`** — change 0237's run gate, carried onto this seam. It is **not** enough that
+  the synchronous gate below still exists: the generated shim always launches, so that fence is
+  unreachable for every *delegated* run, and without a disposition here a run that halted or that
+  stopped before its PR exits `0` at the adapter and observes as `complete (child exited 0)` —
+  precisely the prose-level failure change 0237 was built to eliminate. Detail below.
 - **`build-*`** — new. On `exit_code=0` the facade reads `verify-run.sh --build --worktree <anchor>
   --branch <anchor HEAD> --since <the launch record's since_sha>`. `task-committed` ⇒ **complete**
   (`0`), with the verdict echoed on the diagnostic line. Every other answer — `task-incomplete`,
@@ -270,6 +300,41 @@ The observe seam therefore carries a git-read disposition for two agent families
   worktree the work was left in. A check that could not run is not evidence of success.
 - every other agent (`status`, `adr`, `review-*`, `finalize-change`, `auto-groom`, an unrecognised
   name) keeps the **sentinel-only** disposition. No git verdict is read and none is claimed.
+
+**The `implement-next` disposition, in full.** On the well-formed-sentinel path — the child is
+finished and its exit code parses — an armed dispatch (see *The before-snapshot*) re-syncs the
+metadata worktree, re-reads with `verify-run --in-progress-ids --with-claimed-at`, and applies the
+**same three attribution filters** the synchronous gate applies: not in the before-set; a
+`claimed_at` that parses; `claimed_at` at or after `dispatch_epoch`. Two or more surviving
+candidates is the **same stand-down** — an `implement-next` run claims at most one change, so none
+can be attributed — and no candidate at all is a no-op (drained, a lost claim race, or a run that
+finished and left its change `implemented`, which is not `in-progress` and so never appears in the
+after-set). The single surviving id is checked with `verify-run <id>`:
+
+| Verdict | Exit |
+|---|---|
+| `run-halted` | **`3`** — stop and surface; the run stopped deliberately and needs a human |
+| `run-complete` / `run-unclaimed` | **`0`** |
+| `run-incomplete` | **`1`** — the run did not reach its PR |
+| empty, unparseable, or the gate unarmed / stood down | the **sentinel-only** disposition (`0` on `exit_code=0`, `1` otherwise) |
+
+`4` never arises here: this leg runs only where the sentinel already exists, so the run is over.
+
+The verdict outranks the child's own exit code **in both directions**, which is why the leg runs
+before the exit-code split rather than inside its zero branch: a halt is terminal whatever the
+adapter returned, and a positively green verdict describes a run that reached its PR despite a
+noisy adapter. It is the same rule the disagreement rule states — correctness outranks the
+self-report of the party being judged — and it is why an unparseable verdict falls back rather than
+guessing.
+
+**`implement-next` is observe-only at this seam — no auto re-dispatch. This is a decision, not an
+omission.** The synchronous gate's one bounded re-dispatch is deliberately **not** recreated here.
+Re-launching a detached child out of an *observation* is a different lifecycle: an observation is a
+short, idempotent read that a shim makes repeatedly, so a re-dispatch on this path would race the
+very run being observed and could mint a fresh detached child on every pass. `run-incomplete`
+therefore reports `1` and the caller decides; the change stays `in-progress` with its claim intact,
+and `board-checks`' `aborted-run` leg remains the standing backstop. The synchronous gate keeps its
+re-dispatch unchanged — a direct hand invocation without `--launch` still runs it.
 
 **`build-*` is observe-only — never re-dispatched.** A build task may have left partial commits, and
 re-running an adapter on top of them is `docket-build`'s "never escalate onto a stray commit"
@@ -333,7 +398,8 @@ detachment *mechanism* was measured hermetically, no child CLI was.
   failure of the run — a driver that wants to tell "did not finish" from "stopped on purpose"
   can. Never re-dispatched, and it applies to a halt seen on either verdict — a halt after a
   re-dispatch is terminal too, never folded into the success below. The generated shim wrappers
-  read any non-zero as abort-and-report-stderr, which is the correct handling for both.
+  read any non-zero as abort-and-report-stderr, which is the correct handling for both. **The same
+  `3` is returned by `--observe`**, which is where a *delegated* halt now surfaces.
 - `0` — a re-dispatch ran and the **second** verdict was `run-complete` or `run-unclaimed`. The
   gate's git-read verdict outranks the first adapter's (possibly non-zero, now stale) code. Only
   on this path — a gate that took no action never overrides.
@@ -346,8 +412,9 @@ The full post-re-dispatch matrix, second verdict → exit: `run-complete` → `0
 
 | Exit | Meaning |
 |---|---|
-| `0` | terminal — the dispatch completed: the sentinel says `exit_code=0` **and** no git read disagrees |
-| `1` | terminal — failed, **or** the result is unavailable (a distinct stderr diagnostic tells them apart: a `FAILED` line names the child's code *or* the git verdict that contradicts it, a `RESULT UNAVAILABLE` line says why no code could be trusted) |
+| `0` | terminal — the dispatch completed: a green git verdict, or a sentinel saying `exit_code=0` that no git read disagrees with |
+| `1` | terminal — failed, **or** the result is unavailable (a distinct stderr diagnostic tells them apart: a `FAILED` line names the child's code, the git verdict that contradicts it, or the `run-incomplete` conjuncts, and a `RESULT UNAVAILABLE` line says why no code could be trusted) |
+| `3` | terminal — **halted**: a delegated `implement-next` run stopped deliberately and needs a human (`run-halted`). Not a failure of the dispatch, which is why it is not folded into `1` |
 | `4` | **not terminal — still running; observe again** |
 | other | a usage error from the shared validation above (missing/invalid key, unknown key, rejected `--worktree`), which exits `1` like any other abort |
 
@@ -358,9 +425,11 @@ alone (see *The relay* above); on `4` it is empty. Diagnostics are always on std
 caller should observe again. Its **only** consumer is the generated shim wrapper, whose standing
 rule is "any non-zero ⇒ abort and report" — a rule that would read a healthy in-flight run as a
 failure, so that consumer is changed in this same change to **loop on `4`** and abort on every
-other non-zero. No other caller reads this facade's code, and no further non-zero was minted:
-`--observe` never returns the synchronous gate's `3`, and a shim that aborts on any non-`4`
-non-zero therefore handles a halt and a failure identically, as it already did.
+other non-zero. No other caller reads this facade's code, and `4` remains the only code this verb
+mints: the `3` it can return is the synchronous gate's own halt code, unchanged in meaning and now
+reachable from the seam a delegated run actually returns through. A shim that aborts on any non-`4`
+non-zero therefore handles a halt and a failure identically, as it already did — which is why the
+new `3` needs no shim change, only the stderr diagnostic to tell them apart.
 
 **Idempotence.** Same key, same dispatch state ⇒ same code and same diagnostic, every time. The
 `killed` marker is what makes that true across the one transition that is not a pure read: once the
@@ -384,13 +453,21 @@ re-signalling or discovering a different state.
 - A `run-halted` verdict is terminal at this seam whichever verdict surfaces it: never
   re-dispatched, never exit-0. Stop and surface, per `docket-implement-next`'s disposition table.
 - The run gate is scoped to `--agent implement-next` and never writes docket state — it acts only
-  by running an agent. It re-dispatches an unfinished change **at most once**.
+  by running an agent. On the **synchronous** path it re-dispatches an unfinished change **at most
+  once**; on the **observe** seam it re-dispatches **never** (a re-dispatch out of a repeated short
+  read would race the run it is observing), so the two seams share an attribution and differ in
+  exactly that one respect.
+- Every `implement-next` delegation gets the gate at whichever seam it returns through, and none
+  gets it twice: `--launch` reaches no verdict, `--observe` reaches it once the sentinel exists, and
+  the synchronous fence runs only when no `--launch` was asked for.
 - The **observe** seam's git-read disposition covers `implement-next` and `build-*` and nothing
   else. A sentinel claiming success that git contradicts is a failure — correctness outranks the
-  child's self-report — and for `build-*` that failure is **observe-only**: reported, never
-  re-dispatched, because a build task may have left partial commits.
+  child's self-report — and for **both** families that failure is **observe-only**: reported, never
+  re-dispatched.
 - The gate acts on at most one change per dispatch, and only on one whose `claimed_at` falls inside
-  this dispatch's window. It never re-dispatches onto a claim it cannot attribute to itself.
+  this dispatch's window. It never re-dispatches onto, nor reports a disposition for, a claim it
+  cannot attribute to itself; where it cannot attribute one it stands down to the code the seam
+  would otherwise have returned.
 - Never degrades a delegation request to a native run.
 - Without `--launch`, foreground only — the shim (and any native caller) blocks until the child
   exits. This is still the default: the verb is opt-in, so every currently-shipped caller is
