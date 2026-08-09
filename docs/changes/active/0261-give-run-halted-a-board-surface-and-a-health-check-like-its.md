@@ -6,12 +6,12 @@ status: proposed
 priority: medium
 type: feat
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-09
 depends_on: []
-related: []
+related: [222]
 discovered_from: [237]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -54,3 +57,25 @@ exit contract, and every existing `aborted-run` leg and floor.
 section is out of scope — `aborted-run` already surfaces the change, and a new board cell is scope
 this change does not need."* Building it on 0237's branch would reverse a settled scope decision
 and pull `board-checks.sh` — which that spec deliberately leaves untouched — into the diff.
+
+## What changes
+
+Settled design (2026-08-09, auto-groom; detail in the linked spec):
+
+- **Board cell** — the In progress table gains a trailing `Readiness` column rendering
+  `run halted — needs you` when the change file carries the bare `## Run halted` section,
+  mirroring the implemented table's `finalize blocked — needs you` cell, plus the matching
+  `digest_readiness()` in-progress arm (`run-halted` token, else `-`).
+- **Shared predicate** — a `run_halted()` helper in `lib/docket-frontmatter.sh` beside
+  `finalize_blocked()`, called by both render-board.sh and board-checks.sh.
+- **Health check** — a new `stale-run-halted` check-id in `board-checks.sh`, gated on
+  `status: in-progress`, firing when the marker's file-tip age (git `%ct`) outlives a
+  `RUN_HALTED_STALE_SECS` horizon (same default as `FINALIZE_BLOCKED_STALE_SECS`); advisory
+  only, never mutates the file. Adding the id edits all four pinned surfaces of the
+  `BOARD_CHECK_IDS` contract together.
+
+## Out of scope
+
+`verify-run`'s verdict vocabulary, the dispatch seam's exit contract, every existing
+`aborted-run` leg and floor (including its known 12h double-fire on a halted change — left
+deliberately), and the marker's write/remove lifecycle (0237 owns it).
