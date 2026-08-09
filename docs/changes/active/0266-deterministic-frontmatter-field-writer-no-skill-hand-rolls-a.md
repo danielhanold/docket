@@ -6,12 +6,12 @@ status: proposed
 priority: medium
 type: feat
 created: 2026-08-08
-updated: 2026-08-08
+updated: 2026-08-09
 depends_on: []
-related: []
+related: [256, 257]
 discovered_from: [140]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-09-deterministic-frontmatter-field-writer-no-skill-hand-rolls-a-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-09-deterministic-frontmatter-field-writer-no-skill-hand-rolls-a-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-deterministic-frontmatter-field-writer-no-skill-hand-rolls-a-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -37,6 +40,6 @@ The gap is already partly acknowledged elsewhere. `AGENTS.md` carries two hand-w
 
 **Independent value** — stands entirely with change 0140 reverted. 0140 is a runner-adapter fix and touches none of this. The value is that a whole defect class disappears: no field write can truncate a file, escape its frontmatter block, or emit an unquoted scalar, because no agent is writing the bytes. It also makes the field-write rule enforceable — a guard can assert the skills call the writer rather than that they hand-roll it correctly.
 
-**Boundary** — one script plus its co-located contract (`scripts/set-field.sh` / `.md`), reached through the `docket.sh` facade like every other helper: read a change or ADR file, set one or more named frontmatter fields, anchored to the first `---…---` block, quoting scalars per the AGENTS.md rule, refusing to write on a malformed or missing fence, and leaving the body byte-identical. Then repoint the skills' field-write rule at it. It deliberately does **not** own the `## Artifacts` regeneration (`render-change-links.sh` is already the sole writer of that block), does not own archiving or status *policy* (which fields may move to which values, and when, stays with the skills), and introduces no new frontmatter field.
+**Boundary** — one script plus its co-located contract (`scripts/set-field.sh` / `.md`), reached through the `docket.sh` facade like every other helper: read a change or ADR file (caller-declared `--kind`), set one or more named frontmatter fields in a single validate-all-then-write-once atomic invocation, anchored to the first `---…---` block, single-quoting scalars unconditionally (ADR-0071; flow collections only via caller-declared `--raw`), appending absent keys only for the change-file absent-capable roster promoted to a sourceable lib array, refusing to write on a malformed or missing fence, and leaving the body byte-identical. The two private `set_field()` duplicates in `reclaim-claims.sh` / `archive-change.sh` migrate onto it, each site batching its writes into one invocation. Settled design and the full assumptions audit trail: see the linked spec. Then repoint the skills' field-write rule at it. It deliberately does **not** own the `## Artifacts` regeneration (`render-change-links.sh` is already the sole writer of that block), does not own archiving or status *policy* (which fields may move to which values, and when, stays with the skills), and introduces no new frontmatter field.
 
 **Reason for deferral** — cannot ride 0140's branch without destroying it. 0140 is scoped to the `inherit` sentinel across `runner-dispatch.sh` and three runner adapters; adding a metadata-write helper used by every docket skill would expand a four-file adapter fix into a change touching the write path of the whole system, and would need its own spec, its own guard design, and a migration of every existing hand-rolled call site. It also warrants a design pass on the multi-field-per-invocation and ADR-vs-change-file question that grooming should settle, not a build-time side-quest.
