@@ -243,9 +243,7 @@ does.
 `--observe <key>` is the only way to learn how a launched dispatch ended. It performs the same
 validation and anchoring as every other call, then makes **one pass** over the dispatch dir:
 
-1. a `killed` marker ⇒ terminal, **result unavailable** (`1`) — and it re-reports identically
-   forever, which is what makes the observation idempotent across a caller's retry loop;
-2. a `done` sentinel ⇒ the child is finished. A sentinel that does not parse ⇒ **result
+1. a `done` sentinel ⇒ the child is finished. A sentinel that does not parse ⇒ **result
    unavailable** (`1`), because a malformed sentinel means the *launcher* did not finish cleanly
    and an exit code read out of garbage would be a fabricated verdict. Otherwise the agent's
    git-read disposition decides where it has one — for `implement-next` that is the run gate, whose
@@ -253,8 +251,19 @@ validation and anchoring as every other call, then makes **one pass** over the d
    correctness*) — and failing that the sentinel alone does: `exit_code=0` ⇒ **complete** (`0`),
    *unless* a `build-*` git read disagrees; a non-zero code ⇒ **failed** (`1`), naming the code and
    the `stderr.log` to read;
+2. a `killed` marker ⇒ terminal, **result unavailable** (`1`) — and it re-reports identically
+   forever, which is what makes the observation idempotent across a caller's retry loop;
 3. no sentinel ⇒ **still running** (`4`), unless the observation budget is spent — or has been
    **unenforceable** on three consecutive passes, which is terminal for the same reason (below).
+
+**The order of those two reads is load-bearing, and the sentinel wins.** The wrapper subshell is
+**untrapped** and is the only writer of `done`, so a group-directed `TERM`/`KILL` reaches it and it
+can never write a sentinel afterwards. A `done` sitting beside a `killed` marker therefore *proves*
+the child completed **before** the signal — the give-up merely raced a run that had already
+finished — so the completed disposition is the true one. Read the other way round, a sentinel that
+landed anywhere between the give-up path's "no sentinel" read and its marker write was masked
+**forever**: a completed run reported as result unavailable, sending a human to hunt for work that
+is in fact committed.
 
 **The relay — where the child's output surfaces.** `--launch` redirects the adapter's stdout into
 `<dir>/stdout.log`, so `--observe` is the **only** channel by which a delegated agent's result
@@ -300,7 +309,20 @@ Partial work is left in the worktree for a human. One state is refused rather th
 launch record naming the **observation's own process group**. `--launch` fails closed when the
 child did not separate, so a record it wrote can only name a foreign group — but a record can be
 wrong anyway, and a group-directed signal aimed at our own group takes down the harness that ran
-it. That case reports result unavailable, writes no `killed` marker, and names the dispatch dir.
+it. That case reports result unavailable, writes no `killed` marker, and names the dispatch dir —
+so a sentinel that arrives later is still read first by the next observation, which is what keeps
+that refusal from masking a finished run.
+
+**The sentinel is re-read twice inside the give-up, on both sides of the kill.** The path is
+entered off a "no sentinel" read taken a `date`, a *subprocess* (`verify-run --iso-to-epoch`) and
+two `ps` calls earlier — tens of milliseconds in which the child can finish. So the sentinel is
+read **immediately before the signal**, where nothing but the `kill` separates the test from the
+act, and **again after the kill and before the `killed` marker is written**; a sentinel found at
+either point takes the completed disposition, no marker is recorded, and nothing is signalled. The
+second read is what covers the no-signal path (where the first never runs) and the instant between
+the first read and the signal landing. The correctness argument is the ordering's: the untrapped
+wrapper is the only writer of `done` and the group signal reaches it, so a sentinel visible *after*
+the kill was necessarily written *before* it, by a child that completed.
 
 **The identity check — a pgid is a reusable name.** The own-group refusal defends the harness; it
 defends nobody else. This path is reached **only** when no sentinel exists, which includes a child
@@ -493,6 +515,14 @@ later observation, which is the guarantee a caller's retry loop actually rests o
 marker is what makes that true across the give-up transition — once it exists, a later observation
 reports the same unavailable verdict rather than re-signalling or discovering a different state.
 
+The sentinel's precedence over the marker does not weaken that. Neither file is ever removed, so a
+sentinel visible on one observation is visible on every later one and the verdict read from it is
+the same forever after — and where a kill actually went out, no sentinel can appear at all (the
+untrapped wrapper cannot write one after the signal). The single transition this admits is
+**unavailable → complete**, at most once, only where **nothing was signalled** (`reason=group-already-gone`,
+or the own-group refusal), and only on the arrival of real evidence that the work finished.
+Reporting a result the facade can now see is not an oscillation; masking it forever was the defect.
+
 The **still-running-and-unenforceable** path is deliberately *not* covered by that guarantee, and
 it is the only path that is not: it counts consecutive passes in the dispatch dir, so the 1st, 2nd
 and 3rd observations of an unenforceable dispatch differ (`4`, `4`, then terminal `1`). That is the
@@ -545,6 +575,10 @@ disposition above has already been decided, so no terminal state can be perturbe
   consecutive passes so that state can end at all. It mutates the dispatch only through that
   counter and the terminal `killed` marker, which exists precisely so that the give-up is observed
   identically forever after rather than re-attempted.
+- The `done` sentinel outranks the `killed` marker, and the give-up re-reads it on both sides of
+  its kill. A signalled group cannot produce a sentinel afterwards, so a sentinel that exists
+  alongside a marker records a child that finished **before** the signal — reported as completed,
+  once and thereafter identically. No completed run is ever masked as unavailable.
 - Every state the observation can report is **reachable-terminal**: no dispatch state returns `4`
   forever. The budget bounds a run whose clock is readable; the consecutive-unenforceable counter
   bounds the run whose clock is not.

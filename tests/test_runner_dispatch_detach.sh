@@ -839,4 +839,89 @@ assert "0271: a completed dispatch stays 0 across repeated observations" \
 assert "0271: and re-reports byte-identically" '[ "$tid1" = "$tid2" ] && [ "$tid2" = "$tid3" ]'
 assert "0271: a terminal state never writes the unenforceable counter" '[ ! -f "$DDIR/unenforceable" ]'
 
+# ---- THE KILL WINDOW: a sentinel that lands between the "no sentinel" read and the kill ----
+# The window runs from the `[ -f done ]` read to the signal, and it spans a `date`, a SUBPROCESS
+# (`verify-run --iso-to-epoch`, a fork+exec of bash plus a source) and a `ps` — tens of
+# milliseconds, not microseconds. A child that lands its work inside it used to be masked FOREVER
+# by the `killed` marker and re-reported as RESULT UNAVAILABLE, sending a human to hunt for work
+# that is in fact committed.
+#
+# Driven DETERMINISTICALLY rather than by luck, through the VERIFY_RUN mock seam: the stub is
+# invoked for `--iso-to-epoch` at exactly one point on this path — AFTER the sentinel read, BEFORE
+# anything can be signalled — so writing the sentinel from inside it plants the child's completion
+# in the middle of the window on every single run. The epoch it prints is `0`, so the budget reads
+# as exhausted and the give-up path is entered.
+race_fixture(){  # sets SBX/RDIR/KEY/DDIR/RPGID: a live child plus a stub that finishes it mid-window
+  make_fixture
+  FAKE_SLEEP=30 FAKE_TAIL=0 FAKE_RC=0
+  KEY="$(launch status)"
+  DDIR="$(ddir_for "$KEY")"
+  RPGID="$(sed -n 's/^pgid=//p' "$DDIR/launch")"
+  cat > "$SBX/race-vr.sh" <<VRE
+#!/usr/bin/env bash
+case "\$1" in
+  --iso-to-epoch)
+    # The child "finishes" HERE — written the way the wrapper writes it, atomically.
+    printf 'exit_code=0\nstarted_at=x\nfinished_at=y\npid=1\ndispatch_key=$KEY\n' > "$DDIR/done.partial"
+    mv -f "$DDIR/done.partial" "$DDIR/done"
+    printf '0\n'; exit 0 ;;
+esac
+exit 0
+VRE
+  chmod +x "$SBX/race-vr.sh"
+}
+race_observe(){ ( cd "$SBX" && RUNNERS_DIR="$RDIR" DELEGATION_OBSERVATION_BUDGET=60 \
+    VERIFY_RUN="$SBX/race-vr.sh" bash "$FACADE" --observe "$1" --runner fake --agent status ); }
+
+# (1) the re-read IMMEDIATELY BEFORE THE SIGNAL, on the path where a signal really would go out.
+race_fixture
+rc_out="$(race_observe "$KEY" 2>&1)"; rc_rc=$?
+assert "0271: fixture sanity — the stub really planted a sentinel inside the kill window" \
+  '[ -f "$DDIR/done" ]'
+assert "0271: a sentinel landing inside the kill window observes as COMPLETE (0), not unavailable" \
+  '[ "$rc_rc" = "0" ]'
+assert "0271: and no killed marker is written over a run that completed" '[ ! -f "$DDIR/killed" ]'
+# THE ASSERT THE PRE-SIGNAL RE-READ EXISTS FOR: the post-kill read alone would still report `0`
+# here, but only after needlessly signalling the group of a run that had already finished.
+assert "0271: a completed run's process group is never signalled" 'kill -0 -"$RPGID" 2>/dev/null'
+rc_out2="$(race_observe "$KEY" 2>&1)"; rc_rc2=$?
+assert "0271: and the completed verdict is terminal from there on" '[ "$rc_rc2" = "0" ]'
+assert "0271: re-reporting it identically" '[ "$rc_out2" = "$rc_out" ]'
+reap "$RPGID"
+
+# (2) the re-read AFTER THE KILL and BEFORE THE MARKER, driven on the path where no signal is sent:
+#     a start-time token that does not match makes the group unconfirmable, so the pre-signal read
+#     is unreachable and this second read stands alone between the sentinel and the marker write.
+race_fixture
+rec="$(sed 's/^child_lstart=.*/child_lstart=Thu Jan  1 00:00:00 1970/' "$DDIR/launch")"
+printf '%s\n' "$rec" > "$DDIR/launch"
+rc_out="$(race_observe "$KEY" 2>&1)"; rc_rc=$?
+assert "0271: an UNSIGNALLED give-up yields to a sentinel that landed in the window too (0)" \
+  '[ "$rc_rc" = "0" ]'
+assert "0271: and writes no killed marker over that completed run either" '[ ! -f "$DDIR/killed" ]'
+reap "$RPGID"
+FAKE_SLEEP=0
+
+# (3) ORDERING: the sentinel is read AHEAD of the `killed` marker. The correctness argument is that
+#     a group TERM reaches the untrapped wrapper subshell, which cannot then write `done` — so a
+#     sentinel present alongside a marker means the child completed BEFORE the signal, and the
+#     completed disposition is the true one. Idempotence is unharmed: the sentinel never disappears,
+#     so the verdict read from it is the same forever after.
+make_fixture
+FAKE_SLEEP=0 FAKE_TAIL=0 FAKE_RC=0
+KEY="$(launch status)"
+DDIR="$(ddir_for "$KEY")"
+for _ in $(seq 1 30); do [ -f "$DDIR/done" ] && break; sleep 1; done
+assert "0271: fixture sanity — the child completed and left a sentinel" '[ -f "$DDIR/done" ]'
+printf 'killed_at=1970-01-01T00:00:00Z\nreason=group-already-gone\ncause=budget-exhausted\ndetail=\nbudget_minutes=60\n' \
+  > "$DDIR/killed"
+ord_out="$(observe "$KEY" 2>&1)"; ord_rc=$?
+assert "0271: a sentinel outranks a killed marker — a completed run is never reported unavailable" \
+  '[ "$ord_rc" = "0" ]'
+assert "0271: and the verdict spoken is the sentinel's, not the marker's" \
+  'grep -qi "complete" <<<"$ord_out" && ! grep -qi "unavailable" <<<"$ord_out"'
+ord_out2="$(observe "$KEY" 2>&1)"; ord_rc2=$?
+assert "0271: that precedence is itself idempotent" \
+  '[ "$ord_rc2" = "0" ] && [ "$ord_out2" = "$ord_out" ]'
+
 exit "$fail"
