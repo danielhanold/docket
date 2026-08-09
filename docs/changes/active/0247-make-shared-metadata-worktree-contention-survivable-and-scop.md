@@ -6,12 +6,12 @@ status: proposed
 priority: high
 type: fix
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-09
 depends_on: []
-related: []
+related: [8, 118]
 discovered_from: [110, 119]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-09-make-shared-metadata-worktree-contention-survivable-and-scop-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-09-make-shared-metadata-worktree-contention-survivable-and-scop-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-make-shared-metadata-worktree-contention-survivable-and-scop-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -39,17 +42,18 @@ Verified 2026-08-07:
 
 ## What changes
 
-Settle the architecture in one brainstorm, then implement both halves consistently:
+Architecture settled (2026-08-09 auto-groom, critic-gated; full decision trail in the linked spec's `## Assumptions`): collisions become **survivable, not impossible** — the shared `.docket` worktree stays; per-session worktrees and advisory locks are rejected (heavyweight lifecycle machinery ahead of a workload #0008 defers; a lock cannot span tool calls). Recorded as an ADR at build time.
 
-- Either make collisions **survivable** (bounded retry/backoff in preflight sync; dirty-tree discrimination; possibly an advisory lock) or **impossible** (per-session metadata worktrees with a lease/prune story) — the #0110 fork.
-- Scope the two `docket-status.sh` commit calls to the paths they own, with the failure posture the architecture decision implies, plus a shape-keyed guard (no new pathspec-less `git commit` in the shared worktree).
+- **Preflight sync** (`scripts/lib/docket-preflight.sh`): fetch first and skip the rebase entirely when the remote has not moved (a dirty tree with nothing to pull never fails); otherwise a bounded discriminating retry (5 attempts, 2/4/8/8s backoff); never `--autostash`; on exhaustion fail closed with a diagnostic distinguishing dirty-tracked-tree vs wedged (mid-rebase/merge) vs ordinary fetch failure. Untracked-only files never count as dirty.
+- **Scope the two `docket-status.sh` commits** (`commit_and_push_generated` and the sweep's refresh-artifacts-links pair) with `--` pathspecs, per the #0083 mark-path idiom. Wedged-tree posture: probe for an in-progress rebase/merge before committing and return a new report token `blocked-wedged-tree` (never overload `push-failed`); `--must-land` treats it as not-landed (halt), best-effort callers log and continue. Update `scripts/docket-status.md`'s vocabulary.
+- **Shape-keyed guard** `tests/test_shared_worktree_commit_scope.sh`: default-deny on pathspec-less `git … commit` in `scripts/**`, built to #0119's critic-settled requirements (masked quoted strings, per-segment predicate, explicit driver set including `docket-config.sh`'s local `g` wrapper), keyed exception list with existence floor, mutation-tested.
 
 ## Out of scope
 
-- The sweep's skip-publish marking question — #0118, separate.
-- Parallel backlog drain design (#0008, deferred feat) — this change only has to make today's interactive+autonomous overlap safe.
+- The sweep's skip-publish marking question — #0118, separate (collides on adjacent `docket-status.sh` lines; see `related:`).
+- Parallel backlog drain design (#0008, deferred feat) — this change only has to make today's interactive+autonomous overlap safe; #0008's revival is the trigger to revisit per-session worktrees.
+- The push-side CAS loops (already correct) and feature-branch commit paths (not shared).
 
 ## Open questions
 
-- Retry vs per-session worktrees (the core fork — needs Daniel).
-- If retry: how many attempts, and does the CAS loop distinguish "remote moved" from "local dirty".
+None — resolved in the linked spec. The core fork (retry vs per-session worktrees) was committed to retry as the conservative default with the reasoning and the reversal path recorded in the spec's `## Assumptions` block for human audit.
