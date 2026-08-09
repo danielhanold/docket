@@ -8,16 +8,33 @@ Change: #0269 · Branch: feat/decouple-the-shim-wrapper-s-own-pin-from-the-deleg
 
 ## Verify (human)
 
-- [ ] **Run a real runner-delegated dispatch on the claude harness.** This is the defect's only true
+- [~] **Run a real runner-delegated dispatch on the claude harness.** This is the defect's only true
       oracle and no in-repo test can be one (`external-truth-needs-a-human-checkpoint`): the suite
       asserts what bytes land in the shim's frontmatter, never that Claude Code accepts them.
       Regenerate wrappers (`sync-agents.sh`), then dispatch a `docket-build-*` agent in a repo whose
       `agents:` block delegates to a runner, and confirm it reaches `runner-dispatch.sh` instead of
       dying on an unresolvable model. Before this change the failure was a bare harness error that
       never named the runner.
-- [ ] **Confirm `shim_model: inherit` emits NO frontmatter `model:` line** in a regenerated wrapper,
-      and that Claude Code then runs the shim at the session model. The suite pins the emitted bytes;
-      the harness's reading of an absent line is the part only a human can see.
+
+      **PARTIALLY DISCHARGED by change 0258 (2026-08-08, human-observed).** That run dispatched
+      `docket-build-standard` by name on the claude harness; Claude Code loaded the wrapper, parsed
+      its frontmatter, and the shim made its `runner-dispatch --runner opencode` facade call, with
+      the child executing real work inside the feature worktree before an unrelated 600 s
+      foreground-timeout kill. So the delegation path and the wrapper's frontmatter shape are
+      confirmed accepted. **Residual gap:** 0258's wrappers predate `shim_model`/`shim_effort`, so
+      what it proved is acceptance of the OLD frontmatter shape. The bytes this change puts in the
+      parent-side `model:`/`effort:` fields are new and still want one dispatch on a regenerated
+      wrapper. See `docs/changes/active/0258-…md` § "Run halted" for the primary record.
+- [x] **Confirm `shim_model: inherit` emits `model: inherit`** in a regenerated wrapper, and that
+      Claude Code runs the shim on the parent conversation's model. **VERIFIED by human 2026-08-08:**
+      setting `shim_model: inherit` yields frontmatter `model: inherit`, which is the correct
+      emission. NOTE — this item previously read "emits NO frontmatter `model:` line", which was
+      **wrong**: on the claude harness `emit()` passes `inherit` through VERBATIM by design, because
+      Claude Code documents `inherit` as a real value ("run on the parent conversation's model") and
+      that is a DIFFERENT runtime outcome from omitting the key (Claude Code's own subagent default).
+      Only `emit_cursor_md`/`emit_codex_toml` normalize `inherit` to "no pin" — an asymmetry
+      deliberately preserved since the 0168 whole-branch review (IMPORTANT 2). See the `emit()`
+      header in `sync-agents.sh` and the `inherit:` asserts in `tests/test_sync_agents.sh`.
 - [ ] **Restart the Claude Code session before trusting regenerated wrappers.** The subagent registry
       loads at process start, so wrappers rewritten mid-session are not what a dispatch actually runs.
 - [ ] **Sanity-check one non-claude harness.** `emit_shim` is reachable only for `harness = claude`;
