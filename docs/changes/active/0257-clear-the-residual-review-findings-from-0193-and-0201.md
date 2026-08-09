@@ -8,7 +8,7 @@ type: chore
 created: 2026-08-07
 updated: 2026-08-07
 depends_on: []
-related: [253]
+related: [253, 260]
 discovered_from: [197, 204]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-clear-the-residual-review-findings-from-0193-and-0201-design.md

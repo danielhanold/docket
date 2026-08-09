@@ -8,7 +8,7 @@ type: chore
 created: 2026-08-07
 updated: 2026-08-07
 depends_on: []
-related: [253, 278]
+related: [253, 278, 222]
 discovered_from: [243, 177, 182]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-harden-test-fixtures-and-hermeticity-into-tests-lib-design.md

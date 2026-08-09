@@ -8,7 +8,7 @@ type: chore
 created: 2026-07-30
 updated: 2026-08-07
 depends_on: []
-related: [253]
+related: [253, 150]
 discovered_from: [167]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-normalize-the-banned-producer-pipe-shape-across-tests-and-he-design.md
