@@ -10,21 +10,33 @@
 # to completion exits 0 over a stale first code — the only three paths where the facade does not
 # return the adapter's own code.
 # Registration IS the adapter file's existence. Unknown runner => loud nonzero (abort-and-report).
+# Change 0271 added the `--launch` verb: the same validated request, but the adapter is started in
+# its OWN process group with every stream redirected into a durable per-dispatch dir, and the call
+# returns at once with a dispatch key instead of blocking for the child's whole run.
 # Contract: scripts/runner-dispatch.md.
-# Mock seams: RUNNERS_DIR, GIT (via lib/docket-root.sh).
+# Mock seams: RUNNERS_DIR, GIT.
 set -uo pipefail
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUNNERS_DIR="${RUNNERS_DIR:-$SELF_DIR/runners}"
+# The git seam. lib/docket-root.sh reads the same variable; naming it here makes it a seam of this
+# script too, which the change-0271 launch verb uses directly for the dispatch-time SHA.
+GIT="${GIT:-git}"
 # Run-gate seams (change 0237): the disposition reader, and the facade used for the metadata
 # re-syncs that make BOTH snapshots — "before" and "after" — reads of fresh origin state.
 VERIFY_RUN="${VERIFY_RUN:-$SELF_DIR/verify-run.sh}"
 DOCKET_FACADE="${DOCKET_FACADE:-$SELF_DIR/docket.sh}"
 # shellcheck source=lib/docket-root.sh
 . "$SELF_DIR/lib/docket-root.sh"
+# shellcheck source=lib/docket-dispatch-dir.sh
+. "$SELF_DIR/lib/docket-dispatch-dir.sh"
 
 die(){ printf 'runner-dispatch: %s\n' "$*" >&2; exit 1; }
 
 RUNNER=""; AGENT=""; MODEL=""; EFFORT=""; WORKTREE=""
+# Verb selection (change 0271). Empty = the legacy synchronous call-and-return, which stays the
+# default so no currently-shipped caller changes behavior. `--observe` is parsed HERE, with
+# `--launch`, so the two verbs are validated together even though its branch lands with Task 4.
+VERB=""; OBSERVE_KEY=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --runner) RUNNER="${2:-}"; shift 2 ;;
@@ -32,6 +44,13 @@ while [ $# -gt 0 ]; do
     --model)  MODEL="${2:-}";  shift 2 ;;
     --effort) EFFORT="${2:-}"; shift 2 ;;
     --worktree) WORKTREE="${2:-}"; shift 2 ;;
+    --launch)  VERB="launch"; shift ;;
+    # `shift 2` is this parser's house form, but bash's `shift` FAILS rather than truncating when
+    # the flag is the last argument, and this loop has no trailing shift — so a value-taking flag
+    # in final position spins here forever. For `--observe` that would make its own
+    # "--observe requires a dispatch key" refusal unreachable, i.e. decoration. Shift the flag,
+    # then the value only if a value is actually there.
+    --observe) VERB="observe"; OBSERVE_KEY="${2:-}"; shift; [ $# -gt 0 ] && shift ;;
     --) shift; break ;;
     *) die "unknown argument: $1" ;;
   esac
@@ -140,6 +159,85 @@ done
 args=( --agent "$AGENT" )
 [ -n "$MODEL" ]  && args+=( --model "$MODEL" )
 [ -n "$EFFORT" ] && args+=( --effort "$EFFORT" )
+
+# --- verb: --launch (change 0271) ---------------------------------------------------
+# Detach the adapter so the delegated run can OUTLIVE this call, then return at once with the
+# dispatch key. The posture and its six required capabilities are cited, never restated:
+# skills/docket-build/references/gate-execution.md, plus the adapter-launch verdicts in
+# skills/docket-build/references/delegation-execution.md.
+#
+# This sits AFTER the anchor gates and the runners.<name>: resolution so `--launch` inherits every
+# gate and every exported config value the legacy path already gets — a launch is the same
+# validated request, differing only in how the adapter is started.
+if [ "$VERB" = "launch" ]; then
+  DROOT="$(docket_dispatch_root "$ANCHOR")" || die "cannot resolve the dispatch root for $ANCHOR"
+  mkdir -p "$DROOT" || die "cannot create the dispatch root $DROOT"
+  KEY="$(docket_dispatch_mint "$DROOT" "$AGENT")" || die "cannot mint a dispatch key under $DROOT"
+  DDIR="$DROOT/$KEY"
+  STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  # The dispatch-time SHA: the direct analogue of DISPATCH_EPOCH, captured BEFORE the child can
+  # commit anything, so a commit landing in the gap is excluded either way. Empty on a repo with
+  # no commits — the build verdict then reports unknown-since-sha rather than guessing.
+  SINCE_SHA="$("$GIT" -C "$ANCHOR" rev-parse HEAD 2>/dev/null || true)"
+
+  # DETACHMENT, measured (2026-08-09): `set -m` makes a background job a PROCESS-GROUP LEADER,
+  # so it survives the harness's teardown of THIS call's process group — capability 1's stronger
+  # reading. Measured with one variable changed between two arms of a single run: the set -m
+  # child survived a group-directed TERM, the non-set-m child did not. `setsid` is ABSENT on
+  # macOS, which is why job control rather than a new session is the mechanism.
+  # Every stream is redirected to the durable dir and stdin is closed, so nothing remains
+  # attached to the initiating call (capability 2).
+  # THE WRAPPER WRITES THE SENTINEL, NEVER THE AGENT: "done" must not be a claim by the party
+  # being judged. The write is atomic — a temp file BESIDE its destination (the one licensed
+  # exception to templating temp files into TMPDIR, because the rename must be same-filesystem)
+  # then `mv -f`; a reader therefore never sees a half-written sentinel.
+  set -m
+  {
+    "$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" -- "$@"
+    ec=$?
+    printf 'exit_code=%s\nstarted_at=%s\nfinished_at=%s\npid=%s\ndispatch_key=%s\n' \
+      "$ec" "$STARTED_AT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$$" "$KEY" > "$DDIR/done.partial"
+    mv -f "$DDIR/done.partial" "$DDIR/done"
+  } >"$DDIR/stdout.log" 2>"$DDIR/stderr.log" </dev/null &
+  CHILD_PID=$!
+  set +m
+
+  # RACE PRECONDITION (0223's measured one): the new group must be fully established before this
+  # call returns, or the harness's teardown wins the race. Poll briefly and FAIL CLOSED rather
+  # than return a key for a child that is still in our group and about to be reaped with us.
+  MY_PGID="$(ps -o pgid= -p $$ 2>/dev/null | tr -d ' ')"
+  CHILD_PGID=""
+  for _ in $(seq 1 50); do
+    CHILD_PGID="$(ps -o pgid= -p "$CHILD_PID" 2>/dev/null | tr -d ' ')"
+    # The child may already have finished — that is establishment too, and the sentinel proves it.
+    [ -f "$DDIR/done" ] && break
+    [ -n "$CHILD_PGID" ] && [ "$CHILD_PGID" != "$MY_PGID" ] && break
+    sleep 0.1
+  done
+  if [ -z "$CHILD_PGID" ] && [ ! -f "$DDIR/done" ]; then
+    die "launch failed — the detached child never appeared (key $KEY)"
+  fi
+  if [ -n "$CHILD_PGID" ] && [ "$CHILD_PGID" = "$MY_PGID" ] && [ ! -f "$DDIR/done" ]; then
+    kill -TERM "$CHILD_PID" 2>/dev/null
+    die "launch failed — the child did not separate into its own process group; refusing to report a dispatch that a teardown would kill (key $KEY)"
+  fi
+
+  # `pgid` is what an observer must signal to reach the whole detached tree, so it is recorded from
+  # the MEASUREMENT wherever the measurement exists. The fallback fires only when `ps` could not see
+  # the process at all — which, given the refusals above, means the child already finished — and it
+  # is sound rather than a guess: under `set -m` a background job is created as a process-group
+  # LEADER, so its pgid IS its pid by construction. Note the corollary a reader must not miss: with
+  # `set -m` removed the fallback would record a pid that is no group's leader, which is exactly why
+  # tests/test_runner_dispatch_detach.sh reads the group from the live process rather than from this
+  # record ("the child is in its OWN process group, not the test's").
+  printf 'pgid=%s\nchild_pid=%s\nstarted_at=%s\nagent=%s\nrunner=%s\nworktree=%s\nsince_sha=%s\n' \
+    "${CHILD_PGID:-$CHILD_PID}" "$CHILD_PID" "$STARTED_AT" "$AGENT" "$RUNNER" "$ANCHOR" "${SINCE_SHA:-}" \
+    > "$DDIR/launch.partial"
+  mv -f "$DDIR/launch.partial" "$DDIR/launch"
+
+  printf '%s\n' "$KEY"
+  exit 0
+fi
 
 # --- run gate (change 0237), part 1: the "before" snapshot --------------------------
 # Engages ONLY for an implement-next delegation. That scoping is load-bearing, not an

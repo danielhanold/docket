@@ -25,7 +25,7 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1535 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1595 # the sum of every ceiling, seeded with the table from the measured serial run.
                     # 1510 -> 1535 (change 0242 review, finding 7): the SHARD-RE-CUT case, not a
                     # raise. tests/test_sync_agents_codex.sh carried one 55s row over two
                     # independent surfaces — the per-repo .codex/agents/*.toml wrappers and the
@@ -52,6 +52,19 @@ EXPECTED_TOTAL=1535 # the sum of every ceiling, seeded with the table from the m
                     # --check re-reads) plus two source-and-call probes of resolve_physical_path,
                     # and measures 11.8/14.1/11.2s across three consecutive standalone runs; the
                     # sizing rule (next multiple of 5 plus a 5s margin, min 10s) puts that at 20.
+                    # +60 (change 0271): the new-test-file case —
+                    # tests/test_runner_dispatch_detach.sh brings its own row. It is the one file in
+                    # the table whose cost is DELIBERATE SLEEP rather than work: it launches
+                    # detached children that sleep for a caller-controlled duration and then waits
+                    # for their sentinels, because "the launcher returned before the child finished"
+                    # and "the child outlived the call" are only observable in wall-clock time. Its
+                    # Task-3 half measures 5/5/6s across three consecutive standalone runs, but the
+                    # sizing rule is applied to the file this change ships, not to a half of it:
+                    # tasks 4 and 5 append the observation arms to this same file, including a
+                    # 6s-child observe loop, a 120s-child budget-exhaustion arm cut short by the
+                    # kill, and a post-kill settle. The row is the hard 60s ceiling because that is
+                    # what the whole file costs; a file that later outgrows it gets the table's
+                    # standing remedy — shard it, never a bigger number.
                     # 1475 -> 1490 (change 0242): still the SAME new-test-file case as the line
                     # below, re-seeded on the finished file rather than on a mid-change snapshot.
                     # tests/test_sync_agents_claude_surface.sh was sized at 30 when it covered the

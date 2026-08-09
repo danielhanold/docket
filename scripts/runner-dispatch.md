@@ -18,7 +18,7 @@ the facade verifies in git that the delegated run actually reached its PR.
 ## Usage
 
 ```
-docket.sh runner-dispatch --runner <name> --agent <agent> [--model <m>] [--effort <e>] [--worktree <path>] [--] [<args…>]
+docket.sh runner-dispatch [--launch] --runner <name> --agent <agent> [--model <m>] [--effort <e>] [--worktree <path>] [--] [<args…>]
 ```
 
 - `--runner <name>` (required) — the runner. **Registration is the adapter file's existence**:
@@ -41,12 +41,19 @@ docket.sh runner-dispatch --runner <name> --agent <agent> [--model <m>] [--effor
   `build-*` agents**: the `docket-build-task` contract requires a build worker to run inside its
   feature worktree, on its branch, so a `build-*` delegation without it is a loud abort rather
   than a silent run in the primary checkout on the integration branch.
+- `--launch` (optional, change 0271) — the **detached** verb. Same request, same validation, same
+  gates, same `runners.<name>:` resolution; the difference is only in how the adapter is started
+  and when the call returns. Instead of blocking for the child's whole run, the facade starts the
+  adapter in its **own process group**, redirects every stream into a durable per-dispatch
+  directory, prints a **dispatch key** on stdout, and exits `0`. Absent, the call is the legacy
+  synchronous call-and-return described below, byte-identical to pre-0271 behavior.
 - `-- <args…>` — forwarded to the adapter as caller task context.
 
-Mock seams: `RUNNERS_DIR` (adapter directory), `GIT` (through `lib/docket-root.sh`), and — for the
-run gate (change 0237) — `VERIFY_RUN` (the disposition reader, default `scripts/verify-run.sh`) and
-`DOCKET_FACADE` (the facade used for the metadata re-syncs on both sides of the handoff, default
-`scripts/docket.sh`).
+Mock seams: `RUNNERS_DIR` (adapter directory), `GIT` (the git binary — read by
+`lib/docket-root.sh` and, since change 0271, by the launch verb's dispatch-time SHA read), and —
+for the run gate (change 0237) — `VERIFY_RUN` (the disposition reader, default
+`scripts/verify-run.sh`) and `DOCKET_FACADE` (the facade used for the metadata re-syncs on both
+sides of the handoff, default `scripts/docket.sh`).
 
 ## Behavior
 
@@ -136,10 +143,66 @@ separate process: `INT` is deferred while it waits on its child and then discard
 kills the facade and orphans the adapter. Nothing in docket signals the facade by pid; forwarding
 traps are a deliberate deferral, not an oversight.
 
+### Launch (change 0271)
+
+`--launch` runs steps 1–3 above unchanged — same validation, same anchor gates (including the
+`build-*` `--worktree` requirement), same `runners.<name>:` resolution and `DOCKET_RUNNER_CFG_*`
+exports — and then replaces step 4's blocking handoff. It never engages the run gate: the gate
+reads what a *finished* run left in git, and at launch time nothing has run yet.
+
+**Where the result lives.** `<git-common-dir>/docket/dispatch/<key>/`, the same family as
+`disable-worktree-hooks.sh`'s docket-owned directory inside the common git dir. Under `.git/`, so
+it is never tracked, never leaks into a commit, and needs no `.gitignore` entry. Deliberately
+**not** in the feature worktree: a dispatch result must outlive `git worktree remove`, since the
+whole point of the verb is that the child's work can be inspected after the run was declared over.
+
+**The key.** `<agent>-<UTC timestamp>-<pid>`, minted per dispatch and printed on stdout as the
+call's only output. Keyed on agent plus a mint rather than on change id or worktree, so two
+concurrent dispatches **for the same change** never collide. A mint that would reuse an existing
+directory refuses rather than clobbers — a silent reuse would overwrite a live dispatch's sentinel.
+
+**Detachment, and why job control.** The child is started as a background job under `set -m`, which
+makes it a **process-group leader**. That is what lets it survive the harness's teardown of the
+initiating call's *process group*, not merely its parent's exit. Measured on macOS 2026-08-09 with
+one variable changed between two arms of a single run: a launcher started two children, one under
+`set -m` and one not, then the launcher's whole group received `TERM`; the `set -m` child survived
+and the other did not. `setsid` is **absent on macOS** and docket takes no `perl` dependency, which
+is why the mechanism is job control rather than a new session. Every stream is redirected into the
+dispatch dir (`stdout.log`, `stderr.log`) and stdin is closed, so nothing remains attached to the
+initiating call.
+
+**The race precondition, and the fail-closed refusal.** A new process group is not established
+instantaneously, and a key returned before it is established describes a child that a teardown
+would still reap. The facade therefore polls briefly for the child's actual PGID and refuses rather
+than reports: a child that never appears at all aborts, and a child still sharing the facade's
+group is `TERM`-ed and the launch aborts naming the key. A child that has already **finished** is
+established too — the sentinel proves it — and is not a refusal.
+
+**The launch record** — `<dir>/launch`, flat `KEY=value`: `pgid`, `child_pid`, `started_at`,
+`agent`, `runner`, `worktree`, `since_sha`. `pgid` is the group an observer must signal to reach
+the whole detached tree. `since_sha` is the repo's `HEAD` captured **before** the child could
+commit anything — the direct analogue of the run gate's `DISPATCH_EPOCH`, so a commit landing in
+the gap is excluded either way; empty on a repo with no commits, which a later git-read verdict
+reports as unknown rather than guessing.
+
+**The sentinel** — `<dir>/done`, flat `KEY=value`: `exit_code`, `started_at`, `finished_at`, `pid`,
+`dispatch_key`. **The wrapper writes it, never the agent**: "done" must not be a claim by the party
+being judged. It is written as the wrapper's last act, so its absence *is* "still running". The
+write is atomic — a temp file **beside** its destination (the one licensed exception to templating
+temp files into `TMPDIR`, because the rename must be same-filesystem) then `mv -f` — so a reader
+never sees a half-written sentinel, and a failing adapter records its real code just as a clean one
+does.
+
 ## Exit codes
 
 - `1` — validation failure, unknown runner, not inside a git repository, or a rejected
   `--worktree` (missing for a `build-*` agent, not a directory, or not a worktree of this repo).
+- `1` — a `--launch` that could not be established: the dispatch root or key could not be created,
+  the detached child never appeared, or it did not separate into its own process group (in which
+  case the child is `TERM`-ed first — the facade never reports a dispatch a teardown would kill).
+- `0` — a `--launch` that was established. Stdout is the dispatch key and nothing else. This says
+  the child **started** detached; it says nothing about how it ends, which is the observation
+  step's job.
 - `1` — the run gate's two-strikes abort: a delegated `implement-next` run was still
   `run-incomplete` after one re-dispatch. The change stays `in-progress` with its claim intact.
 - `3` — the run gate's **halt** stop: the delegated `implement-next` run wrote a `## Run halted`
@@ -177,6 +240,12 @@ The full post-re-dispatch matrix, second verdict → exit: `run-complete` → `0
 - The gate acts on at most one change per dispatch, and only on one whose `claimed_at` falls inside
   this dispatch's window. It never re-dispatches onto a claim it cannot attribute to itself.
 - Never degrades a delegation request to a native run.
-- Foreground only — the shim (and any native caller) blocks until the child exits.
+- Without `--launch`, foreground only — the shim (and any native caller) blocks until the child
+  exits. This is still the default: the verb is opt-in, so every currently-shipped caller is
+  unaffected.
+- With `--launch`, the facade starts the adapter and returns; it never waits for it, and it never
+  reports a dispatch whose process group it could not confirm. The dispatch dir is the only channel
+  between the two — the launch record and the sentinel are written by the **facade**, never by the
+  agent being judged.
 - The `runners.<name>:` parse handles simple `key: value` scalars only — by design; a runner
   needing structured config gets it via its own adapter contract, not a richer facade parser.
