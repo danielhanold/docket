@@ -125,6 +125,26 @@ case "$AGENT" in
   build-*) [ -n "$WORKTREE" ] || die "--worktree is required for build-* agents (a build worker must run in its feature worktree, not the main tree)" ;;
 esac
 ANCHOR="$(docket_anchor_path "${WORKTREE:-.}")"
+# DURABILITY, for `--observe` ONLY: the dispatch dir lives under the git COMMON dir precisely so a
+# result outlives `git worktree remove` (lib/docket-dispatch-dir.sh: "a dispatch result must outlive
+# `git worktree remove`"). Gate 2 below would nevertheless refuse an observation whose anchor
+# worktree has since been removed, so the recorded result would be readable by a human with a shell
+# and unreadable by the facade's own reader — durable in storage and not in service.
+# The root is REPO-WIDE, not worktree-scoped, so the main worktree resolves the identical path.
+# Scoped tightly, deliberately: only the observe verb, and only when the anchor does not EXIST.
+# A path that exists but belongs to another repository still hits gate 3 unchanged, so this widens
+# nothing — a removed worktree is not a foreign one, and `--launch` keeps both gates in full.
+ANCHOR_FALLBACK=0
+if [ "$VERB" = "observe" ] && [ ! -d "$ANCHOR" ]; then
+  printf 'runner-dispatch: observe — the anchor %s no longer exists (its worktree was removed); reading the dispatch from the repository-wide root under the main worktree %s\n' \
+    "$ANCHOR" "$REPO_ROOT" >&2
+  ANCHOR="$REPO_ROOT"
+  # Remembered, because the RECORDED result is now readable but the child's WORK is not: the tree a
+  # `build-*` verdict must inspect is exactly the one that was removed. The build leg reads this and
+  # refuses to substitute the main worktree for it — measuring a different tree would manufacture a
+  # verdict, which is the one thing every git-read disposition on this seam declines to do.
+  ANCHOR_FALLBACK=1
+fi
 # Gate 2 — the resolved anchor must exist as a directory.
 [ -d "$ANCHOR" ] || die "--worktree $ANCHOR is not a directory"
 # Gate 3 — and belong to THIS repo's worktree set, so a child harness running under an
@@ -219,6 +239,12 @@ resync_metadata(){
 if [ "$VERB" = "launch" ]; then
   DROOT="$(docket_dispatch_root "$ANCHOR")" || die "cannot resolve the dispatch root for $ANCHOR"
   mkdir -p "$DROOT" || die "cannot create the dispatch root $DROOT"
+  # RETENTION, applied at the one moment a new dir is about to be minted, so the growth and the
+  # bound share a seam. It only ever removes a dispatch that is TERMINAL and whose terminal file is
+  # older than the retention window — never a live one, and never one a caller could still be
+  # observing inside that window (lib/docket-dispatch-dir.sh states the guarantee in full).
+  # Best-effort by construction: a prune that cannot run must never fail the dispatch it precedes.
+  docket_dispatch_prune "$DROOT"
   KEY="$(docket_dispatch_mint "$DROOT" "$AGENT")" || die "cannot mint a dispatch key under $DROOT"
   DDIR="$DROOT/$KEY"
   STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -561,7 +587,12 @@ if [ "$VERB" = "observe" ]; then
           # a DETACHED HEAD (a bad rebase, a stray `git checkout`) still satisfied `tip` and `tree`
           # and was reported `task-committed`.
           LBRANCH="$(launch_field "$DDIR" branch)"
-          if [ -z "$LBRANCH" ]; then
+          if [ "$ANCHOR_FALLBACK" = 1 ]; then
+            # The dispatch RECORD survived its worktree; the child's WORK did not travel with it.
+            # Verifying against the main worktree instead would answer a question nobody asked, so
+            # this is no positive evidence and is surfaced as such.
+            GITV="task-unverifiable worktree-removed"
+          elif [ -z "$LBRANCH" ]; then
             # An older dispatch, or a detached anchor at launch. Falling back to the observation-time
             # branch would reinstate exactly the vacuity above, so this is NO POSITIVE EVIDENCE and
             # is surfaced as such — the same posture the empty-verdict case below already takes.
