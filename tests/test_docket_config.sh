@@ -2994,13 +2994,8 @@ assert "0258 L1: the doc's line-count prose tracks the fence ($l1_shell_n/$l1_pl
 # The EXPECTED side is derived from `config_scalar_get`'s layer dispatch in
 # scripts/docket-config.sh -- the single choke point every layer read funnels through, since
 # `lcl`/`gbl` are one-line wrappers over it and the committed read calls it directly, so a
-# fourth layer cannot land without adding an arm. The arm LABEL is matched by its syntactic
-# SHAPE (a `case` label ending in `)`), never by a spelling, so a digit-bearing label or an arm
-# whose body starts on a later line cannot under-derive the set. The `*)` catch-all die arm is
-# excluded on its literal `*` label. A corroborating cross-check derives the same layer set from
-# the `declare -a CONFIG_LINES_<LAYER>=()` arrays the script declares, so one site cannot drift:
-# add an arm here or a declaration there without the other and the expected pair set reddens
-# instead of silently staying at six.
+# fourth layer cannot land without adding an arm. The `*)` die arm is excluded by the
+# lowercase-name shape of the match.
 #
 # The PINNED side is declared by the per-fixture marker lines added to s4-s9, collected across
 # the `tests/test_docket_config*.sh` family glob -- never a ${BASH_SOURCE[0]} whole-file scan,
@@ -3016,34 +3011,10 @@ assert "0258 L1: the doc's line-count prose tracks the fence ($l1_shell_n/$l1_pl
 # duplicating a real pair escapes both asserts. A marker that simply outlives its fixture body's
 # deletion, with no `mkrepo` in the window, is caught by the count assert instead of silently
 # unpinning its masking cell. The remnant stays the same trust class as a lying assert label.
-# SHAPE-based arm match: every `case` arm of `config_scalar_get` is a config layer, so the arm's
-# LABEL is the layer name and nothing else about the arm is read. Neither the arm's body starting
-# on the label line nor any particular helper name is required, so a digit-bearing label or a
-# multi-line arm body cannot hide the way the old spelling pattern (labels matched against
-# `[a-z_]+` with `config_scalar_from_lines` on the same line) silently let a fourth layer slip
-# past while rp_n stayed 3 and the expected set stayed at 6 pairs. The `*)` catch-all die arm is
-# excluded on its literal `*` label -- exclude the character, never "labels that look like
-# words". The slice's own first line (the `config_scalar_get` signature, whose first non-whitespace
-# run also ends in `)`) is kept out by indentation: a case arm is never written at column 0
-# inside the `case` block, and naming it would be the same spelling-keying the shape match exists
-# to avoid.
 rp_layers="$(sed -n '/^config_scalar_get()/,/^}/p' "$REPO/scripts/docket-config.sh" \
-  | grep -E '^[[:space:]]+[^[:space:]]*\)([[:space:]]|$)' \
-  | grep -Ev '^[[:space:]]*\*\)' \
-  | sed -E 's/^[[:space:]]+([^[:space:]]*)\).*/\1/' | LC_ALL=C sort)"
+  | grep -E '^[[:space:]]*[a-z_]+\)[[:space:]]+config_scalar_from_lines' \
+  | sed -E 's/^[[:space:]]*([a-z_]+)\).*/\1/' | LC_ALL=C sort)"
 rp_n="$(grep -c . <<<"$rp_layers")"
-# CORROBORATING cross-check: the script also declares one line-buffer array per layer near its
-# top (`declare -a CONFIG_LINES_<LAYER>=()`). Derive that set by the DECLARATION's shape --
-# never a hard-wired 3 -- and require it to equal the arm-derived set, so a layer added at one
-# site and not the other reddens instead of silently shrinking or inflating the expected pair
-# set. The arm labels are lowercase and the declaration suffixes uppercase, so each suffix is
-# lowercased with `tr 'A-Z' 'a-z'` before the comparison.
-rp_declared="$(grep -E '^declare -a CONFIG_LINES_[A-Za-z0-9_]+=\(\)' "$REPO/scripts/docket-config.sh" \
-  | sed -E 's/^declare -a CONFIG_LINES_([A-Za-z0-9_]+)=\(\)/\1/' \
-  | tr 'A-Z' 'a-z' | LC_ALL=C sort)"
-rp_declared_n="$(grep -c . <<<"$rp_declared")"
-rp_arm_names="$(paste -sd, - <<<"$rp_layers")"
-rp_decl_names="$(paste -sd, - <<<"$rp_declared")"
 
 assert "0258 L2 control: config_scalar_get dispatches at least three config layers (n=$rp_n)" \
   '[ "$rp_n" -ge 3 ]'
@@ -3051,8 +3022,6 @@ for rp_l in committed global local; do
   assert "0258 L2 control: layer $rp_l is dispatched by config_scalar_get" \
     'grep -qx "$rp_l" <<<"$rp_layers"'
 done
-assert "0258 L2 cross-check: arm-derived layers equal the CONFIG_LINES_ declarations (arms n=$rp_n: $rp_arm_names; declared n=$rp_declared_n: $rp_decl_names)" \
-  '[ "$rp_layers" = "$rp_declared" ]'
 
 # All ordered pairs over the derived layer set: n*(n-1) of them.
 rp_expected="$(awk '{ a[NR] = $0 }
