@@ -170,6 +170,30 @@ child runs — see *The before-snapshot* below.
 it is never tracked, never leaks into a commit, and needs no `.gitignore` entry. Deliberately
 **not** in the feature worktree: a dispatch result must outlive `git worktree remove`, since the
 whole point of the verb is that the child's work can be inspected after the run was declared over.
+The facade's own reader honors that: an `--observe` whose `--worktree` anchor **no longer exists**
+resolves the root from the main worktree instead of refusing, because the root is repo-wide rather
+than worktree-scoped (see *Observation*). Storing the result durably and then refusing to read it
+would make the claim true for a human with a shell and false for everything else.
+
+**Retention.** Every launch mints a directory holding a whole agent run's `stdout.log` and
+`stderr.log`, so under the autonomous drainer `.git` would grow without bound. The top of `--launch`
+therefore prunes, and the rule is deliberately conservative — a wrong prune destroys exactly the
+evidence this verb exists to preserve:
+
+- A dispatch with **no terminal file** — no `done` sentinel from the launcher wrapper and no
+  `killed` marker from an observer's give-up — is **never** considered, whatever its age. A live
+  child, a child whose observer has not yet given up, and a child nothing ever observed are all
+  untouchable. Liveness is never inferred from a clock here; only the two terminal writes make a
+  dispatch eligible at all.
+- An eligible dispatch is removed only once its **terminal file** is older than **7 days**
+  (`DOCKET_DISPATCH_RETENTION_DAYS`). The age is measured on the file written *last*, so the window
+  starts at the end of the run rather than at its launch: a caller has the full window to observe a
+  finished dispatch, and re-observation stays idempotent throughout it.
+
+The accepted residual, stated rather than hidden: a dispatch that **never** goes terminal is
+retained forever. That is the conservative direction, and such a dispatch stays visible under
+`.git/docket/dispatch/` for a human to remove. Pruning is best-effort — one that cannot run never
+fails the dispatch it precedes.
 
 **The key.** `<agent>-<UTC timestamp>-<pid>`, minted per dispatch and printed on stdout as the
 call's only output. Keyed on agent plus a mint rather than on change id or worktree, so two
@@ -241,7 +265,14 @@ does.
 ### Observation (change 0271)
 
 `--observe <key>` is the only way to learn how a launched dispatch ended. It performs the same
-validation and anchoring as every other call, then makes **one pass** over the dispatch dir:
+validation and anchoring as every other call — with one scoped relaxation, for durability: when the
+`--worktree` anchor **does not exist**, the observation says so on stderr and resolves the
+repo-wide dispatch root from the **main worktree** rather than aborting on the anchor gate, so a
+result still reports after `git worktree remove`. An anchor that *exists* but is not this
+repository's worktree is refused exactly as before, and `--launch` keeps both gates in full. What
+does not survive the removal is the *tree*: a `build-*` observation on that path reports
+`task-unverifiable worktree-removed` instead of reading a different worktree's git state. It then
+makes **one pass** over the dispatch dir:
 
 1. a `done` sentinel ⇒ the child is finished. A sentinel that does not parse ⇒ **result
    unavailable** (`1`), because a malformed sentinel means the *launcher* did not finish cleanly

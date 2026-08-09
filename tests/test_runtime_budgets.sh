@@ -25,7 +25,23 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1595 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1585 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1595 -> 1585 (change 0271 review, finding 13): the SHARD-RE-CUT case, and the
+                    # first re-cut that LOWERS the total. tests/test_runner_dispatch_detach.sh sat
+                    # on the hard 60s ceiling with zero headroom — the row below explains why it was
+                    # seeded there — while measuring ~28s, and its cost is FIXED SLEEP, so every arm
+                    # the review added moved it toward a breach with no number left to raise. The
+                    # table's own remedy applies: shard, never a bigger number. Cut along the file's
+                    # three natural seams into tests/test_runner_dispatch_detach.sh (launch),
+                    # tests/test_runner_dispatch_observe.sh (observation and budget) and
+                    # tests/test_runner_dispatch_build_gate.sh (build verdict + implement-next run
+                    # gate + posture docs), with the shared prologue in
+                    # tests/lib/runner_dispatch_detach_common.sh. A MOVE, not a rewrite: the 184
+                    # asserts split 36/88/60 with none lost. Measured standalone across three
+                    # consecutive runs — 6/6/6s, 19/19/19s and 5/4/4s — which the sizing rule (next
+                    # multiple of 5 plus a 5s margin, min 10s) puts at 15, 25 and 10. The sum FALLS
+                    # by 10 because the 60 was never a measurement of the file: it was the ceiling
+                    # itself, taken as a budget.
                     # 1510 -> 1535 (change 0242 review, finding 7): the SHARD-RE-CUT case, not a
                     # raise. tests/test_sync_agents_codex.sh carried one 55s row over two
                     # independent surfaces — the per-repo .codex/agents/*.toml wrappers and the

@@ -48,6 +48,43 @@ docket_dispatch_dir(){  # $1 = root, $2 = key -> prints the dir, 1 when absent
   printf '%s' "$d"
 }
 
+# RETENTION. Every launch mints a directory holding a whole agent run's stdout.log and stderr.log,
+# and nothing else in docket ever removes one — not the facade, not cleanup-feature-branch.sh, not
+# docket-status. Under the autonomous drainer, the intended heavy user, .git grows without bound.
+#
+# WHAT THE RULE GUARANTEES, stated as a guarantee rather than as a heuristic:
+#   1. A dispatch with NO terminal file (`done` from the launcher wrapper, or `killed` from the
+#      observer's give-up) is NEVER considered — so a LIVE child, a child whose observer has not yet
+#      given up, and a child nothing ever observed are all untouchable, whatever their age. Liveness
+#      is never inferred from a clock here; only the two terminal writes make a dispatch eligible.
+#   2. An eligible dispatch is removed only once its TERMINAL FILE is older than the retention
+#      window — the file that is written last, so the window is measured from the end of the run and
+#      not from its launch. A caller therefore has the full window to observe a finished dispatch,
+#      and re-observation stays idempotent throughout it.
+# The accepted residual, deliberately: a dispatch that never went terminal is retained forever. That
+# is the conservative direction — the evidence this change exists to preserve is never destroyed —
+# and such a dispatch is visible to a human under .git/docket/dispatch/ for manual removal.
+DOCKET_DISPATCH_RETENTION_DAYS="${DOCKET_DISPATCH_RETENTION_DAYS:-7}"
+docket_dispatch_prune(){  # $1 = root -> best effort; always 0, a prune never fails a dispatch
+  local root="$1" days="${DOCKET_DISPATCH_RETENTION_DAYS:-7}" d term
+  [ -d "$root" ] || return 0
+  case "$days" in ''|*[!0-9]*) return 0 ;; esac
+  for d in "$root"/*; do
+    [ -d "$d" ] || continue
+    term=""
+    if [ -f "$d/done" ]; then term="$d/done"
+    elif [ -f "$d/killed" ]; then term="$d/killed"
+    fi
+    [ -n "$term" ] || continue
+    # `find -mtime +N` — "last modified more than N*24h ago" — on the TERMINAL FILE, and the empty
+    # answer is the skip. Captured into a variable rather than piped into a test: a producer feeding
+    # an early-exiting consumer takes SIGPIPE under `pipefail` (AGENTS.md, "Shell").
+    [ -n "$(find "$term" -maxdepth 0 -mtime +"$days" 2>/dev/null)" ] || continue
+    rm -rf "$d"
+  done
+  return 0
+}
+
 docket_sentinel_field(){  # $1 = dispatch dir, $2 = field -> value, empty when absent/malformed
   [ -f "$1/done" ] || return 0
   sed -n "s/^$2=//p" "$1/done" | sed -n 1p
