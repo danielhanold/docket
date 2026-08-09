@@ -52,6 +52,7 @@ tests/test_docket_review.sh	10	parallel
 tests/test_docket_root.sh	10	parallel
 tests/test_docket_runtime_lib.sh	10	parallel
 tests/test_docket_status.sh	35	parallel
+tests/test_dummy_mode.sh	10	parallel
 tests/test_ensure_claude_settings.sh	10	parallel
 tests/test_ensure_docket_env.sh	10	parallel
 tests/test_ensure_global_config.sh	10	parallel

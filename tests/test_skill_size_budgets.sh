@@ -874,6 +874,24 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # rounding rule above from the measured actuals: 80 lines -> the next multiple of 5 is 80 itself
 # (zero margin, the forbidden mode), so 85; 794 words -> 800 is 6 words away, inside the 25-word
 # floor, so the multiple after: 850.
+# skills/docket-convention/SKILL.md's budget was raised 355/6150 -> 380/6400 by change 0276, which
+# added the Dummy mode shared definition, and skills/docket-convention/references/dummy-mode.md is
+# a NEW row from the same change. The mechanics — the five-row token table, replace/additive
+# semantics, ad-hoc session enablement, the not-eligible list, the authoring guidance — were
+# extracted to references/dummy-mode.md ON ARRIVAL, not after the budget failed. The considered
+# alternative homes were references/auto-capture.md (the other model-behavior policy knob) and
+# references/terminal-close-out.md (which owns the results/PR surfaces the additive block lands
+# in); neither can hold it, because dummy mode spans BOTH of them plus the interactive dialogue
+# surfaces, and filing it under either would make the other's reader miss it. The residual left in
+# SKILL.md is the part that must be in context UNPROMPTED: the agent-safety rule (an agent that
+# reads the reference has already decided to author a plain block — the rule has to reach the agent
+# that has NOT) and the three export names, which every skill's Step-0 block surfaces. Set per the
+# rounding rule above from the measured actuals: SKILL.md 373 lines -> the next multiple of 5 is
+# 375, two lines of margin, and 6336 words -> 6350 is 14 words away, inside the 25-word floor, so
+# the multiple after: 6400 — and the LINE figure is taken to 380 to match rather than pairing a
+# generous word budget with a two-line one, the same pairing the 0201 agent-layer entry above
+# makes. references/dummy-mode.md measures 81 lines / 764 words -> 85 (next multiple of 5, four
+# lines) and 800 (next multiple of 50, 36 words, above the 25-word floor).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -885,10 +903,11 @@ skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            120 1000
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          145 1350
-skills/docket-convention/SKILL.md                          355 6150
+skills/docket-convention/SKILL.md                          380 6400
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         205 2350
 skills/docket-convention/references/auto-capture.md        130 1250
+skills/docket-convention/references/dummy-mode.md           85  800
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     185 3800

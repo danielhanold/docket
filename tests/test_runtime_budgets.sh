@@ -25,7 +25,13 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1585 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1595 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1585 -> 1595 (change 0276): the new-test-file case named below —
+                    # tests/test_dummy_mode.sh brings its own row. It is a pure prose scan (two
+                    # file reads, an awk heading slice, and a handful of greps over collapsed
+                    # haystacks), measured standalone at 1.3/1.3/1.4s across three consecutive
+                    # runs, so the sizing rule — next multiple of 5 plus a 5s margin, min 10s —
+                    # floors it at the 10s minimum.
                     # 1595 -> 1585 (change 0271 review, finding 13): the SHARD-RE-CUT case, and the
                     # first re-cut that LOWERS the total. tests/test_runner_dispatch_detach.sh sat
                     # on the hard 60s ceiling with zero headroom — the row below explains why it was
