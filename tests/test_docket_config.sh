@@ -3129,14 +3129,84 @@ assert "DM-f: a literal block scalar with a chomp indicator also aborts" '[ "$dm
 assert "DM-f: the literal-form diagnostic also names the key" \
   'grep -qF -- "dummy_mode.persona" <<<"$dm_lit_err"'
 
-# A `#` inside the persona is eaten by the shared reader BEFORE unquoting, leaving an unbalanced
-# leading quote. Refuse it loudly rather than exporting the fragment.
+# A `#` INSIDE the persona value is eaten by the shared reader BEFORE unquoting, so the value would
+# be exported truncated. Refuse it loudly rather than exporting the fragment — and key the refusal
+# on the RAW leaf text, never on the residue truncation happens to leave behind, which is a
+# property of the QUOTED shape only and misfires on a legal persona (the DM-g pair below).
 dm_hash_rc=0
 dm_hash_err="$(dm_run_with "dummy_mode:\n  enabled: true\n  persona: \"knows git # and yaml\"\n" 2>&1 >/dev/null)" || dm_hash_rc=$?
-assert "DM-g: a persona containing '#' aborts instead of exporting a fragment" \
+assert "DM-g: a quoted persona containing '#' aborts instead of exporting a fragment" \
   '[ "$dm_hash_rc" -ne 0 ]'
 assert "DM-g: the diagnostic names the offending character and the key" \
   'grep -qE "dummy_mode.persona[^.]{0,160}#" <<<"$dm_hash_err"'
+
+# The UNQUOTED shape never had a quote to unbalance, so a residue-keyed guard misses it entirely
+# and exports `knows git` with no abort and no notice. Same truncation, so the same refusal.
+dm_bare_rc=0
+dm_bare_err="$(dm_run_with "dummy_mode:\n  enabled: true\n  persona: knows git # and yaml\n" 2>&1 >/dev/null)" || dm_bare_rc=$?
+dm_bare_out="$(dm_run_with "dummy_mode:\n  enabled: true\n  persona: knows git # and yaml\n" 2>/dev/null || true)"
+assert "DM-g: an UNQUOTED persona containing '#' aborts too" '[ "$dm_bare_rc" -ne 0 ]'
+assert "DM-g: the unquoted diagnostic names the offending character and the key" \
+  'grep -qE "dummy_mode.persona[^.]{0,160}#" <<<"$dm_bare_err"'
+# Anti-vacuity for the abort: pin that the FRAGMENT specifically is what never reaches the export,
+# so a future guard that aborts for some unrelated reason still has to keep this true.
+assert "DM-g: the truncated fragment is never exported" \
+  '! grep -qxF "DUMMY_MODE_PERSONA=knows git" <<<"$dm_bare_out"'
+
+# Legal persona, must NOT abort: the text itself BEGINS with a quote character, which is exactly
+# the residue a truncation-keyed guard looks for — no `#` appears anywhere in the config.
+mkrepo "$tmp/dm-lq"
+cat > "$tmp/dm-lq/.docket.yml" <<'EOF'
+metadata_branch: main
+dummy_mode:
+  enabled: true
+  persona: '"explain it like a PM" reader'
+EOF
+git -C "$tmp/dm-lq" add .docket.yml; git -C "$tmp/dm-lq" commit --quiet -m cfg
+git -C "$tmp/dm-lq" push --quiet origin main
+dm_lq_rc=0
+dm_lq_out="$(run "$tmp/dm-lq" --export --format plain 2>/dev/null)" || dm_lq_rc=$?
+dm_lq_err="$(run "$tmp/dm-lq" --export --format plain 2>&1 >/dev/null || true)"
+assert "DM-g: a persona whose text begins with a quote character does not abort" \
+  '[ "$dm_lq_rc" -eq 0 ]'
+assert "DM-g: that persona is exported verbatim, inner quotes and all" \
+  'grep -qxF "DUMMY_MODE_PERSONA=\"explain it like a PM\" reader" <<<"$dm_lq_out"'
+assert "DM-g: no diagnostic names a '#' that appears nowhere in the config" \
+  '! grep -qF -- "#" <<<"$dm_lq_err"'
+
+# Legal persona, must NOT abort: a `#` AFTER the closing quote is an ordinary YAML trailing comment,
+# which the shared reader strips correctly. Refusing it would be the same false abort in a new coat.
+dm_tc_rc=0
+dm_tc_out="$(dm_run_with "dummy_mode:\n  enabled: true\n  persona: \"Reads YAML, not bash.\"   # tone knob\n" 2>/dev/null)" || dm_tc_rc=$?
+assert "DM-g: a trailing comment after the closing quote does not abort" '[ "$dm_tc_rc" -eq 0 ]'
+assert "DM-g: the commented line still exports the full persona" \
+  'grep -qxF "DUMMY_MODE_PERSONA=Reads YAML, not bash." <<<"$dm_tc_out"'
+
+# The refusal reads the RAW text of the layer that WINS, so it must reach every rung — and only
+# that rung. A broken persona in a layer a higher one already overrides changes nothing that gets
+# exported, so refusing on it would let a stale global/committed file brick a repo that fixed it.
+mkrepo "$tmp/dm-lay"
+cat > "$tmp/dm-lay/.docket.yml" <<'EOF'
+metadata_branch: main
+dummy_mode:
+  enabled: true
+  persona: "committed # broken"
+EOF
+git -C "$tmp/dm-lay" add .docket.yml; git -C "$tmp/dm-lay" commit --quiet -m cfg
+git -C "$tmp/dm-lay" push --quiet origin main
+printf 'dummy_mode:\n  persona: "local # broken"\n' > "$tmp/dm-lay/.docket.local.yml"
+dm_lay_rc=0
+dm_lay_err="$(run "$tmp/dm-lay" --export --format plain 2>&1 >/dev/null)" || dm_lay_rc=$?
+assert "DM-g: a '#'-bearing persona in the repo-LOCAL layer aborts too" '[ "$dm_lay_rc" -ne 0 ]'
+assert "DM-g: the local-layer diagnostic names the key" \
+  'grep -qF -- "dummy_mode.persona" <<<"$dm_lay_err"'
+printf 'dummy_mode:\n  persona: "local override, intact"\n' > "$tmp/dm-lay/.docket.local.yml"
+dm_shadow_rc=0
+dm_shadow_out="$(run "$tmp/dm-lay" --export --format plain 2>/dev/null)" || dm_shadow_rc=$?
+assert "DM-g: a broken persona a higher layer already overrides does not abort" \
+  '[ "$dm_shadow_rc" -eq 0 ]'
+assert "DM-g: the overriding layer's persona is what gets exported" \
+  'grep -qxF "DUMMY_MODE_PERSONA=local override, intact" <<<"$dm_shadow_out"'
 
 # surfaces: an explicit subset is kept in order; an unknown token is warned-and-ignored, never fatal.
 dm_sub_out="$(dm_run_with "dummy_mode:\n  enabled: true\n  surfaces: [dialogue, pr]\n" 2>/dev/null)"

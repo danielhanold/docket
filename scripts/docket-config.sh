@@ -132,6 +132,22 @@ config_line_scalar_get() {  # config_line_scalar_get KEY LINE -> value; 1 when k
   config_normalize_scalar "${body#*:}"
 }
 
+config_line_raw_get() {  # config_line_raw_get KEY LINE -> RAW post-colon text; 1 when key differs
+  # Same key match as config_line_scalar_get, but the VALUE is returned exactly as written —
+  # comment not stripped, quotes not removed. Its one caller is the dummy_mode.persona guard, which
+  # must see the `#` that config_normalize_scalar would have already eaten.
+  local key="$1" line="$2" body
+  body="${line%%#*}"
+  body="${body#"${body%%[![:space:]]*}"}"
+  [[ "$body" == *:* ]] || return 1
+  config_trim "${body%%:*}"
+  [ "$CONFIG_TRIMMED" = "$key" ] || return 1
+  # Splitting the ORIGINAL line at ITS first colon lands on the same colon: the key matched above
+  # is comment-free, so no `#` can precede that colon in the raw line.
+  config_trim "${line#*:}"
+  printf '%s' "$CONFIG_TRIMMED"
+}
+
 config_scalar_from_lines() {  # config_scalar_from_lines KEY LINE... -> first scalar or empty
   local key="$1" line
   shift
@@ -176,9 +192,11 @@ config_block_header() {  # config_block_header LINE BLOCK
   [ "$candidate" = "$block" ] && [ -z "$rest" ]
 }
 
-config_block_get_from_lines() {  # config_block_get_from_lines BLOCK LEAF LINE... -> first leaf
-  local block="$1" leaf="$2" line body in_block=0
-  shift 2
+config_block_leaf_walk() {  # config_block_leaf_walk READER BLOCK LEAF LINE... -> first leaf
+  # One block walker, two leaf readers. READER is never configuration text: the only two callers
+  # below pass a fixed function name each, so nothing a config file contains is ever invoked.
+  local reader="$1" block="$2" leaf="$3" line body in_block=0
+  shift 3
   for line in "$@"; do
     body="${line%%#*}"
     if config_block_header "$body" "$block"; then
@@ -190,18 +208,32 @@ config_block_get_from_lines() {  # config_block_get_from_lines BLOCK LEAF LINE..
       in_block=0
       continue
     fi
-    if config_line_scalar_get "$leaf" "$line"; then
+    if "$reader" "$leaf" "$line"; then
       return 0
     fi
   done
   return 0
 }
 
+# config_block_get_from_lines BLOCK LEAF LINE... -> first leaf, normalized (comment stripped, unquoted)
+config_block_get_from_lines() { config_block_leaf_walk config_line_scalar_get "$@"; }
+# config_block_raw_get_from_lines BLOCK LEAF LINE... -> first leaf, exactly as written
+config_block_raw_get_from_lines() { config_block_leaf_walk config_line_raw_get "$@"; }
+
 config_block_get() {  # config_block_get committed|global|local BLOCK LEAF -> first block leaf
   case "$1" in
     committed) config_block_get_from_lines "$2" "$3" "${CONFIG_LINES_COMMITTED[@]}" ;;
     global)    config_block_get_from_lines "$2" "$3" "${CONFIG_LINES_GLOBAL[@]}" ;;
     local)     config_block_get_from_lines "$2" "$3" "${CONFIG_LINES_LOCAL[@]}" ;;
+    *) die "internal error: unknown config layer $1" ;;
+  esac
+}
+
+config_block_raw_get() {  # config_block_raw_get committed|global|local BLOCK LEAF -> raw leaf text
+  case "$1" in
+    committed) config_block_raw_get_from_lines "$2" "$3" "${CONFIG_LINES_COMMITTED[@]}" ;;
+    global)    config_block_raw_get_from_lines "$2" "$3" "${CONFIG_LINES_GLOBAL[@]}" ;;
+    local)     config_block_raw_get_from_lines "$2" "$3" "${CONFIG_LINES_LOCAL[@]}" ;;
     *) die "internal error: unknown config layer $1" ;;
   esac
 }
@@ -861,18 +893,48 @@ DUMMY_MODE_PERSONA="$(dm_key persona '')"
 #      v1 does not support it: extending the shared reader for one cosmetic key would put every
 #      skill's Step 0 at risk, and the folded form can be added later without breaking a
 #      single-line persona.
-#   2. A `#` anywhere in the value truncates it, leaving an UNBALANCED LEADING QUOTE — the
-#      signature this branch keys on, since a well-formed quoted scalar has both quotes stripped.
-#      Known limitation, stated rather than papered over: a persona whose text legitimately BEGINS
-#      with a quote character trips this too. That shape is vanishingly rare and the diagnostic
-#      names the real constraint either way.
+#   2. A `#` INSIDE the value truncates it. The refusal keys on the RAW leaf text, read back with
+#      config_block_raw_get before config_normalize_scalar can eat the character. It deliberately
+#      does NOT key on the unbalanced leading quote truncation leaves behind: that residue is a
+#      property of the QUOTED shape alone, so it misses `persona: knows git # x` entirely (silently
+#      exporting the fragment) while misfiring on a legal persona whose text merely BEGINS with a
+#      quote character — aborting every skill's Step 0 over a `#` that appears nowhere in the file.
+# Both refusals are FATAL, unlike the sibling `surfaces` leaf, which warns. The asymmetry is the
+# point: an unknown surface token has a safe partial reading (drop it, keep the rest of the list),
+# so warning preserves what the user meant. A persona the reader cannot represent has none — the
+# fragment is wrong and the shipped default is not what was asked for, so warn-and-default would
+# silently recalibrate every human-facing surface to a persona nobody wrote, on the evidence of one
+# stderr line that skill output buries. The blast radius that argues for warning is what keying on
+# raw text removes: these can now only fire on text the reader provably cannot carry.
 case "$DUMMY_MODE_PERSONA" in
   '>'|'|'|'>'[-+]|'|'[-+]|'>'[0-9]*|'|'[0-9]*)
     die "unparseable config: dummy_mode.persona must be a single-line quoted scalar — YAML block scalars (>, |, >-, |-) are not supported. Write it as: persona: \"<one line>\"" ;;
 esac
-case "$DUMMY_MODE_PERSONA" in
-  '"'*|\'*)
-    die "unparseable config: dummy_mode.persona looks truncated at a '#' — that character opens a YAML comment and is not supported inside a persona. Remove the '#' and keep the persona on one quoted line." ;;
+# Raw text from the layer that WON, resolved by the same first-non-empty rule dm_key uses: a broken
+# persona a higher layer already overrides changes nothing that gets exported, and refusing on it
+# would let a stale global file brick a repo that had correctly overridden it.
+dm_persona_raw=''
+for dm_layer in local committed global; do
+  if [ -n "$(config_block_get "$dm_layer" dummy_mode persona)" ]; then
+    dm_persona_raw="$(config_block_raw_get "$dm_layer" dummy_mode persona)"
+    break
+  fi
+done
+case "$dm_persona_raw" in
+  *'#'*)
+    # A `#` AFTER a closed quote is an ordinary trailing comment and is read correctly, so the test
+    # is whether the text preceding the `#` is already a complete quoted scalar by the same rule
+    # config_normalize_scalar unquotes with. Anything else means the `#` cut the value short.
+    config_trim "${dm_persona_raw%%#*}"
+    dm_persona_head="$CONFIG_TRIMMED"
+    dm_persona_closed=0
+    if [ "${#dm_persona_head}" -ge 2 ]; then
+      case "$dm_persona_head" in
+        \"*\"|\'*\') dm_persona_closed=1 ;;
+      esac
+    fi
+    [ "$dm_persona_closed" -eq 1 ] \
+      || die "unparseable config: dummy_mode.persona contains a '#' inside the value ($dm_persona_raw) — docket's config reader is line-oriented and strips from the first '#' before unquoting, so this persona would be exported truncated to '$DUMMY_MODE_PERSONA'. Remove the '#'; a '#' after the closing quote is an ordinary trailing comment and is fine." ;;
 esac
 if [ -z "$DUMMY_MODE_PERSONA" ]; then
   # A blank persona is a SUPPORTED configuration, not a misconfiguration: it selects the shipped
