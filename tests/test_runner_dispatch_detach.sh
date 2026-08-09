@@ -112,6 +112,11 @@ assert "the adapter actually ran" '[ -f "$SBX/marker" ]'
 assert "sentinel carries exit_code" 'grep -qE "^exit_code=0$" "$DDIR/done"'
 assert "sentinel carries finished_at" 'grep -qE "^finished_at=[0-9TZ:-]+$" "$DDIR/done"'
 assert "sentinel carries the dispatch key" 'grep -qxF "dispatch_key=$KEY" "$DDIR/done"'
+# The sentinel's `pid` is the LAUNCHER SUBSHELL's own pid ($BASHPID), i.e. the same process the
+# launch record names as child_pid — never the facade's `$$`, which is a long-exited process by
+# the time a human debugs from the sentinel.
+assert "sentinel pid is the launched subshell, not the facade" \
+  '[ -n "$lcpid" ] && grep -qxF "pid=$lcpid" "$DDIR/done"'
 
 # ---- every stream redirected to a durable location -----------------------------
 assert "stdout was captured durably" 'grep -qF "fake adapter stdout" "$DDIR/stdout.log"'

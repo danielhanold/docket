@@ -203,7 +203,8 @@ sides of the comparison come from the same `ps`. It is empty only for a child th
 finished by the time the group was measured. `since_sha` is the repo's `HEAD` captured
 **before** the child could commit anything — the direct analogue of the run gate's
 `DISPATCH_EPOCH`, so a commit landing in the gap is excluded either way; empty on a repo with no
-commits, which a later git-read verdict reports as unknown rather than guessing. `branch` is the
+commits — and `verify-run --build` refuses an empty `--since`, so the observe leg gets no verdict
+at all and reports the run **failed** rather than guessing it succeeded. `branch` is the
 anchor's branch captured at the same instant and for the same reason: whether the child **ended
 where it was sent** is only answerable against a value recorded before it could move `HEAD`. A
 **detached** anchor records nothing rather than the literal `HEAD` that `--abbrev-ref` prints —
@@ -229,7 +230,8 @@ non-`implement-next` launch records an empty `dispatch_epoch` and no snapshot fi
 armed.
 
 **The sentinel** — `<dir>/done`, flat `KEY=value`: `exit_code`, `started_at`, `finished_at`, `pid`,
-`dispatch_key`. **The wrapper writes it, never the agent**: "done" must not be a claim by the party
+`dispatch_key`. `pid` is the **launcher subshell's own** pid — the same process the launch record
+names as `child_pid`, not the facade's. **The wrapper writes it, never the agent**: "done" must not be a claim by the party
 being judged. It is written as the wrapper's last act, so its absence *is* "still running". The
 write is atomic — a temp file **beside** its destination (the one licensed exception to templating
 temp files into `TMPDIR`, because the rename must be same-filesystem) then `mv -f` — so a reader
