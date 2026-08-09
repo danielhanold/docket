@@ -15,7 +15,7 @@ spec:
 plan:
 results:
 trivial: false
-auto_groomable: true
+auto_groomable: false
 branch:
 pr:
 blocked_by:
@@ -71,6 +71,36 @@ Open questions the brainstorm must settle:
 - Change 0157 itself, which lands its seven units by hand and is not blocked on this.
 - Parallel drain (change 0008) — fanning out concurrent runs over *independent* changes is the
   opposite trade: this stub is about coalescing *coupled* ones onto a single branch.
+
+## Auto-groom blocked
+
+**2026-08-09** — abstained without drafting a spec.
+
+Undecidable decisions:
+
+1. **Build vs. kill.** The stub's own closing line makes the groom's first question a disposition
+   question: "if the rollup turns out cheap to repeat by hand a few times a year, this should be
+   killed rather than built." Whether the token/overhead saving justifies the machinery has no
+   in-repo oracle — it rests on how often coupled clusters like 0157's recur and what the human
+   values the manual rollup's cost at. Kill is never autonomous, so this cannot be defaulted past.
+2. **Tracking model.** Members-stay-separate-against-one-`pr:` changes the manifest contract
+   (shared PR admitted by N changes) and every consumer of `pr:`/`status:`; synthetic-rollup-plus-kill
+   loses per-change history. Both reshape the convention itself — product judgment, not a
+   conservative default.
+3. **Blast radius.** The reclaim lease, `claimed_at` refreshes, the finalize gate, and `verify-run`
+   all assume one change per branch. Widening that invariant is coordination-critical machinery;
+   picking a containment/review/failure model for it without the human sets the safety posture of
+   the whole loop.
+
+What a human should supply: a frequency/cost estimate for hand-rolled rollups (0157 is the one data
+point), and if it clears that bar, verdicts on membership selection, tracking model, and failure
+containment.
+
+Recommendation: **probably kill or defer.** 0157 proved the manual rollup works; the learning
+`relax-the-policy-before-building-the-workaround` argues against building machinery for a path the
+maintainer can walk by hand a few times a year, and `optimization-needs-a-measured-oracle` argues
+against committing to the saving unmeasured. If coupled clusters start recurring monthly, re-arm
+with the answers above.
 
 ## Open questions
 
