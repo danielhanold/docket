@@ -20,7 +20,7 @@ branch: feat/runner-delegation-has-no-execution-posture-for-a-child-that
 claimed_at: 2026-08-09T02:46:25Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -236,16 +236,53 @@ including its non-vacuity floor.
   proofs to exercise only the `0258 L1` / `L2` sections instead of re-running the whole 2868-line
   file is worth doing on its own merits and would unblock 0258 today — but it treats the symptom.
   0258 must **not** be blocked on this change. (Suite runtime generally is change 0227.)
-- **Change 0269** — the shim's own model/effort pin. Disjoint defect on the same code path, already
-  `in-progress`. This change likely depends on it landing; it does not subsume it.
+- **Change 0269** — the shim's own model/effort pin. Disjoint defect on the same code path, now
+  `done` and merged. This change depended on it landing; it does not subsume it.
 - **`runners.opencode.permissions` locality** — `.docket.local.yml` is gitignored, so a fresh feature
   worktree has no copy and a worker anchored there resolves `auto-approve` back to the default `ask`
-  and is refused. Named as out of scope by 0269 as well; still unowned.
+  and is refused. Named as out of scope by 0269 as well; now owned by change **0270**.
 - **ADR-0024's never-yield rule for dispatched subagents.** 0223 settled the boundary: an external
   process observed by its owner is not a subagent yielding. This change must not be written as
   touching that rule, and clause 4 of the posture (only a top-level session agent may yield; a
   dispatched child observes by blocking) applies here unchanged.
 - Any change to what the dispatch flags mean or how their values resolve.
+
+## Reconcile log
+
+### 2026-08-09 — reconciled at claim
+
+Re-read against `origin/docket`, `origin/main` (tip `05fbb224`), the cited source, and the related
+changes. **The design stands; scope unchanged.** Every code citation in the change body and spec was
+re-verified against current source and all of them still hold:
+
+- `runner-dispatch.sh:163` — `GATE=0; [ "$AGENT" = "implement-next" ] && GATE=1`, byte-exact.
+- `runner-dispatch.sh:217` — `"$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" -- "$@"`, the synchronous
+  adapter call, still call-and-return per 0237.
+- `docket-config.sh:670-691` — the `gate_observation_budget` block, the layering shape the new
+  `delegation_observation_budget` key mirrors.
+- `.docket.example.yml:216-227` and `docket-config.md:134` — the documentation slots for it.
+- `skills/docket-build/references/gate-execution.md` — present; still the single source of the six
+  capabilities this change cites rather than restates.
+- `emit_shim` — **at `sync-agents.sh:1552`, in the repo ROOT, not `scripts/`** (the change body
+  names the function without a path, so nothing was wrong; recorded here so the build does not go
+  looking under `scripts/`). Its heredoc still bakes the defect verbatim: "Make exactly ONE
+  foreground Bash call, with the maximum timeout (600000)" / "never background it, never poll".
+
+Two facts drifted since grooming, both recorded and both narrowing the work:
+
+1. **`depends_on: [269]` is now satisfied.** 0269 was `in-progress` at grooming and is now `done`
+   and merged onto `main`. The spec's §9 sequencing step ("rebase deliberately onto its landed
+   shape") is therefore already discharged by cutting the feature branch from `origin/main` — no
+   rebase-onto-0269 work remains. 0269's landed edit touched `emit_shim`'s frontmatter pin
+   (`resolve_shim_pins` / the `$2`/`$3` shim-model/effort parameters); this change touches the
+   heredoc BODY below it, so the two edits are adjacent but non-overlapping.
+2. **The `runners.opencode.permissions` locality gap is no longer unowned.** Both the change body
+   and the spec called it "still unowned"; change **0270** now owns it. It stays out of scope here;
+   only the ownership claim was stale.
+
+Auto-capture: enabled, 0 stubs minted. The one adjacent gap this pass surfaced — the
+`.docket.local.yml`-in-a-fresh-worktree problem — is already filed as 0270, so it fails admission
+gate 1 (in scope of an existing change) rather than clearing all six.
 
 ## Design decisions (settled at grooming, 2026-08-08)
 

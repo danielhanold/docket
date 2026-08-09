@@ -167,14 +167,16 @@ for non-build shims; `tests/test_sync_agents.sh` byte-comparisons updated in the
 
 ### 9. Sequencing
 
-`depends_on: [269]` — 0269 is `in-progress` in the same function (`emit_shim`); rebase deliberately
-onto its landed shape. 0258 is explicitly **not** blocked on this change.
+`depends_on: [269]` — **satisfied**: 0269 is `done` and merged onto `main` (tip `05fbb224`,
+2026-08-09), so the feature branch cut from `origin/main` already carries its landed `emit_shim`
+shape and no rebase-onto-0269 step remains. 0258 is explicitly **not** blocked on this change.
 
 ## Out of scope
 
 - Reducing suite runtime (change 0227) and any edit to change 0258's plan.
 - Change 0269 (shim's own model/effort pin) — dependency, not subsumed.
-- `runners.opencode.permissions` locality in fresh worktrees (still unowned).
+- `runners.opencode.permissions` locality in fresh worktrees — now owned by change **0270**
+  (`machine-local-runner-config-is-unreachable-from-a-feature-worktree`), no longer unowned.
 - Any change to ADR-0024's never-yield rule, dispatch flag semantics, or value resolution.
 
 ## Guards (mutation-tested where statically representable)
