@@ -39,7 +39,12 @@ so it never runs as a test. Contents:
   Appends the path to a file-scope array; the first call installs one `trap … EXIT`
   that removes every registered path. The trap's array expansion must use the
   `${arr[@]+"${arr[@]}"}` guard: adopters run `set -u` and the suite's bash floor is
-  GNU Bash 4+, where an empty array errors under `-u` before 4.4. Adopting files
+  GNU Bash 4+, where an empty array errors under `-u` before 4.4. *Amendment
+  2026-08-09: change #0222 (groomed, ruled 2026-08-07) raises the floor to exactly 4.4
+  and deletes this idiom repo-wide. If 0222 lands first, write the plain
+  `"${arr[@]}"` expansion here instead; if this change lands first, the guard ships
+  as written and 0222's build-time sweep (grep-derived, not hand-listed) picks the
+  site up.* Adopting files
   route their existing `trap 'rm -rf …' EXIT` lines through it, because a later
   `trap` for the same signal REPLACES an earlier one — that replacement is exactly
   how `test_closeout.sh` leaks its template root today (its only EXIT trap, line
