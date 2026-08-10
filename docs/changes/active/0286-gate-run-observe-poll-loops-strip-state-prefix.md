@@ -19,8 +19,8 @@ auto_groomable: true
 branch: feat/gate-run-observe-poll-loops-strip-state-prefix
 pr:
 blocked_by:
-claimed_at: 2026-08-10T21:25:52Z
-reconciled: false
+claimed_at: 2026-08-10T21:27:34Z
+reconciled: true
 ---
 
 ## Artifacts
@@ -101,3 +101,23 @@ change to `gate-run.sh`:
 
 None — resolved at groom: teaching + canonical example, not `--wait` (spec assumption 1); the
 "caller owns the loop" contract stands unchanged.
+
+## Reconcile log
+
+- **2026-08-10** — Reconciled at claim. Checked `origin/main` (tip `394e2c48`, change 0282's
+  terminal publish): `scripts/gate-run.md` still carries `## Usage`, `### --observe`, the six-state
+  table and the "Only `running` is retryable" rule, and has **no** *The caller's loop* subsection —
+  the gap the spec names is still open. `skills/docket-build/SKILL.md` § *Gate execution posture*
+  still ends its state-keying paragraph at "**Key the wait on the state each observation reports**…
+  The six states and their retryability are `gate-run.md`'s contract" with no sentence about the
+  printed `state=<name>` form — also still open. Dependency reality: 0282 is `done` and merged (the
+  helper and its contract are on `main`); 0284 and 0277 are still `proposed`, so the
+  `runner-dispatch --observe` surface is untouched and the spec's assumption 6 (leave it alone)
+  holds unchanged. No `depends_on`, nothing to wait on. Scope, assumptions, and the three touched
+  files stand as specced; one refinement for the builder, already anticipated by the spec's *Files
+  touched* parenthetical — SKILL.md prose guards for this file live in
+  `tests/test_gate_execution_posture.sh`, which is where the sentence sentinel belongs, while the
+  executable-example assert belongs in `tests/test_gate_run.sh`. Auto-capture: enabled, nothing
+  surfaced clearing the six admission gates; the two health warnings the Step-0 status pass reported
+  (change 189's `|` in its title, change 44's unquoted `blocked_by:`) are pre-existing backlog
+  hygiene on other changes, not discoveries of this pass, and are reported rather than minted.
