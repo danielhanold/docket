@@ -19,8 +19,8 @@ auto_groomable: true
 branch: feat/delegated-task-briefs-travel-through-shell-argv-a-lossy-mode
 pr:
 blocked_by:
-claimed_at: 2026-08-10T23:31:48Z
-reconciled: false
+claimed_at: 2026-08-10T23:45:00Z
+reconciled: true
 ---
 
 ## Artifacts
@@ -82,3 +82,27 @@ Validation constraint inherited from 0271: Claude Code loads agent definitions a
 so a shim change cannot be tested in the session that made it. Proven on 0271 — a wrapper edited
 on disk to `--runner opencode2` still dispatched `--runner opencode` on the next call. Any test of
 this change must restart the harness before concluding anything.
+
+## Reconcile log
+
+### 2026-08-10 — implementer reconcile (change claimed for build)
+
+Design re-validated against current `origin/main`; every premise in the spec still holds. All three
+adapters still interpolate `$*`; `emit_shim` still bakes the single-quoted-argument paragraph; the
+`build-*` `--worktree` gate still sits at pre-verb validation, so the empty-payload gate lands beside
+it and stays verb-neutral. 0271 is `done`, so `depends_on` stays empty; 0270 has merged and does not
+touch this seam; 0208 is queued next on the same two files, so this diff stays tight to its own spec.
+
+One new requirement surfaced and was folded into the spec (`## Reconcile addendum — 2026-08-10`):
+the synchronous verb's run gate re-dispatches once with the retry context appended as an EXTRA
+trailing argument, which under `--brief-file` would present both channels and trip the adapters' own
+defensive refusal. The facade therefore composes a combined brief (brief bytes + blank line + retry
+context) into a templated temp file and re-dispatches through the single brief channel.
+
+The `--observe` poll-loop prefix-strip defect class (0286's `gate-run` fix) is NOT this change's:
+the spec's out-of-scope line already assigns it to 0284, and reconcile leaves it there.
+
+Budget note carried into the plan: `tests/test_runner_dispatch.sh` has zero headroom against its 10s
+row in `tests/runtime-budgets.tsv`, and this change adds cases to that file — re-measure and raise
+the row with a measured number.
+

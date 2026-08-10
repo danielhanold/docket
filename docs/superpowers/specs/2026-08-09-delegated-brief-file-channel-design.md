@@ -164,3 +164,52 @@ quotes the same plan text the brief carries.
    active 0208 and 0270 (both edit `scripts/runner-dispatch.sh`, disjoint concerns) are recorded
    as `related:`; whichever lands second reconciles at rebase by intent
    (concurrent-edits-compose-at-rebase).
+
+## Reconcile addendum — 2026-08-10 (change 0277 build)
+
+Confirmed live against `origin/main` at reconcile time; every premise below still holds:
+
+- `$*` interpolation under the `Additional caller arguments / task context:` heading is present in
+  all three adapters (`scripts/runners/opencode.sh`, `codex.sh`, `cursor.sh`).
+- `sync-agents.sh`'s `emit_shim` still bakes the one-step argv form with the "Pass it as ONE
+  single-quoted argument" paragraph and its `'\''` gymnastics.
+- The `build-*` `--worktree` gate still sits at pre-verb argument validation in
+  `scripts/runner-dispatch.sh` (the `case "$AGENT" in build-*)` block), so the new empty-payload
+  gate lands beside it and is verb-neutral exactly as designed.
+- Change 0271 is `done`; `depends_on` stays empty. Change 0270 (runner config locality) has merged
+  and does not touch the argv/prompt seam. Change 0208 is queued immediately after this one on the
+  same two files — this diff stays tight to this spec so 0208 rebases cleanly.
+
+### New requirement discovered at reconcile: the run gate's re-dispatch must not open a second channel
+
+The synchronous verb's run gate (change 0237) makes ONE bounded re-dispatch and appends a retry
+context as an EXTRA trailing argument:
+
+```
+"$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" -- "$@" "$retry_ctx"
+```
+
+With `--brief-file` in play this hands the adapter a brief file AND trailing argv — the exact shape
+§2 makes the adapters refuse. Left alone, the facade would defeat its own defensive gate on a path
+no caller can see, and the retry would die instead of running.
+
+Resolution, in scope for this change because the facade authors both sides: on the re-dispatch, when
+a brief file is in use, the facade composes a **combined brief** — the brief's bytes verbatim, a
+blank line, then the retry context — into a temp file (`mktemp` with an explicit
+`"${TMPDIR:-/tmp}/docket-retry-brief.XXXXXX"` template, per the AGENTS.md rule) and re-dispatches
+with `--brief-file <combined>` and NO trailing argv. The retry context is never dropped and never
+becomes a second channel. With no brief file the re-dispatch keeps today's argv shape byte-for-byte.
+
+### Testing addendum
+
+- A run-gate re-dispatch under `--brief-file` passes exactly one channel, and the retry context is
+  present in the brief the adapter reads (mutation-test: restore the trailing-argv append and watch
+  the adapter's XOR refusal redden the case).
+- `tests/test_runner_dispatch.sh` sits at a 10s budget row in `tests/runtime-budgets.tsv` with no
+  headroom. This change adds cases to that file: re-measure after the additions and RAISE the row
+  with the measured number rather than reading a trailing `OVER BUDGET:` line as pre-existing noise.
+
+### Still out of scope, restated
+
+The `--observe` poll-loop `state=` prefix-strip defect class (fixed for `gate-run` by change 0286)
+stays with change 0284. This change touches no launch/observe semantics.
