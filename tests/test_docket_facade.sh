@@ -156,6 +156,17 @@ md_ops="$(grep -oE '^\| `[a-z-]+` ' "$FMD" | tr -d '`|' | tr -d ' ' | sort -u)"
 
 assert "docket.sh op set == docket.md documented op set" '[ "$sh_ops" = "$md_ops" ] || { echo "sh=[$sh_ops] md=[$md_ops]" >&2; false; }'
 
+# ops the facade PRINTS FOR A HUMAN. `usage()` renders the `# Usage:` header block on `-h`,
+# `--help` and no-args, and that block is a third inventory nothing was comparing: an op added to
+# WRAPPED_OPS and to docket.md but not to the header is invisible on the only surface a human
+# asks. Both `verify-run` (change 0237) and `gate-run` (change 0282) drifted exactly that way, so
+# the gap reproduces rather than being a one-off. Read off the RENDERED block rather than a second
+# copy of usage()'s own sed range, so the assertion is over what the facade actually shows.
+usage_txt="$(SCRIPTS_DIR="$stub" bash "$FACADE" --help 2>/dev/null)"
+usage_ops="$(sed -n 's/^  \([a-z][a-z-]*\).*/\1/p' <<<"$usage_txt" | sort -u)"
+assert "docket.sh usage block op set == docket.sh dispatchable op set" \
+  '[ "$usage_ops" = "$sh_ops" ] || { echo "usage=[$usage_ops] sh=[$sh_ops]" >&2; false; }'
+
 # each wrapped op has a live helper of the same basename
 sentinel_ok=1
 for o in $sh_wrapped; do [ -f "$REPO/scripts/$o.sh" ] || { echo "op $o has no scripts/$o.sh" >&2; sentinel_ok=0; }; done

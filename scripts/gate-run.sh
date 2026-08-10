@@ -580,6 +580,26 @@ observe_state() {  # $1 = run dir
 
   if [ -f "$rd/stopped" ]; then printf 'state=stopped\n'; return 0; fi
 
+  # 4b. A RECORD THAT CANNOT NAME A GROUP IS `unavailable`, NEVER `died` — the same refusal
+  #     `signalable_pgid` makes on the `--stop` side, so the two verbs cannot disagree about the
+  #     identical bytes. `died cause=vanished` is a verdict ABOUT THE CHILD, and it rests on the
+  #     probe above having asked its question of THIS run's group; when the recorded pgid is empty,
+  #     `0`, `1` or non-numeric, `group_alive_and_ours` failed its FIRST conjunct and nothing was
+  #     probed at all. Reporting `died` there reads a verdict off a record that names nothing —
+  #     which is the same fabrication `classify_record` refuses over a malformed `terminal`.
+  #
+  #     AND IT SITS HERE RATHER THAN AT THE TOP, WHICH IS THE ASYMMETRY WITH `--stop` AND IS THE
+  #     POINT. `--stop` refuses first because its next act is a SIGNAL and an unnameable group is a
+  #     signalling PRECONDITION. `--observe` signals nothing, so every real verdict is consulted
+  #     first and only the fabricated one is withheld: a run that recorded `kind=exit code=0` and
+  #     then had its `launch` corrupted still reads `passed` (steps 1 and 3), and a `stopped`
+  #     marker still reads `stopped`.
+  if [ -z "$(recorded_pgid "$rd")" ]; then
+    die "unavailable: $rd/launch names no usable process group, so nothing was probed and no verdict about the child can be read"
+    printf 'state=unavailable\n'
+    return 0
+  fi
+
   # No record, and the group this run recorded is gone or is not ours. Nothing survives that could
   # ever write a verdict, so this is terminal — and it is detected on THIS observation rather than
   # at the far end of a caller's budget, which is the promptness the whole contract exists for.
@@ -592,11 +612,22 @@ do_observe() {
   local rd="${1:-}" state
   [ $# -le 1 ] || { die "observe: expected exactly one run dir"; report "state=unavailable"; return 1; }
   [ -n "$rd" ] || { die "observe: missing run dir"; report "state=unavailable"; return 1; }
-  state="$(observe_state "$rd")"
-  # stdout is a protocol exactly one line wide; the trim makes that structural rather than a
-  # convention every branch above has to remember. The exit status is keyed to the SAME trimmed
-  # value the caller was handed, so the two can never disagree about what was reported.
+  state="$(observe_state "$rd")" || state=""
+  # stdout is a protocol exactly one line wide, and the state vocabulary is CLOSED — the same
+  # normalization `do_stop` applies to its token, for the same reason and deliberately in the same
+  # shape. Trimming makes the one-line rule structural rather than a convention every branch above
+  # has to remember; validating against the vocabulary makes the LINE structural too, so an
+  # `observe_state` that died mid-flight (a non-zero return, or an armed-but-misconfigured
+  # `barrier` aborting its subshell) cannot leave the caller an empty line to parse, and no future
+  # branch can slip an out-of-vocabulary token onto the protocol channel. The exit status is keyed
+  # to the SAME value the caller was handed, so the two can never disagree about what was reported.
   state="${state%%$'\n'*}"
+  case "$state" in
+    'state=running'|'state=passed'|'state=failed'|'state=stopped'|'state=unavailable') ;;
+    'state=died cause=signal'|'state=died cause=vanished') ;;
+    *) die "observe: no state line was produced; reporting unavailable (run dir: $rd)"
+       state='state=unavailable' ;;
+  esac
   report "$state"
   # Callers key on the report line, never on this. Documented in scripts/gate-run.md § Exit codes:
   # non-zero says only "no verdict was available", which is `unavailable` and nothing else.

@@ -31,6 +31,8 @@
 #   backfill-change-types [args]  apply a human-approved id->type mapping to ACTIVE changes
 #   mark-publish-deferred [args]  add/remove the `## Publish deferred` marker on a change file
 #   runner-dispatch [args]    delegate one agent run to a child harness (runner adapter)
+#   gate-run [args]           detached launch / liveness-keyed observe / identity-checked stop
+#   verify-run [args]         evaluate implement-next's Step 7 postcondition for one change
 #
 # Contract: scripts/docket.md. Mock seams: SCRIPTS_DIR (helper dir), GIT, CONFIG_EXPORT_CMD.
 

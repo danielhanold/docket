@@ -172,7 +172,15 @@ The read order **is** the contract:
    to finish since. Without this re-read the sequence "no record → child completes → dead probe"
    turns a run that **passed** into a `died`, and a call site keyed on `died` relaunches it.
 4. A `stopped` marker with no record ⇒ `state=stopped`.
-5. Otherwise the recorded group is gone and nothing survives that could ever write a verdict:
+5. **A `launch` record that names no usable process group ⇒ `state=unavailable`**, never `died`.
+   `died cause=vanished` is a verdict about the **child**, and it rests on the step-2 probe having
+   asked its question of *this run's* group; an empty, `0`, `1` or non-numeric recorded `pgid` fails
+   that probe's **first** conjunct, so nothing was asked of anything and there is no verdict to read.
+   `--stop` refuses the identical record the same way and in the same words, so the two verbs cannot
+   disagree about the same bytes. The check sits **after** the reads above rather than before them —
+   the asymmetry with `--stop`, which refuses first because its next act is a **signal** — so a run
+   that recorded its own verdict and *then* had its `launch` corrupted still reads that verdict.
+6. Otherwise the recorded group is gone and nothing survives that could ever write a verdict:
    `state=died cause=vanished`, with the last lines of the run's own streams on **stderr**.
 
 The six states:
@@ -185,7 +193,7 @@ The six states:
 | `died cause=signal` | `kind=signal`, with no stop of ours recorded — killed by something else | no |
 | `died cause=vanished` | the recorded group is gone and no record was ever written | no |
 | `stopped` | a `--stop` of ours: `stopped` or `stop-intent` exists beside a `kind=signal` record, or `stopped` exists with no record | no |
-| `unavailable` | no verdict could be read: an unreadable run dir, a malformed `terminal`, or a usage error | no |
+| `unavailable` | no verdict could be read: an unreadable run dir, a malformed `terminal`, a `launch` record naming no usable process group, or a usage error | no |
 
 **Only `running` is retryable.** The other five are terminal, and a caller that keeps polling past
 one of them is polling a decided run.
@@ -409,7 +417,11 @@ whole lifetime.
 
 - **stdout is the protocol and it is exactly one line wide.** Every verb prints one report line and
   nothing else; every diagnostic, including a failing run's log tail, goes to stderr. The trim is
-  structural, applied once where the report is emitted, so no branch can widen the channel.
+  structural, applied once where the report is emitted, so no branch can widen the channel — and so
+  is the **closed vocabulary** beside it: `--observe` and `--stop` each validate their line against
+  the tokens this page defines and fall back to `unavailable`, so a classifier that died mid-flight
+  cannot hand the caller an empty line, and a future branch cannot slip an unknown token past the
+  page.
 - **The wrapper is the only writer of `terminal`, and it writes it only on the command's exit.** No
   verb ever synthesizes one. This is the invariant every re-read in `--observe` and `--stop` rests
   on: a record visible after a liveness probe was necessarily written by a child that completed.
