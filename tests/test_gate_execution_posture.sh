@@ -497,7 +497,10 @@ assert "helper: only running is retryable" \
 # finished gate read as unfinished until its budget burned. This is where loops are actually
 # authored, so the keying rule is restated here — bound to what it is asserted ABOUT, not merely
 # present (learnings: prose-guard-binds-phrase-to-claim). Mutation: delete the added sentence ->
-# all three redden.
+# all three redden. The asserted sentence lives inside `$helper_blk`, and `para()` closes its slice
+# at the next column-0 `**` — so the sentence must stay MID-LINE in SKILL.md: reflowing it so
+# `**Reuse the canonical loop**` starts a line truncates the slice before it and reddens all three
+# against a file where the sentence is plainly present.
 assert "helper: the posture points at the contract's canonical loop rather than inviting a new one" \
   'grep -qiE "canonical[^.]{0,80}loop" <<<"$helper_flat"'
 assert "helper: the keying rule is bound to the full printed state= form" \
