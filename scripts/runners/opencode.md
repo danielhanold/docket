@@ -54,7 +54,7 @@ Environment (set by the facade):
 | Var | Meaning | Default |
 |---|---|---|
 | `DOCKET_REPO_ROOT` | absolute run anchor — the main worktree unless the caller named a feature worktree; becomes `opencode run --dir` | required |
-| `DOCKET_RUNNER_CFG_PERMISSIONS` | `runners.opencode.permissions` — `ask` \| `auto-approve` | `ask` |
+| `DOCKET_RUNNER_CFG_PERMISSIONS` | `runners.opencode.permissions` — `ask` \| `auto-approve`. Resolved by the facade from the **main worktree's** config layers, independently of the anchor above, so a `--worktree` delegation still sees a machine-local grant | `ask` |
 
 Mock seam: `OPENCODE_BIN` (default `opencode`).
 
@@ -135,5 +135,8 @@ documented extractor is the recorded escape hatch — a deliberate, reversible f
   exit code on a machine with zero credentials is unverified, and a probe with unknown failure
   semantics would convert an unusual-but-working setup into a hard abort.
 - Docket skills linked into `~/.agents/skills` (`link-skills.sh`, automatic on install).
-- `runners.opencode.permissions: auto-approve` in a config layer — without it every delegated run
+- `runners.opencode.permissions: auto-approve` in a config layer read at the **main worktree** —
+  its `.docket.local.yml` or `.docket.yml`, or the global
+  `${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml`; never inside a feature worktree, which
+  carries no copy of the gitignored machine-local layer. Without the grant every delegated run
   refuses by design.
