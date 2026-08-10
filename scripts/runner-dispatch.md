@@ -74,9 +74,14 @@ sides of the handoff, default `scripts/docket.sh`).
    `--worktree` is **required** for a `build-*` agent; the resolved anchor must be a **directory**;
    and it must be a **worktree of this repository** (compared via `docket_main_worktree "$anchor"`,
    whose empty result for a non-repo path fails the same comparison).
-3. **Resolve `runners.<name>:`** — per **key**, first layer that has the key wins, across
-   `<repo>/.docket.local.yml` > `<repo>/.docket.yml` >
-   `${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml`. Each `key: value` scalar is exported
+3. **Resolve `runners.<name>:`** — per **key**, first layer that has the key wins, across the
+   **main worktree's** `.docket.local.yml` > the **main worktree's** `.docket.yml` >
+   `${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml`. The config tree is the main worktree —
+   the `docket_main_worktree()` result the facade binds before any argument-dependent anchoring —
+   and it is **independent of `--worktree`**: the machine-local layer is gitignored, so a feature
+   worktree carries no copy of it, and an anchor-relative read would silently drop every
+   machine-local runner grant on exactly the `build-*` dispatches that *require* `--worktree`.
+   Each `key: value` scalar is exported
    as `DOCKET_RUNNER_CFG_<KEY>` (uppercased; `.`/`-` → `_`). The facade knows no runner's key
    names — each adapter defines and defaults its own (see its contract). `runners:` is **not**
    coordination-fenced: it is a machine preference in the same class as `model`/`effort`
