@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0270 — Fence runner-config locality at the main worktree (regression test + contract correction)](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0270-fence-runner-config-locality-at-the-main-worktree.md)**
+> ↩ **[Change 0270 — Fence runner-config locality at the main worktree (regression test + contract correction)](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-10-0270-fence-runner-config-locality-at-the-main-worktree.md)**
 <!-- docket:backlink:end -->
 
 # Fence runner-config locality at the main worktree
