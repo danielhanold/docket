@@ -22,6 +22,20 @@ Round 2's corrections are **transplants, not inventions**: `runner-dispatch.sh` 
 record-outranks-signal ordering, the two-sided re-read, and the refuse-to-signal-unprovable-ownership
 posture, and this spec now cites those invariants rather than re-deriving them.
 
+**Amended 2026-08-09, adversarial critic re-review — round 3, five findings, closed by the critic's
+own prescribed repairs.** (1) The `died`-relaunch flow's `already-terminal` re-observe was not
+total: a record-classified signal death — the 0276 headline shape — matched no leg and cycled
+`died → --stop → already-terminal → re-observe → died` forever; the enumeration now keys on the
+re-observe's own state (assumption 22). (2) The `state=` stdout grammar claimed all three verbs but
+fit only `--observe`; stdout payloads are now defined per verb (assumption 18). (3) Two "five-state"
+references pre-dating the sixth state are corrected. (4) A deliberate `--stop` whose own `TERM` the
+wrapper recorded as `kind=signal` read as accidental death forever after; `--stop`'s post-kill
+record-found path now writes the stop marker as an annotation (new assumption 23). (5) Assumption
+15's session-primitive escalation was near-certain on macOS, not contingent, and is re-resolved into
+a probe ladder with an honestly-narrowed per-platform fallback. Also: `cause` gained real values
+(`signal`/`vanished`, retiring the vestigial `unexpected`), the mutation-test log-tail assert is
+pinned to stderr, and the test-only barriers must be env-gated and inert by default.
+
 ## Problem
 
 Finalizing change 0276 burned ~20 minutes polling a process that had been dead 19 of them. Two
@@ -59,10 +73,13 @@ child in general — a predicate that is anchored on the process itself.
 Three verbs: `--launch` and `--observe` mirror runner-dispatch's lifecycle split; `--stop` owns
 termination.
 
-**Stream discipline, all three verbs (assumption 18).** **stdout carries the machine-readable report
-line and nothing else** — a single `state=<state> [cause=<cause>]` line a caller parses. Every
-diagnostic — the log tail on `died`, the reason a signal was withheld, the malformed-record detail —
-goes to **stderr**. This is the runner-dispatch rule (*"Every diagnostic this verb prints goes to
+**Stream discipline, all three verbs (assumption 18).** **stdout carries exactly one
+machine-readable report line and nothing else**, and the payload is verb-specific: `--launch` prints
+the minted run-directory path (the handle); `--observe` prints `state=<state> [cause=<cause>]`;
+`--stop` prints one of its three report tokens (`stopped` / `already-terminal` / `unavailable`). The
+`state=` grammar belongs to `--observe` alone — a caller parsing it off another verb matches
+nothing, by design. Every diagnostic — the log tail on `died`, the reason a signal was withheld, the
+malformed-record detail — goes to **stderr**. This is the runner-dispatch rule (*"Every diagnostic this verb prints goes to
 stderr"*) and it is what makes "callers key on the stdout report line" (assumption 11) actually
 parseable: a log tail is multiline and arbitrary, so it can never share the channel with the
 protocol.
@@ -80,10 +97,16 @@ protocol.
     `set -m` own-process-group technique is **not** sufficient here — it makes the child a group
     leader, which is a weaker separation than the new session capability 1 requires. But
     `runner-dispatch.md` also records the platform floor: *"`setsid` is absent on macOS and docket
-    takes no `perl` dependency."* So the plan must **establish and record** which available
-    primitive creates a genuine new session on the supported platforms, and if none can be found
-    without a new dependency, that is a design finding to escalate — not a gap to paper over with
-    `set -m` while the contract keeps claiming "new session".
+    takes no `perl` dependency."* That floor makes the no-primitive outcome the **expected** one on
+    macOS, not a contingency — a POSIX shell cannot create a session without an external primitive —
+    so the spec resolves the question instead of deferring it (assumption 15): the plan probes, in
+    order, `setsid` where present, then a platform-shipped pty-based session primitive (macOS's
+    `script(1)` runs its command as the leader of a new session on a fresh pty — a candidate to
+    **verify, not assume**). Where the ladder is exhausted, the contract for that platform is
+    **honestly narrowed** in `gate-run.md` to own-process-group plus the unchanged detachment
+    handshake, recorded as a per-platform capability note and escalated as a design finding for a
+    human to accept or supersede with a dependency — the build records and continues rather than
+    stalling, and the contract never claims "new session" anywhere it does not deliver one.
   - Records `pid`/`pgid`, the command line, and an opaque identity token (assumption 9). A wrapper
     writes the terminal record when — and only when — the child itself exits, as its **own separate
     file** (the runner-dispatch `done`-file shape), atomically: temp file beside its destination,
@@ -115,14 +138,15 @@ protocol.
   transplanted):
 
   1. **Read the terminal record.** Present ⇒ classify and stop: `kind=exit code=0` → `passed`;
-     `kind=exit` nonzero → `failed`; `kind=signal` → `died cause=unexpected`. Present but
-     unparseable → `unavailable` (a malformed record means the *supervisor* did not finish cleanly,
+     `kind=exit` nonzero → `failed`; `kind=signal` → `stopped` if a completed stop marker exists
+     (assumption 23 — the recorded signal may be a deliberate `--stop`'s own `TERM`), else
+     `died cause=signal`. Present but unparseable → `unavailable` (a malformed record means the *supervisor* did not finish cleanly,
      and a verdict read out of garbage is fabricated).
   2. **Probe liveness** — `kill -0` on the recorded pgid, cross-checked against the identity token
      (assumption 9), so a recycled pgid never reads alive. Alive and identity-confirmed → `running`.
   3. **Dead or identity-mismatched ⇒ RE-READ the terminal record.** Appeared → classify by step 1.
      Still absent → `stopped` if a completed stop marker exists (assumption 13), else
-     `died cause=unexpected`, reported with the log tail on stderr.
+     `died cause=vanished`, reported with the log tail on stderr.
 
   **Step 3's second read is the whole point** and is not covered by atomic writes — atomicity
   prevents partial reads, not staleness. Without it the sequence *observer reads "no record" → child
@@ -136,7 +160,7 @@ protocol.
   | `running` | alive, identity-confirmed | **the only non-terminal state** — observe again within the caller's budget |
   | `passed` | `kind=exit code=0` | terminal |
   | `failed` | `kind=exit`, nonzero — the child *ran and went red* | terminal |
-  | `died cause=unexpected` | signal-terminated, or no record and the group is gone/mismatched | terminal for this attempt |
+  | `died` (`cause=signal` \| `cause=vanished`) | `kind=signal` with no stop marker (`signal`), or no record and the group gone or identity-mismatched (`vanished`) | terminal for this attempt |
   | `stopped` | terminated deliberately by `--stop` (assumption 13) | terminal — **never relaunched** |
   | `unavailable` | run dir, launch record, or terminal record unreadable or malformed | terminal, fail-closed |
 
@@ -161,7 +185,13 @@ protocol.
   Steps 3 and 6 are the runner-dispatch give-up path verbatim, and for its stated reason: the path
   is entered off a "no record" read taken several syscalls earlier, and without them `--stop` kills a
   run that had **already completed successfully** and then reports it as terminated. A record found
-  at either point takes the terminal disposition, no marker is written, and nothing is signalled.
+  at step 1 or step 3 takes the terminal disposition, nothing is signalled, and no marker is written
+  — our `TERM` never happened, so the record cannot be ours. A record found at step 6 also takes the
+  terminal disposition and reports `already-terminal`, but when it is `kind=signal` the stop marker
+  **is** written as an annotation (assumption 23): the signal it records is almost certainly the
+  step-4 `TERM`, and without the marker a deliberately cancelled run reads `died` forever and an
+  idempotent site relaunches a cancellation. The record still outranks the marker for exit kind; the
+  marker only reclassifies the signal death as deliberate.
   **The marker is never written before termination is verified** (step 5 before step 7) — otherwise a
   `--stop` that dies halfway leaves a marker claiming a kill that never happened, and a later
   idempotent call no-ops on it while the child runs on.
@@ -196,12 +226,16 @@ predicate.
 **gated on `--stop`'s report, not merely preceded by the call** (assumption 22):
 
 ```
-died cause=unexpected  (idempotent child only)
+died — either cause  (idempotent child only)
   -> --stop
        stopped           -> group verified gone  -> one fresh --launch
-       already-terminal  -> RE-OBSERVE first:
-                              record appeared -> passed / failed; NO relaunch
-                              group confirmed absent, still no record -> one fresh --launch
+       already-terminal  -> RE-OBSERVE, and key on the state it returns:
+                              passed / failed -> verdict stands; NO relaunch
+                              died            -> one fresh --launch
+                                                 (record-classified signal death, or group
+                                                  confirmed absent with still no record)
+                              stopped         -> NO relaunch; deliberate cancellation
+                              unavailable     -> abort-and-report; NEVER relaunch
        unavailable       -> abort-and-report; NEVER relaunch
 ```
 
@@ -217,7 +251,16 @@ guard leaves available.
 
 The `already-terminal` re-observe is likewise load-bearing, and follows from the record-outranks-stop
 invariant: `already-terminal` covers both *a record appeared* and *the group is confirmed absent*.
-Relaunching on the first would re-run a suite that had **finished** and throw away its verdict.
+Relaunching on `passed`/`failed` would re-run a suite that had **finished** and throw away its
+verdict. The re-observe's enumeration is **total over the state vocabulary, and every leg is
+terminal** (critic re-review round 3): a record-classified `died cause=signal` — the 0276 headline
+shape, a `TERM`ed suite whose wrapper survived to write the record — reaches the one-relaunch
+decision *at the re-observe*, not through another `--stop`, so the cycle
+`died → --stop → already-terminal → re-observe → died → …` cannot occur. `running` is unreachable
+here: `already-terminal` requires a terminal record or a confirmed-absent group, and the identity
+token cannot re-match a recycled pgid. One residual, named: with the record present `--stop` signals
+nothing by design, so any group members that outlived the child are not swept before the relaunch —
+this narrows to the same surviving-orphans residual assumptions 4 and 13 already accept.
 
 A second `died` after a relaunch is abort-and-report (halt per the caller's existing halting
 conditions). Mirrors the AGENTS.md run gate's re-dispatch-once rule; grounded in 0276, where the
@@ -253,7 +296,7 @@ abandonment happens.
 
 - `docket-build` § *Gate execution posture* / `references/gate-execution.md`: the mitigation names
   the helper as the shipped implementation of the detach-and-sentinel discipline; the posture
-  gains the liveness-keyed-wait sentence plus the scoped one-relaunch rule. The **five-state
+  gains the liveness-keyed-wait sentence plus the scoped one-relaunch rule. The **six-state
   vocabulary lives in `gate-run.md`'s contract** and the posture cites it — the distinction is
   mechanized harness-independently by the shipped script, so gate-execution's version-scoped
   harness-capability list is the wrong owner for it; capability 5 gains only a pointer and no
@@ -279,7 +322,8 @@ abandonment happens.
 ### Mutation test
 
 `tests/test_gate_run.sh`: launch a long-sleeping child, `kill -9` its process group mid-wait,
-assert the next `--observe` returns `died` promptly and the report carries the log tail; plus the
+assert the next `--observe` reports `died` promptly on stdout with the log tail on **stderr**
+(assumption 18 — the tail never shares the protocol channel); plus the
 `passed`/`failed`/`running`/`unavailable` paths, the sentinel-write-on-exit guarantee, and the
 **identity guard** — a fixture that substitutes a live foreign process group under the recorded
 pgid must still read `died`, so the mutation "drop the identity cross-check" reddens. A wait
@@ -295,10 +339,12 @@ reddens a spurious record write; and the **identity guard on the signal path** �
 fixture must have `--stop` signal **nothing at all** and report `unavailable`, so removing the
 pre-signal identity check reddens rather than killing a bystander.
 
-**The three race asserts are the ones that cannot be argued into existence — each needs a
+**The four race asserts are the ones that cannot be argued into existence — each needs a
 deterministic interleaving fixture, not a sleep.** The helper takes test-only synchronization points
 (a wait-for-file barrier the fixture releases) so the observer or stopper can be held at a chosen
-step while the child is driven to completion:
+step while the child is driven to completion. Each barrier is **env-gated and inert by default** —
+unset means no-op at full speed — so the fixture hook can never itself become a hang site in
+production:
 
 - **Observe TOCTOU (assumption 19).** Hold the observer between its first record read and its
   liveness probe; let the wrapper write `kind=exit code=0` and exit; release. The observation must
@@ -311,6 +357,11 @@ step while the child is driven to completion:
 - **Marker-before-verification (assumption 21).** Kill `--stop` between its signal and its marker
   write; assert **no** `stopped` marker exists and a subsequent `--stop` still attempts termination
   rather than no-opping on a marker that claims a kill that never happened.
+- **Deliberate stop recorded as signal death (assumption 23).** Hold `--stop` between its `TERM` and
+  its step-6 re-read; let the wrapper reap the signal death and write `kind=signal`; release.
+  `--stop` must report `already-terminal` and write the stop marker, and a subsequent `--observe`
+  must report `stopped`, never `died`. Deleting the step-6 annotation write reddens — this is the
+  mutation that relaunches a cancellation.
 
 - **Signal versus nonzero exit (assumption 16).** A child killed by `TERM` while its wrapper survives
   must observe as `died`, not `failed`; a child that exits 1 must observe as `failed`. The mutation
@@ -385,7 +436,7 @@ Every decision an interactive brainstorm would have raised, the committed defaul
    identity), and `--observe` reads `running` only when the pgid is alive AND the token matches;
    a mismatch is `died`. Mutation-tested (identity-guard fixture). Rejected: bare `kill -0`
    (green mutation test would hide the guard's absence; the repo already solved this once).
-10. **The five-state vocabulary lives in `gate-run.md`; the skill posture cites it.** (Surfaced
+10. **The six-state vocabulary lives in `gate-run.md`; the skill posture cites it.** (Surfaced
     by critic round 1; justification corrected in round 2: no existing `supported` verdict claims
     capability 5 — the standard probe covers capabilities 1–3 only and the four-state distinction
     "went unobserved on every harness" — so the earlier "silently changes every row" claim was
@@ -429,14 +480,22 @@ Every decision an interactive brainstorm would have raised, the committed defaul
     verdict is scoped to the race-free shape. Rejected: "fully established before the call returns"
     as prose (that is the sentence the current spec already had, and prose is what 0276 proved does
     not reach the moment of launch).
-15. **The session primitive is an open implementation question, escalated rather than assumed.**
-    Capability 1 requires a new **session**; `runner-dispatch.sh` achieves only an own process group
-    via `set -m`, and `runner-dispatch.md` records that `setsid` is absent on macOS with no `perl`
-    dependency taken. The plan must establish and record which primitive delivers a genuine new
-    session on the supported platforms; finding none without a new dependency is a design finding to
-    escalate. Rejected: copying `set -m` while the contract keeps claiming "new session" (a contract
-    that overstates its own guarantee is how the leader-dead claim in assumption 22 got written in
-    the first place).
+15. **The session primitive is resolved by a probe ladder; exhaustion narrows the contract honestly
+    and escalates without stalling.** (Re-resolved at critic re-review round 3 — the first draft
+    left this "open, escalate if none found", but the escalation leg was near-certain, not
+    contingent: a POSIX shell cannot create a session without an external primitive, and the
+    recorded floor — `setsid` absent on macOS, no `perl` dependency — rules out the obvious ones,
+    so the plan would have stalled on a design question this spec is the right altitude to answer.)
+    Capability 1 requires a new **session**; `set -m` yields only an own process group. Resolved:
+    probe `setsid` where present, then a platform-shipped pty-based session primitive (`script(1)`
+    as the macOS candidate — verified at plan time, never assumed); if none delivers a genuine new
+    session on some supported platform, `gate-run.md` records an honestly-narrowed per-platform
+    contract (own process group plus the unchanged detachment handshake) and the narrowing is
+    escalated as a design finding for a human to accept or supersede with a dependency. Rejected:
+    copying `set -m` while the contract keeps claiming "new session" (a contract that overstates
+    its own guarantee is how the leader-dead claim in assumption 22 got written in the first
+    place); a hard stall on escalation (converts a near-certain platform fact into a permanent
+    halt).
 16. **The terminal record encodes kind, not a bare integer.** `kind=exit code=<n>` /
     `kind=signal signal=<n>`; signal termination classifies `died`, never `failed`. Grounds: with a
     bare integer, a child `TERM`ed while its wrapper survives records `EXIT=143` and reads as
@@ -456,7 +515,12 @@ Every decision an interactive brainstorm would have raised, the committed defaul
 18. **stdout is the protocol; every diagnostic goes to stderr.** A `died` log tail is multiline and
     arbitrary and cannot share a channel with a line callers parse — the two requirements as
     originally written contradicted each other. This is runner-dispatch's existing rule, adopted
-    verbatim.
+    verbatim. (Corrected at critic re-review round 3: the first amendment declared the
+    `state=<state>` grammar for all three verbs while `--launch`'s own bullet printed a bare path —
+    a contract a verbatim implementer could not satisfy. What all three verbs share is
+    one-machine-line-on-stdout; the payload is defined per verb — `--launch` the run-dir path,
+    `--observe` the `state=` line, `--stop` its report token — and the `state=` grammar is
+    `--observe`'s alone.)
 19. **`--observe` re-reads the terminal record after a dead liveness probe.** Without it the
     interleaving *no-record read → child completes → dead probe* reports `died` for a run that
     **passed**, and triggers a relaunch on it. Atomic writes do not address this: atomicity prevents
@@ -482,6 +546,28 @@ Every decision an interactive brainstorm would have raised, the committed defaul
     `already-terminal` → **re-observe first**, because it also covers "a record appeared", and
     relaunching a finished run would discard its verdict; `unavailable` (ownership unprovable) →
     abort-and-report, never relaunch, because relaunching is the 0231 double-run state.
+    **Completed at critic re-review round 3:** the re-observe is keyed on the state it returns, and
+    the enumeration is total — `passed`/`failed` keep the verdict, `died` (either cause) takes the
+    one relaunch, `stopped` and `unavailable` never relaunch. The first amendment enumerated only
+    two outcomes, and the missing leg was the headline one: a record-classified signal death — the
+    0276 shape itself — matched neither, so a literal executor cycled
+    `died → --stop → already-terminal → re-observe → died` with no terminal leg.
+23. **`--stop`'s post-kill record-found path writes the stop marker as an annotation.** (Critic
+    re-review round 3.) The window: `--stop` `TERM`s the group, the wrapper reaps the child's
+    signal death and lands the `kind=signal` record before its own pending `TERM` takes it, and
+    step 6 finds the record. Without the marker, that deliberately cancelled run reads
+    `died` on every later `--observe`, and an idempotent site relaunches a cancellation — violating
+    "`stopped` is never relaunched by anyone". So: a record found at step 6 reports
+    `already-terminal` as before, and when it is `kind=signal` the stop marker is written too. The
+    record still outranks the marker for exit kind; the marker only reclassifies the signal death
+    as deliberate, which `--observe` step 1 reads as `stopped`. Scope: step 6 only — a record found
+    before the signal (steps 1 and 3) cannot be our `TERM`'s, and stays unannotated. Named
+    residual, accepted: an external signal landing in the same window as our `TERM` is recorded as
+    deliberate; the caller had already asked for the run's death, so the classification matches
+    intent either way. Mutation-tested with a deterministic interleaving fixture (see the
+    deliberate-stop race assert). Rejected: naming the window as a residual without closing it
+    (the repair is mechanical and the violated invariant — state alone determines relaunch
+    behavior — is the contract's own premise, assumption 13).
 
 ## Out of scope
 
