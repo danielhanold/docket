@@ -2,11 +2,11 @@
 id: 282
 slug: launch-and-wait-contract-for-long-running-child-processes-li
 title: 'Launch-and-wait contract for long-running child processes — liveness-keyed, not marker-keyed'
-status: proposed
+status: in-progress
 priority: critical
 type: fix
 created: 2026-08-09
-updated: 2026-08-09
+updated: 2026-08-10
 depends_on: []
 related: [251, 260, 273, 275, 277]
 discovered_from: [276]
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/launch-and-wait-contract-for-long-running-child-processes-li
+claimed_at: 2026-08-10T01:07:59Z
 pr:
 blocked_by:
 reconciled: false
