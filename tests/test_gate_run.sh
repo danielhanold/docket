@@ -698,6 +698,8 @@ assert "the section defers disposition policy to the build skill's posture" \
 #   (b) rewrite the `*)` arm to a retry (the observed defect shape) -> the malformed line is polled
 #       instead of disposed. Reddens fixture 6 on BOTH the disposition and the observation count.
 #   (c) drop the `|| true` -> fixture 5 (the stub exits 1) aborts under the harness's errexit.
+#   (d) drop the `:?` from the budget read -> an UNSET budget silently arithmetics to 0 and becomes
+#       indistinguishable from a configured zero budget. Reddens fixture 8.
 LOOPBOX="$SBX/loopbox"; mkdir -p "$LOOPBOX"
 cat >"$LOOPBOX/docket.sh" <<'STUB'
 #!/usr/bin/env bash
@@ -720,18 +722,23 @@ printf '%s\n' "$loop_fence" >"$LOOPBOX/loop.body"
 # A budget the fence would take five real minutes to exhaust therefore burns in milliseconds, which
 # is what lets mutation key (b) — a `*)` that retries — be observed as a real non-termination
 # (31 observations, no verdict) rather than by hanging this file past its runtime budget.
-run_loop(){ # $1 = budget (minutes), $2… = the scripted observe lines -> prints "state|observations"
+run_loop(){ # $1 = budget in minutes, or UNSET to omit the assignment; $2… = scripted observe lines
   local budget="$1"; shift
   printf '%s\n' "$@" >"$LOOPBOX/script"
   printf '0' >"$LOOPBOX/count"
   {
-    printf '%s\n' 'set -euo pipefail' \
-      '__now=0' \
+    # UNSET omits the assignment AND drops `-u`, on purpose: nounset aborts on the bare arithmetic
+    # read all by itself, so keeping it would hold fixture 8 green with the fence's own `:?` guard
+    # deleted. Without `-u` — the posture an agent pasting the fence into a Bash call actually
+    # carries — that guard is the ONLY thing between an unset budget and a silent zero deadline.
+    if [ "$budget" = UNSET ]; then printf '%s\n' 'set -eo pipefail'
+    else                           printf '%s\n' 'set -euo pipefail'; fi
+    printf '%s\n' '__now=0' \
       'date(){ printf "%s\n" "$__now"; }' \
       'sleep(){ __now=$(( __now + ${1:-0} )); }' \
       'run_dir=/nonexistent-run-dir' \
-      "DOCKET_SCRIPTS_DIR=$LOOPBOX" \
-      "GATE_OBSERVATION_BUDGET=$budget"
+      "DOCKET_SCRIPTS_DIR=$LOOPBOX"
+    [ "$budget" = UNSET ] || printf '%s\n' "GATE_OBSERVATION_BUDGET=$budget"
     cat "$LOOPBOX/loop.body"
     printf '%s\n' 'printf "%s" "${state}"'
   } >"$LOOPBOX/harness.sh"
@@ -771,6 +778,14 @@ assert "a zero budget buys one observation and reports no verdict" \
 # spends its whole budget and then stops, rather than looping forever.
 assert "a running run that never settles stops at the budget with no verdict" \
   '[ "$(run_loop 5 state=running)" = "|31" ]'
+# 8 — AN UNSET BUDGET IS NOT A ZERO BUDGET. In bash arithmetic an unset name evaluates to 0, so a
+# bare read makes `deadline` land on "now" and buys exactly ONE observation — byte-identical to
+# fixture 7's answer for a legally configured `0`, which is what makes the missing precondition
+# undetectable at the caller and halts a healthy suite as if the budget had genuinely run out. The
+# fence's `:?` guard turns that into a loud abort with ZERO observations instead. Mutation key (d):
+# drop the `:?` and this assert reads back "|1" — fixture 7's own value.
+assert "an unset budget aborts the loop instead of passing for a configured zero budget" \
+  '[ "$(run_loop UNSET state=running)" = "ERRExit|0" ]'
 
 # The retryable rule is stated TWICE by design — once in Purpose as a property every caller may
 # rely on, once beside the table where the states are defined — so each statement is pinned in its

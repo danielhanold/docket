@@ -84,8 +84,10 @@ fence and executes it against every state below.
 
 ```bash
 # `run_dir` is the handle --launch printed. GATE_OBSERVATION_BUDGET is the docket execution policy
-# from the Step-0 config export, in minutes; 0 is legal and buys exactly one observation.
-deadline=$(( $(date +%s) + GATE_OBSERVATION_BUDGET * 60 ))
+# from the Step-0 config export, in minutes; 0 is legal and buys exactly one observation. The `:?`
+# is load-bearing for exactly that reason: bash arithmetic reads an unset name as 0, so a bare read
+# would make a MISSING export look like a configured 0 and halt a healthy run one observation in.
+deadline=$(( $(date +%s) + ${GATE_OBSERVATION_BUDGET:?from the Step-0 config export} * 60 ))
 state=""
 while :; do
   # Capture, THEN match. The `|| true` is load-bearing: --observe exits 1 on `unavailable`, and the
