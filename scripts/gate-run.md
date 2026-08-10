@@ -201,20 +201,34 @@ Seven steps, and two properties hold across all of them.
 **The record outranks the stop** — steps 1, 3 and 6. A stop entered off a stale "no record" read
 kills a run that had **already succeeded** and then reports it as terminated.
 
-**Identity is checked before anything is signalled** — steps 2 and 4. The one bare `kill -0` here
-that decides anything *before* a signal is step 1's orphan probe, where the leader is known dead (so
-no identity match is possible) and an alive result can only move the outcome **fail-closed**; the
+**Identity is checked before anything is signalled** — steps 2 and 4. The bare `kill -0` that decides
+anything *before* a signal is the orphan probe **steps 1 and 3 share**, where the leader is known dead
+(so no identity match is possible) and an alive result can only move the outcome **fail-closed**; the
 probes that follow the signal verify a teardown whose ownership step 4 already proved. *Invariants*
 states the rule by fail direction rather than by site.
 
+**What `already-terminal` certifies, at every step that emits it.** The token is not "the run dir has
+a `terminal` file"; it is **record present *and* the recorded group empty**, because that conjunction
+is what the caller's relaunch gate rests on — relaunching over live orphans is the double-run state
+this contract exists to avoid. Steps 1 and 3 establish it by **probing**, through one shared code path
+so the two cannot drift. Step 4's absent-group branch establishes it by the probe it just made. Step
+6 has something stronger: step 5 refused to reach it until the group it signalled was **verified**
+gone, so a further probe there would not re-check our own teardown — the pgid is free from that
+instant, and an alive answer could only be whoever inherited the name. That non-probe is stated in
+full at step 6.
+
 1. **Record present ⇒ probe the recorded group before reporting.** The leader is dead, so ownership
-   of any survivor is unprovable — but *detection* is possible where safe signalling is not, and
-   relaunching over live orphans is the double-run state this contract exists to avoid. Live
-   members ⇒ `unavailable`, nothing signalled. Otherwise ⇒ `already-terminal`.
+   of any survivor is unprovable — but *detection* is possible where safe signalling is not. Live
+   members ⇒ `unavailable` (`orphans-detected` on stderr), nothing signalled. Otherwise ⇒
+   `already-terminal`.
 2. **Validate identity.** An **absent** group is not an identity failure — `unavailable` requires a
    group that exists and cannot be proven ours — so absence falls through to step 4's branch.
-3. **Re-read the record immediately before signalling.** Nothing but the intent write and the kill
-   separates the test from the act. See *Named residuals* for this step's honest testability status.
+3. **Re-read the record immediately before signalling — with step 1's probe, not without it.**
+   Nothing but the intent write and the kill separates the test from the act. A stop may **enter**
+   with no record and find one here, which is the identical world-state step 1 answers for one step
+   later; reporting off the record alone would leave the guarantee above true at step 1 and false at
+   step 3, and the caller cannot tell which step produced the token it relaunches on. Same outcomes
+   as step 1, from one shared code path.
 4. **Probe with both conjuncts, on the kill's side of the fence.** Neither `kill -0` nor the
    identity check is carried down from step 2: a group recycled inside the stop window is invisible
    to a value captured before the window, and that value is the one a `TERM` would be aimed at.
@@ -239,6 +253,12 @@ states the rule by fail direction rather than by site.
    deliberately cancelled run reads `died` forever and an idempotent site relaunches a cancellation.
    A `kind=exit` record is the child's **own** verdict, reached despite the signal, and gets
    nothing. Either way the token is `already-terminal`.
+   - **This step deliberately does not repeat steps 1 and 3's orphan probe.** It does not need it —
+     step 5 already verified the group gone — and it must not have it: from the instant that
+     verification succeeded the pgid is free, so an alive answer here can only be whoever inherited
+     the name, and reporting `unavailable` off it would withhold the annotation from a cancellation
+     we performed and verified, leaving that run to read `died` forever. A stated, reasoned
+     non-probe, on the same footing as step 4's non-check of identity on the `KILL` escalation.
 7. Only now — the group having actually been signalled and verified gone, with no record of the
    child's own having appeared — write `stopped` and report `stopped`.
 
@@ -257,8 +277,8 @@ The tokens below are stated against the legs that actually produce them:
 | Token | Produced when |
 |---|---|
 | `stopped` | the group was signalled, verified gone, and **no** terminal record exists — in practice the `KILL`-escalation leg |
-| `already-terminal` | a record exists at step 1, 3 or 6 (the ordinary live-child stop lands here, annotated), **or** the recorded group was already absent at step 4 |
-| `unavailable` | an unreadable run dir, an unusable record, live orphans under a record, an unprovable identity, or termination that could not be verified |
+| `already-terminal` | a record exists **over a group established empty** — probed so at step 1 or 3, or verified so by the stop's own kill at step 6 (the ordinary live-child stop lands here, annotated) — **or** the recorded group was already absent at step 4 |
+| `unavailable` | an unreadable run dir, an unusable record, live orphans under a record (step 1 or 3), an unprovable identity, or termination that could not be verified |
 
 ## Exit codes
 
@@ -361,16 +381,7 @@ so accepting a perl dependency would close the gap on the same ground the eviden
 Docket's recorded policy is that it takes **no perl dependency**, and **only a human may change
 that**; no task in this change may decide it.
 
-**5. `--stop` step 3's pre-signal re-read reddens no assert, and is defense in depth rather than
-distinct behavior.** Measured: step 3 and step 4's group-absent branch emit the **identical** token
-(`already-terminal`) and write the **identical nothing**, so no observable outcome separates them,
-and the window in which a record could arrive between the two is sub-scheduler-tick. Deleting step 3
-therefore leaves every assert in `tests/test_gate_run_stop.sh` green. It is kept because the
-cost is one `[ -f ]` and the shape it protects — read the record as late as possible before acting on
-its absence — is the same shape steps 1 and 6 are built on. Stated honestly rather than claimed as
-covered: the suite does not have a test for it, and it is not testable through the shipped surface.
-
-**6. A launch-failure group whose leader is already dead is detected, not signalled.** The failure
+**5. A launch-failure group whose leader is already dead is detected, not signalled.** The failure
 path refuses to `TERM` a recorded group it cannot prove is still led by the process this launch
 recorded, and reports the survivor loudly instead. The residual is the leg that trade gives up: a
 group that really is ours, whose leader died while a member lived on, is left for manual disposal
@@ -412,8 +423,8 @@ whole lifetime.
   signal. A bare probe is admissible in exactly two shapes, and both can only move the outcome
   fail-closed:
   - **Detection where the leader is known dead**, so no match is possible and nothing is signalled
-    off the answer — `--stop` step 1's orphan probe (`unavailable`) and `--launch`'s failure-path
-    leak check (the loud unverified report).
+    off the answer — the orphan probe `--stop` steps 1 and 3 share (`unavailable`) and `--launch`'s
+    failure-path leak check (the loud unverified report).
   - **Verification after a signal we already earned the right to send** — the post-`TERM` grace, the
     `KILL` escalation, and the gone-check that follows, whose deliberate non-check is stated in full
     under `--stop` step 4.
@@ -451,4 +462,7 @@ whole lifetime.
 `tests/test_gate_run.sh` (launch, the records, the terminal record, `--observe`, and this contract's
 own shape) and `tests/test_gate_run_stop.sh` (`--stop` and its deterministic interleaving fixtures),
 sharing the prologue in `tests/lib/gate_run_common.sh`. Every assert is keyed to a mutation that
-reddens it, with the one exception named in *Named residuals* 5.
+reddens it — no exceptions. `--stop` step 3 was the last holdout, and taking step 1's orphan probe is
+what gave it distinct, observable behavior (`unavailable` where it used to emit the same
+`already-terminal` as step 4's absent-group branch). Its fixture is the interleaving in which the stop
+**enters** with no record and finds one over a group that still has a live member.

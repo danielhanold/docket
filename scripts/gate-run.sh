@@ -608,6 +608,34 @@ do_observe() {
 # --stop
 # ==================================================================================
 
+# WHAT `already-terminal` MEANS, IN ONE PLACE — record present AND the recorded group probed EMPTY
+# (spec assumptions 22 and 24). The token is not a description of the run dir; it is the conjunct the
+# caller's relaunch gate rests on, so every step that may emit it WITHOUT having signalled anything
+# has to establish both halves, and it has to establish them the same way. `--stop` asks "is there a
+# record?" at steps 1, 3 and 6; steps 1 and 3 answer it from the world alone and share this helper,
+# which is why they cannot drift into two different notions of the guarantee. (Step 6 is the third
+# ask and is deliberately NOT routed here — see its own comment: it has already VERIFIED the group
+# gone at step 5, on the strength of a signal it earned the right to send, and re-probing a pgid we
+# emptied ourselves could only re-answer for whoever inherited the name.)
+#
+# Nothing is signalled off the alive answer. A record exists, so the LEADER is dead and ownership of
+# any survivor is unprovable — but DETECTION is possible where safe signalling is not, and reporting
+# `already-terminal` over live orphans is what lets the died-flow relaunch into the 0231 double-run
+# state. Assumption 24's own words: "a residual is for what cannot be detected, not for what was not
+# probed". Fail-closed by construction: a recycled pgid reads here as live orphans and aborts.
+#
+# Prints EMPTY, and only then, when there is no record at all — the caller's "keep going".
+terminal_record_token() {  # $1 = run dir, $2 = the recorded pgid -> a report token, or empty
+  local rd="$1" pgid="$2"
+  [ -f "$rd/terminal" ] || return 0
+  if kill -0 -"$pgid" 2>/dev/null; then
+    die "orphans-detected: the recorded group $pgid still has live members under a terminal record; ownership is unprovable so nothing was signalled (run dir: $rd)"
+    printf 'unavailable'
+    return 0
+  fi
+  printf 'already-terminal'
+}
+
 # SEVEN STEPS, AND TWO PROPERTIES HOLD ACROSS ALL OF THEM.
 #
 #   THE RECORD OUTRANKS THE STOP — steps 1, 3 and 6. Symmetric to `observe_state`'s re-read and for
@@ -617,12 +645,12 @@ do_observe() {
 #   IDENTITY IS CHECKED BEFORE ANYTHING IS SIGNALLED — steps 2 and 4. Step 4's is the one whose
 #   alive result gates a `TERM`, so it re-checks on the SAME SIDE OF THE FENCE as the kill; a group
 #   recycled between step 2 and step 4 must never take the signal. The bare `kill -0`s in this
-#   script are counted by FAIL DIRECTION, not by site (`scripts/gate-run.md` § Invariants): step 1's
-#   orphan probe is bare because the leader is known dead — so no identity match is possible — and
-#   an alive result can only move the outcome FAIL-CLOSED, to `unavailable`; the probes AFTER a
-#   signal (the grace below, the KILL escalation, and step 5's gone-check) are bare because
-#   ownership was already proven at step 4 and they only verify a teardown we earned the right to
-#   perform.
+#   script are counted by FAIL DIRECTION, not by site (`scripts/gate-run.md` § Invariants): the
+#   orphan probe steps 1 and 3 share is bare because the leader is known dead — so no identity match
+#   is possible — and an alive result can only move the outcome FAIL-CLOSED, to `unavailable`; the
+#   probes AFTER a signal (the grace below, the KILL escalation, and step 5's gone-check) are bare
+#   because ownership was already proven at step 4 and they only verify a teardown we earned the
+#   right to perform.
 #
 # WHAT IS WRITTEN, AND WHEN. `stop-intent` immediately BEFORE the signal, claiming only that a
 # signal is imminent. `stopped` only AFTER termination is verified AND only when the group was
@@ -635,7 +663,7 @@ do_observe() {
 # Prints exactly one report token and always returns 0 — `do_stop` maps the token to the exit
 # status, so the two can never disagree.
 stop_run() {  # $1 = run dir, $2 = reason (already flattened)
-  local rd="$1" reason="$2" pgid
+  local rd="$1" reason="$2" pgid token
 
   { [ -d "$rd" ] && [ -r "$rd/launch" ]; } || {
     die "rundir-unreadable: $rd"
@@ -647,17 +675,12 @@ stop_run() {  # $1 = run dir, $2 = reason (already flattened)
   pgid="$(signalable_pgid "$rd")"
   [ -n "$pgid" ] || { printf 'unavailable\n'; return 0; }
 
-  # 1. RECORD PRESENT ⇒ PROBE the recorded group before reporting (spec assumption 24). The leader
-  #    is dead, so ownership of any survivor is unprovable — but DETECTION is possible even where
-  #    safe signalling is not, and relaunching over live orphans is the 0231 double-run state.
-  #    Fail-closed by construction: a recycled pgid reads here as live orphans and aborts.
-  if [ -f "$rd/terminal" ]; then
-    if kill -0 -"$pgid" 2>/dev/null; then
-      die "orphans-detected: the recorded group $pgid still has live members under a terminal record; ownership is unprovable so nothing was signalled (run dir: $rd)"
-      printf 'unavailable\n'; return 0
-    fi
-    printf 'already-terminal\n'; return 0
-  fi
+  # 1. RECORD PRESENT ⇒ PROBE the recorded group before reporting (spec assumption 24), through the
+  #    shared `terminal_record_token` so this test and step 3's are one rule and not two.
+  #    Spelled `[ -z … ] || { … }` rather than `[ -n … ] && { … }`: under `set -e` a failing `&&`
+  #    left-hand side fails the whole list and would abandon the function mid-flight.
+  token="$(terminal_record_token "$rd" "$pgid")"
+  [ -z "$token" ] || { printf '%s\n' "$token"; return 0; }
 
   # 2. Validate identity. An ABSENT group is NOT an identity failure — `unavailable` requires a
   #    group that EXISTS and cannot be proven ours — so absence falls through to step 4's branch.
@@ -666,9 +689,20 @@ stop_run() {  # $1 = run dir, $2 = reason (already flattened)
     printf 'unavailable\n'; return 0
   fi
 
+  # THE WINDOW STEP 3 ANSWERS FOR, NAMED SO A FIXTURE CAN HOLD IT OPEN. A stop that entered with no
+  # record can find one here — the child completing inside the stop's own window is the whole reason
+  # step 3 exists — and that is the one interleaving in which step 3 decides anything step 1 did not
+  # already decide. Inert unless armed.
+  barrier post-identity-pre-reread
+
   # 3. Re-read the record IMMEDIATELY before signalling — nothing but the intent write and the kill
-  #    separate this test from the act.
-  if [ -f "$rd/terminal" ]; then printf 'already-terminal\n'; return 0; fi
+  #    separate this test from the act. THE SAME TEST AS STEP 1, through the same helper and for the
+  #    same reason: this branch answers for the IDENTICAL world-state — record present, recorded
+  #    group not yet verified — so reporting the token off the record alone would leave the
+  #    `already-terminal` guarantee true at step 1 and false one step later, and the caller cannot
+  #    tell which step produced the token it is about to relaunch on.
+  token="$(terminal_record_token "$rd" "$pgid")"
+  [ -z "$token" ] || { printf '%s\n' "$token"; return 0; }
   barrier pre-term
 
   # 4. Probe with the assumption 9 conjuncts, never a bare probe: this is the one probe whose alive
@@ -710,6 +744,16 @@ stop_run() {  # $1 = run dir, $2 = reason (already flattened)
   fi
 
   # 6. Re-read AFTER the kill and BEFORE any marker is written.
+  #
+  #    AND IT DOES NOT GO THROUGH `terminal_record_token`, WHICH IS A DECISION, NOT AN OVERSIGHT. The
+  #    guarantee that helper enforces — record present AND the recorded group empty — is ALREADY
+  #    ESTABLISHED here, and by stronger evidence than a probe: step 4 proved ownership, signalled,
+  #    and step 5 refused to reach this line until the group was VERIFIED gone. Re-probing would not
+  #    re-check our own teardown; the pgid is free from the instant step 5 succeeded, so an alive
+  #    answer here can only be whoever inherited the NAME — and answering it `unavailable` would
+  #    withhold the `stopped` annotation from a cancellation we performed and verified, leaving that
+  #    run to read `died` forever and be relaunched by the first idempotent call site. That is the
+  #    failure the annotation exists to prevent, bought back by a probe that certifies nothing.
   barrier post-kill-pre-annotate
   if [ -f "$rd/terminal" ]; then
     # A `kind=signal` record found here is the step-4 TERM: the wrapper ignores TERM long enough to

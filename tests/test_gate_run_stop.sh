@@ -14,10 +14,12 @@
 #
 # Split from tests/test_gate_run.sh because one file carrying both would exceed its wall-clock
 # budget and blur two review surfaces. The deterministic interleaving fixtures sit at the END of
-# this file, behind the section that proves the two rendezvous points they consume — `pre-term` and
-# `post-kill-pre-annotate` — are placed where they claim to be. The recycled-group interleaving is
-# the one exception and lives WITH that placement section, because it is itself the evidence for
-# the step-4 identity re-read that the `pre-term` placement exists to make observable.
+# this file, behind the section that proves the two MULTIPLY-CONSUMED rendezvous points —
+# `pre-term` and `post-kill-pre-annotate` — are placed where they claim to be. The recycled-group
+# interleaving is the one exception and lives WITH that placement section, because it is itself the
+# evidence for the step-4 identity re-read that the `pre-term` placement exists to make observable.
+# The third point, `post-identity-pre-reread`, has exactly ONE consumer, so its placement assert
+# lives with that consumer — fixture (6) — rather than in a section it would be alone in.
 #
 # Contract: scripts/gate-run.md. Prologue and sandbox: tests/lib/gate_run_common.sh.
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate_run_common.sh"
@@ -224,11 +226,12 @@ assert "and none of those probes signalled anything — the real group is untouc
   'kill -0 -"$guard_pgid" 2>/dev/null'
 reap "$guard_pgid"
 
-# ---- THE TWO RENDEZVOUS POINTS, AND THE ORDERING EACH ONE PINS --------------------------------
-# Task 6's five interleaving fixtures are held at exactly these two points, so a point placed one
-# step off would silently weaken every one of them. Both are proven placed HERE, and each placement
-# is itself an ordering assert this task owes: nothing is signalled before `pre-term`, and
-# termination is verified before `post-kill-pre-annotate` — which is before any marker is written.
+# ---- THE TWO SHARED RENDEZVOUS POINTS, AND THE ORDERING EACH ONE PINS -------------------------
+# Five interleaving fixtures are held at exactly these two points, so a point placed one step off
+# would silently weaken every one of them. Both are proven placed HERE, and each placement is itself
+# an ordering assert: nothing is signalled before `pre-term`, and termination is verified before
+# `post-kill-pre-annotate` — which is before any marker is written. (`post-identity-pre-reread` is
+# proven placed at fixture (6), its only consumer.)
 
 RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'sleep 60')"
 bar_pgid="$(sed -n 's/^pgid=//p' "$RD/launch")"
@@ -447,5 +450,54 @@ assert "the annotation never happened" '[ ! -f "$RD/stopped" ]'
 assert "but the pre-signal intent record survives the crash" '[ -f "$RD/stop-intent" ]'
 assert "and intent ALONE reclassifies the signal death as deliberate" \
   '[ "$(gate_run --observe "$RD")" = "state=stopped" ]'
+
+# ---- (6) THE RECORD ARRIVES INSIDE THE WINDOW, OVER A GROUP THAT IS NOT EMPTY ------------------
+# Assumptions 22 and 24, and the reason step 1's probe alone is not the guarantee. `already-terminal`
+# is what the caller's relaunch gate rests on, and assumption 24 fixes its meaning: record present
+# AND the recorded group probed EMPTY. Step 1 probes — but a stop may ENTER with no record and find
+# one at step 3's re-read, which is the identical world-state one step later. Reporting the token
+# there off the record alone hands the died-flow an `already-terminal` over live orphans; it
+# re-observes `died cause=signal` and relaunches into the 0231 double-run state. Assumption 24's own
+# words: "a residual is for what cannot be detected, not for what was not probed".
+#
+# THE ORPHAN HERE IS REAL, NOT PLANTED, because this is the world the race actually produces: the
+# command backgrounds a grandchild, which stays in the WRAPPER's process group (a non-interactive
+# shell has job control off, so `&` does not separate it), and then exits. The wrapper reaps only the
+# command it forked, writes `terminal`, and exits — leaving the recorded group alive with a survivor
+# nobody can prove is ours, because the leader that would prove it is the wrapper that just died.
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'sleep 300 & while [ ! -f '"$SBX"'/go6 ]; do sleep 0.1; done; exit 0')"
+f6_pgid="$(sed -n 's/^pgid=//p' "$RD/launch")"
+F6BAR="$SBX/fixture6-barrier"
+( GATE_RUN_TEST_BARRIER=post-identity-pre-reread GATE_RUN_TEST_BARRIER_FILE="$F6BAR" \
+    gate_run --stop "$RD" >"$SBX/fixture6.out" 2>"$SBX/fixture6.err" ) &
+f6_job=$!
+assert "the stop is held between its identity check and its pre-signal re-read" \
+  'wait_for_file "$F6BAR.reached"'
+# PLACEMENT, and it is the ordering assert this third rendezvous owes — the same one `pre-term`
+# carries. A point placed after the signal would let the fixture below assert about a world the stop
+# had already changed, and the whole claim is that step 3 decides this BEFORE anything is signalled.
+assert "nothing has been signalled at post-identity-pre-reread — the recorded group is untouched" \
+  'kill -0 -"$f6_pgid" 2>/dev/null'
+assert "and no stop-intent exists yet — the point sits before the signal, not after it" \
+  '[ ! -f "$RD/stop-intent" ]'
+# NON-VACUITY, and it is what makes this step 3's assert rather than a second copy of step 1's: the
+# stop entered with NO record, so step 1's probe saw nothing and fell through.
+assert "the stop entered with no terminal record, so step 1 was not the branch that decided" \
+  '[ ! -f "$RD/terminal" ]'
+touch "$SBX/go6"
+assert "the child completed and the wrapper recorded it INSIDE the window" 'await_terminal "$RD"'
+assert "yet the recorded group is not empty — the backgrounded grandchild outlived the wrapper" \
+  'kill -0 -"$f6_pgid" 2>/dev/null'
+touch "$F6BAR.release"
+wait "$f6_job" 2>/dev/null || true
+assert "a record found at step 3 over live orphans reports unavailable, never already-terminal" \
+  '[ "$(cat "$SBX/fixture6.out" 2>/dev/null)" = "unavailable" ]'
+assert "with the orphans-detected sub-reason on stderr, and never on the protocol channel" \
+  'grep -qF -- "orphans-detected" "$SBX/fixture6.err" && ! grep -qF -- "orphans-detected" "$SBX/fixture6.out"'
+assert "and nothing was signalled — ownership is unprovable, detection is not" \
+  'kill -0 -"$f6_pgid" 2>/dev/null'
+assert "and nothing was written — no intent, no marker" \
+  '[ ! -f "$RD/stop-intent" ] && [ ! -f "$RD/stopped" ]'
+reap "$f6_pgid"
 
 exit "$fail"
