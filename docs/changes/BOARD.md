@@ -1,14 +1,8 @@
 # Backlog
 
-**283 changes** — 🟢 1 in progress · 🟡 35 proposed · ⚪ 4 deferred · ✅ 167 done · 🗑️ 76 killed
+**284 changes** — 🟡 36 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 167 done · 🗑️ 76 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0282](active/0282-launch-and-wait-contract-for-long-running-child-processes-li.md) | Launch-and-wait contract for long-running child processes — liveness-keyed, not marker-keyed | `critical` | `fix` | [spec](../superpowers/specs/2026-08-09-launch-and-wait-contract-for-long-running-child-processes-li-design.md) | `feat/launch-and-wait-contract-for-long-running-child-processes-li` |
-
-## 🟡 Proposed (35)
+## 🟡 Proposed (36)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -47,6 +41,7 @@
 | [0280](active/0280-shard-or-re-budget-the-test-files-the-suite-runner-reports-o.md) | Shard or re-budget the test files the suite runner reports OVER BUDGET | `medium` | `chore` | needs-brainstorm |
 | [0281](active/0281-auto-groom-s-critic-verdict-return-channel-fails-under-backg.md) | Auto-groom's critic verdict return channel fails under background dispatch | `medium` | `fix` | build-ready |
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | build-ready |
+| [0284](active/0284-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi.md) | runner-dispatch --observe is sentinel-only: adopt 0282's identity-checked liveness probe | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -56,6 +51,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0282](active/0282-launch-and-wait-contract-for-long-running-child-processes-li.md) | Launch-and-wait contract for long-running child processes — liveness-keyed, not marker-keyed | `critical` | `fix` | [#191](https://github.com/danielhanold/docket/pull/191) |  |
 
 ```mermaid
 graph TD
@@ -99,6 +100,7 @@ graph TD
   0281
   0282
   0283
+  0284
   0192:::done
   0211:::done
   0237:::done
