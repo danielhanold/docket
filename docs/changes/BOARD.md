@@ -1,8 +1,8 @@
 # Backlog
 
-**285 changes** — 🟡 37 proposed · ⚪ 4 deferred · ✅ 168 done · 🗑️ 76 killed
+**286 changes** — 🟡 38 proposed · ⚪ 4 deferred · ✅ 168 done · 🗑️ 76 killed
 
-## 🟡 Proposed (37)
+## 🟡 Proposed (38)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -43,6 +43,7 @@
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | build-ready |
 | [0284](active/0284-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi.md) | runner-dispatch --observe is sentinel-only: adopt 0282's identity-checked liveness probe | `high` | `fix` | needs-brainstorm |
 | [0285](active/0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | `high` | `feat` | build-ready |
+| [0286](active/0286-gate-run-observe-poll-loops-strip-state-prefix.md) | Caller-authored gate-run --observe poll loops strip the state= prefix and never terminate | `high` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -96,6 +97,7 @@ graph TD
   0283
   0284
   0282 --> 0285
+  0286
   0192:::done
   0211:::done
   0237:::done
