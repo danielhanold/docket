@@ -629,6 +629,149 @@ retryable_rows="$(state_col yes | sort -u | tr '\n' ' ')"; retryable_rows="${ret
 assert "the table marks running — and only running — retryable (got '$retryable_rows')" \
   '[ "$retryable_rows" = "running" ]'
 
+# ---- THE CALLER'S LOOP IS A TAUGHT, EXECUTABLE SURFACE (change 0286) -------------
+# The helper prints `state=<name>`; the caller owns the loop. A live agent-authored loop
+# re-tokenized the line (awk '{print $1}') and matched BARE state names, so `state=passed` fell
+# to its `*)` arm and a finished gate looked unfinished until the 30-minute budget burned. The
+# contract now ships one copy-paste-correct loop, and because an agent runs those bytes verbatim
+# (learnings: agent-executed-markdown-is-code) the asserts below EXECUTE the fence rather than
+# grepping it.
+usage_blk="$(csection Usage)"
+assert "the Usage section was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$usage_blk")" -ge 30 ]'
+assert "the contract carries a caller-loop subsection, inside Usage" \
+  'grep -qxF -- "### The caller'"'"'s loop" <<<"$usage_blk"'
+
+# The subsection slice. It CANNOT reuse `cfrom`, and it cannot close on a bare `/^#/` the way the
+# other slicers here do: the payload is a fenced bash block whose every second line is a `#`
+# comment, so a hash-terminated slice ends one line into the fence and every assert below it reads
+# an empty haystack. Close on a markdown heading (`#`-run followed by a space) seen OUTSIDE a fence.
+loop_sec="$(awk '
+  /^### The caller'"'"'s loop$/ {f=1; next}
+  !f {next}
+  /^```/ {inf = 1 - inf; print; next}
+  !inf && /^#+ / {f=0; next}
+  {print}
+' <<<"$contract")"
+assert "the caller-loop section was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$loop_sec")" -ge 20 ]'
+
+# The fence itself, and the extraction is asserted non-vacuous before anything reads it: an
+# unlocated fence is an empty string, and every behavioural assert below would then pass against a
+# loop that is not there (learnings: section-slice-needs-a-named-terminator).
+loop_fence="$(awk '
+  /^```bash$/ {inf=1; next}
+  inf && /^```$/ {inf=0; next}
+  inf {print}
+' <<<"$loop_sec")"
+assert "the canonical loop fence was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$loop_fence")" -ge 12 ]'
+
+# EVERY state the contract's own table defines gets a prefix-matched arm — derived from that
+# table, never hand-listed, so a seventh state reddens this instead of ageing into a stale list.
+for st in $state_names; do
+  assert "the canonical loop gives state=$st a prefix-matched arm" \
+    'grep -qF -- "state='"$st"'*" <<<"$loop_fence"'
+done
+# The capture neutralizes the exit status: --observe exits 1 on unavailable, and an errexit caller
+# without this dies before any arm runs.
+assert "the canonical loop neutralizes the observe exit status" \
+  'grep -qF -- "|| true" <<<"$loop_fence"'
+# The anti-pattern is stated beside the example, bound to what it forbids rather than merely
+# present (learnings: prose-guard-binds-phrase-to-claim). Read on a flattened haystack so a pure
+# re-flow cannot redden it.
+loop_flat="$(flat "$loop_sec")"
+assert "the section forbids re-tokenizing the report line into bare state names" \
+  'grep -qiE "(never|not)[^.]{0,120}bare state name" <<<"$loop_flat"'
+assert "and it names the unknown-line arm as terminal, never a retry" \
+  'grep -qiE "unknown[^.]{0,140}(never a retry|stop polling)" <<<"$loop_flat"'
+# Disposition policy is the CALLER's and stays in the skill: the page's own invariant says the
+# helper never polls for the caller, so the example must defer rather than restate policy here.
+assert "the section defers disposition policy to the build skill's posture" \
+  'grep -qF -- "Gate execution posture" <<<"$loop_sec"'
+
+# ---- AND THE FENCE ACTUALLY RUNS ------------------------------------------------
+# The fence is extracted and EXECUTED against a stub that answers a scripted sequence of observe
+# lines, so the asserts key on what the loop DOES, not on how it is spelled. Three mutation keys:
+#   (a) rewrite `state=passed*` to bare `passed` -> `state=passed` falls to the fail-closed `*)`
+#       arm and the loop terminates with the WRONG disposition (unavailable). Reddens fixture 1.
+#   (b) rewrite the `*)` arm to a retry (the observed defect shape) -> the malformed line is polled
+#       instead of disposed. Reddens fixture 6 on BOTH the disposition and the observation count.
+#   (c) drop the `|| true` -> fixture 5 (the stub exits 1) aborts under the harness's errexit.
+LOOPBOX="$SBX/loopbox"; mkdir -p "$LOOPBOX"
+cat >"$LOOPBOX/docket.sh" <<'STUB'
+#!/usr/bin/env bash
+# Stub facade: answers the Nth line of $OBS_SCRIPT, repeating the last line forever after. Exits 1
+# on `unavailable` exactly as the real --observe does, which is what makes the `|| true` testable.
+n=$(( $(cat "$OBS_COUNT") + 1 )); printf '%s' "$n" >"$OBS_COUNT"
+line="$(sed -n "${n}p" "$OBS_SCRIPT")"
+[ -n "$line" ] || line="$(sed -n '$p' "$OBS_SCRIPT")"
+printf '%s\n' "$line"
+case "$line" in state=unavailable*) exit 1 ;; esac
+exit 0
+STUB
+chmod +x "$LOOPBOX/docket.sh"
+printf '%s\n' "$loop_fence" >"$LOOPBOX/loop.body"
+
+# Run the extracted fence under `set -euo pipefail` — the posture an agent-authored caller actually
+# carries, and the only way mutation key (c) can be observed. The fence itself is byte-unmodified;
+# only its two ambient clock primitives are shadowed by shell functions, so that WALL CLOCK IS
+# SIMULATED: `sleep` advances a counter instead of the machine, and `date` reports that counter.
+# A budget the fence would take five real minutes to exhaust therefore burns in milliseconds, which
+# is what lets mutation key (b) — a `*)` that retries — be observed as a real non-termination
+# (31 observations, no verdict) rather than by hanging this file past its runtime budget.
+run_loop(){ # $1 = budget (minutes), $2… = the scripted observe lines -> prints "state|observations"
+  local budget="$1"; shift
+  printf '%s\n' "$@" >"$LOOPBOX/script"
+  printf '0' >"$LOOPBOX/count"
+  {
+    printf '%s\n' 'set -euo pipefail' \
+      '__now=0' \
+      'date(){ printf "%s\n" "$__now"; }' \
+      'sleep(){ __now=$(( __now + ${1:-0} )); }' \
+      'run_dir=/nonexistent-run-dir' \
+      "DOCKET_SCRIPTS_DIR=$LOOPBOX" \
+      "GATE_OBSERVATION_BUDGET=$budget"
+    cat "$LOOPBOX/loop.body"
+    printf '%s\n' 'printf "%s" "${state}"'
+  } >"$LOOPBOX/harness.sh"
+  local st
+  st="$(OBS_SCRIPT="$LOOPBOX/script" OBS_COUNT="$LOOPBOX/count" \
+        "$DOCKET_BASH_PATH" "$LOOPBOX/harness.sh" 2>/dev/null)" || st="ERRExit"
+  printf '%s|%s' "$st" "$(cat "$LOOPBOX/count")"
+}
+
+# 1 — a terminal state on the first look: one observation, the state's own disposition.
+assert "the loop disposes state=passed as passed, in one observation" \
+  '[ "$(run_loop 5 state=passed)" = "passed|1" ]'
+assert "the loop disposes state=failed as failed" \
+  '[ "$(run_loop 5 state=failed)" = "failed|1" ]'
+assert "the loop disposes state=stopped as stopped" \
+  '[ "$(run_loop 5 state=stopped)" = "stopped|1" ]'
+# 2 — running is the ONLY retryable state, and the retry actually happens.
+assert "the loop retries state=running and takes the next state's verdict" \
+  '[ "$(run_loop 5 state=running state=running state=failed)" = "failed|3" ]'
+# 3 — the trailing cause= qualifier is absorbed by the prefix match, not parsed.
+assert "the loop disposes a died line carrying a cause= suffix" \
+  '[ "$(run_loop 5 "state=died cause=vanished")" = "died|1" ]'
+# 5 — unavailable exits 1; the loop keys on the LINE, never the status. Mutation key (c).
+assert "the loop reads state=unavailable off the line despite the nonzero exit" \
+  '[ "$(run_loop 5 state=unavailable)" = "unavailable|1" ]'
+# 6 — THE DEFECT THIS CHANGE EXISTS FOR. An unknown line is disposed, never polled: exactly one
+# observation, and `unavailable`. A retry arm turns both halves of this into their opposites.
+assert "the loop fails closed on a malformed line, in exactly one observation" \
+  '[ "$(run_loop 5 "hello world")" = "unavailable|1" ]'
+assert "the loop fails closed on an empty line too" \
+  '[ "$(run_loop 5 "")" = "unavailable|1" ]'
+# 7 — a zero budget buys exactly ONE observation, then leaves `state` empty: the fail-closed
+# budget-exhaustion case, distinct from every verdict above (SKILL.md posture clauses 5 and 6).
+assert "a zero budget buys one observation and reports no verdict" \
+  '[ "$(run_loop 0 state=running)" = "|1" ]'
+# ...and the simulated clock really does bound a never-terminating poll: a run that stays `running`
+# spends its whole budget and then stops, rather than looping forever.
+assert "a running run that never settles stops at the budget with no verdict" \
+  '[ "$(run_loop 5 state=running)" = "|31" ]'
+
 # The retryable rule is stated TWICE by design — once in Purpose as a property every caller may
 # rely on, once beside the table where the states are defined — so each statement is pinned in its
 # own slice. Measured: a whole-page grep let either one be deleted while the other kept it green.
