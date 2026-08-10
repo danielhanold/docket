@@ -69,18 +69,23 @@ is paid in wall-clock on the longest, least-supervised runs.
 Settled design (2026-08-09 auto-groom; critic-gated, two rounds, 0 needs-human; full decision
 trail in the linked spec's `## Assumptions`):
 
-- A new shared helper, **`scripts/gate-run.sh`** (+ `gate-run.md` contract), with two verbs:
+- A new shared helper, **`scripts/gate-run.sh`** (+ `gate-run.md` contract), with three verbs:
   `--launch` (detached new-session start, every stream to a durable per-run dir, pid/pgid plus an
   opaque identity token recorded, a separate atomic `EXIT=<code>` sentinel file written on child
   exit) and `--observe` (one short-lived observation; five states — `running` / `passed` /
   `failed` / `died` / `unavailable` — with liveness anchored on the identity-checked process
-  group, never solely on the sentinel). A dead child is detected on the next observation, not at
-  a wait-loop bound; callers key on the stdout report line.
+  group, never solely on the sentinel), and `--stop` (identity-checked before signaling, `TERM` →
+  bounded grace → `KILL` on the recorded group, idempotent, recording a `stopped` marker and no
+  `EXIT=` sentinel — so a stopped run still observes as `died`, annotated). A dead child is
+  detected on the next observation, not at a wait-loop bound; callers key on the stdout report
+  line.
 - **Death is a distinct outcome from failure.** `died` (never finished) never collapses into
   `failed` (ran and went red) and never mints repair work.
-- Call-site posture on `died`: kill the recorded group, then **one** bounded relaunch — scoped to
+- Call-site posture on `died`: `--stop` the run, then **one** bounded relaunch — scoped to
   idempotent children (the suite gate); non-idempotent sites keep their existing failure
-  postures. Second death is abort-and-report.
+  postures. Second death is abort-and-report. A caller that abandons a still-`running` child —
+  budget exhaustion, halt, abort — calls `--stop` before it reports, so no suite outlives the run
+  the human is about to inspect.
 - Site rewiring: `docket-build` § *Gate execution posture* + `references/gate-execution.md` name
   the helper and the liveness-keyed rule; finalize inherits by citation; the full executable-site
   scope is derived by whole-repo grep at plan time. `runner-dispatch.sh` is a conscious exclusion
@@ -88,7 +93,9 @@ trail in the linked spec's `## Assumptions`):
   at reconcile).
 - Mutation-tested per the repo's own rule: `tests/test_gate_run.sh` kills the child mid-wait and
   asserts a prompt `died` with the log tail, plus an identity-guard fixture so a recycled pgid
-  cannot read alive; new `runtime-budgets.tsv` row.
+  cannot read alive — and, on the signal path, cannot be signaled; `--stop`'s `KILL` escalation,
+  idempotence, and no-sentinel guarantee each carry a reddening mutation. New
+  `runtime-budgets.tsv` row.
 
 ## Out of scope
 
@@ -103,6 +110,10 @@ trail in the linked spec's `## Assumptions`):
 
 Resolved at grooming (spec assumptions 1–12): helper script owning both launch and observe
 (convention prose rejected); site scope derived by grep at plan time, with `runner-dispatch.sh` a
-conscious, residual-named exclusion; death ⇒ group-kill then one bounded relaunch for idempotent
+conscious, residual-named exclusion; death ⇒ `--stop` then one bounded relaunch for idempotent
 children only, abort-and-report otherwise and on second death; live-slow children stay under the
 existing `GATE_OBSERVATION_BUDGET` fail-closed posture — no new knob.
+
+Reopened and resolved at human spec review (2026-08-09): the helper ships a `--stop` verb
+(spec assumption 13), reversing assumption 5's parked residual that an abandoned live child
+outlives a halted run. Post-groom design; it did not pass the auto-groom critic.

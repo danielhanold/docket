@@ -9,6 +9,10 @@ Change: 0282. Auto-groomed 2026-08-09 (default-biased self-brainstorm; critic-ga
 the critic's own prescribed repairs verbatim (recorded per assumption below) — no post-gate design
 was introduced by the designer. The human audit trail is `## Assumptions` below.
 
+**Amended 2026-08-09, human spec review:** the `--stop` verb (assumption 13) is human-directed
+post-groom design — it reverses assumption 5's parked residual and re-homes assumption 4's
+group-kill onto the verb. It did not pass the auto-groom critic; everything else here did.
+
 ## Problem
 
 Finalizing change 0276 burned ~20 minutes polling a process that had been dead 19 of them. Two
@@ -71,6 +75,19 @@ Two verbs, mirroring the runner-dispatch launch/observe split:
   **stdout report line, never the exit code** — the house pattern (`scripts/docket-status.md`);
   the exit-code mapping exists for scripting completeness and lives in `gate-run.md`.
 
+- **`--stop <run-dir> [--reason <text>]`** — terminate the recorded run. Identity-checked *before*
+  any signal is sent (the assumption 9 token, so a recycled pgid is never signaled — the guard
+  matters more here than on `--observe`, where a mis-read is a wrong verdict but a mis-signal is a
+  killed bystander), then `TERM` to the recorded process group, a bounded grace, then `KILL`.
+  **Idempotent**: a second call, or a call on an already-terminal run, is a no-op and not an error,
+  so a halt path and a `died` relaunch can both call it without coordinating. It records a
+  `stopped` marker (timestamp, caller-supplied reason) in the run dir and writes **no** `EXIT=`
+  sentinel — a stopped child never finished, so a later `--observe` still reports `died`, annotated
+  from the marker so a deliberate stop is distinguishable from a teardown death in the diagnostic.
+  One stdout report line — `stopped` / `already-terminal` / `unavailable` — and **no sixth
+  `--observe` state** (assumption 13). Children that escaped the recorded group (double-fork, own
+  session) survive it; that narrowed case remains a named residual.
+
 The helper is deliberately generic (any command), stateless beyond its run dir, and performs no
 docket metadata operations. It does not poll internally — the *caller* owns the loop and its
 budget, so the existing observation-posture prose (short-lived observations, blocking for
@@ -80,17 +97,27 @@ predicate.
 ### Call-site posture on `died`
 
 **Scoped to idempotent children** — the suite gate and read-only/verify-gated work: one bounded
-relaunch, **preceded by a kill of the recorded process group** (the runner-dispatch give-up
-shape), so a leader-dead-orphans-alive state can never race a second run in the same worktree
-(fresh `--launch`, the first death's diagnostic recorded in the run output); a second `died` is
-abort-and-report (halt per the caller's existing halting conditions). Any orphan that survives
-the group kill is a named residual, as runner-dispatch names its own. Mirrors the
+relaunch, **preceded by `--stop` on the run dir** (the runner-dispatch give-up shape, mechanized as
+a verb rather than a hand-rolled kill at each site), so a leader-dead-orphans-alive state can never
+race a second run in the same worktree (fresh `--launch`, the first death's diagnostic recorded in
+the run output); a second `died` is abort-and-report (halt per the caller's existing halting
+conditions). Any child that escaped the recorded group survives `--stop` and is a named residual,
+as runner-dispatch names its own. Mirrors the
 AGENTS.md run gate's re-dispatch-once rule; grounded in 0276, where the single relaunch succeeded.
 A **non-idempotent** child (a publish, a rebase — anything whose first attempt may have taken side
 effects before dying) is never auto-relaunched: `died` there follows the site's existing failure
 posture (for finalize's steps, `gate-failure.md`'s abort-and-report), with the death diagnostic
 attached. `failed` keeps its existing semantics everywhere (a red suite is a red suite — never
 relaunched by this rule).
+
+**Call-site posture on abandoning a live child.** A caller that stops observing while `--observe`
+still reports `running` — a `GATE_OBSERVATION_BUDGET` exhaustion, or any halt or abort taken with
+the child alive — calls `--stop` before it reports. This is the rule assumption 5 originally parked:
+without it a halted run leaves the suite executing against the worktree the human is about to
+inspect. `--stop`'s idempotence is what makes the rule safe to state unconditionally — a caller
+never has to first establish whether the child is still alive to decide whether stopping is legal.
+The budget itself is unchanged and no knob is added: this governs the *cleanup* on abandonment, not
+when abandonment happens.
 
 ### Site rewiring
 
@@ -123,7 +150,17 @@ assert the next `--observe` returns `died` promptly and the report carries the l
 **identity guard** — a fixture that substitutes a live foreign process group under the recorded
 pgid must still read `died`, so the mutation "drop the identity cross-check" reddens. A wait
 that cannot be shown to notice a dead child is decoration — this is the repo's own guard rule
-applied to the guard this change ships. New row in `tests/runtime-budgets.tsv`.
+applied to the guard this change ships.
+
+`--stop` carries its own asserts, each keyed to a mutation that must redden: stopping a live child
+leaves the recorded group gone; a child that ignores `TERM` is still gone after the grace, so
+dropping the `KILL` escalation reddens; a second `--stop`, and a `--stop` on an
+already-`passed` run, both report `already-terminal` and exit non-error, so losing idempotence
+reddens; `--stop` writes no `EXIT=` sentinel, so a subsequent `--observe` reports `died` **and**
+carries the stop annotation, which reddens both a spurious sentinel write and a dropped marker; and
+the **identity guard on the signal path** — the recycled-pgid fixture must have `--stop` signal
+nothing at all, so removing the pre-signal identity check reddens rather than killing a bystander.
+New row in `tests/runtime-budgets.tsv`.
 
 ## Assumptions
 
@@ -146,19 +183,21 @@ Every decision an interactive brainstorm would have raised, the committed defaul
    only; non-idempotent sites keep their existing failure postures.** (Revised twice: round 1 —
    the original unscoped rule would auto-re-run a publish or rebase whose first attempt may have
    taken side effects before dying; round 2 — `died` includes leader-dead-orphans-alive and
-   identity-mismatch states in which suite orphans may still be running, and with no `--stop`
-   verb an immediate relaunch would race them in the same worktree, so the relaunch is
-   conditioned on first killing the recorded process group, the runner-dispatch give-up shape,
-   with surviving orphans a named residual.) Rejected: zero relaunches even for the suite
+   identity-mismatch states in which suite orphans may still be running, so an immediate relaunch
+   would race them in the same worktree, so the relaunch is conditioned on first killing the
+   recorded process group, the runner-dispatch give-up shape, with surviving orphans a named
+   residual. Revised again at human spec review: that kill is now `--stop`, assumption 13, rather
+   than a hand-rolled kill restated at each call site.) Rejected: zero relaunches even for the suite
    (0276's single retry succeeded; pure abort converts a transient teardown race into a
    human-needing halt); unbounded retries (masks a systematically dying gate).
 5. **No new budget knob; a live child past `GATE_OBSERVATION_BUDGET` keeps today's fail-closed
    posture.** The stub's open question 4 resolves to: liveness detection changes the *dead*-child
    cost only; the live-slow case is already governed. Rejected: a separate abandon-live-child
-   bound (a second knob for a case the existing budget covers). Parked, named residual: the
-   helper ships no `--stop`/cleanup verb, so an abandoned live child outlives a halted run —
-   acceptable because the halt already requires a human, who inherits the diagnostic naming the
-   pgid.
+   bound (a second knob for a case the existing budget covers). **Its parked residual is reversed
+   at human spec review** — the helper does ship a `--stop` verb (assumption 13), and abandoning a
+   live child now obliges the caller to call it, so an abandoned child no longer outlives a halted
+   run. The no-new-knob decision stands: `--stop` governs cleanup on abandonment, never *when* a
+   live child is abandoned, which the existing budget still decides.
 6. **Site scope is derived, not enumerated; `runner-dispatch.sh` is a conscious exclusion with
    its gap named.** (Revised after critic round 1: the original premise "runner-dispatch is
    already liveness-keyed" was false — its `--observe` is sentinel-only with no process probe, so
@@ -203,6 +242,20 @@ Every decision an interactive brainstorm would have raised, the committed defaul
     shared status file, so the atomic write and the launch records cannot conflict.) The run-dir
     default uses a templated mktemp (`"${TMPDIR:-/tmp}/gate-run.XXXXXX"` shape, per the AGENTS.md
     mktemp rule); the sentinel write is atomic — temp file beside its destination, `mv -f`.
+13. **A third verb, `--stop`, owns termination.** (Human spec review, post-groom — not
+    critic-gated.) Two call sites need to kill a recorded run and neither should hand-roll it: the
+    `died` relaunch (assumption 4, which already required a group kill) and abandonment of a live
+    child (assumption 5's parked residual). Chosen: `--stop <run-dir>`, identity-checked before
+    signaling, `TERM` → bounded grace → `KILL`, idempotent, recording a `stopped` marker and no
+    `EXIT=` sentinel. Rejected: leaving termination to each call site (three sites hand-rolling a
+    signal is the hand-rolled-loop defect this change exists to remove, and only the helper holds
+    the identity token that makes signaling safe). Rejected: a sixth `--observe` state `stopped`
+    (a stopped child *did* die without finishing — `died` is the honest state, and the marker
+    supplies the *why* as diagnostic rather than as a state every caller must now branch on).
+    Rejected: `--stop` synthesizing a terminal `EXIT=` sentinel (it would report a run that never
+    finished as one that did, the exact conflation assumption 3 exists to prevent). Residual,
+    narrowed from assumption 4's: a child that escaped the recorded process group survives
+    `--stop`; the helper signals the group it recorded and does not hunt descendants.
 
 ## Out of scope
 
