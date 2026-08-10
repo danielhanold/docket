@@ -689,6 +689,14 @@ assert "and it names the unknown-line arm as terminal, never a retry" \
 # helper never polls for the caller, so the example must defer rather than restate policy here.
 assert "the section defers disposition policy to the build skill's posture" \
   'grep -qF -- "Gate execution posture" <<<"$loop_sec"'
+# The budget-exhaustion leg is the one that hands a human a LIVE detached suite, and the skill's
+# *Abandoning a live child* rule makes `--stop` mandatory before the caller reports. The section
+# narrates that leg, so silence there reads as "nothing further to do" to a reader copying the
+# fence verbatim. Bound the phrase to its obligation rather than asserting a word is present
+# (learnings: prose-guard-binds-phrase-to-claim); read the flattened haystack so a re-flow cannot
+# redden it. Sentence-bounded gaps keep the two halves inside one claim.
+assert "the section names the mandatory stop on the abandon-while-running leg" \
+  'grep -qiE "abandon[^.]{0,80}--stop[^.]{0,60}before it reports" <<<"$loop_flat"'
 
 # ---- AND THE FENCE ACTUALLY RUNS ------------------------------------------------
 # The fence is extracted and EXECUTED against a stub that answers a scripted sequence of observe
