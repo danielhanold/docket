@@ -27,7 +27,7 @@ contract requires the feature worktree on its branch, so the facade **requires**
 ## Usage
 
 ```
-bash scripts/runners/opencode.sh --agent <name> [--model <m>] [--effort <e>] [--] [<args…>]
+bash scripts/runners/opencode.sh --agent <name> [--model <m>] [--effort <e>] [--brief-file <path>] [--] [<args…>]
 ```
 
 - `--agent <name>` (required) — the built-in agent to delegate; its wrapper source
@@ -47,7 +47,18 @@ bash scripts/runners/opencode.sh --agent <name> [--model <m>] [--effort <e>] [--
   accepts docket's `max` natively, unlike codex where `max` becomes `xhigh`. `auto` and an unset
   value both emit no flag (the provider's own default applies). With no model resolved the effort
   has nothing to attach to and is dropped with a WARN.
-- `-- <args…>` — appended to the prompt as caller task context.
+- `--brief-file <path>` (optional, change 0277) — the caller's task brief, read from a file and
+  appended to the prompt **verbatim** under the `Additional caller arguments / task context:`
+  heading. Preferred over trailing argv: the caller writes the file with a quoted-delimiter
+  heredoc, so nothing about the brief is shell-quoted by a model and nothing is joined or
+  reflowed. The file must exist, be readable, and be non-empty. **A brief file and trailing
+  arguments together are refused** — passing both would silently drop or duplicate the child's
+  only input, so this adapter dies rather than picking one. `runner-dispatch.sh` refuses the same
+  shape first; this is the defensive twin for the hand invocation documented here.
+- `-- <args…>` — the legacy payload channel, still supported and no longer lossy: the arguments
+  are appended to the prompt as caller task context, joined on a **newline** in order (they were
+  previously interpolated with `$*`, which joins on the first character of `IFS` and flattened a
+  multi-line brief onto one line).
 
 Environment (set by the facade):
 

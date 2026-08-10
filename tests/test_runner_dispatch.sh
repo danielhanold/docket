@@ -108,6 +108,65 @@ run_adapter --agent status -- "run the board-only pass" >/dev/null 2>&1
 assert "passthrough args reach the prompt" 'grep -qF "run the board-only pass" "$LOG"'
 rm -rf "$SBX"
 
+# ---- 0277: the brief-file channel + a non-lossy argv join ---------------------
+# The caller's brief is the child's ONLY input. It used to travel as `$*`, which joins the
+# positional parameters on the first character of IFS — a multi-line brief passed as several
+# arguments arrived as one line, silently. The fixtures below carry the characters a
+# model-authored brief actually contains (single quotes, backslashes, `%`, backticks, and a
+# `-- --flag`-shaped line), because the append must be VERBATIM: no eval, no printf format.
+make_fixture
+BF="$SBX/brief.txt"
+cat > "$BF" <<'BRIEF'
+line-one: build change 0277
+line-two: it's got a quote, a backslash \n, a percent %s, and a `backtick`
+-- --flag-shaped-line
+BRIEF
+run_adapter --agent status --brief-file "$BF" >/dev/null 2>&1; rc=$?
+assert "0277 codex: a brief-file dispatch exits 0" '[ "$rc" = "0" ]'
+assert "0277 codex: the payload heading is present" \
+  'grep -qxF -- "Additional caller arguments / task context:" "$LOG"'
+assert "0277 codex: brief line 1 lands on its own line" 'grep -qxF -- "line-one: build change 0277" "$LOG"'
+assert "0277 codex: brief line 2 lands VERBATIM on its own line" \
+  'grep -qxF -- "line-two: it'"'"'s got a quote, a backslash \n, a percent %s, and a \`backtick\`" "$LOG"'
+assert "0277 codex: a --flag-shaped brief line survives intact" 'grep -qxF -- "-- --flag-shaped-line" "$LOG"'
+# THE LOSSINESS ASSERT: with `$*` the three lines would be joined onto one.
+assert "0277 codex: the brief is NOT flattened onto one line" \
+  '! grep -qF -- "line-one: build change 0277 line-two:" "$LOG"'
+rm -rf "$SBX"
+
+# The surviving argv path is non-lossy too — order preserved, joined on NEWLINE, not on a space.
+make_fixture
+run_adapter --agent status -- "argv-alpha" "argv-beta" >/dev/null 2>&1
+assert "0277 codex: multiple post-\`--\` args each land on their own line" \
+  'grep -qxF -- "argv-alpha" "$LOG" && grep -qxF -- "argv-beta" "$LOG"'
+assert "0277 codex: post-\`--\` args are NOT space-joined" '! grep -qF -- "argv-alpha argv-beta" "$LOG"'
+# Line numbers captured variable-side, never `grep | head` — a producer piped into an early-exiting
+# consumer takes SIGPIPE under pipefail (AGENTS.md).
+alpha_hits="$(grep -nxF -- "argv-alpha" "$LOG")"; alpha_ln="$(head -n1 <<<"$alpha_hits")"; alpha_ln="${alpha_ln%%:*}"
+beta_hits="$(grep -nxF -- "argv-beta" "$LOG")";  beta_ln="$(head -n1 <<<"$beta_hits")";   beta_ln="${beta_ln%%:*}"
+assert "0277 codex: order is preserved (alpha before beta)" '[ "$alpha_ln" -lt "$beta_ln" ]'
+rm -rf "$SBX"
+
+# Defensive exclusion: the adapter contracts document a direct hand invocation that bypasses the
+# facade, so the refusal cannot live only at the facade.
+make_fixture
+printf 'a brief\n' > "$SBX/brief.txt"
+err="$( run_adapter --agent status --brief-file "$SBX/brief.txt" -- "also argv" 2>&1 >/dev/null )"; rc=$?
+assert "0277 codex: both channels together are refused" '[ "$rc" != "0" ]'
+assert "0277 codex: the refusal says never both" 'grep -qiF "never both" <<<"$err"'
+assert "0277 codex: the refusal never reached codex exec" '[ ! -s "$LOG" ]'
+# An unreadable or empty brief is a usage error, not an empty prompt.
+err="$( run_adapter --agent status --brief-file "$SBX/no-such-brief" 2>&1 >/dev/null )"; rc=$?
+assert "0277 codex: a missing brief file is refused" '[ "$rc" != "0" ]'
+: > "$SBX/empty-brief"
+err="$( run_adapter --agent status --brief-file "$SBX/empty-brief" 2>&1 >/dev/null )"; rc=$?
+assert "0277 codex: an empty brief file is refused" '[ "$rc" != "0" ]'
+assert "0277 codex: the empty-brief refusal says empty" 'grep -qiF "empty" <<<"$err"'
+# A value-taking flag in FINAL position must not spin the parse loop (the `--observe` hazard).
+err="$( run_adapter --agent status --brief-file 2>&1 >/dev/null )"; rc=$?
+assert "0277 codex: --brief-file with no value exits instead of spinning" '[ "$rc" != "0" ]'
+rm -rf "$SBX"
+
 # ---- adapter: failure postures -------------------------------------------------
 make_fixture
 touch "$SBX/no-auth"
