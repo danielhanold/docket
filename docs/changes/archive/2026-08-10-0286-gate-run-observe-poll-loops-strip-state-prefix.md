@@ -2,7 +2,7 @@
 id: 286
 slug: gate-run-observe-poll-loops-strip-state-prefix
 title: 'Caller-authored gate-run --observe poll loops strip the state= prefix and never terminate'
-status: implemented
+status: done
 priority: high
 type: fix
 created: 2026-08-10
@@ -19,7 +19,7 @@ auto_groomable: true
 branch: feat/gate-run-observe-poll-loops-strip-state-prefix
 pr: https://github.com/danielhanold/docket/pull/192
 blocked_by:
-claimed_at: 2026-08-10T22:27:21Z
+claimed_at: 
 reconciled: true
 ---
 
