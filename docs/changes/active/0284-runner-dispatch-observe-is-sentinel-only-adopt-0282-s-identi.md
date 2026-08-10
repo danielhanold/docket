@@ -8,10 +8,10 @@ type: fix
 created: 2026-08-10
 updated: 2026-08-10
 depends_on: []
-related: []
+related: [208, 270, 277]
 discovered_from: [282]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-10-runner-dispatch-observe-liveness-probe-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-10-runner-dispatch-observe-liveness-probe-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-10-runner-dispatch-observe-liveness-probe-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -52,17 +55,28 @@ would cut the worst-case detection time for a dead delegated agent from the obse
 one observation interval. The value is also independent in the other direction: if 0282 lands, the
 gap is the one remaining place in the repo where a wait is still marker-keyed by design.
 
-**Boundary** — `runner-dispatch.sh`'s `--observe` verb and its `runner-dispatch.md` contract
-section on liveness, plus the tests covering them. In scope: adopting the identity-checked liveness
-probe and the record-outranks-liveness read ordering, with the mutation tests that redden if either
-is dropped. Deliberately out of scope: the dispatch directory layout, the harness adapters, the
-brief-file format, the `--launch` verb's detachment mechanism (ADR-0080 measured it and it is not
-in question), and anything about the sentinel's role as the source of *correctness* — this is about
-liveness only, and correctness still comes from git via `verify-run.sh`.
+**Narrower than the stub first read** — `runner-dispatch.sh` **already owns** the identity
+conjuncts, inside `terminate_dispatch`, where they gate the group kill on the give-up path. The gap
+is not that no such check exists here; it is that the check is consulted only when the facade is
+about to *signal*, never as a *verdict input* one lifecycle phase earlier.
 
-**Reason for deferral** — it cannot ride 0282's branch without expanding that branch's scope past
-its own stated exclusion. `runner-dispatch.sh` is being concurrently reworked by change 0277;
-touching it from 0282 would couple two unrelated lifecycles and double 0282's blast radius, which
-is exactly the coupling 0282's spec assumption 1 rejected when it declined to extend
-`runner-dispatch.sh` with a generic verb. The right sequencing is: 0282 ships and proves the
-predicate, 0277 finishes its rework, then this change transplants the proven predicate.
+**Boundary** — `runner-dispatch.sh`'s `--observe` verb and its `runner-dispatch.md` contract
+section on liveness, plus the tests covering them, plus a new `scripts/lib/docket-liveness.sh` that
+`gate-run.sh` is refactored onto so the predicate has one definition rather than two. In scope:
+the identity-checked probe, the record-outranks-liveness read ordering, and a git-decided
+disposition for a child that died without a sentinel — with the mutation tests that redden if any
+is dropped. Deliberately out of scope: the observation budget's value (change 0273), reaping
+orphaned children (reversing the refuse-to-signal-unprovable-ownership rule is an ADR-level
+decision), the dispatch directory layout, the harness adapters, the brief-file format, the
+`--launch` verb's detachment mechanism (ADR-0080 measured it and it is not in question), and
+anything about the sentinel's role as the source of *correctness* — this is about liveness only,
+and correctness still comes from git via `verify-run.sh`.
+
+**Sequencing — no dependency; the stub's caution is superseded.** The stub proposed waiting for
+change 0277's rework of the same file. Reading 0277's spec settles it the other way: 0277 declares
+*"any change to launch/observe semantics, the run gate, or detachment"* **out of scope**, and the
+other two active changes on this file — 0208 (input gates) and 0270 (config resolution) — sit on
+the input-validation side. None touches the observe leg. 0277's own assumption 8 set the house
+precedent for exactly this: file collisions on `runner-dispatch.sh` are recorded as `related:` and
+reconciled at rebase by intent. Recorded as `related: [208, 270, 277]`; `depends_on:` stays empty,
+so a `high`-priority fix does not queue behind a `medium` one.
