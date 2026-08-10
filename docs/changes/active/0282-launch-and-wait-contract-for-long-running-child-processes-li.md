@@ -10,7 +10,7 @@ updated: 2026-08-10
 depends_on: []
 related: [251, 260, 273, 275, 277]
 discovered_from: [276]
-adrs: []
+adrs: [81]
 spec: docs/superpowers/specs/2026-08-09-launch-and-wait-contract-for-long-running-child-processes-li-design.md
 plan: docs/superpowers/plans/2026-08-10-launch-and-wait-contract-for-long-running-child-processes.md
 results:
@@ -30,6 +30,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-09-launch-and-wait-contract-for-long-running-child-processes-li-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-launch-and-wait-contract-for-long-running-child-processes-li-design.md) |
 | Plan | [2026-08-10-launch-and-wait-contract-for-long-running-child-processes.md](https://github.com/danielhanold/docket/blob/feat/launch-and-wait-contract-for-long-running-child-processes-li/docs/superpowers/plans/2026-08-10-launch-and-wait-contract-for-long-running-child-processes.md) |
+| ADRs | [ADR-0081](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
