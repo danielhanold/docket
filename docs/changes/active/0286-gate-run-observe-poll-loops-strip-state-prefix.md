@@ -12,14 +12,14 @@ related: [282, 284, 277]
 discovered_from: []
 adrs: []
 spec: docs/superpowers/specs/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/gate-run-observe-poll-loops-strip-state-prefix
 pr:
 blocked_by:
-claimed_at: 2026-08-10T21:27:34Z
+claimed_at: 2026-08-10T21:34:53Z
 reconciled: true
 ---
 
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-design.md) |
+| Plan | [2026-08-10-gate-run-observe-poll-loops-strip-state-prefix.md](https://github.com/danielhanold/docket/blob/feat/gate-run-observe-poll-loops-strip-state-prefix/docs/superpowers/plans/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
