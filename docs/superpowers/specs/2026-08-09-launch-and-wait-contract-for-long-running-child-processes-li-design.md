@@ -80,6 +80,23 @@ pins it. (C) The round-5 idempotence sentence claimed every consuming leg halts-
 contradicting the `died` flow's re-observe-then-maybe-relaunch leg; corrected to the true claim —
 neither report obliges coordination.
 
+**Reconciled 2026-08-10 (docket-implement-next, at claim).** Nothing in this design has been built
+elsewhere and no assumption is invalidated; two facts that post-date the spec are folded in.
+(1) **ADR-0080** (change 0271, Accepted 2026-08-09) records the delegation-side launch-then-observe
+posture and, in its Decision, the *measured* limit assumption 15 rests on: *"the child gets its own
+process GROUP, not a new SESSION — it remains in the launcher's session, so session-scoped teardown
+was not tested and is not claimed."* Assumption 15's premise is now a recorded measurement rather
+than an inference from `runner-dispatch.md` prose, and the probe ladder cites ADR-0080 for it. That
+ADR also ships `skills/docket-build/references/delegation-execution.md`, a file in this same design
+family that post-dates the site-scope rule below — it is **not** added to an enumerated site list
+(the plan-time whole-repo grep still owns derivation), only named so the grep's output is read
+against a known candidate. (2) The ladder's rungs are confirmed present as predicted on the primary
+supported platform: `setsid` **absent**, `/usr/bin/script` **present** (darwin 25.6.0) — so the
+`script(1)` rung is the one that must actually be probed against the round-4 full capability set,
+not the session bit alone. The `runner-dispatch.sh` exclusion was re-verified in current source and
+still holds: its only `kill -0` is in the give-up path, `--observe` remains sentinel-only, and 0277
+is still unbuilt.
+
 ## Problem
 
 Finalizing change 0276 burned ~20 minutes polling a process that had been dead 19 of them. Two

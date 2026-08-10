@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/launch-and-wait-contract-for-long-running-child-processes-li
-claimed_at: 2026-08-10T01:07:59Z
+claimed_at: 2026-08-10T01:10:56Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -142,3 +142,49 @@ races (19, 21). Post-groom design; assumptions 13–22 did not pass the auto-gro
 `setsid` is absent on macOS with no `perl` dependency taken. The plan must establish which primitive
 delivers a genuine new session on the supported platforms; finding none without a new dependency is
 a design finding to escalate, not a gap to paper over.
+
+## Reconcile log
+
+### 2026-08-10 — reconcile at claim (docket-implement-next)
+
+Re-read the change and its spec against `related: [251, 260, 273, 275, 277]`, the changes archived
+since the spec was written, the ADRs accepted since, and current code. **Scope holds unchanged; no
+work has been done elsewhere.** Four findings folded in.
+
+1. **Nothing is built.** `scripts/gate-run.sh`, `scripts/gate-run.md`, and `tests/test_gate_run.sh`
+   are all absent; `tests/runtime-budgets.tsv` exists and carries no `gate_run` row. The whole
+   `## What changes` scope is still net-new.
+
+2. **ADR-0080 was accepted on 2026-08-09 (change 0271) and is now the nearest prior art.** It
+   records the *delegation*-side launch-then-observe posture and ships
+   `skills/docket-build/references/delegation-execution.md`. Two consequences for this change, both
+   strengthening rather than altering it:
+   - ADR-0080 **measured** the `set -m` technique and states its limit in exactly the terms spec
+     assumption 15 needs — *"the child gets its own process GROUP, not a new SESSION — it remains
+     in the launcher's session, so session-scoped teardown was not tested and is not claimed."*
+     Assumption 15's premise is therefore no longer an inference from `runner-dispatch.md` prose;
+     it is a recorded, measured ADR consequence, and the probe ladder should cite it.
+   - `delegation-execution.md` is a **new file in the same design family** that post-dates the
+     spec. It is not an enumerated site — the plan-time whole-repo grep owns site derivation per
+     the never-hand-list rule — but it is named here so the grep's output is read against a known
+     candidate rather than reviewed blind.
+
+3. **The platform question is answerable, and the ladder's rungs are as the spec predicted.** On
+   this machine (darwin 25.6.0): `setsid` is **absent**, `/usr/bin/script` is **present**. The
+   probe ladder in assumption 15 therefore reaches its `script(1)` rung on the primary supported
+   platform, and the round-4 widening — a rung passes only on the *full* capability set (unmerged
+   durable streams, no injected framing, no isatty flip, no new `SIGHUP` path), not the session bit
+   alone — is the load-bearing part of that probe, not a caveat on it.
+
+4. **The `runner-dispatch.sh` conscious exclusion is still correct, and its named gap is still
+   real.** Verified in current source: the only `kill -0` in `runner-dispatch.sh` sits in the
+   give-up path, not in `--observe`, and `runner-dispatch.md` still states *"The sentinel is the
+   \*only\* source of liveness."* Change 0277, which is reworking that surface, remains `proposed`
+   and unbuilt, so the churn argument for excluding it stands. The gap is carried as a named
+   residual in the spec and will be repeated in this change's results file; a follow-up stub was
+   minted at this pass per the spec's instruction.
+
+**Couplings re-checked.** 251, 260, 275, 277 are all `proposed`/build-ready and 273 waits on 251 —
+none has landed, so no rebase collision exists yet and the `tests/runtime-budgets.tsv` contention
+noted in spec assumption 8 remains an ordinary whichever-lands-second rebase. No `depends_on` is
+warranted.
