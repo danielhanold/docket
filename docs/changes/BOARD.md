@@ -1,8 +1,14 @@
 # Backlog
 
-**283 changes** — 🟡 36 proposed · ⚪ 4 deferred · ✅ 167 done · 🗑️ 76 killed
+**283 changes** — 🟢 1 in progress · 🟡 35 proposed · ⚪ 4 deferred · ✅ 167 done · 🗑️ 76 killed
 
-## 🟡 Proposed (36)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0282](active/0282-launch-and-wait-contract-for-long-running-child-processes-li.md) | Launch-and-wait contract for long-running child processes — liveness-keyed, not marker-keyed | `critical` | `fix` | [spec](../superpowers/specs/2026-08-09-launch-and-wait-contract-for-long-running-child-processes-li-design.md) | `feat/launch-and-wait-contract-for-long-running-child-processes-li` |
+
+## 🟡 Proposed (35)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -40,7 +46,6 @@
 | [0279](active/0279-settle-the-walk-site-classifier-s-reachability-gap-and-re-la.md) | Settle the walk-site classifier's reachability gap and re-land 0258's reverted fixes | `medium` | `chore` | build-ready |
 | [0280](active/0280-shard-or-re-budget-the-test-files-the-suite-runner-reports-o.md) | Shard or re-budget the test files the suite runner reports OVER BUDGET | `medium` | `chore` | needs-brainstorm |
 | [0281](active/0281-auto-groom-s-critic-verdict-return-channel-fails-under-backg.md) | Auto-groom's critic verdict return channel fails under background dispatch | `medium` | `fix` | build-ready |
-| [0282](active/0282-launch-and-wait-contract-for-long-running-child-processes-li.md) | Launch-and-wait contract for long-running child processes — liveness-keyed, not marker-keyed | `critical` | `fix` | build-ready |
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | build-ready |
 
 ## ⚪ Deferred (4)
