@@ -29,8 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-09-launch-and-wait-contract-for-long-running-child-processes-li-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-launch-and-wait-contract-for-long-running-child-processes-li-design.md) |
-| Plan | [2026-08-10-launch-and-wait-contract-for-long-running-child-processes.md](https://github.com/danielhanold/docket/blob/feat/launch-and-wait-contract-for-long-running-child-processes-li/docs/superpowers/plans/2026-08-10-launch-and-wait-contract-for-long-running-child-processes.md) |
-| Results | [2026-08-10-launch-and-wait-contract-for-long-running-child-processes-li-results.md](https://github.com/danielhanold/docket/blob/feat/launch-and-wait-contract-for-long-running-child-processes-li/docs/results/2026-08-10-launch-and-wait-contract-for-long-running-child-processes-li-results.md) |
+| Plan | [2026-08-10-launch-and-wait-contract-for-long-running-child-processes.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-10-launch-and-wait-contract-for-long-running-child-processes.md) |
+| Results | [2026-08-10-launch-and-wait-contract-for-long-running-child-processes-li-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-10-launch-and-wait-contract-for-long-running-child-processes-li-results.md) |
 | PR | [#191](https://github.com/danielhanold/docket/pull/191) |
 | ADRs | [ADR-0081](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md) |
 <!-- docket:artifacts:end -->
