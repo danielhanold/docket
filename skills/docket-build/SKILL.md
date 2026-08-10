@@ -280,16 +280,27 @@ cannot tell *still running* from *died*, so it burns its whole budget before rep
 state-keyed wait catches on the next observation. The six states and their retryability are
 `gate-run.md`'s contract, and **only `running` is retryable**.
 
+**On a failed launch.** `--launch` prints either the run dir's absolute path or the token
+`launch-failed` — a **slash-free token rather than an absolute path**, which is the shape a caller
+keys on instead of hand-rolling its own failure detection. `launch-failed` is
+**abort-and-report** per *Halting conditions*: never a retry loop, and never observed, since no
+handle exists to observe.
+
 **On the died state.** The child never finished, so it never produced a verdict: `died` is **not** a
 red suite and **never** mints repair work. Where the child is **idempotent** — the suite gate is —
-the posture is `--stop`, then at most **one** bounded relaunch, gated on the token `--stop` reports:
+the posture is `--stop`, then at most **one** bounded relaunch, gated on the token `--stop` reports.
+Two vocabularies overlap here and **one spelling appears in both**: `stopped` is a `--stop` token
+*and* an `--observe` state, with opposite dispositions — so each bullet below is a **token the verb
+`--stop` reports**, and every state named inside a bullet is written `state=<name>` for the value
+the verb `--observe` returns:
 
-- `already-terminal` — the **ordinary** outcome of stopping a live child, and also what an
-  already-absent run reports; re-observe first and key on the state that comes back: `passed` or
-  `failed` keep that verdict (the run finished after all), `died` takes the one relaunch, `stopped`
-  and `unavailable` never relaunch.
-- `stopped` — the run was signalled and verified gone with no verdict of its own. Relaunch once.
-- `unavailable` — abort and report **without** relaunching: what survives could not be proven to be
+- `already-terminal` (stop token) — the **ordinary** outcome of stopping a live child, and also what
+  an already-absent run reports; re-observe first and key on the state that comes back:
+  `state=passed` or `state=failed` keep that verdict (the run finished after all), `state=died`
+  takes the one relaunch, `state=stopped` and `state=unavailable` never relaunch.
+- `stopped` (stop token) — the run was signalled and verified gone with no verdict of its own.
+  Relaunch once.
+- `unavailable` (stop token) — abort and report **without** relaunching: what survives could not be proven to be
   this run's, so a relaunch would race a suite that is still live.
 
 A second `died` is abort-and-report, never a third attempt. Where the child is **non-idempotent**,

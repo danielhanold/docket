@@ -918,7 +918,7 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # skill already carries rather than added as a second one. Measured actual 4594 words against the
 # 4600 budget is 6 words of margin — the near-zero mode this block warns about — so the next
 # multiple of 50 is taken: 4650 (56 words). The LINE budget is untouched (164 against 170).
-# Change 0282 raises skills/docket-build/SKILL.md 335/3150 -> 365/3550 and
+# Change 0282 raises skills/docket-build/SKILL.md 335/3150 -> 375/3650 and
 # skills/docket-build/references/gate-execution.md 120/1000 -> 130/1200. The change ships
 # scripts/gate-run.sh, and § *Gate execution posture* gains the three rules a caller cannot derive
 # from the contract: the helper plus the liveness-keyed wait predicate, the `died` disposition (one
@@ -943,17 +943,28 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # capability they qualify — a pointer moved into the file it points at is not a pointer — and
 # neither is a verdict: no harness row was rewritten or re-probed, which the same guard now asserts
 # by requiring every `### <harness>` section to stay free of the helper's name.
-# Set per the rounding rule above from the measured actuals: SKILL.md 361 lines -> the next
-# multiple of 5 is 365 (4 lines, the half-step margin the 0167 and 0201 entries accept), 3497 words
-# -> 3500 is 3 words, inside the 25-word floor, so the multiple after: 3550 (53 words).
-# gate-execution.md 125 lines -> the next multiple of 5 is 125 itself (zero margin, the forbidden
-# mode), so 130; 1130 words -> 1150 is 20 words, inside the floor, so the multiple after: 1200.
+# The change's own review pass then grew § *Gate execution posture* twice more, and both additions
+# are call-site policy with the same "no other home" argument as the block above. First, the two
+# vocabularies the section had been mixing are now labelled: `stopped` is BOTH a `--stop` token and
+# an `--observe` state, with OPPOSITE dispositions, and the section is agent-executed prose read by
+# a literal executor, so the disambiguation has to sit on the instruction rather than in the
+# helper's contract. Second, the disposition for `--launch` reporting `launch-failed` — abort and
+# report, never a retry loop. scripts/gate-run.md states the token's SHAPE (slash-free, not a path)
+# because that is a property of the helper; what a caller DOES with it is this section's business,
+# and leaving it unstated is what made docket's one shipped caller improvise it.
+# Set per the rounding rule above from the RE-MEASURED actuals, taken after those edits landed:
+# SKILL.md 372 lines -> the next multiple of 5 is 375 (3 lines); 3613 words -> 3650 (37 words,
+# clear of the 25-word floor). gate-execution.md is UNCHANGED by this pass and keeps 130/1200; its
+# actuals are 126 lines and 1131 words — earlier revisions of this block recorded 125/1130, which
+# was never the measurement, so the derivation is restated against the real numbers: 126 lines ->
+# the next multiple of 5 is 130 (4 lines, the half-step margin the 0167 and 0201 entries accept);
+# 1131 words -> 1150 is 19 words, inside the 25-word floor, so the multiple after: 1200.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1300
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-build/SKILL.md                               365 3550
+skills/docket-build/SKILL.md                               375 3650
 skills/docket-build/references/delegation-execution.md      85  850
 skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            130 1200

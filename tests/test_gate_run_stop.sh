@@ -500,4 +500,48 @@ assert "and nothing was written — no intent, no marker" \
   '[ ! -f "$RD/stop-intent" ] && [ ! -f "$RD/stopped" ]'
 reap "$f6_pgid"
 
+# ---- ARGUMENT ERRORS ARE PART OF THE PROTOCOL, NOT A USAGE SIDE CHANNEL --------------------
+# scripts/gate-run.md § Exit codes enumerates "a missing run dir, an unknown flag, more than one run
+# dir, a `--reason` with no value" as ONE outcome — `unavailable` on the report line, exit 1 — and
+# states there is deliberately no separate usage code. Only the missing-run-dir leg was covered
+# before, so the rest of that enumeration rested on inspection of the parser. Table-driven, because
+# the whole claim is that every leg lands on the SAME line: a leg that invented its own token or its
+# own exit code would break a caller that reads the report and nothing else.
+#
+# NOTHING HERE MAY SIGNAL. Each case fails in the parser, before `stop_run` is ever entered, so no
+# case is given a real run dir — an arg-error leg that reached a live group would be a defect these
+# asserts are also positioned to catch.
+stop_arg_case(){  # $1 = label, then the argv under test
+  local label="$1"; shift
+  local out rc
+  out="$(gate_run --stop "$@" 2>/dev/null)"; rc=$?
+  assert "stop: $label reports unavailable" '[ "$out" = "unavailable" ]'
+  assert "stop: $label exits 1, which is what unavailable means" '[ "$rc" = "1" ]'
+}
+stop_arg_case "an unknown flag"          --bogus
+# ...and the unknown-flag leg owes ONE assert the report line cannot give it. Measured: deleting the
+# parser's `-*)` branch outright leaves the two asserts above green, because the flag then falls
+# through to the run-dir slot and an unreadable run dir reports `unavailable` too. The tokens agree;
+# the DIAGNOSIS does not, and a diagnosis that misnames a typo'd flag as a missing run dir is what
+# the branch exists to prevent. The protocol channel stays clean either way.
+unk_err="$SBX/stop-unknown.err"
+unk_out="$(gate_run --stop --bogus 2>"$unk_err")"
+assert "stop: an unknown flag is diagnosed AS one on stderr, not as a bad run dir" \
+  'grep -qF -- "unknown argument" "$unk_err"'
+assert "stop: and the diagnosis never reaches the protocol channel" \
+  '[ "$unk_out" = "unavailable" ] && ! grep -qF -- "unknown argument" <<<"$unk_out"'
+# The two-run-dir leg is given a REAL run dir — one whose child has already finished, so nothing can
+# be signalled by it either way. A pair of nonexistent paths would read `unavailable` with or without
+# the arity guard; measured, that version stays green when the guard is stripped. Over a finished run
+# the unguarded parser reaches step 1 and reports `already-terminal`, so this line depends on the guard.
+FINRD="$(gate_run --launch --root "$SBX/runs" -- /bin/true)"
+assert "the arity fixture's run finished, or the two-run-dir assert is vacuous" 'await_terminal "$FINRD"'
+assert "and it stops as already-terminal when passed alone, which is what the guard must suppress" \
+  '[ "$(gate_run --stop "$FINRD" 2>/dev/null)" = "already-terminal" ]'
+stop_arg_case "two run dirs"             "$FINRD" "$FINRD"
+stop_arg_case "a valueless --reason"     "$SBX/no-such-run" --reason
+stop_arg_case "a bare valueless --reason" --reason
+stop_arg_case "a missing run dir"
+stop_arg_case "a nonexistent run dir"    "$SBX/no-such-run"
+
 exit "$fail"
