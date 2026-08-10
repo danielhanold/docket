@@ -2,11 +2,11 @@
 id: 270
 slug: fence-runner-config-locality-at-the-main-worktree
 title: 'Fence runner-config locality at the main worktree (regression test + contract correction)'
-status: proposed
+status: in-progress
 priority: medium
 type: chore
 created: 2026-08-08
-updated: 2026-08-09
+updated: 2026-08-10
 depends_on: []
 related: [208]
 discovered_from: [269]
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: false
-branch:
+branch: feat/fence-runner-config-locality-at-the-main-worktree
+claimed_at: 2026-08-10T22:38:37Z
 pr:
 blocked_by:
 reconciled: false
