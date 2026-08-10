@@ -244,9 +244,15 @@ assert "0270: the grant exists ONLY in the main worktree" '[ ! -e "$WT/.docket.l
 
 # cwd INSIDE the linked worktree is the production shape (a build worker dispatches from its own
 # tree) and is the condition under which a cwd-derived config root would read the wrong tree.
+# DOCKET_HARNESS_ROOT is pinned into the sandbox so the GLOBAL layer cannot satisfy the grant
+# assert. This file unsets XDG_CONFIG_HOME, so an unpinned run resolves GLOBAL_CFG at the
+# developer's real ~/.config/docket/config.yml — and on a machine that sets runners.codex.sandbox
+# there (the documented knob, spelled exactly as this fixture spells it) the grant assert would
+# pass with no main-worktree read at all, the mutation probe would stay green, and the fence would
+# be decoration.
 : > "$LOG"
-( cd "$WT" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status \
-    --worktree "$WT" >/dev/null 2>&1 )
+( cd "$WT" && PATH="$BIN:$PATH" DOCKET_HARNESS_ROOT="$SBX" \
+    bash "$FACADE" --runner codex --agent status --worktree "$WT" >/dev/null 2>&1 )
 argv="$(cat "$LOG")"
 assert "0270: main-worktree grant reaches the child across a --worktree dispatch" \
   'grep -qxF -- "danger-full-access" <<<"$argv"'
