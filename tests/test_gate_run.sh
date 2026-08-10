@@ -342,4 +342,68 @@ assert "a barrier armed at another point never reaches its rendezvous" '[ ! -e "
 assert "a barrier armed at another point does not stall" '[ "$mismatch_elapsed" -lt 5 ]'
 reap "$inert_pgid"
 
+# ---- THE CONTRACT, THE FACADE WIRING, AND THE BUDGET ROWS ----------------------------------
+# The contract page is the AUTHORITATIVE statement of this helper's vocabulary (spec assumption
+# 10): the gate-execution posture points AT it rather than restating it, so a missing section or a
+# vocabulary that drifted out of the page is an interface defect, not a documentation nicety.
+# These are existence-and-shape asserts only — prose fidelity rests on co-location plus review, the
+# same boundary tests/test_script_contracts_coverage.sh draws.
+assert "the facade wraps gate-run" 'grep -qF -- "gate-run" "$REPO/scripts/docket.sh"'
+assert "gate-run has a co-located contract" '[ -f "$REPO/scripts/gate-run.md" ]'
+contract="$(cat "$REPO/scripts/gate-run.md" 2>/dev/null || true)"
+for s in Purpose Usage Behavior "Exit codes" Invariants "Named residuals"; do
+  assert "the contract has a $s section" 'grep -q "^## .*'"$s"'" <<<"$contract"'
+done
+# The six states, by name. A caller keys its loop on these tokens, so the page that defines them
+# has to carry every one.
+for st in running passed failed died stopped unavailable; do
+  assert "the contract defines the $st state" 'grep -qF -- "'"$st"'" <<<"$contract"'
+done
+assert "the contract states that only running is retryable" \
+  'grep -qiE "only .running. is retryable" <<<"$contract"'
+
+# THE PER-PLATFORM NOTE, and the two things that make it honest rather than aspirational: it must
+# name the narrowing, and it must never claim a session it does not deliver.
+assert "the contract records the per-platform capability note" \
+  'grep -qi "per-platform capability" <<<"$contract"'
+assert "the contract never claims a new session unconditionally" \
+  '! grep -qiE "always (creates|delivers) a new session" <<<"$contract"'
+assert "the narrowed platform is described as own process group plus the handshake" \
+  'grep -qiE "own process group" <<<"$contract"'
+# Cited by VERBATIM QUOTE, never by line number (AGENTS.md, ADR-0054) — a quoted clause is
+# greppable, which is what makes this assert possible at all.
+assert "the note quotes ADR-0080's measured clause verbatim" \
+  'grep -qF -- "own process GROUP, not a new SESSION" <<<"$contract"'
+assert "the note quotes gate-execution-evidence.md's setsid-absent finding verbatim" \
+  'grep -qF -- "is not installed on macOS" <<<"$contract"'
+
+# THE NAMED RESIDUALS. Each is a property the shipped helper does NOT have; a residual that is not
+# written down is indistinguishable from a bug nobody has hit yet.
+assert "the contract records the 129..192 named residual" 'grep -qF -- "129" <<<"$contract"'
+assert "the residual names the non-shell helper a real fix would need" \
+  'grep -qiE "non-shell helper" <<<"$contract"'
+assert "the residual records the escaped-group survivor" \
+  'grep -qiE "escaped the recorded group" <<<"$contract"'
+assert "the residual records the external signal read as deliberate" \
+  'grep -qiE "stop-intent" <<<"$contract"'
+assert "the residual names the human-gated perl supersede option" \
+  'grep -qF -- "POSIX::setsid" <<<"$contract"'
+
+# THE DELIBERATE DEVIATIONS FROM THE PLAN'S SKETCH. Each was measured by the task that shipped it,
+# and a contract that documents the sketch instead of the script is worse than none.
+TRAP_LIT="trap '' TERM"
+assert "the contract records the wrapper's ignored-TERM disposition" \
+  'grep -qF -- "$TRAP_LIT" <<<"$contract"'
+assert "the contract records which leg actually produces the stopped token" \
+  'grep -qiE "KILL[ -]escalation" <<<"$contract"'
+assert "the contract records that launch is written before identity" \
+  'grep -qiE "launch. is written (first|before)" <<<"$contract"'
+assert "the exit-code section defers to the report line" \
+  'grep -qiE "key on the stdout report line" <<<"$contract"'
+
+# Budgets: a new test file with no budget row is how the suite silently grows.
+budgets="$(cat "$REPO/tests/runtime-budgets.tsv")"
+assert "test_gate_run.sh has a budget row" 'grep -qF -- "tests/test_gate_run.sh" <<<"$budgets"'
+assert "test_gate_run_stop.sh has a budget row" 'grep -qF -- "tests/test_gate_run_stop.sh" <<<"$budgets"'
+
 exit "$fail"

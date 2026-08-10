@@ -94,7 +94,7 @@ GIT="${GIT:-git}"
 
 # The exposed wrapped-helper operations (op name == helper basename). Single source of the
 # dispatch allowlist; the sentinel test greps THIS array and the docket.md table.
-WRAPPED_OPS="docket-status board-refresh archive-change terminal-publish cleanup-feature-branch github-mirror sync-integration-branch render-change-links render-artifact-backlink render-adr-index render-learnings-index adr-checks board-checks reclaim-claims mint-stub runner-dispatch mark-publish-deferred backfill-change-types verify-run"
+WRAPPED_OPS="docket-status board-refresh archive-change terminal-publish cleanup-feature-branch github-mirror sync-integration-branch render-change-links render-artifact-backlink render-adr-index render-learnings-index adr-checks board-checks reclaim-claims mint-stub runner-dispatch gate-run mark-publish-deferred backfill-change-types verify-run"
 
 usage(){ sed -n '/^# Usage:/,/^# Contract:/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 reject(){ printf 'docket: unknown operation: %s\n' "${1:-<none>}" >&2; printf 'supported operations: preflight env bootstrap %s\n' "$WRAPPED_OPS" >&2; exit 2; }
