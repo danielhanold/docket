@@ -12,12 +12,12 @@ related: [251, 260, 273, 275, 277]
 discovered_from: [276]
 adrs: []
 spec: docs/superpowers/specs/2026-08-09-launch-and-wait-contract-for-long-running-child-processes-li-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-10-launch-and-wait-contract-for-long-running-child-processes.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/launch-and-wait-contract-for-long-running-child-processes-li
-claimed_at: 2026-08-10T01:10:56Z
+claimed_at: 2026-08-10T01:19:20Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-09-launch-and-wait-contract-for-long-running-child-processes-li-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-launch-and-wait-contract-for-long-running-child-processes-li-design.md) |
+| Plan | [2026-08-10-launch-and-wait-contract-for-long-running-child-processes.md](https://github.com/danielhanold/docket/blob/feat/launch-and-wait-contract-for-long-running-child-processes-li/docs/superpowers/plans/2026-08-10-launch-and-wait-contract-for-long-running-child-processes.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
