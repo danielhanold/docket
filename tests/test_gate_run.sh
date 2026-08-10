@@ -438,73 +438,205 @@ reap "$inert_pgid"
 # vocabulary that drifted out of the page is an interface defect, not a documentation nicety.
 # These are existence-and-shape asserts only — prose fidelity rests on co-location plus review, the
 # same boundary tests/test_script_contracts_coverage.sh draws.
-assert "the facade wraps gate-run" 'grep -qF -- "gate-run" "$REPO/scripts/docket.sh"'
+#
+# EVERY assert below reads a SLICE of the page or a population DERIVED from one of its own tables,
+# never the whole page — and that is mutation evidence rather than taste. Measured against this
+# page: with whole-page haystacks, deleting the very section an assert names left TWELVE of them
+# green. The six-state loop survived deleting the state table outright (`running` matched this
+# file's own title, `failed` matched `launch-failed`, `passed` matched "a moment that has passed",
+# `died` matched "the wrapper died alongside the command"); `stop-intent` matched the
+# run-directory layout block; "per-platform capability" and "own process group" matched prose
+# pointers outside the platform section; "only `running` is retryable" is stated twice, so either
+# statement could go; the which-leg paragraph was covered by step 4's escalation bullet; and the
+# facade assert was satisfied by the word `gate-run` in a comment. That is the same vacuity class
+# repaired twice already in this change, and the idiom used against it here is
+# tests/test_gate_execution_posture.sh's: locate a slice, anchor its non-vacuity, grep inside.
+
+# The facade wiring is the OPS LIST, not a mention: `gate-run` named only in a comment is a helper
+# no call site can reach through the facade.
+assert "the facade wraps gate-run" \
+  'grep -qE "^WRAPPED_OPS=.*[\" ]gate-run[\" ]" "$REPO/scripts/docket.sh"'
 assert "gate-run has a co-located contract" '[ -f "$REPO/scripts/gate-run.md" ]'
 contract="$(cat "$REPO/scripts/gate-run.md" 2>/dev/null || true)"
-for s in Purpose Usage Behavior "Exit codes" Invariants "Named residuals"; do
-  assert "the contract has a $s section" 'grep -q "^## .*'"$s"'" <<<"$contract"'
+# Population floor FIRST: an unreadable page has to redden here, or every negative assert below
+# passes by default and every positive one reports a deleted section it never actually looked for.
+assert "the contract is non-vacuous (>= 200 lines)" '[ "$(grep -c . <<<"$contract")" -ge 200 ]'
+
+# The slicers. `csection` runs a `## <name>` heading to the next `## `; `cfrom` runs a column-0
+# lead-in to the next heading of any level. Same shape as tests/test_gate_execution_posture.sh's
+# `para()`, with one deliberate difference: `cfrom` does NOT close on a following column-0 `**`,
+# because this page hard-wraps bolded phrases to column 0 mid-paragraph (`**ordinary live child**`
+# opens the which-leg paragraph's second line) and a `**`-terminated slice would end right there,
+# one line in. Phrase asserts read a whitespace-FLATTENED slice, since grep matches within a line
+# and a phrase-spanning pattern over hard-wrapped markdown otherwise doubles as a re-flow guard.
+csection(){ awk -v h="## $1" '$0 == h {f=1;next} f && /^## /{f=0} f' <<<"$contract"; }
+cfrom(){ awk -v pat="$1" 'index($0,pat)==1{f=1;print;next} f && /^#/{f=0} f' <<<"$contract"; }
+flat(){ tr -s '[:space:]' ' ' <<<"$1"; }
+
+# Headings are matched WHOLE — `^## .*<name>` would be satisfied by `## Named residuals (retired)`,
+# which is the section's removal dressed as its presence.
+for s in Purpose Usage "Run-directory layout" Behavior "Exit codes" \
+         "Per-platform capability note" "Named residuals" Invariants; do
+  assert "the contract has a $s section" 'grep -qxF -- "## '"$s"'" <<<"$contract"'
 done
-# The six states, by name. A caller keys its loop on these tokens, so the page that defines them
-# has to carry every one.
+
+# THE SIX STATES, DERIVED FROM THE TABLE THAT DEFINES THEM. A caller keys its loop on these tokens,
+# so the page has to carry every one as a ROW of the state table — not as a substring of whatever
+# prose happens to be nearby. The first column is parsed the way test_gate_execution_posture.sh
+# parses this same page's stop-token table; the `died cause=…` rows collapse onto `died`, which is
+# the token an `--observe` line leads with.
+states_tbl="$(awk -F'|' '
+  /^\| *State *\| *Meaning *\| *Retryable *\|/ {f=1; next}
+  !f {next}
+  /^\|[ -]*\|[ -]*\|[ -]*\|/ {next}
+  /^\|/ {print; next}
+  {f=0}' <<<"$contract")"
+n_state_rows="$(grep -c . <<<"$states_tbl")"
+assert "the state table was located (non-vacuity anchor, got $n_state_rows rows)" \
+  '[ "$n_state_rows" -ge 6 ]'
+# First column, backticks and any `cause=…` qualifier stripped. With `want` set, only the rows
+# whose Retryable cell says that.
+state_col(){ awk -F'|' -v want="$1" '
+  {t=$2; gsub(/`/,"",t); sub(/^[[:space:]]+/,"",t); sub(/[[:space:]].*$/,"",t)
+   v=tolower($4); gsub(/[^a-z]/,"",v)
+   if (t != "" && (want == "" || v == want)) print t}' <<<"$states_tbl"; }
+state_names="$(state_col "" | sort -u)"
 for st in running passed failed died stopped unavailable; do
-  assert "the contract defines the $st state" 'grep -qF -- "'"$st"'" <<<"$contract"'
+  assert "the state table gives the $st state a row of its own" \
+    'grep -qxF -- "'"$st"'" <<<"$state_names"'
 done
-assert "the contract states that only running is retryable" \
-  'grep -qiE "only .running. is retryable" <<<"$contract"'
+# ...and the Retryable column agrees with the rule the prose states. Derived from the same table,
+# so a flipped cell reddens here instead of waiting for a human to read the row.
+retryable_rows="$(state_col yes | sort -u | tr '\n' ' ')"; retryable_rows="${retryable_rows% }"
+assert "the table marks running — and only running — retryable (got '$retryable_rows')" \
+  '[ "$retryable_rows" = "running" ]'
+
+# The retryable rule is stated TWICE by design — once in Purpose as a property every caller may
+# rely on, once beside the table where the states are defined — so each statement is pinned in its
+# own slice. Measured: a whole-page grep let either one be deleted while the other kept it green.
+purpose_blk="$(csection Purpose)"
+observe_blk="$(cfrom '### `--observe`')"
+assert "the Purpose section was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$purpose_blk")" -ge 10 ]'
+assert "the --observe section was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$observe_blk")" -ge 18 ]'
+assert "Purpose states that only running is retryable" \
+  'grep -qiE "only .running. is retryable" <<<"$purpose_blk"'
+assert "and the section that defines the states states it there too" \
+  'grep -qiE "only .running. is retryable" <<<"$observe_blk"'
 
 # THE PER-PLATFORM NOTE, and the two things that make it honest rather than aspirational: it must
-# name the narrowing, and it must never claim a session it does not deliver.
-assert "the contract records the per-platform capability note" \
-  'grep -qi "per-platform capability" <<<"$contract"'
+# name the narrowing, and it must never claim a session it does not deliver. The section-located
+# anchor below replaces a whole-page grep for "per-platform capability", which two prose pointers
+# elsewhere on the page kept green through a deletion of the section itself.
+platform_blk="$(csection "Per-platform capability note")"
+assert "the per-platform capability section was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$platform_blk")" -ge 20 ]'
 assert "the contract never claims a new session unconditionally" \
   '! grep -qiE "always (creates|delivers) a new session" <<<"$contract"'
 assert "the narrowed platform is described as own process group plus the handshake" \
-  'grep -qiE "own process group" <<<"$contract"'
+  'grep -qiE "own process group" <<<"$platform_blk"'
 # Cited by VERBATIM QUOTE, never by line number (AGENTS.md, ADR-0054) — a quoted clause is
 # greppable, which is what makes this assert possible at all.
 assert "the note quotes ADR-0080's measured clause verbatim" \
-  'grep -qF -- "own process GROUP, not a new SESSION" <<<"$contract"'
+  'grep -qF -- "own process GROUP, not a new SESSION" <<<"$platform_blk"'
 assert "the note quotes gate-execution-evidence.md's setsid-absent finding verbatim" \
-  'grep -qF -- "is not installed on macOS" <<<"$contract"'
+  'grep -qF -- "is not installed on macOS" <<<"$platform_blk"'
 
 # THE NAMED RESIDUALS. Each is a property the shipped helper does NOT have; a residual that is not
 # written down is indistinguishable from a bug nobody has hit yet.
-assert "the contract records the 129..192 named residual" 'grep -qF -- "129" <<<"$contract"'
-assert "the residual names the non-shell helper a real fix would need" \
-  'grep -qiE "non-shell helper" <<<"$contract"'
-assert "the residual records the escaped-group survivor" \
-  'grep -qiE "escaped the recorded group" <<<"$contract"'
-assert "the residual records the external signal read as deliberate" \
-  'grep -qiE "stop-intent" <<<"$contract"'
-assert "the residual names the human-gated perl supersede option" \
-  'grep -qF -- "POSIX::setsid" <<<"$contract"'
-assert "the residual records the unprovable launch-failure group as detected, not signalled" \
-  'grep -qF -- "detected, not signalled" <<<"$contract"'
+#
+# Each anchor must occur in EXACTLY ONE residual paragraph, which is what makes these guards over
+# the residuals rather than over the page. `stop-intent` is the proof: it occurs five times here
+# (the layout block, `--stop`'s steps, the invariants), so the whole-page grep this replaces stayed
+# green through a deletion of residual 3 outright. Exactly-one rather than at-least-one, so the
+# same residual cannot be diluted into two half-statements either.
+#
+# NUMBERING IS DELIBERATELY NOT PART OF ANY ANCHOR. Retiring a residual renumbers the rest — this
+# change did exactly that once already — and a guard keyed on the number would redden on that
+# legitimate edit while still missing the deletion it exists to catch.
+residuals_blk="$(csection "Named residuals")"
+assert "the Named residuals section was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$residuals_blk")" -ge 30 ]'
+# The floor here — and on every other slice in this section — is a NON-VACUITY floor, not a lock on
+# the count. It has one job: make an unlocated slice redden with a message that says so, instead of
+# letting every grep below read a parse failure as a missing clause. Set loose enough that retiring
+# one residual, or re-flowing a paragraph, does not redden a guard about something else.
+n_residuals="$(grep -cE '^\*\*[0-9]+\. ' <<<"$residuals_blk")"
+assert "the numbered residual paragraphs were located (got $n_residuals)" '[ "$n_residuals" -ge 3 ]'
+# Count the residual paragraphs containing a fixed string. A paragraph runs from its `**<n>. `
+# lead-in to the next one, so trailing prose under the last residual belongs to that residual.
+residual_hits(){ awk -v pat="$1" '
+  /^\*\*[0-9]+\. / { if (buf != "" && index(buf, pat)) n++; buf=""; inr=1 }
+  inr { buf = buf $0 "\n" }
+  END { if (buf != "" && index(buf, pat)) n++; print n+0 }' <<<"$residuals_blk"; }
+assert "exactly one residual records the 129..192 shell floor" \
+  '[ "$(residual_hits "129..192")" = "1" ]'
+assert "exactly one residual names the non-shell helper a real fix would need" \
+  '[ "$(residual_hits "non-shell helper")" = "1" ]'
+assert "exactly one residual records the escaped-group survivor" \
+  '[ "$(residual_hits "escaped the recorded group")" = "1" ]'
+assert "exactly one residual records the external signal read as deliberate" \
+  '[ "$(residual_hits "stop-intent")" = "1" ]'
+assert "exactly one residual names the human-gated perl supersede option" \
+  '[ "$(residual_hits "POSIX::setsid")" = "1" ]'
+assert "exactly one residual records the unprovable launch-failure group as detected, not signalled" \
+  '[ "$(residual_hits "detected, not signalled")" = "1" ]'
 
 # THE INVARIANTS AND THE CODE MUST AGREE ABOUT WHO MAY BE SIGNALLED. A contract that states an
 # absolute the shipped script does not hold is worse than one that states the narrower truth: the
 # absolute is what a later reader trusts instead of reading the code. Both clauses below are quoted
-# verbatim from the page (AGENTS.md, ADR-0054), so drift is greppable.
+# verbatim from the page (AGENTS.md, ADR-0054), so drift is greppable — and each is read in the
+# section that owns it, so neither can be satisfied by the other's restatement.
+launch_blk="$(cfrom '### `--launch`')"
+invariants_blk="$(csection Invariants)"
+assert "the --launch section was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$launch_blk")" -ge 18 ]'
+assert "the Invariants section was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$invariants_blk")" -ge 30 ]'
 assert "the contract states the launch failure path's refusal to signal an unprovable group" \
-  'grep -qF -- "Where ownership cannot be proven" <<<"$contract"'
+  'grep -qF -- "Where ownership cannot be proven" <<<"$launch_blk"'
 assert "and it states the bare-probe rule by FAIL DIRECTION, not as a count of sites" \
-  'grep -qF -- "about fail direction, not a syscall ban" <<<"$contract"'
+  'grep -qF -- "about fail direction, not a syscall ban" <<<"$invariants_blk"'
 
 # THE DELIBERATE DEVIATIONS FROM THE PLAN'S SKETCH. Each was measured by the task that shipped it,
 # and a contract that documents the sketch instead of the script is worse than none.
+trap_blk="$(cfrom "### The terminal record")"
+layout_blk="$(csection "Run-directory layout")"
+which_leg_blk="$(cfrom '**Which leg produces which token')"
+which_leg_flat="$(flat "$which_leg_blk")"
+exit_blk="$(csection "Exit codes")"
+assert "the terminal-record section was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$trap_blk")" -ge 12 ]'
+assert "the run-directory layout section was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$layout_blk")" -ge 15 ]'
+assert "the which-leg paragraph and its token table were located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$which_leg_blk")" -ge 8 ]'
+assert "the exit-codes section was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$exit_blk")" -ge 8 ]'
 TRAP_LIT="trap '' TERM"
 assert "the contract records the wrapper's ignored-TERM disposition" \
-  'grep -qF -- "$TRAP_LIT" <<<"$contract"'
+  'grep -qF -- "$TRAP_LIT" <<<"$trap_blk"'
+# Scoped to the paragraph that owns the claim: at page scope this was satisfied by `--stop` step
+# 4's own "**The KILL escalation deliberately does not re-check identity**" bullet, so the
+# which-leg paragraph and its whole token table could be deleted while it stayed green.
 assert "the contract records which leg actually produces the stopped token" \
-  'grep -qiE "KILL[ -]escalation" <<<"$contract"'
+  'grep -qiE "KILL[ -]escalation" <<<"$which_leg_blk"'
+assert "and it names already-terminal as the ORDINARY live-child stop" \
+  'grep -qiE "ordinary live child[^.]{0,80}already-terminal" <<<"$which_leg_flat"'
 assert "the contract records that launch is written before identity" \
-  'grep -qiE "launch. is written (first|before)" <<<"$contract"'
+  'grep -qiE "launch. is written (first|before)" <<<"$layout_blk"'
 assert "the exit-code section defers to the report line" \
-  'grep -qiE "key on the stdout report line" <<<"$contract"'
+  'grep -qiE "key on the stdout report line" <<<"$exit_blk"'
 
-# Budgets: a new test file with no budget row is how the suite silently grows.
+# Budgets: a new test file with no budget row is how the suite silently grows. Keyed on the ROW
+# SHAPE the file documents — path, seconds, lane — because a commented-out row still carries the
+# path, and a commented-out row is exactly the state this assert exists to catch.
 budgets="$(cat "$REPO/tests/runtime-budgets.tsv")"
-assert "test_gate_run.sh has a budget row" 'grep -qF -- "tests/test_gate_run.sh" <<<"$budgets"'
-assert "test_gate_run_stop.sh has a budget row" 'grep -qF -- "tests/test_gate_run_stop.sh" <<<"$budgets"'
+for f in tests/test_gate_run.sh tests/test_gate_run_stop.sh; do
+  f_pat="${f//./\\.}"
+  assert "$f has a budget row" \
+    'grep -qE "^'"$f_pat"'[[:space:]]+[0-9]+[[:space:]]+(parallel|serial)$" <<<"$budgets"'
+done
 
 exit "$fail"
