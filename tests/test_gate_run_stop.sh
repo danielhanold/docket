@@ -243,6 +243,35 @@ assert "released, the held stop completes normally" \
   '[ "$(cat "$SBX/pre-term.out" 2>/dev/null)" = "already-terminal" ]'
 assert "and the group it was held over is gone" '! kill -0 -"$bar_pgid" 2>/dev/null'
 
+# STEP 4 READS BOTH CONJUNCTS ON THE KILL'S SIDE OF THE FENCE. The step-2 validation and the signal
+# are separated by a window, and a group recycled inside it must be refused — which nothing carried
+# down from step 2 can see, because the stale value is precisely what the TERM would be aimed at.
+# `pre-term` is exactly that boundary, so this is the only place the re-read is observable at all:
+# in every unheld run the two reads see the same world. (Task 6's fixture 5 is this interleaving.)
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'sleep 60')"
+window_pgid="$(sed -n 's/^pgid=//p' "$RD/launch")"
+BAR3="$SBX/stop-window-barrier"
+( GATE_RUN_TEST_BARRIER=pre-term GATE_RUN_TEST_BARRIER_FILE="$BAR3" \
+    gate_run --stop "$RD" >"$SBX/window.out" 2>/dev/null ) &
+win_job=$!
+assert "the stop is held between its step-2 validation and its step-4 probe" \
+  'wait_for_file "$BAR3.reached"'
+kill -KILL -"$window_pgid" 2>/dev/null || true
+assert "the run's own group dies while the stop is held" 'await_group_gone "$window_pgid"'
+sleep 1                                               # whole-second lstart resolution, as above
+window_foreign="$(start_foreign_group)"
+assert "a live bystander is planted under the recorded pgid while the stop is held" \
+  '[ -n "$window_foreign" ] && kill -0 -"$window_foreign" 2>/dev/null'
+sed -i.bak "s/^pgid=.*/pgid=$window_foreign/" "$RD/launch"
+touch "$BAR3.release"
+wait "$win_job" 2>/dev/null || true
+assert "a group recycled inside the stop window reports unavailable" \
+  '[ "$(cat "$SBX/window.out" 2>/dev/null)" = "unavailable" ]'
+assert "and the bystander was never signalled" 'kill -0 -"$window_foreign" 2>/dev/null'
+assert "and nothing was written — no intent, no marker" \
+  '[ ! -f "$RD/stop-intent" ] && [ ! -f "$RD/stopped" ]'
+reap "$window_foreign"
+
 RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'sleep 60')"
 ann_pgid="$(sed -n 's/^pgid=//p' "$RD/launch")"
 BAR2="$SBX/post-kill-barrier"

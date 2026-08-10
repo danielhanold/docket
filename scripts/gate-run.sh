@@ -392,6 +392,28 @@ recorded_pgid() {  # $1 = run dir -> a usable pgid, empty when the record cannot
   printf '%s' "$pgid"
 }
 
+# The recorded pgid, refused unless this process may SIGNAL it. Read afresh at every call rather
+# than captured once, because `--stop` asks the question twice — at its step-2 validation and again
+# at its step-4 probe — and the two are separated by a window the answer may change inside of.
+# Prints nothing and explains itself on stderr when the group may not be signalled.
+signalable_pgid() {  # $1 = run dir -> a signalable pgid, empty (with a diagnostic) otherwise
+  local pgid mine
+  pgid="$(recorded_pgid "$1")"
+  if [ -z "$pgid" ]; then
+    die "ownership-unprovable: $1/launch names no usable process group"
+    return 0
+  fi
+  # The same refusal `launch_failure_stop` makes, for the same reason: a group-directed signal aimed
+  # at our own group takes the caller down with it. The identity check at the call site is the real
+  # guard — this is the syntactic floor beneath it, and it is cheap.
+  mine="$(my_pgid)"
+  if [ -n "$mine" ] && [ "$pgid" = "$mine" ]; then
+    die "ownership-unprovable: refusing to signal process group $pgid — it is this process's own group"
+    return 0
+  fi
+  printf '%s' "$pgid"
+}
+
 # IDENTITY, ON ITS OWN — the one rule, shared by every caller that needs it, so the observe side and
 # the signal side can never drift into two different notions of "ours". Fails CLOSED on either token
 # being empty: nothing to compare is not agreement.
@@ -553,7 +575,7 @@ do_observe() {
 # Prints exactly one report token and always returns 0 — `do_stop` maps the token to the exit
 # status, so the two can never disagree.
 stop_run() {  # $1 = run dir, $2 = reason (already flattened)
-  local rd="$1" reason="$2" pgid mine
+  local rd="$1" reason="$2" pgid
 
   { [ -d "$rd" ] && [ -r "$rd/launch" ]; } || {
     die "rundir-unreadable: $rd"
@@ -562,19 +584,8 @@ stop_run() {  # $1 = run dir, $2 = reason (already flattened)
 
   # SIGNALLING PRECONDITIONS. `already-terminal` is a claim about the run, and a stop that cannot
   # even name the group has no grounds to make one — so an unusable record is `unavailable`.
-  pgid="$(recorded_pgid "$rd")"
-  if [ -z "$pgid" ]; then
-    die "ownership-unprovable: $rd/launch names no usable process group"
-    printf 'unavailable\n'; return 0
-  fi
-  # The same refusal `launch_failure_stop` makes, for the same reason: a group-directed signal aimed
-  # at our own group takes the caller down with it. The identity check below is the real guard —
-  # this is the syntactic floor beneath it, and it is cheap.
-  mine="$(my_pgid)"
-  if [ -n "$mine" ] && [ "$pgid" = "$mine" ]; then
-    die "ownership-unprovable: refusing to signal process group $pgid — it is this process's own group"
-    printf 'unavailable\n'; return 0
-  fi
+  pgid="$(signalable_pgid "$rd")"
+  [ -n "$pgid" ] || { printf 'unavailable\n'; return 0; }
 
   # 1. RECORD PRESENT ⇒ PROBE the recorded group before reporting (spec assumption 24). The leader
   #    is dead, so ownership of any survivor is unprovable — but DETECTION is possible even where
@@ -601,7 +612,11 @@ stop_run() {  # $1 = run dir, $2 = reason (already flattened)
   barrier pre-term
 
   # 4. Probe with the assumption 9 conjuncts, never a bare probe: this is the one probe whose alive
-  #    result gates a signal.
+  #    result gates a signal, so BOTH conjuncts are read HERE, on the kill's side of the fence, and
+  #    neither is carried down from step 2. A group recycled inside the stop window is invisible to a
+  #    value captured before the window — and that value is the one a `TERM` would be aimed at.
+  pgid="$(signalable_pgid "$rd")"
+  [ -n "$pgid" ] || { printf 'unavailable\n'; return 0; }
   if ! kill -0 -"$pgid" 2>/dev/null; then
     # NOTHING IS WRITTEN HERE. No signal was sent, so there is nothing to claim — and a marker would
     # make the vanished death read `stopped`, which no caller ever relaunches. (The record was
