@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: false
 branch: feat/fence-runner-config-locality-at-the-main-worktree
-claimed_at: 2026-08-10T22:38:37Z
+claimed_at: 2026-08-10T22:40:52Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -98,6 +98,38 @@ Settled design in the linked spec; the shape:
 - Whether `permissions: auto-approve` behaves as documented against a real opencode binary; already
   flagged **Unverified** in `opencode.md`, and an external truth no in-repo test can be an oracle
   for.
+
+## Reconcile log
+
+**2026-08-10** — Reconciled against `origin/main` @ `b7991283`. Every load-bearing premise in the
+spec still holds verbatim:
+
+- `scripts/runner-dispatch.sh` on `origin/main` is unchanged at all three cited sites —
+  `REPO_ROOT="$(docket_main_worktree)"` (116), `export DOCKET_REPO_ROOT="$ANCHOR"` (154), and the
+  config-layer loop `for f in "$REPO_ROOT/.docket.local.yml" …` (176). The decoupling under test is
+  intact, so the change remains a fencing + documentation job with no production code edit.
+- `.docket.local.yml` is still gitignored (`.gitignore:8`), so the gitignore rationale the contract
+  correction must state is still the true reason.
+- `tests/test_runner_dispatch.sh` still never crosses the two axes: the change-0206 `--worktree`
+  block uses `mkdir -p "$SBX/.worktrees/featslug"` and the config-layer block runs against the
+  default anchor. `make_fixture` already builds a real git repo with an initial commit, so
+  `git worktree add` works in-fixture with no fixture rework.
+- `scripts/runner-dispatch.md` step 3 still writes the unbound `<repo>/.docket.local.yml` prefix,
+  and `scripts/runners/opencode.md` still has both the bare `DOCKET_RUNNER_CFG_PERMISSIONS` env row
+  and the "in a config layer" Prerequisites bullet. Both corrections are still needed.
+- **Coupling unchanged.** Change 0208 is still `proposed` and unbuilt, so this change lands first
+  and introduces its own real linked-worktree fixture; 0208 rebases onto it. Change 0277 (delegated
+  brief file channel) is also unbuilt. The diff is kept tightly scoped to this spec so both rebase
+  cleanly — no opportunistic edits to the `--worktree` gates or the `runners:` config reader.
+
+**Budget risk quantified.** The spec flags the file's wall-clock budget as a live risk. Measured
+baseline: `tests/test_runner_dispatch.sh` runs in **5.79s** serially against its
+`tests/runtime-budgets.tsv` row of **10s** — roughly 4.2s of headroom for one `git worktree add`
+plus one dispatch. Comfortable, but it is checked after the build rather than assumed.
+
+**Auto-capture:** enabled; nothing surfaced this pass clears the six admission gates. The
+doc-accuracy defects are this change's own scope, and the budget headroom is an observation, not
+follow-up work. Nothing minted.
 
 ## Coupling
 
