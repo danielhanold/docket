@@ -1,8 +1,8 @@
 # Backlog
 
-**282 changes** — 🟡 35 proposed · ⚪ 4 deferred · ✅ 167 done · 🗑️ 76 killed
+**283 changes** — 🟡 36 proposed · ⚪ 4 deferred · ✅ 167 done · 🗑️ 76 killed
 
-## 🟡 Proposed (35)
+## 🟡 Proposed (36)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -41,6 +41,7 @@
 | [0280](active/0280-shard-or-re-budget-the-test-files-the-suite-runner-reports-o.md) | Shard or re-budget the test files the suite runner reports OVER BUDGET | `medium` | `chore` | needs-brainstorm |
 | [0281](active/0281-auto-groom-s-critic-verdict-return-channel-fails-under-backg.md) | Auto-groom's critic verdict return channel fails under background dispatch | `medium` | `fix` | build-ready |
 | [0282](active/0282-launch-and-wait-contract-for-long-running-child-processes-li.md) | Launch-and-wait contract for long-running child processes — liveness-keyed, not marker-keyed | `critical` | `fix` | build-ready |
+| [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -92,6 +93,7 @@ graph TD
   0280
   0281
   0282
+  0283
   0192:::done
   0211:::done
   0237:::done
