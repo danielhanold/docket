@@ -137,6 +137,8 @@ documented extractor is the recorded escape hatch — a deliberate, reversible f
 - Docket skills linked into `~/.agents/skills` (`link-skills.sh`, automatic on install).
 - `runners.opencode.permissions: auto-approve` in a config layer read at the **main worktree** —
   its `.docket.local.yml` or `.docket.yml`, or the global
-  `${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml`; never inside a feature worktree, which
-  carries no copy of the gitignored machine-local layer. Without the grant every delegated run
-  refuses by design.
+  `${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml`; never inside a feature worktree, because
+  the facade resolves its config layers at the main worktree regardless of `--worktree`, so a grant
+  written inside a feature worktree is not read wherever it is written — and the machine-local
+  layer, being gitignored, could not travel to a feature worktree even in principle. Without the
+  grant every delegated run refuses by design.

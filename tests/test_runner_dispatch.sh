@@ -263,8 +263,12 @@ assert "0270: the grant exists ONLY in the main worktree" '[ ! -e "$WT/.docket.l
 argv="$(cat "$LOG")"
 assert "0270: main-worktree grant reaches the child across a --worktree dispatch" \
   'grep -qxF -- "danger-full-access" <<<"$argv"'
-# Anti-vacuity pair. Without these, a regression that anchored the config loop at $ANCHOR *and*
-# let the anchor fall back to the main worktree would leave the assert above green.
+# Anchor pair. The positive leg pins the anchor handed to the adapter to the linked worktree, so
+# the grant assert above cannot be satisfied by a run that quietly anchored somewhere else. The
+# negative leg fences a different case: the main worktree must not leak into the child's argv
+# *alongside* the anchor. It is the weaker of the two — it is independently satisfied whenever
+# "$SBX" never appears at all, including if the adapter never ran — so it stands beside the
+# positive assert, never in place of it.
 assert "0270: the anchor handed to the adapter IS the linked worktree" \
   'grep -qxF -- "$WT" <<<"$argv"'
 assert "0270: the anchor is NOT the main worktree" '! grep -qxF -- "$SBX" <<<"$argv"'
