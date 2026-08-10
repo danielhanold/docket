@@ -278,7 +278,11 @@ on the state each observation reports, never on a success marker appearing in th
 differ exactly when the child dies, which is the one moment the wait exists for: a marker-keyed loop
 cannot tell *still running* from *died*, so it burns its whole budget before reporting a death a
 state-keyed wait catches on the next observation. The six states and their retryability are
-`gate-run.md`'s contract, and **only `running` is retryable**.
+`gate-run.md`'s contract, and **only `running` is retryable**. **Reuse the canonical loop** in
+`gate-run.md` § *The caller's loop* verbatim rather than authoring one, and key each `case` arm on
+the full printed `state=<name>` line: a loop that re-tokenizes that line and matches bare state
+names matches nothing, so it never terminates on a state — it polls a finished gate until the
+budget is spent.
 
 **On a failed launch.** `--launch` prints either the run dir's absolute path or the token
 `launch-failed` — a **slash-free token rather than an absolute path**, which is the shape a caller

@@ -959,12 +959,25 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # was never the measurement, so the derivation is restated against the real numbers: 126 lines ->
 # the next multiple of 5 is 130 (4 lines, the half-step margin the 0167 and 0201 entries accept);
 # 1131 words -> 1150 is 19 words, inside the 25-word floor, so the multiple after: 1200.
+# Change 0286 raises skills/docket-build/SKILL.md 375/3650 -> 380/3700. § *Gate execution posture*
+# gains ONE sentence: reuse the canonical poll loop in scripts/gate-run.md § *The caller's loop*
+# verbatim, and key each case arm on the full printed state=<name> line, because a loop matching
+# bare state names never terminates on a state. WHERE ELSE IT WAS CONSIDERED, per the naming
+# requirement above: the loop ITSELF lives in scripts/gate-run.md and is executed there by
+# tests/test_gate_run.sh, so only the keying rule is restated here — a second full copy of the loop
+# is the restatement class the learnings ledger warns accumulates its own guards. It cannot live
+# only in the contract, because this file is where a caller authoring a loop is actually reading;
+# it cannot live in references/gate-execution.md, whose neutrality invariant is one-directional and
+# whose read-once-ahead-of-the-act placement does not intervene at the act. The pre-change actuals
+# were 372/3613 against 375/3650, i.e. 3 lines and 37 words of headroom — less than the sentence.
+# Set per the rounding rule above from the measured post-edit actuals: 376 lines -> the next
+# multiple of 5 is 380; 3670 words -> 3700 (30 words, clear of the 25-word floor).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1300
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-build/SKILL.md                               375 3650
+skills/docket-build/SKILL.md                               380 3700
 skills/docket-build/references/delegation-execution.md      85  850
 skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            130 1200
