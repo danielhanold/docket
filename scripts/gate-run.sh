@@ -128,9 +128,36 @@ do_wrap() {
   # Forked, not exec'd: this process must outlive the command to write the terminal record, which
   # is what makes "the child completed" evidence rather than a claim. Stdout, stderr and stdin are
   # inherited from the launcher's redirect, so the command's bytes land unmerged in the durable
-  # logs with no primitive-injected framing. No trap is installed anywhere in this wrapper.
-  "$@" &
-  wait "$!"
+  # logs with no primitive-injected framing.
+  #
+  # THE WRAPPER IGNORES TERM; THE COMMAND DOES NOT. No handler is installed — there is no code path
+  # anywhere that can write `terminal` other than the `wait` below returning the command's own
+  # status, which is the property "untrapped" exists to protect. The disposition is set to IGNORE,
+  # and only for the wrapper, because every teardown in this contract is GROUP-directed: the
+  # wrapper leads the recorded group, so `kill -TERM -$pgid` reaches the wrapper too. MEASURED: with
+  # the default disposition the wrapper dies alongside the command and `terminal` is NEVER written,
+  # so `kind=signal` would be unreachable and every signal death would degrade to `cause=vanished`.
+  # An ignored signal is inherited across fork and exec, so the subshell RESETS TERM to its default
+  # before exec'ing — the command must still be killable by the very signal the wrapper survives.
+  # SIGKILL is deliberately not survivable: a KILLed group leaves no record, which is exactly the
+  # `cause=vanished` reading it should get.
+  trap '' TERM
+  ( trap - TERM; exec "$@" ) &
+  local cmd_pid=$! rc=0
+  wait "$cmd_pid" || rc=$?
+
+  # The POSIX-shell floor and which way it is biased (spec assumption 16, NAMED RESIDUAL):
+  # a shell sees only $?, which conflates a genuine `exit 143` with death by signal 15. A code
+  # in 129..192 is therefore recorded kind=signal. The two errors are NOT symmetric: reading a
+  # signal death as `failed` mints integration-repair work for tests that never ran, which
+  # assumption 3 forbids; reading a genuine `exit 143` as `died` costs one relaunch that
+  # reproduces the same code and then halts. Recorded in scripts/gate-run.md § Named residuals.
+  if [ "$rc" -ge 129 ] && [ "$rc" -le 192 ]; then
+    atomic_write "$rd/terminal" "kind=signal signal=$(( rc - 128 ))"
+  else
+    atomic_write "$rd/terminal" "kind=exit code=$rc"
+  fi
+  exit "$rc"
 }
 
 # ==================================================================================

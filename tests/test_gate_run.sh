@@ -111,4 +111,33 @@ after="$(pgrep -f 'gate-run-canary' | wc -l | tr -d ' ')"
 assert "the command never RAN when the wedge precedes the record" '[ ! -f "$canary_marker" ]'
 assert "no command process exists when the wedge precedes the record" '[ "$after" = "$before" ]'
 
+# ---- THE TERMINAL RECORD: a termination KIND, never a bare integer -----------------
+# WHY A KIND AND NOT A NUMBER: a child killed by a signal NEVER FINISHED. If the record collapsed
+# both outcomes into "nonzero", an observation would read a signal death as `failed` — and `failed`
+# is the one state allowed to feed repair work, so a suite that never ran would mint work for tests
+# that never executed. The kind is what keeps those two apart at the only place the distinction is
+# still observable.
+
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'exit 0')"
+await_terminal "$RD"
+rec="$(cat "$RD/terminal" 2>/dev/null || true)"
+assert "a clean exit records kind=exit code=0" '[ "$rec" = "kind=exit code=0" ]'
+
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'exit 1')"
+await_terminal "$RD"
+rec="$(cat "$RD/terminal" 2>/dev/null || true)"
+assert "a red exit records kind=exit code=1" '[ "$rec" = "kind=exit code=1" ]'
+
+# The headline assert. The group-directed TERM is the same shape `--stop` uses, so this also pins
+# that the wrapper OUTLIVES a teardown of its own group far enough to witness the child's death —
+# a wrapper that died alongside the child would leave no record at all and this would read empty.
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'sleep 30')"
+term_pgid="$(sed -n 's/^pgid=//p' "$RD/launch")"
+kill -TERM -"$term_pgid" 2>/dev/null || true
+await_terminal "$RD"
+rec="$(cat "$RD/terminal" 2>/dev/null || true)"
+assert "a TERMed child records kind=signal, never kind=exit" 'grep -q "^kind=signal" <<<"$rec"'
+assert "the signal number is recorded" 'grep -q "signal=15" <<<"$rec"'
+reap "$term_pgid"
+
 exit "$fail"
