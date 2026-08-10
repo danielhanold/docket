@@ -66,6 +66,20 @@ and an alive result can only abort. (3) The idempotence sentence predated assump
 is now explicit. (5) An existing-run-dir refusal now names its report shape: the `launch-failed`
 token (assumption 25).
 
+**Amended 2026-08-09, adversarial critic re-review — round 6, on the round-5 repairs.** Three
+findings, closed here. (A) The self-stop's premise — "captured before any handle is returnable" —
+guaranteed capture before *success*, not before *spawn*, so a wedge between spawn and record left
+the same unaddressable child the repair claimed closed; the closing rule is ordering, not more
+killing: the user's command is never exec'd before the `pid`/`pgid`/identity record is durably in
+the run dir, and the failure path kills the recorded group when the record exists, else its direct
+spawn child (assumption 14, both wedge points mutation-tested). (B) `--stop`'s step-4 probe fell in
+neither of assumption 9's round-5 classes — the one probe whose alive result gates a `TERM` was not
+stated to re-check identity, leaving a recycle window between step 2 and the kill; step 4 now runs
+the assumption 9 conjuncts, alive-but-mismatched reports `unavailable`, and a sixth race fixture
+pins it. (C) The round-5 idempotence sentence claimed every consuming leg halts-or-aborts,
+contradicting the `died` flow's re-observe-then-maybe-relaunch leg; corrected to the true claim —
+neither report obliges coordination.
+
 ## Problem
 
 Finalizing change 0276 burned ~20 minutes polling a process that had been dead 19 of them. Two
@@ -121,14 +135,17 @@ protocol.
     `--launch` MUST NOT return a run handle until the supervisor has acknowledged that its new
     session exists, its durable streams are open, `pid`/`pgid`/identity are captured, and it is
     ready to supervise. Failure to establish that within a fixed launch-establishment bound is a
-    **launch failure**, and the failure path is itself a bounded stop (critic re-review round 5):
-    the establishment sequence captures `pid`/`pgid` before any handle is returnable, so the
-    failing launcher holds everything needed to `TERM` → bounded grace → `KILL` the group it
-    recorded and verify it gone **before** reporting the single `launch-failed` token on stdout
-    (assumption 25); a kill it cannot complete is reported loudly on stderr with the run-dir path
-    for manual disposal. Without this, a child spawned before the handshake wedged would survive as
-    a process nothing can ever address — `--stop`'s only handle is the run-dir path the caller
-    never received — rebuilding the abandoned-live-child defect inside the launcher.
+    **launch failure**, and the failure path is itself a bounded stop (critic re-review round 5;
+    ordering completed round 6): **the user's command is never exec'd before the
+    `pid`/`pgid`/identity record is durably in the run dir** — the wrapper records itself
+    post-detachment and only then forks the command — so a wedge before the record exists can
+    strand plumbing at worst, never the command. The failing launcher `TERM`s → bounded grace →
+    `KILL`s the recorded group when the record exists, else its direct spawn child best-effort,
+    verifies what it killed, and only then reports the single `launch-failed` token on stdout
+    (assumption 25); whatever it could not verify is reported loudly on stderr with the run-dir
+    path for manual disposal. Without this, a child spawned before the handshake wedged would
+    survive as a process nothing can ever address — `--stop`'s only handle is the run-dir path the
+    caller never received — rebuilding the abandoned-live-child defect inside the launcher.
     gate-execution measured this precondition
     rather than reasoning about it: on codex, a launch that returned before session detachment
     completed produced a child that never started, and that harness's `supported` verdict is
@@ -231,11 +248,13 @@ protocol.
      `unavailable` requires a group that exists — so it falls through to step 4's absent branch.
   3. **Re-read the terminal record immediately before signaling** — nothing but the stop-intent
      write and the `kill` separate the test from the act.
-  4. **Probe the recorded group.** Confirmed absent ⇒ re-read the terminal record once more; still
-     none ⇒ report `already-terminal` and write **nothing** — the vanished case must remain
-     relaunchable (assumption 21). Otherwise write the **stop-intent** record (atomic; distinct
-     from the completed marker — assumption 23), then `TERM` the recorded process group; bounded
-     grace; `KILL` if still present.
+  4. **Probe the recorded group — the assumption 9 conjuncts, not a bare probe.** Confirmed absent
+     ⇒ re-read the terminal record once more; still none ⇒ report `already-terminal` and write
+     **nothing** — the vanished case must remain relaunchable (assumption 21). **Alive but
+     identity-mismatched ⇒ report `unavailable`, signal nothing** — a group recycled between step 2
+     and this step must never take the `TERM` (assumption 9, round 6). Alive and identity-confirmed
+     ⇒ write the **stop-intent** record (atomic; distinct from the completed marker — assumption
+     23), then `TERM` the recorded process group; bounded grace; `KILL` if still present.
   5. **Verify the group is gone.**
   6. **Re-read the terminal record again**, after the kill and before any marker is written.
   7. Only now — **the group having actually been signalled** and verified gone — write the
@@ -275,9 +294,11 @@ protocol.
   tokens stay distinguishable in diagnosis without splitting the protocol.
 
   **Idempotent**: a second call, or a call on an already-terminal run, reports `already-terminal` —
-  or `unavailable` when live orphans are detected (assumption 24) — and is not an error; every
-  consuming leg treats both as halt-or-abort, which is what lets a halt path and a `died` relaunch both call it without
-  coordinating, and lets the abandon rule below be stated unconditionally. Children that escaped the
+  or `unavailable` when live orphans are detected (assumption 24) — and is not an error; neither
+  report obliges callers to coordinate (the abandon path halts on either; the `died` flow
+  re-observes on `already-terminal` and aborts on `unavailable`), which is what lets a halt path
+  and a `died` relaunch both call it without prior agreement, and lets the abandon rule below be
+  stated unconditionally. Children that escaped the
   recorded group (double-fork, own session) survive it; that narrowed case remains a named residual.
 
 The helper is deliberately generic (any command), stateless beyond its run dir, and performs no
@@ -400,9 +421,10 @@ that cannot be shown to notice a dead child is decoration — this is the repo's
 applied to the guard this change ships. **Launch failure** (assumption 25): a `--launch` driven past
 its establishment bound prints the single `launch-failed` token on stdout with diagnostics on
 stderr, so a caller keying on the report line detects it — an empty-stdout implementation reddens.
-And the failure path kills what it spawned (assumption 14): a fixture that wedges the handshake
-after the child starts must leave no surviving process under the recorded pgid, so deleting the
-failure-path self-stop reddens rather than leaking an unaddressable child.
+And the failure path kills what it spawned (assumption 14), wedged at **both** points: after the
+`pid`/`pgid` record lands, the recorded group must die; before it, no command process may ever have
+existed (the record-before-exec ordering) — deleting the failure-path self-stop or reordering exec
+before the record reddens rather than leaking an unaddressable child.
 
 `--stop` carries its own asserts, each keyed to a mutation that must redden: stopping a live child
 leaves the recorded group verified gone; a child that ignores `TERM` is still gone after the grace,
@@ -420,7 +442,7 @@ at step 7" reddens rather than silently making the vanished-death relaunch leg u
 in the recorded pgid under a present `kind=signal` record must have `--stop` report `unavailable`
 and signal nothing, so dropping the step-1 probe reddens rather than relaunching over live orphans.
 
-**The five race asserts are the ones that cannot be argued into existence — each needs a
+**The six race asserts are the ones that cannot be argued into existence — each needs a
 deterministic interleaving fixture, not a sleep.** The helper takes test-only synchronization points
 (a wait-for-file barrier the fixture releases) so the observer or stopper can be held at a chosen
 step while the child is driven to completion. Each barrier is **env-gated and inert by default** —
@@ -448,6 +470,10 @@ production:
   subsequent `--observe` must still report `stopped`, never `died`. Deleting the pre-signal intent
   write reddens — the idempotent retry is never required to reconstruct a history only the intent
   record can prove.
+- **Recycled group inside the stop window (assumptions 9, 24).** Hold `--stop` between its step-2
+  identity validation and its step-4 probe; substitute a live foreign process group under the
+  recorded pgid; release. `--stop` must report `unavailable` and signal **nothing at all**.
+  Deleting the step-4 identity re-check reddens — this is the mutation that `TERM`s a bystander.
 
 - **Signal versus nonzero exit (assumption 16).** A child killed by `TERM` while its wrapper survives
   must observe as `died`, not `failed`; a child that exits 1 must observe as `failed`. The mutation
@@ -524,7 +550,10 @@ Every decision an interactive brainstorm would have raised, the committed defaul
    (green mutation test would hide the guard's absence; the repo already solved this once).
    (Scoped at critic re-review round 5: this rule is about fail direction, not a blanket syscall
    ban. Identity-checked wherever a token match is possible — the `running` classification, the
-   pre-signal ownership check. A bare probe is admissible only where the leader is known dead, so
+   step-2 ownership check, and `--stop`'s step-4 pre-signal probe (added to this list at round 6:
+   the one probe whose alive result gates a `TERM` re-checks identity on the same side of the
+   fence as the kill; alive-but-mismatched reports `unavailable` and signals nothing). A bare
+   probe is admissible only where the leader is known dead, so
    no match is possible, **and** an alive result can only move the outcome fail-closed — `--stop`
    step 1's orphan probe (assumption 24), where a recycled pgid reads as orphans and aborts. Bare
    `kill -0` remains forbidden anywhere its false positive would read a dead run as `running` or
@@ -574,15 +603,22 @@ Every decision an interactive brainstorm would have raised, the committed defaul
     produced a never-started child when the parent returned before detachment completed, and its
     verdict is scoped to the race-free shape. Rejected: "fully established before the call returns"
     as prose (that is the sentence the current spec already had, and prose is what 0276 proved does
-    not reach the moment of launch). (Completed at critic re-review round 5: the failure path is
-    itself a bounded stop. `pid`/`pgid` are captured before any handle is returnable, so the
-    failing launcher `TERM`s → grace → `KILL`s the group it recorded and verifies it gone before
-    printing `launch-failed`; an uncompletable kill is reported loudly on stderr with the run-dir
-    path for manual disposal. Without this, the round-4 failure report left a
+    not reach the moment of launch). (Completed at critic re-review round 5, ordering corrected at
+    round 6: the failure path is itself a bounded stop — but round 5's premise, "captured before
+    any handle is returnable", guaranteed capture before *success*, not before *spawn*: the bound
+    can expire after the process chain exists and before the record lands, and under the pty rung
+    the launcher's direct child is `script`, not the session leader, so fork-time knowledge does
+    not close the gap. The ordering rule closes it: the user's command is never exec'd before the
+    `pid`/`pgid`/identity record is durably in the run dir — the wrapper records itself
+    post-detachment, then forks the command — so a pre-record wedge can strand plumbing only. The
+    failing launcher kills the recorded group when the record exists, else its direct spawn child
+    best-effort; whatever it could not verify is reported loudly on stderr with the run-dir path
+    for manual disposal. Without this, the round-4 failure report left a
     spawned-but-unacknowledged child detached and unaddressable — no caller can `--stop` a run dir
     it was never given — the abandoned-live-child defect rebuilt inside the launcher.
-    Mutation-tested: a fixture that wedges the handshake after the child starts must leave no
-    surviving process under the recorded pgid, so deleting the failure-path kill reddens.)
+    Mutation-tested at both wedge points: wedged after the record, the recorded group must die;
+    wedged before it, no command process may ever have existed — deleting the failure-path kill or
+    reordering exec before the record reddens.)
 15. **The session primitive is resolved by a probe ladder; exhaustion narrows the contract honestly
     and escalates without stalling.** (Re-resolved at critic re-review round 3 — the first draft
     left this "open, escalate if none found", but the escalation leg was near-certain, not
