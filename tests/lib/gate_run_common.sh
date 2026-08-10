@@ -36,6 +36,19 @@ gate_run(){ "$DOCKET_BASH_PATH" "$GATE_RUN" "$@"; }
 
 SBX="$(mktemp -d "${TMPDIR:-/tmp}/gate-run-test.XXXXXX")"; SBX="$(cd "$SBX" && pwd -P)"
 
+# BOUNDED wait for the terminal record — never an unbounded one. "The wrapper died without
+# recording" is precisely the condition several asserts exist to catch, so a missing record has to
+# surface as a red assert on the record's CONTENT, not as a shard that hangs until the harness's
+# wall-clock budget notices. Returns non-zero on timeout and the caller reads an empty record.
+await_terminal(){  # $1 = run dir, $2 = deadline in tenths of a second (default 100 = 10s)
+  local rd="${1:-}" ticks="${2:-100}" t=0
+  while [ "$t" -lt "$ticks" ]; do
+    [ -s "$rd/terminal" ] && return 0
+    sleep 0.1; t=$(( t + 1 ))
+  done
+  return 1
+}
+
 # Tear down a leftover detached group. It REFUSES to signal this file's own group: a group-directed
 # signal aimed at ourselves takes the harness running this file with it — the same hazard
 # tests/lib/runner_dispatch_detach_common.sh's `reap` exists for.
