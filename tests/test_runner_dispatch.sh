@@ -317,8 +317,12 @@ assert "0270: the grant exists ONLY in the main worktree" '[ ! -e "$WT/.docket.l
 # pass with no main-worktree read at all, the mutation probe would stay green, and the fence would
 # be decoration.
 : > "$LOG"
+# The trailing payload satisfies change 0277's build-* empty-payload gate, which refuses a
+# task-less build-* dispatch before the adapter is ever reached. It is incidental to what this
+# section fences (the config-locality read) — but without it this whole block would abort at that
+# gate and its asserts would read an empty argv log.
 ( cd "$WT" && PATH="$BIN:$PATH" DOCKET_HARNESS_ROOT="$SBX" \
-    bash "$FACADE" --runner codex --agent build-economy --worktree "$WT" >/dev/null 2>&1 )
+    bash "$FACADE" --runner codex --agent build-economy --worktree "$WT" -- "0270 fixture task" >/dev/null 2>&1 )
 argv="$(cat "$LOG")"
 assert "0270: main-worktree grant reaches the child across a --worktree dispatch" \
   'grep -qxF -- "danger-full-access" <<<"$argv"'
@@ -346,6 +350,66 @@ printf 'runners:\n  codex:\n    sandbox: workspace-write\n' > "$SBX/.docket.loca
 argv="$(cat "$LOG")"
 assert "facade: local layer beats committed per key" 'grep -qxF -- "workspace-write" <<<"$argv"'
 assert "facade: unset-in-local key falls to committed (network still false)" '! grep -qF "network_access" <<<"$argv"'
+rm -rf "$SBX"
+
+# ---- 0277: the facade's brief-file channel ------------------------------------------
+# Same two channels as the adapters, refused in the same shape, but refused HERE FIRST so the
+# facade can never construct the invocation its own adapters would reject.
+make_fixture
+BF="$SBX/brief.txt"
+printf 'facade-brief-line-one\nfacade-brief-line-two\n' > "$BF"
+( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status --brief-file "$BF" >/dev/null 2>&1 )
+assert "0277 facade: the brief reaches the child's prompt" 'grep -qxF -- "facade-brief-line-one" "$LOG"'
+assert "0277 facade: the brief keeps its line structure" 'grep -qxF -- "facade-brief-line-two" "$LOG"'
+
+err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status \
+    --brief-file "$BF" -- "and argv too" 2>&1 >/dev/null )"; rc=$?
+assert "0277 facade: both channels together are refused" '[ "$rc" != "0" ]'
+assert "0277 facade: the refusal says never both" 'grep -qiF "never both" <<<"$err"'
+
+err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status \
+    --brief-file "$SBX/no-such-brief" 2>&1 >/dev/null )"; rc=$?
+assert "0277 facade: a missing brief file is refused" '[ "$rc" != "0" ]'
+assert "0277 facade: the missing-file refusal names the path" 'grep -qF -- "no-such-brief" <<<"$err"'
+: > "$SBX/empty-brief"
+err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status \
+    --brief-file "$SBX/empty-brief" 2>&1 >/dev/null )"; rc=$?
+assert "0277 facade: an empty brief file is refused" '[ "$rc" != "0" ]'
+err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status --brief-file 2>&1 >/dev/null )"; rc=$?
+assert "0277 facade: --brief-file with no value exits instead of spinning" '[ "$rc" != "0" ]'
+rm -rf "$SBX"
+
+# The build-* empty-payload gate, at the SAME pre-verb point as the --worktree gate, so it holds
+# for the legacy foreground verb (the hand-invocation path, the one most likely to be typed
+# task-less) exactly as it does for --launch. A build worker with no task is always the
+# silent-improvise defect; a loud abort is strictly better than a successful-looking task-less run.
+make_fixture
+mkdir -p "$SBX/.worktrees/w"
+err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent build-economy \
+    --worktree "$SBX/.worktrees/w" 2>&1 >/dev/null )"; rc=$?
+assert "0277 gate: build-* with NO payload is refused" '[ "$rc" != "0" ]'
+assert "0277 gate: the refusal names the improvise failure mode" 'grep -qiE "improvis|no task" <<<"$err"'
+assert "0277 gate: the refusal never reached the child" '[ ! -s "$LOG" ]'
+# ... and it is satisfied by EITHER channel.
+( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent build-economy \
+    --worktree "$SBX/.worktrees/w" -- "do the task" >/dev/null 2>&1 ); rc=$?
+assert "0277 gate: build-* WITH argv payload runs" '[ "$rc" = "0" ]'
+: > "$LOG"
+printf 'do the task\n' > "$SBX/brief.txt"
+( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent build-economy \
+    --worktree "$SBX/.worktrees/w" --brief-file "$SBX/brief.txt" >/dev/null 2>&1 ); rc=$?
+assert "0277 gate: build-* WITH a brief file runs" '[ "$rc" = "0" ]'
+# SCOPED to the verbs that START a child: `--observe` reads a result the matching `--launch`
+# already recorded, so it has no payload and the generated shim gives its observe line no brief
+# slot. The gate must not refuse it. This dispatch still fails (there is no such dispatch key) —
+# what is pinned is WHICH refusal it takes, so a gate that swallowed observe would redden here.
+err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --observe no-such-key --runner codex \
+    --agent build-economy --worktree "$SBX/.worktrees/w" 2>&1 >/dev/null )"
+assert "0277 gate: --observe is exempt from the build-* payload gate" \
+  '! grep -qiE "improvis|carries no task" <<<"$err"'
+# SCOPED to build-*: a metadata-scoped agent legitimately dispatches payload-free.
+( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status >/dev/null 2>&1 ); rc=$?
+assert "0277 gate: a non-build agent with no payload still runs" '[ "$rc" = "0" ]'
 rm -rf "$SBX"
 
 # ---- 0173: runners.<name> value class — block mapping, tolerant posture -------------
@@ -628,7 +692,9 @@ run_gate --runner ad --agent status >/dev/null 2>&1; rc=$?
 assert "0237 gate: a status delegation exits 0" '[ "$rc" = "0" ]'
 assert "0237 gate: a status delegation never calls verify-run" '[ ! -s "$SBX/vr.log" ]'
 mkdir -p "$SBX/.worktrees/w"
-run_gate --runner ad --agent build-standard --worktree "$SBX/.worktrees/w" >/dev/null 2>&1
+# The payload satisfies change 0277's build-* empty-payload gate. Without it the dispatch would
+# abort BEFORE the run gate, leaving `vr.log` empty for the wrong reason and this assert vacuous.
+run_gate --runner ad --agent build-standard --worktree "$SBX/.worktrees/w" -- "build task" >/dev/null 2>&1
 assert "0237 gate: a build-* delegation never calls verify-run" '[ ! -s "$SBX/vr.log" ]'
 rm -rf "$SBX"
 

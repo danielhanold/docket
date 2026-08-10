@@ -32,8 +32,11 @@ mkbuildrepo(){   # a repo + feature worktree the fake adapter can commit into
 }
 # The build arms drive the facade directly rather than through `launch`/`observe`: those helpers
 # hard-code `--agent status` shape and omit `--worktree`, which gate 1 requires for build-*.
+# The trailing payload satisfies change 0277's build-* empty-payload gate, which refuses a
+# task-less build-* dispatch before anything is launched. `bobserve` needs none: the gate exempts
+# `--observe`, which starts no child.
 blaunch(){ ( cd "$SBX" && RUNNERS_DIR="$RDIR" bash "$FACADE" --launch --runner fake \
-    --agent build-standard --worktree "$WT" ); }
+    --agent build-standard --worktree "$WT" -- "build task" ); }
 bobserve(){ ( cd "$SBX" && RUNNERS_DIR="$RDIR" bash "$FACADE" --observe "$1" --runner fake \
     --agent build-standard --worktree "$WT" ); }
 bsettle(){ local _ ; for _ in $(seq 1 30); do bobserve "$1" >/dev/null 2>&1
@@ -314,7 +317,7 @@ assert "0271-gate: an ambiguous claim set verifies nothing" '! grep -qxF "vr 7" 
 #     implement-next leg is the only reader of `--with-claimed-at` at this seam.
 mkgatefixture "run-halted 7"
 git -C "$SBX" checkout -q -b feat/thing
-KEY="$(glaunch build-standard --worktree "$SBX")"
+KEY="$(glaunch build-standard --worktree "$SBX" -- "build task")"  # payload: change 0277's build-* gate
 gsettle "$KEY"
 out="$(gobserve "$KEY" build-standard --worktree "$SBX" 2>&1)"; rc=$?
 assert "0271-gate: a build-* observation never takes the implement-next disposition" '[ "$rc" != "3" ]'
