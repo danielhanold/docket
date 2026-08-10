@@ -2,9 +2,9 @@
 slug: section-slice-needs-a-named-terminator
 hook: "A generic /^## / terminator ends the slice at the first heading-shaped line — including one inside a fenced example — so name the terminator, and assert the terminator exists."
 topics: [testing, guards, markdown]
-changes: [226, 224, 246, 242]
+changes: [226, 224, 246, 242, 286]
 created: 2026-08-07
-updated: 2026-08-08
+updated: 2026-08-10
 promotion_state: retained
 promoted_to:
 ---
@@ -79,3 +79,9 @@ than care.
   ran to EOF. Replaced with a bound derived from the template's own line count — which incidentally
   upgraded the assert from "the two renderings share a prefix" to "the template renders verbatim
   into both". A terminator that exists in only one of the surfaces you slice is not a terminator.
+
+- 2026-08-10 (#286, PR #192) — the truncating line was not heading-shaped, it was **comment**-shaped:
+  a `/^#/` terminator over a markdown file closes on the first `#` comment line inside the fenced
+  bash block it was meant to slice, three lines in. Replaced with a fence-aware slicer that closes
+  only on an out-of-fence markdown heading. The shape of the terminator matters at every syntax the
+  file mixes, not just the one you were thinking about.

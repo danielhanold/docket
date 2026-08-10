@@ -2,9 +2,9 @@
 slug: byte-pattern-guard-matches-a-spelling
 hook: "A grep-based ban or shape predicate matches a spelling, not the property — bound it on both sides, and where equivalent spellings survive, assert the limitation in the guard's header instead of writing it in a comment."
 topics: [guards, grep, testing]
-changes: [246, 276]
+changes: [246, 276, 286]
 created: 2026-08-08
-updated: 2026-08-09
+updated: 2026-08-10
 promotion_state: candidate
 promoted_to:
 ---
@@ -62,3 +62,10 @@ care), [[correspondence-guard-runs-one-way]].
   definition of the property. Re-keyed on shape across `grep`, `head`, `awk … exit`, `sed … q`, and
   `read`, with an optional path prefix, and its `KNOWN IMPRECISION` header widened to state what the
   predicate actually delivers.
+
+- 2026-08-10 (#286, PR #192) — the too-wide direction, at its smallest scale: `grep -qF -- "|| true"`
+  over an extracted fence stayed green with `|| true` deleted from the executable line, because the
+  fence's own explanatory comment quotes the literal it explains. When a guard reads a document that
+  *discusses* the thing it guards, prose and invocation are byte-identical — the assert must strip
+  comments and match only executable lines. The build filed it as an accepted residual; review
+  disagreed and proved the repair by A/B against the mutated file (old expression green, new red).

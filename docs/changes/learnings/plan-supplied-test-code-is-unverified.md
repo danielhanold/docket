@@ -2,9 +2,9 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234, 237, 200, 244, 242]
+changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234, 237, 200, 244, 242, 286]
 created: 2026-07-19
-updated: 2026-08-08
+updated: 2026-08-10
 promotion_state: candidate
 promoted_to:
 ---
@@ -318,3 +318,10 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   symlink target's spelling, a `--check` leg gated on the weaker of two predicates, and an assert
   that flattened a whole SKILL.md and matched its keywords from unrelated paragraphs (mutation-proven
   vacuous). Each was found by building the thing, never by reading the plan.
+
+- 2026-08-10 (#286, PR #192) — both defects in one plan were in its supplied test code, and both were
+  found only by running it. The `loop_sec` slicer terminated on `/^#/`, which closes on the fenced
+  block's own first *comment* line, so the slice was ~3 lines and its own `>= 20` non-vacuity anchor
+  could not pass against any correct implementation. The supplied fixture shadowed only `sleep`,
+  which would have made one named mutation spin for the fixture's real 5-minute budget — twice —
+  against a plan claiming "milliseconds"; the harness now shadows `sleep` and `date` both.
