@@ -559,8 +559,18 @@ assert "reference: capability 5 points at the contract that owns the state vocab
 mitigation_blk="$(awk '/^One mitigation/{f=1} f && /^[[:space:]]*$/{f=0} f' <<<"$ref_body")"
 assert "reference: the mitigation paragraph was located (non-vacuity anchor)" \
   '[ "$(grep -c . <<<"$mitigation_blk")" -ge 4 ]'
-assert "reference: the mitigation names its shipped implementation" \
-  'grep -qF -- "gate-run" <<<"$mitigation_blk"'
+# The mitigation must name the FACADE INVOCATION, not merely mention the helper. Drafted as a bare
+# `grep -qF gate-run`, this assert PULLED AGAINST tests/test_consuming_repo_scripts.sh: the shortest
+# way to satisfy "name the shipped implementation" is a repo-relative `scripts/gate-run.sh`, which
+# that guard forbids in every skill body — a skill ships into a consuming repo that has no
+# `scripts/` directory of its own. Measured: with `scripts/gate-run.sh` in the paragraph the whole
+# of this file stayed GREEN (111 asserts) while the consuming-repo audit went red. Requiring the
+# facade spelling makes the two guards agree — the only way to satisfy this one is now a spelling
+# the other permits, and the path-shaped alternatives (`scripts/gate-run.sh`, `scripts/docket.sh
+# gate-run`) are both caught over there rather than restated here. Same anchor as (12a) uses on the
+# skill body, deliberately: the reference and the body name the helper the same way.
+assert "reference: the mitigation names the facade invocation of its shipped implementation" \
+  'grep -qE "docket\.sh gate-run" <<<"$mitigation_blk"'
 # ...and the helper stays OUT of every harness row. This is the mechanical form of "rewrite no
 # verdict": a row edited to name the helper is a row whose measured claim moved. Population is
 # derived from HD_SHIPPED_HARNESSES for the same reason group (10) derives it.

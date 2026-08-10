@@ -38,8 +38,9 @@ result artifact — one discipline, three payoffs. It carries one non-obvious pr
 and recorded as evidence: the new session must be **fully established before the initiating
 call returns**, or the harness's teardown wins the race. That precondition was measured, not
 reasoned about; the measurement is in the evidence file linked at the end of this reference.
-Docket ships that mitigation as `scripts/gate-run.sh`, reached through the facade as
-`docket.sh gate-run` and specified by [`scripts/gate-run.md`](../../../scripts/gate-run.md): it
+Docket ships that mitigation as `gate-run.sh`, reached through the facade as
+`"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh gate-run` and specified by
+[`scripts/gate-run.md`](../../../scripts/gate-run.md): it
 performs the detached launch, the durable unmerged streams, and the establishment handshake the
 precondition names, so a call site satisfies these capabilities by using it rather than by
 re-deriving a launch shape. **What its detachment delivers is decided by a runtime probe, never
