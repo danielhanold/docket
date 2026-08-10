@@ -25,7 +25,19 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1655 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1660 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1655 -> 1660 (change 0282 review, launch-failure identity blocker): the
+                    # RE-CUT case on a single row — tests/test_gate_run.sh 15 -> 20. The review fix
+                    # gates `--launch`'s failure-path signal on identity, and the only witness that
+                    # can tell a proven kill from an unprovable one is a live BYSTANDER GROUP that
+                    # must still be there afterwards — so the fixture is a real detached launch, a
+                    # real foreign group, a one-second `ps -o lstart=` separation (that clock has
+                    # whole-second resolution, so the separation IS the mismatch), and the failure
+                    # path's own fixed 2s leak probe running to its end because the bystander
+                    # survives. None of that can be mocked without mocking away the property. The
+                    # file measures 14s standalone, which the sizing rule — next multiple of 5 plus
+                    # a 5s margin — puts at 20. Not moved into the other shard instead: the --stop
+                    # shard measures 30s against 35 and this is a --launch fixture.
                     # 1605 -> 1655 (change 0282): the new-test-file case, twice —
                     # tests/test_gate_run.sh and tests/test_gate_run_stop.sh each bring their own
                     # row. They are the second family in the table (after the runner-dispatch detach

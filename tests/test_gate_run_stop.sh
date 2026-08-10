@@ -4,8 +4,10 @@
 # WHAT THIS FILE IS FOR: `--stop` is the one verb that SIGNALS, so its asserts are about two things
 # that a launch or an observation never has to answer for —
 #   1. WHO gets the signal. Identity is checked before anything is signalled, and the one bare probe
-#      in the whole script (step 1's orphan probe) sits where the leader is known dead, so no match
-#      is possible and an alive result can only move the outcome fail-closed.
+#      that decides anything BEFORE a signal (step 1's orphan probe) sits where the leader is known
+#      dead, so no match is possible and an alive result can only move the outcome fail-closed. The
+#      probes after the signal verify a teardown step 4 already proved the right to perform; the
+#      rule is stated by fail direction in scripts/gate-run.md § Invariants.
 #   2. WHAT MAY BE CLAIMED AFTERWARDS. The terminal record outranks the stop at steps 1, 3 and 6;
 #      `--stop` never writes a terminal record of its own; and the completed `stopped` marker is
 #      written only after termination is VERIFIED and only when the group was actually signalled.

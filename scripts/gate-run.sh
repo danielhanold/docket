@@ -207,20 +207,45 @@ do_wrap() {
 # ==================================================================================
 RUN_DIR=""
 SPAWN_PID=""
+# The spawn child's identity token, captured the instant it is forked. See `launch_failure_stop`'s
+# pid-directed signal for why a bare `$!` is not enough to aim one.
+SPAWN_IDENT=""
 
 # The bounded stop on the failure path. Called only when establishment did NOT complete, so the
 # handle is never returned and nothing else will ever come back to clean this up.
+#
+# EVERY SIGNAL HERE IS IDENTITY-GATED, exactly as on the `--stop` side, and this path gets no
+# exemption for being the last chance to clean up. Spec assumption 14 asks for both halves, not
+# one: it kills the recorded group, AND "whatever it could not verify is reported loudly on stderr
+# with the run-dir path for manual disposal". So an unprovable group is not abandoned by refusing
+# to signal it — it is routed to the `leaked=1` report below, which is the same
+# detection-where-safe-signalling-is-not posture `--stop` step 1 takes over live orphans.
+#
+# AND THE TRADE IS CHEAP ON THIS LEG SPECIFICALLY. The group-directed branch is reachable only when
+# `launch` exists and `identity` does not: every other entry either has no usable record (the
+# pid-directed branch below) or is the handshake's own separation refusal. By the ORDERING RULE the
+# user's command is not forked until AFTER `identity` lands, so on this leg the only member of the
+# recorded group is the wrapper itself — whose identity is precisely what is being checked. A live
+# member under a leader we cannot prove is ours is therefore likelier a recycled pgid than an orphan
+# of this run's, which inverts the usual "kill it to be safe" instinct.
 launch_failure_stop() {
-  local rec_pgid spawn_pgid probe_pgid="" mine
+  local rec_pgid spawn_pgid spawn_now probe_pgid="" mine
   mine="$(my_pgid)"
-  rec_pgid="$(numeric_or_empty "$(record_field "$RUN_DIR/launch" pgid)")"
+  # Through `recorded_pgid`, never `numeric_or_empty` alone: it carries the `-gt 1` floor, and the
+  # `mine` comparison below cannot stand in for that floor — `mine` is a real pgid, so it is never
+  # `0`, and `kill … -0` would signal this launcher's own group.
+  rec_pgid="$(recorded_pgid "$RUN_DIR")"
   spawn_pgid="$(numeric_or_empty "$(ps -o pgid= -p "$SPAWN_PID" 2>/dev/null | tr -d ' ' || true)")"
 
   if [ -n "$rec_pgid" ]; then
-    # RECORD PRESENT ⇒ the group is ADDRESSABLE, so the whole tree gets the signal.
+    # RECORD PRESENT ⇒ the group is ADDRESSABLE, so the whole tree gets the signal — once ownership
+    # is proven. Both conjuncts, in the order that puts the cheap syntactic one underneath the real
+    # guard, the same way `signalable_pgid` sits under `--stop`'s step-4 identity check.
     probe_pgid="$rec_pgid"
     if [ -n "$mine" ] && [ "$rec_pgid" = "$mine" ]; then
       die "refusing to signal process group $rec_pgid — it is this launcher's own group"
+    elif ! identity_matches "$RUN_DIR" "$rec_pgid"; then
+      die "ownership-unprovable: process group $rec_pgid is not led by the process this launch recorded; nothing was signalled"
     else
       kill -TERM -"$rec_pgid" 2>/dev/null || true
       local w=0
@@ -236,14 +261,41 @@ launch_failure_stop() {
     probe_pgid="$spawn_pgid"
   fi
 
-  # The direct spawn child is OUR child and has not been waited on, so its pid cannot have been
-  # recycled: a pid-directed signal here can only ever reach the process we started. Reaping it is
-  # what makes the verification below honest — a zombie still answers `kill -0`.
-  kill -TERM "$SPAWN_PID" 2>/dev/null || true
-  local t=0
-  while kill -0 "$SPAWN_PID" 2>/dev/null && [ "$t" -lt 20 ]; do sleep 0.1; t=$(( t + 1 )); done
-  kill -KILL "$SPAWN_PID" 2>/dev/null || true
-  wait "$SPAWN_PID" 2>/dev/null || true
+  # The direct spawn child, and "we have not waited on it yet" is NOT what makes its pid ours.
+  # MEASURED: Bash reaps a background child into its jobs table from the SIGCHLD handler long before
+  # the explicit `wait` below, so a dead `$SPAWN_PID` leaves no zombie holding the number —
+  # `ps -o state=` reports it GONE, not `Z`, which is exactly what the handshake loop above keys
+  # on — and the pid is reclaimable from that instant. The token captured at the fork is what closes
+  # that window.
+  #
+  # THE REFUSAL IS KEYED ON POSITIVE DISPROOF, NOT ON ABSENCE OF PROOF — the opposite of the group
+  # leg above, and deliberately so. There, the name being signalled is read off DISK and can be
+  # arbitrarily stale, so an identity that cannot be proven is reason enough to stop. Here the pid
+  # came from `$!` in this very process microseconds earlier: an empty CAPTURED token means the
+  # capture's own `ps` failed, not that the pid went stale, and refusing on it would leave a wedged
+  # wrapper alive to wake up and fork the user's command — defeating the ordering rule on the one
+  # path whose job is to enforce it. So a live token that DIFFERS refuses; a missing baseline leaves
+  # the guard inoperative and says so.
+  spawn_now="$(identity_of "$SPAWN_PID")"
+  if [ -z "$spawn_now" ]; then
+    # Already gone: nothing to signal. The `wait` still reaps our jobs-table entry and returns at
+    # once, and reaping is what makes the verification below honest — a zombie still answers
+    # `kill -0`.
+    wait "$SPAWN_PID" 2>/dev/null || true
+  elif [ -n "$SPAWN_IDENT" ] && [ "$spawn_now" != "$SPAWN_IDENT" ]; then
+    # NOT OURS ANY MORE, and nothing is WAITED on either: a `wait` on a live process we have
+    # deliberately declined to signal blocks this bounded path for that process's whole lifetime,
+    # which is the hang the helper exists to prevent.
+    die "ownership-unprovable: pid $SPAWN_PID is no longer the child this launch forked; nothing was signalled"
+  else
+    [ -n "$SPAWN_IDENT" ] \
+      || die "no identity token was captured for pid $SPAWN_PID; signalling it as this launch's own child"
+    kill -TERM "$SPAWN_PID" 2>/dev/null || true
+    local t=0
+    while kill -0 "$SPAWN_PID" 2>/dev/null && [ "$t" -lt 20 ]; do sleep 0.1; t=$(( t + 1 )); done
+    kill -KILL "$SPAWN_PID" 2>/dev/null || true
+    wait "$SPAWN_PID" 2>/dev/null || true
+  fi
 
   local leaked=0
   if [ -n "$probe_pgid" ]; then
@@ -321,6 +373,10 @@ do_launch() {
     SPAWN_PID=$!
     set +m
   fi
+  # Captured HERE, one read for both rungs, because this is the only instant at which `$!` is known
+  # to still be the process we just forked. From the next scheduler tick on it is a pid like any
+  # other — see `launch_failure_stop`, which will not aim a signal at it without this token.
+  SPAWN_IDENT="$(identity_of "$SPAWN_PID")"
 
   # ---- THE HANDSHAKE -------------------------------------------------------------
   # Bounded by LAUNCH_ESTABLISH_SECS. Both conjuncts are required: `launch` (the group is
@@ -560,9 +616,13 @@ do_observe() {
 #
 #   IDENTITY IS CHECKED BEFORE ANYTHING IS SIGNALLED — steps 2 and 4. Step 4's is the one whose
 #   alive result gates a `TERM`, so it re-checks on the SAME SIDE OF THE FENCE as the kill; a group
-#   recycled between step 2 and step 4 must never take the signal. The single bare `kill -0` in this
-#   whole script is step 1's orphan probe, where the leader is known dead — so no identity match is
-#   possible — and an alive result can only move the outcome FAIL-CLOSED, to `unavailable`.
+#   recycled between step 2 and step 4 must never take the signal. The bare `kill -0`s in this
+#   script are counted by FAIL DIRECTION, not by site (`scripts/gate-run.md` § Invariants): step 1's
+#   orphan probe is bare because the leader is known dead — so no identity match is possible — and
+#   an alive result can only move the outcome FAIL-CLOSED, to `unavailable`; the probes AFTER a
+#   signal (the grace below, the KILL escalation, and step 5's gone-check) are bare because
+#   ownership was already proven at step 4 and they only verify a teardown we earned the right to
+#   perform.
 #
 # WHAT IS WRITTEN, AND WHEN. `stop-intent` immediately BEFORE the signal, claiming only that a
 # signal is imminent. `stopped` only AFTER termination is verified AND only when the group was

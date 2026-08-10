@@ -111,6 +111,96 @@ after="$(pgrep -f 'gate-run-canary' | wc -l | tr -d ' ')"
 assert "the command never RAN when the wedge precedes the record" '[ ! -f "$canary_marker" ]'
 assert "no command process exists when the wedge precedes the record" '[ "$after" = "$before" ]'
 
+# ---- THE FAILURE PATH SIGNALS NOTHING IT CANNOT PROVE IS OURS -----------------------
+# This path is the only signalling site outside `--stop`, and it runs on a run dir NOBODY WILL EVER
+# BE HANDED — so it is the one place where "kill it anyway" is most tempting and least checkable
+# afterwards. It is identity-gated all the same, for the reason spec assumption 14 gives itself:
+# what the path cannot verify it reports LOUDLY with the run-dir path for manual disposal, so
+# refusing to signal an unprovable group routes the survivor to that report rather than abandoning
+# it. The trade is also cheap HERE specifically: the group-directed branch is reachable only with
+# `launch` present and `identity` absent, so by the ordering rule no command process has been forked
+# and a live member under an unprovable leader is likelier a recycled pgid than an orphan of ours.
+#
+# THE FIXTURE IS THE RECYCLED-PGID ONE, built exactly as `--observe`'s and `--stop`'s are: a live
+# BYSTANDER group is substituted under the recorded pgid while the wrapper is wedged, so the pgid
+# the failure path is about to signal is alive and is provably not this run's.
+bystander_pgid="$(start_foreign_group)"
+bystander_ident="$(ps -o lstart= -p "$bystander_pgid" 2>/dev/null | tr -s '[:space:]' ' ' | sed 's/^ //;s/ $//')"
+assert "the bystander really leads a live foreign group" \
+  '[ -n "$bystander_pgid" ] && kill -0 -"$bystander_pgid" 2>/dev/null'
+# The one-second separation is LOAD-BEARING, and it is why the bystander is started BEFORE the
+# launch rather than during it: `ps -o lstart=` resolves to whole seconds, so a wrapper forked
+# inside the same second as the bystander would carry an identical token and the mismatch this
+# fixture exists to create would not exist. Held outside the establishment window so the window
+# stays wide enough for the substitution below to land inside it.
+sleep 1
+( GATE_RUN_TEST_WEDGE=post-record GATE_RUN_ESTABLISH_SECS=2 \
+    gate_run --launch --root "$SBX/runs" --run-name unprovable -- /bin/sh -c 'sleep 30' \
+    >"$SBX/unprovable.out" 2>"$SBX/unprovable.err" ) &
+unprov_job=$!
+assert "the wedged launch recorded its group before the substitution" \
+  'wait_for_file "$SBX/runs/unprovable/launch"'
+unprov_pid="$(sed -n 's/^pid=//p' "$SBX/runs/unprovable/launch" 2>/dev/null || true)"
+# Read BEFORE the substitution below overwrites it: the sandbox's EXIT reap is driven off the `pgid=`
+# field of every `launch` record it can find, so once that field names the bystander this run's own
+# group has no other way to be cleaned up if an assert below goes red.
+unprov_pgid="$(sed -n 's/^pgid=//p' "$SBX/runs/unprovable/launch" 2>/dev/null || true)"
+unprov_ident="$(sed -n 's/^identity=//p' "$SBX/runs/unprovable/launch" 2>/dev/null || true)"
+assert "the fixture really is an identity MISMATCH, or the guard below is vacuous" \
+  '[ -n "$unprov_ident" ] && [ -n "$bystander_ident" ] && [ "$unprov_ident" != "$bystander_ident" ]'
+sed -i.bak "s/^pgid=.*/pgid=$bystander_pgid/" "$SBX/runs/unprovable/launch"
+wait "$unprov_job" 2>/dev/null || true
+assert "a launch whose recorded group cannot be proven ours still reports the failure token" \
+  '[ "$(cat "$SBX/unprovable.out" 2>/dev/null)" = "launch-failed" ]'
+# THE HEADLINE ASSERT. Drop the identity conjunct and this group takes a TERM and then a KILL while
+# the failure path's own report still reads "terminated and verified gone" — the bystander is the
+# only witness that can tell a proven kill from an unprovable one.
+assert "the bystander group was NOT signalled — ownership was unprovable" \
+  'kill -0 -"$bystander_pgid" 2>/dev/null'
+assert "the refusal names ownership as the reason, on stderr" \
+  'grep -qF -- "ownership-unprovable" "$SBX/unprovable.err"'
+# FAIL-CLOSED, NOT FAIL-SILENT. Detection is possible where safe signalling is not, so the survivor
+# is reported loudly with its run dir for manual disposal — assumption 14's own second clause, and
+# the same posture `--stop` step 1 takes over live orphans.
+assert "the unverified survivor is reported loudly, with its run dir" \
+  'grep -qF -- "LAUNCH FAILED AND UNVERIFIED" "$SBX/unprovable.err" \
+     && grep -qF -- "$SBX/runs/unprovable" "$SBX/unprovable.err"'
+# AND THE RUN'S OWN PLUMBING IS STILL GONE. Refusing the group signal is not a licence to leak the
+# process this launch actually started: the direct spawn child is signalled by pid under its own
+# identity check, so the wedged wrapper dies whichever way the group branch goes.
+assert "the wedged wrapper this launch really started is gone" \
+  '[ -n "$unprov_pid" ] && ! kill -0 "$unprov_pid" 2>/dev/null'
+reap "$bystander_pgid"
+reap "$unprov_pgid"
+
+# THE 0/1 FLOOR ON THE SAME PATH, ASSERTED STRUCTURALLY — and the hazard is itself the reason it is
+# structural. `kill -TERM -0` means THIS CALLER'S OWN PROCESS GROUP, so the mutation that would
+# redden a behavioural fixture here is one that TERMs the harness running it. The floor's BEHAVIOUR
+# is pinned end-to-end on the `--stop` side (tests/test_gate_run_stop.sh's bogus-pgid loop, through
+# this same `recorded_pgid`); what is left to prove is that this path is ROUTED through that floor
+# rather than reading the recorded field raw, and that its group signal is gated on identity.
+fail_stop_body="$(awk '/^launch_failure_stop\(\) \{/ {inblock=1} inblock {print} inblock && /^\}/ {exit}' "$GATE_RUN")"
+fail_stop_lines="$(wc -l <<<"$fail_stop_body")"; fail_stop_lines="${fail_stop_lines//[[:space:]]/}"
+assert "the failure-stop body really was extracted, or the guards below are vacuous" \
+  '[ "$fail_stop_lines" -gt 20 ] && grep -qF -- "kill -TERM" <<<"$fail_stop_body"'
+assert "the failure path reads its pgid through the 0/1 floor" \
+  'grep -qF -- "recorded_pgid \"\$RUN_DIR\"" <<<"$fail_stop_body"'
+assert "and never reads that field raw, which would bypass the floor" \
+  '! grep -qE "record_field[^#]*pgid" <<<"$fail_stop_body"'
+assert "and its group-directed signal is gated on the identity check" \
+  'grep -qF -- "identity_matches \"\$RUN_DIR\"" <<<"$fail_stop_body"'
+# THE PID-DIRECTED SIGNAL IS GATED TOO, and this one is structural for a different reason: its
+# false positive needs a pid RECYCLED inside the launch window, which no fixture can construct on
+# demand. It is a real hazard all the same and the measurement is what says so — Bash reaps a
+# background child from its SIGCHLD handler well before the explicit `wait`, so `$!` names a
+# reclaimable pid and not a held one (`ps -o state=` reports it gone, not `Z`, which is exactly what
+# the handshake loop keys on). The token has to be captured at the fork, because that is the last
+# instant the pid is known to still be ours.
+assert "the spawn child's identity token is captured at the fork" \
+  'grep -qF -- "SPAWN_IDENT=\"\$(identity_of \"\$SPAWN_PID\")\"" "$GATE_RUN"'
+assert "and the pid-directed signal is gated on it" \
+  'grep -qF -- "SPAWN_IDENT" <<<"$fail_stop_body"'
+
 # ---- THE TERMINAL RECORD: a termination KIND, never a bare integer -----------------
 # WHY A KIND AND NOT A NUMBER: a child killed by a signal NEVER FINISHED. If the record collapsed
 # both outcomes into "nonzero", an observation would read a signal death as `failed` — and `failed`
@@ -388,6 +478,17 @@ assert "the residual records the external signal read as deliberate" \
   'grep -qiE "stop-intent" <<<"$contract"'
 assert "the residual names the human-gated perl supersede option" \
   'grep -qF -- "POSIX::setsid" <<<"$contract"'
+assert "the residual records the unprovable launch-failure group as detected, not signalled" \
+  'grep -qF -- "detected, not signalled" <<<"$contract"'
+
+# THE INVARIANTS AND THE CODE MUST AGREE ABOUT WHO MAY BE SIGNALLED. A contract that states an
+# absolute the shipped script does not hold is worse than one that states the narrower truth: the
+# absolute is what a later reader trusts instead of reading the code. Both clauses below are quoted
+# verbatim from the page (AGENTS.md, ADR-0054), so drift is greppable.
+assert "the contract states the launch failure path's refusal to signal an unprovable group" \
+  'grep -qF -- "Where ownership cannot be proven" <<<"$contract"'
+assert "and it states the bare-probe rule by FAIL DIRECTION, not as a count of sites" \
+  'grep -qF -- "about fail direction, not a syscall ban" <<<"$contract"'
 
 # THE DELIBERATE DEVIATIONS FROM THE PLAN'S SKETCH. Each was measured by the task that shipped it,
 # and a contract that documents the sketch instead of the script is worse than none.
