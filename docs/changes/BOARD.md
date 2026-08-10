@@ -1,6 +1,6 @@
 # Backlog
 
-**286 changes** — 🟡 36 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 169 done · 🗑️ 76 killed
+**286 changes** — 🟡 36 proposed · ⚪ 4 deferred · ✅ 170 done · 🗑️ 76 killed
 
 ## 🟡 Proposed (36)
 
@@ -52,12 +52,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0270](active/0270-fence-runner-config-locality-at-the-main-worktree.md) | Fence runner-config locality at the main worktree (regression test + contract correction) | `medium` | `chore` | [#193](https://github.com/danielhanold/docket/pull/193) |  |
-
 ```mermaid
 graph TD
   0007
@@ -90,7 +84,6 @@ graph TD
   0265
   0266
   0268
-  0270
   0272
   0251 --> 0273
   0275
@@ -108,12 +101,13 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (245)</summary>
+<details><summary>✅🗑️ Archive — done + killed (246)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0286](archive/2026-08-10-0286-gate-run-observe-poll-loops-strip-state-prefix.md) | Caller-authored gate-run --observe poll loops strip the state= prefix and never terminate | 2026-08-10 |
 | [0282](archive/2026-08-10-0282-launch-and-wait-contract-for-long-running-child-processes-li.md) | Launch-and-wait contract for long-running child processes — liveness-keyed, not marker-keyed | 2026-08-10 |
+| [0270](archive/2026-08-10-0270-fence-runner-config-locality-at-the-main-worktree.md) | Fence runner-config locality at the main worktree (regression test + contract correction) | 2026-08-10 |
 | [0278](archive/2026-08-09-0278-test-docket-example-yml-s-fidelity-fixture-goes-intermittent.md) | test_docket_example_yml's fidelity fixture goes intermittently red under parallel contention | 2026-08-09 |
 | [0276](archive/2026-08-09-0276-dummy-mode.md) | Dummy mode — persona-calibrated human-facing language simplification | 2026-08-09 |
 | [0274](archive/2026-08-09-0274-runner-dispatch-s-value-taking-flags-hang-instead-of-abortin.md) | runner-dispatch's value-taking flags hang instead of aborting when given with no value | 2026-08-09 |
@@ -130,7 +124,6 @@ graph TD
 | [0246](archive/2026-08-08-0246-make-the-docket-example-yml-guard-suite-bite.md) | Make the docket-example-yml guard suite bite | 2026-08-08 |
 | [0245](archive/2026-08-08-0245-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md) | Harden sync-agents wrapper generation and clear the 0192 findings | 2026-08-08 |
 | [0244](archive/2026-08-08-0244-one-selection-rule-for-the-four-frontmatter-read-shapes.md) | One selection rule for the four frontmatter read shapes | 2026-08-08 |
-| [0242](archive/2026-08-08-0242-close-the-claude-gap-in-the-run-completion-gate-with-a-comma.md) | Close the Claude gap in the run-completion gate with a caller-side verify in the dispatch rules | 2026-08-08 |
 | [0243](archive/2026-08-07-0243-make-test-suite-git-fixture-setup-fail-loudly-instead-of-fla.md) | Make test-suite git fixture setup fail loudly instead of flaking | 2026-08-07 |
 | [0241](archive/2026-08-07-0241-correspondence-guard-over-leg-c-s-by-value-duplicated-predic.md) | Correspondence guard over leg C's by-value duplicated predicate (ADR-0072 drift risk) | 2026-08-07 |
 | [0240](archive/2026-08-07-0240-audit-which-frontmatter-accessor-each-call-site-should-use-n.md) | Audit which frontmatter accessor each call site should use, now that three anchored read shapes exist | 2026-08-07 |
@@ -208,7 +201,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 36 done |
+| [2026-08](archive/) | 37 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
