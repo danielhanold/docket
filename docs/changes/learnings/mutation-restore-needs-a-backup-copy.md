@@ -2,9 +2,9 @@
 slug: mutation-restore-needs-a-backup-copy
 hook: "`git checkout -- <file>` restores to HEAD, not to your uncommitted edit — as a mutation-test restore step it silently destroys the work being tested and produces a meaningless reading."
 topics: [testing, git, mutation]
-changes: [226, 231]
+changes: [226, 231, 270]
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-10
 promotion_state: candidate
 promoted_to:
 ---
@@ -47,3 +47,16 @@ which gets even less scrutiny than plan-supplied code.
   works only because `git checkout -- <file>` reads the index, so it silently reverts to being wrong
   the moment a plan step mutates before staging. The `cp` backup has no such precondition. The
   recurrence is the point: a plan-supplied restore idiom does not get re-scrutinized per plan.
+- 2026-08-10 (#270, PR #193) — the **application** failure mode, sibling to this finding's restore
+  failure mode: the same three-step procedure, broken at step 1 instead of step 3. A fix worker
+  re-ran a mutation probe with a `perl -0pi` one-liner that died on a syntax error *before writing
+  anything*. The subsequent run came back all-green — which, read naively, is the worst available
+  reading: "the guard survived its mutation, so the guard is vacuous," when in fact no mutation had
+  been applied and the guard was fine. Nothing in the output distinguishes "mutated and still green"
+  from "never mutated." The procedure now gates every probe on `git diff` showing the changed line
+  before believing any reading. Generalize: **a mutation test must prove the mutation landed before
+  it interprets the result** — assert on the diff, or on a checksum change, never on the mutating
+  command's exit code alone (a `perl`/`sed` one-liner that fails to match its pattern exits 0 having
+  changed nothing). Restore correctness and application correctness are two independent failure modes
+  of one procedure, and each produces a confidently wrong reading in the opposite direction: a broken
+  restore fabricates a red, a broken mutation fabricates a green.
