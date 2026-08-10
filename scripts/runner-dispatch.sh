@@ -62,7 +62,7 @@ ps_lstart(){  # $1 = pid -> normalized start-time token, empty when the pid is g
   printf '%s' "${s% }"
 }
 
-RUNNER=""; AGENT=""; MODEL=""; EFFORT=""; WORKTREE=""
+RUNNER=""; AGENT=""; MODEL=""; EFFORT=""; WORKTREE=""; BRIEF_FILE=""
 # Verb selection (change 0271). Empty = the legacy synchronous call-and-return, which stays the
 # default so no currently-shipped caller changes behavior. `--observe` is parsed HERE, with
 # `--launch`, so the two verbs are validated together even though its branch lands with Task 4.
@@ -81,6 +81,11 @@ while [ $# -gt 0 ]; do
     # "--observe requires a dispatch key" refusal unreachable, i.e. decoration. Shift the flag,
     # then the value only if a value is actually there.
     --observe) VERB="observe"; OBSERVE_KEY="${2:-}"; shift; [ $# -gt 0 ] && shift ;;
+    # Same last-argument hazard as `--observe` above: shift the flag, then the value only if a
+    # value is actually there. The refusal is inline rather than deferred to the validation block
+    # below, because a value-less `--brief-file` leaves BRIEF_FILE empty and would otherwise be
+    # indistinguishable from "no brief file was passed" — a silently payload-free dispatch.
+    --brief-file) BRIEF_FILE="${2:-}"; [ -n "$BRIEF_FILE" ] || die "--brief-file requires a path"; shift; [ $# -gt 0 ] && shift ;;
     --) shift; break ;;
     *) die "unknown argument: $1" ;;
   esac
@@ -115,6 +120,19 @@ fi
 # docket_anchor_path "." — the main worktree — so every currently-shipped shim is unaffected.
 REPO_ROOT="$(docket_main_worktree)"
 [ -n "$REPO_ROOT" ] || die "not inside a git repository"
+# --- change 0277: brief-file validation, at the SAME pre-verb point as gate 1 ---------
+# Both payload channels are known here — `--brief-file` from the parse loop, the trailing argv as
+# the surviving positional parameters — which is why these gates sit here rather than inside a
+# verb: scoping them to `--launch` would leave the legacy foreground verb, the hand-invocation
+# path, free to dispatch a task-less build worker silently.
+if [ -n "$BRIEF_FILE" ]; then
+  # BOTH CHANNELS ⇒ REFUSE. Preferring either silently drops or duplicates the child's entire
+  # input, and concatenating invents an ordering; refusal is the only shape with no
+  # silent-wrong-answer mode. The adapters carry the same refusal defensively.
+  [ $# -eq 0 ] || die "both --brief-file and trailing arguments after '--' were given — pass the brief in the file OR after '--', never both"
+  [ -f "$BRIEF_FILE" ] && [ -r "$BRIEF_FILE" ] || die "--brief-file '$BRIEF_FILE' is not a readable file"
+  [ -s "$BRIEF_FILE" ] || die "--brief-file '$BRIEF_FILE' is empty — a child launched with no task does not error, it improvises"
+fi
 # Gate 1 — a build worker must run INSIDE its feature worktree. This is the one piece of
 # agent-family knowledge the facade gains; it is a RUNTIME requirement (the path is runtime data),
 # so sync-agents.sh's generation-time slot cannot substitute for it. Loud, matching the facade's
@@ -122,8 +140,23 @@ REPO_ROOT="$(docket_main_worktree)"
 # that tolerance exists so a cosmetic config typo cannot fail a live dispatch, whereas this is a
 # request the facade cannot serve correctly.
 case "$AGENT" in
-  build-*) [ -n "$WORKTREE" ] || die "--worktree is required for build-* agents (a build worker must run in its feature worktree, not the main tree)" ;;
+  build-*)
+    [ -n "$WORKTREE" ] || die "--worktree is required for build-* agents (a build worker must run in its feature worktree, not the main tree)"
+    # A build worker with NO task at all is always the improvise defect change 0271 documented:
+    # it does not error, it invents work from whatever it can see in the worktree, and the
+    # dispatch still looks successful. Loud here; non-build agents (status, adr, …) legitimately
+    # dispatch payload-free and stay silent.
+    # EXEMPT: `--observe`, which starts no child at all — it reads a result the matching
+    # `--launch` already recorded. A payload there would have nothing to carry it to, and the
+    # generated shim's observe line deliberately has no brief slot, so requiring one would refuse
+    # every second half of the launch/observe pair. The gate stays pre-verb for the two verbs that
+    # DO start a child: `--launch` and the legacy synchronous call.
+    [ "$VERB" = "observe" ] || [ -n "$BRIEF_FILE" ] || [ $# -gt 0 ] || die "a build-* dispatch carries no task: pass the brief with --brief-file <path> (preferred) or after '--'. A build worker launched with no task does not error — it improvises from whatever it finds in the worktree and the dispatch still looks successful" ;;
 esac
+# The path actually handed to the adapter. It is the caller's file on the legacy synchronous verb
+# (nothing detaches, so there is no temp-file lifetime hazard); `--launch` reassigns it to the
+# durable spooled copy in the dispatch dir.
+BRIEF_PATH="$BRIEF_FILE"
 ANCHOR="$(docket_anchor_path "${WORKTREE:-.}")"
 # DURABILITY, for `--observe` ONLY: the dispatch dir lives under the git COMMON dir precisely so a
 # result outlives `git worktree remove` (lib/docket-dispatch-dir.sh: "a dispatch result must outlive
@@ -946,7 +979,14 @@ fi
 #     signals the facade by pid today; forwarding traps are deliberately NOT added here because
 #     that is a design decision for the run gate's own error posture, not a silent side effect of
 #     this refactor.
-"$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" -- "$@"
+# ONE channel, always: the facade never hands an adapter the both-channels shape its own
+# defensive gate refuses. With a brief file the argv channel is empty by construction (the gate
+# above refused any trailing argument), so the `--` terminator is passed with nothing after it.
+if [ -n "$BRIEF_PATH" ]; then
+  "$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" --brief-file "$BRIEF_PATH" --
+else
+  "$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" -- "$@"
+fi
 rc=$?
 
 # --- run gate, part 2: the "after" snapshot, the diff, and the verdicts -------------

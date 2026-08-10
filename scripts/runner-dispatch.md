@@ -18,7 +18,7 @@ the facade verifies in git that the delegated run actually reached its PR.
 ## Usage
 
 ```
-docket.sh runner-dispatch [--launch] --runner <name> --agent <agent> [--model <m>] [--effort <e>] [--worktree <path>] [--] [<args…>]
+docket.sh runner-dispatch [--launch] --runner <name> --agent <agent> [--model <m>] [--effort <e>] [--worktree <path>] [--brief-file <path>] [--] [<args…>]
 docket.sh runner-dispatch --observe <key> --runner <name> --agent <agent> [--worktree <path>]
 ```
 
@@ -42,6 +42,21 @@ docket.sh runner-dispatch --observe <key> --runner <name> --agent <agent> [--wor
   `build-*` agents**: the `docket-build-task` contract requires a build worker to run inside its
   feature worktree, on its branch, so a `build-*` delegation without it is a loud abort rather
   than a silent run in the primary checkout on the integration branch.
+- `--brief-file <path>` (optional, change 0277) — the caller's task brief, read from a file
+  instead of shell argv. The caller writes it with a quoted-delimiter heredoc, so no part of the
+  brief is quoted by a model and none of it is joined or reflowed on the way to the child. The
+  file must exist, be readable, and be non-empty. **Mutually exclusive with trailing `--`
+  arguments**: passing both is a loud refusal, because preferring either channel silently drops
+  or duplicates the child's entire input and concatenating them invents an ordering. Under
+  `--launch` the brief is spooled into the per-dispatch directory as `brief` and the adapter is
+  handed that durable copy; on the legacy foreground verb the caller's file is passed through.
+- **`build-*` agents require a payload.** A `build-*` dispatch carrying neither a brief file nor
+  trailing arguments is refused at the same pre-verb validation point as the `--worktree` gate —
+  so the rule holds for `--launch` and the legacy verb alike. A build worker with no task does not
+  error; it improvises from whatever is in the worktree and the dispatch still looks successful.
+  `--observe` is exempt, since it starts no child and reads a result the matching `--launch`
+  already recorded. Non-`build-*` agents (status, adr, …) legitimately dispatch payload-free and
+  are unaffected.
 - `--launch` (optional, change 0271) — the **detached** verb. Same request, same validation, same
   gates, same `runners.<name>:` resolution; the difference is only in how the adapter is started
   and when the call returns. Instead of blocking for the child's whole run, the facade starts the
@@ -571,6 +586,9 @@ disposition above has already been decided, so no terminal state can be perturbe
 - The anchor is **never** resolved from the caller's CWD; absent `--worktree` it is the main
   worktree (ADR-0034 unamended). A relative `--worktree` joins to the main worktree, so the
   argument inherits that cwd-independence rather than reintroducing the hazard.
+- **One payload channel per dispatch.** A brief file and trailing argv are never both forwarded to
+  an adapter — the facade refuses the shape up front, and every handoff site (synchronous,
+  `--launch`, and the run gate's re-dispatch) constructs a single-channel invocation.
 - Never runs a child harness itself; all child specifics live in the adapter.
 - `inherit` is docket's own no-pin sentinel and is normalized to "no model" **here**, once, for
   every adapter — adapters keep a one-line defensive twin for their documented hand-invocation
