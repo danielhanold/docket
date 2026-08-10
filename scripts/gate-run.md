@@ -76,6 +76,53 @@ every diagnostic — including a failing run's log tail — goes to stderr.
 `launch-failed` is one shape and never a taxonomy: it carries no slash, so a caller can tell it from
 a handle by shape alone without parsing.
 
+### The caller's loop
+
+The helper never polls for you, so the loop is yours to write — and there is exactly one correct
+shape for reading what it prints. Copy this one verbatim; `tests/test_gate_run.sh` extracts this
+fence and executes it against every state below.
+
+```bash
+# `run_dir` is the handle --launch printed. GATE_OBSERVATION_BUDGET is the docket execution policy
+# from the Step-0 config export, in minutes; 0 is legal and buys exactly one observation.
+deadline=$(( $(date +%s) + GATE_OBSERVATION_BUDGET * 60 ))
+state=""
+while :; do
+  # Capture, THEN match. The `|| true` is load-bearing: --observe exits 1 on `unavailable`, and the
+  # rule is that callers key on the stdout report line, never on the exit code — without it an
+  # errexit caller dies before any arm below runs.
+  out="$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh gate-run --observe "$run_dir")" || true
+  case "$out" in
+    state=running*)     : ;;                         # the only retryable state
+    state=passed*)      state=passed;      break ;;
+    state=failed*)      state=failed;      break ;;
+    state=died*)        state=died;        break ;;  # the trailing `cause=…` is matched by the `*`
+    state=stopped*)     state=stopped;     break ;;
+    state=unavailable*) state=unavailable; break ;;
+    *)                  state=unavailable; break ;;  # unknown line: fail closed, NEVER a retry arm
+  esac
+  [ "$(date +%s)" -lt "$deadline" ] || break         # budget spent; `state` stays empty
+  sleep 10
+done
+# An empty `state` means the budget ran out with the run still `running` — that is the fail-closed
+# case, not a verdict about the child.
+```
+
+**Never re-tokenize the report line and match bare state names.** `awk '{print $1}'`, `cut -d= -f2`,
+or stripping the `state=` prefix all re-introduce a parsing step that can drift, and the observed
+failure is silent: the first field *is* `state=passed`, so a `case` on bare `passed` matches
+nothing, every observation falls to `*)`, and a gate that finished in seconds is polled until its
+budget is exhausted. Match the **whole printed line by its prefix** instead — no state name is a
+prefix of another, and the closed vocabulary is validated helper-side, so the prefix match is exact.
+
+The **unknown-line arm is terminal, never a retry**: a line outside the vocabulary means the
+invocation or the environment is wrong, so the loop stops polling and disposes it as `unavailable`.
+A retry there is precisely the shape that never terminates.
+
+What to *do* with each state is the caller's policy, not the helper's: dispositions — which states
+may be relaunched, when a budget exhaustion halts — are stated in `skills/docket-build/SKILL.md`
+§ *Gate execution posture*.
+
 ## Run-directory layout
 
 ```
