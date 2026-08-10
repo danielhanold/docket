@@ -78,6 +78,10 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 - [consolidation-flattens-caller-variance](consolidation-flattens-caller-variance.md) — Restatements across N callers are not pure duplication — diff them against each other before templating, or the shared source silently rewrites the callers that differed. · also: docs, contracts
 
+## residuals
+
+- [residual-is-for-undetectable-not-unprobed](residual-is-for-undetectable-not-unprobed.md) — A residual is for what CANNOT be detected, never for what was not probed — an assert that refuses to redden is a finding about the code, so investigate before you write the limitation down. · also: guards, spec, testing ⟨needs promotion⟩
+
 ## review
 
 - [fix-reintroduces-its-own-defect-class](fix-reintroduces-its-own-defect-class.md) — New code added by a change that fixes a defect class is the likeliest place for that class to reappear — audit the change's OWN additions against its thesis before review, and check the twin it did not touch. · also: refactoring, contracts ⟨needs promotion⟩
@@ -113,6 +117,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [correspondence-guard-runs-one-way](correspondence-guard-runs-one-way.md) — A guard over a correspondence between two sets proves only the direction it iterates — write the reverse loop too, and anchor it on the consuming code, not an allowlist. · also: coverage, sentinels ⟨needs promotion⟩
 - [defaulted-param-hides-caller-wiring](defaulted-param-hides-caller-wiring.md) — A parameter the callee defaults makes the caller's wiring invisible — assert the RESOLVED non-default value, or deleting the argument reddens nothing. · also: cli, defaults ⟨needs promotion⟩
 - [environment](environment.md) — A RED suite in a build sandbox or an installed dev shell is a hypothesis, not a verdict — re-run it on the unmodified base. · also: environment, ci
+- [exec-optimization-erases-the-process-marker](exec-optimization-erases-the-process-marker.md) — A marker embedded in a shell `-c` string is not a process identifier — a single simple command is EXEC'd, so the shell's argv is replaced and the marker vanishes from the command line `pgrep -f` reads. · also: fixtures, shell, process ⟨needs promotion⟩
 - [external-truth-needs-a-human-checkpoint](external-truth-needs-a-human-checkpoint.md) — When a value's truth lives outside the repo (a vendor model ID, an external API name), no in-repo test can be its oracle — route it to a named human verification item instead of writing an assert that can only ever pass. · also: verification, config ⟨needs promotion⟩
 - [fixture-order-decides-the-diagnostic](fixture-order-decides-the-diagnostic.md) — Under set -u a fixture that dereferences a value must run AFTER the assert that the value is emitted — otherwise the missing export kills the suite inside the harness and the assert that exists to name it never runs. · also: errexit, fixtures ⟨needs promotion⟩
 - [foundational-test-discipline](foundational-test-discipline.md) — Sentinel greps are sampling, not parsing — pair them with a whole-branch review that reads for meaning. · also: sentinels, review

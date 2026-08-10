@@ -2,9 +2,9 @@
 slug: prose-guard-binds-phrase-to-claim
 hook: "A guard that asserts a phrase is PRESENT survives a rewrite that keeps the words and drops the claim — bind the phrase to what it is asserted about, with a bounded gap."
 topics: [testing, guards, docs]
-changes: [224, 242]
+changes: [224, 242, 282]
 created: 2026-08-07
-updated: 2026-08-08
+updated: 2026-08-10
 promotion_state: candidate
 promoted_to:
 ---
@@ -57,3 +57,15 @@ instead of behavior.
   deleted (mutation-proven). Fixed by binding the window to the *Composition* paragraph and adding an
   anchor-existence assert, so a renamed paragraph fails loudly instead of silently matching nothing —
   the companion rule to binding the phrase: **also assert the window you bound it to still exists.**
+
+- 2026-08-10 (#282, PR #191) — **twelve** vacuous asserts in one branch, the largest instance yet, and
+  the one that shows how ordinary single words become the failure. A six-state contract table was
+  guarded by grepping each state name over the whole file: `running` matched the document's own title
+  "long-**running** child", `failed` matched `launch-failed`, `passed` matched "a moment that has
+  **passed**". So **deleting the entire six-state table reddened none of the six** — the guard for the
+  change's central contract was defending nothing. Fixed by anchoring each on a sliced paragraph or a
+  specific table row, then proving each one vacuous-before and load-bearing-after by deletion. The
+  generalisation the earlier entries did not carry: when the thing you are pinning is a **short common
+  word** rather than a phrase, whole-file grep is *never* adequate — English will supply the match from
+  the prose around it, and the more the document talks about its own subject, the more certainly it
+  will. Slice first, match second.
