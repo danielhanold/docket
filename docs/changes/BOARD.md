@@ -1,12 +1,6 @@
 # Backlog
 
-**286 changes** — 🟢 1 in progress · 🟡 37 proposed · ⚪ 4 deferred · ✅ 168 done · 🗑️ 76 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0286](active/0286-gate-run-observe-poll-loops-strip-state-prefix.md) | Caller-authored gate-run --observe poll loops strip the state= prefix and never terminate | `high` | `fix` | [spec](../superpowers/specs/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-design.md) | `feat/gate-run-observe-poll-loops-strip-state-prefix` |
+**286 changes** — 🟡 37 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 168 done · 🗑️ 76 killed
 
 ## 🟡 Proposed (37)
 
@@ -58,6 +52,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0286](active/0286-gate-run-observe-poll-loops-strip-state-prefix.md) | Caller-authored gate-run --observe poll loops strip the state= prefix and never terminate | `high` | `fix` | [#192](https://github.com/danielhanold/docket/pull/192) |  |
 
 ```mermaid
 graph TD
