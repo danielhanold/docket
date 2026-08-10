@@ -492,6 +492,19 @@ assert "helper: the wait is keyed on the observed state, never on a marker" \
 assert "helper: only running is retryable" \
   'grep -qiE "only[^.]{0,20}running[^.]{0,20}retryable" <<<"$helper_flat"'
 
+# (12a-ii) THE CALLER'S LOOP IS NOT REINVENTED PER CALL SITE (change 0286). A live loop matched
+# bare state names against a line whose first field is the printed "state=passed" form, so a
+# finished gate read as unfinished until its budget burned. This is where loops are actually
+# authored, so the keying rule is restated here — bound to what it is asserted ABOUT, not merely
+# present (learnings: prose-guard-binds-phrase-to-claim). Mutation: delete the added sentence ->
+# all three redden.
+assert "helper: the posture points at the contract's canonical loop rather than inviting a new one" \
+  'grep -qiE "canonical[^.]{0,80}loop" <<<"$helper_flat"'
+assert "helper: the keying rule is bound to the full printed state= form" \
+  'grep -qiE "(key|match)[^.]{0,120}state=[^.]{0,60}(form|printed|line)" <<<"$helper_flat"'
+assert "helper: and the bare-token loop is named as the thing that never terminates" \
+  'grep -qiE "bare[^.]{0,60}(never terminat|does not terminat)" <<<"$helper_flat"'
+
 # (12b) the `died` posture. The three legs are DERIVED from the contract's own token table, never
 # hand-listed: a fourth token added there reddens this automatically, which an allowlist could not.
 stop_tokens="$(awk -F'|' '
