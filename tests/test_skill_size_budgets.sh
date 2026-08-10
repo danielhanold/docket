@@ -918,15 +918,45 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # skill already carries rather than added as a second one. Measured actual 4594 words against the
 # 4600 budget is 6 words of margin — the near-zero mode this block warns about — so the next
 # multiple of 50 is taken: 4650 (56 words). The LINE budget is untouched (164 against 170).
+# Change 0282 raises skills/docket-build/SKILL.md 335/3150 -> 365/3550 and
+# skills/docket-build/references/gate-execution.md 120/1000 -> 130/1200. The change ships
+# scripts/gate-run.sh, and § *Gate execution posture* gains the three rules a caller cannot derive
+# from the contract: the helper plus the liveness-keyed wait predicate, the `died` disposition (one
+# bounded relaunch, gated on the token `--stop` reports, and only where the child is idempotent),
+# and the rule that a caller abandoning a still-`running` child stops it before it reports.
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above, two files were weighed and
+# neither can hold it. scripts/gate-run.md is the helper's own contract and it disclaims this
+# prose in as many words — *"the wait loop and its budget belong to the call site, whose posture is
+# stated in `skills/docket-build/SKILL.md` § *Gate execution posture*"* — because the disposition
+# for a state is a policy of the caller, not a property of the helper: relaunching is admissible
+# only where THIS caller's child is idempotent, which the helper cannot know.
+# skills/docket-build/references/gate-execution.md is the harness quarantine, and its neutrality
+# invariant (asserted in tests/test_gate_execution_posture.sh) is one-directional: product and
+# mechanism detail may only live there, but a rule the agent must PERFORM at the moment it starts
+# the gate cannot, for the reason the 0137 and 0205 entries above already record — a rule in a file
+# read once, ahead of the act, does not intervene at the act. The pre-change actuals were 331/3144
+# against 335/3150, i.e. 4 lines and 6 words of headroom, so no addition of any size fits.
+# The reference file's own raise carries only two sentences: the mitigation paragraph naming
+# scripts/gate-run.sh as its shipped implementation (with the runtime-probe narrowing, so the page
+# does not claim a session it may not deliver), and a pointer on capability 5 saying the state
+# vocabulary is mechanized harness-independently by scripts/gate-run.md. Both must sit beside the
+# capability they qualify — a pointer moved into the file it points at is not a pointer — and
+# neither is a verdict: no harness row was rewritten or re-probed, which the same guard now asserts
+# by requiring every `### <harness>` section to stay free of the helper's name.
+# Set per the rounding rule above from the measured actuals: SKILL.md 361 lines -> the next
+# multiple of 5 is 365 (4 lines, the half-step margin the 0167 and 0201 entries accept), 3497 words
+# -> 3500 is 3 words, inside the 25-word floor, so the multiple after: 3550 (53 words).
+# gate-execution.md 125 lines -> the next multiple of 5 is 125 itself (zero margin, the forbidden
+# mode), so 130; 1130 words -> 1150 is 20 words, inside the floor, so the multiple after: 1200.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1300
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-build/SKILL.md                               335 3150
+skills/docket-build/SKILL.md                               365 3550
 skills/docket-build/references/delegation-execution.md      85  850
 skills/docket-build/references/gate-execution-evidence.md  110 1050
-skills/docket-build/references/gate-execution.md            120 1000
+skills/docket-build/references/gate-execution.md            130 1200
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          145 1350
 skills/docket-convention/SKILL.md                          380 6400

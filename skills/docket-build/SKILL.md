@@ -271,6 +271,36 @@ define the maximum duration of the build gate.
    is not a failing one, so it must **not** mint an integration-repair task. Same refusal the
    configuration-gap case above already gets.
 
+**The shipped implementation of clauses 1–3** is
+`"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh gate-run` — `--launch` starts the suite
+detached and durable, `--observe` is each short-lived look, `--stop` terminates one. **Key the wait
+on the state each observation reports, never on a success marker appearing in the log.** The two
+differ exactly when the child dies, which is the one moment the wait exists for: a marker-keyed loop
+cannot tell *still running* from *died*, so it burns its whole budget before reporting a death a
+state-keyed wait catches on the next observation. The six states and their retryability are
+`gate-run.md`'s contract, and **only `running` is retryable**.
+
+**On the died state.** The child never finished, so it never produced a verdict: `died` is **not** a
+red suite and **never** mints repair work. Where the child is **idempotent** — the suite gate is —
+the posture is `--stop`, then at most **one** bounded relaunch, gated on the token `--stop` reports:
+
+- `already-terminal` — the **ordinary** outcome of stopping a live child, and also what an
+  already-absent run reports; re-observe first and key on the state that comes back: `passed` or
+  `failed` keep that verdict (the run finished after all), `died` takes the one relaunch, `stopped`
+  and `unavailable` never relaunch.
+- `stopped` — the run was signalled and verified gone with no verdict of its own. Relaunch once.
+- `unavailable` — abort and report **without** relaunching: what survives could not be proven to be
+  this run's, so a relaunch would race a suite that is still live.
+
+A second `died` is abort-and-report, never a third attempt. Where the child is **non-idempotent**,
+the relaunch is not licensed at all and the site keeps its existing failure posture — the permission
+comes from idempotence, not from the state.
+
+**Abandoning a live child.** A caller that stops observing while the state is still `running` —
+budget exhausted, halt, or abort — calls `--stop` **before it reports**, so no suite outlives the run
+a human is about to inspect. Every leg then halts per *Halting conditions*; the `unavailable` leg
+halts **loudly**, because that is the one leg where the human inherits a live process.
+
 **The false-completion rule.** A caller-visible completion signal is never gate completion.
 Reciprocally, a **stale pre-yield report is not evidence of a crashed run**: an observer seeing a
 completion signal that carries pre-yield text resolves the run's state from git and from the durable

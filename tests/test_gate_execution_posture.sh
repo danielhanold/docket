@@ -430,4 +430,144 @@ assert "reference: carries no Method section (evidence stays off the blocking su
 assert "reference: carries no measured launch-duration figures (shape: bold **Ns**)" \
   '! grep -qE "\*\*[0-9]+s\*\*" <<<"$ref_body"'
 
+# --- (12) the posture is wired to the SHIPPED helper (change 0282) --------------
+# Three rules joined the posture beside clauses 1-6: the helper plus the liveness-keyed wait, the
+# `died` posture with its ONE `--stop`-gated relaunch for an idempotent child, and the rule for
+# abandoning a child that is still running. Each assert keys on the RULE's shape — a negation or a
+# co-occurrence inside a window `[^.]` cannot carry across a sentence end — never on an enumerated
+# list of spellings, and never on wording this change alone introduced.
+#
+# No pattern below may contain a backtick: `assert` runs its argument through `eval`, so a
+# backtick inside the pattern would be command substitution rather than a literal. `[^.]` already
+# covers the code spans these rules are written with.
+CONTRACT="$REPO/scripts/gate-run.md"
+assert "helper: the contract file exists" '[ -f "$CONTRACT" ]'
+contract_body="$(cat "$CONTRACT" 2>/dev/null)"
+assert "helper: the contract is non-vacuous (>= 100 lines)" \
+  '[ "$(grep <<<"$contract_body" -c .)" -ge 100 ]'
+
+# PARAGRAPH slices, the same shape `$relax_blk` above uses: a column-0 bolded lead-in opens the
+# slice, the next column-0 bolded lead-in or heading closes it. Section-wide scope is too weak
+# here for the reason groups (2)-(4) slice at all — all three rules discuss the helper and its
+# states, so any one of them could be deleted while its neighbours kept a section-wide grep green.
+para(){ awk -v pat="$1" 'index($0,pat)==1{f=1;print;next} f && (/^\*\*/ || /^#/){f=0} f' <<<"$posture_blk"; }
+helper_blk="$(para '**The shipped implementation')"
+died_blk="$(para '**On the died state')"
+abandon_blk="$(para '**Abandoning a live child')"
+helper_flat="$(flatten <<<"$helper_blk")"
+died_flat="$(flatten <<<"$died_blk")"
+abandon_flat="$(flatten <<<"$abandon_blk")"
+# Non-vacuity anchors FIRST: an unlocated slice is empty, and every positive grep below would then
+# read a deleted rule as a missing paragraph rather than passing silently — but only if the anchor
+# reddens with a message that says so.
+assert "helper: the shipped-implementation paragraph was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$helper_blk")" -ge 3 ]'
+assert "died: the died-posture paragraph was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$died_blk")" -ge 6 ]'
+assert "abandon: the abandon paragraph was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$abandon_blk")" -ge 2 ]'
+
+# (12a) the helper, and the wait predicate it exists for.
+# A bare `grep -F gate-run` is NOT enough, measured: replacing the invocation with the prose "the
+# helper" left it green off the `gate-run.md` pointer two sentences later. So the posture must name
+# the INVOCATION a worker actually runs — the facade op — and every verb the contract publishes.
+# The verb set is DERIVED from the contract's own Usage block, so a fourth verb reddens this
+# automatically instead of aging into a hand-written list.
+assert "helper: the posture names the facade invocation" \
+  'grep -qE "docket\.sh gate-run" <<<"$helper_blk"'
+verbs="$(grep -oE '^gate-run\.sh --[a-z-]+' <<<"$contract_body" | sed 's/.*--/--/' | sort -u)"
+n_verbs="$(grep -c . <<<"$verbs")"
+assert "helper: the contract's verb set was located (got $n_verbs)" '[ "$n_verbs" -ge 3 ]'
+for v in $verbs; do
+  assert "helper: the posture gives the '$v' verb a role" 'grep -qF -- "'"$v"'" <<<"$helper_blk"'
+done
+assert "helper: the posture points at the helper contract for the state vocabulary" \
+  'grep -qF -- "gate-run.md" <<<"$helper_blk"'
+# THE headline rule. Keyed on its two poles — what the wait IS keyed on (the observed state) and
+# what it is NOT keyed on (a marker) — with the negation required to attach to the marker, because
+# the paragraph's own explanatory sentence also contains the word "marker" and must not be able to
+# stand in for the rule it explains. Mutation: delete the liveness-keyed sentence -> red.
+assert "helper: the wait is keyed on the observed state, never on a marker" \
+  'grep -qiE "(state|observ)[^.]{0,160}[^[:alnum:]](never|not)[^[:alnum:]][^.]{0,40}marker" <<<"$helper_flat"'
+assert "helper: only running is retryable" \
+  'grep -qiE "only[^.]{0,20}running[^.]{0,20}retryable" <<<"$helper_flat"'
+
+# (12b) the `died` posture. The three legs are DERIVED from the contract's own token table, never
+# hand-listed: a fourth token added there reddens this automatically, which an allowlist could not.
+stop_tokens="$(awk -F'|' '
+  /^\| *Token *\| *Produced when *\|/ {f=1; next}
+  !f {next}
+  /^\|[ -]*\|[ -]*\|/ {next}
+  /^\|/ {t=$2; gsub(/[^a-z-]/, "", t); if (t != "") print t; next}
+  {f=0}' <<<"$contract_body")"
+n_tokens="$(grep -c . <<<"$stop_tokens")"
+assert "died: the contract's stop-token table was located (got $n_tokens)" '[ "$n_tokens" -ge 3 ]'
+# Presence alone is NOT the property, and that is measured rather than assumed: deleting the whole
+# `unavailable` bullet left a bare `grep -F unavailable` GREEN, because the neighbouring bullet
+# names the token in passing ("`stopped` and `unavailable` never relaunch"). So each token must
+# open a disposition of its own, keyed on the list's own bullet SHAPE — a column-0 `- ` followed by
+# the token in a code span — never on a mention anywhere in the paragraph.
+for t in $stop_tokens; do
+  assert "died: the '$t' leg carries a disposition bullet of its own" \
+    'grep -qE "^- .'"$t"'. " <<<"$died_blk"'
+done
+assert "died: a died run is not red and mints no repair work" \
+  'grep -qiE "died[^.]{0,120}[^[:alnum:]](not|never|no)[^[:alnum:]][^.]{0,80}(red|repair)" <<<"$died_flat"'
+# The ONE relaunch is licensed by IDEMPOTENCE, not by the state — so the two must co-occur, and a
+# bare mention of either word is not the rule.
+assert "died: the one relaunch is scoped to an idempotent child" \
+  'grep -qiE "idempotent[^.]{0,200}(one|single)[^.]{0,80}relaunch|(one|single)[^.]{0,80}relaunch[^.]{0,200}idempotent" <<<"$died_flat"'
+assert "died: a non-idempotent child keeps its site's existing posture" \
+  'grep -qiE "non-idempotent[^.]{0,140}(existing|its site|unchanged)" <<<"$died_flat"'
+assert "died: the relaunch is gated on the stop report" \
+  'grep -qiE "(gated|keyed)[^.]{0,60}(on|by)[^.]{0,60}(stop|report)" <<<"$died_flat"'
+# MEASURED against the shipped script, and the reason this assert exists: the ordinary stop of a
+# live child reports `already-terminal`, not `stopped` (the wrapper survives the TERM, records the
+# child's exit, and step 6 finds that record). Prose that implies `stopped` is the common case
+# contradicts the shipped behavior, so the ordinary-case naming is pinned here rather than left to
+# a reader to rediscover.
+assert "died: already-terminal is named as the ordinary live-child stop" \
+  'grep -qiE "already-terminal[^.]{0,100}ordinary|ordinary[^.]{0,100}already-terminal" <<<"$died_flat"'
+assert "died: the already-terminal leg re-observes and keys on what returns" \
+  'grep -qiE "already-terminal[^.]{0,220}observ" <<<"$died_flat"'
+# `abort` is required inside the same sentence, and that is mutation evidence too: without it the
+# assert was satisfied by the already-terminal bullet's "`stopped` and `unavailable` never
+# relaunch" — a true but different statement — so deleting the unavailable leg outright stayed
+# green. The rule is that this leg ABORTS and does not relaunch, so both halves must attach.
+assert "died: the unavailable leg aborts WITHOUT relaunching" \
+  'grep -qiE "unavailable[^.]{0,80}abort[^.]{0,120}(without|never|no)[^.]{0,60}relaunch" <<<"$died_flat"'
+assert "died: a second died is abort-and-report" \
+  'grep -qiE "second[^.]{0,60}died[^.]{0,80}abort" <<<"$died_flat"'
+
+# (12c) abandoning a child that is still running.
+assert "abandon: a run left in the running state is stopped BEFORE the report" \
+  'grep -qiE "running[^.]{0,200}stop[^.]{0,100}before[^.]{0,60}report" <<<"$abandon_flat"'
+assert "abandon: every leg still halts" \
+  'grep -qiE "(every|each)[^.]{0,40}leg[^.]{0,60}halt" <<<"$abandon_flat"'
+# The one leg where the human inherits a live process is the one leg that must be loud.
+assert "abandon: the unavailable leg halts LOUDLY" \
+  'grep -qiE "unavailable[^.]{0,140}loud|loud[^.]{0,140}unavailable" <<<"$abandon_flat"'
+
+# (12d) the reference gains a POINTER at capability 5 and a named mitigation — and NO verdict is
+# rewritten. Sliced to the numbered item that owns the four-state requirement: a pointer parked
+# anywhere else in the file leaves capability 5 itself still claiming to own the vocabulary.
+cap5_blk="$(awk '/^5\. /{f=1} f && /^[0-9]+\. /&&!/^5\. /{f=0} f && /^#/{f=0} f' <<<"$caps_blk")"
+assert "reference: capability 5's item was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$cap5_blk")" -ge 3 ]'
+assert "reference: capability 5 points at the contract that owns the state vocabulary" \
+  'grep -qF -- "gate-run.md" <<<"$cap5_blk"'
+mitigation_blk="$(awk '/^One mitigation/{f=1} f && /^[[:space:]]*$/{f=0} f' <<<"$ref_body")"
+assert "reference: the mitigation paragraph was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$mitigation_blk")" -ge 4 ]'
+assert "reference: the mitigation names its shipped implementation" \
+  'grep -qF -- "gate-run" <<<"$mitigation_blk"'
+# ...and the helper stays OUT of every harness row. This is the mechanical form of "rewrite no
+# verdict": a row edited to name the helper is a row whose measured claim moved. Population is
+# derived from HD_SHIPPED_HARNESSES for the same reason group (10) derives it.
+for h in $shipped; do
+  h_blk="$(awk -v h="$h" '$0 == "### " h {f=1;next} f && /^#+ /{f=0} f' <<<"$ref_body")"
+  assert "verdicts: '$h' row names no helper — no verdict was rewritten or re-probed" \
+    '! grep -qF -- "gate-run" <<<"$h_blk"'
+done
+
 exit $fail

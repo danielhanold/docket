@@ -25,7 +25,11 @@ differently.
    output.
 4. **Perform subsequent short-lived observations of that result.**
 5. **Distinguish *still running* from *completed successfully*, *completed unsuccessfully*, and
-   *result unavailable*.** Four states, not two.
+   *result unavailable*.** Four states, not two. This capability is mechanized
+   **harness-independently**: the state vocabulary a caller keys on — and which of those states is
+   retryable — is defined once in [`scripts/gate-run.md`](../../../scripts/gate-run.md), which is
+   why a per-harness capability list is the wrong owner for it. What a harness must supply is the
+   ability to make the observations at all; it never defines states of its own.
 6. **Enforce the observation budget without depending on a single long-lived foreground call.**
 
 One mitigation satisfied all of them on every harness measured below: **detach into a new session
@@ -34,6 +38,15 @@ result artifact — one discipline, three payoffs. It carries one non-obvious pr
 and recorded as evidence: the new session must be **fully established before the initiating
 call returns**, or the harness's teardown wins the race. That precondition was measured, not
 reasoned about; the measurement is in the evidence file linked at the end of this reference.
+Docket ships that mitigation as `scripts/gate-run.sh`, reached through the facade as
+`docket.sh gate-run` and specified by [`scripts/gate-run.md`](../../../scripts/gate-run.md): it
+performs the detached launch, the durable unmerged streams, and the establishment handshake the
+precondition names, so a call site satisfies these capabilities by using it rather than by
+re-deriving a launch shape. **What its detachment delivers is decided by a runtime probe, never
+assumed** — where the platform offers no session primitive the contract narrows honestly to the
+weaker guarantee and says so per platform, in that page's *Per-platform capability note*. The
+capability required above is unchanged by that narrowing; only the claim about how it is obtained is
+bounded by what the platform provides.
 
 ## Reading a verdict
 
