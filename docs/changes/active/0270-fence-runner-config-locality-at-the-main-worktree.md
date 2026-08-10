@@ -12,12 +12,12 @@ related: [208]
 discovered_from: [269]
 adrs: []
 spec: docs/superpowers/specs/2026-08-09-fence-runner-config-locality-at-the-main-worktree-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-10-fence-runner-config-locality-at-the-main-worktree.md
 results:
 trivial: false
 auto_groomable: false
 branch: feat/fence-runner-config-locality-at-the-main-worktree
-claimed_at: 2026-08-10T22:40:52Z
+claimed_at: 2026-08-10T22:44:24Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-09-fence-runner-config-locality-at-the-main-worktree-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-fence-runner-config-locality-at-the-main-worktree-design.md) |
+| Plan | [2026-08-10-fence-runner-config-locality-at-the-main-worktree.md](https://github.com/danielhanold/docket/blob/feat/fence-runner-config-locality-at-the-main-worktree/docs/superpowers/plans/2026-08-10-fence-runner-config-locality-at-the-main-worktree.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
