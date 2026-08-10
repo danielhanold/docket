@@ -1,0 +1,304 @@
+#!/usr/bin/env bash
+# scripts/gate-run.sh — detached launch / liveness-keyed observation / identity-checked stop
+# for one long-running child process. Contract: scripts/gate-run.md
+#
+# ORDERING RULE (spec assumption 14, load-bearing): the user's command is NEVER exec'd before
+# the pid/pgid/identity record is durably in the run dir. The wrapper records ITSELF after
+# detaching, then forks the command. A wedge before the record can strand plumbing at worst,
+# never an unaddressable command process.
+#
+# THE TWO RECORD WRITES ARE ORDERED, AND THE ORDER IS THE POINT. `launch` lands FIRST because it
+# is the only thing that makes the detached group ADDRESSABLE: from the instant it exists, the
+# launcher's failure path can name the group and kill it. `identity` lands SECOND and is what
+# declares establishment COMPLETE — it is the handshake's last conjunct, so a run that got its
+# address but never finished establishing is reported `launch-failed` and stopped, never handed
+# back as a live handle. Both writes still precede the fork, so the ordering rule above holds.
+#
+# STDOUT IS THE PROTOCOL: exactly one machine-readable line per verb. Every diagnostic goes to
+# stderr. `--launch` prints the absolute run-directory path on success and the single slash-free
+# token `launch-failed` on failure — one failure shape, never a taxonomy.
+set -euo pipefail
+
+SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/$(basename "${BASH_SOURCE[0]}")"
+# The runtime the wrapper is re-invoked under. `$BASH` is the absolute path of the interpreter
+# already running this file, so the wrapper inherits the same Bash 4+ the caller resolved.
+BASH_BIN="${DOCKET_BASH_PATH:-${BASH:-bash}}"
+
+die() { printf 'gate-run: %s\n' "$*" >&2; }   # diagnostics: stderr, always
+report() { printf '%s\n' "$1"; }              # the ONE stdout protocol line
+
+LAUNCH_ESTABLISH_SECS="${GATE_RUN_ESTABLISH_SECS:-10}"
+case "$LAUNCH_ESTABLISH_SECS" in ''|*[!0-9]*|0) LAUNCH_ESTABLISH_SECS=10 ;; esac
+
+# --- identity ---------------------------------------------------------------------
+# The runner-dispatch.sh `ps_lstart` shape: process start time as identity. A recycled pgid has a
+# different start time, so it can never impersonate this run. Whitespace-normalized and compared as
+# an EXACT STRING, never parsed into a date — the `ps -o lstart=` rendering is platform- and
+# locale-dependent, and both sides of every comparison come from the same `ps` on the same machine.
+# Always returns 0: an absent pid is an empty token, not an error, so a caller under `set -e` can
+# assign from it.
+identity_of() {  # $1 = pid -> normalized start-time token, empty when the pid is gone
+  local s
+  s="$(ps -o lstart= -p "${1:-0}" 2>/dev/null || true)"
+  s="$(tr -s '[:space:]' ' ' <<<"$s")"
+  s="${s# }"
+  printf '%s' "${s% }"
+}
+
+# Read one field from a KEY=value record. Deliberately NOT `sed … | head -n1`: a producer piped into
+# a consumer that may exit early takes SIGPIPE under `pipefail` (AGENTS.md, "Shell"), so the
+# first-line trim is a parameter expansion on a captured value instead.
+record_field() {  # $1 = file, $2 = key -> first value, empty when absent or unreadable
+  local raw
+  raw="$(sed -n "s/^$2=//p" "$1" 2>/dev/null || true)"
+  printf '%s' "${raw%%$'\n'*}"
+}
+
+atomic_write() {  # atomic_write <dest> <content>   — temp BESIDE dest, then mv -f
+  local dest="$1" content="$2" tmp
+  tmp="$(mktemp "${dest}.XXXXXX")"
+  printf '%s\n' "$content" >"$tmp"
+  mv -f "$tmp" "$dest"
+}
+
+# Test-only crash-window injector. ENV-GATED AND INERT BY DEFAULT: unset means a no-op at full
+# speed, so this hook can never itself become a hang site in production. Bounded even when armed —
+# a fixture that forgot to release must fail the run, not wedge the machine.
+wedge() {  # $1 = the point this call site names
+  [ "${GATE_RUN_TEST_WEDGE:-}" = "$1" ] || return 0
+  local waited=0
+  while [ "$waited" -lt 600 ]; do sleep 0.1; waited=$(( waited + 1 )); done
+}
+
+# --- session primitive ladder (resolved at plan time; probed at runtime, never by uname) ---
+# Rung 1: setsid(1) where present -> a genuine new SESSION.
+# Rung 2 (script(1)) was REJECTED at plan time: injected typescript framing + CRLF, and a pty
+#         merges stdout/stderr. See scripts/gate-run.md § Per-platform capability note.
+# Rung 3: own PROCESS GROUP via Bash job control (`set -m`) + the detachment handshake.
+#         The contract is honestly narrowed on such platforms; it never claims "new session".
+detach_mode() { command -v setsid >/dev/null 2>&1 && echo session || echo group; }
+
+my_pgid() { local p; p="$(ps -o pgid= -p $$ 2>/dev/null | tr -d ' ' || true)"; printf '%s' "$p"; }
+
+numeric_or_empty() { case "${1:-}" in ''|*[!0-9]*) printf '' ;; *) printf '%s' "$1" ;; esac; }
+
+# ==================================================================================
+# THE WRAPPER — runs detached, in its own process group, with its streams already
+# redirected into the run dir by the launcher. Records ITSELF, then forks the command.
+# ==================================================================================
+do_wrap() {
+  local rd="${1:-}"; shift || true
+  [ -n "$rd" ] && [ -d "$rd" ] || { die "wrap: missing or unreadable run dir"; exit 2; }
+  [ "${1:-}" = "--" ] || { die "wrap: expected -- before the command"; exit 2; }
+  shift
+
+  local pid pgid ident cmd_line created rec
+  pid="$BASHPID"
+  pgid="$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ' || true)"
+
+  # HARD PRECONDITION, and it is a SIGNAL-SAFETY one, not a tidiness one. Every later verb signals
+  # the RECORDED pgid, and the identity token is the start time of the process that LEADS it. If
+  # this wrapper is not that leader, the recorded group is somebody else's — in the failure mode
+  # that matters, the launcher's own — and a `--stop` would take the caller down with it. Refuse to
+  # record at all rather than record a group we do not lead: the launcher's handshake then times
+  # out and stops us, which is the fail-closed direction.
+  [ -n "$pgid" ] && [ "$pgid" = "$pid" ] || {
+    die "wrap: refusing to record — pid $pid does not lead its own process group (pgid ${pgid:-unknown}); a stop keyed on that group would signal a bystander"
+    exit 1
+  }
+
+  ident="$(identity_of "$pgid")"
+  [ -n "$ident" ] || { die "wrap: refusing to record — no identity token for pgid $pgid"; exit 1; }
+
+  # The command line, flattened to one line: the record is KEY=value and every reader is a
+  # line-oriented `sed -n 's/^key=//p'`, so an embedded newline would forge a field.
+  cmd_line="$*"
+  cmd_line="${cmd_line//$'\n'/ }"
+  cmd_line="${cmd_line//$'\r'/ }"
+  created="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  wedge pre-record
+  rec="$(printf 'pid=%s\npgid=%s\nidentity=%s\ncmd=%s\ncreated=%s' \
+    "$pid" "$pgid" "$ident" "$cmd_line" "$created")"
+  atomic_write "$rd/launch" "$rec"
+  wedge post-record
+  atomic_write "$rd/identity" "$ident"
+
+  # ---- and ONLY NOW the user's command -------------------------------------------
+  # Forked, not exec'd: this process must outlive the command to write the terminal record, which
+  # is what makes "the child completed" evidence rather than a claim. Stdout, stderr and stdin are
+  # inherited from the launcher's redirect, so the command's bytes land unmerged in the durable
+  # logs with no primitive-injected framing. No trap is installed anywhere in this wrapper.
+  "$@" &
+  wait "$!"
+}
+
+# ==================================================================================
+# --launch
+# ==================================================================================
+RUN_DIR=""
+SPAWN_PID=""
+
+# The bounded stop on the failure path. Called only when establishment did NOT complete, so the
+# handle is never returned and nothing else will ever come back to clean this up.
+launch_failure_stop() {
+  local rec_pgid spawn_pgid probe_pgid="" mine
+  mine="$(my_pgid)"
+  rec_pgid="$(numeric_or_empty "$(record_field "$RUN_DIR/launch" pgid)")"
+  spawn_pgid="$(numeric_or_empty "$(ps -o pgid= -p "$SPAWN_PID" 2>/dev/null | tr -d ' ' || true)")"
+
+  if [ -n "$rec_pgid" ]; then
+    # RECORD PRESENT ⇒ the group is ADDRESSABLE, so the whole tree gets the signal.
+    probe_pgid="$rec_pgid"
+    if [ -n "$mine" ] && [ "$rec_pgid" = "$mine" ]; then
+      die "refusing to signal process group $rec_pgid — it is this launcher's own group"
+    else
+      kill -TERM -"$rec_pgid" 2>/dev/null || true
+      local w=0
+      while kill -0 -"$rec_pgid" 2>/dev/null && [ "$w" -lt 20 ]; do sleep 0.1; w=$(( w + 1 )); done
+      kill -0 -"$rec_pgid" 2>/dev/null && { kill -KILL -"$rec_pgid" 2>/dev/null || true; }
+    fi
+  else
+    # NO RECORD ⇒ by the ORDERING RULE there is nothing here but the plumbing process, so the stop
+    # is pid-directed at the direct spawn child and the group is only PROBED. Deliberately not a
+    # group kill: with no record, a group kill would quietly clean up after a violation of the
+    # ordering rule instead of leaving it observable, and this failure path is the only thing
+    # standing between that violation and an unaddressable command process running unattended.
+    probe_pgid="$spawn_pgid"
+  fi
+
+  # The direct spawn child is OUR child and has not been waited on, so its pid cannot have been
+  # recycled: a pid-directed signal here can only ever reach the process we started. Reaping it is
+  # what makes the verification below honest — a zombie still answers `kill -0`.
+  kill -TERM "$SPAWN_PID" 2>/dev/null || true
+  local t=0
+  while kill -0 "$SPAWN_PID" 2>/dev/null && [ "$t" -lt 20 ]; do sleep 0.1; t=$(( t + 1 )); done
+  kill -KILL "$SPAWN_PID" 2>/dev/null || true
+  wait "$SPAWN_PID" 2>/dev/null || true
+
+  local leaked=0
+  if [ -n "$probe_pgid" ]; then
+    local v=0
+    while kill -0 -"$probe_pgid" 2>/dev/null && [ "$v" -lt 20 ]; do sleep 0.1; v=$(( v + 1 )); done
+    kill -0 -"$probe_pgid" 2>/dev/null && leaked=1
+  fi
+  if [ "$leaked" = 1 ]; then
+    die "LAUNCH FAILED AND UNVERIFIED — process group $probe_pgid is still alive. A child of this run may be running unattended; inspect and dispose of it manually. Run dir: $RUN_DIR"
+  else
+    die "launch failed — establishment did not complete within ${LAUNCH_ESTABLISH_SECS}s; the run's processes were terminated and verified gone. Run dir: $RUN_DIR"
+  fi
+}
+
+launch_failed() { die "$*"; report launch-failed; exit 1; }
+
+do_launch() {
+  local root="" run_name="" mode
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      # `shift 2` FAILS rather than truncating when the flag is the last argument, so each
+      # value-taking flag checks its operand is present before consuming it.
+      --root)     [ $# -ge 2 ] || launch_failed "launch: --root needs a directory"
+                  root="$2"; shift 2 ;;
+      --run-name) [ $# -ge 2 ] || launch_failed "launch: --run-name needs a name"
+                  run_name="$2"; shift 2 ;;
+      --)         shift; break ;;
+      *)          launch_failed "launch: unknown argument: $1" ;;
+    esac
+  done
+  [ $# -gt 0 ] || launch_failed "launch: no command after --"
+
+  umask 077
+  if [ -n "$root" ]; then
+    mkdir -p "$root" 2>/dev/null || launch_failed "launch: cannot create root: $root"
+  else
+    root="$(mktemp -d "${TMPDIR:-/tmp}/gate-run.XXXXXX")" \
+      || launch_failed "launch: cannot mint a default root under ${TMPDIR:-/tmp}"
+  fi
+  [ -d "$root" ] && [ -w "$root" ] || launch_failed "launch: root is not a writable directory: $root"
+  root="$(cd "$root" && pwd -P)" || launch_failed "launch: cannot resolve root: $root"
+
+  # The helper ALWAYS mints the run dir, so two callers cannot collide on one. An existing dir is
+  # REFUSED, never reused: reuse would silently graft a new run onto another run's records.
+  if [ -n "$run_name" ]; then
+    # `--run-name` is a determinism hook for fixtures, so it is shape-checked rather than trusted:
+    # a name carrying a slash or a `..` would place the run dir outside the root.
+    case "$run_name" in
+      *[!A-Za-z0-9._-]*|.|..|'') launch_failed "launch: invalid --run-name: $run_name" ;;
+    esac
+    RUN_DIR="$root/$run_name"
+    mkdir "$RUN_DIR" 2>/dev/null \
+      || launch_failed "launch: run dir already exists (or cannot be created), refusing to reuse it: $RUN_DIR"
+  else
+    RUN_DIR="$(mktemp -d "$root/run.XXXXXX")" || launch_failed "launch: cannot mint a run dir under $root"
+  fi
+
+  mode="$(detach_mode)"
+  if [ "$mode" = session ]; then
+    # Rung 1. Job control is deliberately OFF here: backgrounding under `set -m` would make setsid
+    # itself a process-group leader, at which point setsid(1) forks and `$!` names a parent that
+    # exits immediately instead of the wrapper. Without job control, setsid(2) succeeds in place and
+    # the exec preserves the pid, so `$!` is the wrapper.
+    set +m
+    setsid "$BASH_BIN" "$SELF" --__wrap "$RUN_DIR" -- "$@" \
+      >"$RUN_DIR/stdout.log" 2>"$RUN_DIR/stderr.log" </dev/null &
+    SPAWN_PID=$!
+  else
+    # Rung 3, measured at plan time and again in ADR-0080: `set -m` makes a background job a
+    # PROCESS-GROUP LEADER, so it survives a group-directed teardown of the launcher's own group.
+    # This delivers own-process-group detachment plus the handshake below — NOT a new session.
+    set -m
+    "$BASH_BIN" "$SELF" --__wrap "$RUN_DIR" -- "$@" \
+      >"$RUN_DIR/stdout.log" 2>"$RUN_DIR/stderr.log" </dev/null &
+    SPAWN_PID=$!
+    set +m
+  fi
+
+  # ---- THE HANDSHAKE -------------------------------------------------------------
+  # Bounded by LAUNCH_ESTABLISH_SECS. Both conjuncts are required: `launch` (the group is
+  # addressable) AND `identity` (establishment completed). A dead-or-reaped wrapper ends the wait
+  # early, but never the decision — the records are re-read once more below, because a fast command
+  # can finish and be reaped between two polls having recorded everything correctly.
+  local ticks=$(( LAUNCH_ESTABLISH_SECS * 10 )) t=0 state
+  while [ "$t" -lt "$ticks" ]; do
+    { [ -s "$RUN_DIR/launch" ] && [ -s "$RUN_DIR/identity" ]; } && break
+    state="$(ps -o state= -p "$SPAWN_PID" 2>/dev/null | tr -d ' ' || true)"
+    case "$state" in ''|Z*) break ;; esac
+    sleep 0.1; t=$(( t + 1 ))
+  done
+
+  if [ -s "$RUN_DIR/launch" ] && [ -s "$RUN_DIR/identity" ]; then
+    # Establishment claims a separated group; verify the claim before handing back a handle. A
+    # recorded pgid equal to ours means detachment did not happen, and the handle would name a
+    # group that the caller's own teardown will reap.
+    local rec_pgid mine
+    rec_pgid="$(numeric_or_empty "$(record_field "$RUN_DIR/launch" pgid)")"
+    mine="$(my_pgid)"
+    if [ -z "$rec_pgid" ] || { [ -n "$mine" ] && [ "$rec_pgid" = "$mine" ]; }; then
+      die "launch: the child did not separate into its own process group (recorded '${rec_pgid:-none}', launcher's '$mine')"
+      launch_failure_stop
+      report launch-failed
+      exit 1
+    fi
+    report "$RUN_DIR"
+    exit 0
+  fi
+
+  launch_failure_stop
+  report launch-failed
+  exit 1
+}
+
+usage() {
+  printf '%s\n' \
+    'usage: gate-run.sh --launch [--root <dir>] [--run-name <name>] -- <command…>' \
+    'Contract: scripts/gate-run.md' >&2
+}
+
+VERB="${1:-}"
+[ $# -gt 0 ] && shift || true
+case "$VERB" in
+  --launch)  do_launch "$@" ;;
+  --__wrap)  do_wrap "$@" ;;
+  -h|--help) usage; exit 0 ;;
+  *)         die "unknown verb: ${VERB:-<none>}"; usage; exit 2 ;;
+esac
