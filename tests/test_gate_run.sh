@@ -674,9 +674,13 @@ for st in $state_names; do
     'grep -qF -- "state='"$st"'*" <<<"$loop_fence"'
 done
 # The capture neutralizes the exit status: --observe exits 1 on unavailable, and an errexit caller
-# without this dies before any arm runs.
+# without this dies before any arm runs. Asserted against the fence's EXECUTABLE lines only: the
+# comment beside the capture explains the `|| true` and quotes it, so a whole-fence read stays green
+# with the operator deleted from the code — vacuous against its own mutation. Capture the stripped
+# body into a variable first, never a pipe into `grep -q` (AGENTS.md § Shell).
+loop_code="$(grep -v '^[[:space:]]*#' <<<"$loop_fence")"
 assert "the canonical loop neutralizes the observe exit status" \
-  'grep -qF -- "|| true" <<<"$loop_fence"'
+  'grep -qF -- "|| true" <<<"$loop_code"'
 # The anti-pattern is stated beside the example, bound to what it forbids rather than merely
 # present (learnings: prose-guard-binds-phrase-to-claim). Read on a flattened haystack so a pure
 # re-flow cannot redden it.
@@ -714,6 +718,13 @@ cat >"$LOOPBOX/docket.sh" <<'STUB'
 # Stub facade: answers the Nth line of $OBS_SCRIPT, repeating the last line forever after. Exits 1
 # on `unavailable` exactly as the real --observe does, which is what makes the `|| true` testable.
 n=$(( $(cat "$OBS_COUNT") + 1 )); printf '%s' "$n" >"$OBS_COUNT"
+# Observation ceiling. The clock is simulated, so a mutation that removes the deadline check — or
+# the `sleep` that advances the simulated clock — would hot-spin forever, and run-tests.sh measures
+# wall clock without killing an over-budget job: the failure would HANG the suite instead of
+# reddening. Past the ceiling the stub answers an unmatchable line, so a non-terminating fence
+# resolves to a distinguishable, assertion-comparable value. 200 sits far above the largest
+# legitimate count any fixture produces (31), so no passing fixture reaches it.
+[ "$n" -le 200 ] || { printf 'state=LOOPCAP\n'; exit 0; }
 line="$(sed -n "${n}p" "$OBS_SCRIPT")"
 [ -n "$line" ] || line="$(sed -n '$p' "$OBS_SCRIPT")"
 printf '%s\n' "$line"
