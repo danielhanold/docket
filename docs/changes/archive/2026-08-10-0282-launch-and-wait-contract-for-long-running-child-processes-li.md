@@ -2,7 +2,7 @@
 id: 282
 slug: launch-and-wait-contract-for-long-running-child-processes-li
 title: 'Launch-and-wait contract for long-running child processes — liveness-keyed, not marker-keyed'
-status: implemented
+status: done
 priority: critical
 type: fix
 created: 2026-08-09
@@ -17,7 +17,7 @@ results: docs/results/2026-08-10-launch-and-wait-contract-for-long-running-child
 trivial: false
 auto_groomable: true
 branch: feat/launch-and-wait-contract-for-long-running-child-processes-li
-claimed_at: 2026-08-10T05:51:37Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/191
 blocked_by:
 reconciled: true
