@@ -315,9 +315,156 @@ do_launch() {
   exit 1
 }
 
+# ==================================================================================
+# --observe
+# ==================================================================================
+
+# The identity token THIS RUN recorded — the value every liveness probe is checked against.
+#
+# TWO SOURCES, and the reason is the launch ordering: `launch` is written BEFORE `identity`, so an
+# establishment that crashed between the two writes leaves the token file absent while the launch
+# record still carries the same value in its `identity=` field. Either source answers, and they
+# cannot disagree — one `identity_of` call produced both.
+#
+# An empty result is a real answer, not an error: it means this run never recorded who it was, and
+# `group_alive_and_ours` fails the conjunct closed on it.
+recorded_identity() {  # $1 = run dir -> the recorded token, empty when neither source holds one
+  local tok=""
+  if [ -s "$1/identity" ]; then
+    tok="$(cat "$1/identity" 2>/dev/null || true)"
+    tok="${tok%%$'\n'*}"
+  fi
+  [ -n "$tok" ] || tok="$(record_field "$1/launch" identity)"
+  printf '%s' "$tok"
+}
+
+# LIVENESS, IDENTITY-CHECKED — never a bare `kill -0` (spec assumption 9). A pgid answers for
+# whoever holds it NOW, and pgids are recycled; the run that recorded this one may be long dead and
+# a stranger may lead the group today. The conjunction is: the group exists AND the process leading
+# it started at the instant this run recorded. Every leg fails CLOSED — an absent pgid, a
+# non-numeric one, an empty recorded token, an empty live token — because the only cost of a false
+# `died` is one bounded relaunch, while a false `running` waits out the caller's whole budget on a
+# run that is not there.
+group_alive_and_ours() {  # $1 = run dir
+  local rd="$1" pgid want have
+  pgid="$(numeric_or_empty "$(record_field "$rd/launch" pgid)")"
+  [ -n "$pgid" ] || return 1
+  # `kill -0 -0` means THIS caller's own group and `kill -0 -1` means every process the user can
+  # signal, so neither can ever be treated as a recorded run's group.
+  [ "$pgid" -gt 1 ] || return 1
+  kill -0 -"$pgid" 2>/dev/null || return 1
+  want="$(recorded_identity "$rd")"
+  [ -n "$want" ] || return 1
+  have="$(identity_of "$pgid")"
+  [ -n "$have" ] || return 1
+  [ "$have" = "$want" ]
+}
+
+# Map the terminal record to a state line. Returns NON-ZERO when there is no record at all — that
+# is the only "keep looking" answer; every other outcome is a verdict.
+#
+# `kind=signal` reads `stopped` when this run was CANCELLED on purpose: `--stop` writes `stop-intent`
+# immediately before it signals and `stopped` once it has verified the group gone, so either file
+# means the signal that killed the child was ours. Without that, a deliberately cancelled run would
+# read `died` forever and an idempotent call site would relaunch a cancellation.
+classify_record() {  # $1 = run dir -> prints one state line; non-zero when `terminal` is absent
+  local rd="$1" rec payload
+  [ -f "$rd/terminal" ] || return 1
+  rec="$(cat "$rd/terminal" 2>/dev/null || true)"
+  case "$rec" in
+    'kind=exit code='*)
+      payload="$(numeric_or_empty "${rec#kind=exit code=}")"
+      if [ -z "$payload" ]; then :
+      elif [ "$payload" = 0 ]; then printf 'state=passed\n'; return 0
+      else printf 'state=failed\n'; return 0
+      fi
+      ;;
+    'kind=signal signal='*)
+      payload="$(numeric_or_empty "${rec#kind=signal signal=}")"
+      if [ -n "$payload" ]; then
+        if [ -f "$rd/stopped" ] || [ -f "$rd/stop-intent" ]; then printf 'state=stopped\n'
+        else printf 'state=died cause=signal\n'
+        fi
+        return 0
+      fi
+      ;;
+  esac
+  # Anything unparseable. A malformed record says the SUPERVISOR did not finish cleanly, which is
+  # not a verdict about the child — and a verdict read out of garbage is fabricated.
+  die "malformed terminal record in $rd: ${rec//$'\n'/ }"
+  printf 'state=unavailable\n'
+}
+
+# The last N lines of the run's own streams, to STDERR. Never stdout: a tail is multiline and
+# arbitrary, and stdout is a protocol exactly one line wide.
+log_tail_to_stderr() {  # $1 = run dir
+  local rd="$1" stream body
+  for stream in stderr.log stdout.log; do
+    [ -s "$rd/$stream" ] || continue
+    body="$(tail -n 20 "$rd/$stream" 2>/dev/null || true)"
+    [ -n "$body" ] || continue
+    printf 'gate-run: --- last 20 lines of %s ---\n%s\n' "$rd/$stream" "$body" >&2
+  done
+}
+
+# THE READ ORDER IS THE CONTRACT. Prints the state line on stdout and nothing else; every
+# diagnostic goes to stderr. `do_observe` captures this, so there is structurally no path by which
+# a second line can reach the protocol channel.
+observe_state() {  # $1 = run dir
+  local rd="$1" rec
+
+  { [ -d "$rd" ] && [ -r "$rd/launch" ]; } || {
+    die "rundir-unreadable: $rd"
+    printf 'state=unavailable\n'
+    return 0
+  }
+
+  # 1. TERMINAL RECORD FIRST — it always wins. The child's own verdict outranks any probe of the
+  #    group it used to lead, and the wrapper is the only writer of that record.
+  if rec="$(classify_record "$rd")"; then printf '%s\n' "$rec"; return 0; fi
+
+  # 2. Liveness — identity-checked (assumption 9), never a bare `kill -0`.
+  if group_alive_and_ours "$rd"; then printf 'state=running\n'; return 0; fi
+
+  # 3. Dead or identity-mismatched ⇒ RE-READ. THE WHOLE POINT: atomicity prevents partial reads,
+  #    not stale ones. The record read in step 1 was a snapshot of a moment that has passed, and
+  #    the child had every chance to finish since. Without this re-read the sequence
+  #    "no record → child completes → dead probe" turns a run that PASSED into a `died`, and a
+  #    call site keyed on `died` relaunches it. The re-read is sound rather than merely defensive
+  #    because of the invariant the wrapper holds — it is the ONLY writer of `terminal`, so a
+  #    record visible now was necessarily written by a child that completed.
+  if rec="$(classify_record "$rd")"; then printf '%s\n' "$rec"; return 0; fi
+
+  if [ -f "$rd/stopped" ]; then printf 'state=stopped\n'; return 0; fi
+
+  # No record, and the group this run recorded is gone or is not ours. Nothing survives that could
+  # ever write a verdict, so this is terminal — and it is detected on THIS observation rather than
+  # at the far end of a caller's budget, which is the promptness the whole contract exists for.
+  die "died: the recorded group is gone and no terminal record was ever written (run dir: $rd)"
+  log_tail_to_stderr "$rd"
+  printf 'state=died cause=vanished\n'
+}
+
+do_observe() {
+  local rd="${1:-}" state
+  [ $# -le 1 ] || { die "observe: expected exactly one run dir"; report "state=unavailable"; return 1; }
+  [ -n "$rd" ] || { die "observe: missing run dir"; report "state=unavailable"; return 1; }
+  state="$(observe_state "$rd")"
+  # stdout is a protocol exactly one line wide; the trim makes that structural rather than a
+  # convention every branch above has to remember. The exit status is keyed to the SAME trimmed
+  # value the caller was handed, so the two can never disagree about what was reported.
+  state="${state%%$'\n'*}"
+  report "$state"
+  # Callers key on the report line, never on this. Documented in scripts/gate-run.md § Exit codes:
+  # non-zero says only "no verdict was available", which is `unavailable` and nothing else.
+  case "$state" in state=unavailable) return 1 ;; esac
+  return 0
+}
+
 usage() {
   printf '%s\n' \
     'usage: gate-run.sh --launch [--root <dir>] [--run-name <name>] -- <command…>' \
+    '       gate-run.sh --observe <run-dir>' \
     'Contract: scripts/gate-run.md' >&2
 }
 
@@ -325,6 +472,7 @@ VERB="${1:-}"
 [ $# -gt 0 ] && shift || true
 case "$VERB" in
   --launch)  do_launch "$@" ;;
+  --observe) do_observe "$@" ;;
   --__wrap)  do_wrap "$@" ;;
   -h|--help) usage; exit 0 ;;
   *)         die "unknown verb: ${VERB:-<none>}"; usage; exit 2 ;;

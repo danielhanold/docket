@@ -49,6 +49,57 @@ await_terminal(){  # $1 = run dir, $2 = deadline in tenths of a second (default 
   return 1
 }
 
+# BOUNDED wait for a file to have content. The launcher's handshake returns as soon as the run is
+# ESTABLISHED, which is strictly before the user's command has forked, so any assert about bytes the
+# command wrote has to wait for them rather than assume them. Returns non-zero on timeout and the
+# caller reads an empty file.
+await_nonempty(){  # $1 = file, $2 = deadline in tenths of a second (default 100 = 10s)
+  local f="${1:-}" ticks="${2:-100}" t=0
+  while [ "$t" -lt "$ticks" ]; do
+    [ -s "$f" ] && return 0
+    sleep 0.1; t=$(( t + 1 ))
+  done
+  return 1
+}
+
+# BOUNDED wait for a process group to disappear. A `kill -KILL` returns as soon as the signal is
+# QUEUED, not once the group is reaped, and a zombie still answers `kill -0` — so a fixture that
+# kills a group and immediately observes can read `running` off corpses. Every fixture that kills a
+# group before observing it goes through here instead of a bare sleep.
+await_group_gone(){  # $1 = pgid, $2 = deadline in tenths of a second (default 100 = 10s)
+  local pg="${1:-}" ticks="${2:-100}" t=0
+  case "$pg" in ''|*[!0-9]*) return 0 ;; esac
+  while [ "$t" -lt "$ticks" ]; do
+    kill -0 -"$pg" 2>/dev/null || return 0
+    sleep 0.1; t=$(( t + 1 ))
+  done
+  return 1
+}
+
+# Start a live BYSTANDER process that leads its own process group, and print that pgid. This is the
+# recycled-pgid fixture: a test rewrites a run's recorded `pgid` to point here, so the recorded
+# group is alive but is NOT this run's — exactly what an identity cross-check must refuse and a bare
+# `kill -0` cannot.
+#
+# `set -m` is what makes the backgrounded subshell a group LEADER; without job control it would join
+# this harness's own group, and then every `kill -0 -"$pgid"` in the caller would be reading the
+# harness itself — a permanently green guard and a group-directed kill aimed at the test runner. The
+# checks below refuse to hand back a pgid that failed to separate, and job control is restored to
+# whatever it was rather than left on.
+start_foreign_group(){  # -> pgid of a live foreign group leader; empty (and non-zero) on failure
+  local pid pg mine had_m=0
+  case "$-" in *m*) had_m=1 ;; esac
+  set -m
+  ( exec sleep 300 ) </dev/null >/dev/null 2>&1 &
+  pid=$!
+  [ "$had_m" = 1 ] || set +m
+  pg="$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ')"
+  mine="$(ps -o pgid= -p $$ 2>/dev/null | tr -d ' ')"
+  case "$pg" in ''|*[!0-9]*) return 1 ;; esac
+  [ "$pg" = "$pid" ] && [ "$pg" != "$mine" ] || { kill -KILL "$pid" 2>/dev/null; return 1; }
+  printf '%s' "$pg"
+}
+
 # Tear down a leftover detached group. It REFUSES to signal this file's own group: a group-directed
 # signal aimed at ourselves takes the harness running this file with it — the same hazard
 # tests/lib/runner_dispatch_detach_common.sh's `reap` exists for.

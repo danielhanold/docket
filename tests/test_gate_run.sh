@@ -140,4 +140,135 @@ assert "a TERMed child records kind=signal, never kind=exit" 'grep -q "^kind=sig
 assert "the signal number is recorded" 'grep -q "signal=15" <<<"$rec"'
 reap "$term_pgid"
 
+# ---- --observe: SIX STATES, AND THE READ ORDER THAT MAKES THEM HONEST ----------------
+# Three properties are on trial in this section, and each has its own asserts:
+#   1. THE RECORD OUTRANKS THE LIVENESS PROBE. A verdict the child itself wrote can never be
+#      overruled by a probe of the group it used to lead.
+#   2. LIVENESS IS IDENTITY-CHECKED. A bare `kill -0` answers for whoever holds the pgid NOW, and
+#      pgids are recycled; the run that recorded it may be long dead.
+#   3. STDOUT IS THE PROTOCOL — exactly one line. The log tail a `died` prints is multiline and
+#      arbitrary, so it can never share the channel a caller parses.
+
+# ---- running / passed / failed --------------------------------------------------------
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'sleep 30')"
+run_pgid="$(sed -n 's/^pgid=//p' "$RD/launch")"
+assert "a live child observes as running" '[ "$(gate_run --observe "$RD")" = "state=running" ]'
+reap "$run_pgid"
+
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'exit 0')"; await_terminal "$RD"
+assert "a clean exit observes as passed" '[ "$(gate_run --observe "$RD")" = "state=passed" ]'
+
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'exit 1')"; await_terminal "$RD"
+assert "a red exit observes as failed" '[ "$(gate_run --observe "$RD")" = "state=failed" ]'
+
+# ---- PROPERTY 1: a present record outranks a group that answers ALIVE ------------------
+# This is not a synthetic state. The wrapper writes `terminal` and only THEN exits, so between
+# those two instants the record is present AND the recorded group is alive. An observer that
+# probed liveness first would report `running` for a run that has already returned its verdict —
+# and a caller keyed on `running` would keep waiting on a finished run.
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'sleep 30')"
+live_pgid="$(sed -n 's/^pgid=//p' "$RD/launch")"
+printf 'kind=exit code=0\n' >"$RD/terminal"
+assert "a present record outranks a live group" '[ "$(gate_run --observe "$RD")" = "state=passed" ]'
+assert "the fixture's group really was alive, so the assert above is not vacuous" \
+  'kill -0 -"$live_pgid" 2>/dev/null'
+reap "$live_pgid"
+
+# ---- died cause=signal: the 0276 headline shape ----------------------------------------
+# `died` is NEVER `failed`. A child killed by a signal never finished, and `failed` is the one
+# state allowed to feed repair work — so collapsing these two mints integration-repair work for a
+# suite that never ran.
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'sleep 30')"
+sig_pgid="$(sed -n 's/^pgid=//p' "$RD/launch")"
+kill -TERM -"$sig_pgid" 2>/dev/null || true
+await_terminal "$RD"
+assert "a signal death observes as died cause=signal, never failed" \
+  '[ "$(gate_run --observe "$RD")" = "state=died cause=signal" ]'
+reap "$sig_pgid"
+
+# ---- died cause=vanished: group gone, no record ever written ----------------------------
+# A KILLed group cannot write anything, so the absence of a record IS the evidence. The child
+# writes to its stderr first so the log tail below has real bytes to carry — a tail assert against
+# an empty log would pass on the diagnostic prefix alone and prove nothing about property 3.
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'echo diag-first >&2; echo diag-last >&2; sleep 30')"
+van_pgid="$(sed -n 's/^pgid=//p' "$RD/launch")"
+for _ in $(seq 1 100); do
+  stderr_so_far="$(cat "$RD/stderr.log" 2>/dev/null || true)"
+  case "$stderr_so_far" in *diag-last*) break ;; esac
+  sleep 0.1
+done
+kill -KILL -"$van_pgid" 2>/dev/null || true      # KILL: nothing survives to write a record
+assert "the recorded group is verified gone, so the observation below is not racing a corpse" \
+  'await_group_gone "$van_pgid"'
+assert "a KILLed group left NO terminal record" '[ ! -f "$RD/terminal" ]'
+obs="$(gate_run --observe "$RD" 2>"$SBX/obs.err")"
+obs_first_line="${obs%%$'\n'*}"
+# THE PROMPTNESS PROPERTY the whole change exists for: detected on the NEXT observation.
+assert "a vanished group observes as died cause=vanished" '[ "$obs" = "state=died cause=vanished" ]'
+assert "PROPERTY 3: stdout carried exactly one line" '[ "$obs" = "$obs_first_line" ]'
+assert "the log tail goes to STDERR, never the protocol channel" '[ -s "$SBX/obs.err" ]'
+assert "the tail carries the child's own last diagnostics" 'grep -qF -- "diag-last" "$SBX/obs.err"'
+assert "and no part of the tail reached stdout" '! grep -qF -- "diag-last" <<<"$obs"'
+
+# ---- unavailable: a malformed record, and an unreadable run dir -------------------------
+# A verdict read out of garbage is fabricated. A malformed record means the SUPERVISOR did not
+# finish cleanly, which is a different thing from any verdict about the child.
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'exit 0')"; await_terminal "$RD"
+printf 'garbage\n' >"$RD/terminal"
+assert "a malformed record observes as unavailable" \
+  '[ "$(gate_run --observe "$RD" 2>/dev/null)" = "state=unavailable" ]'
+assert "the malformed-record detail goes to stderr, not the protocol line" \
+  '[ -n "$(gate_run --observe "$RD" 2>&1 >/dev/null)" ]'
+# The kind is right but the payload is not a number — still unparseable, still not a verdict.
+printf 'kind=exit code=oops\n' >"$RD/terminal"
+assert "a record whose exit code is not a number observes as unavailable" \
+  '[ "$(gate_run --observe "$RD" 2>/dev/null)" = "state=unavailable" ]'
+assert "a nonexistent run dir observes as unavailable" \
+  '[ "$(gate_run --observe "$SBX/no-such-run" 2>/dev/null)" = "state=unavailable" ]'
+
+# ---- PROPERTY 2, THE IDENTITY GUARD: a recycled pgid must never read alive ---------------
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'sleep 60')"
+recycled_pgid="$(sed -n 's/^pgid=//p' "$RD/launch")"
+recorded_ident="$(cat "$RD/identity")"
+kill -KILL -"$recycled_pgid" 2>/dev/null || true
+await_group_gone "$recycled_pgid"
+# The one-second separation is LOAD-BEARING, not padding: `ps -o lstart=` resolves to whole
+# seconds, so a bystander started inside the same second as the dead leader would carry an
+# identical token and the mismatch this fixture exists to create would not exist.
+sleep 1
+foreign_pgid="$(start_foreign_group)"
+foreign_ident="$(ps -o lstart= -p "$foreign_pgid" 2>/dev/null | tr -s '[:space:]' ' ' | sed 's/^ //;s/ $//')"
+assert "the bystander really leads a live foreign group" \
+  '[ -n "$foreign_pgid" ] && kill -0 -"$foreign_pgid" 2>/dev/null'
+assert "the fixture really is an identity MISMATCH, or the guard below is vacuous" \
+  '[ -n "$recorded_ident" ] && [ -n "$foreign_ident" ] && [ "$foreign_ident" != "$recorded_ident" ]'
+# Substitute the live foreign group under the recorded pgid — the recycled-pgid state, reproduced.
+sed -i.bak "s/^pgid=.*/pgid=$foreign_pgid/" "$RD/launch"
+assert "an identity mismatch reads died, never running" \
+  '[ "$(gate_run --observe "$RD" 2>/dev/null)" = "state=died cause=vanished" ]'
+reap "$foreign_pgid"
+
+# ---- the identity token has TWO sources, and an empty one fails the conjunct CLOSED -------
+# `launch` is written before `identity`, deliberately, so a crashed establishment can leave the
+# token file absent while the launch record still carries its `identity=` field. Either source
+# answers.
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'sleep 30')"
+fallback_pgid="$(sed -n 's/^pgid=//p' "$RD/launch")"
+rm -f "$RD/identity"
+assert "the launch record's identity= field is a working fallback source" \
+  '[ "$(gate_run --observe "$RD")" = "state=running" ]'
+reap "$fallback_pgid"
+
+# With BOTH sources empty there is nothing to compare — and "nothing to compare" is not agreement.
+# A conjunct that read it as agreement would hand `running` to every run whose establishment died.
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'sleep 30')"
+blank_pgid="$(sed -n 's/^pgid=//p' "$RD/launch")"
+rm -f "$RD/identity"
+sed -i.bak 's/^identity=.*/identity=/' "$RD/launch"
+assert "no recorded identity token at all reads died, never running" \
+  '[ "$(gate_run --observe "$RD" 2>/dev/null)" = "state=died cause=vanished" ]'
+assert "and that run's group really was alive, so the assert above is not vacuous" \
+  'kill -0 -"$blank_pgid" 2>/dev/null'
+reap "$blank_pgid"
+
 exit "$fail"
