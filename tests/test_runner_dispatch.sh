@@ -244,6 +244,13 @@ assert "0270: the grant exists ONLY in the main worktree" '[ ! -e "$WT/.docket.l
 
 # cwd INSIDE the linked worktree is the production shape (a build worker dispatches from its own
 # tree) and is the condition under which a cwd-derived config root would read the wrong tree.
+# The agent is a REAL build-* one (agents/docket-build-economy.md), not `status`: the prose above
+# names the build-* dispatches as the case that matters, so the dispatch fenced here must be one of
+# them — otherwise "special-case the config read for build-*" (an ordinary-looking refactor in a
+# facade that already branches on `case "$AGENT" in build-*)` three times) would leave this section
+# green with the invariant gone. It is otherwise the same code path: the `build-*` requires-
+# --worktree gate is satisfied by the --worktree already passed, and the run gate below the handoff
+# is scoped to implement-next, so build-economy reaches the adapter exactly as `status` did.
 # DOCKET_HARNESS_ROOT is pinned into the sandbox so the GLOBAL layer cannot satisfy the grant
 # assert. This file unsets XDG_CONFIG_HOME, so an unpinned run resolves GLOBAL_CFG at the
 # developer's real ~/.config/docket/config.yml — and on a machine that sets runners.codex.sandbox
@@ -252,7 +259,7 @@ assert "0270: the grant exists ONLY in the main worktree" '[ ! -e "$WT/.docket.l
 # be decoration.
 : > "$LOG"
 ( cd "$WT" && PATH="$BIN:$PATH" DOCKET_HARNESS_ROOT="$SBX" \
-    bash "$FACADE" --runner codex --agent status --worktree "$WT" >/dev/null 2>&1 )
+    bash "$FACADE" --runner codex --agent build-economy --worktree "$WT" >/dev/null 2>&1 )
 argv="$(cat "$LOG")"
 assert "0270: main-worktree grant reaches the child across a --worktree dispatch" \
   'grep -qxF -- "danger-full-access" <<<"$argv"'
