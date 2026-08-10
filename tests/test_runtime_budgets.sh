@@ -25,7 +25,23 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1605 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1705 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1605 -> 1705 (change 0282): the new-test-file case, twice —
+                    # tests/test_gate_run.sh and tests/test_gate_run_stop.sh each bring their own
+                    # row. They are the second family in the table (after the runner-dispatch detach
+                    # shards) whose cost is WALL CLOCK THAT CANNOT BE MOCKED: scripts/gate-run.sh
+                    # launches real detached children and the shards wait on real terminal records
+                    # and real rendezvous barriers, because "the launcher returned before the child
+                    # finished", "a signal death is not a red suite" and "a stop held across
+                    # completion keeps the verdict" are only observable in wall-clock time. Split
+                    # along the verb seam — launch/observe in the first, --stop and its five
+                    # interleaving fixtures in the second — because one file carrying both would
+                    # exceed the hard 60s ceiling and blur two review surfaces. Measured standalone
+                    # by the tasks that shipped them at ~9s and ~30s; SEEDED GENEROUSLY at 40 and 60
+                    # rather than at the sizing rule's number, because the seeds predate this
+                    # change's own full-suite run and a barrier-driven file's parallel-phase cost is
+                    # the one thing a standalone run understates. Change 0282's last task tightens
+                    # both to the measured wall clock and re-seeds this total with it.
                     # 1585 -> 1595 (change 0276): the new-test-file case named below —
                     # tests/test_dummy_mode.sh brings its own row. It is a pure prose scan (two
                     # file reads, an awk heading slice, and a handful of greps over collapsed
