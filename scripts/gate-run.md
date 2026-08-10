@@ -17,8 +17,14 @@ Three properties follow from that, and every caller may rely on them:
 
 - **`died` is never `failed`.** A child killed by a signal never finished, so it never produced a
   verdict. `failed` — the child ran and went red — is the only state that may feed repair work.
-- **The caller owns the polling loop and its budget.** This helper never polls internally; every
-  verb is a short call that returns.
+- **The caller owns the polling loop and its budget.** This helper never polls the run on the
+  caller's behalf: no verb waits for the child to finish. That is not the same as "every call is
+  instant", and a caller sizing its budget must not read it that way — **`--observe` is the only
+  verb that is a short call that returns**. `--stop` bounds itself but is not short: it spends up
+  to **10s** of `TERM` grace plus up to **5s** verifying the group is gone, so budget **up to 15s**
+  for one stop. `--launch` blocks for the establishment handshake (`GATE_RUN_ESTABLISH_SECS`,
+  default 10s) and, on the failure path only, up to ~6s more tearing the failed launch down. All
+  three bounds are fixed in the script; none is a caller-tunable knob.
 - **Only `running` is retryable.** The other five states are terminal.
 
 ## Usage
@@ -83,6 +89,20 @@ a handle by shape alone without parsing.
   stop-intent                     # written by --stop, immediately BEFORE the signal
   stopped                         # completed stop marker; written ONLY after termination verified
 ```
+
+**Retention and disposal: the run dir outlives the run, deliberately, and the helper never removes
+one.** The whole point of a durable run dir is that it can be read *after* the run — the logs and
+the terminal record are the post-mortem for a `died` or a `failed`, and deleting them at exit would
+destroy the evidence the caller came for. No verb ever unlinks a run dir, not even `--stop`. So
+**disposal belongs to the caller or to the OS temp reaper**, on whichever of the two paths the
+caller chose:
+
+- **With `--root <dir>`** the caller named the location and owns its lifecycle: keep, archive, or
+  `rm -rf` the run dirs beneath it whenever the post-mortem window has closed.
+- **Without `--root`**, each `--launch` mints a fresh `"${TMPDIR:-/tmp}/gate-run.XXXXXX"` root, and
+  the run dir beneath it is left to the platform's temp reaper. That is a deliberate accumulation of
+  0700 directories under `TMPDIR` between reaps; a caller that runs many launches and cares about
+  the footprint should pass `--root` and dispose of it itself.
 
 Every record write is a `mktemp` **beside** its destination followed by `mv -f`, so no reader ever
 sees a half-written record. (That is the one licensed exception to templating temp files into
@@ -205,6 +225,12 @@ out of garbage is fabricated.
 ### `--stop`
 
 Seven steps, and two properties hold across all of them.
+
+**How long a stop takes.** Both bounds are fixed in the script and neither is tunable: step 4's
+`TERM` grace is up to **10s** before the `KILL` escalation, and step 5's verification that the group
+is gone is up to a further **5s** — so **a single `--stop` can occupy the caller for up to 15s**, and
+a caller sizing an observation budget must not model it as a short call. The ordinary live-child stop
+returns far sooner: the wrapper takes the `TERM`, reaps, and records, which ends the grace early.
 
 **The record outranks the stop** — steps 1, 3 and 6. A stop entered off a stale "no record" read
 kills a run that had **already succeeded** and then reports it as terminated.

@@ -486,6 +486,70 @@ assert "a barrier armed at another point never reaches its rendezvous" '[ ! -e "
 assert "a barrier armed at another point does not stall" '[ "$mismatch_elapsed" -lt 5 ]'
 reap "$inert_pgid"
 
+# ---- ARGUMENT ERRORS ARE PART OF THE PROTOCOL, NOT A USAGE SIDE CHANNEL --------------------
+# scripts/gate-run.md § Exit codes states these legs as ONE outcome apiece — `--observe` reports
+# `state=unavailable` and exits 1; `--launch` reports `launch-failed` and exits non-zero — and says
+# there is deliberately no separate usage code, "because a caller reading the report line must not
+# have to distinguish one". Only the missing-run-dir leg was covered, so the rest of the enumeration
+# rested on inspection. Table-driven, because the point is that every leg lands on the SAME line.
+obs_arg_case(){  # $1 = label, then the argv under test
+  local label="$1"; shift
+  local out rc
+  out="$(gate_run --observe "$@" 2>/dev/null)"; rc=$?
+  assert "observe: $label reports state=unavailable" '[ "$out" = "state=unavailable" ]'
+  assert "observe: $label exits 1, which is what unavailable means" '[ "$rc" = "1" ]'
+}
+# `--observe` has no dedicated unknown-flag branch by design — the flag is consumed into the
+# single run-dir slot and an unreadable run dir is already `unavailable`. That is exactly what the
+# contract promises a caller ("a caller reading the report line must not have to distinguish one"),
+# so the assert is stated against the promise and is deliberately NOT claimed as a guard over a
+# branch: it has no branch to guard, and `tests/test_gate_run_stop.sh` carries the diagnosis assert
+# for the one verb that does have one.
+obs_arg_case "an unknown flag"   --bogus
+# The two-run-dir leg is given a REAL, still-live run dir twice over. A nonexistent path would read
+# `unavailable` with or without the arity guard, which is a vacuous assert dressed as a guard:
+# measured, stripping `[ $# -le 1 ]` leaves that version green. With a live run the unguarded parser
+# reports `state=running` off the first argument and silently drops the second, so the guard is what
+# the line depends on.
+ARGRD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'sleep 30')"
+argrd_pgid="$(sed -n 's/^pgid=//p' "$ARGRD/launch")"
+assert "the arity fixture's run is live, or the two-run-dir assert is vacuous" \
+  '[ "$(gate_run --observe "$ARGRD" 2>/dev/null)" = "state=running" ]'
+obs_arg_case "two run dirs"      "$ARGRD" "$ARGRD"
+obs_arg_case "a missing run dir"
+# A valueless value-taking flag: `--observe` takes none, so the flag is consumed as the run dir and
+# lands on the same line. Asserted because the contract's enumeration names this shape and a caller
+# that passed it must still get one parsable answer.
+obs_arg_case "a valueless --reason" --reason
+reap "$argrd_pgid"
+
+lnch_arg_case(){  # $1 = label, then the argv under test
+  local label="$1"; shift
+  local out rc
+  out="$(gate_run --launch "$@" 2>/dev/null)"; rc=$?
+  assert "launch: $label reports the launch-failed token" '[ "$out" = "launch-failed" ]'
+  assert "launch: $label exits non-zero" '[ "$rc" != "0" ]'
+  # The token is recognizable by SHAPE — slash-free, so it can never be mistaken for the absolute
+  # path a successful launch prints. That is the property the call-site posture keys on.
+  assert "launch: $label yields a slash-free token, not a handle" '[ "${out#*/}" = "$out" ]'
+}
+lnch_arg_case "an unknown argument"     --bogus -- /bin/true
+lnch_arg_case "a valueless --root"      --root
+lnch_arg_case "a valueless --run-name"  --run-name
+lnch_arg_case "no command after --"     --root "$SBX/runs" --
+lnch_arg_case "no -- separator at all"  /bin/true
+
+# ---- GATE_RUN_ESTABLISH_SECS FALLS BACK, RATHER THAN DEGRADING TO A ZERO BUDGET ------------
+# The script clamps a non-numeric or zero value back to the 10s default. Unclamped, `0` makes the
+# handshake loop zero-iteration and EVERY launch reports `launch-failed` — so a launch that still
+# returns a handle under these values is the assert, and stripping the clamp reddens it.
+for bad in 0 abc ' ' -5; do
+  bad_rd="$(GATE_RUN_ESTABLISH_SECS="$bad" gate_run --launch --root "$SBX/runs" -- /bin/true 2>/dev/null)"
+  assert "GATE_RUN_ESTABLISH_SECS='$bad' falls back to the default and the launch still establishes" \
+    '[ "${bad_rd:0:1}" = "/" ] && [ -d "$bad_rd" ]'
+  reap "$(sed -n 's/^pgid=//p' "$bad_rd/launch" 2>/dev/null)"
+done
+
 # ---- THE CONTRACT, THE FACADE WIRING, AND THE BUDGET ROWS ----------------------------------
 # The contract page is the AUTHORITATIVE statement of this helper's vocabulary (spec assumption
 # 10): the gate-execution posture points AT it rather than restating it, so a missing section or a
