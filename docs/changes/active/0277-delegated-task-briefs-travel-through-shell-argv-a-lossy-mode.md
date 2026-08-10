@@ -12,14 +12,14 @@ related: [208, 270]
 discovered_from: [271]
 adrs: []
 spec: docs/superpowers/specs/2026-08-09-delegated-brief-file-channel-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-10-delegated-brief-file-channel.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/delegated-task-briefs-travel-through-shell-argv-a-lossy-mode
 pr:
 blocked_by:
-claimed_at: 2026-08-10T23:45:00Z
+claimed_at: 2026-08-10T23:42:18Z
 reconciled: true
 ---
 
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-09-delegated-brief-file-channel-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-delegated-brief-file-channel-design.md) |
+| Plan | [2026-08-10-delegated-brief-file-channel.md](https://github.com/danielhanold/docket/blob/feat/delegated-task-briefs-travel-through-shell-argv-a-lossy-mode/docs/superpowers/plans/2026-08-10-delegated-brief-file-channel.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
