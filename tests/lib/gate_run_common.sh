@@ -62,6 +62,24 @@ await_nonempty(){  # $1 = file, $2 = deadline in tenths of a second (default 100
   return 1
 }
 
+# BOUNDED wait for a file to EXIST, content or not. This is the fixture side of `scripts/gate-run.sh`'s
+# `barrier` rendezvous: the held process announces its arrival by creating `<file>.reached`, and the
+# fixture may only act on the interleaving once that announcement is visible.
+#
+# `-e`, NOT `-s`, and that is the whole reason this is not `await_nonempty` above. The rendezvous
+# markers are deliberately EMPTY — `: >"$f.reached"` and a bare `touch` — so a non-empty test would
+# wait out its whole deadline on a marker that is already there, and every interleaving fixture would
+# degrade into a timing guess. Returns non-zero on timeout; a fixture that cares asserts on the
+# return so a barrier that never engaged shows up as a red assert rather than a silently vacuous one.
+wait_for_file(){  # $1 = path, $2 = deadline in tenths of a second (default 100 = 10s)
+  local f="${1:-}" ticks="${2:-100}" t=0
+  while [ "$t" -lt "$ticks" ]; do
+    [ -e "$f" ] && return 0
+    sleep 0.1; t=$(( t + 1 ))
+  done
+  return 1
+}
+
 # BOUNDED wait for a process group to disappear. A `kill -KILL` returns as soon as the signal is
 # QUEUED, not once the group is reaped, and a zombie still answers `kill -0` — so a fixture that
 # kills a group and immediately observes can read `running` off corpses. Every fixture that kills a

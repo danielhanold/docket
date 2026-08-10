@@ -271,4 +271,75 @@ assert "and that run's group really was alive, so the assert above is not vacuou
   'kill -0 -"$blank_pgid" 2>/dev/null'
 reap "$blank_pgid"
 
+# ---- THE OBSERVE TOCTOU RACE, PINNED BY A DETERMINISTIC INTERLEAVING ---------------------
+# The half of the record-outranks-liveness property no earlier assert can reach. "A present record
+# outranks a live group" above pins step 1; NOTHING without a barrier can tell step 1's read apart
+# from step 3's RE-READ, because in every unheld run the two see the same world.
+#
+# The race is real and it is the expensive one: an observer reads the record (absent), the child
+# finishes and the wrapper writes `kind=exit code=0` and exits, and only THEN does the observer
+# probe liveness — and finds the group gone. Without the re-read that observation reports `died` on
+# a run that PASSED, and a call site keyed on `died` relaunches a suite that already went green.
+#
+# Held with a rendezvous, never a sleep: `barrier post-first-record` announces its arrival and then
+# waits to be let go, so the interleaving is constructed rather than raced for.
+RD="$(gate_run --launch --root "$SBX/runs" -- \
+        /bin/sh -c "while [ ! -e '$SBX/race-go' ]; do sleep 0.1; done; exit 0")"
+race_pgid="$(sed -n 's/^pgid=//p' "$RD/launch")"
+BAR="$SBX/observe-barrier"
+( GATE_RUN_TEST_BARRIER=post-first-record GATE_RUN_TEST_BARRIER_FILE="$BAR" \
+    gate_run --observe "$RD" >"$SBX/race-obs.out" 2>/dev/null ) &
+obs_job=$!
+assert "the observer really is held at the rendezvous, or the race below never happened" \
+  'wait_for_file "$BAR.reached"'
+# Read at the instant the observer is held: the child is still blocked on its gate, so the record
+# the observer just looked for provably was NOT there. This is what makes the assert a re-read test
+# and not a first-read test.
+assert "the held observer's FIRST record read found nothing, so the re-read is what decides" \
+  '[ ! -f "$RD/terminal" ]'
+touch "$SBX/race-go"                                  # the child completes...
+assert "the child completed and its verdict landed while the observer was held" \
+  'await_terminal "$RD" && [ "$(cat "$RD/terminal")" = "kind=exit code=0" ]'
+assert "and its group is verified gone, so the observer's probe WILL read dead" \
+  'await_group_gone "$race_pgid"'
+touch "$BAR.release"                                  # ...and only now is the observer let go
+wait "$obs_job" 2>/dev/null || true
+assert "an observer held across completion reports passed, never died" \
+  '[ "$(cat "$SBX/race-obs.out" 2>/dev/null)" = "state=passed" ]'
+
+# ---- THE BARRIER IS ENV-GATED AND INERT BY DEFAULT ----------------------------------------
+# A fixture hook that could engage in production would be a hang site in the one helper whose whole
+# job is to stop a wait from hanging. Both probes below run against a LIVE child, deliberately: a
+# run with a terminal record returns at step 1 and never reaches the call site at all, so it would
+# report a green inertness that proves nothing.
+#
+# Witnessed by the rendezvous file, not by a clock. `<file>.reached` is created only by an ENGAGED
+# barrier and it outlives the process, so its absence is direct evidence the hook did not fire —
+# where a stopwatch only ever says the stall was shorter than some number. The elapsed-seconds
+# assert is kept as the second witness because an engaged barrier stalls for 30s against a bound of
+# 5, a margin no scheduling noise closes; whole seconds, because `date +%s%N` is a GNU extension
+# and a BSD `date` without it would make the arithmetic itself the failure.
+INERT_RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'sleep 30')"
+inert_pgid="$(sed -n 's/^pgid=//p' "$INERT_RD/launch")"
+INERT_BAR="$SBX/inert-barrier"                        # no `.release` is ever created for this path
+
+# The FILE variable alone must not arm anything — only the POINT variable does.
+inert_start=$(date +%s)
+inert_state="$(GATE_RUN_TEST_BARRIER_FILE="$INERT_BAR" gate_run --observe "$INERT_RD" 2>/dev/null)"
+inert_elapsed=$(( $(date +%s) - inert_start ))
+assert "an unarmed barrier leaves --observe reporting its real state" '[ "$inert_state" = "state=running" ]'
+assert "an unarmed barrier never reaches its rendezvous" '[ ! -e "$INERT_BAR.reached" ]'
+assert "an unarmed barrier does not stall the observation" '[ "$inert_elapsed" -lt 5 ]'
+
+# Armed at a DIFFERENT point: the gate matches the point NAME, not the mere presence of the
+# variable — or arming one rendezvous would hold every other call site too.
+mismatch_start=$(date +%s)
+mismatch_state="$(GATE_RUN_TEST_BARRIER=no-such-point GATE_RUN_TEST_BARRIER_FILE="$INERT_BAR" \
+  gate_run --observe "$INERT_RD" 2>/dev/null)"
+mismatch_elapsed=$(( $(date +%s) - mismatch_start ))
+assert "a barrier armed at another point stays inert" '[ "$mismatch_state" = "state=running" ]'
+assert "a barrier armed at another point never reaches its rendezvous" '[ ! -e "$INERT_BAR.reached" ]'
+assert "a barrier armed at another point does not stall" '[ "$mismatch_elapsed" -lt 5 ]'
+reap "$inert_pgid"
+
 exit "$fail"

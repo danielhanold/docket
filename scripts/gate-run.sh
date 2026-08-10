@@ -70,6 +70,38 @@ wedge() {  # $1 = the point this call site names
   while [ "$waited" -lt 600 ]; do sleep 0.1; waited=$(( waited + 1 )); done
 }
 
+# Test-only synchronization point, and a DIFFERENT SHAPE from `wedge` above — the two are siblings
+# on purpose, not an accident of naming, and a third hook should not be added without reading why:
+#
+#   * `wedge` is a ONE-WAY STALL with no counterpart. Its fixtures never release it; they arm it and
+#     then let the launcher's own establishment timeout abandon the run, because what they are
+#     testing is a CRASH WINDOW — what the world looks like when this process never comes back.
+#   * `barrier` is a TWO-WAY RENDEZVOUS. It announces its arrival (`<file>.reached`) so the fixture
+#     knows the process is held at exactly this point and nowhere else, then waits to be let go
+#     (`<file>.release`). That handshake is what makes an INTERLEAVING deterministic instead of a
+#     sleep-tuned guess, and a wedge cannot express it: without the arrival signal the fixture has
+#     to guess when the held process got there.
+#
+# ENV-GATED AND INERT BY DEFAULT, and it is the POINT variable that arms it: with
+# `GATE_RUN_TEST_BARRIER` unset this is a no-op at full speed no matter what else is in the
+# environment, so the hook can never itself become a hang site in production. The match is on the
+# point NAME, so arming one rendezvous cannot silently hold every other call site as well.
+#
+# BOUNDED even when armed. A fixture that forgets to release must fail its own bounded wait and
+# leave a red assert behind, never hang the suite: the ceiling here is deliberately longer than the
+# fixture-side wait in `tests/lib/gate_run_common.sh`'s `wait_for_file`, so the timeout that fires
+# first — and therefore the diagnostic the author reads — is the fixture's, not this one's.
+barrier() {  # $1 = the point this call site names
+  [ "${GATE_RUN_TEST_BARRIER:-}" = "$1" ] || return 0
+  local f="${GATE_RUN_TEST_BARRIER_FILE:?barrier point '$1' armed without GATE_RUN_TEST_BARRIER_FILE}"
+  : >"$f.reached"
+  local waited=0
+  while [ ! -e "$f.release" ] && [ "$waited" -lt 300 ]; do
+    sleep 0.1; waited=$(( waited + 1 ))
+  done
+  return 0
+}
+
 # --- session primitive ladder (resolved at plan time; probed at runtime, never by uname) ---
 # Rung 1: setsid(1) where present -> a genuine new SESSION.
 # Rung 2 (script(1)) was REJECTED at plan time: injected typescript framing + CRLF, and a pty
@@ -422,6 +454,12 @@ observe_state() {  # $1 = run dir
   # 1. TERMINAL RECORD FIRST — it always wins. The child's own verdict outranks any probe of the
   #    group it used to lead, and the wrapper is the only writer of that record.
   if rec="$(classify_record "$rd")"; then printf '%s\n' "$rec"; return 0; fi
+
+  # THE TOCTOU WINDOW, NAMED SO A FIXTURE CAN HOLD IT OPEN. Everything this function does between
+  # the read above and the probe below is speculation about a world that may already have changed;
+  # the re-read at step 3 is the only thing that makes the verdict honest, and nothing can tell the
+  # two reads apart unless a test can stop the observer right here. Inert unless armed.
+  barrier post-first-record
 
   # 2. Liveness — identity-checked (assumption 9), never a bare `kill -0`.
   if group_alive_and_ours "$rd"; then printf 'state=running\n'; return 0; fi
