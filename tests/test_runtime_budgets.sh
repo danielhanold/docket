@@ -26,6 +26,25 @@ EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
 EXPECTED_TOTAL=1660 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1660 STANDS (change 0282 review, finding 9): the two gate-run rows below were
+                    # cut from a `-j 1` reading while the budget is enforced during the PARALLEL
+                    # phase, and the safety argument they cited ("two full-suite runs, never OVER
+                    # BUDGET") predated the tightening, so it bounded nothing about the new numbers.
+                    # The evidence was therefore re-taken where the check actually runs: one full
+                    # parallel suite (scripts/run-tests.sh --timings, 104 files, 7961 asserts,
+                    # wall 201s) measures tests/test_gate_run.sh at 18s against its 20s row and
+                    # tests/test_gate_run_stop.sh at 34s against its 35s row — the launch shard
+                    # having grown the four-spelling unusable-pgid loop and the mid-flight-abort
+                    # fixture this same review added. That run was a LOADED one, not a quiet
+                    # machine: three unrelated files breached, tests/test_sync_agents_runners at
+                    # 201s against a 60s ceiling — so these two readings are a pessimistic sample.
+                    # The rows are KEPT rather than re-sized upward, for the reason the
+                    # harness-gaps entry below already states: a row is a SERIAL claim, and
+                    # parallel-phase contention is what the runner's own comparison factor
+                    # (SLACK_NUM/SLACK_DEN = 5/2) absorbs. Under that factor these rows report OVER
+                    # BUDGET only past 50s and 87s, so the hazard the entry below names — "a ceiling
+                    # set just above a load-sensitive reading manufactures intermittent findings" —
+                    # is not the state either of them is in, and the total does not move.
                     # 1655 -> 1660 (change 0282 review, launch-failure identity blocker): the
                     # RE-CUT case on a single row — tests/test_gate_run.sh 15 -> 20. The review fix
                     # gates `--launch`'s failure-path signal on identity, and the only witness that

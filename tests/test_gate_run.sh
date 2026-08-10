@@ -316,6 +316,60 @@ assert "a record whose exit code is not a number observes as unavailable" \
 assert "a nonexistent run dir observes as unavailable" \
   '[ "$(gate_run --observe "$SBX/no-such-run" 2>/dev/null)" = "state=unavailable" ]'
 
+# ---- A RECORD THAT CANNOT NAME A GROUP IS unavailable, NEVER died --------------------------
+# THE TWO VERBS MUST NOT DISAGREE ABOUT THE SAME BYTES. `--stop` already refuses all four spellings
+# of an unusable recorded pgid as `unavailable` ("names no usable process group") and
+# tests/test_gate_run_stop.sh pins them; the identical record used to fall through `--observe`'s
+# liveness probe to `died cause=vanished` — a verdict about the CHILD read off a record that names
+# nothing, when in fact the probe's first conjunct failed and nothing was asked of anything. The
+# composite died-flow stayed fail-closed only because the `--stop` that follows says `unavailable`,
+# and nothing pinned that.
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'sleep 60')"
+unusable_pgid="$(sed -n 's/^pgid=//p' "$RD/launch")"
+for bogus in "" 0 1 notanumber; do
+  sed -i.bak "s/^pgid=.*/pgid=$bogus/" "$RD/launch"
+  unusable_out="$(gate_run --observe "$RD" 2>"$SBX/unusable.err")"; unusable_rc=$?
+  assert "a recorded pgid of '${bogus:-<empty>}' observes as unavailable, never died" \
+    '[ "$unusable_out" = "state=unavailable" ]'
+  assert "and '${bogus:-<empty>}' exits non-zero, which is what unavailable means" \
+    '[ "$unusable_rc" != "0" ]'
+  # Keyed on the sub-reason, in the SAME words `--stop` uses: the token alone cannot tell this
+  # refusal from a malformed `terminal`, and the point of the assert is that the record — not the
+  # child — is what could not be read.
+  assert "and the refusal names the unusable record, in --stop's own words" \
+    'grep -qF -- "names no usable process group" "$SBX/unusable.err"'
+done
+# ...AND A REAL VERDICT STILL WINS OVER THE CORRUPT RECORD, which is where `--observe` parts company
+# with `--stop`: the read order puts the child's own verdict FIRST, so a run that finished green and
+# then had its `launch` mangled keeps `passed` instead of losing it to the refusal above.
+printf 'kind=exit code=0\n' >"$RD/terminal"
+assert "a present terminal record outranks a launch record that names no usable group" \
+  '[ "$(gate_run --observe "$RD" 2>/dev/null)" = "state=passed" ]'
+rm -f "$RD/terminal"
+assert "and none of those observations touched the real group — observe signals nothing" \
+  'kill -0 -"$unusable_pgid" 2>/dev/null'
+reap "$unusable_pgid"
+
+# ---- AN observe_state THAT DIES MID-FLIGHT STILL EMITS A PROTOCOL LINE ----------------------
+# The hardening `do_stop` has and `do_observe` did not. stdout is a protocol exactly one line wide,
+# so a caller parsing it must never be handed NOTHING: under `set -e` an aborted `observe_state`
+# used to take the whole script down with an empty stdout, and a caller reading that empty line
+# cannot tell "no verdict" from any other state. The abort is induced through the barrier hook's own
+# `:?` — armed at a point the observer really reaches, with the file variable withheld — because it
+# is a real mid-flight death of the function rather than a mock of one.
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'sleep 30')"
+abort_pgid="$(sed -n 's/^pgid=//p' "$RD/launch")"
+abort_out="$(GATE_RUN_TEST_BARRIER=post-first-record gate_run --observe "$RD" 2>"$SBX/abort.err")"
+abort_rc=$?
+assert "an observe_state that aborts mid-flight still reports a state line" \
+  '[ "$abort_out" = "state=unavailable" ]'
+assert "and it exits non-zero, matching the line it reported" '[ "$abort_rc" != "0" ]'
+assert "the fixture really did abort the function, or the assert above is vacuous" \
+  'grep -qF -- "GATE_RUN_TEST_BARRIER_FILE" "$SBX/abort.err"'
+assert "and that run was live throughout, so the fixture is not observing a corpse" \
+  'kill -0 -"$abort_pgid" 2>/dev/null'
+reap "$abort_pgid"
+
 # ---- PROPERTY 2, THE IDENTITY GUARD: a recycled pgid must never read alive ---------------
 RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'sleep 60')"
 recycled_pgid="$(sed -n 's/^pgid=//p' "$RD/launch")"
