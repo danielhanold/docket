@@ -2,7 +2,7 @@
 id: 286
 slug: gate-run-observe-poll-loops-strip-state-prefix
 title: 'Caller-authored gate-run --observe poll loops strip the state= prefix and never terminate'
-status: in-progress
+status: implemented
 priority: high
 type: fix
 created: 2026-08-10
@@ -13,13 +13,13 @@ discovered_from: []
 adrs: []
 spec: docs/superpowers/specs/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-design.md
 plan: docs/superpowers/plans/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix.md
-results:
+results: docs/results/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-results.md
 trivial: false
 auto_groomable: true
 branch: feat/gate-run-observe-poll-loops-strip-state-prefix
-pr:
+pr: https://github.com/danielhanold/docket/pull/192
 blocked_by:
-claimed_at: 2026-08-10T21:34:53Z
+claimed_at: 2026-08-10T22:27:21Z
 reconciled: true
 ---
 
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-design.md) |
 | Plan | [2026-08-10-gate-run-observe-poll-loops-strip-state-prefix.md](https://github.com/danielhanold/docket/blob/feat/gate-run-observe-poll-loops-strip-state-prefix/docs/superpowers/plans/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix.md) |
+| Results | [2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-results.md](https://github.com/danielhanold/docket/blob/feat/gate-run-observe-poll-loops-strip-state-prefix/docs/results/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-results.md) |
+| PR | [#192](https://github.com/danielhanold/docket/pull/192) |
 <!-- docket:artifacts:end -->
 
 ## Why
