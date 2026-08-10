@@ -29,8 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-design.md) |
-| Plan | [2026-08-10-gate-run-observe-poll-loops-strip-state-prefix.md](https://github.com/danielhanold/docket/blob/feat/gate-run-observe-poll-loops-strip-state-prefix/docs/superpowers/plans/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix.md) |
-| Results | [2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-results.md](https://github.com/danielhanold/docket/blob/feat/gate-run-observe-poll-loops-strip-state-prefix/docs/results/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-results.md) |
+| Plan | [2026-08-10-gate-run-observe-poll-loops-strip-state-prefix.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix.md) |
+| Results | [2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-results.md) |
 | PR | [#192](https://github.com/danielhanold/docket/pull/192) |
 <!-- docket:artifacts:end -->
 

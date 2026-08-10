@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0286 — Caller-authored gate-run --observe poll loops strip the state= prefix and never terminate](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0286-gate-run-observe-poll-loops-strip-state-prefix.md)**
+> ↩ **[Change 0286 — Caller-authored gate-run --observe poll loops strip the state= prefix and never terminate](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-10-0286-gate-run-observe-poll-loops-strip-state-prefix.md)**
 <!-- docket:backlink:end -->
 
 # gate-run --observe caller poll loops — teach the canonical loop, keyed on the printed form
