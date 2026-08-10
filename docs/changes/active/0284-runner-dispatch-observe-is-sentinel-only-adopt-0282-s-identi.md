@@ -3,7 +3,7 @@ id: 284
 slug: runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi
 title: 'runner-dispatch --observe is sentinel-only: adopt 0282''s identity-checked liveness probe'
 status: proposed
-priority: medium
+priority: high
 type: fix
 created: 2026-08-10
 updated: 2026-08-10

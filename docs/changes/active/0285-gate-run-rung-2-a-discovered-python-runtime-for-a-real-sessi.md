@@ -3,7 +3,7 @@ id: 285
 slug: gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi
 title: 'gate-run rung 2 — a discovered Python runtime for a real session and an exact child status'
 status: proposed
-priority: medium
+priority: high
 type: feat
 created: 2026-08-10
 updated: 2026-08-10
