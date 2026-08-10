@@ -1,12 +1,6 @@
 # Backlog
 
-**286 changes** — 🟢 1 in progress · 🟡 36 proposed · ⚪ 4 deferred · ✅ 169 done · 🗑️ 76 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0270](active/0270-fence-runner-config-locality-at-the-main-worktree.md) | Fence runner-config locality at the main worktree (regression test + contract correction) | `medium` | `chore` | [spec](../superpowers/specs/2026-08-09-fence-runner-config-locality-at-the-main-worktree-design.md) | `feat/fence-runner-config-locality-at-the-main-worktree` |
+**286 changes** — 🟡 36 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 169 done · 🗑️ 76 killed
 
 ## 🟡 Proposed (36)
 
@@ -57,6 +51,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0270](active/0270-fence-runner-config-locality-at-the-main-worktree.md) | Fence runner-config locality at the main worktree (regression test + contract correction) | `medium` | `chore` | [#193](https://github.com/danielhanold/docket/pull/193) |  |
 
 ```mermaid
 graph TD
