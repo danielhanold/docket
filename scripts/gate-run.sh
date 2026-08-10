@@ -61,6 +61,16 @@ atomic_write() {  # atomic_write <dest> <content>   — temp BESIDE dest, then m
   mv -f "$tmp" "$dest"
 }
 
+now_utc() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+
+# Flatten free text destined for a KEY=value record. Every reader is a line-oriented
+# `sed -n 's/^key=//p'`, so an embedded newline would forge a field — the same reason `do_wrap`
+# flattens the command line before recording it.
+one_line() {  # $1 = arbitrary text
+  local s="${1//$'\n'/ }"
+  printf '%s' "${s//$'\r'/ }"
+}
+
 # Test-only crash-window injector. ENV-GATED AND INERT BY DEFAULT: unset means a no-op at full
 # speed, so this hook can never itself become a hang site in production. Bounded even when armed —
 # a fixture that forgot to release must fail the run, not wedge the machine.
@@ -370,6 +380,30 @@ recorded_identity() {  # $1 = run dir -> the recorded token, empty when neither 
   printf '%s' "$tok"
 }
 
+# The recorded pgid, refused unless it is syntactically usable as one. This is the floor under every
+# probe and every signal in this file, and it is the SIGNALLING case that makes it load-bearing:
+# `kill … -0` means THIS caller's own process group and `kill … -1` means every process the user can
+# signal, so neither may ever be treated as a recorded run's group — as a probe each answers for a
+# bystander, and as a signal each takes the caller (or the machine) down with it.
+recorded_pgid() {  # $1 = run dir -> a usable pgid, empty when the record cannot name one
+  local pgid
+  pgid="$(numeric_or_empty "$(record_field "$1/launch" pgid)")"
+  { [ -n "$pgid" ] && [ "$pgid" -gt 1 ]; } || return 0
+  printf '%s' "$pgid"
+}
+
+# IDENTITY, ON ITS OWN — the one rule, shared by every caller that needs it, so the observe side and
+# the signal side can never drift into two different notions of "ours". Fails CLOSED on either token
+# being empty: nothing to compare is not agreement.
+identity_matches() {  # $1 = run dir, $2 = pgid
+  local want have
+  want="$(recorded_identity "$1")"
+  [ -n "$want" ] || return 1
+  have="$(identity_of "$2")"
+  [ -n "$have" ] || return 1
+  [ "$have" = "$want" ]
+}
+
 # LIVENESS, IDENTITY-CHECKED — never a bare `kill -0` (spec assumption 9). A pgid answers for
 # whoever holds it NOW, and pgids are recycled; the run that recorded this one may be long dead and
 # a stranger may lead the group today. The conjunction is: the group exists AND the process leading
@@ -378,18 +412,11 @@ recorded_identity() {  # $1 = run dir -> the recorded token, empty when neither 
 # `died` is one bounded relaunch, while a false `running` waits out the caller's whole budget on a
 # run that is not there.
 group_alive_and_ours() {  # $1 = run dir
-  local rd="$1" pgid want have
-  pgid="$(numeric_or_empty "$(record_field "$rd/launch" pgid)")"
+  local rd="$1" pgid
+  pgid="$(recorded_pgid "$rd")"
   [ -n "$pgid" ] || return 1
-  # `kill -0 -0` means THIS caller's own group and `kill -0 -1` means every process the user can
-  # signal, so neither can ever be treated as a recorded run's group.
-  [ "$pgid" -gt 1 ] || return 1
   kill -0 -"$pgid" 2>/dev/null || return 1
-  want="$(recorded_identity "$rd")"
-  [ -n "$want" ] || return 1
-  have="$(identity_of "$pgid")"
-  [ -n "$have" ] || return 1
-  [ "$have" = "$want" ]
+  identity_matches "$rd" "$pgid"
 }
 
 # Map the terminal record to a state line. Returns NON-ZERO when there is no record at all — that
@@ -499,10 +526,172 @@ do_observe() {
   return 0
 }
 
+# ==================================================================================
+# --stop
+# ==================================================================================
+
+# SEVEN STEPS, AND TWO PROPERTIES HOLD ACROSS ALL OF THEM.
+#
+#   THE RECORD OUTRANKS THE STOP — steps 1, 3 and 6. Symmetric to `observe_state`'s re-read and for
+#   the same reason: atomicity prevents partial reads, not stale ones. A stop entered off a stale
+#   "no record" read kills a run that had ALREADY SUCCEEDED and then reports it as terminated.
+#
+#   IDENTITY IS CHECKED BEFORE ANYTHING IS SIGNALLED — steps 2 and 4. Step 4's is the one whose
+#   alive result gates a `TERM`, so it re-checks on the SAME SIDE OF THE FENCE as the kill; a group
+#   recycled between step 2 and step 4 must never take the signal. The single bare `kill -0` in this
+#   whole script is step 1's orphan probe, where the leader is known dead — so no identity match is
+#   possible — and an alive result can only move the outcome FAIL-CLOSED, to `unavailable`.
+#
+# WHAT IS WRITTEN, AND WHEN. `stop-intent` immediately BEFORE the signal, claiming only that a
+# signal is imminent. `stopped` only AFTER termination is verified AND only when the group was
+# actually signalled — a marker written earlier lets a half-dead stop leave a false claim of
+# termination that a later idempotent call no-ops on while the child runs, and a marker written
+# without a signal mints a `stopped` for a run that vanished on its own, which makes the
+# vanished-death relaunch leg unreachable. `terminal` is written by NOTHING here, ever: synthesizing
+# one would report a run that never finished as one that did.
+#
+# Prints exactly one report token and always returns 0 — `do_stop` maps the token to the exit
+# status, so the two can never disagree.
+stop_run() {  # $1 = run dir, $2 = reason (already flattened)
+  local rd="$1" reason="$2" pgid mine
+
+  { [ -d "$rd" ] && [ -r "$rd/launch" ]; } || {
+    die "rundir-unreadable: $rd"
+    printf 'unavailable\n'; return 0
+  }
+
+  # SIGNALLING PRECONDITIONS. `already-terminal` is a claim about the run, and a stop that cannot
+  # even name the group has no grounds to make one — so an unusable record is `unavailable`.
+  pgid="$(recorded_pgid "$rd")"
+  if [ -z "$pgid" ]; then
+    die "ownership-unprovable: $rd/launch names no usable process group"
+    printf 'unavailable\n'; return 0
+  fi
+  # The same refusal `launch_failure_stop` makes, for the same reason: a group-directed signal aimed
+  # at our own group takes the caller down with it. The identity check below is the real guard —
+  # this is the syntactic floor beneath it, and it is cheap.
+  mine="$(my_pgid)"
+  if [ -n "$mine" ] && [ "$pgid" = "$mine" ]; then
+    die "ownership-unprovable: refusing to signal process group $pgid — it is this process's own group"
+    printf 'unavailable\n'; return 0
+  fi
+
+  # 1. RECORD PRESENT ⇒ PROBE the recorded group before reporting (spec assumption 24). The leader
+  #    is dead, so ownership of any survivor is unprovable — but DETECTION is possible even where
+  #    safe signalling is not, and relaunching over live orphans is the 0231 double-run state.
+  #    Fail-closed by construction: a recycled pgid reads here as live orphans and aborts.
+  if [ -f "$rd/terminal" ]; then
+    if kill -0 -"$pgid" 2>/dev/null; then
+      die "orphans-detected: the recorded group $pgid still has live members under a terminal record; ownership is unprovable so nothing was signalled (run dir: $rd)"
+      printf 'unavailable\n'; return 0
+    fi
+    printf 'already-terminal\n'; return 0
+  fi
+
+  # 2. Validate identity. An ABSENT group is NOT an identity failure — `unavailable` requires a
+  #    group that EXISTS and cannot be proven ours — so absence falls through to step 4's branch.
+  if kill -0 -"$pgid" 2>/dev/null && ! identity_matches "$rd" "$pgid"; then
+    die "ownership-unprovable: process group $pgid is alive but is not the group this run recorded (run dir: $rd)"
+    printf 'unavailable\n'; return 0
+  fi
+
+  # 3. Re-read the record IMMEDIATELY before signalling — nothing but the intent write and the kill
+  #    separate this test from the act.
+  if [ -f "$rd/terminal" ]; then printf 'already-terminal\n'; return 0; fi
+  barrier pre-term
+
+  # 4. Probe with the assumption 9 conjuncts, never a bare probe: this is the one probe whose alive
+  #    result gates a signal.
+  if ! kill -0 -"$pgid" 2>/dev/null; then
+    # NOTHING IS WRITTEN HERE. No signal was sent, so there is nothing to claim — and a marker would
+    # make the vanished death read `stopped`, which no caller ever relaunches. (The record was
+    # re-read at step 3 a moment ago and the answer is the same token either way.)
+    printf 'already-terminal\n'; return 0
+  fi
+  if ! identity_matches "$rd" "$pgid"; then
+    die "ownership-unprovable: process group $pgid was recycled inside the stop window; nothing was signalled (run dir: $rd)"
+    printf 'unavailable\n'; return 0
+  fi
+  atomic_write "$rd/stop-intent" "intent_at=$(now_utc) reason=$reason"
+  kill -TERM -"$pgid" 2>/dev/null || true
+  local waited=0
+  while kill -0 -"$pgid" 2>/dev/null && [ "$waited" -lt 20 ]; do sleep 0.5; waited=$(( waited + 1 )); done
+  # THE ESCALATION DELIBERATELY DOES NOT RE-CHECK IDENTITY, and that is not an oversight. Ownership
+  # was proven at step 4 and this group has already taken our TERM; the survivors are what the
+  # escalation exists to reap, and by then the LEADER is usually the first thing gone — so requiring
+  # a live matching leader here would refuse to finish the job on exactly the run that needed it.
+  # A recycle in this window would additionally require the pgid to be freed and reassigned to a new
+  # group leader between two probes microseconds apart, which POSIX pgid-reuse rules forbid while
+  # any member of the group still exists.
+  if kill -0 -"$pgid" 2>/dev/null; then kill -KILL -"$pgid" 2>/dev/null || true; fi
+
+  # 5. VERIFY the group is gone. A signal returns as soon as it is queued, not once the group is
+  #    reaped, and nothing may be claimed off a queued signal.
+  local v=0
+  while kill -0 -"$pgid" 2>/dev/null && [ "$v" -lt 20 ]; do sleep 0.25; v=$(( v + 1 )); done
+  if kill -0 -"$pgid" 2>/dev/null; then
+    die "termination-unverified: process group $pgid survived TERM and KILL; no stop marker was written (run dir: $rd)"
+    printf 'unavailable\n'; return 0
+  fi
+
+  # 6. Re-read AFTER the kill and BEFORE any marker is written.
+  barrier post-kill-pre-annotate
+  if [ -f "$rd/terminal" ]; then
+    # A `kind=signal` record found here is the step-4 TERM: the wrapper ignores TERM long enough to
+    # reap the child and record the death. ANNOTATE it — without the marker a deliberately cancelled
+    # run reads `died` on every later observation and an idempotent site relaunches a cancellation.
+    # A `kind=exit` record is the child's OWN verdict, reached despite the signal, and gets nothing:
+    # the run finished, and a stop marker over it would be a claim we did not earn.
+    if grep -q '^kind=signal' "$rd/terminal"; then
+      atomic_write "$rd/stopped" "stopped_at=$(now_utc) reason=$reason"
+    fi
+    printf 'already-terminal\n'; return 0
+  fi
+
+  # 7. Only now — the group HAVING ACTUALLY BEEN SIGNALLED and verified gone, and no record of the
+  #    child's own having appeared in the meantime.
+  atomic_write "$rd/stopped" "stopped_at=$(now_utc) reason=$reason"
+  printf 'stopped\n'; return 0
+}
+
+do_stop() {
+  local rd="" reason="" token
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      # `shift 2` FAILS rather than truncating when the flag is the last argument, so the
+      # value-taking flag checks its operand is present before consuming it.
+      --reason) [ $# -ge 2 ] || { die "stop: --reason needs a value"; report "unavailable"; return 1; }
+                reason="$2"; shift 2 ;;
+      --)       shift ;;
+      -*)       die "stop: unknown argument: $1"; report "unavailable"; return 1 ;;
+      *)        [ -z "$rd" ] || { die "stop: expected exactly one run dir"; report "unavailable"; return 1; }
+                rd="$1"; shift ;;
+    esac
+  done
+  [ -n "$rd" ] || { die "stop: missing run dir"; report "unavailable"; return 1; }
+
+  token="$(stop_run "$rd" "$(one_line "$reason")")" || token=""
+  # stdout is a protocol exactly one line wide, and the token vocabulary is CLOSED. Normalizing here
+  # rather than at each branch makes both structural: a `stop_run` that died mid-flight cannot leave
+  # the caller an empty line or a stray second one to parse.
+  token="${token%%$'\n'*}"
+  case "$token" in
+    stopped|already-terminal|unavailable) ;;
+    *) die "stop: no report token was produced; reporting unavailable (run dir: $rd)"; token=unavailable ;;
+  esac
+  report "$token"
+  # Callers key on the report line, never on this. Documented in scripts/gate-run.md § Exit codes:
+  # non-zero says only "no outcome could be determined", which is `unavailable` and nothing else —
+  # the same mapping `do_observe` uses for `state=unavailable`.
+  case "$token" in unavailable) return 1 ;; esac
+  return 0
+}
+
 usage() {
   printf '%s\n' \
     'usage: gate-run.sh --launch [--root <dir>] [--run-name <name>] -- <command…>' \
     '       gate-run.sh --observe <run-dir>' \
+    '       gate-run.sh --stop <run-dir> [--reason <text>]' \
     'Contract: scripts/gate-run.md' >&2
 }
 
@@ -511,6 +700,7 @@ VERB="${1:-}"
 case "$VERB" in
   --launch)  do_launch "$@" ;;
   --observe) do_observe "$@" ;;
+  --stop)    do_stop "$@" ;;
   --__wrap)  do_wrap "$@" ;;
   -h|--help) usage; exit 0 ;;
   *)         die "unknown verb: ${VERB:-<none>}"; usage; exit 2 ;;
