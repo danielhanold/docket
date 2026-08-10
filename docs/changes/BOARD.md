@@ -43,7 +43,7 @@
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | build-ready |
 | [0284](active/0284-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi.md) | runner-dispatch --observe is sentinel-only: adopt 0282's identity-checked liveness probe | `high` | `fix` | build-ready |
 | [0285](active/0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | `high` | `feat` | build-ready |
-| [0286](active/0286-gate-run-observe-poll-loops-strip-state-prefix.md) | Caller-authored gate-run --observe poll loops strip the state= prefix and never terminate | `high` | `fix` | needs-brainstorm |
+| [0286](active/0286-gate-run-observe-poll-loops-strip-state-prefix.md) | Caller-authored gate-run --observe poll loops strip the state= prefix and never terminate | `high` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
 
