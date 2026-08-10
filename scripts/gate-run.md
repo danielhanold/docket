@@ -123,12 +123,16 @@ merely defensive.
    `identity` to both exist and be non-empty, and then verifies the recorded pgid is **not the
    launcher's own group** — a handle naming the caller's group would be reaped by the caller's own
    teardown. Only then does it print the run-dir path.
-6. **The failure path is a bounded stop.** On timeout or a failed separation check: with a record
-   present the recorded group gets `TERM`, a bounded grace, then `KILL`; with no record, only the
-   direct spawn child is signalled by pid and the group is merely probed — a group kill there would
-   quietly clean up after a violation of the ordering rule instead of leaving it observable.
-   Anything left unverified is reported **loudly on stderr with the run-dir path for manual
-   disposal**. Either way the token is `launch-failed`.
+6. **The failure path is a bounded stop, and every signal on it is identity-gated.** On timeout or
+   a failed separation check: with a record naming a usable group **whose leader's identity still
+   matches the one recorded**, that group gets `TERM`, a bounded grace, then `KILL`; with no usable
+   record, only the direct spawn child is signalled — by pid, and never once its own start-time
+   token has been seen to *differ* from the one captured when it was forked — and the group is
+   merely probed, because a group kill there would quietly clean up after a violation of the
+   ordering rule instead of leaving it observable. **Where ownership cannot be proven, nothing is
+   signalled**; the survivor is detected rather than killed, which is the same posture `--stop`
+   step 1 takes. Anything left unverified is reported **loudly on stderr with the run-dir path for
+   manual disposal**. Either way the token is `launch-failed`.
 
 ### The terminal record, and the wrapper's TERM disposition
 
@@ -197,9 +201,11 @@ Seven steps, and two properties hold across all of them.
 **The record outranks the stop** — steps 1, 3 and 6. A stop entered off a stale "no record" read
 kills a run that had **already succeeded** and then reports it as terminated.
 
-**Identity is checked before anything is signalled** — steps 2 and 4. The single bare `kill -0` in
-the whole script is step 1's orphan probe, where the leader is known dead (so no identity match is
-possible) and an alive result can only move the outcome **fail-closed**.
+**Identity is checked before anything is signalled** — steps 2 and 4. The one bare `kill -0` here
+that decides anything *before* a signal is step 1's orphan probe, where the leader is known dead (so
+no identity match is possible) and an alive result can only move the outcome **fail-closed**; the
+probes that follow the signal verify a teardown whose ownership step 4 already proved. *Invariants*
+states the rule by fail direction rather than by site.
 
 1. **Record present ⇒ probe the recorded group before reporting.** The leader is dead, so ownership
    of any survivor is unprovable — but *detection* is possible where safe signalling is not, and
@@ -364,6 +370,30 @@ cost is one `[ -f ]` and the shape it protects — read the record as late as po
 its absence — is the same shape steps 1 and 6 are built on. Stated honestly rather than claimed as
 covered: the suite does not have a test for it, and it is not testable through the shipped surface.
 
+**6. A launch-failure group whose leader is already dead is detected, not signalled.** The failure
+path refuses to `TERM` a recorded group it cannot prove is still led by the process this launch
+recorded, and reports the survivor loudly instead. The residual is the leg that trade gives up: a
+group that really is ours, whose leader died while a member lived on, is left for manual disposal
+rather than reaped. The trade is chosen rather than incidental, on two grounds. **The ordering rule
+bounds what can be lost:** that branch is reachable only with `launch` present and `identity`
+absent, and the user's command is not forked until after `identity` lands — so the wrapper is the
+only member the group is supposed to have, and a live member under a dead leader is likelier a
+recycled pgid than an orphan of ours. **And the two errors are not symmetric:** an unaddressable
+child is visible in a report that names its run dir, while a group-directed signal aimed at a name
+we cannot prove is still ours is the unrecoverable one — residual 2's reasoning, applied to the one
+path that has no caller left to complain to.
+
+The pid-directed leg carries the same token — a background child is reaped into Bash's jobs table by
+its `SIGCHLD` handler well before the explicit `wait`, so `$!` names a **reclaimable** pid, not a
+held one — but it reads that token the other way round, refusing only on **positive disproof**. The
+asymmetry is the point: the group's name is read off disk and can be arbitrarily stale, while the
+pid came from `$!` in the launcher itself microseconds earlier, so an absent baseline token means
+the capture's own `ps` failed rather than that the pid went stale. Refusing on that absence would
+leave a wedged wrapper alive to wake up and fork the user's command, which is the ordering rule
+broken by the very path that enforces it. For the same reason nothing is **waited on** after a
+refusal: a `wait` on a live process this path declined to signal would block it for that process's
+whole lifetime.
+
 ## Invariants
 
 - **stdout is the protocol and it is exactly one line wide.** Every verb prints one report line and
@@ -372,13 +402,26 @@ covered: the suite does not have a test for it, and it is not testable through t
 - **The wrapper is the only writer of `terminal`, and it writes it only on the command's exit.** No
   verb ever synthesizes one. This is the invariant every re-read in `--observe` and `--stop` rests
   on: a record visible after a liveness probe was necessarily written by a child that completed.
-- **No liveness probe is a bare `kill -0`, with exactly one scoped exception** — `--stop` step 1's
-  orphan probe, where the leader is known dead so no identity match is possible and an alive result
-  can only move the outcome fail-closed. Everywhere else liveness is the conjunction of group
-  existence and a matching identity token, and every leg fails closed.
-- **A recorded pgid of `0` or `1` is refused, and so is the caller's own group.** `kill … -0` means
-  the caller's own process group and `kill … -1` means everything the user can signal; as a probe
-  each answers for a bystander, and as a signal each takes the caller or the machine down.
+- **No probe whose answer could read a dead run as `running`, or could aim a signal at a group not
+  proven ours, is a bare `kill -0`.** The rule is **about fail direction, not a syscall ban** (spec
+  assumption 9, scoped at critic round 5), so it is stated by direction rather than as a count of
+  sites — a count is what goes stale the first time a site is added, and an invariant that overstates
+  is the one a later reader trusts instead of reading the code. Identity is checked wherever a match
+  is possible and the answer decides something: `--observe`'s `running` classification, `--stop`'s
+  step-2 ownership check and its step-4 pre-signal probe, and `--launch`'s failure-path group
+  signal. A bare probe is admissible in exactly two shapes, and both can only move the outcome
+  fail-closed:
+  - **Detection where the leader is known dead**, so no match is possible and nothing is signalled
+    off the answer — `--stop` step 1's orphan probe (`unavailable`) and `--launch`'s failure-path
+    leak check (the loud unverified report).
+  - **Verification after a signal we already earned the right to send** — the post-`TERM` grace, the
+    `KILL` escalation, and the gone-check that follows, whose deliberate non-check is stated in full
+    under `--stop` step 4.
+- **A recorded pgid of `0` or `1` is refused, and so is the caller's own group — at every site that
+  probes or signals one.** `kill … -0` means the caller's own process group and `kill … -1` means
+  everything the user can signal; as a probe each answers for a bystander, and as a signal each takes
+  the caller or the machine down. Both the `--stop` path and the `--launch` failure path read the
+  recorded pgid through the same floor, so neither can grow its own weaker reading of the record.
 - **The command is never started before its record is durable** (the ordering rule), and the handle
   is never returned before establishment completes (the handshake). A run that got its address but
   never finished establishing is reported `launch-failed` and stopped, never handed back live.
