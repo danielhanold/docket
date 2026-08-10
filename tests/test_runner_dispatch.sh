@@ -217,6 +217,46 @@ assert "0206: outside-repo rejection says worktree of this repository" \
 rm -rf "$OUTSIDE"
 rm -rf "$SBX"
 
+# ---- 0270: config locality — a MAIN-worktree grant survives a --worktree dispatch ----
+# Provenance (opencode): filed as "a machine-local `runners.opencode.permissions: auto-approve`
+# grant is invisible to a build-* delegation". It never was. The facade resolves runners.<name>.*
+# at docket_main_worktree() and anchors the RUN at --worktree; the two trees are deliberately
+# DECOUPLED, and the decoupling is load-bearing because .docket.local.yml is gitignored — a
+# feature worktree carries no copy of it, so an anchor-relative read would drop every
+# machine-local grant on exactly the build-* dispatches that require --worktree.
+# Tested here, at the FACADE, because the config loop is runner-agnostic (it knows no runner's key
+# names); tests/test_runner_opencode.sh drives the adapter in isolation and never runs the facade.
+#
+# The fixture MUST be a real linked worktree. With a bare `mkdir -p` subdirectory,
+# docket_main_worktree "$ANCHOR" trivially returns $SBX because the subdirectory IS part of the
+# main worktree, and the resolution under test never happens — every assert below goes vacuous.
+make_fixture
+git -C "$SBX" worktree add -q -b featslug "$SBX/.worktrees/featslug" >/dev/null 2>&1
+WT="$SBX/.worktrees/featslug"
+assert "0270: fixture is a REAL linked worktree, not a subdirectory" '[ -f "$WT/.git" ]'
+
+# Mirror production: the machine-local layer is gitignored, and the grant is written to the main
+# worktree ONLY — after the worktree exists, so it can never be copied into it. The .gitignore
+# line is documentation inside the fixture: it shows WHY a feature worktree lacks the file.
+printf '.docket.local.yml\n' > "$SBX/.gitignore"
+printf 'runners:\n  codex:\n    sandbox: danger-full-access\n' > "$SBX/.docket.local.yml"
+assert "0270: the grant exists ONLY in the main worktree" '[ ! -e "$WT/.docket.local.yml" ]'
+
+# cwd INSIDE the linked worktree is the production shape (a build worker dispatches from its own
+# tree) and is the condition under which a cwd-derived config root would read the wrong tree.
+: > "$LOG"
+( cd "$WT" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status \
+    --worktree "$WT" >/dev/null 2>&1 )
+argv="$(cat "$LOG")"
+assert "0270: main-worktree grant reaches the child across a --worktree dispatch" \
+  'grep -qxF -- "danger-full-access" <<<"$argv"'
+# Anti-vacuity pair. Without these, a regression that anchored the config loop at $ANCHOR *and*
+# let the anchor fall back to the main worktree would leave the assert above green.
+assert "0270: the anchor handed to the adapter IS the linked worktree" \
+  'grep -qxF -- "$WT" <<<"$argv"'
+assert "0270: the anchor is NOT the main worktree" '! grep -qxF -- "$SBX" <<<"$argv"'
+rm -rf "$SBX"
+
 # ---- facade: runners.<name> config resolution across layers ------------------------
 make_fixture
 printf 'runners:\n  codex:\n    sandbox: danger-full-access\n    network: false\n' > "$SBX/.docket.yml"
