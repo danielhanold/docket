@@ -8,10 +8,10 @@ type: fix
 created: 2026-08-10
 updated: 2026-08-10
 depends_on: []
-related: [282, 284]
+related: [282, 284, 277]
 discovered_from: []
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-10-gate-run-observe-poll-loops-strip-state-prefix-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -62,26 +65,38 @@ halt / abort of an otherwise successful build. Measured instance: poll killed af
 already passed; build continued only because a later direct `--observe` was issued outside the
 broken loop.
 
-## What
+## What changes
 
-Needs brainstorm. Candidate directions (not settled):
+Settled design (2026-08-10 auto-groom; detail in the linked spec). Teaching fix, no behavior
+change to `gate-run.sh`:
 
-- Ship a copy-paste-correct poll example in `gate-run.md` / `docket-build` gate posture that matches
-  on `state=passed*` (etc.), not bare tokens — and make that the taught shape agents are told to
-  reuse rather than invent.
-- Add a `gate-run --wait` (or equivalent) that owns the budgeted poll internally, so agents never
-  author the loop — tension with the current invariant "the helper never polls for the caller."
-- Harden skill / shim teaching so invented loops that strip `state=` are an explicit anti-pattern.
+- **Canonical poll loop in `gate-run.md`** — a new *The caller's loop* subsection with one
+  copy-paste-correct example: capture-then-match with the exit status neutralized (`|| true`,
+  because `--observe` exits 1 on `unavailable` and callers key on the report line, never the exit
+  code), `case` arms prefix-matched on the full printed form (`state=passed*`, `state=died*`, …),
+  only `state=running*` retried, a fail-closed unknown-line arm (treat as `unavailable`, stop
+  polling), bounded by `GATE_OBSERVATION_BUDGET` — plus a one-line anti-pattern note: never
+  re-tokenize the report line and match bare state names.
+- **`skills/docket-build/SKILL.md` § Gate execution posture** — one sentence: reuse the contract's
+  canonical loop verbatim and key each arm on the full `state=<name>` printed form; a bare-token
+  loop never terminates.
+- **Guards** — the doc example is executable surface: a test extracts the fenced loop and proves,
+  against stubbed observe outputs, correct disposition on every terminal state and retry only on
+  `running`. Two mutation keys: bare-`passed` pattern reddens as a wrong terminal disposition;
+  a retry-`*)` arm (the observed defect) reddens on non-termination under a fixture-local budget.
+  A prose sentinel binds the SKILL.md sentence to its `state=` claim.
 
 ## Out of scope
 
 - Changing the six-state vocabulary or the `state=` print format itself (callers and tests already
   key on it).
-- `runner-dispatch --observe` liveness (0284).
+- A helper-owned `--wait` verb — rejected for now: "the helper never polls for the caller" is a
+  stated contract invariant and reversing it is a human/ADR-level decision (spec assumption 1).
+- `runner-dispatch --observe` liveness and the delegation loop (0284, 0277).
 - The gate's own record / liveness predicate (0282).
+- Budget values (0273).
 
 ## Open questions
 
-- Prefer teaching + examples, a helper-owned `--wait`, or both?
-- If `--wait` lands, does it replace or sit beside the "caller owns the loop" contract in
-  `gate-run.md`?
+None — resolved at groom: teaching + canonical example, not `--wait` (spec assumption 1); the
+"caller owns the loop" contract stands unchanged.
