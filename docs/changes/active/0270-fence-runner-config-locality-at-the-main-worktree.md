@@ -2,7 +2,7 @@
 id: 270
 slug: fence-runner-config-locality-at-the-main-worktree
 title: 'Fence runner-config locality at the main worktree (regression test + contract correction)'
-status: in-progress
+status: implemented
 priority: medium
 type: chore
 created: 2026-08-08
@@ -13,12 +13,12 @@ discovered_from: [269]
 adrs: []
 spec: docs/superpowers/specs/2026-08-09-fence-runner-config-locality-at-the-main-worktree-design.md
 plan: docs/superpowers/plans/2026-08-10-fence-runner-config-locality-at-the-main-worktree.md
-results:
+results: docs/results/2026-08-10-fence-runner-config-locality-at-the-main-worktree-results.md
 trivial: false
 auto_groomable: false
 branch: feat/fence-runner-config-locality-at-the-main-worktree
-claimed_at: 2026-08-10T22:44:24Z
-pr:
+claimed_at: 2026-08-10T23:24:00Z
+pr: https://github.com/danielhanold/docket/pull/193
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-09-fence-runner-config-locality-at-the-main-worktree-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-fence-runner-config-locality-at-the-main-worktree-design.md) |
 | Plan | [2026-08-10-fence-runner-config-locality-at-the-main-worktree.md](https://github.com/danielhanold/docket/blob/feat/fence-runner-config-locality-at-the-main-worktree/docs/superpowers/plans/2026-08-10-fence-runner-config-locality-at-the-main-worktree.md) |
+| Results | [2026-08-10-fence-runner-config-locality-at-the-main-worktree-results.md](https://github.com/danielhanold/docket/blob/feat/fence-runner-config-locality-at-the-main-worktree/docs/results/2026-08-10-fence-runner-config-locality-at-the-main-worktree-results.md) |
+| PR | [#193](https://github.com/danielhanold/docket/pull/193) |
 <!-- docket:artifacts:end -->
 
 ## Why
