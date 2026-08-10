@@ -20,17 +20,35 @@ OPENCODE_BIN="${OPENCODE_BIN:-opencode}"
 die(){ printf 'runners/opencode: %s\n' "$*" >&2; exit 1; }
 warn(){ printf 'runners/opencode: %s\n' "$*" >&2; }
 
-AGENT=""; MODEL=""; EFFORT=""
+AGENT=""; MODEL=""; EFFORT=""; BRIEF_FILE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --agent)  AGENT="${2:-}"; shift 2 ;;
     --model)  MODEL="${2:-}"; shift 2 ;;
     --effort) EFFORT="${2:-}"; shift 2 ;;
+    # `shift 2` is this loop's house form, but bash's `shift` FAILS rather than truncating when the
+    # flag is the last argument and this loop has no trailing shift — so a value-taking flag in
+    # final position would spin here forever, making the "requires a path" refusal below
+    # unreachable. Shift the flag, then the value only if a value is actually there.
+    --brief-file) BRIEF_FILE="${2:-}"; [ -n "$BRIEF_FILE" ] || die "--brief-file requires a path"; shift; [ $# -gt 0 ] && shift ;;
     --) shift; break ;;
     *) die "unknown argument: $1" ;;
   esac
 done
 [ -n "$AGENT" ] || die "--agent is required"
+# --- change 0277: the brief-file channel, and its exclusion with trailing argv -------
+# The caller's brief is the child's ONLY input, and argv is a lossy way to carry it: a model must
+# quote it correctly in one shot, and `$*` then joins the arguments on the first character of IFS.
+# `--brief-file` removes both hazards — the caller writes a quoted heredoc and passes a path.
+# BOTH CHANNELS AT ONCE IS REFUSED, never merged: preferring either silently drops or duplicates
+# the child's whole input, and concatenation has no defensible ordering. Refusal is the only shape
+# with no silent-wrong-answer mode. runner-dispatch.sh refuses it first; this is the DEFENSIVE TWIN
+# for the direct hand invocation this contract documents, which bypasses the facade.
+if [ -n "$BRIEF_FILE" ]; then
+  [ $# -eq 0 ] || die "both --brief-file and trailing arguments were given — pass the brief in the file OR after '--', never both"
+  [ -f "$BRIEF_FILE" ] && [ -r "$BRIEF_FILE" ] || die "--brief-file '$BRIEF_FILE' is not a readable file"
+  [ -s "$BRIEF_FILE" ] || die "--brief-file '$BRIEF_FILE' is empty — a child launched with no task does not error, it improvises"
+fi
 [ -n "${DOCKET_REPO_ROOT:-}" ] || die "DOCKET_REPO_ROOT is not set (invoke via docket.sh runner-dispatch)"
 
 SRC="$AGENTS_SRC/docket-$AGENT.md"
@@ -77,11 +95,27 @@ Then execute the following instructions exactly:
 "
 fi
 prompt="$prompt$body"
-if [ $# -gt 0 ]; then
+# The payload, from whichever channel carries it. `$*` joined the positional parameters on the
+# first character of IFS, so a multi-line brief passed as several arguments was flattened to one
+# line and its plan-task structure, code blocks, and file lists all lost their boundaries —
+# silently. The loop below preserves both order and line structure, so the surviving argv path
+# stops being lossy even though the shim no longer teaches it.
+# The brief file is appended VERBATIM via command substitution: a model-authored brief is untrusted
+# input holding single quotes, backslashes, `%`, and backticks, so it must never pass through
+# `eval` or a `printf` format string.
+payload=""
+if [ -n "$BRIEF_FILE" ]; then
+  payload="$(cat "$BRIEF_FILE")"
+elif [ $# -gt 0 ]; then
+  payload="$1"; shift
+  for a in "$@"; do payload="$payload
+$a"; done
+fi
+if [ -n "$payload" ]; then
   prompt="$prompt
 
 Additional caller arguments / task context:
-$*"
+$payload"
 fi
 
 # --- flag mapping -----------------------------------------------------------------

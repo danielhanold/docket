@@ -83,6 +83,44 @@ assert "max effort: never rewritten to codex's xhigh" '! grep -qxF -- "xhigh" <<
 run_adapter --agent status --model m/x/y -- please-do-0205
 assert "passthrough: -- args reach the prompt" 'grep -qF "please-do-0205" <<<"$ARGV"'
 
+# --- 0277: the brief-file channel + a non-lossy argv join -----------------------------------------
+# The caller's brief is the child's ONLY input. It used to travel as `$*`, which joins the positional
+# parameters on the first character of IFS — a multi-line brief passed as several arguments arrived
+# as one line, silently. The fixture carries the characters a model-authored brief actually holds
+# (single quotes, backslashes, `%`, backticks, a `--flag`-shaped line): the append must be VERBATIM.
+BF="$MOCK_DIR/brief.txt"
+cat > "$BF" <<'BRIEF'
+line-one: build change 0277
+line-two: it's got a quote, a backslash \n, a percent %s, and a `backtick`
+-- --flag-shaped-line
+BRIEF
+run_adapter --agent status --model m/x/y --brief-file "$BF"
+assert "0277 opencode: a brief-file dispatch exits 0" '[ "$RC" = "0" ]'
+assert "0277 opencode: the payload heading is present" \
+  'grep -qxF -- "Additional caller arguments / task context:" <<<"$ARGV"'
+assert "0277 opencode: brief line 1 lands on its own line" 'grep -qxF -- "line-one: build change 0277" <<<"$ARGV"'
+assert "0277 opencode: brief line 2 lands VERBATIM on its own line" \
+  'grep -qxF -- "line-two: it'"'"'s got a quote, a backslash \n, a percent %s, and a \`backtick\`" <<<"$ARGV"'
+assert "0277 opencode: a --flag-shaped brief line survives intact" 'grep -qxF -- "-- --flag-shaped-line" <<<"$ARGV"'
+assert "0277 opencode: the brief is NOT flattened onto one line" \
+  '! grep -qF -- "line-one: build change 0277 line-two:" <<<"$ARGV"'
+
+# The surviving argv path is non-lossy too — joined on NEWLINE, in order, not on a space.
+run_adapter --agent status --model m/x/y -- "argv-alpha" "argv-beta"
+assert "0277 opencode: multiple post-\`--\` args each land on their own line" \
+  'grep -qxF -- "argv-alpha" <<<"$ARGV" && grep -qxF -- "argv-beta" <<<"$ARGV"'
+assert "0277 opencode: post-\`--\` args are NOT space-joined" '! grep -qF -- "argv-alpha argv-beta" <<<"$ARGV"'
+
+# Defensive exclusion: opencode.md documents a direct hand invocation that bypasses the facade, so
+# the refusal cannot live only at the facade.
+: > "$MOCK_DIR/calls.txt"
+ERR="$( MOCK_CALLS="$MOCK_DIR/calls.txt" OPENCODE_BIN="$MOCK_DIR/opencode" \
+        DOCKET_RUNNER_CFG_PERMISSIONS=auto-approve DOCKET_REPO_ROOT="$REPO" \
+        bash "$ADAPTER" --agent status --model m/x/y --brief-file "$BF" -- "also argv" 2>&1 >/dev/null )"; RC=$?
+assert "0277 opencode: both channels together are refused" '[ "$RC" != "0" ]'
+assert "0277 opencode: the refusal says never both" 'grep -qiF "never both" <<<"$ERR"'
+assert "0277 opencode: NO child was invoked" '[ "$(grep -c CALL "$MOCK_DIR/calls.txt")" = "0" ]'
+
 # --- no effort => no --variant flag ---------------------------------------------------------------
 run_adapter --agent status --model openrouter/deepseek/deepseek-v4-flash-0731
 assert "no effort: no --variant flag emitted" '! grep -qxF -- "--variant" <<<"$ARGV"'

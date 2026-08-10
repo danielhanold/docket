@@ -11,7 +11,7 @@ mapping, foreground execution, final-message relay. Invoked only by `runner-disp
 ## Usage
 
 ```
-bash scripts/runners/codex.sh --agent <name> [--model <m>] [--effort <e>] [--] [<args…>]
+bash scripts/runners/codex.sh --agent <name> [--model <m>] [--effort <e>] [--brief-file <path>] [--] [<args…>]
 ```
 
 - `--agent <name>` (required) — the built-in agent to delegate; its wrapper source
@@ -37,7 +37,18 @@ bash scripts/runners/codex.sh --agent <name> [--model <m>] [--effort <e>] [--] [
   but note that **omitting `effort:` in config is not the same as opting out**: it defers to lower
   user config layers, whose value *is* forwarded. `effort: auto` is the explicit no-pin that
   suppresses the flag outright.
-- `-- <args…>` — appended to the prompt as caller task context.
+- `--brief-file <path>` (optional, change 0277) — the caller's task brief, read from a file and
+  appended to the prompt **verbatim** under the `Additional caller arguments / task context:`
+  heading. Preferred over trailing argv: the caller writes the file with a quoted-delimiter
+  heredoc, so nothing about the brief is shell-quoted by a model and nothing is joined or
+  reflowed. The file must exist, be readable, and be non-empty. **A brief file and trailing
+  arguments together are refused** — passing both would silently drop or duplicate the child's
+  only input, so this adapter dies rather than picking one. `runner-dispatch.sh` refuses the same
+  shape first; this is the defensive twin for the hand invocation documented here.
+- `-- <args…>` — the legacy payload channel, still supported and no longer lossy: the arguments
+  are appended to the prompt as caller task context, joined on a **newline** in order (they were
+  previously interpolated with `$*`, which joins on the first character of `IFS` and flattened a
+  multi-line brief onto one line).
 
 Environment (set by the facade):
 
