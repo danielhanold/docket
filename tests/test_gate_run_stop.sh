@@ -11,9 +11,11 @@
 #      written only after termination is VERIFIED and only when the group was actually signalled.
 #
 # Split from tests/test_gate_run.sh because one file carrying both would exceed its wall-clock
-# budget and blur two review surfaces. Task 6 appends the five deterministic interleaving fixtures
-# to this file; the two barrier points they consume — `pre-term` and `post-kill-pre-annotate` — are
-# proven placed by the last section here.
+# budget and blur two review surfaces. The deterministic interleaving fixtures sit at the END of
+# this file, behind the section that proves the two rendezvous points they consume — `pre-term` and
+# `post-kill-pre-annotate` — are placed where they claim to be. The recycled-group interleaving is
+# the one exception and lives WITH that placement section, because it is itself the evidence for
+# the step-4 identity re-read that the `pre-term` placement exists to make observable.
 #
 # Contract: scripts/gate-run.md. Prologue and sandbox: tests/lib/gate_run_common.sh.
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate_run_common.sh"
@@ -289,5 +291,159 @@ wait "$ann_job" 2>/dev/null || true
 assert "released, the annotation path completes" \
   '[ "$(cat "$SBX/post-kill.out" 2>/dev/null)" = "already-terminal" ]'
 assert "and only now does the completed marker exist" '[ -f "$RD/stopped" ]'
+
+# ================================================================================================
+# THE INTERLEAVING FIXTURES — a window held open by a rendezvous, never guessed at with a sleep
+# ================================================================================================
+# Everything above tests `--stop` against a world that holds still while it runs, and against that
+# world its three re-reads are indistinguishable from the reads they repeat. These fixtures hold
+# the stop at a named point and CHANGE THE WORLD UNDERNEATH IT, which is the only way the races
+# assumptions 21 and 23 describe are reachable at all.
+#
+# The fifth interleaving of the set — a group RECYCLED inside the stop window — is the section
+# "STEP 4 READS BOTH CONJUNCTS ON THE KILL'S SIDE OF THE FENCE" above.
+
+# Kill an in-flight `--stop` AT its rendezvous, and prove it is really gone before anything is
+# asserted. `( … ) &` may or may not exec-optimize the subshell away depending on the Bash build, so
+# the job pid is not reliably the `gate-run.sh` process itself; the run dir is unique to this
+# sandbox, so it is what identifies the process. Proving the kill LANDED is not tidiness: a held
+# stop releases ITSELF at the barrier's own ceiling and then goes on to write the very marker these
+# fixtures assert never appears, so an unproven kill leaves an assert that passes and is falsified
+# seconds later with nothing watching.
+kill_held_stop(){  # $1 = job pid, $2 = run dir -> non-zero if any stop process survives
+  local job="${1:-}" rd="${2:-}" p t=0
+  kill -KILL "$job" 2>/dev/null || true
+  while IFS= read -r p; do
+    [ -n "$p" ] || continue
+    kill -KILL "$p" 2>/dev/null || true
+  done < <(pgrep -f "gate-run.sh --stop $rd" 2>/dev/null || true)
+  wait "$job" 2>/dev/null || true
+  while [ "$t" -lt 100 ]; do
+    pgrep -f "gate-run.sh --stop $rd" >/dev/null 2>&1 || return 0
+    sleep 0.1; t=$(( t + 1 ))
+  done
+  return 1
+}
+
+# ---- (1) STOP VERSUS COMPLETION: the run finishes inside the stop's own window ----------------
+# Assumption 21. The stop is held with the child still alive, the child then completes ON ITS OWN,
+# and the stop is released into a world where the thing it came to kill is already gone and has a
+# verdict. It must claim nothing: no signal, no intent, no marker — and above all no
+# reclassification of a run that PASSED into one that was terminated.
+#
+# The release waits for the GROUP to be verifiably gone and not merely for the record to land,
+# because the wrapper writes `terminal` as its last statement before exiting: releasing on the
+# record alone would leave the leader alive-or-dead by luck, and an interleaving decided by the
+# scheduler is a sleep with extra steps.
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'while [ ! -f '"$SBX"'/go1 ]; do sleep 0.1; done; exit 0')"
+f1_pgid="$(sed -n 's/^pgid=//p' "$RD/launch")"
+F1BAR="$SBX/fixture1-barrier"
+( GATE_RUN_TEST_BARRIER=pre-term GATE_RUN_TEST_BARRIER_FILE="$F1BAR" \
+    gate_run --stop "$RD" >"$SBX/fixture1.out" 2>/dev/null ) &
+f1_job=$!
+assert "the stop is held before it has signalled anything" 'wait_for_file "$F1BAR.reached"'
+# Non-vacuity: the completion has to happen INSIDE the window, so the child must still be running
+# when the window opens. A child that had already finished would make every assert below trivial.
+assert "the child is still running when the window opens" 'kill -0 -"$f1_pgid" 2>/dev/null'
+touch "$SBX/go1"
+assert "the child completed on its own while the stop was held" 'await_terminal "$RD"'
+assert "and its group is verifiably gone before the stop is released" 'await_group_gone "$f1_pgid"'
+touch "$F1BAR.release"
+wait "$f1_job" 2>/dev/null || true
+assert "a stop held across completion reports already-terminal" \
+  '[ "$(cat "$SBX/fixture1.out" 2>/dev/null)" = "already-terminal" ]'
+assert "it signalled nothing — no stop-intent was ever written" '[ ! -f "$RD/stop-intent" ]'
+assert "and claimed nothing — no completed marker over a run that finished by itself" \
+  '[ ! -f "$RD/stopped" ]'
+assert "the terminal record is still the child's own verdict" \
+  '[ "$(cat "$RD/terminal" 2>/dev/null)" = "kind=exit code=0" ]'
+assert "and it observes as passed — the completed run kept its verdict" \
+  '[ "$(gate_run --observe "$RD")" = "state=passed" ]'
+
+# ---- (2) MARKER BEFORE VERIFICATION: a stop that dies mid-flight may claim nothing -------------
+# Assumption 21. The completed marker is what `--observe` reads to report `stopped`, and `stopped`
+# is terminal — no caller ever relaunches it. A marker written before termination was verified
+# would therefore let a stop that died between its signal and its verification leave a durable
+# claim that the child is gone while the child is still running, and the run would never be looked
+# at again. So the crash is staged exactly where the marker would sit.
+#
+# The child ignores TERM, so this is the KILL-escalation leg: the wrapper is KILLed along with the
+# group and leaves NO terminal record, which makes the marker the only record that could carry a
+# claim here at all.
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'trap "" TERM; sleep 60')"
+f2_pgid="$(sed -n 's/^pgid=//p' "$RD/launch")"
+F2BAR="$SBX/fixture2-barrier"
+( GATE_RUN_TEST_BARRIER=post-kill-pre-annotate GATE_RUN_TEST_BARRIER_FILE="$F2BAR" \
+    gate_run --stop "$RD" >/dev/null 2>&1 ) &
+f2_job=$!
+assert "the stop is held where the completed marker would be written" 'wait_for_file "$F2BAR.reached"'
+# Non-vacuity: the stop got all the way through the kill and the verification. Without this, an
+# absent marker would be equally consistent with a stop that crashed before doing any work.
+assert "the kill and the verification are already behind it — the group is gone" \
+  '! kill -0 -"$f2_pgid" 2>/dev/null'
+assert "the in-flight stop was killed at the rendezvous and left nothing running" \
+  'kill_held_stop "$f2_job" "$RD"'
+assert "a half-dead stop leaves NO completed marker" '[ ! -f "$RD/stopped" ]'
+assert "the intent it wrote before signalling survives — that is the record allowed to persist" \
+  '[ -f "$RD/stop-intent" ]'
+assert "and it synthesized no terminal record on its way down" '[ ! -f "$RD/terminal" ]'
+# THE CONSEQUENCE the gate exists for: with no marker the run does not read as a completed stop, so
+# a kill that was never confirmed is never treated downstream as one that was.
+assert "a run whose stop died mid-flight does not observe as stopped" \
+  '[ "$(gate_run --observe "$RD" 2>/dev/null)" = "state=died cause=vanished" ]'
+f2_retry="$(gate_run --stop "$RD" 2>/dev/null)"
+assert "a subsequent --stop re-decides from the world, not from the dead stop's leavings" \
+  '[ "$f2_retry" = "already-terminal" ]'
+assert "and it writes no marker either — it verified no termination of its own" '[ ! -f "$RD/stopped" ]'
+
+# ---- (3) A DELIBERATE STOP MUST NOT BE READABLE AS AN ACCIDENTAL DEATH -------------------------
+# Assumption 23. The wrapper ignores TERM long enough to reap the child and record `kind=signal` —
+# a record whose bare reading is `died cause=signal`, which is precisely the state a call site
+# relaunches on. The annotation is what stops a cancellation from being relaunched forever. The
+# window is held open between the verified kill and the annotation, the wrapper's record is allowed
+# to land inside it, and the release must find the stop annotating rather than walking away on the
+# strength of the `already-terminal` it is about to report.
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'sleep 60')"
+F3BAR="$SBX/fixture3-barrier"
+( GATE_RUN_TEST_BARRIER=post-kill-pre-annotate GATE_RUN_TEST_BARRIER_FILE="$F3BAR" \
+    gate_run --stop "$RD" --reason 'cancelled on purpose' >"$SBX/fixture3.out" 2>/dev/null ) &
+f3_job=$!
+assert "the stop is held between the verified kill and the annotation" 'wait_for_file "$F3BAR.reached"'
+assert "the wrapper reaped the signal death and recorded it inside the window" \
+  'await_terminal "$RD" && grep -q "^kind=signal" "$RD/terminal"'
+assert "and nothing is annotated yet" '[ ! -f "$RD/stopped" ]'
+touch "$F3BAR.release"
+wait "$f3_job" 2>/dev/null || true
+assert "the annotation path reports already-terminal — the record outranks the stop" \
+  '[ "$(cat "$SBX/fixture3.out" 2>/dev/null)" = "already-terminal" ]'
+assert "and the signal death was annotated as a deliberate stop" '[ -f "$RD/stopped" ]'
+assert "the annotation carries the caller's reason" \
+  'grep -qF -- "cancelled on purpose" "$RD/stopped"'
+assert "so a deliberately cancelled run observes as stopped, never died" \
+  '[ "$(gate_run --observe "$RD")" = "state=stopped" ]'
+assert "and the terminal record is still the wrapper's, unrewritten by the annotation" \
+  '[ "$(cat "$RD/terminal" 2>/dev/null)" = "kind=signal signal=15" ]'
+
+# ---- (4) THE INTENT SURVIVES A CRASHED ANNOTATION ----------------------------------------------
+# Assumption 23, and the reason the intent is written BEFORE the signal instead of beside the
+# marker after it. Fixture (3)'s annotation is a second record of a fact the intent already carries;
+# this is the leg where that second record never gets written, because the stop dies in the very
+# window fixture (3) is released from. The evidence that the death was deliberate then rests
+# entirely on `stop-intent` — and `--observe` must still read `stopped`, or a cancellation that
+# outlived its own canceller reads `died` forever and an idempotent call site relaunches it.
+RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'sleep 60')"
+F4BAR="$SBX/fixture4-barrier"
+( GATE_RUN_TEST_BARRIER=post-kill-pre-annotate GATE_RUN_TEST_BARRIER_FILE="$F4BAR" \
+    gate_run --stop "$RD" >/dev/null 2>&1 ) &
+f4_job=$!
+assert "the stop is held before it can annotate" 'wait_for_file "$F4BAR.reached"'
+assert "the wrapper's signal record lands inside the window" \
+  'await_terminal "$RD" && grep -q "^kind=signal" "$RD/terminal"'
+assert "the in-flight stop was killed at the rendezvous and left nothing running" \
+  'kill_held_stop "$f4_job" "$RD"'
+assert "the annotation never happened" '[ ! -f "$RD/stopped" ]'
+assert "but the pre-signal intent record survives the crash" '[ -f "$RD/stop-intent" ]'
+assert "and intent ALONE reclassifies the signal death as deliberate" \
+  '[ "$(gate_run --observe "$RD")" = "state=stopped" ]'
 
 exit "$fail"
