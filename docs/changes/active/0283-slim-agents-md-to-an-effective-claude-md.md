@@ -11,7 +11,7 @@ depends_on: []
 related: [263, 154]
 discovered_from: []
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-09-slim-agents-md-to-an-effective-claude-md-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-09-slim-agents-md-to-an-effective-claude-md-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-slim-agents-md-to-an-effective-claude-md-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -39,25 +42,17 @@ the file lean: only universally applicable, non-derivable rules belong there.
 
 ## What changes
 
-- Review every AGENTS.md section against the tiering criterion ("will the agent know to search for
-  this?") AND against whether the rule is now mechanically enforced (test/guard/script) or lives in
-  a skill that loads on demand.
-- Remove or demote anything codified elsewhere; keep only rules that must fire unprompted and are
-  not otherwise enforced or discoverable.
-- Follow the linked best-practices guidance for structure and brevity.
-- Demoted content that is still a useful war story returns to (or stays in)
-  `docs/changes/learnings/`; nothing is simply deleted without a home unless it is obsolete.
+- Audit every AGENTS.md rule for a *landed* repo-wide enforcement surface (test/guard/script);
+  remove exactly those, each removal citing and mutation-verifying its enforcing guard.
+- Rules whose guards are designed but unbuilt (the 0263 set) stay until those guards land.
+- The dispatch table stays verbatim; the run gate keeps all steps (wording may tighten).
+- Removed war-story content lands in `docs/changes/learnings/` unless already covered there or
+  in an ADR.
 
 ## Out of scope
 
 - Adding new rules or new guards; this is a pruning pass only.
 - Changing the promotion mechanics or the learnings ledger itself.
-
-## Open questions
-
-- Which shell rules are now fully guard-enforced (0263) vs. still needing the prose backstop?
-- Does the "Docket agents — dispatch, don't run inline" table and the "Run gate" section stay
-  verbatim, get compressed, or move behind a pointer?
 
 ## Reconcile log
 
