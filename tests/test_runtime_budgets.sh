@@ -25,8 +25,8 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1705 # the sum of every ceiling, seeded with the table from the measured serial run.
-                    # 1605 -> 1705 (change 0282): the new-test-file case, twice —
+EXPECTED_TOTAL=1655 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1605 -> 1655 (change 0282): the new-test-file case, twice —
                     # tests/test_gate_run.sh and tests/test_gate_run_stop.sh each bring their own
                     # row. They are the second family in the table (after the runner-dispatch detach
                     # shards) whose cost is WALL CLOCK THAT CANNOT BE MOCKED: scripts/gate-run.sh
@@ -36,12 +36,19 @@ EXPECTED_TOTAL=1705 # the sum of every ceiling, seeded with the table from the m
                     # completion keeps the verdict" are only observable in wall-clock time. Split
                     # along the verb seam — launch/observe in the first, --stop and its five
                     # interleaving fixtures in the second — because one file carrying both would
-                    # exceed the hard 60s ceiling and blur two review surfaces. Measured standalone
-                    # by the tasks that shipped them at ~9s and ~30s; SEEDED GENEROUSLY at 40 and 60
-                    # rather than at the sizing rule's number, because the seeds predate this
-                    # change's own full-suite run and a barrier-driven file's parallel-phase cost is
-                    # the one thing a standalone run understates. Change 0282's last task tightens
-                    # both to the measured wall clock and re-seeds this total with it.
+                    # exceed the hard 60s ceiling and blur two review surfaces. The tasks that
+                    # shipped them seeded 40 and 60 deliberately generously, ahead of this change's
+                    # own full-suite run, on the theory that a barrier-driven file's parallel-phase
+                    # cost is what a standalone run understates. Two full-suite runs later neither
+                    # file has ever been reported OVER BUDGET, so the placeholders are retired here
+                    # for the sizing rule's own number: measured serially at 9s and 30s
+                    # (scripts/run-tests.sh -j 1 --timings), which the rule — next multiple of 5
+                    # plus a 5s margin, min 10s — puts at 15 and 35, and the sum FALLS by 50. The
+                    # margin is real headroom rather than a shave: the runner breaches at 2.5x, so
+                    # 35 tolerates 87s against a 30s file whose largest single component is a fixed
+                    # 10s TERM grace window that load cannot inflate at all. A ceiling set just
+                    # above a load-sensitive reading manufactures intermittent findings, which is
+                    # strictly worse than a loose one — hence the rule's margin, not a tighter cut.
                     # 1585 -> 1595 (change 0276): the new-test-file case named below —
                     # tests/test_dummy_mode.sh brings its own row. It is a pure prose scan (two
                     # file reads, an awk heading slice, and a handful of greps over collapsed
