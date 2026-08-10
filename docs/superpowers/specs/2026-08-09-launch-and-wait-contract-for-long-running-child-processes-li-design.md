@@ -53,6 +53,19 @@ probe criterion widens from "delivers a session" to the full capability set — 
 isatty flip on the child's redirected stdio, no injected framing, no new SIGHUP path (assumption
 15).
 
+**Amended 2026-08-09, adversarial critic re-review — round 5, on the round-4 repairs.** All five
+round-4 repairs held under attack; five narrower findings are closed here. (1) A launch that failed
+its handshake *after* spawning reported `launch-failed` and returned no handle — leaving a detached
+child nothing could ever address, since `--stop`'s only handle is the run-dir path the caller never
+received: the abandoned-live-child defect rebuilt inside the launcher. The failure path is now a
+bounded self-stop before the token is printed (assumption 14). (2) `--stop` step 1's orphan probe is
+necessarily bare `kill -0`, which assumption 9 forbade outright; assumption 9 is now scoped by fail
+direction — identity-checked wherever a match is possible, bare only where the leader is known dead
+and an alive result can only abort. (3) The idempotence sentence predated assumption 24's
+`unavailable`-on-orphans report and is corrected. (4) Step 2's absent-group fall-through to step 4
+is now explicit. (5) An existing-run-dir refusal now names its report shape: the `launch-failed`
+token (assumption 25).
+
 ## Problem
 
 Finalizing change 0276 burned ~20 minutes polling a process that had been dead 19 of them. Two
@@ -108,8 +121,15 @@ protocol.
     `--launch` MUST NOT return a run handle until the supervisor has acknowledged that its new
     session exists, its durable streams are open, `pid`/`pgid`/identity are captured, and it is
     ready to supervise. Failure to establish that within a fixed launch-establishment bound is a
-    **launch failure** that returns no usable handle and reports the single `launch-failed` token on
-    stdout (assumption 25). gate-execution measured this precondition
+    **launch failure**, and the failure path is itself a bounded stop (critic re-review round 5):
+    the establishment sequence captures `pid`/`pgid` before any handle is returnable, so the
+    failing launcher holds everything needed to `TERM` → bounded grace → `KILL` the group it
+    recorded and verify it gone **before** reporting the single `launch-failed` token on stdout
+    (assumption 25); a kill it cannot complete is reported loudly on stderr with the run-dir path
+    for manual disposal. Without this, a child spawned before the handshake wedged would survive as
+    a process nothing can ever address — `--stop`'s only handle is the run-dir path the caller
+    never received — rebuilding the abandoned-live-child defect inside the launcher.
+    gate-execution measured this precondition
     rather than reasoning about it: on codex, a launch that returned before session detachment
     completed produced a child that never started, and that harness's `supported` verdict is
     explicitly scoped *"race-free new-session launch shape only"*.
@@ -142,7 +162,8 @@ protocol.
     run directory beneath it, so callers cannot collide. Default root is the templated
     `"${TMPDIR:-/tmp}/gate-run.XXXXXX"` shape (assumption 12). Created under `umask 077` — it holds
     arbitrary command output and argv. An existing run dir is **refused, never reused** (the
-    runner-dispatch rule: silent reuse would overwrite a live run's sentinel). Prints the run
+    runner-dispatch rule: silent reuse would overwrite a live run's sentinel); a refusal is a
+    launch failure and reports the `launch-failed` token (assumption 25). Prints the run
     directory on stdout; that path is the handle.
 
 - **The terminal record encodes termination *kind*, not a bare integer (assumption 16).** Flat
@@ -206,7 +227,8 @@ protocol.
      stderr) and signal nothing — the leader is dead, so ownership of the survivors is unprovable,
      but detection is possible even where safe signalling is not, and relaunching over live orphans
      is the 0231 double-run state. Group confirmed empty ⇒ report `already-terminal`.
-  2. Validate identity (the assumption 9 conjuncts).
+  2. Validate identity (the assumption 9 conjuncts). An absent group is not an identity failure —
+     `unavailable` requires a group that exists — so it falls through to step 4's absent branch.
   3. **Re-read the terminal record immediately before signaling** — nothing but the stop-intent
      write and the `kill` separate the test from the act.
   4. **Probe the recorded group.** Confirmed absent ⇒ re-read the terminal record once more; still
@@ -252,8 +274,9 @@ protocol.
   (`ownership-unprovable`, `orphans-detected`, `rundir-unreadable`) goes to stderr, so the two verbs' `unavailable`
   tokens stay distinguishable in diagnosis without splitting the protocol.
 
-  **Idempotent**: a second call, or a call on an already-terminal run, reports `already-terminal`
-  and is not an error — which is what lets a halt path and a `died` relaunch both call it without
+  **Idempotent**: a second call, or a call on an already-terminal run, reports `already-terminal` —
+  or `unavailable` when live orphans are detected (assumption 24) — and is not an error; every
+  consuming leg treats both as halt-or-abort, which is what lets a halt path and a `died` relaunch both call it without
   coordinating, and lets the abandon rule below be stated unconditionally. Children that escaped the
   recorded group (double-fork, own session) survive it; that narrowed case remains a named residual.
 
@@ -377,6 +400,9 @@ that cannot be shown to notice a dead child is decoration — this is the repo's
 applied to the guard this change ships. **Launch failure** (assumption 25): a `--launch` driven past
 its establishment bound prints the single `launch-failed` token on stdout with diagnostics on
 stderr, so a caller keying on the report line detects it — an empty-stdout implementation reddens.
+And the failure path kills what it spawned (assumption 14): a fixture that wedges the handshake
+after the child starts must leave no surviving process under the recorded pgid, so deleting the
+failure-path self-stop reddens rather than leaking an unaddressable child.
 
 `--stop` carries its own asserts, each keyed to a mutation that must redden: stopping a live child
 leaves the recorded group verified gone; a child that ignores `TERM` is still gone after the grace,
@@ -496,6 +522,13 @@ Every decision an interactive brainstorm would have raised, the committed defaul
    identity), and `--observe` reads `running` only when the pgid is alive AND the token matches;
    a mismatch is `died`. Mutation-tested (identity-guard fixture). Rejected: bare `kill -0`
    (green mutation test would hide the guard's absence; the repo already solved this once).
+   (Scoped at critic re-review round 5: this rule is about fail direction, not a blanket syscall
+   ban. Identity-checked wherever a token match is possible — the `running` classification, the
+   pre-signal ownership check. A bare probe is admissible only where the leader is known dead, so
+   no match is possible, **and** an alive result can only move the outcome fail-closed — `--stop`
+   step 1's orphan probe (assumption 24), where a recycled pgid reads as orphans and aborts. Bare
+   `kill -0` remains forbidden anywhere its false positive would read a dead run as `running` or
+   let a signal reach a bystander.)
 10. **The six-state vocabulary lives in `gate-run.md`; the skill posture cites it.** (Surfaced
     by critic round 1; justification corrected in round 2: no existing `supported` verdict claims
     capability 5 — the standard probe covers capabilities 1–3 only and the four-state distinction
@@ -541,7 +574,15 @@ Every decision an interactive brainstorm would have raised, the committed defaul
     produced a never-started child when the parent returned before detachment completed, and its
     verdict is scoped to the race-free shape. Rejected: "fully established before the call returns"
     as prose (that is the sentence the current spec already had, and prose is what 0276 proved does
-    not reach the moment of launch).
+    not reach the moment of launch). (Completed at critic re-review round 5: the failure path is
+    itself a bounded stop. `pid`/`pgid` are captured before any handle is returnable, so the
+    failing launcher `TERM`s → grace → `KILL`s the group it recorded and verifies it gone before
+    printing `launch-failed`; an uncompletable kill is reported loudly on stderr with the run-dir
+    path for manual disposal. Without this, the round-4 failure report left a
+    spawned-but-unacknowledged child detached and unaddressable — no caller can `--stop` a run dir
+    it was never given — the abandoned-live-child defect rebuilt inside the launcher.
+    Mutation-tested: a fixture that wedges the handshake after the child starts must leave no
+    surviving process under the recorded pgid, so deleting the failure-path kill reddens.)
 15. **The session primitive is resolved by a probe ladder; exhaustion narrows the contract honestly
     and escalates without stalling.** (Re-resolved at critic re-review round 3 — the first draft
     left this "open, escalate if none found", but the escalation leg was near-certain, not
@@ -673,7 +714,10 @@ Every decision an interactive brainstorm would have raised, the committed defaul
     with no signal a caller was permitted to read, so every call site would have hand-rolled its
     own failure detection: the exact defect class this change removes. Success and failure stay
     shape-distinguishable on one channel: an absolute path is the handle; the slash-free
-    `launch-failed` token is not a handle. Diagnostics, as everywhere, on stderr. Rejected:
+    `launch-failed` token is not a handle. Diagnostics, as everywhere, on stderr. The token covers
+    **every** failure to return a handle — the establishment bound (after the failure path's
+    self-stop, assumption 14), an existing-run-dir refusal (assumption 17), an unwritable root
+    (round 5) — so callers key on one shape, never a taxonomy. Rejected:
     empty-stdout-means-failure (absence is not a report line and is indistinguishable from a
     truncated write); scoping assumption 11 to give `--launch` an exit-code contract (two keying
     disciplines across three verbs is how callers get one of them wrong).
