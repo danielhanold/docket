@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0282 — Launch-and-wait contract for long-running child processes — liveness-keyed, not marker-keyed](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0282-launch-and-wait-contract-for-long-running-child-processes-li.md)**
+> ↩ **[Change 0282 — Launch-and-wait contract for long-running child processes — liveness-keyed, not marker-keyed](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-10-0282-launch-and-wait-contract-for-long-running-child-processes-li.md)**
 <!-- docket:backlink:end -->
 
 # Launch-and-wait contract for long-running child processes — results

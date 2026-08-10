@@ -78,6 +78,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0078](0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) — The parent-facing gate surface for Claude Code, and the one-physical-instructions-file symlink policy (Accepted) ← change #242 · relates to ADR-0024
 - [ADR-0079](0079-shim-wrapper-frontmatter-pin-governs-the-parent-side-agent.md) — A shim wrapper's frontmatter pin governs the parent-side agent (Accepted) ← change #269 → supersedes ADR-0038 · relates to ADR-0015, ADR-0067
 - [ADR-0080](0080-detached-delegation-execution-posture-launch-then-observe.md) — Detached delegation execution posture — launch-then-observe (Accepted) ← change #271 · relates to ADR-0038
+- [ADR-0081](0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md) — gate-run's detachment contract is narrowed per platform: own process group where no session primitive exists (Accepted) ← change #282 · relates to ADR-0080
 
 ## Superseded / Reversed
 
