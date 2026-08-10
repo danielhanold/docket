@@ -70,22 +70,34 @@ Settled design (2026-08-09 auto-groom; critic-gated, two rounds, 0 needs-human; 
 trail in the linked spec's `## Assumptions`):
 
 - A new shared helper, **`scripts/gate-run.sh`** (+ `gate-run.md` contract), with three verbs:
-  `--launch` (detached new-session start, every stream to a durable per-run dir, pid/pgid plus an
-  opaque identity token recorded, a separate atomic `EXIT=<code>` sentinel file written on child
-  exit) and `--observe` (one short-lived observation; five states — `running` / `passed` /
-  `failed` / `died` / `unavailable` — with liveness anchored on the identity-checked process
-  group, never solely on the sentinel), and `--stop` (identity-checked before signaling, `TERM` →
+  `--launch` (detached new-session start whose establishment is acknowledged before a handle is
+  returned, `--root`-parented per-run dir at `umask 077` with every stream durable, pid/pgid plus an
+  opaque identity token recorded, a separate atomic terminal-record file written on child exit),
+  `--observe` (one short-lived observation; six states — `running` / `passed` / `failed` /
+  `died` / `stopped` / `unavailable` — with liveness anchored on the identity-checked process
+  group, never solely on the record, and only `running` retryable), and `--stop` (identity-checked
+  before signaling, `TERM` →
   bounded grace → `KILL` on the recorded group, idempotent, recording a `stopped` marker and no
-  `EXIT=` sentinel — so a stopped run still observes as `died`, annotated). A dead child is
-  detected on the next observation, not at a wait-loop bound; callers key on the stdout report
-  line.
+  terminal record). A dead child is detected on the next observation, not at a wait-loop bound.
+  **stdout carries only the machine-readable report line; every diagnostic goes to stderr.**
+- The terminal record encodes **termination kind** (`kind=exit code=<n>` / `kind=signal`), not a
+  bare integer: a child killed by a signal never finished, so it is `died`, not `failed` — the
+  distinction must not depend on whether the supervisor happened to outlive the child.
+- **The terminal record outranks liveness and outranks a stop, everywhere.** `--observe` re-reads it
+  after a dead liveness probe; `--stop` re-reads it immediately before signaling and again after the
+  kill, and writes its marker only once termination is verified. Both are transplanted from
+  `runner-dispatch`'s give-up path, which already solved this; without them a run that **passed**
+  reports `died`, or a run that had already succeeded gets killed.
 - **Death is a distinct outcome from failure.** `died` (never finished) never collapses into
   `failed` (ran and went red) and never mints repair work.
-- Call-site posture on `died`: `--stop` the run, then **one** bounded relaunch — scoped to
-  idempotent children (the suite gate); non-idempotent sites keep their existing failure
-  postures. Second death is abort-and-report. A caller that abandons a still-`running` child —
-  budget exhaustion, halt, abort — calls `--stop` before it reports, so no suite outlives the run
-  the human is about to inspect.
+- Call-site posture on `died`: `--stop` the run, then **one** bounded relaunch **gated on `--stop`'s
+  report** — `stopped` relaunches, `already-terminal` re-observes first (a record may have appeared),
+  and `unavailable` aborts without relaunching. That last leg is load-bearing: `died` includes the
+  leader-dead-orphans-alive state, and there the identity guard cannot prove the surviving group is
+  ours, so it refuses to kill it — relaunching would race a live suite. Scoped to idempotent children
+  (the suite gate); non-idempotent sites keep their existing failure postures; second death is
+  abort-and-report. A caller that abandons a still-`running` child — budget exhaustion, halt, abort —
+  calls `--stop` before it reports, so no suite outlives the run the human is about to inspect.
 - Site rewiring: `docket-build` § *Gate execution posture* + `references/gate-execution.md` name
   the helper and the liveness-keyed rule; finalize inherits by citation; the full executable-site
   scope is derived by whole-repo grep at plan time. `runner-dispatch.sh` is a conscious exclusion
@@ -94,8 +106,11 @@ trail in the linked spec's `## Assumptions`):
 - Mutation-tested per the repo's own rule: `tests/test_gate_run.sh` kills the child mid-wait and
   asserts a prompt `died` with the log tail, plus an identity-guard fixture so a recycled pgid
   cannot read alive — and, on the signal path, cannot be signaled; `--stop`'s `KILL` escalation,
-  idempotence, and no-sentinel guarantee each carry a reddening mutation. New
-  `runtime-budgets.tsv` row.
+  idempotence, and no-record guarantee each carry a reddening mutation. Three **deterministic
+  interleaving** fixtures (not sleeps) cover the races: an observer held between its record read and
+  its liveness probe must report `passed`; a `--stop` held before its `TERM` must report
+  `already-terminal` and signal nothing; a `--stop` killed before its marker write must leave no
+  marker. New `runtime-budgets.tsv` row.
 
 ## Out of scope
 
@@ -114,6 +129,15 @@ conscious, residual-named exclusion; death ⇒ `--stop` then one bounded relaunc
 children only, abort-and-report otherwise and on second death; live-slow children stay under the
 existing `GATE_OBSERVATION_BUDGET` fail-closed posture — no new knob.
 
-Reopened and resolved at human spec review (2026-08-09): the helper ships a `--stop` verb
-(spec assumption 13), reversing assumption 5's parked residual that an abandoned live child
-outlives a halted run. Post-groom design; it did not pass the auto-groom critic.
+Reopened and resolved at human spec review (2026-08-09), two rounds. Round 1: the helper ships a
+`--stop` verb (spec assumption 13), reversing assumption 5's parked residual that an abandoned live
+child outlives a halted run. Round 2 reviewed that draft and corrected four soundness defects in it
+— the leader-dead relaunch guarantee was false (22), `failed` was still marker-keyed rather than
+termination-keyed (16), and both `--observe` and `--stop` carried completion-versus-liveness TOCTOU
+races (19, 21). Post-groom design; assumptions 13–22 did not pass the auto-groom critic.
+
+**One open implementation question, escalated rather than assumed** (spec assumption 15): capability
+1 requires a new *session*, `runner-dispatch`'s `set -m` delivers only an own process group, and
+`setsid` is absent on macOS with no `perl` dependency taken. The plan must establish which primitive
+delivers a genuine new session on the supported platforms; finding none without a new dependency is
+a design finding to escalate, not a gap to paper over.
