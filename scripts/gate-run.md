@@ -107,7 +107,9 @@ while :; do
   sleep 10
 done
 # An empty `state` means the budget ran out with the run still `running` — that is the fail-closed
-# case, not a verdict about the child.
+# case, not a verdict about the child. The child was last seen live, so a caller abandoning here
+# calls `--stop` before it reports (`skills/docket-build/SKILL.md` § *Gate execution posture*,
+# *Abandoning a live child*).
 ```
 
 **Never re-tokenize the report line and match bare state names.** `awk '{print $1}'`, `cut -d= -f2`,
