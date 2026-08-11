@@ -11,6 +11,17 @@
 # shellcheck source=lib/runner_dispatch_detach_common.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/runner_dispatch_detach_common.sh"
 
+# The identity-token reader, from the same lib the facade itself consults (change 0284). Three arms
+# below must PIN a launch record's `child_lstart` to a LIVE process's real token: since 0284 the
+# observation probes liveness BEFORE the clock, so a fixture that rewrites `pgid` to name some other
+# live group and leaves the recorded token alone is decided by whether the two processes happened to
+# start inside the same `ps -o lstart=` second — a coin flip, and a green one only by luck. Pinning
+# the token makes those fixtures reach the give-up path they were written to measure. Read through
+# the facade's own function rather than a second local copy, so a change to the normalization moves
+# both sides at once.
+# shellcheck source=../scripts/lib/docket-liveness.sh
+. "$ROOT/scripts/lib/docket-liveness.sh"
+
 # ---- observe: still running -> 4, terminal -> 0 ---------------------------------
 
 make_fixture
@@ -216,7 +227,17 @@ by_pgid="$(ps -o pgid= -p "$by_pid" 2>/dev/null | tr -d ' ')"
 mypgid="$(ps -o pgid= -p $$ 2>/dev/null | tr -d ' ')"
 assert "0271: fixture sanity — the bystander leads its OWN group, not the test's" \
   '[ -n "$by_pgid" ] && [ "$by_pgid" = "$by_pid" ] && [ "$by_pgid" != "$mypgid" ]'
-rec="$(sed "s/^pgid=.*/pgid=$by_pgid/" "$DDIR/launch")"
+# The recorded TOKEN is pinned to the bystander's own start time as well as its pgid (change 0284).
+# Without the pin, the liveness probe that now runs BEFORE the budget arithmetic decides this
+# fixture on a one-second `ps -o lstart=` boundary: the bystander is spawned within a fraction of a
+# second of the launched child, so the two tokens agree or disagree by luck, and on a disagreement
+# the observation is disposed as `child-vanished` and never reaches the give-up path this arm
+# exists to measure. Pinned, the group is provably ALIVE and provably the token's, so the only thing
+# left to refuse the signal is `terminate_dispatch`'s own pid->group conjunct — which is the guard
+# under test.
+by_lstart="$(docket_identity_of "$by_pid")"
+assert "0271: fixture sanity — the bystander has a readable start-time token to pin" '[ -n "$by_lstart" ]'
+rec="$(sed -e "s/^pgid=.*/pgid=$by_pgid/" -e "s|^child_lstart=.*|child_lstart=$by_lstart|" "$DDIR/launch")"
 printf '%s\n' "$rec" > "$DDIR/launch"
 BUDGET=0
 out="$(observe "$KEY" 2>&1)"; rc=$?
@@ -288,7 +309,17 @@ set -m
 self_pid=$!
 set +m
 self_pgid="$(ps -o pgid= -p "$self_pid" 2>/dev/null | tr -d ' ')"
-rec="$(sed "s/^pgid=.*/pgid=${self_pgid:-0}/" "$DDIR/launch")"
+# The token is pinned to the observer's own group leader for the same reason as the bystander arm
+# above (change 0284): the liveness probe now runs ahead of the budget arithmetic, and this guard
+# lives INSIDE `terminate_dispatch`, one phase past it. With the token left alone the probe decides
+# on a one-second boundary whether the recorded group looks like ours, and on the unlucky half the
+# observation is disposed as `child-vanished` — never reaching the own-group refusal, and reddening
+# both its wording and its no-marker assert. Pinned, the record describes a group that is alive and
+# provably its own, so the own-group refusal is the first thing that can stop the signal.
+self_lstart="$(docket_identity_of "${self_pgid:-0}")"
+assert "0271: fixture sanity — the observer's own group leader has a readable token to pin" \
+  '[ -n "$self_pgid" ] && [ -n "$self_lstart" ]'
+rec="$(sed -e "s/^pgid=.*/pgid=${self_pgid:-0}/" -e "s|^child_lstart=.*|child_lstart=$self_lstart|" "$DDIR/launch")"
 printf '%s\n' "$rec" > "$DDIR/launch"
 wait "$self_pid" 2>/dev/null
 self_rc="$(sed -n 1p "$SBX/self.rc" 2>/dev/null)"
@@ -442,10 +473,18 @@ assert "0271: re-reporting it identically" '[ "$rc_out2" = "$rc_out" ]'
 reap "$RPGID"
 
 # (2) the re-read AFTER THE KILL and BEFORE THE MARKER, driven on the path where no signal is sent:
-#     a start-time token that does not match makes the group unconfirmable, so the pre-signal read
-#     is unreachable and this second read stands alone between the sentinel and the marker write.
+#     a recorded CHILD PID that no longer leads the recorded group makes the group unconfirmable, so
+#     the pre-signal read is unreachable and this second read stands alone between the sentinel and
+#     the marker write.
+#     DRIVEN ON `child_pid`, NOT ON THE TOKEN (change 0284). Blanking the token was the original
+#     driver, but the liveness leg now consults exactly that token BEFORE the clock read — and the
+#     clock read is where this fixture's stub plants the sentinel. A mismatched token would dispose
+#     the dispatch as `child-vanished` one step too early, with the sentinel not yet written and this
+#     re-read never reached. `child_pid` is read only by `terminate_dispatch`'s own pid->group
+#     conjunct, so it drives the same no-signal give-up while leaving the earlier probe's inputs
+#     untouched. `999999` is above the platform's pid ceiling, so no live process can answer for it.
 race_fixture
-rec="$(sed 's/^child_lstart=.*/child_lstart=Thu Jan  1 00:00:00 1970/' "$DDIR/launch")"
+rec="$(sed 's/^child_pid=.*/child_pid=999999/' "$DDIR/launch")"
 printf '%s\n' "$rec" > "$DDIR/launch"
 rc_out="$(race_observe "$KEY" 2>&1)"; rc_rc=$?
 assert "0271: an UNSIGNALLED give-up yields to a sentinel that landed in the window too (0)" \
@@ -475,5 +514,187 @@ assert "0271: and the verdict spoken is the sentinel's, not the marker's" \
 ord_out2="$(observe "$KEY" 2>&1)"; ord_rc2=$?
 assert "0271: that precedence is itself idempotent" \
   '[ "$ord_rc2" = "0" ] && [ "$ord_out2" = "$ord_out" ]'
+
+# ---- 0284: a child that DIED without a sentinel is detected on THIS observation ----
+# THE HEADLINE. Before change 0284 the predicate was "no sentinel ⇒ still running", so this exact
+# fixture returned 4 on every pass until the 60-minute budget expired. The assert is therefore a
+# pair: not-4, AND in seconds rather than in budget-minutes.
+make_fixture
+FAKE_SLEEP=300 FAKE_TAIL=0 FAKE_RC=0
+KEY="$(launch status)"
+DDIR="$(ddir_for "$KEY")"
+lpgid="$(sed -n 's/^pgid=//p' "$DDIR/launch")"
+assert "0284: fixture sanity — the launch recorded a usable pgid" '[ -n "$lpgid" ] && [ "$lpgid" -gt 1 ]'
+assert "0284: fixture sanity — the child is alive before we kill it" 'kill -0 -"$lpgid" 2>/dev/null'
+# Kill the GROUP without letting the wrapper write `done`: SIGKILL is untrappable, so the untrapped
+# wrapper subshell dies with it and no sentinel can ever appear. That is precisely the state the
+# sentinel-only predicate could not see.
+kill -KILL -"$lpgid" 2>/dev/null
+waited=0
+while kill -0 -"$lpgid" 2>/dev/null && [ "$waited" -lt 100 ]; do sleep 0.1; waited=$(( waited + 1 )); done
+assert "0284: fixture sanity — the group is gone" '! kill -0 -"$lpgid" 2>/dev/null'
+assert "0284: fixture sanity — and no sentinel was ever written" '[ ! -f "$DDIR/done" ]'
+vstart=$(date +%s)
+BUDGET=60 out="$(observe "$KEY" 2>&1)"; rc=$?
+velapsed=$(( $(date +%s) - vstart ))
+assert "0284: a vanished child does NOT observe as still running" '[ "$rc" != "4" ]'
+assert "0284: it is terminal — result unavailable (1)" '[ "$rc" = "1" ]'
+assert "0284: and it was detected in seconds, not at the far end of the 60m budget" '[ "$velapsed" -lt 30 ]'
+assert "0284: the diagnostic says the child died without a sentinel" \
+  'grep -qiE "without .*sentinel|vanished" <<<"$out"'
+assert "0284: and it names the dispatch dir so the orphans it did not reap can be found" \
+  'grep -qF "$DDIR" <<<"$out"'
+# NO FABRICATED EXIT CODE (spec § Testing case 5, shape-keyed rather than wording-enumerated): the
+# child said nothing at all, so an "exited <n>" phrase would assert a code that was never read.
+assert "0284: the dead path never claims an exit code it did not read" \
+  '! grep -qE "exited [0-9]+" <<<"$out"'
+# The give-up path's own diagnostic is NOT what was spoken: the budget was nowhere near spent, and
+# borrowing that wording would tell a reader a budget expired when none did.
+assert "0284: and it never claims a budget it did not spend" \
+  '! grep -qiE "budget of [0-9]+m exhausted|budget was exhausted" <<<"$out"'
+
+# ---- 0284: the terminal marker is the EXISTING one, with the new cause -------------
+assert "0284: a killed marker was recorded (no second terminal file was minted)" '[ -f "$DDIR/killed" ]'
+assert "0284: its cause is child-vanished" 'grep -qx "cause=child-vanished" "$DDIR/killed"'
+assert "0284: its reason says nothing was signalled" 'grep -qx "reason=group-already-gone" "$DDIR/killed"'
+
+# ---- 0284: idempotence — every later observation short-circuits at step 2 -----------
+# The FIRST observation is the terminal TRANSITION, not a re-report, and it speaks from the leg that
+# made the transition: it relays the child's stdout, it names the dispatch dir, and it may carry a
+# git verdict the marker does not record. What idempotence obliges is that every
+# observation AFTER it is identical, which is the same shape the 0271 give-up arms above assert.
+out2="$(observe "$KEY" 2>&1)"; rc2=$?
+out3="$(observe "$KEY" 2>&1)"; rc3=$?
+assert "0284: re-observing a vanished dispatch stays terminal (1)" '[ "$rc2" = "1" ] && [ "$rc3" = "1" ]'
+assert "0284: and re-reports identically forever" '[ "$out3" = "$out2" ]'
+# THE ASSERT THE `child-vanished` READER ARM EXISTS FOR: without it `cause` falls to the default and
+# the re-report tells a reader the budget ran out on a dispatch that never spent a minute of it.
+assert "0284: the re-report names the vanishing, not a budget the dispatch never spent" \
+  'grep -qi "died without writing a sentinel" <<<"$out2" && ! grep -qi "budget was exhausted" <<<"$out2"'
+
+# ---- 0284: NOTHING IS SIGNALLED on the dead path ----------------------------------
+# The orphan residual is a PROMISE, so it needs a discriminating fixture: a live process that would
+# die if the facade signalled the recorded group. The canary leads its own group and the DEAD
+# dispatch's record is rewritten to name it — the "a pgid is a reusable name" state exactly, and the
+# state the identity conjunct exists to catch. The measurement is that the canary is still there.
+make_fixture
+FAKE_SLEEP=300 FAKE_TAIL=0 FAKE_RC=0
+KEY="$(launch status)"
+DDIR="$(ddir_for "$KEY")"
+lpgid="$(sed -n 's/^pgid=//p' "$DDIR/launch")"
+kill -KILL -"$lpgid" 2>/dev/null
+waited=0
+while kill -0 -"$lpgid" 2>/dev/null && [ "$waited" -lt 100 ]; do sleep 0.1; waited=$(( waited + 1 )); done
+# The canary leads its OWN group: `set -m` inside the subshell makes the background job a
+# process-group leader, and the pid is RECORDED rather than marked in an argv comment — a single
+# simple command under `sh -c` is EXEC'd and a comment marker vanishes from the argv the kernel
+# shows (learnings: exec-optimization-erases-the-process-marker). Verified by the sanity asserts
+# below: it must lead its own group, that group must not be this file's, and it must still be alive.
+( set -m; sleep 60 & echo $! > "$SBX/canary.pgid" )
+canary="$(cat "$SBX/canary.pgid")"
+canary_mypgid="$(ps -o pgid= -p $$ 2>/dev/null | tr -d ' ')"
+assert "0284: fixture sanity — the canary leads its own group, and not this file's" \
+  '[ -n "$canary" ] && [ "$(ps -o pgid= -p "$canary" 2>/dev/null | tr -d " ")" = "$canary" ] &&
+   [ "$canary" != "$canary_mypgid" ]'
+assert "0284: fixture sanity — and it is alive to be killed" 'kill -0 -"$canary" 2>/dev/null'
+# Point the DEAD dispatch's record at the LIVE canary group. The recorded TOKEN is left as the dead
+# child's, which is what makes the live group unprovable as ours — and it is blanked rather than
+# left to chance, because the canary can start inside the same `ps -o lstart=` second as the child
+# it replaces and an accidental match would report the dispatch as still running.
+rec="$(sed -e "s/^pgid=.*/pgid=$canary/" \
+           -e "s|^child_lstart=.*|child_lstart=Thu Jan  1 00:00:00 1970|" "$DDIR/launch")"
+printf '%s\n' "$rec" > "$DDIR/launch"
+assert "0284: fixture sanity — the record now names the canary's group" \
+  '[ "$(sed -n "s/^pgid=//p" "$DDIR/launch")" = "$canary" ]'
+BUDGET=60 out="$(observe "$KEY" 2>&1)"; rc=$?
+assert "0284: a record naming a group that is not ours is still terminal (1)" '[ "$rc" = "1" ]'
+assert "0284: NOTHING was signalled — the canary is still running" 'kill -0 "$canary" 2>/dev/null'
+assert "0284: and the diagnostic still points a human at the dispatch dir" 'grep -qF "$DDIR" <<<"$out"'
+reap "$canary"
+
+# ---- 0284: the SENTINEL OUTRANKS liveness -----------------------------------------
+# Pins step 1's precedence against the new step 3: a dead child WITH a `done` sentinel takes the
+# sentinel disposition, unchanged. Without this the new leg could silently capture completed runs.
+make_fixture
+FAKE_SLEEP=0 FAKE_TAIL=0 FAKE_RC=0
+KEY="$(launch status)"
+DDIR="$(ddir_for "$KEY")"
+waited=0
+while [ ! -f "$DDIR/done" ] && [ "$waited" -lt 300 ]; do sleep 0.1; waited=$(( waited + 1 )); done
+assert "0284: fixture sanity — the child finished and wrote its sentinel" '[ -f "$DDIR/done" ]'
+lpgid="$(sed -n 's/^pgid=//p' "$DDIR/launch")"
+# The sentinel is written by the wrapper's second-to-last act, so the group can outlive it by
+# milliseconds. Wait it out rather than asserting on the instant — the discriminating condition is
+# that liveness ALONE would say vanished, and a half-torn-down group would not measure that.
+waited=0
+while kill -0 -"$lpgid" 2>/dev/null && [ "$waited" -lt 100 ]; do sleep 0.1; waited=$(( waited + 1 )); done
+assert "0284: fixture sanity — and its group is gone (so liveness alone would say vanished)" \
+  '! kill -0 -"$lpgid" 2>/dev/null'
+out="$(observe "$KEY" 2>&1)"; rc=$?
+assert "0284: a dead child WITH a sentinel takes the sentinel disposition (0)" '[ "$rc" = "0" ]'
+assert "0284: and it is worded as a completion, not as a vanishing" \
+  'grep -qi "complete" <<<"$out" && ! grep -qi "vanished" <<<"$out"'
+assert "0284: no killed marker is written over a completed run" '[ ! -f "$DDIR/killed" ]'
+
+# ---- 0284: the step-4 RE-READ closes the probe's own TOCTOU window ----------------
+# Steps 1-3 span a `ps` call and a `kill -0`; the child has every chance to finish inside that
+# window, and without the re-read a run that PASSED is disposed as dead. The barrier holds the
+# observer at exactly the pre-probe point so the interleaving is deterministic rather than
+# sleep-tuned. Inert unless armed, so no other arm in this file is affected.
+make_fixture
+FAKE_SLEEP=300 FAKE_TAIL=0 FAKE_RC=0
+KEY="$(launch status)"
+DDIR="$(ddir_for "$KEY")"
+lpgid="$(sed -n 's/^pgid=//p' "$DDIR/launch")"
+kill -KILL -"$lpgid" 2>/dev/null
+waited=0
+while kill -0 -"$lpgid" 2>/dev/null && [ "$waited" -lt 100 ]; do sleep 0.1; waited=$(( waited + 1 )); done
+BFILE="$SBX/barrier"
+( cd "$SBX" && RUNNERS_DIR="$RDIR" DELEGATION_OBSERVATION_BUDGET=60 \
+    RUNNER_DISPATCH_TEST_BARRIER=pre-liveness-probe \
+    RUNNER_DISPATCH_TEST_BARRIER_FILE="$BFILE" \
+    bash "$FACADE" --observe "$KEY" --runner fake --agent status ) > "$SBX/bout" 2> "$SBX/berr" &
+bpid=$!
+waited=0
+while [ ! -e "$BFILE.reached" ] && [ "$waited" -lt 200 ]; do sleep 0.1; waited=$(( waited + 1 )); done
+# NOT DECORATION: everything below is a claim about an INTERLEAVING, and an interleaving that never
+# happened would be asserted just as green by a barrier that was never reached.
+assert "0284: fixture sanity — the observer is held at the pre-probe barrier" '[ -e "$BFILE.reached" ]'
+# The child "finishes" INSIDE the window: write the sentinel the wrapper would have written, in the
+# wrapper's own atomic shape.
+printf 'exit_code=0\nstarted_at=x\nfinished_at=y\npid=1\ndispatch_key=%s\n' "$KEY" > "$DDIR/done.partial"
+mv -f "$DDIR/done.partial" "$DDIR/done"
+: > "$BFILE.release"
+wait "$bpid"; rc=$?
+berr="$(cat "$SBX/berr")"
+assert "0284: a sentinel that lands inside the probe window is honoured, not disposed as dead" '[ "$rc" = "0" ]'
+assert "0284: and it reports the COMPLETED disposition, never child-vanished" \
+  'grep -qi "complete" <<<"$berr" && ! grep -qi "vanished" <<<"$berr"'
+assert "0284: no killed marker was written over the sentinel that arrived" '[ ! -f "$DDIR/killed" ]'
+
+# ---- 0284: the barrier is inert unless armed on ITS OWN point name ----------------
+# An always-on hang site is the one way a test hook can damage production, and arming point A must
+# never hold point B. The fixture is a LIVE child with no terminal file, so the observation really
+# does reach the barrier's call site — armed on a different name it must sail straight through it,
+# through the probe, and out at the still-running verdict. (A finished child would take the sentinel
+# disposition before the barrier and assert nothing at all.)
+make_fixture
+FAKE_SLEEP=30 FAKE_TAIL=0 FAKE_RC=0
+KEY="$(launch status)"
+DDIR="$(ddir_for "$KEY")"
+in_pgid="$(sed -n 's/^pgid=//p' "$DDIR/launch")"
+istart=$(date +%s)
+( cd "$SBX" && RUNNERS_DIR="$RDIR" DELEGATION_OBSERVATION_BUDGET=60 \
+    RUNNER_DISPATCH_TEST_BARRIER=some-other-point \
+    RUNNER_DISPATCH_TEST_BARRIER_FILE="$SBX/never" \
+    bash "$FACADE" --observe "$KEY" --runner fake --agent status ) >/dev/null 2>&1; irc=$?
+assert "0284: arming a DIFFERENT barrier point does not hold this one" \
+  '[ $(( $(date +%s) - istart )) -lt 10 ]'
+assert "0284: and an unarmed barrier creates no rendezvous files" '[ ! -e "$SBX/never.reached" ]'
+# The same observation is the live-child control for the probe itself: a group that IS alive and IS
+# ours must still observe as still-running, or the new leg would dispose every healthy dispatch.
+assert "0284: a LIVE child that is provably ours still observes as still running (4)" '[ "$irc" = "4" ]'
+assert "0284: and no terminal marker is written over it" '[ ! -f "$DDIR/killed" ]'
+reap "$in_pgid"
 
 exit "$fail"
