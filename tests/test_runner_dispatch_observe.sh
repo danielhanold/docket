@@ -631,6 +631,49 @@ gone_out="$(observe "$KEY" 2>&1)"; gone_rc=$?
 assert "0284-f7: and a marker that DOES carry the proof is worded as a death" \
   '[ "$gone_rc" = "1" ] && grep -qi "died without writing a sentinel" <<<"$gone_out"'
 
+# ---- 0284 review, finding 2: the RELAY replays too, not only the wording ----------
+# A vanished dispatch was the ONE terminal state whose STDOUT differed between the transition and
+# every later observation: the transition relayed, the step-2 marker replay did not. So a caller
+# that observed a second time got a terminal code with an EMPTY relay — indistinguishable from a run
+# that produced no output — and, since the marker's `mv -f` is what makes the state terminal, a
+# crash between that rename and the relay lost the child's only surviving words permanently.
+# `report_done_disposition` relays on EVERY observation while `done` exists; this pins the same
+# promise on the vanished path. The "same bytes once per pass" objection does not apply: a polling
+# caller stops at the first terminal code, exactly as it already does on the `done` path.
+#
+# The fixture must carry stdout the child actually WROTE before dying, which the `gone` fixture
+# above cannot: it was SIGKILLed mid-`sleep`, before the adapter printed anything. So this one
+# prints FIRST and then lingers, and is killed during the linger.
+make_fixture
+FAKE_SLEEP=0 FAKE_TAIL=300 FAKE_RC=0
+KEY="$(launch status)"
+DDIR="$(ddir_for "$KEY")"
+lpgid="$(sed -n 's/^pgid=//p' "$DDIR/launch")"
+waited=0
+while [ ! -s "$DDIR/stdout.log" ] && [ "$waited" -lt 100 ]; do sleep 0.1; waited=$(( waited + 1 )); done
+assert "0284-f2: fixture sanity — the child wrote stdout before it was killed" '[ -s "$DDIR/stdout.log" ]'
+kill -KILL -"$lpgid" 2>/dev/null
+waited=0
+while kill -0 -"$lpgid" 2>/dev/null && [ "$waited" -lt 100 ]; do sleep 0.1; waited=$(( waited + 1 )); done
+assert "0284-f2: fixture sanity — the group is gone and no sentinel was ever written" \
+  '! kill -0 -"$lpgid" 2>/dev/null && [ ! -f "$DDIR/done" ]'
+# STDERR DISCARDED on all three passes, so nothing a diagnostic prints can satisfy these asserts.
+BUDGET=60 rl1="$(observe "$KEY" 2>/dev/null)"; rl_rc1=$?
+BUDGET=60 rl2="$(observe "$KEY" 2>/dev/null)"; rl_rc2=$?
+BUDGET=60 rl3="$(observe "$KEY" 2>/dev/null)"; rl_rc3=$?
+assert "0284-f2: fixture sanity — the transition disposed it as vanished" \
+  '[ "$rl_rc1" = "1" ] && grep -qx "cause=child-vanished" "$DDIR/killed"'
+assert "0284-f2: the transition relays the child's stdout" '[ "$rl1" = "fake adapter stdout" ]'
+# THE FINDING. Each later pass is asserted against the BYTES, never only against its predecessor:
+# `rl3 = rl2` is satisfied vacuously by two empty relays, which is exactly the defect.
+assert "0284-f2: and so does the SECOND observation, replayed off the marker" \
+  '[ "$rl2" = "fake adapter stdout" ]'
+assert "0284-f2: and the THIRD" '[ "$rl3" = "fake adapter stdout" ]'
+assert "0284-f2: the replayed relay carries the child's stdout only, never its stderr" \
+  '! grep -qF "fake adapter stderr" <<<"$rl2$rl3"'
+assert "0284-f2: and no diagnostic leaks onto it" '! grep -qF "runner-dispatch:" <<<"$rl2$rl3"'
+assert "0284-f2: the code stays terminal on every pass" '[ "$rl_rc2" = "1" ] && [ "$rl_rc3" = "1" ]'
+
 # ---- 0284: NOTHING IS SIGNALLED when the recorded group cannot be proven ours -----
 # The no-signal promise needs a discriminating fixture: a live process that would die if the facade
 # signalled the recorded group. The canary leads its own group and the DEAD dispatch's record is

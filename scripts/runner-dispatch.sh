@@ -657,7 +657,17 @@ if [ "$VERB" = "observe" ]; then
   # so it is emitted VERBATIM — never summarized, prefixed, or reformatted; a caller parses it.
   # Every diagnostic in this branch stays on stderr, which is what keeps the two from interleaving.
   #
-  # Fired ONLY where the `done` sentinel exists — the child is finished, so its stdout is COMPLETE.
+  # THE PRECONDITION IS THAT THE CHILD IS FINISHED, not that a sentinel exists (change 0284 review,
+  # finding 5). Two families of caller satisfy it:
+  #   - EVERY path where the `done` sentinel exists (`report_done_disposition` and the legs it routes
+  #     to) — the child wrote the sentinel as its last act, so its stdout is COMPLETE;
+  #   - the VANISHED path, BOTH of its legs — `dispose_vanished_child` at the transition and the
+  #     `cause=child-vanished` replay at step 2. There is no sentinel there by construction, and the
+  #     justification is the liveness probe's instead: the child is dead, so `stdout.log` is not
+  #     growing and whatever it managed to write is final. The replay relays for the same reason the
+  #     `done` path does on every pass — a terminal observation's stdout IS the relay, and a caller
+  #     that observes a vanished dispatch a second time must not get a terminal code with an empty
+  #     one, indistinguishable from a run that produced no output.
   # The still-running (4) path deliberately emits nothing: the shim observes repeatedly, and a
   # partial relay per pass would hand the caller the same prefix over and over. The budget-kill and
   # own-group-refusal paths emit nothing either — there the run has no result to relay (and in the
@@ -1085,8 +1095,11 @@ if [ "$VERB" = "observe" ]; then
   # re-reports IDENTICALLY forever; without the recorded verdict the transition could exit 0 (the
   # work landed) while every re-read exited 1 off a marker that remembered only the death. The
   # re-read replays both, and asks git nothing — a second read would be a differently-timed answer
-  # to a question already answered. Only the RELAY differs between the transition and the re-report,
-  # as it already does on every other terminal path in this file.
+  # to a question already answered. THE RELAY IS REPLAYED TOO (change 0284 review, finding 2): the
+  # `done` path relays on every observation while the sentinel exists, so a vanished dispatch that
+  # relayed only once would be the single terminal state whose STDOUT — the contract's whole
+  # terminal result — changed between observations. Transition and re-report therefore differ in
+  # nothing a caller can observe.
 
   # ONE verdict->code mapping, shared by both agent families and by the marker replay. Shape-keyed
   # on the verdict's own leading token, never on an enumerated list of full verdict strings.
@@ -1179,8 +1192,7 @@ if [ "$VERB" = "observe" ]; then
     mv -f "$DDIR/killed.partial" "$DDIR/killed" || die "could not record the kill marker in $DDIR"
     say_vanished "${VANISHED_WHY:-reason unrecorded}" "$gitv" "$code" "${VANISHED_CLASS:-}"
     # The child is finished either way, so whatever it managed to write is the only evidence left.
-    # This is the ONE thing the re-report does not repeat: relaying a completed dispatch's stdout on
-    # every later observation would hand a polling caller the same bytes once per pass.
+    # The step-2 replay repeats this, deliberately — see this leg's header.
     relay_child_stdout
     exit "$code"
   }
@@ -1230,6 +1242,12 @@ if [ "$VERB" = "observe" ]; then
       case "$KCODE" in ''|*[!0-9]*) KCODE=1 ;; esac
       say_vanished "${KDETAIL:-reason unrecorded}" "$(killed_field git_verdict)" "$KCODE" \
         "$(killed_field liveness_class)"
+      # AND THE RELAY, exactly as the transition emitted it (change 0284 review, finding 2). The
+      # child is dead, so `stdout.log` is final; stdout on a terminal observation IS the result the
+      # shim passes on, and without this the second observation of a vanished-but-landed dispatch
+      # exits 0 with nothing on it. The give-up arms below relay nothing because there is no
+      # finished run behind them; this arm has one.
+      relay_child_stdout
       exit "$KCODE"
     fi
     case "$KCAUSE" in
