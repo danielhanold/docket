@@ -12,12 +12,12 @@ related: []
 discovered_from: [212]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-assert-executes-backticks-in-its-test-description-so-a-verba-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-11-assert-backtick-source-hygiene.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/assert-executes-backticks-in-its-test-description-so-a-verba
-claimed_at: 2026-08-11T20:52:00Z
+claimed_at: 2026-08-11T21:05:00Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-assert-executes-backticks-in-its-test-description-so-a-verba-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-assert-executes-backticks-in-its-test-description-so-a-verba-design.md) |
+| Plan | [2026-08-11-assert-backtick-source-hygiene.md](https://github.com/danielhanold/docket/blob/feat/assert-executes-backticks-in-its-test-description-so-a-verba/docs/superpowers/plans/2026-08-11-assert-backtick-source-hygiene.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
