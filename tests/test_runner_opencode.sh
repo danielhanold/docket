@@ -107,9 +107,9 @@ assert "0277 opencode: the brief is NOT flattened onto one line" \
 
 # The surviving argv path is non-lossy too — joined on NEWLINE, in order, not on a space.
 run_adapter --agent status --model m/x/y -- "argv-alpha" "argv-beta"
-assert "0277 opencode: multiple post-\`--\` args each land on their own line" \
+assert '0277 opencode: multiple post-`--` args each land on their own line' \
   'grep -qxF -- "argv-alpha" <<<"$ARGV" && grep -qxF -- "argv-beta" <<<"$ARGV"'
-assert "0277 opencode: post-\`--\` args are NOT space-joined" '! grep -qF -- "argv-alpha argv-beta" <<<"$ARGV"'
+assert '0277 opencode: post-`--` args are NOT space-joined' '! grep -qF -- "argv-alpha argv-beta" <<<"$ARGV"'
 
 # Defensive exclusion: opencode.md documents a direct hand invocation that bypasses the facade, so
 # the refusal cannot live only at the facade.

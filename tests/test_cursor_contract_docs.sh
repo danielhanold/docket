@@ -38,7 +38,7 @@ assert "agent-layer: no longer claims the Cursor rule forces a Task dispatch" \
   '! grep -qF "forces a Task dispatch" "$AL"'
 # The generic fallback branch is named, and named as a best guess rather than a supported mapping —
 # the assumption that let the Cursor defect ship.
-assert "agent-layer: names the generic \`*)\` fallback branch" \
+assert 'agent-layer: names the generic `*)` fallback branch' \
   'grep -qF -- "*)\` branch" "$AL"'
 assert "agent-layer: calls the generic branch not a supported mapping" \
   'grep -qiF -- "not a supported mapping" "$AL"'

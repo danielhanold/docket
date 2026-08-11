@@ -17,6 +17,14 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 
 flat(){ tr '\n' ' ' < "$1" | tr -s '[:space:]' ' '; }
 
+# A literal backtick, held in a SINGLE-quoted literal. The token patterns below need it next to a
+# `$tok` expansion, and no backtick may sit inside double quotes in test source: bare, the shell
+# runs it when it reads the line; backslash-escaped, the escape is consumed there and a bare
+# backtick travels on to the next evaluation (change 0221,
+# scripts/check-test-source-hygiene.sh). Concatenating this expansion is inert either way — an
+# expansion's result is never re-scanned for command substitution.
+BT='`'
+
 CONV="$REPO/skills/docket-convention/SKILL.md"
 REF="$REPO/skills/docket-convention/references/dummy-mode.md"
 
@@ -60,13 +68,14 @@ ref_flat=""
 # All five tokens, each bound to its own mode — adjacency to the word "replace" somewhere in a
 # table is satisfied by a table that lists both modes for everything. The pattern is built in a
 # variable so the backticks reach grep as literals: an expansion's result is not re-scanned for
-# command substitution, while a backtick written inside the eval'd string would be.
+# command substitution, while a backtick written inside the eval'd string would be. The backtick
+# itself comes from `$BT` for the same reason it is defined above.
 for tok in dialogue reports; do
-  dm_pat="\`$tok\`.{0,250}replace"
+  dm_pat="$BT$tok$BT.{0,250}replace"
   assert "reference: $tok is classified replace" 'grep -qE "$dm_pat" <<<"$ref_flat"'
 done
 for tok in results change-sections pr; do
-  dm_pat="\`$tok\`.{0,250}additive"
+  dm_pat="$BT$tok$BT.{0,250}additive"
   assert "reference: $tok is classified additive" 'grep -qE "$dm_pat" <<<"$ref_flat"'
 done
 
@@ -98,8 +107,8 @@ check_pointer(){ # check_pointer <skill-relpath> <token>...
   for tok in "$@"; do
     # Same expansion idiom as the reference asserts above: the backticks must reach grep from a
     # variable, since a backtick written inside the eval'd string would be a command substitution.
-    dm_fwd="[Dd]ummy mode[^.]{0,200}\`$tok\`"
-    dm_rev="\`$tok\`[^.]{0,200}[Dd]ummy mode"
+    dm_fwd="[Dd]ummy mode[^.]{0,200}$BT$tok$BT"
+    dm_rev="$BT$tok$BT[^.]{0,200}[Dd]ummy mode"
     assert "pointer: $rel binds the $tok surface to dummy mode" \
       'grep -qE "$dm_fwd" <<<"$body" || grep -qE "$dm_rev" <<<"$body"'
   done
@@ -124,7 +133,7 @@ for rel in skills/docket-new-change/SKILL.md skills/docket-groom-next/SKILL.md \
            skills/docket-status/SKILL.md skills/docket-auto-groom/SKILL.md; do
   n=0
   for tok in dialogue reports results change-sections pr; do
-    grep -qF -- "\`$tok\`" "$REPO/$rel" && n=$((n+1))
+    grep -qF -- "$BT$tok$BT" "$REPO/$rel" && n=$((n+1))
   done
   cap=3
   [ "$rel" = "skills/docket-implement-next/SKILL.md" ] && cap=4

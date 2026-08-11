@@ -196,7 +196,7 @@ assert "docket-adr carries no second-person prohibition (found $adr_2p_hits)" '[
 # DIFFERENT literals: the SITES row checks the two-sided mode clause, this one checks the
 # artifact/stop-point naming. They do not duplicate each other.
 BS="$REPO/skills/docket-brainstorm/SKILL.md"
-OWNER="owned by \`docket-implement-next\`"
+OWNER='owned by `docket-implement-next`'
 assert "docket-brainstorm exists and is non-empty" '[ -s "$BS" ]'
 bs_ln="$(anchor_line "$BS" "STOP AT THE SPEC")"
 assert "docket-brainstorm still carries its STOP AT THE SPEC anchor" '[ -n "$bs_ln" ]'

@@ -12,6 +12,11 @@ CONV="$REPO/skills/docket-convention/SKILL.md"
 fail=0
 ok(){ printf 'ok - %s\n' "$1"; }
 no(){ printf 'NOT OK - %s\n' "$1"; fail=1; }
+# A literal backtick, held in a SINGLE-quoted literal, for the code-span patterns below that need
+# one beside a `$var` expansion. No backtick may sit inside double quotes in test source: bare, the
+# shell runs it when it reads the line; backslash-escaped, the escape is consumed there and a bare
+# backtick travels on to the next evaluation (change 0221, scripts/check-test-source-hygiene.sh).
+BT='`'
 
 # --- Assertion 0: the runbook exists ----------------------------------------------------------
 if [ -f "$RUNBOOK" ]; then ok "runbook exists"; else no "runbook exists"; exit 1; fi
@@ -78,14 +83,14 @@ if [ -z "$badpaths" ]; then ok "every cited repo path exists"; else no "runbook 
 # the suite green). Task 1 Step 3 names these four paths explicitly, so assert each by IDENTITY —
 # the same pattern Assertion 4 below uses for root scripts.
 for p in docs/codex/setup.md docs/cursor/permissions.md scripts/runners/codex.sh docs/results/; do
-  if grep -qF -- "\`$p\`" "$RUNBOOK"; then ok "runbook cites required path: $p"; else no "runbook cites required path: $p"; fi
+  if grep -qF -- "$BT$p$BT" "$RUNBOOK"; then ok "runbook cites required path: $p"; else no "runbook cites required path: $p"; fi
 done
 
 # --- Assertion 4: root-level scripts the runbook drives are named at their REAL location -------
 # The repo-root scripts have no `scripts/` prefix; assert each is cited and each exists.
 for s in install.sh migrate-to-docket.sh sync-agents.sh link-skills.sh; do
   if [ ! -f "$REPO/$s" ]; then no "root script exists: $s"; continue; fi
-  if grep -qF -- "\`$s\`" "$RUNBOOK"; then ok "runbook names root script: $s"; else no "runbook names root script: $s"; fi
+  if grep -qF -- "$BT$s$BT" "$RUNBOOK"; then ok "runbook names root script: $s"; else no "runbook names root script: $s"; fi
 done
 # ...and never at a fabricated `scripts/` path.
 if grep -qF -- 'scripts/sync-agents.sh' "$RUNBOOK"; then no "runbook cites fabricated scripts/sync-agents.sh"; else ok "runbook does not cite fabricated scripts/sync-agents.sh"; fi
