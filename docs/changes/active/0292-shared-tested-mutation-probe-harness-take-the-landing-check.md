@@ -3,7 +3,7 @@ id: 292
 slug: shared-tested-mutation-probe-harness-take-the-landing-check
 title: 'Shared, tested mutation-probe harness — take the landing check out of each plan author''s care'
 status: proposed
-priority: medium
+priority: high
 type: feat
 created: 2026-08-11
 updated: 2026-08-11

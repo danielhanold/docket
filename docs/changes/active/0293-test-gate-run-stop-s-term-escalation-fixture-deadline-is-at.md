@@ -3,7 +3,7 @@ id: 293
 slug: test-gate-run-stop-s-term-escalation-fixture-deadline-is-at
 title: 'test_gate_run_stop''s TERM-escalation fixture deadline is at exact parity with stop_run''s own TERM budget'
 status: proposed
-priority: medium
+priority: high
 type: fix
 created: 2026-08-11
 updated: 2026-08-11
