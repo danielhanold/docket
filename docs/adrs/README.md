@@ -86,6 +86,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0086](0086-in-context-gating-dispatch-carved-out-of-the-tier-taxonomy.md) — An in-context-gating dispatch sits outside the dispatch-capability tier taxonomy by carve-out, not as a fourth tier (Accepted) ← change #260 · relates to ADR-0059, ADR-0085
 - [ADR-0087](0087-liveness-probe-non-zero-is-not-evidence-of-death.md) — A liveness probe's non-zero answer is not evidence of death — only a failed kill -0 is (Accepted) ← change #284
 - [ADR-0088](0088-halt-exit-code-is-a-property-of-run-state-not-discovery-path.md) — A halt's exit code is a property of the run's state, not of how the facade learned it (Accepted) ← change #284 · relates to ADR-0087
+- [ADR-0089](0089-shared-metadata-worktree-contention-survivable-not-impossible.md) — Shared-metadata-worktree contention is made survivable, not impossible — and a wedged tree halts (Accepted) ← change #247 · relates to ADR-0046
 
 ## Superseded / Reversed
 
