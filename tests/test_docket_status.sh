@@ -1712,8 +1712,13 @@ assert "0118: the helper body is extractable at all (non-vacuity)" \
   '[ -n "$mark_fn" ]'
 assert "0118: sweep_mark_publish_deferred is defined once" \
   '[ "$(grep -c "^sweep_mark_publish_deferred()" "$SCRIPT")" -eq 1 ]'
+# Anchored on the INVOCATION shape (`"$SCRIPTS_DIR"/mark-publish-deferred.sh`), never the bare
+# script name: a bare-name count also counts every comment and doc-pointer that merely NAMES the
+# script, so a future prose edit would redden an assert whose message sends the reader hunting a
+# second call site that does not exist. `-F` because the literal carries a `"` and a `.`, and PATH
+# grep is ugrep, where a mid-pattern `$` would anchor.
 assert "0118: mark-publish-deferred.sh is invoked from exactly ONE place in the sweep" \
-  '[ "$(grep -c "mark-publish-deferred\.sh" "$SCRIPT")" -eq 1 ]'
+  '[ "$(grep -cF -- "SCRIPTS_DIR\"/mark-publish-deferred.sh" "$SCRIPT")" -eq 1 ]'
 # KEPT after review finding 2 added the behavioral fixture ("0118 finding2: a wedged shared worktree
 # SKIPS the mark entirely"), because it pins something that test cannot reach: that the probe is the
 # SHARED predicate by name. Its fixture is a plain clone, where a hand-rolled
