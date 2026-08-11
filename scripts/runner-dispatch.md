@@ -160,6 +160,13 @@ sides of the handoff, default `scripts/docket.sh`).
    likewise best-effort: it warns and degrades the gate's freshness rather than failing a dispatch
    that may well have succeeded.
 
+   When the dispatch carried its payload as a **brief file**, the re-dispatch does not append the
+   retry context as an extra argument — that would present both payload channels at once, the shape
+   the adapters refuse. It composes a **combined brief** instead (the original brief verbatim, a
+   blank line, then the retry context) in a temporary file, re-dispatches with `--brief-file`
+   pointing at it, and removes it when the call returns. With no brief file the re-dispatch keeps
+   its original trailing-argv shape.
+
    The re-dispatched run's own exit code is not propagated: the gate's verdict is read from git,
    not from the retry's status. By the same rule, once a re-dispatch has actually run, a **positive**
    second verdict of `run-complete` / `run-unclaimed` supersedes the **first** adapter's code and the

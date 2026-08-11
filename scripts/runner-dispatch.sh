@@ -1087,7 +1087,21 @@ for nid in "${NEW_IDS[@]:-}"; do
   unmet="${verdict#run-incomplete "$nid" }"
   retry_ctx="docket-implement-next $nid — the previous run left Step 7 unmet (${unmet}); resume that change and finish it: push the branch, open the PR, and write status: implemented + pr:. If it genuinely cannot proceed, write a '## Run halted' section into the change file and commit it — the heading must be bare and undated (the reader matches the whole line), so put the date inside the body."
   printf 'runner-dispatch: run gate — re-dispatching once for change %s (%s)\n' "$nid" "$unmet" >&2
-  "$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" -- "$@" "$retry_ctx"
+  # ONE CHANNEL ON THE RETRY TOO (change 0277). The retry context used to ride as an extra trailing
+  # argument, which — with a brief file in play — is exactly the both-channels shape the adapters
+  # refuse ("never both"), so the facade would kill its own re-dispatch on a path no caller can see.
+  # Instead the context is appended to a COMBINED brief: the original brief's bytes verbatim, a
+  # blank line, then the retry context. Never dropped, never a second channel. Templated into
+  # TMPDIR per this repo's mktemp rule; removed once the re-dispatch returns.
+  if [ -n "$BRIEF_PATH" ]; then
+    RETRY_BRIEF="$(mktemp "${TMPDIR:-/tmp}/docket-retry-brief.XXXXXX")" || die "cannot create the re-dispatch brief"
+    { cat "$BRIEF_PATH"; printf '\n%s\n' "$retry_ctx"; } > "$RETRY_BRIEF" \
+      || die "cannot write the re-dispatch brief $RETRY_BRIEF"
+    "$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" --brief-file "$RETRY_BRIEF" --
+    rm -f "$RETRY_BRIEF"
+  else
+    "$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" -- "$@" "$retry_ctx"
+  fi
 
   verdict="$("$DOCKET_BASH_PATH" "$VERIFY_RUN" "$nid" 2>/dev/null)"
   printf 'runner-dispatch: run gate — after re-dispatch: %s\n' "${verdict:-run-unverifiable $nid}" >&2
