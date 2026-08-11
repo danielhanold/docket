@@ -99,5 +99,56 @@ assert "Step 3: the Tier B outcome is the abstain exit" \
 assert "Step 3: the critic re-check is still dispatched foreground" \
   'grep -qi "re-check is dispatched foreground" <<<"$step3_flat"'
 
+# --- (c) the convention reclassifies the critic dispatch ----------------------------------------
+assert "convention exists and is non-empty" '[ -s "$CONV" ]'
+
+# Slice the Composition paragraph — it is one physical line beginning with the bolded marker.
+comp="$(grep -F -- '**Composition (change 0017).**' "$CONV")"
+assert "Composition paragraph located" '[ -n "$comp" ]'
+comp_flat="$(flat "$comp")"
+# Non-vacuity: the paragraph still names the critic at all (test_composition_wiring.sh also binds
+# this; asserting it here keeps the ORDERING check below from passing on an absent needle).
+assert "Composition still names docket-auto-groom-critic" \
+  'grep -qF -- "docket-auto-groom-critic" <<<"$comp_flat"'
+# Non-vacuity: the git-state clause is still present and still says what it says.
+assert "Composition still carries the git-state-contract clause" \
+  'grep -qF -- "contract is **git state**" <<<"$comp_flat"'
+
+# THE PROPERTY. The git-state-contract clause must be CLOSED before the critic is introduced, so
+# the critic can no longer be an antecedent of "These dispatches … their contract is git state".
+# Expressed as a byte-offset ordering over the flattened paragraph: a mechanical fact, not a parse
+# of English. `awk index()` is 1-based and returns 0 when absent — both needles are asserted
+# present above, so a 0 here would be a bug in the slice, not a legitimate ordering.
+offset_of(){ awk -v s="$1" 'BEGIN{ }{ print index($0, s) }' <<<"$comp_flat"; }
+gs_at="$(offset_of 'contract is **git state**')"
+critic_at="$(offset_of 'docket-auto-groom-critic')"
+assert "both offsets resolved (git-state=$gs_at critic=$critic_at)" \
+  '[ "$gs_at" -gt 0 ] && [ "$critic_at" -gt 0 ]'
+assert "the git-state clause closes BEFORE the critic is introduced" \
+  '[ "$gs_at" -lt "$critic_at" ]'
+
+# The positive half of the reclassification: the critic's verdict is an in-context return, and
+# neither git state nor agent messaging. Bounded gaps keep each inside one sentence.
+assert "Composition: the critic's verdict flows back in-context as the dispatch's return" \
+  'grep -qE "in-context as the dispatch.{0,3}s return" <<<"$comp_flat"'
+assert "Composition: never via git state and never via agent messaging" \
+  'grep -qE "never via git state[^.]{0,60}never via agent messaging" <<<"$comp_flat"'
+
+# Regression anchor: the never-yield rule and the caller's reciprocal reading are untouched by
+# this edit. If the re-order dropped either, that is a silent contract loss.
+assert "Composition: the never-yield rule survives" \
+  'grep -qF -- "to await a task-notification" <<<"$comp_flat"'
+assert "Composition: the never-adopt-a-child's-files rule survives" \
+  'grep -qF -- "never adopts or commits a child" <<<"$comp_flat"'
+
+# Non-vacuity anchor (mutation-in-fixture): the ordering matcher must actually FIRE on the shape it
+# rejects — the pre-0281 wording, where the critic is enumerated inside the git-state clause. A
+# typo in either needle would otherwise make the ordering assert permanently, vacuously green.
+probe_flat="$(flat 'docket-auto-groom dispatches the docket-auto-groom-critic subagent; their contract is **git state** on origin/docket.')"
+p_gs="$(awk -v s='contract is **git state**' '{ print index($0, s) }' <<<"$probe_flat")"
+p_cr="$(awk -v s='docket-auto-groom-critic' '{ print index($0, s) }' <<<"$probe_flat")"
+assert "the ordering matcher rejects the pre-0281 shape (git-state=$p_gs critic=$p_cr)" \
+  '[ "$p_gs" -gt 0 ] && [ "$p_cr" -gt 0 ] && [ "$p_gs" -gt "$p_cr" ]'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
