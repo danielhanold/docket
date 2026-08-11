@@ -271,8 +271,13 @@ assert "0118: no sentence claims the ## Artifacts re-render landed" \
   '! grep -qF -- "Close-out steps 1" "$f12"'
 assert "0118: the generalized prose says the ARCHIVE landed" \
   'grep -qF -- "The archive landed on the metadata branch;" "$f12"'
-assert "0118: the generalized prose says the publish did not COMPLETE (not: did not run)" \
-  'grep -qF -- "complete. See the dated line above for what failed." "$f12"'
+# The NEGATION is inside the guarded string on purpose: the marker's central claim is that the
+# publish did NOT happen, and an assert keyed only on "complete. See the dated line above …"
+# stays green when `**not**` is deleted — leaving a durable record that says the publish DID
+# complete, under a `## Publish deferred` heading. That requires the whole clause to render on
+# ONE physical printf line in scripts/mark-publish-deferred.sh; keep it that way.
+assert "0118: the generalized prose says the publish did **not** COMPLETE (not: did not run)" \
+  'grep -qF -- "did **not** complete. See the dated line above for what failed." "$f12"'
 assert "0118: the generalized prose still says where the record is" \
   'grep -qF -- "The record is on the metadata branch only." "$f12"'
 assert "0118: the dated detail line carries the re-render cause verbatim" \
