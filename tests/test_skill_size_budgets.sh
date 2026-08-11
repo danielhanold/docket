@@ -1184,6 +1184,25 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # missing a member reads as complete without it. Set per the rounding rule above from the measured
 # actual: 2444 words -> the next multiple of 50 is 2450, which leaves 6 words (within the 25-word
 # threshold), so the multiple after it, 2500 (56 words of margin).
+# skills/docket-convention/references/terminal-close-out.md's budget was raised 173/1458 ->
+# 180/1500 by change 0247's fix round, which carries the **Stage by explicit path** rule into step
+# 2's follow-on-commit sentence. The addition is one clause plus its reason (a bare `add -A` in the
+# SHARED metadata worktree commits whatever another agent had staged at that instant, under your
+# message — observed live during 0247).
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above: skills/docket-convention/SKILL.md,
+# which already states the rule at the direct-git grant, and this file's own preamble ("All metadata
+# writes happen in the metadata working tree"). Neither can host it, for the reason that IS this
+# rule's whole content: a standing rule loses to the specific instruction at the moment of action —
+# the first example this block gives of prose that cannot sit behind a pointer. Step 2 is that
+# moment for the two `done` drivers, which are sent to this file ("follow it exactly") and read the
+# commit instruction here, not in the dispatching body; the preamble sits 27 lines earlier and is
+# the standing rule, not the instruction being followed. Set per the rounding rule above from the
+# measured actual: 174 lines -> the next multiple of 5 is 175, which leaves 1 line of headroom —
+# the near-zero failure mode this block forbids, and the exact reason change 0167 raised a row
+# 100 -> 105 — so the multiple after it, 180 (6 lines of margin). 1469 words -> the next multiple
+# of 50 is 1500 (31 words of margin, clear of the 25-word floor).
+# skills/docket-finalize-change/references/gate-failure.md carries the same marker from the same fix
+# round, at its `## Finalize blocked` write sentence, and needed NO raise: 33/1107 against 40/1150.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -1201,7 +1220,7 @@ skills/docket-convention/references/agent-layer.md         205 2350
 skills/docket-convention/references/auto-capture.md        130 1250
 skills/docket-convention/references/dummy-mode.md           85  800
 skills/docket-convention/references/learnings.md            84  580
-skills/docket-convention/references/terminal-close-out.md  173 1458
+skills/docket-convention/references/terminal-close-out.md  180 1500
 skills/docket-finalize-change/SKILL.md                     185 3900
 skills/docket-finalize-change/references/gate-failure.md    40 1150
 skills/docket-groom-next/SKILL.md                           77 1484

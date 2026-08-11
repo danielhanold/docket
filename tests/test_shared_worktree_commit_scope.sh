@@ -10,7 +10,8 @@
 #                              Default-deny, with a keyed exception list for exclusive-worktree
 #                              sites. Task-3 scope.
 #   Group B (agent channel)  — the convention states the rule at the direct-git grant, and every
-#                              metadata-writing skill body carries the marker. Task-5 scope.
+#                              metadata-writing skill body — and every reference file a skill body
+#                              DELEGATES a shared-tree commit to — carries the marker. Task-5 scope.
 # Both live in ONE file on purpose: a second file would split the exception lists for one invariant.
 #
 # CONTRACT BOUNDARY: this detects `commit` as an exact-token subcommand under an EXPLICIT driver
@@ -23,9 +24,13 @@
 # (a) Only two of the seven skills have a commit-bearing heading, so B2 is a FILE-LEVEL token check
 #     for the other five: the marker could sit anywhere in the file and pass. Scoping to a heading
 #     would silently skip five of seven, which is worse; the realistic drift — a marker deleted or
-#     reflowed away — is still caught.
-# (b) A skill that grows a SECOND commit site is covered by the file's single marker.
-# Both need contrived prose to exploit.
+#     reflowed away — is still caught. B2c below inherits the same file-level check for the same
+#     reason.
+# (b) A file that grows a SECOND commit site is covered by that file's single marker.
+# Both need contrived prose to exploit. A THIRD limit is NOT accepted and is closed by B2c: a skill
+# body may DELEGATE its commit instruction to a reference file, and B2's `skills/*/SKILL.md` glob
+# cannot reach one — so the dispatching body's own marker would sit on a different commit and pass
+# while the instruction actually being followed goes unmarked.
 # Run: bash tests/test_shared_worktree_commit_scope.sh
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
@@ -391,5 +396,99 @@ for src in "$REPO"/agents/docket-*.md; do
 done
 assert "B2b: the 0208 cross-check reached its population (checked_scope=$checked_scope = 5)" \
   '[ "$checked_scope" -eq 5 ]'
+
+# --- group B2c: coverage over the reference files a skill body delegates a commit TO --------------
+# B2 above is structurally confined to `skills/*/SKILL.md` and cannot see a reference file. But
+# `skills/docket-convention/references/terminal-close-out.md` is the DECLARED single source for two
+# agent-authored commits into the shared tree — `docket-finalize-change` step 3 and `docket-status`'s
+# Tier-A inline sweep are both sent there ("follow it exactly") — and its step 2 instructs a
+# follow-on commit on `metadata_branch`. Half 3's whole evidential basis is that a standing rule
+# loses to the SPECIFIC INSTRUCTION at the moment of action; for those commits that moment lives in
+# the reference, so the dispatching body's marker sits on a DIFFERENT commit (finalize's step-2.5
+# harvest) and satisfies B2 without covering the instruction being followed. That is a false green
+# in the exact channel group B exists to guard.
+#
+# Population DERIVED, never hand-listed (AGENTS.md: enumerated floor), over every `references/*.md`
+# under `skills/**`. In scope iff the file BINDS a git write verb to `metadata_branch`. Both halves
+# are shape rather than phrasing: `metadata_branch` is the config KEY naming the shared branch — a
+# literal identifier, as immune to reflow and house-idiom drift as B2's `docket.sh preflight` — and
+# commit/push are the git operations themselves, not a way of describing them.
+#
+# BOUND, with the same sentence-local `[^.]{0,120}` window B1 uses, in both directions. Never `.*`:
+# an unbounded gap admits every file that merely mentions the branch somewhere, which would sweep in
+# `learnings.md` and `edge-paths.md` (controlled below) and dilute the rule exactly as the
+# feature-branch skills would. 120 also stays under BSD grep's 255-repetition ceiling.
+REF_BIND='metadata_branch[^.]{0,120}(commit|push)|(commit|push)[^.]{0,120}metadata_branch'
+
+# select_commit_refs [ROOT] — emit the in-scope reference paths under ROOT, one per line. ROOT
+# defaults to the repo's skills/ tree; the parameter exists so the synthetic controls below run
+# through the SAME selector, exactly as scan_commits takes one for group A's fixture.
+select_commit_refs(){
+  local root="${1:-$REPO/skills}" f files hay
+  files="$(find "$root" -path '*/references/*.md' -type f | sort)"
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    hay="$(flatten < "$f")"
+    # `-e` is not decoration here either: see the B1 note above.
+    grep -qiE -e "$REF_BIND" <<<"$hay" || continue
+    printf '%s\n' "$f"
+  done <<<"$files"
+}
+
+REFS="$(find "$REPO"/skills -path '*/references/*.md' -type f | sort)"
+assert "B2c: reference files were found at all (extractor floor)" '[ -n "$REFS" ]'
+REF_SCOPE="$(select_commit_refs)"
+# COUNT FLOOR — without it the selector may silently degrade to matching nothing and the loop below
+# becomes a vacuous zero-iteration guard, which is this whole file's named failure mode.
+assert "B2c: the derivation selected reference files (selector floor)" '[ -n "$REF_SCOPE" ]'
+assert "B2c: the derivation yields exactly 2 commit-instructing references (found $(grep -c . <<<"$REF_SCOPE"))" \
+  '[ "$(grep -c . <<<"$REF_SCOPE")" -eq 2 ]'
+
+covered_refs=0
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  rel="${f#$REPO/}"
+  hay="$(flatten < "$f")"
+  covered_refs=$((covered_refs+1))
+  assert "B2c: $rel carries the marker at its commit instruction" \
+    'grep -qF -- "$MARKER" <<<"$hay"'
+done <<<"$REF_SCOPE"
+assert "B2c: every in-scope reference was actually checked (covered_refs=$covered_refs = 2)" \
+  '[ "$covered_refs" -eq 2 ]'
+
+# References that NAME `metadata_branch` but instruct no commit there must stay OUT: `learnings.md`
+# states where `promotion_state:` lives, `edge-paths.md` states what a PR back-link points AT.
+# Marking them would assert a shared-tree commit obligation at a site that performs none. Existence
+# is floored first — a negative assert on a renamed file passes for the wrong reason.
+for outref in docket-convention/references/learnings.md docket-implement-next/references/edge-paths.md; do
+  assert "B2c: out-of-scope control '$outref' is a real file (the negative below is not vacuous)" \
+    '[ -f "$REPO/skills/$outref" ]'
+  assert "B2c: '$outref' names the branch but instructs no commit there, so it is correctly OUT" \
+    '! grep -q "/$outref$" <<<"$REF_SCOPE"'
+done
+
+# POSITIVE CONTROLS, SYNTHETIC — the selector's two arms and its bound have no complete live
+# witness, and an undemonstrable design decision is indistinguishable from decoration (same
+# reasoning, and the same fixture directory, as group A's synthetic controls). Mutation-checked:
+# deleting either arm reddens that arm's own assert, and widening `[^.]{0,120}` to `.*` reddens the
+# bound's. The live pair does NOT supply this — BOTH repo files happen to satisfy
+# the forward arm, so the reverse arm survives deletion against live text alone while still being
+# the arm that catches `docket-finalize-change`'s own house phrasing ("commit … on
+# `metadata_branch`"), which a reference could adopt at any time.
+REFDIR="$FIXDIR/skills/fixture-skill/references"
+mkdir -p "$REFDIR"
+printf '%s\n' 'Write the field on `metadata_branch`, then commit and push it.' > "$REFDIR/forward.md"
+printf '%s\n' 'Commit the finding files together on `metadata_branch`.' > "$REFDIR/reverse.md"
+printf '%s\n' 'The finding lives on `metadata_branch` and is read by the sweep, by the board renderer, by the mirror, and by the health checks, none of which write, so nothing here is a commit.' > "$REFDIR/farapart.md"
+printf '%s\n' 'The change file lives on `metadata_branch`. Nothing is written here.' > "$REFDIR/mention.md"
+REF_FIXTURE="$(select_commit_refs "$FIXDIR")"
+assert "B2c: 'metadata_branch … commit' IS selected (forward arm is live)" \
+  'grep -q "/forward.md$" <<<"$REF_FIXTURE"'
+assert "B2c: 'commit … metadata_branch' IS selected (reverse arm is live)" \
+  'grep -q "/reverse.md$" <<<"$REF_FIXTURE"'
+assert "B2c: a commit-word beyond the sentence-local window is NOT selected (the bound is live)" \
+  '! grep -q "/farapart.md$" <<<"$REF_FIXTURE"'
+assert "B2c: a bare mention across a sentence boundary is NOT selected" \
+  '! grep -q "/mention.md$" <<<"$REF_FIXTURE"'
 
 exit $fail
