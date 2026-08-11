@@ -39,6 +39,27 @@ assert "fixture sanity: the spawned job leads its own process group" \
 tok="$(docket_identity_of "$SPAWN_PID")"
 assert "docket_identity_of returns a non-empty token for a live pid" '[ -n "$tok" ]'
 assert "docket_identity_of is stable across calls" '[ "$(docket_identity_of "$SPAWN_PID")" = "$tok" ]'
+
+# ---- the rendering is PINNED, not merely normalized (0284 review, finding 1a) -----
+# `ps -o lstart=` renders through the CALLER's environment, so an unpinned reader hands two
+# processes that ask about the SAME pid two different tokens — and the comparison downstream reads
+# that as "not the recorded process". A `--launch` under one TZ and an `--observe` under another
+# would make a healthy long-running child unprovable, which on the observe seam is a terminal
+# verdict. The reader therefore fixes the rendering itself.
+#
+# THE CONTROL COMES FIRST AND IS ASSERTED, not assumed: an environment-invariant assert is exactly
+# what a platform whose `ps` ignored the environment would also produce, and the two are
+# indistinguishable without a case that MUST differ. TZ is the leg every supported platform honors.
+assert "control: the AMBIENT rendering really is TZ-dependent (else the pin asserts are vacuous)" \
+  '[ "$(TZ=Asia/Tokyo ps -o lstart= -p "$SPAWN_PID")" != "$(TZ=America/New_York ps -o lstart= -p "$SPAWN_PID")" ]'
+assert "docket_identity_of renders identically under any caller TZ" \
+  '[ "$(TZ=Asia/Tokyo docket_identity_of "$SPAWN_PID")" = "$(TZ=America/New_York docket_identity_of "$SPAWN_PID")" ]'
+assert "and an exported TZ does not move it either" \
+  '[ "$( export TZ=Asia/Tokyo; docket_identity_of "$SPAWN_PID" )" = "$tok" ]'
+# LC_TIME moves the weekday and month names on both platforms. This leg is only discriminating where
+# the locale is installed — the TZ control above is what proves the mechanism is live.
+assert "docket_identity_of renders identically under any caller locale" \
+  '[ "$(LC_ALL=fr_FR.UTF-8 docket_identity_of "$SPAWN_PID")" = "$tok" ]'
 assert "the token is whitespace-normalized (no runs, no edges)" \
   '[ "$tok" = "$(tr -s "[:space:]" " " <<<"$tok" | sed -e "s/^ //" -e "s/ $//")" ]'
 # Always-0 is load-bearing: gate-run.sh runs under `set -e` and ASSIGNS from this.
@@ -48,20 +69,42 @@ assert "docket_identity_of is empty for a gone pid" '[ -z "$(docket_identity_of 
 
 # ---- docket_group_alive_and_ours: the happy leg ----------------------------------
 DOCKET_LIVENESS_WHY="stale-sentinel"
+DOCKET_LIVENESS_CLASS="stale-class"
 docket_group_alive_and_ours "$SPAWN_PID" "$tok"; rc=$?
 assert "a live group with a MATCHING token is alive" '[ "$rc" = "0" ]'
 assert "DOCKET_LIVENESS_WHY is cleared on the alive leg" '[ -z "$DOCKET_LIVENESS_WHY" ]'
+assert "DOCKET_LIVENESS_CLASS is cleared on the alive leg" '[ -z "$DOCKET_LIVENESS_CLASS" ]'
+
+# ---- THE REASON CLASS (0284 review, finding 1b) ----------------------------------
+# Every non-zero return is "not alive", and gate-run.sh may keep reading it that way. But the two
+# ways of being not-alive are not the same fact: `kill -0` failing is POSITIVE EVIDENCE that the
+# group is gone, while every other leg says only that the question could not be answered this pass.
+# A consumer for whom a false `dead` is terminal and irreversible must be able to tell them apart,
+# so the class is carried alongside the reason.
 
 # ---- the pid-reuse case: live group, MISMATCHED token ----------------------------
 docket_group_alive_and_ours "$SPAWN_PID" "Thu Jan  1 00:00:00 1970"; rc=$?
-assert "a live group with a MISMATCHED token is DEAD (the pid-reuse case)" '[ "$rc" != "0" ]'
+assert "a live group with a MISMATCHED token is not alive (the pid-reuse case)" '[ "$rc" != "0" ]'
 assert "and the reason names the mismatch, quoting both tokens" \
   '[ -n "$DOCKET_LIVENESS_WHY" ] && grep -qF "1970" <<<"$DOCKET_LIVENESS_WHY" && grep -qF "$tok" <<<"$DOCKET_LIVENESS_WHY"'
+# NOT `gone`: the group is demonstrably ALIVE, and what failed is the comparison. A token rendered
+# by an older, unpinned build of this reader mismatches for a reason that has nothing to do with the
+# process — so this direction must fail closed toward "cannot be proven", never toward a verdict.
+assert "a mismatched token is UNPROVABLE, never proof the child is gone" \
+  '[ "$DOCKET_LIVENESS_CLASS" = "unprovable" ]'
+# THE LEGACY-TOKEN DIRECTION, spelled as its own case because it is the one the pin cannot repair:
+# a token recorded BEFORE the rendering was pinned may have been rendered under any TZ at all.
+assert "an unpinned-legacy-style token is unprovable too, not a false death" \
+  'legacy="$(TZ=Asia/Tokyo ps -o lstart= -p "$SPAWN_PID" | tr -s "[:space:]" " " | sed -e "s/^ //" -e "s/ $//")"
+   docket_group_alive_and_ours "$SPAWN_PID" "$legacy"; rc2=$?
+   [ "$rc2" != "0" ] && [ "$DOCKET_LIVENESS_CLASS" = "unprovable" ]'
 
 # ---- an empty expected token fails CLOSED ----------------------------------------
 docket_group_alive_and_ours "$SPAWN_PID" ""; rc=$?
-assert "an EMPTY expected token is dead — nothing to compare is not agreement" '[ "$rc" != "0" ]'
+assert "an EMPTY expected token is not alive — nothing to compare is not agreement" '[ "$rc" != "0" ]'
 assert "and it says so" '[ -n "$DOCKET_LIVENESS_WHY" ]'
+assert "an empty recorded token is UNPROVABLE — no evidence of death was gathered" \
+  '[ "$DOCKET_LIVENESS_CLASS" = "unprovable" ]'
 
 # ---- the same group after it exits ------------------------------------------------
 kill -KILL -"$SPAWN_PID" 2>/dev/null
@@ -71,6 +114,10 @@ assert "fixture sanity: the group is really gone" '! kill -0 -"$SPAWN_PID" 2>/de
 docket_group_alive_and_ours "$SPAWN_PID" "$tok"; rc=$?
 assert "a group that has exited is dead" '[ "$rc" != "0" ]'
 assert "and the reason is non-empty" '[ -n "$DOCKET_LIVENESS_WHY" ]'
+# THE ONLY LEG THAT CLAIMS A DEATH. `kill -0` failing means no process in that group answers — not
+# the leader, and not anything it spawned, since group membership survives the leader.
+assert 'an exited group is the ONE `gone` class — positive evidence, not an unanswered question' \
+  '[ "$DOCKET_LIVENESS_CLASS" = "gone" ]'
 
 # ---- the syntactic floor: NOTHING is probed, so no kill is issued ----------------
 # `kill -0 -0` means THIS caller's own group and `-1` means every process the user can signal, so
@@ -98,6 +145,10 @@ for bad in "" "abc" "0" "1" "12x"; do
   assert "a pgid of '${bad:-<empty>}' is dead" '[ "$rc" != "0" ]'
   assert "a pgid of '${bad:-<empty>}' explains itself" '[ -n "$DOCKET_LIVENESS_WHY" ]'
   assert "a pgid of '${bad:-<empty>}' probes NOTHING — no kill is issued" '[ ! -s "$KILLLOG" ]'
+  # Nothing was probed, so nothing was learned: a record that names no usable group is the purest
+  # `unprovable` there is, and reading it as a death would be a verdict manufactured out of a typo.
+  assert "a pgid of '${bad:-<empty>}' is UNPROVABLE, never gone" \
+    '[ "$DOCKET_LIVENESS_CLASS" = "unprovable" ]'
 done
 unset -f kill
 rm -f "$KILLLOG"

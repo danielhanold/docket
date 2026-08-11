@@ -396,10 +396,14 @@ makes **one pass** over the dispatch dir:
    observation idempotent across a caller's retry loop. A give-up marker is **result unavailable**
    (`1`); a `cause=child-vanished` marker replays the verdict and the code it recorded (`0`, `1` or
    `3` — see *Liveness vs correctness*);
-3. neither record, and the recorded process group is **no longer provably the launched child's**
-   ⇒ terminal on this observation, `cause=child-vanished`, with git deciding the code (change
-   0284);
-4. otherwise ⇒ **still running** (`4`), unless the observation budget is spent — or has been
+3. neither record, and the recorded process group is **provably gone** — `kill -0` against it fails,
+   so no process in it answers ⇒ terminal on this observation, `cause=child-vanished`, with git
+   deciding the code (change 0284);
+4. neither record, and the group is alive but **cannot be proven to be the launched child's** — a
+   record naming no usable group, an unreadable `ps`, a token missing on either side, a token that
+   cannot be compared ⇒ **nothing is established**, so nothing is disposed: the pass is counted
+   against the same consecutive-unenforceable bound as an unreadable clock (below) and reports `4`;
+5. otherwise ⇒ **still running** (`4`), unless the observation budget is spent — or has been
    **unenforceable** on three consecutive passes, which is terminal for the same reason (below).
 
 **The order of the first two reads is load-bearing, and the sentinel wins.** The wrapper subshell is
@@ -432,19 +436,23 @@ compared only *after* the sentinel read. Anything that is not positive evidence 
 an unreadable clock, an unreadable `started_at`, a budget value that is not an integer — reports
 **still running** and enforces nothing this pass, rather than killing a healthy child on a guess.
 
-**When the budget cannot be enforced at all.** "Do not enforce" must not mean "never terminate".
-`4` is the caller's loop condition, so a state that returns it unconditionally is a state the loop
-can never leave — and an unreadable clock, an unreadable `started_at`, or a launch record that is
-missing or unparseable (an empty `started_at` alone puts *every* later observation there) are each
-such a state. So consecutive **budget-unenforceable** observations are counted in the dispatch dir,
-and the **3rd** converts into the same terminal give-up a spent budget takes: the identity-checked
-group kill, the `killed` marker, and **result unavailable** (`1`) with a diagnostic naming *why*
-the budget could not be enforced. `3` is chosen against which members of that family are transient:
-only a clock read failing under momentary load is, and a launch record that cannot be parsed never
-repairs itself, so a larger N is pure grace on a state that is already permanent. The counter
-**resets on any enforceable pass**, so one bad read in an otherwise healthy run never accumulates
-toward termination. An unwritable counter is itself terminal — a bound that cannot be persisted
-bounds nothing.
+**When nothing can be established at all.** "No positive evidence, so do not act" must not mean
+"never terminate". `4` is the caller's loop condition, so a state that returns it unconditionally is
+a state the loop can never leave. **Two families** are such a state, and both feed one counter: an
+unreadable clock, an unreadable `started_at`, or a launch record that is missing or unparseable (an
+empty `started_at` alone puts *every* later observation there); and — since the change-0284 review —
+a **liveness probe that establishes nothing**, step 4 above. Consecutive such observations are
+counted in the dispatch dir, and the **3rd** converts into the same terminal give-up a spent budget
+takes: the identity-checked group kill, the `killed` marker, and **result unavailable** (`1`) with a
+diagnostic naming *what* could not be established. `3` is chosen against which members are
+transient: a clock read failing under momentary load and a `ps` that cannot be read are, while a
+launch record that cannot be parsed never repairs itself, so a larger N is pure grace on a state
+that is already permanent. The counter **resets on any pass that reaches an enforceable budget
+read**, so one bad read in an otherwise healthy run never accumulates toward termination. An
+unwritable counter is itself terminal — a bound that cannot be persisted bounds nothing. The two
+families share the bound but not the wording: a clock pass has *proven* the child alive one step
+earlier and says **still running**, while a liveness pass has proven nothing and says only that the
+child **could not be proven alive**.
 
 **Kill on giving up.** When the budget is exhausted the facade signals the **process group**
 recorded at launch (`TERM`, then `KILL` after a short wait), never the launcher's pid alone: a
@@ -505,8 +513,25 @@ record that exists describes a child that reached the end. Only when neither exi
 probe **liveness**, through the identity-checked predicate `docket_group_alive_and_ours` in
 `scripts/lib/docket-liveness.sh`, shared with `gate-run.sh`: the recorded group must still exist
 *and* the process leading it must still have started at the instant `--launch` recorded. Fail-closed
-on every leg, because a false *dead* costs one wasted observation while a false *alive* costs the
-caller its entire budget.
+on every leg, because a false *alive* costs the caller its entire budget on a run that is not there.
+
+**But "not alive" is two different facts, and only one of them disposes** (change 0284 review).
+In `gate-run.sh` a false *dead* costs one bounded relaunch, so that consumer reads any non-zero
+answer as "not alive" and is right to. On this seam a false *dead* is terminal and irreversible — a
+`killed` marker, a terminal code, and the end of the caller's polling loop — and because git decides
+that code it can be **`0`**, telling a driver *the work landed* for a child that is still running and
+still writing. So the predicate carries a **class** beside its reason: `gone` when `kill -0` proved
+the group holds no process at all, and `unprovable` for every leg that merely failed to answer the
+question — no usable group in the record, an unreadable `ps`, a token missing on either side, or two
+tokens that disagree. **A disagreement is not the third kind of evidence it looks like:** the group
+is demonstrably alive there, and the token is a `ps -o lstart=` rendering, which moves with `TZ` and
+`LC_TIME`. `docket_identity_of` therefore **pins that rendering** — it reads `ps` with `TZ` unset and
+`LC_ALL=C`, so the caller's environment cannot move it and a `--launch` and an `--observe` under
+different environments still compare equal. (`TZ` is unset rather than forced to `UTC` deliberately:
+unsetting lands on the machine's own zone, which is what an unpinned reader on that machine already
+produced, so tokens recorded by earlier builds still compare equal instead of being re-rendered
+wholesale.) A token that predates the pin and was rendered elsewhere still mismatches — and lands,
+correctly, in `unprovable` rather than in a false death.
 
 The half of the old rule that still holds, unchanged: **correctness never comes from liveness, and
 liveness never comes from git.** A child that is running says nothing about whether its work is
@@ -521,12 +546,22 @@ the re-read a run that PASSED is disposed as dead. A dead verdict therefore re-r
 immediately before disposing, and a `done` found there takes the completed disposition — the same
 construction, and the same soundness argument, as the give-up path's pair of re-reads above.
 
-**`cause=child-vanished`.** A child found dead with no sentinel is terminal on that observation. The
-verdict is recorded in the **existing** `killed` marker with `cause=child-vanished` and
-`reason=group-already-gone` — no second terminal file, because the `cause`/`reason` split already
-carries the two axes (*why the facade gave up*, and *whether anything was signalled*). Nothing is
-signalled: the probe has just established the group is not provably ours, which is the precondition
-the give-up path already refuses to signal under.
+**`cause=child-vanished`.** A child found **provably gone** with no sentinel is terminal on that
+observation — and only that class reaches this disposition; an `unprovable` answer takes the bounded
+counter instead. The verdict is recorded in the **existing** `killed` marker with
+`cause=child-vanished` and `reason=group-already-gone` — no second terminal file, because the
+`cause`/`reason` split already carries the two axes (*why the facade gave up*, and *whether anything
+was signalled*) — plus `liveness_class=`, the evidence the disposal rested on. Nothing is signalled:
+the probe has just established the group holds no process at all, so there is nothing in it to
+signal.
+
+**The wording is keyed on the evidence, not on the cause.** `cause=child-vanished` says only that the
+facade stopped seeing the child; *died* is a claim about the child itself, and it is warranted on
+exactly the `gone` class. Anything weaker is spoken as **can no longer be proven alive** — the same
+refusal this path already makes about an exit code it never read. That is why the class is recorded
+in the marker: a later observation replays the wording off the record, and a marker written by a
+build that never distinguished the classes (or one a short write truncated) carries none — so an
+**absent** class takes the weaker claim, never the stronger one.
 
 **A dead child is not automatically "no result".** Git decides, on the same disagreement rule as the
 sentinel path: a delegated run can commit its work, push its branch and open its PR and *then* be
@@ -746,12 +781,14 @@ untrapped wrapper cannot write one after the signal). The single transition this
 or the own-group refusal), and only on the arrival of real evidence that the work finished.
 Reporting a result the facade can now see is not an oscillation; masking it forever was the defect.
 
-The **still-running-and-unenforceable** path is deliberately *not* covered by that guarantee, and
-it is the only path that is not: it counts consecutive passes in the dispatch dir, so the 1st, 2nd
-and 3rd observations of an unenforceable dispatch differ (`4`, `4`, then terminal `1`). That is the
-whole point — an observation that could never differ from its predecessor is an observation the
-caller can never stop making. The counter is read and written **only** there, after every terminal
-disposition above has already been decided, so no terminal state can be perturbed by it.
+The **nothing-could-be-established** path is deliberately *not* covered by that guarantee, and it is
+the only path that is not: it counts consecutive passes in the dispatch dir, so the 1st, 2nd and 3rd
+observations of such a dispatch differ (`4`, `4`, then terminal `1`) — whether what could not be
+established was the elapsed time or the child's liveness. That is the whole point: an observation
+that could never differ from its predecessor is an observation the caller can never stop making. The
+counter is read and written **only** on those non-terminal legs, after every terminal disposition
+(sentinel, marker, a provably gone group) has already been decided, so no terminal state can be
+perturbed by it.
 
 ## Invariants
 
@@ -797,17 +834,18 @@ disposition above has already been decided, so no terminal state can be perturbe
   between the two — the launch record and the sentinel are written by the **facade**, never by the
   agent being judged.
 - An observation is **short**, and it never waits for the child. It is **idempotent on every
-  terminal state**; the sole exception is the still-running-and-unenforceable path, which counts
-  consecutive passes so that state can end at all. It mutates the dispatch only through that
-  counter and the terminal `killed` marker, which exists precisely so that the give-up is observed
-  identically forever after rather than re-attempted.
+  terminal state**; the sole exception is the nothing-could-be-established path (an unenforceable
+  budget, or a liveness answer that proves nothing), which counts consecutive passes so that state
+  can end at all. It mutates the dispatch only through that counter and the terminal `killed`
+  marker, which exists precisely so that the give-up is observed identically forever after rather
+  than re-attempted.
 - The `done` sentinel outranks the `killed` marker, and the give-up re-reads it on both sides of
   its kill. A signalled group cannot produce a sentinel afterwards, so a sentinel that exists
   alongside a marker records a child that finished **before** the signal — reported as completed,
   once and thereafter identically. No completed run is ever masked as unavailable.
 - Every state the observation can report is **reachable-terminal**: no dispatch state returns `4`
   forever. The budget bounds a run whose clock is readable; the consecutive-unenforceable counter
-  bounds the run whose clock is not.
+  bounds the run whose clock is not, and equally the run whose liveness cannot be established.
 - A terminal observation puts the child's captured stdout on **its own stdout**, verbatim, and every
   diagnostic on stderr. A non-terminal (`4`) observation puts **nothing** on stdout, so a polling
   caller never accumulates partial output.
