@@ -16,10 +16,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/decide-whether-the-sweep-s-skip-publish-path-should-also-mar
-claimed_at: 2026-08-11T18:03:17Z
+claimed_at: 2026-08-11T18:06:02Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 type: fix
 ---
 
@@ -99,3 +99,50 @@ apply **change 0137's rounding rule** (next multiple of 5 plus a 5s margin, comp
 in-diff argument** for the word budget. **#0268 is queued against the same surface**, so whichever of
 the two lands second inherits whatever margin the first leaves. See the learnings finding
 `budget-headroom-is-spent-before-it-is-breached`.
+
+## Reconcile log
+
+### 2026-08-11 — reconciled against main @ 4e75b2e2
+
+**The decision is not re-litigated.** The title reads as an open question, but it was settled by
+the 2026-08-07 spec (§Decision: *yes, the skipped-publish leg marks*), on **permanence** — no
+sweep resumes an archived change, so the gap is forever until a human acts. None of the nine
+changes merged since touched that leg, so nothing reopened or pre-empted the decision. This run
+builds what the spec settled.
+
+**Scope adjustment from #0247 (74895565), which landed on this exact surface.** 0247 taught
+`sweep_execute_one`'s artifacts-refresh block two rules for committing into the *shared* metadata
+worktree: scope `add`/`commit` with `--`, and refuse when the tree is mid-rebase/merge
+(`_docket_tree_wedged`, `scripts/lib/docket-preflight.sh`), reporting `blocked-wedged-tree`. The
+mark block this change adds — and the 0083 block it back-ports recovery to — are the **third and
+fourth** exposed commits into that same tree, and 0247 did not reach them. So the spec's
+"precondition: the archived path is clean" is **widened to include the wedge probe**: a wedged
+tree skips the mark entirely. This is not scope creep but a correctness requirement of the
+spec's own transactional posture — the spec's recovery step is `checkout HEAD -- "$archived"`,
+and inside a rebase `HEAD` is the rebase's *detached* HEAD, so the recovery itself would corrupt
+the file it exists to restore. Adding the probe is what makes the recovery sound.
+
+**Docs targets re-read; the spec's line numbers have drifted, the paragraphs have not.**
+`scripts/docket-status.md` §6 still carries the "nothing published means nothing was deferred
+*yet*" rationale verbatim (now further down the file, past 0247's §6a rewrite), and
+`skills/docket-status/SKILL.md`'s sweep-posture paragraph still says the `skipped-publish` case
+is unmarked — both now also mention 0247's `blocked-wedged-tree` reason, which these rewrites
+preserve.
+
+**§2's whole-repo grep re-run, as the spec required.** `Close-out steps 1` appears in exactly one
+maintained file — `scripts/mark-publish-deferred.sh:174`. The three other hits are frozen
+point-in-time records (two archived specs and the merged 0083 plan) and are correctly left
+untouched.
+
+**Budget facts confirmed as measured, not assumed.** `skills/docket-status/SKILL.md` is at
+2478/2500 words (22 words of headroom, 102/118 lines); `tests/test_docket_status.sh` holds the
+45s row. Both are expected to trip and will be raised in-diff with measured numbers per 0137's
+rounding rule and 0201's argument requirement.
+
+**Unaffected by the rest of the drain.** 0260/0284/0281/0275/0208/0277/0286/0270 concern dispatch
+gating, liveness probing, critic return channels, attribution, worktree scope, brief delivery,
+poll-loop shape, and runner-config locality — none intersects the sweep's close-out chain.
+
+**Couplings re-checked (spec Assumption 7).** #0154 and #0268 both still target
+`skills/docket-status/SKILL.md` and `scripts/docket-status.sh`; neither has landed, so this
+change is the first mover and the diff is kept tight to its own spec.
