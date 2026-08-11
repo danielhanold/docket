@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/tier-finalize-s-in-context-dispatches-and-name-the-push-deni
-claimed_at: 2026-08-11T07:45:08Z
+claimed_at: 2026-08-11T07:49:44Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -52,3 +52,43 @@ Settled by the linked spec (9 audited assumptions):
 
 - Reversing the guarded-force-push settings posture (#0100's residual 2 — deliberate security stance, stands).
 - Any change to the rebase-resolver or integration-repair contracts themselves.
+
+## Reconcile log
+
+### 2026-08-11 — reconciled at claim (docket-implement-next)
+
+The spec (2026-08-07) survives intact; no scope adjustment needed. Verified against the six changes
+merged since it was written:
+
+- **#0281 / ADR-0085 (a critic verdict travels on exactly one channel).** Touched the convention's
+  *Composition* paragraph, but only its `docket-auto-groom-critic` clause. The finalize sentence —
+  "their reports flow **back to finalize in-context** to gate the merge" — is byte-unchanged, so the
+  spec's **Assumption 8** (no Composition edit; the carve-out cites it rather than restating it)
+  still holds, and the carve-out's rationale is *reinforced* by 0085 rather than disturbed: an
+  in-context-only return channel is exactly why these two dispatches cannot take Tier A's
+  git-state-contract reasoning.
+- **#0275 / ADR-0084 (re-dispatch gated on mechanical attribution; unattributed mode).** Lands in
+  the `verify-run` / run-gate surface, not the dispatch-capability taxonomy. No overlap with the
+  A/B/C table or with `gate-failure.md`'s abort set.
+- **#0277 / ADR-0082 (`--brief-file` channel)** and **#0208 / ADR-0083 (`worktree-scope:` gate).**
+  `gate-failure.md`'s "The two agents" paragraph already carries 0208's `--worktree` clause; the new
+  carve-out clauses attach to the same paragraph without touching it.
+- **#0286 (caller poll-loop shape)** and **#0270 (runner-config locality fence).** No surface
+  overlap.
+
+Re-derivations performed this pass (never hand-listed):
+
+- The abort-and-report enumeration in `gate-failure.md` already carries **seven** members, so the
+  "**six** distinct abort reasons" sentence in its `## Finalize blocked` section is *already* stale
+  before this change adds its two. De-numeralizing it (spec §3 housekeeping) is confirmed as the
+  right fix rather than a re-count.
+- The test's reverse-derivation population currently counts **12** (floor pinned `>=11`); both
+  finalize agent nouns are present in it today via `$PENDING_TIER`. Floors are re-derived from the
+  greps after the prose lands, per the file's own maintainer note.
+- A whole-repo sweep for the two agent nouns and the tier vocabulary found the nouns in maintained
+  prose across `agents/`, `cursor-rules/dispatch/`, `AGENTS.md`, `README.md` and the generated
+  `.claude/agents` + `.cursor/` mirrors. None of those is a dispatch-*capability* posture site, so
+  the spec's **Assumption 3** (one canonical marker home: `gate-failure.md`, no copy-pinning) stands
+  against the wider population rather than against an assumed one.
+
+Auto-capture: no discovery cleared the six admission gates this pass — nothing minted.
