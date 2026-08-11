@@ -19,8 +19,8 @@ auto_groomable:
 branch: feat/runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi
 pr:
 blocked_by:
-claimed_at: 2026-08-11T09:04:59Z
-reconciled: false
+claimed_at: 2026-08-11T09:22:00Z
+reconciled: true
 ---
 
 ## Artifacts
@@ -81,3 +81,57 @@ the input-validation side. None touches the observe leg. 0277's own assumption 8
 precedent for exactly this: file collisions on `runner-dispatch.sh` are recorded as `related:` and
 reconciled at rebase by intent. Recorded as `related: [208, 270, 277]`; `depends_on:` stays empty,
 so a `high`-priority fix does not queue behind a `medium` one.
+
+## Reconcile log
+
+### 2026-08-11 — reconciled against current `origin/main`
+
+Spec dated 2026-08-10; both primary files were reworked and merged after it (0208 `07de6e55`,
+0277 `6cc79e8b`, 0270 `d0197ee5`, 0286 `fc482699`). Re-read at `7245279f`. The design holds — the
+gap is still real and still exactly as described — with four adjustments and one scope confirmation.
+
+**1. `gate-run.sh`'s `identity_of` cannot be deleted; the spec's §1 wording is superseded.**
+`tests/test_gate_run.sh` carries two *source-shape* asserts that pin the spellings verbatim —
+`grep -qF -- "identity_matches \"\$RUN_DIR\""` and
+`grep -qF -- "SPAWN_IDENT=\"\$(identity_of \"\$SPAWN_PID\")\""`. The spec's own § Testing rule
+forbids editing that file ("an edit to either file is the tell" that the refactor was not
+behaviour-preserving), so deleting the symbols would force the very edit the safety net exists to
+detect. Resolution: `identity_of` and `identity_matches` **survive as thin delegations** onto the
+new lib — the conjunct ladder moves out, only the call-site spellings stay, so the predicate still
+has exactly one definition and both asserts stay green untouched. `group_alive_and_ours` collapses
+into the lib call with `recorded_pgid`/`recorded_identity` as its arguments exactly as specified;
+no test pins its spelling. `identity_matches` deliberately does **not** collapse into
+`docket_group_alive_and_ours`: that would add a `kill -0` conjunct to gate-run's pre-signal
+re-check, which is a re-specification, and the spec forbids re-specifying gate-run.
+
+**2. The dead path's `build-*` disposition inherits 0208's two non-verdict legs.** §3's table names
+only the `verify-run --build` call. The sentinel path (change 0208, ADR-0083) additionally reports
+`task-unverifiable worktree-removed` when `ANCHOR_FALLBACK=1` and `task-unverifiable
+launch-branch-missing` when the launch record carries no branch — precisely because `--observe` on
+a removed worktree reassigns `ANCHOR` to the repo root, and verifying there answers a question
+nobody asked. Reproducing §3's table literally would regress both onto the new leg. The dead path
+takes the same three-way split, with the death stated first per §3's re-wording rule.
+
+**3. `runner-dispatch.sh` has no test-only barrier hook today.** §Testing case 3 needs one to hold
+the step-1/step-3 TOCTOU window open deterministically; `gate-run.sh` owns the reference shape
+(`barrier`, env-gated on a point NAME, inert by default, bounded even when armed, two-way
+rendezvous via `.reached`/`.release`). It is added to `runner-dispatch.sh` in that same shape, not
+invented afresh.
+
+**4. Cosmetic drift.** §1 says "seven libs today"; `scripts/lib/` holds eight since 0208 added
+`docket-agent-scope.sh`. No design consequence.
+
+**Scope confirmed unchanged against the three `related:` changes.** 0277 moved delegated briefs to
+a `--brief-file` channel and raised `tests/test_runner_dispatch.sh`'s budget row to 20s — neither
+touches the observe leg. 0270's runner-config locality fence is input-side. 0208's gate 3b is
+input-side and is explicitly preserved, including its `ANCHOR_FALLBACK != 1` condition (see 2).
+`depends_on:` stays empty. Additionally noted: 0286 (`fc482699`) fixed caller-authored
+`gate-run --observe` poll loops and taught the executable-fence oracle technique in `gate-run.md`;
+`runner-dispatch.md` carries **no** equivalent caller-loop fence (its caller loop is emitted by
+`sync-agents.sh`'s `emit_shim`), so that technique has no target here and is out of scope. 0286's
+*other* lesson — a guard can be vacuous because the document it reads discusses the literal the
+guard greps for — **is** adopted: `runner-dispatch.md` will now discuss `cause=child-vanished`, so
+any contract guard keyed on it matches comment-stripped lines.
+
+**Auto-capture:** nothing independently valuable surfaced this pass; every finding above is
+in-scope work on this change's own diff.
