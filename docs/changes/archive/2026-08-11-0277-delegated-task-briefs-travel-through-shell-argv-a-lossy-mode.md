@@ -2,7 +2,7 @@
 id: 277
 slug: delegated-task-briefs-travel-through-shell-argv-a-lossy-mode
 title: 'Delegated task briefs travel through shell argv, a lossy model-performed transformation'
-status: implemented
+status: done
 priority: medium
 type: refactor
 created: 2026-08-09
@@ -19,7 +19,7 @@ auto_groomable: true
 branch: feat/delegated-task-briefs-travel-through-shell-argv-a-lossy-mode
 pr: https://github.com/danielhanold/docket/pull/194
 blocked_by:
-claimed_at: 2026-08-11T01:33:01Z
+claimed_at: 
 reconciled: true
 ---
 
