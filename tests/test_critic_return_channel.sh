@@ -93,6 +93,12 @@ assert "Step 3: the verdict is read from the critic's return" \
   'grep -qE "verdict is read from[^.]{0,60}return" <<<"$step3_flat"'
 assert "Step 3: the groom never waits for out-of-band delivery" \
   'grep -qE "never waits for[^.]{0,120}out-of-band" <<<"$step3_flat"'
+# The prohibition stated POSITIVELY. "foreground" alone is a property of the dispatch; this is the
+# thing an agent must not do, and the no-verdict posture below deliberately treats a backgrounded
+# child as a recoverable input — so without this clause the file's only don't-background-it is a
+# single adjective the posture then reads as tolerable.
+assert "Step 3: the groom never backgrounds the critic" \
+  'grep -qE "never backgrounds the critic" <<<"$step3_flat"'
 
 # The bounded posture, pinned on each of its three bounds. All three are load-bearing: drop the
 # collect and a transient plumbing fault junks a sound draft; drop the re-dispatch likewise; drop
@@ -101,6 +107,14 @@ assert "Step 3: exactly one collect attempt" \
   'grep -qE "one collect attempt" <<<"$step3_flat"'
 assert "Step 3: exactly one fresh foreground re-dispatch" \
   'grep -qE "one fresh foreground re-dispatch" <<<"$step3_flat"'
+# ...and that leg must say what makes the SECOND dispatch block when the first did not, plus what to
+# do when nothing does. Without both halves the retry is a verbatim repeat of the failing leg on the
+# exact harness this posture exists for, and the collect attempt is the only real recovery. One
+# assert, because deleting EITHER half breaks the ordered match. Bounded, period-free gaps keep it
+# inside the one clause — Step 3's earlier "no dispatch mechanism resolves … **Tier B**" sentence
+# would otherwise satisfy a looser mechanism→Tier B pairing (it carries no "block").
+assert "Step 3: the re-dispatch names its blocking mechanism, and skips the leg without one" \
+  'grep -qE "mechanism[^.]{0,40}block[^.]{0,140}Tier B" <<<"$step3_flat"'
 assert "Step 3: never a third dispatch" \
   'grep -qiE "[Nn]ever a third dispatch" <<<"$step3_flat"'
 assert "Step 3: never an indefinite wait" \
@@ -146,9 +160,19 @@ comp="$(grep -F -- '**Composition (change 0017).**' "$CONV")"
 assert "Composition paragraph located" '[ -n "$comp" ]'
 comp_flat="$(flat "$comp")"
 # Non-vacuity: the paragraph still names the critic at all (test_composition_wiring.sh also binds
-# this; asserting it here keeps the ORDERING check below from passing on an absent needle).
+# this). It is NOT the ordering check's anchor and must not be read as one: the paragraph names
+# `docket-auto-groom-critic` TWICE — once in the dispatch sentence, once in the trailing
+# no-skill-wrapper enumeration — so it survives deleting the dispatch sentence outright. The
+# ordering check carries its own anchor, the introduction needle below.
 assert "Composition still names docket-auto-groom-critic" \
   'grep -qF -- "docket-auto-groom-critic" <<<"$comp_flat"'
+# THE ordering anchor: the clause that INTRODUCES the critic dispatch, unique to that sentence.
+# `index()` returns the FIRST occurrence, so keying the ordering on the bare agent name would let a
+# deleted dispatch sentence resolve to the trailing enumeration — an offset far downstream of the
+# git-state clause, and the ordering assert vacuously green over the very deletion it exists to catch.
+CRITIC_INTRO='`docket-auto-groom-critic` subagent for its adversarial gate'
+assert "Composition introduces the critic dispatch as the adversarial gate" \
+  'grep -qF -- "$CRITIC_INTRO" <<<"$comp_flat"'
 # Non-vacuity: the git-state clause is still present and still says what it says.
 assert "Composition still carries the git-state-contract clause" \
   'grep -qF -- "contract is **git state**" <<<"$comp_flat"'
@@ -160,7 +184,7 @@ assert "Composition still carries the git-state-contract clause" \
 # present above, so a 0 here would be a bug in the slice, not a legitimate ordering.
 offset_of(){ awk -v s="$1" 'BEGIN{ }{ print index($0, s) }' <<<"$comp_flat"; }
 gs_at="$(offset_of 'contract is **git state**')"
-critic_at="$(offset_of 'docket-auto-groom-critic')"
+critic_at="$(offset_of "$CRITIC_INTRO")"
 assert "both offsets resolved (git-state=$gs_at critic=$critic_at)" \
   '[ "$gs_at" -gt 0 ] && [ "$critic_at" -gt 0 ]'
 assert "the git-state clause closes BEFORE the critic is introduced" \
@@ -181,11 +205,13 @@ assert "Composition: the never-adopt-a-child's-files rule survives" \
   'grep -qF -- "never adopts or commits a child" <<<"$comp_flat"'
 
 # Non-vacuity anchor (mutation-in-fixture): the ordering matcher must actually FIRE on the shape it
-# rejects — the pre-0281 wording, where the critic is enumerated inside the git-state clause. A
-# typo in either needle would otherwise make the ordering assert permanently, vacuously green.
-probe_flat="$(flat 'docket-auto-groom dispatches the docket-auto-groom-critic subagent; their contract is **git state** on origin/docket.')"
+# rejects — the pre-0281 SHAPE, where the critic dispatch sits inside the git-state clause instead
+# of after it. Built from the live `$CRITIC_INTRO` needle so the probe exercises the anchor the
+# ordering assert actually uses; a typo in either needle would otherwise make that assert
+# permanently, vacuously green.
+probe_flat="$(flat "\`docket-auto-groom\` dispatches the ${CRITIC_INTRO}; their contract is **git state** on origin/docket.")"
 p_gs="$(awk -v s='contract is **git state**' '{ print index($0, s) }' <<<"$probe_flat")"
-p_cr="$(awk -v s='docket-auto-groom-critic' '{ print index($0, s) }' <<<"$probe_flat")"
+p_cr="$(awk -v s="$CRITIC_INTRO" '{ print index($0, s) }' <<<"$probe_flat")"
 assert "the ordering matcher rejects the pre-0281 shape (git-state=$p_gs critic=$p_cr)" \
   '[ "$p_gs" -gt 0 ] && [ "$p_cr" -gt 0 ] && [ "$p_gs" -gt "$p_cr" ]'
 
