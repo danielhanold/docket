@@ -981,10 +981,55 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # describes. Set per the rounding rule above from the measured actual: 3848 words -> the next
 # multiple of 50 is 3850, 2 words of margin and inside the 25-word floor, so the multiple after:
 # 3900. The LINE budget is NOT raised (180 actual against 185).
+# Change 0281 raises skills/docket-auto-groom/SKILL.md 66/1300 -> 70/1450 and
+# skills/docket-convention/SKILL.md's WORD budget 6400 -> 6450 (its LINE budget is untouched, 375
+# actual against 380). The change adds the critic verdict's return-channel contract: Step 3 gains
+# *Receiving the verdict* (the verdict IS the critic's return, read while the groom actively
+# blocks; no out-of-band delivery is ever waited on, because nothing is registered to deliver one)
+# and *No-verdict posture* (one collect attempt, one fresh foreground re-dispatch, then the Tier B
+# abstain — never a third dispatch, never an indefinite wait), and the convention's *Composition*
+# paragraph gains the sentence that moves the critic dispatch out of the git-state-contract family
+# into the in-context-return one.
+# COMPRESSED FIRST, per the 0127 precedent: 23 words and 12 lines came out of the section before
+# any number moved. The 12 lines are entirely reflow — the two new paragraphs arrived hard-wrapped
+# into a file whose every other body paragraph is a single physical line, so the LINE figure was
+# counting a wrap style, not structure; the additions are two paragraphs. The 23 words are real
+# deletion, most of them one restatement: Step 3's revision-round clause had spelled out "the
+# designer blocks on the critic's return and never backgrounds it to await a notification", which
+# *Receiving the verdict* now states once for both rounds. A deeper trim was attempted and BACKED
+# OUT — it cost the "and failing that" conditional (turning a bounded two-step posture into one
+# that always spends both) and the noun on the `yielded-worker-return-closes-every-door` citation.
+# What remains is the normative residue tests/test_critic_return_channel.sh binds phrase by phrase.
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above: skills/docket-auto-groom/ has NO
+# references/ directory — SKILL.md is the entire skill — so the honest question is not which
+# existing reference takes this prose but whether it justifies MINTING
+# skills/docket-auto-groom/references/critic-dispatch.md. It does not, for the reason the 0137
+# entry above records: a rule that must intervene at the exact moment of action cannot live in a
+# file read ahead of the act, if at all. The no-verdict posture fires precisely when a groom is
+# holding a return it cannot read a verdict out of — the state in which it improvises the
+# indefinite wait this change exists to forbid — and a groom already in that state does not stop to
+# load a reference. Minting one would also charge the skill a second read, plus the pointer that
+# must stay in SKILL.md anyway, for ~170 words of residue; the pointer would cost nearly what it
+# points at. The convention's half cannot move either: *Composition* is the definition of what a
+# docket dispatch's return channel IS, and the critic is now the exception inside it — stated
+# anywhere else, the exception does not reach the reader of the rule.
+# That convention sentence was NOT compressed, deliberately, and the raise carries its full 51
+# words. It is already at minimum — drop "foreground and unconditional on the same terms" and the
+# critic loses the properties the reclassification is qualifying; drop "not registered under its
+# skill name" and the prohibition loses the reason that stops an agent inventing a workaround
+# channel (the same reason clause the guard binds on the critic wrapper's side). Beyond that, even
+# a successful 20-word trim would land near 6398 against 6400 — two words of margin, the near-zero
+# mode this block exists to forbid — so compression there could only shrink the raise while
+# enlarging a diff inside the one paragraph change 0260 is queued against.
+# Set per the rounding rule above from the measured post-compression actuals: auto-groom 66 lines
+# -> the next multiple of 5 is 70 (4 lines, the half-step margin the 0167 and 0201 entries accept)
+# — and 66 against the standing 66 budget was ZERO margin, so the row had to move even though the
+# post-reflow file is no larger than the ceiling; 1422 words -> 1450 (28 words, clear of the
+# 25-word floor). Convention 6418 words -> 6450 (32 words, also clear of the floor).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
-skills/docket-auto-groom/SKILL.md                           66 1300
+skills/docket-auto-groom/SKILL.md                           70 1450
 skills/docket-brainstorm/SKILL.md                           84  692
 skills/docket-build/SKILL.md                               380 3700
 skills/docket-build/references/delegation-execution.md      85  850
@@ -992,7 +1037,7 @@ skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            130 1200
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          145 1350
-skills/docket-convention/SKILL.md                          380 6400
+skills/docket-convention/SKILL.md                          380 6450
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         205 2350
 skills/docket-convention/references/auto-capture.md        130 1250

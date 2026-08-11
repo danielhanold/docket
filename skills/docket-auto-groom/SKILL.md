@@ -37,23 +37,11 @@ Read the stub body, its `related`/`depends_on` neighbours (active + recently arc
 
 ### Step 3 — Critic pass
 
-Dispatch the dedicated **`docket-auto-groom-critic`** subagent (foreground, at the model/effort its wrapper resolves) — a fresh subagent (never the designer reviewing itself), isolated in its own context, loading only `docket-convention` and never this designer skill — to adversarially attack the draft — specs and trivial verdicts alike. Per assumption, one verdict: **sound** (stands) · **wrong but fixable from available context** (designer revises; ONE bounded revision round; the critic re-checks only the revised items — this re-check is dispatched foreground exactly like the first pass: the designer blocks on the critic's return and never backgrounds it to await a notification, per the convention's *Composition* never-yield rule) · **needs human context** (⇒ the whole groom abstains — a spec must only be emitted when every decision in it is safe to auto-commit, because emission = build-ready = the autonomous builder will build it). If no dispatch mechanism resolves per the convention's *Dispatch-capability resolution* — never from a tool name — the `docket-auto-groom-critic` dispatch is **Tier B**: the groom **abstains** for that stub (→ Step 4's **Abstain** exit) rather than self-reviewing — an author cannot be their own adversarial gate.
+Dispatch the dedicated **`docket-auto-groom-critic`** subagent (foreground, at the model/effort its wrapper resolves) — a fresh subagent (never the designer reviewing itself), isolated in its own context, loading only `docket-convention` and never this designer skill — to adversarially attack the draft — specs and trivial verdicts alike. Per assumption, one verdict: **sound** (stands) · **wrong but fixable from available context** (designer revises; ONE bounded revision round; the critic re-checks only the revised items — this re-check is dispatched foreground exactly like the first pass, per the convention's *Composition* never-yield rule) · **needs human context** (⇒ the whole groom abstains — a spec must only be emitted when every decision in it is safe to auto-commit, because emission = build-ready = the autonomous builder will build it). If no dispatch mechanism resolves per the convention's *Dispatch-capability resolution* — never from a tool name — the `docket-auto-groom-critic` dispatch is **Tier B**: the groom **abstains** for that stub (→ Step 4's **Abstain** exit) rather than self-reviewing — an author cannot be their own adversarial gate.
 
-**Receiving the verdict.** The verdict is read from the critic's **return** — its final report, which
-the groom is actively blocking on. The groom never waits for a message, a notification, or any other
-out-of-band delivery: nothing is registered to deliver one to it, so a groom that waits for one waits
-forever.
+**Receiving the verdict.** The verdict is read from the critic's **return** — its final report, which the groom is actively blocking on. The groom never waits for a message, a notification, or any other out-of-band delivery: nothing is registered to deliver one, so that wait never ends.
 
-**No-verdict posture (bounded — two steps, then out).** If the dispatch comes back with no legible
-verdict — a malformed return, pre-yield prose, or a backgrounded child's bare completion — make
-**one collect attempt** (read the child's completed final report, where the harness surfaces it),
-and failing that **one fresh foreground re-dispatch** of the critic over the same draft. Still no
-verdict ⇒ treat it as a failed dispatch attempt under the convention's *Dispatch-capability
-resolution*: **Tier B**, so the groom **abstains** for this stub (→ Step 4's **Abstain** exit),
-recording the return-channel diagnostic in the `## Auto-groom blocked` section. Never a third
-dispatch; never an indefinite wait. Re-dispatching a critic is safe where re-dispatching a build
-worker is not — the critic is read-only over prose, holds no worktree, and writes no git state, so
-the closed-doors analysis in `yielded-worker-return-closes-every-door` does not bind here.
+**No-verdict posture (bounded — two steps, then out).** If the dispatch returns no legible verdict — a malformed return, pre-yield prose, or a backgrounded child's bare completion — make **one collect attempt** (read the child's completed final report where the harness surfaces it), and failing that **one fresh foreground re-dispatch** of the critic over the same draft. Still no verdict ⇒ treat it as a failed dispatch attempt under the convention's *Dispatch-capability resolution*: **Tier B**, so the groom **abstains** for this stub (→ Step 4's **Abstain** exit), recording the return-channel diagnostic in the `## Auto-groom blocked` section. Never a third dispatch; never an indefinite wait. Re-dispatching a critic is safe where re-dispatching a build worker is not — the critic is read-only over prose, holds no worktree, and writes no git state, so the closed-doors analysis in `yielded-worker-return-closes-every-door` does not bind here.
 
 ### Step 4 — Exit (one of three)
 
