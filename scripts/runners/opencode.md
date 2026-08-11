@@ -51,7 +51,9 @@ bash scripts/runners/opencode.sh --agent <name> [--model <m>] [--effort <e>] [--
   appended to the prompt **verbatim** under the `Additional caller arguments / task context:`
   heading. Preferred over trailing argv: the caller writes the file with a quoted-delimiter
   heredoc, so nothing about the brief is shell-quoted by a model and nothing is joined or
-  reflowed. The file must exist, be readable, and be non-empty. **A brief file and trailing
+  reflowed. The file must exist, be readable, and carry actual content — emptiness is measured the same
+  way the payload is (`$(cat …)`, trailing newlines stripped), so a file holding only
+  whitespace is refused as loudly as a zero-byte one. **A brief file and trailing
   arguments together are refused** — passing both would silently drop or duplicate the child's
   only input, so this adapter dies rather than picking one. `runner-dispatch.sh` refuses the same
   shape first; this is the defensive twin for the hand invocation documented here.

@@ -162,6 +162,18 @@ assert "0277 codex: a missing brief file is refused" '[ "$rc" != "0" ]'
 err="$( run_adapter --agent status --brief-file "$SBX/empty-brief" 2>&1 >/dev/null )"; rc=$?
 assert "0277 codex: an empty brief file is refused" '[ "$rc" != "0" ]'
 assert "0277 codex: the empty-brief refusal says empty" 'grep -qiF "empty" <<<"$err"'
+# BYTES ≠ CONTENT. `-s` counts bytes while `$(cat …)` strips trailing newlines, so a newline-only
+# brief passed every gate and yielded an EMPTY payload — the task-context block was suppressed and
+# the child ran with NO TASK AT ALL, silently. Both ends must use one predicate.
+printf '\n\n' > "$SBX/blank-brief"
+err="$( run_adapter --agent status --brief-file "$SBX/blank-brief" 2>&1 >/dev/null )"; rc=$?
+assert "0277 codex: a newline-only brief file is refused" '[ "$rc" != "0" ]'
+assert "0277 codex: the no-content refusal names the file" 'grep -qF -- "blank-brief" <<<"$err"'
+assert "0277 codex: the no-content refusal never reached codex exec" '[ ! -s "$LOG" ]'
+# The same gap on the argv leg: arity is not content, so `-- ""` is arguments-present, payload-empty.
+err="$( run_adapter --agent status -- "" 2>&1 >/dev/null )"; rc=$?
+assert "0277 codex: an empty trailing argv payload is refused" '[ "$rc" != "0" ]'
+assert "0277 codex: the empty-argv refusal never reached codex exec" '[ ! -s "$LOG" ]'
 # A value-taking flag in FINAL position must not spin the parse loop (the `--observe` hazard).
 err="$( run_adapter --agent status --brief-file 2>&1 >/dev/null )"; rc=$?
 assert "0277 codex: --brief-file with no value exits instead of spinning" '[ "$rc" != "0" ]'
@@ -377,6 +389,22 @@ err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent sta
 assert "0277 facade: an empty brief file is refused" '[ "$rc" != "0" ]'
 err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status --brief-file 2>&1 >/dev/null )"; rc=$?
 assert "0277 facade: --brief-file with no value exits instead of spinning" '[ "$rc" != "0" ]'
+# BYTES ≠ CONTENT: the facade's `-s` check counts bytes, the adapter's payload is `$(cat …)` with
+# its trailing newlines stripped. A newline-only brief satisfied both `-s` checks and reached the
+# child as no task at all. The facade must refuse it with the same content predicate.
+printf '\n\n' > "$SBX/blank-brief"
+# The happy-path dispatch above wrote the mock's log; truncate so "never reached the child" is
+# evidence about THIS run rather than a stale hit.
+: > "$LOG"
+err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status \
+    --brief-file "$SBX/blank-brief" 2>&1 >/dev/null )"; rc=$?
+assert "0277 facade: a whitespace-only brief file is refused" '[ "$rc" != "0" ]'
+assert "0277 facade: the whitespace refusal names the path" 'grep -qF -- "blank-brief" <<<"$err"'
+# EMITTER-PINNED, or the assert would stay green on the adapter's own defensive refusal and the
+# facade's guard would be decoration: the facade must refuse before it ever builds the invocation.
+assert "0277 facade: the whitespace refusal comes from the FACADE, not the adapter" \
+  'grep -qF -- "runner-dispatch:" <<<"$err" && ! grep -qF -- "runners/codex:" <<<"$err"'
+assert "0277 facade: the whitespace refusal never reached the child" '[ ! -s "$LOG" ]'
 rm -rf "$SBX"
 
 # The build-* empty-payload gate, at the SAME pre-verb point as the --worktree gate, so it holds
@@ -390,6 +418,17 @@ err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent bui
 assert "0277 gate: build-* with NO payload is refused" '[ "$rc" != "0" ]'
 assert "0277 gate: the refusal names the improvise failure mode" 'grep -qiE "improvis|no task" <<<"$err"'
 assert "0277 gate: the refusal never reached the child" '[ ! -s "$LOG" ]'
+# ARITY IS NOT CONTENT: `[ $# -gt 0 ]` was satisfied by `-- ""`, which then produced an empty
+# payload in the adapter — a build worker dispatched with no task at all while the dispatch looked
+# successful. The gate measures the argv the same way it measures a brief file: by its content.
+err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent build-economy \
+    --worktree "$SBX/.worktrees/w" -- "" 2>&1 >/dev/null )"; rc=$?
+assert "0277 gate: build-* with an EMPTY argv payload is refused" '[ "$rc" != "0" ]'
+assert "0277 gate: the empty-argv refusal names the improvise failure mode" 'grep -qiE "improvis|no task" <<<"$err"'
+# Emitter-pinned for the same reason as the whitespace-brief case above.
+assert "0277 gate: the empty-argv refusal comes from the FACADE, not the adapter" \
+  'grep -qF -- "runner-dispatch:" <<<"$err" && ! grep -qF -- "runners/codex:" <<<"$err"'
+assert "0277 gate: the empty-argv refusal never reached the child" '[ ! -s "$LOG" ]'
 # ... and it is satisfied by EITHER channel.
 ( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent build-economy \
     --worktree "$SBX/.worktrees/w" -- "do the task" >/dev/null 2>&1 ); rc=$?

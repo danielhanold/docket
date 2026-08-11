@@ -45,13 +45,15 @@ docket.sh runner-dispatch --observe <key> --runner <name> --agent <agent> [--wor
 - `--brief-file <path>` (optional, change 0277) — the caller's task brief, read from a file
   instead of shell argv. The caller writes it with a quoted-delimiter heredoc, so no part of the
   brief is quoted by a model and none of it is joined or reflowed on the way to the child. The
-  file must exist, be readable, and be non-empty. **Mutually exclusive with trailing `--`
+  file must exist, be readable, and carry actual content: emptiness is measured over the file's
+  contents, not its byte count, so a whitespace-only brief is refused as loudly as a zero-byte one. **Mutually exclusive with trailing `--`
   arguments**: passing both is a loud refusal, because preferring either channel silently drops
   or duplicates the child's entire input and concatenating them invents an ordering. Under
   `--launch` the brief is spooled into the per-dispatch directory as `brief` and the adapter is
   handed that durable copy; on the legacy foreground verb the caller's file is passed through.
 - **`build-*` agents require a payload.** A `build-*` dispatch carrying neither a brief file nor
-  trailing arguments is refused at the same pre-verb validation point as the `--worktree` gate —
+  trailing arguments **that carry content** (`-- ""` is arguments-present and payload-empty, and
+  is refused too) is refused at the same pre-verb validation point as the `--worktree` gate —
   so the rule holds for `--launch` and the legacy verb alike. A build worker with no task does not
   error; it improvises from whatever is in the worktree and the dispatch still looks successful.
   `--observe` is exempt, since it starts no child and reads a result the matching `--launch`

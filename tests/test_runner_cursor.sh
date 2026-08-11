@@ -95,6 +95,25 @@ assert "0277 cursor: both channels together are refused" '[ "$RC" != "0" ]'
 assert "0277 cursor: the refusal says never both" 'grep -qiF "never both" <<<"$ERR"'
 assert "0277 cursor: NO child was invoked" '[ "$(grep -c CALL "$MOCK_DIR/calls.txt")" = "0" ]'
 
+# BYTES ≠ CONTENT. The `-s` validation counts bytes while `$(cat …)` strips trailing newlines, so a
+# newline-only brief passed every gate and produced an EMPTY payload — the task-context block was
+# suppressed and the child ran with no task at all, silently. Both ends must use one predicate.
+: > "$MOCK_DIR/calls.txt"
+printf '\n\n' > "$MOCK_DIR/blank-brief.txt"
+ERR="$( MOCK_CALLS="$MOCK_DIR/calls.txt" CURSOR_BIN="$MOCK_DIR/cursor-agent" DOCKET_REPO_ROOT="$REPO" \
+        bash "$ADAPTER" --agent status --brief-file "$MOCK_DIR/blank-brief.txt" 2>&1 >/dev/null )"; RC=$?
+assert "0277 cursor: a newline-only brief file is refused" '[ "$RC" != "0" ]'
+assert "0277 cursor: the no-content refusal names the file" 'grep -qF -- "blank-brief.txt" <<<"$ERR"'
+assert "0277 cursor: NO child was invoked for a newline-only brief" \
+  '[ "$(grep -c CALL "$MOCK_DIR/calls.txt")" = "0" ]'
+# The same gap on the argv leg: arity is not content, so `-- ""` is arguments-present, payload-empty.
+: > "$MOCK_DIR/calls.txt"
+ERR="$( MOCK_CALLS="$MOCK_DIR/calls.txt" CURSOR_BIN="$MOCK_DIR/cursor-agent" DOCKET_REPO_ROOT="$REPO" \
+        bash "$ADAPTER" --agent status -- "" 2>&1 >/dev/null )"; RC=$?
+assert "0277 cursor: an empty trailing argv payload is refused" '[ "$RC" != "0" ]'
+assert "0277 cursor: NO child was invoked for an empty argv payload" \
+  '[ "$(grep -c CALL "$MOCK_DIR/calls.txt")" = "0" ]'
+
 # --- no effort => BARE model, no bracket ---------------------------------------------------------
 run_adapter --agent status --model gpt-5.5-medium-fast
 assert "no effort: model passed bare" 'grep -qxF -- "gpt-5.5-medium-fast" <<<"$ARGV"'
