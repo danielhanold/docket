@@ -132,6 +132,13 @@ if [ -n "$BRIEF_FILE" ]; then
   [ $# -eq 0 ] || die "both --brief-file and trailing arguments after '--' were given — pass the brief in the file OR after '--', never both"
   [ -f "$BRIEF_FILE" ] && [ -r "$BRIEF_FILE" ] || die "--brief-file '$BRIEF_FILE' is not a readable file"
   [ -s "$BRIEF_FILE" ] || die "--brief-file '$BRIEF_FILE' is empty — a child launched with no task does not error, it improvises"
+  # `-s` MEASURES BYTES, and the adapters measure CONTENT: they read the brief with `$(cat …)`,
+  # which strips trailing newlines, so a file holding nothing but whitespace is non-empty here and
+  # an EMPTY payload there — the payload block is then suppressed entirely and the child is
+  # launched with no task at all, which is the very improvise defect the refusal above exists to
+  # stop. Both ends must use the same predicate: content, not bytes.
+  brief_body="$(cat "$BRIEF_FILE")"
+  [ -n "${brief_body//[[:space:]]/}" ] || die "--brief-file '$BRIEF_FILE' holds only whitespace — it is empty as far as the child is concerned, and a child launched with no task does not error, it improvises"
 fi
 # Gate 1 — a build worker must run INSIDE its feature worktree. This is the one piece of
 # agent-family knowledge the facade gains; it is a RUNTIME requirement (the path is runtime data),
@@ -151,7 +158,12 @@ case "$AGENT" in
     # generated shim's observe line deliberately has no brief slot, so requiring one would refuse
     # every second half of the launch/observe pair. The gate stays pre-verb for the two verbs that
     # DO start a child: `--launch` and the legacy synchronous call.
-    [ "$VERB" = "observe" ] || [ -n "$BRIEF_FILE" ] || [ $# -gt 0 ] || die "a build-* dispatch carries no task: pass the brief with --brief-file <path> (preferred) or after '--'. A build worker launched with no task does not error — it improvises from whatever it finds in the worktree and the dispatch still looks successful" ;;
+    # CONTENT, not arity: `[ $# -gt 0 ]` counts arguments, so `-- ""` satisfied it while the
+    # adapter's payload came out empty and the task context vanished. The argv channel is measured
+    # by the same whitespace-stripped predicate the brief-file channel is measured by above (a
+    # brief file that reached this line has already been proven to carry content).
+    argv_body="$*"
+    [ "$VERB" = "observe" ] || [ -n "$BRIEF_FILE" ] || [ -n "${argv_body//[[:space:]]/}" ] || die "a build-* dispatch carries no task: pass the brief with --brief-file <path> (preferred) or after '--'. A build worker launched with no task does not error — it improvises from whatever it finds in the worktree and the dispatch still looks successful" ;;
 esac
 # The path actually handed to the adapter. It is the caller's file on the legacy synchronous verb
 # (nothing detaches, so there is no temp-file lifetime hazard); `--launch` reassigns it to the

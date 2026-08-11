@@ -90,10 +90,18 @@ prompt="$prompt$body"
 payload=""
 if [ -n "$BRIEF_FILE" ]; then
   payload="$(cat "$BRIEF_FILE")"
+  # THE EMPTINESS CHECK IS THE PREDICATE THE PAYLOAD ITSELF USES. The validation above measures
+  # BYTES (`-s`), this read measures CONTENT: `$(cat …)` strips trailing newlines, so a
+  # newline-only brief passes `-s` and arrives here EMPTY, which suppresses the whole task-context
+  # block below and launches the child with no task at all — the improvise defect, silently.
+  [ -n "${payload//[[:space:]]/}" ] || die "--brief-file '$BRIEF_FILE' carries no content — it holds only whitespace, and a child launched with no task does not error, it improvises"
 elif [ $# -gt 0 ]; then
   payload="$1"; shift
   for a in "$@"; do payload="$payload
 $a"; done
+  # The same gap on the argv leg: arity is not content, so `-- ""` is arguments-present and
+  # payload-empty. Same predicate, same refusal.
+  [ -n "${payload//[[:space:]]/}" ] || die "the trailing arguments after '--' carry no content — they hold only whitespace, and a child launched with no task does not error, it improvises"
 fi
 if [ -n "$payload" ]; then
   prompt="$prompt
