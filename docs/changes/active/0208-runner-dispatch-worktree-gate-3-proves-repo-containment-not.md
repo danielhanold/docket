@@ -2,7 +2,7 @@
 id: 208
 slug: runner-dispatch-worktree-gate-3-proves-repo-containment-not
 title: Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards
-status: in-progress
+status: implemented
 priority: high
 type: fix
 created: 2026-08-05
@@ -10,15 +10,15 @@ updated: 2026-08-11
 depends_on: [237]
 related: [209, 210, 220, 237, 270, 274]
 discovered_from: [206]
-adrs: []
+adrs: [68, 83]
 spec: docs/superpowers/specs/2026-08-07-runner-dispatch-worktree-gate-3-proves-repo-containment-not-design.md
 plan: docs/superpowers/plans/2026-08-11-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md
-results:
+results: docs/results/2026-08-11-runner-dispatch-worktree-gate-3-proves-repo-containment-not-results.md
 trivial: false
 auto_groomable: true
 branch: feat/runner-dispatch-worktree-gate-3-proves-repo-containment-not
-claimed_at: 2026-08-11T02:05:00Z
-pr:
+claimed_at: 2026-08-11T05:05:00Z
+pr: https://github.com/danielhanold/docket/pull/195
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,9 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-runner-dispatch-worktree-gate-3-proves-repo-containment-not-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-runner-dispatch-worktree-gate-3-proves-repo-containment-not-design.md) |
 | Plan | [2026-08-11-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md](https://github.com/danielhanold/docket/blob/feat/runner-dispatch-worktree-gate-3-proves-repo-containment-not/docs/superpowers/plans/2026-08-11-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) |
+| Results | [2026-08-11-runner-dispatch-worktree-gate-3-proves-repo-containment-not-results.md](https://github.com/danielhanold/docket/blob/feat/runner-dispatch-worktree-gate-3-proves-repo-containment-not/docs/results/2026-08-11-runner-dispatch-worktree-gate-3-proves-repo-containment-not-results.md) |
+| PR | [#195](https://github.com/danielhanold/docket/pull/195) |
+| ADRs | [ADR-0068](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0068-delegated-run-anchor-is-an-explicit-argument.md), [ADR-0083](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0083-agent-worktree-scope-is-a-declared-frontmatter-fact.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
