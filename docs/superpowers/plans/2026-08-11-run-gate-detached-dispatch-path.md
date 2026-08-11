@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0275 — Run gate has no runnable path for slash-command or backgrounded implement-next dispatch](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0275-run-gate-has-no-runnable-path-for-slash-command-or-backgroun.md)**
+> ↩ **[Change 0275 — Run gate has no runnable path for slash-command or backgrounded implement-next dispatch](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-11-0275-run-gate-has-no-runnable-path-for-slash-command-or-backgroun.md)**
 <!-- docket:backlink:end -->
 
 # Run gate — a runnable path for detached implement-next dispatch
