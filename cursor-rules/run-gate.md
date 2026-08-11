@@ -31,10 +31,13 @@ only in the after-read and is attributed to this run.
 
 - **You hold a before-set AND a dispatch epoch** — the step-1 before-snapshot AND `date -u +%s`
   as `DISPATCH_EPOCH`, both captured before launching, as when you issue the dispatch yourself.
-  If you did not capture both, you are in the next bullet. At the notification, re-sync, then run
-  `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh verify-run --in-progress-ids
-  --with-claimed-at` and keep only ids passing ALL THREE filters: absent from the before-set,
-  `claimed_at` parses, and `claimed_at` >= `DISPATCH_EPOCH`. Exactly one survivor → step 4
+  Keep that number in your own notes, not in a shell variable: a shell variable does not survive
+  the next tool call. If you did not capture both, you are in the next bullet. At the notification,
+  re-sync, then run `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh verify-run
+  --in-progress-ids --with-claimed-at`, which prints `<id> <epoch>` per line — or `<id> -` when
+  the stamp is absent or does not parse. Compare the id field only, and keep ids passing ALL THREE
+  filters: absent from the before-set, `claimed_at` parses (not `-`), and `claimed_at` >=
+  `DISPATCH_EPOCH` — at or AFTER the dispatch, never before it. Exactly one survivor → step 4
   unchanged; none → done; two or more → stop and report, as in step 3.
 - **You hold neither — unattributed mode** (a slash-command launch, a notification-first session,
   or any dispatch you did not snapshot). No before-set exists, and a timestamp alone cannot

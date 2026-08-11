@@ -52,7 +52,13 @@ GATE_LINES="$(grep -c "" "$GATE_SRC" 2>/dev/null || echo 0)"
 # them and found only advice it could no longer act on. The titles now name the state, the launch
 # shapes moved inside as examples, and branch A carries an explicit routing clause to branch B — two
 # lines for the one reader most likely to improvise, which is the failure this section exists to end.
-assert "gate text is at most 45 lines" '[ "$GATE_LINES" -ge 1 ] && [ "$GATE_LINES" -le 45 ]'
+# Raised 45 -> 48 (2026-08-11, change 0275 review, findings 5 and 6): branch A told the reader to
+# apply a `claimed_at` filter to output whose SHAPE it had never been given — `<id> <epoch>`, or
+# `<id> -` when the stamp is absent or unparseable — while the step-1 before-set is single-column,
+# so a line-wise diff of the two reads every id as new; and `DISPATCH_EPOCH` is spelled like a shell
+# variable in a harness where shell state does not survive the next tool call. Three lines buy the
+# output shape, the id-field comparison, and the instruction to record the epoch out of band.
+assert "gate text is at most 48 lines" '[ "$GATE_LINES" -ge 1 ] && [ "$GATE_LINES" -le 48 ]'
 
 # --- the behavioral claims, each bound to what it is asserted ABOUT ---
 # (learnings: prose-guard-binds-phrase-to-claim — never a bare phrase-presence grep)
@@ -134,9 +140,14 @@ assert "gate: run-incomplete re-dispatches exactly ONCE, then stops" \
 DETACHED="${G#*### Detached dispatch}"
 assert "gate: the detached section exists to be asserted about" \
   '[ -n "$DETACHED" ] && [ "$DETACHED" != "$G" ]'
-# The section must announce WHICH dispatches it governs. Without this it reads as an alternative
-# the caller may choose, and a caller who can foreground-block would be free to pick the weaker
-# path; it is a fallback for a shape the caller does not control, not an option.
+# The section must announce WHICH dispatches it governs: without a stated precondition it reads as
+# an unconditional alternative, and a reader lands in it without first asking whether it applies.
+# What this pins is exactly that — the section names the state that selects it — and no more
+# (change 0275 review, finding 7): the substring below does not, and cannot, say the section may
+# not be ELECTED over step 2 by a caller who could have blocked, and the heading goes on to route
+# by what the reader HOLDS rather than by whether backgrounding was chosen. Step 2 is what forbids
+# the election — "when you issue the dispatch and can block on it, dispatch foreground" — and it
+# carries its own asserts above.
 assert "gate: the detached section is scoped by whether the session foreground-blocked" \
   '[[ "$DETACHED" == *"you did not foreground-block"* ]]'
 # The section carries TWO branches, and keeping them apart is the whole point of it: the
@@ -179,8 +190,26 @@ assert "gate: detached branch A captures BOTH the before-snapshot and a dispatch
   '[[ "$ATTRIB" == *"before-snapshot"*"date -u +%s"*"DISPATCH_EPOCH"* ]]'
 assert "gate: detached branch A reads the claim instant from the oracle, not from prose" \
   '[[ "$ATTRIB" == *"verify-run --in-progress-ids --with-claimed-at"* ]]'
-assert "gate: detached branch A requires all three filters, named" \
-  '[[ "$ATTRIB" == *"ALL THREE filters"*"absent from the before-set"*"parses"*"DISPATCH_EPOCH"* ]]'
+# The third filter is a COMPARISON, so its direction is its content (change 0275 review, finding 4):
+# pinned by token alone, the guard is satisfied by `claimed_at <= DISPATCH_EPOCH`, which selects
+# exactly the claims stamped BEFORE this run started — an abandoned or concurrent one — and hands
+# that id to step 4, where `run-incomplete` licenses a re-dispatch. The operator is therefore an
+# ordered element of the same pattern, and its probe is an operator FLIP, not a deletion.
+assert "gate: detached branch A requires all three filters, named, with the comparison direction" \
+  '[[ "$ATTRIB" == *"ALL THREE filters"*"absent from the before-set"*"parses"*">="*"DISPATCH_EPOCH"* ]]'
+# The reader of this block has never loaded docket-convention — that is why the gate insists its
+# commands run verbatim — so it has no referent for the two-column shape `--with-claimed-at` prints
+# (scripts/verify-run.md: `<id> <claimed_at-epoch>`, or `<id> -`). The `-` sentinel IS the whole
+# encoding of filter 2, and the step-1 before-set is single-column, so a line-wise set difference
+# makes every id look new and trips the two-or-more abort.
+assert "gate: detached branch A gives the --with-claimed-at output shape and compares the id field" \
+  '[[ "$ATTRIB" == *"--with-claimed-at"*"<id> <epoch>"*"<id> -"*"id field"*"before-set"* ]]'
+# `DISPATCH_EPOCH` is spelled like a shell variable, but shell state does not persist between Bash
+# calls in these harnesses (repo rule), so a caller who assigns it at launch reads it unset at the
+# notification: empty under no `set -u`, an error under one. runner-dispatch.sh persists its epoch
+# into a launch record; the prose path has no store but the session's own notes.
+assert "gate: detached branch A says to record the epoch, not to hold it in a shell variable" \
+  '[[ "$ATTRIB" == *"DISPATCH_EPOCH"*"in your own notes"*"shell variable does not survive"* ]]'
 assert "gate: detached branch A keeps step 3 cardinality — two or more candidates abort" \
   '[[ "$ATTRIB" == *"one survivor"*"step 4"* ]] && [[ "$ATTRIB" == *"two or more"*"stop and report"* ]]'
 # ...and branch A's outcome clause must stay IN branch A. Migrating it down into the unattributed
