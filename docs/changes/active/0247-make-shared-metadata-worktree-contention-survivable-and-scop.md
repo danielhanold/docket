@@ -2,7 +2,7 @@
 id: 247
 slug: make-shared-metadata-worktree-contention-survivable-and-scop
 title: 'Make shared metadata worktree contention survivable and scope its commits'
-status: proposed
+status: in-progress
 priority: high
 type: fix
 created: 2026-08-07
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/make-shared-metadata-worktree-contention-survivable-and-scop
+claimed_at: 2026-08-11T12:37:20Z
 pr:
 blocked_by:
 reconciled: false
