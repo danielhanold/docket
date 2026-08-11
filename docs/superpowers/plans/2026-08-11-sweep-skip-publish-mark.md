@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0118 — Decide whether the sweep's skip-publish path should also mark an unpublished terminal record](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0118-decide-whether-the-sweep-s-skip-publish-path-should-also-mar.md)**
+> ↩ **[Change 0118 — Decide whether the sweep's skip-publish path should also mark an unpublished terminal record](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-11-0118-decide-whether-the-sweep-s-skip-publish-path-should-also-mar.md)**
 <!-- docket:backlink:end -->
 
 # Mark the sweep's skip-publish path — Implementation Plan (change 0118)
