@@ -1,8 +1,14 @@
 # Backlog
 
-**288 changes** — 🟡 35 proposed · ⚪ 4 deferred · ✅ 173 done · 🗑️ 76 killed
+**288 changes** — 🟢 1 in progress · 🟡 34 proposed · ⚪ 4 deferred · ✅ 173 done · 🗑️ 76 killed
 
-## 🟡 Proposed (35)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0281](active/0281-auto-groom-s-critic-verdict-return-channel-fails-under-backg.md) | Auto-groom's critic verdict return channel fails under background dispatch | `medium` | `fix` | [spec](../superpowers/specs/2026-08-09-auto-groom-s-critic-verdict-return-channel-fails-under-backg-design.md) | `feat/auto-groom-s-critic-verdict-return-channel-fails-under-backg` |
+
+## 🟡 Proposed (34)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -35,7 +41,6 @@
 | [0273](active/0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md) | Put runtime budgets on a host-relative basis and re-seed the table | `high` | `refactor` | ⏳ waiting on #251 — not yet built |
 | [0279](active/0279-settle-the-walk-site-classifier-s-reachability-gap-and-re-la.md) | Settle the walk-site classifier's reachability gap and re-land 0258's reverted fixes | `medium` | `chore` | build-ready |
 | [0280](active/0280-shard-or-re-budget-the-test-files-the-suite-runner-reports-o.md) | Shard or re-budget the test files the suite runner reports OVER BUDGET | `medium` | `chore` | needs-brainstorm |
-| [0281](active/0281-auto-groom-s-critic-verdict-return-channel-fails-under-backg.md) | Auto-groom's critic verdict return channel fails under background dispatch | `medium` | `fix` | build-ready |
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | build-ready |
 | [0284](active/0284-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi.md) | runner-dispatch --observe is sentinel-only: adopt 0282's identity-checked liveness probe | `high` | `fix` | build-ready |
 | [0285](active/0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | `high` | `feat` | build-ready |
