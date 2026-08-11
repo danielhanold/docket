@@ -862,6 +862,57 @@ sweep_execute(){
   done
 }
 
+# sweep_mark_publish_deferred MW ARCHIVED ID DETAIL — write the durable `## Publish deferred`
+# marker on an archived change whose expected publish did not complete, and land it on
+# metadata_branch. THE SINGLE WRITER for both sweep paths that abandon an expected publish: the
+# change-0083 terminal-publish failure, and (change 0118) the render-change-links skipped-publish
+# failure. Extracted rather than inlined twice because the two blocks share an invariant, and a
+# second copy is where that invariant would silently diverge.
+#
+# BEST-EFFORT toward the report stream: always returns 0, writes nothing to stdout or stderr, and
+# no caller may branch on it. A failed mark must degrade to the pre-mark observable behavior
+# EXACTLY — same report lines, same order, same control flow.
+#
+# TRANSACTIONAL toward the worktree, which bare `|| true` suppression is not (change 0118). The
+# metadata worktree is SHARED: a marker that writes but fails to commit leaves the archived path
+# dirty or staged, and every later pass's `pull --rebase` then fails for EVERY change — strictly
+# worse than the unmarked gap this records. So recovery is defined per failure point:
+#   - precondition, path not clean  -> skip entirely; never stack a marker onto a dirty state
+#                                      some other actor left behind.
+#   - precondition, tree wedged     -> skip entirely (change 0247's rule at the sweep's other
+#                                      exposed commit). A commit into a mid-rebase tree writes
+#                                      onto that rebase's DETACHED HEAD — and the restore below
+#                                      would then resolve `HEAD` to that same detached commit and
+#                                      corrupt the file it exists to repair.
+#   - add or commit fails           -> restore the path to HEAD, index and worktree both.
+#                                      Degraded outcome: unmarked gap, CLEAN worktree — exactly
+#                                      today's behavior.
+#   - commit succeeds, push fails   -> RETAIN the local commit. This is the correlated case: the
+#                                      motivating renderer failure is a network blip, and the push
+#                                      needs the same network. A clean unpushed commit is harmless
+#                                      and self-heals — the next pass's `pull --rebase` carries it
+#                                      and a later push from the shared worktree publishes it.
+#                                      Never reset it; destroying it re-opens the gap.
+#
+# DETAIL must never contain the literal `terminal-publish.sh`: this invocation carries `--id` and
+# no `--enabled`, and tests/test_closeout.sh's find_ungated_terminal_publish_call_sites scans
+# JOINED logical lines for that literal regardless of quoting, so it would trip on this call site.
+sweep_mark_publish_deferred(){
+  local mw="$1" archived="$2" id="$3" detail="$4"
+  [ -z "$("$GIT" -C "$mw" status --porcelain -- "$archived" 2>/dev/null)" ] || return 0
+  ! _docket_tree_wedged "$GIT" "$mw" || return 0
+  "$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/mark-publish-deferred.sh --mode add --change-file "$archived" \
+    --reason blocked --detail "$detail" \
+    --integration-branch "$INTEGRATION_BRANCH" --id "$id" >/dev/null 2>&1 || return 0
+  if "$GIT" -C "$mw" add -- "$archived" >/dev/null 2>&1 \
+     && "$GIT" -C "$mw" commit -q -m "docket($id): mark terminal publish deferred (blocked)" -- "$archived" >/dev/null 2>&1; then
+    "$GIT" -C "$mw" push >/dev/null 2>&1 || true
+  else
+    "$GIT" -C "$mw" checkout HEAD -- "$archived" >/dev/null 2>&1 || true
+  fi
+  return 0
+}
+
 sweep_execute_one(){
   local mw="$1" cd_dir="$2" id="$3" slug="$4" pr="$5" merged_date="$6"
   local pad; pad="$(printf '%04d' "$id" 2>/dev/null)"
@@ -938,23 +989,11 @@ sweep_execute_one(){
     # false` can reach it (both are no-ops that exit 0), so the never-mark-under-suppression rule
     # holds without a second gate here.
     #
-    # STRICTLY BEST-EFFORT: every step is muted and `|| true`-guarded, and no step's outcome is
-    # read. A failed mark must not add, remove, or reorder a single report line — the caller's
-    # contract for this branch is exactly `sweep-failed <id> terminal-publish script-error`, and
-    # this block must be invisible to it. The commit+push is part of the best-effort: leaving the
-    # marker uncommitted would dirty the SHARED metadata worktree and fail the NEXT pass's
-    # `pull --rebase` for every change, which is a far worse failure than an unmarked deferral.
-    # --detail must never spell out the literal `terminal-publish.sh`: this whole backslash-joined
-    # invocation already carries `--id` without `--enabled`, and tests/test_closeout.sh's
-    # find_ungated_terminal_publish_call_sites scans joined logical lines for that literal
-    # regardless of quoting — putting it in this string would trip the scanner on this call site.
-    if "$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/mark-publish-deferred.sh --mode add --change-file "$archived" \
-         --reason blocked --detail "sweep: the publish step exited non-zero" \
-         --integration-branch "$INTEGRATION_BRANCH" --id "$id" >/dev/null 2>&1; then
-      "$GIT" -C "$mw" add -- "$archived" >/dev/null 2>&1 \
-        && "$GIT" -C "$mw" commit -q -m "docket($id): mark terminal publish deferred (blocked)" -- "$archived" >/dev/null 2>&1 \
-        && "$GIT" -C "$mw" push >/dev/null 2>&1
-    fi
+    # The mark's posture, its recovery on each failure point, and the --detail literal ban now
+    # live once, on sweep_mark_publish_deferred above. Change 0118 also gave this path recovery it
+    # did not have: the pre-0118 bare `&&` chain could leave the archived file dirty or staged in
+    # the shared worktree when the marker wrote and `add`/`commit` failed.
+    sweep_mark_publish_deferred "$mw" "$archived" "$id" "sweep: the publish step exited non-zero"
     echo "sweep-failed $id terminal-publish script-error"
     return 0
   fi

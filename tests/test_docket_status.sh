@@ -1689,6 +1689,33 @@ assert "0083: the marker reached the metadata branch as a commit" \
 assert "0083: the sweep left the shared metadata worktree CLEAN" \
   '[ -z "$(git -C "$sweep_dir/work" status --porcelain)" ]'
 
+# --- change 0118: the mark is a SHARED helper with defined recovery ----------------------------
+# Extracting the 0083 block into sweep_mark_publish_deferred is only safe if the helper actually
+# exists, is the single writer, and is called by BOTH sites. Asserted on the SOURCE, because a
+# behavioral test cannot distinguish "inlined twice" from "extracted once" — and inlined-twice is
+# exactly the drift this extraction exists to prevent.
+# DEVIATION from the plan, which piped `awk … | grep -q`: this file runs under `set -o pipefail`,
+# where a producer feeding an early-exiting consumer takes SIGPIPE and turns a real assert into an
+# intermittent 141. The range is captured into a variable once and grepped from a here-string.
+# The awk range spans the function's own body ONLY — its explanatory comment block sits above the
+# `sweep_mark_publish_deferred()` line and is deliberately outside it, so the reset ban below reads
+# the code rather than the prose that describes it.
+mark_fn="$(awk '/^sweep_mark_publish_deferred\(\)/,/^}/' "$SCRIPT")"
+# Non-vacuity companion for the three body greps: with an empty range the NEGATIVE below passes for
+# the wrong reason, so an absent helper must redden something.
+assert "0118: the helper body is extractable at all (non-vacuity)" \
+  '[ -n "$mark_fn" ]'
+assert "0118: sweep_mark_publish_deferred is defined once" \
+  '[ "$(grep -c "^sweep_mark_publish_deferred()" "$SCRIPT")" -eq 1 ]'
+assert "0118: mark-publish-deferred.sh is invoked from exactly ONE place in the sweep" \
+  '[ "$(grep -c "mark-publish-deferred\.sh" "$SCRIPT")" -eq 1 ]'
+assert "0118: the helper probes the shared worktree for a rebase/merge before committing" \
+  'grep -q "_docket_tree_wedged" <<<"$mark_fn"'
+assert "0118: the helper restores the archived path to HEAD when add/commit fails" \
+  'grep -qE "checkout HEAD -- " <<<"$mark_fn"'
+assert "0118: the helper never resets a committed marker on push failure" \
+  '! grep -qE "reset (--hard|--soft|--mixed)?" <<<"$mark_fn"'
+
 # A mark that FAILS must be invisible: identical report lines, identical control flow. `-c` on the
 # whole output, not a presence grep — an extra or duplicated line would pass a presence check.
 assert "0083: a FAILED mark still emits exactly the one sweep-failed line for that change" \
