@@ -9,14 +9,14 @@ updated: 2026-08-11
 depends_on: []
 related: [154, 254]
 discovered_from: [83]
-adrs: []
+adrs: [90]
 spec: docs/superpowers/specs/2026-08-07-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-design.md
 plan: docs/superpowers/plans/2026-08-11-sweep-skip-publish-mark.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/decide-whether-the-sweep-s-skip-publish-path-should-also-mar
-claimed_at: 2026-08-11T18:15:08Z
+claimed_at: 2026-08-11T20:20:02Z
 pr:
 blocked_by:
 reconciled: true
@@ -30,6 +30,7 @@ type: fix
 |---|---|
 | Spec | [2026-08-07-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-design.md) |
 | Plan | [2026-08-11-sweep-skip-publish-mark.md](https://github.com/danielhanold/docket/blob/feat/decide-whether-the-sweep-s-skip-publish-path-should-also-mar/docs/superpowers/plans/2026-08-11-sweep-skip-publish-mark.md) |
+| ADRs | [ADR-0090](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0090-publish-deferred-covers-any-handled-post-archive-failure.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
