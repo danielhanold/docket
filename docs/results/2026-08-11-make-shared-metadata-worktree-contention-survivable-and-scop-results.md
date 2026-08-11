@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0247 — Make shared metadata worktree contention survivable and scope its commits](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0247-make-shared-metadata-worktree-contention-survivable-and-scop.md)**
+> ↩ **[Change 0247 — Make shared metadata worktree contention survivable and scope its commits](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-11-0247-make-shared-metadata-worktree-contention-survivable-and-scop.md)**
 <!-- docket:backlink:end -->
 
 # Make shared metadata worktree contention survivable and scope its commits — results
