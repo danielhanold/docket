@@ -44,6 +44,17 @@ not an optimization: the 0212 incident lived inside a multi-line double-quoted a
 line-local scanner cannot see it — `tests/fixtures/hygiene/red/dq_sites_block.sh` exists to fail if
 anyone rewrites the scanner line-locally.
 
+A **backslash-newline is a splice**, not an escape: both characters are removed and the next
+character is ordinary, so the physical lines join into one logical line and the command word, its
+argument index, and the armed state all carry across. This is what makes the suite's two-line house
+form — `assert "…" \` with the condition indented on the next line — read identically to the
+one-line form. Consuming that next character instead swallows the indent (pushing the condition to
+argument index 3, where the eval rule never arms) or, at column zero, swallows an *opening* quote,
+after which the closing one opens a region and the machine runs inverted to end of file.
+`tests/fixtures/hygiene/red/continuation_eval.sh` and
+`tests/fixtures/hygiene/red/continuation_dq.sh` pin both halves; a green continuation fixture
+cannot, because it can only show the absence of a false positive.
+
 Each violation prints one line to **stdout**:
 
 ```
