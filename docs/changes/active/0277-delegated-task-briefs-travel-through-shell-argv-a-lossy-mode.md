@@ -2,24 +2,24 @@
 id: 277
 slug: delegated-task-briefs-travel-through-shell-argv-a-lossy-mode
 title: 'Delegated task briefs travel through shell argv, a lossy model-performed transformation'
-status: in-progress
+status: implemented
 priority: medium
 type: refactor
 created: 2026-08-09
-updated: 2026-08-10
+updated: 2026-08-11
 depends_on: []
 related: [208, 270]
 discovered_from: [271]
 adrs: [82]
 spec: docs/superpowers/specs/2026-08-09-delegated-brief-file-channel-design.md
 plan: docs/superpowers/plans/2026-08-10-delegated-brief-file-channel.md
-results:
+results: docs/results/2026-08-10-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode-results.md
 trivial: false
 auto_groomable: true
 branch: feat/delegated-task-briefs-travel-through-shell-argv-a-lossy-mode
-pr:
+pr: https://github.com/danielhanold/docket/pull/194
 blocked_by:
-claimed_at: 2026-08-11T01:30:58Z
+claimed_at: 2026-08-11T01:33:01Z
 reconciled: true
 ---
 
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-09-delegated-brief-file-channel-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-delegated-brief-file-channel-design.md) |
 | Plan | [2026-08-10-delegated-brief-file-channel.md](https://github.com/danielhanold/docket/blob/feat/delegated-task-briefs-travel-through-shell-argv-a-lossy-mode/docs/superpowers/plans/2026-08-10-delegated-brief-file-channel.md) |
+| Results | [2026-08-10-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode-results.md](https://github.com/danielhanold/docket/blob/feat/delegated-task-briefs-travel-through-shell-argv-a-lossy-mode/docs/results/2026-08-10-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode-results.md) |
+| PR | [#194](https://github.com/danielhanold/docket/pull/194) |
 | ADRs | [ADR-0082](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0082-generated-shim-emits-brief-write-and-launch-as-one-harness-call.md) |
 <!-- docket:artifacts:end -->
 
