@@ -38,11 +38,31 @@ GATE_LINES="$(grep -c "" "$GATE_SRC" 2>/dev/null || echo 0)"
 # facade spelling, plus the sentence saying why both reads must be fresh.
 # Raised 23 -> 25 (finding 4): the multi-candidate abort clause in step 3 — the cardinality rule
 # scripts/runner-dispatch.sh enforces ("this run claims at most one") had no prose counterpart.
-assert "gate text is at most 25 lines" '[ "$GATE_LINES" -ge 1 ] && [ "$GATE_LINES" -le 25 ]'
+# Raised 25 -> 43 (change 0275): the gate had NO runnable path for a dispatch the session did not
+# foreground-block on — the shape a human actually launches (`/docket-implement-next <id>`), where
+# steps 1-3 are structurally unrunnable because no before-snapshot exists. The `### Detached
+# dispatch` section is that path, and it cannot be shorter than the two branches it must keep
+# apart: one that CAN attribute (before-set + DISPATCH_EPOCH, all three filters, re-dispatch
+# allowed) and one that CANNOT (verify-and-report, never re-dispatch). Collapsing them is the
+# defect — an unattributed re-dispatch lands on a change a live agent is holding. The raise is
+# deliberate and priced: an always-loaded block earns its length only by being runnable, and 18
+# lines is what the observed-and-ungated dispatch shape costs.
+assert "gate text is at most 43 lines" '[ "$GATE_LINES" -ge 1 ] && [ "$GATE_LINES" -le 43 ]'
 
 # --- the behavioral claims, each bound to what it is asserted ABOUT ---
 # (learnings: prose-guard-binds-phrase-to-claim — never a bare phrase-presence grep)
 G="$(flat "$GATE_SRC" 2>/dev/null)"
+# The gate's framing must survive notification-driven control flow: a session HANDED a completion
+# report never "reports" in the sense the old heading meant, so "verify before you report" bound
+# nothing on the very path change 0275 exists to cover. Bound to the HEADER window (everything
+# before step 1's opener), not to $G — the words recur in the steps below.
+HEADW="${G%%Before dispatching*}"
+assert "gate: the header window exists to be asserted about" \
+  '[ -n "$HEADW" ] && [ "$HEADW" != "$G" ]'
+assert "gate: the obligation is stated against RELAYING, not against reporting" \
+  '[[ "$HEADW" == *"before you relay it"* ]]'
+assert "gate: a completion notification is named as the CHILD claim, not the session output" \
+  '[[ "$HEADW" == *"the CHILD"*"claim, not your report"*"before relaying"* ]]'
 assert "gate: snapshots the in-progress set BEFORE dispatching" \
   '[[ "$G" == *"Before dispatching"*"verify-run --in-progress-ids"* ]]'
 assert "gate: verifies the attributed id after the return" \
@@ -70,10 +90,16 @@ assert "gate: says both snapshots must read fresh origin state" \
 # gate in one rendering, so a whole-file grep would be vacuous.
 STEP2="${G#*verify-run --in-progress-ids}"; STEP2="${STEP2%%After the return*}"
 assert "gate: step 2 exists to be asserted about" '[ -n "$STEP2" ] && [ "$STEP2" != "$G" ]'
-assert "gate: step 2 carries its own foreground/blocking claim" \
-  '[[ "$STEP2" == *"Dispatch"*"foreground"*"block on the return"* ]]'
-assert "gate: step 2 forbids backgrounding and polling" \
+# Change 0275: the prohibition is SCOPED rather than dropped. A blanket "never background it" on
+# the same page as the Detached section countermands it, and the prohibition is mutation-tested —
+# so it now binds the path it can bind (a dispatch this session issues and can block on) and
+# routes every other shape to the named section instead of forbidding it.
+assert "gate: step 2 scopes foreground-and-block to a dispatch this session can block on" \
+  '[[ "$STEP2" == *"can block on it"*"foreground"*"block on the return"* ]]'
+assert "gate: step 2 forbids backgrounding and polling on that path" \
   '[[ "$STEP2" == *"never background it"*"never poll"* ]]'
+assert "gate: step 2 routes a dispatch it did not block on to the detached section" \
+  '[[ "$STEP2" == *"harness"*"backgrounds for you"*"Detached dispatch"* ]]'
 # The dangling cross-reference itself must stay gone: it is only ever resolvable in one of the two
 # renderings, so any reappearance is the same defect.
 assert "gate: no 'as above' cross-reference out of the gate's own text" \
@@ -93,6 +119,41 @@ assert "gate: run-halted never re-dispatches" \
   '[[ "$G" == *"run-halted"*"never re-dispatch"* ]]'
 assert "gate: run-incomplete re-dispatches exactly ONCE, then stops" \
   '[[ "$G" == *"run-incomplete"*"once"* ]] && [[ "$G" == *"Never a third"* ]]'
+
+# --- the detached path: the dispatch shape the gate had no runnable procedure for (change 0275) --
+# Bound to the DETACHED window, never to $G. Every phrase below also has a legitimate home in
+# steps 1-4 — "verify-run", "stop and report", "never re-dispatch" — so a whole-file window is
+# satisfied with the entire section deleted (mutation-proven vacuous). The section is last in the
+# template, so the window runs to EOF and its opening heading is the named terminator; the
+# non-vacuity assert below is what proves the heading was found at all.
+DETACHED="${G#*### Detached dispatch}"
+assert "gate: the detached section exists to be asserted about" \
+  '[ -n "$DETACHED" ] && [ "$DETACHED" != "$G" ]'
+# The section must announce WHICH dispatches it governs. Without this it reads as an alternative
+# the caller may choose, and a caller who can foreground-block would be free to pick the weaker
+# path; it is a fallback for a shape the caller does not control, not an option.
+assert "gate: the detached section is scoped by whether the session foreground-blocked" \
+  '[[ "$DETACHED" == *"you did not foreground-block"* ]]'
+# Branch A — attributable. All three filters, each asserted as its OWN conjunct: the epoch filter
+# was added at the design gate on top of the set difference, and a guard that pins only the pair
+# leaves the added part free (learnings: guard-the-widened-clause).
+assert "gate: detached branch A captures BOTH the before-snapshot and a dispatch epoch" \
+  '[[ "$DETACHED" == *"before-snapshot"*"date -u +%s"*"DISPATCH_EPOCH"* ]]'
+assert "gate: detached branch A reads the claim instant from the oracle, not from prose" \
+  '[[ "$DETACHED" == *"verify-run --in-progress-ids --with-claimed-at"* ]]'
+assert "gate: detached branch A requires all three filters, named" \
+  '[[ "$DETACHED" == *"ALL THREE filters"*"absent from the before-set"*"parses"*"DISPATCH_EPOCH"* ]]'
+assert "gate: detached branch A keeps step 3 cardinality — two or more candidates abort" \
+  '[[ "$DETACHED" == *"one survivor"*"step 4"* ]] && [[ "$DETACHED" == *"two or more"*"stop and report"* ]]'
+# Branch B — unattributable. The never-re-dispatch rule AND the reason it holds: without the
+# reason a later editor reads it as caution and relaxes it, and the failure it prevents is the one
+# unrecoverable move in the whole gate.
+assert "gate: detached branch B is named as unattributed mode" \
+  '[[ "$DETACHED" == *"unattributed mode"*"No before-set exists"* ]]'
+assert "gate: unattributed mode never re-dispatches, and says why a timestamp cannot attribute" \
+  '[[ "$DETACHED" == *"re-stamped at every phase boundary"*"looks fresh"*"Never re-dispatch"* ]]'
+assert "gate: a prose id from the child is a hint to verify, never attribution authority" \
+  '[[ "$DETACHED" == *"the notification names"*"never authority"* ]]'
 
 # --- rendered into BOTH surfaces, byte-identically ---
 mk_repo "[cursor, codex]"
