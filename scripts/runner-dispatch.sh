@@ -63,23 +63,17 @@ DOCKET_FACADE="${DOCKET_FACADE:-$SELF_DIR/docket.sh}"
 # but the extraction can, and a spelling change made in the generator alone fails loudly there
 # while leaving this probe silently reading every agent as metadata scope.
 . "$SELF_DIR/lib/docket-agent-scope.sh"
+# shellcheck source=lib/docket-liveness.sh
+# The liveness predicate, shared with gate-run.sh (change 0284). Before this lib, the identity
+# conjuncts below existed here as an inline ladder and in gate-run.sh as its own copy, and the two
+# had already diverged: on an EMPTY recorded token this file SKIPPED the conjunct while gate-run.sh
+# failed closed. The lib is fail-closed, and this file inherits that — see `terminate_dispatch`'s
+# "IDENTITY BEFORE SIGNAL" header for why the change is behaviour-preserving on every reachable
+# input. `docket_identity_of` also stands in for the private start-time reader this file used to
+# carry beside the ladder, which was that same predicate's other half.
+. "$SELF_DIR/lib/docket-liveness.sh"
 
 die(){ printf 'runner-dispatch: %s\n' "$*" >&2; exit 1; }
-
-# The OS's own start time for a pid, as an OPAQUE identity token — captured at launch, compared at
-# observation. It exists because `pgid` and `child_pid` are both REUSABLE names: an hour after a
-# child died, neither one alone can still prove that the recorded group is the launched tree rather
-# than something the OS handed that id to since (see the budget kill's identity check).
-# Whitespace-normalized and then compared as an EXACT STRING, never parsed into a date: the
-# `ps -o lstart=` rendering is platform- and locale-dependent, and both sides of the comparison come
-# from the same `ps` on the same machine, so parsing it would add a failure mode and buy nothing.
-ps_lstart(){  # $1 = pid -> normalized start-time token, empty when the pid is gone or unreadable
-  local s
-  s="$(ps -o lstart= -p "${1:-0}" 2>/dev/null)"
-  s="$(tr -s '[:space:]' ' ' <<<"$s")"
-  s="${s# }"
-  printf '%s' "${s% }"
-}
 
 RUNNER=""; AGENT=""; MODEL=""; EFFORT=""; WORKTREE=""; BRIEF_FILE=""
 # Verb selection (change 0271). Empty = the legacy synchronous call-and-return, which stays the
@@ -530,9 +524,11 @@ if [ "$VERB" = "launch" ]; then
   # was just measured on. `pgid` and `child_pid` are reusable names, so the observer needs one value
   # that a RECYCLED pid cannot reproduce: a pid that the OS later hands to an unrelated process
   # leading a group of the same id matches both of those and only differs here. Empty when the child
-  # already finished (the `ps` above saw nothing) — the observer then degrades to the pgid check
-  # alone and says so, rather than treating an absent token as a match.
-  CHILD_LSTART="$(ps_lstart "$CHILD_PID")"
+  # already finished (the `ps` above saw nothing) — and the observer then refuses to signal, because
+  # an absent token is not a match (change 0284). That refusal costs nothing on any reachable input:
+  # the only child whose token is empty here is one that had ALREADY finished, so the wrapper wrote
+  # its `done` sentinel and the observer's sentinel read disposes long before any kill guard is asked.
+  CHILD_LSTART="$(docket_identity_of "$CHILD_PID")"
 
   # `pgid` is what an observer must signal to reach the whole detached tree, so it is recorded from
   # the MEASUREMENT wherever the measurement exists. The fallback fires only when `ps` could not see
@@ -571,6 +567,30 @@ launch_field(){  # $1 = dispatch dir, $2 = field -> first value, empty when abse
   local raw
   raw="$(sed -n "s/^$2=//p" "$1/launch" 2>/dev/null)"
   printf '%s' "${raw%%$'\n'*}"
+}
+
+# Test-only synchronization point, the same shape as gate-run.sh's `barrier` (change 0284). A
+# TWO-WAY RENDEZVOUS: it announces its arrival (`<file>.reached`) so a fixture knows the process is
+# held at exactly this point and nowhere else, then waits to be let go (`<file>.release`). That
+# handshake is what makes an INTERLEAVING deterministic instead of a sleep-tuned guess — and the
+# observe verb's step-1/step-3 window cannot be entered any other way.
+#
+# ENV-GATED AND INERT BY DEFAULT, and it is the POINT variable that arms it: with
+# RUNNER_DISPATCH_TEST_BARRIER unset this is a no-op at full speed no matter what else is in the
+# environment, so the hook can never itself become a hang site in production. The match is on the
+# point NAME, so arming one rendezvous cannot silently hold every other call site as well.
+#
+# BOUNDED even when armed: a fixture that forgets to release must fail its own bounded wait and
+# leave a red assert behind, never hang the suite.
+barrier(){  # $1 = the point this call site names
+  [ "${RUNNER_DISPATCH_TEST_BARRIER:-}" = "$1" ] || return 0
+  local f="${RUNNER_DISPATCH_TEST_BARRIER_FILE:?barrier point '$1' armed without RUNNER_DISPATCH_TEST_BARRIER_FILE}"
+  : >"$f.reached"
+  local waited=0
+  while [ ! -e "$f.release" ] && [ "$waited" -lt 300 ]; do
+    sleep 0.1; waited=$(( waited + 1 ))
+  done
+  return 0
 }
 
 # --- verb: --observe (change 0271) --------------------------------------------------
@@ -858,8 +878,14 @@ if [ "$VERB" = "observe" ]; then
     #      alone is satisfied by a RECYCLED pid that coincidentally leads a group of the same id
     #      (pid reuse is what makes the whole hazard reachable in the first place, and a recycled
     #      pid that calls setpgid(0,0) is an ordinary background job, not an exotic state).
-    #      Skipped only when the launch recorded no token, which it does only for a child that had
-    #      already finished.
+    #      NEVER SKIPPED — an empty recorded token FAILS THE CONJUNCT rather than dropping it
+    #      (change 0284: this conjunct is now scripts/lib/docket-liveness.sh's, shared with
+    #      gate-run.sh, and the lib fails closed on either token being empty). The earlier spelling
+    #      here skipped it, and that asymmetry against gate-run.sh's copy was the drift extracting
+    #      the predicate removed. It costs nothing on any REACHABLE input: `--launch` records an
+    #      empty `child_lstart` only when its `ps` saw no process at all — i.e. the child had
+    #      already finished — and such a child's wrapper wrote `done`, which the observation's
+    #      sentinel read disposes on before this path can be entered.
     # Failing either conjunct is NOT an error — it is the ordinary "that group is already gone"
     # outcome. The kill is skipped, the terminal `killed` marker is STILL recorded (with a reason
     # that says nothing was signalled, so the dispatch stays terminal and re-observes identically),
@@ -872,23 +898,28 @@ if [ "$VERB" = "observe" ]; then
     # An unreadable `ps` lands on the same side for the same reason.
     # Every one of these is initialized: `local x` leaves x UNSET, and this script runs under
     # `set -u`, so a later read on a path that skipped the assignment would abort the observation.
-    local kill_reason="$cause" signal_group=0 identity_why="" lchild="" lchild_lstart="" now_pgid="" now_lstart=""
+    local kill_reason="$cause" signal_group=0 identity_why="" lchild="" now_pgid=""
     lchild="$(launch_field "$DDIR" child_pid)"
-    lchild_lstart="$(launch_field "$DDIR" child_lstart)"
     if [ -z "$LPGID" ]; then
       identity_why="the launch record names no process group"
     else
       case "$lchild" in
         ''|*[!0-9]*) identity_why="the launch record names no usable child pid" ;;
         *)
+          # CONJUNCT 1, and it stays HERE rather than moving into the lib: it asks whether the
+          # recorded CHILD still leads the recorded GROUP, which is a question about THIS file's
+          # record layout (`child_pid` + `pgid`), not about liveness. The lib takes values; the
+          # layout stays with its owner.
           now_pgid="$(ps -o pgid= -p "$lchild" 2>/dev/null | tr -d ' ')"
-          now_lstart="$(ps_lstart "$lchild")"
           if [ -z "$now_pgid" ]; then
             identity_why="the launched child (pid $lchild) is gone, so the group is no longer provably its own"
           elif [ "$now_pgid" != "$LPGID" ]; then
             identity_why="pid $lchild now leads group $now_pgid, not the recorded $LPGID"
-          elif [ -n "$lchild_lstart" ] && [ "$now_lstart" != "$lchild_lstart" ]; then
-            identity_why="pid $lchild started at '$now_lstart', not at the launch's '$lchild_lstart' — the pid was recycled"
+          # CONJUNCT 2, now the shared predicate. It carries the reason in DOCKET_LIVENESS_WHY,
+          # which is what let this call site drop its private copy of the wording rather than keep
+          # a second predicate wearing the first one's answer.
+          elif ! docket_group_alive_and_ours "$LPGID" "$(launch_field "$DDIR" child_lstart)"; then
+            identity_why="$DOCKET_LIVENESS_WHY"
           else
             signal_group=1
           fi ;;
