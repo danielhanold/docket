@@ -2,7 +2,7 @@
 id: 275
 slug: run-gate-has-no-runnable-path-for-slash-command-or-backgroun
 title: 'Run gate has no runnable path for slash-command or backgrounded implement-next dispatch'
-status: in-progress
+status: implemented
 priority: high
 type: fix
 created: 2026-08-09
@@ -13,12 +13,12 @@ discovered_from: [271]
 adrs: [84]
 spec: docs/superpowers/specs/2026-08-09-run-gate-detached-dispatch-path-design.md
 plan: docs/superpowers/plans/2026-08-11-run-gate-detached-dispatch-path.md
-results:
+results: docs/results/2026-08-11-run-gate-detached-dispatch-path-results.md
 trivial: false
 auto_groomable: true
 branch: feat/run-gate-has-no-runnable-path-for-slash-command-or-backgroun
-claimed_at: 2026-08-11T05:55:27Z
-pr:
+claimed_at: 2026-08-11T05:56:56Z
+pr: https://github.com/danielhanold/docket/pull/196
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-09-run-gate-detached-dispatch-path-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-run-gate-detached-dispatch-path-design.md) |
 | Plan | [2026-08-11-run-gate-detached-dispatch-path.md](https://github.com/danielhanold/docket/blob/feat/run-gate-has-no-runnable-path-for-slash-command-or-backgroun/docs/superpowers/plans/2026-08-11-run-gate-detached-dispatch-path.md) |
+| Results | [2026-08-11-run-gate-detached-dispatch-path-results.md](https://github.com/danielhanold/docket/blob/feat/run-gate-has-no-runnable-path-for-slash-command-or-backgroun/docs/results/2026-08-11-run-gate-detached-dispatch-path-results.md) |
+| PR | [#196](https://github.com/danielhanold/docket/pull/196) |
 | ADRs | [ADR-0084](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0084-re-dispatch-permission-gated-on-attribution-capability-not-launch-shape.md) |
 <!-- docket:artifacts:end -->
 
