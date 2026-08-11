@@ -730,6 +730,24 @@ assert "0118: the sweep is stated to owe no mark on the commit/push leg" \
 assert "0118: never-mark-under-suppression survives the edit (non-vacuity)" \
   'grep -qF -- "**Never mark under suppression.**" "$TCO"'
 
+# The *Sweep posture* paragraph is what an agent triaging a `sweep-failed <id> render-change-links
+# skipped-publish` line actually reads, so its remediation must not be the one the same paragraph
+# forbids: `terminal-publish` alone succeeds, strips the deferral marker, and publishes the stale
+# `## Artifacts` block. The two legs need DIFFERENT follow-ups. Written first as a NEGATIVE against
+# the publish-only form this fix removed — a positive alone goes green on arrival and stays green
+# if the old single-step instruction is reintroduced beside it. Patterns held in variables (not
+# inlined) because the assert body is eval'd: a literal backtick inside a double-quoted grep
+# pattern would be command substitution.
+skill_pubonly_removed='needing a manual `docket.sh terminal-publish --id <id> --enabled true` follow-up'
+skill_skippub_fixup='after `skipped-publish`, `docket.sh render-change-links` on the archived file FIRST, then that same publish'
+skill_termpub_fixup='after `terminal-publish` failed, `docket.sh terminal-publish --id <id> --enabled true` alone'
+assert "0118: the sweep posture no longer prescribes a publish-only follow-up for both legs" \
+  '! grep -qF -- "$skill_pubonly_removed" "$STATUS"'
+assert "0118: the skipped-publish leg's follow-up re-renders BEFORE publishing (exactly once)" \
+  '[ "$(grep -cF -- "$skill_skippub_fixup" "$STATUS")" -eq 1 ]'
+assert "0118: the terminal-publish leg's follow-up stays publish-only (no re-render needed)" \
+  '[ "$(grep -cF -- "$skill_termpub_fixup" "$STATUS")" -eq 1 ]'
+
 assert "0174 template integrity: the shared template is unmutated after the full run" \
   '[ "$(git -C "$NEW_REPO_TEMPLATE/tpl/origin.git" for-each-ref --format="%(refname) %(objectname)" | LC_ALL=C sort)" = "$tplint_refs" ] &&
    [ "$(git -C "$NEW_REPO_TEMPLATE/tpl/work" rev-parse HEAD)" = "$tplint_head" ] &&

@@ -1220,8 +1220,25 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # written. A wrong enumeration reads as complete, which is the same failure mode change 0247
 # recorded one entry above. The edit is net-tight — two sentences were merged into one lead — so
 # the growth is the gate clause. Set per the rounding rule above from the measured actual: 2520
-# words -> the next multiple of 50 is 2550 (30 words of margin, clear of the 25-word floor). The
-# LINE budget was NOT raised: 102 actual against 118, unchanged by this change, 16 lines of margin.
+# words -> the next multiple of 50 is 2550 (30 words of margin, clear of the 25-word floor).
+# A later 0118 fix round raised the same row 2550 -> 2600. The paragraph's follow-up instruction
+# was still the single one it carried before the skipped-publish leg existed ("needing a manual
+# `docket.sh terminal-publish --id <id> --enabled true` follow-up"), which on THAT leg publishes
+# the stale `## Artifacts` block the same paragraph's closing sentence forbids publishing — and
+# strips the deferral marker on its way, leaving nothing to surface it again. The remediation is
+# therefore split per leg: publish alone after a failed `terminal-publish` (change 0083, where the
+# re-render already succeeded), re-render FIRST and only then publish after `skipped-publish`.
+# WHERE ELSE IT WAS CONSIDERED: the same reference named above,
+# skills/docket-convention/references/terminal-close-out.md, plus the `--detail` text
+# scripts/mark-publish-deferred.sh writes into the archived file — which already carries the
+# re-render-first instruction, and is the reason this looked covered. It is not: the marker is read
+# by whoever opens the archived change, while this paragraph is read by the agent triaging the
+# `sweep-failed <id> render-change-links skipped-publish` REPORT LINE, who has no trigger to open
+# either file and will run the command this body names. A remediation stated only where the reader
+# is not is the same wrong-enumeration failure as the entry above.
+# Set per the rounding rule from the measured actual: 2539 words -> the next multiple of 50 is
+# 2550, which leaves 11 words — inside the 25-word floor — so the multiple after it, 2600.
+# The LINE budget was NOT raised: 102 actual against 118, unchanged by this change, 16 lines of margin.
 # skills/docket-convention/references/terminal-close-out.md's budget was raised 180/1500 ->
 # 195/1750 by change 0118, which scopes step 3's mark rule PER LEG: a failed step-2 re-render
 # abandons the publish for every driver and every driver owes a mark there (the sweep discharges
@@ -1272,7 +1289,7 @@ skills/docket-implement-next/results-template.md            25  250
 skills/docket-review/SKILL.md                              110  900
 skills/docket-new-change/SKILL.md                           61 1450
 skills/docket-new-change/change-template.md                 51  203
-skills/docket-status/SKILL.md                              118 2550
+skills/docket-status/SKILL.md                              118 2600
 "
 
 # Every tracked file is within budget.
