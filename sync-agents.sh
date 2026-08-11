@@ -633,7 +633,24 @@ validate_agent_scopes(){  # $1 = sources dir
     name="$(short_name "$src")"
     scope="$(agent_worktree_scope "$src")"
     case "$scope" in
-      feature|metadata) ;;
+      feature|metadata)
+        # A CONSISTENCY BOND with scripts/runner-dispatch.sh, NOT a re-introduction of the name
+        # shape as the source of truth for scope. That script still reads THIS SAME FAMILY by name
+        # — `case "$AGENT" in build-*)`, the empty-payload refusal, which is build-specific on
+        # purpose and is not widened to the feature-scoped set — so `build-*` is a live predicate in
+        # this codebase either way. Two readings of one family that can DISAGREE is the defect, and
+        # the disagreement is silent in the direction that matters: a build source declaring
+        # `metadata` keeps the payload refusal while losing gate 1, gate 3b and the shim's
+        # `--worktree` slot, shipping exactly the un-gated build worker change 0208 exists to
+        # prevent. Every other agent's scope is still whatever it declares, read from the
+        # declaration and nowhere else. Delete this arm only TOGETHER WITH runner-dispatch.sh's
+        # `build-*` case — never before it.
+        case "$name" in
+          build-*)
+            [ "$scope" = "feature" ] || { log "ERROR agent '$name' declares worktree-scope '$scope' — a build-* agent must declare 'feature': runner-dispatch.sh still keys its empty-payload refusal on the build-* name shape, so a build source declaring anything else makes the two readings of the same family disagree, and this one loses the --worktree requirement and the main-tree rejection silently ($src)"; bad=1; }
+            ;;
+        esac
+        ;;
       '') log "ERROR agent '$name' declares no worktree-scope: — add 'worktree-scope: feature' or 'worktree-scope: metadata' to $src"; bad=1 ;;
       *)  log "ERROR agent '$name' declares an invalid worktree-scope '$scope' — the only values are 'feature' and 'metadata' ($src)"; bad=1 ;;
     esac

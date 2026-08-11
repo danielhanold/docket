@@ -247,4 +247,82 @@ assert "0173 validator: a LIVE harness block is still a hard failure" '[ "$live_
 assert "0173 validator: and it wrote no wrapper" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
 rm -rf "$SBX" "$HROOT173Z"
 
+# ---- 0208 (whole-branch review): the build-family CONSISTENCY BOND ----------------------
+# validate_agent_scopes accepted any well-formed value, so a `docket-build-*` source declaring
+# `worktree-scope: metadata` — a copy-paste from a metadata source, or a hand edit — lost gate 1,
+# gate 3b and the shim's `--worktree` slot with nothing red, while runner-dispatch.sh's
+# empty-payload refusal (`case "$AGENT" in build-*)`) kept treating it as a build worker. Two
+# readings of ONE family that can disagree silently, in the direction that ships un-gated.
+#
+# These asserts exercise validate_agent_scopes DIRECTLY, against a fixture sources dir: the
+# function takes the dir as its argument, and sync-agents.sh runs nothing on source
+# (`if [ "${BASH_SOURCE[0]}" = "${0}" ]`), so no whole-tree copy and no generation pass is needed
+# — the end-to-end wiring of this same validator into a real run is already pinned by
+# tests/test_sync_agents_runners.sh ("0208(b): a missing worktree-scope fails generation").
+# The source runs in a command substitution so sync-agents.sh's `set -euo pipefail` cannot leak
+# into this file's own shell (the pattern tests/test_sync_agents_codex.sh already uses).
+SCOPESRC="$(mktemp -d "${TMPDIR:-/tmp}/docket-0208-scopes.XXXXXX")"
+cp "$REPO"/agents/docket-*.md "$SCOPESRC/"
+scope_out="$( . "$REPO/sync-agents.sh" >/dev/null 2>&1; set +e +u; validate_agent_scopes "$SCOPESRC" 2>&1 )"; scope_rc=$?
+assert "0208 bond: the SHIPPED source set validates clean (floor — the mutations below need it)" \
+  '[ "$scope_rc" = "0" ]'
+assert "0208 bond: floor — the fixture really holds the build family" \
+  '[ -f "$SCOPESRC/docket-build-standard.md" ]'
+
+# The mutation: one build profile flipped to a value that is WELL-FORMED but wrong for its family.
+sed 's/^worktree-scope:.*/worktree-scope: metadata/' "$SCOPESRC/docket-build-standard.md" > "$SCOPESRC/.flip" \
+  && mv -f "$SCOPESRC/.flip" "$SCOPESRC/docket-build-standard.md"
+assert "0208 bond: fixture sanity — the copy really declares metadata now" \
+  'grep -qx "worktree-scope: metadata" "$SCOPESRC/docket-build-standard.md"'
+bond_out="$( . "$REPO/sync-agents.sh" >/dev/null 2>&1; set +e +u; validate_agent_scopes "$SCOPESRC" 2>&1 )"; bond_rc=$?
+assert "0208 bond: a build-* source declaring metadata FAILS validation" '[ "$bond_rc" != "0" ]'
+assert "0208 bond: the refusal names the agent and the value it must declare" \
+  'grep -qF "build-standard" <<<"$bond_out" && grep -qF "feature" <<<"$bond_out"'
+rm -rf "$SCOPESRC"
+
+# The complement, and the reason this is a BOND and not a new floor: the declaration is still what
+# rules for every agent the facade does not read by name. A NON-build source flipped to `metadata`
+# is a policy change, not a contradiction, and must still validate — otherwise the bond has quietly
+# become "the tests decide each agent's scope", which is what change 0208 exists to stop.
+SCOPESRC2="$(mktemp -d "${TMPDIR:-/tmp}/docket-0208-scopes2.XXXXXX")"
+cp "$REPO"/agents/docket-*.md "$SCOPESRC2/"
+sed 's/^worktree-scope:.*/worktree-scope: metadata/' "$SCOPESRC2/docket-review-lean.md" > "$SCOPESRC2/.flip" \
+  && mv -f "$SCOPESRC2/.flip" "$SCOPESRC2/docket-review-lean.md"
+assert "0208 bond: fixture sanity — review-lean now declares metadata" \
+  'grep -qx "worktree-scope: metadata" "$SCOPESRC2/docket-review-lean.md"'
+nb_out="$( . "$REPO/sync-agents.sh" >/dev/null 2>&1; set +e +u; validate_agent_scopes "$SCOPESRC2" 2>&1 )"; nb_rc=$?
+assert "0208 bond: a NON-build source may still declare either value" '[ "$nb_rc" = "0" ]'
+rm -rf "$SCOPESRC2"
+
+# ---- 0208 (whole-branch review): the shipped population's scopes are PINNED per agent ----
+# The bond above binds one family of four; the other twelve sources were pinned by nothing but two spot
+# checks that exist as fixture sanity elsewhere. A scope is a per-agent FACT — there is no shape to
+# key on, so this is deliberately a table, and an agent absent from it fails rather than passing
+# unclassified: adding a docket agent must be an explicit decision about where it runs. A REMOVED
+# agent trips the count floor at the end.
+expected_scope(){  # $1 = short name -> the scope this agent must declare, empty if unclassified
+  case "$1" in
+    build-economy|build-standard|build-premium|build-max) printf feature ;;
+    rebase-resolver|integration-repair)                   printf feature ;;
+    review-lean|review-standard|review-deep)              printf feature ;;
+    adr|auto-groom|auto-groom-critic|brainstorm-consultant) printf metadata ;;
+    finalize-change|implement-next|status)                 printf metadata ;;
+  esac
+}
+n_pinned=0
+for scope_src in "$REPO"/agents/docket-*.md; do
+  [ -e "$scope_src" ] || continue
+  sn="$(basename "$scope_src")"; sn="${sn#docket-}"; sn="${sn%.md}"
+  want="$(expected_scope "$sn")"
+  assert "0208 table: '$sn' is classified in the expected-scope table" '[ -n "$want" ]'
+  [ -n "$want" ] || continue
+  got="$(sed -n '/^worktree-scope:/{s/^worktree-scope:[[:space:]]*//;p;q;}' "$scope_src")"
+  assert "0208 table: '$sn' declares worktree-scope: $want" '[ "$got" = "$want" ]'
+  n_pinned=$((n_pinned+1))
+done
+# Floor: a vanished agents/ dir, or a source dropped without updating the table, leaves every
+# assert above vacuously green.
+assert "0208 table: the whole shipped population was pinned (>= 16, saw $n_pinned)" \
+  '[ "$n_pinned" -ge 16 ]'
+
 exit $fail
