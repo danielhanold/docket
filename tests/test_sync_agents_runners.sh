@@ -91,29 +91,45 @@ assert "0271: exactly two dispatch invocations in the shim" \
 # under pipefail. `grep -qE --` is mandatory throughout: every pattern here leads with `--`, and
 # a bare leading `--` is parsed as an option (exit 2), which inside the negations below would be
 # permanently, vacuously green.
-launch_line="$(grep -F -- "--launch" "$G")"
-# Structural, not prose: a bare `--` terminator followed by a single-quoted angle-bracket
-# placeholder, anchored to end-of-line. Keyed on SHAPE so a reworded placeholder still passes and
-# a re-bracketed or deleted one still reddens.
-assert "0271: launch line ends with an unbracketed single-quoted task-text slot" \
-  'grep -qE -- "-- '\''<[^>]+>'\''[[:space:]]*$" <<<"$launch_line"'
 # DETECTS THE REMOVAL (LEARNINGS: assert-detects-removal-not-replacement): the bracketed spelling
 # is the defect itself, so it must not reappear anywhere in the shim, on the launch line or below.
 assert "0271: shim no longer renders the task slot as optional brackets" \
   '! grep -qF -- "[--" "$G"'
+# change 0277: the task brief no longer travels as shell argv. The shim teaches ONE path — write
+# the brief with a quoted-delimiter heredoc, then launch with --brief-file — because two taught
+# paths let the model pick the lossy one. The slot stays UNBRACKETED for 0271's reason: a
+# bracketed rendering reads as optional and was in fact dropped on live dispatches.
+assert "0277: shim teaches an explicitly templated mktemp for the brief" \
+  'grep -qF -- "TMPDIR:-/tmp" "$G"'
+assert "0277: shim teaches a QUOTED-delimiter heredoc (every character literal)" \
+  'grep -qF -- "<<'\''DOCKET_BRIEF_EOF'\''" "$G"'
+assert "0277: shim closes the heredoc" 'grep -qxF -- "DOCKET_BRIEF_EOF" "$G"'
+launch_line="$(grep -F -- "--launch" "$G")"
+assert "0277: launch line ends with an unbracketed --brief-file slot" \
+  'grep -qE -- "--brief-file <[^>]+>[[:space:]]*$" <<<"$launch_line"'
+# DETECTS THE REMOVAL (LEARNINGS: assert-detects-removal-not-replacement): the argv payload slot
+# and its quoting instructions are the defect, so neither may survive anywhere in the shim.
+assert "0277: shim no longer renders a trailing single-quoted argv task slot" \
+  '! grep -qE -- "-- '\''<[^>]+>'\''" "$G"'
+assert "0277: shim no longer teaches the ONE-single-quoted-argument workaround" \
+  '! grep -qiE "one single-quoted argument|as ONE .*argument" "$G"'
+# The escape-and-reopen glyph run the deleted paragraph taught, assembled rather than written
+# literally: spelled inline it needs four levels of quoting and the plan's own spelling came out
+# as a DOUBLED backslash, which the generator never emits — a pattern that cannot match is a
+# permanently green guard. Built here so it is the exact four characters the old shim contained.
+_sq="'"; _gym="$_sq\\$_sq$_sq"
+assert "0277: fixture sanity — the gymnastics pattern is the 4-char escape-reopen run" \
+  '[ "${#_gym}" = "4" ]'
+assert "0277: shim no longer teaches quote-escape gymnastics" '! grep -qF -- "$_gym" "$G"'
 # MIRROR correspondence, not a subset: observe takes a KEY, never the brief. Without this, a
 # future edit that pastes the payload onto both lines passes every assert above while telling the
 # model to re-send a multi-KB brief on every poll.
 observe_line="$(grep -F -- "--observe" "$G")"
-assert "0271: observe line carries no task-text slot" \
-  '! grep -qE -- "-- '\''<" <<<"$observe_line"'
-# The two rules that make the slot survivable once it is seen: ONE argument (all three adapters
-# interpolate `$*`, so multiple args are joined on whitespace and a multi-line brief loses its
-# structure), and the fact that getting it wrong is SILENT — the child improvises rather than
-# erroring, which is why "it worked last time" is not evidence. Shape-tolerant alternations: the
-# clause may name the consequence either way round.
-assert "0271: shim requires the task text as ONE argument" \
-  'grep -qiE "one single-quoted argument|as ONE .*argument" "$G"'
+assert "0277: observe line carries no brief slot" \
+  '! grep -qF -- "--brief-file" <<<"$observe_line"'
+# Getting the payload wrong is SILENT — the child improvises rather than erroring, which is why
+# "it worked last time" is not evidence. Shape-tolerant alternation: the clause may name the
+# consequence either way round.
 assert "0271: shim names the omission failure as silent" \
   'grep -qiE "fails silently|does not error|looks successful" "$G"'
 # unlisted agent stays native in the same repo
