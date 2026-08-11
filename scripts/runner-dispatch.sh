@@ -29,7 +29,7 @@
 # commits, and re-launching a detached child out of a repeated short read would race the very run
 # being observed.
 # Contract: scripts/runner-dispatch.md.
-# Mock seams: RUNNERS_DIR, GIT, AGENTS_SRC.
+# Mock seams: RUNNERS_DIR, GIT, DOCKET_AGENTS_SRC.
 set -uo pipefail
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUNNERS_DIR="${RUNNERS_DIR:-$SELF_DIR/runners}"
@@ -38,7 +38,14 @@ RUNNERS_DIR="${RUNNERS_DIR:-$SELF_DIR/runners}"
 # scripts/runners/codex.sh), with the depth adjusted because the facade sits one level shallower.
 # Consumer repos run the facade out of DOCKET_SCRIPTS_DIR, so ../agents exists wherever it runs.
 # The env override is a MOCK SEAM this change introduces — the adapters have no such override.
-AGENTS_SRC="${AGENTS_SRC:-$SELF_DIR/../agents}"
+# DOCKET_-NAMESPACED per ADR-0014 ("every env var docket introduces is DOCKET_-namespaced ... to
+# avoid collisions in the user's shared shell"), unlike the pre-0208 seams either side of it. The
+# rule earns its keep hardest here: this value is the input BOTH delegation gates key on, and the
+# un-namespaced spelling is one an unrelated tool could plausibly export — docket's own adapters and
+# sync-agents.sh use exactly that name for their internal variable. A stray `AGENTS_SRC` reaching
+# this seam would not merely mock it, it would decide whether the gates are armed at all. Renaming
+# the neighbours is a separate change; introducing a new seam un-namespaced would not be.
+DOCKET_AGENTS_SRC="${DOCKET_AGENTS_SRC:-$SELF_DIR/../agents}"
 # The git seam. lib/docket-root.sh reads the same variable; naming it here makes it a seam of this
 # script too, which the change-0271 launch verb uses directly for the dispatch-time SHA.
 GIT="${GIT:-git}"
@@ -123,11 +130,34 @@ esac
 # $AGENT becomes a PATH COMPONENT below, so it earns the same shape-keyed treatment `--runner` gets
 # above. It is skipped rather than fatal, for the tolerance reason just given: an off-shape name has
 # no declared scope and reaches the adapter, which names it precisely.
+#
+# THE SOURCES DIRECTORY IS THE PROBE'S PRECONDITION, and it is LOUD — the per-file tolerance above
+# stops at the file. A missing, misdirected, or unreadable $DOCKET_AGENTS_SRC is a different
+# condition on the same code path: every agent resolves to metadata scope AT ONCE, so gate 1 stops
+# requiring --worktree and gate 3b stops rejecting the main tree, and a feature-scoped worker — a
+# child harness that may execute under an auto-approve permission grant — is handed the primary
+# checkout on the integration branch with nothing printed. That is a gate green because it never
+# ran. No narrower posture exists: with no sources the facade cannot tell a feature-scoped agent
+# from a metadata-scoped one, so refusing only the feature-scoped ones is not a thing it can do.
+# The price is that a metadata dispatch, which never needed the read, dies too — a loud install
+# failure naming the one variable to fix, weighed against a silent delegation of the main tree.
+# No shipped deployment pays it: the facade always runs from the docket clone's scripts/ (consumer
+# repos via DOCKET_SCRIPTS_DIR, ADR-0014), whose sibling agents/ is committed beside it.
+# Keyed on SHAPE — "does this directory hold docket agent sources" — never on `[ -d ]` alone, which
+# a misdirected path satisfies while every scope read inside it still comes back empty, and never on
+# probing one agent's file, which is the tolerated case. The glob is unquoted and `nullglob` is
+# unset, so a non-matching pattern survives as its own literal and fails `-f`.
+agents_src_found=0
+for agent_src in "$DOCKET_AGENTS_SRC"/docket-*.md; do
+  [ -f "$agent_src" ] || continue
+  agents_src_found=1; break
+done
+[ "$agents_src_found" = 1 ] || die "no built-in agent sources under DOCKET_AGENTS_SRC=$DOCKET_AGENTS_SRC — every agent's worktree-scope: would read as metadata, silently disarming the --worktree requirement and the main-tree rejection; refusing every dispatch rather than admitting a feature-scoped run into the primary checkout"
 AGENT_SCOPE=""
 case "$AGENT" in
   *[!A-Za-z0-9._-]*|*..*) ;;
   *) case "$(sed -n '/^worktree-scope:/{s/^worktree-scope:[[:space:]]*//;p;q;}' \
-              "$AGENTS_SRC/docket-$AGENT.md" 2>/dev/null)" in
+              "$DOCKET_AGENTS_SRC/docket-$AGENT.md" 2>/dev/null)" in
        feature) AGENT_SCOPE="feature" ;;
      esac ;;
 esac

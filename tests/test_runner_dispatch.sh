@@ -428,7 +428,7 @@ git -C "$SBX" worktree add -q -b featslug "$SBX/.worktrees/featslug" >/dev/null 
 WT="$SBX/.worktrees/featslug"
 assert "0208(b): fixture sanity — the scope fixture is a REAL linked worktree" '[ -f "$WT/.git" ]'
 # Fixture sanity on the DECLARATION side too: every assert below reads the real agents/ tree through
-# the facade's AGENTS_SRC default, so a source that lost its `worktree-scope:` line would turn the
+# the facade's DOCKET_AGENTS_SRC default, so a source that lost its `worktree-scope:` line would turn the
 # refusal legs green-for-the-wrong-reason (no declared scope => the tolerant metadata fallback).
 assert "0208(b): fixture sanity — review-lean really declares feature scope" \
   'grep -qx "worktree-scope: feature" "$ROOT/agents/docket-review-lean.md"'
@@ -492,6 +492,89 @@ assert "0208(b): an agent with no source file keeps the ADAPTER's unknown-agent 
 err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent "../evil" 2>&1 >/dev/null )"
 assert "0208(b): an off-shape agent name is not rejected by the scope probe either" \
   '! grep -qF "runner-dispatch:" <<<"$err"'
+
+# ---- 0208(d): the sources DIRECTORY is the probe's precondition, and it is LOUD -------
+# The per-file tolerance asserted just above is deliberate and it does NOT extend to the directory
+# holding those files. A missing or misdirected sources directory resolves EVERY agent to metadata
+# scope in one stroke, which disarms both delegation gates together — `--worktree` stops being
+# required and the main-tree rejection stops firing — so a feature-scoped worker would anchor in
+# the primary checkout on the integration branch with nothing said. That is a gate green because it
+# never ran, which is the shape AGENTS.md's guard rule forbids.
+#
+# Every leg carries a MECHANISM assert beside its exit code: `$LOG` stays EMPTY, i.e. the adapter
+# was never reached. Without it a leg would stay green on a facade that ADMITTED the dispatch and
+# merely failed further downstream for an unrelated reason — which is precisely the silent
+# admission being tested against.
+#
+# Two bogus shapes, not one: the absent directory, and a directory that EXISTS but holds no
+# `docket-*.md` sources. The second is the leg a bare `[ -d ]` precondition would wave through
+# while every scope read inside it still came back empty — misdirection, not absence.
+mkdir -p "$SBX/empty-agents-dir"
+printf 'not an agent source\n' > "$SBX/empty-agents-dir/README.md"
+for bogus_label in absent misdirected; do
+  case "$bogus_label" in
+    absent)      BOGUS="$SBX/no-such-agents-dir" ;;
+    misdirected) BOGUS="$SBX/empty-agents-dir" ;;
+  esac
+  : > "$LOG"
+  err="$( cd "$SBX" && PATH="$BIN:$PATH" DOCKET_AGENTS_SRC="$BOGUS" \
+      bash "$FACADE" --runner codex --agent review-lean 2>&1 >/dev/null )"; rc=$?
+  assert "0208(d): sources directory ($bogus_label) refuses a --worktree-less feature-scoped dispatch" \
+    '[ "$rc" != "0" ]'
+  assert "0208(d): the refusal ($bogus_label) names the sources seam and the scope it could not read" \
+    'grep -qF -- "DOCKET_AGENTS_SRC=$BOGUS" <<<"$err" && grep -qF -- "worktree-scope" <<<"$err"'
+  assert "0208(d): and the dispatch ($bogus_label) never reached the adapter" '[ ! -s "$LOG" ]'
+done
+
+# The same disarm reached through the OTHER gate: with the sources unreadable, gate 3b's main-tree
+# rejection is equally unarmed, so a feature-scoped agent handed the primary checkout would be
+# admitted. Asserted separately because it is a distinct gate, and passing `--worktree` satisfies
+# gate 1 outright — this leg is green-for-the-wrong-reason if only gate 1 is considered.
+: > "$LOG"
+err="$( cd "$SBX" && PATH="$BIN:$PATH" DOCKET_AGENTS_SRC="$SBX/no-such-agents-dir" \
+    bash "$FACADE" --runner codex --agent review-lean --worktree "$SBX" 2>&1 >/dev/null )"; rc=$?
+assert "0208(d): a bogus sources directory also refuses a feature-scoped dispatch AT THE MAIN TREE" \
+  '[ "$rc" != "0" ]'
+assert "0208(d): the main-tree leg never reached the adapter either" '[ ! -s "$LOG" ]'
+
+# THE POSTURE, stated as an assert: the refusal is unconditional, not scoped to agents that happen
+# to be feature-scoped. With no sources the facade cannot tell the two apart, so a scoped refusal
+# would be exactly the silent admission above. A metadata dispatch pays a loud, one-line-diagnosable
+# install failure for that; the alternative is a silent one.
+: > "$LOG"
+err="$( cd "$SBX" && PATH="$BIN:$PATH" DOCKET_AGENTS_SRC="$SBX/no-such-agents-dir" \
+    bash "$FACADE" --runner codex --agent status 2>&1 >/dev/null )"; rc=$?
+assert "0208(d): the refusal is unconditional — a metadata-scoped dispatch is refused too" \
+  '[ "$rc" != "0" ] && [ ! -s "$LOG" ]'
+
+# NON-VACUITY FLOOR. Everything above would stay green on a facade that refused any dispatch
+# carrying the variable at all. Pointed at the REAL sources the seam is honored and behavior is
+# byte-identical to the default: gate 1 fires with ITS own diagnostic, and a properly anchored
+# feature-scoped dispatch still reaches the adapter.
+err="$( cd "$SBX" && PATH="$BIN:$PATH" DOCKET_AGENTS_SRC="$ROOT/agents" \
+    bash "$FACADE" --runner codex --agent review-lean 2>&1 >/dev/null )"
+assert "0208(d): the seam pointed at the real sources still refuses via GATE 1, not the precondition" \
+  'grep -qF -- "--worktree is required for feature-scoped agents" <<<"$err" &&
+   ! grep -qF -- "DOCKET_AGENTS_SRC=" <<<"$err"'
+: > "$LOG"
+( cd "$SBX" && PATH="$BIN:$PATH" DOCKET_AGENTS_SRC="$ROOT/agents" \
+    bash "$FACADE" --runner codex --agent review-lean --worktree "$WT" >/dev/null 2>&1 ); rc=$?
+assert "0208(d): and a properly anchored feature-scoped dispatch still reaches the adapter" \
+  '[ "$rc" = "0" ] && [ -s "$LOG" ]'
+
+# THE NAMESPACE IS LIVE (ADR-0014). The seam is read under its `DOCKET_`-prefixed name only, so an
+# un-namespaced `AGENTS_SRC` sitting in the caller's shell — a plausible name for an unrelated tool,
+# and the spelling docket's own adapters and sync-agents.sh use for their internal variable — cannot
+# reach the input the delegation gates key on. Reverting the rename turns both asserts red: the
+# facade would read the bogus path and refuse at the precondition instead.
+: > "$LOG"
+err="$( cd "$SBX" && PATH="$BIN:$PATH" AGENTS_SRC="$SBX/no-such-agents-dir" \
+    bash "$FACADE" --runner codex --agent review-lean 2>&1 >/dev/null )"
+assert "0208(d): an un-namespaced AGENTS_SRC in the environment is not read as the seam" \
+  'grep -qF -- "--worktree is required for feature-scoped agents" <<<"$err"'
+( cd "$SBX" && PATH="$BIN:$PATH" AGENTS_SRC="$SBX/no-such-agents-dir" \
+    bash "$FACADE" --runner codex --agent status >/dev/null 2>&1 ); rc=$?
+assert "0208(d): and a metadata dispatch is unaffected by it" '[ "$rc" = "0" ]'
 rm -rf "$SBX"
 
 # ---- 0270: config locality — a MAIN-worktree grant survives a --worktree dispatch ----

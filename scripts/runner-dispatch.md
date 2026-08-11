@@ -55,9 +55,19 @@ docket.sh runner-dispatch --observe <key> --runner <name> --agent <agent> [--wor
   same predicate drifting against the first. `sync-agents.sh` validates it at **generation**: a
   source declaring no valid scope fails the run before any wrapper is written, which is the seam at
   which an undeclared agent is still preventable. The facade reads it at **runtime** with a `sed -n`
-  frontmatter probe of `$AGENTS_SRC/docket-<agent>.md`, deliberately **tolerantly** — an off-shape
-  agent name, an unreadable source, or a missing key is metadata scope, so an unknown agent keeps
-  the adapter's more specific unknown-agent diagnostic instead of dying at the probe.
+  frontmatter probe of `$DOCKET_AGENTS_SRC/docket-<agent>.md`, deliberately **tolerantly** — an
+  off-shape agent name, an unreadable source, or a missing key is metadata scope, so an unknown
+  agent keeps the adapter's more specific unknown-agent diagnostic instead of dying at the probe.
+
+  That tolerance stops at the **file**. The sources **directory** is the probe's precondition and is
+  **loud**: a `$DOCKET_AGENTS_SRC` holding no `docket-*.md` at all — missing, misdirected, or
+  unreadable — refuses **every** dispatch, metadata-scoped ones included. A missing file costs one
+  agent its declaration; a missing directory resolves *every* agent to metadata scope at once, which
+  disarms both delegation gates together and hands a feature-scoped worker the primary checkout on
+  the integration branch in silence. With no sources the facade cannot tell the two scopes apart, so
+  there is no narrower refusal available, and the loud one costs only a metadata dispatch that never
+  needed the read. Keyed on the directory's **shape** rather than on `[ -d ]`, which a misdirected
+  path satisfies while every scope read inside it comes back empty.
 - `--brief-file <path>` (optional, change 0277) — the caller's task brief, read from a file
   instead of shell argv. The caller writes it with a quoted-delimiter heredoc, so no part of the
   brief is quoted by a model and none of it is joined or reflowed on the way to the child. The
@@ -96,9 +106,11 @@ docket.sh runner-dispatch --observe <key> --runner <name> --agent <agent> [--wor
   at `$# = 1` — the loop has no trailing shift and the facade runs with no `set -e`, so the parse
   loop would spin forever instead of refusing.
 
-Mock seams: `RUNNERS_DIR` (adapter directory), `AGENTS_SRC` (the built-in agent sources the facade
-reads `worktree-scope:` from, default `$SELF_DIR/../agents`), `GIT` (the git binary — read by
-`lib/docket-root.sh` and, since change 0271, by the launch verb's dispatch-time SHA read), and —
+Mock seams: `RUNNERS_DIR` (adapter directory), `DOCKET_AGENTS_SRC` (the built-in agent sources the
+facade reads `worktree-scope:` from, default `$SELF_DIR/../agents`; `DOCKET_`-namespaced per
+ADR-0014 because it decides whether the delegation gates are armed, and the bare name is one an
+unrelated tool could hold), `GIT` (the git binary — read by `lib/docket-root.sh` and, since
+change 0271, by the launch verb's dispatch-time SHA read), and —
 for the run gate (change 0237) — `VERIFY_RUN` (the disposition reader, default
 `scripts/verify-run.sh`) and `DOCKET_FACADE` (the facade used for the metadata re-syncs on both
 sides of the handoff, default `scripts/docket.sh`).
