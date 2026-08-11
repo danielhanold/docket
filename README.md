@@ -912,8 +912,10 @@ not entitlement. Full verification steps: [docs/opencode/setup.md](docs/opencode
 A delegated run is anchored at the repo's **main worktree** by default (ADR-0034, cwd-independent
 by design) — correct for the metadata-scoped `status`/`adr` agents. A build worker must instead
 stay in the feature worktree on its branch, so a delegated build worker runs in the tree named by
-`--worktree`, which the generated `build-*` shims carry and which the dispatch facade refuses to
-run a `build-*` delegation without.
+`--worktree`. That requirement is keyed on a **declared** fact, not a name shape: every built-in
+agent source carries `worktree-scope: feature` or `worktree-scope: metadata`, the generated shims
+bake the `--worktree` slot for the feature-scoped ones, and the dispatch facade refuses a
+feature-scoped delegation that names no worktree (or that names the main worktree).
 
 How it works: `sync-agents.sh` generates that agent's wrapper with a **shim body** — a
 **launch-then-observe** instruction over a single dispatch seam, `docket.sh runner-dispatch`. The

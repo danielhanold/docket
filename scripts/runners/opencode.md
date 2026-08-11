@@ -21,8 +21,11 @@ Delegating a build worker therefore turns on **where the child starts**. `runner
 `DOCKET_REPO_ROOT` to the run anchor — the main worktree by default, or the tree named by
 `--worktree` (both cwd-independent by design, ADR-0034) — and this adapter passes it to `--dir`.
 The default suits the metadata-scoped agents delegation first shipped for; a build worker's
-contract requires the feature worktree on its branch, so the facade **requires** `--worktree` for a
-`build-*` agent and aborts loudly when it names none (change 0206).
+contract requires the feature worktree on its branch, so the facade **requires** `--worktree` for
+any **feature-scoped** agent — one whose `agents/docket-<name>.md` source declares
+`worktree-scope: feature`, which covers the four build profiles, the rebase resolver, the
+integration repair worker and the three review rungs — and aborts loudly when its caller names none
+(changes 0206, 0208).
 
 ## Usage
 
