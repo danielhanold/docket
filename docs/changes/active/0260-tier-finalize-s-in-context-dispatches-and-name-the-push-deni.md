@@ -2,11 +2,11 @@
 id: 260
 slug: tier-finalize-s-in-context-dispatches-and-name-the-push-deni
 title: 'Tier finalize''s in-context dispatches and name the push-denial posture'
-status: proposed
+status: in-progress
 priority: medium
 type: fix
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-11
 depends_on: []
 related: []
 discovered_from: [139, 100]
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/tier-finalize-s-in-context-dispatches-and-name-the-push-deni
+claimed_at: 2026-08-11T07:45:08Z
 pr:
 blocked_by:
 reconciled: false
