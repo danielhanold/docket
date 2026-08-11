@@ -4256,14 +4256,37 @@ assert "0247: fixture precondition — the shared tree really is mid-rebase" \
   '[ -d "$wedge_gitdir/rebase-merge" ] || [ -d "$wedge_gitdir/rebase-apply" ]'
 wedge_before_sha="$(git -C "$wedge_mw" rev-parse HEAD)"
 
+# EVERY invocation below crosses Step 0 on this wedged tree, and Step 0 now REFUSES it (Half 1):
+# _docket_sync_metadata classifies the wedge as transient and spends its whole retry budget —
+# ~22 seconds of real backoff per invocation — before reporting. DOCKET_PREFLIGHT_TEST_SLEEP_CMD is
+# the seam that exists so a fixture never waits real time; unset, these three runs alone cost more
+# than this file's entire budget. Drive the retries at zero wall-clock, exactly as
+# tests/test_docket_preflight.sh does. The RETRY COUNT itself is that file's subject, not this
+# one's: here the seam is a stopwatch, not an assertion.
+wedge_env=(DOCKET_PREFLIGHT_TEST_SLEEP_CMD=true)
+
 write_board_fixture inline
-(cd "$wedge_mw" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/wedge-run.txt" 2>"$tmp/wedge-run-err.txt")
+(cd "$wedge_mw" && env "${wedge_env[@]}" CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/wedge-run.txt" 2>"$tmp/wedge-run-err.txt")
 rc=$?
 assert "0247: a wedged tree keeps the flagless pass best-effort (exit zero)" '[ $rc -eq 0 ]'
 assert "0247: a wedged tree reports board inline blocked-wedged-tree" \
   'grep -qxF "board inline blocked-wedged-tree" "$tmp/wedge-run.txt"'
+# WHICH LAYER answered matters, and only stderr can say. On a PRE-EXISTING wedge Step 0 refuses to
+# sync and main() never reaches board_pass at all, so this token comes from the Step-0 MAPPING —
+# not from commit_and_push_generated's probe, which is unreachable here. The TOCTOU section below
+# pins the mirror image (Step 0 silent, the in-function probe answering), and between them neither
+# layer can be deleted without reddening an assert.
+assert "0247: the pre-existing wedge is answered by the Step-0 mapping — preflight refused to sync" \
+  'grep -qF "a rebase or merge is in progress" "$tmp/wedge-run-err.txt"'
+assert "0247: an aborted pass never prints the completion marker" \
+  '! grep -qxF "pass ok" "$tmp/wedge-run.txt"'
 assert "0247: a wedged board pass is never mislabelled as the retryable push-failed token" \
   '! grep -qF "board inline changed push-failed" "$tmp/wedge-run.txt"'
+# The Step-0 mapping reports for the passes that WOULD have run, never a blanket pair: --board-only
+# never runs the learnings pass, so a learnings line here would be a report for work nobody
+# scheduled — silence's mirror-image lie, and just as invisible without an assert against it.
+assert "0247: the mapping reports no learnings line under --board-only, which runs no such pass" \
+  '! grep -qF "learnings index" "$tmp/wedge-run.txt"'
 assert "0247: no commit was made on a wedged tree" \
   '[ "$(git -C "$wedge_mw" rev-parse HEAD)" = "$wedge_before_sha" ]'
 assert "0247: the other agent's rebase is left in progress, never aborted out from under it" \
@@ -4271,7 +4294,7 @@ assert "0247: the other agent's rebase is left in progress, never aborted out fr
 
 # --must-land treats it as NOT LANDED — a halt, never the bounded retry push-failed gets. The
 # "exactly once" count is the discriminator: a relabel into push-failed would print three lines.
-(cd "$wedge_mw" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only --must-land >"$tmp/wedge-ml.txt" 2>"$tmp/wedge-ml-err.txt")
+(cd "$wedge_mw" && env "${wedge_env[@]}" CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only --must-land >"$tmp/wedge-ml.txt" 2>"$tmp/wedge-ml-err.txt")
 rc=$?
 assert "0247: --must-land exits non-zero on a wedged tree" '[ $rc -ne 0 ]'
 assert "0247: --must-land emits the wedged token exactly once (never retried like push-failed)" \
@@ -4284,7 +4307,7 @@ assert "0247: --must-land never prints pass ok on a wedged tree" \
 # Reuses the same wedged tree; BOARD_SURFACES=none here, so this is the learnings pass alone.
 mkfinding_learn "$wedge_mw" guards-are-code retained
 write_learn_fixture true 300
-(cd "$wedge_mw" && CONFIG_EXPORT_CMD="bash $tmp/fixture-learn.sh" SCRIPTS_DIR="$tmp/mock-learn" \
+(cd "$wedge_mw" && env "${wedge_env[@]}" CONFIG_EXPORT_CMD="bash $tmp/fixture-learn.sh" SCRIPTS_DIR="$tmp/mock-learn" \
   "$SCRIPT" >"$tmp/wedge-learn.txt" 2>"$tmp/wedge-learn-err.txt")
 rc=$?
 assert "0247: a wedged learnings pass stays best-effort (exit zero)" '[ $rc -eq 0 ]'
@@ -4292,7 +4315,153 @@ assert "0247: a wedged tree reports learnings index blocked-wedged-tree" \
   'grep -qxF "learnings index blocked-wedged-tree" "$tmp/wedge-learn.txt"'
 assert "0247: a wedged learnings pass is never mislabelled as the retryable push-failed token" \
   '! grep -qF "learnings index changed push-failed" "$tmp/wedge-learn.txt"'
+# The board half of the same rule, on the same tree: BOARD_SURFACES=none here, and `none` reaches
+# no shared-worktree write at all, so the wedge is not the board's story to tell.
+assert "0247: the mapping reports no board line when no surface writes to the shared tree" \
+  '! grep -qF "board inline" "$tmp/wedge-learn.txt"'
+
+# The mapping is gated on BOOTSTRAP=PROCEED, and that conjunct is load-bearing rather than
+# defensive: config export and the bootstrap gate return BEFORE the sync is ever attempted, so a
+# repo that is merely UNMIGRATED must keep its hard exit — softening it to a best-effort exit 0
+# because some unrelated rebase happens to be in flight would open a fail-open door right beside
+# the one this change shut. Same wedged tree, one config field changed.
+cat > "$tmp/fixture-wedge-boot.sh" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' \
+  'BOOTSTRAP=STOP_MIGRATE' \
+  'METADATA_BRANCH=main' \
+  'INTEGRATION_BRANCH=main' \
+  'DOCKET_MODE=main' \
+  'METADATA_WORKTREE=.' \
+  'CHANGES_DIR=docs/changes' \
+  'ADRS_DIR=docs/adrs' \
+  'RESULTS_DIR=docs/results' \
+  'BOARD_SURFACES=inline'
+EOF
+(cd "$wedge_mw" && env "${wedge_env[@]}" CONFIG_EXPORT_CMD="bash $tmp/fixture-wedge-boot.sh" \
+  "$SCRIPT" --board-only >"$tmp/wedge-boot.txt" 2>"$tmp/wedge-boot-err.txt")
+rc=$?
+assert "0247: fixture precondition — the tree is still wedged for the bootstrap-gate case" \
+  '[ -d "$wedge_gitdir/rebase-merge" ] || [ -d "$wedge_gitdir/rebase-apply" ]'
+assert "0247: a non-PROCEED bootstrap on a wedged tree stays fail-closed (exit non-zero)" \
+  '[ $rc -ne 0 ]'
+assert "0247: ... and emits no wedged token — the wedge is not why that pass refused" \
+  '! grep -qF "blocked-wedged-tree" "$tmp/wedge-boot.txt"'
 git -C "$wedge_mw" rebase --abort >/dev/null 2>&1 || :
+
+# The OTHER half of the carve-out's gate, and the one a `PROCEED` config cannot reach through the
+# bootstrap case above: a Step-0 failure on a tree that is NOT wedged. Here the sync exhausts on
+# the FETCH class (the remote URL points nowhere) with the tree clean, on a branch and unwedged, so
+# the carve-out must not fire — the report channel gets no token it has no evidence for, and the
+# exit stays hard. Without this, dropping the wedge re-probe entirely leaves every assert green.
+git_repo_setup "$tmp/nosync-case"
+git clone -q "$tmp/nosync-case/origin.git" "$tmp/nosync-case/work" 2>/dev/null
+nosync_mw="$tmp/nosync-case/work"
+seed_changes_fixture "$nosync_mw"
+git -C "$nosync_mw" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$nosync_mw" -c user.email=t@t -c user.name=t commit -q -m "seed changes fixture"
+git -C "$nosync_mw" push -q origin main
+git -C "$nosync_mw" remote set-url origin "$tmp/nosync-case/does-not-exist.git"
+nosync_gitdir="$(git -C "$nosync_mw" rev-parse --absolute-git-dir 2>/dev/null)"
+assert "0247: fixture precondition — the failing tree is clean, on a branch, and NOT wedged" \
+  '[ -n "$nosync_gitdir" ] && [ ! -d "$nosync_gitdir/rebase-merge" ] && [ ! -d "$nosync_gitdir/rebase-apply" ] \
+   && git -C "$nosync_mw" symbolic-ref -q HEAD >/dev/null \
+   && [ -z "$(git -C "$nosync_mw" status --porcelain --untracked-files=no)" ]'
+write_board_fixture inline
+(cd "$nosync_mw" && env "${wedge_env[@]}" CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" \
+  "$SCRIPT" --board-only >"$tmp/nosync-run.txt" 2>"$tmp/nosync-run-err.txt")
+rc=$?
+assert "0247: fixture precondition — Step 0 really did fail (the sync exhausted on fetch)" \
+  'grep -qF "the last failure was fetching" "$tmp/nosync-run-err.txt"'
+assert "0247: an unwedged Step-0 failure keeps its hard exit — the carve-out is not a catch-all" \
+  '[ $rc -ne 0 ]'
+assert "0247: ... and emits no wedged token for a tree that is not wedged" \
+  '! grep -qF "blocked-wedged-tree" "$tmp/nosync-run.txt"'
+
+# (3) THE TOCTOU WINDOW — the wedge appears AFTER Step 0 returned.
+# This is the case no pre-Step-0 check can ever catch, and it is the reason
+# commit_and_push_generated's own `_docket_tree_wedged` probe is not made redundant by preflight's
+# refusal: preflight answers only for a wedge that ALREADY existed when the pass started. Between
+# this fixture and section (2) above, deleting either layer reddens an assert — the pair is what
+# makes "defense in depth" a claim with evidence behind it rather than an assertion about intent.
+#
+# The injection point is the RENDER_BOARD seam, which board-refresh.sh runs at exactly the right
+# instant: after docket_preflight returned 0 on a clean, converged, on-branch tree, and before
+# board_pass_inline hands the rendered board to commit_and_push_generated. The shim builds a REAL
+# interrupted rebase — never a planted marker directory, whose only reliable effect on this surface
+# is a permanently green assert.
+git_repo_setup "$tmp/toctou-case"
+git clone -q "$tmp/toctou-case/origin.git" "$tmp/toctou-case/work" 2>/dev/null
+toctou_mw="$tmp/toctou-case/work"
+seed_changes_fixture "$toctou_mw"
+printf 'ours\n' > "$toctou_mw/conflict.txt"
+git -C "$toctou_mw" -c user.email=t@t -c user.name=t add docs/changes conflict.txt
+git -C "$toctou_mw" -c user.email=t@t -c user.name=t commit -q -m "seed changes fixture"
+git -C "$toctou_mw" push -q origin main
+git clone -q "$tmp/toctou-case/origin.git" "$tmp/toctou-case/work2" 2>/dev/null
+
+# The shim RENDERS FIRST and wedges SECOND, deliberately: the board must be produced by the real
+# renderer against a clean tree (a degraded render would report `board inline failed` and never
+# reach commit_and_push_generated at all — the assert below would then pass for the wrong reason),
+# and the wedge must be the last thing that happens before the shim returns. Every git command is
+# muted on BOTH channels because this script's STDOUT *is* the board file board-refresh.sh is about
+# to install atomically.
+cat > "$tmp/toctou-render-board.sh" <<EOF
+#!/usr/bin/env bash
+board="\$("$REPO/scripts/render-board.sh" "\$@")" || exit 1
+if [ ! -f "$tmp/toctou-case/.wedged" ]; then
+  : > "$tmp/toctou-case/.wedged"
+  printf 'theirs\n' > "$tmp/toctou-case/work2/conflict.txt"
+  git -C "$tmp/toctou-case/work2" -c user.email=t@t -c user.name=t commit -q -am theirs >/dev/null 2>&1
+  git -C "$tmp/toctou-case/work2" push -q origin main >/dev/null 2>&1
+  printf 'mine\n' > "$toctou_mw/conflict.txt"
+  git -C "$toctou_mw" -c user.email=t@t -c user.name=t commit -q -am "mine (local, unpushed)" >/dev/null 2>&1
+  git -C "$toctou_mw" fetch -q origin main >/dev/null 2>&1
+  git -C "$toctou_mw" -c user.email=t@t -c user.name=t rebase FETCH_HEAD >/dev/null 2>&1
+fi
+printf '%s\n' "\$board"
+EOF
+chmod +x "$tmp/toctou-render-board.sh"
+
+toctou_gitdir="$(git -C "$toctou_mw" rev-parse --absolute-git-dir 2>/dev/null)"
+assert "0247 TOCTOU: fixture precondition — Step 0 CANNOT refuse this tree (clean, on a branch, unwedged)" \
+  '[ -n "$toctou_gitdir" ] && [ -d "$toctou_gitdir" ] \
+   && [ ! -d "$toctou_gitdir/rebase-merge" ] && [ ! -d "$toctou_gitdir/rebase-apply" ] \
+   && git -C "$toctou_mw" symbolic-ref -q HEAD >/dev/null \
+   && [ -z "$(git -C "$toctou_mw" status --porcelain --untracked-files=no)" ]'
+
+write_board_fixture inline
+(cd "$toctou_mw" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" \
+  RENDER_BOARD="$tmp/toctou-render-board.sh" \
+  "$SCRIPT" --board-only >"$tmp/toctou-run.txt" 2>"$tmp/toctou-run-err.txt")
+rc=$?
+assert "0247 TOCTOU: fixture precondition — the shim ran, so Step 0 really did return zero" \
+  '[ -f "$tmp/toctou-case/.wedged" ]'
+# Reads two ways at once, and both matter: the wedge was in force when the board pass reached its
+# commit (without which every assert below is about nothing), AND the other agent's rebase survived
+# the pass. Defeat the probe and this goes red on the second reading — the unguarded push-retry loop
+# reaches its own `rebase --abort` and destroys the in-flight rebase, which is the one failure here
+# nothing can walk back.
+assert "0247 TOCTOU: the wedge was in force at commit time, and the other agent's rebase survived" \
+  '[ -d "$toctou_gitdir/rebase-merge" ] || [ -d "$toctou_gitdir/rebase-apply" ]'
+assert "0247 TOCTOU: Step 0 stayed SILENT — this is the in-function probe answering, not the mapping" \
+  '! grep -qF "a rebase or merge is in progress" "$tmp/toctou-run-err.txt"'
+assert "0247 TOCTOU: a wedge that appears mid-pass still reports blocked-wedged-tree" \
+  'grep -qxF "board inline blocked-wedged-tree" "$tmp/toctou-run.txt"'
+assert "0247 TOCTOU: it is never mislabelled as the retryable push-failed token" \
+  '! grep -qF "board inline changed push-failed" "$tmp/toctou-run.txt"'
+# `--reflog --all`, never plain `log HEAD`: a commit written onto the rebase's detached HEAD stops
+# being reachable from HEAD the moment the push-retry loop's `rebase --abort` runs, so the narrow
+# probe reports "nothing committed" for the exact sequence that lost the commit. The reflog still
+# holds it. Captured first, never `git log | grep -q`: under this file's `set -o pipefail` the
+# early-exiting consumer SIGPIPEs the producer and the 141 lands as an intermittent failure
+# (AGENTS.md).
+toctou_log="$(git -C "$toctou_mw" log --reflog --all --format=%s 2>/dev/null)"
+assert "0247 TOCTOU: nothing was committed onto the rebase's detached HEAD" \
+  '! grep -qxF "docket: board refresh" <<<"$toctou_log"'
+assert "0247 TOCTOU: the pass stays best-effort and still completes" \
+  '[ $rc -eq 0 ] && grep -qxF "pass ok" "$tmp/toctou-run.txt"'
+git -C "$toctou_mw" rebase --abort >/dev/null 2>&1 || :
 
 # Report-line vocabulary: the new token is documented at both consumers and at the sweep's step 6a.
 assert "0247: docket-status.md documents the board blocked-wedged-tree line" \
