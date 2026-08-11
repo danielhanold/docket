@@ -65,6 +65,56 @@ argued that way at change 0227; one of them has since been split:
   falsifies both. Splitting it means changing that assertion — so do not re-attempt the split
   without deciding, deliberately, what the guard's population should be across several files.
 
+## Backticks in test source
+
+A backtick in test source is **not** inert text: it is command substitution, and it runs when the
+shell reaches that line — before `assert` is ever called, and regardless of what the assertion then
+does with the string. That is not hypothetical. Change 0212 carried a verbatim-quoted guard anchor
+containing a backticked `git checkout .`; the shell executed it while sourcing the line, silently
+reverting a worker's uncommitted edits, and the test printed `ok`. (The executing vector is source
+evaluation at the call site — not the helper printing its description. A backtick already held in a
+*variable's value* is inert through `printf '%s' "$1"`.)
+
+**The rule.** Verbatim clauses and guard anchors are *data*, so carry them where the shell cannot
+evaluate them:
+
+- Single-quoted literals, or heredocs with a **quoted delimiter** (`<<'EOF'`). An unquoted-delimiter
+  heredoc body is live — its backticks execute.
+- Inside an assert condition — argument 2, the string that reaches `eval` — escape the backtick.
+  The house idiom is:
+
+  ```sh
+  assert 'the span is present' 'grep -qF "\`span\`" "$f"'
+  ```
+
+  The backslash survives the source read, so `eval` sees a literal backtick.
+- **Never put a backtick inside double quotes** — bare or backslash-escaped. Both spellings execute:
+  the bare one at source evaluation, the escaped one one level later, when `eval` re-parses what the
+  escape left behind.
+- Where a pattern needs a literal backtick beside a `$var` and so cannot be single-quoted wholesale,
+  define a file-local inert backtick and concatenate it:
+
+  ```sh
+  BT='`'
+  grep -qF "${BT}${name}${BT}" "$f"
+  ```
+
+  Six files in the suite use this.
+
+**The enforcement.** `scripts/run-tests.sh` runs `scripts/check-test-source-hygiene.sh` over every
+target synchronously before the first job launches. A violation aborts the run with exit **5**,
+having executed **zero** test files — the point being that nothing dangerous runs before the check.
+The gate is fail-closed: a missing or unreadable checker refuses the run with exit `2` rather than
+skipping itself. The checker reports `file:line: CLASS`, with classes `NORMAL-BACKTICK`,
+`DQ-BACKTICK`, `HEREDOC-BACKTICK`, `EVAL-BACKTICK`, and `DEFN-DRIFT` (an assert-family definition
+that is not byte-exactly canonical). `tests/test_assert_hygiene.sh` is its regression test, driving
+committed fixtures under `tests/fixtures/hygiene/`; see `scripts/run-tests.md` for the exit-code
+contract.
+
+**The limitation.** The preflight protects **suite runs only**. `bash tests/test_x.sh` run directly
+bypasses it entirely, so a violation you introduce is live in exactly the loop where you are most
+likely to run one file over and over. Run the file through `scripts/run-tests.sh` before you trust it.
+
 ## Parallel-safety
 
 `scripts/run-tests.sh` gives every job its own `HOME`, `TMPDIR`, `XDG_CONFIG_HOME`, and git config
