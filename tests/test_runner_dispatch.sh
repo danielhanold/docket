@@ -1002,4 +1002,24 @@ assert "0277 redispatch: no adapter is handed a brief stripped of the original t
      && ! grep -qF -- "Step 7 unmet" "$SBX/redispatch-brief-copy"'
 rm -rf "$SBX"
 
+# (i3) 0277: the combined brief's separator is UNCONDITIONAL. A brief file need not end with a
+#      newline, and `printf '\n%s\n'` alone then merely terminates the brief's last line instead of
+#      leaving a blank one — gluing the retry context onto the final line of the task. That is the
+#      boundary loss this change exists to remove, so the fixture's brief deliberately has NO
+#      trailing newline and the asserts pin both halves: the brief's last line survives WHOLE, and
+#      a blank line still separates it from the retry context.
+make_gate_fixture
+printf '\n' > "$SNAP/current"; printf '%s\n' "9 $FUT" > "$SNAP/after.1"; printf '%s\n' "9 $FUT" > "$SNAP/after.2"
+printf 'run-incomplete 9 pr\n' > "$SNAP/verdict.9"
+BF="$SBX/gate-brief.txt"
+printf 'original-brief-line' > "$BF"   # no trailing newline — the whole point of this case
+run_gate --runner ad --agent implement-next --brief-file "$BF" >/dev/null 2>&1
+assert "0277 redispatch: an unterminated brief still leaves its last line whole" \
+  '[ -f "$SBX/redispatch-brief-copy" ] && grep -qxF -- "original-brief-line" "$SBX/redispatch-brief-copy"'
+# The blank line is the separator itself: line 1 is the brief, line 2 must be empty, and the retry
+# context follows. Reading line 2 pins the SEPARATOR, not merely that both texts are present.
+assert "0277 redispatch: a blank line separates the brief from the retry context" \
+  '[ -z "$(sed -n 2p "$SBX/redispatch-brief-copy")" ] && grep -qF -- "Step 7 unmet" "$SBX/redispatch-brief-copy"'
+rm -rf "$SBX"
+
 exit $fail
