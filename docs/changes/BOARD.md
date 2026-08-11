@@ -1,12 +1,6 @@
 # Backlog
 
-**296 changes** — 🟢 1 in progress · 🟡 37 proposed · ⚪ 4 deferred · ✅ 178 done · 🗑️ 76 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0268](active/0268-de-flake-the-reclaim-leg-of-test-docket-status-under-paralle.md) | De-flake the reclaim leg of test_docket_status under parallel contention | `medium` | `fix` | [spec](../superpowers/specs/2026-08-09-de-flake-reclaim-leg-test-docket-status-design.md) | `feat/de-flake-the-reclaim-leg-of-test-docket-status-under-paralle` |
+**296 changes** — 🟡 37 proposed · ⚪ 4 deferred · ✅ 178 done · 🗑️ 77 killed
 
 ## 🟡 Proposed (37)
 
@@ -86,7 +80,6 @@ graph TD
   0264
   0265
   0266
-  0268
   0272
   0251 --> 0273
   0279
@@ -109,7 +102,7 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (254)</summary>
+<details><summary>✅🗑️ Archive — done + killed (255)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -117,6 +110,7 @@ graph TD
 | [0281](archive/2026-08-11-0281-auto-groom-s-critic-verdict-return-channel-fails-under-backg.md) | Auto-groom's critic verdict return channel fails under background dispatch | 2026-08-11 |
 | [0277](archive/2026-08-11-0277-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode.md) | Delegated task briefs travel through shell argv, a lossy model-performed transformation | 2026-08-11 |
 | [0275](archive/2026-08-11-0275-run-gate-has-no-runnable-path-for-slash-command-or-backgroun.md) | Run gate has no runnable path for slash-command or backgrounded implement-next dispatch | 2026-08-11 |
+| [0268](archive/2026-08-11-0268-de-flake-the-reclaim-leg-of-test-docket-status-under-paralle.md) | De-flake the reclaim leg of test_docket_status under parallel contention | 2026-08-11 |
 | [0260](archive/2026-08-11-0260-tier-finalize-s-in-context-dispatches-and-name-the-push-deni.md) | Tier finalize's in-context dispatches and name the push-denial posture | 2026-08-11 |
 | [0247](archive/2026-08-11-0247-make-shared-metadata-worktree-contention-survivable-and-scop.md) | Make shared metadata worktree contention survivable and scope its commits | 2026-08-11 |
 | [0208](archive/2026-08-11-0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) | Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards | 2026-08-11 |
