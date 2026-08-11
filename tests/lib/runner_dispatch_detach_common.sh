@@ -67,8 +67,13 @@ make_fixture(){  # sets SBX (repo), RDIR (fake runners dir)
   # it is what makes "the adapter never completed its work" a real measurement rather than a
   # tautology — an adapter that only slept would have written no marker inside the observation
   # window whether it was killed or not.
+  # The argv log (change 0277) records the adapter's own argument vector, ONE ARGUMENT PER LINE, so
+  # an arm can assert on the shape the facade composed — which payload channel it used, and which
+  # path it handed over — rather than only on what the child produced. It defaults to /dev/null, so
+  # every arm and every sibling shard written before it existed is unchanged.
   cat > "$RDIR/fake.sh" <<'FAKE'
 #!/usr/bin/env bash
+printf '%s\n' "$@" >> "${FAKE_ARGV_LOG:-/dev/null}"
 sleep "${FAKE_SLEEP:-0}"
 printf 'adapter-ran\n' > "$FAKE_MARKER"
 printf 'fake adapter stdout\n'
@@ -78,9 +83,14 @@ exit "${FAKE_RC:-0}"
 FAKE
   chmod +x "$RDIR/fake.sh"
 }
-launch(){ ( cd "$SBX" && RUNNERS_DIR="$RDIR" FAKE_MARKER="$SBX/marker" \
+# Extra arguments after the agent are forwarded to the facade verbatim (change 0277), so an arm can
+# launch with `--brief-file` or with a trailing `--` payload. `shift` FAILS rather than truncating
+# when there is nothing to shift, so the `|| true` keeps a bare `launch` (no agent) working.
+launch(){ local agent="${1:-status}"; shift 2>/dev/null || true
+  ( cd "$SBX" && RUNNERS_DIR="$RDIR" FAKE_MARKER="$SBX/marker" \
+    FAKE_ARGV_LOG="${FAKE_ARGV_LOG:-/dev/null}" \
     FAKE_SLEEP="${FAKE_SLEEP:-0}" FAKE_TAIL="${FAKE_TAIL:-0}" FAKE_RC="${FAKE_RC:-0}" \
-    bash "$FACADE" --launch --runner fake --agent "${1:-status}" ); }
+    bash "$FACADE" --launch --runner fake --agent "$agent" "$@" ); }
 # The per-dispatch dir for KEY, resolved the way an outside reader must: from the repo's git
 # COMMON dir, never from the worktree.
 ddir_for(){ local c; c="$(cd "$SBX" && git rev-parse --git-common-dir)"

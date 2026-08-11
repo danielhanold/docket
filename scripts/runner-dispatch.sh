@@ -280,6 +280,18 @@ if [ "$VERB" = "launch" ]; then
   docket_dispatch_prune "$DROOT"
   KEY="$(docket_dispatch_mint "$DROOT" "$AGENT")" || die "cannot mint a dispatch key under $DROOT"
   DDIR="$DROOT/$KEY"
+  # THE BRIEF, SPOOLED (change 0277). Written atomically — a temp file BESIDE its destination then
+  # `mv -f`, the same shape as `launch`, `done`, and `gate-before` — so a reader never sees a
+  # half-written brief. Two things are bought: the detached child no longer depends on the
+  # caller's temp file outliving this call, and the dispatch record gains its INPUT alongside its
+  # output. Retention rides `docket_dispatch_prune`, which already bounds this directory; no new
+  # lifecycle is introduced. A spool that cannot be written is a hard failure, not a degrade: the
+  # brief is the child's only input, so dispatching without it is the improvise defect.
+  if [ -n "$BRIEF_FILE" ]; then
+    cat "$BRIEF_FILE" > "$DDIR/brief.partial" || die "cannot spool the brief into $DDIR"
+    mv -f "$DDIR/brief.partial" "$DDIR/brief" || die "cannot spool the brief into $DDIR"
+    BRIEF_PATH="$DDIR/brief"
+  fi
   STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   # The dispatch-time SHA: the direct analogue of DISPATCH_EPOCH, captured BEFORE the child can
   # commit anything, so a commit landing in the gap is excluded either way. Empty on a repo with
@@ -347,7 +359,14 @@ if [ "$VERB" = "launch" ]; then
   # a human reads the sentinel.
   set -m
   {
-    "$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" -- "$@"
+    # ONE channel, always — the same single-channel handoff the synchronous verb composes, here
+    # over the SPOOLED copy: with a brief file the argv channel is empty by construction (the
+    # pre-verb gate refused any trailing argument), so `--` is passed with nothing after it.
+    if [ -n "$BRIEF_PATH" ]; then
+      "$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" --brief-file "$BRIEF_PATH" --
+    else
+      "$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" -- "$@"
+    fi
     ec=$?
     printf 'exit_code=%s\nstarted_at=%s\nfinished_at=%s\npid=%s\ndispatch_key=%s\n' \
       "$ec" "$STARTED_AT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$BASHPID" "$KEY" > "$DDIR/done.partial"
