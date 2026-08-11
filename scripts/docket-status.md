@@ -23,7 +23,7 @@ docket-status.sh -h | --help
 |---|---|
 | `--board-only` | Only run steps 1–4 (config/bootstrap, worktree sync, board pass, backlog pass) and exit; skip sweep detection/execution, health checks, judgment emission, and integration sync. |
 | `--digest-only` | **Write-free read** (change 0094). Resolve config, enforce the bootstrap verdict fail-closed, confirm the metadata worktree's changes dir actually exists, and (only once all three succeed) emit the backlog digest — `backlog` rollups, `change` lines, and the trailing `ready` queue line — and exit 0. Runs **no** metadata-worktree sync (it does not call `docket_preflight`), no sweep, no health checks, no learnings pass, no board render, no commit and no push, and emits **no `board …` line** and no `pass ok`. Fails closed (exit 1, diagnostic on stderr) rather than emitting an empty-but-successful digest when config export fails, the bootstrap verdict is non-`PROCEED`, or the resolved changes dir does not exist as a directory — see Exit codes. Mutually exclusive with `--board-only` and with `--must-land` (exit 2, in either order for each pair): a selection read must not be a write, and `--must-land` has nothing to retry without a board pass. This is the entry point `docket-implement-next` Step 1 uses to acquire its ordered candidate set. |
-| `--must-land` | With `--board-only`: run the board pass with an in-script bounded retry (3 attempts) on the sole retryable outcome `board inline changed push-failed`, re-syncing the metadata worktree between attempts, and map the result to the exit code. Exit 0 iff every board line is a terminal success (`board inline changed pushed`/`clean`, `board off`, `board github ok`); any other terminal line or retry exhaustion exits non-zero. Report-line vocabulary and flagless behavior are unchanged; `board_pass`'s fail-closed exit 2 propagates. Meaningless (and rejected) with `--digest-only`, which never runs a board pass. |
+| `--must-land` | With `--board-only`: run the board pass with an in-script bounded retry (3 attempts) on the sole retryable outcome `board inline changed push-failed`, re-syncing the metadata worktree between attempts, and map the result to the exit code. Exit 0 iff every board line is a terminal success — and that success set is exhaustive: `board inline changed pushed`, `board inline clean`, `board off`, `board github ok`, and nothing else. Any other terminal line or retry exhaustion exits non-zero; `board inline blocked-wedged-tree` (change 0247) is deliberately **outside** the success set and is **terminal**, not retryable, so it exits non-zero on its first appearance with no retry. Report-line vocabulary and flagless behavior are unchanged; `board_pass`'s fail-closed exit 2 propagates. Meaningless (and rejected) with `--digest-only`, which never runs a board pass. |
 | `--type TYPE` | Report filter forwarded to the digest projection only (change 0127): `all` (default, ≡ omitted), `untyped`, or a well-formed `[a-z][a-z0-9-]*` token. Narrows the `change` lines and the `ready` queue. It is **not** forwarded to the board writer, so a filtered `--board-only` run still commits a COMPLETE `BOARD.md`; it likewise never narrows sweep/merge detection, harvesting, archiving, publishing, health checks, or reclaim — those report work the command actually performed. An invalid value is rejected UP FRONT — before any pass runs — so it fails closed identically in every mode (exit 2, nothing mutated) rather than being swallowed by the best-effort backlog pass. |
 | `--priority PRIORITY` | Report filter, same projection-only semantics as `--type`: `all` (default) or one of `critical`/`high`/`medium`/`low`. Combined with `--type` by logical AND. |
 | `--repo OWNER/REPO` | GitHub repo for PR-link resolution and sweep merge detection. Defaults to deriving from the `origin` remote (see `render-board.sh`) and, for sweep detection, from `gh repo view` when unset. |
@@ -203,9 +203,13 @@ on `metadata_branch` (`docket(<id>): refresh artifacts links`) — but only when
 changed bytes; an unchanged file is a silent no-op. `$mw` (the metadata worktree, and therefore the
 `$archived` pathspec this step tests) is **absolute** — anchored to the repo's MAIN worktree by
 `lib/docket-root.sh`, so the step means the same thing from every CWD, including a linked worktree.
-**This step never aborts the close-out.** A failure emits `sweep-failed <id> render-change-links
-commit-failed` or `sweep-failed <id> render-change-links push-failed` on the report channel and the
-sweep **continues** to `terminal-publish.sh` and `cleanup-feature-branch.sh`. That posture is
+Both the `add` and the `commit` carry a `--` pathspec, and the step is gated on a rebase/merge
+already being in progress in that shared tree — the same two rules as `commit_and_push_generated`,
+for the same reason (change 0247): the metadata worktree is shared, so an unscoped commit sweeps up
+whatever another agent had staged, and a commit into a mid-rebase tree writes onto that rebase's
+detached HEAD. **This step never aborts the close-out.** A failure emits `sweep-failed <id>
+render-change-links commit-failed`, `… push-failed`, or `… blocked-wedged-tree` on the report
+channel and the sweep **continues** to `terminal-publish.sh` and `cleanup-feature-branch.sh`. That posture is
 deliberate: a stale link block is cosmetic and self-heals on a manual re-render, whereas an aborted
 close-out leaves the change archived-but-unpublished (invisible to every future sweep) plus an
 orphaned worktree and remote branch — a strictly worse, non-self-healing state. Callers key on the
@@ -393,7 +397,7 @@ backlog digest and emits nothing on stdout, so it does not affect the report's l
   script, not evidence the board landed.
 - **Sweep: per-change log-and-continue.** A failed step for one change emits `sweep-failed` and
   abandons only the rest of *that* change's close-out (except a cleanup failure and an
-  artifacts-refresh `commit-failed`/`push-failed`, which report and continue, still emitting
+  artifacts-refresh `commit-failed`/`push-failed`/`blocked-wedged-tree`, which report and continue, still emitting
   `swept`/`harvest`); the sweep loop proceeds to the next change regardless. The close-out is never
   abandoned for a cosmetic reason: publishing the terminal record and tearing down the branch +
   worktree outrank a stale link block (change 0075).
@@ -424,7 +428,8 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 |---|---|
 | `board inline clean` | Inline render matched the existing `BOARD.md` AND there is nothing unpushed touching it — no local commit on `BOARD.md` sits ahead of its upstream. Attests the board is caught up on the remote, not merely that the working tree is clean. |
 | `board inline changed pushed` | `BOARD.md` changed and the commit was pushed successfully. |
-| `board inline changed push-failed` | `BOARD.md` changed and committed locally, but push retries were exhausted or a rebase conflict outside `BOARD.md` forced an abort. |
+| `board inline changed push-failed` | `BOARD.md` changed and committed locally, but push retries were exhausted or a rebase conflict outside `BOARD.md` forced an abort. Unchanged by change 0247, and still the **sole retryable** board outcome — the new `blocked-wedged-tree` token below was added beside it, never split out of it. |
+| `board inline blocked-wedged-tree` | The shared metadata worktree has a rebase or merge in progress, so the board pass committed and pushed **nothing** (change 0247). Distinct from `changed push-failed` and deliberately **not** retryable: committing into a mid-rebase tree writes onto that rebase's detached HEAD, and the push-retry loop's own `rebase --abort` would destroy another agent's in-flight work. `--must-land` treats it as **not landed** (non-zero exit → the autonomous caller STOPs and abort-reports); a flagless best-effort caller logs it and continues. Clearing it is a human act — finish or abort the in-progress operation. |
 | `board github ok` | `github-mirror.sh` exited 0. |
 | `board github failed` | `github-mirror.sh` exited non-zero. |
 | `board off` | `BOARD_SURFACES` is the reserved token `none` — the board is deliberately disabled (`board_surfaces: []`); no surface was rendered and nothing was committed. Positive evidence of a deliberate skip, never silence. |
@@ -437,8 +442,9 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 | `ready [<id> …]` | The **build-ready queue in selection order** (`priority` → `created` → `id`), from `render-board.sh`'s digest (change 0094). Emitted on every path that runs the backlog pass — the full report, `--board-only`, and `--digest-only` — **when that pass succeeds**. Present and bare when nothing is build-ready; its absence means the pass did not reach the backlog digest at all (config export failure, a fail-closed bootstrap/changes-dir gate, an older `render-board.sh`, or a failed render), never "nothing is ready". A caller must check the exit code before treating a missing `ready` line as "no candidates" — see Exit codes. Membership always equals the `change` lines reporting `proposed build-ready`. |
 | `swept <id> <date>` | Change `<id>` fully closed out (archived, links refreshed, terminal record published only if the repo opted in with `terminal_publish: true`, branch cleaned up) as of `<date>` (UTC, from merge). |
 | `harvest <id> <path>` | The archived file path for a swept change — a hook for the caller to harvest learnings. `<path>` is absolute (since change 0075, anchored to the main worktree via `lib/docket-root.sh`) — previously relative to the process CWD. |
-| `sweep-failed <id> <step> <reason>` | Step `<step>` (`sync`, `archive`, `render-change-links`, `terminal-publish`, or `cleanup`) failed for change `<id>` with `<reason>`; that change's remaining close-out steps were abandoned — **except** for `cleanup` and for the artifacts-refresh reasons `commit-failed` / `push-failed` (step 6a), after which the close-out continues and the change still reports `swept`/`harvest`. |
+| `sweep-failed <id> <step> <reason>` | Step `<step>` (`sync`, `archive`, `render-change-links`, `terminal-publish`, or `cleanup`) failed for change `<id>` with `<reason>`; that change's remaining close-out steps were abandoned — **except** for `cleanup` and for the artifacts-refresh reasons `commit-failed` / `push-failed` / `blocked-wedged-tree` (step 6a), after which the close-out continues and the change still reports `swept`/`harvest`. |
 | `sweep-failed <id> render-change-links commit-failed\|push-failed` | The refreshed `## Artifacts` block could not be committed/pushed on `metadata_branch` (step 6a). Cosmetic and non-terminal: `terminal-publish.sh` and `cleanup-feature-branch.sh` **still ran**, and the change is still reported `swept`. The archived record on `metadata_branch` keeps its previous link block until a manual re-render. |
+| `sweep-failed <id> render-change-links blocked-wedged-tree` | Step 6a found the shared metadata worktree mid-rebase/merge and committed **nothing** (change 0247). **Report-and-continue**, exactly like `commit-failed`: `terminal-publish.sh` and `cleanup-feature-branch.sh` still ran and the change is still reported `swept`. The `## Artifacts` block self-heals on the next pass once a human has cleared the operation. |
 | `sweep-skipped <reason>` | Batched **merge** detection itself was skipped (`gh-unavailable` or `repo-unresolved`); no changes were evaluated this pass. Emitted only by `detect_merged` (and passed through `sweep_execute`) — never by the `aborted-run` enrichment, which has its own token below. |
 | `orphan-pr-skipped <reason>` | The `aborted-run` GitHub enrichment (`detect_orphan_pr`, full path only) was skipped: `gh-unavailable`, `repo-unresolved`, `gh-unparseable`, or `pr-list-truncated`. Advisory and global — no candidate was enriched this pass, the git-only `aborted-run` findings are unaffected, and the pass continues normally. |
 | `check <check-id> <change-id> <message>` | One `board-checks.sh` finding, passed through with the `check` prefix. `<check-id>` ∈ {aborted-run, adr-unpublished, board-row-dropped, broken-spec, broken-plan-results, dep-cycle, field-domain, scalar-form, publish-deferred, stale-in-progress, stale-finalize-blocked, merge-gate-stall, merged-orphan, unknown-commit-ref, malformed-id}. |
@@ -451,7 +457,8 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 | `learnings index failed` | The learnings index render failed; the existing `README.md` (if any) was left untouched (best-effort — the pass still continues). The two advisory lines below still fire on this path (change 0067 review, finding 3). |
 | `learnings index clean` | The rendered index matched the existing `README.md` AND there is nothing unpushed touching it — the same two-part attestation as `board inline clean`. |
 | `learnings index changed pushed` | The learnings index changed and the commit was pushed successfully. |
-| `learnings index changed push-failed` | The learnings index changed and committed locally, but push retries were exhausted or a rebase conflict outside the index forced an abort. |
+| `learnings index changed push-failed` | The learnings index changed and committed locally, but push retries were exhausted or a rebase conflict outside the index forced an abort. Unchanged by change 0247 — still the sole retryable learnings outcome. |
+| `learnings index blocked-wedged-tree` | As `board inline blocked-wedged-tree`, for the learnings-index pass: the shared metadata worktree was mid-rebase/merge, so nothing was committed or pushed. Not retryable; the pass continues best-effort and the index self-heals on the next pass once a human has cleared the operation. |
 | `learnings over-cap — needs curation (<n> active, cap <n>)` | Active findings (`retained` + `candidate`, `promoted` excluded) exceed `learnings.cap` — needs human curation. Emitted whenever the render succeeded, failed, or was clean — never gated on the render outcome. |
 | `learnings promotion-pending <n> — needs you` | `<n>` active findings carry `promotion_state: candidate` — needs a human promotion decision. Same independence from the render outcome as the over-cap line above. |
 | `pass ok` | The orchestrator ran to completion. Always the last line of a successful pass; **stdout is never empty**. A hard error exits non-zero and never prints it, so it is a reliable completion signal. |
@@ -476,7 +483,12 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
   `docket_preflight`); also exit 2 (before any of the above run) when combined with `--board-only`
   or with `--must-land`, in either order.
 - non-zero — under `--must-land`, the board pass ended on a non-success terminal line or exhausted
-  its 3 retries.
+  its 3 retries. `board inline blocked-wedged-tree` is one such **terminal** line (change 0247): it
+  is classified `failed`, never `retryable`, so it exits non-zero immediately rather than spending
+  the retry budget. Retrying it would be pure latency — a rebase or merge in progress in the shared
+  metadata worktree clears only when a human finishes or aborts it. `changed push-failed` keeps its
+  exact prior meaning as the one retryable outcome; the new token was added beside it, not split
+  out of it.
 
 ## Invariants
 

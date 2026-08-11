@@ -209,6 +209,11 @@ board_classify(){
     case "$line" in
       "board inline changed pushed"|"board inline clean"|"board off"|"board github ok") ;;
       "board inline changed push-failed") has_retryable=1 ;;
+      # Change 0247. The catch-all below already maps this to `failed`, which is the halt the token
+      # wants — but inheriting the right verdict from a catch-all is not the same as documenting it,
+      # and the arm makes the NOT-retryable half of the decision reviewable at the classifier.
+      # Retrying is pure latency here: a rebase or merge in progress clears only when a human ends it.
+      "board inline blocked-wedged-tree") has_failed=1 ;;
       *) has_failed=1 ;;   # board inline failed | board github failed | board <tok> unknown | anything else
     esac
   done <<<"$out"
@@ -264,9 +269,30 @@ board_pass_must_land(){
 # actually touches REL, so a conflict is regenerated through the same gated renderer rather than a
 # hand 3-way-merge.
 #
-# Echoes exactly one of: clean | changed-pushed | changed-push-failed
+# Echoes exactly one of: clean | changed-pushed | changed-push-failed | blocked-wedged-tree
+#
+# blocked-wedged-tree (change 0247): the shared metadata worktree has a rebase or merge already in
+# progress — another agent mid-sync — so NOTHING is committed and NOTHING is pushed. The probe is
+# the FIRST statement of the body, ahead of even the nothing-to-commit check, because every path
+# below it is unsafe in that state: the push/rebase retry loop's own `rebase --abort` would
+# destroy that other agent's in-flight rebase, which is the one failure here nothing can walk back.
+#
+# Committing is unsafe too, and the `--` pathspec this change adds to the commit makes it MORE so,
+# not less. Measured on git 2.55: mid-rebase-with-conflicts, `git commit -m … -- "$rel"` exits 0
+# and writes a commit onto the rebase's detached HEAD, where the old pathspec-less form was refused
+# ("Committing is not possible because you have unmerged files"). Scoping the commit therefore
+# REMOVES an accidental protection, so this gate replaces it deliberately rather than inheriting it.
+#
+# A distinct token, never an overload of changed-push-failed: `--must-land` must read this as
+# not-landed and halt (a human finishes or aborts the operation), while changed-push-failed keeps
+# its exact prior meaning as the sole RETRYABLE board outcome.
 commit_and_push_generated(){
   local mw="$1" rel="$2" commit_msg="$3" regen_fn="$4" regen_arg="$5"
+
+  if _docket_tree_wedged "$GIT" "$mw"; then
+    printf 'blocked-wedged-tree\n'
+    return 0
+  fi
 
   if [ -z "$("$GIT" -C "$mw" status --porcelain -- "$rel" 2>/dev/null)" ]; then
     local unpushed
@@ -278,8 +304,11 @@ commit_and_push_generated(){
     # Working tree is clean (nothing to commit) but an existing commit touching $rel has never
     # reached the remote — fall through into the push/rebase retry loop below without committing.
   else
-    "$GIT" -C "$mw" add "$rel" >&2
-    "$GIT" -C "$mw" commit -q -m "$commit_msg" >&2 || true
+    # `--` on BOTH (change 0247): the metadata worktree is SHARED, so a pathspec-less commit stages
+    # and commits whatever another agent had in the index at that instant, under this run's message.
+    # The mark also guards a $rel that could begin with a dash (the #0083 mark-path idiom).
+    "$GIT" -C "$mw" add -- "$rel" >&2
+    "$GIT" -C "$mw" commit -q -m "$commit_msg" -- "$rel" >&2 || true
   fi
 
   local attempt=0 pushed=0
@@ -353,10 +382,15 @@ board_pass_inline(){
   # index) reuses the identical discipline rather than a parallel commit path.
   local result
   result="$(commit_and_push_generated "$mw" "$rel" "docket: board refresh" board_regen_inline "$cd_dir")"
+  # The blocked-wedged-tree arm is NOT redundant with the catch-all below it: the catch-all prints
+  # the RETRYABLE push-failed token, so without an explicit arm the new return value would be
+  # silently relabelled retryable one layer up — turning a --must-land halt into a retry (change
+  # 0247, spec Assumption 16(a)).
   case "$result" in
-    clean)          echo "board inline clean" ;;
-    changed-pushed) echo "board inline changed pushed" ;;
-    *)               echo "board inline changed push-failed" ;;
+    clean)               echo "board inline clean" ;;
+    changed-pushed)      echo "board inline changed pushed" ;;
+    blocked-wedged-tree) echo "board inline blocked-wedged-tree" ;;
+    *)                   echo "board inline changed push-failed" ;;
   esac
 }
 
@@ -846,9 +880,17 @@ sweep_execute_one(){
   # (invisible to every future sweep, which only scans active/) and an orphaned worktree + remote
   # branch behind. So: report the failure on the report channel — the closed, line-oriented
   # contract callers key on — and CONTINUE the close-out.
+  # Change 0247: the same two rules as commit_and_push_generated, at the second exposed commit into
+  # the shared worktree — probe for a rebase/merge in progress first (committing into one writes
+  # onto its detached HEAD), and scope both the add and the commit with `--` so another agent's
+  # staged work is not swept in under this run's message. The new reason keeps this block's
+  # report-and-continue posture: like commit-failed it is COSMETIC here — terminal-publish.sh and
+  # cleanup-feature-branch.sh still run, and the ## Artifacts block self-heals next pass.
   if [ -n "$("$GIT" -C "$mw" status --porcelain -- "$archived" 2>/dev/null)" ]; then
-    if ! "$GIT" -C "$mw" add "$archived" >&2 \
-      || ! "$GIT" -C "$mw" commit -q -m "docket($id): refresh artifacts links" >&2; then
+    if _docket_tree_wedged "$GIT" "$mw"; then
+      echo "sweep-failed $id render-change-links blocked-wedged-tree"
+    elif ! "$GIT" -C "$mw" add -- "$archived" >&2 \
+      || ! "$GIT" -C "$mw" commit -q -m "docket($id): refresh artifacts links" -- "$archived" >&2; then
       echo "sweep-failed $id render-change-links commit-failed"
     elif ! "$GIT" -C "$mw" push >&2; then
       echo "sweep-failed $id render-change-links push-failed"
@@ -1110,10 +1152,13 @@ learnings_pass(){
   local rel="$CHANGES_DIR/learnings/README.md"
   local result
   result="$(commit_and_push_generated "$mw" "$rel" "docket: learnings index refresh" learnings_regen_index "$ldir")"
+  # Same explicit arm, for the same reason, as board_pass_inline's — this `case` carries the
+  # identical retryable catch-all (change 0247, spec Assumption 16(a)).
   case "$result" in
-    clean)          printf 'learnings index clean\n' ;;
-    changed-pushed) printf 'learnings index changed pushed\n' ;;
-    *)               printf 'learnings index changed push-failed\n' ;;
+    clean)               printf 'learnings index clean\n' ;;
+    changed-pushed)      printf 'learnings index changed pushed\n' ;;
+    blocked-wedged-tree) printf 'learnings index blocked-wedged-tree\n' ;;
+    *)                   printf 'learnings index changed push-failed\n' ;;
   esac
 
   learnings_advisories "$ldir"
