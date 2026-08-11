@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0284 — runner-dispatch --observe is sentinel-only: adopt 0282's identity-checked liveness probe](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0284-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi.md)**
+> ↩ **[Change 0284 — runner-dispatch --observe is sentinel-only: adopt 0282's identity-checked liveness probe](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-11-0284-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi.md)**
 <!-- docket:backlink:end -->
 
 # `runner-dispatch --observe`: an identity-checked liveness probe — results
