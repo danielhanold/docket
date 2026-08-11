@@ -10,7 +10,7 @@ updated: 2026-08-11
 depends_on: []
 related: []
 discovered_from: [139, 100]
-adrs: []
+adrs: [86]
 spec: docs/superpowers/specs/2026-08-07-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-design.md
 plan: docs/superpowers/plans/2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-denial.md
 results:
@@ -30,6 +30,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-design.md) |
 | Plan | [2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-denial.md](https://github.com/danielhanold/docket/blob/feat/tier-finalize-s-in-context-dispatches-and-name-the-push-deni/docs/superpowers/plans/2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-denial.md) |
+| ADRs | [ADR-0086](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0086-in-context-gating-dispatch-carved-out-of-the-tier-taxonomy.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
