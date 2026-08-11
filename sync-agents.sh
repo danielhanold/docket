@@ -1564,6 +1564,18 @@ emit_wrapper(){  # $1=src $2=model $3=effort $4=runner $5=harness $6=agent-name 
 # quoted-delimiter heredoc removes the entire quoting burden, and the facade refuses a payload-less
 # `build-*` dispatch outright, so the omission mode is now partly mechanical rather than only
 # narrated. ONE path is taught: two would let the model pick the lossy one.
+#
+# THE WRITE AND THE LAUNCH ARE ONE BASH CALL, and that is load-bearing, not layout (0277 review).
+# Harness Bash calls do not share shell state, and mktemp's suffix is random, so a recipe split
+# across two calls never surfaces the path at all: the launch expands an unset $BRIEF to the empty
+# string and the facade dies on `--brief-file requires a path` — a total failure of the SOLE taught
+# channel. Keeping them together also removes the substitution itself: `--brief-file "$BRIEF"` is
+# not a slot the model fills, so there is no per-dispatch transformation left on the brief argument
+# to get wrong, which is this change's whole thesis applied to the path as well as the text. The
+# angle-bracket slots that remain (the task text, and `<feature worktree>` on a build shim) are
+# inputs only the CALLER can supply — those cannot be mechanized away, so they stay unbracketed-
+# looking-required and emphatic per 0271. Guarded end-to-end in tests/test_sync_agents_runners.sh,
+# which executes the emitted recipe against a stub facade and asserts a readable brief arrives.
 emit_shim(){  # $1=src $2=shim-model $3=shim-effort $4=runner $5=agent-name $6=flag-model $7=flag-effort  (stdout)
   emit "$1" "$2" "$3" | awk '/^---[[:space:]]*$/{d++; print; next} d<2{print}'
   local flags="--runner $4 --agent $5"
@@ -1592,14 +1604,20 @@ The delegated run MAY OUTLIVE the call that starts it, so this is a launch-then-
 dispatch, not a single blocking call (change 0271). Both steps go through the same facade —
 one dispatch seam, no inline fallback, no silent retry.
 
-STEP 1 — write the brief, then launch. Two foreground Bash calls, in this order.
-
-1a. WRITE THE BRIEF. Your caller's task text goes into a file, never onto the command line:
+STEP 1 — write the brief and launch. ONE Bash call containing BOTH commands below, in this
+order. They must travel together: Bash calls do not share shell state, so a launch sent as a
+call of its own expands \$BRIEF to nothing and the dispatch is refused.
 
     BRIEF="\$(mktemp "\${TMPDIR:-/tmp}/docket-brief.XXXXXX")"
     cat > "\$BRIEF" <<'DOCKET_BRIEF_EOF'
 <THE TASK TEXT YOUR CALLER GAVE YOU>
 DOCKET_BRIEF_EOF
+    "\${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh runner-dispatch --launch $flags$wt_slot --brief-file "\$BRIEF"
+
+Fill in the angle-bracket slots (drop the brackets) and copy every other character verbatim.
+\`--brief-file "\$BRIEF"\` is already complete — it is not a slot, you never write out a brief
+path yourself, and the variable resolves only because the launch rides in the same call as the
+write above.
 
 The quoted delimiter makes every character between the two DOCKET_BRIEF_EOF lines literal:
 nothing is expanded, nothing needs escaping, and no quote inside the text needs any handling
@@ -1608,18 +1626,13 @@ note — copied verbatim, never summarized, never trimmed, and never reworded to
 easier. If the text itself contains a line reading exactly DOCKET_BRIEF_EOF, pick a different
 delimiter; never trim the text to avoid it.
 
-1b. LAUNCH with that file:
-
-    "\${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh runner-dispatch --launch $flags$wt_slot --brief-file <the path you just wrote>
-
 The brief file is the ONLY way the child learns what to do. It inherits no conversation, no
-plan, and no task from you: what is in that file is all it will ever see. This command is
-INCOMPLETE until you replace the placeholder (drop the angle brackets) with the path from step
-1a. Omit \`--brief-file\` ONLY when your caller handed you no task text at all — and for a
+plan, and no task from you: what is in that file is all it will ever see. Drop the
+\`--brief-file\` argument ONLY when your caller handed you no task text at all — and for a
 build worker the facade will refuse that dispatch outright. Getting this wrong FAILS SILENTLY:
 a child launched with no task does not error, it improvises from whatever it can see in the
 worktree and the dispatch still looks successful. Before you send the call, re-read it and
-confirm \`--brief-file\` is present and that the file holds your caller's full task text.
+confirm the heredoc holds your caller's full task text.
 
 The launch detaches the child and returns immediately, printing a DISPATCH KEY on stdout. A
 non-zero exit here is a failed launch: abort-and-report its stderr diagnostic.
