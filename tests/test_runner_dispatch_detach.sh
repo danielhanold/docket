@@ -188,4 +188,32 @@ assert "0277 launch: the refusal says never both" 'grep -qiF "never both" <<<"$e
 assert "0277 launch: the refusal minted no dispatch dir" '[ "$before" = "$after" ]'
 rm -rf "$SBX"
 
+# ---- 0277: a spool that CANNOT be written reclaims its half-minted dispatch ----------
+# The spool is the first `die` reachable AFTER `docket_dispatch_mint` has created the dir, and
+# `docket_dispatch_prune` never reclaims a dispatch with no terminal file (lib/docket-dispatch-dir.sh,
+# "a dispatch that never went terminal is retained forever"). So the failure path has to remove its
+# own dir, or an unwritable dispatch area leaks one permanently on every attempt.
+# The failure is made REAL rather than simulated: `umask 0222` makes the dir the mint creates mode
+# 0555, so the spool's own redirect fails for the reason the finding names — an unwritable dispatch
+# dir. One ordinary launch runs first so the dispatch ROOT already exists and is writable; without
+# it the umask would defeat the mint instead, which is a different (already-clean) path.
+make_fixture
+FAKE_SLEEP=0
+BF="$SBX/spool-brief.txt"
+printf 'a brief\n' > "$BF"
+WARMKEY="$(launch status)"
+for _ in 1 2 3 4 5 6 7 8 9 10; do [ -f "$(ddir_for "$WARMKEY")/done" ] && break; sleep 0.3; done
+DROOT_S="$(ddir_for "")"
+before="$(ls "$DROOT_S")"
+err="$( umask 0222; launch status --brief-file "$BF" 2>&1 >/dev/null )"; rc=$?
+after="$(ls "$DROOT_S")"
+assert "0277 spool: an unwritable dispatch dir refuses the launch" '[ "$rc" != "0" ]'
+assert "0277 spool: and the diagnostic names the spool, not some other step" \
+  'grep -qF "cannot spool the brief" <<<"$err"'
+assert "0277 spool: the half-minted dispatch is reclaimed, never left for a prune that cannot take it" \
+  '[ "$before" = "$after" ]'
+assert "0277 spool: and no brief.partial survives under the dispatch root" \
+  '[ -z "$(find "$DROOT_S" -name "brief.partial" 2>/dev/null)" ]'
+rm -rf "$SBX"
+
 exit "$fail"
