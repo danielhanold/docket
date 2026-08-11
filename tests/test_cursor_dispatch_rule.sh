@@ -100,4 +100,49 @@ for f in $frags; do
   fi
 done
 
+# ---- change 0208: the parent-facing fragments carry the feature-worktree requirement ----
+# The generated wrapper for a FEATURE-SCOPED agent is a shim demanding `--worktree <feature
+# worktree>`, whose own prose says "If your caller named no worktree, abort-and-report". These
+# fragments ARE the caller's instructions: a fragment that never tells the parent to name one turns
+# that abort into a deterministic dispatch failure for every runner-delegated feature-scoped agent.
+# The population is DERIVED from each source's declared `worktree-scope:` — never a `build-*` name
+# shape and never a hand-list of today's nine, which is the whole thesis of change 0208 and would
+# otherwise be a second copy of the facade's predicate, drifting the day a tenth agent is declared
+# feature-scoped (LEARNINGS: duplicated-gate-copies-the-whole-predicate).
+# Matched over the instruction prose FLATTENED to one line — the requirement is one wrapped
+# sentence, so a line-scoped grep would key on wrap position — and sentence-bounded via `[^.]*`, so
+# the demand has to sit in the same sentence as what the prompt must carry, not anywhere in the
+# file. The complementary arm is real, not symmetry for its own sake: a metadata-scoped agent runs
+# in the main worktree, its shim bakes no slot, and a fragment telling the parent to name a feature
+# worktree for it would be an instruction the facade cannot honor.
+n_feature=0; n_meta=0
+for src in "$REPO"/agents/docket-*.md; do
+  [ -e "$src" ] || continue
+  b="$(basename "$src")"
+  scope="$(sed -n '/^worktree-scope:/{s/^worktree-scope:[[:space:]]*//;p;q;}' "$src")"
+  # Floor: an absent or off-shape declaration would send every source down the `else` arm below and
+  # silently retire the positive assert for exactly the agent that lost its declaration.
+  assert "$b: declares a valid worktree-scope (floor — the arms below key on it)" \
+    '[ "$scope" = "feature" ] || [ "$scope" = "metadata" ]'
+  frag="$REPO/cursor-rules/dispatch/$b"
+  assert "$b: ships a dispatch fragment" '[ -f "$frag" ]'
+  [ -f "$frag" ] || continue
+  flat="$(tr '\n' ' ' < <(grep -v '^    ' "$frag"))"
+  if [ "$scope" = "feature" ]; then
+    n_feature=$((n_feature+1))
+    assert "$b: feature-scoped — the fragment tells the parent to name the feature worktree" \
+      'grep -qiE "prompt[^.]*feature worktree" <<<"$flat"'
+  else
+    n_meta=$((n_meta+1))
+    assert "$b: metadata-scoped — the fragment demands no feature worktree" \
+      '! grep -qiE "prompt[^.]*feature worktree" <<<"$flat"'
+  fi
+done
+# Floors on both arms: a vanished agents/ dir, or a wholesale flip of every declaration to one
+# value, would leave one arm vacuously green.
+assert "0208: feature-scoped population floor reached (>= 9 of $((n_feature+n_meta)) sources)" \
+  '[ "$n_feature" -ge 9 ]'
+assert "0208: metadata-scoped population floor reached (>= 7 of $((n_feature+n_meta)) sources)" \
+  '[ "$n_meta" -ge 7 ]'
+
 echo "---"; [ "$fail" = "0" ] && echo "ALL PASS" || echo "FAILURES"; exit $fail
