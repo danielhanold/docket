@@ -38,8 +38,29 @@
 #                         backtick inside the condition — survives `eval` as a literal and stays
 #                         legal.
 #
-# (a) DEFINITION ALLOWLIST — NOT IMPLEMENTED IN THIS FILE YET. It lands in the same change and adds
-#     exactly one class, `DEFN-DRIFT`; nothing in the interface below changes when it does.
+# (a) DEFINITION ALLOWLIST — one class, `DEFN-DRIFT`. Every assert-family definition must match one
+#     of the canonical forms BYTE FOR BYTE. Normalizing the whole tests tree onto those bytes is
+#     what buys an anchor this strict; softening the comparison into a fuzzy or a substring match
+#     gives the strictness away for nothing.
+#
+#       DEFN-DRIFT        an assert-family definition that is not byte-for-byte canonical.
+#
+#     DISCOVERY AND VERDICT ARE TWO DIFFERENT MECHANISMS, deliberately. Discovery is SHAPE-tolerant
+#     — one-line, spaced (`assert () {`), function-keyword (`function assert {`), multiline, and
+#     brace-on-the-next-line all get found, and a definition counts as assert-family by what its
+#     body DOES (evals argument 2, or prints a runner-contract result marker), never by a list of
+#     helper names. The verdict is then byte-exact. Conflating the two defeats the guard: a drifted
+#     spelling must not be able to dodge the allowlist by dodging the census. Narrowing the
+#     declaration shape was probed — `function assert { … }` and `assert () { … }` both go silently
+#     green the moment discovery stops tolerating their spelling.
+#
+#     ITS SCOPE IS THE TESTS TREE, NOT THE PATH LIST. Rule (a) additionally sweeps every
+#     `tests/**/*.sh` the caller did NOT pass, because run-tests.sh hands the preflight only its
+#     `tests/test_*.sh` targets while tests/lib/gate_run_common.sh,
+#     tests/lib/runner_dispatch_detach_common.sh and tests/lib/sync_agents_common.sh each define an
+#     assert helper outside that glob. Trusting the caller list would leave those permanently
+#     unguarded. tests/fixtures/ is excluded from the sweep — its red half is drifted on purpose,
+#     and is a verdict only when a caller names one of those files explicitly.
 #
 # ---- HOW THE HELPER NAMES ARE DERIVED, NOT ENUMERATED -------------------------------------------
 #
@@ -79,7 +100,9 @@
 #
 # Usage: check-test-source-hygiene.sh <path>...
 #   Prints one  <path>:<line>: <CLASS>: <message>  line per violation to stdout, at most one per
-#   (line, class) pair, in line order.
+#   (line, class) pair, in line order within each file. The files come in the order given, followed
+#   by rule (a)-only reports for the swept tests-tree files the caller did not pass, named by
+#   absolute path.
 #   Exit: 0 clean; 1 violations found; 2 usage error (no paths given, an unknown flag, or a path
 #   that is not a readable regular file).
 #
@@ -89,6 +112,9 @@
 # is never launched as a test — and a caller that scans the whole tests tree must exclude
 # tests/fixtures/, whose red half is red on purpose.
 set -uo pipefail
+
+# Repo root, for rule (a)'s own sweep of the tests tree (see the sweep block near the bottom).
+REPO_ROOT="$(cd -- "$(dirname -- "$0")/.." && pwd)"
 
 PATHS=()
 while [ $# -gt 0 ]; do
@@ -136,13 +162,87 @@ BEGIN {
   M_DQ = "backtick inside double quotes - bare, it runs at source evaluation; backslash-escaped, the escape is consumed there and a BARE backtick reaches eval. Carry the text in single quotes or a quoted-delimiter heredoc"
   M_HD = "backtick in a heredoc body whose delimiter is unquoted - the body substitutes; quote the delimiter"
   M_EV = "unescaped backtick in an assert condition - single quotes protect the first evaluation only, eval re-parses the value and runs it; escape the backtick"
+  M_DEFN = "assert-family definition is not byte-for-byte one of the canonical forms - see rule (a) in scripts/check-test-source-hygiene.md"
+  build_allowlist()
+}
+
+# ---- rule (a): the canonical definition allowlist ----------------------------------------------
+# The WHOLE legal set, in one block, so a reader sees it at once. Assembled rather than written
+# out because the canonical forms carry apostrophes, which cannot appear in this literal - see the
+# note above the program. The verdict against this set is BYTE-EXACT: normalizing 88 definitions
+# in the tests tree is what buys a comparison this strict, so it must not be softened into a
+# fuzzy or a substring match.
+function build_allowlist(   NLE, P_OK, P_NOK, EV) {
+  NLE = BS "n"
+  P_OK  = "printf " Q1 "ok - %s" NLE Q1 " " Q2 "$1" Q2
+  P_NOK = "printf " Q1 "NOT OK - %s" NLE Q1 " " Q2 "$1" Q2
+  EV = "eval " Q2 "$2" Q2
+  allow["assert(){ if " EV "; then " P_OK "; else " P_NOK "; fail=1; fi; }"] = 1
+  allow["assert(){ if ( " EV " ); then " P_OK "; else " P_NOK "; fail=1; fi; }"] = 1
+  allow["assert(){ if " EV "; then " P_OK "; else " P_NOK "; fails=$((fails+1)); fi; }"] = 1
+  allow["ok(){ " P_OK "; }"] = 1
+  allow["no(){ " P_NOK "; fail=1; }"] = 1
+  allow["nok(){ " P_NOK "; fail=1; }"] = 1
 }
 
 { L[NR] = $0 }
 
 END {
-  derive_names()
-  for (i = 1; i <= NR; i++) line_pass(L[i], i)
+  if (do_defn) defn_pass()
+  if (do_quote) {
+    derive_names()
+    for (i = 1; i <= NR; i++) line_pass(L[i], i)
+  }
+  flush_reports()
+}
+
+# Rule (a). DISCOVERY is shape-tolerant and VERDICT is byte-exact, and they are deliberately two
+# different mechanisms: a drifted spelling must not dodge the allowlist by dodging the census.
+# So discovery keys on the syntax of a function declaration - one-line, spaced, function-keyword,
+# multiline, or brace-on-the-next-line - and on what the body DOES (evals argument 2, or prints a
+# runner-contract result marker), never on a list of helper names.
+function defn_pass(   i, j, s, blk, d, t) {
+  for (i = 1; i <= NR; i++) {
+    s = L[i]
+    if (s ~ /^[[:space:]]*#/) continue
+    j = i
+    if (s ~ /^[[:space:]]*(function[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*[[:space:]]*([(][)])?[[:space:]]*[{]/) {
+      blk = s
+    } else if (i < NR && L[i+1] ~ /^[[:space:]]*[{]/ &&
+               s ~ /^[[:space:]]*(function[[:space:]]+[A-Za-z_][A-Za-z0-9_]*([[:space:]]*[(][)])?|[A-Za-z_][A-Za-z0-9_]*[[:space:]]*[(][)])[[:space:]]*$/) {
+      j = i + 1; blk = s "\n" L[j]
+    } else continue
+    d = braces(blk)
+    # A body that never balances is capped rather than run to end of file; the cap only ever makes
+    # a definition LONGER than the allowlist entries, so it cannot turn a drifted body green.
+    while (d > 0 && j < NR && (j - i) < 40) { j++; blk = blk "\n" L[j]; d += braces(L[j]) }
+    if (is_family(blk)) {
+      t = blk
+      sub(/^[[:space:]]+/, "", t)
+      if (!(t in allow)) report(i, "DEFN-DRIFT", M_DEFN)
+    }
+    i = j
+  }
+}
+
+# Assert-family by behavior, not by name: it evals argument 2, or it emits one of the runner
+# result markers that scripts/run-tests.sh accounts on.
+function is_family(b) {
+  if (index(b, "eval " Q2 "$2" Q2) > 0) return 1
+  if (index(b, "NOT OK") > 0) return 1
+  if (b ~ /[^A-Za-z]ok[[:space:]]+-[[:space:]]/) return 1
+  if (b ~ /[^A-Za-z]FAIL[[:space:]]+-[[:space:]]/) return 1
+  return 0
+}
+
+function braces(s,   k, n, c, d) {
+  n = length(s); d = 0
+  for (k = 1; k <= n; k++) {
+    c = substr(s, k, 1)
+    if (c == "{") d++
+    else if (c == "}") d--
+  }
+  return d
 }
 
 # Shape-keyed discovery of the eval-ed helpers defined IN THIS FILE: remember the name opened by
@@ -337,28 +437,71 @@ function pop_ctx() {
 }
 
 # At most one report per (line, class): two backticks delimiting one substitution are one defect.
+# Buffered rather than printed on sight, because rule (a) runs as its own pass over the file and
+# would otherwise interleave out of line order with rule (b).
 function report(lno, cls, msg,   key) {
   key = lno ":" cls
   if (key in seen) return
   seen[key] = 1
-  printf "%s:%d: %s: %s\n", path, lno, cls, msg
+  nrep++
+  rep_l[nrep] = lno
+  rep_t[nrep] = sprintf("%s:%d: %s: %s", path, lno, cls, msg)
+}
+
+# Insertion sort - stable, so two classes reported on the same line keep discovery order.
+function flush_reports(   i, j, tl, tt) {
+  for (i = 2; i <= nrep; i++) {
+    tl = rep_l[i]; tt = rep_t[i]; j = i - 1
+    while (j >= 1 && rep_l[j] > tl) { rep_l[j+1] = rep_l[j]; rep_t[j+1] = rep_t[j]; j-- }
+    rep_l[j+1] = tl; rep_t[j+1] = tt
+  }
+  for (i = 1; i <= nrep; i++) print rep_t[i]
 }
 '
 
 found=0
+
+# One awk invocation per file: heredoc and quote state must not bleed across a file boundary, and a
+# per-file program cannot get that wrong. LC_ALL=C pins byte semantics, so substr() and length()
+# agree regardless of the ambient locale and of which awk is installed.
+hyg_scan() {
+  _p="$1"; _q="$2"; _d="$3"
+  if ! _out="$(LC_ALL=C awk -v path="$_p" -v do_quote="$_q" -v do_defn="$_d" "$HYG_AWK" "$_p")"; then
+    printf 'check-test-source-hygiene: scanner failed on %s\n' "$_p" >&2
+    exit 2
+  fi
+  if [ -n "$_out" ]; then printf '%s\n' "$_out"; found=1; fi
+}
+
+NL='
+'
+scanned=""
 for p in "${PATHS[@]}"; do
   if [ ! -f "$p" ] || [ ! -r "$p" ]; then
     printf 'check-test-source-hygiene: not a readable file: %s\n' "$p" >&2
     exit 2
   fi
-  # One awk invocation per file: heredoc and quote state must not bleed across a file boundary,
-  # and a per-file program cannot get that wrong. LC_ALL=C pins byte semantics, so substr() and
-  # length() agree regardless of the ambient locale and of which awk is installed.
-  if ! out="$(LC_ALL=C awk -v path="$p" "$HYG_AWK" "$p")"; then
-    printf 'check-test-source-hygiene: scanner failed on %s\n' "$p" >&2
-    exit 2
-  fi
-  if [ -n "$out" ]; then printf '%s\n' "$out"; found=1; fi
+  case "$p" in /*) abs="$p" ;; *) abs="$PWD/${p#./}" ;; esac
+  scanned="$scanned$abs$NL"
+  hyg_scan "$p" 1 1
 done
+
+# ---- rule (a) discovers definitions on its own -------------------------------------------------
+# Scope for rule (a) is the whole tests tree, NOT the path list the caller passed. run-tests.sh
+# hands the preflight its target list, which is tests/test_*.sh — and tests/lib/gate_run_common.sh,
+# tests/lib/runner_dispatch_detach_common.sh and tests/lib/sync_agents_common.sh each define an
+# assert helper without matching that glob. Trusting the caller list would leave those three
+# definitions permanently unguarded, so the sweep below covers whatever the list missed.
+# tests/fixtures/ is excluded: its red half is drifted ON PURPOSE and is only ever a verdict when
+# a caller names one of those files explicitly.
+if [ -d "$REPO_ROOT/tests" ]; then
+  tree_list="$(find "$REPO_ROOT/tests" -type f -name '*.sh' | sort)"
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    case "$f" in "$REPO_ROOT/tests/fixtures/"*) continue ;; esac
+    case "$NL$scanned" in *"$NL$f$NL"*) continue ;; esac
+    hyg_scan "$f" 0 1
+  done <<<"$tree_list"
+fi
 
 exit "$found"

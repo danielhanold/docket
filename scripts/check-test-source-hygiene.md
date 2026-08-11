@@ -73,8 +73,44 @@ flagged under the eval rule.
 
 ### Rule (a) — the definition allowlist
 
-**Not implemented in this file yet.** It lands in the same change and adds exactly one class,
-`DEFN-DRIFT`. Nothing in the interface above changes when it does.
+Every assert-family definition must match one of the canonical forms **byte for byte**. A definition
+that does not is reported as `DEFN-DRIFT` at its declaration line.
+
+| Class | What it catches | Why it matters |
+|---|---|---|
+| `DEFN-DRIFT` | An assert-family function definition that is not byte-for-byte one of the canonical forms below. | The canonical forms print through `printf '%s'` rather than `echo`, and are uniform across ~110 definitions. Uniformity is what makes drift mechanically visible; a fuzzy comparison would give that away for nothing. |
+
+The canonical set — the whole legal list, mirrored in one clearly-marked `build_allowlist()` block
+at the top of the `awk` program:
+
+```bash
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
+assert(){ if ( eval "$2" ); then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fails=$((fails+1)); fi; }
+ok(){ printf 'ok - %s\n' "$1"; }
+no(){ printf 'NOT OK - %s\n' "$1"; fail=1; }
+nok(){ printf 'NOT OK - %s\n' "$1"; fail=1; }
+```
+
+Only insignificant **leading** whitespace is normalized before comparing. Nothing else is.
+
+**Discovery and verdict are two different mechanisms, deliberately.** Discovery is shape-tolerant:
+the one-line, spaced (`assert () {`), `function`-keyword (`function assert {`), multiline, and
+brace-on-the-next-line declaration shapes are all found, and a definition counts as assert-family by
+what its body *does* — it evals argument 2, or it prints one of the runner-contract result markers
+(`ok - `, `NOT OK`, `FAIL - `) — never by a list of helper names. The verdict against the allowlist
+is then byte-exact. Conflating the two defeats the guard: **a drifted spelling must not be able to
+dodge the allowlist by dodging the census.** That was probed, not assumed — narrow the declaration
+shape to `name(){` and both `function assert { … }` and `assert () { … }` go silently green.
+
+**Rule (a)'s scope is the tests tree, not the path list.** In addition to the paths handed in, it
+sweeps every `tests/**/*.sh` the caller did *not* pass. `scripts/run-tests.sh` hands the preflight
+only its `tests/test_*.sh` targets, while `tests/lib/gate_run_common.sh`,
+`tests/lib/runner_dispatch_detach_common.sh` and `tests/lib/sync_agents_common.sh` each define an
+`assert` helper outside that glob; trusting the caller's list would leave those three definitions
+permanently unguarded. `tests/fixtures/` is excluded from the sweep — its red half is drifted on
+purpose, and is a verdict only when a caller names one of those files explicitly. Swept files are
+reported by absolute path, after the caller's own paths.
 
 ## Exit codes
 
@@ -127,6 +163,14 @@ flagged under the eval rule.
   never consumed as one (the suite has roughly two thousand of them). An arithmetic left-shift
   inside `$(( … ))` is not modeled; the tests tree has no such site, and one would surface as a
   phantom heredoc — a loud false positive — rather than as a silent miss.
+- **Rule (a) makes every invocation report the whole tree's definition drift.** That is the price of
+  its independent scope: scanning one file still sweeps `tests/` for definitions, so a caller
+  reading a per-file verdict must key on the lines naming *that* file, not on the exit code alone,
+  until the tree is normalized onto the canonical forms.
+- **A definition whose braces never balance is capped at 40 lines.** The block collected for the
+  byte-exact comparison then ends early. The cap can only make a block *longer* than any allowlist
+  entry, so it can turn a drifted definition into a false positive — loud — never into a silent
+  pass.
 - **Fixtures are red on purpose.** `tests/fixtures/hygiene/red/*.sh` are hazardous by construction.
   A caller that scans the whole `tests/` tree must exclude `tests/fixtures/`; the runner's own
   `tests/test_*.sh` glob already does, which is why the fixtures live outside it.
