@@ -2,6 +2,7 @@
 name: docket-finalize-change
 description: Use when a change's PR is approved or merged and you want to close it out to done promptly rather than waiting for the safety-net sweep — merging if approved, verifying the merge landed, archiving the change, cleaning up its branch and worktree, and refreshing the board. The human's closing bookend; mirrors docket-new-change.
 skills: [docket-finalize-change, docket-convention]
+worktree-scope: metadata
 ---
 Execute docket-finalize-change to close out the change. Follow the skill exactly.
 

@@ -2,6 +2,7 @@
 name: docket-build-standard
 description: Standard build-profile worker for docket-build — implements one normal feature, integration, refactor, or debugging plan task under the docket-build-task contract; docket-build's default profile and its uncertainty sink.
 skills: [docket-build-task]
+worktree-scope: feature
 ---
 Implement the single plan task handed to you, following the docket-build-task skill exactly.
 

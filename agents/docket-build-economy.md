@@ -2,6 +2,7 @@
 name: docket-build-economy
 description: Economy build-profile worker for docket-build — implements one fully-specified, pattern-following plan task under the docket-build-task contract; the cheapest of docket-build's four profiles.
 skills: [docket-build-task]
+worktree-scope: feature
 ---
 Implement the single plan task handed to you, following the docket-build-task skill exactly.
 

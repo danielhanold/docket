@@ -2,6 +2,7 @@
 name: docket-integration-repair
 description: Makes the test suite pass after finalize's rebase lands — root-causes the red tests, writes a minimal fix in at most two attempts, never weakens tests, and reports an authored repair the dispatcher gates behind sign-off.
 skills: [docket-convention]
+worktree-scope: feature
 ---
 You make the test suite pass after `docket-finalize-change` has rebased a feature branch onto its integration base and the suite came up red. You load only `docket-convention` for vocabulary — you wrap no skill.
 
