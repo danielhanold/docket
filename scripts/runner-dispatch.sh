@@ -597,10 +597,17 @@ barrier(){  # $1 = the point this call site names
 # ONE short, idempotent look. Never a long foreground call — that ceiling is the defect this
 # change removes, so re-introducing it here would defeat the whole design.
 #
-# LIVENESS comes from the sentinel, and from nothing else; CORRECTNESS comes from git. A sentinel
-# claiming success with no matching git evidence is a FAILURE — correctness wins, so the child's
-# own exit code is never the last word about the work. Keeping the two sources apart is what lets
-# the facade observe a LIVE child without ever reading liveness out of git state.
+# LIVENESS comes from the TERMINAL RECORD first and from the PROCESS second (change 0284); it never
+# comes from git. CORRECTNESS comes from git and from nothing else. A sentinel claiming success with
+# no matching git evidence is a FAILURE — correctness wins, so the child's own exit code is never the
+# last word about the work. Keeping the two sources apart is what lets the facade observe a LIVE
+# child without ever reading liveness out of git state.
+#
+# The repealed half, named so a reader does not go looking for it: until change 0284 the sentinel was
+# this verb's sole liveness source, and the cost was that a child killed externally, crashed, or
+# whose host was suspended read `still running` for the whole 60-minute budget. Step 3 below is the
+# second source, and the ordering that keeps it from ever outranking a terminal record is written
+# there.
 if [ "$VERB" = "observe" ]; then
   [ -n "$OBSERVE_KEY" ] || die "--observe requires a dispatch key"
   # The key becomes a path component, exactly as `--runner` does above, so it earns the same
@@ -632,6 +639,11 @@ if [ "$VERB" = "observe" ]; then
 
   LPGID="$(launch_field "$DDIR" pgid)"
   LSTART="$(launch_field "$DDIR" started_at)"
+  # Why the liveness leg's reason is initialized HERE rather than at the leg that sets it: this
+  # script runs under `set -u`, `dispose_vanished_child` reads it, and a bare assignment inside a
+  # conditional leaves every other path with the name UNSET — which would abort the observation
+  # rather than degrade it. Empty is a legal reason ("reason unrecorded"); unset is a crash.
+  VANISHED_WHY=""
 
   # THE RELAY. `--launch` redirects the adapter's stdout into `$DDIR/stdout.log`, so this function
   # is the ONLY channel by which a delegated agent's result reaches its caller: the generated shim
@@ -972,6 +984,37 @@ if [ "$VERB" = "observe" ]; then
     exit 1
   }
 
+  # THE DEAD-CHILD DISPOSITION (change 0284). Reached only from the liveness leg below, and only
+  # after its sentinel re-read came back empty. NEVER RETURNS.
+  #
+  # THE VERDICT IS RECORDED IN THE EXISTING `killed` MARKER, not in a new terminal file. `--observe`'s
+  # idempotence guarantee obliges a terminal record, and the `cause`/`reason` split already carries
+  # exactly the two axes this leg needs: `cause=child-vanished` says WHY the facade gave up, and
+  # `reason=group-already-gone` says nothing was signalled. A second terminal file would need its own
+  # precedence rule against `done` and `killed`, and would be a third state for every reader to order.
+  #
+  # NOTHING IS SIGNALLED, and that is not an omission: the liveness probe just established that the
+  # group is not provably ours, which is the precondition `terminate_dispatch` already refuses to
+  # signal under. THE RESIDUAL THIS ACCEPTS, deliberately and identically to the give-up path: a
+  # supervisor that died while processes it spawned keep running is reported dead and those orphans
+  # are NOT reaped. Killing them would mean signalling a group that cannot be proven still ours, and
+  # an unrelated process group dying is the worse failure and the unrecoverable one, while an orphan
+  # is visible and reapable. So the diagnostic NAMES THE DISPATCH DIR, which is how a human finds them.
+  dispose_vanished_child(){
+    printf 'killed_at=%s\nreason=%s\ncause=%s\ndetail=%s\nbudget_minutes=%s\n' \
+      "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "group-already-gone" "child-vanished" "${VANISHED_WHY:-}" \
+      "$DELEGATION_OBSERVATION_BUDGET" > "$DDIR/killed.partial"
+    # `mv -f`, not `mv`: BSD `mv` onto an unwritable destination with a tty PROMPTS, self-answers `n`
+    # at EOF, and exits 0 — the marker would be silently lost and this leg would re-fire every pass.
+    mv -f "$DDIR/killed.partial" "$DDIR/killed" || die "could not record the kill marker in $DDIR"
+    # ----- TASK 5 REPLACES FROM HERE ---------------------------------------------------
+    printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (the delegated child died without writing a sentinel: %s); nothing was signalled, so any processes it spawned are still running — inspect %s\n' \
+      "$OBSERVE_KEY" "${VANISHED_WHY:-reason unrecorded}" "$DDIR" >&2
+    relay_child_stdout
+    exit 1
+    # ----- TASK 5 REPLACES TO HERE -----------------------------------------------------
+  }
+
   # 1. THE SENTINEL IS READ FIRST — ahead of the `killed` marker, deliberately. THE WRAPPER SUBSHELL
   #    IS UNTRAPPED and it is the only writer of `done`, so a group-directed TERM/KILL reaches it and
   #    it can never write a sentinel afterwards. A `done` sitting beside a `killed` marker therefore
@@ -1002,6 +1045,10 @@ if [ "$VERB" = "observe" ]; then
     KCAUSE="$(killed_field cause)"
     KDETAIL="$(killed_field detail)"
     case "$KCAUSE" in
+      # A vanished child never spent its budget, so it must never be re-reported as if it had —
+      # the default arm below would tell a reader the budget ran out on a dispatch that was
+      # terminal within seconds of being launched (change 0284).
+      child-vanished)       KWHAT="the delegated child died without writing a sentinel" ;;
       budget-unenforceable) KWHAT="the observation budget could not be enforced (${KDETAIL:-reason unrecorded})" ;;
       *)                    KWHAT="the budget was exhausted" ;;
     esac
@@ -1014,9 +1061,41 @@ if [ "$VERB" = "observe" ]; then
     exit 1
   fi
 
-  # 3. No sentinel: still running, unless the budget is spent. `0` is legal and buys exactly ONE
-  #    observation — this one — so the comparison is `>=`, evaluated AFTER the sentinel read
-  #    above, which is what makes that single observation a real one.
+  # 3. LIVENESS — new in change 0284, and it sits HERE for a reason: AFTER both terminal-state reads
+  #    and BEFORE the clock arithmetic.
+  #
+  #    AFTER the terminal reads, because a terminal record outranks any probe of the group the child
+  #    used to lead. A `done` sitting beside a dead group means the child COMPLETED and then exited,
+  #    which is the ordinary happy path, not a vanishing.
+  #
+  #    BEFORE the clock arithmetic, because DEADNESS IS KNOWABLE WITHOUT A READABLE CLOCK. Placed
+  #    after, an unreadable clock or an unparseable `started_at` — the `note_unenforceable` family —
+  #    would keep a dead child spinning for three more observations and then terminate it on the
+  #    WRONG cause. The `unenforceable` counter is untouched by this leg: it is reset or incremented
+  #    only on the still-running path, which this step now guards.
+  #
+  #    THE DEFECT THIS REMOVES: the predicate here used to be "no sentinel ⇒ still running", so a
+  #    child killed externally, crashed, or whose host was suspended read `still running` (exit 4) on
+  #    every observation for the WHOLE budget — 60 minutes by default. The identity conjuncts already
+  #    existed in this file, inside `terminate_dispatch`, but were consulted only when the facade was
+  #    about to SIGNAL; this consults them one lifecycle phase earlier, as a VERDICT INPUT.
+  barrier pre-liveness-probe
+  if ! docket_group_alive_and_ours "$LPGID" "$(launch_field "$DDIR" child_lstart)"; then
+    VANISHED_WHY="$DOCKET_LIVENESS_WHY"
+    # 4. DEAD ⇒ RE-READ THE SENTINEL. LOAD-BEARING, NOT DEFENSIVE. The reads above span a `ps` call
+    #    and a `kill -0`, and the child has every chance to finish inside that window; without this
+    #    re-read a run that PASSED is disposed as dead. The soundness argument is the one already
+    #    written at this file's pair of give-up re-reads: the untrapped wrapper subshell is the ONLY
+    #    writer of `done`, so a sentinel visible HERE was necessarily written by a child that
+    #    completed. `report_done_disposition` never returns.
+    [ -f "$DDIR/done" ] && report_done_disposition
+    dispose_vanished_child
+  fi
+
+  # 5. No sentinel and the child is still provably ours: still running, unless the budget is spent.
+  #    `0` is legal and buys exactly ONE observation — this one — so the comparison is `>=`,
+  #    evaluated AFTER the sentinel read above, which is what makes that single observation a real
+  #    one.
   NOW="$(date -u +%s 2>/dev/null)"
   START_EPOCH=""
   [ -n "$LSTART" ] && START_EPOCH="$("$DOCKET_BASH_PATH" "$VERIFY_RUN" --iso-to-epoch "$LSTART" 2>/dev/null)"
@@ -1077,7 +1156,7 @@ if [ "$VERB" = "observe" ]; then
     exit 4
   fi
 
-  # 4. Budget exhausted: give up on the dispatch. The kill, the identity check that gates it and
+  # 6. Budget exhausted: give up on the dispatch. The kill, the identity check that gates it and
   #    the terminal marker all live in `terminate_dispatch` above, shared with the
   #    budget-UNENFORCEABLE termination — one identity-checked kill path, never two copies.
   terminate_dispatch budget-exhausted
