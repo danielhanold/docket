@@ -41,6 +41,26 @@
 # THIS FILE IS NOW AT THE 60s CEILING. There is no next raise. The next change that adds runtime
 # here — 0268 and 0154 are both queued against it — must SHARD the file first; that is now the only
 # available move, and it was already the header's stated remedy.
+#
+# tests/test_run_tests.sh was raised 20 -> 30 by change 0221, which gates scripts/run-tests.sh on
+# the scripts/check-test-source-hygiene.sh preflight. This is the case the header calls a file that
+# GOT SLOWER, and the raise is defended by measurement rather than by the feature being new. The
+# preflight is per-runner-invocation and this file invokes the runner ~35 times, so it pays the
+# preflight ~35 times over. Three standalone serial readings each, one session, one machine, as
+# `/usr/bin/time -p bash tests/test_run_tests.sh >/dev/null` (base = origin/main extracted with
+# `git archive` into a scratch tree, so it runs its own runner, not this branch's):
+#   base (origin/main):        16.16  16.09  16.16  -> worst 16.16
+#   branch, sweep unbatched:   27.21  27.24         -> worst 27.24
+#   branch, sweep batched:     20.87  20.95  21.03  -> worst 21.03
+# The middle row is why this is not simply a raise: rule (a)'s tests-tree sweep forked one awk per
+# tests-tree file on EVERY invocation, so the file paid O(#test files x #invocations) and the term
+# grew with the suite. Batching the sweep into ONE awk process (verdict-preserving: the checker's
+# full output over the live tree and every fixture is byte-identical before and after) gives back
+# 6.2s of the 11.1s and, more to the point, makes the remaining cost O(1) awk processes per
+# invocation instead of O(#test files). The residual ~4.9s over base is the preflight actually
+# running, which is the feature. Sizing per this header's rule from the worst post-change reading,
+# 21.03: next multiple of 5 is 25, plus the 5s margin -> 30. Sharding was considered and rejected:
+# 21s is nowhere near the 60s ceiling, and the file is one coherent runner-contract suite.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -116,7 +136,7 @@ tests/test_render_change_links.sh	10	parallel
 tests/test_render_learnings_index.sh	10	parallel
 tests/test_results_artifact.sh	10	parallel
 tests/test_role_skill_self_description.sh	10	parallel
-tests/test_run_tests.sh	20	parallel
+tests/test_run_tests.sh	30	parallel
 tests/test_runner_cursor.sh	10	parallel
 tests/test_runner_dispatch.sh	20	parallel
 tests/test_runner_dispatch_build_gate.sh	10	parallel

@@ -25,7 +25,21 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1740 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1750 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1740 -> 1750 (change 0221, review finding 4): tests/test_run_tests.sh 20 -> 30
+                    # — a file that GOT SLOWER, which the header does not list as a legitimate mover,
+                    # so it is defended by measurement and by having first removed the part of the
+                    # cost that was avoidable. 0221 gates run-tests.sh on the source-hygiene
+                    # preflight, and this file invokes the runner ~35 times. Rule (a)'s tests-tree
+                    # sweep forked one awk PER TESTS-TREE FILE per invocation, so the file paid
+                    # O(#test files x #invocations) and that term grew with the suite; batching the
+                    # sweep into one awk process (verdict-preserving — byte-identical checker output
+                    # over the live tree and every fixture) took it from 27.24 back to 21.03, against
+                    # a 16.16 base. Only then was the row re-seeded, from 21.03: next multiple of 5
+                    # is 25, plus the 5s margin -> 30. The readings and the method are in the tsv
+                    # header beside the row's own note.
+                    # Recomputed from the table itself, never hand-adjusted:
+                    #   awk -F'\t' '!/^#/ && NF>=2 {s+=$2} END{print s}' tests/runtime-budgets.tsv
                     # 1730 -> 1740 (change 0221): a NEW test file bringing its own row — the first
                     # of the two legitimate cases the table header names, not a file that got
                     # slower. tests/test_assert_hygiene.sh is the regression test for

@@ -149,11 +149,8 @@ BEGIN {
   BT = sprintf("%c", 96); BS = sprintf("%c", 92)
   Q1 = sprintf("%c", 39); Q2 = sprintf("%c", 34); TB = sprintf("%c", 9)
   NORMAL = 0; SQ = 1; DQ = 2
-  st = NORMAL; esc = 0
-  hn = 0; hact = 0; depth = 0
-  widx = -1; inword = 0; armed = 0; wtxt = ""
-  # Floor for a file that CALLS the helper without defining it. derive_names() adds the rest.
-  names["assert"] = 1
+  # Per-file state lives in file_reset(), which runs at every file boundary; only the constants
+  # below are set once here.
   # Words after which the NEXT word is still a command word, so a helper name following one of
   # them is recognized rather than counted as an argument.
   kw["then"] = 1; kw["do"] = 1; kw["else"] = 1; kw["elif"] = 1; kw["if"] = 1
@@ -164,6 +161,47 @@ BEGIN {
   M_EV = "unescaped backtick in an assert condition - single quotes protect the first evaluation only, eval re-parses the value and runs it; escape the backtick"
   M_DEFN = "assert-family definition is not byte-for-byte one of the canonical forms - see rule (a) in scripts/check-test-source-hygiene.md"
   build_allowlist()
+}
+
+# ---- file boundaries ---------------------------------------------------------------------------
+# The program accepts MANY files in one invocation, and every piece of per-file state is torn down
+# at each boundary, so an N-file run is N independent single-file runs concatenated. That is what
+# lets the rule (a) sweep batch its whole file list into one process instead of forking awk once
+# per tests-tree file. Two things this reset must keep true, or batching silently corrupts verdicts:
+#   - EVERY global the passes touch is cleared here. The line buffer and its length, the report
+#     buffer and its dedupe key set, the rule (b) lexer state, the heredoc and context stacks, and
+#     the DERIVED helper-name set (which is per-file by construction - see derive_names).
+#   - Reports are FLUSHED at the boundary, not at END, so output stays grouped and line-ordered per
+#     file and the files print in the order they were given.
+# split("", a) is the portable whole-array clear; delete a is not in every awk this has to run on.
+FNR == 1 { if (NR > 1) file_end(); file_reset() }
+
+{ L[FNR] = $0; nlines = FNR }
+
+END { if (NR > 0) file_end() }
+
+function file_reset() {
+  # -v path=... names a single file explicitly; a batch run leaves it unset and takes FILENAME.
+  cur_path = (path != "" ? path : FILENAME)
+  nlines = 0
+  split("", L)
+  split("", seen); nrep = 0; split("", rep_l); split("", rep_t)
+  st = NORMAL; esc = 0
+  hn = 0; hact = 0; depth = 0
+  split("", hd_delim); split("", hd_dash); split("", hd_live)
+  split("", sv_st); split("", sv_widx); split("", sv_inword); split("", sv_armed); split("", sv_wtxt)
+  widx = -1; inword = 0; armed = 0; wtxt = ""
+  # Floor for a file that CALLS the helper without defining it. derive_names() adds the rest.
+  split("", names); names["assert"] = 1
+}
+
+function file_end(   i) {
+  if (do_defn) defn_pass()
+  if (do_quote) {
+    derive_names()
+    for (i = 1; i <= nlines; i++) line_pass(L[i], i)
+  }
+  flush_reports()
 }
 
 # ---- rule (a): the canonical definition allowlist ----------------------------------------------
@@ -185,37 +223,26 @@ function build_allowlist(   NLE, P_OK, P_NOK, EV) {
   allow["nok(){ " P_NOK "; fail=1; }"] = 1
 }
 
-{ L[NR] = $0 }
-
-END {
-  if (do_defn) defn_pass()
-  if (do_quote) {
-    derive_names()
-    for (i = 1; i <= NR; i++) line_pass(L[i], i)
-  }
-  flush_reports()
-}
-
 # Rule (a). DISCOVERY is shape-tolerant and VERDICT is byte-exact, and they are deliberately two
 # different mechanisms: a drifted spelling must not dodge the allowlist by dodging the census.
 # So discovery keys on the syntax of a function declaration - one-line, spaced, function-keyword,
 # multiline, or brace-on-the-next-line - and on what the body DOES (evals argument 2, or prints a
 # runner-contract result marker), never on a list of helper names.
 function defn_pass(   i, j, s, blk, d, t) {
-  for (i = 1; i <= NR; i++) {
+  for (i = 1; i <= nlines; i++) {
     s = L[i]
     if (s ~ /^[[:space:]]*#/) continue
     j = i
     if (s ~ /^[[:space:]]*(function[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*[[:space:]]*([(][)])?[[:space:]]*[{]/) {
       blk = s
-    } else if (i < NR && L[i+1] ~ /^[[:space:]]*[{]/ &&
+    } else if (i < nlines && L[i+1] ~ /^[[:space:]]*[{]/ &&
                s ~ /^[[:space:]]*(function[[:space:]]+[A-Za-z_][A-Za-z0-9_]*([[:space:]]*[(][)])?|[A-Za-z_][A-Za-z0-9_]*[[:space:]]*[(][)])[[:space:]]*$/) {
       j = i + 1; blk = s "\n" L[j]
     } else continue
     d = braces(blk)
     # A body that never balances is capped rather than run to end of file; the cap only ever makes
     # a definition LONGER than the allowlist entries, so it cannot turn a drifted body green.
-    while (d > 0 && j < NR && (j - i) < 40) { j++; blk = blk "\n" L[j]; d += braces(L[j]) }
+    while (d > 0 && j < nlines && (j - i) < 40) { j++; blk = blk "\n" L[j]; d += braces(L[j]) }
     if (is_family(blk)) {
       t = blk
       sub(/^[[:space:]]+/, "", t)
@@ -250,7 +277,7 @@ function braces(s,   k, n, c, d) {
 # Covers the one-line and the multi-line spellings, and the function-keyword and spaced ones.
 function derive_names(   i, s, name, pend) {
   pend = ""
-  for (i = 1; i <= NR; i++) {
+  for (i = 1; i <= nlines; i++) {
     s = L[i]
     if (s ~ /^[[:space:]]*#/) continue
     if (s ~ /^[[:space:]]*(function[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*[[:space:]]*([(][)])?[[:space:]]*[{]/) {
@@ -487,7 +514,7 @@ function report(lno, cls, msg,   key) {
   seen[key] = 1
   nrep++
   rep_l[nrep] = lno
-  rep_t[nrep] = sprintf("%s:%d: %s: %s", path, lno, cls, msg)
+  rep_t[nrep] = sprintf("%s:%d: %s: %s", cur_path, lno, cls, msg)
 }
 
 # Insertion sort - stable, so two classes reported on the same line keep discovery order.
@@ -503,9 +530,11 @@ function flush_reports(   i, j, tl, tt) {
 
 found=0
 
-# One awk invocation per file: heredoc and quote state must not bleed across a file boundary, and a
-# per-file program cannot get that wrong. LC_ALL=C pins byte semantics, so substr() and length()
-# agree regardless of the ambient locale and of which awk is installed.
+# One awk invocation per CALLER-NAMED path. The full rule (a) + rule (b) scan is what a caller asks
+# for, the list is short, and a per-file process gives per-file error attribution for free. The
+# tests-tree sweep below does NOT use this — see the batching note there.
+# LC_ALL=C pins byte semantics, so substr() and length() agree regardless of the ambient locale and
+# of which awk is installed.
 hyg_scan() {
   _p="$1"; _q="$2"; _d="$3"
   if ! _out="$(LC_ALL=C awk -v path="$_p" -v do_quote="$_q" -v do_defn="$_d" "$HYG_AWK" "$_p")"; then
@@ -536,14 +565,34 @@ done
 # definitions permanently unguarded, so the sweep below covers whatever the list missed.
 # tests/fixtures/ is excluded: its red half is drifted ON PURPOSE and is only ever a verdict when
 # a caller names one of those files explicitly.
+#
+# IT IS ONE AWK PROCESS FOR THE WHOLE SWEEP, not one per file, and that is a cost decision with a
+# safety argument behind it. The sweep is unconditional and its list is the whole tests tree, so a
+# process per file made the scan O(#test files) on EVERY invocation — and tests/test_run_tests.sh
+# invokes the runner ~35 times, so it paid that product. The argument that batching is safe: the
+# per-file-process rule protects rule (b), whose heredoc and quote state is carried across lines
+# and must not bleed across a file boundary. The sweep runs do_quote=0, and rule (a) reads only the
+# buffered lines of the file it is scanning — it carries no cross-line lexer state at all — so a
+# file-boundary reset is sufficient here. The program does that reset in file_reset(); if you ever
+# give the sweep do_quote=1, that reset is what has to be right, not this loop.
 if [ -d "$REPO_ROOT/tests" ]; then
   tree_list="$(find "$REPO_ROOT/tests" -type f -name '*.sh' | sort)"
+  sweep=()
   while IFS= read -r f; do
     [ -n "$f" ] || continue
     case "$f" in "$REPO_ROOT/tests/fixtures/"*) continue ;; esac
     case "$NL$scanned" in *"$NL$f$NL"*) continue ;; esac
-    hyg_scan "$f" 0 1
+    sweep+=("$f")
   done <<<"$tree_list"
+  if [ "${#sweep[@]}" -gt 0 ]; then
+    # No -v path: a batch run takes each report path from FILENAME, which is the absolute path
+    # find produced — the same string the per-file call used to pass.
+    if ! sweep_out="$(LC_ALL=C awk -v do_quote=0 -v do_defn=1 "$HYG_AWK" "${sweep[@]}")"; then
+      printf 'check-test-source-hygiene: scanner failed during the tests-tree sweep\n' >&2
+      exit 2
+    fi
+    if [ -n "$sweep_out" ]; then printf '%s\n' "$sweep_out"; found=1; fi
+  fi
 fi
 
 exit "$found"
