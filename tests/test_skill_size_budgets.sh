@@ -1203,6 +1203,47 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # of 50 is 1500 (31 words of margin, clear of the 25-word floor).
 # skills/docket-finalize-change/references/gate-failure.md carries the same marker from the same fix
 # round, at its `## Finalize blocked` write sentence, and needed NO raise: 33/1107 against 40/1150.
+# skills/docket-status/SKILL.md's WORD budget was raised 2500 -> 2550 by change 0118, which
+# corrected the *Sweep posture* paragraph: the `skipped-publish` leg now marks the archived file
+# like the `terminal-publish` leg does, under one extra gate (`terminal_publish: true` AND
+# docket-mode) that the other leg does not need, because both of the publish's suppressions are
+# exit-0 no-ops while a renderer failure fires regardless of the knob.
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above:
+# skills/docket-convention/references/terminal-close-out.md, which this same change extends with
+# the cross-driver mark RULE (raised just below). It cannot host this prose, and the two are not
+# duplicates: that file states what every driver OWES at the moment it is performing a close-out,
+# whereas this paragraph states what the sweep's already-emitted report LINES MEAN to an agent
+# triaging them. An agent reading a `sweep-failed <id> render-change-links skipped-publish` line is
+# in docket-status/SKILL.md and has no trigger to open a convention reference; left uncorrected,
+# this body's own sentence ("The `terminal-publish` case is no longer invisible") would have it
+# conclude the skipped-publish gap is UNMARKED and go hunting for a record the sweep has already
+# written. A wrong enumeration reads as complete, which is the same failure mode change 0247
+# recorded one entry above. The edit is net-tight — two sentences were merged into one lead — so
+# the growth is the gate clause. Set per the rounding rule above from the measured actual: 2520
+# words -> the next multiple of 50 is 2550 (30 words of margin, clear of the 25-word floor). The
+# LINE budget was NOT raised: 102 actual against 118, unchanged by this change, 16 lines of margin.
+# skills/docket-convention/references/terminal-close-out.md's budget was raised 180/1500 ->
+# 195/1750 by change 0118, which scopes step 3's mark rule PER LEG: a failed step-2 re-render
+# abandons the publish for every driver and every driver owes a mark there (the sweep discharges
+# it in code, the three skill-driven drivers by following the rule); a failed step-2 commit/push
+# owes a mark only in the skill-driven drivers, because the sweep deliberately continues to publish
+# on that leg (change 0075 §5, documented in scripts/docket-status.md §6a). The guard sentence's
+# "(all callers)" claim was false once the
+# sweep diverged, so it gains the matching carve-out.
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above: this file IS the references file
+# — there is no further reference to push it into — so the question is whether the per-leg scoping
+# could live in either consuming skill body instead, `skills/docket-status/SKILL.md` (raised above)
+# or `skills/docket-finalize-change/SKILL.md`. It cannot live in either, for the reason that is the
+# scoping's own content: it is a statement about how the drivers DIVERGE, and a divergence stated
+# in one driver's body is invisible to the other. Both bodies send their reader here with "follow
+# it exactly", so a rule this file states unscoped ("all callers") is one the sweep's implementer
+# reads as binding and the sweep's actual code contradicts — which is precisely the contradiction
+# change 0118 found. A scoping must sit beside the rule it scopes, or the unscoped rule is what
+# gets obeyed. Set per the rounding rule above from the measured actuals: 192 lines -> the next
+# multiple of 5 is 195 (3 lines of margin — above the half-step of the 5-line step that the 0167
+# line-margin reading uses, where 0- and 2-line margins were rejected and 4 accepted); 1683 words
+# -> the next multiple of 50 is 1700, which leaves 17 words, inside the 25-word threshold, so the
+# multiple after it: 1750 (67 words of margin). No prose was cut to fit either number.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -1220,7 +1261,7 @@ skills/docket-convention/references/agent-layer.md         205 2350
 skills/docket-convention/references/auto-capture.md        130 1250
 skills/docket-convention/references/dummy-mode.md           85  800
 skills/docket-convention/references/learnings.md            84  580
-skills/docket-convention/references/terminal-close-out.md  180 1500
+skills/docket-convention/references/terminal-close-out.md  195 1750
 skills/docket-finalize-change/SKILL.md                     185 3900
 skills/docket-finalize-change/references/gate-failure.md    40 1150
 skills/docket-groom-next/SKILL.md                           77 1484
@@ -1231,7 +1272,7 @@ skills/docket-implement-next/results-template.md            25  250
 skills/docket-review/SKILL.md                              110  900
 skills/docket-new-change/SKILL.md                           61 1450
 skills/docket-new-change/change-template.md                 51  203
-skills/docket-status/SKILL.md                              118 2500
+skills/docket-status/SKILL.md                              118 2550
 "
 
 # Every tracked file is within budget.

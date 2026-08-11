@@ -25,7 +25,16 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1715 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1720 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1715 -> 1720 (change 0118): tests/test_docket_status.sh 45 -> 50. Not "the
+                    # file got slower" — the file GREW: 0118 adds two sweep runs and three
+                    # fault-injection runs to the one file that owns sweep_execute coverage, and
+                    # the row was already at parity before it (45.15s standalone serial against 45).
+                    # Re-seeded by COMPUTING the sum, never by hand-adding:
+                    #   awk -F'\t' '!/^#/ && NF>=2 {s+=$2} END{print s}' tests/runtime-budgets.tsv
+                    # The new row is set from the WORST of three post-change standalone serial
+                    # readings (44.55s of 44.55/43.76/44.22) per the table header's rule; the
+                    # sharding-vs-raise argument lives with the row, in that header.
                     # 1705 -> 1715 (change 0247): a NEW test file bringing its own row — the first
                     # of the two cases the table header names as a legitimate move of the total.
                     # tests/test_shared_worktree_commit_scope.sh is the shared-metadata-worktree
