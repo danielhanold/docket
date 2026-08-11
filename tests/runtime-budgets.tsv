@@ -26,6 +26,18 @@
 # this same file, and re-cutting shards is precisely the edit that cannot rebase cleanly past them
 # — the shard belongs to whichever change can take the whole file, not to one adding five fixtures
 # to it.
+#
+# Raised again, 50 -> 60, by change 0118's review finding 2, which adds one more sweep run (a wedged
+# shared worktree at the publish-deferred mark). Six standalone serial readings after it: 45.17,
+# 46.79, 51.36, 50.52, 46.12, 45.14. The WORST of the first three is 51.36 -> next multiple of 5 is
+# 55, plus the 5s margin -> 60. Be clear about what that number is: the fixture itself costs well
+# under a second (the same file measured 44.72s standalone immediately BEFORE it was added), and the
+# ~6s spread across six back-to-back readings is machine load, not this change. The rule takes the
+# worst reading, so 60 is what the rule yields.
+#
+# THIS FILE IS NOW AT THE 60s CEILING. There is no next raise. The next change that adds runtime
+# here — 0268 and 0154 are both queued against it — must SHARD the file first; that is now the only
+# available move, and it was already the header's stated remedy.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_auto_groom.sh	10	parallel
@@ -64,7 +76,7 @@ tests/test_docket_preflight.sh	10	parallel
 tests/test_docket_review.sh	10	parallel
 tests/test_docket_root.sh	10	parallel
 tests/test_docket_runtime_lib.sh	10	parallel
-tests/test_docket_status.sh	50	parallel
+tests/test_docket_status.sh	60	parallel
 tests/test_dummy_mode.sh	10	parallel
 tests/test_ensure_claude_settings.sh	10	parallel
 tests/test_ensure_docket_env.sh	10	parallel
