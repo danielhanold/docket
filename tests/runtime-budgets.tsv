@@ -43,6 +43,7 @@
 # available move, and it was already the header's stated remedy.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
+tests/test_assert_hygiene.sh	10	parallel
 tests/test_auto_groom.sh	10	parallel
 tests/test_backfill_change_types.sh	10	parallel
 tests/test_bash_runtime_install.sh	10	parallel

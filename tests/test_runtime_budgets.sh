@@ -25,7 +25,18 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1730 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1740 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1730 -> 1740 (change 0221): a NEW test file bringing its own row — the first
+                    # of the two legitimate cases the table header names, not a file that got
+                    # slower. tests/test_assert_hygiene.sh is the regression test for
+                    # scripts/check-test-source-hygiene.sh, driving 18 committed fixtures in both
+                    # directions. It measures 1.26/1.25/1.26s standalone (three readings,
+                    # /usr/bin/time -p, quiet machine), so the sizing rule — round up to the next
+                    # multiple of 5, add a 5s margin, minimum 10 — puts it at the floor, 10. Its
+                    # cost is two checker invocations over the fixture set plus three single-file
+                    # ones, and does not grow with the suite.
+                    # Recomputed from the table itself, never hand-adjusted:
+                    #   awk -F'\t' '!/^#/ && NF>=2 {s+=$2} END{print s}' tests/runtime-budgets.tsv
                     # 1720 -> 1730: change 0118's review finding 2 raised tests/test_docket_status.sh
                     # 50 -> 60 (its rationale, and the readings behind it, are in the tsv header).
                     # Recomputed from the table itself, never hand-adjusted:
