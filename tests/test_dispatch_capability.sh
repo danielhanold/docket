@@ -121,6 +121,7 @@ assert "convention: a skill that was invoked but cannot DISPATCH is Tier C" \
 IMPL="$REPO/skills/docket-implement-next/SKILL.md"
 AUTOGROOM="$REPO/skills/docket-auto-groom/SKILL.md"
 FIXLOOP="$REPO/skills/docket-implement-next/references/fix-loop.md"
+GATEFAIL="$REPO/skills/docket-finalize-change/references/gate-failure.md"
 
 # Print the single paragraph (blank-line-delimited block) containing the first anchor match.
 para_with(){ awk -v pat="$2" 'BEGIN{RS="";} $0 ~ pat {print; exit}' "$1"; }
@@ -174,12 +175,20 @@ check_site "$AUTOGROOM" "docket-auto-groom-critic"               "Tier B" "auto-
 # so the convention's Tier C row must NAME the fix consumer or this reddens. Rewording either side
 # independently is exactly what the derivation catches; nothing here quotes a sentence.
 check_site "$FIXLOOP"   "fix dispatch is"                        "Tier C" "implement-next §6 fix loop"      "fix"
+# Change 0260: the two finalize gate dispatches, formerly parked in $PENDING_TIER. Their posture is
+# the `carve-out` — not a tier letter — because their contract is an in-context report gating the
+# merge. Anchored on gate-failure.md, which SKILL.md blocking-loads at BOTH dispatch moments, so
+# this is the one canonical marker home and nothing is copy-pinned across two files. The anchors are
+# each clause's own unique phrase, so moving a clause out of the paragraph reddens "site found"
+# rather than silently re-pointing at the neighbouring paragraph that also names both agents.
+check_site "$GATEFAIL" "conflicted rebase whose"  "carve-out" "finalize gate rebase-resolver"    "docket-rebase-resolver"
+check_site "$GATEFAIL" "red rebased suite whose"  "carve-out" "finalize gate integration-repair" "docket-integration-repair"
 
-# Population floor: the scanner must have REACHED all six sites. A renamed heading or a moved
+# Population floor: the scanner must have REACHED all eight sites. A renamed heading or a moved
 # paragraph now genuinely reddens this floor too, because `seen` only increments on an actual find
 # (see check_site above) — it is no longer an unconditional counter that always equals the number
 # of check_site calls regardless of whether any of them found anything.
-assert "consumer coverage: all six dispatch sites were reached (floor)" '[ "$seen" -eq 6 ]'
+assert "consumer coverage: all eight dispatch sites were reached (floor)" '[ "$seen" -eq 8 ]'
 
 # --- the borrowed authorization is stated in its canonical home ----------------------------------
 # The row-derived coherence check above proves the Tier C row NAMES the fix consumer; it does not
@@ -210,14 +219,29 @@ tier_row_names(){ # $1 = tier letter (A|B|C)  $2 = site noun
   local row; row="$(grep -E "^\| \*\*$1 —" "$CONV")"
   grep -qF -- "$2" <<<"$row"
 }
+tier_checked=0
 while IFS='|' read -r t n; do
   [ -n "$t" ] || continue
+  # SHAPE, not a name list: any posture label that is not `Tier <letter>`-shaped is outside the
+  # letter-keyed table by construction, so asking the table for a row named after it is a category
+  # error. Skipping by shape means a future non-tier posture needs no edit here, and — unlike an
+  # `if [ "$t" = carve-out ]` exclusion — a typo'd label cannot silently exempt a real tier row.
+  case "$t" in
+    "Tier "[A-Z]) ;;
+    *) continue ;;
+  esac
+  tier_checked=$((tier_checked+1))
   letter="${t##* }"
   assert "convention table: the Tier $letter row names '$n' (agrees with its wired site)" \
     "tier_row_names '$letter' '$n'"
 done <<EOF
 $site_rows
 EOF
+# Floor on the SKIP itself. Without it, broadening the case pattern (or mislabelling every row)
+# skips the whole loop and the cross-file coherence property vanishes with every assert still
+# green — the loop would guard nothing while reporting nothing. Six tier-shaped rows today.
+assert "coherence loop: the shape filter still admitted every tier-shaped row (floor)" \
+  '[ "$tier_checked" -eq 6 ]'
 
 # --- reverse correspondence: derive the dispatch-site population by SHAPE, never hand-listed -----
 # (AGENTS.md: never hand-list the sites of a literal/operation you are gating — derive them from a
@@ -231,16 +255,12 @@ EOF
 # `**dispatch the `docket-newthing` subagent**` in skills/docket-status/SKILL.md stayed green
 # (mutation-proven), so "a sixth dispatch site cannot be invisible" was false as written.
 #
-# KNOWN GAP, machine-visible on purpose. `docket-finalize-change` dispatches
-# `docket-rebase-resolver` (rebase-conflict reconciliation) and `docket-integration-repair` (red
-# suite after the rebase lands). Their unavailability tier is DELIBERATELY DEFERRED to a follow-up
-# change rather than improvised here: no design review gated a posture for them, and finalize's own
-# *abort-and-report points (the full set)* already covers both situations, so nothing is unsafe
-# today. They are listed here — not in the convention's tier table — so the deferral is a fact this
-# guard states rather than prose nobody checks. THIS LIST MUST SHRINK TO EMPTY when the follow-up
-# change tiers them (they become ordinary check_site rows then); it is never the place to park a
-# genuinely new dispatch site to silence the coverage loop below.
-PENDING_TIER=" docket-rebase-resolver docket-integration-repair "
+# NOW EMPTY, AND PINNED EMPTY (change 0260 tiered the two finalize dispatches into `carve-out`
+# rows above). The variable and its count assert deliberately SURVIVE the shrink: their property is
+# not "these two are deferred" but "a knowingly-untiered dispatch site is an in-diff decision,
+# never a silent one". Parking a genuinely new site here to quiet the coverage loop below is the
+# abuse the count assert exists to make visible.
+PENDING_TIER=" "
 
 derived=""
 while IFS= read -r name; do
@@ -266,12 +286,12 @@ done < <( ( cd "$REPO" && grep -rohE --include='*.md' 'resolved (build|review) s
 # name in the new population is a check_site row or a $PENDING_TIER member. Never lower it to
 # accommodate a deleted mention without checking the site itself is gone.
 derived_count="$(printf "%s" "$derived" | wc -w)"
-assert "reverse: derivation reached the whole observed dispatch-shape population (floor: >=11)" \
-  '[ "$derived_count" -ge 11 ]'
-# Pin the deferral: exactly the two finalize dispatches above, so tiering them (or adding a third
-# untiered one) is an in-diff decision, never a silent one.
-assert "reverse: PENDING_TIER holds exactly the two knowingly-untiered finalize dispatches" \
-  '[ "$(printf "%s" "$PENDING_TIER" | wc -w)" -eq 2 ]'
+assert "reverse: derivation reached the whole observed dispatch-shape population (floor: >=12)" \
+  '[ "$derived_count" -ge 12 ]'
+# Pin the deferral at empty: parking a new knowingly-untiered site here (or leaving one parked) is
+# an in-diff decision, never a silent one.
+assert "reverse: PENDING_TIER is empty — no dispatch site is knowingly untiered" \
+  '[ "$(printf "%s" "$PENDING_TIER" | wc -w)" -eq 0 ]'
 
 for name in $derived; do
   # Token match, not substring: the surrounding spaces in both the pattern and the haystack keep a
