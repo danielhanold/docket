@@ -18,6 +18,14 @@
 # spelling outside the set is outside the contract (accepted limit — the set is small because the
 # repo's metadata-writing drivers are). Introducing a new driver means extending DRIVERS in the
 # same change: a review obligation, not something the guard infers.
+#
+# GROUP B's two accepted limits, stated rather than papered over:
+# (a) Only two of the seven skills have a commit-bearing heading, so B2 is a FILE-LEVEL token check
+#     for the other five: the marker could sit anywhere in the file and pass. Scoping to a heading
+#     would silently skip five of seven, which is worse; the realistic drift — a marker deleted or
+#     reflowed away — is still caught.
+# (b) A skill that grows a SECOND commit site is covered by the file's single marker.
+# Both need contrived prose to exploit.
 # Run: bash tests/test_shared_worktree_commit_scope.sh
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
@@ -271,5 +279,117 @@ assert "A: the same shape across a semicolon is caught too (both splitter arms a
 # the guard would otherwise be unfixable by the only means available for a comment: rewording it.
 assert "A: a commented-out unscoped commit is not reported (comments are prose)" \
   '! grep -q ":commented " <<<"$FIXTURE"'
+
+# --- the reflow-proof matcher --------------------------------------------------------------------
+# Byte-identical to the three existing copies (test_docket_review.sh, test_gate_execution_posture.sh,
+# test_loop_continuation.sh). #0253 is hoisting these into a sourced tests/lib/prose_guard.sh — when
+# it merges, replace this definition with the source; it is the consolidation target for this copy.
+# Without it, a pure re-flow of the guarded sentence across a line break reddens a policy assert
+# about policy that never changed (learnings: phrase-grep-over-wrapped-prose).
+#
+# Always flattened ONCE into a variable and matched with a here-string, never `flatten < f | grep -q`:
+# under this file's `set -o pipefail` that is a producer piped into an early-exiting consumer, `tr`
+# takes SIGPIPE, and the assert goes intermittently red (AGENTS.md, Shell).
+flatten(){ tr -s '[:space:]' ' '; }
+
+MARKER='Stage by explicit path'
+
+# --- group B1: the convention states the rule at the grant ---------------------------------------
+CONV="$REPO/skills/docket-convention/SKILL.md"
+assert "B1: convention SKILL.md exists" '[ -f "$CONV" ]'
+# Scope to the Step-0 preamble section — the same awk-range idiom test_skill_handoff_precedence.sh
+# uses — so a stray mention elsewhere in a 6000-word file cannot satisfy these.
+PREAMBLE="$(awk '/^### Step-0 preamble/{f=1;next} f&&/^### /{exit} f' "$CONV" | flatten)"
+assert "B1: the Step-0 preamble section is non-empty (extractor floor)" '[ -n "$PREAMBLE" ]'
+assert "B1: the preamble still grants direct git plumbing (the sentence the rule attaches to)" \
+  'grep -qF -- "stays direct" <<<"$PREAMBLE"'
+assert "B1: the preamble carries the marker" 'grep -qF -- "$MARKER" <<<"$PREAMBLE"'
+# BIND the rule to its subject with a BOUNDED gap: a guard that only proves the words are present
+# survives a rewrite that keeps them and severs them from the shared tree they are about
+# (learnings: prose-guard-binds-phrase-to-claim). The gap is `[^.]{0,120}` — sentence-local and
+# short — never `.*`: an unbounded gap re-binds across paragraphs and re-admits the drift this
+# assert exists to catch. 120 also stays under BSD grep's 255-repetition ceiling.
+assert "B1: the pathspec rule is bound to the SHARED tree, not floating" \
+  'grep -qiE "shared[^.]{0,120}(stage|explicit path|add -A)|((stage|explicit path|add -A)[^.]{0,120}shared)" <<<"$PREAMBLE"'
+# `-e` is not decoration: a pattern that could ever lead with `--` is parsed as an option (exit 2),
+# and inside a negated assert that error inverts into a permanently green, vacuous guard.
+assert "B1: the preamble names the bare-add spelling it forbids" \
+  'grep -qE -e "add -A" <<<"$PREAMBLE"'
+
+# --- group B2: coverage over every metadata-writing skill ----------------------------------------
+# Sites are DERIVED, never hand-listed (AGENTS.md: enumerated floor). A skill is in scope iff its
+# body INVOKES `docket.sh preflight` — the convention's Step-0 preamble, which is what MAKES a skill
+# an operating skill that reads and writes on metadata_branch. docket-convention is excluded as the
+# rule's home.
+#
+# Keyed on the COMMAND STRING, not on prose describing it. The obvious predicate — "the body names
+# the metadata working tree" — yields the same set today but is keyed on a SPELLING, which AGENTS.md
+# forbids for exactly the reason visible in docket-adr: it already uses the variant "metadata tree"
+# more often than the canonical phrase, so an ordinary slim normalizing to its own house idiom would
+# silently drop it from coverage — a false green in the one channel this group exists to guard.
+# `docket.sh preflight` is a literal invoked command, immune to both reflow and rewording.
+IN_SCOPE="$(grep -l 'docket.sh preflight' "$REPO"/skills/*/SKILL.md 2>/dev/null \
+            | grep -v '/docket-convention/' | sort)"
+assert "B2: the derivation found in-scope skills (extractor floor)" '[ -n "$IN_SCOPE" ]'
+assert "B2: the derivation yields exactly 7 metadata-writing skills (found $(grep -c . <<<"$IN_SCOPE"))" \
+  '[ "$(grep -c . <<<"$IN_SCOPE")" -eq 7 ]'
+
+covered=0
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  sk="$(basename "$(dirname "$f")")"
+  hay="$(flatten < "$f")"
+  covered=$((covered+1))
+  assert "B2: $sk carries the marker at its commit instruction" \
+    'grep -qF -- "$MARKER" <<<"$hay"'
+done <<<"$IN_SCOPE"
+assert "B2: every in-scope skill was actually checked (covered=$covered = 7)" '[ "$covered" -eq 7 ]'
+
+# Skills that must NOT be in scope: their commits are feature-branch, in a per-change worktree that
+# is not shared. Including them would imply the shared-tree hazard applies there and dilute the
+# rule's reason (spec Assumption 13). Each is floored by an existence check first: a negative assert
+# on a skill that has since been renamed passes for the wrong reason.
+for out in docket-build docket-build-task docket-review docket-brainstorm; do
+  assert "B2: out-of-scope control '$out' is a real skill (the negative below is not vacuous)" \
+    '[ -f "$REPO/skills/$out/SKILL.md" ]'
+  assert "B2: $out is correctly OUT of scope (feature worktree, not the shared tree)" \
+    '! grep -q "/$out/SKILL.md$" <<<"$IN_SCOPE"'
+done
+
+# --- group B2b: cross-check against change 0208's DECLARED worktree-scope (ADR-0083) -------------
+# Do not mint a second notion of scope. 0208 already established `worktree-scope:` as a declared
+# frontmatter fact on agents/docket-*.md, with exactly two values. This is the reverse direction the
+# forward loop above is structurally blind to (learnings: correspondence-guard-runs-one-way): every
+# agent source declaring metadata scope whose skills: list names a docket operating skill must
+# appear in the derived set. Five of the seven have wrappers; the other two are interactive and
+# wrapper-less by construction, which is why this is a floor and not an equality.
+#
+# The wrapped skill is found by SHAPE — the first entry in `skills:` that is not docket-convention
+# and that has a real SKILL.md — never by list position: docket-status declares
+# `skills: [docket-status, docket-convention]` while docket-auto-groom-critic declares
+# `skills: [docket-convention]` alone, so a position-keyed read is one reordering away from either
+# a false green or a false red. An agent with no operating skill (docket-auto-groom-critic wraps
+# only the convention; docket-brainstorm-consultant declares no `skills:` at all) is out of the
+# population by construction, not by exception.
+checked_scope=0
+for src in "$REPO"/agents/docket-*.md; do
+  [ -f "$src" ] || continue
+  scope="$(sed -n '/^worktree-scope:/{s/^worktree-scope:[[:space:]]*//;p;q;}' "$src")"
+  [ "$scope" = metadata ] || continue
+  list="$(sed -n '/^skills:/{s/^skills:[[:space:]]*\[//;s/\].*//;p;q;}' "$src" | tr -d ' ')"
+  wrapped=""
+  for cand in ${list//,/ }; do
+    [ -n "$cand" ] || continue
+    [ "$cand" = docket-convention ] && continue
+    [ -f "$REPO/skills/$cand/SKILL.md" ] || continue
+    wrapped="$cand"; break
+  done
+  [ -n "$wrapped" ] || continue
+  checked_scope=$((checked_scope+1))
+  assert "B2b: '$wrapped' declares worktree-scope: metadata, so it must be in the derived set" \
+    'grep -q "/$wrapped/SKILL.md$" <<<"$IN_SCOPE"'
+done
+assert "B2b: the 0208 cross-check reached its population (checked_scope=$checked_scope = 5)" \
+  '[ "$checked_scope" -eq 5 ]'
 
 exit $fail
