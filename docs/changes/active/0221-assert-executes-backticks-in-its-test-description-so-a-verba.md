@@ -10,14 +10,14 @@ updated: 2026-08-11
 depends_on: []
 related: []
 discovered_from: [212]
-adrs: []
+adrs: [91]
 spec: docs/superpowers/specs/2026-08-07-assert-executes-backticks-in-its-test-description-so-a-verba-design.md
 plan: docs/superpowers/plans/2026-08-11-assert-backtick-source-hygiene.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/assert-executes-backticks-in-its-test-description-so-a-verba
-claimed_at: 2026-08-11T21:05:00Z
+claimed_at: 2026-08-11T23:58:00Z
 pr:
 blocked_by:
 reconciled: true
@@ -30,6 +30,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-assert-executes-backticks-in-its-test-description-so-a-verba-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-assert-executes-backticks-in-its-test-description-so-a-verba-design.md) |
 | Plan | [2026-08-11-assert-backtick-source-hygiene.md](https://github.com/danielhanold/docket/blob/feat/assert-executes-backticks-in-its-test-description-so-a-verba/docs/superpowers/plans/2026-08-11-assert-backtick-source-hygiene.md) |
+| ADRs | [ADR-0091](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0091-every-backtick-in-a-double-quoted-region-is-a-violation.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
