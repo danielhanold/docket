@@ -2,7 +2,7 @@
 id: 118
 slug: decide-whether-the-sweep-s-skip-publish-path-should-also-mar
 title: Decide whether the sweep's skip-publish path should also mark an unpublished terminal record
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-21
 updated: 2026-08-11
@@ -12,12 +12,12 @@ discovered_from: [83]
 adrs: [90]
 spec: docs/superpowers/specs/2026-08-07-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-design.md
 plan: docs/superpowers/plans/2026-08-11-sweep-skip-publish-mark.md
-results:
+results: docs/results/2026-08-11-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-results.md
 trivial: false
 auto_groomable: true
 branch: feat/decide-whether-the-sweep-s-skip-publish-path-should-also-mar
-claimed_at: 2026-08-11T20:20:02Z
-pr:
+claimed_at: 2026-08-11T20:22:36Z
+pr: https://github.com/danielhanold/docket/pull/201
 blocked_by:
 reconciled: true
 type: fix
@@ -30,6 +30,8 @@ type: fix
 |---|---|
 | Spec | [2026-08-07-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-design.md) |
 | Plan | [2026-08-11-sweep-skip-publish-mark.md](https://github.com/danielhanold/docket/blob/feat/decide-whether-the-sweep-s-skip-publish-path-should-also-mar/docs/superpowers/plans/2026-08-11-sweep-skip-publish-mark.md) |
+| Results | [2026-08-11-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-results.md](https://github.com/danielhanold/docket/blob/feat/decide-whether-the-sweep-s-skip-publish-path-should-also-mar/docs/results/2026-08-11-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-results.md) |
+| PR | [#201](https://github.com/danielhanold/docket/pull/201) |
 | ADRs | [ADR-0090](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0090-publish-deferred-covers-any-handled-post-archive-failure.md) |
 <!-- docket:artifacts:end -->
 
