@@ -1,6 +1,6 @@
 # Backlog
 
-**296 changes** — 🟢 1 in progress · 🟡 36 proposed · ⚪ 4 deferred · ✅ 178 done · 🗑️ 77 killed
+**298 changes** — 🟢 1 in progress · 🟡 38 proposed · ⚪ 4 deferred · ✅ 178 done · 🗑️ 77 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0221](active/0221-assert-executes-backticks-in-its-test-description-so-a-verba.md) | assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell | `high` | `fix` | [spec](../superpowers/specs/2026-08-07-assert-executes-backticks-in-its-test-description-so-a-verba-design.md) | `feat/assert-executes-backticks-in-its-test-description-so-a-verba` |
 
-## 🟡 Proposed (36)
+## 🟡 Proposed (38)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -48,6 +48,8 @@
 | [0294](active/0294-shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru.md) | Shrink AGENTS.md's always-loaded footprint: script-ify the run gate's caller procedure and de-duplicate the dispatch table | `medium` | `refactor` | needs-brainstorm |
 | [0295](active/0295-make-render-change-links-sh-genuinely-offline-safe-stop-re-r.md) | Make render-change-links.sh genuinely offline-safe — stop re-resolving config with a network fetch | `high` | `fix` | needs-brainstorm |
 | [0296](active/0296-shard-tests-test-docket-status-sh-its-runtime-row-is-at-the.md) | Shard tests/test_docket_status.sh — its runtime row is at the table's hard 60s ceiling | `medium` | `chore` | needs-brainstorm |
+| [0297](active/0297-relax-0212-s-sites-backtick-ban-now-that-the-hygiene-gate-en.md) | Relax 0212's SITES backtick ban now that the hygiene gate enforces it | `medium` | `refactor` | needs-brainstorm |
+| [0298](active/0298-stacked-changes-build-a-new-change-on-top-of-a-parent-change.md) | Stacked changes — build a new change on top of a parent change's branch | `medium` | `feat` | build-ready |
 
 ## ⚪ Deferred (4)
 
@@ -101,6 +103,8 @@ graph TD
   0294
   0295
   0296
+  0297
+  0298
   0192:::done
   0211:::done
   0282:::done
