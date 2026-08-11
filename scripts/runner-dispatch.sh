@@ -296,12 +296,19 @@ if [ "$VERB" = "launch" ]; then
   # `mv -f`, the same shape as `launch`, `done`, and `gate-before` — so a reader never sees a
   # half-written brief. Two things are bought: the detached child no longer depends on the
   # caller's temp file outliving this call, and the dispatch record gains its INPUT alongside its
-  # output. Retention rides `docket_dispatch_prune`, which already bounds this directory; no new
-  # lifecycle is introduced. A spool that cannot be written is a hard failure, not a degrade: the
-  # brief is the child's only input, so dispatching without it is the improvise defect.
+  # output. A SUCCESSFUL spool introduces no new lifecycle: the brief sits inside the dispatch dir
+  # that `docket_dispatch_prune` already bounds, and is reclaimed with it.
+  # A spool that cannot be written is a hard failure, not a degrade: the brief is the child's only
+  # input, so dispatching without it is the improvise defect. It is also the FIRST `die` reachable
+  # after the mint, and the prune deliberately never removes a dispatch with no terminal file
+  # (lib/docket-dispatch-dir.sh: "a dispatch that never went terminal is retained forever") — so
+  # this path removes the dir it just minted rather than leaving one no prune can ever reclaim.
+  # `rm -rf` is safe precisely here and nowhere else: `docket_dispatch_mint` refuses to reuse an
+  # existing key, so this dir was created microseconds ago by this call, holds nothing but the
+  # failed spool, and no child has been started against it yet.
   if [ -n "$BRIEF_FILE" ]; then
-    cat "$BRIEF_FILE" > "$DDIR/brief.partial" || die "cannot spool the brief into $DDIR"
-    mv -f "$DDIR/brief.partial" "$DDIR/brief" || die "cannot spool the brief into $DDIR"
+    cat "$BRIEF_FILE" > "$DDIR/brief.partial" || { rm -rf "$DDIR"; die "cannot spool the brief into $DDIR"; }
+    mv -f "$DDIR/brief.partial" "$DDIR/brief" || { rm -rf "$DDIR"; die "cannot spool the brief into $DDIR"; }
     BRIEF_PATH="$DDIR/brief"
   fi
   STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"

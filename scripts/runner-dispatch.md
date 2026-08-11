@@ -288,7 +288,9 @@ in place of the caller's own path, so a detached run never depends on a caller t
 the call that started it. Absent when the dispatch carried its payload as trailing argv. It is part
 of the dispatch's audit record and is pruned with the rest of the directory — no separate
 lifecycle. A spool that cannot be written **aborts the launch** rather than degrading to a
-task-less dispatch: the brief is the child's only input.
+task-less dispatch: the brief is the child's only input — and the abort **removes the dispatch
+directory it just minted**, because a dispatch that never goes terminal is retained forever by the
+retention rule, so an unwritable dispatch area would otherwise leak one dir per attempt.
 
 **The sentinel** — `<dir>/done`, flat `KEY=value`: `exit_code`, `started_at`, `finished_at`, `pid`,
 `dispatch_key`. `pid` is the **launcher subshell's own** pid — the same process the launch record
