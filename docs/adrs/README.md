@@ -83,6 +83,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0083](0083-agent-worktree-scope-is-a-declared-frontmatter-fact.md) — An agent's worktree scope is a declared frontmatter fact, not a name pattern (Accepted) ← change #208 · relates to ADR-0034, ADR-0068
 - [ADR-0084](0084-re-dispatch-permission-gated-on-attribution-capability-not-launch-shape.md) — Re-dispatch permission is gated on mechanical attribution capability, not launch shape (Accepted) ← change #275 · relates to ADR-0075, ADR-0080
 - [ADR-0085](0085-critic-verdict-travels-on-one-channel-the-foreground-return.md) — Critic verdict travels on exactly one channel: the foreground dispatch return (Accepted) ← change #281 · relates to ADR-0009, ADR-0024, ADR-0059, ADR-0084
+- [ADR-0086](0086-in-context-gating-dispatch-carved-out-of-the-tier-taxonomy.md) — An in-context-gating dispatch sits outside the dispatch-capability tier taxonomy by carve-out, not as a fourth tier (Accepted) ← change #260 · relates to ADR-0059, ADR-0085
 
 ## Superseded / Reversed
 

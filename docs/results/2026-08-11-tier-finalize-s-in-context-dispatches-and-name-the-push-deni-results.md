@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0260 — Tier finalize's in-context dispatches and name the push-denial posture](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0260-tier-finalize-s-in-context-dispatches-and-name-the-push-deni.md)**
+> ↩ **[Change 0260 — Tier finalize's in-context dispatches and name the push-denial posture](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-11-0260-tier-finalize-s-in-context-dispatches-and-name-the-push-deni.md)**
 <!-- docket:backlink:end -->
 
 # Tier finalize's in-context dispatches and name the push-denial posture — results
