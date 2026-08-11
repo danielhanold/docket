@@ -81,3 +81,20 @@ None — resolved in the spec: frequency is irrelevant (permanence, not frequenc
 and the failure can even be transient via the renderer's config-resolution `git fetch`);
 the marker shares the existing heading with cause in the detail line; the close-out
 failure-branch audit is in the spec (hard-crash residual stays accepted per ADR-0051).
+
+## Carry-forward from #0247 (2026-08-11)
+
+Change 0247 landed on this surface and spent its budget headroom. Before adding to
+`scripts/docket-status.sh`, `tests/test_docket_status.sh`, or `skills/docket-status/SKILL.md`, read
+these two numbers as measured at 0247's close-out:
+
+- `tests/test_docket_status.sh` — roughly **3s of margin** against its 45s row in
+  `tests/runtime-budgets.tsv`.
+- `skills/docket-status/SKILL.md` — **22 words** of headroom against its size budget.
+
+The next edit to either trips a budget. The remedy is already settled and should not be re-derived:
+apply **change 0137's rounding rule** (next multiple of 5 plus a 5s margin, computed from the worst
+*standalone serial* reading, never the contended run-of-the-day number) and carry **change 0201's
+in-diff argument** for the word budget. **#0268 is queued against the same surface**, so whichever of
+the two lands second inherits whatever margin the first leaves. See the learnings finding
+`budget-headroom-is-spent-before-it-is-breached`.

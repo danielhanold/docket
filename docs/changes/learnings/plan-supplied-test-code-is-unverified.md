@@ -2,7 +2,7 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234, 237, 200, 244, 242, 286, 260, 284]
+changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234, 237, 200, 244, 242, 286, 260, 284, 247]
 created: 2026-07-19
 updated: 2026-08-11
 promotion_state: candidate
@@ -363,3 +363,33 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   shared, tested mutation-probe harness): the line-count landing check is the harness's job, not
   each plan author's — the same conclusion #260 reached one entry above, now with the specific
   predicate the harness should implement.
+
+- 2026-08-11 (#247, PR #200) — **Roughly twenty defects in one plan's supplied test code, and one of
+  them was not merely wrong but destructive.** The running tally for this class is now six changes in
+  this drain — **#286, #281, #260, #284, #247** — and this is the highest single-change count yet.
+  **The instance that changes the risk profile: a fixture cleanup that deleted a path outside the
+  fixture.** It ran
+  `rm -rf "$(git -C "$MW" rev-parse --git-dir)/rebase-merge"`. Under `-C`, `rev-parse --git-dir`
+  prints a **relative** `.git`, so the argument resolved against **the test's own cwd**, not `$MW`.
+  Run from the repo root while the developer's real tree was mid-rebase, it would have deleted their
+  live rebase state. Every previous entry in this family costs a wasted diagnostic cycle; this one
+  costs the developer's working tree. The rule that falls out is narrow and mechanical: **a fixture
+  cleanup's `rm -rf` argument must be an absolute path derived from the fixture root, never from a
+  command whose output can be relative** — and `git -C <dir> rev-parse --git-dir` is exactly such a
+  command. Pair it with `--absolute-git-dir`, or build the path from `$MW` yourself.
+  The other severe one: `logical_lines` never passed its `FILE` argument to awk, so it read stdin —
+  the Group A scanner would have shipped **permanently vacuous**, green and checking nothing. Also in
+  the same plan: a permanently-vacuous rebase-state assert whose `mkdir -p "$wt/.git/rebase-merge"`
+  silently does nothing because a linked worktree's `.git` is a *pointer file* (this same trap was
+  hit and fixed **three separate times** on this one surface, which is the tell that it belongs in a
+  shared helper rather than in each author's care), a `pipefail` producer-into-`grep -q` violation, an
+  unsatisfiable mutation-table row, a `--autostash` repo grep failed by the implementation's own
+  explanatory comment, a wrong branch variable in main-mode, and inverted redirections that discarded
+  `rebase --abort`'s errors.
+  **Four mutation probes were green on first run** — the guards they tested were decoration — and
+  each was repaired by adding a *control*, never by explaining the green away. A fifth was green until
+  a `nosync` fixture was added; a sixth silently failed to apply and produced a meaningless green,
+  caught only by the before/after `grep -c` this repo's rules already require.
+  This change is strong evidence for **#0292** (shared, tested mutation-probe harness — now priority
+  **high**): the vacuity controls, the landing check, and an absolute-path cleanup contract are all
+  harness properties, and this branch re-derived every one of them by hand.

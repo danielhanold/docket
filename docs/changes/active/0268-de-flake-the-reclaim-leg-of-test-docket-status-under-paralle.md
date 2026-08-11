@@ -41,3 +41,21 @@ reconciled: false
 **Boundary** — rewrite the one assert to the leg's sibling idiom (`grep -qF "docket.sh reclaim-claims" "$tmp/reclaim-off-out.txt"`), mutation-test the rewritten guard, and demonstrate stability with 10 consecutive green full parallel `scripts/run-tests.sh` runs. It stops there: no production-code change (the diagnosis proves the flake lives in the test's assert), no re-audit of other suites (a whole-repo grep already shows zero other hits of the shape), no `tests/lib/` fixture work — change 0252 owns that; recorded as `related:` only, a file-collision caution with no dependency either way.
 
 **Reason for deferral** — change 0245's branch is scoped to `sync-agents.sh` wrapper generation and its own new suites. Debugging an unrelated suite's parallel-contention flake would expand that branch into a second, independently reviewable concern, and its fix belongs with someone reading the reclaim leg's own design rather than riding a refactor branch.
+
+## Carry-forward from #0247 (2026-08-11)
+
+Change 0247 landed on this surface and spent its budget headroom. Before adding to
+`scripts/docket-status.sh`, `tests/test_docket_status.sh`, or `skills/docket-status/SKILL.md`, read
+these two numbers as measured at 0247's close-out:
+
+- `tests/test_docket_status.sh` — roughly **3s of margin** against its 45s row in
+  `tests/runtime-budgets.tsv`. This change's own acceptance bar is **10 consecutive green full
+  parallel runs**, which is exactly the contended measurement the margin is compared against.
+- `skills/docket-status/SKILL.md` — **22 words** of headroom against its size budget.
+
+The next edit to either trips a budget. The remedy is already settled and should not be re-derived:
+apply **change 0137's rounding rule** (next multiple of 5 plus a 5s margin, computed from the worst
+*standalone serial* reading, never the contended run-of-the-day number) and carry **change 0201's
+in-diff argument** for the word budget. **#0118 is queued against the same surface**, so whichever of
+the two lands second inherits whatever margin the first leaves. See the learnings finding
+`budget-headroom-is-spent-before-it-is-breached`.

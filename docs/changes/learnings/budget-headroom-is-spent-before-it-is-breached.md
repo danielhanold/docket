@@ -2,7 +2,7 @@
 slug: budget-headroom-is-spent-before-it-is-breached
 hook: "A wall-clock budget row sitting AT its ceiling is already spent — the queued changes against that same file, not the current green run, decide whether it breaches."
 topics: [testing, budgets, planning]
-changes: [270, 277]
+changes: [270, 277, 247]
 created: 2026-08-10
 updated: 2026-08-11
 promotion_state: retained
@@ -62,3 +62,17 @@ reader nothing.
   *next* change into the file, not only for the one that spent the margin — but only if the margin
   was written down where that change will read it. The reporting rule in *Apply* is the load-bearing
   half of this finding, not a stylistic preference.
+- 2026-08-11 (#247, PR #200 — merged) — **Two margins spent on the `docket-status` surface, and the
+  two changes that will breach them are already named.** This branch left
+  `tests/test_docket_status.sh` with roughly **3s of margin against its 45s row**, and
+  `skills/docket-status/SKILL.md` with **22 words** of headroom against its size budget. Both numbers
+  are recorded here, not merely as "did not trip the budget check," because **#0118 and #0268 are
+  both queued against `scripts/docket-status.sh`** and will each add to that surface. Whichever lands
+  first is the one that trips it, and it will arrive with no context for why the margin was gone.
+  The remedy is already known and does not need re-deriving: apply **change 0137's rounding rule**
+  (next multiple of 5 plus a 5s margin, applied to the worst *standalone serial* reading, never the
+  run-of-the-day contended one) and carry **change 0201's in-diff argument** for the word budget.
+  Note the second surface: this finding was written about wall-clock rows, but a **word budget on a
+  SKILL.md behaves identically** — a threshold that reports binary, consumed by changes that are not
+  yours, on a file several queued changes all edit. The rule generalizes to any budgeted shared
+  surface, not just the runtime table.
