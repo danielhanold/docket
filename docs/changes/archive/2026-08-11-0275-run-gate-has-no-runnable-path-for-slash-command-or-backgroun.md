@@ -2,7 +2,7 @@
 id: 275
 slug: run-gate-has-no-runnable-path-for-slash-command-or-backgroun
 title: 'Run gate has no runnable path for slash-command or backgrounded implement-next dispatch'
-status: implemented
+status: done
 priority: high
 type: fix
 created: 2026-08-09
@@ -17,7 +17,7 @@ results: docs/results/2026-08-11-run-gate-detached-dispatch-path-results.md
 trivial: false
 auto_groomable: true
 branch: feat/run-gate-has-no-runnable-path-for-slash-command-or-backgroun
-claimed_at: 2026-08-11T05:56:56Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/196
 blocked_by:
 reconciled: true
