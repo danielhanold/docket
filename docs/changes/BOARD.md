@@ -1,14 +1,8 @@
 # Backlog
 
-**290 changes** — 🟢 1 in progress · 🟡 35 proposed · ⚪ 4 deferred · ✅ 174 done · 🗑️ 76 killed
+**291 changes** — 🟡 36 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 174 done · 🗑️ 76 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0260](active/0260-tier-finalize-s-in-context-dispatches-and-name-the-push-deni.md) | Tier finalize's in-context dispatches and name the push-denial posture | `medium` | `fix` | [spec](../superpowers/specs/2026-08-07-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-design.md) | `feat/tier-finalize-s-in-context-dispatches-and-name-the-push-deni` |
-
-## 🟡 Proposed (35)
+## 🟡 Proposed (36)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -47,6 +41,7 @@
 | [0288](active/0288-namespace-the-remaining-un-namespaced-mock-seams-runners-dir.md) | Namespace the remaining un-namespaced mock seams (RUNNERS_DIR, GIT) repo-wide | `medium` | `chore` | needs-brainstorm |
 | [0289](active/0289-bind-budget-ledger-entries-to-the-numbers-they-narrate.md) | Bind budget-ledger entries to the numbers they narrate | `medium` | `chore` | needs-brainstorm |
 | [0290](active/0290-run-tests-sh-timings-truncates-a-test-file-passed-as-its-tar.md) | run-tests.sh --timings truncates a test file passed as its target | `high` | `fix` | needs-brainstorm |
+| [0291](active/0291-load-gate-failure-md-before-the-dispatch-verb-at-both-finali.md) | Load gate-failure.md before the dispatch verb at both finalize gate steps | `medium` | `refactor` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -56,6 +51,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0260](active/0260-tier-finalize-s-in-context-dispatches-and-name-the-push-deni.md) | Tier finalize's in-context dispatches and name the push-denial posture | `medium` | `fix` | [#198](https://github.com/danielhanold/docket/pull/198) |  |
 
 ```mermaid
 graph TD
@@ -99,6 +100,7 @@ graph TD
   0288
   0289
   0290
+  0291
   0192:::done
   0211:::done
   0282:::done
