@@ -10,14 +10,14 @@ updated: 2026-08-11
 depends_on: []
 related: [247]
 discovered_from: [247]
-adrs: []
+adrs: [85]
 spec: docs/superpowers/specs/2026-08-09-auto-groom-s-critic-verdict-return-channel-fails-under-backg-design.md
 plan: docs/superpowers/plans/2026-08-11-auto-groom-s-critic-verdict-return-channel.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/auto-groom-s-critic-verdict-return-channel-fails-under-backg
-claimed_at: 2026-08-11T06:19:41Z
+claimed_at: 2026-08-11T07:28:56Z
 pr:
 blocked_by:
 reconciled: true
@@ -30,6 +30,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-09-auto-groom-s-critic-verdict-return-channel-fails-under-backg-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-auto-groom-s-critic-verdict-return-channel-fails-under-backg-design.md) |
 | Plan | [2026-08-11-auto-groom-s-critic-verdict-return-channel.md](https://github.com/danielhanold/docket/blob/feat/auto-groom-s-critic-verdict-return-channel-fails-under-backg/docs/superpowers/plans/2026-08-11-auto-groom-s-critic-verdict-return-channel.md) |
+| ADRs | [ADR-0085](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0085-critic-verdict-travels-on-one-channel-the-foreground-return.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
