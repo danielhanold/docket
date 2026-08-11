@@ -42,6 +42,12 @@ set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 fail=0
 assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
+# A literal backtick, held in a SINGLE-quoted literal, for the descriptions below that code-format a
+# token beside a `$rel` expansion. No backtick may sit inside double quotes in test source: bare,
+# the shell runs it when it reads the line; backslash-escaped, the escape is consumed there and a
+# bare backtick travels on to the next evaluation (change 0221,
+# scripts/check-test-source-hygiene.sh).
+BT='`'
 
 CONV="$REPO/skills/docket-convention/SKILL.md"
 
@@ -109,9 +115,9 @@ for f in "${SCOPE[@]}"; do
     '! grep <<<"$hay" -qF "$P_PREFIX"'
   assert "no eval-preamble shape in code spans of $rel" \
     '! grep <<<"$hay" -qF "$P_EVAL"'
-  assert "no inline \`fetch origin\` in code spans of $rel" \
+  assert "no inline ${BT}fetch origin${BT} in code spans of $rel" \
     '! grep <<<"$hay" -qF "$P_FETCH"'
-  assert "no inline \`pull --rebase\` in code spans of $rel" \
+  assert "no inline ${BT}pull --rebase${BT} in code spans of $rel" \
     '! grep <<<"$hay" -qF "$P_REBASE"'
 
   # every `docket.sh <op>` in this file's code units must name an inventory op
@@ -121,7 +127,7 @@ for f in "${SCOPE[@]}"; do
     [ -z "$op" ] && continue
     grep <<<"$INVENTORY" -qxF "$op" || bad_ops="$bad_ops $op"
   done < <(grep <<<"$units" -oE 'docket\.sh [a-z-]+' | awk '{print $2}' | sort -u)
-  assert "every \`docket.sh <op>\` in $rel names an inventory op (off-inventory:[$bad_ops])" \
+  assert "every ${BT}docket.sh <op>${BT} in $rel names an inventory op (off-inventory:[$bad_ops])" \
     '[ -z "$bad_ops" ]'
 done
 

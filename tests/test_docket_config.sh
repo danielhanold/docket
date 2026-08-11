@@ -2946,7 +2946,7 @@ emit_fence_tokens(){  # first fenced block after the `### Emit` heading; first t
 doc_plain_keys="$(emit_fence_tokens)"
 doc_shell_keys="$(grep -v '^REPO_ROOT$' <<<"$doc_plain_keys")"
 
-assert "0258 L1 control: the \`### Emit\` fence extraction is non-empty" \
+assert '0258 L1 control: the `### Emit` fence extraction is non-empty' \
   '[ -n "$doc_plain_keys" ]'
 assert "0258 L1 control: the extracted fence contains DOCKET_MODE" \
   'grep -qx DOCKET_MODE <<<"$doc_plain_keys"'
@@ -2977,7 +2977,9 @@ assert "0258 L1: shell emission order equals the doc fence minus REPO_ROOT" \
 # growing the fence forces the numerals to move with it.
 l1_plain_n="$(grep -c . <<<"$doc_plain_keys")"
 l1_shell_n="$(grep -c . <<<"$doc_shell_keys")"
-l1_sentence="$l1_shell_n lines in \`shell\` format; $l1_plain_n in \`plain\`"
+# The anchor carries literal backticks, so its backticked spans are built from single-quoted
+# pieces and concatenated onto the expansions — no backtick may sit inside double quotes (0221).
+l1_sentence="$l1_shell_n"' lines in `shell` format; '"$l1_plain_n"' in `plain`'
 assert "0258 L1: the doc's line-count prose tracks the fence ($l1_shell_n/$l1_plain_n)" \
   'grep -qF -- "$l1_sentence" "$REPO/scripts/docket-config.md"'
 

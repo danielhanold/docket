@@ -10,6 +10,12 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 fail=0
 assert(){ if ( eval "$2" ); then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
+# A literal backtick, held in a SINGLE-quoted literal, for the code-span tokens built below beside a
+# `$d` expansion. No backtick may sit inside double quotes in test source: bare, the shell runs it
+# when it reads the line; backslash-escaped, the escape is consumed there and a bare backtick
+# travels on to the next evaluation (change 0221, scripts/check-test-source-hygiene.sh).
+BT='`'
+
 FIN="$REPO/skills/docket-finalize-change/SKILL.md"
 # Change 0201 moved the marker's write shape + lifecycle mechanics (re-mark, CONFLICTING-at-
 # selection, clearing, the abort surfacing channels) behind a blocking pointer in
@@ -23,7 +29,7 @@ assert "SKILL points at the gate-failure reference (blocking)" \
 # --- SKILL.md: the four-disposition terminal contract ---
 assert "SKILL has a Terminal disposition section" 'grep -Eqi "Terminal disposition" "$FIN"'
 for d in advanced contended drained halted; do
-  tok="\`$d\`"
+  tok="$BT$d$BT"
   assert "SKILL names disposition $d (code-formatted)" 'grep -qF "$tok" "$FIN"'
 done
 # The binary driver rule — both halves must be present (non-vacuous).
@@ -160,7 +166,7 @@ assert "README has the finalize four-disposition lead-in" '[ -n "$fin_lead" ]'
 assert "the finalize enumeration is separable from the binary-rule clause" \
   '[ -n "$fin_enum" ] && [ "$fin_enum" != "$fin_lead" ]'
 for d in advanced contended drained halted; do
-  tok="\`$d\`"
+  tok="$BT$d$BT"
   assert "README finalize enumeration names $d (code-formatted)" 'grep -qF "$tok" <<<"$fin_enum"'
 done
 # Retargeted (learnings: sentinel-passed-on-pre-existing-text): the bare continue/stop phrasing is

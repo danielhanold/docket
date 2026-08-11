@@ -91,8 +91,10 @@ out="$( cd "$SBX" && vr 14 )"
 assert "halted: a satisfied postcondition outranks a stale halt record" '[ "$out" = "run-complete 14" ]'
 
 # --- a prose MENTION of the marker is not the section (whole-line match) -------
-write_change 15 in-progress feat/slug15 "" "
-Writing a \`## Run halted\` section is how a run clears the gate."
+# Fixture body carried in a SINGLE-quoted literal: the anchor it quotes has backticks, and a
+# multi-line double-quoted block carrying one is the exact 0212 incident shape (0221).
+write_change 15 in-progress feat/slug15 "" '
+Writing a `## Run halted` section is how a run clears the gate.'
 out="$( cd "$SBX" && vr 15 )"
 assert "halted: a prose mention does not fire the section" \
   '! grep -q "^run-halted" <<<"$out"'

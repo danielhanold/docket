@@ -662,7 +662,7 @@ assert "elsewhere: shape control — a real flag-argument mention is code-shaped
 # ERE reddens exactly this assert (mutation-tested, one alternative at a time).
 _shape_fx_colon="$tmp/shape-colon.sh"
 printf '%s\n' 'sed -n "s/^agents[[:space:]]*:.*/&/p" "$f"' > "$_shape_fx_colon"
-assert "elsewhere: shape control — shape 1 (\`:\`-adjacency) alone is code-shaped" \
+assert 'elsewhere: shape control — shape 1 (`:`-adjacency) alone is code-shaped' \
   'code_shaped_mention agents "$_shape_fx_colon"'
 _shape_fx_dot="$tmp/shape-dot.sh"
 printf '%s\n' 'die "runners.opencode.permissions must be set"' > "$_shape_fx_dot"

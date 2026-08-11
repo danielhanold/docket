@@ -209,7 +209,9 @@ assert "Composition: the never-adopt-a-child's-files rule survives" \
 # of after it. Built from the live `$CRITIC_INTRO` needle so the probe exercises the anchor the
 # ordering assert actually uses; a typo in either needle would otherwise make that assert
 # permanently, vacuously green.
-probe_flat="$(flat "\`docket-auto-groom\` dispatches the ${CRITIC_INTRO}; their contract is **git state** on origin/docket.")"
+# The literal spans are single-quoted and concatenated around the expansion — the same idiom
+# `$CRITIC_INTRO` itself uses above. No backtick may sit inside double quotes in test source (0221).
+probe_flat="$(flat '`docket-auto-groom` dispatches the '"${CRITIC_INTRO}"'; their contract is **git state** on origin/docket.')"
 p_gs="$(awk -v s='contract is **git state**' '{ print index($0, s) }' <<<"$probe_flat")"
 p_cr="$(awk -v s="$CRITIC_INTRO" '{ print index($0, s) }' <<<"$probe_flat")"
 assert "the ordering matcher rejects the pre-0281 shape (git-state=$p_gs critic=$p_cr)" \

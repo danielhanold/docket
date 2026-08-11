@@ -3766,7 +3766,13 @@ assert "the board-checks.md check-id extraction is non-empty (a retitled section
 assert "the docket-status.md check-id extraction is non-empty (a reflowed table row must redden, not pass vacuously)" \
   '[ "$(grep -c . <<<"$ds_ids")" -ge 1 ]'
 
-assert "emitted check-id SET == scripts/board-checks.md's per-check sections (add or remove a '**\`<id>\`**' section there)" \
+# The description quotes the doc's own section-head spelling, apostrophes and backticks and all, so
+# it is carried in a quoted-delimiter heredoc — inert text, no backtick inside double quotes (0221).
+bc_doc_desc="$(cat <<'BCDESC'
+emitted check-id SET == scripts/board-checks.md's per-check sections (add or remove a '**`<id>`**' section there)
+BCDESC
+)"
+assert "$bc_doc_desc" \
   '[ -z "$(comm -3 <(printf "%s\n" "$emitted") <(printf "%s\n" "$doc_ids"))" ] \
    || { echo "board-checks.md drift (left=emitted only, right=documented only):" >&2; \
         comm -3 <(printf "%s\n" "$emitted") <(printf "%s\n" "$doc_ids") >&2; false; }'

@@ -24,7 +24,14 @@ assert(){ if ( eval "$2" ); then printf 'ok - %s\n' "$1"; else printf 'NOT OK - 
 # Backticks live inside these function bodies and never inside an assert argument: assert() evals its
 # argument, so a backtick there would re-parse as command substitution. A function body is parsed
 # once, at definition, and eval never re-reads it.
-has_code_token(){ grep -qF -- "\`$1\`"; }
+#
+# The backtick itself comes from `$BT` rather than being written into the double-quoted pattern: no
+# backtick may sit inside double quotes in test source, because bare it runs when the shell reads
+# the line and backslash-escaped the escape is consumed there, sending a bare backtick on to the
+# next evaluation (change 0221, scripts/check-test-source-hygiene.sh). An expansion's result is
+# never re-scanned for command substitution, so the concatenation is inert.
+BT='`'
+has_code_token(){ grep -qF -- "$BT$1$BT"; }
 has_postconditions_heading(){ grep -qF -- "### Step postconditions"; }
 table_row(){ grep -F -- "| $1 |"; }              # the extractor…
 has_table_row(){ table_row "$1" > /dev/null; }   # …and the presence test over the same literal

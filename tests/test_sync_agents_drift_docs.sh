@@ -495,31 +495,31 @@ norm() { tr '\n' ' ' | tr -s '[:space:]' ' '; }
 readme_global="$(sed -n '/^# ~\/\.config\/docket\/config\.yml — optional/,/^```$/p' "$READMEF" | norm)"
 assert "0255 docs: README global config.yml example states the rule" \
   '/usr/bin/grep -qF "$rule_re" <<<"$readme_global"'
-assert "0255 docs: README global config.yml example states the no-\`#\` clause" \
+assert '0255 docs: README global config.yml example states the no-`#` clause' \
   '/usr/bin/grep -qF "$flow_re" <<<"$readme_global"'
 
 readme_local="$(sed -n '/^# <repo>\/\.docket\.local\.yml/,/^```$/p' "$READMEF" | norm)"
 assert "0255 docs: README .docket.local.yml example states the rule" \
   '/usr/bin/grep -qF "$rule_re" <<<"$readme_local"'
-assert "0255 docs: README .docket.local.yml example states the no-\`#\` clause" \
+assert '0255 docs: README .docket.local.yml example states the no-`#` clause' \
   '/usr/bin/grep -qF "$flow_re" <<<"$readme_local"'
 
 skill_agents_line="$(/usr/bin/grep -n '^agents:' "$CONV" | norm || true)"
 assert "0255 docs: convention SKILL.md agents: schema line states the rule" \
   '/usr/bin/grep -qF "$rule_re" <<<"$skill_agents_line"'
-assert "0255 docs: convention SKILL.md agents: schema line states the no-\`#\` clause" \
+assert '0255 docs: convention SKILL.md agents: schema line states the no-`#` clause' \
   '/usr/bin/grep -qF "$flow_re" <<<"$skill_agents_line"'
 
 layer_example="$(sed -n '/^agents:  */,/^```$/p' "$AGL" | norm)"
 assert "0255 docs: agent-layer.md example block states the rule" \
   '/usr/bin/grep -qF "$rule_re" <<<"$layer_example"'
-assert "0255 docs: agent-layer.md example block states the no-\`#\` clause" \
+assert '0255 docs: agent-layer.md example block states the no-`#` clause' \
   '/usr/bin/grep -qF "$flow_re" <<<"$layer_example"'
 
 example_intro="$(sed -n '/^# agents — per-skill subagent model\/effort/,/^# agents:$/p' "$REPO/.docket.example.yml" | norm)"
 assert "0255 docs: .docket.example.yml agents: intro states the rule" \
   '/usr/bin/grep -qF "$rule_re" <<<"$example_intro"'
-assert "0255 docs: .docket.example.yml agents: intro states the no-\`#\` clause" \
+assert '0255 docs: .docket.example.yml agents: intro states the no-`#` clause' \
   '/usr/bin/grep -qF "$flow_re" <<<"$example_intro"'
 
 # Non-vacuity: every slice above must be non-empty, or a renamed heading turns all five asserts

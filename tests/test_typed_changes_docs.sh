@@ -39,6 +39,12 @@ BF="$ROOT/scripts/backfill-change-types.md"
 NC="$ROOT/skills/docket-new-change/SKILL.md"
 fail=0
 assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
+# A literal backtick, held in a SINGLE-quoted literal, for the description below that code-formats
+# key names beside a `${scalar_hits…}` expansion. No backtick may sit inside double quotes in test
+# source: bare, the shell runs it when it reads the line; backslash-escaped, the escape is consumed
+# there and a bare backtick travels on to the next evaluation (change 0221,
+# scripts/check-test-source-hygiene.sh).
+BT='`'
 
 # Prose asserts run against a WHITESPACE-FLATTENED copy of the file: these docs are hard-wrapped,
 # so a sentence a guard depends on can (and does) straddle a newline, and a line-anchored grep
@@ -74,7 +80,7 @@ a_files(){
 scalar_hits="$(a_files | while read -r f; do
   grep -nE '^[[:space:]]*auto_capture:[[:space:]]*[^[:space:]#]' "$f" | sed "s|^|${f#"$ROOT"/}:|"
 done)"
-assert "(A) no config example ships the retired scalar auto_capture (0127 made it a MAP with no shim — a bare scalar is a hard resolver failure in every layer; use \`auto_capture:\` / \`enabled:\` / \`types:\`). Offenders: [${scalar_hits//$'\n'/ | }]" \
+assert "(A) no config example ships the retired scalar auto_capture (0127 made it a MAP with no shim — a bare scalar is a hard resolver failure in every layer; use ${BT}auto_capture:${BT} / ${BT}enabled:${BT} / ${BT}types:${BT}). Offenders: [${scalar_hits//$'\n'/ | }]" \
   '[ -z "$scalar_hits" ]'
 
 # POSITIVE COUNTERPART — the map form must actually be present and well-formed, so the negative

@@ -137,9 +137,9 @@ rm -rf "$SBX"
 # The surviving argv path is non-lossy too — order preserved, joined on NEWLINE, not on a space.
 make_fixture
 run_adapter --agent status -- "argv-alpha" "argv-beta" >/dev/null 2>&1
-assert "0277 codex: multiple post-\`--\` args each land on their own line" \
+assert '0277 codex: multiple post-`--` args each land on their own line' \
   'grep -qxF -- "argv-alpha" "$LOG" && grep -qxF -- "argv-beta" "$LOG"'
-assert "0277 codex: post-\`--\` args are NOT space-joined" '! grep -qF -- "argv-alpha argv-beta" "$LOG"'
+assert '0277 codex: post-`--` args are NOT space-joined' '! grep -qF -- "argv-alpha argv-beta" "$LOG"'
 # Line numbers captured variable-side, never `grep | head` — a producer piped into an early-exiting
 # consumer takes SIGPIPE under pipefail (AGENTS.md).
 alpha_hits="$(grep -nxF -- "argv-alpha" "$LOG")"; alpha_ln="$(head -n1 <<<"$alpha_hits")"; alpha_ln="${alpha_ln%%:*}"

@@ -1160,7 +1160,7 @@ assert "guard1 flags a \${out:-} default-expansion write (the guarded file's OWN
 printf '%s\n' '#!/usr/bin/env bash' \
   'out=`"$SCRIPTS_DIR"/render-board.sh --changes-dir "$d"`' \
   'printf '"'"'%s'"'"' "$out" > "$f"' > "$mut/taint-backtick.sh"
-assert "guard1 flags a BACKTICK capture that is then written (out=\`render-board.sh …\`)" \
+assert 'guard1 flags a BACKTICK capture that is then written (out=`render-board.sh …`)' \
   '! render_board_write_free "$mut/taint-backtick.sh" >/dev/null'
 
 # (19i) ARRAY CAPTURE — `out=($(…))`, written back out with `"${out[@]}"`. Evades a capture pattern
@@ -1904,7 +1904,7 @@ assert "render-board.sh iterates DOCKET_STATUSES_ACTIVE at all three active-only
 # Scoped to what the pattern actually proves: `^\s*for st in [a-z]` sees iteration headers only.
 # Change 0116 discharges the former deferral for the other set-shaped sites with helper-based
 # derivation and explicit mapping guards below; this narrow sentinel keeps its honest name.
-assert "no hand-written \`for st in\` status list survives in render-board.sh" '[ "$n_literal" = 0 ]'
+assert 'no hand-written `for st in` status list survives in render-board.sh' '[ "$n_literal" = 0 ]'
 
 # (b) the arrays themselves: composition and order (the golden compares bytes, this names the rule)
 assert "DOCKET_STATUSES is ACTIVE ++ TERMINAL, in that order" \
