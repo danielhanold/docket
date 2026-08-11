@@ -64,6 +64,48 @@ time after it finishes.
 
 Ordering is a scheduling decision only. It never changes a verdict.
 
+### Source-hygiene preflight
+
+Before the budget table is read and before the first job launches, the runner scans every target
+with `scripts/check-test-source-hygiene.sh` and refuses to start if it comes back dirty. A violation
+exits **5**, having executed **zero** test files.
+
+The placement is the whole point, not a convenience. A backtick in test source runs when the shell
+**reads that line** — before the file's first `assert`, before any helper prints anything — so by
+the time a post-hoc lint could report it, a peer file's source has already been evaluated and
+whatever it carried has already run. Detection after execution is not prevention, which is why this
+scan is synchronous and upstream of every launch rather than a pass over the logs. Change 0212
+shipped exactly that hazard: a multi-line double-quoted block whose quoted anchor text carried
+`git checkout .`.
+
+What the checker rejects — four backtick classes and one definition-drift class — is
+`scripts/check-test-source-hygiene.md`'s contract, not this one's. Two of its properties change how a
+run-tests verdict reads:
+
+- **The scan is not limited to the targets.** Its definition-drift rule sweeps the whole `tests/`
+  tree (excluding `tests/fixtures/`, whose red half is drifted on purpose), because assert helpers
+  live in `tests/lib/*.sh` files that the `tests/test_*.sh` glob never passes. So a single-file run
+  can abort on drift in a file it was not asked to run. That is deliberate: the drift is real either
+  way, and the alternative leaves those definitions permanently unguarded.
+- **It protects suite runs only.** `bash tests/test_x.sh` run directly bypasses the preflight
+  entirely, because nothing but this runner calls it. That residual is accepted knowingly — the
+  alternative is a preamble in 100+ test files — and it is why `tests/README.md` carries the rule in
+  prose as well.
+
+**An unusable checker refuses the run; it never skips itself.** If
+`scripts/check-test-source-hygiene.sh` is missing or unreadable, or it exits with anything other
+than "clean" or "violations found", the runner exits **2** — the same *will not start* family as the
+Bash floor — and launches nothing. A gate that waves the run through when its own checker is absent
+certifies safety it did not provide, which is worse than having no gate, because the run still looks
+inspected. Readability is what is tested, not the execute bit: the checker is invoked as
+`bash <path>`, which never needs one.
+
+The preflight runs **after** the usage checks above, so a mistyped target and an unwritable
+`--timings` path stay the exit-2 usage errors they have always been rather than being pre-empted by
+a scan of files the caller got wrong. `tests/test_run_tests.sh` pins the ordering claim with a
+marker file: its hazard fixture writes one from inside the substitution itself, and the run is only
+green if that marker is still absent afterwards.
+
 ### Per-job isolation
 
 Each job runs in a subshell with a private sandbox under the runner's temp directory:
@@ -227,7 +269,8 @@ and it is explicitly deferred to it**, not quietly dropped.
 | 1 | At least one test file exited non-zero. Takes precedence over a budget breach and over a missing result. |
 | 3 | Every target that produced a result passed, but at least one produced **no result at all** — its job died before recording one. The run certified nothing about that file. |
 | 4 | `--strict-budget` was given, every test file exited 0, and at least one exceeded its budget. |
-| 2 | Usage error — unknown flag, a flag missing its argument, a non-positive `-j`, a `TEST` that does not exist, **two `TEST`s that share a basename**, an unwritable `--timings` path, an empty test set, `--no-budget-check` together with `--strict-budget` — or the interpreter is pre-Bash-4.3 and no usable `runtime.bash` was configured to re-exec under. |
+| 5 | The source-hygiene preflight found a violation. **Zero test files were executed** — no job launched, no report produced. |
+| 2 | Usage error — unknown flag, a flag missing its argument, a non-positive `-j`, a `TEST` that does not exist, **two `TEST`s that share a basename**, an unwritable `--timings` path, an empty test set, `--no-budget-check` together with `--strict-budget` — or the runner will not start: the interpreter is pre-Bash-4.3 and no usable `runtime.bash` was configured to re-exec under, or the source-hygiene checker is missing, unreadable, or could not complete. |
 | 130 / 143 | Interrupted by `SIGINT` / `SIGTERM`. The in-flight jobs are reaped, the work directory is removed after them, and a one-line loss report goes to stderr. No report is produced. |
 
 Exit **4** is separated from **1** on purpose: "the suite is red" and "the suite is green but
@@ -249,6 +292,15 @@ tests would find none, and the remedy here is to re-run (and, if it recurs, lowe
 below **1** because when a run is both red and incomplete the real failure is the more actionable
 signal — the `NO RESULT:` block is printed either way.
 
+Exit **5** is a **failure**, not one of this runner's non-failure outcomes. ADR-0074 makes the build
+gate read a bare non-zero and delegate that judgment to the resolved runner's documented contract,
+so this row is where the judgment is recorded: unlike **3** (nothing failed and there is nothing to
+root-cause) and **4** (the suite is green, something got slow), a **5** names a concrete defect at a
+concrete `file:line` and the remedy is an edit to that file. A caller that answers it by dispatching
+a repair agent is doing the right thing. It is distinct from **1** because no test ran to fail —
+reading the logs for a failing assertion would find none — and because the abort is the *only* thing
+standing between the run and executing that source.
+
 ## Invariants
 
 - **Parallelism changes wall time, never a verdict.** `-j 1` is the serial reference; `-j N` must
@@ -258,7 +310,12 @@ signal — the `NO RESULT:` block is printed either way.
 - **Never more than `-j N` jobs in flight.** Slots are held with `wait -n`, so a slot frees the
   moment any one job finishes rather than at a batch boundary.
 - **Zero-touch against the tests.** No test file is modified, sourced, or wrapped. The runner adds
-  environment and reads exit status; it injects nothing into the test's shell.
+  environment and reads exit status; it injects nothing into the test's shell. The source-hygiene
+  preflight *reads* every target's bytes before the first launch, and only reads them — a checker
+  that had to run a file to judge it would be the hazard it exists to catch.
+- **Nothing executes until the preflight has passed.** A hygiene violation, or a checker that cannot
+  be used, aborts with no job launched at all. `tests/test_run_tests.sh` asserts it against a marker
+  file rather than against the exit code alone.
 - **Read-only against the repo.** It writes only into its own temp directory and, if asked, the
   `--timings` path. It touches no branch, no change file, and no board surface.
 - **The budget comparison is on by default; its teeth are opt-in.** Three states, not two: on and
