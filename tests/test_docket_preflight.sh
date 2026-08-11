@@ -105,7 +105,7 @@ assert "D2 guard: nothing was created at the refused target" '[ ! -d "$work2_abs
 # mapped by docket_anchor_path to the root) had NO test at all, so a regression that moved the
 # anchor line inside the docket-mode branch would ship undetected. Reuses $bare (already a real
 # repo with `main` tracking `origin/main`, built in section B) for a fresh clone, since main-mode's
-# `git -C "$root" pull --rebase` needs a real upstream to pull against.
+# sync needs a real remote to fetch `main` from. Section P below extends this same $work3.
 work3="$tmp/dk3"
 git clone --quiet "$bare" "$work3" 2>/dev/null
 git -C "$work3" config user.email t@t.test; git -C "$work3" config user.name Test
@@ -404,5 +404,233 @@ assert "O3: the remote commit was NOT integrated onto the detached HEAD" \
   '[ ! -f "$work/.docket/remote-moved-5.txt" ]'
 assert "O3: it spent no retry budget" '[ "$(backoffs "$tmp/o3.count")" -eq 0 ]'
 git -C "$work/.docket" checkout -q docket >/dev/null 2>&1 || :
+
+# --- (P) the sync NEVER rewrites a branch that is not the one it was asked to sync --------------
+# The regression pinned here (review finding): main-mode stopped being upstream-relative. The old
+# line was `git -C "$root" pull --rebase` — whatever branch the PRIMARY tree had checked out, synced
+# against its OWN upstream — and it became `fetch origin <integration_branch>` plus a rebase onto
+# that tip. Main-mode is exactly the configuration chosen by people who do not want extra worktrees,
+# so a topic branch checked out in the primary tree is an ORDINARY state, and preflight is Step 0 of
+# every docket skill. Measured against the pre-fix behaviour on this very fixture: rc=0, the topic
+# branch's HEAD moved, origin/main's commit appeared in the tree, and the branch ended diverged from
+# its own remote — a silent rewrite of the user's history, reported as success.
+#
+# P1-P3 and P7 EXTEND section G's main-mode fixture ($work3, a clone of $bare on `main`) rather than
+# minting a parallel one; P4-P5 need an integration branch that is not named `main`, which no
+# existing fixture has. In main-mode $dir is the PRIMARY worktree, where .git IS a directory — the
+# opposite of the linked-worktree shape that made sections L/N/O's probes go vacuous twice. The
+# asserts below therefore key on branch tips and file presence, which mean the same thing in both,
+# and each fixture asserts its own precondition so a fixture that stops reproducing the bug fails
+# loudly instead of passing quietly.
+
+# mover — a throwaway clone standing in for whoever advances origin/main. $other is on the docket
+# branch and section B's $work is the docket-mode fixture, so neither can play this part.
+mover="$tmp/mover"; git clone --quiet "$bare" "$mover" 2>/dev/null
+git -C "$mover" config user.email t@t.test; git -C "$mover" config user.name Test
+git -C "$mover" checkout --quiet -B main origin/main
+printf 'integration moved\n' > "$mover/integration-moved.txt"
+git -C "$mover" add integration-moved.txt; git -C "$mover" commit --quiet -m "main moved"
+git -C "$mover" push --quiet origin HEAD:main
+
+# (P1) main-mode, primary tree on a TOPIC branch, origin/<integration> has MOVED.
+git -C "$work3" checkout --quiet -b topic
+printf 'my work\n' > "$work3/topic.txt"
+git -C "$work3" add topic.txt; git -C "$work3" commit --quiet -m "the human's own commit"
+git -C "$work3" push --quiet -u origin topic
+# Refresh origin/main so the preconditions read the real remote tip: this clone predates the mover's
+# push, and a stale remote-tracking ref would make "the remote really moved" false in the wrong
+# direction — a precondition that lies green.
+git -C "$work3" fetch --quiet origin main
+p_head="$(git -C "$work3" rev-parse HEAD)"
+assert "P1: fixture precondition — the primary tree is on a topic branch, level with its OWN upstream" \
+  '[ "$(git -C "$work3" symbolic-ref --short -q HEAD)" = topic ] && [ "$(git -C "$work3" rev-list --count "origin/topic..HEAD")" -eq 0 ]'
+assert "P1: fixture precondition — origin/main really has moved, so the rebase arm is reachable" \
+  '! git -C "$work3" merge-base --is-ancestor "$(git -C "$work3" rev-parse origin/main)" HEAD'
+mkcounter "$tmp/p1.count" "$tmp/p1-sleep.sh"
+( cd "$work3" && . "$LIB" && CONFIG_EXPORT_CMD="bash $tmp/main-export.sh" \
+    DOCKET_PREFLIGHT_TEST_SLEEP_CMD="bash $tmp/p1-sleep.sh" docket_preflight "$SCRIPTS" ) \
+    >/dev/null 2>"$tmp/p1.err"; rc=$?
+assert "P1: main-mode on a branch that is not the integration branch must NOT report success" '[ "$rc" -ne 0 ]'
+assert "P1: the human's topic branch was NOT rewritten — its tip is untouched" \
+  '[ "$(git -C "$work3" rev-parse HEAD)" = "$p_head" ]'
+assert "P1: the integration branch's commit was NOT grafted onto the topic branch" \
+  '[ ! -f "$work3/integration-moved.txt" ]'
+assert "P1: the topic branch did not diverge from its own upstream" \
+  '[ "$(git -C "$work3" rev-list --count "origin/topic..HEAD")" -eq 0 ]'
+assert "P1: the diagnostic names both the branch found and the branch expected" \
+  'grep -q "on branch .topic., not .main." "$tmp/p1.err"'
+assert "P1: a wrong branch is a human's state — no retry budget spent" \
+  '[ "$(backoffs "$tmp/p1.count")" -eq 0 ]'
+assert "P1: it is not misreported as the detached or the wedged class" \
+  '! grep -qi "is DETACHED" "$tmp/p1.err" && ! grep -qi "rebase or merge is in progress" "$tmp/p1.err"'
+
+# (P2) the same wrong branch with the integration branch STANDING STILL. Refusing only the rebase is
+# not enough: the fast path sits above it and would return 0 here, and the caller's next act is a
+# metadata commit onto that topic branch. A real merge of origin/main INTO the topic branch makes
+# origin/main an ancestor of HEAD without moving the topic branch onto it — precisely the
+# "nothing to integrate" shape the fast path fires on. Non-zero rc plus zero backoffs is what
+# separates "refused ahead of the fast path" from "the rebase happened to have nothing to do".
+git -C "$work3" merge --quiet --no-edit origin/main >/dev/null 2>&1
+p2_head="$(git -C "$work3" rev-parse HEAD)"
+assert "P2: fixture precondition — still on the topic branch, and origin/main is now an ANCESTOR of HEAD (the fast path is reachable)" \
+  '[ "$(git -C "$work3" symbolic-ref --short -q HEAD)" = topic ] && git -C "$work3" merge-base --is-ancestor "$(git -C "$work3" rev-parse origin/main)" HEAD'
+mkcounter "$tmp/p2.count" "$tmp/p2-sleep.sh"
+( cd "$work3" && . "$LIB" && CONFIG_EXPORT_CMD="bash $tmp/main-export.sh" \
+    DOCKET_PREFLIGHT_TEST_SLEEP_CMD="bash $tmp/p2-sleep.sh" docket_preflight "$SCRIPTS" ) \
+    >/dev/null 2>"$tmp/p2.err"; rc=$?
+assert "P2: the fast path does not green-light a tree on the wrong branch" '[ "$rc" -ne 0 ]'
+assert "P2: HEAD is untouched" '[ "$(git -C "$work3" rev-parse HEAD)" = "$p2_head" ]'
+assert "P2: the diagnostic still names the wrong-branch class" \
+  'grep -q "on branch .topic., not .main." "$tmp/p2.err"'
+assert "P2: no retry budget spent" '[ "$(backoffs "$tmp/p2.count")" -eq 0 ]'
+
+# (P3) the SAME primary tree back on the integration branch still syncs — the guard refuses the
+# wrong branch, it does not break main-mode. Without this, P1/P2 would pass against a "fix" that
+# simply broke main-mode outright. Section G asserted main-mode returns zero against a remote that
+# had never moved; this one has to integrate real remote movement.
+git -C "$work3" checkout --quiet main
+mkcounter "$tmp/p3.count" "$tmp/p3-sleep.sh"
+( cd "$work3" && . "$LIB" && CONFIG_EXPORT_CMD="bash $tmp/main-export.sh" \
+    DOCKET_PREFLIGHT_TEST_SLEEP_CMD="bash $tmp/p3-sleep.sh" docket_preflight "$SCRIPTS" ) \
+    >/dev/null 2>"$tmp/p3.err"; rc=$?
+assert "P3: main-mode ON the integration branch still returns zero" '[ "$rc" -eq 0 ]'
+assert "P3: and it actually integrated origin/main" '[ -f "$work3/integration-moved.txt" ]'
+
+# (P4) an UNSET INTEGRATION_BRANCH fails closed instead of falling back to METADATA_BRANCH. That
+# fallback resolves to the mode KEYWORD "main" (docket-config.sh accepts only 'docket'/'main' for
+# that key), which is not a branch name — the very wrong-ref case the adjacent comment claims this
+# change fixed. This fixture's integration branch is 'trunk', so the fallback fetches a ref that does
+# not exist. Asserting the refusal is PRE-FETCH (git never printed its own failure, zero backoffs) is
+# what distinguishes failing closed from failing only after burning the whole ~22s budget.
+bare_t="$tmp/t.git"; workt="$tmp/t"
+git init --quiet --bare "$bare_t"
+git clone --quiet "$bare_t" "$workt" 2>/dev/null
+git -C "$workt" config user.email t@t.test; git -C "$workt" config user.name Test
+git -C "$workt" checkout --quiet -b trunk; : > "$workt/README.md"
+git -C "$workt" add README.md; git -C "$workt" commit --quiet -m init
+git -C "$workt" push --quiet -u origin trunk
+printf 'BOOTSTRAP=PROCEED\nDOCKET_MODE=main\nMETADATA_BRANCH=main\nMETADATA_WORKTREE=.\nCHANGES_DIR=docs/changes\n' > "$tmp/noib.env"
+mkexport "$tmp/noib.env" "$tmp/noib-export.sh"
+mkcounter "$tmp/p4.count" "$tmp/p4-sleep.sh"
+( cd "$workt" && . "$LIB" && CONFIG_EXPORT_CMD="bash $tmp/noib-export.sh" \
+    DOCKET_PREFLIGHT_TEST_SLEEP_CMD="bash $tmp/p4-sleep.sh" docket_preflight "$SCRIPTS" ) \
+    >/dev/null 2>"$tmp/p4.err"; rc=$?
+assert "P4: an unset INTEGRATION_BRANCH fails closed in main-mode" '[ "$rc" -ne 0 ]'
+assert "P4: the diagnostic names INTEGRATION_BRANCH, not the network" \
+  'grep -q "INTEGRATION_BRANCH" "$tmp/p4.err"'
+assert "P4: it never fell back to the mode keyword and fetched a nonexistent 'main'" \
+  '! grep -q "couldn.t find remote ref main" "$tmp/p4.err"'
+assert "P4: it refused before spending any retry budget" '[ "$(backoffs "$tmp/p4.count")" -eq 0 ]'
+
+# (P5) a repo whose integration branch is NOT literally "main" fetches and integrates the RIGHT ref.
+# P4 proves the fallback is gone; this proves the replacement resolves a non-"main" branch correctly
+# rather than merely refusing everything.
+othert="$tmp/t-other"; git clone --quiet "$bare_t" "$othert" 2>/dev/null
+git -C "$othert" config user.email t@t.test; git -C "$othert" config user.name Test
+# $bare_t's own HEAD names a branch that was never pushed (only `trunk` was), so the clone lands on
+# an UNBORN branch. Without this checkout the "other agent" would build a disconnected root commit
+# and its push would be rejected as non-fast-forward — leaving P5 asserting against a remote that
+# never moved.
+git -C "$othert" checkout --quiet -B trunk origin/trunk
+printf 'trunk moved\n' > "$othert/trunk-moved.txt"
+git -C "$othert" add trunk-moved.txt; git -C "$othert" commit --quiet -m "trunk moved"
+git -C "$othert" push --quiet origin HEAD:trunk
+printf 'BOOTSTRAP=PROCEED\nDOCKET_MODE=main\nMETADATA_BRANCH=main\nMETADATA_WORKTREE=.\nINTEGRATION_BRANCH=trunk\nCHANGES_DIR=docs/changes\n' > "$tmp/trunk.env"
+mkexport "$tmp/trunk.env" "$tmp/trunk-export.sh"
+mkcounter "$tmp/p5.count" "$tmp/p5-sleep.sh"
+( cd "$workt" && . "$LIB" && CONFIG_EXPORT_CMD="bash $tmp/trunk-export.sh" \
+    DOCKET_PREFLIGHT_TEST_SLEEP_CMD="bash $tmp/p5-sleep.sh" docket_preflight "$SCRIPTS" ) \
+    >/dev/null 2>"$tmp/p5.err"; rc=$?
+assert "P5: an integration branch named 'trunk' syncs successfully" '[ "$rc" -eq 0 ]'
+assert "P5: it fetched and integrated origin/trunk, not a ref named after the mode keyword" \
+  '[ -f "$workt/trunk-moved.txt" ]'
+assert "P5: no wrong-ref fetch failure was printed" \
+  '! grep -q "couldn.t find remote ref" "$tmp/p5.err"'
+
+# (P6) the guard is UNIFORM across both arms of the sync — docket-mode gets it too. A shared helper
+# that polices its target in one caller and not the other is how the two arms drift apart, which is
+# the spec's own "both branches of the sync function must behave identically" clause (Half 1 item 1).
+#
+# Runs against $work2's metadata worktree, NOT $work's: sections L-O left conflicting commits on the
+# latter, so a stray branch there would be refused by the CONFLICT arm and every assert below would
+# pass without the wrong-branch arm existing at all (confirmed by mutation — the vacuity is not
+# hypothetical). $work2/.docket has never been written to, so a wrong-branch rebase would SUCCEED
+# there, which is what makes refusing it observable.
+git -C "$work2/.docket" checkout -q -b stray-branch >/dev/null 2>&1
+stray_head="$(git -C "$work2/.docket" rev-parse HEAD)"
+assert "P6: fixture precondition — the metadata worktree is on a branch that is not METADATA_BRANCH" \
+  '[ "$(git -C "$work2/.docket" symbolic-ref --short -q HEAD)" = stray-branch ]'
+assert "P6: fixture precondition — origin/docket has moved past it, so the rebase arm is reachable" \
+  'git -C "$work2/.docket" fetch -q origin docket && ! git -C "$work2/.docket" merge-base --is-ancestor "$(git -C "$work2/.docket" rev-parse origin/docket)" HEAD'
+mkcounter "$tmp/p6.count" "$tmp/p6-sleep.sh"
+( cd "$work2" && . "$LIB" && CONFIG_EXPORT_CMD="bash $tmp/ok-export.sh" \
+    DOCKET_PREFLIGHT_TEST_SLEEP_CMD="bash $tmp/p6-sleep.sh" docket_preflight "$SCRIPTS" ) \
+    >/dev/null 2>"$tmp/p6.err"; rc=$?
+assert "P6: docket-mode refuses a metadata worktree parked on the wrong branch" '[ "$rc" -ne 0 ]'
+assert "P6: that branch was not rewritten either" \
+  '[ "$(git -C "$work2/.docket" rev-parse HEAD)" = "$stray_head" ]'
+assert "P6: the diagnostic names both branches" \
+  'grep -q "on branch .stray-branch., not .docket." "$tmp/p6.err"'
+assert "P6: no retry budget spent" '[ "$(backoffs "$tmp/p6.count")" -eq 0 ]'
+git -C "$work2/.docket" checkout -q docket >/dev/null 2>&1 || :
+git -C "$work2/.docket" branch -q -D stray-branch >/dev/null 2>&1 || :
+
+# (P7) the remote tip comes from the REMOTE-TRACKING REF, not FETCH_HEAD — for both arms, since the
+# resolution lives in the shared helper. FETCH_HEAD is per-worktree but not per-PROCESS, and in
+# main-mode $dir is the PRIMARY worktree, shared with every other docket helper that fetches there
+# (sync-integration-branch.sh, terminal-publish.sh). One of those landing between the sync's fetch
+# and its read of the tip hands the rebase a DIFFERENT branch's tip.
+#
+# The fixture makes that interleaving deterministic through the GIT seam rather than hoping to lose a
+# race: a wrapper that forwards every call to real git and, after any `fetch`, fetches the METADATA
+# branch into the same tree — which is exactly what those helpers do. Against a FETCH_HEAD read the
+# sync then rebases the integration branch onto the metadata branch's tip and reports success.
+git -C "$mover" pull -q --rebase origin main >/dev/null 2>&1
+printf 'integration moved again\n' > "$mover/integration-moved-2.txt"
+git -C "$mover" add integration-moved-2.txt; git -C "$mover" commit --quiet -m "main moved again"
+git -C "$mover" push --quiet origin HEAD:main
+{ printf '#!/usr/bin/env bash\n'
+  printf 'real=%q\n' "$(command -v git)"
+  printf '"$real" "$@"; rc=$?\n'
+  printf 'for a in "$@"; do\n'
+  printf '  [ "$a" = fetch ] || continue\n'
+  printf '  "$real" -C %q fetch origin docket >/dev/null 2>&1\n' "$work3"
+  printf '  break\n'
+  printf 'done\n'
+  printf 'exit "$rc"\n'
+} > "$tmp/p7-git.sh"
+chmod +x "$tmp/p7-git.sh"
+mkcounter "$tmp/p7.count" "$tmp/p7-sleep.sh"
+( cd "$work3" && . "$LIB" && GIT="$tmp/p7-git.sh" CONFIG_EXPORT_CMD="bash $tmp/main-export.sh" \
+    DOCKET_PREFLIGHT_TEST_SLEEP_CMD="bash $tmp/p7-sleep.sh" docket_preflight "$SCRIPTS" ) \
+    >/dev/null 2>"$tmp/p7.err"; rc=$?
+p7_other="$(git -C "$work3" rev-parse origin/docket 2>/dev/null)"
+assert "P7: fixture precondition — the interloping fetch really did clobber FETCH_HEAD (guards a vacuous assert)" \
+  '[ -n "$p7_other" ] && [ "$(git -C "$work3" rev-parse FETCH_HEAD 2>/dev/null)" = "$p7_other" ]'
+assert "P7: fixture precondition — that tip is NOT the integration branch tip" \
+  '[ "$p7_other" != "$(git -C "$work3" rev-parse origin/main 2>/dev/null)" ]'
+assert "P7: the sync still succeeds under a concurrent fetch of another ref" '[ "$rc" -eq 0 ]'
+assert "P7: it integrated origin/main — the ref it was asked to sync" \
+  '[ -f "$work3/integration-moved-2.txt" ]'
+assert "P7: it did NOT rebase onto the concurrently-fetched branch's tip" \
+  '[ ! -f "$work3/tracked.txt" ]'
+assert "P7: the integration branch ended exactly at origin/main" \
+  '[ "$(git -C "$work3" rev-parse HEAD)" = "$(git -C "$work3" rev-parse origin/main)" ]'
+
+# (P8) an EMPTY branch argument is a precondition failure, not something to classify downstream.
+# Driven at the helper directly because no caller can produce one any more (P4 closed the only one
+# that could) — and a precondition with no reachable caller is exactly the kind that rots into
+# decoration. `git fetch origin ""` does NOT fail: measured on git 2.55 against a real remote it
+# fetches that remote's HEAD and returns 0, so without this guard the empty branch falls all the way
+# through to the wrong-branch arm and the human is told to "check out ''" — a diagnostic blaming
+# their checkout for the caller's bug. The WORDING assert is the load-bearing one here; the non-zero
+# return and the zero backoffs both survive the guard's removal (mutation-measured, not assumed).
+mkcounter "$tmp/p8.count" "$tmp/p8-sleep.sh"
+( . "$LIB" && DOCKET_PREFLIGHT_TEST_SLEEP_CMD="bash $tmp/p8-sleep.sh" \
+    _docket_sync_metadata git "$work3" origin "" ) >/dev/null 2>"$tmp/p8.err"; rc=$?
+assert "P8: an empty branch argument fails closed" '[ "$rc" -ne 0 ]'
+assert "P8: it refused before spending any retry budget" '[ "$(backoffs "$tmp/p8.count")" -eq 0 ]'
+assert "P8: the diagnostic names the missing branch, not a fetch failure" \
+  'grep -q "no branch was named" "$tmp/p8.err" && ! grep -q "after 5 attempts" "$tmp/p8.err"'
 
 exit $fail

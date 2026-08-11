@@ -7,8 +7,11 @@
 #   1. resolve config: eval "$(${CONFIG_EXPORT_CMD:-<scripts_dir>/docket-config.sh --export})"
 #      into the CALLER's scope (DOCKET_MODE, METADATA_BRANCH, METADATA_WORKTREE, BOOTSTRAP, …).
 #   2. enforce the bootstrap verdict fail-closed (non-PROCEED => return 1 + stderr diagnostic).
-#   3. ensure + sync the metadata worktree (docket-mode) or the primary tree (main-mode);
-#      disable the metadata worktree's shared git hooks (best-effort, change 0063).
+#   3. ensure + sync the metadata worktree (docket-mode, against METADATA_BRANCH) or the primary
+#      tree (main-mode, against INTEGRATION_BRANCH — required, never defaulted); disable the
+#      metadata worktree's shared git hooks (best-effort, change 0063). Either way the tree must
+#      already BE on that branch: preflight syncs docket's metadata branch, it never converts a
+#      tree from one branch to another.
 #   Returns 0 on success. Prints nothing on stdout. Honors the GIT and CONFIG_EXPORT_CMD seams.
 # This file is a sourced helper: it is documented within its callers' contracts (docket.md,
 # docket-status.md), not by a co-located .md (test_script_contracts_coverage.sh scopes lib/ out).
@@ -78,23 +81,65 @@ _docket_tree_detached(){
   ! "$1" -C "$2" symbolic-ref -q HEAD >/dev/null 2>&1
 }
 
+# _docket_tree_on_other_branch GIT DIR BRANCH — true (0) when git NAMES a branch for DIR's HEAD and
+# that name is not BRANCH. Ordered strictly AFTER the wedged and detached probes in the sync below,
+# never before them: an interrupted rebase leaves HEAD detached at the `onto` commit, so a
+# wrong-branch probe placed first would relabel every wedged and every detached tree as "wrong
+# branch" and the two classes that need their own remedies would vanish behind it.
+#
+# Phrased as "git named a DIFFERENT branch", not as the negation of "git named THIS branch", and the
+# difference is the empty answer. Real git either prints a branch and exits 0 or prints nothing and
+# exits non-zero, so an empty name reaching here is not a wrong branch — it is an unreadable answer,
+# and "HEAD names no branch" is the class the detached arm above already owns, decided on
+# `symbolic-ref`'s EXIT STATUS, which is the thing real git actually varies. Re-deciding it here on
+# weaker evidence would put two arms in a fight over one class. (It is also what keeps a caller's
+# no-op GIT stub — several hermetic fixtures use one to test things that are not the sync — out of
+# a class it was never answering questions about.)
+#
+# The comparison is against the SHORT name, because BRANCH arrives as a config value ("docket",
+# "main", "trunk") rather than a full ref. A branch whose short name is ambiguous with a tag is not
+# a case this distinguishes; the sync's own fetch already names the same short branch.
+_docket_tree_on_other_branch(){
+  local cur
+  cur="$("$1" -C "$2" symbolic-ref --short -q HEAD 2>/dev/null)" || cur=""
+  [ -n "$cur" ] && [ "$cur" != "$3" ]
+}
+
 # _docket_sync_metadata GIT DIR REMOTE BRANCH — the ONE metadata sync (change 0247), used by both
 # branches of docket_preflight so they cannot drift apart.
 #
 # INVARIANT: it may report success when local metadata is already current with, or AHEAD of, the
-# fetched remote; it reports success ONLY when HEAD is on a branch and no git operation is in
+# fetched remote; it reports success ONLY when HEAD is on BRANCH ITSELF and no git operation is in
 # progress; it integrates remote changes ONLY when, additionally, the tracked tree is clean; and it
 # NEVER mutates another agent's in-flight state to get there — no --autostash, no reset, no stash.
 # Review any change to this function against those four clauses. The second one is stated
 # separately from the third on purpose: collapsing them into "the integrate path checks it" is
 # precisely the reading that shipped a fast path returning 0 on a mid-rebase shared tree.
 #
+# "HEAD is on BRANCH itself" is the whole of clause two, not merely "HEAD is on some branch". The
+# weaker reading rebased the checked-out branch onto BRANCH's remote tip whatever that branch was —
+# harmless in a worktree docket owns and on a branch it put there, and a SILENT REWRITE OF THE
+# USER'S OWN HISTORY in main-mode, where DIR is the human's primary worktree and a topic branch
+# checked out there is an ordinary state. Preflight is Step 0 of every docket skill, so that fired
+# constantly. Both callers now pass the branch their tree is supposed to be on, which is exactly
+# what makes the question answerable here; policing it in one caller instead would be the drift the
+# spec's "both branches of the sync function must behave identically" clause forbids.
+#
 # Returns 0 on success; 1 on a terminal failure or retry exhaustion, with a stderr diagnostic that
-# NAMES the last failure class (dirty / wedged / detached / fetch / conflict), so the caller learns
-# what blocked the sync rather than merely that attempts died.
+# NAMES the last failure class (dirty / wedged / detached / wrong-branch / fetch / conflict), so the
+# caller learns what blocked the sync rather than merely that attempts died.
 _docket_sync_metadata(){
   local git="$1" dir="$2" remote="$3" branch="$4"
-  local attempt=0 last=fetch head remote_sha nap
+  local attempt=0 last=fetch head remote_sha nap cur
+  # BRANCH is a precondition, not an optional argument, and an empty one is caught HERE rather than
+  # left to fail somewhere downstream. `git fetch origin ""` does not error out: measured on git
+  # 2.55 against a real remote it fetches that remote's HEAD and returns 0, so the empty string
+  # travels all the way to the wrong-branch arm and the human is told to `check out ''` — a
+  # diagnostic blaming their checkout for the caller's bug.
+  if [ -z "$branch" ]; then
+    echo "docket-preflight: metadata sync failed — no branch was named to sync $dir against. The caller must resolve one; syncing against an empty ref is not a fallback." >&2
+    return 1
+  fi
   while [ "$attempt" -lt "$DOCKET_SYNC_ATTEMPTS" ]; do
     attempt=$((attempt + 1))
     if ! "$git" -C "$dir" fetch "$remote" "$branch" >&2; then
@@ -105,7 +150,21 @@ _docket_sync_metadata(){
       last=fetch
     else
       head="$("$git" -C "$dir" rev-parse HEAD 2>/dev/null)"
-      remote_sha="$("$git" -C "$dir" rev-parse FETCH_HEAD 2>/dev/null)"
+      # The remote tip is read from the REMOTE-TRACKING REF the fetch just advanced, not from
+      # FETCH_HEAD, for BOTH callers. FETCH_HEAD is per-worktree but not per-PROCESS, and in
+      # main-mode $dir is the primary worktree — shared with every other docket helper that fetches
+      # there (sync-integration-branch.sh, terminal-publish.sh). One of those landing between this
+      # fetch and this read would silently hand the rebase below a DIFFERENT branch's tip. The
+      # remote-tracking ref names what we asked for, so a concurrent fetch of another ref cannot
+      # move it, and one of the SAME ref only moves it forward.
+      #
+      # FETCH_HEAD stays as the fallback rather than being deleted: `git fetch <remote> <branch>`
+      # only updates refs/remotes/<remote>/<branch> opportunistically, i.e. when the remote has a
+      # fetch refspec configured. Every cloned or `git remote add`-ed remote does; one hand-edited
+      # into having none would otherwise leave remote_sha empty and drive `git rebase ""` into the
+      # terminal unknown-failure arm — a hard regression for a repo the old code served fine.
+      remote_sha="$("$git" -C "$dir" rev-parse --verify -q "refs/remotes/$remote/$branch" 2>/dev/null)" || remote_sha=""
+      [ -n "$remote_sha" ] || remote_sha="$("$git" -C "$dir" rev-parse FETCH_HEAD 2>/dev/null)"
       # WHAT STATE IS HEAD IN — classified BEFORE any arm may report success, because the
       # INVARIANT's "no git operation is in progress" clause binds the SUCCESS path and not merely
       # the integrate path. Getting this order wrong is not hypothetical: probing the wedge only
@@ -131,11 +190,22 @@ _docket_sync_metadata(){
         # can self-heal. It is terminal rather than merely non-fast-path because the rebase arm
         # below would otherwise move the detached HEAD and report success for it.
         #
-        # Only DETACHMENT is policed, never "attached to the wrong branch". The lost-commit shape
-        # is a commit landing on no branch at all; which branch the tree is on is a question this
-        # function cannot answer for both of its callers, since in main-mode $dir is the human's
-        # own main worktree rather than a worktree docket owns.
+        # Detachment gets its OWN arm ahead of the wrong-branch arm below even though a detached
+        # HEAD is trivially "not on $branch": the remedies differ (a stranded commit vs. a rewritten
+        # branch), and the arm below cannot name the branch the tree is on because there isn't one.
         echo "docket-preflight: metadata sync failed — HEAD in $dir is DETACHED, so no branch is checked out and a commit made there would be stranded off $branch. Nothing here self-heals, so it was not retried. This one needs a human: check out $branch." >&2
+        return 1
+      elif _docket_tree_on_other_branch "$git" "$dir" "$branch"; then
+        # THE WRONG BRANCH IS TERMINAL, and it is refused BEFORE the fast path, not merely before
+        # the rebase. Refusing only the rebase would still let a metadata commit land on a branch
+        # that is not the one docket syncs and pushes — silently, whenever the remote happened not
+        # to have moved. Both hazards are the same misconfiguration and both get one answer.
+        #
+        # No retry arm: a checked-out branch is a human's state, and this file spends budget only on
+        # classes that can self-heal. Nothing is rebased, nothing is committed, nothing is stashed —
+        # the tree is left exactly as its owner had it.
+        cur="$("$git" -C "$dir" symbolic-ref --short -q HEAD 2>/dev/null)" || cur=""
+        echo "docket-preflight: metadata sync failed — $dir is on branch '$cur', not '$branch'. Integrating $remote/$branch here would REWRITE the history of '$cur' onto it, and a metadata commit made here would land on '$cur' rather than '$branch', so nothing was attempted. Nothing here self-heals, so it was not retried. This one needs a human: check out '$branch' in $dir, or point docket's integration_branch at the branch you actually meant." >&2
         return 1
       # FAST PATH — up to date, or ahead only. The remote is an ancestor of HEAD, so there is
       # nothing to integrate and no rebase is needed. This is the single most common collision
@@ -243,7 +313,19 @@ docket_preflight(){
     # whose integration branch is named anything else (master, trunk) would have had this fetch a
     # ref that does not exist. docket-status.sh's health_checks already resolves the pair this way;
     # this is the same rule, not a second notion of it.
-    _docket_sync_metadata "$git" "${root:-.}" origin "${INTEGRATION_BRANCH:-${METADATA_BRANCH:-}}" || return 1
+    #
+    # An absent INTEGRATION_BRANCH therefore fails CLOSED rather than falling back to
+    # METADATA_BRANCH. That fallback looks harmless only because the mode keyword and the commonest
+    # branch name are spelled the same: on a repo whose integration branch is 'trunk' it resolved to
+    # the literal string "main" and spent the entire retry budget on `fetch origin main`, under an
+    # exhaustion diagnostic blaming the network for a config defect. A wrong ref that usually works
+    # is worse than no ref at all. docket-config.sh always exports this field (resolving 'auto' to
+    # the detected default branch), so an empty one means the config export itself is broken.
+    if [ -z "${INTEGRATION_BRANCH:-}" ]; then
+      echo "docket-preflight: main-mode metadata sync cannot start — config exported no INTEGRATION_BRANCH, and METADATA_BRANCH is the mode keyword 'main' here, not a branch name, so it is not a usable fallback. Set integration_branch in .docket.yml (or leave it 'auto' and fix why docket-config.sh could not resolve the default branch)." >&2
+      return 1
+    fi
+    _docket_sync_metadata "$git" "${root:-.}" origin "$INTEGRATION_BRANCH" || return 1
   fi
 }
 
