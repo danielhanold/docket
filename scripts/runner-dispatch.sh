@@ -576,15 +576,16 @@ launch_field(){  # $1 = dispatch dir, $2 = field -> first value, empty when abse
 # observe verb's step-1/step-3 window cannot be entered any other way.
 #
 # ENV-GATED AND INERT BY DEFAULT, and it is the POINT variable that arms it: with
-# RUNNER_DISPATCH_TEST_BARRIER unset this is a no-op at full speed no matter what else is in the
-# environment, so the hook can never itself become a hang site in production. The match is on the
-# point NAME, so arming one rendezvous cannot silently hold every other call site as well.
+# DOCKET_RUNNER_DISPATCH_TEST_BARRIER unset this is a no-op at full speed no matter what else is
+# in the environment, so the hook can never itself become a hang site in production. The match is
+# on the point NAME, so arming one rendezvous cannot silently hold every other call site as well.
+# Both seams are DOCKET_-namespaced per ADR-0014, like every env var docket introduces.
 #
 # BOUNDED even when armed: a fixture that forgets to release must fail its own bounded wait and
 # leave a red assert behind, never hang the suite.
 barrier(){  # $1 = the point this call site names
-  [ "${RUNNER_DISPATCH_TEST_BARRIER:-}" = "$1" ] || return 0
-  local f="${RUNNER_DISPATCH_TEST_BARRIER_FILE:?barrier point '$1' armed without RUNNER_DISPATCH_TEST_BARRIER_FILE}"
+  [ "${DOCKET_RUNNER_DISPATCH_TEST_BARRIER:-}" = "$1" ] || return 0
+  local f="${DOCKET_RUNNER_DISPATCH_TEST_BARRIER_FILE:?barrier point '$1' armed without DOCKET_RUNNER_DISPATCH_TEST_BARRIER_FILE}"
   : >"$f.reached"
   local waited=0
   while [ ! -e "$f.release" ] && [ "$waited" -lt 300 ]; do
