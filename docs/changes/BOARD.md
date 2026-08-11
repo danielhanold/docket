@@ -1,6 +1,6 @@
 # Backlog
 
-**294 changes** — 🟡 37 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 176 done · 🗑️ 76 killed
+**294 changes** — 🟡 37 proposed · ⚪ 4 deferred · ✅ 177 done · 🗑️ 76 killed
 
 ## 🟡 Proposed (37)
 
@@ -53,12 +53,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0247](active/0247-make-shared-metadata-worktree-contention-survivable-and-scop.md) | Make shared metadata worktree contention survivable and scope its commits | `high` | `fix` | [#200](https://github.com/danielhanold/docket/pull/200) |  |
-
 ```mermaid
 graph TD
   0007
@@ -76,7 +70,6 @@ graph TD
   0192 --> 0195
   0221
   0211 --> 0222
-  0247
   0248
   0251
   0252
@@ -109,7 +102,7 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (252)</summary>
+<details><summary>✅🗑️ Archive — done + killed (253)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -118,6 +111,7 @@ graph TD
 | [0277](archive/2026-08-11-0277-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode.md) | Delegated task briefs travel through shell argv, a lossy model-performed transformation | 2026-08-11 |
 | [0275](archive/2026-08-11-0275-run-gate-has-no-runnable-path-for-slash-command-or-backgroun.md) | Run gate has no runnable path for slash-command or backgrounded implement-next dispatch | 2026-08-11 |
 | [0260](archive/2026-08-11-0260-tier-finalize-s-in-context-dispatches-and-name-the-push-deni.md) | Tier finalize's in-context dispatches and name the push-denial posture | 2026-08-11 |
+| [0247](archive/2026-08-11-0247-make-shared-metadata-worktree-contention-survivable-and-scop.md) | Make shared metadata worktree contention survivable and scope its commits | 2026-08-11 |
 | [0208](archive/2026-08-11-0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) | Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards | 2026-08-11 |
 | [0286](archive/2026-08-10-0286-gate-run-observe-poll-loops-strip-state-prefix.md) | Caller-authored gate-run --observe poll loops strip the state= prefix and never terminate | 2026-08-10 |
 | [0282](archive/2026-08-10-0282-launch-and-wait-contract-for-long-running-child-processes-li.md) | Launch-and-wait contract for long-running child processes — liveness-keyed, not marker-keyed | 2026-08-10 |
@@ -131,7 +125,6 @@ graph TD
 | [0262](archive/2026-08-09-0262-ban-the-single-backslash-word-boundary-form-too-not-just-its.md) | Ban the single-backslash word-boundary form too, not just its escaped spelling | 2026-08-09 |
 | [0258](archive/2026-08-09-0258-guard-the-config-suite-s-enumerated-claims-export-order-and.md) | Guard the config-suite's enumerated claims: export order and rung pairs | 2026-08-09 |
 | [0259](archive/2026-08-08-0259-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md) | Harden render-board: sanitize feeder values and settle the failure contract | 2026-08-08 |
-| [0255](archive/2026-08-08-0255-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule.md) | Complete ADR-0065's quote leg and document the unquoted rule | 2026-08-08 |
 | [0243](archive/2026-08-07-0243-make-test-suite-git-fixture-setup-fail-loudly-instead-of-fla.md) | Make test-suite git fixture setup fail loudly instead of flaking | 2026-08-07 |
 | [0241](archive/2026-08-07-0241-correspondence-guard-over-leg-c-s-by-value-duplicated-predic.md) | Correspondence guard over leg C's by-value duplicated predicate (ADR-0072 drift risk) | 2026-08-07 |
 | [0240](archive/2026-08-07-0240-audit-which-frontmatter-accessor-each-call-site-should-use-n.md) | Audit which frontmatter accessor each call site should use, now that three anchored read shapes exist | 2026-08-07 |
@@ -209,7 +202,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 43 done |
+| [2026-08](archive/) | 44 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
