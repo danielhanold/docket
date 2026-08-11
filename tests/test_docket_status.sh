@@ -4184,6 +4184,124 @@ assert "0144: the stale 'a board-checks failure produces no extra output' claim 
 assert "0144: the output contract documents the new health-pass line" \
   'grep -qF "health checks failed <exit>" "$REPO/scripts/docket-status.md"'
 
+# ── change 0247, Half 2: pathspec-scoped commits + the blocked-wedged-tree token ────────────────
+# Two properties of the SHARED metadata worktree, one fixture family:
+#   (1) a commit made in it carries only the path THIS run generated — never whatever another
+#       agent had staged at that instant;
+#   (2) a tree that is mid-rebase/merge gets its OWN report token, and both result `case`
+#       statements name it explicitly. Their `*)` catch-all prints the RETRYABLE push-failed line,
+#       so a token that merely travels out of commit_and_push_generated would be silently
+#       relabelled retryable — a `--must-land` halt turned into a retry (spec Assumption 16(a)).
+
+# (1) another agent's STAGED work must not be swallowed by the board commit.
+git_repo_setup "$tmp/scope-case"
+git clone -q "$tmp/scope-case/origin.git" "$tmp/scope-case/work" 2>/dev/null
+scope_mw="$tmp/scope-case/work"
+seed_changes_fixture "$scope_mw"
+git -C "$scope_mw" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$scope_mw" -c user.email=t@t -c user.name=t commit -q -m "seed changes fixture"
+git -C "$scope_mw" push -q origin main
+printf 'another agent, mid-write\n' > "$scope_mw/other-agent.txt"
+git -C "$scope_mw" add other-agent.txt
+
+write_board_fixture inline
+(cd "$scope_mw" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/scope-run.txt" 2>"$tmp/scope-run-err.txt")
+rc=$?
+assert "0247: the commit-scoping run exits zero" '[ $rc -eq 0 ]'
+# Precondition, not decoration: unless a board commit was actually MADE this run, both asserts
+# below are satisfied vacuously by a script that committed nothing at all.
+assert "0247: the run really did commit and push the board (guards a vacuous scope check)" \
+  'grep -qxF "board inline changed pushed" "$tmp/scope-run.txt"'
+scope_committed="$(git -C "$scope_mw" show --name-only --format= HEAD)"
+assert "0247: the board commit touches BOARD.md only, never a concurrently-staged file" \
+  '[ "$(grep -c . <<<"$scope_committed")" -eq 1 ] && grep -qxF "docs/changes/BOARD.md" <<<"$scope_committed"'
+scope_staged="$(git -C "$scope_mw" diff --cached --name-only)"
+assert "0247: the concurrently-staged file is still staged and uncommitted" \
+  'grep -qxF "other-agent.txt" <<<"$scope_staged"'
+
+# (2) a wedged tree: its own token, no commit, and the other agent's rebase left alone.
+# A REAL interrupted rebase, never a hand-made marker directory: what is being gated is git's own
+# behaviour in that state, and that behaviour is not what a marker dir reproduces. Measured on git
+# 2.55 — mid-rebase-with-conflicts, `git commit -m … -- <path>` exits 0 and writes a commit onto
+# the rebase's detached HEAD, while the pathspec-less form is refused ("Committing is not possible
+# because you have unmerged files"). Scoping the commit therefore REMOVES an accidental protection,
+# which is why the wedged probe has to replace it deliberately.
+git_repo_setup "$tmp/wedge-case"
+git clone -q "$tmp/wedge-case/origin.git" "$tmp/wedge-case/work" 2>/dev/null
+wedge_mw="$tmp/wedge-case/work"
+seed_changes_fixture "$wedge_mw"
+printf 'ours\n' > "$wedge_mw/conflict.txt"
+git -C "$wedge_mw" -c user.email=t@t -c user.name=t add docs/changes conflict.txt
+git -C "$wedge_mw" -c user.email=t@t -c user.name=t commit -q -m "seed changes fixture"
+git -C "$wedge_mw" push -q origin main
+# A second clone moves origin/main on conflict.txt; this tree makes its own conflicting commit and
+# rebases onto the fetched remote. The rebase stops on the conflict and is LEFT in progress —
+# exactly the state another agent mid-sync leaves the shared worktree in.
+git clone -q "$tmp/wedge-case/origin.git" "$tmp/wedge-case/work2" 2>/dev/null
+printf 'theirs\n' > "$tmp/wedge-case/work2/conflict.txt"
+git -C "$tmp/wedge-case/work2" -c user.email=t@t -c user.name=t commit -q -am "theirs"
+git -C "$tmp/wedge-case/work2" push -q origin main
+printf 'mine\n' > "$wedge_mw/conflict.txt"
+git -C "$wedge_mw" -c user.email=t@t -c user.name=t commit -q -am "mine (local, unpushed)"
+git -C "$wedge_mw" fetch -q origin main >/dev/null 2>&1
+git -C "$wedge_mw" -c user.email=t@t -c user.name=t rebase FETCH_HEAD >/dev/null 2>&1
+# The rebase state lives under the tree's OWN git dir. Resolve it through git — in a LINKED
+# worktree "$dir/.git" is a gitdir POINTER FILE, so a probe built on that path can never be true
+# and every assert resting on it is permanently vacuous (the shape found and fixed in this
+# change's Half 1 fixtures). Assert it resolved at all, so it cannot go vacuous a second way.
+wedge_gitdir="$(git -C "$wedge_mw" rev-parse --absolute-git-dir 2>/dev/null)"
+assert "0247: the rebase-state probe resolved a real git dir (guards against a vacuous fixture)" \
+  '[ -n "$wedge_gitdir" ] && [ -d "$wedge_gitdir" ]'
+assert "0247: fixture precondition — the shared tree really is mid-rebase" \
+  '[ -d "$wedge_gitdir/rebase-merge" ] || [ -d "$wedge_gitdir/rebase-apply" ]'
+wedge_before_sha="$(git -C "$wedge_mw" rev-parse HEAD)"
+
+write_board_fixture inline
+(cd "$wedge_mw" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/wedge-run.txt" 2>"$tmp/wedge-run-err.txt")
+rc=$?
+assert "0247: a wedged tree keeps the flagless pass best-effort (exit zero)" '[ $rc -eq 0 ]'
+assert "0247: a wedged tree reports board inline blocked-wedged-tree" \
+  'grep -qxF "board inline blocked-wedged-tree" "$tmp/wedge-run.txt"'
+assert "0247: a wedged board pass is never mislabelled as the retryable push-failed token" \
+  '! grep -qF "board inline changed push-failed" "$tmp/wedge-run.txt"'
+assert "0247: no commit was made on a wedged tree" \
+  '[ "$(git -C "$wedge_mw" rev-parse HEAD)" = "$wedge_before_sha" ]'
+assert "0247: the other agent's rebase is left in progress, never aborted out from under it" \
+  '[ -d "$wedge_gitdir/rebase-merge" ] || [ -d "$wedge_gitdir/rebase-apply" ]'
+
+# --must-land treats it as NOT LANDED — a halt, never the bounded retry push-failed gets. The
+# "exactly once" count is the discriminator: a relabel into push-failed would print three lines.
+(cd "$wedge_mw" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only --must-land >"$tmp/wedge-ml.txt" 2>"$tmp/wedge-ml-err.txt")
+rc=$?
+assert "0247: --must-land exits non-zero on a wedged tree" '[ $rc -ne 0 ]'
+assert "0247: --must-land emits the wedged token exactly once (never retried like push-failed)" \
+  '[ "$(grep -cxF "board inline blocked-wedged-tree" "$tmp/wedge-ml.txt")" -eq 1 ]'
+assert "0247: --must-land never prints pass ok on a wedged tree" \
+  '! grep -qxF "pass ok" "$tmp/wedge-ml.txt"'
+
+# The learnings pass carries the IDENTICAL result `case`, catch-all included, so its new arm needs
+# its own evidence or it is decoration — Assumption 16(a) names both consumers, not just the board.
+# Reuses the same wedged tree; BOARD_SURFACES=none here, so this is the learnings pass alone.
+mkfinding_learn "$wedge_mw" guards-are-code retained
+write_learn_fixture true 300
+(cd "$wedge_mw" && CONFIG_EXPORT_CMD="bash $tmp/fixture-learn.sh" SCRIPTS_DIR="$tmp/mock-learn" \
+  "$SCRIPT" >"$tmp/wedge-learn.txt" 2>"$tmp/wedge-learn-err.txt")
+rc=$?
+assert "0247: a wedged learnings pass stays best-effort (exit zero)" '[ $rc -eq 0 ]'
+assert "0247: a wedged tree reports learnings index blocked-wedged-tree" \
+  'grep -qxF "learnings index blocked-wedged-tree" "$tmp/wedge-learn.txt"'
+assert "0247: a wedged learnings pass is never mislabelled as the retryable push-failed token" \
+  '! grep -qF "learnings index changed push-failed" "$tmp/wedge-learn.txt"'
+git -C "$wedge_mw" rebase --abort >/dev/null 2>&1 || :
+
+# Report-line vocabulary: the new token is documented at both consumers and at the sweep's step 6a.
+assert "0247: docket-status.md documents the board blocked-wedged-tree line" \
+  'grep -qF "board inline blocked-wedged-tree" "$REPO/scripts/docket-status.md"'
+assert "0247: docket-status.md documents the learnings blocked-wedged-tree line" \
+  'grep -qF "learnings index blocked-wedged-tree" "$REPO/scripts/docket-status.md"'
+assert "0247: docket-status.md documents the sweep's blocked-wedged-tree reason" \
+  'grep -qF "render-change-links blocked-wedged-tree" "$REPO/scripts/docket-status.md"'
+
 assert "0174 template integrity: the shared template is unmutated after the full run" \
   '[ "$( { git -C "$GIT_REPO_TEMPLATE/origin.git" for-each-ref --format="origin %(refname) %(objectname)"
            git -C "$GIT_REPO_TEMPLATE/seed"       for-each-ref --format="seed %(refname) %(objectname)"; } | LC_ALL=C sort)" = "$tplint_refs" ] &&

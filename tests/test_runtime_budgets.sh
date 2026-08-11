@@ -25,7 +25,24 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1695 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1705 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1695 -> 1705 (change 0247): a row that was never sized on the WHOLE file —
+                    # the same case as change 0277's entry below, NOT a file that got slower.
+                    # tests/test_docket_status.sh 35 -> 45. Under the sizing rule (round up to the
+                    # next multiple of 5, add a 5s margin) a 35s row asserts a file costing 30s or
+                    # less; at the merge-base commit this file already measured 34.18/34.12/34.30s
+                    # SERIALLY, so the row was a size behind before this change touched it. On the
+                    # branch — which adds Half 2's two shared-worktree fixtures, 488 asserts to 508
+                    # — it measures 36.59/36.78/35.96s across three standalone serial runs on a
+                    # quiet machine. The sizing input is the WORST of those readings, 36.78s, which
+                    # the rule puts at 45. The added block's own cost is ~1.5s, measured directly
+                    # with epoch stamps around its four fixture runs: the rest of the gap was
+                    # already there.
+                    # This is not a number raised to absorb a breach. The file has never been
+                    # reported OVER BUDGET — the runner's breach test is `measured > ceiling * 5/2`,
+                    # and the full parallel suite for this change (106 files, 8665 asserts, wall
+                    # 192s) reads it at 66s against a 87.5s threshold. What is raised is the CLAIM,
+                    # which was already false by ~0.8s at the merge-base and is false by ~1.8s now.
                     # 1680 -> 1690 (change 0284): the new-test-file case —
                     # tests/test_docket_liveness.sh, a hermetic unit test of the shared liveness
                     # predicate. Measured 0.06/0.05/0.05s standalone; the sizing rule's 10s floor.
