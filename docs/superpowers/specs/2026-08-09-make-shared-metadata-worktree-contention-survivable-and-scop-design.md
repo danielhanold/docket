@@ -270,16 +270,24 @@ carrying the meaning. The guard keys on this literal string.
    covered by the file's single marker. Both need contrived prose to exploit.
 
 4. **Skill size budgets — a required, verified part of this half.** `tests/test_skill_size_budgets.sh`
-   fails any skill that grows past its row. Word headroom measured 2026-08-09:
-   `docket-implement-next` **11**, `docket-convention` **14**, `docket-new-change` **14** — all
-   three will need a raise for a ~15-word marker sentence. `docket-auto-groom` (32) and
-   `docket-finalize-change` (49) are close enough to check rather than assume; `docket-adr` (128),
-   `docket-status` (87) and `docket-groom-next` (96) have room. Prefer absorbing the sentence into
-   an existing line over adding one: `docket-implement-next` (162/165) and `docket-convention`
-   (352/355) have only **3** spare lines each, with `docket-new-change` and `docket-auto-groom`
-   next at 6.
+   fails any skill that grows past its row.
+
+   **Re-measured 2026-08-11 (reconcile) — the 2026-08-09 figures below are superseded and the
+   ranking inverted.** Eight changes merged in between and several raised these very rows, so the
+   headroom moved in both directions. Current word headroom: `docket-auto-groom` **14** (was 32 —
+   now the *tightest*), `docket-implement-next` **30** (was 11), `docket-new-change` **46** (was
+   14), `docket-convention` **50** (was 14), `docket-finalize-change` **52**, `docket-groom-next`
+   **53**, `docket-status` **58**, `docket-adr` **128**. Line headroom: `docket-auto-groom` and
+   `docket-new-change` **4**, `docket-finalize-change` and `docket-groom-next` **5**,
+   `docket-implement-next` **6**, `docket-adr` and `docket-convention` **8**, `docket-status` **16**.
+   The build **re-measures again before setting any row** — these numbers are a planning input, not
+   an authority, and nothing here may be copied into a budget row unmeasured.
+
+   Prefer absorbing the marker into an existing line over adding one; every file's line headroom is
+   in single digits except `docket-status`.
 
    **A raise must satisfy the test header's full rule, which is stricter than "edit the number."**
+
    Per change 0201 it must additionally **name the `references/` file the new prose was considered
    for and argue in-diff why it cannot live there** — "no other home" is argued, not asserted. Here
    that argument is available and should be made explicitly rather than waved at: the marker is *a
@@ -405,3 +413,52 @@ human's deferred audit trail.
     enforcement (pre-commit hook / staging wrapper) declined — reasoning now recorded in Out of
     scope, with the risk-vs-guarantee split stated bluntly. (f) A requirements checklist heads
     the spec as the normative summary; the body remains the decision record.
+16. **2026-08-11 reconcile against current `main` (build-time; eight changes merged since drafting).**
+    Five findings, each a constraint on the build rather than a change of design:
+
+    (a) **The new report token needs an explicit `case` arm, not just a new return value.**
+    `board_pass_inline`'s result `case` ends in a `*)` catch-all that prints
+    `board inline changed push-failed`, and `learnings_pass` carries the identical shape. A
+    `blocked-wedged-tree` return that only travels out of `commit_and_push_generated` would be
+    *silently relabelled by that catch-all* into the retryable push-failed token — the precise
+    overloading Assumption 4 exists to forbid, reintroduced one layer up. Both call sites get an
+    explicit arm ahead of the catch-all. `board_classify`'s own `*)` already maps an unrecognized
+    `board …` line to `failed` (hence must-land non-zero, the halt Assumption 4 wants), so the
+    classifier is correct by construction — but the token is named there explicitly anyway, because
+    inheriting the right behaviour from a catch-all is not the same as documenting it.
+
+    (b) **`worktree-scope:` (change 0208, ADR-0083) is the repo's settled scope vocabulary — do not
+    mint a second one.** It is a declared frontmatter fact on `agents/docket-*.md` sources with
+    exactly two values, `feature` and `metadata`. Half 3's Group 2 predicate is a *coverage*
+    derivation over skill bodies, not a scope notion, and must not be described as one. It does gain
+    a **cross-check floor** from 0208's fact: every `agents/*.md` source declaring
+    `worktree-scope: metadata` whose `skills:` list names a docket operating skill must have that
+    skill inside Group 2's derived set. Verified 2026-08-11 — that is `docket-adr`,
+    `docket-auto-groom`, `docket-finalize-change`, `docket-implement-next`, `docket-status`: five of
+    the seven, the remaining two (`docket-groom-next`, `docket-new-change`) being interactive and
+    wrapper-less by construction. This reuses a declared fact instead of a parallel derivation and
+    catches drift the `docket.sh preflight` predicate alone cannot see.
+
+    (c) **The `docket.sh preflight` derivation re-verified 2026-08-11: still exactly the seven.**
+    `grep -rl 'docket.sh preflight' skills/*/SKILL.md` yields those seven plus `docket-convention`
+    (excluded as the rule's home) and nothing else. Assumption 12 stands unchanged.
+
+    (d) **#0253 has NOT merged** — `tests/lib/prose_guard.sh` does not exist on `main`. Assumption
+    14's second branch is therefore the live one: define `flatten(){ tr -s '[:space:]' ' '; }`
+    locally, **byte-identical** to the three existing copies (`test_docket_review.sh`,
+    `test_gate_execution_posture.sh`, `test_loop_continuation.sh`), with a comment naming #0253 as
+    the consolidation target. A fourth local copy is the house idiom until #0253 lands, not a
+    deviation from it.
+
+    (e) **Change 0286's caller poll-loop was read and is not applicable — recorded so it is not
+    re-litigated.** That shape governs observing a launched child through a closed vocabulary of
+    printed `state=` lines under a minute-denominated budget. Half 1's retry is an in-function
+    retry of a git operation with no child, no report line, and no observation budget; adopting the
+    loop verbatim would be cargo-culting a shape whose every load-bearing part is absent. **One
+    doctrine does transfer and is adopted**: the unknown arm is *terminal, never a retry*. So Half 1
+    retries only the classes item 2 names explicitly, and a rebase failure matching none of them
+    fails closed immediately rather than spending budget — which is also what item 2's own "spend
+    retries only on classes that can self-heal" already implies, now stated rather than inferred.
+    (Fetch failures keep their deliberate undiscriminated retry per item 2; that exception is
+    argued there and is unaffected.)
+

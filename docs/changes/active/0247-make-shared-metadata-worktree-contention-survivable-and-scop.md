@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/make-shared-metadata-worktree-contention-survivable-and-scop
-claimed_at: 2026-08-11T12:37:20Z
+claimed_at: 2026-08-11T12:42:46Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -63,3 +63,23 @@ Architecture settled (2026-08-09 auto-groom, critic-gated; half 3 added 2026-08-
 ## Open questions
 
 None — resolved in the linked spec. The core fork (retry vs per-session worktrees) was committed to retry as the conservative default with the reasoning and the reversal path recorded in the spec's `## Assumptions` block for human audit.
+
+## Reconcile log
+
+### 2026-08-11 — reconciled at claim, against `main` @ a97c1542
+
+Eight changes merged between the 2026-08-09 spec and this build. **The design survives intact — all three halves, the architecture decision, and every assumption still hold.** What moved is measurement and one silent-relabelling hazard. Six findings, recorded in full as spec Assumption 16:
+
+1. **A new report token needs an explicit `case` arm, not just a new return value.** `board_pass_inline`'s result `case` ends in a `*)` catch-all printing `board inline changed push-failed`, and `learnings_pass` carries the identical shape. A `blocked-wedged-tree` that only travels out of `commit_and_push_generated` would be *silently relabelled by that catch-all* into the retryable push-failed token — reintroducing one layer up the exact overloading the spec's Assumption 4 forbids. Both sites get an explicit arm ahead of the catch-all. `board_classify`'s own `*)` already maps an unrecognized `board …` line to `failed`, so must-land halts correctly by construction; the token is still named there explicitly, because inheriting correct behaviour from a catch-all is not the same as documenting it.
+
+2. **Reconciled with #0208's `worktree-scope:` (ADR-0083) rather than minting a parallel scope notion.** That is a declared frontmatter fact on `agents/docket-*.md` with two values, `feature` and `metadata`. Half 3's Group 2 predicate is a *coverage* derivation over skill bodies, not a scope notion, and will not be described as one — but it gains a **cross-check floor** from 0208's fact: every agent source declaring `worktree-scope: metadata` whose `skills:` names a docket operating skill must appear in Group 2's derived set. Verified: `docket-adr`, `docket-auto-groom`, `docket-finalize-change`, `docket-implement-next`, `docket-status` — five of the seven; the other two are interactive and wrapper-less by construction.
+
+3. **The `docket.sh preflight` derivation re-verified — still exactly the seven**, plus `docket-convention` excluded as the rule's home. Assumption 12 unchanged.
+
+4. **#0253 has not merged** — no `tests/lib/prose_guard.sh` on `main`. Assumption 14's second branch is live: define `flatten(){ tr -s '[:space:]' ' '; }` locally, byte-identical to the three existing copies, commented with #0253 as the consolidation target.
+
+5. **The spec's skill-headroom measurements were stale and the ranking had inverted.** `docket-auto-groom` is now the tightest at 14 words (the spec said 32), while `docket-implement-next` went from 11 to 30 and `docket-convention` from 14 to 50 — several of the eight merged changes raised these very rows. Spec updated with the 2026-08-11 figures and an explicit instruction that the build re-measures again before setting any row.
+
+6. **Change 0286's caller poll-loop read and ruled not applicable** — recorded so it is not re-litigated. It governs observing a launched child through printed `state=` lines under a minute-denominated budget; Half 1's retry has no child, no report line, and no observation budget. One doctrine does transfer and is adopted: **the unknown arm is terminal, never a retry** — a rebase failure matching none of the named classes fails closed immediately instead of spending budget, which is what the spec's own "spend retries only on classes that can self-heal" already implied.
+
+**Scope unchanged; no work dropped as done-elsewhere; no auto-capture mints** (nothing surfaced clearing the six admission gates — findings 1 and 5 are in-scope build constraints, not independently valuable follow-ups). Build-order note for the file collision with #0118 and #0268, both queued next on `docket-status.sh`: this change's edits there are confined to the two commit sites, the two result `case` statements, and the report vocabulary.
