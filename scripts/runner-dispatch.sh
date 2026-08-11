@@ -1107,7 +1107,15 @@ for nid in "${NEW_IDS[@]:-}"; do
   # TMPDIR per this repo's mktemp rule; removed once the re-dispatch returns.
   if [ -n "$BRIEF_PATH" ]; then
     RETRY_BRIEF="$(mktemp "${TMPDIR:-/tmp}/docket-retry-brief.XXXXXX")" || die "cannot create the re-dispatch brief"
-    { cat "$BRIEF_PATH"; printf '\n%s\n' "$retry_ctx"; } > "$RETRY_BRIEF" \
+    # EACH HALF CARRIES ITS OWN GUARD. A brace group's exit status is its LAST command's, so
+    # `{ cat …; printf …; } > f || die` is blind to a failed `cat` — the re-dispatch would then run
+    # on a brief holding the retry context ALONE, with the task stripped out, while this gate
+    # reported an ordinary re-dispatch. On the synchronous verb `BRIEF_PATH` is the CALLER's temp
+    # file, re-read here only after a full delegated run, so TMPDIR reaping or the caller's own
+    # cleanup taking it away is a live path, not a theoretical one.
+    cat "$BRIEF_PATH" > "$RETRY_BRIEF" \
+      || die "cannot read the original brief $BRIEF_PATH into the re-dispatch brief $RETRY_BRIEF"
+    printf '\n%s\n' "$retry_ctx" >> "$RETRY_BRIEF" \
       || die "cannot write the re-dispatch brief $RETRY_BRIEF"
     "$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" --brief-file "$RETRY_BRIEF" --
     rm -f "$RETRY_BRIEF"

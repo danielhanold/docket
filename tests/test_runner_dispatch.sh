@@ -678,7 +678,16 @@ adrc=""
 [ -n "${AD_RC_FILE:-}" ] && [ -f "$AD_RC_FILE" ] && adrc="$(sed -n "${n}p" "$AD_RC_FILE")"
 # 0277: snapshot any brief handed to us, so a case can assert on a file the facade deletes as soon
 # as the call returns. The last invocation to receive one wins, which is the re-dispatch's.
-prev=""; for a in "$@"; do [ "$prev" = "--brief-file" ] && cp "$a" "${SBX_COPY:?}"; prev="$a"; done
+# With AD_RM_BRIEF set it also DELETES that brief, staging the caller's temp file vanishing while
+# the delegated run is in flight — the run gate re-reads that path minutes later.
+prev=""
+for a in "$@"; do
+  if [ "$prev" = "--brief-file" ]; then
+    cp "$a" "${SBX_COPY:?}"
+    [ -n "${AD_RM_BRIEF:-}" ] && rm -f "$a"
+  fi
+  prev="$a"
+done
 exit "${adrc:-0}"
 AD
   chmod +x "$SBX/runners/ad.sh"
@@ -723,7 +732,7 @@ run_gate(){  # $@ = facade args
   ( cd "$SBX" && RUNNERS_DIR="$SBX/runners" DOCKET_HARNESS_ROOT="$SBX" \
       SNAP_DIR="$SNAP" AD_LOG="$SBX/ad.log" VR_LOG="$SBX/vr.log" ORDER_LOG="$SBX/order.log" \
       VERIFY_RUN="$SBX/fake-verify-run.sh" DOCKET_FACADE="$SBX/fake-facade.sh" \
-      SBX_COPY="$SBX/redispatch-brief-copy" \
+      SBX_COPY="$SBX/redispatch-brief-copy" AD_RM_BRIEF="${AD_RM_BRIEF:-}" \
       bash "$FACADE" "$@" )
 }
 
@@ -961,6 +970,36 @@ assert "0277 redispatch: the re-dispatch brief carries the retry context" \
 retry_brief="$(sed -n 's/.*--brief-file \([^ ]*\).*/\1/p' <<<"$second")"
 assert "0277 redispatch: the combined brief is removed once the re-dispatch returns" \
   '[ -n "$retry_brief" ] && [ ! -e "$retry_brief" ]'
+rm -rf "$SBX"
+
+# (i2) 0277: the combined-brief write is guarded HALF AND HALF, because a brace group's exit status
+#      is its LAST command's — `{ cat …; printf …; } > f || die` cannot see a failed `cat`, and the
+#      re-dispatch would then run on a brief holding ONLY the retry context, with the task itself
+#      stripped out, while the facade reported a normal re-dispatch. The live failure mode: on the
+#      synchronous verb the original brief is the CALLER's temp file, re-read only after a full
+#      delegated run (minutes to tens of minutes), so TMPDIR reaping or the caller's own cleanup can
+#      take it out from under the gate. The fixture stages exactly that — the fake adapter deletes
+#      the brief it was handed. What is pinned is the MECHANISM, not merely "it failed": no adapter
+#      may ever be handed a brief that carries the retry context without the original task.
+make_gate_fixture
+printf '\n' > "$SNAP/current"; printf '%s\n' "9 $FUT" > "$SNAP/after.1"; printf '%s\n' "9 $FUT" > "$SNAP/after.2"
+printf 'run-incomplete 9 pr\n' > "$SNAP/verdict.9"
+BF="$SBX/gate-brief.txt"
+printf 'original-brief-line\n' > "$BF"
+err="$(AD_RM_BRIEF=1 run_gate --runner ad --agent implement-next --brief-file "$BF" 2>&1 >/dev/null)"; rc=$?
+assert "0277 redispatch: an unreadable original brief exits non-zero" '[ "$rc" != "0" ]'
+# The refusal must be the FACADE's own, naming the brief it could not read — `cat`'s own
+# "No such file" complaint also names that path, so an unqualified path match is satisfied by the
+# very leak this case exists to close.
+assert "0277 redispatch: the FACADE refuses, naming the unreadable original brief" \
+  'grep -q -e "^runner-dispatch: .*$BF" <<<"$err"'
+# THE MECHANISM ASSERT: the re-dispatch never happened, and the only brief any adapter saw is the
+# intact original — never one holding the retry context alone.
+assert "0277 redispatch: an unreadable original brief re-dispatches NOTHING" \
+  '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "1" ]'
+assert "0277 redispatch: no adapter is handed a brief stripped of the original task" \
+  '[ -f "$SBX/redispatch-brief-copy" ] && grep -qxF -- "original-brief-line" "$SBX/redispatch-brief-copy" \
+     && ! grep -qF -- "Step 7 unmet" "$SBX/redispatch-brief-copy"'
 rm -rf "$SBX"
 
 exit $fail
