@@ -291,7 +291,13 @@ rm -rf "$SBX"
 # worktree, not to $PWD. That relative-from-a-subdir assert is the one that distinguishes this
 # design from the rejected resolve-the-caller's-CWD option — do not drop it.
 make_fixture
-mkdir -p "$SBX/.worktrees/featslug" "$SBX/sub/dir"
+# REAL linked worktrees, not `mkdir -p` directories: since 0208 the anchor gate is a MEMBERSHIP
+# test, so a bare subdirectory of the main worktree is exactly the value it now rejects. A `mkdir`
+# fixture here would make legs (b) and (c) assert that a rejected value is accepted.
+git -C "$SBX" worktree add -q -b featslug "$SBX/.worktrees/featslug" >/dev/null 2>&1
+mkdir -p "$SBX/sub/dir"
+assert "0206: fixture sanity — .worktrees/featslug is a REAL linked worktree" \
+  '[ -f "$SBX/.worktrees/featslug/.git" ]'
 
 # (a) flag absent => main worktree (regression fence on today's behavior)
 : > "$LOG"
@@ -343,7 +349,73 @@ assert "0206: --worktree outside the repo worktree set is rejected" '[ "$rc" != 
 assert "0206: outside-repo rejection says worktree of this repository" \
   'grep -qiF "not a worktree of this repository" <<<"$err"'
 rm -rf "$OUTSIDE"
+
+# (h) 0208: an ordinary subdirectory of the main worktree is CONTAINED but not a MEMBER.
+# This is the value the pre-0208 gate wrongly admitted: docket_main_worktree("$SBX/sub/dir")
+# returns $SBX, so containment passed and a delegated run anchored inside the primary checkout.
+err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status \
+    --worktree "$SBX/sub/dir" 2>&1 >/dev/null )"; rc=$?
+assert "0208(a): an ordinary subdirectory is rejected" '[ "$rc" != "0" ]'
+assert "0208(a): the subdirectory rejection names worktree top-level" \
+  'grep -qiF "worktree top-level" <<<"$err"'
+
+# (i) 0208: a real linked worktree is still accepted — the positive half of the membership pair.
+# Without it every assert above is satisfied by a gate that rejects everything.
+: > "$LOG"
+( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status \
+    --worktree "$SBX/.worktrees/featslug" >/dev/null 2>&1 ); rc=$?
+assert "0208(a): a real linked worktree is accepted" '[ "$rc" = "0" ]'
+assert "0208(a): and the accepted worktree is the anchor handed to the adapter" \
+  'grep -qxF -- "$SBX/.worktrees/featslug" "$LOG"'
+
+# (j) 0208: a SYMLINKED alias of a real member is accepted — the pwd -P normalization leg.
+# On macOS /tmp is a symlink to /private/tmp, so an un-normalized exact-line match would reject
+# valid worktrees the old containment check accepted. This leg reproduces that shape locally.
+ln -s "$SBX/.worktrees/featslug" "$SBX/featlink"
+( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status \
+    --worktree "$SBX/featlink" >/dev/null 2>&1 ); rc=$?
+assert "0208(a): a symlinked alias of a real worktree is accepted" '[ "$rc" = "0" ]'
 rm -rf "$SBX"
+
+# ---- 0208: same-repo is the FIRST `worktree` line, never an anywhere-in-list match ----
+# `git worktree list` keeps the record of a worktree whose directory was deleted without a prune, so
+# a FOREIGN repo's list can carry a `worktree <this repo's root>` line for a path that is no longer
+# its worktree. An anywhere-in-list match would read that stale record as proof of same-repo and
+# then hand the delegated run — a child harness that may execute under an auto-approve permission
+# grant — a tree docket does not own, regressing the very guarantee gate 3 exists to provide.
+# This is the mutation the gate's OWN comment names, so it is fixtured rather than reasoned about:
+# the block builds the shape that produces such a record — FGN once had this repo's PATH as one of
+# its worktrees, that directory was deleted unpruned, and the path was then re-created as a repo of
+# its own. It carries its own two repos rather than reusing make_fixture, because the stale record
+# must be written BEFORE the anchor repo exists at that path.
+STALE="$(mktemp -d "${TMPDIR:-/tmp}/docket-stale-wt.XXXXXX")"; STALE="$(cd "$STALE" && pwd -P)"
+HERE="$STALE/here"; FGN="$STALE/foreign"
+git init -q "$FGN"; git -C "$FGN" config user.email t@t.test; git -C "$FGN" config user.name Test
+( cd "$FGN" && git commit --allow-empty -qm init )
+git -C "$FGN" worktree add -q -b gone "$HERE" >/dev/null 2>&1
+rm -rf "$HERE"
+git init -q "$HERE"; git -C "$HERE" config user.email t@t.test; git -C "$HERE" config user.name Test
+( cd "$HERE" && git commit --allow-empty -qm init )
+# Fixture sanity, so a future git that prunes this record on read fails the leg LOUDLY rather than
+# leaving the rejection asserts green for the ordinary foreign-repo reason.
+stale_list="$(git -C "$FGN" worktree list --porcelain)"
+assert "0208(a): fixture sanity — the foreign repo's list carries a STALE record for this repo's root" \
+  'grep -qxF -- "worktree $HERE" <<<"$stale_list"'
+mkdir -p "$HERE/runners"
+cat > "$HERE/runners/ad.sh" <<AD
+#!/usr/bin/env bash
+printf '%s\n' "\${DOCKET_REPO_ROOT:-}" > "$STALE/anchor.log"
+AD
+chmod +x "$HERE/runners/ad.sh"
+: > "$STALE/anchor.log"
+err="$( cd "$HERE" && RUNNERS_DIR="$HERE/runners" bash "$FACADE" --runner ad --agent status \
+    --worktree "$FGN" 2>&1 >/dev/null )"; rc=$?
+assert "0208(a): a foreign repo holding a stale record for this repo's root is still rejected" \
+  '[ "$rc" != "0" ]'
+assert "0208(a): and that refusal is the worktree-of-this-repository gate" \
+  'grep -qiF "not a worktree of this repository" <<<"$err"'
+assert "0208(a): the foreign tree never reached the adapter" '[ ! -s "$STALE/anchor.log" ]'
+rm -rf "$STALE"
 
 # ---- 0270: config locality — a MAIN-worktree grant survives a --worktree dispatch ----
 # Provenance (opencode): filed as "a machine-local `runners.opencode.permissions: auto-approve`
@@ -469,7 +541,12 @@ rm -rf "$SBX"
 # task-less) exactly as it does for --launch. A build worker with no task is always the
 # silent-improvise defect; a loud abort is strictly better than a successful-looking task-less run.
 make_fixture
-mkdir -p "$SBX/.worktrees/w"
+# A REAL linked worktree, not `mkdir -p`: since 0208 the anchor gate is a MEMBERSHIP test, so a
+# bare subdirectory is refused at gate 3 — which would abort the two "WITH a payload runs" legs
+# below AND satisfy the refusal legs above for the wrong reason.
+git -C "$SBX" worktree add -q -b payloadslug "$SBX/.worktrees/w" >/dev/null 2>&1
+assert "0277 gate: fixture sanity — the payload fixture is a REAL linked worktree" \
+  '[ -f "$SBX/.worktrees/w/.git" ]'
 err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent build-economy \
     --worktree "$SBX/.worktrees/w" 2>&1 >/dev/null )"; rc=$?
 assert "0277 gate: build-* with NO payload is refused" '[ "$rc" != "0" ]'
@@ -800,10 +877,17 @@ printf '%s\n' "5 $OLD" > "$SNAP/current"; printf '%s\n' "5 $OLD" "7 $FUT" > "$SN
 run_gate --runner ad --agent status >/dev/null 2>&1; rc=$?
 assert "0237 gate: a status delegation exits 0" '[ "$rc" = "0" ]'
 assert "0237 gate: a status delegation never calls verify-run" '[ ! -s "$SBX/vr.log" ]'
-mkdir -p "$SBX/.worktrees/w"
+# A REAL linked worktree, for the same reason the payload below is passed: since 0208 the anchor
+# gate is a MEMBERSHIP test, and a bare `mkdir -p` subdirectory is refused at gate 3 — before the
+# adapter, before the run gate, leaving `vr.log` empty for the wrong reason.
+git -C "$SBX" worktree add -q -b gateslug "$SBX/.worktrees/w" >/dev/null 2>&1
 # The payload satisfies change 0277's build-* empty-payload gate. Without it the dispatch would
 # abort BEFORE the run gate, leaving `vr.log` empty for the wrong reason and this assert vacuous.
 run_gate --runner ad --agent build-standard --worktree "$SBX/.worktrees/w" -- "build task" >/dev/null 2>&1
+# Non-vacuity floor for the assert below: the delegation must actually have REACHED the adapter,
+# or "verify-run was never called" is true of a dispatch that was refused before either could run.
+assert "0237 gate: fixture sanity — the build-* delegation reached the adapter" \
+  'grep -qF "build-standard" "$SBX/ad.log"'
 assert "0237 gate: a build-* delegation never calls verify-run" '[ ! -s "$SBX/vr.log" ]'
 rm -rf "$SBX"
 
