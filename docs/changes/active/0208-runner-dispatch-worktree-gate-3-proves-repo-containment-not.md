@@ -2,11 +2,11 @@
 id: 208
 slug: runner-dispatch-worktree-gate-3-proves-repo-containment-not
 title: Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards
-status: proposed
+status: in-progress
 priority: high
 type: fix
 created: 2026-08-05
-updated: 2026-08-09
+updated: 2026-08-11
 depends_on: [237]
 related: [209, 210, 220, 237, 270, 274]
 discovered_from: [206]
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/runner-dispatch-worktree-gate-3-proves-repo-containment-not
+claimed_at: 2026-08-11T01:43:47Z
 pr:
 blocked_by:
 reconciled: false
