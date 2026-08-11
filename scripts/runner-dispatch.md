@@ -164,9 +164,11 @@ sides of the handoff, default `scripts/docket.sh`).
 
    When the dispatch carried its payload as a **brief file**, the re-dispatch does not append the
    retry context as an extra argument — that would present both payload channels at once, the shape
-   the adapters refuse. It composes a **combined brief** instead (the original brief verbatim, a
-   blank line, then the retry context) in a temporary file, re-dispatches with `--brief-file`
-   pointing at it, and removes it when the call returns. With no brief file the re-dispatch keeps
+   the adapters refuse. It composes a **combined brief** instead — the original brief's content and
+   line structure unchanged (its final line terminated first if it was not already, so the
+   separating blank line is unconditional and the retry context can never be glued onto the brief's
+   last line), then a blank line, then the retry context — in a temporary file, re-dispatches with
+   `--brief-file` pointing at it, and removes it when the call returns. With no brief file the re-dispatch keeps
    its original trailing-argv shape.
 
    The re-dispatched run's own exit code is not propagated: the gate's verdict is read from git,

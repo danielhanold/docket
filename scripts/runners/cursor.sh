@@ -84,7 +84,10 @@ prompt="$prompt$body"
 # line and its plan-task structure, code blocks, and file lists all lost their boundaries —
 # silently. The loop below preserves both order and line structure, so the surviving argv path
 # stops being lossy even though the shim no longer teaches it.
-# The brief file is appended VERBATIM via command substitution: a model-authored brief is untrusted
+# The brief file is appended via command substitution, which preserves its content and line
+# structure but drops trailing newlines — so the append is faithful line-for-line rather than
+# byte-verbatim, and a trailing blank line is not significant. Substitution rather than a format
+# string is deliberate: a model-authored brief is untrusted
 # input holding single quotes, backslashes, `%`, and backticks, so it must never pass through
 # `eval` or a `printf` format string.
 payload=""

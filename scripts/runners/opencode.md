@@ -48,8 +48,9 @@ bash scripts/runners/opencode.sh --agent <name> [--model <m>] [--effort <e>] [--
   value both emit no flag (the provider's own default applies). With no model resolved the effort
   has nothing to attach to and is dropped with a WARN.
 - `--brief-file <path>` (optional, change 0277) — the caller's task brief, read from a file and
-  appended to the prompt **verbatim** under the `Additional caller arguments / task context:`
-  heading. Preferred over trailing argv: the caller writes the file with a quoted-delimiter
+  appended to the prompt under the `Additional caller arguments / task context:` heading with its
+  content and line structure **unchanged** — the append is by command substitution, so trailing
+  newlines are dropped and not significant, but nothing inside the brief is rewritten. Preferred over trailing argv: the caller writes the file with a quoted-delimiter
   heredoc, so nothing about the brief is shell-quoted by a model and nothing is joined or
   reflowed. The file must exist, be readable, and carry actual content — emptiness is measured the same
   way the payload is (`$(cat …)`, trailing newlines stripped), so a file holding only

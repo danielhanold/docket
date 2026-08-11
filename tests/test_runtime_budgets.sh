@@ -25,17 +25,21 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1665 # the sum of every ceiling, seeded with the table from the measured serial run.
-                    # 1660 -> 1665 (change 0277): a row that was never sized on the whole file —
+EXPECTED_TOTAL=1670 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1660 -> 1670 (change 0277): a row that was never sized on the whole file —
                     # the 0242 case recorded further below, NOT a file that got slower.
-                    # tests/test_runner_dispatch.sh 10 -> 15. Under the sizing rule (next multiple
+                    # tests/test_runner_dispatch.sh 10 -> 20. Under the sizing rule (next multiple
                     # of 5 plus a 5s margin, min 10s) a 10s row asserts a file costing 5s or less;
                     # this one measures 7/8/7s SERIALLY at the merge-base ea9dc0bf, so the row was
                     # already a size behind before this change touched the file. On the branch —
                     # which appends the brief-file cases to it, 136 asserts to 174 — it measures
                     # 8/8/9/9/9/12s across six standalone serial runs, three of them interleaved
-                    # with the merge-base runs above on the same machine, which the sizing rule
-                    # puts at 15. This is not a number raised to absorb a breach: the file has
+                    # with the merge-base runs above on the same machine. The sizing input is the
+                    # WORST of those standalone serial readings, 12s — none of them is discounted,
+                    # since they are all quiet-machine standalone runs — which the rule puts at 20.
+                    # (Sized at 15 first, off the 9s cluster; corrected here on review, which is
+                    # also what leaves change 0208 the headroom named below.)
+                    # This is not a number raised to absorb a breach: the file has
                     # never been reported OVER BUDGET, and a row is a SERIAL claim, so the 13s it
                     # shows in this change's full parallel run (104 files, wall 223s, nine
                     # unrelated files breaching — a loaded machine) is contention that the runner's

@@ -37,8 +37,9 @@ bash scripts/runners/cursor.sh --agent <name> [--model <m>] [--effort <e>] [--br
   In config, note that **omitting `effort:` is not the same as opting out**: it defers to lower user
   config layers, whose value *is* forwarded. `effort: auto` is the explicit no-pin.
 - `--brief-file <path>` (optional, change 0277) — the caller's task brief, read from a file and
-  appended to the prompt **verbatim** under the `Additional caller arguments / task context:`
-  heading. Preferred over trailing argv: the caller writes the file with a quoted-delimiter
+  appended to the prompt under the `Additional caller arguments / task context:` heading with its
+  content and line structure **unchanged** — the append is by command substitution, so trailing
+  newlines are dropped and not significant, but nothing inside the brief is rewritten. Preferred over trailing argv: the caller writes the file with a quoted-delimiter
   heredoc, so nothing about the brief is shell-quoted by a model and nothing is joined or
   reflowed. The file must exist, be readable, and carry actual content — emptiness is measured the same
   way the payload is (`$(cat …)`, trailing newlines stripped), so a file holding only

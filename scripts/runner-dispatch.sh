@@ -1109,8 +1109,8 @@ for nid in "${NEW_IDS[@]:-}"; do
   # ONE CHANNEL ON THE RETRY TOO (change 0277). The retry context used to ride as an extra trailing
   # argument, which — with a brief file in play — is exactly the both-channels shape the adapters
   # refuse ("never both"), so the facade would kill its own re-dispatch on a path no caller can see.
-  # Instead the context is appended to a COMBINED brief: the original brief's bytes verbatim, a
-  # blank line, then the retry context. Never dropped, never a second channel. Templated into
+  # Instead the context is appended to a COMBINED brief: the original brief's bytes, then a blank
+  # line, then the retry context. Never dropped, never a second channel. Templated into
   # TMPDIR per this repo's mktemp rule; removed once the re-dispatch returns.
   if [ -n "$BRIEF_PATH" ]; then
     RETRY_BRIEF="$(mktemp "${TMPDIR:-/tmp}/docket-retry-brief.XXXXXX")" || die "cannot create the re-dispatch brief"
@@ -1122,6 +1122,15 @@ for nid in "${NEW_IDS[@]:-}"; do
     # cleanup taking it away is a live path, not a theoretical one.
     cat "$BRIEF_PATH" > "$RETRY_BRIEF" \
       || die "cannot read the original brief $BRIEF_PATH into the re-dispatch brief $RETRY_BRIEF"
+    # THE SEPARATOR IS UNCONDITIONAL. A brief file need not end with a newline — a caller's
+    # heredoc does, a `printf` without a trailing `\n` does not — and `printf '\n%s\n'` alone
+    # produces the promised BLANK line only in the first case. In the second it merely terminates
+    # the brief's last line, gluing the retry context onto it: the boundary loss this whole change
+    # exists to remove. So terminate the brief's last line first when it is unterminated, and only
+    # then write the blank line and the context.
+    if [ -n "$(tail -c 1 "$RETRY_BRIEF")" ]; then
+      printf '\n' >> "$RETRY_BRIEF" || die "cannot write the re-dispatch brief $RETRY_BRIEF"
+    fi
     printf '\n%s\n' "$retry_ctx" >> "$RETRY_BRIEF" \
       || die "cannot write the re-dispatch brief $RETRY_BRIEF"
     "$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" --brief-file "$RETRY_BRIEF" --
