@@ -546,28 +546,50 @@ rm -rf "$SBX"
 # ---- 0208: a source with no worktree-scope FAILS generation loudly --------------------
 # The generation gate is where absence is PREVENTABLE — a future feature-scoped agent must not be
 # able to ship undeclared. AGENTS_SRC in sync-agents.sh is hardcoded ($SCRIPT_DIR/agents, no seam),
-# so the fixture copies the whole script tree and strips the key from one source in the COPY — the
-# mutation-fixture pattern tests/test_docket_status.sh already uses — rather than adding a
+# so the fixture copies the generator's own inputs and strips the key from one source in the COPY —
+# the mutation-fixture pattern tests/test_docket_status.sh already uses — rather than adding a
 # generator seam that exists only for this test.
+#
+# THE COPY IS THE GENERATOR'S INPUT SET, established by inspection of sync-agents.sh's $SCRIPT_DIR
+# reads, not by copying the repo: `scripts/lib/` (the sourced libs), `agents/` (the sources plus
+# harness-defaults.yml) and `cursor-rules/`. It reads nothing under `skills/` — it only NAMES skills
+# in generated prose — and nothing in `scripts/` outside `lib/`. A wrong input set does not pass
+# quietly here: the asserts below key on the refusal's TEXT, so a run that died for a missing input
+# reddens rather than counting as the refusal under test.
 mkgitrepo
 mkdir -p "$SBX/.claude"
 COPY="$SBX/docketcopy"
-mkdir -p "$COPY"
+mkdir -p "$COPY/scripts"
 cp "$REPO/sync-agents.sh" "$COPY/"
 cp -R "$REPO/agents" "$COPY/agents"
-cp -R "$REPO/scripts" "$COPY/scripts"
-cp -R "$REPO/skills" "$COPY/skills"
+cp -R "$REPO/scripts/lib" "$COPY/scripts/lib"
 [ -d "$REPO/cursor-rules" ] && cp -R "$REPO/cursor-rules" "$COPY/cursor-rules"
-# Strip the key from ONE source. `sed -i` is not portable to BSD without an argument, so rewrite
-# through a temp file beside the destination.
+# Strip the key from TWO sources, in the two shapes absence actually takes. `sed -i` is not portable
+# to BSD without an argument, so rewrite through a temp file beside the destination.
+#   review-lean  — plain absence.
+#   review-deep  — absence WITH a column-0 `worktree-scope:` line in the BODY. That is the
+#                  anchoring leg: the shared reader (scripts/lib/docket-agent-scope.sh) scans only
+#                  the first ---…--- block, so this source is ABSENT and the run must still refuse.
+#                  A bare column-0 match reads the body prose as a declaration, `feature` validates,
+#                  and this agent silently disappears from the refusal — which is why the assert
+#                  below names BOTH agents rather than just the first.
 sed '/^worktree-scope:/d' "$COPY/agents/docket-review-lean.md" > "$COPY/agents/.tmp" \
   && mv -f "$COPY/agents/.tmp" "$COPY/agents/docket-review-lean.md"
+sed '/^worktree-scope:/d' "$COPY/agents/docket-review-deep.md" > "$COPY/agents/.tmp" \
+  && mv -f "$COPY/agents/.tmp" "$COPY/agents/docket-review-deep.md"
+printf '\nworktree-scope: feature\n' >> "$COPY/agents/docket-review-deep.md"
 assert "0208(b): fixture sanity — the key really was stripped from the copy" \
   '! grep -q "^worktree-scope:" "$COPY/agents/docket-review-lean.md"'
+fmdecl="$(awk '/^---[[:space:]]*$/{n++} n==1 && /^worktree-scope:/{c++} END{print c+0}' \
+  "$COPY/agents/docket-review-deep.md")"
+assert "0208(b): fixture sanity — the decoy source declares nothing in FRONTMATTER and everything in BODY" \
+  '[ "$fmdecl" = "0" ] && grep -qx "worktree-scope: feature" "$COPY/agents/docket-review-deep.md"'
 out="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$COPY/sync-agents.sh" 2>&1 )"; rc=$?
 assert "0208(b): a missing worktree-scope fails generation" '[ "$rc" != "0" ]'
 assert "0208(b): the refusal names the key and the agent" \
   'grep -qF "worktree-scope" <<<"$out" && grep -qF "review-lean" <<<"$out"'
+assert "0208(b): body prose is not a declaration — the anchored read refuses the decoy source too" \
+  'grep -qF "review-deep" <<<"$out"'
 assert "0208(b): and no wrappers were written" '[ ! -e "$SBX/.claude/agents/docket-adr.md" ]'
 rm -rf "$SBX"
 

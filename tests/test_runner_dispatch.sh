@@ -455,8 +455,15 @@ assert "0208(b): and its anchor is the feature worktree" 'grep -qxF -- "$WT" "$L
 err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent review-lean \
     --worktree "$SBX" 2>&1 >/dev/null )"; rc=$?
 assert "0208(a): a feature-scoped agent anchored at the main worktree is rejected" '[ "$rc" != "0" ]'
-assert "0208(a): the main-tree rejection names the integration branch hazard" \
-  'grep -qiF "integration branch" <<<"$err"'
+# Pinned on the MECHANISM — the identity this gate actually measured — not on the hazard it used to
+# narrate. The old assert required the words "integration branch", which the gate never checked
+# (it compares paths, not branches), so the message and the predicate could drift apart with the
+# suite green. `is the main worktree` is unique to gate 3b: gate 3's two refusals say "is not a
+# worktree of this repository", and gate 1's says "--worktree is required", so this clause reddens
+# when 3b is removed and cannot be satisfied by the gates that shadow it.
+assert "0208(a): the main-tree rejection states the identity it measured, and the tree required instead" \
+  'grep -qF -- "is the main worktree" <<<"$err" &&
+   grep -qF -- "linked feature worktree" <<<"$err"'
 
 # ...and it is SCOPED: a metadata-scoped agent may legitimately anchor at the main worktree, which
 # is the default anchor for every one of them. Without this leg the rejection could be widened to
@@ -479,6 +486,29 @@ assert "0208(b): an agent with no source file keeps the ADAPTER's unknown-agent 
 err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent "../evil" 2>&1 >/dev/null )"
 assert "0208(b): an off-shape agent name is not rejected by the scope probe either" \
   '! grep -qF "runner-dispatch:" <<<"$err"'
+
+# The read is ANCHORED to the first ---…--- block (scripts/lib/docket-agent-scope.sh, the reader
+# sync-agents.sh validates with). A source that LOST its frontmatter declaration must read as
+# ABSENT — the tolerant metadata fallback — and not as whatever a column-0 line in its BODY says.
+# The decoy is not contrived: these wrapper bodies are prose about WHERE an agent must run, so
+# `worktree-scope: feature` is exactly the sentence one of them would carry. With an unanchored
+# column-0 match the body line is read as the declaration, gate 1 arms, and the dispatch below is
+# refused — so this leg reddens on the unanchored reader rather than merely documenting a
+# preference. Its non-vacuity floor is the real agents/ tree above, where review-lean's genuine
+# frontmatter declaration DOES arm gate 1.
+SCOPESRC="$SBX/decoy-agents"
+mkdir -p "$SCOPESRC"
+cp "$ROOT"/agents/docket-*.md "$SCOPESRC/"
+sed '/^worktree-scope:/d' "$ROOT/agents/docket-review-lean.md" > "$SCOPESRC/docket-review-lean.md"
+printf '\nworktree-scope: feature\n' >> "$SCOPESRC/docket-review-lean.md"
+fmdecl="$(awk '/^---[[:space:]]*$/{n++} n==1 && /^worktree-scope:/{c++} END{print c+0}' \
+  "$SCOPESRC/docket-review-lean.md")"
+assert "0208(b): fixture sanity — the decoy source declares nothing in FRONTMATTER and everything in BODY" \
+  '[ "$fmdecl" = "0" ] && grep -qx "worktree-scope: feature" "$SCOPESRC/docket-review-lean.md"'
+( cd "$SBX" && PATH="$BIN:$PATH" DOCKET_AGENTS_SRC="$SCOPESRC" \
+    bash "$FACADE" --runner codex --agent review-lean >/dev/null 2>&1 ); rc=$?
+assert "0208(b): body prose is not a declaration — the anchored read takes the metadata fallback" \
+  '[ "$rc" = "0" ]'
 
 # ---- 0208(d): the sources DIRECTORY is the probe's precondition, and it is LOUD -------
 # The per-file tolerance asserted just above is deliberate and it does NOT extend to the directory

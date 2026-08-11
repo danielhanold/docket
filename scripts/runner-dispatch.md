@@ -54,10 +54,15 @@ docket.sh runner-dispatch --observe <key> --runner <name> --agent <agent> [--wor
   is what both delegation gates key on — never a name list, which would be a second copy of the
   same predicate drifting against the first. `sync-agents.sh` validates it at **generation**: a
   source declaring no valid scope fails the run before any wrapper is written, which is the seam at
-  which an undeclared agent is still preventable. The facade reads it at **runtime** with a `sed -n`
-  frontmatter probe of `$DOCKET_AGENTS_SRC/docket-<agent>.md`, deliberately **tolerantly** — an
+  which an undeclared agent is still preventable. The facade reads it at **runtime** from
+  `$DOCKET_AGENTS_SRC/docket-<agent>.md`, deliberately **tolerantly** — an
   off-shape agent name, an unreadable source, or a missing key is metadata scope, so an unknown
   agent keeps the adapter's more specific unknown-agent diagnostic instead of dying at the probe.
+  Both readings run the SAME extraction: `agent_worktree_scope` in
+  `scripts/lib/docket-agent-scope.sh`, sourced by the generator and by the facade. It is anchored
+  to the first `---…---` block, so a source that lost its declaration reads as ABSENT rather than
+  as whatever its body prose happens to say about worktree scope — which is what keeps generation's
+  absence refusal and the facade's tolerant fallback describing the same file.
 
   That tolerance stops at the **file**. The sources **directory** is the probe's precondition and is
   **loud**: a `$DOCKET_AGENTS_SRC` holding no `docket-*.md` at all — missing, misdirected, or
@@ -128,7 +133,16 @@ sides of the handoff, default `scripts/docket.sh`).
    source declares `worktree-scope: feature`); the resolved anchor must be a **directory**; it must
    be a **worktree top-level of this repository** — membership, not containment, so an ordinary
    subdirectory of the main worktree is refused; and for a feature-scoped agent it must not be the
-   **main worktree** itself, the primary checkout on the integration branch.
+   **main worktree** itself — the primary checkout, which is where the integration branch is
+   normally sitting.
+
+   That last gate measures **path identity only** (anchor vs. repo root), and its diagnostic says
+   so rather than naming a branch. The residual is deliberate and worth stating: a **linked**
+   worktree that happens to be checked out on the integration branch is **not** caught. A branch
+   predicate is not available here — `rebase-resolver` is dispatched mid-rebase, where HEAD is
+   detached and there is no branch to compare — so the gate proves the fact it can prove, and the
+   branch stays the hazard the main worktree normally carries rather than a fact the facade
+   establishes.
 
    Membership is read out of a single `git worktree list --porcelain` capture taken from the
    anchor, which yields both halves: same-repo is the **first** `worktree` line equalling the repo
