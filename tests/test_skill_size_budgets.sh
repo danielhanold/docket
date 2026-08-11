@@ -1128,10 +1128,66 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # routine edit"). One paragraph per line plus a blank separator means the very next paragraph added
 # to this file reddens CI on arrival. 33 -> the next multiple of 5 above the standing ceiling is 40
 # (7 lines of margin).
+# --- change 0247: the shared-metadata-worktree staging rule, stated at the grant and at every
+# call site. The rule is one house marker, "Stage by explicit path", carried verbatim; the five
+# raises below are its cost. No LINE budget was raised by this change at all — every marker was
+# absorbed into an existing sentence rather than added as a new line, which was the explicit
+# authoring constraint (line headroom in these files is single-digit almost everywhere).
+# skills/docket-convention/SKILL.md's WORD budget was raised 6650 -> 6700. The Step-0 preamble's
+# direct-git grant ("plain git plumbing ... stays direct") previously constrained staging not at
+# all; it now states the rule with the observed cost that makes it survive a slim (change 0247's
+# live collision: a groom's three staged files landed in two unrelated autonomous commits while its
+# own commit reported "nothing to commit"). It was considered for
+# skills/docket-convention/references/agent-layer.md and for a new references/ file beside it, and
+# cannot go to either: the rule is an exception ON the grant sentence, and a grant that reads
+# unconditional in SKILL.md while its one constraint sits behind a pointer is read as
+# unconditional. Set per the rounding rule above from the measured actual: 6668 words -> the next
+# multiple of 50 is 6700 (32 words of margin, above the within-25 threshold).
+# skills/docket-auto-groom/SKILL.md's WORD budget was raised 1500 -> 1550, for the marker at Step
+# 5's "Commit the stub's outcome ... in the metadata working tree" instruction. It was considered
+# for skills/docket-convention/references/ — where the Step-0 preamble's longer mechanics already
+# live — and cannot live there: the marker is a rule that must intervene AT THE MOMENT OF ACTION,
+# this comment block's own first example of prose that cannot sit behind a pointer, and the whole
+# evidential basis for stating it per-site is that a standing rule already in context loses to the
+# specific instruction at that moment (run 40, the finding tests/test_skill_handoff_precedence.sh
+# was built on). This skill is the sharpest case of that finding: it is fully autonomous and
+# commits in the shared tree on every loop iteration, with no human between the instruction and the
+# `git add`. Measured actual 1508 words -> 1550 (42 words of margin).
+# skills/docket-implement-next/SKILL.md's WORD budget was raised 4650 -> 4700, for the marker on
+# the *field-write rule* paragraph — the one paragraph that governs every metadata commit this
+# skill makes. Same references/ consideration and the same refusal as the entry above; here the
+# per-site statement is additionally load-bearing because this skill alternates between two trees
+# and the rule binds only one of them, so a reader who followed a pointer away from the field-write
+# rule would have to carry the tree distinction back with them. The raise is a rounding raise, not
+# an overflow: measured actual 4642 fits the standing 4650 with 8 words of headroom, which is the
+# near-zero failure mode this block records at 0102 (1 word) and 0137 (5 words) — the next multiple
+# of 50 is 4650, within 25 of the actual, so the multiple after it, 4700 (58 words of margin).
+# skills/docket-new-change/SKILL.md's WORD budget was raised 1400 -> 1450, for the marker on
+# Brainstorm mode's "committed to metadata_branch" sentence. Its Scan mode's "commit them together
+# (NOT BOARD.md)" is the second commit site and is deliberately NOT separately marked: the
+# parenthetical there already states an explicit-path intent, and a second copy of the marker in a
+# 1400-word file buys nothing the file-level coverage assert does not already have. Same
+# references/ consideration and refusal as above. Also a rounding raise: measured actual 1376 fits
+# 1400 with 24 words of headroom — inside the 25-word threshold — so the multiple after it, 1450
+# (74 words of margin).
+# skills/docket-status/SKILL.md's WORD budget was raised 2393 -> 2500 by change 0247, for TWO
+# additions. (a) The marker at the `minted issue` write-back's "re-run docket.sh preflight, commit,
+# push" sequence. This skill is in scope even though its commits are normally made by
+# scripts/docket-status.sh: the convention's Tier-A rule has the agent run that same work INLINE
+# when dispatch is unavailable, so the prose must carry the discipline the script has. (b) The
+# `blocked-wedged-tree` report token, which change 0247 added to scripts/docket-status.sh, entered
+# three enumerations this body owns and which were stale without it — the exit-0 normal-outcomes
+# list, the board-pass failure-line list, and step 6a's report-and-continue reasons — so an agent
+# would have read a wedged board pass as a success. That one is not optional prose: scripts/
+# docket-status.md is the token's definition and the natural pointer, but this body's whole job at
+# those three sentences is to tell the agent which report lines mean failure, and an enumeration
+# missing a member reads as complete without it. Set per the rounding rule above from the measured
+# actual: 2444 words -> the next multiple of 50 is 2450, which leaves 6 words (within the 25-word
+# threshold), so the multiple after it, 2500 (56 words of margin).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
-skills/docket-auto-groom/SKILL.md                           70 1500
+skills/docket-auto-groom/SKILL.md                           70 1550
 skills/docket-brainstorm/SKILL.md                           84  692
 skills/docket-build/SKILL.md                               380 3700
 skills/docket-build/references/delegation-execution.md      85  850
@@ -1139,7 +1195,7 @@ skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            130 1200
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          145 1350
-skills/docket-convention/SKILL.md                          385 6650
+skills/docket-convention/SKILL.md                          385 6700
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         205 2350
 skills/docket-convention/references/auto-capture.md        130 1250
@@ -1149,14 +1205,14 @@ skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     185 3900
 skills/docket-finalize-change/references/gate-failure.md    40 1150
 skills/docket-groom-next/SKILL.md                           77 1484
-skills/docket-implement-next/SKILL.md                      170 4650
+skills/docket-implement-next/SKILL.md                      170 4700
 skills/docket-implement-next/references/edge-paths.md       35  500
 skills/docket-implement-next/references/fix-loop.md        185 1900
 skills/docket-implement-next/results-template.md            25  250
 skills/docket-review/SKILL.md                              110  900
-skills/docket-new-change/SKILL.md                           61 1400
+skills/docket-new-change/SKILL.md                           61 1450
 skills/docket-new-change/change-template.md                 51  203
-skills/docket-status/SKILL.md                              118 2393
+skills/docket-status/SKILL.md                              118 2500
 "
 
 # Every tracked file is within budget.
