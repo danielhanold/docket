@@ -1,12 +1,17 @@
 # Backlog
 
-**294 changes** — 🟡 37 proposed · ⚪ 4 deferred · ✅ 177 done · 🗑️ 76 killed
+**294 changes** — 🟢 1 in progress · 🟡 36 proposed · ⚪ 4 deferred · ✅ 177 done · 🗑️ 76 killed
 
-## 🟡 Proposed (37)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0118](active/0118-decide-whether-the-sweep-s-skip-publish-path-should-also-mar.md) | Decide whether the sweep's skip-publish path should also mark an unpublished terminal record | `medium` | `fix` | [spec](../superpowers/specs/2026-08-07-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-design.md) | `feat/decide-whether-the-sweep-s-skip-publish-path-should-also-mar` |
+
+## 🟡 Proposed (36)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0118](active/0118-decide-whether-the-sweep-s-skip-publish-path-should-also-mar.md) | Decide whether the sweep's skip-publish path should also mark an unpublished terminal record | `medium` | `fix` | build-ready |
 | [0150](active/0150-pin-or-report-the-resolved-shell-toolchain-across-the-test-s.md) | Pin or report the resolved shell toolchain across the test suite | `low` | `chore` | build-ready |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | build-ready |
 | [0158](active/0158-batch-mode-for-docket-implement-next-build-several-coupled-c.md) | Batch mode for docket-implement-next — build several coupled changes on one branch | `low` | `feat` | auto-groom blocked — needs you |
