@@ -6,7 +6,7 @@ status: proposed
 priority: high
 type: refactor
 created: 2026-08-07
-updated: 2026-08-09
+updated: 2026-08-11
 depends_on: []
 related: [258, 273]
 discovered_from: [229, 230]
@@ -41,16 +41,24 @@ Verified 2026-08-07:
 
 ## What changes
 
-Settled design (2026-08-07 auto-groom; detail in the linked spec):
+Settled design (2026-08-07 auto-groom; budget leg amended 2026-08-11 on human review; detail in
+the linked spec):
 
-- **Budget leg — verdict by serial confirmation.** The parallel-phase `5/2` comparison is demoted
-  from verdict to *screen*; a screened candidate is re-run once serially after the parallel phase
-  and the breach verdict compares that serial re-measure against `ceiling * 3/2` (at `-j 1`, direct
-  3/2 comparison, no confirm). The advisory-by-default posture and the 0/1/3/4 exit contract are
-  unchanged; `--strict-budget` stays the opt-in gate, now honest across hosts on the contention
-  axis. A failed confirm never clears a candidate (unconfirmed; breach under `--strict-budget`),
-  and the confirm re-run never changes the suite pass/fail verdict. Mutation-proved in
-  `tests/test_run_tests.sh` (a ~3x-cost fixture over an unpadded row confirms at any `-j`).
+- **Budget leg — stateful budget confirmation.** The parallel-phase `5/2` comparison is a *screen*
+  producing candidate observations, tracked across executions in persistent per-test,
+  per-execution-context state (`$GIT_DIR/docket/run-tests-budget-state.tsv`, advisory
+  infrastructure — fail-open, locked, atomically rewritten). Five consecutive qualifying parallel
+  overruns schedule a solo confirmation; the `ceiling * 3/2` solo comparison is the only
+  authoritative breach (at `-j 1`, direct 3/2 comparison, no state). A confirmed-healthy test is
+  classified parallel-sensitive and revalidated after every ten later qualifying overruns; a
+  normal suite run performs at most ONE scheduled confirmation. `--strict-budget` bypasses the
+  schedule — every current candidate is confirmed immediately (exit 4 on a confirmed breach or a
+  failed confirmation, fail-closed). A failed confirmation never clears a candidate, and the
+  confirmation run never changes the suite pass/fail verdict. Advisory default, 0/1/3/4 exit
+  precedence, and the `--timings` five-column format are unchanged. Replaces the original
+  one-unconditional-serial-rerun-per-candidate design (unbounded confirm tail; spec assumption 4
+  records the reversal). Thirty deterministic tests enumerated in the spec, driven by a
+  measured-duration injection seam — no real multi-second sleeps.
 - **Floor leg — family-corpus guard, then the split.** `prelude_report`, the raw-grep cross-check
   extractors, and the r9 site derivation move to a glob-discovered corpus over
   `tests/test_docket_config*.sh` (computed membership, ADR-0050 shape; whole-corpus floors keep
