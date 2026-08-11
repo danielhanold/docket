@@ -11,12 +11,12 @@ related: [154, 254]
 discovered_from: [83]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-11-sweep-skip-publish-mark.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/decide-whether-the-sweep-s-skip-publish-path-should-also-mar
-claimed_at: 2026-08-11T18:06:02Z
+claimed_at: 2026-08-11T18:15:08Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ type: fix
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-design.md) |
+| Plan | [2026-08-11-sweep-skip-publish-mark.md](https://github.com/danielhanold/docket/blob/feat/decide-whether-the-sweep-s-skip-publish-path-should-also-mar/docs/superpowers/plans/2026-08-11-sweep-skip-publish-mark.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
