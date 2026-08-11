@@ -1055,6 +1055,71 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # Set per the rounding rule above from the measured post-edit actual: 1451 words -> the next
 # multiple of 50 is 1500 (49 words of margin, clear of the 25-word floor). 1451 against the standing
 # 1450 was a one-word breach, so the row had to move.
+# Change 0260 raises TWO word rows, both breached by the same documentation change and both found by
+# the full-suite gate rather than by either task's focused tests — the carve-out that puts
+# docket-finalize-change's two merge-gate dispatches (docket-rebase-resolver,
+# docket-integration-repair) OUTSIDE the convention's A/B/C tier table, and the wiring of that
+# carve-out at its consuming site. Growing these two files IS this change's deliverable, so both
+# raises are consumed by this diff rather than prophylactic.
+# (1) skills/docket-convention/SKILL.md's WORD budget was raised 6450 -> 6650. The addition is one
+# paragraph seated immediately after the tier table: the two gate dispatches sit outside the
+# taxonomy because their contract is an IN-CONTEXT REPORT gating the merge rather than git state on
+# `metadata_branch`; neither tier posture can be borrowed (Tier A's first-class-equivalent inline
+# path presupposes a git-state transition to reproduce, Tier C's authorized-or-halt presupposes a
+# `skills:` role whose resolved value could carry a human's `auto`); the posture is finalize's own
+# pre-existing abort-and-report; and inline substitution is forbidden, for the self-approval reason
+# Tier B already rejects for the critic.
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above: skills/docket-convention/
+# references/agent-layer.md and skills/docket-finalize-change/references/gate-failure.md. Neither
+# can host it. (a) agent-layer.md is read only while configuring `agents:` or running
+# sync-agents.sh — never at the moment an agent holding a failed dispatch is reading the tier table
+# and about to settle on the nearest row, which is exactly when this paragraph must intervene; that
+# is the same argument change 0137 recorded for putting the tier table in SKILL.md at all. (b)
+# gate-failure.md gets a POINTER from this same change and cannot hold the rule, because the
+# exclusion is a property OF this taxonomy: a taxonomy whose exceptions live in one consumer's
+# reference reads as complete to every reader who never opens that consumer — and that reader is
+# precisely the later editor who folds the two dispatches back into a row, the mutation the negative
+# tier-row asserts in tests/test_dispatch_capability.sh exist to catch.
+# COMPRESSION WAS CONSIDERED AND REJECTED ON INVENTORY, per the 0203 precedent (take the raise
+# rather than cut prose another guard holds): tests/test_dispatch_capability.sh's 0260 block binds
+# this paragraph phrase by phrase — both agent nouns, "in-context report ... gating the merge",
+# "abort-and-report", "Inline substitution is forbidden", "self-approval" — and the one stretch no
+# assert holds is the two-clause reason neither tier posture can be borrowed, which is what keeps
+# the carve-out from reading as an unexplained exception (the failure the guard's own comment
+# names). Set per the rounding rule above from the measured actual 377/6600: 6600 is ITSELF a
+# multiple of 50, so rounding up leaves ZERO words of margin — the near-zero failure mode this block
+# records raising past repeatedly — hence the multiple after it, 6650 (50 words of margin, clear of
+# the 25-word floor). The LINE budget was NOT raised: 377 actual against the standing 380, the
+# addition being one paragraph line plus its blank separator, and an unbreached line axis is left
+# alone here on the same reading change 0194 recorded at 363/365.
+# (2) skills/docket-finalize-change/references/gate-failure.md's WORD budget was raised 900 -> 1150.
+# The addition is a site-marker paragraph ("If the dispatch itself is unavailable — the carve-out"),
+# which routes an undispatchable gate agent to the carve-out posture and points at the convention's
+# *Dispatch-capability resolution* for when unavailability is established at all, plus TWO new
+# members of the abort-and-report enumeration: the dispatch mechanism being unavailable for either
+# gate agent, and a harness or permission classifier denying the gate's own post-rebase
+# `--force-with-lease` push (conditioned on *Harness-native recovery* having been exhausted first).
+# The same edit de-numeralized the "six distinct abort reasons" count sentence, which is a small
+# net saving, not a growth.
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above: the parent
+# skills/docket-finalize-change/SKILL.md and skills/docket-convention/SKILL.md. Neither can host it.
+# (a) Change 0201's extraction deliberately left the parent holding only the blocking pointer at the
+# trigger moment; the abort-and-report SET lives in this file and nowhere else, and a member stated
+# apart from the enumeration leaves the enumeration reading as complete without it — the precise
+# property tests/test_finalize_gate.sh's section-scoped asserts pin ("a LISTED reason, not an
+# implied one"), and one this change mutation-proved: with the member deleted, a file-wide grep
+# stays green. (b) The convention owns the carve-out RULE generically; what is stated here is which
+# of FINALIZE's own gate failures reaches that rule and what the gate does on each — a site
+# disposition the convention could not state without restating finalize's flow, the restatement
+# drift class the task-routing.md entry above records.
+# COMPRESSION: the de-numeralization already took what was available in the section, and nothing
+# further is unguarded — each enumeration member and the site-marker paragraph's routing clauses are
+# bound by an assert in tests/test_finalize_gate.sh's 0260 block (the surviving concurrent-push
+# lease member, the Harness-native-recovery condition, the carve-out pointer). Set per the rounding
+# rule above from the measured actual 33/1085: 1085 -> the next multiple of 50 is 1100, which leaves
+# 15 words (within the 25-word threshold), so the multiple after it, 1150 (65 words of margin). The
+# LINE budget was NOT raised: 33 actual against the standing 35, both added paragraphs being single
+# lines plus blank separators, and the same unbreached-axis reading as (1) above.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -1066,7 +1131,7 @@ skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            130 1200
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          145 1350
-skills/docket-convention/SKILL.md                          380 6450
+skills/docket-convention/SKILL.md                          380 6650
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         205 2350
 skills/docket-convention/references/auto-capture.md        130 1250
@@ -1074,7 +1139,7 @@ skills/docket-convention/references/dummy-mode.md           85  800
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     185 3900
-skills/docket-finalize-change/references/gate-failure.md    35  900
+skills/docket-finalize-change/references/gate-failure.md    35 1150
 skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      170 4650
 skills/docket-implement-next/references/edge-paths.md       35  500
