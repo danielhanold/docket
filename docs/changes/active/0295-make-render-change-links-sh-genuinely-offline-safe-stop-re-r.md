@@ -3,7 +3,7 @@ id: 295
 slug: make-render-change-links-sh-genuinely-offline-safe-stop-re-r
 title: 'Make render-change-links.sh genuinely offline-safe — stop re-resolving config with a network fetch'
 status: proposed
-priority: medium
+priority: high
 type: fix
 created: 2026-08-11
 updated: 2026-08-11
