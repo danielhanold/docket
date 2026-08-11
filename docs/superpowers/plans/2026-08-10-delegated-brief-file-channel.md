@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0277 — Delegated task briefs travel through shell argv, a lossy model-performed transformation](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0277-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode.md)**
+> ↩ **[Change 0277 — Delegated task briefs travel through shell argv, a lossy model-performed transformation](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-11-0277-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode.md)**
 <!-- docket:backlink:end -->
 
 # Delegated brief-file channel Implementation Plan
