@@ -80,8 +80,9 @@ never-yield rule and everything else in the paragraph stands.
 
 ### 4. Guard
 
-One sentinel in the existing prose-guard style (new file `tests/test_critic_return_channel.sh`
-or folded into the nearest existing skill-prose guard at build time): asserts (a) the critic
+One sentinel in the existing prose-guard style — **settled at reconcile (2026-08-11): the new file
+`tests/test_critic_return_channel.sh`**, which obliges a `tests/runtime-budgets.tsv` row plus the
+matching `EXPECTED_TOTAL` bump in `tests/test_runtime_budgets.sh`. It asserts (a) the critic
 source binds the verdict to its final report and contains the never-address-your-dispatcher
 clause, (b) Step 3 maps the no-verdict case to the abstain exit (bind phrase to claim with a
 bounded gap, whitespace-collapsed match), (c) the convention no longer lists

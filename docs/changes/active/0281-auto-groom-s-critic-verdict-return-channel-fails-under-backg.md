@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/auto-groom-s-critic-verdict-return-channel-fails-under-backg
-claimed_at: 2026-08-11T06:08:10Z
+claimed_at: 2026-08-11T06:15:16Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -92,3 +92,53 @@ prose plus one guard:
 The hosting harness's agent-naming implementation, and the shared-worktree contention family
 (change 0247; overlap confined to a different paragraph of `docket-convention/SKILL.md` —
 composes at rebase, no dependency).
+
+Also out of scope, and confirmed so at reconcile: the four *other* populations of critic-dispatch
+prose (`cursor-rules/dispatch/docket-auto-groom-critic.md`, `AGENTS.md`'s generated
+`docket:dispatch` block, `agents/harness-defaults.yml`, `README.md` / `docs/codex/`). They address
+the **parent**, and each already states foreground dispatch; the delivery clause this change adds
+binds the **critic**, which loads only its own agent source plus `docket-convention`.
+
+## Reconcile log
+
+### 2026-08-11 — reconciled against origin/main (five changes merged since the 2026-08-09 spec)
+
+**Verdict: the spec holds unchanged.** All three defects it names are present verbatim on
+`origin/main` today — the critic source still says only "Return exactly one verdict per the
+dispatching skill's protocol" and names no channel; the *Composition* paragraph still lumps the
+critic into the "contract is **git state** … never an in-context return" clause; Step 3 still has
+no no-verdict posture. No scope adjustment needed.
+
+**Population survey (whole-repo grep, not a hand-list — per the 0208 rule).** Five populations
+restate the critic dispatch contract, not one: skill bodies, `agents/`, `agents/harness-defaults.yml`,
+`cursor-rules/dispatch/`, and `AGENTS.md`'s generated block (plus `README.md` and
+`docs/codex/validation-runbook.md`). Only the first two are edited here, for the reason recorded
+under *Out of scope*. Recording the survey so the exclusion reads as a decision, not an oversight.
+
+**Bearing of the five post-spec merges:**
+
+- **#0286** (`gate-run --observe` caller loops) — **does not apply.** Its capture-then-match poll
+  loop is the correct shape for observing a backgrounded child; the leg chosen here bans the
+  backgrounded critic outright, so there is no child to poll and importing a poll loop would
+  reintroduce exactly the yield being fixed. Noted so the absence reads as deliberate.
+- **#0277** (`--brief-file`, ADR-0082) — **does not apply.** `skills/docket-auto-groom/SKILL.md`
+  contains no runner delegation at all; the critic dispatch is a harness-native in-session
+  subagent dispatch, so the brief-file argument surface is never crossed.
+- **#0275** (ADR-0084) — **reinforces the design.** Its rule (re-dispatch permission is gated on
+  mechanical attribution capability, never on launch shape or the child's own report) is the same
+  principle one level down: foreground dispatch makes the return itself the attribution. Its
+  closing observation — "an agent left with no procedure improvises" — is precisely defect 3, and
+  the bounded no-verdict posture is the procedure that removes the improvisation.
+- **#0208** (ADR-0083, `worktree-scope:`) — the critic source already carries
+  `worktree-scope: metadata`; untouched by this change.
+- **#0270** (runner-config locality) — no bearing.
+
+**Build-time choice settled:** the guard lands as the new file `tests/test_critic_return_channel.sh`
+(the spec permitted either that or a fold-in), which obliges a `tests/runtime-budgets.tsv` row and
+a matching `EXPECTED_TOTAL` bump in `tests/test_runtime_budgets.sh`.
+
+**Coordination:** change 0260 also edits `skills/docket-convention/SKILL.md`. This diff touches only
+the *Composition* paragraph, so the two compose at rebase (`concurrent-edits-compose-at-rebase`).
+
+**Auto-capture:** enabled; nothing surfaced at this pass clears the six admission gates — every
+finding above is in-scope drift and routes to this log. Minted 0.
