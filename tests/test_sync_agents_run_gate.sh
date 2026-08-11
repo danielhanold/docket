@@ -134,26 +134,51 @@ assert "gate: the detached section exists to be asserted about" \
 # path; it is a fallback for a shape the caller does not control, not an option.
 assert "gate: the detached section is scoped by whether the session foreground-blocked" \
   '[[ "$DETACHED" == *"you did not foreground-block"* ]]'
+# The section carries TWO branches, and keeping them apart is the whole point of it: the
+# attributable one may re-dispatch, the unattributed one may never. A window spanning both is
+# satisfied by a text in which they have been merged into a single bullet whose re-dispatch
+# licence now reads as covering the unattributed path — every substring below survives, in order.
+# So the branches are asserted through their OWN windows, and the section's bullet COUNT is
+# asserted separately: the flattened windows below cannot see a bullet boundary at all (`flat`
+# collapses the newline and the marker into a space), so the count is taken from the RAW template
+# and keyed on bullet shape, never on the branches' wording.
+DETACHED_BULLETS="$(awk '/^### Detached dispatch/{d=1; next} d && /^- [*][*]/{n++} END{print n+0}' "$GATE_SRC")"
+assert "gate: the detached section keeps its two branches as two separate bullets" \
+  '[ "$DETACHED_BULLETS" = "2" ]'
+# Per-branch windows. Each is a prefix/suffix cut at branch B's opening phrase, and each carries
+# its OWN non-vacuity assert: branch A's window is the carrier of an ABSENCE assert below, and an
+# absence assert through a dead extractor reads as the property holding no matter what the text says.
+ATTRIB="${DETACHED%%Slash-command or notification-first*}"
+UNATTRIB="${DETACHED#*Slash-command or notification-first}"
+assert "gate: detached branch A exists to be asserted about" \
+  '[ -n "$ATTRIB" ] && [ "$ATTRIB" != "$DETACHED" ]'
+assert "gate: detached branch B exists to be asserted about" \
+  '[ -n "$UNATTRIB" ] && [ "$UNATTRIB" != "$DETACHED" ]'
 # Branch A — attributable. All three filters, each asserted as its OWN conjunct: the epoch filter
 # was added at the design gate on top of the set difference, and a guard that pins only the pair
 # leaves the added part free (learnings: guard-the-widened-clause).
 assert "gate: detached branch A captures BOTH the before-snapshot and a dispatch epoch" \
-  '[[ "$DETACHED" == *"before-snapshot"*"date -u +%s"*"DISPATCH_EPOCH"* ]]'
+  '[[ "$ATTRIB" == *"before-snapshot"*"date -u +%s"*"DISPATCH_EPOCH"* ]]'
 assert "gate: detached branch A reads the claim instant from the oracle, not from prose" \
-  '[[ "$DETACHED" == *"verify-run --in-progress-ids --with-claimed-at"* ]]'
+  '[[ "$ATTRIB" == *"verify-run --in-progress-ids --with-claimed-at"* ]]'
 assert "gate: detached branch A requires all three filters, named" \
-  '[[ "$DETACHED" == *"ALL THREE filters"*"absent from the before-set"*"parses"*"DISPATCH_EPOCH"* ]]'
+  '[[ "$ATTRIB" == *"ALL THREE filters"*"absent from the before-set"*"parses"*"DISPATCH_EPOCH"* ]]'
 assert "gate: detached branch A keeps step 3 cardinality — two or more candidates abort" \
-  '[[ "$DETACHED" == *"one survivor"*"step 4"* ]] && [[ "$DETACHED" == *"two or more"*"stop and report"* ]]'
+  '[[ "$ATTRIB" == *"one survivor"*"step 4"* ]] && [[ "$ATTRIB" == *"two or more"*"stop and report"* ]]'
+# ...and branch A's outcome clause must stay IN branch A. Migrating it down into the unattributed
+# bullet preserves every substring above in its asserted order against a whole-section window, and
+# produces a text in which the path that cannot attribute reads as licensed to re-dispatch.
+assert "gate: branch A does not carry branch B's never-re-dispatch prohibition" \
+  '[[ "$ATTRIB" != *"Never re-dispatch"* ]]'
 # Branch B — unattributable. The never-re-dispatch rule AND the reason it holds: without the
 # reason a later editor reads it as caution and relaxes it, and the failure it prevents is the one
 # unrecoverable move in the whole gate.
 assert "gate: detached branch B is named as unattributed mode" \
-  '[[ "$DETACHED" == *"unattributed mode"*"No before-set exists"* ]]'
+  '[[ "$UNATTRIB" == *"unattributed mode"*"No before-set exists"* ]]'
 assert "gate: unattributed mode never re-dispatches, and says why a timestamp cannot attribute" \
-  '[[ "$DETACHED" == *"re-stamped at every phase boundary"*"looks fresh"*"Never re-dispatch"* ]]'
+  '[[ "$UNATTRIB" == *"re-stamped at every phase boundary"*"looks fresh"*"Never re-dispatch"* ]]'
 assert "gate: a prose id from the child is a hint to verify, never attribution authority" \
-  '[[ "$DETACHED" == *"the notification names"*"never authority"* ]]'
+  '[[ "$UNATTRIB" == *"the notification names"*"never authority"* ]]'
 
 # --- rendered into BOTH surfaces, byte-identically ---
 mk_repo "[cursor, codex]"
