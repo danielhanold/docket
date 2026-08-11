@@ -2,7 +2,7 @@
 slug: guards-are-code
 hook: "A guard is code — mutation-test it (strip the feature, watch it go red) or it is decoration."
 topics: [testing, sentinels, mutation]
-changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 102, 106, 107, 111, 116, 126, 169, 184, 244, 275]
+changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 102, 106, 107, 111, 116, 126, 169, 184, 244, 275, 281]
 created: 2026-06-17
 updated: 2026-08-11
 promotion_state: promoted
@@ -320,3 +320,20 @@ on deletion can stay green on `>=` → `<=`.
   and an inverted filter selects exactly the claims stamped BEFORE the run started, the precise
   wrong answer the guard exists to prevent. Deletion-only mutation testing is not sufficient for a
   comparison operator.
+- 2026-08-11 (#281, PR #197 — merged) — **A mutation that never APPLIED is indistinguishable from a
+  guard that failed to catch it — and both read as green.** The probes against a prose sentinel used
+  single-line `perl` substitution patterns, but the guarded clauses live in hard-wrapped markdown, so
+  a pattern spanning the wrap point matched nothing and edited zero bytes. The suite then passed for
+  the only reason it could — the file was untouched — and that green is byte-for-byte the same
+  observation as *the mutation applied and the guard missed it*, i.e. a surviving hole. Every
+  interpretation available at the test verdict is wrong. The defense is one command and it belongs
+  before the verdict is read, not after: confirm the mutation actually landed
+  (`git diff --stat` / a non-zero changed-line count on the probe) and treat a zero-byte probe as an
+  INVALID run to re-author, never as a result. Generalizes past `perl` and past wrapping: any probe
+  whose application is itself pattern-dependent — a `sed`/`perl` substitution, a targeted line
+  delete, a fixture patch — must prove it mutated something before its verdict means anything. The
+  same build carried the neighbour case in the other direction: a plan-supplied probe that stripped
+  only markdown emphasis left the guard green *legitimately* (the clause survived intact), so it was
+  a valid run of an invalid probe — a probe that changes bytes without removing the guarded property
+  proves nothing either. Both collapse into one rule: a probe is only evidence once you have
+  established WHAT it changed.
