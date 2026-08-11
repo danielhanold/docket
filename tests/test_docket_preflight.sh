@@ -319,4 +319,90 @@ assert "N: a wedge is retryable — it spent the full backoff budget" \
   '[ "$(backoffs "$tmp/wedge.count")" -eq 4 ]'
 git -C "$work/.docket" rebase --abort >/dev/null 2>&1 || :
 
+# --- (O) HEAD's STATE gates SUCCESS, not merely the integrate path ------------------------------
+# The regression pinned here: probing the wedge only AFTER the fast path returned made preflight
+# green-light the exact state it exists to survive. A conflicted rebase leaves HEAD DETACHED at the
+# rebase's `onto` commit, so with the remote standing still `rev-parse HEAD` == `rev-parse
+# FETCH_HEAD`, the ancestor test was trivially true, and the sync returned 0 without ever consulting
+# _docket_tree_wedged. An agent's correctly scoped commit then lands on that detached HEAD — the
+# branch ref never moves — and the next `rebase --abort` destroys it. Preflight is the only
+# mechanical gate the agent channel has, so a green verdict there is the whole ballgame.
+#
+# Section N cannot catch this: its fixture MOVES the remote, which is precisely what carries it past
+# the fast path. The distinguishing fixture is a wedge with the remote STANDING STILL.
+#
+# The vacuous-fixture trap this surface has already sprung twice: in a linked worktree <dir>/.git is
+# a POINTER FILE, not a directory, so `mkdir -p "$wt/.git/rebase-merge"` silently plants nothing and
+# every assert resting on it is permanently green. These fixtures build a REAL interrupted rebase
+# and resolve the real git dir through git — and assert both, plus the ancestor relation that makes
+# the old fast path fire, so a fixture that stops reproducing the bug fails loudly instead of
+# passing quietly.
+o_gitdir="$(git -C "$work/.docket" rev-parse --absolute-git-dir 2>/dev/null)"
+git -C "$work/.docket" fetch -q origin docket >/dev/null 2>&1
+git -C "$work/.docket" rebase FETCH_HEAD >/dev/null 2>&1   # conflicts on purpose; LEFT in progress
+o_head="$(git -C "$work/.docket" rev-parse HEAD 2>/dev/null)"
+o_fetch="$(git -C "$work/.docket" rev-parse FETCH_HEAD 2>/dev/null)"
+assert "O: fixture precondition — the real git dir resolved (guards against a vacuous assert)" \
+  '[ -n "$o_gitdir" ] && [ -d "$o_gitdir" ]'
+assert "O: fixture precondition — a REAL rebase is in progress, not a planted marker directory" \
+  '[ -d "$o_gitdir/rebase-merge" ] || [ -d "$o_gitdir/rebase-apply" ]'
+assert "O: fixture precondition — HEAD is detached at the rebase's onto commit, EQUAL to FETCH_HEAD" \
+  '[ -n "$o_head" ] && [ "$o_head" = "$o_fetch" ] && ! git -C "$work/.docket" symbolic-ref -q HEAD >/dev/null'
+assert "O: fixture precondition — the remote is an ancestor of HEAD, so the fast path is reachable" \
+  'git -C "$work/.docket" merge-base --is-ancestor "$o_fetch" "$o_head"'
+
+# (O1) wedged + remote UNMOVED: retryable, and NAMED as wedged on exhaustion.
+mkcounter "$tmp/o1.count" "$tmp/count4.sh"
+( cd "$work" && . "$LIB" && CONFIG_EXPORT_CMD="bash $tmp/ok-export.sh" \
+    DOCKET_PREFLIGHT_TEST_SLEEP_CMD="bash $tmp/count4.sh" docket_preflight "$SCRIPTS" ) \
+    >/dev/null 2>"$tmp/o1.err"; rc=$?
+assert "O1: a wedged tree with the remote UNMOVED must NOT report success" '[ "$rc" -ne 0 ]'
+assert "O1: the exhaustion diagnostic names the wedged class" \
+  'grep -qi "rebase or merge is in progress" "$tmp/o1.err"'
+assert "O1: a wedge is retryable whether or not the remote moved — full backoff budget spent" \
+  '[ "$(backoffs "$tmp/o1.count")" -eq 4 ]'
+assert "O1: the rebase was left for its owner, never aborted out from under them" \
+  '[ -d "$o_gitdir/rebase-merge" ] || [ -d "$o_gitdir/rebase-apply" ]'
+git -C "$work/.docket" rebase --abort >/dev/null 2>&1 || :
+
+# (O2) a plain detached HEAD — no operation in progress — with the remote UNMOVED. Same lost-commit
+# shape without the rebase: a commit lands on no branch. Terminal, not retryable: nothing but a
+# human clears a `git checkout <sha>`, and this file spends budget only on classes that self-heal.
+git -C "$work/.docket" checkout -q --detach "$o_fetch" >/dev/null 2>&1
+o2_head="$(git -C "$work/.docket" rev-parse HEAD 2>/dev/null)"
+assert "O2: fixture precondition — HEAD is detached with NO git operation in progress" \
+  '! git -C "$work/.docket" symbolic-ref -q HEAD >/dev/null && [ ! -d "$o_gitdir/rebase-merge" ] && [ ! -d "$o_gitdir/rebase-apply" ] && [ ! -f "$o_gitdir/MERGE_HEAD" ]'
+assert "O2: fixture precondition — the remote is an ancestor of HEAD, so the fast path is reachable" \
+  '[ -n "$o2_head" ] && git -C "$work/.docket" merge-base --is-ancestor "$o_fetch" "$o2_head"'
+mkcounter "$tmp/o2.count" "$tmp/count5.sh"
+( cd "$work" && . "$LIB" && CONFIG_EXPORT_CMD="bash $tmp/ok-export.sh" \
+    DOCKET_PREFLIGHT_TEST_SLEEP_CMD="bash $tmp/count5.sh" docket_preflight "$SCRIPTS" ) \
+    >/dev/null 2>"$tmp/o2.err"; rc=$?
+assert "O2: a detached HEAD must NOT report success" '[ "$rc" -ne 0 ]'
+assert "O2: the diagnostic names the detached class" 'grep -qi "detached" "$tmp/o2.err"'
+assert "O2: detached is not misreported as the wedged class" \
+  '! grep -qi "rebase or merge is in progress" "$tmp/o2.err"'
+assert "O2: nothing self-heals a detached HEAD — no retry budget spent" \
+  '[ "$(backoffs "$tmp/o2.count")" -eq 0 ]'
+
+# (O3) the same detached HEAD once the remote MOVES. Refusing on the fast path is not enough: the
+# integrate arm below it would otherwise rebase the detached HEAD and report success for a sync
+# that moved no branch at all.
+git -C "$other" pull -q --rebase origin docket >/dev/null 2>&1
+printf 'remote moved a fifth time\n' > "$other/remote-moved-5.txt"
+git -C "$other" add remote-moved-5.txt >/dev/null 2>&1
+git -C "$other" commit -q -m "other agent 5" >/dev/null 2>&1
+git -C "$other" push -q origin HEAD:docket >/dev/null 2>&1
+mkcounter "$tmp/o3.count" "$tmp/count6.sh"
+( cd "$work" && . "$LIB" && CONFIG_EXPORT_CMD="bash $tmp/ok-export.sh" \
+    DOCKET_PREFLIGHT_TEST_SLEEP_CMD="bash $tmp/count6.sh" docket_preflight "$SCRIPTS" ) \
+    >/dev/null 2>"$tmp/o3.err"; rc=$?
+assert "O3: a detached HEAD with the remote MOVED still refuses" '[ "$rc" -ne 0 ]'
+assert "O3: the detached HEAD was never rebased — it did not move" \
+  '[ "$(git -C "$work/.docket" rev-parse HEAD 2>/dev/null)" = "$o2_head" ]'
+assert "O3: the remote commit was NOT integrated onto the detached HEAD" \
+  '[ ! -f "$work/.docket/remote-moved-5.txt" ]'
+assert "O3: it spent no retry budget" '[ "$(backoffs "$tmp/o3.count")" -eq 0 ]'
+git -C "$work/.docket" checkout -q docket >/dev/null 2>&1 || :
+
 exit $fail

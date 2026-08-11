@@ -68,17 +68,30 @@ _docket_tree_wedged(){
   [ -d "$gd/rebase-merge" ] || [ -d "$gd/rebase-apply" ] || [ -f "$gd/MERGE_HEAD" ]
 }
 
+# _docket_tree_detached GIT DIR — true (0) when HEAD in DIR is not on a branch. Deliberately a
+# SEPARATE predicate rather than another clause inside _docket_tree_wedged: docket-status.sh
+# consumes that one by name at two sites for a class that is transient (another agent mid-sync,
+# worth waiting out), and a detached HEAD is its opposite — nothing but a human clears it.
+# `symbolic-ref -q HEAD` is the probe rather than `rev-parse --abbrev-ref HEAD`, whose detached
+# answer is the literal string "HEAD" and so collides with a branch that could be named that.
+_docket_tree_detached(){
+  ! "$1" -C "$2" symbolic-ref -q HEAD >/dev/null 2>&1
+}
+
 # _docket_sync_metadata GIT DIR REMOTE BRANCH — the ONE metadata sync (change 0247), used by both
 # branches of docket_preflight so they cannot drift apart.
 #
 # INVARIANT: it may report success when local metadata is already current with, or AHEAD of, the
-# fetched remote; it integrates remote changes ONLY when the tracked tree is clean and no git
-# operation is in progress; and it NEVER mutates another agent's in-flight state to get there — no
-# --autostash, no reset, no stash. Review any change to this function against those three clauses.
+# fetched remote; it reports success ONLY when HEAD is on a branch and no git operation is in
+# progress; it integrates remote changes ONLY when, additionally, the tracked tree is clean; and it
+# NEVER mutates another agent's in-flight state to get there — no --autostash, no reset, no stash.
+# Review any change to this function against those four clauses. The second one is stated
+# separately from the third on purpose: collapsing them into "the integrate path checks it" is
+# precisely the reading that shipped a fast path returning 0 on a mid-rebase shared tree.
 #
 # Returns 0 on success; 1 on a terminal failure or retry exhaustion, with a stderr diagnostic that
-# NAMES the last failure class (dirty / wedged / fetch / conflict), so the caller learns what
-# blocked the sync rather than merely that attempts died.
+# NAMES the last failure class (dirty / wedged / detached / fetch / conflict), so the caller learns
+# what blocked the sync rather than merely that attempts died.
 _docket_sync_metadata(){
   local git="$1" dir="$2" remote="$3" branch="$4"
   local attempt=0 last=fetch head remote_sha nap
@@ -93,20 +106,46 @@ _docket_sync_metadata(){
     else
       head="$("$git" -C "$dir" rev-parse HEAD 2>/dev/null)"
       remote_sha="$("$git" -C "$dir" rev-parse FETCH_HEAD 2>/dev/null)"
+      # WHAT STATE IS HEAD IN — classified BEFORE any arm may report success, because the
+      # INVARIANT's "no git operation is in progress" clause binds the SUCCESS path and not merely
+      # the integrate path. Getting this order wrong is not hypothetical: probing the wedge only
+      # AFTER the fast path returned made preflight green-light the very state this function exists
+      # to survive. A conflicted rebase leaves HEAD DETACHED at the rebase's `onto` commit, so
+      # whenever the remote had not advanced past it `rev-parse HEAD` equalled `rev-parse
+      # FETCH_HEAD`, the ancestor test below was trivially true, and the wedge was never consulted
+      # (observed on git 2.55). An agent's correctly scoped commit then lands on that detached HEAD
+      # — the branch ref never moves — and the next `rebase --abort` destroys it. Preflight is the
+      # only mechanical gate the agent channel has, so it fails closed here.
+      #
+      # Wedged is probed before detached because a rebase in progress is ALSO detached, and the
+      # more specific class wins — the same rule that puts it ahead of the dirty check, a wedged
+      # tree being dirty too.
+      if _docket_tree_wedged "$git" "$dir"; then
+        # A rebase/merge that PREDATES this attempt is another agent mid-sync: transient, so it
+        # spends budget regardless of whether the remote moved. Only the exhaustion diagnostic gets
+        # to call it wedged.
+        last=wedged
+      elif _docket_tree_detached "$git" "$dir"; then
+        # Detached with NO operation under way is a human's `git checkout <sha>`, not a window that
+        # closes: no retry arm, per this file's own rule of spending budget only on classes that
+        # can self-heal. It is terminal rather than merely non-fast-path because the rebase arm
+        # below would otherwise move the detached HEAD and report success for it.
+        #
+        # Only DETACHMENT is policed, never "attached to the wrong branch". The lost-commit shape
+        # is a commit landing on no branch at all; which branch the tree is on is a question this
+        # function cannot answer for both of its callers, since in main-mode $dir is the human's
+        # own main worktree rather than a worktree docket owns.
+        echo "docket-preflight: metadata sync failed — HEAD in $dir is DETACHED, so no branch is checked out and a commit made there would be stranded off $branch. Nothing here self-heals, so it was not retried. This one needs a human: check out $branch." >&2
+        return 1
       # FAST PATH — up to date, or ahead only. The remote is an ancestor of HEAD, so there is
       # nothing to integrate and no rebase is needed. This is the single most common collision
       # (the other agent has not pushed yet), and it must succeed on a dirty tree.
-      if [ -n "$head" ] && [ -n "$remote_sha" ] \
+      elif [ -n "$head" ] && [ -n "$remote_sha" ] \
          && "$git" -C "$dir" merge-base --is-ancestor "$remote_sha" "$head" 2>/dev/null; then
         return 0
-      fi
-      # The remote moved (or history diverged: local commits AND remote movement). Both cases take
-      # this one path — local commits rebase onto the fetched remote under the same precondition.
-      if _docket_tree_wedged "$git" "$dir"; then
-        # A rebase/merge that PREDATES this attempt is another agent mid-sync: transient, so it
-        # spends budget. Only the exhaustion diagnostic gets to call it wedged. Probed BEFORE the
-        # dirty check because a wedged tree is also dirty, and the more specific class wins.
-        last=wedged
+      # From here the remote moved (or history diverged: local commits AND remote movement). Both
+      # cases take one path — local commits rebase onto the fetched remote under the same
+      # precondition.
       elif _docket_tree_dirty "$git" "$dir"; then
         last=dirty
       elif "$git" -C "$dir" rebase "$remote_sha" >&2; then

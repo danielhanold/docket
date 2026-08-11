@@ -1171,13 +1171,69 @@ integration_sync(){
   return 0
 }
 
+# preflight_wedged_report — maps a FAILED Step-0 preflight onto this script's OWN documented
+# blocked-wedged-tree vocabulary. Returns 0 when it recognized the wedge and emitted the report
+# line(s); 1 when it did not, leaving the caller's bare `exit 1` in force.
+#
+# Change 0247 made _docket_sync_metadata fail closed on a shared metadata worktree that already has
+# a rebase or merge in progress — it used to green-light exactly that state, its fast path
+# returning before the wedge was ever probed. Correct, but it moves the refusal AHEAD of both write
+# paths: main() exits at Step 0, so neither commit_and_push_generated's own probe nor
+# sweep_execute_one's step-6a probe is ever reached, and a PRE-EXISTING wedge would leave the
+# report channel silent on the one condition this script documents a token for. Silence on a path
+# that still exits 0 is the exact failure `board inline failed` was minted to close (change 0071
+# review, finding 1) — and a token documented in docket-status.md that no run can emit is worse
+# than no token at all.
+#
+# So the two layers split the job rather than duplicating it: preflight REFUSES TO SYNC a wedged
+# tree, and this says WHY. The in-function probes keep the case no Step-0 check can ever catch —
+# the TOCTOU window in which another agent starts its rebase AFTER preflight returned, mid-pass.
+# tests/test_docket_status.sh exercises that window through the RENDER_BOARD seam, so neither probe
+# is redundant with the other; deleting either one reddens a different assert.
+#
+# Only a tree this function RE-PROBES as wedged is mapped; every other preflight failure keeps the
+# bare `exit 1`. `BOOTSTRAP=PROCEED` is a conjunct, not decoration: config export and the bootstrap
+# gate return BEFORE the sync, and softening one of those fail-closed exits into a best-effort exit
+# 0 because some unrelated rebase happens to be in flight would re-open a fail-open door right
+# beside the one this change shut. A config that never resolved leaves BOOTSTRAP unset, which fails
+# the same conjunct.
+preflight_wedged_report(){
+  [ "${BOOTSTRAP:-}" = PROCEED ] || return 1
+  local mw
+  mw="$(docket_metadata_worktree)"
+  [ -n "$mw" ] || return 1
+  _docket_tree_wedged "$GIT" "$mw" || return 1
+  # ONE line per consumer that would actually have run and would actually have hit its own wedge
+  # probe — never a blanket pair. `learnings index blocked-wedged-tree` under --board-only (which
+  # never runs that pass) or in a learnings-off repo would be a report line for work that was never
+  # scheduled, which is the same lie as silence with the polarity flipped. The board line is gated
+  # on the `inline` surface for the same reason: it is the only surface that writes into the shared
+  # worktree, and `none`/`github` reach no wedge.
+  case " ${BOARD_SURFACES:-} " in
+    *" inline "*) echo "board inline blocked-wedged-tree" ;;
+  esac
+  if [ "$BOARD_ONLY" != 1 ] && [ "${LEARNINGS_ENABLED:-true}" = true ] \
+     && [ -d "$mw/${CHANGES_DIR:-}/learnings" ]; then
+    printf 'learnings index blocked-wedged-tree\n'
+  fi
+  return 0
+}
+
 main(){
   # change 0094: the write-free read short-circuits BEFORE docket_preflight (which syncs).
   if [ "$DIGEST_ONLY" = 1 ]; then
     digest_only_pass || exit 1
     exit 0
   fi
-  docket_preflight "$SCRIPTS_DIR" || exit 1
+  if ! docket_preflight "$SCRIPTS_DIR"; then
+    preflight_wedged_report || exit 1
+    # --must-land halts: a wedged tree is NOT LANDED, byte for byte the verdict board_classify
+    # reaches on the same token when the pass does get to run. Flagless stays BEST-EFFORT (exit 0),
+    # which is what docket-status.md promises this token's callers — and `pass ok` is deliberately
+    # absent, because no pass ran to completion here and that marker means exactly that.
+    if [ "$MUST_LAND" = 1 ]; then exit 1; fi
+    exit 0
+  fi
   if [ "$MUST_LAND" = 1 ]; then
     board_pass_must_land || exit 1
   else
