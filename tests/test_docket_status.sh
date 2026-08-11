@@ -4604,6 +4604,114 @@ assert "0247 own-rebase: a rebase this function started is never called another 
 assert "0247 own-rebase: the pass stays best-effort and still completes" \
   '[ $rc -eq 0 ] && grep -qxF "pass ok" "$tmp/ownr-run.txt"'
 
+# (5) THE SWEEP'S STEP 6a — the THIRD in-function probe, and the only one whose consumer is the
+# close-out chain rather than a board/learnings pass. Its two neighbours above were covered from the
+# day they landed; this arm's only evidence was three `grep`s against docket-status.md, so deleting
+# the `if` outright left the whole suite green — decoration, by this repo's own rule that a guard is
+# code until mutation-tested.
+#
+# It extends the a5b landmine fixture (the one that already drives `sweep-failed 60
+# render-change-links push-failed`) rather than minting a new sweep case: the property under test is
+# the SAME one — a failure inside the artifacts-refresh block is COSMETIC and must not abandon the
+# close-out — with the wedge substituted for the rejected push. So the asserts pair the new reason
+# WITH `swept`/`harvest` and with terminal-publish and cleanup having really run; a probe that
+# `return 0`-ed instead of reporting-and-continuing would satisfy the reason line alone.
+#
+# THE INJECTION POINT is render-change-links.sh, which the sweep runs at exactly the right instant:
+# after preflight and after the sweep's own `pull --rebase` both saw a clean, converged tree, and
+# immediately before the block probes. The shim WEDGES FIRST and RENDERS SECOND — the reverse order
+# cannot work, because `rebase` refuses to start on the dirty tree the renderer leaves behind, and a
+# rebase that never started is a permanently green assert. Rendering under the conflicted rebase is
+# what makes `status --porcelain -- $archived` non-empty, i.e. what makes the block reachable at all.
+a5c="$tmp/a5c-case"
+gate_setup "$a5c"
+a5_seed_stale "$a5c"
+# conflict.txt on the METADATA branch: the fodder the shim's rebase collides on. Seeded separately
+# from a5_seed_stale so the a5/a5b cases above keep the exact tree they were written against.
+git clone -q "$a5c/origin.git" "$a5c/conflict-seed" 2>/dev/null
+git -C "$a5c/conflict-seed" checkout -q docket
+printf 'ours\n' > "$a5c/conflict-seed/conflict.txt"
+git -C "$a5c/conflict-seed" add conflict.txt
+git -C "$a5c/conflict-seed" -c user.email=t@t -c user.name=t commit -q -m "seed conflict fodder"
+git -C "$a5c/conflict-seed" push -q origin docket
+# The concurrent agent's clone. It re-syncs to origin/docket INSIDE the shim rather than here:
+# archive-change.sh pushes to docket during the run, so a tip read now would be stale and its push
+# would be rejected — leaving no remote movement, no conflict, and a vacuous fixture.
+git clone -q "$a5c/origin.git" "$a5c/work2" 2>/dev/null
+a5c_mw="$a5c/work/.docket"
+
+mkdir -p "$tmp/mock-a5c"
+for s in archive-change.sh render-change-links.sh terminal-publish.sh cleanup-feature-branch.sh \
+         board-refresh.sh render-board.sh board-checks.sh sync-integration-branch.sh; do
+  printf '#!/usr/bin/env bash\nexec %q "$@"\n' "$REPO/scripts/$s" > "$tmp/mock-a5c/$s"
+  chmod +x "$tmp/mock-a5c/$s"
+done
+cat > "$tmp/mock-a5c/render-change-links.sh" <<EOF
+#!/usr/bin/env bash
+if [ ! -f "$a5c/.wedged" ]; then
+  : > "$a5c/.wedged"
+  git -C "$a5c/work2" fetch -q origin docket >/dev/null 2>&1
+  git -C "$a5c/work2" checkout -q -B docket FETCH_HEAD >/dev/null 2>&1
+  printf 'theirs\n' > "$a5c/work2/conflict.txt"
+  git -C "$a5c/work2" -c user.email=t@t -c user.name=t commit -q -am theirs >/dev/null 2>&1
+  git -C "$a5c/work2" push -q origin HEAD:docket >/dev/null 2>&1
+  printf 'mine\n' > "$a5c_mw/conflict.txt"
+  git -C "$a5c_mw" -c user.email=t@t -c user.name=t commit -q -am "mine (local, unpushed)" >/dev/null 2>&1
+  git -C "$a5c_mw" fetch -q origin docket >/dev/null 2>&1
+  git -C "$a5c_mw" -c user.email=t@t -c user.name=t rebase FETCH_HEAD >/dev/null 2>&1
+fi
+exec "$REPO/scripts/render-change-links.sh" "\$@"
+EOF
+chmod +x "$tmp/mock-a5c/render-change-links.sh"
+
+# The sleep seam is a stopwatch here, not an assertion: nothing in this run should reach a preflight
+# retry (the wedge opens long after Step 0), and if a future change makes one reachable the fixture
+# must not silently start paying ~22s of real backoff against this file's budget.
+(cd "$a5c/work" && env "${wedge_env[@]}" \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-a5.sh" DOCKET_CONFIG="$tmp/fixture-a5.sh" \
+  GH="$tmp/gh-gate.sh" SCRIPTS_DIR="$tmp/mock-a5c" \
+  "$SCRIPT" --repo x/y >"$tmp/a5c-out.txt" 2>"$tmp/a5c-err.txt")
+rc=$?
+a5c_gitdir="$(git -C "$a5c_mw" rev-parse --absolute-git-dir 2>/dev/null)"
+assert "0247 step-6a: fixture precondition — the shim ran, so Step 0 and the sweep's pull both passed" \
+  '[ -f "$a5c/.wedged" ]'
+assert "0247 step-6a: fixture precondition — the shared metadata worktree really is mid-rebase (never a planted marker dir; <linked>/.git is a POINTER FILE)" \
+  '[ -n "$a5c_gitdir" ] && [ -d "$a5c_gitdir" ] \
+   && { [ -d "$a5c_gitdir/rebase-merge" ] || [ -d "$a5c_gitdir/rebase-apply" ]; }'
+# Post-run, deliberately: the renderer's rewrite is what makes `status --porcelain -- $archived`
+# non-empty and the block reachable at all, and the refresh being STILL uncommitted afterwards is
+# the direct evidence that the probe reported instead of committing. Defeat the probe and this goes
+# red — the commit consumes the dirt (onto the rebase's detached HEAD, which is the whole hazard).
+assert "0247 step-6a: the refreshed change file is still dirty and uncommitted — the block reported instead of committing" \
+  '[ -n "$(git -C "$a5c_mw" status --porcelain -- "$a5c_mw/$a5_archived" 2>/dev/null)" ]'
+assert "0247 step-6a: Step 0 stayed SILENT — this is the in-function probe answering, not the mapping" \
+  '! grep -qF "a rebase or merge is in progress" "$tmp/a5c-err.txt"'
+assert "0247 step-6a: a wedge at the artifacts-refresh commit reports blocked-wedged-tree" \
+  'grep -qxF "sweep-failed 60 render-change-links blocked-wedged-tree" "$tmp/a5c-out.txt"'
+assert "0247 step-6a: it is never mislabelled as the commit-failed or push-failed reason" \
+  '! grep -qE "^sweep-failed 60 render-change-links (commit|push)-failed$" "$tmp/a5c-out.txt"'
+# Report-and-continue, not return-0: the close-out MUST still finish. These four are what separate
+# the shipped arm from a probe that merely refuses.
+assert "0247 step-6a: the sweep still exits zero" '[ $rc -eq 0 ]'
+assert "0247 step-6a: the close-out still completed — swept and harvest are both still emitted" \
+  'grep -qE "^swept 60 " "$tmp/a5c-out.txt" && grep -qE "^harvest 60 " "$tmp/a5c-out.txt"'
+assert "0247 step-6a: terminal-publish still ran — the record landed on the integration branch" \
+  'git -C "$a5c/work" fetch origin main >/dev/null 2>&1; git -C "$a5c/work" ls-tree -r --name-only origin/main | grep >/dev/null "$a5_archived"'
+assert "0247 step-6a: cleanup still ran — the feature worktree and the remote branch are gone" \
+  '[ ! -e "$a5c/work/.worktrees/gate-thing" ] \
+   && ! git -C "$a5c/work" ls-remote --exit-code origin feat/gate-thing >/dev/null 2>&1'
+# The unwalkable-back failure this probe exists to prevent: a commit written onto the rebase's
+# detached HEAD, and the other agent's rebase destroyed by an abort that was never ours to run.
+# `--reflog --all`, never `log HEAD`: a commit on a detached HEAD stops being reachable from HEAD
+# the moment anything aborts, so the narrow probe reports "nothing committed" for the exact sequence
+# that lost it. Captured first, never piped into grep -q (AGENTS.md's pipefail/SIGPIPE rule).
+a5c_log="$(git -C "$a5c_mw" log --reflog --all --format=%s 2>/dev/null)"
+assert "0247 step-6a: nothing was committed onto the rebase's detached HEAD" \
+  '! grep -qxF "docket(60): refresh artifacts links" <<<"$a5c_log"'
+assert "0247 step-6a: the other agent's rebase is left in progress, never aborted out from under it" \
+  '[ -d "$a5c_gitdir/rebase-merge" ] || [ -d "$a5c_gitdir/rebase-apply" ]'
+git -C "$a5c_mw" rebase --abort >/dev/null 2>&1 || :
+
 # Report-line vocabulary: the new token is documented at both consumers and at the sweep's step 6a.
 assert "0247: docket-status.md documents the board blocked-wedged-tree line" \
   'grep -qF "board inline blocked-wedged-tree" "$REPO/scripts/docket-status.md"'
