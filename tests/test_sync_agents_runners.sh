@@ -96,17 +96,92 @@ assert "0271: exactly two dispatch invocations in the shim" \
 assert "0271: shim no longer renders the task slot as optional brackets" \
   '! grep -qF -- "[--" "$G"'
 # change 0277: the task brief no longer travels as shell argv. The shim teaches ONE path — write
-# the brief with a quoted-delimiter heredoc, then launch with --brief-file — because two taught
-# paths let the model pick the lossy one. The slot stays UNBRACKETED for 0271's reason: a
-# bracketed rendering reads as optional and was in fact dropped on live dispatches.
+# the brief with a quoted-delimiter heredoc and launch with --brief-file in the SAME Bash call —
+# because two taught paths let the model pick the lossy one. Any slot the model must still fill
+# stays UNBRACKETED for 0271's reason: a bracketed rendering reads as optional and was in fact
+# dropped on live dispatches.
 assert "0277: shim teaches an explicitly templated mktemp for the brief" \
   'grep -qF -- "TMPDIR:-/tmp" "$G"'
 assert "0277: shim teaches a QUOTED-delimiter heredoc (every character literal)" \
   'grep -qF -- "<<'\''DOCKET_BRIEF_EOF'\''" "$G"'
 assert "0277: shim closes the heredoc" 'grep -qxF -- "DOCKET_BRIEF_EOF" "$G"'
 launch_line="$(grep -F -- "--launch" "$G")"
-assert "0277: launch line ends with an unbracketed --brief-file slot" \
-  'grep -qE -- "--brief-file <[^>]+>[[:space:]]*$" <<<"$launch_line"'
+# The brief path is no longer a slot at all: the launch rides in the same call as the write, so
+# the argument is a live expansion. DETECTS THE REMOVAL of that property — an argument carrying an
+# angle-bracket placeholder is the shipped defect returning.
+assert "0277: the launch line's --brief-file argument is a live value, not a slot to fill" \
+  '! grep -qE -- "--brief-file[[:space:]]+[^[:space:]]*<" <<<"$launch_line"'
+# THE RECIPE MUST ACTUALLY YIELD A USABLE PATH (0277 whole-branch review, blocker). Every assert
+# around this one pins the SHAPE of the launch line; none of them pins that a model FOLLOWING the
+# recipe hands the facade a readable brief. The first shipped form did not, and every assert stayed
+# green over it: it taught "two foreground Bash calls", harness Bash calls share no shell state, and
+# mktemp's suffix is random — so at the launch the model had never seen the path, `$BRIEF` expanded
+# empty in a fresh shell, and the facade died on `--brief-file requires a path`. That is a total
+# failure of the SOLE taught channel, for every runner and every delegated agent.
+#
+# Guarded by EXECUTING the emitted recipe against a stub facade rather than by matching prose: a
+# reworded shim cannot fool it, and a future split back into two calls cannot survive it. Run
+# against the STATUS shim on purpose — a build shim's launch line still carries the caller-supplied
+# `<feature worktree>` slot, which is not a shell-executable token and never could be.
+_recipe_dir="$(mktemp -d "${TMPDIR:-/tmp}/docket-0277-recipe.XXXXXX")"
+mkdir -p "$_recipe_dir/scripts"
+# A brief with the characters that broke the argv channel: newlines, single quotes, a dollar sign.
+printf '%s\n' "brief line one" "line two with 'single quotes' and a \$dollar" > "$_recipe_dir/expected"
+# Slice the taught recipe out of the shim: from the mktemp assignment through the launch line, with
+# the heredoc BODY (whatever the caller-text slot is worded as) swapped for the known brief. Keyed
+# on the heredoc's own delimiter, read off the `<<'…'` line, so no spelling is hardcoded.
+awk -v q="'" -v subf="$_recipe_dir/expected" '
+  !seen { if (/mktemp/) { seen=1; print } ; next }
+  !her && index($0, "<<" q) {
+    her=1; delim=$0; sub(/^.*<</, "", delim); gsub(q, "", delim); print
+    while ((getline l < subf) > 0) print l
+    next
+  }
+  her { if ($0 == delim) { her=0; print } ; next }
+  { print }
+  index($0, "--launch") { exit }
+' "$G" > "$_recipe_dir/recipe.sh"
+# The stub facade: records its argv and nothing else, so the assert below reads exactly what a real
+# dispatch would have been handed.
+printf '%s\n' '#!/usr/bin/env bash' 'printf "%s\n" "$@" > "${DOCKET_0277_ARGV:?}"' \
+  > "$_recipe_dir/scripts/docket.sh"
+chmod +x "$_recipe_dir/scripts/docket.sh"
+# `bash -e` so a recipe that is not one runnable script stops at the first bad line instead of
+# limping on to a launch that only looks reached.
+DOCKET_0277_ARGV="$_recipe_dir/argv" DOCKET_SCRIPTS_DIR="$_recipe_dir/scripts" \
+  bash -e "$_recipe_dir/recipe.sh" >/dev/null 2>&1 </dev/null
+_recipe_rc=$?
+assert "0277: the emitted STEP 1 recipe runs as ONE script, start to finish" '[ "$_recipe_rc" = "0" ]'
+assert "0277: the recipe reached the dispatch facade" '[ -s "$_recipe_dir/argv" ]'
+_bf=""
+if [ -s "$_recipe_dir/argv" ]; then
+  _prev=""
+  while IFS= read -r _a; do
+    if [ "$_prev" = "--brief-file" ]; then _bf="$_a"; break; fi
+    _prev="$_a"
+  done < "$_recipe_dir/argv"
+fi
+assert "0277: the recipe handed --brief-file a non-empty path" '[ -n "$_bf" ]'
+assert "0277: that path is a readable file (the property the shape asserts cannot see)" \
+  '[ -f "$_bf" ] && [ -r "$_bf" ]'
+assert "0277: that file holds the caller's brief verbatim, quotes and newlines included" \
+  'diff -q "$_recipe_dir/expected" "$_bf" >/dev/null 2>&1'
+# The brief itself lands in TMPDIR, not in the sandbox — the recipe's own mktemp put it there.
+rm -rf "$_recipe_dir"
+if [ -n "$_bf" ]; then rm -f "$_bf"; fi
+# The executable sentinel above proves the recipe RUNS as one script; this one proves the shim
+# still TELLS the model to send it as one call. Shape, not spelling: between the assignment and the
+# launch there must be no line at all outside the heredoc — a prose paragraph there is precisely
+# the "1a. … 1b. …" two-call split that shipped broken.
+_between="$(awk -v q="'" '
+  !seen { if (/mktemp/) seen=1; next }
+  index($0, "--launch") { exit }
+  !her && index($0, "<<" q) { her=1; delim=$0; sub(/^.*<</, "", delim); gsub(q, "", delim); next }
+  her { if ($0 == delim) her=0; next }
+  { print }
+' "$G")"
+assert "0277: nothing separates the brief write from the launch — they are ONE taught call" \
+  '[ -z "$(grep -vE "^[[:space:]]*$" <<<"$_between")" ]'
 # DETECTS THE REMOVAL (LEARNINGS: assert-detects-removal-not-replacement): the argv payload slot
 # and its quoting instructions are the defect, so neither may survive anywhere in the shim.
 assert "0277: shim no longer renders a trailing single-quoted argv task slot" \
