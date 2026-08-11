@@ -10,14 +10,14 @@ updated: 2026-08-11
 depends_on: []
 related: [242, 271]
 discovered_from: [271]
-adrs: []
+adrs: [84]
 spec: docs/superpowers/specs/2026-08-09-run-gate-detached-dispatch-path-design.md
 plan: docs/superpowers/plans/2026-08-11-run-gate-detached-dispatch-path.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/run-gate-has-no-runnable-path-for-slash-command-or-backgroun
-claimed_at: 2026-08-11T05:10:46Z
+claimed_at: 2026-08-11T05:55:27Z
 pr:
 blocked_by:
 reconciled: true
@@ -30,6 +30,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-09-run-gate-detached-dispatch-path-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-run-gate-detached-dispatch-path-design.md) |
 | Plan | [2026-08-11-run-gate-detached-dispatch-path.md](https://github.com/danielhanold/docket/blob/feat/run-gate-has-no-runnable-path-for-slash-command-or-backgroun/docs/superpowers/plans/2026-08-11-run-gate-detached-dispatch-path.md) |
+| ADRs | [ADR-0084](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0084-re-dispatch-permission-gated-on-attribution-capability-not-launch-shape.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
