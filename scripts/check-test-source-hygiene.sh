@@ -114,7 +114,7 @@
 set -uo pipefail
 
 # Repo root, for rule (a)'s own sweep of the tests tree (see the sweep block near the bottom).
-REPO_ROOT="$(cd -- "$(dirname -- "$0")/.." && pwd)"
+REPO_ROOT="$(cd -- "$(dirname -- "$0")/.." && pwd -P)"
 
 PATHS=()
 while [ $# -gt 0 ]; do
