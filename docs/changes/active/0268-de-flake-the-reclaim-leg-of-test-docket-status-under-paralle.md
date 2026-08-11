@@ -2,7 +2,7 @@
 id: 268
 slug: de-flake-the-reclaim-leg-of-test-docket-status-under-paralle
 title: 'De-flake the reclaim leg of test_docket_status under parallel contention'
-status: proposed
+status: in-progress
 priority: medium
 type: fix
 created: 2026-08-08
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/de-flake-the-reclaim-leg-of-test-docket-status-under-paralle
+claimed_at: 2026-08-11T20:34:54Z
 pr:
 blocked_by:
 reconciled: false
