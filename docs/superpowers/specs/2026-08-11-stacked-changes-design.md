@@ -102,7 +102,33 @@ The child's artifacts split by where they live:
   unless the human publishes explicitly). Under `terminal_publish: false` nothing changes —
   a skipped publish is already success.
 
-### 7. Board
+**Parent artifacts when a child merges in — nothing is edited mid-flight, one addition at
+close-out:**
+
+- **Parent spec: never updated.** It is a point-in-time record of the parent's own designed
+  scope; the child's design lives in the child's spec. Absorbing child scope retroactively
+  would falsify what the parent's build was designed against.
+- **Parent plan: never updated.** The child's work is planned in the child's own plan file,
+  which physically arrives on the parent branch with the child's merge — the parent branch
+  carries both plans side by side.
+- **Parent results: authored at the parent's close-out, and must account for the stack.** The
+  parent PR's diff includes every merged child's work, so the parent's results file enumerates
+  its merged stacked children — id, title, PR — pointing at each child's own results/plan for
+  detail. Parent results = "what this PR carries"; child results = "what each child built".
+  This is authoring at close-out time, not an edit to a frozen record.
+
+### 7. Reciprocal visibility — derived, never denormalized
+
+The child's `stacked_on:` is the **single source of truth** for the relationship. The parent
+gets the reverse link as a **derived view**, not a frontmatter field: `render-change-links.sh`
+scans `active/` + `archive/` for `stacked_on: <parent id>` and renders a **Stacked children**
+row (id, title, status) into the parent's generated `## Artifacts` block — sole-writer,
+regenerated on every frontmatter write, drift-free by construction. A denormalized
+`stacked_children:` list was rejected: every writer would have to maintain the second copy, and
+a missed update would silently lie to finalize's open-children gate — which therefore also
+derives the child set by scanning, never by reading a parent-side list.
+
+### 8. Board
 
 The inline board renders the relationship (e.g. `↳ stacked on #0281`) plus the two derived
 cells above (*stack base not built*, *rebase pending*).
@@ -131,7 +157,10 @@ always-loaded surface flat.
 - `docket-implement-next`: readiness filter, branch-cut base, reconcile input, PR base.
 - `docket-finalize-change`: effective-base generalization for the rebase-retest gate; parent
   open-children gate (block vs. interactive warn-and-override); child fallback/retarget flow;
-  child close-out publish deferral + root-merge deferred-publish sweep; killed-parent warning.
+  child close-out publish deferral + root-merge deferred-publish sweep; parent results file
+  enumerates merged stacked children at close-out; killed-parent warning.
+- `render-change-links.sh`: derived **Stacked children** row in the parent's `## Artifacts`
+  block (scan for `stacked_on:`, never a parent-side field).
 - Board renderer + health checks: relationship cell, waiting/rebase-pending states, a stale
   `stacked_on` (parent gone terminal) check.
 
@@ -140,5 +169,6 @@ always-loaded surface flat.
 Suite coverage for: cycle refusal; readiness gating on parent branch presence; branch cut from
 parent; finalize effective-base selection; autonomous block vs. interactive override; fallback
 retarget bookkeeping; child close-out publish deferral and the root-merge deferred-publish
-sweep (including `terminal_publish: false` no-op); killed-parent warning; board rendering of
-all three cells.
+sweep (including `terminal_publish: false` no-op); parent results enumerating merged children;
+the derived Stacked-children row in the parent's Artifacts block; killed-parent warning; board
+rendering of all three cells.
