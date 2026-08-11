@@ -1,12 +1,6 @@
 # Backlog
 
-**288 changes** — 🟢 1 in progress · 🟡 35 proposed · ⚪ 4 deferred · ✅ 172 done · 🗑️ 76 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0275](active/0275-run-gate-has-no-runnable-path-for-slash-command-or-backgroun.md) | Run gate has no runnable path for slash-command or backgrounded implement-next dispatch | `high` | `fix` | [spec](../superpowers/specs/2026-08-09-run-gate-detached-dispatch-path-design.md) | `feat/run-gate-has-no-runnable-path-for-slash-command-or-backgroun` |
+**288 changes** — 🟡 35 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 172 done · 🗑️ 76 killed
 
 ## 🟡 Proposed (35)
 
@@ -56,6 +50,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0275](active/0275-run-gate-has-no-runnable-path-for-slash-command-or-backgroun.md) | Run gate has no runnable path for slash-command or backgrounded implement-next dispatch | `high` | `fix` | [#196](https://github.com/danielhanold/docket/pull/196) |  |
 
 ```mermaid
 graph TD
