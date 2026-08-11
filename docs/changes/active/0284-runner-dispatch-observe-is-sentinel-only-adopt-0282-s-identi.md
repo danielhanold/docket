@@ -10,7 +10,7 @@ updated: 2026-08-11
 depends_on: []
 related: [208, 270, 277]
 discovered_from: [282]
-adrs: []
+adrs: [87]
 spec: docs/superpowers/specs/2026-08-10-runner-dispatch-observe-liveness-probe-design.md
 plan: docs/superpowers/plans/2026-08-11-runner-dispatch-observe-liveness-probe.md
 results:
@@ -30,6 +30,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-10-runner-dispatch-observe-liveness-probe-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-10-runner-dispatch-observe-liveness-probe-design.md) |
 | Plan | [2026-08-11-runner-dispatch-observe-liveness-probe.md](https://github.com/danielhanold/docket/blob/feat/runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi/docs/superpowers/plans/2026-08-11-runner-dispatch-observe-liveness-probe.md) |
+| ADRs | [ADR-0087](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
