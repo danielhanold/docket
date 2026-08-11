@@ -1,12 +1,6 @@
 # Backlog
 
-**294 changes** — 🟢 1 in progress · 🟡 37 proposed · ⚪ 4 deferred · ✅ 176 done · 🗑️ 76 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0247](active/0247-make-shared-metadata-worktree-contention-survivable-and-scop.md) | Make shared metadata worktree contention survivable and scope its commits | `high` | `fix` | [spec](../superpowers/specs/2026-08-09-make-shared-metadata-worktree-contention-survivable-and-scop-design.md) | `feat/make-shared-metadata-worktree-contention-survivable-and-scop` |
+**294 changes** — 🟡 37 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 176 done · 🗑️ 76 killed
 
 ## 🟡 Proposed (37)
 
@@ -58,6 +52,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0247](active/0247-make-shared-metadata-worktree-contention-survivable-and-scop.md) | Make shared metadata worktree contention survivable and scope its commits | `high` | `fix` | [#200](https://github.com/danielhanold/docket/pull/200) |  |
 
 ```mermaid
 graph TD
