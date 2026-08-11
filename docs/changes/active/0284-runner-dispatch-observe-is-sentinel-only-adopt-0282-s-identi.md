@@ -10,7 +10,7 @@ updated: 2026-08-11
 depends_on: []
 related: [208, 270, 277]
 discovered_from: [282]
-adrs: [87]
+adrs: [87, 88]
 spec: docs/superpowers/specs/2026-08-10-runner-dispatch-observe-liveness-probe-design.md
 plan: docs/superpowers/plans/2026-08-11-runner-dispatch-observe-liveness-probe.md
 results:
