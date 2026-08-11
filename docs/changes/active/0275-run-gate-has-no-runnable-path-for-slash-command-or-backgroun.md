@@ -12,12 +12,12 @@ related: [242, 271]
 discovered_from: [271]
 adrs: []
 spec: docs/superpowers/specs/2026-08-09-run-gate-detached-dispatch-path-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-11-run-gate-detached-dispatch-path.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/run-gate-has-no-runnable-path-for-slash-command-or-backgroun
-claimed_at: 2026-08-11T05:04:20Z
+claimed_at: 2026-08-11T05:10:46Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-09-run-gate-detached-dispatch-path-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-run-gate-detached-dispatch-path-design.md) |
+| Plan | [2026-08-11-run-gate-detached-dispatch-path.md](https://github.com/danielhanold/docket/blob/feat/run-gate-has-no-runnable-path-for-slash-command-or-backgroun/docs/superpowers/plans/2026-08-11-run-gate-detached-dispatch-path.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
