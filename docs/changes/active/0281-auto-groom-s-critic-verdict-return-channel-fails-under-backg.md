@@ -12,12 +12,12 @@ related: [247]
 discovered_from: [247]
 adrs: []
 spec: docs/superpowers/specs/2026-08-09-auto-groom-s-critic-verdict-return-channel-fails-under-backg-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-11-auto-groom-s-critic-verdict-return-channel.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/auto-groom-s-critic-verdict-return-channel-fails-under-backg
-claimed_at: 2026-08-11T06:15:16Z
+claimed_at: 2026-08-11T06:19:41Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-09-auto-groom-s-critic-verdict-return-channel-fails-under-backg-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-auto-groom-s-critic-verdict-return-channel-fails-under-backg-design.md) |
+| Plan | [2026-08-11-auto-groom-s-critic-verdict-return-channel.md](https://github.com/danielhanold/docket/blob/feat/auto-groom-s-critic-verdict-return-channel-fails-under-backg/docs/superpowers/plans/2026-08-11-auto-groom-s-critic-verdict-return-channel.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
