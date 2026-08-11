@@ -2,7 +2,7 @@
 id: 260
 slug: tier-finalize-s-in-context-dispatches-and-name-the-push-deni
 title: 'Tier finalize''s in-context dispatches and name the push-denial posture'
-status: in-progress
+status: implemented
 priority: medium
 type: fix
 created: 2026-08-07
@@ -13,12 +13,12 @@ discovered_from: [139, 100]
 adrs: [86]
 spec: docs/superpowers/specs/2026-08-07-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-design.md
 plan: docs/superpowers/plans/2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-denial.md
-results:
+results: docs/results/2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-results.md
 trivial: false
 auto_groomable: true
 branch: feat/tier-finalize-s-in-context-dispatches-and-name-the-push-deni
-claimed_at: 2026-08-11T07:54:56Z
-pr:
+claimed_at: 2026-08-11T08:52:07Z
+pr: https://github.com/danielhanold/docket/pull/198
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-design.md) |
 | Plan | [2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-denial.md](https://github.com/danielhanold/docket/blob/feat/tier-finalize-s-in-context-dispatches-and-name-the-push-deni/docs/superpowers/plans/2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-denial.md) |
+| Results | [2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-results.md](https://github.com/danielhanold/docket/blob/feat/tier-finalize-s-in-context-dispatches-and-name-the-push-deni/docs/results/2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-results.md) |
+| PR | [#198](https://github.com/danielhanold/docket/pull/198) |
 | ADRs | [ADR-0086](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0086-in-context-gating-dispatch-carved-out-of-the-tier-taxonomy.md) |
 <!-- docket:artifacts:end -->
 
