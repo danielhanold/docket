@@ -57,6 +57,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/scripts/lib/docket-gitignore-block.sh"
 # shellcheck source=/dev/null
 . "$SCRIPT_DIR/scripts/lib/harness-defaults.sh"
+# shellcheck source=/dev/null
+. "$SCRIPT_DIR/scripts/lib/docket-agent-scope.sh"   # agent_worktree_scope — shared with the facade
 HARNESS_DEFAULTS="$SCRIPT_DIR/agents/harness-defaults.yml"
 AGENTS_SRC="$SCRIPT_DIR/agents"
 CURSOR_RULES_SRC="$SCRIPT_DIR/cursor-rules"
@@ -249,11 +251,13 @@ short_name(){ local b; b="$(basename "$1")"; b="${b#docket-}"; printf '%s' "${b%
 # Extract the single-line `description:` frontmatter value from a wrapper source file.
 agent_description(){ sed -n '/^description:/{s/^description:[[:space:]]*//;p;q;}' "$1"; }
 
-# Extract the single-line `worktree-scope:` frontmatter value from a wrapper source file (change
-# 0208). An agent's worktree scope is a DECLARED FACT, not a name shape: the delegation gates —
-# emit_shim's required --worktree slot below, and runner-dispatch.sh's runtime gate — both key on
-# this declaration, so a future feature-scoped agent cannot ship ungated by not matching a pattern.
-agent_worktree_scope(){ sed -n '/^worktree-scope:/{s/^worktree-scope:[[:space:]]*//;p;q;}' "$1"; }
+# `agent_worktree_scope` — the `worktree-scope:` reader — is NOT defined here. An agent's worktree
+# scope is a DECLARED FACT, not a name shape: the delegation gates — emit_shim's required
+# --worktree slot below, and runner-dispatch.sh's runtime gate — both key on this declaration, so a
+# future feature-scoped agent cannot ship ungated by not matching a pattern. That makes the
+# EXTRACTION shared code rather than a local helper: it lives in scripts/lib/docket-agent-scope.sh,
+# sourced above and by the facade, so a change to the key's spelling cannot leave one of the two
+# readings behind (see that file's header for why the asymmetry matters).
 
 # Harnesses that get a generated Cursor-style dispatch rule. Both Cursor and Claude Code exhibit
 # the inline quirk (a directly-invoked skill runs at the session model, defeating the wrapper's

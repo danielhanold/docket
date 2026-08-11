@@ -57,6 +57,12 @@ DOCKET_FACADE="${DOCKET_FACADE:-$SELF_DIR/docket.sh}"
 . "$SELF_DIR/lib/docket-root.sh"
 # shellcheck source=lib/docket-dispatch-dir.sh
 . "$SELF_DIR/lib/docket-dispatch-dir.sh"
+# shellcheck source=lib/docket-agent-scope.sh
+# agent_worktree_scope — THE SAME reader sync-agents.sh validates with. Shared rather than
+# duplicated: the value semantics cannot drift (generation rejects anything but feature/metadata)
+# but the extraction can, and a spelling change made in the generator alone fails loudly there
+# while leaving this probe silently reading every agent as metadata scope.
+. "$SELF_DIR/lib/docket-agent-scope.sh"
 
 die(){ printf 'runner-dispatch: %s\n' "$*" >&2; exit 1; }
 
@@ -156,8 +162,7 @@ done
 AGENT_SCOPE=""
 case "$AGENT" in
   *[!A-Za-z0-9._-]*|*..*) ;;
-  *) case "$(sed -n '/^worktree-scope:/{s/^worktree-scope:[[:space:]]*//;p;q;}' \
-              "$DOCKET_AGENTS_SRC/docket-$AGENT.md" 2>/dev/null)" in
+  *) case "$(agent_worktree_scope "$DOCKET_AGENTS_SRC/docket-$AGENT.md")" in
        feature) AGENT_SCOPE="feature" ;;
      esac ;;
 esac
@@ -289,9 +294,19 @@ grep -qxF -- "worktree $ANCHOR" <<<"$wt_list" \
 # the build leg then reports `task-unverifiable worktree-removed`. Refusing here would turn that
 # honest non-verdict into a failed observation — the record would be durable in storage and not in
 # service, the exact failure ANCHOR_FALLBACK was added to prevent.
+#
+# THE DIAGNOSTIC STATES WHAT WAS MEASURED, and nothing else. What this predicate proves is PATH
+# IDENTITY — the anchor IS $REPO_ROOT — so the message says that, and says which tree the agent
+# must run in instead. It deliberately no longer asserts that the tree sits "on the integration
+# branch": nothing here reads a branch, and a diagnostic claiming an unchecked fact is exactly the
+# shape gate 3's own comment above condemns in the pre-0208 code. The branch is the HAZARD the
+# main worktree normally carries, not a fact this gate establishes — see runner-dispatch.md's gate
+# description for the residual that leaves (a linked worktree that happens to be on the integration
+# branch is not caught) and why a branch predicate is not available: `rebase-resolver` runs
+# mid-rebase on a detached HEAD, so there is no branch to compare.
 if [ "$AGENT_SCOPE" = "feature" ] && [ "$ANCHOR_FALLBACK" != 1 ]; then
   [ "$ANCHOR" != "$REPO_ROOT" ] \
-    || die "--worktree resolves to the main worktree; a feature-scoped agent must not run in the primary checkout on the integration branch"
+    || die "--worktree $ANCHOR is the main worktree; a feature-scoped agent must run in a linked feature worktree, never the primary checkout"
 fi
 export DOCKET_REPO_ROOT="$ANCHOR"
 

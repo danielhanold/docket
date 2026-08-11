@@ -113,9 +113,12 @@ fs_out="$( cd "$SBX" && RUNNERS_DIR="$RDIR" bash "$FACADE" --observe "$KEY" \
     --runner fake --agent review-lean --worktree "$WTGONE" 2>&1 )"; fs_rc=$?
 assert "0208: a FEATURE-SCOPED observation still reports its result after the worktree was removed" \
   '[ "$fs_rc" = "0" ]'
+# The negative leg is pinned on gate 3b's own clause `must run in a linked feature worktree`, which
+# appears in no other message the facade can emit here — notably not in the fallback's own "under
+# the main worktree <path>" line, which a bare "main worktree" match would collide with.
 assert "0208: and it is the anchor FALLBACK it took, not the main-tree rejection" \
   'grep -qi "no longer exists" <<<"$fs_out" &&
-   ! grep -qi "resolves to the main worktree" <<<"$fs_out"'
+   ! grep -qF -- "must run in a linked feature worktree" <<<"$fs_out"'
 
 # ---- a failed child -> 1 --------------------------------------------------------
 make_fixture
