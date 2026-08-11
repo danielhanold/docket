@@ -1,6 +1,6 @@
 # Backlog
 
-**296 changes** — 🟡 38 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 177 done · 🗑️ 76 killed
+**296 changes** — 🟡 38 proposed · ⚪ 4 deferred · ✅ 178 done · 🗑️ 76 killed
 
 ## 🟡 Proposed (38)
 
@@ -54,19 +54,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0118](active/0118-decide-whether-the-sweep-s-skip-publish-path-should-also-mar.md) | Decide whether the sweep's skip-publish path should also mark an unpublished terminal record | `medium` | `fix` | [#201](https://github.com/danielhanold/docket/pull/201) |  |
-
 ```mermaid
 graph TD
   0007
   0008
   0009
   0010
-  0118
   0150
   0154
   0158
@@ -111,7 +104,7 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (253)</summary>
+<details><summary>✅🗑️ Archive — done + killed (254)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -122,6 +115,7 @@ graph TD
 | [0260](archive/2026-08-11-0260-tier-finalize-s-in-context-dispatches-and-name-the-push-deni.md) | Tier finalize's in-context dispatches and name the push-denial posture | 2026-08-11 |
 | [0247](archive/2026-08-11-0247-make-shared-metadata-worktree-contention-survivable-and-scop.md) | Make shared metadata worktree contention survivable and scope its commits | 2026-08-11 |
 | [0208](archive/2026-08-11-0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) | Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards | 2026-08-11 |
+| [0118](archive/2026-08-11-0118-decide-whether-the-sweep-s-skip-publish-path-should-also-mar.md) | Decide whether the sweep's skip-publish path should also mark an unpublished terminal record | 2026-08-11 |
 | [0286](archive/2026-08-10-0286-gate-run-observe-poll-loops-strip-state-prefix.md) | Caller-authored gate-run --observe poll loops strip the state= prefix and never terminate | 2026-08-10 |
 | [0282](archive/2026-08-10-0282-launch-and-wait-contract-for-long-running-child-processes-li.md) | Launch-and-wait contract for long-running child processes — liveness-keyed, not marker-keyed | 2026-08-10 |
 | [0270](archive/2026-08-10-0270-fence-runner-config-locality-at-the-main-worktree.md) | Fence runner-config locality at the main worktree (regression test + contract correction) | 2026-08-10 |
@@ -133,7 +127,6 @@ graph TD
 | [0267](archive/2026-08-09-0267-correct-the-stale-field-quote-handling-claim-in-script-contr.md) | Correct the stale field() quote-handling claim in script contracts | 2026-08-09 |
 | [0262](archive/2026-08-09-0262-ban-the-single-backslash-word-boundary-form-too-not-just-its.md) | Ban the single-backslash word-boundary form too, not just its escaped spelling | 2026-08-09 |
 | [0258](archive/2026-08-09-0258-guard-the-config-suite-s-enumerated-claims-export-order-and.md) | Guard the config-suite's enumerated claims: export order and rung pairs | 2026-08-09 |
-| [0259](archive/2026-08-08-0259-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md) | Harden render-board: sanitize feeder values and settle the failure contract | 2026-08-08 |
 | [0243](archive/2026-08-07-0243-make-test-suite-git-fixture-setup-fail-loudly-instead-of-fla.md) | Make test-suite git fixture setup fail loudly instead of flaking | 2026-08-07 |
 | [0241](archive/2026-08-07-0241-correspondence-guard-over-leg-c-s-by-value-duplicated-predic.md) | Correspondence guard over leg C's by-value duplicated predicate (ADR-0072 drift risk) | 2026-08-07 |
 | [0240](archive/2026-08-07-0240-audit-which-frontmatter-accessor-each-call-site-should-use-n.md) | Audit which frontmatter accessor each call site should use, now that three anchored read shapes exist | 2026-08-07 |
@@ -211,7 +204,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 44 done |
+| [2026-08](archive/) | 45 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
