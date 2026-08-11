@@ -1552,12 +1552,18 @@ emit_wrapper(){  # $1=src $2=model $3=effort $4=runner $5=harness $6=agent-name 
 # carry USER-configured values only (change 0168); an empty one bakes NO flag, so the child harness
 # applies its own default rather than inheriting a default that was only ever meant for this
 # harness. This function stays a pure emitter — its caller resolves both pins and hands them down.
-# The task-text slot after `--` is baked UNBRACKETED and carries its own emphatic rule, exactly like
-# the `<feature worktree>` slot below. Both are required inputs the model must fill from its
-# caller, and both fail SILENTLY when omitted — a task-less child improvises from the worktree and
-# the dispatch still looks successful. The earlier `[-- <caller args>]` spelling read as optional
-# and was in fact dropped on live dispatches, so an optional-looking rendering of a required slot
-# is a defect here, not a style choice.
+# The brief slot is baked UNBRACKETED and carries its own emphatic rule, exactly like the
+# `<feature worktree>` slot below. Both are required inputs the model must fill from its caller,
+# and both fail SILENTLY when omitted — a task-less child improvises from the worktree and the
+# dispatch still looks successful. The earlier `[-- <caller args>]` spelling read as optional and
+# was in fact dropped on live dispatches, so an optional-looking rendering of a required slot is a
+# defect here, not a style choice (change 0271).
+# Change 0277: the brief travels as a FILE, not as shell argv. The old form asked the model to
+# perform a lossy, unverified transformation — quote a multi-line brief into one shell argument,
+# every time, correctly — and the adapters then joined multiple arguments on whitespace. A
+# quoted-delimiter heredoc removes the entire quoting burden, and the facade refuses a payload-less
+# `build-*` dispatch outright, so the omission mode is now partly mechanical rather than only
+# narrated. ONE path is taught: two would let the model pick the lossy one.
 emit_shim(){  # $1=src $2=shim-model $3=shim-effort $4=runner $5=agent-name $6=flag-model $7=flag-effort  (stdout)
   emit "$1" "$2" "$3" | awk '/^---[[:space:]]*$/{d++; print; next} d<2{print}'
   local flags="--runner $4 --agent $5"
@@ -1586,22 +1592,34 @@ The delegated run MAY OUTLIVE the call that starts it, so this is a launch-then-
 dispatch, not a single blocking call (change 0271). Both steps go through the same facade —
 one dispatch seam, no inline fallback, no silent retry.
 
-STEP 1 — launch. Make a single foreground Bash call:
+STEP 1 — write the brief, then launch. Two foreground Bash calls, in this order.
 
-    "\${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh runner-dispatch --launch $flags$wt_slot -- '<THE TASK TEXT YOUR CALLER GAVE YOU>'
+1a. WRITE THE BRIEF. Your caller's task text goes into a file, never onto the command line:
 
-The text after \`--\` is the ONLY way the child learns what to do. It inherits no conversation,
-no plan, and no task from you: what you put there is all it will ever see. This command is
-INCOMPLETE until you replace the placeholder (drop the angle brackets) with your caller's task
-text IN FULL — every plan task, change id, path, and resume note — copied verbatim, never
-summarized and never trimmed. Pass it as ONE single-quoted argument: the runner adapters join
-multiple arguments on whitespace, which destroys the line structure of a multi-line brief. If
-the text itself contains a single quote, end the quote, escape it, and reopen — '\'' — or feed
-the argument from a heredoc; never reword or drop content to make the quoting easier. Omit the
-\`--\` and its argument ONLY when your caller handed you no task text at all. Getting this
-wrong FAILS SILENTLY: a child launched with no task does not error, it improvises from
-whatever it can see in the worktree and the dispatch still looks successful. Before you send
-the call, re-read it and confirm \`--\` is present and the text after it is complete.
+    BRIEF="\$(mktemp "\${TMPDIR:-/tmp}/docket-brief.XXXXXX")"
+    cat > "\$BRIEF" <<'DOCKET_BRIEF_EOF'
+<THE TASK TEXT YOUR CALLER GAVE YOU>
+DOCKET_BRIEF_EOF
+
+The quoted delimiter makes every character between the two DOCKET_BRIEF_EOF lines literal:
+nothing is expanded, nothing needs escaping, and no quote inside the text needs any handling
+at all. Paste your caller's task text IN FULL — every plan task, change id, path, and resume
+note — copied verbatim, never summarized, never trimmed, and never reworded to make quoting
+easier. If the text itself contains a line reading exactly DOCKET_BRIEF_EOF, pick a different
+delimiter; never trim the text to avoid it.
+
+1b. LAUNCH with that file:
+
+    "\${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh runner-dispatch --launch $flags$wt_slot --brief-file <the path you just wrote>
+
+The brief file is the ONLY way the child learns what to do. It inherits no conversation, no
+plan, and no task from you: what is in that file is all it will ever see. This command is
+INCOMPLETE until you replace the placeholder (drop the angle brackets) with the path from step
+1a. Omit \`--brief-file\` ONLY when your caller handed you no task text at all — and for a
+build worker the facade will refuse that dispatch outright. Getting this wrong FAILS SILENTLY:
+a child launched with no task does not error, it improvises from whatever it can see in the
+worktree and the dispatch still looks successful. Before you send the call, re-read it and
+confirm \`--brief-file\` is present and that the file holds your caller's full task text.
 
 The launch detaches the child and returns immediately, printing a DISPATCH KEY on stdout. A
 non-zero exit here is a failed launch: abort-and-report its stderr diagnostic.
