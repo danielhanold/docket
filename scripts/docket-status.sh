@@ -947,6 +947,25 @@ sweep_execute_one(){
 
   if ! "$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/render-change-links.sh \
         --change-file "$archived" --adrs-dir "$mw/$ADRS_DIR" >&2; then
+    # Change 0118: mark, so this gap is not invisible. The pre-0118 rationale — "nothing published
+    # means nothing was deferred yet" — does not survive the code: once archived the change leaves
+    # active/, and the sweep scans active/ ONLY, so no later pass ever resumes it. The gap is
+    # permanent until a human acts, which is byte-for-byte the state ADR-0051 exists to surface.
+    # The marker cannot flap here either — only terminal-publish.sh's success path strips it, and
+    # nothing retries an archived change — so even a TRANSIENTLY caused mark is stable, not noisy
+    # (and the cause can be transient: render-change-links.sh resolves config through
+    # docket-config.sh --export, which does a `git fetch`, so a network blip fires this branch).
+    #
+    # The gate is LOAD-BEARING here, and is the one structural difference from the change-0083
+    # block below, which needs none: both of that branch's suppressions are exit-0 no-ops, so it is
+    # unreachable under suppression, whereas a renderer failure fires regardless of the knob. Under
+    # `terminal_publish: false` or in main-mode a skipped publish is SUCCESS, never a deferral
+    # (ADR-0051) — the residual there stays what docket-status.md already documents: a stale
+    # `## Artifacts` block, fixed by a manual re-render.
+    if [ "${TERMINAL_PUBLISH:-false}" = true ] && [ "${DOCKET_MODE:-}" = docket ]; then
+      sweep_mark_publish_deferred "$mw" "$archived" "$id" \
+        "sweep: the artifacts re-render failed, so the publish was never attempted — re-render before publishing"
+    fi
     echo "sweep-failed $id render-change-links skipped-publish"
     return 0
   fi

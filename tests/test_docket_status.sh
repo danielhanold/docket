@@ -1676,7 +1676,12 @@ assert "0083: the mark runs AFTER terminal-publish failed, not before it ran" \
    [ -n "$pub_line" ] && [ -n "$mark_line" ] && [ "$pub_line" -lt "$mark_line" ]'
 assert "0083: a SUCCESSFUL publish is never marked" \
   '! grep -q "^mark-publish-deferred .*clean-thing" "$sweep_log"'
-assert "0083: a change that never reached the publish step is never marked" \
+# change 0118 re-scoped this from "a change that never reached the publish step is never marked".
+# That name described the pre-0118 rule; the surviving property is narrower and is the one that
+# still matters — under SUPPRESSION (this run is main-mode with TERMINAL_PUBLISH unset) a skipped
+# publish is SUCCESS, not a deferral, so nothing is marked. The marking case has its own
+# docket-mode run below.
+assert "0118: under suppression (main-mode) a failed re-render is never marked" \
   '! grep -q "^mark-publish-deferred .*broken-render" "$sweep_log"'
 assert "0083: the publish failure still abandons the rest of the close-out (no cleanup)" \
   '! grep -q "^cleanup-feature-branch .*--slug publish-broken" "$sweep_log"'
@@ -1730,6 +1735,81 @@ assert "0083: a FAILED mark does not resume the close-out (still no cleanup)" \
 # publish failures, not a change that had already been processed before them.
 assert "0083: a FAILED mark does not stop the loop (the change processed AFTER it still sweeps)" \
   'grep -qE "^swept 23 2026-07-10$" <<<"$sweep_out"'
+
+# --- change 0118: the skipped-publish leg marks, under the expected-publish gate ---------------
+# The 0083 branch could not reach this: BOTH suppressions (main-mode, --enabled false) make
+# terminal-publish.sh an exit-0 no-op, so its failure branch is structurally unreachable under
+# suppression and needed no gate. A RENDERER failure fires regardless of the knob, so this branch's
+# gate is load-bearing. Reuses the fixture repo above (fresh ids; the earlier run archived 20-25).
+seed_sweep_change 26 mark-render-broken implemented
+seed_sweep_change 27 gate-render-broken implemented
+git -C "$sweep_dir/work" add docs/changes
+git -C "$sweep_dir/work" commit -q -m "seed 0118 sweep changes"
+git -C "$sweep_dir/work" push -q origin main
+
+# The renderer mock fails on any slug containing "broken-render"; these slugs do not, so give the
+# mock a second trigger. Rewrite it rather than adding a third mock file.
+cat > "$tmp/mock-scripts/render-change-links.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "render-change-links $*" >> "$SWEEP_LOG"
+case "$*" in *broken-render*|*render-broken*) exit 1 ;; esac
+exit 0
+EOF
+chmod +x "$tmp/mock-scripts/render-change-links.sh"
+
+mark_log="$tmp/sweep-calls-0118.log"; : > "$mark_log"
+printf '26\tmark-render-broken\t26\t2026-08-11\n' > "$tmp/sweep-input-0118.tsv"
+mark_out="$( cd "$sweep_dir/work" && \
+  DOCKET_MODE=docket METADATA_WORKTREE=. CHANGES_DIR=docs/changes ADRS_DIR=docs/adrs \
+  INTEGRATION_BRANCH=main METADATA_BRANCH=main TERMINAL_PUBLISH=true \
+  SCRIPTS_DIR="$tmp/mock-scripts" SWEEP_LOG="$mark_log" SWEEP_INPUT="$tmp/sweep-input-0118.tsv" \
+  bash -c '. "'"$SCRIPT"'"; sweep_execute < "$SWEEP_INPUT"' )"
+
+assert "0118: the report stream is byte-identical to today's — exactly the one skipped-publish line" \
+  '[ "$(printf "%s\n" "$mark_out" | grep -c .)" -eq 1 ] \
+   && grep -qxE "sweep-failed 26 render-change-links skipped-publish" <<<"$mark_out"'
+assert "0118: the skipped-publish leg emits neither swept nor harvest" \
+  '! grep -qE "^(swept|harvest) 26 " <<<"$mark_out"'
+assert "0118: the failed re-render invokes mark-publish-deferred on the ARCHIVED change file" \
+  'mk="$(grep -m1 "^mark-publish-deferred .*mark-render-broken" "$mark_log")"; \
+   [ -n "$mk" ] && grep -q -- "--change-file .*archive/2026-08-11-0026-mark-render-broken.md" <<<"$mk"'
+assert "0118: the mark is --mode add --reason blocked (no third reason value)" \
+  'mk="$(grep -m1 "^mark-publish-deferred .*mark-render-broken" "$mark_log")"; \
+   [ -n "$mk" ] && grep -q -- "--mode add" <<<"$mk" && grep -q -- "--reason blocked" <<<"$mk"'
+assert "0118: the --detail names the re-render cause and the re-render-first instruction" \
+  'mk="$(grep -m1 "^mark-publish-deferred .*mark-render-broken" "$mark_log")"; \
+   [ -n "$mk" ] && grep -q -- "re-render" <<<"$mk" && grep -q -- "re-render before publishing" <<<"$mk"'
+assert "0118: the --detail never spells the publisher script name (call-site scanner)" \
+  'mk="$(grep -m1 "^mark-publish-deferred .*mark-render-broken" "$mark_log")"; \
+   [ -n "$mk" ] && ! grep -qF -- "terminal-publish.sh" <<<"$mk"'
+assert "0118: the mark carries the change id and the integration branch" \
+  'mk="$(grep -m1 "^mark-publish-deferred .*mark-render-broken" "$mark_log")"; \
+   [ -n "$mk" ] && grep -q -- "--id 26" <<<"$mk" && grep -q -- "--integration-branch main" <<<"$mk"'
+assert "0118: the skipped-publish leg still abandons publish and cleanup" \
+  '! grep -q "^terminal-publish .*--id 26 " "$mark_log" \
+   && ! grep -q "^cleanup-feature-branch .*--slug mark-render-broken" "$mark_log"'
+assert "0118: the marker reached the metadata branch as a COMMIT" \
+  'body="$(git -C "$sweep_dir/work" show "HEAD:docs/changes/archive/2026-08-11-0026-mark-render-broken.md")"; \
+   grep -qxF -- "## Publish deferred" <<<"$body"'
+assert "0118: the marking run left the shared metadata worktree CLEAN" \
+  '[ -z "$(git -C "$sweep_dir/work" status --porcelain)" ]'
+
+# The gate, both legs. Under TERMINAL_PUBLISH=false a skipped publish is SUCCESS, never a deferral.
+gate_log="$tmp/sweep-calls-0118-gate.log"; : > "$gate_log"
+printf '27\tgate-render-broken\t27\t2026-08-11\n' > "$tmp/sweep-input-0118-gate.tsv"
+gate_out="$( cd "$sweep_dir/work" && \
+  DOCKET_MODE=docket METADATA_WORKTREE=. CHANGES_DIR=docs/changes ADRS_DIR=docs/adrs \
+  INTEGRATION_BRANCH=main METADATA_BRANCH=main TERMINAL_PUBLISH=false \
+  SCRIPTS_DIR="$tmp/mock-scripts" SWEEP_LOG="$gate_log" SWEEP_INPUT="$tmp/sweep-input-0118-gate.tsv" \
+  bash -c '. "'"$SCRIPT"'"; sweep_execute < "$SWEEP_INPUT"' )"
+assert "0118 gate(TERMINAL_PUBLISH=false): the failed re-render is NOT marked" \
+  '! grep -q "^mark-publish-deferred " "$gate_log"'
+assert "0118 gate(TERMINAL_PUBLISH=false): the report line is unchanged" \
+  'grep -qxE "sweep-failed 27 render-change-links skipped-publish" <<<"$gate_out"'
+# Non-vacuity companion for the two negatives above: without it, a fixture that never ran the sweep
+# at all would satisfy `! grep -q "^mark-publish-deferred "` and read as the gate holding.
+assert "0118 gate: the suppressed run still reached the renderer (non-vacuity)" \
+  'grep -q "^render-change-links .*gate-render-broken" "$gate_log"'
 
 # --- change 0064 (Finding 1): TERMINAL_PUBLISH gates the REAL sweep's terminal-publish.sh call ---
 # A behavioral test (not just wiring): drives docket-status.sh's actual merge-sweep pipeline in a
