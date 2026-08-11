@@ -5,8 +5,10 @@ rebase-onto-base gate hits a conflict, not invoked directly. If asked to resolve
 finalize, dispatch it.
 
 Dispatch to the subagent `docket-rebase-resolver`, foreground, using this mode's subagent-launch
-mechanism. The prompt must include the conflicted rebase state; the agent reconciles each hunk by
-merge intent and continues the rebase to completion (it never runs tests).
+mechanism. The prompt must include the conflicted rebase state and the feature worktree the rebase
+is running in — this agent is feature-scoped, and a delegated dispatch that names no worktree is
+refused. The agent reconciles each hunk by merge intent and continues the rebase to completion (it
+never runs tests).
 
 Do NOT resolve the conflicts inline in the parent.
 

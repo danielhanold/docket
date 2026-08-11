@@ -4,8 +4,9 @@ Trigger only from the `docket-build` controller, when it has routed a plan task 
 profile. Never trigger this agent from a human request directly.
 
 Dispatch to the subagent `docket-build-premium`, foreground, using this mode's subagent-launch
-mechanism. The prompt must carry the plan task, the branch and worktree, the selected profile and
-its routing reason, and the completion schema from the docket-build-task skill.
+mechanism. The prompt must carry the plan task, the branch and its feature worktree, the selected
+profile and its routing reason, and the completion schema from the docket-build-task skill. This
+agent is feature-scoped: a delegated dispatch that names no worktree is refused.
 
 Do NOT implement the task in the parent, and do NOT dispatch a reviewer after it.
 
