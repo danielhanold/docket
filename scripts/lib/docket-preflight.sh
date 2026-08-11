@@ -126,8 +126,8 @@ _docket_tree_on_other_branch(){
 # spec's "both branches of the sync function must behave identically" clause forbids.
 #
 # Returns 0 on success; 1 on a terminal failure or retry exhaustion, with a stderr diagnostic that
-# NAMES the last failure class (dirty / wedged / detached / wrong-branch / fetch / conflict), so the
-# caller learns what blocked the sync rather than merely that attempts died.
+# NAMES the last failure class (dirty / wedged / detached / wrong-branch / missing-remote / fetch /
+# conflict), so the caller learns what blocked the sync rather than merely that attempts died.
 _docket_sync_metadata(){
   local git="$1" dir="$2" remote="$3" branch="$4"
   local attempt=0 last=fetch head remote_sha nap cur
@@ -138,6 +138,23 @@ _docket_sync_metadata(){
   # diagnostic blaming their checkout for the caller's bug.
   if [ -z "$branch" ]; then
     echo "docket-preflight: metadata sync failed — no branch was named to sync $dir against. The caller must resolve one; syncing against an empty ref is not a fallback." >&2
+    return 1
+  fi
+  # AN UNCONFIGURED REMOTE IS THE ONE FETCH FAILURE THAT IS NOT TRANSIENT, and it is checked HERE,
+  # ahead of the loop, rather than inside the fetch arm's classification. The arm below deliberately
+  # retries fetch failures undiscriminated because git's exit codes cannot portably separate auth or
+  # DNS trouble from a dropped packet — but "there is no remote named $remote" is not one of those
+  # ambiguous cases: `remote get-url` answers it from local config, deterministically, in every
+  # locale and every git version that has the subcommand. Without this, a repo with no origin (and
+  # every offline-with-no-remote checkout) pays the FULL ~22s backoff budget on EVERY skill's Step 0
+  # and every CAS re-sync before failing anyway, where the pre-0247 `fetch && pull` failed instantly.
+  # The sleep seam is a fixture-only injection, so nothing shortens that in production.
+  #
+  # Deliberately the ONLY fetch sub-class carved out: auth and DNS classification stays refused (see
+  # the fetch arm), and this check reads local config rather than git's stderr, so it cannot rot the
+  # way a message-pattern match would.
+  if ! "$git" -C "$dir" remote get-url "$remote" >/dev/null 2>&1; then
+    echo "docket-preflight: metadata sync failed — no remote named '$remote' is configured in $dir, so '$branch' can never be fetched from it. Nothing here self-heals, so it was not retried. This one needs a human: add the remote (git -C $dir remote add $remote <url>), or point docket at the remote you actually meant." >&2
     return 1
   fi
   while [ "$attempt" -lt "$DOCKET_SYNC_ATTEMPTS" ]; do

@@ -633,4 +633,64 @@ assert "P8: it refused before spending any retry budget" '[ "$(backoffs "$tmp/p8
 assert "P8: the diagnostic names the missing branch, not a fetch failure" \
   'grep -q "no branch was named" "$tmp/p8.err" && ! grep -q "after 5 attempts" "$tmp/p8.err"'
 
+# --- (Q) an UNCONFIGURED remote fails fast; a merely unreachable one still retries ---------------
+# The fetch arm retries undiscriminated on purpose, and that stays true — but "there is no remote
+# named origin" is not a transient network failure, and paying the full ~22s backoff for it on
+# EVERY skill's Step 0 (and every CAS re-sync) is latency bought with nothing. `remote get-url`
+# answers from local config, deterministically, so this is the one sub-class that can be carved out
+# without the locale- and version-fragile stderr matching the spec declines.
+#
+# Q2 is the other half of the same rule and is what keeps Q1 from being read as "classify fetch
+# failures": a remote that IS configured but points nowhere is indistinguishable from a dropped
+# packet, so it must still spend the whole budget. Without Q2, widening the guard into a general
+# fetch-failure fast-fail would leave every assert green.
+noremote="$tmp/noremote"
+git init --quiet "$noremote"
+git -C "$noremote" config user.email t@t.test; git -C "$noremote" config user.name Test
+git -C "$noremote" checkout --quiet -b docket
+: > "$noremote/README.md"
+git -C "$noremote" add README.md; git -C "$noremote" commit --quiet -m init
+assert "Q: fixture precondition — the tree really has no remote configured" \
+  '[ -z "$(git -C "$noremote" remote)" ]'
+assert "Q: fixture precondition — it is clean, on the branch being synced, and not wedged" \
+  '[ "$(git -C "$noremote" symbolic-ref --short -q HEAD)" = docket ] \
+   && [ -z "$(git -C "$noremote" status --porcelain --untracked-files=no)" ] \
+   && [ ! -d "$(git -C "$noremote" rev-parse --absolute-git-dir)/rebase-merge" ]'
+mkcounter "$tmp/q1.count" "$tmp/q1-sleep.sh"
+( . "$LIB" && DOCKET_PREFLIGHT_TEST_SLEEP_CMD="bash $tmp/q1-sleep.sh" \
+    _docket_sync_metadata git "$noremote" origin docket ) >/dev/null 2>"$tmp/q1.err"; rc=$?
+assert "Q1: a missing remote fails closed" '[ "$rc" -ne 0 ]'
+assert "Q1: it spent ZERO backoff — an absent remote is not transient" \
+  '[ "$(backoffs "$tmp/q1.count")" -eq 0 ]'
+assert "Q1: the diagnostic names the missing remote, not an exhausted fetch" \
+  'grep -q "no remote named .origin. is configured" "$tmp/q1.err" && ! grep -q "after 5 attempts" "$tmp/q1.err"'
+
+# Q2: configured but unreachable — the undiscriminated fetch retry the spec specifies, unchanged.
+git -C "$noremote" remote add origin "$tmp/does-not-exist.git"
+mkcounter "$tmp/q2.count" "$tmp/q2-sleep.sh"
+( . "$LIB" && DOCKET_PREFLIGHT_TEST_SLEEP_CMD="bash $tmp/q2-sleep.sh" \
+    _docket_sync_metadata git "$noremote" origin docket ) >/dev/null 2>"$tmp/q2.err"; rc=$?
+assert "Q2: an unreachable-but-configured remote still fails closed" '[ "$rc" -ne 0 ]'
+assert "Q2: it still spends the full retry budget — fetch stays undiscriminated" \
+  '[ "$(backoffs "$tmp/q2.count")" -eq 4 ]'
+assert "Q2: and it exhausts on the fetch class, never the missing-remote one" \
+  'grep -q "the last failure was fetching" "$tmp/q2.err" && ! grep -q "no remote named" "$tmp/q2.err"'
+
+# Q3: the ordered arms below the guard are undisturbed — the wrong-branch refusal still answers for
+# a tree on another branch, rather than the new check short-circuiting ahead of it on a shape it was
+# never meant to own. The remote has to be REACHABLE here, not merely configured: every arm below
+# the fetch lives in its `else`, so an unreachable URL would exhaust on the fetch class and this
+# would pass for the wrong reason.
+git init --quiet --bare "$tmp/q.git"
+git -C "$noremote" remote set-url origin "$tmp/q.git"
+git -C "$noremote" push --quiet origin docket
+git -C "$noremote" checkout --quiet -b stray-branch
+mkcounter "$tmp/q3.count" "$tmp/q3-sleep.sh"
+( . "$LIB" && DOCKET_PREFLIGHT_TEST_SLEEP_CMD="bash $tmp/q3-sleep.sh" \
+    _docket_sync_metadata git "$noremote" origin docket ) >/dev/null 2>"$tmp/q3.err"; rc=$?
+assert "Q3: a wrong-branch tree still fails closed" '[ "$rc" -ne 0 ]'
+assert "Q3: ... naming the branch mismatch, not the remote" \
+  'grep -q "on branch .stray-branch., not .docket." "$tmp/q3.err"'
+git -C "$noremote" checkout --quiet docket
+
 exit $fail
