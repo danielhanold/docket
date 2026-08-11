@@ -16,24 +16,27 @@
 # ceiling. The total does legitimately move when a new test file brings its own row, or when
 # a sharded file's rows are re-cut — re-seed it from a measured serial run and say which.
 #
-# tests/test_docket_status.sh was raised 45 -> 50 by change 0118. It measured 45.15s STANDALONE
-# SERIAL before the change — already AT PARITY with its own row, passing only on the runner's
-# slack factor — and 0118 adds two sweep runs plus three fault-injection runs to the one file that
-# owns sweep_execute coverage. Per this header's rule, from the WORST of three standalone serial
-# readings after the change (44.55s; the other two were 43.76s and 44.22s): the next multiple of 5
-# is 45, plus the 5s margin -> 50, which leaves 5.45s of headroom and stays clear of the 60s
-# ceiling. Sharding was considered and REJECTED HERE: changes 0268 and 0154 are both queued against
-# this same file, and re-cutting shards is precisely the edit that cannot rebase cleanly past them
-# — the shard belongs to whichever change can take the whole file, not to one adding five fixtures
-# to it.
-#
-# Raised again, 50 -> 60, by change 0118's review finding 2, which adds one more sweep run (a wedged
-# shared worktree at the publish-deferred mark). Six standalone serial readings after it: 45.17,
-# 46.79, 51.36, 50.52, 46.12, 45.14. The WORST of the first three is 51.36 -> next multiple of 5 is
-# 55, plus the 5s margin -> 60. Be clear about what that number is: the fixture itself costs well
-# under a second (the same file measured 44.72s standalone immediately BEFORE it was added), and the
-# ~6s spread across six back-to-back readings is machine load, not this change. The rule takes the
-# worst reading, so 60 is what the rule yields.
+# tests/test_docket_status.sh was raised 45 -> 50 and then 50 -> 60 by change 0118, which adds two
+# sweep runs, three fault-injection runs, and — from review finding 2 — one wedged-shared-worktree
+# sweep run to the one file that owns sweep_execute coverage. The first raise's note argued from a
+# pre-change reading taken in another session against a post-change reading that came out FASTER,
+# which is not an argument; both were re-taken for review finding 6, PAIRED AND INTERLEAVED in one
+# session on one machine, each run standalone and serial as
+# `/usr/bin/time -p bash tests/test_docket_status.sh` (the base leg is origin/main's copy of the
+# file, run from tests/ under a temporary name so it resolves the same REPO root):
+#   base (origin/main):  41.59  41.50  41.75  -> worst 41.75
+#   this branch:         44.22  44.92  44.85  -> worst 44.92
+# So the six new fixtures cost about 3.2s of real runtime. That is the honest basis: the file was
+# NOT already at parity with its old 45 row, and the raise is driven by added runtime rather than by
+# noise. Sizing per this header's rule takes the WORST standalone serial reading recorded for the
+# post-change file on this machine, which is 51.36 (the finding-2 readings were 45.17, 46.79, 51.36,
+# 50.52, 46.12, 45.14; that ~6s spread is machine load, as the tight interleaved pairs above show):
+# next multiple of 5 is 55, plus the 5s margin -> 60. The quiet readings alone would have yielded 50
+# (44.92 -> 45, plus 5), so 60 is the conservative pick between the two — a ceiling a loaded machine
+# still meets. Sharding was considered and REJECTED HERE: changes 0268 and 0154 are both queued
+# against this same file, and re-cutting shards is precisely the edit that cannot rebase cleanly
+# past them — the shard belongs to whichever change can take the whole file, not to one adding six
+# fixtures to it.
 #
 # THIS FILE IS NOW AT THE 60s CEILING. There is no next raise. The next change that adds runtime
 # here — 0268 and 0154 are both queued against it — must SHARD the file first; that is now the only
