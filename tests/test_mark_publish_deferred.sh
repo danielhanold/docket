@@ -252,6 +252,34 @@ bash "$SCRIPT" --mode add --change-file "$f11" --reason blocked --date 2026-07-0
 assert "a numeric --id and an ordinary branch name are still ACCEPTED" '[ "$rc" -eq 0 ]'
 assert "the accepted run wrote the marker" 'grep -qxF -- "$MARKER" "$f11"'
 
+# --- change 0118: the fixed body prose must be true on EVERY marking path ----------------------
+# The pre-0118 prose asserted "Close-out steps 1-2 (archive, `## Artifacts` re-render) landed" —
+# factually FALSE on the sweep's new skipped-publish path, where the re-render is exactly what
+# failed. A detail line above a contradiction below it does not cure the contradiction. These are
+# written as a NEGATIVE (the removed sentence is absent) plus a POSITIVE non-vacuity companion, so
+# a broken fixture reddens instead of reading as the property holding.
+f12="$(mkfile)"
+bash "$SCRIPT" --mode add --change-file "$f12" --reason blocked --date 2026-08-11 --id 118 \
+     --integration-branch main \
+     --detail "sweep: the artifacts re-render failed, so the publish was never attempted — re-render before publishing" \
+     >/dev/null 2>&1
+rc12=$?
+assert "0118: the marker still renders with the new detail (non-vacuity)" '[ "$rc12" -eq 0 ]'
+assert "0118: the rendered section exists at all (non-vacuity)" \
+  'grep -qxF -- "$MARKER" "$f12"'
+assert "0118: no sentence claims the ## Artifacts re-render landed" \
+  '! grep -qF -- "Close-out steps 1" "$f12"'
+assert "0118: the generalized prose says the ARCHIVE landed" \
+  'grep -qF -- "The archive landed on the metadata branch;" "$f12"'
+assert "0118: the generalized prose says the publish did not COMPLETE (not: did not run)" \
+  'grep -qF -- "complete. See the dated line above for what failed." "$f12"'
+assert "0118: the generalized prose still says where the record is" \
+  'grep -qF -- "The record is on the metadata branch only." "$f12"'
+assert "0118: the dated detail line carries the re-render cause verbatim" \
+  'grep -qF -- "**blocked** — sweep: the artifacts re-render failed, so the publish was never attempted — re-render before publishing" "$f12"'
+assert "0118: the **Re-arm:** line is unchanged (complete the publish, with the id hint)" \
+  'grep -qF -- "**Re-arm:** complete the publish" "$f12" && grep -qF -- "--id 118" "$f12"'
+
 # --- arg validation ------------------------------------------------------------------------------
 err="$(bash "$SCRIPT" --mode add --change-file /nonexistent/nope.md --reason deferred 2>&1)"; rc=$?
 assert "missing change file exits non-zero" '[ "$rc" -ne 0 ]'

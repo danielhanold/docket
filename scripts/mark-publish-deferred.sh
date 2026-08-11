@@ -171,9 +171,19 @@ cat "$tmp.2" > "$tmp.3" || die "render failed: could not copy the change file bo
     if (d == "") printf "**%s** — no further detail recorded.\n\n", ENVIRON["MPD_REASON"]
     else         printf "**%s** — %s\n\n", ENVIRON["MPD_REASON"], d
   }' </dev/null
-  printf 'Close-out steps 1–2 (archive, `## Artifacts` re-render) landed on the metadata branch;\n'
-  printf 'the terminal-publish step (copying the archived change file + its `spec:` + its Accepted\n'
-  printf 'ADRs onto `%s`) did **not** run. The record is on the metadata branch only.\n\n' "$INT_BRANCH"
+  # change 0118: generalized from "Close-out steps 1–2 (archive, `## Artifacts` re-render) landed
+  # … did **not** run". That sentence is true only on the change-0083 path. The sweep now also
+  # marks when the `## Artifacts` RE-RENDER is what failed, where claiming the re-render landed
+  # directly contradicts the dated detail line rendered above it. "did not complete" also reads
+  # correctly on the 0083 path, where the publisher ran and exited non-zero.
+  printf 'The archive landed on the metadata branch; the terminal-publish step (copying the\n'
+  printf 'archived change file + its `spec:` + its Accepted ADRs onto `%s`) did **not**\n' "$INT_BRANCH"
+  # Both sentences stay INTACT on their own physical line: the marker's prose is asserted on by
+  # `grep -qF` (tests/test_mark_publish_deferred.sh), and the pre-0118 text likewise kept "The
+  # record is on the metadata branch only." unwrapped. Wrapping a sentence mid-way renders the
+  # same but makes the contract ungreppable.
+  printf 'complete. See the dated line above for what failed.\n'
+  printf 'The record is on the metadata branch only.\n\n'
   printf '**Re-arm:** complete the publish (`docket.sh terminal-publish%s …`), or record a decision\n' "$id_hint"
   printf 'not to. A successful publish removes this section automatically.\n'
 } >> "$tmp.3" || die "render failed: could not append the marker section"
