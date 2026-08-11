@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0281 — Auto-groom's critic verdict return channel fails under background dispatch](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0281-auto-groom-s-critic-verdict-return-channel-fails-under-backg.md)**
+> ↩ **[Change 0281 — Auto-groom's critic verdict return channel fails under background dispatch](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-11-0281-auto-groom-s-critic-verdict-return-channel-fails-under-backg.md)**
 <!-- docket:backlink:end -->
 
 # Auto-groom's critic verdict return channel — results
