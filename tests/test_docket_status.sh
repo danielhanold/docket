@@ -1714,6 +1714,12 @@ assert "0118: sweep_mark_publish_deferred is defined once" \
   '[ "$(grep -c "^sweep_mark_publish_deferred()" "$SCRIPT")" -eq 1 ]'
 assert "0118: mark-publish-deferred.sh is invoked from exactly ONE place in the sweep" \
   '[ "$(grep -c "mark-publish-deferred\.sh" "$SCRIPT")" -eq 1 ]'
+# KEPT after review finding 2 added the behavioral fixture ("0118 finding2: a wedged shared worktree
+# SKIPS the mark entirely"), because it pins something that test cannot reach: that the probe is the
+# SHARED predicate by name. Its fixture is a plain clone, where a hand-rolled
+# `[ -d "$mw/.git/rebase-merge" ]` reimplementation would pass — and be permanently false in a
+# LINKED worktree, where "$dir/.git" is a pointer FILE. Behavior pins the branch; this pins the
+# predicate. Neither subsumes the other.
 assert "0118: the helper probes the shared worktree for a rebase/merge before committing" \
   'grep -q "_docket_tree_wedged" <<<"$mark_fn"'
 assert "0118: the helper restores the archived path to HEAD when add/commit fails" \
@@ -2024,6 +2030,125 @@ assert "0118 finding1: the report stream is unchanged — exactly the one termin
    && grep -qxE "sweep-failed 31 terminal-publish script-error" <<<"$dirty_out"'
 assert "0118 finding1: the shared metadata worktree is left CLEAN by the mark-over" \
   '[ -z "$(git -C "$sweep_dir/work" status --porcelain)" ]'
+
+# --- change 0118 (review finding 2): the WEDGED-TREE precondition, pinned behaviorally ----------
+# sweep_mark_publish_deferred's remaining precondition — `! _docket_tree_wedged … || return 0` — had
+# only a presence grep on the function body, which a mutation that keeps the CALL and drops the
+# `|| return 0` passes untouched. This case is that mutation's detector: it drives the helper with
+# the shared metadata worktree genuinely mid-merge and asserts the mark is SKIPPED.
+#
+# Driven on the change-0083 (terminal-publish) leg, deliberately: that leg carries no clean-path
+# precondition (see the finding-1 block above), so a skip observed here can only be the wedge probe
+# answering. On the skipped-publish leg the two preconditions would be confounded.
+#
+# THE INJECTION POINT is the terminal-publish mock, which runs after sweep_execute_one's opening
+# `pull --rebase` has already seen a clean, converged tree — a wedge planted before the run would
+# fail that pull instead, yielding `sync pull-failed` and a vacuous assert. Same TOCTOU shape as the
+# 0247 step-6a fixture below, which shims render-change-links.sh for the same reason.
+#
+# A REAL conflicted merge, never a planted marker directory: what is gated is git's own behaviour in
+# that state. It is a MERGE rather than the step-6a fixture's interrupted rebase on purpose —
+# _docket_tree_wedged's third arm (`-f "$gd/MERGE_HEAD"`) has no other behavioral cover in this
+# repo, and a conflicted merge also aborts back to a byte-identical tree, which matters because
+# later cases reuse this fixture.
+seed_sweep_change 33 wedge-publish-mark implemented
+# The merge fodder: one file, committed on BOTH sides of a divergence, so `merge wedge-side`
+# conflicts. Both sides are committed and main is PUSHED before the run — an unpushed local commit
+# here would survive the abort and be pushed by a later case's helper.
+printf 'base\n' > "$sweep_dir/work/wedge-conflict.txt"
+git -C "$sweep_dir/work" add docs/changes wedge-conflict.txt
+git -C "$sweep_dir/work" commit -q -m "seed 0118 wedge-case change"
+git -C "$sweep_dir/work" push -q origin main
+git -C "$sweep_dir/work" checkout -q -b wedge-side
+printf 'theirs\n' > "$sweep_dir/work/wedge-conflict.txt"
+git -C "$sweep_dir/work" commit -q -am "the other agent's side"
+git -C "$sweep_dir/work" checkout -q main
+printf 'ours\n' > "$sweep_dir/work/wedge-conflict.txt"
+git -C "$sweep_dir/work" commit -q -am "this tree's side"
+git -C "$sweep_dir/work" push -q origin main
+
+# The finding-1 publish mock plus a 33 arm. The earlier arms are carried verbatim rather than
+# dropped: every case above has already run, but a mock that quietly stops modelling them turns any
+# future case re-using an earlier id into a silent no-op.
+cat > "$tmp/mock-scripts/terminal-publish.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "terminal-publish $*" >> "$SWEEP_LOG"
+tp_id="" tp_cdir="" tp_mwt=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --id) tp_id="$2"; shift ;;
+    --changes-dir) tp_cdir="$2"; shift ;;
+    --metadata-worktree) tp_mwt="$2"; shift ;;
+  esac
+  shift
+done
+case "$tp_id" in 24|25) exit 1 ;; esac
+if [ "$tp_id" = 31 ]; then
+  tp_f="$(find "$tp_mwt/$tp_cdir/archive" -maxdepth 1 -name "*-0031-*.md" | sed -n 1p)"
+  printf 'uncommitted marker-removal stand-in\n' >> "$tp_f"
+  if [ -n "$(git -C "$tp_mwt" status --porcelain -- "$tp_f")" ]; then
+    echo "publish-dirtied yes" >> "$SWEEP_LOG"
+  else
+    echo "publish-dirtied no" >> "$SWEEP_LOG"
+  fi
+  exit 1
+fi
+if [ "$tp_id" = 33 ]; then
+  # Another agent's merge, left in progress in the shared worktree, then a publish failure — so the
+  # sweep enters its marking leg with the tree wedged. The git dir is resolved THROUGH git: in a
+  # linked worktree "$dir/.git" is a pointer FILE, so a probe built on that path is never true.
+  git -C "$tp_mwt" merge wedge-side >/dev/null 2>&1
+  tp_gd="$(git -C "$tp_mwt" rev-parse --absolute-git-dir 2>/dev/null)"
+  if [ -n "$tp_gd" ] && [ -f "$tp_gd/MERGE_HEAD" ]; then
+    echo "publish-wedged yes" >> "$SWEEP_LOG"
+  else
+    echo "publish-wedged no" >> "$SWEEP_LOG"
+  fi
+  exit 1
+fi
+exit 0
+EOF
+chmod +x "$tmp/mock-scripts/terminal-publish.sh"
+
+wedge_log="$tmp/sweep-calls-0118-wedge.log"; : > "$wedge_log"
+printf '33\twedge-publish-mark\t33\t2026-08-11\n' > "$tmp/sweep-input-0118-wedge.tsv"
+wedge_out="$( cd "$sweep_dir/work" && \
+  DOCKET_MODE=docket METADATA_WORKTREE=. CHANGES_DIR=docs/changes ADRS_DIR=docs/adrs \
+  INTEGRATION_BRANCH=main METADATA_BRANCH=main TERMINAL_PUBLISH=true \
+  SCRIPTS_DIR="$tmp/mock-scripts" SWEEP_LOG="$wedge_log" SWEEP_INPUT="$tmp/sweep-input-0118-wedge.tsv" \
+  bash -c '. "'"$SCRIPT"'"; sweep_execute < "$SWEEP_INPUT"' )"
+mark_wedge_gitdir="$(git -C "$sweep_dir/work" rev-parse --absolute-git-dir 2>/dev/null)"
+assert "0118 finding2: the wedge probe resolved a real git dir (guards against a vacuous fixture)" \
+  '[ -n "$mark_wedge_gitdir" ] && [ -d "$mark_wedge_gitdir" ]'
+# Two non-vacuity companions, and they are the whole point: without them "no mark" is satisfied by a
+# run that failed at the opening pull, or one that never reached the marking leg at all.
+assert "0118 finding2: the tree really WAS mid-merge when the marking leg was entered (non-vacuity)" \
+  'grep -qxF -- "publish-wedged yes" "$wedge_log"'
+assert "0118 finding2: the run reached the leg that marks — the publish failed as designed (non-vacuity)" \
+  'grep -qF -- "terminal-publish " "$wedge_log" \
+   && grep -qxE "sweep-failed 33 terminal-publish script-error" <<<"$wedge_out"'
+# THE assert, and measured as such: with the helper's `|| return 0` deleted this is the ONE assert
+# in the file that reddens. The two below it are corroboration, not detectors — the defeated guard
+# still marks, but the helper's own add/commit then consumes the marker, so neither goes red.
+assert "0118 finding2: a wedged shared worktree SKIPS the mark entirely" \
+  '! grep -q "^mark-publish-deferred " "$wedge_log"'
+assert "0118 finding2: no marker section is written into the wedged worktree" \
+  '! grep -qxF -- "## Publish deferred" "$sweep_dir/work/docs/changes/archive/2026-08-11-0033-wedge-publish-mark.md"'
+assert "0118 finding2: nothing was committed onto the merge's HEAD" \
+  'wedge_body="$(git -C "$sweep_dir/work" show "HEAD:docs/changes/archive/2026-08-11-0033-wedge-publish-mark.md")"; \
+   ! grep -qxF -- "## Publish deferred" <<<"$wedge_body"'
+# The unwalkable-back failure the probe exists to prevent: the other agent's merge resolved, aborted,
+# or committed out from under it by a run that was never party to it.
+assert "0118 finding2: the other agent's merge is left in progress, untouched" \
+  '[ -f "$mark_wedge_gitdir/MERGE_HEAD" ]'
+assert "0118 finding2: the report stream is unchanged — exactly the one terminal-publish line" \
+  '[ "$(printf "%s\n" "$wedge_out" | grep -c .)" -eq 1 ]'
+# MANDATORY cleanup, not tidiness: leave the merge in progress and the next sweep's opening
+# `pull --rebase` fails, turning every later assert into a vacuous `sync pull-failed` no-op.
+git -C "$sweep_dir/work" merge --abort
+assert "0118 finding2: the fixture is restored — no merge in progress, tree clean (later cases reuse it)" \
+  '[ ! -f "$mark_wedge_gitdir/MERGE_HEAD" ] \
+   && [ -z "$(git -C "$sweep_dir/work" status --porcelain)" ]'
 
 # --- change 0064 (Finding 1): TERMINAL_PUBLISH gates the REAL sweep's terminal-publish.sh call ---
 # A behavioral test (not just wiring): drives docket-status.sh's actual merge-sweep pipeline in a
