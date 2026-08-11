@@ -2,7 +2,7 @@
 id: 118
 slug: decide-whether-the-sweep-s-skip-publish-path-should-also-mar
 title: Decide whether the sweep's skip-publish path should also mark an unpublished terminal record
-status: implemented
+status: done
 priority: medium
 created: 2026-07-21
 updated: 2026-08-11
@@ -16,7 +16,7 @@ results: docs/results/2026-08-11-decide-whether-the-sweep-s-skip-publish-path-sh
 trivial: false
 auto_groomable: true
 branch: feat/decide-whether-the-sweep-s-skip-publish-path-should-also-mar
-claimed_at: 2026-08-11T20:22:36Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/201
 blocked_by:
 reconciled: true
