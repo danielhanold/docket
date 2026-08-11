@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0268 — De-flake the reclaim leg of test_docket_status under parallel contention](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0268-de-flake-the-reclaim-leg-of-test-docket-status-under-paralle.md)**
+> ↩ **[Change 0268 — De-flake the reclaim leg of test_docket_status under parallel contention](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-11-0268-de-flake-the-reclaim-leg-of-test-docket-status-under-paralle.md)**
 <!-- docket:backlink:end -->
 
 # De-flake the reclaim leg of test_docket_status under parallel contention — design
