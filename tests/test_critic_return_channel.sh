@@ -4,7 +4,8 @@
 # while it actively blocks. This guard binds the three prose contracts that make that true:
 #
 #   (a) agents/docket-auto-groom-critic.md — the DELIVERY half: the verdict IS the final report,
-#       and the critic never addresses its dispatcher by name or via an agent-listing surface.
+#       that return is the ONLY channel it travels on, the dispatcher is BLOCKING on it, and the
+#       critic never addresses its dispatcher by name or via an agent-listing surface.
 #   (b) skills/docket-auto-groom/SKILL.md Step 3 — the RECEIVING half, plus the bounded
 #       no-verdict posture that terminates in the Tier B abstain.
 #   (c) skills/docket-convention/SKILL.md *Composition* — the critic dispatch sits in the
@@ -40,10 +41,29 @@ assert "critic source is the adversarial critic contract" 'grep -qi "adversarial
 
 critic_flat="$(flat "$(cat "$CRITIC")")"
 
+# Slice the UNCONDITIONAL delivery paragraph — the one led by the bolded contract — and match the
+# three clauses below inside it alone. Whole-file matching does not bind this paragraph: the next
+# paragraph restates the delivery clause CONDITIONALLY ("If you come to believe the return channel
+# itself is unavailable … write the verdict as your final report"), so a flattened-file proximity
+# match survives deleting the unconditional contract outright. The slice runs from the bolded lead
+# to the first blank line; deleting the paragraph empties it and reddens the anchor.
+delivery="$(awk '/\*\*Your verdict is your final report\*\*/{f=1} f&&/^[[:space:]]*$/{exit} f{print}' "$CRITIC")"
+assert "critic: the unconditional delivery paragraph is present (slice anchor holds)" \
+  '[ -n "$delivery" ]'
+delivery_flat="$(flat "$delivery")"
+
 # The verdict is bound to the final report. Bounded gap ([^.]{0,80}) keeps the match inside one
 # sentence, so a stray "verdict" and a stray "final report" in different clauses cannot satisfy it.
 assert "critic: the verdict IS the critic's final report" \
-  'grep -qE "verdict[^.]{0,80}final report|final report[^.]{0,80}verdict" <<<"$critic_flat"'
+  'grep -qE "verdict[^.]{0,80}final report|final report[^.]{0,80}verdict" <<<"$delivery_flat"'
+# EXCLUSIVITY — the thesis half that nothing else binds: that return is the ONLY channel. Without
+# it a critic is free to read the contract as one delivery route among several and invent a second.
+assert "critic: that return is the ONLY channel the verdict travels on" \
+  'grep -qE "only channel[^.]{0,60}verdict|verdict[^.]{0,60}only channel" <<<"$delivery_flat"'
+# The dispatcher is BLOCKING — the reason the exclusivity matters and the reason silence is not a
+# neutral outcome. Keyed on the two words in proximity, not the sentence's current phrasing.
+assert "critic: the dispatcher is blocking on that return" \
+  'grep -qE "dispatcher[^.]{0,40}blocking|blocking[^.]{0,40}dispatcher" <<<"$delivery_flat"'
 
 # The never-address-your-dispatcher clause, pinned on its two load-bearing halves: the prohibition
 # itself, and the REASON (which is what stops a critic from inventing a workaround channel).
