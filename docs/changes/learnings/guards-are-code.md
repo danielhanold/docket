@@ -2,9 +2,9 @@
 slug: guards-are-code
 hook: "A guard is code — mutation-test it (strip the feature, watch it go red) or it is decoration."
 topics: [testing, sentinels, mutation]
-changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 102, 106, 107, 111, 116, 126, 169, 184, 244]
+changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 102, 106, 107, 111, 116, 126, 169, 184, 244, 275]
 created: 2026-06-17
-updated: 2026-08-08
+updated: 2026-08-11
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -42,7 +42,11 @@ prove subsumption by mutation in BOTH directions, or keep both; when a new featu
 violates an old absolutist sentinel, NARROW it to the load-bearing property (#74: retiring the last
 `/docket-config.sh` spelling reddened a sentinel keyed on it — the fix was to narrow the pattern,
 not drop the assert), and FOLLOW a call-site-pinned audit when the code is extracted into a shared
-lib. A snippet the PLAN hands you is unvetted code: mutation-test it like any assert you wrote.
+lib. A snippet the PLAN hands you is unvetted code: mutation-test it like any assert you wrote — and so is
+a REVIEWER'S suggested fix: the suggestion is a hypothesis, and only the mutation decides whether it
+guards anything. Probe an assert in every direction the defect can arrive from: DELETING a conjunct
+and INVERTING a comparison are DIFFERENT probes, and a guard on a comparison operator that reddens
+on deletion can stay green on `>=` → `<=`.
 
 ## War story
 - 2026-06-17 → 2026-07-16 (#15 PR #32; #21 PR #34; #36 PR #47; #37 PR #48; #64 PR #75; #65 PR #74;
@@ -305,3 +309,14 @@ lib. A snippet the PLAN hands you is unvetted code: mutation-test it like any as
   were right to fire — a guard that exempted comments could be evaded by relocating a pattern into
   one. Note `test_skip_allowlist_invisibility` scans **committed HEAD**, not the working tree, so
   its counts are stale until a commit lands.
+- 2026-08-11 (#275, PR #196 — merged) — **Two mutation-adequacy failures in one build, both on
+  guards a review had already touched.** (a) A reviewer's suggested fix was INSUFFICIENT and only
+  the mutation showed it: per-branch window slicers stayed green when two bullets were merged into
+  one, because `flat()` collapses the newline and the `- ` list marker into a single space — the two
+  windows came out byte-identical, so the slicer could not see the merge it existed to detect. Fixed
+  by counting bullet SHAPE against the raw template rather than comparing flattened windows. (b) A
+  DELETION probe and an INVERSION probe are not the same probe: deleting the epoch conjunct reddened
+  the guard, which read as proof the conjunct was guarded — but flipping `>=` to `<=` left it green,
+  and an inverted filter selects exactly the claims stamped BEFORE the run started, the precise
+  wrong answer the guard exists to prevent. Deletion-only mutation testing is not sufficient for a
+  comparison operator.
