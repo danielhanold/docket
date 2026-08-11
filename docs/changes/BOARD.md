@@ -1,14 +1,8 @@
 # Backlog
 
-**294 changes** — 🟢 1 in progress · 🟡 36 proposed · ⚪ 4 deferred · ✅ 177 done · 🗑️ 76 killed
+**296 changes** — 🟡 38 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 177 done · 🗑️ 76 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0118](active/0118-decide-whether-the-sweep-s-skip-publish-path-should-also-mar.md) | Decide whether the sweep's skip-publish path should also mark an unpublished terminal record | `medium` | `fix` | [spec](../superpowers/specs/2026-08-07-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-design.md) | `feat/decide-whether-the-sweep-s-skip-publish-path-should-also-mar` |
-
-## 🟡 Proposed (36)
+## 🟡 Proposed (38)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -48,6 +42,8 @@
 | [0292](active/0292-shared-tested-mutation-probe-harness-take-the-landing-check.md) | Shared, tested mutation-probe harness — take the landing check out of each plan author's care | `high` | `feat` | needs-brainstorm |
 | [0293](active/0293-test-gate-run-stop-s-term-escalation-fixture-deadline-is-at.md) | test_gate_run_stop's TERM-escalation fixture deadline is at exact parity with stop_run's own TERM budget | `high` | `fix` | needs-brainstorm |
 | [0294](active/0294-shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru.md) | Shrink AGENTS.md's always-loaded footprint: script-ify the run gate's caller procedure and de-duplicate the dispatch table | `medium` | `refactor` | needs-brainstorm |
+| [0295](active/0295-make-render-change-links-sh-genuinely-offline-safe-stop-re-r.md) | Make render-change-links.sh genuinely offline-safe — stop re-resolving config with a network fetch | `medium` | `fix` | needs-brainstorm |
+| [0296](active/0296-shard-tests-test-docket-status-sh-its-runtime-row-is-at-the.md) | Shard tests/test_docket_status.sh — its runtime row is at the table's hard 60s ceiling | `medium` | `chore` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -57,6 +53,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0118](active/0118-decide-whether-the-sweep-s-skip-publish-path-should-also-mar.md) | Decide whether the sweep's skip-publish path should also mark an unpublished terminal record | `medium` | `fix` | [#201](https://github.com/danielhanold/docket/pull/201) |  |
 
 ```mermaid
 graph TD
@@ -101,6 +103,8 @@ graph TD
   0292
   0293
   0294
+  0295
+  0296
   0192:::done
   0211:::done
   0282:::done
