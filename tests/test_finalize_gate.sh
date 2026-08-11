@@ -237,10 +237,10 @@ assert "0260: the dispatch-unavailable member points at the carve-out" \
   'grep -qE -- "(dispatch|unavailable)[^.]{0,120}carve-out" <<<"$abort_flat"'
 
 # De-numeralization: the count sentence must be GONE, not merely re-counted (a re-count rots again
-# at the next member). Negative assert plus a non-vacuity companion through the same haystack.
-assert "0260: the stale numeral is gone from the abort-reason count sentence" \
-  '! grep -qiE -- "(six|seven|eight|nine) distinct abort reasons" <<<"$gf_flat"'
-assert "0260: the de-numeralized sentence still makes its claim (non-vacuity)" \
-  'grep -qF -- "distinct abort reasons" <<<"$gf_flat"'
+# at the next member). Keyed on SHAPE, not on an enumeration of numeral spellings: the positive
+# pins the article adjacent to the noun phrase, so ANY numeral re-inserted between them — spelled
+# out or a digit, at any count — displaces the match and reddens. It is its own non-vacuity check.
+assert "0260: the count sentence stays de-numeralized (no numeral between 'the' and 'distinct')" \
+  'grep -qE -- "flatten the distinct abort reasons" <<<"$gf_flat"'
 
 exit $fail

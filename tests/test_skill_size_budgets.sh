@@ -1089,9 +1089,13 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # names). Set per the rounding rule above from the measured actual 377/6600: 6600 is ITSELF a
 # multiple of 50, so rounding up leaves ZERO words of margin — the near-zero failure mode this block
 # records raising past repeatedly — hence the multiple after it, 6650 (50 words of margin, clear of
-# the 25-word floor). The LINE budget was NOT raised: 377 actual against the standing 380, the
-# addition being one paragraph line plus its blank separator, and an unbreached line axis is left
-# alone here on the same reading change 0194 recorded at 363/365.
+# the 25-word floor). The LINE budget was ALSO raised, 380 -> 385, in change 0260's fix round: the
+# first pass left it at the standing 380 against a measured actual of 377, and 3 lines of headroom
+# is the near-zero failure mode this block exists to forbid — change 0167 raised a row 155 -> 160
+# for exactly this, recording that "2 lines of headroom is still near-zero relative to a routine
+# edit". Prose here is one paragraph per line plus a blank separator, so a single added paragraph
+# consumes two of the three. 377 -> the next multiple of 5 above the standing ceiling is 385
+# (8 lines of margin).
 # (2) skills/docket-finalize-change/references/gate-failure.md's WORD budget was raised 900 -> 1150.
 # The addition is a site-marker paragraph ("If the dispatch itself is unavailable — the carve-out"),
 # which routes an undispatchable gate agent to the carve-out posture and points at the convention's
@@ -1118,8 +1122,12 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # lease member, the Harness-native-recovery condition, the carve-out pointer). Set per the rounding
 # rule above from the measured actual 33/1085: 1085 -> the next multiple of 50 is 1100, which leaves
 # 15 words (within the 25-word threshold), so the multiple after it, 1150 (65 words of margin). The
-# LINE budget was NOT raised: 33 actual against the standing 35, both added paragraphs being single
-# lines plus blank separators, and the same unbreached-axis reading as (1) above.
+# LINE budget was ALSO raised, 35 -> 40, in change 0260's fix round: the first pass left it at the
+# standing 35 against a measured actual of 33, and 2 lines of headroom is verbatim the margin change
+# 0167 raised a row 155 -> 160 to escape ("2 lines of headroom is still near-zero relative to a
+# routine edit"). One paragraph per line plus a blank separator means the very next paragraph added
+# to this file reddens CI on arrival. 33 -> the next multiple of 5 above the standing ceiling is 40
+# (7 lines of margin).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -1131,7 +1139,7 @@ skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            130 1200
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          145 1350
-skills/docket-convention/SKILL.md                          380 6650
+skills/docket-convention/SKILL.md                          385 6650
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         205 2350
 skills/docket-convention/references/auto-capture.md        130 1250
@@ -1139,7 +1147,7 @@ skills/docket-convention/references/dummy-mode.md           85  800
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     185 3900
-skills/docket-finalize-change/references/gate-failure.md    35 1150
+skills/docket-finalize-change/references/gate-failure.md    40 1150
 skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      170 4650
 skills/docket-implement-next/references/edge-paths.md       35  500

@@ -66,7 +66,7 @@ assert "convention: a carve-out paragraph exists (anchor for the asserts below)"
 # reintroduce the hand-list the loop exists to avoid — a THIRD carve-out site would then be covered
 # by nothing.
 assert "convention carve-out: states the posture is finalize's abort-and-report" \
-  'grep -qF -- "abort-and-report" <<<"$carveout_para"'
+  'grep -qE -- "posture is[^.]{0,60}abort-and-report" <<<"$carveout_para"'
 assert "convention carve-out: forbids inline substitution" \
   'grep -qiE "[Ii]nline substitution is forbidden" <<<"$carveout_para"'
 assert "convention carve-out: gives the self-approval reason for that prohibition" \
