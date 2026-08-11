@@ -2,7 +2,7 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234, 237, 200, 244, 242, 286, 260]
+changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234, 237, 200, 244, 242, 286, 260, 284]
 created: 2026-07-19
 updated: 2026-08-11
 promotion_state: candidate
@@ -345,3 +345,21 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   recurring instead of being caught five times. That is a systemic tooling gap, not a per-plan slip.
   See [[guards-are-code]], [[mutation-target-needs-a-forced-exit]],
   [[mutation-restore-needs-a-backup-copy]].
+
+- 2026-08-11 (#284, PR #199) — **Seven distinct defects in one plan's supplied probe code, and the
+  sharpest one gives the class a mechanical remedy.** All seven were caught by the workers and none
+  shipped. The one that matters: a probe *passed its own landing check while silently deleting 128
+  lines*. Its check was a **token count** — the mutation's marker token was present the expected
+  number of times, so the probe declared the mutation landed — but the edit that produced that token
+  state had also removed most of the file, and nothing in the check could see it. A probe that
+  cannot distinguish "the intended one-line mutation landed" from "the file was gutted" is not
+  measuring the mutation at all; the assert that then reddens is evidence about a file that no
+  longer exists, not about the guard under test. The branch-wide remedy adopted, and the
+  generalizable rule: **a mutation probe checks exact removed/added LINE COUNTS, never a token
+  count.** Line counts bound the edit in both directions — an over-broad edit fails the check even
+  when the token arithmetic works out, which is exactly the failure a token count is blind to.
+  This is the sixth-plus change in this drain hit by the plan-supplied-probe class, and the build
+  called it the dominant failure mode of the drain. It is directly actionable by **#0292** (the
+  shared, tested mutation-probe harness): the line-count landing check is the harness's job, not
+  each plan author's — the same conclusion #260 reached one entry above, now with the specific
+  predicate the harness should implement.
