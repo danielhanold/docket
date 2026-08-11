@@ -273,6 +273,14 @@ leaves the dispatch itself untouched — the same tolerant posture every other g
 non-`implement-next` launch records an empty `dispatch_epoch` and no snapshot file, so it is never
 armed.
 
+**The brief** — `<dir>/brief`, the caller's task brief, spooled here at launch when `--brief-file`
+was passed (change 0277). Written atomically (`brief.partial` + `mv -f`) and handed to the adapter
+in place of the caller's own path, so a detached run never depends on a caller temp file outliving
+the call that started it. Absent when the dispatch carried its payload as trailing argv. It is part
+of the dispatch's audit record and is pruned with the rest of the directory — no separate
+lifecycle. A spool that cannot be written **aborts the launch** rather than degrading to a
+task-less dispatch: the brief is the child's only input.
+
 **The sentinel** — `<dir>/done`, flat `KEY=value`: `exit_code`, `started_at`, `finished_at`, `pid`,
 `dispatch_key`. `pid` is the **launcher subshell's own** pid — the same process the launch record
 names as `child_pid`, not the facade's. **The wrapper writes it, never the agent**: "done" must not be a claim by the party

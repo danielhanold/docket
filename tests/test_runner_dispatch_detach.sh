@@ -153,4 +153,39 @@ wait "$bare_pid" 2>/dev/null; bare_rc=$?
 assert "a trailing --observe terminates instead of spinning in the parser" '[ "$bare_done" = "1" ]'
 assert "and it terminates by refusing, not by succeeding" '[ "$bare_rc" != "0" ]'
 
+# ---- 0277: --launch spools the brief into the dispatch dir ---------------------------
+# The brief becomes part of the dispatch's audit record, beside `launch`, `stdout.log`, and
+# `done` — and the adapter is handed the DURABLE copy, so a detached child no longer depends on
+# the caller's temp file outliving the call that started it.
+make_fixture
+FAKE_SLEEP=0
+BF="$SBX/caller-brief.txt"
+printf 'spooled-line-one\nspooled-line-two\n' > "$BF"
+FAKE_ARGV_LOG="$SBX/argv.log"
+KEY="$(launch status --brief-file "$BF")"; rc=$?
+assert "0277 launch: a brief-file launch exits 0" '[ "$rc" = "0" ]'
+DDIR="$(ddir_for "$KEY")"
+# Wait for the (instant) child so its argv log is complete before reading it.
+for _ in 1 2 3 4 5 6 7 8 9 10; do [ -f "$DDIR/done" ] && break; sleep 0.3; done
+assert "0277 launch: the brief was spooled into the dispatch dir" '[ -f "$DDIR/brief" ]'
+assert "0277 launch: the spooled brief is byte-identical to the caller's" 'cmp -s "$BF" "$DDIR/brief"'
+assert "0277 launch: no partial file is left behind" '[ ! -e "$DDIR/brief.partial" ]'
+argv="$(cat "$SBX/argv.log" 2>/dev/null)"
+assert "0277 launch: the adapter was handed the DURABLE copy" 'grep -qxF -- "$DDIR/brief" <<<"$argv"'
+assert "0277 launch: the adapter was NOT handed the caller's path" '! grep -qxF -- "$BF" <<<"$argv"'
+unset FAKE_ARGV_LOG
+rm -rf "$SBX"
+
+# The exclusion and the build-* payload gate are pre-verb, so they refuse BEFORE anything is
+# minted — a refused dispatch leaves no dispatch dir behind.
+make_fixture
+printf 'a brief\n' > "$SBX/b.txt"
+before="$(ls "$(ddir_for "" )" 2>/dev/null | wc -l | tr -d ' ')"
+err="$( launch status --brief-file "$SBX/b.txt" -- "argv too" 2>&1 >/dev/null )"; rc=$?
+after="$(ls "$(ddir_for "" )" 2>/dev/null | wc -l | tr -d ' ')"
+assert "0277 launch: both channels are refused" '[ "$rc" != "0" ]'
+assert "0277 launch: the refusal says never both" 'grep -qiF "never both" <<<"$err"'
+assert "0277 launch: the refusal minted no dispatch dir" '[ "$before" = "$after" ]'
+rm -rf "$SBX"
+
 exit "$fail"
