@@ -1,12 +1,6 @@
 # Backlog
 
-**286 changes** — 🟢 1 in progress · 🟡 35 proposed · ⚪ 4 deferred · ✅ 170 done · 🗑️ 76 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0277](active/0277-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode.md) | Delegated task briefs travel through shell argv, a lossy model-performed transformation | `medium` | `refactor` | [spec](../superpowers/specs/2026-08-09-delegated-brief-file-channel-design.md) | `feat/delegated-task-briefs-travel-through-shell-argv-a-lossy-mode` |
+**286 changes** — 🟡 35 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 170 done · 🗑️ 76 killed
 
 ## 🟡 Proposed (35)
 
@@ -56,6 +50,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0277](active/0277-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode.md) | Delegated task briefs travel through shell argv, a lossy model-performed transformation | `medium` | `refactor` | [#194](https://github.com/danielhanold/docket/pull/194) |  |
 
 ```mermaid
 graph TD
