@@ -1,6 +1,6 @@
 # Backlog
 
-**292 changes** — 🟢 1 in progress · 🟡 36 proposed · ⚪ 4 deferred · ✅ 175 done · 🗑️ 76 killed
+**294 changes** — 🟢 1 in progress · 🟡 38 proposed · ⚪ 4 deferred · ✅ 175 done · 🗑️ 76 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0284](active/0284-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi.md) | runner-dispatch --observe is sentinel-only: adopt 0282's identity-checked liveness probe | `high` | `fix` | [spec](../superpowers/specs/2026-08-10-runner-dispatch-observe-liveness-probe-design.md) | `feat/runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi` |
 
-## 🟡 Proposed (36)
+## 🟡 Proposed (38)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -48,6 +48,8 @@
 | [0290](active/0290-run-tests-sh-timings-truncates-a-test-file-passed-as-its-tar.md) | run-tests.sh --timings truncates a test file passed as its target | `high` | `fix` | needs-brainstorm |
 | [0291](active/0291-load-gate-failure-md-before-the-dispatch-verb-at-both-finali.md) | Load gate-failure.md before the dispatch verb at both finalize gate steps | `medium` | `refactor` | needs-brainstorm |
 | [0292](active/0292-shared-tested-mutation-probe-harness-take-the-landing-check.md) | Shared, tested mutation-probe harness — take the landing check out of each plan author's care | `medium` | `feat` | needs-brainstorm |
+| [0293](active/0293-test-gate-run-stop-s-term-escalation-fixture-deadline-is-at.md) | test_gate_run_stop's TERM-escalation fixture deadline is at exact parity with stop_run's own TERM budget | `medium` | `fix` | needs-brainstorm |
+| [0294](active/0294-shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru.md) | Shrink AGENTS.md's always-loaded footprint: script-ify the run gate's caller procedure and de-duplicate the dispatch table | `medium` | `refactor` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -101,6 +103,8 @@ graph TD
   0290
   0291
   0292
+  0293
+  0294
   0192:::done
   0211:::done
   0282:::done
