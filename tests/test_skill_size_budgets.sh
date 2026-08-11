@@ -1257,8 +1257,12 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # reads as binding and the sweep's actual code contradicts — which is precisely the contradiction
 # change 0118 found. A scoping must sit beside the rule it scopes, or the unscoped rule is what
 # gets obeyed. Set per the rounding rule above from the measured actuals: 192 lines -> the next
-# multiple of 5 is 195 (3 lines of margin — above the half-step of the 5-line step that the 0167
-# line-margin reading uses, where 0- and 2-line margins were rejected and 4 accepted); 1683 words
+# multiple of 5 is 195, but that leaves only 3 lines on a file this change grew by 18, so this row
+# takes the multiple AFTER it, 200 (8 lines of margin). That follows this block's own line-budget
+# precedents rather than the bare letter of the rounding rule: docket-build-task 100 -> 105,
+# docket-build 155 -> 160 and then 160 -> 165, each taking the next multiple when only 1-2 lines
+# remained, because near-zero headroom is the failure mode the block exists to forbid — the next
+# one-sentence prose correction reddens CI on arrival. Words: 1683
 # -> the next multiple of 50 is 1700, which leaves 17 words, inside the 25-word threshold, so the
 # multiple after it: 1750 (67 words of margin). No prose was cut to fit either number.
 BUDGETS="
@@ -1278,7 +1282,7 @@ skills/docket-convention/references/agent-layer.md         205 2350
 skills/docket-convention/references/auto-capture.md        130 1250
 skills/docket-convention/references/dummy-mode.md           85  800
 skills/docket-convention/references/learnings.md            84  580
-skills/docket-convention/references/terminal-close-out.md  195 1750
+skills/docket-convention/references/terminal-close-out.md  200 1750
 skills/docket-finalize-change/SKILL.md                     185 3900
 skills/docket-finalize-change/references/gate-failure.md    40 1150
 skills/docket-groom-next/SKILL.md                           77 1484

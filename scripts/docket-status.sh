@@ -921,8 +921,9 @@ sweep_execute(){
 # cannot fire when publishing is suppressed (pinned by the change-0064 wiring test). A caller
 # without that proof gates.
 #
-# DETAIL must never contain the literal `terminal-publish.sh`: this invocation carries `--id` and
-# no `--enabled`, and tests/test_closeout.sh's find_ungated_terminal_publish_call_sites scans
+# DETAIL must never contain the literal `terminal-publish.sh`, on any line of it. This invocation
+# carries the --id flag and no --enabled, and tests/test_closeout.sh's
+# find_ungated_terminal_publish_call_sites scans
 # JOINED logical lines for that literal regardless of quoting, so it would trip on this call site.
 sweep_mark_publish_deferred(){
   local mw="$1" archived="$2" id="$3" detail="$4"
