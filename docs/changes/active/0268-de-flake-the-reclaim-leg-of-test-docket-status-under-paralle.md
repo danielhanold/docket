@@ -6,7 +6,7 @@ status: proposed
 priority: medium
 type: fix
 created: 2026-08-08
-updated: 2026-08-09
+updated: 2026-08-11
 depends_on: []
 related: [252]
 discovered_from: [245]
@@ -59,3 +59,30 @@ apply **change 0137's rounding rule** (next multiple of 5 plus a 5s margin, comp
 in-diff argument** for the word budget. **#0118 is queued against the same surface**, so whichever of
 the two lands second inherits whatever margin the first leaves. See the learnings finding
 `budget-headroom-is-spent-before-it-is-breached`.
+
+## Carry-forward from #0118 (2026-08-11)
+
+#0118 landed second on this surface and consumed the rest of the margin the #0247 note above
+anticipated. **The situation has changed in kind, not just in degree: `tests/test_docket_status.sh`
+is now at the runtime table's HARD 60s ceiling, and there is no next raise.** The table's own header
+states the remedy past this point is a shard, not another budget bump — so the rounding rule cited
+in the #0247 note is **no longer applicable to this row**; do not apply it and do not re-derive a
+higher number.
+
+Measured at #0118's close-out:
+
+- **~15s** of margin against the 60s row from the quiet worst reading.
+- **8.6s** of margin from the worst reading ever observed (the contended parallel case — which is
+  exactly the measurement this change's own "10 consecutive green full parallel runs" acceptance
+  bar produces).
+
+**#0296 exists to shard this file** and is the settled remedy. This change must therefore do one of
+two things, decided at plan time and stated in the plan:
+
+1. **Stay inside the remaining margin** — the de-flake rewrite is a single assert, so this is the
+   expected path; measure the file's runtime before and after and show the after-number still
+   clears 60s against the *contended* reading, not the quiet one; or
+2. **Land behind the shard** — if the work grows past that margin, take a `depends_on: [296]` and
+   land after #0296 splits the file, rather than breaching a ceiling that has no raise.
+
+#0154 also targets this same file; whichever of the three lands next inherits whatever is left.
