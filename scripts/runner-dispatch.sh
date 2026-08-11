@@ -689,9 +689,18 @@ if [ "$VERB" = "observe" ]; then
   # despite a noisy adapter. Same rule as the disagreement rule — correctness outranks the
   # self-report of the party being judged.
   #
-  # EXITS on a positive finding; RETURNS (falling through to the sentinel-only disposition) on
-  # anything it could not establish.
-  observe_implement_next(){
+  # THE ATTRIBUTED VERDICT, split out of `observe_implement_next` (change 0284) because TWO
+  # dispositions now need it, and they need it in different shapes. The sentinel path acts on it
+  # immediately and exits; the DEAD path must record it in the terminal marker BEFORE it exits, so
+  # that every later observation replays the same verdict — and the same exit code — off the marker
+  # rather than asking git a second, differently-timed time. Splitting the READ from the
+  # DISPOSITION is what keeps that one reader instead of a second copy of the attribution ladder.
+  #
+  # Prints the attributed verdict on STDOUT and nothing else, which is what makes it safe to read
+  # through a command substitution: every diagnostic below goes to stderr. EMPTY output means
+  # nothing could be attributed — an unarmed gate, an unreadable snapshot, no candidate, or an
+  # ambiguous set — and every caller treats that as "no positive finding".
+  implement_next_verdict(){
     local before after epoch verdict nid nclaimed
     local new_ids=()
     epoch="$(launch_field "$DDIR" dispatch_epoch)"
@@ -739,6 +748,16 @@ if [ "$VERB" = "observe" ]; then
     nid="${new_ids[0]}"
     verdict="$("$DOCKET_BASH_PATH" "$VERIFY_RUN" "$nid" 2>/dev/null)"
     printf 'runner-dispatch: observe %s — run gate: %s\n' "$OBSERVE_KEY" "${verdict:-run-unverifiable $nid}" >&2
+    # One line, always: a verdict carrying an embedded newline would corrupt the key=value marker
+    # the dead path records it in, and the whole verdict is a single line by construction anyway.
+    printf '%s' "${verdict//$'\n'/ }"
+  }
+
+  # EXITS on a positive finding; RETURNS (falling through to the sentinel-only disposition) on
+  # anything it could not establish.
+  observe_implement_next(){
+    local verdict
+    verdict="$(implement_next_verdict)"
     case "$verdict" in
       run-halted*)
         # STOP + SURFACE with its own code, the same 3 the synchronous gate returns and the code
@@ -1000,19 +1019,101 @@ if [ "$VERB" = "observe" ]; then
   # are NOT reaped. Killing them would mean signalling a group that cannot be proven still ours, and
   # an unrelated process group dying is the worse failure and the unrecoverable one, while an orphan
   # is visible and reapable. So the diagnostic NAMES THE DISPATCH DIR, which is how a human finds them.
+  #
+  # GIT DECIDES WHAT THE DEATH MEANT (change 0284, spec §3). A dead child is NOT automatically "no
+  # result": a delegated run can commit its work, push its branch and open its PR and THEN be killed
+  # before the wrapper's `mv -f` lands, and reporting `unavailable` over evidence sitting in git
+  # sends a human hunting for work that is already committed — change 0258's failure, inverted. So
+  # the disagreement rule already governing the sentinel path (liveness from the process, correctness
+  # from git) extends to this leg, and the dispositions are the ones `report_done_disposition`
+  # already routes to — reached with NO EXIT CODE TO CONSULT.
+  #
+  # THE VERDICT AND ITS CODE ARE RECORDED IN THE MARKER, and that is what makes this leg idempotent
+  # rather than merely terminal. `--observe` promises a completed, failed or killed dispatch
+  # re-reports IDENTICALLY forever; without the recorded verdict the transition could exit 0 (the
+  # work landed) while every re-read exited 1 off a marker that remembered only the death. The
+  # re-read replays both, and asks git nothing — a second read would be a differently-timed answer
+  # to a question already answered. Only the RELAY differs between the transition and the re-report,
+  # as it already does on every other terminal path in this file.
+
+  # ONE verdict->code mapping, shared by both agent families and by the marker replay. Shape-keyed
+  # on the verdict's own leading token, never on an enumerated list of full verdict strings.
+  vanished_code(){  # $1 = the git verdict (may be empty) -> the exit code it disposes to
+    case "$1" in
+      task-committed*|run-complete*|run-unclaimed*) printf '0' ;;
+      # A HALT KEEPS ITS OWN CODE. `3` is what a halt reached under detachment reports on the
+      # sentinel path, and a driver told `1` reads "failed" where the truth is "stopped and needs a
+      # human" — the prose-level failure change 0237 exists to eliminate. What a vanished child
+      # changes is how the facade LEARNED the run stopped, never what the run's own state is.
+      run-halted*) printf '3' ;;
+      *) printf '1' ;;
+    esac
+  }
+
+  # ONE wording, spoken by the transition below AND by the marker replay at step 2, so the two can
+  # never drift apart. NO MESSAGE HERE ASSERTS AN EXIT CODE: the child said nothing at all, and a
+  # code that was never read is the fabricated verdict `classify_record` refuses over a malformed
+  # record. Every leg therefore states THE DEATH FIRST and the git verdict second.
+  say_vanished(){  # $1 = why the group was not ours, $2 = the git verdict (may be empty), $3 = code
+    local why="$1" gitv="$2" code="$3"
+    case "$code" in
+      0)
+        printf 'runner-dispatch: observe %s — COMPLETE (the delegated child died without writing a sentinel: %s; but git says %s, so the work landed); nothing was signalled, so any processes it spawned are still running — inspect %s\n' \
+          "$OBSERVE_KEY" "$why" "$gitv" "$DDIR" >&2 ;;
+      3)
+        printf 'runner-dispatch: observe %s — RUN HALTED (the delegated child died without writing a sentinel: %s; and git says %s); the delegated implement-next run stopped and needs a human — read the change file'"'"'s "## Run halted" section. Nothing was signalled, so any processes it spawned are still running — inspect %s\n' \
+          "$OBSERVE_KEY" "$why" "$gitv" "$DDIR" >&2 ;;
+      *)
+        printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (the delegated child died without writing a sentinel: %s%s); nothing was signalled, so any processes it spawned are still running — inspect %s\n' \
+          "$OBSERVE_KEY" "$why" "${gitv:+; and git has no evidence the work landed: $gitv}" "$DDIR" >&2 ;;
+    esac
+  }
+
   dispose_vanished_child(){
-    printf 'killed_at=%s\nreason=%s\ncause=%s\ndetail=%s\nbudget_minutes=%s\n' \
+    local gitv="" code lsince lbranch
+    # THE GIT READ COMES FIRST, before the marker is written, because the marker must carry the
+    # verdict. An observation that dies between the probe and the marker write leaves no terminal
+    # record — the same exposure the give-up path already has, and the next observation simply
+    # re-probes.
+    case "$AGENT" in
+      implement-next)
+        # The run gate's own reader, unchanged and unduplicated: it is the single owner of the
+        # attribution ladder, and its wording for the verdict line is already exit-code-free.
+        gitv="$(implement_next_verdict)" ;;
+      build-*)
+        lsince="$(launch_field "$DDIR" since_sha)"
+        lbranch="$(launch_field "$DDIR" branch)"
+        # THE SAME TWO NON-VERDICTS THE SENTINEL PATH TAKES (change 0208, and 0271's branch
+        # conjunct). Neither is a failure of this leg: `--observe` on a removed worktree deliberately
+        # reassigns ANCHOR to the repo root, and verifying the build THERE answers a question nobody
+        # asked; falling back to the observation-time branch reinstates the vacuity 0271 removed.
+        # Both are NO POSITIVE EVIDENCE, git is not asked at all, and both are surfaced as such.
+        if [ "$ANCHOR_FALLBACK" = 1 ]; then
+          gitv="task-unverifiable worktree-removed"
+        elif [ -z "$lbranch" ]; then
+          gitv="task-unverifiable launch-branch-missing"
+        else
+          gitv="$("$DOCKET_BASH_PATH" "$VERIFY_RUN" --build --worktree "$ANCHOR" \
+                    --branch "$lbranch" --since "${lsince:-}" 2>/dev/null)"
+        fi ;;
+      # Every other agent: no git question exists for it, so none is asked and none is claimed.
+    esac
+    # The marker is a key=value record read line-by-line, so a verdict carrying a newline would
+    # corrupt every field after it.
+    gitv="${gitv//$'\n'/ }"
+    code="$(vanished_code "$gitv")"
+    printf 'killed_at=%s\nreason=%s\ncause=%s\ndetail=%s\nbudget_minutes=%s\ngit_verdict=%s\ndisposition=%s\n' \
       "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "group-already-gone" "child-vanished" "${VANISHED_WHY:-}" \
-      "$DELEGATION_OBSERVATION_BUDGET" > "$DDIR/killed.partial"
+      "$DELEGATION_OBSERVATION_BUDGET" "$gitv" "$code" > "$DDIR/killed.partial"
     # `mv -f`, not `mv`: BSD `mv` onto an unwritable destination with a tty PROMPTS, self-answers `n`
     # at EOF, and exits 0 — the marker would be silently lost and this leg would re-fire every pass.
     mv -f "$DDIR/killed.partial" "$DDIR/killed" || die "could not record the kill marker in $DDIR"
-    # ----- TASK 5 REPLACES FROM HERE ---------------------------------------------------
-    printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (the delegated child died without writing a sentinel: %s); nothing was signalled, so any processes it spawned are still running — inspect %s\n' \
-      "$OBSERVE_KEY" "${VANISHED_WHY:-reason unrecorded}" "$DDIR" >&2
+    say_vanished "${VANISHED_WHY:-reason unrecorded}" "$gitv" "$code"
+    # The child is finished either way, so whatever it managed to write is the only evidence left.
+    # This is the ONE thing the re-report does not repeat: relaying a completed dispatch's stdout on
+    # every later observation would hand a polling caller the same bytes once per pass.
     relay_child_stdout
-    exit 1
-    # ----- TASK 5 REPLACES TO HERE -----------------------------------------------------
+    exit "$code"
   }
 
   # 1. THE SENTINEL IS READ FIRST — ahead of the `killed` marker, deliberately. THE WRAPPER SUBSHELL
@@ -1044,11 +1145,24 @@ if [ "$VERB" = "observe" ]; then
     KREASON="$(killed_field reason)"
     KCAUSE="$(killed_field cause)"
     KDETAIL="$(killed_field detail)"
+    # A VANISHED CHILD REPLAYS ITS WHOLE VERDICT, wording AND exit code, and it is the only cause
+    # that does (change 0284). Two reasons it cannot share the give-up wording below. First, it
+    # never spent its budget, so the give-up's arms would tell a reader the budget ran out on a
+    # dispatch that was terminal within seconds of being launched. Second — and this is what
+    # obliges the recorded `disposition` — its verdict came from GIT, so the transition may have
+    # exited 0 (the work landed) or 3 (the run halted), and a re-read that fell through to the
+    # give-up's unconditional `exit 1` would break the idempotence guarantee in the one field a
+    # caller branches on. The verdict is replayed off the marker rather than re-read from git: a
+    # second read would be a differently-timed answer to a question already answered.
+    if [ "$KCAUSE" = "child-vanished" ]; then
+      KCODE="$(killed_field disposition)"
+      # An older marker (or an unwritable one) carries no code. Unavailable is the fail-closed
+      # reading — never a success synthesized out of an absent field.
+      case "$KCODE" in ''|*[!0-9]*) KCODE=1 ;; esac
+      say_vanished "${KDETAIL:-reason unrecorded}" "$(killed_field git_verdict)" "$KCODE"
+      exit "$KCODE"
+    fi
     case "$KCAUSE" in
-      # A vanished child never spent its budget, so it must never be re-reported as if it had —
-      # the default arm below would tell a reader the budget ran out on a dispatch that was
-      # terminal within seconds of being launched (change 0284).
-      child-vanished)       KWHAT="the delegated child died without writing a sentinel" ;;
       budget-unenforceable) KWHAT="the observation budget could not be enforced (${KDETAIL:-reason unrecorded})" ;;
       *)                    KWHAT="the budget was exhausted" ;;
     esac

@@ -697,4 +697,237 @@ assert "0284: a LIVE child that is provably ours still observes as still running
 assert "0284: and no terminal marker is written over it" '[ ! -f "$DDIR/killed" ]'
 reap "$in_pgid"
 
+# ---- 0284 case 4: GIT DECIDES the dead child's disposition ------------------------
+# A dead child is NOT automatically "no result": a delegated run can commit its work, push its
+# branch and open its PR and THEN be killed before the wrapper's `mv -f` lands. Reporting
+# `unavailable` over evidence sitting in git sends a human hunting for work that is already
+# committed — change 0258's failure, inverted.
+#
+# THE STUB SEAM is `VERIFY_RUN`, the same one tests/test_runner_dispatch_build_gate.sh drives its
+# gate arms through, and the stub answers the same three shapes that file's `mkgatefixture` answers
+# (`--build`, `--in-progress-ids[ --with-claimed-at]`, a bare change id) plus `--iso-to-epoch`,
+# which it delegates to the real script. It is NOT lifted into tests/lib/: that copy is welded into
+# `mkgatefixture`, which also builds the live gate's snapshots and its counting adapter, and
+# extracting it would rewrite a passing shard for no assert in this one. What this copy adds is the
+# CALL LOG — the only way to assert that a re-observation reads git zero more times.
+#
+# `DOCKET_FACADE` is stubbed alongside it because an implement-next launch and observation both
+# re-sync metadata: unstubbed, that is the REAL `docket.sh preflight` against the developer's own
+# repository, from inside a test.
+VFUT=$(( $(date -u +%s) + 600 ))          # a claim stamp inside this dispatch's attribution window
+vanish_stub(){   # $SBX must exist; sets VRLOG and SNAP, and writes both stubs
+  VRLOG="$SBX/vr.log"; : > "$VRLOG"
+  SNAP="$SBX/snap"; mkdir -p "$SNAP"
+  printf '' > "$SNAP/before"                     # nothing claimed at the handoff
+  printf '%s %s\n' 7 "$VFUT" > "$SNAP/after"     # one claim, attributable to this dispatch
+  : > "$SNAP/verdict.7"
+  cat > "$SBX/vanish-vr.sh" <<VRE
+#!/usr/bin/env bash
+printf 'vr %s\n' "\$*" >> "$VRLOG"
+case "\$1" in --iso-to-epoch) exec "$ROOT/scripts/verify-run.sh" "\$@" ;; esac
+for a in "\$@"; do [ "\$a" = "--build" ] && { cat "$SNAP/verdict.7"; exit 0; }; done
+withca=0
+for a in "\$@"; do [ "\$a" = "--with-claimed-at" ] && withca=1; done
+for a in "\$@"; do
+  [ "\$a" = "--in-progress-ids" ] || continue
+  if [ "\$withca" = 1 ]; then cat "$SNAP/after"; else cat "$SNAP/before"; fi
+  exit 0
+done
+id=""
+for a in "\$@"; do case "\$a" in [0-9]*) id="\$a" ;; esac; done
+cat "$SNAP/verdict.\$id" 2>/dev/null
+exit 0
+VRE
+  chmod +x "$SBX/vanish-vr.sh"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$SBX/vanish-facade.sh"
+  chmod +x "$SBX/vanish-facade.sh"
+}
+# Launch a child and kill its GROUP without letting the wrapper write `done` — SIGKILL is
+# untrappable, so the untrapped wrapper subshell dies with it and no sentinel can ever appear. The
+# recorded `pgid` is left ALONE (no rewrite, no borrowed group), so the probe's verdict rests on a
+# group that is genuinely gone rather than on whether two processes happened to start inside the
+# same `ps -o lstart=` second. Both preconditions are ASSERTED here, once per arm, because every
+# claim below is a claim about the dead path and a live child would take a different one entirely.
+vlaunch(){   # $1 = agent, rest = extra facade args -> sets KEY, DDIR, VPGID
+  local agent="$1" w=0; shift
+  KEY="$( cd "$SBX" && RUNNERS_DIR="$RDIR" FAKE_MARKER="$SBX/marker" \
+      FAKE_SLEEP=300 FAKE_TAIL=0 FAKE_RC=0 \
+      VERIFY_RUN="$SBX/vanish-vr.sh" DOCKET_FACADE="$SBX/vanish-facade.sh" \
+      bash "$FACADE" --launch --runner fake --agent "$agent" "$@" )"
+  DDIR="$(ddir_for "$KEY")"
+  VPGID="$(sed -n 's/^pgid=//p' "$DDIR/launch")"
+  kill -KILL -"$VPGID" 2>/dev/null
+  while kill -0 -"$VPGID" 2>/dev/null && [ "$w" -lt 100 ]; do sleep 0.1; w=$(( w + 1 )); done
+  assert "0284 case 4: fixture sanity — the $agent child's group is really gone" \
+    '! kill -0 -"$VPGID" 2>/dev/null'
+  assert "0284 case 4: fixture sanity — and it never wrote a sentinel" '[ ! -f "$DDIR/done" ]'
+}
+vobserve(){  # $1 = key, $2 = agent, rest = extra facade args
+  local k="$1" ag="$2"; shift 2
+  ( cd "$SBX" && RUNNERS_DIR="$RDIR" DELEGATION_OBSERVATION_BUDGET=60 \
+    VERIFY_RUN="$SBX/vanish-vr.sh" DOCKET_FACADE="$SBX/vanish-facade.sh" \
+    bash "$FACADE" --observe "$k" --runner fake --agent "$ag" "$@" )
+}
+vrbuilds(){ grep -cF -- "--build" "$VRLOG" | tr -d ' '; }   # how many git BUILD reads so far
+vrlines(){ wc -l < "$VRLOG" | tr -d ' '; }                  # how many verify-run calls at all
+
+# One repo serves every main-tree arm: each `vlaunch` mints its OWN dispatch (a disposed one is
+# terminal forever, so no arm can reuse another's), and the fixture cost is paid once.
+make_fixture
+vanish_stub
+
+# --- implement-next + run-complete => 0 -------------------------------------------
+printf 'run-complete 7\n' > "$SNAP/verdict.7"
+vlaunch implement-next
+assert "0284: fixture sanity — the launch really armed the run gate" \
+  'grep -qE "^dispatch_epoch=[0-9]+$" "$DDIR/launch" && [ -f "$DDIR/gate-before" ]'
+vr_n="$(vrlines)"
+out="$(vobserve "$KEY" implement-next 2>&1)"; rc=$?
+assert "0284: a vanished implement-next whose work LANDED exits 0" '[ "$rc" = "0" ]'
+assert "0284: and the wording states the death FIRST, then the git verdict" \
+  'grep -qi "died without writing a sentinel" <<<"$out" && grep -qF "run-complete 7" <<<"$out"'
+assert "0284: it never claims an exit code it did not read" '! grep -qE "exited [0-9]+" <<<"$out"'
+# IDEMPOTENCE, AND THE POINT OF RECORDING THE VERDICT (spec § Testing case 6). The git verdict is
+# written into the marker at the transition precisely so that every later observation replays the
+# same code and the same wording from it — WITHOUT a second `verify-run` call, which would be a
+# differently-timed answer to a question already answered. Compared across the SECOND and THIRD
+# observations, the file's established idiom: the first is the terminal TRANSITION, which also
+# relays the child's stdout.
+assert "0284: THE TRANSITION really read git (so the no-second-read assert below is not vacuous)" \
+  '[ "$(vrlines)" -gt "$vr_n" ]'
+assert "0284: and recorded the verdict it read in the marker" \
+  'grep -qxF "git_verdict=run-complete 7" "$DDIR/killed"'
+vr_n="$(vrlines)"
+out2="$(vobserve "$KEY" implement-next 2>&1)"; rc2=$?
+out3="$(vobserve "$KEY" implement-next 2>&1)"; rc3=$?
+assert "0284: re-observing replays the SAME exit code, not a generic failure" \
+  '[ "$rc2" = "0" ] && [ "$rc3" = "0" ]'
+assert "0284: and re-reports identically forever" '[ "$out3" = "$out2" ]'
+assert "0284: the re-report reads git ZERO more times (the marker short-circuits at step 2)" \
+  '[ "$(vrlines)" = "$vr_n" ]'
+assert "0284: and still names the git verdict it replayed" 'grep -qF "run-complete 7" <<<"$out2"'
+
+# --- implement-next + run-halted => the HALT disposition, wording preserved --------
+# THE EXIT CODE IS 3, NOT 1, and this is a deliberate reading of the spec against itself. Its §3
+# table names `observe_implement_next` as this leg's reader and says "wording preserved", and that
+# function's halt disposition is `3` — the code change 0271's synthesized-exit table pins
+# normatively for a halt reached under detachment, and the code CLAUDE.md's run gate keys on for
+# "never re-dispatch a halt". The same table's "⇒ exit 1" summary would collapse a stop-for-a-human
+# into an ordinary failure, which is the prose-level failure change 0237 exists to eliminate. What
+# a dead child changes is how the facade LEARNED the run stopped, never what the run's own state is.
+printf 'run-halted 7\n' > "$SNAP/verdict.7"
+vlaunch implement-next
+out="$(vobserve "$KEY" implement-next 2>&1)"; rc=$?
+assert "0284: a vanished implement-next that HALTED is never reported as complete" '[ "$rc" != "0" ]'
+assert "0284: it takes the HALT disposition (3), not a generic failure" '[ "$rc" = "3" ]'
+assert "0284: and the halted wording is preserved" \
+  'grep -qi "halted" <<<"$out" && grep -qi "needs a human" <<<"$out"'
+assert "0284: the halt still states the death first" 'grep -qi "died without writing a sentinel" <<<"$out"'
+out2="$(vobserve "$KEY" implement-next 2>&1)"; rc2=$?
+out3="$(vobserve "$KEY" implement-next 2>&1)"; rc3=$?
+assert "0284: a replayed halt is still a halt, not a downgraded failure" \
+  '[ "$rc2" = "3" ] && [ "$rc3" = "3" ]'
+assert "0284: and it replays identically" '[ "$out3" = "$out2" ]'
+
+# --- any other agent => 1, and git is never asked ---------------------------------
+# The stub is left holding a POSITIVE verdict, so an implementation that read git for every agent
+# would exit 0 here rather than merely printing an extra word.
+printf 'task-committed feat/thing\n' > "$SNAP/verdict.7"
+vlaunch status
+vr_n="$(vrlines)"
+out="$(vobserve "$KEY" status 2>&1)"; rc=$?
+assert "0284: a vanished status dispatch is unavailable (1)" '[ "$rc" = "1" ]'
+assert "0284: and claims no git verdict" '! grep -qF "task-committed" <<<"$out"'
+assert "0284: nor reads one — no verify-run call is made for an agent with no git question" \
+  '[ "$(vrlines)" = "$vr_n" ]'
+assert "0284: it still points a human at the dispatch dir" 'grep -qF "$DDIR" <<<"$out"'
+
+# --- ORDERING: deadness is knowable without a readable clock (spec §2) ------------
+# Placed AFTER the clock reads, a dispatch with an unreadable `started_at` would take the
+# `note_unenforceable` path for three more observations and then terminate on the WRONG cause. So a
+# vanished child with a BLANKED start time must still be disposed `child-vanished` on the FIRST
+# pass, and the unenforceable counter must never be touched.
+vlaunch status
+rec="$(sed 's/^started_at=.*/started_at=/' "$DDIR/launch")"; printf '%s\n' "$rec" > "$DDIR/launch"
+assert "0284: fixture sanity — the launch record now carries no start time" \
+  '[ -z "$(sed -n "s/^started_at=//p" "$DDIR/launch")" ]'
+out="$(vobserve "$KEY" status 2>&1)"; rc=$?
+assert "0284: an unreadable clock does not delay the vanished verdict (1, first pass)" '[ "$rc" = "1" ]'
+assert "0284: and the cause recorded is the vanishing, not an unenforceable budget" \
+  'grep -qx "cause=child-vanished" "$DDIR/killed"'
+assert "0284: the unenforceable counter was never touched" '[ ! -f "$DDIR/unenforceable" ]'
+assert "0284: and the diagnostic never claims the budget could not be enforced" \
+  '! grep -qi "budget not enforced\|could not be enforced" <<<"$out"'
+
+# --- the build-* family: a REAL linked worktree, because build-* is feature-scoped -
+make_fixture
+vanish_stub
+git -C "$SBX" worktree add -q -b feat/thing "$SBX/.worktrees/build" >/dev/null 2>&1
+VWT="$SBX/.worktrees/build"
+assert "0284: fixture sanity — the build arms anchor on a REAL linked worktree, not the main tree" \
+  '[ -f "$VWT/.git" ] && [ "$VWT" != "$SBX" ]'
+
+# --- build-* + task-committed => 0 -------------------------------------------------
+printf 'task-committed feat/thing\n' > "$SNAP/verdict.7"
+vlaunch build-standard --worktree "$VWT" -- "build task"
+out="$(vobserve "$KEY" build-standard --worktree "$VWT" 2>&1)"; rc=$?
+assert "0284: a vanished build task whose commit LANDED exits 0" '[ "$rc" = "0" ]'
+assert "0284: and echoes the git verdict after the death" \
+  'grep -qi "died without writing a sentinel" <<<"$out" && grep -qF "task-committed" <<<"$out"'
+assert "0284: it never claims an exit code it did not read" '! grep -qE "exited [0-9]+" <<<"$out"'
+# The branch asked about is the LAUNCH-RECORDED one, never the anchor's HEAD now — the same
+# conjunct 0271 made non-vacuous on the sentinel path.
+assert "0284: the build verdict is asked against the branch the LAUNCH recorded" \
+  'grep -qF -- "--branch feat/thing" "$VRLOG"'
+vr_b="$(vrbuilds)"
+out2="$(vobserve "$KEY" build-standard --worktree "$VWT" 2>&1)"; rc2=$?
+out3="$(vobserve "$KEY" build-standard --worktree "$VWT" 2>&1)"; rc3=$?
+assert "0284: a landed build verdict replays as 0, not as unavailable" \
+  '[ "$rc2" = "0" ] && [ "$rc3" = "0" ]'
+assert "0284: and replays identically" '[ "$out3" = "$out2" ]'
+assert "0284: without a second build read" '[ "$(vrbuilds)" = "$vr_b" ]'
+
+# --- build-* + no evidence => 1 unavailable ---------------------------------------
+printf 'task-incomplete feat/thing tree\n' > "$SNAP/verdict.7"
+vlaunch build-standard --worktree "$VWT" -- "build task"
+out="$(vobserve "$KEY" build-standard --worktree "$VWT" 2>&1)"; rc=$?
+assert "0284: a vanished build task with NO git evidence exits 1" '[ "$rc" = "1" ]'
+assert "0284: and says the result is unavailable" 'grep -qi "unavailable\|no result" <<<"$out"'
+assert "0284: naming the verdict that failed to establish it" 'grep -qF "task-incomplete" <<<"$out"'
+
+# --- 0208 IS NOT REGRESSED (1/2): a launch record with no branch is a non-verdict --
+# Falling back to the observation-time branch would reinstate exactly the vacuity 0271 removed, so
+# the absence is NO POSITIVE EVIDENCE and git is not asked at all.
+printf 'task-committed feat/thing\n' > "$SNAP/verdict.7"
+vlaunch build-standard --worktree "$VWT" -- "build task"
+rec="$(sed 's/^branch=.*/branch=/' "$DDIR/launch")"; printf '%s\n' "$rec" > "$DDIR/launch"
+assert "0284: fixture sanity — the launch record now names no branch" \
+  '[ -z "$(sed -n "s/^branch=//p" "$DDIR/launch")" ]'
+vr_b="$(vrbuilds)"
+out="$(vobserve "$KEY" build-standard --worktree "$VWT" 2>&1)"; rc=$?
+assert "0284: a branchless launch record is not verified against the observation-time branch" \
+  '[ "$rc" = "1" ]'
+assert "0284: and it says so honestly" 'grep -qF "launch-branch-missing" <<<"$out"'
+assert "0284: git was never asked, so no verdict could be manufactured" \
+  '[ "$(vrbuilds)" = "$vr_b" ]'
+assert "0284: the non-verdict is what the marker replays" \
+  'grep -qxF "git_verdict=task-unverifiable launch-branch-missing" "$DDIR/killed"'
+
+# --- 0208 IS NOT REGRESSED (2/2): a removed worktree is an honest non-verdict ------
+# `--observe` on a removed worktree deliberately reassigns ANCHOR to the repo root, so verifying the
+# build THERE would answer a question nobody asked. This arm is LAST in this fixture: it removes the
+# worktree the arms above anchor on.
+printf 'task-committed feat/thing\n' > "$SNAP/verdict.7"
+vlaunch build-standard --worktree "$VWT" -- "build task"
+git -C "$SBX" worktree remove --force "$VWT" 2>/dev/null
+assert "0284: fixture sanity — the anchor worktree is really gone" '[ ! -d "$VWT" ]'
+vr_b="$(vrbuilds)"
+out="$(vobserve "$KEY" build-standard --worktree "$VWT" 2>&1)"; rc=$?
+assert "0284: fixture sanity — the observation really took the anchor FALLBACK" \
+  'grep -qi "no longer exists" <<<"$out"'
+assert "0284: a vanished build task whose WORKTREE is gone is not verified against the main tree" \
+  '[ "$rc" = "1" ]'
+assert "0284: and it says so honestly" 'grep -qF "worktree-removed" <<<"$out"'
+assert "0284: git was never asked against the main worktree" '[ "$(vrbuilds)" = "$vr_b" ]'
+
 exit "$fail"
