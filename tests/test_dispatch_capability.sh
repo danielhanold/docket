@@ -50,6 +50,45 @@ assert "convention: Tier C names an explicitly configured auto as the authorizat
 assert "convention: Tier C halt adds no new status or field" \
   'grep -qiE "[Nn]o new status, no new field" "$CONV"'
 
+# --- the carve-out: the two finalize gate dispatches sit OUTSIDE the taxonomy (change 0260) -------
+# Their contract is an in-context report gating the merge, not git state on metadata_branch, so
+# neither Tier A's "inline is a first-class equivalent" nor Tier C's authorized-or-halt can apply.
+# Paragraph-scoped, not file-scoped: the paragraph is identified BY the label literal, so
+# membership in it IS the binding "this noun is carve-out-classified" (learnings:
+# prose-guard-binds-phrase-to-claim). A file-wide `grep -q docket-rebase-resolver "$CONV"` would be
+# satisfied by the *Composition* paragraph, which names both agents for an unrelated reason.
+carveout_para="$(awk 'BEGIN{RS="";} /carve-out/ {print; exit}' "$CONV")"
+assert "convention: a carve-out paragraph exists (anchor for the asserts below)" \
+  '[ -n "$carveout_para" ]'
+assert "convention carve-out: names docket-rebase-resolver" \
+  'grep -qF -- "docket-rebase-resolver" <<<"$carveout_para"'
+assert "convention carve-out: names docket-integration-repair" \
+  'grep -qF -- "docket-integration-repair" <<<"$carveout_para"'
+assert "convention carve-out: states the posture is finalize's abort-and-report" \
+  'grep -qF -- "abort-and-report" <<<"$carveout_para"'
+assert "convention carve-out: forbids inline substitution" \
+  'grep -qiE "[Ii]nline substitution is forbidden" <<<"$carveout_para"'
+assert "convention carve-out: gives the self-approval reason for that prohibition" \
+  'grep -qF -- "self-approval" <<<"$carveout_para"'
+# The reason these two are OUT of the table, in the paragraph's own words — without it the
+# carve-out reads as an unexplained exception and a later editor folds it back into a row.
+assert "convention carve-out: says their contract is an in-context report, not git state" \
+  'grep -qE -- "in-context report[^.]{0,80}gating the merge" <<<"$carveout_para"'
+
+# The swapped-subjects blind spot, negative direction: neither carved-out noun may appear in an
+# A/B/C tier ROW. Without this, moving `docket-integration-repair` into the Tier C row (claiming
+# authorized-or-halt for it, so `skills.build: auto` would authorize inline repair by the agent
+# that then merges it) keeps every positive assert above green.
+tier_rows_all="$(grep -E "^\| \*\*[A-Z] —" "$CONV")"
+# Non-vacuity companion through the SAME extractor: an absence assert over a dead extractor reads
+# as the property holding (learnings: assert-detects-removal-not-replacement, rule 5).
+assert "convention: the tier-row extractor still reaches the table" \
+  '[ "$(grep -c . <<<"$tier_rows_all")" -ge 3 ] && grep -qF -- "docket-status" <<<"$tier_rows_all"'
+assert "convention: no tier row claims docket-rebase-resolver (carve-out, not a tier member)" \
+  '! grep -qF -- "docket-rebase-resolver" <<<"$tier_rows_all"'
+assert "convention: no tier row claims docket-integration-repair (carve-out, not a tier member)" \
+  '! grep -qF -- "docket-integration-repair" <<<"$tier_rows_all"'
+
 # --- the boundary against the pre-existing missing-skill rule ------------------------------------
 # Both rules must coexist and be DISTINGUISHED; if the missing-skill rule vanished, Tier C would
 # have silently replaced it (a scope change this change does not authorize).
