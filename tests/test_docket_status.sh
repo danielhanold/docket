@@ -1811,6 +1811,94 @@ assert "0118 gate(TERMINAL_PUBLISH=false): the report line is unchanged" \
 assert "0118 gate: the suppressed run still reached the renderer (non-vacuity)" \
   'grep -q "^render-change-links .*gate-render-broken" "$gate_log"'
 
+# --- change 0118: the transactional posture, forced at the git step ----------------------------
+# A mocked marker that only FAILS cannot reach these paths — the failure has to happen AFTER the
+# marker has already dirtied the archived file. docket-status.sh's documented GIT mock seam
+# (`GIT="${GIT:-git}"`, script header) is the injection point: a wrapper that fails one subcommand
+# and passes everything else through to real git. The mock scripts under $tmp/mock-scripts call
+# `git` directly rather than through the seam, so the archive step is unaffected by the fault.
+mkgitfail(){
+  # $1 = the git subcommand to fail on. Prints the wrapper's path.
+  # The subcommand is the first non-option word AFTER the value-taking global options are consumed.
+  # DEVIATION from the plan, whose wrapper merely skipped `-*` words and broke at the first other
+  # one: `-C <dir>`'s VALUE is such a word, so that version broke out at the directory and NEVER
+  # saw the subcommand — every call passed through, and every assert below would have been
+  # vacuous. Verified before use: passthrough returns git's own status, the named subcommand
+  # returns 1, and `-C <dir named like the subcommand>` does not false-trigger.
+  local d; d="$tmp/gitfail-$1"; mkdir -p "$d"
+  cat > "$d/git" <<EOF
+#!/usr/bin/env bash
+orig=("\$@")
+sub=""
+while [ \$# -gt 0 ]; do
+  case "\$1" in
+    -C|-c|--git-dir|--work-tree|--namespace|--exec-path) shift 2 || exit 2; continue ;;
+    -*) shift; continue ;;
+    *) sub="\$1"; break ;;
+  esac
+done
+[ "\$sub" = "$1" ] && exit 1
+exec /usr/bin/env git "\${orig[@]}"
+EOF
+  chmod +x "$d/git"
+  printf '%s\n' "$d/git"
+}
+
+fault_run(){
+  # $1 = id, $2 = slug, $3 = git wrapper path, $4 = log path. Prints the sweep's report stream.
+  local id="$1" slug="$2" gitbin="$3" log="$4"
+  : > "$log"
+  printf '%s\t%s\t%s\t2026-08-11\n' "$id" "$slug" "$id" > "$tmp/sweep-input-fault-$id.tsv"
+  ( cd "$sweep_dir/work" && \
+    DOCKET_MODE=docket METADATA_WORKTREE=. CHANGES_DIR=docs/changes ADRS_DIR=docs/adrs \
+    INTEGRATION_BRANCH=main METADATA_BRANCH=main TERMINAL_PUBLISH=true GIT="$gitbin" \
+    SCRIPTS_DIR="$tmp/mock-scripts" SWEEP_LOG="$log" SWEEP_INPUT="$tmp/sweep-input-fault-$id.tsv" \
+    bash -c '. "'"$SCRIPT"'"; sweep_execute < "$SWEEP_INPUT"' )
+}
+
+# Slugs carry "render-broken" so the renderer mock rewritten above (it fails on
+# `*broken-render*|*render-broken*`) drives every one of these into the skipped-publish leg.
+seed_sweep_change 28 add-fail-render-broken implemented
+seed_sweep_change 29 commit-fail-render-broken implemented
+seed_sweep_change 30 push-fail-render-broken implemented
+git -C "$sweep_dir/work" add docs/changes
+git -C "$sweep_dir/work" commit -q -m "seed 0118 fault-injection changes"
+git -C "$sweep_dir/work" push -q origin main
+
+# --- add fails -> the archived path is restored to HEAD, worktree AND index clean ---------------
+add_out="$(fault_run 28 add-fail-render-broken "$(mkgitfail add)" "$tmp/fault-add.log")"
+assert "0118 fault(add): the marker WAS attempted (non-vacuity — the failure is past the write)" \
+  'grep -q "^mark-publish-deferred .*add-fail-render-broken" "$tmp/fault-add.log"'
+assert "0118 fault(add): the archived path is clean — worktree and index both" \
+  '[ -z "$(git -C "$sweep_dir/work" status --porcelain -- docs/changes/archive/2026-08-11-0028-add-fail-render-broken.md)" ]'
+assert "0118 fault(add): the report stream is unchanged" \
+  'grep -qxE "sweep-failed 28 render-change-links skipped-publish" <<<"$add_out"'
+assert "0118 fault(add): no marker section survives on the archived file" \
+  '! grep -qxF -- "## Publish deferred" "$sweep_dir/work/docs/changes/archive/2026-08-11-0028-add-fail-render-broken.md"'
+
+# --- commit fails -> same clean restore --------------------------------------------------------
+commit_out="$(fault_run 29 commit-fail-render-broken "$(mkgitfail commit)" "$tmp/fault-commit.log")"
+assert "0118 fault(commit): the marker WAS attempted (non-vacuity)" \
+  'grep -q "^mark-publish-deferred .*commit-fail-render-broken" "$tmp/fault-commit.log"'
+assert "0118 fault(commit): the archived path is clean — worktree and index both" \
+  '[ -z "$(git -C "$sweep_dir/work" status --porcelain -- docs/changes/archive/2026-08-11-0029-commit-fail-render-broken.md)" ]'
+assert "0118 fault(commit): the report stream is unchanged" \
+  'grep -qxE "sweep-failed 29 render-change-links skipped-publish" <<<"$commit_out"'
+# The add SUCCEEDED here, so the marker text is staged as well as written: the restore has to reach
+# the index, not just the worktree, or this file still carries the section.
+assert "0118 fault(commit): no marker section survives on the archived file" \
+  '! grep -qxF -- "## Publish deferred" "$sweep_dir/work/docs/changes/archive/2026-08-11-0029-commit-fail-render-broken.md"'
+
+# --- push fails -> the local marker commit is RETAINED for self-healing -------------------------
+push_out="$(fault_run 30 push-fail-render-broken "$(mkgitfail push)" "$tmp/fault-push.log")"
+assert "0118 fault(push): the local marker commit is RETAINED, never reset" \
+  'body="$(git -C "$sweep_dir/work" show "HEAD:docs/changes/archive/2026-08-11-0030-push-fail-render-broken.md")"; \
+   grep -qxF -- "## Publish deferred" <<<"$body"'
+assert "0118 fault(push): the worktree is left clean despite the failed push" \
+  '[ -z "$(git -C "$sweep_dir/work" status --porcelain)" ]'
+assert "0118 fault(push): the report stream is unchanged" \
+  'grep -qxE "sweep-failed 30 render-change-links skipped-publish" <<<"$push_out"'
+
 # --- change 0064 (Finding 1): TERMINAL_PUBLISH gates the REAL sweep's terminal-publish.sh call ---
 # A behavioral test (not just wiring): drives docket-status.sh's actual merge-sweep pipeline in a
 # hermetic docket-mode fixture (separate docket/main branches on a bare origin) with the REAL
