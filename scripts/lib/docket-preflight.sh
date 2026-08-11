@@ -16,6 +16,131 @@
 # shellcheck source=docket-root.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/docket-root.sh"
 
+# --- metadata sync: bounded, discriminating retry (change 0247) ----------------------------------
+# 5 attempts with 2/4/8/8s backoff (~22s total). The RATIONALE, not just the number: the collision
+# this retries is "another agent is between its edit and its push" in the SHARED .docket worktree.
+# Most such windows close in seconds once that agent commits, and an autonomous caller re-running
+# preflight later covers the long tail — so a longer budget buys little while blocking every
+# skill's Step 0 for it. Calibrated on the live collisions observed in changes 0109/0110, on one
+# machine: treat it as a starting tolerance, not a measured constant.
+#
+# DOCKET_SYNC_BACKOFF is a Bash array, so this file stays Bash-only. That costs nothing: both
+# sourcing callers already are. docket-status.sh is `#!/usr/bin/env bash`, and docket.sh's `/bin/sh`
+# prologue sources nothing — it re-execs into the configured Bash 4+ runtime BEFORE its
+# `. "$SELF_DIR"/lib/docket-preflight.sh` line is ever parsed.
+DOCKET_SYNC_ATTEMPTS=5
+DOCKET_SYNC_BACKOFF=(2 4 8 8)
+
+# _docket_sync_sleep SECONDS — the injectable backoff seam. DOCKET_PREFLIGHT_TEST_SLEEP_CMD, when
+# set, REPLACES the real sleep: fixtures drive all five attempts at zero wall-clock cost (the
+# suite's per-file budgets make ~22s of real sleeping in a test a defect, not a style choice), and
+# a fixture modelling "the other agent finished" mutates its repo from inside that command — the
+# only point in the loop where a second actor could have acted. DOCKET_-namespaced per ADR-0014.
+# The fixture's own output is discarded on both channels: the caller's stderr is the sync's
+# diagnostic channel, which the exhaustion asserts read, and fixture noise there is contamination.
+_docket_sync_sleep(){
+  if [ -n "${DOCKET_PREFLIGHT_TEST_SLEEP_CMD:-}" ]; then
+    eval "$DOCKET_PREFLIGHT_TEST_SLEEP_CMD" >/dev/null 2>&1 || true
+    return 0
+  fi
+  sleep "$1"
+}
+
+# _docket_tree_dirty GIT DIR — true (0) when TRACKED files are modified in DIR. Untracked-only
+# files never count as dirty (ADR-0046's two-sided lesson): a stray untracked file in the shared
+# worktree must never fail another agent's sync.
+_docket_tree_dirty(){
+  [ -n "$("$1" -C "$2" status --porcelain --untracked-files=no 2>/dev/null)" ]
+}
+
+# _docket_tree_wedged GIT DIR — true (0) when a rebase or merge is already in progress in DIR.
+# It lives here, rather than inside the sync, because it is the shared shape of one hazard: a
+# commit into a mid-rebase shared tree commits that rebase's staged content under the caller's
+# message, which is why change 0247's Half 2 gates docket-status.sh's commit_and_push_generated on
+# this same probe. The state lives under the worktree's OWN git dir — for a linked worktree that is
+# <main>/.git/worktrees/<name>, never <linked>/.git, which is a gitdir pointer FILE — so resolve it
+# through git rather than assuming a layout.
+_docket_tree_wedged(){
+  local gd
+  gd="$("$1" -C "$2" rev-parse --git-dir 2>/dev/null)" || return 1
+  [ -n "$gd" ] || return 1
+  case "$gd" in /*) ;; *) gd="$2/$gd" ;; esac
+  [ -d "$gd/rebase-merge" ] || [ -d "$gd/rebase-apply" ] || [ -f "$gd/MERGE_HEAD" ]
+}
+
+# _docket_sync_metadata GIT DIR REMOTE BRANCH — the ONE metadata sync (change 0247), used by both
+# branches of docket_preflight so they cannot drift apart.
+#
+# INVARIANT: it may report success when local metadata is already current with, or AHEAD of, the
+# fetched remote; it integrates remote changes ONLY when the tracked tree is clean and no git
+# operation is in progress; and it NEVER mutates another agent's in-flight state to get there — no
+# --autostash, no reset, no stash. Review any change to this function against those three clauses.
+#
+# Returns 0 on success; 1 on a terminal failure or retry exhaustion, with a stderr diagnostic that
+# NAMES the last failure class (dirty / wedged / fetch / conflict), so the caller learns what
+# blocked the sync rather than merely that attempts died.
+_docket_sync_metadata(){
+  local git="$1" dir="$2" remote="$3" branch="$4"
+  local attempt=0 last=fetch head remote_sha nap
+  while [ "$attempt" -lt "$DOCKET_SYNC_ATTEMPTS" ]; do
+    attempt=$((attempt + 1))
+    if ! "$git" -C "$dir" fetch "$remote" "$branch" >&2; then
+      # Fetch failures retry UNDISCRIMINATED, deliberately: git's exit codes do not portably
+      # separate an auth or bad-remote failure from a transient network one, and stderr-pattern
+      # matching is locale- and version-fragile. Accepted limit — the diagnostic carries the class
+      # and git's own stderr is already on the caller's channel.
+      last=fetch
+    else
+      head="$("$git" -C "$dir" rev-parse HEAD 2>/dev/null)"
+      remote_sha="$("$git" -C "$dir" rev-parse FETCH_HEAD 2>/dev/null)"
+      # FAST PATH — up to date, or ahead only. The remote is an ancestor of HEAD, so there is
+      # nothing to integrate and no rebase is needed. This is the single most common collision
+      # (the other agent has not pushed yet), and it must succeed on a dirty tree.
+      if [ -n "$head" ] && [ -n "$remote_sha" ] \
+         && "$git" -C "$dir" merge-base --is-ancestor "$remote_sha" "$head" 2>/dev/null; then
+        return 0
+      fi
+      # The remote moved (or history diverged: local commits AND remote movement). Both cases take
+      # this one path — local commits rebase onto the fetched remote under the same precondition.
+      if _docket_tree_wedged "$git" "$dir"; then
+        # A rebase/merge that PREDATES this attempt is another agent mid-sync: transient, so it
+        # spends budget. Only the exhaustion diagnostic gets to call it wedged. Probed BEFORE the
+        # dirty check because a wedged tree is also dirty, and the more specific class wins.
+        last=wedged
+      elif _docket_tree_dirty "$git" "$dir"; then
+        last=dirty
+      elif "$git" -C "$dir" rebase "$remote_sha" >&2; then
+        return 0
+      elif _docket_tree_wedged "$git" "$dir"; then
+        # A content conflict raised by THIS attempt's own rebase is deterministic — it fails
+        # identically on every retry — so abort (restoring the pre-attempt state) and fail now,
+        # spending no further budget.
+        # The abort's OWN stderr stays on stderr: a failed abort leaves the shared tree wedged for
+        # the next agent, which is the one thing here a human has to be told about.
+        "$git" -C "$dir" rebase --abort >&2 || true
+        echo "docket-preflight: metadata sync failed — this attempt's own rebase hit a content conflict in $dir. Deterministic, so it was not retried; the tree was restored. Resolve it by hand." >&2
+        return 1
+      else
+        # An unrecognized rebase failure is TERMINAL, never a retry arm (change 0286's fail-closed
+        # doctrine): a loop whose default arm is "try again" is the shape that never terminates,
+        # and item 2's own rule is to spend retries only on classes that can self-heal.
+        echo "docket-preflight: metadata sync failed — the rebase in $dir failed for an unrecognized reason (git's output is above). Failing closed rather than retrying." >&2
+        return 1
+      fi
+    fi
+    # One fewer backoff than attempts, by construction: the last attempt has nothing to wait for.
+    nap="${DOCKET_SYNC_BACKOFF[$((attempt - 1))]:-}"
+    if [ -n "$nap" ]; then _docket_sync_sleep "$nap"; fi
+  done
+
+  case "$last" in
+    dirty) echo "docket-preflight: metadata sync failed after $DOCKET_SYNC_ATTEMPTS attempts — the tracked tree in $dir stayed dirty throughout (another agent mid-write, or a human's leftover edit). Retry later, or inspect it." >&2 ;;
+    wedged) echo "docket-preflight: metadata sync failed after $DOCKET_SYNC_ATTEMPTS attempts — a rebase or merge is in progress in $dir and never cleared. This one needs a human: finish or abort it." >&2 ;;
+    *)     echo "docket-preflight: metadata sync failed after $DOCKET_SYNC_ATTEMPTS attempts — the last failure was fetching $branch from $remote (git's output is above)." >&2 ;;
+  esac
+  return 1
+}
+
 docket_preflight(){
   local scripts_dir="$1"
   local git="${GIT:-git}"
@@ -67,11 +192,19 @@ docket_preflight(){
     # self-heals existing installs). Best-effort — a failure here must not block preflight.
     "$DOCKET_BASH_PATH" "$scripts_dir"/disable-worktree-hooks.sh --worktree "$wt" >&2 \
       || echo "docket-preflight: warning — could not disable hooks on $wt (continuing)" >&2
-    "$git" -C "$wt" fetch origin "$METADATA_BRANCH" >&2 \
-      && "$git" -C "$wt" pull --rebase origin "$METADATA_BRANCH" >&2 \
-      || { echo "docket-preflight: metadata worktree sync failed" >&2; return 1; }
+    _docket_sync_metadata "$git" "$wt" origin "$METADATA_BRANCH" || return 1
   else
-    "$git" -C "${root:-.}" pull --rebase >&2 || { echo "docket-preflight: metadata sync failed" >&2; return 1; }
+    # Main-mode takes the IDENTICAL path (spec, Half 1 item 1: "both branches of the sync function
+    # must behave identically here; leaving it implicit is how they drift apart"). Naming the
+    # remote and branch explicitly, rather than relying on the checked-out branch's upstream, is
+    # part of that: the two branches now differ only in which directory they sync.
+    #
+    # The BRANCH is INTEGRATION_BRANCH, not METADATA_BRANCH. In main-mode METADATA_BRANCH is the
+    # mode keyword "main" — docket-config.sh accepts only 'docket' or 'main' for it — and a repo
+    # whose integration branch is named anything else (master, trunk) would have had this fetch a
+    # ref that does not exist. docket-status.sh's health_checks already resolves the pair this way;
+    # this is the same rule, not a second notion of it.
+    _docket_sync_metadata "$git" "${root:-.}" origin "${INTEGRATION_BRANCH:-${METADATA_BRANCH:-}}" || return 1
   fi
 }
 

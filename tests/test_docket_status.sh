@@ -282,7 +282,9 @@ printf '%s\n' \
 EOF
 }
 
-# main-mode: sync degrades to a no-op-safe `git pull --rebase` on the primary tree.
+# main-mode: the sync runs against the primary tree. Since change 0247 that is
+# _docket_sync_metadata's fetch-then-decide, which is a no-op here because the fetched remote has
+# not moved.
 git_repo_setup "$tmp/main-case"
 git clone -q "$tmp/main-case/origin.git" "$tmp/main-case/work" 2>/dev/null
 write_sync_fixture main docket .docket
@@ -532,12 +534,17 @@ cat > "$tmp/git-race.sh" <<EOF
 # Wraps real git; races work2's push in once, right after \$work's startup sync pull, so
 # the orchestrator's own board_pass push collides deterministically without real timing.
 raced="$tmp/conflict-case/.raced"
-# change 0075: main-mode preflight now anchors its sync with \`git -C <root> pull --rebase\`
-# (D2 parity — the sync must target the MAIN worktree, not the caller's CWD), so the pull
-# subcommand may sit at \$3 behind a leading -C DIR rather than always at \$1.
+# change 0075: main-mode preflight anchors its sync on the MAIN worktree (D2 parity — the sync
+# must target it, not the caller's CWD), so the sync's subcommand may sit at \$3 behind a leading
+# -C DIR rather than always at \$1.
+# change 0247: that sync is no longer a \`pull --rebase\` — _docket_sync_metadata fetches first and
+# rebases only when the fetched remote actually moved. Key on EITHER spelling, so the race still
+# fires at the startup sync whichever one the sync reaches for. A fixture keyed on one spelling
+# silently stops racing when the sync changes: the orchestrator then pushes unopposed, reports the
+# expected \`board inline changed pushed\`, and only the merged-board assert goes false.
 sub="\$1"
 [ "\$sub" = "-C" ] && sub="\$3"
-if [ "\$sub" = pull ] && [ ! -f "\$raced" ]; then
+if { [ "\$sub" = pull ] || [ "\$sub" = fetch ]; } && [ ! -f "\$raced" ]; then
   git "\$@"; rc=\$?
   touch "\$raced"
   git -C "$tmp/conflict-case/work2" push -q origin main
@@ -666,8 +673,10 @@ EOF
 chmod +x "$tmp/git-nopush.sh"
 # Give board_pass something to render+commit+push: mutate a change so BOARD.md changes. Commit
 # the mutation itself first (matching the conflict-case fixture's own pattern above) — main-mode
-# preflight runs `git pull --rebase` on this same working tree before board_pass ever executes,
-# and that fails outright on an uncommitted change, never reaching the retry loop under test.
+# preflight syncs this same working tree before board_pass ever executes, and pre-0247 that
+# `pull --rebase` failed outright on an uncommitted change, never reaching the retry loop under
+# test. _docket_sync_metadata's fast path no longer fails there, but a committed mutation is still
+# the shape the retry loop is specified against, so the fixture keeps it.
 sed -i.bak 's/Alpha feature/Alpha feature v3/' "$tmp/mustland-case/work/docs/changes/active/0001-alpha.md"
 rm -f "$tmp/mustland-case/work/docs/changes/active/0001-alpha.md.bak"
 git -C "$tmp/mustland-case/work" -c user.email=t@t -c user.name=t add docs/changes
