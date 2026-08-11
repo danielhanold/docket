@@ -193,10 +193,35 @@ if [ "$VERB" = "observe" ] && [ ! -d "$ANCHOR" ]; then
 fi
 # Gate 2 — the resolved anchor must exist as a directory.
 [ -d "$ANCHOR" ] || die "--worktree $ANCHOR is not a directory"
-# Gate 3 — and belong to THIS repo's worktree set, so a child harness running under an
-# auto-approve permission grant is never handed a tree docket does not own. A non-repo path makes
-# docket_main_worktree print nothing, so the not-a-repo case falls out of this same comparison.
-[ "$(docket_main_worktree "$ANCHOR")" = "$REPO_ROOT" ] || die "--worktree $ANCHOR is not a worktree of this repository"
+# Gate 3 — MEMBERSHIP, not containment. The pre-0208 test asked docket_main_worktree "$ANCHOR",
+# which answers "is this path INSIDE some worktree of this repo" — true for the main worktree
+# itself and for every ordinary subdirectory of it. So the one value the gate most needs to reject,
+# the repo root handed to a build worker, cleared it while the diagnostic asserted a membership
+# nothing had checked.
+#
+# One `worktree list --porcelain` capture from $ANCHOR yields BOTH facts:
+#   * same repo — the FIRST `worktree` line equals $REPO_ROOT. git lists the main worktree first,
+#     the exact property docket_main_worktree already rests on. NEVER an anywhere-in-list match:
+#     `worktree list` retains stale records for deleted-and-recreated directories, so a FOREIGN
+#     repo's list can carry a `worktree $REPO_ROOT` line for a path that is no longer its worktree,
+#     and an anywhere-match would hand a delegated run a tree docket does not own — regressing the
+#     very guarantee this gate provides.
+#   * membership — an exact `worktree $ANCHOR` line, i.e. a worktree TOP-LEVEL rather than merely a
+#     path contained in one.
+# A non-repo path yields empty output and fails the first-line comparison, so the not-a-repo case
+# still falls out of this same check, as it did before.
+# CAPTURED INTO A VARIABLE, never piped into `grep -q`: under `pipefail` grep's early exit races
+# git's SIGPIPE status (AGENTS.md, "Shell").
+# `pwd -P` runs FIRST and is load-bearing on macOS: `mktemp -d` and user-supplied /tmp paths are
+# symlinked (/tmp -> /private/tmp) while git prints physical paths, so without it this exact-line
+# match would falsely reject valid worktrees the old containment check accepted. It runs after the
+# -d gate above, so the `cd` cannot fail. $REPO_ROOT needs no normalization — it IS git's output.
+ANCHOR="$(cd "$ANCHOR" && pwd -P)"
+wt_list="$("$GIT" -C "$ANCHOR" worktree list --porcelain 2>/dev/null)"
+[ "$(sed -n '1s/^worktree //p' <<<"$wt_list")" = "$REPO_ROOT" ] \
+  || die "--worktree $ANCHOR is not a worktree of this repository"
+grep -qxF -- "worktree $ANCHOR" <<<"$wt_list" \
+  || die "--worktree $ANCHOR is not a worktree of this repository (it is inside one, but a run anchor must be a worktree top-level)"
 export DOCKET_REPO_ROOT="$ANCHOR"
 
 # --- runners.<name>: config, per-key across layers (local > committed > global) -----
