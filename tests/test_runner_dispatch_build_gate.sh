@@ -16,19 +16,29 @@
 mkbuildrepo(){   # a repo + feature worktree the fake adapter can commit into
   local outside
   make_fixture
-  # These are the only arms whose verdict reads `git status` on the fixture repo, so they are the
-  # only ones for which make_fixture's RUNNERS_DIR placement matters: it sits INSIDE $SBX, where it
+  # These are the only arms whose verdict reads `git status` on the anchor, so they are the only
+  # ones for which make_fixture's RUNNERS_DIR placement ever mattered: it sits INSIDE $SBX, where it
   # is untracked scaffolding that would leave the `tree` conjunct unmet no matter what the child
   # did — turning "clean build task" into a permanent failure and "stranded work" into a green
-  # assert that measures the fixture rather than the child. Move it out; nothing else about the
-  # dispatch depends on where the adapter lives.
+  # assert that measures the fixture rather than the child. Since 0208 the anchor is the LINKED
+  # WORKTREE below, which does not contain $RDIR, so that hazard is gone by construction; the move
+  # is kept because it makes the independence STRUCTURAL rather than a property of where the
+  # worktree happens to be placed. Nothing else about the dispatch depends on where the adapter lives.
   outside="$(mktemp -d "${TMPDIR:-/tmp}/docket-detach-runners.XXXXXX")"
   FIXTURES+=("$outside")
   mv -f "$RDIR/fake.sh" "$outside/fake.sh"
   rmdir "$RDIR"
   RDIR="$outside"
-  git -C "$SBX" checkout -q -b feat/thing
-  WT="$SBX"     # the fake adapter runs with --worktree $SBX
+  # A REAL LINKED WORKTREE, not $SBX itself. `build-standard` declares `worktree-scope: feature`, and
+  # since 0208 the facade refuses a feature-scoped dispatch anchored at the MAIN worktree — the
+  # primary checkout on the integration branch is the precise value that gate exists to reject. With
+  # `WT="$SBX"` every arm below would abort before the adapter ran and their asserts would measure a
+  # refusal. `feat/thing` lives on the worktree rather than on the main tree, so the branch conjunct
+  # (c2)/(c3) still read the same recorded value.
+  git -C "$SBX" worktree add -q -b feat/thing "$SBX/.worktrees/build" >/dev/null 2>&1
+  WT="$SBX/.worktrees/build"     # the fake adapter runs with --worktree $WT
+  assert "0208: fixture sanity — the build arm's anchor is a REAL linked worktree, not the main tree" \
+    '[ -f "$WT/.git" ] && [ "$WT" != "$SBX" ]'
 }
 # The build arms drive the facade directly rather than through `launch`/`observe`: those helpers
 # hard-code `--agent status` shape and omit `--worktree`, which gate 1 requires for build-*.
@@ -76,7 +86,7 @@ bsettle "$KEY"
 out="$(bobserve "$KEY" 2>&1)"; rc=$?
 assert "0271: a sentinel-success with stranded work FAILS (correctness wins)" '[ "$rc" = "1" ]'
 assert "0271: the disagreement diagnostic names the git verdict" 'grep -qF "task-incomplete" <<<"$out"'
-assert "0271: the stranded file is still there for a human" '[ -f "$SBX/stranded.txt" ]'
+assert "0271: the stranded file is still there for a human" '[ -f "$WT/stranded.txt" ]'
 # The verdict is TERMINAL and re-reports identically — a disagreement must not oscillate between
 # a failure and a success across two reads of the same unchanged dispatch.
 out2="$(bobserve "$KEY" 2>&1)"; rc2=$?
@@ -316,10 +326,17 @@ assert "0271-gate: an ambiguous claim set verifies nothing" '! grep -qxF "vr 7" 
 #     report a halt (3) if the disposition were keyed on the wrong agent family, and the
 #     implement-next leg is the only reader of `--with-claimed-at` at this seam.
 mkgatefixture "run-halted 7"
-git -C "$SBX" checkout -q -b feat/thing
-KEY="$(glaunch build-standard --worktree "$SBX" -- "build task")"  # payload: change 0277's build-* gate
+# A REAL LINKED WORKTREE for the same reason mkbuildrepo builds one: `build-standard` declares
+# `worktree-scope: feature`, and since 0208 a feature-scoped dispatch anchored at the MAIN worktree
+# is refused before anything launches — which would leave "never takes the implement-next
+# disposition" green for the wrong reason (no observation happened at all).
+git -C "$SBX" worktree add -q -b feat/thing "$SBX/.worktrees/build" >/dev/null 2>&1
+JWT="$SBX/.worktrees/build"
+assert "0208: fixture sanity — the (j) anchor is a REAL linked worktree, not the main tree" \
+  '[ -f "$JWT/.git" ] && [ "$JWT" != "$SBX" ]'
+KEY="$(glaunch build-standard --worktree "$JWT" -- "build task")"  # payload: change 0277's build-* gate
 gsettle "$KEY"
-out="$(gobserve "$KEY" build-standard --worktree "$SBX" 2>&1)"; rc=$?
+out="$(gobserve "$KEY" build-standard --worktree "$JWT" 2>&1)"; rc=$?
 assert "0271-gate: a build-* observation never takes the implement-next disposition" '[ "$rc" != "3" ]'
 assert "0271-gate: a build-* observation reads the build verdict instead" \
   'grep -qF "task-committed" <<<"$out"'

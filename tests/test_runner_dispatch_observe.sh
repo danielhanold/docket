@@ -97,6 +97,26 @@ assert "0271: a foreign anchor is still refused, not silently redirected" '[ "$f
 assert "0271: and the refusal is the worktree-of-this-repository gate" \
   'grep -qi "not a worktree of this repository" <<<"$fgn_out"'
 
+# 0208: THE FALLBACK SURVIVES THE MAIN-TREE REJECTION, for a FEATURE-SCOPED agent. Change 0208 added
+# gate 3b — a feature-scoped agent may not anchor at the main worktree — and the fallback above
+# reassigns the anchor to exactly that. Unconditional, gate 3b would `die` here and convert this
+# durability guarantee into a failed observation for precisely the agents that use it: a delegated
+# `review-*` / `rebase-resolver` / `integration-repair` dispatch whose worktree finalize has since
+# removed. It rides on the dispatch this block already launched (no second launch, no sleep) — the
+# recorded agent does not gate the read, and what is under test is the ANCHOR gate, not the verdict.
+# The declaration sanity assert is not decoration: with `worktree-scope:` absent from the source the
+# agent would fall to the tolerant metadata default, gate 3b would never apply, and this leg would
+# be green with the exemption deleted.
+assert "0208: fixture sanity — review-lean really declares feature scope" \
+  'grep -qx "worktree-scope: feature" "$ROOT/agents/docket-review-lean.md"'
+fs_out="$( cd "$SBX" && RUNNERS_DIR="$RDIR" bash "$FACADE" --observe "$KEY" \
+    --runner fake --agent review-lean --worktree "$WTGONE" 2>&1 )"; fs_rc=$?
+assert "0208: a FEATURE-SCOPED observation still reports its result after the worktree was removed" \
+  '[ "$fs_rc" = "0" ]'
+assert "0208: and it is the anchor FALLBACK it took, not the main-tree rejection" \
+  'grep -qi "no longer exists" <<<"$fs_out" &&
+   ! grep -qi "resolves to the main worktree" <<<"$fs_out"'
+
 # ---- a failed child -> 1 --------------------------------------------------------
 make_fixture
 FAKE_SLEEP=0 FAKE_TAIL=0 FAKE_RC=9
