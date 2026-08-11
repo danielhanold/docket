@@ -30,9 +30,18 @@ Flapping is nonetheless structurally impossible: only `terminal-publish.sh`'s su
 strips the marker, and no sweep ever resumes an archived change — so a marker written here
 is stable until a human acts, whatever the cause was. Permanence alone carries the decision.
 
+One correlated residual is accepted openly: the motivating transient cause is a network
+failure, and pushing the marker needs the same network that just failed — so on exactly that
+cause, the first pass likely yields a local marker commit, not remote visibility. That local
+commit is clean and self-healing: the next pass's `pull --rebase` carries it and any later
+push from the shared worktree publishes it (§1's push-failure posture). Durable *remote*
+visibility on the first pass is therefore not promised under a network outage; durable
+*local* visibility is. Eliminating the renderer's redundant config fetch (or a bounded
+retry) would shrink the correlated window and is tracked as follow-up work, not done here.
+
 ## What changes
 
-### 1. `scripts/docket-status.sh` — the only code change
+### 1. `scripts/docket-status.sh` — the mark on the `skipped-publish` branch
 
 In `sweep_execute_one`, inside the existing `skipped-publish` branch (renderer exited
 non-zero, currently bare `echo` + `return 0`), insert before the `echo`:
@@ -47,10 +56,28 @@ non-zero, currently bare `echo` + `return 0`), insert before the `echo`:
 - **Mark:** `mark-publish-deferred.sh --mode add --change-file "$archived" --reason blocked
   --detail "sweep: artifacts re-render failed — publish never attempted; re-render before
   publishing" --integration-branch "$INTEGRATION_BRANCH" --id "$id"`, then
-  `git add/commit/push` the archived file on `metadata_branch` — every step muted and
-  `|| true`-guarded, outcomes never read, exactly the 0083 posture (an uncommitted marker
-  would dirty the shared worktree and fail every later pass's `pull --rebase`, which is
-  worse than an unmarked gap).
+  `git add/commit/push` the archived file on `metadata_branch` — every step muted, and the
+  block as a whole invisible to the report contract, as in 0083.
+- **Transactional, not merely suppressed.** 0083's bare `|| true` posture is not copied
+  as-is: it can strand a modified-or-staged archived file when the marker writes but `add`
+  or `commit` fails, which is exactly the dirty-shared-worktree state the spec's own
+  rationale calls worse than an unmarked gap (a dirty path fails every later pass's
+  `pull --rebase`). The mark block instead defines recovery per failure point:
+  - **Precondition:** the archived path is clean (the archive commit landed earlier in
+    this function); if it is not, skip the mark entirely — never stack a marker onto a
+    state some other actor left dirty.
+  - **`add` or `commit` fails:** restore the archived path to `HEAD` — index and worktree
+    both (`git -C "$mw" checkout HEAD -- "$archived"` or equivalent), itself muted and
+    best-effort. Degraded outcome: unmarked gap, clean worktree — today's behavior exactly.
+  - **`commit` succeeds, `push` fails** (the correlated-network case from the Decision):
+    the clean local commit is **retained** for self-healing — the next pass's
+    `pull --rebase` rebases it and a later push publishes it. Never reset it: a clean
+    unpushed commit is harmless, and destroying it re-opens the gap.
+  - The same restore-on-`add`/`commit`-failure recovery is applied to the sibling 0083
+    `terminal-publish` mark block in the same function, which shares the invariant and the
+    hole; its gate, reason, detail, and report line are untouched.
+- No step's outcome ever reaches the report stream; a failed mark (at any point) must
+  degrade to today's observable behavior exactly.
 - **Report contract unchanged:** the branch still emits exactly
   `sweep-failed <id> render-change-links skipped-publish` and still `return 0`
   (publish + cleanup stay abandoned — the skip-publish guard itself is out of scope and
@@ -59,7 +86,30 @@ non-zero, currently bare `echo` + `return 0`), insert before the `echo`:
   `tests/test_closeout.sh`'s call-site scanner greps joined logical lines for
   `terminal-publish.sh` (this invocation carries `--id` without `--enabled`).
 
-### 2. Docs stating the real reason
+### 2. `scripts/mark-publish-deferred.sh` — generalize the fixed body prose
+
+The marker's fixed body prose asserts "Close-out steps 1–2 (archive, `## Artifacts`
+re-render) landed on the metadata branch; the terminal-publish step … did **not** run."
+On the new path that is factually false — the re-render is precisely what failed — and a
+detail line above it does not cure a contradiction below it. Generalize the two fixed
+sentences to be true on every marking path:
+
+> The archive landed on the metadata branch; the terminal-publish step (copying the
+> archived change file + its `spec:` + its Accepted ADRs onto `<branch>`) did **not**
+> complete. See the dated line above for what failed. The record is on the metadata
+> branch only.
+
+("did not complete" also reads better on the 0083 branch, where the publisher *ran* and
+exited non-zero.) The `**Re-arm:**` line is unchanged — "complete the publish" stays
+correct on both paths because the new path's detail line carries the re-render-first
+instruction (Assumption 5). A whole-repo grep confirms the old sentence lives only in the
+script's own printf block: `mark-publish-deferred.md` describes the section generically
+and `tests/test_mark_publish_deferred.sh` asserts on the `**Re-arm:**` line, not the body
+prose — so neither needs a matching edit, but re-run that grep at build time. This was
+chosen over a phase/cause parameter (Assumption 2): one generalized sentence beats a new
+contract knob that exists to render one sentence.
+
+### 3. Docs stating the real reason
 
 - `scripts/docket-status.md` (§6, the current lines 186–196): replace the "nothing was
   deferred *yet*" rationale with: the `render-change-links skipped-publish` leg now marks
@@ -70,10 +120,15 @@ non-zero, currently bare `echo` + `return 0`), insert before the `echo`:
   the `skipped-publish` case is "no longer invisible" alongside the `terminal-publish` case;
   keep the reason-vocabulary cross-check guidance intact.
 - `skills/docket-convention/references/terminal-close-out.md`: extend step 3's
-  "expected but does NOT complete — mark it" rule to state it applies to **any** path that
-  abandons close-out before the publish step while the publish was expected. Scope the two
+  "expected but does NOT complete — mark it" rule to state it applies to any **handled**
+  failure path after archive that abandons an expected publish — not "any path": a hard
+  crash cannot mark anything, and that residual stays accepted per ADR-0051, so the rule
+  must not claim coverage it cannot enforce. Scope the two
   legs precisely, because the drivers diverge on the commit/push leg: a failed step-2
-  **re-render** abandons publish for all drivers and is marked by all drivers; a failed
+  **re-render** abandons publish for all drivers, and every driver is **required by
+  contract to mark** there (the sweep by code in this change; the three skill-driven
+  drivers by this rule text — no executable enforcement is added for them, so the rule
+  must read as their duty, not as an accomplished fact); a failed
   step-2 **commit/push** skips publish (and so is marked) only in the skill-driven drivers —
   the sweep deliberately continues to publish on that leg (change 0075 §5, documented in
   `docket-status.md` §6a), so the rule must not read as obliging the sweep to mark there.
@@ -85,10 +140,11 @@ non-zero, currently bare `echo` + `return 0`), insert before the `echo`:
   three drivers are skill-driven abort-and-report flows with a human or report in the loop,
   and their mark duty is discharged by this rule text).
 
-### 3. Explicitly not done
+### 4. Explicitly not done
 
-- **No third `--reason` value, no new heading.** `mark-publish-deferred.sh`, its contract,
-  `board-checks.sh`, and the `publish-deferred` check are untouched. One heading keeps one
+- **No third `--reason` value, no new heading.** `mark-publish-deferred.sh`'s interface,
+  its contract doc, `board-checks.sh`, and the `publish-deferred` check are untouched —
+  the script's only change is §2's body-prose generalization. One heading keeps one
   reader, one removal path (`terminal-publish.sh`'s success-path strip), one health finding.
 - **No N-consecutive-failures counter** — rejected; needs sweep state that does not exist,
   to defend against flapping that permanence already makes impossible (nothing retries an
@@ -96,6 +152,10 @@ non-zero, currently bare `echo` + `return 0`), insert before the `echo`:
 - **No change to the `commit-failed`/`push-failed` legs** (step 6a): there the close-out
   continues and the record publishes; the residual stale block is cosmetic, not a missing
   record — nothing to mark.
+- **No renderer-fetch elimination and no push retry.** The Decision's correlated-network
+  residual is acknowledged and bounded (local commit self-heals), not engineered away here;
+  removing `render-change-links.sh`'s redundant config fetch or adding a bounded retry is
+  follow-up work for a stub of its own.
 
 ## Open questions from the stub — answered
 
@@ -105,8 +165,9 @@ non-zero, currently bare `echo` + `return 0`), insert before the `echo`:
    per `docket-status.md:181-184` and the `active/`-only scan in the code.
 2. **Same heading?** Yes. The marker's value is its single reader; cause belongs in the
    dated `**blocked** — <detail>` line, which already distinguishes deferral from wall.
-   The marker prose ("terminal-publish to `<branch>` not completed") is accurate for
-   never-attempted too.
+   The *heading* ("terminal-publish to `<branch>` not completed") is accurate for
+   never-attempted too; the fixed *body* prose is not — it claims the re-render landed —
+   which is why §2 generalizes it rather than a new heading being minted.
 3. **Other archived-but-unpublished paths, audited:** (a) `skipped-publish` — closed by this
    change; (b) `terminal-publish` failure — marked since 0083; (c) step-6a
    commit/push failure — publishes anyway, not a gap; (d) hard crash between archive and
@@ -125,22 +186,30 @@ non-zero, currently bare `echo` + `return 0`), insert before the `echo`:
    Rejected: doc-only fix; decline-as-fault-to-fix (the marker is cheap, the check already
    exists, and 0083 set the precedent on the sibling branch).
 2. **Reuse `--reason blocked` + a distinct `--detail`, not a third reason value.** Minimal
-   surface: zero changes to `mark-publish-deferred.sh`, its `.md`, `board-checks.sh`, or
-   the convention's marker description; the dated detail line is the cause channel the 0083
+   surface: no changes to `mark-publish-deferred.sh`'s interface, its `.md`,
+   `board-checks.sh`, or the convention's marker description — the script's fixed body
+   prose is generalized (§2) because it would otherwise contradict the detail line, but
+   the contract's shape is untouched; the dated detail line is the cause channel the 0083
    design already provides. Rejected: a `not-attempted` reason (touches script validation,
    contract, tests, and the convention doc for no additional reader); a second heading
-   (needs a second check and second removal path).
+   (needs a second check and second removal path); a phase/cause parameter rendering
+   per-path prose (a contract knob that exists to render one sentence).
 3. **Gate the mark on `TERMINAL_PUBLISH=true` AND `DOCKET_MODE=docket`.** Required on this
    branch (unlike 0083's, which suppression cannot reach) to honor never-mark-under-
    suppression. Uses the same variables the pass already trusts elsewhere
    (`health_checks`' adr-check gating). Rejected: marking unconditionally (violates
    ADR-0051's success-not-deferral rule); re-deriving config in-branch (duplicates
    resolution the script already did).
-4. **Strictly best-effort, report-contract-frozen.** The mark block is muted, `|| true`-
-   guarded, includes its own commit+push, and neither adds, removes, nor reorders any
-   report line; `skipped-publish` remains the branch's only emission and `return 0` stands.
-   Rejected: keying control flow on the mark's outcome (0083 settled the posture, and a
-   failed mark must degrade to today's behavior exactly).
+4. **Best-effort toward the report contract, transactional toward the worktree.** The mark
+   block is muted and neither adds, removes, nor reorders any report line;
+   `skipped-publish` remains the branch's only emission and `return 0` stands. But bare
+   `|| true` suppression is not enough: it can strand a dirty archived file when the
+   marker writes and `add`/`commit` fails — the state this spec's own rationale calls
+   worse than an unmarked gap — so §1 defines restore-to-`HEAD` recovery on `add`/`commit`
+   failure and retain-the-local-commit on push failure, and back-ports the same recovery
+   to the 0083 block. Rejected: keying control flow on the mark's outcome (a failed mark
+   must degrade to today's observable behavior exactly); copying 0083's posture verbatim
+   (internally contradictory, as above).
 5. **Detail text tells the human to re-render before publishing.** The marker's fixed
    `**Re-arm:**` line says "complete the publish" — correct for the 0083 branch but
    incomplete here, since publishing without a re-render would publish the stale block the
@@ -178,7 +247,7 @@ Extend the existing sweep marker coverage in `tests/test_docket_status.sh` (the 
   (never marked **under suppression**), and do not add its change id to a
   `TERMINAL_PUBLISH=true` run.
 
-Cases:
+Cases (mocked marker — invocation and gating):
 
 - Renderer forced to exit non-zero, `TERMINAL_PUBLISH=true` + docket-mode: mark call logged
   with `blocked` + re-render detail; report stream byte-identical to today's
@@ -186,3 +255,25 @@ Cases:
   commit on `metadata_branch`.
 - Same failure under `TERMINAL_PUBLISH=false`, and under main-mode: **no** mark call.
 - Mark script itself failing: report stream unchanged (best-effort invisibility).
+
+Cases (fault injection past the marker write — the transactional posture; a mocked marker
+that only fails cannot exercise these, so each forces the failure at the git step):
+
+- `git add` forced to fail after a successful mark: archived path restored to `HEAD`
+  (worktree and index both clean — `git status --porcelain` empty for that path); report
+  stream unchanged.
+- `git commit` forced to fail: same clean-restore assertion.
+- `git push` forced to fail: local marker commit **retained** on `metadata_branch`
+  (`git log -1` shows it; worktree clean); report stream unchanged.
+
+Cases (real `mark-publish-deferred.sh` — marker truthfulness, which the mock's fixed
+appended heading cannot check; in `tests/test_mark_publish_deferred.sh` or a real-script
+sweep fixture):
+
+- The rendered section's dated line identifies the failed re-render and instructs
+  re-rendering before publishing.
+- No sentence in the rendered section claims the `## Artifacts` re-render landed (assert
+  the absence of the old "Close-out steps 1–2 … landed" prose and the presence of the
+  generalized §2 prose).
+- A subsequent successful `terminal-publish.sh` run strips the section (the existing
+  removal-path coverage extends to a marker written with the new detail).

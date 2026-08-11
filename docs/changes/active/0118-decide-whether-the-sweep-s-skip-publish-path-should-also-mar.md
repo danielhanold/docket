@@ -5,7 +5,7 @@ title: Decide whether the sweep's skip-publish path should also mark an unpublis
 status: proposed
 priority: medium
 created: 2026-07-21
-updated: 2026-08-07
+updated: 2026-08-11
 depends_on: []
 related: [154, 254]
 discovered_from: [83]
@@ -50,12 +50,17 @@ is a distinction about cause, not visibility.
 Settled — see the spec (2026-08-07). The skipped-publish branch marks, under the same
 expected-publish gate the marker contract requires:
 
-- **`scripts/docket-status.sh`** (only code change): in `sweep_execute_one`'s
-  `skipped-publish` branch, when `TERMINAL_PUBLISH=true` AND docket-mode, best-effort mark
-  (`mark-publish-deferred.sh --mode add --reason blocked`, distinct `--detail` telling the
-  human to re-render before publishing) plus muted commit+push — 0083's exact posture. The
-  report line and `return 0` are unchanged; the gate is load-bearing because, unlike the
-  0083 branch, suppression does not make this branch unreachable.
+- **`scripts/docket-status.sh`**: in `sweep_execute_one`'s `skipped-publish` branch, when
+  `TERMINAL_PUBLISH=true` AND docket-mode, mark (`mark-publish-deferred.sh --mode add
+  --reason blocked`, distinct `--detail` telling the human to re-render before publishing)
+  plus muted commit+push — best-effort toward the report contract but transactional toward
+  the worktree: restore the archived path to HEAD on add/commit failure, retain the local
+  commit on push failure; same recovery back-ported to the 0083 mark block. The report
+  line and `return 0` are unchanged; the gate is load-bearing because, unlike the 0083
+  branch, suppression does not make this branch unreachable.
+- **`scripts/mark-publish-deferred.sh`**: generalize the fixed body prose ("Close-out
+  steps 1–2 … landed"), which is factually false on the new path where the re-render is
+  what failed; heading, interface, and contract shape untouched.
 - **Docs state the real reason:** rewrite `scripts/docket-status.md` §6's rationale and
   `skills/docket-status/SKILL.md`'s sweep-posture paragraph; extend
   `terminal-close-out.md`'s step-3 mark rule to any expected-publish path abandoned before
