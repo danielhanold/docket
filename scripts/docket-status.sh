@@ -910,6 +910,17 @@ sweep_execute(){
 # better than the pre-0118 outcome there: a dirty shared worktree that fails every later pass's
 # `pull --rebase` for every change.
 #
+# NOT gated here either: SUPPRESSION. Under `terminal_publish: false` or in main-mode there is no
+# expected publish, so a missing one is SUCCESS and marking it deferred is a defect (ADR-0051).
+# This helper does NOT test that, so every caller owes its own
+# `[ "${TERMINAL_PUBLISH:-false}" = true ] && [ "${DOCKET_MODE:-}" = docket ]` gate — including any
+# third caller added later, such as the failed step-2 re-render that
+# skills/docket-convention/references/terminal-close-out.md now says every driver must mark. The
+# ONE exemption is the change-0083 leg, and only because its branch is unreachable under
+# suppression: both of that script's suppressions are exit-0 no-ops, so its non-zero failure branch
+# cannot fire when publishing is suppressed (pinned by the change-0064 wiring test). A caller
+# without that proof gates.
+#
 # DETAIL must never contain the literal `terminal-publish.sh`: this invocation carries `--id` and
 # no `--enabled`, and tests/test_closeout.sh's find_ungated_terminal_publish_call_sites scans
 # JOINED logical lines for that literal regardless of quoting, so it would trip on this call site.
