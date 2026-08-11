@@ -176,13 +176,16 @@ cat "$tmp.2" > "$tmp.3" || die "render failed: could not copy the change file bo
   # marks when the `## Artifacts` RE-RENDER is what failed, where claiming the re-render landed
   # directly contradicts the dated detail line rendered above it. "did not complete" also reads
   # correctly on the 0083 path, where the publisher ran and exited non-zero.
+  # Every load-bearing clause stays INTACT on its own physical line — above all the NEGATION,
+  # `did **not** complete.`, which is the marker's central claim and is asserted verbatim by
+  # `grep -qF` (tests/test_mark_publish_deferred.sh, "the generalized prose says the publish did
+  # **not** COMPLETE"). Wrapping a sentence mid-way renders the same but makes the contract
+  # ungreppable: with `did **not**` stranded on its own line, deleting `**not**` inverts the
+  # record into "the terminal-publish step … did complete" with every assert still green. Only
+  # the parenthetical — which carries the `%s` branch interpolation and asserts nothing — wraps.
   printf 'The archive landed on the metadata branch; the terminal-publish step (copying the\n'
-  printf 'archived change file + its `spec:` + its Accepted ADRs onto `%s`) did **not**\n' "$INT_BRANCH"
-  # Both sentences stay INTACT on their own physical line: the marker's prose is asserted on by
-  # `grep -qF` (tests/test_mark_publish_deferred.sh), and the pre-0118 text likewise kept "The
-  # record is on the metadata branch only." unwrapped. Wrapping a sentence mid-way renders the
-  # same but makes the contract ungreppable.
-  printf 'complete. See the dated line above for what failed.\n'
+  printf 'archived change file + its `spec:` + its Accepted ADRs onto `%s`)\n' "$INT_BRANCH"
+  printf 'did **not** complete. See the dated line above for what failed.\n'
   printf 'The record is on the metadata branch only.\n\n'
   printf '**Re-arm:** complete the publish (`docket.sh terminal-publish%s …`), or record a decision\n' "$id_hint"
   printf 'not to. A successful publish removes this section automatically.\n'
