@@ -27,9 +27,11 @@
 # Exit: 0 every test file passed — including green-but-over-budget, which is reported loudly and
 #       is fatal only under --strict-budget; 1 a test file failed; 3 a job produced no result at
 #       all, so the run certified nothing (harness failure, not a test failure); 4 --strict-budget
-#       and every test passed but a budget was exceeded; 2 usage error (including two targets that
-#       share a basename) or unmet Bash floor; 130/143 interrupted by SIGINT/SIGTERM, which reaps
-#       the in-flight jobs and reports what was lost instead of producing a report.
+#       and every test passed but a budget was exceeded; 5 the source-hygiene preflight found a
+#       violation, so zero test files were executed; 2 usage error (including two targets that
+#       share a basename), unmet Bash floor, or an unusable source-hygiene checker; 130/143
+#       interrupted by SIGINT/SIGTERM, which reaps the in-flight jobs and reports what was lost
+#       instead of producing a report.
 #
 # Dev tooling for THIS repo's suite — deliberately NOT a docket.sh facade op, like profile-asserts.sh.
 set -uo pipefail
@@ -147,6 +149,44 @@ done
 if [ -n "$TIMINGS" ] && ! : > "$TIMINGS" 2>/dev/null; then
   printf 'run-tests: --timings path is not writable: %s\n' "$TIMINGS" >&2; exit 2
 fi
+
+# ---- source-hygiene preflight (change 0221) -----------------------------------------------------
+# A backtick in test source executes when the SHELL READS THE LINE — before the file's first assert,
+# before anything this runner could inspect. So the scan has to happen HERE: after every usage check
+# above (a mistyped path and an unwritable --timings path stay the exit-2 usage errors they always
+# were, rather than being pre-empted by a scan of files the caller got wrong), and before
+# "---- budget table ----" and every launch below it. Detection after execution is not prevention —
+# a violation must abort with ZERO test files executed, which is the claim this placement makes and
+# the reason it must not drift downward into the report loop.
+#
+# FAIL-CLOSED IN BOTH DIRECTIONS. A gate that waves the run through when its own checker is missing
+# certifies safety it did not provide, so an unusable checker refuses the run instead — exit 2, the
+# same "the runner will not start" family as the Bash floor above, and NOT exit 5, which stays the
+# single meaning "the preflight ran and found a violation". Readable-and-regular is the right test,
+# not executable: the scan is invoked as `bash "$HYGIENE"`, which never needs the execute bit.
+HYGIENE="$REPO/scripts/check-test-source-hygiene.sh"
+if [ ! -f "$HYGIENE" ] || [ ! -r "$HYGIENE" ]; then
+  printf 'run-tests: source-hygiene checker missing or unreadable: %s\n' "$HYGIENE" >&2
+  printf 'run-tests: the preflight cannot certify these targets, so no test file is executed — restore scripts/check-test-source-hygiene.sh and re-run.\n' >&2
+  exit 2
+fi
+# Captured into a variable and printed, never `producer | consumer`: an early-exiting consumer under
+# `set -o pipefail` turns a SIGPIPE into an intermittent 141 (AGENTS.md, Shell). `--` so a target
+# spelled with a leading dash reaches the checker as a path.
+hyg_out="$(bash "$HYGIENE" -- "${TARGETS[@]}" 2>&1)"; hyg_rc=$?
+case "$hyg_rc" in
+  0) ;;
+  1)
+    printf 'run-tests: test-source hygiene violation — aborting with zero test files executed.\n' >&2
+    [ -n "$hyg_out" ] && printf '%s\n' "$hyg_out" >&2
+    printf 'run-tests: each line above names a backtick the shell would EXECUTE while reading that file. See scripts/check-test-source-hygiene.md for the classes and the remedy.\n' >&2
+    exit 5 ;;
+  *)
+    # Not a verdict on the targets: the checker itself could not complete, so nothing was certified.
+    printf 'run-tests: the source-hygiene preflight did not complete (checker exit %s) — no test file is executed.\n' "$hyg_rc" >&2
+    [ -n "$hyg_out" ] && printf '%s\n' "$hyg_out" >&2
+    exit 2 ;;
+esac
 
 # ---- budget table -----------------------------------------------------------------------------
 # Keyed by BASENAME so a table row written repo-relative matches a target given as an absolute path.

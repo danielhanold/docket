@@ -314,5 +314,56 @@ cout13="$(bash "$RT" -j 2 "$T/tests/test_alpha.sh" 2>&1)"; crc13=$?
 assert "an uninterrupted run is not told it was interrupted" '! grep -qi "interrupted" <<<"$cout13"'
 assert "an uninterrupted run still exits 0"                  '[ "$crc13" = "0" ]'
 
+# (14) THE SOURCE-HYGIENE PREFLIGHT must abort BEFORE any job launches (change 0221). A backtick in
+# test source executes when the shell READS that line, so a gate that runs after the launch loop
+# certifies safety it did not provide — "detection after execution is not prevention". The exit code
+# is the weakest part of that claim; the marker file is the strong part, and it is why the fixture
+# below writes one from inside the command substitution itself rather than from an assert condition.
+# The fixture exits 0, so a preflight that failed to fire would leave a GREEN run behind and the
+# absent marker would be the only evidence.
+cat > "$T/tests/test_zz_seed.sh" <<'EOF'
+#!/usr/bin/env bash
+# Hazard fixture: the substitution below sits inside double quotes, so the shell runs it while
+# reading this line — before the assert helper is even looked up.
+assert "seeded" "x `printf 'x' > @MARK@`"
+echo "ok - seed"
+exit 0
+EOF
+sed -i.bak "s|@MARK@|$T/seedmarker|" "$T/tests/test_zz_seed.sh"; rm -f "$T/tests/test_zz_seed.sh.bak"
+chmod +x "$T/tests/test_zz_seed.sh"
+
+# Anti-vacuity control, and the load-bearing one: a fixture that could never write its marker makes
+# every assert below pass for free. Run it directly ONCE and watch the marker appear.
+rm -f "$T/seedmarker"
+bash "$T/tests/test_zz_seed.sh" >/dev/null 2>&1
+assert "the hazard fixture really does write its marker when executed" '[ -e "$T/seedmarker" ]'
+
+rm -f "$T/seedmarker"
+hzout="$(bash "$RT" -j 2 "$T/tests/test_alpha.sh" "$T/tests/test_zz_seed.sh" 2>&1)"; hzrc=$?
+assert "a hazardous target aborts the run (exit 5)"        '[ "$hzrc" = "5" ]'
+assert "the hygiene abort executes ZERO test files"        '! grep -q "^SUITE " <<<"$hzout"'
+assert "the hazardous substitution never ran"              '[ ! -e "$T/seedmarker" ]'
+assert "the abort names the violating file and its class"  'grep -q "test_zz_seed.sh:.*DQ-BACKTICK" <<<"$hzout"'
+# Negative control: the preflight must key on the hazard, not fire on every run — the clean pair
+# below is the same invocation shape minus the fixture.
+czout="$(bash "$RT" -j 2 "$T/tests/test_alpha.sh" "$T/tests/test_beta.sh" 2>&1)"; czrc=$?
+assert "a clean target set still reaches the tests" '[ "$czrc" = "0" ] && grep -qE "^SUITE files=2 passed=2 " <<<"$czout"'
+
+# An unusable checker must REFUSE the run, never skip itself: a preflight that waves the run through
+# when its own checker is missing is the same vacuity in a different coat. It is exit 2 — the "the
+# runner will not start" family — and not 5, which means the scan ran and found something.
+mkdir -p "$T/norepo/scripts" "$T/norepo/tests"
+cp "$REPO/scripts/run-tests.sh" "$T/norepo/scripts/"
+cp "$T/tests/test_alpha.sh" "$T/norepo/tests/"
+noout="$(bash "$T/norepo/scripts/run-tests.sh" -j 1 "$T/norepo/tests/test_alpha.sh" 2>&1)"; norc=$?
+assert "an unusable hygiene checker refuses the run (exit 2)" '[ "$norc" = "2" ]'
+assert "the unusable-checker refusal launches no job"         '! grep -q "^SUITE " <<<"$noout"'
+assert "the refusal names the checker it could not use"       'grep -q "check-test-source-hygiene.sh" <<<"$noout"'
+# Control: the SAME copied runner, with the checker restored, runs normally — otherwise the refusal
+# above would pass for any reason a runner copied out of the repo might fail.
+cp "$REPO/scripts/check-test-source-hygiene.sh" "$T/norepo/scripts/"
+okout="$(bash "$T/norepo/scripts/run-tests.sh" -j 1 "$T/norepo/tests/test_alpha.sh" 2>&1)"; okrc=$?
+assert "the same runner with its checker restored still runs" '[ "$okrc" = "0" ] && grep -qE "^SUITE files=1 passed=1 " <<<"$okout"'
+
 rm -rf "$T"
 exit $fail
