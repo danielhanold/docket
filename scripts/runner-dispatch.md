@@ -392,12 +392,17 @@ makes **one pass** over the dispatch dir:
    correctness*) — and failing that the sentinel alone does: `exit_code=0` ⇒ **complete** (`0`),
    *unless* a `build-*` git read disagrees; a non-zero code ⇒ **failed** (`1`), naming the code and
    the `stderr.log` to read;
-2. a `killed` marker ⇒ terminal, **result unavailable** (`1`) — and it re-reports identically
-   forever, which is what makes the observation idempotent across a caller's retry loop;
-3. no sentinel ⇒ **still running** (`4`), unless the observation budget is spent — or has been
+2. a `killed` marker ⇒ terminal, and it re-reports identically forever, which is what makes the
+   observation idempotent across a caller's retry loop. A give-up marker is **result unavailable**
+   (`1`); a `cause=child-vanished` marker replays the verdict and the code it recorded (`0`, `1` or
+   `3` — see *Liveness vs correctness*);
+3. neither record, and the recorded process group is **no longer provably the launched child's**
+   ⇒ terminal on this observation, `cause=child-vanished`, with git deciding the code (change
+   0284);
+4. otherwise ⇒ **still running** (`4`), unless the observation budget is spent — or has been
    **unenforceable** on three consecutive passes, which is terminal for the same reason (below).
 
-**The order of those two reads is load-bearing, and the sentinel wins.** The wrapper subshell is
+**The order of the first two reads is load-bearing, and the sentinel wins.** The wrapper subshell is
 **untrapped** and is the only writer of `done`, so a group-directed `TERM`/`KILL` reaches it and it
 can never write a sentinel afterwards. A `done` sitting beside a `killed` marker therefore *proves*
 the child completed **before** the signal — the give-up merely raced a run that had already
@@ -473,7 +478,12 @@ is still the launched one, on two conjuncts: the recorded `child_pid` must **sti
 recorded `pgid` (the child is its group's leader by construction), and that pid's start time must
 still equal the recorded `child_lstart` — the first conjunct alone is satisfied by a **recycled pid**
 that happens to lead a group of the same id, which is an ordinary background job and not an exotic
-state. The token conjunct is skipped only when the launch recorded none.
+state. A launch record carrying **no** token fails the conjunct closed (change 0284, adopting
+`gate-run.sh`'s posture through the shared predicate `docket_group_alive_and_ours` in
+`scripts/lib/docket-liveness.sh`). That is behaviour-preserving on every reachable input: `--launch`
+records an empty `child_lstart` only when `ps` saw no process — i.e. the child had already
+finished — in which case the wrapper writes `done` and the sentinel read disposes before either leg
+is reached.
 
 Failing either conjunct is not an error but the ordinary *that group is already gone* outcome: **no
 signal is sent**, the terminal `killed` marker is still written with `reason=group-already-gone`
@@ -484,13 +494,80 @@ report whether or not a signal went out. The **accepted residual**: a group whos
 processes it spawned keep running is not signalled, so those orphans outlive the budget; the same
 holds when `ps` cannot be read. Killing them would mean signalling a name that cannot be proven
 still theirs, and an unrelated process group dying is both the worse failure and the unrecoverable
-one, while an orphan is visible and reapable.
+one, while an orphan is visible and reapable. Since change 0284 this same residual also shapes a
+**verdict** rather than only a kill decision: the liveness leg reaches it one lifecycle phase
+earlier, on an observation that has not yet spent its budget.
 
-**Liveness vs correctness.** The sentinel is the *only* source of liveness — the facade never
-infers "still running" from git state, and never infers "finished" from anything but the wrapper's
-own sentinel. **Correctness** is a separate judgment, made from git rather than from the child's
-self-reported code. Keeping the two sources apart is what lets the facade observe a *live* child
-without ever reading liveness out of git state.
+**Liveness vs correctness (change 0284).** Three sources, in a fixed order: **the terminal record
+first, process liveness second, git last.** A `done` sentinel or a `killed` marker outranks any
+probe of the group the child used to lead — the wrapper is the only writer of the sentinel, so a
+record that exists describes a child that reached the end. Only when neither exists does the facade
+probe **liveness**, through the identity-checked predicate `docket_group_alive_and_ours` in
+`scripts/lib/docket-liveness.sh`, shared with `gate-run.sh`: the recorded group must still exist
+*and* the process leading it must still have started at the instant `--launch` recorded. Fail-closed
+on every leg, because a false *dead* costs one wasted observation while a false *alive* costs the
+caller its entire budget.
+
+The half of the old rule that still holds, unchanged: **correctness never comes from liveness, and
+liveness never comes from git.** A child that is running says nothing about whether its work is
+sound, and git state says nothing about whether a process is alive. What changed is only that the
+*sentinel* is no longer the sole liveness source — before change 0284 the predicate was "no sentinel
+⇒ still running", so a child killed externally, crashed, or whose host was suspended read *still
+running* for the whole 60-minute budget.
+
+**The probe's own window is closed by a re-read.** The two record reads and the probe itself span a
+`ps` call and a `kill -0`, so a child has every chance to finish *inside* that window — and without
+the re-read a run that PASSED is disposed as dead. A dead verdict therefore re-reads the sentinel
+immediately before disposing, and a `done` found there takes the completed disposition — the same
+construction, and the same soundness argument, as the give-up path's pair of re-reads above.
+
+**`cause=child-vanished`.** A child found dead with no sentinel is terminal on that observation. The
+verdict is recorded in the **existing** `killed` marker with `cause=child-vanished` and
+`reason=group-already-gone` — no second terminal file, because the `cause`/`reason` split already
+carries the two axes (*why the facade gave up*, and *whether anything was signalled*). Nothing is
+signalled: the probe has just established the group is not provably ours, which is the precondition
+the give-up path already refuses to signal under.
+
+**A dead child is not automatically "no result".** Git decides, on the same disagreement rule as the
+sentinel path: a delegated run can commit its work, push its branch and open its PR and *then* be
+killed before the wrapper's `mv -f` lands, and reporting *unavailable* over evidence sitting in git
+sends a human hunting for work that is already committed. An `implement-next` dispatch takes the run
+gate's verdict, read through the same single owner of the attribution ladder the sentinel path uses
+(`implement_next_verdict`, split out of `observe_implement_next` so the read and the disposition are
+separable); a `build-*` dispatch reads `verify-run --build`, and inherits both of that path's honest
+non-verdicts — `task-unverifiable worktree-removed` when the anchor worktree is gone, and
+`task-unverifiable launch-branch-missing` when the launch record names no branch. Every other agent
+is *unavailable* with no git verdict read and none claimed. **No message on this path asserts an
+exit code**: the child said nothing at all, and a code that was never read is a fabricated verdict.
+
+**The marker carries the verdict AND the code, which is what makes this leg idempotent rather than
+merely terminal.** Alongside the fields above the `child-vanished` marker records `git_verdict=`
+(the verdict as read at the transition, newlines folded to spaces so the key=value record stays
+line-oriented) and `disposition=` (the exit code that verdict decided). A later observation short-
+circuits at the marker read and **replays both** — the same wording, the same code — asking git
+**nothing**: a second `verify-run` call would be a differently-timed answer to a question already
+answered, and could report `0` on one pass and `1` on the next in the one field a caller branches
+on. It is the only `cause` that replays a code rather than falling through to the give-up path's
+unconditional `1`; it also cannot borrow the give-up wording, which would tell a reader the budget
+ran out on a dispatch that was terminal seconds after launch. An **absent or non-numeric**
+`disposition` — an older marker, or one a failed write left short — reads as **`1`**: unavailable is
+the fail-closed reading, never a success synthesized out of a missing field.
+
+**A halt found this way exits `3`, not `1`, and that is a deliberate deviation from the design
+spec's synthesized-exit table.** `3` is the code the sentinel path's halt already returns, the code
+change 0271's table pins for a halt reached under detachment, and the code the run gate keys on for
+*never re-dispatch a halt*. What a vanished child changes is how the facade **learned** the run
+stopped; it never changes what the run's state **is**. Collapsing a stop-for-a-human into a generic
+failure is exactly the prose-level failure change 0237 exists to prevent, so the halt keeps its own
+code on this leg as on every other. The mapping is shape-keyed on the verdict's leading token
+(`vanished_code`), never on an enumerated list of full verdict strings: `task-committed` /
+`run-complete` / `run-unclaimed` ⇒ `0`, `run-halted` ⇒ `3`, everything else including an empty
+verdict ⇒ `1`.
+
+**The orphan residual now shapes a verdict, not only a kill decision.** A supervisor that died while
+processes it spawned keep running is reported dead and those orphans are **not** reaped — the same
+accepted residual the give-up path documents above, for the same reason. The diagnostic names the
+dispatch dir so a human can find them.
 
 **The disagreement rule (change 0271).** A sentinel claiming success (`exit_code=0`) with no
 matching git evidence is a **failure** — correctness wins over liveness. The delegated run is the
@@ -633,10 +710,10 @@ The full post-re-dispatch matrix, second verdict → exit: `run-complete` → `0
 
 | Exit | Meaning |
 |---|---|
-| `0` | terminal — the dispatch completed: a green git verdict, or a sentinel saying `exit_code=0` that no git read disagrees with |
-| `1` | terminal — failed, **or** the result is unavailable (a distinct stderr diagnostic tells them apart: a `FAILED` line names the child's code, the git verdict that contradicts it, or the `run-incomplete` conjuncts, and a `RESULT UNAVAILABLE` line says why no code could be trusted) |
-| `3` | terminal — **halted**: a delegated `implement-next` run stopped deliberately and needs a human (`run-halted`). Not a failure of the dispatch, which is why it is not folded into `1` |
-| `4` | **not terminal — still running; observe again** |
+| `0` | terminal — the dispatch completed: a green git verdict, or a sentinel saying `exit_code=0` that no git read disagrees with. Since change 0284 a **child that vanished without a sentinel** also lands here when git says the work landed |
+| `1` | terminal — failed, **or** the result is unavailable (a distinct stderr diagnostic tells them apart: a `FAILED` line names the child's code, the git verdict that contradicts it, or the `run-incomplete` conjuncts, and a `RESULT UNAVAILABLE` line says why no code could be trusted). A **vanished** child with no positive git evidence lands here, as does a `child-vanished` marker whose recorded `disposition` is absent or unreadable |
+| `3` | terminal — **halted**: a delegated `implement-next` run stopped deliberately and needs a human (`run-halted`). Not a failure of the dispatch, which is why it is not folded into `1`. Reached from **either** liveness source — the sentinel path, or change 0284's liveness probe when the child vanished and git says `run-halted` |
+| `4` | **not terminal — still running; observe again**. Since change 0284 this requires the recorded process group to be **provably still the launched child's**; a dead group is terminal on that pass instead of spinning out the budget |
 | other | a usage error from the shared validation above (missing/invalid key, unknown key, rejected `--worktree`), which exits `1` like any other abort |
 
 Stdout on a terminal observation is the **relay** — the child's captured stdout, verbatim and
@@ -656,7 +733,10 @@ new `3` needs no shim change, only the stderr diagnostic to tell them apart.
 completed, failed, halted or was given up on returns the same code and the same diagnostic on every
 later observation, which is the guarantee a caller's retry loop actually rests on. The `killed`
 marker is what makes that true across the give-up transition — once it exists, a later observation
-reports the same unavailable verdict rather than re-signalling or discovering a different state.
+reports the same unavailable verdict rather than re-signalling or discovering a different state. It
+is also what makes it true across change 0284's **vanished** transition, and there the marker must
+carry more than the fact of the death: its `git_verdict=` and `disposition=` fields let the replay
+reproduce a `0` or a `3` without asking git a second, differently-timed time.
 
 The sentinel's precedence over the marker does not weaken that. Neither file is ever removed, so a
 sentinel visible on one observation is visible on every later one and the verdict read from it is
