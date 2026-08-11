@@ -25,7 +25,10 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1680 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1690 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1680 -> 1690 (change 0284): the new-test-file case —
+                    # tests/test_docket_liveness.sh, a hermetic unit test of the shared liveness
+                    # predicate. Measured 0.06/0.05/0.05s standalone; the sizing rule's 10s floor.
                     # 1670 -> 1680 (change 0281): the new-test-file case —
                     # tests/test_critic_return_channel.sh, a prose-grep sentinel at the 10s floor.
                     # 1660 -> 1670 (change 0277): a row that was never sized on the whole file —

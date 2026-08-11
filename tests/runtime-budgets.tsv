@@ -47,6 +47,7 @@ tests/test_docket_example_yml.sh	15	parallel
 tests/test_docket_facade.sh	10	parallel
 tests/test_docket_frontmatter.sh	10	parallel
 tests/test_docket_gitignore_block.sh	10	parallel
+tests/test_docket_liveness.sh	10	parallel
 tests/test_docket_metadata_branch.sh	10	parallel
 tests/test_docket_preflight.sh	10	parallel
 tests/test_docket_review.sh	10	parallel
