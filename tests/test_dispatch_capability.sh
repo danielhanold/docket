@@ -60,10 +60,11 @@ assert "convention: Tier C halt adds no new status or field" \
 carveout_para="$(awk 'BEGIN{RS="";} /carve-out/ {print; exit}' "$CONV")"
 assert "convention: a carve-out paragraph exists (anchor for the asserts below)" \
   '[ -n "$carveout_para" ]'
-assert "convention carve-out: names docket-rebase-resolver" \
-  'grep -qF -- "docket-rebase-resolver" <<<"$carveout_para"'
-assert "convention carve-out: names docket-integration-repair" \
-  'grep -qF -- "docket-integration-repair" <<<"$carveout_para"'
+# The two carved-out nouns are NOT hand-listed here: the coherence loop below derives "the
+# convention's carve-out paragraph names this site" from the `carve-out` check_site rows, exactly as
+# it derives the tier-row agreement from the `Tier <letter>` rows. Hand-writing them here would
+# reintroduce the hand-list the loop exists to avoid — a THIRD carve-out site would then be covered
+# by nothing.
 assert "convention carve-out: states the posture is finalize's abort-and-report" \
   'grep -qF -- "abort-and-report" <<<"$carveout_para"'
 assert "convention carve-out: forbids inline substitution" \
@@ -220,28 +221,45 @@ tier_row_names(){ # $1 = tier letter (A|B|C)  $2 = site noun
   grep -qF -- "$2" <<<"$row"
 }
 tier_checked=0
+carveout_checked=0
 while IFS='|' read -r t n; do
   [ -n "$t" ] || continue
-  # SHAPE, not a name list: any posture label that is not `Tier <letter>`-shaped is outside the
-  # letter-keyed table by construction, so asking the table for a row named after it is a category
-  # error. Skipping by shape means a future non-tier posture needs no edit here, and — unlike an
-  # `if [ "$t" = carve-out ]` exclusion — a typo'd label cannot silently exempt a real tier row.
+  # SHAPE, not a name list, and every row is DISPATCHED — never skipped. A `Tier <letter>` row is
+  # checked against the letter-keyed table; a `carve-out` row is checked against the convention's
+  # carve-out paragraph (asking the table for a carve-out row would be a category error — the table
+  # genuinely has no row for one — but skipping it outright would drop it out of the derived
+  # cross-file property and back onto a hand-list). Anything else FAILS: an unrecognised posture
+  # label is either a typo (which must not silently exempt a real row) or a newly-invented class
+  # that nobody has taught this loop to check.
   case "$t" in
-    "Tier "[A-Z]) ;;
-    *) continue ;;
+    "Tier "[A-Z])
+      tier_checked=$((tier_checked+1))
+      letter="${t##* }"
+      assert "convention table: the Tier $letter row names '$n' (agrees with its wired site)" \
+        "tier_row_names '$letter' '$n'"
+      ;;
+    carve-out)
+      carveout_checked=$((carveout_checked+1))
+      # Paragraph-scoped, same anchor as the carve-out asserts above: membership in the paragraph
+      # identified BY the label literal IS the binding "this noun is carve-out-classified".
+      assert "convention carve-out paragraph: names '$n' (agrees with its wired site)" \
+        "grep -qF -- '$n' <<<\"\$carveout_para\""
+      ;;
+    *)
+      assert "coherence loop: posture label '$t' (site '$n') is a recognised class" 'false'
+      ;;
   esac
-  tier_checked=$((tier_checked+1))
-  letter="${t##* }"
-  assert "convention table: the Tier $letter row names '$n' (agrees with its wired site)" \
-    "tier_row_names '$letter' '$n'"
 done <<EOF
 $site_rows
 EOF
-# Floor on the SKIP itself. Without it, broadening the case pattern (or mislabelling every row)
-# skips the whole loop and the cross-file coherence property vanishes with every assert still
-# green — the loop would guard nothing while reporting nothing. Six tier-shaped rows today.
+# Floors on the DISPATCH itself. Without them, broadening the tier pattern (or mislabelling every
+# row) sends rows down a different arm and the cross-file coherence property vanishes with every
+# assert still green — the loop would guard nothing while reporting nothing. Six tier-shaped rows
+# and two carve-out rows today.
 assert "coherence loop: the shape filter still admitted every tier-shaped row (floor)" \
   '[ "$tier_checked" -eq 6 ]'
+assert "coherence loop: every carve-out row was checked against the carve-out paragraph (floor)" \
+  '[ "$carveout_checked" -eq 2 ]'
 
 # --- reverse correspondence: derive the dispatch-site population by SHAPE, never hand-listed -----
 # (AGENTS.md: never hand-list the sites of a literal/operation you are gating — derive them from a
