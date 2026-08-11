@@ -347,6 +347,7 @@ function scan(s, lno,   i, n, c, d) {
     if (c == Q2) { word_char(""); st = DQ; i++; continue }
     if (c == BT) { report(lno, "NORMAL-BACKTICK", M_NORMAL); word_char(""); i++; continue }
     if (c == "$" && substr(s, i+1, 1) == "(") { word_char(""); push_ctx(NORMAL); i += 2; continue }
+    if (c == "$" && substr(s, i+1, 1) == "{") { i = brace_expand(s, i, lno); continue }
     if (c == "<" && substr(s, i+1, 1) == "<") {
       if (substr(s, i+2, 1) == "<") { word_char(""); i += 3; continue }
       i = queue_heredoc(s, i); continue
@@ -367,6 +368,42 @@ function scan(s, lno,   i, n, c, d) {
   # End of the physical line. A line that ends inside a quote, or on an escaped newline, is one
   # logical line with the next - so the command, its word index, and the arm survive.
   if (st == NORMAL && !esc) { word_end(); cmd_reset() }
+}
+
+# A ${...} expansion is WORD TEXT, and consuming it here is what keeps its braces out of the
+# separator branch. Without this, ${#FILES[@]} closes the word at its opening brace, the very next
+# character is a hash, that reads as a comment start, and the REST OF THE PHYSICAL LINE goes
+# unscanned - a silent miss of every hazard written after an unquoted length expansion, which is a
+# shape the live suite already writes (tests/test_comment_anchor_style.sh,
+# tests/test_grep_portability.sh). Its own brace counter tracks nesting, and quoted spans are
+# skipped so a closing brace inside one does not end the expansion early. The quoting inside an
+# expansion is real quoting, so a backtick unquoted or double-quoted in there is still reported;
+# only a single-quoted one is inert, exactly as the shell reads it.
+function brace_expand(s, i, lno,   n, c, q, bdepth) {
+  n = length(s); word_char(""); i += 2; bdepth = 1
+  while (i <= n) {
+    c = substr(s, i, 1)
+    if (c == BS) {
+      if (substr(s, i+1, 1) == "") { esc = 1; return i + 1 }
+      i += 2; continue
+    }
+    if (c == Q1 || c == Q2) {
+      q = c; i++
+      while (i <= n) {
+        c = substr(s, i, 1)
+        if (c == q) { i++; break }
+        if (q == Q2 && c == BS) { i += 2; continue }
+        if (q == Q2 && c == BT) report(lno, "DQ-BACKTICK", M_DQ)
+        i++
+      }
+      continue
+    }
+    if (c == BT) { report(lno, "NORMAL-BACKTICK", M_NORMAL); i++; continue }
+    if (c == "{") { bdepth++; i++; continue }
+    if (c == "}") { bdepth--; i++; if (bdepth == 0) return i; continue }
+    i++
+  }
+  return i
 }
 
 # Consumes the operator and its delimiter word, returning the index just past it. Any quoting
