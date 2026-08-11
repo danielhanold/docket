@@ -1,12 +1,6 @@
 # Backlog
 
-**294 changes** — 🟢 1 in progress · 🟡 38 proposed · ⚪ 4 deferred · ✅ 175 done · 🗑️ 76 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0284](active/0284-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi.md) | runner-dispatch --observe is sentinel-only: adopt 0282's identity-checked liveness probe | `high` | `fix` | [spec](../superpowers/specs/2026-08-10-runner-dispatch-observe-liveness-probe-design.md) | `feat/runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi` |
+**294 changes** — 🟡 38 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 175 done · 🗑️ 76 killed
 
 ## 🟡 Proposed (38)
 
@@ -59,6 +53,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0284](active/0284-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi.md) | runner-dispatch --observe is sentinel-only: adopt 0282's identity-checked liveness probe | `high` | `fix` | [#199](https://github.com/danielhanold/docket/pull/199) |  |
 
 ```mermaid
 graph TD
