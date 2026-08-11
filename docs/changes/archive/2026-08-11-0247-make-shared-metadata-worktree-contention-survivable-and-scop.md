@@ -29,8 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-09-make-shared-metadata-worktree-contention-survivable-and-scop-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-make-shared-metadata-worktree-contention-survivable-and-scop-design.md) |
-| Plan | [2026-08-11-make-shared-metadata-worktree-contention-survivable-and-scop-plan.md](https://github.com/danielhanold/docket/blob/feat/make-shared-metadata-worktree-contention-survivable-and-scop/docs/superpowers/plans/2026-08-11-make-shared-metadata-worktree-contention-survivable-and-scop-plan.md) |
-| Results | [2026-08-11-make-shared-metadata-worktree-contention-survivable-and-scop-results.md](https://github.com/danielhanold/docket/blob/feat/make-shared-metadata-worktree-contention-survivable-and-scop/docs/results/2026-08-11-make-shared-metadata-worktree-contention-survivable-and-scop-results.md) |
+| Plan | [2026-08-11-make-shared-metadata-worktree-contention-survivable-and-scop-plan.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-11-make-shared-metadata-worktree-contention-survivable-and-scop-plan.md) |
+| Results | [2026-08-11-make-shared-metadata-worktree-contention-survivable-and-scop-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-11-make-shared-metadata-worktree-contention-survivable-and-scop-results.md) |
 | PR | [#200](https://github.com/danielhanold/docket/pull/200) |
 | ADRs | [ADR-0089](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0089-shared-metadata-worktree-contention-survivable-not-impossible.md) |
 <!-- docket:artifacts:end -->
