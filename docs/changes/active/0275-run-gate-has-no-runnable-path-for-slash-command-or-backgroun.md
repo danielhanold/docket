@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/run-gate-has-no-runnable-path-for-slash-command-or-backgroun
-claimed_at: 2026-08-11T05:02:02Z
+claimed_at: 2026-08-11T05:04:20Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -69,3 +69,44 @@ oracle already carries `--with-claimed-at` / `--iso-to-epoch` (0271):
 - Delivery: raise the template test's 25-line brevity bound deliberately with recorded rationale,
   adjust the step-2 asserts, and regenerate via the test's documented recipe (a bare
   `sync-agents.sh` run is a no-op in this repo).
+
+## Reconcile log
+
+### 2026-08-11 — reconciled against current `main`
+
+Design holds; scope unchanged. Verified against reality rather than the 2026-08-09 snapshot:
+
+- **Oracle still carries what the detached path needs.** `scripts/verify-run.sh` has
+  `--in-progress-ids --with-claimed-at` and `--iso-to-epoch`, and `runner-dispatch.sh` still
+  implements the three-filter attribution the spec ports as prose (`BEFORE`, `DISPATCH_EPOCH`,
+  the readable-`claimed_at` and `>= DISPATCH_EPOCH` legs). No script change is needed, as the
+  spec assumed.
+- **Template and its guard are green today.** `cursor-rules/run-gate.md` is 25 lines — exactly at
+  the brevity bound — and `tests/test_sync_agents_run_gate.sh` passes in ~3.5s against its 10s
+  budget row, including the AGENTS.md currency assert. The bound raise and the regeneration
+  recipe are both still required exactly as the spec describes.
+- **#0277 (`--brief-file`) does not reach this gate.** 0277 moved *delegated* task briefs off
+  argv for the `runner-dispatch.sh` facade path, and its refused shape is brief-file-plus-argv.
+  The caller-side gate never invokes the facade — it uses only `docket.sh preflight` and
+  `docket.sh verify-run`, and its step-4 re-dispatch is a **native named-agent dispatch** whose
+  retry context rides the dispatch prompt, not an argv tail. The new detached prose inherits that
+  and must stay native-dispatch-only; it must not be phrased as a facade invocation.
+- **#0286 (`gate-run --observe` loop shape) does not apply.** The detached path is
+  notification-driven — the session regains control once, at the notification — so it generates
+  no polling loop and must not grow one. `scripts/gate-run.md`'s taught capture-then-match loop
+  is therefore not a dependency here.
+- **Site list derived from a whole-repo grep, not hand-listed** (the #0208 lesson). The gate text
+  has exactly one authored source, `cursor-rules/run-gate.md`, spliced by
+  `sync-agents.sh:assemble_run_gate` into the Cursor rule and the committed `AGENTS.md` block
+  (`CLAUDE.md` is the same physical file). The fourth prose population, `cursor-rules/dispatch/`,
+  holds per-agent roster fragments only and carries no gate text.
+- **New finding — a second countermanding site the spec did not enumerate.**
+  `cursor-rules/dispatch.head.md` item 2 also says "never background it and never poll", and on
+  the Cursor surface it is spliced *above* the gate. That is the same countermand the critic
+  caught in step 2, on a page the spec's delivery list does not name. Resolved **without
+  widening scope**: rather than editing `dispatch.head.md` — whose directive governs every docket
+  agent dispatch, not just implement-next runs — the new Detached section opens by naming its own
+  precondition explicitly (it governs a dispatch that was *not* foreground-blocked, whoever
+  backgrounded it), so the gate is self-consistent on both surfaces from its own text.
+- **Auto-capture:** nothing minted. The one discovery above is drift inside this change's own
+  scope and is fixed in-branch, which fails the materiality bar by construction.

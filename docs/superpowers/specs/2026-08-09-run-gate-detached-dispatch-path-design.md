@@ -141,3 +141,26 @@ outcome. Same obligation, stated so it survives notification-driven control flow
 6. **Dependency state:** none. 0242 (gate surface) and 0271 (epoch machinery) are both `done`;
    recorded as `related:`. No active change touches `cursor-rules/run-gate.md`
    (0273's mention is a results-file citation, not an edit).
+
+## Reconcile addendum — 2026-08-11
+
+Verified against current `main` at claim time; the design above stands unchanged. Three
+clarifications the build must carry:
+
+1. **`cursor-rules/dispatch.head.md` item 2 is a second countermanding site**, not enumerated in
+   §4's delivery list. It carries the same "never background it and never poll" sentence and, on
+   the Cursor surface, is spliced *above* the gate. It is deliberately **not edited** — its
+   directive governs every docket agent dispatch, not just implement-next runs, and widening it
+   would loosen a rule that legitimately binds elsewhere. Instead the Detached section states its
+   own precondition explicitly in its opening sentence — it governs a dispatch that was **not**
+   foreground-blocked, whoever backgrounded it — so the gate reads consistently on both surfaces
+   from its own text, with no cross-file dependency.
+2. **The gate is native-dispatch-only.** Change 0277 moved delegated task briefs off argv onto a
+   `--brief-file` channel for the `runner-dispatch.sh` facade, and adapters refuse the
+   both-channels shape. The caller-side gate never invokes that facade — only `docket.sh preflight`
+   and `docket.sh verify-run` — and its re-dispatch is a harness-native named-agent dispatch whose
+   retry context rides the dispatch prompt. The detached prose inherits this: it must never be
+   written as a facade invocation carrying trailing argv.
+3. **No observation loop.** The detached path regains control exactly once, at the completion
+   notification. It must not grow a poll loop, so change 0286's taught `gate-run --observe` loop
+   shape (`scripts/gate-run.md`, "The caller's loop") is not a dependency and must not be imported.
