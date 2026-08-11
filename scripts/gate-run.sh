@@ -20,6 +20,12 @@
 set -euo pipefail
 
 SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/$(basename "${BASH_SOURCE[0]}")"
+# The liveness predicate is shared with runner-dispatch.sh (change 0284) — one definition, so the
+# observe side and the signal side can never drift into two different notions of "ours". Sourced
+# through $SELF rather than $0: --__wrap re-execs this file detached, and the wrapper needs it too.
+# shellcheck source=lib/docket-liveness.sh
+. "$(dirname "$SELF")/lib/docket-liveness.sh"
+
 # The runtime the wrapper is re-invoked under. `$BASH` is the absolute path of the interpreter
 # already running this file, so the wrapper inherits the same Bash 4+ the caller resolved.
 BASH_BIN="${DOCKET_BASH_PATH:-${BASH:-bash}}"
@@ -31,18 +37,13 @@ LAUNCH_ESTABLISH_SECS="${GATE_RUN_ESTABLISH_SECS:-10}"
 case "$LAUNCH_ESTABLISH_SECS" in ''|*[!0-9]*|0) LAUNCH_ESTABLISH_SECS=10 ;; esac
 
 # --- identity ---------------------------------------------------------------------
-# The runner-dispatch.sh `ps_lstart` shape: process start time as identity. A recycled pgid has a
-# different start time, so it can never impersonate this run. Whitespace-normalized and compared as
-# an EXACT STRING, never parsed into a date — the `ps -o lstart=` rendering is platform- and
-# locale-dependent, and both sides of every comparison come from the same `ps` on the same machine.
-# Always returns 0: an absent pid is an empty token, not an error, so a caller under `set -e` can
-# assign from it.
+# The identity token, from scripts/lib/docket-liveness.sh (change 0284). The NAME survives the
+# extraction deliberately: this file's call sites are pinned by source-shape asserts in
+# tests/test_gate_run.sh, and that file is this refactor's own behaviour-preserving gate — editing
+# it to chase a rename would remove the evidence the refactor was safe. What moved out is the
+# PREDICATE; what stayed is the spelling.
 identity_of() {  # $1 = pid -> normalized start-time token, empty when the pid is gone
-  local s
-  s="$(ps -o lstart= -p "${1:-0}" 2>/dev/null || true)"
-  s="$(tr -s '[:space:]' ' ' <<<"$s")"
-  s="${s# }"
-  printf '%s' "${s% }"
+  docket_identity_of "${1:-}"
 }
 
 # Read one field from a KEY=value record. Deliberately NOT `sed … | head -n1`: a producer piped into
@@ -473,28 +474,29 @@ signalable_pgid() {  # $1 = run dir -> a signalable pgid, empty (with a diagnost
 # IDENTITY, ON ITS OWN — the one rule, shared by every caller that needs it, so the observe side and
 # the signal side can never drift into two different notions of "ours". Fails CLOSED on either token
 # being empty: nothing to compare is not agreement.
+#
+# NOT `docket_group_alive_and_ours`, deliberately: this is asked at points where liveness has
+# ALREADY been established separately (`stop_run` probes `kill -0` itself, then re-asks identity
+# alone immediately before signalling). Folding a liveness conjunct in here would change what those
+# call sites test, and this change refactors gate-run.sh — it never re-specifies it.
 identity_matches() {  # $1 = run dir, $2 = pgid
   local want have
   want="$(recorded_identity "$1")"
   [ -n "$want" ] || return 1
-  have="$(identity_of "$2")"
+  have="$(docket_identity_of "$2")"
   [ -n "$have" ] || return 1
   [ "$have" = "$want" ]
 }
 
-# LIVENESS, IDENTITY-CHECKED — never a bare `kill -0` (spec assumption 9). A pgid answers for
-# whoever holds it NOW, and pgids are recycled; the run that recorded this one may be long dead and
-# a stranger may lead the group today. The conjunction is: the group exists AND the process leading
-# it started at the instant this run recorded. Every leg fails CLOSED — an absent pgid, a
-# non-numeric one, an empty recorded token, an empty live token — because the only cost of a false
-# `died` is one bounded relaunch, while a false `running` waits out the caller's whole budget on a
-# run that is not there.
+# LIVENESS, IDENTITY-CHECKED — never a bare `kill -0` (spec assumption 9). The predicate itself now
+# lives in scripts/lib/docket-liveness.sh, shared with runner-dispatch.sh; this file keeps only its
+# own record readers, which is the split that let one predicate serve two incompatible layouts.
+#
+# The lib's `0`/`1` refusal is a NO-OP here — `recorded_pgid` already refuses anything not `> 1`
+# before this call. It is carried in the lib for runner-dispatch.sh, whose pgid is a raw record read
+# with no such filter. Stating it so a reader does not mistake the lib call for a behaviour change.
 group_alive_and_ours() {  # $1 = run dir
-  local rd="$1" pgid
-  pgid="$(recorded_pgid "$rd")"
-  [ -n "$pgid" ] || return 1
-  kill -0 -"$pgid" 2>/dev/null || return 1
-  identity_matches "$rd" "$pgid"
+  docket_group_alive_and_ours "$(recorded_pgid "$1")" "$(recorded_identity "$1")"
 }
 
 # Map the terminal record to a state line. Returns NON-ZERO when there is no record at all — that
