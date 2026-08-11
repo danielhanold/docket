@@ -2,7 +2,7 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234, 237, 200, 244, 242, 286, 260, 284, 247]
+changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234, 237, 200, 244, 242, 286, 260, 284, 247, 118]
 created: 2026-07-19
 updated: 2026-08-11
 promotion_state: candidate
@@ -393,3 +393,32 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   This change is strong evidence for **#0292** (shared, tested mutation-probe harness — now priority
   **high**): the vacuity controls, the landing check, and an absolute-path cleanup contract are all
   harness properties, and this branch re-derived every one of them by hand.
+
+- 2026-08-11 (#118, PR #201) — **Four defects, and THREE of them were caught by probing the probe
+  rather than by an assert going red.** The running tally for this class is now seven changes in this
+  drain — **#286, #281, #260, #284, #247, #118**. What this entry adds is the *detection channel*: a
+  vacuous guard and a working guard are indistinguishable from the outside, so the only thing that
+  separated them here was a deliberate step that tested the instrument before trusting its reading.
+  (a) A `printf` line-wrap split a clause the plan's own Interfaces block promised would render
+  intact, reddening a correct assert — the same wrap-fragility #212 and #234 record, arriving through
+  the *rendered output* rather than the anchor. (b) `grep -c "…\$GIT…"` probe counts returned **0**
+  under this repo's PATH `grep`, because ugrep 7.5.0 treats `$` as an anchor mid-pattern; the plan
+  `&&`-chained that count into the mutation, so **the mutation never ran** and the probe was silently
+  vacuous. That is a fresh instance of this repo's own already-promoted ugrep hazard — PATH `grep` is
+  ugrep and diverges from `/usr/bin/grep` — landing inside plan-supplied probe code, where the
+  divergence buys a confident green instead of a visible error. (c) A `mkgitfail` git wrapper's
+  subcommand scan stopped at the first non-flag word, which is `-C`'s **value**, so it blocked
+  nothing; it was proven broken by a standalone probe step before any assert was written, and had it
+  been trusted **all eleven fault-injection asserts would have been vacuous while the suite stayed
+  green.** (d) Mutation `before/after` counts were stated as `1 then 0` where the repo holds two
+  byte-identical lines, so an unanchored pattern would have mutated the wrong site.
+  The general rule this branch establishes, beyond any single instance: **a fault-injection wrapper
+  or a mutation landing check must itself be probed before anything depends on it.** These are not
+  asserts — they are the instruments the asserts are read through, so when one silently no-ops it
+  does not redden; every assert downstream of it goes vacuous at once, and the suite reports green
+  for all of them. The cheap check is a standalone step that proves the wrapper *blocks* (or the
+  landing check *detects*) a case you construct to fail, run before the first real assert is written.
+  Extends the harness conclusion of #260 and #284 (**#0292**): the wrapper's own self-test belongs in
+  the shared probe harness, not in each plan author's care. The ugrep divergence is already a
+  promoted always-in-context rule; this is it re-firing inside probe code. See [[guards-are-code]],
+  [[phrase-grep-over-wrapped-prose]].
