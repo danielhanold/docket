@@ -877,8 +877,6 @@ sweep_execute(){
 # metadata worktree is SHARED: a marker that writes but fails to commit leaves the archived path
 # dirty or staged, and every later pass's `pull --rebase` then fails for EVERY change — strictly
 # worse than the unmarked gap this records. So recovery is defined per failure point:
-#   - precondition, path not clean  -> skip entirely; never stack a marker onto a dirty state
-#                                      some other actor left behind.
 #   - precondition, tree wedged     -> skip entirely (change 0247's rule at the sweep's other
 #                                      exposed commit). A commit into a mid-rebase tree writes
 #                                      onto that rebase's DETACHED HEAD — and the restore below
@@ -894,12 +892,29 @@ sweep_execute(){
 #                                      and a later push from the shared worktree publishes it.
 #                                      Never reset it; destroying it re-opens the gap.
 #
+# NOT a precondition here: "the archived path is clean". That check belongs to the SKIPPED-PUBLISH
+# call site ALONE, and putting it here silently gated the change-0083 leg too. On that leg the path
+# is legitimately dirty in this run's OWN wake, and refusing to mark there falsifies a contract
+# terminal-publish.sh states in its marker-clearing block — "the script exits non-zero and the
+# driver's defer path re-marks" (its `--mode add` replaces rather than appends, so the re-mark is
+# clean). That script strips the marker in THIS worktree and then dies if the `add`/`commit` of the
+# removal fails, leaving the removal uncommitted with nothing but this mark to put the marker back;
+# step 6a's `commit-failed` leg (change 0075 §5 — the publish is still attempted with the path
+# dirty) is the second such path. Marking over that dirt is also what the pre-0118 inline block
+# did, whose `commit -- "$archived"` swept it up incidentally.
+#
+# The restore is therefore scoped to what this helper can honestly promise: the path returns to
+# HEAD, not to whatever uncommitted state it was found in. On the 0083 leg that is exactly right
+# for the marker-removal case — HEAD still carries the marker the removal never committed — and it
+# discards a step-6a `## Artifacts` refresh, which is cosmetic and regenerable, and still strictly
+# better than the pre-0118 outcome there: a dirty shared worktree that fails every later pass's
+# `pull --rebase` for every change.
+#
 # DETAIL must never contain the literal `terminal-publish.sh`: this invocation carries `--id` and
 # no `--enabled`, and tests/test_closeout.sh's find_ungated_terminal_publish_call_sites scans
 # JOINED logical lines for that literal regardless of quoting, so it would trip on this call site.
 sweep_mark_publish_deferred(){
   local mw="$1" archived="$2" id="$3" detail="$4"
-  [ -z "$("$GIT" -C "$mw" status --porcelain -- "$archived" 2>/dev/null)" ] || return 0
   ! _docket_tree_wedged "$GIT" "$mw" || return 0
   "$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/mark-publish-deferred.sh --mode add --change-file "$archived" \
     --reason blocked --detail "$detail" \
@@ -962,7 +977,16 @@ sweep_execute_one(){
     # `terminal_publish: false` or in main-mode a skipped publish is SUCCESS, never a deferral
     # (ADR-0051) — the residual there stays what docket-status.md already documents: a stale
     # `## Artifacts` block, fixed by a manual re-render.
-    if [ "${TERMINAL_PUBLISH:-false}" = true ] && [ "${DOCKET_MODE:-}" = docket ]; then
+    #
+    # The clean-path precondition is THIS leg's, not the shared helper's. Here the path is provably
+    # clean of anything this run did — archive-change.sh committed it moments ago and
+    # render-change-links.sh writes atomically — so a dirty $archived is some other actor's
+    # uncommitted state: never stack a marker onto it, and never let the helper's restore-to-HEAD
+    # reach it. The sibling change-0083 leg deliberately carries no such precondition; see the
+    # "NOT a precondition here" note on sweep_mark_publish_deferred for why refusing there would
+    # falsify terminal-publish.sh's documented re-mark.
+    if [ "${TERMINAL_PUBLISH:-false}" = true ] && [ "${DOCKET_MODE:-}" = docket ] \
+       && [ -z "$("$GIT" -C "$mw" status --porcelain -- "$archived" 2>/dev/null)" ]; then
       sweep_mark_publish_deferred "$mw" "$archived" "$id" \
         "sweep: the artifacts re-render failed, so the publish was never attempted — re-render before publishing"
     fi
@@ -1012,6 +1036,13 @@ sweep_execute_one(){
     # live once, on sweep_mark_publish_deferred above. Change 0118 also gave this path recovery it
     # did not have: the pre-0118 bare `&&` chain could leave the archived file dirty or staged in
     # the shared worktree when the marker wrote and `add`/`commit` failed.
+    #
+    # Unlike the skipped-publish leg above, this one carries NO clean-path precondition and marks
+    # over a dirty $archived on purpose. terminal-publish.sh clears the marker in this same
+    # worktree before publishing and dies if that removal fails to `add`/`commit`, on the stated
+    # contract that "the driver's defer path re-marks" — this call is that defer path, so a
+    # precondition here would leave the removal uncommitted with nothing to restore it. Step 6a's
+    # commit-failed leg reaches the publish with the path dirty too (change 0075 §5).
     sweep_mark_publish_deferred "$mw" "$archived" "$id" "sweep: the publish step exited non-zero"
     echo "sweep-failed $id terminal-publish script-error"
     return 0
