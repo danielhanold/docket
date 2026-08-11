@@ -12,7 +12,7 @@ unset XDG_CONFIG_HOME
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SYNC="$REPO/sync-agents.sh"
 fail=0
-assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
 # Minimal TOML top-level scalar reader: prints the value (unquoted) of a bare `key = "..."`.
 # Good enough for name/description/model/model_reasoning_effort (single-line basic strings).

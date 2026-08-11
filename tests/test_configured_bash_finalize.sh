@@ -7,7 +7,7 @@ FIN="$ROOT/skills/docket-finalize-change/SKILL.md"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 fail=0
-assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
 # Execute the exact shell fragment published by finalize. Marker count and order are
 # checked before extraction so a dangling or duplicated marker cannot broaden the range.

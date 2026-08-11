@@ -5,7 +5,7 @@ set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 LIB="$REPO/scripts/lib/docket-frontmatter.sh"
 fail=0
-assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
 # shellcheck disable=SC1090
 . "$LIB"

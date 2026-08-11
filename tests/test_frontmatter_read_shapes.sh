@@ -21,9 +21,9 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIB="$ROOT/scripts/lib/docket-frontmatter.sh"
 fail=0
-ok(){ printf 'ok   - %s\n' "$1"; }
+ok(){ printf 'ok - %s\n' "$1"; }
 no(){ printf 'NOT OK - %s\n' "$1"; fail=1; }
-assert(){ if eval "$2"; then ok "$1"; else no "$1"; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
 # ---------------------------------------------------------------------------
 # (1) The rule exists in the library header, and says the four things it must.

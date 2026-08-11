@@ -10,8 +10,8 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 RUNBOOK="$REPO/docs/codex/validation-runbook.md"
 CONV="$REPO/skills/docket-convention/SKILL.md"
 fail=0
-ok(){ echo "ok - $1"; }
-no(){ echo "NOT OK - $1"; fail=1; }
+ok(){ printf 'ok - %s\n' "$1"; }
+no(){ printf 'NOT OK - %s\n' "$1"; fail=1; }
 
 # --- Assertion 0: the runbook exists ----------------------------------------------------------
 if [ -f "$RUNBOOK" ]; then ok "runbook exists"; else no "runbook exists"; exit 1; fi

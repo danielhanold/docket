@@ -5,7 +5,7 @@ set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO"
 fail=0
-assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 SKILLS=(docket-new-change docket-status docket-implement-next docket-finalize-change docket-adr docket-groom-next)
 
 # A. metadata_branch default flipped to docket, in the convention (single-sourced in docket-convention).

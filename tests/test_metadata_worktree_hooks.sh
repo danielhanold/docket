@@ -8,7 +8,7 @@ export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null   # no ambient co
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 HELPER="$REPO/scripts/disable-worktree-hooks.sh"
 fail=0
-assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
 # setup: prints the main worktree path of a fresh repo that has (a) a second docket-owned worktree
 # at .docket on branch `docket`, and (b) an always-failing pre-commit hook in the COMMON hooks dir

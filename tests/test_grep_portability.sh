@@ -59,8 +59,8 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SELF_REL="tests/$(basename "${BASH_SOURCE[0]}")"
 fail=0
-ok(){   printf 'ok   - %s\n' "$1"; }
-nok(){  printf 'NOT OK - %s\n' "$1"; fail=1; }
+ok(){ printf 'ok - %s\n' "$1"; }
+nok(){ printf 'NOT OK - %s\n' "$1"; fail=1; }
 
 # The maximum repetition bound BSD grep accepts. A bound EQUAL to this is legal; above it is not.
 MAX_BOUND=255

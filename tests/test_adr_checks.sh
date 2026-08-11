@@ -7,7 +7,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT="$REPO/scripts/adr-checks.sh"
 SKILL="$REPO/skills/docket-adr/SKILL.md"
 fail=0
-assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 # has_finding OUTPUT CHECK-ID ADR-ID — literal-TAB ERE (portable; no grep -P).
 has_finding(){ grep <<<"$1" -qE "$(printf '^%s\t%s\t' "$2" "$3")"; }
 

@@ -46,8 +46,8 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SELF="$(basename "${BASH_SOURCE[0]}")"
 fail=0
-ok(){   printf 'ok   - %s\n' "$1"; }
-nok(){  printf 'NOT OK - %s\n' "$1"; fail=1; }
+ok(){ printf 'ok - %s\n' "$1"; }
+nok(){ printf 'NOT OK - %s\n' "$1"; fail=1; }
 
 # The explicit-file anchor: <name>.<source-ext> immediately followed by :<digits>.
 # NOTE: no \b / \< anywhere — git grep's ERE does not support them and returns zero silently.

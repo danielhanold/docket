@@ -18,7 +18,7 @@ unset XDG_CONFIG_HOME
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SYNC="$REPO/sync-agents.sh"
 fail=0
-assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
 # Sandboxes mirror the sibling shard: minted under a path whose last component is a SYMLINK
 # ($BASE/via -> phys), so the repo's logical spelling and its `pwd -P` canonicalisation differ. That
