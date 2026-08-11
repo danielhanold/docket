@@ -11,6 +11,7 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 FIN="$REPO/skills/docket-finalize-change/SKILL.md"
 CONV="$REPO/skills/docket-convention/SKILL.md"
 STAT="$REPO/skills/docket-status/SKILL.md"
+GF="$REPO/skills/docket-finalize-change/references/gate-failure.md"   # change 0260: the abort set's canonical home
 DYML="$REPO/.docket.yml"
 EXAMPLE="$REPO/.docket.example.yml"   # change 0101: the canonical all-keys config reference
 
@@ -196,5 +197,50 @@ assert "0095: --admin survives only as the explicit-id / attended escape hatch (
   'grep -Eqi -- "admin.{0,60}(explicit[- ]id|attended)" <<<"$admin_flat"'
 assert "publish degradation: terminal_publish headless push denial degrades, not fails" \
   'grep -qi "terminal_publish" "$FIN" && grep -Eqi "degrad|surface.*manual|run .*terminal-publish" "$FIN"'
+
+# --- change 0260: the two new abort-and-report members live in gate-failure.md ------------------
+# The enumeration is one long line today, but guard it through a whitespace-collapsed haystack
+# anyway: a future re-flow must not redden asserts about policy that did not change (learnings:
+# phrase-grep-over-wrapped-prose).
+gf_flat="$(tr '\n' ' ' < "$GF" | tr -s '[:space:]' ' ')"
+assert "0260: gate-failure.md is reachable (non-vacuity for the flattened asserts below)" \
+  '[ "${#gf_flat}" -gt 500 ] && grep -qF -- "abort-and-report points" <<<"$gf_flat"'
+
+# SECTION-scoped, not file-scoped, for the two membership asserts: the site-marker paragraph added
+# by this same change says "the dispatch itself is unavailable ... the `carve-out`" in the section
+# ABOVE, so a file-wide grep for those two claims is satisfied whether or not the enumeration ever
+# lists the reason — which is precisely the property being guarded ("a LISTED reason, not an
+# implied one"). Mutation-proven: deleting the enumeration member leaves a file-scoped grep green.
+abort_flat="$(awk '/^## abort-and-report points/{f=1;next} f&&/^## /{exit} f' "$GF" | tr '\n' ' ' | tr -s '[:space:]' ' ')"
+assert "0260: the abort-set section extractor still reaches the enumeration (non-vacuity)" \
+  '[ "${#abort_flat}" -gt 200 ] && grep -qF -- "ambiguous rebase conflict" <<<"$abort_flat"'
+
+# Member 1 — a POLICY denial of the gate's own post-rebase push. Bound to the push's noun, not to
+# a step number: gate-failure.md already uses "gate-step-5" for the RED-SUITE step, so a number
+# here would name the wrong thing. Bound phrase-to-claim: "force-with-lease" alone is satisfied by
+# the pre-existing CONCURRENT-push member two clauses away, which is a different reason entirely —
+# so the denial verb must reach the push through its OWN "post-rebase" qualifier, not merely land
+# within N characters of some other member's mention of the lease.
+assert "0260: abort set names a harness/permission DENIAL of the post-rebase force-with-lease push" \
+  'grep -qE -- "(denial|denying)[^.]{0,80}post-rebase .--force-with-lease. push" <<<"$abort_flat"'
+assert "0260: the push-denial member is conditioned on Harness-native recovery first" \
+  'grep -qE -- "--force-with-lease[^.]{0,200}Harness-native recovery" <<<"$abort_flat"'
+# The distinct pre-existing member must SURVIVE alongside it — a rewrite that merges the two
+# reasons into one clause is exactly the drift this pair exists to catch.
+assert "0260: the concurrent-push lease rejection survives as its own distinct member" \
+  'grep -qE -- "lease[^.]{0,60}concurrent push" <<<"$abort_flat"'
+
+# Member 2 — the carve-out's posture pointer must resolve to a LISTED reason, not an implied one.
+assert "0260: abort set names dispatch-unavailability for the gate agents" \
+  'grep -qE -- "dispatch[^.]{0,80}unavailable|unavailable[^.]{0,80}dispatch" <<<"$abort_flat"'
+assert "0260: the dispatch-unavailable member points at the carve-out" \
+  'grep -qE -- "(dispatch|unavailable)[^.]{0,120}carve-out" <<<"$abort_flat"'
+
+# De-numeralization: the count sentence must be GONE, not merely re-counted (a re-count rots again
+# at the next member). Negative assert plus a non-vacuity companion through the same haystack.
+assert "0260: the stale numeral is gone from the abort-reason count sentence" \
+  '! grep -qiE -- "(six|seven|eight|nine) distinct abort reasons" <<<"$gf_flat"'
+assert "0260: the de-numeralized sentence still makes its claim (non-vacuity)" \
+  'grep -qF -- "distinct abort reasons" <<<"$gf_flat"'
 
 exit $fail
