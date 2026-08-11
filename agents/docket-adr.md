@@ -2,6 +2,7 @@
 name: docket-adr
 description: Use when recording, superseding, reversing, or indexing an architecture decision (ADR) — capturing why a non-obvious technical decision was made into the immutable docs/adrs ledger, or regenerating and validating the ADR index. Invoked by docket-implement-next, or directly any time a decision must be recorded or changed.
 skills: [docket-adr, docket-convention]
+worktree-scope: metadata
 ---
 Execute docket-adr to record or re-index an architecture decision. Follow the skill exactly.
 

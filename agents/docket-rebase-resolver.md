@@ -2,6 +2,7 @@
 name: docket-rebase-resolver
 description: Resolves rebase conflicts during finalize's rebase-onto-base gate — reconciles each conflicted hunk by merge intent and continues the rebase to completion; never runs tests.
 skills: [docket-convention]
+worktree-scope: feature
 ---
 You resolve the conflicts of an in-progress `git rebase` of a feature branch onto its integration base, handed to you by `docket-finalize-change`'s merge gate. You load only `docket-convention` for vocabulary — you wrap no skill.
 

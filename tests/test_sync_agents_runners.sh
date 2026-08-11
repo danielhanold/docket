@@ -518,6 +518,57 @@ assert "0206: non-build shim carries no --worktree" '! grep -qF -- "--worktree" 
 # facade and nothing else — so the count moves with the shim rather than the assert being dropped.
 assert "0206: exactly two dispatch invocations in the build-* shim" \
   '[ "$(grep -cF "docket.sh runner-dispatch" "$B")" = "2" ]'
+
+# ---- 0208: the --worktree slot keys on the DECLARED scope, not on a name shape --------
+# The 0206 asserts above are still the mirror correspondence; this widens the population they run
+# over. `review-lean` is feature-scoped and matches no `build-*` name shape, so it is the leg that
+# distinguishes a scope-keyed gate from the old case statement — under the old rule its shim
+# carries no slot, which is exactly the silent main-tree anchor 0206 exists to eliminate.
+rm -rf "$SBX"
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    review-lean: { model: test-model-x, runner: codex }\n    adr: { model: test-model-y, runner: codex }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+R="$SBX/.claude/agents/docket-review-lean.md"
+A="$SBX/.claude/agents/docket-adr.md"
+assert "0208(b): fixture sanity — review-lean generated a real shim" \
+  'grep -qF "docket.sh runner-dispatch" "$R"'
+assert "0208(b): fixture sanity — adr generated a real shim" \
+  'grep -qF "docket.sh runner-dispatch" "$A"'
+assert "0208(b): a feature-scoped NON-build shim bakes --worktree" \
+  'grep -qF -- "--worktree" "$R"'
+assert "0208(b): the feature-scoped rule text is generic, not build-specific" \
+  '! grep -qiF "this is a BUILD worker" "$R"'
+assert "0208(b): a metadata-scoped shim still carries no --worktree" \
+  '! grep -qF -- "--worktree" "$A"'
+rm -rf "$SBX"
+
+# ---- 0208: a source with no worktree-scope FAILS generation loudly --------------------
+# The generation gate is where absence is PREVENTABLE — a future feature-scoped agent must not be
+# able to ship undeclared. AGENTS_SRC in sync-agents.sh is hardcoded ($SCRIPT_DIR/agents, no seam),
+# so the fixture copies the whole script tree and strips the key from one source in the COPY — the
+# mutation-fixture pattern tests/test_docket_status.sh already uses — rather than adding a
+# generator seam that exists only for this test.
+mkgitrepo
+mkdir -p "$SBX/.claude"
+COPY="$SBX/docketcopy"
+mkdir -p "$COPY"
+cp "$REPO/sync-agents.sh" "$COPY/"
+cp -R "$REPO/agents" "$COPY/agents"
+cp -R "$REPO/scripts" "$COPY/scripts"
+cp -R "$REPO/skills" "$COPY/skills"
+[ -d "$REPO/cursor-rules" ] && cp -R "$REPO/cursor-rules" "$COPY/cursor-rules"
+# Strip the key from ONE source. `sed -i` is not portable to BSD without an argument, so rewrite
+# through a temp file beside the destination.
+sed '/^worktree-scope:/d' "$COPY/agents/docket-review-lean.md" > "$COPY/agents/.tmp" \
+  && mv -f "$COPY/agents/.tmp" "$COPY/agents/docket-review-lean.md"
+assert "0208(b): fixture sanity — the key really was stripped from the copy" \
+  '! grep -q "^worktree-scope:" "$COPY/agents/docket-review-lean.md"'
+out="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$COPY/sync-agents.sh" 2>&1 )"; rc=$?
+assert "0208(b): a missing worktree-scope fails generation" '[ "$rc" != "0" ]'
+assert "0208(b): the refusal names the key and the agent" \
+  'grep -qF "worktree-scope" <<<"$out" && grep -qF "review-lean" <<<"$out"'
+assert "0208(b): and no wrappers were written" '[ ! -e "$SBX/.claude/agents/docket-adr.md" ]'
 rm -rf "$SBX"
 
 # runner under a NON-claude harness key: warned-and-ignored (reserved), file stays native

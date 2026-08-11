@@ -2,6 +2,7 @@
 name: docket-build-max
 description: Max build-profile worker for docket-build — implements one plan task whose mistakes cannot be walked back (unresolved architecture, irreversible data changes) under the docket-build-task contract; the strongest and rarest of docket-build's four profiles.
 skills: [docket-build-task]
+worktree-scope: feature
 ---
 Implement the single plan task handed to you, following the docket-build-task skill exactly.
 

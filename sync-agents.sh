@@ -249,6 +249,12 @@ short_name(){ local b; b="$(basename "$1")"; b="${b#docket-}"; printf '%s' "${b%
 # Extract the single-line `description:` frontmatter value from a wrapper source file.
 agent_description(){ sed -n '/^description:/{s/^description:[[:space:]]*//;p;q;}' "$1"; }
 
+# Extract the single-line `worktree-scope:` frontmatter value from a wrapper source file (change
+# 0208). An agent's worktree scope is a DECLARED FACT, not a name shape: the delegation gates —
+# emit_shim's required --worktree slot below, and runner-dispatch.sh's runtime gate — both key on
+# this declaration, so a future feature-scoped agent cannot ship ungated by not matching a pattern.
+agent_worktree_scope(){ sed -n '/^worktree-scope:/{s/^worktree-scope:[[:space:]]*//;p;q;}' "$1"; }
+
 # Harnesses that get a generated Cursor-style dispatch rule. Both Cursor and Claude Code exhibit
 # the inline quirk (a directly-invoked skill runs at the session model, defeating the wrapper's
 # model/effort pin), but they fix it differently: Cursor needs this generated alwaysApply dispatch
@@ -613,6 +619,26 @@ validate_harness_defaults() {  # $1=file $2=sources-dir
   ' "$file"
   rc=$?
   return $rc
+}
+
+# Every built-in agent source must DECLARE its worktree scope (change 0208). Loud and fatal, and
+# deliberately at GENERATION time rather than at runtime: this is where new agents get wired, so it
+# is the seam at which an undeclared agent is still preventable. The facade's runtime read is
+# tolerant by design — a missing file or key there must keep the adapter's more specific
+# unknown-agent diagnostic rather than shadowing it.
+validate_agent_scopes(){  # $1 = sources dir
+  local src name scope bad=0
+  for src in "$1"/docket-*.md; do
+    [ -e "$src" ] || continue
+    name="$(short_name "$src")"
+    scope="$(agent_worktree_scope "$src")"
+    case "$scope" in
+      feature|metadata) ;;
+      '') log "ERROR agent '$name' declares no worktree-scope: — add 'worktree-scope: feature' or 'worktree-scope: metadata' to $src"; bad=1 ;;
+      *)  log "ERROR agent '$name' declares an invalid worktree-scope '$scope' — the only values are 'feature' and 'metadata' ($src)"; bad=1 ;;
+    esac
+  done
+  [ "$bad" = "0" ]
 }
 
 # field_of() — the flow-map value reader (change 0173).
@@ -1581,19 +1607,21 @@ emit_shim(){  # $1=src $2=shim-model $3=shim-effort $4=runner $5=agent-name $6=f
   local flags="--runner $4 --agent $5"
   [ -n "${6:-}" ] && flags="$flags --model $6"
   [ -n "${7:-}" ] && [ "${7:-}" != "auto" ] && flags="$flags --effort $7"
-  # change 0206: a build worker must run INSIDE its feature worktree, on its branch — the
-  # docket-build-task contract's own requirement. Baked PER AGENT (emit_shim receives the name as
-  # $5) rather than as generic prose, so a status/adr shim stays byte-identical. The VALUE is still
-  # prose-supplied one level up; what makes that acceptable is the facade's build-* gate, which
-  # turns an omission into a loud abort instead of a silent main-tree run on the integration branch.
+  # change 0206, generalized by change 0208: a FEATURE-SCOPED worker must run INSIDE the worktree it
+  # serves, on that branch. Keyed on the source's DECLARED `worktree-scope:` ($1 is the source file)
+  # rather than on a `build-*` name shape — `rebase-resolver`, `integration-repair` and the three
+  # `review-*` rungs are equally feature-scoped and match no build shape, and a second name list
+  # here would be the twin of the facade's that drifts
+  # (LEARNINGS: duplicated-gate-copies-the-whole-predicate). A metadata-scoped shim stays
+  # byte-identical, which keeps 0206's bidirectional guard intact — now scope-keyed.
   local wt_slot="" wt_rule=""
-  case "$5" in
-    build-*)
+  case "$(agent_worktree_scope "$1")" in
+    feature)
       wt_slot=" --worktree <feature worktree>"
-      wt_rule="This is a BUILD worker: it must run INSIDE its feature worktree, on its branch —
-never the main tree on the integration branch. Replace \`<feature worktree>\` with the absolute
-path of the feature worktree your caller named (drop the angle brackets). If your caller named no
-worktree, abort-and-report — never guess a path, and never omit the flag."
+      wt_rule="This agent is FEATURE-SCOPED: it must run INSIDE the feature worktree it serves, on
+that worktree's branch — never the main tree on the integration branch. Replace \`<feature worktree>\`
+with the absolute path of the feature worktree your caller named (drop the angle brackets). If your
+caller named no worktree, abort-and-report — never guess a path, and never omit the flag."
       ;;
   esac
   cat <<SHIM
@@ -2279,6 +2307,10 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
       log "check: agents/harness-defaults.yml is invalid — a real run would refuse to write wrappers."
       exit 1
     fi
+    if ! validate_agent_scopes "$AGENTS_SRC"; then
+      log "check: an agent source declares no valid worktree-scope — a real run would refuse to write wrappers."
+      exit 1
+    fi
     if ! validate_user_agent_values; then
       log "check: user agent config has unconsumable values — a real run would refuse to write wrappers."
       exit 1
@@ -2308,6 +2340,11 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
   # malformed file cannot leave a half-regenerated agent directory behind.
   if ! validate_harness_defaults "$HARNESS_DEFAULTS" "$AGENTS_SRC"; then
     log "ERROR agents/harness-defaults.yml is missing or invalid — no wrappers were written."
+    exit 1
+  fi
+
+  if ! validate_agent_scopes "$AGENTS_SRC"; then
+    log "ERROR an agent source declares no valid worktree-scope — no wrappers were written."
     exit 1
   fi
 
