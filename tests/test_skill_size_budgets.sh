@@ -990,13 +990,15 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # abstain — never a third dispatch, never an indefinite wait), and the convention's *Composition*
 # paragraph gains the sentence that moves the critic dispatch out of the git-state-contract family
 # into the in-context-return one.
-# COMPRESSED FIRST, per the 0127 precedent: 23 words and 12 lines came out of the section before
-# any number moved. The 12 lines are entirely reflow — the two new paragraphs arrived hard-wrapped
-# into a file whose every other body paragraph is a single physical line, so the LINE figure was
-# counting a wrap style, not structure; the additions are two paragraphs. The 23 words are real
-# deletion, most of them one restatement: Step 3's revision-round clause had spelled out "the
+# COMPRESSED FIRST, per the 0127 precedent: 15 words came out of the section before any number
+# moved, and they are one restatement — Step 3's revision-round clause had spelled out "the
 # designer blocks on the critic's return and never backgrounds it to await a notification", which
-# *Receiving the verdict* now states once for both rounds. A deeper trim was attempted and BACKED
+# *Receiving the verdict* now states once for both rounds. (Figures as the FINAL diff shows them,
+# not the intermediate build states an earlier revision of this entry recorded.) The LINE cost was
+# paid the same way: the two new paragraphs arrived hard-wrapped into a file whose every other body
+# paragraph is a single physical line, so the pre-reflow LINE figure was counting a wrap style, not
+# structure; reflowed to one line each, the whole file's branch diff is +6/-2 — a NET +4 lines,
+# 62 -> 66, for two added paragraphs. A deeper trim was attempted and BACKED
 # OUT — it cost the "and failing that" conditional (turning a bounded two-step posture into one
 # that always spends both) and the noun on the `yielded-worker-return-closes-every-door` citation.
 # What remains is the normative residue tests/test_critic_return_channel.sh binds phrase by phrase.

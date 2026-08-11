@@ -26,6 +26,8 @@ EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
 EXPECTED_TOTAL=1680 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1670 -> 1680 (change 0281): the new-test-file case —
+                    # tests/test_critic_return_channel.sh, a prose-grep sentinel at the 10s floor.
                     # 1660 -> 1670 (change 0277): a row that was never sized on the whole file —
                     # the 0242 case recorded further below, NOT a file that got slower.
                     # tests/test_runner_dispatch.sh 10 -> 20. Under the sizing rule (next multiple
