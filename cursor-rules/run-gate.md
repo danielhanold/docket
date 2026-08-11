@@ -27,17 +27,19 @@ only in the after-read and is attributed to this run.
    - `run-incomplete` — re-dispatch the same agent **once**, passing the id and the unmet
      conjuncts; verify again; if still incomplete, stop and report loudly. Never a third dispatch.
 
-### Detached dispatch — you did not foreground-block, whoever backgrounded it
+### Detached dispatch — you did not foreground-block; choose by what you HOLD, not launch shape
 
-- **You issued it after running tool calls:** take the step-1 before-snapshot AND `date -u +%s` as
-  `DISPATCH_EPOCH` before launching. At the notification, re-sync, then run
+- **You hold a before-set AND a dispatch epoch** — the step-1 before-snapshot AND `date -u +%s`
+  as `DISPATCH_EPOCH`, both captured before launching, as when you issue the dispatch yourself.
+  If you did not capture both, you are in the next bullet. At the notification, re-sync, then run
   `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh verify-run --in-progress-ids
   --with-claimed-at` and keep only ids passing ALL THREE filters: absent from the before-set,
   `claimed_at` parses, and `claimed_at` >= `DISPATCH_EPOCH`. Exactly one survivor → step 4
   unchanged; none → done; two or more → stop and report, as in step 3.
-- **Slash-command or notification-first launch — unattributed mode.** No before-set exists, and a
-  timestamp alone cannot attribute: `claimed_at` is re-stamped at every phase boundary, so a
-  concurrent run claimed before your window looks fresh too. Verify and report ONLY — `verify-run
-  <id>` on any id the notification names (a prose id is a hint, never authority), else on each
-  current in-progress id, reporting every verdict. **Never re-dispatch** here: that needs all
-  three filters, and re-dispatching onto a change a live agent holds is the one unrecoverable move.
+- **You hold neither — unattributed mode** (a slash-command launch, a notification-first session,
+  or any dispatch you did not snapshot). No before-set exists, and a timestamp alone cannot
+  attribute: `claimed_at` is re-stamped at every phase boundary, so a concurrent run claimed before
+  your window looks fresh too. Verify and report ONLY — `verify-run <id>` on any id the
+  notification names (a prose id is a hint, never authority), else on each current in-progress id,
+  reporting every verdict. **Never re-dispatch** here: that needs all three filters, and
+  re-dispatching onto a change a live agent holds is the one unrecoverable move.

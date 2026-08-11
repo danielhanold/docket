@@ -47,7 +47,12 @@ GATE_LINES="$(grep -c "" "$GATE_SRC" 2>/dev/null || echo 0)"
 # defect — an unattributed re-dispatch lands on a change a live agent is holding. The raise is
 # deliberate and priced: an always-loaded block earns its length only by being runnable, and 18
 # lines is what the observed-and-ungated dispatch shape costs.
-assert "gate text is at most 43 lines" '[ "$GATE_LINES" -ge 1 ] && [ "$GATE_LINES" -le 43 ]'
+# Raised 43 -> 45 (change 0275 review, finding 2): the two detached branches were titled by launch
+# shape but discriminated by state, so a session that dispatched without snapshotting fell between
+# them and found only advice it could no longer act on. The titles now name the state, the launch
+# shapes moved inside as examples, and branch A carries an explicit routing clause to branch B — two
+# lines for the one reader most likely to improvise, which is the failure this section exists to end.
+assert "gate text is at most 45 lines" '[ "$GATE_LINES" -ge 1 ] && [ "$GATE_LINES" -le 45 ]'
 
 # --- the behavioral claims, each bound to what it is asserted ABOUT ---
 # (learnings: prose-guard-binds-phrase-to-claim — never a bare phrase-presence grep)
@@ -148,8 +153,15 @@ assert "gate: the detached section keeps its two branches as two separate bullet
 # Per-branch windows. Each is a prefix/suffix cut at branch B's opening phrase, and each carries
 # its OWN non-vacuity assert: branch A's window is the carrier of an ABSENCE assert below, and an
 # absence assert through a dead extractor reads as the property holding no matter what the text says.
-ATTRIB="${DETACHED%%Slash-command or notification-first*}"
-UNATTRIB="${DETACHED#*Slash-command or notification-first}"
+# The cut phrase is branch B's TITLE, and the titles state the STATE that selects the branch, not the
+# launch shape (change 0275 review, finding 2): titled by launch shape, a session that dispatched
+# from a slash command but DID snapshot matched B by title and A by state, and — worse — a session
+# that issued the dispatch itself and took no snapshot matched A's title while A's body could only
+# tell it what to have done before launching. The launch shapes survive as examples inside B, and
+# branch A carries the routing clause asserted below; both are pinned so a future retitle back to
+# launch-shape wording reddens.
+ATTRIB="${DETACHED%%You hold neither*}"
+UNATTRIB="${DETACHED#*You hold neither}"
 assert "gate: detached branch A exists to be asserted about" \
   '[ -n "$ATTRIB" ] && [ "$ATTRIB" != "$DETACHED" ]'
 assert "gate: detached branch B exists to be asserted about" \
@@ -157,6 +169,12 @@ assert "gate: detached branch B exists to be asserted about" \
 # Branch A — attributable. All three filters, each asserted as its OWN conjunct: the epoch filter
 # was added at the design gate on top of the set difference, and a guard that pins only the pair
 # leaves the added part free (learnings: guard-the-widened-clause).
+assert "gate: detached branch A is selected by the state it holds, not by how the run was launched" \
+  '[[ "$ATTRIB" == *"You hold a before-set AND a dispatch epoch"* ]]'
+# ...and a reader who holds neither must be ROUTED, not left with a precondition it can no longer
+# satisfy: by the time this section is read the launch has already happened.
+assert "gate: detached branch A sends a reader who captured neither to the second bullet" \
+  '[[ "$ATTRIB" == *"did not capture both"*"next bullet"* ]]'
 assert "gate: detached branch A captures BOTH the before-snapshot and a dispatch epoch" \
   '[[ "$ATTRIB" == *"before-snapshot"*"date -u +%s"*"DISPATCH_EPOCH"* ]]'
 assert "gate: detached branch A reads the claim instant from the oracle, not from prose" \
@@ -175,6 +193,11 @@ assert "gate: branch A does not carry branch B's never-re-dispatch prohibition" 
 # unrecoverable move in the whole gate.
 assert "gate: detached branch B is named as unattributed mode" \
   '[[ "$UNATTRIB" == *"unattributed mode"*"No before-set exists"* ]]'
+# The launch shapes are the reader's own entry point — dropped from the title, they must survive as
+# examples, and the open-ended one ("did not snapshot") is what catches the session-issued dispatch
+# that took no before-set.
+assert "gate: detached branch B still names the launch shapes it covers, as examples" \
+  '[[ "$UNATTRIB" == *"slash-command launch"*"notification-first"*"did not snapshot"* ]]'
 assert "gate: unattributed mode never re-dispatches, and says why a timestamp cannot attribute" \
   '[[ "$UNATTRIB" == *"re-stamped at every phase boundary"*"looks fresh"*"Never re-dispatch"* ]]'
 assert "gate: a prose id from the child is a hint to verify, never attribution authority" \
