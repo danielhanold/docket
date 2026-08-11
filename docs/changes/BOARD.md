@@ -1,8 +1,8 @@
 # Backlog
 
-**289 changes** — 🟡 35 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 173 done · 🗑️ 76 killed
+**290 changes** — 🟡 36 proposed · ⚪ 4 deferred · ✅ 174 done · 🗑️ 76 killed
 
-## 🟡 Proposed (35)
+## 🟡 Proposed (36)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -41,6 +41,7 @@
 | [0287](active/0287-make-docket-frontmatter-sh-usable-from-the-bootstrap-path-or.md) | Make docket-frontmatter.sh usable from the bootstrap path, or split a Bash 3.2-safe core out of it | `medium` | `refactor` | needs-brainstorm |
 | [0288](active/0288-namespace-the-remaining-un-namespaced-mock-seams-runners-dir.md) | Namespace the remaining un-namespaced mock seams (RUNNERS_DIR, GIT) repo-wide | `medium` | `chore` | needs-brainstorm |
 | [0289](active/0289-bind-budget-ledger-entries-to-the-numbers-they-narrate.md) | Bind budget-ledger entries to the numbers they narrate | `medium` | `chore` | needs-brainstorm |
+| [0290](active/0290-run-tests-sh-timings-truncates-a-test-file-passed-as-its-tar.md) | run-tests.sh --timings truncates a test file passed as its target | `high` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -50,12 +51,6 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0281](active/0281-auto-groom-s-critic-verdict-return-channel-fails-under-backg.md) | Auto-groom's critic verdict return channel fails under background dispatch | `medium` | `fix` | [#197](https://github.com/danielhanold/docket/pull/197) |  |
 
 ```mermaid
 graph TD
@@ -92,23 +87,24 @@ graph TD
   0251 --> 0273
   0279
   0280
-  0281
   0283
   0284
   0282 --> 0285
   0287
   0288
   0289
+  0290
   0192:::done
   0211:::done
   0282:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (249)</summary>
+<details><summary>✅🗑️ Archive — done + killed (250)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0281](archive/2026-08-11-0281-auto-groom-s-critic-verdict-return-channel-fails-under-backg.md) | Auto-groom's critic verdict return channel fails under background dispatch | 2026-08-11 |
 | [0277](archive/2026-08-11-0277-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode.md) | Delegated task briefs travel through shell argv, a lossy model-performed transformation | 2026-08-11 |
 | [0275](archive/2026-08-11-0275-run-gate-has-no-runnable-path-for-slash-command-or-backgroun.md) | Run gate has no runnable path for slash-command or backgrounded implement-next dispatch | 2026-08-11 |
 | [0208](archive/2026-08-11-0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) | Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards | 2026-08-11 |
@@ -127,7 +123,6 @@ graph TD
 | [0255](archive/2026-08-08-0255-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule.md) | Complete ADR-0065's quote leg and document the unquoted rule | 2026-08-08 |
 | [0254](archive/2026-08-08-0254-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md) | BSD tool-default sweep: templated mktemp and non-interactive mv | 2026-08-08 |
 | [0250](archive/2026-08-08-0250-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs.md) | Repo-scope detect-merged's fallback and guard the idle-secs duplication | 2026-08-08 |
-| [0249](archive/2026-08-08-0249-build-worker-contract-gate-execution-pointer-and-staging-dis.md) | Build-worker contract: gate-execution pointer and staging discipline | 2026-08-08 |
 | [0243](archive/2026-08-07-0243-make-test-suite-git-fixture-setup-fail-loudly-instead-of-fla.md) | Make test-suite git fixture setup fail loudly instead of flaking | 2026-08-07 |
 | [0241](archive/2026-08-07-0241-correspondence-guard-over-leg-c-s-by-value-duplicated-predic.md) | Correspondence guard over leg C's by-value duplicated predicate (ADR-0072 drift risk) | 2026-08-07 |
 | [0240](archive/2026-08-07-0240-audit-which-frontmatter-accessor-each-call-site-should-use-n.md) | Audit which frontmatter accessor each call site should use, now that three anchored read shapes exist | 2026-08-07 |
@@ -205,7 +200,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 40 done |
+| [2026-08](archive/) | 41 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
