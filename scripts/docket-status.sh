@@ -359,7 +359,7 @@ commit_and_push_generated(){
           pushed=-1
           break
         fi
-        "$GIT" -C "$mw" add "$rel" >&2
+        "$GIT" -C "$mw" add -- "$rel" >&2
         "$GIT" -C "$mw" rebase --continue >&2 2>&1 || { "$GIT" -C "$mw" rebase --abort >&2 2>/dev/null || true; pushed=-1; break; }
       else
         "$GIT" -C "$mw" rebase --abort >&2 2>/dev/null || true
