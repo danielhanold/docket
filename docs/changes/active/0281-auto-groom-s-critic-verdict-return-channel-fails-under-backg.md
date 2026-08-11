@@ -2,7 +2,7 @@
 id: 281
 slug: auto-groom-s-critic-verdict-return-channel-fails-under-backg
 title: 'Auto-groom''s critic verdict return channel fails under background dispatch'
-status: in-progress
+status: implemented
 priority: medium
 type: fix
 created: 2026-08-09
@@ -13,12 +13,12 @@ discovered_from: [247]
 adrs: [85]
 spec: docs/superpowers/specs/2026-08-09-auto-groom-s-critic-verdict-return-channel-fails-under-backg-design.md
 plan: docs/superpowers/plans/2026-08-11-auto-groom-s-critic-verdict-return-channel.md
-results:
+results: docs/results/2026-08-11-auto-groom-s-critic-verdict-return-channel-fails-under-backg-results.md
 trivial: false
 auto_groomable: true
 branch: feat/auto-groom-s-critic-verdict-return-channel-fails-under-backg
-claimed_at: 2026-08-11T07:28:56Z
-pr:
+claimed_at: 2026-08-11T07:31:47Z
+pr: https://github.com/danielhanold/docket/pull/197
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-09-auto-groom-s-critic-verdict-return-channel-fails-under-backg-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-auto-groom-s-critic-verdict-return-channel-fails-under-backg-design.md) |
 | Plan | [2026-08-11-auto-groom-s-critic-verdict-return-channel.md](https://github.com/danielhanold/docket/blob/feat/auto-groom-s-critic-verdict-return-channel-fails-under-backg/docs/superpowers/plans/2026-08-11-auto-groom-s-critic-verdict-return-channel.md) |
+| Results | [2026-08-11-auto-groom-s-critic-verdict-return-channel-fails-under-backg-results.md](https://github.com/danielhanold/docket/blob/feat/auto-groom-s-critic-verdict-return-channel-fails-under-backg/docs/results/2026-08-11-auto-groom-s-critic-verdict-return-channel-fails-under-backg-results.md) |
+| PR | [#197](https://github.com/danielhanold/docket/pull/197) |
 | ADRs | [ADR-0085](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0085-critic-verdict-travels-on-one-channel-the-foreground-return.md) |
 <!-- docket:artifacts:end -->
 
