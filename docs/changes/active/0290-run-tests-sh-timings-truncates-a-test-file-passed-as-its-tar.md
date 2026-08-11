@@ -3,7 +3,7 @@ id: 290
 slug: run-tests-sh-timings-truncates-a-test-file-passed-as-its-tar
 title: 'run-tests.sh --timings truncates a test file passed as its target'
 status: proposed
-priority: medium
+priority: high
 type: fix
 created: 2026-08-11
 updated: 2026-08-11
