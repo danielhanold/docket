@@ -422,10 +422,20 @@ child code, a git disagreement, a malformed sentinel — the observation writes 
 to **its own stdout**, byte-for-byte: never summarized, prefixed, or reformatted, because the
 adapter contracts call the child's stdout the relay and a caller parses it. **Every diagnostic this
 verb prints goes to stderr**, so the two streams never interleave and a caller can take stdout as
-the child's words alone. A **still-running** (`4`) observation relays **nothing**: the shim observes
+the child's words alone. A **vanished** child (change 0284) relays the same way and on the same
+terms, with the liveness probe standing in for the missing sentinel: the child is dead, so
+`stdout.log` is final. A **still-running** (`4`) observation relays **nothing**: the shim observes
 repeatedly, and a partial relay per pass would hand the caller the same prefix over and over. The
 budget-kill and own-group-refusal paths relay nothing either — there is no finished run to relay,
 and in the latter case the child is still writing.
+
+**The relay is part of what re-reports identically.** Every terminal observation relays — the first
+one and each later one — so re-observing a terminal dispatch returns the same code *and* the same
+stdout forever. This is a promise about a **terminal** state, so it costs a polling caller nothing:
+that caller stops at the first non-`4` code and never asks again. A relay emitted only once would
+make the terminal result unreadable to anyone who observed a second time — a `0` with an empty
+relay says "the run produced no output", which is a different claim from "the run's output was
+already handed to someone else".
 
 **The budget.** `delegation_observation_budget` minutes (the environment wins, so a caller can hand
 one down; otherwise it is resolved from config on this branch alone — a verb that needs no config
@@ -752,7 +762,8 @@ The full post-re-dispatch matrix, second verdict → exit: `run-complete` → `0
 | other | a usage error from the shared validation above (missing/invalid key, unknown key, rejected `--worktree`), which exits `1` like any other abort |
 
 Stdout on a terminal observation is the **relay** — the child's captured stdout, verbatim and
-alone (see *The relay* above); on `4` it is empty. Diagnostics are always on stderr.
+alone (see *The relay* above), on the first terminal observation and on every later one alike; on
+`4` it is empty. Diagnostics are always on stderr.
 
 **`4` is not a failure.** It is the loop condition: it means nothing has been decided yet and the
 caller should observe again. Its **only** consumer is the generated shim wrapper, whose standing
@@ -847,8 +858,9 @@ perturbed by it.
   forever. The budget bounds a run whose clock is readable; the consecutive-unenforceable counter
   bounds the run whose clock is not, and equally the run whose liveness cannot be established.
 - A terminal observation puts the child's captured stdout on **its own stdout**, verbatim, and every
-  diagnostic on stderr. A non-terminal (`4`) observation puts **nothing** on stdout, so a polling
-  caller never accumulates partial output.
+  diagnostic on stderr — the first such observation and every later one alike, so a re-observation
+  is identical in stdout as well as in code. A non-terminal (`4`) observation puts **nothing** on
+  stdout, so a polling caller never accumulates partial output.
 - Giving up on a dispatch **kills its process group**, never the launcher's pid alone — an
   observation that gave up must not leave the adapter running unwatched. Two states are exceptions.
   A record naming the observer's **own** group is refused outright: the facade never signals the
