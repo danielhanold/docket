@@ -24,13 +24,15 @@ warn(){ printf 'runners/cursor: %s\n' "$*" >&2; }
 AGENT=""; MODEL=""; EFFORT=""; BRIEF_FILE=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --agent)  AGENT="${2:-}"; shift 2 ;;
-    --model)  MODEL="${2:-}"; shift 2 ;;
-    --effort) EFFORT="${2:-}"; shift 2 ;;
-    # `shift 2` is this loop's house form, but bash's `shift` FAILS rather than truncating when the
-    # flag is the last argument and this loop has no trailing shift — so a value-taking flag in
-    # final position would spin here forever, making the "requires a path" refusal below
-    # unreachable. Shift the flag, then the value only if a value is actually there.
+    --agent)  [ $# -ge 2 ] || die "--agent requires a value";  AGENT="$2";  shift 2 ;;
+    --model)  [ $# -ge 2 ] || die "--model requires a value";  MODEL="$2";  shift 2 ;;
+    --effort) [ $# -ge 2 ] || die "--effort requires a value"; EFFORT="$2"; shift 2 ;;
+    # `--brief-file` keeps the shift-then-conditional-shift shape it was written with; the arms
+    # above use the `[ $# -ge 2 ] || die` shape instead. Both guard the SAME hazard — bash's
+    # `shift` FAILS rather than truncating when the flag is the last argument and this loop has no
+    # trailing shift, so an unguarded value-taking flag in final position spins here forever,
+    # making every refusal below it unreachable. Here: shift the flag, then the value only if a
+    # value is actually there, so the inline "requires a path" refusal is the one a caller sees.
     --brief-file) BRIEF_FILE="${2:-}"; [ -n "$BRIEF_FILE" ] || die "--brief-file requires a path"; shift; [ $# -gt 0 ] && shift ;;
     --) shift; break ;;
     *) die "unknown argument: $1" ;;

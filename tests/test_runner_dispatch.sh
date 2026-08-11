@@ -219,53 +219,40 @@ rm -rf "$SBX"
 # facade runs under `set -uo pipefail` with no `-e`. Measured before the fix:
 # `timeout 3 bash scripts/runner-dispatch.sh --runner` returned 124.
 #
-# The bound is a background job plus a SENTINEL FILE, and both halves are load-bearing:
-#   * The stop must be INDEPENDENT of the guard under test, or deleting the guard deletes the stop
-#     and the mutation hangs instead of reddening (LEARNINGS: mutation-target-needs-a-forced-exit).
-#   * Completion is the sentinel FILE, never `kill -0` on the pid: a finished-but-unwaited child is
-#     a zombie whose pid still answers `kill -0`, so a liveness poll would report HUNG for every
-#     healthy run — the assert would pass for the wrong reason and go vacuous the moment it is fixed.
-#   * `set -m` makes the job a process-group LEADER so the give-up path can signal the whole tree.
-#     Without it the subshell dies and the spinning facade is orphaned into the rest of the suite.
-# `timeout(1)` is deliberately not used: stock macOS ships none and no existing test depends on one.
-#
-# The stderr path is derived by `bounded_err_path` rather than assigned inside `run_bounded`,
-# because the caller reads the helper's exit code through `$( )` — a SUBSHELL, whose variable
-# assignments cannot reach the caller. A `BOUND_ERR` set only inside the helper would still be
-# empty at the assert, and `grep -qF -- "…" ""` fails for a missing operand rather than for a
-# missing diagnostic: an assert that can never go green, i.e. one that stays red after the fix.
-bounded_err_path(){ printf '%s' "$SBX/bounded.err"; }
-BOUND_ERR=""
-run_bounded(){  # $1 = seconds to wait; $2... = args to the facade -> prints the exit code, or HUNG
-  local secs="$1"; shift
-  local rcf="$SBX/bounded.rc"
-  BOUND_ERR="$(bounded_err_path)"
-  rm -f "$rcf" "$rcf.partial"; : > "$BOUND_ERR"
-  set -m
-  ( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" "$@" >/dev/null 2>"$BOUND_ERR"
-    printf '%s' "$?" > "$rcf.partial"; mv -f "$rcf.partial" "$rcf" ) &
-  local p=$! i=0
-  set +m
-  while [ "$i" -lt $(( secs * 10 )) ] && [ ! -f "$rcf" ]; do sleep 0.1; i=$(( i + 1 )); done
-  if [ ! -f "$rcf" ]; then
-    kill -TERM "-$p" 2>/dev/null || kill -TERM "$p" 2>/dev/null
-    wait "$p" 2>/dev/null
-    printf 'HUNG'
-    return 0
-  fi
-  wait "$p" 2>/dev/null
-  cat "$rcf"
-}
+# The bound itself — a background job plus a sentinel file, and why each half is shaped that way —
+# lives in tests/lib/bounded_arg_probe.sh, because the facade is not the only parser with this
+# defect: all three of scripts/runners/*.sh carry the same loop, and the three adapter legs below
+# and in tests/test_runner_cursor.sh / tests/test_runner_opencode.sh probe them with the same
+# helper. A private copy per file is what let the adapters drift behind the facade in the first
+# place.
+BOUNDED_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/bounded_arg_probe.sh"
+# shellcheck source=lib/bounded_arg_probe.sh
+. "$BOUNDED_LIB"
 
 make_fixture
-BOUND_ERR="$(bounded_err_path)"   # the caller's own copy — see bounded_err_path above
+BOUNDED_DIR="$SBX"; BOUNDED_CWD="$SBX"
+BOUND_ERR="$(bounded_probe_err)"   # the caller's own copy — see bounded_probe_err in the lib
 for f in runner agent model effort worktree; do
-  rc="$(run_bounded 3 --"$f")"
+  rc="$(run_bounded_cmd 3 env PATH="$BIN:$PATH" bash "$FACADE" --"$f")"
   # Pinned on the MECHANISM, not merely on "it failed" (LEARNINGS: assert-pins-outcome-not-mechanism):
   # `HUNG` and a non-zero code are different outcomes, and only one of them is this leg's subject.
   assert "0208(c): trailing --$f exits rather than hanging" '[ "$rc" != "HUNG" ]'
   assert "0208(c): trailing --$f exits nonzero" '[ "$rc" != "0" ]'
   assert "0208(c): trailing --$f says it requires a value" \
+    'grep -qF -- "--'"$f"' requires a value" "$BOUND_ERR"'
+done
+
+# The DEFENSIVE TWIN, same leg: runners/codex.sh is a documented direct hand-invocation entry point
+# (its own --brief-file arm calls itself "the DEFENSIVE TWIN for the direct hand invocation this
+# contract documents, which bypasses the facade"), so "the facade never emits a valueless flag"
+# does not close this path. Measured before the fix: all three arms returned HUNG under a 3s bound.
+# The adapter is probed with NO DOCKET_REPO_ROOT and no mock on PATH on purpose — the parse loop
+# runs before every one of those checks, so a healthy adapter must still refuse in the loop.
+for f in agent model effort; do
+  rc="$(run_bounded_cmd 3 bash "$ADAPTER" --"$f")"
+  assert "0208(c) codex adapter: trailing --$f exits rather than hanging" '[ "$rc" != "HUNG" ]'
+  assert "0208(c) codex adapter: trailing --$f exits nonzero" '[ "$rc" != "0" ]'
+  assert "0208(c) codex adapter: trailing --$f says it requires a value" \
     'grep -qF -- "--'"$f"' requires a value" "$BOUND_ERR"'
 done
 rm -rf "$SBX"

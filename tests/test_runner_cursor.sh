@@ -185,5 +185,28 @@ assert "precondition: unknown argument aborts" '[ "$RC" != "0" ]'
 OUT="$( CURSOR_BIN="$MOCK_DIR/cursor-agent" DOCKET_REPO_ROOT="$REPO" bash "$ADAPTER" 2>&1 )"; RC=$?
 assert "precondition: missing --agent aborts" '[ "$RC" != "0" ]'
 
+# --- 0208 leg (c): a valueless trailing flag must die, never hang ---------------------------------
+# `--agent`, `--model` and `--effort` end in `shift 2`; bash's `shift` FAILS rather than truncating
+# at `$# = 1`, this loop has no trailing shift, and the adapter runs under `set -uo pipefail` with
+# no `-e` — so a valueless flag in FINAL position spun the parse loop forever. Measured before the
+# fix: all three arms returned HUNG under a 3s bound. This adapter is a DOCUMENTED direct
+# hand-invocation entry point (scripts/runners/cursor.md), so "the facade never emits a valueless
+# flag" does not close the path — the facade's own guard is the twin of this one, not a substitute.
+# Probed with NO DOCKET_REPO_ROOT and no mock binary on purpose: the parse loop runs before every
+# one of those checks, so a healthy adapter must still refuse inside the loop.
+# shellcheck source=lib/bounded_arg_probe.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/bounded_arg_probe.sh"
+BOUNDED_DIR="$MOCK_DIR"; BOUNDED_CWD="$MOCK_DIR"
+BOUND_ERR="$(bounded_probe_err)"   # the caller's own copy — see bounded_probe_err in the lib
+for f in agent model effort; do
+  rc="$(run_bounded_cmd 3 bash "$ADAPTER" --"$f")"
+  # Pinned on the MECHANISM, not merely on "it failed" (LEARNINGS: assert-pins-outcome-not-mechanism):
+  # `HUNG` and a non-zero code are different outcomes, and only one of them is this leg's subject.
+  assert "0208(c): trailing --$f exits rather than hanging" '[ "$rc" != "HUNG" ]'
+  assert "0208(c): trailing --$f exits nonzero" '[ "$rc" != "0" ]'
+  assert "0208(c): trailing --$f says it requires a value" \
+    'grep -qF -- "--'"$f"' requires a value" "$BOUND_ERR"'
+done
+
 rm -rf "$MOCK_DIR"
 echo "---"; [ "$fail" = "0" ] && echo "ALL PASS" || echo "FAILURES"; exit $fail
