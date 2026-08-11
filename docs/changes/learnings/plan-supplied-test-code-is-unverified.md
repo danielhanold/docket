@@ -2,9 +2,9 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234, 237, 200, 244, 242, 286]
+changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234, 237, 200, 244, 242, 286, 260]
 created: 2026-07-19
-updated: 2026-08-10
+updated: 2026-08-11
 promotion_state: candidate
 promoted_to:
 ---
@@ -325,3 +325,23 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   could not pass against any correct implementation. The supplied fixture shadowed only `sleep`,
   which would have made one named mutation spin for the fixture's real 5-minute budget — twice —
   against a plan claiming "milliseconds"; the harness now shadows `sleep` and `date` both.
+
+- 2026-08-11 (#260, PR #198) — **The same defect three times in one plan, and the frequency is the
+  finding.** The plan's mutation-probe harness carried a `grep -c` landing-check whose counter
+  literal cannot change across its own mutation — so the probe reported `MUTATION DID NOT LAND`
+  against a mutation that had landed perfectly. Three separate workers hit three separate instances
+  of it in this one branch; each diagnosed and corrected its own independently, which is the tell
+  that the defect is structural rather than authorial.
+  Count it across the drain: **#286** (two defects in its supplied test code), **#281** (Task 1
+  Probe 1 was not a valid probe), and **#260** (three probe-harness instances) — five recurrences of
+  the plan-supplied-probe class across four changes, all inside one drain. Every previous entry in
+  this family generalizes to *how the implementer should treat supplied code*; this one generalizes
+  the other way, to **where the code should come from**. A landing-check counter is not a thing each
+  plan author should be re-deriving per probe: it is a fixed, mechanical part of what a mutation
+  probe *is*, and the plan author is structurally the person least able to verify it — no
+  implementation exists yet to run it against. The conclusion the build run drew, recorded here as
+  the rule: **the counter belongs in the probe TEMPLATE, not in each plan author's care** — a
+  shared, tested mutation-probe harness the plan cites by name and parameterises, so the class stops
+  recurring instead of being caught five times. That is a systemic tooling gap, not a per-plan slip.
+  See [[guards-are-code]], [[mutation-target-needs-a-forced-exit]],
+  [[mutation-restore-needs-a-backup-copy]].
