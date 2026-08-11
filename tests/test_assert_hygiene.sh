@@ -26,6 +26,18 @@
 #     fixture must carry a declared expected class (an undeclared one reddens rather than being
 #     skipped), and the visit counters are asserted against the discovered counts.
 #
+#  4. A HAZARD IS PINNED IN THE SPELLING THE SUITE ACTUALLY WRITES, not only the compact one. Every
+#     red fixture here once put its hazard on ONE physical line, while backslash-continuation was
+#     covered by tests/fixtures/hygiene/green/continuation.sh alone — and a GREEN fixture proves
+#     only that the machine does not false-positive across a continuation, never that it still
+#     DETECTS across one. It did not: the scanner read the spliced newline as an escape of the next
+#     character, which swallowed the house indent and disarmed the eval rule on the majority of the
+#     suite, and at column zero swallowed an opening quote and ran the lexer inverted to end of
+#     file. Both went green through a documented mutation probe. The red half that asymmetry was
+#     missing is now tests/fixtures/hygiene/red/continuation_eval.sh (indented, the 55% case) and
+#     tests/fixtures/hygiene/red/continuation_dq.sh (column zero, the inversion case) — the missed
+#     spelling was the target tree's own house idiom (AGENTS.md § Guards and tests).
+#
 # The fixtures are hazardous BY CONSTRUCTION and live outside the runner's tests/test_*.sh glob so
 # they are never launched as tests. Nothing in this file sources or executes one; the checker reads
 # their bytes, and tests/fixtures/hygiene/red/sentinel.sh pins that — it writes a marker file if
@@ -48,6 +60,8 @@ trap 'rm -rf "$tmp"' EXIT
 # roster: the roster is the glob below, and a red fixture missing from this table reddens (the
 # "declares an expected class" assert). So adding a fixture cannot silently skip it.
 EXPECTED_CLASSES='
+continuation_dq.sh DQ-BACKTICK
+continuation_eval.sh EVAL-BACKTICK
 defn_echo.sh DEFN-DRIFT
 defn_function_kw.sh DEFN-DRIFT
 defn_multiline.sh DEFN-DRIFT

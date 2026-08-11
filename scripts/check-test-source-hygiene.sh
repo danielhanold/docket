@@ -302,8 +302,13 @@ function scan(s, lno,   i, n, c, d) {
   n = length(s); i = 1
   while (i <= n) {
     c = substr(s, i, 1)
-    # A backslash at end of line escapes the newline; the escaped character is the first one here.
-    if (esc) { esc = 0; if (st == NORMAL) word_char(""); i++; continue }
+    # A backslash-newline is a SPLICE, not an escape: both characters are removed and the character
+    # here is ORDINARY. So this clears the carried flag and consumes NOTHING - the character falls
+    # through to the branches below and is lexed on its own merits. Consuming it instead swallows
+    # the house indent (opening a spurious word, which pushes an assert condition from index 2 to
+    # index 3 and disarms the eval rule) or, at column zero, swallows an opening quote - and then
+    # the CLOSING quote opens a region and the machine runs inverted to end of file.
+    if (esc) esc = 0
 
     if (st == SQ) {
       # Nothing escapes inside single quotes - not even a backslash. Only a closing quote leaves.
