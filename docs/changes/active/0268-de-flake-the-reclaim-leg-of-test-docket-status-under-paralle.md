@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/de-flake-the-reclaim-leg-of-test-docket-status-under-paralle
-claimed_at: 2026-08-11T20:34:54Z
+claimed_at: 2026-08-11T20:38:15Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -87,3 +87,54 @@ two things, decided at plan time and stated in the plan:
    land after #0296 splits the file, rather than breaching a ceiling that has no raise.
 
 #0154 also targets this same file; whichever of the three lands next inherits whatever is left.
+
+## Reconcile log
+
+### 2026-08-11 — reconciled against current `origin/main`: the fix already landed; change is obsolete
+
+The spec (2026-08-09) is a snapshot artifact. Its entire fix shape was implemented and merged
+before this run claimed the change, by **#0276** — whose build gate went red on this same SIGPIPE
+class and whose integration repair eliminated the class suite-wide.
+
+**The targeted assert was rewritten in `3b93574d` ("fix(0276): eliminate the SIGPIPE pipe class
+suite-wide, guard it repo-wide"), merged to `main` via PR #190 on 2026-08-11.** It now reads the
+herestring form, not a pipeline:
+
+```sh
+assert "reclaim(auto off): prints the state-valid remedy naming docket.sh reclaim-claims" \
+  'grep <<<"$(cat "$tmp/reclaim-off-out.txt")" -qF "docket.sh reclaim-claims"'
+```
+
+Each of the spec's three deliverables was verified discharged, mechanically, not by reading:
+
+1. **Rewrite the assert** — done by 0276. Whole-repo `/usr/bin/grep` for
+   `printf "%s\n" "$(cat …)"` returns two hits, both *prose in comments*
+   (`tests/test_docket_example_yml.sh:2233`, `tests/test_pipe_shapes.sh:15`) — zero executable
+   sites remain.
+2. **Mutation-test the rewritten assert** — run here, in an isolated copy of the tree, because a
+   mechanical bulk rewrite is exactly where an assert goes vacuously green. Both probes confirmed
+   a byte change before trusting any verdict:
+   - *Targeted* (`removed=1 added=1`): replacing only the `docket.sh reclaim-claims` token in
+     `scripts/docket-status.sh:1173` reddens **that assert alone**; the sibling count assert stays
+     green. Precise isolation.
+   - *Deletion* (`removed=1 added=0`): deleting the remedy `printf` reddens the target assert.
+   The rewritten assert still guards what it guarded.
+3. **Demonstrate stability** — `tests/test_docket_status.sh` runs 602/602 green, exit 0, standalone
+   serial 47.56s.
+
+**The class is now permanently guarded, so the value cannot regress.** `tests/test_pipe_shapes.sh`
+is a repo-wide shape guard with a budget row (`tests/runtime-budgets.tsv:107`). Probing the guard
+itself: clean tree ⇒ 0 failures; re-introducing the exact pre-0276 pipeline into the reclaim assert
+(`removed=1 added=1`) ⇒ the guard reddens. A regression is caught by the suite, not by luck.
+
+**Runtime-budget decision (the carry-forwards from #0247 and #0118).** Moot, and recorded rather
+than skipped. This change's only proposed edit was one assert line that no longer needs editing, so
+it adds zero runtime — neither carry-forward option applies. Option (b), `depends_on: [296]`, was
+considered and rejected: #0296 is still `needs-brainstorm` (no spec), and parking an
+already-satisfied change behind an ungroomed one would leave a permanently unbuildable entry in the
+backlog. The 60s row is untouched by this outcome; #0296 and #0154 inherit it exactly as they
+found it. The 10-consecutive-parallel-run acceptance bar was deliberately **not** run: it exists to
+prove a fix that is already proven by 0276's own gate, and running it would spend the contended
+budget headroom the #0118 carry-forward warns about for no deliverable.
+
+**Outcome: killed as obsolete.** Nothing remains to build; a PR here would be empty.
