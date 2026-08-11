@@ -60,6 +60,7 @@ trap 'rm -rf "$tmp"' EXIT
 # roster: the roster is the glob below, and a red fixture missing from this table reddens (the
 # "declares an expected class" assert). So adding a fixture cannot silently skip it.
 EXPECTED_CLASSES='
+brace_length_expansion.sh DQ-BACKTICK
 continuation_dq.sh DQ-BACKTICK
 continuation_eval.sh EVAL-BACKTICK
 defn_echo.sh DEFN-DRIFT
