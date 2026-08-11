@@ -102,6 +102,20 @@ before the first read; every commit pushes immediately.
    days with every health check reporting clean. `mark-publish-deferred.sh` **replaces** an
    existing section rather than appending a second, so re-marking is safe.
 
+   **The rule reaches every HANDLED path that abandons an expected publish (change 0118)** — not
+   "any path": a hard crash between archive and publish can write nothing by definition, and that
+   residual stays accepted per ADR-0051, so this rule must not claim coverage it cannot enforce.
+   Scope it per leg, because the drivers diverge:
+
+   - A failed **step-2 re-render** abandons the publish for *every* driver, and every driver is
+     required by this contract to mark there. The `docket-status` sweep discharges that duty in
+     code (change 0118); the three skill-driven drivers discharge it by following this rule — no
+     executable enforcement is added for them, so read it as their duty, not as an accomplished
+     fact.
+   - A failed **step-2 commit/push** skips the publish only in the skill-driven drivers, which is
+     where the mark is owed. The sweep deliberately **continues** to publish on that leg (change
+     0075 §5, documented in `scripts/docket-status.md` §6a), so it owes no mark there.
+
    **Never mark under suppression.** When `terminal_publish` is `false`, or in `main`-mode, the
    publish is legitimately a no-op that exits 0 — that is *success*, not a deferral, and no
    marker is written. **Never mark on a successful publish**, and never remove the marker by
@@ -156,8 +170,12 @@ The sequence is shared; the posture on a non-zero exit from steps 1–3 is the c
 | `docket-implement-next` reconcile-kill | trust each exit code; a failure aborts the kill and is surfaced before looping back to selection |
 | `docket-new-change` proposed-kill | same as reconcile-kill — surface and stop; nothing else is in flight |
 
-**The skip-publish guard (all callers):** a failed step 1 skips steps 2–3; a **failed step-2
-commit/push skips step 3** — a stale `## Artifacts` block must never be published. A **no-diff
+**The skip-publish guard:** a failed step 1 skips steps 2–3 for every caller; a **failed step-2
+commit/push skips step 3** in the skill-driven callers — a stale `## Artifacts` block must never
+be published. The `docket-status` sweep is **carved out of that second clause**: on the
+commit/push leg it continues to publish (change 0075 §5), because there the block is merely stale
+and cosmetic while an aborted close-out is not — see `scripts/docket-status.md` §6a. A failed
+step-2 **re-render** skips step 3 for every caller, sweep included. A **no-diff
 re-render is success**: commit the block only when it actually changed; an unchanged block
 (nothing to re-point) is not a failure and proceeds to publish — the skip-publish guard fires on
 a *failed* commit/push, never on an empty diff. Steps 4–5

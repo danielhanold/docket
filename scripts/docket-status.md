@@ -218,13 +218,22 @@ longer *invisible*, though: before emitting its `sweep-failed` line the sweep ca
 on `metadata_branch`, so `board-checks`' `publish-deferred` check surfaces the gap on every later
 pass until the publish completes (change 0083). That mark is **strictly best-effort** — muted, its
 outcome never read — so a failure to mark changes neither the control flow nor the report lines
-above; the residual is an unmarked deferral, which is still invisible. The `render-change-links`
-case is not marked at all: nothing published means nothing was deferred *yet*, and the close-out
-never reached the publish step. The knob narrows only the
-`terminal-publish` leg: under `terminal_publish: false` that step is a no-op that cannot fail, so
-this recovery path never arises there — but the renderer leg still can fail in such a repo, leaving
-the archived change with a stale `## Artifacts` block on `metadata_branch` that no later sweep
-resumes; the follow-up there is a manual re-render on the metadata branch, not a publish.
+above; the residual is an unmarked deferral, which is still invisible. The `render-change-links` case marks too (change
+0118), under the same best-effort posture and one extra gate: `TERMINAL_PUBLISH=true` **and**
+docket-mode. That gate is load-bearing on this leg and absent on the other, because both of the
+publish's suppressions are exit-0 no-ops — so the `terminal-publish` branch is unreachable under
+suppression, while a renderer failure fires regardless of the knob. The pre-0118 rationale
+("nothing published means nothing was deferred *yet*") does not survive the code: once archived the
+change leaves `active/`, the sweep scans `active/` only, and no later pass resumes it — so the gap
+is permanent until a human acts, which is exactly what ADR-0051's marker exists to surface. Whether
+the publish was deferred, blocked, or never reached is a distinction about *cause*, and cause
+travels in the dated `--detail` line. Under suppression the leg stays unmarked, because a suppressed
+publish is *success*, not a deferral (ADR-0051); the residual there is unchanged — the archived
+change keeps a stale `## Artifacts` block on `metadata_branch` that no later sweep resumes, and the
+follow-up is a manual re-render on the metadata branch, not a publish. Both marks share one writer,
+`sweep_mark_publish_deferred`, which skips entirely when the archived path is already dirty or the
+shared worktree is mid-rebase/merge, restores the path to `HEAD` if `add`/`commit` fails, and
+retains a committed-but-unpushed marker so the next pass's `pull --rebase` carries it.
 
 **6a. The artifacts refresh (change 0075).** After `render-change-links.sh` rewrites the archived
 change's `## Artifacts` block in the metadata worktree, the sweep **commits and pushes** that file
