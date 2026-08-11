@@ -80,6 +80,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0080](0080-detached-delegation-execution-posture-launch-then-observe.md) — Detached delegation execution posture — launch-then-observe (Accepted) ← change #271 · relates to ADR-0038
 - [ADR-0081](0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md) — gate-run's detachment contract is narrowed per platform: own process group where no session primitive exists (Accepted) ← change #282 · relates to ADR-0080
 - [ADR-0082](0082-generated-shim-emits-brief-write-and-launch-as-one-harness-call.md) — A generated shim emits the brief write and the launch as one harness call (Accepted) ← change #277 · relates to ADR-0079, ADR-0080
+- [ADR-0083](0083-agent-worktree-scope-is-a-declared-frontmatter-fact.md) — An agent's worktree scope is a declared frontmatter fact, not a name pattern (Accepted) ← change #208 · relates to ADR-0034, ADR-0068
 
 ## Superseded / Reversed
 
