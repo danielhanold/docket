@@ -29,8 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-runner-dispatch-worktree-gate-3-proves-repo-containment-not-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-runner-dispatch-worktree-gate-3-proves-repo-containment-not-design.md) |
-| Plan | [2026-08-11-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md](https://github.com/danielhanold/docket/blob/feat/runner-dispatch-worktree-gate-3-proves-repo-containment-not/docs/superpowers/plans/2026-08-11-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) |
-| Results | [2026-08-11-runner-dispatch-worktree-gate-3-proves-repo-containment-not-results.md](https://github.com/danielhanold/docket/blob/feat/runner-dispatch-worktree-gate-3-proves-repo-containment-not/docs/results/2026-08-11-runner-dispatch-worktree-gate-3-proves-repo-containment-not-results.md) |
+| Plan | [2026-08-11-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-11-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) |
+| Results | [2026-08-11-runner-dispatch-worktree-gate-3-proves-repo-containment-not-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-11-runner-dispatch-worktree-gate-3-proves-repo-containment-not-results.md) |
 | PR | [#195](https://github.com/danielhanold/docket/pull/195) |
 | ADRs | [ADR-0068](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0068-delegated-run-anchor-is-an-explicit-argument.md), [ADR-0083](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0083-agent-worktree-scope-is-a-declared-frontmatter-fact.md) |
 <!-- docket:artifacts:end -->

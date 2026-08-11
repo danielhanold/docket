@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0208 — Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md)**
+> ↩ **[Change 0208 — Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-11-0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md)**
 <!-- docket:backlink:end -->
 
 # Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards
