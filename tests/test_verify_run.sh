@@ -7,7 +7,7 @@ unset XDG_CONFIG_HOME
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VR="$ROOT/scripts/verify-run.sh"
 fail=0
-assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
 # --- fixture ------------------------------------------------------------------
 make_sbx(){   # sets SBX (repo root) and CH (changes dir with active/ + archive/)

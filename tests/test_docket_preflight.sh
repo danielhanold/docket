@@ -14,7 +14,7 @@ done
 : "${DOCKET_BASH_PATH:?tests require an absolute GNU Bash 4+ runtime}"
 export DOCKET_BASH_PATH
 fail=0
-assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 
 # A fixture config-export command: prints the given lines. $1 = a file with KEY=value lines.

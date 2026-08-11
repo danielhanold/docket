@@ -8,7 +8,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 BUILD="$REPO/skills/docket-build/SKILL.md"
 REF="$REPO/skills/docket-build/references/gate-execution.md"
 fail=0
-assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
 # Phrase asserts read a whitespace-FLATTENED haystack. grep matches within a line, so a
 # phrase-spanning assert over hard-wrapped markdown silently doubles as a line-wrap guard: a pure

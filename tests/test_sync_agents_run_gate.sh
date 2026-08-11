@@ -8,7 +8,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SYNC="$REPO/sync-agents.sh"
 GATE_SRC="$REPO/cursor-rules/run-gate.md"
 fail=0
-assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
 # Collapse runs of whitespace so an assert about a CLAIM survives a pure re-flow of the prose
 # (learnings: phrase-grep-over-wrapped-prose).

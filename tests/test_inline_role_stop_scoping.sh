@@ -25,7 +25,7 @@
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 fail=0
-assert(){ if ( eval "$2" ); then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if ( eval "$2" ); then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
 # Both halves of the two-sided clause. The discriminator is HOW THIS BODY ARRIVED, not the reader's
 # employment status: a docket-implement-next fork reading docket-build inline is BOTH a dispatched

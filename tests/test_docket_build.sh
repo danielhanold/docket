@@ -8,7 +8,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 WORKER="$REPO/skills/docket-build-task/SKILL.md"
 ROUTING="$REPO/skills/docket-build/references/task-routing.md"
 fail=0
-assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
 # Collapse runs of whitespace so a phrase assert survives a pure re-flow of hard-wrapped markdown
 # (learnings: phrase-grep-over-wrapped-prose). Runs, not only newlines: an indented list

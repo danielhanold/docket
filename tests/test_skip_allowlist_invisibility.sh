@@ -165,9 +165,9 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 SELF_REL="tests/$(basename "${BASH_SOURCE[0]}")"
 fail=0
-ok(){  printf 'ok   - %s\n' "$1"; }
+ok(){ printf 'ok - %s\n' "$1"; }
 nok(){ printf 'NOT OK - %s\n' "$1"; fail=1; }
-assert(){ if eval "$2"; then ok "$1"; else nok "$1"; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
 # The allowlisted tree. This assignment is the only place this file writes the bare literal, and it
 # sits right of an `=` inside its own token, so the self-scan below classifies it ASSIGN. Every

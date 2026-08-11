@@ -38,7 +38,7 @@ EX="$ROOT/.docket.example.yml"
 BF="$ROOT/scripts/backfill-change-types.md"
 NC="$ROOT/skills/docket-new-change/SKILL.md"
 fail=0
-assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
 # Prose asserts run against a WHITESPACE-FLATTENED copy of the file: these docs are hard-wrapped,
 # so a sentence a guard depends on can (and does) straddle a newline, and a line-anchored grep

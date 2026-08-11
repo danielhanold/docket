@@ -11,7 +11,7 @@ SCRIPT="$REPO/scripts/reclaim-claims.sh"
 # shellcheck source=/dev/null
 . "$REPO/scripts/lib/docket-frontmatter.sh"   # field / iso_to_epoch for the assertions
 fail=0
-assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 git_quiet(){ git "$@" >/dev/null 2>&1; }
 
 # A fixed reference "now" (staleness must never depend on wall-clock); passed as NOW=$NOW_EPOCH.

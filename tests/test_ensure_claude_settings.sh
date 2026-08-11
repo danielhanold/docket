@@ -14,7 +14,7 @@ done
 export DOCKET_BASH_PATH
 SCRIPT="$REPO/scripts/ensure-claude-settings.sh"
 fail=0
-assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
 RULE_MAIN='Bash(git -C * push origin HEAD:main)'
 RULE_DEV='Bash(git -C * push origin HEAD:develop)'

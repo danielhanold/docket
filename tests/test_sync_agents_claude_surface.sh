@@ -7,7 +7,7 @@ unset XDG_CONFIG_HOME
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SYNC="$REPO/sync-agents.sh"
 fail=0
-assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
 # Every sandbox is minted under a path whose LAST COMPONENT IS A SYMLINK ($BASE/via -> phys). The
 # repo therefore lives at a logical path that `pwd -P` canonicalises differently, which is what

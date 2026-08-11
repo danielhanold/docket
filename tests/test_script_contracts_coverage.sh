@@ -9,7 +9,7 @@
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fail=0
-ok(){ printf 'ok   - %s\n' "$1"; }
+ok(){ printf 'ok - %s\n' "$1"; }
 no(){ printf 'NOT OK - %s\n' "$1"; fail=1; }
 
 # (1) every top-level scripts/<name>.sh has a co-located scripts/<name>.md

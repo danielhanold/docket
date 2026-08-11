@@ -12,8 +12,8 @@ CONV="$REPO/skills/docket-convention/SKILL.md"
 FACADE_DOC="$REPO/scripts/docket.md"
 README="$REPO/README.md"
 fail=0
-ok(){ echo "ok - $1"; }
-no(){ echo "NOT OK - $1"; fail=1; }
+ok(){ printf 'ok - %s\n' "$1"; }
+no(){ printf 'NOT OK - %s\n' "$1"; fail=1; }
 
 # JSON parser seam: prefer jq, fall back to python3.
 json_ok(){ # $1 = file

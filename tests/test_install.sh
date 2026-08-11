@@ -4,7 +4,7 @@ set -uo pipefail
 unset XDG_CONFIG_HOME   # hermetic: sync-agents.sh reads ${XDG_CONFIG_HOME:-$HARNESS_ROOT/.config}; a set XDG would leak (and since 0050, MIGRATE) the dev's real global config
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fail=0
-assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 # A present harness root. link-skills.sh parent-checks <root>/.claude and creates skills/ itself;

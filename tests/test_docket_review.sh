@@ -11,7 +11,7 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=/dev/null
 . "$REPO/scripts/lib/harness-defaults.sh"
 fails=0
-assert(){ if eval "$2"; then echo "ok   - $1"; else echo "FAIL - $1"; fails=$((fails+1)); fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fails=$((fails+1)); fi; }
 
 REV="$REPO/skills/docket-review/SKILL.md"
 

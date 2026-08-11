@@ -6,7 +6,7 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT="$ROOT/scripts/render-artifact-backlink.sh"
 fail=0
-ok(){ printf 'ok   - %s\n' "$1"; }
+ok(){ printf 'ok - %s\n' "$1"; }
 no(){ printf 'NOT OK - %s\n' "$1"; fail=1; }
 
 make_config_stub(){ # $1 dir

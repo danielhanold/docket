@@ -7,7 +7,7 @@ set -uo pipefail
 unset XDG_CONFIG_HOME   # hermetic: the script reads ${XDG_CONFIG_HOME:-$HARNESS_ROOT/.config}; pin global to the sandbox
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 fail=0
-assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fail=1; fi; }
 
 # True when any occurrence of $2 is followed by $3 within $4 characters in $1.
 # Use Perl rather than grep -Pz: BSD grep lacks -P and caps interval bounds at 255.
