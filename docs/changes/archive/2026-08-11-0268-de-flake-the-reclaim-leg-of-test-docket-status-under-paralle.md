@@ -2,7 +2,7 @@
 id: 268
 slug: de-flake-the-reclaim-leg-of-test-docket-status-under-paralle
 title: 'De-flake the reclaim leg of test_docket_status under parallel contention'
-status: in-progress
+status: killed
 priority: medium
 type: fix
 created: 2026-08-08
@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/de-flake-the-reclaim-leg-of-test-docket-status-under-paralle
-claimed_at: 2026-08-11T20:38:15Z
+claimed_at: 
 pr:
 blocked_by:
 reconciled: true
@@ -138,3 +138,7 @@ prove a fix that is already proven by 0276's own gate, and running it would spen
 budget headroom the #0118 carry-forward warns about for no deliverable.
 
 **Outcome: killed as obsolete.** Nothing remains to build; a PR here would be empty.
+
+## Why killed
+
+Obsolete: the entire fix shape landed via #0276 (commit 3b93574d, PR #190) before this run claimed it. The targeted assert is already the herestring form, zero executable sites of the pipeline shape remain repo-wide, both mutation probes confirm the rewritten assert is non-vacuous, tests/test_docket_status.sh is 602/602 green, and tests/test_pipe_shapes.sh now guards the class repo-wide (verified to redden on re-introduction). Nothing left to build.
