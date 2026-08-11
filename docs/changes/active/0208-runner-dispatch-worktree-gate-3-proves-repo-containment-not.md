@@ -20,7 +20,7 @@ branch: feat/runner-dispatch-worktree-gate-3-proves-repo-containment-not
 claimed_at: 2026-08-11T01:43:47Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -131,6 +131,49 @@ Flag-parse guards (c):
   0220's findings).
 - The facade's exec→call-and-return tail rewrite — change 0237's territory; build after 0237
   merges (same file, disjoint regions).
+
+## Reconcile log
+
+2026-08-11 — reconciled at claim. Dependency **#237 merged**, discharging assumption 9: the facade's
+tail is now call-and-return with the synchronous run gate, and the three regions this change edits
+(parse loop, gate block, `emit_shim`) stay disjoint from it. Design intent is unchanged; the spec
+gains a dated `## Reconcile 2026-08-11` section pinning what moved, and that section is the current
+authority wherever it and the 2026-08-07 body disagree about a fact. The seven deltas, in brief:
+
+- **#0277** replaced the argv brief channel with `--brief-file` and made both-channels-at-once a
+  refusal. Two consequences here. The `case "$AGENT" in build-*)` block now carries a **second**
+  obligation — 0277's empty-payload refusal — and only the `--worktree` requirement becomes
+  scope-keyed; the payload refusal stays `build-*`-keyed, because its reasoning ("a build worker
+  with no task improvises") is build-specific and widening it would refuse legitimately payload-free
+  dispatches of the newly gated set. And every `build-*` success-shaped test leg must now carry a
+  payload to reach the adapter at all.
+- **Leg (c)'s site list is unchanged at five.** 0271 (`--observe`) and 0277 (`--brief-file`) each
+  shipped their own last-argument guard in a different, equally non-hanging shape. The spec's
+  `grep -n 'shift 2'` derivation still yields exactly `--runner`, `--agent`, `--model`, `--effort`,
+  `--worktree`; the two already-guarded sites are left byte-identical.
+- **#0270** landed a config-locality section that already builds a **real** linked worktree and
+  dispatches `build-economy --worktree "$WT"`, asserting the anchor handed to the adapter is that
+  worktree and not the main tree. That is the spec's §4 success path minus an exit-code assert, so
+  this change **extends** it with the exit-code conjunct instead of authoring a duplicate fixture.
+  The membership and scope legs are still authored fresh.
+- **New hazard found, not in the spec:** `--observe` on a dispatch whose worktree was removed
+  deliberately reassigns `ANCHOR="$REPO_ROOT"` (`ANCHOR_FALLBACK=1`) so the durable record stays
+  readable. A blind feature-scoped main-tree rejection would `die` there and turn a reported
+  `task-unverifiable worktree-removed` non-verdict into a failed observation. The rejection is
+  conditioned on `ANCHOR_FALLBACK != 1`; the membership test needs no exemption.
+- **Path-component safety:** `$AGENT` carries no shape validation today (only `$RUNNER` does), and
+  the new scope probe turns it into a path. The probe runs only for the safe class `--runner` is
+  held to; any other name falls to the tolerant metadata default, which is the same posture the spec
+  already prescribes for a missing file or key.
+- **#0286** is disjoint — it touched `scripts/gate-run.md`, `skills/docket-build/SKILL.md`, and the
+  gate test files, none of which this change edits.
+- **Budget:** the `tests/test_runner_dispatch.sh` row is 20s (raised by 0277), so the new legs have
+  real margin; re-measure and raise with a measured number if the additions exceed it.
+
+Scope, out-of-scope, and every assumption otherwise stand. Auto-capture: nothing surfaced that
+clears the six admission gates — the two candidates seen (a general `--agent` shape guard at the
+facade, and unifying the parse loop's two guard shapes) are both in-branch or cosmetic, so both are
+report-only, zero stubs minted.
 
 ## Consolidation note
 

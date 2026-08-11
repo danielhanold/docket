@@ -227,3 +227,56 @@ already uses — rather than adding a generator seam for one test.
     delegations until the follow-up lands).
 12. **Consolidation stands.** 0209 and 0210 are archived `killed` pointing here; their scope is
     carried verbatim above (checked against both archived stubs — nothing dropped).
+
+## Reconcile 2026-08-11 — the post-0237/0270/0277 surface
+
+Design intent is unchanged; five points where the file this change edits has moved since
+2026-08-07, each one binding on the build. Where this section and the design above disagree about
+a *fact*, this section is the current one.
+
+1. **0237 merged (assumption 9 discharged).** The facade's tail is now call-and-return with the
+   synchronous run gate, plus 0271's `--launch`/`--observe` verbs. The three regions this change
+   edits — the parse loop, the gate block, `emit_shim` — remain disjoint from all of it.
+
+2. **§1's main-tree rejection must exempt the observe anchor fallback.** `--observe` on a dispatch
+   whose worktree has since been removed deliberately reassigns `ANCHOR="$REPO_ROOT"` and sets
+   `ANCHOR_FALLBACK=1`, so the durable record stays readable; the build leg then reports
+   `task-unverifiable worktree-removed`. A feature-scoped main-tree rejection applied blindly would
+   `die` on exactly that path and convert a reported non-verdict into a failed observation. The
+   rejection is therefore conditioned on `[ "$ANCHOR_FALLBACK" != 1 ]`. The membership test itself
+   needs no exemption — `$REPO_ROOT` is a genuine member and passes it.
+
+3. **§2 moves the `--worktree` requirement out of the `build-*` case, and nothing else.** That case
+   block now carries a second, 0277-owned obligation: the empty-payload refusal (a `build-*`
+   dispatch carrying neither `--brief-file` nor content-bearing trailing argv). That refusal stays
+   keyed on `build-*`. Its reasoning is build-specific — a build worker with no task improvises in
+   a worktree — and widening it to every feature-scoped agent would refuse dispatches that
+   legitimately carry no payload. Only the `--worktree` requirement becomes scope-keyed.
+
+4. **§2's runtime probe reads a path component, so it is shape-guarded.** `$AGENT` has no shape
+   validation today (only `$RUNNER` does), and the probe turns it into a path under
+   `${AGENTS_SRC:-$SELF_DIR/../agents}`. The probe therefore runs only for a name matching the same
+   safe class `--runner` is held to (`[A-Za-z0-9._-]` with no `..`); any other name yields no
+   declared scope and falls to the tolerant metadata default — the same outcome as a missing file
+   or key, and the same reason: the adapter's unknown-agent diagnostic is the more specific one.
+
+5. **§3's site list is still exactly the five `shift 2` flags.** 0271 (`--observe`) and 0277
+   (`--brief-file`) each landed with their own last-argument guard in a different but equally
+   non-hanging shape (`shift; [ $# -gt 0 ] && shift`), and both carry an in-file comment explaining
+   it. The `grep -n 'shift 2'` derivation yields `--runner`, `--agent`, `--model`, `--effort`,
+   `--worktree` and no others; the two already-guarded sites are left byte-identical rather than
+   re-shaped, which keeps this change's diff to the sites that can actually hang.
+
+6. **§4's success-path leg is already substantially on the branch — extend it, do not duplicate.**
+   0270's config-locality section builds a real linked worktree with `git worktree add`, dispatches
+   `--agent build-economy --worktree "$WT" -- "<task>"`, and asserts the anchor handed to the
+   adapter is the linked worktree and is not the main worktree. That is the paired success path the
+   review asked for, minus an explicit exit-code assert; this change adds the exit-code conjunct
+   there rather than authoring a second near-identical fixture. The new membership and scope legs
+   are still authored fresh. Separately, every `build-*` leg in this file must now carry a payload
+   to reach the adapter at all (0277's gate fires first) — the existing 0206 legs (d) and (e) are
+   refusal legs and are unaffected, but any new success-shaped `build-*` leg needs one.
+
+7. **Budget.** `tests/test_runner_dispatch.sh` sits at a 20s row (raised from 10s by 0277), so the
+   new legs have real margin. If the additions push the measured wall clock past it, re-measure and
+   raise the row with the measured number rather than leaving a trailing `OVER BUDGET:` line.
