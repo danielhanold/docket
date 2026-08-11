@@ -972,6 +972,15 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # were 372/3613 against 375/3650, i.e. 3 lines and 37 words of headroom — less than the sentence.
 # Set per the rounding rule above from the measured post-edit actuals: 376 lines -> the next
 # multiple of 5 is 380; 3670 words -> 3700 (30 words, clear of the 25-word floor).
+# Change 0208 raises skills/docket-finalize-change/SKILL.md's WORD budget 3850 -> 3900. The added
+# prose is the feature-scoped `--worktree` requirement quoted at the two dispatch sites that must
+# obey it (the rebase resolver and the integration repair worker), so it cannot move to
+# references/gate-failure.md, this skill's only reference: that file is read AFTER a gate has
+# already failed, whereas this rule must be in context at the moment the dispatch is authored —
+# a requirement stated only in a post-mortem reference cannot prevent the malformed dispatch it
+# describes. Set per the rounding rule above from the measured actual: 3848 words -> the next
+# multiple of 50 is 3850, 2 words of margin and inside the 25-word floor, so the multiple after:
+# 3900. The LINE budget is NOT raised (180 actual against 185).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -990,7 +999,7 @@ skills/docket-convention/references/auto-capture.md        130 1250
 skills/docket-convention/references/dummy-mode.md           85  800
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
-skills/docket-finalize-change/SKILL.md                     185 3850
+skills/docket-finalize-change/SKILL.md                     185 3900
 skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      170 4650
