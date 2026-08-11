@@ -2,7 +2,7 @@
 id: 247
 slug: make-shared-metadata-worktree-contention-survivable-and-scop
 title: 'Make shared metadata worktree contention survivable and scope its commits'
-status: in-progress
+status: implemented
 priority: high
 type: fix
 created: 2026-08-07
@@ -13,12 +13,12 @@ discovered_from: [110, 119]
 adrs: [89]
 spec: docs/superpowers/specs/2026-08-09-make-shared-metadata-worktree-contention-survivable-and-scop-design.md
 plan: docs/superpowers/plans/2026-08-11-make-shared-metadata-worktree-contention-survivable-and-scop-plan.md
-results:
+results: docs/results/2026-08-11-make-shared-metadata-worktree-contention-survivable-and-scop-results.md
 trivial: false
 auto_groomable: true
 branch: feat/make-shared-metadata-worktree-contention-survivable-and-scop
-claimed_at: 2026-08-11T15:15:54Z
-pr:
+claimed_at: 2026-08-11T17:41:34Z
+pr: https://github.com/danielhanold/docket/pull/200
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-09-make-shared-metadata-worktree-contention-survivable-and-scop-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-make-shared-metadata-worktree-contention-survivable-and-scop-design.md) |
 | Plan | [2026-08-11-make-shared-metadata-worktree-contention-survivable-and-scop-plan.md](https://github.com/danielhanold/docket/blob/feat/make-shared-metadata-worktree-contention-survivable-and-scop/docs/superpowers/plans/2026-08-11-make-shared-metadata-worktree-contention-survivable-and-scop-plan.md) |
+| Results | [2026-08-11-make-shared-metadata-worktree-contention-survivable-and-scop-results.md](https://github.com/danielhanold/docket/blob/feat/make-shared-metadata-worktree-contention-survivable-and-scop/docs/results/2026-08-11-make-shared-metadata-worktree-contention-survivable-and-scop-results.md) |
+| PR | [#200](https://github.com/danielhanold/docket/pull/200) |
 | ADRs | [ADR-0089](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0089-shared-metadata-worktree-contention-survivable-not-impossible.md) |
 <!-- docket:artifacts:end -->
 
