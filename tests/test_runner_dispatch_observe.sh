@@ -806,8 +806,8 @@ waited=0
 while kill -0 -"$lpgid" 2>/dev/null && [ "$waited" -lt 100 ]; do sleep 0.1; waited=$(( waited + 1 )); done
 BFILE="$SBX/barrier"
 ( cd "$SBX" && RUNNERS_DIR="$RDIR" DELEGATION_OBSERVATION_BUDGET=60 \
-    RUNNER_DISPATCH_TEST_BARRIER=pre-liveness-probe \
-    RUNNER_DISPATCH_TEST_BARRIER_FILE="$BFILE" \
+    DOCKET_RUNNER_DISPATCH_TEST_BARRIER=pre-liveness-probe \
+    DOCKET_RUNNER_DISPATCH_TEST_BARRIER_FILE="$BFILE" \
     bash "$FACADE" --observe "$KEY" --runner fake --agent status ) > "$SBX/bout" 2> "$SBX/berr" &
 bpid=$!
 waited=0
@@ -840,8 +840,8 @@ DDIR="$(ddir_for "$KEY")"
 in_pgid="$(sed -n 's/^pgid=//p' "$DDIR/launch")"
 istart=$(date +%s)
 ( cd "$SBX" && RUNNERS_DIR="$RDIR" DELEGATION_OBSERVATION_BUDGET=60 \
-    RUNNER_DISPATCH_TEST_BARRIER=some-other-point \
-    RUNNER_DISPATCH_TEST_BARRIER_FILE="$SBX/never" \
+    DOCKET_RUNNER_DISPATCH_TEST_BARRIER=some-other-point \
+    DOCKET_RUNNER_DISPATCH_TEST_BARRIER_FILE="$SBX/never" \
     bash "$FACADE" --observe "$KEY" --runner fake --agent status ) >/dev/null 2>&1; irc=$?
 assert "0284: arming a DIFFERENT barrier point does not hold this one" \
   '[ $(( $(date +%s) - istart )) -lt 10 ]'
