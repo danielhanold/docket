@@ -213,6 +213,63 @@ assert "facade: path-traversal runner name rejected" '[ "$rc" != "0" ]'
 assert "facade: traversal rejection says invalid" 'grep -qiF "invalid runner name" <<<"$err"'
 rm -rf "$SBX"
 
+# ---- 0208 leg (c): a valueless trailing flag must die, never hang ---------------------
+# Every value-taking flag whose arm ends in `shift 2` hangs when the flag is the FINAL argument:
+# bash's `shift` FAILS rather than truncating at `$# = 1`, the loop has no trailing shift, and the
+# facade runs under `set -uo pipefail` with no `-e`. Measured before the fix:
+# `timeout 3 bash scripts/runner-dispatch.sh --runner` returned 124.
+#
+# The bound is a background job plus a SENTINEL FILE, and both halves are load-bearing:
+#   * The stop must be INDEPENDENT of the guard under test, or deleting the guard deletes the stop
+#     and the mutation hangs instead of reddening (LEARNINGS: mutation-target-needs-a-forced-exit).
+#   * Completion is the sentinel FILE, never `kill -0` on the pid: a finished-but-unwaited child is
+#     a zombie whose pid still answers `kill -0`, so a liveness poll would report HUNG for every
+#     healthy run — the assert would pass for the wrong reason and go vacuous the moment it is fixed.
+#   * `set -m` makes the job a process-group LEADER so the give-up path can signal the whole tree.
+#     Without it the subshell dies and the spinning facade is orphaned into the rest of the suite.
+# `timeout(1)` is deliberately not used: stock macOS ships none and no existing test depends on one.
+#
+# The stderr path is derived by `bounded_err_path` rather than assigned inside `run_bounded`,
+# because the caller reads the helper's exit code through `$( )` — a SUBSHELL, whose variable
+# assignments cannot reach the caller. A `BOUND_ERR` set only inside the helper would still be
+# empty at the assert, and `grep -qF -- "…" ""` fails for a missing operand rather than for a
+# missing diagnostic: an assert that can never go green, i.e. one that stays red after the fix.
+bounded_err_path(){ printf '%s' "$SBX/bounded.err"; }
+BOUND_ERR=""
+run_bounded(){  # $1 = seconds to wait; $2... = args to the facade -> prints the exit code, or HUNG
+  local secs="$1"; shift
+  local rcf="$SBX/bounded.rc"
+  BOUND_ERR="$(bounded_err_path)"
+  rm -f "$rcf" "$rcf.partial"; : > "$BOUND_ERR"
+  set -m
+  ( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" "$@" >/dev/null 2>"$BOUND_ERR"
+    printf '%s' "$?" > "$rcf.partial"; mv -f "$rcf.partial" "$rcf" ) &
+  local p=$! i=0
+  set +m
+  while [ "$i" -lt $(( secs * 10 )) ] && [ ! -f "$rcf" ]; do sleep 0.1; i=$(( i + 1 )); done
+  if [ ! -f "$rcf" ]; then
+    kill -TERM "-$p" 2>/dev/null || kill -TERM "$p" 2>/dev/null
+    wait "$p" 2>/dev/null
+    printf 'HUNG'
+    return 0
+  fi
+  wait "$p" 2>/dev/null
+  cat "$rcf"
+}
+
+make_fixture
+BOUND_ERR="$(bounded_err_path)"   # the caller's own copy — see bounded_err_path above
+for f in runner agent model effort worktree; do
+  rc="$(run_bounded 3 --"$f")"
+  # Pinned on the MECHANISM, not merely on "it failed" (LEARNINGS: assert-pins-outcome-not-mechanism):
+  # `HUNG` and a non-zero code are different outcomes, and only one of them is this leg's subject.
+  assert "0208(c): trailing --$f exits rather than hanging" '[ "$rc" != "HUNG" ]'
+  assert "0208(c): trailing --$f exits nonzero" '[ "$rc" != "0" ]'
+  assert "0208(c): trailing --$f says it requires a value" \
+    'grep -qF -- "--'"$f"' requires a value" "$BOUND_ERR"'
+done
+rm -rf "$SBX"
+
 # ---- facade: repo-root anchor + adapter handoff -----------------------------------
 make_fixture
 out="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status --model m1 2>/dev/null )"

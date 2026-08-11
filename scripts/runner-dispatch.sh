@@ -69,17 +69,18 @@ RUNNER=""; AGENT=""; MODEL=""; EFFORT=""; WORKTREE=""; BRIEF_FILE=""
 VERB=""; OBSERVE_KEY=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --runner) RUNNER="${2:-}"; shift 2 ;;
-    --agent)  AGENT="${2:-}";  shift 2 ;;
-    --model)  MODEL="${2:-}";  shift 2 ;;
-    --effort) EFFORT="${2:-}"; shift 2 ;;
-    --worktree) WORKTREE="${2:-}"; shift 2 ;;
+    --runner) [ $# -ge 2 ] || die "--runner requires a value"; RUNNER="$2"; shift 2 ;;
+    --agent)  [ $# -ge 2 ] || die "--agent requires a value";  AGENT="$2";  shift 2 ;;
+    --model)  [ $# -ge 2 ] || die "--model requires a value";  MODEL="$2";  shift 2 ;;
+    --effort) [ $# -ge 2 ] || die "--effort requires a value"; EFFORT="$2"; shift 2 ;;
+    --worktree) [ $# -ge 2 ] || die "--worktree requires a value"; WORKTREE="$2"; shift 2 ;;
     --launch)  VERB="launch"; shift ;;
-    # `shift 2` is this parser's house form, but bash's `shift` FAILS rather than truncating when
-    # the flag is the last argument, and this loop has no trailing shift — so a value-taking flag
-    # in final position spins here forever. For `--observe` that would make its own
-    # "--observe requires a dispatch key" refusal unreachable, i.e. decoration. Shift the flag,
-    # then the value only if a value is actually there.
+    # `--observe` and `--brief-file` keep the shift-then-conditional-shift shape they were written
+    # with; the arms above use the `[ $# -ge 2 ] || die` shape instead. Both are guards against the
+    # same hazard — bash's `shift` FAILS rather than truncating when the flag is the last argument,
+    # and this loop has no trailing shift, so an unguarded value-taking flag in final position spins
+    # here forever. `--observe` additionally needs the value to stay OPTIONAL at parse time so its
+    # own "--observe requires a dispatch key" refusal below is the one a caller sees.
     --observe) VERB="observe"; OBSERVE_KEY="${2:-}"; shift; [ $# -gt 0 ] && shift ;;
     # Same last-argument hazard as `--observe` above: shift the flag, then the value only if a
     # value is actually there. The refusal is inline rather than deferred to the validation block
