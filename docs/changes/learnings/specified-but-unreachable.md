@@ -2,9 +2,9 @@
 slug: specified-but-unreachable
 hook: "Sentinels over prose assert a claim is PRESENT, never that it is REACHABLE — where a contract has a producer and a consumer, anchor one assert on the producer."
 topics: [testing, sentinels, review]
-changes: [87, 94, 203, 220, 226, 259, 271]
+changes: [87, 94, 203, 220, 226, 259, 271, 277]
 created: 2026-07-19
-updated: 2026-08-09
+updated: 2026-08-11
 promotion_state: candidate
 promoted_to:
 ---
@@ -93,3 +93,19 @@ this?* If the answer is only "the section that describes it," the feature is dec
   having gone inert, and the documentation asserting it still works is the thing least likely to
   notice. `--observe` now carries the attribution snapshot captured at launch and synthesizes `3` on
   `run-halted`.
+- 2026-08-11 (#277, PR #194 — merged) — **A generated recipe whose slots were right and which could
+  not execute.** The shim `emit_shim` writes taught a two-call recipe for delegated dispatch: call 1
+  creates the brief with `mktemp` plus a quoted heredoc, call 2 launches with
+  `--brief-file <the path call 1 wrote>`. Harness Bash calls share no shell state and `mktemp`'s
+  suffix is random, so in call 2's fresh shell `$BRIEF` is unset, expands empty, and the facade dies
+  — on the sole taught channel, for every runner and every delegated agent. The shim sentinels were
+  green throughout: they asserted the **slot's shape** (the flag is present, the placeholder looks
+  right) and never that the recipe **executes to a usable value**. Caught at whole-branch review.
+  Fixed by emitting the write and the launch as ONE harness call with a live `--brief-file "$BRIEF"`,
+  which deletes the brief path as a model-substituted slot; recorded as **ADR-0082**. What this adds:
+  for generated *instructions* the reachability question is not "does something write this" but
+  "does the recipe run" — and the state a recipe silently depends on (a live shell between two steps)
+  is exactly what a shape assert cannot see. Anchor at least one assert on the recipe producing a
+  value, not on its placeholders. Related: [[generated-artifact-loaded-at-process-start]] — nothing
+  in-session can validate the regenerated shim as the harness will read it, so the live dispatch
+  stayed a human verification item.

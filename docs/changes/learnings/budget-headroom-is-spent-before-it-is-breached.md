@@ -2,9 +2,9 @@
 slug: budget-headroom-is-spent-before-it-is-breached
 hook: "A wall-clock budget row sitting AT its ceiling is already spent — the queued changes against that same file, not the current green run, decide whether it breaches."
 topics: [testing, budgets, planning]
-changes: [270]
+changes: [270, 277]
 created: 2026-08-10
-updated: 2026-08-10
+updated: 2026-08-11
 promotion_state: retained
 promoted_to:
 ---
@@ -49,3 +49,16 @@ reader nothing.
   file") rather than leaving it for whichever change happened to breach first. Note the shape of the
   near-miss: the *serial* number moved only 0.2s, so serial measurement would have shown comfortable
   margin — the contended number is the one the ceiling is actually compared against.
+- 2026-08-11 (#277, PR #194 — merged) — **The prediction closing, from the queued side.** 0277 was
+  one of the two changes this finding named as queued against `tests/test_runner_dispatch.sh`, and it
+  added ~50 cases to the file that had entered the change at 9s serial against a 10s ceiling. Because
+  the margin had been recorded as a *number* at 0270's close-out rather than as "did not trip the
+  budget check," the queued change could see that it was spending headroom it did not have and
+  re-budgeted deliberately instead of discovering it as a red gate: the row was re-measured and
+  raised to **20s**, with `EXPECTED_TOTAL` re-seeded to 1670. The first attempt raised it to 15s and
+  was corrected at review to apply the table's own "next multiple of 5 plus a 5s margin" rule to the
+  **worst standalone serial reading**, not the run-of-the-day reading. Change 0208, still queued
+  against the same file, now inherits real margin. What this adds: re-budgeting is cheapest for the
+  *next* change into the file, not only for the one that spent the margin — but only if the margin
+  was written down where that change will read it. The reporting rule in *Apply* is the load-bearing
+  half of this finding, not a stylistic preference.

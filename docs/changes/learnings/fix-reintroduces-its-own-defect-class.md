@@ -2,9 +2,9 @@
 slug: fix-reintroduces-its-own-defect-class
 hook: "New code added by a change that fixes a defect class is the likeliest place for that class to reappear — audit the change's OWN additions against its thesis before review, and check the twin it did not touch."
 topics: [review, refactoring, contracts]
-changes: [135, 173, 113, 212, 220, 228, 259, 254, 200, 246]
+changes: [135, 173, 113, 212, 220, 228, 259, 254, 200, 246, 277]
 created: 2026-07-28
-updated: 2026-08-08
+updated: 2026-08-11
 promotion_state: candidate
 promoted_to:
 ---
@@ -168,3 +168,15 @@ Related: [[escape-ere-metacharacters-in-key]] (the un-fixed twin of a duplicated
   collateral to be patched back to green. The cheap wrong fix (bump 102 → 129) is always available
   and always leaves the class in place. Related: [[guards-are-code]],
   [[section-slice-needs-a-named-terminator]].
+- 2026-08-11 (#277, PR #194 — merged) — **Two definitions of "empty" inside the change written to
+  abolish empty briefs.** 0277 exists to close a silent-omission failure: a delegated worker started
+  with no task text and improvised. Its own new brief-file channel then admitted the same emptiness
+  through a definitional seam — `[ -s "$BRIEF_FILE" ]` measures **bytes**, while
+  `payload="$(cat …)"` strips trailing newlines, so a newline-only brief passed every gate and
+  delivered no task context at all. The pre-existing argv leg carried the twin (`-- ""` satisfies
+  `[ $# -gt 0 ]`). Both now refuse a whitespace-only payload, at the facade and in all three
+  adapters. What this adds: when a change's thesis is "the payload must be non-empty," the audit
+  question is not whether every site checks emptiness but whether every site means the **same thing**
+  by it — two correct-looking predicates over the same value, one counting bytes and one counting
+  content, is a defect the thesis-over-the-diff sweep only finds if it compares the *definitions*
+  rather than confirming a check exists. Related: [[assert-pins-outcome-not-mechanism]].
