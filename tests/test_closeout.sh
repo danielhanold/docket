@@ -709,6 +709,27 @@ assert "D1(remote-guard): the local branch still exists (still checked out elsew
 assert "D1(remote-guard): refusal names the local-branch-survives reason on stderr" \
   'grep -qi "local branch still exists" "$tmp/d1-remote-guard.err"'
 
+# --- change 0118: the mark rule reaches every HANDLED abandonment, scoped per leg ---------------
+# Written as NEGATIVES against the states 0118 removed, plus positives, because a guard that only
+# confirms the new wording is green the moment the edit lands and stays green even if the old
+# claim is reintroduced beside it.
+assert "0118: the guard no longer claims the commit/push clause binds ALL callers" \
+  '! grep -qF -- "The skip-publish guard (all callers):" "$TCO"'
+assert "0118: the guard carves the sweep out of the commit/push clause" \
+  'grep -qF -- "carved out of that second clause" "$TCO"'
+assert "0118: the carve-out points at the sweep deviation's owning doc" \
+  'grep -qF -- "scripts/docket-status.md\` §6a" "$TCO"'
+assert "0118: the mark rule states it reaches HANDLED paths, not any path" \
+  'grep -qF -- "every HANDLED path that abandons an expected publish" "$TCO"'
+assert "0118: the mark rule keeps the hard-crash residual explicitly out of scope" \
+  'grep -qF -- "a hard crash between archive and publish can write nothing" "$TCO"'
+assert "0118: the re-render leg is stated as owed by EVERY driver" \
+  'grep -qF -- "abandons the publish for *every* driver" "$TCO"'
+assert "0118: the sweep is stated to owe no mark on the commit/push leg" \
+  'grep -qF -- "so it owes no mark there" "$TCO"'
+assert "0118: never-mark-under-suppression survives the edit (non-vacuity)" \
+  'grep -qF -- "**Never mark under suppression.**" "$TCO"'
+
 assert "0174 template integrity: the shared template is unmutated after the full run" \
   '[ "$(git -C "$NEW_REPO_TEMPLATE/tpl/origin.git" for-each-ref --format="%(refname) %(objectname)" | LC_ALL=C sort)" = "$tplint_refs" ] &&
    [ "$(git -C "$NEW_REPO_TEMPLATE/tpl/work" rev-parse HEAD)" = "$tplint_head" ] &&
