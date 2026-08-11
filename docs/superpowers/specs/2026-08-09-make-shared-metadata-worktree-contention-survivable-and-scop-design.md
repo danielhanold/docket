@@ -46,6 +46,32 @@ Two halves of one concurrency defect in the shared `.docket` metadata worktree:
    later `preflight` (`cannot pull with rebase: You have unstaged changes`) — independent
    corroboration that both halves are live, not theoretical.
 
+## Requirements checklist
+
+The normative summary — what a build must satisfy, each item specified in full in its half. The
+rest of this document is the decision record and evidence trail behind these lines.
+
+- No rebase when the fetched remote has not advanced; a dirty tree with nothing to pull never
+  fails the sync (Half 1 item 1).
+- Diverged history rebases local commits onto the fetched remote only when the tracked tree is
+  clean; both branches of the sync function behave identically (Half 1 items 1–2).
+- Bounded retry (5 attempts, 2/4/8/8s) is spent only on failure classes consistent with transient
+  contention; a content conflict raised by this attempt's own rebase aborts and fails
+  immediately; the exhaustion diagnostic names the last failure class (Half 1 items 2, 4).
+- Never `--autostash` in any metadata-tree sync path, repo-grep asserted (Half 1 item 3).
+- Untracked-only files never count as dirty (Half 1 item 4).
+- The backoff sleep is injectable; fixture tests never wait real time (Half 1, tests).
+- Both `docket-status.sh` commit sites carry `--` pathspecs; a wedged tree yields
+  `blocked-wedged-tree`, which `--must-land` treats as not-landed (Half 2 items 1–2).
+- Default-deny shape-keyed guard over pathspec-less commits in `scripts/**`: masked text,
+  per-segment predicate, explicit driver set, keyed exceptions with existence floor,
+  mutation-tested (Half 2 item 3).
+- Every metadata-writing skill's commit instruction carries `Stage by explicit path`; the
+  convention's grant sentence states the rule; coverage is derived from the `docket.sh preflight`
+  command string; both guard groups mutation-tested, matching reflow-proof (Half 3).
+- Skill size-budget raises satisfy change 0201's in-diff argument and change 0137's rounding
+  (Half 3 item 4).
+
 ## Architecture decision — survivable, not impossible
 
 **Keep the single shared `.docket` worktree; make collisions survivable with a bounded,
@@ -79,10 +105,20 @@ below) via the standard build-time `docket-adr` step; list it in `adrs:`.
 In `scripts/lib/docket-preflight.sh`'s metadata-worktree sync (both the worktree and the
 main-mode branch of the sync function):
 
+**Invariant.** The sync may report success when local metadata is already current with, or ahead
+of, the fetched remote. It must integrate remote changes only when the tracked tree is clean and
+no git operation is in progress in the shared tree, and it must never mutate another agent's
+in-flight state to get there (no autostash, no reset). Everything below implements this
+invariant; review the implementation against it.
+
 1. **Fetch first, then decide.** After `git fetch origin <metadata_branch>`, compare
    `HEAD` to the fetched remote ref. **If the local branch is already up to date (or ahead only),
    skip the `pull --rebase` entirely** — a dirty tree with no remote movement must never fail the
    sync. This alone removes the most common collision (the other agent has not pushed yet).
+   **Diverged history** — local commits *and* remote movement — takes the rebase path in item 2:
+   local commits rebase onto the fetched remote, under the same precondition (clean tracked
+   tree). Both branches of the sync function must behave identically here; leaving it implicit is
+   how they drift apart.
 2. **If the remote moved and the rebase is needed**, attempt it; on failure, retry the whole
    fetch→compare→rebase step with backoff: **5 attempts, sleeping 2s, 4s, 8s, 8s between them
    (~22s total budget)**. The collision window is "another agent between edit and push"; most
@@ -90,6 +126,17 @@ main-mode branch of the sync function):
    preflight later covers the long tail. The budget is a constant at the top of the function with
    a comment naming this rationale (per `tolerance-constant-calibrated-on-one-machine`: record the
    reasoning, not just the number).
+
+   **Classify each failure before sleeping; spend retries only on classes that can self-heal.**
+   Retryable: a dirty tracked tree (another agent mid-edit), an in-progress rebase/merge that
+   *predates this attempt* (another agent mid-sync — transient unless it is a crashed agent's
+   leftover, which only the exhaustion diagnostic can call wedged), and fetch/ref-lock races.
+   Not retryable: a content conflict raised by *this attempt's own* rebase — deterministic, it
+   fails identically on every retry — so `git rebase --abort` (restoring the pre-attempt state)
+   and fail immediately with the conflict named, spending no further budget. Fetch failures retry
+   undiscriminated: git's exit codes do not portably separate an auth or bad-remote failure from
+   a transient network one, and stderr-pattern matching is locale/version-fragile — the
+   diagnostic carries the last stderr instead (accepted limit, stated).
 3. **Never `--autostash`** — on a shared tree it stashes another agent's in-flight edits (#0110).
    Assert this with a repo grep in the test file (no `--autostash` in any metadata-tree sync
    path).
@@ -97,13 +144,19 @@ main-mode branch of the sync function):
    today): name whether the blocker was a dirty tracked tree (`git status --porcelain
    --untracked-files=no` non-empty — likely another agent mid-write, or a human's leftover; retry
    later or inspect) or an in-progress rebase/merge in the shared tree (wedged — needs a human),
-   versus an ordinary fetch/network failure. Untracked-only files must not count as dirty
-   (ADR-0046's two-sided lesson).
+   versus an ordinary fetch/network failure — **and always name the last attempt's failure
+   class**, so the caller sees what actually blocked the sync, not just that five attempts died.
+   Untracked-only files must not count as dirty (ADR-0046's two-sided lesson).
 
-No lock file, no new state, no new config knob. Tests: a fixture-repo test exercising (a)
+No lock file, no new state, no new config knob. **The backoff sleep must be injectable** — an
+overridable function or env hook read by the retry loop — so fixture tests drive all five
+attempts without real waiting; the suite's per-file wall-clock budgets make a real ~22s of sleeps
+in a test a defect, not a style choice. Tests: a fixture-repo test exercising (a)
 dirty-tree + no-remote-movement → success without rebase; (b) dirty-tree + remote moved →
 retries, then succeeds once the fixture "other agent" commits; (c) exhaustion → non-zero with the
-discriminating diagnostic; (d) untracked-only file never fails the sync.
+discriminating diagnostic naming the last failure class; (d) untracked-only file never fails the
+sync; (e) a conflicting local commit → immediate abort-and-fail without burning the retry
+budget, tree restored to its pre-attempt state.
 
 ## Half 2 — scope the two commits; wedged-tree posture
 
@@ -136,6 +189,13 @@ discriminating diagnostic; (d) untracked-only file never fails the sync.
    exact-token git subcommand under an explicit driver set that includes `git`, `$GIT`, **and**
    `docket-config.sh`'s local `g` wrapper (which writes the metadata branch). Mutation-test the
    guard: strip a pathspec from one of the two fixed sites and watch it redden.
+
+   **Contract boundary, stated:** the guard detects `commit` as an exact-token subcommand under
+   the explicit driver set only — it is not, and must not grow into, a general shell parser. A
+   commit issued through a driver spelling outside the set is outside the guard's contract
+   (accepted limit; the set is small because the repo's metadata-writing drivers are), and
+   introducing a new driver means extending the set in the same change — a review obligation,
+   not something the guard infers.
 
 ## Half 3 — scope the agent-authored commits; state the rule where it is read
 
@@ -232,9 +292,14 @@ carrying the meaning. The guard keys on this literal string.
 ## Out of scope
 
 - **Enforcing the discipline on the agent at runtime.** Half 3 guards what the *instructions* say,
-  not what a model does with them; no in-repo test can be the oracle for the latter. The mechanism
-  half of the protection is Half 2 plus the fact that a correctly-scoped commit by every *other*
-  agent already makes an unscoped one harmless to them.
+  not what a model does with them; no in-repo test can be the oracle for the latter. A pre-commit
+  hook in the shared checkout was considered (2026-08-11 review) and rejected: a hook sees the
+  index, not how it was staged, so a "suspicious broad staging" heuristic cannot be told apart
+  from a legitimate multi-file human commit — and it is the runtime-machinery class the
+  architecture decision declines. The tradeoff, bluntly: **the agent-facing layer (Half 3)
+  reduces risk; the script layer (Half 2) provides the enforceable guarantee** — plus the fact
+  that a correctly-scoped commit by every *other* agent already makes an unscoped one harmless
+  to them.
 - **Shrinking the write→commit window to a single tool call.** Rejected above and still rejected:
   it narrows a race rather than bounding damage, and unlike the pathspec rule it has no checkable
   shape. (The 2026-08-09 incident is not evidence for it — with pathspec-scoped commits on the
@@ -327,3 +392,16 @@ human's deferred audit trail.
     #0253 as the consolidation target, so the follow-up is mechanically findable. Do **not** add a
     `depends_on: [253]` — either order builds; only the implementation detail differs. Group 1's
     section-scoped asserts inherit the same requirement.
+15. **2026-08-11 spec-review refinements (human-directed).** (a) Retry classification moved ahead
+    of the sleep: only transient-contention classes spend budget, and this attempt's own rebase
+    conflict aborts and fails immediately. The reviewer's "stop immediately on an in-progress
+    merge/rebase" was narrowed: a *pre-existing* in-progress operation is another agent mid-sync —
+    the transient state the retry exists for — so it retries, and only the exhaustion diagnostic
+    calls it wedged. Auth/invalid-remote fetch classification was declined as
+    locale/version-fragile; the diagnostic carries the last stderr instead. (b) The sync
+    invariant is stated explicitly at the head of Half 1, and diverged-history behavior is
+    written down for both sync-function branches. (c) The backoff sleep must be injectable for
+    tests. (d) The guard's not-a-shell-parser contract boundary is stated. (e) Runtime
+    enforcement (pre-commit hook / staging wrapper) declined — reasoning now recorded in Out of
+    scope, with the risk-vs-guarantee split stated bluntly. (f) A requirements checklist heads
+    the spec as the normative summary; the body remains the decision record.
