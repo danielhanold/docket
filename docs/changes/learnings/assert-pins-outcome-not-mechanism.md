@@ -2,9 +2,9 @@
 slug: assert-pins-outcome-not-mechanism
 hook: "An assert on the outcome alone (\"it failed\") is satisfied by every unrelated way of failing — pin the mechanism with positive evidence the fixture is already collecting."
 topics: [testing, guards, mutation]
-changes: [228]
+changes: [228, 208]
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-11
 promotion_state: candidate
 promoted_to:
 ---
@@ -49,3 +49,19 @@ Sibling to [[guards-are-code]] (a guard that never saw red is decoration) and
   `[ "$(cat "$empty_runtime_log")" = "tests/test_*.sh" ]` and, in the same pass, deleted the
   `! grep -qi -- "nullglob"` text guard as strictly weaker than the behavioral pin it now
   duplicated. Two asserts out, one mechanism pin in; net assert count unchanged.
+- 2026-08-11 (#208, PR #195) — **The sharpening: a diagnostic literal pins a mechanism only if it
+  is unique to that mechanism.** Hardening runner-dispatch added two independent gates over the
+  same argument. The gate-1 assert did the right-looking thing — it pinned a literal out of gate 1's
+  diagnostic rather than a bare non-zero status — yet the mutation probe found it stayed **green
+  with gate 1 deleted**, because gate 2 fires on the same input and its diagnostic contains the
+  same literal. Two independent gates whose behavior on the overlapping input is
+  *indistinguishable* is a vacuity trap that no amount of reading finds: both asserts look
+  mechanism-pinned, both are green, and the pair covers what looks like two properties while
+  actually covering one. Only deleting gate 1 and watching nothing redden surfaces it. So the
+  satisfying-set question has a second half — not just "what else could make this pass?" but "what
+  else in this file *emits this same string*?" The fix is to pick evidence the sibling gate cannot
+  produce (gate 1's own distinct wording, or an input gate 2 does not reject at all), and the
+  general rule is that adding a gate beside an existing one obliges you to mutation-test **both**,
+  because the new one can retroactively make the old one's assert vacuous. Two of the change's
+  three vacuous asserts came from this same overlap shape. Kin to
+  [[duplicated-gate-copies-the-whole-predicate]] and [[guards-are-code]].

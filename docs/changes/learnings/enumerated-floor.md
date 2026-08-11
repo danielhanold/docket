@@ -2,9 +2,9 @@
 slug: enumerated-floor
 hook: "Every hand-written enumeration is a floor, not the set — derive the sites from a whole-repo grep, then treat that grep as a floor too."
 topics: [process, inventory, review]
-changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 78, 84, 96, 98, 99, 167, 184, 255, 244]
+changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 78, 84, 96, 98, 99, 167, 184, 255, 244, 208]
 created: 2026-06-12
-updated: 2026-08-08
+updated: 2026-08-11
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -153,3 +153,15 @@ enumerated.
   of restating them, so the guard cannot drift from the rule it guards. The one enumeration that
   survives — the (script, file-argument) corpus map — is a known floor, and its logged follow-up is
   to derive the corpus from the walker's directory literal instead.
+- 2026-08-11 (#208, PR #195) — **A whole POPULATION of the surface, not a stray site.** The plan
+  hand-counted "three skill sites" carrying dispatch prose for the new `worktree-scope:` fact and
+  built the change around that number. A whole-repo grep found a **fourth population**:
+  `cursor-rules/dispatch/`, a per-harness rendering of the same dispatch prose that carries none of
+  the skill directory's path shape, so every inventory rooted at `skills/` was structurally blind to
+  it. The distinguishing detail against the rest of this family is the *unit* of the miss — the
+  earlier entries missed individual sites inside a surface the enumerator was already looking at;
+  here an entire parallel surface was outside the search root. When a repo renders one source of
+  prose into multiple harness-specific trees, the grep must be rooted at the repo, not at the tree
+  you happen to be editing — which is exactly what the promoted rule says, and exactly what a
+  hand-count skips past. Filed as a direct instance rather than a new lesson: the rule was already
+  in `CLAUDE.md`, promoted, and it still lost to a number written into a plan.
