@@ -55,7 +55,10 @@ config export is a hard error; gates the resulting `BOOTSTRAP` verdict (`PROCEED
 value is an unknown-verdict hard error); then (2) in `DOCKET_MODE=docket`, ensures the metadata
 worktree (`METADATA_WORKTREE`, default `.docket`) exists — creating it from `METADATA_BRANCH` or
 `origin/METADATA_BRANCH` if missing — then fetches and rebase-pulls `METADATA_BRANCH` inside it; in
-non-docket mode, rebase-pulls the current checkout directly. A non-zero return from
+non-docket mode, syncs the current checkout by the identical path against
+`origin/INTEGRATION_BRANCH` — which the checkout must already **be** on (preflight aborts rather
+than syncing a topic branch), and which is required, never defaulted to `METADATA_BRANCH` (the mode
+keyword `main` there, not a branch name). A non-zero return from
 `docket_preflight` (config export failure, bootstrap gate, or an unusable metadata worktree) is a
 hard error and this script exits 1 immediately — with **one carve-out** (change 0247).
 
@@ -233,7 +236,10 @@ Both the `add` and the `commit` carry a `--` pathspec, and the step is gated on 
 already being in progress in that shared tree — the same two rules as `commit_and_push_generated`,
 for the same reason (change 0247): the metadata worktree is shared, so an unscoped commit sweeps up
 whatever another agent had staged, and a commit into a mid-rebase tree writes onto that rebase's
-detached HEAD. **This step never aborts the close-out.** A failure emits `sweep-failed <id>
+detached HEAD. The two sites order the wedged probe differently, deliberately: this step probes
+**inside** its `status --porcelain -- "$archived"` gate, so a wedge is reported only when there is
+actually something to commit, whereas `commit_and_push_generated` probes **before** its
+nothing-to-commit check and so reports a wedge even on a clean tree. **This step never aborts the close-out.** A failure emits `sweep-failed <id>
 render-change-links commit-failed`, `… push-failed`, or `… blocked-wedged-tree` on the report
 channel and the sweep **continues** to `terminal-publish.sh` and `cleanup-feature-branch.sh`. That posture is
 deliberate: a stale link block is cosmetic and self-heals on a manual re-render, whereas an aborted
@@ -455,7 +461,7 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 | `board inline clean` | Inline render matched the existing `BOARD.md` AND there is nothing unpushed touching it — no local commit on `BOARD.md` sits ahead of its upstream. Attests the board is caught up on the remote, not merely that the working tree is clean. |
 | `board inline changed pushed` | `BOARD.md` changed and the commit was pushed successfully. |
 | `board inline changed push-failed` | `BOARD.md` changed and committed locally, but push retries were exhausted or a rebase conflict outside `BOARD.md` forced an abort. Unchanged by change 0247, and still the **sole retryable** board outcome — the new `blocked-wedged-tree` token below was added beside it, never split out of it. |
-| `board inline blocked-wedged-tree` | The shared metadata worktree has a rebase or merge in progress, so the board pass committed and pushed **nothing** (change 0247). Distinct from `changed push-failed` and deliberately **not** retryable: committing into a mid-rebase tree writes onto that rebase's detached HEAD, and the push-retry loop's own `rebase --abort` would destroy another agent's in-flight work. `--must-land` treats it as **not landed** (non-zero exit → the autonomous caller STOPs and abort-reports); a flagless best-effort caller logs it and continues. Clearing it is a human act — finish or abort the in-progress operation. Emitted from **either** layer: `commit_and_push_generated`'s own probe when the wedge appeared mid-pass, or the Step-0 wedged-tree carve-out (see Behavior, steps 1–2) when it was already there — same line, and on the Step-0 path no other pass runs and no `pass ok` follows. |
+| `board inline blocked-wedged-tree` | The shared metadata worktree has a rebase or merge in progress, so the board pass pushed **nothing** — and committed nothing either when the pre-commit probe fired, though the in-loop probe (a wedge opening after that first probe) may leave an unpushed local commit behind (change 0247). Distinct from `changed push-failed` and deliberately **not** retryable: committing into a mid-rebase tree writes onto that rebase's detached HEAD, and the push-retry loop's own `rebase --abort` would destroy another agent's in-flight work. `--must-land` treats it as **not landed** (non-zero exit → the autonomous caller STOPs and abort-reports); a flagless best-effort caller logs it and continues. Clearing it is a human act — finish or abort the in-progress operation. Emitted from **either** layer: `commit_and_push_generated`'s own probe when the wedge appeared mid-pass, or the Step-0 wedged-tree carve-out (see Behavior, steps 1–2) when it was already there — same line, and on the Step-0 path no other pass runs and no `pass ok` follows. |
 | `board github ok` | `github-mirror.sh` exited 0. |
 | `board github failed` | `github-mirror.sh` exited non-zero. |
 | `board off` | `BOARD_SURFACES` is the reserved token `none` — the board is deliberately disabled (`board_surfaces: []`); no surface was rendered and nothing was committed. Positive evidence of a deliberate skip, never silence. |
@@ -484,7 +490,7 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 | `learnings index clean` | The rendered index matched the existing `README.md` AND there is nothing unpushed touching it — the same two-part attestation as `board inline clean`. |
 | `learnings index changed pushed` | The learnings index changed and the commit was pushed successfully. |
 | `learnings index changed push-failed` | The learnings index changed and committed locally, but push retries were exhausted or a rebase conflict outside the index forced an abort. Unchanged by change 0247 — still the sole retryable learnings outcome. |
-| `learnings index blocked-wedged-tree` | As `board inline blocked-wedged-tree`, for the learnings-index pass: the shared metadata worktree was mid-rebase/merge, so nothing was committed or pushed. Not retryable; the pass continues best-effort and the index self-heals on the next pass once a human has cleared the operation. Emitted from either layer, as the board line above — and never under `--board-only`, which runs no learnings pass at all. |
+| `learnings index blocked-wedged-tree` | As `board inline blocked-wedged-tree`, for the learnings-index pass: the shared metadata worktree was mid-rebase/merge, so nothing was pushed — and nothing committed when the pre-commit probe fired, while the in-loop probe may leave an unpushed local commit. Not retryable; the pass continues best-effort and the index self-heals on the next pass once a human has cleared the operation. Emitted from either layer, as the board line above — and never under `--board-only`, which runs no learnings pass at all. |
 | `learnings over-cap — needs curation (<n> active, cap <n>)` | Active findings (`retained` + `candidate`, `promoted` excluded) exceed `learnings.cap` — needs human curation. Emitted whenever the render succeeded, failed, or was clean — never gated on the render outcome. |
 | `learnings promotion-pending <n> — needs you` | `<n>` active findings carry `promotion_state: candidate` — needs a human promotion decision. Same independence from the render outcome as the over-cap line above. |
 | `pass ok` | The orchestrator ran to completion. Always the last line of a successful pass; **stdout is never empty**. A hard error exits non-zero and never prints it, so it is a reliable completion signal — read it as the completion marker, not the exit code, since the two paths that exit 0 without completing a pass (`--digest-only` and the wedged-tree carve-out, both under Exit codes) are told apart from a real pass by this line's absence and nothing else. |

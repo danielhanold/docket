@@ -129,7 +129,13 @@ logical_lines(){
 # ONE predicate for both outcomes, deliberately: scan_commits reports `scoped` and `unscoped` off
 # this single call, so the two cannot drift into disagreeing about what a commit call is.
 segment_is_commit_call(){
-  local seg="$1" tok driver_seen=0 subcmd=""
+  local seg="$1" tok driver_seen=0 subcmd="" glob_was_off=0
+  # Word-split the segment WITHOUT pathname expansion: a `*` in a scanned line would otherwise be
+  # globbed against the process CWD, making the token stream depend on the filesystem the guard
+  # runs from. Restore the caller's setting rather than leaving -f set — this file has code after
+  # these functions.
+  case "$-" in *f*) glob_was_off=1 ;; esac
+  set -f
   for tok in $seg; do
     if [ "$driver_seen" -eq 0 ]; then
       case " $DRIVERS " in *" $tok "*) driver_seen=1 ;; esac
@@ -143,6 +149,7 @@ segment_is_commit_call(){
     if [ "$subcmd" = "__skip__" ]; then subcmd=""; continue; fi
     subcmd="$tok"; break
   done
+  [ "$glob_was_off" -eq 1 ] || set +f
   [ "$driver_seen" -eq 1 ] || return 1
   # EXACT-TOKEN match. `commit-tree` (docket-config.sh's orphan bootstrap, via the `g` wrapper) is
   # NOT a commit: it writes a commit object from a tree with no index and no pathspec concept, so a
@@ -162,14 +169,19 @@ segment_is_scoped(){
 # <basename>:<this>, never a line number (ADR-0054): line numbers rot fastest in exactly the files
 # that move most, and nothing can check them.
 driver_target(){
-  local seg="$1" prev="" tok
+  local seg="$1" prev="" tok glob_was_off=0
+  # Same no-glob word split as segment_is_commit_call, and the same restore.
+  case "$-" in *f*) glob_was_off=1 ;; esac
+  set -f
   for tok in $seg; do
     if [ "$prev" = "-C" ]; then
       tok="${tok#\"}"; tok="${tok%\"}"; tok="${tok#\$}"; tok="${tok#\{}"; tok="${tok%\}}"
+      [ "$glob_was_off" -eq 1 ] || set +f
       printf '%s' "$tok"; return 0
     fi
     prev="$tok"
   done
+  [ "$glob_was_off" -eq 1 ] || set +f
   printf '%s' "-"
 }
 
