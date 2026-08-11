@@ -277,6 +277,14 @@ board_pass_must_land(){
 # below it is unsafe in that state: the push/rebase retry loop's own `rebase --abort` would
 # destroy that other agent's in-flight rebase, which is the one failure here nothing can walk back.
 #
+# That first probe is POINT-IN-TIME, so it is not the whole guarantee: the render->commit->push
+# window is seconds wide, and a wedge that opens inside it reaches the retry loop. The loop
+# therefore carries a SECOND probe of its own (see `re-probe HERE` below), which emits the same
+# token — with one difference this contract has to state rather than imply: on that second probe a
+# local commit may ALREADY exist. Nothing is ever pushed under this token, but "nothing is
+# committed" is the first probe's promise alone. Both spellings mean the same thing to a caller:
+# NOT LANDED, and a human clears it.
+#
 # Committing is unsafe too, and the `--` pathspec this change adds to the commit makes it MORE so,
 # not less. Measured on git 2.55: mid-rebase-with-conflicts, `git commit -m … -- "$rel"` exits 0
 # and writes a commit onto the rebase's detached HEAD, where the old pathspec-less form was refused
@@ -311,11 +319,29 @@ commit_and_push_generated(){
     "$GIT" -C "$mw" commit -q -m "$commit_msg" -- "$rel" >&2 || true
   fi
 
-  local attempt=0 pushed=0
+  local attempt=0 pushed=0 blocked=0
   while [ $attempt -lt 5 ]; do
     attempt=$((attempt + 1))
     if "$GIT" -C "$mw" push >&2 2>&1; then
       pushed=1
+      break
+    fi
+    # The top-of-function probe answered for the instant the function STARTED; re-probe HERE, in
+    # front of the only statement below that can start a rebase. A rebase or merge in progress at
+    # THIS point is never one this function started, and that is what makes the placement — not
+    # merely the probe — load-bearing. The loop only ever arrives here before its first
+    # `pull --rebase`, after a `pull --rebase` that returned 0, or after a `rebase --continue` that
+    # returned 0, and each of those leaves no operation in progress. Moved DOWN beside the
+    # `rebase --abort` calls instead, the same probe would refuse to abort the rebase this loop
+    # itself just started on a conflict, stranding a wedge this function owns.
+    #
+    # It NARROWS the window rather than closing it: a rebase another agent starts between this
+    # probe and git's own start-up inside `pull --rebase` is still indistinguishable from ours —
+    # both rebase the same shared branch onto the same remote, so nothing in the rebase state names
+    # an owner. What it removes is the seconds-wide render->commit->push window, which is where the
+    # loss actually happens.
+    if _docket_tree_wedged "$GIT" "$mw"; then
+      blocked=1
       break
     fi
     if ! "$GIT" -C "$mw" pull --rebase >&2 2>&1; then
@@ -341,7 +367,9 @@ commit_and_push_generated(){
       fi
     fi
   done
-  if [ $pushed -eq 1 ]; then
+  if [ $blocked -eq 1 ]; then
+    printf 'blocked-wedged-tree\n'
+  elif [ $pushed -eq 1 ]; then
     printf 'changed-pushed\n'
   else
     printf 'changed-push-failed\n'

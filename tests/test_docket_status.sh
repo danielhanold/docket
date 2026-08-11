@@ -4463,6 +4463,147 @@ assert "0247 TOCTOU: the pass stays best-effort and still completes" \
   '[ $rc -eq 0 ] && grep -qxF "pass ok" "$tmp/toctou-run.txt"'
 git -C "$toctou_mw" rebase --abort >/dev/null 2>&1 || :
 
+# (4) THE WINDOW INSIDE THE RETRY LOOP — the wedge opens after commit_and_push_generated's OWN
+# top-of-function probe already answered "clear". That probe is point-in-time and the
+# render->commit->push window is seconds wide, so the loop re-probes before its `pull --rebase`;
+# without that second probe the loop reaches `rebase --abort` on a rebase it never started and
+# destroys another agent's in-flight work — the one failure on this surface nothing can walk back.
+#
+# The injection point is the GIT seam on the `push` subcommand (the same seam the `git-nopush.sh`
+# and `git-race.sh` fixtures above already use), which fires at exactly the right instant: after
+# the top probe answered, after the board was rendered AND committed, and before the loop decides
+# what to do about the rejected push. The shim builds a REAL interrupted rebase — a planted
+# `rebase-merge` marker directory is not what git's own behaviour keys on, and in a linked worktree
+# `<dir>/.git` is a pointer FILE, so `mkdir -p "<dir>/.git/rebase-merge"` is a permanently vacuous
+# fixture.
+git_repo_setup "$tmp/loopwedge-case"
+git clone -q "$tmp/loopwedge-case/origin.git" "$tmp/loopwedge-case/work" 2>/dev/null
+loopw_mw="$tmp/loopwedge-case/work"
+seed_changes_fixture "$loopw_mw"
+printf 'ours\n' > "$loopw_mw/conflict.txt"
+git -C "$loopw_mw" -c user.email=t@t -c user.name=t add docs/changes conflict.txt
+git -C "$loopw_mw" -c user.email=t@t -c user.name=t commit -q -m "seed changes fixture"
+git -C "$loopw_mw" push -q origin main
+git clone -q "$tmp/loopwedge-case/origin.git" "$tmp/loopwedge-case/work2" 2>/dev/null
+
+# Every non-push subcommand passes through to real git, so the top-of-function probe, the render,
+# the commit and the loop's own re-probe all see reality. `push` NEVER reaches the wire: it wedges
+# the tree once and then reports the rejection, which is what carries control into the retry loop.
+cat > "$tmp/git-wedge-on-push.sh" <<EOF
+#!/usr/bin/env bash
+sub="\$1"; [ "\$sub" = "-C" ] && sub="\$3"
+[ "\$sub" = push ] || exec git "\$@"
+if [ ! -f "$tmp/loopwedge-case/.wedged" ]; then
+  : > "$tmp/loopwedge-case/.wedged"
+  printf 'theirs\n' > "$tmp/loopwedge-case/work2/conflict.txt"
+  git -C "$tmp/loopwedge-case/work2" -c user.email=t@t -c user.name=t commit -q -am theirs >/dev/null 2>&1
+  git -C "$tmp/loopwedge-case/work2" push -q origin main >/dev/null 2>&1
+  printf 'mine\n' > "$loopw_mw/conflict.txt"
+  git -C "$loopw_mw" -c user.email=t@t -c user.name=t commit -q -am "mine (local, unpushed)" >/dev/null 2>&1
+  git -C "$loopw_mw" fetch -q origin main >/dev/null 2>&1
+  git -C "$loopw_mw" -c user.email=t@t -c user.name=t rebase FETCH_HEAD >/dev/null 2>&1
+fi
+echo "git-wedge-on-push: push rejected" >&2
+exit 1
+EOF
+chmod +x "$tmp/git-wedge-on-push.sh"
+
+loopw_gitdir="$(git -C "$loopw_mw" rev-parse --absolute-git-dir 2>/dev/null)"
+assert "0247 loop-wedge: fixture precondition — the tree starts clean, on a branch and UNWEDGED" \
+  '[ -n "$loopw_gitdir" ] && [ -d "$loopw_gitdir" ] \
+   && [ ! -d "$loopw_gitdir/rebase-merge" ] && [ ! -d "$loopw_gitdir/rebase-apply" ] \
+   && git -C "$loopw_mw" symbolic-ref -q HEAD >/dev/null \
+   && [ -z "$(git -C "$loopw_mw" status --porcelain --untracked-files=no)" ]'
+
+write_board_fixture inline
+(cd "$loopw_mw" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" GIT="$tmp/git-wedge-on-push.sh" \
+  "$SCRIPT" --board-only >"$tmp/loopw-run.txt" 2>"$tmp/loopw-run-err.txt")
+rc=$?
+assert "0247 loop-wedge: fixture precondition — the push shim fired, so the loop was really entered" \
+  '[ -f "$tmp/loopwedge-case/.wedged" ]'
+# WHICH probe answered. The top-of-function probe refuses BEFORE committing, so a board commit
+# existing at all is proof the function got past it and the token below came from the loop's
+# re-probe. `--reflog --all`: the commit is mid-replay on a detached HEAD here, and would stop
+# being reachable from HEAD entirely the moment an (unguarded) `rebase --abort` ran. Captured into
+# a variable first — never `git log | grep -q`, whose early exit SIGPIPEs the producer under this
+# file's `set -o pipefail` (AGENTS.md).
+loopw_log="$(git -C "$loopw_mw" log --reflog --all --format=%s 2>/dev/null)"
+assert "0247 loop-wedge: the board commit was made, so the TOP probe passed and the loop's answered" \
+  'grep -qxF "docket: board refresh" <<<"$loopw_log"'
+assert "0247 loop-wedge: Step 0 stayed SILENT — the tree was unwedged when preflight ran" \
+  '! grep -qF "a rebase or merge is in progress" "$tmp/loopw-run-err.txt"'
+# The load-bearing pair. Defeat the loop's re-probe and BOTH go red together: the loop falls through
+# to `pull --rebase`, finds a conflict that does not touch BOARD.md, and aborts the other agent's
+# rebase — reporting the retryable push-failed token over work it just destroyed.
+assert "0247 loop-wedge: a wedge that opens inside the retry loop reports blocked-wedged-tree" \
+  '[ "$(grep -cxF "board inline blocked-wedged-tree" "$tmp/loopw-run.txt")" -eq 1 ]'
+assert "0247 loop-wedge: the other agent's rebase is left in progress, never aborted out from under it" \
+  '[ -d "$loopw_gitdir/rebase-merge" ] || [ -d "$loopw_gitdir/rebase-apply" ]'
+assert "0247 loop-wedge: it is never mislabelled as the retryable push-failed token" \
+  '! grep -qF "board inline changed push-failed" "$tmp/loopw-run.txt"'
+assert "0247 loop-wedge: the pass stays best-effort and still completes" \
+  '[ $rc -eq 0 ] && grep -qxF "pass ok" "$tmp/loopw-run.txt"'
+git -C "$loopw_mw" rebase --abort >/dev/null 2>&1 || :
+
+# (5) THE MIRROR IMAGE, and the reason the re-probe's PLACEMENT is load-bearing rather than just
+# its presence: a rebase THIS FUNCTION started, conflicting outside BOARD.md, must still be aborted.
+# The probe sits in front of `pull --rebase` — the only statement that can start one — so every
+# rebase below it is the loop's own. Moved down beside the `rebase --abort` calls instead, the probe
+# would refuse to abort the loop's own conflicted rebase: this run would report blocked-wedged-tree
+# and STRAND the shared worktree mid-rebase, which is the failure the fix exists to prevent, merely
+# self-inflicted. Both asserts below go red under that misplacement.
+git_repo_setup "$tmp/ownrebase-case"
+git clone -q "$tmp/ownrebase-case/origin.git" "$tmp/ownrebase-case/work" 2>/dev/null
+ownr_mw="$tmp/ownrebase-case/work"
+seed_changes_fixture "$ownr_mw"
+printf 'ours\n' > "$ownr_mw/conflict.txt"
+git -C "$ownr_mw" -c user.email=t@t -c user.name=t add docs/changes conflict.txt
+git -C "$ownr_mw" -c user.email=t@t -c user.name=t commit -q -m "seed changes fixture"
+git -C "$ownr_mw" push -q origin main
+git clone -q "$tmp/ownrebase-case/origin.git" "$tmp/ownrebase-case/work2" 2>/dev/null
+printf 'theirs\n' > "$tmp/ownrebase-case/work2/conflict.txt"
+git -C "$tmp/ownrebase-case/work2" -c user.email=t@t -c user.name=t commit -q -am "theirs"
+# work's own competing edit, plus a change-file mutation so the render really produces a new
+# BOARD.md and the loop is reached with something to push.
+sed -i.bak 's/Alpha feature/Alpha feature v4/' "$ownr_mw/docs/changes/active/0001-alpha.md"
+rm -f "$ownr_mw/docs/changes/active/0001-alpha.md.bak"
+printf 'mine\n' > "$ownr_mw/conflict.txt"
+git -C "$ownr_mw" -c user.email=t@t -c user.name=t add docs/changes conflict.txt
+git -C "$ownr_mw" -c user.email=t@t -c user.name=t commit -q -m "alpha v4 + mine (local, unpushed)"
+# Same race shape as the conflict-case wrapper above: work2's push lands right AFTER the startup
+# sync's fetch/pull, so Step 0 sees a converged remote and the orchestrator's OWN push is the one
+# rejected — deterministically, with no real timing.
+cat > "$tmp/git-ownrebase-race.sh" <<EOF
+#!/usr/bin/env bash
+raced="$tmp/ownrebase-case/.raced"
+sub="\$1"
+[ "\$sub" = "-C" ] && sub="\$3"
+if { [ "\$sub" = pull ] || [ "\$sub" = fetch ]; } && [ ! -f "\$raced" ]; then
+  git "\$@"; rc=\$?
+  touch "\$raced"
+  git -C "$tmp/ownrebase-case/work2" push -q origin main
+  exit \$rc
+fi
+exec git "\$@"
+EOF
+chmod +x "$tmp/git-ownrebase-race.sh"
+
+write_board_fixture inline
+(cd "$ownr_mw" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" GIT="$tmp/git-ownrebase-race.sh" \
+  GIT_EDITOR=true "$SCRIPT" --board-only >"$tmp/ownr-run.txt" 2>"$tmp/ownr-run-err.txt")
+rc=$?
+ownr_gitdir="$(git -C "$ownr_mw" rev-parse --absolute-git-dir 2>/dev/null)"
+assert "0247 own-rebase: fixture precondition — the race really fired, so a push was rejected" \
+  '[ -f "$tmp/ownrebase-case/.raced" ]'
+assert "0247 own-rebase: a conflict outside BOARD.md still reports the retryable push-failed token" \
+  '[ "$(grep -cxF "board inline changed push-failed" "$tmp/ownr-run.txt")" -eq 1 ]'
+assert "0247 own-rebase: the loop's OWN rebase was aborted, never stranded behind the re-probe" \
+  '[ -n "$ownr_gitdir" ] && [ ! -d "$ownr_gitdir/rebase-merge" ] && [ ! -d "$ownr_gitdir/rebase-apply" ]'
+assert "0247 own-rebase: a rebase this function started is never called another agent's" \
+  '! grep -qF "blocked-wedged-tree" "$tmp/ownr-run.txt"'
+assert "0247 own-rebase: the pass stays best-effort and still completes" \
+  '[ $rc -eq 0 ] && grep -qxF "pass ok" "$tmp/ownr-run.txt"'
+
 # Report-line vocabulary: the new token is documented at both consumers and at the sweep's step 6a.
 assert "0247: docket-status.md documents the board blocked-wedged-tree line" \
   'grep -qF "board inline blocked-wedged-tree" "$REPO/scripts/docket-status.md"'
