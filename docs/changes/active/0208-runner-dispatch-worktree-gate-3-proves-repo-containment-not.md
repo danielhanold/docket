@@ -12,12 +12,12 @@ related: [209, 210, 220, 237, 270, 274]
 discovered_from: [206]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-runner-dispatch-worktree-gate-3-proves-repo-containment-not-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-11-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/runner-dispatch-worktree-gate-3-proves-repo-containment-not
-claimed_at: 2026-08-11T01:43:47Z
+claimed_at: 2026-08-11T02:05:00Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-runner-dispatch-worktree-gate-3-proves-repo-containment-not-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-runner-dispatch-worktree-gate-3-proves-repo-containment-not-design.md) |
+| Plan | [2026-08-11-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md](https://github.com/danielhanold/docket/blob/feat/runner-dispatch-worktree-gate-3-proves-repo-containment-not/docs/superpowers/plans/2026-08-11-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
