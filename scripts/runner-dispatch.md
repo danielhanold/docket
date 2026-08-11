@@ -39,9 +39,25 @@ docket.sh runner-dispatch --observe <key> --runner <name> --agent <agent> [--wor
 - `--worktree <path>` (optional) — the run anchor. Resolved through `docket_anchor_path`, so an
   absolute path passes through and a **relative** one joins to the main worktree (never to the
   caller's cwd). Absent ⇒ the main worktree, byte-identical to pre-0206 behavior. **Required for
-  `build-*` agents**: the `docket-build-task` contract requires a build worker to run inside its
-  feature worktree, on its branch, so a `build-*` delegation without it is a loud abort rather
-  than a silent run in the primary checkout on the integration branch.
+  feature-scoped agents** — those whose `agents/docket-<name>.md` source declares
+  `worktree-scope: feature` (change 0208): the `docket-build-task` contract requires a build worker
+  to run inside its feature worktree, on its branch, and the rebase resolver, the integration
+  repair worker and the three review rungs are feature-scoped for the same reason — two of them
+  commit — so a feature-scoped delegation without it is a loud abort rather than a silent run in
+  the primary checkout on the integration branch. The requirement is checked **before the verb**,
+  so an `--observe` of a feature-scoped dispatch needs the flag too; the generated shim bakes the
+  slot onto both its launch line and its observe line.
+
+  The nine feature-scoped agents are `build-economy`, `build-standard`, `build-premium`,
+  `build-max`, `rebase-resolver`, `integration-repair`, `review-lean`, `review-standard` and
+  `review-deep`; every other built-in agent declares `worktree-scope: metadata`. The **declaration**
+  is what both delegation gates key on — never a name list, which would be a second copy of the
+  same predicate drifting against the first. `sync-agents.sh` validates it at **generation**: a
+  source declaring no valid scope fails the run before any wrapper is written, which is the seam at
+  which an undeclared agent is still preventable. The facade reads it at **runtime** with a `sed -n`
+  frontmatter probe of `$AGENTS_SRC/docket-<agent>.md`, deliberately **tolerantly** — an off-shape
+  agent name, an unreadable source, or a missing key is metadata scope, so an unknown agent keeps
+  the adapter's more specific unknown-agent diagnostic instead of dying at the probe.
 - `--brief-file <path>` (optional, change 0277) — the caller's task brief, read from a file
   instead of shell argv. The caller writes it with a quoted-delimiter heredoc, so no part of the
   brief is quoted by a model and none of it is joined or reflowed on the way to the child. The
@@ -72,8 +88,16 @@ docket.sh runner-dispatch --observe <key> --runner <name> --agent <agent> [--wor
   `[A-Za-z0-9._-]` shape `--runner` is held to), and an unknown one is a **usage error**, never a
   verdict.
 - `-- <args…>` — forwarded to the adapter as caller task context.
+- **A value-taking flag in final position is a loud refusal, never a hang.** Each of `--runner`,
+  `--agent`, `--model`, `--effort`, `--worktree` guards `[ $# -ge 2 ]` before consuming its value
+  and dies with `<flag> requires a value`. `--observe` and `--brief-file` reach the same outcome
+  through a shift-then-conditional-shift arm, because `--observe` must keep its own "requires a
+  dispatch key" refusal reachable. Unguarded, the arm's `shift 2` would *fail* rather than truncate
+  at `$# = 1` — the loop has no trailing shift and the facade runs with no `set -e`, so the parse
+  loop would spin forever instead of refusing.
 
-Mock seams: `RUNNERS_DIR` (adapter directory), `GIT` (the git binary — read by
+Mock seams: `RUNNERS_DIR` (adapter directory), `AGENTS_SRC` (the built-in agent sources the facade
+reads `worktree-scope:` from, default `$SELF_DIR/../agents`), `GIT` (the git binary — read by
 `lib/docket-root.sh` and, since change 0271, by the launch verb's dispatch-time SHA read), and —
 for the run gate (change 0237) — `VERIFY_RUN` (the disposition reader, default
 `scripts/verify-run.sh`) and `DOCKET_FACADE` (the facade used for the metadata re-syncs on both
@@ -86,18 +110,37 @@ sides of the handoff, default `scripts/docket.sh`).
    (`scripts/lib/docket-root.sh`, ADR-0034). With no `--worktree` that is the repo's primary
    checkout, cwd-independent — correct even when invoked from `.docket/` or a `.worktrees/<slug>`
    feature worktree. With `--worktree` it is the named tree, and a relative value joins to the
-   main worktree so it too resolves identically from any cwd. Not in a repo ⇒ abort. Three loud
+   main worktree so it too resolves identically from any cwd. Not in a repo ⇒ abort. Four loud
    gates follow, all before the config read so an anchor failure never depends on config parsing:
-   `--worktree` is **required** for a `build-*` agent; the resolved anchor must be a **directory**;
-   and it must be a **worktree of this repository** (compared via `docket_main_worktree "$anchor"`,
-   whose empty result for a non-repo path fails the same comparison).
+   `--worktree` is **required** for a **feature-scoped** agent (one whose `agents/docket-<name>.md`
+   source declares `worktree-scope: feature`); the resolved anchor must be a **directory**; it must
+   be a **worktree top-level of this repository** — membership, not containment, so an ordinary
+   subdirectory of the main worktree is refused; and for a feature-scoped agent it must not be the
+   **main worktree** itself, the primary checkout on the integration branch.
+
+   Membership is read out of a single `git worktree list --porcelain` capture taken from the
+   anchor, which yields both halves: same-repo is the **first** `worktree` line equalling the repo
+   root (git lists the main worktree first), and membership is an exact `worktree <anchor>` line.
+   The first-line comparison is deliberately not an anywhere-in-list match — `worktree list`
+   retains stale records for deleted-and-recreated directories, so a **foreign** repo's list can
+   carry a `worktree <this repo's root>` line for a path that is no longer its worktree, and an
+   anywhere-match would hand a delegated run a tree docket does not own. A non-repo path yields
+   empty output and fails that same first-line comparison, so the not-a-repo case still falls out
+   of this one check. The anchor is `pwd -P`-normalized first, which is load-bearing on macOS:
+   `/tmp` is a symlink to `/private/tmp` while git prints physical paths, so without it the exact
+   line match would reject valid worktrees.
+
+   The main-worktree gate is **exempt on the `--observe` anchor fallback**: an observation whose
+   worktree has since been removed deliberately re-anchors at the main worktree so the durable
+   record still reports (see *Observation*), and refusing there would turn a reported
+   `task-unverifiable worktree-removed` into a failed observation.
 3. **Resolve `runners.<name>:`** — per **key**, first layer that has the key wins, across the
    **main worktree's** `.docket.local.yml` > the **main worktree's** `.docket.yml` >
    `${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml`. The config tree is the main worktree —
    the `docket_main_worktree()` result the facade binds before any argument-dependent anchoring —
    and it is **independent of `--worktree`**: the machine-local layer is gitignored, so a feature
    worktree carries no copy of it, and an anchor-relative read would silently drop every
-   machine-local runner grant on exactly the `build-*` dispatches that *require* `--worktree`.
+   machine-local runner grant on exactly the feature-scoped dispatches that *require* `--worktree`.
    Each `key: value` scalar is exported
    as `DOCKET_RUNNER_CFG_<KEY>` (uppercased; `.`/`-` → `_`). The facade knows no runner's key
    names — each adapter defines and defaults its own (see its contract). `runners:` is **not**
@@ -190,7 +233,7 @@ traps are a deliberate deferral, not an oversight.
 ### Launch (change 0271)
 
 `--launch` runs steps 1–3 above unchanged — same validation, same anchor gates (including the
-`build-*` `--worktree` requirement), same `runners.<name>:` resolution and `DOCKET_RUNNER_CFG_*`
+feature-scoped `--worktree` requirement), same `runners.<name>:` resolution and `DOCKET_RUNNER_CFG_*`
 exports — and then replaces step 4's blocking handoff. It reaches no *verdict*: the gate reads what
 a *finished* run left in git, and at launch time nothing has run yet. For an `implement-next`
 delegation it does record the gate's **attribution inputs**, which are only knowable before the
@@ -533,8 +576,10 @@ detachment *mechanism* was measured hermetically, no child CLI was.
 
 ## Exit codes
 
-- `1` — validation failure, unknown runner, not inside a git repository, or a rejected
-  `--worktree` (missing for a `build-*` agent, not a directory, or not a worktree of this repo).
+- `1` — validation failure (including a value-taking flag given in final position with no value),
+  unknown runner, not inside a git repository, or a rejected `--worktree` (missing for a
+  feature-scoped agent, not a directory, not a worktree top-level of this repo, or — for a
+  feature-scoped agent — the main worktree itself).
 - `1` — a `--launch` that could not be established: the dispatch root or key could not be created,
   the detached child never appeared, or it did not separate into its own process group (in which
   case the child is `TERM`-ed first — the facade never reports a dispatch a teardown would kill).

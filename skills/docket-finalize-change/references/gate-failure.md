@@ -6,7 +6,7 @@ demand from `docket-finalize-change/SKILL.md`; sibling files are not auto-loaded
 
 ## The two agents (split at rebase-completion)
 
-`docket-rebase-resolver` resolves conflicts *during* the rebase and never runs tests; `docket-integration-repair` owns the **red suite** *after* the rebase lands, regardless of cause. Neither wraps a skill (only `docket-convention`); both are dispatched **foreground at the model/effort its wrapper resolves** — never a literal tier. An authored repair from `docket-integration-repair` is what fires the sign-off rule below; pure conflict resolution does not.
+`docket-rebase-resolver` resolves conflicts *during* the rebase and never runs tests; `docket-integration-repair` owns the **red suite** *after* the rebase lands, regardless of cause. Neither wraps a skill (only `docket-convention`); both are dispatched **foreground at the model/effort its wrapper resolves** — never a literal tier. Name the **feature worktree** in the dispatch payload for either agent — both are feature-scoped, so reached through a runner delegation each receives that worktree through the facade's `--worktree` flag, and a delegated dispatch that names none is refused. An authored repair from `docket-integration-repair` is what fires the sign-off rule below; pure conflict resolution does not.
 
 On a gate-step-2 conflict, the resolver reconciles every hunk until the rebase completes; an **ambiguous conflict** it can't resolve aborts the rebase and the gate abort-and-reports. On a gate-step-5 red, the repair agent root-causes and writes a minimal fix in at most two attempts; green → the sign-off rule below; stuck or cannot reach green → abort-and-report.
 
