@@ -547,7 +547,9 @@ assert "0271: that precedence is itself idempotent" \
 # ---- 0284: a child that DIED without a sentinel is detected on THIS observation ----
 # THE HEADLINE. Before change 0284 the predicate was "no sentinel ⇒ still running", so this exact
 # fixture returned 4 on every pass until the 60-minute budget expired. The assert is therefore a
-# pair: not-4, AND in seconds rather than in budget-minutes.
+# pair: not-4, AND reached while the budget it would otherwise have waited out is still unspent —
+# see the second half's own note for why that is measured off the RECORD's clock and not off the
+# call's wall-clock duration.
 make_fixture
 FAKE_SLEEP=300 FAKE_TAIL=0 FAKE_RC=0
 KEY="$(launch status)"
@@ -563,14 +565,29 @@ waited=0
 while kill -0 -"$lpgid" 2>/dev/null && [ "$waited" -lt 100 ]; do sleep 0.1; waited=$(( waited + 1 )); done
 assert "0284: fixture sanity — the group is gone" '! kill -0 -"$lpgid" 2>/dev/null'
 assert "0284: fixture sanity — and no sentinel was ever written" '[ ! -f "$DDIR/done" ]'
-vstart=$(date +%s)
-BUDGET=60 out="$(observe "$KEY" 2>&1)"; rc=$?
-velapsed=$(( $(date +%s) - vstart ))
+BUDGET=60
+out="$(observe "$KEY" 2>&1)"; rc=$?
 assert "0284: a vanished child does NOT observe as still running" '[ "$rc" != "4" ]'
 assert "0284: it is terminal — result unavailable (1)" '[ "$rc" = "1" ]'
-assert "0284: and it was detected in seconds, not at the far end of the 60m budget" '[ "$velapsed" -lt 30 ]'
+# THE PAIRED HALF (change 0284 review, finding 4). It used to be wall-clock elapsed `< 30`, which
+# measured nothing: `--observe` is by contract ONE short read that never blocks, so the DEFECTIVE
+# pre-0284 predicate ("no sentinel ⇒ still running") returned its wrong `4` in a fraction of a
+# second too. What the headline actually claims is that the TERMINAL verdict was reached WITHOUT
+# the budget having been spent — a statement about the clock THE FACADE READS, which is the launch
+# record's own `started_at` measured against the budget in force. Converted through
+# `verify-run --iso-to-epoch`, the converter the facade's own budget arithmetic uses, so no second
+# parser can disagree with it. It reddens on a fixture whose budget HAS lapsed (drop `BUDGET` to 0
+# above and watch it), which is exactly the drift that would quietly turn this arm into a
+# re-measurement of budget exhaustion and leave the `cause=child-vanished` assert below reading as
+# luck rather than as the liveness leg's own verdict.
+vstarted="$("$DOCKET_BASH_PATH" "$ROOT/scripts/verify-run.sh" --iso-to-epoch \
+  "$(sed -n 's/^started_at=//p' "$DDIR/launch")" 2>/dev/null)"
+assert "0284: fixture sanity — the launch's start time converts, so the bound below is measurable" \
+  '[ -n "$vstarted" ]'
+assert "0284-f4: the terminal verdict was reached with the ${BUDGET}m budget demonstrably UNSPENT" \
+  '[ $(( $(date -u +%s) - vstarted )) -lt $(( BUDGET * 60 )) ]'
 assert "0284: the diagnostic says the child died without a sentinel" \
-  'grep -qiE "without .*sentinel|vanished" <<<"$out"'
+  'grep -qiE "without .*sentinel" <<<"$out"'
 assert "0284: and it names the dispatch dir so the orphans it did not reap can be found" \
   'grep -qF "$DDIR" <<<"$out"'
 # NO FABRICATED EXIT CODE (spec § Testing case 5, shape-keyed rather than wording-enumerated): the
@@ -729,6 +746,27 @@ assert "0284: NOTHING was signalled — the canary is still running" 'kill -0 "$
 assert "0284: and the diagnostic still points a human at the dispatch dir" 'grep -qF "$DDIR" <<<"$out"'
 reap "$canary"
 
+# ---- 0284 review, finding 3: the pattern that means "disposed as a VANISHING" ------
+# The two negatives below used to key on the word "vanished", which `--observe` NEVER prints on any
+# path: it lives only inside the `killed` FILE as `cause=child-vanished`, which neither assert
+# reads. So the negative half was green on the shipped code and on a mutant that took the wrong
+# branch alike — decoration, not a measurement.
+#
+# What the vanished disposition actually speaks is `say_vanished`'s class-keyed `fate` clause, and
+# BOTH of its legs are covered here (change 0284's review split the classes, so keying on one leg
+# would go vacuous the moment the other were taken). The headline is NOT usable as the key: a
+# vanished dispatch whose work landed in git prints `COMPLETE` too, so only the fate clause
+# separates the two dispositions.
+VANISHED_FATE_RE='died without writing a sentinel|wrote no sentinel'
+# AND THE PATTERN IS PINNED TO THE SOURCE, so a reworded `fate` reddens HERE rather than silently
+# re-hollowing every negative keyed on it — the same failure this finding is repairing. Read out of
+# `say_vanished`'s own case arms, so a THIRD class added later is covered or reddens.
+say_fates="$(sed -n '/say_vanished()/,/^  }/p' "$FACADE" | sed -n 's/.*fate="\([^"]*\)".*/\1/p')"
+assert "0284-f3: contract — say_vanished speaks at least the two evidence classes' fates" \
+  '[ "$(grep -c . <<<"$say_fates")" -ge 2 ]'
+assert "0284-f3: contract — every fate it can speak is matched by the negatives' pattern" \
+  '[ -n "$say_fates" ] && ! grep -qvE "$VANISHED_FATE_RE" <<<"$say_fates"'
+
 # ---- 0284: the SENTINEL OUTRANKS liveness -----------------------------------------
 # Pins step 1's precedence against the new step 3: a dead child WITH a `done` sentinel takes the
 # sentinel disposition, unchanged. Without this the new leg could silently capture completed runs.
@@ -750,7 +788,7 @@ assert "0284: fixture sanity — and its group is gone (so liveness alone would 
 out="$(observe "$KEY" 2>&1)"; rc=$?
 assert "0284: a dead child WITH a sentinel takes the sentinel disposition (0)" '[ "$rc" = "0" ]'
 assert "0284: and it is worded as a completion, not as a vanishing" \
-  'grep -qi "complete" <<<"$out" && ! grep -qi "vanished" <<<"$out"'
+  'grep -qi "complete" <<<"$out" && ! grep -qiE "$VANISHED_FATE_RE" <<<"$out"'
 assert "0284: no killed marker is written over a completed run" '[ ! -f "$DDIR/killed" ]'
 
 # ---- 0284: the step-4 RE-READ closes the probe's own TOCTOU window ----------------
@@ -785,8 +823,8 @@ mv -f "$DDIR/done.partial" "$DDIR/done"
 wait "$bpid"; rc=$?
 berr="$(cat "$SBX/berr")"
 assert "0284: a sentinel that lands inside the probe window is honoured, not disposed as dead" '[ "$rc" = "0" ]'
-assert "0284: and it reports the COMPLETED disposition, never child-vanished" \
-  'grep -qi "complete" <<<"$berr" && ! grep -qi "vanished" <<<"$berr"'
+assert "0284: and it reports the COMPLETED disposition, never a vanishing" \
+  'grep -qi "complete" <<<"$berr" && ! grep -qiE "$VANISHED_FATE_RE" <<<"$berr"'
 assert "0284: no killed marker was written over the sentinel that arrived" '[ ! -f "$DDIR/killed" ]'
 
 # ---- 0284: the barrier is inert unless armed on ITS OWN point name ----------------
