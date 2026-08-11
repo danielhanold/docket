@@ -2,23 +2,23 @@
 id: 221
 slug: assert-executes-backticks-in-its-test-description-so-a-verba
 title: assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell
-status: in-progress
+status: implemented
 priority: high
 type: fix
 created: 2026-08-05
-updated: 2026-08-11
+updated: 2026-08-12
 depends_on: []
 related: []
 discovered_from: [212]
 adrs: [91]
 spec: docs/superpowers/specs/2026-08-07-assert-executes-backticks-in-its-test-description-so-a-verba-design.md
 plan: docs/superpowers/plans/2026-08-11-assert-backtick-source-hygiene.md
-results:
+results: docs/results/2026-08-11-assert-executes-backticks-in-its-test-description-so-a-verba-results.md
 trivial: false
 auto_groomable: true
 branch: feat/assert-executes-backticks-in-its-test-description-so-a-verba
-claimed_at: 2026-08-11T23:58:00Z
-pr:
+claimed_at: 2026-08-12T00:20:00Z
+pr: https://github.com/danielhanold/docket/pull/202
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-assert-executes-backticks-in-its-test-description-so-a-verba-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-assert-executes-backticks-in-its-test-description-so-a-verba-design.md) |
 | Plan | [2026-08-11-assert-backtick-source-hygiene.md](https://github.com/danielhanold/docket/blob/feat/assert-executes-backticks-in-its-test-description-so-a-verba/docs/superpowers/plans/2026-08-11-assert-backtick-source-hygiene.md) |
+| Results | [2026-08-11-assert-executes-backticks-in-its-test-description-so-a-verba-results.md](https://github.com/danielhanold/docket/blob/feat/assert-executes-backticks-in-its-test-description-so-a-verba/docs/results/2026-08-11-assert-executes-backticks-in-its-test-description-so-a-verba-results.md) |
+| PR | [#202](https://github.com/danielhanold/docket/pull/202) |
 | ADRs | [ADR-0091](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0091-every-backtick-in-a-double-quoted-region-is-a-violation.md) |
 <!-- docket:artifacts:end -->
 
