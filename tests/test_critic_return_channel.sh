@@ -114,6 +114,25 @@ assert "Step 3: no verdict maps to the Tier B abstain" \
 assert "Step 3: the Tier B outcome is the abstain exit" \
   'grep -qE "Tier B[^.]{0,60}abstain" <<<"$step3_flat"'
 
+# WHICH abstain (change 0281 finding 2). The routed exit is the WHOLE Abstain exit, `auto_groomable`
+# flip included — not a diagnostic-only variant that leaves the flag armed. The flip is what the
+# skill's *Termination & concurrency* proof spends: a stub left armed is still autonomous-eligible,
+# so the drain re-selects it and the no-verdict route becomes a spin. Bounded, period-free gap keeps
+# the flip inside the clause that names the exit, so a stray `auto_groomable` elsewhere in Step 3
+# cannot satisfy it.
+assert "Step 3: the no-verdict abstain is the FULL exit, auto_groomable flip included" \
+  'grep -qE "Abstain\*\* exit[^.]{0,100}auto_groomable" <<<"$step3_flat"'
+
+# ...and the exit it routes to must legitimately COVER that route. Exit 3's precondition read "any
+# needs-human-context verdict", which a no-verdict return definitionally is NOT — a route landing on
+# an exit whose own precondition excludes it is an invitation to improvise a fourth exit.
+# Sliced on the numbered list item alone: Step 3 also says "**Abstain**" AND says "no verdict", so a
+# whole-file (or bare-marker) match would be satisfied by Step 3's own prose and never read exit 3.
+abstain_exit="$(grep -E -- '^3\. \*\*Abstain\*\*' "$AUTOGROOM")"
+assert "Step 4 exit 3 located (slice anchor holds)" '[ -n "$abstain_exit" ]'
+assert "Step 4 exit 3 admits a no-verdict return, not verdicts alone" \
+  'grep -qiE "no.verdict" <<<"$(flat "$abstain_exit")"'
+
 # Regression anchor: the pre-existing never-yield qualifier on the SECOND critic round must
 # survive this edit (it is what tests/test_composition_wiring.sh binds).
 assert "Step 3: the critic re-check is still dispatched foreground" \

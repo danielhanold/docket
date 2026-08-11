@@ -1026,10 +1026,37 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # — and 66 against the standing 66 budget was ZERO margin, so the row had to move even though the
 # post-reflow file is no larger than the ceiling; 1422 words -> 1450 (28 words, clear of the
 # 25-word floor). Convention 6418 words -> 6450 (32 words, also clear of the floor).
+# Change 0281's review fix (finding 2) raises skills/docket-auto-groom/SKILL.md's WORD budget
+# 1450 -> 1500; its LINE budget is untouched (66 actual against 70 — the additions are clauses
+# inside existing single-line paragraphs). The added prose settles a contract-semantics question
+# the spec never surfaced: what the new no-verdict route permanently does to a HEALTHY stub on a
+# transient plumbing fault. Step 3 now says that route takes Step 4's Abstain exit IN FULL, the
+# `auto_groomable: false` flip included, and says why — left armed, the stub is still
+# autonomous-eligible, so the drain re-selects it and *Termination & concurrency*'s provable
+# termination is forfeit. Exit 3's precondition is widened past "any needs-human-context verdict",
+# which a no-verdict return definitionally is not.
+# COMPRESSED FIRST, per the 0127 precedent: 4 words came out of the same paragraph before the
+# number moved (the repeated "re-dispatching", and "the critic is" -> "it is", in the
+# safe-to-re-dispatch sentence). A deeper trim is not available — the entry above records that this
+# section's slack was already spent one round earlier and that a further attempt was BACKED OUT,
+# and what remains is the residue tests/test_critic_return_channel.sh binds phrase by phrase.
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above: the no-references/ argument in
+# the 0281 entry above carries over unchanged (skills/docket-auto-groom/ has no references/
+# directory, and minting one is refused because a rule that must intervene at the moment of action
+# cannot live in a file read ahead of the act). This addition is strictly stronger on that point:
+# it is a parenthetical INSIDE the sentence that routes the abstain, plus a precondition INSIDE the
+# exit that route lands on — prose that cannot leave its own clause, let alone the file.
+# skills/docket-convention/SKILL.md was the other candidate and is also refused: the convention owns
+# the abstain rule generically (the flip, the blocked section, the re-arm protocol), whereas what is
+# stated here is which of THIS skill's routes reaches that rule, and the invariant the flip pays for
+# is this skill's own, stated two sections down in *Termination & concurrency*.
+# Set per the rounding rule above from the measured post-edit actual: 1451 words -> the next
+# multiple of 50 is 1500 (49 words of margin, clear of the 25-word floor). 1451 against the standing
+# 1450 was a one-word breach, so the row had to move.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
-skills/docket-auto-groom/SKILL.md                           70 1450
+skills/docket-auto-groom/SKILL.md                           70 1500
 skills/docket-brainstorm/SKILL.md                           84  692
 skills/docket-build/SKILL.md                               380 3700
 skills/docket-build/references/delegation-execution.md      85  850
