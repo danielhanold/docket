@@ -2,7 +2,7 @@
 id: 284
 slug: runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi
 title: 'runner-dispatch --observe is sentinel-only: adopt 0282''s identity-checked liveness probe'
-status: in-progress
+status: implemented
 priority: high
 type: fix
 created: 2026-08-10
@@ -13,13 +13,13 @@ discovered_from: [282]
 adrs: [87, 88]
 spec: docs/superpowers/specs/2026-08-10-runner-dispatch-observe-liveness-probe-design.md
 plan: docs/superpowers/plans/2026-08-11-runner-dispatch-observe-liveness-probe.md
-results:
+results: docs/results/2026-08-11-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi-results.md
 trivial: false
 auto_groomable:
 branch: feat/runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi
-pr:
+pr: https://github.com/danielhanold/docket/pull/199
 blocked_by:
-claimed_at: 2026-08-11T09:38:00Z
+claimed_at: 2026-08-11T12:14:00Z
 reconciled: true
 ---
 
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-10-runner-dispatch-observe-liveness-probe-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-10-runner-dispatch-observe-liveness-probe-design.md) |
 | Plan | [2026-08-11-runner-dispatch-observe-liveness-probe.md](https://github.com/danielhanold/docket/blob/feat/runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi/docs/superpowers/plans/2026-08-11-runner-dispatch-observe-liveness-probe.md) |
+| Results | [2026-08-11-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi-results.md](https://github.com/danielhanold/docket/blob/feat/runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi/docs/results/2026-08-11-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi-results.md) |
+| PR | [#199](https://github.com/danielhanold/docket/pull/199) |
 | ADRs | [ADR-0087](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md), [ADR-0088](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0088-halt-exit-code-is-a-property-of-run-state-not-discovery-path.md) |
 <!-- docket:artifacts:end -->
 
