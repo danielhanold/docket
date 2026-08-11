@@ -42,7 +42,7 @@
 | [0292](active/0292-shared-tested-mutation-probe-harness-take-the-landing-check.md) | Shared, tested mutation-probe harness — take the landing check out of each plan author's care | `high` | `feat` | needs-brainstorm |
 | [0293](active/0293-test-gate-run-stop-s-term-escalation-fixture-deadline-is-at.md) | test_gate_run_stop's TERM-escalation fixture deadline is at exact parity with stop_run's own TERM budget | `high` | `fix` | needs-brainstorm |
 | [0294](active/0294-shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru.md) | Shrink AGENTS.md's always-loaded footprint: script-ify the run gate's caller procedure and de-duplicate the dispatch table | `medium` | `refactor` | needs-brainstorm |
-| [0295](active/0295-make-render-change-links-sh-genuinely-offline-safe-stop-re-r.md) | Make render-change-links.sh genuinely offline-safe — stop re-resolving config with a network fetch | `medium` | `fix` | needs-brainstorm |
+| [0295](active/0295-make-render-change-links-sh-genuinely-offline-safe-stop-re-r.md) | Make render-change-links.sh genuinely offline-safe — stop re-resolving config with a network fetch | `high` | `fix` | needs-brainstorm |
 | [0296](active/0296-shard-tests-test-docket-status-sh-its-runtime-row-is-at-the.md) | Shard tests/test_docket_status.sh — its runtime row is at the table's hard 60s ceiling | `medium` | `chore` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
