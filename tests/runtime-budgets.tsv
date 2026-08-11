@@ -98,6 +98,7 @@ tests/test_runner_dispatch_observe.sh	30	parallel
 tests/test_runner_opencode.sh	10	parallel
 tests/test_runtime_budgets.sh	10	parallel
 tests/test_script_contracts_coverage.sh	10	parallel
+tests/test_shared_worktree_commit_scope.sh	10	parallel
 tests/test_skill_facade_wiring.sh	10	parallel
 tests/test_skill_fork_dispatch.sh	10	parallel
 tests/test_skill_handoff_precedence.sh	10	parallel

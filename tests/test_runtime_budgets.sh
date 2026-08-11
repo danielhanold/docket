@@ -25,7 +25,14 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1705 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1715 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1705 -> 1715 (change 0247): a NEW test file bringing its own row — the first
+                    # of the two cases the table header names as a legitimate move of the total.
+                    # tests/test_shared_worktree_commit_scope.sh is the shared-metadata-worktree
+                    # commit-scope guard; it measures 1.50/1.43/1.43s standalone, so the sizing rule
+                    # (round up to the next multiple of 5, add a 5s margin, minimum 10) puts it at
+                    # the floor, 10. It is a static scan of scripts/**/*.sh with no git fixtures, so
+                    # its cost is one awk per file and does not grow with the suite.
                     # 1695 -> 1705 (change 0247): a row that was never sized on the WHOLE file —
                     # the same case as change 0277's entry below, NOT a file that got slower.
                     # tests/test_docket_status.sh 35 -> 45. Under the sizing rule (round up to the
