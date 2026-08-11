@@ -637,6 +637,9 @@ n=$(wc -l < "${AD_LOG:?}" | tr -d ' ')
 # adapter that exits non-zero (the asymmetry case (f) alone does not reach).
 adrc=""
 [ -n "${AD_RC_FILE:-}" ] && [ -f "$AD_RC_FILE" ] && adrc="$(sed -n "${n}p" "$AD_RC_FILE")"
+# 0277: snapshot any brief handed to us, so a case can assert on a file the facade deletes as soon
+# as the call returns. The last invocation to receive one wins, which is the re-dispatch's.
+prev=""; for a in "$@"; do [ "$prev" = "--brief-file" ] && cp "$a" "${SBX_COPY:?}"; prev="$a"; done
 exit "${adrc:-0}"
 AD
   chmod +x "$SBX/runners/ad.sh"
@@ -681,6 +684,7 @@ run_gate(){  # $@ = facade args
   ( cd "$SBX" && RUNNERS_DIR="$SBX/runners" DOCKET_HARNESS_ROOT="$SBX" \
       SNAP_DIR="$SNAP" AD_LOG="$SBX/ad.log" VR_LOG="$SBX/vr.log" ORDER_LOG="$SBX/order.log" \
       VERIFY_RUN="$SBX/fake-verify-run.sh" DOCKET_FACADE="$SBX/fake-facade.sh" \
+      SBX_COPY="$SBX/redispatch-brief-copy" \
       bash "$FACADE" "$@" )
 }
 
@@ -885,5 +889,39 @@ for v in run-complete run-unclaimed; do
     '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "1" ]'
   rm -rf "$SBX"
 done
+
+# (i) 0277: the re-dispatch must not open a SECOND payload channel. The gate appends its retry
+#     context as trailing argv; with a brief file in play that is exactly the both-channels shape
+#     the adapters refuse, so the facade would defeat its own gate on a path no caller can see.
+#     The retry context rides INSIDE a combined brief instead — never dropped, never a second
+#     channel.
+make_gate_fixture
+printf '\n' > "$SNAP/current"; printf '%s\n' "9 $FUT" > "$SNAP/after.1"; printf '%s\n' "9 $FUT" > "$SNAP/after.2"
+printf 'run-incomplete 9 pr\n' > "$SNAP/verdict.9"
+BF="$SBX/gate-brief.txt"
+printf 'original-brief-line\n' > "$BF"
+run_gate --runner ad --agent implement-next --brief-file "$BF" >/dev/null 2>&1
+# ad.sh logs "$*" per invocation, one line per run: line 1 = first dispatch, line 2 = re-dispatch.
+first="$(sed -n 1p "$SBX/ad.log")"
+second="$(sed -n 2p "$SBX/ad.log")"
+assert "0277 redispatch: the gate re-dispatched exactly once" \
+  '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "2" ]'
+assert "0277 redispatch: the first dispatch used the brief channel" 'grep -qF -- "--brief-file" <<<"$first"'
+assert "0277 redispatch: the re-dispatch also used the brief channel" 'grep -qF -- "--brief-file" <<<"$second"'
+# THE DEFECT ASSERT: no trailing argv rides alongside the brief file.
+assert "0277 redispatch: the re-dispatch appended NO trailing argv" \
+  '! grep -qF -- "Step 7 unmet" <<<"$second"'
+# ... and the retry context is not lost — it is inside the brief the adapter was handed.
+assert "0277 redispatch: the re-dispatch brief still carries the original brief" \
+  '[ -f "$SBX/redispatch-brief-copy" ] && grep -qxF -- "original-brief-line" "$SBX/redispatch-brief-copy"'
+assert "0277 redispatch: the re-dispatch brief carries the retry context" \
+  'grep -qF -- "Step 7 unmet" "$SBX/redispatch-brief-copy"'
+# The combined brief is a temp file, and the facade owns its whole lifetime: it must not survive the
+# re-dispatch. Read the path out of the logged argv rather than globbing TMPDIR, so a concurrent
+# run's leftovers cannot make this assert pass or fail for someone else's reason.
+retry_brief="$(sed -n 's/.*--brief-file \([^ ]*\).*/\1/p' <<<"$second")"
+assert "0277 redispatch: the combined brief is removed once the re-dispatch returns" \
+  '[ -n "$retry_brief" ] && [ ! -e "$retry_brief" ]'
+rm -rf "$SBX"
 
 exit $fail
