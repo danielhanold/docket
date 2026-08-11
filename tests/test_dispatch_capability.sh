@@ -57,7 +57,14 @@ assert "convention: Tier C halt adds no new status or field" \
 # membership in it IS the binding "this noun is carve-out-classified" (learnings:
 # prose-guard-binds-phrase-to-claim). A file-wide `grep -q docket-rebase-resolver "$CONV"` would be
 # satisfied by the *Composition* paragraph, which names both agents for an unrelated reason.
-carveout_para="$(awk 'BEGIN{RS="";} /carve-out/ {print; exit}' "$CONV")"
+# FLATTENED at the extraction point, matching tests/test_finalize_gate.sh's `gf_flat`: an awk
+# paragraph record (RS="") RETAINS its newlines, and grep is line-based — so a proximity pattern
+# below that can span a line break would silently double as a LINE-WRAP guard, reddening on a pure
+# re-flow of prose whose policy never changed (learnings: phrase-grep-over-wrapped-prose). The
+# whitespace-RUN collapse is load-bearing, not tidiness: `tr '\n' ' '` alone leaves an indented
+# continuation line four spaces from its predecessor, which a bounded `[^.]{0,N}` window still
+# counts. Every consumer of this variable is phrase- or proximity-scoped; none is line-anchored.
+carveout_para="$(awk 'BEGIN{RS="";} /carve-out/ {print; exit}' "$CONV" | tr '\n' ' ' | tr -s '[:space:]' ' ')"
 assert "convention: a carve-out paragraph exists (anchor for the asserts below)" \
   '[ -n "$carveout_para" ]'
 # The two carved-out nouns are NOT hand-listed here: the coherence loop below derives "the
@@ -124,8 +131,18 @@ AUTOGROOM="$REPO/skills/docket-auto-groom/SKILL.md"
 FIXLOOP="$REPO/skills/docket-implement-next/references/fix-loop.md"
 GATEFAIL="$REPO/skills/docket-finalize-change/references/gate-failure.md"
 
-# Print the single paragraph (blank-line-delimited block) containing the first anchor match.
-para_with(){ awk -v pat="$2" 'BEGIN{RS="";} $0 ~ pat {print; exit}' "$1"; }
+# Print the single paragraph (blank-line-delimited block) containing the first anchor match,
+# FLATTENED to one line — same hazard and same technique as `carveout_para` above and as
+# tests/test_finalize_gate.sh's `gf_flat`: `$p`'s only consumers are `[ -n "$p" ]`, two `grep -qF`
+# phrase asserts, and a bounded proximity assert, so none of them wants newlines, and leaving them
+# in makes the proximity assert a line-wrap guard.
+# The flattening happens INSIDE awk, before the anchor match, not in a `tr` pipe after it — because
+# the ANCHOR is the same hazard one step earlier. Every anchor below is a multi-word phrase, so a
+# re-flow that lands a wrap inside one (e.g. "red rebased suite\nwhose") makes `$0 ~ pat` miss and
+# reddens "dispatch site found" — caught by the width-80 leg of this fix's re-flow probe, after the
+# post-extraction `tr` form had already gone green at 60/72/100. `gsub` on a copy gives the match
+# and the printed record the same wrap-independent text.
+para_with(){ awk -v pat="$2" 'BEGIN{RS="";} {t=$0; gsub(/[[:space:]]+/," ",t); if (t ~ pat) {print t; exit}}' "$1"; }
 
 seen=0
 all_nouns=""
