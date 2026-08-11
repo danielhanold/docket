@@ -48,9 +48,9 @@ docket.sh runner-dispatch --observe <key> --runner <name> --agent <agent> [--wor
   so an `--observe` of a feature-scoped dispatch needs the flag too; the generated shim bakes the
   slot onto both its launch line and its observe line.
 
-  The nine feature-scoped agents are `build-economy`, `build-standard`, `build-premium`,
-  `build-max`, `rebase-resolver`, `integration-repair`, `review-lean`, `review-standard` and
-  `review-deep`; every other built-in agent declares `worktree-scope: metadata`. The **declaration**
+  The feature-scoped population is whatever `grep -l 'worktree-scope: feature' agents/` returns
+  (today: the four build profiles, the rebase resolver, the integration repair worker and the three
+  review rungs); every other built-in agent declares `worktree-scope: metadata`. The **declaration**
   is what both delegation gates key on — never a name list, which would be a second copy of the
   same predicate drifting against the first. `sync-agents.sh` validates it at **generation**: a
   source declaring no valid scope fails the run before any wrapper is written, which is the seam at
