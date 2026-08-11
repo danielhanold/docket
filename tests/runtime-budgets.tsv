@@ -36,6 +36,7 @@ tests/test_configured_bash_finalize.sh	10	parallel
 tests/test_consultant_brainstorm.sh	10	parallel
 tests/test_consuming_repo_scripts.sh	10	parallel
 tests/test_convention_extraction.sh	10	parallel
+tests/test_critic_return_channel.sh	10	parallel
 tests/test_cursor_contract_docs.sh	10	parallel
 tests/test_cursor_dispatch_rule.sh	10	parallel
 tests/test_cursor_permissions_docs.sh	10	parallel

@@ -25,7 +25,7 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1670 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1680 # the sum of every ceiling, seeded with the table from the measured serial run.
                     # 1660 -> 1670 (change 0277): a row that was never sized on the whole file —
                     # the 0242 case recorded further below, NOT a file that got slower.
                     # tests/test_runner_dispatch.sh 10 -> 20. Under the sizing rule (next multiple
