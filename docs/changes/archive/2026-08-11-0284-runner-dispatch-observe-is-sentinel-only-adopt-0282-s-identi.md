@@ -2,7 +2,7 @@
 id: 284
 slug: runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi
 title: 'runner-dispatch --observe is sentinel-only: adopt 0282''s identity-checked liveness probe'
-status: implemented
+status: done
 priority: high
 type: fix
 created: 2026-08-10
@@ -19,7 +19,7 @@ auto_groomable:
 branch: feat/runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi
 pr: https://github.com/danielhanold/docket/pull/199
 blocked_by:
-claimed_at: 2026-08-11T12:14:00Z
+claimed_at: 
 reconciled: true
 ---
 
