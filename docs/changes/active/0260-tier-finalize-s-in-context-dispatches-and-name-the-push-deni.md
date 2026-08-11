@@ -12,12 +12,12 @@ related: []
 discovered_from: [139, 100]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-denial.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/tier-finalize-s-in-context-dispatches-and-name-the-push-deni
-claimed_at: 2026-08-11T07:49:44Z
+claimed_at: 2026-08-11T07:54:56Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-design.md) |
+| Plan | [2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-denial.md](https://github.com/danielhanold/docket/blob/feat/tier-finalize-s-in-context-dispatches-and-name-the-push-deni/docs/superpowers/plans/2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-denial.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
