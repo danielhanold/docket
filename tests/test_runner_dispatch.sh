@@ -417,6 +417,83 @@ assert "0208(a): and that refusal is the worktree-of-this-repository gate" \
 assert "0208(a): the foreign tree never reached the adapter" '[ ! -s "$STALE/anchor.log" ]'
 rm -rf "$STALE"
 
+# ---- 0208 leg (b): the --worktree requirement keys on DECLARED scope ------------------
+# The pre-0208 gate matched `build-*` only, leaving `rebase-resolver`, `integration-repair` and the
+# three `review-*` rungs — two of which COMMIT — able to anchor silently in the main tree on the
+# integration branch. The facade reads `worktree-scope:` from the agent source, so this section
+# drives REAL agent names against the REAL agents/ directory; a fabricated name would test the
+# tolerant fallback instead of the gate.
+make_fixture
+git -C "$SBX" worktree add -q -b featslug "$SBX/.worktrees/featslug" >/dev/null 2>&1
+WT="$SBX/.worktrees/featslug"
+assert "0208(b): fixture sanity — the scope fixture is a REAL linked worktree" '[ -f "$WT/.git" ]'
+# Fixture sanity on the DECLARATION side too: every assert below reads the real agents/ tree through
+# the facade's AGENTS_SRC default, so a source that lost its `worktree-scope:` line would turn the
+# refusal legs green-for-the-wrong-reason (no declared scope => the tolerant metadata fallback).
+assert "0208(b): fixture sanity — review-lean really declares feature scope" \
+  'grep -qx "worktree-scope: feature" "$ROOT/agents/docket-review-lean.md"'
+assert "0208(b): fixture sanity — status really declares metadata scope" \
+  'grep -qx "worktree-scope: metadata" "$ROOT/agents/docket-status.md"'
+
+# Pinned on the MECHANISM, not merely on "it failed" and not on a bare `--worktree` mention: with
+# no --worktree the anchor defaults to the main worktree, so gate 3b's own main-tree refusal fires
+# on exactly these agents too, and ITS diagnostic contains the literal `--worktree` as well. A
+# rejection assert keyed on either of those stays green with gate 1 reverted to `build-*` — measured,
+# not reasoned about. The exit-code leg is kept as the floor (both gates gone => rc 0), but the
+# diagnostic clause is what separates gate 1 from the gate that shadows it.
+for a in rebase-resolver review-lean integration-repair; do
+  err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent "$a" 2>&1 >/dev/null )"; rc=$?
+  assert "0208(b): feature-scoped $a without --worktree is rejected" '[ "$rc" != "0" ]'
+  assert "0208(b): the $a rejection is gate 1's, naming the declared scope" \
+    'grep -qF -- "--worktree is required for feature-scoped agents" <<<"$err" &&
+     grep -qF -- "worktree-scope: feature" <<<"$err"'
+done
+
+for a in status adr; do
+  ( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent "$a" >/dev/null 2>&1 ); rc=$?
+  assert "0208(b): metadata-scoped $a without --worktree still succeeds" '[ "$rc" = "0" ]'
+done
+
+# A feature-scoped agent WITH a worktree reaches the adapter — the non-vacuity floor for the
+# refusals above, which are otherwise satisfied by a gate that rejects every dispatch.
+: > "$LOG"
+( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent review-lean \
+    --worktree "$WT" >/dev/null 2>&1 ); rc=$?
+assert "0208(b): feature-scoped review-lean WITH --worktree succeeds" '[ "$rc" = "0" ]'
+assert "0208(b): and its anchor is the feature worktree" 'grep -qxF -- "$WT" "$LOG"'
+
+# The MAIN-TREE rejection: membership alone still admits the repo root, and the repo root is the
+# one value the whole gate exists to reject — a feature-scoped worker anchored in the primary
+# checkout on the integration branch.
+err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent review-lean \
+    --worktree "$SBX" 2>&1 >/dev/null )"; rc=$?
+assert "0208(a): a feature-scoped agent anchored at the main worktree is rejected" '[ "$rc" != "0" ]'
+assert "0208(a): the main-tree rejection names the integration branch hazard" \
+  'grep -qiF "integration branch" <<<"$err"'
+
+# ...and it is SCOPED: a metadata-scoped agent may legitimately anchor at the main worktree, which
+# is the default anchor for every one of them. Without this leg the rejection could be widened to
+# every agent and nothing would redden.
+( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status \
+    --worktree "$SBX" >/dev/null 2>&1 ); rc=$?
+assert "0208(a): a metadata-scoped agent at the main worktree is still accepted" '[ "$rc" = "0" ]'
+
+# The tolerant fallback: an agent with no source file keeps the ADAPTER's more specific
+# unknown-agent diagnostic instead of dying at the facade's scope probe. Generation is the loud
+# seam for absence; the facade must not shadow the better message.
+# EMITTER-PINNED, not exit-code-pinned: the dispatch fails either way (the adapter refuses an
+# unknown agent), so `rc != 0` would stay green with the tolerance removed. What is asserted is
+# WHICH refusal it takes — the adapter's, naming the missing source, and not the facade's.
+err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent no-such-agent 2>&1 >/dev/null )"
+assert "0208(b): an agent with no source file keeps the ADAPTER's unknown-agent diagnostic" \
+  'grep -qF "no built-in agent source for" <<<"$err" && ! grep -qF "runner-dispatch:" <<<"$err"'
+# An OFF-SHAPE name is held to the same tolerance for the same reason ($AGENT becomes a path
+# component, so the probe skips it rather than dying): the refusal must still be the adapter's.
+err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent "../evil" 2>&1 >/dev/null )"
+assert "0208(b): an off-shape agent name is not rejected by the scope probe either" \
+  '! grep -qF "runner-dispatch:" <<<"$err"'
+rm -rf "$SBX"
+
 # ---- 0270: config locality — a MAIN-worktree grant survives a --worktree dispatch ----
 # Provenance (opencode): filed as "a machine-local `runners.opencode.permissions: auto-approve`
 # grant is invisible to a build-* delegation". It never was. The facade resolves runners.<name>.*
@@ -463,8 +540,15 @@ assert "0270: the grant exists ONLY in the main worktree" '[ ! -e "$WT/.docket.l
 # section fences (the config-locality read) — but without it this whole block would abort at that
 # gate and its asserts would read an empty argv log.
 ( cd "$WT" && PATH="$BIN:$PATH" DOCKET_HARNESS_ROOT="$SBX" \
-    bash "$FACADE" --runner codex --agent build-economy --worktree "$WT" -- "0270 fixture task" >/dev/null 2>&1 )
+    bash "$FACADE" --runner codex --agent build-economy --worktree "$WT" -- "0270 fixture task" >/dev/null 2>&1 ); rc=$?
 argv="$(cat "$LOG")"
+# 0208: the SUCCESS-path conjunct the 0206 review asked for — a feature-scoped agent WITH a real
+# --worktree exits 0. The argv asserts below are satisfied by any run that reached the adapter, so
+# they do not by themselves distinguish "succeeded" from "succeeded then failed afterwards"; and
+# without an exit-code leg the mutation where a feature-scoped dispatch aborts unconditionally
+# would leave this block red only by accident. It rides HERE rather than in a second fixture
+# because this block already builds the exact shape the leg needs.
+assert "0208(a): a feature-scoped agent WITH a real --worktree exits 0" '[ "$rc" = "0" ]'
 assert "0270: main-worktree grant reaches the child across a --worktree dispatch" \
   'grep -qxF -- "danger-full-access" <<<"$argv"'
 # Anchor pair. The positive leg pins the anchor handed to the adapter to the linked worktree, so

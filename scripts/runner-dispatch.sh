@@ -29,10 +29,16 @@
 # commits, and re-launching a detached child out of a repeated short read would race the very run
 # being observed.
 # Contract: scripts/runner-dispatch.md.
-# Mock seams: RUNNERS_DIR, GIT.
+# Mock seams: RUNNERS_DIR, GIT, AGENTS_SRC.
 set -uo pipefail
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUNNERS_DIR="${RUNNERS_DIR:-$SELF_DIR/runners}"
+# The built-in agent sources, read at runtime for one field only: `worktree-scope:` (change 0208).
+# The resolution path mirrors the adapters' own (`AGENTS_SRC="$SELF_DIR/../../agents"` in
+# scripts/runners/codex.sh), with the depth adjusted because the facade sits one level shallower.
+# Consumer repos run the facade out of DOCKET_SCRIPTS_DIR, so ../agents exists wherever it runs.
+# The env override is a MOCK SEAM this change introduces — the adapters have no such override.
+AGENTS_SRC="${AGENTS_SRC:-$SELF_DIR/../agents}"
 # The git seam. lib/docket-root.sh reads the same variable; naming it here makes it a seam of this
 # script too, which the change-0271 launch verb uses directly for the dispatch-time SHA.
 GIT="${GIT:-git}"
@@ -107,6 +113,24 @@ case "$MODEL" in inherit) MODEL="" ;; esac
 case "$RUNNER" in
   *[!A-Za-z0-9._-]*|*..*) die "invalid runner name '$RUNNER'" ;;
 esac
+# --- the agent's DECLARED worktree scope (change 0208) -------------------------------
+# `feature` means the agent must run inside the feature worktree it serves; anything else — including
+# a source file or key that cannot be read — is metadata scope. The read is TOLERANT by design and
+# the loud seam is elsewhere: sync-agents.sh's validate_agent_scopes refuses to generate a wrapper
+# for an undeclared agent, which is where absence is preventable. Dying here instead would shadow
+# the adapter's more specific unknown-agent diagnostic and would break a probe of any agent that is
+# not a built-in.
+# $AGENT becomes a PATH COMPONENT below, so it earns the same shape-keyed treatment `--runner` gets
+# above. It is skipped rather than fatal, for the tolerance reason just given: an off-shape name has
+# no declared scope and reaches the adapter, which names it precisely.
+AGENT_SCOPE=""
+case "$AGENT" in
+  *[!A-Za-z0-9._-]*|*..*) ;;
+  *) case "$(sed -n '/^worktree-scope:/{s/^worktree-scope:[[:space:]]*//;p;q;}' \
+              "$AGENTS_SRC/docket-$AGENT.md" 2>/dev/null)" in
+       feature) AGENT_SCOPE="feature" ;;
+     esac ;;
+esac
 ADAPTER="$RUNNERS_DIR/$RUNNER.sh"
 if [ ! -f "$ADAPTER" ]; then
   registered="$(ls "$RUNNERS_DIR" 2>/dev/null | sed -n 's/\.sh$//p' | tr '\n' ' ')"
@@ -141,19 +165,24 @@ if [ -n "$BRIEF_FILE" ]; then
   brief_body="$(cat "$BRIEF_FILE")"
   [ -n "${brief_body//[[:space:]]/}" ] || die "--brief-file '$BRIEF_FILE' holds only whitespace — it is empty as far as the child is concerned, and a child launched with no task does not error, it improvises"
 fi
-# Gate 1 — a build worker must run INSIDE its feature worktree. This is the one piece of
-# agent-family knowledge the facade gains; it is a RUNTIME requirement (the path is runtime data),
-# so sync-agents.sh's generation-time slot cannot substitute for it. Loud, matching the facade's
-# posture for an unknown --runner rather than its tolerant posture for a runners.<name>: value:
-# that tolerance exists so a cosmetic config typo cannot fail a live dispatch, whereas this is a
-# request the facade cannot serve correctly.
+# Gate 1 — a FEATURE-SCOPED worker must run INSIDE the worktree it serves. Keyed on the agent's
+# DECLARED scope (change 0208) rather than on a `build-*` name shape: `rebase-resolver`,
+# `integration-repair` and the three `review-*` rungs are equally feature-scoped and match no build
+# shape, and two of them commit. It is a RUNTIME requirement (the path is runtime data), so
+# sync-agents.sh's generation-time slot cannot substitute for it. Loud, matching the facade's posture
+# for an unknown --runner rather than its tolerant posture for a runners.<name>: value: that
+# tolerance exists so a cosmetic config typo cannot fail a live dispatch, whereas this is a request
+# the facade cannot serve correctly.
+if [ "$AGENT_SCOPE" = "feature" ]; then
+  [ -n "$WORKTREE" ] || die "--worktree is required for feature-scoped agents (agent '$AGENT' declares worktree-scope: feature — it must run in its feature worktree, not the main tree)"
+fi
+# The empty-payload refusal stays keyed on `build-*` and is NOT widened to the feature-scoped set
+# (change 0277, scope confirmed at 0208's reconcile). Its reason is build-specific: a build worker
+# with no task at all does not error, it invents work from whatever it can see in the worktree, and
+# the dispatch still looks successful. The other feature-scoped agents legitimately dispatch
+# payload-free, so widening this would refuse correct dispatches.
 case "$AGENT" in
   build-*)
-    [ -n "$WORKTREE" ] || die "--worktree is required for build-* agents (a build worker must run in its feature worktree, not the main tree)"
-    # A build worker with NO task at all is always the improvise defect change 0271 documented:
-    # it does not error, it invents work from whatever it can see in the worktree, and the
-    # dispatch still looks successful. Loud here; non-build agents (status, adr, …) legitimately
-    # dispatch payload-free and stay silent.
     # EXEMPT: `--observe`, which starts no child at all — it reads a result the matching
     # `--launch` already recorded. A payload there would have nothing to carry it to, and the
     # generated shim's observe line deliberately has no brief slot, so requiring one would refuse
@@ -222,6 +251,18 @@ wt_list="$("$GIT" -C "$ANCHOR" worktree list --porcelain 2>/dev/null)"
   || die "--worktree $ANCHOR is not a worktree of this repository"
 grep -qxF -- "worktree $ANCHOR" <<<"$wt_list" \
   || die "--worktree $ANCHOR is not a worktree of this repository (it is inside one, but a run anchor must be a worktree top-level)"
+# Gate 3b — and for a FEATURE-SCOPED agent it must not be the MAIN worktree. Membership alone still
+# admits `$REPO_ROOT`, which is the precise wrong value this whole gate exists to reject: the primary
+# checkout, sitting on the integration branch, handed to a worker that commits.
+# EXEMPT when the observe anchor fallback fired. `--observe` on a dispatch whose worktree has since
+# been removed deliberately reassigns ANCHOR to $REPO_ROOT so the durable record stays readable, and
+# the build leg then reports `task-unverifiable worktree-removed`. Refusing here would turn that
+# honest non-verdict into a failed observation — the record would be durable in storage and not in
+# service, the exact failure ANCHOR_FALLBACK was added to prevent.
+if [ "$AGENT_SCOPE" = "feature" ] && [ "$ANCHOR_FALLBACK" != 1 ]; then
+  [ "$ANCHOR" != "$REPO_ROOT" ] \
+    || die "--worktree resolves to the main worktree; a feature-scoped agent must not run in the primary checkout on the integration branch"
+fi
 export DOCKET_REPO_ROOT="$ANCHOR"
 
 # --- runners.<name>: config, per-key across layers (local > committed > global) -----
