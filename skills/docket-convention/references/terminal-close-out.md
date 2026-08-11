@@ -40,11 +40,12 @@ before the first read; every commit pushes immediately.
    ```
 
    Commit as a separate follow-on metadata commit on `metadata_branch` and push `origin/docket`.
-   **Ordering is load-bearing:** `terminal-publish.sh` copies the change file *from
-   `origin/docket`* — publishing before this commit lands would publish the stale block onto the
-   integration branch, defeating the re-point on the exact surface it targets. Never bundle this
-   into the step-1 archive commit (which must stay change-file-only and byte-identical across
-   concurrent archivers).
+   **Stage by explicit path** — that tree is shared, so a bare `add -A` commits another agent's
+   staged work under your message. **Ordering is load-bearing:** `terminal-publish.sh` copies the
+   change file *from `origin/docket`* — publishing before this commit lands would publish the stale
+   block onto the integration branch, defeating the re-point on the exact surface it targets. Never
+   bundle this into the step-1 archive commit (which must stay change-file-only and byte-identical
+   across concurrent archivers).
 
    **Also re-render the spec's back-link (change 0136)** in the same follow-on commit — re-stamp its
    `docket:backlink` block to point at the now-**archived** change path (the `active/ → archive/`
