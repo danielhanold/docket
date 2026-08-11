@@ -1,6 +1,6 @@
 # Backlog
 
-**288 changes** — 🟡 36 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 171 done · 🗑️ 76 killed
+**288 changes** — 🟡 36 proposed · ⚪ 4 deferred · ✅ 172 done · 🗑️ 76 killed
 
 ## 🟡 Proposed (36)
 
@@ -52,12 +52,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0208](active/0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) | Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards | `high` | `fix` | [#195](https://github.com/danielhanold/docket/pull/195) |  |
-
 ```mermaid
 graph TD
   0007
@@ -73,7 +67,6 @@ graph TD
   0166
   0172
   0192 --> 0195
-  0237 --> 0208
   0221
   0211 --> 0222
   0247
@@ -103,16 +96,16 @@ graph TD
   0288
   0192:::done
   0211:::done
-  0237:::done
   0282:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (247)</summary>
+<details><summary>✅🗑️ Archive — done + killed (248)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0277](archive/2026-08-11-0277-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode.md) | Delegated task briefs travel through shell argv, a lossy model-performed transformation | 2026-08-11 |
+| [0208](archive/2026-08-11-0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) | Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards | 2026-08-11 |
 | [0286](archive/2026-08-10-0286-gate-run-observe-poll-loops-strip-state-prefix.md) | Caller-authored gate-run --observe poll loops strip the state= prefix and never terminate | 2026-08-10 |
 | [0282](archive/2026-08-10-0282-launch-and-wait-contract-for-long-running-child-processes-li.md) | Launch-and-wait contract for long-running child processes — liveness-keyed, not marker-keyed | 2026-08-10 |
 | [0270](archive/2026-08-10-0270-fence-runner-config-locality-at-the-main-worktree.md) | Fence runner-config locality at the main worktree (regression test + contract correction) | 2026-08-10 |
@@ -130,7 +123,6 @@ graph TD
 | [0250](archive/2026-08-08-0250-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs.md) | Repo-scope detect-merged's fallback and guard the idle-secs duplication | 2026-08-08 |
 | [0249](archive/2026-08-08-0249-build-worker-contract-gate-execution-pointer-and-staging-dis.md) | Build-worker contract: gate-execution pointer and staging discipline | 2026-08-08 |
 | [0246](archive/2026-08-08-0246-make-the-docket-example-yml-guard-suite-bite.md) | Make the docket-example-yml guard suite bite | 2026-08-08 |
-| [0245](archive/2026-08-08-0245-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md) | Harden sync-agents wrapper generation and clear the 0192 findings | 2026-08-08 |
 | [0243](archive/2026-08-07-0243-make-test-suite-git-fixture-setup-fail-loudly-instead-of-fla.md) | Make test-suite git fixture setup fail loudly instead of flaking | 2026-08-07 |
 | [0241](archive/2026-08-07-0241-correspondence-guard-over-leg-c-s-by-value-duplicated-predic.md) | Correspondence guard over leg C's by-value duplicated predicate (ADR-0072 drift risk) | 2026-08-07 |
 | [0240](archive/2026-08-07-0240-audit-which-frontmatter-accessor-each-call-site-should-use-n.md) | Audit which frontmatter accessor each call site should use, now that three anchored read shapes exist | 2026-08-07 |
@@ -208,7 +200,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 38 done |
+| [2026-08](archive/) | 39 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
