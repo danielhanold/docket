@@ -1,6 +1,6 @@
 # Backlog
 
-**294 changes** — 🟡 38 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 175 done · 🗑️ 76 killed
+**294 changes** — 🟡 38 proposed · ⚪ 4 deferred · ✅ 176 done · 🗑️ 76 killed
 
 ## 🟡 Proposed (38)
 
@@ -54,12 +54,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0284](active/0284-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi.md) | runner-dispatch --observe is sentinel-only: adopt 0282's identity-checked liveness probe | `high` | `fix` | [#199](https://github.com/danielhanold/docket/pull/199) |  |
-
 ```mermaid
 graph TD
   0007
@@ -95,7 +89,6 @@ graph TD
   0279
   0280
   0283
-  0284
   0282 --> 0285
   0287
   0288
@@ -111,10 +104,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (251)</summary>
+<details><summary>✅🗑️ Archive — done + killed (252)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0284](archive/2026-08-11-0284-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi.md) | runner-dispatch --observe is sentinel-only: adopt 0282's identity-checked liveness probe | 2026-08-11 |
 | [0281](archive/2026-08-11-0281-auto-groom-s-critic-verdict-return-channel-fails-under-backg.md) | Auto-groom's critic verdict return channel fails under background dispatch | 2026-08-11 |
 | [0277](archive/2026-08-11-0277-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode.md) | Delegated task briefs travel through shell argv, a lossy model-performed transformation | 2026-08-11 |
 | [0275](archive/2026-08-11-0275-run-gate-has-no-runnable-path-for-slash-command-or-backgroun.md) | Run gate has no runnable path for slash-command or backgrounded implement-next dispatch | 2026-08-11 |
@@ -133,7 +127,6 @@ graph TD
 | [0258](archive/2026-08-09-0258-guard-the-config-suite-s-enumerated-claims-export-order-and.md) | Guard the config-suite's enumerated claims: export order and rung pairs | 2026-08-09 |
 | [0259](archive/2026-08-08-0259-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md) | Harden render-board: sanitize feeder values and settle the failure contract | 2026-08-08 |
 | [0255](archive/2026-08-08-0255-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule.md) | Complete ADR-0065's quote leg and document the unquoted rule | 2026-08-08 |
-| [0254](archive/2026-08-08-0254-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md) | BSD tool-default sweep: templated mktemp and non-interactive mv | 2026-08-08 |
 | [0243](archive/2026-08-07-0243-make-test-suite-git-fixture-setup-fail-loudly-instead-of-fla.md) | Make test-suite git fixture setup fail loudly instead of flaking | 2026-08-07 |
 | [0241](archive/2026-08-07-0241-correspondence-guard-over-leg-c-s-by-value-duplicated-predic.md) | Correspondence guard over leg C's by-value duplicated predicate (ADR-0072 drift risk) | 2026-08-07 |
 | [0240](archive/2026-08-07-0240-audit-which-frontmatter-accessor-each-call-site-should-use-n.md) | Audit which frontmatter accessor each call site should use, now that three anchored read shapes exist | 2026-08-07 |
@@ -211,7 +204,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 42 done |
+| [2026-08](archive/) | 43 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
