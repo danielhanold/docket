@@ -222,6 +222,30 @@ the 2026-08-11 human review round.)
     precisely for tomorrow's drifted copy. Counts in this spec are point-in-time; the build re-runs
     discovery at reconciliation (D1). Mutation fixtures cover the alternate spellings (D2).
 
+## Reconcile addenda (2026-08-11, against origin/main @ ddd5ffc7)
+
+Folded in at build claim; the design above is unchanged, these are additions it did not model. The
+change file's `## Reconcile log` carries the full pass and the evidence.
+
+- **A1 — the checker's discovery surface is `tests/**/*.sh`, not the caller's target list.**
+  `tests/lib/{gate_run_common,runner_dispatch_detach_common,sync_agents_common}.sh` each define
+  `assert` and are not `tests/test_*.sh`, so the targets `run-tests.sh` passes exclude them. Rule
+  (a) discovers definitions across `tests/` on its own; rule (b) scans what it is handed plus those
+  libs. Trusting the caller's list to be the whole census surface would leave three definitions
+  permanently unguarded.
+- **A2 — `scripts/check-test-source-hygiene.md` is required build scope.**
+  `tests/test_script_contracts_coverage.sh` fails the suite for any top-level `scripts/<name>.sh`
+  with no co-located contract. Author it to the convention's Purpose / Usage / Behavior / Exit
+  codes / Invariants shape.
+- **A3 — the preflight abort exits 5,** the next code free in `run-tests.sh` (0–4 are spent; 4 is
+  the `--strict-budget` breach). `scripts/run-tests.md`'s exit-code table gains the row.
+- **A4 — the scanner must carry quote state ACROSS lines.** 0212's real vector was a multi-line
+  double-quoted `SITES="…"` assignment; a per-line scanner cannot see it, and the D2 wording
+  ("per-file awk character-state scanner") is only satisfied by a whole-file state machine. Line-
+  local scanning is a demonstrated-execution-path gap, so it is not an available shrink.
+- **A5 — census at reconcile:** 88 assert definitions (84 canonical, 3 subshell, 1 `fails`/`FAIL -`)
+  and 22 wrapper definitions in six spellings. Point-in-time; the build re-derives.
+
 ## Acceptance
 
 - All assert-family definitions under `tests/` (shape-tolerant census, freshly derived) match a
