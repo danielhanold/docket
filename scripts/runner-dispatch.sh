@@ -644,6 +644,9 @@ if [ "$VERB" = "observe" ]; then
   # conditional leaves every other path with the name UNSET — which would abort the observation
   # rather than degrade it. Empty is a legal reason ("reason unrecorded"); unset is a crash.
   VANISHED_WHY=""
+  # The EVIDENCE CLASS behind that reason, same reasoning, same `set -u` obligation. Empty is the
+  # fail-closed value: everything downstream disposes only on the explicit `gone`.
+  VANISHED_CLASS=""
 
   # THE RELAY. `--launch` redirects the adapter's stdout into `$DDIR/stdout.log`, so this function
   # is the ONLY channel by which a delegated agent's result reaches its caller: the generated shim
@@ -1003,8 +1006,57 @@ if [ "$VERB" = "observe" ]; then
     exit 1
   }
 
+  # THE BOUNDED "COULD NOT BE ESTABLISHED THIS PASS" COUNTER, and the only route out of a state that
+  # would otherwise return `4` forever. `4` is the caller's loop condition, so a state that returns
+  # it unconditionally is a state the loop can never leave. TWO lifecycle phases feed it, which is
+  # why it is defined here rather than beside either of them:
+  #   - the LIVENESS probe (step 3), on every leg that is not positive evidence of death — a record
+  #     naming no usable group, a token missing on either side, a token that cannot be compared;
+  #   - the CLOCK reads (step 5): an unreadable clock, or an unreadable/absent `started_at`.
+  # Neither family is evidence, and each of them left unbounded spins the caller forever while the
+  # dispatch is never once disposed. So the passes are COUNTED, and the Nth CONSECUTIVE one converts
+  # to the same terminal give-up the spent budget takes — through `terminate_dispatch`, so the
+  # identity-checked kill and the terminal marker stay in one place.
+  #
+  # N = 3, and the choice is about which failures are transient. The only genuinely transient
+  # members of this family are a clock read that fails under momentary load and a `ps` that cannot be
+  # read; a launch record that cannot be parsed never repairs itself, so for it any N>1 is pure
+  # grace. Three consecutive passes at the shim's paced cadence is minutes of tolerance — enough that
+  # a blip is ridden out, short enough that a permanently unreadable dispatch is terminal long before
+  # a human notices the loop. The counter RESETS on any pass that gets as far as an enforceable
+  # budget read (step 5), so a single bad read never accumulates toward termination across an
+  # otherwise healthy run.
+  #
+  # THE IDEMPOTENCE SCOPE (scripts/runner-dispatch.md states the refined guarantee): the counter is
+  # the one piece of mutable state an observation writes besides the terminal marker, and it is
+  # reachable only on NON-TERMINAL paths. Every TERMINAL state (killed, done, a git verdict) is
+  # decided at steps 1-2, before a single byte of it is read or written, so a completed, failed or
+  # killed dispatch still re-reports identically forever.
+  UNENFORCEABLE_MAX=3
+  note_unenforceable(){  # $1 = why this pass established nothing; $2 = the headline — never returns
+    local why="$1" head="${2:-still running}" n
+    n="$(sed -n 1p "$DDIR/unenforceable" 2>/dev/null)"
+    case "$n" in ''|*[!0-9]*) n=0 ;; esac
+    n=$(( n + 1 ))
+    printf '%s\n' "$n" > "$DDIR/unenforceable.partial"
+    # A counter that cannot be persisted bounds nothing, and the loop would run forever on the very
+    # state this exists to end — so an unwritable dispatch dir is itself terminal, immediately.
+    mv -f "$DDIR/unenforceable.partial" "$DDIR/unenforceable" 2>/dev/null \
+      || terminate_dispatch budget-unenforceable "$why, and the observation counter could not be recorded in $DDIR"
+    if [ "$n" -ge "$UNENFORCEABLE_MAX" ]; then
+      terminate_dispatch budget-unenforceable "$why, on $n consecutive observations"
+    fi
+    # THE HEADLINE IS THE CALLER'S because the two families know different things. A clock leg has
+    # already PROVEN the child alive one step earlier, so `still running` is a fact there; a liveness
+    # leg has proven nothing at all, and saying it would be the same over-assertion this file refuses
+    # to make about an exit code it never read. Only the bound and the counter are shared.
+    printf 'runner-dispatch: observe %s — %s (%s; budget not enforced this pass, %s of %s)\n' \
+      "$OBSERVE_KEY" "$head" "$why" "$n" "$UNENFORCEABLE_MAX" >&2
+    exit 4
+  }
+
   # THE DEAD-CHILD DISPOSITION (change 0284). Reached only from the liveness leg below, and only
-  # after its sentinel re-read came back empty. NEVER RETURNS.
+  # after its sentinel re-read came back empty, and ONLY on the `gone` evidence class. NEVER RETURNS.
   #
   # THE VERDICT IS RECORDED IN THE EXISTING `killed` MARKER, not in a new terminal file. `--observe`'s
   # idempotence guarantee obliges a terminal record, and the `cause`/`reason` split already carries
@@ -1053,19 +1105,31 @@ if [ "$VERB" = "observe" ]; then
   # ONE wording, spoken by the transition below AND by the marker replay at step 2, so the two can
   # never drift apart. NO MESSAGE HERE ASSERTS AN EXIT CODE: the child said nothing at all, and a
   # code that was never read is the fabricated verdict `classify_record` refuses over a malformed
-  # record. Every leg therefore states THE DEATH FIRST and the git verdict second.
-  say_vanished(){  # $1 = why the group was not ours, $2 = the git verdict (may be empty), $3 = code
-    local why="$1" gitv="$2" code="$3"
+  # record. Every leg therefore states WHAT BECAME OF THE CHILD first and the git verdict second.
+  #
+  # AND WHAT BECAME OF IT IS KEYED ON THE EVIDENCE CLASS, not on the cause (change 0284 review,
+  # finding 7). `cause=child-vanished` says only that the facade stopped seeing the child; `died` is
+  # a claim about the child itself, and it is warranted on exactly one class — the one where
+  # `kill -0` proved the group holds no process at all. On anything weaker the honest statement is
+  # that it can no longer be PROVEN alive, which is the same distinction the exit-code sentence
+  # above draws. The transition passes the class its probe established; the replay passes the class
+  # the marker recorded, and an ABSENT one (an older marker, a short write) takes the weaker claim.
+  say_vanished(){  # $1 = why, $2 = the git verdict (may be empty), $3 = code, $4 = evidence class
+    local why="$1" gitv="$2" code="$3" class="${4:-}" fate
+    case "$class" in
+      gone) fate="died without writing a sentinel" ;;
+      *)    fate="can no longer be proven alive, and wrote no sentinel" ;;
+    esac
     case "$code" in
       0)
-        printf 'runner-dispatch: observe %s — COMPLETE (the delegated child died without writing a sentinel: %s; but git says %s, so the work landed); nothing was signalled, so any processes it spawned are still running — inspect %s\n' \
-          "$OBSERVE_KEY" "$why" "$gitv" "$DDIR" >&2 ;;
+        printf 'runner-dispatch: observe %s — COMPLETE (the delegated child %s: %s; but git says %s, so the work landed); nothing was signalled, so any processes it spawned are still running — inspect %s\n' \
+          "$OBSERVE_KEY" "$fate" "$why" "$gitv" "$DDIR" >&2 ;;
       3)
-        printf 'runner-dispatch: observe %s — RUN HALTED (the delegated child died without writing a sentinel: %s; and git says %s); the delegated implement-next run stopped and needs a human — read the change file'"'"'s "## Run halted" section. Nothing was signalled, so any processes it spawned are still running — inspect %s\n' \
-          "$OBSERVE_KEY" "$why" "$gitv" "$DDIR" >&2 ;;
+        printf 'runner-dispatch: observe %s — RUN HALTED (the delegated child %s: %s; and git says %s); the delegated implement-next run stopped and needs a human — read the change file'"'"'s "## Run halted" section. Nothing was signalled, so any processes it spawned are still running — inspect %s\n' \
+          "$OBSERVE_KEY" "$fate" "$why" "$gitv" "$DDIR" >&2 ;;
       *)
-        printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (the delegated child died without writing a sentinel: %s%s); nothing was signalled, so any processes it spawned are still running — inspect %s\n' \
-          "$OBSERVE_KEY" "$why" "${gitv:+; and git has no evidence the work landed: $gitv}" "$DDIR" >&2 ;;
+        printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (the delegated child %s: %s%s); nothing was signalled, so any processes it spawned are still running — inspect %s\n' \
+          "$OBSERVE_KEY" "$fate" "$why" "${gitv:+; and git has no evidence the work landed: $gitv}" "$DDIR" >&2 ;;
     esac
   }
 
@@ -1102,13 +1166,18 @@ if [ "$VERB" = "observe" ]; then
     # corrupt every field after it.
     gitv="${gitv//$'\n'/ }"
     code="$(vanished_code "$gitv")"
-    printf 'killed_at=%s\nreason=%s\ncause=%s\ndetail=%s\nbudget_minutes=%s\ngit_verdict=%s\ndisposition=%s\n' \
+    # `liveness_class` is recorded for the same reason `disposition` is: the replay cannot re-derive
+    # what a probe established seconds ago, and without it a later observation would have to word
+    # every `child-vanished` marker as a death — including one written by a build that never
+    # distinguished the classes. It is written from the probe's own answer, never hardcoded, so a
+    # future leg that disposes on different evidence records that instead.
+    printf 'killed_at=%s\nreason=%s\ncause=%s\ndetail=%s\nbudget_minutes=%s\ngit_verdict=%s\ndisposition=%s\nliveness_class=%s\n' \
       "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "group-already-gone" "child-vanished" "${VANISHED_WHY:-}" \
-      "$DELEGATION_OBSERVATION_BUDGET" "$gitv" "$code" > "$DDIR/killed.partial"
+      "$DELEGATION_OBSERVATION_BUDGET" "$gitv" "$code" "${VANISHED_CLASS:-}" > "$DDIR/killed.partial"
     # `mv -f`, not `mv`: BSD `mv` onto an unwritable destination with a tty PROMPTS, self-answers `n`
     # at EOF, and exits 0 — the marker would be silently lost and this leg would re-fire every pass.
     mv -f "$DDIR/killed.partial" "$DDIR/killed" || die "could not record the kill marker in $DDIR"
-    say_vanished "${VANISHED_WHY:-reason unrecorded}" "$gitv" "$code"
+    say_vanished "${VANISHED_WHY:-reason unrecorded}" "$gitv" "$code" "${VANISHED_CLASS:-}"
     # The child is finished either way, so whatever it managed to write is the only evidence left.
     # This is the ONE thing the re-report does not repeat: relaying a completed dispatch's stdout on
     # every later observation would hand a polling caller the same bytes once per pass.
@@ -1159,7 +1228,8 @@ if [ "$VERB" = "observe" ]; then
       # An older marker (or an unwritable one) carries no code. Unavailable is the fail-closed
       # reading — never a success synthesized out of an absent field.
       case "$KCODE" in ''|*[!0-9]*) KCODE=1 ;; esac
-      say_vanished "${KDETAIL:-reason unrecorded}" "$(killed_field git_verdict)" "$KCODE"
+      say_vanished "${KDETAIL:-reason unrecorded}" "$(killed_field git_verdict)" "$KCODE" \
+        "$(killed_field liveness_class)"
       exit "$KCODE"
     fi
     case "$KCAUSE" in
@@ -1193,17 +1263,39 @@ if [ "$VERB" = "observe" ]; then
   #    every observation for the WHOLE budget — 60 minutes by default. The identity conjuncts already
   #    existed in this file, inside `terminate_dispatch`, but were consulted only when the facade was
   #    about to SIGNAL; this consults them one lifecycle phase earlier, as a VERDICT INPUT.
+  #    AND NOT EVERY NON-ZERO ANSWER IS A DEATH (change 0284 review, finding 1). The predicate is
+  #    fail-closed by design and gate-run.sh is right to read any non-zero as "not alive": there a
+  #    false `dead` costs one bounded relaunch. HERE it is terminal and irreversible — a `killed`
+  #    marker, a terminal code, and the end of the caller's polling loop — and because git decides
+  #    the code it can be `0`, telling a driver "the work landed" for a child that is STILL RUNNING
+  #    and still writing. So only the ONE leg that is positive evidence (`kill -0` proving the group
+  #    holds no process) disposes. Everything else — a record naming no usable group, an unreadable
+  #    `ps`, a token missing on either side, a token that cannot be compared — establishes nothing
+  #    about the child, and a rendering difference alone (a token recorded before
+  #    `docket_identity_of` pinned its `ps` environment) is enough to produce one on a perfectly
+  #    healthy long-running run. Those go to the bounded counter this file already owns for the
+  #    "could not be established this pass" case: three consecutive passes, then an honest terminal
+  #    cause. No new state, no new exit code, and no verdict manufactured out of an unanswered
+  #    question.
   barrier pre-liveness-probe
   if ! docket_group_alive_and_ours "$LPGID" "$(launch_field "$DDIR" child_lstart)"; then
     VANISHED_WHY="$DOCKET_LIVENESS_WHY"
-    # 4. DEAD ⇒ RE-READ THE SENTINEL. LOAD-BEARING, NOT DEFENSIVE. The reads above span a `ps` call
-    #    and a `kill -0`, and the child has every chance to finish inside that window; without this
-    #    re-read a run that PASSED is disposed as dead. The soundness argument is the one already
-    #    written at this file's pair of give-up re-reads: the untrapped wrapper subshell is the ONLY
-    #    writer of `done`, so a sentinel visible HERE was necessarily written by a child that
-    #    completed. `report_done_disposition` never returns.
+    VANISHED_CLASS="$DOCKET_LIVENESS_CLASS"
+    # 4. NOT ALIVE ⇒ RE-READ THE SENTINEL, ahead of BOTH routes below. LOAD-BEARING, NOT DEFENSIVE.
+    #    The reads above span a `ps` call and a `kill -0`, and the child has every chance to finish
+    #    inside that window; without this re-read a run that PASSED is disposed as dead. The
+    #    soundness argument is the one already written at this file's pair of give-up re-reads: the
+    #    untrapped wrapper subshell is the ONLY writer of `done`, so a sentinel visible HERE was
+    #    necessarily written by a child that completed. `report_done_disposition` never returns.
     [ -f "$DDIR/done" ] && report_done_disposition
-    dispose_vanished_child
+    # Keyed on the EXPLICIT class, so an empty or unrecognised one falls through to the bounded
+    # route rather than to the terminal one — the fail-closed direction for a disposal this cannot
+    # walk back.
+    case "$VANISHED_CLASS" in
+      gone) dispose_vanished_child ;;
+    esac
+    note_unenforceable "the delegated child could not be proven alive: ${VANISHED_WHY:-reason unrecorded}" \
+      "still observing (the delegated child could not be proven alive)"
   fi
 
   # 5. No sentinel and the child is still provably ours: still running, unless the budget is spent.
@@ -1216,44 +1308,9 @@ if [ "$VERB" = "observe" ]; then
   # Neither clock read is positive evidence that the budget is spent, so an unreadable one keeps
   # observing rather than killing a healthy child on a guess. Same posture, twice.
   #
-  # BUT "do not enforce" cannot mean "never terminate". `4` is the caller's loop condition, so a
-  # state that returns it unconditionally is a state the loop can never leave: an unreadable clock,
-  # an unreadable `started_at`, or a launch record that is missing or unparseable (an empty
-  # `started_at` field alone puts every later observation here) would each spin the caller forever
-  # while the budget is never once enforced. So the unenforceable passes are COUNTED, and the Nth
-  # CONSECUTIVE one converts to the same terminal give-up the spent budget takes.
-  #
-  # N = 3, and the choice is about which failures are transient. The only genuinely transient
-  # member of this family is a clock read that fails under momentary load; a launch record that
-  # cannot be parsed never repairs itself, so for it any N>1 is pure grace. Three consecutive
-  # passes at the shim's paced cadence is minutes of tolerance — enough that a blip is ridden out,
-  # short enough that a permanently unreadable dispatch is terminal long before a human notices the
-  # loop. The counter RESETS on any enforceable pass (below), so a single bad read never
-  # accumulates toward termination across an otherwise healthy run.
-  #
-  # THE IDEMPOTENCE SCOPE (scripts/runner-dispatch.md states the refined guarantee): the counter is
-  # the one piece of mutable state an observation writes besides the terminal marker, and it is
-  # reachable ONLY here — on the still-running-and-unenforceable path. Every TERMINAL state (killed,
-  # done, a git verdict) is decided above, before a single byte of it is read or written, so a
-  # completed, failed or killed dispatch still re-reports identically forever.
-  UNENFORCEABLE_MAX=3
-  note_unenforceable(){  # $1 = why the budget could not be enforced this pass — never returns
-    local why="$1" n
-    n="$(sed -n 1p "$DDIR/unenforceable" 2>/dev/null)"
-    case "$n" in ''|*[!0-9]*) n=0 ;; esac
-    n=$(( n + 1 ))
-    printf '%s\n' "$n" > "$DDIR/unenforceable.partial"
-    # A counter that cannot be persisted bounds nothing, and the loop would run forever on the very
-    # state this exists to end — so an unwritable dispatch dir is itself terminal, immediately.
-    mv -f "$DDIR/unenforceable.partial" "$DDIR/unenforceable" 2>/dev/null \
-      || terminate_dispatch budget-unenforceable "$why, and the observation counter could not be recorded in $DDIR"
-    if [ "$n" -ge "$UNENFORCEABLE_MAX" ]; then
-      terminate_dispatch budget-unenforceable "$why, on $n consecutive observations"
-    fi
-    printf 'runner-dispatch: observe %s — still running (%s; budget not enforced this pass, %s of %s)\n' \
-      "$OBSERVE_KEY" "$why" "$n" "$UNENFORCEABLE_MAX" >&2
-    exit 4
-  }
+  # The counter and its bound are `note_unenforceable`, defined ABOVE — two lifecycle phases now
+  # feed it (the liveness probe's `unprovable` legs, and the clock reads here), so its definition
+  # sits ahead of the first of them. Its header carries the N=3 argument and the idempotence scope.
   case "${NOW:-}" in
     ''|*[!0-9]*) note_unenforceable "the clock could not be read" ;;
   esac

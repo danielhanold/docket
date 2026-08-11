@@ -271,6 +271,13 @@ reap "$real_pgid"
 # start time for the child as an opaque token, and the observation compares it verbatim. Driven
 # here by rewriting the token (the pid and the group are left REAL), so the surviving process is
 # the launched child itself.
+#
+# A MISMATCH IS `unprovable`, NEVER `gone` (change 0284 review, finding 1). The group is demonstrably
+# ALIVE on this leg — `kill -0` answered for it — and what failed is a COMPARISON, which a token
+# rendered by an older, unpinned build of `docket_identity_of` fails for a reason that has nothing to
+# do with the process. So the first pass may not dispose the dispatch: it is counted, and the third
+# consecutive one converts to the bounded terminal the unenforceable family already owns. THE BUDGET
+# IS LEFT AT 60 — nowhere near spent — so nothing but the liveness leg can be driving this arm.
 make_fixture
 FAKE_SLEEP=30 FAKE_TAIL=0 FAKE_RC=0
 KEY="$(launch status)"
@@ -280,10 +287,32 @@ assert "0271: the launch record carries the child's start-time token" \
   'grep -qE "^child_lstart=.+" "$DDIR/launch"'
 rec="$(sed 's/^child_lstart=.*/child_lstart=Thu Jan  1 00:00:00 1970/' "$DDIR/launch")"
 printf '%s\n' "$rec" > "$DDIR/launch"
-BUDGET=0
+mm1="$(observe "$KEY" 2>&1)"; mm_rc1=$?
+assert "0284-f1: a token that cannot be compared is NOT terminal on the first pass" '[ "$mm_rc1" = "4" ]'
+assert "0284-f1: and no terminal marker is written over a child never proven dead" \
+  '[ ! -f "$DDIR/killed" ]'
+assert "0284-f1: the unprovable pass is COUNTED, which is what bounds it" \
+  '[ "$(sed -n 1p "$DDIR/unenforceable" 2>/dev/null)" = "1" ]'
+# FINDING 7: the wording may not assert a death that was never established.
+assert "0284-f7: and it never claims the child died" '! grep -qi "died" <<<"$mm1"'
+assert "0284-f7: it says only that the child could not be proven alive" \
+  'grep -qi "could not be proven alive" <<<"$mm1"'
+# THE OTHER HALF OF THE SAME REFUSAL, and it needs its own assert: the reason string alone carries
+# the words "could not be proven alive", so the assert above is satisfied by a headline that ALSO
+# announces the child as still running — a claim nothing on this leg established either. Pinned on
+# the headline the clock family uses, which is a fact THERE (liveness was proven one step earlier)
+# and an assertion here.
+assert "0284-f7: nor that it is still running, which is equally unestablished" \
+  '! grep -qi "still running" <<<"$mm1"'
+assert "0284-f1: naming the comparison that failed" 'grep -qi "recycled" <<<"$mm1"'
+mm2="$(observe "$KEY" 2>&1)"; mm_rc2=$?
+assert "0284-f1: the second unprovable pass is still non-terminal" '[ "$mm_rc2" = "4" ]'
 out="$(observe "$KEY" 2>&1)"; rc=$?
-BUDGET=60
 assert "0271: a start time that does not match the launch's is unavailable (1)" '[ "$rc" = "1" ]'
+assert "0284-f1: the 3rd consecutive unprovable pass terminates on the BOUNDED cause" \
+  'grep -qxF "cause=budget-unenforceable" "$DDIR/killed"'
+assert "0284-f1: never as a vanishing, which is a claim nothing here established" \
+  '! grep -qxF "cause=child-vanished" "$DDIR/killed"'
 assert "0271: the diagnostic names pid recycling" 'grep -qi "recycled" <<<"$out"'
 assert "0271: and the group whose leader looks recycled is NOT signalled" \
   'kill -0 -"$real_pgid" 2>/dev/null'
@@ -557,6 +586,10 @@ assert "0284: and it never claims a budget it did not spend" \
 assert "0284: a killed marker was recorded (no second terminal file was minted)" '[ -f "$DDIR/killed" ]'
 assert "0284: its cause is child-vanished" 'grep -qx "cause=child-vanished" "$DDIR/killed"'
 assert "0284: its reason says nothing was signalled" 'grep -qx "reason=group-already-gone" "$DDIR/killed"'
+# THE CLASS IS RECORDED, because the replay below is worded off it and a marker cannot re-derive
+# what a probe established seconds ago (change 0284 review, finding 1).
+assert "0284-f1: and it records the evidence class that justified disposing at all" \
+  'grep -qx "liveness_class=gone" "$DDIR/killed"'
 
 # ---- 0284: idempotence — every later observation short-circuits at step 2 -----------
 # The FIRST observation is the terminal TRANSITION, not a re-report, and it speaks from the leg that
@@ -572,11 +605,44 @@ assert "0284: and re-reports identically forever" '[ "$out3" = "$out2" ]'
 assert "0284: the re-report names the vanishing, not a budget the dispatch never spent" \
   'grep -qi "died without writing a sentinel" <<<"$out2" && ! grep -qi "budget was exhausted" <<<"$out2"'
 
-# ---- 0284: NOTHING IS SIGNALLED on the dead path ----------------------------------
-# The orphan residual is a PROMISE, so it needs a discriminating fixture: a live process that would
-# die if the facade signalled the recorded group. The canary leads its own group and the DEAD
-# dispatch's record is rewritten to name it — the "a pgid is a reusable name" state exactly, and the
-# state the identity conjunct exists to catch. The measurement is that the canary is still there.
+# ---- 0284 review, finding 7: the wording is keyed on the EVIDENCE, not on the cause ----
+# `cause=child-vanished` says the facade gave up because it stopped seeing the child; only the
+# CLASS says whether a death was ever established. A marker written by an older build carries no
+# class at all, and wording that one as a death asserts exactly what the code two lines below
+# refuses to assert about an exit code it never read. Driven by rewriting THIS already-terminal
+# dispatch's marker — no second fixture, and what is under test is the wording alone.
+class_marker(){  # $1 = the liveness_class value to carry ('' = the field is absent entirely)
+  { grep -v '^liveness_class=' "$DDIR/killed"
+    [ -n "$1" ] && printf 'liveness_class=%s\n' "$1"
+    :; } > "$DDIR/killed.tmp"
+  mv -f "$DDIR/killed.tmp" "$DDIR/killed"
+}
+class_marker ""
+assert "0284-f7: fixture sanity — the marker really carries no class now" \
+  '! grep -q "^liveness_class=" "$DDIR/killed"'
+cls_out="$(observe "$KEY" 2>&1)"; cls_rc=$?
+assert "0284-f7: a classless vanished marker still replays its recorded code" '[ "$cls_rc" = "1" ]'
+assert "0284-f7: but it never asserts a death the record does not carry" \
+  '! grep -qi "died" <<<"$cls_out"'
+assert "0284-f7: it says only that the child can no longer be proven alive" \
+  'grep -qi "can no longer be proven alive" <<<"$cls_out"'
+class_marker gone
+gone_out="$(observe "$KEY" 2>&1)"; gone_rc=$?
+assert "0284-f7: and a marker that DOES carry the proof is worded as a death" \
+  '[ "$gone_rc" = "1" ] && grep -qi "died without writing a sentinel" <<<"$gone_out"'
+
+# ---- 0284: NOTHING IS SIGNALLED when the recorded group cannot be proven ours -----
+# The no-signal promise needs a discriminating fixture: a live process that would die if the facade
+# signalled the recorded group. The canary leads its own group and the DEAD dispatch's record is
+# rewritten to name it — the "a pgid is a reusable name" state exactly, and the state the identity
+# conjunct exists to catch. The measurement is that the canary is still there.
+#
+# SINCE THE 0284 REVIEW (finding 1) THIS IS ALSO THE CLASS SPLIT'S DISCRIMINATING CASE, and it could
+# not be otherwise: `kill -0` SUCCEEDS here (the canary's group answers), so nothing at all was
+# established about the launched child and the dispatch may not be disposed as vanished on this
+# pass. It takes the bounded unprovable route instead — three passes, then the honest terminal — and
+# the canary must live through every one of them. The `gone` leg cannot host this fixture: there,
+# `kill -0` failed, so by construction no process in that group is left to signal or to survive.
 make_fixture
 FAKE_SLEEP=300 FAKE_TAIL=0 FAKE_RC=0
 KEY="$(launch status)"
@@ -606,6 +672,14 @@ rec="$(sed -e "s/^pgid=.*/pgid=$canary/" \
 printf '%s\n' "$rec" > "$DDIR/launch"
 assert "0284: fixture sanity — the record now names the canary's group" \
   '[ "$(sed -n "s/^pgid=//p" "$DDIR/launch")" = "$canary" ]'
+BUDGET=60 cy1="$(observe "$KEY" 2>&1)"; cy_rc1=$?
+assert "0284-f1: a LIVE group we cannot prove is ours is not disposed on the first pass" \
+  '[ "$cy_rc1" = "4" ] && [ ! -f "$DDIR/killed" ]'
+assert "0284-f7: and nothing claims the child died" '! grep -qi "died" <<<"$cy1"'
+assert "0284-f7: nor that it is still running" '! grep -qi "still running" <<<"$cy1"'
+assert "0284: the canary survives the first pass" 'kill -0 "$canary" 2>/dev/null'
+BUDGET=60 observe "$KEY" >/dev/null 2>&1; cy_rc2=$?
+assert "0284-f1: nor on the second" '[ "$cy_rc2" = "4" ]'
 BUDGET=60 out="$(observe "$KEY" 2>&1)"; rc=$?
 assert "0284: a record naming a group that is not ours is still terminal (1)" '[ "$rc" = "1" ]'
 assert "0284: NOTHING was signalled — the canary is still running" 'kill -0 "$canary" 2>/dev/null'
