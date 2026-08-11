@@ -12,14 +12,14 @@ related: [208, 270, 277]
 discovered_from: [282]
 adrs: []
 spec: docs/superpowers/specs/2026-08-10-runner-dispatch-observe-liveness-probe-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-11-runner-dispatch-observe-liveness-probe.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi
 pr:
 blocked_by:
-claimed_at: 2026-08-11T09:22:00Z
+claimed_at: 2026-08-11T09:38:00Z
 reconciled: true
 ---
 
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-10-runner-dispatch-observe-liveness-probe-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-10-runner-dispatch-observe-liveness-probe-design.md) |
+| Plan | [2026-08-11-runner-dispatch-observe-liveness-probe.md](https://github.com/danielhanold/docket/blob/feat/runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi/docs/superpowers/plans/2026-08-11-runner-dispatch-observe-liveness-probe.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
