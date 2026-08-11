@@ -10,14 +10,14 @@ updated: 2026-08-11
 depends_on: []
 related: [8, 118, 253]
 discovered_from: [110, 119]
-adrs: []
+adrs: [89]
 spec: docs/superpowers/specs/2026-08-09-make-shared-metadata-worktree-contention-survivable-and-scop-design.md
 plan: docs/superpowers/plans/2026-08-11-make-shared-metadata-worktree-contention-survivable-and-scop-plan.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/make-shared-metadata-worktree-contention-survivable-and-scop
-claimed_at: 2026-08-11T12:52:10Z
+claimed_at: 2026-08-11T15:15:54Z
 pr:
 blocked_by:
 reconciled: true
@@ -30,6 +30,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-09-make-shared-metadata-worktree-contention-survivable-and-scop-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-make-shared-metadata-worktree-contention-survivable-and-scop-design.md) |
 | Plan | [2026-08-11-make-shared-metadata-worktree-contention-survivable-and-scop-plan.md](https://github.com/danielhanold/docket/blob/feat/make-shared-metadata-worktree-contention-survivable-and-scop/docs/superpowers/plans/2026-08-11-make-shared-metadata-worktree-contention-survivable-and-scop-plan.md) |
+| ADRs | [ADR-0089](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0089-shared-metadata-worktree-contention-survivable-not-impossible.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
