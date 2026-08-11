@@ -29,8 +29,8 @@ type: fix
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-design.md) |
-| Plan | [2026-08-11-sweep-skip-publish-mark.md](https://github.com/danielhanold/docket/blob/feat/decide-whether-the-sweep-s-skip-publish-path-should-also-mar/docs/superpowers/plans/2026-08-11-sweep-skip-publish-mark.md) |
-| Results | [2026-08-11-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-results.md](https://github.com/danielhanold/docket/blob/feat/decide-whether-the-sweep-s-skip-publish-path-should-also-mar/docs/results/2026-08-11-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-results.md) |
+| Plan | [2026-08-11-sweep-skip-publish-mark.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-11-sweep-skip-publish-mark.md) |
+| Results | [2026-08-11-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-11-decide-whether-the-sweep-s-skip-publish-path-should-also-mar-results.md) |
 | PR | [#201](https://github.com/danielhanold/docket/pull/201) |
 | ADRs | [ADR-0090](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0090-publish-deferred-covers-any-handled-post-archive-failure.md) |
 <!-- docket:artifacts:end -->
