@@ -106,18 +106,21 @@ unchanged, including any change or ADR id.
 - **docket-review-standard** — Bounded read-only whole-branch reviewer for docket's review role — reads the branch diff and the build-evidence record, returns severity-tiered findings, and never fixes, dispatches, or runs the test suite. Delegate to the `docket-review-standard` agent.
 - **docket-status** — Use when you want to see or refresh the docket backlog — what is proposed, in progress, blocked, implemented, or done — by refreshing docket state, sweeping merged changes to done, and running health checks for stale claims, broken spec/plan/results links, and dependency stalls. Delegate to the `docket-status` agent.
 
-## Run gate — verify a dispatched implement-next run before you report it
+## Run gate — verify a dispatched implement-next run before you relay it
 
-A dispatched run that stops early returns a report that reads as success. Do not trust it; read git.
-Docket's helper facade is not on `PATH`: run each command below verbatim, expansion included.
-`verify-run` only reads local metadata, so both snapshots must be taken from FRESH ORIGIN state —
-re-sync on BOTH sides, or a claim abandoned by an earlier session shows up only in the after-read
-and is attributed to this run.
+A dispatched run that stops early returns a report that reads as success, and a completion
+notification is the CHILD's claim, not your report. Do not trust either; read git before relaying
+an outcome as your own. Docket's helper facade is not on `PATH`: run each command below verbatim,
+expansion included. `verify-run` only reads local metadata, so both snapshots must be taken from
+FRESH ORIGIN state — re-sync on BOTH sides, or a claim abandoned by an earlier session shows up
+only in the after-read and is attributed to this run.
 
 1. **Before dispatching** `docket-implement-next`, re-sync the metadata worktree with
    `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh preflight`, then snapshot the claimed
    set: `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh verify-run --in-progress-ids`.
-2. Dispatch **foreground** and block on the return; never background it and never poll.
+2. When you issue the dispatch and can block on it, dispatch **foreground** and block on the
+   return: never background it and never poll. A dispatch you background — or one the harness
+   backgrounds for you — is not covered here; use **Detached dispatch** below.
 3. **After the return**, re-sync again with
    `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh preflight` and re-run
    `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh verify-run --in-progress-ids`. Any id
@@ -131,4 +134,19 @@ and is attributed to this run.
    - `run-halted` — done; **never re-dispatch** a halt, which means a human is needed.
    - `run-incomplete` — re-dispatch the same agent **once**, passing the id and the unmet
      conjuncts; verify again; if still incomplete, stop and report loudly. Never a third dispatch.
+
+### Detached dispatch — you did not foreground-block, whoever backgrounded it
+
+- **You issued it after running tool calls:** take the step-1 before-snapshot AND `date -u +%s` as
+  `DISPATCH_EPOCH` before launching. At the notification, re-sync, then run
+  `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh verify-run --in-progress-ids
+  --with-claimed-at` and keep only ids passing ALL THREE filters: absent from the before-set,
+  `claimed_at` parses, and `claimed_at` >= `DISPATCH_EPOCH`. Exactly one survivor → step 4
+  unchanged; none → done; two or more → stop and report, as in step 3.
+- **Slash-command or notification-first launch — unattributed mode.** No before-set exists, and a
+  timestamp alone cannot attribute: `claimed_at` is re-stamped at every phase boundary, so a
+  concurrent run claimed before your window looks fresh too. Verify and report ONLY — `verify-run
+  <id>` on any id the notification names (a prose id is a hint, never authority), else on each
+  current in-progress id, reporting every verdict. **Never re-dispatch** here: that needs all
+  three filters, and re-dispatching onto a change a live agent holds is the one unrecoverable move.
 <!-- docket:dispatch:end -->
