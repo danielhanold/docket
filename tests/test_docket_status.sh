@@ -1899,6 +1899,132 @@ assert "0118 fault(push): the worktree is left clean despite the failed push" \
 assert "0118 fault(push): the report stream is unchanged" \
   'grep -qxE "sweep-failed 30 render-change-links skipped-publish" <<<"$push_out"'
 
+# --- change 0118 (review finding 1): the clean-path precondition is the SKIPPED-PUBLISH leg's ---
+# It was first written INSIDE the shared helper, where it silently gated the change-0083 leg too —
+# and that falsified a contract terminal-publish.sh states in its own marker-clearing block: "the
+# script exits non-zero and the driver's defer path re-marks". That script strips the marker in
+# THIS worktree and then dies when the `add`/`commit` of the removal fails, so the 0083 leg is
+# reached with the archived path legitimately dirty and MUST mark over it — otherwise the removal
+# sits uncommitted with nothing left to put the marker back. (Step 6a's `commit-failed` leg is the
+# second such path: change 0075 §5 continues to the publish with the path still dirty.) The
+# skipped-publish leg KEEPS the precondition, where archive-change.sh has just committed and
+# render-change-links.sh writes atomically, so a dirty path there is another actor's state.
+
+# The publish mock now models terminal-publish.sh's marker-clearing block: for the new id it WRITES
+# to the archived change file in the shared worktree and then exits non-zero. It records whether
+# the path really was dirty at that moment, so the marking assert below cannot pass vacuously.
+cat > "$tmp/mock-scripts/terminal-publish.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "terminal-publish $*" >> "$SWEEP_LOG"
+tp_id="" tp_cdir="" tp_mwt=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --id) tp_id="$2"; shift ;;
+    --changes-dir) tp_cdir="$2"; shift ;;
+    --metadata-worktree) tp_mwt="$2"; shift ;;
+  esac
+  shift
+done
+case "$tp_id" in 24|25) exit 1 ;; esac
+if [ "$tp_id" = 31 ]; then
+  tp_f="$(find "$tp_mwt/$tp_cdir/archive" -maxdepth 1 -name "*-0031-*.md" | sed -n 1p)"
+  printf 'uncommitted marker-removal stand-in\n' >> "$tp_f"
+  if [ -n "$(git -C "$tp_mwt" status --porcelain -- "$tp_f")" ]; then
+    echo "publish-dirtied yes" >> "$SWEEP_LOG"
+  else
+    echo "publish-dirtied no" >> "$SWEEP_LOG"
+  fi
+  exit 1
+fi
+exit 0
+EOF
+chmod +x "$tmp/mock-scripts/terminal-publish.sh"
+
+# The renderer mock gains a third behavior: for the `dirty-render-broken` slug it writes to the
+# --change-file BEFORE exiting non-zero, so the skipped-publish leg is entered with the archived
+# path dirty. Real render-change-links.sh writes atomically; this stands in for any other actor's
+# uncommitted state on that path, which is the only way that leg can see one.
+cat > "$tmp/mock-scripts/render-change-links.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "render-change-links $*" >> "$SWEEP_LOG"
+rc_cf=""
+while [ $# -gt 0 ]; do
+  case "$1" in --change-file) rc_cf="$2"; shift ;; esac
+  shift
+done
+case "$rc_cf" in
+  *dirty-render-broken*)
+    printf 'another actor uncommitted line\n' >> "$rc_cf"
+    if [ -n "$(git -C "$(dirname "$rc_cf")" status --porcelain -- "$rc_cf")" ]; then
+      echo "render-dirtied yes" >> "$SWEEP_LOG"
+    else
+      echo "render-dirtied no" >> "$SWEEP_LOG"
+    fi
+    exit 1 ;;
+esac
+case "$*" in *broken-render*|*render-broken*) exit 1 ;; esac
+exit 0
+EOF
+chmod +x "$tmp/mock-scripts/render-change-links.sh"
+
+# 31's slug must NOT match the renderer mock's failure patterns, or it never reaches the publish.
+seed_sweep_change 31 publish-dirty-mark implemented
+seed_sweep_change 32 dirty-render-broken implemented
+git -C "$sweep_dir/work" add docs/changes
+git -C "$sweep_dir/work" commit -q -m "seed 0118 finding-1 changes"
+git -C "$sweep_dir/work" push -q origin main
+
+# --- the skipped-publish leg: a dirty archived path is still SKIPPED, and left untouched ---------
+# ORDER IS DELIBERATE: this case runs FIRST and restores the fixture afterwards, so it starts from
+# a clean tree either way. Run after the mark-over case it would inherit whatever that one left,
+# and (pre-fix) a dirty tree fails the sweep's opening `pull --rebase` — turning a real assert into
+# a `sync pull-failed` no-op that reads as the property holding.
+skip_log="$tmp/sweep-calls-0118-skip.log"; : > "$skip_log"
+printf '32\tdirty-render-broken\t32\t2026-08-11\n' > "$tmp/sweep-input-0118-skip.tsv"
+skip_out="$( cd "$sweep_dir/work" && \
+  DOCKET_MODE=docket METADATA_WORKTREE=. CHANGES_DIR=docs/changes ADRS_DIR=docs/adrs \
+  INTEGRATION_BRANCH=main METADATA_BRANCH=main TERMINAL_PUBLISH=true \
+  SCRIPTS_DIR="$tmp/mock-scripts" SWEEP_LOG="$skip_log" SWEEP_INPUT="$tmp/sweep-input-0118-skip.tsv" \
+  bash -c '. "'"$SCRIPT"'"; sweep_execute < "$SWEEP_INPUT"' )"
+assert "0118 finding1: the skipped-publish leg really was entered with the path dirty (non-vacuity)" \
+  'grep -qxF -- "render-dirtied yes" "$skip_log"'
+assert "0118 finding1: the skipped-publish leg does NOT mark over another actor's dirty path" \
+  '! grep -q "^mark-publish-deferred " "$skip_log"'
+assert "0118 finding1: the skipped-publish report line is unchanged under the dirty-path skip" \
+  '[ "$(printf "%s\n" "$skip_out" | grep -c .)" -eq 1 ] \
+   && grep -qxE "sweep-failed 32 render-change-links skipped-publish" <<<"$skip_out"'
+assert "0118 finding1: no marker section is written onto the dirty path" \
+  '! grep -qxF -- "## Publish deferred" "$sweep_dir/work/docs/changes/archive/2026-08-11-0032-dirty-render-broken.md"'
+# The strongest of these: the helper's restore-to-HEAD must never reach a path it did not dirty.
+assert "0118 finding1: the other actor's uncommitted line survives the skip untouched" \
+  'grep -qxF -- "another actor uncommitted line" "$sweep_dir/work/docs/changes/archive/2026-08-11-0032-dirty-render-broken.md"'
+# Restore the fixture: the dirt above is this assert's subject, not a state the next run inherits.
+git -C "$sweep_dir/work" checkout -- docs/changes/archive/2026-08-11-0032-dirty-render-broken.md
+
+# --- the 0083 leg: a dirty archived path is MARKED OVER, not skipped ----------------------------
+dirty_log="$tmp/sweep-calls-0118-dirty.log"; : > "$dirty_log"
+printf '31\tpublish-dirty-mark\t31\t2026-08-11\n' > "$tmp/sweep-input-0118-dirty.tsv"
+dirty_out="$( cd "$sweep_dir/work" && \
+  DOCKET_MODE=docket METADATA_WORKTREE=. CHANGES_DIR=docs/changes ADRS_DIR=docs/adrs \
+  INTEGRATION_BRANCH=main METADATA_BRANCH=main TERMINAL_PUBLISH=true \
+  SCRIPTS_DIR="$tmp/mock-scripts" SWEEP_LOG="$dirty_log" SWEEP_INPUT="$tmp/sweep-input-0118-dirty.tsv" \
+  bash -c '. "'"$SCRIPT"'"; sweep_execute < "$SWEEP_INPUT"' )"
+assert "0118 finding1: the publish leg really was entered with the path dirty (non-vacuity)" \
+  'grep -qxF -- "publish-dirtied yes" "$dirty_log"'
+assert "0118 finding1: the 0083 leg marks over a dirty archived path (terminal-publish's re-mark)" \
+  'grep -q "^mark-publish-deferred .*publish-dirty-mark" "$dirty_log"'
+assert "0118 finding1: that re-mark reached the metadata branch as a COMMIT" \
+  'body="$(git -C "$sweep_dir/work" show "HEAD:docs/changes/archive/2026-08-11-0031-publish-dirty-mark.md")"; \
+   grep -qxF -- "## Publish deferred" <<<"$body"'
+assert "0118 finding1: the pre-existing uncommitted write is carried into that commit, not lost" \
+  'body="$(git -C "$sweep_dir/work" show "HEAD:docs/changes/archive/2026-08-11-0031-publish-dirty-mark.md")"; \
+   grep -qxF -- "uncommitted marker-removal stand-in" <<<"$body"'
+assert "0118 finding1: the report stream is unchanged — exactly the one terminal-publish line" \
+  '[ "$(printf "%s\n" "$dirty_out" | grep -c .)" -eq 1 ] \
+   && grep -qxE "sweep-failed 31 terminal-publish script-error" <<<"$dirty_out"'
+assert "0118 finding1: the shared metadata worktree is left CLEAN by the mark-over" \
+  '[ -z "$(git -C "$sweep_dir/work" status --porcelain)" ]'
+
 # --- change 0064 (Finding 1): TERMINAL_PUBLISH gates the REAL sweep's terminal-publish.sh call ---
 # A behavioral test (not just wiring): drives docket-status.sh's actual merge-sweep pipeline in a
 # hermetic docket-mode fixture (separate docket/main branches on a bare origin) with the REAL

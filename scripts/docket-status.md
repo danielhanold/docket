@@ -231,9 +231,15 @@ travels in the dated `--detail` line. Under suppression the leg stays unmarked, 
 publish is *success*, not a deferral (ADR-0051); the residual there is unchanged — the archived
 change keeps a stale `## Artifacts` block on `metadata_branch` that no later sweep resumes, and the
 follow-up is a manual re-render on the metadata branch, not a publish. Both marks share one writer,
-`sweep_mark_publish_deferred`, which skips entirely when the archived path is already dirty or the
-shared worktree is mid-rebase/merge, restores the path to `HEAD` if `add`/`commit` fails, and
-retains a committed-but-unpushed marker so the next pass's `pull --rebase` carries it.
+`sweep_mark_publish_deferred`, which skips entirely when the shared worktree is mid-rebase/merge,
+restores the path to `HEAD` if `add`/`commit` fails, and retains a committed-but-unpushed marker so
+the next pass's `pull --rebase` carries it. One precondition is **not** shared: only the
+`render-change-links` leg also skips when the archived path is already dirty. There the archive
+commit has just landed and the renderer writes atomically, so a dirty path is another actor's
+uncommitted state. The `terminal-publish` leg marks over a dirty path deliberately — that is where
+`terminal-publish.sh` has already stripped the marker in the shared worktree and failed to commit
+the removal, and the documented recovery for that window is exactly this re-mark; step 6a's
+`commit-failed` leg (below) also reaches the publish with the path dirty.
 
 **6a. The artifacts refresh (change 0075).** After `render-change-links.sh` rewrites the archived
 change's `## Artifacts` block in the metadata worktree, the sweep **commits and pushes** that file
