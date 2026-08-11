@@ -88,3 +88,17 @@ substitute for it.
 byte-identical. The cost accepted: the *value* remains prose-supplied one level up. What makes that
 acceptable is that an omission is now a loud abort rather than a silent main-tree run on the
 integration branch.
+
+## Update — 2026-08-11 (see ADR-0083)
+
+Two statements in *Consequences* above are no longer true, though the decision itself stands.
+
+"The `build-*` gate is the one piece of agent-family knowledge the facade gains" — the facade now
+reads a declared `worktree-scope:` for **every** agent, not just the build family. And
+`sync-agents.sh` no longer leaves "every other shim byte-identical": the five newly feature-scoped
+agents (`docket-rebase-resolver`, `docket-integration-repair`, and the three `docket-review-*` rungs)
+gained the required `--worktree` slot too, and the declaration flows into every generated wrapper.
+
+The cause: keying on the name shape `build-*` enumerated one family while three others were equally
+feature-scoped, leaving them ungated. ADR-0083 replaces the name-pattern key with a declared
+frontmatter fact that both readers gate on.
