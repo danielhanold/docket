@@ -2,11 +2,11 @@
 id: 281
 slug: auto-groom-s-critic-verdict-return-channel-fails-under-backg
 title: 'Auto-groom''s critic verdict return channel fails under background dispatch'
-status: proposed
+status: in-progress
 priority: medium
 type: fix
 created: 2026-08-09
-updated: 2026-08-09
+updated: 2026-08-11
 depends_on: []
 related: [247]
 discovered_from: [247]
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/auto-groom-s-critic-verdict-return-channel-fails-under-backg
+claimed_at: 2026-08-11T06:08:10Z
 pr:
 blocked_by:
 reconciled: false
