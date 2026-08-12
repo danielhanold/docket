@@ -17,11 +17,11 @@ results:
 trivial: false
 auto_groomable: false
 branch: feat/stacked-changes-build-a-new-change-on-top-of-a-parent-change
-claimed_at: 2026-08-12T01:30:33Z
+claimed_at: 2026-08-12T01:32:00Z
 pr:
 issue:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -71,3 +71,26 @@ Full design: see the linked spec.
 ## Open questions
 
 None — settled in the linked spec's brainstorm (2026-08-11).
+
+## Reconcile log
+
+### 2026-08-12
+
+Reconciled at claim. The spec is one day old, so the pass found no drift to fold in:
+
+- **Nothing of the subsystem exists yet.** A whole-repo search for `stacked_on` / `stacked-merged`
+  returns no hit outside the spec itself — no partial implementation to reconcile against, and no
+  field name collision in the manifest, the renderers, or the board.
+- **Related change 0158 (batch mode) is still `proposed`** and auto-groom-blocked, so the
+  out-of-scope boundary the spec draws against it still holds: nothing has been built on either
+  side of that line.
+- **Recent ADRs (0085–0091) do not bear on stacking.** They cover the critic's return channel,
+  in-context gating dispatch, worktree contention, halt exit codes, liveness probes, publish-deferred
+  coverage, and backtick hygiene — none of which constrains the lifecycle state, the base resolver,
+  or the merge-site close-out this change adds.
+- **The touch-point surfaces named in the spec all still exist under the names it uses**:
+  `render-change-links.sh`, `render-board.sh`, `docket-status.sh`, `terminal-publish.sh`,
+  `archive-change.sh`, and `verify-run.sh`.
+
+Scope is unchanged. No auto-capture candidates surfaced at this pass: everything the design implies
+is inside this change's own boundary.
