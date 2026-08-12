@@ -142,6 +142,8 @@ scripts/backfill-change-types.sh|"$f"|change
 scripts/board-checks.sh|"$f"|change
 scripts/docket-status.sh|"$f"|change
 scripts/docket-status.sh|"$active"|change
+scripts/docket-status.sh|"$anc_file"|change
+scripts/docket-status.sh|"$root_file"|change
 scripts/github-mirror.sh|"$f"|change
 scripts/mint-stub.sh|"$f"|change
 scripts/reclaim-claims.sh|"$f"|change
@@ -150,7 +152,15 @@ scripts/render-board.sh|"$1"|change
 scripts/render-change-links.sh|"$CHANGE_FILE"|change
 scripts/render-change-links.sh|"$c"|change
 scripts/lib/docket-stack.sh|"$f"|change
+scripts/stack-children.sh|"$f"|change
 scripts/stack-closeout.sh|"$f"|change'
+# The four stack-walker entries above resolve their file argument through `stack_find_file`, which
+# searches `active/` FIRST, THEN `archive/` — so the path may name either an active or an archived
+# change. That is ONE corpus, not two: both directories hold files minted from the change template,
+# and the guaranteed set is a property of that template, not of which directory the file currently
+# sits in. The forbidden move — a union of two corpora for a file that reads both — is about a
+# script reading a change file AND an ADR (terminal-publish.sh), which is why that one is mapped per
+# file argument rather than per file.
 
 corpus_of(){ # corpus_of RELPATH ARGTOKEN -> corpus on stdout, or exit 1
   local k="$1|$2|" line
