@@ -101,6 +101,19 @@
 # The cost is git: one bare origin, two clones and roughly thirty commits and pushes across the five
 # families, with every close-out helper mocked and no network beyond the local origin. Next multiple
 # of 5 above 5.45 is 10, plus the 5s margin -> 15. EXPECTED_TOTAL moves 1770 -> 1785.
+#
+# tests/test_board_checks_stack.sh is a NEW FILE brought by change 0298 — the fourth and last
+# legitimate mover in this change. It is a SIBLING SHARD of tests/test_board_checks.sh, which sits
+# at 55s: it owns the two stacked health checks (`stack-invalid`, `stack-parent-killed`) and the
+# separateness pin that keeps them two ids rather than one. The registration guards stay in
+# tests/test_board_checks.sh — they are derived from board-checks.sh itself and belong with the rest
+# of the registry — so this file carries only the behavioral legs. Sized per this header's rule from
+# three standalone serial readings, one session, one machine, as
+# `/usr/bin/time -p bash tests/test_board_checks_stack.sh >/dev/null`:
+#   1.93  1.92  1.92  -> worst 1.93
+# The cost is git: one bare origin, one clone, three branches and one pushed feature branch, then
+# two board-checks.sh runs over ten fixtures. Next multiple of 5 is 5, plus the 5s margin -> 10,
+# this table's floor. EXPECTED_TOTAL moves 1785 -> 1795.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -109,6 +122,7 @@ tests/test_backfill_change_types.sh	10	parallel
 tests/test_bash_runtime_install.sh	10	parallel
 tests/test_bash_runtime_routing.sh	10	parallel
 tests/test_board_checks.sh	55	parallel
+tests/test_board_checks_stack.sh	10	parallel
 tests/test_board_refresh.sh	10	parallel
 tests/test_board_refresh_on_transition.sh	10	parallel
 tests/test_bsd_tool_defaults.sh	10	parallel

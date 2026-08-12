@@ -11,6 +11,7 @@
 #   Findings: TAB-separated  <check-id>\t<change-id>\t<message>  on stdout, sorted by (check-id, change-id).
 #     check-id ∈ {aborted-run, adr-unpublished, board-row-dropped, broken-spec, broken-plan-results,
 #                 dep-cycle, field-domain, malformed-id, publish-deferred, scalar-form,
+#                 stack-invalid, stack-parent-killed,
 #                 stale-in-progress, merge-gate-stall, stale-finalize-blocked, merged-orphan,
 #                 unknown-commit-ref}
 #     The set above is declared in lib/docket-frontmatter.sh as BOARD_CHECK_IDS and pinned to it,
@@ -71,8 +72,27 @@ fi
 
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/lib/docket-frontmatter.sh"
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/lib/docket-stack.sh"   # stack_effective_base, for the two stack checks
 
 resolve_deps "$CHANGES_DIR"            # populates STATUS_OF / DEP_STATE / DEP_REASON / DEP_ON
+
+# stack_git — the GIT seam the sourced stack library calls, pinned to the changes-dir repo.
+# stack_effective_base issues its one `git show-ref --verify` WITHOUT a `-C` (it is written for
+# callers that already run inside the repo), so under this script it would otherwise read whichever
+# repo the CALLER's cwd happens to sit in — and board-checks.sh is invoked from wherever
+# docket-status runs, which is not guaranteed to be the metadata worktree. Every other git call in
+# this file is addressed `-C "$CHANGES_DIR"`; this wrapper gives the library the same addressing, so
+# "is the parent's branch pushed" is answered by the tree being checked. Passed to the resolver as
+# GIT in a subshell at the call site, never assigned globally: the rest of this file spells its own
+# calls `"$GIT" -C "$CHANGES_DIR"` and would double the flag.
+#
+# It resolves the binary through its OWN snapshot, never through `$GIT`. The call site sets
+# `GIT=stack_git`, so a body spelled `"$GIT" -C …` would call ITSELF — unbounded recursion that
+# spins at 100% CPU and grows without limit rather than failing. The snapshot is taken once, here,
+# where `$GIT` is still the binary.
+STACK_GIT_BIN="$GIT"
+stack_git(){ "$STACK_GIT_BIN" -C "$CHANGES_DIR" "$@"; }
 
 # git_has REF PATH — exit 0 iff REF:PATH resolves in the changes-dir's repo (no network).
 git_has(){ "$GIT" -C "$CHANGES_DIR" cat-file -e "$1:$2" 2>/dev/null; }
@@ -704,6 +724,50 @@ for f in "${FILES[@]}"; do
   # cannot drop a board row.
   if publish_deferred "$f"; then
     emit publish-deferred "$cid" "terminal-publish to $INTEGRATION_BRANCH not completed — record on $METADATA_BRANCH only; complete the publish or record a decision not to"
+  fi
+
+  # --- stack-invalid / stack-parent-killed: a stacked change whose EFFECTIVE BASE does not resolve
+  # (change 0298). A change carrying `stacked_on:` is built on its parent's feature branch, and
+  # every consumer of that answer — the branch cut, the PR base, the rebase target — asks
+  # stack_effective_base for it. When the resolver cannot answer, the failure surfaces at the moment
+  # someone tries to build or finalize the change; these two checks move it onto the board instead.
+  #
+  # TWO checks, not one, because the REMEDIES differ and a finding a human cannot act on is noise:
+  # exit 3 (the chain reaches a KILLED parent) is a scoping decision only a human makes — spec §9
+  # forbids silently falling back to the integration branch — while exit 4 (missing parent, cycle,
+  # or a parent branch with no remote ref) is a data or sequencing repair. Collapsing them is what
+  # tests/test_board_checks_stack.sh's separateness asserts redden on.
+  #
+  # ONE call, then a branch on its status. Calling the resolver once per check would let the two
+  # legs disagree about the same file: the resolver reads the tree and the remote refs, both of
+  # which a concurrent run can move between two calls, and the second answer would silently win.
+  #
+  # `stacked_on` is an OPTIONAL key, so it is read with the ANCHORED accessor (ADR-0057): an
+  # unanchored read runs past the closing `---` and would pick up a body-prose line, which in THIS
+  # repo's change files is ordinary content.
+  #
+  # Scoped to NON-TERMINAL changes: a `done` or `killed` change's chain is history, and neither
+  # re-parenting nor pushing a branch is something anyone can still do about it.
+  if ! docket_status_is_terminal "$status"; then
+    sc_parent="$(fm_field "$f" stacked_on)"
+    if [ -n "$sc_parent" ]; then
+      # Padded for the message only. A non-numeric value never reaches here with a finding attached
+      # — stack_parent_id declines it quietly and the resolver then answers "unstacked", exit 0 —
+      # so the arm exists to keep the interpolation total rather than to report that case.
+      case "$sc_parent" in
+        *[!0-9]*) sc_parent_label="$sc_parent" ;;
+        *) sc_parent_label="$(printf '%04d' "$(( 10#$sc_parent ))")" ;;
+      esac
+      # The subshell is the assignment scope for the GIT seam: a `GIT=stack_git func` prefix on a
+      # FUNCTION call is not reliably restored afterwards, and leaking it would re-address every
+      # later git call in this walk.
+      ( GIT=stack_git; stack_effective_base "$CHANGES_DIR" "$id" "$INTEGRATION_BRANCH" ) >/dev/null 2>&1
+      sc_rc=$?
+      case "$sc_rc" in
+        3) emit stack-parent-killed "$cid" "stacked on #$sc_parent_label, which is killed — rescope this change onto $INTEGRATION_BRANCH, re-parent it onto a live change, or kill it too; there is no safe automatic fallback" ;;
+        4) emit stack-invalid "$cid" "stacked_on chain does not resolve to a base branch (parent #$sc_parent_label) — repair the stacked_on id if the parent is missing, break the cycle if it closes one, or push the parent's branch to origin if it was never pushed" ;;
+      esac
+    fi
   fi
 done
 

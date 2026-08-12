@@ -943,7 +943,11 @@ mreseed(){
   [ -n "$mcopy" ] && rm -rf "$mcopy"; mcopy="$(mktemp -d)"
   mkdir -p "$mcopy/scripts/lib"
   cp "$SCRIPT" "$mcopy/scripts/board-checks.sh"
-  cp "$REPO/scripts/lib/docket-frontmatter.sh" "$mcopy/scripts/lib/"
+  # EVERY lib board-checks.sh sources, not just the frontmatter one: the mutant resolves its
+  # sources relative to its own path, and a lib missing from the copy makes `source` fail on
+  # stderr — which is precisely what the "the mutated copy still RUNS" non-vacuity asserts below
+  # detect, so an omission here reads as a mutation failure rather than as a missing file.
+  cp "$REPO/scripts/lib/docket-frontmatter.sh" "$REPO/scripts/lib/docket-stack.sh" "$mcopy/scripts/lib/"
   MUTSCRIPT="$mcopy/scripts/board-checks.sh"
 }
 mrun(){ NOW=$NOW_EPOCH bash "$MUTSCRIPT" --changes-dir "$MUT/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null; }
@@ -2355,7 +2359,8 @@ armreseed(){
   [ -n "$armcopy" ] && rm -rf "$armcopy"; armcopy="$(mktemp -d)"
   mkdir -p "$armcopy/scripts/lib"
   cp "$SCRIPT" "$armcopy/scripts/board-checks.sh"
-  cp "$REPO/scripts/lib/docket-frontmatter.sh" "$armcopy/scripts/lib/"
+  # Same reason as mreseed's copy: every lib board-checks.sh sources travels with the mutant.
+  cp "$REPO/scripts/lib/docket-frontmatter.sh" "$REPO/scripts/lib/docket-stack.sh" "$armcopy/scripts/lib/"
   ARMSCRIPT="$armcopy/scripts/board-checks.sh"
 }
 armrun_at(){ NOW=$NOW_EPOCH bash "$ARMSCRIPT" --changes-dir "$1/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null; }
@@ -3793,11 +3798,12 @@ LIB="$REPO/scripts/lib/docket-frontmatter.sh"
 # shellcheck source=/dev/null
 source "$LIB"
 
-# 15 since change 0113 added aborted-run (14 at 0191's scalar-form; 13 at 0117's adr-unpublished).
+# 17 since change 0298 added the two stack checks, stack-invalid and stack-parent-killed (15 at
+# 0113's aborted-run; 14 at 0191's scalar-form; 13 at 0117's adr-unpublished).
 # This literal is the ONE hand-edit the derived set-compares below do not absorb — bump it with
 # every new id.
-assert "BOARD_CHECK_IDS holds the 15 check-ids board-checks.sh emits" \
-  '[ "${#BOARD_CHECK_IDS[@]}" = 15 ]'
+assert "BOARD_CHECK_IDS holds the 17 check-ids board-checks.sh emits" \
+  '[ "${#BOARD_CHECK_IDS[@]}" = 17 ]'
 assert "BOARD_CHECK_IDS SET == the set board-checks.sh actually emits (edit scripts/lib/docket-frontmatter.sh)" \
   '[ -z "$(comm -3 <(printf "%s\n" "${BOARD_CHECK_IDS[*]}" | tr " " "\n" | sort -u) <(printf "%s\n" "$emitted"))" ] \
    || { comm -3 <(printf "%s\n" "${BOARD_CHECK_IDS[*]}" | tr " " "\n" | sort -u) <(printf "%s\n" "$emitted") >&2; false; }'
