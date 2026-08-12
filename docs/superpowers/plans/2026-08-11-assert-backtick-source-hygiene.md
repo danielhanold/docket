@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0221 — assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0221-assert-executes-backticks-in-its-test-description-so-a-verba.md)**
+> ↩ **[Change 0221 — assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-12-0221-assert-executes-backticks-in-its-test-description-so-a-verba.md)**
 <!-- docket:backlink:end -->
 
 # Test-source backtick hygiene: canonical asserts + an enforced pre-execution gate — Implementation Plan
