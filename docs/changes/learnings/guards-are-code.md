@@ -2,9 +2,9 @@
 slug: guards-are-code
 hook: "A guard is code — mutation-test it (strip the feature, watch it go red) or it is decoration."
 topics: [testing, sentinels, mutation]
-changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 102, 106, 107, 111, 116, 126, 169, 184, 244, 275, 281]
+changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 102, 106, 107, 111, 116, 126, 169, 184, 244, 275, 281, 221]
 created: 2026-06-17
-updated: 2026-08-11
+updated: 2026-08-12
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -337,3 +337,24 @@ on deletion can stay green on `>=` → `<=`.
   a valid run of an invalid probe — a probe that changes bytes without removing the guarded property
   proves nothing either. Both collapse into one rule: a probe is only evidence once you have
   established WHAT it changed.
+- 2026-08-12 (#221, PR #202 — merged) — **A fixture matrix must cross each RULE with each LINE
+  SHAPE, not collect one example per rule.** The new test-source hygiene checker's lexer treated a
+  backslash-newline as an **escape** rather than a **splice**, consuming the first character of the
+  continuation line. Consequences, both silent: the EVAL-BACKTICK rule went **inert on 3707 of 6784**
+  assert call sites — **55% of the suite** — and at column 0 the mis-consumed character inverted
+  quote state **to end of file**, discarding every later violation in that file. Every fixture
+  passed. The authoring worker's own documented mutation probe reported green. Whole-branch review
+  caught it as a BLOCKER; the green suite structurally could not.
+  The reason it hid is the generalizable part, and it is a property of the fixture *set*, not of any
+  fixture: **every RED fixture wrote its hazard on one physical line**, and the only
+  backslash-continuation fixture was a **GREEN** one. A green continuation fixture proves the absence
+  of false positives on that shape and says **nothing whatever about detection** on it — the two
+  polarities test disjoint properties, so coverage counted per-rule looked complete while an entire
+  input shape had no detection coverage at all. The rule: enumerate the input **line shapes** your
+  scanner must survive — single line, backslash continuation, heredoc body, multi-line assignment —
+  and require a **red** fixture for every (rule × shape) cell, not one example per rule. A matrix
+  with a dimension collapsed is a matrix with a hole, and mutation testing will not find it, because
+  the mutation is read through fixtures that never exercise the missing shape.
+  Sharpest instance of the drain's dominant theme; the plan-supplied half of this change (an
+  acceptance test that was vacuously green by construction) and the oracle-cannot-validate-itself
+  meta-point are in [[plan-supplied-test-code-is-unverified]].

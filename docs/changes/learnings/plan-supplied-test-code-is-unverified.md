@@ -2,9 +2,9 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234, 237, 200, 244, 242, 286, 260, 284, 247, 118]
+changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234, 237, 200, 244, 242, 286, 260, 284, 247, 118, 221]
 created: 2026-07-19
-updated: 2026-08-11
+updated: 2026-08-12
 promotion_state: candidate
 promoted_to:
 ---
@@ -422,3 +422,23 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   the shared probe harness, not in each plan author's care. The ugrep divergence is already a
   promoted always-in-context rule; this is it re-firing inside probe code. See [[guards-are-code]],
   [[phrase-grep-over-wrapped-prose]].
+
+- 2026-08-12 (#221, PR #202) — **The drain's closing instance, and the one that names why this class
+  cannot be closed from inside the suite.** Running tally: **eight** changes in this drain — #286,
+  #281, #260, #284, #247, #118, #221. The plan-supplied defect here was ordinary in shape and total in
+  effect: the acceptance-test seed for "a hygiene violation aborts the run having executed ZERO test
+  files" keyed on a marker **the runner can never write**, so the one acceptance test proving the new
+  gate's central behavior would have been **vacuously green** — the abort would have been indisting-
+  uishable from the abort never happening.
+  What makes this entry worth more than a tally is the **meta-point about where the guard sits**.
+  0221 is a guard for a defect in the **oracle itself** — `assert()` in `tests/lib`, the thing every
+  other test's verdict is read through. A guard on the oracle **cannot be validated by the oracle**:
+  every probe, every fixture, every "the suite is green" reading is mediated by the very component
+  under test, so a hole in it is invisible to exactly the instrument you would use to find it. The
+  branch demonstrated this end to end — see [[guards-are-code]]'s companion entry for the 55%-inert
+  lexer bug that every fixture passed and the authoring worker's own documented mutation probe
+  reported green. This is the whole justification for **#0292** (shared, tested mutation-probe
+  harness, priority **high**): the probe harness has to be a *separately tested artifact* with its
+  own reddening evidence, precisely because it is what you reach for when the thing under test is
+  the measuring apparatus. Every prior entry in this family argues #0292 saves repeated effort;
+  this one argues it is the only way the oracle's own guards can be evidenced at all.
