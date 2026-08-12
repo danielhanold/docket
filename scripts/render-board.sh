@@ -55,6 +55,10 @@ esac
 
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/lib/docket-frontmatter.sh"
+# Sourced SECOND and never first: docket-stack.sh consumes the frontmatter library's `fm_field`
+# and deliberately does not source it itself.
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/lib/docket-stack.sh"
 
 # --- report filter validation (change 0127) ---------------------------------------------------
 # `all` is the wildcard and is exactly equivalent to omitting the option. A --type filter accepts
@@ -298,6 +302,38 @@ for f in "${ARCFILES[@]}"; do
   ARC_COUNT["$st"]=$(( ${ARC_COUNT[$st]:-0} + 1 ))
 done
 
+# --- the stacked-changes readiness conjunct (change 0298) -------------------------------------
+# Build-readiness gains ONE conjunct: a change carrying `stacked_on:` is build-ready only when its
+# effective base RESOLVES. Without it the autonomous builder cuts a branch from a base that does not
+# exist, and git silently bases it on the integration branch while everyone believes it is stacked.
+# This is an ELIGIBILITY condition, never a ranking one — the deterministic selection order is
+# untouched, and the change keeps its section and its row.
+#
+# Both projections call this ONE predicate — the board's readiness_cell and the digest's
+# digest_readiness — so, exactly as with readiness() itself, the digest can never disagree with the
+# board. The ready-queue producer filters on `digest_readiness … = build-ready` and therefore
+# inherits the gate with no edit of its own.
+#
+# The resolver's INTEGRATION_BRANCH argument is what it hands back for an unstacked ancestor. The
+# renderer never reads the resolved NAME — only the exit status — and it has no repo configuration
+# to learn the real integration branch from, so it passes a placeholder that is discarded with the
+# rest of stdout. Anything that made the renderer print that value would be a defect regardless of
+# what were passed here.
+STACK_BASE_UNUSED_BRANCH='(integration)'
+# The id it prints is the IMMEDIATE parent, even when the unresolved link sits further up the
+# chain: the change's own `stacked_on:` is the only edge its author controls, and the board cell is
+# a pointer at where to start reading, not a diagnosis. Diagnosing WHICH ancestor broke belongs to
+# the health checks, which have room for a reason string the cell does not.
+stack_unresolved_parent(){ # stack_unresolved_parent FILE ID -> padded parent id + exit 0 when the
+                           # change is stacked and its base does NOT resolve; exit 1 otherwise
+  local f="$1" id="$2" parent
+  # Anchored accessor: `stacked_on:` is an OPTIONAL key (ADR-0057). A malformed value is not this
+  # renderer's to report — board-checks.sh owns that — so it reads as "not stacked" here.
+  parent="$(fm_field "$f" stacked_on)"
+  case "$parent" in (''|*[!0-9]*) return 1 ;; esac
+  stack_effective_base "$CHANGES_DIR" "$id" "$STACK_BASE_UNUSED_BRANCH" >/dev/null 2>&1 && return 1
+  pad "$(( 10#$parent ))"
+}
 # --- digest projection (change 0069) --------------------------------------------------------
 # A second, line-oriented projection of the SAME dependency-resolution/readiness pass the board
 # renders from — so readiness has exactly one owner (readiness(), in lib/docket-frontmatter.sh)
@@ -315,6 +351,12 @@ digest_readiness(){ # digest_readiness FILE ID STATUS -> machine-parseable readi
   fi
   [ "$st" = proposed ] || { printf '%s' '-'; return; }
   tok="$(readiness "$f")"
+  # The stack conjunct applies only to a change readiness() already calls build-ready: a change
+  # still waiting on a dependency, or one with no spec, is unready for a reason that precedes the
+  # stack and keeps its own token.
+  if [ "$tok" = build-ready ] && stack_unresolved_parent "$f" "$id" >/dev/null; then
+    printf 'stack-base-unresolved'; return
+  fi
   case "$tok" in
     waiting)
       # readiness() collapses both flavors to `waiting`; the flavor + blocking id live in the
@@ -412,12 +454,17 @@ label_for_title(){ case "$1" in
   stacked-merged) printf 'Stacked-merged';;
 esac; }
 readiness_cell(){ # readiness_cell FILE ID  (proposed)
-  local f="$1" id="$2" tok; tok="$(readiness "$f")"
+  local f="$1" id="$2" tok sp; tok="$(readiness "$f")"
   case "$tok" in
     waiting) printf '⏳ waiting on #%s — %s' "${DEP_ON[$id]}" "${DEP_REASON[$id]}" ;;
     auto-groom-blocked) printf 'auto-groom blocked — needs you' ;;
     needs-brainstorm) printf 'needs-brainstorm' ;;
-    build-ready) printf 'build-ready' ;;
+    build-ready)
+      # The stacked-changes conjunct (change 0298) — the prose form of the digest's
+      # `stack-base-unresolved` token. Same predicate, so the two projections cannot disagree.
+      if sp="$(stack_unresolved_parent "$f" "$id")"; then
+        printf '⏳ waiting on #%s — stack base not built' "$sp"
+      else printf 'build-ready'; fi ;;
   esac
 }
 implemented_cell(){ # implemented_cell FILE  (implemented)

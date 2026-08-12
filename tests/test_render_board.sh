@@ -2396,5 +2396,96 @@ assert "0259 M5: the ready queue carries only the well-formed change" \
   '/usr/bin/grep -qxF "ready 4" <<<"$m5_dg"'
 rm -rf "$m5"
 
+# --- change 0298: readiness is gated on the effective stack base -------------------------------
+# A `stacked_on:` change is build-ready only when its effective base RESOLVES — otherwise the
+# autonomous builder would cut a branch from a base that does not exist and silently produce work
+# based on the integration branch while everyone believes it is stacked. The discriminating fixture
+# pair is 21 vs 22: both are `proposed`, both carry a spec (so readiness() says build-ready on its
+# own), both name a live `in-progress` parent, and they differ ONLY in whether that parent's
+# `branch:` has a remote ref — which is exactly rule 1's conjunct. `branch:` is stamped at claim and
+# the branch is not pushed until the PR step, so the unpushed case is the common one, not the
+# exotic one.
+stk="$(mktemp -d "${TMPDIR:-/tmp}/render-board-stack.XXXXXX")"
+mkdir -p "$stk/active" "$stk/archive" "$stk/bin"
+# The renderer's GIT mock seam, which scripts/lib/docket-stack.sh reads for its one read-only
+# `show-ref --verify` call. Only feat/sierra exists on the remote.
+cat > "$stk/bin/git" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = show-ref ]; then
+  case " $* " in (*" refs/remotes/origin/feat/sierra "*) exit 0 ;; esac
+  exit 1
+fi
+exit 0
+EOF
+chmod +x "$stk/bin/git"
+cat > "$stk/active/0019-sierra.md" <<'EOF'
+---
+id: 19
+slug: sierra
+title: Sierra feature
+status: in-progress
+priority: medium
+created: 2026-08-01
+depends_on: []
+spec: docs/x.md
+branch: feat/sierra
+EOF
+cat > "$stk/active/0020-tango.md" <<'EOF'
+---
+id: 20
+slug: tango
+title: Tango feature
+status: in-progress
+priority: medium
+created: 2026-08-02
+depends_on: []
+spec: docs/x.md
+branch: feat/tango
+EOF
+cat > "$stk/active/0021-uniform.md" <<'EOF'
+---
+id: 21
+slug: uniform
+title: Uniform feature
+status: proposed
+priority: medium
+created: 2026-08-03
+depends_on: []
+stacked_on: 19
+spec: docs/x.md
+EOF
+cat > "$stk/active/0022-victor.md" <<'EOF'
+---
+id: 22
+slug: victor
+title: Victor feature
+status: proposed
+priority: medium
+created: 2026-08-04
+depends_on: []
+stacked_on: 20
+spec: docs/x.md
+EOF
+stk_board="$(GIT="$stk/bin/git" bash "$SCRIPT" --changes-dir "$stk" --repo o/r 2>/dev/null)"
+stk_digest="$(GIT="$stk/bin/git" bash "$SCRIPT" --changes-dir "$stk" --format digest 2>/dev/null)"
+stk_ready="$(sed -n 's/^ready //p' <<<"$stk_digest")"
+
+assert "a stacked change whose base resolves stays build-ready" \
+  'grep -qxF "change 21 proposed build-ready uniform" <<<"$stk_digest"'
+assert "an unresolved stack base renders its own digest token" \
+  'grep -qxF "change 22 proposed stack-base-unresolved victor" <<<"$stk_digest"'
+assert "a stacked change whose base resolves is in the ready queue (non-vacuity)" \
+  '[[ " $stk_ready " == *" 21 "* ]]'
+assert "a stacked change whose base is unresolved is not in the ready queue" \
+  '[[ " $stk_ready " != *" 22 "* ]]'
+assert "the board cell names the parent" \
+  'grep -qF "waiting on #0020 — stack base not built" <<<"$stk_board"'
+assert "the board agrees with the digest: the resolvable child still reads build-ready" \
+  'grep -qF "| [0021](active/0021-uniform.md) | Uniform feature | \`medium\` | \`untyped\` | build-ready |" <<<"$stk_board"'
+# The gate is an ELIGIBILITY condition, not a placement one: an ungated change keeps its section.
+assert "the gated change still renders in the proposed section" \
+  'grep -qF "| [0022](active/0022-victor.md) | Victor feature |" <<<"$stk_board"'
+rm -rf "$stk"
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

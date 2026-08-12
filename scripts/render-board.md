@@ -77,6 +77,18 @@ and so necessarily preserves quotes too.
 token: `waiting` → `⏳ waiting on #N — <reason>`; `auto-groom-blocked` → `auto-groom blocked —
 needs you`; `needs-brainstorm` → `needs-brainstorm`; `build-ready` → `build-ready`.
 
+**The stacked-changes conjunct (change 0298).** A change carrying `stacked_on:` is build-ready only
+when its **effective base resolves** — `stack_effective_base` (`lib/docket-stack.sh`) exiting `0`.
+When it does not (a killed parent, a broken chain, or the common case of a parent whose `branch:`
+was stamped at claim but never pushed), the cell becomes
+`⏳ waiting on #<padded parent> — stack base not built` and the digest token becomes
+`stack-base-unresolved`, in place of `build-ready`. Both projections call one predicate, so they
+cannot disagree. This is an **eligibility** condition only: the change keeps its section, its row,
+and its place in the selection order — it is merely absent from the `ready` queue. A change that
+`readiness()` already calls something other than `build-ready` keeps its own token; the conjunct
+never overrides a dependency wait. The resolver is the sole owner of that judgement, and the
+renderer reads only its exit status — never the branch name it resolves to.
+
 **PR cell (implemented).** If `pr:` is a full URL, renders `[#N](url)`. If it is a bare number
 and `--repo` is set, constructs `https://github.com/OWNER/REPO/pull/N`. Otherwise renders `#N`.
 
@@ -115,8 +127,9 @@ owner and the digest can never disagree with the board's Readiness cell. Emits, 
 `backlog <status> <count>` line per non-zero status (fixed order: in-progress, proposed, blocked,
 deferred, implemented, done, killed; `done`/`killed` counted from `archive/`), then one
 `change <id> <status> <readiness> <slug>` line per **active** change, ascending by id. `<readiness>`
-is `build-ready`, `needs-brainstorm`, `auto-groom-blocked`, `waiting-on-<N>-unbuilt`, or
-`waiting-on-<N>-needs-merge` for a `proposed` change; `finalize-blocked` for an `implemented`
+is `build-ready`, `needs-brainstorm`, `auto-groom-blocked`, `stack-base-unresolved`,
+`waiting-on-<N>-unbuilt`, or `waiting-on-<N>-needs-merge` for a `proposed` change;
+`finalize-blocked` for an `implemented`
 change carrying the `## Finalize blocked` section; and `-` for everything else — an `implemented`
 change *without* the marker, plus every change in any other status (where readiness does not
 apply). Readiness has exactly one owner per status, so the digest and the board cannot
