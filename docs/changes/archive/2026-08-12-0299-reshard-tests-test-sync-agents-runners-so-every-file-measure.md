@@ -2,7 +2,7 @@
 id: 299
 slug: reshard-tests-test-sync-agents-runners-so-every-file-measure
 title: 'Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling'
-status: proposed
+status: killed
 priority: medium
 type: chore
 created: 2026-08-12
@@ -56,3 +56,7 @@ gating decision, and every other file's budget row.
 change 0298's branch would put a large, purely-infrastructural test refactor inside a feature diff
 the human is reading for stacking semantics, and a resharding mistake would redden a suite that
 change has no other reason to touch.
+
+## Why killed
+
+Duplicate of change 0280 (Shard or re-budget the test files the suite runner reports OVER BUDGET), which already owns this work in general form. Minted in error by change 0298's review-pass auto-capture: mint-stub's dedup did not match because the titles are worded differently. No work is lost — the test_sync_agents_runners breach is exactly what 0280 tracks.
