@@ -2,11 +2,11 @@
 id: 298
 slug: stacked-changes-build-a-new-change-on-top-of-a-parent-change
 title: "Stacked changes — build a new change on top of a parent change's branch"
-status: proposed
+status: in-progress
 priority: medium
 type: feat
 created: 2026-08-11
-updated: 2026-08-11
+updated: 2026-08-12
 depends_on: []
 related: [158]
 discovered_from: []
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: false
-branch:
+branch: feat/stacked-changes-build-a-new-change-on-top-of-a-parent-change
+claimed_at: 2026-08-12T01:30:33Z
 pr:
 issue:
 blocked_by:
