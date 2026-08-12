@@ -160,7 +160,7 @@ Two validation passes run before any projection is built — an upfront pass ove
 |---|---|---|
 | M1 | Unusable `id:` — absent, empty, or non-integer. | upfront pass |
 | M2 | Empty `status:`. | upfront pass |
-| M3 | `status:` outside the seven-name `DOCKET_STATUSES` vocabulary. This **subsumes** any status carrying an interior TAB or CR: a control-character value can never match a closed vocabulary name, so rejection-by-vocabulary *is* the sanitization — no such value ever reaches the archive TAB join or an `ARC_COUNT`/`SECTION` array subscript. | upfront pass |
+| M3 | `status:` outside the `DOCKET_STATUSES` vocabulary — diagnosed as `status '<value>' is not one of the lifecycle statuses: <the array, interpolated>`, count-free so the wording cannot drift as the vocabulary grows. This **subsumes** any status carrying an interior TAB or CR: a control-character value can never match a closed vocabulary name, so rejection-by-vocabulary *is* the sanitization — no such value ever reaches the archive TAB join or an `ARC_COUNT`/`SECTION` array subscript. | upfront pass |
 | M4 | The archive sort feeder's `date<TAB>id<TAB>status<TAB>path` tuple did not survive a round trip through the consumer's own split. | feeder pass |
 | M5 | The change file's **path** contains a TAB or CR. | upfront pass |
 

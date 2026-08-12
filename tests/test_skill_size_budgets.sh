@@ -1265,6 +1265,33 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 # one-sentence prose correction reddens CI on arrival. Words: 1683
 # -> the next multiple of 50 is 1700, which leaves 17 words, inside the 25-word threshold, so the
 # multiple after it: 1750 (67 words of margin). No prose was cut to fit either number.
+# skills/docket-convention/SKILL.md's WORD budget was raised 6700 -> 6800 by change 0298, which adds
+# the EIGHTH lifecycle status, `stacked-merged`, to the *Lifecycle* section: a table row, a limb on
+# the ASCII diagram, the status alternation in the manifest template's `status:` comment, and one
+# sentence in *Rules* saying why the state is non-terminal (its code has reached its stack parent's
+# branch, not the integration branch, so the file stays in `active/` until the stack close-out
+# promotes it). Growing this file IS part of the change's deliverable, so the raise is consumed by
+# this diff, not prophylactic.
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above: the new
+# skills/docket-convention/references/stacked-changes.md, which this same change mints for the stack
+# MECHANICS (the effective-base rules, the close-out, the review/merge flow). It cannot host any of
+# the four additions. The status table and the diagram are the convention's enumeration of the
+# lifecycle: an enumeration missing a member reads as complete without it — this block's own
+# recurring finding — and every skill that writes a `status:` reads that table here, on a trigger
+# the stacked-changes reference does not share. The template comment is inside the manifest block it
+# annotates and cannot leave it.
+# COMPRESSION: taken first. The diagram limb was authored over two lines and reflowed to one, and
+# the *Rules* sentence lost its restatement of the merge target ("a change whose PR merged into its
+# stack parent's branch has not reached the integration branch" -> "merged into its stack parent,
+# not the integration branch"), 28 words in total. Nothing further is available without dropping one
+# of the four additions, each of which is bound by an assert: the vocabulary cardinality and
+# ACTIVE-order asserts in tests/test_docket_frontmatter.sh pin the state's existence and placement,
+# and the golden in tests/test_render_board.sh renders its section.
+# Set per the rounding rule above from the measured post-compression actual: 6727 words -> the next
+# multiple of 50 is 6750, which leaves 23 words (inside the 25-word threshold), so the multiple
+# after it, 6800 (73 words of margin). The LINE budget was NOT raised: 379 actual against 385.
+# skills/docket-convention/github-board-mirror.md needed no raise from the same change (17/443
+# against 19/462) — the status->issue mapping gained `stacked-merged` inside the existing sentence.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -1276,7 +1303,7 @@ skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            130 1200
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          145 1350
-skills/docket-convention/SKILL.md                          385 6700
+skills/docket-convention/SKILL.md                          385 6800
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         205 2350
 skills/docket-convention/references/auto-capture.md        130 1250

@@ -389,7 +389,7 @@ for f in "${FILES[@]}"; do
   done
   if [ "$status_ok" != 1 ]; then
     emit field-domain "$cid" "status '$status' is not one of: ${DOCKET_STATUSES[*]}"
-    # A status outside the seven-name vocabulary is outside the five-name ACTIVE set too, so on a
+    # A status outside the DOCKET_STATUSES vocabulary is outside the ACTIVE set too, so on a
     # file in either directory renders_row has already recorded the drop; this finding names its cause.
     EXPLAINED["$cid"]=1
   fi

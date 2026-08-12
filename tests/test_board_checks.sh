@@ -3052,7 +3052,7 @@ assert "board-row-dropped is suppressed when malformed-id explains the archive d
   '! has_finding "$aeout" board-row-dropped 0085'
 
 # (T7) suppression by the field-domain `status` arm on the archive side. A status outside the
-# seven-name vocabulary is outside DOCKET_STATUSES_TERMINAL too, so it explains the archive drop.
+# DOCKET_STATUSES vocabulary is outside DOCKET_STATUSES_TERMINAL too, so it explains the archive drop.
 # EXACTLY ONE finding, for the same reason case (b) asserts it on the active side: DROPPED is
 # written by the computed predicate and EXPLAINED by the field-domain status arm, at independent
 # sites — so deleting that arm's EXPLAINED marker reddens this with a second finding.

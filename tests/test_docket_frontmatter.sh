@@ -242,6 +242,15 @@ assert "member helper rejects a vocabulary name carrying an interior TAB" \
   '! docket_status_is_member "$(printf "done\tx")"'
 assert "member helper accepts every DOCKET_STATUSES entry" \
   'for _m_s in "${DOCKET_STATUSES[@]}"; do docket_status_is_member "$_m_s" || exit 1; done'
+# --- the stacked-changes state (change 0298) ---
+# `stacked-merged` is NON-terminal: the change file stays in active/ and is promoted to done by the
+# stack close-out once the stack root's code reaches the integration branch. Display order places it
+# after `implemented`, so it is the LAST member of the ACTIVE group.
+assert "stacked-merged is a vocabulary member" 'docket_status_is_member stacked-merged'
+assert "stacked-merged is ACTIVE, not terminal" 'docket_status_is_active stacked-merged && ! docket_status_is_terminal stacked-merged'
+assert "ACTIVE has six members" '[ "${#DOCKET_STATUSES_ACTIVE[@]}" = 6 ]'
+assert "vocabulary has eight members" '[ "${#DOCKET_STATUSES[@]}" = 8 ]'
+assert "stacked-merged sorts last in ACTIVE" '[ "${DOCKET_STATUSES_ACTIVE[5]}" = stacked-merged ]'
 assert "priority membership accepts high" 'docket_priority_is_member high'
 assert "priority membership rejects empty" '! docket_priority_is_member ""'
 assert "priority membership rejects unknown" '! docket_priority_is_member urgent'
