@@ -163,5 +163,131 @@ assert "a non-numeric stacked_on is declined quietly, not an arithmetic error" '
 assert "a non-numeric stacked_on still exits 0" 'stack_parent_id "$tmp" 20 >/dev/null 2>&1'
 assert "a non-numeric stacked_on leaves the chain well-formed" 'stack_chain "$tmp" 20 >/dev/null 2>&1'
 
+# --- effective base resolution (spec §3) ---
+# The stub knows ORIGIN refs only, and only the branches named in DOCKET_TEST_REMOTE_BRANCHES. That
+# narrowness is deliberate twice over: it makes rule 1's remote-ref conjunct observable (a branch
+# name alone never satisfies it), and it makes the --remote flag observable (a lookup under any
+# other remote finds nothing, so a flag that is not threaded through to the ref path reddens).
+GIT_STUB="$tmp/bin"; mkdir -p "$GIT_STUB"
+cat > "$GIT_STUB/git" <<'EOF'
+#!/usr/bin/env bash
+# stub: `git show-ref --verify --quiet refs/remotes/origin/<b>` succeeds only for listed branches
+if [ "$1" = show-ref ]; then
+  for b in $DOCKET_TEST_REMOTE_BRANCHES; do
+    case " $* " in (*" refs/remotes/origin/$b "*) exit 0 ;; esac
+  done
+  exit 1
+fi
+exit 0
+EOF
+chmod +x "$GIT_STUB/git"
+export DOCKET_TEST_REMOTE_BRANCHES="feat/alpha"
+GIT="$GIT_STUB/git"; export GIT
+
+assert "rule 1: a live parent with a pushed branch resolves to that branch" \
+  '[ "$(stack_effective_base "$tmp" 2 main)" = "feat/alpha" ]'
+assert "an unstacked change resolves to the integration branch" \
+  '[ "$(stack_effective_base "$tmp" 1 main)" = "main" ]'
+# The integration branch is a PARAMETER, not the literal `main`: a consuming repo on `develop` must
+# get `develop` back, and an assert that only ever passes `main` cannot tell the two apart.
+assert "the integration branch is taken from the argument, not hardcoded" \
+  '[ "$(stack_effective_base "$tmp" 1 develop)" = "develop" ]'
+
+# rule 1 is remote-ref gated: an in-progress parent whose branch was never pushed is NOT a base
+mkchange 10 iota in-progress "" feat/iota
+mkchange 11 kappa proposed 10
+assert "rule 4: a branch with no remote ref is invalid" \
+  'stack_effective_base "$tmp" 11 main >/dev/null 2>&1; [ "$?" = 4 ]'
+
+# rule 2: a merged parent resolves upward
+mkchange 12 lambda done "" feat/lambda
+mkchange 13 mu proposed 12
+assert "rule 2: a done parent resolves to the integration branch" \
+  '[ "$(stack_effective_base "$tmp" 13 main)" = "main" ]'
+
+# rule 2, nested: grandparent still live
+mkchange 14 nu stacked-merged 1 feat/nu
+mkchange 15 xi proposed 14
+export DOCKET_TEST_REMOTE_BRANCHES="feat/alpha"
+assert "rule 2 nested: a stacked-merged parent whose branch is gone resolves to the grandparent" \
+  '[ "$(stack_effective_base "$tmp" 15 main)" = "feat/alpha" ]'
+# …and while that branch IS still pushed, the stacked-merged parent is itself the base: the fallback
+# is a fallback, not the rule. Without this leg the arm above passes just as well for a resolver
+# that ignores a stacked-merged parent's branch entirely.
+export DOCKET_TEST_REMOTE_BRANCHES="feat/alpha feat/nu"
+assert "a stacked-merged parent whose branch is still pushed is itself the base" \
+  '[ "$(stack_effective_base "$tmp" 15 main)" = "feat/nu" ]'
+export DOCKET_TEST_REMOTE_BRANCHES="feat/alpha"
+
+# rule 3: killed parent
+mkchange 16 omicron killed "" feat/omicron
+mkchange 17 pi proposed 16
+assert "rule 3: a killed parent stops with exit 3" \
+  'stack_effective_base "$tmp" 17 main >/dev/null 2>&1; [ "$?" = 3 ]'
+
+assert "rule 4: a cycle is invalid" \
+  'stack_effective_base "$tmp" 4 main >/dev/null 2>&1; [ "$?" = 4 ]'
+assert "rule 4: a missing parent is invalid" \
+  'stack_effective_base "$tmp" 6 main >/dev/null 2>&1; [ "$?" = 4 ]'
+# A cycle whose members have ALREADY MERGED is the shape that makes the up-front stack_chain refusal
+# load-bearing. Every cycle fixture above terminates by accident: an empty `branch:` makes rule 4
+# fire on the first hop, before any recursion begins. Here rule 2 applies at every hop instead, so a
+# resolver that skipped the validation would walk the ring forever. As with the rho-chain leg above,
+# this assert's mutation evidence is the run failing to terminate, not a NOT OK line.
+mkchange 27 gimel done 28
+mkchange 28 dalet done 27
+assert "a cycle of merged parents is refused rather than walked forever" \
+  'stack_effective_base "$tmp" 27 main >/dev/null 2>&1; [ "$?" = 4 ]'
+# An invalid resolution prints NO branch: a caller that reads stdout and ignores the status must not
+# be handed a plausible-looking base.
+assert "an invalid resolution prints no base on stdout" \
+  '[ -z "$(stack_effective_base "$tmp" 11 main 2>/dev/null)" ]'
+assert "a killed parent prints no base on stdout" \
+  '[ -z "$(stack_effective_base "$tmp" 17 main 2>/dev/null)" ]'
+
+# The remote is a parameter too — under a remote the stub does not know, rule 1 cannot be satisfied.
+assert "the remote argument reaches the ref lookup" \
+  'stack_effective_base "$tmp" 2 main upstream >/dev/null 2>&1; [ "$?" = 4 ]'
+
+# --- the CLI ---
+assert "the CLI exists and is executable" '[ -x "$SCRIPT" ]'
+assert "CLI prints the resolved base" \
+  '[ "$(GIT="$GIT_STUB/git" "$SCRIPT" --changes-dir "$tmp" --id 2 --integration-branch main)" = "feat/alpha" ]'
+assert "CLI accepts a padded id" \
+  '[ "$(GIT="$GIT_STUB/git" "$SCRIPT" --changes-dir "$tmp" --id 0002 --integration-branch main)" = "feat/alpha" ]'
+# `0008` is where the octal trap actually bites: it is not a valid octal literal, so a boundary
+# missing its `10#` fails outright rather than resolving to a merely wrong value.
+assert "CLI accepts a padded id with a digit above 7" \
+  '[ "$(GIT="$GIT_STUB/git" "$SCRIPT" --changes-dir "$tmp" --id 0008 --integration-branch main)" = "feat/alpha" ]'
+assert "CLI exits 3 on a killed parent" \
+  'GIT="$GIT_STUB/git" "$SCRIPT" --changes-dir "$tmp" --id 17 --integration-branch main >/dev/null 2>&1; [ "$?" = 3 ]'
+# `0008` above proves the CLI does not CRASH on a padded id, but not that it resolved the id it was
+# handed: the library canonicalizes again downstream, so a CLI boundary missing its `10#` still
+# reaches the right change for a value bash happens to parse. `0017` is the shape that separates
+# them — it IS valid octal, so an uncanonicalized boundary silently resolves change FIFTEEN and
+# reports its base at exit 0 instead of stopping on seventeen's killed parent.
+assert "CLI resolves a padded id by decimal, not octal" \
+  'GIT="$GIT_STUB/git" "$SCRIPT" --changes-dir "$tmp" --id 0017 --integration-branch main >/dev/null 2>&1; [ "$?" = 3 ]'
+# The diagnostic names the change the caller asked about, padded — a stderr line that read `0015`
+# would send a human to the wrong file.
+killed_err="$(GIT="$GIT_STUB/git" "$SCRIPT" --changes-dir "$tmp" --id 0017 --integration-branch main 2>&1 >/dev/null)"
+assert "the exit-3 diagnostic names the change and its remedy" \
+  '[ -n "$(grep -F "0017" <<<"$killed_err")" ] && [ -n "$(grep -F "KILLED" <<<"$killed_err")" ]'
+assert "CLI exits 4 on an unresolvable branch" \
+  'GIT="$GIT_STUB/git" "$SCRIPT" --changes-dir "$tmp" --id 11 --integration-branch main >/dev/null 2>&1; [ "$?" = 4 ]'
+assert "CLI passes --remote through to the ref lookup" \
+  'GIT="$GIT_STUB/git" "$SCRIPT" --changes-dir "$tmp" --id 2 --integration-branch main --remote upstream >/dev/null 2>&1; [ "$?" = 4 ]'
+assert "CLI exits 2 on a missing required flag" \
+  '"$SCRIPT" --changes-dir "$tmp" >/dev/null 2>&1; [ "$?" = 2 ]'
+assert "CLI exits 2 on an unknown flag" \
+  '"$SCRIPT" --changes-dir "$tmp" --id 2 --integration-branch main --nope >/dev/null 2>&1; [ "$?" = 2 ]'
+assert "CLI exits 2 on a non-numeric id" \
+  '"$SCRIPT" --changes-dir "$tmp" --id not-a-number --integration-branch main >/dev/null 2>&1; [ "$?" = 2 ]'
+assert "CLI exits 2 on a changes dir that does not exist" \
+  '"$SCRIPT" --changes-dir "$tmp/nope" --id 2 --integration-branch main >/dev/null 2>&1; [ "$?" = 2 ]'
+help_txt="$("$SCRIPT" --help 2>/dev/null)"; help_rc=$?
+assert "CLI --help exits 0" '[ "$help_rc" = 0 ]'
+assert "CLI --help prints its own header" '[ -n "$(grep -F stack-base.sh <<<"$help_txt")" ]'
+
 printf '%s\n' "--- done"
 exit "$fail"

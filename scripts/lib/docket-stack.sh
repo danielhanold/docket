@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # scripts/lib/docket-stack.sh — the stacked-changes library (change 0298). SOURCE this; it is
-# never executed directly. It declares functions only: no side effects on source, no git, no
-# network, no writes of any kind. Every routine here is a pure read over a changes directory.
+# never executed directly. It declares functions only: no side effects on source, no writes of any
+# kind, no network. `stack_find_file`, `stack_parent_id` and `stack_chain` are pure reads over a
+# changes directory; `stack_effective_base` additionally makes ONE read-only git call
+# (`show-ref --verify`) through the repo's standard `GIT="${GIT:-git}"` mock seam, because rule 1
+# turns on whether a parent's branch actually exists on the remote.
 #
 # REQUIRES scripts/lib/docket-frontmatter.sh to have been sourced FIRST — this file consumes its
 # `fm_field` accessor and does not source it itself, because the two libraries have distinct
@@ -77,4 +80,50 @@ stack_chain(){
     seen="$seen$parent "
     cur="$parent"
   done
+}
+
+# stack_effective_base CHANGES_DIR ID INTEGRATION_BRANCH [REMOTE] -> the branch this change is
+# built on, on stdout. Exit 0 resolved, 3 the chain reaches a KILLED parent, 4 the chain is invalid
+# (missing parent, cycle, or a parent whose branch has no remote ref). Nothing is printed on 3 or 4:
+# a caller that reads stdout and forgets the status must not be handed a plausible-looking base.
+#
+# This is the ONE place spec §3's four rules live. Walking upward rather than answering from the
+# immediate parent alone is what makes rule 2 work at depth: a parent that already merged carries no
+# branch worth basing on, so the answer is whatever ITS base resolves to, recursively, until the walk
+# reaches an unstacked ancestor and lands on the integration branch.
+#
+# WHY THE REMOTE REF IS A CONJUNCT OF RULE 1, not a nicety: `branch:` is stamped into the manifest at
+# CLAIM time, but the branch is not pushed until the PR step. So an `in-progress` parent routinely
+# carries a valid-looking `branch:` with nothing behind it, and cutting a child from that name would
+# silently produce a branch based on the integration branch while everyone believes it is stacked.
+# Exit 4 — a data/sequencing problem a human resolves — is the only honest answer there.
+#
+# `field` (unanchored) is correct for `status`: the change template guarantees the key, so it is in
+# the guaranteed-present tier of the selection rule. `branch:` and `stacked_on:` are absent-capable
+# and take the anchored `fm_field`. See tests/test_frontmatter_read_shapes.sh, which censuses this.
+stack_effective_base(){
+  local dir="$1" id="$2" integration="$3" remote="${4:-origin}" parent f status branch
+  local git="${GIT:-git}"
+  stack_chain "$dir" "$id" >/dev/null 2>&1 || return 4
+  parent="$(stack_parent_id "$dir" "$id")"
+  [ -n "$parent" ] || { printf '%s\n' "$integration"; return 0; }
+  f="$(stack_find_file "$dir" "$parent")" || return 4
+  status="$(field "$f" status)"
+  case "$status" in
+    killed) return 3 ;;
+    done)   stack_effective_base "$dir" "$parent" "$integration" "$remote"; return $? ;;
+  esac
+  branch="$(fm_field "$f" branch)"
+  if [ -n "$branch" ] && "$git" show-ref --verify --quiet "refs/remotes/$remote/$branch"; then
+    printf '%s\n' "$branch"
+    return 0
+  fi
+  # A stacked-merged parent has already merged into ITS parent, so its branch may legitimately be
+  # gone; the base is then whatever the parent's own base resolves to (spec §3 rule 2). Any other
+  # status with an unpushed branch is rule 4, not a fallback — see the conjunct note above.
+  if [ "$status" = stacked-merged ]; then
+    stack_effective_base "$dir" "$parent" "$integration" "$remote"
+    return $?
+  fi
+  return 4
 }

@@ -72,6 +72,7 @@ rather than a `bash` selected from `PATH`.
 | `gate-run` | `gate-run.sh` | launch one long-running child detached, observe it (six liveness-keyed states), or stop it identity-checked (change 0282) |
 | `mark-publish-deferred` | `mark-publish-deferred.sh` | add/remove the `## Publish deferred` marker on a change file (terminal-publish gap visibility, change 0083) |
 | `verify-run` | `verify-run.sh` | evaluate docket-implement-next's Step 7 postcondition for one change and report a verdict (change 0237) |
+| `stack-base` | `stack-base.sh` | print one change's effective base branch — its `stacked_on` parent's branch, or the integration branch (change 0298) |
 
 Operation name = wrapped helper basename for every row except the three verbs `preflight`, `env`,
 and `bootstrap`, whose `Wraps` column names an implementation or a flagged resolver invocation
