@@ -1,8 +1,14 @@
 # Backlog
 
-**298 changes** — 🟡 38 proposed · ⚪ 4 deferred · ✅ 179 done · 🗑️ 77 killed
+**298 changes** — 🟢 1 in progress · 🟡 37 proposed · ⚪ 4 deferred · ✅ 179 done · 🗑️ 77 killed
 
-## 🟡 Proposed (38)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0298](active/0298-stacked-changes-build-a-new-change-on-top-of-a-parent-change.md) | Stacked changes — build a new change on top of a parent change's branch | `medium` | `feat` | [spec](../superpowers/specs/2026-08-11-stacked-changes-design.md) | `feat/stacked-changes-build-a-new-change-on-top-of-a-parent-change` |
+
+## 🟡 Proposed (37)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -43,7 +49,6 @@
 | [0295](active/0295-make-render-change-links-sh-genuinely-offline-safe-stop-re-r.md) | Make render-change-links.sh genuinely offline-safe — stop re-resolving config with a network fetch | `high` | `fix` | needs-brainstorm |
 | [0296](active/0296-shard-tests-test-docket-status-sh-its-runtime-row-is-at-the.md) | Shard tests/test_docket_status.sh — its runtime row is at the table's hard 60s ceiling | `medium` | `chore` | needs-brainstorm |
 | [0297](active/0297-relax-0212-s-sites-backtick-ban-now-that-the-hygiene-gate-en.md) | Relax 0212's SITES backtick ban now that the hygiene gate enforces it | `medium` | `refactor` | needs-brainstorm |
-| [0298](active/0298-stacked-changes-build-a-new-change-on-top-of-a-parent-change.md) | Stacked changes — build a new change on top of a parent change's branch | `medium` | `feat` | build-ready |
 
 ## ⚪ Deferred (4)
 
