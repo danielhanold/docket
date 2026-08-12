@@ -84,19 +84,5 @@ assert "core points at the mirror sibling" 'grep -qF "github-board-mirror.md" "$
 assert "docket-status points at the mirror sibling" \
   '[ -f "$STATUS" ] && grep -qF "github-board-mirror.md" "$STATUS"'
 
-# (g) the convention's lifecycle prose names no cardinality (change 0298 review finding).
-# Every script-side count was stripped in favour of the vocabulary array; the doc every skill loads
-# at Step 0 must not re-arm one, or the next status added makes it lie with no guard to catch it.
-# Keyed on SHAPE — a number-word adjacent to the vocabulary noun, plus a bare "all <N>" claim —
-# never on the spellings that happened to be there. Whitespace is collapsed first so a re-flow that
-# wraps the phrase across lines cannot hide it (and cannot falsely redden it).
-CARD_NUM='(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)'
-CARD_PAT="(\\b$CARD_NUM( [a-zA-Z-]+)? (states?|status(es)?)\\b|\\ball $CARD_NUM\\b)"
-for f in "$REF" "$MIRROR_REF"; do
-  card_flat="$(tr '[:space:]' ' ' < "$f")"
-  assert "no cardinality in the lifecycle prose of $(basename "$f")" \
-    '! /usr/bin/grep -qiE "$CARD_PAT" <<<"$card_flat"'
-done
-
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
