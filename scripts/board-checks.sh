@@ -77,23 +77,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib/docket-stack.sh"   # stack_effective_
 
 resolve_deps "$CHANGES_DIR"            # populates STATUS_OF / DEP_STATE / DEP_REASON / DEP_ON
 
-# stack_git — the GIT seam the sourced stack library calls, pinned to the changes-dir repo.
-# stack_effective_base issues its one `git show-ref --verify` WITHOUT a `-C` (it is written for
-# callers that already run inside the repo), so under this script it would otherwise read whichever
-# repo the CALLER's cwd happens to sit in — and board-checks.sh is invoked from wherever
-# docket-status runs, which is not guaranteed to be the metadata worktree. Every other git call in
-# this file is addressed `-C "$CHANGES_DIR"`; this wrapper gives the library the same addressing, so
-# "is the parent's branch pushed" is answered by the tree being checked. Passed to the resolver as
-# GIT in a subshell at the call site, never assigned globally: the rest of this file spells its own
-# calls `"$GIT" -C "$CHANGES_DIR"` and would double the flag.
-#
-# It resolves the binary through its OWN snapshot, never through `$GIT`. The call site sets
-# `GIT=stack_git`, so a body spelled `"$GIT" -C …` would call ITSELF — unbounded recursion that
-# spins at 100% CPU and grows without limit rather than failing. The snapshot is taken once, here,
-# where `$GIT` is still the binary.
-STACK_GIT_BIN="$GIT"
-stack_git(){ "$STACK_GIT_BIN" -C "$CHANGES_DIR" "$@"; }
-
 # git_has REF PATH — exit 0 iff REF:PATH resolves in the changes-dir's repo (no network).
 git_has(){ "$GIT" -C "$CHANGES_DIR" cat-file -e "$1:$2" 2>/dev/null; }
 
@@ -758,10 +741,9 @@ for f in "${FILES[@]}"; do
         *[!0-9]*) sc_parent_label="$sc_parent" ;;
         *) sc_parent_label="$(printf '%04d' "$(( 10#$sc_parent ))")" ;;
       esac
-      # The subshell is the assignment scope for the GIT seam: a `GIT=stack_git func` prefix on a
-      # FUNCTION call is not reliably restored afterwards, and leaking it would re-address every
-      # later git call in this walk.
-      ( GIT=stack_git; stack_effective_base "$CHANGES_DIR" "$id" "$INTEGRATION_BRANCH" ) >/dev/null 2>&1
+      # NO `-C` wrapper over the GIT seam here: the resolver addresses its own `show-ref` at the
+      # changes dir it is handed, and a second `-C` would compose relatively against the first.
+      stack_effective_base "$CHANGES_DIR" "$id" "$INTEGRATION_BRANCH" >/dev/null 2>&1
       sc_rc=$?
       case "$sc_rc" in
         3) emit stack-parent-killed "$cid" "stacked on #$sc_parent_label, which is killed — rescope this change onto $INTEGRATION_BRANCH, re-parent it onto a live change, or kill it too; there is no safe automatic fallback" ;;

@@ -7,7 +7,8 @@
 # exit 0 rather than erroring.
 #
 # Pure read: no writes, no network, no commits. The only external call is a read-only
-# `git show-ref --verify` under the GIT mock seam.
+# `git -C <changes dir> show-ref --verify` under the GIT mock seam — addressed at --changes-dir's
+# repo by the resolver itself, so the answer does not depend on the cwd this script is run from.
 #
 # Usage: stack-base.sh --changes-dir DIR --id N --integration-branch BR [--remote R]
 #   --changes-dir        the docket changes directory (the parent of active/ and archive/); required

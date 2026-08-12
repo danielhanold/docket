@@ -265,9 +265,10 @@ Both checks are scoped to **non-terminal** changes: a `done` or `killed` change'
 and neither re-parenting nor pushing a branch is something anyone can still do about it. Both read
 `stacked_on:` with the **anchored** accessor (the key is optional; ADR-0057), and both come from a
 **single** `stack_effective_base` call per file whose exit code selects the finding — one call, so
-the two legs can never disagree about the same file. The resolver's one `git show-ref --verify` is
-addressed at `--changes-dir`'s repo through a wrapper over the `GIT` seam, like every other git call
-in this script; it reads no remotes over the network.
+the two legs can never disagree about the same file. The resolver addresses its own
+`git show-ref --verify` at the changes dir it is handed, like every other git call in this script,
+so this check adds no `-C` wrapper of its own — a second one would compose relatively against the
+first; it reads no remotes over the network.
 
 **`aborted-run`** — An `in-progress` change whose autonomous run stopped mid-step: it completed the
 visible artifact, narrated success, and dropped the metadata write. The oracle is deliberately
