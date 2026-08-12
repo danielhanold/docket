@@ -4,7 +4,9 @@
 # kind, no network. `stack_find_file`, `stack_parent_id` and `stack_chain` are pure reads over a
 # changes directory; `stack_effective_base` additionally makes ONE read-only git call
 # (`show-ref --verify`) through the repo's standard `GIT="${GIT:-git}"` mock seam, because rule 1
-# turns on whether a parent's branch actually exists on the remote.
+# turns on whether a parent's branch actually exists on the remote. That call is addressed
+# `-C <changes dir>` here, so every caller gets the changes-dir's repo answered regardless of its
+# own cwd and none of them may add a `-C` of its own — see the note at the ref lookup.
 #
 # REQUIRES scripts/lib/docket-frontmatter.sh to have been sourced FIRST — this file consumes its
 # `fm_field` accessor and does not source it itself, because the two libraries have distinct
@@ -166,7 +168,13 @@ stack_effective_base(){
     done)   stack_effective_base "$dir" "$parent" "$integration" "$remote"; return $? ;;
   esac
   branch="$(fm_field "$f" branch)"
-  if [ -n "$branch" ] && "$git" show-ref --verify --quiet "refs/remotes/$remote/$branch"; then
+  # ADDRESSED AT THE CHANGES DIR, never the caller's cwd: the resolver is called from renderers,
+  # health checks and a CLI that all run from wherever their dispatcher left them, and a lookup
+  # against the wrong repo simply finds no ref — indistinguishable here from "the parent's branch
+  # was never pushed", so it silently becomes exit 4 and drops the change out of the ready queue.
+  # A caller must therefore NOT add a `-C` of its own: `git -C a -C b` composes RELATIVELY, so a
+  # second flag over a relative CHANGES_DIR resolves against the first and lands in neither repo.
+  if [ -n "$branch" ] && "$git" -C "$dir" show-ref --verify --quiet "refs/remotes/$remote/$branch"; then
     printf '%s\n' "$branch"
     return 0
   fi

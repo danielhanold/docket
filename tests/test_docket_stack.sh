@@ -168,11 +168,21 @@ assert "a non-numeric stacked_on leaves the chain well-formed" 'stack_chain "$tm
 # narrowness is deliberate twice over: it makes rule 1's remote-ref conjunct observable (a branch
 # name alone never satisfies it), and it makes the --remote flag observable (a lookup under any
 # other remote finds nothing, so a flag that is not threaded through to the ref path reddens).
+#
+# The stub CONSUMES the `-C DIR` prefix rather than ignoring it, and records the directory it was
+# addressed at, so the addressing is observable to an assert instead of being silently equivalent
+# to its absence — which is exactly how an un-addressed call survived this file before.
 GIT_STUB="$tmp/bin"; mkdir -p "$GIT_STUB"
 cat > "$GIT_STUB/git" <<'EOF'
 #!/usr/bin/env bash
-# stub: `git show-ref --verify --quiet refs/remotes/origin/<b>` succeeds only for listed branches
-if [ "$1" = show-ref ]; then
+# stub: `git [-C DIR] show-ref --verify --quiet refs/remotes/origin/<b>` succeeds only for listed
+# branches. The DIR of every invocation is appended to $DOCKET_TEST_GIT_LOG, `-` when unaddressed.
+if [ "${1:-}" = -C ]; then
+  printf '%s\n' "$2" >> "${DOCKET_TEST_GIT_LOG:-/dev/null}"; shift 2
+else
+  printf '%s\n' '-' >> "${DOCKET_TEST_GIT_LOG:-/dev/null}"
+fi
+if [ "${1:-}" = show-ref ]; then
   for b in $DOCKET_TEST_REMOTE_BRANCHES; do
     case " $* " in (*" refs/remotes/origin/$b "*) exit 0 ;; esac
   done
@@ -182,6 +192,8 @@ exit 0
 EOF
 chmod +x "$GIT_STUB/git"
 export DOCKET_TEST_REMOTE_BRANCHES="feat/alpha"
+DOCKET_TEST_GIT_LOG="$tmp/git-argv.log"; export DOCKET_TEST_GIT_LOG
+: > "$DOCKET_TEST_GIT_LOG"
 GIT="$GIT_STUB/git"; export GIT
 
 assert "rule 1: a live parent with a pushed branch resolves to that branch" \
@@ -248,6 +260,58 @@ assert "a killed parent prints no base on stdout" \
 # The remote is a parameter too — under a remote the stub does not know, rule 1 cannot be satisfied.
 assert "the remote argument reaches the ref lookup" \
   'stack_effective_base "$tmp" 2 main upstream >/dev/null 2>&1; [ "$?" = 4 ]'
+
+# --- WHICH repo answers rule 1: the changes-dir's, never the caller's cwd ---
+# Two independent legs. First, over the stub: the ref lookup must be ADDRESSED at the changes dir
+# it was handed, which the stub's argv log makes visible.
+: > "$DOCKET_TEST_GIT_LOG"
+stack_effective_base "$tmp" 2 main >/dev/null 2>&1
+argv_dir="$(cat "$DOCKET_TEST_GIT_LOG")"
+assert "the ref lookup is addressed at the changes dir it was handed" \
+  '[ "$argv_dir" = "$tmp" ]'
+# The argv assert proves the flag is SPELLED; it cannot prove real git honours it end to end, and a
+# stub is free to disagree with git about what `-C` means. So the second leg drops the stub
+# entirely: a REAL git over two REAL repos. The fixture repo carries
+# `refs/remotes/origin/feat/real`, the decoy repo (the cwd the resolver is run from) does not. Drop
+# the `-C` and the lookup fails against the decoy, which is indistinguishable from "not pushed" —
+# rule 1's positive conjunct — so the resolver answers exit 4 and the resolved-name assert reddens.
+REAL_REPO="$tmp/realrepo"; DECOY_REPO="$tmp/decoyrepo"
+REAL_CD="$REAL_REPO/docs/changes"
+mkdir -p "$REAL_CD/active" "$REAL_CD/archive"
+git init -q "$REAL_REPO" >/dev/null 2>&1
+git init -q "$DECOY_REPO" >/dev/null 2>&1
+git -C "$REAL_REPO" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base >/dev/null 2>&1
+git -C "$REAL_REPO" update-ref refs/remotes/origin/feat/real "$(git -C "$REAL_REPO" rev-parse HEAD)"
+mkchange_in(){ # mkchange_in <changes-dir> <id> <slug> <status> [stacked_on] [branch]
+  local d="$1"; shift
+  cat > "$d/active/$(printf '%04d' "$1")-$2.md" <<EOF
+---
+id: $1
+slug: $2
+title: "Change $1"
+status: $3
+priority: medium
+created: 2026-08-12
+updated: 2026-08-12
+depends_on: []
+stacked_on: ${4:-}
+branch: ${5:-}
+---
+
+## Why
+
+Fixture.
+EOF
+}
+mkchange_in "$REAL_CD" 40 real-parent in-progress "" feat/real
+mkchange_in "$REAL_CD" 41 real-child proposed 40
+# Non-vacuity: the decoy must genuinely lack the ref, or the assert below would pass for a resolver
+# that reads the cwd's repo as well as for one that reads the changes-dir's.
+assert "the decoy repo does not carry the parent's remote ref" \
+  '! git -C "$DECOY_REPO" show-ref --verify --quiet refs/remotes/origin/feat/real'
+cwd_base="$( cd "$DECOY_REPO" && GIT=git stack_effective_base "$REAL_CD" 41 main 2>/dev/null )"
+assert "rule 1 is answered by the changes-dir's repo, not the caller's cwd" \
+  '[ "$cwd_base" = "feat/real" ]'
 
 # --- the CLI ---
 assert "the CLI exists and is executable" '[ -x "$SCRIPT" ]'

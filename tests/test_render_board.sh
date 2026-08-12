@@ -2408,10 +2408,14 @@ rm -rf "$m5"
 stk="$(mktemp -d "${TMPDIR:-/tmp}/render-board-stack.XXXXXX")"
 mkdir -p "$stk/active" "$stk/archive" "$stk/bin"
 # The renderer's GIT mock seam, which scripts/lib/docket-stack.sh reads for its one read-only
-# `show-ref --verify` call. Only feat/sierra exists on the remote.
+# `show-ref --verify` call. Only feat/sierra exists on the remote. The library addresses that call
+# `-C <changes dir>` so its answer does not depend on the caller's cwd, so the stub must CONSUME
+# that prefix: a stub that matched on `$1` alone would fall through to its catch-all `exit 0` and
+# report every branch as pushed, which is the vacuous-green shape, not a resolution.
 cat > "$stk/bin/git" <<'EOF'
 #!/usr/bin/env bash
-if [ "$1" = show-ref ]; then
+[ "${1:-}" = -C ] && shift 2
+if [ "${1:-}" = show-ref ]; then
   case " $* " in (*" refs/remotes/origin/feat/sierra "*) exit 0 ;; esac
   exit 1
 fi

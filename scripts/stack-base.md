@@ -90,4 +90,8 @@ data repair. `scripts/board-checks.sh` reports them as the separate `stack-paren
 - **Ids are canonicalized with `10#` at every boundary.** Docket displays zero-padded 4-digit ids,
   and bash reads a leading `0` as an octal prefix: `0237` would silently become 159 and `0008` would
   not parse at all.
-- **Read-only.** The only external call is `git show-ref --verify --quiet`, through the `GIT` seam.
+- **Read-only.** The only external call is `git -C <changes dir> show-ref --verify --quiet`, through
+  the `GIT` seam. It is addressed at `--changes-dir`'s repo, never the caller's cwd: this CLI is
+  invoked from wherever its dispatcher left the shell, and a lookup against the wrong repo finds no
+  ref — which rule 1 cannot tell apart from "the parent's branch was never pushed", so it would
+  refuse a perfectly valid base at exit `4`.
