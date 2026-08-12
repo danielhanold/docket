@@ -154,7 +154,7 @@ scripts/render-change-links.sh|"$c"|change
 scripts/lib/docket-stack.sh|"$f"|change
 scripts/stack-children.sh|"$f"|change
 scripts/stack-closeout.sh|"$f"|change'
-# The four stack-walker entries above resolve their file argument through `stack_find_file`, which
+# The stack-walker entries above resolve their file argument through `stack_find_file`, which
 # searches `active/` FIRST, THEN `archive/` — so the path may name either an active or an archived
 # change. That is ONE corpus, not two: both directories hold files minted from the change template,
 # and the guaranteed set is a property of that template, not of which directory the file currently
