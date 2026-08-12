@@ -2,7 +2,7 @@
 id: 298
 slug: stacked-changes-build-a-new-change-on-top-of-a-parent-change
 title: "Stacked changes — build a new change on top of a parent change's branch"
-status: implemented
+status: done
 priority: medium
 type: feat
 created: 2026-08-11
@@ -17,7 +17,7 @@ results: docs/results/2026-08-12-stacked-changes-build-a-new-change-on-top-of-a-
 trivial: false
 auto_groomable: false
 branch: feat/stacked-changes-build-a-new-change-on-top-of-a-parent-change
-claimed_at: 2026-08-12T11:39:06Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/203
 issue:
 blocked_by:
