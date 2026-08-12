@@ -244,6 +244,31 @@ Warn-only, like every check here: it never marks `EXPLAINED`, never touches `boa
 malformed *scalar* never drops a row), and never auto-fixes or rewrites the change file. Example
 message: `title: unquoted scalar contains ': ' — quote it or reword (well-formed YAML)`.
 
+**`stack-invalid`** — A non-terminal change carrying `stacked_on:` whose **effective base** does not
+resolve: `stack_effective_base` (in `lib/docket-stack.sh`) exits `4`. Three data states reach that
+exit and the message names all three, because the check cannot distinguish them without re-deriving
+the resolver's own walk: the chain names a **missing** parent, the chain **closes a cycle**, or it
+reaches a live parent whose `branch:` has **no ref under `refs/remotes/origin/`** — a branch that was
+stamped into the manifest at claim time but never pushed. The last state is the common one and it is
+not a nicety: cutting a child from an unpushed branch name silently produces a branch based on the
+integration branch while everyone believes it is stacked. Remedy: repair the `stacked_on` id, break
+the cycle, or push the parent's branch.
+
+**`stack-parent-killed`** — A non-terminal change carrying `stacked_on:` whose chain reaches a
+**killed** parent: `stack_effective_base` exits `3`. Separate from `stack-invalid` on purpose — the
+remedies are different kinds of act. An invalid chain is a data repair anyone can make; a killed
+parent is a **scoping decision** (rescope onto the integration branch, re-parent onto a live change,
+or kill the child too) that only a human makes, and spec §9 forbids silently falling back to the
+integration branch on its behalf. Merging the two ids would bury the decision inside a repair queue.
+
+Both checks are scoped to **non-terminal** changes: a `done` or `killed` change's chain is history,
+and neither re-parenting nor pushing a branch is something anyone can still do about it. Both read
+`stacked_on:` with the **anchored** accessor (the key is optional; ADR-0057), and both come from a
+**single** `stack_effective_base` call per file whose exit code selects the finding — one call, so
+the two legs can never disagree about the same file. The resolver's one `git show-ref --verify` is
+addressed at `--changes-dir`'s repo through a wrapper over the `GIT` seam, like every other git call
+in this script; it reads no remotes over the network.
+
 **`aborted-run`** — An `in-progress` change whose autonomous run stopped mid-step: it completed the
 visible artifact, narrated success, and dropped the metadata write. The oracle is deliberately
 **external** — the agent that dropped the bookkeeping write is the least reliable narrator of

@@ -521,5 +521,5 @@ docket_priority_rank(){
 # array plus the four surfaces it is pinned against; the guard's failure messages name them.
 BOARD_CHECK_IDS=(aborted-run adr-unpublished board-row-dropped broken-plan-results broken-spec
                  dep-cycle field-domain malformed-id merge-gate-stall merged-orphan
-                 publish-deferred scalar-form stale-finalize-blocked stale-in-progress
-                 unknown-commit-ref)
+                 publish-deferred scalar-form stack-invalid stack-parent-killed
+                 stale-finalize-blocked stale-in-progress unknown-commit-ref)

@@ -25,7 +25,16 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1785 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1795 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1785 -> 1795 (change 0298): tests/test_board_checks_stack.sh, a NEW test file
+                    # — the same legitimate mover. It is a SIBLING SHARD of
+                    # tests/test_board_checks.sh, which sits at 55s, and it carries the two stacked
+                    # health checks plus the pin that keeps `stack-invalid` and
+                    # `stack-parent-killed` separate ids with separate remedies. Readings
+                    # 1.93/1.92/1.92s standalone serial: the floor, 10. Its rationale is in the tsv
+                    # header beside the row.
+                    # Recomputed from the table itself, never hand-adjusted:
+                    #   awk -F'\t' '!/^#/ && NF>=2 {s+=$2} END{print s}' tests/runtime-budgets.tsv
                     # 1760 -> 1770 (change 0298): a NEW test file bringing its own row — the first
                     # of the two legitimate movers the table header names.
                     # tests/test_docket_status_stack.sh is a SIBLING SHARD of
