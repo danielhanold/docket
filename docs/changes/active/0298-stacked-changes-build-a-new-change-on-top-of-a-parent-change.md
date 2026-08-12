@@ -12,12 +12,12 @@ related: [158]
 discovered_from: []
 adrs: []
 spec: docs/superpowers/specs/2026-08-11-stacked-changes-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-12-stacked-changes.md
 results:
 trivial: false
 auto_groomable: false
 branch: feat/stacked-changes-build-a-new-change-on-top-of-a-parent-change
-claimed_at: 2026-08-12T01:32:00Z
+claimed_at: 2026-08-12T01:43:09Z
 pr:
 issue:
 blocked_by:
@@ -30,6 +30,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-11-stacked-changes-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-11-stacked-changes-design.md) |
+| Plan | [2026-08-12-stacked-changes.md](https://github.com/danielhanold/docket/blob/feat/stacked-changes-build-a-new-change-on-top-of-a-parent-change/docs/superpowers/plans/2026-08-12-stacked-changes.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
