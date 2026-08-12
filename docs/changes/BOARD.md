@@ -1,12 +1,6 @@
 # Backlog
 
-**298 changes** — 🟢 1 in progress · 🟡 38 proposed · ⚪ 4 deferred · ✅ 178 done · 🗑️ 77 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0221](active/0221-assert-executes-backticks-in-its-test-description-so-a-verba.md) | assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell | `high` | `fix` | [spec](../superpowers/specs/2026-08-07-assert-executes-backticks-in-its-test-description-so-a-verba-design.md) | `feat/assert-executes-backticks-in-its-test-description-so-a-verba` |
+**298 changes** — 🟡 38 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 178 done · 🗑️ 77 killed
 
 ## 🟡 Proposed (38)
 
@@ -59,6 +53,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0221](active/0221-assert-executes-backticks-in-its-test-description-so-a-verba.md) | assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell | `high` | `fix` | [#202](https://github.com/danielhanold/docket/pull/202) |  |
 
 ```mermaid
 graph TD
