@@ -125,7 +125,8 @@ fi
 pad(){ printf '%04d' "$1"; }                  # bare id -> 4-digit
 emoji_for(){ case "$1" in
   in-progress) printf '🟢';; proposed) printf '🟡';; blocked) printf '🔴';;
-  deferred) printf '⚪';; implemented) printf '🔵';; done) printf '✅';; killed) printf '🗑️';;
+  deferred) printf '⚪';; implemented) printf '🔵';; stacked-merged) printf '🪆';;
+  done) printf '✅';; killed) printf '🗑️';;
 esac; }
 label_for(){ case "$1" in in-progress) printf 'in progress';; *) printf '%s' "$1";; esac; }
 spec_link(){ printf '../%s' "${1#docs/}"; }   # docs/superpowers/specs/X -> ../superpowers/specs/X
@@ -150,7 +151,7 @@ sanitize(){ local v="$1"; v="${v//$'\t'/\\t}"; v="${v//$'\r'/\\r}"; printf '%s' 
 #   M1 unusable id     — int_field yields nothing (absent, empty, or non-integer).
 #   M2 empty status    — field yields nothing.
 #   M3 status outside DOCKET_STATUSES — which SUBSUMES any status carrying an interior TAB or CR,
-#      because a control-char value can never match one of the seven closed names. Rejection by
+#      because a control-char value can never match one of the closed vocabulary names. Rejection by
 #      vocabulary IS the sanitization for `status:`, applied before the value ever reaches the
 #      archive TAB join or an ARC_COUNT/SECTION array subscript.
 #   M5 path carrying a TAB or CR — the one control-character source that never passes through a
@@ -217,7 +218,10 @@ for f in ${AFILES[@]+"${AFILES[@]}"} ${ARCFILES[@]+"${ARCFILES[@]}"}; do
     continue
   fi
   if ! docket_status_is_member "$v_st"; then
-    mark_malformed "$f" "status '$(sanitize "$v_st")' is not one of the seven lifecycle statuses"
+    # Count-free wording: a hardcoded cardinality re-arms the same trap the vocabulary array exists
+    # to disarm, so the diagnostic interpolates the array instead — the shape board-checks.sh's
+    # `field-domain` diagnostic already uses.
+    mark_malformed "$f" "status '$(sanitize "$v_st")' is not one of the lifecycle statuses: ${DOCKET_STATUSES[*]}"
     continue
   fi
   VALID_ID["$f"]="$v_id"
@@ -405,6 +409,7 @@ printf '**%d changes** — %s\n' "$total" "$seg"
 label_for_title(){ case "$1" in
   in-progress) printf 'In progress';; proposed) printf 'Proposed';; blocked) printf 'Blocked';;
   deferred) printf 'Deferred';; implemented) printf 'Implemented';;
+  stacked-merged) printf 'Stacked-merged';;
 esac; }
 readiness_cell(){ # readiness_cell FILE ID  (proposed)
   local f="$1" id="$2" tok; tok="$(readiness "$f")"
@@ -417,6 +422,18 @@ readiness_cell(){ # readiness_cell FILE ID  (proposed)
 }
 implemented_cell(){ # implemented_cell FILE  (implemented)
   if finalize_blocked "$1"; then printf 'finalize blocked — needs you'; fi
+}
+stack_cell(){ # stack_cell FILE  (stacked-merged) — the parent whose branch this change merged into
+  # Anchored accessor: stacked_on: is an OPTIONAL key (ADR-0057; rule table in
+  # lib/docket-frontmatter.sh). `10#` at the id boundary because docket ids arrive zero-padded and
+  # bash reads a leading `0` as octal. A stacked-merged change with no usable parent is a data
+  # defect, but the renderer is not its reporter: the cell degrades to an em dash rather than
+  # failing the render or emitting `#0000`.
+  local parent; parent="$(fm_field "$1" stacked_on)"
+  case "$parent" in
+    ''|*[!0-9]*) printf '—' ;;
+    *) printf 'merged into #%s' "$(pad "$(( 10#$parent ))")" ;;
+  esac
 }
 pr_cell(){ local f="$1" pr num; pr="$(fm_field "$f" pr)"   # anchored: pr: is optional (ADR-0057)
   [ -n "$pr" ] || { printf ''; return; }
@@ -433,6 +450,9 @@ table_header_for(){ case "$1" in
   blocked)     printf '| # | Title | Priority | Type | Blocked by |\n|---|-------|----------|------|------------|\n' ;;
   deferred)    printf '| # | Title | Priority | Type |\n|---|-------|----------|------|\n' ;;
   implemented) printf '| # | Title | Priority | Type | PR | Readiness |\n|---|-------|----------|------|----|-----------|\n' ;;
+  # The implemented columns with the readiness column replaced by Stack: the useful fact about a
+  # stacked-merged change is which parent it merged into, and readiness is spent by then.
+  stacked-merged) printf '| # | Title | Priority | Type | PR | Stack |\n|---|-------|----------|------|----|-------|\n' ;;
 esac; }
 print_section(){ # print_section STATUS HEADER_SUFFIX
   local st="$1" suffix="$2" n; n="$(count_of "$st")"
@@ -463,6 +483,9 @@ print_section(){ # print_section STATUS HEADER_SUFFIX
       implemented)
         printf '| [%s](active/%s) | %s | `%s` | `%s` | %s | %s |\n' \
           "$(pad "$id")" "$base" "$title" "$priority" "$ctype" "$(pr_cell "$f")" "$(implemented_cell "$f")" ;;
+      stacked-merged)
+        printf '| [%s](active/%s) | %s | `%s` | `%s` | %s | %s |\n' \
+          "$(pad "$id")" "$base" "$title" "$priority" "$ctype" "$(pr_cell "$f")" "$(stack_cell "$f")" ;;
     esac
   done < <(rows_sorted "$st")
 }

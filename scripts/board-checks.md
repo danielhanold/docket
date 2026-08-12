@@ -159,7 +159,7 @@ injects columns into it (`title`). One finding per violated field, per change.
 
 | Field | Domain | Empty | Failure mode without the check |
 |---|---|---|---|
-| `status` | one of the seven lifecycle statuses (`DOCKET_STATUSES` in `lib/docket-frontmatter.sh`) | **fails** | The row is bucketed under an unrecognized key and never emitted, while the file is still counted in the board's total — the count line and the tables disagree. The change also vanishes from the digest's `ready` queue. |
+| `status` | one of the lifecycle statuses (`DOCKET_STATUSES` in `lib/docket-frontmatter.sh`) | **fails** | The row is bucketed under an unrecognized key and never emitted, while the file is still counted in the board's total — the count line and the tables disagree. The change also vanishes from the digest's `ready` queue. |
 | `slug` | `^[a-z0-9-]+$` — `slugify`'s own alphabet | **fails** | Leaks raw into the digest's space-joined `change` line. |
 | `priority` | one of `low`, `medium`, `high`, `critical` | **legal** (`medium`) | Sorts as `medium` in the `ready` queue while rendering raw in the Priority cell. |
 | `title` | contains no `|` | legal | Injects extra columns into the `BOARD.md` table row. |
@@ -400,7 +400,7 @@ already directory-agnostic, and both describe a row *disappearing*:
 | Suppressing finding | Why it explains the drop |
 |---|---|
 | `malformed-id` | A non-integer `id:` — `render-board.sh` skips the row outright, in either directory. |
-| `field-domain` on **`status`** | A status outside the seven-name vocabulary is outside both the five-name active set and the two-name terminal set, so the row buckets under a key nothing iterates. |
+| `field-domain` on **`status`** | A status outside the `DOCKET_STATUSES` vocabulary is outside both the ACTIVE set and the terminal set, so the row buckets under a key nothing iterates. |
 
 A `field-domain` finding on `slug`, `priority` or `title` does **not** suppress, on either side: none
 of them drops a row (a piped `title` injects columns into a row that is still emitted; `priority`

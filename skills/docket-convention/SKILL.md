@@ -158,7 +158,7 @@ In `docket`-mode all of the above lives on the `docket` branch, written through 
 id: 7                     # integer; zero-padded to 4 digits in the filename
 slug: quicklook-interactions
 title: Quick Look interactions — external links + local images
-status: proposed          # proposed | in-progress | blocked | deferred | implemented | done | killed
+status: proposed          # proposed | in-progress | blocked | deferred | implemented | stacked-merged | done | killed
 priority: medium          # low | medium | high | critical   (default: medium)
 type: feat                # a configured change_type; set at creation. `all`/`untyped` are reserved
 created: 2026-05-30
@@ -229,14 +229,15 @@ change: 4                 # back-link: the change that produced this decision, i
 
 An `Accepted` ADR is immutable except its `status:` line; a non-reversing context change is appended as a dated `## Update` note, never an edit to the decision. A reversal/supersession is always a **new** ADR.
 
-### Lifecycle — seven states
+### Lifecycle — eight states
 
 ```
                          ┌──────────────── deferred ──────────────┐
                          │ (conscious shelve; revive → proposed)   │
                          ▼                                          │
   proposed ──claim──▶ in-progress ──PR open──▶ implemented ──merge+sweep──▶ done
-     │                    │                                                  (archive/)
+     │                    │                              │                   (archive/)
+     │                    │                              └──into stack parent──▶ stacked-merged ──root lands──▶ done
      │                    ├──blocker──▶ blocked ──clears──▶ in-progress
      │                    └──lease expired, no branch (reclaim)──▶ proposed
      │
@@ -250,10 +251,11 @@ An `Accepted` ADR is immutable except its `status:` line; a non-reversing contex
 | `blocked` | external blocker (`blocked_by:`) | `active/` |
 | `deferred` | consciously shelved, may revive | `active/` |
 | `implemented` | built, PR open — **human merge gate** | `active/` |
+| `stacked-merged` | merged into its stack parent — awaiting the stack root | `active/` |
 | `done` | PR merged, filed away (happy terminal) | `archive/` |
 | `killed` | abandoned — obsolete or never shipped (sad terminal) | `archive/` |
 
-**Rules.** `active/` holds every non-terminal status; `archive/` holds the two terminal outcomes. The single physical move (`active/ → archive/`, date-prefixed) happens once on the terminal transition and is **idempotent**: re-pull, re-read `status` on `metadata_branch`, no-op if already terminal. `deferred` may be entered from `proposed` or `in-progress` (add `## Why deferred`) and revived to `proposed`; clearing a blocker or reviving is a one-line frontmatter edit, no move. A change whose `depends_on` is unsatisfied is *implicitly* blocked — the selector skips it and the board shows it **waiting on #N**. A dependency is **satisfied when it reaches `done`**; if `#N` is still `implemented` the board flags **waiting on #N — needs your merge**, distinct from **waiting on #N — not yet built**. Reserve explicit `blocked` for external blockers the system can't infer.
+**Rules.** `active/` holds every non-terminal status; `archive/` holds the two terminal outcomes. `stacked-merged` is non-terminal for that reason: merged into its stack parent, not the integration branch, so it stays in `active/` until the stack close-out promotes it when the stack root lands. The single physical move (`active/ → archive/`, date-prefixed) happens once on the terminal transition and is **idempotent**: re-pull, re-read `status` on `metadata_branch`, no-op if already terminal. `deferred` may be entered from `proposed` or `in-progress` (add `## Why deferred`) and revived to `proposed`; clearing a blocker or reviving is a one-line frontmatter edit, no move. A change whose `depends_on` is unsatisfied is *implicitly* blocked — the selector skips it and the board shows it **waiting on #N**. A dependency is **satisfied when it reaches `done`**; if `#N` is still `implemented` the board flags **waiting on #N — needs your merge**, distinct from **waiting on #N — not yet built**. Reserve explicit `blocked` for external blockers the system can't infer.
 
 **Reclaim edge (`in-progress → proposed`).** An `in-progress` change whose claim lease (`claimed_at:` + `reclaim.lease_ttl`) has expired AND that has no feature branch is flipped back to `proposed` by `reclaim-claims.sh` (opt-in via `reclaim.auto` or an explicit `docket.sh reclaim-claims`), clearing `branch:`/`claimed_at:` and resetting `reconciled: false` so a fresh reconcile runs on re-claim. The has-branch case is never auto-reclaimed (it may carry real work) — it stays flagged for a human.
 
@@ -348,7 +350,7 @@ a no-op **read/write gate, never a purge** — existing files stay byte-untouche
 
 ### GitHub board mirror (shared definition)
 
-The `github` board surface mirrors each change to one GitHub issue (and one Projects v2 item) — **strictly one-way**: change files are the source of truth, the mirror is derived output that is **never read back**. It rides in the Board pass (`docket-status`) and is **best-effort** (self-heals next pass; never aborts a build); its external writes are owned by the deterministic `github-mirror.sh`, never agent-constructed `gh` calls. **Full mechanics — the `issue:` upsert, the `docket:` label namespace, the status→issue mapping across all seven states, the issue body, and Projects v2 — are in [`github-board-mirror.md`](github-board-mirror.md); read it when `board_surfaces` includes `github`.**
+The `github` board surface mirrors each change to one GitHub issue (and one Projects v2 item) — **strictly one-way**: change files are the source of truth, the mirror is derived output that is **never read back**. It rides in the Board pass (`docket-status`) and is **best-effort** (self-heals next pass; never aborts a build); its external writes are owned by the deterministic `github-mirror.sh`, never agent-constructed `gh` calls. **Full mechanics — the `issue:` upsert, the `docket:` label namespace, the status→issue mapping across all eight states, the issue body, and Projects v2 — are in [`github-board-mirror.md`](github-board-mirror.md); read it when `board_surfaces` includes `github`.**
 
 **Derived-view script family.** The deterministic scripts producing derived views from the change files, each the sole writer of its output (the ADR-0012 script-vs-model boundary): `board-refresh.sh` (the gated `inline` board writer, wrapping the pure renderer `render-board.sh`), `github-mirror.sh` (the GitHub Issues/Projects mirror), `render-change-links.sh` (per-change `## Artifacts` link-block renderer; offline-safe) — called immediately after every frontmatter field write — and `render-artifact-backlink.sh` (the reciprocal per-artifact `docket:backlink` renderer; offline-safe) — called by the skills/close-out that write each artifact.
 

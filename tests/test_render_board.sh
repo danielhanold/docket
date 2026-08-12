@@ -127,6 +127,19 @@ pr: https://github.com/o/r/pull/151
 
 2026-07-18 — ambiguous rebase conflict; resolve by hand and re-run.
 EOF
+# The stacked-changes state (change 0298): merged into #0001's branch, NOT into the integration
+# branch, so it stays in active/ and renders its own section with a Stack cell naming the parent.
+cat > "$tmp/active/0014-november.md" <<'EOF'
+---
+id: 14
+slug: november
+title: November feature
+status: stacked-merged
+priority: medium
+depends_on: []
+stacked_on: 1
+pr: https://github.com/o/r/pull/160
+EOF
 cat > "$tmp/archive/2026-06-15-0010-juliet.md" <<'EOF'
 ---
 id: 10
@@ -160,7 +173,7 @@ golden="$tmp/golden.md"
 cat > "$golden" <<'EOF'
 # Backlog
 
-**13 changes** — 🟢 1 in progress · 🟡 5 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 2 implemented · ✅ 2 done · 🗑️ 1 killed
+**14 changes** — 🟢 1 in progress · 🟡 5 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 2 implemented · 🪆 1 stacked-merged · ✅ 2 done · 🗑️ 1 killed
 
 ## 🟢 In progress (1)
 
@@ -197,6 +210,12 @@ cat > "$golden" <<'EOF'
 | [0008](active/0008-hotel.md) | Hotel feature | `high` | `untyped` | [#142](https://github.com/o/r/pull/142) |  |
 | [0013](active/0013-mike.md) | Mike feature | `high` | `untyped` | [#151](https://github.com/o/r/pull/151) | finalize blocked — needs you |
 
+## 🪆 Stacked-merged (1)
+
+| # | Title | Priority | Type | PR | Stack |
+|---|-------|----------|------|----|-------|
+| [0014](active/0014-november.md) | November feature | `medium` | `untyped` | [#160](https://github.com/o/r/pull/160) | merged into #0001 |
+
 ```mermaid
 graph TD
   0001
@@ -209,6 +228,7 @@ graph TD
   0008
   0009
   0013
+  0014
   0010:::done
   classDef done fill:#d3f9d8;
 ```
@@ -263,6 +283,17 @@ assert "an unmarked implemented change renders an empty readiness cell" \
   'grep -qF "| [#142](https://github.com/o/r/pull/142) |  |" "$rendered"'
 assert "the implemented table carries the Readiness column" \
   'grep -qF "| # | Title | Priority | Type | PR | Readiness |" "$rendered"'
+
+# --- change 0298: the stacked-merged section ---------------------------------------------------
+# The golden byte-compare already covers these bytes; these focused asserts name the invariants so a
+# golden re-blessing cannot quietly drop them (learnings: guards-are-code).
+assert "stacked-merged row names its parent" 'grep -qF "merged into #0001" "$rendered"'
+assert "the stacked-merged table carries the Stack column" \
+  'grep -qF "| # | Title | Priority | Type | PR | Stack |" "$rendered"'
+assert "a stacked-merged change renders its own section, not the implemented one" \
+  'grep -qF "## 🪆 Stacked-merged (1)" "$rendered"'
+assert "a stacked-merged change stays out of the archive table" \
+  '! grep -qF "November feature | 2026" "$rendered"'
 
 # Digest parity (change 0069's invariant: the digest can never disagree with the board).
 digest="$(bash "$SCRIPT" --changes-dir "$tmp" --format digest 2>/dev/null)"
@@ -1486,6 +1517,7 @@ backlog proposed 5
 backlog blocked 1
 backlog deferred 1
 backlog implemented 2
+backlog stacked-merged 1
 backlog done 2
 backlog killed 1
 change 1 in-progress - alpha
@@ -1498,6 +1530,7 @@ change 7 blocked - golf
 change 8 implemented - hotel
 change 9 deferred - india
 change 13 implemented finalize-blocked mike
+change 14 stacked-merged - november
 ready 2
 EOF
 digest_out="$tmp/digest-out.txt"
@@ -1881,7 +1914,7 @@ bash "$SCRIPT" --changes-dir "$big" --repo o/r > "$big_out2" 2>/dev/null
 assert "big: re-render is byte-identical (determinism)" 'diff -u "$big_out" "$big_out2"'
 
 # ============ status vocabulary is single-sourced (change 0104, spec part 4) ============
-# The seven-name list used to be written out at four sites in this script, in two shapes. It now
+# The status list used to be written out at four sites in this script, in two shapes. It now
 # lives in lib/docket-frontmatter.sh. Two guard families:
 #   (a) PRODUCER-anchored: the four iteration sites actually reference the arrays, and no
 #       hand-written status list survives anywhere in the renderer.
@@ -1909,8 +1942,8 @@ assert 'no hand-written `for st in` status list survives in render-board.sh' '[ 
 # (b) the arrays themselves: composition and order (the golden compares bytes, this names the rule)
 assert "DOCKET_STATUSES is ACTIVE ++ TERMINAL, in that order" \
   '[ "${DOCKET_STATUSES[*]}" = "${DOCKET_STATUSES_ACTIVE[*]} ${DOCKET_STATUSES_TERMINAL[*]}" ]'
-assert "DOCKET_STATUSES holds the convention's seven lifecycle statuses" '[ "${#DOCKET_STATUSES[@]}" = 7 ]'
-assert "DOCKET_STATUSES_ACTIVE holds the five non-terminal statuses" '[ "${#DOCKET_STATUSES_ACTIVE[@]}" = 5 ]'
+assert "DOCKET_STATUSES holds the convention's eight lifecycle statuses" '[ "${#DOCKET_STATUSES[@]}" = 8 ]'
+assert "DOCKET_STATUSES_ACTIVE holds the six non-terminal statuses" '[ "${#DOCKET_STATUSES_ACTIVE[@]}" = 6 ]'
 
 # case_labels FUNC — the case arms of a one-line-header case statement in render-board.sh, sorted.
 # The `exit` on esac bounds the range to this function's own body.
@@ -1936,14 +1969,14 @@ row_format_labels="$({
 } | sort -u)"
 # Non-vacuity: a tokenizer that parses nothing passes everything. Assert the COUNT it found before
 # trusting the comparison below (learnings: guards-are-code).
-assert "case_labels extracted all 7 emoji_for arms (tokenizer sees the function)" \
-  '[ "$(grep <<<"$emoji_labels" -c .)" = 7 ]'
-assert "case_labels extracted all 5 label_for_title arms (tokenizer sees the function)" \
-  '[ "$(grep <<<"$title_labels" -c .)" = 5 ]'
-assert "case_labels extracted all 5 table_header_for arms (tokenizer sees the function)" \
-  '[ "$(grep <<<"$header_labels" -c .)" = 5 ]'
-assert "row-format extractor found exactly 5 mapping arms" \
-  '[ "$(grep <<<"$row_format_labels" -c .)" = 5 ]'
+assert "case_labels extracted all 8 emoji_for arms (tokenizer sees the function)" \
+  '[ "$(grep <<<"$emoji_labels" -c .)" = 8 ]'
+assert "case_labels extracted all 6 label_for_title arms (tokenizer sees the function)" \
+  '[ "$(grep <<<"$title_labels" -c .)" = 6 ]'
+assert "case_labels extracted all 6 table_header_for arms (tokenizer sees the function)" \
+  '[ "$(grep <<<"$header_labels" -c .)" = 6 ]'
+assert "row-format extractor found exactly 6 mapping arms" \
+  '[ "$(grep <<<"$row_format_labels" -c .)" = 6 ]'
 exp_all="$(printf '%s\n' "${DOCKET_STATUSES[@]}" | sort -u)"
 exp_active="$(printf '%s\n' "${DOCKET_STATUSES_ACTIVE[@]}" | sort -u)"
 assert "emoji_for's case arms are EXACTLY DOCKET_STATUSES (both directions)" \
@@ -2187,7 +2220,7 @@ rm -rf "$c143"
 # The archive sort feeder joins `date<TAB>id<TAB>status<TAB>file` and the consumer splits it with
 # `IFS=$'\t' read -r date id st f`. A TAB *inside* the status value adds a field and shifts every
 # later field RIGHT — the mirror of 0143's empty-field left-shift, which `[ -n "$st" ]` cannot see.
-# Rejection is by VOCABULARY: `done\tx` is not one of the seven statuses, so it never reaches the
+# Rejection is by VOCABULARY: `done\tx` is not one of the lifecycle statuses, so it never reaches the
 # join, the ARC_COUNT subscript, or the SECTION subscript (spec assumption 4).
 c259="$(mktemp -d)"
 mkdir -p "$c259/active" "$c259/archive"
@@ -2219,10 +2252,16 @@ assert "0259: the well-formed active row still renders" \
   '/usr/bin/grep -qF -- "Good Active" <<<"$c259_md"'
 # Diagnostics: one line per malformed FILE, naming the path and the reason, with the TAB rendered
 # as the visible two-character escape so the diagnostic itself cannot smuggle a control character.
+# The reason is COUNT-FREE (change 0298): it interpolates DOCKET_STATUSES rather than naming a
+# cardinality, so growing the vocabulary cannot leave the wording lying. Expectation derived from
+# the same array for that reason — a hand-listed spelling here would be the drift it exists to stop.
+c259_vocab="${DOCKET_STATUSES[*]}"
 assert "0259: stderr names the interior-TAB file with the TAB escaped" \
-  '/usr/bin/grep -qF -- "render-board: malformed change file: $c259/archive/2026-08-01-0001-tabbed.md: status '"'"'done\\tx'"'"' is not one of the seven lifecycle statuses" <<<"$c259_err"'
+  '/usr/bin/grep -qF -- "render-board: malformed change file: $c259/archive/2026-08-01-0001-tabbed.md: status '"'"'done\\tx'"'"' is not one of the lifecycle statuses: $c259_vocab" <<<"$c259_err"'
 assert "0259: stderr names the impossible-status file" \
-  '/usr/bin/grep -qF -- "render-board: malformed change file: $c259/active/0003-bogus-status.md: status '"'"'bogus'"'"' is not one of the seven lifecycle statuses" <<<"$c259_err"'
+  '/usr/bin/grep -qF -- "render-board: malformed change file: $c259/active/0003-bogus-status.md: status '"'"'bogus'"'"' is not one of the lifecycle statuses: $c259_vocab" <<<"$c259_err"'
+assert "0259: the malformed-status diagnostic names no cardinality" \
+  '! /usr/bin/grep -qE "is not one of the (three|four|five|six|seven|eight|nine|ten)" <<<"$c259_err"'
 assert "0259: stderr carries exactly one diagnostic per malformed file" \
   '[ "$(/usr/bin/grep -c "malformed change file:" <<<"$c259_err")" = 2 ]'
 assert "0259: no raw TAB survives into the diagnostic stream" \

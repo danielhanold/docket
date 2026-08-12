@@ -302,7 +302,8 @@ sync_projects(){
       [ -n "$number" ] || { log "Projects: board create returned no number — skipping this pass"; return 0; }
       printf 'project-minted %s %s\n' "$owner" "$number"  # caller writes github_project into .docket.yml
     fi
-    # Seed the docket Status single-select field with the five active statuses.
+    # Seed the docket Status single-select field with every active status (count-free: the list is
+    # DOCKET_STATUSES_ACTIVE, joined at STATUS_OPTIONS).
     run_gh project field-create "$number" --owner "$owner" --name "$STATUS_FIELD_NAME" \
       --data-type SINGLE_SELECT --single-select-options "$STATUS_OPTIONS" --format json >/dev/null \
       || log "Projects: Status field create failed (best-effort) — items still added, status left unset"

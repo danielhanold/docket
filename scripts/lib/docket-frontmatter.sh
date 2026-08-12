@@ -406,7 +406,7 @@ publish_deferred(){ # publish_deferred FILE  (meaningful on any change file, act
 }
 
 # --- status vocabulary (change 0104) ----------------------------------------------------------
-# The seven lifecycle statuses, authored as the convention's two semantic groups: `active/` holds
+# The lifecycle statuses, authored as the convention's two semantic groups: `active/` holds
 # every non-terminal status, `archive/` holds the two terminal outcomes. DOCKET_STATUSES is the
 # concatenation, in the renderer's display order — the order IS the contract (BOARD.md's section
 # order and the digest's `backlog` rollup order both come from iterating it), so never reorder
@@ -417,7 +417,13 @@ publish_deferred(){ # publish_deferred FILE  (meaningful on any change file, act
 # one of them is detectable: a status added to the renderer but not the checker makes field-domain
 # fire a FALSE finding on every file carrying it (and suppresses the board-row-dropped backstop,
 # which would otherwise be the thing that noticed), while the reverse direction is caught.
-DOCKET_STATUSES_ACTIVE=(in-progress proposed blocked deferred implemented)
+#
+# `stacked-merged` (change 0298) is NON-TERMINAL and belongs to the ACTIVE group: a change whose PR
+# merged into its stack parent's branch has NOT reached the integration branch, so its file stays in
+# `active/` and only the stack close-out — run when the stack root's code lands — promotes it to
+# `done`. Display order places it after `implemented`, the state it follows in the lifecycle, so it
+# is the LAST member of the ACTIVE group and the board's last active section.
+DOCKET_STATUSES_ACTIVE=(in-progress proposed blocked deferred implemented stacked-merged)
 DOCKET_STATUSES_TERMINAL=(done killed)
 DOCKET_STATUSES=("${DOCKET_STATUSES_ACTIVE[@]}" "${DOCKET_STATUSES_TERMINAL[@]}")
 
@@ -450,7 +456,7 @@ _docket_array_has(){
 }
 docket_status_is_active(){ _docket_array_has "$1" "${DOCKET_STATUSES_ACTIVE[@]}"; }
 docket_status_is_terminal(){ _docket_array_has "$1" "${DOCKET_STATUSES_TERMINAL[@]}"; }
-# Membership over the FULL seven-name vocabulary — the union its two siblings partition. Distinct
+# Membership over the FULL vocabulary — the union its two siblings partition. Distinct
 # from both: `_active` and `_terminal` each answer "which half", and a consumer that only needs
 # "is this a status at all" would otherwise have to call both or restate the list. render-board.sh's
 # malformed-file validation (change 0259) is that consumer: a status outside this vocabulary can

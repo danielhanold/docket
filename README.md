@@ -53,6 +53,8 @@ proposed  →  in-progress  →  implemented  →  done
 
 with three off-ramps: `blocked` (an external blocker is recorded), `deferred` (consciously shelved, may revive), and `killed` (abandoned — kept in the archive as a record). A `proposed` change that has not yet been designed enough to build (no spec, not marked trivial) sits in a **needs-brainstorm** state until it is groomed.
 
+There is one detour on the way to `done`: `stacked-merged`. A change built on another change's unmerged branch merges into that parent rather than into your integration branch, so its code hasn't shipped yet — it parks at `stacked-merged` and is promoted to `done` only once the root of its stack lands.
+
 There is also one edge running backward: `in-progress → proposed`. A claim carries a lease, and a change whose lease has expired with no feature branch to show for it — the crashed-before-push case — self-heals back to `proposed` rather than sitting stuck; see [Reclaiming stale claims](#reclaiming-stale-claims-reclaim).
 
 The **board** — a generated `BOARD.md` — is the at-a-glance view of every change grouped by status; you regenerate it with `docket-status`.
