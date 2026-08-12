@@ -40,6 +40,11 @@ NOW="${NOW:-$(date +%s)}"
 SCRIPTS_DIR="${SCRIPTS_DIR:-$SELF_DIR}"
 # shellcheck source=lib/docket-frontmatter.sh
 . "$SELF_DIR"/lib/docket-frontmatter.sh
+# Sourced SECOND and never first: docket-stack.sh consumes the frontmatter library's `fm_field`
+# and declares no accessors of its own. The sweep uses `stack_parent_id`/`stack_find_file` to tell
+# a PR merged into its stack parent from one merged into the integration branch.
+# shellcheck source=lib/docket-stack.sh
+. "$SELF_DIR"/lib/docket-stack.sh
 # shellcheck source=lib/docket-preflight.sh
 . "$SELF_DIR"/lib/docket-preflight.sh
 
@@ -547,11 +552,18 @@ digest_only_pass(){
 }
 
 # detect_merged — batched sweep detection (change 0058, task 4). Prints TAB-separated
-# "<id>\t<slug>\t<pr>\t<merged-date>" for every `implemented` change under $CD/active whose
-# PR has merged, using ONE batched gh call (an aliased graphql query keyed by pr number, plus a
+# "<id>\t<slug>\t<pr>\t<merged-date>\t<base-ref>" for every `implemented` change under $CD/active
+# whose PR has merged, using ONE batched gh call (an aliased graphql query keyed by pr number, plus a
 # per-change `gh pr list` fallback only for changes with no `pr:` set). merged-date is the UTC
 # date portion of GitHub's mergedAt (already Zulu/UTC) — never now()/local time. Best-effort:
 # any gh/network/parse failure emits "sweep-skipped <reason>" and returns 0 (never aborts the pass).
+#
+# base-ref is the PR's `baseRefName` (change 0298): the branch the code actually landed on. It is
+# carried as a FIFTH field rather than resolved later because it is a property of the PR, and by the
+# time sweep_execute_one runs there is no second gh call to ask for it. It is what lets the sweep
+# tell "merged into the integration branch" (close out to `done`) from "merged into its stack
+# parent's branch" (flip to `stacked-merged`, archive nothing). An empty field — the fallback arm on
+# an older gh, or a parse miss — degrades to the pre-0298 behavior: the change closes out normally.
 detect_merged(){
   local mw
   mw="$(docket_metadata_worktree)"   # ABSOLUTE (change 0075) — see board_pass.
@@ -589,7 +601,7 @@ detect_merged(){
   local query="query {" i has_pr=0
   for i in "${!ids[@]}"; do
     [ -n "${prs[$i]}" ] || continue
-    query="$query p${ids[$i]}: repository(owner: \"$owner\", name: \"$name\") { pullRequest(number: ${prs[$i]}) { number mergedAt state } }"
+    query="$query p${ids[$i]}: repository(owner: \"$owner\", name: \"$name\") { pullRequest(number: ${prs[$i]}) { number mergedAt state baseRefName } }"
     has_pr=1
   done
   query="$query }"
@@ -603,15 +615,16 @@ detect_merged(){
     fi
   fi
 
-  local merged_at state date pl_json pl_num pl_merged
+  local merged_at state date base_ref pl_json pl_num pl_merged pl_base
   for i in "${!ids[@]}"; do
     id="${ids[$i]}"; slug="${slugs[$i]}"; pr="${prs[$i]}"
     if [ -n "$pr" ]; then
       merged_at="$(printf '%s' "$gql_json" | jq -r ".data.p${id}.pullRequest.mergedAt // empty" 2>/dev/null)"
       state="$(printf '%s' "$gql_json" | jq -r ".data.p${id}.pullRequest.state // empty" 2>/dev/null)"
+      base_ref="$(printf '%s' "$gql_json" | jq -r ".data.p${id}.pullRequest.baseRefName // empty" 2>/dev/null)"
       if [ "$state" = MERGED ] && [ -n "$merged_at" ]; then
         date="${merged_at:0:10}"
-        printf '%s\t%s\t%s\t%s\n' "$id" "$slug" "$pr" "$date"
+        printf '%s\t%s\t%s\t%s\t%s\n' "$id" "$slug" "$pr" "$date" "$base_ref"
       fi
     else
       # --repo "$repo" is what SPENDS the resolution above. Without it gh infers the repository
@@ -619,15 +632,16 @@ detect_merged(){
       # different one in board_pass / github-mirror.sh, which both forward the flag. Unconditional,
       # not ${repo:+...}: the early returns above guarantee $repo is resolved and shape-valid by
       # the time this arm runs. Same shape as detect_orphan_pr's single batched call.
-      pl_json="$("$GH" pr list --repo "$repo" --head "feat/$slug" --state merged --json number,mergedAt 2>/dev/null)"
+      pl_json="$("$GH" pr list --repo "$repo" --head "feat/$slug" --state merged --json number,mergedAt,baseRefName 2>/dev/null)"
       if [ $? -ne 0 ] || ! printf '%s' "$pl_json" | jq -e . >/dev/null 2>&1; then
         continue
       fi
       pl_num="$(printf '%s' "$pl_json" | jq -r '.[0].number // empty')"
       pl_merged="$(printf '%s' "$pl_json" | jq -r '.[0].mergedAt // empty')"
+      pl_base="$(printf '%s' "$pl_json" | jq -r '.[0].baseRefName // empty')"
       if [ -n "$pl_num" ] && [ -n "$pl_merged" ]; then
         date="${pl_merged:0:10}"
-        printf '%s\t%s\t%s\t%s\n' "$id" "$slug" "$pl_num" "$date"
+        printf '%s\t%s\t%s\t%s\t%s\n' "$id" "$slug" "$pl_num" "$date" "$pl_base"
       fi
     fi
   done
@@ -835,12 +849,16 @@ detect_orphan_pr(){
 
 # sweep_execute — chains the shared ADR-0035 close-out scripts (archive-change.sh →
 # render-change-links.sh → terminal-publish.sh → cleanup-feature-branch.sh) for each merged
-# change fed on stdin as TAB-separated "<id>\t<slug>\t<pr>\t<merged-date>" (detect_merged's
-# format; pipe `detect_merged | sweep_execute`). Log-and-continue: any per-change step failure
-# emits "sweep-failed <id> <step> <reason>" and abandons the REST of that change's close-out,
-# but the loop always continues to the next change. Full success emits "swept <id> <date>" and
-# "harvest <id> <archived-path>" (the archived file — a hook for the caller to harvest
+# change fed on stdin as TAB-separated "<id>\t<slug>\t<pr>\t<merged-date>\t<base-ref>"
+# (detect_merged's format; pipe `detect_merged | sweep_execute`). Log-and-continue: any per-change
+# step failure emits "sweep-failed <id> <step> <reason>" and abandons the REST of that change's
+# close-out, but the loop always continues to the next change. Full success emits "swept <id> <date>"
+# and "harvest <id> <archived-path>" (the archived file — a hook for the caller to harvest
 # learnings). Idempotent: a change already done/archived is a silent no-op.
+#
+# The fifth field is OPTIONAL by construction (change 0298): `read` leaves base_ref empty on a
+# four-field record, which is exactly the pre-0298 close-out. A caller feeding this by hand — and
+# every fixture predating 0298 — therefore keeps working unchanged.
 sweep_execute(){
   local mw cd_dir
   mw="$(docket_metadata_worktree)"   # ABSOLUTE (change 0075) — see board_pass. This is the value
@@ -848,8 +866,8 @@ sweep_execute(){
                                      # artifacts-refresh pathspec match at all.
   cd_dir="$mw/$CHANGES_DIR"
 
-  local id slug pr merged_date
-  while IFS=$'\t' read -r id slug pr merged_date; do
+  local id slug pr merged_date base_ref
+  while IFS=$'\t' read -r id slug pr merged_date base_ref; do
     [ -n "$id" ] || continue
     # Not a valid close-out record (e.g. detect_merged's "sweep-skipped <reason>" line,
     # which carries no TAB fields) — pass it through verbatim so it reaches the report
@@ -858,7 +876,7 @@ sweep_execute(){
       printf '%s\n' "$id"
       continue
     fi
-    sweep_execute_one "$mw" "$cd_dir" "$id" "$slug" "$pr" "$merged_date"
+    sweep_execute_one "$mw" "$cd_dir" "$id" "$slug" "$pr" "$merged_date" "$base_ref"
   done
 }
 
@@ -940,8 +958,44 @@ sweep_mark_publish_deferred(){
   return 0
 }
 
+# sweep_set_status FILE VALUE — replace `status:` in the FIRST ---…--- block only, in place.
+# Byte-identical to archive-change.sh's and reclaim-claims.sh's `set_field`, deliberately: the
+# anchoring is the whole point (AGENTS.md — docket's own change files discuss `status:` in body
+# prose, and a bare column-0 match rewrites the prose instead of the field). Kept local rather than
+# hoisted into a library because that hoist is a refactor across three scripts, not this task.
+# `mv -f`: BSD `mv` prompts on an unwritable destination, self-answers `n`, and exits 0.
+sweep_set_status(){
+  local f="$1" v="$2" t; t="$(mktemp "${TMPDIR:-/tmp}/docket-status.XXXXXX")" || return 1
+  sed -E "/^---$/,/^---$/ s|^(status:)[[:space:]]*.*|\1 $v|" "$f" > "$t" && mv -f "$t" "$f"
+}
+
+# sweep_stacked_parent CD_DIR ID BASE_REF — prints the parent change's canonical id and returns 0
+# iff ID carries a `stacked_on:` whose parent's recorded `branch:` is EXACTLY the branch BASE_REF
+# says the PR merged into. Returns 1 (printing nothing) otherwise, which is the ordinary case and
+# means "close this out to done".
+#
+# The base-ref equality is the DISCRIMINATOR, not a formality: without it every stacked change would
+# flip to `stacked-merged` the moment its PR merged, including one retargeted onto and merged into
+# the integration branch — whose code IS reachable from the integration branch and is therefore
+# `done` by the governing invariant. tests/test_docket_status_stack.sh mutation-tests exactly that.
+#
+# `fm_field` and never `field` for `branch:`: it is an absent-capable key (ADR-0057), and an
+# unanchored read of an absent key runs past the closing `---` into body prose. `stacked_on:` is read
+# through stack_parent_id, which is anchored for the same reason.
+sweep_stacked_parent(){
+  local cd_dir="$1" id="$2" base_ref="$3" parent parent_file parent_branch
+  [ -n "$base_ref" ] || return 1
+  parent="$(stack_parent_id "$cd_dir" "$id")"
+  [ -n "$parent" ] || return 1
+  parent_file="$(stack_find_file "$cd_dir" "$parent")" || return 1
+  parent_branch="$(fm_field "$parent_file" branch)"
+  [ -n "$parent_branch" ] || return 1
+  [ "$base_ref" = "$parent_branch" ] || return 1
+  printf '%s\n' "$parent"
+}
+
 sweep_execute_one(){
-  local mw="$1" cd_dir="$2" id="$3" slug="$4" pr="$5" merged_date="$6"
+  local mw="$1" cd_dir="$2" id="$3" slug="$4" pr="$5" merged_date="$6" base_ref="${7:-}"
   local pad; pad="$(printf '%04d' "$id" 2>/dev/null)"
   [ -n "$pad" ] || pad="$id"
 
@@ -957,6 +1011,47 @@ sweep_execute_one(){
   fi
   status="$(field "$active" status)"
   docket_status_is_terminal "$status" && return 0   # already terminal — idempotent no-op
+  # `stacked-merged` is NON-terminal, so the terminal probe above does not cover it and this second
+  # arm is required, not redundant. The change stays in active/ carrying that status until the stack
+  # close-out promotes it, and every intervening pass re-detects the same merged PR — without this
+  # the sweep would re-run the flip, re-commit, and re-print its report line on every pass.
+  [ "$status" = stacked-merged ] && return 0        # already flipped — idempotent no-op
+
+  # Change 0298 — spec §6: a PR merged into its stack PARENT's branch has not reached the
+  # integration branch, so the governing invariant says it is not `done`. Flip it to
+  # `stacked-merged` in place and return BEFORE archiving: the change file stays in active/, no
+  # terminal record publishes, and the feature branch is deliberately NOT cleaned up — it still
+  # carries the only copy of code the root's PR needs.
+  local stacked_parent
+  if stacked_parent="$(sweep_stacked_parent "$cd_dir" "$id" "$base_ref")" && [ -n "$stacked_parent" ]; then
+    if _docket_tree_wedged "$GIT" "$mw"; then
+      echo "sweep-failed $id stacked-merged blocked-wedged-tree"
+      return 0
+    fi
+    if ! sweep_set_status "$active" stacked-merged; then
+      echo "sweep-failed $id stacked-merged write-failed"
+      return 0
+    fi
+    # Scoped `--` on BOTH the add and the commit (change 0247): the metadata worktree is shared, so
+    # an unscoped commit sweeps a concurrent agent's staged work in under this run's message. On a
+    # commit failure the path is restored to HEAD so the shared tree is never left dirty — the same
+    # recovery rule sweep_mark_publish_deferred states.
+    if ! "$GIT" -C "$mw" add -- "$active" >&2 \
+       || ! "$GIT" -C "$mw" commit -q -m "docket($id): stacked-merged — PR merged into #$stacked_parent's branch" -- "$active" >&2; then
+      "$GIT" -C "$mw" checkout HEAD -- "$active" >/dev/null 2>&1 || true
+      echo "sweep-failed $id stacked-merged commit-failed"
+      return 0
+    fi
+    # A push failure RETAINS the local commit, exactly as sweep_mark_publish_deferred does: the
+    # commit is clean and the next pass's `pull --rebase` carries it, whereas resetting it would
+    # re-open the flip and re-report it forever.
+    if ! "$GIT" -C "$mw" push >&2; then
+      echo "sweep-failed $id stacked-merged push-failed"
+      return 0
+    fi
+    echo "stacked-merged $id $stacked_parent"
+    return 0
+  fi
 
   if ! "$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/archive-change.sh \
         --changes-dir "$cd_dir" --id "$id" --outcome done --date "$merged_date" \
