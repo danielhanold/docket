@@ -21,6 +21,10 @@ render-change-links.sh --change-file FILE [--repo OWNER/REPO] [--adrs-dir DIR]
 | `--repo OWNER/REPO` | no | Build GitHub `blob/` and `pull/` URLs. Defaults to deriving `OWNER/REPO` from the `origin` remote of the change file's repo. Absent or non-GitHub remote: falls back to bare code-formatted paths. |
 | `--adrs-dir DIR` | no | Local directory to resolve ADR slugs to filenames. Defaults to `METADATA_WORKTREE/ADRS_DIR` from `docket-config.sh`. |
 
+The changes directory scanned for stacked children is not a flag: it is derived from the change
+file's own location (`<changes>/active/` or `<changes>/archive/`), and `CHANGES_DIR` from
+`docket-config.sh` supplies the repo-relative prefix for the resulting links.
+
 Mock seams: `GIT="${GIT:-git}"`, `DOCKET_CONFIG="${DOCKET_CONFIG:-<scriptdir>/docket-config.sh}"`.
 
 ## Behavior
@@ -45,10 +49,29 @@ bare path (`\`path\``) instead of a hyperlink. No network calls are made in eith
 | `results:` | `blob/<build_ref>/<results>` | bare code-formatted path |
 | `pr:` | `[#N](url)` when `pr:` is a URL | verbatim `pr:` value |
 | `adrs:` | `[ADR-NNNN](blob/<metadata_branch>/<slug>)` per id | backtick path (slug resolved) or `ADR-NNNN` (slug missing) |
+| *(derived — no field)* | **Stacked children**: `[#NNNN](blob/<metadata_branch>/<child path>) <title> (<status>)` per child | `#NNNN <title> (<status>)` per child |
 
 **Build ref.** `spec:` always links to `<metadata_branch>`. `plan:` and `results:` link to
 `<integration_branch>` when the change is `done` (the file has merged); otherwise they link to
-`<branch>` (the feature branch).
+`<branch>` (the feature branch). The test is `status = done` exactly — **not** "is terminal" and not
+"is not active". Those three used to coincide; `stacked-merged` (change 0298) splits them. A
+stacked-merged change merged into its *parent's* branch, not into the integration branch, so its
+plan and results are not reachable from `<integration_branch>` yet and the feature branch stays the
+only ref that resolves them.
+
+**Stacked children (derived, never stored).** The parent side of a `stacked_on:` link has no
+frontmatter field of its own (change 0298). Instead, each render scans the `active/` and `archive/`
+directories of the changes tree the change file itself sits in, and emits one **Stacked children**
+row naming every change whose *anchored* `stacked_on:` resolves to this change's id, sorted by
+padded id. Nothing is emitted — not even the label — when the set is empty. Consequences worth
+knowing: a child that is renamed, re-parented, or killed simply stops appearing on the next render,
+and the two sides of the relationship cannot disagree because only one side is stored.
+
+The scan reads `stacked_on:` with the **anchored** `fm_field`. An unanchored read of an absent
+optional key returns body prose, and a change file discussing `stacked_on:` in its body is ordinary
+content in this repo — it would render a phantom child. A `grep` for the *key's* shape narrows the
+candidate set before that read; it is a prefilter over a superset, never the decision, and it is
+keyed on the key rather than the value so a padded or inline-commented spelling still survives it.
 
 **ADR slug resolution.** For each id in `adrs:`, globs `<adrs-dir>/<NNNN>-*.md`. If a match is
 found its relative path is used for the link; if not, the link targets the ADR directory
@@ -85,5 +108,9 @@ the first body section immediately after the frontmatter closing `---`, preceded
 - **In-place edit.** The script modifies `--change-file` directly (via a temp file + `mv`); the
   caller commits the file after the script exits.
 - **Offline.** No network calls in either GitHub or fallback mode.
-- **Deterministic.** Same frontmatter → same block bytes every time.
+- **Deterministic.** Same frontmatter → same block bytes every time. The **Stacked children** row is
+  derived from other files, so "same frontmatter" there means the whole changes directory: the row
+  is sorted by padded id rather than by glob order, because `archive/` globs by date.
+- **No `stacked_children:` field.** The parent-side link is derived on every render and never
+  written back (change 0298). A field would be a second copy of a fact that already has an owner.
 - **No git writes.** The script never touches the git index; the caller owns the commit.

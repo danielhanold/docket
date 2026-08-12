@@ -16,6 +16,7 @@ make_config_stub(){ # $1 dir
 echo "METADATA_BRANCH=docket"
 echo "INTEGRATION_BRANCH=main"
 echo "ADRS_DIR=docs/adrs"
+echo "CHANGES_DIR=docs/changes"
 echo "METADATA_WORKTREE="
 EOF
   chmod +x "$1/docket-config.sh"
@@ -456,6 +457,164 @@ if grep -qF '| Plan | 2026-06-21-kbp.md |' "$cfM" && ! grep -qF '](99)' "$cfM"; 
   ok "M: killed + non-URL pr => plan filename plain text, no broken link"
 else
   no "M: killed + non-URL pr => plan filename plain text, no broken link"; grep -F '| Plan' "$cfM" || true
+fi
+
+# ---- Case N: the derived Stacked children row (change 0298) ----
+# Fixtures live in a REAL changes-dir shape (<changes>/active, <changes>/archive) because the child
+# scan derives the directory to walk from the change file's own location. The flat fixtures above
+# deliberately stay flat: they prove the scan is a no-op when there is no active/ or archive/ beside
+# the change file.
+mkdir -p "$tmp/changes/active" "$tmp/changes/archive"
+mkchange(){ # mkchange <destpath> <id> <slug> <status> <stacked_on> <branch> <plan>
+  cat > "$1" <<EOF
+---
+id: $2
+slug: $3
+title: "Change $2"
+status: $4
+spec:
+plan: ${7:-}
+results:
+branch: ${6:-}
+pr:
+stacked_on: ${5:-}
+adrs: []
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
+
+## Why
+
+x
+EOF
+}
+
+cfP="$tmp/changes/active/0030-parent.md"
+cfC="$tmp/changes/active/0031-child.md"
+cfSM="$tmp/changes/active/0034-stackmerged.md"
+cfArch="$tmp/changes/archive/2026-08-12-0033-archived-child.md"
+mkchange "$cfP"    30 parent          in-progress    "" feat/parent
+mkchange "$cfC"    31 child           proposed       30 ""
+mkchange "$cfArch" 33 archived-child  done           30 feat/archived-child
+mkchange "$cfSM"   34 stackmerged     stacked-merged 30 feat/beta \
+  docs/superpowers/plans/2026-08-12-stackmerged.md
+
+# Change 32 omits stacked_on from frontmatter entirely and opens a BODY line with it. An unanchored
+# read runs past the closing --- and returns `30`, which is numeric and would pass the scan's own
+# well-formedness guard — so this file is the discriminator between fm_field and field, and the
+# "no phantom child" assert below is what reddens when the scan is mutated to the unanchored read.
+cat > "$tmp/changes/active/0032-prose.md" <<'EOF'
+---
+id: 32
+slug: prose
+title: "Change 32"
+status: proposed
+spec:
+plan:
+results:
+branch:
+pr:
+adrs: []
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
+
+## Why
+
+The stacking relationship is spelled out here, in prose, and never in frontmatter:
+
+stacked_on: 30
+EOF
+
+# Change 35 spells the link PADDED and with a trailing inline comment — both legitimate, both
+# repaired by fm_field's own reader. It pins the candidate prefilter to the KEY's shape: a prefilter
+# narrowed to a value-shaped pattern would drop this child silently and no other leg would notice.
+cat > "$tmp/changes/active/0035-padded.md" <<'EOF'
+---
+id: 35
+slug: padded
+title: "Change 35"
+status: proposed
+spec:
+plan:
+results:
+branch:
+pr:
+stacked_on: 0030   # padded, with a trailing comment
+adrs: []
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
+
+## Why
+
+x
+EOF
+
+render "$cfC"  >/dev/null 2>&1
+render "$cfSM" >/dev/null 2>&1
+render "$cfP"  >/dev/null 2>&1
+
+if grep -qF '| Stacked children |' "$cfP" && grep -qF '#0031' "$cfP"; then
+  ok "N: a parent renders its stacked children"
+else
+  no "N: a parent renders its stacked children"; sed -n '/## Artifacts/,/artifacts:end/p' "$cfP"
+fi
+
+if grep -qF '[#0031](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0031-child.md) Change 31 (proposed)' "$cfP"; then
+  ok "N2: a child cell links to the metadata branch and names title + status"
+else
+  no "N2: a child cell links to the metadata branch and names title + status"; grep -F '| Stacked children' "$cfP" || true
+fi
+
+if grep -qF '#0033' "$cfP" && grep -qF '/blob/docket/docs/changes/archive/2026-08-12-0033-archived-child.md' "$cfP"; then
+  ok "N3: an archived child is found by the scan too"
+else
+  no "N3: an archived child is found by the scan too"; grep -F '| Stacked children' "$cfP" || true
+fi
+
+# Discriminating leg for the fm_field/field mutation.
+if ! grep -qF '#0032' "$cfP"; then
+  ok "N4: a body line opening stacked_on does not create a phantom child"
+else
+  no "N4: a body line opening stacked_on does not create a phantom child"; grep -F '| Stacked children' "$cfP" || true
+fi
+
+if ! grep -qF '| Stacked children |' "$cfC"; then
+  ok "N5: a child with no children of its own renders no such row"
+else
+  no "N5: a child with no children of its own renders no such row"; sed -n '/## Artifacts/,/artifacts:end/p' "$cfC"
+fi
+
+# stacked-merged is NON-terminal: the feature branch still carries the code, so plan/results keep
+# the branch ref. Only `done` flips to the integration branch.
+if grep -qF '/blob/feat/beta/docs/superpowers/plans/' "$cfSM" && ! grep -qF '/blob/main/docs/superpowers/plans/' "$cfSM"; then
+  ok "N6: a stacked-merged change keeps branch-addressed plan links"
+else
+  no "N6: a stacked-merged change keeps branch-addressed plan links"; grep -F '| Plan' "$cfSM" || true
+fi
+
+if grep -qF '#0035' "$cfP"; then
+  ok "N8: a padded, inline-commented stacked_on still names its parent"
+else
+  no "N8: a padded, inline-commented stacked_on still names its parent"; grep -F '| Stacked children' "$cfP" || true
+fi
+
+cp "$cfP" "$tmp/parent_after1.md"
+render "$cfP" >/dev/null 2>&1
+if diff -u "$tmp/parent_after1.md" "$cfP" >/dev/null; then
+  ok "N7: the derived row is idempotent"
+else
+  no "N7: the derived row is idempotent"; diff -u "$tmp/parent_after1.md" "$cfP" || true
 fi
 
 exit $fail
