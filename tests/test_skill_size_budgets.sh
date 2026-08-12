@@ -1292,6 +1292,21 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 # after it, 6800 (73 words of margin). The LINE budget was NOT raised: 379 actual against 385.
 # skills/docket-convention/github-board-mirror.md needed no raise from the same change (17/443
 # against 19/462) — the status->issue mapping gained `stacked-merged` inside the existing sentence.
+# skills/docket-new-change/change-template.md's WORD budget was raised 203 -> 250 by change 0298,
+# which seeds the new `stacked_on:` manifest field into the template with the one-line comment that
+# says what it is ("optional: parent change id whose branch this one is built on"). The file was
+# sitting at 203/203 — zero headroom — so the field could not be added without a raise, and the row
+# had never been re-set since its 0085 origin. The LINE budget was NOT raised: 49 actual against 51.
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above: nowhere, and the requirement does
+# not bite here in its usual form. This is not prose that could sit in a references/ file — it is a
+# frontmatter KEY, and the template's entire job is to be the bytes minted into every new change
+# file. A key documented anywhere else is a key no minted change file carries. The comment is the
+# annotation every other key in this same block carries, in the same column, and dropping it would
+# make `stacked_on:` the one unexplained field in the manifest.
+# COMPRESSION: not taken, and none is available. The addition is one key line; the surrounding
+# comments are each one line and already terse.
+# Set per the rounding rule above from the measured actual: 216 words -> the next multiple of 50 is
+# 250 (34 words of margin, above the 25-word threshold).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -1319,7 +1334,7 @@ skills/docket-implement-next/references/fix-loop.md        185 1900
 skills/docket-implement-next/results-template.md            25  250
 skills/docket-review/SKILL.md                              110  900
 skills/docket-new-change/SKILL.md                           61 1450
-skills/docket-new-change/change-template.md                 51  203
+skills/docket-new-change/change-template.md                 51  250
 skills/docket-status/SKILL.md                              118 2600
 "
 

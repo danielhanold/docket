@@ -75,11 +75,14 @@
 #
 # EVERY OTHER KEY takes an anchored read — never field() (ADR-0057). In docket's own schema the
 # absent-capable set is spec, plan, results, branch, pr, issue, blocked_by, type, claimed_at,
-# trivial, auto_groomable, promotion_state, promoted_to, discovered_from. Several of those — spec,
-# plan, results, branch, pr, blocked_by, trivial — ARE shipped by today's change template and do sit
-# in every change file on the metadata branch right now. They are absent-capable regardless: each is
-# semantically OPTIONAL and hand-authorable, so a writer may drop the line and an older file may
-# never have carried it. Do not promote a key into the guaranteed set on the strength of a census.
+# trivial, auto_groomable, stacked_on, promotion_state, promoted_to, discovered_from. Several of
+# those — spec, plan, results, branch, pr, blocked_by, trivial, stacked_on — ARE shipped by today's
+# change template. They are absent-capable regardless: each is semantically OPTIONAL and
+# hand-authorable, so a writer may drop the line and an older file may never have carried it. That
+# is not hypothetical for stacked_on (change 0298), which today's template ships but every change
+# file minted before it necessarily lacks — an unanchored read of it returns body prose, and in a
+# repo whose subject matter IS the field names that prose is normal content. Do not promote a key
+# into the guaranteed set on the strength of a census.
 #
 # Within the anchored tier, fm_field is the default. fm_field_verbatim is for exactly two jobs:
 # a consumer JUDGING the scalar's YAML form as authored (board-checks's scalar_form_check, which
