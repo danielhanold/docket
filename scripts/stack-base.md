@@ -44,10 +44,13 @@ back for the next one a call later.
 The resolution walks the `stacked_on` chain upward from the change, applying spec §3's four rules:
 
 1. **A live parent whose branch is pushed is the base.** The parent's `branch:` is printed.
-2. **A parent that has already merged resolves upward.** A `done` parent, or a `stacked-merged`
-   parent whose branch is gone, contributes no branch of its own, so the answer is whatever *its*
-   base resolves to — recursively, until the walk reaches an unstacked ancestor and lands on the
-   integration branch.
+2. **A parent that has already merged contributes no branch of its own** — and where its commits
+   went decides the answer. A `done` parent merged into the **integration branch** (that is what
+   `done` means), so the integration branch is printed directly; resolving upward would cut the
+   child from a grandparent branch that predates the merge and lacks the parent's own work. A
+   `stacked-merged` parent whose branch is gone merged into **its parent**, so its commits are
+   inside the grandparent's branch and the answer is whatever *its* base resolves to — recursively,
+   until the walk reaches a live branch or an unstacked ancestor.
 3. **A `killed` parent stops the walk** at exit 3.
 4. **Anything else is an invalid resolution** at exit 4: a missing parent, a cycle, or a parent
    whose `branch:` has no ref on the remote.

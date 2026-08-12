@@ -231,11 +231,40 @@ assert "a stacked-merged parent whose branch is still pushed is itself the base"
   '[ "$(stack_effective_base "$tmp" 15 main)" = "feat/nu" ]'
 export DOCKET_TEST_REMOTE_BRANCHES="feat/alpha"
 
+# A `done` parent resolves to the INTEGRATION BRANCH, never upward — the one place the two halves of
+# "a parent that already merged" part company. `done` means, by the spec's governing invariant, that
+# the change's code is reachable from the integration branch; a child merged only into its parent is
+# `stacked-merged` instead. So a `done` parent's commits live on the integration branch and NOT
+# necessarily on a still-open grandparent branch, which was cut before that merge. The fixture is
+# exactly that shape — an in-progress grandparent whose branch IS pushed — because it is the only one
+# that can tell the two answers apart: every earlier `done` leg sits over an unstacked ancestor,
+# where walking upward happens to land on the integration branch anyway.
+mkchange 38 tsadi in-progress "" feat/tsadi
+mkchange 39 qoph done 38 feat/qoph
+mkchange 42 resh proposed 39
+export DOCKET_TEST_REMOTE_BRANCHES="feat/alpha feat/tsadi"
+assert "a done parent resolves to the integration branch, not to a still-open grandparent's" \
+  '[ "$(stack_effective_base "$tmp" 42 main)" = "main" ]'
+# …and its own branch is not the answer either, even while it is still pushed: rule 1 is for LIVE
+# parents, and a resolver that reached the ref lookup before reading the status would hand the child
+# a branch whose PR has already merged and whose cleanup may delete it at any moment.
+export DOCKET_TEST_REMOTE_BRANCHES="feat/alpha feat/tsadi feat/qoph"
+assert "a done parent's own pushed branch is still not the base" \
+  '[ "$(stack_effective_base "$tmp" 42 main)" = "main" ]'
+export DOCKET_TEST_REMOTE_BRANCHES="feat/alpha"
+
 # rule 3: killed parent
 mkchange 16 omicron killed "" feat/omicron
 mkchange 17 pi proposed 16
 assert "rule 3: a killed parent stops with exit 3" \
   'stack_effective_base "$tmp" 17 main >/dev/null 2>&1; [ "$?" = 3 ]'
+# …but a killed GRANDparent behind a done parent is not the child's problem: the done parent's code
+# is on the integration branch regardless of what happened above it, so stopping here would strand a
+# perfectly resolvable child on a human-decision path.
+mkchange 43 shin done 16 feat/shin
+mkchange 44 tav proposed 43
+assert "a killed grandparent behind a done parent does not block the child" \
+  '[ "$(stack_effective_base "$tmp" 44 main)" = "main" ]'
 
 assert "rule 4: a cycle is invalid" \
   'stack_effective_base "$tmp" 4 main >/dev/null 2>&1; [ "$?" = 4 ]'
