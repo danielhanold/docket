@@ -1416,6 +1416,27 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 # measured actuals: 184 lines -> the next multiple of 5 is 185, which leaves ONE line of margin, the
 # near-zero failure mode this block records raising past repeatedly, so the multiple after it, 190;
 # 4092 words -> 4100 leaves 8 (within the 25-word threshold), so the multiple after it, 4150.
+# skills/docket-convention/references/stacked-changes.md 195/1900 -> 215/2050 by the same review-fix
+# wave, which gave the open-children gate an ORACLE. Spec §11 requires the gate to derive the child
+# set "by scanning … never by reading a parent-side list", but the only parent-side artifact was the
+# derived `## Stacked children` row — regenerated on a link-bearing write to the PARENT, so a child
+# stacked on an already-`implemented` parent (the spec's motivating case) never appears in it. The
+# gate read green, no child PR was retargeted, and step 4 deleted the parent branch out from under
+# open child PRs. The section now carries the fenced `docket.sh stack-children` invocation, its
+# output shape and exit-4 meaning, and the *Declaring the stack* section says in two lines that the
+# row is a view, not an oracle. WHERE ELSE IT WAS CONSIDERED: `scripts/stack-children.md`, which owns
+# the full contract and is where the invariants live — but a gate whose oracle is named only in a
+# script contract is the same defect one level down, since the reader deciding whether to block is
+# reading THIS file and nothing sends them to that one. What lands here is the invocation and the
+# two readings a gate must not get wrong; everything else is pointed at. COMPRESSION: taken inside
+# the addition — the flag semantics are not restated (the command block carries them), and the
+# staleness argument is made once here and once in `scripts/render-change-links.md`, where it
+# corrects that file's own drift-free claim rather than repeating this one. Set per the rounding
+# rule from the measured actuals: 209 lines -> the next multiple of 5 is 210, which leaves ONE line,
+# the near-zero mode this block records raising past repeatedly, so 215; 1992 words -> 2000 leaves 8
+# (within the 25-word threshold), so the multiple after it, 2050.
+# skills/docket-finalize-change/SKILL.md needed NO raise from that same edit (184/4144 against
+# 190/4150) — its trigger line absorbed the scan invocation and step 3.5 now points back at it.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -1433,7 +1454,7 @@ skills/docket-convention/references/agent-layer.md         205 2350
 skills/docket-convention/references/auto-capture.md        130 1250
 skills/docket-convention/references/dummy-mode.md           85  800
 skills/docket-convention/references/learnings.md            84  580
-skills/docket-convention/references/stacked-changes.md     195 1900
+skills/docket-convention/references/stacked-changes.md     215 2050
 skills/docket-convention/references/terminal-close-out.md  200 1750
 skills/docket-finalize-change/SKILL.md                     190 4150
 skills/docket-finalize-change/references/gate-failure.md    40 1250

@@ -73,6 +73,7 @@ rather than a `bash` selected from `PATH`.
 | `mark-publish-deferred` | `mark-publish-deferred.sh` | add/remove the `## Publish deferred` marker on a change file (terminal-publish gap visibility, change 0083) |
 | `verify-run` | `verify-run.sh` | evaluate docket-implement-next's Step 7 postcondition for one change and report a verdict (change 0237) |
 | `stack-base` | `stack-base.sh` | print one change's effective base branch — its `stacked_on` parent's branch, or the integration branch (change 0298) |
+| `stack-children` | `stack-children.sh` | list one change's stacked descendants — id, status, PR — the oracle the finalize open-children and close-out gates read (change 0298) |
 | `stack-closeout` | `stack-closeout.sh` | promote a merged stack root's `stacked-merged` descendants to `done` and write the root's Stack carried table (change 0298) |
 
 Operation name = wrapped helper basename for every row except the three verbs `preflight`, `env`,

@@ -167,6 +167,11 @@ fi
 # was cut from the wrong base. So the row is a scan of the changes directory, recomputed on every
 # render, and a child that moves or is killed simply stops appearing.
 #
+# IT IS A VIEW, NOT AN ORACLE. This script runs on a write to the PARENT; a child's arrival is a
+# write to the CHILD. So a child stacked on a parent past its last link-bearing write is absent here
+# until something writes the parent again, and no gate may key on this row — scripts/stack-children.sh
+# is the live scan the finalize open-children and close-out gates read.
+#
 # The directory to scan is derived from THIS change file's own location — a change lives at
 # `<changes>/active/NNNN-slug.md` or `<changes>/archive/DATE-NNNN-slug.md`. A caller pointing at a
 # file outside that shape finds no children rather than walking somewhere unrelated.
