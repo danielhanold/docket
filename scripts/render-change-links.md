@@ -67,6 +67,14 @@ padded id. Nothing is emitted — not even the label — when the set is empty. 
 knowing: a child that is renamed, re-parented, or killed simply stops appearing on the next render,
 and the two sides of the relationship cannot disagree because only one side is stored.
 
+**The row is a view, not an oracle — it can be stale.** Only one side is stored, so the two cannot
+*disagree*; but this script runs on a write to **the parent**, and a child's arrival is a write to
+the **child**. A child stacked on a parent that has already had its last link-bearing write — the
+common case, a change stacked on an `implemented` parent — is missing from the row until something
+writes the parent again. Nothing that *decides* may read it: `scripts/stack-children.sh` is the live
+scan the finalize open-children gate and the stack close-out gate key on (spec §11 — the gate
+"derives the child set by scanning … never by reading a parent-side list").
+
 The scan reads `stacked_on:` with the **anchored** `fm_field`. An unanchored read of an absent
 optional key returns body prose, and a change file discussing `stacked_on:` in its body is ordinary
 content in this repo — it would render a phantom child. A `grep` for the *key's* shape narrows the

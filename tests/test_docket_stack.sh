@@ -289,5 +289,164 @@ help_txt="$("$SCRIPT" --help 2>/dev/null)"; help_rc=$?
 assert "CLI --help exits 0" '[ "$help_rc" = 0 ]'
 assert "CLI --help prints its own header" '[ -n "$(grep -F stack-base.sh <<<"$help_txt")" ]'
 
+# --- the descendant CLI (stack-children.sh) ------------------------------------------------------
+# WHY THIS EXISTS AT ALL: spec §11 says the finalize open-children gate "derives the child set by
+# scanning … never by reading a parent-side list", and `stack_descendants` was reachable only from
+# inside stack-closeout.sh. The one parent-side artifact — the derived `## Stacked children` row —
+# regenerates on a link-bearing write to THE PARENT, so a child stacked on an already-`implemented`
+# parent (the spec's motivating case) is created after the parent's last such write and never
+# appears in it. A gate keyed on that row is a gate that reads green while the branch it is about to
+# delete carries open child PRs. These asserts pin the live scan the gate reads instead.
+KIDS="$REPO/scripts/stack-children.sh"
+ktmp="$(mktemp -d "${TMPDIR:-/tmp}/docket-stack-kids.XXXXXX")"
+trap 'rm -rf "$tmp" "$ktmp"' EXIT
+mkdir -p "$ktmp/active" "$ktmp/archive"
+mkkid(){ # mkkid <id> <slug> <status> [stacked_on] [pr]
+  cat > "$ktmp/active/$(printf '%04d' "$1")-$2.md" <<EOF
+---
+id: $1
+slug: $2
+title: "Change $1"
+status: $3
+priority: medium
+created: 2026-08-12
+updated: 2026-08-12
+depends_on: []
+stacked_on: ${4:-}
+branch: feat/$2
+pr: ${5:-}
+---
+
+## Why
+
+Fixture.
+EOF
+}
+mkkid 30 root implemented
+mkkid 31 kid-open in-progress 30 101
+mkkid 32 grandkid stacked-merged 31 102
+mkkid 33 kid-done done 30 103
+mkkid 34 kid-killed killed 30 104
+mkkid 35 kid-nopr proposed 30
+# The octal discriminator: `030` IS valid octal (24), so a boundary missing its `10#` resolves
+# change TWENTY-FOUR — which exists here and is childless — and reports "no descendants" at exit 0
+# for a root that has five. An id that merely fails to parse would be caught by any error path.
+mkkid 24 decoy proposed
+mkkid 36 prose-child proposed
+# A body-prose `stacked_on:` line with a bare id: the shape the anchored read exists to reject, and
+# the shape the whole-tree prefilter hands it. A phantom child here would hard-block a finalize that
+# has nothing to block on.
+cat >> "$ktmp/active/0036-prose-child.md" <<'EOF'
+
+A stacked change writes
+
+stacked_on: 30
+
+into its frontmatter, never into its body.
+EOF
+cat > "$ktmp/archive/2026-08-12-0037-archived-kid.md" <<'EOF'
+---
+id: 37
+slug: archived-kid
+title: "Change 37"
+status: done
+priority: medium
+created: 2026-08-12
+updated: 2026-08-12
+depends_on: []
+stacked_on: 30
+branch: feat/archived-kid
+pr: 107
+---
+
+## Why
+
+Fixture.
+EOF
+
+assert "the descendants CLI exists and is executable" '[ -x "$KIDS" ]'
+kids_all="$("$KIDS" --changes-dir "$ktmp" --id 30 2>/dev/null)"
+kids_ids="$(awk '{print $1}' <<<"$kids_all" | tr '\n' ' ')"
+assert "it lists every transitive descendant, padded" \
+  '[ "$kids_ids" = "0031 0033 0034 0035 0037 0032 " ]'
+# Parents before children is the close-out's promotion order and the gate's reporting order; the
+# grandchild must not surface before the child it hangs off.
+assert "it emits parents before children" \
+  '[ "$(grep -n -E -e "^0031 " <<<"$kids_all" | cut -d: -f1)" -lt "$(grep -n -E -e "^0032 " <<<"$kids_all" | cut -d: -f1)" ]'
+assert "each row carries the child's status and PR" \
+  '[ -n "$(grep -xF "0031 in-progress 101" <<<"$kids_all")" ]'
+assert "a child with no pr: renders the placeholder, keeping the row three-column" \
+  '[ -n "$(grep -xF "0035 proposed -" <<<"$kids_all")" ]'
+assert "a body-prose stacked_on line does not invent a child" \
+  '[ -z "$(grep -E -e "^0036 " <<<"$kids_all")" ]'
+assert "an archived descendant is found by the scan too" \
+  '[ -n "$(grep -E -e "^0037 " <<<"$kids_all")" ]'
+# --open-only is spec §8's gate set: everything a merge would strand. Terminal statuses come from
+# the shared DOCKET_STATUSES_TERMINAL vocabulary, plus `stacked-merged`, which rides the merge.
+kids_open="$("$KIDS" --changes-dir "$ktmp" --id 30 --open-only 2>/dev/null)"
+assert "--open-only keeps a non-terminal child" '[ -n "$(grep -E -e "^0031 " <<<"$kids_open")" ]'
+assert "--open-only drops a done child" '[ -z "$(grep -E -e "^0033 " <<<"$kids_open")" ]'
+assert "--open-only drops a killed child" '[ -z "$(grep -E -e "^0034 " <<<"$kids_open")" ]'
+# The one that is not a terminal status: `stacked-merged` is ACTIVE, so a filter written as
+# "drop the terminal ones" alone leaves it in and hard-blocks every finalize of a stack root — the
+# exact merge the close-out exists to let through.
+assert "--open-only drops a stacked-merged child, which rides the merge" \
+  '[ -z "$(grep -E -e "^0032 " <<<"$kids_open")" ]'
+assert "a childless change prints nothing at exit 0" \
+  'out="$("$KIDS" --changes-dir "$ktmp" --id 24)"; rc=$?; [ "$rc" = 0 ] && [ -z "$out" ]'
+# An id nobody has is the failure mode the library cannot report: stack_descendants answers an
+# unknown root with the same empty stdout as a childless one, so a typo'd id would read as
+# "nothing to block on" — the gate passing for the wrong reason.
+assert "an id that names no change exits 4, never a silent empty answer" \
+  '"$KIDS" --changes-dir "$ktmp" --id 999 >/dev/null 2>&1; [ "$?" = 4 ]'
+assert "the exit-4 diagnostic names the change and prints nothing on stdout" \
+  'err="$("$KIDS" --changes-dir "$ktmp" --id 999 2>&1 >/dev/null)"; \
+   out="$("$KIDS" --changes-dir "$ktmp" --id 999 2>/dev/null)"; \
+   [ -n "$(grep -F "0999" <<<"$err")" ] && [ -z "$out" ]'
+assert "it resolves a padded id by decimal, not octal" \
+  '[ "$("$KIDS" --changes-dir "$ktmp" --id 0030 2>/dev/null | awk "{print \$1}" | tr "\n" " ")" = "$kids_ids" ]'
+assert "it exits 2 on a missing required flag" \
+  '"$KIDS" --changes-dir "$ktmp" >/dev/null 2>&1; [ "$?" = 2 ]'
+assert "it exits 2 on an unknown flag" \
+  '"$KIDS" --changes-dir "$ktmp" --id 30 --nope >/dev/null 2>&1; [ "$?" = 2 ]'
+assert "it exits 2 on a non-numeric id" \
+  '"$KIDS" --changes-dir "$ktmp" --id not-a-number >/dev/null 2>&1; [ "$?" = 2 ]'
+assert "it exits 2 on a changes dir that does not exist" \
+  '"$KIDS" --changes-dir "$ktmp/nope" --id 30 >/dev/null 2>&1; [ "$?" = 2 ]'
+kids_help="$("$KIDS" --help 2>/dev/null)"; kids_help_rc=$?
+assert "its --help exits 0" '[ "$kids_help_rc" = 0 ]'
+assert "its --help prints its own header" '[ -n "$(grep -F stack-children.sh <<<"$kids_help")" ]'
+
+# --- the gate that consumes it -------------------------------------------------------------------
+# The open-children gate and the child-PR retarget are PROSE — nothing else in the suite reads them,
+# and prose that names no oracle is what let the gate key on a rendered row. So: the reference
+# section that owns the gate must carry a fenced facade invocation of the op, and the required-flag
+# set is DERIVED from the script's own validation block, so a flag added there without reaching the
+# documented invocation reddens on arrival.
+STACKREF="$REPO/skills/docket-convention/references/stacked-changes.md"
+FINSK="$REPO/skills/docket-finalize-change/SKILL.md"
+kids_validation="$(grep -E 'die "missing --' "$KIDS")"
+KIDS_REQUIRED="$(grep -oE -e '--[a-z][a-z-]+' <<<"$kids_validation" | sort -u)"
+assert "the required-flag derivation found a plausible flag set" \
+  '[ "$(grep -c . <<<"$KIDS_REQUIRED")" -ge 2 ]'
+gate_section="$(awk '/^## Finalizing a parent that has open children/{s=1;next} s&&/^## /{exit} s' "$STACKREF")"
+assert "the reference's open-children gate section exists" '[ -n "${gate_section// /}" ]'
+# The fence literal lives in a SINGLE-quoted awk variable: no backtick may sit inside double quotes
+# in test source (change 0221, scripts/check-test-source-hygiene.sh).
+gate_block="$(awk -v f='```' 'index($0,f)==1{b=!b;next} b' <<<"$gate_section")"
+assert "the gate section carries a fenced facade invocation of the descendants op" \
+  'grep -qF "docket.sh stack-children" <<<"$gate_block"'
+for flag in $KIDS_REQUIRED; do
+  assert "the gate command names $flag" 'grep -qF -- "$flag" <<<"$gate_block"'
+done
+assert "the gate command asks for the OPEN subset, not the whole graph" \
+  'grep -qF -- "--open-only" <<<"$gate_block"'
+# Finalize's own body must reach the op too: its step 3.5 close-out gate ("does this change have
+# stacked descendants") had the same rendered-row oracle, and a trigger nobody can evaluate is a
+# step nobody runs.
+fin_flat="$(tr -s '[:space:]' ' ' < "$FINSK")"
+assert "docket-finalize-change names the descendants op" \
+  'grep -qF "docket.sh stack-children" <<<"$fin_flat"'
+
 printf '%s\n' "--- done"
 exit "$fail"

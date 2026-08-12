@@ -20,6 +20,9 @@ destroys the path by which reachability was going to arrive.
 (never a flow collection, never quoted). It is the sole source of truth for the relationship: the
 parent-side **Stacked children** row is derived at render time by `render-change-links.sh`, and no
 `stacked_children:` field exists. The parent id is never copied into `related:` or `depends_on:`.
+That row is a **human view, not an oracle**: it is regenerated when something writes the parent, so
+it can lag a child added later. Anything that decides — a gate, a report, a close-out — reads
+`docket.sh stack-children` instead.
 
 The key is **optional**, so every read of it uses the anchored `fm_field`, never `field` — in this
 repo a change body discussing `stacked_on:` is ordinary content, and an unanchored read of an absent
@@ -114,7 +117,21 @@ for no gain the gate does not already deliver.
 
 ## Finalizing a parent that has open children
 
-Before merging a change that has stacked children, resolve every child's state:
+Before merging a change that has stacked children, resolve every child's state. **Get that child set
+from the scan, never from the parent's rendered `## Stacked children` row** — that row is a view
+regenerated when something writes the *parent*, so a child stacked on an already-`implemented`
+parent is simply absent from it. Run this **unconditionally**, as with `stack-base`: an unstacked
+change prints nothing.
+
+```
+"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh stack-children \
+  --changes-dir <changes_dir> --id <this change's id> --open-only
+```
+
+Each line is `<padded id> <status> <pr-or-dash>`, parents before children. Empty stdout at exit `0`
+means no open children, so this section's gate does not fire. Exit `4` means the id names no change: a
+typo, never an all-clear. Drop `--open-only` for the whole graph, which is what step 3.5's close-out
+gate asks for.
 
 - **Children still open** (any status short of `stacked-merged` or `done`, with a PR whose base is
   this parent's branch):
