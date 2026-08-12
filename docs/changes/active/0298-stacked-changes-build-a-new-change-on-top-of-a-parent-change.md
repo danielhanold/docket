@@ -2,7 +2,7 @@
 id: 298
 slug: stacked-changes-build-a-new-change-on-top-of-a-parent-change
 title: "Stacked changes — build a new change on top of a parent change's branch"
-status: in-progress
+status: implemented
 priority: medium
 type: feat
 created: 2026-08-11
@@ -13,12 +13,12 @@ discovered_from: []
 adrs: [92]
 spec: docs/superpowers/specs/2026-08-11-stacked-changes-design.md
 plan: docs/superpowers/plans/2026-08-12-stacked-changes.md
-results:
+results: docs/results/2026-08-12-stacked-changes-build-a-new-change-on-top-of-a-parent-change-results.md
 trivial: false
 auto_groomable: false
 branch: feat/stacked-changes-build-a-new-change-on-top-of-a-parent-change
-claimed_at: 2026-08-12T11:33:57Z
-pr:
+claimed_at: 2026-08-12T11:39:06Z
+pr: https://github.com/danielhanold/docket/pull/203
 issue:
 blocked_by:
 reconciled: true
@@ -31,6 +31,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-11-stacked-changes-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-11-stacked-changes-design.md) |
 | Plan | [2026-08-12-stacked-changes.md](https://github.com/danielhanold/docket/blob/feat/stacked-changes-build-a-new-change-on-top-of-a-parent-change/docs/superpowers/plans/2026-08-12-stacked-changes.md) |
+| Results | [2026-08-12-stacked-changes-build-a-new-change-on-top-of-a-parent-change-results.md](https://github.com/danielhanold/docket/blob/feat/stacked-changes-build-a-new-change-on-top-of-a-parent-change/docs/results/2026-08-12-stacked-changes-build-a-new-change-on-top-of-a-parent-change-results.md) |
+| PR | [#203](https://github.com/danielhanold/docket/pull/203) |
 | ADRs | [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md) |
 <!-- docket:artifacts:end -->
 
