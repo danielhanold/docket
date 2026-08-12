@@ -464,7 +464,7 @@ docket_status_is_terminal(){ _docket_array_has "$1" "${DOCKET_STATUSES_TERMINAL[
 # "is this a status at all" would otherwise have to call both or restate the list. render-board.sh's
 # malformed-file validation (change 0259) is that consumer: a status outside this vocabulary can
 # never be a legal array subscript or a legal TAB-join field, so rejecting by vocabulary IS the
-# sanitization — a value carrying an interior TAB or CR cannot match any of the seven names.
+# sanitization — a value carrying an interior TAB or CR cannot match any name in the vocabulary.
 docket_status_is_member(){ _docket_array_has "$1" "${DOCKET_STATUSES[@]}"; }
 docket_priority_is_member(){ _docket_array_has "$1" "${DOCKET_PRIORITIES[@]}"; }
 

@@ -585,7 +585,7 @@ Two branches divide the work:
 - An orphan **`docket`** branch is the authoritative working surface for **all planning metadata**: change files (active + archive), `BOARD.md`, ADRs, and specs. It is a true orphan — sharing no history with your code, carrying no code — the same well-trodden pattern `gh-pages` uses. (There is no `git checkout --orphan` in the flow: `migrate-to-docket.sh` creates the branch with `git worktree add --orphan`, and a fresh repo's bootstrap builds it straight from git plumbing — `git mktree` + `git commit-tree` — with no working-tree checkout at all.) It is **always pushed**, so the whole backlog, board, specs, and ADRs are browsable and reviewable on the remote (GitHub) at all times. All planning churn — `proposed → in-progress → implemented`, board refreshes, reconcile edits, ADR writes — lands here and never touches your code history.
 - Your **integration branch** (`main`, or `develop` under GitFlow) stays code-only, except for **published terminal records** in a repo that opts in (see below). It holds code, the build artifacts that arrive with each PR (plan + results), and — only when `terminal_publish: true` — a copy of the archived change + spec + accepted ADRs once a change closes out.
 
-A change's `feat/<slug>` branch is always cut from `origin/<integration_branch>`, carries only plan + results + code, and never modifies docket metadata.
+A change's `feat/<slug>` branch is always cut from `origin/<integration_branch>` — unless it declares `stacked_on:`, in which case it is cut from that parent change's unmerged branch and its PR targets the same (see `stacked-merged` above) — carries only plan + results + code, and never modifies docket metadata.
 
 ### Where each artifact lives
 
@@ -609,7 +609,7 @@ The `integration_branch` knob says where code lands and where feature branches a
 - `auto` (the default, and what an absent key resolves to) follows the remote's default branch via `origin/HEAD`. If `origin/HEAD` can't be resolved, the per-skill runtime resolver (`docket-config.sh`) fails closed with a diagnostic rather than guessing a branch. (Only the one-time `migrate-to-docket.sh` bootstrap falls back to `main` in that case — and that runs once, before a repo is even migrated.)
 - `main` or `develop` is used verbatim.
 
-This makes docket work for trunk-based (`main`) and **GitFlow** (`develop`) projects alike. One caveat: `auto` follows the repo's *default* branch, so a GitFlow repo whose default branch is `main` but whose integration line is `develop` must set `integration_branch: develop` explicitly. Feature branches always cut from `origin/<integration_branch>`.
+This makes docket work for trunk-based (`main`) and **GitFlow** (`develop`) projects alike. One caveat: `auto` follows the repo's *default* branch, so a GitFlow repo whose default branch is `main` but whose integration line is `develop` must set `integration_branch: develop` explicitly. Feature branches always cut from `origin/<integration_branch>` — the one exception being a change declaring `stacked_on:`, which cuts from its parent's branch instead.
 
 ### The `.docket/` metadata worktree
 

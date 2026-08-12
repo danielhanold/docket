@@ -1332,6 +1332,65 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 # 6850, which leaves 24 words (inside the 25-word threshold), so the multiple after it, 6900 (74
 # words of margin). The LINE budget was NOT raised: 384 actual against 385 — the conjunct was
 # authored into the existing paragraph rather than as a new one.
+# skills/docket-convention/references/stacked-changes.md is a NEW row added by change 0298's final
+# task: the stacked-changes mechanics — the governing invariant, `stacked_on:` and the cycle rule,
+# what `stacked-merged` does and does not satisfy, the four base-resolution rules with `stack-base.sh`'s
+# exit codes and the caller obligation attached to each, the stacked branch cut and PR base, the
+# parent's open-children finalize gate, the child-PR retarget owed before a parent branch is deleted,
+# the killed-parent policy, and the close-out's two-part idempotency key. The WHERE-ELSE clause binds
+# a RAISE only (see the top of this block), not a new file — recorded anyway: the whole point of the
+# file is that none of this lives in a skill body. It is read only on a stacking trigger, and six
+# skill bodies would otherwise each carry a partial restatement, which is the drift class the
+# task-routing.md row above records. Set per the rounding rule from the measured actuals: 169 lines
+# -> the next multiple of 5 is 170, which leaves ONE line of margin — the near-zero failure mode this
+# block records raising past repeatedly — so the multiple after it, 175; 1602 words -> 1650 (48 words
+# of margin, above the within-25 threshold).
+# THE SIX ROWS BELOW were re-set by that same task, which added ONE trigger line (or one exception
+# clause) per touched body. WHERE ELSE EACH WAS CONSIDERED, per the naming requirement above — one
+# answer for all six, because it is one rule: the considered home is
+# skills/docket-convention/references/stacked-changes.md itself, the file created by this same task,
+# and no trigger can live there. A pointer that decides whether to OPEN a reference, parked inside
+# that reference, is read only by someone who already opened it — the exact unreachability the 0226
+# entry above records fixing for auto-capture.md. What each body keeps is the trigger and nothing
+# else; every mechanic it would otherwise state was moved into the new file, which is why five of the
+# six raises are under 60 words. COMPRESSION was taken inside each addition: each is one sentence
+# naming the trigger condition, the blocking read, and the single consequence that reader needs.
+# skills/docket-convention/SKILL.md's WORD budget was raised 6900 -> 6950. The *Branch model*'s
+# "ALWAYS cut from origin/<integration_branch>" rule now carries its stacked exception ALONGSIDE it
+# plus the one pointer at the new reference this change places. Stating the exception anywhere else
+# leaves a flat contradiction in the one file every skill loads at Step 0. Set from the measured
+# actual: 6893 words -> the next multiple of 50 is 6900, which leaves 7 words (within the 25-word
+# threshold), so the multiple after it, 6950. The LINE budget was NOT raised: 384 actual against 385
+# — the exception was authored into the existing paragraph.
+# skills/docket-implement-next/SKILL.md's WORD budget was raised 4700 -> 4750: Step 4's trigger line
+# before the branch cut, plus the *Feature branch invariants* exception clause, because that section
+# restates the cut in its own words and an unqualified restatement is what a reader trusts. Set from
+# the measured actual: 4698 words -> 4700 leaves 2 words, so the multiple after it, 4750. The LINE
+# budget was NOT raised (166 actual against 170).
+# skills/docket-finalize-change/SKILL.md's WORD budget was raised 3900 -> 3950: the trigger sits at
+# the head of *Per-change steps*, where the merge decision and the step-4 branch deletion are both
+# still ahead of the reader — after step 1 it is already too late for the open-children gate. Set
+# from the measured actual: 3915 words -> 3950 (35 words of margin, above the within-25 threshold).
+# The LINE budget was NOT raised (182 actual against 185, the accepted half-step proportion).
+# skills/docket-finalize-change/references/gate-failure.md's WORD budget was raised 1150 -> 1250:
+# its `## Finalize blocked` argument against "an eighth status" now reads as contradicted by
+# `stacked-merged` shipping, so the argument is SCOPED rather than deleted — the objection is to
+# encoding a transient, multi-cause abort as a status, and `stacked-merged` earns one on the terms
+# that case fails (one cause, one exit). The same edit drops two hardcoded vocabulary counts. The
+# scoping cannot live in the new reference: it defends THIS file's decision, and a defence parked
+# away from the decision it defends leaves the decision reading as refuted. Set from the measured
+# actual: 1186 words -> 1200 leaves 14 (within the 25-word threshold), so the multiple after it,
+# 1250. The LINE budget was NOT raised (33 actual against 40).
+# skills/docket-status/SKILL.md's WORD budget was raised 2600 -> 2650: one *Judgment follow-ups*
+# bullet routing the stack report lines and the two stack health checks to the reference. Set from
+# the measured actual: 2585 words -> 2600 leaves 15 words, the near-zero mode, so 2650. The LINE
+# budget was NOT raised (103 actual against 118).
+# skills/docket-groom-next/SKILL.md's WORD budget was raised 1484 -> 1550: the trigger fires while
+# the design is settling, which is when `stacked_on:` is decided. Set from the measured actual:
+# 1492 words -> 1500 leaves 8 (within the 25-word threshold), so the multiple after it, 1550. The
+# LINE budget was NOT raised (74 actual against 77).
+# skills/docket-new-change/SKILL.md carries the same trigger and needed NO raise: 57/1410 against
+# 61/1450.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -1343,24 +1402,25 @@ skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            130 1200
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          145 1350
-skills/docket-convention/SKILL.md                          385 6900
+skills/docket-convention/SKILL.md                          385 6950
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         205 2350
 skills/docket-convention/references/auto-capture.md        130 1250
 skills/docket-convention/references/dummy-mode.md           85  800
 skills/docket-convention/references/learnings.md            84  580
+skills/docket-convention/references/stacked-changes.md     175 1650
 skills/docket-convention/references/terminal-close-out.md  200 1750
-skills/docket-finalize-change/SKILL.md                     185 3900
-skills/docket-finalize-change/references/gate-failure.md    40 1150
-skills/docket-groom-next/SKILL.md                           77 1484
-skills/docket-implement-next/SKILL.md                      170 4700
+skills/docket-finalize-change/SKILL.md                     185 3950
+skills/docket-finalize-change/references/gate-failure.md    40 1250
+skills/docket-groom-next/SKILL.md                           77 1550
+skills/docket-implement-next/SKILL.md                      170 4750
 skills/docket-implement-next/references/edge-paths.md       35  500
 skills/docket-implement-next/references/fix-loop.md        185 1900
 skills/docket-implement-next/results-template.md            25  250
 skills/docket-review/SKILL.md                              110  900
 skills/docket-new-change/SKILL.md                           61 1450
 skills/docket-new-change/change-template.md                 51  250
-skills/docket-status/SKILL.md                              118 2600
+skills/docket-status/SKILL.md                              118 2650
 "
 
 # Every tracked file is within budget.
