@@ -183,9 +183,13 @@ assert "the integration-branch merge did archive and publish" \
 
 # The flip is a real commit on the metadata branch, not a working-tree scribble: an uncommitted
 # status change would be reverted by the very next pass's `pull --rebase`.
+# `git show` is CAPTURED before it is matched, never piped into `grep -q`: under `set -o pipefail`
+# the early-exiting consumer SIGPIPEs the producer and the resulting 141 is an intermittent failure
+# (AGENTS.md, and tests/test_pipe_shapes.sh enforces it).
+remote_child="$(git -C "$mw" show "origin/main:docs/changes/active/0041-child.md" 2>/dev/null)"
 assert "the flip landed as a commit and the shared worktree is clean" \
   '[ -z "$(git -C "$mw" status --porcelain -- docs/changes/active/0041-child.md)" ] && \
-   git -C "$mw" show "origin/main:docs/changes/active/0041-child.md" 2>/dev/null | grep -q "^status: stacked-merged$"'
+   grep -q "^status: stacked-merged$" <<<"$remote_child"'
 
 # --- idempotency: re-feeding the SAME close-out record is a silent no-op --------------------------
 # detect_merged would not re-emit this change (it is no longer `implemented`), so the guard is
@@ -226,6 +230,142 @@ assert "the aliased graphql selection requests baseRefName" \
   'q="$(grep -F "pullRequest(number:" "$SCRIPT")"; grep -qF "baseRefName" <<<"$q"'
 assert "the pr list fallback requests baseRefName too" \
   'p="$(grep -F -- "--json number,mergedAt" "$SCRIPT")"; grep -qF "baseRefName" <<<"$p"'
+
+# --- change 0298 task 8: a ROOT merge drives the stack close-out from inside the sweep -------------
+# 60 is the root, merged into the integration branch. 61 and 62 already sit at `stacked-merged` from
+# earlier passes. 63 is the RACE: it is still `implemented` when this pass starts and its PR merged
+# into the root's own branch, so the pass must flip it AND then promote it — which is only possible
+# because the descendant snapshot is taken after the per-change loop has run, not before it.
+seed_change 60 root implemented ""
+seed_change 61 childone stacked-merged 60
+seed_change 62 childtwo stacked-merged 60
+seed_change 63 racer implemented 60
+git -C "$mw" add docs/changes
+git -C "$mw" commit -q -m "seed root stack changes"
+git -C "$mw" push -q origin main
+
+cat > "$tmp/gh-root.sh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = repo ] && [ "$2" = view ]; then echo "x/y"; exit 0; fi
+if [ "$1" = api ] && [ "$2" = graphql ]; then
+  cat <<'JSON'
+{"data":{"p60":{"pullRequest":{"number":60,"mergedAt":"2026-08-05T09:00:00Z","state":"MERGED","baseRefName":"main"}},"p63":{"pullRequest":{"number":63,"mergedAt":"2026-08-05T10:00:00Z","state":"MERGED","baseRefName":"feat/root"}}}}
+JSON
+  exit 0
+fi
+echo "gh-root: unexpected args: $*" >&2
+exit 1
+EOF
+chmod +x "$tmp/gh-root.sh"
+
+# The close-out reached through the SCRIPTS_DIR seam is the REAL scripts/stack-closeout.sh — a shim
+# that logs its argv and then execs it, so it runs against the mocked close-out helpers above (it
+# resolves those through the same exported SCRIPTS_DIR). A stub echoing `promoted` lines would make
+# every assert below vacuous: what is under test is that the sweep drives the real close-out with a
+# usable argument set, not that a stub can print.
+cat > "$tmp/mock-scripts/stack-closeout.sh" <<EOF
+#!/usr/bin/env bash
+echo "stack-closeout \$*" >> "\$SWEEP_LOG"
+exec "\$DOCKET_BASH_PATH" "$REPO/scripts/stack-closeout.sh" "\$@"
+EOF
+chmod +x "$tmp/mock-scripts/stack-closeout.sh"
+
+rootout="$tmp/root-out.txt"
+( cd "$mw" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes ADRS_DIR=docs/adrs \
+  INTEGRATION_BRANCH=main METADATA_BRANCH=main \
+  GH="$tmp/gh-root.sh" SCRIPTS_DIR="$tmp/mock-scripts" SWEEP_LOG="$calllog" \
+  bash -c '. "'"$SCRIPT"'"; detect_merged | sweep_execute' ) > "$rootout" 2>>"$tmp/sweep-err.txt"
+
+assert "a root merge promotes its descendants" \
+  'grep -qF "promoted 61" "$rootout" && grep -qF "promoted 62" "$rootout"'
+assert "the root is still swept to done" \
+  'grep -qF "swept 60 " "$rootout"'
+# THE RACE LEG. `stacked-merged 63 60` is printed by the per-change loop and `promoted 63` by the
+# close-out that runs after it. Move the close-out invocation inside the loop and this reddens: at
+# the moment the root is swept, 63 is still `implemented` and no descendant scan can see it.
+assert "a root sweep racing a just-merged child handles both in one pass" \
+  'grep -qF "stacked-merged 63 60" "$rootout" && grep -qF "promoted 63" "$rootout"'
+assert "each promoted descendant is archived with the ROOT's merge date" \
+  '[ -f "$mw/docs/changes/archive/2026-08-05-0061-childone.md" ] && \
+   [ -f "$mw/docs/changes/archive/2026-08-05-0063-racer.md" ]'
+carried="$(cat "$mw/docs/changes/archive/2026-08-05-0060-root.md" 2>/dev/null)"
+assert "the root record carries the Stack carried table" \
+  'grep -qF "## Stack carried" <<<"$carried" && grep -qF "#0061" <<<"$carried" && grep -qF "#0063" <<<"$carried"'
+assert "the sweep relays the close-out's stack-carried line" \
+  'grep -qE "^stack-carried 60 3$" "$rootout"'
+# Scoping: 0041 is `stacked-merged` too, but on a DIFFERENT root. A close-out that promoted every
+# stacked-merged change in the tree instead of this root's descendants would archive it.
+assert "a stacked-merged change outside this root's stack is untouched" \
+  '! grep -qF "promoted 41" "$rootout" && [ -f "$mw/docs/changes/active/0041-child.md" ]'
+# The close-out is invoked once per swept ROOT — never for a swept change that carries no stack, so
+# the ordinary close-out pays nothing for this feature.
+assert "no close-out was invoked for the stackless changes swept earlier" \
+  'n="$(grep -cF "stack-closeout " "$calllog")"; [ "$n" = 1 ] && ! grep -qF "stack-closeout" "$out" && ! grep -qF "stack-closeout" "$legacy"'
+
+# --- the close-out's failure posture is the sweep's own: log, and continue to the next root --------
+# Two independent stacks, both roots merged into the integration branch, with the close-out failing
+# outright. The second root's line is what has teeth: it can only appear if the first failure was
+# reported rather than propagated out of the drain loop.
+seed_change 70 rootone implemented ""
+seed_change 71 kidone stacked-merged 70
+seed_change 72 roottwo implemented ""
+seed_change 73 kidtwo stacked-merged 72
+git -C "$mw" add docs/changes
+git -C "$mw" commit -q -m "seed failing close-out stacks"
+git -C "$mw" push -q origin main
+
+cp -R "$tmp/mock-scripts" "$tmp/mock-scripts-fail"
+cat > "$tmp/mock-scripts-fail/stack-closeout.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "stack-closeout: could not run" >&2
+exit 1
+EOF
+chmod +x "$tmp/mock-scripts-fail/stack-closeout.sh"
+
+cat > "$tmp/gh-fail.sh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = repo ] && [ "$2" = view ]; then echo "x/y"; exit 0; fi
+if [ "$1" = api ] && [ "$2" = graphql ]; then
+  cat <<'JSON'
+{"data":{"p70":{"pullRequest":{"number":70,"mergedAt":"2026-08-06T09:00:00Z","state":"MERGED","baseRefName":"main"}},"p72":{"pullRequest":{"number":72,"mergedAt":"2026-08-06T09:00:00Z","state":"MERGED","baseRefName":"main"}}}}
+JSON
+  exit 0
+fi
+echo "gh-fail: unexpected args: $*" >&2
+exit 1
+EOF
+chmod +x "$tmp/gh-fail.sh"
+
+failout="$tmp/fail-out.txt"
+( cd "$mw" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes ADRS_DIR=docs/adrs \
+  INTEGRATION_BRANCH=main METADATA_BRANCH=main \
+  GH="$tmp/gh-fail.sh" SCRIPTS_DIR="$tmp/mock-scripts-fail" SWEEP_LOG="$calllog" \
+  bash -c '. "'"$SCRIPT"'"; detect_merged | sweep_execute' ) > "$failout" 2>>"$tmp/sweep-err.txt"
+
+assert "a close-out that cannot run is reported, not swallowed" \
+  'grep -qF "sweep-failed 70 stack-closeout script-error" "$failout"'
+assert "a failed close-out does not abandon the next root" \
+  'grep -qF "sweep-failed 72 stack-closeout script-error" "$failout"'
+assert "both roots still swept to done" \
+  'grep -qF "swept 70 " "$failout" && grep -qF "swept 72 " "$failout"'
+assert "an unpromoted descendant is left exactly where it was, for the next pass" \
+  '[ -f "$mw/docs/changes/active/0071-kidone.md" ] && [ -f "$mw/docs/changes/active/0073-kidtwo.md" ]'
+
+# --- the contract documents what the sweep now relays ---------------------------------------------
+# Every line the sweep emits is a machine contract a caller keys on, so an undocumented one is a
+# defect. Read the contract file, not the script.
+CONTRACT="$REPO/scripts/docket-status.md"
+assert "the contract documents the relayed close-out report lines" \
+  'for tok in "promoted <id>" "promote-skipped <id> <reason>" "promote-failed <id> <reason>" \
+              "stack-carried <root> <count>" "stack-carried-failed <root> <reason>"; do
+     grep -qF -- "$tok" "$CONTRACT" || exit 1
+   done'
+assert "the contract documents the close-out failure line" \
+  'grep -qF -- "sweep-failed <id> stack-closeout script-error" "$CONTRACT"'
+assert "the contract states the after-the-loop placement" \
+  'grep -qF -- "after the whole per-change loop" "$CONTRACT"'
 
 printf '%s\n' "--- done"
 exit "$fail"

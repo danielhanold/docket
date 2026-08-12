@@ -866,6 +866,10 @@ sweep_execute(){
                                      # artifacts-refresh pathspec match at all.
   cd_dir="$mw/$CHANGES_DIR"
 
+  # Change 0298 — the roots swept by THIS pass, "<id>\t<merged-date>" per entry, filled in by
+  # sweep_execute_one and drained below. Reset per call, never carried across passes.
+  SWEEP_STACK_ROOTS=()
+
   local id slug pr merged_date base_ref
   while IFS=$'\t' read -r id slug pr merged_date base_ref; do
     [ -n "$id" ] || continue
@@ -877,6 +881,19 @@ sweep_execute(){
       continue
     fi
     sweep_execute_one "$mw" "$cd_dir" "$id" "$slug" "$pr" "$merged_date" "$base_ref"
+  done
+
+  # Change 0298 — the stack close-out, once per root swept above. IT RUNS AFTER THE LOOP, NOT INSIDE
+  # sweep_execute_one, and that placement is the whole design: stack-closeout.sh snapshots the
+  # descendant graph at call time, so a child this same pass flipped to `stacked-merged` moments ago
+  # is in the snapshot and is promoted in this pass. Invoked from inside the loop it would read the
+  # graph as it stood before that flip — detect_merged emits in ascending id order, and a parent is
+  # normally the LOWER id, so the root would be swept first and every child merged in the same window
+  # would wait a full pass.
+  local entry root_id root_date
+  for entry in "${SWEEP_STACK_ROOTS[@]+"${SWEEP_STACK_ROOTS[@]}"}"; do
+    IFS=$'\t' read -r root_id root_date <<<"$entry"
+    sweep_stack_closeout "$cd_dir" "$root_id" "$root_date"
   done
 }
 
@@ -992,6 +1009,38 @@ sweep_stacked_parent(){
   [ -n "$parent_branch" ] || return 1
   [ "$base_ref" = "$parent_branch" ] || return 1
   printf '%s\n' "$parent"
+}
+
+# sweep_stack_closeout CD_DIR ROOT_ID MERGED_DATE — run the stack close-out for one change this
+# pass swept to `done` (change 0298, spec §7). The root's code has just reached the integration
+# branch, so every descendant parked at `stacked-merged` became reachable from it too and is now
+# `done` by the governing invariant — but nothing has told those changes so, and the sweep only ever
+# scans `active/` for a MERGED PR, which a descendant no longer has.
+#
+# GATED on the change actually having descendants, so a change with no stack pays nothing at all —
+# not a subprocess, not the close-out's network fetch. The gate scan and the script's own snapshot
+# are taken at the same moment (both after the per-change loop), so they cannot disagree.
+#
+# Its report lines are relayed VERBATIM on this script's stdout — `promoted`, `promote-skipped`,
+# `promote-failed`, `stack-carried`, `stack-carried-failed` — because they are already the sweep's
+# report shape and a caller keys on the line, never on an exit code.
+#
+# FAILURE POSTURE IS THE SWEEP'S OWN: log and continue to the next root. A close-out that could not
+# run at all (exit 1, or a missing/unusable script) emits `sweep-failed <id> stack-closeout
+# script-error` and nothing else changes — the next pass re-runs it, and every step of it is
+# idempotent. It must never abort the pass: the root itself is already `done` and archived by the
+# time this runs, so failing loudly here would buy nothing and lose the rest of the sweep.
+sweep_stack_closeout(){
+  local cd_dir="$1" root_id="$2" merged_date="$3" descendants
+  descendants="$(stack_descendants "$cd_dir" "$root_id" 2>/dev/null)"
+  [ -n "$descendants" ] || return 0
+  if ! "$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/stack-closeout.sh \
+        --changes-dir "$cd_dir" --root-id "$root_id" --date "$merged_date" \
+        --integration-branch "$INTEGRATION_BRANCH" --metadata-branch "$METADATA_BRANCH" \
+        --adrs-dir "$ADRS_DIR" --terminal-publish "${TERMINAL_PUBLISH:-false}"; then
+    echo "sweep-failed $root_id stack-closeout script-error"
+  fi
+  return 0
 }
 
 sweep_execute_one(){
@@ -1158,6 +1207,13 @@ sweep_execute_one(){
   if ! "$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/cleanup-feature-branch.sh --slug "$slug" >&2; then
     echo "sweep-failed $id cleanup script-error"
   fi
+
+  # Change 0298 — this change reached `done`, so it may be a stack root whose descendants are now
+  # reachable from the integration branch. Queue it; sweep_execute drains the queue after the loop
+  # (see the ordering note there). Queued only on the FULL-SUCCESS path, beside the terminal report
+  # lines: an abandoned close-out has not put the root's code anywhere, so promoting its stack off
+  # the back of it would falsify the governing invariant.
+  SWEEP_STACK_ROOTS+=("$id"$'\t'"$merged_date")
 
   echo "swept $id $merged_date"
   echo "harvest $id $archived"

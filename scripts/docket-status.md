@@ -213,7 +213,8 @@ exits 0 and is logged, never a failure) →
 abandons the rest of that change's close-out, but the loop always continues to the next change;
 the **artifacts refresh** and a `cleanup-feature-branch.sh` failure are the two exceptions — both
 still emit the terminal `swept`/`harvest` lines for that change. Full success for a change emits
-`swept <id> <merged-date>` followed by `harvest <id> <archived-path>`. Self-heal is idempotent for
+`swept <id> <merged-date>` followed by `harvest <id> <archived-path>`, and queues that change for
+the **stack close-out** (step 6-closeout), which runs once the whole loop has finished. Self-heal is idempotent for
 a failure at `sync` (rebase-pull) or `archive`, and for a `cleanup` failure (all retry cleanly next
 pass) — but a `sweep-failed` at `render-change-links` (`skipped-publish`, i.e. the renderer itself
 exited non-zero) or at `terminal-publish` leaves the change **archived but its terminal record
@@ -286,6 +287,31 @@ deliberate: a stale link block is cosmetic and self-heals on a manual re-render,
 close-out leaves the change archived-but-unpublished (invisible to every future sweep) plus an
 orphaned worktree and remote branch — a strictly worse, non-self-healing state. Callers key on the
 report **line**, never on the exit code.
+
+**6-closeout. The stack close-out (change 0298).** Runs **after the whole per-change loop**, once
+per change this pass swept to `done`, and only when that change actually has `stacked_on:`
+descendants — a change with no stack pays nothing, not even a subprocess. It shells
+`stack-closeout.sh --root-id <id> --date <merged-date>` with the pass's resolved
+`--integration-branch`, `--metadata-branch`, `--adrs-dir` and `--terminal-publish`, and relays its
+report lines verbatim: `promoted <id>`, `promote-skipped <id> <reason>`,
+`promote-failed <id> <reason>`, `stack-carried <root> <count>`, `stack-carried-failed <root>
+<reason>`. The root's code has just reached the integration branch, so every descendant parked at
+`stacked-merged` became reachable from it too and is `done` by the governing invariant — and nothing
+else would ever tell them so, because the sweep only detects a MERGED PR on an `active/` change and
+a descendant's PR merged passes ago.
+
+The after-the-loop placement is **load-bearing, not incidental**. `stack-closeout.sh` snapshots the
+descendant graph at call time, so a child THIS pass flipped to `stacked-merged` (step 6-stack) is in
+the snapshot and is promoted in the same pass. Invoked from inside the loop it would read the graph
+as it stood before that flip: detection emits in ascending id order and a parent is normally the
+lower id, so the root would be swept first and a child merged in the same window would wait a full
+pass. Only the FULL-SUCCESS close-out path queues a root — an abandoned close-out has not put the
+root's code anywhere, and promoting its stack off the back of it would falsify the invariant.
+
+Failure posture is the sweep's own: a close-out that could not run emits
+`sweep-failed <id> stack-closeout script-error` and the pass **continues to the next root**. It
+never aborts — the root is already `done` and archived by then — and it self-heals, because every
+step of the close-out is idempotent and the next pass re-runs it.
 
 **7. Health checks.** Runs `board-checks.sh` over the current changes-dir and metadata/integration
 branches — forwarding `--lease-ttl-hours "${RECLAIM_LEASE_TTL:-72}"` (change 0089) so the
@@ -514,9 +540,15 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 | `ready [<id> …]` | The **build-ready queue in selection order** (`priority` → `created` → `id`), from `render-board.sh`'s digest (change 0094). Emitted on every path that runs the backlog pass — the full report, `--board-only`, and `--digest-only` — **when that pass succeeds**. Present and bare when nothing is build-ready; its absence means the pass did not reach the backlog digest at all (config export failure, a fail-closed bootstrap/changes-dir gate, an older `render-board.sh`, or a failed render), never "nothing is ready". A caller must check the exit code before treating a missing `ready` line as "no candidates" — see Exit codes. Membership always equals the `change` lines reporting `proposed build-ready`. |
 | `swept <id> <date>` | Change `<id>` fully closed out (archived, links refreshed, terminal record published only if the repo opted in with `terminal_publish: true`, branch cleaned up) as of `<date>` (UTC, from merge). |
 | `stacked-merged <id> <parent>` | Change `<id>`'s PR merged into change `<parent>`'s branch rather than into the integration branch, so its code is **not** reachable from that branch and it is not `done` (change 0298). Its `status:` was flipped to `stacked-merged` in place and committed on `metadata_branch`; the change stays in `active/`, nothing was archived or published, and its feature branch was **not** deleted. Deliberately distinct from `swept <id> <date>` — a caller must be able to tell a close-out from a stack-parent merge, and this pass emits no `harvest` line for it. |
+| `promoted <id>` | Relayed verbatim from `stack-closeout.sh` (step 6-closeout, change 0298): descendant `<id>` of a root swept this pass was at `stacked-merged`, so the root's merge made its code reachable from the integration branch and it went through the full terminal close-out to `done`, archived under the **root's** merge date. |
+| `promote-skipped <id> <reason>` | Relayed from `stack-closeout.sh`: descendant `<id>` needed no promotion this pass — `already-archived`, `not-stacked-merged`, or `change-file-missing`. An ordinary, silent-by-design outcome of an idempotent re-run, not a failure. |
+| `promote-failed <id> <reason>` | Relayed from `stack-closeout.sh`: a step of descendant `<id>`'s close-out failed (`archive`, `archived-file-not-found`, `render-change-links`, `terminal-publish`). Its siblings still ran — each promotion is independently re-runnable — and the next pass resumes this one. |
+| `stack-carried <root> <count>` | Relayed from `stack-closeout.sh`: the root's archived record's marker-bounded **Stack carried** table was regenerated over `<count>` descendants (committed only if it changed). |
+| `stack-carried-failed <root> <reason>` | Relayed from `stack-closeout.sh`: the table was not written — `root-not-archived`, `markers-unbalanced`, `render-failed`, `commit-failed`, or `push-failed`. The promotions above it stand; only the table is missing, and it is regenerated on the next pass. |
+| `sweep-failed <id> stack-closeout script-error` | The stack close-out for root `<id>` could not run at all (step 6-closeout). Log-and-continue, like every other sweep failure: the pass moves to the next root and the rest of the run is unaffected. The root itself is already `done` and archived by then, and the close-out is idempotent, so the next pass re-runs it unchanged. |
 | `harvest <id> <path>` | The archived file path for a swept change — a hook for the caller to harvest learnings. `<path>` is absolute (since change 0075, anchored to the main worktree via `lib/docket-root.sh`) — previously relative to the process CWD. |
 | `sweep-failed <id> stacked-merged <reason>` | The stacked-merge gate fired but could not land the flip. All four reasons self-heal, by two different routes. `blocked-wedged-tree` (the shared metadata worktree is mid-rebase/merge, so nothing was written), `write-failed` (the frontmatter edit failed), and `commit-failed` (the path was restored to HEAD, leaving the shared worktree clean) all leave the change `implemented`, so the next pass re-detects the same merged PR and retries the whole gate. `push-failed` does **not**: the local commit is deliberately **retained**, so the flip has already landed locally and the next pass's `pull --rebase` carries it to the remote. Never reset that commit — doing so re-opens the flip and re-reports it forever. |
-| `sweep-failed <id> <step> <reason>` | Step `<step>` (`sync`, `archive`, `render-change-links`, `terminal-publish`, `stacked-merged`, or `cleanup`) failed for change `<id>` with `<reason>`; that change's remaining close-out steps were abandoned — **except** for `cleanup` and for the artifacts-refresh reasons `commit-failed` / `push-failed` / `blocked-wedged-tree` (step 6a), after which the close-out continues and the change still reports `swept`/`harvest`. |
+| `sweep-failed <id> <step> <reason>` | Step `<step>` (`sync`, `archive`, `render-change-links`, `terminal-publish`, `stacked-merged`, `stack-closeout`, or `cleanup`) failed for change `<id>` with `<reason>`; that change's remaining close-out steps were abandoned — **except** for `cleanup` and for the artifacts-refresh reasons `commit-failed` / `push-failed` / `blocked-wedged-tree` (step 6a), after which the close-out continues and the change still reports `swept`/`harvest`. |
 | `sweep-failed <id> render-change-links commit-failed\|push-failed` | The refreshed `## Artifacts` block could not be committed/pushed on `metadata_branch` (step 6a). Cosmetic and non-terminal: `terminal-publish.sh` and `cleanup-feature-branch.sh` **still ran**, and the change is still reported `swept`. The archived record on `metadata_branch` keeps its previous link block until a manual re-render. |
 | `sweep-failed <id> render-change-links blocked-wedged-tree` | Step 6a found the shared metadata worktree mid-rebase/merge and committed **nothing** (change 0247). **Report-and-continue**, exactly like `commit-failed`: `terminal-publish.sh` and `cleanup-feature-branch.sh` still ran and the change is still reported `swept`. The `## Artifacts` block self-heals on the next pass once a human has cleared the operation. |
 | `sweep-skipped <reason>` | Batched **merge** detection itself was skipped (`gh-unavailable` or `repo-unresolved`); no changes were evaluated this pass. Emitted only by `detect_merged` (and passed through `sweep_execute`) — never by the `aborted-run` enrichment, which has its own token below. |
