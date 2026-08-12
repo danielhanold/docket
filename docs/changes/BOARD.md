@@ -1,6 +1,6 @@
 # Backlog
 
-**298 changes** — 🟡 38 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 178 done · 🗑️ 77 killed
+**298 changes** — 🟡 38 proposed · ⚪ 4 deferred · ✅ 179 done · 🗑️ 77 killed
 
 ## 🟡 Proposed (38)
 
@@ -54,12 +54,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0221](active/0221-assert-executes-backticks-in-its-test-description-so-a-verba.md) | assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell | `high` | `fix` | [#202](https://github.com/danielhanold/docket/pull/202) |  |
-
 ```mermaid
 graph TD
   0007
@@ -74,7 +68,6 @@ graph TD
   0166
   0172
   0192 --> 0195
-  0221
   0211 --> 0222
   0248
   0251
@@ -111,10 +104,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (255)</summary>
+<details><summary>✅🗑️ Archive — done + killed (256)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0221](archive/2026-08-12-0221-assert-executes-backticks-in-its-test-description-so-a-verba.md) | assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell | 2026-08-12 |
 | [0284](archive/2026-08-11-0284-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi.md) | runner-dispatch --observe is sentinel-only: adopt 0282's identity-checked liveness probe | 2026-08-11 |
 | [0281](archive/2026-08-11-0281-auto-groom-s-critic-verdict-return-channel-fails-under-backg.md) | Auto-groom's critic verdict return channel fails under background dispatch | 2026-08-11 |
 | [0277](archive/2026-08-11-0277-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode.md) | Delegated task briefs travel through shell argv, a lossy model-performed transformation | 2026-08-11 |
@@ -134,7 +128,6 @@ graph TD
 | [0269](archive/2026-08-09-0269-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child.md) | Decouple the shim wrapper's own pin from the delegated child's | 2026-08-09 |
 | [0267](archive/2026-08-09-0267-correct-the-stale-field-quote-handling-claim-in-script-contr.md) | Correct the stale field() quote-handling claim in script contracts | 2026-08-09 |
 | [0262](archive/2026-08-09-0262-ban-the-single-backslash-word-boundary-form-too-not-just-its.md) | Ban the single-backslash word-boundary form too, not just its escaped spelling | 2026-08-09 |
-| [0258](archive/2026-08-09-0258-guard-the-config-suite-s-enumerated-claims-export-order-and.md) | Guard the config-suite's enumerated claims: export order and rung pairs | 2026-08-09 |
 | [0243](archive/2026-08-07-0243-make-test-suite-git-fixture-setup-fail-loudly-instead-of-fla.md) | Make test-suite git fixture setup fail loudly instead of flaking | 2026-08-07 |
 | [0241](archive/2026-08-07-0241-correspondence-guard-over-leg-c-s-by-value-duplicated-predic.md) | Correspondence guard over leg C's by-value duplicated predicate (ADR-0072 drift risk) | 2026-08-07 |
 | [0240](archive/2026-08-07-0240-audit-which-frontmatter-accessor-each-call-site-should-use-n.md) | Audit which frontmatter accessor each call site should use, now that three anchored read shapes exist | 2026-08-07 |
@@ -212,7 +205,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 45 done |
+| [2026-08](archive/) | 46 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
