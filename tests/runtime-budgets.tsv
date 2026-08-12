@@ -61,6 +61,19 @@
 # running, which is the feature. Sizing per this header's rule from the worst post-change reading,
 # 21.03: next multiple of 5 is 25, plus the 5s margin -> 30. Sharding was considered and rejected:
 # 21s is nowhere near the 60s ceiling, and the file is one coherent runner-contract suite.
+#
+# tests/test_docket_stack.sh is a NEW FILE brought by change 0298 — the header's first legitimate
+# case for the total moving. It covers a new subsystem: the stacked-changes library
+# (scripts/lib/docket-stack.sh) and, once change 0298's later tasks land, the scripts/stack-base.sh
+# CLI over it. It is not an extension of an existing shard because no shard owns stack resolution,
+# and the two files it would otherwise have joined are both spent — tests/test_docket_status.sh sits
+# at the 60s ceiling and tests/test_board_checks.sh at 55s. Sized per this header's rule from three
+# standalone serial readings, one session, one machine, as
+# `/usr/bin/time -p bash tests/test_docket_stack.sh >/dev/null`:
+#   0.23  0.22  0.22  -> worst 0.23
+# The file drives sourced shell functions over a fixture tree in $TMPDIR with no git and no network,
+# so it costs essentially nothing: next multiple of 5 is 5, plus the 5s margin -> 10, which is also
+# this table's floor. EXPECTED_TOTAL moves 1750 -> 1760 for that one row.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -100,6 +113,7 @@ tests/test_docket_preflight.sh	10	parallel
 tests/test_docket_review.sh	10	parallel
 tests/test_docket_root.sh	10	parallel
 tests/test_docket_runtime_lib.sh	10	parallel
+tests/test_docket_stack.sh	10	parallel
 tests/test_docket_status.sh	60	parallel
 tests/test_dummy_mode.sh	10	parallel
 tests/test_ensure_claude_settings.sh	10	parallel

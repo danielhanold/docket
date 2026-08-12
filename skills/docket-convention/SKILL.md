@@ -164,6 +164,7 @@ type: feat                # a configured change_type; set at creation. `all`/`un
 created: 2026-05-30
 updated: 2026-05-30
 depends_on: [4]           # change ids that must reach `done` (PR merged) first
+stacked_on:               # optional: parent change id whose branch this one is built on
 related: [4, 6]           # cross-links the reconcile pass reads
 discovered_from: [62]     # change id(s) whose work surfaced this one; informational like related:, never a readiness gate
 adrs: [24]                # ADRs this change cites or produces
@@ -180,6 +181,10 @@ blocked_by:               # free text; set only when status: blocked
 reconciled: false         # set true after the just-in-time reconcile pass
 ---
 ```
+
+`stacked_on:` names exactly one parent as a single **integer scalar** (never a flow collection), is
+the sole source of truth for that relationship — the parent-side link is derived at render time —
+and is never copied into `related:` or `depends_on:`.
 
 **Merged plans and results are frozen build records.** Once a change's PR merges, its `plan:` and
 `results:` files are never hand-edited again — not to correct a stale line reference, not to update a

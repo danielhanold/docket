@@ -8,6 +8,7 @@ type:                     # chore|docs|feat|fix|refactor|perf (per change_types)
 created:                  # YYYY-MM-DD (UTC)
 updated:                  # YYYY-MM-DD (UTC)
 depends_on: []
+stacked_on:               # optional: parent change id whose branch this one is built on
 related: []
 discovered_from: []       # change id(s) whose work surfaced this; empty for deliberately planned work
 adrs: []
