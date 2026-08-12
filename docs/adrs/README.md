@@ -89,6 +89,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0089](0089-shared-metadata-worktree-contention-survivable-not-impossible.md) — Shared-metadata-worktree contention is made survivable, not impossible — and a wedged tree halts (Accepted) ← change #247 · relates to ADR-0046
 - [ADR-0090](0090-publish-deferred-covers-any-handled-post-archive-failure.md) — `## Publish deferred` marks any handled post-archive failure that abandons an expected publish, not only a failed publisher (Accepted) ← change #118 · relates to ADR-0051
 - [ADR-0091](0091-every-backtick-in-a-double-quoted-region-is-a-violation.md) — Every backtick in a double-quoted region is a violation, including escaped ones (Accepted) ← change #221 · relates to ADR-0054
+- [ADR-0092](0092-a-stacked-changes-base-is-its-parents-merge-destination.md) — A stacked change's effective base is its parent's merge destination (Accepted) ← change #298
 
 ## Superseded / Reversed
 

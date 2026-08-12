@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0298 — Stacked changes — build a new change on top of a parent change's branch](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0298-stacked-changes-build-a-new-change-on-top-of-a-parent-change.md)**
+> ↩ **[Change 0298 — Stacked changes — build a new change on top of a parent change's branch](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-12-0298-stacked-changes-build-a-new-change-on-top-of-a-parent-change.md)**
 <!-- docket:backlink:end -->
 
 # Stacked changes — build a new change on top of a parent change's branch — results
