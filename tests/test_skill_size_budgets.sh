@@ -1307,6 +1307,31 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 # comments are each one line and already terse.
 # Set per the rounding rule above from the measured actual: 216 words -> the next multiple of 50 is
 # 250 (34 words of margin, above the 25-word threshold).
+# skills/docket-convention/SKILL.md's WORD budget was raised 6800 -> 6900 by change 0298's SECOND
+# touch of the file — the same change, a later task. The *Build-readiness & selection* shared
+# definition gains the stacking conjunct: a `stacked_on:` change is build-ready only when its
+# effective base resolves, plus the two spellings the projections render (the board cell and the
+# digest's `stack-base-unresolved` token) and the statement that stacking is an eligibility
+# condition, never a ranking one. The earlier raise in this block left 19 words of headroom, so the
+# conjunct could not be added without a raise.
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above: skills/docket-convention/
+# references/stacked-changes.md, the same file the earlier entry names, and it is refused for the
+# same reason at higher force. *Build-readiness & selection* is labelled a SHARED DEFINITION: it is
+# the one place the readiness predicate is stated, and every skill that selects work reads it there.
+# A conjunct of that predicate living in a reference file read only on a stacking trigger is a
+# conjunct invisible to exactly the reader who has not yet realised stacking applies — which is the
+# reader who would otherwise select an unbuildable change. The mechanics of HOW a base resolves do
+# belong in that reference; only the fact THAT readiness has this conjunct belongs here, and that is
+# all this addition is.
+# COMPRESSION: taken inside the addition itself. The cell and token spellings are quoted rather than
+# explained (the explanation lives in scripts/render-board.md's *Readiness cell* section, which owns
+# the rendering), and no pointer to the reference file is written here — this change places that
+# pointer once, and a second copy would be words spent on a duplicate. The surrounding paragraph is
+# normative selection-order text with nothing droppable.
+# Set per the rounding rule above from the measured actual: 6826 words -> the next multiple of 50 is
+# 6850, which leaves 24 words (inside the 25-word threshold), so the multiple after it, 6900 (74
+# words of margin). The LINE budget was NOT raised: 384 actual against 385 — the conjunct was
+# authored into the existing paragraph rather than as a new one.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -1318,7 +1343,7 @@ skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            130 1200
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          145 1350
-skills/docket-convention/SKILL.md                          385 6800
+skills/docket-convention/SKILL.md                          385 6900
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         205 2350
 skills/docket-convention/references/auto-capture.md        130 1250
