@@ -132,6 +132,25 @@ EOF
 out="$( cd "$SBX" && vr 18 )"
 assert "unclaimed: an archived change too" '[ "$out" = "run-unclaimed 18" ]'
 
+# --- stacked-merged is a COMPLETED run, never unclaimed (change 0298) ---------
+# A change merged into its stack PARENT carries `stacked-merged`: non-terminal, still in active/,
+# with a merged PR and a pushed branch. Its implement-next run genuinely completed, so the claim
+# gate must admit the status AND the `status` conjunct must accept it alongside `implemented` —
+# otherwise a finished run reports as `run-unclaimed` and the run gate re-dispatches onto it.
+write_change 81 stacked-merged feat/slug81 "https://github.com/o/r/pull/16"
+push_branch feat/slug81
+out="$( cd "$SBX" && vr 81 )"; rc=$?
+assert "stacked-merged: a completed run reports run-complete" '[ "$out" = "run-complete 81" ]'
+assert "stacked-merged: exit 0" '[ "$rc" = "0" ]'
+assert "stacked-merged: is not reported unclaimed" '! grep -qF run-unclaimed <<<"$out"'
+# The gate admitting the status is not the conjuncts waiving themselves: with the status conjunct
+# met, an undelivered stacked-merged change still names the two it fails. This assert is what
+# separates the two edits — a claim-gate-only fix leaves it reporting `status` as well.
+write_change 82 stacked-merged "" ""
+out="$( cd "$SBX" && vr 82 )"
+assert "stacked-merged: the status conjunct is met; the others still apply" \
+  '[ "$out" = "run-incomplete 82 pr branch" ]'
+
 # --- ANCHORED READS: one absent-key fixture + one mutation arm per read -------
 # frontmatter OMITS the key while the body opens a line with it. An unanchored read returns the
 # prose; the anchored read returns empty. The natural fixture (key present) passes under BOTH

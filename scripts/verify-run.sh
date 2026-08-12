@@ -31,7 +31,7 @@
 #     run-complete <id>                    every conjunct holds
 #     run-halted <id>                      a `## Run halted` record is present — deliberate stop
 #     run-incomplete <id> <unmet…>         one or more conjuncts unmet (tokens: status pr branch)
-#     run-unclaimed <id>                   not in-progress and not implemented — no run to verify
+#     run-unclaimed <id>                   not in-progress, implemented, or stacked-merged — no run
 #   Exit 0 WHENEVER A VERDICT WAS PRODUCED. `run-incomplete` is a FINDING, not a script failure:
 #   a bare non-zero consumer must not read it as one (LEARNINGS: exit-code-encodes-a-non-failure).
 #   Non-zero (2) only when the check itself could not run — bad usage, unknown id, unreadable
@@ -230,14 +230,22 @@ status="$(fm_field "$FILE" status)"
 pr="$(fm_field "$FILE" pr)"
 branch="$(fm_field "$FILE" branch)"
 
+# `stacked-merged` (change 0298) is a change whose PR merged into its STACK PARENT rather than the
+# integration branch: non-terminal, still in active/, and its implement-next run completed. It
+# belongs on both the claim gate and the `status` conjunct — a state PAST `implemented` has
+# satisfied "status advanced", and reading it as unclaimed would invite a re-dispatch onto
+# finished work.
 case "$status" in
-  in-progress|implemented) : ;;
+  in-progress|implemented|stacked-merged) : ;;
   *) printf 'run-unclaimed %s\n' "$ID"; exit 0 ;;
 esac
 
 # --- Step 7's postcondition, as three conjuncts ------------------------------
 unmet=()
-[ "$status" = "implemented" ] || unmet+=(status)
+case "$status" in
+  implemented|stacked-merged) : ;;
+  *) unmet+=(status) ;;
+esac
 [ -n "$pr" ]                  || unmet+=(pr)
 if [ -z "$branch" ] || ! "$GIT" -C "$CHANGES_DIR" show-ref --verify --quiet "refs/remotes/origin/$branch"; then
   unmet+=(branch)

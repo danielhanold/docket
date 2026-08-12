@@ -59,7 +59,7 @@ Verdict mode evaluates three conjuncts, each read with the **anchored** `fm_fiel
 
 | Conjunct | Read | Token when unmet |
 |---|---|---|
-| status advanced | `status: implemented` | `status` |
+| status advanced | `status:` is `implemented` **or** `stacked-merged` | `status` |
 | PR recorded | `pr:` non-empty | `pr` |
 | branch delivered | `refs/remotes/origin/<branch:>` resolves | `branch` |
 
@@ -69,8 +69,14 @@ line, never on the exit code**:
 - `run-complete <id>` — every conjunct holds.
 - `run-halted <id>` — a `## Run halted` record is present; the run ended deliberately.
 - `run-incomplete <id> <unmet…>` — tokens in the fixed order `status pr branch`.
-- `run-unclaimed <id>` — the change is neither `in-progress` nor `implemented`; there is no run to
-  verify (`proposed` after a reclaim, `deferred`, or archived).
+- `run-unclaimed <id>` — the change is none of `in-progress`, `implemented`, or `stacked-merged`;
+  there is no run to verify (`proposed` after a reclaim, `deferred`, or archived).
+
+**`stacked-merged` counts as a completed run (change 0298).** A child change whose PR merged into
+its stack parent's branch — rather than the integration branch — is non-terminal and stays in
+`active/`, but its `docket-implement-next` run finished. It is therefore admitted by the claim gate
+and satisfies the status conjunct exactly as `implemented` does; the `pr` and `branch` conjuncts are
+unchanged and still apply.
 
 **Precedence.** The conjuncts are evaluated **before** the halt record, so a satisfied
 postcondition outranks a stale `## Run halted`. The section's removal is owned by
