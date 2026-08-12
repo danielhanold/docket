@@ -895,6 +895,11 @@ sweep_execute(){
     IFS=$'\t' read -r root_id root_date <<<"$entry"
     sweep_stack_closeout "$cd_dir" "$root_id" "$root_date"
   done
+
+  # Change 0298 — the RESUMPTION scan, which is what makes the self-heal this pass advertises real.
+  # Runs unconditionally, even when nothing merged at all, and LAST: every promotion the drain above
+  # made has already left active/ by now, so a root handled there cannot re-enter through the scan.
+  sweep_stack_recovery "$cd_dir"
 }
 
 # sweep_mark_publish_deferred MW ARCHIVED ID DETAIL — write the durable `## Publish deferred`
@@ -1027,9 +1032,11 @@ sweep_stacked_parent(){
 #
 # FAILURE POSTURE IS THE SWEEP'S OWN: log and continue to the next root. A close-out that could not
 # run at all (exit 1, or a missing/unusable script) emits `sweep-failed <id> stack-closeout
-# script-error` and nothing else changes — the next pass re-runs it, and every step of it is
-# idempotent. It must never abort the pass: the root itself is already `done` and archived by the
-# time this runs, so failing loudly here would buy nothing and lose the rest of the sweep.
+# script-error` and nothing else changes. It must never abort the pass: the root itself is already
+# `done` and archived by the time this runs, so failing loudly here would buy nothing and lose the
+# rest of the sweep. What re-runs it is `sweep_stack_recovery` on a later pass — every step of the
+# close-out is idempotent, but idempotence alone recovers nothing without something to re-drive it,
+# and this queue never can: it holds only roots swept in the SAME pass.
 sweep_stack_closeout(){
   local cd_dir="$1" root_id="$2" merged_date="$3" descendants
   descendants="$(stack_descendants "$cd_dir" "$root_id" 2>/dev/null)"
@@ -1040,6 +1047,95 @@ sweep_stack_closeout(){
         --adrs-dir "$ADRS_DIR" --terminal-publish "${TERMINAL_PUBLISH:-false}"; then
     echo "sweep-failed $root_id stack-closeout script-error"
   fi
+  return 0
+}
+
+# sweep_stack_recovery CD_DIR — re-drive the stack close-out for a stack an EARLIER pass stranded
+# (change 0298, spec §7). This is the whole of the self-heal `sweep_stack_closeout` and
+# scripts/docket-status.md promise: idempotence makes a re-run SAFE, but nothing about it makes a
+# re-run HAPPEN. SWEEP_STACK_ROOTS holds only roots swept by the pass that fills it, and detection
+# scans active/ for a merged PR — which an archived root no longer has and a `stacked-merged`
+# descendant's PR merged passes ago. So a transient failure (an offline fetch, a wedged tree, a
+# `promote-failed` on one descendant) abandoned the stack permanently, under a report line saying
+# the opposite.
+#
+# The scan is the QUEUE'S MIRROR IMAGE. Instead of "which root just merged", it asks "which change
+# is still parked at `stacked-merged` although the merge that frees it has already happened" — and
+# that is a cheap, precise question over active/, the directory the sweep already walks.
+#
+# `done` AND NOTHING ELSE frees a stack. `killed` is terminal too, but a killed root's code never
+# reached the integration branch, so promoting its descendants would falsify the governing invariant
+# — board-checks' `stack-parent-killed` is what surfaces that, and there is no safe automatic move.
+#
+# The walk goes UP THROUGH `stacked-merged` ancestors to the nearest ancestor that is not one, so
+# EACH parked change reaches a verdict on its own evidence rather than on a global argument about
+# some other change being scanned too. On today's code a deep stack would drain either way — every
+# member of it is parked, so the nearest merged ancestor is reached from the shallowest one, and
+# stack-closeout.sh promotes TRANSITIVE descendants from there — which is why the test pins the
+# OUTCOME (a two-level stack drains whole) and not this walk in isolation.
+#
+# Driving one root covers its whole subtree, so the roots are DEDUPED, seeded with the ones this pass
+# already drove from SWEEP_STACK_ROOTS. The close-out is idempotent, so a second drive would be
+# harmless but not free — and on a FAILING close-out it would also duplicate a `sweep-failed` line
+# callers count.
+#
+# THE DATE COMES FROM THE ROOT'S ARCHIVED FILENAME (`<date>-<pad>-<slug>.md`), never `now()`: the
+# close-out archives every descendant under the root's merge date, and a clock-derived date would
+# make the resuming pass disagree with the original one about a descendant's archive path — the
+# exact re-run divergence archive-change.sh's `--date` precondition exists to prevent. A `done` root
+# whose filename carries no date is reported as `sweep-failed <root> stack-closeout date-unresolved`
+# and never guessed at.
+sweep_stack_recovery(){
+  local cd_dir="$1" f
+  local -a cands=()
+  for f in "$cd_dir"/active/*.md; do
+    [ -f "$f" ] || continue
+    cands+=("$f")
+  done
+  [ "${#cands[@]}" -gt 0 ] || return 0
+  # The same key-shape prefilter as stack_descendants, for the same reason: `^stacked_on:` is a
+  # strict SUPERSET of what the anchored read answers non-empty for, so it narrows the WORK and never
+  # the DECISION, and it keeps a no-stack repo's cost at one grep per pass. `-e` declares the
+  # pattern, and `--` the file list, so neither can be read as an option.
+  local hits
+  hits="$(grep -l -E -e '^stacked_on:' -- "${cands[@]}" 2>/dev/null)"
+  [ -n "$hits" ] || return 0
+
+  local seen=" " entry rid
+  for entry in "${SWEEP_STACK_ROOTS[@]+"${SWEEP_STACK_ROOTS[@]}"}"; do
+    IFS=$'\t' read -r rid _ <<<"$entry"
+    seen="$seen$rid "
+  done
+
+  local id chain anc anc_file root root_file base merged_date
+  while IFS= read -r f; do
+    [ -f "$f" ] || continue
+    [ "$(field "$f" status)" = stacked-merged ] || continue
+    id="$(field "$f" id)"
+    case "$id" in (''|*[!0-9]*) continue ;; esac
+    id=$(( 10#$id ))
+    # An unresolvable chain (a missing parent, a cycle) is a data defect board-checks' `stack-invalid`
+    # names — never a root this pass may act on off its own bat.
+    chain="$(stack_chain "$cd_dir" "$id" 2>/dev/null)" || continue
+    root="" root_file=""
+    while IFS= read -r anc; do
+      [ -n "$anc" ] || continue
+      anc_file="$(stack_find_file "$cd_dir" "$anc")" || break
+      [ "$(field "$anc_file" status)" = stacked-merged ] && continue
+      root="$anc"; root_file="$anc_file"
+      break
+    done <<<"$chain"
+    [ -n "$root" ] || continue
+    [ "$(field "$root_file" status)" = "done" ] || continue
+    case "$seen" in (*" $root "*) continue ;; esac
+    seen="$seen$root "
+    base="$(basename "$root_file")"
+    case "$base" in
+      ([0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*) merged_date="${base:0:10}" ;;
+      (*) echo "sweep-failed $root stack-closeout date-unresolved"; continue ;;
+    esac
+    sweep_stack_closeout "$cd_dir" "$root" "$merged_date"
+  done <<<"$hits"
   return 0
 }
 

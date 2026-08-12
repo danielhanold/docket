@@ -352,6 +352,118 @@ assert "both roots still swept to done" \
   'grep -qF "swept 70 " "$failout" && grep -qF "swept 72 " "$failout"'
 assert "an unpromoted descendant is left exactly where it was, for the next pass" \
   '[ -f "$mw/docs/changes/active/0071-kidone.md" ] && [ -f "$mw/docs/changes/active/0073-kidtwo.md" ]'
+# THE DEDUPE LEG. The resumption scan (below) runs at the end of this very pass and would find 0071
+# and 0073 still parked at `stacked-merged` under roots that are already `done` and archived. Strip
+# the seeding of its `seen` set from SWEEP_STACK_ROOTS and each root is driven a SECOND time in the
+# same pass, so this failure line appears twice — a count a caller keys on, doubled.
+assert "a root driven from the queue is not driven again by the resumption scan" \
+  'n="$(grep -cF "sweep-failed 70 stack-closeout script-error" "$failout")"; \
+   m="$(grep -cF "sweep-failed 72 stack-closeout script-error" "$failout")"; \
+   [ "$n" = 1 ] && [ "$m" = 1 ]'
+
+# --- the RESUMPTION scan: a stack stranded by an EARLIER pass is re-driven, not abandoned ---------
+# The contract and the sweep both promise that a `sweep-failed <id> stack-closeout script-error` (and
+# a `promote-failed`) self-heals on the next pass. Nothing made that true: SWEEP_STACK_ROOTS is
+# filled only by a root swept in the SAME pass, and detection never sees an archived root again — so
+# one transient failure stranded a stack permanently, under a line saying the opposite.
+#
+# The fixture is the state the FAILED run above actually left behind — 0071 and 0073 still parked at
+# `stacked-merged` under roots 0070/0072 that are `done` and archived — plus a two-level stack under
+# an archived root, and the two controls that must NOT move. Nothing merges in this pass at all: the
+# gh stub answers with no merged PRs, so the only thing that can move any of them is a scan of
+# active/, which is exactly what is under test.
+cat > "$mw/docs/changes/archive/2026-08-07-0080-rootrec.md" <<'EOF'
+---
+id: 80
+slug: rootrec
+title: rootrec change
+status: done
+priority: high
+depends_on: []
+stacked_on:
+branch: feat/rootrec
+pr: 80
+---
+
+Body.
+EOF
+seed_change 81 kidrec stacked-merged 80
+# 0082 is stacked on 0081, NOT on the root — a two-level stranded stack, which must drain WHOLE.
+# Two independent mechanisms cover it (the scan walks up through the `stacked-merged` 0081 to the
+# root that actually merged, and stack-closeout.sh promotes TRANSITIVE descendants), so what this
+# pins is the outcome, not either mechanism on its own.
+seed_change 82 grandkidrec stacked-merged 81
+# CONTROL: a live root. Its code has not reached the integration branch, so 0085 must stay put — a
+# scan that keyed on "is parked at stacked-merged" alone would promote it and falsify the invariant.
+seed_change 84 liveroot in-progress ""
+seed_change 85 orphanrec stacked-merged 84
+# CONTROL: a KILLED root, ARCHIVED — the archived form is what gives this leg teeth. Killed is
+# terminal, so a scan gated on "terminal" rather than on `done` promotes 0087; gated on `done` it
+# does not. An UNARCHIVED killed root would make the leg vacuous instead: it would be turned away by
+# the date probe (no date in the file name) no matter what the status gate said.
+cat > "$mw/docs/changes/archive/2026-08-07-0086-deadroot.md" <<'EOF'
+---
+id: 86
+slug: deadroot
+title: deadroot change
+status: killed
+priority: high
+depends_on: []
+stacked_on:
+branch: feat/deadroot
+pr: 86
+---
+
+Body.
+EOF
+seed_change 87 orphantwo stacked-merged 86
+git -C "$mw" add docs/changes
+git -C "$mw" commit -q -m "seed stranded stacks"
+git -C "$mw" push -q origin main
+
+cat > "$tmp/gh-none.sh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = repo ] && [ "$2" = view ]; then echo "x/y"; exit 0; fi
+if [ "$1" = api ] && [ "$2" = graphql ]; then echo '{"data":{}}'; exit 0; fi
+if [ "$1" = pr ] && [ "$2" = list ]; then echo '[]'; exit 0; fi
+echo "gh-none: unexpected args: $*" >&2
+exit 1
+EOF
+chmod +x "$tmp/gh-none.sh"
+
+recout="$tmp/recover-out.txt"
+reclog="$tmp/recover-calls.log"
+: > "$reclog"
+( cd "$mw" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes ADRS_DIR=docs/adrs \
+  INTEGRATION_BRANCH=main METADATA_BRANCH=main \
+  GH="$tmp/gh-none.sh" SCRIPTS_DIR="$tmp/mock-scripts" SWEEP_LOG="$reclog" \
+  bash -c '. "'"$SCRIPT"'"; detect_merged | sweep_execute' ) > "$recout" 2>>"$tmp/sweep-err.txt"
+
+assert "a stack stranded by an earlier failed close-out is re-driven with nothing merging this pass" \
+  'grep -qF "promoted 71" "$recout" && grep -qF "promoted 73" "$recout"'
+assert "a two-level stranded stack drains whole" \
+  'grep -qF "promoted 81" "$recout" && grep -qF "promoted 82" "$recout"'
+assert "a resumed descendant is archived under the ROOT's merge date, never today's" \
+  '[ -f "$mw/docs/changes/archive/2026-08-06-0071-kidone.md" ] && \
+   [ -f "$mw/docs/changes/archive/2026-08-07-0081-kidrec.md" ]'
+assert "a stack whose root is still live is left alone" \
+  '! grep -qF "promoted 85" "$recout" && [ -f "$mw/docs/changes/active/0085-orphanrec.md" ]'
+# …and left alone SILENTLY. The status gate has to run BEFORE the date probe: a live root is never
+# archived, so a scan that reached the probe would turn it away with a `date-unresolved` failure
+# line on every single pass — a permanent false finding about a change that is simply not ready.
+assert "a live root is turned away by the status gate, not by the date probe" \
+  '! grep -qF "sweep-failed 84 " "$recout"'
+assert "a stack whose root is KILLED is never promoted" \
+  '! grep -qF "promoted 87" "$recout" && [ -f "$mw/docs/changes/active/0087-orphantwo.md" ]'
+# 0041 sits at `stacked-merged` under a parent that is still `in-progress` — the same shape as 0085,
+# from the first fixture, and it must be as untouched now as it was then.
+assert "the scan does not disturb an unrelated parked change" \
+  '[ -f "$mw/docs/changes/active/0041-child.md" ]'
+# BOUNDED: three distinct roots (0070, 0072, 0080), one close-out each — 0081 and 0082 resolve to the
+# SAME root and must not drive it twice. Drop the dedupe set and this reads 4.
+assert "the scan drives each stranded root exactly once" \
+  'n="$(grep -cF "stack-closeout " "$reclog")"; [ "$n" = 3 ]'
 
 # --- the contract documents what the sweep now relays ---------------------------------------------
 # Every line the sweep emits is a machine contract a caller keys on, so an undocumented one is a
@@ -366,6 +478,11 @@ assert "the contract documents the close-out failure line" \
   'grep -qF -- "sweep-failed <id> stack-closeout script-error" "$CONTRACT"'
 assert "the contract states the after-the-loop placement" \
   'grep -qF -- "after the whole per-change loop" "$CONTRACT"'
+# The self-heal the contract promises is now a named pass with its own report line, so the contract
+# has to name both. A prose promise with no mechanism behind it is the defect this leg exists for.
+assert "the contract documents the resumption scan and its failure line" \
+  'grep -qF -- "6-recover" "$CONTRACT" && \
+   grep -qF -- "sweep-failed <id> stack-closeout date-unresolved" "$CONTRACT"'
 
 printf '%s\n' "--- done"
 exit "$fail"
