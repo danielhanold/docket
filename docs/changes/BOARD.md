@@ -1,12 +1,6 @@
 # Backlog
 
-**300 changes** — 🟢 1 in progress · 🟡 38 proposed · ⚪ 4 deferred · ✅ 179 done · 🗑️ 78 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0298](active/0298-stacked-changes-build-a-new-change-on-top-of-a-parent-change.md) | Stacked changes — build a new change on top of a parent change's branch | `medium` | `feat` | [spec](../superpowers/specs/2026-08-11-stacked-changes-design.md) | `feat/stacked-changes-build-a-new-change-on-top-of-a-parent-change` |
+**300 changes** — 🟡 38 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 179 done · 🗑️ 78 killed
 
 ## 🟡 Proposed (38)
 
@@ -59,6 +53,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0298](active/0298-stacked-changes-build-a-new-change-on-top-of-a-parent-change.md) | Stacked changes — build a new change on top of a parent change's branch | `medium` | `feat` | [#203](https://github.com/danielhanold/docket/pull/203) |  |
 
 ```mermaid
 graph TD
