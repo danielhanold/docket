@@ -43,13 +43,18 @@ testing workflow first-class.
 ## What changes
 
 A new optional `stacked_on: <parent change id>` manifest field declares that a change builds on
-its parent's feature branch. The child is build-ready once the parent has a branch; its branch
-is cut from the parent's, its PR targets the parent's branch, and it merges into the parent —
-the stack root's single PR carries everything into main. Autonomous finalize of a parent with
-open children hard-blocks; interactive finalize warns and lets the human override, after which
-open children fall back to the parent's own base. A stacked child's terminal-publish is deferred
-(via the existing `## Publish deferred` state) until the stack root's merge lands. The board
-renders the relationship plus the waiting / rebase-pending states. Skill bodies gain only
+its parent's feature branch. A shared effective-base resolver drives readiness, branch cut, PR
+base, and the finalize gate: the child's branch is cut from the parent's pushed branch, its PR
+targets it, and it merges into the parent — the stack root's single PR carries everything into
+main. A child merged into its parent enters a new non-terminal `stacked-merged` state and is
+promoted to `done` only when the root's code reaches the integration branch, preserving the
+invariant that `done` means reachable-from-integration (dependency satisfaction, artifact
+links, and terminal publishing all keep their meaning). One idempotent stack close-out runs
+from both finalize and the status sweep. Autonomous finalize of a parent with open children
+hard-blocks; interactive finalize warns and lets the human override, with open child PRs
+explicitly retargeted before the parent branch is deleted. A killed parent never triggers the
+merge fallback: descendants flip to `blocked` for a human decision. The board renders the
+relationship plus the waiting / awaiting-root / rebase-pending states. Skill bodies gain only
 trigger lines; the mechanics live in a shared reference read on trigger (progressive
 disclosure).
 
