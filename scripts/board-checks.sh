@@ -247,8 +247,8 @@ ABORTED_RUN_IDLE_SECS=$(( 2 * 3600 ))
 #      counted in `total` and joins no summary. The live case is the mirror image: an interrupted
 #      archive-change.sh, whose `git mv` precedes its status flip.
 # Membership is read from the SHARED arrays via docket_status_is_active / docket_status_is_terminal,
-# never a list restated here. That matters twice over: the active set (five names) and the full
-# vocabulary (seven) are DIFFERENT sets and the difference IS the drop path, and since change 0116
+# never a list restated here. That matters twice over: the active set and the full
+# vocabulary are DIFFERENT sets and the difference IS the drop path, and since change 0116
 # single-sourced the renderer's own vocabularies the renderer reads these very arrays too — so both
 # arms are backed by the same source the consumer reads, not by a comment-asserted correspondence.
 renders_row(){

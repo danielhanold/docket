@@ -88,6 +88,8 @@ The final report **enumerates** the change merged (if any), each change **skippe
 
 ## Per-change steps
 
+**Stacked changes:** when this change carries `stacked_on:` or has stacked children, **read [`../docket-convention/references/stacked-changes.md`](../docket-convention/references/stacked-changes.md) now (blocking)** — it owns the rebase target, the open-children merge gate (autonomous hard-blocks; interactive warns and the human may override), and the child-PR retarget owed before step 4 deletes this branch.
+
 1. **Check the PR** (`gh`). Already merged → straight to step 2. Approved + mergeable but not merged → merge it into `<integration_branch>` (the exported `INTEGRATION_BRANCH`, never hard-coded). An explicit id IS the merge decision (and overrides `require_pr_approval`); under auto-detect, follow the Selection matrix. **Before the merge lands, run *The rebase-retest merge gate* below** (unless `finalize.gate` is `off`). The merge itself, and every step after it through the close-out, works from the repo's main worktree (see above).
 
 2. **Verify the merge landed** on the integration branch. If the change carries a `results:` file, this is the moment to append interactive-verification outcomes and any late findings to it, post-merge.

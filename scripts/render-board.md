@@ -58,10 +58,13 @@ with at least one change appear.
 | blocked | `# · Title · Priority · Type · Blocked by` |
 | deferred | `# · Title · Priority · Type` |
 | implemented | `# · Title · Priority · Type · PR · Readiness` |
+| stacked-merged | `# · Title · Priority · Type · PR · Stack` |
 
 The `#` cell links to the change file (`active/<filename>`). IDs are zero-padded to four digits.
 Sections are emitted in the fixed order: in-progress → proposed → blocked → deferred →
-implemented. The **Implemented** heading suffix is `— awaiting merge`. Empty statuses are omitted.
+implemented → stacked-merged — `DOCKET_STATUSES_ACTIVE`'s own order, which the renderer iterates
+rather than restating. The **Implemented** heading suffix is `— awaiting merge`. Empty statuses are
+omitted.
 
 **Titles render bare.** The `Title` column shows the change's *logical* title. Titles are read
 through the shared `field()`/`fm_field()` readers (`scripts/lib/docket-frontmatter.sh`), which strip
@@ -125,7 +128,8 @@ bytes.
 dependency-resolution/readiness pass the board renders from — so `readiness()` keeps exactly one
 owner and the digest can never disagree with the board's Readiness cell. Emits, in order: one
 `backlog <status> <count>` line per non-zero status (fixed order: in-progress, proposed, blocked,
-deferred, implemented, done, killed; `done`/`killed` counted from `archive/`), then one
+deferred, implemented, stacked-merged, done, killed — `DOCKET_STATUSES`' own order;
+`done`/`killed` counted from `archive/`), then one
 `change <id> <status> <readiness> <slug>` line per **active** change, ascending by id. `<readiness>`
 is `build-ready`, `needs-brainstorm`, `auto-groom-blocked`, `stack-base-unresolved`,
 `waiting-on-<N>-unbuilt`, or `waiting-on-<N>-needs-merge` for a `proposed` change;

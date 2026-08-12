@@ -83,7 +83,7 @@ rather than a same-named script (there is no `scripts/preflight.sh`, `scripts/en
 ## Behavior
 
 **Dispatch.** `docket.sh <op> [args...]` looks `<op>` up in the table above. A match on one of the
-16 wrapped ops execs `"$DOCKET_BASH_PATH" "$SCRIPTS_DIR/<op>.sh" "$@"` — args forwarded verbatim,
+22 wrapped ops execs `"$DOCKET_BASH_PATH" "$SCRIPTS_DIR/<op>.sh" "$@"` — args forwarded verbatim,
 the helper's exit code and stderr pass through unmasked (the facade uses `exec`, so the wrapped
 helper's process directly replaces `docket.sh`'s; there is no wrapper-added exit-code translation
 or output buffering). A
@@ -169,7 +169,7 @@ above:
 | 0 | Success. |
 | 1 | The configured runtime is missing/unsupported, or preflight fails. |
 | 2 | Unknown or missing operation — `docket.sh` lists the supported operations on stderr. |
-| *(other)* | Propagated verbatim from the wrapped helper's own exit code (for the 16 wrapped ops), or from `docket_preflight`/`docket-config.sh` failure (for `preflight`/`env`/`bootstrap`). |
+| *(other)* | Propagated verbatim from the wrapped helper's own exit code (for the 22 wrapped ops), or from `docket_preflight`/`docket-config.sh` failure (for `preflight`/`env`/`bootstrap`). |
 
 ## Invariants
 
