@@ -51,6 +51,7 @@ eval "$cfg"
 METADATA_BRANCH="${METADATA_BRANCH:-docket}"
 INTEGRATION_BRANCH="${INTEGRATION_BRANCH:-main}"
 ADRS_DIR="${ADRS_DIR:-docs/adrs}"          # repo-relative, for URLs
+CHANGES_DIR="${CHANGES_DIR:-docs/changes}" # repo-relative, for the derived Stacked children links
 METADATA_WORKTREE="${METADATA_WORKTREE:-}"
 
 if [ -z "$ADRS_DIR_LOCAL" ]; then
@@ -96,6 +97,13 @@ pr="$(fm_field "$CHANGE_FILE" pr)"
 adrs="$(list_field "$CHANGE_FILE" adrs)"   # space-separated ids, "" when [] / unset
 
 # plan/results ref: integration branch once done, else the feature branch.
+#
+# The test is `= done` and deliberately NOT "is terminal" / "is not active" (change 0298). Those
+# three used to coincide; `stacked-merged` splits them. A stacked-merged change has merged into its
+# PARENT's branch, not into the integration branch, so its plan and results are not reachable from
+# `$INTEGRATION_BRANCH` yet — the feature branch is still the only ref that resolves them, and it
+# stays alive precisely because the stack root needs the code. Widening this condition to any
+# non-active or non-`done` status would silently produce 404 links for the whole stack.
 build_ref="$branch"
 [ "$status" = "done" ] && build_ref="$INTEGRATION_BRANCH"
 
@@ -151,6 +159,81 @@ if [ -n "$adrs" ]; then
     if [ -n "$adr_cell" ]; then adr_cell+=", $link"; else adr_cell="$link"; fi
   done
   rows+="| ADRs | $adr_cell |"$'\n'
+fi
+
+# --- Stacked children — DERIVED at render time, never stored (change 0298) -----------------------
+# The parent side of a `stacked_on:` link has no field of its own. Denormalizing it would store one
+# fact in two files and let them disagree, and the disagreement would stay invisible until a branch
+# was cut from the wrong base. So the row is a scan of the changes directory, recomputed on every
+# render, and a child that moves or is killed simply stops appearing.
+#
+# The directory to scan is derived from THIS change file's own location — a change lives at
+# `<changes>/active/NNNN-slug.md` or `<changes>/archive/DATE-NNNN-slug.md`. A caller pointing at a
+# file outside that shape finds no children rather than walking somewhere unrelated.
+cf_dir="$(cd "$(dirname "$CHANGE_FILE")" && pwd)"
+case "$(basename "$cf_dir")" in
+  active|archive) changes_root="$(dirname "$cf_dir")" ;;
+  *)              changes_root="$cf_dir" ;;
+esac
+self_id="$(field "$CHANGE_FILE" id)"
+child_lines=""
+case "$self_id" in
+  ''|*[!0-9]*) ;;
+  *)
+    self_id=$(( 10#$self_id ))
+    cand=()
+    for c in "$changes_root"/active/*.md "$changes_root"/archive/*.md; do
+      [ -f "$c" ] && cand+=("$c")
+    done
+    # PREFILTER, never the decision. One grep replaces one `fm_field` subprocess per change file,
+    # which at real-repo scale (hundreds of changes, and this renderer runs on every frontmatter
+    # write) is the difference between a millisecond and a second per render. It is keyed on the
+    # SHAPE `fm_field` itself requires — a line whose first characters are `stacked_on:` — so it is
+    # a strict SUPERSET of the files fm_field can answer non-empty for, and it deliberately does not
+    # look at the VALUE: `stacked_on: 0030  # note` and `stacked_on: 30` must both survive it, and
+    # so must the body-prose false positives the anchored read below is here to reject.
+    stacked_files=""
+    if [ "${#cand[@]}" -gt 0 ]; then
+      stacked_files="$(grep -l -E -e '^stacked_on:' -- "${cand[@]}" || true)"
+    fi
+    while IFS= read -r c; do
+      [ -n "$c" ] || continue
+      # ANCHORED read — this is the decision. `stacked_on:` is optional — every change file minted
+      # before change 0298 lacks the line — and this repo's change bodies discuss the field name in
+      # ordinary prose. An unanchored read runs past the closing `---` and invents children out of
+      # that prose, which is exactly what the prefilter above hands it.
+      c_parent="$(fm_field "$c" stacked_on)"
+      [ -n "$c_parent" ] || continue
+      case "$c_parent" in (*[!0-9]*) continue ;; esac
+      [ "$(( 10#$c_parent ))" = "$self_id" ] || continue
+      c_id="$(field "$c" id)"
+      case "$c_id" in ''|*[!0-9]*) continue ;; esac
+      c_id=$(( 10#$c_id ))
+      # A change stacked on itself is a cycle for the health checks to name, never a child here.
+      [ "$c_id" != "$self_id" ] || continue
+      c_padded="$(printf '%04d' "$c_id")"
+      c_rel="$CHANGES_DIR/$(basename "$(dirname "$c")")/$(basename "$c")"
+      if [ "$GITHUB" = 1 ]; then
+        c_cell="[#$c_padded]($(blob "$METADATA_BRANCH" "$c_rel")) $(field "$c" title) ($(field "$c" status))"
+      else
+        c_cell="#$c_padded $(field "$c" title) ($(field "$c" status))"
+      fi
+      child_lines+="$c_padded"$'\t'"$c_cell"$'\n'
+    done <<<"$stacked_files"
+    ;;
+esac
+if [ -n "$child_lines" ]; then
+  # Sort by padded id: `active/` globs in id order but `archive/` globs by DATE, so the two halves
+  # would otherwise interleave by accident of merge dates and the block would not be deterministic.
+  child_sorted="$(printf '%s' "$child_lines" | sort)"
+  child_cell=""
+  while IFS=$'\t' read -r _c_pad c_text; do
+    [ -n "$c_text" ] || continue
+    if [ -n "$child_cell" ]; then child_cell+=", $c_text"; else child_cell="$c_text"; fi
+  done <<<"$child_sorted"
+  # Emit nothing at all — not even the label — for an empty set. A labelled row with no names is a
+  # different defect from an omitted row: it asserts the change HAS children and lost them.
+  [ -n "$child_cell" ] && rows+="| Stacked children | $child_cell |"$'\n'
 fi
 
 # build_row may emit an empty line (killed + no pr). Strip blank lines from rows.
