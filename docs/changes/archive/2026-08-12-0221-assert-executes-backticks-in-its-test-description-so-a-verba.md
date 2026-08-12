@@ -2,7 +2,7 @@
 id: 221
 slug: assert-executes-backticks-in-its-test-description-so-a-verba
 title: assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell
-status: implemented
+status: done
 priority: high
 type: fix
 created: 2026-08-05
@@ -17,7 +17,7 @@ results: docs/results/2026-08-11-assert-executes-backticks-in-its-test-descripti
 trivial: false
 auto_groomable: true
 branch: feat/assert-executes-backticks-in-its-test-description-so-a-verba
-claimed_at: 2026-08-12T00:20:00Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/202
 blocked_by:
 reconciled: true
