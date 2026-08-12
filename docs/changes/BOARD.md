@@ -1,8 +1,8 @@
 # Backlog
 
-**300 changes** — 🟡 38 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 179 done · 🗑️ 78 killed
+**302 changes** — 🟡 40 proposed · ⚪ 4 deferred · ✅ 180 done · 🗑️ 78 killed
 
-## 🟡 Proposed (38)
+## 🟡 Proposed (40)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -44,6 +44,8 @@
 | [0296](active/0296-shard-tests-test-docket-status-sh-its-runtime-row-is-at-the.md) | Shard tests/test_docket_status.sh — its runtime row is at the table's hard 60s ceiling | `medium` | `chore` | needs-brainstorm |
 | [0297](active/0297-relax-0212-s-sites-backtick-ban-now-that-the-hygiene-gate-en.md) | Relax 0212's SITES backtick ban now that the hygiene gate enforces it | `medium` | `refactor` | needs-brainstorm |
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
+| [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
+| [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -53,12 +55,6 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0298](active/0298-stacked-changes-build-a-new-change-on-top-of-a-parent-change.md) | Stacked changes — build a new change on top of a parent change's branch | `medium` | `feat` | [#203](https://github.com/danielhanold/docket/pull/203) |  |
 
 ```mermaid
 graph TD
@@ -103,19 +99,21 @@ graph TD
   0295
   0296
   0297
-  0298
   0300
+  0301
+  0302
   0192:::done
   0211:::done
   0282:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (257)</summary>
+<details><summary>✅🗑️ Archive — done + killed (258)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0299](archive/2026-08-12-0299-reshard-tests-test-sync-agents-runners-so-every-file-measure.md) | Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling | 2026-08-12 |
+| [0298](archive/2026-08-12-0298-stacked-changes-build-a-new-change-on-top-of-a-parent-change.md) | Stacked changes — build a new change on top of a parent change's branch | 2026-08-12 |
 | [0221](archive/2026-08-12-0221-assert-executes-backticks-in-its-test-description-so-a-verba.md) | assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell | 2026-08-12 |
 | [0284](archive/2026-08-11-0284-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi.md) | runner-dispatch --observe is sentinel-only: adopt 0282's identity-checked liveness probe | 2026-08-11 |
 | [0281](archive/2026-08-11-0281-auto-groom-s-critic-verdict-return-channel-fails-under-backg.md) | Auto-groom's critic verdict return channel fails under background dispatch | 2026-08-11 |
@@ -133,7 +131,6 @@ graph TD
 | [0276](archive/2026-08-09-0276-dummy-mode.md) | Dummy mode — persona-calibrated human-facing language simplification | 2026-08-09 |
 | [0274](archive/2026-08-09-0274-runner-dispatch-s-value-taking-flags-hang-instead-of-abortin.md) | runner-dispatch's value-taking flags hang instead of aborting when given with no value | 2026-08-09 |
 | [0271](archive/2026-08-09-0271-runner-delegation-has-no-execution-posture-for-a-child-that.md) | Runner delegation has no execution posture for a child that outlives its foreground call | 2026-08-09 |
-| [0269](archive/2026-08-09-0269-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child.md) | Decouple the shim wrapper's own pin from the delegated child's | 2026-08-09 |
 | [0267](archive/2026-08-09-0267-correct-the-stale-field-quote-handling-claim-in-script-contr.md) | Correct the stale field() quote-handling claim in script contracts | 2026-08-09 |
 | [0262](archive/2026-08-09-0262-ban-the-single-backslash-word-boundary-form-too-not-just-its.md) | Ban the single-backslash word-boundary form too, not just its escaped spelling | 2026-08-09 |
 | [0243](archive/2026-08-07-0243-make-test-suite-git-fixture-setup-fail-loudly-instead-of-fla.md) | Make test-suite git fixture setup fail loudly instead of flaking | 2026-08-07 |
@@ -213,7 +210,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 46 done |
+| [2026-08](archive/) | 47 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
