@@ -1391,6 +1391,31 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 # LINE budget was NOT raised (74 actual against 77).
 # skills/docket-new-change/SKILL.md carries the same trigger and needed NO raise: 57/1410 against
 # 61/1450.
+# TWO OF THOSE ROWS were raised again by change 0298's review-fix wave, which wired the SECOND
+# invoker spec §7 names for the stack close-out. Only the `docket-status` sweep was calling the op;
+# `docket-finalize-change` — the primary human path — never did, and the sweep cannot cover for it
+# (it enumerates `active/` for a merged PR, so a root finalize has archived is never re-enumerated
+# and a `stacked-merged` descendant has no merged PR of its own), so a stack root closed out through
+# finalize stranded every descendant permanently.
+# skills/docket-convention/references/stacked-changes.md 175/1650 -> 195/1900: its close-out section
+# gains the same fenced command block its `stack-base` section already carries, plus the two-invoker
+# statement, the `--date`-is-mergedAt rule, the report-line vocabulary, and the log-and-continue
+# posture with its by-hand re-run. This file IS the mechanics home — the WHERE-ELSE clause has no
+# deeper file to name, and the only alternative was restating the invocation in both invokers, which
+# is the drift class the task-routing.md row above records. Set per the rounding rule from the
+# measured actuals: 192 lines -> the next multiple of 5 is 195 (3 lines of margin, the accepted
+# half-step proportion); 1834 words -> 1850 leaves 16 (within the 25-word threshold), so the multiple
+# after it, 1900.
+# skills/docket-finalize-change/SKILL.md 185/3950 -> 190/4150: a new step 3.5 between the archive and
+# the cleanup that deletes the branch. The considered home is the same reference, and the STEP cannot
+# live there for the reason the six trigger-line rows above record and this defect proves: a skill's
+# step order is stated in its own body, and an operation named only inside a conditionally-read
+# reference is an operation nothing ever runs — which is exactly what happened here. What the step
+# keeps is the trigger, the placement, the `--date` input, and the failure posture; the invocation
+# itself stays in the reference, pointed at rather than restated. Set per the rounding rule from the
+# measured actuals: 184 lines -> the next multiple of 5 is 185, which leaves ONE line of margin, the
+# near-zero failure mode this block records raising past repeatedly, so the multiple after it, 190;
+# 4092 words -> 4100 leaves 8 (within the 25-word threshold), so the multiple after it, 4150.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -1408,9 +1433,9 @@ skills/docket-convention/references/agent-layer.md         205 2350
 skills/docket-convention/references/auto-capture.md        130 1250
 skills/docket-convention/references/dummy-mode.md           85  800
 skills/docket-convention/references/learnings.md            84  580
-skills/docket-convention/references/stacked-changes.md     175 1650
+skills/docket-convention/references/stacked-changes.md     195 1900
 skills/docket-convention/references/terminal-close-out.md  200 1750
-skills/docket-finalize-change/SKILL.md                     185 3950
+skills/docket-finalize-change/SKILL.md                     190 4150
 skills/docket-finalize-change/references/gate-failure.md    40 1250
 skills/docket-groom-next/SKILL.md                           77 1550
 skills/docket-implement-next/SKILL.md                      170 4750

@@ -160,6 +160,29 @@ When a stack **root** merges, `stack-closeout.sh` promotes each `stacked-merged`
 the shared terminal close-out to `done`, archived under the **root's** merge date, and regenerates
 the root's marker-bounded **Stack carried** table on the root's archived record.
 
+**Two invokers run this one op**, and neither substitutes for the other: the `docket-status` merge
+sweep, right after it sweeps a root to `done`; and `docket-finalize-change`, after its archive step
+and **before** the cleanup that deletes the root's branch. The sweep cannot cover for finalize — it
+only ever enumerates `active/` for a merged PR, and a root finalize has archived is never
+re-enumerated while a `stacked-merged` descendant has no merged PR of its own to find — so a
+close-out finalize skips is a stack stranded permanently. Gate on the root actually having
+descendants, so an unstacked change pays nothing: not a subprocess, not the fetch.
+
+```
+"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh stack-closeout \
+  --changes-dir <changes_dir> --root-id <root id> --date <the root's UTC merge date> \
+  --integration-branch <integration_branch> --metadata-branch <metadata_branch> \
+  --adrs-dir <adrs_dir> --terminal-publish <terminal_publish>
+```
+
+`--date` is the root's `mergedAt` in **UTC**, never `now()`: the pass is re-run, and a clock-derived
+date makes two runs disagree about the same descendant's archive filename. Key on the report lines —
+`promoted`, `promote-skipped`, `promote-failed`, `stack-carried`, `stack-carried-failed` — never on
+the exit code, and relay them verbatim. The posture at a failed line is **log and continue**: the
+root is already `done`, so stopping buys nothing and loses the rest of the close-out. Say so loudly
+and name the by-hand re-run of this same command, because once the root leaves `active/` no sweep
+picks it up again.
+
 It is safe to re-run, and re-running it is the designed recovery from a partial pass. The
 idempotency key is two-part and both parts are read from durable state: the descendant is **archived
 on the metadata branch** *and* carries **no outstanding `## Publish deferred` marker**. Archiving is
