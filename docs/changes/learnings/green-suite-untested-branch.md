@@ -2,9 +2,9 @@
 slug: green-suite-untested-branch
 hook: "Green tests are not proof the hard branch was exercised — a mock that omits the tool routes every test through the degrade path."
 topics: [testing, fixtures, mocks]
-changes: [16, 22, 25, 26, 35, 58, 62, 69, 91, 93, 117, 126, 186, 207, 219]
+changes: [16, 22, 25, 26, 35, 58, 62, 69, 91, 93, 117, 126, 186, 207, 219, 298]
 created: 2026-07-11
-updated: 2026-08-07
+updated: 2026-08-12
 promotion_state: retained
 promoted_to:
 ---
@@ -122,3 +122,15 @@ was exercised.
   well-formed inputs makes the correct and the incorrect implementation indistinguishable. Three in
   one change is the tell that "would this fixture redden if the code were wrong?" belongs in the
   build loop, not review.
+- 2026-08-12 (#298, PR #203 — merged) — **Adding a flag to a mocked call can turn a whole fixture
+  vacuously green rather than red.** The real fix was a cross-cutting one: `stack_effective_base`
+  issued its `git show-ref --verify` with no `-C`, so it answered "is the parent's branch pushed?"
+  from the *caller's cwd* instead of the repo under `--changes-dir` — and because that lookup is the
+  **positive** conjunct of the resolver's rule 1, a failed lookup is indistinguishable from "not
+  pushed", so the symptom is silent: every stacked change renders `stack base not built` and drops
+  out of the ready queue. The part worth carrying forward is what the fix did to the fixtures. Two
+  git stubs matched on `$1 = show-ref`; once `-C` arrived, `$1` became `-C` and both fell through to
+  their catch-all `exit 0` — reporting **every** branch as pushed. The stubs would have kept the
+  suite green while testing the opposite of the intended state. Rule: when a fix adds a flag to a
+  call some stub intercepts, re-check every stub's dispatch on `$1` — a catch-all `exit 0` converts
+  a missed match into a permissive answer, not a loud failure.

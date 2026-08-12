@@ -2,9 +2,9 @@
 slug: shell-portability
 hook: "Treat awk whitespace classes, --leading grep patterns, and symlinked temp paths as suspect — and test each on both GNU and BSD."
 topics: [shell, grep, awk]
-changes: [25, 38, 46, 71, 117, 186, 250, 255]
+changes: [25, 38, 46, 71, 117, 186, 250, 255, 298]
 created: 2026-06-19
-updated: 2026-08-08
+updated: 2026-08-12
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -80,3 +80,16 @@ not prompt.
   `close` is a builtin and cannot be used as a parameter name.** It is a parse error that surfaces
   only at runtime and makes every awk-path assert fail simultaneously, which reads as a broad
   logic regression rather than a naming collision. Both are invisible to a GNU-awk-only check.
+- 2026-08-12 (#298, PR #203 — merged) — **`\b` is the next member of this family, and it cost a
+  correct fix.** A review finding's fix (the convention doc re-arming hardcoded lifecycle
+  cardinalities — "eight states" — in the very change that stripped them from every script) shipped
+  with a guard spelled using a `\b` word boundary. BSD grep and git-grep ERE return **zero for it
+  silently**, so the guard was vacuous; `tests/test_grep_portability.sh` reddened the suite gate and
+  the gate's revert-and-record path removed the fix along with it. The finding therefore **stands
+  unfixed** on merged main — `skills/docket-convention/SKILL.md` still says "eight states" and
+  `github-board-mirror.md` still says "(all eight)" — for want of an explicit `[^[:alnum:]_]` class.
+  Two lessons: use `[^[:alnum:]_]`, never `\b`, in any guard that must run on BSD; and a vacuous
+  guard riding along with a correct three-word prose edit takes the edit down with it, so write the
+  guard to the portability rule *first* rather than discovering it at the gate. The other 56
+  single-backslash sites in this family — which `test_grep_portability.sh` only *counts* rather than
+  gates — are tracked as **#0300**.

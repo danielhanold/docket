@@ -2,9 +2,9 @@
 slug: specified-but-unreachable
 hook: "Sentinels over prose assert a claim is PRESENT, never that it is REACHABLE — where a contract has a producer and a consumer, anchor one assert on the producer."
 topics: [testing, sentinels, review]
-changes: [87, 94, 203, 220, 226, 259, 271, 277]
+changes: [87, 94, 203, 220, 226, 259, 271, 277, 298]
 created: 2026-07-19
-updated: 2026-08-11
+updated: 2026-08-12
 promotion_state: candidate
 promoted_to:
 ---
@@ -109,3 +109,19 @@ this?* If the answer is only "the section that describes it," the feature is dec
   value, not on its placeholders. Related: [[generated-artifact-loaded-at-process-start]] — nothing
   in-session can validate the regenerated shim as the harness will read it, so the live dispatch
   stayed a human verification item.
+- 2026-08-12 (#298, PR #203 — merged) — **Both blockers of a large feature were the same shape: a
+  contract satisfied at one of its two ends.** The spec named **two** invokers of the stack
+  close-out and only the status sweep was wired, so a stack root merged through
+  `docket-finalize-change` — the *primary human path* — stranded every descendant permanently, with
+  no sweep able to recover it because an archived root is never re-enumerated. The second: the
+  finalize open-children gate was specified to derive its child set by scanning, and the scan
+  existed but was reachable only from *inside* `stack-closeout.sh`; the only parent-side artifact
+  was a rendered `## Stacked children` row that is **absent in exactly the motivating case**, since
+  `render-change-links.sh` runs on a write to the *parent* and a child stacked on an already-
+  `implemented` parent is created after the parent's last such write. Neither was a coding error and
+  the suite was green throughout — nothing in a hermetic suite asks *is this prose gate reachable?*
+  What this adds to the family: when a spec enumerates N invokers, N is the assertion — count the
+  wired call sites against it, because wiring one of two leaves every individual test honest. And a
+  *rendered view* is never an oracle for a gate: the gate must read the live scan, which is how this
+  was fixed (the row's "drift-free by construction" claim was honestly weakened to "a human view
+  that can lag," rather than defended).
