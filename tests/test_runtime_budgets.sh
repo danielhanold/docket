@@ -25,7 +25,25 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1760 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1770 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1760 -> 1770 (change 0298): a NEW test file bringing its own row — the first
+                    # of the two legitimate movers the table header names.
+                    # tests/test_docket_status_stack.sh is a SIBLING SHARD of
+                    # tests/test_docket_status.sh carrying the sweep's stacked legs: a child whose PR
+                    # merged into its stack parent's branch flips to `stacked-merged` in place, while
+                    # a stacked child merged into the integration branch still closes out to `done`.
+                    # It is a sibling rather than an extension because the tsv header states
+                    # tests/test_docket_status.sh, at the 60s ceiling, has no next raise. Readings
+                    # 1.19/1.27/1.18s standalone serial, so the sizing rule puts it at the floor, 10.
+                    # Recomputed from the table itself, never hand-adjusted:
+                    #   awk -F'\t' '!/^#/ && NF>=2 {s+=$2} END{print s}' tests/runtime-budgets.tsv
+                    # 1750 -> 1760 (change 0298): tests/test_docket_stack.sh, a NEW test file for the
+                    # stacked-changes library and its stack-base.sh CLI — the same legitimate mover.
+                    # Readings 0.23/0.22/0.22s standalone serial: the floor, 10. Its rationale is in
+                    # the tsv header beside the row; this ledger line was omitted when the row landed
+                    # and is written back here so the chain below reads continuously.
+                    # Recomputed from the table itself, never hand-adjusted:
+                    #   awk -F'\t' '!/^#/ && NF>=2 {s+=$2} END{print s}' tests/runtime-budgets.tsv
                     # 1740 -> 1750 (change 0221, review finding 4): tests/test_run_tests.sh 20 -> 30
                     # — a file that GOT SLOWER, which the header does not list as a legitimate mover,
                     # so it is defended by measurement and by having first removed the part of the

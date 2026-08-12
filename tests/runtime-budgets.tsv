@@ -74,6 +74,19 @@
 # The file drives sourced shell functions over a fixture tree in $TMPDIR with no git and no network,
 # so it costs essentially nothing: next multiple of 5 is 5, plus the 5s margin -> 10, which is also
 # this table's floor. EXPECTED_TOTAL moves 1750 -> 1760 for that one row.
+#
+# tests/test_docket_status_stack.sh is a NEW FILE brought by change 0298 — the second legitimate
+# mover in this change. It is a SIBLING SHARD of tests/test_docket_status.sh, not an extension of
+# it, and the reason is written three notes above in this very header: that file sits AT the 60s
+# ceiling and the header states there is no next raise for it. Its new legs — the sweep flipping a
+# child whose PR merged into its stack parent's branch to `stacked-merged`, and the discriminating
+# case of a stacked child merged into the integration branch, which still closes out to `done` —
+# therefore land in their own file. Sized per this header's rule from three standalone serial
+# readings, one session, one machine, as
+# `/usr/bin/time -p bash tests/test_docket_status_stack.sh >/dev/null`:
+#   1.19  1.27  1.18  -> worst 1.27
+# One fixture repo, one stubbed gh, four mocked close-out scripts and no network: next multiple of 5
+# is 5, plus the 5s margin -> 10, this table's floor. EXPECTED_TOTAL moves 1760 -> 1770.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -115,6 +128,7 @@ tests/test_docket_root.sh	10	parallel
 tests/test_docket_runtime_lib.sh	10	parallel
 tests/test_docket_stack.sh	10	parallel
 tests/test_docket_status.sh	60	parallel
+tests/test_docket_status_stack.sh	10	parallel
 tests/test_dummy_mode.sh	10	parallel
 tests/test_ensure_claude_settings.sh	10	parallel
 tests/test_ensure_docket_env.sh	10	parallel
