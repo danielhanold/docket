@@ -743,10 +743,31 @@ for f in "${FILES[@]}"; do
       esac
       # NO `-C` wrapper over the GIT seam here: the resolver addresses its own `show-ref` at the
       # changes dir it is handed, and a second `-C` would compose relatively against the first.
+      # Called DIRECTLY, never inside `$(…)`: exit 3's killed-ancestor id comes back in the global
+      # STACK_KILLED_ANCESTOR, and a command substitution would discard it with the subshell.
       stack_effective_base "$CHANGES_DIR" "$id" "$INTEGRATION_BRANCH" >/dev/null 2>&1
       sc_rc=$?
       case "$sc_rc" in
-        3) emit stack-parent-killed "$cid" "stacked on #$sc_parent_label, which is killed — rescope this change onto $INTEGRATION_BRANCH, re-parent it onto a live change, or kill it too; there is no safe automatic fallback" ;;
+        3)
+          # WHICH change is killed is not knowable from this change's own `stacked_on:`: the
+          # resolver recurses through a `stacked-merged` parent whose branch is gone, so exit 3 can
+          # name an ancestor several hops up. Asserting the immediate parent is killed would point
+          # the human at a change that is not, so the id decides the phrasing rather than the
+          # phrasing assuming the id. The third arm keeps the message honest if the channel ever
+          # arrives empty — an id the resolver did not publish is one this check must not invent.
+          sc_killed_label=""
+          case "${STACK_KILLED_ANCESTOR:-}" in
+            ''|*[!0-9]*) ;;
+            *) sc_killed_label="$(printf '%04d' "$(( 10#$STACK_KILLED_ANCESTOR ))")" ;;
+          esac
+          if [ -n "$sc_killed_label" ] && [ "$sc_killed_label" = "$sc_parent_label" ]; then
+            sc_killed_clause="stacked on #$sc_parent_label, which is killed"
+          elif [ -n "$sc_killed_label" ]; then
+            sc_killed_clause="stacked on #$sc_parent_label, whose stacked_on chain reaches killed change #$sc_killed_label"
+          else
+            sc_killed_clause="stacked on #$sc_parent_label, whose stacked_on chain reaches a killed change"
+          fi
+          emit stack-parent-killed "$cid" "$sc_killed_clause — rescope this change onto $INTEGRATION_BRANCH, re-parent it onto a live change, or kill it too; there is no safe automatic fallback" ;;
         4) emit stack-invalid "$cid" "stacked_on chain does not resolve to a base branch (parent #$sc_parent_label) — repair the stacked_on id if the parent is missing, break the cycle if it closes one, or push the parent's branch to origin if it was never pushed" ;;
       esac
     fi

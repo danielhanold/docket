@@ -51,7 +51,10 @@ The resolution walks the `stacked_on` chain upward from the change, applying spe
    `stacked-merged` parent whose branch is gone merged into **its parent**, so its commits are
    inside the grandparent's branch and the answer is whatever *its* base resolves to — recursively,
    until the walk reaches a live branch or an unstacked ancestor.
-3. **A `killed` parent stops the walk** at exit 3.
+3. **A `killed` change stops the walk** at exit 3 — the immediate parent, or an ancestor the
+   `stacked-merged` fallback above recursed onto. The CLI's diagnostic therefore names the *chain*
+   and not a parent; the resolver publishes which change it was in `STACK_KILLED_ANCESTOR`, which
+   only a caller that invokes it without a `$(…)` capture can read (`scripts/board-checks.sh` does).
 4. **Anything else is an invalid resolution** at exit 4: a missing parent, a cycle, or a parent
    whose `branch:` has no ref on the remote.
 
@@ -65,7 +68,7 @@ stdout.
 |------|---------|----------------------------------|
 | 0 | Resolved. The base branch is on stdout. | Cut from, open the PR against, or rebase onto that branch. |
 | 2 | Usage error: a missing or unknown flag, a non-numeric `--id`, or a `--changes-dir` that does not exist. | Fix the invocation. |
-| 3 | The chain reaches a **killed** parent. | Stop and surface it to a human. Rescoping a change off a killed parent is a **scoping decision**, never an automatic fallback to the integration branch — the child's diff was written against work that was abandoned, and silently rebasing it onto the integration branch produces a branch nobody designed. |
+| 3 | The chain reaches a **killed** change — the immediate parent, or an ancestor across a `stacked-merged` hop. | Stop and surface it to a human. Rescoping a change off a killed parent is a **scoping decision**, never an automatic fallback to the integration branch — the child's diff was written against work that was abandoned, and silently rebasing it onto the integration branch produces a branch nobody designed. |
 | 4 | **Invalid resolution**: missing parent, cycle, or a parent branch with no remote ref. | Treat as a **data repair**: fix `stacked_on:`/`branch:`, or push the parent's branch. Never fall back to the integration branch — see the invariant below. |
 
 The two failure codes are distinct because the remedies are: 3 is a human scoping decision, 4 is a

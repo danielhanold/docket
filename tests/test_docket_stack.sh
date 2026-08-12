@@ -266,6 +266,32 @@ mkchange 44 tav proposed 43
 assert "a killed grandparent behind a done parent does not block the child" \
   '[ "$(stack_effective_base "$tmp" 44 main)" = "main" ]'
 
+# --- the exit-3 side channel: WHICH ancestor is killed ---
+# Exit 3 does not imply the caller's own `stacked_on:` names the killed change: a `stacked-merged`
+# parent whose branch is gone recurses, so the killed change can sit any number of hops up. The
+# resolver therefore publishes the offending id in STACK_KILLED_ANCESTOR, and board-checks.sh's
+# `stack-parent-killed` message is its consumer — without it that message asserts the immediate
+# parent is killed, which is false across a hop.
+#
+# Read with `${VAR-unset}` rather than bare: under `set -u` a bare read of a variable a mutation
+# deleted would kill the whole file rather than redden one assert.
+stack_effective_base "$tmp" 17 main >/dev/null 2>&1
+assert "exit 3 publishes the killed ancestor id (the immediate-parent case)" \
+  '[ "${STACK_KILLED_ANCESTOR-unset}" = 16 ]'
+# The recursive hop. 45 is stacked-merged with a branch that was never pushed, so rule 2's fallback
+# recurses onto 16 — killed. Naming 45 here would point the human at a change that is not killed.
+mkchange 45 samekh stacked-merged 16 feat/samekh
+mkchange 46 ayin proposed 45
+assert "rule 3 still exits 3 when the killed change is reached through a stacked-merged hop" \
+  'stack_effective_base "$tmp" 46 main >/dev/null 2>&1; [ "$?" = 3 ]'
+stack_effective_base "$tmp" 46 main >/dev/null 2>&1
+assert "exit 3 publishes the killed ANCESTOR across a recursive hop, not the immediate parent" \
+  '[ "${STACK_KILLED_ANCESTOR-unset}" = 16 ]'
+# Cleared on every entry, so a resolved call can never hand a caller the previous call's id.
+stack_effective_base "$tmp" 2 main >/dev/null 2>&1
+assert "a resolved call clears the killed-ancestor channel" \
+  '[ -z "${STACK_KILLED_ANCESTOR-unset}" ]'
+
 assert "rule 4: a cycle is invalid" \
   'stack_effective_base "$tmp" 4 main >/dev/null 2>&1; [ "$?" = 4 ]'
 assert "rule 4: a missing parent is invalid" \
@@ -366,6 +392,14 @@ assert "CLI resolves a padded id by decimal, not octal" \
 killed_err="$(GIT="$GIT_STUB/git" "$SCRIPT" --changes-dir "$tmp" --id 0017 --integration-branch main 2>&1 >/dev/null)"
 assert "the exit-3 diagnostic names the change and its remedy" \
   '[ -n "$(grep -F "0017" <<<"$killed_err")" ] && [ -n "$(grep -F "KILLED" <<<"$killed_err")" ]'
+# …and it says CHAIN, never PARENT. This call site captures the base through `$(…)`, which discards
+# the resolver's STACK_KILLED_ANCESTOR global with the subshell, so it cannot know which ancestor is
+# killed — and change 46 is the shape where guessing is wrong: its own parent (45) is alive and the
+# killed change is 16, one `stacked-merged` hop further up. Keyed on the WORD, not on the old
+# sentence: any rephrasing that re-attributes the kill to a "parent" reddens here.
+hop_err="$(GIT="$GIT_STUB/git" "$SCRIPT" --changes-dir "$tmp" --id 46 --integration-branch main 2>&1 >/dev/null)"
+assert "the exit-3 diagnostic never attributes the kill to the immediate parent" \
+  '[ -n "$(grep -F "0046" <<<"$hop_err")" ] && [ -z "$(grep -iF "parent" <<<"$hop_err")" ]'
 assert "CLI exits 4 on an unresolvable branch" \
   'GIT="$GIT_STUB/git" "$SCRIPT" --changes-dir "$tmp" --id 11 --integration-branch main >/dev/null 2>&1; [ "$?" = 4 ]'
 assert "CLI passes --remote through to the ref lookup" \

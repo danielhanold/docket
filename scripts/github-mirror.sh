@@ -318,6 +318,9 @@ sync_projects(){
   # Add every mirrored issue as a board item and set its Status from the change's status.
   # Terminal changes (done/killed) are expressed by the closed issue, so they get no column value.
   local id num st url ij itemid oid
+  # One warning per missing status, not per item: the remedy is a single manual edit on the board,
+  # and repeating it once per change would bury it in its own noise.
+  local -A opt_missing=()
   for id in $(printf '%s\n' "${!ISSUE_NUM[@]}" | sort -n); do
     num="${ISSUE_NUM[$id]}"; [ -n "$num" ] || continue
     url="https://github.com/$REPO/issues/$num"
@@ -330,7 +333,26 @@ sync_projects(){
     else itemid="$(grep <<<"$ij" -oE '"id":"[^"]+"' | sed -n 1p | sed 's/.*:"//;s/"$//')"; fi
     [ -n "$itemid" ] || continue
     oid="$(proj_option_id "$owner" "$number" "$st")"
-    [ -n "$oid" ] || continue
+    # A MIGRATION LIMIT, reported rather than swallowed. STATUS_OPTIONS is spent only at field-CREATE
+    # time in the auto-create path, and `gh project` has no field-edit — adding an option to an
+    # existing single-select field needs a raw updateProjectV2Field mutation, which this script
+    # deliberately does not do (see the header's "far more robust than hand-rolled mutations", and
+    # note that mutation REPLACES the option set, so a half-read would wipe every item's column).
+    # So a board minted before a status joined DOCKET_STATUSES_ACTIVE keeps its old option set, and
+    # the item stays on whatever column it last had. Skipping is still the right act — the board
+    # never blocks a build — but skipping SILENTLY is not: a status the mirror is quietly not
+    # writing makes the board wrong in a way nobody can see. The empty answer is not provably a
+    # missing option (a failed field-list reads the same), so the message names both readings.
+    if [ -z "$oid" ]; then
+      if [ -z "${opt_missing[$st]:-}" ]; then
+        opt_missing["$st"]=1
+        log "Projects: no '$st' option on the '$STATUS_FIELD_NAME' field of board $owner/$number"
+        log "         (first hit: change $id) — those items keep their previous column. Add '$st'"
+        log "         to the field on the board by hand (gh cannot add an option to an existing"
+        log "         single-select field), or check the field-list call if this is a lookup failure."
+      fi
+      continue
+    fi
     run_gh project item-edit --id "$itemid" --project-id "$pid" --field-id "$fid" \
       --single-select-option-id "$oid" --format json >/dev/null
   done
