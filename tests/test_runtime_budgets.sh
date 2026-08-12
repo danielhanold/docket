@@ -25,7 +25,7 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1770 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1785 # the sum of every ceiling, seeded with the table from the measured serial run.
                     # 1760 -> 1770 (change 0298): a NEW test file bringing its own row — the first
                     # of the two legitimate movers the table header names.
                     # tests/test_docket_status_stack.sh is a SIBLING SHARD of

@@ -87,6 +87,20 @@
 #   1.19  1.27  1.18  -> worst 1.27
 # One fixture repo, one stubbed gh, four mocked close-out scripts and no network: next multiple of 5
 # is 5, plus the 5s margin -> 10, this table's floor. EXPECTED_TOTAL moves 1760 -> 1770.
+#
+# tests/test_stack_closeout.sh is a NEW FILE brought by change 0298 — the third and last legitimate
+# mover in this change. It owns scripts/stack-closeout.sh, the pass that promotes a merged root's
+# `stacked-merged` descendants to `done`, plus stack_descendants in the stacked-changes library. Its
+# own file rather than an extension: it drives five independent fixture families (happy path,
+# idempotency against the metadata branch, a resumed partial run, a malformed-marker refusal, and a
+# cyclic graph) through a real bare origin, and neither sibling shard has room — the two files it
+# would otherwise have joined sit at the 60s and 55s ceilings. Sized per this header's rule from
+# three standalone serial readings, one session, one machine, as
+# `/usr/bin/time -p bash tests/test_stack_closeout.sh >/dev/null`:
+#   5.45  5.43  5.36  -> worst 5.45
+# The cost is git: one bare origin, two clones and roughly thirty commits and pushes across the five
+# families, with every close-out helper mocked and no network beyond the local origin. Next multiple
+# of 5 above 5.45 is 10, plus the 5s margin -> 15. EXPECTED_TOTAL moves 1770 -> 1785.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -179,6 +193,7 @@ tests/test_skill_fork_dispatch.sh	10	parallel
 tests/test_skill_handoff_precedence.sh	10	parallel
 tests/test_skill_size_budgets.sh	10	parallel
 tests/test_skip_allowlist_invisibility.sh	10	parallel
+tests/test_stack_closeout.sh	15	parallel
 tests/test_sync_agents.sh	50	parallel
 tests/test_sync_agents_claude_surface.sh	45	parallel
 tests/test_sync_agents_codex.sh	30	parallel

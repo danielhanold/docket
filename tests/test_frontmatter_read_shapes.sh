@@ -149,7 +149,8 @@ scripts/render-board.sh|"$f"|change
 scripts/render-board.sh|"$1"|change
 scripts/render-change-links.sh|"$CHANGE_FILE"|change
 scripts/render-change-links.sh|"$c"|change
-scripts/lib/docket-stack.sh|"$f"|change'
+scripts/lib/docket-stack.sh|"$f"|change
+scripts/stack-closeout.sh|"$f"|change'
 
 corpus_of(){ # corpus_of RELPATH ARGTOKEN -> corpus on stdout, or exit 1
   local k="$1|$2|" line
