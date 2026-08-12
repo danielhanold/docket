@@ -82,6 +82,58 @@ stack_chain(){
   done
 }
 
+# stack_descendants CHANGES_DIR ROOT_ID -> every TRANSITIVE descendant id, one canonical id per
+# line, PARENTS BEFORE CHILDREN. Breadth-first, because that is the order the stack close-out's
+# promotion loop needs: a child is promoted after the parent it merged into. Exit 1 on a
+# non-numeric ROOT_ID; an unknown root and a childless root both print nothing and exit 0.
+#
+# THE PREFILTER IS NOT AN OPTIMIZATION FOOTNOTE — it is what makes this callable per pass. One
+# `fm_field` subshell per change file costs ~1s over a 300-change tree; one `grep -l` over the same
+# list, then `fm_field` only on the files it names, costs ~0.07s. It is safe because it keys on the
+# KEY'S SHAPE (`^stacked_on:`), which is a strict SUPERSET of what `fm_field` can answer non-empty
+# for: it also matches an empty value, a padded or inline-commented one, and a body-prose line the
+# anchored read then discards. So it narrows the WORK and never the DECISION — every file it drops
+# is one `fm_field` would have answered empty for. Narrowing it to a value shape (`^stacked_on: [0-9]`)
+# would break exactly that property, and tests/test_stack_closeout.sh's padded, inline-commented
+# fixture is the pin that reddens if anyone does.
+#
+# The `seen` set is seeded with the ROOT and grows with every emitted id, so a cyclic `stacked_on`
+# graph terminates and each descendant is emitted once. A cycle is a data defect the health checks
+# name; a graph walk that hangs the sweep on one is not an acceptable way to report it.
+stack_descendants(){
+  local dir="$1" frontier next seen f id raw_id parent hits
+  case "$2" in (''|*[!0-9]*) return 1 ;; esac
+  frontier=" $(( 10#$2 )) "
+  seen="$frontier"
+  local -a cands=()
+  for f in "$dir"/active/*.md "$dir"/archive/*.md; do
+    [ -f "$f" ] || continue
+    cands+=("$f")
+  done
+  [ "${#cands[@]}" -gt 0 ] || return 0
+  hits="$(grep -l -E -e '^stacked_on:' -- "${cands[@]}" 2>/dev/null)"
+  [ -n "$hits" ] || return 0
+  while [ -n "$frontier" ]; do
+    next=""
+    while IFS= read -r f; do
+      [ -f "$f" ] || continue
+      parent="$(fm_field "$f" stacked_on)"
+      [ -n "$parent" ] || continue
+      case "$parent" in (*[!0-9]*) continue ;; esac
+      parent=$(( 10#$parent ))
+      case "$frontier" in (*" $parent "*) ;; (*) continue ;; esac
+      raw_id="$(field "$f" id)"
+      case "$raw_id" in (''|*[!0-9]*) continue ;; esac
+      id=$(( 10#$raw_id ))
+      case "$seen" in (*" $id "*) continue ;; esac
+      seen="$seen$id "
+      printf '%s\n' "$id"
+      next="$next$id "
+    done <<<"$hits"
+    if [ -n "$next" ]; then frontier=" $next"; else frontier=""; fi
+  done
+}
+
 # stack_effective_base CHANGES_DIR ID INTEGRATION_BRANCH [REMOTE] -> the branch this change is
 # built on, on stdout. Exit 0 resolved, 3 the chain reaches a KILLED parent, 4 the chain is invalid
 # (missing parent, cycle, or a parent whose branch has no remote ref). Nothing is printed on 3 or 4:
