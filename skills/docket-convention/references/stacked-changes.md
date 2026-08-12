@@ -75,9 +75,12 @@ The walk applies four rules, upward from the change:
    remote ref must actually exist: `branch:` is stamped at *claim* and the branch is pushed at the
    *PR* step, so an `in-progress` parent routinely carries a valid-looking name with nothing behind
    it.
-2. **A parent that already merged resolves upward** — a `done` parent, or a `stacked-merged` parent
-   whose branch is gone, contributes no branch, so the answer is whatever *its* base resolves to,
-   recursively, until the walk reaches an unstacked ancestor and lands on the integration branch.
+2. **A parent that already merged contributes no branch** — and *where* it merged decides the
+   answer. A `done` parent's code is on the **integration branch** (that is what `done` means), so
+   that is the base; a still-open grandparent's branch was cut before that merge and lacks the
+   parent's own work. A `stacked-merged` parent whose branch is gone merged into **its parent**
+   instead, so the answer is whatever *its* base resolves to, recursively, until the walk reaches a
+   live branch or an unstacked ancestor.
 3. **A `killed` parent stops the walk.**
 4. **Anything else is invalid** — a missing parent, a cycle, or a parent branch with no remote ref.
 

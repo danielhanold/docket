@@ -141,10 +141,17 @@ stack_descendants(){
 # (missing parent, cycle, or a parent whose branch has no remote ref). Nothing is printed on 3 or 4:
 # a caller that reads stdout and forgets the status must not be handed a plausible-looking base.
 #
-# This is the ONE place spec §3's four rules live. Walking upward rather than answering from the
-# immediate parent alone is what makes rule 2 work at depth: a parent that already merged carries no
-# branch worth basing on, so the answer is whatever ITS base resolves to, recursively, until the walk
-# reaches an unstacked ancestor and lands on the integration branch.
+# This is the ONE place spec §3's four rules live. A parent that already merged carries no branch
+# worth basing on, but WHERE its commits went decides the answer, and the two merge sites part
+# company here:
+#   - `done` — merged into the INTEGRATION BRANCH, by the invariant that `done` means the code is
+#     reachable from there. The integration branch is the answer directly. Walking upward would cut
+#     the child from a grandparent branch that predates the parent's merge and therefore lacks the
+#     parent's own work — and would also strand the child on exit 3 behind a killed grandparent that
+#     the parent's merge has already made irrelevant.
+#   - `stacked-merged` whose branch is gone — merged into ITS PARENT, so its commits really are
+#     inside the grandparent's branch and the answer is whatever ITS base resolves to, recursively,
+#     until the walk reaches a live branch or an unstacked ancestor.
 #
 # WHY THE REMOTE REF IS A CONJUNCT OF RULE 1, not a nicety: `branch:` is stamped into the manifest at
 # CLAIM time, but the branch is not pushed until the PR step. So an `in-progress` parent routinely
@@ -165,7 +172,12 @@ stack_effective_base(){
   status="$(field "$f" status)"
   case "$status" in
     killed) return 3 ;;
-    done)   stack_effective_base "$dir" "$parent" "$integration" "$remote"; return $? ;;
+    # `done` is answered HERE and never by walking upward: the invariant is that a `done` change's
+    # code is reachable from the integration branch (a change merged only into its parent is
+    # `stacked-merged` instead), so that is where the parent's commits are — and a still-open
+    # grandparent's branch, cut before that merge, is precisely where they are NOT. Recursing would
+    # hand the child a base missing its own parent's work, the failure stacking exists to prevent.
+    done)   printf '%s\n' "$integration"; return 0 ;;
   esac
   branch="$(fm_field "$f" branch)"
   # ADDRESSED AT THE CHANGES DIR, never the caller's cwd: the resolver is called from renderers,
