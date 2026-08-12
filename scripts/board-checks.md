@@ -261,6 +261,15 @@ parent is a **scoping decision** (rescope onto the integration branch, re-parent
 or kill the child too) that only a human makes, and spec §9 forbids silently falling back to the
 integration branch on its behalf. Merging the two ids would bury the decision inside a repair queue.
 
+The message names **which** change is killed, which is not always the change's own `stacked_on:`
+value: the resolver recurses through a `stacked-merged` parent whose branch is gone, so exit `3` can
+come from an ancestor several hops up. It reads the id off the resolver's `STACK_KILLED_ANCESTOR`
+side channel — hence the **direct** call rather than a `$(…)` capture, which would discard the
+global with the subshell — and phrases itself accordingly: `stacked on #NNNN, which is killed` when
+the immediate parent is the killed one, and `stacked on #NNNN, whose stacked_on chain reaches killed
+change #MMMM` when it is not. Asserting the immediate parent is killed in the second case would
+point the human at a change that is not.
+
 Both checks are scoped to **non-terminal** changes: a `done` or `killed` change's chain is history,
 and neither re-parenting nor pushing a branch is something anyone can still do about it. Both read
 `stacked_on:` with the **anchored** accessor (the key is optional; ADR-0057), and both come from a

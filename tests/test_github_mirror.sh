@@ -390,5 +390,84 @@ assert "close-reason extractor found exactly 2 mapping arms" \
 assert "issue close-reason case arms are EXACTLY DOCKET_STATUSES_TERMINAL" \
   '[ "$close_reason_labels" = "$expected_terminal" ]'
 
+# === G. A PRE-EXISTING BOARD MISSING AN OPTION ===============================
+# `STATUS_OPTIONS` is spent only at field-CREATE time, inside the auto-create mint path, and `gh`
+# offers no way to add an option to an existing single-select field. So a board minted before a
+# status joined DOCKET_STATUSES_ACTIVE keeps its old option set forever, `proj_option_id` answers
+# empty for the new status, and the item is left on whatever column it last had. That skip is a
+# documented migration limit — but it must be VISIBLE: a status silently not mirrored is a board a
+# human trusts and should not.
+#
+# Driven through a mock that emulates gh's `--jq` for a LEGACY board: it answers an option id for
+# the five pre-0298 statuses and nothing for `stacked-merged`. --dry-run cannot exercise this
+# (proj_option_id short-circuits to DRYOPT), so this section runs the real path.
+legacy="$(mktemp -d "${TMPDIR:-/tmp}/gh-mirror-legacy.XXXXXX")"; mkdir -p "$legacy/active" "$legacy/archive"
+cat > "$legacy/active/0091-still-proposed.md" <<'EOF'
+---
+id: 91
+slug: still-proposed
+title: A change whose status the board already knows
+status: proposed
+priority: medium
+depends_on: []
+issue: 91
+---
+EOF
+cat > "$legacy/active/0092-merged-into-parent.md" <<'EOF'
+---
+id: 92
+slug: merged-into-parent
+title: A change merged into its stack parent
+status: stacked-merged
+priority: medium
+depends_on: []
+issue: 92
+---
+EOF
+legacymock="$legacy/bin"; mkdir -p "$legacymock"
+cat > "$legacymock/gh" <<'EOF'
+#!/usr/bin/env bash
+# Emulates the `--jq` gh applies server-side, over a board whose Docket Status field predates
+# `stacked-merged`: an option id for the legacy five, nothing for anything else.
+echo "MOCKGH $*" >> "$GH_LOG"
+argv="$*"
+case "$argv" in
+  *"project field-list"*)
+    case "$argv" in
+      *'.options[]'*)
+        for opt in proposed in-progress blocked deferred implemented; do
+          case "$argv" in (*"select(.name==\"$opt\")"*) echo "OPT-$opt"; exit 0 ;; esac
+        done
+        exit 0 ;;
+      *) echo "FIELDID"; exit 0 ;;
+    esac ;;
+  *"project view"*) echo "PROJID"; exit 0 ;;
+  *"project item-add"*)
+    n="${argv##*/issues/}"; n="${n%% *}"
+    echo '{"id":"ITEM-'"$n"'"}'; exit 0 ;;
+  *"issue create"*) echo "https://github.com/o/r/issues/4242"; exit 0 ;;
+esac
+exit 0
+EOF
+chmod +x "$legacymock/gh"
+legacylog="$legacy/gh.log"
+legacyerr="$(GH_LOG="$legacylog" GH="$legacymock/gh" bash "$SCRIPT" --changes-dir "$legacy" \
+  --repo o/r --project o/7 2>&1 >/dev/null)"
+legacyrc=$?
+assert "a board missing an option still exits 0 (Projects never aborts a build)" \
+  '[ "'$legacyrc'" -eq 0 ]'
+assert "the status the board DOES know is still written (the section is not vacuous)" \
+  'grep -qF -- "--single-select-option-id OPT-proposed" "'"$legacylog"'"'
+assert "the status the board does NOT know is not written under some other option id" \
+  '[ "$(grep -c -- "--single-select-option-id" "'"$legacylog"'")" = 1 ]'
+# The finding itself: the skip is logged, names the status that is missing and the change it hit.
+assert "the missing option is LOGGED, not silently skipped" \
+  'grep -qF "stacked-merged" <<<"$legacyerr"'
+assert "the missing-option log names the affected change" \
+  'grep -qE "stacked-merged" <<<"$(grep -E "0*92" <<<"$legacyerr")"'
+assert "the missing-option log is not emitted for a status the board knows" \
+  '! grep -qE "proposed.*(option|column)" <<<"$legacyerr"'
+rm -rf "$legacy"
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

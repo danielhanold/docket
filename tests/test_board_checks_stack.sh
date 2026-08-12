@@ -102,6 +102,13 @@ mkchange 74 killed-base proposed 77                    # parent killed
 mkchange 75 well-formed proposed 70                    # resolves to feat/parent
 mkchange 76 unstacked proposed ""                      # carries no stacked_on at all
 
+# The killed change reached across a RECURSIVE hop. 82 is stacked-merged with a branch that was
+# never pushed, so the resolver falls back to its parent's base and lands on killed 77 — one hop up
+# from 83's own `stacked_on:`. 82 is non-terminal, so it reports too, giving both message shapes in
+# a single run.
+mkchange 82 sm-hop stacked-merged 77 feat/gone
+mkchange 83 killed-grandparent proposed 82
+
 out="$(bash "$SCRIPT" --changes-dir "$CD" --metadata-branch docket --integration-branch main 2>/dev/null)"
 
 assert "a missing stacked_on parent is flagged" 'has_finding stack-invalid 71'
@@ -135,7 +142,7 @@ assert "the terminal-scope asserts are not vacuous — the live cases still fire
 
 # The messages carry the remedy, not just the fact. Both name the parent by padded id, because
 # "your chain is broken" without the id is a finding a human has to re-derive by hand.
-killed_line="$(grep -F "stack-parent-killed" <<<"$tout")"
+killed_line="$(grep -F "stack-parent-killed"$'\t'"74" <<<"$tout")"
 invalid_71="$(grep -F "stack-invalid"$'\t'"71" <<<"$tout")"
 assert "the killed-parent message names the parent by padded id" \
   '[ -n "$killed_line" ] && grep -qF -- "#0077" <<<"$killed_line"'
@@ -145,6 +152,22 @@ assert "the invalid message names the parent by padded id" \
   '[ -n "$invalid_71" ] && grep -qF -- "#0099" <<<"$invalid_71"'
 assert "the invalid message names the data repairs" \
   'grep -qF -- "push" <<<"$invalid_71"'
+
+# …and it must not ASSERT that the named parent is the killed one when the kill sits further up.
+# 83's own `stacked_on:` is 82 (stacked-merged, alive); the killed change is 77. A message that
+# says "stacked on #0082, which is killed" points the human at a change that is not killed.
+killed_83="$(grep -F "stack-parent-killed"$'\t'"83" <<<"$tout")"
+assert "the killed-ancestor case is reported at all" '[ -n "$killed_83" ]'
+assert "the killed-ancestor message names the KILLED change, not just the immediate parent" \
+  'grep -qF -- "#0077" <<<"$killed_83"'
+assert "the killed-ancestor message still names the immediate parent as the edge to start from" \
+  'grep -qF -- "#0082" <<<"$killed_83"'
+assert "the killed-ancestor message never asserts the immediate parent is the killed one" \
+  '! grep -qF -- "#0082, which is killed" <<<"$killed_83"'
+# The direct case keeps the plain assertion — it is true there, and generalizing every message to
+# the chain phrasing would make the common finding read as a puzzle.
+assert "the immediate-parent case still states the parent itself is killed" \
+  'grep -qF -- "#0077, which is killed" <<<"$killed_line"'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

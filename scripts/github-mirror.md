@@ -105,8 +105,9 @@ mirrored regardless of Projects status. The Board pass likewise never fails beca
 **Board resolution:**
 - `--project OWNER/NUMBER` — uses the existing board; no create.
 - `--auto-create-project` (with `--project` unset) — mints a private board under the repo owner
-  (or `--project-owner`), seeds a `Docket Status` single-select field with five options:
-  `proposed`, `in-progress`, `blocked`, `deferred`, `implemented`. Prints
+  (or `--project-owner`), seeds a `Docket Status` single-select field with one option per **active**
+  status — the members of `DOCKET_STATUSES_ACTIVE`, joined at `STATUS_OPTIONS`; terminal statuses
+  are expressed by closing the issue, not by a column. Prints
   `project-minted <owner> <number>` to stdout for the Board pass to write into `.docket.yml` on
   the default branch. The script does no git writes.
 - Neither set — skips Projects silently (Issues still mirrored).
@@ -129,6 +130,17 @@ mistake it for a minted board reference.
 adds the issue as a board item via `gh project item-add`, then sets its `Docket Status` option via
 `gh project item-edit --single-select-option-id`. Terminal changes (`done`, `killed`) and changes
 with no issue number are skipped — terminal status is expressed by the closed issue, not a column.
+
+**Migration limit — an option is seeded, never reconciled.** `STATUS_OPTIONS` is spent only at
+field-**create** time, inside the auto-create path. A board minted before a status joined
+`DOCKET_STATUSES_ACTIVE` (as `stacked-merged` did in change 0298) therefore keeps its original
+option set, and no pass adds the new one: `gh project` has no `field-edit`, and adding an option to
+an existing single-select field needs a raw `updateProjectV2Field` mutation that **replaces** the
+whole option set — a hand-rolled write this script declines. Items in that status keep whatever
+column they last had. The skip is **logged to stderr** naming the status, the board, and the first
+change that hit it; the remedy is to add the option to the field on the board by hand (or to let
+`--auto-create-project` mint a fresh board). The same log covers a `field-list` lookup that simply
+failed, which is indistinguishable from a missing option here.
 
 ### Drive loop
 

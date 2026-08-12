@@ -137,9 +137,22 @@ stack_descendants(){
 }
 
 # stack_effective_base CHANGES_DIR ID INTEGRATION_BRANCH [REMOTE] -> the branch this change is
-# built on, on stdout. Exit 0 resolved, 3 the chain reaches a KILLED parent, 4 the chain is invalid
+# built on, on stdout. Exit 0 resolved, 3 the walk reaches a KILLED change, 4 the chain is invalid
 # (missing parent, cycle, or a parent whose branch has no remote ref). Nothing is printed on 3 or 4:
 # a caller that reads stdout and forgets the status must not be handed a plausible-looking base.
+#
+# EXIT 3 DOES NOT MEAN "the immediate parent is killed". Only TWO arms below can produce it: the
+# immediate parent is `killed`, or the `stacked-merged`-with-no-remote-branch fallback recurses and
+# an ancestor up that path is. (`done` is answered in place and never recurses, so a kill above a
+# `done` link cannot reach here at all.) So the killed change may sit any number of
+# `stacked-merged` hops above the caller's own `stacked_on:`, and the resolver publishes WHICH one
+# in the global `STACK_KILLED_ANCESTOR` — canonical and unpadded — cleared on every entry so a
+# resolved call can never hand back a previous call's id. It is a GLOBAL because the exit code is
+# the only other return channel and stdout is reserved for the base; a caller that wants it must
+# therefore call the resolver directly rather than inside `$(…)`, which discards it with the
+# subshell. `scripts/board-checks.sh`'s `stack-parent-killed` message is the consumer that needs
+# it: without the id it can only assert that the change's own parent is killed, which is false
+# across a hop.
 #
 # This is the ONE place spec §3's four rules live. A parent that already merged carries no branch
 # worth basing on, but WHERE its commits went decides the answer, and the two merge sites part
@@ -165,13 +178,18 @@ stack_descendants(){
 stack_effective_base(){
   local dir="$1" id="$2" integration="$3" remote="${4:-origin}" parent f status branch
   local git="${GIT:-git}"
+  # Deliberately NOT `local`: this is the exit-3 side channel described above. Cleared here, at
+  # every entry including each recursive one, so the innermost frame's answer is the one that
+  # survives and no other outcome leaves a stale id behind.
+  STACK_KILLED_ANCESTOR=""
   stack_chain "$dir" "$id" >/dev/null 2>&1 || return 4
   parent="$(stack_parent_id "$dir" "$id")"
   [ -n "$parent" ] || { printf '%s\n' "$integration"; return 0; }
   f="$(stack_find_file "$dir" "$parent")" || return 4
   status="$(field "$f" status)"
+  # shellcheck disable=SC2034  # STACK_KILLED_ANCESTOR is read by callers of this sourced library
   case "$status" in
-    killed) return 3 ;;
+    killed) STACK_KILLED_ANCESTOR="$parent"; return 3 ;;
     # `done` is answered HERE and never by walking upward: the invariant is that a `done` change's
     # code is reachable from the integration branch (a change merged only into its parent is
     # `stacked-merged` instead), so that is where the parent's commits are — and a still-open

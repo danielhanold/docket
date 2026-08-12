@@ -64,7 +64,12 @@ base="$(stack_effective_base "$CHANGES_DIR" "$ID" "$INTEGRATION_BRANCH" "$REMOTE
 rc=$?
 case "$rc" in
   0) printf '%s\n' "$base" ;;
-  3) printf 'stack-base: change %04d is stacked on a KILLED parent — a human must rescope or unstack it, never silently fall back to %s\n' "$ID" "$INTEGRATION_BRANCH" >&2 ;;
+  # A POINTER, never an assertion about the immediate parent: exit 3 can come from an ancestor
+  # several `stacked-merged` hops up, and this call site cannot tell which — the resolver publishes
+  # the id in STACK_KILLED_ANCESTOR, and the `$(…)` that captures the base discards the global with
+  # the subshell. board-checks.sh calls the resolver directly and so can name the change; here the
+  # honest form is the chain. Naming a "parent" would send a human to a change that is not killed.
+  3) printf 'stack-base: change %04d has no resolvable base — its stacked_on chain reaches a KILLED change; a human must rescope or unstack it, never silently fall back to %s\n' "$ID" "$INTEGRATION_BRANCH" >&2 ;;
   4) printf 'stack-base: change %04d has no resolvable base — its stacked_on chain names a missing parent, closes a cycle, or reaches a parent whose branch is not on %s\n' "$ID" "$REMOTE" >&2 ;;
   *) printf 'stack-base: unexpected resolver status %s for change %04d\n' "$rc" "$ID" >&2 ;;
 esac
