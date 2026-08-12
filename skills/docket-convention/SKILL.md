@@ -234,7 +234,7 @@ change: 4                 # back-link: the change that produced this decision, i
 
 An `Accepted` ADR is immutable except its `status:` line; a non-reversing context change is appended as a dated `## Update` note, never an edit to the decision. A reversal/supersession is always a **new** ADR.
 
-### Lifecycle — eight states
+### Lifecycle
 
 ```
                          ┌──────────────── deferred ──────────────┐
@@ -355,7 +355,7 @@ a no-op **read/write gate, never a purge** — existing files stay byte-untouche
 
 ### GitHub board mirror (shared definition)
 
-The `github` board surface mirrors each change to one GitHub issue (and one Projects v2 item) — **strictly one-way**: change files are the source of truth, the mirror is derived output that is **never read back**. It rides in the Board pass (`docket-status`) and is **best-effort** (self-heals next pass; never aborts a build); its external writes are owned by the deterministic `github-mirror.sh`, never agent-constructed `gh` calls. **Full mechanics — the `issue:` upsert, the `docket:` label namespace, the status→issue mapping across all eight states, the issue body, and Projects v2 — are in [`github-board-mirror.md`](github-board-mirror.md); read it when `board_surfaces` includes `github`.**
+The `github` board surface mirrors each change to one GitHub issue (and one Projects v2 item) — **strictly one-way**: change files are the source of truth, the mirror is derived output that is **never read back**. It rides in the Board pass (`docket-status`) and is **best-effort** (self-heals next pass; never aborts a build); its external writes are owned by the deterministic `github-mirror.sh`, never agent-constructed `gh` calls. **Full mechanics — the `issue:` upsert, the `docket:` label namespace, the status→issue mapping across every lifecycle status, the issue body, and Projects v2 — are in [`github-board-mirror.md`](github-board-mirror.md); read it when `board_surfaces` includes `github`.**
 
 **Derived-view script family.** The deterministic scripts producing derived views from the change files, each the sole writer of its output (the ADR-0012 script-vs-model boundary): `board-refresh.sh` (the gated `inline` board writer, wrapping the pure renderer `render-board.sh`), `github-mirror.sh` (the GitHub Issues/Projects mirror), `render-change-links.sh` (per-change `## Artifacts` link-block renderer; offline-safe) — called immediately after every frontmatter field write — and `render-artifact-backlink.sh` (the reciprocal per-artifact `docket:backlink` renderer; offline-safe) — called by the skills/close-out that write each artifact.
 
