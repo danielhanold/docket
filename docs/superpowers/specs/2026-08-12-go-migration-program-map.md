@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0303 — Go migration program record and Bash-backlog disposition](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0303-go-migration-program-record-and-bash-backlog-disposition.md)**
+> ↩ **[Change 0303 — Go migration program record and Bash-backlog disposition](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md)**
 <!-- docket:backlink:end -->
 
 # Docket Go Migration Program Map

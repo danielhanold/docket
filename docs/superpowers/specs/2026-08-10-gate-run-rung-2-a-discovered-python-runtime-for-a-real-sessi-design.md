@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0285 — gate-run rung 2 — a discovered Python runtime for a real session and an exact child status](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md)**
+> ↩ **[Change 0285 — gate-run rung 2 — a discovered Python runtime for a real session and an exact child status](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-12-0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md)**
 <!-- docket:backlink:end -->
 
 # gate-run rung 2 — a discovered Python runtime — design
