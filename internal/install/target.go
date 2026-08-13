@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -19,6 +20,13 @@ type Target struct {
 	BlockName  string // KindManagedBlock: marker name ("dispatch")
 	Annotation string // KindManagedBlock: start-marker annotation
 	Role       string
+	// Mode overrides the permissions an applied KindFile target is published
+	// with. Zero means "the installer's policy": the mode an updated file
+	// already had, else 0o644. It exists for the one target whose usefulness
+	// IS its mode — the development install's own binary, which has to be
+	// executable however the destination was found. Asset payloads never set
+	// it: the bundle's only policy mode is 0o644.
+	Mode os.FileMode
 }
 
 // Disposition is what applying a target would do to what is on disk now.

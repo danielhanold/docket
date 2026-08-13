@@ -46,6 +46,12 @@ type TargetRecord struct {
 	SHA256     string     `json:"sha256,omitempty"`      // file: whole file; managed-block: block interior
 	BlockName  string     `json:"block_name,omitempty"`  // managed-block only, e.g. "dispatch"
 	Role       string     `json:"role"`                  //
+	// Harness attributes the target to the harness whose planner produced it.
+	// It is what makes a scoped run a scope rather than an uninstall: a run
+	// that plans for one harness prunes only that harness's stale targets and
+	// carries every other harness's records through untouched. An empty value
+	// is attributed to no harness and is therefore never pruned.
+	Harness string `json:"harness,omitempty"`
 }
 
 // State is the published installation record at <DataRoot>/state/install.json.
