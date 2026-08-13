@@ -13,6 +13,12 @@ fixture subdirectory added later extends it with one line below.
 - `agents-harness-defaults.yml` — byte-exact copy of `agents/harness-defaults.yml`
   (the final v0.9.2 shipped agent defaults) plus the configuration-only fixtures
   of change 0305; no redaction.
+- `documents/` — five byte-exact real records for change 0306's document-layer
+  compatibility corpus: three from tag `v0.9.2` (archived change 0298, ADR 0092,
+  the 0298 plan with its backlink block) and two from the `docket` metadata
+  branch at commit `6d34592c` (active change 0158, learning finding
+  `frontmatter-anchored-read`), which is where active changes and learnings
+  live; no redaction.
 
 The repository fixtures below were authored for change 0305 against the v0.9.2
 configuration surface — hand-written, not captured from a live repository, with
