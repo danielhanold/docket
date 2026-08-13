@@ -13,12 +13,12 @@ related: []
 discovered_from: [303]
 adrs: []
 spec: docs/superpowers/specs/2026-08-13-go-executable-json-protocol-test-build-skeleton-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-13-go-executable-json-protocol-test-build-skeleton.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/go-executable-json-protocol-test-build-skeleton
-claimed_at: 2026-08-13T11:01:38Z
+claimed_at: 2026-08-13T11:19:00Z
 pr:
 blocked_by:
 reconciled: true
@@ -30,6 +30,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-13-go-executable-json-protocol-test-build-skeleton-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-13-go-executable-json-protocol-test-build-skeleton-design.md) |
+| Plan | [2026-08-13-go-executable-json-protocol-test-build-skeleton.md](https://github.com/danielhanold/docket/blob/feat/go-executable-json-protocol-test-build-skeleton/docs/superpowers/plans/2026-08-13-go-executable-json-protocol-test-build-skeleton.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
