@@ -61,10 +61,6 @@ func newWorld(t *testing.T, harnessDirs ...string) *world {
 	if err != nil {
 		t.Fatalf("ResolveRoots: %v", err)
 	}
-	// A published version tree is sealed read-only, which is exactly what stops
-	// t.TempDir from cleaning up after itself. Reopening runs before the
-	// TempDir removal because cleanups run last-registered-first.
-	t.Cleanup(func() { makeWritableTree(t, data) })
 	return &world{t: t, home: home, data: data, roots: roots}
 }
 
@@ -1007,7 +1003,6 @@ func TestCheckDetectsMissingVersionTree(t *testing.T) {
 		t.Fatalf("Install: %v", out.Err)
 	}
 	tree := filepath.Dir(w.roots.VersionDir(embeddedCatalog(t).Manifest.AssetSetID))
-	makeWritableTree(t, tree)
 	if err := os.RemoveAll(tree); err != nil {
 		t.Fatalf("removing the version tree: %v", err)
 	}
@@ -1017,18 +1012,4 @@ func TestCheckDetectsMissingVersionTree(t *testing.T) {
 	if out.Reason != install.ReasonInstallationDrift {
 		t.Fatalf("reason = %q, want %q (err %v)", out.Reason, install.ReasonInstallationDrift, out.Err)
 	}
-}
-
-// makeWritableTree reopens a sealed version tree so a test can dismantle it.
-func makeWritableTree(t *testing.T, root string) {
-	t.Helper()
-	_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			_ = os.Chmod(p, 0o700)
-		}
-		return nil
-	})
 }

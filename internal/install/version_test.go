@@ -94,9 +94,10 @@ func poisonedOpen(t *testing.T) func(string) ([]byte, error) {
 	}
 }
 
-// versionRoots builds roots under a temp home and arranges for the read-only
-// version tree to be made writable again before the temp dir is removed —
-// otherwise the extraction's own 0o555 directories defeat the test cleanup.
+// versionRoots builds roots under a temp home. No cleanup fixup is needed: the
+// published tree seals its files, never its directories, so t.TempDir can
+// remove it unaided — TestPublishedVersionTreeIsRemovable is the assertion that
+// keeps that true.
 func versionRoots(t *testing.T) UserRoots {
 	t.Helper()
 	home := t.TempDir()
@@ -107,22 +108,7 @@ func versionRoots(t *testing.T) UserRoots {
 	if err != nil {
 		t.Fatalf("ResolveRoots: %v", err)
 	}
-	t.Cleanup(func() { makeWritable(roots.DataRoot) })
 	return roots
-}
-
-func makeWritable(root string) {
-	_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			_ = os.Chmod(p, 0o700)
-		} else {
-			_ = os.Chmod(p, 0o600)
-		}
-		return nil
-	})
 }
 
 // ---------------------------------------------------------------------------
@@ -164,14 +150,15 @@ func TestEnsureVersionTreeExtractsAndVerifies(t *testing.T) {
 	}
 
 	// Every directory the extraction created, including the one holding a
-	// nested skill file, must be read-only too.
+	// nested skill file, lands on the normalized mode — writable, so the tree
+	// stays removable, and explicit, so the process umask cannot narrow it.
 	for _, d := range []string{dir, filepath.Join(dir, "skills", "docket-build", "refs")} {
 		info, err := os.Lstat(d)
 		if err != nil {
 			t.Fatalf("Lstat(%s): %v", d, err)
 		}
-		if perm := info.Mode().Perm(); perm != 0o555 {
-			t.Errorf("directory %s has mode %o, want 555", d, perm)
+		if perm := info.Mode().Perm(); perm != 0o755 {
+			t.Errorf("directory %s has mode %o, want 755", d, perm)
 		}
 	}
 
@@ -187,6 +174,28 @@ func TestEnsureVersionTreeExtractsAndVerifies(t *testing.T) {
 	}
 	if reusedDir != dir {
 		t.Errorf("reuse returned %s, want %s", reusedDir, dir)
+	}
+}
+
+// A published tree is immutable in its *bytes*, not in its existence: the user
+// still has to be able to delete a superseded version with a plain rm -rf, and
+// the installer's own cleanup paths rely on the same thing. Sealed directories
+// would refuse to give up their children and make both impossible.
+func TestPublishedVersionTreeIsRemovable(t *testing.T) {
+	roots := versionRoots(t)
+	payload := samplePayload()
+	m := sampleManifest(t, payload)
+
+	dir, _, err := EnsureVersionTree(roots, m, openFrom(payload))
+	if err != nil {
+		t.Fatalf("EnsureVersionTree: %v", err)
+	}
+	versionRoot := filepath.Dir(dir)
+	if err := os.RemoveAll(versionRoot); err != nil {
+		t.Fatalf("removing a published version tree: %v", err)
+	}
+	if _, err := os.Lstat(versionRoot); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("%s survived removal: Lstat returned %v", versionRoot, err)
 	}
 }
 
@@ -288,37 +297,24 @@ func TestEnsureVersionTreeRejectsInvalidManifest(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Tree mutation helpers — the version tree is read-only by design, so a test
-// that tampers with it has to open the permissions itself.
+// Tree mutation helpers — a published tree's files are read-only, so replacing
+// one means unlinking it first. Its directories are not, which is why no
+// permission fixup appears here.
 // ---------------------------------------------------------------------------
 
 func writeIntoTree(t *testing.T, dir, rel, content string) {
 	t.Helper()
 	full := filepath.Join(dir, filepath.FromSlash(rel))
-	parent := filepath.Dir(full)
-	if err := os.Chmod(parent, 0o700); err != nil {
-		t.Fatalf("Chmod(%s): %v", parent, err)
-	}
 	_ = os.Remove(full)
 	if err := os.WriteFile(full, []byte(content), 0o444); err != nil {
 		t.Fatalf("WriteFile(%s): %v", full, err)
-	}
-	if err := os.Chmod(parent, 0o555); err != nil {
-		t.Fatalf("Chmod(%s): %v", parent, err)
 	}
 }
 
 func removeFromTree(t *testing.T, dir, rel string) {
 	t.Helper()
 	full := filepath.Join(dir, filepath.FromSlash(rel))
-	parent := filepath.Dir(full)
-	if err := os.Chmod(parent, 0o700); err != nil {
-		t.Fatalf("Chmod(%s): %v", parent, err)
-	}
 	if err := os.Remove(full); err != nil {
 		t.Fatalf("Remove(%s): %v", full, err)
-	}
-	if err := os.Chmod(parent, 0o555); err != nil {
-		t.Fatalf("Chmod(%s): %v", parent, err)
 	}
 }
