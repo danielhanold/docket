@@ -33,10 +33,10 @@ EXPECTED_TOTAL=1815 # the sum of every ceiling, seeded with the table from the m
                     # no existing shard could take it: every other file in the table drives Bash
                     # scripts. Readings 13/12/12s standalone serial
                     # (scripts/run-tests.sh -j 1 --timings PATH), and the worst, 13, sizes it at 20
-                    # — next multiple of 5 is 15, plus the 5s margin. Those readings are already
-                    # COLD-CACHE ones: the runner gives every job a private HOME, so `go` re-fetches
-                    # and recompiles per suite run. Its rationale is in the tsv header beside the
-                    # row.
+                    # — next multiple of 5 is 15, plus the 5s margin. Those readings are COLD-CACHE
+                    # ones; change 0304's review pinned the Go caches to a stable per-checkout
+                    # location, so a warm run measures 2s and the ceiling keeps that as headroom.
+                    # Its rationale is in the tsv header beside the row.
                     # Recomputed from the table itself, never hand-adjusted:
                     #   awk -F'\t' '!/^#/ && NF>=2 {s+=$2} END{print s}' tests/runtime-budgets.tsv
                     # 1785 -> 1795 (change 0298): tests/test_board_checks_stack.sh, a NEW test file

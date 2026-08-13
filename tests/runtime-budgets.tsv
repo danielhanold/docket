@@ -123,13 +123,13 @@
 # approved target tuples. Sized per this header's rule from standalone serial readings, one session,
 # one machine, as `scripts/run-tests.sh -j 1 --timings PATH tests/test_go_toolchain.sh`:
 #   13  12  12  -> worst 13
-# Note what dominates that number: scripts/run-tests.sh gives every job a PRIVATE HOME, so `go`
-# finds neither a module cache nor a build cache and re-fetches and recompiles on every suite run.
-# The reading is therefore a cold-cache one already, and a warm-cache environment can only come in
-# under it. Next multiple of 5 above 13 is 15, plus the 5s margin -> 20, leaving 8s of margin over
-# the 12s readings. EXPECTED_TOTAL moves 1795 -> 1815. The file exports `-modcacherw` for a reason
-# recorded in its own header: without it Go's read-only module cache defeats the runner's `rm -rf`
-# of its work directory.
+# Note what dominates that number: those readings are COLD-CACHE ones. Next multiple of 5 above 13
+# is 15, plus the 5s margin -> 20, leaving 8s of margin over the 12s readings. EXPECTED_TOTAL moves
+# 1795 -> 1815. Change 0304's review then pinned GOMODCACHE/GOCACHE to a stable per-checkout
+# location (the file's own CACHES header has the rationale), so only the first run after a fresh
+# clone is cold: re-measured at 12s cold and 2s warm, same command. The ceiling STAYS AT 20 — this
+# header sizes from the worst standalone serial reading, and a cold cache is still reachable on any
+# fresh clone or CI image. The extra margin is headroom, not slack to reclaim.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
