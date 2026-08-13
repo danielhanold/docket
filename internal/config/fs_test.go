@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -139,6 +140,38 @@ func TestLoadRepoDirRequired(t *testing.T) {
 
 	if _, err := LoadFilesystemSources(FSOptions{}); err == nil {
 		t.Fatal("want an error for an empty RepoDir, got nil")
+	}
+}
+
+// A repository directory that does not exist must not resolve as "every layer
+// absent": that reports a valid, mutation-allowed configuration for a
+// repository that is not there.
+func TestLoadRepoDirMustExist(t *testing.T) {
+	pinEnv(t)
+	missing := filepath.Join(t.TempDir(), "no-such-repo")
+
+	_, err := LoadFilesystemSources(FSOptions{RepoDir: missing})
+	if err == nil {
+		t.Fatal("want an error for a nonexistent RepoDir, got nil")
+	}
+	if !strings.Contains(err.Error(), missing) {
+		t.Errorf("error %q does not name the path %q", err, missing)
+	}
+}
+
+// A --repo-dir pointing at a FILE fails with ENOTDIR deep inside the read loop
+// otherwise; it must fail the same way a nonexistent directory does.
+func TestLoadRepoDirMustBeDirectory(t *testing.T) {
+	pinEnv(t)
+	file := filepath.Join(t.TempDir(), "not-a-dir")
+	writeFile(t, file, "")
+
+	_, err := LoadFilesystemSources(FSOptions{RepoDir: file})
+	if err == nil {
+		t.Fatal("want an error for a RepoDir that is a file, got nil")
+	}
+	if !strings.Contains(err.Error(), file) {
+		t.Errorf("error %q does not name the path %q", err, file)
 	}
 }
 

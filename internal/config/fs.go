@@ -27,6 +27,22 @@ func LoadFilesystemSources(opts FSOptions) ([]Source, error) {
 	}
 	repoDir = filepath.Clean(repoDir)
 
+	// A repository directory that is not there must not resolve as "every file
+	// layer absent": that reports a valid, mutation-allowed configuration for a
+	// repository that does not exist. Stat it once, up front, so a typo and a
+	// path that names a file both fail the same way — os.ReadFile alone would
+	// treat the first as absent layers and the second as an ENOTDIR read error.
+	info, err := os.Stat(repoDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("config: repository directory %q does not exist", repoDir)
+		}
+		return nil, fmt.Errorf("config: inspecting repository directory %q: %w", repoDir, err)
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("config: repository directory %q is not a directory", repoDir)
+	}
+
 	globalPath := opts.GlobalPath
 	if globalPath == "" {
 		globalPath = defaultGlobalPath()
