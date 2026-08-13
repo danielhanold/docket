@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
@@ -100,6 +101,35 @@ func diagPathSet(snap *Snapshot, code string) map[string]bool {
 		out[path] = true
 	}
 	return out
+}
+
+// assertFrozenCopyMatchesLive is the drift signal for a frozen fixture that is
+// a byte copy of a file this repository still maintains. Without it the
+// correspondence runs one way — the tests pin themselves to the copy, and the
+// live original is free to move without reddening anything.
+//
+// The frozen tree is an immutable input (testdata/README.md), so a failure here
+// is NEVER repaired by editing the copy: a legitimately changed live file means
+// a new versioned fixture tree, cut together with whatever the frozen copy
+// feeds. That instruction is what `remedy` carries.
+//
+// Both paths are relative to this package's directory, which is the working
+// directory of a `go test` run.
+func assertFrozenCopyMatchesLive(t *testing.T, frozenPath, livePath, remedy string) {
+	t.Helper()
+	frozen, err := os.ReadFile(filepath.FromSlash(frozenPath))
+	if err != nil {
+		t.Fatalf("reading the frozen copy %s: %v", frozenPath, err)
+	}
+	live, err := os.ReadFile(filepath.FromSlash(livePath))
+	if err != nil {
+		t.Fatalf("reading the live original %s: %v", livePath, err)
+	}
+	if !bytes.Equal(frozen, live) {
+		t.Errorf("the live %s no longer matches its frozen copy %s.\n"+
+			"Do NOT edit the frozen copy: testdata/repositories/v0.9.2/ is an immutable input.\n"+
+			"%s", livePath, frozenPath, remedy)
+	}
 }
 
 func assertSameStrings(t *testing.T, what string, got, want []string) {
@@ -451,9 +481,16 @@ func TestFixtureFencedMachineKeys(t *testing.T) {
 
 // TestFixtureDocketSelf: this repository's own committed .docket.yml plus a
 // global layer requesting auto-capture — the four-blocker envelope docket
-// currently runs under. The fixture is a byte copy, so this test is the one
-// that notices when docket's own configuration starts asking for something new.
+// currently runs under. The expectations below are read off the FROZEN copy, so
+// they are only about docket's own live configuration for as long as the copy
+// still matches it: the byte-equality assert is what keeps that true, reddening
+// when the live .docket.yml starts asking for something new.
 func TestFixtureDocketSelf(t *testing.T) {
+	assertFrozenCopyMatchesLive(t,
+		filepath.Join(fixtureRoot, "docket-self", "repo", ".docket.yml"),
+		"../../.docket.yml",
+		"docket's own configuration changed: cut a NEW versioned fixture tree from the current .docket.yml and re-derive this test's expectations (test_command, the blocker set, and each blocker's layer) against it.")
+
 	snap := mustResolveFixture(t, "docket-self")
 
 	if snap.Effective.MetadataBranch.Value != "docket" {

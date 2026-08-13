@@ -10,10 +10,14 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// sidecarPath is the frozen byte-exact copy of agents/harness-defaults.yml.
-// The frozen tree is an immutable input (testdata/README.md): this test only
-// reads it.
-const sidecarPath = "../../testdata/repositories/v0.9.2/agents-harness-defaults.yml"
+// sidecarPath is the frozen byte-exact copy of agents/harness-defaults.yml, and
+// liveSidecarPath is the original it was cut from — the file sync-agents
+// actually ships. The frozen tree is an immutable input (testdata/README.md):
+// these tests only read both files.
+const (
+	sidecarPath     = "../../testdata/repositories/v0.9.2/agents-harness-defaults.yml"
+	liveSidecarPath = "../../agents/harness-defaults.yml"
+)
 
 // sidecarDoc is the shipped-defaults file's shape: harness → agent short name
 // → model/effort pair.
@@ -33,7 +37,15 @@ type pair struct{ Model, Effort string }
 // (harness, agent) pair present in both, models equal, and efforts equal —
 // where the sidecar says `auto` the Go table must hold "". Vendor-ID VALIDITY
 // is deliberately not asserted: that oracle lives outside the repo.
+//
+// The parity is against the FROZEN copy, which pins the Go table to a snapshot
+// rather than to what sync-agents ships today. The byte-equality assert closes
+// that gap: an edit to the live sidecar reddens here instead of silently
+// diverging the built-ins from the shipped defaults.
 func TestBuiltinAgentsParityWithFrozenSidecar(t *testing.T) {
+	assertFrozenCopyMatchesLive(t, sidecarPath, liveSidecarPath,
+		"The shipped agent defaults changed: the Go built-in table in defaults.go and a NEW versioned fixture tree cut from the current agents/harness-defaults.yml must move together.")
+
 	data, err := os.ReadFile(filepath.FromSlash(sidecarPath))
 	if err != nil {
 		t.Fatalf("reading the frozen sidecar: %v", err)
