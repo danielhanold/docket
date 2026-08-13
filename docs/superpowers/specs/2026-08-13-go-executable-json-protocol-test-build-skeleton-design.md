@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0304 — Go executable, JSON protocol, and test/build skeleton](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0304-go-executable-json-protocol-test-build-skeleton.md)**
+> ↩ **[Change 0304 — Go executable, JSON protocol, and test/build skeleton](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-13-0304-go-executable-json-protocol-test-build-skeleton.md)**
 <!-- docket:backlink:end -->
 
 # Go executable, JSON protocol, and test/build skeleton
