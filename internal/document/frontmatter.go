@@ -2,6 +2,7 @@ package document
 
 import (
 	"bytes"
+	"reflect"
 	"regexp"
 
 	"go.yaml.in/yaml/v3"
@@ -127,6 +128,14 @@ func locateFields(src []byte, lines []sourceLine, open, closing Span, root *yaml
 		entry := Span{lines[startLine].span.Start, lines[endLine-1].span.End}
 		value := locateValueToken(src, lines[startLine], names[k])
 		shape := classifyShape(root, names[k], endLine-1 == startLine, value.Start < value.End)
+		// Fail-closed defense in depth: a patchable shape means a patch will
+		// REPLACE these exact bytes, so the bytes must be the whole value and
+		// nothing but the value. The byte locator is a lexical approximation of
+		// YAML's own scanner; where the two disagree, refuse the field.
+		if shape != ShapeUnsupported && shape != ShapeEmpty &&
+			!spanAgreesWithSemantics(src[value.Start:value.End], mappingValue(root, names[k])) {
+			shape = ShapeUnsupported
+		}
 		fields = append(fields, Field{Name: names[k], Entry: entry, Value: value, Shape: shape})
 	}
 
@@ -208,10 +217,20 @@ func locateValueToken(src []byte, ln sourceLine, name string) Span {
 // comment only when it is outside a quoted scalar and preceded by whitespace or
 // nothing — YAML's own rule.
 //
-// Quote state opens only where a scalar may legally begin: at the region start
-// or just after a '[' or ',' in a flow collection. That distinction is what
-// keeps the apostrophe in "title: don't stop # x" from swallowing the comment
-// while still shielding "tags: ['a # b']".
+// Quote state opens only where a scalar may legally begin: at the region start,
+// or after one of the flow indicators that separate entries inside a flow
+// collection — '[', '{', ',' and ':'. That distinction is what keeps the
+// apostrophe in "title: don't stop # x" from swallowing the comment while still
+// shielding "tags: ['a # b']" and "adrs: [{'a # b': 1}]".
+//
+// ',' and ':' re-open only at flow depth, because outside a flow collection
+// both are ordinary plain-scalar bytes: in "title: a:'b # c'" YAML reads the
+// value as the plain scalar "a:'b" and the rest as a comment, and a scanner
+// that re-opened after that ':' would run the span to end of line.
+//
+// The scanner is a lexical approximation, not YAML's parser, so it can still
+// mis-span an adversarial plain scalar that embeds a flow indicator (see
+// spanAgreesWithSemantics, which fails such a field closed).
 func commentStart(src []byte, start, end int) int {
 	const (
 		outside = iota
@@ -220,6 +239,7 @@ func commentStart(src []byte, start, end int) int {
 	)
 	state := outside
 	canOpenScalar := true
+	flowDepth := 0
 	for i := start; i < end; i++ {
 		b := src[i]
 		switch state {
@@ -249,7 +269,20 @@ func commentStart(src []byte, start, end int) int {
 			case b == '"' && canOpenScalar:
 				state = inDouble
 			}
-			canOpenScalar = b == '[' || b == ','
+			switch b {
+			case '[', '{':
+				flowDepth++
+				canOpenScalar = true
+			case ']', '}':
+				if flowDepth > 0 {
+					flowDepth--
+				}
+				canOpenScalar = false
+			case ',', ':':
+				canOpenScalar = flowDepth > 0
+			default:
+				canOpenScalar = false
+			}
 		}
 	}
 	return end
@@ -290,6 +323,51 @@ func classifyShape(root *yaml.Node, name string, singleLine, hasToken bool) Fiel
 		return ShapeUnsupported
 	}
 	return ShapeUnsupported // mapping, alias, or anything else
+}
+
+// spanAgreesWithSemantics reports whether the bytes the locator picked out as a
+// field's value parse, on their own, to the very value the semantic tree holds
+// for that field. A truncated span ("[{'a" cut out of "[{'a # b': 1}]") either
+// fails to parse or decodes to something else, and either way the field is
+// refused rather than handed to a patch that would replace only part of it.
+func spanAgreesWithSemantics(span []byte, node *yaml.Node) bool {
+	if node == nil {
+		return false
+	}
+	var spanNode yaml.Node
+	if err := yaml.Unmarshal(span, &spanNode); err != nil {
+		return false
+	}
+	// A comment inside the span means the span reaches past the value: patching
+	// it would silently delete the user's comment even where the decoded values
+	// agree, because YAML discards comments on the way to a value.
+	if nodeCarriesComment(&spanNode) {
+		return false
+	}
+	var fromSpan, fromNode any
+	if err := spanNode.Decode(&fromSpan); err != nil {
+		return false
+	}
+	if err := node.Decode(&fromNode); err != nil {
+		return false
+	}
+	return reflect.DeepEqual(fromSpan, fromNode)
+}
+
+// nodeCarriesComment reports whether any node in the tree holds a comment.
+func nodeCarriesComment(n *yaml.Node) bool {
+	if n == nil {
+		return false
+	}
+	if n.HeadComment != "" || n.LineComment != "" || n.FootComment != "" {
+		return true
+	}
+	for _, child := range n.Content {
+		if nodeCarriesComment(child) {
+			return true
+		}
+	}
+	return false
 }
 
 // mappingValue returns the value node of the first entry keyed by name.
