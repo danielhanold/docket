@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0306 — Loss-preserving document layer](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0306-loss-preserving-document-layer.md)**
+> ↩ **[Change 0306 — Loss-preserving document layer](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-13-0306-loss-preserving-document-layer.md)**
 <!-- docket:backlink:end -->
 
 # Loss-Preserving Document Layer Implementation Plan
