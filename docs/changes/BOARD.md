@@ -1,8 +1,8 @@
 # Backlog
 
-**318 changes** — 🟡 53 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 180 done · 🗑️ 80 killed
+**319 changes** — 🟡 54 proposed · ⚪ 4 deferred · ✅ 181 done · 🗑️ 80 killed
 
-## 🟡 Proposed (53)
+## 🟡 Proposed (54)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -45,20 +45,21 @@
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
-| [0305](active/0305-configuration-and-capability-envelope.md) | Configuration and capability envelope | `critical` | `feat` | ⏳ waiting on #304 — needs your merge |
-| [0306](active/0306-loss-preserving-document-layer.md) | Loss-preserving document layer | `critical` | `feat` | ⏳ waiting on #304 — needs your merge |
+| [0305](active/0305-configuration-and-capability-envelope.md) | Configuration and capability envelope | `critical` | `feat` | needs-brainstorm |
+| [0306](active/0306-loss-preserving-document-layer.md) | Loss-preserving document layer | `critical` | `feat` | needs-brainstorm |
 | [0307](active/0307-domain-snapshot-validation-graphs-and-selection.md) | Domain snapshot, validation, graphs, and selection | `critical` | `feat` | ⏳ waiting on #305 — not yet built |
-| [0308](active/0308-git-adapter-and-authoritative-object-source.md) | Git adapter and authoritative object source | `critical` | `feat` | ⏳ waiting on #304 — needs your merge |
+| [0308](active/0308-git-adapter-and-authoritative-object-source.md) | Git adapter and authoritative object source | `critical` | `feat` | needs-brainstorm |
 | [0309](active/0309-isolated-metadata-transaction-engine.md) | Isolated metadata transaction engine | `critical` | `feat` | ⏳ waiting on #307 — not yet built |
 | [0310](active/0310-read-only-status-and-health-vertical-slice.md) | Read-only status and health vertical slice | `critical` | `feat` | ⏳ waiting on #307 — not yet built |
-| [0311](active/0311-installer-embedded-assets-and-four-harnesses.md) | Installer, embedded assets, and four first-class harnesses | `critical` | `feat` | ⏳ waiting on #304 — needs your merge |
+| [0311](active/0311-installer-embedded-assets-and-four-harnesses.md) | Installer, embedded assets, and four first-class harnesses | `critical` | `feat` | ⏳ waiting on #305 — not yet built |
 | [0312](active/0312-planning-mutations-board-and-adrs.md) | Planning mutations, inline board, and ADRs | `critical` | `feat` | ⏳ waiting on #309 — not yet built |
 | [0313](active/0313-workspaces-github-pr-adapter-and-build-evidence.md) | Workspaces, GitHub PR adapter, and build evidence | `critical` | `feat` | ⏳ waiting on #308 — not yet built |
-| [0314](active/0314-native-process-supervisor-and-local-gate.md) | Native process supervisor and local gate | `critical` | `feat` | ⏳ waiting on #304 — needs your merge |
+| [0314](active/0314-native-process-supervisor-and-local-gate.md) | Native process supervisor and local gate | `critical` | `feat` | needs-brainstorm |
 | [0315](active/0315-claim-to-implemented-workflow.md) | Claim-to-implemented agent workflow | `critical` | `feat` | ⏳ waiting on #312 — not yet built |
 | [0316](active/0316-finalize-recovery-reclaim-archive-and-stacks.md) | Finalize, recovery, reclaim, archive, and stacks | `critical` | `feat` | ⏳ waiting on #315 — not yet built |
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | ⏳ waiting on #311 — not yet built |
 | [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Configuration contraction, self-hosting, and hard cutover | `critical` | `refactor` | ⏳ waiting on #317 — not yet built |
+| [0319](active/0319-test-bash-runtime-routing-sh-s-inventory-assert-is-cwd-depen.md) | test_bash_runtime_routing.sh's inventory assert is cwd-dependent — relative rg globs resolve against the process cwd | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -68,12 +69,6 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0304](active/0304-go-executable-json-protocol-test-build-skeleton.md) | Go executable, JSON protocol, and test/build skeleton | `critical` | `feat` | [#204](https://github.com/danielhanold/docket/pull/204) |  |
 
 ```mermaid
 graph TD
@@ -120,7 +115,6 @@ graph TD
   0300
   0301
   0302
-  0304
   0304 --> 0305
   0304 --> 0306
   0305 --> 0307
@@ -144,15 +138,18 @@ graph TD
   0311 --> 0317
   0316 --> 0317
   0317 --> 0318
+  0319
   0192:::done
   0211:::done
+  0304:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (260)</summary>
+<details><summary>✅🗑️ Archive — done + killed (261)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0304](archive/2026-08-13-0304-go-executable-json-protocol-test-build-skeleton.md) | Go executable, JSON protocol, and test/build skeleton | 2026-08-13 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
 | [0299](archive/2026-08-12-0299-reshard-tests-test-sync-agents-runners-so-every-file-measure.md) | Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling | 2026-08-12 |
 | [0298](archive/2026-08-12-0298-stacked-changes-build-a-new-change-on-top-of-a-parent-change.md) | Stacked changes — build a new change on top of a parent change's branch | 2026-08-12 |
@@ -173,7 +170,6 @@ graph TD
 | [0278](archive/2026-08-09-0278-test-docket-example-yml-s-fidelity-fixture-goes-intermittent.md) | test_docket_example_yml's fidelity fixture goes intermittently red under parallel contention | 2026-08-09 |
 | [0276](archive/2026-08-09-0276-dummy-mode.md) | Dummy mode — persona-calibrated human-facing language simplification | 2026-08-09 |
 | [0274](archive/2026-08-09-0274-runner-dispatch-s-value-taking-flags-hang-instead-of-abortin.md) | runner-dispatch's value-taking flags hang instead of aborting when given with no value | 2026-08-09 |
-| [0271](archive/2026-08-09-0271-runner-delegation-has-no-execution-posture-for-a-child-that.md) | Runner delegation has no execution posture for a child that outlives its foreground call | 2026-08-09 |
 | [0267](archive/2026-08-09-0267-correct-the-stale-field-quote-handling-claim-in-script-contr.md) | Correct the stale field() quote-handling claim in script contracts | 2026-08-09 |
 | [0262](archive/2026-08-09-0262-ban-the-single-backslash-word-boundary-form-too-not-just-its.md) | Ban the single-backslash word-boundary form too, not just its escaped spelling | 2026-08-09 |
 | [0243](archive/2026-08-07-0243-make-test-suite-git-fixture-setup-fail-loudly-instead-of-fla.md) | Make test-suite git fixture setup fail loudly instead of flaking | 2026-08-07 |
@@ -253,7 +249,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 47 done |
+| [2026-08](archive/) | 48 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
