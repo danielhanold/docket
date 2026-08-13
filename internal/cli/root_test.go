@@ -271,6 +271,37 @@ func TestExtraArgumentRejected(t *testing.T) {
 	if code != 2 || errS != "" || !strings.Contains(out, `"result":"invalid-input"`) {
 		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
 	}
+
+	// A command GROUP must reject an unknown positional the same way, and
+	// name the offending token — reporting "missing command" for
+	// `diagnostic runtimee` would misdirect, since a word was supplied.
+	out, errS, code = runCLI(t, "diagnostic", "runtimee")
+	if code != 2 || out != "" {
+		t.Fatalf("group human: out=%q err=%q code=%d", out, errS, code)
+	}
+	if !strings.HasPrefix(errS, "docket: ") || !strings.Contains(errS, "runtimee") {
+		t.Fatalf("group human: stderr = %q", errS)
+	}
+	if strings.Contains(errS, "missing command") {
+		t.Fatalf("group human: misdirecting error for a supplied token: %q", errS)
+	}
+
+	out, errS, code = runCLI(t, "--json", "diagnostic", "runtimee")
+	if code != 2 || errS != "" {
+		t.Fatalf("group json: err=%q code=%d", errS, code)
+	}
+	if !strings.Contains(out, `"result":"invalid-input"`) || !strings.Contains(out, "runtimee") {
+		t.Fatalf("group json: stdout = %q", out)
+	}
+	if strings.Contains(out, "missing command") {
+		t.Fatalf("group json: misdirecting error for a supplied token: %q", out)
+	}
+
+	// The genuinely bare group still reports the missing command.
+	_, errS, code = runCLI(t, "diagnostic")
+	if code != 2 || !strings.Contains(errS, "missing command") {
+		t.Fatalf("bare group: stderr=%q code=%d", errS, code)
+	}
 }
 
 func TestUnknownCommandJSON(t *testing.T) {

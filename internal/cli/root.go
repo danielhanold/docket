@@ -116,6 +116,14 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	diagnosticCmd := &cobra.Command{
 		Use:   "diagnostic",
 		Short: "Read-only diagnostics",
+		// A command group resolves its subcommand before Args runs, so
+		// anything reaching here is a word that named no subcommand.
+		// Without this, Cobra's legacy default accepts arbitrary args and
+		// RunE reports "missing command" for `diagnostic runtimee` — which
+		// misdirects, since a command word WAS supplied. NoArgs names the
+		// offending token instead; the bare `docket diagnostic` still falls
+		// through to RunE's "missing command".
+		Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return errors.New("missing command")
 		},
