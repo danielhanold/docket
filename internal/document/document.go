@@ -66,6 +66,7 @@ type Document struct {
 	fmOpen     Span       // opening fence line, terminator included
 	fmClose    Span       // closing fence line, terminator included
 	fields     []Field    // located frontmatter entries, in source order
+	blocks     []Block    // located managed blocks, in source order
 	yamlRoot   *yaml.Node // private; never crosses the package boundary
 }
 
@@ -100,7 +101,27 @@ func Parse(source []byte) (Document, error) {
 		}
 		d.fields = fields
 	}
+	blocks, err := scanBlocks(src, lines, bodyFirstLine(lines, d.hasFM, d.fmClose))
+	if err != nil {
+		return Document{}, err
+	}
+	d.blocks = blocks
 	return d, nil
+}
+
+// bodyFirstLine returns the index of the first line outside the frontmatter:
+// the line after the closing fence when the document has frontmatter, and line
+// zero otherwise.
+func bodyFirstLine(lines []sourceLine, hasFM bool, closing Span) int {
+	if !hasFM {
+		return 0
+	}
+	for i, ln := range lines {
+		if ln.span == closing {
+			return i + 1
+		}
+	}
+	return len(lines)
 }
 
 // frontmatterLineOffset converts a line number reported inside the
@@ -265,6 +286,20 @@ func (d Document) Field(name string) (Field, bool) {
 		}
 	}
 	return Field{}, false
+}
+
+// Blocks returns the located managed blocks in source order, as a fresh slice:
+// mutating it cannot reach the document's own index.
+func (d Document) Blocks() []Block { return append([]Block(nil), d.blocks...) }
+
+// Block returns the managed block named name, and whether it exists.
+func (d Document) Block(name string) (Block, bool) {
+	for _, b := range d.blocks {
+		if b.Name == name {
+			return b, true
+		}
+	}
+	return Block{}, false
 }
 
 // DecodeFrontmatter decodes the frontmatter mapping into destination.
