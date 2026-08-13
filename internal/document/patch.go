@@ -3,20 +3,37 @@ package document
 import (
 	"errors"
 	"sort"
+	"strings"
 )
 
 // editOp names the kind of edit a PatchSet entry requests.
 type editOp int
 
 const (
-	opSetField editOp = iota // change an EXISTING field's value token
+	opSetField     editOp = iota // change an EXISTING field's value token
+	opInsertField                // add an ABSENT field before the closing fence
+	opReplaceBlock               // rewrite a managed block's interior
+	opInsertBlock                // create a managed block at a generic insertion point
+)
+
+// BlockInsertionPoint names the only two generic insertion points this change
+// needs. Which one is correct for a given record is the calling renderer's
+// decision, not this package's.
+type BlockInsertionPoint int
+
+const (
+	AtDocumentStart  BlockInsertionPoint = iota // byte offset 0
+	AfterFrontmatter                            // immediately after the closing fence line
 )
 
 // edit is one requested, not yet resolved, mutation.
 type edit struct {
-	op    editOp
-	name  string
-	value Value
+	op         editOp
+	name       string
+	value      Value  // field ops
+	content    string // block ops
+	annotation string // opInsertBlock
+	at         BlockInsertionPoint
 }
 
 // PatchSet is an ordered collection of requested edits. The zero value is an
@@ -30,6 +47,30 @@ type PatchSet struct {
 // Apply, not here, so a PatchSet can be built without a document in hand.
 func (p *PatchSet) SetField(name string, v Value) {
 	p.edits = append(p.edits, edit{op: opSetField, name: name, value: v})
+}
+
+// InsertField requests that an absent field be added immediately before the
+// closing fence, using the document's line ending. Whether the key is legal or
+// absent-capable is a schema question this package does not answer; it checks
+// only that the name is well formed and not already present.
+func (p *PatchSet) InsertField(name string, v Value) {
+	p.edits = append(p.edits, edit{op: opInsertField, name: name, value: v})
+}
+
+// ReplaceBlock requests that a managed block's interior become content, leaving
+// both marker lines byte-identical. content is logical LF-separated Markdown
+// and is emitted with the block's own line ending; a trailing newline is
+// optional and does not change the result.
+func (p *PatchSet) ReplaceBlock(name string, content string) {
+	p.edits = append(p.edits, edit{op: opReplaceBlock, name: name, content: content})
+}
+
+// InsertBlock requests a new managed block, both marker lines constructed
+// canonically, at one of the two generic insertion points. An empty annotation
+// renders a marker with no parenthesized part.
+func (p *PatchSet) InsertBlock(name, annotation, content string, at BlockInsertionPoint) {
+	p.edits = append(p.edits, edit{
+		op: opInsertBlock, name: name, annotation: annotation, content: content, at: at})
 }
 
 // resolvedEdit is one validated edit reduced to bytes: replace span with
@@ -73,6 +114,12 @@ func (d Document) resolve(p PatchSet) ([]resolvedEdit, error) {
 		switch e.op {
 		case opSetField:
 			r, err = d.resolveSetField(e, seen)
+		case opInsertField:
+			r, err = d.resolveInsertField(e, seen)
+		case opReplaceBlock:
+			r, err = d.resolveReplaceBlock(e, seen)
+		case opInsertBlock:
+			r, err = d.resolveInsertBlock(e, seen)
 		default:
 			err = &Error{Kind: KindUnsupportedPatchShape, Name: e.name, Offset: -1,
 				Msg: "unknown patch operation"}
@@ -110,14 +157,177 @@ func (d Document) resolveSetField(e edit, seen map[string]bool) (resolvedEdit, e
 			Offset: f.Entry.Start,
 			Msg:    "field value is not written in a patchable shape"}
 	}
-	key := "field:" + e.name
-	if seen[key] {
-		return resolvedEdit{}, &Error{Kind: KindDuplicateEdit, Name: e.name, Offset: -1,
-			Msg: "field is edited more than once in the same patch set"}
+	if err := claimName(seen, "field", e.name,
+		"field is edited more than once in the same patch set"); err != nil {
+		return resolvedEdit{}, err
 	}
-	seen[key] = true
 	span, payload := d.setFieldPayload(f, e.value)
 	return resolvedEdit{span: span, payload: payload}, nil
+}
+
+// claimName records that this patch set now owns name within a namespace, and
+// refuses a second claim. The namespace is what lets a managed block and a
+// frontmatter field share a name without colliding.
+func claimName(seen map[string]bool, namespace, name, msg string) error {
+	key := namespace + ":" + name
+	if seen[key] {
+		return &Error{Kind: KindDuplicateEdit, Name: name, Offset: -1, Msg: msg}
+	}
+	seen[key] = true
+	return nil
+}
+
+// resolveInsertField validates one InsertField edit and reduces it to a
+// zero-width insertion immediately before the closing fence.
+//
+// A field that is already present is a duplicate-edit rather than a missing
+// target: SetField and InsertField are two caller-declared modes over the same
+// name, so asking for both — or asking to insert what is already there — means
+// the caller's intent for that name is ambiguous, which is exactly what the
+// shared "field" namespace exists to catch.
+func (d Document) resolveInsertField(e edit, seen map[string]bool) (resolvedEdit, error) {
+	if !d.hasFM {
+		return resolvedEdit{}, &Error{Kind: KindMissingFrontmatter, Name: e.name, Offset: -1,
+			Msg: "cannot insert a field into a document without frontmatter"}
+	}
+	if !validKey(e.name) {
+		return resolvedEdit{}, &Error{Kind: KindInvalidValue, Name: e.name, Offset: -1,
+			Msg: "field name does not match the Docket key grammar"}
+	}
+	if err := e.value.validate(); err != nil {
+		return resolvedEdit{}, named(err, e.name)
+	}
+	if f, ok := d.Field(e.name); ok {
+		return resolvedEdit{}, &Error{Kind: KindDuplicateEdit, Name: e.name, Offset: f.Entry.Start,
+			Msg: "field is already present; SetField changes an existing field"}
+	}
+	if err := claimName(seen, "field", e.name,
+		"field is edited more than once in the same patch set"); err != nil {
+		return resolvedEdit{}, err
+	}
+	line := e.name + ":"
+	if serialized := e.value.serialize(); serialized != "" {
+		line += " " + serialized
+	}
+	at := d.fmClose.Start
+	return resolvedEdit{span: Span{at, at}, payload: []byte(line + d.lineEnding)}, nil
+}
+
+// resolveReplaceBlock validates one ReplaceBlock edit and reduces it to the
+// block's interior span plus the re-terminated content. Both marker lines sit
+// outside the replaced span, so they survive byte-identically.
+func (d Document) resolveReplaceBlock(e edit, seen map[string]bool) (resolvedEdit, error) {
+	if !validBlockName(e.name) {
+		return resolvedEdit{}, &Error{Kind: KindInvalidValue, Name: e.name, Offset: -1,
+			Msg: "block name does not match the Docket marker grammar"}
+	}
+	if err := validBlockContent(e.content); err != nil {
+		return resolvedEdit{}, named(err, e.name)
+	}
+	b, ok := d.Block(e.name)
+	if !ok {
+		return resolvedEdit{}, &Error{Kind: KindMissingPatchTarget, Name: e.name, Offset: -1,
+			Msg: "managed block is not present in the document"}
+	}
+	if err := claimName(seen, "block", e.name,
+		"block is edited more than once in the same patch set"); err != nil {
+		return resolvedEdit{}, err
+	}
+	payload := renderBlockContent(e.content, d.blockLineEnding(b))
+	return resolvedEdit{span: b.Interior, payload: []byte(payload)}, nil
+}
+
+// resolveInsertBlock validates one InsertBlock edit and reduces it to a
+// zero-width insertion of a complete, canonically constructed block.
+func (d Document) resolveInsertBlock(e edit, seen map[string]bool) (resolvedEdit, error) {
+	if !validBlockName(e.name) {
+		return resolvedEdit{}, &Error{Kind: KindInvalidValue, Name: e.name, Offset: -1,
+			Msg: "block name does not match the Docket marker grammar"}
+	}
+	if err := validAnnotation(e.annotation); err != nil {
+		return resolvedEdit{}, named(err, e.name)
+	}
+	if err := validBlockContent(e.content); err != nil {
+		return resolvedEdit{}, named(err, e.name)
+	}
+	if b, ok := d.Block(e.name); ok {
+		return resolvedEdit{}, &Error{Kind: KindDuplicateEdit, Name: e.name, Offset: b.Start.Start,
+			Msg: "block is already present; ReplaceBlock rewrites an existing block"}
+	}
+	at, err := d.insertionOffset(e)
+	if err != nil {
+		return resolvedEdit{}, err
+	}
+	if err := claimName(seen, "block", e.name,
+		"block is edited more than once in the same patch set"); err != nil {
+		return resolvedEdit{}, err
+	}
+	le := d.lineEnding
+	payload := startMarkerLine(e.name, e.annotation) + le +
+		renderBlockContent(e.content, le) +
+		endMarkerLine(e.name) + le
+	return resolvedEdit{span: Span{at, at}, payload: []byte(payload)}, nil
+}
+
+// insertionOffset resolves a BlockInsertionPoint against this document.
+//
+// AtDocumentStart is refused on a document that HAS frontmatter, and that
+// refusal is load-bearing rather than fussy: bytes written in front of the
+// opening fence demote real frontmatter to ordinary prose, and the result still
+// parses — as a different, frontmatterless document — so the phase-3 reparse
+// gate would wave the corruption through.
+func (d Document) insertionOffset(e edit) (int, error) {
+	switch e.at {
+	case AtDocumentStart:
+		if d.hasFM {
+			return 0, &Error{Kind: KindUnsupportedPatchShape, Name: e.name, Offset: 0,
+				Msg: "a document with frontmatter cannot receive a block at its start; " +
+					"use AfterFrontmatter"}
+		}
+		return 0, nil
+	case AfterFrontmatter:
+		if !d.hasFM {
+			return 0, &Error{Kind: KindMissingFrontmatter, Name: e.name, Offset: -1,
+				Msg: "document has no frontmatter to insert after"}
+		}
+		return d.fmClose.End, nil
+	default:
+		return 0, &Error{Kind: KindUnsupportedPatchShape, Name: e.name, Offset: -1,
+			Msg: "unknown block insertion point"}
+	}
+}
+
+// renderBlockContent turns logical LF-separated content into terminated lines
+// using ending. Empty content yields an empty interior, and a caller's optional
+// trailing newline is absorbed so both spellings of the same logical content
+// produce the same bytes.
+func renderBlockContent(content, ending string) string {
+	if content == "" {
+		return ""
+	}
+	content = strings.TrimSuffix(content, "\n")
+	var b strings.Builder
+	for _, line := range strings.Split(content, "\n") {
+		b.WriteString(line)
+		b.WriteString(ending)
+	}
+	return b.String()
+}
+
+// blockLineEnding reports the line ending b's own marker lines use, so replaced
+// content matches the block it lands in rather than the document average. The
+// start marker is always terminated — an end marker follows it — so only a
+// document-level fallback for an impossible case is needed.
+func (d Document) blockLineEnding(b Block) string {
+	switch {
+	case b.Start.End-b.Start.Start >= 2 && d.source[b.Start.End-2] == '\r' &&
+		d.source[b.Start.End-1] == '\n':
+		return "\r\n"
+	case b.Start.End > b.Start.Start && d.source[b.Start.End-1] == '\n':
+		return "\n"
+	default:
+		return d.lineEnding
+	}
 }
 
 // named returns err with the field or block name attached, when err is one of
