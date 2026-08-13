@@ -263,6 +263,22 @@ func TestConfigMissingRepoDirFlag(t *testing.T) {
 	}
 }
 
+// A --repo-dir naming a directory that does not exist is an argument problem,
+// not a configuration verdict: without this the mutation gate would certify a
+// repository that is not there.
+func TestConfigNonexistentRepoDir(t *testing.T) {
+	_, env := hermeticEnv(t)
+	missing := filepath.Join(t.TempDir(), "no-such-repo")
+	out, errS, code := runEnv(t, env, "diagnostic", "config", "--repo-dir", missing,
+		"--default-branch", "main", "--for-mutation")
+	if code != 2 || out != "" {
+		t.Fatalf("out=%q code=%d stderr=%q", out, code, errS)
+	}
+	if !strings.HasPrefix(errS, "docket: ") || !strings.Contains(errS, missing) {
+		t.Fatalf("stderr = %q", errS)
+	}
+}
+
 // The global layer must be read from the pinned environment: a machine-global
 // file placed under the test's own XDG_CONFIG_HOME has to reach the resolver,
 // which is simultaneously the proof that the developer's real one never does.
