@@ -72,6 +72,7 @@ type stepAction string
 const (
 	actionCreate stepAction = "create"
 	actionUpdate stepAction = "update"
+	actionRemove stepAction = "remove"
 )
 
 // preImageState is what the destination held before the transaction touched it,
@@ -100,6 +101,7 @@ type journalStep struct {
 	Path        string     `json:"path"`
 	Kind        TargetKind `json:"kind"`
 	BlockName   string     `json:"block_name,omitempty"`
+	Remove      bool       `json:"remove,omitempty"` // the step deletes the destination rather than writing it
 	Action      stepAction `json:"action"`
 	Staging     string     `json:"staging"`                // same-directory temp file this step writes through
 	CreatedDirs []string   `json:"created_dirs,omitempty"` // ancestors absent when the plan was made
@@ -143,6 +145,20 @@ func (t *Txn) ID() string { return t.journal.TxnID }
 // installation that rewrites unchanged files churns mtimes for nothing — and a
 // conflict is refused outright.
 func BeginTxn(fsops FSOps, roots UserRoots, inspections []Inspection) (*Txn, error) {
+	return BeginTxnWithRemovals(fsops, roots, inspections, nil)
+}
+
+// BeginTxnWithRemovals is BeginTxn plus deletions: removals name targets a
+// previous installation recorded owning that the new plan no longer contains.
+// They travel inside the same transaction as the writes because they carry the
+// same risk — a removal whose pre-image is not journaled is a deletion nothing
+// can undo — so each one's bytes (or link) are captured before anything runs.
+//
+// Only KindFile and KindSymlink may be removed. A managed block lives inside a
+// file the user also owns, and deleting that file to retire one block would
+// take content docket was never given; the operation layer retains such records
+// instead.
+func BeginTxnWithRemovals(fsops FSOps, roots UserRoots, inspections []Inspection, removals []TargetRecord) (*Txn, error) {
 	if fsops == nil {
 		return nil, errors.New("install: BeginTxn requires a filesystem")
 	}
@@ -151,7 +167,7 @@ func BeginTxn(fsops FSOps, roots UserRoots, inspections []Inspection) (*Txn, err
 	if err != nil {
 		return nil, err
 	}
-	steps, targets, err := planSteps(id, inspections)
+	steps, targets, err := planSteps(id, inspections, removals)
 	if err != nil {
 		return nil, err
 	}
@@ -220,13 +236,19 @@ func (t *Txn) applyStep(i int) error {
 	step := &t.journal.Steps[i]
 	target := t.targets[i]
 
+	if step.Remove {
+		// Nothing is created on the way to a deletion, so the destination's
+		// directory is left exactly as it was found — including absent.
+		return removeIfPresent(t.fs, step.Path)
+	}
+
 	if err := t.fs.MkdirAll(filepath.Dir(step.Path), targetDirMode); err != nil {
 		return fmt.Errorf("creating %s: %w", filepath.Dir(step.Path), err)
 	}
 
 	switch step.Kind {
 	case KindFile:
-		return t.writeThroughStaging(step, target.Content)
+		return t.writeThroughStaging(step, target.Content, target.Mode)
 
 	case KindManagedBlock:
 		// A block rewrite reads through a symlink but publishes by rename, which
@@ -242,7 +264,7 @@ func (t *Txn) applyStep(i int) error {
 		if err != nil {
 			return err
 		}
-		return t.writeThroughStaging(step, data)
+		return t.writeThroughStaging(step, data, target.Mode)
 
 	case KindSymlink:
 		// Symlink refuses an occupied path, so an update clears the old one
@@ -267,12 +289,18 @@ func (t *Txn) applyStep(i int) error {
 // writeThroughStaging is the only way content reaches a destination: a
 // same-directory temp file, then a rename. Same-directory keeps the rename on
 // one filesystem, which is what makes it atomic.
-func (t *Txn) writeThroughStaging(step *journalStep, data []byte) error {
+func (t *Txn) writeThroughStaging(step *journalStep, data []byte, want os.FileMode) error {
 	mode := os.FileMode(targetFileMode)
 	if step.PreImage.State == preFile && step.PreImage.Mode != 0 {
 		// An update keeps the permissions the file already had: the mode is the
 		// user's, even when the content is docket's.
 		mode = os.FileMode(step.PreImage.Mode).Perm()
+	}
+	if want != 0 {
+		// A target that names its own mode overrides both: the one target that
+		// does is the development binary, whose executability is not the user's
+		// to have set.
+		mode = want.Perm()
 	}
 	if err := t.fs.WriteFile(step.Staging, data, mode); err != nil {
 		return fmt.Errorf("staging %s: %w", step.Path, err)
@@ -500,8 +528,8 @@ func pruneCreatedDirs(fsops FSOps, j journal) {
 // by destination path so the same plan always applies in the same sequence
 // whatever order the harness adapters produced it in; the sort is stable, so two
 // blocks in one file keep the order their planner chose.
-func planSteps(txnID string, inspections []Inspection) ([]journalStep, []Target, error) {
-	ordered := make([]Inspection, 0, len(inspections))
+func planSteps(txnID string, inspections []Inspection, removals []TargetRecord) ([]journalStep, []Target, error) {
+	ordered := make([]plannedStep, 0, len(inspections)+len(removals))
 	for _, insp := range inspections {
 		switch insp.Disposition {
 		case DispositionNoop:
@@ -516,10 +544,17 @@ func planSteps(txnID string, inspections []Inspection) ([]journalStep, []Target,
 		if err := insp.Target.validate(); err != nil {
 			return nil, nil, err
 		}
-		ordered = append(ordered, insp)
+		ordered = append(ordered, plannedStep{target: insp.Target})
+	}
+	for _, rec := range removals {
+		target, err := removalTarget(rec)
+		if err != nil {
+			return nil, nil, err
+		}
+		ordered = append(ordered, plannedStep{target: target, remove: true})
 	}
 	sort.SliceStable(ordered, func(i, j int) bool {
-		return filepath.Clean(ordered[i].Target.Path) < filepath.Clean(ordered[j].Target.Path)
+		return filepath.Clean(ordered[i].target.Path) < filepath.Clean(ordered[j].target.Path)
 	})
 	if err := rejectDuplicateDestinations(ordered); err != nil {
 		return nil, nil, err
@@ -527,45 +562,80 @@ func planSteps(txnID string, inspections []Inspection) ([]journalStep, []Target,
 
 	steps := make([]journalStep, len(ordered))
 	targets := make([]Target, len(ordered))
-	for i, insp := range ordered {
-		path := filepath.Clean(insp.Target.Path)
+	for i, planned := range ordered {
+		path := filepath.Clean(planned.target.Path)
 		steps[i] = journalStep{
-			Seq:         i,
-			Path:        path,
-			Kind:        insp.Target.Kind,
-			BlockName:   insp.Target.BlockName,
-			Staging:     stagingPath(path, txnID, i),
-			CreatedDirs: missingAncestors(path),
+			Seq:       i,
+			Path:      path,
+			Kind:      planned.target.Kind,
+			BlockName: planned.target.BlockName,
+			Remove:    planned.remove,
+			Staging:   stagingPath(path, txnID, i),
 		}
-		targets[i] = insp.Target
+		if !planned.remove {
+			steps[i].CreatedDirs = missingAncestors(path)
+		}
+		targets[i] = planned.target
 	}
 	return steps, targets, nil
+}
+
+// plannedStep pairs a desired target with what the transaction does to it.
+type plannedStep struct {
+	target Target
+	remove bool
+}
+
+// removalTarget turns a prior ownership record into the step that retires it.
+// The record is the only description of what is being deleted, so a record that
+// cannot describe a deletable thing refuses the whole transaction.
+func removalTarget(rec TargetRecord) (Target, error) {
+	if rec.Path == "" || !filepath.IsAbs(rec.Path) {
+		return Target{}, fmt.Errorf("%w: a removal names %q, which is not an absolute path",
+			ErrInvalidTarget, rec.Path)
+	}
+	switch rec.Kind {
+	case KindFile, KindSymlink:
+		return Target{
+			Path:       rec.Path,
+			Kind:       rec.Kind,
+			LinkTarget: rec.LinkTarget,
+			Role:       rec.Role,
+		}, nil
+	default:
+		return Target{}, fmt.Errorf("%w: %s is recorded as %q, which a transaction never deletes",
+			ErrInvalidTarget, rec.Path, rec.Kind)
+	}
 }
 
 // rejectDuplicateDestinations refuses a plan that writes the same destination
 // twice. Two managed blocks in one file are legitimate — they touch disjoint
 // bytes — but anything else is a planner defect whose outcome would depend on
 // step order.
-func rejectDuplicateDestinations(ordered []Inspection) error {
-	seen := map[string]Inspection{}
+//
+// A removal and a write of one destination in the same plan is a defect of the
+// same kind, and is refused for the same reason.
+func rejectDuplicateDestinations(ordered []plannedStep) error {
+	seen := map[string]plannedStep{}
 	blocks := map[string]bool{}
-	for _, insp := range ordered {
-		path := filepath.Clean(insp.Target.Path)
+	for _, planned := range ordered {
+		path := filepath.Clean(planned.target.Path)
 		prev, ok := seen[path]
 		if !ok {
-			seen[path] = insp
-			if insp.Target.Kind == KindManagedBlock {
-				blocks[path+"\x00"+insp.Target.BlockName] = true
+			seen[path] = planned
+			if planned.target.Kind == KindManagedBlock {
+				blocks[path+"\x00"+planned.target.BlockName] = true
 			}
 			continue
 		}
-		if prev.Target.Kind != KindManagedBlock || insp.Target.Kind != KindManagedBlock {
+		if prev.remove || planned.remove ||
+			prev.target.Kind != KindManagedBlock || planned.target.Kind != KindManagedBlock {
 			return fmt.Errorf("%w: %s is written by more than one step", ErrInvalidTarget, path)
 		}
-		key := path + "\x00" + insp.Target.BlockName
+		key := path + "\x00" + planned.target.BlockName
 		if blocks[key] {
 			return fmt.Errorf("%w: the %s block in %s is written by more than one step",
-				ErrInvalidTarget, insp.Target.BlockName, path)
+				ErrInvalidTarget, planned.target.BlockName, path)
 		}
 		blocks[key] = true
 	}
@@ -582,12 +652,20 @@ func capturePreImage(fsops FSOps, dir string, step *journalStep) error {
 	case errors.Is(err, fs.ErrNotExist):
 		step.PreImage = preImage{State: preAbsent}
 		step.Action = actionCreate
+		if step.Remove {
+			// A removal of something already gone still runs: every restore is
+			// idempotent, and a vanished target must not block an upgrade.
+			step.Action = actionRemove
+		}
 		return nil
 	case err != nil:
 		return fmt.Errorf("install: inspecting %s: %w", step.Path, err)
 	}
 
 	step.Action = actionUpdate
+	if step.Remove {
+		step.Action = actionRemove
+	}
 	switch {
 	case info.Mode()&fs.ModeSymlink != 0:
 		dest, err := os.Readlink(step.Path)

@@ -754,3 +754,120 @@ func TestRecoverUnknownID(t *testing.T) {
 		t.Error("Recover accepted a transaction id with no journal")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Removals
+// ---------------------------------------------------------------------------
+
+// staleRecords puts two retired targets on disk and returns the records that
+// retire them. A removal is the one step whose mistake cannot be re-derived
+// from the plan — the bytes are simply gone — so both halves are proven below:
+// that it deletes, and that an interrupted transaction puts it back.
+func staleRecords(t *testing.T, f *fixture) []TargetRecord {
+	t.Helper()
+	writeFileOrDie(t, f.path("agents", "stale.md"), "stale\n")
+	symlinkOrDie(t, f.source, f.path("skills", "docket-old"))
+	return []TargetRecord{
+		{Path: f.path("agents", "stale.md"), Kind: KindFile, Role: "agent", SHA256: digestOf("stale\n")},
+		{Path: f.path("skills", "docket-old"), Kind: KindSymlink, Role: "skill", LinkTarget: f.source},
+	}
+}
+
+func TestTxnAppliesRemovals(t *testing.T) {
+	f := newFixture(t)
+	removals := staleRecords(t, f)
+
+	txn, err := BeginTxnWithRemovals(RealFS{}, f.roots, f.plan, removals)
+	if err != nil {
+		t.Fatalf("BeginTxnWithRemovals: %v", err)
+	}
+	if err := txn.Apply(); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	for _, rec := range removals {
+		if _, err := os.Lstat(rec.Path); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("%s survived its removal step: %v", rec.Path, err)
+		}
+	}
+	// The rest of the plan still landed: a removal is a step among steps.
+	if got := readOrDie(t, f.path("agents", "new-agent.md")); got != "new agent\n" {
+		t.Errorf("new-agent.md = %q", got)
+	}
+	assertNoStaging(t, f.targets)
+}
+
+func TestTxnRemovalRollsBack(t *testing.T) {
+	var ops []string
+	func() {
+		f := newFixture(t)
+		removals := staleRecords(t, f)
+		ifs := &injectFS{inner: RealFS{}}
+		txn, err := BeginTxnWithRemovals(ifs, f.roots, f.plan, removals)
+		if err != nil {
+			t.Fatalf("BeginTxnWithRemovals: %v", err)
+		}
+		ifs.fail = recordCalls(&ops)
+		if err := txn.Apply(); err != nil {
+			t.Fatalf("clean Apply: %v", err)
+		}
+	}()
+	if len(ops) == 0 {
+		t.Fatal("a clean apply performed no mutations; the table would be vacuous")
+	}
+
+	for n := 1; n <= len(ops); n++ {
+		t.Run(fmt.Sprintf("fail-at-%02d-%s", n, ops[n-1]), func(t *testing.T) {
+			f := newFixture(t)
+			removals := staleRecords(t, f)
+			before := snapshotWorld(t, f.targets)
+
+			ifs := &injectFS{inner: RealFS{}}
+			txn, err := BeginTxnWithRemovals(ifs, f.roots, f.plan, removals)
+			if err != nil {
+				t.Fatalf("BeginTxnWithRemovals: %v", err)
+			}
+			ifs.fail = failAtCall(n)
+
+			if err := txn.Apply(); err == nil {
+				t.Fatal("Apply succeeded despite an injected filesystem failure")
+			}
+			assertWorld(t, before, snapshotWorld(t, f.targets), "after rollback")
+			assertNoStaging(t, f.targets)
+			if _, found, err := DetectRecovery(f.roots); err != nil || found {
+				t.Errorf("DetectRecovery after rollback = (found %v, err %v), want (false, nil)", found, err)
+			}
+		})
+	}
+}
+
+func TestTxnRefusesToRemoveAManagedBlock(t *testing.T) {
+	f := newFixture(t)
+	// Deleting the file to retire one block would take the user's own prose
+	// with it, so the record is refused rather than obeyed.
+	_, err := BeginTxnWithRemovals(RealFS{}, f.roots, nil, []TargetRecord{{
+		Path: f.path("dispatch", "rules.md"), Kind: KindManagedBlock, BlockName: "dispatch", Role: "dispatch",
+	}})
+	if !errors.Is(err, ErrInvalidTarget) {
+		t.Fatalf("err = %v, want ErrInvalidTarget", err)
+	}
+	if readOrDie(t, f.path("dispatch", "rules.md")) != userRules {
+		t.Errorf("the file was disturbed anyway")
+	}
+	if journalCount(t, f.roots) != 0 {
+		t.Errorf("a refused plan left a journal behind")
+	}
+}
+
+func TestTxnRefusesRemovalOfAWrittenDestination(t *testing.T) {
+	f := newFixture(t)
+	// One plan that both writes and deletes a path has no defined outcome.
+	_, err := BeginTxnWithRemovals(RealFS{}, f.roots, f.plan, []TargetRecord{{
+		Path: f.path("agents", "old-agent.md"), Kind: KindFile, Role: "agent", SHA256: digestOf("old\n"),
+	}})
+	if !errors.Is(err, ErrInvalidTarget) {
+		t.Fatalf("err = %v, want ErrInvalidTarget", err)
+	}
+	if journalCount(t, f.roots) != 0 {
+		t.Errorf("a refused plan left a journal behind")
+	}
+}
