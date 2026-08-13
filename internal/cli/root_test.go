@@ -105,6 +105,52 @@ func TestJSONHelpConflictThreeForms(t *testing.T) {
 	}
 }
 
+// An unresolvable help topic must not escape the conflict policy: Cobra's own
+// help command answers an unknown topic with prose plus usage on stdout, which
+// would put non-protocol bytes into the JSON stream and exit 0.
+func TestJSONHelpConflictUnknownTopic(t *testing.T) {
+	for _, args := range [][]string{
+		{"--json", "help", "bogus"},
+		{"--json", "help", "completion"},
+		{"--json", "help", "version"},
+		{"--json", "help", "diagnostic", "runtime"},
+	} {
+		out, errS, code := runCLI(t, args...)
+		if code != 2 {
+			t.Fatalf("args=%v code=%d, want 2", args, code)
+		}
+		if errS != "" {
+			t.Fatalf("args=%v stderr=%q, want empty", args, errS)
+		}
+		if !strings.Contains(out, `"reason":"json-help-conflict"`) {
+			t.Fatalf("args=%v stdout=%q", args, out)
+		}
+		if strings.Contains(out, "Usage") || strings.Contains(out, "Unknown help topic") {
+			t.Fatalf("args=%v help text leaked into protocol stream: %q", args, out)
+		}
+		if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+			t.Fatalf("args=%v must be one newline-terminated document, got %q", args, out)
+		}
+	}
+}
+
+// Human mode: a resolvable topic renders Cobra help on stdout at exit 0; an
+// unresolvable one is invalid input like any other unknown command, so it
+// leaves stdout empty rather than printing usage prose and exiting 0.
+func TestHumanHelpTopics(t *testing.T) {
+	out, errS, code := runCLI(t, "help", "version")
+	if code != 0 || errS != "" || !strings.Contains(out, "Usage") {
+		t.Fatalf("resolvable topic: out=%q err=%q code=%d", out, errS, code)
+	}
+	out, errS, code = runCLI(t, "help", "bogus")
+	if code != 2 || out != "" {
+		t.Fatalf("unknown topic: out=%q code=%d", out, code)
+	}
+	if !strings.HasPrefix(errS, "docket: ") {
+		t.Fatalf("unknown topic stderr = %q", errS)
+	}
+}
+
 func TestHumanHelpIsolation(t *testing.T) {
 	out, errS, code := runCLI(t, "--help")
 	if code != 0 || errS != "" {
