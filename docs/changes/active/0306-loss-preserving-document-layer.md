@@ -2,7 +2,7 @@
 id: 306
 slug: loss-preserving-document-layer
 title: 'Loss-preserving document layer'
-status: proposed
+status: in-progress
 priority: critical
 type: feat
 created: 2026-08-12
@@ -17,7 +17,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/loss-preserving-document-layer
+claimed_at: 2026-08-13T17:51:28Z
 pr:
 blocked_by:
 reconciled: false
