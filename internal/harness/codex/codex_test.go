@@ -319,6 +319,42 @@ func TestCodexAgentPinCases(t *testing.T) {
 	}
 }
 
+// Codex has no equivalent of Claude Code's `inherit`, so the sentinel
+// normalizes to "no model key" here — while the effort beside it survives, the
+// two being tested independently in emit_codex_toml. This is the asymmetry the
+// claude adapter deliberately does not share.
+func TestCodexInheritDropsModelKeepsEffort(t *testing.T) {
+	in := fixtureInput(t)
+	in.Agents = config.AgentsTable{
+		"codex": {
+			"adr": {
+				Model:  config.Value[string]{Value: "inherit"},
+				Effort: config.Value[string]{Value: "high"},
+			},
+		},
+	}
+	targets, err := New().Plan(in)
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	want := filepath.Join(fakeHome, ".codex", "agents", "docket-adr.toml")
+	var content string
+	for _, tg := range targets {
+		if tg.Path == want {
+			content = string(tg.Content)
+		}
+	}
+	if content == "" {
+		t.Fatalf("no rendered file %s", want)
+	}
+	if strings.Contains(content, "model = ") {
+		t.Errorf("docket-adr.toml emits a model key for the inherit sentinel:\n%s", content)
+	}
+	if !strings.Contains(content, "model_reasoning_effort = \"high\"\n") {
+		t.Errorf("docket-adr.toml drops the effort pin beside an inherit model:\n%s", content)
+	}
+}
+
 // The rendered document must carry the source's description, its skills
 // preamble, and its body — the mapping that mirrors emit_codex_toml.
 func TestCodexAgentMirrorsSource(t *testing.T) {

@@ -46,6 +46,12 @@ func fixtureAgents() config.AgentsTable {
 				Model:  config.Value[string]{Value: "inherit"},
 				Effort: config.Value[string]{Value: "auto"},
 			},
+			// `inherit` alongside a real effort pin: sync-agents.sh's emit()
+			// drops neither, so neither does this renderer.
+			"review-deep": {
+				Model:  config.Value[string]{Value: "inherit"},
+				Effort: config.Value[string]{Value: "medium"},
+			},
 		},
 		// A sibling harness's pins must never leak into the claude rendering.
 		"codex": {
@@ -274,7 +280,11 @@ func TestClaudeAgentPinCases(t *testing.T) {
 	}{
 		{"docket-build-standard.md", "claude-opus-5[1m]", "high", true, true},
 		{"docket-status.md", "claude-sonnet-4-6", "", true, false},
-		{"docket-adr.md", "", "", false, false},                   // inherit / auto sentinels
+		// `inherit` is a real Claude Code frontmatter value, not a docket
+		// sentinel on this harness, so it renders verbatim; `auto` is a docket
+		// sentinel on every harness and drops.
+		{"docket-adr.md", "inherit", "", true, false},
+		{"docket-review-deep.md", "inherit", "medium", true, true},
 		{"docket-review-lean.md", "", "", false, false},           // no table entry at all
 		{"docket-brainstorm-consultant.md", "", "", false, false}, // no table entry, no skills
 	}
