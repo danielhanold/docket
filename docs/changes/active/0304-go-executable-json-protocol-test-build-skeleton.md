@@ -2,7 +2,7 @@
 id: 304
 slug: go-executable-json-protocol-test-build-skeleton
 title: 'Go executable, JSON protocol, and test/build skeleton'
-status: in-progress
+status: implemented
 priority: critical
 type: feat
 created: 2026-08-12
@@ -14,12 +14,12 @@ discovered_from: [303]
 adrs: []
 spec: docs/superpowers/specs/2026-08-13-go-executable-json-protocol-test-build-skeleton-design.md
 plan: docs/superpowers/plans/2026-08-13-go-executable-json-protocol-test-build-skeleton.md
-results:
+results: docs/results/2026-08-13-go-executable-json-protocol-test-build-skeleton-results.md
 trivial: false
 auto_groomable:
 branch: feat/go-executable-json-protocol-test-build-skeleton
-claimed_at: 2026-08-13T11:19:00Z
-pr:
+claimed_at: 2026-08-13T12:43:14Z
+pr: https://github.com/danielhanold/docket/pull/204
 blocked_by:
 reconciled: true
 ---
@@ -31,6 +31,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-13-go-executable-json-protocol-test-build-skeleton-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-13-go-executable-json-protocol-test-build-skeleton-design.md) |
 | Plan | [2026-08-13-go-executable-json-protocol-test-build-skeleton.md](https://github.com/danielhanold/docket/blob/feat/go-executable-json-protocol-test-build-skeleton/docs/superpowers/plans/2026-08-13-go-executable-json-protocol-test-build-skeleton.md) |
+| Results | [2026-08-13-go-executable-json-protocol-test-build-skeleton-results.md](https://github.com/danielhanold/docket/blob/feat/go-executable-json-protocol-test-build-skeleton/docs/results/2026-08-13-go-executable-json-protocol-test-build-skeleton-results.md) |
+| PR | [#204](https://github.com/danielhanold/docket/pull/204) |
 <!-- docket:artifacts:end -->
 
 ## Why
