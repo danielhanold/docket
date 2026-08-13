@@ -1,6 +1,6 @@
 # Backlog
 
-**321 changes** — 🟡 54 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 182 done · 🗑️ 80 killed
+**321 changes** — 🟡 54 proposed · ⚪ 4 deferred · ✅ 183 done · 🗑️ 80 killed
 
 ## 🟡 Proposed (54)
 
@@ -45,7 +45,7 @@
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
-| [0307](active/0307-domain-snapshot-validation-graphs-and-selection.md) | Domain snapshot, validation, graphs, and selection | `critical` | `feat` | ⏳ waiting on #306 — needs your merge |
+| [0307](active/0307-domain-snapshot-validation-graphs-and-selection.md) | Domain snapshot, validation, graphs, and selection | `critical` | `feat` | needs-brainstorm |
 | [0308](active/0308-git-adapter-and-authoritative-object-source.md) | Git adapter and authoritative object source | `critical` | `feat` | needs-brainstorm |
 | [0309](active/0309-isolated-metadata-transaction-engine.md) | Isolated metadata transaction engine | `critical` | `feat` | ⏳ waiting on #307 — not yet built |
 | [0310](active/0310-read-only-status-and-health-vertical-slice.md) | Read-only status and health vertical slice | `critical` | `feat` | ⏳ waiting on #307 — not yet built |
@@ -69,12 +69,6 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0306](active/0306-loss-preserving-document-layer.md) | Loss-preserving document layer | `critical` | `feat` | [#206](https://github.com/danielhanold/docket/pull/206) |  |
 
 ```mermaid
 graph TD
@@ -121,7 +115,6 @@ graph TD
   0300
   0301
   0302
-  0304 --> 0306
   0305 --> 0307
   0306 --> 0307
   0304 --> 0308
@@ -150,13 +143,15 @@ graph TD
   0211:::done
   0304:::done
   0305:::done
+  0306:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (262)</summary>
+<details><summary>✅🗑️ Archive — done + killed (263)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0306](archive/2026-08-13-0306-loss-preserving-document-layer.md) | Loss-preserving document layer | 2026-08-13 |
 | [0305](archive/2026-08-13-0305-configuration-and-capability-envelope.md) | Configuration and capability envelope | 2026-08-13 |
 | [0304](archive/2026-08-13-0304-go-executable-json-protocol-test-build-skeleton.md) | Go executable, JSON protocol, and test/build skeleton | 2026-08-13 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
@@ -175,7 +170,6 @@ graph TD
 | [0118](archive/2026-08-11-0118-decide-whether-the-sweep-s-skip-publish-path-should-also-mar.md) | Decide whether the sweep's skip-publish path should also mark an unpublished terminal record | 2026-08-11 |
 | [0286](archive/2026-08-10-0286-gate-run-observe-poll-loops-strip-state-prefix.md) | Caller-authored gate-run --observe poll loops strip the state= prefix and never terminate | 2026-08-10 |
 | [0282](archive/2026-08-10-0282-launch-and-wait-contract-for-long-running-child-processes-li.md) | Launch-and-wait contract for long-running child processes — liveness-keyed, not marker-keyed | 2026-08-10 |
-| [0270](archive/2026-08-10-0270-fence-runner-config-locality-at-the-main-worktree.md) | Fence runner-config locality at the main worktree (regression test + contract correction) | 2026-08-10 |
 | [0278](archive/2026-08-09-0278-test-docket-example-yml-s-fidelity-fixture-goes-intermittent.md) | test_docket_example_yml's fidelity fixture goes intermittently red under parallel contention | 2026-08-09 |
 | [0274](archive/2026-08-09-0274-runner-dispatch-s-value-taking-flags-hang-instead-of-abortin.md) | runner-dispatch's value-taking flags hang instead of aborting when given with no value | 2026-08-09 |
 | [0267](archive/2026-08-09-0267-correct-the-stale-field-quote-handling-claim-in-script-contr.md) | Correct the stale field() quote-handling claim in script contracts | 2026-08-09 |
@@ -257,7 +251,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 49 done |
+| [2026-08](archive/) | 50 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
