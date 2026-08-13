@@ -2,7 +2,7 @@
 id: 306
 slug: loss-preserving-document-layer
 title: 'Loss-preserving document layer'
-status: in-progress
+status: implemented
 priority: critical
 type: feat
 created: 2026-08-12
@@ -14,12 +14,12 @@ discovered_from: [303]
 adrs: []
 spec: docs/superpowers/specs/2026-08-13-loss-preserving-document-layer-design.md
 plan: docs/superpowers/plans/2026-08-13-loss-preserving-document-layer.md
-results:
+results: docs/results/2026-08-13-loss-preserving-document-layer-results.md
 trivial: false
 auto_groomable:
 branch: feat/loss-preserving-document-layer
-claimed_at: 2026-08-13T18:03:13Z
-pr:
+claimed_at: 2026-08-13T19:42:21Z
+pr: 206
 blocked_by:
 reconciled: true
 ---
@@ -31,6 +31,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-13-loss-preserving-document-layer-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-13-loss-preserving-document-layer-design.md) |
 | Plan | [2026-08-13-loss-preserving-document-layer.md](https://github.com/danielhanold/docket/blob/feat/loss-preserving-document-layer/docs/superpowers/plans/2026-08-13-loss-preserving-document-layer.md) |
+| Results | [2026-08-13-loss-preserving-document-layer-results.md](https://github.com/danielhanold/docket/blob/feat/loss-preserving-document-layer/docs/results/2026-08-13-loss-preserving-document-layer-results.md) |
+| PR | 206 |
 <!-- docket:artifacts:end -->
 
 ## Why
