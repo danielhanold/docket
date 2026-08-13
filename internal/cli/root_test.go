@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -350,5 +351,50 @@ func TestHiddenCompletionCommandsRejected(t *testing.T) {
 		if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
 			t.Fatalf("json %s: must be one newline-terminated document, got %q", name, out)
 		}
+	}
+}
+
+// pinGlobalConfig points the configuration reader's global-layer lookup at an
+// empty temp directory. These tests run Run in this process, so without the pin
+// they would consult the developer's own ~/.config/docket/config.yml.
+func pinGlobalConfig(t *testing.T) {
+	t.Helper()
+	base := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(base, "xdg"))
+	t.Setenv("HOME", filepath.Join(base, "home"))
+}
+
+// --repo-dir is required, so omitting it must fail as an argument error before
+// any resolution is attempted.
+func TestDiagnosticConfigRequiresRepoDir(t *testing.T) {
+	pinGlobalConfig(t)
+	out, errS, code := runCLI(t, "diagnostic", "config")
+	if code != 2 || out != "" {
+		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
+	}
+	if !strings.HasPrefix(errS, "docket: ") || !strings.Contains(errS, "repo-dir") {
+		t.Fatalf("stderr = %q", errS)
+	}
+}
+
+// With the flag supplied, the subcommand reaches the operation and the
+// presenter renders its document — the wiring assertion this package owns.
+func TestDiagnosticConfigReachesOperation(t *testing.T) {
+	pinGlobalConfig(t)
+	out, errS, code := runCLI(t, "diagnostic", "config", "--repo-dir", t.TempDir(), "--default-branch", "main", "--json")
+	if code != 0 || errS != "" {
+		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
+	}
+	if !strings.Contains(out, `"operation":"diagnostic.config"`) || !strings.Contains(out, `"result":"applied"`) {
+		t.Fatalf("stdout = %q", out)
+	}
+
+	// --for-mutation selects the other operation over the same repository.
+	out, errS, code = runCLI(t, "diagnostic", "config", "--repo-dir", t.TempDir(), "--default-branch", "main", "--for-mutation", "--json")
+	if code != 0 || errS != "" {
+		t.Fatalf("for-mutation: out=%q err=%q code=%d", out, errS, code)
+	}
+	if !strings.Contains(out, `"operation":"config.preflight"`) {
+		t.Fatalf("for-mutation: stdout = %q", out)
 	}
 }
