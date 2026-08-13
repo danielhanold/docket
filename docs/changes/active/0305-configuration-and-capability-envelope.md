@@ -13,12 +13,12 @@ related: []
 discovered_from: [303]
 adrs: [15, 16, 19, 20, 52]
 spec: docs/superpowers/specs/2026-08-13-configuration-and-capability-envelope-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-13-configuration-and-capability-envelope.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/configuration-and-capability-envelope
-claimed_at: 2026-08-13T15:44:08Z
+claimed_at: 2026-08-13T15:55:50Z
 pr:
 blocked_by:
 reconciled: true
@@ -30,6 +30,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-13-configuration-and-capability-envelope-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-13-configuration-and-capability-envelope-design.md) |
+| Plan | [2026-08-13-configuration-and-capability-envelope.md](https://github.com/danielhanold/docket/blob/feat/configuration-and-capability-envelope/docs/superpowers/plans/2026-08-13-configuration-and-capability-envelope.md) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md) |
 <!-- docket:artifacts:end -->
 
