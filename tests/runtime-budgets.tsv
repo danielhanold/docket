@@ -130,9 +130,27 @@
 # clone is cold: re-measured at 12s cold and 2s warm, same command. The ceiling STAYS AT 20 — this
 # header sizes from the worst standalone serial reading, and a cold cache is still reachable on any
 # fresh clone or CI image. The extra margin is headroom, not slack to reclaim.
+#
+# tests/test_asset_bundle_drift.sh is a NEW FILE brought by change 0311 — the header's new-test-file
+# case again, for a subsystem this table has no shard for: the generated, committed embedded
+# asset bundle (internal/assets/embedded) and its comparator, `cmd/genassets -check`. It is NOT an
+# extension of tests/test_go_toolchain.sh, the only other Go-touching file here: that file is the
+# whole-suite Go gate and its `go test ./...` verdict is exactly the cacheable one that CANNOT see
+# this drift, since editing skills/ does not change internal/assets' package inputs. Sized per this
+# header's rule from three standalone serial readings, one session, one machine, as
+# `/usr/bin/time -p bash tests/test_asset_bundle_drift.sh >/dev/null`:
+#   0.50  0.49  0.46  -> worst 0.50
+# Those are warm-cache readings, and unlike tests/test_go_toolchain.sh the cold case is cheap here
+# and was measured rather than assumed: the file compiles ONE small stdlib-only command
+# (cmd/genassets and internal/assets pull no module requirements), so a run with GOMODCACHE and
+# GOCACHE both pointed at empty scratch directories costs 2.24s — which also makes the file offline
+# after a fresh clone. Its other work is a `cp -R` of four small authored roots (~520K, 64 files)
+# plus the generated tree, and three comparator runs over them. Next multiple of 5 above 2.24 is 5,
+# plus the 5s margin -> 10, this table's floor. EXPECTED_TOTAL moves 1815 -> 1825.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
+tests/test_asset_bundle_drift.sh	10	parallel
 tests/test_auto_groom.sh	10	parallel
 tests/test_backfill_change_types.sh	10	parallel
 tests/test_bash_runtime_install.sh	10	parallel

@@ -25,7 +25,20 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1815 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1825 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1815 -> 1825 (change 0311): tests/test_asset_bundle_drift.sh, a NEW test file
+                    # — the legitimate mover the table header names first. It is the drift gate over
+                    # the generated, committed embedded asset bundle (internal/assets/embedded) and
+                    # its comparator `cmd/genassets -check`. No existing shard could take it: the
+                    # only other Go-touching file here, tests/test_go_toolchain.sh, is the
+                    # whole-suite Go gate whose `go test ./...` verdict is precisely the CACHEABLE
+                    # one that cannot see this drift — editing skills/ does not change
+                    # internal/assets' package inputs. Readings 0.50/0.49/0.46s standalone serial
+                    # warm and 2.24s with both Go caches pointed at empty scratch dirs, so the worst
+                    # sizes it at the table's floor, 10. Its rationale is in the tsv header beside
+                    # the row.
+                    # Recomputed from the table itself, never hand-adjusted:
+                    #   awk -F'\t' '!/^#/ && NF>=2 {s+=$2} END{print s}' tests/runtime-budgets.tsv
                     # 1795 -> 1815 (change 0304): tests/test_go_toolchain.sh, a NEW test file — the
                     # legitimate mover the table header names first. It is the whole-suite Go gate
                     # over the Go module this change introduces at the repository root (gofmt,
