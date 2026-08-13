@@ -3,11 +3,12 @@
 // Go API.
 package cli
 
-// DetectJSONMode is the output-transport selection step, not a second
-// argument parser. Output mode must be known even when ordinary parsing stops
-// before Cobra reaches --json (e.g. `docket version --bogus --json`), so this
-// deliberately narrow scan runs over raw arguments before Cobra executes.
-// Its bounded grammar:
+// DetectJSONMode is the output-transport fallback, not a second argument
+// parser and not the mode input on a clean parse — Run reads the Cobra-bound
+// --json flag whenever pflag managed to parse it. Output mode must still be
+// known when ordinary parsing stops before Cobra reaches --json (e.g. `docket
+// version --bogus --json`), and that case alone is what this deliberately
+// narrow scan over raw arguments answers. Its bounded grammar:
 //   - it recognizes only --json, --json=true, and --json=false;
 //   - the last recognized value before a standalone -- selects the mode;
 //   - it stops at the first standalone --;

@@ -47,6 +47,97 @@ func TestVersionJSONFalseIsHuman(t *testing.T) {
 	}
 }
 
+// pflag parses --json with strconv.ParseBool, so every spelling that Bool
+// accepts selects the mode once Cobra has parsed the flag successfully. The
+// pre-scan's three-spelling grammar is the fallback for the parse-failure
+// path, not the mode input on a clean parse.
+func TestBoundJSONFlagSpellings(t *testing.T) {
+	jsonWant := `{"protocol_version":1,"operation":"version","result":"applied","version":"development","commit":"unknown","build_date":"unknown"}` + "\n"
+	humanWant := "docket development (commit unknown, built unknown)\n"
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"--json=1", "version"}, jsonWant},
+		{[]string{"--json=TRUE", "version"}, jsonWant},
+		{[]string{"--json=t", "version"}, jsonWant},
+		{[]string{"version", "--json=True"}, jsonWant},
+		{[]string{"--json=0", "version"}, humanWant},
+		{[]string{"--json=F", "version"}, humanWant},
+		{[]string{"--json=1", "version", "--json=0"}, humanWant},
+	} {
+		out, errS, code := runCLI(t, c.args...)
+		if code != 0 || errS != "" || out != c.want {
+			t.Fatalf("args=%v out=%q err=%q code=%d, want out=%q", c.args, out, errS, code, c.want)
+		}
+	}
+}
+
+// The conflict rule keys on the mode actually selected, so a Bool spelling the
+// pre-scan does not recognize still conflicts with help.
+func TestJSONHelpConflictBoundSpelling(t *testing.T) {
+	for _, args := range [][]string{
+		{"--json=1", "--help"},
+		{"--json=TRUE", "-h"},
+		{"--json=1", "help"},
+		{"--json=1", "help", "version"},
+	} {
+		out, errS, code := runCLI(t, args...)
+		if code != 2 {
+			t.Fatalf("args=%v code=%d, want 2", args, code)
+		}
+		if errS != "" {
+			t.Fatalf("args=%v stderr=%q, want empty", args, errS)
+		}
+		if !strings.Contains(out, `"reason":"json-help-conflict"`) {
+			t.Fatalf("args=%v stdout=%q", args, out)
+		}
+		if strings.Contains(out, "Usage") {
+			t.Fatalf("args=%v help text leaked into protocol stream: %q", args, out)
+		}
+	}
+	// A Bool-false spelling is not JSON mode, so help renders as usual.
+	out, errS, code := runCLI(t, "--json=0", "--help")
+	if code != 0 || errS != "" || !strings.Contains(out, "Usage") {
+		t.Fatalf("--json=0 --help: out=%q err=%q code=%d", out, errS, code)
+	}
+}
+
+// The fallback's boundary, pinned deliberately: when parsing dies before
+// reaching the flag there is no bound value, so only the pre-scan's three
+// spellings can still select JSON mode. --json=1 after a failing token is
+// therefore a human-mode error.
+func TestBoundSpellingAfterParseErrorFallsBackToHuman(t *testing.T) {
+	for _, args := range [][]string{
+		// Parsing stops at the unknown token before reaching --json=1.
+		{"version", "--bogus", "--json=1"},
+		// Command resolution fails before any flag is parsed.
+		{"--json=1", "bogus"},
+	} {
+		out, errS, code := runCLI(t, args...)
+		if code != 2 || out != "" {
+			t.Fatalf("args=%v out=%q code=%d", args, out, code)
+		}
+		if !strings.HasPrefix(errS, "docket: ") {
+			t.Fatalf("args=%v stderr = %q", args, errS)
+		}
+	}
+	// A bound spelling that pflag DID reach still selects JSON mode for the
+	// error document, whether the failure is a later flag or argument checking.
+	for _, args := range [][]string{
+		{"--json=1", "version", "--bogus"},
+		{"--json=TRUE", "version", "extra"},
+	} {
+		out, errS, code := runCLI(t, args...)
+		if code != 2 || errS != "" {
+			t.Fatalf("args=%v err=%q code=%d", args, errS, code)
+		}
+		if !strings.Contains(out, `"result":"invalid-input"`) {
+			t.Fatalf("args=%v stdout=%q", args, out)
+		}
+	}
+}
+
 func TestDiagnosticRuntimeJSON(t *testing.T) {
 	out, errS, code := runCLI(t, "diagnostic", "runtime", "--json")
 	want := `{"protocol_version":1,"operation":"diagnostic.runtime","result":"applied","go_version":"go1.26.5","go_os":"darwin","go_arch":"arm64","supported_target":true}` + "\n"
