@@ -2,7 +2,7 @@
 id: 304
 slug: go-executable-json-protocol-test-build-skeleton
 title: 'Go executable, JSON protocol, and test/build skeleton'
-status: implemented
+status: done
 priority: critical
 type: feat
 created: 2026-08-12
@@ -18,7 +18,7 @@ results: docs/results/2026-08-13-go-executable-json-protocol-test-build-skeleton
 trivial: false
 auto_groomable:
 branch: feat/go-executable-json-protocol-test-build-skeleton
-claimed_at: 2026-08-13T12:43:14Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/204
 blocked_by:
 reconciled: true
