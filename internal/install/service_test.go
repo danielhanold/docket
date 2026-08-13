@@ -299,12 +299,19 @@ func actionPaths(out install.Outcome) []string {
 }
 
 func hasAction(out install.Outcome, op, path string) bool {
+	_, ok := findAction(out, op, path)
+	return ok
+}
+
+// findAction returns the reported action for one op and path, so a test can
+// assert on its detail as well as its existence.
+func findAction(out install.Outcome, op, path string) (install.Action, bool) {
 	for _, a := range out.Actions {
 		if a.Op == op && a.Path == path {
-			return true
+			return a, true
 		}
 	}
-	return false
+	return install.Action{}, false
 }
 
 func loadState(t *testing.T, roots install.UserRoots) *install.State {
@@ -473,8 +480,16 @@ func TestInstallConflictPreservesEverything(t *testing.T) {
 	if out.Applied {
 		t.Fatalf("conflicted install reported applied work")
 	}
-	if !hasAction(out, install.OpConflict, foreign) {
-		t.Errorf("conflict not reported for %s: %v", foreign, out.Actions)
+	action, ok := findAction(out, install.OpConflict, foreign)
+	if !ok {
+		t.Fatalf("conflict not reported for %s: %v", foreign, out.Actions)
+	}
+	// There is no --force: the report is the user's only way forward, so it
+	// carries the stable reason AND what to do about this particular target.
+	for _, want := range []string{install.ReasonOwnershipConflict, "docket did not write", "move or delete", "re-run"} {
+		if !strings.Contains(action.Detail, want) {
+			t.Errorf("conflict detail = %q, want it to contain %q", action.Detail, want)
+		}
 	}
 	assertUnchanged(t, before, snapshot(t, w.home), "ownership conflict")
 	if _, err := os.Stat(w.roots.StatePath()); !os.IsNotExist(err) {
@@ -494,6 +509,16 @@ func TestInstallManagedBlockInvalidRefuses(t *testing.T) {
 	out := install.Install(o)
 	if out.Reason != install.ReasonManagedBlockInvalid {
 		t.Fatalf("reason = %q, want %q", out.Reason, install.ReasonManagedBlockInvalid)
+	}
+	blocked, ok := findAction(out, install.OpConflict, w.path(".claude", "CLAUDE.md"))
+	if !ok {
+		t.Fatalf("conflict not reported for the managed-block file: %v", out.Actions)
+	}
+	// Only the user can repair their own markers, so the remedy names them.
+	for _, want := range []string{install.ReasonManagedBlockInvalid, "docket:dispatch", "by hand", "re-run"} {
+		if !strings.Contains(blocked.Detail, want) {
+			t.Errorf("conflict detail = %q, want it to contain %q", blocked.Detail, want)
+		}
 	}
 	assertUnchanged(t, before, snapshot(t, w.home), "managed block invalid")
 }
@@ -961,8 +986,16 @@ func TestCheckNamesTheDriftedTarget(t *testing.T) {
 	if out.Reason != install.ReasonInstallationDrift {
 		t.Fatalf("reason = %q", out.Reason)
 	}
-	if !hasAction(out, install.OpDrift, drifted) {
-		t.Errorf("drift action missing for %s: %v", drifted, out.Actions)
+	action, ok := findAction(out, install.OpDrift, drifted)
+	if !ok {
+		t.Fatalf("drift action missing for %s: %v", drifted, out.Actions)
+	}
+	// A conflict is a dead end whichever operation found it, so `check` states
+	// the same way forward `install` would have.
+	for _, want := range []string{install.ReasonOwnershipConflict, "no longer matches the recorded install", "re-run"} {
+		if !strings.Contains(action.Detail, want) {
+			t.Errorf("drift detail = %q, want it to contain %q", action.Detail, want)
+		}
 	}
 }
 

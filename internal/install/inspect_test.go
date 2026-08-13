@@ -65,6 +65,11 @@ func TestInspectTarget(t *testing.T) {
 		setup      func(t *testing.T, dir string) (Target, *State)
 		want       Disposition
 		wantReason string
+		// wantRemedy are substrings the conflict's remedy must contain. Every
+		// conflict is asserted to carry SOME remedy by the loop below; these
+		// pin the target-specific half — the block name, the expected link
+		// destination, the fact that a recorded file drifted.
+		wantRemedy []string
 	}{
 		{
 			name: "absent file is created",
@@ -107,6 +112,7 @@ func TestInspectTarget(t *testing.T) {
 			},
 			want:       DispositionConflict,
 			wantReason: ReasonOwnershipConflict,
+			wantRemedy: []string{"docket did not write", "move or delete", "re-run"},
 		},
 		{
 			name: "drifted owned file is a conflict",
@@ -118,6 +124,7 @@ func TestInspectTarget(t *testing.T) {
 			},
 			want:       DispositionConflict,
 			wantReason: ReasonOwnershipConflict,
+			wantRemedy: []string{"no longer matches the recorded install", "re-run"},
 		},
 		{
 			name: "a directory where a file target belongs is a conflict",
@@ -130,6 +137,7 @@ func TestInspectTarget(t *testing.T) {
 			},
 			want:       DispositionConflict,
 			wantReason: ReasonOwnershipConflict,
+			wantRemedy: []string{"move or delete", "re-run"},
 		},
 		{
 			// A symlink standing where a plain file target belongs is the
@@ -147,6 +155,7 @@ func TestInspectTarget(t *testing.T) {
 			},
 			want:       DispositionConflict,
 			wantReason: ReasonOwnershipConflict,
+			wantRemedy: []string{"move or delete", "re-run"},
 		},
 		{
 			// The same escape spelled through a symlinked ANCESTOR: the
@@ -166,6 +175,7 @@ func TestInspectTarget(t *testing.T) {
 			},
 			want:       DispositionConflict,
 			wantReason: ReasonOwnershipConflict,
+			wantRemedy: []string{"move or delete", "re-run"},
 		},
 		{
 			name: "absent symlink is created",
@@ -214,6 +224,10 @@ func TestInspectTarget(t *testing.T) {
 			},
 			want:       DispositionConflict,
 			wantReason: ReasonOwnershipConflict,
+			wantRemedy: []string{
+				filepath.Join("versions", "one", "assets", "skills", "docket-build"),
+				"re-run",
+			},
 		},
 		{
 			name: "owned symlink the plan repoints is updated",
@@ -248,6 +262,7 @@ func TestInspectTarget(t *testing.T) {
 			},
 			want:       DispositionConflict,
 			wantReason: ReasonOwnershipConflict,
+			wantRemedy: []string{"move or delete", "re-run"},
 		},
 		{
 			name: "absent managed-block file is created",
@@ -336,6 +351,7 @@ func TestInspectTarget(t *testing.T) {
 			},
 			want:       DispositionConflict,
 			wantReason: ReasonOwnershipConflict,
+			wantRemedy: []string{"docket:dispatch", "no longer matches the recorded install", "re-run"},
 		},
 		{
 			name: "foreign block of the same name without a prior record is a conflict",
@@ -352,6 +368,7 @@ func TestInspectTarget(t *testing.T) {
 			},
 			want:       DispositionConflict,
 			wantReason: ReasonOwnershipConflict,
+			wantRemedy: []string{"docket:dispatch", "docket did not write", "re-run"},
 		},
 		{
 			name: "block absent from an existing file is an update that appends",
@@ -387,6 +404,7 @@ func TestInspectTarget(t *testing.T) {
 			},
 			want:       DispositionConflict,
 			wantReason: ReasonManagedBlockInvalid,
+			wantRemedy: []string{"docket:dispatch", "by hand", "re-run"},
 		},
 		{
 			name: "malformed marker line is managed-block-invalid",
@@ -403,6 +421,7 @@ func TestInspectTarget(t *testing.T) {
 			},
 			want:       DispositionConflict,
 			wantReason: ReasonManagedBlockInvalid,
+			wantRemedy: []string{"docket:dispatch", "by hand", "re-run"},
 		},
 		{
 			name: "a symlink where a managed-block file belongs is a conflict",
@@ -421,6 +440,7 @@ func TestInspectTarget(t *testing.T) {
 			},
 			want:       DispositionConflict,
 			wantReason: ReasonOwnershipConflict,
+			wantRemedy: []string{"move or delete", "re-run"},
 		},
 	}
 
@@ -439,6 +459,24 @@ func TestInspectTarget(t *testing.T) {
 			}
 			if got.Reason != tc.wantReason {
 				t.Errorf("reason = %q, want %q", got.Reason, tc.wantReason)
+			}
+			// There is no --force, so a conflict without a remedy is a dead
+			// end for the user: every conflict states a way forward, and no
+			// other disposition invents one.
+			if tc.want == DispositionConflict {
+				if got.Remedy == "" {
+					t.Errorf("conflict carries no remedy")
+				}
+				for _, want := range tc.wantRemedy {
+					if !strings.Contains(got.Remedy, want) {
+						t.Errorf("remedy = %q, want it to contain %q", got.Remedy, want)
+					}
+				}
+				if detail := got.ConflictDetail(); detail != got.Reason+": "+got.Remedy {
+					t.Errorf("conflict detail = %q, want %q", detail, got.Reason+": "+got.Remedy)
+				}
+			} else if got.Remedy != "" {
+				t.Errorf("%s carries a remedy %q", got.Disposition, got.Remedy)
 			}
 			if got.Target.Path != target.Path {
 				t.Errorf("inspection dropped its target: %q", got.Target.Path)

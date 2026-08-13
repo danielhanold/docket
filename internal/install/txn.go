@@ -549,7 +549,7 @@ func planSteps(txnID string, inspections []Inspection, removals []TargetRecord) 
 		case DispositionNoop:
 			continue
 		case DispositionConflict:
-			return nil, nil, fmt.Errorf("%w: %s (%s)", ErrPlanConflict, insp.Target.Path, insp.Reason)
+			return nil, nil, fmt.Errorf("%w: %s (%s)", ErrPlanConflict, insp.Target.Path, insp.ConflictDetail())
 		case DispositionCreate, DispositionUpdate:
 		default:
 			return nil, nil, fmt.Errorf("%w: %s carries unknown disposition %q",
