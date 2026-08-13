@@ -46,7 +46,7 @@
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
 | [0305](active/0305-configuration-and-capability-envelope.md) | Configuration and capability envelope | `critical` | `feat` | needs-brainstorm |
-| [0306](active/0306-loss-preserving-document-layer.md) | Loss-preserving document layer | `critical` | `feat` | needs-brainstorm |
+| [0306](active/0306-loss-preserving-document-layer.md) | Loss-preserving document layer | `critical` | `feat` | build-ready |
 | [0307](active/0307-domain-snapshot-validation-graphs-and-selection.md) | Domain snapshot, validation, graphs, and selection | `critical` | `feat` | ⏳ waiting on #305 — not yet built |
 | [0308](active/0308-git-adapter-and-authoritative-object-source.md) | Git adapter and authoritative object source | `critical` | `feat` | needs-brainstorm |
 | [0309](active/0309-isolated-metadata-transaction-engine.md) | Isolated metadata transaction engine | `critical` | `feat` | ⏳ waiting on #307 — not yet built |
