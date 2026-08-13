@@ -55,20 +55,142 @@ func FuzzParse(f *testing.F) {
 	})
 }
 
-// FuzzMarkers — marker discovery/balance over arbitrary body bytes.
+// markerAdversarialSeeds are hand-written body slices aimed at the marker
+// surface specifically: balance, nesting, fence masking, annotation edges, line
+// terminators, and marker-shaped prose. They are seeds, not assertions — each
+// one either parses (and is then held to the structural properties below) or is
+// a legal refusal.
+var markerAdversarialSeeds = []string{
+	"<!-- docket:a:start -->\nbody\n<!-- docket:a:end -->\n",
+	"<!-- docket:a:start -->\nbody\n<!-- docket:a:end -->", // unterminated last line
+	"<!-- docket:a:start -->\n<!-- docket:a:end -->\n",     // empty interior
+	"<!-- docket:a:start -->\r\nbody\r\n<!-- docket:a:end -->\r\n",
+	"<!-- docket:a:start (annotated) -->\nx\n<!-- docket:a:end -->\n",
+	"<!-- docket:a:start () -->\nx\n<!-- docket:a:end -->\n", // empty annotation
+	"<!-- docket:a:start -->\n<!-- docket:a:end -->\n<!-- docket:b:start -->\n<!-- docket:b:end -->\n",
+	"<!-- docket:a:start -->\n<!-- docket:b:start -->\n<!-- docket:b:end -->\n<!-- docket:a:end -->\n", // nesting
+	"<!-- docket:a:start -->\n",                                                                        // dangling start
+	"<!-- docket:a:end -->\n",                                                                          // unmatched end
+	"<!-- docket:a:end (why) -->\n",                                                                    // annotation on an end marker
+	"<!-- docket:a:start -->\nx\n<!-- docket:b:end -->\n",                                              // crossed names
+	"<!-- docket:a:start -->\nx\n<!-- docket:a:end -->\n<!-- docket:a:start -->\ny\n<!-- docket:a:end -->\n",
+	"```\n<!-- docket:a:start -->\n```\n",        // fence-masked marker
+	"~~~info\n<!-- docket:a:start -->\n~~~\n",    // tilde fence with info string
+	"````\n```\n<!-- docket:a:start -->\n````\n", // longer fence run
+	"```\n<!-- docket:a:start -->\n",             // unclosed fence swallows the marker
+	"   <!-- docket:a:start -->\n",               // indented: prose, not a marker
+	"<!-- docket:A:start -->\n",                  // malformed name
+	"<!-- docket:a:start -->trailing\n",          // malformed tail
+	"<!-- docket: -->\n",                         // prefix without a grammar match
+	"<!-- docket:a:start (nested (paren)) -->\nx\n<!-- docket:a:end -->\n",
+	"---\nid: 1\n---\n<!-- docket:a:start -->\nx\n<!-- docket:a:end -->\n",
+	"---\n<!-- docket:a:start -->\n---\nbody\n", // marker-shaped text inside frontmatter
+}
+
+// seedMarkerBodies seeds the marker surface with body-oriented slices: the
+// post-frontmatter body of every package-local fixture and every frozen corpus
+// file (the frontmatter's bytes are never marker territory, so the body alone
+// is the input this surface actually consumes), plus the adversarial fixtures
+// above. A fixture that does not parse is seeded whole — its bytes are still
+// useful mutation fuel.
+func seedMarkerBodies(f *testing.F) {
+	f.Helper()
+	for _, dir := range []string{"testdata", frozenDir} {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			f.Fatalf("seed dir %s: %v", dir, err)
+		}
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+			b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+			if err != nil {
+				f.Fatal(err)
+			}
+			if d, perr := Parse(b); perr == nil && d.hasFM {
+				b = b[d.fmClose.End:]
+			}
+			f.Add(b)
+		}
+	}
+	for _, s := range markerAdversarialSeeds {
+		f.Add([]byte(s))
+	}
+}
+
+// trimTerminator drops a line's terminator, so what remains is the text
+// markerRE is anchored against.
+func trimTerminator(line []byte) []byte {
+	line = bytes.TrimSuffix(line, []byte("\n"))
+	return bytes.TrimSuffix(line, []byte("\r"))
+}
+
+// FuzzMarkers — marker discovery, balance, and block geometry over arbitrary
+// body bytes. Parse must never panic or loop; and on success the located block
+// population must be structurally sound: ascending and non-overlapping in
+// source order, each block's interior exactly the bytes between its two marker
+// lines and never reaching into either of them, and each marker line's own
+// bytes re-matching the marker grammar with the fields the Block reports.
 func FuzzMarkers(f *testing.F) {
-	seedAll(f)
+	seedMarkerBodies(f)
 	f.Fuzz(func(t *testing.T, body []byte) {
 		d, err := Parse(body)
 		if err != nil {
 			return
 		}
-		names := map[string]bool{}
-		for _, b := range d.Blocks() {
-			if names[b.Name] {
-				t.Fatalf("duplicate block name %q survived validation", b.Name)
+		src := d.Source()
+		prevEnd := 0
+		for i, b := range d.Blocks() {
+			// Every span is in bounds and internally ordered.
+			for _, s := range []struct {
+				name string
+				span Span
+			}{{"Start", b.Start}, {"Interior", b.Interior}, {"End", b.End}} {
+				if s.span.Start < 0 || s.span.Start > s.span.End || s.span.End > len(src) {
+					t.Fatalf("block %q %s span %+v out of bounds for %d source bytes",
+						b.Name, s.name, s.span, len(src))
+				}
 			}
-			names[b.Name] = true
+			// Ascending and non-overlapping: this block begins at or after the
+			// previous block's end marker finished.
+			if b.Start.Start < prevEnd {
+				t.Fatalf("block %d (%q) starts at %d, inside the preceding block ending at %d",
+					i, b.Name, b.Start.Start, prevEnd)
+			}
+			prevEnd = b.End.End
+			// The interior is exactly the bytes between the marker lines: it
+			// never crosses into either marker line, and never leaves a gap.
+			if b.Interior.Start != b.Start.End || b.Interior.End != b.End.Start {
+				t.Fatalf("block %q interior %+v is not the span between its markers [%d, %d)",
+					b.Name, b.Interior, b.Start.End, b.End.Start)
+			}
+			// Each marker line's own bytes re-match the marker grammar, and
+			// agree with what the Block reports about them.
+			startText := trimTerminator(src[b.Start.Start:b.Start.End])
+			m := markerRE.FindSubmatch(startText)
+			if m == nil {
+				t.Fatalf("block %q start line %q does not match the marker grammar", b.Name, startText)
+			}
+			if string(m[1]) != b.Name || string(m[2]) != "start" || string(m[3]) != b.Annotation {
+				t.Fatalf("block %q start line %q reports (%q, %q, %q), want (%q, \"start\", %q)",
+					b.Name, startText, m[1], m[2], m[3], b.Name, b.Annotation)
+			}
+			endText := trimTerminator(src[b.End.Start:b.End.End])
+			m = markerRE.FindSubmatch(endText)
+			if m == nil {
+				t.Fatalf("block %q end line %q does not match the marker grammar", b.Name, endText)
+			}
+			if string(m[1]) != b.Name || string(m[2]) != "end" || string(m[3]) != "" {
+				t.Fatalf("block %q end line %q reports (%q, %q, %q), want (%q, \"end\", \"\")",
+					b.Name, endText, m[1], m[2], m[3], b.Name)
+			}
+			// The canonical renderers agree with source whenever the source
+			// line is already canonical — the end marker has exactly one
+			// spelling, so it always is.
+			if got := endMarkerLine(b.Name); got != string(endText) {
+				t.Fatalf("endMarkerLine(%q) = %q, but the located line is %q", b.Name, got, endText)
+			}
 		}
 	})
 }
