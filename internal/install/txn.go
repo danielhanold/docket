@@ -305,6 +305,14 @@ func (t *Txn) writeThroughStaging(step *journalStep, data []byte, want os.FileMo
 	if err := t.fs.WriteFile(step.Staging, data, mode); err != nil {
 		return fmt.Errorf("staging %s: %w", step.Path, err)
 	}
+	// WriteFile's mode only applies at creation, where the process umask filters
+	// it — under a restrictive umask a 0o755 binary would land 0o700. The mode
+	// here is policy, not a ceiling, so it is enforced with an explicit chmod on
+	// the staging file, before the rename, so the destination never holds the
+	// right bytes under the wrong permissions.
+	if err := t.fs.Chmod(step.Staging, mode); err != nil {
+		return fmt.Errorf("setting the mode of %s: %w", step.Path, err)
+	}
 	if err := t.fs.Rename(step.Staging, step.Path); err != nil {
 		return fmt.Errorf("publishing %s: %w", step.Path, err)
 	}
@@ -473,6 +481,12 @@ func restoreStep(fsops FSOps, dir string, step journalStep) error {
 		// rollback cannot leave a torn file either.
 		if err := fsops.WriteFile(step.Staging, data, mode); err != nil {
 			return fmt.Errorf("staging the restore of %s: %w", step.Path, err)
+		}
+		// The chmod mirrors writeThroughStaging, and for the same reason: the
+		// recorded pre-image mode is what the user had, and a restore that lets
+		// the umask narrow it has not put the world back.
+		if err := fsops.Chmod(step.Staging, mode); err != nil {
+			return fmt.Errorf("setting the mode of the restore of %s: %w", step.Path, err)
 		}
 		if err := fsops.Rename(step.Staging, step.Path); err != nil {
 			return fmt.Errorf("restoring %s: %w", step.Path, err)
