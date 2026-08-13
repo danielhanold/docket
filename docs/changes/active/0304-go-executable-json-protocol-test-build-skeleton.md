@@ -2,7 +2,7 @@
 id: 304
 slug: go-executable-json-protocol-test-build-skeleton
 title: 'Go executable, JSON protocol, and test/build skeleton'
-status: proposed
+status: in-progress
 priority: critical
 type: feat
 created: 2026-08-12
@@ -17,7 +17,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/go-executable-json-protocol-test-build-skeleton
+claimed_at: 2026-08-13T10:59:48Z
 pr:
 blocked_by:
 reconciled: false
