@@ -25,7 +25,20 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1795 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1815 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1795 -> 1815 (change 0304): tests/test_go_toolchain.sh, a NEW test file — the
+                    # legitimate mover the table header names first. It is the whole-suite Go gate
+                    # over the Go module this change introduces at the repository root (gofmt,
+                    # `go vet ./...`, `go test ./...`, and the four-tuple CGO-off cross-build), so
+                    # no existing shard could take it: every other file in the table drives Bash
+                    # scripts. Readings 13/12/12s standalone serial
+                    # (scripts/run-tests.sh -j 1 --timings PATH), and the worst, 13, sizes it at 20
+                    # — next multiple of 5 is 15, plus the 5s margin. Those readings are already
+                    # COLD-CACHE ones: the runner gives every job a private HOME, so `go` re-fetches
+                    # and recompiles per suite run. Its rationale is in the tsv header beside the
+                    # row.
+                    # Recomputed from the table itself, never hand-adjusted:
+                    #   awk -F'\t' '!/^#/ && NF>=2 {s+=$2} END{print s}' tests/runtime-budgets.tsv
                     # 1785 -> 1795 (change 0298): tests/test_board_checks_stack.sh, a NEW test file
                     # — the same legitimate mover. It is a SIBLING SHARD of
                     # tests/test_board_checks.sh, which sits at 55s, and it carries the two stacked
