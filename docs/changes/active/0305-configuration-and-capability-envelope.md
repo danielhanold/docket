@@ -2,7 +2,7 @@
 id: 305
 slug: configuration-and-capability-envelope
 title: 'Configuration and capability envelope'
-status: proposed
+status: in-progress
 priority: critical
 type: feat
 created: 2026-08-12
@@ -17,7 +17,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/configuration-and-capability-envelope
+claimed_at: 2026-08-13T15:38:38Z
 pr:
 blocked_by:
 reconciled: false
