@@ -13,9 +13,13 @@ package's tests alone; no other package reads them.
 Frozen cross-package repository fixtures — snapshots of real docket-managed
 repository states, versioned by the docket release that produced them.
 
-- **Provenance:** each `<fixture-name>/` directory records where its content
-  came from in a `PROVENANCE.md` at its root (source repo, commit, date, and
-  any redaction applied).
+- **Provenance:** every fixture records where its content came from (source
+  repo, commit, date, and any redaction applied) in a `PROVENANCE.md`, written
+  under one of two conventions: **per fixture**, one `PROVENANCE.md` at each
+  `<fixture-name>/` root, or **tree-wide**, a single `PROVENANCE.md` at the
+  versioned tree's root (e.g. `v0.9.2/PROVENANCE.md`) covering all of that
+  tree's fixtures. A versioned tree uses exactly one of the two — never a mix,
+  so there is one place to look for any fixture's provenance.
 - **Immutability:** frozen fixtures are immutable source inputs. Never edit a
   file under `v0.9.2/` — a changed input silently re-bases every test that
   reads it. A new upstream state gets a new versioned tree, never an edit.

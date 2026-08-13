@@ -1,0 +1,3 @@
+# Frozen repository fixtures must be committable — re-include the fixture copies the
+# root managed block's bare `.docket.local.yml` would otherwise match at any depth.
+!**/.docket.local.yml
