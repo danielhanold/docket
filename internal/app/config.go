@@ -16,6 +16,7 @@ const (
 	ReasonInvalidConfig            = "invalid-config"
 	ReasonMissingResolutionContext = "missing-resolution-context"
 	ReasonDeferredCapRequested     = "deferred-capability-requested"
+	ReasonInternalError            = "internal-error"
 )
 
 // sourceModeFilesystem is the only source mode this generation ships. It is a
@@ -52,11 +53,12 @@ func DiagnosticConfig(sources []config.Source, rctx config.ResolveContext, forMu
 
 	snap, diags, err := config.Resolve(sources, rctx)
 	if err != nil {
+		result, reason := failureOutcome(err)
 		return ConfigInspectionResult{
-			Envelope:    NewEnvelope(operation, ResultInvalidInput),
+			Envelope:    NewEnvelope(operation, result),
 			SourceMode:  sourceModeFilesystem,
 			Diagnostics: nonNilDiagnostics(diags),
-			Reason:      failureReason(err),
+			Reason:      reason,
 			Message:     err.Error(),
 		}
 	}
@@ -80,14 +82,23 @@ func DiagnosticConfig(sources []config.Source, rctx config.ResolveContext, forMu
 	return out
 }
 
-// failureReason maps a resolution error to its stable machine reason. An
-// unrecognized error is reported as an invalid configuration rather than
-// silently losing its reason field.
-func failureReason(err error) string {
-	if errors.Is(err, config.ErrMissingResolutionContext) {
-		return ReasonMissingResolutionContext
+// failureOutcome maps a resolution error to the result and stable machine
+// reason it is reported under. Only the two sentinel errors describe something
+// the USER can act on — a bad configuration, or a missing resolution context.
+// Everything else out of config.Resolve is a caller-contract violation
+// (misordered or repeated source layers, a registry/Effective mismatch), which
+// is docket's bug, not the user's: reporting it as invalid input would send
+// the user off to edit a perfectly valid .docket.yml with no diagnostics to
+// go on, so it surfaces as an internal error carrying the error's own text.
+func failureOutcome(err error) (Result, string) {
+	switch {
+	case errors.Is(err, config.ErrMissingResolutionContext):
+		return ResultInvalidInput, ReasonMissingResolutionContext
+	case errors.Is(err, config.ErrInvalidConfig):
+		return ResultInvalidInput, ReasonInvalidConfig
+	default:
+		return ResultInternalError, ReasonInternalError
 	}
-	return ReasonInvalidConfig
 }
 
 func blockerPaths(blockers []config.Diagnostic) []string {
@@ -107,8 +118,12 @@ func nonNilDiagnostics(diags []config.Diagnostic) []config.Diagnostic {
 	return diags
 }
 
-// nonNilCapabilities does the same for a valid snapshot's capability list:
-// "nothing to report" is `[]`, and only a failure result omits the key.
+// nonNilCapabilities is nil hygiene for Go callers reading the struct: an
+// empty list ranges the same as a nil one, but a caller that appends or
+// indexes gets a real slice either way. It does NOT shape the JSON — the
+// field's `omitempty` tag omits an empty capability list entirely, so the key
+// is simply absent (never null) whenever there is nothing to report,
+// failure result or not. Diagnostics is the only unconditional array.
 func nonNilCapabilities(caps []config.Capability) []config.Capability {
 	if caps == nil {
 		return []config.Capability{}

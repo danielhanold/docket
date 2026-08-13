@@ -555,6 +555,8 @@ func TestFixtureDeferredPairs(t *testing.T) {
 	// registry and silently go unreported here.
 	notices := diagPathSet(snap, CodeDeferredSetting)
 	for _, spec := range registry() {
+		// The scopeLocalOnly row is registry-present but decode-excluded, so a
+		// repository can never declare it and it can never produce a notice.
 		if spec.disp != dispDeferred || spec.scope == scopeLocalOnly {
 			continue
 		}
@@ -633,7 +635,9 @@ func repoSettableDeferredPaths(t *testing.T) []string {
 			continue
 		}
 		if spec.scope == scopeLocalOnly {
-			continue // a repository layer cannot declare it, so it cannot block from one
+			// Registry-present but decode-excluded: a repository layer cannot
+			// declare it, so it cannot block from one.
+			continue
 		}
 		path := strings.Replace(spec.path, "agents.*.*.", "agents."+fixtureAgentHarness+"."+fixtureAgentName+".", 1)
 		if strings.Contains(path, "*") {

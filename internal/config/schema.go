@@ -49,7 +49,14 @@ type layerScope int
 const (
 	scopeAny        layerScope = iota
 	scopeRepoFenced            // machine-layer declaration → fenced-setting-ignored, excluded
-	scopeLocalOnly             // committed-layer declaration → fenced-setting-ignored, excluded
+	// scopeLocalOnly: a committed-layer declaration may not be honored. Today
+	// the only row carrying this scope is the obsolete `runtime.bash`, whose
+	// committed-layer fence is enforced at DECODE (it is excluded there as
+	// obsolete and never reaches applyFence), so resolution carries no
+	// scopeLocalOnly branch. A future non-obsolete scopeLocalOnly row must add
+	// the resolution-time fence back in applyFence, together with a test that
+	// reddens when that fence is stripped.
+	scopeLocalOnly
 )
 
 // disposition is the STATIC classification family of a path. The value- and

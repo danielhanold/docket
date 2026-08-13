@@ -227,8 +227,10 @@ func rejectHiddenCompletionCommand(args []string) error {
 		if a == "--" {
 			return nil
 		}
-		// Docket declares no flag that consumes a following value, so the
-		// first argument that is not flag-shaped is the command word.
+		// No ROOT PERSISTENT flag consumes a following value, so the first
+		// argument that is not flag-shaped is the command word. Subcommand
+		// flags that do take a value (--repo-dir, --default-branch) can only
+		// appear AFTER that command word, so this scan never reaches them.
 		if strings.HasPrefix(a, "-") && a != "-" {
 			continue
 		}

@@ -200,12 +200,6 @@ func (r *resolution) applyFence(decl leafDecl) (leafDecl, bool) {
 			"coordinates the whole repository and may only be declared in the committed configuration",
 			fmt.Sprintf("move %s to the committed .docket.yml, or remove it here", decl.path))
 		return decl, false
-
-	case decl.spec.scope == scopeLocalOnly && decl.prov.Layer == LayerRepository:
-		r.fenced(decl, decl.path,
-			"is a machine-local setting and may not be committed",
-			fmt.Sprintf("move %s to a machine-local configuration, or remove it here", decl.path))
-		return decl, false
 	}
 
 	if decl.path == "board_surfaces" && isMachineLayer(decl.prov.Layer) {

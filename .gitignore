@@ -16,7 +16,3 @@
 .codex/agents/docket-*.toml
 .cursor/rules/docket-dispatch.mdc
 # docket:end
-
-# Frozen repository fixtures must be committable — re-include the fixture copies the
-# managed block's bare `.docket.local.yml` would otherwise match at any depth.
-!testdata/repositories/**/.docket.local.yml

@@ -437,3 +437,29 @@ func TestJSONShapeInvalid(t *testing.T) {
 		}
 	}
 }
+
+// TestDiagnosticConfigInternalError: a caller-contract violation — here the
+// source layers handed to Resolve out of precedence order — is docket's own
+// bug, not a bad .docket.yml. It must surface as an internal error rather than
+// collapse into invalid-input, which would send the user off to edit a valid
+// configuration with no diagnostics explaining what to change.
+func TestDiagnosticConfigInternalError(t *testing.T) {
+	misordered := []config.Source{
+		{Layer: config.LayerRepository, Name: ".docket.yml"},
+		{Layer: config.LayerGlobal, Name: "/tmp/xdg/docket/config.yml"},
+	}
+	got := DiagnosticConfig(misordered, mainCtx(), false)
+
+	if got.Result != ResultInternalError {
+		t.Errorf("result = %q, want %q", got.Result, ResultInternalError)
+	}
+	if got.Reason != ReasonInternalError {
+		t.Errorf("reason = %q, want %q", got.Reason, ReasonInternalError)
+	}
+	if got.Message == "" {
+		t.Error("message is empty; the resolver's own error text must survive")
+	}
+	if got.Effective != nil {
+		t.Error("effective is present on a failure document")
+	}
+}
