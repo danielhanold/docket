@@ -186,6 +186,40 @@ func TestInstallHumanTextConflictCarriesRemedy(t *testing.T) {
 	}
 }
 
+// TestInstallHumanTextLegacyNoteOnlyOnOwnershipConflict pins the one aggregate
+// sentence about unadopted legacy installs to the outcome it explains. It is
+// not a per-target remedy, so it must appear exactly once on an
+// ownership-conflict outcome and never on any other.
+func TestInstallHumanTextLegacyNoteOnlyOnOwnershipConflict(t *testing.T) {
+	const fragment = "legacy Bash installer"
+
+	conflict := NewInstallResult("install", install.Outcome{
+		Reason: install.ReasonOwnershipConflict,
+		Err:    errors.New("install: 1 target(s) are not provably docket's"),
+	}).HumanText()
+	if n := strings.Count(conflict, fragment); n != 1 {
+		t.Errorf("legacy note appears %d time(s), want 1:\n%s", n, conflict)
+	}
+	if !strings.Contains(conflict, "not yet adopted automatically") ||
+		!strings.Contains(conflict, "move them aside") {
+		t.Errorf("legacy note text = %q", conflict)
+	}
+
+	for _, reason := range []string{
+		"",
+		install.ReasonInstallationRequired,
+		install.ReasonManagedBlockInvalid,
+	} {
+		other := NewInstallResult("install", install.Outcome{
+			Reason: reason,
+			Err:    errors.New("install: boom"),
+		}).HumanText()
+		if strings.Contains(other, fragment) {
+			t.Errorf("legacy note leaked into reason %q:\n%s", reason, other)
+		}
+	}
+}
+
 // TestPlannersCoverHarnessOrder ties the adapters this layer wires to the
 // package that owns the order, so a fifth harness cannot be shipped in
 // internal/harness and silently never installed.
