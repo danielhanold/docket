@@ -528,3 +528,77 @@ func TestCursorPlanRejectsUnusableInput(t *testing.T) {
 		}
 	})
 }
+
+// Adding an agent source to the bundle must grow the plan by one agent file and
+// carry that agent's authored dispatch fragment into the rule, with no adapter
+// edit — the inventory is the single roster, so a renderer-side name list would
+// fail to grow here. Cursor's dispatch surface is assembled from authored
+// per-agent fragments rather than a rendered roster, so the probe also proves
+// the half a bundle can get wrong: an agent source shipped without its fragment
+// is refused rather than silently un-dispatched.
+func TestCursorInventoryAdditionPropagates(t *testing.T) {
+	in := fixtureInput(t)
+	before := planFixture(t)
+	beforeRule := string(dispatchTarget(t).Content)
+
+	const extraPath = "agents/docket-zzz-synthetic.md"
+	const extraBody = "---\nname: docket-zzz-synthetic\ndescription: A synthetic seventeenth agent.\n---\nSynthetic body.\n"
+	const fragPath = "cursor-rules/dispatch/docket-zzz-synthetic.md"
+	const fragBody = "- **docket-zzz-synthetic** — A synthetic seventeenth agent. Delegate to the `docket-zzz-synthetic` agent.\n"
+
+	base := in.Assets
+	grow := func(extra ...assets.Entry) assets.Catalog {
+		m := base.Manifest
+		m.Entries = append(append([]assets.Entry(nil), m.Entries...), extra...)
+		sort.Slice(m.Entries, func(i, j int) bool { return m.Entries[i].Path < m.Entries[j].Path })
+		return assets.NewCatalog(m, func(p string) ([]byte, error) {
+			switch p {
+			case extraPath:
+				return []byte(extraBody), nil
+			case fragPath:
+				return []byte(fragBody), nil
+			}
+			return base.Bytes(p)
+		})
+	}
+	agentEntry := assets.Entry{Path: extraPath, Role: assets.RoleAgentSource, Mode: 0o644, Size: int64(len(extraBody))}
+	fragEntry := assets.Entry{Path: fragPath, Role: assets.RoleDispatch, Mode: 0o644, Size: int64(len(fragBody))}
+
+	t.Run("agent source without its fragment is refused", func(t *testing.T) {
+		bad := in
+		bad.Assets = grow(agentEntry)
+		if _, err := New().Plan(bad); err == nil {
+			t.Fatal("Plan assembled a rule for an agent with no dispatch fragment")
+		}
+	})
+
+	in.Assets = grow(agentEntry, fragEntry)
+	after, err := New().Plan(in)
+	if err != nil {
+		t.Fatalf("Plan over the grown catalog: %v", err)
+	}
+	if len(after) != len(before)+1 {
+		t.Fatalf("plan grew from %d to %d targets, want exactly one more", len(before), len(after))
+	}
+
+	wantPath := filepath.Join(fakeHome, rootDir, agentsDir, "docket-zzz-synthetic.md")
+	var found bool
+	var afterRule string
+	for _, tg := range after {
+		if tg.Path == wantPath && tg.Kind == install.KindFile {
+			found = true
+		}
+		if tg.Path == filepath.Join(fakeHome, rootDir, rulesDir, dispatchFile) {
+			afterRule = string(tg.Content)
+		}
+	}
+	if !found {
+		t.Errorf("the grown plan carries no agent file at %s", wantPath)
+	}
+	if !strings.Contains(afterRule, strings.TrimRight(fragBody, "\n")) {
+		t.Errorf("the dispatch rule does not carry the added agent's fragment")
+	}
+	if len(afterRule) <= len(beforeRule) {
+		t.Errorf("the dispatch rule did not grow: %d bytes before, %d after", len(beforeRule), len(afterRule))
+	}
+}

@@ -871,3 +871,71 @@ func TestTxnRefusesRemovalOfAWrittenDestination(t *testing.T) {
 		t.Errorf("a refused plan left a journal behind")
 	}
 }
+
+// TestRecoveryAtEveryInterruptPoint is the restart half of the rollback table:
+// for every mutation an apply performs, a process that dies right there leaves
+// a journal a FRESH process can find and roll back deterministically. One
+// hand-picked interrupt point proves recovery works somewhere; the phase it
+// happens to land on is not the phase a real interruption chooses.
+func TestRecoveryAtEveryInterruptPoint(t *testing.T) {
+	var ops []string
+	func() {
+		f := newFixture(t)
+		ifs := &injectFS{inner: RealFS{}}
+		txn, err := BeginTxn(ifs, f.roots, f.plan)
+		if err != nil {
+			t.Fatalf("BeginTxn: %v", err)
+		}
+		ifs.fail = recordCalls(&ops)
+		if err := txn.Apply(); err != nil {
+			t.Fatalf("clean Apply: %v", err)
+		}
+	}()
+	if len(ops) == 0 {
+		t.Fatal("a clean apply performed no mutations; the table would be vacuous")
+	}
+
+	for n := 1; n <= len(ops); n++ {
+		t.Run(fmt.Sprintf("interrupt-at-%02d-%s", n, ops[n-1]), func(t *testing.T) {
+			f := newFixture(t)
+			before := snapshotWorld(t, f.targets)
+
+			ifs := &injectFS{inner: RealFS{}}
+			txn, err := BeginTxn(ifs, f.roots, f.plan)
+			if err != nil {
+				t.Fatalf("BeginTxn: %v", err)
+			}
+			// applySteps is the engine without its rollback: calling it
+			// directly is how a test kills the process mid-transaction.
+			ifs.fail = failAtCall(n)
+			if err := txn.applySteps(); err == nil {
+				t.Fatal("applySteps succeeded despite an injected failure")
+			}
+
+			// A fresh process knows only the roots.
+			id, found, err := DetectRecovery(f.roots)
+			if err != nil {
+				t.Fatalf("DetectRecovery: %v", err)
+			}
+			if !found {
+				t.Fatal("an interrupted transaction left no journal to recover")
+			}
+			if err := Recover(RealFS{}, f.roots, id); err != nil {
+				t.Fatalf("Recover(%s): %v", id, err)
+			}
+
+			assertWorld(t, before, snapshotWorld(t, f.targets), "after recovery")
+			assertNoStaging(t, f.targets)
+			if _, found, err := DetectRecovery(f.roots); err != nil || found {
+				t.Errorf("DetectRecovery after Recover = (found %v, err %v), want (false, nil)", found, err)
+			}
+			if got := journalCount(t, f.roots); got != 0 {
+				t.Errorf("%d journals survived recovery", got)
+			}
+
+			// Recovery is deterministic: a second recovery pass over the same
+			// roots is a no-op rather than a second, different world.
+			assertWorld(t, before, snapshotWorld(t, f.targets), "after a repeated recovery sweep")
+		})
+	}
+}

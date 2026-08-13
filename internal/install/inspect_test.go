@@ -132,6 +132,42 @@ func TestInspectTarget(t *testing.T) {
 			wantReason: ReasonOwnershipConflict,
 		},
 		{
+			// A symlink standing where a plain file target belongs is the
+			// escape case: writing "the file" would follow the link and
+			// rewrite somebody else's bytes outside every docket root. The
+			// foreign file's bytes are asserted intact by the table's own
+			// before/after tree comparison.
+			name: "a symlink where a plain file belongs is a conflict",
+			setup: func(t *testing.T, dir string) (Target, *State) {
+				outside := filepath.Join(dir, "elsewhere", "someone-elses.md")
+				writeFileOrDie(t, outside, "not docket's file\n")
+				p := filepath.Join(dir, "agents", "docket-adr.md")
+				symlinkOrDie(t, outside, p)
+				return Target{Path: p, Kind: KindFile, Content: []byte("new\n"), Role: "agent"}, nil
+			},
+			want:       DispositionConflict,
+			wantReason: ReasonOwnershipConflict,
+		},
+		{
+			// The same escape spelled through a symlinked ANCESTOR: the
+			// target's own basename does not exist, so only canonicalising
+			// the parent hops reveals that the write lands outside.
+			name: "a file whose parent directory is a symlink out of the root is inspected at the resolved path",
+			setup: func(t *testing.T, dir string) (Target, *State) {
+				outside := filepath.Join(dir, "elsewhere", "agents")
+				writeFileOrDie(t, filepath.Join(outside, "docket-adr.md"), "not docket's file\n")
+				symlinkOrDie(t, outside, filepath.Join(dir, "agents"))
+				return Target{
+					Path:    filepath.Join(dir, "agents", "docket-adr.md"),
+					Kind:    KindFile,
+					Content: []byte("new\n"),
+					Role:    "agent",
+				}, nil
+			},
+			want:       DispositionConflict,
+			wantReason: ReasonOwnershipConflict,
+		},
+		{
 			name: "absent symlink is created",
 			setup: func(t *testing.T, dir string) (Target, *State) {
 				return Target{
