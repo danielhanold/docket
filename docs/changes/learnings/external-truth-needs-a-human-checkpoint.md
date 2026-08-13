@@ -2,9 +2,9 @@
 slug: external-truth-needs-a-human-checkpoint
 hook: "When a value's truth lives outside the repo (a vendor model ID, an external API name), no in-repo test can be its oracle — route it to a named human verification item instead of writing an assert that can only ever pass."
 topics: [testing, verification, config]
-changes: [184, 192, 205]
+changes: [184, 192, 205, 304]
 created: 2026-08-01
-updated: 2026-08-05
+updated: 2026-08-13
 promotion_state: candidate
 promoted_to:
 ---
@@ -39,6 +39,16 @@ exit code you have not established converts an unusual-but-working setup into a 
 worse than the gap it closes — leave it as a named item and say what run would settle it. Second,
 the rule works **at design time, not only at results time**: when a cheaper option exists that
 introduces no new outside-truth, prefer it, and say in the results file that you did.
+
+**Outside-truth also covers the ENVIRONMENT the suite cannot reach.** A property that only holds on
+a machine state the build loop never occupies — a cold cache, a fresh clone, no credentials, no
+network — has no in-repo oracle either, for the same structural reason: every gate run is warm, so
+the assert can only ever pass. Route it to a named human item and say what state the certifying run
+must start from. Two things follow. First, write the item as a *state to reproduce*, not a
+conclusion to confirm ("run this from an empty module cache"), because the certifying run is the
+first execution against that input class and may fail for a reason nobody predicted. Second, budget
+for it to find something: a verify item that reddens has not gone wrong, it has done the one job no
+green suite could do.
 
 ## War story
 - 2026-08-01 (#184, PR #147) — The four-tier build-profile ladder introduced
@@ -81,3 +91,16 @@ introduces no new outside-truth, prefer it, and say in the results file that you
   credentials could not be established without destroying real ones, and a probe with unknown failure
   semantics would turn an unusual-but-working setup into a hard abort. The adapter checks the binary
   only and the question became a results item. Declining to probe was the correct call, not a gap.
+- 2026-08-13 (#304, PR #204) — Fourth hit, and the one that widened the rule from *values and
+  behavior* to the **environment**. The Go skeleton's suite gate caches Go modules under
+  `<git-common-dir>/docket-go-cache/` so it is offline-capable after the first fetch — a property
+  no assert in a warm-cache repo can test, since every gate run is by definition warm. It went to
+  the results file as a named human verify item stating the state to start from (an isolated
+  `GOMODCACHE`/`GOCACHE`). The certifying run **failed**, and not for the anticipated one-time-fetch
+  reason: it exposed a real defect in `tests/test_go_toolchain.sh`, where `go list ./... 2>&1`
+  word-split download chatter into gofmt's argument list (see
+  [[captured-stderr-becomes-arguments]]). The item was written to certify offline capability and
+  earned its keep by catching something else entirely — the argument for phrasing these as "run it
+  from this state" rather than "confirm that X". The change's second item was the ordinary shape of
+  this rule: ratifying that `docket help <unknown-topic>` exits 2 rather than Cobra's default
+  exit 0, a behavioral choice the repo can assert but not *decide*.
