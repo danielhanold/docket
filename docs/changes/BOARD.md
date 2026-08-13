@@ -1,14 +1,8 @@
 # Backlog
 
-**320 changes** — 🟢 1 in progress · 🟡 53 proposed · ⚪ 4 deferred · ✅ 182 done · 🗑️ 80 killed
+**321 changes** — 🟡 54 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 182 done · 🗑️ 80 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0306](active/0306-loss-preserving-document-layer.md) | Loss-preserving document layer | `critical` | `feat` | [spec](../superpowers/specs/2026-08-13-loss-preserving-document-layer-design.md) | `feat/loss-preserving-document-layer` |
-
-## 🟡 Proposed (53)
+## 🟡 Proposed (54)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -51,7 +45,7 @@
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
-| [0307](active/0307-domain-snapshot-validation-graphs-and-selection.md) | Domain snapshot, validation, graphs, and selection | `critical` | `feat` | ⏳ waiting on #306 — not yet built |
+| [0307](active/0307-domain-snapshot-validation-graphs-and-selection.md) | Domain snapshot, validation, graphs, and selection | `critical` | `feat` | ⏳ waiting on #306 — needs your merge |
 | [0308](active/0308-git-adapter-and-authoritative-object-source.md) | Git adapter and authoritative object source | `critical` | `feat` | needs-brainstorm |
 | [0309](active/0309-isolated-metadata-transaction-engine.md) | Isolated metadata transaction engine | `critical` | `feat` | ⏳ waiting on #307 — not yet built |
 | [0310](active/0310-read-only-status-and-health-vertical-slice.md) | Read-only status and health vertical slice | `critical` | `feat` | ⏳ waiting on #307 — not yet built |
@@ -65,6 +59,7 @@
 | [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Configuration contraction, self-hosting, and hard cutover | `critical` | `refactor` | ⏳ waiting on #317 — not yet built |
 | [0319](active/0319-test-bash-runtime-routing-sh-s-inventory-assert-is-cwd-depen.md) | test_bash_runtime_routing.sh's inventory assert is cwd-dependent — relative rg globs resolve against the process cwd | `medium` | `fix` | needs-brainstorm |
 | [0320](active/0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | `medium` | `chore` | needs-brainstorm |
+| [0321](active/0321-render-artifact-backlink-sh-eats-artifact-tails-on-marker-sh.md) | render-artifact-backlink.sh eats artifact tails on marker-shaped literals — anchor whole-line, validate balance, refuse | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -74,6 +69,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0306](active/0306-loss-preserving-document-layer.md) | Loss-preserving document layer | `critical` | `feat` | [#206](https://github.com/danielhanold/docket/pull/206) |  |
 
 ```mermaid
 graph TD
@@ -144,6 +145,7 @@ graph TD
   0317 --> 0318
   0319
   0320
+  0321
   0192:::done
   0211:::done
   0304:::done
