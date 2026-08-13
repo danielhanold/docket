@@ -2,11 +2,11 @@
 id: 285
 slug: gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi
 title: 'gate-run rung 2 — a discovered Python runtime for a real session and an exact child status'
-status: proposed
+status: killed
 priority: high
 type: feat
 created: 2026-08-10
-updated: 2026-08-10
+updated: 2026-08-12
 depends_on: [282]
 related: [264, 284, 132]
 discovered_from: [282]
@@ -96,3 +96,7 @@ runtime. The rule bans an external YAML parser, nothing wider."*
   proves universally present in practice. Deliberately not decided now.
 
 ## Reconcile log
+
+## Why killed
+
+Superseded by Go migration change 0314: the native Go supervisor owns exact exit-versus-signal status and real-session process control without introducing Python.
