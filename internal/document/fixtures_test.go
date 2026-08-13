@@ -123,12 +123,35 @@ func TestBatchPatchOnFrozenActiveChange(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	fs, ok := d.Field("status")
+	if !ok {
+		t.Fatal("fixture must carry status:")
+	}
+	fb, ok := d.Field("branch")
+	if !ok {
+		t.Fatal("fixture must carry branch:")
+	}
 	var p PatchSet
 	p.SetField("status", String("in-progress"))
 	p.SetField("branch", String("feat/batch-mode"))
 	out, err := d.Apply(p)
 	if err != nil {
 		t.Fatal(err)
+	}
+	// The changed-range oracle binds a batch exactly as it binds one edit:
+	// every differing byte sits inside the hull of the two declared entry
+	// spans. A hand-listed set of surviving substrings is not that oracle.
+	lo, hi := fs.Entry.Start, fb.Entry.End
+	if fb.Entry.Start < lo {
+		lo = fb.Entry.Start
+	}
+	if fs.Entry.End > hi {
+		hi = fs.Entry.End
+	}
+	pre, suf := commonPrefix(src, out), commonSuffix(src, out)
+	if pre < lo || len(src)-suf > hi {
+		t.Fatalf("difference [%d, %d) escapes the declared entry spans [%d, %d)",
+			pre, len(src)-suf, lo, hi)
 	}
 	rt, err := Parse(out)
 	if err != nil {
