@@ -18,10 +18,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/installer-embedded-assets-and-four-harnesses
-claimed_at: 2026-08-13T20:20:01Z
+claimed_at: 2026-08-13T20:21:32Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -69,3 +69,15 @@ expanding this installer's behavioral scope.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+- 2026-08-13 — Reconciled against origin/main. Dependencies 0304 (Go executable/protocol/test-build
+  skeleton) and 0305 (configuration and capability envelope) are merged and archived; the spec's
+  "landed foundation" section is accurate. One addition since the spec was written: 0306's
+  loss-preserving document layer (`internal/document`, including validated marker-block handling)
+  also merged today and is available for reuse in the managed-block (dispatch material) rendering
+  and ownership checks — reuse it rather than re-implementing marker validation. No
+  `internal/assets`, `internal/install`, or `internal/harness` packages exist yet; the authored
+  asset roots (`skills/`, `agents/`, `agents/harness-defaults.yml`, templates, references,
+  dispatch instructions) exist on origin/main as the spec assumes. Vendor agent-schema
+  revalidation (Claude/Codex/Cursor/OpenCode native fields) is deferred to plan/build per the
+  spec's own instruction. Scope unchanged; no drift; no auto-capture candidates surfaced.
