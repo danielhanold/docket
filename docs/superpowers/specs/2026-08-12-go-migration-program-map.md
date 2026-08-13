@@ -8,8 +8,8 @@
 > not live on a feature branch. Every implementation change receives its own settled spec and
 > task-level plan through the ordinary Docket workflow before Claude Code claims it.
 
-**Goal:** Replace Docket's production Bash implementation with a self-hosting Go v1 through one
-program record and fifteen independently specified, built, reviewed, and finalized changes.
+**Goal:** Replace Docket's production Bash implementation with a self-hosting Go v1 through
+fifteen independently specified, built, reviewed, and finalized changes.
 
 **Architecture:** One Go module and one `docket` binary expose a versioned JSON CLI over a
 transaction-oriented domain core. Agent skills retain judgment and prose ownership; Go owns
@@ -48,63 +48,98 @@ GitHub Releases, POSIX installer bootstrap, Claude Code as the implementation ho
 
 ## Sprint accounting
 
-The sprint has **fifteen implementation changes**, numbered 1–15 below. Node 0 is a
-documentation-only program record that owns this graph, connects the architecture spec, and
-disposes the frozen Bash backlog. It is not counted as an implementation change.
+The sprint has exactly **fifteen implementation changes**, numbered 1–15 below and tracked as
+Docket changes 0304–0318. This program map owns their topology and scope; it is not itself a unit
+of delivery. The first attempt to represent it as change 0303 was retired because a change that
+produces no independently reviewable build or product artifact does not belong in the lifecycle.
 
-The Docket board and the sixteen change records (program record plus fifteen implementation
-records) are the only live progress tracker. This plan records intended topology and gates; it does
-not duplicate lifecycle status.
+The fifteen change records are the live lifecycle tracker, and `BOARD.md` is their derived view.
+This map records intended topology and gates; it does not duplicate lifecycle status.
+
+## Iteration loop
+
+Run one explicitly named change at a time from a clone. Do not use an unscoped "next" invocation
+while Bash-era build-ready records remain on the board.
+
+1. Choose a change below whose declared predecessors are `done`. Start with change 0304.
+2. In an interactive session, run `docket-groom-next <id>`. Grooming ends after it writes and links
+   that change's focused design spec; it builds no code.
+3. In Claude Code, invoke the `docket-implement-next` agent with that exact id. One invocation plans,
+   builds, tests, reviews, and opens the change's PR.
+4. Review and merge the PR, then invoke `docket-finalize-change <id>` so the record reaches `done`.
+5. Re-read the board and repeat with another dependency-ready id.
+
+Current Bash Docket permits only one autonomous implementer per clone. Parallel work, where this
+graph exposes it, therefore uses separate clones; otherwise run the ready siblings sequentially.
 
 ## Dependency graph
 
-```text
-0  Program record and Bash-backlog disposition
-|
-1  Go executable, JSON protocol, test/build skeleton
-|\
-| +--> 2  Configuration and capability envelope ----+
-| +--> 3  Loss-preserving document layer ------------+--> 4  Domain snapshot,
-| +--> 5  Git adapter and authoritative object source +     validation, graphs,
-| +--> 8  Installer/assets/four harnesses             |     and selection
-| +--> 11 Native process supervisor                   |
-|                                                     +--> 6  Isolated transaction engine
-|                                                     +--> 7  Read-only status/health slice
-|                                                           |
-|                                             6 + 7 --------> 9  Planning mutations/board/ADRs
-|                                             5 + 6 --------> 10 Workspaces/PR/build evidence
-|                                             9 + 10 + 11 --> 12 Claim-to-implemented workflow
-|                                                               |
-|                                                               v
-|                                                             13 Finalize/recovery/stacks
-|                                                               |
-|                                      8 + 13 ----------------> 14 Release/four-harness acceptance
-|                                                               |
-+-------------------------------------------------------------> 15 Config contraction/self-host/cutover
+```mermaid
+flowchart TD
+    C1["1 / #0304 — executable, protocol, test skeleton"]
+    C2["2 / #0305 — configuration"]
+    C3["3 / #0306 — document layer"]
+    C4["4 / #0307 — domain snapshot and graphs"]
+    C5["5 / #0308 — Git adapter"]
+    C6["6 / #0309 — transaction engine"]
+    C7["7 / #0310 — status and health"]
+    C8["8 / #0311 — installer and harnesses"]
+    C9["9 / #0312 — planning mutations"]
+    C10["10 / #0313 — workspaces, PRs, evidence"]
+    C11["11 / #0314 — process supervisor"]
+    C12["12 / #0315 — claim to implemented"]
+    C13["13 / #0316 — finalize and recovery"]
+    C14["14 / #0317 — release acceptance"]
+    C15["15 / #0318 — self-host and cutover"]
+
+    C1 --> C2
+    C1 --> C3
+    C1 --> C5
+    C1 --> C8
+    C1 --> C11
+    C2 --> C4
+    C3 --> C4
+    C2 --> C8
+    C4 --> C6
+    C5 --> C6
+    C4 --> C7
+    C5 --> C7
+    C6 --> C9
+    C7 --> C9
+    C5 --> C10
+    C6 --> C10
+    C9 --> C12
+    C10 --> C12
+    C11 --> C12
+    C12 --> C13
+    C8 --> C14
+    C13 --> C14
+    C14 --> C15
 ```
 
 An edge is a real build-readiness dependency. A mere shared topic is represented by `related`, not
 `depends_on`.
 
-## Change 0: Program record and Bash-backlog disposition
+## Sprint administration — outside the change lifecycle
 
-**Purpose:** Make the approved architecture and sprint topology durable, attach both artifacts to a
-Docket change, and stop Bash-only backlog from competing with the Go program.
+The approved architecture and this topology are durable program documents, not feature-branch
+deliverables. Migration administration happens directly on the metadata branch and never enters
+`docket-implement-next`.
 
-**Produces:**
+Before the first implementation run, the migration owner:
 
-- A documentation-only change linked to the approved architecture spec and this program plan.
-- Fifteen proposed child change stubs with dependency edges matching this plan.
-- A disposition for every active Bash-era change: absorb a still-relevant product invariant into a
+- keeps the fifteen proposed change records and their dependency edges aligned with this map;
+- dispositions every active Bash-era change: absorb a still-relevant product invariant into a
   Go child, retain a genuinely independent product change, defer a deferred-v1 capability, or kill
-  a Bash-only implementation change.
-- Change 0285 killed as superseded by change 11's native Go supervisor; its requirements remain
-  linked as input evidence.
+  a Bash-only implementation change; and
+- kills change 0285 as superseded by change 0314's native Go supervisor while retaining its exact
+  process-status and real-session requirements as input evidence.
 
-**Gate:** No active Bash-only change remains build-ready after the pass, and every absorbed change
-names its Go successor before it is killed.
+The administration gate is: no active Bash-only change is accidentally selected for implementation,
+and every absorbed change names its Go successor before it is killed. Until that full audit is
+complete, the explicit-id rule in the iteration loop is mandatory.
 
-## Change 1: Go executable, JSON protocol, test/build skeleton
+## Change 1 (Docket 0304): Go executable, JSON protocol, test/build skeleton
 
 **Purpose:** Establish the smallest releasable Go product skeleton and the contracts every later
 package consumes.
@@ -116,9 +151,9 @@ conventions.
 **Deliverable:** `docket version` and one read-only diagnostic run as one-shot processes with stable
 text and JSON results on all four target tuples.
 
-**Depends on:** Change 0.
+**Depends on:** Nothing. This is the first implementation change.
 
-## Change 2: Configuration and capability envelope
+## Change 2 (Docket 0305): Configuration and capability envelope
 
 **Purpose:** Load real YAML through the retained precedence and coordination fences, and classify
 each legacy setting as supported, obsolete, inert, or deferred-but-requested.
@@ -131,7 +166,7 @@ that cannot enter a transaction when active unsupported behavior is requested.
 
 **Depends on:** Change 1.
 
-## Change 3: Loss-preserving document layer
+## Change 3 (Docket 0306): Loss-preserving document layer
 
 **Purpose:** Parse typed semantics without surrendering the source bytes needed for compatible,
 reviewable edits.
@@ -145,7 +180,7 @@ unknown fields, comments, quoting, whitespace, line endings, and authored body s
 
 **Depends on:** Change 1.
 
-## Change 4: Domain snapshot, validation, graphs, and selection
+## Change 4 (Docket 0307): Domain snapshot, validation, graphs, and selection
 
 **Purpose:** Represent the entire Docket repository as immutable typed state and make lifecycle
 policy independent of Git, Markdown, and harnesses.
@@ -159,7 +194,7 @@ the filesystem or a subprocess.
 
 **Depends on:** Changes 2 and 3.
 
-## Change 5: Git adapter and authoritative object source
+## Change 5 (Docket 0308): Git adapter and authoritative object source
 
 **Purpose:** Expose fresh remote bytes and Git identities without touching the user's checkout, and
 encapsulate Git as a typed external-command boundary. This change does not assemble domain
@@ -174,7 +209,7 @@ revisioned document bytes and blob identities while leaving the invocation workt
 
 **Depends on:** Change 1.
 
-## Change 6: Isolated metadata transaction engine
+## Change 6 (Docket 0309): Isolated metadata transaction engine
 
 **Purpose:** Make one semantic metadata operation atomic, isolated from other agents, and safely
 retryable after unrelated push contention.
@@ -188,7 +223,7 @@ writes contend, response-loss retries do not duplicate records, and no shared in
 
 **Depends on:** Changes 4 and 5.
 
-## Change 7: Read-only status and health vertical slice
+## Change 7 (Docket 0310): Read-only status and health vertical slice
 
 **Purpose:** Deliver the first user-visible retained workflow without mutation.
 
@@ -201,7 +236,7 @@ stack state, and health results.
 
 **Depends on:** Changes 4 and 5.
 
-## Change 8: Installer, embedded assets, and four harnesses
+## Change 8 (Docket 0311): Installer, embedded assets, and four harnesses
 
 **Purpose:** Install one version-matched Go product for every first-class direct host while retaining
 the source-linked contributor workflow.
@@ -215,7 +250,7 @@ binary/asset mismatch detection. No runner delegation or per-repository routing 
 
 **Depends on:** Changes 1 and 2.
 
-## Change 9: Planning mutations, board, and ADRs
+## Change 9 (Docket 0312): Planning mutations, board, and ADRs
 
 **Purpose:** Complete the retained planning-state lifecycle through coarse metadata transactions.
 
@@ -228,7 +263,7 @@ writers; the board and v1-owned indexes cannot trail their source records.
 
 **Depends on:** Changes 6 and 7.
 
-## Change 10: Workspaces, GitHub PR adapter, and build evidence
+## Change 10 (Docket 0313): Workspaces, GitHub PR adapter, and build evidence
 
 **Purpose:** Encapsulate deterministic feature-branch mechanics and idempotent PR publication
 without making Go an agent workflow engine.
@@ -242,7 +277,7 @@ Docket-owned workspaces; stack PR bases use the domain resolver.
 
 **Depends on:** Changes 5 and 6.
 
-## Change 11: Native process supervisor and local gate
+## Change 11 (Docket 0314): Native process supervisor and local gate
 
 **Purpose:** Replace `gate-run` and change 0285's proposed interpreter with exact native process
 semantics on Darwin and Linux.
@@ -256,7 +291,7 @@ termination on macOS and Linux. No Bash, Python, Perl, or global daemon is invol
 
 **Depends on:** Change 1.
 
-## Change 12: Claim-to-implemented workflow
+## Change 12 (Docket 0315): Claim-to-implemented workflow
 
 **Purpose:** Complete the essential implementation half of the agent-first lifecycle while leaving
 judgment and dispatch inside Claude Code.
@@ -270,7 +305,7 @@ reconcile, plan, build/review dispatch, local gate, results, and PR without dire
 
 **Depends on:** Changes 9, 10, and 11.
 
-## Change 13: Finalize, recovery, reclaim, archive, and stacks
+## Change 13 (Docket 0316): Finalize, recovery, reclaim, archive, and stacks
 
 **Purpose:** Complete the terminal lifecycle and make every cross-system boundary idempotent and
 resumable.
@@ -284,7 +319,7 @@ each irreversible external effect converge on retry without false `done` records
 
 **Depends on:** Change 12.
 
-## Change 14: Release packaging and four-harness acceptance
+## Change 14 (Docket 0317): Release packaging and four-harness acceptance
 
 **Purpose:** Turn the complete retained engine into installable, checksummed release artifacts and
 prove direct invocation through every supported host.
@@ -297,7 +332,7 @@ complete at least one retained workflow directly through each harness.
 
 **Depends on:** Changes 8 and 13.
 
-## Change 15: Configuration contraction, self-hosting, and hard cutover
+## Change 15 (Docket 0318): Configuration contraction, self-hosting, and hard cutover
 
 **Purpose:** Move Docket's own repository into the supported Go v1 envelope, prove self-hosting, and
 remove the retired production implementation.
@@ -318,7 +353,8 @@ existing repositories require no format migration; tag `v0.9.2` is the documente
 
 ## Backlog disposition rules
 
-Node 0 applies these rules to every active change, with a recorded successor where applicable:
+The direct sprint-administration pass applies these rules to every active change, with a recorded
+successor where applicable:
 
 1. **Bash-mechanism-only:** kill as superseded by the Go migration.
 2. **Retained product invariant:** absorb into the owning child above, link it as input, then kill
@@ -354,7 +390,7 @@ foundation is still changing.
 
 | Approved architecture concern | Owning change(s) |
 |---|---|
-| Compatibility corpus and hard replacement | 0, 1, 14, 15 |
+| Compatibility corpus and hard replacement | 1, 14, 15 |
 | Agent-first boundary and JSON protocol | 1, 12 |
 | Configuration and deferred-capability refusal | 2, 15 |
 | Loss-preserving repository documents | 3 |
@@ -373,7 +409,7 @@ foundation is still changing.
 
 ## Sprint completion
 
-The sprint is complete only when changes 1–15 are `done`, change 0's backlog-disposition audit has
+The sprint is complete only when changes 1–15 are `done`, the direct backlog-disposition audit has
 no unresolved Bash-only item, the cutover gates in the architecture spec pass, and Go Docket has
 successfully self-hosted a real retained workflow. A green build of the binary alone is not sprint
 completion.

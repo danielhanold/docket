@@ -7,7 +7,7 @@ priority: critical
 type: feat
 created: 2026-08-12
 updated: 2026-08-12
-depends_on: [303]
+depends_on: []
 stacked_on:
 related: []
 discovered_from: [303]
