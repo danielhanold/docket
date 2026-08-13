@@ -1,3 +1,9 @@
 # Byte-exact fixtures: never let core.autocrlf or eol normalization rewrite them.
 internal/document/testdata/** -text
 testdata/repositories/** -text
+
+# Generated, committed asset bundle (change 0311): produced by cmd/genassets from
+# skills/, agents/, cursor-rules/ and .docket.example.yml, never hand-edited.
+# tests/test_asset_bundle_drift.sh is the drift gate. Byte-exactness matters here
+# too — the manifest pins a sha256 per entry — so it is also eol-frozen.
+internal/assets/embedded/** linguist-generated=true -text
