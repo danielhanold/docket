@@ -44,6 +44,41 @@ func TestStringValueRejectsControlCharacters(t *testing.T) {
 	}
 }
 
+// TestValueRejectsEveryRuneYAMLRefuses pins the closed-model rule to the reader
+// in go.yaml.in/yaml/v3 v3.0.4, whose allowed set is
+// "#x9 | #xA | #xD | [#x20-#x7E] | #x85 | [#xA0-#xD7FF] | [#xE000-#xFFFD] |
+// [#x10000-#x10FFFF]". The C1 block (U+0080-U+009F) and the U+FFFE/U+FFFF
+// non-characters sit outside it while being neither C0 controls nor DEL, so a
+// C0-only guard lets the builder render a document its own reparse refuses.
+// Found by FuzzValueRoundTrip; its minimized seed
+// testdata/fuzz/FuzzValueRoundTrip/bfdd6f36d8108211 is the permanent corpus
+// entry for the U+0098 case.
+func TestValueRejectsEveryRuneYAMLRefuses(t *testing.T) {
+	// U+0080 and U+009F bound the C1 block; U+0098 is the fuzz seed's rune;
+	// U+0085 (NEL) is legal YAML but a control character, which the closed
+	// model refuses regardless. U+FFFE/U+FFFF are the non-characters.
+	for _, r := range []rune{0x80, 0x85, 0x98, 0x9f, 0xfffe, 0xffff} {
+		bad := "x" + string(r) + "y"
+		if err := String(bad).validate(); !IsKind(err, KindInvalidValue) {
+			t.Errorf("String(%q).validate() = %v, want invalid-value", bad, err)
+		}
+		if err := validBlockContent(bad); !IsKind(err, KindInvalidValue) {
+			t.Errorf("validBlockContent(%q) = %v, want invalid-value", bad, err)
+		}
+	}
+	// The neighbours of each rejected range stay legal: U+007E, U+00A0,
+	// U+FFFD, and the U+1FFFE non-character above the BMP.
+	for _, r := range []rune{0x7e, 0xa0, 0xfffd, 0x1fffe} {
+		ok := "x" + string(r) + "y"
+		if err := String(ok).validate(); err != nil {
+			t.Errorf("String(%q).validate() = %v, want nil", ok, err)
+		}
+		if err := validBlockContent(ok); err != nil {
+			t.Errorf("validBlockContent(%q) = %v, want nil", ok, err)
+		}
+	}
+}
+
 func TestStringValueRejectsInvalidUTF8(t *testing.T) {
 	if err := String(string([]byte{0xff})).validate(); !IsKind(err, KindInvalidValue) {
 		t.Errorf("got %v", err)
