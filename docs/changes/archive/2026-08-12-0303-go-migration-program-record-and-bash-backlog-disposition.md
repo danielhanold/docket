@@ -2,7 +2,7 @@
 id: 303
 slug: go-migration-program-record-and-bash-backlog-disposition
 title: 'Go migration program record and Bash-backlog disposition'
-status: proposed
+status: killed
 priority: critical
 type: docs
 created: 2026-08-12
@@ -57,3 +57,7 @@ Claude Code begins the migration.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+## Why killed
+
+Retired as an invalid tracking-only lifecycle node: it had no independently buildable deliverable; the program map now tracks the sprint and change 0304 is the first implementation unit.
