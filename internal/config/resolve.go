@@ -70,10 +70,13 @@ func Resolve(sources []Source, rctx ResolveContext) (*Snapshot, []Diagnostic, er
 	if err != nil {
 		return nil, res.diags, err
 	}
-	// Capabilities stay nil until the classifier is wired in; a caller reading
-	// an empty capability list on a valid snapshot is reading "not classified",
-	// which is exactly what this stage knows.
-	return &Snapshot{Effective: res.effective, Diagnostics: res.diags}, res.diags, nil
+	// Classification runs only on a resolved, valid snapshot: what a declaration
+	// MEANS is a question about the winning value, and an invalid layer has no
+	// winning value to ask about.
+	caps, classDiags := classify(res)
+	res.diags = append(res.diags, classDiags...)
+	sortDiagnostics(res.diags)
+	return &Snapshot{Effective: res.effective, Capabilities: caps, Diagnostics: res.diags}, res.diags, nil
 }
 
 func resolve(sources []Source, rctx ResolveContext) (*resolution, error) {
