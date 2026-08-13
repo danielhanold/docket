@@ -18,9 +18,12 @@ import (
 //     versions/<asset-set-id> either does not exist or is a complete tree. A
 //     partially extracted bundle is never reachable under that name: extraction
 //     happens in a sibling staging directory that is removed on any failure.
-//   - It is immutable after publication (files 0o444, directories 0o555), so the
-//     bytes a symlink resolves to cannot drift under an installation that has
-//     already recorded their digests.
+//   - Its files are immutable after publication (0o444), so the bytes a symlink
+//     resolves to cannot drift under an installation that has already recorded
+//     their digests. Directories stay writable (0o755): immutability is a
+//     property of the content, and sealing the directories too would only mean
+//     neither the user nor docket could ever delete a superseded tree — a
+//     read-only directory refuses to unlink its children.
 //
 // Reuse is therefore an integrity question, never a naming one: an existing tree
 // is adopted only after every manifest entry is re-read from disk and matched,
@@ -29,9 +32,11 @@ import (
 // already be reading.
 
 const (
-	// versionFileMode and versionDirMode seal the published tree.
+	// versionFileMode seals the published tree's content; versionDirMode leaves
+	// its directories traversable and removable. Both are applied by an explicit
+	// Chmod, so neither depends on the process umask.
 	versionFileMode = 0o444
-	versionDirMode  = 0o555
+	versionDirMode  = 0o755
 	// versionsDirMode is the private container the trees are published into.
 	versionsDirMode = 0o700
 	// stagingWriteMode is what extraction needs before the tree is sealed.
@@ -215,9 +220,12 @@ func rejectUnmanifestedFiles(dir string, wanted map[string]bool) error {
 	return nil
 }
 
-// sealTree makes the whole staged tree read-only before it is published, so the
-// rename hands over something already immutable rather than something that
-// becomes immutable a moment later.
+// sealTree makes the staged tree's files read-only before it is published, so
+// the rename hands over something already immutable rather than something that
+// becomes immutable a moment later. Directories are normalized to
+// versionDirMode instead: they stay writable, because immutability is carried
+// by the file modes plus the single publishing rename, and a sealed directory
+// would only cost the tree its removability.
 func sealTree(root string) error {
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -225,7 +233,6 @@ func sealTree(root string) error {
 		}
 		mode := os.FileMode(versionFileMode)
 		if d.IsDir() {
-			// r-x still permits the walk to descend after the chmod.
 			mode = versionDirMode
 		}
 		return os.Chmod(p, mode)
@@ -236,21 +243,13 @@ func sealTree(root string) error {
 	return nil
 }
 
-// discardTree removes a staged tree that will never be published. Sealing may
-// already have run, and a read-only directory refuses to give up its children,
-// so permissions are reopened first. Failure is not reported: the caller is
+// discardTree removes a staged tree that will never be published. Every
+// directory it can contain is writable — stagingWriteMode before sealing,
+// versionDirMode after — so a plain removal suffices even though the staged
+// files themselves may already be 0o444. Failure is not reported: the caller is
 // already returning the error that mattered, and a leftover staging directory
 // is inert — it is never adopted, because adoption only ever looks at
 // versions/<asset-set-id>.
 func discardTree(root string) {
-	_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			_ = os.Chmod(p, stagingWriteMode)
-		}
-		return nil
-	})
 	_ = os.RemoveAll(root)
 }
