@@ -59,6 +59,14 @@ var (
 	// licence to write. Deciding what to tell the user about a conflict belongs
 	// to the operation layer; refusing to touch it belongs here.
 	ErrPlanConflict = errors.New("install: transaction plan contains a conflict")
+	// ErrPlanStale refuses a plan whose destination no longer looks like the one
+	// that was inspected: a create whose destination has since appeared, or an
+	// update whose destination has since vanished. It is a race, not a
+	// misjudgement, but it is the same dead end for the user — docket cannot
+	// prove it may write here — so it wraps ErrPlanConflict and reaches the same
+	// report, while staying separately matchable for callers that care which of
+	// the two happened.
+	ErrPlanStale = fmt.Errorf("%w: the plan no longer describes what is on disk", ErrPlanConflict)
 	// ErrJournalInvalid is every unusable journal: absent, unparseable, of an
 	// unknown format, or describing paths a rollback must not act on.
 	ErrJournalInvalid = errors.New("install: transaction journal invalid")
@@ -97,15 +105,20 @@ type preImage struct {
 // what rollback needs and nothing else: the desired content stays in memory,
 // because recovery only ever undoes a transaction, never resumes one.
 type journalStep struct {
-	Seq         int        `json:"seq"`
-	Path        string     `json:"path"`
-	Kind        TargetKind `json:"kind"`
-	BlockName   string     `json:"block_name,omitempty"`
-	Remove      bool       `json:"remove,omitempty"` // the step deletes the destination rather than writing it
-	Action      stepAction `json:"action"`
-	Staging     string     `json:"staging"`                // same-directory temp file this step writes through
-	CreatedDirs []string   `json:"created_dirs,omitempty"` // ancestors absent when the plan was made
-	PreImage    preImage   `json:"pre_image"`
+	Seq       int        `json:"seq"`
+	Path      string     `json:"path"`
+	Kind      TargetKind `json:"kind"`
+	BlockName string     `json:"block_name,omitempty"`
+	Remove    bool       `json:"remove,omitempty"` // the step deletes the destination rather than writing it
+	// Disposition is what the inspection decided this destination was, carried
+	// through so the capture can check its own reading of the disk against the
+	// one the decision was made on. Empty on a removal, which carries no
+	// inspection at all.
+	Disposition Disposition `json:"disposition,omitempty"`
+	Action      stepAction  `json:"action"`
+	Staging     string      `json:"staging"`                // same-directory temp file this step writes through
+	CreatedDirs []string    `json:"created_dirs,omitempty"` // ancestors absent when the plan was made
+	PreImage    preImage    `json:"pre_image"`
 }
 
 // journal is the on-disk plan.json.
@@ -144,6 +157,12 @@ func (t *Txn) ID() string { return t.journal.TxnID }
 // Only create and update inspections become steps. A no-op is dropped — an
 // installation that rewrites unchanged files churns mtimes for nothing — and a
 // conflict is refused outright.
+//
+// Each step's disposition travels with it into the journal, and the pre-image
+// capture refuses the transaction when the disk no longer agrees with it: the
+// inspection and the write have to be about the same world, or the ownership
+// judgement licensing the write was made about a file that is no longer there.
+// See agreesWithDisposition.
 func BeginTxn(fsops FSOps, roots UserRoots, inspections []Inspection) (*Txn, error) {
 	return BeginTxnWithRemovals(fsops, roots, inspections, nil)
 }
@@ -201,13 +220,31 @@ func BeginTxnWithRemovals(fsops FSOps, roots UserRoots, inspections []Inspection
 	return &Txn{fs: fsops, dir: dir, journal: j, targets: targets, phase: phaseOpen}, nil
 }
 
-// Apply executes every step in plan order. On the first failure it rolls the
-// whole transaction back and returns the step error wrapped in ErrApplyFailed;
-// if the rollback itself fails, both errors are returned and the journal is
-// left behind so a later Recover can finish the job.
+// Apply verifies every journaled pre-image, then executes every step in plan
+// order. A destination that has changed since the journal was written refuses
+// the apply outright, with ErrPlanStale and nothing mutated — see
+// verifyPreImages. Once the first step has run, the failure mode is the other
+// one: on the first error it rolls the whole transaction back and returns the
+// step error wrapped in ErrApplyFailed; if the rollback itself fails, both
+// errors are returned and the journal is left behind so a later Recover can
+// finish the job.
 func (t *Txn) Apply() error {
 	if t.phase != phaseOpen {
 		return fmt.Errorf("install: transaction %s is not open for apply", t.journal.TxnID)
+	}
+	if err := t.verifyPreImages(); err != nil {
+		// Nothing has been applied — the check runs before the first step — so
+		// there is nothing to undo, and undoing anyway would be destructive: a
+		// rollback restores what the journal recorded, and for a step recorded
+		// absent that means DELETING whatever is at the path, which is precisely
+		// the file the check just refused to overwrite. Discarding the journal is
+		// the only exit that touches nothing; leaving it would hand a later
+		// Recover the same deletion to perform.
+		t.phase = phaseFinished
+		if rmErr := removeTree(t.fs, t.dir); rmErr != nil {
+			return errors.Join(err, fmt.Errorf("install: removing transaction %s: %w", t.journal.TxnID, rmErr))
+		}
+		return err
 	}
 	if err := t.applySteps(); err != nil {
 		applyErr := fmt.Errorf("%w: %w", ErrApplyFailed, err)
@@ -218,6 +255,79 @@ func (t *Txn) Apply() error {
 	}
 	t.phase = phaseApplied
 	return nil
+}
+
+// verifyPreImages re-reads every journaled destination and refuses the apply
+// when one no longer holds what the journal recorded. At apply time the
+// pre-image is the authority: it is what the rollback would put back, so a
+// destination that has diverged from it is one this transaction can no longer
+// change and then undo.
+//
+// It runs as a pass of its own, before the first step, because the fail-closed
+// answer here cannot be a rollback (see Apply). Whole-plan verification also
+// beats a per-kind guard inside applyStep: KindSymlink's own EEXIST refusal
+// stops the overwrite but only after earlier steps have run, and the rollback
+// that follows is what deletes the intruding file.
+//
+// Kinds are compared, not contents. Byte-comparing every pre-image would put a
+// full read of the installation on the apply path to close a window measured in
+// microseconds, and it would still be a window — the residual race is a
+// destination rewritten in place, with its kind unchanged, between this pass and
+// its step.
+func (t *Txn) verifyPreImages() error {
+	for _, step := range t.journal.Steps {
+		if step.Remove {
+			// A removal deletes whatever it finds and restores what it captured;
+			// a target that vanished on its own has simply arrived early.
+			continue
+		}
+		info, err := os.Lstat(step.Path)
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+			if step.PreImage.State != preAbsent {
+				return fmt.Errorf("%w: %s held %s when the transaction began, and holds nothing now",
+					ErrPlanStale, step.Path, describePreImageState(step.PreImage.State))
+			}
+		case err != nil:
+			return fmt.Errorf("install: inspecting %s: %w", step.Path, err)
+		default:
+			if have := observedPreImageState(info); have != step.PreImage.State {
+				return fmt.Errorf("%w: %s held %s when the transaction began, and holds %s now",
+					ErrPlanStale, step.Path,
+					describePreImageState(step.PreImage.State), describePreImageState(have))
+			}
+		}
+	}
+	return nil
+}
+
+// observedPreImageState classifies what is on disk in the journal's own terms.
+// Anything the journal cannot record a pre-image for reports as an empty state,
+// which matches nothing a capture ever wrote.
+func observedPreImageState(info fs.FileInfo) preImageState {
+	switch {
+	case info.Mode()&fs.ModeSymlink != 0:
+		return preSymlink
+	case info.Mode().IsRegular():
+		return preFile
+	default:
+		return ""
+	}
+}
+
+// describePreImageState names a pre-image state the way the refusal message
+// needs it: as what the user would see at the path.
+func describePreImageState(s preImageState) string {
+	switch s {
+	case preAbsent:
+		return "nothing"
+	case preFile:
+		return "a regular file"
+	case preSymlink:
+		return "a symlink"
+	default:
+		return "neither a regular file nor a symlink"
+	}
 }
 
 // applySteps is Apply without its rollback. It is separate so a test can stop a
@@ -269,8 +379,10 @@ func (t *Txn) applyStep(i int) error {
 	case KindSymlink:
 		// Symlink refuses an occupied path, so an update clears the old one
 		// first. A destination that has appeared since the plan was made is left
-		// alone: the create then fails and the transaction rolls back, which is
-		// the fail-closed answer to somebody else having written there.
+		// alone here as the last line of defence — verifyPreImages has already
+		// refused the whole apply for it, and did so before any step ran, which
+		// is what keeps the rollback from deleting the file this branch declines
+		// to overwrite.
 		if step.PreImage.State != preAbsent {
 			if err := removeIfPresent(t.fs, step.Path); err != nil {
 				return err
@@ -558,7 +670,7 @@ func planSteps(txnID string, inspections []Inspection, removals []TargetRecord) 
 		if err := insp.Target.validate(); err != nil {
 			return nil, nil, err
 		}
-		ordered = append(ordered, plannedStep{target: insp.Target})
+		ordered = append(ordered, plannedStep{target: insp.Target, disposition: insp.Disposition})
 	}
 	for _, rec := range removals {
 		target, err := removalTarget(rec)
@@ -579,12 +691,13 @@ func planSteps(txnID string, inspections []Inspection, removals []TargetRecord) 
 	for i, planned := range ordered {
 		path := filepath.Clean(planned.target.Path)
 		steps[i] = journalStep{
-			Seq:       i,
-			Path:      path,
-			Kind:      planned.target.Kind,
-			BlockName: planned.target.BlockName,
-			Remove:    planned.remove,
-			Staging:   stagingPath(path, txnID, i),
+			Seq:         i,
+			Path:        path,
+			Kind:        planned.target.Kind,
+			BlockName:   planned.target.BlockName,
+			Remove:      planned.remove,
+			Disposition: planned.disposition,
+			Staging:     stagingPath(path, txnID, i),
 		}
 		if !planned.remove {
 			steps[i].CreatedDirs = missingAncestors(path)
@@ -594,10 +707,13 @@ func planSteps(txnID string, inspections []Inspection, removals []TargetRecord) 
 	return steps, targets, nil
 }
 
-// plannedStep pairs a desired target with what the transaction does to it.
+// plannedStep pairs a desired target with what the transaction does to it and
+// with the inspection's reading of the destination, which the capture then has
+// to find still true.
 type plannedStep struct {
-	target Target
-	remove bool
+	target      Target
+	remove      bool
+	disposition Disposition
 }
 
 // removalTarget turns a prior ownership record into the step that retires it.
@@ -660,10 +776,17 @@ func rejectDuplicateDestinations(ordered []plannedStep) error {
 // into the journal. Only a regular file, a symlink, or nothing at all can be
 // restored, so anything else refuses the whole transaction rather than
 // promising a rollback it could not deliver.
+//
+// The capture is also where the plan's decision meets the disk a second time:
+// what is found here has to agree with the disposition the inspection produced,
+// or the two halves of the operation are reasoning about different worlds.
 func capturePreImage(fsops FSOps, dir string, step *journalStep) error {
 	info, err := os.Lstat(step.Path)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
+		if err := agreesWithDisposition(step, false); err != nil {
+			return err
+		}
 		step.PreImage = preImage{State: preAbsent}
 		step.Action = actionCreate
 		if step.Remove {
@@ -674,6 +797,9 @@ func capturePreImage(fsops FSOps, dir string, step *journalStep) error {
 		return nil
 	case err != nil:
 		return fmt.Errorf("install: inspecting %s: %w", step.Path, err)
+	}
+	if err := agreesWithDisposition(step, true); err != nil {
+		return err
 	}
 
 	step.Action = actionUpdate
@@ -705,6 +831,51 @@ func capturePreImage(fsops FSOps, dir string, step *journalStep) error {
 		return fmt.Errorf("%w: %s is neither a regular file nor a symlink, so no rollback material exists",
 			ErrInvalidTarget, step.Path)
 	}
+}
+
+// agreesWithDisposition refuses a step whose destination is no longer the one
+// the inspection classified. present says what the capture just found there.
+//
+// Both directions refuse, for one reason: an installer decides and acts on the
+// same copy of the world, and neither disagreement can be resolved without
+// re-deciding on a copy nobody classified.
+//
+//   - A create that finds something has found a file nothing has proven is
+//     docket's. Proceeding would rename over it on the strength of an ownership
+//     judgement made when the path was empty.
+//   - An update that finds nothing has lost the thing it was licensed to
+//     rewrite. Writing it anyway would be a create the inspection never
+//     authorised — the path may have been freed for somebody else's file, and
+//     the next run classifies it honestly.
+//
+// The refusal costs the user one re-run, which is the cheapest possible answer:
+// a fresh inspection sees whatever is there now and decides again.
+func agreesWithDisposition(step *journalStep, present bool) error {
+	if step.Remove {
+		// A removal carries no inspection. Its licence is the prior ownership
+		// record the operation layer already checked, and a retired target that
+		// has already vanished must not block the upgrade that retires it.
+		return nil
+	}
+	switch step.Disposition {
+	case DispositionCreate:
+		if present {
+			return fmt.Errorf("%w: %s was absent when it was inspected, and something is there now",
+				ErrPlanStale, step.Path)
+		}
+	case DispositionUpdate:
+		if !present {
+			return fmt.Errorf("%w: %s was present when it was inspected, and is gone now",
+				ErrPlanStale, step.Path)
+		}
+	default:
+		// planSteps admits only creates and updates, so this is a planner defect
+		// rather than a race — but a step whose decision cannot be checked is the
+		// one thing this function must never wave through.
+		return fmt.Errorf("%w: %s carries disposition %q where a create or an update belongs",
+			ErrInvalidTarget, step.Path, step.Disposition)
+	}
+	return nil
 }
 
 // writeJournal publishes plan.json by rename: its presence is what marks the

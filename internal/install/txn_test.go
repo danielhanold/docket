@@ -948,6 +948,184 @@ func TestRecoveryAtEveryInterruptPoint(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Disposition and pre-image agreement
+// ---------------------------------------------------------------------------
+//
+// A plan is decided against one copy of the world and applied to another: the
+// inspection classifies a destination, the journal captures its pre-image, and
+// only then does anything get written. Between those moments the destination can
+// change under the plan. Every test below is the engine refusing to act on a
+// decision the disk no longer supports — before the write, so nothing of the
+// user's is overwritten, and without a rollback, so nothing of the user's is
+// deleted either.
+
+func TestBeginTxnRefusesCreateWhoseTargetAppeared(t *testing.T) {
+	f := newFixture(t)
+	// The plan's create target: absent when the inspection classified it, and
+	// written by somebody else in the moment before the transaction opened. The
+	// journal would record "absent" and the apply would rename straight over it.
+	interloper := f.path("agents", "new-agent.md")
+	writeFileOrDie(t, interloper, "not ours\n")
+	before := snapshotWorld(t, f.targets)
+
+	_, err := BeginTxn(RealFS{}, f.roots, f.plan)
+	if !errors.Is(err, ErrPlanStale) {
+		t.Fatalf("BeginTxn err = %v, want it to wrap ErrPlanStale", err)
+	}
+	// The operation layer keys on ErrPlanConflict to report an ownership dead
+	// end; a stale plan is the same dead end and must reach the same answer.
+	if !errors.Is(err, ErrPlanConflict) {
+		t.Errorf("BeginTxn err = %v, want it to wrap ErrPlanConflict too", err)
+	}
+	if got := readOrDie(t, interloper); got != "not ours\n" {
+		t.Errorf("the file that appeared = %q, want it untouched", got)
+	}
+	assertWorld(t, before, snapshotWorld(t, f.targets), "after a refused begin")
+	if n := journalCount(t, f.roots); n != 0 {
+		t.Errorf("journal count after a refused begin = %d, want 0", n)
+	}
+}
+
+func TestBeginTxnRefusesUpdateWhoseTargetVanished(t *testing.T) {
+	f := newFixture(t)
+	// The plan's update target: present and provably docket's when it was
+	// inspected, deleted before its bytes could be captured. Silently demoting it
+	// to a create would be this transaction deciding for a copy of the world
+	// nobody inspected.
+	vanished := f.path("agents", "old-agent.md")
+	if err := os.Remove(vanished); err != nil {
+		t.Fatalf("Remove(%s): %v", vanished, err)
+	}
+	before := snapshotWorld(t, f.targets)
+
+	_, err := BeginTxn(RealFS{}, f.roots, f.plan)
+	if !errors.Is(err, ErrPlanStale) {
+		t.Fatalf("BeginTxn err = %v, want it to wrap ErrPlanStale", err)
+	}
+	if _, err := os.Lstat(vanished); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("the refused begin re-created %s: %v", vanished, err)
+	}
+	assertWorld(t, before, snapshotWorld(t, f.targets), "after a refused begin")
+	if n := journalCount(t, f.roots); n != 0 {
+		t.Errorf("journal count after a refused begin = %d, want 0", n)
+	}
+}
+
+func TestApplyRefusesACreateDestinationThatAppeared(t *testing.T) {
+	f := newFixture(t)
+	txn, err := BeginTxn(RealFS{}, f.roots, f.plan)
+	if err != nil {
+		t.Fatalf("BeginTxn: %v", err)
+	}
+	// The window this test is about: the journal is complete, one of its
+	// pre-images says "absent", and only now does somebody else write there.
+	interloper := f.path("agents", "new-agent.md")
+	writeFileOrDie(t, interloper, "theirs\n")
+	before := snapshotWorld(t, f.targets)
+
+	err = txn.Apply()
+	if !errors.Is(err, ErrPlanStale) {
+		t.Fatalf("Apply err = %v, want it to wrap ErrPlanStale", err)
+	}
+	// Both halves of failing closed. The apply did not overwrite the file, AND no
+	// rollback ran to delete it: a pre-image recorded absent restores by removing
+	// whatever is at the path, so a transaction that refused and then rolled back
+	// would destroy the very file it had just declined to overwrite.
+	if got := readOrDie(t, interloper); got != "theirs\n" {
+		t.Errorf("the file that appeared = %q, want it untouched", got)
+	}
+	assertWorld(t, before, snapshotWorld(t, f.targets), "after a refused apply")
+	assertNoStaging(t, f.targets)
+	// Nothing was applied, so nothing is owed a recovery — and a journal left
+	// behind would hand a later Recover exactly that deletion to perform.
+	if _, found, err := DetectRecovery(f.roots); err != nil || found {
+		t.Errorf("DetectRecovery after a refused apply = (found %v, err %v), want (false, nil)", found, err)
+	}
+	if n := journalCount(t, f.roots); n != 0 {
+		t.Errorf("journal count after a refused apply = %d, want 0", n)
+	}
+}
+
+func TestApplyRefusesAnUpdateDestinationThatVanished(t *testing.T) {
+	f := newFixture(t)
+	txn, err := BeginTxn(RealFS{}, f.roots, f.plan)
+	if err != nil {
+		t.Fatalf("BeginTxn: %v", err)
+	}
+	// The user deletes a journaled destination while the transaction is open. Its
+	// bytes are in the journal, so an apply could proceed and a rollback could put
+	// the file back — but both would act on a world nobody inspected, so the
+	// transaction refuses and restores nothing.
+	vanished := f.path("dispatch", "managed.md")
+	if err := os.Remove(vanished); err != nil {
+		t.Fatalf("Remove(%s): %v", vanished, err)
+	}
+	before := snapshotWorld(t, f.targets)
+
+	err = txn.Apply()
+	if !errors.Is(err, ErrPlanStale) {
+		t.Fatalf("Apply err = %v, want it to wrap ErrPlanStale", err)
+	}
+	if _, err := os.Lstat(vanished); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("the refused apply resurrected %s: %v", vanished, err)
+	}
+	assertWorld(t, before, snapshotWorld(t, f.targets), "after a refused apply")
+	assertNoStaging(t, f.targets)
+	if _, found, err := DetectRecovery(f.roots); err != nil || found {
+		t.Errorf("DetectRecovery after a refused apply = (found %v, err %v), want (false, nil)", found, err)
+	}
+}
+
+func TestTxnRemovalsAreExemptFromDispositionAgreement(t *testing.T) {
+	f := newFixture(t)
+	removals := staleRecords(t, f)
+	// A removal carries no inspection: its licence is the prior ownership record,
+	// not a disposition. A retired target that has already vanished — before the
+	// journal, or while it is open — must not block the upgrade that retires it.
+	if err := os.Remove(removals[0].Path); err != nil {
+		t.Fatalf("Remove(%s): %v", removals[0].Path, err)
+	}
+
+	txn, err := BeginTxnWithRemovals(RealFS{}, f.roots, f.plan, removals)
+	if err != nil {
+		t.Fatalf("BeginTxnWithRemovals refused a removal whose target had vanished: %v", err)
+	}
+	if err := os.Remove(removals[1].Path); err != nil {
+		t.Fatalf("Remove(%s): %v", removals[1].Path, err)
+	}
+	if err := txn.Apply(); err != nil {
+		t.Fatalf("Apply refused a removal whose target vanished mid-transaction: %v", err)
+	}
+	for _, rec := range removals {
+		if _, err := os.Lstat(rec.Path); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("%s survived its removal step: %v", rec.Path, err)
+		}
+	}
+	// The rest of the plan still landed: the exemption is for removals alone.
+	if got := readOrDie(t, f.path("agents", "new-agent.md")); got != "new agent\n" {
+		t.Errorf("new-agent.md = %q, want the plan applied around the removals", got)
+	}
+}
+
+// TestCaptureRefusesAnUncheckableDisposition covers the branch planSteps makes
+// unreachable: a write step whose disposition is neither a create nor an update
+// cannot be checked against the disk at all, and the whole point of the capture
+// is that no such step gets waved through. It is asserted at the function rather
+// than through BeginTxn because planSteps refuses these one layer earlier —
+// which is exactly why the backstop would otherwise never be observed failing.
+func TestCaptureRefusesAnUncheckableDisposition(t *testing.T) {
+	for _, disposition := range []Disposition{"", DispositionNoop, DispositionConflict, "invented"} {
+		step := &journalStep{Path: "/nowhere/agent.md", Kind: KindFile, Disposition: disposition}
+		if err := agreesWithDisposition(step, false); !errors.Is(err, ErrInvalidTarget) {
+			t.Errorf("agreesWithDisposition(%q, absent) = %v, want ErrInvalidTarget", disposition, err)
+		}
+		if err := agreesWithDisposition(step, true); !errors.Is(err, ErrInvalidTarget) {
+			t.Errorf("agreesWithDisposition(%q, present) = %v, want ErrInvalidTarget", disposition, err)
+		}
+	}
+}
+
 // The mode handed to WriteFile is a ceiling, not a promise: file creation
 // filters it through the process umask, so under a restrictive runner (a
 // detached gate, a hardened shell with umask 077) a trusted creation mode would
