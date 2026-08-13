@@ -1,0 +1,40 @@
+# .docket.yml — committed on the repo's default branch; read by every docket skill at startup.
+#
+# This file carries ONLY the values docket's own repo overrides. For EVERY key, its default, its
+# documentation, and which layers may set it, see .docket.example.yml — the canonical reference.
+# Copy the keys you want from there; anything not set here runs docket's shipped default.
+#
+# This repo runs in DOCKET-MODE (migrated 2026-06-04 via migrate-to-docket.sh — the dogfood of
+# change 0002): planning metadata is the live surface on the `docket` branch, while `main` keeps
+# code, build artifacts, and published terminal records.
+
+metadata_branch: docket        # planning commits land on the `docket` branch
+integration_branch: main       # code lands on main; feature branches cut from origin/main
+changes_dir: docs/changes
+adrs_dir: docs/adrs
+results_dir: docs/results
+
+finalize:
+  gate: local                  # rebase onto main + re-run the suite locally before merging
+  # The parallel runner (change 0227), not auto-detect. No --strict-budget: the gate reads any
+  # non-zero exit as a red suite, and a wall-clock breach is not one. See scripts/run-tests.md.
+  test_command: scripts/run-tests.sh
+  # Arms the gate's docs-only post-gate skip (change 0190). Default is false everywhere, because
+  # the skip is only safe where no executable suite component reads docs/results/ as a content
+  # source. This repo PROVES that property on every run, in
+  # tests/test_skip_allowlist_invisibility.sh — which is what earns the opt-in here. Delete that
+  # guard and this line must go with it.
+  skip_results_only_delta: true
+
+board_surfaces: [inline]       # BOARD.md only; the GitHub mirror stays off
+
+# This repo mirrors its terminal records (archived change files, specs, Accepted ADRs) onto main,
+# so it opts in to the direct-commit publish explicitly. See .docket.example.yml for the caveats.
+terminal_publish: true
+
+# No `skills:` block: since change 0193 docket-build and docket-review are the SHIPPED defaults,
+# so this repo dogfoods them by running the default rather than pinning a copy of it.
+
+build:
+  # enable resume ledger
+  checkpoint: true

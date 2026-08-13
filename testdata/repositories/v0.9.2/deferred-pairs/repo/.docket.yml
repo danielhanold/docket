@@ -1,0 +1,21 @@
+# Every deferred setting that HAS an inactive spelling, declared inactive.
+# Nothing here blocks a mutation: an explicit `false` is a user who considered
+# the capability and declined it, which is a valid, complete answer.
+
+finalize:
+  gate: local
+  skip_results_only_delta: false
+
+build:
+  checkpoint: false
+
+terminal_publish: false
+auto_groom: false
+
+auto_capture:
+  enabled: false
+
+dummy_mode:
+  enabled: false
+
+board_surfaces: [inline]

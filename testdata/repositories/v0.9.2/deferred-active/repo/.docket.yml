@@ -1,0 +1,36 @@
+# Every repo-settable deferred capability requested at once: the complete
+# blocker set in one document. The test derives the expected set from the
+# schema registry rather than from this list, so a deferred row added to the
+# registry without a line here fails loudly instead of going unasserted.
+
+finalize:
+  gate: ci
+  skip_results_only_delta: true
+
+build:
+  checkpoint: true
+
+terminal_publish: true
+auto_groom: true
+
+auto_capture:
+  enabled: true
+
+dummy_mode:
+  enabled: true
+
+board_surfaces: [inline, github]
+
+skills:
+  brainstorm: docket-brainstorm
+  plan: docket-plan
+  build: docket-build
+  review: docket-review
+  finish: docket-finish
+
+agents:
+  claude:
+    adr:
+      model: repo-pinned-model
+      effort: high
+      runner: codex

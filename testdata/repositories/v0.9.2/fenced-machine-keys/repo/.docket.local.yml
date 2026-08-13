@@ -1,0 +1,14 @@
+# The rest of the repo-fenced surface, declared from the REPOSITORY-LOCAL
+# machine layer — the other half of the same fence. board_surfaces carries the
+# fence on the TOKEN rather than the setting: `github` is stripped with a
+# warning and the remaining tokens still compete for the leaf.
+
+adrs_dir: alt/adrs
+results_dir: alt/results
+
+finalize:
+  skip_results_only_delta: true
+
+terminal_publish: true
+
+board_surfaces: [inline, github]

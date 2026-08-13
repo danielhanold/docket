@@ -1,0 +1,17 @@
+# GLOBAL layer of the four-layer collision fixture (lowest file precedence).
+# It loses learnings.cap to both repository layers, loses reclaim.lease_ttl and
+# change_types to the repository layer, and WINS the agent pin — the global file
+# is the sole layer whose agent overrides become effective policy.
+
+learnings:
+  cap: 100
+
+reclaim:
+  lease_ttl: 100
+
+change_types: [chore, docs, feat, fix, refactor, perf, global-only]
+
+agents:
+  default:
+    adr:
+      model: global-pinned-model

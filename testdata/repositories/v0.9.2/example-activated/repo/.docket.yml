@@ -1,0 +1,32 @@
+# Every SUPPORTED v0.9.2 setting declared explicitly at its shipped default.
+# Nothing here changes an effective value; the fixture exists to prove that an
+# explicit declaration is still explicit — provenance points at this file and
+# Explicit is true — even when the value equals the built-in.
+
+metadata_branch: docket
+integration_branch: auto
+changes_dir: docs/changes
+adrs_dir: docs/adrs
+results_dir: docs/results
+
+finalize:
+  gate: local
+  test_command: auto
+  require_pr_approval: false
+
+learnings:
+  enabled: true
+
+reclaim:
+  lease_ttl: 72
+  auto: false
+
+review:
+  min_fix_severity: minor
+  max_fix_tasks: 10
+
+gate_observation_budget: 30
+
+board_surfaces: [inline]
+
+change_types: [chore, docs, feat, fix, refactor, perf]
