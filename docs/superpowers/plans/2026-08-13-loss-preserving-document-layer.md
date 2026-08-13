@@ -1,6 +1,17 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0306 — Loss-preserving document layer](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0306-loss-preserving-document-layer.md)**
+<!-- docket:backlink:end -->
+
 # Loss-Preserving Document Layer Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+> **Restoration note (2026-08-13):** the first committed copy of this plan was truncated from
+> Task 8's `TestInsertBlockAtDocumentStart` onward by `render-artifact-backlink.sh`, whose
+> substring marker match treated a marker-shaped example literal inside this document as the real
+> backlink block and consumed everything after it. This copy restores the authored content; the
+> one triggering literal in Task 8 is written as a Go string concatenation so the close-out
+> re-render cannot re-fire. The renderer defect is captured as a follow-up stub.
 
 **Goal:** A standalone `internal/document` package that reads Docket Markdown records as typed YAML without surrendering their bytes, applies validate-all loss-preserving field and managed-block patches, renders canonical new documents, and proves compatibility against a frozen `v0.9.2` corpus with seeded fuzz targets.
 
@@ -230,7 +241,7 @@ func (v Value) serialize() string
 **Interfaces:**
 - Produces: `Kind` constants, `Error`, `IsKind`, `Span` — exactly as Reference A.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `internal/document/errors_test.go`:
 
@@ -240,6 +251,7 @@ package document
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -248,7 +260,7 @@ func TestErrorStringCarriesKindNameAndPosition(t *testing.T) {
 		Msg: "start marker has no matching end"}
 	got := e.Error()
 	for _, want := range []string{"malformed-marker", "artifacts", "line 9"} {
-		if !contains(got, want) {
+		if !strings.Contains(got, want) {
 			t.Fatalf("Error() = %q, want it to contain %q", got, want)
 		}
 	}
@@ -267,20 +279,14 @@ func TestIsKindMatchesWrappedErrors(t *testing.T) {
 		t.Fatal("IsKind must not match a non-document error")
 	}
 }
-
-func contains(haystack, needle string) bool {
-	return len(needle) == 0 || (len(haystack) >= len(needle) && stringsIndex(haystack, needle) >= 0)
-}
 ```
 
-(Use `strings.Contains` directly — the helper above is illustrative; write the test with `strings.Contains`.)
-
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `go test -count=1 ./internal/document/`
 Expected: FAIL — package does not compile (`Error` undefined).
 
-- [ ] **Step 3: Implement `errors.go` and the `document.go` scaffold**
+- [x] **Step 3: Implement `errors.go` and the `document.go` scaffold**
 
 `errors.go` exactly as Reference A, with:
 
@@ -304,9 +310,9 @@ func IsKind(err error, kind Kind) bool {
 
 `document.go` gets the package comment (state the two-view architecture and the no-YAML-encoder rule in two sentences) and the `Span` type.
 
-- [ ] **Step 4: Run to verify pass** — `go test -count=1 ./internal/document/` → PASS; `gofmt -l internal/document` → empty; `go vet ./internal/document/` → clean.
+- [x] **Step 4: Run to verify pass** — `go test -count=1 ./internal/document/` → PASS; `gofmt -l internal/document` → empty; `go vet ./internal/document/` → clean.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/document/
@@ -339,9 +345,9 @@ func scanLines(src []byte) []sourceLine
 func lineIsExactly(src []byte, ln sourceLine, s string) bool
 ```
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
-`internal/document/frontmatter_test.go` (representative set — write all of these):
+`internal/document/frontmatter_test.go`:
 
 ```go
 func TestParseCopiesSourceAndDoesNotAlias(t *testing.T) {
@@ -409,9 +415,9 @@ func TestEmptyDocumentParses(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify failure** — `go test -count=1 ./internal/document/` → FAIL (`Parse` undefined).
+- [x] **Step 2: Run to verify failure** — `go test -count=1 ./internal/document/` → FAIL (`Parse` undefined).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `frontmatter.go`:
 
@@ -449,9 +455,9 @@ func scanLines(src []byte) []sourceLine {
 
 `Source()` returns `append([]byte(nil), d.source...)`.
 
-- [ ] **Step 4: Run to verify pass** — `go test -count=1 ./internal/document/` → PASS.
+- [x] **Step 4: Run to verify pass** — `go test -count=1 ./internal/document/` → PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/document/
@@ -470,7 +476,7 @@ git commit -m "feat(0306): Parse — source copy, UTF-8 gate, line scan, frontma
 - Consumes: fence spans from Task 2.
 - Produces: validated `yamlRoot *yaml.Node` (mapping) stored on `Document`; `DecodeFrontmatter(destination any) error`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `internal/document/document_test.go`:
 
@@ -544,9 +550,9 @@ func TestEmptyFrontmatterBlockIsValid(t *testing.T) {
 
 Note on `TestMultipleYAMLDocumentsRejected`: the interior text is what sits between the two Docket fences; a `---` line inside it opens a second YAML document. Assert `err != nil` and additionally that `IsKind(err, KindInvalidYAML) || IsKind(err, KindUnclosedFrontmatter)` holds — the fence scanner may legitimately classify it first; pin whichever the implementation settles on and assert that one kind, with a comment naming the choice.
 
-- [ ] **Step 2: Run to verify failure** — `go test -count=1 ./internal/document/` → FAIL.
+- [x] **Step 2: Run to verify failure** — `go test -count=1 ./internal/document/` → FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `Parse`, after fence discovery, when frontmatter exists:
 
@@ -558,9 +564,10 @@ err := dec.Decode(&doc)
 ```
 
 - `io.EOF` → empty frontmatter: store a synthetic empty `MappingNode`.
-- Other decode error → classify: message containing `already defined` → `KindDuplicateField` (yaml v3 reports duplicate mapping keys this way; keep the classifier in one small function `classifyYAMLError` with a comment quoting the matched phrase); everything else → `KindInvalidYAML`. Line/column from the yaml error when it is a `*yaml.TypeError` or parse error string — best-effort, `0` otherwise; offset = `d.fmOpen.End` (frontmatter start) when line mapping is unavailable.
+- Other decode error → classify in one small function `classifyYAMLError`. Line/column from the yaml error when recoverable — best-effort, `0` otherwise; offset = `d.fmOpen.End` (frontmatter start) when line mapping is unavailable.
 - Second `dec.Decode(&extra)` returning `nil` → `KindInvalidYAML` "frontmatter must contain exactly one YAML document" (mirror `internal/config/parse.go`'s two-decode pattern).
 - Root must be `yaml.MappingNode` (after unwrapping `DocumentNode`) → else `KindInvalidYAML`.
+- Duplicate mapping keys: yaml v3 does not report them when decoding into a `yaml.Node` — detect with a recursive node walk (`rejectDuplicateKeys`, the same shape as `internal/config/parse.go`'s `walkNode`), reporting the second occurrence as `KindDuplicateField`. *(Executed deviation from the original draft, which assumed the decoder errored; verified empirically.)*
 - Alias resolution: yaml v3 fails decode on an unknown anchor — surfaces via the decode error path.
 
 `DecodeFrontmatter`:
@@ -581,9 +588,9 @@ func (d Document) DecodeFrontmatter(destination any) error {
 
 (Known-field rejection stays OFF — plain `Decode`, never `KnownFields(true)`.)
 
-- [ ] **Step 4: Run to verify pass** — `go test -count=1 ./internal/document/` → PASS.
+- [x] **Step 4: Run to verify pass** — `go test -count=1 ./internal/document/` → PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/document/
@@ -603,7 +610,7 @@ git commit -m "feat(0306): semantic YAML validation and typed DecodeFrontmatter"
 - Consumes: `sourceLine` scan, fence spans, `yamlRoot`.
 - Produces: `[]Field` with exact `Entry`/`Value` spans and `FieldShape`; `Document.Fields() []Field`, `Document.Field(name string) (Field, bool)`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `frontmatter_test.go`:
 
@@ -684,11 +691,7 @@ func TestBlockShapesIndexedAsUnsupported(t *testing.T) {
 
 func TestBodyLinesResemblingKeysAreNotIndexed(t *testing.T) {
 	d := mustParse(t, "---\nid: 1\n---\nstatus: this is body prose\n")
-	f, ok := d.Field("status")
-	if ok && f.Entry.Start > 20 {
-		t.Fatal("a body line must never be indexed as a field")
-	}
-	if ok {
+	if _, ok := d.Field("status"); ok {
 		t.Fatal("status only appears in the body; it must not be indexed")
 	}
 }
@@ -699,7 +702,6 @@ func TestEmptyValueSpanIsInsertionPoint(t *testing.T) {
 	if f.Value.Start != f.Value.End {
 		t.Fatalf("empty value must have a zero-width span, got %+v", f.Value)
 	}
-	// The span sits at end-of-line-content: immediately after the colon.
 	src := d.Source()
 	if src[f.Value.Start-1] != ':' && src[f.Value.Start-1] != ' ' {
 		t.Fatalf("insertion point misplaced: byte before is %q", src[f.Value.Start-1])
@@ -707,27 +709,22 @@ func TestEmptyValueSpanIsInsertionPoint(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify failure** — `go test -count=1 ./internal/document/` → FAIL.
+- [x] **Step 2: Run to verify failure** — `go test -count=1 ./internal/document/` → FAIL.
 
-- [ ] **Step 3: Implement `locateFields`**
+- [x] **Step 3: Implement `locateFields`**
 
 Algorithm (in `frontmatter.go`):
 
 1. Iterate the source lines strictly between `fmOpen` and `fmClose`.
-2. A line is a candidate mapping entry iff it matches `^([a-z][a-z0-9_]*):(\s|$)` at column zero against the line's text (use a package-level `var docketKeyRE = regexp.MustCompile(...)` compiled once). Lines that do not match (continuations, comments, indented block content, quoted/complex keys) never start a field.
-3. `Entry` span starts at the matched line. If the *semantic* value continues onto later lines (see shape classification below), extend `Entry.End` to the last continuation line's span end; continuation lines are every following line until the next candidate key line or the closing fence.
-4. `Value` span: from the first non-space byte after the colon to the end of line text, minus any inline comment. Inline comment detection: scan the value region left-to-right tracking single-quote and double-quote state and bracket depth (`[`); a ` #` (space-then-hash, or hash at value start) outside quotes begins the comment; trim trailing spaces before the `#` from the value span. If the value region is empty → `ShapeEmpty` with `Value.Start = Value.End =` position after `key:` plus any spaces (place the zero-width span AFTER any existing trailing spaces so replacement never has to touch them).
-5. Shape classification cross-checks the semantic tree: look up the key in `yamlRoot`'s content pairs. The value node decides:
-   - `!!null` tag or zero-length → `ShapeEmpty`
-   - scalar with style 0 (plain) or single/double-quoted, whose rendering sits on one line → `ShapeInline`
-   - sequence with flow style entirely on the key's line → `ShapeFlowSeq`
-   - literal/folded scalar, block sequence/mapping, multi-line flow, alias node → `ShapeUnsupported`
-   The byte locator remains authoritative for the spans; the node supplies only the shape verdict and a consistency check (a key found by the locator but absent from the semantic mapping — or vice versa for column-zero plain keys — is a locator bug; add an internal consistency check that returns `KindInvalidYAML` with a "locator/semantic mismatch" message rather than silently mis-indexing).
+2. A line is a candidate mapping entry iff it matches `^([a-z][a-z0-9_]*):(\s|$)` at column zero against the line's text (package-level `var docketKeyRE`, compiled once). Lines that do not match (continuations, comments, indented block content, quoted/complex keys) never start a field.
+3. `Entry` span starts at the matched line. If the *semantic* value continues onto later lines, extend `Entry.End` over the continuation lines. Continuation is keyed on **indentation** — blank, indented, or a column-zero `- ` block-sequence item — which is what YAML actually permits. *(Executed deviation: the original "until the next candidate key line" rule swallowed non-Docket-grammar keys like `worktree-scope:` as continuations; the indentation rule was validated against a 891-record corpus smoke test.)*
+4. `Value` span: from the first non-space byte after the colon to the end of line text, minus any inline comment. Inline comment detection: scan the value region left-to-right tracking single-quote and double-quote state and bracket depth (`[`); a ` #` outside quotes begins the comment; trim trailing spaces before the `#` from the value span. If the value region is empty → `ShapeEmpty` with the zero-width span placed AFTER any trailing spaces.
+5. Shape classification cross-checks the semantic tree: `!!null`/zero-length → `ShapeEmpty`; single-line plain/quoted scalar → `ShapeInline`; single-line flow sequence → `ShapeFlowSeq`; literal/folded scalar, block collection, multi-line flow, alias → `ShapeUnsupported`. The byte locator remains authoritative for spans. A key-set disagreement between locator and semantic mapping raises `KindInvalidYAML` ("locator/semantic mismatch"); a shape/byte disagreement fails closed to `ShapeUnsupported`.
 6. Fields keep source order in `d.fields`.
 
-- [ ] **Step 4: Run to verify pass** — `go test -count=1 ./internal/document/` → PASS.
+- [x] **Step 4: Run to verify pass** — `go test -count=1 ./internal/document/` → PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/document/
@@ -747,7 +744,7 @@ git commit -m "feat(0306): top-level field location map with shape classificatio
 - Consumes: `sourceLine` scan, fence spans.
 - Produces: `[]Block`; `Document.Blocks()`, `Document.Block(name)`. Parse fails with `KindMalformedMarker`/`KindMarkerImbalance` on an invalid population.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `internal/document/markers_test.go`:
 
@@ -827,14 +824,15 @@ func TestMarkersInsideFrontmatterNotScanned(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify failure** — `go test -count=1 ./internal/document/` → FAIL.
+- [x] **Step 2: Run to verify failure** — `go test -count=1 ./internal/document/` → FAIL.
 
-- [ ] **Step 3: Implement `markers.go`**
+- [x] **Step 3: Implement `markers.go`**
 
 ```go
 var (
 	// A line that BEGINS like a docket marker; used to distinguish
-	// "malformed marker" from ordinary prose.
+	// "malformed marker" from ordinary prose. Column-zero anchored: an
+	// indented marker-shaped line is prose.
 	markerPrefixRE = regexp.MustCompile(`^<!-- docket:`)
 	// The exact marker grammar. Name: lower-case hyphenated. Annotation only
 	// on start markers, parenthesized, no closing paren inside.
@@ -844,20 +842,20 @@ var (
 )
 ```
 
-Scan every line OUTSIDE the frontmatter region (for a frontmatter document, lines after `fmClose`; otherwise all lines), maintaining code-fence state: an opening fence line (backtick or tilde run of ≥3, up to 3 leading spaces) flips into fenced mode recording the fence character and run length; a closing fence is a line whose fence run uses the same character with at least the opening's length and nothing but the run and whitespace on the line. Inside fenced mode no marker matching happens. (Backtick info strings are allowed on the opener; a closer has none — mirror CommonMark closely enough for these fixtures and say so in a comment.)
+Scan every line OUTSIDE the frontmatter region, maintaining code-fence state: an opening fence line (backtick or tilde run of ≥3, up to 3 leading spaces) flips into fenced mode recording the fence character and run length; a closing fence uses the same character with at least the opening's length and nothing but the run and whitespace. Inside fenced mode no marker matching happens. An unclosed fence shields to EOF. (Mirrors CommonMark loosely; say so in a comment.)
 
-For each non-fenced line: if `markerRE` matches → record `{name, kind, annotation, line span}`; an end marker carrying an annotation is malformed. Else if `markerPrefixRE` matches → `KindMalformedMarker` with the line's offset.
+For each non-fenced line: `markerRE` match → record `{name, kind, annotation, line span}`; an end marker carrying an annotation is malformed. Else `markerPrefixRE` match → `KindMalformedMarker` with the line's offset.
 
 Population validation over the ordered marker list:
-- maintain `open` (name of the currently open block, or ""): a `start` while `open != ""` → nesting → `KindMarkerImbalance`; an `end` with `open == ""` or a different name → `KindMarkerImbalance`; a completed pair records a `Block`.
+- maintain `open`: a `start` while `open != ""` → nesting → `KindMarkerImbalance`; an `end` with `open == ""` or a different name → `KindMarkerImbalance`; a completed pair records a `Block`.
 - after the walk, `open != ""` → dangling start → `KindMarkerImbalance`.
-- a name seen in more than one completed pair → `KindMarkerImbalance` ("each name occurs at most once").
+- a name in more than one completed pair → `KindMarkerImbalance`.
 
-`Interior` = `Span{start.End, end.Start}` (start-marker line end to end-marker line start).
+`Interior` = `Span{start.End, end.Start}`.
 
-- [ ] **Step 4: Run to verify pass** — `go test -count=1 ./internal/document/` → PASS.
+- [x] **Step 4: Run to verify pass** — `go test -count=1 ./internal/document/` → PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/document/
@@ -875,9 +873,9 @@ git commit -m "feat(0306): code-fence-aware managed-marker discovery and balance
 **Interfaces:**
 - Produces: `Value`, constructors, `validate`, `serialize` — exactly as Reference C. Also `validKey(name string) bool` (the `[a-z][a-z0-9_]*` grammar) and `validBlockContent(s string) error` (UTF-8, no NUL, control chars limited to LF and tab).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
-`internal/document/value_test.go`:
+`internal/document/value_test.go` (representative — the null-in-seq expectation was settled empirically at execution time, see Step 4 note):
 
 ```go
 func TestSerializeEveryKind(t *testing.T) {
@@ -896,7 +894,7 @@ func TestSerializeEveryKind(t *testing.T) {
 		{Bool(false), "false"},
 		{Seq(), "[]"},
 		{Seq(Int(3), Int(7)), "[3, 7]"},
-		{Seq(String("a"), Bool(true), Null()), "['a', true, ]"},
+		{Seq(String("a"), Bool(true), Null()), "['a', true, null]"},
 	}
 	for _, c := range cases {
 		if err := c.v.validate(); err != nil {
@@ -972,15 +970,9 @@ func TestSerializedValuesRoundTripThroughYAML(t *testing.T) {
 }
 ```
 
-Note the `Seq(String("a"), Bool(true), Null())` case: a null sequence element renders as an empty
-token — `['a', true, ]`. If yaml v3 does not decode that trailing form as a 3-element sequence with
-a nil tail, change the null-in-seq rendering to the explicit `null` keyword *for sequence elements
-only* and update the golden — decide by running the round-trip test, and record the choice in a
-comment beside the serializer. Top-level null MUST stay `""` (the `key:` form) either way.
+- [x] **Step 2: Run to verify failure** — `go test -count=1 ./internal/document/` → FAIL.
 
-- [ ] **Step 2: Run to verify failure** — `go test -count=1 ./internal/document/` → FAIL.
-
-- [ ] **Step 3: Implement `value.go`**
+- [x] **Step 3: Implement `value.go`**
 
 ```go
 func String(s string) Value { return Value{kind: kindString, str: s} }
@@ -1025,9 +1017,15 @@ func (v Value) serialize() string {
 
 `validBlockContent` walks runes: reject invalid UTF-8, NUL, and any control character other than `\n` and `\t`.
 
-- [ ] **Step 4: Run to verify pass** — `go test -count=1 ./internal/document/` → PASS. If the null-in-seq round trip fails, apply the decided fallback and re-run.
+- [x] **Step 4: Run to verify pass** — `go test -count=1 ./internal/document/` → PASS.
 
-- [ ] **Step 5: Commit**
+**Executed decision:** yaml v3.0.4 decodes `['a', true, ]` as a TWO-element sequence (the empty
+token vanishes), so a null sequence element renders as the explicit `null` keyword — sequence
+elements only; top-level null stays the `key:` form. The asymmetry is pinned by
+`TestNullSequenceElementRoundTrips` and `TestTopLevelNullRendersEmpty`, and recorded in a comment
+beside `serialize`.
+
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/document/
@@ -1046,7 +1044,7 @@ git commit -m "feat(0306): closed typed value model and shared single-quote seri
 - Consumes: `Field` spans, `Value` serializer, error kinds.
 - Produces: `PatchSet` with `SetField`; `Document.Apply(PatchSet) ([]byte, error)` implementing validate-all → high-to-low replacement → candidate reparse. (Insert/block ops arrive in Task 8; `Apply`'s pipeline is built here to handle a generic edit list.)
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `internal/document/patch_test.go`:
 
@@ -1200,71 +1198,36 @@ func TestPatchOnNoFrontmatterDocRejected(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify failure** — `go test -count=1 ./internal/document/` → FAIL.
+- [x] **Step 2: Run to verify failure** — `go test -count=1 ./internal/document/` → FAIL.
 
-- [ ] **Step 3: Implement `patch.go`**
+- [x] **Step 3: Implement `patch.go`**
 
-`Apply` pipeline (generic over ops; Task 8 adds cases):
+`Apply` pipeline, split for testability into `resolve` → `checkOverlaps` → `applyResolved(plan)` → `splice(plan)`:
 
 ```go
 func (d Document) Apply(p PatchSet) ([]byte, error) {
-	// Phase 1 — validate EVERY edit before constructing anything.
-	type resolved struct {
-		span    Span   // bytes to replace
-		payload []byte // replacement
-	}
-	var plan []resolved
-	seen := map[string]bool{} // "field:<name>" / "block:<name>" duplicate detection
-	for _, e := range p.edits {
-		// per-op validation, filling plan — see per-op rules below
-	}
-	// Overlap check: sort plan by span.Start; adjacent spans may touch but not overlap.
-	// Insertions are zero-width spans; two insertions at the SAME offset are a
-	// duplicate-edit-family conflict -> KindOverlappingEdit.
-	// Phase 2 — apply from the HIGHEST offset downward onto a fresh copy.
-	out := append([]byte(nil), d.source...)
-	for i := len(sortedPlan) - 1; i >= 0; i-- { /* splice */ }
-	// Phase 3 — reparse the candidate under the same rules.
-	if _, err := Parse(out); err != nil {
-		return nil, &Error{Kind: KindReparseFailed, Offset: -1,
-			Msg: "patched candidate failed reparse: " + err.Error()}
-	}
-	return out, nil
+	// Phase 1 — validate EVERY edit before constructing anything (resolve).
+	// Phase 2 — overlap check: sort by span.Start; adjacent spans may touch but
+	// not overlap; two zero-width insertions at one offset conflict.
+	// Phase 3 — apply from the HIGHEST offset downward onto a fresh copy, then
+	// reparse the candidate under the same rules (KindReparseFailed on failure).
 }
 ```
 
-`opSetField` validation: frontmatter must exist (`KindMissingFrontmatter`); `validKey` (`KindInvalidValue`); `v.validate()`; field must exist (`KindMissingPatchTarget`); shape must be `ShapeEmpty`/`ShapeInline`/`ShapeFlowSeq` (`KindUnsupportedPatchShape`); duplicate name (`KindDuplicateEdit`).
+`opSetField` validation: frontmatter must exist (`KindMissingFrontmatter`); `validKey` (`KindInvalidValue`); `v.validate()`; field must exist (`KindMissingPatchTarget`); shape must be `ShapeEmpty`/`ShapeInline`/`ShapeFlowSeq` (`KindUnsupportedPatchShape`); duplicate name (`KindDuplicateEdit`, `seen` map keyed `"field:"+name`).
 
 Replacement construction for `opSetField`:
-- serialized := `v.serialize()`.
-- Non-empty target value token: replace `f.Value` with serialized. If serialized is empty (Null) — extend the replaced span left to also consume the run of spaces between the colon and `f.Value.Start`, so the result is the bare `key:` form; but ONLY when no inline comment follows (if bytes from `f.Value.End` to end-of-line-text are non-empty, keep the spacing: `key:   # comment` stays legal).
-- Empty target (`ShapeEmpty`, zero-width span): payload = `" " + serialized` if the byte before the insertion point is `:` (no existing spacing), else serialized. Null on an already-empty field = no-op edit (empty payload, zero-width span) — legal, byte-identical.
-- Idempotence follows: re-locating the patched field yields the same spans and the same serialized token.
+- Non-empty target value token: replace `f.Value` with serialized. Null (empty serialized): the spacing before the value token is swallowed only when nothing follows on the line, so `status: proposed   # c` → `status:    # c`, never `status:# c`.
+- Empty target (zero-width span): leading space only when the preceding byte is `':'`; trailing space whenever non-spacing text (an inline comment) follows on the line — so `pr:   # note` receiving `Int(211)` yields `pr: 211   # note`-shaped output that reparses to the typed value with the comment intact.
+- Idempotence follows: re-locating the patched field yields the same spans and serialized token.
 
-- [ ] **Step 4: Run to verify pass** — `go test -count=1 ./internal/document/` → PASS.
+The candidate-reparse gate gets a direct probe: `TestReparseGateRejectsACorruptingPayload` calls `applyResolved` with a hand-built resolved edit whose payload forges a duplicate key — unreachable through the public constructors, so the gate's refusal is observable.
 
-- [ ] **Step 5: Mutation-probe the two safety gates this task owns**
+- [x] **Step 4: Run to verify pass** — `go test -count=1 ./internal/document/` → PASS.
 
-1. Comment out the phase-1 loop's `KindMissingPatchTarget` return; run `go test -count=1 ./internal/document/` → `TestMissingTargetFailsWholeBatch` must FAIL. Restore.
-2. Comment out phase 3 (candidate reparse); no current test reddens yet (the corpus goldens arrive in Task 10) — verify instead that `TestPatchIsIdempotent` still passes, then ADD the direct probe now:
+- [x] **Step 5: Mutation-probe the safety gates** (outcomes recorded in the commit body): missing-target return removed → `TestMissingTargetFailsWholeBatch` red; candidate reparse removed → `TestReparseGateRejectsACorruptingPayload` red; serializer unquoted → five tests red. All restored, re-verified green.
 
-```go
-func TestReparseGateCatchesACorruptingEdit(t *testing.T) {
-	// A value containing a raw "---" line CANNOT arise through the typed model
-	// (control chars are rejected, strings are quoted) — so corrupt via a
-	// hand-built edit if the internal API allows, or skip with a comment
-	// pointing at the fuzz target that owns this invariant.
-	d := mustParse(t, "---\nid: 1\n---\n")
-	var p PatchSet
-	p.SetField("id", Int(2))
-	out, err := d.Apply(p)
-	if err != nil || out == nil { t.Fatalf("control run failed: %v", err) }
-}
-```
-
-The honest reparse-gate mutation check: temporarily make `serialize()` for `kindString` return the raw string unquoted, run `go test -count=1`, and confirm `TestSerializedValuesRoundTripThroughYAML` or an Apply test fails (the quote rule is what keeps candidates parseable). Restore. Record both probe outcomes in the task's commit message body.
-
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/document/
@@ -1278,14 +1241,15 @@ git commit -m "feat(0306): PatchSet + Apply — validate-all field patches with 
 **Files:**
 - Modify: `internal/document/patch.go`
 - Modify: `internal/document/patch_test.go`
+- Modify: `internal/document/markers.go` (marker-line construction beside the grammar it must agree with)
 
 **Interfaces:**
 - Consumes: `Block` spans, `validBlockContent`, `BlockInsertionPoint`.
 - Produces: `InsertField`, `ReplaceBlock`, `InsertBlock` — Reference B complete.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
-Add to `patch_test.go`:
+Add to `patch_test.go` (representative set — the executed task carries 35 tests):
 
 ```go
 func TestInsertFieldLandsBeforeClosingFence(t *testing.T) {
@@ -1314,16 +1278,6 @@ func TestInsertExistingFieldRejected(t *testing.T) {
 	}
 }
 
-func TestSetAndInsertSameNameRejected(t *testing.T) {
-	d := mustParse(t, "---\nid: 1\n---\n")
-	var p PatchSet
-	p.SetField("id", Int(2))
-	p.InsertField("id", Int(3))
-	if _, err := d.Apply(p); !IsKind(err, KindDuplicateEdit) {
-		t.Fatalf("got %v", err)
-	}
-}
-
 func TestReplaceBlockPreservesMarkerLines(t *testing.T) {
 	src := "---\nid: 1\n---\n\n" + artifactsBlock + "\n## Why\n"
 	got := applyOne(t, src, func(p *PatchSet) {
@@ -1334,9 +1288,9 @@ func TestReplaceBlockPreservesMarkerLines(t *testing.T) {
 }
 
 func TestReplaceBlockEmitsBlockLineEnding(t *testing.T) {
-	src := "<!-- docket:backlink:start -->\r\nold\r\n<!-- docket:backlink:end -->\r\n"
+	src := "<!-- docket:homelink:start -->\r\nold\r\n<!-- docket:homelink:end -->\r\n"
 	got := applyOne(t, src, func(p *PatchSet) {
-		p.ReplaceBlock("backlink", "line one\nline two")
+		p.ReplaceBlock("homelink", "line one\nline two")
 	})
 	if !strings.Contains(got, "line one\r\nline two\r\n") {
 		t.Fatalf("logical LF content must be emitted with the block's CRLF: %q", got)
@@ -1354,8 +1308,629 @@ func TestReplaceMissingBlockRejected(t *testing.T) {
 
 func TestInsertBlockAtDocumentStart(t *testing.T) {
 	got := applyOne(t, "# Spec\n\nprose\n", func(p *PatchSet) {
-		p.InsertBlock("backlink", "generated — do not hand-edit", "> home", AtDocumentStart)
+		p.InsertBlock("homelink", "generated — do not hand-edit", "> home", AtDocumentStart)
 	})
-<!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0306 — Loss-preserving document layer](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0306-loss-preserving-document-layer.md)**
-<!-- docket:backlink:end -->
+	// The marker literal is concatenated so the docket backlink renderer can
+	// never mistake this example for a real managed block in THIS file.
+	want := "<!-- docket:homelink" + ":start (generated — do not hand-edit) -->\n> home\n<!-- docket:homelink:end -->\n\n# Spec\n\nprose\n"
+	if got != want { t.Fatalf("got:\n%q", got) }
+}
+
+func TestInsertBlockAfterFrontmatter(t *testing.T) {
+	got := applyOne(t, "---\nid: 1\n---\n\n## Why\n", func(p *PatchSet) {
+		p.InsertBlock("artifacts", "", "| a |", AfterFrontmatter)
+	})
+	want := "---\nid: 1\n---\n\n<!-- docket:artifacts:start -->\n| a |\n<!-- docket:artifacts:end -->\n\n## Why\n"
+	if got != want { t.Fatalf("got:\n%q", got) }
+}
+
+func TestInsertBlockExistingNameRejected(t *testing.T) {
+	d := mustParse(t, artifactsBlock)
+	var p PatchSet
+	p.InsertBlock("artifacts", "", "x", AtDocumentStart)
+	if _, err := d.Apply(p); !IsKind(err, KindDuplicateEdit) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestBadBlockContentRejected(t *testing.T) {
+	d := mustParse(t, artifactsBlock)
+	var p PatchSet
+	p.ReplaceBlock("artifacts", "bad\x00content")
+	if _, err := d.Apply(p); !IsKind(err, KindInvalidValue) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestFieldAndBlockPatchInOneBatch(t *testing.T) {
+	src := "---\nid: 1\nstatus: proposed\n---\n\n" + artifactsBlock
+	got := applyOne(t, src, func(p *PatchSet) {
+		p.SetField("status", String("done"))
+		p.ReplaceBlock("artifacts", "| merged |")
+	})
+	for _, want := range []string{"status: 'done'", "| merged |"} {
+		if !strings.Contains(got, want) { t.Errorf("missing %q", want) }
+	}
+}
+```
+
+- [x] **Step 2: Run to verify failure** — `go test -count=1 ./internal/document/` → FAIL.
+
+- [x] **Step 3: Implement the three ops**
+
+- `opInsertField`: frontmatter must exist; `validKey`; `v.validate()`; field must be ABSENT (present → `KindDuplicateEdit`); zero-width span at `d.fmClose.Start`; payload = `name + ":" + maybeSpaceValue + d.lineEnding`.
+- `opReplaceBlock`: `validBlockContent(content)`; block must exist (`KindMissingPatchTarget`); duplicate block name → `KindDuplicateEdit` (`seen` map, `"block:"+name` namespace). Span = `b.Interior`. Payload: logical-LF content emitted with the block's line ending (start-marker line's terminator; document ending fallback). Empty content → empty interior; a trailing logical LF does not double the final terminator.
+- `opInsertBlock`: block-name grammar `[a-z][a-z0-9-]*` (`validBlockName`, in `markers.go` beside `markerRE` so the grammar has one spelling); annotation must not contain `)` or control chars; `validBlockContent(content)`; name must be absent (`KindDuplicateEdit`). Zero-width span at offset 0 (`AtDocumentStart`) or after `fmClose.End` (`AfterFrontmatter`). Payload = start-marker line + content lines + end-marker line + one blank separator when the insertion point is not already followed by a blank line or EOF; `AfterFrontmatter` leads with a blank line when needed. Marker-line construction via `startMarkerLine`/`endMarkerLine` in `markers.go`.
+
+**Executed decisions (reviewer-confirmable):**
+- Two field insertions in one `PatchSet` are refused as `KindOverlappingEdit` (both resolve to the
+  same zero-width offset; Task 7's `checkOverlaps` treats same-offset insertions as a conflict).
+  Pinned by `TestTwoFieldInsertionsRefusedAsOverlapping`; a later change needing a multi-field
+  insert coalesces into one edit.
+- `AtDocumentStart` is refused on a frontmatter document (`KindUnsupportedPatchShape`) — the
+  corrupted result would parse cleanly as a frontmatterless document, so the reparse gate provably
+  cannot catch it; mutation-proven real guard.
+
+- [x] **Step 4: Run to verify pass** — `go test -count=1 ./internal/document/` → PASS.
+
+- [x] **Step 5: Commit**
+
+```bash
+git add internal/document/
+git commit -m "feat(0306): absent-field insertion and managed-block replace/insert patches"
+```
+
+---
+
+### Task 9: Canonical new-document builder
+
+**Files:**
+- Create: `internal/document/builder.go`
+- Create: `internal/document/builder_test.go`
+- Create: `internal/document/testdata/new-doc-all-kinds.golden.md`
+
+**Interfaces:**
+- Produces:
+
+```go
+// FieldSpec is one ordered frontmatter field for a brand-new document.
+type FieldSpec struct {
+	Name  string
+	Value Value
+}
+
+// New renders a canonical brand-new frontmatter document: LF endings, UTF-8
+// without BOM, `---` fences, caller order, one blank line before the body,
+// exactly one final newline. It validates every field before rendering and
+// reparses its own output through Parse before returning.
+func New(fields []FieldSpec, body string) ([]byte, error)
+```
+
+- [ ] **Step 1: Write the failing tests**
+
+`internal/document/builder_test.go`:
+
+```go
+func TestNewRendersEveryValueKind(t *testing.T) {
+	got, err := New([]FieldSpec{
+		{"id", Int(306)},
+		{"slug", String("loss-preserving-document-layer")},
+		{"title", String("It's a 'title': tricky # yes")},
+		{"trivial", Bool(false)},
+		{"depends_on", Seq(Int(304))},
+		{"adrs", Seq()},
+		{"pr", Null()},
+	}, "## Why\n\nBecause.\n")
+	if err != nil { t.Fatal(err) }
+	golden := filepath.Join("testdata", "new-doc-all-kinds.golden.md")
+	want, err := os.ReadFile(golden)
+	if err != nil { t.Fatal(err) }
+	if !bytes.Equal(got, want) {
+		t.Fatalf("golden mismatch:\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+}
+
+func TestNewOutputReparsesAndDecodes(t *testing.T) {
+	got, err := New([]FieldSpec{{"id", Int(1)}, {"note", String("it's")}}, "body\n")
+	if err != nil { t.Fatal(err) }
+	d, err := Parse(got)
+	if err != nil { t.Fatalf("builder output must reparse: %v", err) }
+	var out struct {
+		ID   int    `yaml:"id"`
+		Note string `yaml:"note"`
+	}
+	if err := d.DecodeFrontmatter(&out); err != nil { t.Fatal(err) }
+	if out.ID != 1 || out.Note != "it's" { t.Fatalf("%+v", out) }
+}
+
+func TestNewRejectsDuplicateKeys(t *testing.T) {
+	_, err := New([]FieldSpec{{"id", Int(1)}, {"id", Int(2)}}, "")
+	if !IsKind(err, KindDuplicateField) { t.Fatalf("got %v", err) }
+}
+
+func TestNewRejectsBadKeyOrValueBeforeRenderingAnything(t *testing.T) {
+	_, err := New([]FieldSpec{{"id", Int(1)}, {"Bad-Key", Int(2)}}, "")
+	if !IsKind(err, KindInvalidValue) { t.Fatalf("got %v", err) }
+	_, err = New([]FieldSpec{{"a", Int(1)}, {"b", String("x\x00")}}, "")
+	if !IsKind(err, KindInvalidValue) { t.Fatalf("got %v", err) }
+}
+
+func TestNewNormalizesFinalNewline(t *testing.T) {
+	for _, body := range []string{"body", "body\n", "body\n\n\n"} {
+		got, err := New([]FieldSpec{{"id", Int(1)}}, body)
+		if err != nil { t.Fatal(err) }
+		if !bytes.HasSuffix(got, []byte("body\n")) || bytes.HasSuffix(got, []byte("\n\n")) {
+			t.Fatalf("body %q → %q; want exactly one final newline", body, got)
+		}
+	}
+}
+
+func TestNewRequiresAtLeastOneField(t *testing.T) {
+	if _, err := New(nil, "body\n"); !IsKind(err, KindInvalidValue) {
+		t.Fatalf("a frontmatter builder with zero fields: got %v", err)
+	}
+}
+
+func TestNewRejectsCRLFBody(t *testing.T) {
+	if _, err := New([]FieldSpec{{"id", Int(1)}}, "a\r\nb\n"); !IsKind(err, KindInvalidValue) {
+		t.Fatalf("canonical documents are LF-only: got %v", err)
+	}
+}
+```
+
+The golden `internal/document/testdata/new-doc-all-kinds.golden.md` (write it byte-exactly; note the doubled apostrophes and the quoted hash):
+
+```
+---
+id: 306
+slug: 'loss-preserving-document-layer'
+title: 'It''s a ''title'': tricky # yes'
+trivial: false
+depends_on: [304]
+adrs: []
+pr:
+---
+
+## Why
+
+Because.
+```
+
+(with a trailing newline after `Because.` and NO trailing blank line).
+
+- [ ] **Step 2: Run to verify failure** — `go test -count=1 ./internal/document/` → FAIL.
+
+- [ ] **Step 3: Implement `builder.go`**
+
+Validate the whole field list first: at least one field; every `validKey`; every `Value.validate()`; duplicate names → `KindDuplicateField`. Body: valid UTF-8, no NUL, no `\r` (LF-only canon), other control chars limited to LF/tab → else `KindInvalidValue`. Render: `---\n`, each `name:` or `name: <serialized>\n`, `---\n`, `\n`, body trimmed to exactly one trailing `\n` (an empty body renders fences plus one final newline total after the closing fence; assert in a small extra test that `New([...], "")` reparses). Reparse own output via `Parse`; a failure is `KindReparseFailed` (should be unreachable — the fuzz target hunts for counterexamples).
+
+- [ ] **Step 4: Run to verify pass** — `go test -count=1 ./internal/document/` → PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add internal/document/
+git commit -m "feat(0306): canonical new-document builder with all-kinds golden"
+```
+
+---
+
+### Task 10: Frozen v0.9.2 document corpus and compatibility goldens
+
+**Files:**
+- Create: `testdata/repositories/v0.9.2/documents/` (frozen corpus — see capture list)
+- Modify: `testdata/repositories/v0.9.2/PROVENANCE.md` (one contents line)
+- Create: `internal/document/fixtures_test.go`
+- Create: `internal/document/testdata/` adversarial fixtures (list below)
+
+**Interfaces:**
+- Consumes: the whole public API.
+- Produces: the compatibility proof the acceptance boundary names.
+
+- [ ] **Step 1: Capture the frozen corpus**
+
+Real records, byte-exact, from two pinned sources (the archive/ADR/plan families live on tag `v0.9.2`; active changes and learnings exist only on the `docket` metadata branch — record BOTH pins):
+
+```bash
+mkdir -p testdata/repositories/v0.9.2/documents
+git show v0.9.2:docs/changes/archive/2026-08-12-0298-stacked-changes-build-a-new-change-on-top-of-a-parent-change.md > testdata/repositories/v0.9.2/documents/archived-change-0298.md
+git show v0.9.2:docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md > testdata/repositories/v0.9.2/documents/adr-0092.md
+git show v0.9.2:docs/superpowers/plans/2026-08-12-stacked-changes.md > testdata/repositories/v0.9.2/documents/plan-with-backlink.md
+git show 6d34592cf0934368ed075d5c644e9bfd0e4617e4:docs/changes/active/0158-batch-mode-for-docket-implement-next-build-several-coupled-c.md > testdata/repositories/v0.9.2/documents/active-change-0158.md
+git show 6d34592cf0934368ed075d5c644e9bfd0e4617e4:docs/changes/learnings/frontmatter-anchored-read.md > testdata/repositories/v0.9.2/documents/learning-frontmatter-anchored-read.md
+```
+
+(0158 carries an `## Auto-groom blocked` body section plus artifacts block; the learning file has a double-quoted `hook:` string with apostrophes — both are discriminating real shapes. If any listed path is absent at its pin, `git show` fails loudly — pick the nearest same-family file at the same pin and record the substitution in PROVENANCE.)
+
+Append to `testdata/repositories/v0.9.2/PROVENANCE.md` under `## Contents`:
+
+```
+- `documents/` — five byte-exact real records for change 0306's document-layer
+  compatibility corpus: three from tag `v0.9.2` (archived change 0298, ADR 0092,
+  the 0298 plan with its backlink block) and two from the `docket` metadata
+  branch at commit `6d34592c` (active change 0158, learning finding
+  `frontmatter-anchored-read`), which is where active changes and learnings
+  live; no redaction.
+```
+
+These are historical snapshots pinned by commit — they must NOT track the live originals (the originals legitimately move as changes progress), which is exactly the drift-assert choice learning `frozen-copy-needs-a-drift-assert` requires writing down; the PROVENANCE line above is that statement.
+
+- [ ] **Step 2: Write the package-local adversarial fixtures**
+
+`internal/document/testdata/` — one small file each. Create each with the exact content its name promises:
+
+| File | Content requirement |
+|---|---|
+| `crlf-full.md` | CRLF everywhere: fences, fields (incl. an empty value + inline comment), one managed block |
+| `mixed-scalars.md` | bare, single-quoted, double-quoted values side by side |
+| `empty-value-comment.md` | `pr:   # set when the PR is opened` |
+| `flow-sequences.md` | `depends_on: [304]`, `adrs: []`, `related: [4, 6]` |
+| `unknown-fields.md` | an unknown scalar field AND an unknown block-scalar (`x_notes: \|` + indented lines) |
+| `body-keylike-lines.md` | body prose lines starting `status: ` and `id: ` |
+| `fenced-marker-example.md` | a ```-fenced block containing a full marker pair |
+| `invalid-dangling-marker.md` | start without end |
+| `invalid-out-of-order.md` | end before start |
+| `invalid-nested-markers.md` | a pair inside a pair |
+| `invalid-duplicate-markers.md` | same name twice |
+| `invalid-unclosed-fence.md` | `---` opener, fields, no closer |
+| `invalid-duplicate-keys.md` | `id:` twice |
+| `invalid-utf8.md` | contains bytes `0xFF 0xFE` (write from Go or `printf`; verify with `hexdump -C`) |
+
+Naming rule: `invalid-*` files MUST fail Parse; every other file MUST parse. `fixtures_test.go` derives the expectation from the filename prefix — no hand-kept list (the correspondence stays one-loop-safe because the directory listing IS the population).
+
+- [ ] **Step 3: Write the failing corpus tests**
+
+`internal/document/fixtures_test.go`:
+
+```go
+package document
+
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+const frozenDir = "../../testdata/repositories/v0.9.2/documents"
+
+func frozenCorpus(t *testing.T) map[string][]byte {
+	t.Helper()
+	entries, err := os.ReadDir(frozenDir)
+	if err != nil { t.Fatalf("frozen corpus missing: %v", err) }
+	out := map[string][]byte{}
+	for _, e := range entries {
+		b, err := os.ReadFile(filepath.Join(frozenDir, e.Name()))
+		if err != nil { t.Fatal(err) }
+		out[e.Name()] = b
+	}
+	if len(out) < 5 { t.Fatalf("corpus has %d files, want the 5 captured records", len(out)) }
+	return out
+}
+
+func TestFrozenCorpusParsesAndDecodesWithoutNormalizing(t *testing.T) {
+	for name, src := range frozenCorpus(t) {
+		d, err := Parse(src)
+		if err != nil { t.Fatalf("%s: %v", name, err) }
+		if got := d.Source(); !bytes.Equal(got, src) {
+			t.Fatalf("%s: Source() normalized bytes", name)
+		}
+		if d.HasFrontmatter() {
+			var meta struct {
+				ID   int    `yaml:"id"`
+				Slug string `yaml:"slug"`
+			}
+			if err := d.DecodeFrontmatter(&meta); err != nil {
+				t.Fatalf("%s: decode: %v", name, err)
+			}
+		}
+	}
+}
+
+func TestEmptyPatchSetByteIdenticalAcrossCorpus(t *testing.T) {
+	for name, src := range frozenCorpus(t) {
+		d, err := Parse(src)
+		if err != nil { t.Fatalf("%s: %v", name, err) }
+		out, err := d.Apply(PatchSet{})
+		if err != nil { t.Fatalf("%s: %v", name, err) }
+		if !bytes.Equal(out, src) {
+			t.Fatalf("%s: empty PatchSet must be byte-identical", name)
+		}
+	}
+}
+
+func TestSingleFieldPatchChangesOnlyDeclaredSpan(t *testing.T) {
+	src := frozenCorpus(t)["active-change-0158.md"]
+	d, err := Parse(src)
+	if err != nil { t.Fatal(err) }
+	f, ok := d.Field("status")
+	if !ok { t.Fatal("fixture must carry status:") }
+	var p PatchSet
+	p.SetField("status", String("in-progress"))
+	out, err := d.Apply(p)
+	if err != nil { t.Fatal(err) }
+	pre, suf := commonPrefix(src, out), commonSuffix(src, out)
+	// Every differing byte must sit inside the declared field spans.
+	if pre < f.Value.Start || len(src)-suf > f.Entry.End {
+		t.Fatalf("difference [%d, %d) escapes the declared field spans [%d, %d)",
+			pre, len(out)-suf, f.Value.Start, f.Entry.End)
+	}
+}
+
+func TestBatchPatchOnFrozenActiveChange(t *testing.T) {
+	src := frozenCorpus(t)["active-change-0158.md"]
+	d, err := Parse(src)
+	if err != nil { t.Fatal(err) }
+	var p PatchSet
+	p.SetField("status", String("in-progress"))
+	p.SetField("branch", String("feat/batch-mode"))
+	out, err := d.Apply(p)
+	if err != nil { t.Fatal(err) }
+	rt, err := Parse(out)
+	if err != nil { t.Fatalf("patched frozen record must reparse: %v", err) }
+	var meta struct {
+		Status string `yaml:"status"`
+		Branch string `yaml:"branch"`
+	}
+	if err := rt.DecodeFrontmatter(&meta); err != nil { t.Fatal(err) }
+	if meta.Status != "in-progress" || meta.Branch != "feat/batch-mode" {
+		t.Fatalf("%+v", meta)
+	}
+	// Unknown-to-this-struct fields, comments, blocks, body survive.
+	for _, invariant := range []string{"docket:artifacts:start", "## Why"} {
+		if !strings.Contains(string(out), invariant) {
+			t.Fatalf("lost %q", invariant)
+		}
+	}
+}
+
+func TestBlockReplaceOnFrozenPlanBacklink(t *testing.T) {
+	src := frozenCorpus(t)["plan-with-backlink.md"]
+	d, err := Parse(src)
+	if err != nil { t.Fatal(err) }
+	b, ok := d.Block("backlink")
+	if !ok { t.Fatal("plan fixture must carry its backlink block") }
+	var p PatchSet
+	p.ReplaceBlock("backlink", "> ↩ re-rendered home link")
+	out, err := d.Apply(p)
+	if err != nil { t.Fatal(err) }
+	// Marker lines and everything outside the interior are untouched.
+	if !bytes.Equal(out[:b.Interior.Start], src[:b.Interior.Start]) {
+		t.Fatal("bytes before the block interior changed")
+	}
+	tailSrc, tailOut := src[b.Interior.End:], out[len(out)-(len(src)-int(b.Interior.End)):]
+	if !bytes.Equal(tailSrc, tailOut) {
+		t.Fatal("bytes after the block interior changed")
+	}
+}
+
+func TestPackageLocalFixturesParseByNamingRule(t *testing.T) {
+	entries, err := os.ReadDir("testdata")
+	if err != nil { t.Fatal(err) }
+	for _, e := range entries {
+		if e.IsDir() || strings.HasSuffix(e.Name(), ".golden.md") { continue }
+		src, err := os.ReadFile(filepath.Join("testdata", e.Name()))
+		if err != nil { t.Fatal(err) }
+		_, perr := Parse(src)
+		if strings.HasPrefix(e.Name(), "invalid-") {
+			if perr == nil { t.Errorf("%s: want Parse failure", e.Name()) }
+		} else if perr != nil {
+			t.Errorf("%s: %v", e.Name(), perr)
+		}
+	}
+}
+
+func TestRefusalsReturnNoBytesAcrossCorpus(t *testing.T) {
+	for name, src := range frozenCorpus(t) {
+		d, err := Parse(src)
+		if err != nil { t.Fatalf("%s: %v", name, err) }
+		if !d.HasFrontmatter() { continue }
+		var p PatchSet
+		p.SetField("field_that_never_exists_anywhere", Int(1))
+		out, err := d.Apply(p)
+		if err == nil || out != nil {
+			t.Errorf("%s: refusal must return (nil, error); got (%v, %v)", name, out, err)
+		}
+	}
+}
+```
+
+`commonPrefix`/`commonSuffix` are five-line helpers in this test file (suffix scan bounded by `len - prefix` so the two never overlap). The prefix/suffix pair is the specified oracle for single-edit patches; multi-edit batches assert per-span with the same technique between edit spans — the spec's "every byte difference is covered by an edit span" is discharged by asserting difference-bounds against the plan's declared spans, never by a tolerated-lines list.
+
+- [ ] **Step 4: Run to verify failure, then pass**
+
+Run: `go test -count=1 ./internal/document/` — fixtures missing → FAIL. Complete Steps 1–2's captures, re-run → PASS. Also full `go test -count=1 ./...` → PASS.
+
+- [ ] **Step 5: Check the gitignore interaction**
+
+`testdata/repositories/.gitignore` exists (0305 added un-ignore rules for its fixture families). Run `git status --porcelain testdata/` after `git add`; every new corpus file must appear as staged. If any file is ignored, extend `testdata/repositories/.gitignore` with the narrowest un-ignore pattern for `v0.9.2/documents/` (mirror 0305's existing entries) — committed in this task.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add testdata/repositories/v0.9.2/ internal/document/
+git commit -m "feat(0306): frozen v0.9.2 document corpus, adversarial fixtures, compatibility goldens"
+```
+
+---
+
+### Task 11: Fuzz targets, mutation-test sweep, suite gate
+
+**Files:**
+- Create: `internal/document/fuzz_test.go`
+- Modify: `internal/document/patch_test.go` (only if a mutation probe exposes a vacuous assert)
+
+**Interfaces:**
+- Consumes: everything.
+- Produces: the four seeded fuzz targets; the recorded mutation-probe results.
+
+- [ ] **Step 1: Write the fuzz targets**
+
+`internal/document/fuzz_test.go`:
+
+```go
+package document
+
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+// seedAll adds every package-local fixture and every frozen corpus file.
+func seedAll(f *testing.F) {
+	f.Helper()
+	for _, dir := range []string{"testdata", "../../testdata/repositories/v0.9.2/documents"} {
+		entries, err := os.ReadDir(dir)
+		if err != nil { f.Fatalf("seed dir %s: %v", dir, err) }
+		for _, e := range entries {
+			if e.IsDir() { continue }
+			b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+			if err != nil { f.Fatal(err) }
+			f.Add(b)
+		}
+	}
+}
+
+// FuzzParse — fence + field-location discovery must never panic or loop, and
+// a successful parse must round-trip its bytes and locate self-consistent spans.
+func FuzzParse(f *testing.F) {
+	seedAll(f)
+	f.Fuzz(func(t *testing.T, src []byte) {
+		d, err := Parse(src)
+		if err != nil { return }
+		if !bytes.Equal(d.Source(), src) {
+			t.Fatal("Source() must equal input bytes")
+		}
+		for _, fld := range d.Fields() {
+			if fld.Value.Start < fld.Entry.Start || fld.Value.End > fld.Entry.End ||
+				fld.Entry.End > len(src) {
+				t.Fatalf("field %s spans out of bounds: %+v", fld.Name, fld)
+			}
+		}
+		for _, b := range d.Blocks() {
+			if b.Interior.Start < b.Start.End || b.Interior.End > b.End.Start {
+				t.Fatalf("block %s spans inconsistent: %+v", b.Name, b)
+			}
+		}
+	})
+}
+
+// FuzzMarkers — marker discovery/balance over arbitrary body bytes.
+func FuzzMarkers(f *testing.F) {
+	seedAll(f)
+	f.Fuzz(func(t *testing.T, body []byte) {
+		d, err := Parse(body)
+		if err != nil { return }
+		names := map[string]bool{}
+		for _, b := range d.Blocks() {
+			if names[b.Name] { t.Fatalf("duplicate block name %q survived validation", b.Name) }
+			names[b.Name] = true
+		}
+	})
+}
+
+// FuzzValueRoundTrip — serializer output must decode back to the same value.
+func FuzzValueRoundTrip(f *testing.F) {
+	f.Add("plain", int64(0), false)
+	f.Add("it's # tricky: yes", int64(-7), true)
+	f.Add("", int64(9223372036854775807), false)
+	f.Fuzz(func(t *testing.T, s string, n int64, b bool) {
+		v := String(s)
+		if v.validate() != nil { return } // control chars etc. are legal refusals
+		doc, err := New([]FieldSpec{{"s", v}, {"n", Int(n)}, {"b", Bool(b)}}, "x\n")
+		if err != nil { t.Fatalf("builder refused validated values: %v", err) }
+		d, err := Parse(doc)
+		if err != nil { t.Fatalf("canonical output failed reparse: %v", err) }
+		var out struct {
+			S string `yaml:"s"`
+			N int64  `yaml:"n"`
+			B bool   `yaml:"b"`
+		}
+		if err := d.DecodeFrontmatter(&out); err != nil { t.Fatal(err) }
+		if out.S != s || out.N != n || out.B != b {
+			t.Fatalf("round trip: got %+v want (%q, %d, %v)", out, s, n, b)
+		}
+	})
+}
+
+// FuzzApply — batch patching over corpus documents with fuzzed values.
+func FuzzApply(f *testing.F) {
+	f.Add([]byte("---\nid: 1\nstatus: proposed\n---\nbody\n"), "done")
+	f.Fuzz(func(t *testing.T, src []byte, val string) {
+		d, err := Parse(src)
+		if err != nil { return }
+		var p PatchSet
+		p.SetField("status", String(val))
+		out, aerr := d.Apply(p)
+		if aerr != nil {
+			if out != nil { t.Fatal("error with non-nil bytes") }
+			return
+		}
+		if _, err := Parse(out); err != nil {
+			t.Fatalf("successful patch must reparse: %v", err)
+		}
+		// Idempotence: applying again yields identical bytes.
+		d2, _ := Parse(out)
+		out2, err := d2.Apply(p)
+		if err != nil { t.Fatalf("idempotent reapply refused: %v", err) }
+		if !bytes.Equal(out, out2) { t.Fatal("reapply not byte-idempotent") }
+	})
+}
+```
+
+- [ ] **Step 2: Run the seed corpus** — `go test -count=1 ./internal/document/` executes every fuzz target's seeds as ordinary tests → PASS.
+
+- [ ] **Step 3: Run the bounded explicit fuzz campaigns (NOT wired into the suite)**
+
+```bash
+go test ./internal/document/ -run '^$' -fuzz FuzzParse -fuzztime 30s
+go test ./internal/document/ -run '^$' -fuzz FuzzMarkers -fuzztime 30s
+go test ./internal/document/ -run '^$' -fuzz FuzzValueRoundTrip -fuzztime 30s
+go test ./internal/document/ -run '^$' -fuzz FuzzApply -fuzztime 30s
+```
+
+Expected: no crashers. A crasher writes a `testdata/fuzz/...` corpus entry — fix the defect, keep the minimized entry committed (it becomes a permanent regression seed), and note it in the results file. These commands are documentation-and-manual: the whole-suite gate stays `go test ./...` seed execution only.
+
+- [ ] **Step 4: Mutation-test every named safety guard**
+
+Each probe: apply the mutation, run `go test -count=1 ./internal/document/`, confirm the named test REDDENS, restore, re-run to green. Record each probe → outcome pair for the results file.
+
+| Mutation | Must redden |
+|---|---|
+| Remove the closing-fence check (treat EOF as closer) | `TestUnclosedFrontmatterIsTyped` |
+| Remove marker order/balance validation (return blocks without the walk) | `TestDanglingStartRejected` + siblings |
+| Remove batch prevalidation (validate per-edit during application) | `TestMissingTargetFailsWholeBatch` (out != nil leg) |
+| Remove the candidate reparse (phase 3) | `TestReparseGateRejectsACorruptingPayload` |
+| Break the single-quote serializer (return raw string) | `TestSerializeEveryKind`, `TestSerializedValuesRoundTripThroughYAML` |
+| Replace the field-patch path with YAML re-marshal of the tree (probe: route `Apply` through `yaml.Marshal` for the frontmatter region) | `TestEmptyPatchSetByteIdenticalAcrossCorpus`, `TestSetFieldPreservesEverythingElse` |
+
+The last row is the spec's explicit "YAML marshal/re-encode must fail the compatibility goldens" proof; implement the probe crudely (marshal the semantic tree, splice it between the fences) — it only has to demonstrate the goldens catch it.
+
+- [ ] **Step 5: Full suite gate**
+
+Run the whole suite exactly as `finalize.test_command` resolves it:
+
+```bash
+scripts/run-tests.sh
+```
+
+Expected: green, and inspect the tail for any `OVER BUDGET:` line — `tests/test_go_toolchain.sh` (20s budget) now compiles and runs this package too; if it reports over budget, record the measured number in the results file as a finding (never silently edit the budget row).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add internal/document/
+git commit -m "test(0306): four seeded fuzz targets; mutation-probe sweep recorded"
+```
+
+---
+
+## Self-review checklist (run after Task 11)
+
+1. **Spec coverage sweep** — walk the spec section by section against the tasks: package contract names (`Parse`, `DecodeFrontmatter`, `Apply`, `PatchSet`, builder) — Tasks 2–9; fence rules — Task 2; YAML boundary (v3.0.4, no KnownFields, no Marshal) — Task 3 + Global Constraints; field map — Task 4; typed serialization — Task 6; markers — Task 5; canonical rendering — Task 9; error model — Task 1 + each op; corpus/goldens — Task 10; fuzz — Task 11; mutation tests — Tasks 7 + 11.
+2. **Immutability audit** — grep the package for any return of an internal slice without copy (`d.source`, `d.fields`, `d.blocks`); each accessor copies.
+3. **Boundary audit** — `go doc ./internal/document` output contains no `yaml.` type; `grep -rn 'yaml\.' internal/document/*.go` hits only unexported code paths and never `Marshal`/`Encoder`.
+4. **gofmt/vet** — clean; full suite green.
