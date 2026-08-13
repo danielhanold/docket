@@ -87,6 +87,38 @@ func TestVersionJSONGoldenBytes(t *testing.T) {
 	assertOneJSONDocument(t, out)
 }
 
+// pflag's Bool accepts every strconv.ParseBool spelling, so the built binary
+// must honor --json=1 and --json=TRUE as protocol mode — the pre-scan's
+// narrower grammar only stands in when parsing never reaches the flag.
+func TestBoundJSONFlagSpellingsSubprocess(t *testing.T) {
+	for _, args := range [][]string{
+		{"--json=1", "version"},
+		{"--json=TRUE", "version"},
+		{"version", "--json=t"},
+	} {
+		out, errS, code := run(t, args...)
+		if code != 0 || errS != "" {
+			t.Fatalf("args=%v err=%q code=%d", args, errS, code)
+		}
+		doc := assertOneJSONDocument(t, out)
+		if doc["operation"] != "version" || doc["result"] != "applied" {
+			t.Fatalf("args=%v doc=%v", args, doc)
+		}
+	}
+	for _, args := range [][]string{
+		{"--json=0", "version"},
+		{"version", "--json=F"},
+	} {
+		out, errS, code := run(t, args...)
+		if code != 0 || errS != "" {
+			t.Fatalf("args=%v err=%q code=%d", args, errS, code)
+		}
+		if out != "docket development (commit unknown, built unknown)\n" {
+			t.Fatalf("args=%v stdout = %q", args, out)
+		}
+	}
+}
+
 func TestDiagnosticRuntimeReflectsHost(t *testing.T) {
 	out, errS, code := run(t, "diagnostic", "runtime", "--json")
 	if code != 0 || errS != "" {
@@ -190,6 +222,8 @@ func TestHelpConflictAndHumanHelp(t *testing.T) {
 		{"--json", "help", "bogus"},      // unresolvable topic
 		{"--json", "help", "completion"}, // disabled built-in, so also unresolvable
 		{"--json", "help", "version"},    // resolvable topic
+		{"--json=1", "--help"},           // Bool spelling outside the pre-scan grammar
+		{"--json=TRUE", "help"},
 	} {
 		out, errS, code := run(t, args...)
 		if code != 2 || errS != "" {

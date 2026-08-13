@@ -16,8 +16,7 @@ import (
 // and presents exactly one outcome. It returns the process exit code; only
 // cmd/docket/main.go converts it into os.Exit.
 func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinfo.Info, facts buildinfo.RuntimeFacts) int {
-	jsonMode := DetectJSONMode(args)
-	p := Presenter{Stdout: stdout, Stderr: stderr, JSON: jsonMode}
+	prescan := DetectJSONMode(args)
 
 	var result app.OperationResult
 	helpConflict := false
@@ -41,11 +40,38 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	root.SetErr(stderr)
 	root.SetArgs(args)
 
+	// jsonMode reports the selected output transport. pflag parses the bound
+	// --json flag with strconv.ParseBool, so it accepts spellings the pre-scan's
+	// deliberately bounded grammar does not — --json=1, --json=TRUE, --json=t.
+	// The Cobra-bound value is therefore authoritative whenever pflag actually
+	// parsed the flag (Changed); the pre-scan stands in only when parsing never
+	// reached it, as in `docket version --bogus --json`, where Cobra stops at
+	// the unknown token, or `docket --json=1 bogus`, where command resolution
+	// fails before any flag is parsed. In those fallback cases only the
+	// pre-scan's three spellings can still select JSON mode — the documented
+	// boundary of a transport scan that deliberately is not a second parser.
+	// Reading the flag rather than the pre-scan is what keeps
+	// `docket --json=1 version` from parsing cleanly and then emitting human
+	// text at exit 0, which no machine consumer could detect.
+	//
+	// Ordering: pflag parses flags before Cobra dispatches to the help func or
+	// the help command, so both read the same value the final presentation does.
+	// That keeps the spec's conflict rule — "--json cannot be combined with
+	// --help, -h, or the help command" — keyed on the mode actually selected:
+	// `--json=1 --help` conflicts, and `--json=0 --help` renders human help.
+	jsonMode := func() bool {
+		f := root.PersistentFlags().Lookup("json")
+		if f == nil || !f.Changed {
+			return prescan
+		}
+		return f.Value.String() == "true"
+	}
+
 	// JSON mode and help are mutually exclusive: any help path in JSON mode
 	// records a conflict instead of writing help into the protocol stream.
 	defaultHelp := root.HelpFunc()
 	root.SetHelpFunc(func(c *cobra.Command, a []string) {
-		if jsonMode {
+		if jsonMode() {
 			helpConflict = true
 			return
 		}
@@ -63,7 +89,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 		Use:   "help [command]",
 		Short: "Help about any command",
 		RunE: func(c *cobra.Command, a []string) error {
-			if jsonMode {
+			if jsonMode() {
 				helpConflict = true
 				return nil
 			}
@@ -112,13 +138,18 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	if err == nil {
 		err = root.Execute()
 	}
+
+	// Nothing has been presented yet, so the presenter is built after Execute
+	// with the mode Cobra ended up parsing.
+	p := Presenter{Stdout: stdout, Stderr: stderr, JSON: jsonMode()}
+
 	switch {
 	case helpConflict:
 		return p.Present(app.CLIError(app.ReasonJSONHelpConflict,
 			"--json cannot be combined with --help, -h, or the help command"))
 	case err != nil:
 		res := app.CLIError(app.ReasonInvalidArguments, err.Error())
-		if jsonMode {
+		if p.JSON {
 			return p.Present(res)
 		}
 		return p.PresentHumanError(res)
