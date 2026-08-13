@@ -8,17 +8,28 @@ Change: #0304 · Branch: feat/go-executable-json-protocol-test-build-skeleton ·
 
 ## Verify (human)
 
-- [ ] On a machine with the Go toolchain but a cold `<git-common-dir>/docket-go-cache/`, run
-  `scripts/run-tests.sh -j 1 tests/test_go_toolchain.sh` twice: the first run may reach the module
-  proxy (the one permitted network event); the second must pass with zero downloads. The suite is
-  offline-capable only after that first warm run — no automated test can prove the offline property
-  from inside an online run.
-- [ ] Judgment call to ratify: `docket help <unknown-topic>` in HUMAN mode now exits 2 with
+- [x] Cold-cache verification run by the human on 2026-08-13 — and it **failed the first run**,
+  which turned out to be a real defect rather than the anticipated one-time proxy fetch. On a cold
+  module cache `go list` writes `go: downloading github.com/spf13/cobra v1.10.2` to stderr and
+  still exits 0; Check 1 captured that stream with `2>&1`, so the download chatter was
+  word-split into gofmt's directory arguments and the check reddened with
+  `lstat go:: no such file or directory`. Every warm run passed, which is why the build-time gate
+  never saw it — the failure was reachable only from a fresh clone or a cold CI image. Fixed on
+  this branch by sending `go list` stderr to a file inside the existing scratch dir (diagnostics
+  are replayed from it on the failure path). Re-verified with an isolated `GOMODCACHE`/`GOCACHE`:
+  cold run green, 6/6 asserts. Guard mutation-tested afterwards — a deliberately unformatted
+  `internal/app/zz_mutation_probe.go` reddens Check 1 and names the file, so the fix did not
+  hollow the check out.
+- [x] Ratified 2026-08-13: keep exit 2. `docket help <unknown-topic>` in HUMAN mode exits 2 with
   `docket: unknown help topic "..."` on stderr, instead of Cobra's default exit-0 prose on stdout.
   The spec's "human help remains Cobra-rendered text on stdout with exit 0" is honored for every
   resolvable topic (`help`, `help version`, `help diagnostic runtime`, `--help`); the unresolvable
-  case was aligned with the unknown-command error class. If you prefer Cobra's exit-0 behavior,
-  only the help command's `RunE` error branch and `TestHumanHelpTopics` need to change.
+  case was aligned with the unknown-command error class. Rationale accepted: a mistyped help topic
+  is user error, exit 0 would report success to a calling script for a run that printed nothing,
+  and routing every topic through the one error path is what makes the JSON-mode conflict correct
+  by construction instead of by a second special case. Observed on the built binary —
+  `help version` → stdout, exit 0; `help bogus` → empty stdout, `docket: unknown help topic
+  "bogus"` on stderr, exit 2; `--json help bogus` → `json-help-conflict` envelope, exit 2.
 
 ## Findings
 
@@ -32,6 +43,11 @@ Change: #0304 · Branch: feat/go-executable-json-protocol-test-build-skeleton ·
 - pflag accepts `--json=1`/`--json=TRUE` etc.; the mode is now resolved from the Cobra-bound flag
   whenever the parse reached it (`Flag.Changed`), with the bounded three-spelling pre-scan kept
   solely as the parse-failure fallback the spec designed it to be.
+- Never capture a command with `2>&1` when the captured value becomes ARGUMENTS rather than a
+  message. `go list`, like most fetch-capable tools, writes progress to stderr and still exits 0,
+  so the rc check certifies nothing about the contents; the contamination is invisible on every
+  warm run and only appears on a cold cache. Route stderr to a file and replay it on the failure
+  path. (Found by the human's cold-cache verify, after the whole build ran green on warm caches.)
 - Go's test cache does not key on the binary `TestMain` builds — a bare `go test ./cmd/docket/`
   can report `ok (cached)` against a mutated tree. Every mutation probe and manual re-verification
   must use `-count=1`.
@@ -42,6 +58,15 @@ Change: #0304 · Branch: feat/go-executable-json-protocol-test-build-skeleton ·
 
 ## Follow-ups
 
+- `tests/test_bash_runtime_routing.sh`'s whole-repo inventory assert is **cwd-dependent** and fails
+  from anywhere but the repo root. It searches an absolute `"$REPO"` while spelling its exclusions
+  as `--glob '!tests/**'`; rg resolves a relative glob against the process cwd, not the search root,
+  so launching the suite by absolute path from another directory leaves `tests/**` unexcluded and
+  the assert drowns in test-file matches. Verified pre-existing — the file is byte-identical to
+  `main` and untouched by this change — and confirmed both ways: `-j 1` from the repo root passes
+  25/25, the identical invocation from another cwd reddens the one assert. The fix is `!**/tests/**`
+  (likewise for the `docs`/`.superpowers` globs), which is cwd-independent. Not fixed here: out of
+  scope for 0304, and it belongs with whoever next owns the routing test.
 - **Budget margins (record the number, not "did not trip"):** `tests/test_go_toolchain.sh` row is
   20s; measured 12s cold-cache serial, **2s warm** after the fix-loop cache change — 18s of warm
   margin for changes 0305–0318, which all grow this file's compile set. The whole-suite runs on
