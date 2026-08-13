@@ -2,7 +2,7 @@
 id: 311
 slug: installer-embedded-assets-and-four-harnesses
 title: 'Installer, embedded assets, and four first-class harnesses'
-status: proposed
+status: in-progress
 priority: critical
 type: feat
 created: 2026-08-12
@@ -17,7 +17,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/installer-embedded-assets-and-four-harnesses
+claimed_at: 2026-08-13T20:20:01Z
 pr:
 blocked_by:
 reconciled: false
