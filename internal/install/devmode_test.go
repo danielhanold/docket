@@ -485,8 +485,16 @@ func TestDevInstallRepointedLinkRefuses(t *testing.T) {
 	if out.Applied {
 		t.Fatalf("a conflicted development install reported applied work")
 	}
-	if !hasAction(out, install.OpConflict, link) {
-		t.Errorf("conflict not reported for %s: %v", link, out.Actions)
+	action, ok := findAction(out, install.OpConflict, link)
+	if !ok {
+		t.Fatalf("conflict not reported for %s: %v", link, out.Actions)
+	}
+	// A repointed link is the one conflict where the user cannot see what was
+	// expected, so the remedy names the destination docket planned.
+	for _, want := range []string{install.ReasonOwnershipConflict, filepath.Join("skills", "docket-toy"), "re-run"} {
+		if !strings.Contains(action.Detail, want) {
+			t.Errorf("conflict detail = %q, want it to contain %q", action.Detail, want)
+		}
 	}
 	assertUnchanged(t, before, snapshot(t, w.home), "repointed source link")
 	dest, err := os.Readlink(link)

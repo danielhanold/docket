@@ -303,7 +303,10 @@ func Check(o Options) Outcome {
 		}
 		detail := string(inspection.Disposition)
 		if inspection.Reason != "" {
-			detail = inspection.Reason
+			// A conflict seen from `check` is the same dead end it is from
+			// `install`, so it is reported with the same remedy rather than
+			// with the bare reason.
+			detail = inspection.ConflictDetail()
 		}
 		drift = append(drift, Action{Op: OpDrift, Path: t.Path, Detail: detail})
 	}
@@ -369,7 +372,10 @@ func applyPlan(o Options, p plannedInstallation, out Outcome) Outcome {
 	}
 	if len(conflicts) > 0 {
 		for _, c := range conflicts {
-			out.Actions = append(out.Actions, Action{Op: OpConflict, Path: c.Target.Path, Detail: c.Reason})
+			// The detail carries the remedy as well as the reason: there is no
+			// --force, so this report is the whole of what the user has to act
+			// on.
+			out.Actions = append(out.Actions, Action{Op: OpConflict, Path: c.Target.Path, Detail: c.ConflictDetail()})
 		}
 		return fail(out, conflictReason(conflicts), fmt.Errorf(
 			"%w: %d target(s) are not provably docket's", ErrPlanConflict, len(conflicts)))

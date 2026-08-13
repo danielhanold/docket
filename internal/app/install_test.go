@@ -159,6 +159,33 @@ func TestInstallHumanText(t *testing.T) {
 	}
 }
 
+// TestInstallHumanTextConflictCarriesRemedy pins the one output a conflicted
+// install leaves a person with. There is no --force, so the human text is the
+// whole way forward: the path, the stable reason, and the target-specific
+// instruction the service composed into the action's detail.
+func TestInstallHumanTextConflictCarriesRemedy(t *testing.T) {
+	const path = "/home/u/.claude/agents/docket-status.md"
+	text := NewInstallResult("install", install.Outcome{
+		Reason: install.ReasonOwnershipConflict,
+		Err:    errors.New("install: 1 target(s) are not provably docket's"),
+		Actions: []install.Action{{
+			Op:     install.OpConflict,
+			Path:   path,
+			Detail: install.ReasonOwnershipConflict + ": docket did not write this file; move or delete it, then re-run",
+		}},
+	}).HumanText()
+	for _, want := range []string{
+		"install: invalid-state",
+		install.OpConflict,
+		path,
+		"move or delete it, then re-run",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("conflict human text missing %q:\n%s", want, text)
+		}
+	}
+}
+
 // TestPlannersCoverHarnessOrder ties the adapters this layer wires to the
 // package that owns the order, so a fifth harness cannot be shipped in
 // internal/harness and silently never installed.
