@@ -113,6 +113,11 @@ func FuzzApply(f *testing.F) {
 		if err != nil {
 			return
 		}
+		// The only edit is on "status", so its Entry span bounds every byte
+		// Apply is permitted to touch — SetField resolves inside the entry
+		// line, reaching at most back over the spacing in front of the value.
+		before := d.Source()
+		target, targeted := d.Field("status")
 		var p PatchSet
 		p.SetField("status", String(val))
 		out, aerr := d.Apply(p)
@@ -121,6 +126,20 @@ func FuzzApply(f *testing.F) {
 				t.Fatal("error with non-nil bytes")
 			}
 			return
+		}
+		if !targeted {
+			t.Fatal("successful SetField on an unlocated field")
+		}
+		// Byte identity outside the reported span, in both directions.
+		if !bytes.Equal(out[:target.Entry.Start], before[:target.Entry.Start]) {
+			t.Fatalf("bytes before the edited entry [0, %d) changed", target.Entry.Start)
+		}
+		tailAt := target.Entry.End + (len(out) - len(before))
+		if tailAt < 0 || tailAt > len(out) {
+			t.Fatalf("edit resized past its own entry: tail offset %d of %d", tailAt, len(out))
+		}
+		if !bytes.Equal(out[tailAt:], before[target.Entry.End:]) {
+			t.Fatalf("bytes after the edited entry (from %d) changed", target.Entry.End)
 		}
 		if _, err := Parse(out); err != nil {
 			t.Fatalf("successful patch must reparse: %v", err)
@@ -136,6 +155,23 @@ func FuzzApply(f *testing.F) {
 		}
 		if !bytes.Equal(out, out2) {
 			t.Fatal("reapply not byte-idempotent")
+		}
+		// Non-aliasing: every returned buffer is the caller's alone. The two
+		// places a returned slice could plausibly share memory with a
+		// document's own are the empty set, which splices nothing, and Parse
+		// re-reading patched bytes. Done last — both deliberately corrupt the
+		// buffer they mutate.
+		if idle, ierr := d.Apply(PatchSet{}); ierr == nil && len(idle) > 0 {
+			idle[0] ^= 0xFF
+			if !bytes.Equal(d.Source(), before) {
+				t.Fatal("mutating an empty patch's result reached the document")
+			}
+		}
+		if len(out) > 0 {
+			out[0] ^= 0xFF
+			if !bytes.Equal(d2.Source(), out2) {
+				t.Fatal("mutating Apply's result reached the document reparsed from it")
+			}
 		}
 	})
 }
