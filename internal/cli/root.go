@@ -106,7 +106,12 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	diagnosticCmd.AddCommand(runtimeCmd)
 	root.AddCommand(versionCmd, diagnosticCmd)
 
-	err := root.Execute()
+	// The hidden completion commands are rejected before Cobra ever sees the
+	// arguments; everything else routes through Execute as usual.
+	err := rejectHiddenCompletionCommand(args)
+	if err == nil {
+		err = root.Execute()
+	}
 	switch {
 	case helpConflict:
 		return p.Present(app.CLIError(app.ReasonJSONHelpConflict,
@@ -131,4 +136,36 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 		fmt.Fprintln(stderr, "docket: internal error: command produced no result")
 		return app.ExitCode(app.ResultInternalError)
 	}
+}
+
+// rejectHiddenCompletionCommand refuses Cobra's hidden shell-completion
+// commands as ordinary unknown commands, returning nil for every other
+// invocation.
+//
+// Cobra registers __complete and __completeNoDesc in initCompleteCmd, which
+// runs before it consults CompletionOptions.DisableDefaultCmd — so disabling
+// the visible `completion` command hides the built-in generator but leaves
+// both hidden spellings executable. They write completion candidates to stdout
+// and "Completion ended with directive:" to stderr on their own, bypassing the
+// presenter and breaking the one-document, empty-stderr contract. Docket does
+// not ship shell completion, so the only correct answer is the unknown-command
+// error Cobra would give any other unrecognized word.
+func rejectHiddenCompletionCommand(args []string) error {
+	for _, a := range args {
+		// A standalone -- terminates command resolution in Cobra's own
+		// stripFlags, so nothing after it can name a command.
+		if a == "--" {
+			return nil
+		}
+		// Docket declares no flag that consumes a following value, so the
+		// first argument that is not flag-shaped is the command word.
+		if strings.HasPrefix(a, "-") && a != "-" {
+			continue
+		}
+		if a == "__complete" || a == "__completeNoDesc" {
+			return fmt.Errorf("unknown command %q for %q", a, "docket")
+		}
+		return nil
+	}
+	return nil
 }

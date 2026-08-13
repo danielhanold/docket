@@ -199,3 +199,34 @@ func TestNoCompletionCommand(t *testing.T) {
 		t.Fatalf("help must not advertise a completion command: %q", out)
 	}
 }
+
+// Cobra registers __complete and __completeNoDesc unconditionally — before it
+// consults CompletionOptions.DisableDefaultCmd — so disabling the visible
+// `completion` command leaves both hidden spellings live. Unhandled, they write
+// completion candidates to stdout and a directive line to stderr, bypassing the
+// presenter entirely. Both must be ordinary unknown commands in both modes.
+func TestHiddenCompletionCommandsRejected(t *testing.T) {
+	for _, name := range []string{"__complete", "__completeNoDesc"} {
+		out, errS, code := runCLI(t, name, "")
+		if code != 2 || out != "" {
+			t.Fatalf("human %s: out=%q err=%q code=%d", name, out, errS, code)
+		}
+		if !strings.HasPrefix(errS, "docket: ") || !strings.Contains(errS, name) {
+			t.Fatalf("human %s: stderr = %q", name, errS)
+		}
+
+		out, errS, code = runCLI(t, "--json", name, "")
+		if code != 2 {
+			t.Fatalf("json %s: code = %d, want 2", name, code)
+		}
+		if errS != "" {
+			t.Fatalf("json %s: stderr = %q, want empty", name, errS)
+		}
+		if !strings.Contains(out, `"result":"invalid-input"`) || !strings.Contains(out, `"reason":"invalid-arguments"`) {
+			t.Fatalf("json %s: stdout = %q", name, out)
+		}
+		if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+			t.Fatalf("json %s: must be one newline-terminated document, got %q", name, out)
+		}
+	}
+}

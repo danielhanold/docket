@@ -144,6 +144,34 @@ func TestJSONErrorCasesOneDocumentEmptyStderr(t *testing.T) {
 	}
 }
 
+// Cobra's hidden completion commands are registered before it honors
+// CompletionOptions.DisableDefaultCmd, so they survive disabling the visible
+// `completion` command and would otherwise write shell-completion text to
+// stdout and a directive line to stderr, outside the presenter.
+func TestHiddenCompletionCommandsRejectedSubprocess(t *testing.T) {
+	for _, name := range []string{"__complete", "__completeNoDesc"} {
+		out, errS, code := run(t, "--json", name, "")
+		if code != 2 {
+			t.Fatalf("json %s: code = %d, want 2", name, code)
+		}
+		if errS != "" {
+			t.Fatalf("json %s: stderr = %q, want empty", name, errS)
+		}
+		doc := assertOneJSONDocument(t, out)
+		if doc["result"] != "invalid-input" || doc["operation"] != "cli" || doc["reason"] != "invalid-arguments" {
+			t.Fatalf("json %s: doc = %v", name, doc)
+		}
+
+		out, errS, code = run(t, name, "")
+		if code != 2 || out != "" {
+			t.Fatalf("human %s: out=%q code=%d", name, out, code)
+		}
+		if !strings.HasPrefix(errS, "docket: ") || !strings.Contains(errS, name) {
+			t.Fatalf("human %s: stderr = %q", name, errS)
+		}
+	}
+}
+
 func TestHumanParseErrorStderrOnly(t *testing.T) {
 	out, errS, code := run(t, "version", "--bogus")
 	if code != 2 || out != "" {
