@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/buildinfo"
+	"github.com/danielhanold/docket/internal/install"
 )
 
 // checkEnvelopeNotShadowed marshals an OperationResult and reports every
@@ -58,6 +59,11 @@ func TestEnvelopeNotShadowed(t *testing.T) {
 		{"cli", CLIError(ReasonInvalidArguments, "unknown flag")},
 		{"diagnostic.config", DiagnosticConfig(sparseSources(), mainCtx(), false)},
 		{"config.preflight", DiagnosticConfig(blockedSources(), mainCtx(), true)},
+		{"install", NewInstallResult(OperationInstall, install.Outcome{Applied: true, Mode: install.ModeRelease})},
+		{"install.check", NewInstallResult(OperationInstallCheck, install.Outcome{
+			Reason: install.ReasonInstallationRequired, Err: install.ErrNotInstalled})},
+		{"development.install", NewInstallResult(OperationDevelopmentInstall, install.Outcome{
+			Mode: install.ModeDevelopment, Reason: install.ReasonBuildFailed, Err: install.ErrBuildFailed})},
 	}
 
 	for _, tc := range cases {

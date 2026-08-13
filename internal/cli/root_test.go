@@ -2,12 +2,19 @@ package cli
 
 import (
 	"bytes"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+
 	"github.com/danielhanold/docket/internal/buildinfo"
 )
+
+// treeWalkCommand is the scratch command captureTree registers. It is
+// asset-independent for the duration of that run only.
+const treeWalkCommand = "treewalk"
 
 func devInfo() buildinfo.Info {
 	return buildinfo.Info{Version: "development", Commit: "unknown", BuildDate: "unknown"}
@@ -396,5 +403,202 @@ func TestDiagnosticConfigReachesOperation(t *testing.T) {
 	}
 	if !strings.Contains(out, `"operation":"config.preflight"`) {
 		t.Fatalf("for-mutation: stdout = %q", out)
+	}
+}
+
+// pinInstallEnv points every root docket resolves — home, XDG config, XDG data
+// — at a scratch directory, so an installation test can never read or write
+// the developer's real home.
+func pinInstallEnv(t *testing.T) string {
+	t.Helper()
+	base := t.TempDir()
+	home := filepath.Join(base, "home")
+	if err := os.MkdirAll(home, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local", "share"))
+	t.Setenv("XDG_BIN_HOME", filepath.Join(home, ".local", "bin"))
+	return home
+}
+
+// TestInstallCommandsRegistered proves the three operations are reachable and
+// that adding them left the help/--json conflict rule alone.
+func TestInstallCommandsRegistered(t *testing.T) {
+	out, errS, code := runCLI(t, "--help")
+	if code != 0 || errS != "" {
+		t.Fatalf("err=%q code=%d", errS, code)
+	}
+	for _, want := range []string{"install", "development"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("root help does not list %q:\n%s", want, out)
+		}
+	}
+
+	out, errS, code = runCLI(t, "install", "--help")
+	if code != 0 || errS != "" {
+		t.Fatalf("install help: err=%q code=%d", errS, code)
+	}
+	for _, want := range []string{"check", "--harness"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("install help does not mention %q:\n%s", want, out)
+		}
+	}
+
+	out, errS, code = runCLI(t, "development", "install", "--help")
+	if code != 0 || errS != "" {
+		t.Fatalf("development install help: err=%q code=%d", errS, code)
+	}
+	for _, want := range []string{"--source", "--bin-dir"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("development install help does not mention %q:\n%s", want, out)
+		}
+	}
+
+	// The conflict rule is unchanged for the new commands.
+	out, errS, code = runCLI(t, "--json", "help", "install")
+	if code != 2 || errS != "" {
+		t.Fatalf("json help conflict: out=%q err=%q code=%d", out, errS, code)
+	}
+	if !strings.Contains(out, `"reason":"json-help-conflict"`) {
+		t.Fatalf("json help conflict: stdout = %q", out)
+	}
+}
+
+// TestInstallCheckWithoutInstallation is the wiring assertion: the command
+// reaches the operation, and an unwritten machine answers invalid-state with
+// the installation-required reason rather than an argument error.
+func TestInstallCheckWithoutInstallation(t *testing.T) {
+	pinInstallEnv(t)
+	out, errS, code := runCLI(t, "install", "check", "--json")
+	if code != 1 || errS != "" {
+		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
+	}
+	if !strings.Contains(out, `"operation":"install.check"`) ||
+		!strings.Contains(out, `"result":"invalid-state"`) ||
+		!strings.Contains(out, `"reason":"installation-required"`) {
+		t.Fatalf("stdout = %q", out)
+	}
+}
+
+// TestInstallIgnoresRepositoryLayer holds the spec's rule that installing is a
+// user-level operation: a .docket.yml in the current directory is not a layer
+// these commands have. The planted file is invalid enough to fail resolution,
+// so loading it would turn this into an invalid-input document.
+func TestInstallIgnoresRepositoryLayer(t *testing.T) {
+	pinInstallEnv(t)
+	cwd := t.TempDir()
+	if err := os.WriteFile(filepath.Join(cwd, ".docket.yml"), []byte("metadata_branch: [not, a, string]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(cwd)
+
+	out, errS, code := runCLI(t, "install", "check", "--json")
+	if code != 1 || errS != "" {
+		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
+	}
+	if !strings.Contains(out, `"reason":"installation-required"`) {
+		t.Fatalf("a repository layer reached the operation: %q", out)
+	}
+}
+
+func TestInstallRejectsUnknownHarness(t *testing.T) {
+	pinInstallEnv(t)
+	out, errS, code := runCLI(t, "install", "--harness", "emacs", "--json")
+	if code != 2 || errS != "" {
+		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
+	}
+	if !strings.Contains(out, `"result":"invalid-input"`) || !strings.Contains(out, `"reason":"unknown-harness"`) {
+		t.Fatalf("stdout = %q", out)
+	}
+}
+
+func TestDevelopmentInstallRequiresSource(t *testing.T) {
+	pinInstallEnv(t)
+	_, errS, code := runCLI(t, "development", "install")
+	if code != 2 || !strings.Contains(errS, "source") {
+		t.Fatalf("err=%q code=%d", errS, code)
+	}
+}
+
+// captureTree runs a scratch command whose only job is to hand this test the
+// Cobra tree the production wiring built.
+func captureTree(t *testing.T) *cobra.Command {
+	t.Helper()
+	assetIndependent[treeWalkCommand] = true
+	defer delete(assetIndependent, treeWalkCommand)
+
+	var root *cobra.Command
+	scratch := &cobra.Command{
+		Use: treeWalkCommand,
+		RunE: func(c *cobra.Command, _ []string) error {
+			root = c.Root()
+			return nil
+		},
+	}
+	var out, errBuf bytes.Buffer
+	run([]string{treeWalkCommand}, strings.NewReader(""), &out, &errBuf, devInfo(), hostFacts(), scratch)
+	if root == nil {
+		t.Fatalf("the scratch command never ran: out=%q err=%q", out.String(), errBuf.String())
+	}
+	return root
+}
+
+// TestAssetIndependentSetExact runs the correspondence both ways: every
+// command in the tree is registered as asset-independent (nothing ships a
+// gated command yet), and every registered name is a command that exists. A
+// one-way check would let a stale entry hide a command that quietly became
+// gated, or let a new command be gated by forgetfulness rather than by choice.
+func TestAssetIndependentSetExact(t *testing.T) {
+	root := captureTree(t)
+
+	inTree := map[string]bool{}
+	var walk func(c *cobra.Command)
+	walk = func(c *cobra.Command) {
+		key := commandKey(c)
+		if key != treeWalkCommand {
+			inTree[key] = true
+		}
+		for _, child := range c.Commands() {
+			walk(child)
+		}
+	}
+	walk(root)
+
+	for key := range inTree {
+		if !assetIndependent[key] {
+			t.Errorf("command %q is not in the asset-independent set; register it or gate it deliberately", key)
+		}
+	}
+	for key := range assetIndependent {
+		if !inTree[key] {
+			t.Errorf("asset-independent set names %q, which is no command in the tree", key)
+		}
+	}
+}
+
+// TestAssetDependentRefusal is the guard's mutation evidence: a command that is
+// NOT in the independent set is refused before its body runs, with the
+// installation-required reason, on a machine with no installation.
+func TestAssetDependentRefusal(t *testing.T) {
+	pinInstallEnv(t)
+	ran := false
+	gated := &cobra.Command{
+		Use:  "gated",
+		RunE: func(*cobra.Command, []string) error { ran = true; return nil },
+	}
+	var out, errBuf bytes.Buffer
+	code := run([]string{"gated", "--json"}, strings.NewReader(""), &out, &errBuf, devInfo(), hostFacts(), gated)
+	if ran {
+		t.Fatal("the gated command's body ran without an installation")
+	}
+	if code != 1 || errBuf.String() != "" {
+		t.Fatalf("out=%q err=%q code=%d", out.String(), errBuf.String(), code)
+	}
+	if !strings.Contains(out.String(), `"result":"invalid-state"`) ||
+		!strings.Contains(out.String(), `"reason":"installation-required"`) ||
+		!strings.Contains(out.String(), `"operation":"gated"`) {
+		t.Fatalf("stdout = %q", out.String())
 	}
 }

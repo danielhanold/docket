@@ -196,3 +196,38 @@ func TestLoadRelativeRepoDirCleaned(t *testing.T) {
 		t.Fatalf("data = %q, want the repo file's bytes", got[0].Data)
 	}
 }
+
+// TestLoadGlobalSourceOnly proves the no-repository loader reads the global
+// layer and nothing else: a .docket.yml sitting in the current directory is
+// not a layer these operations have.
+func TestLoadGlobalSourceOnly(t *testing.T) {
+	xdg := pinEnv(t)
+	globalPath := filepath.Join(xdg, "docket", "config.yml")
+	writeFile(t, globalPath, "learnings: {enabled: true}\n")
+
+	cwd := t.TempDir()
+	writeFile(t, filepath.Join(cwd, ".docket.yml"), "metadata_branch: docket\n")
+	t.Chdir(cwd)
+
+	got, err := LoadGlobalSource("")
+	if err != nil {
+		t.Fatalf("LoadGlobalSource: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("want 1 source, got %d: %+v", len(got), got)
+	}
+	if got[0].Layer != LayerGlobal || got[0].Name != globalPath {
+		t.Errorf("source = %q/%q, want the global layer at %q", got[0].Layer, got[0].Name, globalPath)
+	}
+	if string(got[0].Data) != "learnings: {enabled: true}\n" {
+		t.Errorf("data = %q", got[0].Data)
+	}
+}
+
+func TestLoadGlobalSourceAbsent(t *testing.T) {
+	pinEnv(t)
+	got, err := LoadGlobalSource("")
+	if err != nil || len(got) != 0 {
+		t.Fatalf("LoadGlobalSource = %+v, %v; want no layer and no error", got, err)
+	}
+}

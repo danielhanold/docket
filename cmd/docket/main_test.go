@@ -8,8 +8,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/assets"
 )
 
 var binPath string
@@ -258,5 +261,94 @@ func TestCrossCompileApprovedTargets(t *testing.T) {
 		if fi, err := os.Stat(out); err != nil || fi.Size() == 0 {
 			t.Fatalf("cross-build %s/%s produced no binary", tp[0], tp[1])
 		}
+	}
+}
+
+// runIn runs the built binary with a deliberately minimal environment, so a
+// test can never read or write the developer's real home.
+func runIn(t *testing.T, home string, args ...string) (stdout, stderr string, code int) {
+	t.Helper()
+	var out, errBuf bytes.Buffer
+	cmd := exec.Command(binPath, args...)
+	cmd.Env = []string{"HOME=" + home, "PATH=" + os.Getenv("PATH")}
+	cmd.Stdout, cmd.Stderr = &out, &errBuf
+	err := cmd.Run()
+	code = 0
+	if err != nil {
+		ee, ok := err.(*exec.ExitError)
+		if !ok {
+			t.Fatalf("running %v: %v", args, err)
+		}
+		code = ee.ExitCode()
+	}
+	return out.String(), errBuf.String(), code
+}
+
+// TestInstallCheckJSONGolden freezes the whole document a machine with no
+// installation gets back: one JSON value, the invalid-state result, and the
+// installation-required reason. Field order is protocol too, so this is a byte
+// comparison rather than a field-by-field one.
+func TestInstallCheckJSONGolden(t *testing.T) {
+	home := t.TempDir()
+	catalog, err := assets.EmbeddedCatalog()
+	if err != nil {
+		t.Fatalf("embedded catalog: %v", err)
+	}
+
+	out, errS, code := runIn(t, home, "install", "check", "--json")
+	if code != 1 {
+		t.Fatalf("code = %d, want 1 (out=%q err=%q)", code, out, errS)
+	}
+	if errS != "" {
+		t.Fatalf("stderr = %q, want empty", errS)
+	}
+	want := `{"protocol_version":1,"operation":"install.check","result":"invalid-state",` +
+		`"mode":"release","harnesses":[],"asset_protocol":` +
+		strconv.Itoa(catalog.Manifest.AssetProtocol) +
+		`,"asset_set_id":"` + catalog.Manifest.AssetSetID + `","state_path":"` +
+		filepath.Join(home, ".local", "share", "docket", "state", "install.json") +
+		`","applied_work":false,"actions":[],"reason":"installation-required",` +
+		`"message":"install: no installation record"}` + "\n"
+	if out != want {
+		t.Fatalf("stdout  = %q\nwant    = %q", out, want)
+	}
+	assertOneJSONDocument(t, out)
+
+	// The same verdict in human mode, on stdout, with nothing on stderr.
+	out, errS, code = runIn(t, home, "install", "check")
+	if code != 1 || errS != "" {
+		t.Fatalf("human: out=%q err=%q code=%d", out, errS, code)
+	}
+	if !strings.Contains(out, "reason: installation-required") {
+		t.Fatalf("human: stdout = %q", out)
+	}
+
+	// A read-only operation writes nothing: the home it was pointed at is
+	// still empty afterwards.
+	entries, err := os.ReadDir(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("install check created %d entries under a fresh home", len(entries))
+	}
+}
+
+// TestInstallCommandsRegistered proves the three operations reached the built
+// binary's command tree.
+func TestInstallCommandsRegistered(t *testing.T) {
+	home := t.TempDir()
+	out, errS, code := runIn(t, home, "--help")
+	if code != 0 || errS != "" {
+		t.Fatalf("err=%q code=%d", errS, code)
+	}
+	for _, want := range []string{"install", "development"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("root help does not list %q:\n%s", want, out)
+		}
+	}
+	out, errS, code = runIn(t, home, "install", "--help")
+	if code != 0 || errS != "" || !strings.Contains(out, "check") {
+		t.Fatalf("install help: out=%q err=%q code=%d", out, errS, code)
 	}
 }
