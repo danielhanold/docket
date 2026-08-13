@@ -1,8 +1,8 @@
 # Backlog
 
-**302 changes** — 🟡 40 proposed · ⚪ 4 deferred · ✅ 180 done · 🗑️ 78 killed
+**318 changes** — 🟡 56 proposed · ⚪ 4 deferred · ✅ 180 done · 🗑️ 78 killed
 
-## 🟡 Proposed (40)
+## 🟡 Proposed (56)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -46,6 +46,22 @@
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
+| [0303](active/0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | `critical` | `docs` | build-ready |
+| [0304](active/0304-go-executable-json-protocol-test-build-skeleton.md) | Go executable, JSON protocol, and test/build skeleton | `critical` | `feat` | ⏳ waiting on #303 — not yet built |
+| [0305](active/0305-configuration-and-capability-envelope.md) | Configuration and capability envelope | `critical` | `feat` | ⏳ waiting on #304 — not yet built |
+| [0306](active/0306-loss-preserving-document-layer.md) | Loss-preserving document layer | `critical` | `feat` | ⏳ waiting on #304 — not yet built |
+| [0307](active/0307-domain-snapshot-validation-graphs-and-selection.md) | Domain snapshot, validation, graphs, and selection | `critical` | `feat` | ⏳ waiting on #305 — not yet built |
+| [0308](active/0308-git-adapter-and-authoritative-object-source.md) | Git adapter and authoritative object source | `critical` | `feat` | ⏳ waiting on #304 — not yet built |
+| [0309](active/0309-isolated-metadata-transaction-engine.md) | Isolated metadata transaction engine | `critical` | `feat` | ⏳ waiting on #307 — not yet built |
+| [0310](active/0310-read-only-status-and-health-vertical-slice.md) | Read-only status and health vertical slice | `critical` | `feat` | ⏳ waiting on #307 — not yet built |
+| [0311](active/0311-installer-embedded-assets-and-four-harnesses.md) | Installer, embedded assets, and four first-class harnesses | `critical` | `feat` | ⏳ waiting on #304 — not yet built |
+| [0312](active/0312-planning-mutations-board-and-adrs.md) | Planning mutations, inline board, and ADRs | `critical` | `feat` | ⏳ waiting on #309 — not yet built |
+| [0313](active/0313-workspaces-github-pr-adapter-and-build-evidence.md) | Workspaces, GitHub PR adapter, and build evidence | `critical` | `feat` | ⏳ waiting on #308 — not yet built |
+| [0314](active/0314-native-process-supervisor-and-local-gate.md) | Native process supervisor and local gate | `critical` | `feat` | ⏳ waiting on #304 — not yet built |
+| [0315](active/0315-claim-to-implemented-workflow.md) | Claim-to-implemented agent workflow | `critical` | `feat` | ⏳ waiting on #312 — not yet built |
+| [0316](active/0316-finalize-recovery-reclaim-archive-and-stacks.md) | Finalize, recovery, reclaim, archive, and stacks | `critical` | `feat` | ⏳ waiting on #315 — not yet built |
+| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | ⏳ waiting on #311 — not yet built |
+| [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Configuration contraction, self-hosting, and hard cutover | `critical` | `refactor` | ⏳ waiting on #317 — not yet built |
 
 ## ⚪ Deferred (4)
 
@@ -102,6 +118,31 @@ graph TD
   0300
   0301
   0302
+  0303
+  0303 --> 0304
+  0304 --> 0305
+  0304 --> 0306
+  0305 --> 0307
+  0306 --> 0307
+  0304 --> 0308
+  0307 --> 0309
+  0308 --> 0309
+  0307 --> 0310
+  0308 --> 0310
+  0304 --> 0311
+  0305 --> 0311
+  0309 --> 0312
+  0310 --> 0312
+  0308 --> 0313
+  0309 --> 0313
+  0304 --> 0314
+  0312 --> 0315
+  0313 --> 0315
+  0314 --> 0315
+  0315 --> 0316
+  0311 --> 0317
+  0316 --> 0317
+  0317 --> 0318
   0192:::done
   0211:::done
   0282:::done
