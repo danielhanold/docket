@@ -102,10 +102,19 @@ results="$scratch/check-results"
 # silently stops checking any package added outside those two trees. `go list`
 # is captured and checked on its own so its failure cannot be swallowed by an
 # empty gofmt result reading as "clean".
-pkg_dirs="$(go list -f '{{.Dir}}' ./... 2>&1)"
+#
+# `go list` stderr goes to a FILE, never into `pkg_dirs` via `2>&1`: on a cold
+# module cache go writes `go: downloading github.com/spf13/cobra v1.10.2` to
+# stderr and still exits 0, so folding the two streams together feeds `go`,
+# `downloading` and the module paths to gofmt as directories. That reddens this
+# check with `lstat go:: no such file or directory` on the first run after any
+# fresh clone — and passes on every warm run after it, which is precisely the
+# failure a suite gate must not have. Diagnostics are replayed from the file on
+# the rc path so nothing is lost.
+pkg_dirs="$(go list -f '{{.Dir}}' ./... 2>"$scratch/go-list.err")"
 pkg_dirs_rc=$?
 if [ "$pkg_dirs_rc" -ne 0 ]; then
-  unformatted="go list failed: $pkg_dirs"
+  unformatted="go list failed: $(cat "$scratch/go-list.err" 2>/dev/null)"
 elif [ -z "$pkg_dirs" ]; then
   unformatted="go list reported no packages"
 else
