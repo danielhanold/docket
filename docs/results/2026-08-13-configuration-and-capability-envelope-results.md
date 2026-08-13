@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0305 — Configuration and capability envelope](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0305-configuration-and-capability-envelope.md)**
+> ↩ **[Change 0305 — Configuration and capability envelope](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-13-0305-configuration-and-capability-envelope.md)**
 <!-- docket:backlink:end -->
 
 # Configuration and capability envelope — results
