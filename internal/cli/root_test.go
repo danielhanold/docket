@@ -9,7 +9,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/danielhanold/docket/internal/assets"
 	"github.com/danielhanold/docket/internal/buildinfo"
+	"github.com/danielhanold/docket/internal/install"
 )
 
 // treeWalkCommand is the scratch command captureTree registers. It is
@@ -601,4 +603,76 @@ func TestAssetDependentRefusal(t *testing.T) {
 		!strings.Contains(out.String(), `"operation":"gated"`) {
 		t.Fatalf("stdout = %q", out.String())
 	}
+}
+
+// writeInstallState publishes a minimal installation record for the pinned
+// roots, so a guard test can drive the half of RequireCompatibleInstallation
+// that only a PRESENT installation reaches.
+func writeInstallState(t *testing.T, protocol int) {
+	t.Helper()
+	roots, err := install.ResolveRoots(os.UserHomeDir, os.Getenv)
+	if err != nil {
+		t.Fatalf("ResolveRoots: %v", err)
+	}
+	err = install.WriteStateAtomic(roots.StatePath(), &install.State{
+		FormatVersion:  install.StateFormatVersion,
+		ProductVersion: "0.1.0-dev",
+		AssetProtocol:  protocol,
+		AssetSetID:     "sha256:pinned",
+		Mode:           install.ModeRelease,
+		Harnesses:      []string{"claude"},
+		AgentDigest:    "sha256:agents",
+	})
+	if err != nil {
+		t.Fatalf("WriteStateAtomic: %v", err)
+	}
+}
+
+// TestAssetDependentProtocolMismatch is the guard's second half: an
+// installation that EXISTS but speaks another asset protocol refuses an
+// asset-dependent command with its own reason, distinct from the
+// nothing-installed refusal. The matching-protocol case runs the body, which
+// is what proves the protocol comparison — not the mere presence of a state
+// file — is what decides.
+func TestAssetDependentProtocolMismatch(t *testing.T) {
+	t.Run("mismatch refuses", func(t *testing.T) {
+		pinInstallEnv(t)
+		writeInstallState(t, assets.AssetProtocol+1)
+
+		ran := false
+		gated := &cobra.Command{
+			Use:  "gated",
+			RunE: func(*cobra.Command, []string) error { ran = true; return nil },
+		}
+		var out, errBuf bytes.Buffer
+		code := run([]string{"gated", "--json"}, strings.NewReader(""), &out, &errBuf, devInfo(), hostFacts(), gated)
+		if ran {
+			t.Fatal("the gated command's body ran against an incompatible installation")
+		}
+		if code != 1 || errBuf.String() != "" {
+			t.Fatalf("out=%q err=%q code=%d", out.String(), errBuf.String(), code)
+		}
+		if !strings.Contains(out.String(), `"result":"invalid-state"`) ||
+			!strings.Contains(out.String(), `"reason":"asset-protocol-mismatch"`) ||
+			!strings.Contains(out.String(), `"operation":"gated"`) {
+			t.Fatalf("stdout = %q", out.String())
+		}
+	})
+
+	t.Run("matching protocol admits", func(t *testing.T) {
+		pinInstallEnv(t)
+		writeInstallState(t, assets.AssetProtocol)
+
+		ran := false
+		gated := &cobra.Command{
+			Use:  "gated",
+			RunE: func(*cobra.Command, []string) error { ran = true; return nil },
+		}
+		var out, errBuf bytes.Buffer
+		code := run([]string{"gated"}, strings.NewReader(""), &out, &errBuf, devInfo(), hostFacts(), gated)
+		if !ran {
+			t.Fatalf("a compatible installation still refused the command: out=%q err=%q code=%d",
+				out.String(), errBuf.String(), code)
+		}
+	})
 }

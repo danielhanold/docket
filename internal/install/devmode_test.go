@@ -452,3 +452,48 @@ func TestCheckDevelopmentSourceDrift(t *testing.T) {
 	}
 	assertUnchanged(t, homeBefore, snapshot(t, w.home), "development check")
 }
+
+// A development installation's skill link is the checkout pointer, and a link
+// repointed by hand is not docket's any more: the next development install must
+// refuse it as an ownership conflict BEFORE mutating anything, rather than
+// silently repointing it back and discarding whatever the user meant by it.
+func TestDevInstallRepointedLinkRefuses(t *testing.T) {
+	w := newWorld(t)
+	mkdirAll(t, w.path(".toy"))
+	src := newSource(t)
+	bin := filepath.Join(w.home, "bin")
+	g := &goRun{body: "binary\n"}
+	if out := install.DevelopmentInstall(w.devOptions(t, src, bin, g)); out.Err != nil {
+		t.Fatalf("first DevelopmentInstall: %v (reason %q)", out.Err, out.Reason)
+	}
+
+	// The link now points at a second checkout the installation never wrote.
+	elsewhere := newSource(t)
+	link := w.path(".toy", "skills", "docket-toy")
+	if err := os.Remove(link); err != nil {
+		t.Fatalf("Remove(%s): %v", link, err)
+	}
+	if err := os.Symlink(filepath.Join(elsewhere, "skills", "docket-toy"), link); err != nil {
+		t.Fatalf("Symlink: %v", err)
+	}
+	before := snapshot(t, w.home)
+
+	out := install.DevelopmentInstall(w.devOptions(t, src, bin, g))
+	if out.Reason != install.ReasonOwnershipConflict {
+		t.Fatalf("reason = %q, want %q (err %v)", out.Reason, install.ReasonOwnershipConflict, out.Err)
+	}
+	if out.Applied {
+		t.Fatalf("a conflicted development install reported applied work")
+	}
+	if !hasAction(out, install.OpConflict, link) {
+		t.Errorf("conflict not reported for %s: %v", link, out.Actions)
+	}
+	assertUnchanged(t, before, snapshot(t, w.home), "repointed source link")
+	dest, err := os.Readlink(link)
+	if err != nil {
+		t.Fatalf("readlink: %v", err)
+	}
+	if want := filepath.Join(elsewhere, "skills", "docket-toy"); dest != want {
+		t.Errorf("the repointed link was rewritten to %s, want it preserved at %s", dest, want)
+	}
+}

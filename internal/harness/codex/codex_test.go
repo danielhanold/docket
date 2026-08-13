@@ -563,3 +563,60 @@ func TestCodexPlanRejectsUnusableInput(t *testing.T) {
 		}
 	})
 }
+
+// Adding an agent source to the bundle must grow the plan by one agent file and
+// one dispatch bullet with no adapter edit — the inventory is the single
+// roster, so a renderer-side name list would fail to grow here. The claude
+// adapter carries the same probe; each adapter needs its own because each
+// derives its own destinations.
+func TestCodexInventoryAdditionPropagates(t *testing.T) {
+	in := fixtureInput(t)
+	before := planFixture(t)
+	beforeInterior := string(dispatchTarget(t).Content)
+
+	const extraPath = "agents/docket-zzz-synthetic.md"
+	const extraBody = "---\nname: docket-zzz-synthetic\ndescription: A synthetic seventeenth agent.\n---\nSynthetic body.\n"
+
+	base := in.Assets
+	m := base.Manifest
+	m.Entries = append(append([]assets.Entry(nil), m.Entries...), assets.Entry{
+		Path: extraPath, Role: assets.RoleAgentSource, Mode: 0o644, Size: int64(len(extraBody)),
+	})
+	sort.Slice(m.Entries, func(i, j int) bool { return m.Entries[i].Path < m.Entries[j].Path })
+	grown := assets.NewCatalog(m, func(p string) ([]byte, error) {
+		if p == extraPath {
+			return []byte(extraBody), nil
+		}
+		return base.Bytes(p)
+	})
+
+	in.Assets = grown
+	after, err := New().Plan(in)
+	if err != nil {
+		t.Fatalf("Plan over the grown catalog: %v", err)
+	}
+	if len(after) != len(before)+1 {
+		t.Fatalf("plan grew from %d to %d targets, want exactly one more", len(before), len(after))
+	}
+
+	wantPath := filepath.Join(fakeHome, rootDir, agentsDir, "docket-zzz-synthetic.toml")
+	var found bool
+	var afterInterior string
+	for _, tg := range after {
+		if tg.Path == wantPath && tg.Kind == install.KindFile {
+			found = true
+		}
+		if tg.Kind == install.KindManagedBlock {
+			afterInterior = string(tg.Content)
+		}
+	}
+	if !found {
+		t.Errorf("the grown plan carries no agent file at %s", wantPath)
+	}
+	if strings.Count(afterInterior, "\n- **docket-") != strings.Count(beforeInterior, "\n- **docket-")+1 {
+		t.Errorf("the dispatch interior did not grow by exactly one bullet")
+	}
+	if !strings.Contains(afterInterior, "- **docket-zzz-synthetic** — A synthetic seventeenth agent. Delegate to the `docket-zzz-synthetic` agent.") {
+		t.Errorf("the dispatch interior carries no bullet for the added agent")
+	}
+}
