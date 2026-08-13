@@ -1,10 +1,8 @@
-# Docket Go Migration Program Implementation Plan
+# Docket Go Migration Program Map
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use
-> `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to
-> implement each child change's own plan task-by-task. Steps in those child plans use checkbox
-> (`- [ ]`) syntax for tracking. This program plan is the sprint index; it is not a substitute for
-> any child's spec and implementation plan.
+> This is the migration sprint's durable topology and scope index. It is not a build plan and does
+> not live on a feature branch. Every implementation change receives its own settled spec and
+> task-level plan through the ordinary Docket workflow before Claude Code claims it.
 
 **Goal:** Replace Docket's production Bash implementation with a self-hosting Go v1 through one
 program record and fifteen independently specified, built, reviewed, and finalized changes.
@@ -17,7 +15,7 @@ mechanics, local process supervision, installation, and four direct harness inte
 **Tech Stack:** Go, Git CLI, GitHub CLI (`gh`), YAML frontmatter plus Markdown, JSON protocol,
 GitHub Releases, POSIX installer bootstrap, Claude Code as the implementation host.
 
-**Spec:** `docs/superpowers/specs/2026-08-12-go-migration-architecture-design.md`
+**Architecture:** `docs/superpowers/specs/2026-08-12-go-migration-architecture-design.md`
 
 ## Global Constraints
 
