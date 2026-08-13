@@ -2,7 +2,7 @@
 id: 305
 slug: configuration-and-capability-envelope
 title: 'Configuration and capability envelope'
-status: implemented
+status: done
 priority: critical
 type: feat
 created: 2026-08-12
@@ -18,7 +18,7 @@ results: docs/results/2026-08-13-configuration-and-capability-envelope-results.m
 trivial: false
 auto_groomable:
 branch: feat/configuration-and-capability-envelope
-claimed_at: 2026-08-13T17:25:36Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/205
 blocked_by:
 reconciled: true
