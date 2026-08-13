@@ -18,10 +18,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/configuration-and-capability-envelope
-claimed_at: 2026-08-13T15:38:38Z
+claimed_at: 2026-08-13T15:44:08Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -54,3 +54,19 @@ skill rebinding, configuration contraction, and all behavior owned by changes 03
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-13 — reconciled against current main
+
+- Dependency 0304 is `done` (merged, archived 2026-08-13). Verified its landed surface matches
+  this spec's assumptions exactly: `internal/app` result taxonomy (11 results incl.
+  `unsupported-config` and `invalid-input`), protocol-v1 `Envelope`, `ExitCode` coarse mapping,
+  `internal/cli` presenter + one-document JSON contract, `internal/buildinfo`, Cobra tree with
+  `diagnostic` group, and the `testdata/README.md` fixture convention explicitly reserving
+  `testdata/repositories/v0.9.2/` for 0305/0306.
+- `agents/harness-defaults.yml` on main carries the full 16-agent × 4-harness (claude, cursor,
+  codex, opencode) model/effort set the Go built-in registry must mirror.
+- Repo `.docket.yml` on main confirms the "Docket's current envelope" fixture premise: repository
+  layer sets `terminal_publish: true`, `finalize.skip_results_only_delta: true`,
+  `build.checkpoint: true`; `auto_capture.enabled: true` wins from a machine layer.
+- No scope change, no work done elsewhere, no new constraints. Spec (dated today) taken as-is.
+- Auto-capture (site A): no discoveries; nothing minted, nothing suppressed.
