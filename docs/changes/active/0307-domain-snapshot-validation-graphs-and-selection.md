@@ -6,13 +6,13 @@ status: proposed
 priority: critical
 type: feat
 created: 2026-08-12
-updated: 2026-08-12
+updated: 2026-08-13
 depends_on: [305, 306]
 stacked_on:
-related: [301]
+related: [298, 301]
 discovered_from: [303]
-adrs: []
-spec:
+adrs: [92]
+spec: docs/superpowers/specs/2026-08-13-domain-snapshot-validation-graphs-and-selection-design.md
 plan:
 results:
 trivial: false
@@ -26,6 +26,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-13-domain-snapshot-validation-graphs-and-selection-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-13-domain-snapshot-validation-graphs-and-selection-design.md) |
+| ADRs | [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -35,17 +39,33 @@ remaining distributed across skills and text-processing helpers.
 
 ## What changes
 
-Model immutable repository snapshots, lifecycle transitions, readiness and deterministic
-selection, dependencies and stacks, claims and reclaim, ADR rules, learning consumption, and
-repository-wide validation.
+Add a pure `internal/domain` policy package and the in-memory read-model portion of
+`internal/repository`. Decode already-supplied loss-preserving documents and resolved supported
+configuration into immutable typed changes, ADRs, learnings, and a complete validation report.
+Implement named lifecycle actions, readiness and deterministic selection, dependency and stack
+graphs, effective-base resolution over supplied branch facts, claim/reclaim rules, ADR evolution
+rules, and retained learning consumption without filesystem or subprocess access.
 
 ## Out of scope
 
-Git object access, document patch mechanics, transactions, rendering, and harness behavior.
+Git/object access, document patch mechanics, transactions, status presentation, health rendering,
+planning mutations, feature workspaces, process supervision, workflow orchestration,
+finalize/archive/reclaim execution, installation, release work, and harness behavior owned by
+changes 0308–0318.
 
-## Open questions
+## Design decisions
 
-Settle the exact aggregate and policy interfaces after configuration and document types land.
+The approved focused design is in the linked spec. Domain policy remains independent of config,
+Markdown, Git, filesystems, CLI, processes, and harnesses. A thin repository decoder translates
+landed `config` and `document` values into a deep-copied snapshot. Validation returns the snapshot
+plus deterministic typed findings so read-only consumers can report damage, while any error-level
+finding blocks future mutation. Lifecycle changes use named actions rather than a generic status
+setter, and every external fact such as time, branch presence, or merge destination is injected.
+
+Dependency satisfaction remains `done` only; selection remains priority, creation date, then ID;
+stack bases retain ADR-0092's merge-destination rule; reclaim requires a strictly expired valid
+lease and no recorded or conventional branch. Existing ADR bytes are frozen except for a legal
+status change or an append-only `## Update`. Learning relevance remains skill judgment.
 
 ## Reconcile log
 
