@@ -2,8 +2,10 @@ package document
 
 import (
 	"bytes"
+	"fmt"
 	"regexp"
 	"strconv"
+	"unicode/utf8"
 )
 
 var (
@@ -22,6 +24,49 @@ var (
 	// leading spaces, then a run of at least three backticks or tildes.
 	codeFenceRE = regexp.MustCompile("^ {0,3}(`{3,}|~{3,})")
 )
+
+// blockNameRE is markerRE's name group on its own, so a block a patch CREATES
+// is held to exactly the grammar the scanner will later have to recognize. It
+// is deliberately not validKey: marker names are hyphenated, field keys are
+// underscored.
+var blockNameRE = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+
+// validBlockName reports whether name may appear in a Docket marker line.
+func validBlockName(name string) bool { return blockNameRE.MatchString(name) }
+
+// validAnnotation reports whether s may sit inside a start marker's
+// parentheses. The grammar's annotation group is `[^)]*` on a single line, so a
+// closing paren or any control character (a newline above all) would produce a
+// line the scanner rejects as malformed.
+func validAnnotation(s string) error {
+	if !utf8.ValidString(s) {
+		return invalidValue("annotation is not valid UTF-8")
+	}
+	for _, r := range s {
+		if r == ')' {
+			return invalidValue("annotation may not contain a closing parenthesis")
+		}
+		if r == '\t' {
+			continue
+		}
+		if r < 0x20 || r == 0x7f {
+			return invalidValue(fmt.Sprintf("control character %q in annotation", r))
+		}
+	}
+	return nil
+}
+
+// startMarkerLine renders the canonical start marker for name, with annotation
+// when one is given. endMarkerLine renders its partner. Neither carries a line
+// terminator; the caller supplies the document's own.
+func startMarkerLine(name, annotation string) string {
+	if annotation == "" {
+		return "<!-- docket:" + name + ":start -->"
+	}
+	return "<!-- docket:" + name + ":start (" + annotation + ") -->"
+}
+
+func endMarkerLine(name string) string { return "<!-- docket:" + name + ":end -->" }
 
 // Block is one located managed marker block.
 type Block struct {
