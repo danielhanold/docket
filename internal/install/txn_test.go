@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -38,6 +39,13 @@ func (f *injectFS) WriteFile(path string, data []byte, mode os.FileMode) error {
 		return err
 	}
 	return f.inner.WriteFile(path, data, mode)
+}
+
+func (f *injectFS) Chmod(path string, mode os.FileMode) error {
+	if err := f.check("Chmod", path); err != nil {
+		return err
+	}
+	return f.inner.Chmod(path, mode)
 }
 
 // Rename reports the destination: it is the path whose contents an interrupted
@@ -938,4 +946,113 @@ func TestRecoveryAtEveryInterruptPoint(t *testing.T) {
 			assertWorld(t, before, snapshotWorld(t, f.targets), "after a repeated recovery sweep")
 		})
 	}
+}
+
+// The mode handed to WriteFile is a ceiling, not a promise: file creation
+// filters it through the process umask, so under a restrictive runner (a
+// detached gate, a hardened shell with umask 077) a trusted creation mode would
+// install a 0700 binary and 0600 default files. Target modes are policy, so the
+// engine must enforce them with an explicit chmod. This test runs a whole
+// transaction — and a rollback — under umask 077 and demands exact modes.
+//
+// syscall.Umask is process-wide state, so this test must never call
+// t.Parallel(); the deferred restore is what keeps it from leaking into the
+// rest of the run.
+func TestTxnModesAreUmaskProof(t *testing.T) {
+	oldMask := syscall.Umask(0o077)
+	defer syscall.Umask(oldMask)
+
+	base := t.TempDir()
+	home := filepath.Join(base, "home")
+	if err := os.MkdirAll(home, 0o755); err != nil {
+		t.Fatalf("MkdirAll(%s): %v", home, err)
+	}
+	roots, err := ResolveRoots(
+		func() (string, error) { return home, nil },
+		func(string) string { return "" },
+	)
+	if err != nil {
+		t.Fatalf("ResolveRoots: %v", err)
+	}
+
+	dir := filepath.Join(base, "targets")
+	existing := filepath.Join(dir, "existing.md")
+	writeFileOrDie(t, existing, "old\n")
+	// writeFileOrDie's own creation mode is umask-filtered too, so the
+	// pre-condition this test rests on is pinned explicitly.
+	if err := os.Chmod(existing, 0o644); err != nil {
+		t.Fatalf("Chmod(%s): %v", existing, err)
+	}
+
+	binary := filepath.Join(dir, "bin", "docket")
+	plain := filepath.Join(dir, "plain.md")
+	plan := []Inspection{
+		{
+			Target:      Target{Path: binary, Kind: KindFile, Content: []byte("elf\n"), Mode: 0o755, Role: "binary"},
+			Disposition: DispositionCreate,
+		},
+		{
+			Target:      Target{Path: plain, Kind: KindFile, Content: []byte("plain\n"), Role: "agent"},
+			Disposition: DispositionCreate,
+		},
+		{
+			Target:      Target{Path: existing, Kind: KindFile, Content: []byte("fresh\n"), Role: "agent"},
+			Disposition: DispositionUpdate,
+		},
+	}
+
+	txn, err := BeginTxn(RealFS{}, roots, plan)
+	if err != nil {
+		t.Fatalf("BeginTxn: %v", err)
+	}
+	if err := txn.Apply(); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	assertMode := func(path string, want fs.FileMode, context string) {
+		t.Helper()
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("%s: Stat(%s): %v", context, path, err)
+		}
+		if got := info.Mode().Perm(); got != want {
+			t.Errorf("%s: %s mode = %v, want %v", context, path, got, want)
+		}
+	}
+	assertMode(binary, 0o755, "apply under umask 077")
+	assertMode(plain, 0o644, "apply under umask 077")
+	assertMode(existing, 0o644, "apply under umask 077")
+
+	// Rollback restores a pre-image through the same staged write, so a
+	// restored file's mode must be exact under the same umask. The plan updates
+	// existing.md first (paths apply in sorted order), then fails publishing
+	// zz.md, which rolls the update back.
+	failing := filepath.Join(dir, "zz.md")
+	rollbackPlan := []Inspection{
+		{
+			Target:      Target{Path: existing, Kind: KindFile, Content: []byte("newer\n"), Role: "agent"},
+			Disposition: DispositionUpdate,
+		},
+		{
+			Target:      Target{Path: failing, Kind: KindFile, Content: []byte("boom\n"), Role: "agent"},
+			Disposition: DispositionCreate,
+		},
+	}
+	ifs := &injectFS{inner: RealFS{}, fail: func(op, path string) error {
+		if op == "Rename" && path == failing {
+			return fmt.Errorf("injected failure on %s(%s)", op, path)
+		}
+		return nil
+	}}
+	txn2, err := BeginTxn(ifs, roots, rollbackPlan)
+	if err != nil {
+		t.Fatalf("BeginTxn: %v", err)
+	}
+	if err := txn2.Apply(); err == nil {
+		t.Fatal("Apply succeeded despite an injected failure")
+	}
+	if got := readOrDie(t, existing); got != "fresh\n" {
+		t.Errorf("rollback restored %q, want %q", got, "fresh\n")
+	}
+	assertMode(existing, 0o644, "rollback under umask 077")
 }

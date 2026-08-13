@@ -13,6 +13,7 @@ import "os"
 // real one about what is on disk.
 type FSOps interface {
 	WriteFile(path string, data []byte, mode os.FileMode) error
+	Chmod(path string, mode os.FileMode) error
 	Rename(old, new string) error
 	Symlink(target, path string) error
 	Remove(path string) error
@@ -31,6 +32,8 @@ type RealFS struct{}
 func (RealFS) WriteFile(path string, data []byte, mode os.FileMode) error {
 	return os.WriteFile(path, data, mode)
 }
+
+func (RealFS) Chmod(path string, mode os.FileMode) error { return os.Chmod(path, mode) }
 
 func (RealFS) Rename(old, new string) error { return os.Rename(old, new) }
 

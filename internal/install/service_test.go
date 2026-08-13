@@ -837,6 +837,9 @@ type panicFS struct{}
 func (panicFS) WriteFile(path string, _ []byte, _ os.FileMode) error {
 	panic("install check wrote " + path)
 }
+func (panicFS) Chmod(path string, _ os.FileMode) error {
+	panic("install check chmodded " + path)
+}
 func (panicFS) Rename(old, _ string) error   { panic("install check renamed " + old) }
 func (panicFS) Symlink(_, path string) error { panic("install check linked " + path) }
 func (panicFS) Remove(path string) error     { panic("install check removed " + path) }
