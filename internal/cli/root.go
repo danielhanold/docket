@@ -10,6 +10,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/app"
 	"github.com/danielhanold/docket/internal/buildinfo"
+	"github.com/danielhanold/docket/internal/config"
 )
 
 // Run wires arguments and explicit streams through Cobra to the application
@@ -137,7 +138,37 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 			return nil
 		},
 	}
-	diagnosticCmd.AddCommand(runtimeCmd)
+	// The configuration subcommand is a thin adapter: it reads its three flags,
+	// hands the filesystem layers to the operation, and lets the presenter own
+	// the outcome. Every policy question — which mode, which result, which
+	// exit code — belongs to app.DiagnosticConfig, so this body has no branch
+	// on configuration content at all.
+	configCmd := &cobra.Command{
+		Use:   "config",
+		Short: "Inspect resolved configuration and its capability envelope",
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, _ := c.Flags().GetString("repo-dir")
+			defBranch, _ := c.Flags().GetString("default-branch")
+			forMutation, _ := c.Flags().GetBool("for-mutation")
+			sources, err := config.LoadFilesystemSources(config.FSOptions{RepoDir: repoDir})
+			if err != nil {
+				// An unreadable file or an unusable --repo-dir is an argument
+				// problem, not a configuration verdict: it takes the same
+				// invalid-arguments path as any other bad flag value, and
+				// never produces a half-formed inspection document.
+				return err
+			}
+			result = app.DiagnosticConfig(sources, config.ResolveContext{DefaultBranch: defBranch}, forMutation)
+			return nil
+		},
+	}
+	configCmd.Flags().String("repo-dir", "", "repository directory to inspect (required; used verbatim, no Git discovery)")
+	configCmd.Flags().String("default-branch", "", "default branch supplied to integration_branch: auto")
+	configCmd.Flags().Bool("for-mutation", false, "run the mutation preflight (operation config.preflight)")
+	_ = configCmd.MarkFlagRequired("repo-dir")
+
+	diagnosticCmd.AddCommand(runtimeCmd, configCmd)
 	root.AddCommand(versionCmd, diagnosticCmd)
 
 	// The hidden completion commands are rejected before Cobra ever sees the
