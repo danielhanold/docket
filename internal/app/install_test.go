@@ -181,7 +181,20 @@ func TestPlannersPlanAndDetect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("embedded catalog: %v", err)
 	}
-	home := t.TempDir()
+	// filepath.Clean, and not a bare t.TempDir(): t.TempDir() hands back
+	// $TMPDIR's spelling verbatim (os.TempDir strips trailing slashes and
+	// nothing else), so under a $TMPDIR carrying an interior "//" — which
+	// scripts/run-tests.sh produces, since macOS's default TMPDIR ends in "/"
+	// and the runner appends "/run-tests.XXXXXX" to it — the fake home is not
+	// lexically clean. Every planned path comes out of filepath.Join, which
+	// cleans, so the containment check below would compare a cleaned target
+	// against an uncleaned root and report every path as an escape. Cleaning
+	// puts this fixture on production's footing: UserRoots is only ever built
+	// by install.ResolveRoots, whose Home is cleaned.
+	//
+	// NOT filepath.EvalSymlinks: on macOS /var is a symlink to /private/var, so
+	// resolving would move the root to a spelling the planners never produce.
+	home := filepath.Clean(t.TempDir())
 	if err := os.MkdirAll(filepath.Join(home, ".claude"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -196,7 +209,10 @@ func TestPlannersPlanAndDetect(t *testing.T) {
 			t.Fatalf("%s planned nothing", p.Name)
 		}
 		for _, target := range targets {
-			if !strings.HasPrefix(target.Path, home) {
+			// The separator is part of the prefix: without it a sibling root
+			// whose name merely starts with the fake home's ("<home>-other")
+			// would read as contained.
+			if !strings.HasPrefix(target.Path, home+string(filepath.Separator)) {
 				t.Errorf("%s planned %s, outside the fake home", p.Name, target.Path)
 			}
 		}
