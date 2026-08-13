@@ -26,6 +26,38 @@ type Span struct {
 	End   int
 }
 
+// FieldShape classifies how a located field's value is written in source.
+type FieldShape int
+
+const (
+	ShapeEmpty       FieldShape = iota // "key:" — a null with no value token
+	ShapeInline                        // single-line plain/quoted scalar
+	ShapeFlowSeq                       // single-line flow sequence, e.g. [3, 7]
+	ShapeUnsupported                   // block scalar, block collection, multi-line flow, anchor/alias…
+)
+
+// String names the shape for diagnostics and test failures.
+func (s FieldShape) String() string {
+	switch s {
+	case ShapeEmpty:
+		return "empty"
+	case ShapeInline:
+		return "inline"
+	case ShapeFlowSeq:
+		return "flow-seq"
+	default:
+		return "unsupported"
+	}
+}
+
+// Field is one located column-zero frontmatter mapping entry.
+type Field struct {
+	Name  string
+	Entry Span // the full physical line(s) of the entry, terminator included
+	Value Span // the value token; Start==End for ShapeEmpty (insertion point)
+	Shape FieldShape
+}
+
 // Document is an immutable parsed view over an exact byte copy of one record.
 type Document struct {
 	source     []byte
@@ -33,6 +65,7 @@ type Document struct {
 	hasFM      bool
 	fmOpen     Span       // opening fence line, terminator included
 	fmClose    Span       // closing fence line, terminator included
+	fields     []Field    // located frontmatter entries, in source order
 	yamlRoot   *yaml.Node // private; never crosses the package boundary
 }
 
@@ -61,6 +94,11 @@ func Parse(source []byte) (Document, error) {
 			return Document{}, err
 		}
 		d.yamlRoot = root
+		fields, err := locateFields(src, lines, d.fmOpen, d.fmClose, root)
+		if err != nil {
+			return Document{}, err
+		}
+		d.fields = fields
 	}
 	return d, nil
 }
@@ -211,6 +249,23 @@ func (d Document) HasFrontmatter() bool { return d.hasFM }
 // LineEnding returns the document-level line ending: the first terminated
 // line's ending, or "\n" when no line is terminated.
 func (d Document) LineEnding() string { return d.lineEnding }
+
+// Fields returns the located frontmatter entries in source order, as a fresh
+// slice: mutating it cannot reach the document's own index.
+func (d Document) Fields() []Field { return append([]Field(nil), d.fields...) }
+
+// Field returns the located entry named name, and whether it exists. Only
+// column-zero plain keys matching the Docket key grammar are indexed, so a
+// quoted, capitalized, or explicit YAML key is never reported here even though
+// DecodeFrontmatter still sees it.
+func (d Document) Field(name string) (Field, bool) {
+	for _, f := range d.fields {
+		if f.Name == name {
+			return f, true
+		}
+	}
+	return Field{}, false
+}
 
 // DecodeFrontmatter decodes the frontmatter mapping into destination.
 // Unknown keys are compatibility data, never errors: known-field rejection
