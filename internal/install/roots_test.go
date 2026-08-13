@@ -17,8 +17,28 @@ func fixedHome(dir string) func() (string, error) {
 	return func() (string, error) { return dir, nil }
 }
 
+// cleanTempDir is t.TempDir() for the tests that compare a fake home against a
+// path the code under test built. t.TempDir() hands back $TMPDIR's spelling
+// verbatim (os.TempDir strips trailing slashes and nothing else), so a $TMPDIR
+// carrying an interior "//" — which is exactly what scripts/run-tests.sh
+// produces, since macOS's default TMPDIR ends in "/" and the runner appends
+// "/run-tests.XXXXXX" to it — yields a home that is not lexically clean.
+// ResolveRoots normalizes its home ("home = filepath.Clean(home)") and
+// filepath.Join cleans everything derived from it, so a test that compares a
+// resolved or joined path against the RAW spelling fails on the slashes alone.
+// Cleaning here puts the fixture on the same footing production is always on:
+// UserRoots is only ever constructed by ResolveRoots, whose Home is clean.
+//
+// Clean, deliberately NOT filepath.EvalSymlinks: on macOS /var is a symlink to
+// /private/var, so resolving would move the fixture to a spelling the code under
+// test never produces and trade this mismatch for a worse one.
+func cleanTempDir(t *testing.T) string {
+	t.Helper()
+	return filepath.Clean(t.TempDir())
+}
+
 func TestResolveRootsXDG(t *testing.T) {
-	home := t.TempDir()
+	home := cleanTempDir(t)
 	xdgData := filepath.Join(t.TempDir(), "data")
 	xdgConfig := filepath.Join(t.TempDir(), "config")
 	xdgBin := filepath.Join(t.TempDir(), "bin")
@@ -78,6 +98,54 @@ func TestResolveRootsXDG(t *testing.T) {
 			}
 			if roots.BinDir != tc.wantBinDir {
 				t.Errorf("BinDir = %q, want %q", roots.BinDir, tc.wantBinDir)
+			}
+		})
+	}
+}
+
+// TestResolveRootsNormalizesHome pins the normalization every other root
+// consumer leans on: whatever spelling the environment hands over, the Home
+// that leaves ResolveRoots is lexically clean, and so is each root derived from
+// it. Nothing asserted this before — the XDG table fed ResolveRoots an
+// already-clean path and so could not tell normalization from a passthrough —
+// and the property is not cosmetic. Callers compare paths as STRINGS (a
+// planned target against the root it must fall under, a state entry against
+// the root that owns it), and every path the planners produce comes out of
+// filepath.Join, which cleans. A Home that skipped normalization would compare
+// unequal to its own children and quietly fail containment.
+func TestResolveRootsNormalizesHome(t *testing.T) {
+	want := cleanTempDir(t)
+	// The shapes a shell hands over in practice: a trailing slash, and the
+	// doubled interior separator "${TMPDIR%/}/x" leaves behind when TMPDIR
+	// already ends in one.
+	cases := map[string]string{
+		"trailing separator":   want + "/",
+		"trailing dot":         want + "/./",
+		"doubled separator":    filepath.Dir(want) + "//" + filepath.Base(want),
+		"interior dot segment": filepath.Dir(want) + "/./" + filepath.Base(want),
+	}
+	for name, messy := range cases {
+		t.Run(name, func(t *testing.T) {
+			if messy == want {
+				t.Fatalf("input %q is already clean; the case asserts nothing", messy)
+			}
+			roots, err := ResolveRoots(fixedHome(messy), fakeEnv(nil))
+			if err != nil {
+				t.Fatalf("ResolveRoots(%q): %v", messy, err)
+			}
+			if roots.Home != want {
+				t.Errorf("Home = %q, want the cleaned %q", roots.Home, want)
+			}
+			for rootName, got := range map[string]string{
+				"Home":       roots.Home,
+				"DataRoot":   roots.DataRoot,
+				"ConfigHome": roots.ConfigHome,
+				"BinDir":     roots.BinDir,
+				"StatePath":  roots.StatePath(),
+			} {
+				if got != filepath.Clean(got) {
+					t.Errorf("%s = %q is not lexically clean", rootName, got)
+				}
 			}
 		})
 	}
