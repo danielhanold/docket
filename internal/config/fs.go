@@ -76,6 +76,31 @@ func LoadFilesystemSources(opts FSOptions) ([]Source, error) {
 	return sources, nil
 }
 
+// LoadGlobalSource reads the global configuration layer on its own, returning
+// zero or one Source. A missing file is an absent layer, not an error.
+//
+// It exists for the operations that have no repository at all — installing
+// docket into a user's home is not something a checkout can have an opinion
+// about — so pointing LoadFilesystemSources at a stand-in directory would be
+// both a lie and a way for a .docket.yml in the current directory to steer a
+// machine-wide install. globalPath is a test seam; "" resolves the default.
+func LoadGlobalSource(globalPath string) ([]Source, error) {
+	if globalPath == "" {
+		globalPath = defaultGlobalPath()
+	}
+	if globalPath == "" {
+		return nil, nil // neither XDG_CONFIG_HOME nor HOME: the layer is absent
+	}
+	data, err := os.ReadFile(globalPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("config: reading %s: %w", globalPath, err)
+	}
+	return []Source{{Layer: LayerGlobal, Name: globalPath, Data: data}}, nil
+}
+
 // defaultGlobalPath is ${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml.
 // It returns "" when neither variable is set, which makes the global layer
 // absent rather than pointing at a relative path.

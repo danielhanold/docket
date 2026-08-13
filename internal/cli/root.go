@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -11,17 +12,30 @@ import (
 	"github.com/danielhanold/docket/internal/app"
 	"github.com/danielhanold/docket/internal/buildinfo"
 	"github.com/danielhanold/docket/internal/config"
+	"github.com/danielhanold/docket/internal/install"
 )
 
 // Run wires arguments and explicit streams through Cobra to the application
 // and presents exactly one outcome. It returns the process exit code; only
 // cmd/docket/main.go converts it into os.Exit.
 func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinfo.Info, facts buildinfo.RuntimeFacts) int {
+	return run(args, stdin, stdout, stderr, info, facts)
+}
+
+// run is Run plus the seam that lets a test register commands of its own. The
+// asset-dependence guard is a property of the TREE, so the only honest way to
+// prove it refuses a gated command is to hand the production wiring one —
+// docket ships none yet.
+func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinfo.Info, facts buildinfo.RuntimeFacts, extra ...*cobra.Command) int {
 	prescan := DetectJSONMode(args)
 
 	var result app.OperationResult
 	helpConflict := false
 	helpRendered := false
+	// gateOperation names the command the asset-dependence guard refused, so
+	// the refusal document reports the operation the user asked for rather
+	// than the guard.
+	gateOperation := ""
 
 	root := &cobra.Command{
 		Use:   "docket",
@@ -168,8 +182,102 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	configCmd.Flags().Bool("for-mutation", false, "run the mutation preflight (operation config.preflight)")
 	_ = configCmd.MarkFlagRequired("repo-dir")
 
+	// The three installation commands are thin adapters, like the ones above:
+	// they read their flags, assemble the operation's inputs, and let the
+	// presenter own the outcome. Every classification decision belongs to
+	// internal/app, so no body here branches on what the installer found.
+	installCmd := &cobra.Command{
+		Use:   "install",
+		Short: "Install docket's skills, agents, and dispatch material into your harnesses",
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			harnesses, _ := c.Flags().GetStringArray("harness")
+			opts, refusal := installOptions(harnesses, info)
+			if refusal != nil {
+				result = refusal.result(app.OperationInstall)
+				return nil
+			}
+			result = app.RunInstall(opts)
+			return nil
+		},
+	}
+	installCmd.Flags().StringArray("harness", nil,
+		"harness to install into: claude, codex, cursor, or opencode (repeatable; default: detect)")
+
+	installCheckCmd := &cobra.Command{
+		Use:   "check",
+		Short: "Report whether this machine's installation is current (writes nothing)",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			opts, refusal := installOptions(nil, info)
+			if refusal != nil {
+				result = refusal.result(app.OperationInstallCheck)
+				return nil
+			}
+			result = app.RunInstallCheck(opts)
+			return nil
+		},
+	}
+
+	developmentCmd := &cobra.Command{
+		Use:   "development",
+		Short: "Contributor operations against a docket checkout",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return errors.New("missing command")
+		},
+	}
+	developmentInstallCmd := &cobra.Command{
+		Use:   "install",
+		Short: "Install from a checkout, linking harnesses at the source tree",
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			harnesses, _ := c.Flags().GetStringArray("harness")
+			source, _ := c.Flags().GetString("source")
+			binDir, _ := c.Flags().GetString("bin-dir")
+			opts, refusal := installOptions(harnesses, info)
+			if refusal != nil {
+				result = refusal.result(app.OperationDevelopmentInstall)
+				return nil
+			}
+			result = app.RunDevelopmentInstall(install.DevOptions{
+				Options:    opts,
+				SourceRoot: source,
+				BinDir:     binDir,
+				GoRunner:   install.DefaultGoRunner,
+			})
+			return nil
+		},
+	}
+	developmentInstallCmd.Flags().String("source", "", "docket checkout to install from (required)")
+	developmentInstallCmd.Flags().String("bin-dir", "", "directory the built binary is installed into (default: XDG_BIN_HOME or ~/.local/bin)")
+	developmentInstallCmd.Flags().StringArray("harness", nil,
+		"harness to install into: claude, codex, cursor, or opencode (repeatable; default: detect)")
+	_ = developmentInstallCmd.MarkFlagRequired("source")
+
+	installCmd.AddCommand(installCheckCmd)
+	developmentCmd.AddCommand(developmentInstallCmd)
 	diagnosticCmd.AddCommand(runtimeCmd, configCmd)
-	root.AddCommand(versionCmd, diagnosticCmd)
+	root.AddCommand(versionCmd, diagnosticCmd, installCmd, developmentCmd)
+	root.AddCommand(extra...)
+
+	// The asset-dependence guard. Everything docket ships today is registered
+	// as asset-independent, which is the point: a command that reads installed
+	// assets must be added to the set deliberately or be refused, and a
+	// forgotten command fails closed rather than reading a version tree that
+	// may not exist or may speak a protocol this binary does not.
+	root.PersistentPreRunE = func(c *cobra.Command, _ []string) error {
+		key := commandKey(c)
+		if assetIndependent[key] {
+			return nil
+		}
+		gateOperation = operationName(key)
+		roots, err := install.ResolveRoots(os.UserHomeDir, os.Getenv)
+		if err != nil {
+			return &InstallRefusal{Reason: install.ReasonInvalidOptions, Err: err}
+		}
+		return RequireCompatibleInstallation(roots)
+	}
 
 	// The hidden completion commands are rejected before Cobra ever sees the
 	// arguments; everything else routes through Execute as usual.
@@ -182,10 +290,17 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	// with the mode Cobra ended up parsing.
 	p := Presenter{Stdout: stdout, Stderr: stderr, JSON: jsonMode()}
 
+	var refusal *InstallRefusal
 	switch {
 	case helpConflict:
 		return p.Present(app.CLIError(app.ReasonJSONHelpConflict,
 			"--json cannot be combined with --help, -h, or the help command"))
+	case errors.As(err, &refusal):
+		// A guard refusal is a verdict about this machine, not a malformed
+		// invocation: it presents as the operation's own document so a
+		// consumer reads the same reason vocabulary it would from `install
+		// check`, rather than an argument error.
+		return p.Present(refusal.result(gateOperation))
 	case err != nil:
 		res := app.CLIError(app.ReasonInvalidArguments, err.Error())
 		if p.JSON {
