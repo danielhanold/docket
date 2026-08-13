@@ -114,6 +114,22 @@
 # The cost is git: one bare origin, one clone, three branches and one pushed feature branch, then
 # two board-checks.sh runs over ten fixtures. Next multiple of 5 is 5, plus the 5s margin -> 10,
 # this table's floor. EXPECTED_TOTAL moves 1785 -> 1795.
+#
+# tests/test_go_toolchain.sh is a NEW FILE brought by change 0304 — the header's first legitimate
+# case again, and for a brand-new subsystem in the sense tests/README.md means it: the Go module at
+# the repository root. It is the whole-suite Go gate, running gofmt, `go vet ./...`, `go test ./...`
+# and the four-tuple CGO-off cross-build. No existing shard could take it — every other file in this
+# table drives Bash scripts, and this one's cost is a Go toolchain compiling the module and the four
+# approved target tuples. Sized per this header's rule from standalone serial readings, one session,
+# one machine, as `scripts/run-tests.sh -j 1 --timings PATH tests/test_go_toolchain.sh`:
+#   13  12  12  -> worst 13
+# Note what dominates that number: scripts/run-tests.sh gives every job a PRIVATE HOME, so `go`
+# finds neither a module cache nor a build cache and re-fetches and recompiles on every suite run.
+# The reading is therefore a cold-cache one already, and a warm-cache environment can only come in
+# under it. Next multiple of 5 above 13 is 15, plus the 5s margin -> 20, leaving 8s of margin over
+# the 12s readings. EXPECTED_TOTAL moves 1795 -> 1815. The file exports `-modcacherw` for a reason
+# recorded in its own header: without it Go's read-only module cache defeats the runner's `rm -rf`
+# of its work directory.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -168,6 +184,7 @@ tests/test_gate_execution_posture.sh	10	parallel
 tests/test_gate_run.sh	20	parallel
 tests/test_gate_run_stop.sh	35	parallel
 tests/test_github_mirror.sh	10	parallel
+tests/test_go_toolchain.sh	20	parallel
 tests/test_grep_portability.sh	10	parallel
 tests/test_groom_recap.sh	10	parallel
 tests/test_harness_defaults.sh	45	parallel
