@@ -70,13 +70,16 @@ func TestNewRejectsBadKeyOrValueBeforeRenderingAnything(t *testing.T) {
 }
 
 func TestNewNormalizesFinalNewline(t *testing.T) {
-	for _, body := range []string{"body", "body\n", "body\n\n\n"} {
+	for _, body := range []string{"body", "body\n", "body\n\n\n", "\nbody", "\n\nbody\n\n"} {
 		got, err := New([]FieldSpec{{"id", Int(1)}}, body)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if !bytes.HasSuffix(got, []byte("body\n")) || bytes.HasSuffix(got, []byte("\n\n")) {
 			t.Fatalf("body %q → %q; want exactly one final newline", body, got)
+		}
+		if !bytes.Contains(got, []byte("---\n\nbody\n")) {
+			t.Fatalf("body %q → %q; want exactly one blank line after the closing fence", body, got)
 		}
 	}
 }
