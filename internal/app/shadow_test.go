@@ -56,6 +56,8 @@ func TestEnvelopeNotShadowed(t *testing.T) {
 		{"version", Version(buildinfo.Info{Version: "1.2.3", Commit: "abc", BuildDate: "2026-01-01"})},
 		{"diagnostic.runtime", DiagnosticRuntime(buildinfo.RuntimeFacts{GoVersion: "go1.24.0", GOOS: "darwin", GOARCH: "arm64"})},
 		{"cli", CLIError(ReasonInvalidArguments, "unknown flag")},
+		{"diagnostic.config", DiagnosticConfig(sparseSources(), mainCtx(), false)},
+		{"config.preflight", DiagnosticConfig(blockedSources(), mainCtx(), true)},
 	}
 
 	for _, tc := range cases {
