@@ -579,3 +579,41 @@ func TestValueSpanDisagreeingWithSemanticsIsUnsupported(t *testing.T) {
 		t.Fatal("Apply must refuse a field whose span cannot be trusted")
 	}
 }
+
+// yaml v3 records an anchor definition in Node.Anchor and leaves Node.Style at
+// zero, so an anchored value would otherwise classify as a plain inline scalar
+// or a flow sequence. Replacing the located span drops the "&anc" with it,
+// silently deleting the anchor definition — refuse the field instead.
+func TestAnchoredValuesAreUnsupported(t *testing.T) {
+	cases := []struct {
+		name string
+		src  string
+		key  string
+	}{
+		{"anchored scalar", "---\nkey: &anc value\nplain: value\n---\n", "key"},
+		{"anchored flow sequence", "---\nadrs: &a [1, 2]\nplain: value\n---\n", "adrs"},
+	}
+	for _, c := range cases {
+		d := mustParse(t, c.src)
+		f, ok := d.Field(c.key)
+		if !ok {
+			t.Fatalf("%s: %s must be indexed", c.name, c.key)
+		}
+		if f.Shape != ShapeUnsupported {
+			t.Errorf("%s: shape = %v, want ShapeUnsupported", c.name, f.Shape)
+		}
+		// The neighbour without an anchor stays patchable.
+		if n, _ := d.Field("plain"); n.Shape != ShapeInline {
+			t.Errorf("%s: neighbour shape = %v, want ShapeInline", c.name, n.Shape)
+		}
+		var p PatchSet
+		p.SetField(c.key, String("x"))
+		out, err := d.Apply(p)
+		if !IsKind(err, KindUnsupportedPatchShape) {
+			t.Errorf("%s: err = %v, want KindUnsupportedPatchShape", c.name, err)
+		}
+		if out != nil {
+			t.Errorf("%s: on error Apply must return nil bytes", c.name)
+		}
+	}
+}

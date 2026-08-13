@@ -298,6 +298,12 @@ func classifyShape(root *yaml.Node, name string, singleLine, hasToken bool) Fiel
 	if value == nil {
 		return ShapeUnsupported // reported by checkLocatorSemanticAgreement
 	}
+	// An anchor definition lives in Node.Anchor, not Node.Style, so it survives
+	// every style check below. Replacing the located span would carry the "&anc"
+	// away with it, silently deleting the definition an alias may depend on.
+	if value.Anchor != "" {
+		return ShapeUnsupported
+	}
 	switch value.Kind {
 	case yaml.ScalarNode:
 		// An empty null is the "key:" form; an explicit "null"/"~" keyword is a
@@ -315,7 +321,7 @@ func classifyShape(root *yaml.Node, name string, singleLine, hasToken bool) Fiel
 		case 0, yaml.SingleQuotedStyle, yaml.DoubleQuotedStyle:
 			return ShapeInline
 		}
-		return ShapeUnsupported // literal, folded, tagged, anchored
+		return ShapeUnsupported // literal, folded, tagged
 	case yaml.SequenceNode:
 		if singleLine && hasToken && value.Style&yaml.FlowStyle != 0 {
 			return ShapeFlowSeq
