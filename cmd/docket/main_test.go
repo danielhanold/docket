@@ -155,7 +155,14 @@ func TestHumanParseErrorStderrOnly(t *testing.T) {
 }
 
 func TestHelpConflictAndHumanHelp(t *testing.T) {
-	for _, args := range [][]string{{"--json", "--help"}, {"--json", "-h"}, {"--json", "help"}} {
+	for _, args := range [][]string{
+		{"--json", "--help"},
+		{"--json", "-h"},
+		{"--json", "help"},
+		{"--json", "help", "bogus"},      // unresolvable topic
+		{"--json", "help", "completion"}, // disabled built-in, so also unresolvable
+		{"--json", "help", "version"},    // resolvable topic
+	} {
 		out, errS, code := run(t, args...)
 		if code != 2 || errS != "" {
 			t.Fatalf("args=%v err=%q code=%d", args, errS, code)

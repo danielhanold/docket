@@ -2,7 +2,9 @@ package cli
 
 import (
 	"errors"
+	"fmt"
 	"io"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -19,6 +21,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 
 	var result app.OperationResult
 	helpConflict := false
+	helpRendered := false
 
 	root := &cobra.Command{
 		Use:   "docket",
@@ -47,6 +50,31 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 			return
 		}
 		defaultHelp(c, a)
+		helpRendered = true
+	})
+
+	// Docket owns the help command too. Cobra's built-in one answers an
+	// unresolvable topic with "Unknown help topic" plus usage on stdout and
+	// never calls the help func, which would leak non-protocol bytes into the
+	// JSON stream and exit 0. Routing every topic — resolvable or not —
+	// through this RunE keeps one policy: conflict in JSON mode, Cobra text
+	// for a topic that resolves, invalid input for one that does not.
+	root.SetHelpCommand(&cobra.Command{
+		Use:   "help [command]",
+		Short: "Help about any command",
+		RunE: func(c *cobra.Command, a []string) error {
+			if jsonMode {
+				helpConflict = true
+				return nil
+			}
+			target, _, err := c.Root().Find(a)
+			if target == nil || err != nil {
+				return fmt.Errorf("unknown help topic %q", strings.Join(a, " "))
+			}
+			target.InitDefaultHelpFlag()
+			target.InitDefaultVersionFlag()
+			return target.Help()
+		},
 	})
 
 	versionCmd := &cobra.Command{
@@ -91,8 +119,16 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 		return p.PresentHumanError(res)
 	case result != nil:
 		return p.Present(result)
-	default:
+	case helpRendered:
 		// Human help was rendered by Cobra on stdout; exit 0.
 		return 0
+	default:
+		// Unreachable by construction: every command either sets result or
+		// returns an error, and every help path sets helpConflict or
+		// helpRendered. Reaching here means nothing was rendered, so exit 0
+		// would report success for an empty run. Diagnose on stderr only —
+		// stdout must stay empty rather than carry a half-formed document.
+		fmt.Fprintln(stderr, "docket: internal error: command produced no result")
+		return app.ExitCode(app.ResultInternalError)
 	}
 }
