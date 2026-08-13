@@ -1,6 +1,7 @@
 package document
 
 import (
+	"bytes"
 	"errors"
 	"testing"
 
@@ -514,5 +515,67 @@ func TestColumnZeroBlockSequenceIsAContinuation(t *testing.T) {
 	}
 	if _, ok := d.Field("id"); !ok {
 		t.Fatal("the entry after a column-zero block sequence must still be indexed")
+	}
+}
+
+// A quoted key inside a flow MAPPING nested in a flow sequence: the '#' lives
+// inside a scalar that opens right after '{', and a scanner that only re-opens
+// quote state after '[' or ',' truncates the span mid-collection. The truncated
+// span still classifies as flow-seq, so a SetField would comment out the tail
+// and reparse clean — a silent, valid-YAML data loss.
+func TestFlowMappingQuotedKeyWithHashNotTruncated(t *testing.T) {
+	const src = "---\nadrs: [{'a # b': 1}]\n---\nbody\n"
+	d := mustParse(t, src)
+	if got := fieldValueText(d, "adrs"); got != "[{'a # b': 1}]" {
+		t.Fatalf("value = %q — the span must cover the whole flow collection", got)
+	}
+
+	var p PatchSet
+	p.SetField("adrs", Seq(Int(71)))
+	out, err := d.Apply(p)
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if bytes.Contains(out, []byte("# b")) {
+		t.Fatalf("patched output still carries the old map tail:\n%s", out)
+	}
+	var fm struct {
+		Adrs []int `yaml:"adrs"`
+	}
+	d2 := mustParse(t, string(out))
+	if err := d2.DecodeFrontmatter(&fm); err != nil {
+		t.Fatalf("reparsed decode: %v", err)
+	}
+	if len(fm.Adrs) != 1 || fm.Adrs[0] != 71 {
+		t.Fatalf("adrs = %v, want [71] — patch lost or corrupted data:\n%s", fm.Adrs, out)
+	}
+}
+
+// The same hole reached through a flow mapping's ':' rather than its '{'.
+func TestFlowMappingValueQuoteReopensAfterColon(t *testing.T) {
+	d := mustParse(t, "---\nadrs: [{a: 'b # c'}]\n---\n")
+	if got := fieldValueText(d, "adrs"); got != "[{a: 'b # c'}]" {
+		t.Fatalf("value = %q — a quote may open after a flow mapping's colon", got)
+	}
+}
+
+// Fail-closed defense: when the located span does not reparse to the value the
+// semantic tree holds, the field is refused rather than patched. "a{ 'c # d'"
+// is a plain scalar ending at "a{ 'c", but a flow-depth-aware comment scanner
+// treats the '{' as opening a collection and runs the span to end of line.
+func TestValueSpanDisagreeingWithSemanticsIsUnsupported(t *testing.T) {
+	d := mustParse(t, "---\ntitle: a{ 'c # d'\n---\n")
+	f, ok := d.Field("title")
+	if !ok {
+		t.Fatal("title must be indexed")
+	}
+	if f.Shape != ShapeUnsupported {
+		t.Fatalf("shape = %v, want %v — a span that disagrees with the semantic value must fail closed",
+			f.Shape, ShapeUnsupported)
+	}
+	var p PatchSet
+	p.SetField("title", String("x"))
+	if _, err := d.Apply(p); err == nil {
+		t.Fatal("Apply must refuse a field whose span cannot be trusted")
 	}
 }
