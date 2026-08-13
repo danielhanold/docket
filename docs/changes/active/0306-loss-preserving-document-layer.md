@@ -6,13 +6,13 @@ status: proposed
 priority: critical
 type: feat
 created: 2026-08-12
-updated: 2026-08-12
+updated: 2026-08-13
 depends_on: [304]
 stacked_on:
 related: [266]
 discovered_from: [303]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-13-loss-preserving-document-layer-design.md
 plan:
 results:
 trivial: false
@@ -26,27 +26,26 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-13-loss-preserving-document-layer-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-13-loss-preserving-document-layer-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-The compatibility contract requires typed validation without allowing the first Go write to
-normalize or destroy unrelated bytes in existing Markdown records.
+Go must read existing Markdown records as typed YAML without allowing the first intentional field
+or managed-block write to normalize or destroy unrelated source bytes.
 
 ## What changes
 
-Implement frontmatter location mapping, typed semantic decoding, loss-preserving field and managed
-block patches, marker validation, canonical new-document rendering, compatibility goldens, and fuzz
-targets.
+Implement an immutable source-byte document model, typed semantic YAML decoding, top-level field
+location mapping, validate-all loss-preserving field and managed-block patches, canonical
+new-document syntax, frozen `v0.9.2` compatibility goldens, and parser/patch fuzz targets.
 
 ## Out of scope
 
-Repository-wide domain policy, Git reads, transactions, and individual workflow operations.
-
-## Open questions
-
-Settle the source-preservation representation and YAML-library boundary against frozen Bash-era
-fixtures during grooming.
+Configuration behavior, repository-wide domain policy, Git reads, metadata transactions,
+record-specific renderer content, and individual planning or implementation workflow operations.
 
 ## Reconcile log
 
