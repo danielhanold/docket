@@ -290,6 +290,51 @@ func TestResolvedAgentSentinels(t *testing.T) {
 	}
 }
 
+// ResolvedAgentRaw keeps the model exactly as configured — `inherit` included,
+// because Claude Code reads it as a real value — while still folding the
+// effort `auto` sentinel away, which every harness treats as "no pin".
+func TestResolvedAgentRawKeepsInherit(t *testing.T) {
+	table := config.AgentsTable{
+		"claude": {
+			"status":      {Model: config.Value[string]{Value: "inherit"}, Effort: config.Value[string]{Value: "high"}},
+			"adr":         {Model: config.Value[string]{Value: "inherit"}, Effort: config.Value[string]{Value: "auto"}},
+			"review-deep": {Model: config.Value[string]{Value: "claude-opus-5"}, Effort: config.Value[string]{Value: "low"}},
+		},
+	}
+
+	cases := []struct {
+		name                string
+		harness, short      string
+		wantModel, wantEfrt string
+	}{
+		{"inherit kept, effort kept", "claude", "status", "inherit", "high"},
+		{"inherit kept, effort auto dropped", "claude", "adr", "inherit", ""},
+		{"ordinary pin passthrough", "claude", "review-deep", "claude-opus-5", "low"},
+		{"unknown agent", "claude", "nope", "", ""},
+		{"unknown harness", "nope", "status", "", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			model, effort := ResolvedAgentRaw(table, tc.harness, tc.short)
+			if model != tc.wantModel || effort != tc.wantEfrt {
+				t.Fatalf("ResolvedAgentRaw = (%q, %q), want (%q, %q)", model, effort, tc.wantModel, tc.wantEfrt)
+			}
+			// The normalizing resolver differs on exactly one field.
+			nm, ne := ResolvedAgent(table, tc.harness, tc.short)
+			want := model
+			if want == "inherit" {
+				want = ""
+			}
+			if nm != want {
+				t.Errorf("ResolvedAgent model = %q, want %q", nm, want)
+			}
+			if ne != effort {
+				t.Errorf("ResolvedAgent effort = %q, want %q", ne, effort)
+			}
+		})
+	}
+}
+
 // stubAdapter proves the Adapter interface is satisfiable with the exact
 // signatures the four adapter packages will implement.
 type stubAdapter struct{ name string }

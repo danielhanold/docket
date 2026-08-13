@@ -153,30 +153,52 @@ func SkillDirs(c assets.Catalog) []string {
 	return out
 }
 
-// The no-pin sentinels docket writes rather than a vendor value: `inherit`
-// means "do not emit a model line", and `auto` means "do not emit an effort
-// line". config.Resolve already folds `auto` to "", so the effort case here is
+// The no-pin sentinels docket writes rather than a vendor value: `auto` means
+// "do not emit an effort line" on every harness, and `inherit` means "do not
+// emit a model line" on every harness EXCEPT claude — see ResolvedAgentRaw.
+// config.Resolve already folds `auto` to "", so the effort case here is
 // belt-and-braces for a table built by hand.
 const (
 	modelInheritSentinel = "inherit"
 	effortAutoSentinel   = "auto"
 )
 
-// ResolvedAgent returns the model and effort a harness should render for one
-// agent short name, with docket's no-pin sentinels normalized to "". An unknown
-// harness or agent resolves to no pin at all rather than an error: a sparse
-// table is the documented shape.
-func ResolvedAgent(t config.AgentsTable, harnessName, shortName string) (model, effort string) {
+// ResolvedAgentRaw returns the configured model VERBATIM — `inherit`
+// included — with only the effort `auto` sentinel folded to "". It exists for
+// the one harness where `inherit` is not docket's sentinel: Claude Code
+// documents `model: inherit` as a real frontmatter value meaning "run this
+// subagent on the parent conversation's model", which is a different runtime
+// outcome from omitting the key (Claude Code's own subagent default). The
+// effort beside such a model is NOT dropped, mirroring sync-agents.sh's emit(),
+// which normalizes `auto` and nothing else.
+//
+// Every other adapter calls ResolvedAgent instead. That asymmetry is
+// deliberate: folding it away is what the 0168 whole-branch review caught
+// (IMPORTANT 2) in the shell implementation, and sync-agents.sh still records
+// it in the comment above emit().
+//
+// An unknown harness or agent resolves to no pin at all rather than an error: a
+// sparse table is the documented shape.
+func ResolvedAgentRaw(t config.AgentsTable, harnessName, shortName string) (model, effort string) {
 	setting, ok := t[harnessName][shortName]
 	if !ok {
 		return "", ""
 	}
 	model, effort = setting.Model.Value, setting.Effort.Value
-	if model == modelInheritSentinel {
-		model = ""
-	}
 	if effort == effortAutoSentinel {
 		effort = ""
+	}
+	return model, effort
+}
+
+// ResolvedAgent returns the model and effort a harness should render for one
+// agent short name, with both of docket's no-pin sentinels normalized to "".
+// This is the resolver for harnesses that have no `inherit` value of their own
+// (codex, cursor, opencode); claude uses ResolvedAgentRaw.
+func ResolvedAgent(t config.AgentsTable, harnessName, shortName string) (model, effort string) {
+	model, effort = ResolvedAgentRaw(t, harnessName, shortName)
+	if model == modelInheritSentinel {
+		model = ""
 	}
 	return model, effort
 }

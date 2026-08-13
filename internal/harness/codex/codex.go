@@ -147,8 +147,10 @@ func (adapter) Plan(in harness.PlanInput) ([]install.Target, error) {
 // Codex has no `skills:` key of its own — the preload is prose in the
 // instructions, pointing at the linked skills directory. The `inherit`/`auto`
 // sentinels the shell emitter tests for at emit position are already
-// normalized away by harness.ResolvedAgent, which every adapter shares, so an
-// unpinned field simply omits its key and Codex applies its own default.
+// normalized away by harness.ResolvedAgent, which every adapter EXCEPT claude
+// shares (Codex has no `inherit` value of its own; Claude Code does, so that
+// adapter resolves through harness.ResolvedAgentRaw), so an unpinned field
+// simply omits its key and Codex applies its own default.
 func renderAgent(s harness.AgentSource, model, effort string) []byte {
 	var b strings.Builder
 	b.WriteString("name = \"" + escapeBasic(s.Name) + "\"\n")

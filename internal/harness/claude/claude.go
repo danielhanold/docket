@@ -104,7 +104,10 @@ func (adapter) Plan(in harness.PlanInput) ([]install.Target, error) {
 	}
 
 	for _, s := range sources {
-		model, effort := harness.ResolvedAgent(in.Agents, Name, s.ShortName)
+		// Raw, not ResolvedAgent: `model: inherit` is a real Claude Code value
+		// on this harness and must survive to renderAgent. See renderAgent's
+		// field-mapping comment.
+		model, effort := harness.ResolvedAgentRaw(in.Agents, Name, s.ShortName)
 		content, err := renderAgent(s, model, effort)
 		if err != nil {
 			return nil, err
@@ -140,15 +143,22 @@ func (adapter) Plan(in harness.PlanInput) ([]install.Target, error) {
 //	resolved effort          -> effort          (omitted when unpinned)
 //	body                     -> body verbatim
 //
-// Two differences from emit() are deliberate. emit() is a stream transform, so
-// it carries every other key the source happens to have (worktree-scope, which
-// is docket's own generation-time metadata and means nothing to Claude Code);
-// this renders the mapped fields only. And emit() passes `model: inherit`
-// through verbatim, because Claude Code documents `inherit` as a real value;
-// here the sentinel is already normalized away by harness.ResolvedAgent, which
-// every adapter shares, so an unpinned agent omits the key and Claude Code
-// applies its own subagent default. Claude reads `skills:` natively, so unlike
-// the codex/cursor/opencode renderers there is no skills preamble in the body.
+// One difference from emit() is deliberate: emit() is a stream transform, so it
+// carries every other key the source happens to have (worktree-scope, which is
+// docket's own generation-time metadata and means nothing to Claude Code); this
+// renders the mapped fields only.
+//
+// `model: inherit` is NOT normalized away here, matching emit(): Claude Code
+// documents `inherit` as a real frontmatter value meaning "run on the parent
+// conversation's model", a different runtime outcome from omitting the key. The
+// caller therefore resolves through harness.ResolvedAgentRaw rather than the
+// harness.ResolvedAgent the other three adapters share, and an effort pinned
+// beside an `inherit` model is emitted too — emit() folds `auto` and nothing
+// else. TestClaudeAgentPinCases and the docket-adr/docket-review-deep goldens
+// pin both halves.
+//
+// Claude reads `skills:` natively, so unlike the codex/cursor/opencode
+// renderers there is no skills preamble in the body.
 func renderAgent(s harness.AgentSource, model, effort string) ([]byte, error) {
 	var b strings.Builder
 	b.WriteString("---\n")

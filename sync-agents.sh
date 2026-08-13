@@ -1216,7 +1216,8 @@ validate_runner_config() {
 # runtime outcome from omitting the key (Claude Code's own subagent default). Cursor and Codex
 # have no such value, so their emitters normalize it to "no pin" — that asymmetry is deliberate,
 # and folding it into this shared emitter silently changed Claude's resolution (0168 whole-branch
-# review, IMPORTANT 2). Pinned by the `inherit:` asserts in tests/test_sync_agents.sh.
+# review, IMPORTANT 2). No assert in this shell suite pins it; the Go port does, in
+# internal/harness/claude's `TestClaudeAgentPinCases` and its docket-adr/docket-review-deep goldens.
 emit() {  # $1=src file  $2=model  $3=effort
   local m="$2" e="$3"
   [ "$e" = "auto" ] && e=""
