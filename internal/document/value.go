@@ -63,16 +63,20 @@ func invalidValue(msg string) error {
 // managed-block content, apart from the per-context exemptions (tab, and LF for
 // block content) the callers grant before consulting it.
 //
-// Two disjoint reasons put a rune here. Unicode control characters (category
+// Three disjoint reasons put a rune here. Unicode control characters (category
 // Cc) are refused by the closed model itself — "all control characters except
 // tab". U+FFFE and U+FFFF are refused because the reader in
 // go.yaml.in/yaml/v3 v3.0.4 admits only "[#xE000-#xFFFD]" in that plane, so a
-// value carrying one renders a document that fails its own reparse. Note the
+// value carrying one renders a document that fails its own reparse. U+2028
+// (LS) and U+2029 (PS) are refused because that same scanner treats them as
+// line breaks despite their being Zl/Zp rather than Cc, so a quoted scalar
+// carrying one decodes back with the surrounding space eaten — a silent value
+// change rather than an error. Note the
 // asymmetry the YAML set creates: U+0085 (NEL) is legal YAML but a Cc control,
 // so the closed model still refuses it; U+1FFFE is a non-character but sits in
 // the allowed "[#x10000-#x10FFFF]" range, so it stays legal.
 func illegalTextRune(r rune) bool {
-	return unicode.IsControl(r) || r == 0xfffe || r == 0xffff
+	return unicode.IsControl(r) || r == 0x2028 || r == 0x2029 || r == 0xfffe || r == 0xffff
 }
 
 // validate reports whether v is representable in the closed model. The whole

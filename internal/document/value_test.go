@@ -57,7 +57,11 @@ func TestValueRejectsEveryRuneYAMLRefuses(t *testing.T) {
 	// U+0080 and U+009F bound the C1 block; U+0098 is the fuzz seed's rune;
 	// U+0085 (NEL) is legal YAML but a control character, which the closed
 	// model refuses regardless. U+FFFE/U+FFFF are the non-characters.
-	for _, r := range []rune{0x80, 0x85, 0x98, 0x9f, 0xfffe, 0xffff} {
+	// U+2028 (LS) and U+2029 (PS) are Zl/Zp rather than Cc, so a control-only
+	// guard admits them — but the v3.0.4 scanner treats both as line breaks,
+	// so a quoted scalar carrying one decodes back with the surrounding space
+	// eaten (a silent value change).
+	for _, r := range []rune{0x80, 0x85, 0x98, 0x9f, 0x2028, 0x2029, 0xfffe, 0xffff} {
 		bad := "x" + string(r) + "y"
 		if err := String(bad).validate(); !IsKind(err, KindInvalidValue) {
 			t.Errorf("String(%q).validate() = %v, want invalid-value", bad, err)
@@ -67,8 +71,10 @@ func TestValueRejectsEveryRuneYAMLRefuses(t *testing.T) {
 		}
 	}
 	// The neighbours of each rejected range stay legal: U+007E, U+00A0,
-	// U+FFFD, and the U+1FFFE non-character above the BMP.
-	for _, r := range []rune{0x7e, 0xa0, 0xfffd, 0x1fffe} {
+	// U+FFFD, and the U+1FFFE non-character above the BMP. U+2027 and U+202F
+	// bracket the LS/PS pair and stay legal — the rejection is exactly those
+	// two code points, not their neighbourhood.
+	for _, r := range []rune{0x7e, 0xa0, 0x2027, 0x202f, 0xfffd, 0x1fffe} {
 		ok := "x" + string(r) + "y"
 		if err := String(ok).validate(); err != nil {
 			t.Errorf("String(%q).validate() = %v, want nil", ok, err)
