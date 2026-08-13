@@ -1,8 +1,8 @@
 # Backlog
 
-**318 changes** — 🟡 56 proposed · ⚪ 4 deferred · ✅ 180 done · 🗑️ 78 killed
+**318 changes** — 🟡 54 proposed · ⚪ 4 deferred · ✅ 180 done · 🗑️ 80 killed
 
-## 🟡 Proposed (56)
+## 🟡 Proposed (54)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -31,7 +31,6 @@
 | [0279](active/0279-settle-the-walk-site-classifier-s-reachability-gap-and-re-la.md) | Settle the walk-site classifier's reachability gap and re-land 0258's reverted fixes | `medium` | `chore` | build-ready |
 | [0280](active/0280-shard-or-re-budget-the-test-files-the-suite-runner-reports-o.md) | Shard or re-budget the test files the suite runner reports OVER BUDGET | `medium` | `chore` | needs-brainstorm |
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | build-ready |
-| [0285](active/0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | `high` | `feat` | build-ready |
 | [0287](active/0287-make-docket-frontmatter-sh-usable-from-the-bootstrap-path-or.md) | Make docket-frontmatter.sh usable from the bootstrap path, or split a Bash 3.2-safe core out of it | `medium` | `refactor` | needs-brainstorm |
 | [0288](active/0288-namespace-the-remaining-un-namespaced-mock-seams-runners-dir.md) | Namespace the remaining un-namespaced mock seams (RUNNERS_DIR, GIT) repo-wide | `medium` | `chore` | needs-brainstorm |
 | [0289](active/0289-bind-budget-ledger-entries-to-the-numbers-they-narrate.md) | Bind budget-ledger entries to the numbers they narrate | `medium` | `chore` | needs-brainstorm |
@@ -46,8 +45,7 @@
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
-| [0303](active/0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | `critical` | `docs` | build-ready |
-| [0304](active/0304-go-executable-json-protocol-test-build-skeleton.md) | Go executable, JSON protocol, and test/build skeleton | `critical` | `feat` | ⏳ waiting on #303 — not yet built |
+| [0304](active/0304-go-executable-json-protocol-test-build-skeleton.md) | Go executable, JSON protocol, and test/build skeleton | `critical` | `feat` | needs-brainstorm |
 | [0305](active/0305-configuration-and-capability-envelope.md) | Configuration and capability envelope | `critical` | `feat` | ⏳ waiting on #304 — not yet built |
 | [0306](active/0306-loss-preserving-document-layer.md) | Loss-preserving document layer | `critical` | `feat` | ⏳ waiting on #304 — not yet built |
 | [0307](active/0307-domain-snapshot-validation-graphs-and-selection.md) | Domain snapshot, validation, graphs, and selection | `critical` | `feat` | ⏳ waiting on #305 — not yet built |
@@ -103,7 +101,6 @@ graph TD
   0279
   0280
   0283
-  0282 --> 0285
   0287
   0288
   0289
@@ -118,8 +115,7 @@ graph TD
   0300
   0301
   0302
-  0303
-  0303 --> 0304
+  0304
   0304 --> 0305
   0304 --> 0306
   0305 --> 0307
@@ -145,16 +141,17 @@ graph TD
   0317 --> 0318
   0192:::done
   0211:::done
-  0282:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (258)</summary>
+<details><summary>✅🗑️ Archive — done + killed (260)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
 | [0299](archive/2026-08-12-0299-reshard-tests-test-sync-agents-runners-so-every-file-measure.md) | Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling | 2026-08-12 |
 | [0298](archive/2026-08-12-0298-stacked-changes-build-a-new-change-on-top-of-a-parent-change.md) | Stacked changes — build a new change on top of a parent change's branch | 2026-08-12 |
+| [0285](archive/2026-08-12-0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | 2026-08-12 |
 | [0221](archive/2026-08-12-0221-assert-executes-backticks-in-its-test-description-so-a-verba.md) | assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell | 2026-08-12 |
 | [0284](archive/2026-08-11-0284-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi.md) | runner-dispatch --observe is sentinel-only: adopt 0282's identity-checked liveness probe | 2026-08-11 |
 | [0281](archive/2026-08-11-0281-auto-groom-s-critic-verdict-return-channel-fails-under-backg.md) | Auto-groom's critic verdict return channel fails under background dispatch | 2026-08-11 |
