@@ -87,6 +87,10 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 - [fix-reintroduces-its-own-defect-class](fix-reintroduces-its-own-defect-class.md) — New code added by a change that fixes a defect class is the likeliest place for that class to reappear — audit the change's OWN additions against its thesis before review, and check the twin it did not touch. · also: refactoring, contracts ⟨needs promotion⟩
 
+## serialization
+
+- [validator-must-match-the-reader-it-feeds](validator-must-match-the-reader-it-feeds.md) — A hand-enumerated validation predicate drifts from the parser it feeds — the builder then renders a document its own reparse refuses; derive the rejected set from the reader's rules and fuzz the round trip. · also: validation, fuzzing, yaml ⟨needs promotion⟩
+
 ## shell
 
 - [agent-shell-noop-reads-as-success](agent-shell-noop-reads-as-success.md) — The agent's interactive shell is not bash and its grep may not be grep — a sweep can iterate zero items, a verification grep can match nothing, and both still print success. · also: verification, environment ⟨needs promotion⟩
