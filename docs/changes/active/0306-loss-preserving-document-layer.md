@@ -13,12 +13,12 @@ related: [266]
 discovered_from: [303]
 adrs: []
 spec: docs/superpowers/specs/2026-08-13-loss-preserving-document-layer-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-13-loss-preserving-document-layer.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/loss-preserving-document-layer
-claimed_at: 2026-08-13T17:53:15Z
+claimed_at: 2026-08-13T18:03:13Z
 pr:
 blocked_by:
 reconciled: true
@@ -30,6 +30,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-13-loss-preserving-document-layer-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-13-loss-preserving-document-layer-design.md) |
+| Plan | [2026-08-13-loss-preserving-document-layer.md](https://github.com/danielhanold/docket/blob/feat/loss-preserving-document-layer/docs/superpowers/plans/2026-08-13-loss-preserving-document-layer.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
