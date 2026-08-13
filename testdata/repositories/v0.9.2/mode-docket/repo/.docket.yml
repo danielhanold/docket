@@ -1,0 +1,6 @@
+# Docket-mode repository that leaves the integration branch to docket: `auto`
+# resolves to the resolution context's default branch, and the provenance stays
+# on this file, because this file is where a reader changes the answer.
+
+metadata_branch: docket
+integration_branch: auto

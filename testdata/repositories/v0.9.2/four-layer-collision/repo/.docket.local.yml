@@ -1,0 +1,7 @@
+# REPOSITORY-LOCAL layer: highest precedence. It declares learnings.cap and a
+# machine-scoped budget only, so every other leaf is won by a lower layer.
+
+learnings:
+  cap: 250
+
+gate_observation_budget: 45

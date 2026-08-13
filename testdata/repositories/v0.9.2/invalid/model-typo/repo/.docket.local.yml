@@ -1,0 +1,5 @@
+agents:
+  cluade:
+    adr:
+      model: m
+      effort: low

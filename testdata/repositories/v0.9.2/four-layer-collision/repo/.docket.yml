@@ -1,0 +1,10 @@
+# REPOSITORY layer: beats the global layer everywhere it declares, and loses
+# learnings.cap to the machine-local layer above it.
+
+learnings:
+  cap: 200
+
+reclaim:
+  lease_ttl: 200
+
+change_types: [chore, docs, feat, fix, refactor, perf, spike]

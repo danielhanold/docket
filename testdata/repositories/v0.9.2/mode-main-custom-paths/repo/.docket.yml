@@ -1,0 +1,8 @@
+# Main-mode repository with every directory relocated: integration_branch is
+# declared, so this fixture's resolution never consults the resolution context.
+
+metadata_branch: main
+integration_branch: develop
+changes_dir: planning/changes
+adrs_dir: planning/adrs
+results_dir: planning/results

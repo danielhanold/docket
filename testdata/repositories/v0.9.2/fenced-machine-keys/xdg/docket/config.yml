@@ -1,0 +1,11 @@
+# Repository-coordinating settings declared from the GLOBAL machine layer.
+# Every one of them is outside its fence, so each is warned about and excluded
+# from resolution — none of these values is ever effective.
+
+metadata_branch: main
+integration_branch: develop
+changes_dir: alt/changes
+
+github_project:
+  owner: someone
+  number: 3
