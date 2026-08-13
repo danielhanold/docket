@@ -49,7 +49,7 @@
 | [0308](active/0308-git-adapter-and-authoritative-object-source.md) | Git adapter and authoritative object source | `critical` | `feat` | needs-brainstorm |
 | [0309](active/0309-isolated-metadata-transaction-engine.md) | Isolated metadata transaction engine | `critical` | `feat` | ⏳ waiting on #307 — not yet built |
 | [0310](active/0310-read-only-status-and-health-vertical-slice.md) | Read-only status and health vertical slice | `critical` | `feat` | ⏳ waiting on #307 — not yet built |
-| [0311](active/0311-installer-embedded-assets-and-four-harnesses.md) | Installer, embedded assets, and four first-class harnesses | `critical` | `feat` | needs-brainstorm |
+| [0311](active/0311-installer-embedded-assets-and-four-harnesses.md) | Installer, embedded assets, and four first-class harnesses | `critical` | `feat` | build-ready |
 | [0312](active/0312-planning-mutations-board-and-adrs.md) | Planning mutations, inline board, and ADRs | `critical` | `feat` | ⏳ waiting on #309 — not yet built |
 | [0313](active/0313-workspaces-github-pr-adapter-and-build-evidence.md) | Workspaces, GitHub PR adapter, and build evidence | `critical` | `feat` | ⏳ waiting on #308 — not yet built |
 | [0314](active/0314-native-process-supervisor-and-local-gate.md) | Native process supervisor and local gate | `critical` | `feat` | needs-brainstorm |
