@@ -6,10 +6,21 @@
 # file is the REAL producer wiring those checks into scripts/run-tests.sh via
 # the tests/test_*.sh discovery glob — not a documentation-only command.
 #
-# Guard shape: CHECKS_RUN counts each executed check and a final assert pins
-# the count, so deleting a check from this file reddens the file itself
-# rather than silently narrowing the gate. Deleting the FILE orphans its
-# tests/runtime-budgets.tsv row, which reddens tests/test_runtime_budgets.sh.
+# ONE OWNER FOR THE CROSS-BUILD. The four-tuple CGO-off sweep is expensive, so
+# it runs EXACTLY ONCE per suite run — inside `go test ./...` (Check 3), as
+# cmd/docket's TestCrossCompileApprovedTargets. Check 4 therefore does not
+# rebuild the tuples; it asserts that the Go-side owner still exists and still
+# covers all four, so deleting or renaming that Go test reddens THIS file even
+# though `go test` would happily pass without it.
+#
+# Guard shape: the checks run inside a redirected brace group (same shell, so
+# `fail` and each check's variables survive), their output is replayed to
+# stdout for the runner, and a final assert pins the number of `ok - ` /
+# `NOT OK - ` markers the group ACTUALLY emitted. The count is therefore
+# derived from the assertions that ran, not from a hand-maintained counter a
+# deleted assert could leave behind: delete an assert and this file reddens.
+# Deleting the FILE orphans its tests/runtime-budgets.tsv row, which reddens
+# tests/test_runtime_budgets.sh.
 #
 # Requires a Go toolchain on PATH (go.mod pins the version); fails loudly if
 # absent rather than skipping — a skipped gate certifies nothing.
@@ -77,16 +88,20 @@ if [ -z "${GOMODCACHE:-}" ] || [ -z "${GOCACHE:-}" ]; then
   fi
 fi
 
-CHECKS_RUN=0
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/docket-go-gate.XXXXXX")"
 trap 'rm -rf "$scratch"' EXIT
+results="$scratch/check-results"
+
+# A brace group, NOT a subshell: `fail` and the per-check variables must
+# survive the group, and only its stdout is diverted so the markers can be
+# counted before they are replayed.
+{
 
 # Check 1: gofmt reports no unformatted Go source. The directory set is
 # DERIVED from the module rather than hand-listed: a hand-listed `cmd internal`
 # silently stops checking any package added outside those two trees. `go list`
 # is captured and checked on its own so its failure cannot be swallowed by an
 # empty gofmt result reading as "clean".
-CHECKS_RUN=$((CHECKS_RUN + 1))
 pkg_dirs="$(go list -f '{{.Dir}}' ./... 2>&1)"
 pkg_dirs_rc=$?
 if [ "$pkg_dirs_rc" -ne 0 ]; then
@@ -100,32 +115,43 @@ fi
 assert "gofmt reports no unformatted files" '[ -z "$unformatted" ] || { printf "  unformatted: %s\n" "$unformatted" >&2; false; }'
 
 # Check 2: go vet passes.
-CHECKS_RUN=$((CHECKS_RUN + 1))
 vet_out="$(go vet ./... 2>&1)"
 vet_rc=$?
 assert "go vet ./... passes" '[ "$vet_rc" -eq 0 ] || { printf "%s\n" "$vet_out" >&2; false; }'
 
-# Check 3: go test passes on the host.
-CHECKS_RUN=$((CHECKS_RUN + 1))
+# Check 3: go test passes on the host. This is also where the four-tuple
+# CGO-off cross-build runs — TestCrossCompileApprovedTargets — so the sweep is
+# paid for exactly once per suite run.
 test_out="$(go test ./... 2>&1)"
 test_rc=$?
 assert "go test ./... passes" '[ "$test_rc" -eq 0 ] || { printf "%s\n" "$test_out" >&2; false; }'
 
-# Check 4: CGO-off cross-build succeeds for each approved tuple.
-CHECKS_RUN=$((CHECKS_RUN + 1))
-build_failures=""
+# Check 4: the four-tuple CGO-off cross-build still HAS its single owner. The
+# tuples are read out of TestCrossCompileApprovedTargets' own body — a match
+# anywhere else in the file, including this comment's prose, cannot satisfy it
+# — and the body is empty if the function is deleted or renamed, which fails
+# all four tuples at once. gofmt (Check 1) normalizes the literal spelling; the
+# pattern still tolerates the inter-element spacing.
+cross_owner="cmd/docket/main_test.go"
+cross_body="$(awk '/^func TestCrossCompileApprovedTargets\(/{inside=1} inside{print} inside && /^}$/{exit}' "$cross_owner" 2>/dev/null)"
+missing_tuples=""
 for tuple in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do
   goos="${tuple%/*}"
   goarch="${tuple#*/}"
-  build_out="$(CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" \
-    go build -o "$scratch/docket-$goos-$goarch" ./cmd/docket 2>&1)" \
-    || build_failures="$build_failures $tuple:$build_out"
+  tuple_hits="$(grep -c -E "\{\"$goos\",[[:space:]]*\"$goarch\"\}" <<<"$cross_body")"
+  [ "$tuple_hits" -ge 1 ] || missing_tuples="$missing_tuples $tuple"
 done
-assert "CGO_ENABLED=0 go build succeeds for all four approved tuples" \
-  '[ -z "$build_failures" ] || { printf "  failed:%s\n" "$build_failures" >&2; false; }'
+assert "TestCrossCompileApprovedTargets owns the CGO-off cross-build of all four tuples" \
+  '[ -z "$missing_tuples" ] || { printf "  %s does not cover:%s\n" "$cross_owner" "$missing_tuples" >&2; false; }'
 
-# Self-count: the gate ran every check it claims to run. Deleting one from
-# this file must redden the file, not silently narrow the whole-suite gate.
-assert "all 4 Go checks executed" '[ "$CHECKS_RUN" -eq 4 ]'
+} > "$results"
+cat "$results"
+
+# Self-count, DERIVED from what ran: pin the number of result markers the check
+# group actually emitted. Deleting an assert — with or without whatever
+# bookkeeping sat beside it — drops a marker and reddens this file rather than
+# silently narrowing the whole-suite gate.
+markers_emitted="$(grep -c -E '^(ok|NOT OK) - ' "$results")"
+assert "all 4 Go checks emitted a result marker" '[ "$markers_emitted" -eq 4 ]'
 
 exit $fail
