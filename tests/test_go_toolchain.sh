@@ -81,9 +81,22 @@ CHECKS_RUN=0
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/docket-go-gate.XXXXXX")"
 trap 'rm -rf "$scratch"' EXIT
 
-# Check 1: gofmt reports no unformatted Go source.
+# Check 1: gofmt reports no unformatted Go source. The directory set is
+# DERIVED from the module rather than hand-listed: a hand-listed `cmd internal`
+# silently stops checking any package added outside those two trees. `go list`
+# is captured and checked on its own so its failure cannot be swallowed by an
+# empty gofmt result reading as "clean".
 CHECKS_RUN=$((CHECKS_RUN + 1))
-unformatted="$(gofmt -l cmd internal 2>&1)"
+pkg_dirs="$(go list -f '{{.Dir}}' ./... 2>&1)"
+pkg_dirs_rc=$?
+if [ "$pkg_dirs_rc" -ne 0 ]; then
+  unformatted="go list failed: $pkg_dirs"
+elif [ -z "$pkg_dirs" ]; then
+  unformatted="go list reported no packages"
+else
+  # shellcheck disable=SC2086 # deliberate word-splitting: one dir per line.
+  unformatted="$(gofmt -l $pkg_dirs 2>&1)"
+fi
 assert "gofmt reports no unformatted files" '[ -z "$unformatted" ] || { printf "  unformatted: %s\n" "$unformatted" >&2; false; }'
 
 # Check 2: go vet passes.
