@@ -6,13 +6,13 @@ status: proposed
 priority: critical
 type: feat
 created: 2026-08-12
-updated: 2026-08-12
+updated: 2026-08-13
 depends_on: []
 stacked_on:
 related: []
 discovered_from: [303]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-13-go-executable-json-protocol-test-build-skeleton-design.md
 plan:
 results:
 trivial: false
@@ -26,6 +26,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-13-go-executable-json-protocol-test-build-skeleton-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-13-go-executable-json-protocol-test-build-skeleton-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -35,17 +38,15 @@ envelope, and test convention before independently developed packages can compos
 
 ## What changes
 
-Establish the Go module and `docket` executable, protocol-v1 result encoding, text-versus-JSON CLI
-selection, build metadata, baseline test/static-check commands, and compatibility-fixture layout.
+Establish the Go 1.26 module and Cobra-based `docket` executable; an application-owned protocol-v1
+result envelope and text/JSON presenter; `version` and runtime-diagnostic commands; injectable build
+metadata; baseline format, vet, test, and four-target build checks; and fixture-layout conventions.
 
 ## Out of scope
 
-Domain behavior, repository mutation, installation, harness emission, and any retained workflow.
-
-## Open questions
-
-Settle exact package names, Go version, CLI library choice, and protocol envelope fields during
-grooming without pulling later subsystem behavior into this foundation.
+Configuration, document/domain/repository behavior, Git or `gh`, metadata mutation, status and
+health, installation, harness emission, retained workflows, release packaging, and cutover behavior
+owned by changes 0305–0318.
 
 ## Reconcile log
 
