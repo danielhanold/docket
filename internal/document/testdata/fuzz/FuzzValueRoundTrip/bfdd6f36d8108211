@@ -1,0 +1,4 @@
+go test fuzz v1
+string("\u0098")
+int64(9223372036854775629)
+bool(false)
