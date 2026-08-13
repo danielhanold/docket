@@ -18,10 +18,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/loss-preserving-document-layer
-claimed_at: 2026-08-13T17:51:28Z
+claimed_at: 2026-08-13T17:53:15Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -51,3 +51,11 @@ record-specific renderer content, and individual planning or implementation work
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+- 2026-08-13 — Reconciled against origin/main after 0304 (Go skeleton) and 0305 (configuration
+  envelope) both merged. Everything the spec assumes holds: `go.yaml.in/yaml/v3 v3.0.4` is already
+  a direct dependency in `go.mod`; the frozen-fixture tree `testdata/repositories/v0.9.2/` exists
+  with the tree-wide `PROVENANCE.md` convention (each new fixture extends it with a line, per
+  0305's review fix f132b7af); `go test ./...` is wired into the whole suite via
+  `tests/test_go_toolchain.sh` with shared Go caches; `internal/document` does not yet exist. No
+  scope adjustment, no drops, no new constraints. Spec left as approved.
