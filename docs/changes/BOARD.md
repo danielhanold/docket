@@ -1,8 +1,14 @@
 # Backlog
 
-**319 changes** — 🟡 54 proposed · ⚪ 4 deferred · ✅ 181 done · 🗑️ 80 killed
+**319 changes** — 🟢 1 in progress · 🟡 53 proposed · ⚪ 4 deferred · ✅ 181 done · 🗑️ 80 killed
 
-## 🟡 Proposed (54)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0305](active/0305-configuration-and-capability-envelope.md) | Configuration and capability envelope | `critical` | `feat` | [spec](../superpowers/specs/2026-08-13-configuration-and-capability-envelope-design.md) | `feat/configuration-and-capability-envelope` |
+
+## 🟡 Proposed (53)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -45,7 +51,6 @@
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
-| [0305](active/0305-configuration-and-capability-envelope.md) | Configuration and capability envelope | `critical` | `feat` | build-ready |
 | [0306](active/0306-loss-preserving-document-layer.md) | Loss-preserving document layer | `critical` | `feat` | build-ready |
 | [0307](active/0307-domain-snapshot-validation-graphs-and-selection.md) | Domain snapshot, validation, graphs, and selection | `critical` | `feat` | ⏳ waiting on #305 — not yet built |
 | [0308](active/0308-git-adapter-and-authoritative-object-source.md) | Git adapter and authoritative object source | `critical` | `feat` | needs-brainstorm |
