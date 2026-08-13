@@ -52,7 +52,7 @@ func New(fields []FieldSpec, body string) ([]byte, error) {
 	}
 	b.WriteString("---\n")
 
-	trimmed := strings.TrimRight(body, "\n")
+	trimmed := strings.Trim(body, "\n")
 	if trimmed != "" {
 		b.WriteString("\n" + trimmed + "\n")
 	}

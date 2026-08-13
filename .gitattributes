@@ -1,0 +1,3 @@
+# Byte-exact fixtures: never let core.autocrlf or eol normalization rewrite them.
+internal/document/testdata/** -text
+testdata/repositories/** -text

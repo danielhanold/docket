@@ -10,7 +10,8 @@ import (
 
 // frozenDir holds byte-exact real records captured at pinned commits. They are
 // historical snapshots and deliberately do NOT track their live originals; see
-// testdata/repositories/v0.9.2/PROVENANCE.md for the pins and that statement.
+// testdata/repositories/v0.9.2/PROVENANCE.md for the pins and testdata/README.md
+// for that immutability statement.
 const frozenDir = "../../testdata/repositories/v0.9.2/documents"
 
 func frozenCorpus(t *testing.T) map[string][]byte {
