@@ -562,6 +562,19 @@ func TestAssetIndependentSetExact(t *testing.T) {
 		if key != treeWalkCommand {
 			inTree[key] = true
 		}
+		// The asset-dependence guard rides on the ROOT's PersistentPreRunE,
+		// and Cobra runs only the CLOSEST PersistentPreRun/PersistentPreRunE
+		// in the chain — a subcommand that defines one of its own silently
+		// replaces the guard rather than adding to it, disabling it for that
+		// whole subtree with no test failing. Keeping the hook exclusive to
+		// the root is what makes the guard tree-wide. (Deliberately not
+		// solved with cobra.EnableTraverseRunHooks: that is a process-global
+		// toggle, a broader behavior change than this guard needs.)
+		if c != root {
+			if c.PersistentPreRunE != nil || c.PersistentPreRun != nil {
+				t.Errorf("command %q defines its own PersistentPreRun(E), which shadows the root's asset-dependence guard", key)
+			}
+		}
 		for _, child := range c.Commands() {
 			walk(child)
 		}
