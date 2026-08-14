@@ -106,13 +106,23 @@ mkdir -p "$copy/internal/assets"
 roots="$(awk '/^func DefaultAllowedRoots\(/{inside=1} inside && match($0, /Root: "[^"]+"/){print substr($0, RSTART+7, RLENGTH-8)} inside && /^}$/{exit}' \
   "$REPO/internal/assets/generate.go")"
 copy_rc=0
+copied=0
 while IFS= read -r root; do
   [ -n "$root" ] || continue
+  # A root may be nested (a/b) tomorrow; cp -R needs the parent to exist.
+  mkdir -p "$(dirname "$copy/$root")" || copy_rc=1
   cp -R "$REPO/$root" "$copy/$root" || copy_rc=1
+  copied=$((copied + 1))
 done <<<"$roots"
 cp -R "$REPO/internal/assets/embedded" "$copy/internal/assets/embedded" || copy_rc=1
+# The floor is the PARSED root count, never a hand-written literal: a literal
+# is a second source of truth that goes stale the day a root is added, and a
+# too-low one lets a broken awk parse pass as a complete copy. Requiring a
+# nonzero parse is what keeps "copied everything" from meaning "copied nothing".
+parsed_roots="$(grep -c . <<<"$roots")"
+assert "assets.DefaultAllowedRoots parsed to a nonzero root set" '[ -n "$roots" ] && [ "$parsed_roots" -gt 0 ]'
 assert "the probe repo copies every root assets.DefaultAllowedRoots declares" \
-  '[ "$copy_rc" -eq 0 ] && [ -n "$roots" ] && [ "$(grep -c . <<<"$roots")" -ge 4 ]'
+  '[ "$copy_rc" -eq 0 ] && [ "$copied" -eq "$parsed_roots" ]'
 
 # --- Assert 3 (control, run first): the untouched copy still passes -----------
 # Without this, assert 2 proves nothing — an incomplete copy exits 1 too.
