@@ -64,6 +64,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [byte-pattern-guard-matches-a-spelling](byte-pattern-guard-matches-a-spelling.md) — A grep-based ban or shape predicate matches a spelling, not the property — bound it on both sides, and where equivalent spellings survive, assert the limitation in the guard's header instead of writing it in a comment. · also: grep, testing ⟨needs promotion⟩
 - [guard-keyed-on-presence-not-provenance](guard-keyed-on-presence-not-provenance.md) — A guard that suppresses itself when a source HOLDS a value must instead key on whether that source SUPPLIED the resolved one — under layered precedence the two diverge silently. · also: config, precedence ⟨needs promotion⟩
 - [guard-remedy-must-not-teach-the-evasion](guard-remedy-must-not-teach-the-evasion.md) — A count-based guard whose failure message says 'bump the expected count' teaches the evasion — budget the coverage-granting path with its own counter. · also: testing, invariants ⟨needs promotion⟩
+- [identity-match-relaxed-to-prefix-is-vacuous](identity-match-relaxed-to-prefix-is-vacuous.md) — Relaxing an identity comparison from equality to a prefix test admits the empty string, which prefixes everything — the guard then passes for every input. · also: validation, identity ⟨needs promotion⟩
 - [mirrored-guard-enforces-its-own-property](mirrored-guard-enforces-its-own-property.md) — A guard copied from a working twin enforces the property its ORIGINAL author needed — probe it by execution before naming a broader rule in your diagnostic. · also: spec, validation ⟨needs promotion⟩
 - [refusal-keyed-on-residue-not-condition](refusal-keyed-on-residue-not-condition.md) — A validator that keys on the residue a bad input leaves behind misses the inputs that leave no residue and fires on legal ones that happen to look like it — detect the condition itself, upstream of whatever normalization eats the evidence. · also: config, validation ⟨needs promotion⟩
 
@@ -135,6 +136,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [fixture-order-decides-the-diagnostic](fixture-order-decides-the-diagnostic.md) — Under set -u a fixture that dereferences a value must run AFTER the assert that the value is emitted — otherwise the missing export kills the suite inside the harness and the assert that exists to name it never runs. · also: errexit, fixtures ⟨needs promotion⟩
 - [foundational-test-discipline](foundational-test-discipline.md) — Sentinel greps are sampling, not parsing — pair them with a whole-branch review that reads for meaning. · also: sentinels, review
 - [frozen-copy-needs-a-drift-assert](frozen-copy-needs-a-drift-assert.md) — A fixture frozen as a copy of a live file detects drift only if a byte-equality assert ties the two — the copy alone promises the check and performs none. · also: fixtures, drift ⟨needs promotion⟩
+- [frozen-fixture-corpus-trips-repo-wide-scans](frozen-fixture-corpus-trips-repo-wide-scans.md) — A frozen fixture corpus is DATA, not source — a repo-wide pattern guard will match inside it and must exclude it, with the exclusion itself bounded and mutation-tested. · also: guards, fixtures
 - [green-suite-untested-branch](green-suite-untested-branch.md) — Green tests are not proof the hard branch was exercised — a mock that omits the tool routes every test through the degrade path. · also: fixtures, mocks
 - [guard-the-widened-clause](guard-the-widened-clause.md) — When a clause was WIDENED during design, re-derive the guard from the widened text — a guard written against the original shape leaves the added part free, and every assert stays green when it is deleted. · also: guards, spec ⟨needs promotion⟩
 - [harness-strictness-masks-the-guard-under-test](harness-strictness-masks-the-guard-under-test.md) — A fixture stricter than production can enforce the very property your new guard adds — delete the guard, the assert stays green, and the vacuity hides inside the stricter shell. · also: guards, mutation, shell-portability ⟨needs promotion⟩
@@ -161,6 +163,10 @@ One curated finding per file; this index is the hint surface. Load it, then read
 ## ux
 
 - [printed-remedy-state-validity](printed-remedy-state-validity.md) — A remedy command you print for a user to run verbatim must be valid in the exact repo state that produced it. · also: remedies, migration
+
+## validation
+
+- [relocation-reads-as-identity-reuse](relocation-reads-as-identity-reuse.md) — A uniqueness check keyed on LOCATION misreads a legitimate relocation as an id collision — compare surviving holders by content identity, not by path. · also: identity, lifecycle
 
 ## yaml
 
