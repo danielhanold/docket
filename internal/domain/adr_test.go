@@ -123,14 +123,18 @@ func TestValidateADRGraphReverseStatusNeedsReversesEdge(t *testing.T) {
 
 func TestValidateADRGraphDanglingReferences(t *testing.T) {
 	cases := []struct {
-		name  string
-		adr   ADR
-		field string
+		name     string
+		adr      ADR
+		field    string
+		severity Severity
 	}{
-		{"relates_to", NewADR(ADRSpec{ID: 1, Status: ADRStatus{Kind: ADRAccepted}, RelatesTo: []ADRID{9}}), "relates_to"},
-		{"supersedes", NewADR(ADRSpec{ID: 1, Status: ADRStatus{Kind: ADRAccepted}, Supersedes: []ADRID{9}}), "supersedes"},
-		{"reverses", NewADR(ADRSpec{ID: 1, Status: ADRStatus{Kind: ADRAccepted}, Reverses: []ADRID{9}}), "reverses"},
-		{"status", NewADR(ADRSpec{ID: 1, Status: ADRStatus{Kind: ADRSupersededBy, Ref: 9}}), "status"},
+		// relates_to is associative and gates nothing, so a dangling target
+		// warns rather than erroring — the same rationale the repository layer
+		// applies to a change's associative links.
+		{"relates_to", NewADR(ADRSpec{ID: 1, Status: ADRStatus{Kind: ADRAccepted}, RelatesTo: []ADRID{9}}), "relates_to", SeverityWarning},
+		{"supersedes", NewADR(ADRSpec{ID: 1, Status: ADRStatus{Kind: ADRAccepted}, Supersedes: []ADRID{9}}), "supersedes", SeverityError},
+		{"reverses", NewADR(ADRSpec{ID: 1, Status: ADRStatus{Kind: ADRAccepted}, Reverses: []ADRID{9}}), "reverses", SeverityError},
+		{"status", NewADR(ADRSpec{ID: 1, Status: ADRStatus{Kind: ADRSupersededBy, Ref: 9}}), "status", SeverityError},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -140,8 +144,8 @@ func TestValidateADRGraphDanglingReferences(t *testing.T) {
 			if !ok {
 				t.Fatalf("no dangling finding on %s: %v", tc.field, findingCodes(got))
 			}
-			if f.Severity != SeverityError {
-				t.Fatalf("Severity = %q; want error", f.Severity)
+			if f.Severity != tc.severity {
+				t.Fatalf("Severity = %q; want %q", f.Severity, tc.severity)
 			}
 			if f.Detail["lookup"] != "absent" {
 				t.Fatalf("Detail[lookup] = %q; want absent", f.Detail["lookup"])
@@ -183,6 +187,11 @@ func TestValidateADRGraphDanglingChangeBacklink(t *testing.T) {
 	}
 	if len(f.Related) != 1 || f.Related[0].Kind != EntityChange || f.Related[0].ID != 5 {
 		t.Fatalf("Related = %+v; want change 5", f.Related)
+	}
+	// The producing-change back-link is associative: a repository holding only
+	// part of the corpus legitimately cannot resolve it.
+	if f.Severity != SeverityWarning {
+		t.Fatalf("Severity = %q; want warning", f.Severity)
 	}
 }
 
