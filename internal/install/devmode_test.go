@@ -532,3 +532,80 @@ func TestDevInstallRepointedLinkRefuses(t *testing.T) {
 		t.Errorf("the repointed link was rewritten to %s, want it preserved at %s", dest, want)
 	}
 }
+
+// The development install's own binary is a recorded target attributed to no
+// harness: no planner renders it during a check, and the prune scan never sees
+// it, because the prune scope keeps only harness-attributed records. Without a
+// direct verification, a replaced or deleted ~/.local/bin/docket reads as a
+// perfectly healthy installation — which is the one thing a contributor runs
+// `install check` to rule out.
+func TestCheckVerifiesTheDevelopmentBinary(t *testing.T) {
+	setup := func(t *testing.T) (*world, install.Options, string) {
+		t.Helper()
+		w := newWorld(t)
+		mkdirAll(t, w.path(".toy"))
+		bin := filepath.Join(w.home, "bin")
+		dev := w.devOptions(t, newSource(t), bin, &goRun{body: "binary\n"})
+		if out := install.DevelopmentInstall(dev); out.Err != nil {
+			t.Fatalf("DevelopmentInstall: %v (reason %q)", out.Err, out.Reason)
+		}
+		o := dev.Options
+		o.FS = panicFS{} // check writes nothing, so it needs no filesystem seam
+		return w, o, filepath.Join(bin, "docket")
+	}
+
+	t.Run("healthy", func(t *testing.T) {
+		w, o, binary := setup(t)
+		before := snapshot(t, w.home)
+		out := install.Check(o)
+		if out.Reason != "" || out.Err != nil {
+			t.Fatalf("healthy check: reason %q err %v (%v)", out.Reason, out.Err, out.Actions)
+		}
+		if _, ok := findAction(out, install.OpDrift, binary); ok {
+			t.Errorf("an intact binary was reported as drift")
+		}
+		assertUnchanged(t, before, snapshot(t, w.home), "check over a healthy development install")
+	})
+
+	t.Run("replaced", func(t *testing.T) {
+		w, o, binary := setup(t)
+		if err := os.WriteFile(binary, []byte("someone else's binary\n"), 0o755); err != nil {
+			t.Fatalf("replacing the binary: %v", err)
+		}
+		before := snapshot(t, w.home)
+
+		out := install.Check(o)
+		if out.Reason != install.ReasonInstallationDrift {
+			t.Fatalf("reason = %q, want %q (err %v)", out.Reason, install.ReasonInstallationDrift, out.Err)
+		}
+		action, ok := findAction(out, install.OpDrift, binary)
+		if !ok {
+			t.Fatalf("drift action missing for %s: %v", binary, out.Actions)
+		}
+		if !strings.Contains(action.Detail, "no longer matches") {
+			t.Errorf("drift detail = %q, want it to say the binary no longer matches", action.Detail)
+		}
+		assertUnchanged(t, before, snapshot(t, w.home), "check over a replaced binary")
+	})
+
+	t.Run("deleted", func(t *testing.T) {
+		w, o, binary := setup(t)
+		if err := os.Remove(binary); err != nil {
+			t.Fatalf("removing the binary: %v", err)
+		}
+		before := snapshot(t, w.home)
+
+		out := install.Check(o)
+		if out.Reason != install.ReasonInstallationDrift {
+			t.Fatalf("reason = %q, want %q (err %v)", out.Reason, install.ReasonInstallationDrift, out.Err)
+		}
+		action, ok := findAction(out, install.OpDrift, binary)
+		if !ok {
+			t.Fatalf("drift action missing for %s: %v", binary, out.Actions)
+		}
+		if !strings.Contains(action.Detail, "no longer present") {
+			t.Errorf("drift detail = %q, want it to say the binary is absent", action.Detail)
+		}
+		assertUnchanged(t, before, snapshot(t, w.home), "check over a deleted binary")
+	})
+}
