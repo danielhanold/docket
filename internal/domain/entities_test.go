@@ -17,6 +17,14 @@ func mustDate(t *testing.T, s string) time.Time {
 
 // fullChangeSpec returns a ChangeSpec with every field set to a distinctive
 // value, so a missing or mis-wired accessor cannot pass by coincidence.
+//
+// One constraint on the values, easy to trip over: a SINGLE-element brace
+// literal is byte-identical to an ERE repetition bound, and the repo-wide
+// guard tests/test_grep_portability.sh reads any such {N} with N above 255 as
+// "an ERE repetition bound above 255" — the bound BSD grep rejects. Keep the
+// number in a one-element []ChangeID{…} / []ADRID{…} at or below 255. A
+// multi-element literal ({301, 302}) is not affected: gofmt's space after the
+// comma is enough to break the resemblance.
 func fullChangeSpec(t *testing.T) ChangeSpec {
 	t.Helper()
 	return ChangeSpec{
@@ -32,7 +40,7 @@ func fullChangeSpec(t *testing.T) ChangeSpec {
 		Updated:        OptionalTime{State: FieldMalformed, Raw: "not-a-date"},
 		DependsOn:      []ChangeID{301, 302},
 		StackedOn:      OptionalInt{State: FieldPresent, Value: 300, Raw: "300"},
-		Related:        []ChangeID{305},
+		Related:        []ChangeID{205},
 		DiscoveredFrom: []ChangeID{234, 235},
 		ADRs:           []ADRID{71, 54},
 		Spec:           OptionalString{State: FieldPresent, Value: "docs/specs/x.md"},
@@ -199,7 +207,9 @@ func TestFieldStateConstantsOrdered(t *testing.T) {
 
 func TestNewChangeDefensiveCopies(t *testing.T) {
 	depends := []ChangeID{301, 302}
-	related := []ChangeID{305}
+	// 205, not a 3xx id: see fullChangeSpec on why a one-element brace literal
+	// stays at or below 255.
+	related := []ChangeID{205}
 	discovered := []ChangeID{234}
 	adrs := []ADRID{71, 54}
 	c := NewChange(ChangeSpec{
@@ -218,8 +228,8 @@ func TestNewChangeDefensiveCopies(t *testing.T) {
 	if got := c.DependsOn(); !slices.Equal(got, []ChangeID{301, 302}) {
 		t.Errorf("DependsOn() = %v after input mutation; want [301 302]", got)
 	}
-	if got := c.Related(); !slices.Equal(got, []ChangeID{305}) {
-		t.Errorf("Related() = %v after input mutation; want [305]", got)
+	if got := c.Related(); !slices.Equal(got, []ChangeID{205}) {
+		t.Errorf("Related() = %v after input mutation; want [205]", got)
 	}
 	if got := c.DiscoveredFrom(); !slices.Equal(got, []ChangeID{234}) {
 		t.Errorf("DiscoveredFrom() = %v after input mutation; want [234]", got)
@@ -237,8 +247,8 @@ func TestNewChangeDefensiveCopies(t *testing.T) {
 	if got := c.DependsOn(); !slices.Equal(got, []ChangeID{301, 302}) {
 		t.Errorf("DependsOn() = %v after result mutation; want [301 302]", got)
 	}
-	if got := c.Related(); !slices.Equal(got, []ChangeID{305}) {
-		t.Errorf("Related() = %v after result mutation; want [305]", got)
+	if got := c.Related(); !slices.Equal(got, []ChangeID{205}) {
+		t.Errorf("Related() = %v after result mutation; want [205]", got)
 	}
 	if got := c.DiscoveredFrom(); !slices.Equal(got, []ChangeID{234}) {
 		t.Errorf("DiscoveredFrom() = %v after result mutation; want [234]", got)

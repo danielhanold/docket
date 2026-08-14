@@ -11,18 +11,45 @@
 # portability, which is true or false independent of the machine running the suite.
 #
 # SCOPE: every tracked path (git ls-files, anchored on the repo root resolved from BASH_SOURCE),
-# minus the docs/ prefix. NO extension filter — an extension list is the same re-enumeration on a
-# different axis (.mdc, .py, an extensionless hook) and buys nothing, because no false positive is
-# possible at a >255 threshold. Binary safety comes from grep -I.
+# minus the two prefixes below. NO extension filter — an extension list is the same re-enumeration
+# on a different axis (.mdc, .py, an extensionless hook) and buys nothing. Binary safety comes from
+# grep -I.
 #
-# docs/ IS THE ONE EXCLUSION, AND IT IS A DECISION: archived change files, historical plans,
-# published terminal records and design specs legitimately quote defective patterns verbatim, and
-# they are immutable point-in-time records the convention forbids rewriting (AGENTS.md, "Comments
-# and cross-references"). Four such occurrences exist today, and terminal_publish: true will add
-# this change's own file and spec — which quote the historical over-threshold bound verbatim —
-# at close-out. The guard must not demand a repair it cannot legally have. Every OTHER tracked
+# A FALSE POSITIVE IS POSSIBLE — earlier wording here claimed none was, and Go source disproved it.
+# A one-element composite literal is byte-identical to a repetition bound: a slice literal holding
+# the single id 305 is read as a bound of 305, and reddens this guard. (That literal cannot be
+# written out here, for the SELF-MEMBERSHIP reason below — this file is in its own scanned
+# population.) The answer is a repair at the offending SITE, not an extension filter — see
+# fullChangeSpec in internal/domain/entities_test.go, whose one-element ids are chosen at or below
+# MAX_BOUND for exactly this reason and say so. The cost is a value choice in a test fixture; an
+# extension filter would cost the whole guarded surface of whatever extension it named.
+#
+# TWO EXCLUSIONS, BOTH BY WALK SCOPE, BOTH DECISIONS. NO ALLOWLIST: exclusions are by walk scope,
+# never by exception entry (ADR-0050), and a third frozen tree gets its own prefix line and its own
+# justification here — that friction is the point.
+#
+#   docs/ — archived change files, historical plans, published terminal records and design specs
+#   legitimately quote defective patterns verbatim, and they are immutable point-in-time records
+#   the convention forbids rewriting (AGENTS.md, "Comments and cross-references"). Four such
+#   occurrences exist today, and terminal_publish: true will add this change's own file and spec
+#   — which quote the historical over-threshold bound verbatim — at close-out. The guard must not
+#   demand a repair it cannot legally have.
+#
+#   internal/repository/testdata/corpus/ — the frozen v0.9.2 record corpus (change 0307): real
+#   docket records copied BYTE FOR BYTE off the metadata branch and never regenerated. See that
+#   directory's PROVENANCE.txt and corpusRoot in internal/repository/build_test.go. This is the
+#   docs/ case one notch stronger. The records are the same immutable point-in-time documents —
+#   one of them, the archived 0124 triage pass, narrates change 0130's own over-threshold bound
+#   verbatim, which is how the collision arises at all — and here the bytes are additionally
+#   load-bearing: the snapshot-build tests assert over them exactly as frozen (loadCorpus feeding
+#   BuildSnapshot, in internal/repository/build_test.go), so editing one would not merely falsify
+#   history, it would break the tests the corpus exists to serve. Frozen fixture bytes are a
+#   fixture, not executable grep surface.
+#
+# The exclusions are prefixes, and their BOUNDARY IS ASSERTED, not merely described: named probes
+# below prove sibling Go source and every OTHER testdata/ tree stay in scope, and a boundedness
+# control proves no tracked path outside these two prefixes was dropped. Every OTHER tracked
 # surface is in scope automatically, including any new top-level directory added later.
-# NO ALLOWLIST: exclusions are by walk scope, never by exception entry (ADR-0050).
 #
 # SELF-MEMBERSHIP: this file is NOT self-excluded. It is asserted to be in the scanned population
 # and clean, which is why every >255 literal it needs is assembled at runtime rather than written.
@@ -148,13 +175,14 @@ printf '#    - resolved grep: %s (%s)\n' "${grep_path:-unknown}" "${grep_ver:-ve
 # top-level source directory silently unguarded, which is precisely what ADR-0050 rules out.
 # NUL-delimited (git ls-files -z + mapfile -d '') so a tracked path with a special character (a
 # quote, non-ASCII bytes, an embedded newline) survives the walk instead of being silently quoted
-# by git and then vanishing at the [ -f ] test below. The docs/ exclusion is applied as a bash
-# pattern match on each NUL-delimited entry, not via `grep -z` (not portable to BSD grep).
+# by git and then vanishing at the [ -f ] test below. Both exclusions are applied as bash pattern
+# matches on each NUL-delimited entry, not via `grep -z` (not portable to BSD grep).
 mapfile -d '' -t ALL_FILES < <(cd "$ROOT" && git ls-files -z)
 FILES=()
 for f in "${ALL_FILES[@]}"; do
   case "$f" in
     docs/*) continue ;;
+    internal/repository/testdata/corpus/*) continue ;;
   esac
   FILES+=("$f")
 done
@@ -183,6 +211,54 @@ done
 grep -qE '^docs/' <<<"$files_joined" \
   && nok "walk leaked a docs/ path — the exclusion is not applied" \
   || ok "walk excludes docs/"
+
+# --- frozen-corpus exclusion: it must fire, and it must stop where it says it stops --------------
+# The exclusion must actually exclude.
+grep -qE '^internal/repository/testdata/corpus/' <<<"$files_joined" \
+  && nok "walk leaked a frozen-corpus path — the exclusion is not applied" \
+  || ok "walk excludes internal/repository/testdata/corpus/"
+
+# ...and it must not be excluding thin air. If the corpus is gone, the prefix is dead weight that
+# would keep a future tree of the same name silently unguarded, so say so instead of passing.
+all_joined=""
+[ "${#ALL_FILES[@]}" -gt 0 ] && all_joined="$(printf '%s\n' "${ALL_FILES[@]}")"
+corpus_tracked="$(grep -cE '^internal/repository/testdata/corpus/' <<<"$all_joined" || true)"
+[ "${corpus_tracked:-0}" -gt 0 ] \
+  && ok "the excluded frozen corpus is a real, non-empty tracked tree ($corpus_tracked files)" \
+  || nok "nothing is tracked under internal/repository/testdata/corpus/ — the exclusion is dead; delete it rather than leave a prefix nobody can see is unused"
+
+# BOUNDED, probe half: the nearest neighbours OUTSIDE the excluded prefix must all still be in
+# scope. Deliberately chosen one step out along each axis a careless widening would take — the
+# owning Go package, the corpus's own consumer, other Go source, and two UNRELATED testdata/ trees
+# (a widening to testdata/* or internal/* reddens here, and those are the two most tempting).
+for probe in internal/repository/build.go internal/repository/build_test.go \
+             internal/domain/entities_test.go internal/document/testdata/crlf-full.md \
+             internal/harness/claude/testdata/golden/docket-adr.md; do
+  grep -qxF "$probe" <<<"$files_joined" \
+    && ok "walk includes $probe (frozen-corpus exclusion did not reach it)" \
+    || nok "walk MISSES $probe — the frozen-corpus exclusion is wider than the corpus"
+done
+
+# BOUNDED, exhaustive half: the probes prove named paths survived; this proves NOTHING ELSE was
+# dropped. The two prefixes are RESTATED here on purpose — a control that reuses the walk's own
+# pattern cannot catch a widened pattern, and a widened exclusion is the failure mode that matters,
+# because it shrinks the guarded surface while every other assert in this file stays green.
+expected_kept=()
+for f in "${ALL_FILES[@]}"; do
+  case "$f" in
+    docs/*) continue ;;
+    internal/repository/testdata/corpus/*) continue ;;
+  esac
+  expected_kept+=("$f")
+done
+expected_joined=""
+[ "${#expected_kept[@]}" -gt 0 ] && expected_joined="$(printf '%s\n' "${expected_kept[@]}")"
+if [ "$files_joined" = "$expected_joined" ]; then
+  ok "exclusions are bounded to docs/ and internal/repository/testdata/corpus/ — nothing else is dropped"
+else
+  nok "the walk drops (or keeps) paths the two declared exclusions do not account for — '<' expected in scope, '>' actually in scope:"
+  diff <(printf '%s\n' "$expected_joined") <(printf '%s\n' "$files_joined") | sed 's/^/       /'
+fi
 
 # --- self-membership: this guard is scanned like everything else ---------------------------------
 # Stays RED until this file is git-added. That is the tracked-only edge made loud, not a bug.
