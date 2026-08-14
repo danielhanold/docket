@@ -13,12 +13,12 @@ related: [298, 301]
 discovered_from: [303]
 adrs: [92]
 spec: docs/superpowers/specs/2026-08-13-domain-snapshot-validation-graphs-and-selection-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-14-domain-snapshot-validation-graphs-and-selection.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/domain-snapshot-validation-graphs-and-selection
-claimed_at: 2026-08-14T02:33:10Z
+claimed_at: 2026-08-14T02:39:23Z
 pr:
 blocked_by:
 reconciled: true
@@ -30,6 +30,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-13-domain-snapshot-validation-graphs-and-selection-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-13-domain-snapshot-validation-graphs-and-selection-design.md) |
+| Plan | [2026-08-14-domain-snapshot-validation-graphs-and-selection.md](https://github.com/danielhanold/docket/blob/feat/domain-snapshot-validation-graphs-and-selection/docs/superpowers/plans/2026-08-14-domain-snapshot-validation-graphs-and-selection.md) |
 | ADRs | [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md) |
 <!-- docket:artifacts:end -->
 
