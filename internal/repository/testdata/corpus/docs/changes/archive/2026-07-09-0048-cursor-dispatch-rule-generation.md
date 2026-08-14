@@ -1,0 +1,111 @@
+---
+id: 48
+slug: cursor-dispatch-rule-generation
+title: Generate Cursor dispatch rules; always write the full agent set per harness
+status: done
+priority: medium
+created: 2026-07-08
+updated: 2026-07-09
+depends_on: [46]
+related: [45, 16, 15]
+adrs: [15, 16, 17]
+spec: docs/superpowers/specs/2026-07-08-cursor-dispatch-rule-generation-design.md
+plan: docs/superpowers/plans/2026-07-08-cursor-dispatch-rule-generation.md
+results: docs/results/2026-07-08-cursor-dispatch-rule-generation-results.md
+trivial: false
+auto_groomable:
+branch: feat/cursor-dispatch-rule-generation
+pr: https://github.com/danielhanold/docket/pull/57
+blocked_by:
+reconciled: true
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-07-08-cursor-dispatch-rule-generation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-08-cursor-dispatch-rule-generation-design.md) |
+| Plan | [2026-07-08-cursor-dispatch-rule-generation.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-08-cursor-dispatch-rule-generation.md) |
+| Results | [2026-07-08-cursor-dispatch-rule-generation-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-08-cursor-dispatch-rule-generation-results.md) |
+| PR | [#57](https://github.com/danielhanold/docket/pull/57) |
+| ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md), [ADR-0017](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0017-cursor-dispatch-rule-full-agent-set.md) |
+<!-- docket:artifacts:end -->
+
+## Why
+
+Cursor has a quirk that defeats docket's agent layer: when a skill is invoked directly in
+Cursor's agent chat, Cursor does not dispatch to the skill's bound subagent — it runs the skill
+inline at whatever model is currently selected. The model/effort-pinned wrappers (0016/0045/0046)
+therefore run at an arbitrary model on Cursor, which is exactly what they exist to prevent.
+
+The proven workaround is a Cursor rule file (`.cursor/rules/docket-dispatch.mdc`, `alwaysApply: true`)
+that intercepts the request and forces a Task dispatch to the matching `subagent_type`. Today these
+rules are hand-authored per Cursor repo. docket already generates the Cursor agents (via
+`sync-agents.sh`); it should generate the dispatch rule alongside them, at both the user-level
+(`~/.cursor/rules/`) and per-repo (`<repo>/.cursor/rules/`) layers.
+
+A dispatch rule is only correct if every `subagent_type` it names has a matching agent file in the
+same layer, or Cursor silently falls back to inline. But per-repo generation is listed-only (it
+writes only the agents keyed in the `.docket.yml` `agents:` block), while the block was only ever
+meant to carry model/effort overrides — not to decide which agents exist. The agents compose
+(implement-next → status/adr; finalize → rebase-resolver/integration-repair; auto-groom → its
+critic), so a harness needs all of them. Conflating "listed in config" with "gets generated" is the
+real friction, and it makes the dispatch rule's targets unreliable.
+
+## What changes
+
+Three coherent pieces in `sync-agents.sh`, layered on 0046 (full design in the linked spec):
+
+- **Always-full-set generation** — flip the per-repo pass to iterate the full built-in agent set
+  (mirroring the user-level pass), resolving each agent's model per harness through the existing
+  fallback chain. The `agents:` block becomes override-only; an unconfigured agent still generates
+  at its built-in default. Every targeted harness gets every agent in every layer, so dispatch
+  targets resolve by construction.
+- **Cursor dispatch rule** — authored source in a new `cursor-rules/` dir (a static `dispatch.head.md`
+  preamble + one `dispatch/docket-<name>.md` fragment per agent); the generator assembles
+  `docket-dispatch.mdc` as head + the fragments of the agents that exist, written user-level
+  (`~/.cursor/rules/`) and per-repo committed (`<repo>/.cursor/rules/`, when `cursor ∈ agent_harnesses`),
+  and joins the `--check` drift gate.
+- **Prune step** — make the generator idempotent under removal: after regeneration, delete orphaned
+  docket-owned files (a built-in agent docket no longer ships; a harness de-listed from
+  `agent_harnesses`), scoped strictly to `docket-*` names.
+
+## Out of scope
+
+- A rules mechanism for non-Cursor harnesses (only Cursor has the quirk).
+- Validating model IDs against a harness roster (docket stays passthrough, ADR-0015).
+- A single dense dispatch-table layout (rejected in favor of per-agent subsections).
+- Migrating pre-existing hand-authored per-agent `.mdc` rule files.
+- Folding this into 0046 (it stays "harness-first resolution"; this is layered on it).
+
+## Open questions
+
+- ADR shape: a new ADR vs a dated `## Update` on ADR-0015/0016 — decided at the build's ADR step.
+
+## Reconcile log
+
+<!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-08 — reconcile before build
+
+Verified against current `origin/main` (d23de96, the 0046 close-out) and confirmed the change is
+current — no scope adjustment needed. It was drafted today against this exact HEAD.
+
+- **Both target problems confirmed live in `sync-agents.sh`.** `user_level_pass` iterates the full
+  built-in set (`for src in agents/docket-*.md`); `project_level_pass` iterates only the config-listed
+  `agent_keys` — the listed-only asymmetry Piece 1 fixes. No `cursor-rules/` directory and no
+  `.cursor/` dir exist in the repo yet, matching the spec's greenfield assumption.
+- **Dependency #46 is `done`** (archived `2026-07-08-0046-per-harness-agent-models.md`). All the
+  0046 machinery the spec builds on is present: `resolve_agent` (field-level harness→default→built-in),
+  `section_body`, `agent_keys`, `agents_block_harnesses`, `warn_fallback_model`, `legacy_agent_keys`.
+- **Related 45/16/15 all `done`; cited ADR-0015/0016 exist.** The change refines (does not reverse)
+  them — the new-ADR-vs-`## Update` decision stays deferred to the build's ADR step per Open questions.
+- **Built-in agent set is the expected 8 wrappers** (adr, auto-groom, auto-groom-critic,
+  finalize-change, implement-next, integration-repair, rebase-resolver, status) — the set the
+  always-full-set pass (Piece 1) and dispatch-rule assembly (Piece 2) iterate.
+- **This repo's own `.docket.yml` stays `claude`-only** (`agent_harnesses` commented → default
+  `[claude]`, no `agents:` block), so the Cursor per-repo path is exercised only by the tests via the
+  `DOCKET_HARNESS_ROOT` seam, not by this repo's committed files — no change to this repo's `.cursor/`.
+
+Dropped: nothing. Adjusted: nothing. Folded in: nothing.

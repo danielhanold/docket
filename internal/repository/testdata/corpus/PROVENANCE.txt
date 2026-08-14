@@ -1,0 +1,22 @@
+Frozen v0.9.2 corpus — real records copied byte for byte out of docket's own
+metadata branch on 2026-08-14 with:
+
+    git -C .docket show docket:<path> > internal/repository/testdata/corpus/<path>
+
+These are frozen bytes. They are never regenerated: a corpus that drifts with
+the repository stops proving anything about the format it froze. If a record's
+live counterpart changes, the copy here stays as it was.
+
+The sample is closed under every reference whose absence is an error — change
+depends_on and stacked_on, and the whole ADR relationship graph including each
+ADR's producing change — so it builds with no error findings. Associative
+references out of the sample (related, discovered_from, adrs, learning changes)
+stay visible as warnings, which is the point: a composer supplying part of a
+repository is a supported call, not a defect.
+
+Roles covered: archived done changes (0002, 0005, 0016, 0045, 0046, 0048,
+0050, 0051, 0304), an archived killed change (0124), a deferred active change
+(0007), an active proposed change with a dependency and a spec (0308), Accepted
+ADRs (0001, 0002, 0003, 0008, 0015, 0016, 0019, 0020), both members of a
+supersede pair (0017 superseded by 0020), and a learnings-ledger finding
+(check-plumbing-auto-discovery).
