@@ -1,14 +1,8 @@
 # Backlog
 
-**321 changes** — 🟢 1 in progress · 🟡 53 proposed · ⚪ 4 deferred · ✅ 183 done · 🗑️ 80 killed
+**323 changes** — 🟡 55 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 183 done · 🗑️ 80 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0311](active/0311-installer-embedded-assets-and-four-harnesses.md) | Installer, embedded assets, and four first-class harnesses | `critical` | `feat` | [spec](../superpowers/specs/2026-08-13-installer-embedded-assets-and-four-harnesses-design.md) | `feat/installer-embedded-assets-and-four-harnesses` |
-
-## 🟡 Proposed (53)
+## 🟡 Proposed (55)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -60,11 +54,13 @@
 | [0314](active/0314-native-process-supervisor-and-local-gate.md) | Native process supervisor and local gate | `critical` | `feat` | needs-brainstorm |
 | [0315](active/0315-claim-to-implemented-workflow.md) | Claim-to-implemented agent workflow | `critical` | `feat` | ⏳ waiting on #312 — not yet built |
 | [0316](active/0316-finalize-recovery-reclaim-archive-and-stacks.md) | Finalize, recovery, reclaim, archive, and stacks | `critical` | `feat` | ⏳ waiting on #315 — not yet built |
-| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | ⏳ waiting on #311 — not yet built |
+| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | ⏳ waiting on #311 — needs your merge |
 | [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Configuration contraction, self-hosting, and hard cutover | `critical` | `refactor` | ⏳ waiting on #317 — not yet built |
 | [0319](active/0319-test-bash-runtime-routing-sh-s-inventory-assert-is-cwd-depen.md) | test_bash_runtime_routing.sh's inventory assert is cwd-dependent — relative rg globs resolve against the process cwd | `medium` | `fix` | needs-brainstorm |
 | [0320](active/0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | `medium` | `chore` | needs-brainstorm |
 | [0321](active/0321-render-artifact-backlink-sh-eats-artifact-tails-on-marker-sh.md) | render-artifact-backlink.sh eats artifact tails on marker-shaped literals — anchor whole-line, validate balance, refuse | `medium` | `fix` | needs-brainstorm |
+| [0322](active/0322-go-installer-adopt-legacy-bash-installed-user-level-artifact.md) | Go installer: adopt legacy Bash-installed user-level artifacts via a frozen legacy renderer | `medium` | `feat` | needs-brainstorm |
+| [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -74,6 +70,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0311](active/0311-installer-embedded-assets-and-four-harnesses.md) | Installer, embedded assets, and four first-class harnesses | `critical` | `feat` | [#207](https://github.com/danielhanold/docket/pull/207) |  |
 
 ```mermaid
 graph TD
@@ -144,6 +146,8 @@ graph TD
   0319
   0320
   0321
+  0322
+  0323
   0192:::done
   0211:::done
   0304:::done
