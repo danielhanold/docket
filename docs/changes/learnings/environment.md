@@ -2,9 +2,9 @@
 slug: environment
 hook: "A RED suite in a build sandbox or an installed dev shell is a hypothesis, not a verdict — re-run it on the unmodified base."
 topics: [testing, environment, ci]
-changes: [34, 66]
+changes: [34, 66, 311]
 created: 2026-06-21
-updated: 2026-07-13
+updated: 2026-08-14
 promotion_state: retained
 promoted_to:
 ---
@@ -24,3 +24,9 @@ their own sub-shells so an installed shell can't false-RED them.
   facts (`origin/HEAD` unresolvable behind a proxied remote, a umask-dependent file mode, a timeout).
   Both were proven environment-bound by re-running the identical suite against unmodified `origin/main`
   and byte-comparing the failing sets.
+- 2026-08-14 (#311, PR #207) — The mirror case: the merge gate's detached runner ran RED where the
+  environmental difference was the *revealer*, not the cause. A umask-077 runner exposed a genuine
+  installer defect (documented 0755/0644 targets landing 0700/0600 because the create-time mode
+  argument is umask-masked), alongside one genuinely test-side failure. So the differential re-run
+  cuts both ways: it separates false RED from real defect, and "it only fails in the sandbox" is
+  never on its own grounds to wave a failure through.

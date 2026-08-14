@@ -44,6 +44,10 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 - [exit-code-encodes-a-non-failure](exit-code-encodes-a-non-failure.md) — A new exit code for a non-failure condition reads as a hard failure at every bare non-zero consumer — enumerate the callers before minting it, and default the advisory case to 0. · also: contracts, gates ⟨needs promotion⟩
 
+## filesystem
+
+- [promised-file-mode-needs-explicit-chmod](promised-file-mode-needs-explicit-chmod.md) — A create-time permission argument is a request, not a promise — the process umask masks it, so chmod what you documented. · also: permissions, testing ⟨needs promotion⟩
+
 ## git
 
 - [cas-re-read-fresh-origin](cas-re-read-fresh-origin.md) — A CAS retry must re-derive eligibility from FRESH ORIGIN state — re-reading the working tree you just wrote always reads back your own write and mislabels every real race as a no-op. · also: concurrency, scripts ⟨needs promotion⟩
