@@ -11,18 +11,23 @@
 # portability, which is true or false independent of the machine running the suite.
 #
 # SCOPE: every tracked path (git ls-files, anchored on the repo root resolved from BASH_SOURCE),
-# minus the two prefixes below. NO extension filter — an extension list is the same re-enumeration
-# on a different axis (.mdc, .py, an extensionless hook) and buys nothing. Binary safety comes from
-# grep -I.
+# minus the two prefixes below. The WALK carries no extension filter — an extension list is the same
+# re-enumeration on a different axis (.mdc, .py, an extensionless hook) and buys nothing. Binary
+# safety comes from grep -I.
 #
-# A FALSE POSITIVE IS POSSIBLE — earlier wording here claimed none was, and Go source disproved it.
-# A one-element composite literal is byte-identical to a repetition bound: a slice literal holding
-# the single id 305 is read as a bound of 305, and reddens this guard. (That literal cannot be
-# written out here, for the SELF-MEMBERSHIP reason below — this file is in its own scanned
-# population.) The answer is a repair at the offending SITE, not an extension filter — see
-# fullChangeSpec in internal/domain/entities_test.go, whose one-element ids are chosen at or below
-# MAX_BOUND for exactly this reason and say so. The cost is a value choice in a test fixture; an
-# extension filter would cost the whole guarded surface of whatever extension it named.
+# ONE PER-CLASS EXEMPTION, AND ONLY ONE: Go source (*.go) is out of scope for the ERE/BRE INTERVAL
+# class, and for nothing else — the word-boundary class below still scans every .go file. Rationale:
+# a one-element Go composite literal is byte-identical to a repetition bound, so a []ChangeID slice
+# holding one id above 255 is read as a bound of that id and reddens the interval class. (Such a
+# literal cannot be written out here, for the SELF-MEMBERSHIP reason below — this file is in its
+# own scanned population, and the *.go exemption does not cover it.) Those bytes
+# are not grep surface: Go patterns are compiled by regexp/RE2, which accepts bounds far above 255,
+# and no tracked .go file hands a pattern to grep — shell scripts do, and every one of them is still
+# scanned, including the .sh files under internal/assets/embedded/tree that Go merely embeds. The
+# earlier ruling here was the opposite — repair the SITE, never filter an extension — and its cost
+# was that every future Go author had to pick fixture ids below 255 for a reason with nothing to do
+# with Go. The exemption is per-CLASS and per-SUFFIX, its boundary is asserted exhaustively below,
+# and it must be revisited the moment Go source starts composing grep patterns.
 #
 # TWO EXCLUSIONS, BOTH BY WALK SCOPE, BOTH DECISIONS. NO ALLOWLIST: exclusions are by walk scope,
 # never by exception entry (ADR-0050), and a third frozen tree gets its own prefix line and its own
@@ -111,6 +116,11 @@ INTERVAL='\\?\{[0-9]+(,[0-9]*)?\\?\}'
 # blind. -I skips binaries; -o emits one interval per line; -n prefixes the source line number.
 scan_file(){ grep -InoE "$INTERVAL" "$1" 2>/dev/null; }
 
+# The interval class's ONE per-suffix exemption (see the header): Go source. Exactly the *.go
+# suffix — .gohtml, .go.md, a file literally named "go" and a directory component named go/ are all
+# still scanned, and the controls at the bottom assert that boundary rather than describing it.
+interval_exempt(){ case "$1" in *.go) return 0 ;; *) return 1 ;; esac; }
+
 # The TWO-BACKSLASH source spelling of the word-boundary form. Written with an assembled backslash
 # literal for the same self-membership reason as the fixtures below: this pattern is itself
 # scanned. Two source backslashes, then b, < or >. It is byte-level only: a double-quoted
@@ -157,6 +167,15 @@ offenders(){
       nums="${nums#*,}"
     done
   done
+}
+
+# ONE decision-plus-scan path for the interval class, used by the main loop AND every control below,
+# so a control cannot stay green while the loop goes blind — and so the exemption is exercised on
+# the same code path it governs. $1 is the repo-relative path, which DECIDES scope; $2 is the file
+# actually read, which the controls point at a fixture.
+interval_offenders(){
+  interval_exempt "$1" && return 0
+  offenders <<<"$(scan_file "$2")"
 }
 
 # --- informational, NON-GATING: which grep did this run actually exercise? -----------------------
@@ -274,6 +293,8 @@ ob_sites=""   # file:lineno carrying a one-backslash \b / \< / \>
 wb_sites=""   # file:lineno carrying the two-backslash spelling (a subset of the above)
 scanned=0
 skipped=""
+interval_scanned=""   # every path the interval class actually read
+interval_skipped=""   # every path the *.go exemption held back from it
 if [ "$n_files" -gt 0 ]; then
   for f in "${FILES[@]}"; do
     if [ ! -f "$ROOT/$f" ]; then
@@ -294,9 +315,12 @@ if [ "$n_files" -gt 0 ]; then
         ob_sites+="$f:${l%%:*}"$'\n'
       done <<<"$ob_hits"
     fi
-    hits="$(scan_file "$ROOT/$f")"
-    [ -n "$hits" ] || continue
-    bad="$(offenders <<<"$hits")"
+    if interval_exempt "$f"; then
+      interval_skipped+="$f"$'\n'
+    else
+      interval_scanned+="$f"$'\n'
+    fi
+    bad="$(interval_offenders "$f" "$ROOT/$f")"
     if [ -n "$bad" ]; then
       while IFS= read -r l; do
         violations+="$f:$l"$'\n'
@@ -314,6 +338,46 @@ else
   nok "scanned $scanned of $n_files tracked files — the scan loop is not reaching the population; skipped:"
   printf '%s' "$skipped" | sed 's/^/       /'
 fi
+
+# --- interval-class exemption: it must fire, and it must stop where it says it stops ------------
+# It must not be exempting thin air. If no .go file is tracked, the exemption is dead weight that
+# would keep a future Go tree silently unscanned by a rule nobody can see is unused.
+n_exempt="$(printf '%s' "$interval_skipped" | grep -c . || true)"
+[ "${n_exempt:-0}" -gt 0 ] \
+  && ok "the *.go interval exemption covers real tracked files ($n_exempt files)" \
+  || nok "no tracked .go file was exempted — the interval exemption is dead; delete it rather than leave a rule nobody can see is unused"
+
+# EXHAUSTIVE half, same discipline as the walk's boundedness control: the *.go pattern is RESTATED
+# here on purpose, because a control reusing the predicate cannot catch a widened predicate — and a
+# widened exemption shrinks the guarded surface while every other assert stays green.
+expected_interval=""
+expected_exempt=""
+for f in "${FILES[@]}"; do
+  case "$f" in
+    *.go) expected_exempt+="$f"$'\n' ;;
+    *)    expected_interval+="$f"$'\n' ;;
+  esac
+done
+if [ "$interval_scanned" = "$expected_interval" ] && [ "$interval_skipped" = "$expected_exempt" ]; then
+  ok "the interval exemption is bounded to exactly the *.go suffix — nothing else is skipped"
+else
+  nok "the interval scan skips (or reads) paths the *.go exemption does not account for — '<' expected interval-scanned, '>' actually interval-scanned:"
+  diff <(printf '%s' "$expected_interval") <(printf '%s' "$interval_scanned") | sed 's/^/       /'
+fi
+
+# PROBE half: the near misses a careless widening would swallow. Every one of these must stay in
+# scope for the interval class.
+for probe in internal/domain/entities_test.go internal/repository/build.go cmd/docket/main.go; do
+  interval_exempt "$probe" \
+    && ok "interval exemption covers $probe" \
+    || nok "interval exemption MISSES $probe — Go source is still being scanned for intervals"
+done
+for probe in tests/test_grep_portability.sh internal/x.gohtml internal/x.go.md go scripts/go.sh \
+             internal/go/x.sh internal/x.GO internal/xgo README.md; do
+  interval_exempt "$probe" \
+    && nok "interval exemption reached $probe — it is wider than the *.go suffix it claims" \
+    || ok "interval exemption does not reach $probe"
+done
 
 if [ -z "$violations" ]; then
   ok "no ERE repetition bound above $MAX_BOUND in maintained source"
@@ -368,6 +432,21 @@ edge_hit="$(offenders <<<"$(scan_file "$tmp/edge.txt")")"
 [ -n "$edge_hit" ] \
   && ok "boundary control: a bound of $edge (one past $MAX_BOUND) is reported" \
   || nok "boundary control FAILED: $edge slipped through — the threshold is off by at least one"
+
+# The exemption's mutation controls: the SAME planted over-bound, read through the SAME
+# interval_offenders path the loop uses, differing only in the path's suffix. Green for .go and red
+# for .sh is the whole claim of the exemption, asserted rather than asserted-about.
+cp "$tmp/over.txt" "$tmp/over.go"
+cp "$tmp/over.txt" "$tmp/over.sh"
+go_hit="$(interval_offenders "internal/planted/over.go" "$tmp/over.go")"
+[ -z "$go_hit" ] \
+  && ok "exemption control: a planted over-$MAX_BOUND bound in a .go path is NOT reported" \
+  || nok "exemption control FAILED: a .go path was still interval-scanned — the exemption is not applied"
+
+sh_hit="$(interval_offenders "tests/planted/over.sh" "$tmp/over.sh")"
+[ -n "$sh_hit" ] \
+  && ok "exemption control: the same planted bound in a .sh path IS still reported" \
+  || nok "exemption control FAILED: a .sh path escaped the interval scan — the exemption leaked past *.go"
 
 bre_hit="$(offenders <<<"$(scan_file "$tmp/bre.txt")")"
 [ -n "$bre_hit" ] \
