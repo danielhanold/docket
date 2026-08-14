@@ -2,11 +2,11 @@
 id: 311
 slug: installer-embedded-assets-and-four-harnesses
 title: 'Installer, embedded assets, and four first-class harnesses'
-status: in-progress
+status: implemented
 priority: critical
 type: feat
 created: 2026-08-12
-updated: 2026-08-13
+updated: 2026-08-14
 depends_on: [304, 305]
 stacked_on:
 related: [77, 135, 192, 242]
@@ -14,12 +14,12 @@ discovered_from: [303]
 adrs: [60, 78]
 spec: docs/superpowers/specs/2026-08-13-installer-embedded-assets-and-four-harnesses-design.md
 plan: docs/superpowers/plans/2026-08-13-installer-embedded-assets-and-four-harnesses.md
-results:
+results: docs/results/2026-08-13-installer-embedded-assets-and-four-harnesses-results.md
 trivial: false
 auto_groomable:
 branch: feat/installer-embedded-assets-and-four-harnesses
-claimed_at: 2026-08-13T20:31:39Z
-pr:
+claimed_at: 2026-08-14T00:14:41Z
+pr: https://github.com/danielhanold/docket/pull/207
 blocked_by:
 reconciled: true
 ---
@@ -31,6 +31,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-13-installer-embedded-assets-and-four-harnesses-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-13-installer-embedded-assets-and-four-harnesses-design.md) |
 | Plan | [2026-08-13-installer-embedded-assets-and-four-harnesses.md](https://github.com/danielhanold/docket/blob/feat/installer-embedded-assets-and-four-harnesses/docs/superpowers/plans/2026-08-13-installer-embedded-assets-and-four-harnesses.md) |
+| Results | [2026-08-13-installer-embedded-assets-and-four-harnesses-results.md](https://github.com/danielhanold/docket/blob/feat/installer-embedded-assets-and-four-harnesses/docs/results/2026-08-13-installer-embedded-assets-and-four-harnesses-results.md) |
+| PR | [#207](https://github.com/danielhanold/docket/pull/207) |
 | ADRs | [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md), [ADR-0078](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) |
 <!-- docket:artifacts:end -->
 
