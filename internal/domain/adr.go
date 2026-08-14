@@ -34,9 +34,10 @@ const (
 // reverses edge requires ReversedBy(X), and a *By status on Y naming Z
 // requires Z to exist and to carry the verb-matched edge back to Y. Every
 // reference that no single record resolves — including one more than one
-// record claims — is a dangling error, and unallocated IDs below the highest
-// existing one are warnings. Ordering of the returned slice is stable;
-// ValidationReport imposes the report's own total order.
+// record claims — is a dangling finding, graded by adrReferenceSeverity, and
+// unallocated IDs below the highest existing one are warnings. Ordering of the
+// returned slice is stable; ValidationReport imposes the report's own total
+// order.
 func ValidateADRGraph(s Snapshot) []Finding {
 	var findings []Finding
 	for _, a := range s.ADRs() {
@@ -186,6 +187,21 @@ func adrIDGaps(s Snapshot) []Finding {
 	return findings
 }
 
+// adrReferenceSeverity grades a dangling reference by what the field encodes.
+// supersedes, reverses, and status are two-sided invariants: the other half of
+// the relationship must exist for the graph to mean anything, so an unresolved
+// target is an error. relates_to and the producing-change back-link are
+// associative — they gate nothing, and a repository holding only part of the
+// corpus legitimately leaves them unresolved — so those warn, mirroring
+// referenceSeverity on the change side.
+func adrReferenceSeverity(field string) Severity {
+	switch field {
+	case "relates_to", "change":
+		return SeverityWarning
+	}
+	return SeverityError
+}
+
 // adrRef builds the finding reference for an ADR ID.
 func adrRef(id ADRID) EntityRef { return EntityRef{Kind: EntityADR, ID: int(id)} }
 
@@ -200,7 +216,8 @@ func adrSelfReference(a ADR, field string) Finding {
 }
 
 // adrDangling builds the dangling-reference finding, recording whether the
-// reference was absent or claimed by more than one record.
+// reference was absent or claimed by more than one record. Severity follows
+// adrReferenceSeverity — the two-sided fields error, the associative ones warn.
 func adrDangling(a ADR, field string, target EntityRef, out LookupOutcome) Finding {
 	lookup := "absent"
 	if out == LookupAmbiguous {
@@ -208,7 +225,7 @@ func adrDangling(a ADR, field string, target EntityRef, out LookupOutcome) Findi
 	}
 	return Finding{
 		Code:     CodeADRDanglingReference,
-		Severity: SeverityError,
+		Severity: adrReferenceSeverity(field),
 		Entity:   adrRef(a.ID()),
 		Field:    field,
 		Related:  []EntityRef{target},
