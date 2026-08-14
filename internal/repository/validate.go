@@ -112,7 +112,7 @@ func changeRef(c domain.Change) domain.EntityRef {
 	return domain.EntityRef{Kind: domain.EntityChange, ID: int(c.ID()), Slug: c.Slug(), Path: c.Path()}
 }
 
-// adrRef builds the finding subject for an ADR record.
+// adrEntityRef builds the finding subject for an ADR record.
 func adrEntityRef(a domain.ADR) domain.EntityRef {
 	return domain.EntityRef{Kind: domain.EntityADR, ID: int(a.ID()), Slug: a.Slug(), Path: a.Path()}
 }

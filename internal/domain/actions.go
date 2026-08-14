@@ -495,7 +495,8 @@ func (b *changeBuilder) clearClaimedAt() {
 
 // setUpdated stamps the date-only updated: field from the injected time.
 func (b *changeBuilder) setUpdated(now time.Time) {
-	day := now.UTC().Truncate(time.Second)
+	u := now.UTC()
+	day := time.Date(u.Year(), u.Month(), u.Day(), 0, 0, 0, 0, time.UTC)
 	next := OptionalTime{State: FieldPresent, Value: day, Raw: day.Format(dateLayout)}
 	b.record("updated", b.spec.Updated.Raw, next.Raw)
 	b.spec.Updated = next

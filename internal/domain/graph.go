@@ -154,8 +154,11 @@ type frame struct {
 }
 
 // cyclesOf enumerates every elementary cycle in adj with an iterative
-// depth-first search — an explicit stack, never recursion, so malformed input
-// cannot blow the goroutine stack or loop forever. Each cycle is found exactly
+// depth-first search — an explicit stack, never recursion, so no input can
+// exhaust the goroutine stack, and the search always terminates. Enumeration
+// is exponential in the worst case on dense cyclic graphs; real dependency
+// graphs are sparse, and any cycle at all is already a validation error. Each
+// cycle is found exactly
 // once by searching only from its smallest member: the walk rooted at start
 // visits no node below start, so any path returning to start is already
 // rotation-normalized.
