@@ -19,9 +19,9 @@ type LookupOutcome int
 
 // The closed set of lookup outcomes. LookupFound is the zero value.
 const (
-	LookupFound    LookupOutcome = iota // exactly one record carries the id
-	LookupAbsent                        // no record carries the id
-	LookupAmbiguous                     // more than one record carries the id — no winner is picked
+	LookupFound     LookupOutcome = iota // exactly one record carries the id
+	LookupAbsent                         // no record carries the id
+	LookupAmbiguous                      // more than one record carries the id — no winner is picked
 )
 
 // ambiguousIndex marks an id that more than one record claims. Picking a winner
