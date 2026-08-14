@@ -310,7 +310,9 @@ func KillStackParent(s Snapshot, id ChangeID) (StackKillResult, *PolicyFailure) 
 	return result, nil
 }
 
-// Reclaim is declared by Task 9 alongside the reclaim predicate it evaluates.
+// Reclaim is declared in lease.go, alongside the EvaluateReclaim predicate it
+// evaluates: the transition is trivial, and the policy that gates it is the
+// lease vocabulary.
 
 // requireStatus refuses c unless its status is one of the legal source states,
 // naming the attempted action in the failure detail.
