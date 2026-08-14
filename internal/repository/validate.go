@@ -157,8 +157,8 @@ func present(o domain.OptionalString) bool {
 
 // filenameIdentity splits a record base name into its numeric id and slug
 // parts. archived strips the leading YYYY-MM-DD- date prefix first. The slug
-// part is returned as written: writers truncate long slugs in filenames, so
-// the caller compares by prefix rather than by equality.
+// part is returned as written, for the caller to compare against the
+// frontmatter slug.
 func filenameIdentity(base string, archived bool) (id int, slug string, ok bool) {
 	name, found := strings.CutSuffix(base, ".md")
 	if !found {
@@ -182,12 +182,13 @@ func filenameIdentity(base string, archived bool) (id int, slug string, ok bool)
 }
 
 // identityMatchesFilename reports whether a base name names the given id and
-// slug. The filename slug must be a prefix of the frontmatter slug: docket's
-// writers truncate the filename at a fixed width, so a long slug legitimately
-// appears cut short on disk while the frontmatter keeps it whole.
+// slug. Both halves must agree exactly: docket's writers truncate the slug
+// itself before writing it, so the same value lands in the frontmatter and in
+// the filename and any divergence is a defect. Prefix matching would also make
+// the check vacuous for a base name carrying no slug at all.
 func identityMatchesFilename(base string, archived bool, id int, slug string) bool {
 	fileID, fileSlug, ok := filenameIdentity(base, archived)
-	return ok && fileID == id && strings.HasPrefix(slug, fileSlug)
+	return ok && fileID == id && fileSlug == slug
 }
 
 // validateChanges runs every per-record change rule: identity, placement,
