@@ -18,10 +18,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/domain-snapshot-validation-graphs-and-selection
-claimed_at: 2026-08-14T02:31:22Z
+claimed_at: 2026-08-14T02:33:10Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -71,3 +71,11 @@ status change or an append-only `## Update`. Learning relevance remains skill ju
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+**2026-08-14** — Reconciled against origin/main at e9892fb1. Dependencies 0305 (config envelope)
+and 0306 (loss-preserving document layer) are done and their deliverables verified on main:
+`internal/config` exports `Effective`/`Snapshot`, `internal/document` exports
+`Document.DecodeFrontmatter` and the patch/marker surface the spec cites. `internal/domain` and
+`internal/repository` do not yet exist — scope is intact as specced. Note: 0311 (installer,
+embedded assets, harnesses) has since landed on main; it shares no files with this change and
+required no scope adjustment. Spec (2026-08-13) taken as-is; no auto-capture candidates surfaced.
