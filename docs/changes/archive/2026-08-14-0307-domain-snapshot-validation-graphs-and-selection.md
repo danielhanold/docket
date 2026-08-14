@@ -2,7 +2,7 @@
 id: 307
 slug: domain-snapshot-validation-graphs-and-selection
 title: 'Domain snapshot, validation, graphs, and selection'
-status: implemented
+status: done
 priority: critical
 type: feat
 created: 2026-08-12
@@ -18,7 +18,7 @@ results: docs/results/2026-08-14-domain-snapshot-validation-graphs-and-selection
 trivial: false
 auto_groomable:
 branch: feat/domain-snapshot-validation-graphs-and-selection
-claimed_at: 2026-08-14T04:53:15Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/208
 blocked_by:
 reconciled: true
