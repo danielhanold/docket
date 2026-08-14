@@ -405,6 +405,33 @@ func TestDevInstallMissingSource(t *testing.T) {
 	}
 }
 
+// A development install shares the release install's whole mutating span, so it
+// shares its lock. The refusal lands before the toolchain runs: a build under a
+// lock this run will never get is work nobody asked for.
+func TestDevInstallRefusesWhileAnotherRunHoldsTheLock(t *testing.T) {
+	w := newWorld(t)
+	mkdirAll(t, w.path(".toy"))
+	src := newSource(t)
+	g := &goRun{body: "binary\n"}
+	holdInstallLock(t, w.roots)
+	before := snapshot(t, w.home)
+
+	out := install.DevelopmentInstall(w.devOptions(t, src, filepath.Join(w.home, "bin"), g))
+	if out.Reason != install.ReasonInstallInProgress {
+		t.Fatalf("reason = %q, want %q (err %v)", out.Reason, install.ReasonInstallInProgress, out.Err)
+	}
+	if !errors.Is(out.Err, install.ErrInstallLocked) {
+		t.Errorf("err = %v, want ErrInstallLocked", out.Err)
+	}
+	if out.Applied {
+		t.Errorf("a refused development install reported applied work")
+	}
+	if g.calls != 0 {
+		t.Errorf("a refused development install still ran the toolchain %d time(s)", g.calls)
+	}
+	assertUnchanged(t, before, snapshot(t, w.home), "development install under a held lock")
+}
+
 func TestDevInstallIsIdempotent(t *testing.T) {
 	w := newWorld(t)
 	mkdirAll(t, w.path(".toy"))

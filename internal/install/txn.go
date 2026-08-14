@@ -507,6 +507,12 @@ func (t *Txn) Commit(statePath string, s *State) error {
 // A directory without a plan.json is not a recovery: the journal is renamed into
 // place before any destination is touched, so an interruption before that point
 // changed nothing.
+//
+// What it CANNOT report is whose journal it found. A live transaction and an
+// abandoned one are the same bytes on disk; only the exclusive installation
+// lock separates them (see lock.go), which is why the operation layer detects
+// under that lock and `install check` reports the ambiguity rather than
+// resolving it.
 func DetectRecovery(roots UserRoots) (string, bool, error) {
 	dir := roots.TransactionsDir()
 	entries, err := os.ReadDir(dir) // sorted by name, so the oldest id comes first
@@ -536,6 +542,11 @@ func DetectRecovery(roots UserRoots) (string, bool, error) {
 // Recover rolls the named journal back and removes it. It is deterministic: the
 // journal alone decides what is restored and in what order, so recovering the
 // same interruption twice produces the same world.
+//
+// It is only ever safe to call while holding the exclusive installation lock:
+// the journal is evidence that a transaction BEGAN, never that it ended, so
+// rolling one back without the lock can undo an installation that is still
+// running. recoverPending is the one caller, and it refuses without the lock.
 func Recover(fsops FSOps, roots UserRoots, txnID string) error {
 	if fsops == nil {
 		return errors.New("install: Recover requires a filesystem")

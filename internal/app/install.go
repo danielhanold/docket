@@ -111,6 +111,12 @@ func classifyInstall(out install.Outcome) Result {
 		install.ReasonAssetProtocolMismatch,
 		install.ReasonSourceAssetsDrifted,
 		install.ReasonStateInvalid,
+		// Another docket process holds the installation lock. Nothing about
+		// the user's input or their filesystem is wrong — the installation is
+		// momentarily not in a state this operation may act on, and the
+		// message says so — so it reads as invalid state rather than as an
+		// external failure, which would send someone hunting a fault.
+		install.ReasonInstallInProgress,
 		// An asset bundle that does not describe itself consistently is the
 		// same fact whether it was embedded in this binary or read from a
 		// checkout: what is on hand cannot be installed from. It reports as

@@ -217,6 +217,11 @@ func TestRootsDerivedPaths(t *testing.T) {
 	if got, want := roots.StatePath(), filepath.Join(data, "state", "install.json"); got != want {
 		t.Errorf("StatePath = %q, want %q", got, want)
 	}
+	// The lock sits at the root of the data tree because it serializes every
+	// mutation under it and belongs to no one subsystem.
+	if got, want := roots.LockPath(), filepath.Join(data, "install.lock"); got != want {
+		t.Errorf("LockPath = %q, want %q", got, want)
+	}
 	if got, want := roots.VersionDir("sha256:abc123"), filepath.Join(data, "versions", "sha256-abc123", "assets"); got != want {
 		t.Errorf("VersionDir = %q, want %q", got, want)
 	}
