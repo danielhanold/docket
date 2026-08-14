@@ -129,24 +129,10 @@ func finding(code string, sev domain.Severity, entity domain.EntityRef, field st
 
 // validToken reports whether s matches the shared identifier grammar —
 // lowercase alphanumerics in hyphen-separated runs, no leading, trailing, or
-// doubled hyphen. Slugs and topics share it.
+// doubled hyphen. Slugs and topics share it, and so does the domain layer's
+// claim-time slug guard, so the grammar lives once in domain.ValidSlugToken.
 func validToken(s string) bool {
-	if s == "" {
-		return false
-	}
-	for i := 0; i < len(s); i++ {
-		ch := s[i]
-		switch {
-		case ch >= 'a' && ch <= 'z', ch >= '0' && ch <= '9':
-		case ch == '-':
-			if i == 0 || i == len(s)-1 || s[i-1] == '-' {
-				return false
-			}
-		default:
-			return false
-		}
-	}
-	return true
+	return domain.ValidSlugToken(s)
 }
 
 // present reports whether an optional text field carries usable text. A key

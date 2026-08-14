@@ -205,6 +205,30 @@ func ValidTypeToken(s string) bool {
 	return true
 }
 
+// ValidSlugToken reports whether s matches the shared record-slug grammar —
+// lowercase alphanumerics in hyphen-separated runs, with no leading, trailing,
+// or doubled hyphen. It is the single rule every slug-shaped identifier is
+// held to: change, ADR, and learning slugs, and the repository layer's
+// validToken defers to it rather than restating the grammar.
+func ValidSlugToken(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		switch {
+		case ch >= 'a' && ch <= 'z', ch >= '0' && ch <= '9':
+		case ch == '-':
+			if i == 0 || i == len(s)-1 || s[i-1] == '-' {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 // BranchForSlug returns the deterministic feature branch name for a slug.
 func BranchForSlug(slug string) string {
 	return "feat/" + slug
