@@ -56,6 +56,12 @@ func changePath(id int, slug string) string {
 	return fmt.Sprintf("docs/changes/active/%0*d-%s.md", idDigits, id, slug)
 }
 
+// archivedChangePath is the archive path the same change sits at once closed
+// out — a date prefix ahead of the id, in a different directory.
+func archivedChangePath(id int, slug string) string {
+	return fmt.Sprintf("docs/changes/archive/2026-08-14-%0*d-%s.md", idDigits, id, slug)
+}
+
 // acceptedADR is the frozen before-state every ADR case starts from.
 func acceptedADR() string { return minimalADR(7, "a-decision", "Accepted") }
 
@@ -282,6 +288,34 @@ func TestValidateEvolutionADRIDReuseAtANewPath(t *testing.T) {
 	got := ValidateEvolution(evolutionInput(t, before, after))
 	if len(findingsWithCode(got, CodeIdentityReused)) != 1 {
 		t.Fatalf("want one %s, got %v", CodeIdentityReused, codesOf(got))
+	}
+}
+
+func TestValidateEvolutionIgnoresIdentityOnAMovedRecord(t *testing.T) {
+	cases := []struct {
+		name          string
+		before, after map[string]string
+	}{
+		{
+			name:   "change archived",
+			before: map[string]string{changePath(42, "alpha"): minimalChange(42, "alpha", "done")},
+			after: map[string]string{
+				archivedChangePath(42, "alpha"): minimalChange(42, "alpha", "done"),
+			},
+		},
+		{
+			name:   "adr renamed",
+			before: map[string]string{adrPath(7, "a-decision"): acceptedADR()},
+			after:  map[string]string{adrPath(7, "renamed"): minimalADR(7, "renamed", "Accepted")},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ValidateEvolution(evolutionInput(t, tc.before, tc.after))
+			if reuse := findingsWithCode(got, CodeIdentityReused); len(reuse) != 0 {
+				t.Fatalf("a move is not reuse, got %v", codesOf(got))
+			}
+		})
 	}
 }
 

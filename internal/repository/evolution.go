@@ -29,8 +29,9 @@ const (
 	// CodeIdentityMutated marks an existing record whose immutable identity
 	// (id or slug) was rewritten in place at the same path.
 	CodeIdentityMutated = "identity-mutated"
-	// CodeIdentityReused marks a new record that claims an id an existing
-	// before-snapshot record already holds at a different path.
+	// CodeIdentityReused marks a new record that claims an id another record
+	// STILL holds at a different path on the after side. A holder that
+	// vanished is a move, not a double claim.
 	CodeIdentityReused = "identity-reused"
 )
 
@@ -239,7 +240,7 @@ func identityFindings(before, after map[string]recordIdentity) []domain.Finding 
 			findings = append(findings, mutationFindings(previous, now)...)
 			continue
 		}
-		held := beforePathsByID[now.id]
+		held := survivingHolders(beforePathsByID[now.id], after)
 		if len(held) == 0 {
 			continue
 		}
@@ -249,6 +250,20 @@ func identityFindings(before, after map[string]recordIdentity) []domain.Finding 
 		}))
 	}
 	return findings
+}
+
+// survivingHolders keeps the before-paths that still exist in the after
+// snapshot. Only a surviving holder makes an id double-claimed: a holder that
+// vanished from the after side is the SAME record at a new path — an archive
+// move or a rename — and a move is not reuse.
+func survivingHolders(held []string, after map[string]recordIdentity) []string {
+	var surviving []string
+	for _, heldPath := range held {
+		if _, present := after[heldPath]; present {
+			surviving = append(surviving, heldPath)
+		}
+	}
+	return surviving
 }
 
 // mutationFindings reports an id or slug rewritten in place. Both can be wrong
