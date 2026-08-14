@@ -5,6 +5,7 @@ import "testing"
 // readySpec is a compact description of one change for the readiness tests.
 type readySpec struct {
 	id           ChangeID
+	slug         string
 	status       Status
 	spec         OptionalString
 	trivial      bool
@@ -21,8 +22,13 @@ func specRef(path string) OptionalString {
 
 // build turns a readySpec into an immutable Change.
 func (rp readySpec) build() Change {
+	slug := rp.slug
+	if slug == "" {
+		slug = "a-slug"
+	}
 	cs := ChangeSpec{
 		ID:        rp.id,
+		Slug:      slug,
 		Status:    rp.status,
 		Spec:      rp.spec,
 		Trivial:   rp.trivial,
@@ -75,6 +81,30 @@ func TestEvaluateReadinessPrecedence(t *testing.T) {
 				{id: 2, status: StatusProposed, spec: specRef("s.md")},
 				{id: 2, status: StatusProposed, spec: specRef("s.md")},
 			},
+			subject: 2,
+			want:    ReadyInvalid,
+		},
+		{
+			name:    "a non-positive id is invalid even when otherwise build-ready",
+			specs:   []readySpec{{id: 0, status: StatusProposed, spec: specRef("s.md")}},
+			subject: 0,
+			want:    ReadyInvalid,
+		},
+		{
+			name:    "a negative id is invalid",
+			specs:   []readySpec{{id: -3, status: StatusProposed, trivial: true}},
+			subject: -3,
+			want:    ReadyInvalid,
+		},
+		{
+			name:    "a slug outside the shared token grammar is invalid",
+			specs:   []readySpec{{id: 2, slug: "Bad_Slug", status: StatusProposed, spec: specRef("s.md")}},
+			subject: 2,
+			want:    ReadyInvalid,
+		},
+		{
+			name:    "a leading-hyphen slug is invalid",
+			specs:   []readySpec{{id: 2, slug: "-leading", status: StatusProposed, trivial: true}},
 			subject: 2,
 			want:    ReadyInvalid,
 		},
@@ -191,6 +221,20 @@ func TestEvaluateReadinessPrecedence(t *testing.T) {
 				t.Fatalf("EvaluateReadiness(%d).Kind = %q; want %q", tt.subject, got.Kind, tt.want)
 			}
 		})
+	}
+}
+
+// A record with no slug at all cannot be expressed through readySpec, whose
+// empty slug means "use the default", so this case is built directly.
+func TestEvaluateReadinessRejectsAnEmptySlug(t *testing.T) {
+	c := NewChange(ChangeSpec{ID: 2, Status: StatusProposed, Trivial: true})
+	s := NewSnapshot(SnapshotSpec{
+		Policy:  RepositoryPolicy{IntegrationBranch: "main"},
+		Changes: []Change{c},
+	})
+
+	if got := EvaluateReadiness(s, c, remotes()); got.Kind != ReadyInvalid {
+		t.Fatalf("Kind = %q; want %q for a change carrying no slug", got.Kind, ReadyInvalid)
 	}
 }
 

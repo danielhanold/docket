@@ -151,23 +151,58 @@ func frozenPrefixIntact(before, after []byte) bool {
 	return len(after) >= len(before) && bytes.Equal(after[:len(before)], before)
 }
 
-// appendedUpdateSections reports whether the tail after grew past before opens
-// an update section: the first non-blank appended line must be an update
-// heading, in either the legacy "## Update" or the current "## Update — …"
-// spelling.
+// appendedUpdateSections reports whether the tail after grew past before is
+// nothing but update sections: EVERY appended top-level ("## ") heading must be
+// an update heading, in either the legacy "## Update" or the current
+// "## Update — …" spelling, and the first non-blank appended line must be one
+// of them. Checking only the first heading would let an append open with a
+// legal update section and then continue with an arbitrary new "## Decision" —
+// growing a frozen record under cover of a legal opening.
+//
+// Deeper headings ("###" and below) are subsections of an update body and stay
+// legal, and lines inside a fenced code block are content rather than
+// structure: an update body may quote a document that has its own "## "
+// headings.
 func appendedUpdateSections(before, after []byte) bool {
 	tail := after[len(before):]
 	if len(tail) == 0 {
 		return false
 	}
+	opened, fenced := false, false
 	for _, line := range strings.Split(string(tail), "\n") {
 		line = strings.TrimSuffix(line, "\r")
-		if strings.TrimSpace(line) == "" {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+			fenced = !fenced
 			continue
 		}
-		return line == updateHeading || strings.HasPrefix(line, updateHeading+" ")
+		if fenced || trimmed == "" {
+			continue
+		}
+		if !opened {
+			if !isUpdateHeading(line) {
+				return false
+			}
+			opened = true
+			continue
+		}
+		if isTopLevelHeading(line) && !isUpdateHeading(line) {
+			return false
+		}
 	}
-	return false
+	return opened
+}
+
+// isTopLevelHeading reports whether line is a heading at exactly "## " level.
+// The trailing space is what excludes "###" and deeper, which are subsections.
+func isTopLevelHeading(line string) bool {
+	return line == "##" || strings.HasPrefix(line, "## ")
+}
+
+// isUpdateHeading reports whether line is an update section's heading, in
+// either the legacy bare spelling or the current "## Update — <date>" one.
+func isUpdateHeading(line string) bool {
+	return line == updateHeading || strings.HasPrefix(line, updateHeading+" ")
 }
 
 // statusValueSpan locates the status field's value token in exact source

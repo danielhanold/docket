@@ -92,6 +92,12 @@ func TestValidateEvolutionAcceptsAppendedUpdateSections(t *testing.T) {
 		"current heading":  "\n## Update — 2026-08-14\n\nSomething changed.\n",
 		"two appended":     "\n## Update — 2026-08-14\n\nOne.\n\n## Update — 2026-08-15\n\nTwo.\n",
 		"blank lines only": "\n\n\n## Update — 2026-08-14\n\nSomething changed.\n",
+		// A deeper heading is a subsection of the update body, not a new
+		// top-level section, so it stays legal.
+		"deeper heading in the body": "\n## Update — 2026-08-14\n\n### Detail\n\nSomething changed.\n",
+		// A fenced block inside an update body may legitimately contain a line
+		// that LOOKS like a section heading; fences are skipped, not parsed.
+		"fenced heading in the body": "\n## Update — 2026-08-14\n\n```md\n## Decision\n```\n\nSomething changed.\n",
 	}
 	for name, tail := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -141,6 +147,16 @@ func TestValidateEvolutionRejectsEveryFrozenByteChange(t *testing.T) {
 			after: strings.Replace(
 				strings.Replace(acceptedADR(), "status: Accepted", "status: Superseded by ADR-0099", 1),
 				"Body.", "Edited body.", 1),
+		},
+		{
+			name:   "an update heading followed by an arbitrary new section",
+			before: acceptedADR(),
+			after:  acceptedADR() + "\n## Update — 2026-08-14\n\nd\n\n## Decision\n\nSmuggled.\n",
+		},
+		{
+			name:   "an update heading followed by a new section after a closed fence",
+			before: acceptedADR(),
+			after:  acceptedADR() + "\n## Update — 2026-08-14\n\n```md\ntext\n```\n\n## Consequences\n\nSmuggled.\n",
 		},
 		{
 			name:   "trailing content appended that is not an update section",

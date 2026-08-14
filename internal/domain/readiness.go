@@ -34,8 +34,12 @@ type Readiness struct {
 //
 //  1. a change that is not proposed is not-proposed — no other condition is
 //     considered;
-//  2. a change whose ID more than one record claims is invalid, since no single
-//     record can be attributed to it;
+//  2. a change whose identity cannot be trusted is invalid: an ID more than one
+//     record claims (no single record can be attributed to it), a non-positive
+//     ID, or a slug outside the shared record-slug grammar. The latter two are
+//     not cosmetic — a build-ready verdict is a licence to claim the change,
+//     and Claim derives its branch name from the slug and refuses one that is
+//     not a usable branch component;
 //  3. an unmet dependency reports waiting-dependency BEFORE missing design is
 //     considered;
 //  4. missing design reports needs-brainstorm, or auto-groom-blocked when the
@@ -52,6 +56,9 @@ func EvaluateReadiness(s Snapshot, c Change, facts BranchFacts) Readiness {
 		return Readiness{Kind: ReadyNotProposed}
 	}
 	if _, out := s.Change(c.ID()); out == LookupAmbiguous {
+		return Readiness{Kind: ReadyInvalid}
+	}
+	if c.ID() <= 0 || !ValidSlugToken(c.Slug()) {
 		return Readiness{Kind: ReadyInvalid}
 	}
 

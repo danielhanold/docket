@@ -10,6 +10,7 @@ import (
 // selection order — or the exclusion being probed — actually reads.
 type selSpec struct {
 	id       ChangeID
+	slug     string
 	priority Priority
 	created  OptionalTime
 	kind     string
@@ -27,8 +28,13 @@ func (sp selSpec) build() Change {
 		status = StatusProposed
 	}
 	trivial := !sp.noDesign && sp.spec.State != FieldPresent
+	slug := sp.slug
+	if slug == "" {
+		slug = "a-slug"
+	}
 	return NewChange(ChangeSpec{
 		ID:       sp.id,
+		Slug:     slug,
 		Status:   status,
 		Priority: sp.priority,
 		Created:  sp.created,
@@ -196,6 +202,22 @@ func TestSelectQueueExcludesChangesWithAmbiguousIDs(t *testing.T) {
 	got := ids(SelectQueue(s, remotes(), SelectionFilter{}))
 	if !equalIDs(got, []ChangeID{8}) {
 		t.Fatalf("SelectQueue = %v; want [8] — neither record claiming 7 may be selected", got)
+	}
+}
+
+// Selection has no identity rule of its own: it gates on EvaluateReadiness,
+// which reports a record whose id or slug cannot be trusted as invalid. One row
+// here is enough to prove the exclusion reaches the queue.
+func TestSelectQueueExcludesInvalidIdentities(t *testing.T) {
+	s := selSnapshot(
+		selSpec{id: 0, priority: PriorityCritical},
+		selSpec{id: 8, slug: "Bad_Slug", priority: PriorityCritical},
+		selSpec{id: 9, priority: PriorityHigh},
+	)
+
+	got := ids(SelectQueue(s, remotes(), SelectionFilter{}))
+	if !equalIDs(got, []ChangeID{9}) {
+		t.Fatalf("SelectQueue = %v; want [9] — a non-positive id and an ungrammatical slug are invalid", got)
 	}
 }
 

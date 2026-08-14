@@ -18,13 +18,11 @@ func mustDate(t *testing.T, s string) time.Time {
 // fullChangeSpec returns a ChangeSpec with every field set to a distinctive
 // value, so a missing or mis-wired accessor cannot pass by coincidence.
 //
-// One constraint on the values, easy to trip over: a SINGLE-element brace
-// literal is byte-identical to an ERE repetition bound, and the repo-wide
-// guard tests/test_grep_portability.sh reads any such {N} with N above 255 as
-// "an ERE repetition bound above 255" — the bound BSD grep rejects. Keep the
-// number in a one-element []ChangeID{…} / []ADRID{…} at or below 255. A
-// multi-element literal ({301, 302}) is not affected: gofmt's space after the
-// comma is enough to break the resemblance.
+// The ids here are free values: a SINGLE-element brace literal is still
+// byte-identical to an ERE repetition bound, but the repo-wide guard
+// tests/test_grep_portability.sh exempts *.go from its interval class
+// precisely so Go fixture ids need not dodge a rule about BSD grep. Shell and
+// every other tracked suffix are still scanned.
 func fullChangeSpec(t *testing.T) ChangeSpec {
 	t.Helper()
 	return ChangeSpec{
