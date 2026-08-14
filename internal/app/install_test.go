@@ -37,6 +37,10 @@ func TestInstallResultClassification(t *testing.T) {
 		{install.ReasonSourceAssetsDrifted, ResultInvalidState},
 		{install.ReasonStateInvalid, ResultInvalidState},
 		{install.ReasonAssetManifestInvalid, ResultInvalidState},
+		// Another docket process holds the installation lock. Nothing is wrong
+		// with the user's input or their filesystem — the world is momentarily
+		// not one this operation may act on, and the answer is to run again.
+		{install.ReasonInstallInProgress, ResultInvalidState},
 
 		// The configuration asks for behavior docket does not ship.
 		{install.ReasonDeferredCapability, ResultUnsupportedConfig},

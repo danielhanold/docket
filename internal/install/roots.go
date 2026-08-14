@@ -103,6 +103,11 @@ func (r UserRoots) TransactionsDir() string { return filepath.Join(r.DataRoot, "
 // StatePath is the published ownership manifest.
 func (r UserRoots) StatePath() string { return filepath.Join(r.DataRoot, "state", "install.json") }
 
+// LockPath is the file carrying the exclusive installation lock. It sits at the
+// root of the data tree because it serializes every mutation under it; see
+// lock.go for why the lock is an flock rather than the file's existence.
+func (r UserRoots) LockPath() string { return filepath.Join(r.DataRoot, installLockName) }
+
 // sanitizeSegment turns an asset-set identifier into exactly one safe path
 // segment. The identifier's own shape ("sha256:<hex>") is not trusted to stay
 // that way: anything outside the portable set becomes "-", and a segment that

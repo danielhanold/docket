@@ -134,7 +134,17 @@ func DevelopmentInstall(o DevOptions) Outcome {
 	}
 	out.Harnesses = plannerNames(selected)
 
-	out, err = recoverPending(o.Options, out)
+	// The lock spans everything from here to the commit, exactly as it does for
+	// a release install: the two share applyPlan, and a build is not a licence
+	// to interleave with another run's transaction. Taking it before the build
+	// also keeps a refused run from spending a compile on work it will not do.
+	lock, err := acquireInstallLock(o.Roots)
+	if err != nil {
+		return fail(out, lockReason(err), err)
+	}
+	defer lock.release()
+
+	out, err = recoverPending(o.Options, out, lock)
 	if err != nil {
 		return fail(out, ReasonTransactionRecoveryRequired, err)
 	}

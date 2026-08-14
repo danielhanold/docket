@@ -90,6 +90,12 @@ const (
 
 	// Reasons this change adds beyond the spec's list, for states the spec's
 	// vocabulary does not name.
+	//
+	// ReasonInstallInProgress is contention on the exclusive installation lock:
+	// another docket process is mid-install. It is spelled apart from the
+	// filesystem failures because nothing is wrong — the answer is to run again
+	// once the other run finishes.
+	ReasonInstallInProgress = "install-in-progress"
 	ReasonUnknownHarness    = "unknown-harness"
 	ReasonInvalidOptions    = "invalid-options"
 	ReasonInvalidSourceRoot = "invalid-source-root"
@@ -168,7 +174,17 @@ func Install(o Options) Outcome {
 	}
 	out.Harnesses = plannerNames(selected)
 
-	out, err = recoverPending(o, out)
+	// Everything above only reads and refuses; everything below mutates. The
+	// lock spans the rest — recovery, extraction, plan, apply, commit — because
+	// a second run interleaving with any of it would find this run's journal and
+	// undo it. See lock.go.
+	lock, err := acquireInstallLock(o.Roots)
+	if err != nil {
+		return fail(out, lockReason(err), err)
+	}
+	defer lock.release()
+
+	out, err = recoverPending(o, out, lock)
 	if err != nil {
 		return fail(out, ReasonTransactionRecoveryRequired, err)
 	}
@@ -215,16 +231,21 @@ func Check(o Options) Outcome {
 	}
 
 	// A journal nobody published means the world is mid-mutation; every other
-	// answer would be read from a filesystem that is not yet settled.
+	// answer would be read from a filesystem that is not yet settled. Whether
+	// the run that opened it is dead or still working is a question only the
+	// installation lock answers, and check never takes it — a read must not
+	// serialize behind a write — so the report names both possibilities rather
+	// than asserting the one it cannot prove.
 	txnID, pending, err := DetectRecovery(o.Roots)
 	if err != nil {
 		return fail(out, ReasonTransactionRecoveryRequired, err)
 	}
 	if pending {
 		out.Actions = append(out.Actions, Action{
-			Op:     OpRecover,
-			Path:   filepath.Join(o.Roots.TransactionsDir(), txnID),
-			Detail: "an interrupted transaction is waiting to be rolled back",
+			Op:   OpRecover,
+			Path: filepath.Join(o.Roots.TransactionsDir(), txnID),
+			Detail: "a transaction is open: either an installation is running right now, " +
+				"or an interrupted one is waiting to be rolled back",
 		})
 		return fail(out, ReasonTransactionRecoveryRequired,
 			fmt.Errorf("%w: transaction %s was never published", ErrJournalInvalid, txnID))
@@ -581,7 +602,19 @@ func scopedTo(prior *State, harnesses []string) *State {
 // recoverPending rolls back an interrupted transaction before planning. It is
 // the one mutation that happens before the plan is known, and it only ever
 // restores what a previous run had already recorded.
-func recoverPending(o Options, out Outcome) (Outcome, error) {
+//
+// It takes the held installation lock rather than assuming one, because the
+// lock is the entire licence for this rollback: a journal proves that SOME run
+// began a transaction, never that the run is over. Holding the lock is what
+// makes the journal orphaned — a live run would be holding the lock itself, and
+// a dead one's flock died with it — so recovery without the lock would roll
+// back work another process is still doing. The parameter is unused beyond this
+// check on purpose: it exists so the requirement travels with the call.
+func recoverPending(o Options, out Outcome, lock *installLock) (Outcome, error) {
+	if !lock.held() {
+		return out, fmt.Errorf(
+			"%w: recovery was attempted without the exclusive installation lock", ErrJournalInvalid)
+	}
 	txnID, found, err := DetectRecovery(o.Roots)
 	if err != nil || !found {
 		return out, err

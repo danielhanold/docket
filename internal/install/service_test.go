@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/assets"
@@ -847,6 +848,143 @@ func TestRepoLayerNeverLoaded(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// The exclusive installation lock
+// ---------------------------------------------------------------------------
+
+// holdInstallLock takes the installation lock the way a second docket process
+// would: an independent descriptor on the same file, flocked exclusively. An
+// flock belongs to the open file description rather than to the process, so
+// this contends with the installer's own acquisition even from inside the same
+// test binary — which is what makes a concurrency defect testable without
+// forking one.
+func holdInstallLock(t *testing.T, roots install.UserRoots) func() {
+	t.Helper()
+	mkdirAll(t, roots.DataRoot)
+	f, err := os.OpenFile(roots.LockPath(), os.O_RDWR|os.O_CREATE, 0o600)
+	if err != nil {
+		t.Fatalf("opening %s: %v", roots.LockPath(), err)
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		t.Fatalf("flocking %s: %v", roots.LockPath(), err)
+	}
+	released := false
+	release := func() {
+		if released {
+			return
+		}
+		released = true
+		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+		_ = f.Close()
+	}
+	t.Cleanup(release)
+	return release
+}
+
+// A journal on disk says an installation was interrupted; it does not say by
+// whom. Without the lock a second run reads a LIVE run's journal as wreckage
+// and rolls it back mid-apply, leaving a world neither journal describes. The
+// lock is what tells the two apart.
+func TestInstallRefusesWhileAnotherRunHoldsTheLock(t *testing.T) {
+	w := newWorld(t)
+	root := w.path(".toy")
+	mkdirAll(t, root)
+	x := toy{name: "toy", root: root, files: map[string]string{"a.md": "installed\n"}}
+	if out := install.Install(w.toyOptions(x)); out.Err != nil {
+		t.Fatalf("first Install: %v", out.Err)
+	}
+	target := filepath.Join(root, "a.md")
+
+	// Another run, mid-apply: its journal is published, its pre-image captured,
+	// and its destination already rewritten. On disk this is indistinguishable
+	// from an interrupted run — the holder of the lock is the difference.
+	pending := install.Target{Path: target, Kind: install.KindFile, Content: []byte("half-applied\n"), Role: "agent"}
+	insp, err := install.InspectTarget(pending, loadState(t, w.roots), nil)
+	if err != nil {
+		t.Fatalf("InspectTarget: %v", err)
+	}
+	txn, err := install.BeginTxn(install.RealFS{}, w.roots, []install.Inspection{insp})
+	if err != nil {
+		t.Fatalf("BeginTxn: %v", err)
+	}
+	writeFile(t, target, "half-applied\n")
+	release := holdInstallLock(t, w.roots)
+	before := snapshot(t, w.home)
+
+	out := install.Install(w.toyOptions(x))
+	if out.Reason != install.ReasonInstallInProgress {
+		t.Fatalf("reason = %q, want %q (err %v)", out.Reason, install.ReasonInstallInProgress, out.Err)
+	}
+	if !errors.Is(out.Err, install.ErrInstallLocked) {
+		t.Errorf("err = %v, want ErrInstallLocked", out.Err)
+	}
+	if out.Applied {
+		t.Errorf("a refused install reported applied work")
+	}
+	assertUnchanged(t, before, snapshot(t, w.home), "install under a held lock")
+	if id, found, err := install.DetectRecovery(w.roots); err != nil || !found || id != txn.ID() {
+		t.Fatalf("the live run's journal was rolled back: found=%v id=%q err=%v", found, id, err)
+	}
+
+	// Once the holder is gone the very same journal IS orphaned — an flock dies
+	// with its process — and the next run recovers it.
+	release()
+	out = install.Install(w.toyOptions(x))
+	if out.Err != nil {
+		t.Fatalf("Install after the lock was released: %v (reason %q)", out.Err, out.Reason)
+	}
+	if !hasAction(out, install.OpRecover, filepath.Join(w.roots.TransactionsDir(), txn.ID())) {
+		t.Errorf("recovery not reported: %v", out.Actions)
+	}
+	if got := readFile(t, target); got != "installed\n" {
+		t.Errorf("recovery did not restore the pre-image: %q", got)
+	}
+}
+
+// A run killed while holding the lock leaves the lock FILE behind and takes the
+// flock with it. Were the file's existence the lock, that crash would refuse
+// every installation from then on.
+func TestInstallProceedsOverAStaleLockFile(t *testing.T) {
+	w := newWorld(t)
+	root := w.path(".toy")
+	mkdirAll(t, root)
+	x := toy{name: "toy", root: root, files: map[string]string{"a.md": "installed\n"}}
+	writeFile(t, w.roots.LockPath(), "left behind by a killed run\n")
+
+	out := install.Install(w.toyOptions(x))
+	if out.Err != nil {
+		t.Fatalf("Install over a stale lock file: %v (reason %q)", out.Err, out.Reason)
+	}
+	if !out.Applied {
+		t.Errorf("the install did no work")
+	}
+	if readFile(t, filepath.Join(root, "a.md")) != "installed\n" {
+		t.Errorf("the target was not written")
+	}
+}
+
+// The lock spans one run, not one machine: two installs back to back must both
+// proceed, including the second one whose only outcome is a no-op.
+func TestSequentialInstallsReleaseTheLock(t *testing.T) {
+	w := newWorld(t)
+	root := w.path(".toy")
+	mkdirAll(t, root)
+	x := toy{name: "toy", root: root, files: map[string]string{"a.md": "installed\n"}}
+
+	for i, want := range []bool{true, false} {
+		out := install.Install(w.toyOptions(x))
+		if out.Err != nil {
+			t.Fatalf("Install %d: %v (reason %q)", i+1, out.Err, out.Reason)
+		}
+		if out.Applied != want {
+			t.Errorf("Install %d applied = %v, want %v", i+1, out.Applied, want)
+		}
+		// A lock the previous run leaked would be indistinguishable from a run
+		// still in flight, so the release is asserted from outside.
+		holdInstallLock(t, w.roots)()
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Check
 // ---------------------------------------------------------------------------
 
@@ -1011,5 +1149,38 @@ func TestCheckDetectsMissingVersionTree(t *testing.T) {
 	out := install.Check(o)
 	if out.Reason != install.ReasonInstallationDrift {
 		t.Fatalf("reason = %q, want %q (err %v)", out.Reason, install.ReasonInstallationDrift, out.Err)
+	}
+}
+
+// Check is read-only, and the installation lock is a write lock. Taking it
+// would make `install check` mutate the data root — and would make a report
+// impossible for exactly the person most likely to want one: someone watching
+// an install that is still running.
+func TestCheckNeverTakesTheLock(t *testing.T) {
+	w := newWorld(t, ".claude")
+	o := w.options(nil)
+	o.Harnesses = []string{"claude"}
+	if out := install.Install(o); out.Err != nil {
+		t.Fatalf("Install: %v (reason %q)", out.Err, out.Reason)
+	}
+	// The install left the lock file behind; removing it makes any reappearance
+	// unambiguously check's doing.
+	if err := os.Remove(w.roots.LockPath()); err != nil {
+		t.Fatalf("removing the lock file: %v", err)
+	}
+
+	o.FS = panicFS{}
+	if out := install.Check(o); out.Reason != "" || out.Err != nil {
+		t.Fatalf("healthy check: reason %q err %v", out.Reason, out.Err)
+	}
+	if _, err := os.Lstat(w.roots.LockPath()); !os.IsNotExist(err) {
+		t.Errorf("check created the installation lock: %v", err)
+	}
+
+	// And a check taken while another run holds the lock still answers, rather
+	// than refusing or waiting.
+	holdInstallLock(t, w.roots)
+	if out := install.Check(o); out.Reason != "" || out.Err != nil {
+		t.Errorf("check under a held lock: reason %q err %v", out.Reason, out.Err)
 	}
 }
