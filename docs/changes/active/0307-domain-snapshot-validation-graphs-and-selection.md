@@ -11,14 +11,14 @@ depends_on: [305, 306]
 stacked_on:
 related: [298, 301]
 discovered_from: [303]
-adrs: [92]
+adrs: [92, 93]
 spec: docs/superpowers/specs/2026-08-13-domain-snapshot-validation-graphs-and-selection-design.md
 plan: docs/superpowers/plans/2026-08-14-domain-snapshot-validation-graphs-and-selection.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/domain-snapshot-validation-graphs-and-selection
-claimed_at: 2026-08-14T02:39:23Z
+claimed_at: 2026-08-14T04:45:55Z
 pr:
 blocked_by:
 reconciled: true
@@ -31,7 +31,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-13-domain-snapshot-validation-graphs-and-selection-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-13-domain-snapshot-validation-graphs-and-selection-design.md) |
 | Plan | [2026-08-14-domain-snapshot-validation-graphs-and-selection.md](https://github.com/danielhanold/docket/blob/feat/domain-snapshot-validation-graphs-and-selection/docs/superpowers/plans/2026-08-14-domain-snapshot-validation-graphs-and-selection.md) |
-| ADRs | [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md) |
+| ADRs | [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md), [ADR-0093](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0093-repository-reference-severity-graded-by-structural-role.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
