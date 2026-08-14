@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0311 — Installer, embedded assets, and four first-class harnesses](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0311-installer-embedded-assets-and-four-harnesses.md)**
+> ↩ **[Change 0311 — Installer, embedded assets, and four first-class harnesses](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-14-0311-installer-embedded-assets-and-four-harnesses.md)**
 <!-- docket:backlink:end -->
 
 # Installer, Embedded Assets, and Four First-Class Harnesses — Implementation Plan
