@@ -2,11 +2,11 @@
 id: 307
 slug: domain-snapshot-validation-graphs-and-selection
 title: 'Domain snapshot, validation, graphs, and selection'
-status: proposed
+status: in-progress
 priority: critical
 type: feat
 created: 2026-08-12
-updated: 2026-08-13
+updated: 2026-08-14
 depends_on: [305, 306]
 stacked_on:
 related: [298, 301]
@@ -17,7 +17,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/domain-snapshot-validation-graphs-and-selection
+claimed_at: 2026-08-14T02:31:22Z
 pr:
 blocked_by:
 reconciled: false
