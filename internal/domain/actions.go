@@ -86,13 +86,56 @@ type DoneFacts struct {
 	ReachableFromIntegration bool
 }
 
+// ClaimEligibility reports whether c may be claimed against s, or the typed
+// refusal naming why not. It is the OTHER half of the claim precondition —
+// build-readiness plus an unambiguous current snapshot — and is deliberately
+// separate from Claim, which takes no Snapshot: Claim is the pure status
+// transition, this is the policy conjunct the workflow layer evaluates FIRST.
+// A caller that claims without calling it claims a change with unmet
+// dependencies, no design, or an unresolved stack base.
+//
+// The refusal keys on EvaluateReadiness: every non-build-ready outcome becomes
+// the stable reason token "not-ready-<kind>", blocked for an unmet precondition
+// the backlog can still satisfy and invalid-state for a record that cannot be
+// claimed as it stands (not proposed, or an id more than one record claims). A
+// subject the snapshot does not hold at all is a bad supplied fact rather than
+// a readiness outcome, and is refused as "unknown-change".
+func ClaimEligibility(s Snapshot, c Change, facts BranchFacts) *PolicyFailure {
+	if _, out := s.Change(c.ID()); out == LookupAbsent {
+		return newFailure(c, FailInvalidInput, "unknown-change", nil)
+	}
+	readiness := EvaluateReadiness(s, c, facts)
+	if readiness.Kind == ReadyBuildReady {
+		return nil
+	}
+	kind := FailBlocked
+	if readiness.Kind == ReadyNotProposed || readiness.Kind == ReadyInvalid {
+		kind = FailInvalidState
+	}
+	return newFailure(c, kind, "not-ready-"+string(readiness.Kind), map[string]string{
+		"readiness": string(readiness.Kind),
+	})
+}
+
 // Claim moves a proposed change to in-progress, recording the deterministic
 // feat/<slug> branch, the injected timestamp as claimed_at, and reconciled:
 // false. A historical "## Run halted" section is reported as an owned removal
 // — the domain identifies the marker; the document layer removes it.
+//
+// Claim guards only what it can see from the record itself: a legal source
+// status and a slug that is a usable branch component. Build-readiness — met
+// dependencies, existing design, a resolved stack base, an unambiguous id — is
+// NOT checked here, because it needs the Snapshot this signature deliberately
+// does not take; ClaimEligibility is that conjunct and the workflow layer calls
+// it first.
 func Claim(c Change, now time.Time) (ActionResult, *PolicyFailure) {
 	if fail := requireStatus(c, "claim", StatusProposed); fail != nil {
 		return ActionResult{}, fail
+	}
+	if !ValidSlugToken(c.Slug()) {
+		return ActionResult{}, newFailure(c, FailInvalidInput, "invalid-slug", map[string]string{
+			"slug": c.Slug(),
+		})
 	}
 	b := newChangeBuilder(c)
 	b.setStatus(StatusInProgress)

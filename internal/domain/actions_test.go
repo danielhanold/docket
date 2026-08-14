@@ -639,3 +639,175 @@ func TestActionsPreserveUnrelatedFields(t *testing.T) {
 		t.Fatal("the input Change shares its dependency slice with the result")
 	}
 }
+
+// eligibilityCase is one row of the claim-eligibility matrix: the snapshot's
+// records, the remote branches, the subject, and the refusal (or its absence)
+// ClaimEligibility must report.
+type eligibilityCase struct {
+	name       string
+	specs      []readySpec
+	branches   []string
+	subject    ChangeID
+	absent     bool // evaluate a subject the snapshot does not hold
+	wantKind   PolicyFailureKind
+	wantReason string
+}
+
+func TestClaimEligibility(t *testing.T) {
+	tests := []eligibilityCase{
+		{
+			name: "a build-ready change is eligible",
+			specs: []readySpec{
+				{id: 2, status: StatusProposed, spec: specRef("s.md")},
+			},
+			subject: 2,
+		},
+		{
+			name: "an unmet dependency refuses the claim",
+			specs: []readySpec{
+				{id: 1, status: StatusProposed},
+				{id: 2, status: StatusProposed, spec: specRef("s.md"), dependsOn: []ChangeID{1}},
+			},
+			subject:    2,
+			wantKind:   FailBlocked,
+			wantReason: "not-ready-waiting-dependency",
+		},
+		{
+			name: "a change still needing design refuses the claim",
+			specs: []readySpec{
+				{id: 2, status: StatusProposed},
+			},
+			subject:    2,
+			wantKind:   FailBlocked,
+			wantReason: "not-ready-needs-brainstorm",
+		},
+		{
+			name: "an auto-groom-blocked change refuses the claim under its own token",
+			specs: []readySpec{
+				{id: 2, status: StatusProposed, groomBlocked: true},
+			},
+			subject:    2,
+			wantKind:   FailBlocked,
+			wantReason: "not-ready-auto-groom-blocked",
+		},
+		{
+			name: "an unresolved stack base refuses the claim",
+			specs: []readySpec{
+				{id: 1, status: StatusKilled, branch: "feat/one"},
+				{id: 2, status: StatusProposed, spec: specRef("s.md"), parent: parentEdge(1)},
+			},
+			branches:   []string{"feat/one"},
+			subject:    2,
+			wantKind:   FailBlocked,
+			wantReason: "not-ready-stack-base-unresolved",
+		},
+		{
+			name: "an ambiguous id refuses the claim",
+			specs: []readySpec{
+				{id: 2, status: StatusProposed, spec: specRef("s.md")},
+				{id: 2, status: StatusProposed, spec: specRef("s.md")},
+			},
+			subject:    2,
+			wantKind:   FailInvalidState,
+			wantReason: "not-ready-invalid",
+		},
+		{
+			name: "a non-proposed change refuses the claim",
+			specs: []readySpec{
+				{id: 2, status: StatusInProgress, spec: specRef("s.md")},
+			},
+			subject:    2,
+			wantKind:   FailInvalidState,
+			wantReason: "not-ready-not-proposed",
+		},
+		{
+			name: "a subject the snapshot does not hold refuses the claim",
+			specs: []readySpec{
+				{id: 2, status: StatusProposed, spec: specRef("s.md")},
+			},
+			subject:    7,
+			absent:     true,
+			wantKind:   FailInvalidInput,
+			wantReason: "unknown-change",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := readySnapshot(tt.specs...)
+			c := readySpec{id: tt.subject, status: StatusProposed, spec: specRef("s.md")}.build()
+			if !tt.absent {
+				for _, rp := range tt.specs {
+					if rp.id == tt.subject {
+						c = rp.build()
+						break
+					}
+				}
+			}
+
+			fail := ClaimEligibility(s, c, remotes(tt.branches...))
+			if tt.wantReason == "" {
+				if fail != nil {
+					t.Fatalf("ClaimEligibility = %v; want eligible", fail)
+				}
+				return
+			}
+			if fail == nil {
+				t.Fatalf("ClaimEligibility = nil; want %s/%s", tt.wantKind, tt.wantReason)
+			}
+			if fail.Kind != tt.wantKind || fail.Reason != tt.wantReason {
+				t.Fatalf("ClaimEligibility = %s/%s; want %s/%s",
+					fail.Kind, fail.Reason, tt.wantKind, tt.wantReason)
+			}
+			if fail.Change != tt.subject {
+				t.Fatalf("failure Change = %d; want %d", fail.Change, tt.subject)
+			}
+		})
+	}
+}
+
+func TestClaimEligibilityDoesNotTransition(t *testing.T) {
+	c := NewChange(ChangeSpec{ID: 2, Slug: "a-slug", Status: StatusProposed})
+	s := NewSnapshot(SnapshotSpec{
+		Policy:  RepositoryPolicy{IntegrationBranch: "main"},
+		Changes: []Change{c},
+	})
+
+	if fail := ClaimEligibility(s, c, remotes()); fail == nil {
+		t.Fatal("ClaimEligibility accepted a change that needs design")
+	}
+	// Claim itself stays a pure status transition: the eligibility conjunct is
+	// the workflow layer's to call, so Claim still succeeds here.
+	if _, fail := Claim(c, actNow); fail != nil {
+		t.Fatalf("Claim failed: %v", fail)
+	}
+}
+
+func TestClaimRefusesUnusableSlug(t *testing.T) {
+	bad := []string{"", "Upper", "with space", "-leading", "trailing-", "dou--ble", "under_score"}
+	for _, slug := range bad {
+		t.Run("slug="+slug, func(t *testing.T) {
+			c := NewChange(ChangeSpec{ID: 4, Slug: slug, Status: StatusProposed})
+			_, fail := Claim(c, actNow)
+			if fail == nil {
+				t.Fatalf("Claim accepted slug %q", slug)
+			}
+			if fail.Kind != FailInvalidInput || fail.Reason != "invalid-slug" {
+				t.Fatalf("Claim = %s/%s; want %s/invalid-slug", fail.Kind, fail.Reason, FailInvalidInput)
+			}
+		})
+	}
+
+	for _, slug := range []string{"a-slug", "2fa-support", "x"} {
+		t.Run("ok="+slug, func(t *testing.T) {
+			c := NewChange(ChangeSpec{ID: 4, Slug: slug, Status: StatusProposed})
+			got, fail := Claim(c, actNow)
+			if fail != nil {
+				t.Fatalf("Claim(%q) failed: %v", slug, fail)
+			}
+			if branch := got.Change.Branch().Value; branch != "feat/"+slug {
+				t.Fatalf("branch = %q; want %q", branch, "feat/"+slug)
+			}
+		})
+	}
+}
