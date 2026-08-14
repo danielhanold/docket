@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0307 — Domain snapshot, validation, graphs, and selection](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0307-domain-snapshot-validation-graphs-and-selection.md)**
+> ↩ **[Change 0307 — Domain snapshot, validation, graphs, and selection](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-14-0307-domain-snapshot-validation-graphs-and-selection.md)**
 <!-- docket:backlink:end -->
 
 # Domain snapshot, validation, graphs, and selection
