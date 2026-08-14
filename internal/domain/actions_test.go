@@ -445,6 +445,10 @@ func TestMarkImplementedPreconditions(t *testing.T) {
 	if u := got.Change.Updated(); u.State != FieldPresent || u.Raw != "2026-08-14" {
 		t.Fatalf("updated = %+v, want the injected date", u)
 	}
+	// Value must round-trip with Raw: the date-only field parses to midnight UTC.
+	if v := got.Change.Updated().Value; !v.Equal(time.Date(2026, 8, 14, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("updated value = %v, want midnight UTC of the injected date", v)
+	}
 }
 
 func TestMarkStackedMergedRequiresParentDestination(t *testing.T) {
