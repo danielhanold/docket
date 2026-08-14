@@ -3,6 +3,8 @@ package install
 import (
 	"errors"
 	"fmt"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"sort"
 
@@ -332,6 +334,17 @@ func Check(o Options) Outcome {
 		drift = append(drift, Action{Op: OpDrift, Path: t.Path, Detail: detail})
 	}
 
+	// The installation's own binary belongs to no harness, so nothing above
+	// looked at it: it is not replanned by any planner, and scopedTo drops
+	// empty-harness records before the prune scan below can see it. Verified
+	// here against its record, a replaced or deleted binary is drift rather
+	// than a healthy installation.
+	binaryDrift, err := checkBinaryRecords(state)
+	if err != nil {
+		return fail(out, ReasonFilesystemFailed, err)
+	}
+	drift = append(drift, binaryDrift...)
+
 	prunes, err := PruneCandidates(scopedTo(state, plannerNames(selected)), targets)
 	if err != nil {
 		return fail(out, ReasonStateInvalid, err)
@@ -348,6 +361,39 @@ func Check(o Options) Outcome {
 		return fail(out, ReasonInstallationDrift, fmt.Errorf("%w: %d difference(s)", ErrDrifted, len(drift)))
 	}
 	return out
+}
+
+// checkBinaryRecords verifies every recorded target that is the installation's
+// own binary — the development install's `docket`, attributed to no harness —
+// against what is on disk right now. It only reads: check must stay read-only,
+// and it must not take the installation lock.
+//
+// An absent binary is drift for the same reason a replaced one is: the
+// installation records a `docket` at that path, and there is no longer one
+// there to run.
+func checkBinaryRecords(state *State) ([]Action, error) {
+	var drift []Action
+	for _, rec := range state.Targets {
+		if rec.Role != roleBinary {
+			continue
+		}
+		if _, err := os.Lstat(rec.Path); errors.Is(err, fs.ErrNotExist) {
+			drift = append(drift, Action{Op: OpDrift, Path: rec.Path,
+				Detail: "the installed docket binary is no longer present; re-run the installation"})
+			continue
+		} else if err != nil {
+			return nil, fmt.Errorf("install: inspecting %s: %w", rec.Path, err)
+		}
+		matches, err := recordMatchesDisk(rec)
+		if err != nil {
+			return nil, err
+		}
+		if !matches {
+			drift = append(drift, Action{Op: OpDrift, Path: rec.Path,
+				Detail: "the installed docket binary no longer matches the recorded install; re-run the installation"})
+		}
+	}
+	return drift, nil
 }
 
 // plannedInstallation is what an operation decided to install, before anything
