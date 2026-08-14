@@ -2,7 +2,7 @@
 id: 311
 slug: installer-embedded-assets-and-four-harnesses
 title: 'Installer, embedded assets, and four first-class harnesses'
-status: implemented
+status: done
 priority: critical
 type: feat
 created: 2026-08-12
@@ -18,7 +18,7 @@ results: docs/results/2026-08-13-installer-embedded-assets-and-four-harnesses-re
 trivial: false
 auto_groomable:
 branch: feat/installer-embedded-assets-and-four-harnesses
-claimed_at: 2026-08-14T00:14:41Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/207
 blocked_by:
 reconciled: true
