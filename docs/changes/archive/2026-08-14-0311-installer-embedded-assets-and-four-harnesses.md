@@ -30,8 +30,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-13-installer-embedded-assets-and-four-harnesses-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-13-installer-embedded-assets-and-four-harnesses-design.md) |
-| Plan | [2026-08-13-installer-embedded-assets-and-four-harnesses.md](https://github.com/danielhanold/docket/blob/feat/installer-embedded-assets-and-four-harnesses/docs/superpowers/plans/2026-08-13-installer-embedded-assets-and-four-harnesses.md) |
-| Results | [2026-08-13-installer-embedded-assets-and-four-harnesses-results.md](https://github.com/danielhanold/docket/blob/feat/installer-embedded-assets-and-four-harnesses/docs/results/2026-08-13-installer-embedded-assets-and-four-harnesses-results.md) |
+| Plan | [2026-08-13-installer-embedded-assets-and-four-harnesses.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-13-installer-embedded-assets-and-four-harnesses.md) |
+| Results | [2026-08-13-installer-embedded-assets-and-four-harnesses-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-13-installer-embedded-assets-and-four-harnesses-results.md) |
 | PR | [#207](https://github.com/danielhanold/docket/pull/207) |
 | ADRs | [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md), [ADR-0078](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) |
 <!-- docket:artifacts:end -->
