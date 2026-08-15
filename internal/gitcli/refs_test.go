@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // mustDiscover resolves repository identity from an invocation path or fails the
@@ -175,4 +176,55 @@ func TestRefsValidationBlocksSmuggling(t *testing.T) {
 	}
 	_, err := c.ResolveRef(ctx, repo, "main")
 	assertKind(t, err, KindInvalidRequest)
+}
+
+// TestFetchFailureClassificationSharesOneNetworkBudget proves a failed fetch and
+// the ls-remote probe that classifies it are bounded by one shared network
+// budget, not one each. The fake remote burns most of the budget answering
+// `fetch` non-zero and then hangs on the probe; with an unshared budget the
+// probe would start a second full networkTimeout, so the operation would cost
+// the caller roughly the fetch's delay plus a whole extra timeout.
+func TestFetchFailureClassificationSharesOneNetworkBudget(t *testing.T) {
+	const networkTimeout = 2 * time.Second
+	c := helperClient(t, "fetchslowfail", "GITCLI_HELPER_FETCH_SLEEP_MS=1500")
+	repo := Repository{PrimaryWorktree: t.TempDir()}
+
+	// Calibrate one process spawn on this machine and toolchain: a
+	// race-instrumented test binary re-execs far slower than a plain one, and
+	// FetchBranch pays that cost per git process on top of the budget under
+	// test. Without calibrating, the threshold below is a machine-speed
+	// assertion rather than a budget-sharing one.
+	// ResolveRef is exactly one spawn against this fake git and returns
+	// immediately (the canned stdout is not an object id), so it times the
+	// re-exec and nothing else.
+	spawnStart := time.Now()
+	if _, err := c.ResolveRef(context.Background(), repo, "refs/heads/main"); err == nil {
+		t.Fatal("calibration call unexpectedly succeeded")
+	}
+	spawnCost := time.Since(spawnStart)
+
+	start := time.Now()
+	_, err := c.FetchBranch(context.Background(), repo, "origin", "refs/heads/main")
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatal("expected a failure from the unreachable remote")
+	}
+	// The shared budget is exhausted by the fetch, so the probe cannot run and
+	// the operation surfaces as timed out.
+	f, ok := AsFailure(err)
+	if !ok {
+		t.Fatalf("expected a *Failure, got %v", err)
+	}
+	if f.Kind != KindTimedOut {
+		t.Fatalf("kind = %q, want %q", f.Kind, KindTimedOut)
+	}
+	// One shared budget caps the two network processes at networkTimeout; an
+	// unshared one would spend the fetch's 1.5s and then a whole further
+	// networkTimeout on the probe. The midpoint between those two outcomes is
+	// the line, plus the two spawns FetchBranch pays for beyond the budget.
+	limit := networkTimeout + networkTimeout/2 + 2*spawnCost
+	if elapsed >= limit {
+		t.Fatalf("fetch failure cost more than one network budget: elapsed %v, limit %v (spawn %v)", elapsed, limit, spawnCost)
+	}
 }

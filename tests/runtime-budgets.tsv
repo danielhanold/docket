@@ -131,6 +131,26 @@
 # header sizes from the worst standalone serial reading, and a cold cache is still reachable on any
 # fresh clone or CI image. The extra margin is headroom, not slack to reclaim.
 #
+# tests/test_go_race.sh is a NEW FILE brought by change 0308 — the header's new-test-file case, for
+# a check the table has no shard for: the whole-module data-race gate, `go test -race ./...`. It is
+# deliberately NOT a fifth check inside tests/test_go_toolchain.sh, the only other whole-module Go
+# file here. Folding it in there measured 57/53/53s for that one file, which is ABOVE this table's
+# 60s hard ceiling — and that ceiling is a relief counter aimed at exactly this move, slow work
+# laundered into one row's budget. Sharding is the sanctioned answer, and it also lets the two runs
+# proceed concurrently in the parallel phase instead of in series. The plain `go test ./...` stays
+# where it is: it owns the four-tuple CGO-off cross-build, and an instrumented build is a separate
+# build-cache entry, so neither run makes the other free. Sized per this header's rule from three
+# standalone serial readings, one session, one machine, as
+# `scripts/run-tests.sh -j 1 --timings <path> tests/test_go_race.sh`:
+#   53  52  52  -> worst 53
+# Next multiple of 5 above 53 is 55, plus the 5s margin -> 60. That is AT the ceiling, not over it,
+# and it is the table's longest row — so this file is the parallel phase's long pole and the suite's
+# wall clock cannot fall below it. Read the absence of headroom as a standing instruction: the next
+# thing that makes the detector slower must shard this file rather than raise its row, because
+# raising it is what the ceiling forbids. Those are warm-cache readings; the cold case is the same
+# module the Go gate already pays for, and this file pins the same shared caches (see its CACHES
+# header), so only the first run after a fresh clone is cold. EXPECTED_TOTAL moves 1825 -> 1885.
+#
 # tests/test_asset_bundle_drift.sh is a NEW FILE brought by change 0311 — the header's new-test-file
 # case again, for a subsystem this table has no shard for: the generated, committed embedded
 # asset bundle (internal/assets/embedded) and its comparator, `cmd/genassets -check`. It is NOT an
@@ -219,6 +239,7 @@ tests/test_gate_run.sh	20	parallel
 tests/test_gate_run_stop.sh	35	parallel
 tests/test_github_mirror.sh	10	parallel
 tests/test_go_toolchain.sh	20	parallel
+tests/test_go_race.sh	60	parallel
 tests/test_grep_portability.sh	10	parallel
 tests/test_groom_recap.sh	10	parallel
 tests/test_harness_defaults.sh	45	parallel

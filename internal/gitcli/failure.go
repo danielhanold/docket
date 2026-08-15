@@ -51,6 +51,16 @@ func newFailure(op Operation, kind FailureKind, detail string, err error) *Failu
 	return &Failure{Operation: op, Kind: kind, Detail: detail, Err: err}
 }
 
+// withExitCode records the child git process's exit status on a Failure and
+// returns it, so a failure classified from a non-zero exit carries the status it
+// was classified from. Every Failure built from a runResult whose exitCode is
+// non-zero passes through here; a Failure with no process exit behind it keeps
+// the zero value the field documents.
+func (f *Failure) withExitCode(code int) *Failure {
+	f.ExitCode = code
+	return f
+}
+
 // AsFailure is an errors.As convenience recovering a *Failure from an error.
 func AsFailure(err error) (*Failure, bool) {
 	var f *Failure

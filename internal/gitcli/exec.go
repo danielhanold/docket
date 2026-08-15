@@ -5,12 +5,21 @@ import (
 	"context"
 	"errors"
 	"os/exec"
+	"regexp"
 	"strings"
+	"time"
 )
 
 // stderrExcerptLimit bounds how many raw stderr bytes may appear in a
 // diagnostic; anything longer is truncated with an explicit marker.
 const stderrExcerptLimit = 1024
+
+// waitDelay bounds how long cmd.Wait keeps draining inherited output pipes once
+// the context has fired and the process itself has been killed. Without it a
+// grandchild that inherited stdout/stderr — a credential helper, an ssh
+// multiplexer — holds the pipe open and cmd.Run blocks past the deadline
+// indefinitely, so the timeout/cancel guarantee would hold for the child only.
+const waitDelay = 2 * time.Second
 
 // runRequest is the package-private execution seam every operation uses.
 type runRequest struct {
@@ -36,6 +45,9 @@ type runResult struct {
 // before returning, and the kind is chosen from ctx.Err(). A start failure is
 // executable-unavailable; a non-zero process exit is returned in runResult.
 func (c *Client) run(ctx context.Context, req runRequest) (runResult, *Failure) {
+	// A caller that has already opened a budget covering several processes keeps
+	// it: this per-process timeout can only ever shorten the deadline in force,
+	// never extend past the caller's.
 	timeout := c.localTimeout
 	if req.network {
 		timeout = c.networkTimeout
@@ -46,6 +58,9 @@ func (c *Client) run(ctx context.Context, req runRequest) (runResult, *Failure) 
 	cmd := exec.CommandContext(ctx, c.executable, req.args...)
 	cmd.Dir = req.dir
 	cmd.Env = c.env
+	// Bound the post-kill pipe drain so a pipe-holding grandchild cannot outlive
+	// the deadline that already killed its parent.
+	cmd.WaitDelay = waitDelay
 	if req.stdin != nil {
 		cmd.Stdin = bytes.NewReader(req.stdin)
 	}
@@ -160,13 +175,46 @@ func sanitizeEnvironment(base []string) []string {
 	return out
 }
 
-// stderrExcerpt returns a bounded, explicitly-truncated view of captured
-// stderr: at most stderrExcerptLimit bytes, with " [truncated]" appended when
-// the original was longer. It is the only stderr-derived content permitted in a
-// diagnostic Detail.
+// redactedURL replaces every remote-location token removed from a diagnostic.
+const redactedURL = "[redacted-url]"
+
+// transportURLPattern matches an absolute transport URL — any scheme, with or
+// without userinfo — up to the first whitespace or quote. Git's own stderr
+// quotes the URL it failed on ("unable to access 'https://user:token@host/r'"),
+// so the terminator set stops at the closing quote rather than swallowing the
+// rest of the message.
+var transportURLPattern = regexp.MustCompile(`[A-Za-z][A-Za-z0-9+.\-]*://[^\s'"]*`)
+
+// scpLikeRemotePattern matches git's alternate remote spelling, the scp-like
+// user@host:path form (and the bare user@host prefix of it). It runs after
+// transportURLPattern, whose replacement carries no '@' and so cannot re-match.
+var scpLikeRemotePattern = regexp.MustCompile(`[A-Za-z0-9._\-]+@[A-Za-z0-9._\-]+(:[^\s'"]*)?`)
+
+// redactRemoteLocations removes remote URLs — and the credentials a URL's
+// userinfo can carry — from text bound for a diagnostic. It keys on URL shape,
+// never on an enumerated scheme or host list, because the transport that leaks
+// is the one the enumeration missed. The spec's Detail contract permits the
+// remote *name* and forbids the remote URL; this is the boundary that enforces
+// it for every stderr-derived diagnostic in the package.
+func redactRemoteLocations(s string) string {
+	s = transportURLPattern.ReplaceAllString(s, redactedURL)
+	return scpLikeRemotePattern.ReplaceAllString(s, redactedURL)
+}
+
+// stderrExcerpt returns a redacted, bounded, explicitly-truncated view of
+// captured stderr: remote locations removed, then at most stderrExcerptLimit
+// bytes, with " [truncated]" appended when the redacted text was longer. It is
+// the only stderr-derived content permitted in a diagnostic Detail, so
+// redaction happens here rather than at each call site — a per-site scrub is
+// only as complete as the list of sites someone remembered to change.
+//
+// Redaction precedes truncation deliberately: bounding first could sever a URL
+// mid-token and leave the surviving prefix — scheme, userinfo, and often the
+// credential — inside the window.
 func stderrExcerpt(stderr []byte) string {
-	if len(stderr) <= stderrExcerptLimit {
-		return string(stderr)
+	safe := redactRemoteLocations(string(stderr))
+	if len(safe) <= stderrExcerptLimit {
+		return safe
 	}
-	return string(stderr[:stderrExcerptLimit]) + " [truncated]"
+	return safe[:stderrExcerptLimit] + " [truncated]"
 }

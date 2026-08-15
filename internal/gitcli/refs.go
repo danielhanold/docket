@@ -39,7 +39,7 @@ func (c *Client) RemoteDefaultBranch(ctx context.Context, repo Repository, remot
 		return "", f
 	}
 	if res.exitCode != 0 {
-		return "", newFailure(remoteDefaultBranchOp, KindCommandFailed, "ls-remote failed: "+stderrExcerpt(res.stderr), nil)
+		return "", newFailure(remoteDefaultBranchOp, KindCommandFailed, "ls-remote failed: "+stderrExcerpt(res.stderr), nil).withExitCode(res.exitCode)
 	}
 	ref, ok := parseSymrefHead(res.stdout)
 	if !ok {
@@ -75,7 +75,14 @@ func (c *Client) FetchBranch(ctx context.Context, repo Repository, remote Remote
 	}
 	trackingRef := RefName("refs/remotes/" + string(remote) + "/" + short)
 	refspec := "+" + string(branch) + ":" + string(trackingRef)
-	res, f := c.run(ctx, runRequest{
+	// The fetch and the failure-classification probe that may follow it are two
+	// network processes serving one operation, so they share one network budget
+	// rather than each starting its own clock: an unreachable remote must cost a
+	// caller a single networkTimeout, not two back to back. Scoped to the pair —
+	// the local rev-parse below keeps its own local budget.
+	netCtx, cancelNet := context.WithTimeout(ctx, c.networkTimeout)
+	defer cancelNet()
+	res, f := c.run(netCtx, runRequest{
 		op:      fetchBranchOp,
 		dir:     repo.PrimaryWorktree,
 		args:    []string{"fetch", "--no-tags", "--recurse-submodules=no", string(remote), refspec},
@@ -85,7 +92,7 @@ func (c *Client) FetchBranch(ctx context.Context, repo Repository, remote Remote
 		return Revision{}, f
 	}
 	if res.exitCode != 0 {
-		return Revision{}, c.classifyFetchFailure(ctx, repo, remote, branch, res)
+		return Revision{}, c.classifyFetchFailure(netCtx, repo, remote, branch, res)
 	}
 	commit, err := c.ResolveRef(ctx, repo, trackingRef)
 	if err != nil {
@@ -114,7 +121,7 @@ func (c *Client) ResolveRef(ctx context.Context, repo Repository, ref RefName) (
 		return "", f
 	}
 	if res.exitCode != 0 {
-		return "", newFailure(resolveRefOp, KindRefUnavailable, "ref does not resolve to a commit", nil)
+		return "", newFailure(resolveRefOp, KindRefUnavailable, "ref does not resolve to a commit", nil).withExitCode(res.exitCode)
 	}
 	lines := stdoutLines(res.stdout)
 	if len(lines) != 1 {
@@ -141,7 +148,7 @@ func (c *Client) ensureRemoteConfigured(ctx context.Context, op Operation, repo 
 		return f
 	}
 	if res.exitCode != 0 {
-		return newFailure(op, KindRemoteUnavailable, "remote is not configured", nil)
+		return newFailure(op, KindRemoteUnavailable, "remote is not configured", nil).withExitCode(res.exitCode)
 	}
 	return nil
 }
@@ -151,6 +158,12 @@ func (c *Client) ensureRemoteConfigured(ctx context.Context, op Operation, repo 
 // It runs one `ls-remote <remote> refs/heads/<b>` probe: a successful probe with
 // empty output means the branch is absent (ref-unavailable); a failing probe or
 // a non-empty answer means the fetch failed for another reason (command-failed).
+//
+// ctx is the caller's shared network budget, already part-spent by the fetch;
+// the probe inherits whatever remains instead of opening a second full one, so
+// FetchBranch costs one networkTimeout end to end. A probe that cannot run
+// because that shared budget is spent surfaces as the operation's own
+// timed-out/cancelled failure, which is what exhausting it means.
 func (c *Client) classifyFetchFailure(ctx context.Context, repo Repository, remote RemoteName, branch RefName, fetchRes runResult) *Failure {
 	probe, f := c.run(ctx, runRequest{
 		op:      fetchBranchOp,
@@ -164,7 +177,7 @@ func (c *Client) classifyFetchFailure(ctx context.Context, repo Repository, remo
 	if probe.exitCode == 0 && len(bytes.TrimSpace(probe.stdout)) == 0 {
 		return newFailure(fetchBranchOp, KindRefUnavailable, "remote branch does not exist", nil)
 	}
-	return newFailure(fetchBranchOp, KindCommandFailed, "git fetch failed: "+stderrExcerpt(fetchRes.stderr), nil)
+	return newFailure(fetchBranchOp, KindCommandFailed, "git fetch failed: "+stderrExcerpt(fetchRes.stderr), nil).withExitCode(fetchRes.exitCode)
 }
 
 // branchShortName strips the refs/heads/ prefix, reporting false when the ref is

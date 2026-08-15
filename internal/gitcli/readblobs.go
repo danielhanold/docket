@@ -17,7 +17,9 @@ const readBlobsOp Operation = "read-blobs"
 // process.
 //
 // Resolution and reading are two processes, never one-per-blob: a single
-// non-recursive `ls-tree -z <commit> -- <paths>` maps each path to its object,
+// non-recursive `ls-tree -z --full-tree <commit> -- <paths>` maps each path to
+// its object — --full-tree pins resolution to the repository root so a request
+// is answered identically whatever subdirectory the caller's cwd sits in —
 // then a single `cat-file --batch --buffer` streams every found object's bytes.
 // A path absent from the tree is reported Found:false in its slot; a path whose
 // entry is a directory (tree) or a gitlink (commit) fails the whole call with
@@ -39,13 +41,13 @@ func (s *objectSource) ReadBlobs(ctx context.Context, paths []RepoPath) ([]BlobR
 	}
 
 	// One process resolves every requested path to a typed entry.
-	args := append([]string{"ls-tree", "-z", string(s.rev.Commit), "--"}, repoPathsToStrings(paths)...)
+	args := append([]string{"ls-tree", "-z", "--full-tree", string(s.rev.Commit), "--"}, repoPathsToStrings(paths)...)
 	res, f := s.client.run(ctx, runRequest{op: readBlobsOp, dir: s.repo.PrimaryWorktree, args: args})
 	if f != nil {
 		return nil, f
 	}
 	if res.exitCode != 0 {
-		return nil, newFailure(readBlobsOp, KindCommandFailed, "ls-tree failed: "+stderrExcerpt(res.stderr), nil)
+		return nil, newFailure(readBlobsOp, KindCommandFailed, "ls-tree failed: "+stderrExcerpt(res.stderr), nil).withExitCode(res.exitCode)
 	}
 	byPath, err := parseLsTreeResolve(res.stdout)
 	if err != nil {
@@ -94,7 +96,7 @@ func (s *objectSource) ReadBlobs(ctx context.Context, paths []RepoPath) ([]BlobR
 		return nil, f
 	}
 	if batchRes.exitCode != 0 {
-		return nil, newFailure(readBlobsOp, KindCommandFailed, "cat-file failed: "+stderrExcerpt(batchRes.stderr), nil)
+		return nil, newFailure(readBlobsOp, KindCommandFailed, "cat-file failed: "+stderrExcerpt(batchRes.stderr), nil).withExitCode(batchRes.exitCode)
 	}
 
 	blobs, err := parseBatchBlobs(batchRes.stdout, batchIDs)

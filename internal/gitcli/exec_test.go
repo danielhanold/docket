@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
@@ -97,6 +98,47 @@ func helperMain() {
 	case "block":
 		time.Sleep(30 * time.Second)
 		os.Exit(0)
+	case "hold":
+		// A grandchild that inherited its parent's stdout/stderr and outlives
+		// it, keeping the write end of the capture pipe open.
+		ms, _ := strconv.Atoi(os.Getenv("GITCLI_HELPER_HOLD_MS"))
+		if ms <= 0 {
+			ms = 20000
+		}
+		time.Sleep(time.Duration(ms) * time.Millisecond)
+		os.Exit(0)
+	case "orphan":
+		// Spawn a pipe-holding grandchild, then block until killed. The
+		// grandchild inherits this process's stdout/stderr, so after the
+		// deadline kills this process the capture pipe stays open and only
+		// cmd.WaitDelay can unblock the parent's Wait.
+		sub := exec.Command(os.Args[0])
+		sub.Env = append(os.Environ(), "GITCLI_HELPER_MODE=hold")
+		sub.Stdout = os.Stdout
+		sub.Stderr = os.Stderr
+		if err := sub.Start(); err != nil {
+			os.Exit(6)
+		}
+		time.Sleep(30 * time.Second)
+		os.Exit(0)
+	case "fetchslowfail":
+		// Fake a remote that answers `fetch` slowly and non-zero, then hangs on
+		// the ls-remote classification probe — the shape that makes an
+		// unshared budget cost two network timeouts instead of one.
+		args := os.Args[1:]
+		switch {
+		case argsContain(args, "fetch"):
+			ms, _ := strconv.Atoi(os.Getenv("GITCLI_HELPER_FETCH_SLEEP_MS"))
+			time.Sleep(time.Duration(ms) * time.Millisecond)
+			os.Stderr.WriteString("fatal: could not read from remote repository\n")
+			os.Exit(128)
+		case argsContain(args, "ls-remote"):
+			time.Sleep(30 * time.Second)
+			os.Exit(0)
+		default: // `remote get-url` and anything else: succeed cheaply.
+			os.Stdout.WriteString("https://example.invalid/repo.git\n")
+			os.Exit(0)
+		}
 	case "exit":
 		code, _ := strconv.Atoi(os.Getenv("GITCLI_HELPER_EXIT"))
 		os.Exit(code)
@@ -377,6 +419,129 @@ func TestNoEnvironmentInDiagnostics(t *testing.T) {
 	}
 	if strings.Contains(tf.Error(), envSecret) {
 		t.Fatal("environment value leaked into timeout diagnostic")
+	}
+}
+
+// TestRedactRemoteLocationsStripsEveryRemoteSpelling proves the redaction keys
+// on URL shape rather than a scheme list: an https URL carrying credentials in
+// its userinfo, a bare https URL, an unlisted scheme, and git's scp-like
+// user@host:path spelling all collapse to the marker, while prose that merely
+// contains a colon or a slash survives untouched.
+func TestRedactRemoteLocationsStripsEveryRemoteSpelling(t *testing.T) {
+	const secret = "s3cr3t-token-should-never-leak"
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			"https with credentials in userinfo",
+			"fatal: unable to access 'https://user:" + secret + "@example.invalid/r.git/': 403",
+			"fatal: unable to access '" + redactedURL + "': 403",
+		},
+		{"bare https", "fetching https://example.invalid/r.git now", "fetching " + redactedURL + " now"},
+		{"unlisted scheme", "via ftps://example.invalid/r.git", "via " + redactedURL},
+		{"scp-like", "fatal: git@example.invalid:org/r.git denied", "fatal: " + redactedURL + " denied"},
+		{"no remote location", "fatal: couldn't find remote ref refs/heads/x", "fatal: couldn't find remote ref refs/heads/x"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := redactRemoteLocations(tc.in)
+			if got != tc.want {
+				t.Fatalf("redacted = %q, want %q", got, tc.want)
+			}
+			if strings.Contains(got, secret) {
+				t.Fatal("credential survived redaction")
+			}
+		})
+	}
+}
+
+// TestStderrExcerptRedactsBeforeTruncating pins the ordering: a URL straddling
+// the truncation boundary must be redacted first, because bounding first would
+// sever the token and leave its scheme-and-credential prefix inside the window.
+func TestStderrExcerptRedactsBeforeTruncating(t *testing.T) {
+	const secret = "boundary-token-should-never-leak"
+	url := "https://user:" + secret + "@example.invalid/r.git"
+	// Place the URL so it starts just inside the limit and runs past it.
+	// The trailing filler is space-separated: an unbroken run of non-space bytes
+	// is part of the URL token and would be redacted along with it.
+	prefix := strings.Repeat("x", stderrExcerptLimit-len(url)/2)
+	ex := stderrExcerpt([]byte(prefix + url + " " + strings.Repeat("y", 4096)))
+	if strings.Contains(ex, secret) {
+		t.Fatal("credential disclosed inside the bounded excerpt")
+	}
+	if strings.Contains(ex, "https://") {
+		t.Fatal("URL prefix survived truncation")
+	}
+	if !strings.HasSuffix(ex, " [truncated]") {
+		t.Fatal("excerpt not marked truncated")
+	}
+}
+
+// TestNoRemoteURLInDiagnostics is the spec's planted-secret probe for the remote
+// URL channel: a real command-failed diagnostic built exactly as production
+// builds it must disclose neither the URL nor the credential inside it.
+func TestNoRemoteURLInDiagnostics(t *testing.T) {
+	const secret = "urlsecret-should-never-leak"
+	stderrText := "fatal: unable to access 'https://x:" + secret + "@example.invalid/r.git/': 403 "
+	c := helperClient(t, "stderr",
+		"GITCLI_HELPER_STDERR_BYTES=65536",
+		"GITCLI_HELPER_STDERR_TEXT="+stderrText)
+	res, f := c.run(context.Background(), runRequest{op: "fetch-branch", dir: t.TempDir(), args: []string{"fetch"}})
+	if f != nil {
+		t.Fatalf("unexpected run failure: %v", f)
+	}
+	if !bytes.Contains(res.stderr, []byte(secret)) {
+		t.Fatal("fixture stderr does not carry the planted secret")
+	}
+	cf := newFailure("fetch-branch", KindCommandFailed, "git fetch failed: "+stderrExcerpt(res.stderr), nil)
+	if strings.Contains(cf.Error(), secret) || strings.Contains(cf.Detail, secret) {
+		t.Fatal("remote-URL credential leaked into diagnostic")
+	}
+	if strings.Contains(cf.Detail, "example.invalid") {
+		t.Fatal("remote host leaked into diagnostic")
+	}
+	if !strings.Contains(cf.Detail, redactedURL) {
+		t.Fatal("redaction marker absent: the URL was not recognized at all")
+	}
+}
+
+// TestFailureCarriesChildExitCode proves a failure classified from a non-zero
+// child exit records the status it was classified from, rather than leaving the
+// declared ExitCode field permanently zero.
+func TestFailureCarriesChildExitCode(t *testing.T) {
+	c := helperClient(t, "exit", "GITCLI_HELPER_EXIT=7")
+	_, err := c.ResolveRef(context.Background(), Repository{PrimaryWorktree: t.TempDir()}, "refs/heads/main")
+	f, ok := AsFailure(err)
+	if !ok {
+		t.Fatalf("expected a *Failure, got %v", err)
+	}
+	if f.Kind != KindRefUnavailable {
+		t.Fatalf("kind = %q, want %q", f.Kind, KindRefUnavailable)
+	}
+	if f.ExitCode != 7 {
+		t.Fatalf("ExitCode = %d, want 7", f.ExitCode)
+	}
+}
+
+// TestRunWaitDelayBoundsPipeHoldingGrandchild drives the "orphan" helper, whose
+// grandchild inherits the capture pipe and outlives the killed child. Without
+// cmd.WaitDelay, cmd.Run blocks on that pipe until the grandchild exits (20s)
+// despite the 2s deadline having fired long before.
+func TestRunWaitDelayBoundsPipeHoldingGrandchild(t *testing.T) {
+	c := helperClient(t, "orphan", "GITCLI_HELPER_HOLD_MS=20000")
+	start := time.Now()
+	_, f := c.run(context.Background(), runRequest{op: "fetch-branch", dir: t.TempDir(), args: []string{"fetch"}})
+	elapsed := time.Since(start)
+	if f == nil {
+		t.Fatal("expected timeout failure, got nil")
+	}
+	if f.Kind != KindTimedOut {
+		t.Fatalf("kind = %q, want %q", f.Kind, KindTimedOut)
+	}
+	if elapsed >= 10*time.Second {
+		t.Fatalf("Wait blocked on the grandchild's pipe: elapsed %v", elapsed)
 	}
 }
 
