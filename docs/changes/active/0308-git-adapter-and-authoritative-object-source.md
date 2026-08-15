@@ -18,10 +18,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/git-adapter-and-authoritative-object-source
-claimed_at: 2026-08-15T13:21:08Z
+claimed_at: 2026-08-15T13:22:54Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -73,3 +73,10 @@ repository, remote, ref, or malformed plumbing response is a typed failure.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+- 2026-08-15 — Reconciled against origin/main. Changes 0304–0307 have all merged: `internal/app`,
+  `internal/config`, `internal/document`, `internal/domain`, `internal/repository` exist; no
+  `internal/gitcli` yet, so this change's scope is intact and unduplicated. Updated one stale spec
+  sentence that still called 0307's domain work "pending". ADR-0092/0093 (from 0307) concern
+  stacked-base semantics and repository-reference severity — no bearing on this adapter. No scope
+  change; no follow-up work surfaced (auto-capture: nothing minted).

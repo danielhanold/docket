@@ -29,7 +29,8 @@ taxonomy, standard Go test/build gates, and the package-local versus frozen-repo
 convention. Change 0308 depends only on that foundation. Although changes 0305 and 0306 have also
 landed by design time, this adapter does not import their configuration or document packages; it
 remains independently understandable and reusable as the program map requires. Change 0307's
-pending domain/read-model work is likewise not an input.
+domain/read-model work has since landed (`internal/domain`, `internal/repository`; reconcile
+2026-08-15) and is likewise not an input.
 
 The independently reviewable deliverable is:
 
