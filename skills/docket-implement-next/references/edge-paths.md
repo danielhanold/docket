@@ -19,6 +19,22 @@ re-run the full reconcile pass if `reconciled` is still `false` (crash, interrup
 whenever `origin/<integration_branch>` has advanced since the last pass (idempotent,
 non-interactive).
 
+**The plan seam (change 0324).** An attributed caller-side re-dispatch — one naming the id and
+`verify-run`'s unmet conjuncts — enters this resume path before ordinary ready-queue and
+proposed-only allowlist filtering; a normal invocation that merely names an already-`in-progress`
+id still skips it (it may belong to a live concurrent run — the caller gate's
+before-set/dispatch attribution is what distinguishes a resume from claim theft). Then:
+
+1. `plan:` already set and its committed artifact + backlink verify → reuse it and continue at
+   Step 5; **never dispatch a second planner**.
+2. `plan:` empty, but the feature branch's latest commit is a clean, single-file plan commit whose
+   `Docket-Plan-Path:` trailer and backlink agree → recover that path, land it under the normal
+   field-write rule, and continue at Step 5.
+3. The persisted path, commit delta, backlink, and manifest disagree or are ambiguous → halt with
+   the exact mismatch. **Never guess a custom plan location and never re-plan** merely because the
+   parent stopped after the child returned. The trailer is evidence only — subject it to the same
+   git and backlink verification as a live return.
+
 ## PR-body assembly (Step 7)
 
 **Best-effort PR→issue reference (when the `github` board surface is enabled).** If the change carries an `issue:`, add a plain `#<issue>` reference to the PR body — but **never `Closes #N`**: the mirror sync stays the sole writer of issue state and close reason. Skip silently when `issue:` is unset — the reference is a one-time courtesy, not a build gate.

@@ -47,6 +47,7 @@ assert "role-skill invocation sites were discovered" '[ -n "$SITES" ]'
 
 checked=0
 exceptions=0
+mentions=0
 while IFS= read -r entry; do
   [ -n "$entry" ] || continue
   file="${entry%%:*}"; rest="${entry#*:}"; lno="${rest%%:*}"; text="${rest#*:}"
@@ -61,13 +62,33 @@ while IFS= read -r entry; do
       '[ "$skill" = "docket-finalize-change" ]'
     continue
   fi
+  # A role-variable MENTION names the sigil as resolved config WITHOUT invoking a role skill (change
+  # 0324's Step-4 Preparation line — "Resolve nothing new: `$SKILL_PLAN`, `$SKILL_BUILD` … come from
+  # the Step-0 export" — is the first such site): it carries no interactive hand-off, so the marker
+  # requirement does not apply to it. The discriminator is SHAPE, not a spelling list: this repo
+  # always invokes a role skill as "the resolved <role> **skill**", so the lowercase invocation noun
+  # `skill` is present on every genuine invocation line and absent from a bare-sigil enumeration.
+  # Case-SENSITIVE on purpose — a case-insensitive test would match the `SKILL` inside the `$SKILL_X`
+  # sigil itself and classify every line as an invocation, never a mention. Accepted limit
+  # (documented like this file's others): an un-directed invocation phrased without the word `skill`
+  # would read as a mention; the house idiom never omits it, and the UNMARKED fixture below still
+  # proves the marker requirement fires on a real invocation line.
+  if ! grep -q "skill" <<<"$text"; then
+    mentions=$((mentions+1))
+    continue
+  fi
   assert "$rel:$lno autonomous role invocation pre-specifies its outcome" \
     'grep -qF -- "$MARKER" <<<"$text"'
 done <<<"$SITES"
 
 # The classifier must not go vacuous: if wrapper detection broke, every site would be skipped and
-# every assert above would silently vanish.
+# every assert above would silently vanish. `checked` counts every wrapper-backed sigil line
+# (invocations AND mentions); `checked - exceptions - mentions` is the marker-bearing invocation
+# population that the DIRECTED-to asserts actually ran over — floored separately so the mention
+# branch cannot silently swallow every invocation.
 assert "autonomous role invocations were actually checked (checked=$checked >= 5)" '[ "$checked" -ge 5 ]'
+assert "genuine invocation lines were marker-checked (found $((checked-exceptions-mentions)) >= 4)" \
+  '[ "$((checked-exceptions-mentions))" -ge 4 ]'
 assert "exactly one human-present exception exists (found $exceptions)" '[ "$exceptions" -eq 1 ]'
 
 # --- non-vacuity / mutation proof ---------------------------------------------------------------
@@ -75,6 +96,14 @@ assert "exactly one human-present exception exists (found $exceptions)" '[ "$exc
 UNMARKED='Run the **resolved plan skill** — `$SKILL_PLAN` from the Step-0 config export.'
 assert "the marker check is non-vacuous (an unmarked invocation is caught)" \
   '! grep -qF -- "$MARKER" <<<"$UNMARKED"'
+# The mention discriminator (case-sensitive lowercase `skill`) must classify an invocation line as
+# an invocation and a bare-sigil resolution line as a mention — otherwise the marker requirement
+# either vanishes (every line a mention) or over-fires (every line an invocation).
+MENTION='Resolve nothing new: `$SKILL_PLAN`, `$SKILL_BUILD`, learnings enablement come from the Step-0 export.'
+assert "an invocation line carries the lowercase invocation noun (marker required)" \
+  'grep -q "skill" <<<"$UNMARKED"'
+assert "a bare-sigil resolution mention carries no lowercase invocation noun (marker exempt)" \
+  '! grep -q "skill" <<<"$MENTION"'
 # The exception classifier must not match an ordinary invocation line.
 assert "the exception classifier is non-vacuous (a plain line is not an exception)" \
   '! grep -qi "human is present" <<<"$UNMARKED"'

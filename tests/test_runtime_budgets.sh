@@ -25,7 +25,12 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1825 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1845 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1825 -> 1845 (change 0324): two NEW test files, 10s each — the plan-writer
+                    # agent-source guard tests/test_plan_writer_agent.sh and the Step-4 dispatch-
+                    # contract guard tests/test_plan_writer_step4.sh. Both are new-behavior guards
+                    # over markdown contracts with no existing shard to absorb them; each measures
+                    # well under a second, so both sit at the table's 10s floor.
                     # 1815 -> 1825 (change 0311): tests/test_asset_bundle_drift.sh, a NEW test file
                     # — the legitimate mover the table header names first. It is the drift gate over
                     # the generated, committed embedded asset bundle (internal/assets/embedded) and
