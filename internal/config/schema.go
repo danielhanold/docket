@@ -258,7 +258,7 @@ func buildRegistry() []pathSpec {
 
 		// 32-33: agent pins. Model IDs are opaque passthrough — docket never
 		// asserts a vendor ID exists — but they must be single tokens. The
-		// built-in defaults are the 16x4 table of Reference C, which lives in
+		// built-in defaults are the 17x4 table of Reference C, which lives in
 		// defaults.go rather than in a `def` cell here.
 		{path: "agents.*.*.model", kind: kindString, merge: mergeScalar, scope: scopeAny,
 			disp: dispAgentsLeaf, validate: stringLeaf(true, true, false)},

@@ -71,8 +71,8 @@ else
     'grep -qF "docket-build-max" <<<"$head_plain"'
 fi
 
-# Population derived by glob, with a floor. Sixteen built-in agents ship fragments today, and the
-# floor is that same 16 (raised from 9 by change 0167, which added the three docket-build profile
+# Population derived by glob, with a floor. Seventeen built-in agents ship fragments today, and the
+# floor is 16 (raised from 9 by change 0167, which added the three docket-build profile
 # agents — a floor of 9 would have tolerated deleting all three fragments; raised to 13 by
 # change 0184, which added the fourth build profile; raised again to 16 by change 0170, which added
 # the three docket-review rung wrappers): adding a seventeenth agent does not redden,

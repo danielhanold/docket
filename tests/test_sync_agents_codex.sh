@@ -63,7 +63,7 @@ assert "codex TOML: model_reasoning_effort is the shipped codex effort" \
 # property rather than as one agent's value.
 assert "codex TOML: model is not a claude-namespace ID" \
   '! grep -qE "^model[[:space:]]*=[[:space:]]*\"claude-" "$T"'
-# Whole-set coverage: every one of the sixteen generated wrappers matches its sidecar row. Population
+# Whole-set coverage: every one of the seventeen generated wrappers matches its sidecar row. Population
 # derived from the sidecar, so a seventeenth agent arms this loop automatically.
 n_codex_checked=0
 while IFS= read -r a; do

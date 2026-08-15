@@ -93,7 +93,7 @@ func TestRegistryFencedSet(t *testing.T) {
 // TestRegistryDefaults compares every row's built-in default against the
 // v0.9.2 matrix, both directions: a listed path must carry that default, and
 // an unlisted one must carry none. The agents/runners rows have no scalar
-// default here — the 16x4 agent table is defaults.go's (Reference C).
+// default here — the 17x4 agent table is defaults.go's (Reference C).
 func TestRegistryDefaults(t *testing.T) {
 	want := map[string]any{
 		"metadata_branch":                  "docket",

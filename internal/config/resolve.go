@@ -312,7 +312,7 @@ func assign[T any](dst *Value[T], declared map[string]leafDecl, path string) err
 	return nil
 }
 
-// resolveAgents lays each override layer's agent pins over the built-in 16x4
+// resolveAgents lays each override layer's agent pins over the built-in 17x4
 // table. Model and effort resolve independently, and within one layer a
 // harness-specific pin falls back to that layer's `agents.default` before the
 // next layer is consulted — so a global default pin is not silently outranked
