@@ -51,8 +51,8 @@ make_sandbox
 HROOTAH="$(mktemp -d)"; mkdir -p "$HROOTAH/.claude"
 printf 'agent_harnesses: [claude, cursor]\n' > "$SBX/.docket.yml"   # no agents: block at all
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTAH" bash "$SYNC" >/dev/null )
-assert "0048 opt-in: agent_harnesses-only generates full set for cursor" '[ "$(find "$SBX/.cursor/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "16" ]'
-assert "0048 opt-in: agent_harnesses-only generates full set for claude" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "16" ]'
+assert "0048 opt-in: agent_harnesses-only generates full set for cursor" '[ "$(find "$SBX/.cursor/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "17" ]'
+assert "0048 opt-in: agent_harnesses-only generates full set for claude" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "17" ]'
 assert "0048 opt-in: agent_harnesses-only generates the cursor dispatch rule" '[ -f "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
 assert "0048 opt-in: agent_harnesses-only wrappers carry shipped default (no overrides)" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ]'
 rm -rf "$SBX" "$HROOTAH"
