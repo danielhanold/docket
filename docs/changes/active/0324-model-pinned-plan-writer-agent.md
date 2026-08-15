@@ -2,7 +2,7 @@
 id: 324
 slug: model-pinned-plan-writer-agent
 title: 'Extract plan writing into a model-pinned internal agent'
-status: proposed
+status: in-progress
 priority: critical
 type: feat
 created: 2026-08-15
@@ -17,7 +17,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/model-pinned-plan-writer-agent
+claimed_at: 2026-08-15T15:51:13Z
 pr:
 blocked_by:
 reconciled: false
