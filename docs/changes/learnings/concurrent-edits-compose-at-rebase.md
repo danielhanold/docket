@@ -2,9 +2,9 @@
 slug: concurrent-edits-compose-at-rebase
 hook: "When two open changes touch one function, keep each additive and funnel through a shared chokepoint; at rebase reconcile by INTENT — compose, don't choose."
 topics: [git, rebase, concurrency]
-changes: [79, 89, 113, 223]
+changes: [79, 89, 113, 223, 308]
 created: 2026-07-16
-updated: 2026-08-07
+updated: 2026-08-15
 promotion_state: retained
 promoted_to:
 ---
@@ -78,3 +78,20 @@ what sets your branch adds a member to, and whether the base started policing on
   author edits. The counterpart to the previous entry's lesson: there the twin was a fact restated
   in a file the conflict could not reach; here it is a fact about a file that does not exist yet on
   the other side.
+- 2026-08-15 (#308, PR #210 — merged) — **The registry's own pinned total, raised by both sides
+  from the same ancestor.** 0308 added `tests/test_go_race.sh` and raised `EXPECTED_TOTAL` in
+  `tests/test_runtime_budgets.sh` 1825 → 1885 (+60 for the new row); meanwhile 0324 landed on main
+  and raised the same constant 1825 → 1905 (a shard re-cut of `test_sync_agents_runners.sh` plus two
+  new plan-writer guard files). `tests/runtime-budgets.tsv` auto-merged cleanly — the rows are
+  additive and disjoint — so only the pinned total conflicted, and **neither side's number was the
+  answer**: 1885 and 1905 both describe a table that no longer exists. The merged truth, 1965, came
+  from summing the reconciled table itself
+  (`awk -F'\t' '!/^#/ && NF>=2 {s+=$2} END{print s}' tests/runtime-budgets.tsv`), never from
+  arithmetic on the two claims. This is the previous entry's registry lesson one turn further in:
+  there a concurrent branch adding a member went red against a registry it never opened; here both
+  branches added members and the registry's *invariant constant* is the single line the merge can
+  see. **The twin fired once more, and once more in prose git could not reach**: a `#`-comment at
+  `tests/runtime-budgets.tsv:152` still narrates `EXPECTED_TOTAL moves 1825 -> 1885`, and the
+  change's results file restates the same superseded pair. Neither can fail the assert (both sit
+  outside the awk sum), which is exactly why nothing catches them — the count's restatements
+  survive a correct resolution as stale narrative.
