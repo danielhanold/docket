@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/git-adapter-and-authoritative-object-source
-claimed_at: 2026-08-15T13:28:48Z
+claimed_at: 2026-08-15T15:15:19Z
 pr:
 blocked_by:
 reconciled: true
@@ -81,3 +81,52 @@ repository, remote, ref, or malformed plumbing response is a typed failure.
   sentence that still called 0307's domain work "pending". ADR-0092/0093 (from 0307) concern
   stacked-base semantics and repository-reference severity — no bearing on this adapter. No scope
   change; no follow-up work surfaced (auto-capture: nothing minted).
+
+## Run halted
+
+**2026-08-15T15:15:19Z** — Autonomous `docket-implement-next` (resumed run) halted during the
+Step 6 review fix loop. A human must decide how to resolve the in-flight blocker fix before the run
+can continue to a PR.
+
+**What stopped the run.** The review returned 10 findings (1 blocker, 4 important, 5 minor). The
+first fix worker — dispatched at `docket-build-premium` to fix the blocker (review #1: caller repo
+paths passed to git as pathspecs, not literals, so a leading `:` silently mis-scopes reads),
+folding in co-located minors #6 (`GIT_EXEC_PATH`/pathspec-family scrub) and #7 (mutation-green
+dedup guard) — **returned a malformed outcome** (no `COMPLETE`/`NEEDS_ESCALATION`/`BLOCKED` schema,
+no committed SHA) and **left uncommitted edits in the feature worktree**. Per the docket-build and
+fix-loop contracts a malformed return halts; per the convention I must not adopt/commit another
+agent's uncommitted files, nor dispatch a replacement worker onto the shared worktree — both are
+the human's call.
+
+**Feature-branch git state at halt.**
+- Branch `feat/git-adapter-and-authoritative-object-source`, HEAD `593a386c` (unchanged from before
+  the fix loop).
+- Committed and green: plan + Tasks 1–8 (`64e2e1a0`…`80d58c51`) plus the integration repair
+  `593a386c` (grep-portability datum). The full suite (`scripts/run-tests.sh`) was **green at
+  `593a386c`** (114/114) — the build-evidence baseline.
+- **Uncommitted** working-tree edits (the halted worker's in-flight blocker fix, NOT committed):
+  `internal/gitcli/exec.go`, `internal/gitcli/exec_test.go`, `internal/gitcli/harness_test.go`,
+  `internal/gitcli/readblobs_test.go`. Inspection shows they appear to implement the intended fix
+  (`GIT_LITERAL_PATHSPECS=1` appended to the sanitized controls, `GIT_EXEC_PATH` added to the
+  scrub set, strengthened sanitize test, colon-path fixture) but are unverified and uncommitted.
+
+**What a human must decide.**
+1. Inspect the uncommitted edits in `.worktrees/git-adapter-and-authoritative-object-source`. Either
+   (a) verify them (`go test -count=1 ./internal/gitcli/`, `go vet`, `gofmt`, full
+   `scripts/run-tests.sh`) and commit as the blocker fix, or (b) discard them and re-dispatch the
+   blocker fix.
+2. Then complete the remaining review fixes still owed on this branch: importants #2
+   (remote URL reaching `Failure.Detail` — spec forbids; secret-non-disclosure test missing), #3
+   (`Failure.ExitCode` declared but never populated), #4 (`cmd.WaitDelay` unset → a network
+   timeout/cancel can hang on pipe-holding grandchildren); minors #8 (`ReadBlobs` `ls-tree` missing
+   `--full-tree`), #9 (fetch-failure classification probe pays a second full network timeout), #10
+   (no concurrency test / no `-race` on the Go gate — `-race` on the shared `test_go_toolchain.sh`
+   is a repo-wide change, treat as a merge-time note not an in-branch must-fix).
+3. Finding #5 (plan Task 9 produced no commit / budget row not re-measured) is already
+   substantively satisfied: Task 9 measured the Go suite serial at **15s** (row `test_go_toolchain.sh`
+   is 20s — correct, unchanged) and all four required mutation probes were confirmed RED. This
+   evidence belongs in a results file, not a code fix.
+4. Re-run the suite gate and open the PR (Step 7), which this halt did not reach.
+
+The change stays `in-progress` with the claim lease refreshed; the worktree is left exactly as it
+stands for inspection. Resume by naming change id 308 with the state above.
