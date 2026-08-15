@@ -79,14 +79,31 @@ func (c *Client) run(ctx context.Context, req runRequest) (runResult, *Failure) 
 // shape rather than an enumerated spelling list.
 var gitEnvRemovePrefixes = []string{"GIT_TRACE", "GIT_CONFIG", "GIT_ALTERNATE"}
 
+// gitEnvRemoveSuffixes are the environment-variable families removed by name
+// shape rather than a spelling list: any GIT_*_PATHSPECS name — the global
+// pathspec-magic controls GIT_LITERAL_PATHSPECS, GIT_GLOB_PATHSPECS,
+// GIT_NOGLOB_PATHSPECS, GIT_ICASE_PATHSPECS. sanitizeEnvironment re-appends the
+// single authoritative GIT_LITERAL_PATHSPECS=1; the rest must be scrubbed, not
+// merely overridden, because git rejects a global literal setting combined with
+// any other global pathspec setting ("fatal: global 'literal' pathspec setting
+// is incompatible with all other global pathspec settings"), so an inherited
+// GIT_ICASE_PATHSPECS left in place would make every pathspec-bearing ls-tree
+// call fail rather than run literally.
+var gitEnvRemoveSuffixes = []string{"_PATHSPECS"}
+
 // removeGitEnv reports whether an environment variable NAME must never reach the
-// child git process. Families are matched by prefix; the discrete
-// redirection/discovery variables that share no common prefix are matched by
-// exact name; the fixed controls are dropped here so sanitizeEnvironment can
-// re-append exactly one authoritative copy of each.
+// child git process. Families are matched by prefix or by suffix shape; the
+// discrete redirection/discovery variables that share no common affix are
+// matched by exact name; the fixed controls are dropped here so
+// sanitizeEnvironment can re-append exactly one authoritative copy of each.
 func removeGitEnv(name string) bool {
 	for _, prefix := range gitEnvRemovePrefixes {
 		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	for _, suffix := range gitEnvRemoveSuffixes {
+		if strings.HasSuffix(name, suffix) {
 			return true
 		}
 	}
@@ -97,24 +114,32 @@ func removeGitEnv(name string) bool {
 		"GIT_INDEX_FILE",
 		"GIT_OBJECT_DIRECTORY",
 		"GIT_NAMESPACE",
+		"GIT_EXEC_PATH",
 		"GIT_CEILING_DIRECTORIES",
 		"GIT_DISCOVERY_ACROSS_FILESYSTEM":
 		return true
-	case "LC_ALL", "LANG", "GIT_TERMINAL_PROMPT", "GIT_OPTIONAL_LOCKS":
+	case "LC_ALL", "LANG", "GIT_TERMINAL_PROMPT", "GIT_OPTIONAL_LOCKS", "GIT_LITERAL_PATHSPECS":
 		// Fixed controls: drop any inbound copy so the appended value wins
-		// unambiguously.
+		// unambiguously. GIT_LITERAL_PATHSPECS is already covered by the
+		// _PATHSPECS suffix scrub above; naming it here documents that it is a
+		// re-appended control, not merely a neutralized family member.
 		return true
 	}
 	return false
 }
 
 // sanitizeEnvironment removes, by semantic class, the environment variables that
-// could redirect the repository, inject config, or enable tracing, then appends
-// the fixed controls that pin locale and forbid interactive prompting. Every
-// other variable — HOME, XDG, SSH_AUTH_SOCK, GIT_SSH_COMMAND, proxies, cert
-// roots — survives untouched.
+// could redirect the repository, inject config, enable tracing, or change
+// pathspec interpretation, then appends the fixed controls that pin locale,
+// forbid interactive prompting, and force literal pathspecs. GIT_LITERAL_PATHSPECS=1
+// makes every "-- <path>" vector a literal path by construction, so a repo path
+// with leading pathspec-magic punctuation (a ':' prefix, ':(top)…', etc.) can
+// neither vanish nor escape its requested scope; the _PATHSPECS suffix scrub in
+// removeGitEnv first clears any inherited icase/glob/noglob setting this literal
+// control would otherwise fatally conflict with. Every other variable — HOME,
+// XDG, SSH_AUTH_SOCK, GIT_SSH_COMMAND, proxies, cert roots — survives untouched.
 func sanitizeEnvironment(base []string) []string {
-	out := make([]string, 0, len(base)+4)
+	out := make([]string, 0, len(base)+5)
 	for _, kv := range base {
 		name := kv
 		if i := strings.IndexByte(kv, '='); i >= 0 {
@@ -130,6 +155,7 @@ func sanitizeEnvironment(base []string) []string {
 		"LANG=C",
 		"GIT_TERMINAL_PROMPT=0",
 		"GIT_OPTIONAL_LOCKS=0",
+		"GIT_LITERAL_PATHSPECS=1",
 	)
 	return out
 }

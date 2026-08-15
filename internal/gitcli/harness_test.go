@@ -22,6 +22,15 @@ import (
 const (
 	hostilePathTab     = "spa ce/né tab\tfile.md"
 	hostilePathNewline = "line\nbreak.md"
+	// Pathspec-magic fixture paths: real files whose names begin with Git
+	// pathspec-magic bytes. Under a NON-literal pathspec, "-- ':weird.md'"
+	// matches nothing (the real file would read Found:false) and "-- ':'" expands
+	// to the whole tree (a prefix escapes its requested scope); the ':(top)…'
+	// long-form magic behaves the same way. GIT_LITERAL_PATHSPECS=1 forces every
+	// caller path to its literal meaning, so these resolve to exactly their own
+	// entries.
+	pathspecMagicColon    = ":weird.md"
+	pathspecMagicColonTop = ":(top)x.md"
 )
 
 // testRepos is a bare origin plus two clones: a writer that pushes to advance
@@ -108,7 +117,8 @@ func branchExists(dir, branch string) bool {
 }
 
 // newMainModeRepos builds a bare origin whose branch main holds README.md,
-// .docket.yml, docs/changes/active/0001-a.md, the two hostile paths, a symlink
+// .docket.yml, docs/changes/active/0001-a.md, the two hostile paths, the two
+// pathspec-magic paths (pathspecMagicColon, pathspecMagicColonTop), a symlink
 // link.md -> README.md, an empty file empty.txt, an executable tool.sh (mode
 // 100755), and a gitlink "sub" (mode 160000) added via update-index cacheinfo.
 // A writer clone advances origin; the invocation clone under test is checked
@@ -135,6 +145,8 @@ func newMainModeRepos(t *testing.T) *testRepos {
 	writeWorktreeFile(t, r.Writer, "docs/changes/active/0001-a.md", "change a\n")
 	writeWorktreeFile(t, r.Writer, hostilePathTab, "hostile tab/space/non-ascii\n")
 	writeWorktreeFile(t, r.Writer, hostilePathNewline, "hostile newline\n")
+	writeWorktreeFile(t, r.Writer, pathspecMagicColon, "colon-leading pathspec-magic file\n")
+	writeWorktreeFile(t, r.Writer, pathspecMagicColonTop, "top-magic pathspec file\n")
 	writeWorktreeFile(t, r.Writer, "empty.txt", "")
 	writeWorktreeFile(t, r.Writer, "tool.sh", "#!/bin/sh\necho hi\n")
 	if err := os.Chmod(filepath.Join(r.Writer, "tool.sh"), 0o755); err != nil {

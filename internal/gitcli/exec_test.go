@@ -190,6 +190,13 @@ func TestSanitizeRemovesRedirectionClassesKeepsAuthSentinel(t *testing.T) {
 		"GIT_CONFIG_GLOBAL=/evil", "GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=a.b",
 		"GIT_TRACE=1", "GIT_TRACE2_EVENT=/evil", "GIT_CEILING_DIRECTORIES=/evil",
 		"GIT_DISCOVERY_ACROSS_FILESYSTEM=1", "GIT_ALTERNATE_FOO=/evil",
+		// GIT_EXEC_PATH redirects where git resolves its own helper binaries
+		// (git-remote-https, git-fetch-pack): a redirection-class variable.
+		"GIT_EXEC_PATH=/evil",
+		// The pathspec-magic family: scrubbed by the _PATHSPECS suffix shape so
+		// the appended GIT_LITERAL_PATHSPECS=1 stands unopposed (git rejects a
+		// literal setting combined with any other global pathspec setting).
+		"GIT_ICASE_PATHSPECS=1", "GIT_GLOB_PATHSPECS=1", "GIT_NOGLOB_PATHSPECS=1",
 	}
 	sentinel := "GIT_SSH_COMMAND=ssh -o BatchMode=yes"
 	c := helperClient(t, "dump", append(append([]string{}, planted...), sentinel)...)
@@ -207,10 +214,62 @@ func TestSanitizeRemovesRedirectionClassesKeepsAuthSentinel(t *testing.T) {
 	if !hasExactEntry(entries, sentinel) {
 		t.Error("benign auth sentinel was scrubbed")
 	}
-	for _, added := range []string{"GIT_TERMINAL_PROMPT=0", "LC_ALL=C", "LANG=C", "GIT_OPTIONAL_LOCKS=0"} {
+	// The child's effective pathspec behavior is literal: the only *_PATHSPECS
+	// variable present is the pinned GIT_LITERAL_PATHSPECS=1 control.
+	for _, added := range []string{"GIT_TERMINAL_PROMPT=0", "LC_ALL=C", "LANG=C", "GIT_OPTIONAL_LOCKS=0", "GIT_LITERAL_PATHSPECS=1"} {
 		if !hasExactEntry(entries, added) {
 			t.Errorf("missing added control %s", added)
 		}
+	}
+}
+
+// TestSanitizeDropsInboundControlCopies proves the removeGitEnv dedup case earns
+// its place: an inbound copy of every re-appended control is dropped, so
+// sanitizeEnvironment emits EXACTLY ONE entry for each control name carrying the
+// pinned value. This asserts on sanitizeEnvironment's own output rather than a
+// child-process env dump on purpose — os/exec dedups cmd.Env keeping the LAST
+// occurrence, and the appended controls are always last, so a child dump would
+// mask a surviving inbound duplicate and stay green even with the dedup case
+// deleted. Deleting the "LC_ALL"/"GIT_TERMINAL_PROMPT"/… case leaves the inbound
+// tr_TR/1 copies in the output, so a count > 1 reddens here.
+func TestSanitizeDropsInboundControlCopies(t *testing.T) {
+	pinned := map[string]string{
+		"LC_ALL":                "C",
+		"LANG":                  "C",
+		"GIT_TERMINAL_PROMPT":   "0",
+		"GIT_OPTIONAL_LOCKS":    "0",
+		"GIT_LITERAL_PATHSPECS": "1",
+	}
+	// Plant a CONFLICTING inbound copy of each control so a missing dedup would
+	// leave two entries (the inbound value plus the appended pinned value).
+	base := []string{
+		"LC_ALL=tr_TR",
+		"LANG=tr_TR",
+		"GIT_TERMINAL_PROMPT=1",
+		"GIT_OPTIONAL_LOCKS=1",
+		"GIT_LITERAL_PATHSPECS=0",
+		"HOME=/home/keep", // a benign survivor, to prove scrubbing is scoped
+	}
+	out := sanitizeEnvironment(base)
+
+	for name, wantVal := range pinned {
+		count := 0
+		var sawVal string
+		for _, kv := range out {
+			if i := strings.IndexByte(kv, '='); i >= 0 && kv[:i] == name {
+				count++
+				sawVal = kv[i+1:]
+			}
+		}
+		if count != 1 {
+			t.Errorf("%s appears %d times in sanitized env, want exactly 1 (inbound copy not dropped)", name, count)
+		}
+		if sawVal != wantVal {
+			t.Errorf("%s = %q, want the pinned %q", name, sawVal, wantVal)
+		}
+	}
+	if !hasExactEntry(out, "HOME=/home/keep") {
+		t.Error("benign HOME was scrubbed")
 	}
 }
 
