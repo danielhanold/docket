@@ -45,4 +45,13 @@ assert "resume: attributed re-dispatch enters resume before selection" \
 assert "resume: ordinary allowlist still skips an in-progress id" \
   'grep -qi "still skips" <<<"$E"'
 
+CV="$REPO/skills/docket-convention/SKILL.md"
+C="$(tr '\n' ' ' < "$CV" | tr -s ' ')"
+assert "convention: step-4 plan-writer composition dispatch is named" \
+  'grep -q "docket-plan-writer.*(step 4)\|dispatches the .docket-plan-writer. subagent (step 4)" <<<"$C"'
+assert "convention: plan-writer is in the Tier C dispatch cell" \
+  'grep -qi "plan-writer dispatch.*build.*review" <<<"$C"'
+assert "convention: seventeen wrappers, five wrap none" \
+  'grep -qi "seventeen" <<<"$C" && grep -qiE "five.{0,40}wrap (no skill|none)" <<<"$C"'
+
 exit "$fail"
