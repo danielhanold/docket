@@ -1,12 +1,6 @@
 # Backlog
 
-**324 changes** — 🟢 1 in progress · 🟡 53 proposed · ⚪ 4 deferred · ✅ 186 done · 🗑️ 80 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0308](active/0308-git-adapter-and-authoritative-object-source.md) | Git adapter and authoritative object source | `critical` | `feat` | [spec](../superpowers/specs/2026-08-13-git-adapter-and-authoritative-object-source-design.md) | `feat/git-adapter-and-authoritative-object-source` |
+**324 changes** — 🟡 53 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 186 done · 🗑️ 80 killed
 
 ## 🟡 Proposed (53)
 
@@ -51,10 +45,10 @@
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
-| [0309](active/0309-isolated-metadata-transaction-engine.md) | Isolated metadata transaction engine | `critical` | `feat` | ⏳ waiting on #308 — not yet built |
-| [0310](active/0310-read-only-status-and-health-vertical-slice.md) | Read-only status and health vertical slice | `critical` | `feat` | ⏳ waiting on #308 — not yet built |
+| [0309](active/0309-isolated-metadata-transaction-engine.md) | Isolated metadata transaction engine | `critical` | `feat` | ⏳ waiting on #308 — needs your merge |
+| [0310](active/0310-read-only-status-and-health-vertical-slice.md) | Read-only status and health vertical slice | `critical` | `feat` | ⏳ waiting on #308 — needs your merge |
 | [0312](active/0312-planning-mutations-board-and-adrs.md) | Planning mutations, inline board, and ADRs | `critical` | `feat` | ⏳ waiting on #309 — not yet built |
-| [0313](active/0313-workspaces-github-pr-adapter-and-build-evidence.md) | Workspaces, GitHub PR adapter, and build evidence | `critical` | `feat` | ⏳ waiting on #308 — not yet built |
+| [0313](active/0313-workspaces-github-pr-adapter-and-build-evidence.md) | Workspaces, GitHub PR adapter, and build evidence | `critical` | `feat` | ⏳ waiting on #308 — needs your merge |
 | [0314](active/0314-native-process-supervisor-and-local-gate.md) | Native process supervisor and local gate | `critical` | `feat` | needs-brainstorm |
 | [0315](active/0315-claim-to-implemented-workflow.md) | Claim-to-implemented agent workflow | `critical` | `feat` | ⏳ waiting on #312 — not yet built |
 | [0316](active/0316-finalize-recovery-reclaim-archive-and-stacks.md) | Finalize, recovery, reclaim, archive, and stacks | `critical` | `feat` | ⏳ waiting on #315 — not yet built |
@@ -74,6 +68,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0308](active/0308-git-adapter-and-authoritative-object-source.md) | Git adapter and authoritative object source | `critical` | `feat` | [#210](https://github.com/danielhanold/docket/pull/210) |  |
 
 ```mermaid
 graph TD
