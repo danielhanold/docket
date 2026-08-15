@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/model-pinned-plan-writer-agent
-claimed_at: 2026-08-15T15:58:22Z
+claimed_at: 2026-08-15T17:39:42Z
 pr:
 blocked_by:
 reconciled: true
@@ -79,3 +79,54 @@ spec was written; no scope adjustment needed. One coordination note: change 0308
 (Go git adapter) is in-progress on a separate branch — this change touches no Go
 runtime behavior, only regenerated embedded assets, so overlap is limited to a
 possible mechanical regeneration collision at merge time.
+
+## Run halted
+
+**2026-08-15 — implement-next build halted on an invalidated scope premise (needs a human decision).**
+
+The spec and plan both assert this change "touches no Go source behavior — only
+regenerated embedded assets." That premise is **false**, discovered at the whole-suite
+build gate. Adding a 17th shipped agent (`docket-plan-writer`) to
+`agents/harness-defaults.yml` is, by the repo's own design, a **human-coordinated release
+step**, not a mechanical asset regen.
+
+Tasks 1–6 of the plan are committed and green (agent source, four-harness sidecar rows and
+generated wrappers, the cursor dispatch fragment, the Step-4/convention/edge-paths/resume
+contract, the docs, and the verify-run fixture). Two additional corrective commits closed
+plan-under-anticipated fanout: `feat(0324): cursor dispatch fragment for docket-plan-writer
+agent` and the count-guard sweep. What remains red under `go test ./...` needs work the
+plan neither anticipated nor authorized, and one piece needs authority this autonomous run
+does not have:
+
+1. **`internal/config/defaults.go` — hand-authored Go source** (`builtinAgents()`) ships 16
+   short names per harness; a `plan-writer` row (model + effort, all four harnesses) must be
+   added. Explicitly outside the plan's "commit ONLY internal/assets/" scope.
+2. **A NEW immutable versioned fixture tree — requires a docket release-versioning decision
+   a human must make.** `TestBuiltinAgentsParityWithFrozenSidecar` byte-compares the live
+   `agents/harness-defaults.yml` (now 17) against the FROZEN
+   `testdata/repositories/v0.9.2/agents-harness-defaults.yml` (16). `testdata/README.md` and
+   the test's own remedy string forbid editing `v0.9.2/` ("immutable input… a new upstream
+   state gets a NEW versioned tree, never an edit"). Cutting that tree means **choosing the
+   docket release version** the snapshot is named for, copying the cross-package tree,
+   writing `PROVENANCE.md`, and re-pointing `sidecarPath` in `internal/config/defaults_test.go`.
+   An autonomous run must not invent a release version and bake it into an immutable tree —
+   a wrong or colliding version is unrecoverable.
+3. **`TestBuiltinAgentsShape`** hardcodes "exactly the 16 canonical short names" → 16→17 +
+   `plan-writer`.
+4. **Golden refreezes** via `go test -update` in `internal/harness/{claude,codex,cursor,opencode}`
+   to create the `plan-writer` goldens.
+
+**What a human must decide before this can resume:** (a) the docket **release version** under
+which to cut the new frozen fixture tree (`testdata/repositories/v<release>/`), and (b)
+confirmation that this change's scope legitimately expands to include the Go-side
+reconciliation (defaults.go + shape test + a new versioned fixture tree + four harness
+golden refreezes) — or that the Go-side coupling should instead be split into its own
+change. The spec's *Out of scope* line "Moving plan judgment or harness-native agent
+dispatch into the Go engine" did not foresee that merely *shipping* an agent already touches
+`internal/config` and the frozen-fixture release tripwire.
+
+**Worktree state:** `feat/model-pinned-plan-writer-agent` at HEAD carries Tasks 1–6 + the two
+corrective commits. The count-guard sweep (10 test files → 17) and the embedded-asset regen
+are **present but uncommitted** in the feature worktree (a build worker returned BLOCKED
+without committing; this run did not adopt them). A resume should re-derive or commit those
+under its own authorship after the human resolves the release-version decision above.
