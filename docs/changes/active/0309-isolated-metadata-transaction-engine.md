@@ -20,8 +20,8 @@ auto_groomable:
 branch: feat/isolated-metadata-transaction-engine
 pr:
 blocked_by:
-claimed_at: 2026-08-15T22:06:24Z
-reconciled: false
+claimed_at: 2026-08-15T22:11:00Z
+reconciled: true
 ---
 
 ## Artifacts
@@ -64,3 +64,30 @@ workflow behavior is implemented here.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-15 — reconcile (docket-implement-next)
+
+Verified the spec against current `main` before planning. No scope change, no design
+invalidation; the change is unchanged and proceeds to plan/build.
+
+- **Dependencies satisfied.** `depends_on: [307, 308]` are both `done` (archived
+  `2026-08-14-0307-…`, `2026-08-15-0308-…`); the digest classifies 0309 build-ready.
+- **Landed foundation confirmed present and matching the spec.** `internal/domain`
+  (immutable entities, `NewSnapshot`, `SelectQueue`, dependency/stack graphs, lease policy),
+  `internal/repository` (`BuildSnapshot`, `ValidateEvolution`, `ValidationReport.HasErrors`,
+  pure read model — imports no `os`/`gitcli`), `internal/document` (loss-preserving patches),
+  and `internal/gitcli` (`Client`, `ObjectSource` with `Revision`/`ListTree`/`ReadBlobs`,
+  `Repository{PrimaryWorktree,CommonDir}`, `FetchBranch`/`ResolveRef`, typed `Failure`, no
+  exported command runner). The transaction engine is genuinely greenfield: no existing
+  `internal/repository/transaction` package, no worktree-isolation/lease/retry code, and
+  `internal/gitcli` is not yet consumed by any production package — 0309 is its first consumer.
+- **Cited ADRs unchanged.** ADR-0001 (metadata branch model) and ADR-0034 (repo-root anchored
+  to main worktree) remain the stored topology/identity context; ADR-0089's shared-worktree
+  retry posture is deliberately replaced by this design, as the spec's closing note already
+  records. No ADR edits are implied by this change.
+- **Planning pointer (non-binding).** `internal/install/txn.go` (+ `install/lock.go`,
+  `install/fsops.go`) is an in-repo precedent for the journal / temp-write-then-atomic-rename /
+  lock pattern the engine's manifest+live-lock lifecycle needs — a reference, not a dependency;
+  it is the installer's own transaction and touches no Git.
+- **Auto-capture:** none. No independent, materially-valuable adjacent work surfaced during
+  reconcile; nothing minted.
