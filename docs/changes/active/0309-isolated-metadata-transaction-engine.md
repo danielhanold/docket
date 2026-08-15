@@ -13,14 +13,14 @@ related: [247]
 discovered_from: [303]
 adrs: [1, 34, 89]
 spec: docs/superpowers/specs/2026-08-15-isolated-metadata-transaction-engine-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-15-isolated-metadata-transaction-engine.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/isolated-metadata-transaction-engine
 pr:
 blocked_by:
-claimed_at: 2026-08-15T22:11:00Z
+claimed_at: 2026-08-15T22:18:32Z
 reconciled: true
 ---
 
@@ -30,6 +30,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-15-isolated-metadata-transaction-engine-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-15-isolated-metadata-transaction-engine-design.md) |
+| Plan | [2026-08-15-isolated-metadata-transaction-engine.md](https://github.com/danielhanold/docket/blob/feat/isolated-metadata-transaction-engine/docs/superpowers/plans/2026-08-15-isolated-metadata-transaction-engine.md) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0034](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0034-repo-root-anchored-to-main-worktree.md), [ADR-0089](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0089-shared-metadata-worktree-contention-survivable-not-impossible.md) |
 <!-- docket:artifacts:end -->
 
