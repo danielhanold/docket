@@ -2,11 +2,11 @@
 id: 308
 slug: git-adapter-and-authoritative-object-source
 title: 'Git adapter and authoritative object source'
-status: proposed
+status: in-progress
 priority: critical
 type: feat
 created: 2026-08-12
-updated: 2026-08-13
+updated: 2026-08-15
 depends_on: [304]
 stacked_on:
 related: []
@@ -17,7 +17,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/git-adapter-and-authoritative-object-source
+claimed_at: 2026-08-15T13:21:08Z
 pr:
 blocked_by:
 reconciled: false
