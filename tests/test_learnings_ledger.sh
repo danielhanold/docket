@@ -58,7 +58,8 @@ assert "implement-next reads the index at plan time AND review" \
 # 4's plan-time read moved into the dispatched docket-plan-writer child — the parent now RESOLVES
 # enablement and passes "whether learnings are enabled" (and, only when enabled, the index path) in
 # the dispatch payload, and the child reads. Keyed on each moment's own gating phrase so a regression
-# that drops either gate still reddens; the child's own gating is guarded by test_plan_writer_agent.sh.
+# that drops either gate still reddens; the child's own read-gating is guarded by the "the child
+# gates its learnings-index read on enablement" assert in test_plan_writer_agent.sh.
 assert "implement-next review read gates on learnings.enabled" \
   '[ "$(grep -cF "learnings.enabled" "$REPO/skills/docket-implement-next/SKILL.md")" -ge 1 ]'
 assert "implement-next plan-time read gates enablement into the plan-writer child payload" \
