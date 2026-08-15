@@ -1,6 +1,6 @@
 # Backlog
 
-**324 changes** — 🟢 1 in progress · 🟡 53 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 185 done · 🗑️ 80 killed
+**324 changes** — 🟢 1 in progress · 🟡 53 proposed · ⚪ 4 deferred · ✅ 186 done · 🗑️ 80 killed
 
 ## 🟢 In progress (1)
 
@@ -75,12 +75,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0324](active/0324-model-pinned-plan-writer-agent.md) | Extract plan writing into a model-pinned internal agent | `critical` | `feat` | [#209](https://github.com/danielhanold/docket/pull/209) |  |
-
 ```mermaid
 graph TD
   0007
@@ -148,7 +142,6 @@ graph TD
   0321
   0322
   0323
-  0324
   0192:::done
   0211:::done
   0304:::done
@@ -157,10 +150,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (265)</summary>
+<details><summary>✅🗑️ Archive — done + killed (266)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0324](archive/2026-08-15-0324-model-pinned-plan-writer-agent.md) | Extract plan writing into a model-pinned internal agent | 2026-08-15 |
 | [0311](archive/2026-08-14-0311-installer-embedded-assets-and-four-harnesses.md) | Installer, embedded assets, and four first-class harnesses | 2026-08-14 |
 | [0307](archive/2026-08-14-0307-domain-snapshot-validation-graphs-and-selection.md) | Domain snapshot, validation, graphs, and selection | 2026-08-14 |
 | [0306](archive/2026-08-13-0306-loss-preserving-document-layer.md) | Loss-preserving document layer | 2026-08-13 |
@@ -179,7 +173,6 @@ graph TD
 | [0260](archive/2026-08-11-0260-tier-finalize-s-in-context-dispatches-and-name-the-push-deni.md) | Tier finalize's in-context dispatches and name the push-denial posture | 2026-08-11 |
 | [0247](archive/2026-08-11-0247-make-shared-metadata-worktree-contention-survivable-and-scop.md) | Make shared metadata worktree contention survivable and scope its commits | 2026-08-11 |
 | [0208](archive/2026-08-11-0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) | Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards | 2026-08-11 |
-| [0118](archive/2026-08-11-0118-decide-whether-the-sweep-s-skip-publish-path-should-also-mar.md) | Decide whether the sweep's skip-publish path should also mark an unpublished terminal record | 2026-08-11 |
 | [0278](archive/2026-08-09-0278-test-docket-example-yml-s-fidelity-fixture-goes-intermittent.md) | test_docket_example_yml's fidelity fixture goes intermittently red under parallel contention | 2026-08-09 |
 | [0274](archive/2026-08-09-0274-runner-dispatch-s-value-taking-flags-hang-instead-of-abortin.md) | runner-dispatch's value-taking flags hang instead of aborting when given with no value | 2026-08-09 |
 | [0267](archive/2026-08-09-0267-correct-the-stale-field-quote-handling-claim-in-script-contr.md) | Correct the stale field() quote-handling claim in script contracts | 2026-08-09 |
@@ -261,7 +254,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 52 done |
+| [2026-08](archive/) | 53 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
