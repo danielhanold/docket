@@ -1,6 +1,6 @@
 # Backlog
 
-**324 changes** — 🟡 53 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 186 done · 🗑️ 80 killed
+**324 changes** — 🟡 53 proposed · ⚪ 4 deferred · ✅ 187 done · 🗑️ 80 killed
 
 ## 🟡 Proposed (53)
 
@@ -45,10 +45,10 @@
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
-| [0309](active/0309-isolated-metadata-transaction-engine.md) | Isolated metadata transaction engine | `critical` | `feat` | ⏳ waiting on #308 — needs your merge |
-| [0310](active/0310-read-only-status-and-health-vertical-slice.md) | Read-only status and health vertical slice | `critical` | `feat` | ⏳ waiting on #308 — needs your merge |
+| [0309](active/0309-isolated-metadata-transaction-engine.md) | Isolated metadata transaction engine | `critical` | `feat` | needs-brainstorm |
+| [0310](active/0310-read-only-status-and-health-vertical-slice.md) | Read-only status and health vertical slice | `critical` | `feat` | needs-brainstorm |
 | [0312](active/0312-planning-mutations-board-and-adrs.md) | Planning mutations, inline board, and ADRs | `critical` | `feat` | ⏳ waiting on #309 — not yet built |
-| [0313](active/0313-workspaces-github-pr-adapter-and-build-evidence.md) | Workspaces, GitHub PR adapter, and build evidence | `critical` | `feat` | ⏳ waiting on #308 — needs your merge |
+| [0313](active/0313-workspaces-github-pr-adapter-and-build-evidence.md) | Workspaces, GitHub PR adapter, and build evidence | `critical` | `feat` | ⏳ waiting on #309 — not yet built |
 | [0314](active/0314-native-process-supervisor-and-local-gate.md) | Native process supervisor and local gate | `critical` | `feat` | needs-brainstorm |
 | [0315](active/0315-claim-to-implemented-workflow.md) | Claim-to-implemented agent workflow | `critical` | `feat` | ⏳ waiting on #312 — not yet built |
 | [0316](active/0316-finalize-recovery-reclaim-archive-and-stacks.md) | Finalize, recovery, reclaim, archive, and stacks | `critical` | `feat` | ⏳ waiting on #315 — not yet built |
@@ -68,12 +68,6 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0308](active/0308-git-adapter-and-authoritative-object-source.md) | Git adapter and authoritative object source | `critical` | `feat` | [#210](https://github.com/danielhanold/docket/pull/210) |  |
 
 ```mermaid
 graph TD
@@ -120,7 +114,6 @@ graph TD
   0300
   0301
   0302
-  0304 --> 0308
   0307 --> 0309
   0308 --> 0309
   0307 --> 0310
@@ -146,15 +139,17 @@ graph TD
   0211:::done
   0304:::done
   0307:::done
+  0308:::done
   0311:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (266)</summary>
+<details><summary>✅🗑️ Archive — done + killed (267)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0324](archive/2026-08-15-0324-model-pinned-plan-writer-agent.md) | Extract plan writing into a model-pinned internal agent | 2026-08-15 |
+| [0308](archive/2026-08-15-0308-git-adapter-and-authoritative-object-source.md) | Git adapter and authoritative object source | 2026-08-15 |
 | [0311](archive/2026-08-14-0311-installer-embedded-assets-and-four-harnesses.md) | Installer, embedded assets, and four first-class harnesses | 2026-08-14 |
 | [0307](archive/2026-08-14-0307-domain-snapshot-validation-graphs-and-selection.md) | Domain snapshot, validation, graphs, and selection | 2026-08-14 |
 | [0306](archive/2026-08-13-0306-loss-preserving-document-layer.md) | Loss-preserving document layer | 2026-08-13 |
@@ -172,7 +167,6 @@ graph TD
 | [0268](archive/2026-08-11-0268-de-flake-the-reclaim-leg-of-test-docket-status-under-paralle.md) | De-flake the reclaim leg of test_docket_status under parallel contention | 2026-08-11 |
 | [0260](archive/2026-08-11-0260-tier-finalize-s-in-context-dispatches-and-name-the-push-deni.md) | Tier finalize's in-context dispatches and name the push-denial posture | 2026-08-11 |
 | [0247](archive/2026-08-11-0247-make-shared-metadata-worktree-contention-survivable-and-scop.md) | Make shared metadata worktree contention survivable and scope its commits | 2026-08-11 |
-| [0208](archive/2026-08-11-0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) | Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards | 2026-08-11 |
 | [0278](archive/2026-08-09-0278-test-docket-example-yml-s-fidelity-fixture-goes-intermittent.md) | test_docket_example_yml's fidelity fixture goes intermittently red under parallel contention | 2026-08-09 |
 | [0274](archive/2026-08-09-0274-runner-dispatch-s-value-taking-flags-hang-instead-of-abortin.md) | runner-dispatch's value-taking flags hang instead of aborting when given with no value | 2026-08-09 |
 | [0267](archive/2026-08-09-0267-correct-the-stale-field-quote-handling-claim-in-script-contr.md) | Correct the stale field() quote-handling claim in script contracts | 2026-08-09 |
@@ -254,7 +248,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 53 done |
+| [2026-08](archive/) | 54 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
