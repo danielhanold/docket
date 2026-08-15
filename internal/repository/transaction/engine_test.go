@@ -417,24 +417,6 @@ func TestEngineFailsOnMissingTargetBranch(t *testing.T) {
 	}
 }
 
-// TestEngineKeyedRequestUnsupported proves a keyed request is refused with an
-// invalid-input failure until idempotency lands.
-func TestEngineKeyedRequestUnsupported(t *testing.T) {
-	r := newMainModeRepos(t)
-	client, repo := r.discover(t)
-	eng := newEngine(t, client)
-
-	key := &IdempotencyKey{RequestID: "req-00000001", Digest: validDigest()}
-	_, err := eng.Execute(context.Background(), Request{
-		Repository: repo, Remote: "origin", TargetRef: r.Target,
-		Idempotency: key, Loader: testLoader{}, Operation: createOp(thirdChangePath, thirdChange()),
-	})
-	if err == nil {
-		t.Fatal("keyed request: want error until idempotency lands")
-	}
-	assertFailureKind(t, err, KindInvalidInput)
-}
-
 // TestEngineRetriesLeaseLoss proves a structurally proven lease loss retries from
 // a fresh fetch and a fresh plan, applying on the next attempt — the reused first
 // plan never appears in the winning commit.
