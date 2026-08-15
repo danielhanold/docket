@@ -28,6 +28,12 @@ type runRequest struct {
 	args    []string  // git argument vector, no leading "git"
 	stdin   []byte    // nil = no stdin
 	network bool      // selects the network vs local default timeout
+	// env is appended to the client's sanitized base environment for this one
+	// command; a duplicate name overrides the base value (last wins). It is the
+	// only per-command environment channel — used for the engine-clock commit
+	// dates (GIT_AUTHOR_DATE / GIT_COMMITTER_DATE) — and never carries repository
+	// redirection, config injection, or credentials.
+	env []string
 }
 
 // runResult carries the captured output of one git invocation. A non-zero exit
@@ -57,7 +63,14 @@ func (c *Client) run(ctx context.Context, req runRequest) (runResult, *Failure) 
 
 	cmd := exec.CommandContext(ctx, c.executable, req.args...)
 	cmd.Dir = req.dir
-	cmd.Env = c.env
+	// The sanitized base wins by default; a per-command env entry is appended so a
+	// duplicate name (a commit date) overrides it, leaving the base intact for
+	// every other variable.
+	if len(req.env) > 0 {
+		cmd.Env = append(append([]string(nil), c.env...), req.env...)
+	} else {
+		cmd.Env = c.env
+	}
 	// Bound the post-kill pipe drain so a pipe-holding grandchild cannot outlive
 	// the deadline that already killed its parent.
 	cmd.WaitDelay = waitDelay
