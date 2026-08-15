@@ -363,7 +363,7 @@ rm -rf "$SBX"
 # `project_wrappers_generated` early return fires first and the advisory is absent.
 #
 # Mutation-verified: deleting `if ! project_wrappers_generated; then return $rc; fi` from
-# check_project_level turns the advisory assert below NOT OK (16 advisory lines are emitted).
+# check_project_level turns the advisory assert below NOT OK (17 advisory lines are emitted).
 mkgitrepo
 mkdir -p "$SBX/.config/docket"
 printf 'agent_harnesses: [codex]\nagents:\n  claude:\n    status: { runner: codex, model: some/model-id }\n' \

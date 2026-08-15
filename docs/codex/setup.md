@@ -4,7 +4,7 @@ Codex is a first-class docket harness. `sync-agents.sh` generates two Codex arti
 
 - **`.codex/agents/docket-*.toml`** — the agent wrappers. These are **machine-local**: gitignored,
   regenerated per machine, never committed (they bake resolved model IDs — ADR-0020).
-  `agents/harness-defaults.yml` ships a complete sixteen-agent `codex:` block, so all sixteen `.toml`
+  `agents/harness-defaults.yml` ships a complete seventeen-agent `codex:` block, so all seventeen `.toml`
   wrappers are generated **pinned** with no configuration at all. Any field is overridable per agent
   from any config layer — your value wins over the shipped one. The pins are Codex-native: a Claude
   model ID means nothing to Codex, so an ID is never lent across harnesses.
