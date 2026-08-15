@@ -25,7 +25,18 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1905 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1965 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1905 -> 1965 (change 0308): tests/test_go_race.sh, a NEW test file — the
+                    # legitimate mover the table header names first. It is the whole-module
+                    # data-race gate, `go test -race ./...`, and it is a SHARD rather than a fifth
+                    # check inside tests/test_go_toolchain.sh precisely because folding it in there
+                    # measured 57s for that one file, above this file's own 60s CEILING. Splitting
+                    # is the sanctioned response to that counter; raising the ceiling is the evasion
+                    # it exists to catch. Readings 53/52/52s standalone serial, worst 53 -> 55 plus
+                    # the 5s margin -> 60, which is AT the ceiling and leaves no headroom: the next
+                    # slowdown must shard again. Rationale is in the tsv header beside the row.
+                    # Recomputed from the table itself, never hand-adjusted:
+                    #   awk -F'\t' '!/^#/ && NF>=2 {s+=$2} END{print s}' tests/runtime-budgets.tsv
                     # 1845 -> 1905 (change 0324): the SHARD-RE-CUT case, not a file that got slower.
                     # tests/test_sync_agents_runners.sh sat AT the hard 60s ceiling and adding the
                     # 17th shipped agent (docket-plan-writer) to its runner matrix pushed the file to

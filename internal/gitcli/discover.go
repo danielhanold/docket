@@ -53,7 +53,7 @@ func (c *Client) Discover(ctx context.Context, opts DiscoverOptions) (Repository
 		return Repository{}, f
 	}
 	if res.exitCode != 0 {
-		return Repository{}, newFailure(discoverOp, KindInvalidRepository, "not a git repository", nil)
+		return Repository{}, newFailure(discoverOp, KindInvalidRepository, "not a git repository", nil).withExitCode(res.exitCode)
 	}
 	lines := stdoutLines(res.stdout)
 	if len(lines) != 2 {
@@ -83,7 +83,7 @@ func (c *Client) Discover(ctx context.Context, opts DiscoverOptions) (Repository
 		return Repository{}, f
 	}
 	if wl.exitCode != 0 {
-		return Repository{}, newFailure(discoverOp, KindInvalidRepository, "worktree list failed", nil)
+		return Repository{}, newFailure(discoverOp, KindInvalidRepository, "worktree list failed", nil).withExitCode(wl.exitCode)
 	}
 	mainRaw, ok := firstWorktreePath(wl.stdout)
 	if !ok {
@@ -105,7 +105,7 @@ func (c *Client) Discover(ctx context.Context, opts DiscoverOptions) (Repository
 		return Repository{}, f
 	}
 	if mres.exitCode != 0 {
-		return Repository{}, newFailure(discoverOp, KindInvalidRepository, "primary worktree rev-parse failed", nil)
+		return Repository{}, newFailure(discoverOp, KindInvalidRepository, "primary worktree rev-parse failed", nil).withExitCode(mres.exitCode)
 	}
 	mainLines := stdoutLines(mres.stdout)
 	if len(mainLines) != 1 {

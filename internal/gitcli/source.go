@@ -50,7 +50,7 @@ func (c *Client) OpenObjectSource(ctx context.Context, repo Repository, rev Revi
 		return nil, f
 	}
 	if res.exitCode != 0 {
-		return nil, newFailure(openSourceOp, KindRefUnavailable, "commit object not present locally", nil)
+		return nil, newFailure(openSourceOp, KindRefUnavailable, "commit object not present locally", nil).withExitCode(res.exitCode)
 	}
 	lines := stdoutLines(res.stdout)
 	if len(lines) != 1 {
@@ -102,7 +102,7 @@ func (s *objectSource) ListTree(ctx context.Context, prefixes []RepoPath) ([]Tre
 		return nil, f
 	}
 	if res.exitCode != 0 {
-		return nil, newFailure(listTreeOp, KindCommandFailed, "ls-tree failed: "+stderrExcerpt(res.stderr), nil)
+		return nil, newFailure(listTreeOp, KindCommandFailed, "ls-tree failed: "+stderrExcerpt(res.stderr), nil).withExitCode(res.exitCode)
 	}
 
 	entries, err := parseLsTreeZ(res.stdout)

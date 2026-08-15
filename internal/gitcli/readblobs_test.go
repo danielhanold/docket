@@ -409,3 +409,34 @@ func TestReadBlobsResultOwnership(t *testing.T) {
 		t.Fatalf("mutating p0 bytes corrupted p1: %q != %q", first[1].Blob.Bytes, p1before)
 	}
 }
+
+// TestReadBlobsResolvesFromRepositoryRoot proves ReadBlobs pins path resolution
+// to the repository root with --full-tree, matching ListTree. Requested paths
+// are repo-relative by contract, so without it resolution would be interpreted
+// relative to the process's cwd prefix — a silent mis-scope the moment the
+// working directory is anything but the root. The guarantee lives in the
+// argument vector, so that is where it is asserted.
+func TestReadBlobsResolvesFromRepositoryRoot(t *testing.T) {
+	oid := strings.Repeat("a", 40)
+	entries := []lsTreeBlobEntry{{oid: oid, path: "a.md"}}
+	var catfile bytes.Buffer
+	catfile.WriteString(catFrame(oid, "blob", 5, "hello"))
+
+	spawnlog := filepath.Join(t.TempDir(), "spawns")
+	src := scriptBlobSource(t, buildLsTreeZ(entries), catfile.Bytes(), "GITCLI_HELPER_SPAWNLOG="+spawnlog)
+
+	if _, err := src.ReadBlobs(context.Background(), []RepoPath{"a.md"}); err != nil {
+		t.Fatalf("ReadBlobs: %v", err)
+	}
+	log, err := os.ReadFile(spawnlog)
+	if err != nil {
+		t.Fatalf("read spawn log: %v", err)
+	}
+	lsTree := strings.Split(strings.TrimRight(string(log), "\n"), "\n")[0]
+	if !strings.Contains(lsTree, "ls-tree") {
+		t.Fatalf("first spawn is not ls-tree: %q", lsTree)
+	}
+	if !strings.Contains(lsTree, "--full-tree") {
+		t.Fatalf("ls-tree resolution is not pinned to the repository root: %q", lsTree)
+	}
+}
