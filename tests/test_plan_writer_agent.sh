@@ -25,6 +25,13 @@ assert "contract: never success-shaped output for an uncommitted plan" \
 assert "contract: missing plan skill degrades inside the child, warns" \
   'grep -qi "missing-skill" <<<"$body" && grep -qi "warn" <<<"$body"'
 assert "contract: stages only the plan path" 'grep -qi "stage only" <<<"$body"'
+# The child conditions its learnings-index READ on enablement — the compensating guard for
+# test_learnings_ledger.sh relaxing its parent >=2 assert to >=1 once Step 4's plan-time read
+# moved into this child. Keyed on the read step's own gating clause ("when learnings are enabled
+# — the learnings index, then the finding files"), not a line number: a regression that drops the
+# gate and reads the index unconditionally reddens here.
+assert "contract: the child gates its learnings-index read on enablement" \
+  'grep -qE "when learnings are enabled.*the learnings index, then the finding files" <<<"$body"'
 
 # ---- shipped defaults: exact four pairs (frozen against the sidecar) --------
 row(){ awk -v h="$1" '$0 ~ "^  " h ":$" {inh=1; next} inh && /^  [a-z]/ {inh=0} inh && /plan-writer:/ {print}' "$SIDECAR"; }
