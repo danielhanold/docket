@@ -2,7 +2,7 @@
 id: 309
 slug: isolated-metadata-transaction-engine
 title: 'Isolated metadata transaction engine'
-status: proposed
+status: in-progress
 priority: critical
 type: feat
 created: 2026-08-12
@@ -17,9 +17,10 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/isolated-metadata-transaction-engine
 pr:
 blocked_by:
+claimed_at: 2026-08-15T22:06:24Z
 reconciled: false
 ---
 
