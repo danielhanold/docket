@@ -34,4 +34,40 @@ u="$(row cursor)";  assert "cursor ships cursor-grok-4.5-xhigh/auto" 'grep -q "m
 o="$(row opencode)"; assert "opencode ships deepseek-v4-pro-0813/medium" \
   'grep -q "model: openrouter/deepseek/deepseek-v4-pro-0813, effort: medium" <<<"$o"'
 
+# ---- generated wrappers (all four harnesses) --------------------------------
+# Auto-discovery: sync-agents.sh globs agents/docket-*.md, so this source needs no generator
+# change to be wrapped on every enabled harness. Each assert reads REAL emitted output from one
+# sandboxed run — one existence + one shipped-model-content check per harness, on the actual
+# emitted path each sibling sync test proves for its harness (tests/test_sync_agents_cursor.sh,
+# tests/test_sync_agents_codex.sh, tests/test_sync_agents_opencode.sh).
+SBX="$(mktemp -d "${TMPDIR:-/tmp}/planwriter.XXXXXX")"
+git -C "$SBX" init --quiet
+git -C "$SBX" config user.email t@t.test; git -C "$SBX" config user.name Test
+printf 'agent_harnesses: [claude, cursor, codex, opencode]\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$REPO/sync-agents.sh" >/dev/null 2>&1 )
+
+# claude: markdown wrapper carrying the full frontmatter (scope + injected pin), no skills preload
+W="$SBX/.claude/agents/docket-plan-writer.md"
+assert "claude wrapper generated" '[ -f "$W" ]'
+assert "claude wrapper pins the shipped model" 'grep -q "claude-opus-5" "$W"'
+assert "claude wrapper is feature-scoped" 'grep -q "^worktree-scope: feature$" "$W"'
+assert "claude wrapper preloads no skill" '! grep -q "^skills:" "$W"'
+
+# cursor: markdown wrapper at .cursor/agents/, model injected into frontmatter
+CU="$SBX/.cursor/agents/docket-plan-writer.md"
+assert "cursor wrapper generated" '[ -f "$CU" ]'
+assert "cursor wrapper pins the shipped model" 'grep -q "cursor-grok-4.5-xhigh" "$CU"'
+
+# codex: TOML wrapper at .codex/agents/, model = "..."
+CX="$SBX/.codex/agents/docket-plan-writer.toml"
+assert "codex wrapper generated" '[ -f "$CX" ]'
+assert "codex wrapper pins the shipped model" 'grep -q "gpt-5.6-terra" "$CX"'
+
+# opencode: markdown wrapper at .opencode/agents/, model injected into frontmatter
+OC="$SBX/.opencode/agents/docket-plan-writer.md"
+assert "opencode wrapper generated" '[ -f "$OC" ]'
+assert "opencode wrapper pins the shipped model" 'grep -q "openrouter/deepseek/deepseek-v4-pro-0813" "$OC"'
+
+rm -rf "$SBX"
+
 exit "$fail"
