@@ -115,6 +115,7 @@ fixture there is nothing to seed and it exits 1 by design. The fresh-repo path i
       finalize-change:       { model: <slug>, effort: xhigh }
       implement-next:        { model: <slug>, effort: xhigh }
       integration-repair:    { model: <slug>, effort: xhigh }
+      plan-writer:           { model: <slug>, effort: xhigh }
       rebase-resolver:       { model: <slug>, effort: xhigh }
       review-deep:           { model: <slug>, effort: xhigh }
       review-lean:           { model: <slug>, effort: xhigh }
@@ -177,12 +178,13 @@ fixture there is nothing to seed and it exits 1 by design. The fresh-repo path i
   ls ~/.codex/skills                               # expect docket skill symlinks
   bash /path/to/docket/sync-agents.sh --check; echo "exit=$?"   # expect exit=0
   ```
-  The full built-in set, as of this runbook, is sixteen agents: `docket-adr`,
+  The full built-in set, as of this runbook, is seventeen agents: `docket-adr`,
   `docket-auto-groom`, `docket-auto-groom-critic`, `docket-brainstorm-consultant`,
   `docket-build-economy`, `docket-build-max`, `docket-build-premium`,
   `docket-build-standard`, `docket-finalize-change`, `docket-implement-next`,
-  `docket-integration-repair`, `docket-rebase-resolver`, `docket-review-deep`,
-  `docket-review-lean`, `docket-review-standard`, `docket-status`.
+  `docket-integration-repair`, `docket-plan-writer`, `docket-rebase-resolver`,
+  `docket-review-deep`, `docket-review-lean`, `docket-review-standard`,
+  `docket-status`.
   **Don't trust that printed list as a ceiling** —
   the set grows; compare the count against `ls agents/docket-*.md` in the docket clone itself
   before treating a mismatch as a bug. If the set has grown, add the new keys to step 4's pin.
