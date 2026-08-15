@@ -2,9 +2,9 @@
 slug: enumerated-floor
 hook: "Every hand-written enumeration is a floor, not the set — derive the sites from a whole-repo grep, then treat that grep as a floor too."
 topics: [process, inventory, review]
-changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 78, 84, 96, 98, 99, 167, 184, 255, 244, 208]
+changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 78, 84, 96, 98, 99, 167, 184, 255, 244, 208, 324]
 created: 2026-06-12
-updated: 2026-08-11
+updated: 2026-08-15
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -165,3 +165,17 @@ enumerated.
   you happen to be editing — which is exactly what the promoted rule says, and exactly what a
   hand-count skips past. Filed as a direct instance rather than a new lesson: the rule was already
   in `CLAUDE.md`, promoted, and it still lost to a number written into a plan.
+- 2026-08-15 (#324, PR #209 — merged) — **A NEGATIVE scope claim is an enumeration too.** The spec
+  and plan both asserted the change "touches no Go source," and that sentence functioned exactly
+  like a hand-list: it named the set of languages in play by naming what was excluded, and nothing
+  had derived it. It was false. Registering the seventeenth shipped agent reconciles the Go built-in
+  agent registry (`defaults.go`) and its frozen parity fixture, so the change necessarily reached
+  into Go — plus four harness golden refreezes, a new sparse `testdata/repositories/v0.9.3/` frozen
+  tree, and an embedded-asset regen. The miss was caught by a human before the build rather than by
+  a guard, and folded into 0324 as an extra task. What this entry adds to the family: the existing
+  rule tells you to derive a list of *sites you will touch*, and a negative claim slips past it
+  because it looks like a boundary rather than a list — but "no X is involved" is refuted by exactly
+  the same whole-repo grep that would have built the positive list, run for X. Treat every
+  scope-narrowing sentence in a spec as an enumeration awaiting its grep, and note that the shape is
+  most dangerous where a repo spans languages: a roster expressed in YAML in one tree and compiled
+  into a registry in another has no textual overlap for a same-language search to find.

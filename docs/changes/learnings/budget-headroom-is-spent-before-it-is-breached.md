@@ -2,9 +2,9 @@
 slug: budget-headroom-is-spent-before-it-is-breached
 hook: "A wall-clock budget row sitting AT its ceiling is already spent — the queued changes against that same file, not the current green run, decide whether it breaches."
 topics: [testing, budgets, planning]
-changes: [270, 277, 247]
+changes: [270, 277, 247, 324]
 created: 2026-08-10
-updated: 2026-08-11
+updated: 2026-08-15
 promotion_state: retained
 promoted_to:
 ---
@@ -76,3 +76,16 @@ reader nothing.
   SKILL.md behaves identically** — a threshold that reports binary, consumed by changes that are not
   yours, on a file several queued changes all edit. The rule generalizes to any budgeted shared
   surface, not just the runtime table.
+- 2026-08-15 (#324, PR #209 — merged) — **When the ceiling itself cannot be raised, parity forces a
+  shard.** `tests/test_sync_agents_runners.sh` was already sitting AT the hard 60s ceiling on
+  `origin/main` — headroom fully spent before this change existed. Registering the seventeenth
+  shipped agent added the increment that tipped its measured wall over, and the usual remedy was
+  unavailable: 60s is the maximum the runtime table's own rules permit for a row, and
+  `EXPECTED_TOTAL` is pinned, so "re-budget" had no move left. The resolution was to **shard the
+  file into three siblings** (`…_runners.sh` / `…_runners_gates.sh` / `…_runners_pins.sh`) with every
+  assertion preserved and `EXPECTED_TOTAL` re-seeded 1845→1905. The lesson this adds to the family:
+  the earlier entries treat re-budgeting as the escape hatch parity buys you time to take, but a row
+  at the table's *hard* ceiling has no re-budget — the only remaining moves are sharding or deleting
+  coverage, and sharding is a whole task's worth of work landed by whichever unrelated change happens
+  to be holding the increment. That is the strongest argument yet for treating parity as the finding:
+  at the hard ceiling, the cost of discovering it late is not a number edit, it is a refactor.
