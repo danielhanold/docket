@@ -18,7 +18,6 @@ package transaction
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"strings"
 
@@ -151,11 +150,31 @@ func (e *Engine) runAttempt(ctx context.Context, repo gitcli.Repository, remote 
 	acc.RemoteCommit = baseCommit
 	*lastRemote = baseCommit
 
-	// 2. Idempotency scan. Task 8 replaces this stub with a real ancestry scan; for
-	// now a nil key means "no replay to find" and a keyed request is unsupported.
+	// 2. Idempotency scan. For a keyed request, search the fetched commit's full
+	// reachable ancestry for a prior receipt BEFORE allocating any local state, so a
+	// lost response replays the original receipt rather than allocating a second time.
 	if req.Idempotency != nil {
-		acc.Disposition = DispositionFailed
-		return attemptOutcome{result: acc, err: &Failure{Stage: StageIdempotencyScan, Kind: KindInvalidInput, Detail: "keyed requests are not supported until idempotency lands"}}, true
+		rep, serr := e.scanForRequest(ctx, repo, baseCommit, req.Idempotency)
+		if serr != nil {
+			return e.externalOutcome(ctx, StageIdempotencyScan, acc, "scanning request-id ancestry", serr), true
+		}
+		switch rep.kind {
+		case replayFound:
+			// Already applied: return the ORIGINAL receipt and authoritative commit, with
+			// no new commit and no allocation. RemoteCommit stays the observed base tip.
+			acc.Disposition = DispositionAlreadyApplied
+			acc.AppliedCommit = rep.commit
+			acc.Receipt = cloneBytes(rep.receipt)
+			return attemptOutcome{result: acc}, true
+		case replayIDReused:
+			acc.Disposition = DispositionFailed
+			return attemptOutcome{result: acc, err: &Failure{Stage: StageIdempotencyScan, Kind: KindInvalidInput, Detail: "request-id-reused"}}, true
+		case replayInvalidState:
+			acc.Disposition = DispositionFailed
+			return attemptOutcome{result: acc, err: &Failure{Stage: StageIdempotencyScan, Kind: KindInvalidState, Detail: "request-id history is duplicate, malformed, or contradictory"}}, true
+		case replayNone:
+			// No prior receipt for this key — fall through to allocation.
+		}
 	}
 
 	// 3. Allocate a private, live-locked candidate under the transactions root.
@@ -277,7 +296,7 @@ func (e *Engine) runCandidate(ctx context.Context, repo gitcli.Repository, remot
 		Dir:       cand.worktree,
 		Paths:     planPaths(plan),
 		Subject:   plan.CommitSubject,
-		Trailers:  e.engineTrailerBlock(cand.id, op, plan.Receipt),
+		Trailers:  engineTrailers(cand.id, op, req.Idempotency, plan.Receipt),
 		HooksPath: cand.hooks,
 		When:      e.clock.Now(),
 	})
@@ -371,18 +390,6 @@ func refusedOutcome(acc Result, _ Stage, findings []domain.Finding) attemptOutco
 	acc.Disposition = DispositionRefused
 	acc.Findings = cloneFindings(findings)
 	return attemptOutcome{result: acc}
-}
-
-// engineTrailerBlock builds the always-present engine trailer block for an
-// unkeyed request: the transaction id, the operation key, and the base64url
-// receipt. Task 8 replaces this with engineTrailers and adds the two request
-// trailers when an idempotency key is present.
-func (e *Engine) engineTrailerBlock(txnID string, op OperationKey, receipt []byte) []gitcli.Trailer {
-	return []gitcli.Trailer{
-		{Key: "Docket-Transaction-ID", Value: txnID},
-		{Key: "Docket-Operation", Value: string(op)},
-		{Key: "Docket-Result", Value: base64.RawURLEncoding.EncodeToString(receipt)},
-	}
 }
 
 // checkExpectations reads each expectation's exact path from the base tree and
