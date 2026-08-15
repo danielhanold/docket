@@ -47,7 +47,7 @@ func TestValidateRefName(t *testing.T) {
 	}
 	bad := []RefName{"main", "heads/main", "refs/", "refs/heads/", "-refs/heads/x",
 		"refs/heads/a b", "refs/heads/a..b", "refs/heads/a.lock", "refs/heads/a@{1}",
-		"refs/heads/*", "refs/heads/a\\b", "refs/heads/.hidden", "refs/heads/a\x00b"}
+		"refs/heads/*", "refs/heads/a\\z", "refs/heads/.hidden", "refs/heads/a\x00b"}
 	for _, r := range bad {
 		if err := validateRefName(r); err == nil {
 			t.Errorf("validateRefName(%q) accepted", r)
