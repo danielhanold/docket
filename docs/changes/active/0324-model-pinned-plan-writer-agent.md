@@ -13,12 +13,12 @@ related: [16, 17, 49, 96, 311, 315]
 discovered_from: []
 adrs: [8, 15, 16, 18, 44, 59, 64, 83]
 spec: docs/superpowers/specs/2026-08-15-model-pinned-plan-writer-agent-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-15-model-pinned-plan-writer-agent.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/model-pinned-plan-writer-agent
-claimed_at: 2026-08-15T15:52:17Z
+claimed_at: 2026-08-15T15:58:22Z
 pr:
 blocked_by:
 reconciled: true
@@ -30,6 +30,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-15-model-pinned-plan-writer-agent-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-15-model-pinned-plan-writer-agent-design.md) |
+| Plan | [2026-08-15-model-pinned-plan-writer-agent.md](https://github.com/danielhanold/docket/blob/feat/model-pinned-plan-writer-agent/docs/superpowers/plans/2026-08-15-model-pinned-plan-writer-agent.md) |
 | ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md), [ADR-0018](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0018-pluggable-skills-passthrough-degrade.md), [ADR-0044](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0044-autonomy-precedence-call-site-pre-specification.md), [ADR-0059](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md), [ADR-0064](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0064-shipped-agent-defaults-live-in-a-harness-indexed-sidecar.md), [ADR-0083](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0083-agent-worktree-scope-is-a-declared-frontmatter-fact.md) |
 <!-- docket:artifacts:end -->
 
