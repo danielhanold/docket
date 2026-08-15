@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0308 — Git adapter and authoritative object source](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0308-git-adapter-and-authoritative-object-source.md)**
+> ↩ **[Change 0308 — Git adapter and authoritative object source](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-15-0308-git-adapter-and-authoritative-object-source.md)**
 <!-- docket:backlink:end -->
 
 # Git adapter and authoritative object source — results
