@@ -18,10 +18,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/model-pinned-plan-writer-agent
-claimed_at: 2026-08-15T15:51:13Z
+claimed_at: 2026-08-15T15:52:17Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -67,3 +67,14 @@ claim-to-implemented workflow reconciles against the settled planning boundary.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-15 — reconcile (implement-next)
+
+Spec authored today; verified against current origin/main and it holds unchanged:
+16 agent sources plus `agents/harness-defaults.yml` exist; `cmd/genassets` and the
+`internal/assets/embedded/` tree from change 0311 are present, so the required
+embedded-asset regeneration path is real. No related change has landed since the
+spec was written; no scope adjustment needed. One coordination note: change 0308
+(Go git adapter) is in-progress on a separate branch — this change touches no Go
+runtime behavior, only regenerated embedded assets, so overlap is limited to a
+possible mechanical regeneration collision at merge time.
