@@ -1454,6 +1454,17 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 # rare-edges reference exists to hold, so it lives here rather than bloating the main SKILL body.
 # 44 lines -> 45 leaves 1 line (near-zero) so 50; 656 words -> 700 leaves 44 (above the 25-word
 # threshold) so 700.
+# skills/docket-convention/SKILL.md's WORD budget was raised 6950 -> 7050 by change 0324, which added
+# the docket-plan-writer subagent to the *Agent layer* exception list (eight -> nine wrappers; seven ->
+# eight metadata-boundary exceptions), inserted its step-4 dispatch into the *Composition* paragraph (a
+# hybrid PLAN_PATH= receipt / git-state proof), extended the no-skill tally (four/sixteen ->
+# five/seventeen, plan-writer wrapping no convention either), and named the plan-writer dispatch in the
+# *Dispatch-capability* Tier C cell. This is count-and-taxonomy prose the suite greps against SKILL.md
+# itself (test_finalize_gate, test_composition_wiring, test_dispatch_capability, test_plan_writer_step4),
+# so it cannot move to references/agent-layer.md without breaking those verbatim anchors — it has no
+# other home. Set per the rounding rule above from the measured actual: 6983 words -> 7000 leaves 17
+# (within the 25-word threshold) so the multiple after, 7050. The LINE budget was not raised (384
+# actual, 385 budget) — every edit reflowed inside existing lines.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -1465,7 +1476,7 @@ skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            130 1200
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          145 1350
-skills/docket-convention/SKILL.md                          385 6950
+skills/docket-convention/SKILL.md                          385 7050
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         205 2350
 skills/docket-convention/references/auto-capture.md        130 1250
