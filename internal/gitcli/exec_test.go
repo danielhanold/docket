@@ -28,10 +28,20 @@ func TestMain(m *testing.M) {
 //	          (default "x") to stderr, exit 3
 //	"block":  ignore args, sleep 30s (killed by timeout/cancel)
 //	"exit":   exit with code GITCLI_HELPER_EXIT
-//	"script": write GITCLI_HELPER_STDOUT verbatim to stdout, exit 0
+//	"script": write GITCLI_HELPER_STDOUT_FILE's raw bytes (if set — the only way
+//	          to deliver NUL-delimited output an env var cannot hold) else
+//	          GITCLI_HELPER_STDOUT verbatim to stdout, exit 0
 func helperMain() {
 	switch os.Getenv("GITCLI_HELPER_MODE") {
 	case "script":
+		if path := os.Getenv("GITCLI_HELPER_STDOUT_FILE"); path != "" {
+			b, err := os.ReadFile(path)
+			if err != nil {
+				os.Exit(4)
+			}
+			os.Stdout.Write(b)
+			os.Exit(0)
+		}
 		os.Stdout.WriteString(os.Getenv("GITCLI_HELPER_STDOUT"))
 		os.Exit(0)
 	case "dump":
