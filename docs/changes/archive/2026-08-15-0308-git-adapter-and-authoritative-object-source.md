@@ -30,8 +30,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-13-git-adapter-and-authoritative-object-source-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-13-git-adapter-and-authoritative-object-source-design.md) |
-| Plan | [2026-08-15-git-adapter-and-authoritative-object-source.md](https://github.com/danielhanold/docket/blob/feat/git-adapter-and-authoritative-object-source/docs/superpowers/plans/2026-08-15-git-adapter-and-authoritative-object-source.md) |
-| Results | [2026-08-15-git-adapter-and-authoritative-object-source-results.md](https://github.com/danielhanold/docket/blob/feat/git-adapter-and-authoritative-object-source/docs/results/2026-08-15-git-adapter-and-authoritative-object-source-results.md) |
+| Plan | [2026-08-15-git-adapter-and-authoritative-object-source.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-15-git-adapter-and-authoritative-object-source.md) |
+| Results | [2026-08-15-git-adapter-and-authoritative-object-source-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-15-git-adapter-and-authoritative-object-source-results.md) |
 | PR | 210 |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0034](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0034-repo-root-anchored-to-main-worktree.md) |
 <!-- docket:artifacts:end -->
