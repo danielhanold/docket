@@ -298,7 +298,7 @@ assert "0051 mig: announces the migration"                 'grep <<<"$mig_err" -
 assert "0051 mig: prints git rm --cached instructions"     'grep <<<"$mig_err" -q -e "git rm" '
 assert "0051 mig: gitignore block written"                 'grep -q "^# docket:start" "$SBX/.gitignore"'
 assert "0051 mig: local files regenerated (fresh content)" 'grep -q "^model: sonnet" "$SBX/.claude/agents/docket-status.md"'
-assert "0051 mig: full local set regenerated"              '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "16" ]'
+assert "0051 mig: full local set regenerated"              '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "17" ]'
 # perform the printed migration commit; second run must NOT re-announce
 ( cd "$SBX" && git rm -r -q --cached '.claude/agents/docket-*.md' '.cursor/agents/docket-*.md' '.cursor/rules/docket-dispatch.mdc' && git add .gitignore && git commit -q -m "docket: agent files go machine-local" )
 mig_err2="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTM" bash "$SYNC" 2>&1 >/dev/null)"
