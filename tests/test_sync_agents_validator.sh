@@ -303,7 +303,7 @@ rm -rf "$SCOPESRC2"
 expected_scope(){  # $1 = short name -> the scope this agent must declare, empty if unclassified
   case "$1" in
     build-economy|build-standard|build-premium|build-max) printf feature ;;
-    rebase-resolver|integration-repair)                   printf feature ;;
+    rebase-resolver|integration-repair|plan-writer)       printf feature ;;
     review-lean|review-standard|review-deep)              printf feature ;;
     adr|auto-groom|auto-groom-critic|brainstorm-consultant) printf metadata ;;
     finalize-change|implement-next|status)                 printf metadata ;;
