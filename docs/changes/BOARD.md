@@ -1,14 +1,15 @@
 # Backlog
 
-**324 changes** — 🟢 1 in progress · 🟡 54 proposed · ⚪ 4 deferred · ✅ 185 done · 🗑️ 80 killed
+**324 changes** — 🟢 2 in progress · 🟡 53 proposed · ⚪ 4 deferred · ✅ 185 done · 🗑️ 80 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0308](active/0308-git-adapter-and-authoritative-object-source.md) | Git adapter and authoritative object source | `critical` | `feat` | [spec](../superpowers/specs/2026-08-13-git-adapter-and-authoritative-object-source-design.md) | `feat/git-adapter-and-authoritative-object-source` |
+| [0324](active/0324-model-pinned-plan-writer-agent.md) | Extract plan writing into a model-pinned internal agent | `critical` | `feat` | [spec](../superpowers/specs/2026-08-15-model-pinned-plan-writer-agent-design.md) | `feat/model-pinned-plan-writer-agent` |
 
-## 🟡 Proposed (54)
+## 🟡 Proposed (53)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -65,7 +66,6 @@
 | [0321](active/0321-render-artifact-backlink-sh-eats-artifact-tails-on-marker-sh.md) | render-artifact-backlink.sh eats artifact tails on marker-shaped literals — anchor whole-line, validate balance, refuse | `medium` | `fix` | needs-brainstorm |
 | [0322](active/0322-go-installer-adopt-legacy-bash-installed-user-level-artifact.md) | Go installer: adopt legacy Bash-installed user-level artifacts via a frozen legacy renderer | `medium` | `feat` | needs-brainstorm |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | needs-brainstorm |
-| [0324](active/0324-model-pinned-plan-writer-agent.md) | Extract plan writing into a model-pinned internal agent | `critical` | `feat` | build-ready |
 
 ## ⚪ Deferred (4)
 
