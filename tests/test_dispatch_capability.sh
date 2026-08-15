@@ -297,6 +297,25 @@ assert "coherence loop: every carve-out row was checked against the carve-out pa
 # abuse the count assert exists to make visible.
 PENDING_TIER=" "
 
+# HYBRID dispatch sites (change 0324): a site whose dispatch VERB and its tier POSTURE are stated in
+# SEPARATE paragraphs, so it cannot be a single tier-proximity `check_site` row (whose proximity
+# assert needs the noun and the tier literal in ONE clause). `docket-plan-writer` is the first: Step
+# 4's *Plan authoring* paragraph names the `docket-plan-writer` subagent, while its *Continue*
+# paragraph carries the "**Dispatch posture (Tier C)**" clause as "plan-writer dispatch". It is
+# NEITHER untiered (so it is not a PENDING_TIER member) NOR proximity-expressible (so it is not a
+# check_site row) — it is TIERED, and its Tier C posture is asserted directly below. Listing it here
+# keeps it an in-diff, never-silent decision, exactly like a PENDING_TIER entry.
+HYBRID_TIER=" docket-plan-writer "
+IMPL_FLAT="$(tr '\n' ' ' < "$IMPL" | tr -s '[:space:]' ' ')"
+# `.` stands in for the backtick around the agent name / the parens around "Tier C" — a literal
+# backtick in the assert expression would be command-substituted by `assert`'s `eval`.
+assert "hybrid: Step 4 dispatches the docket-plan-writer subagent" \
+  'grep -qE -- "docket-plan-writer. subagent" <<<"$IMPL_FLAT"'
+assert "hybrid: the docket-plan-writer dispatch states its Tier C posture" \
+  'grep -qiE -- "Dispatch posture .Tier C.[^.]{0,40}plan-writer dispatch" <<<"$IMPL_FLAT"'
+assert "hybrid: the Tier C posture cites the convention's Dispatch-capability resolution rule" \
+  'grep -qF -- "Dispatch-capability resolution" <<<"$IMPL_FLAT" && grep -qF -- "never from a tool name" <<<"$IMPL_FLAT"'
+
 derived=""
 while IFS= read -r name; do
   [ -n "$name" ] || continue
@@ -331,8 +350,8 @@ assert "reverse: PENDING_TIER is empty — no dispatch site is knowingly untiere
 for name in $derived; do
   # Token match, not substring: the surrounding spaces in both the pattern and the haystack keep a
   # phantom site named e.g. "docket" from being falsely reported as covered by " docket-status".
-  assert "reverse: derived dispatch site '$name' is a check_site row or a PENDING_TIER member" \
-    "grep -qF -- \" $name \" <<<\"\$all_nouns \$PENDING_TIER\""
+  assert "reverse: derived dispatch site '$name' is a check_site row, PENDING_TIER, or HYBRID_TIER member" \
+    "grep -qF -- \" $name \" <<<\"\$all_nouns \$PENDING_TIER \$HYBRID_TIER\""
 done
 
 # --- negative guard: no live prose gates a decision on a literal tool name -----------------------

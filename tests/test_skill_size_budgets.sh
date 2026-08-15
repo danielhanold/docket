@@ -1437,6 +1437,23 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 # (within the 25-word threshold), so the multiple after it, 2050.
 # skills/docket-finalize-change/SKILL.md needed NO raise from that same edit (184/4144 against
 # 190/4150) — its trigger line absorbed the scan invocation and step 3.5 now points back at it.
+# skills/docket-implement-next/SKILL.md was raised 170/4750 -> 180/5050 by change 0324, which
+# rewrote Step 4's single plan-authoring paragraph into the two-phase parent/child dispatch contract
+# (Preparation, Plan authoring, Verification, Continue) for the new docket-plan-writer subagent — the
+# no-trust git-side verification (containment, single-artifact delta, one Docket-Plan-Path: trailer,
+# backlink identity) and the Tier C authorized-or-halt posture are normative main-line procedure that
+# governs EVERY plan step, so it must live inline in Step 4, not in a rare-edge reference. The rare
+# portion — resume of an in-progress change whose plan already committed — DID go to
+# references/edge-paths.md (below). Set per the rounding rule above from the measured actual: 174
+# lines -> 175 leaves 1 line (near-zero) so 180; 4982 words -> 5000 leaves 18 (within the 25-word
+# threshold) so the multiple after, 5050.
+# skills/docket-implement-next/references/edge-paths.md was raised 35/500 -> 50/700 by the same
+# change, which appended the plan-seam resume rules to its "Resume of an `in-progress` change`"
+# section — a resume-of-in-progress edge (reuse a verified committed plan / recover it from the
+# Docket-Plan-Path: trailer / halt on ambiguity, never re-plan), which is exactly what this
+# rare-edges reference exists to hold, so it lives here rather than bloating the main SKILL body.
+# 44 lines -> 45 leaves 1 line (near-zero) so 50; 656 words -> 700 leaves 44 (above the 25-word
+# threshold) so 700.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -1459,8 +1476,8 @@ skills/docket-convention/references/terminal-close-out.md  200 1750
 skills/docket-finalize-change/SKILL.md                     190 4150
 skills/docket-finalize-change/references/gate-failure.md    40 1250
 skills/docket-groom-next/SKILL.md                           77 1550
-skills/docket-implement-next/SKILL.md                      170 4750
-skills/docket-implement-next/references/edge-paths.md       35  500
+skills/docket-implement-next/SKILL.md                      180 5050
+skills/docket-implement-next/references/edge-paths.md       50  700
 skills/docket-implement-next/references/fix-loop.md        185 1900
 skills/docket-implement-next/results-template.md            25  250
 skills/docket-review/SKILL.md                              110  900

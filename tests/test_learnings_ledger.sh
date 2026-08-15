@@ -53,8 +53,16 @@ assert "status documents both needs-you advisories" \
 # (c) the readers — the two-step index-first read contract, at all three hot moments
 assert "implement-next reads the index at plan time AND review" \
   '[ "$(grep -cF "learnings/README.md" "$REPO/skills/docket-implement-next/SKILL.md")" -ge 2 ]'
-assert "implement-next gates its reads on learnings.enabled" \
-  '[ "$(grep -cF "learnings.enabled" "$REPO/skills/docket-implement-next/SKILL.md")" -ge 2 ]'
+# Both hot-moment reads stay enablement-gated, but change 0324 split WHERE the plan-time read runs:
+# Step 6's review read is still performed and gated in this skill (`learnings.enabled`), while Step
+# 4's plan-time read moved into the dispatched docket-plan-writer child — the parent now RESOLVES
+# enablement and passes "whether learnings are enabled" (and, only when enabled, the index path) in
+# the dispatch payload, and the child reads. Keyed on each moment's own gating phrase so a regression
+# that drops either gate still reddens; the child's own gating is guarded by test_plan_writer_agent.sh.
+assert "implement-next review read gates on learnings.enabled" \
+  '[ "$(grep -cF "learnings.enabled" "$REPO/skills/docket-implement-next/SKILL.md")" -ge 1 ]'
+assert "implement-next plan-time read gates enablement into the plan-writer child payload" \
+  'grep -qF "whether learnings are enabled" "$REPO/skills/docket-implement-next/SKILL.md"'
 assert "groom-next reads the index before the brainstorm" \
   'grep -qF "learnings/README.md" "$REPO/skills/docket-groom-next/SKILL.md"'
 assert "groom-next gates its read on learnings.enabled" \
