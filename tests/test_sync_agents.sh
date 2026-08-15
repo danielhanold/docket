@@ -6,7 +6,7 @@
 # ---- Task 1: built-in wrapper source files ---------------------------------
 
 assert "agents/ source dir exists" '[ -d "$AGENTS" ]'
-assert "exactly 16 built-in wrappers" '[ "$(find "$AGENTS" -maxdepth 1 -name "docket-*.md" | wc -l | tr -d " ")" = "16" ]'
+assert "exactly 17 built-in wrappers" '[ "$(find "$AGENTS" -maxdepth 1 -name "docket-*.md" | wc -l | tr -d " ")" = "17" ]'
 
 for w in $AUTONOMOUS; do
   f="$AGENTS/$w.md"
@@ -104,7 +104,7 @@ make_sandbox
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
 assert "writes into present .claude/agents" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
 assert "writes into present .agents/agents" '[ -f "$SBX/.agents/agents/docket-status.md" ]'
-assert "all 16 wrappers land in .claude/agents" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "16" ]'
+assert "all 17 wrappers land in .claude/agents" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "17" ]'
 assert "does NOT create an absent harness (.cursor)" '[ ! -d "$SBX/.cursor/agents" ]'
 # Change 0168 replaced the byte-identity assert here: the generator now INJECTS the pin from
 # agents/harness-defaults.yml instead of copying the source's frontmatter, so byte identity is
@@ -180,8 +180,8 @@ make_sandbox                                       # SBX = the repo
 HROOT48A="$(mktemp -d)"; mkdir -p "$HROOT48A/.claude"
 printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48A" bash "$SYNC" >/dev/null )
-assert "0048: full set — all 16 built-ins land in project-level .claude/agents" \
-  '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "16" ]'
+assert "0048: full set — all 17 built-ins land in project-level .claude/agents" \
+  '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "17" ]'
 assert "0048: listed agent carries its override (status=sonnet)" \
   '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
 assert "0048: UNLISTED agent generated at shipped default (implement-next=claude-opus-5/medium)" \
@@ -203,8 +203,8 @@ assert "0048 rule: carries alwaysApply: true frontmatter" 'grep -q "^alwaysApply
 assert "0048 rule: generated file opens with dispatch.head.md byte-for-byte" \
   'diff -q <(head -n "$(wc -l < "$REPO/cursor-rules/dispatch.head.md")" "$RULE") "$REPO/cursor-rules/dispatch.head.md" >/dev/null'
 assert "0048 rule: has the required dispatch pattern heading" 'grep -q "## Required dispatch pattern" "$RULE"'
-assert "0048 rule: has a subsection for every built-in agent (16)" \
-  '[ "$(grep -cE "^## docket-.* — dispatch only" "$RULE")" = "16" ]'
+assert "0048 rule: has a subsection for every built-in agent (17)" \
+  '[ "$(grep -cE "^## docket-.* — dispatch only" "$RULE")" = "17" ]'
 assert "0048 rule: names docket-implement-next as a subsection" 'grep -q "^## docket-implement-next — dispatch only" "$RULE"'
 assert "0048 rule: names docket-status as a subsection" 'grep -q "^## docket-status — dispatch only" "$RULE"'
 assert "0048 rule: no subsection for a non-existent agent" '! grep -q "docket-nonexistent" "$RULE"'

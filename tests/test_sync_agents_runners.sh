@@ -763,7 +763,7 @@ printf 'agents:\n  claude:\n    status: { runner: codex, model: some/model-id }\
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 ); rc=$?
 assert "0207: a VALID runner config still generates (the guards above are not vacuous)" '[ "$rc" = "0" ]'
 assert "0207: and the full built-in set lands" \
-  '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "16" ]'
+  '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "17" ]'
 rm -rf "$SBX"
 
 # A non-claude harness carrying runner: is warned-and-ignored (reserved) and emits NATIVE — the
@@ -901,7 +901,7 @@ printf 'agents:\n  claude:\n    status: { runner: codex, model: some/model-id }\
 ( cd "$D2REPO" && DOCKET_HARNESS_ROOT="$D2ROOT" bash "$SYNC" >/dev/null 2>&1 ); d2v_rc=$?
 assert "0220/D2: a VALID global runner config still generates (not vacuous)" '[ "$d2v_rc" = "0" ]'
 assert "0220/D2: and the full built-in set lands user-level" \
-  '[ "$(find "$D2ROOT/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "16" ]'
+  '[ "$(find "$D2ROOT/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "17" ]'
 rm -rf "$D2REPO" "$D2ROOT"
 
 # ---- change 0220 / D3: emit_wrapper's $2 == $RES_MODEL calling contract ------------------------
@@ -1153,7 +1153,7 @@ assert "0169 fixture: the copy no longer lists codex as shipped" \
 assert "0169 fixture: the copy has no codex block" \
   '[ -z "$(hd_agents "$SCRW/agents/harness-defaults.yml" codex)" ]'
 assert "0169 fixture: the copy still ships a complete cursor block (only codex was stripped)" \
-  '[ "$(hd_agents "$SCRW/agents/harness-defaults.yml" cursor | grep -c .)" = "16" ]'
+  '[ "$(hd_agents "$SCRW/agents/harness-defaults.yml" cursor | grep -c .)" = "17" ]'
 printf 'agent_harnesses: [claude, cursor, codex]\n' > "$SBX/.docket.yml"
 w168="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT168W" bash "$SCRW/sync-agents.sh" 2>&1 >/dev/null)"
 assert "0168: a cursor agent the sidecar supplies draws no warning" \

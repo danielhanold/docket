@@ -186,14 +186,14 @@ func TestNameSets(t *testing.T) {
 		"adr", "auto-groom", "auto-groom-critic", "brainstorm-consultant",
 		"build-economy", "build-standard", "build-premium", "build-max",
 		"finalize-change", "implement-next", "integration-repair",
-		"rebase-resolver", "review-lean", "review-standard", "review-deep",
-		"status",
+		"plan-writer", "rebase-resolver", "review-lean", "review-standard",
+		"review-deep", "status",
 	}
 	if !reflect.DeepEqual(agentShortNames, wantAgents) {
 		t.Errorf("agentShortNames = %v, want %v", agentShortNames, wantAgents)
 	}
-	if len(agentShortNames) != 16 {
-		t.Errorf("agentShortNames has %d entries, want 16", len(agentShortNames))
+	if len(agentShortNames) != 17 {
+		t.Errorf("agentShortNames has %d entries, want 17", len(agentShortNames))
 	}
 	wantRunners := []string{"codex", "cursor", "opencode"}
 	if !reflect.DeepEqual(runnerNames, wantRunners) {

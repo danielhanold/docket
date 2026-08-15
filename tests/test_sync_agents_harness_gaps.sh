@@ -25,11 +25,11 @@ assert "unmapped token 'kiro' produces a WARN" \
   'grep -q "WARN harness .kiro. has no named emitter" "$WORK/kiro.err"'
 assert "the WARN names the unverified Claude-shaped wrapper" \
   'grep -qi "claude-shaped" "$WORK/kiro.err"'
-# 16 agents are generated per harness; a per-wrapper warn would print 16 lines.
+# 17 agents are generated per harness; a per-wrapper warn would print 17 lines.
 assert "the WARN fires exactly once for the run, not once per wrapper" \
   '[ "$(grep -c "unverified for .kiro" "$WORK/kiro.err")" = "1" ]'
 assert "the unmapped run still generates kiro wrappers (WARN, not refusal)" \
-  '[ "$(ls "$RK"/.kiro/agents/docket-*.md 2>/dev/null | wc -l | tr -d " ")" = "16" ]'
+  '[ "$(ls "$RK"/.kiro/agents/docket-*.md 2>/dev/null | wc -l | tr -d " ")" = "17" ]'
 
 # A named harness must stay silent — this is the discriminating half. A WARN that fired for every
 # token would pass every assert above and still be wrong.

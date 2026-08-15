@@ -30,7 +30,7 @@ mk_opencode_repo "$R"
 ( cd "$R" && DOCKET_HARNESS_ROOT="$WORK/home" bash "$REPO/sync-agents.sh" >"$WORK/gen.log" 2>&1 ) || true
 
 D="$R/.opencode/agents"
-assert "opencode wrappers are generated as .md" '[ "$(ls "$D"/docket-*.md 2>/dev/null | wc -l | tr -d " ")" = "16" ]'
+assert "opencode wrappers are generated as .md" '[ "$(ls "$D"/docket-*.md 2>/dev/null | wc -l | tr -d " ")" = "17" ]'
 
 # Every generated definition carries the sidecar's exact resolved pair. Population is derived from
 # the sidecar, with a floor so a broken read cannot pass with an empty loop.
@@ -56,7 +56,7 @@ assert "opencode: the per-agent loop covered the whole block" '[ "$n" -ge 16 ]'
 A="$R/AGENTS.md"
 assert "opencode-only repo gets the AGENTS.md dispatch block" '[ -f "$A" ] && grep -q "docket:dispatch:start" "$A"'
 assert "block lists every wrapper source" \
-  '[ "$(grep -c "^- \*\*docket-" "$A")" = "16" ]'
+  '[ "$(grep -c "^- \*\*docket-" "$A")" = "17" ]'
 # Machine-neutrality (ADR-0036): the committed block must carry no model IDs.
 assert "block carries no model IDs" \
   '! grep -qE "openrouter/|gpt-5|claude-opus|kimi-k3|deepseek" "$A"'
@@ -94,7 +94,7 @@ assert "two dispatch harnesses get the block EXACTLY once" \
 assert "two dispatch harnesses: exactly one closing marker" \
   '[ "$(grep -c "docket:dispatch:end" "$A3")" = "1" ]'
 assert "two dispatch harnesses: the block still lists every wrapper source once" \
-  '[ "$(grep -c "^- \*\*docket-" "$A3")" = "16" ]'
+  '[ "$(grep -c "^- \*\*docket-" "$A3")" = "17" ]'
 
 # De-list ONE of the two: the block must SURVIVE. This is the assert no single-owner fixture reaches.
 printf 'agent_harnesses: [opencode]\n' > "$R3/.docket.yml"

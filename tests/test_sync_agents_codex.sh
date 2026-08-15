@@ -38,7 +38,7 @@ mk_codex_repo(){
 mk_codex_repo
 assert "codex: writes .codex/agents/docket-status.toml" '[ -f "$SBX/.codex/agents/docket-status.toml" ]'
 assert "codex: does NOT write a codex .md wrapper"       '[ ! -f "$SBX/.codex/agents/docket-status.md" ]'
-assert "codex: full built-in set as TOML (16 files)"      '[ "$(find "$SBX/.codex/agents" -name "docket-*.toml" | wc -l | tr -d " ")" = "16" ]'
+assert "codex: full built-in set as TOML (17 files)"      '[ "$(find "$SBX/.codex/agents" -name "docket-*.toml" | wc -l | tr -d " ")" = "17" ]'
 
 T="$SBX/.codex/agents/docket-status.toml"
 assert "codex TOML: name = docket-status"          '[ "$(toml_get "$T" name)" = "docket-status" ]'
