@@ -2,7 +2,7 @@
 id: 324
 slug: model-pinned-plan-writer-agent
 title: 'Extract plan writing into a model-pinned internal agent'
-status: in-progress
+status: implemented
 priority: critical
 type: feat
 created: 2026-08-15
@@ -14,12 +14,12 @@ discovered_from: []
 adrs: [8, 15, 16, 18, 44, 59, 64, 83, 94]
 spec: docs/superpowers/specs/2026-08-15-model-pinned-plan-writer-agent-design.md
 plan: docs/superpowers/plans/2026-08-15-model-pinned-plan-writer-agent.md
-results:
+results: docs/results/2026-08-15-model-pinned-plan-writer-agent-results.md
 trivial: false
 auto_groomable:
 branch: feat/model-pinned-plan-writer-agent
-claimed_at: 2026-08-15T17:39:42Z
-pr:
+claimed_at: 2026-08-15T19:52:50Z
+pr: https://github.com/danielhanold/docket/pull/209
 blocked_by:
 reconciled: true
 ---
@@ -31,6 +31,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-15-model-pinned-plan-writer-agent-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-15-model-pinned-plan-writer-agent-design.md) |
 | Plan | [2026-08-15-model-pinned-plan-writer-agent.md](https://github.com/danielhanold/docket/blob/feat/model-pinned-plan-writer-agent/docs/superpowers/plans/2026-08-15-model-pinned-plan-writer-agent.md) |
+| Results | [2026-08-15-model-pinned-plan-writer-agent-results.md](https://github.com/danielhanold/docket/blob/feat/model-pinned-plan-writer-agent/docs/results/2026-08-15-model-pinned-plan-writer-agent-results.md) |
+| PR | [#209](https://github.com/danielhanold/docket/pull/209) |
 | ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md), [ADR-0018](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0018-pluggable-skills-passthrough-degrade.md), [ADR-0044](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0044-autonomy-precedence-call-site-pre-specification.md), [ADR-0059](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md), [ADR-0064](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0064-shipped-agent-defaults-live-in-a-harness-indexed-sidecar.md), [ADR-0083](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0083-agent-worktree-scope-is-a-declared-frontmatter-fact.md), [ADR-0094](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0094-plan-authoring-is-a-pinned-internal-composition-agent.md) |
 <!-- docket:artifacts:end -->
 
