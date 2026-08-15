@@ -5,7 +5,10 @@ import (
 	"fmt"
 )
 
-// Operation names the adapter operation a Failure arose from.
+// Operation names the adapter operation a Failure arose from. The known
+// operation values are: "new-client", "discover", "remote-default-branch",
+// "fetch-branch", "resolve-ref", "open-source", "list-tree", "read-blobs",
+// "worktree-add", "worktree-remove", "worktree-list", and "changed-paths".
 type Operation string
 
 // FailureKind is the typed category of a Failure.
