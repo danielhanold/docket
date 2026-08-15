@@ -147,6 +147,22 @@
 # after a fresh clone. Its other work is a `cp -R` of four small authored roots (~520K, 64 files)
 # plus the generated tree, and three comparator runs over them. Next multiple of 5 above 2.24 is 5,
 # plus the 5s margin -> 10, this table's floor. EXPECTED_TOTAL moves 1815 -> 1825.
+#
+# tests/test_sync_agents_runners.sh was SHARDED by change 0324 — the header's re-cut case, not a
+# file that got slower. The runner suite sat AT the hard 60s ceiling with no next raise (its row was
+# the ceiling itself), and adding the 17th shipped agent (docket-plan-writer) to the runner matrix
+# pushed its measured serial cost to ~96s. The table's own remedy for a file over its ceiling is a
+# shard, never a bigger number, so the one file was cut along its `# ---` banner seams into three
+# siblings — a MOVE with no assertion changed: 308 runtime asserts split 125/98/85, none lost.
+#   tests/test_sync_agents_runners.sh        — runner shims + shim_model/shim_effort config (0079/0269)
+#   tests/test_sync_agents_runners_gates.sh  — --worktree slot, required-model, atomic generation
+#   tests/test_sync_agents_runners_pins.sh   — resolved model/effort pin injection (0168/0173)
+# Sized per this header's rule from three standalone serial readings, one session, one machine, as
+# `time bash tests/<shard>.sh`:
+#   runners        38.76 38.72 38.78 -> worst 38.78 -> next multiple of 5 is 40, plus 5 -> 45
+#   runners_gates  26.78 26.87 26.71 -> worst 26.87 -> next multiple of 5 is 30, plus 5 -> 35
+#   runners_pins   29.83 30.13 30.36 -> worst 30.36 -> next multiple of 5 is 35, plus 5 -> 40
+# The single 60s row becomes three rows summing to 120, so EXPECTED_TOTAL moves 1845 -> 1905.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -255,7 +271,9 @@ tests/test_sync_agents_drift_docs.sh	55	parallel
 tests/test_sync_agents_harness_gaps.sh	20	parallel
 tests/test_sync_agents_opencode.sh	10	parallel
 tests/test_sync_agents_run_gate.sh	10	parallel
-tests/test_sync_agents_runners.sh	60	parallel
+tests/test_sync_agents_runners.sh	45	parallel
+tests/test_sync_agents_runners_gates.sh	35	parallel
+tests/test_sync_agents_runners_pins.sh	40	parallel
 tests/test_sync_agents_surface_containment.sh	20	parallel
 tests/test_sync_agents_validator.sh	15	parallel
 tests/test_sync_integration_branch.sh	10	parallel

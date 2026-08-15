@@ -25,7 +25,23 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1845 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1905 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1845 -> 1905 (change 0324): the SHARD-RE-CUT case, not a file that got slower.
+                    # tests/test_sync_agents_runners.sh sat AT the hard 60s ceiling and adding the
+                    # 17th shipped agent (docket-plan-writer) to its runner matrix pushed the file to
+                    # ~96s serial — over the ceiling with no next raise available, so the table's own
+                    # remedy applies: shard, never a bigger number. The one file was cut along its
+                    # `# ---` banner seams into tests/test_sync_agents_runners.sh (shims + shim-pin
+                    # config), tests/test_sync_agents_runners_gates.sh (--worktree slot, required-
+                    # model, atomic generation) and tests/test_sync_agents_runners_pins.sh (resolved
+                    # pin injection). A MOVE, not a rewrite: 308 runtime asserts split 125/98/85 with
+                    # none lost. Measured standalone serial (three readings each, `time bash
+                    # tests/<shard>.sh`) at worst 38.78/26.87/30.36s, which the sizing rule (next
+                    # multiple of 5 plus a 5s margin) puts at 45/35/40. The single 60s row becomes
+                    # three summing to 120, so the total rises by 60. Rationale is beside the rows in
+                    # the tsv header.
+                    # Recomputed from the table itself, never hand-adjusted:
+                    #   awk -F'\t' '!/^#/ && NF>=2 {s+=$2} END{print s}' tests/runtime-budgets.tsv
                     # 1825 -> 1845 (change 0324): two NEW test files, 10s each — the plan-writer
                     # agent-source guard tests/test_plan_writer_agent.sh and the Step-4 dispatch-
                     # contract guard tests/test_plan_writer_step4.sh. Both are new-behavior guards
