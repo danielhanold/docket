@@ -28,8 +28,12 @@ func TestMain(m *testing.M) {
 //	          (default "x") to stderr, exit 3
 //	"block":  ignore args, sleep 30s (killed by timeout/cancel)
 //	"exit":   exit with code GITCLI_HELPER_EXIT
+//	"script": write GITCLI_HELPER_STDOUT verbatim to stdout, exit 0
 func helperMain() {
 	switch os.Getenv("GITCLI_HELPER_MODE") {
+	case "script":
+		os.Stdout.WriteString(os.Getenv("GITCLI_HELPER_STDOUT"))
+		os.Exit(0)
 	case "dump":
 		var buf bytes.Buffer
 		for _, a := range os.Args[1:] {
