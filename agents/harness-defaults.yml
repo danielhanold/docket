@@ -39,6 +39,7 @@ agents:
     finalize-change:       { model: claude-opus-5, effort: low }
     implement-next:        { model: claude-opus-5, effort: medium }
     integration-repair:    { model: claude-opus-5, effort: medium }
+    plan-writer:           { model: claude-opus-5, effort: high }
     rebase-resolver:       { model: claude-opus-5, effort: medium }
     # The review rungs price REVIEW work directly rather than shifting the build ladder by one: a
     # read-and-return reviewer spends its budget reading a whole branch, not assembling one. On
@@ -69,6 +70,7 @@ agents:
     finalize-change:       { model: cursor-grok-4.5-high-fast, effort: auto }
     implement-next:        { model: cursor-grok-4.5-high, effort: auto }
     integration-repair:    { model: cursor-grok-4.5-high, effort: auto }
+    plan-writer:           { model: cursor-grok-4.5-xhigh, effort: auto }
     rebase-resolver:       { model: cursor-grok-4.5-high, effort: auto }
     review-lean:           { model: cursor-grok-4.5-medium, effort: auto }
     review-standard:       { model: cursor-grok-4.5-high, effort: auto }
@@ -96,6 +98,7 @@ agents:
     finalize-change:       { model: gpt-5.6-terra, effort: high }
     implement-next:        { model: gpt-5.6-sol, effort: medium }
     integration-repair:    { model: gpt-5.6-sol, effort: high }
+    plan-writer:           { model: gpt-5.6-terra, effort: high }
     rebase-resolver:       { model: gpt-5.6-sol, effort: high }
     review-lean:           { model: gpt-5.6-terra, effort: medium }
     review-standard:       { model: gpt-5.6-terra, effort: high }
@@ -131,6 +134,7 @@ agents:
     finalize-change:       { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: high }
     implement-next:        { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: high }
     integration-repair:    { model: openrouter/moonshotai/kimi-k3, effort: high }
+    plan-writer:           { model: openrouter/deepseek/deepseek-v4-pro-0813, effort: medium }
     rebase-resolver:       { model: openrouter/moonshotai/kimi-k3, effort: high }
     review-lean:           { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: high }
     review-standard:       { model: openrouter/moonshotai/kimi-k3, effort: medium }
