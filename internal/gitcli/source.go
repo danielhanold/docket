@@ -19,8 +19,9 @@ const (
 type ObjectSource interface {
 	Revision() Revision
 	ListTree(ctx context.Context, prefixes []RepoPath) ([]TreeEntry, error)
-	// ReadBlobs is added by the batched-blob-reads task (readblobs.go), which
-	// extends this interface and the objectSource method set.
+	// ReadBlobs resolves each requested path at the pinned commit and returns
+	// its exact bytes; it is implemented on *objectSource in readblobs.go.
+	ReadBlobs(ctx context.Context, paths []RepoPath) ([]BlobResult, error)
 }
 
 // objectSource is the concrete ObjectSource: the client and repository it reads

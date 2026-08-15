@@ -28,19 +28,42 @@ func TestMain(m *testing.M) {
 //	          (default "x") to stderr, exit 3
 //	"block":  ignore args, sleep 30s (killed by timeout/cancel)
 //	"exit":   exit with code GITCLI_HELPER_EXIT
-//	"script": write GITCLI_HELPER_STDOUT_FILE's raw bytes (if set — the only way
-//	          to deliver NUL-delimited output an env var cannot hold) else
-//	          GITCLI_HELPER_STDOUT verbatim to stdout, exit 0
+//	"script": serve canned stdout, exit 0. When GITCLI_HELPER_LSTREE_FILE /
+//	          GITCLI_HELPER_CATFILE_FILE is set AND the argument vector names
+//	          that subcommand (ls-tree / cat-file), that file's raw bytes are
+//	          served — this lets a single fake git answer the two-process
+//	          ReadBlobs pipeline (ls-tree resolve, then cat-file batch) with
+//	          independent payloads. Otherwise GITCLI_HELPER_STDOUT_FILE's raw
+//	          bytes (if set — the only way to deliver NUL-delimited output an
+//	          env var cannot hold), else GITCLI_HELPER_STDOUT verbatim.
+//
+// Spawn logging is orthogonal to the mode: when GITCLI_HELPER_SPAWNLOG names a
+// file, every helper invocation appends its argument vector as one line before
+// dispatching, so a test can count how many git processes an operation spawned.
 func helperMain() {
+	if logPath := os.Getenv("GITCLI_HELPER_SPAWNLOG"); logPath != "" {
+		f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		if err != nil {
+			os.Exit(5)
+		}
+		_, _ = f.WriteString(strings.Join(os.Args[1:], " ") + "\n")
+		_ = f.Close()
+	}
 	switch os.Getenv("GITCLI_HELPER_MODE") {
 	case "script":
-		if path := os.Getenv("GITCLI_HELPER_STDOUT_FILE"); path != "" {
-			b, err := os.ReadFile(path)
-			if err != nil {
-				os.Exit(4)
+		args := os.Args[1:]
+		if argsContain(args, "ls-tree") {
+			if path := os.Getenv("GITCLI_HELPER_LSTREE_FILE"); path != "" {
+				serveFileOrExit(path)
 			}
-			os.Stdout.Write(b)
-			os.Exit(0)
+		}
+		if argsContain(args, "cat-file") {
+			if path := os.Getenv("GITCLI_HELPER_CATFILE_FILE"); path != "" {
+				serveFileOrExit(path)
+			}
+		}
+		if path := os.Getenv("GITCLI_HELPER_STDOUT_FILE"); path != "" {
+			serveFileOrExit(path)
 		}
 		os.Stdout.WriteString(os.Getenv("GITCLI_HELPER_STDOUT"))
 		os.Exit(0)
@@ -80,6 +103,29 @@ func helperMain() {
 	default:
 		os.Exit(0)
 	}
+}
+
+// serveFileOrExit writes a canned payload file to stdout and exits the fake git
+// process; a read failure exits non-zero so the caller sees a spawn error rather
+// than silent empty output.
+func serveFileOrExit(path string) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		os.Exit(4)
+	}
+	os.Stdout.Write(b)
+	os.Exit(0)
+}
+
+// argsContain reports whether the argument vector names sub as one of its
+// tokens (used to route ls-tree vs cat-file to distinct canned payloads).
+func argsContain(args []string, sub string) bool {
+	for _, a := range args {
+		if a == sub {
+			return true
+		}
+	}
+	return false
 }
 
 // helperClient builds a Client whose executable is this test binary re-exec'd in
