@@ -13,12 +13,12 @@ related: []
 discovered_from: [303]
 adrs: [1, 34]
 spec: docs/superpowers/specs/2026-08-13-git-adapter-and-authoritative-object-source-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-15-git-adapter-and-authoritative-object-source.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/git-adapter-and-authoritative-object-source
-claimed_at: 2026-08-15T13:22:54Z
+claimed_at: 2026-08-15T13:28:48Z
 pr:
 blocked_by:
 reconciled: true
@@ -30,6 +30,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-13-git-adapter-and-authoritative-object-source-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-13-git-adapter-and-authoritative-object-source-design.md) |
+| Plan | [2026-08-15-git-adapter-and-authoritative-object-source.md](https://github.com/danielhanold/docket/blob/feat/git-adapter-and-authoritative-object-source/docs/superpowers/plans/2026-08-15-git-adapter-and-authoritative-object-source.md) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0034](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0034-repo-root-anchored-to-main-worktree.md) |
 <!-- docket:artifacts:end -->
 
