@@ -413,3 +413,21 @@ The sprint is complete only when changes 1–15 are `done`, the direct backlog-d
 no unresolved Bash-only item, the cutover gates in the architecture spec pass, and Go Docket has
 successfully self-hosted a real retained workflow. A green build of the binary alone is not sprint
 completion.
+
+## Post-sprint addenda
+
+Changes outside the fifteen-change sprint that nonetheless touch the migrated Go surface are
+recorded here so this map stays an accurate index of what moves the shipped registry and its frozen
+oracles. They do not expand the sprint or its dependency graph.
+
+- **Docket 0324 — model-pinned plan-writer agent (agent-side change).** Registers a **17th** shipped
+  agent (`docket-plan-writer`) in `agents/harness-defaults.yml`. Because change 0305 made the Go
+  built-in registry (`internal/config/defaults.go` `builtinAgents()`) the authoritative parity
+  oracle for the shipped defaults, shipping the agent reconciles that registry and cuts a new frozen
+  fixture tree. The chosen release version is **`0.9.3`**: a **sparse** `testdata/repositories/v0.9.3/`
+  holding only `agents-harness-defaults.yml` (17-agent byte copy) + a tree-wide `PROVENANCE.md`;
+  `sidecarPath` in `internal/config/defaults_test.go` re-points `v0.9.2` → `v0.9.3`, and
+  `TestBuiltinAgentsShape` moves 16 → 17. Every other frozen input stays on `v0.9.2/`. The Bash
+  rollback artifact and this sprint's baseline remain tag `v0.9.2` (Global Constraints, unchanged);
+  `0.9.3` is the first post-sprint agent-registry release, and its git tag is cut only after 0324
+  merges and is confirmed working.

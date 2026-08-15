@@ -243,13 +243,39 @@ trailing `OVER BUDGET:` report as a finding rather than noise.
 ## Go-migration isolation
 
 The Go migration's approved boundary says agents own authored plans and harness-native dispatch;
-Go owns deterministic repository and metadata mechanics. This change stays on the agent side of
-that boundary. It changes no Go domain, transaction, repository, workflow, or installer behavior.
+Go owns deterministic repository and metadata mechanics. This change stays on the agent side of that
+boundary for its *behavior*: it adds no Go domain, transaction, repository, workflow, or installer
+logic. It does, however, **register a new shipped agent** (`docket-plan-writer`, the 17th), and the
+Go built-in registry is by design the authoritative parity oracle for the shipped agent defaults —
+so registering an agent legitimately reconciles that registry and its frozen fixture. This is
+release synchronization of a data table, not a new runtime feature. (Superseding the earlier draft
+of this section, which wrongly asserted the change "touches no Go source" and treated the whole Go
+side as mechanical asset regen — the halt at the build gate on 2026-08-15 proved that false; folding
+the reconciliation into this change was the human decision recorded on the change file.)
 
 Change 0311 already made skills, agent sources, harness defaults, and dispatch instructions embedded
-release assets. The implementation therefore runs the existing asset generator and commits its
-mechanical outputs: the mirrored authored files, manifest digests, and generated embed source.
-Those generated updates are required release synchronization, not a new Go runtime feature.
+release assets, so the implementation runs the existing asset generator and commits its mechanical
+outputs (mirrored authored files, manifest digests, generated embed source). Beyond that regen, four
+Go sites must move together with the 17th sidecar row, or `go test ./...` stays red:
+
+1. `internal/config/defaults.go` — `builtinAgents()` gains a `docket-plan-writer` row (model +
+   effort, all four harnesses), byte-parity with the live `agents/harness-defaults.yml`.
+2. **A new frozen fixture tree `testdata/repositories/v0.9.3/`.** `TestBuiltinAgentsParityWithFrozenSidecar`
+   byte-compares the live sidecar against a frozen copy; `testdata/README.md` forbids editing the
+   immutable `v0.9.2/` tree and requires a new versioned tree named for the release that produced
+   the new state. The chosen release version is **0.9.3**. The tree is **sparse** — only the shipped
+   agent defaults changed at 0.9.3, so it holds exactly `agents-harness-defaults.yml` (a byte copy
+   of the current 17-agent live file) plus a tree-wide `PROVENANCE.md`; every other frozen input
+   (config fixtures, the document corpus, CLI fixtures) is unchanged and legitimately stays on
+   `v0.9.2/`. Only `sidecarPath` in `internal/config/defaults_test.go` re-points `v0.9.2` → `v0.9.3`.
+3. `TestBuiltinAgentsShape` — its hardcoded canonical-name count moves 16 → 17 (`docket-plan-writer`).
+4. Golden refreezes (`go test -update`) in `internal/harness/{claude,codex,cursor,opencode}` for the
+   `plan-writer` wrapper goldens.
+
+The Bash rollback artifact and the migration sprint's baseline stay tag `v0.9.2`; `0.9.3` is the
+first post-sprint agent-registry release. The **git tag `0.9.3` is cut only after this change merges
+and is confirmed working** — the fixture directory name and the in-code version references are a
+naming convention that can land in this change ahead of the tag.
 
 Change 0324 is `critical` and is implemented before 0315. It relates to 0315 so that change's
 reconcile pass treats the settled Step 4 agent seam as current input; it does not modify the Go

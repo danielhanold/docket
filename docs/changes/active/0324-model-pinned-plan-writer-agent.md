@@ -80,7 +80,7 @@ spec was written; no scope adjustment needed. One coordination note: change 0308
 runtime behavior, only regenerated embedded assets, so overlap is limited to a
 possible mechanical regeneration collision at merge time.
 
-## Run halted
+## Run halted (resolved 2026-08-15 — see Halt resolution below)
 
 **2026-08-15 — implement-next build halted on an invalidated scope premise (needs a human decision).**
 
@@ -130,3 +130,27 @@ corrective commits. The count-guard sweep (10 test files → 17) and the embedde
 are **present but uncommitted** in the feature worktree (a build worker returned BLOCKED
 without committing; this run did not adopt them). A resume should re-derive or commit those
 under its own authorship after the human resolves the release-version decision above.
+
+## Halt resolution (2026-08-15 — human decision)
+
+The two decisions the halt asked for are made; the scope premise is corrected in the spec and
+plan, so this change is resumable:
+
+- **Scope: fold into 0324.** The Go-side reconciliation of the shipped agent registry belongs to
+  this change, as one finalizable unit — shipping the 17th agent is not separable from registering
+  it. The spec's `## Go-migration isolation` section is rewritten accordingly; the plan's false
+  "touches no Go source" constraint is replaced and a Go-reconciliation task added.
+- **Release version: `0.9.3`.** The new immutable frozen fixture tree is
+  `testdata/repositories/v0.9.3/`, **sparse** — only `agents-harness-defaults.yml` (17-agent byte
+  copy) + a tree-wide `PROVENANCE.md`; every other frozen input stays on `v0.9.2/`. Only
+  `sidecarPath` in `internal/config/defaults_test.go` re-points to `v0.9.3`. The Bash rollback tag
+  stays `v0.9.2`.
+- **Git tag ordering.** The `v0.9.3/` directory name and in-code version references land in this
+  change; the actual **git tag `0.9.3` is cut only after 0324 merges and is confirmed working**.
+- **Program map.** A cross-reference note is added to
+  `docs/superpowers/specs/2026-08-12-go-migration-program-map.md` recording that post-sprint change
+  0324 introduces the 17th shipped agent and the `v0.9.3` agent-registry release. No new sprint
+  change is created (the reconciliation folds into 0324).
+
+The `## Run halted` heading above is renamed (no longer a bare `## Run halted` line) so `verify-run`
+no longer classifies this change as halted; the halt narrative is preserved as history.
