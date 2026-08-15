@@ -100,13 +100,13 @@ var (
 	agentHarnesses = []string{"default", "claude", "codex", "cursor", "opencode"}
 
 	// agentShortNames is Reference C's canonical order — the same order the
-	// built-in 16x4 agent table is written in.
+	// built-in 17x4 agent table is written in.
 	agentShortNames = []string{
 		"adr", "auto-groom", "auto-groom-critic", "brainstorm-consultant",
 		"build-economy", "build-standard", "build-premium", "build-max",
 		"finalize-change", "implement-next", "integration-repair",
-		"rebase-resolver", "review-lean", "review-standard", "review-deep",
-		"status",
+		"plan-writer", "rebase-resolver", "review-lean", "review-standard",
+		"review-deep", "status",
 	}
 
 	runnerNames = []string{"codex", "cursor", "opencode"}

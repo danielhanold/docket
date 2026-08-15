@@ -15,7 +15,7 @@ import (
 // actually ships. The frozen tree is an immutable input (testdata/README.md):
 // these tests only read both files.
 const (
-	sidecarPath     = "../../testdata/repositories/v0.9.2/agents-harness-defaults.yml"
+	sidecarPath     = "../../testdata/repositories/v0.9.3/agents-harness-defaults.yml"
 	liveSidecarPath = "../../agents/harness-defaults.yml"
 )
 
@@ -86,7 +86,7 @@ func TestBuiltinAgentsParityWithFrozenSidecar(t *testing.T) {
 }
 
 // TestBuiltinAgentsShape pins the table's structure independently of the
-// sidecar: exactly the four shipped harnesses, each carrying exactly the 16
+// sidecar: exactly the four shipped harnesses, each carrying exactly the 17
 // canonical short names, every model a non-empty single token, and every entry
 // carrying built-in provenance with Explicit false.
 func TestBuiltinAgentsShape(t *testing.T) {

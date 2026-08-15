@@ -3,10 +3,11 @@ package config
 // This file is the built-in layer: the lowest-precedence configuration docket
 // ships with. Two halves live here — the scalar/list defaults, which mirror
 // the registry's `def` cells (defaults_test.go proves they cannot drift), and
-// the 16x4 agent table, which the registry deliberately does not carry because
+// the 17x4 agent table, which the registry deliberately does not carry because
 // it is a table rather than a cell. The agent table is frozen against
-// `agents/harness-defaults.yml` at commit 096c48de, and its copy under
-// `testdata/repositories/v0.9.2/` is the parity oracle.
+// `agents/harness-defaults.yml` at commit a4d72613 (change 0324, which added the
+// seventeenth agent docket-plan-writer), and its copy under
+// `testdata/repositories/v0.9.3/` is the parity oracle.
 
 // builtinProvenance is the provenance every default carries.
 func builtinProvenance() Provenance {
@@ -56,7 +57,7 @@ type agentDefault struct {
 	effort string
 }
 
-// builtinAgentDefaults is Reference C verbatim: the 16 canonical agents of
+// builtinAgentDefaults is Reference C verbatim: the 17 canonical agents of
 // agentShortNames across the four shipped harnesses. Model IDs and effort
 // tokens are opaque passthrough (ADR-0015) — docket keeps no vendor allowlist.
 var builtinAgentDefaults = map[string]map[string]agentDefault{
@@ -72,6 +73,7 @@ var builtinAgentDefaults = map[string]map[string]agentDefault{
 		"finalize-change":       {"claude-opus-5", "low"},
 		"implement-next":        {"claude-opus-5", "medium"},
 		"integration-repair":    {"claude-opus-5", "medium"},
+		"plan-writer":           {"claude-opus-5", "high"},
 		"rebase-resolver":       {"claude-opus-5", "medium"},
 		"review-lean":           {"claude-sonnet-5", "high"},
 		"review-standard":       {"claude-opus-5", "medium"},
@@ -92,6 +94,7 @@ var builtinAgentDefaults = map[string]map[string]agentDefault{
 		"finalize-change":       {"cursor-grok-4.5-high-fast", "auto"},
 		"implement-next":        {"cursor-grok-4.5-high", "auto"},
 		"integration-repair":    {"cursor-grok-4.5-high", "auto"},
+		"plan-writer":           {"cursor-grok-4.5-xhigh", "auto"},
 		"rebase-resolver":       {"cursor-grok-4.5-high", "auto"},
 		"review-lean":           {"cursor-grok-4.5-medium", "auto"},
 		"review-standard":       {"cursor-grok-4.5-high", "auto"},
@@ -110,6 +113,7 @@ var builtinAgentDefaults = map[string]map[string]agentDefault{
 		"finalize-change":       {"gpt-5.6-terra", "high"},
 		"implement-next":        {"gpt-5.6-sol", "medium"},
 		"integration-repair":    {"gpt-5.6-sol", "high"},
+		"plan-writer":           {"gpt-5.6-terra", "high"},
 		"rebase-resolver":       {"gpt-5.6-sol", "high"},
 		"review-lean":           {"gpt-5.6-terra", "medium"},
 		"review-standard":       {"gpt-5.6-terra", "high"},
@@ -128,6 +132,7 @@ var builtinAgentDefaults = map[string]map[string]agentDefault{
 		"finalize-change":       {"openrouter/deepseek/deepseek-v4-flash-0731", "high"},
 		"implement-next":        {"openrouter/deepseek/deepseek-v4-flash-0731", "high"},
 		"integration-repair":    {"openrouter/moonshotai/kimi-k3", "high"},
+		"plan-writer":           {"openrouter/deepseek/deepseek-v4-pro-0813", "medium"},
 		"rebase-resolver":       {"openrouter/moonshotai/kimi-k3", "high"},
 		"review-lean":           {"openrouter/deepseek/deepseek-v4-flash-0731", "high"},
 		"review-standard":       {"openrouter/moonshotai/kimi-k3", "medium"},
@@ -136,7 +141,7 @@ var builtinAgentDefaults = map[string]map[string]agentDefault{
 	},
 }
 
-// builtinAgents returns the full 16x4 table with `effort: auto` suppressed to
+// builtinAgents returns the full 17x4 table with `effort: auto` suppressed to
 // "". A fresh table is built per call, so a caller layering global overrides
 // on top can never write back into the shipped defaults.
 func builtinAgents() AgentsTable {
