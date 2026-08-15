@@ -49,9 +49,11 @@ parent prepares the worktree and context, dispatches the planner in the foregrou
 committed plan artifact, and records the returned repo-relative path in `plan:`.
 
 The plan writer continues to honor the resolved `skills.plan` binding, including custom plan
-locations and the existing missing-skill fallback. Update the agent/config documentation, dispatch
-and generator guards, and the Go embedded asset snapshot. Land this change before change 0315 so
-the Go migration's claim-to-implemented workflow reconciles against the settled planning boundary.
+locations and the existing missing-skill fallback. Its plan commit persists the path for recovery;
+the return is a non-terminal sub-step receipt, and the parent must attach the plan and continue into
+the build. Update the agent/config documentation, dispatch and generator guards, resume contract,
+and the Go embedded asset snapshot. Land this change before change 0315 so the Go migration's
+claim-to-implemented workflow reconciles against the settled planning boundary.
 
 ## Out of scope
 

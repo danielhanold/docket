@@ -38,6 +38,11 @@ spot: it remains a judgment-heavy operation embedded inside the cheaper-to-run c
   inside that step, not a lifecycle transition.
 - The parent consumes only the planner's repo-relative plan path. Git state, not the child's prose,
   proves that planning completed.
+- `PLAN_PATH` is a non-terminal Step 4 receipt, never a run disposition or permission for the
+  parent to return. A successful parent continues through Step 5 and ultimately Step 7.
+- The committed artifact carries its repo-relative path in git as well as in the child's return so
+  a caller-side `run-incomplete` re-dispatch can resume after a parent stops in the return-to-field
+  gap.
 - A custom `skills.plan` binding owns its plan location. `docs/superpowers/plans/` is specific to
   `superpowers:writing-plans` and to Docket's `auto`/missing-skill fallback, not a universal path.
 
@@ -66,6 +71,8 @@ or status transition.
 5. Validate the returned path and the feature branch's resulting git state.
 6. Land the verified path in the change's `plan:` field under the existing metadata field-write
    rule.
+7. Continue directly into Step 5. A plan-writer return completes neither the implement-next run nor
+   an allowed terminal disposition.
 
 The dispatch payload supplies, without making the child rediscover configuration:
 
@@ -95,13 +102,16 @@ sequence:
 5. Determine the path produced by that binding. Superpowers and fallback plans use
    `docs/superpowers/plans/`; a custom skill's own contract determines its location.
 6. Run the deterministic backlink renderer on that file, stage only the returned plan path, and
-   commit the complete plan artifact on the feature branch.
+   commit the complete plan artifact on the feature branch with the exact git trailer
+   `Docket-Plan-Path: <repo-relative-path>`.
 7. Finish with the single authoritative success line `PLAN_PATH=<repo-relative-path>`.
 
 Informational warning lines may precede the terminal success line so the parent can carry a
 missing-skill degradation into the run report and PR body. On failure, the child returns a concrete
 blocking diagnostic instead of a `PLAN_PATH` line. It never leaves success-shaped output for an
-uncommitted or partially written plan.
+uncommitted or partially written plan. The success token deliberately says `PATH`, not `complete`,
+`done`, or `stop`: it is a sub-step receipt whose only consumer action is verify, attach, and
+continue.
 
 ## Parent verification
 
@@ -111,6 +121,8 @@ The returned path is a claim, not proof. Before writing `plan:`, the parent veri
 - the file exists, is tracked, and changed after the recorded pre-dispatch HEAD;
 - the worktree is clean;
 - the full branch delta since the recorded HEAD contains only the returned plan file;
+- the plan commit carries exactly one `Docket-Plan-Path:` trailer whose value equals the returned
+  path;
 - the artifact's managed backlink markers are ordered, balanced, and point to change 0324; and
 - the existing Step 4 plan-artifact structural requirements hold.
 
@@ -121,6 +133,43 @@ and backlink identity are stable properties across custom plan bindings; a hard-
 Once those checks pass, the parent writes the path verbatim to `plan:` and completes Step 4's
 existing two-tree postcondition: the plan and backlink are committed on the feature branch, and the
 link-bearing metadata field plus rendered Artifacts block have landed on the metadata branch.
+
+## Continuation and resume safety
+
+The plan-writer dispatch creates the same cognitive hazard as any nested agent return: the child
+has finished its bounded job, but the parent has not finished the run. The Step 4 call site therefore
+states the continuation locally and imperatively: a `PLAN_PATH` return MUST be verified and attached,
+then the parent MUST proceed into Step 5. Neither the child's return nor Step 4's postcondition may
+be reported as `advanced`; after claim, only Step 7's postcondition or an explicit terminal
+disposition ends the run.
+
+The deterministic caller-side run gate remains the load-bearing external oracle. If the parent
+returns after planning, the change is still `in-progress`, has no recorded PR, and normally has no
+delivered remote branch. `verify-run` must therefore report `run-incomplete`, causing the existing
+bounded caller rule to re-dispatch the same implementer once. No self-check performed by the parent
+can replace that oracle, because the failure being defended against is the parent skipping its own
+next instruction.
+
+The implementer's in-progress resume contract gains a plan seam:
+
+An attributed caller-side re-dispatch naming the id and `verify-run`'s unmet conjuncts enters this
+resume path before ordinary ready-queue and proposed-only allowlist filtering. A normal invocation
+that merely names an already-`in-progress` id still skips it; it may belong to a live concurrent
+run. The caller gate's before-set/dispatch attribution is the authority that distinguishes a
+resume from claim theft.
+
+1. When `plan:` is already set and its committed artifact/backlink verify, reuse it and continue at
+   Step 5; never dispatch a second planner.
+2. When `plan:` is empty but the feature branch's latest commit is a clean, single-file plan commit
+   whose `Docket-Plan-Path:` trailer and backlink agree, recover that path, land it under the normal
+   field-write rule, and continue at Step 5.
+3. When the persisted path, commit delta, backlink, and manifest disagree or are ambiguous, halt
+   with the exact mismatch. Never guess a custom plan location and never re-plan merely because the
+   parent stopped after the child returned.
+
+The trailer closes the narrow but historically real gap between the child commit and the parent's
+`plan:` metadata write without widening the child's ownership into metadata. It is evidence only;
+the resume path subjects it to the same git and backlink verification as the live return.
 
 ## Failure posture
 
@@ -172,11 +221,20 @@ semantic seams where derivation is insufficient:
 
 - shipped-default completeness and the four exact model/effort pairs;
 - all four generated harness wrapper shapes and `worktree-scope: feature`;
-- Step 4's foreground dispatch and path-only success protocol;
+- Step 4's foreground dispatch, path-only success protocol, local MUST-continue instruction, and
+  prohibition on treating `PLAN_PATH` as a terminal disposition;
 - the parent's no-directory-whitelist verification shape and single-artifact git proof;
+- exact agreement among the returned path, `Docket-Plan-Path:` trailer, and backlink;
+- a resume fixture for both `plan:`-already-set and trailer-recovery paths, proving neither invokes
+  the planner again;
+- an attribution fixture proving the caller's id-plus-unmet-conjunct re-dispatch enters resume
+  before selection, paired with a negative fixture proving an ordinary allowlist still skips an
+  already-`in-progress` change;
+- an external-gate fixture in which a committed plan exists but the change remains `in-progress`
+  without a PR, proving `verify-run` reports `run-incomplete` and the caller re-dispatches once;
 - Tier C's default halt and explicit-`auto` authorization;
-- mutation checks that removing the dispatch, verification, or a shipped row makes the relevant
-  guard fail; and
+- mutation checks that removing the dispatch, continuation instruction, trailer verification,
+  external plan-only verdict, or a shipped row makes the relevant guard fail; and
 - updated skill/agent size budgets with rationale.
 
 The build gate runs the repository's resolved whole suite, `scripts/run-tests.sh`, and treats any
@@ -201,10 +259,11 @@ program map or introduce a dependency edge into the migration sprint.
 
 The build should record the non-obvious boundary: plan writing is a pinned internal composition
 agent that owns a git-verifiable plan artifact, while the implementer owns orchestration and
-metadata attachment; unavailable dispatch is Tier C rather than a silent inline fallback. The ADR
-should relate to ADR-0008 (generated agent layer), ADR-0018 (pluggable skills and missing-skill
-fallback), ADR-0044 (autonomy precedence), ADR-0059 (dispatch-capability posture), ADR-0064
-(harness-indexed shipped defaults), and ADR-0083 (declared worktree scope).
+metadata attachment; its path trailer makes the return-to-field gap resumable; and unavailable
+dispatch is Tier C rather than a silent inline fallback. The ADR should relate to ADR-0008
+(generated agent layer), ADR-0018 (pluggable skills and missing-skill fallback), ADR-0044 (autonomy
+precedence), ADR-0059 (dispatch-capability posture), ADR-0064 (harness-indexed shipped defaults),
+and ADR-0083 (declared worktree scope).
 
 ## Out of scope
 
@@ -222,8 +281,9 @@ The change is complete when a `docket-implement-next` run can use one model/effo
 orchestration and a separately configured pair for plan writing; the internal planner commits and
 returns a plan from either the default or a custom location; the parent verifies and attaches that
 artifact without trusting child prose; unavailable dispatch cannot silently collapse the boundary;
-all generated harness and embedded-asset outputs are current; and the whole suite passes without an
-unaddressed budget finding.
+a parent stopped immediately after the child return is externally classified `run-incomplete` and
+resumes from the committed path without re-planning; all generated harness and embedded-asset
+outputs are current; and the whole suite passes without an unaddressed budget finding.
 
 ## Open questions
 
