@@ -24,7 +24,7 @@
 - Two shipped IDs are new to the entire repo history (`cursor-grok-4.5-xhigh`, `openrouter/deepseek/deepseek-v4-pro-0813`): outside-truth values no in-repo test can certify. They get a named human-verification item in the results file, not a fake assert.
 - New test files need rows in `tests/runtime-budgets.tsv` (`<path>\t<seconds>\t<parallel|serial>`, measured, rounded up to next multiple of 5 + 5s margin, min 10s).
 - The build gate runs the whole suite via `scripts/run-tests.sh`; a trailing `OVER BUDGET:` line is a finding to act on.
-- This change touches no Go source behavior — only regenerated embedded assets (mechanical outputs of the existing generator).
+- This change adds no Go *behavior* (domain, transaction, repository, workflow, installer), but it DOES register the 17th shipped agent, which by design reconciles the Go built-in registry and its frozen parity fixture — see Task 6A. (The earlier "touches no Go source" constraint was false; it was invalidated at the build gate on 2026-08-15 and the reconciliation was folded into this change by human decision — see the change file's `## Halt resolution` and the spec's `## Go-migration isolation`.)
 - Commit messages end with the session trailer already used on this branch's base repo (see git log).
 
 ---
@@ -487,6 +487,69 @@ git commit -m "docs(0324): plan-writer in README agent tables and example config
 
 ---
 
+### Task 6A: Go built-in registry reconciliation (17th shipped agent → v0.9.3)
+
+Registering `docket-plan-writer` in `agents/harness-defaults.yml` (Task 1) breaks the Go parity
+oracle change 0305 established. This task moves the four coupled Go sites so `go test ./...` is green,
+under the human decisions recorded in the change file's `## Halt resolution` (fold into 0324; release
+version `0.9.3`; sparse fixture tree). The count-guard sweep and asset regen a prior BLOCKED worker
+left uncommitted in this worktree were **not** adopted — re-derive everything here under this task's
+own authorship; do not resurrect uncommitted files.
+
+**Files:**
+- Modify: `internal/config/defaults.go` (`builtinAgents()` — add a `docket-plan-writer` row per harness).
+- Modify: `internal/config/defaults_test.go` (`sidecarPath` const → `v0.9.3`).
+- Create: `testdata/repositories/v0.9.3/agents-harness-defaults.yml` (byte copy of the current live
+  17-agent `agents/harness-defaults.yml`) and `testdata/repositories/v0.9.3/PROVENANCE.md` (tree-wide,
+  per `testdata/README.md`: source repo, commit, date, redaction=none; note the tree is sparse and
+  extends nothing on `v0.9.2/`).
+- Modify: `TestBuiltinAgentsShape`'s canonical-name expectation (16 → 17, `docket-plan-writer`).
+- Refreeze: goldens in `internal/harness/{claude,codex,cursor,opencode}` via `go test -update`.
+- Sweep: any OTHER site whose assertion hardcodes the agent count/name set — **derive from a
+  whole-repo grep, never a hand-list** (CLAUDE.md rule): `grep -rn` for the count literal and the
+  canonical-name list across `*.go` and `tests/*.sh`, then move only the executable assertions.
+
+**Interfaces:**
+- Consumes: the 17-agent live `agents/harness-defaults.yml` from Task 1 (the byte source of truth).
+- The frozen `v0.9.2/` tree stays immutable; only `sidecarPath` moves. Every non-agent-defaults
+  frozen reader stays on `v0.9.2/` — do not touch them.
+
+- [ ] **Step 1: Watch it red first (TDD baseline)**
+
+Run: `go test ./internal/config/ -run 'BuiltinAgents' -count=1` — Expected: RED
+(`TestBuiltinAgentsParityWithFrozenSidecar` + `TestBuiltinAgentsShape` fail: live=17 vs frozen=16 /
+built-ins=16). This failing state IS the test that drives the task; do not add a new bespoke test.
+
+- [ ] **Step 2: Cut the sparse v0.9.3 fixture tree**
+
+Byte-copy the current live sidecar to `testdata/repositories/v0.9.3/agents-harness-defaults.yml`
+(`cp` — assert byte-equality after) and author `testdata/repositories/v0.9.3/PROVENANCE.md`. Re-point
+`sidecarPath` in `defaults_test.go` to the `v0.9.3` path. Do NOT edit anything under `v0.9.2/`.
+
+- [ ] **Step 3: Add the built-in row + bump the shape count**
+
+Add the `docket-plan-writer` row (model + effort, all four harnesses) to `builtinAgents()` byte-parity
+with the live sidecar; move `TestBuiltinAgentsShape` 16 → 17. Then the grep-derived count/name sweep.
+
+- [ ] **Step 4: Refreeze harness goldens**
+
+Run: `go test ./internal/harness/... -update -count=1`, then `go test ./internal/harness/... -count=1`
+— Expected: green. Inspect the golden diff: it must contain ONLY `plan-writer` wrapper additions.
+
+- [ ] **Step 5: Verify the reconciliation is green (cache-defeated)**
+
+Run: `go test ./... -count=1` — Expected: green. (`-count=1` defeats the Go result cache.)
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add internal/config/ testdata/repositories/v0.9.3/ internal/harness/
+# plus any grep-derived sweep sites, added by explicit path
+git commit -m "feat(0324): reconcile Go built-in registry for 17th agent; cut v0.9.3 frozen sidecar"
+```
+
+---
+
 ### Task 7: Embedded asset snapshot regeneration
 
 **Files:**
@@ -537,6 +600,6 @@ The results file IS warranted for this change (criterion (a) + (b)):
 
 ## Self-review notes
 
-- Spec coverage: internal agent (T1), parent/child boundary + payload (T3), contract + protocol (T1/T3), verification + no-allowlist (T3), continuation/resume (T3/T5), failure posture Tier C (T3/T4), defaults table (T1), docs (T4/T6), guards/tests (T1–T5), Go isolation + assets (T7), suite (T8). Success criteria all land: independent pins (T1/T2), custom-location support (no allowlist, T3), no-trust verification (T3), Tier C (T3/T4), external `run-incomplete` classification (T5), current generated outputs (T7).
+- Spec coverage: internal agent (T1), parent/child boundary + payload (T3), contract + protocol (T1/T3), verification + no-allowlist (T3), continuation/resume (T3/T5), failure posture Tier C (T3/T4), defaults table (T1), docs (T4/T6), guards/tests (T1–T5), Go registry reconciliation for the 17th agent + v0.9.3 frozen tree (T6A), assets (T7), suite (T8). Success criteria all land: independent pins (T1/T2), custom-location support (no allowlist, T3), no-trust verification (T3), Tier C (T3/T4), external `run-incomplete` classification (T5), current generated outputs (T7).
 - The exact grep patterns in Tasks 3–4's sentinel snippets are anchored to prose this plan also writes; if an implementer adjusts wording, adjust pattern and prose **together** and re-run the mutation checks — the mutation step, not the green run, is the proof.
 - Type/name consistency: `plan-writer` (short key), `docket-plan-writer` (agent/file/wrapper name), `PLAN_PATH=<repo-relative-path>`, `Docket-Plan-Path:` (trailer), `worktree-scope: feature` — used identically in every task.
