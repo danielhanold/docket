@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0324 — Extract plan writing into a model-pinned internal agent](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0324-model-pinned-plan-writer-agent.md)**
+> ↩ **[Change 0324 — Extract plan writing into a model-pinned internal agent](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-15-0324-model-pinned-plan-writer-agent.md)**
 <!-- docket:backlink:end -->
 
 # Model-pinned plan-writer agent — results

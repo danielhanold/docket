@@ -91,6 +91,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0091](0091-every-backtick-in-a-double-quoted-region-is-a-violation.md) — Every backtick in a double-quoted region is a violation, including escaped ones (Accepted) ← change #221 · relates to ADR-0054
 - [ADR-0092](0092-a-stacked-changes-base-is-its-parents-merge-destination.md) — A stacked change's effective base is its parent's merge destination (Accepted) ← change #298
 - [ADR-0093](0093-repository-reference-severity-graded-by-structural-role.md) — Repository reference severity is graded by structural role, not uniformly (Accepted) ← change #307
+- [ADR-0094](0094-plan-authoring-is-a-pinned-internal-composition-agent.md) — Plan authoring is a pinned internal composition agent owning one git-verifiable artifact (Accepted) ← change #324 · relates to ADR-0008, ADR-0018, ADR-0044, ADR-0059, ADR-0064, ADR-0083
 
 ## Superseded / Reversed
 
