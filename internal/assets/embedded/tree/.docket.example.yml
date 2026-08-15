@@ -377,17 +377,17 @@ dummy_mode:
 # docket strips comments before parsing, so an in-map `#` truncates the value and generation is
 # refused rather than shipping a clipped pin.
 # `effort: auto` explicitly drops the effort line (inherit the model default); omitting the
-# `effort:` key instead keeps the built-in effort — auto and omitted are NOT equivalent. 16 wrapper
+# `effort:` key instead keeps the built-in effort — auto and omitted are NOT equivalent. 17 wrapper
 # files ship (agents/docket-*.md; their shipped model/effort live in agents/harness-defaults.yml,
 # mirrored below): 5 wrap one of the 5 autonomous skills (adr, auto-groom, finalize-change,
 # implement-next, status); 4 (build-economy, build-standard, build-premium, build-max) are
 # docket-build's task workers and all preload the same docket-build-task
 # worker skill, differing only in model/effort; 3 (review-lean, review-standard, review-deep) are
 # docket-review's rung wrappers and all preload the same docket-review worker skill, likewise
-# differing only in model/effort; the other 4 (auto-groom-critic,
-# brainstorm-consultant, integration-repair, rebase-resolver) are standalone agents those skills
-# dispatch and wrap no skill of their own. new-change/groom-next are advisory-only skills with no
-# wrapper and ignore this block.
+# differing only in model/effort; the other 5 (auto-groom-critic,
+# brainstorm-consultant, integration-repair, plan-writer, rebase-resolver) are standalone agents
+# those skills dispatch and wrap no skill of their own. new-change/groom-next are advisory-only
+# skills with no wrapper and ignore this block.
 # Configuring a skill here overrides its model/effort in the generated, machine-local
 # .<harness>/agents/docket-<skill>.md — which is regenerated for every built-in regardless (full
 # set; this block is OVERRIDE-ONLY, tuning model/effort and never deciding which agents exist),
@@ -407,7 +407,7 @@ dummy_mode:
 # defaults are visible and tunable. Deleting any line falls back to the SAME shipped default. The
 # sidecar is the single source of truth; this mirror never leads, and tests/test_docket_example_yml.sh
 # enforces the equality. If a shipped default changes, update this mirror to match. All four shipped
-# harnesses are complete — every one of the sixteen agents carries a model and an effort under each.
+# harnesses are complete — every one of the seventeen agents carries a model and an effort under each.
 #
 # PRESENCE-SENSITIVE: uncommenting this key changes behavior even at these default values.
 # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
@@ -421,6 +421,7 @@ dummy_mode:
 #     implement-next:        { model: claude-opus-5,             effort: medium }
 #     rebase-resolver:       { model: claude-opus-5,             effort: medium }
 #     integration-repair:    { model: claude-opus-5,             effort: medium }
+#     plan-writer:           { model: claude-opus-5,             effort: high }
 #     finalize-change:       { model: claude-opus-5,             effort: low }
 #     review-lean:           { model: claude-sonnet-5,           effort: high }
 #     review-standard:       { model: claude-opus-5,             effort: medium }
@@ -442,6 +443,7 @@ dummy_mode:
 #     implement-next:        { model: gpt-5.6-sol, effort: medium }
 #     rebase-resolver:       { model: gpt-5.6-sol, effort: high }
 #     integration-repair:    { model: gpt-5.6-sol, effort: high }
+#     plan-writer:           { model: gpt-5.6-terra, effort: high }
 #     finalize-change:       { model: gpt-5.6-terra, effort: high }
 #     review-lean:           { model: gpt-5.6-terra, effort: medium }
 #     review-standard:       { model: gpt-5.6-terra, effort: high }
@@ -465,6 +467,7 @@ dummy_mode:
 #     implement-next:        { model: cursor-grok-4.5-high,      effort: auto }
 #     rebase-resolver:       { model: cursor-grok-4.5-high,      effort: auto }
 #     integration-repair:    { model: cursor-grok-4.5-high,      effort: auto }
+#     plan-writer:           { model: cursor-grok-4.5-xhigh,     effort: auto }
 #     finalize-change:       { model: cursor-grok-4.5-high-fast, effort: auto }
 #     review-lean:           { model: cursor-grok-4.5-medium,    effort: auto }
 #     review-standard:       { model: cursor-grok-4.5-high,      effort: auto }
@@ -488,6 +491,7 @@ dummy_mode:
 #     implement-next:        { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: high }
 #     rebase-resolver:       { model: openrouter/moonshotai/kimi-k3, effort: high }
 #     integration-repair:    { model: openrouter/moonshotai/kimi-k3, effort: high }
+#     plan-writer:           { model: openrouter/deepseek/deepseek-v4-pro-0813, effort: medium }
 #     finalize-change:       { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: high }
 #     review-lean:           { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: high }
 #     review-standard:       { model: openrouter/moonshotai/kimi-k3, effort: medium }

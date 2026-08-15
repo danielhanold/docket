@@ -1,14 +1,14 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:f8b9e8d36cbc5c0135470f8ef7349af38d31b4db831bc1e84c4d0abad6081010",
+  "asset_set_id": "sha256:5d6a002deb048dc3b51bd9d1e77072a53297800c5cd5fe4547da8feedac35a61",
   "entries": [
     {
       "path": ".docket.example.yml",
       "role": "config-schema",
       "mode": 420,
-      "size": 40321,
-      "sha256": "9608ff4b2e3323b4da345134a483576eea900f58cb0ff92c0ccc20869913c57a"
+      "size": 40661,
+      "sha256": "afd4b0468918d128e553e3780092aa641d8f7583ce82b4168c69ee6ed13ec415"
     },
     {
       "path": "agents/docket-adr.md",
@@ -88,6 +88,13 @@
       "sha256": "bb133be5d10351762c304c81eb574b1fde3140570687716b1afac7a3cfb31b44"
     },
     {
+      "path": "agents/docket-plan-writer.md",
+      "role": "agent-source",
+      "mode": 420,
+      "size": 3077,
+      "sha256": "83055a9ca2b61d7414ceccdd366a982a36fbc2d2c9e7f112abac6c924326a202"
+    },
+    {
       "path": "agents/docket-rebase-resolver.md",
       "role": "agent-source",
       "mode": 420,
@@ -126,8 +133,8 @@
       "path": "agents/harness-defaults.yml",
       "role": "harness-defaults",
       "mode": 420,
-      "size": 10159,
-      "sha256": "6f9893041e06b91a4dd866a23a4a056f4a5298812c4b980a85c37e95e7bbdcd8"
+      "size": 10460,
+      "sha256": "5da0953b007077f9e95197a1f6a160ac55671fff440f71ce2a3382614ffc7685"
     },
     {
       "path": "cursor-rules/dispatch.head.md",
@@ -212,6 +219,13 @@
       "mode": 420,
       "size": 975,
       "sha256": "5a3642890a0198252acb5aee0562b0e8e7c41301a85cc6dd244ffbefabb7b249"
+    },
+    {
+      "path": "cursor-rules/dispatch/docket-plan-writer.md",
+      "role": "dispatch",
+      "mode": 420,
+      "size": 1252,
+      "sha256": "ff944801f518d93019d2d2be4380941ea513bfe947319e72efb88b5b37474213"
     },
     {
       "path": "cursor-rules/dispatch/docket-rebase-resolver.md",
@@ -329,8 +343,8 @@
       "path": "skills/docket-convention/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 51220,
-      "sha256": "bcaa6d8d2d008ccb044b3c20b7c5ee547d6ca2b18dd6c1353aa4c49c2136a441"
+      "size": 51930,
+      "sha256": "8bb935cd51de050b76bc621aaa9a00021c8b019d58e007eb3e836f269b3b6560"
     },
     {
       "path": "skills/docket-convention/github-board-mirror.md",
@@ -406,15 +420,15 @@
       "path": "skills/docket-implement-next/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 32086,
-      "sha256": "9c8c21aa242b00ee905befa9e30bab1c49dad23b9b65cf2d2452bfd183b15bc1"
+      "size": 34151,
+      "sha256": "b5c760c734cd5da0052e2bb47d2dd8ebfb5610086bacf87179cf593432492803"
     },
     {
       "path": "skills/docket-implement-next/references/edge-paths.md",
       "role": "skill",
       "mode": 420,
-      "size": 3160,
-      "sha256": "70da3d052a07388ed9d1968f6155c1c48a6e29673b4afdcbb07d88cad7e7b2e5"
+      "size": 4353,
+      "sha256": "7a121e9aed76c9e537ab070ea5e2365ec860bac44cc2a47a76d1efaa900e1bdf"
     },
     {
       "path": "skills/docket-implement-next/references/fix-loop.md",
