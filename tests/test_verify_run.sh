@@ -434,4 +434,24 @@ assert "0271-m: the usage diagnostic is not a verdict line" '[[ "$v" != task-* ]
 v="$(bash "$ROOT/scripts/verify-run.sh" --build 7 --worktree "$BWT" 2>&1)"; rc=$?
 assert "0271-n: --build rejects an id (families stay separate)" '[ "$rc" = "2" ]'
 
+# ---- change 0324: a plan-only stop is the external gate's run-incomplete -------------
+# implement-next Step 4 dispatches the model-pinned plan-writer, which COMMITS a plan artifact on
+# the feature branch (marked with a `Docket-Plan-Path:` trailer) before any build work. A run that
+# stops right there — plan committed and pushed, status still in-progress, no PR — is exactly the
+# stopped-after-planning shape the caller's run gate must re-dispatch. This is the distinct
+# committed-plan variant of "in-progress, no PR": verify-run reads status/pr/branch and never the
+# plan artifact, so a plan commit (trailer and all) must NOT flip the verdict off run-incomplete.
+make_sbx
+write_change 50 in-progress feat/slug50 ""
+mkdir -p "$SBX/docs/superpowers/plans"
+printf '# Plan for change 50\n' > "$SBX/docs/superpowers/plans/2026-08-15-slug50.md"
+git -C "$SBX" add docs/superpowers/plans/2026-08-15-slug50.md
+git -C "$SBX" commit -qm "plan(0050): author implementation plan
+
+Docket-Plan-Path: docs/superpowers/plans/2026-08-15-slug50.md"
+push_branch feat/slug50
+out="$( cd "$SBX" && vr 50 )"
+assert "plan-only stop: a committed plan (with Docket-Plan-Path: trailer) does NOT flip the verdict off run-incomplete" \
+  '[ "$out" = "run-incomplete 50 status pr" ]'
+
 exit $fail
