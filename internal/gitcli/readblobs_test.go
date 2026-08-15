@@ -110,6 +110,108 @@ func TestReadBlobsMatchesOracleInRequestOrder(t *testing.T) {
 	}
 }
 
+// TestPathspecMagicPathsResolveLiterally proves GIT_LITERAL_PATHSPECS=1 defeats
+// Git pathspec magic in the caller's "-- <path>" vectors. Against the main-mode
+// fixture it asserts (a) ReadBlobs reads the exact oracle bytes of the two
+// pathspec-magic files (a leading ':' and a ':(top)…' prefix) rather than
+// reporting them Found:false, and (b) a ':'-leading value used as a ListTree
+// prefix resolves to the literal path ":" (absent → zero entries) and can NOT
+// escape to the whole tree. Stripping the literal control (or the _PATHSPECS
+// scrub that keeps it unopposed) reddens these assertions: without it,
+// "-- ':weird.md'" matches nothing and "-- ':'" expands to the entire tree.
+func TestPathspecMagicPathsResolveLiterally(t *testing.T) {
+	requireGit(t)
+	c := newRealClient(t)
+	ctx := context.Background()
+	r := newMainModeRepos(t)
+	_, src := openMainSource(t, c, r)
+
+	oracle := parseLsTreeOracle(t, rawGitOut(t, r.Invocation, "ls-tree", "-r", "-z", "--full-tree", string(src.Revision().Commit)))
+
+	// (a) Each pathspec-magic file reads back as its exact oracle bytes.
+	magic := []RepoPath{pathspecMagicColon, pathspecMagicColonTop}
+	results, err := src.ReadBlobs(ctx, magic)
+	if err != nil {
+		t.Fatalf("ReadBlobs(%v): %v", magic, err)
+	}
+	if len(results) != len(magic) {
+		t.Fatalf("got %d results, want %d", len(results), len(magic))
+	}
+	for i, p := range magic {
+		got := results[i]
+		if got.Path != p {
+			t.Fatalf("result %d path = %q, want %q", i, got.Path, p)
+		}
+		if !got.Found {
+			t.Fatalf("%q not found: leading pathspec-magic bytes matched nothing (literal control missing?)", p)
+		}
+		want, ok := oracle[string(p)]
+		if !ok {
+			t.Fatalf("fixture/oracle missing %q", p)
+		}
+		wantBytes := rawGitOut(t, r.Invocation, "cat-file", "blob", want.oid)
+		if !bytes.Equal(got.Blob.Bytes, wantBytes) {
+			t.Errorf("%q bytes = %q, want %q", p, got.Blob.Bytes, wantBytes)
+		}
+	}
+
+	// (b) ':' as a ListTree prefix must resolve literally, not escape to the tree.
+	full, err := src.ListTree(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListTree(nil): %v", err)
+	}
+	if len(full) < 2 {
+		t.Fatalf("fixture tree too small (%d entries) to prove a scope escape", len(full))
+	}
+	scoped, err := src.ListTree(ctx, []RepoPath{":"})
+	if err != nil {
+		t.Fatalf("ListTree([\":\"]): %v", err)
+	}
+	if len(scoped) >= len(full) {
+		t.Fatalf("prefix \":\" returned %d entries (whole tree has %d): pathspec-magic scope escape", len(scoped), len(full))
+	}
+	// The literal path ":" names no tree entry (the file lives at ":weird.md"),
+	// so a literal prefix contributes zero entries.
+	if len(scoped) != 0 {
+		t.Errorf("prefix \":\" resolved to %d entries, want 0 (literal path \":\" is absent)", len(scoped))
+	}
+}
+
+// TestReadBlobsNeutralizesInheritedPathspecMagic proves the fix neutralizes a
+// HOSTILE inherited pathspec-magic control end-to-end through real git. Left in
+// the child environment, GIT_ICASE_PATHSPECS=1 fatally conflicts with the
+// literal control ("global 'literal' pathspec setting is incompatible with all
+// other global pathspec settings"), so merely APPENDING GIT_LITERAL_PATHSPECS=1
+// without scrubbing the _PATHSPECS family would break every pathspec-bearing
+// ls-tree. The suffix scrub clears the inherited setting, so ReadBlobs of a
+// ':'-leading path still succeeds. Removing either the scrub or the literal
+// append reddens this test.
+func TestReadBlobsNeutralizesInheritedPathspecMagic(t *testing.T) {
+	requireGit(t)
+	ctx := context.Background()
+	r := newMainModeRepos(t)
+	c, err := NewClient(WithBaseEnvironment(append(os.Environ(), "GIT_ICASE_PATHSPECS=1")))
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	repo := mustDiscover(t, c, r.Invocation)
+	id, err := c.ResolveRef(ctx, repo, "refs/heads/main")
+	if err != nil {
+		t.Fatalf("ResolveRef(refs/heads/main): %v", err)
+	}
+	src, err := c.OpenObjectSource(ctx, repo, Revision{Commit: id, Remote: "origin", Ref: "refs/heads/main"})
+	if err != nil {
+		t.Fatalf("OpenObjectSource: %v", err)
+	}
+	results, err := src.ReadBlobs(ctx, []RepoPath{pathspecMagicColon})
+	if err != nil {
+		t.Fatalf("ReadBlobs under inherited GIT_ICASE_PATHSPECS: %v", err)
+	}
+	if len(results) != 1 || !results[0].Found {
+		t.Fatalf("%q not found under inherited icase: %+v", pathspecMagicColon, results)
+	}
+}
+
 // TestReadBlobsMissingDuplicateEmpty proves an absent path yields Found:false at
 // its slot while other slots stay intact, a duplicate request path is rejected
 // invalid-request, and empty input returns an empty result WITHOUT spawning any
