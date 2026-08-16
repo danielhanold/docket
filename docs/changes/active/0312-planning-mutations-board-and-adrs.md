@@ -2,7 +2,7 @@
 id: 312
 slug: planning-mutations-board-and-adrs
 title: 'Planning mutations, inline board, and ADRs'
-status: proposed
+status: in-progress
 priority: critical
 type: feat
 created: 2026-08-12
@@ -17,7 +17,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/planning-mutations-board-and-adrs
+claimed_at: 2026-08-16T21:04:15Z
 pr:
 blocked_by:
 reconciled: false
