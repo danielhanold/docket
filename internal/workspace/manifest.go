@@ -191,6 +191,53 @@ func validateManifest(m Manifest) error {
 	return nil
 }
 
+// manifestStatus is the four-way classification of a workspace directory's
+// manifest slot. It separates the two distinct non-present outcomes an earlier
+// three-outcome load conflated: content that is present but not a manifest we
+// wrote (manifestForeign — a definite, byte-untouchable collision) from a probe
+// that could not read the slot at all (manifestUnknown — never clean absence,
+// never a license to overwrite). Prepare maps foreign to a blocked disposition
+// and unknown to an external failure; loadManifest folds both back into an error
+// for callers that only need present/absent/error.
+type manifestStatus int
+
+const (
+	// manifestAbsent: os.IsNotExist on the exact manifest path — cleanly absent.
+	manifestAbsent manifestStatus = iota
+	// manifestValid: present and schema/identity valid.
+	manifestValid
+	// manifestForeign: present but undecodable or field/identity-invalid — a
+	// foreign or corrupt file occupying the slot, left byte-untouched.
+	manifestForeign
+	// manifestUnknown: the slot could not be read (permission, I/O). NEVER absence
+	// (learnings: probe-error-is-not-clean-absence).
+	manifestUnknown
+)
+
+// classifyManifest reads the manifest in dir and classifies it. The returned
+// error is non-nil only for the foreign and unknown statuses (the diagnostic
+// cause); absent and valid carry a nil error. A not-exist error on the exact
+// manifest path is the only clean absence; a read error that is not not-exist is
+// unknown; a successful read that fails JSON decode or field/identity validation
+// is foreign.
+func classifyManifest(dir string) (Manifest, manifestStatus, error) {
+	data, err := os.ReadFile(filepath.Join(dir, manifestFileName))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return Manifest{}, manifestAbsent, nil
+		}
+		return Manifest{}, manifestUnknown, fmt.Errorf("workspace: reading manifest: %w", err)
+	}
+	var m Manifest
+	if err := json.Unmarshal(data, &m); err != nil {
+		return Manifest{}, manifestForeign, fmt.Errorf("workspace: decoding manifest: %w", err)
+	}
+	if err := validateManifest(m); err != nil {
+		return Manifest{}, manifestForeign, fmt.Errorf("workspace: invalid manifest: %w", err)
+	}
+	return m, manifestValid, nil
+}
+
 // loadManifest reads the manifest in dir with a strict three-outcome contract:
 //   - (m, true, nil)   present and valid;
 //   - (zero, false, nil) cleanly absent — os.IsNotExist on the exact manifest path;
@@ -199,23 +246,18 @@ func validateManifest(m Manifest) error {
 //
 // Unknown NEVER reads as absent (learnings: probe-error-is-not-clean-absence):
 // only a not-exist error on the manifest path is clean absence; a permission
-// error, a decode error, or a validation failure is an error.
+// error, a decode error, or a validation failure is an error. It is a thin fold
+// over classifyManifest for callers that do not need the foreign/unknown split.
 func loadManifest(dir string) (Manifest, bool, error) {
-	data, err := os.ReadFile(filepath.Join(dir, manifestFileName))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return Manifest{}, false, nil
-		}
-		return Manifest{}, false, fmt.Errorf("workspace: reading manifest: %w", err)
+	m, status, err := classifyManifest(dir)
+	switch status {
+	case manifestAbsent:
+		return Manifest{}, false, nil
+	case manifestValid:
+		return m, true, nil
+	default: // manifestForeign, manifestUnknown
+		return Manifest{}, false, err
 	}
-	var m Manifest
-	if err := json.Unmarshal(data, &m); err != nil {
-		return Manifest{}, false, fmt.Errorf("workspace: decoding manifest: %w", err)
-	}
-	if err := validateManifest(m); err != nil {
-		return Manifest{}, false, fmt.Errorf("workspace: invalid manifest: %w", err)
-	}
-	return m, true, nil
 }
 
 // ensureDir creates dir (and any missing parents) and forces its mode to
