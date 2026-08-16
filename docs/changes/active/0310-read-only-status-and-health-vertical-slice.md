@@ -13,14 +13,14 @@ related: [261]
 discovered_from: [303]
 adrs: [1, 28, 34, 47, 92, 93]
 spec: docs/superpowers/specs/2026-08-15-read-only-status-and-health-vertical-slice-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-16-read-only-status-and-health-vertical-slice.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/read-only-status-and-health-vertical-slice
 pr:
 blocked_by:
-claimed_at: 2026-08-16T14:22:00Z
+claimed_at: 2026-08-16T14:31:00Z
 reconciled: true
 ---
 
@@ -30,6 +30,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-15-read-only-status-and-health-vertical-slice-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-15-read-only-status-and-health-vertical-slice-design.md) |
+| Plan | [2026-08-16-read-only-status-and-health-vertical-slice.md](https://github.com/danielhanold/docket/blob/feat/read-only-status-and-health-vertical-slice/docs/superpowers/plans/2026-08-16-read-only-status-and-health-vertical-slice.md) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0028](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0028-report-channel-is-not-a-board-surface.md), [ADR-0034](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0034-repo-root-anchored-to-main-worktree.md), [ADR-0047](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0047-digest-only-read-tier-skips-preflight.md), [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md), [ADR-0093](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0093-repository-reference-severity-graded-by-structural-role.md) |
 <!-- docket:artifacts:end -->
 
