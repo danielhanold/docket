@@ -5,9 +5,11 @@
 - **Date:** 2026-08-15
 - **Redaction:** none
 
-This one file covers the whole `v0.9.3/` tree, per `testdata/README.md`. The
-tree is **sparse**: it carries only the single fixture below and extends nothing
-in `v0.9.2/`. Every frozen reader other than the agent-defaults parity oracle
+This file covers the agent-defaults sidecar only — `agents-harness-defaults.yml`
+— not the whole `v0.9.3/` tree; the frozen `status` semantic corpus that also
+lives in this tree keeps its own provenance at `status-corpus/PROVENANCE.md`.
+The sidecar is **sparse**: it carries only the single fixture below and extends
+nothing in `v0.9.2/`. Every frozen reader other than the agent-defaults parity oracle
 stays on `v0.9.2/`; only that oracle's `sidecarPath` advances to this tree.
 
 ## Contents
