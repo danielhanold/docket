@@ -2,9 +2,9 @@
 slug: budget-headroom-is-spent-before-it-is-breached
 hook: "A wall-clock budget row sitting AT its ceiling is already spent — the queued changes against that same file, not the current green run, decide whether it breaches."
 topics: [testing, budgets, planning]
-changes: [270, 277, 247, 324]
+changes: [270, 277, 247, 324, 309]
 created: 2026-08-10
-updated: 2026-08-15
+updated: 2026-08-16
 promotion_state: retained
 promoted_to:
 ---
@@ -89,3 +89,19 @@ reader nothing.
   coverage, and sharding is a whole task's worth of work landed by whichever unrelated change happens
   to be holding the increment. That is the strongest argument yet for treating parity as the finding:
   at the hard ceiling, the cost of discovering it late is not a number edit, it is a refactor.
+- 2026-08-16 (#309, PR #211 — merged) — **The hard-ceiling shard, again, one change after the last
+  one.** `tests/test_go_race.sh` carried the same 60s hard ceiling that forced 0324's three-way
+  split the day before, and `internal/gitcli` was already sitting near it before 0309 existed. The
+  transaction package's real-git fixtures (each test registering and pruning actual detached
+  worktrees) supplied the increment, and the remedy was 0324's verbatim: shard, because the row had
+  no re-budget left. A sibling `tests/test_go_race_transaction.sh` took `./internal/repository/
+  transaction/`, `test_go_race.sh` excluded that one package from a `go list`-derived set, and
+  `EXPECTED_TOTAL` was re-seeded 1965→2035. What this entry adds is **the partition guard**: the
+  split is held by an assertion that the two files' package sets union to exactly `go list ./...`,
+  so a package added later cannot silently fall through the gap between the shards. That is the
+  piece the earlier sharding entries did not have, and it is the difference between a shard and a
+  coverage hole — an exclusion expressed as `grep -v` is a subtraction with no one checking that
+  anything caught it. Note also the recurrence rate: two independent hard-ceiling shards in two
+  days, on two different suites, each landed by whichever unrelated change happened to hold the
+  increment. When that starts repeating, the finding is no longer "watch the margin" but "the
+  ceiling policy is producing refactors as its failure mode."

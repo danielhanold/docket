@@ -6,6 +6,10 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 - [adr-update-delivery](adr-update-delivery.md) — Deliver an ADR body update atomically by listing that ADR id in the producing change's adrs: — never a standalone push. · also: publishing, git
 
+## cleanup
+
+- [probe-error-is-not-clean-absence](probe-error-is-not-clean-absence.md) — A probe that errors and a probe that cleanly reports 'not there' are different answers — collapsing them makes the destructive branch the one that fires when the system is least understood. · also: error-handling, resources ⟨needs promotion⟩
+
 ## config
 
 - [absent-target-certifies-permission](absent-target-certifies-permission.md) — A resolver that treats every absent config layer as 'use the default' reads a NONEXISTENT target as a fully-defaulted one — so the most permissive verdict is what absence produces. · also: validation, cli ⟨needs promotion⟩
