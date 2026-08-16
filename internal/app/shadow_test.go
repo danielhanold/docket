@@ -73,6 +73,8 @@ func TestEnvelopeNotShadowed(t *testing.T) {
 		{"learning.record", newLearningResult(OperationLearningRecord, ResultApplied, LearningResult{})},
 		{"learning.update", newLearningResult(OperationLearningUpdate, ResultApplied, LearningResult{})},
 		{"adr.record", newADRResult(OperationADRRecord, ResultApplied, ADRResult{})},
+		{"adr.supersede", newADRResult(OperationADRSupersede, ResultApplied, ADRResult{})},
+		{"adr.reverse", newADRResult(OperationADRReverse, ResultApplied, ADRResult{})},
 	}
 
 	for _, tc := range cases {
