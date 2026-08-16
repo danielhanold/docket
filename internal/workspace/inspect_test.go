@@ -214,6 +214,41 @@ func TestInspectForeignAbsent(t *testing.T) {
 	}
 }
 
+// TestInspectForeignUnownedCommonDir isolates the manifest OWNERSHIP gate
+// (ownsManifest's CommonDir identity conjunct). It writes a structurally valid
+// manifest whose ONLY defect is a foreign CommonDir — every other field matches
+// this repository and target — and requires StateForeign with the identity
+// detail. Unlike Prepare and Cleanup (which re-verify live registration and so
+// backstop the ownership check), Inspect returns StateForeign directly on an
+// unowned manifest with no other gate behind it, so this is the case that
+// reddens when the CommonDir conjunct is dropped.
+func TestInspectForeignUnownedCommonDir(t *testing.T) {
+	r := mainModeRepo(t)
+	svc, repo := r.newService(t)
+	tgt := freshTarget(t, 7)
+
+	other := mainModeRepo(t)
+	_, otherRepo := other.newService(t)
+	foreign := Manifest{
+		Schema: manifestSchemaVersion, ID: workspaceID(tgt.FeatureRef), CommonDir: otherRepo.CommonDir,
+		ChangeID: tgt.ChangeID, Slug: tgt.Slug, FeatureRef: tgt.FeatureRef, BaseRef: tgt.BaseRef,
+		BaseCommit: gitcli.ObjectID(gitOut(t, r.Primary, "rev-parse", "main")),
+		Path:       wsPathOf(repo), Phase: PhaseReady,
+		CreatedUTC: time.Now().UTC().Format(time.RFC3339), UpdatedUTC: time.Now().UTC().Format(time.RFC3339),
+	}
+	if err := writeManifest(metaDirOf(repo, tgt), foreign); err != nil {
+		t.Fatalf("writeManifest(foreign): %v", err)
+	}
+
+	insp := inspectOK(t, svc, repo, tgt)
+	if insp.Kind != StateForeign {
+		t.Errorf("Kind = %q; want foreign for an unowned (foreign-CommonDir) manifest", insp.Kind)
+	}
+	if insp.Detail == "" {
+		t.Errorf("Detail empty; want the identity-mismatch reason carried as data")
+	}
+}
+
 func TestInspectUnreadableIsError(t *testing.T) {
 	r := mainModeRepo(t)
 	svc, repo := r.newService(t)

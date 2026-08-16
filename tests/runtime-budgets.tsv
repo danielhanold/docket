@@ -168,6 +168,30 @@
 # the other two Go rows (see its CACHES header). EXPECTED_TOTAL moves 1965 -> 2035 for this row plus
 # the tests/test_go_toolchain.sh re-budget below.
 #
+# tests/test_go_race_workspace.sh is a NEW FILE brought by change 0313 — the SHARD-of-a-file case
+# again (change 0309's precedent). Change 0313's internal/workspace package brings a real-git,
+# multi-clone workspace matrix (fresh/existing/resume/blocked prepare, proof-gated cleanup,
+# lease-push publication, the CWD/symlink invocation matrix) whose fixtures re-exec instrumented git
+# dozens of times. Left on the main race shard the combined `-race` run measured 62s standalone
+# serial — ABOVE the 60s row, and by this header's rounding rule (next multiple of 5 plus 5s ->
+# 70) well past the ceiling with no next raise available. Per the table's own remedy the file is
+# sharded, not raised: this new sibling runs `go test -race ./internal/workspace/`, and
+# tests/test_go_race.sh now runs the DERIVED complement (`go list ./...` minus the transaction and
+# workspace import paths), with the completeness guard there extended to THREE shards proving they
+# partition `go list ./...` exactly — no package silently dropped from the race gate. The main shard
+# re-measures at 60/60s standalone serial and STAYS at its 60 row (it is gitcli-dominated under the
+# detector, so removing the workspace matrix — which runs in parallel with gitcli — leaves its wall
+# clock unchanged; the workspace matrix was the combined file's 2s overage, not its bulk). This
+# sibling measures, as `scripts/run-tests.sh -j 1 --timings <path> tests/test_go_race_workspace.sh`:
+#   37  37  -> worst 37
+# Next multiple of 5 above 37 is 40, plus the 5s margin -> 45. It pins the same shared Go caches as
+# the other three Go rows (see its CACHES header). The two cheap new packages 0313 also adds —
+# internal/githubcli and internal/evidence — stay on the main shard: measurement showed excluding
+# them does not lower the main shard's gitcli-bound wall clock, so sharding them would buy no
+# headroom. EXPECTED_TOTAL moves 2035 -> 2080 for this one row. The uninstrumented `go test ./...`
+# in tests/test_go_toolchain.sh gains all four new packages but re-measures at 44s worst (row 45,
+# workspace is ~= gitcli as its long pole and they run in parallel), so that row is unchanged.
+#
 # tests/test_go_toolchain.sh 20 -> 45 (change 0309): a file that GOT SLOWER, defended by measurement.
 # Its `go test ./...` now compiles and runs change 0309's internal/repository/transaction package,
 # whose real-git acceptance tests add real uninstrumented cost to the whole-suite Go gate. No cost was
@@ -266,6 +290,7 @@ tests/test_github_mirror.sh	10	parallel
 tests/test_go_toolchain.sh	45	parallel
 tests/test_go_race.sh	60	parallel
 tests/test_go_race_transaction.sh	45	parallel
+tests/test_go_race_workspace.sh	45	parallel
 tests/test_grep_portability.sh	10	parallel
 tests/test_groom_recap.sh	10	parallel
 tests/test_harness_defaults.sh	45	parallel
