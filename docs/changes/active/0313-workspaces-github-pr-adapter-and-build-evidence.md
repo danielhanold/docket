@@ -7,7 +7,7 @@ priority: critical
 type: feat
 created: 2026-08-12
 updated: 2026-08-16
-claimed_at: 2026-08-16T16:48:46Z
+claimed_at: 2026-08-16T16:52:24Z
 depends_on: [308, 309]
 stacked_on:
 related: [170, 206, 208]
@@ -21,7 +21,7 @@ auto_groomable:
 branch: feat/workspaces-github-pr-adapter-and-build-evidence
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -64,3 +64,32 @@ use a protocol-faithful executable fake; live PR acceptance remains change 0317'
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-16 — reconcile before build
+
+Verified the spec's landed-foundation assumptions against current `main`. All hold:
+
+- `internal/gitcli` (change 0308) exists with `Client`, `AddDetachedWorktree`, `RemoveWorktree`,
+  `ListWorktrees`, `PushLease`/`IsAncestor`, `FetchBranch`/`ResolveRef`/`RemoteDefaultBranch`,
+  `WithExecutable` injection, and typed values (`ObjectID`, `RefName`, `RemoteName`, `Repository`).
+- `domain.ResolveEffectiveBase(Snapshot, Change, BranchFacts) EffectiveBase` exists in
+  `internal/domain/stack.go` with the tagged `EffectiveBaseKind` set (`BaseResolved`, …); ADR-0092
+  done-vs-stacked-merged rule implemented there. The spec consumes it — no drift.
+- `internal/repository/transaction` (change 0309) exists (`Engine`, `NewEngine`, `Execute`, typed
+  `Result`/`Disposition`/`Stage`/`Kind`/`Failure`); left untouched by this change as specified.
+- `internal/document` whole-population marker validation + loss-preserving patch API present for
+  `evidence` to reuse.
+- Target packages `internal/workspace`, `internal/githubcli`, `internal/evidence` are all absent —
+  net-new as the spec states.
+
+Two planning watch-outs (already inside this change's scope, folded into planning — not scope
+changes): (1) the git adapter's only worktree primitive is `AddDetachedWorktree` (detached HEAD); the
+named branch-attached worktree add + non-forcing removal + remote-ref probe are genuinely new
+`gitcli` primitives to build, as §"Feature-branch publication" already enumerates. (2) No reusable
+executable-fake harness exists — gitcli tests drive real temp Git repos with a `requireGit` skip; the
+protocol-faithful fake `gh` executable and its witness tests are net-new work this change owns via
+`Client.WithExecutable`-style injection, as §"Testing strategy" already requires.
+
+No obsolescence, no fundamental invalidation, no scope reduction. Design carried forward unchanged.
+Auto-capture: no independently-valuable beyond-branch work surfaced (both watch-outs are in-scope);
+nothing minted.
