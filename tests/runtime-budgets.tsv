@@ -151,6 +151,31 @@
 # module the Go gate already pays for, and this file pins the same shared caches (see its CACHES
 # header), so only the first run after a fresh clone is cold. EXPECTED_TOTAL moves 1825 -> 1885.
 #
+# tests/test_go_race_transaction.sh is a NEW FILE brought by change 0309 — the SHARD-of-a-file case
+# (change 0324's precedent), and the standing instruction two paragraphs up made good. Change 0309's
+# internal/repository/transaction package brings real-git, multi-clone concurrency/interruption
+# acceptance tests; under the detector they add ~37s, which pushed the combined `-race ./...` run to
+# 57/58s standalone serial — worst 58 sizes to 65, ABOVE the 60s ceiling with no next raise. Per this
+# table's own remedy the file is sharded, not raised: this new sibling runs
+# `go test -race ./internal/repository/transaction/`, and tests/test_go_race.sh now runs the DERIVED
+# complement (`go list ./...` minus that one import path), with a completeness guard proving the two
+# shards partition `go list ./...` exactly — no package silently dropped from the race gate. The main
+# shard re-measures at 55/55s standalone serial and STAYS at its 60 row (55 -> next multiple of 5 is
+# 55, plus the 5s margin -> 60, at the ceiling); this sibling measures, as
+# `scripts/run-tests.sh -j 1 --timings <path> tests/test_go_race_transaction.sh`:
+#   37  37  -> worst 37
+# Next multiple of 5 above 37 is 40, plus the 5s margin -> 45. It pins the same shared Go caches as
+# the other two Go rows (see its CACHES header). EXPECTED_TOTAL moves 1965 -> 2035 for this row plus
+# the tests/test_go_toolchain.sh re-budget below.
+#
+# tests/test_go_toolchain.sh 20 -> 45 (change 0309): a file that GOT SLOWER, defended by measurement.
+# Its `go test ./...` now compiles and runs change 0309's internal/repository/transaction package,
+# whose real-git acceptance tests add real uninstrumented cost to the whole-suite Go gate. No cost was
+# avoidable to remove first: the package's tests ARE the change's acceptance proof. Re-measured
+# standalone serial, one machine, as `scripts/run-tests.sh -j 1 --timings PATH tests/test_go_toolchain.sh`:
+#   39  38  38  -> worst 39
+# Next multiple of 5 above 39 is 40, plus the 5s margin -> 45, still well under the 60s ceiling.
+#
 # tests/test_asset_bundle_drift.sh is a NEW FILE brought by change 0311 — the header's new-test-file
 # case again, for a subsystem this table has no shard for: the generated, committed embedded
 # asset bundle (internal/assets/embedded) and its comparator, `cmd/genassets -check`. It is NOT an
@@ -238,8 +263,9 @@ tests/test_gate_execution_posture.sh	10	parallel
 tests/test_gate_run.sh	20	parallel
 tests/test_gate_run_stop.sh	35	parallel
 tests/test_github_mirror.sh	10	parallel
-tests/test_go_toolchain.sh	20	parallel
+tests/test_go_toolchain.sh	45	parallel
 tests/test_go_race.sh	60	parallel
+tests/test_go_race_transaction.sh	45	parallel
 tests/test_grep_portability.sh	10	parallel
 tests/test_groom_recap.sh	10	parallel
 tests/test_harness_defaults.sh	45	parallel
