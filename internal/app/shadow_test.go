@@ -67,6 +67,8 @@ func TestEnvelopeNotShadowed(t *testing.T) {
 		{"status", NewStatusResult(ResultApplied, StatusResult{})},
 		{"change.create", newChangeCreateResult(ResultApplied, ChangeCreateResult{})},
 		{"change.groom", newChangeGroomResult(ResultApplied, ChangeGroomResult{})},
+		{"change.block", newChangeLifecycleResult(OperationChangeBlock, ResultApplied, ChangeLifecycleResult{})},
+		{"change.defer", newChangeLifecycleResult(OperationChangeDefer, ResultApplied, ChangeLifecycleResult{})},
 	}
 
 	for _, tc := range cases {
