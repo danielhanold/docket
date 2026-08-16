@@ -9,7 +9,8 @@ import (
 // operation values are: "new-client", "discover", "remote-default-branch",
 // "fetch-branch", "resolve-ref", "open-source", "list-tree", "read-blobs",
 // "worktree-add", "worktree-remove", "worktree-list", "changed-paths",
-// "commit-paths", "push-lease", "is-ancestor", and "scan-trailers".
+// "commit-paths", "push-lease", "push-create-lease", "probe-remote-branch",
+// "is-ancestor", and "scan-trailers".
 type Operation string
 
 // FailureKind is the typed category of a Failure.
