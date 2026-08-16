@@ -7,14 +7,14 @@ priority: critical
 type: feat
 created: 2026-08-12
 updated: 2026-08-16
-claimed_at: 2026-08-16T16:52:24Z
+claimed_at: 2026-08-16T17:02:05Z
 depends_on: [308, 309]
 stacked_on:
 related: [170, 206, 208]
 discovered_from: [303]
 adrs: [34, 66, 83, 92]
 spec: docs/superpowers/specs/2026-08-16-workspaces-github-pr-adapter-and-build-evidence-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-16-workspaces-github-pr-adapter-and-build-evidence.md
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-16-workspaces-github-pr-adapter-and-build-evidence-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-16-workspaces-github-pr-adapter-and-build-evidence-design.md) |
+| Plan | [2026-08-16-workspaces-github-pr-adapter-and-build-evidence.md](https://github.com/danielhanold/docket/blob/feat/workspaces-github-pr-adapter-and-build-evidence/docs/superpowers/plans/2026-08-16-workspaces-github-pr-adapter-and-build-evidence.md) |
 | ADRs | [ADR-0034](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0034-repo-root-anchored-to-main-worktree.md), [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md), [ADR-0083](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0083-agent-worktree-scope-is-a-declared-frontmatter-fact.md), [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md) |
 <!-- docket:artifacts:end -->
 
