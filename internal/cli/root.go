@@ -12,6 +12,7 @@ import (
 	"github.com/danielhanold/docket/internal/app"
 	"github.com/danielhanold/docket/internal/buildinfo"
 	"github.com/danielhanold/docket/internal/config"
+	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/install"
 )
 
@@ -177,6 +178,32 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 			return nil
 		},
 	}
+	// The status command is a thin adapter, mirroring configCmd: it reads its
+	// flags, hands them to the operation over the Git-backed reader, and lets the
+	// presenter own the outcome. Flag-value validation — bad priority spellings,
+	// change types outside the resolved change_types set — belongs to app.Status,
+	// which alone knows the closed sets, so this body branches on nothing.
+	statusCmd := &cobra.Command{
+		Use:   "status",
+		Short: "Report backlog status, readiness, selection, and repository health (read-only)",
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, _ := c.Flags().GetString("repo-dir")
+			types, _ := c.Flags().GetStringArray("type")
+			priorities, _ := c.Flags().GetStringArray("priority")
+			client, err := gitcli.NewClient()
+			if err != nil {
+				return err
+			}
+			result = app.Status(c.Context(), app.NewGitStatusReader(client),
+				app.StatusOptions{RepoDir: repoDir, Types: types, Priorities: priorities})
+			return nil
+		},
+	}
+	statusCmd.Flags().String("repo-dir", "", "repository directory to read (default: current directory)")
+	statusCmd.Flags().StringArray("type", nil, "filter the displayed projection to a configured change type (repeatable)")
+	statusCmd.Flags().StringArray("priority", nil, "filter the displayed projection to a priority: critical, high, medium, or low (repeatable)")
+
 	configCmd.Flags().String("repo-dir", "", "repository directory to inspect (required; used verbatim, no Git discovery)")
 	configCmd.Flags().String("default-branch", "", "default branch supplied to integration_branch: auto")
 	configCmd.Flags().Bool("for-mutation", false, "run the mutation preflight (operation config.preflight)")
@@ -258,7 +285,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	installCmd.AddCommand(installCheckCmd)
 	developmentCmd.AddCommand(developmentInstallCmd)
 	diagnosticCmd.AddCommand(runtimeCmd, configCmd)
-	root.AddCommand(versionCmd, diagnosticCmd, installCmd, developmentCmd)
+	root.AddCommand(versionCmd, statusCmd, diagnosticCmd, installCmd, developmentCmd)
 	root.AddCommand(extra...)
 
 	// The asset-dependence guard. Everything docket ships today is registered

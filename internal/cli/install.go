@@ -28,6 +28,7 @@ var assetIndependent = map[string]bool{
 	"":                    true, // bare `docket`: reports a missing command
 	"help":                true,
 	"version":             true,
+	"status":              true,
 	"diagnostic":          true, // the group itself; it reports a missing command
 	"diagnostic runtime":  true,
 	"diagnostic config":   true,
