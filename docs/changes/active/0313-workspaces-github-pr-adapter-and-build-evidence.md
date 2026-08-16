@@ -2,12 +2,12 @@
 id: 313
 slug: workspaces-github-pr-adapter-and-build-evidence
 title: 'Workspaces, GitHub PR adapter, and build evidence'
-status: in-progress
+status: implemented
 priority: critical
 type: feat
 created: 2026-08-12
 updated: 2026-08-16
-claimed_at: 2026-08-16T17:02:05Z
+claimed_at: 2026-08-16T20:22:27Z
 depends_on: [308, 309]
 stacked_on:
 related: [170, 206, 208]
@@ -15,11 +15,11 @@ discovered_from: [303]
 adrs: [34, 66, 83, 92]
 spec: docs/superpowers/specs/2026-08-16-workspaces-github-pr-adapter-and-build-evidence-design.md
 plan: docs/superpowers/plans/2026-08-16-workspaces-github-pr-adapter-and-build-evidence.md
-results:
+results: docs/results/2026-08-16-workspaces-github-pr-adapter-and-build-evidence-results.md
 trivial: false
 auto_groomable:
 branch: feat/workspaces-github-pr-adapter-and-build-evidence
-pr:
+pr: https://github.com/danielhanold/docket/pull/213
 blocked_by:
 reconciled: true
 ---
@@ -31,6 +31,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-16-workspaces-github-pr-adapter-and-build-evidence-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-16-workspaces-github-pr-adapter-and-build-evidence-design.md) |
 | Plan | [2026-08-16-workspaces-github-pr-adapter-and-build-evidence.md](https://github.com/danielhanold/docket/blob/feat/workspaces-github-pr-adapter-and-build-evidence/docs/superpowers/plans/2026-08-16-workspaces-github-pr-adapter-and-build-evidence.md) |
+| Results | [2026-08-16-workspaces-github-pr-adapter-and-build-evidence-results.md](https://github.com/danielhanold/docket/blob/feat/workspaces-github-pr-adapter-and-build-evidence/docs/results/2026-08-16-workspaces-github-pr-adapter-and-build-evidence-results.md) |
+| PR | [#213](https://github.com/danielhanold/docket/pull/213) |
 | ADRs | [ADR-0034](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0034-repo-root-anchored-to-main-worktree.md), [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md), [ADR-0083](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0083-agent-worktree-scope-is-a-declared-frontmatter-fact.md), [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md) |
 <!-- docket:artifacts:end -->
 
