@@ -25,7 +25,7 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=2035 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2080 # the sum of every ceiling, seeded with the table from the measured serial run.
                     # 1965 -> 2035 (change 0309): TWO legitimate movers in one diff. First,
                     # tests/test_go_toolchain.sh 20 -> 45: a file that GOT SLOWER, defended by
                     # measurement. Its `go test ./...` now compiles and runs change 0309's

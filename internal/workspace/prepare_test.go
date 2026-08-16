@@ -397,6 +397,119 @@ func TestPrepareFetchFailureCreatesNothing(t *testing.T) {
 // production writeManifest so a constructed state is one loadManifest accepts.
 // ---------------------------------------------------------------------------
 
+// TestPrepareInvocationMatrix is the CWD/symlink invocation matrix (spec
+// §"Real-Git workspace matrix" first bullet). It seeds gitcli.Discover from five
+// spellings of the SAME repository — the primary checkout, inside `.docket/`,
+// inside another feature worktree, a nested subdirectory, and a symlinked
+// spelling of the primary path — and requires every one to resolve ONE canonical
+// repository identity and therefore ONE canonical workspace location: the same
+// hashed metadata directory and the same checkout path, with the first Prepare
+// creating it and every later invocation adopting it as existing. The workspace
+// location is derived from Repository.PrimaryWorktree, never from CWD, so a
+// caller's directory can never fork it into a second checkout.
+func TestPrepareInvocationMatrix(t *testing.T) {
+	requireGit(t)
+	r := docketModeRepo(t) // the topology carrying `.docket/` and a sibling feature worktree
+	ctx := context.Background()
+
+	c, err := gitcli.NewClient()
+	if err != nil {
+		t.Fatalf("gitcli.NewClient: %v", err)
+	}
+	svc, err := NewService(c)
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	tgt := freshTarget(t, 7)
+
+	// A real nested subdirectory beneath the primary checkout (an empty directory
+	// is invisible to git status, so it does not perturb any preservation proof).
+	nested := filepath.Join(r.Primary, "sub", "deep")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A symlinked spelling of the primary path, in a separate temp root, so the
+	// invocation path differs from the canonical one by a real symlink hop (on top
+	// of the macOS /tmp -> /private/tmp hop t.TempDir() already provides).
+	linkParent := t.TempDir()
+	link := filepath.Join(linkParent, "primary-link")
+	if err := os.Symlink(r.Primary, link); err != nil {
+		t.Fatal(err)
+	}
+
+	invocations := []struct{ name, path string }{
+		{"primary", r.Primary},
+		{"dot-docket", filepath.Join(r.Primary, ".docket")},
+		{"sibling-feature-worktree", filepath.Join(r.Primary, ".worktrees", "other")},
+		{"nested-subdir", nested},
+		{"symlinked-primary", link},
+	}
+
+	var canonical gitcli.Repository
+	var wantPath, wantDir string
+	for i, inv := range invocations {
+		repo, err := c.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: inv.path})
+		if err != nil {
+			t.Fatalf("Discover from %s (%s): %v", inv.name, inv.path, err)
+		}
+		if i == 0 {
+			canonical = repo
+			wantPath = filepath.Join(repo.PrimaryWorktree, ".worktrees", prepSlug)
+			wantDir = workspaceDir(repo.CommonDir, tgt.FeatureRef)
+		} else if repo != canonical {
+			t.Errorf("Discover from %s resolved %+v; want the canonical identity %+v", inv.name, repo, canonical)
+		}
+
+		ws, err := svc.Prepare(ctx, PrepareRequest{Repository: repo, Remote: "origin", Target: tgt})
+		if err != nil {
+			t.Fatalf("Prepare from %s: %v", inv.name, err)
+		}
+		wantDisp := PrepareExisting
+		if i == 0 {
+			wantDisp = PrepareCreated
+		}
+		if ws.Disposition != wantDisp {
+			t.Errorf("Prepare from %s: Disposition = %q; want %q", inv.name, ws.Disposition, wantDisp)
+		}
+		if ws.Path != wantPath {
+			t.Errorf("Prepare from %s: Path = %q; want the one canonical location %q", inv.name, ws.Path, wantPath)
+		}
+		if got := workspaceDir(repo.CommonDir, tgt.FeatureRef); got != wantDir {
+			t.Errorf("Prepare from %s: manifest dir = %q; want %q", inv.name, got, wantDir)
+		}
+	}
+
+	// Exactly one feature worktree was registered across all five invocations, and
+	// exactly one ready manifest exists at the single canonical location.
+	wl := gitOut(t, r.Primary, "worktree", "list", "--porcelain")
+	if n := countWorktreePathOccurrences(wl, wantPath); n != 1 {
+		t.Errorf("feature worktree registered %d times; want exactly one canonical registration:\n%s", n, wl)
+	}
+	m, present, err := loadManifest(wantDir)
+	if err != nil || !present {
+		t.Fatalf("loadManifest(%s): present=%v err=%v; want one present manifest", wantDir, present, err)
+	}
+	if m.Phase != PhaseReady {
+		t.Errorf("manifest phase = %q; want ready", m.Phase)
+	}
+}
+
+// countWorktreePathOccurrences counts how many registered worktrees resolve to
+// want, canonicalizing each porcelain path through every symlink hop.
+func countWorktreePathOccurrences(porcelain, want string) int {
+	n := 0
+	for _, line := range splitLines(porcelain) {
+		p, ok := cutPrefix(line, "worktree ")
+		if !ok {
+			continue
+		}
+		if canon, err := filepath.EvalSymlinks(p); err == nil && canon == want {
+			n++
+		}
+	}
+	return n
+}
+
 // freshTarget builds the unstacked target every matrix scenario prepares.
 func freshTarget(t *testing.T, id int) Target {
 	t.Helper()

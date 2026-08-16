@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # tests/test_go_race.sh — the module data-race gate (change 0308), sharded in
-# change 0309.
+# change 0309 and again in change 0313.
 #
-# Runs `go test -race` over every package EXCEPT internal/repository/transaction,
-# which tests/test_go_race_transaction.sh now carries (see that file's header for
-# the shard rationale and the 60s-ceiling arithmetic). The two shards partition
+# Runs `go test -race` over every package EXCEPT the two heavy real-git packages
+# that carry their own sibling shards: internal/repository/transaction
+# (tests/test_go_race_transaction.sh, change 0309) and internal/workspace
+# (tests/test_go_race_workspace.sh, change 0313). See those files' headers for the
+# shard rationale and the 60s-ceiling arithmetic. The three shards partition
 # `go list ./...` exactly; the completeness guard at the foot of this file proves
-# it. The exclusion is derived from `go list`, so a new package joins this shard
+# it. The exclusions are derived from `go list`, so a new package joins this shard
 # automatically.
 #
 # WHY THIS IS ITS OWN FILE and not a fifth check inside
@@ -84,17 +86,20 @@ if [ -z "${GOMODCACHE:-}" ] || [ -z "${GOCACHE:-}" ]; then
   fi
 fi
 
-# The race gate is SHARDED (change 0309): this file runs every package EXCEPT
-# internal/repository/transaction, whose real-git concurrency fixtures pushed the
-# combined `-race ./...` run past the 60s hard ceiling. tests/test_go_race_transaction.sh
-# runs that one package. The exclusion is DERIVED from `go list` with a single
-# literal import path — never a hand-enumerated package list — so a newly added
+# The race gate is SHARDED (change 0309, extended in change 0313): this file runs
+# every package EXCEPT internal/repository/transaction and internal/workspace,
+# whose real-git fixtures each pushed the combined `-race ./...` run past the 60s
+# hard ceiling. tests/test_go_race_transaction.sh and tests/test_go_race_workspace.sh
+# run those two packages. The exclusions are DERIVED from `go list` with two
+# literal import paths — never a hand-enumerated package list — so a newly added
 # package lands on this shard automatically, and the completeness guard below
-# proves the two shards partition `go list ./...` exactly.
+# proves the three shards partition `go list ./...` exactly.
 TXN_PKG="github.com/danielhanold/docket/internal/repository/transaction"
+WS_PKG="github.com/danielhanold/docket/internal/workspace"
 all_pkgs="$(go list ./... 2>/dev/null)"
-main_pkgs="$(printf '%s\n' "$all_pkgs" | grep -v -F -x -e "$TXN_PKG")"
+main_pkgs="$(printf '%s\n' "$all_pkgs" | grep -v -F -x -e "$TXN_PKG" -e "$WS_PKG")"
 txn_pkgs="$(printf '%s\n' "$all_pkgs" | grep -F -x -e "$TXN_PKG")"
+ws_pkgs="$(printf '%s\n' "$all_pkgs" | grep -F -x -e "$WS_PKG")"
 
 # The detector's verdict for this shard. A race is reported on stderr and turns
 # the exit non-zero, so the captured output is replayed on failure rather than
@@ -104,20 +109,30 @@ txn_pkgs="$(printf '%s\n' "$all_pkgs" | grep -F -x -e "$TXN_PKG")"
 # shellcheck disable=SC2086 # deliberate word-splitting: one package per line.
 race_out="$(go test -race $main_pkgs 2>&1)"
 race_rc=$?
-assert "go test -race (all packages except the transaction shard) passes" '[ "$race_rc" -eq 0 ] || { printf "%s\n" "$race_out" >&2; false; }'
+assert "go test -race (all packages except the transaction and workspace shards) passes" '[ "$race_rc" -eq 0 ] || { printf "%s\n" "$race_out" >&2; false; }'
 
-# Completeness guard: the two race shards must together cover `go list ./...`
+# Completeness guard: the three race shards must together cover `go list ./...`
 # exactly once each — no package silently dropped from the race gate, none run
-# twice. Both sets are DERIVED from `go list` here (never hand-enumerated), and
-# the sibling shard is checked to actually target the transaction package, so a
-# drift in either file's selector reddens rather than quietly narrowing coverage.
-union_pkgs="$(printf '%s\n%s\n' "$main_pkgs" "$txn_pkgs" | grep -v '^$' | sort -u)"
+# twice. All three sets are DERIVED from `go list` here (never hand-enumerated),
+# and each sibling shard is checked to actually target its package, so a drift in
+# any file's selector reddens rather than quietly narrowing coverage.
+union_pkgs="$(printf '%s\n%s\n%s\n' "$main_pkgs" "$txn_pkgs" "$ws_pkgs" | grep -v '^$' | sort -u)"
 all_sorted="$(printf '%s\n' "$all_pkgs" | grep -v '^$' | sort -u)"
-overlap="$(comm -12 <(printf '%s\n' "$main_pkgs" | grep -v '^$' | sort -u) <(printf '%s\n' "$txn_pkgs" | grep -v '^$' | sort -u))"
-sibling="$REPO/tests/test_go_race_transaction.sh"
+main_sorted="$(printf '%s\n' "$main_pkgs" | grep -v '^$' | sort -u)"
+txn_sorted="$(printf '%s\n' "$txn_pkgs" | grep -v '^$' | sort -u)"
+ws_sorted="$(printf '%s\n' "$ws_pkgs" | grep -v '^$' | sort -u)"
+overlap_main_txn="$(comm -12 <(printf '%s\n' "$main_sorted") <(printf '%s\n' "$txn_sorted"))"
+overlap_main_ws="$(comm -12 <(printf '%s\n' "$main_sorted") <(printf '%s\n' "$ws_sorted"))"
+overlap_txn_ws="$(comm -12 <(printf '%s\n' "$txn_sorted") <(printf '%s\n' "$ws_sorted"))"
+txn_sibling="$REPO/tests/test_go_race_transaction.sh"
+ws_sibling="$REPO/tests/test_go_race_workspace.sh"
 assert "the transaction shard's package exists in the module" '[ -n "$txn_pkgs" ]'
-assert "the two race shards' union equals go list ./... (no package dropped)" '[ "$union_pkgs" = "$all_sorted" ]'
-assert "the two race shards are disjoint (no package run twice)" '[ -z "$overlap" ]'
-assert "the sibling shard targets the transaction package" 'grep -qF -- "go test -race ./internal/repository/transaction/" "$sibling"'
+assert "the workspace shard's package exists in the module" '[ -n "$ws_pkgs" ]'
+assert "the three race shards' union equals go list ./... (no package dropped)" '[ "$union_pkgs" = "$all_sorted" ]'
+assert "the main and transaction shards are disjoint (no package run twice)" '[ -z "$overlap_main_txn" ]'
+assert "the main and workspace shards are disjoint (no package run twice)" '[ -z "$overlap_main_ws" ]'
+assert "the transaction and workspace shards are disjoint (no package run twice)" '[ -z "$overlap_txn_ws" ]'
+assert "the sibling shard targets the transaction package" 'grep -qF -- "go test -race ./internal/repository/transaction/" "$txn_sibling"'
+assert "the sibling shard targets the workspace package" 'grep -qF -- "go test -race ./internal/workspace/" "$ws_sibling"'
 
 exit "$fail"
