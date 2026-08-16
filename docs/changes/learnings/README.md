@@ -52,6 +52,10 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 - [promised-file-mode-needs-explicit-chmod](promised-file-mode-needs-explicit-chmod.md) — A create-time permission argument is a request, not a promise — the process umask masks it, so chmod what you documented. · also: permissions, testing ⟨needs promotion⟩
 
+## fixtures
+
+- [frozen-corpus-covers-what-it-contains](frozen-corpus-covers-what-it-contains.md) — A frozen real-world corpus covers what it actually contains, not what the plan assumed — inventory it before designing coverage on top of it, and record the empty categories where the fixture lives. · also: testing, planning
+
 ## git
 
 - [cas-re-read-fresh-origin](cas-re-read-fresh-origin.md) — A CAS retry must re-derive eligibility from FRESH ORIGIN state — re-reading the working tree you just wrote always reads back your own write and mislabels every real race as a no-op. · also: concurrency, scripts ⟨needs promotion⟩
