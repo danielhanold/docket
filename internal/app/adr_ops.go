@@ -238,13 +238,24 @@ func decodeADRRecordReceipt(b []byte) (adrRecordReceipt, bool) {
 // shape, and — when a producing change is supplied — its pin shape.
 func validateADRRecordShape(req ADRRecordRequest) []StatusFinding {
 	var findings []StatusFinding
+	if !validRequestID(req.RequestID) {
+		findings = append(findings, adrFinding("invalid-request-id", "request_id must be 8–128 ASCII characters matching ^[A-Za-z0-9][A-Za-z0-9._-]*$"))
+	}
+	return append(findings, validateADRContent(req)...)
+}
+
+// validateADRContent runs the configuration-independent checks on an ADR's
+// authored content and references — the required authored fields, the
+// relates_to collection shape, and (when supplied) the producing change's pin
+// shape. It deliberately does NOT check req.RequestID, so it is reusable for a
+// supersede/reverse successor whose own request_id is ignored (the outer key
+// governs).
+func validateADRContent(req ADRRecordRequest) []StatusFinding {
+	var findings []StatusFinding
 	add := func(code, msg string) {
 		findings = append(findings, adrFinding(code, msg))
 	}
 
-	if !validRequestID(req.RequestID) {
-		add("invalid-request-id", "request_id must be 8–128 ASCII characters matching ^[A-Za-z0-9][A-Za-z0-9._-]*$")
-	}
 	for _, f := range []struct{ name, val string }{
 		{"title", req.Title}, {"context", req.Context}, {"decision", req.Decision},
 		{"consequences", req.Consequences}, {"alternatives", req.Alternatives},
@@ -343,20 +354,7 @@ func (o adrRecordOp) Plan(ctx context.Context, st transaction.AttemptState) (tra
 			return refuseADR("path-mismatch", fmt.Sprintf("no record source loaded at %q for change %04d", changePath, o.req.Change.ID))
 		}
 
-		newADRs := make([]int, 0, len(c.ADRs())+1)
-		for _, a := range c.ADRs() {
-			newADRs = append(newADRs, int(a))
-		}
-		newADRs = append(newADRs, int(newID))
-
-		doc1, err := document.Parse(src)
-		if err != nil {
-			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("adr record: parsing producing change: %w", err)
-		}
-		var ps document.PatchSet
-		upsertField(&ps, doc1, "adrs", intSeqValue(newADRs))
-		upsertField(&ps, doc1, "updated", document.String(o.clock.Now().UTC().Format("2006-01-02")))
-		changeIntermediate, err = doc1.Apply(ps)
+		changeIntermediate, err = appendChangeADR(c, src, o.clock, newID)
 		if err != nil {
 			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("adr record: patching producing change: %w", err)
 		}
@@ -540,4 +538,455 @@ func buildADRCandidate(eff config.Effective, docs map[string]document.Document, 
 		return domain.Snapshot{}, fmt.Errorf("adr record: building candidate snapshot: %w", err)
 	}
 	return build.Snapshot, nil
+}
+
+// appendChangeADR rebuilds a producing change's bytes with newID appended to its
+// typed adrs collection and its updated date refreshed to the clock's UTC date —
+// the first patch pass shared by adr record, supersede, and reverse. The
+// artifact block is rendered in a second pass over the candidate snapshot,
+// because rendering it needs the after-state.
+func appendChangeADR(c domain.Change, src []byte, clock transaction.Clock, newID domain.ADRID) ([]byte, error) {
+	newADRs := make([]int, 0, len(c.ADRs())+1)
+	for _, a := range c.ADRs() {
+		newADRs = append(newADRs, int(a))
+	}
+	newADRs = append(newADRs, int(newID))
+
+	doc, err := document.Parse(src)
+	if err != nil {
+		return nil, fmt.Errorf("parsing producing change: %w", err)
+	}
+	var ps document.PatchSet
+	upsertField(&ps, doc, "adrs", intSeqValue(newADRs))
+	upsertField(&ps, doc, "updated", document.String(clock.Now().UTC().Format("2006-01-02")))
+	return doc.Apply(ps)
+}
+
+// This block is the `adr supersede` and `adr reverse` planning operations: both
+// record one brand-new Accepted successor ADR AND flip an existing Accepted
+// target's status, landing the new record, the re-rendered ADR index, the
+// target's single status-field change, and — when a producing change is supplied
+// — that change's appended adrs collection and re-rendered artifact block as one
+// validated atomic transaction commit. The domain owns legality: domain.Supersede
+// and domain.Reverse gate the target (it must be Accepted) and produce the exact
+// flipped status. The successor allocates a fresh id, so each carries a
+// caller-supplied idempotency key; the target and any producing change are pinned
+// by exact-blob entity expectations so a concurrently moved record contends
+// rather than being clobbered. The target's frozen body is preserved: only its
+// status field changes.
+
+// OperationADRSupersede and OperationADRReverse are the operation keys the two
+// ADR-replacement transitions record in their result envelopes, transaction
+// trailers, and idempotency digests.
+const (
+	OperationADRSupersede = "adr.supersede"
+	OperationADRReverse   = "adr.reverse"
+)
+
+// adrNotAcceptedReason mirrors the domain's target-not-Accepted refusal reason
+// (see domain.Supersede / domain.Reverse). A supersede/reverse refusal carrying
+// this reason is state-shaped (the target is not in an Accepted state) and maps
+// to invalid-state; every other refusal is request-shaped and maps to
+// invalid-input.
+const adrNotAcceptedReason = "adr-not-accepted"
+
+// ADRTarget pins the existing Accepted ADR a supersede/reverse flips: its id, its
+// current canonical path, and the exact full blob object id the transaction
+// expects that record to carry.
+type ADRTarget struct {
+	ID      int    `json:"id"`
+	Path    string `json:"path"`
+	Version string `json:"version"`
+}
+
+// ADRReplaceRequest is the closed, caller-supplied request for one supersede or
+// reverse. RequestID governs idempotency; Target pins the flipped ADR; Successor
+// carries the brand-new ADR's authored content and references (its own RequestID
+// is ignored — the outer key governs).
+type ADRReplaceRequest struct {
+	RequestID string           `json:"request_id"`
+	Target    ADRTarget        `json:"target"`
+	Successor ADRRecordRequest `json:"successor"`
+}
+
+// adrReplacePayload is the semantic content of a supersede/reverse — the verb,
+// the target identity, and the successor's authored content — minus the
+// caller-chosen RequestID and every concurrency Version pin. It is the digest
+// payload.
+type adrReplacePayload struct {
+	Op         string           `json:"op"`
+	TargetID   int              `json:"target_id"`
+	TargetPath string           `json:"target_path"`
+	Successor  adrRecordPayload `json:"successor"`
+}
+
+func adrReplaceSemanticPayload(opKey string, req ADRReplaceRequest) adrReplacePayload {
+	return adrReplacePayload{
+		Op:         opKey,
+		TargetID:   req.Target.ID,
+		TargetPath: req.Target.Path,
+		Successor:  adrRecordSemanticPayload(req.Successor),
+	}
+}
+
+// ADRSupersede records a successor ADR that supersedes an existing Accepted
+// target, flipping the target to "Superseded by ADR-<successor>".
+func ADRSupersede(ctx context.Context, deps PlanningDeps, repoDir string, req ADRReplaceRequest) ADRResult {
+	return adrReplace(ctx, deps, repoDir, OperationADRSupersede, false, req)
+}
+
+// ADRReverse records a successor ADR that reverses an existing Accepted target,
+// flipping the target to "Reversed by ADR-<successor>".
+func ADRReverse(ctx context.Context, deps PlanningDeps, repoDir string, req ADRReplaceRequest) ADRResult {
+	return adrReplace(ctx, deps, repoDir, OperationADRReverse, true, req)
+}
+
+// adrReplace is the shared driver both replacement transitions compose: it
+// validates the request, pins authoritative context, and drives one atomic
+// transaction carrying the successor record, the target's status flip, the
+// re-rendered index, and any producing-change update. reverses selects the verb
+// (domain.Reverse and the reverses edge) over supersede.
+func adrReplace(ctx context.Context, deps PlanningDeps, repoDir, opKey string, reverses bool, req ADRReplaceRequest) ADRResult {
+	if findings := validateADRReplaceShape(req); len(findings) > 0 {
+		return newADRResult(opKey, ResultInvalidInput, ADRResult{Findings: findings})
+	}
+
+	pin, err := deps.Reader.PinContext(ctx, repoDir)
+	if err != nil {
+		result, reason := classifyStatusError(ctx, err)
+		return newADRResult(opKey, result, ADRResult{Findings: []StatusFinding{adrFinding(reason, err.Error())}})
+	}
+	eff := pin.Config.Effective
+
+	slug := slugifyTitle(req.Successor.Title)
+	if !domain.ValidSlugToken(slug) {
+		return newADRResult(opKey, ResultInvalidInput, ADRResult{
+			Findings: []StatusFinding{adrFinding("invalid-slug", fmt.Sprintf("successor title %q does not yield a valid slug", req.Successor.Title))},
+		})
+	}
+
+	digest, err := canonicalDigest(opKey, adrReplaceSemanticPayload(opKey, req))
+	if err != nil {
+		return newADRResult(opKey, ResultInternalError, ADRResult{Findings: []StatusFinding{adrFinding(ReasonStatusInternalError, err.Error())}})
+	}
+
+	repo, err := deps.Client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
+	if err != nil {
+		result, reason := classifyStatusError(ctx, classifyGitFailure(err))
+		return newADRResult(opKey, result, ADRResult{Findings: []StatusFinding{adrFinding(reason, err.Error())}})
+	}
+
+	op := adrReplaceOp{
+		opKey:    opKey,
+		req:      req,
+		reverses: reverses,
+		eff:      eff,
+		slug:     slug,
+		clock:    deps.Clock,
+		link:     render.LinkContext{MetadataBranch: metadataBranchOf(pin)},
+		adrsDir:  eff.ADRsDir.Value,
+	}
+
+	// The target ADR is always pinned by an exact-blob entity expectation; a
+	// supplied producing change adds a second one, so a concurrently moved record
+	// contends rather than being silently clobbered.
+	expected := []transaction.EntityExpectation{{
+		Path:    gitcli.RepoPath(req.Target.Path),
+		Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Target.Version)},
+	}}
+	if req.Successor.Change != nil {
+		expected = append(expected, transaction.EntityExpectation{
+			Path:    gitcli.RepoPath(req.Successor.Change.Path),
+			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Successor.Change.Version)},
+		})
+	}
+
+	res, execErr := deps.Engine.Execute(ctx, transaction.Request{
+		Repository:  repo,
+		Remote:      originRemote,
+		TargetRef:   gitcli.RefName(branchRefPrefix + metadataBranchOf(pin)),
+		Idempotency: &transaction.IdempotencyKey{RequestID: req.RequestID, Digest: digest},
+		Loader:      newPlanningLoader(eff),
+		Operation:   op,
+		Expected:    expected,
+	})
+
+	// A refusal is state-shaped when it carries the domain not-Accepted reason (the
+	// target-must-be-Accepted gate); every other refusal (a dangling successor
+	// relates_to, an absent producing change) is request-shaped.
+	result, replayed := mapOutcome(res, execErr, adrReplaceRefusalKind(res.Findings))
+	out := ADRResult{Findings: findingsToStatus(res.Findings)}
+	if result == ResultApplied {
+		if rec, ok := decodeADRRecordReceipt(res.Receipt); ok {
+			out.ID = rec.ID
+			out.Path = rec.Path
+		}
+		out.Revision = string(res.AppliedCommit)
+		out.Replayed = replayed
+	}
+	return newADRResult(opKey, result, out)
+}
+
+// adrReplaceRefusalKind chooses the result a supersede/reverse refusal maps to:
+// the target-not-Accepted gate is state-shaped → invalid-state; every other
+// refusal is request-shaped → invalid-input.
+func adrReplaceRefusalKind(findings []domain.Finding) Result {
+	for _, f := range findings {
+		if f.Code == adrNotAcceptedReason {
+			return ResultInvalidState
+		}
+	}
+	return ResultInvalidInput
+}
+
+// validateADRReplaceShape runs the configuration-independent request checks: the
+// outer idempotency id shape, the target's pin shape, and the successor's
+// authored content and references (its own request_id is ignored).
+func validateADRReplaceShape(req ADRReplaceRequest) []StatusFinding {
+	var findings []StatusFinding
+	if !validRequestID(req.RequestID) {
+		findings = append(findings, adrFinding("invalid-request-id", "request_id must be 8–128 ASCII characters matching ^[A-Za-z0-9][A-Za-z0-9._-]*$"))
+	}
+	if req.Target.ID <= 0 {
+		findings = append(findings, adrFinding("invalid-target-id", "target.id must be a positive ADR id"))
+	}
+	if strings.TrimSpace(req.Target.Path) == "" {
+		findings = append(findings, adrFinding("empty-target-path", "target.path must name the target ADR's current canonical record path"))
+	}
+	if strings.TrimSpace(req.Target.Version) == "" {
+		findings = append(findings, adrFinding("empty-target-version", "target.version must be the exact full blob object id of the Accepted target"))
+	}
+	return append(findings, validateADRContent(req.Successor)...)
+}
+
+// adrReplaceOp is the SemanticOperation the engine drives per attempt for a
+// supersede or reverse. Every field is fixed before the transaction; the
+// id-dependent work (allocation, the domain legality gate, serialization, the
+// target's status flip, graph validation, index and artifact-block rendering)
+// re-runs from the attempt's own fresh state.
+type adrReplaceOp struct {
+	opKey    string
+	req      ADRReplaceRequest
+	reverses bool
+	eff      config.Effective
+	slug     string
+	clock    transaction.Clock
+	link     render.LinkContext
+	adrsDir  string
+}
+
+func (o adrReplaceOp) Key() transaction.OperationKey { return transaction.OperationKey(o.opKey) }
+
+// Plan allocates the next ADR id, gates the target through the domain verb (which
+// requires it to be Accepted and yields the flipped status), serializes the
+// canonical Accepted successor carrying the supersedes/reverses edge, patches the
+// target's status field ONLY (preserving its frozen body), appends the id to a
+// supplied producing change and re-renders its artifact block, validates the
+// complete candidate ADR graph, re-renders the index, and assembles the closed
+// plan: the successor create, the target replace, the index, and — when present —
+// the producing change replace.
+func (o adrReplaceOp) Plan(ctx context.Context, st transaction.AttemptState) (transaction.MutationPlan, transaction.OperationResult, error) {
+	snap := st.State.Snapshot
+	succ := o.req.Successor
+
+	// Request-shaped: a dangling successor relates_to reference (the whole-corpus
+	// graph validation grades an open relates_to a warning, so a write that
+	// introduces one is checked explicitly here).
+	if findings := validateADRReferences(succ.RelatesTo, snap); len(findings) > 0 {
+		return transaction.MutationPlan{}, transaction.OperationResult{Refused: true, Findings: findings}, nil
+	}
+
+	// Allocate max(existing)+1; a gap below the highest id is never backfilled.
+	newID := domain.NextADRID(snap)
+	targetID := domain.ADRID(o.req.Target.ID)
+
+	// Domain legality gate: the verb requires an Accepted target and yields the
+	// flipped status. A not-Accepted target is a state-shaped refusal; an unknown
+	// or ambiguous target is request-shaped — both carry the domain's stable reason
+	// token as the finding code.
+	var flip domain.ADRActionResult
+	var fail *domain.PolicyFailure
+	if o.reverses {
+		flip, fail = domain.Reverse(snap, targetID, newID)
+	} else {
+		flip, fail = domain.Supersede(snap, targetID, newID)
+	}
+	if fail != nil {
+		return refuseADRPolicy(fail)
+	}
+
+	// Patch the target's status field only — its frozen body is preserved, and
+	// repository.ValidateEvolution's frozen-ADR check enforces that the diff is
+	// confined to the status value span.
+	oldSrc, ok := st.State.Sources[o.req.Target.Path]
+	if !ok {
+		return refuseADR("path-mismatch", fmt.Sprintf("no record source loaded at %q for target ADR %04d", o.req.Target.Path, o.req.Target.ID))
+	}
+	oldDoc, err := document.Parse(oldSrc)
+	if err != nil {
+		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("adr replace: parsing target: %w", err)
+	}
+	var psOld document.PatchSet
+	upsertField(&psOld, oldDoc, "status", document.String(flip.NewStatus.String()))
+	oldBytes, err := oldDoc.Apply(psOld)
+	if err != nil {
+		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("adr replace: patching target status: %w", err)
+	}
+	oldPatched, err := document.Parse(oldBytes)
+	if err != nil {
+		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("adr replace: reparsing patched target: %w", err)
+	}
+
+	adrRelPath := path.Join(o.adrsDir, fmt.Sprintf("%04d-%s.md", int(newID), o.slug))
+
+	var producingID *domain.ChangeID
+	if succ.Change != nil {
+		id := domain.ChangeID(succ.Change.ID)
+		producingID = &id
+	}
+
+	var supersedes, reverses []domain.ADRID
+	if o.reverses {
+		reverses = []domain.ADRID{targetID}
+	} else {
+		supersedes = []domain.ADRID{targetID}
+	}
+
+	adrBytes, err := render.ADRRecord(render.NewADRRecord{
+		ID:           newID,
+		Slug:         o.slug,
+		Title:        succ.Title,
+		Date:         o.clock.Now().UTC(),
+		Change:       producingID,
+		RelatesTo:    toADRIDs(succ.RelatesTo),
+		Supersedes:   supersedes,
+		Reverses:     reverses,
+		Context:      succ.Context,
+		Decision:     succ.Decision,
+		Consequences: succ.Consequences,
+		Alternatives: succ.Alternatives,
+	})
+	if err != nil {
+		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("adr replace: serializing successor: %w", err)
+	}
+
+	// When a producing change is supplied, patch its adrs collection and refresh
+	// its updated date — the artifact block is re-rendered in a second pass.
+	var changePath string
+	var changeIntermediate []byte
+	if succ.Change != nil {
+		changePath = succ.Change.Path
+		c, out := snap.Change(*producingID)
+		if out != domain.LookupFound {
+			return refuseADR("not-found", fmt.Sprintf("producing change %04d is not present in the current corpus", succ.Change.ID))
+		}
+		src, ok := st.State.Sources[changePath]
+		if !ok {
+			return refuseADR("path-mismatch", fmt.Sprintf("no record source loaded at %q for change %04d", changePath, succ.Change.ID))
+		}
+		changeIntermediate, err = appendChangeADR(c, src, o.clock, newID)
+		if err != nil {
+			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("adr replace: patching producing change: %w", err)
+		}
+	}
+
+	// The candidate snapshot reflects the after-state: every existing corpus
+	// document, with the target's document swapped for its status-flipped bytes,
+	// plus the new successor ADR, plus the producing change swapped in when present.
+	docsCopy := make(map[string]document.Document, len(st.State.Documents))
+	for p, d := range st.State.Documents {
+		docsCopy[p] = d
+	}
+	docsCopy[o.req.Target.Path] = oldPatched
+
+	candidate, err := buildADRCandidate(o.eff, docsCopy, adrRelPath, adrBytes, changePath, changeIntermediate)
+	if err != nil {
+		return transaction.MutationPlan{}, transaction.OperationResult{}, err
+	}
+
+	// Validate the complete candidate ADR graph; an error-severity finding is a
+	// request-shaped refusal (warnings never refuse).
+	if findings := adrGraphErrors(domain.ValidateADRGraph(candidate)); len(findings) > 0 {
+		return transaction.MutationPlan{}, transaction.OperationResult{Refused: true, Findings: findings}, nil
+	}
+
+	indexBytes, err := render.ADRIndex(candidate)
+	if err != nil {
+		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("adr replace: rendering index: %w", err)
+	}
+	indexPath := path.Join(o.adrsDir, "README.md")
+	indexExists, err := treeHasPath(ctx, st.Tree, indexPath)
+	if err != nil {
+		return transaction.MutationPlan{}, transaction.OperationResult{}, err
+	}
+	indexKind := transaction.MutationCreate
+	if indexExists {
+		indexKind = transaction.MutationReplace
+	}
+
+	files := []transaction.FileMutation{
+		{Path: gitcli.RepoPath(adrRelPath), Kind: transaction.MutationCreate, Bytes: adrBytes},
+		{Path: gitcli.RepoPath(o.req.Target.Path), Kind: transaction.MutationReplace, Bytes: oldBytes},
+		{Path: gitcli.RepoPath(indexPath), Kind: indexKind, Bytes: indexBytes},
+	}
+
+	// Re-render the producing change's artifact block over the candidate and plan
+	// its replace.
+	if succ.Change != nil {
+		gc, gout := candidate.Change(*producingID)
+		if gout != domain.LookupFound {
+			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("adr replace: producing change %04d absent from candidate snapshot", succ.Change.ID)
+		}
+		body, err := render.ArtifactBlockContent(gc, candidate, o.link)
+		if err != nil {
+			return refuseADR("artifact-render-failed", err.Error())
+		}
+		doc2, err := document.Parse(changeIntermediate)
+		if err != nil {
+			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("adr replace: reparsing patched change: %w", err)
+		}
+		var ps2 document.PatchSet
+		ps2.ReplaceBlock("artifacts", body)
+		changeFinal, err := doc2.Apply(ps2)
+		if err != nil {
+			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("adr replace: writing producing change artifact block: %w", err)
+		}
+		files = append(files, transaction.FileMutation{
+			Path: gitcli.RepoPath(changePath), Kind: transaction.MutationReplace, Bytes: changeFinal,
+		})
+	}
+
+	verb := "superseded"
+	if o.reverses {
+		verb = "reversed"
+	}
+	receipt, err := json.Marshal(adrRecordReceipt{ID: int(newID), Op: o.opKey, Path: adrRelPath})
+	if err != nil {
+		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("adr replace: encoding receipt: %w", err)
+	}
+
+	return transaction.MutationPlan{
+		Files:         files,
+		CommitSubject: fmt.Sprintf("ADR %04d recorded (%s), ADR %04d %s", int(newID), o.slug, int(targetID), verb),
+		Receipt:       receipt,
+	}, transaction.OperationResult{}, nil
+}
+
+// refuseADRPolicy builds a refusing OperationResult from a domain policy failure,
+// carrying the domain's stable reason token as the finding code and its operands
+// as detail — the target-not-Accepted (and unknown/ambiguous target) refusal path.
+func refuseADRPolicy(fail *domain.PolicyFailure) (transaction.MutationPlan, transaction.OperationResult, error) {
+	detail := map[string]string{"reason": fail.Reason}
+	for k, v := range fail.Detail {
+		detail[k] = v
+	}
+	return transaction.MutationPlan{}, transaction.OperationResult{
+		Refused: true,
+		Findings: []domain.Finding{{
+			Code:     fail.Reason,
+			Severity: domain.SeverityError,
+			Entity:   domain.EntityRef{Kind: domain.EntityADR},
+			Detail:   detail,
+		}},
+	}, nil
 }
