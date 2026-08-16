@@ -2,11 +2,12 @@
 id: 313
 slug: workspaces-github-pr-adapter-and-build-evidence
 title: 'Workspaces, GitHub PR adapter, and build evidence'
-status: proposed
+status: in-progress
 priority: critical
 type: feat
 created: 2026-08-12
 updated: 2026-08-16
+claimed_at: 2026-08-16T16:48:46Z
 depends_on: [308, 309]
 stacked_on:
 related: [170, 206, 208]
@@ -17,7 +18,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/workspaces-github-pr-adapter-and-build-evidence
 pr:
 blocked_by:
 reconciled: false
