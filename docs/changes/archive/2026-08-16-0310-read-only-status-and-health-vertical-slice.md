@@ -2,7 +2,7 @@
 id: 310
 slug: read-only-status-and-health-vertical-slice
 title: 'Read-only status and health vertical slice'
-status: implemented
+status: done
 priority: critical
 type: feat
 created: 2026-08-12
@@ -20,7 +20,7 @@ auto_groomable:
 branch: feat/read-only-status-and-health-vertical-slice
 pr: https://github.com/danielhanold/docket/pull/212
 blocked_by:
-claimed_at: 2026-08-16T16:03:00Z
+claimed_at: 
 reconciled: true
 ---
 
