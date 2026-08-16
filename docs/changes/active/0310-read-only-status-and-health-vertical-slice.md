@@ -2,11 +2,11 @@
 id: 310
 slug: read-only-status-and-health-vertical-slice
 title: 'Read-only status and health vertical slice'
-status: proposed
+status: in-progress
 priority: critical
 type: feat
 created: 2026-08-12
-updated: 2026-08-15
+updated: 2026-08-16
 depends_on: [307, 308]
 stacked_on:
 related: [261]
@@ -17,9 +17,10 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/read-only-status-and-health-vertical-slice
 pr:
 blocked_by:
+claimed_at: 2026-08-16T14:19:26Z
 reconciled: false
 ---
 
