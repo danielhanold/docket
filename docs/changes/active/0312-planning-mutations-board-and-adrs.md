@@ -18,10 +18,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/planning-mutations-board-and-adrs
-claimed_at: 2026-08-16T21:04:15Z
+claimed_at: 2026-08-16T21:05:51Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -64,3 +64,24 @@ required metadata archive move but no external cleanup or finalization behavior.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-16
+
+Reconciled against current `main`. Foundations this slice consumes are present and merged:
+`internal/repository/transaction` carries the 0309 engine (engine, candidate, idempotency,
+concurrency, exact-lease commit/push), and `internal/app` carries the 0310 status / versioned
+read-context surface, with `internal/domain` holding the lifecycle, selection, readiness, lease,
+stack, ADR, and learning rules this change builds on. `depends_on: [309, 310]` are satisfied
+(both merged) — the digest reports the change build-ready.
+
+`internal/render` does not yet exist; this slice introduces it as the pure-renderer package the
+spec describes. `internal/app` today holds only status operations — the ten typed mutation
+operations (`change create/groom/block/defer/kill`, `learning record/update`,
+`adr record/supersede/reverse`) are net-new here, layered on the existing transaction and domain
+seams rather than reimplementing them.
+
+Scope unchanged: the design (spec dated 2026-08-16, Approved) was authored against the current
+package layout and neighboring-change boundaries (0305-0311 foundations upstream; 0313-0318
+downstream, all already stubbed as 314-318 in the backlog). No work has drifted elsewhere, no
+constraint has changed, and no adjacent follow-up work surfaced that is not already tracked.
+No re-scope needed.
