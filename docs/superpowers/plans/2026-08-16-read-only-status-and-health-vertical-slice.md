@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0310 — Read-only status and health vertical slice](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0310-read-only-status-and-health-vertical-slice.md)**
+> ↩ **[Change 0310 — Read-only status and health vertical slice](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-16-0310-read-only-status-and-health-vertical-slice.md)**
 <!-- docket:backlink:end -->
 
 # Read-Only Status and Health Vertical Slice — Implementation Plan
