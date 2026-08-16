@@ -20,8 +20,8 @@ auto_groomable:
 branch: feat/read-only-status-and-health-vertical-slice
 pr:
 blocked_by:
-claimed_at: 2026-08-16T14:19:26Z
-reconciled: false
+claimed_at: 2026-08-16T14:22:00Z
+reconciled: true
 ---
 
 ## Artifacts
@@ -67,3 +67,44 @@ fixture input only and does not expand this change into later workflow behavior.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-16
+
+Reconciled against current `main` (HEAD `a258c772`) before planning. Findings:
+
+- **Dependencies satisfied.** `depends_on: [307, 308]` are both `done` (archived 2026-08-14/15);
+  0309 (transaction engine, not a dependency of this read-only slice) is also archived. Build-ready
+  confirmed.
+- **Landed foundations all present and matching the spec.** The seven internal packages the spec
+  names as clients-of are all on `main` and expose the described surfaces: `internal/gitcli`
+  (`Discover`, `RemoteDefaultBranch`/`FetchBranch`/`ResolveRef`, `OpenObjectSource`→`ObjectSource`
+  with `Revision()`/`ListTree()`, `ReadBlobs`), `internal/config`
+  (`Resolve`→`Snapshot`/`Diagnostic`, `Effective`, capabilities, `LoadFilesystemSources`),
+  `internal/document` (loss-preserving parse + typed structural errors), `internal/repository`
+  (`BuildSnapshot`→`BuildResult` with deterministic `domain.Finding` validation),
+  `internal/domain` (`EvaluateReadiness`, `SelectQueue`, `ResolveEffectiveBase`/stack semantics,
+  `BranchFacts`), `internal/app` (protocol-v1 `Envelope`, the `Result*` taxonomy, `ExitCode`,
+  `OperationResult`), `internal/cli` (Cobra `root.go` wiring, global `--json` via `DetectJSONMode`,
+  `Presenter`). No parser/validator/graph/porcelain duplication is required — the slice composes.
+- **`docket status` is greenfield.** No `docket status` command, no `StatusResult`, no status
+  presenter exists. (`internal/gitcli/status.go` is git working-tree porcelain parsing;
+  `domain`/`repository` `Status()` refer to a change's lifecycle status field — neither is this
+  command.) Registration follows the existing pattern: a `*cobra.Command` in `root.go` whose `RunE`
+  calls an `internal/app` operation constructor and assigns the returned `OperationResult`; the
+  command key must also be added to the `assetIndependent` map in `internal/cli/install.go`
+  (`TestAssetIndependentSetExact` enforces exact correspondence). The `diagnostic config` command
+  (`app.ConfigInspectionResult`) is the closest template for the new result type.
+- **v0.9.3 fixture provenance clarified (no scope change).** The `v0.9.3` tag object peels to commit
+  `dd742abd5e9fcdf8ffe78eb6f36a293410873bbf` — exactly the commit the spec cites for the frozen
+  semantic corpus; the spec's provenance is current. Note that `testdata/repositories/v0.9.3/`
+  already exists on `main` but holds ONLY change 0324's agent-defaults sidecar
+  (`agents-harness-defaults.yml` + a `PROVENANCE.md` naming its own source commit `a4d72613`, the
+  seventeenth-agent re-cut). The new frozen semantic-corpus fixtures this change introduces are
+  derived from the peeled tag commit `dd742abd` and must be added under the same `v0.9.3` corpus
+  version WITHOUT relabeling or absorbing the pre-existing sidecar — the two provenance records
+  (`a4d72613` sidecar vs `dd742abd` semantic corpus) coexist. This is a planning detail for the
+  fixture step, not a redesign; the spec already forbids reusing/relabeling earlier corpora.
+- **Scope unchanged.** No design invalidation; the acceptance boundary, delivered boundary, and
+  explicit exclusions all hold against current reality. No auto-capture stub minted — no
+  independently-valuable adjacent work surfaced (the v0.9.3 dual-provenance is within 0310's own
+  fixture scope).
