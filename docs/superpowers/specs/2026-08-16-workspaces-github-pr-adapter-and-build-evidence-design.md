@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0313 — Workspaces, GitHub PR adapter, and build evidence](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0313-workspaces-github-pr-adapter-and-build-evidence.md)**
+> ↩ **[Change 0313 — Workspaces, GitHub PR adapter, and build evidence](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-16-0313-workspaces-github-pr-adapter-and-build-evidence.md)**
 <!-- docket:backlink:end -->
 
 # Workspaces, GitHub PR adapter, and build evidence
