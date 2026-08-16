@@ -9,9 +9,12 @@ import (
 
 // Operation labels for the worktree-lifecycle surface.
 const (
-	worktreeAddOp    Operation = "worktree-add"
-	worktreeRemoveOp Operation = "worktree-remove"
-	worktreeListOp   Operation = "worktree-list"
+	worktreeAddOp         Operation = "worktree-add"
+	worktreeRemoveOp      Operation = "worktree-remove"
+	worktreeListOp        Operation = "worktree-list"
+	worktreeAddBranchOp   Operation = "worktree-add-branch"
+	worktreeAttachOp      Operation = "worktree-attach-branch"
+	worktreeRemoveCleanOp Operation = "worktree-remove-clean"
 )
 
 // WorktreeInfo is one registered worktree as reported by
@@ -72,6 +75,99 @@ func (c *Client) RemoveWorktree(ctx context.Context, repo Repository, path strin
 	}
 	if res.exitCode != 0 {
 		return newFailure(worktreeRemoveOp, KindCommandFailed, "worktree remove failed: "+stderrExcerpt(res.stderr), nil).withExitCode(res.exitCode)
+	}
+	return nil
+}
+
+// AddBranchWorktree creates a NEW local branch at exactly startCommit and
+// attaches a new worktree to it via
+// `git worktree add -b <shortBranch> -- <path> <startCommit>`, run from the
+// primary worktree. branch must be a fully qualified refs/heads/... name;
+// shortBranch is derived by stripping that prefix and a name that does not carry
+// it is invalid-request. This method NEVER passes -B and never resets: an
+// already-existing local branch is git's own non-zero exit surfaced as
+// command-failed. path must be absolute; a malformed start commit id or branch
+// ref is invalid-request.
+func (c *Client) AddBranchWorktree(ctx context.Context, repo Repository, path string, branch RefName, startCommit ObjectID) error {
+	if !filepath.IsAbs(path) {
+		return newFailure(worktreeAddBranchOp, KindInvalidRequest, "worktree path must be absolute", nil)
+	}
+	if err := validateRefName(branch); err != nil {
+		return newFailure(worktreeAddBranchOp, KindInvalidRequest, "invalid branch ref", err)
+	}
+	short := strings.TrimPrefix(string(branch), "refs/heads/")
+	if short == string(branch) {
+		return newFailure(worktreeAddBranchOp, KindInvalidRequest, "branch must be fully qualified refs/heads/<name>", nil)
+	}
+	if err := validateObjectID(startCommit); err != nil {
+		return newFailure(worktreeAddBranchOp, KindInvalidRequest, "invalid start commit id", err)
+	}
+	res, f := c.run(ctx, runRequest{
+		op:   worktreeAddBranchOp,
+		dir:  repo.PrimaryWorktree,
+		args: []string{"worktree", "add", "-b", short, "--", path, string(startCommit)},
+	})
+	if f != nil {
+		return f
+	}
+	if res.exitCode != 0 {
+		return newFailure(worktreeAddBranchOp, KindCommandFailed, "worktree add failed: "+stderrExcerpt(res.stderr), nil).withExitCode(res.exitCode)
+	}
+	return nil
+}
+
+// AttachBranchWorktree attaches an EXISTING local branch to a new worktree via
+// `git worktree add -- <path> <shortBranch>`, run from the primary worktree.
+// Used only by the manifest-proven resume path: a missing branch is git's own
+// non-zero exit surfaced as command-failed, never a create. branch must be a
+// fully qualified refs/heads/... name; path must be absolute.
+func (c *Client) AttachBranchWorktree(ctx context.Context, repo Repository, path string, branch RefName) error {
+	if !filepath.IsAbs(path) {
+		return newFailure(worktreeAttachOp, KindInvalidRequest, "worktree path must be absolute", nil)
+	}
+	if err := validateRefName(branch); err != nil {
+		return newFailure(worktreeAttachOp, KindInvalidRequest, "invalid branch ref", err)
+	}
+	short := strings.TrimPrefix(string(branch), "refs/heads/")
+	if short == string(branch) {
+		return newFailure(worktreeAttachOp, KindInvalidRequest, "branch must be fully qualified refs/heads/<name>", nil)
+	}
+	res, f := c.run(ctx, runRequest{
+		op:   worktreeAttachOp,
+		dir:  repo.PrimaryWorktree,
+		args: []string{"worktree", "add", "--", path, short},
+	})
+	if f != nil {
+		return f
+	}
+	if res.exitCode != 0 {
+		return newFailure(worktreeAttachOp, KindCommandFailed, "worktree add failed: "+stderrExcerpt(res.stderr), nil).withExitCode(res.exitCode)
+	}
+	return nil
+}
+
+// RemoveWorktreeClean deregisters exactly the worktree registered at path via
+// `git worktree remove -- <path>` (WITHOUT --force), run from the primary
+// worktree. Git itself rechecks cleanliness at the destructive boundary,
+// closing the check-then-remove race a preflight plus a forced RemoveWorktree
+// would leave: a dirty or blocked removal is git's non-zero exit surfaced as
+// command-failed with a bounded redacted stderr excerpt. It never deletes a
+// branch. path must be absolute; an unregistered path is a command-failed
+// *Failure, never a panic.
+func (c *Client) RemoveWorktreeClean(ctx context.Context, repo Repository, path string) error {
+	if !filepath.IsAbs(path) {
+		return newFailure(worktreeRemoveCleanOp, KindInvalidRequest, "worktree path must be absolute", nil)
+	}
+	res, f := c.run(ctx, runRequest{
+		op:   worktreeRemoveCleanOp,
+		dir:  repo.PrimaryWorktree,
+		args: []string{"worktree", "remove", "--", path},
+	})
+	if f != nil {
+		return f
+	}
+	if res.exitCode != 0 {
+		return newFailure(worktreeRemoveCleanOp, KindCommandFailed, "worktree remove failed: "+stderrExcerpt(res.stderr), nil).withExitCode(res.exitCode)
 	}
 	return nil
 }
