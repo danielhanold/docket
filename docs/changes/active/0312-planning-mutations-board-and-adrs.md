@@ -13,12 +13,12 @@ related: []
 discovered_from: [303]
 adrs: [1, 4, 5, 12, 13, 21, 41, 71]
 spec: docs/superpowers/specs/2026-08-16-planning-mutations-board-and-adrs-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-16-planning-mutations-board-and-adrs.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/planning-mutations-board-and-adrs
-claimed_at: 2026-08-16T21:05:51Z
+claimed_at: 2026-08-16T21:15:36Z
 pr:
 blocked_by:
 reconciled: true
@@ -30,6 +30,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-16-planning-mutations-board-and-adrs-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-16-planning-mutations-board-and-adrs-design.md) |
+| Plan | [2026-08-16-planning-mutations-board-and-adrs.md](https://github.com/danielhanold/docket/blob/feat/planning-mutations-board-and-adrs/docs/superpowers/plans/2026-08-16-planning-mutations-board-and-adrs.md) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0004](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0004-grooming-takes-no-claim.md), [ADR-0005](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0005-close-out-only-harvest.md), [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0013](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0013-adr-0012-boundary-extends-to-docket-adr-surface.md), [ADR-0021](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0021-pipeline-script-authored-mechanical-commits.md), [ADR-0041](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0041-learnings-findings-directory-and-promotion-valve.md), [ADR-0071](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0071-writer-guarantees-yaml-validity-by-construction.md) |
 <!-- docket:artifacts:end -->
 
