@@ -14,6 +14,7 @@ import (
 	"context"
 	"path/filepath"
 	"sort"
+	"unicode/utf8"
 
 	"github.com/danielhanold/docket/internal/gitcli"
 )
@@ -254,5 +255,21 @@ func boundedDetail(s string) string {
 	if len(s) <= max {
 		return s
 	}
-	return s[:max] + "…"
+	return trimToRuneBoundary(s[:max]) + "…"
+}
+
+// trimToRuneBoundary backs a byte-offset prefix off any trailing partial UTF-8
+// rune so the returned prefix is always valid UTF-8. A cut at the byte cap can
+// land mid-rune; dropping the final incomplete rune keeps the diagnostic
+// well-formed without touching the cap or the truncation marker.
+func trimToRuneBoundary(s string) string {
+	for len(s) > 0 && !utf8.RuneStart(s[len(s)-1]) {
+		s = s[:len(s)-1]
+	}
+	if len(s) > 0 {
+		if r, _ := utf8.DecodeLastRuneInString(s); r == utf8.RuneError {
+			s = s[:len(s)-1]
+		}
+	}
+	return s
 }

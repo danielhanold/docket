@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"unicode/utf8"
 )
 
 // Stage names the phase a Failure arose in, drawn from the closed set below.
@@ -133,5 +134,23 @@ func stderrExcerpt(stderr []byte) string {
 	if len(safe) <= stderrExcerptLimit {
 		return safe
 	}
-	return safe[:stderrExcerptLimit] + " [truncated]"
+	return trimToRuneBoundary(safe[:stderrExcerptLimit]) + " [truncated]"
+}
+
+// trimToRuneBoundary backs a byte-offset prefix off any trailing partial UTF-8
+// rune so the returned prefix is always valid UTF-8. A cut at stderrExcerptLimit
+// bytes can land mid-rune; dropping the final incomplete rune keeps the
+// diagnostic well-formed without touching the limit or the marker text.
+func trimToRuneBoundary(s string) string {
+	for len(s) > 0 && !utf8.RuneStart(s[len(s)-1]) {
+		s = s[:len(s)-1]
+	}
+	// s now ends on a rune-start byte; if that final rune is itself incomplete
+	// (a multibyte lead byte with its continuation bytes severed), drop it too.
+	if len(s) > 0 {
+		if r, _ := utf8.DecodeLastRuneInString(s); r == utf8.RuneError {
+			s = s[:len(s)-1]
+		}
+	}
+	return s
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 // TestNewClientResolvesOrFails (e): NewClient with no executable and an empty
@@ -128,5 +129,26 @@ func TestStderrExcerptBounded(t *testing.T) {
 	body := strings.TrimSuffix(ex, " [truncated]")
 	if len(body) > stderrExcerptLimit {
 		t.Fatalf("excerpt body = %d bytes, want <= %d", len(body), stderrExcerptLimit)
+	}
+}
+
+// TestStderrExcerptRuneBoundary asserts a byte-limit cut landing mid-rune yields
+// valid UTF-8, and that whole-rune input is otherwise unaffected.
+func TestStderrExcerptRuneBoundary(t *testing.T) {
+	// "世" is 3 bytes; pad so the cut at stderrExcerptLimit lands inside it.
+	padded := strings.Repeat("a", stderrExcerptLimit-1) + "世" + strings.Repeat("a", stderrExcerptLimit)
+	ex := stderrExcerpt([]byte(padded))
+	if !utf8.ValidString(ex) {
+		t.Fatalf("mid-rune cut produced invalid UTF-8: %q", ex)
+	}
+	// A whole-rune boundary at the limit must not lose a valid rune.
+	aligned := strings.Repeat("a", stderrExcerptLimit) + strings.Repeat("世", 10)
+	ex2 := stderrExcerpt([]byte(aligned))
+	if !utf8.ValidString(ex2) {
+		t.Fatalf("whole-rune input produced invalid UTF-8: %q", ex2)
+	}
+	body := strings.TrimSuffix(ex2, " [truncated]")
+	if body != strings.Repeat("a", stderrExcerptLimit) {
+		t.Fatalf("whole-rune prefix altered: %q", body)
 	}
 }
