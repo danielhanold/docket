@@ -123,7 +123,8 @@ const maxReceiptBytes = 4096
 
 // validateReceipt requires a compact, canonical JSON object of at most 4096
 // bytes. Canonical means: the bytes are already compact (no insignificant
-// whitespace) and re-marshalling the decoded value with encoding/json yields
+// whitespace) and re-marshalling the decoded value with encoding/json (with
+// HTML escaping disabled, so <, >, and & are not rewritten to \uXXXX) yields
 // the exact same bytes (sorted keys, canonical scalars). The top value must be
 // a JSON object.
 func validateReceipt(b []byte) error {
@@ -150,10 +151,19 @@ func validateReceipt(b []byte) error {
 	if err := json.Unmarshal(b, &decoded); err != nil {
 		return errors.New("transaction: receipt does not decode")
 	}
-	remarshalled, err := json.Marshal(decoded)
-	if err != nil {
+	// Re-marshal with HTML escaping disabled so the canonical-form comparison is
+	// independent of Go's default escaping of <, >, and &. Otherwise a valid
+	// compact canonical receipt carrying a literal <, >, or & in a string value
+	// (as any non-Go encoder would emit) would be wrongly rejected. The Encoder
+	// appends a trailing newline that json.Marshal does not; trim the single
+	// newline before comparing.
+	var remarshal bytes.Buffer
+	enc := json.NewEncoder(&remarshal)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(decoded); err != nil {
 		return errors.New("transaction: receipt does not re-marshal")
 	}
+	remarshalled := bytes.TrimSuffix(remarshal.Bytes(), []byte("\n"))
 	if !bytes.Equal(remarshalled, b) {
 		return errors.New("transaction: receipt is not canonical")
 	}

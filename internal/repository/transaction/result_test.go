@@ -24,6 +24,15 @@ func TestValidateReceipt(t *testing.T) {
 		t.Fatalf("validateReceipt(4096-byte object) = %v, want nil", err)
 	}
 
+	// A compact canonical object whose string value carries literal HTML-active
+	// bytes (<, >, &) is valid: the canonical-form check must be independent of
+	// Go's default HTML escaping. json.Marshal would escape these to < etc.,
+	// so a naive re-marshal comparison would wrongly reject this.
+	htmlActive := []byte(`{"a":"<b>&</b>"}`)
+	if err := validateReceipt(htmlActive); err != nil {
+		t.Fatalf("validateReceipt(html-active string value) = %v, want nil", err)
+	}
+
 	cases := []struct {
 		receipt []byte
 		name    string
@@ -35,6 +44,10 @@ func TestValidateReceipt(t *testing.T) {
 		{[]byte(`{"b":"x","a":1}`), "unsorted-keys-remarshal-mismatch"},
 		{[]byte(`{"a":"` + strings.Repeat("x", 4089) + `"}`), "4097-bytes"},
 		{[]byte(""), "empty"},
+		// A string value written with a \uXXXX escape for an HTML-active byte is
+		// NOT canonical: the escaping-independent re-marshal emits the literal
+		// byte, so this must still be rejected.
+		{[]byte(`{"a":"\u003c"}`), "unicode-escaped-html-active-not-canonical"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
