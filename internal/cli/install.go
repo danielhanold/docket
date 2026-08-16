@@ -29,6 +29,12 @@ var assetIndependent = map[string]bool{
 	"help":                true,
 	"version":             true,
 	"status":              true,
+	"change":              true, // the group itself; it reports a missing command
+	"change create":       true,
+	"change groom":        true,
+	"change block":        true,
+	"change defer":        true,
+	"change kill":         true,
 	"diagnostic":          true, // the group itself; it reports a missing command
 	"diagnostic runtime":  true,
 	"diagnostic config":   true,
