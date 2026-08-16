@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
-# tests/test_go_race.sh — the whole-module data-race gate (change 0308).
+# tests/test_go_race.sh — the module data-race gate (change 0308), sharded in
+# change 0309.
 #
-# Runs `go test -race ./...`: every package's tests under Go's race detector.
+# Runs `go test -race` over every package EXCEPT internal/repository/transaction,
+# which tests/test_go_race_transaction.sh now carries (see that file's header for
+# the shard rationale and the 60s-ceiling arithmetic). The two shards partition
+# `go list ./...` exactly; the completeness guard at the foot of this file proves
+# it. The exclusion is derived from `go list`, so a new package joins this shard
+# automatically.
 #
 # WHY THIS IS ITS OWN FILE and not a fifth check inside
 # tests/test_go_toolchain.sh. The detector is expensive — instrumented binaries
@@ -78,12 +84,40 @@ if [ -z "${GOMODCACHE:-}" ] || [ -z "${GOCACHE:-}" ]; then
   fi
 fi
 
-# The detector's verdict. A race is reported on stderr and turns the exit
-# non-zero, so the captured output is replayed on failure rather than summarized
-# — the WARNING block names the two conflicting stacks and is the whole
-# diagnostic.
-race_out="$(go test -race ./... 2>&1)"
+# The race gate is SHARDED (change 0309): this file runs every package EXCEPT
+# internal/repository/transaction, whose real-git concurrency fixtures pushed the
+# combined `-race ./...` run past the 60s hard ceiling. tests/test_go_race_transaction.sh
+# runs that one package. The exclusion is DERIVED from `go list` with a single
+# literal import path — never a hand-enumerated package list — so a newly added
+# package lands on this shard automatically, and the completeness guard below
+# proves the two shards partition `go list ./...` exactly.
+TXN_PKG="github.com/danielhanold/docket/internal/repository/transaction"
+all_pkgs="$(go list ./... 2>/dev/null)"
+main_pkgs="$(printf '%s\n' "$all_pkgs" | grep -v -F -x -e "$TXN_PKG")"
+txn_pkgs="$(printf '%s\n' "$all_pkgs" | grep -F -x -e "$TXN_PKG")"
+
+# The detector's verdict for this shard. A race is reported on stderr and turns
+# the exit non-zero, so the captured output is replayed on failure rather than
+# summarized — the WARNING block names the two conflicting stacks and is the
+# whole diagnostic. main_pkgs is deliberately UNQUOTED so it word-splits into one
+# argument per package.
+# shellcheck disable=SC2086 # deliberate word-splitting: one package per line.
+race_out="$(go test -race $main_pkgs 2>&1)"
 race_rc=$?
-assert "go test -race ./... passes" '[ "$race_rc" -eq 0 ] || { printf "%s\n" "$race_out" >&2; false; }'
+assert "go test -race (all packages except the transaction shard) passes" '[ "$race_rc" -eq 0 ] || { printf "%s\n" "$race_out" >&2; false; }'
+
+# Completeness guard: the two race shards must together cover `go list ./...`
+# exactly once each — no package silently dropped from the race gate, none run
+# twice. Both sets are DERIVED from `go list` here (never hand-enumerated), and
+# the sibling shard is checked to actually target the transaction package, so a
+# drift in either file's selector reddens rather than quietly narrowing coverage.
+union_pkgs="$(printf '%s\n%s\n' "$main_pkgs" "$txn_pkgs" | grep -v '^$' | sort -u)"
+all_sorted="$(printf '%s\n' "$all_pkgs" | grep -v '^$' | sort -u)"
+overlap="$(comm -12 <(printf '%s\n' "$main_pkgs" | grep -v '^$' | sort -u) <(printf '%s\n' "$txn_pkgs" | grep -v '^$' | sort -u))"
+sibling="$REPO/tests/test_go_race_transaction.sh"
+assert "the transaction shard's package exists in the module" '[ -n "$txn_pkgs" ]'
+assert "the two race shards' union equals go list ./... (no package dropped)" '[ "$union_pkgs" = "$all_sorted" ]'
+assert "the two race shards are disjoint (no package run twice)" '[ -z "$overlap" ]'
+assert "the sibling shard targets the transaction package" 'grep -qF -- "go test -race ./internal/repository/transaction/" "$sibling"'
 
 exit "$fail"

@@ -25,7 +25,29 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1965 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2035 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1965 -> 2035 (change 0309): TWO legitimate movers in one diff. First,
+                    # tests/test_go_toolchain.sh 20 -> 45: a file that GOT SLOWER, defended by
+                    # measurement. Its `go test ./...` now compiles and runs change 0309's
+                    # internal/repository/transaction package, whose real-git, multi-clone
+                    # acceptance tests add real uninstrumented cost. Readings 39/38/38s standalone
+                    # serial (`scripts/run-tests.sh -j 1 --timings PATH tests/test_go_toolchain.sh`),
+                    # worst 39 -> next multiple of 5 is 40, plus the 5s margin -> 45. Second, the
+                    # SHARD-of-a-file case (change 0324 precedent): tests/test_go_race.sh sat AT the
+                    # 60s ceiling and change 0309's transaction package pushed the combined
+                    # `-race ./...` run to 57-58s standalone — worst 58 sizes to 65, ABOVE the
+                    # ceiling with no next raise. The table's remedy is shard, never a bigger
+                    # number: the transaction package moved to a new sibling
+                    # tests/test_go_race_transaction.sh (`go test -race ./internal/repository/transaction/`)
+                    # while tests/test_go_race.sh runs the DERIVED complement (`go list ./...` minus
+                    # that one import path) with a completeness guard proving the two shards
+                    # partition `go list ./...` exactly. The main shard re-measures at 55s (stays at
+                    # its 60 row, at the ceiling), and the sibling measures 37/37s -> 40 -> 45. The
+                    # single 60 row becomes 60 + 45, so the total rises by 45 for the shard plus 25
+                    # for the toolchain re-budget, 70 in all. Rationale is beside both rows in the
+                    # tsv header.
+                    # Recomputed from the table itself, never hand-adjusted:
+                    #   awk -F'\t' '!/^#/ && NF>=2 {s+=$2} END{print s}' tests/runtime-budgets.tsv
                     # 1905 -> 1965 (change 0308): tests/test_go_race.sh, a NEW test file — the
                     # legitimate mover the table header names first. It is the whole-module
                     # data-race gate, `go test -race ./...`, and it is a SHARD rather than a fifth
