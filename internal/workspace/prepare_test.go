@@ -4,7 +4,9 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
@@ -383,4 +385,616 @@ func TestPrepareFetchFailureCreatesNothing(t *testing.T) {
 		assertNothingCreated(t, r, repo.CommonDir)
 		r.assertAllUnchanged(t, before)
 	})
+}
+
+// ---------------------------------------------------------------------------
+// Task 6: existing / resume / blocked matrix.
+//
+// These tests construct the on-disk states a crash or a collision leaves and
+// assert Prepare's disposition and its byte-for-byte preservation guarantees.
+// Blocked is a value disposition (PrepareBlocked, nil error); a probe that
+// cannot see a resource is an error. Manual manifests are published through the
+// production writeManifest so a constructed state is one loadManifest accepts.
+// ---------------------------------------------------------------------------
+
+// freshTarget builds the unstacked target every matrix scenario prepares.
+func freshTarget(t *testing.T, id int) Target {
+	t.Helper()
+	base := resolveBase(t, []domain.ChangeSpec{{ID: domain.ChangeID(id), Status: domain.StatusProposed}}, nil, domain.ChangeID(id))
+	tgt, err := NewTarget(domain.ChangeID(id), prepSlug, base)
+	if err != nil {
+		t.Fatalf("NewTarget: %v", err)
+	}
+	return tgt
+}
+
+// prepareOK runs Prepare and fails the test on any error, returning the result.
+func prepareOK(t *testing.T, svc *Service, repo gitcli.Repository, tgt Target) Workspace {
+	t.Helper()
+	ws, err := svc.Prepare(context.Background(), PrepareRequest{Repository: repo, Remote: "origin", Target: tgt})
+	if err != nil {
+		t.Fatalf("Prepare: %v", err)
+	}
+	return ws
+}
+
+// wsPathOf is the canonical checkout path a target's workspace lands at.
+func wsPathOf(repo gitcli.Repository) string {
+	return filepath.Join(repo.PrimaryWorktree, ".worktrees", prepSlug)
+}
+
+// metaDirOf is the hashed workspace metadata directory for a target.
+func metaDirOf(repo gitcli.Repository, tgt Target) string {
+	return workspaceDir(repo.CommonDir, tgt.FeatureRef)
+}
+
+// writeStateManifest publishes a manifest in the target's metadata directory at
+// the requested phase and recorded base, via the production writer. It is how a
+// crash-left partial state is constructed for the resume tests.
+func writeStateManifest(t *testing.T, repo gitcli.Repository, tgt Target, base gitcli.ObjectID, phase Phase) {
+	t.Helper()
+	m := Manifest{
+		Schema:     manifestSchemaVersion,
+		ID:         workspaceID(tgt.FeatureRef),
+		CommonDir:  repo.CommonDir,
+		ChangeID:   tgt.ChangeID,
+		Slug:       tgt.Slug,
+		FeatureRef: tgt.FeatureRef,
+		BaseRef:    tgt.BaseRef,
+		BaseCommit: base,
+		Path:       wsPathOf(repo),
+		Phase:      phase,
+		CreatedUTC: time.Now().UTC().Format(time.RFC3339),
+		UpdatedUTC: time.Now().UTC().Format(time.RFC3339),
+	}
+	if err := writeManifest(metaDirOf(repo, tgt), m); err != nil {
+		t.Fatalf("writeManifest: %v", err)
+	}
+}
+
+// localBranchTip returns refs/heads/feat/<slug>'s tip in the primary clone.
+func localBranchTip(t *testing.T, r *wsRepos) gitcli.ObjectID {
+	t.Helper()
+	return gitcli.ObjectID(gitOut(t, r.Primary, "rev-parse", string(prepFeatureRef())))
+}
+
+// TestPrepareExistingIdempotent proves a second Prepare on a ready workspace
+// returns `existing` and mutates nothing: commits, staged bytes, dirty tracked
+// bytes, and untracked files created between the two calls all survive
+// byte-identically, and Dirty is reported true, never repaired.
+func TestPrepareExistingIdempotent(t *testing.T) {
+	eachTopology(t, func(t *testing.T, r *wsRepos) {
+		svc, repo := r.newService(t)
+		tgt := freshTarget(t, 7)
+
+		first := prepareOK(t, svc, repo, tgt)
+		if first.Disposition != PrepareCreated {
+			t.Fatalf("first Prepare disposition = %q; want created", first.Disposition)
+		}
+		ws := wsPathOf(repo)
+
+		// Mutate the workspace between calls: a commit, a staged file, a dirty
+		// tracked file, and an untracked file.
+		writeWorktreeFile(t, ws, "feature.go", "package feature\n")
+		gitOut(t, ws, "add", "feature.go")
+		gitOut(t, ws, "commit", "-q", "-m", "feature work")
+		committedTip := gitcli.ObjectID(gitOut(t, ws, "rev-parse", "HEAD"))
+
+		writeWorktreeFile(t, ws, "staged.txt", "staged bytes\n")
+		gitOut(t, ws, "add", "staged.txt")
+		writeWorktreeFile(t, ws, "main.go", "package main // dirtied\n")
+		writeWorktreeFile(t, ws, "untracked.txt", "untracked bytes\n")
+
+		beforeWs := snapshotTree(t, ws)
+		beforePreserve := r.snapshotAll(t)
+
+		second, err := svc.Prepare(context.Background(), PrepareRequest{Repository: repo, Remote: "origin", Target: tgt})
+		if err != nil {
+			t.Fatalf("second Prepare: %v", err)
+		}
+		if second.Disposition != PrepareExisting {
+			t.Errorf("second Prepare disposition = %q; want existing", second.Disposition)
+		}
+		if !second.Dirty {
+			t.Errorf("second Prepare Dirty = false; want true (dirty reported)")
+		}
+		if second.HeadCommit != committedTip {
+			t.Errorf("HeadCommit = %q; want committed tip %q", second.HeadCommit, committedTip)
+		}
+		if second.BaseCommit != first.BaseCommit {
+			t.Errorf("BaseCommit = %q; want recorded %q", second.BaseCommit, first.BaseCommit)
+		}
+
+		// Nothing repaired: the workspace is byte-identical, and every uninvolved
+		// worktree is unchanged. Manifest is still ready (not rewritten to nonsense).
+		assertUnchanged(t, beforeWs, ws)
+		r.assertAllUnchanged(t, beforePreserve)
+		if m, present, err := loadManifest(metaDirOf(repo, tgt)); err != nil || !present || m.Phase != PhaseReady {
+			t.Errorf("manifest present=%v phase=%v err=%v; want present ready", present, m.Phase, err)
+		}
+	})
+}
+
+// TestPrepareResumeCreateBoth is interrupted-allocation resume arm (i): an
+// allocating manifest with no branch and no worktree. Resume creates both at the
+// recorded base and advances to ready as `resumed`.
+func TestPrepareResumeCreateBoth(t *testing.T) {
+	eachTopology(t, func(t *testing.T, r *wsRepos) {
+		svc, repo := r.newService(t)
+		tgt := freshTarget(t, 7)
+		base := gitcli.ObjectID(gitOut(t, r.Primary, "rev-parse", "main"))
+
+		writeStateManifest(t, repo, tgt, base, PhaseAllocating)
+		if branchExists(r.Primary, "feat/"+prepSlug) {
+			t.Fatalf("fixture: branch already exists")
+		}
+
+		before := r.snapshotAll(t)
+		ws := prepareOK(t, svc, repo, tgt)
+		if ws.Disposition != PrepareResumed {
+			t.Errorf("disposition = %q; want resumed", ws.Disposition)
+		}
+		if ws.BaseCommit != base {
+			t.Errorf("BaseCommit = %q; want %q", ws.BaseCommit, base)
+		}
+		if got := localBranchTip(t, r); got != base {
+			t.Errorf("branch tip = %q; want base %q", got, base)
+		}
+		if got := symbolicHead(t, wsPathOf(repo)); got != string(prepFeatureRef()) {
+			t.Errorf("workspace symbolic HEAD = %q; want %q", got, prepFeatureRef())
+		}
+		if m, present, err := loadManifest(metaDirOf(repo, tgt)); err != nil || !present || m.Phase != PhaseReady {
+			t.Errorf("manifest present=%v phase=%v err=%v; want present ready", present, m.Phase, err)
+		}
+		r.assertAllUnchanged(t, before)
+	})
+}
+
+// TestPrepareResumeAttach is resume arm (ii): an allocating manifest and a
+// branch already at the recorded base, but no worktree. Resume attaches the
+// existing branch and NEVER moves its tip, even though origin advanced meanwhile.
+func TestPrepareResumeAttach(t *testing.T) {
+	eachTopology(t, func(t *testing.T, r *wsRepos) {
+		svc, repo := r.newService(t)
+		tgt := freshTarget(t, 7)
+		base := gitcli.ObjectID(gitOut(t, r.Primary, "rev-parse", "main"))
+
+		writeStateManifest(t, repo, tgt, base, PhaseAllocating)
+		gitOut(t, r.Primary, "branch", "feat/"+prepSlug, string(base))
+
+		// Origin moves forward after the branch was created; resume must not follow.
+		moved := r.advanceMain(t)
+		if moved == base {
+			t.Fatalf("advanceMain did not move origin (fixture bug)")
+		}
+
+		before := r.snapshotAll(t)
+		ws := prepareOK(t, svc, repo, tgt)
+		if ws.Disposition != PrepareResumed {
+			t.Errorf("disposition = %q; want resumed", ws.Disposition)
+		}
+		if got := localBranchTip(t, r); got != base {
+			t.Errorf("branch tip = %q; want unchanged base %q (attach must not move it)", got, base)
+		}
+		if !containsWorktreePath(t, gitOut(t, r.Primary, "worktree", "list", "--porcelain"), wsPathOf(repo)) {
+			t.Errorf("worktree not registered after attach resume")
+		}
+		if m, present, err := loadManifest(metaDirOf(repo, tgt)); err != nil || !present || m.Phase != PhaseReady {
+			t.Errorf("manifest present=%v phase=%v err=%v; want present ready", present, m.Phase, err)
+		}
+		r.assertAllUnchanged(t, before)
+	})
+}
+
+// TestPrepareResumeVerifyOnly is resume arm (iii): an allocating manifest with
+// the branch AND a registered worktree already present, carrying a post-creation
+// commit and dirty bytes. Resume verifies and advances to ready only; the commit
+// and dirty bytes survive.
+func TestPrepareResumeVerifyOnly(t *testing.T) {
+	eachTopology(t, func(t *testing.T, r *wsRepos) {
+		svc, repo := r.newService(t)
+		tgt := freshTarget(t, 7)
+		base := gitcli.ObjectID(gitOut(t, r.Primary, "rev-parse", "main"))
+		ws := wsPathOf(repo)
+
+		writeStateManifest(t, repo, tgt, base, PhaseAllocating)
+		gitOut(t, r.Primary, "branch", "feat/"+prepSlug, string(base))
+		gitOut(t, r.Primary, "worktree", "add", "--", ws, "feat/"+prepSlug)
+
+		// Post-creation commit and dirty bytes.
+		writeWorktreeFile(t, ws, "resumed.go", "package resumed\n")
+		gitOut(t, ws, "add", "resumed.go")
+		gitOut(t, ws, "commit", "-q", "-m", "post-creation commit")
+		postTip := gitcli.ObjectID(gitOut(t, ws, "rev-parse", "HEAD"))
+		writeWorktreeFile(t, ws, "dirty.txt", "dirty\n")
+
+		beforeWs := snapshotTree(t, ws)
+
+		out := prepareOK(t, svc, repo, tgt)
+		if out.Disposition != PrepareResumed {
+			t.Errorf("disposition = %q; want resumed", out.Disposition)
+		}
+		if out.HeadCommit != postTip {
+			t.Errorf("HeadCommit = %q; want post-creation tip %q", out.HeadCommit, postTip)
+		}
+		if !out.Dirty {
+			t.Errorf("Dirty = false; want true (post-creation dirty reported)")
+		}
+		if got := localBranchTip(t, r); got != postTip {
+			t.Errorf("branch tip = %q; want post-creation %q (commit preserved)", got, postTip)
+		}
+		assertUnchanged(t, beforeWs, ws)
+		if m, present, err := loadManifest(metaDirOf(repo, tgt)); err != nil || !present || m.Phase != PhaseReady {
+			t.Errorf("manifest present=%v phase=%v err=%v; want present ready", present, m.Phase, err)
+		}
+	})
+}
+
+// TestPrepareResumeBranchOffBaseBlocked is blocked case (c): a branch created by
+// this manifest that no longer contains the recorded base commit (the base is a
+// commit the branch does not reach). Prepare is blocked and byte-untouched: the
+// branch is never reset and no worktree is created.
+func TestPrepareResumeBranchOffBaseBlocked(t *testing.T) {
+	r := mainModeRepo(t)
+	svc, repo := r.newService(t)
+	tgt := freshTarget(t, 7)
+
+	c0 := gitcli.ObjectID(gitOut(t, r.Primary, "rev-parse", "main"))
+	// A base commit that the branch (at c0) does NOT contain: advance origin and
+	// fetch the new commit into the primary's object store, then record it as base.
+	c1 := r.advanceMain(t)
+	gitOut(t, r.Primary, "fetch", "-q", "origin", "main")
+	if c1 == c0 {
+		t.Fatalf("advanceMain did not move origin (fixture bug)")
+	}
+
+	writeStateManifest(t, repo, tgt, c1, PhaseAllocating)
+	gitOut(t, r.Primary, "branch", "feat/"+prepSlug, string(c0)) // branch at c0, base is c1
+
+	before := r.snapshotAll(t)
+	beforeManifest := readFileBytes(t, filepath.Join(metaDirOf(repo, tgt), manifestFileName))
+
+	out := prepareOK(t, svc, repo, tgt)
+	if out.Disposition != PrepareBlocked {
+		t.Errorf("disposition = %q; want blocked", out.Disposition)
+	}
+	if got := localBranchTip(t, r); got != c0 {
+		t.Errorf("branch tip = %q; want unchanged %q (never reset)", got, c0)
+	}
+	if _, err := os.Lstat(wsPathOf(repo)); !os.IsNotExist(err) {
+		t.Errorf("workspace path exists (%v); want none created", err)
+	}
+	if after := readFileBytes(t, filepath.Join(metaDirOf(repo, tgt), manifestFileName)); after != beforeManifest {
+		t.Errorf("manifest bytes changed on blocked resume")
+	}
+	r.assertAllUnchanged(t, before)
+}
+
+// readFileBytes reads a file as a string, failing the test on error.
+func readFileBytes(t *testing.T, path string) string {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return string(b)
+}
+
+// TestPrepareBlockedMatrix walks the fresh-path blocked matrix: each colliding
+// artifact with no matching manifest yields PrepareBlocked and is left
+// byte-untouched (pre-Go in-flight work is never adopted).
+func TestPrepareBlockedMatrix(t *testing.T) {
+	eachTopology(t, func(t *testing.T, r *wsRepos) {
+		t.Run("target-dir-no-manifest", func(t *testing.T) {
+			r := freshTopology(t, r)
+			svc, repo := r.newService(t)
+			tgt := freshTarget(t, 7)
+			writeWorktreeFile(t, wsPathOf(repo), "leftover.txt", "prior bytes\n")
+			collidePath := filepath.Join(wsPathOf(repo), "leftover.txt")
+			before := readFileBytes(t, collidePath)
+
+			assertBlocked(t, svc, repo, tgt)
+			if after := readFileBytes(t, collidePath); after != before {
+				t.Errorf("colliding directory bytes changed")
+			}
+			assertNoManifest(t, repo, tgt)
+		})
+
+		t.Run("foreign-registration", func(t *testing.T) {
+			r := freshTopology(t, r)
+			svc, repo := r.newService(t)
+			tgt := freshTarget(t, 7)
+			// A foreign detached worktree squatting the target path.
+			gitOut(t, r.Primary, "worktree", "add", "--detach", "--", wsPathOf(repo), "main")
+			collidePath := filepath.Join(wsPathOf(repo), "main.go")
+			before := readFileBytes(t, collidePath)
+
+			assertBlocked(t, svc, repo, tgt)
+			if !containsWorktreePath(t, gitOut(t, r.Primary, "worktree", "list", "--porcelain"), wsPathOf(repo)) {
+				t.Errorf("foreign registration removed; must be preserved (never force-removed)")
+			}
+			if after := readFileBytes(t, collidePath); after != before {
+				t.Errorf("foreign worktree bytes changed")
+			}
+			assertNoManifest(t, repo, tgt)
+		})
+
+		t.Run("local-branch-no-manifest", func(t *testing.T) {
+			r := freshTopology(t, r)
+			svc, repo := r.newService(t)
+			tgt := freshTarget(t, 7)
+			gitOut(t, r.Primary, "branch", "feat/"+prepSlug, "main")
+			before := localBranchTip(t, r)
+
+			assertBlocked(t, svc, repo, tgt)
+			if got := localBranchTip(t, r); got != before {
+				t.Errorf("local branch tip changed %q -> %q", before, got)
+			}
+			assertNoManifest(t, repo, tgt)
+		})
+
+		t.Run("remote-branch-no-manifest", func(t *testing.T) {
+			r := freshTopology(t, r)
+			svc, repo := r.newService(t)
+			tgt := freshTarget(t, 7)
+			r.pushBranch(t, "feat/"+prepSlug, "main")
+			before := gitcli.ObjectID(gitOut(t, r.Origin, "rev-parse", "refs/heads/feat/"+prepSlug))
+
+			assertBlocked(t, svc, repo, tgt)
+			if got := gitcli.ObjectID(gitOut(t, r.Origin, "rev-parse", "refs/heads/feat/"+prepSlug)); got != before {
+				t.Errorf("remote branch tip changed %q -> %q", before, got)
+			}
+			if branchExists(r.Primary, "feat/"+prepSlug) {
+				t.Errorf("remote branch was adopted locally; must not be")
+			}
+			assertNoManifest(t, repo, tgt)
+		})
+
+		t.Run("malformed-manifest", func(t *testing.T) {
+			r := freshTopology(t, r)
+			svc, repo := r.newService(t)
+			tgt := freshTarget(t, 7)
+			if err := os.MkdirAll(metaDirOf(repo, tgt), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			mpath := filepath.Join(metaDirOf(repo, tgt), manifestFileName)
+			if err := os.WriteFile(mpath, []byte("{ this is not json"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			before := readFileBytes(t, mpath)
+
+			assertBlocked(t, svc, repo, tgt)
+			if after := readFileBytes(t, mpath); after != before {
+				t.Errorf("malformed manifest bytes changed")
+			}
+		})
+
+		t.Run("foreign-commondir-manifest", func(t *testing.T) {
+			r := freshTopology(t, r)
+			svc, repo := r.newService(t)
+			tgt := freshTarget(t, 7)
+			other := mainModeRepo(t)
+			_, otherRepo := other.newService(t)
+			// A structurally valid manifest owned by a DIFFERENT repository.
+			foreign := Manifest{
+				Schema: manifestSchemaVersion, ID: workspaceID(tgt.FeatureRef), CommonDir: otherRepo.CommonDir,
+				ChangeID: tgt.ChangeID, Slug: tgt.Slug, FeatureRef: tgt.FeatureRef, BaseRef: tgt.BaseRef,
+				BaseCommit: gitcli.ObjectID(gitOut(t, r.Primary, "rev-parse", "main")),
+				Path:       wsPathOf(repo), Phase: PhaseReady,
+				CreatedUTC: time.Now().UTC().Format(time.RFC3339), UpdatedUTC: time.Now().UTC().Format(time.RFC3339),
+			}
+			if err := writeManifest(metaDirOf(repo, tgt), foreign); err != nil {
+				t.Fatalf("writeManifest(foreign): %v", err)
+			}
+			mpath := filepath.Join(metaDirOf(repo, tgt), manifestFileName)
+			before := readFileBytes(t, mpath)
+
+			assertBlocked(t, svc, repo, tgt)
+			if after := readFileBytes(t, mpath); after != before {
+				t.Errorf("foreign-commondir manifest bytes changed")
+			}
+		})
+	})
+}
+
+// freshTopology rebuilds the same fixture kind as r for an isolated subtest, so
+// each blocked-matrix case runs against its own repository.
+func freshTopology(t *testing.T, r *wsRepos) *wsRepos {
+	t.Helper()
+	if len(r.Preserve) > 1 {
+		return docketModeRepo(t)
+	}
+	return mainModeRepo(t)
+}
+
+// assertBlocked runs Prepare and asserts a PrepareBlocked disposition with no error.
+func assertBlocked(t *testing.T, svc *Service, repo gitcli.Repository, tgt Target) {
+	t.Helper()
+	out, err := svc.Prepare(context.Background(), PrepareRequest{Repository: repo, Remote: "origin", Target: tgt})
+	if err != nil {
+		t.Fatalf("Prepare = error %v; want blocked disposition", err)
+	}
+	if out.Disposition != PrepareBlocked {
+		t.Errorf("disposition = %q; want blocked", out.Disposition)
+	}
+}
+
+// assertNoManifest asserts Prepare published no manifest of its own.
+func assertNoManifest(t *testing.T, repo gitcli.Repository, tgt Target) {
+	t.Helper()
+	if _, present, err := loadManifest(metaDirOf(repo, tgt)); err != nil || present {
+		t.Errorf("manifest present=%v err=%v; want cleanly absent (none published)", present, err)
+	}
+}
+
+// TestPrepareConcurrentSameTarget proves two Prepares of the SAME target
+// serialize on the operation lock and yield exactly one created plus one
+// existing, with exactly one branch and one registration.
+func TestPrepareConcurrentSameTarget(t *testing.T) {
+	r := mainModeRepo(t)
+	svc, repo := r.newService(t)
+	tgt := freshTarget(t, 7)
+
+	var wg sync.WaitGroup
+	results := make([]Workspace, 2)
+	errs := make([]error, 2)
+	start := make(chan struct{})
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			results[i], errs[i] = svc.Prepare(context.Background(), PrepareRequest{Repository: repo, Remote: "origin", Target: tgt})
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+
+	created, existing := 0, 0
+	for i := 0; i < 2; i++ {
+		if errs[i] != nil {
+			t.Fatalf("goroutine %d Prepare: %v", i, errs[i])
+		}
+		switch results[i].Disposition {
+		case PrepareCreated:
+			created++
+		case PrepareExisting, PrepareResumed:
+			existing++
+		default:
+			t.Errorf("goroutine %d disposition = %q; want created/existing/resumed", i, results[i].Disposition)
+		}
+	}
+	if created != 1 || existing != 1 {
+		t.Errorf("dispositions: created=%d existing/resumed=%d; want 1 and 1", created, existing)
+	}
+
+	// Exactly one branch and one registration for the target.
+	wl := gitOut(t, r.Primary, "worktree", "list", "--porcelain")
+	if n := countPathOccurrences(wl, wsPathOf(repo)); n != 1 {
+		t.Errorf("registrations at target path = %d; want 1", n)
+	}
+	if !branchExists(r.Primary, "feat/"+prepSlug) {
+		t.Errorf("feat branch missing after concurrent prepare")
+	}
+}
+
+// countPathOccurrences counts porcelain "worktree <path>" lines whose canonical
+// path equals want.
+func countPathOccurrences(porcelain, want string) int {
+	n := 0
+	for _, line := range splitLines(porcelain) {
+		if p, ok := cutPrefix(line, "worktree "); ok {
+			if cp, err := filepath.EvalSymlinks(p); err == nil && cp == want {
+				n++
+			}
+		}
+	}
+	return n
+}
+
+// TestPrepareConcurrentDistinctTargets proves two Prepares of DIFFERENT targets
+// proceed concurrently (distinct operation locks) and both create successfully.
+func TestPrepareConcurrentDistinctTargets(t *testing.T) {
+	r := mainModeRepo(t)
+	svc, repo := r.newService(t)
+
+	baseA := resolveBase(t, []domain.ChangeSpec{{ID: 7, Status: domain.StatusProposed}}, nil, 7)
+	tgtA, err := NewTarget(7, "alpha-slug", baseA)
+	if err != nil {
+		t.Fatalf("NewTarget A: %v", err)
+	}
+	baseB := resolveBase(t, []domain.ChangeSpec{{ID: 8, Status: domain.StatusProposed}}, nil, 8)
+	tgtB, err := NewTarget(8, "beta-slug", baseB)
+	if err != nil {
+		t.Fatalf("NewTarget B: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	var outA, outB Workspace
+	var errA, errB error
+	start := make(chan struct{})
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		<-start
+		outA, errA = svc.Prepare(context.Background(), PrepareRequest{Repository: repo, Remote: "origin", Target: tgtA})
+	}()
+	go func() {
+		defer wg.Done()
+		<-start
+		outB, errB = svc.Prepare(context.Background(), PrepareRequest{Repository: repo, Remote: "origin", Target: tgtB})
+	}()
+	close(start)
+	wg.Wait()
+
+	if errA != nil || errB != nil {
+		t.Fatalf("distinct-target Prepare errors: A=%v B=%v", errA, errB)
+	}
+	if outA.Disposition != PrepareCreated || outB.Disposition != PrepareCreated {
+		t.Errorf("dispositions A=%q B=%q; want both created", outA.Disposition, outB.Disposition)
+	}
+}
+
+// TestPrepareProbeFailureCreatesNothing injects a probe failure at the remote
+// feature-ref inventory step: a git wrapper that fails `ls-remote` (the only
+// inventory probe used by no earlier Prepare step, so identity discovery, base
+// fetch, and the local-ref probe all still succeed and the failure lands exactly
+// at ProbeRemoteBranch). An errored probe is an external failure, NEVER clean
+// absence, so nothing is created (learnings: probe-error-is-not-clean-absence).
+func TestPrepareProbeFailureCreatesNothing(t *testing.T) {
+	r := mainModeRepo(t)
+	fakeGit := writeFailingGit(t, "ls-remote")
+	svc, repo := r.newServiceWithGit(t, fakeGit)
+	tgt := freshTarget(t, 7)
+
+	before := r.snapshotAll(t)
+	_, err := svc.Prepare(context.Background(), PrepareRequest{Repository: repo, Remote: "origin", Target: tgt})
+	if err == nil {
+		t.Fatalf("Prepare with failing ls-remote = nil error; want external failure")
+	}
+	f, ok := AsFailure(err)
+	if !ok {
+		t.Fatalf("error %v is not a *Failure", err)
+	}
+	if f.Kind != KindExternal {
+		t.Errorf("Kind = %q; want external", f.Kind)
+	}
+	if f.Stage != "inventory" {
+		t.Errorf("Stage = %q; want inventory", f.Stage)
+	}
+	assertNothingCreated(t, r, repo.CommonDir)
+	r.assertAllUnchanged(t, before)
+}
+
+// writeFailingGit writes an executable git wrapper that forwards to the real git
+// on PATH except for the named subcommand, which it fails with exit 1. The
+// wrapper is invoked by absolute path, so PATH still resolves the real git.
+func writeFailingGit(t *testing.T, failSubcommand string) string {
+	t.Helper()
+	dir := t.TempDir()
+	p := filepath.Join(dir, "git")
+	script := "#!/bin/sh\nif [ \"$1\" = \"" + failSubcommand + "\" ]; then\n  echo \"fake git: $1 disabled for test\" >&2\n  exit 1\nfi\nexec git \"$@\"\n"
+	if err := os.WriteFile(p, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// newServiceWithGit builds a Service whose gitcli.Client uses the given git
+// executable, discovering the canonical Repository through that same client.
+func (r *wsRepos) newServiceWithGit(t *testing.T, exe string) (*Service, gitcli.Repository) {
+	t.Helper()
+	c, err := gitcli.NewClient(gitcli.WithExecutable(exe))
+	if err != nil {
+		t.Fatalf("gitcli.NewClient(WithExecutable): %v", err)
+	}
+	svc, err := NewService(c)
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	repo, err := c.Discover(context.Background(), gitcli.DiscoverOptions{InvocationPath: r.Primary})
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	return svc, repo
 }
