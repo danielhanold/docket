@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0309 — Isolated metadata transaction engine](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0309-isolated-metadata-transaction-engine.md)**
+> ↩ **[Change 0309 — Isolated metadata transaction engine](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-16-0309-isolated-metadata-transaction-engine.md)**
 <!-- docket:backlink:end -->
 
 # Isolated metadata transaction engine
