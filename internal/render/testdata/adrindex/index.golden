@@ -1,0 +1,17 @@
+# Architecture Decision Records
+
+Immutable, numbered record of *why*. ADRs are never archived or rewritten; once `Accepted`, only the `status:` line changes (on supersession/reversal). This index is generated — do not hand-edit.
+
+## Active
+
+- [ADR-0001](0001-first-decision.md) — A bare Accepted decision with no annotations (Accepted)
+- [ADR-0002](0002-every-annotation.md) — An Accepted decision carrying change, supersedes, reverses, and relates (Accepted) ← change #20 → supersedes ADR-0003 → reverses ADR-0004 · relates to ADR-0001, ADR-0005
+
+## Superseded / Reversed
+
+- [ADR-0003](0003-superseded-decision.md) — A superseded decision with a change and a relation (Superseded by ADR-0002) ← change #5 · relates to ADR-0001
+- [ADR-0004](0004-reversed-decision.md) — A reversed decision with no annotations (Reversed by ADR-0002)
+
+## Deprecated
+
+- [ADR-0005](0005-deprecated-decision.md) — A deprecated decision with no annotations (Deprecated)
