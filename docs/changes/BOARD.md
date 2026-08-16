@@ -1,6 +1,6 @@
 # Backlog
 
-**324 changes** — 🟡 50 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 188 done · 🗑️ 80 killed
+**324 changes** — 🟡 50 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 189 done · 🗑️ 80 killed
 
 ## 🟡 Proposed (50)
 
@@ -45,7 +45,7 @@
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
-| [0312](active/0312-planning-mutations-board-and-adrs.md) | Planning mutations, inline board, and ADRs | `critical` | `feat` | ⏳ waiting on #310 — needs your merge |
+| [0312](active/0312-planning-mutations-board-and-adrs.md) | Planning mutations, inline board, and ADRs | `critical` | `feat` | build-ready |
 | [0314](active/0314-native-process-supervisor-and-local-gate.md) | Native process supervisor and local gate | `critical` | `feat` | needs-brainstorm |
 | [0315](active/0315-claim-to-implemented-workflow.md) | Claim-to-implemented agent workflow | `critical` | `feat` | ⏳ waiting on #313 — needs your merge |
 | [0316](active/0316-finalize-recovery-reclaim-archive-and-stacks.md) | Finalize, recovery, reclaim, archive, and stacks | `critical` | `feat` | ⏳ waiting on #315 — not yet built |
@@ -66,11 +66,10 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
-| [0310](active/0310-read-only-status-and-health-vertical-slice.md) | Read-only status and health vertical slice | `critical` | `feat` | [#212](https://github.com/danielhanold/docket/pull/212) |  |
 | [0313](active/0313-workspaces-github-pr-adapter-and-build-evidence.md) | Workspaces, GitHub PR adapter, and build evidence | `critical` | `feat` | [#213](https://github.com/danielhanold/docket/pull/213) |  |
 
 ```mermaid
@@ -118,8 +117,6 @@ graph TD
   0300
   0301
   0302
-  0307 --> 0310
-  0308 --> 0310
   0309 --> 0312
   0310 --> 0312
   0308 --> 0313
@@ -140,17 +137,18 @@ graph TD
   0192:::done
   0211:::done
   0304:::done
-  0307:::done
   0308:::done
   0309:::done
+  0310:::done
   0311:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (268)</summary>
+<details><summary>✅🗑️ Archive — done + killed (269)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0310](archive/2026-08-16-0310-read-only-status-and-health-vertical-slice.md) | Read-only status and health vertical slice | 2026-08-16 |
 | [0309](archive/2026-08-16-0309-isolated-metadata-transaction-engine.md) | Isolated metadata transaction engine | 2026-08-16 |
 | [0324](archive/2026-08-15-0324-model-pinned-plan-writer-agent.md) | Extract plan writing into a model-pinned internal agent | 2026-08-15 |
 | [0308](archive/2026-08-15-0308-git-adapter-and-authoritative-object-source.md) | Git adapter and authoritative object source | 2026-08-15 |
@@ -169,7 +167,6 @@ graph TD
 | [0277](archive/2026-08-11-0277-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode.md) | Delegated task briefs travel through shell argv, a lossy model-performed transformation | 2026-08-11 |
 | [0275](archive/2026-08-11-0275-run-gate-has-no-runnable-path-for-slash-command-or-backgroun.md) | Run gate has no runnable path for slash-command or backgrounded implement-next dispatch | 2026-08-11 |
 | [0268](archive/2026-08-11-0268-de-flake-the-reclaim-leg-of-test-docket-status-under-paralle.md) | De-flake the reclaim leg of test_docket_status under parallel contention | 2026-08-11 |
-| [0260](archive/2026-08-11-0260-tier-finalize-s-in-context-dispatches-and-name-the-push-deni.md) | Tier finalize's in-context dispatches and name the push-denial posture | 2026-08-11 |
 | [0278](archive/2026-08-09-0278-test-docket-example-yml-s-fidelity-fixture-goes-intermittent.md) | test_docket_example_yml's fidelity fixture goes intermittently red under parallel contention | 2026-08-09 |
 | [0274](archive/2026-08-09-0274-runner-dispatch-s-value-taking-flags-hang-instead-of-abortin.md) | runner-dispatch's value-taking flags hang instead of aborting when given with no value | 2026-08-09 |
 | [0267](archive/2026-08-09-0267-correct-the-stale-field-quote-handling-claim-in-script-contr.md) | Correct the stale field() quote-handling claim in script contracts | 2026-08-09 |
@@ -251,7 +248,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 55 done |
+| [2026-08](archive/) | 56 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
