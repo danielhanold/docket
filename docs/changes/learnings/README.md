@@ -34,6 +34,10 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [unset-sort-key-check-your-own-template](unset-sort-key-check-your-own-template.md) — Decide a sort key's unset case explicitly — then check whether your own template makes unset the COMMON case rather than the rare one. · also: sorting, templates
 - [validate-the-whole-input-set-first](validate-the-whole-input-set-first.md) — A tool that processes a list must validate every element before acting on any — otherwise a bad last argument surfaces only after the work on the earlier ones is already spent. · also: cli, validation
 
+## diagnostics
+
+- [byte-limited-truncation-splits-runes](byte-limited-truncation-splits-runes.md) — A byte-offset cut through text produces malformed output — back every truncation off to a character boundary. · also: encoding ⟨needs promotion⟩
+
 ## docs
 
 - [distributed-body-has-no-local-repo](distributed-body-has-no-local-repo.md) — Inside a skill body that ships into other repos, the reader is a worker in an unknown repo — a sentence that is only true HERE is a defect even when it is locally accurate. · also: contracts, skills
