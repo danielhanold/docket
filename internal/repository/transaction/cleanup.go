@@ -37,8 +37,19 @@ func (e *Engine) cleanupCandidate(ctx context.Context, repo gitcli.Repository, c
 
 	// Deregister the worktree through Git only if it is still registered. A worktree
 	// that never got added (an allocate-then-fail path) must not be reported as a
-	// failed removal, and its directory can be deleted directly.
-	if e.worktreeRegistered(ctx, repo, c.worktree) {
+	// failed removal, and its directory can be deleted directly. A listing FAILURE is
+	// not a clean "not registered": we cannot prove the worktree is unregistered, so
+	// deleting the directory now might orphan a still-live registration we may never
+	// prune globally. Treat the uncertainty like a failed removal — retain the
+	// directory and name the id so a later PruneAbandoned reclaims it by exact
+	// identity. Only a successful listing showing no registration permits direct
+	// directory removal.
+	registered, err := e.worktreeRegistered(ctx, repo, c.worktree)
+	switch {
+	case err != nil:
+		warnings = appendCleanupPending(warnings, c.id)
+		canRemoveDir = false
+	case registered:
 		if err := e.client.RemoveWorktree(ctx, repo, c.worktree); err != nil {
 			warnings = appendCleanupPending(warnings, c.id)
 			// Leave the directory in place: deleting it now would orphan Git's
@@ -61,21 +72,23 @@ func (e *Engine) cleanupCandidate(ctx context.Context, repo gitcli.Repository, c
 
 // worktreeRegistered reports whether Git currently registers a worktree at
 // worktreePath, comparing canonical (Abs + every-symlink-hop) paths so a
-// /tmp -> /private/tmp indirection never hides a match. A list failure is treated
-// as "not registered" — cleanup then falls back to a direct directory removal
-// rather than attempting a remove that would fail anyway.
-func (e *Engine) worktreeRegistered(ctx context.Context, repo gitcli.Repository, worktreePath string) bool {
+// /tmp -> /private/tmp indirection never hides a match. A list failure is returned
+// as a non-nil error — never collapsed into "not registered" — because the two are
+// indistinguishable to the caller yet demand opposite dispositions: a clean "not
+// found" permits direct directory removal, whereas a list error must retain the
+// directory lest it orphan a still-live registration we may never prune globally.
+func (e *Engine) worktreeRegistered(ctx context.Context, repo gitcli.Repository, worktreePath string) (bool, error) {
 	infos, err := e.client.ListWorktrees(ctx, repo)
 	if err != nil {
-		return false
+		return false, err
 	}
 	target := canonicalPath(worktreePath)
 	for _, info := range infos {
 		if canonicalPath(info.Path) == target {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 // removeCandidateRoot deletes the candidate's directory subtree through an os.Root

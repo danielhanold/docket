@@ -100,6 +100,48 @@ func TestPruneDocketModeIgnoresLinkedWorktree(t *testing.T) {
 	}
 }
 
+// TestCleanupRetainsRegisteredCandidateOnListError proves that when the worktree
+// listing worktreeRegistered relies on fails during per-candidate cleanup, the
+// candidate directory is RETAINED with a cleanup-pending warning rather than
+// removed. A list error is indistinguishable from a genuine "not registered", so a
+// direct removal would orphan the candidate's still-live worktree registration —
+// administrative state PruneAbandoned can never reclaim once the directory is gone.
+// This mirrors the retain-on-uncertainty posture of the RemoveWorktree-failed
+// branch. (0309 review finding 1.)
+func TestCleanupRetainsRegisteredCandidateOnListError(t *testing.T) {
+	requireGit(t)
+	r := newMainModeRepos(t)
+	eng, client, repo := recoveryEngine(t, r)
+
+	c := abandonRegistered(t, client, repo, r, targetTip(t, r))
+
+	// A cancelled context forces every git invocation — including the worktree
+	// listing — to fail, simulating a transient ListWorktrees error for a
+	// candidate that IS registered.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	warnings := eng.cleanupCandidate(ctx, repo, c)
+
+	if _, err := os.Stat(c.root); err != nil {
+		t.Fatalf("candidate root was removed on worktree-list error, want retained: %v", err)
+	}
+	if !hasCleanupPending(warnings, c.id) {
+		t.Errorf("warnings = %v, want a %q entry", warnings, "cleanup-pending: "+c.id)
+	}
+}
+
+// hasCleanupPending reports whether warnings names id's cleanup-pending marker.
+func hasCleanupPending(warnings []string, id string) bool {
+	want := "cleanup-pending: " + id
+	for _, w := range warnings {
+		if w == want {
+			return true
+		}
+	}
+	return false
+}
+
 // hasWorktreeNamed reports whether any registration's path basename equals name.
 func hasWorktreeNamed(infos []gitcli.WorktreeInfo, name string) bool {
 	for _, info := range infos {
