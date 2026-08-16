@@ -2,7 +2,7 @@
 id: 309
 slug: isolated-metadata-transaction-engine
 title: 'Isolated metadata transaction engine'
-status: in-progress
+status: implemented
 priority: critical
 type: feat
 created: 2026-08-12
@@ -14,13 +14,13 @@ discovered_from: [303]
 adrs: [1, 34, 89]
 spec: docs/superpowers/specs/2026-08-15-isolated-metadata-transaction-engine-design.md
 plan: docs/superpowers/plans/2026-08-15-isolated-metadata-transaction-engine.md
-results:
+results: docs/results/2026-08-16-isolated-metadata-transaction-engine-results.md
 trivial: false
 auto_groomable:
 branch: feat/isolated-metadata-transaction-engine
-pr:
+pr: https://github.com/danielhanold/docket/pull/211
 blocked_by:
-claimed_at: 2026-08-15T22:18:32Z
+claimed_at: 2026-08-16T01:29:53Z
 reconciled: true
 ---
 
@@ -31,6 +31,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-15-isolated-metadata-transaction-engine-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-15-isolated-metadata-transaction-engine-design.md) |
 | Plan | [2026-08-15-isolated-metadata-transaction-engine.md](https://github.com/danielhanold/docket/blob/feat/isolated-metadata-transaction-engine/docs/superpowers/plans/2026-08-15-isolated-metadata-transaction-engine.md) |
+| Results | [2026-08-16-isolated-metadata-transaction-engine-results.md](https://github.com/danielhanold/docket/blob/feat/isolated-metadata-transaction-engine/docs/results/2026-08-16-isolated-metadata-transaction-engine-results.md) |
+| PR | [#211](https://github.com/danielhanold/docket/pull/211) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0034](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0034-repo-root-anchored-to-main-worktree.md), [ADR-0089](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0089-shared-metadata-worktree-contention-survivable-not-impossible.md) |
 <!-- docket:artifacts:end -->
 
