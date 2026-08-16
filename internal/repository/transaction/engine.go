@@ -273,6 +273,13 @@ func (e *Engine) runCandidate(ctx context.Context, repo gitcli.Repository, remot
 	}
 
 	// 9. An empty plan is the no-op path: nothing changed, so nothing is committed.
+	//
+	// Keyed no-ops are intentionally NOT idempotency-persisted. Because no commit
+	// or receipt is written, a keyed request that resolves to an empty plan leaves
+	// nothing in ancestry for a later replay to find: replaying the same request id
+	// re-evaluates the operation from fresh state and yields no-op again (never
+	// already-applied). This is by design — a no-op changed nothing, so there is
+	// nothing to replay — and must not be "fixed" by persisting a receipt here.
 	if len(plan.Files) == 0 {
 		acc.Disposition = DispositionNoOp
 		return attemptOutcome{result: acc}, true, run
