@@ -1,0 +1,57 @@
+# Backlog
+
+**9 changes** — 🟢 1 in progress · 🟡 3 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 1 implemented · ✅ 1 done · 🗑️ 1 killed
+
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0001](active/0001-inline-board-in-progress.md) | Inline board work in progress | `high` | `feat` | [spec](../superpowers/specs/2026-08-01-inline-board-design.md) | `feat/inline-board` |
+
+## 🟡 Proposed (3)
+
+| # | Title | Priority | Type | Readiness |
+|---|-------|----------|------|-----------|
+| [0002](active/0002-build-ready-change.md) | A build ready change | `critical` | `feat` | build-ready |
+| [0003](active/0003-needs-brainstorm-change.md) | A change needing a brainstorm | `medium` | `chore` | needs-brainstorm |
+| [0004](active/0004-waiting-on-dependency.md) | A change waiting on a dependency | `medium` | `feat` | ⏳ waiting on #3 — not yet built |
+
+## 🔴 Blocked (1)
+
+| # | Title | Priority | Type | Blocked by |
+|---|-------|----------|------|------------|
+| [0005](active/0005-blocked-change.md) | A blocked change | `low` | `fix` | waiting on an upstream decision |
+
+## ⚪ Deferred (1)
+
+| # | Title | Priority | Type |
+|---|-------|----------|------|
+| [0006](active/0006-deferred-change.md) | A deferred change | `low` | `docs` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0007](active/0007-implemented-change.md) | An implemented change awaiting merge | `high` | `feat` | [#57](https://github.com/danielhanold/docket/pull/57) |  |
+
+```mermaid
+graph TD
+  0001
+  0009 --> 0002
+  0003
+  0003 --> 0004
+  0005
+  0006
+  0007
+  0009:::done
+  classDef done fill:#d3f9d8;
+```
+
+<details><summary>✅🗑️ Archive — done + killed (2)</summary>
+
+| # | Title | Merged |
+|---|-------|--------|
+| [0010](archive/2026-07-02-0010-killed-change.md) | An abandoned change | 2026-07-02 |
+| [0009](archive/2026-07-01-0009-done-change.md) | A completed change | 2026-07-01 |
+
+</details>
