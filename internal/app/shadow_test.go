@@ -65,6 +65,7 @@ func TestEnvelopeNotShadowed(t *testing.T) {
 		{"development.install", NewInstallResult(OperationDevelopmentInstall, install.Outcome{
 			Mode: install.ModeDevelopment, Reason: install.ReasonBuildFailed, Err: install.ErrBuildFailed})},
 		{"status", NewStatusResult(ResultApplied, StatusResult{})},
+		{"change.create", newChangeCreateResult(ResultApplied, ChangeCreateResult{})},
 	}
 
 	for _, tc := range cases {
