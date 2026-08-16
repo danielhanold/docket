@@ -6,13 +6,13 @@ status: proposed
 priority: critical
 type: feat
 created: 2026-08-12
-updated: 2026-08-12
+updated: 2026-08-16
 depends_on: [308, 309]
 stacked_on:
-related: []
+related: [170, 206, 208]
 discovered_from: [303]
-adrs: []
-spec:
+adrs: [34, 66, 83, 92]
+spec: docs/superpowers/specs/2026-08-16-workspaces-github-pr-adapter-and-build-evidence-design.md
 plan:
 results:
 trivial: false
@@ -26,6 +26,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-16-workspaces-github-pr-adapter-and-build-evidence-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-16-workspaces-github-pr-adapter-and-build-evidence-design.md) |
+| ADRs | [ADR-0034](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0034-repo-root-anchored-to-main-worktree.md), [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md), [ADR-0083](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0083-agent-worktree-scope-is-a-declared-frontmatter-fact.md), [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -35,17 +39,26 @@ agent workflow can compose them reliably.
 
 ## What changes
 
-Implement feature-workspace prepare/inspect/cleanup, effective-base branch creation, the `gh`
-adapter, PR lookup/create/update, external-effect probing, build-evidence mechanics, and verified
-idempotent recovery.
+Add named feature-branch operations to the typed Git adapter, a manifest-backed service for
+preparing, inspecting, publishing, and cleanly removing one owned `.worktrees/<slug>` workspace, a
+typed `gh` adapter that creates/adopts/versioned-updates one exact pull request, and a strict
+build-evidence codec and exact-head verifier. Every external write follows probe, act, verify so a
+retry after response loss adopts the effect instead of duplicating it.
 
 ## Out of scope
 
-Agent dispatch, lifecycle orchestration, local process supervision, and merge/finalize policy.
+Configuration, document/domain/transaction behavior owned by changes 0305–0312; agent dispatch,
+claim-to-implemented orchestration, and metadata transitions; local process supervision and gate
+execution; rebase, force-push, merge/finalize, terminal cleanup policy, release, and cutover.
 
-## Open questions
+## Design decisions
 
-Settle external-effect request/result interfaces and GitHub test seams during grooming.
+The linked focused spec consumes `domain.ResolveEffectiveBase` rather than duplicating stack
+policy, keeps long-lived feature workspaces separate from detached metadata transactions, requires
+manifest plus live Git identity before any workspace cleanup, publishes feature refs without
+forcing divergence, scopes every post-discovery `gh` call to an explicit repository, and recovers
+ambiguous branch/PR responses by verifying the authoritative external postcondition. GitHub tests
+use a protocol-faithful executable fake; live PR acceptance remains change 0317's release gate.
 
 ## Reconcile log
 
