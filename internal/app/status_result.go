@@ -99,13 +99,6 @@ type StatusResult struct {
 	Message  string          `json:"message,omitempty"`
 }
 
-// HumanText is a compile-satisfying placeholder so StatusResult satisfies
-// OperationResult and can register in TestEnvelopeNotShadowed alongside the
-// other results. Task 4 supplies the real deterministic renderer (spec §Human
-// report); until then this returns the empty string and nothing dispatches
-// StatusResult through the presenter.
-func (r StatusResult) HumanText() string { return "" }
-
 // NewStatusResult stamps the envelope and normalizes nil collections to empty
 // slices so the four arrays marshal as [] on every path, including failures.
 func NewStatusResult(result Result, r StatusResult) StatusResult {
