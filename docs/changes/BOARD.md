@@ -51,7 +51,7 @@
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
-| [0314](active/0314-native-process-supervisor-and-local-gate.md) | Native process supervisor and local gate | `critical` | `feat` | needs-brainstorm |
+| [0314](active/0314-native-process-supervisor-and-local-gate.md) | Native process supervisor and local gate | `critical` | `feat` | build-ready |
 | [0315](active/0315-claim-to-implemented-workflow.md) | Claim-to-implemented agent workflow | `critical` | `feat` | ⏳ waiting on #312 — not yet built |
 | [0316](active/0316-finalize-recovery-reclaim-archive-and-stacks.md) | Finalize, recovery, reclaim, archive, and stacks | `critical` | `feat` | ⏳ waiting on #315 — not yet built |
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | ⏳ waiting on #316 — not yet built |
