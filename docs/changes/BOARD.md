@@ -1,8 +1,14 @@
 # Backlog
 
-**324 changes** — 🟡 52 proposed · ⚪ 4 deferred · ✅ 188 done · 🗑️ 80 killed
+**324 changes** — 🟢 1 in progress · 🟡 51 proposed · ⚪ 4 deferred · ✅ 188 done · 🗑️ 80 killed
 
-## 🟡 Proposed (52)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0310](active/0310-read-only-status-and-health-vertical-slice.md) | Read-only status and health vertical slice | `critical` | `feat` | [spec](../superpowers/specs/2026-08-15-read-only-status-and-health-vertical-slice-design.md) | `feat/read-only-status-and-health-vertical-slice` |
+
+## 🟡 Proposed (51)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -45,7 +51,6 @@
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
-| [0310](active/0310-read-only-status-and-health-vertical-slice.md) | Read-only status and health vertical slice | `critical` | `feat` | build-ready |
 | [0312](active/0312-planning-mutations-board-and-adrs.md) | Planning mutations, inline board, and ADRs | `critical` | `feat` | ⏳ waiting on #310 — not yet built |
 | [0313](active/0313-workspaces-github-pr-adapter-and-build-evidence.md) | Workspaces, GitHub PR adapter, and build evidence | `critical` | `feat` | needs-brainstorm |
 | [0314](active/0314-native-process-supervisor-and-local-gate.md) | Native process supervisor and local gate | `critical` | `feat` | needs-brainstorm |
