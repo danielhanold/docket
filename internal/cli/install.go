@@ -35,6 +35,13 @@ var assetIndependent = map[string]bool{
 	"change block":        true,
 	"change defer":        true,
 	"change kill":         true,
+	"learning":            true, // the group itself; it reports a missing command
+	"learning record":     true,
+	"learning update":     true,
+	"adr":                 true, // the group itself; it reports a missing command
+	"adr record":          true,
+	"adr supersede":       true,
+	"adr reverse":         true,
 	"diagnostic":          true, // the group itself; it reports a missing command
 	"diagnostic runtime":  true,
 	"diagnostic config":   true,

@@ -286,11 +286,13 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	// each subcommand reads a JSON request, hands it to its internal/app planning
 	// operation, and assigns the outcome to the shared result for the presenter.
 	changeCmd := newChangeCommand(func(r app.OperationResult) { result = r })
+	learningCmd := newLearningCommand(func(r app.OperationResult) { result = r })
+	adrCmd := newADRCommand(func(r app.OperationResult) { result = r })
 
 	installCmd.AddCommand(installCheckCmd)
 	developmentCmd.AddCommand(developmentInstallCmd)
 	diagnosticCmd.AddCommand(runtimeCmd, configCmd)
-	root.AddCommand(versionCmd, statusCmd, changeCmd, diagnosticCmd, installCmd, developmentCmd)
+	root.AddCommand(versionCmd, statusCmd, changeCmd, learningCmd, adrCmd, diagnosticCmd, installCmd, developmentCmd)
 	root.AddCommand(extra...)
 
 	// The asset-dependence guard. Everything docket ships today is registered
