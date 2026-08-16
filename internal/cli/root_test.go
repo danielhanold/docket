@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -615,6 +616,140 @@ func TestAssetDependentRefusal(t *testing.T) {
 		!strings.Contains(out.String(), `"reason":"installation-required"`) ||
 		!strings.Contains(out.String(), `"operation":"gated"`) {
 		t.Fatalf("stdout = %q", out.String())
+	}
+}
+
+// statusGit runs real git with -C <dir> and fails the test on a non-zero exit.
+func statusGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	var errBuf bytes.Buffer
+	cmd.Stderr = &errBuf
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("git -C %s %s: %v: %s", dir, strings.Join(args, " "), err, errBuf.String())
+	}
+}
+
+// statusWriteFile writes content (creating parents) at a repo-relative path.
+func statusWriteFile(t *testing.T, root, rel, content string) {
+	t.Helper()
+	p := filepath.Join(root, rel)
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// newStatusFixtureRepo builds a minimal main-mode topology — a bare file
+// origin plus an invocation clone — carrying a .docket.yml and one active
+// change, and returns the invocation clone path for use as --repo-dir. It also
+// isolates the global configuration layer to an empty XDG dir so a developer's
+// own config cannot steer resolution. It skips when git is absent.
+func newStatusFixtureRepo(t *testing.T) string {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found on PATH")
+	}
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	root := t.TempDir()
+	origin := filepath.Join(root, "origin.git")
+	writer := filepath.Join(root, "writer")
+	invocation := filepath.Join(root, "invocation")
+
+	statusGit(t, root, "init", "--bare", "-b", "main", origin)
+	statusGit(t, root, "init", "-b", "main", writer)
+	statusGit(t, writer, "config", "user.name", "t")
+	statusGit(t, writer, "config", "user.email", "t@t")
+	statusGit(t, writer, "config", "commit.gpgsign", "false")
+
+	statusWriteFile(t, writer, ".docket.yml", "metadata_branch: main\n")
+	statusWriteFile(t, writer, "README.md", "readme\n")
+	statusWriteFile(t, writer, "docs/changes/active/0001-alpha.md",
+		"---\nid: 1\nslug: alpha\ntitle: Alpha\nstatus: proposed\npriority: high\ntype: feat\ncreated: 2026-01-02\n---\n\nBody of alpha.\n")
+	statusGit(t, writer, "add", "-A")
+	statusGit(t, writer, "commit", "-q", "-m", "main content")
+	statusGit(t, writer, "remote", "add", "origin", origin)
+	statusGit(t, writer, "push", "-q", "-u", "origin", "main")
+
+	statusGit(t, root, "clone", "-q", origin, invocation)
+	return invocation
+}
+
+// TestStatusRejectsInvalidPriority is a wiring assertion: the CLI hands the
+// flag through to app.Status, whose closed-value check against the resolved
+// configuration rejects a bogus priority as invalid input — exit 2, one JSON
+// document naming the operation.
+func TestStatusRejectsInvalidPriority(t *testing.T) {
+	repo := newStatusFixtureRepo(t)
+	out, errS, code := runCLI(t, "status", "--priority", "bogus", "--repo-dir", repo, "--json")
+	if code != 2 || errS != "" {
+		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
+	}
+	if !strings.Contains(out, `"operation":"status"`) || !strings.Contains(out, `"result":"invalid-input"`) {
+		t.Fatalf("stdout = %q", out)
+	}
+	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+		t.Fatalf("must be one newline-terminated document, got %q", out)
+	}
+}
+
+// TestStatusOutsideRepository is a wiring assertion: pointed at a directory that
+// is not a Git repository, the operation returns invalid-input. In JSON mode the
+// one document lands on stdout with stderr empty; in human mode the document
+// still lands on stdout and stderr stays empty, per the presenter contract for a
+// failing operation the CLI reached.
+func TestStatusOutsideRepository(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found on PATH")
+	}
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	bare := t.TempDir()
+
+	out, errS, code := runCLI(t, "status", "--repo-dir", bare, "--json")
+	if code != 2 || errS != "" {
+		t.Fatalf("json: out=%q err=%q code=%d", out, errS, code)
+	}
+	if !strings.Contains(out, `"operation":"status"`) || !strings.Contains(out, `"result":"invalid-input"`) {
+		t.Fatalf("json: stdout = %q", out)
+	}
+
+	out, errS, code = runCLI(t, "status", "--repo-dir", bare)
+	if code != 2 || errS != "" {
+		t.Fatalf("human: out=%q err=%q code=%d", out, errS, code)
+	}
+	if out == "" {
+		t.Fatalf("human: the failing operation's document must land on stdout, got empty")
+	}
+}
+
+// TestStatusReachesOperationJSON is the wiring assertion for the success path:
+// pointed at a minimal fixture repository, the command reaches the operation and
+// the presenter renders exactly one protocol-v1 status document with the
+// contract's arrays present.
+func TestStatusReachesOperationJSON(t *testing.T) {
+	repo := newStatusFixtureRepo(t)
+	out, errS, code := runCLI(t, "status", "--repo-dir", repo, "--json")
+	if code != 0 || errS != "" {
+		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
+	}
+	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
+	}
+	for _, want := range []string{
+		`"operation":"status"`,
+		`"protocol_version":1`,
+		`"result":"applied"`,
+		`"changes":`,
+		`"ready":`,
+		`"records":`,
+		`"findings":`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("status document missing %s: %s", want, out)
+		}
 	}
 }
 
