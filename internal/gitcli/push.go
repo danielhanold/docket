@@ -7,8 +7,9 @@ import (
 
 // Operation labels for the lease-push and reachability surface.
 const (
-	pushLeaseOp  Operation = "push-lease"
-	isAncestorOp Operation = "is-ancestor"
+	pushLeaseOp       Operation = "push-lease"
+	pushCreateLeaseOp Operation = "push-create-lease"
+	isAncestorOp      Operation = "is-ancestor"
 )
 
 // PushDisposition is the structural outcome of a lease push.
@@ -99,6 +100,70 @@ func (c *Client) PushLease(ctx context.Context, repo Repository, remote RemoteNa
 		return PushOutcome{Disposition: PushLeaseLost, Remote: remoteCommit}, nil
 	}
 	return PushOutcome{Disposition: PushFailed, Remote: remoteCommit}, nil
+}
+
+// PushCreateLease pushes commit to a ref the caller asserts is ABSENT, via
+// `git push --porcelain --force-with-lease=<ref>: <remote> <commit>:<ref>` — an
+// empty expected value means "expect the ref to not exist". Classification
+// mirrors PushLease structurally: an ok result line is applied. A rejection
+// ('!') triggers a follow-up authoritative ProbeRemoteBranch, whose exact-remote
+// answer decides the case (spec "Feature-branch publication": exact equality is
+// published, a different observed commit is contended, an unobservable remote is
+// unknown): found already at the pushed commit is applied (our own lost success
+// response, adopted not duplicated); found at any other commit is lease-lost
+// (someone created the ref first — a genuine create can never leave the remote
+// holding a commit that contains ours, since ours was never pushed); the ref
+// probing absent again, an unprobeable remote, or no per-ref result line at all
+// is a plain failure, never lease-lost.
+func (c *Client) PushCreateLease(ctx context.Context, repo Repository, remote RemoteName, ref RefName, commit ObjectID) (PushOutcome, error) {
+	if err := validateRemoteName(remote); err != nil {
+		return PushOutcome{}, newFailure(pushCreateLeaseOp, KindInvalidRequest, "invalid remote name", err)
+	}
+	if err := validateRefName(ref); err != nil {
+		return PushOutcome{}, newFailure(pushCreateLeaseOp, KindInvalidRequest, "invalid ref name", err)
+	}
+	if err := validateObjectID(commit); err != nil {
+		return PushOutcome{}, newFailure(pushCreateLeaseOp, KindInvalidRequest, "invalid commit id", err)
+	}
+
+	lease := "--force-with-lease=" + string(ref) + ":"
+	refspec := string(commit) + ":" + string(ref)
+	res, f := c.run(ctx, runRequest{
+		op:      pushCreateLeaseOp,
+		dir:     repo.PrimaryWorktree,
+		args:    []string{"push", "--porcelain", lease, string(remote), refspec},
+		network: true,
+	})
+	if f != nil {
+		return PushOutcome{}, f
+	}
+
+	flag, found := parsePushRefLine(res.stdout, ref)
+	if found && isOkPushFlag(flag) {
+		return PushOutcome{Disposition: PushApplied, Remote: commit}, nil
+	}
+	if !found || flag != "!" {
+		// No structural per-ref rejection to attribute to a create race (a transport
+		// failure prints no ref result line): a plain failure, never lease-lost.
+		return PushOutcome{Disposition: PushFailed}, nil
+	}
+
+	// A structural rejection. Re-derive the remote state from a fresh authoritative
+	// probe (never the push's own stderr): the ref already holding exactly our
+	// commit is an adopted lost response; the ref holding any other commit is a
+	// lost create race; an absent or unprobeable ref is a plain failure.
+	rr, err := c.ProbeRemoteBranch(ctx, repo, remote, ref)
+	if err != nil {
+		return PushOutcome{Disposition: PushFailed}, nil
+	}
+	if rr.State != RemoteRefFound {
+		// Rejected, yet the ref probes absent: nothing to attribute a race to.
+		return PushOutcome{Disposition: PushFailed}, nil
+	}
+	if rr.Commit == commit {
+		return PushOutcome{Disposition: PushApplied, Remote: rr.Commit}, nil
+	}
+	return PushOutcome{Disposition: PushLeaseLost, Remote: rr.Commit}, nil
 }
 
 // IsAncestor reports whether ancestor is reachable from descendant via

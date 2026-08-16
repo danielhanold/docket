@@ -114,6 +114,128 @@ func TestPushLeaseFailedNotLeaseLostOnTransportError(t *testing.T) {
 	}
 }
 
+// TestPushCreateLeaseAppliedOnAbsentRef proves that pushing to a ref the caller
+// asserts is absent creates it and classifies applied, with the origin ref then
+// equal to the pushed commit.
+func TestPushCreateLeaseAppliedOnAbsentRef(t *testing.T) {
+	requireGit(t)
+	ctx := context.Background()
+	c := newRealClient(t)
+	r := newMainModeRepos(t)
+	repo := mustDiscover(t, c, r.Invocation)
+
+	base := ObjectID(gitOut(t, r.Origin, "rev-parse", "refs/heads/main"))
+	newCommit := detachedChildCommit(t, c, repo, r, base, "feat.md", "feat\n")
+
+	out, err := c.PushCreateLease(ctx, repo, "origin", "refs/heads/feat/new", newCommit)
+	if err != nil {
+		t.Fatalf("PushCreateLease: %v", err)
+	}
+	if out.Disposition != PushApplied {
+		t.Fatalf("Disposition = %q, want %q", out.Disposition, PushApplied)
+	}
+	if out.Remote != newCommit {
+		t.Errorf("Remote = %q, want %q", out.Remote, newCommit)
+	}
+	if got := ObjectID(gitOut(t, r.Origin, "rev-parse", "refs/heads/feat/new")); got != newCommit {
+		t.Errorf("origin feat/new = %q, want %q", got, newCommit)
+	}
+}
+
+// TestPushCreateLeaseLostWhenRefCreatedWithDivergentCommit proves a create raced:
+// when the target ref already holds a DIVERGENT commit (a winner created it
+// first), the absent-lease push is rejected and classified lease-lost with
+// Remote set to the winner, and the loser's commit never lands on origin.
+func TestPushCreateLeaseLostWhenRefCreatedWithDivergentCommit(t *testing.T) {
+	requireGit(t)
+	ctx := context.Background()
+	c := newRealClient(t)
+	r := newMainModeRepos(t)
+	repo := mustDiscover(t, c, r.Invocation)
+
+	base := ObjectID(gitOut(t, r.Origin, "rev-parse", "refs/heads/main"))
+	mine := detachedChildCommit(t, c, repo, r, base, "mine.md", "mine\n")
+
+	// A concurrent winner creates the target ref at a commit divergent from mine
+	// (both are children of base — siblings, neither an ancestor of the other).
+	winner := r.writerCommit(t, "feat/raced", map[string]string{"winner.md": "winner\n"})
+	if winner == mine {
+		t.Fatal("winner and mine collided; test cannot prove divergence")
+	}
+
+	out, err := c.PushCreateLease(ctx, repo, "origin", "refs/heads/feat/raced", mine)
+	if err != nil {
+		t.Fatalf("PushCreateLease: %v", err)
+	}
+	if out.Disposition != PushLeaseLost {
+		t.Fatalf("Disposition = %q, want %q", out.Disposition, PushLeaseLost)
+	}
+	if out.Remote != winner {
+		t.Errorf("Remote = %q, want winner %q", out.Remote, winner)
+	}
+	if got := ObjectID(gitOut(t, r.Origin, "rev-parse", "refs/heads/feat/raced")); got != winner {
+		t.Errorf("origin feat/raced = %q, want winner %q (loser must not have applied)", got, winner)
+	}
+}
+
+// TestPushCreateLeaseAdoptsOwnLostResponse proves the idempotent lost-response
+// case: when the ref already holds EXACTLY the pushed commit (a prior push whose
+// success response was lost), the rejected create-lease push is classified
+// applied — the effect is adopted, not duplicated.
+func TestPushCreateLeaseAdoptsOwnLostResponse(t *testing.T) {
+	requireGit(t)
+	ctx := context.Background()
+	c := newRealClient(t)
+	r := newMainModeRepos(t)
+	repo := mustDiscover(t, c, r.Invocation)
+
+	base := ObjectID(gitOut(t, r.Origin, "rev-parse", "refs/heads/main"))
+	mine := detachedChildCommit(t, c, repo, r, base, "mine.md", "mine\n")
+
+	// Simulate a lost success response: the exact commit is already on origin at
+	// the target ref, pushed out-of-band from the invocation clone's own store.
+	gitOut(t, r.Invocation, "push", "origin", string(mine)+":refs/heads/feat/adopt")
+
+	out, err := c.PushCreateLease(ctx, repo, "origin", "refs/heads/feat/adopt", mine)
+	if err != nil {
+		t.Fatalf("PushCreateLease: %v", err)
+	}
+	if out.Disposition != PushApplied {
+		t.Fatalf("Disposition = %q, want %q (own lost response is adopted)", out.Disposition, PushApplied)
+	}
+	if out.Remote != mine {
+		t.Errorf("Remote = %q, want %q", out.Remote, mine)
+	}
+}
+
+// TestPushCreateLeaseFailedNotLeaseLostOnTransportError proves a transport-level
+// failure (the remote made unreadable) classifies as PushFailed, never
+// lease-lost — a non-zero git status with no per-ref rejection line is never a
+// create race.
+func TestPushCreateLeaseFailedNotLeaseLostOnTransportError(t *testing.T) {
+	requireGit(t)
+	ctx := context.Background()
+	c := newRealClient(t)
+	r := newMainModeRepos(t)
+	repo := mustDiscover(t, c, r.Invocation)
+
+	base := ObjectID(gitOut(t, r.Origin, "rev-parse", "refs/heads/main"))
+	mine := detachedChildCommit(t, c, repo, r, base, "mine.md", "mine\n")
+
+	if err := os.Chmod(r.Origin, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(r.Origin, 0o755)
+
+	out, err := c.PushCreateLease(ctx, repo, "origin", "refs/heads/feat/x", mine)
+	if err != nil {
+		t.Fatalf("PushCreateLease: %v", err)
+	}
+	if out.Disposition != PushFailed {
+		t.Fatalf("Disposition = %q, want %q (transport error is never lease-lost)", out.Disposition, PushFailed)
+	}
+}
+
 // TestIsAncestorTruthTable proves IsAncestor reports the exact ancestry relation:
 // forward true, reverse false, reflexive true, and diverged siblings false both
 // ways.
