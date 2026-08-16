@@ -427,6 +427,57 @@ func TestStatusEmptyStatesExplicit(t *testing.T) {
 	}
 }
 
+// TestStatusReadySubsetOfDisplayed guards the invariant that every ID in a
+// filtered result's Ready slice has a corresponding row in the same result's
+// Changes slice — i.e. ready ⊆ displayed. Ready comes from domain.SelectQueue
+// (domain's own predicate); displayed comes from matchesFilter, a hand-written
+// mirror in status.go. If the two ever diverge in the narrowing direction, this
+// reddens. Two build-ready changes of two types with a single-type filter make
+// the projection a genuine (non-vacuous) subset: displayed and ready must both
+// drop the non-matching change.
+func TestStatusReadySubsetOfDisplayed(t *testing.T) {
+	pin := docketPin(t)
+	corpus := []StatusBlob{
+		changeBlob(41, "feat-one", "feat", "high", "spec: docs/changes/specs/s41.md\n"),
+		changeBlob(42, "fix-two", "fix", "critical", "spec: docs/changes/specs/s42.md\n"),
+	}
+	fake := &fakeReader{
+		pin:    pin,
+		corpus: corpus,
+		facts:  domain.NewBranchFacts(nil),
+		artifacts: map[string]bool{
+			"metadata|docs/changes/specs/s41.md": true,
+			"metadata|docs/changes/specs/s42.md": true,
+		},
+	}
+
+	got := Status(context.Background(), fake, StatusOptions{Types: []string{"feat"}})
+	if got.Result != ResultApplied {
+		t.Fatalf("result = %q, want applied; message=%q", got.Result, got.Message)
+	}
+
+	// Non-vacuous preconditions: the filter genuinely projected a subset (one of
+	// two changes displayed), and the ready queue is not empty.
+	if got.Summary.DisplayedChanges != 1 {
+		t.Fatalf("expected the single-type filter to display exactly 1 of 2 changes, got %d (%+v)",
+			got.Summary.DisplayedChanges, got.Changes)
+	}
+	if len(got.Ready) == 0 {
+		t.Fatalf("expected a non-empty ready queue so the subset assertion is non-vacuous; ready=%v", got.Ready)
+	}
+
+	displayedIDs := make(map[int]bool, len(got.Changes))
+	for _, c := range got.Changes {
+		displayedIDs[c.ID] = true
+	}
+	for _, id := range got.Ready {
+		if !displayedIDs[id] {
+			t.Errorf("ready ID %d has no row in the displayed Changes projection: ready=%v, displayed=%v",
+				id, got.Ready, displayedIDs)
+		}
+	}
+}
+
 // TestStatusReadyQueueOrder: build-ready changes populate Ready in selector
 // order (priority band first), and each is marked Ready in the change rows.
 func TestStatusReadyQueueOrder(t *testing.T) {
