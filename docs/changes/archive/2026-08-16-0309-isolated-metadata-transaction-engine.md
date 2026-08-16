@@ -2,11 +2,11 @@
 id: 309
 slug: isolated-metadata-transaction-engine
 title: 'Isolated metadata transaction engine'
-status: implemented
+status: done
 priority: critical
 type: feat
 created: 2026-08-12
-updated: 2026-08-15
+updated: 2026-08-16
 depends_on: [307, 308]
 stacked_on:
 related: [247]
@@ -20,7 +20,7 @@ auto_groomable:
 branch: feat/isolated-metadata-transaction-engine
 pr: https://github.com/danielhanold/docket/pull/211
 blocked_by:
-claimed_at: 2026-08-16T01:29:53Z
+claimed_at: 
 reconciled: true
 ---
 
