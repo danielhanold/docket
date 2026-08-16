@@ -282,10 +282,15 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 		"harness to install into: claude, codex, cursor, or opencode (repeatable; default: detect)")
 	_ = developmentInstallCmd.MarkFlagRequired("source")
 
+	// The change command family is a thin adapter tree, like the commands above:
+	// each subcommand reads a JSON request, hands it to its internal/app planning
+	// operation, and assigns the outcome to the shared result for the presenter.
+	changeCmd := newChangeCommand(func(r app.OperationResult) { result = r })
+
 	installCmd.AddCommand(installCheckCmd)
 	developmentCmd.AddCommand(developmentInstallCmd)
 	diagnosticCmd.AddCommand(runtimeCmd, configCmd)
-	root.AddCommand(versionCmd, statusCmd, diagnosticCmd, installCmd, developmentCmd)
+	root.AddCommand(versionCmd, statusCmd, changeCmd, diagnosticCmd, installCmd, developmentCmd)
 	root.AddCommand(extra...)
 
 	// The asset-dependence guard. Everything docket ships today is registered
