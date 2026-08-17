@@ -2,11 +2,11 @@
 id: 312
 slug: planning-mutations-board-and-adrs
 title: 'Planning mutations, inline board, and ADRs'
-status: implemented
+status: done
 priority: critical
 type: feat
 created: 2026-08-12
-updated: 2026-08-16
+updated: 2026-08-17
 depends_on: [309, 310]
 stacked_on:
 related: []
@@ -18,7 +18,7 @@ results: docs/results/2026-08-17-planning-mutations-board-and-adrs-results.md
 trivial: false
 auto_groomable:
 branch: feat/planning-mutations-board-and-adrs
-claimed_at: 2026-08-17T01:50:37Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/214
 blocked_by:
 reconciled: true
