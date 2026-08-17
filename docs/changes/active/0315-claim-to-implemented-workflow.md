@@ -20,8 +20,8 @@ auto_groomable:
 branch: feat/claim-to-implemented-workflow
 pr:
 blocked_by:
-reconciled: false
-claimed_at: 2026-08-17T21:18:41Z
+reconciled: true
+claimed_at: 2026-08-17T21:20:00Z
 ---
 
 ## Artifacts
@@ -56,3 +56,28 @@ cross-harness, role-rebinding, or Bash-fallback capabilities.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-17
+
+Reconciled against current `main`. Verified against reality:
+
+- Dependencies 0312, 0313, 0314 and related 0324 are all archived `done`; the spec's "landed
+  foundation" holds. `internal/domain`, `internal/repository/transaction`, `internal/document`,
+  `internal/workspace`, `internal/githubcli`, `internal/evidence`, `internal/process`,
+  `internal/app`, and `internal/cli` all exist and expose the named primitives (`EvaluateReadiness`,
+  `ClaimEligibility`, `Claim`, `RefreshClaim`, `ResolveEffectiveBase`, `MarkImplemented`, workspace
+  prepare/inspect/publish, evidence record/verify, githubcli PR adapter, process gate
+  launch/observe/stop).
+- Every public operation this change adds is genuinely absent at the CLI/app layer today: `context
+  implementation`, `change claim`/`refresh-claim`/`reconcile`/`attach-plan`/`attach-results`/
+  `mark-implemented`, `artifact backlink`, `workspace prepare`/`inspect`/`publish`, `evidence
+  record`/`verify`, `pr publish`, and `run verify`. `internal/app` does not yet import
+  workspace/evidence/githubcli — those services are built but unwired. No scope has been delivered
+  elsewhere; no drop needed.
+- Asset/embed mechanism confirmed: authored sources at `skills/docket-implement-next/`,
+  `skills/docket-build/`, `agents/docket-plan-writer.md`; embedded copies under
+  `internal/assets/embedded/tree/`; regenerate via `go generate ./internal/assets/`
+  (`cmd/genassets`). Source and embedded assets must be regenerated together.
+- No new adjacent follow-up work surfaced that meets the auto-capture materiality bar (the
+  status-sweep health items on #189/#44 are pre-existing and separately tracked). Scope, spec, and
+  acceptance criteria stand as written.
