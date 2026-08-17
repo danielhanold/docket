@@ -316,6 +316,34 @@ func TestChangeKillPlanNoSpecMutationWhenSpecAbsent(t *testing.T) {
 	})
 }
 
+func TestChangeKillPlanNoSpecMutationWhenBacklinkBlockAbsent(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	specPath := "docs/superpowers/specs/2026-08-01-widget-design.md"
+	// The change names a spec that EXISTS but was hand-authored (or Bash-era) and
+	// carries NO docket:backlink managed block: there is no block to retarget, so
+	// the kill skips the spec mutation entirely — no spec mutation, no failure,
+	// matching the absent-spec contract — rather than surfacing a bare
+	// KindMissingPatchTarget as an internal-error.
+	src := lifecycleChange(3, "widget", "in-progress")
+	src = strings.Replace(src, "spec:\n", "spec: '"+specPath+"'\n", 1)
+	specFile := "# Design\n\nHand-authored spec with no backlink block.\n"
+	files := map[string]string{
+		recPath:  src,
+		specPath: specFile,
+	}
+
+	plan, opRes := killPlanFor(t, files, baseKillOp([]string{}, 3, recPath, "Superseded.\n"))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	// The kill still archives the change and deletes the active path; the spec is
+	// left untouched (no MutationReplace at specPath).
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		killArchivePath(3, "widget"): transaction.MutationCreate,
+		recPath:                      transaction.MutationDelete,
+	})
+}
+
 func TestChangeKillPlanSourceStatusMatrix(t *testing.T) {
 	recPath := groomPath(3, "widget")
 	cases := []struct {

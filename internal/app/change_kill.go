@@ -322,19 +322,27 @@ func (o changeKillOp) Plan(ctx context.Context, st transaction.AttemptState) (tr
 			if err != nil {
 				return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change kill: parsing linked spec %q: %w", specPath, err)
 			}
-			backlink, err := render.BacklinkContent(gc, o.link)
-			if err != nil {
-				return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change kill: rendering spec backlink: %w", err)
+			// A spec present but carrying no docket:backlink managed block (a
+			// hand-authored or Bash-era spec) has no block to retarget:
+			// ReplaceBlock would fail KindMissingPatchTarget, surfacing as a
+			// misleading internal-error. Skip the spec mutation instead, matching
+			// the absent-spec contract — no spec mutation, no failure. The kill
+			// still archives the change and updates the board.
+			if _, ok := specDoc.Block("backlink"); ok {
+				backlink, err := render.BacklinkContent(gc, o.link)
+				if err != nil {
+					return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change kill: rendering spec backlink: %w", err)
+				}
+				var sps document.PatchSet
+				sps.ReplaceBlock("backlink", backlinkInterior(backlink))
+				specFinal, err := specDoc.Apply(sps)
+				if err != nil {
+					return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change kill: retargeting spec backlink in %q: %w", specPath, err)
+				}
+				files = append(files, transaction.FileMutation{
+					Path: gitcli.RepoPath(specPath), Kind: transaction.MutationReplace, Bytes: specFinal,
+				})
 			}
-			var sps document.PatchSet
-			sps.ReplaceBlock("backlink", backlinkInterior(backlink))
-			specFinal, err := specDoc.Apply(sps)
-			if err != nil {
-				return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change kill: retargeting spec backlink in %q: %w", specPath, err)
-			}
-			files = append(files, transaction.FileMutation{
-				Path: gitcli.RepoPath(specPath), Kind: transaction.MutationReplace, Bytes: specFinal,
-			})
 		}
 	}
 
