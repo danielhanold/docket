@@ -114,8 +114,51 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 			setResult(app.ChangeRefreshClaim(c.Context(), deps, repoDir, req))
 		})
 
-	changeCmd.AddCommand(create, groom, block, deferCmd, kill, claim, refreshClaim)
+	reconcile := changeInputSubcommand("reconcile",
+		"Reconcile an in-progress change against current reality from a JSON request",
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
+			var req app.ChangeReconcileRequest
+			if err := decodeInputFlag(c, &req); err != nil {
+				return err
+			}
+			setResult(app.ChangeReconcile(c.Context(), deps, repoDir, req))
+			return nil
+		})
+
+	changeCmd.AddCommand(create, groom, block, deferCmd, kill, claim, refreshClaim, reconcile)
 	return changeCmd
+}
+
+// changeInputSubcommand builds one `change <verb>` command whose authored-
+// Markdown request rides in a JSON body read from `--input <request-file>` (or
+// `-` for stdin). It mirrors changeSubcommand but names the flag --input, the
+// spelling the reconcile CLI uses; the decode goes through the same
+// exactly-one-document strict decoder.
+func changeInputSubcommand(verb, short string, run func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   verb,
+		Short: short,
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, _ := c.Flags().GetString("repo-dir")
+			deps, err := newPlanningDeps()
+			if err != nil {
+				return err
+			}
+			return run(c, deps, repoDir)
+		},
+	}
+	cmd.Flags().String("input", "", "JSON request file, or - to read the request from stdin (required)")
+	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	_ = cmd.MarkFlagRequired("input")
+	return cmd
+}
+
+// decodeInputFlag reads the command's --input source and strictly decodes one
+// JSON document into dst, reusing decodeRequest's exactly-one-document rule.
+func decodeInputFlag(c *cobra.Command, dst any) error {
+	source, _ := c.Flags().GetString("input")
+	return decodeRequest(c.InOrStdin(), source, dst)
 }
 
 // changeIDVersionSubcommand builds one `change <verb>` command whose input is the
