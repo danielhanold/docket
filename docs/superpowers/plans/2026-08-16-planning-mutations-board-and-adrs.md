@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0312 — Planning mutations, inline board, and ADRs](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0312-planning-mutations-board-and-adrs.md)**
+> ↩ **[Change 0312 — Planning mutations, inline board, and ADRs](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-17-0312-planning-mutations-board-and-adrs.md)**
 <!-- docket:backlink:end -->
 
 # Planning Mutations, Inline Board, and ADRs — Implementation Plan
