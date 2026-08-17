@@ -66,7 +66,15 @@ func runTestHelper(args []string) int {
 		if err := os.WriteFile(args[1], []byte("ready"), 0o600); err != nil {
 			return 91
 		}
-		select {}
+		// Block with TERM ignored so a group-directed SIGTERM cannot end this
+		// child — only the unblockable SIGKILL of stop's escalation can. A bare
+		// select{} would trip Go's all-goroutines-asleep deadlock detector and
+		// exit within milliseconds (fabricating an exit=2 terminal record before
+		// escalation ever runs); a parked timer is not a deadlock, so time.Sleep
+		// keeps the runtime alive without registering any TERM handler, exactly
+		// as the "sleep" mode does.
+		time.Sleep(time.Hour)
+		return 0
 	case "read-stdin":
 		buf := make([]byte, 1)
 		if n, _ := os.Stdin.Read(buf); n != 0 {
