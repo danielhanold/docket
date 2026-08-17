@@ -452,3 +452,26 @@ func TestChangeKillEvolutionAcceptsRelocation(t *testing.T) {
 		t.Errorf("archive path %q missing after kill", archivePath)
 	}
 }
+
+// TestChangeKillPlanToleratesMissingUpdatedField pins that a kill over a record
+// lacking the updated: field inserts it rather than internal-erroring, matching
+// the ADR ops' upsert of the same field (a bare SetField returns
+// KindMissingPatchTarget on an absent target).
+func TestChangeKillPlanToleratesMissingUpdatedField(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	src := lifecycleChange(3, "widget", "in-progress")
+	src = strings.Replace(src, "updated: 2026-08-02\n", "", 1)
+	if strings.Contains(src, "updated:") {
+		t.Fatalf("fixture still carries an updated field:\n%s", src)
+	}
+
+	files := map[string]string{recPath: src}
+	plan, opRes := killPlanFor(t, files, baseKillOp([]string{}, 3, recPath, "Dropped.\n"))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	rec := killRecordBytes(t, plan, killArchivePath(3, "widget"))
+	if !strings.Contains(rec, "updated: '2026-08-16'") {
+		t.Errorf("updated not inserted from the clock on a record lacking it:\n%s", rec)
+	}
+}
