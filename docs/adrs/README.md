@@ -78,7 +78,6 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0078](0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) — The parent-facing gate surface for Claude Code, and the one-physical-instructions-file symlink policy (Accepted) ← change #242 · relates to ADR-0024
 - [ADR-0079](0079-shim-wrapper-frontmatter-pin-governs-the-parent-side-agent.md) — A shim wrapper's frontmatter pin governs the parent-side agent (Accepted) ← change #269 → supersedes ADR-0038 · relates to ADR-0015, ADR-0067
 - [ADR-0080](0080-detached-delegation-execution-posture-launch-then-observe.md) — Detached delegation execution posture — launch-then-observe (Accepted) ← change #271 · relates to ADR-0038
-- [ADR-0081](0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md) — gate-run's detachment contract is narrowed per platform: own process group where no session primitive exists (Accepted) ← change #282 · relates to ADR-0080
 - [ADR-0082](0082-generated-shim-emits-brief-write-and-launch-as-one-harness-call.md) — A generated shim emits the brief write and the launch as one harness call (Accepted) ← change #277 · relates to ADR-0079, ADR-0080
 - [ADR-0083](0083-agent-worktree-scope-is-a-declared-frontmatter-fact.md) — An agent's worktree scope is a declared frontmatter fact, not a name pattern (Accepted) ← change #208 · relates to ADR-0034, ADR-0068
 - [ADR-0084](0084-re-dispatch-permission-gated-on-attribution-capability-not-launch-shape.md) — Re-dispatch permission is gated on mechanical attribution capability, not launch shape (Accepted) ← change #275 · relates to ADR-0075, ADR-0080
@@ -92,6 +91,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0092](0092-a-stacked-changes-base-is-its-parents-merge-destination.md) — A stacked change's effective base is its parent's merge destination (Accepted) ← change #298
 - [ADR-0093](0093-repository-reference-severity-graded-by-structural-role.md) — Repository reference severity is graded by structural role, not uniformly (Accepted) ← change #307
 - [ADR-0094](0094-plan-authoring-is-a-pinned-internal-composition-agent.md) — Plan authoring is a pinned internal composition agent owning one git-verifiable artifact (Accepted) ← change #324 · relates to ADR-0008, ADR-0018, ADR-0044, ADR-0059, ADR-0064, ADR-0083
+- [ADR-0095](0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md) — The native per-run supervisor delivers a genuine session and an exact terminal record on every supported platform (Accepted) ← change #314 → supersedes ADR-0081 · relates to ADR-0080, ADR-0087
 
 ## Superseded / Reversed
 
@@ -101,6 +101,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0039](0039-config-example-mirrors-wrapper-defaults.md) — config.yml.example is a documented mirror of the shipped wrapper defaults (Superseded by ADR-48) ← change #81
 - [ADR-0042](0042-auto-approve-consent-model.md) — Auto-approve consent model — a bot approval proves docket's pipeline signed off, not human review (Reversed by ADR-0043) ← change #62 · relates to ADR-0011
 - [ADR-0048](0048-docket-yml-example-invariants.md) — .docket.yml.example is a tested canonical config reference — mirror, fidelity, must-update (Superseded by ADR-64) ← change #101 → supersedes ADR-0039 · relates to ADR-0019
+- [ADR-0081](0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md) — gate-run's detachment contract is narrowed per platform: own process group where no session primitive exists (Superseded by ADR-95) ← change #282 · relates to ADR-0080
 
 ## Deprecated
 
