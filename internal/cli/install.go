@@ -46,6 +46,9 @@ var assetIndependent = map[string]bool{
 	"workspace prepare":      true,
 	"workspace inspect":      true,
 	"workspace publish":      true,
+	"evidence":               true, // the group itself; it reports a missing command
+	"evidence record":        true,
+	"evidence verify":        true,
 	"learning":               true, // the group itself; it reports a missing command
 	"learning record":        true,
 	"learning update":        true,
