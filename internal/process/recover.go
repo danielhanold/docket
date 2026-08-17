@@ -190,6 +190,12 @@ func (s *Service) classifyRun(runDir, name string) (RecoveryEntry, error) {
 		return entry, nil
 	}
 
+	// A supervisor start-failure record (failure.json) is deliberately NOT
+	// given a recover disposition: unlike Observe, which surfaces failure.json
+	// as the vanished Cause, recover intentionally leaves failure records
+	// untouched for human inspection. Such a slot falls through to the group
+	// probe below and lands as needs-inspection — an intended asymmetry.
+
 	// An abandoned marker from an earlier pass is never re-written — the pass
 	// that wrote it already counted it.
 	if ab, aerr := readAbandoned(runDir); aerr != nil {
