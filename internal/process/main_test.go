@@ -29,6 +29,8 @@ func TestMain(m *testing.M) {
 //
 //	exit <n>            exit with code n
 //	emit <out> <err>    write out to stdout, err to stderr, exit 0
+//	emit-exit <out> <err> <n>
+//	                    write out to stdout, err to stderr, exit n
 //	sleep               block forever (killed by the test or by stop)
 //	ignore-term <path>  ignore SIGTERM, write "ready" to path, block
 //	read-stdin          exit 0 iff stdin is at EOF immediately, else 3
@@ -49,6 +51,11 @@ func runTestHelper(args []string) int {
 		fmt.Fprint(os.Stdout, args[1])
 		fmt.Fprint(os.Stderr, args[2])
 		return 0
+	case "emit-exit":
+		fmt.Fprint(os.Stdout, args[1])
+		fmt.Fprint(os.Stderr, args[2])
+		n, _ := strconv.Atoi(args[3])
+		return n
 	case "sleep":
 		// Block effectively forever with DEFAULT signal disposition: the child
 		// must die BY a group-directed SIGTERM (kind=signal, signal=15), the way
