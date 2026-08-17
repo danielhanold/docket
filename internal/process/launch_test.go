@@ -29,7 +29,37 @@ func launchHelper(t *testing.T, svc *Service, root string, mode string, extra ..
 	if err != nil {
 		t.Fatalf("Launch: %v", err)
 	}
+	reapSupervisor(out.RunDir)
 	return out
+}
+
+// reapSupervisor emulates init reaping the orphaned supervisor. In production
+// the launcher process exits right after Launch returns, so the supervisor is
+// reparented to init and reaped when it dies — its process group then becomes
+// provably absent (groupAlive -> probeAbsent) once torn down, which is what
+// Stop's teardown verification (spec: verified group absence) rests on. The
+// in-process test harness instead keeps the supervisor as a waitable child of
+// the long-lived test process; with no reaper it lingers as a zombie group
+// leader after death, so kill(-pgid, 0) returns EPERM (probeUnknown) forever
+// and group absence is never observable. A per-supervisor blocking Wait4 —
+// targeted at the exact pid, never -1, so it can never steal another child's
+// wait status — plays init's role for exactly the supervisors this harness
+// spawns.
+func reapSupervisor(runDir string) {
+	m, err := readManifest(runDir)
+	if err != nil || m == nil || m.SupervisorPID <= 1 {
+		return
+	}
+	pid := m.SupervisorPID
+	go func() {
+		var ws syscall.WaitStatus
+		for {
+			wpid, werr := syscall.Wait4(pid, &ws, 0, nil)
+			if werr != syscall.EINTR || wpid == pid {
+				return
+			}
+		}
+	}()
 }
 
 // waitTerminalState polls the durable terminal record (Observe/Stop belong to
