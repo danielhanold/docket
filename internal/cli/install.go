@@ -40,6 +40,8 @@ var assetIndependent = map[string]bool{
 	"change reconcile":       true,
 	"context":                true, // the group itself; it reports a missing command
 	"context implementation": true,
+	"artifact":               true, // the group itself; it reports a missing command
+	"artifact backlink":      true,
 	"learning":               true, // the group itself; it reports a missing command
 	"learning record":        true,
 	"learning update":        true,
