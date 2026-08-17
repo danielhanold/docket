@@ -2,7 +2,7 @@
 id: 315
 slug: claim-to-implemented-workflow
 title: 'Claim-to-implemented agent workflow'
-status: proposed
+status: in-progress
 priority: critical
 type: feat
 created: 2026-08-12
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/claim-to-implemented-workflow
 pr:
 blocked_by:
 reconciled: false
+claimed_at: 2026-08-17T21:18:41Z
 ---
 
 ## Artifacts
