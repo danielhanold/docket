@@ -28,6 +28,13 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 // prove it refuses a gated command is to hand the production wiring one —
 // docket ships none yet.
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinfo.Info, facts buildinfo.RuntimeFacts, extra ...*cobra.Command) int {
+	// Package-private supervisor re-execution: when the launcher re-execs
+	// this binary as a gate supervisor it must never parse public flags,
+	// print protocol documents, or read stdin — it IS the durable waiter.
+	if code, ok := app.MaybeRunGateSupervisor(); ok {
+		return code
+	}
+
 	prescan := DetectJSONMode(args)
 
 	var result app.OperationResult
