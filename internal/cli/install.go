@@ -37,6 +37,7 @@ var assetIndependent = map[string]bool{
 	"change kill":            true,
 	"change claim":           true,
 	"change refresh-claim":   true,
+	"change reconcile":       true,
 	"context":                true, // the group itself; it reports a missing command
 	"context implementation": true,
 	"learning":               true, // the group itself; it reports a missing command

@@ -132,7 +132,7 @@ func TestChangeRequestFileMissing(t *testing.T) {
 // never installed assets), so they are not refused on a machine with no
 // installation.
 func TestChangeCommandsAssetIndependent(t *testing.T) {
-	for _, key := range []string{"change", "change create", "change groom", "change block", "change defer", "change kill", "change claim", "change refresh-claim"} {
+	for _, key := range []string{"change", "change create", "change groom", "change block", "change defer", "change kill", "change claim", "change refresh-claim", "change reconcile"} {
 		if !assetIndependent[key] {
 			t.Errorf("%q is not registered asset-independent", key)
 		}
@@ -155,6 +155,61 @@ func TestChangeClaimCommandsRegistered(t *testing.T) {
 		if cmd.Flags().Lookup("version") == nil {
 			t.Errorf("change %s: missing --version flag", sub)
 		}
+	}
+}
+
+// TestChangeReconcileRegistered proves reconcile is wired as a change subcommand
+// carrying the scalar --input request-file flag (authored Markdown rides in the
+// JSON body, never shell-escaped flags).
+func TestChangeReconcileRegistered(t *testing.T) {
+	root := captureTree(t)
+	cmd, _, err := root.Find([]string{"change", "reconcile"})
+	if err != nil || cmd == nil || cmd.Name() != "reconcile" {
+		t.Fatalf("change reconcile not registered: cmd=%v err=%v", cmd, err)
+	}
+	if cmd.Flags().Lookup("input") == nil {
+		t.Errorf("change reconcile: missing --input flag")
+	}
+	if cmd.Flags().Lookup("repo-dir") == nil {
+		t.Errorf("change reconcile: missing --repo-dir flag")
+	}
+}
+
+// TestChangeReconcileInputFlagRequired proves --input is required: omitting it is
+// an argument error (exit 2) that names the flag, before any operation runs.
+func TestChangeReconcileInputFlagRequired(t *testing.T) {
+	_, errS, code := runCLI(t, "change", "reconcile")
+	if code != 2 || !strings.Contains(errS, "input") {
+		t.Fatalf("err=%q code=%d", errS, code)
+	}
+}
+
+// TestChangeReconcileReachesOperation proves reconcile decodes its --input body
+// and reaches the operation, which returns exactly one protocol-v1 document
+// naming it. A `{}` body fails the up-front shape validation (missing version /
+// log entry), so this reaches the operation without a live repository.
+func TestChangeReconcileReachesOperation(t *testing.T) {
+	out, errS, code := runCLIStdin(t, `{}`, "change", "reconcile", "--input", "-", "--repo-dir", t.TempDir(), "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q (code=%d)", errS, code)
+	}
+	if !strings.Contains(out, `"operation":"change.reconcile"`) {
+		t.Fatalf("document did not name the operation: %q", out)
+	}
+	if !strings.Contains(out, `"protocol_version":1`) {
+		t.Fatalf("missing protocol version: %q", out)
+	}
+	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
+	}
+}
+
+// TestChangeReconcileUnknownFieldRejected proves --input decodes with
+// DisallowUnknownFields: an unknown JSON field is invalid input, exit 2.
+func TestChangeReconcileUnknownFieldRejected(t *testing.T) {
+	_, errS, code := runCLIStdin(t, `{"id":1,"nope":true}`, "change", "reconcile", "--input", "-", "--json")
+	if code != 2 || errS != "" {
+		t.Fatalf("err=%q code=%d", errS, code)
 	}
 }
 
