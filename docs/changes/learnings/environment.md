@@ -2,7 +2,7 @@
 slug: environment
 hook: "A RED suite in a build sandbox or an installed dev shell is a hypothesis, not a verdict — re-run it on the unmodified base."
 topics: [testing, environment, ci]
-changes: [34, 66, 311, 312]
+changes: [34, 66, 311, 312, 314]
 created: 2026-06-21
 updated: 2026-08-17
 promotion_state: retained
@@ -39,3 +39,14 @@ their own sub-shells so an installed shell can't false-RED them.
   builtin. Re-running the identical suite with the interpreter's own directory pinned on PATH went
   121/121. So when reading a RED set, check **which interpreter actually ran** before checking the
   diff — the runner's own PATH is part of the environment being hypothesised about.
+- 2026-08-17 (#314, PR #215) — The same differential reading applies to the suite's **advisory
+  `OVER BUDGET:` rows**, not only to RED. The build gate reported 7 over-budget rows and the
+  finalize gate 6 — and in both runs *every* row was an unrelated shell/config file
+  (`test_board_checks`, `test_docket_config`, `test_sync_agents*`, …), none touched by the change,
+  each over by a similar factor, while the change's own new Go shards stayed inside budget. A
+  whole-suite cliff spread across unrelated rows at a similar factor is the machine-saturation
+  signature `scripts/run-tests.md` describes, not a regression to act on. The standing rule that an
+  `OVER BUDGET:` line is a finding rather than noise still holds — the differential is what tells
+  you *whose* finding it is: rows concentrated on the files the change touched are yours; a broad
+  unrelated spread is the host's, and the remedy is a re-run on an unloaded machine, never a budget
+  bump.
