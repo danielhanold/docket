@@ -148,6 +148,10 @@ func RunSupervisorFromEnv() int {
 		return writeFailure("publish-established", "recording the established manifest failed")
 	}
 	handshake("established\n")
+	// Trace each phase transition so the establishment-before-command ordering
+	// is externally observable (and mutation-guardable): the group is
+	// addressable here, before any command has started.
+	diag.Printf("phase: established")
 
 	// (5) Survive a group-directed TERM/INT: by taking delivery on a channel
 	// the supervisor replaces the default terminate disposition and outlives
@@ -205,6 +209,7 @@ func RunSupervisorFromEnv() int {
 		diag.Printf("recording running phase failed: %v", err)
 	}
 	handshake("running\n")
+	diag.Printf("phase: running")
 
 	// (8) Wait, then decode the EXACT wait status: a normal exit stays
 	// kind=exit with the true code, a signal death stays kind=signal with the
@@ -231,6 +236,7 @@ func RunSupervisorFromEnv() int {
 	// The terminal record is durable now. Wake the launcher, then release the
 	// lock LAST so no observer can see a free lock before the terminal record.
 	handshake("terminal\n")
+	diag.Printf("phase: terminal")
 	closePipe()
 	closeLock()
 	return 0

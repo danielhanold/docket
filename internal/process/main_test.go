@@ -32,6 +32,11 @@ func TestMain(m *testing.M) {
 //	sleep               block forever (killed by the test or by stop)
 //	ignore-term <path>  ignore SIGTERM, write "ready" to path, block
 //	read-stdin          exit 0 iff stdin is at EOF immediately, else 3
+//	env-check           exit 0 iff both private supervisor env vars are unset
+//	                    and the inherited lock fd 3 is closed (CLOEXEC held)
+//	launch <root>       run svc.Launch(sleep) against <root>, print the run dir,
+//	                    then exit — the separate launcher process for the gate
+//	                    survival proof
 func runTestHelper(args []string) int {
 	if len(args) == 0 {
 		return 90
@@ -45,7 +50,16 @@ func runTestHelper(args []string) int {
 		fmt.Fprint(os.Stderr, args[2])
 		return 0
 	case "sleep":
-		select {}
+		// Block until the group is signalled. A bare select{} would trip Go's
+		// all-goroutines-asleep deadlock detector and exit the child within
+		// milliseconds of starting; registering a signal receiver keeps a live
+		// waiter so this is a durable stand-in that only dies when its group is
+		// signalled (teardown uses an uncatchable SIGKILL, so the receive here
+		// need not observe it — its sole job is to keep the runtime alive).
+		ch := make(chan os.Signal, 1)
+		signal.Notify(ch, syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP)
+		<-ch
+		return 0
 	case "ignore-term":
 		signal.Ignore(syscall.SIGTERM)
 		if err := os.WriteFile(args[1], []byte("ready"), 0o600); err != nil {
@@ -57,6 +71,37 @@ func runTestHelper(args []string) int {
 		if n, _ := os.Stdin.Read(buf); n != 0 {
 			return 3
 		}
+		return 0
+	case "env-check":
+		if os.Getenv("DOCKET_GATE_SUPERVISOR_RUN_DIR") != "" ||
+			os.Getenv("DOCKET_GATE_SUPERVISOR_ARGV") != "" {
+			return 4
+		}
+		if _, err := syscall.Getpgid(0); err != nil {
+			return 93 // sanity: a live process always has a group
+		}
+		if _, serr := os.NewFile(3, "probe").Stat(); serr == nil {
+			return 5 // the inherited lock fd leaked past CLOEXEC into the child
+		}
+		return 0
+	case "launch":
+		exe, err := os.Executable()
+		if err != nil {
+			return 94
+		}
+		svc, err := NewService(exe)
+		if err != nil {
+			return 95
+		}
+		out, err := svc.Launch(LaunchRequest{
+			Root: args[1],
+			Cwd:  os.TempDir(),
+			Argv: []string{exe, "gate-test-helper", "sleep"},
+		})
+		if err != nil {
+			return 96
+		}
+		fmt.Fprintln(os.Stdout, out.RunDir)
 		return 0
 	}
 	return 92
