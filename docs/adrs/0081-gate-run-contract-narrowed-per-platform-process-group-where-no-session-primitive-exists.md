@@ -2,7 +2,7 @@
 id: 81
 slug: gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists
 title: "gate-run's detachment contract is narrowed per platform: own process group where no session primitive exists"
-status: Accepted
+status: Superseded by ADR-95
 date: 2026-08-10
 supersedes: []
 reverses: []
