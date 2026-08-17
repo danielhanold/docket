@@ -295,6 +295,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	changeCmd := newChangeCommand(func(r app.OperationResult) { result = r })
 	contextCmd := newContextCommand(func(r app.OperationResult) { result = r })
 	artifactCmd := newArtifactCommand(func(r app.OperationResult) { result = r })
+	workspaceCmd := newWorkspaceCommand(func(r app.OperationResult) { result = r })
 	learningCmd := newLearningCommand(func(r app.OperationResult) { result = r })
 	adrCmd := newADRCommand(func(r app.OperationResult) { result = r })
 	gateCmd := newGateCommand(func(r app.OperationResult) { result = r })
@@ -302,7 +303,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	installCmd.AddCommand(installCheckCmd)
 	developmentCmd.AddCommand(developmentInstallCmd)
 	diagnosticCmd.AddCommand(runtimeCmd, configCmd)
-	root.AddCommand(versionCmd, statusCmd, changeCmd, contextCmd, artifactCmd, learningCmd, adrCmd, gateCmd, diagnosticCmd, installCmd, developmentCmd)
+	root.AddCommand(versionCmd, statusCmd, changeCmd, contextCmd, artifactCmd, workspaceCmd, learningCmd, adrCmd, gateCmd, diagnosticCmd, installCmd, developmentCmd)
 	root.AddCommand(extra...)
 
 	// The asset-dependence guard. Everything docket ships today is registered
