@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0314 — Native process supervisor and local gate](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0314-native-process-supervisor-and-local-gate.md)**
+> ↩ **[Change 0314 — Native process supervisor and local gate](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-17-0314-native-process-supervisor-and-local-gate.md)**
 <!-- docket:backlink:end -->
 
 # Native process supervisor and local gate
