@@ -46,6 +46,48 @@ func TestRecoverMarksCleanlyAbandonedOwnedRun(t *testing.T) {
 	}
 }
 
+// TestRecoverDoesNotProbeLiveForZeroPGID covers the leaked-slot shape the
+// finding names: spawnSupervisor failed after the allocated manifest was
+// written (PGID 0, phase "allocated") and the launcher released the live lock.
+// Recover sees a free lock, no terminal/stopped/abandoned record, and probes
+// the recorded group via the default recoverGroupProbe (groupAlive). PGID 0
+// must NOT resolve probeLive — that would address the caller's own group and
+// wedge the slot at needs-inspection-via-live-group forever. The fail-closed
+// guard routes it to probeUnknown instead, still leaving it for inspection but
+// never falsely live.
+func TestRecoverDoesNotProbeLiveForZeroPGID(t *testing.T) {
+	svc := newTestService(t)
+	root := t.TempDir()
+	id := "abababababababababababababababab"
+	runDir := filepath.Join(root, id)
+	if err := os.Mkdir(runDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeAtomicJSON(filepath.Join(runDir, manifestFile), &manifestRecord{
+		Schema: recordSchema, RunID: id, RunDir: runDir, PGID: 0, Phase: "allocated",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// The load-bearing assertion: the recorded group 0 the recover probe sees is
+	// never live. groupAlive is recoverGroupProbe's production value.
+	if got := groupAlive(0); got == probeLive {
+		t.Fatal("group 0 probed live — addresses the caller's own process group")
+	}
+	res, err := svc.Recover(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Marked != 0 || len(res.Entries) != 1 {
+		t.Fatalf("recover: %+v", res)
+	}
+	if d := res.Entries[0].Disposition; d != "needs-inspection" {
+		t.Fatalf("PGID:0 slot disposition = %q, want needs-inspection", d)
+	}
+	if rec, _ := readAbandoned(runDir); rec != nil {
+		t.Fatal("abandoned.json written for a non-real recorded group")
+	}
+}
+
 func TestRecoverRetainsLiveForeignAndInvalid(t *testing.T) {
 	svc := newTestService(t)
 	root := t.TempDir()
@@ -96,13 +138,14 @@ func TestRecoverRetainsLiveForeignAndInvalid(t *testing.T) {
 }
 
 // TestRecoverLeavesUnprovableGroupForInspection is the destructive-branch
-// guard's proof (plan Task 10, Step 5). The plan's suggested probe — a
-// manifest with PGID/SupervisorPID 1 — is inert: groupAlive(1) routes through
-// syscall.Kill(-1, 0), and -1 is POSIX's "every process I may signal" special
-// case (never process group 1), which returns probeLive for a non-root caller,
-// not the probeUnknown the mutation targets. So a PGID=1 case exercises the
-// probeLive arm, which the mutation leaves untouched, and stays green. This
-// case instead forces the recorded-group probe to be permanently unprovable —
+// guard's proof (plan Task 10, Step 5). A manifest with PGID/SupervisorPID 1 is
+// inert for a different reason than a real EPERM read: groupAlive fails closed
+// on any pgid <= 1, so groupAlive(1) returns probeUnknown without ever issuing
+// kill(-1, 0) — the same disposition (needs-inspection, no marker) a genuine
+// probe error yields, but reached by the guard rather than by the probe. So a
+// PGID=1 case cannot exercise the real probeUnknown-from-EPERM path the mutation
+// targets. This case instead forces the recorded-group probe to be permanently
+// unprovable —
 // the shape a real EPERM read (e.g. an unreaped zombie group leader, or another
 // user's group) produces — and asserts the run is left for inspection with NO
 // marker. Routing probeUnknown into the clean-absence arm reddens it on every
