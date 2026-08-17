@@ -2,11 +2,11 @@
 id: 314
 slug: native-process-supervisor-and-local-gate
 title: 'Native process supervisor and local gate'
-status: proposed
+status: in-progress
 priority: critical
 type: feat
 created: 2026-08-12
-updated: 2026-08-16
+updated: 2026-08-17
 depends_on: [304]
 stacked_on:
 related: [264, 285]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/native-process-supervisor-and-local-gate
 pr:
 blocked_by:
 reconciled: false
+claimed_at: 2026-08-17T02:04:24Z
 ---
 
 ## Artifacts
