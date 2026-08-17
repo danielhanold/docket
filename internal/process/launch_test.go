@@ -137,8 +137,8 @@ func TestGateSurvivesLauncherExit(t *testing.T) {
 func TestLaunchStreamsAndStdin(t *testing.T) {
 	svc := newTestService(t)
 	out := launchHelper(t, svc, t.TempDir(), "emit", "OUT-BYTES", "ERR-BYTES")
-	if st := waitTerminalState(t, out.RunDir, false); st != StatePassed {
-		t.Fatalf("emit helper: %v", st)
+	if obs := observeUntilTerminal(t, svc, out.RunDir); obs.State != StatePassed {
+		t.Fatalf("emit helper: %v", obs.State)
 	}
 	so, _ := os.ReadFile(filepath.Join(out.RunDir, stdoutLogFile))
 	se, _ := os.ReadFile(filepath.Join(out.RunDir, stderrLogFile))
@@ -150,8 +150,8 @@ func TestLaunchStreamsAndStdin(t *testing.T) {
 		t.Fatalf("stdout.log mode %o", fi.Mode().Perm())
 	}
 	out2 := launchHelper(t, svc, t.TempDir(), "read-stdin")
-	if st := waitTerminalState(t, out2.RunDir, false); st != StatePassed {
-		t.Fatalf("stdin not closed: %v", st)
+	if obs := observeUntilTerminal(t, svc, out2.RunDir); obs.State != StatePassed {
+		t.Fatalf("stdin not closed: %v", obs.State)
 	}
 }
 
@@ -176,9 +176,9 @@ func TestLaunchFastExit(t *testing.T) {
 		t.Fatal(err)
 	}
 	if out.State == StateRunning {
-		// Racing running->terminal is legal; the record must converge.
-		if st := waitTerminalState(t, out.RunDir, false); st != StatePassed {
-			t.Fatalf("fast exit converged to %v", st)
+		// Racing running->terminal is legal; observe must converge.
+		if obs := observeUntilTerminal(t, svc, out.RunDir); obs.State != StatePassed {
+			t.Fatalf("fast exit converged to %v", obs.State)
 		}
 	} else if out.State != StatePassed {
 		t.Fatalf("fast exit state %v", out.State)
