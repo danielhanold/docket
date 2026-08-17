@@ -232,6 +232,39 @@
 #   runners_gates  26.78 26.87 26.71 -> worst 26.87 -> next multiple of 5 is 30, plus 5 -> 35
 #   runners_pins   29.83 30.13 30.36 -> worst 30.36 -> next multiple of 5 is 35, plus 5 -> 40
 # The single 60s row becomes three rows summing to 120, so EXPECTED_TOTAL moves 1845 -> 1905.
+#
+# tests/test_go_race_process.sh is a NEW FILE brought by change 0314 — the SHARD-of-a-file case
+# again (changes 0309/0313 precedent). Change 0314's internal/process package is the native gate
+# supervisor: its real-process tests re-exec the instrumented test binary as a per-run Setsid
+# supervisor and wait on real children through launch/observe/stop/recover, so under the detector it
+# is the heaviest package in the tree after gitcli. tests/test_go_race.sh already sat AT the 60s
+# ceiling with no next raise, so folding internal/process into it is the move the ceiling exists to
+# catch. Per the table's own remedy the package is sharded, not the row raised: this new sibling runs
+# `go test -race ./internal/process/`, and tests/test_go_race.sh now runs the DERIVED complement
+# (`go list ./...` minus the transaction, workspace, and process import paths), with the completeness
+# guard there extended to FOUR shards proving they partition `go list ./...` exactly — no package
+# silently dropped from the race gate. This sibling measures, as
+# `scripts/run-tests.sh -j 1 --timings <path> tests/test_go_race_process.sh`:
+#   18  17  17  -> worst 18
+# Next multiple of 5 above 18 is 20, plus the 5s margin -> 25. It pins the same shared Go caches as
+# the other three Go race rows (see its CACHES header). The main shard STAYS at its 60 row: it is
+# gitcli-dominated under the detector and internal/process runs in parallel with gitcli, so excluding
+# it does not lower the main shard's wall clock — a direct `go test -race -count=1` of the complement
+# measures 60.8s with internal/process INCLUDED and 59.9s with it EXCLUDED (~1s delta, the same
+# parallel-with-gitcli fact change 0313 recorded for the workspace matrix). EXPECTED_TOTAL moves
+# 2080 -> 2105 for this one row plus the tests/test_go_toolchain.sh re-budget below.
+#
+# tests/test_go_toolchain.sh 45 -> 55 (change 0314): a file that GOT SLOWER, defended by measurement.
+# Its uninstrumented `go test ./...` now compiles and runs change 0314's internal/process package,
+# whose real-process launch/observe/stop/recover tests fork, exec, and wait on real children — real
+# wall clock even uninstrumented, and no cost was avoidable to remove first: those tests ARE the
+# change's acceptance proof. Re-measured standalone serial, one machine, as
+# `scripts/run-tests.sh -j 1 --timings PATH tests/test_go_toolchain.sh` (a cluster of 45/45/45/46 with
+# one loaded-machine reading at 48):
+#   48  46  46  45  45  45  -> worst 48
+# The file now exceeds its old 45 row, so per this header's rule it is re-sized from the worst
+# reading: next multiple of 5 above 48 is 50, plus the 5s margin -> 55, still well under the 60s
+# ceiling. EXPECTED_TOTAL moves 2105 -> 2115.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -287,8 +320,9 @@ tests/test_gate_execution_posture.sh	10	parallel
 tests/test_gate_run.sh	20	parallel
 tests/test_gate_run_stop.sh	35	parallel
 tests/test_github_mirror.sh	10	parallel
-tests/test_go_toolchain.sh	45	parallel
+tests/test_go_toolchain.sh	55	parallel
 tests/test_go_race.sh	60	parallel
+tests/test_go_race_process.sh	25	parallel
 tests/test_go_race_transaction.sh	45	parallel
 tests/test_go_race_workspace.sh	45	parallel
 tests/test_grep_portability.sh	10	parallel

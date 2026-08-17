@@ -30,7 +30,61 @@ func launchHelper(t *testing.T, svc *Service, root string, mode string, extra ..
 		t.Fatalf("Launch: %v", err)
 	}
 	reapSupervisor(out.RunDir)
+	// Wait for the detached supervisor to quiesce before this test's t.TempDir()
+	// teardown removes the run dir out from under it — see quiesceRun. Registered
+	// after the root's own TempDir cleanup (the root is passed in, created
+	// earlier), so LIFO ordering runs this first, before the RemoveAll.
+	t.Cleanup(func() { quiesceRun(t, out.RunDir) })
 	return out
+}
+
+// quiesceRun waits for a launched run's detached supervisor to finish every
+// same-directory write and release live.lock, so a test can mutate the run dir
+// or let t.TempDir() teardown remove it with no race against the supervisor.
+//
+// The supervisor keeps writing manifest/terminal/log records after a fast child
+// exits (supervisor.go step 8: terminal.json, then the phase="terminal" manifest
+// write, then closeLock LAST). Folded under -race those trailing writes race
+// t.TempDir's RemoveAll ("directory not empty" from a just-created atomic temp
+// file) and clobber a test's own post-terminal manifest mutation. Because
+// closeLock is the supervisor's final act, a free live.lock proves the run dir
+// is quiescent — no further writes will land.
+//
+// A still-HELD lock proves the supervisor is alive and unreaped, so its recorded
+// pid is not yet reused: signalling its group can never hit a reused pid. That is
+// used only to bound teardown for a run whose child is still alive (no terminal
+// and no failure record yet — the supervisor is parked in cmd.Wait, not
+// mid-write); a run that has already recorded a verdict is merely finishing its
+// post-terminal writes and is waited out, never signalled (a SIGKILL mid-write
+// could strand an atomic temp file, which is the very race this closes).
+// Best-effort under a generous deadline; a test-support helper only.
+func quiesceRun(t *testing.T, runDir string) {
+	t.Helper()
+	lockPath := filepath.Join(runDir, liveLockFile)
+	killed := false
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		held, ans := probeFlock(lockPath)
+		if !held && ans == probeAbsent {
+			return // supervisor gone; the run dir will take no further writes
+		}
+		if held && !killed {
+			term, _ := readTerminal(runDir)
+			fr, _ := readFailureRecord(runDir)
+			if term == nil && fr == nil {
+				// Child still alive, supervisor parked in Wait (idle, not
+				// mid-write): end the group so teardown is bounded.
+				if m, err := readManifest(runDir); err == nil && m != nil && m.PGID > 1 {
+					_ = signalGroup(m.PGID, syscall.SIGKILL)
+					killed = true
+				}
+			}
+		}
+		if time.Now().After(deadline) {
+			return // best effort; teardown timing must not fail the test
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 }
 
 // reapSupervisor emulates init reaping the orphaned supervisor. In production
@@ -140,6 +194,7 @@ func TestGateSurvivesLauncherExit(t *testing.T) {
 		t.Fatalf("launcher subprocess: %v", err)
 	}
 	runDir := strings.TrimSpace(string(outBytes))
+	t.Cleanup(func() { quiesceRun(t, runDir) })
 	// The launcher subprocess has fully exited (cmd.Output returned and reaped
 	// it); its process group is gone. The gate must still be live.
 	m, err := readManifest(runDir)
@@ -205,6 +260,7 @@ func TestLaunchFastExit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { quiesceRun(t, out.RunDir) })
 	if out.State == StateRunning {
 		// Racing running->terminal is legal; observe must converge.
 		if obs := observeUntilTerminal(t, svc, out.RunDir); obs.State != StatePassed {

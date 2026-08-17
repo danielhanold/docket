@@ -25,7 +25,25 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=2080 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2115 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2080 -> 2115 (change 0314): TWO legitimate movers in one diff. First, the
+                    # SHARD-of-a-file case (changes 0309/0313 precedent): tests/test_go_race.sh sat AT
+                    # the 60s ceiling and change 0314's internal/process package — the native gate
+                    # supervisor, the heaviest real-process suite in the tree under the detector —
+                    # would push the combined `-race ./...` run over it. The table's remedy is shard,
+                    # never a bigger number: internal/process moves to a new sibling
+                    # tests/test_go_race_process.sh (`go test -race ./internal/process/`, measured
+                    # 18/17/17s -> 20 -> 25) while tests/test_go_race.sh runs the DERIVED complement
+                    # (`go list ./...` minus the transaction, workspace, and process import paths)
+                    # with the completeness guard extended to four shards. The main shard STAYS at its
+                    # 60 row — gitcli-dominated, internal/process runs in parallel with gitcli (60.8s
+                    # included vs 59.9s excluded, ~1s delta). Second, tests/test_go_toolchain.sh
+                    # 45 -> 55: a file that GOT SLOWER, defended by measurement — its uninstrumented
+                    # `go test ./...` now runs internal/process's real fork/exec/wait tests, worst
+                    # standalone serial 48 -> next multiple of 5 is 50, plus the 5s margin -> 55.
+                    # Rationale is beside all three rows in the tsv header.
+                    # Recomputed from the table itself, never hand-adjusted:
+                    #   awk -F'\t' '!/^#/ && NF>=2 {s+=$2} END{print s}' tests/runtime-budgets.tsv
                     # 1965 -> 2035 (change 0309): TWO legitimate movers in one diff. First,
                     # tests/test_go_toolchain.sh 20 -> 45: a file that GOT SLOWER, defended by
                     # measurement. Its `go test ./...` now compiles and runs change 0309's
