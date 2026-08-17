@@ -132,9 +132,66 @@ func TestChangeRequestFileMissing(t *testing.T) {
 // never installed assets), so they are not refused on a machine with no
 // installation.
 func TestChangeCommandsAssetIndependent(t *testing.T) {
-	for _, key := range []string{"change", "change create", "change groom", "change block", "change defer", "change kill"} {
+	for _, key := range []string{"change", "change create", "change groom", "change block", "change defer", "change kill", "change claim", "change refresh-claim"} {
 		if !assetIndependent[key] {
 			t.Errorf("%q is not registered asset-independent", key)
+		}
+	}
+}
+
+// TestChangeClaimCommandsRegistered proves claim and refresh-claim are wired as
+// change subcommands carrying the scalar --id/--version flags (no --request:
+// they carry no authored Markdown).
+func TestChangeClaimCommandsRegistered(t *testing.T) {
+	root := captureTree(t)
+	for _, sub := range []string{"claim", "refresh-claim"} {
+		cmd, _, err := root.Find([]string{"change", sub})
+		if err != nil || cmd == nil || cmd.Name() != sub {
+			t.Fatalf("change %s not registered: cmd=%v err=%v", sub, cmd, err)
+		}
+		if cmd.Flags().Lookup("id") == nil {
+			t.Errorf("change %s: missing --id flag", sub)
+		}
+		if cmd.Flags().Lookup("version") == nil {
+			t.Errorf("change %s: missing --version flag", sub)
+		}
+	}
+}
+
+// TestChangeClaimFlagsRequired proves --id and --version are required: omitting
+// them is an argument error (exit 2) before any operation runs.
+func TestChangeClaimFlagsRequired(t *testing.T) {
+	_, errS, code := runCLI(t, "change", "claim")
+	if code != 2 || (!strings.Contains(errS, "id") && !strings.Contains(errS, "version")) {
+		t.Fatalf("err=%q code=%d", errS, code)
+	}
+}
+
+// TestChangeClaimCommandsReachOperation proves both claim commands decode their
+// flags and reach the operation, which returns exactly one protocol-v1 document
+// naming it. A bare tempdir is no docket repo, so the operation fails past its
+// shape check — but only after naming itself.
+func TestChangeClaimCommandsReachOperation(t *testing.T) {
+	cases := []struct{ sub, op string }{
+		{"claim", "change.claim"},
+		{"refresh-claim", "change.refresh-claim"},
+	}
+	for _, c := range cases {
+		out, errS, code := runCLI(t, "change", c.sub,
+			"--id", "7", "--version", "1234123412341234123412341234123412341234",
+			"--repo-dir", t.TempDir(), "--json")
+		_ = code
+		if errS != "" {
+			t.Fatalf("%s: unexpected stderr %q", c.sub, errS)
+		}
+		if !strings.Contains(out, `"operation":"`+c.op+`"`) {
+			t.Fatalf("%s: document did not name the operation: %q", c.sub, out)
+		}
+		if !strings.Contains(out, `"protocol_version":1`) {
+			t.Fatalf("%s: missing protocol version: %q", c.sub, out)
+		}
+		if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+			t.Fatalf("%s: must be exactly one newline-terminated document, got %q", c.sub, out)
 		}
 	}
 }

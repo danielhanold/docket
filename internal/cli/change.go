@@ -102,8 +102,50 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		})
 
-	changeCmd.AddCommand(create, groom, block, deferCmd, kill)
+	claim := changeIDVersionSubcommand("claim",
+		"Claim a build-ready change at an exact version, moving it to in-progress",
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest) {
+			setResult(app.ChangeClaim(c.Context(), deps, repoDir, req))
+		})
+
+	refreshClaim := changeIDVersionSubcommand("refresh-claim",
+		"Re-stamp an in-progress change's claim lease at an exact version",
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest) {
+			setResult(app.ChangeRefreshClaim(c.Context(), deps, repoDir, req))
+		})
+
+	changeCmd.AddCommand(create, groom, block, deferCmd, kill, claim, refreshClaim)
 	return changeCmd
+}
+
+// changeIDVersionSubcommand builds one `change <verb>` command whose input is the
+// (id, version) pair rather than a JSON request body: the claim transitions
+// carry no authored Markdown, so they take scalar flags (Global Constraints:
+// request files are for authored Markdown, never these). run receives the
+// resolved dependencies, repo directory, and decoded request.
+func changeIDVersionSubcommand(verb, short string, run func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   verb,
+		Short: short,
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, _ := c.Flags().GetString("repo-dir")
+			id, _ := c.Flags().GetInt("id")
+			version, _ := c.Flags().GetString("version")
+			deps, err := newPlanningDeps()
+			if err != nil {
+				return err
+			}
+			run(c, deps, repoDir, app.ChangeClaimRequest{ID: id, Version: version})
+			return nil
+		},
+	}
+	cmd.Flags().Int("id", 0, "change id to operate on (required)")
+	cmd.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
+	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	_ = cmd.MarkFlagRequired("id")
+	_ = cmd.MarkFlagRequired("version")
+	return cmd
 }
 
 // changeSubcommand builds one `change <verb>` command with the shared --request
