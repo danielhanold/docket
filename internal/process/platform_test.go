@@ -51,6 +51,35 @@ func TestGetSIDAndPGIDReadLiveFacts(t *testing.T) {
 	}
 }
 
+// TestLivenessPrimitivesFailClosedOnNonRealPGID pins the fail-closed guard on
+// non-real group ids. Before the guard, groupAlive(0) issued kill(-0, 0) ==
+// kill(0, 0), which addresses the caller's OWN process group and returns nil ->
+// probeLive, so a leaked PGID:0 slot falsely probed live. pgid 1 is init.
+func TestLivenessPrimitivesFailClosedOnNonRealPGID(t *testing.T) {
+	for _, pgid := range []int{0, 1} {
+		if got := groupAlive(pgid); got != probeUnknown {
+			t.Fatalf("groupAlive(%d) = %v, want probeUnknown (must never probe live/absent)", pgid, got)
+		}
+	}
+	// getPGID must not hand back a live/absent answer for a non-real input pid
+	// (0 is "self" to Getpgid; 1 is init).
+	for _, pid := range []int{0, 1} {
+		if _, got := getPGID(pid); got != probeUnknown {
+			t.Fatalf("getPGID(%d) = %v, want probeUnknown", pid, got)
+		}
+	}
+	// signalGroup must refuse a non-real group with a typed failure and deliver
+	// nothing, rather than SIGKILLing the caller's own group.
+	err := signalGroup(0, syscall.SIGKILL)
+	if err == nil {
+		t.Fatal("signalGroup(0, SIGKILL) returned nil — would signal the caller's own group")
+	}
+	f, ok := AsFailure(err)
+	if !ok || f.Class != FailInvalidState {
+		t.Fatalf("signalGroup(0, …) error = %v (%T), want *Failure class %q", err, err, FailInvalidState)
+	}
+}
+
 func TestSessionAttrsCreateNewSession(t *testing.T) {
 	cmd := exec.Command("/bin/sleep", "300")
 	cmd.SysProcAttr = sessionAttrs()
