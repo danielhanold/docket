@@ -38,6 +38,8 @@ var assetIndependent = map[string]bool{
 	"change claim":           true,
 	"change refresh-claim":   true,
 	"change reconcile":       true,
+	"change attach-plan":     true,
+	"change attach-results":  true,
 	"context":                true, // the group itself; it reports a missing command
 	"context implementation": true,
 	"artifact":               true, // the group itself; it reports a missing command

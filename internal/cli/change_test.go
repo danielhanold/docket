@@ -250,3 +250,59 @@ func TestChangeClaimCommandsReachOperation(t *testing.T) {
 		}
 	}
 }
+
+// TestChangeAttachCommandsRegistered proves attach-plan and attach-results are
+// wired as change subcommands carrying the scalar --id/--version/--path/--commit
+// flags (no --request: they name a verified Git artifact, not authored Markdown).
+func TestChangeAttachCommandsRegistered(t *testing.T) {
+	root := captureTree(t)
+	for _, sub := range []string{"attach-plan", "attach-results"} {
+		cmd, _, err := root.Find([]string{"change", sub})
+		if err != nil || cmd == nil || cmd.Name() != sub {
+			t.Fatalf("change %s not registered: cmd=%v err=%v", sub, cmd, err)
+		}
+		for _, flag := range []string{"id", "version", "path", "commit"} {
+			if cmd.Flags().Lookup(flag) == nil {
+				t.Errorf("change %s: missing --%s flag", sub, flag)
+			}
+		}
+		if !assetIndependent["change "+sub] {
+			t.Errorf("change %s is not registered asset-independent", sub)
+		}
+	}
+}
+
+// TestChangeAttachFlagsRequired proves the scalar flags are required: omitting
+// them is an argument error (exit 2) before any operation runs.
+func TestChangeAttachFlagsRequired(t *testing.T) {
+	_, errS, code := runCLI(t, "change", "attach-plan")
+	if code != 2 || errS == "" {
+		t.Fatalf("err=%q code=%d, want a required-flag argument error", errS, code)
+	}
+}
+
+// TestChangeAttachCommandsReachOperation proves both attach commands decode their
+// flags and reach the operation, which returns exactly one protocol-v1 document
+// naming it. A bare tempdir is no docket repo, so the operation fails past its
+// shape check — but only after naming itself.
+func TestChangeAttachCommandsReachOperation(t *testing.T) {
+	cases := []struct{ sub, op string }{
+		{"attach-plan", "change.attach-plan"},
+		{"attach-results", "change.attach-results"},
+	}
+	for _, c := range cases {
+		out, errS, _ := runCLI(t, "change", c.sub,
+			"--id", "7", "--version", "1234123412341234123412341234123412341234",
+			"--path", "docs/superpowers/plans/x.md", "--commit", "1234123412341234123412341234123412341234",
+			"--repo-dir", t.TempDir(), "--json")
+		if errS != "" {
+			t.Fatalf("%s: unexpected stderr %q", c.sub, errS)
+		}
+		if !strings.Contains(out, `"operation":"`+c.op+`"`) {
+			t.Fatalf("%s: document did not name the operation: %q", c.sub, out)
+		}
+		if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+			t.Fatalf("%s: must be exactly one newline-terminated document, got %q", c.sub, out)
+		}
+	}
+}

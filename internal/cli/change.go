@@ -125,8 +125,56 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		})
 
-	changeCmd.AddCommand(create, groom, block, deferCmd, kill, claim, refreshClaim, reconcile)
+	attachPlan := changeAttachSubcommand("attach-plan",
+		"Verify a written plan from Git and link it to an in-progress change",
+		func(c *cobra.Command, deps app.PlanningDeps, wdeps app.WorkspaceDeps, repoDir string, req app.ChangeAttachRequest) {
+			setResult(app.ChangeAttachPlan(c.Context(), deps, wdeps, repoDir, req))
+		})
+
+	attachResults := changeAttachSubcommand("attach-results",
+		"Verify an authored results record from Git and link it to an in-progress change",
+		func(c *cobra.Command, deps app.PlanningDeps, wdeps app.WorkspaceDeps, repoDir string, req app.ChangeAttachRequest) {
+			setResult(app.ChangeAttachResults(c.Context(), deps, wdeps, repoDir, req))
+		})
+
+	changeCmd.AddCommand(create, groom, block, deferCmd, kill, claim, refreshClaim, reconcile, attachPlan, attachResults)
 	return changeCmd
+}
+
+// changeAttachSubcommand builds one `change <verb>` command whose input is the
+// (id, version, path, commit) tuple: an attach verifies a written artifact from
+// Git and links it, so it takes scalar flags (Global Constraints: request files
+// are for authored Markdown, never these). It builds the workspace-backed deps
+// the attach operation needs to inspect the owned checkout.
+func changeAttachSubcommand(verb, short string, run func(c *cobra.Command, deps app.PlanningDeps, wdeps app.WorkspaceDeps, repoDir string, req app.ChangeAttachRequest)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   verb,
+		Short: short,
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, _ := c.Flags().GetString("repo-dir")
+			id, _ := c.Flags().GetInt("id")
+			version, _ := c.Flags().GetString("version")
+			artifactPath, _ := c.Flags().GetString("path")
+			commit, _ := c.Flags().GetString("commit")
+			deps, wdeps, err := newWorkspaceDeps()
+			if err != nil {
+				return err
+			}
+			run(c, deps, wdeps, repoDir, app.ChangeAttachRequest{ID: id, Version: version, Path: artifactPath, Commit: commit})
+			return nil
+		},
+	}
+	cmd.Flags().Int("id", 0, "change id to attach the artifact to (required)")
+	cmd.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
+	cmd.Flags().String("path", "", "canonical repository-relative artifact path (required)")
+	cmd.Flags().String("commit", "", "exact feature commit the writer reported (required)")
+	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	_ = cmd.MarkFlagRequired("id")
+	_ = cmd.MarkFlagRequired("version")
+	_ = cmd.MarkFlagRequired("path")
+	_ = cmd.MarkFlagRequired("commit")
+	return cmd
 }
 
 // changeInputSubcommand builds one `change <verb>` command whose authored-
