@@ -13,7 +13,7 @@ related: [264, 285]
 discovered_from: [303]
 adrs: [80, 81, 87]
 spec: docs/superpowers/specs/2026-08-16-native-process-supervisor-and-local-gate-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-16-native-process-supervisor-and-local-gate.md
 results:
 trivial: false
 auto_groomable:
@@ -21,7 +21,7 @@ branch: feat/native-process-supervisor-and-local-gate
 pr:
 blocked_by:
 reconciled: true
-claimed_at: 2026-08-17T02:06:00Z
+claimed_at: 2026-08-17T02:20:00Z
 ---
 
 ## Artifacts
@@ -30,6 +30,7 @@ claimed_at: 2026-08-17T02:06:00Z
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-16-native-process-supervisor-and-local-gate-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-16-native-process-supervisor-and-local-gate-design.md) |
+| Plan | [2026-08-16-native-process-supervisor-and-local-gate.md](https://github.com/danielhanold/docket/blob/feat/native-process-supervisor-and-local-gate/docs/superpowers/plans/2026-08-16-native-process-supervisor-and-local-gate.md) |
 | ADRs | [ADR-0080](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0080-detached-delegation-execution-posture-launch-then-observe.md), [ADR-0081](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md), [ADR-0087](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0087-liveness-probe-non-zero-is-not-evidence-of-death.md) |
 <!-- docket:artifacts:end -->
 
