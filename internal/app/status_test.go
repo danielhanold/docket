@@ -17,21 +17,24 @@ import (
 // or a canned error, and the calls it received are recorded so a test can prove
 // orchestration threaded the pin verbatim and asked the sources it should have.
 type fakeReader struct {
-	pin         StatusPin
-	pinErr      error
-	corpus      []StatusBlob
-	corpusErr   error
-	facts       domain.BranchFacts
-	factsErr    error
-	artifacts   map[string]bool // "source|path" -> exists
-	artifactErr error
+	pin          StatusPin
+	pinErr       error
+	corpus       []StatusBlob
+	corpusErr    error
+	facts        domain.BranchFacts
+	factsErr     error
+	artifacts    map[string]bool           // "source|path" -> exists
+	artifactData map[string]StatusArtifact // "source|path" -> read bytes/version
+	artifactErr  error
 
+	pinCount     int         // records PinContext calls
 	branchAsks   [][]string  // records BranchFacts calls
-	artifactAsks []string    // records ArtifactExists calls ("source|path")
+	artifactAsks []string    // records ArtifactExists/ReadArtifact calls ("source|path")
 	seenPins     []StatusPin // every pin threaded into a post-pin call
 }
 
 func (f *fakeReader) PinContext(_ context.Context, _ string) (StatusPin, error) {
+	f.pinCount++
 	return f.pin, f.pinErr
 }
 
@@ -53,6 +56,19 @@ func (f *fakeReader) ArtifactExists(_ context.Context, pin StatusPin, source, pa
 		return false, f.artifactErr
 	}
 	return f.artifacts[source+"|"+path], nil
+}
+
+func (f *fakeReader) ReadArtifact(_ context.Context, pin StatusPin, source, path string) (StatusArtifact, error) {
+	f.seenPins = append(f.seenPins, pin)
+	f.artifactAsks = append(f.artifactAsks, source+"|"+path)
+	if f.artifactErr != nil {
+		return StatusArtifact{}, f.artifactErr
+	}
+	art, ok := f.artifactData[source+"|"+path]
+	if !ok {
+		return StatusArtifact{Found: false}, nil
+	}
+	return art, nil
 }
 
 // --- fixtures -------------------------------------------------------------

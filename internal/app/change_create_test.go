@@ -37,6 +37,9 @@ func (r *fakeChangeReader) BranchFacts(context.Context, StatusPin, []string) (do
 func (r *fakeChangeReader) ArtifactExists(context.Context, StatusPin, string, string) (bool, error) {
 	return false, nil
 }
+func (r *fakeChangeReader) ReadArtifact(context.Context, StatusPin, string, string) (StatusArtifact, error) {
+	return StatusArtifact{}, nil
+}
 
 // recordingEngine records every Execute call and returns a scripted outcome.
 type recordingEngine struct {
