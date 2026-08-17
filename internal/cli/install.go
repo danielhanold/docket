@@ -42,6 +42,10 @@ var assetIndependent = map[string]bool{
 	"context implementation": true,
 	"artifact":               true, // the group itself; it reports a missing command
 	"artifact backlink":      true,
+	"workspace":              true, // the group itself; it reports a missing command
+	"workspace prepare":      true,
+	"workspace inspect":      true,
+	"workspace publish":      true,
 	"learning":               true, // the group itself; it reports a missing command
 	"learning record":        true,
 	"learning update":        true,
