@@ -13,7 +13,7 @@ related: [324]
 discovered_from: [303]
 adrs: [59, 66, 83, 92, 94, 95]
 spec: docs/superpowers/specs/2026-08-17-claim-to-implemented-workflow-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-17-claim-to-implemented-workflow-plan.md
 results:
 trivial: false
 auto_groomable:
@@ -21,7 +21,7 @@ branch: feat/claim-to-implemented-workflow
 pr:
 blocked_by:
 reconciled: true
-claimed_at: 2026-08-17T21:20:00Z
+claimed_at: 2026-08-17T21:28:44Z
 ---
 
 ## Artifacts
@@ -30,6 +30,7 @@ claimed_at: 2026-08-17T21:20:00Z
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-17-claim-to-implemented-workflow-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-17-claim-to-implemented-workflow-design.md) |
+| Plan | [2026-08-17-claim-to-implemented-workflow-plan.md](https://github.com/danielhanold/docket/blob/feat/claim-to-implemented-workflow/docs/superpowers/plans/2026-08-17-claim-to-implemented-workflow-plan.md) |
 | ADRs | [ADR-0059](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md), [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md), [ADR-0083](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0083-agent-worktree-scope-is-a-declared-frontmatter-fact.md), [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md), [ADR-0094](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0094-plan-authoring-is-a-pinned-internal-composition-agent.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md) |
 <!-- docket:artifacts:end -->
 
