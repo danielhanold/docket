@@ -42,6 +42,11 @@ var assetIndependent = map[string]bool{
 	"adr record":          true,
 	"adr supersede":       true,
 	"adr reverse":         true,
+	"gate":                true, // the group itself; it reports a missing command
+	"gate launch":         true,
+	"gate observe":        true,
+	"gate stop":           true,
+	"gate recover":        true,
 	"diagnostic":          true, // the group itself; it reports a missing command
 	"diagnostic runtime":  true,
 	"diagnostic config":   true,
