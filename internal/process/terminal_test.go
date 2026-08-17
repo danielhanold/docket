@@ -89,6 +89,7 @@ func TestStartFailureIsDistinct(t *testing.T) {
 	if runDir == "" {
 		t.Fatal("no run dir retained for diagnosis")
 	}
+	t.Cleanup(func() { quiesceRun(t, runDir) })
 	if rec, _ := readTerminal(runDir); rec != nil {
 		t.Fatalf("fabricated terminal record: %+v", rec)
 	}

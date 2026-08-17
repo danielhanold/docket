@@ -25,6 +25,12 @@ func observeUntilTerminal(t *testing.T, svc *Service, runDir string) *Observatio
 		obs = o
 		return o.State != StateRunning
 	})
+	// A terminal state is decided by terminal.json, which the supervisor writes
+	// BEFORE its final phase="terminal" manifest write and lock release. Wait for
+	// the supervisor to fully quiesce so a caller that then mutates the run dir
+	// (e.g. rewriting the manifest run id) is not clobbered by that trailing
+	// write — see quiesceRun.
+	quiesceRun(t, runDir)
 	return obs
 }
 
