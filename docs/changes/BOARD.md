@@ -1,6 +1,6 @@
 # Backlog
 
-**325 changes** — 🟡 49 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 191 done · 🗑️ 80 killed
+**325 changes** — 🟡 49 proposed · ⚪ 4 deferred · ✅ 192 done · 🗑️ 80 killed
 
 ## 🟡 Proposed (49)
 
@@ -45,7 +45,7 @@
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
-| [0315](active/0315-claim-to-implemented-workflow.md) | Claim-to-implemented agent workflow | `critical` | `feat` | ⏳ waiting on #314 — needs your merge |
+| [0315](active/0315-claim-to-implemented-workflow.md) | Claim-to-implemented agent workflow | `critical` | `feat` | needs-brainstorm |
 | [0316](active/0316-finalize-recovery-reclaim-archive-and-stacks.md) | Finalize, recovery, reclaim, archive, and stacks | `critical` | `feat` | ⏳ waiting on #315 — not yet built |
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | ⏳ waiting on #316 — not yet built |
 | [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Configuration contraction, self-hosting, and hard cutover | `critical` | `refactor` | ⏳ waiting on #317 — not yet built |
@@ -64,12 +64,6 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0314](active/0314-native-process-supervisor-and-local-gate.md) | Native process supervisor and local gate | `critical` | `feat` | [#215](https://github.com/danielhanold/docket/pull/215) |  |
 
 ```mermaid
 graph TD
@@ -116,7 +110,6 @@ graph TD
   0300
   0301
   0302
-  0304 --> 0314
   0312 --> 0315
   0313 --> 0315
   0314 --> 0315
@@ -132,17 +125,18 @@ graph TD
   0325
   0192:::done
   0211:::done
-  0304:::done
   0311:::done
   0312:::done
   0313:::done
+  0314:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (271)</summary>
+<details><summary>✅🗑️ Archive — done + killed (272)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0314](archive/2026-08-17-0314-native-process-supervisor-and-local-gate.md) | Native process supervisor and local gate | 2026-08-17 |
 | [0312](archive/2026-08-17-0312-planning-mutations-board-and-adrs.md) | Planning mutations, inline board, and ADRs | 2026-08-17 |
 | [0313](archive/2026-08-16-0313-workspaces-github-pr-adapter-and-build-evidence.md) | Workspaces, GitHub PR adapter, and build evidence | 2026-08-16 |
 | [0310](archive/2026-08-16-0310-read-only-status-and-health-vertical-slice.md) | Read-only status and health vertical slice | 2026-08-16 |
@@ -160,7 +154,6 @@ graph TD
 | [0285](archive/2026-08-12-0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | 2026-08-12 |
 | [0221](archive/2026-08-12-0221-assert-executes-backticks-in-its-test-description-so-a-verba.md) | assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell | 2026-08-12 |
 | [0284](archive/2026-08-11-0284-runner-dispatch-observe-is-sentinel-only-adopt-0282-s-identi.md) | runner-dispatch --observe is sentinel-only: adopt 0282's identity-checked liveness probe | 2026-08-11 |
-| [0281](archive/2026-08-11-0281-auto-groom-s-critic-verdict-return-channel-fails-under-backg.md) | Auto-groom's critic verdict return channel fails under background dispatch | 2026-08-11 |
 | [0268](archive/2026-08-11-0268-de-flake-the-reclaim-leg-of-test-docket-status-under-paralle.md) | De-flake the reclaim leg of test_docket_status under parallel contention | 2026-08-11 |
 | [0278](archive/2026-08-09-0278-test-docket-example-yml-s-fidelity-fixture-goes-intermittent.md) | test_docket_example_yml's fidelity fixture goes intermittently red under parallel contention | 2026-08-09 |
 | [0274](archive/2026-08-09-0274-runner-dispatch-s-value-taking-flags-hang-instead-of-abortin.md) | runner-dispatch's value-taking flags hang instead of aborting when given with no value | 2026-08-09 |
@@ -243,7 +236,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 58 done |
+| [2026-08](archive/) | 59 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
