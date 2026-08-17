@@ -471,6 +471,30 @@ func TestChangeLifecyclePlanSourcePreservation(t *testing.T) {
 	}
 }
 
+// TestChangeBlockPlanToleratesMissingUpdatedField pins that a block over a record
+// lacking the updated: field inserts it rather than internal-erroring. A bare
+// SetField("updated", …) returns KindMissingPatchTarget on an absent field —
+// wrapped into a plan error — leaving these ops less tolerant of shape variance
+// (e.g. Bash-era records) than the ADR ops, which upsert the same field.
+func TestChangeBlockPlanToleratesMissingUpdatedField(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	src := lifecycleChange(3, "widget", "in-progress")
+	src = strings.Replace(src, "updated: 2026-08-02\n", "", 1)
+	if strings.Contains(src, "updated:") {
+		t.Fatalf("fixture still carries an updated field:\n%s", src)
+	}
+
+	files := map[string]string{recPath: src}
+	plan, opRes := lifecyclePlanFor(t, files, baseBlockOp([]string{}, 3, recPath, "a reason"))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	rec := lifecycleRecordBytes(t, plan, recPath)
+	if !strings.Contains(rec, "updated: '2026-08-16'") {
+		t.Errorf("updated not inserted from the clock on a record lacking it:\n%s", rec)
+	}
+}
+
 // hasDomainFindingCode reports whether any domain finding carries code.
 func hasDomainFindingCode(findings []domain.Finding, code string) bool {
 	for _, f := range findings {

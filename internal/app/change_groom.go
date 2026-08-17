@@ -381,7 +381,11 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	if o.req.Outcome == GroomTrivial {
 		ps.SetField("trivial", document.Bool(true))
 	}
-	ps.SetField("updated", document.String(o.clock.Now().UTC().Format("2006-01-02")))
+	// upsertField (not bare SetField): the updated: field is inserted when a record
+	// lacks it (a Bash-era or hand-authored record), so this op degrades like the
+	// ADR ops, which upsert the same field, rather than internal-erroring with a
+	// KindMissingPatchTarget.
+	upsertField(&ps, doc1, "updated", document.String(o.clock.Now().UTC().Format("2006-01-02")))
 	if o.req.DependsOn != nil {
 		ps.SetField("depends_on", intSeqValue(o.req.DependsOn))
 	}
@@ -423,6 +427,10 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change groom: reparsing patched record: %w", err)
 	}
 	var ps2 document.PatchSet
+	// ReplaceBlock (not upsert) assumes the docket:artifacts block is present —
+	// render.ChangeRecord always emits it for canonical v1 records, and the ADR ops
+	// make the same assumption on the same corpus. A record without the block is
+	// out of scope here (there is no v1 producer of one).
 	ps2.ReplaceBlock("artifacts", body)
 	finalBytes, err := doc2.Apply(ps2)
 	if err != nil {

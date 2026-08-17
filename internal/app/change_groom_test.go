@@ -450,3 +450,25 @@ func TestChangeGroomPlanRelationshipsWritten(t *testing.T) {
 		t.Errorf("depends_on not written as the complete desired value:\n%s", rec)
 	}
 }
+
+// TestChangeGroomPlanToleratesMissingUpdatedField pins that a groom over a record
+// lacking the updated: field inserts it rather than internal-erroring, matching
+// the ADR ops' upsert of the same field (a bare SetField returns
+// KindMissingPatchTarget on an absent target).
+func TestChangeGroomPlanToleratesMissingUpdatedField(t *testing.T) {
+	src := groomableChange(2, "add-a-widget")
+	src = strings.Replace(src, "updated: 2026-08-02\n", "", 1)
+	if strings.Contains(src, "updated:") {
+		t.Fatalf("fixture still carries an updated field:\n%s", src)
+	}
+
+	files := map[string]string{groomPath(2, "add-a-widget"): src}
+	plan, opRes := groomPlanFor(t, files, baseGroomOp([]string{}, validGroomSpecRequest()))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	rec := string(groomedRecordBytes(t, plan, groomPath(2, "add-a-widget")))
+	if !strings.Contains(rec, "updated: '2026-08-16'") {
+		t.Errorf("updated not inserted from the clock on a record lacking it:\n%s", rec)
+	}
+}
