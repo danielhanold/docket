@@ -50,15 +50,16 @@ func runTestHelper(args []string) int {
 		fmt.Fprint(os.Stderr, args[2])
 		return 0
 	case "sleep":
-		// Block until the group is signalled. A bare select{} would trip Go's
-		// all-goroutines-asleep deadlock detector and exit the child within
-		// milliseconds of starting; registering a signal receiver keeps a live
-		// waiter so this is a durable stand-in that only dies when its group is
-		// signalled (teardown uses an uncatchable SIGKILL, so the receive here
-		// need not observe it — its sole job is to keep the runtime alive).
-		ch := make(chan os.Signal, 1)
-		signal.Notify(ch, syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP)
-		<-ch
+		// Block effectively forever with DEFAULT signal disposition: the child
+		// must die BY a group-directed SIGTERM (kind=signal, signal=15), the way
+		// a real supervised command does — never catch it and exit cleanly, which
+		// would fabricate an exit terminal record. A bare select{} would trip
+		// Go's all-goroutines-asleep deadlock detector and exit within
+		// milliseconds; a parked timer is not a deadlock (the runtime sees a
+		// pending timer), so time.Sleep keeps the runtime alive without
+		// registering any signal handler. Teardown (SIGKILL) and stop (SIGTERM)
+		// both reach it through its group.
+		time.Sleep(time.Hour)
 		return 0
 	case "ignore-term":
 		signal.Ignore(syscall.SIGTERM)
