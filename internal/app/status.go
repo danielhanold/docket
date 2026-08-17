@@ -79,6 +79,16 @@ type StatusBlob struct {
 	Data     []byte
 }
 
+// StatusArtifact is one artifact read from a pinned source: its blob object id
+// and raw bytes, or Found=false when the path is absent at the pinned revision.
+// It is the byte-returning companion to ArtifactExists, which reports only
+// presence.
+type StatusArtifact struct {
+	Found   bool
+	Version string // blob object id
+	Data    []byte
+}
+
 // StatusReader is the seam between orchestration and Git. One call per concern;
 // the Git-backed implementation arrives in Task 3, and application tests drive
 // a fake.
@@ -98,6 +108,12 @@ type StatusReader interface {
 	// ArtifactExists reports whether a repo-relative path exists on the named
 	// pinned source ("metadata" for specs, "integration" for plans/results).
 	ArtifactExists(ctx context.Context, pin StatusPin, source, path string) (bool, error)
+	// ReadArtifact reads a repo-relative path from the named pinned source,
+	// returning its exact bytes and blob object id, or Found=false when the
+	// path is absent. It reads at the same pinned revision ArtifactExists
+	// consults, so a bundle can carry loss-preserving source bytes for an
+	// artifact (a spec) that is not a corpus record.
+	ReadArtifact(ctx context.Context, pin StatusPin, source, path string) (StatusArtifact, error)
 }
 
 // Status runs the whole read and returns the one protocol document. It composes

@@ -259,6 +259,29 @@ func (r *gitStatusReader) ArtifactExists(ctx context.Context, pin StatusPin, sou
 	return results[0].Found, nil
 }
 
+// ReadArtifact reads a repo-relative path from the named pinned source,
+// returning its exact bytes and blob object id. An absent path is a clean
+// (Found=false, nil) — the same benign absence ArtifactExists reports.
+func (r *gitStatusReader) ReadArtifact(ctx context.Context, pin StatusPin, source, artifactPath string) (StatusArtifact, error) {
+	rev, err := sourceRevision(pin, source)
+	if err != nil {
+		return StatusArtifact{}, err
+	}
+	src, err := r.openSource(ctx, rev)
+	if err != nil {
+		return StatusArtifact{}, classifyGitFailure(err)
+	}
+	results, err := src.ReadBlobs(ctx, []gitcli.RepoPath{gitcli.RepoPath(artifactPath)})
+	if err != nil {
+		return StatusArtifact{}, classifyGitFailure(err)
+	}
+	br := results[0]
+	if !br.Found {
+		return StatusArtifact{Found: false}, nil
+	}
+	return StatusArtifact{Found: true, Version: string(br.Blob.ObjectID), Data: br.Blob.Bytes}, nil
+}
+
 // fetchRevision fetches one fully-qualified branch through origin and returns
 // its pinned commit id as a string, mapping any adapter failure to a status
 // classification.

@@ -25,35 +25,37 @@ import (
 // `docket`. TestAssetIndependentSetExact holds the correspondence with the
 // Cobra tree in both directions.
 var assetIndependent = map[string]bool{
-	"":                    true, // bare `docket`: reports a missing command
-	"help":                true,
-	"version":             true,
-	"status":              true,
-	"change":              true, // the group itself; it reports a missing command
-	"change create":       true,
-	"change groom":        true,
-	"change block":        true,
-	"change defer":        true,
-	"change kill":         true,
-	"learning":            true, // the group itself; it reports a missing command
-	"learning record":     true,
-	"learning update":     true,
-	"adr":                 true, // the group itself; it reports a missing command
-	"adr record":          true,
-	"adr supersede":       true,
-	"adr reverse":         true,
-	"gate":                true, // the group itself; it reports a missing command
-	"gate launch":         true,
-	"gate observe":        true,
-	"gate stop":           true,
-	"gate recover":        true,
-	"diagnostic":          true, // the group itself; it reports a missing command
-	"diagnostic runtime":  true,
-	"diagnostic config":   true,
-	"install":             true,
-	"install check":       true,
-	"development":         true,
-	"development install": true,
+	"":                       true, // bare `docket`: reports a missing command
+	"help":                   true,
+	"version":                true,
+	"status":                 true,
+	"change":                 true, // the group itself; it reports a missing command
+	"change create":          true,
+	"change groom":           true,
+	"change block":           true,
+	"change defer":           true,
+	"change kill":            true,
+	"context":                true, // the group itself; it reports a missing command
+	"context implementation": true,
+	"learning":               true, // the group itself; it reports a missing command
+	"learning record":        true,
+	"learning update":        true,
+	"adr":                    true, // the group itself; it reports a missing command
+	"adr record":             true,
+	"adr supersede":          true,
+	"adr reverse":            true,
+	"gate":                   true, // the group itself; it reports a missing command
+	"gate launch":            true,
+	"gate observe":           true,
+	"gate stop":              true,
+	"gate recover":           true,
+	"diagnostic":             true, // the group itself; it reports a missing command
+	"diagnostic runtime":     true,
+	"diagnostic config":      true,
+	"install":                true,
+	"install check":          true,
+	"development":            true,
+	"development install":    true,
 }
 
 // commandKey is a command's path with the root's own name stripped, which is
