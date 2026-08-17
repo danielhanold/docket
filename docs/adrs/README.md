@@ -91,6 +91,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0092](0092-a-stacked-changes-base-is-its-parents-merge-destination.md) — A stacked change's effective base is its parent's merge destination (Accepted) ← change #298
 - [ADR-0093](0093-repository-reference-severity-graded-by-structural-role.md) — Repository reference severity is graded by structural role, not uniformly (Accepted) ← change #307
 - [ADR-0094](0094-plan-authoring-is-a-pinned-internal-composition-agent.md) — Plan authoring is a pinned internal composition agent owning one git-verifiable artifact (Accepted) ← change #324 · relates to ADR-0008, ADR-0018, ADR-0044, ADR-0059, ADR-0064, ADR-0083
+- [ADR-0095](0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md) — The native per-run supervisor delivers a genuine session and an exact terminal record on every supported platform (Accepted) ← change #314 → supersedes ADR-0081 · relates to ADR-0080, ADR-0087
 
 ## Superseded / Reversed
 
