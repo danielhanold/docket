@@ -2,7 +2,7 @@
 id: 314
 slug: native-process-supervisor-and-local-gate
 title: 'Native process supervisor and local gate'
-status: implemented
+status: done
 priority: critical
 type: feat
 created: 2026-08-12
@@ -21,7 +21,7 @@ branch: feat/native-process-supervisor-and-local-gate
 pr: https://github.com/danielhanold/docket/pull/215
 blocked_by:
 reconciled: true
-claimed_at: 2026-08-17T12:03:52Z
+claimed_at: 
 ---
 
 ## Artifacts
