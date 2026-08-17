@@ -367,8 +367,8 @@ func TestLearningRecordPlanFileSetExcludesIndex(t *testing.T) {
 	files := map[string]string{
 		"docs/changes/active/0003-three.md": fixtureChange(3, "three"),
 		// A pre-existing index and a sibling learning must be left untouched.
-		"docs/changes/learnings/LEARNINGS.md":  "# ledger\n",
-		"docs/changes/learnings/other.md":      fixtureLearning("other"),
+		"docs/changes/learnings/LEARNINGS.md": "# ledger\n",
+		"docs/changes/learnings/other.md":     fixtureLearning("other"),
 	}
 	plan, opRes := learningRecordPlanFor(t, files, baseLearningRecordOp())
 	if opRes.Refused {

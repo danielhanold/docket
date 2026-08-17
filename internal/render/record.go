@@ -108,13 +108,13 @@ func LearningRecord(r NewLearningRecord) ([]byte, error) {
 
 // NewADRRecord describes one canonical newly-recorded Accepted ADR.
 type NewADRRecord struct {
-	ID          domain.ADRID
-	Slug, Title string
-	Date        time.Time
-	Change      *domain.ChangeID
-	RelatesTo   []domain.ADRID
-	Supersedes  []domain.ADRID // populated by adr supersede; empty for plain record
-	Reverses    []domain.ADRID
+	ID           domain.ADRID
+	Slug, Title  string
+	Date         time.Time
+	Change       *domain.ChangeID
+	RelatesTo    []domain.ADRID
+	Supersedes   []domain.ADRID // populated by adr supersede; empty for plain record
+	Reverses     []domain.ADRID
 	Context      string // markdown body, no heading line
 	Decision     string // markdown body, no heading line
 	Consequences string // markdown body, no heading line

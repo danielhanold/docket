@@ -62,10 +62,10 @@ func padID(id int) string {
 // groomable fixture at id 2 / slug add-a-widget.
 func validGroomSpecRequest() ChangeGroomRequest {
 	return ChangeGroomRequest{
-		ChangeID: 2,
-		Path:     groomPath(2, "add-a-widget"),
-		Version:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		Outcome:  GroomSpec,
+		ChangeID:     2,
+		Path:         groomPath(2, "add-a-widget"),
+		Version:      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Outcome:      GroomSpec,
 		SpecMarkdown: "# Design\n\nThe design body.\n",
 		Sections: []SectionEditRequest{
 			{Heading: "## Why", Intent: "replace", Markdown: "Refined why.\n"},
@@ -375,8 +375,8 @@ func TestChangeGroomPlanTrivialOutcomeFileSet(t *testing.T) {
 
 func TestChangeGroomPlanRefusesNonGroomable(t *testing.T) {
 	cases := []struct {
-		name    string
-		mutate  func(string) string
+		name   string
+		mutate func(string) string
 	}{
 		{"already has spec", func(s string) string { return strings.Replace(s, "spec:\n", "spec: 'docs/x.md'\n", 1) }},
 		{"already trivial", func(s string) string { return strings.Replace(s, "trivial: false", "trivial: true", 1) }},
@@ -435,7 +435,7 @@ func TestChangeGroomPlanSourcePreservation(t *testing.T) {
 
 func TestChangeGroomPlanRelationshipsWritten(t *testing.T) {
 	files := map[string]string{
-		groomPath(2, "add-a-widget"): groomableChange(2, "add-a-widget"),
+		groomPath(2, "add-a-widget"):        groomableChange(2, "add-a-widget"),
 		"docs/changes/active/0001-first.md": fixtureChange(1, "first"),
 	}
 	req := validGroomSpecRequest()
