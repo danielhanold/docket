@@ -2,9 +2,9 @@
 slug: environment
 hook: "A RED suite in a build sandbox or an installed dev shell is a hypothesis, not a verdict — re-run it on the unmodified base."
 topics: [testing, environment, ci]
-changes: [34, 66, 311]
+changes: [34, 66, 311, 312]
 created: 2026-06-21
-updated: 2026-08-14
+updated: 2026-08-17
 promotion_state: retained
 promoted_to:
 ---
@@ -30,3 +30,12 @@ their own sub-shells so an installed shell can't false-RED them.
   argument is umask-masked), alongside one genuinely test-side failure. So the differential re-run
   cuts both ways: it separates false RED from real defect, and "it only fails in the sandbox" is
   never on its own grounds to wave a failure through.
+- 2026-08-17 (#312, PR #214) — Same family, third revealer: **PATH**, not an env var and not a
+  sandbox. The build gate's detached subprocess inherited a login shell whose PATH had dropped
+  `/opt/homebrew/bin`, so `#!/usr/bin/env bash` resolved macOS `/bin/bash` 3.2 and roughly **17
+  shell test files** reddened identically on `mapfile: command not found` — docket's scripts use the
+  Bash-4 builtin. The failing set was uniform and syntactic, which is itself the tell: a real
+  regression from a Go-package change does not redden seventeen unrelated shell files on one missing
+  builtin. Re-running the identical suite with the interpreter's own directory pinned on PATH went
+  121/121. So when reading a RED set, check **which interpreter actually ran** before checking the
+  diff — the runner's own PATH is part of the environment being hypothesised about.

@@ -2,9 +2,9 @@
 slug: tolerance-constant-calibrated-on-one-machine
 hook: "A tolerance constant measured on one machine's contention profile is wrong in both directions elsewhere — too tight it flakes, too loose enforcement goes vacuous; record the measurement, not just the number."
 topics: [thresholds, performance, portability]
-changes: [227]
+changes: [227, 312]
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-17
 promotion_state: retained
 promoted_to:
 ---
@@ -45,3 +45,14 @@ vary with contention, so the threshold can be tightened back into a real gate
   comment at the definition site rather than as a bare literal, and opened **#0229** to make the
   check contention-independent — which is the actual fix, since only then can the budget breach go
   back to being a hard gate ([[exit-code-encodes-a-non-failure]]).
+- 2026-08-17 (#312, PR #214) — The same constant read the other way round, from the *runner's* side.
+  At the runner's default parallelism this machine saturated and about **24 files** printed
+  `OVER BUDGET`, blowing their rows by roughly **10x**; the identical suite at `-j 3` ran 121/121
+  clean and inside budget, and the one genuinely timing-sensitive test (`test_gate_run_stop`, a
+  `--stop` barrier test of code this change never touched) was green in isolation and in the final
+  run. Nothing about the files under test changed between those runs — only how hard the box was
+  contending with itself. So an `OVER BUDGET` line is only evidence about a file once the
+  **parallelism it was measured at** is recorded next to it; read without that, a saturated run
+  invites either a pointless optimisation of an innocent file or a budget raise that makes the row
+  vacuous. Record the `-j` level with the measurement, and treat a whole-suite cliff (dozens of rows
+  over at once, all by a similar factor) as a statement about the machine, not the suite.
