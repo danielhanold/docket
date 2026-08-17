@@ -27,8 +27,10 @@ const (
 // manifestRecord is the run's identity and phase ledger. Phases:
 // "allocated", "established", "running", "terminal".
 type manifestRecord struct {
-	Schema        int    `json:"schema"`
-	RunID         string `json:"run_id"`
+	Schema int    `json:"schema"`
+	RunID  string `json:"run_id"`
+	// Token is reserved and unused: written but read by no code path today.
+	// See NewRunIdentity for why it is allocated but not yet gating.
 	Token         string `json:"token"`
 	Root          string `json:"root"`
 	RunDir        string `json:"run_dir"`
