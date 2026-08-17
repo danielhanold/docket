@@ -20,8 +20,8 @@ auto_groomable:
 branch: feat/native-process-supervisor-and-local-gate
 pr:
 blocked_by:
-reconciled: false
-claimed_at: 2026-08-17T02:04:24Z
+reconciled: true
+claimed_at: 2026-08-17T02:06:00Z
 ---
 
 ## Artifacts
@@ -69,3 +69,14 @@ wait-status decision. ADR-0080's delegated-agent boundary, ADR-0087's liveness r
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-17
+
+Reconciled against current `main`/`docket` reality before planning. No scope change; spec kept as-is.
+
+- Predecessor **0304** is `done` (archived). Its contracts (`app.Envelope`, `app.Result`, `app.ExitCode`, Cobra registration via `internal/cli`, Darwin/Linux target set) are present and consumed as designed.
+- The sibling migration packages **0305–0313** have since landed in `internal/` (`config`, `document`, `domain`, `gitcli`, `githubcli`, `harness`, `install`, `render`, `repository`, `workspace`, `evidence`). The spec already anticipates them as independent siblings this change must not import; that boundary is unchanged and now enforceable by a real import-containment test.
+- `internal/process` does **not** exist yet — no file/package collision; this change creates it fresh.
+- No `gate` command group exists (grep matches were incidental substrings). `docket gate` is net-new.
+- **ADR-0081** is `Accepted`; this change mints a new ADR superseding it (ADR-0081 stays on `adrs:` so the supersession + status flip land atomically at build).
+- Auto-capture (enabled): no distinct beyond-scope follow-up surfaced during reconcile — downstream 0315–0318 already exist as stubs; nothing minted.
