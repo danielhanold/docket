@@ -7,14 +7,14 @@ priority: critical
 type: chore
 created: 2026-08-18
 updated: 2026-08-18
-claimed_at: 2026-08-18T19:34:14Z
+claimed_at: 2026-08-18T19:37:01Z
 depends_on: [315]
 stacked_on:
 related: [316, 318, 322]
 discovered_from: [316]
 adrs: []
 spec: docs/superpowers/specs/2026-08-18-pre-go-mutation-configuration-contraction-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-18-pre-go-mutation-configuration-contraction.md
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-18-pre-go-mutation-configuration-contraction-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-18-pre-go-mutation-configuration-contraction-design.md) |
+| Plan | [2026-08-18-pre-go-mutation-configuration-contraction.md](https://github.com/danielhanold/docket/blob/feat/pre-go-mutation-configuration-contraction/docs/superpowers/plans/2026-08-18-pre-go-mutation-configuration-contraction.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
