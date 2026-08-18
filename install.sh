@@ -1,48 +1,76 @@
-#!/usr/bin/env bash
-# install.sh — set up docket on this machine, in one command.
+#!/bin/sh
+# install.sh — bootstrap docket's development install from this checkout (change 0322).
 #
-# Runs the four install primitives in order:
-#   1. ensure-global-config.sh — discover/persist a machine-local Bash 4+ runtime before any
-#                                runtime-dependent primitive
-#   2. link-skills.sh  — symlink the skills into each present harness's skill dir (live; edit-once)
-#   3. sync-agents.sh  — generate the model/effort-pinned agent wrappers into each present harness
-#                        (generated copies; re-run after editing a config layer)
-#   4. ensure-docket-env.sh — export DOCKET_SCRIPTS_DIR and DOCKET_BASH_PATH for consuming repos
-#                             (re-run back-fills already-migrated clones)
-# All are idempotent, so install.sh is safe to re-run any time (e.g. after adding a harness or
-# editing ~/.config/docket/config.yml).
+# This is a thin POSIX bootstrapper, NOT the installer. It resolves its own checkout
+# directory independent of the caller's CWD, then chooses one of three paths by probing
+# for an installed `docket`:
 #
-# NOT part of install: migrate-to-docket.sh — that migrates an existing repo to docket-mode and is
-# run from INSIDE the repo you are migrating, not as machine setup.
+#   (a) a compatible installed `docket`  -> delegate to `docket development install`
+#   (b) no `docket` on PATH              -> `go run ./cmd/docket development install`
+#   (c) a `docket` present but whose `development install` probe errors, or does not name
+#       the install operation            -> refuse non-zero, mutating nothing. This third
+#       state must NOT fall through to the go-run path: a broken-but-present docket is a
+#       machine to fix, not a case to silently work around.
 #
-# Test seam: DOCKET_HARNESS_ROOT is passed through to all four sub-scripts (overrides $HOME).
-set -euo pipefail
+# The heavy lifting (building the binary, linking harnesses, adopting legacy artifacts,
+# the journaled install transaction) lives in the Go engine reached through that command.
+#
+# DOCKET_BOOTSTRAP_DRY_RUN=1 prints the resolved command to stdout and exits 0 without
+# running it — the test seam this file's own tests key on.
+#
+# Runs under the system /bin/sh: no bashisms, and no dependency on any docket runtime, so a
+# bare checkout can bootstrap itself before anything docket has been installed.
+set -eu
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve <checkout> as the directory holding this script, canonicalised and independent of the
+# caller's CWD. pwd -P so a checkout reached through a symlinked parent yields one physical name —
+# the same canonicalisation sync-agents.sh's resolve_physical_path applies to the dirs it walks.
+SOURCE_ROOT="$(cd "$(dirname "$0")" && pwd -P)"
 
-# change 0133: the shared runtime.bash reader. Sourced here rather than re-implemented so a fix to
-# the scalar grammar reaches install, the installer, and the resolver together. Bootstrap-
-# compatible by requirement — this runs under the system Bash, before DOCKET_BASH_PATH exists.
-# shellcheck source=scripts/lib/docket-runtime.sh
-. "$SCRIPT_DIR/scripts/lib/docket-runtime.sh"
+# docket_is_compatible — tri-state probe of an installed `docket`:
+#   0  a usable installed docket that advertises the development-install operation -> delegate
+#   1  present but its `development install` probe errored or did not name the operation
+#      (the third state — the caller must refuse, never fall through to go run)
+#   2  absent from PATH -> the go-run fallback is appropriate
+docket_is_compatible() {
+  command -v docket >/dev/null 2>&1 || return 2
+  # Capture the probe output first, then test the captured text: never pipe a producer into an
+  # early-exiting consumer. A non-zero probe is the third state (return 1), not absence.
+  probe="$(docket development install --help 2>/dev/null)" || return 1
+  case "$probe" in
+    *install*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 
-echo "==> ensure-global-config.sh (configure Bash runtime)"
-DOCKET_BOOTSTRAP_LAUNCH=1 bash "$SCRIPT_DIR/scripts/ensure-global-config.sh"
+# emit_or_run — dry-run prints the resolved command; otherwise exec it (replacing this shell so the
+# delegated exit status is the caller's). A1 establishes the seam; A2 hardens argv-safety and adds
+# the supported passthrough flags.
+emit_or_run() {
+  if [ "${DOCKET_BOOTSTRAP_DRY_RUN:-}" = 1 ]; then
+    printf '%s\n' "$*"
+    exit 0
+  fi
+  exec "$@"
+}
 
-CONFIG_ROOT="${XDG_CONFIG_HOME:-${DOCKET_HARNESS_ROOT:-$HOME}/.config}"
-# No markers and no duplicate handling: ensure-global-config.sh has just guaranteed exactly one
-# authoritative declaration — one level deep, none deeper (change 0153) — or exited non-zero, so
-# this reads the value it settled on — managed or hand-authored alike.
-DOCKET_BASH_PATH="$(docket_runtime_first "$CONFIG_ROOT/docket/config.yml")"
-export DOCKET_BASH_PATH
+# The condition of an `if` is exempt from set -e, so a non-zero return here is captured, not fatal.
+if docket_is_compatible; then
+  state=0
+else
+  state=$?
+fi
 
-echo "==> link-skills.sh (install skills)"
-"$DOCKET_BASH_PATH" "$SCRIPT_DIR/link-skills.sh"
-
-echo "==> sync-agents.sh (generate agent wrappers)"
-"$DOCKET_BASH_PATH" "$SCRIPT_DIR/sync-agents.sh"
-
-echo "==> ensure-docket-env.sh (export Docket runtime environment)"
-"$DOCKET_BASH_PATH" "$SCRIPT_DIR/scripts/ensure-docket-env.sh"
-
-echo "docket: install complete"
+case "$state" in
+  0)
+    emit_or_run docket development install --source "$SOURCE_ROOT"
+    ;;
+  2)
+    emit_or_run go run ./cmd/docket development install --source "$SOURCE_ROOT"
+    ;;
+  *)
+    printf 'docket: found an incompatible "docket" on PATH; its development-install probe failed.\n' >&2
+    printf 'docket: refusing to continue. Install a compatible docket, or remove it from PATH to bootstrap from source.\n' >&2
+    exit 1
+    ;;
+esac

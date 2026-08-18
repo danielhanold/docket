@@ -332,6 +332,7 @@ tests/test_harness_defaults_flow_map.sh	40	parallel
 tests/test_harness_defaults_validator.sh	50	parallel
 tests/test_inline_role_stop_scoping.sh	10	parallel
 tests/test_install.sh	10	parallel
+tests/test_install_bootstrap.sh	10	parallel
 tests/test_learnings_ledger.sh	10	parallel
 tests/test_link_skills.sh	10	parallel
 tests/test_loop_continuation.sh	10	parallel
