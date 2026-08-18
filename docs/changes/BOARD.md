@@ -1,6 +1,6 @@
 # Backlog
 
-**326 changes** — 🟢 1 in progress · 🟡 48 proposed · ⚪ 4 deferred · ✅ 193 done · 🗑️ 80 killed
+**327 changes** — 🟢 1 in progress · 🟡 49 proposed · ⚪ 4 deferred · ✅ 193 done · 🗑️ 80 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0322](active/0322-go-installer-adopt-legacy-bash-installed-user-level-artifact.md) | Bootstrap Go development installation and adopt legacy user-level artifacts | `critical` | `feat` | [spec](../superpowers/specs/2026-08-18-development-install-bootstrap-and-legacy-adoption-design.md) | `feat/go-installer-adopt-legacy-bash-installed-user-level-artifact` |
 
-## 🟡 Proposed (48)
+## 🟡 Proposed (49)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -60,6 +60,7 @@
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | needs-brainstorm |
 | [0325](active/0325-de-flake-the-gate-run-stop-barrier-test.md) | De-flake the gate-run --stop barrier test | `medium` | `fix` | needs-brainstorm |
 | [0326](active/0326-pre-go-mutation-configuration-contraction.md) | Pre-Go mutation configuration contraction | `critical` | `chore` | build-ready |
+| [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -128,6 +129,7 @@ graph TD
   0323
   0325
   0315 --> 0326
+  0327
   0192:::done
   0211:::done
   0311:::done
