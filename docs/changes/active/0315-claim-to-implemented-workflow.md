@@ -2,11 +2,11 @@
 id: 315
 slug: claim-to-implemented-workflow
 title: 'Claim-to-implemented agent workflow'
-status: in-progress
+status: implemented
 priority: critical
 type: feat
 created: 2026-08-12
-updated: 2026-08-17
+updated: 2026-08-18
 depends_on: [312, 313, 314]
 stacked_on:
 related: [324]
@@ -14,14 +14,14 @@ discovered_from: [303]
 adrs: [59, 66, 83, 92, 94, 95]
 spec: docs/superpowers/specs/2026-08-17-claim-to-implemented-workflow-design.md
 plan: docs/superpowers/plans/2026-08-17-claim-to-implemented-workflow-plan.md
-results:
+results: docs/results/2026-08-18-claim-to-implemented-workflow-results.md
 trivial: false
 auto_groomable:
 branch: feat/claim-to-implemented-workflow
-pr:
+pr: https://github.com/danielhanold/docket/pull/216
 blocked_by:
 reconciled: true
-claimed_at: 2026-08-17T21:28:44Z
+claimed_at: 2026-08-18T06:33:00Z
 ---
 
 ## Artifacts
@@ -31,6 +31,8 @@ claimed_at: 2026-08-17T21:28:44Z
 |---|---|
 | Spec | [2026-08-17-claim-to-implemented-workflow-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-17-claim-to-implemented-workflow-design.md) |
 | Plan | [2026-08-17-claim-to-implemented-workflow-plan.md](https://github.com/danielhanold/docket/blob/feat/claim-to-implemented-workflow/docs/superpowers/plans/2026-08-17-claim-to-implemented-workflow-plan.md) |
+| Results | [2026-08-18-claim-to-implemented-workflow-results.md](https://github.com/danielhanold/docket/blob/feat/claim-to-implemented-workflow/docs/results/2026-08-18-claim-to-implemented-workflow-results.md) |
+| PR | [#216](https://github.com/danielhanold/docket/pull/216) |
 | ADRs | [ADR-0059](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md), [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md), [ADR-0083](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0083-agent-worktree-scope-is-a-declared-frontmatter-fact.md), [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md), [ADR-0094](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0094-plan-authoring-is-a-pinned-internal-composition-agent.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md) |
 <!-- docket:artifacts:end -->
 
