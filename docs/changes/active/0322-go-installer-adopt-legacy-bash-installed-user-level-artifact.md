@@ -7,14 +7,14 @@ priority: critical
 type: feat
 created: 2026-08-14
 updated: 2026-08-18
-claimed_at: 2026-08-18T15:56:42Z
+claimed_at: 2026-08-18T16:02:47Z
 depends_on: [311]
 stacked_on:
 related: [316, 326]
 discovered_from: [311]
 adrs: []
 spec: docs/superpowers/specs/2026-08-18-development-install-bootstrap-and-legacy-adoption-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-18-development-install-bootstrap-and-legacy-adoption.md
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-18-development-install-bootstrap-and-legacy-adoption-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-18-development-install-bootstrap-and-legacy-adoption-design.md) |
+| Plan | [2026-08-18-development-install-bootstrap-and-legacy-adoption.md](https://github.com/danielhanold/docket/blob/feat/go-installer-adopt-legacy-bash-installed-user-level-artifact/docs/superpowers/plans/2026-08-18-development-install-bootstrap-and-legacy-adoption.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
