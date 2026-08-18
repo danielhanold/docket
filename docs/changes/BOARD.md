@@ -1,6 +1,6 @@
 # Backlog
 
-**328 changes** — 🟢 1 in progress · 🟡 47 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 195 done · 🗑️ 80 killed
+**328 changes** — 🟢 1 in progress · 🟡 47 proposed · ⚪ 4 deferred · ✅ 196 done · 🗑️ 80 killed
 
 ## 🟢 In progress (1)
 
@@ -69,12 +69,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0328](active/0328-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full.md) | De-flake TestRecoverMarksCleanlyAbandonedOwnedRun under full-suite load | `medium` | `fix` | [#219](https://github.com/danielhanold/docket/pull/219) |  |
-
 ```mermaid
 graph TD
   0007
@@ -132,7 +126,6 @@ graph TD
   0323
   0315 --> 0326
   0327
-  0328
   0192:::done
   0211:::done
   0311:::done
@@ -141,10 +134,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (275)</summary>
+<details><summary>✅🗑️ Archive — done + killed (276)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0328](archive/2026-08-18-0328-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full.md) | De-flake TestRecoverMarksCleanlyAbandonedOwnedRun under full-suite load | 2026-08-18 |
 | [0325](archive/2026-08-18-0325-de-flake-the-gate-run-stop-barrier-test.md) | De-flake the gate-run --stop barrier test | 2026-08-18 |
 | [0322](archive/2026-08-18-0322-go-installer-adopt-legacy-bash-installed-user-level-artifact.md) | Bootstrap Go development installation and adopt legacy user-level artifacts | 2026-08-18 |
 | [0315](archive/2026-08-18-0315-claim-to-implemented-workflow.md) | Claim-to-implemented agent workflow | 2026-08-18 |
@@ -159,7 +153,6 @@ graph TD
 | [0307](archive/2026-08-14-0307-domain-snapshot-validation-graphs-and-selection.md) | Domain snapshot, validation, graphs, and selection | 2026-08-14 |
 | [0306](archive/2026-08-13-0306-loss-preserving-document-layer.md) | Loss-preserving document layer | 2026-08-13 |
 | [0305](archive/2026-08-13-0305-configuration-and-capability-envelope.md) | Configuration and capability envelope | 2026-08-13 |
-| [0304](archive/2026-08-13-0304-go-executable-json-protocol-test-build-skeleton.md) | Go executable, JSON protocol, and test/build skeleton | 2026-08-13 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
 | [0299](archive/2026-08-12-0299-reshard-tests-test-sync-agents-runners-so-every-file-measure.md) | Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling | 2026-08-12 |
 | [0285](archive/2026-08-12-0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | 2026-08-12 |
@@ -245,7 +238,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 62 done |
+| [2026-08](archive/) | 63 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
