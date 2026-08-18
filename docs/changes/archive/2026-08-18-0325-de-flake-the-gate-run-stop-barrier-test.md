@@ -2,12 +2,12 @@
 id: 325
 slug: de-flake-the-gate-run-stop-barrier-test
 title: 'De-flake the gate-run --stop barrier test'
-status: implemented
+status: done
 priority: medium
 type: fix
 created: 2026-08-17
 updated: 2026-08-18
-claimed_at: 2026-08-18T18:59:03Z
+claimed_at: 
 depends_on: []
 stacked_on:
 related: []
