@@ -6,13 +6,13 @@ status: proposed
 priority: critical
 type: feat
 created: 2026-08-12
-updated: 2026-08-12
+updated: 2026-08-18
 depends_on: [315]
 stacked_on:
 related: [298]
 discovered_from: [303]
-adrs: []
-spec:
+adrs: [10, 11, 35, 43, 59, 66, 74, 83, 86, 92, 95]
+spec: docs/superpowers/specs/2026-08-18-finalize-recovery-reclaim-archive-and-stacks-design.md
 plan:
 results:
 trivial: false
@@ -26,6 +26,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-18-finalize-recovery-reclaim-archive-and-stacks-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-18-finalize-recovery-reclaim-archive-and-stacks-design.md) |
+| ADRs | [ADR-0010](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0010-finalize-merge-gate-split-agents.md), [ADR-0011](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0011-finalize-consent-model.md), [ADR-0035](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0035-cleanup-teardown-fail-closed.md), [ADR-0043](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md), [ADR-0059](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md), [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md), [ADR-0074](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md), [ADR-0083](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0083-agent-worktree-scope-is-a-declared-frontmatter-fact.md), [ADR-0086](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0086-in-context-gating-dispatch-carved-out-of-the-tier-taxonomy.md), [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -35,18 +39,17 @@ the correct terminal state in both repository modes.
 
 ## What changes
 
-Implement local rebase/retest, merge verification, archive, stack close-out, reclaim, explicit
-maintenance sweep, halted/finalize-blocked recovery, and ownership-safe cleanup.
+Add authoritative finalize context and resumable Go operations for local rebase/retest, rewritten
+head publication, merge verification, atomic terminal archive and stack close-out, explicit and
+policy-driven reclaim, durable halted/finalize-blocked recovery, merged-PR maintenance, generated
+terminal-link repair, and ownership-safe run/workspace/branch cleanup.
 
 ## Out of scope
 
-CI-only gates, terminal publishing, automatic learning harvest, release packaging, and self-hosting
-cutover.
-
-## Open questions
-
-Settle resumable operation boundaries and failure-injection points against the landed implementation
-workflow and current stacked-change invariant.
+Behavior owned by changes 0305 through 0315; release packaging and four-harness acceptance from
+0317; configuration contraction, self-hosting, Bash removal, and hard cutover from 0318; and
+deferred CI/combined gates, results-only skips, terminal publishing, automatic learning harvest,
+capture/groom automation, cross-harness routing, skill rebinding, or Bash fallback behavior.
 
 ## Reconcile log
 
