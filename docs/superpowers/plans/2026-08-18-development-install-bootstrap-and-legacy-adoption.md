@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0322 — Bootstrap Go development installation and adopt legacy user-level artifacts](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0322-go-installer-adopt-legacy-bash-installed-user-level-artifact.md)**
+> ↩ **[Change 0322 — Bootstrap Go development installation and adopt legacy user-level artifacts](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-18-0322-go-installer-adopt-legacy-bash-installed-user-level-artifact.md)**
 <!-- docket:backlink:end -->
 
 # Development-install bootstrap and legacy user-level adoption — Implementation Plan
