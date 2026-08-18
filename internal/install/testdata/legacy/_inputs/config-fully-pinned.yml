@@ -1,0 +1,5 @@
+agent_harnesses: [claude, codex, cursor, opencode]
+agents:
+  default:
+    status: { model: legacy-pinned-model, effort: high }
+    brainstorm-consultant: { model: legacy-pinned-model, effort: high }

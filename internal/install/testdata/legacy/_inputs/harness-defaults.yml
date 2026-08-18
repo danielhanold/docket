@@ -1,0 +1,138 @@
+# agents/harness-defaults.yml — docket's SHIPPED per-harness agent model/effort defaults.
+#
+# This is program data, NOT a user configuration file. It is the lowest layer of the agent
+# resolution order; every user layer (machine-local .docket.local.yml, committed .docket.yml,
+# global config.yml) overrides it FIELD BY FIELD. See ADR-0016 and the agent-layer reference.
+#
+# Rules this file must satisfy (enforced by scripts/lib/harness-defaults.sh, run before
+# sync-agents.sh writes any wrapper):
+#   - every entry nests under a CONCRETE harness; a harness-neutral `default:` block is forbidden,
+#     because that is exactly the cross-harness model leakage this file exists to remove;
+#   - keys are wrapper SHORT names (build-economy, not docket-build-economy);
+#   - a listed entry supplies BOTH model and effort — the table is sparse by harness and agent,
+#     never by field;
+#   - `runner:` is forbidden — delegation is user policy, never a shipped default;
+#   - every harness listed in HD_SHIPPED_HARNESSES carries a COMPLETE block (its key set equals
+#     agents/docket-*.md) — claude, cursor, codex, and opencode today.
+#
+# Model IDs and effort tokens are opaque passthrough values (ADR-0015). Docket keeps no vendor
+# allowlist; an unrecognized string is never rejected here. They must, however, be written as BARE
+# scalars — unquoted and space-free — because the reader consumes everything up to the next `,` or
+# `}`. A provider-prefixed ID (`anthropic/claude-opus-5`, `openai:gpt-5.6-sol`) is fine; a quoted
+# or space-bearing value is rejected by hd_validate with a diagnostic naming the bareness rule,
+# rather than being silently clipped to a prefix.
+agents:
+  claude:
+    adr:                   { model: claude-opus-5, effort: low }
+    auto-groom:            { model: claude-opus-5, effort: low }
+    auto-groom-critic:     { model: claude-opus-5, effort: medium }
+    brainstorm-consultant: { model: claude-opus-5, effort: medium }
+    # build-economy ships Sonnet rather than Haiku deliberately: the worker contract is long and strict,
+    # and its failure modes (malformed return, stray commit, unverifiable COMPLETE) HALT the build
+    # instead of escalating, so contract-fumble risk lands on the human. Haiku
+    # (claude-haiku-4-5-20251001) is the documented cost-aggressive user-layer override, not a
+    # shipped default.
+    build-economy:         { model: claude-sonnet-5, effort: low }
+    build-standard:        { model: claude-opus-5, effort: low }
+    build-premium:         { model: claude-opus-5, effort: medium }
+    build-max:             { model: claude-opus-5, effort: high }
+    finalize-change:       { model: claude-opus-5, effort: low }
+    implement-next:        { model: claude-opus-5, effort: medium }
+    integration-repair:    { model: claude-opus-5, effort: medium }
+    rebase-resolver:       { model: claude-opus-5, effort: medium }
+    # The review rungs price REVIEW work directly rather than shifting the build ladder by one: a
+    # read-and-return reviewer spends its budget reading a whole branch, not assembling one. On
+    # every harness review-deep equals the build-max pin, so the cap rung never reviews below the
+    # strength the riskiest build work was built with. The lean rung deliberately departs from a
+    # literal one-above-the-build on claude: the build-economy comment's reason for avoiding a
+    # smaller model — a contract fumble HALTS the build — does not apply here, because a reviewer
+    # that fumbles returns findings the controller can simply discount.
+    review-lean:           { model: claude-sonnet-5, effort: high }
+    review-standard:       { model: claude-opus-5, effort: medium }
+    review-deep:           { model: claude-opus-5, effort: high }
+    status:                { model: claude-haiku-4-5-20251001, effort: medium }
+
+  # Cursor's full wrapper set. Each ID is a COMPLETE Cursor built-in whose variant is already
+  # encoded, so effort is `auto`: the Cursor emitter writes the ID verbatim rather than appending
+  # a second, conflicting `[effort=…]` suffix. The tiering mirrors the claude block's intent —
+  # cheapest for the mechanical status sweep, mid for design and repair work, highest for the
+  # max build profile — expressed in Cursor's variant suffixes instead of an effort token.
+  cursor:
+    adr:                   { model: cursor-grok-4.5-high, effort: auto }
+    auto-groom:            { model: cursor-grok-4.5-medium, effort: auto }
+    auto-groom-critic:     { model: cursor-grok-4.5-high, effort: auto }
+    brainstorm-consultant: { model: cursor-grok-4.5-high, effort: auto }
+    build-economy:         { model: cursor-grok-4.5-low, effort: auto }
+    build-standard:        { model: cursor-grok-4.5-medium, effort: auto }
+    build-premium:         { model: cursor-grok-4.5-high, effort: auto }
+    build-max:             { model: claude-opus-5-high, effort: auto }
+    finalize-change:       { model: cursor-grok-4.5-high-fast, effort: auto }
+    implement-next:        { model: cursor-grok-4.5-high, effort: auto }
+    integration-repair:    { model: cursor-grok-4.5-high, effort: auto }
+    rebase-resolver:       { model: cursor-grok-4.5-high, effort: auto }
+    review-lean:           { model: cursor-grok-4.5-medium, effort: auto }
+    review-standard:       { model: cursor-grok-4.5-high, effort: auto }
+    review-deep:           { model: claude-opus-5-high, effort: auto }
+    status:                { model: cursor-grok-4.5-low-fast, effort: auto }
+
+  # Codex's full wrapper set (change 0169). Codex takes a real reasoning-effort token per agent,
+  # so unlike the cursor block every row carries a distinct model/effort PAIR rather than `auto`.
+  #
+  # The profile names describe the capability/cost role of a complete pair, NOT a cross-model
+  # ordinal: reasoning tokens are model-specific settings, so `xhigh` on Luna is not "stronger
+  # than" `medium` on Sol.
+  # The build ladder is therefore Luna/xhigh for the economy rung, Terra/medium for the standard
+  # rung, Sol/low for the premium rung, and Sol/medium for the rare max rung — note Sol
+  # appears twice at different efforts, which is the point: the pair is the role, not the model.
+  codex:
+    adr:                   { model: gpt-5.6-terra, effort: xhigh }
+    auto-groom:            { model: gpt-5.6-sol, effort: low }
+    auto-groom-critic:     { model: gpt-5.6-sol, effort: medium }
+    brainstorm-consultant: { model: gpt-5.6-sol, effort: medium }
+    build-economy:         { model: gpt-5.6-luna, effort: xhigh }
+    build-standard:        { model: gpt-5.6-terra, effort: medium }
+    build-premium:         { model: gpt-5.6-sol, effort: low }
+    build-max:             { model: gpt-5.6-sol, effort: medium }
+    finalize-change:       { model: gpt-5.6-terra, effort: high }
+    implement-next:        { model: gpt-5.6-sol, effort: medium }
+    integration-repair:    { model: gpt-5.6-sol, effort: high }
+    rebase-resolver:       { model: gpt-5.6-sol, effort: high }
+    review-lean:           { model: gpt-5.6-terra, effort: medium }
+    review-standard:       { model: gpt-5.6-terra, effort: high }
+    review-deep:           { model: gpt-5.6-sol, effort: medium }
+    status:                { model: gpt-5.6-luna, effort: xhigh }
+
+  # opencode's full wrapper set (change 0192). opencode has no first-class effort token; it passes
+  # unrecognized agent-frontmatter keys through to the provider as model options, so docket emits
+  # the effort as `reasoningEffort:` and it arrives as a real per-agent reasoning effort. Verified
+  # against opencode 1.18.11 via `opencode debug agent`, which reports it under `options`.
+  #
+  # Models are reached through OpenRouter, so IDs are double-prefixed (`openrouter/<vendor>/<id>`);
+  # the bare-scalar rule tolerates the slashes. The table is three models, chosen for very cheap
+  # high intelligence: DeepSeek V4 Flash carries every volume row (sweep, grooming, orchestration,
+  # the economy and standard build rungs, the lean review rung), Kimi K3 carries the judgment rows
+  # — design prose, ADRs, merge-intent reconstruction, red-suite repair — and the ladder top,
+  # appearing at two efforts exactly as Sol does in the codex block, and GPT-5.6 Luna is one
+  # deliberate diversity row so the adversarial critic does not share the drafter's blind spots.
+  #
+  # As in every other block the PAIR is the role, not the model: `high` on Flash is not "stronger
+  # than" `medium` on Kimi. review-deep equals build-max so the cap rung never reviews below the
+  # strength the riskiest build work was built with. Efforts cap at `high` — reasoning-effort
+  # vocabularies are model-specific and xhigh-class tokens are not assumed portable here.
+  opencode:
+    adr:                   { model: openrouter/moonshotai/kimi-k3, effort: medium }
+    auto-groom:            { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: medium }
+    auto-groom-critic:     { model: openrouter/openai/gpt-5.6-luna, effort: high }
+    brainstorm-consultant: { model: openrouter/moonshotai/kimi-k3, effort: medium }
+    build-economy:         { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: medium }
+    build-standard:        { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: high }
+    build-premium:         { model: openrouter/moonshotai/kimi-k3, effort: medium }
+    build-max:             { model: openrouter/moonshotai/kimi-k3, effort: high }
+    finalize-change:       { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: high }
+    implement-next:        { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: high }
+    integration-repair:    { model: openrouter/moonshotai/kimi-k3, effort: high }
+    rebase-resolver:       { model: openrouter/moonshotai/kimi-k3, effort: high }
+    review-lean:           { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: high }
+    review-standard:       { model: openrouter/moonshotai/kimi-k3, effort: medium }
+    review-deep:           { model: openrouter/moonshotai/kimi-k3, effort: high }
+    status:                { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: low }
