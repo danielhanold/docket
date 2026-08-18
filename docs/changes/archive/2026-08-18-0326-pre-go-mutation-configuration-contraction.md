@@ -2,12 +2,12 @@
 id: 326
 slug: pre-go-mutation-configuration-contraction
 title: 'Pre-Go mutation configuration contraction'
-status: implemented
+status: done
 priority: critical
 type: chore
 created: 2026-08-18
 updated: 2026-08-18
-claimed_at: 2026-08-18T20:41:38Z
+claimed_at: 
 depends_on: [315]
 stacked_on:
 related: [316, 318, 322]
