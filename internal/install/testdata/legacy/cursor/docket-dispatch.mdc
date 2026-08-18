@@ -1,0 +1,362 @@
+---
+description: Docket agents must be dispatched, never run inline. Cursor runs a directly-invoked skill at the current model and outside its wrapper, dropping the wrapper's model/effort pin where one is set and its skill preload and isolation always — so force a dispatch to the matching docket subagent.
+alwaysApply: true
+---
+
+# Docket agents — dispatch only
+
+Docket generates a subagent wrapper per docket agent into `.cursor/agents/docket-*.md`. It ships
+validated Cursor model IDs for **every** wrapper — including all four build-profile workers,
+`docket-build-economy`, `docket-build-standard`, `docket-build-premium`, and `docket-build-max` — so each
+one is generated pinned unless a config layer overrides it.
+
+Dispatch is required either way. When you are asked to run one of the docket agents listed below,
+Cursor would otherwise run the skill **inline at the currently-selected model**, bypassing the
+wrapper altogether — its pin where one is set, and its skill preload and isolation from this
+conversation in every case. Always dispatch to the matching subagent instead.
+
+## Required dispatch pattern
+
+For every docket agent named below:
+
+1. Do **NOT** run the skill inline in this chat.
+2. Dispatch to the subagent `docket-<name>` using this mode's subagent-launch mechanism,
+   **foreground** — block until it returns; never background it and never poll.
+3. Pass the user's request through in the prompt, including any change / ADR id or argument they
+   gave.
+4. Relay the subagent's result back; do not re-do its work in the parent chat.
+
+If the dispatch mechanism appears unavailable, resolve before concluding — including any deferred or
+lazily-loaded tool surface this mode exposes — and, if resolution is inconclusive, attempt one
+trivial dispatch. Only a failed attempt or an explicit policy denial establishes unavailability; the
+absence of a tool with a particular **name** never does.
+
+## Run gate — verify a dispatched implement-next run before you relay it
+
+A dispatched run that stops early returns a report that reads as success, and a completion
+notification is the CHILD's claim, not your report. Do not trust either; read git before relaying
+an outcome as your own. Docket's helper facade is not on `PATH`: run each command below verbatim,
+expansion included. `verify-run` only reads local metadata, so both snapshots must be taken from
+FRESH ORIGIN state — re-sync on BOTH sides, or a claim abandoned by an earlier session shows up
+only in the after-read and is attributed to this run.
+
+1. **Before dispatching** `docket-implement-next`, re-sync the metadata worktree with
+   `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh preflight`, then snapshot the claimed
+   set: `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh verify-run --in-progress-ids`.
+2. When you issue the dispatch and can block on it, dispatch **foreground** and block on the
+   return: never background it and never poll. A dispatch you background — or one the harness
+   backgrounds for you — is not covered here; use **Detached dispatch** below.
+3. **After the return**, re-sync again with
+   `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh preflight` and re-run
+   `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh verify-run --in-progress-ids`. Any id
+   absent from the snapshot is this run's claim; an empty diff (drained, or a lost claim race) ends
+   the gate. If MORE THAN ONE id is new, stop and report: this run claims at most one change, so at
+   least one of them is a concurrent run's and none can be told apart — never re-dispatch onto a
+   change another agent may be holding.
+4. Run `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh verify-run <id>` and key on its
+   report line, never its exit code:
+   - `run-complete` / `run-unclaimed` — done.
+   - `run-halted` — done; **never re-dispatch** a halt, which means a human is needed.
+   - `run-incomplete` — re-dispatch the same agent **once**, passing the id and the unmet
+     conjuncts; verify again; if still incomplete, stop and report loudly. Never a third dispatch.
+
+### Detached dispatch — you did not foreground-block; choose by what you HOLD, not launch shape
+
+- **You hold a before-set AND a dispatch epoch** — the step-1 before-snapshot AND `date -u +%s`
+  as `DISPATCH_EPOCH`, both captured before launching, as when you issue the dispatch yourself.
+  Keep that number in your own notes, not in a shell variable: a shell variable does not survive
+  the next tool call. If you did not capture both, you are in the next bullet. At the notification,
+  re-sync, then run `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh verify-run
+  --in-progress-ids --with-claimed-at`, which prints `<id> <epoch>` per line — or `<id> -` when
+  the stamp is absent or does not parse. Compare the id field only, and keep ids passing ALL THREE
+  filters: absent from the before-set, `claimed_at` parses (not `-`), and `claimed_at` >=
+  `DISPATCH_EPOCH` — at or AFTER the dispatch, never before it. Exactly one survivor → step 4
+  unchanged; none → done; two or more → stop and report, as in step 3.
+- **You hold neither — unattributed mode** (a slash-command launch, a notification-first session,
+  or any dispatch you did not snapshot). No before-set exists, and a timestamp alone cannot
+  attribute: `claimed_at` is re-stamped at every phase boundary, so a concurrent run claimed before
+  your window looks fresh too. Verify and report ONLY — `verify-run <id>` on any id the
+  notification names (a prose id is a hint, never authority), else on each current in-progress id,
+  reporting every verdict. **Never re-dispatch** here: that needs all three filters, and
+  re-dispatching onto a change a live agent holds is the one unrecoverable move.
+
+## docket-adr — dispatch only
+
+Trigger when asked to record, supersede, reverse, or index an architecture decision (e.g. "record an
+ADR for this decision", "supersede ADR-0015", "regenerate the ADR index").
+
+Dispatch to the subagent `docket-adr`, foreground, using this mode's subagent-launch mechanism. The
+prompt must include the decision (context / decision / consequences) or the index operation; the
+agent assigns the number and updates the index.
+
+Do NOT hand-write the ADR file or pick the number in the parent.
+
+One concrete call, as an illustration of the shape — not the contract:
+
+    Task(subagent_type: "docket-adr", run_in_background: false,
+         prompt: "Record an ADR for <decision>: context, decision, consequences.")
+
+## docket-auto-groom-critic — dispatch only
+
+This agent wraps no skill and is normally dispatched **by** docket-auto-groom as its adversarial gate,
+not invoked directly. If you are asked to adversarially review an auto-groom draft spec or trivial
+verdict, dispatch it rather than reviewing inline.
+
+Dispatch to the subagent `docket-auto-groom-critic`, foreground, using this mode's subagent-launch
+mechanism. The prompt must include the draft spec / trivial verdict under review and the dispatching
+skill's verdict protocol.
+
+Do NOT let it improve the draft — it only attacks and returns exactly one verdict.
+
+One concrete call, as an illustration of the shape — not the contract:
+
+    Task(subagent_type: "docket-auto-groom-critic", run_in_background: false,
+         prompt: "Adversarially review this draft spec and return one verdict per the protocol.")
+
+## docket-auto-groom — dispatch only
+
+Trigger when asked to drain the auto-groomable needs-brainstorm queue with no human (e.g. "auto-groom
+the backlog", "design the auto-groomable stubs").
+
+Dispatch to the subagent `docket-auto-groom`, foreground, using this mode's subagent-launch
+mechanism. The prompt must include any explicit stub id, and that kill/defer are never autonomous
+(the agent abstains back to the human queue instead).
+
+Do NOT run the grooming inline or make kill/defer decisions in the parent.
+
+One concrete call, as an illustration of the shape — not the contract:
+
+    Task(subagent_type: "docket-auto-groom", run_in_background: false,
+         prompt: "Drain the auto-groomable needs-brainstorm queue.")
+
+## docket-brainstorm-consultant — dispatch only
+
+This agent wraps no skill and injects no convention (a deliberate deviation from the
+ADR-0009 critic pattern). It is an opt-in consultant-author for the brainstorm role,
+handed a settled design and returning exactly one of an authored spec or critique
+concerns. Dispatch it rather than reviewing inline.
+
+Dispatch to the subagent `docket-brainstorm-consultant`, foreground, using this
+mode's subagent-launch mechanism. The prompt must include the stub/idea,
+neighbouring changes, relevant ADRs, and relevant learnings findings, drawn from
+the learnings index, the consultant needs to author or critique.
+
+It performs zero docket operations — no git, no file writes, no board updates — and
+returns prose in-context only.
+
+One concrete call, as an illustration of the shape — not the contract:
+
+    Task(subagent_type: "docket-brainstorm-consultant", run_in_background: false,
+         prompt: "Author a spec or return critique concerns for this settled design.")
+
+## docket-build-economy — dispatch only
+
+Trigger only from the `docket-build` controller, when it has routed a plan task to the ECONOMY
+profile. Never trigger this agent from a human request directly.
+
+Dispatch to the subagent `docket-build-economy`, foreground, using this mode's subagent-launch
+mechanism. The prompt must carry the plan task, the branch and its feature worktree, the selected
+profile and its routing reason, and the completion schema from the docket-build-task skill. This
+agent is feature-scoped: a delegated dispatch that names no worktree is refused.
+
+Do NOT implement the task in the parent, and do NOT dispatch a reviewer after it.
+
+One concrete call, as an illustration of the shape — not the contract:
+
+    Task(subagent_type: "docket-build-economy", run_in_background: false,
+         prompt: "Task 3 of <plan path>. Profile: economy (fully specified, established pattern, no cross-file reasoning). <task text>")
+
+## docket-build-max — dispatch only
+
+Trigger only from the `docket-build` controller, when it has routed a plan task to the MAX
+profile. Never trigger this agent from a human request directly.
+
+Dispatch to the subagent `docket-build-max`, foreground, using this mode's subagent-launch
+mechanism. The prompt must carry the plan task, the branch and its feature worktree, the selected
+profile and its routing reason, and the completion schema from the docket-build-task skill. This
+agent is feature-scoped: a delegated dispatch that names no worktree is refused.
+
+Do NOT implement the task in the parent, and do NOT dispatch a reviewer after it.
+
+One concrete call, as an illustration of the shape — not the contract:
+
+    Task(subagent_type: "docket-build-max", run_in_background: false,
+         prompt: "Task 3 of <plan path>. Profile: max (irreversible data change). <task text>")
+
+## docket-build-premium — dispatch only
+
+Trigger only from the `docket-build` controller, when it has routed a plan task to the PREMIUM
+profile. Never trigger this agent from a human request directly.
+
+Dispatch to the subagent `docket-build-premium`, foreground, using this mode's subagent-launch
+mechanism. The prompt must carry the plan task, the branch and its feature worktree, the selected
+profile and its routing reason, and the completion schema from the docket-build-task skill. This
+agent is feature-scoped: a delegated dispatch that names no worktree is refused.
+
+Do NOT implement the task in the parent, and do NOT dispatch a reviewer after it.
+
+One concrete call, as an illustration of the shape — not the contract:
+
+    Task(subagent_type: "docket-build-premium", run_in_background: false,
+         prompt: "Task 3 of <plan path>. Profile: premium (touches locking). <task text>")
+
+## docket-build-standard — dispatch only
+
+Trigger only from the `docket-build` controller, when it has routed a plan task to the STANDARD
+profile. Never trigger this agent from a human request directly.
+
+Dispatch to the subagent `docket-build-standard`, foreground, using this mode's subagent-launch
+mechanism. The prompt must carry the plan task, the branch and its feature worktree, the selected
+profile and its routing reason, and the completion schema from the docket-build-task skill. This
+agent is feature-scoped: a delegated dispatch that names no worktree is refused.
+
+Do NOT implement the task in the parent, and do NOT dispatch a reviewer after it.
+
+One concrete call, as an illustration of the shape — not the contract:
+
+    Task(subagent_type: "docket-build-standard", run_in_background: false,
+         prompt: "Task 3 of <plan path>. Profile: standard (ordinary refactor, no consequential risk). <task text>")
+
+## docket-finalize-change — dispatch only
+
+Trigger when asked to close out a change whose PR is approved or merged (e.g. "finalize change 48",
+"close out the merged PR").
+
+Dispatch to the subagent `docket-finalize-change`, foreground, using this mode's subagent-launch
+mechanism. The prompt must include the change id, and that it merges (if approved) through the
+rebase-retest gate, archives, cleans up the branch/worktree, and refreshes the board.
+
+Do NOT merge or archive inline; let the agent run its gate (it may itself dispatch the rebase-resolver
+or integration-repair subagents).
+
+One concrete call, as an illustration of the shape — not the contract:
+
+    Task(subagent_type: "docket-finalize-change", run_in_background: false,
+         prompt: "Finalize change 48: merge through the gate, archive, clean up, refresh the board.")
+
+## docket-implement-next — dispatch only
+
+Trigger when asked to implement the next build-ready change, drain the backlog, or build a specific
+change id end-to-end (e.g. "implement the next change", "build change 48", "drain the docket backlog").
+
+Dispatch to the subagent `docket-implement-next`, foreground, using this mode's subagent-launch
+mechanism. The prompt must include the explicit change id if the user named one (otherwise let the
+agent select), and that it runs autonomously to an open PR and stops at the human merge gate.
+
+Do NOT run the build inline, merge the PR, or re-brainstorm the design (the agent reconciles but never
+re-brainstorms).
+
+One concrete call, as an illustration of the shape — not the contract:
+
+    Task(subagent_type: "docket-implement-next", run_in_background: false,
+         prompt: "Implement change 48 end-to-end to an open PR; stop at the merge gate.")
+
+## docket-integration-repair — dispatch only
+
+This agent wraps no skill and is normally dispatched **by** docket-finalize-change when the rebased
+suite is red, not invoked directly. If asked to make a suite pass after a finalize rebase, dispatch it.
+
+Dispatch to the subagent `docket-integration-repair`, foreground, using this mode's subagent-launch
+mechanism. The prompt must include the red-test output, the base it was rebased onto, and the
+feature worktree the rebased branch is checked out in — this agent is feature-scoped, and a
+delegated dispatch that names no worktree is refused. The agent writes a minimal fix in at most two
+attempts and never weakens tests.
+
+Do NOT weaken or delete tests in the parent to force green.
+
+One concrete call, as an illustration of the shape — not the contract:
+
+    Task(subagent_type: "docket-integration-repair", run_in_background: false,
+         prompt: "The rebased suite is red — root-cause and write a minimal fix.")
+
+## docket-rebase-resolver — dispatch only
+
+This agent wraps no skill and is normally dispatched **by** docket-finalize-change when its
+rebase-onto-base gate hits a conflict, not invoked directly. If asked to resolve rebase conflicts for a
+finalize, dispatch it.
+
+Dispatch to the subagent `docket-rebase-resolver`, foreground, using this mode's subagent-launch
+mechanism. The prompt must include the conflicted rebase state and the feature worktree the rebase
+is running in — this agent is feature-scoped, and a delegated dispatch that names no worktree is
+refused. The agent reconciles each hunk by merge intent and continues the rebase to completion (it
+never runs tests).
+
+Do NOT resolve the conflicts inline in the parent.
+
+One concrete call, as an illustration of the shape — not the contract:
+
+    Task(subagent_type: "docket-rebase-resolver", run_in_background: false,
+         prompt: "Resolve the rebase conflicts by merge intent and continue the rebase.")
+
+## docket-review-deep — dispatch only
+
+Trigger only from the `docket-implement-next` controller at its review step, when it has selected
+the DEEP reviewer rung. Never trigger this agent from a human request directly.
+
+Dispatch to the subagent `docket-review-deep`, foreground, using this mode's subagent-launch
+mechanism. The prompt must carry the branch and its base ref, the feature worktree the branch is
+checked out in, the change's title and scope sections, the relevant learnings hooks, and the
+current build-evidence record. This agent is feature-scoped: a delegated dispatch that names no
+worktree is refused.
+
+The reviewer is read-only: it returns findings and never fixes, never commits, and never runs the
+test suite. Do NOT dispatch a second reviewer afterwards.
+
+One concrete call, as an illustration of the shape — not the contract:
+
+    Task(subagent_type: "docket-review-deep", run_in_background: false,
+         prompt: "Review branch feat/<slug> against origin/main. Rung: deep (build reached one of its two strongest profiles, or the diff crossed the size threshold). Evidence: <block>. <context>")
+
+## docket-review-lean — dispatch only
+
+Trigger only from the `docket-implement-next` controller at its review step, when it has selected
+the LEAN reviewer rung. Never trigger this agent from a human request directly.
+
+Dispatch to the subagent `docket-review-lean`, foreground, using this mode's subagent-launch
+mechanism. The prompt must carry the branch and its base ref, the feature worktree the branch is
+checked out in, the change's title and scope sections, the relevant learnings hooks, and the
+current build-evidence record. This agent is feature-scoped: a delegated dispatch that names no
+worktree is refused.
+
+The reviewer is read-only: it returns findings and never fixes, never commits, and never runs the
+test suite. Do NOT dispatch a second reviewer afterwards.
+
+One concrete call, as an illustration of the shape — not the contract:
+
+    Task(subagent_type: "docket-review-lean", run_in_background: false,
+         prompt: "Review branch feat/<slug> against origin/main. Rung: lean (build stayed on its cheapest profile). Evidence: <block>. <context>")
+
+## docket-review-standard — dispatch only
+
+Trigger only from the `docket-implement-next` controller at its review step, when it has selected
+the STANDARD reviewer rung. Never trigger this agent from a human request directly.
+
+Dispatch to the subagent `docket-review-standard`, foreground, using this mode's subagent-launch
+mechanism. The prompt must carry the branch and its base ref, the feature worktree the branch is
+checked out in, the change's title and scope sections, the relevant learnings hooks, and the
+current build-evidence record. This agent is feature-scoped: a delegated dispatch that names no
+worktree is refused.
+
+The reviewer is read-only: it returns findings and never fixes, never commits, and never runs the
+test suite. Do NOT dispatch a second reviewer afterwards.
+
+One concrete call, as an illustration of the shape — not the contract:
+
+    Task(subagent_type: "docket-review-standard", run_in_background: false,
+         prompt: "Review branch feat/<slug> against origin/main. Rung: standard (build routed or escalated a task to its standard profile). Evidence: <block>. <context>")
+
+## docket-status — dispatch only
+
+Trigger when asked to see or refresh the docket backlog / board (e.g. "show the docket board",
+"refresh the board", "run the docket health checks", "sweep merged changes").
+
+Dispatch to the subagent `docket-status`, foreground, using this mode's subagent-launch mechanism.
+The prompt must include which pass is wanted (board regen, merge sweep, or health checks) if the
+user specified.
+
+Do NOT regenerate the board or run the sweep inline.
+
+One concrete call, as an illustration of the shape — not the contract:
+
+    Task(subagent_type: "docket-status", run_in_background: false,
+         prompt: "Refresh the docket board: regenerate BOARD.md, sweep, run health checks.")

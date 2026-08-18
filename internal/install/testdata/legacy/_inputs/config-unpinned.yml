@@ -1,0 +1,5 @@
+agent_harnesses: [claude, codex, cursor, opencode]
+agents:
+  default:
+    status: { model: inherit, effort: auto }
+    brainstorm-consultant: { model: inherit, effort: auto }
