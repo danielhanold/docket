@@ -20,9 +20,10 @@ import (
 // library, internal/domain (EffectiveBase/ChangeID/slug value semantics), and
 // internal/gitcli (the sole process starter). It must never reach config,
 // document, a repository snapshot, GitHub state, or the application layers — and
-// nothing landed may reach INTO it, since a future 0315 composition maps its
-// closed outcomes rather than importing it upward. Both directions are pinned
-// mechanically here so the boundary is a checked fact, not a convention.
+// on the inward side, only the application layer (internal/app and internal/cli)
+// may reach INTO it: 0315's composition wires workspace there and maps its closed
+// outcomes. Every OTHER landed package must stay clear of it. Both directions are
+// pinned mechanically here so the boundary is a checked fact, not a convention.
 //
 // The scans cover production (non-_test) files only: `_test.go` files legitimately
 // reach for fixtures and helpers, so pinning them would make the guard unusable.
@@ -146,12 +147,22 @@ func TestWorkspaceImportsOnlyDomainAndGitcli(t *testing.T) {
 }
 
 // TestNoLandedPackageImportsWorkspace pins the INWARD boundary: no production file
-// anywhere under internal/ (outside the workspace package itself) may import
-// internal/workspace. The importer set is DERIVED by walking internal/ — never
-// enumerated — so a future package that reaches up into workspace reddens.
+// anywhere under internal/ (outside the workspace package itself, and outside the
+// application layer) may import internal/workspace. The application layer —
+// internal/app and internal/cli — is the ONLY allowed importer (0315 wires
+// workspace there); every other package must stay clear. The importer set is
+// DERIVED by walking internal/ — never enumerated — so a future non-application
+// package that reaches up into workspace reddens.
 func TestNoLandedPackageImportsWorkspace(t *testing.T) {
 	root := moduleRoot(t)
 	selfDir := filepath.Join(root, "internal", "workspace")
+	// The application layer is allowed to import workspace. A file is exempt only
+	// when it lives directly in one of these package directories (not merely under
+	// them), so a hypothetical internal/app/foo subpackage is still guarded.
+	allowedImporterDirs := []string{
+		filepath.Join(root, "internal", "app"),
+		filepath.Join(root, "internal", "cli"),
+	}
 	target := modulePrefix + "internal/workspace"
 	files := allProductionGoFilesUnder(t, filepath.Join(root, "internal"))
 	if len(files) == 0 {
@@ -159,13 +170,14 @@ func TestNoLandedPackageImportsWorkspace(t *testing.T) {
 	}
 	scanned := 0
 	for _, file := range files {
-		if filepath.Dir(file) == selfDir {
-			continue // the package may (and does) refer to itself
+		dir := filepath.Dir(file)
+		if dir == selfDir || slices.Contains(allowedImporterDirs, dir) {
+			continue // the package may refer to itself; the application layer may import it
 		}
 		scanned++
 		for _, imp := range fileImports(t, file) {
 			if imp == target {
-				t.Errorf("%s imports %q: nothing landed may depend on internal/workspace (direction must stay outward)", file, imp)
+				t.Errorf("%s imports %q: only the application layer (internal/app, internal/cli) may depend on internal/workspace", file, imp)
 			}
 		}
 	}

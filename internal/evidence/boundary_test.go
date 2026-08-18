@@ -17,8 +17,9 @@ import (
 // reuses internal/document for whole-population marker validation and exact
 // source patching, and NOTHING else in-module — no gitcli (a local hex check
 // keeps it process-free), no GitHub, no filesystem/process/workflow/config
-// behavior. And nothing landed may import evidence, since the future 0315
-// composition maps its closed outcomes rather than depending on it. Both
+// behavior. On the inward side, only the application layer (internal/app and
+// internal/cli) may import evidence — 0315's composition wires it there and maps
+// its closed outcomes; every OTHER landed package must stay clear. Both
 // directions are pinned mechanically here.
 //
 // The scans cover production (non-_test) files only.
@@ -133,11 +134,20 @@ func TestEvidenceImportsOnlyDocument(t *testing.T) {
 }
 
 // TestNoLandedPackageImportsEvidence pins the INWARD boundary: no production file
-// under internal/ (outside evidence itself) may import internal/evidence. The
-// importer set is DERIVED by walking internal/.
+// under internal/ (outside evidence itself, and outside the application layer)
+// may import internal/evidence. The application layer — internal/app and
+// internal/cli — is the ONLY allowed importer (0315 wires evidence there); every
+// other package must stay clear. The importer set is DERIVED by walking internal/.
 func TestNoLandedPackageImportsEvidence(t *testing.T) {
 	root := moduleRoot(t)
 	selfDir := filepath.Join(root, "internal", "evidence")
+	// The application layer is allowed to import evidence. A file is exempt only
+	// when it lives directly in one of these package directories (not merely under
+	// them), so a hypothetical internal/app/foo subpackage is still guarded.
+	allowedImporterDirs := []string{
+		filepath.Join(root, "internal", "app"),
+		filepath.Join(root, "internal", "cli"),
+	}
 	target := modulePrefix + "internal/evidence"
 	files := allProductionGoFilesUnder(t, filepath.Join(root, "internal"))
 	if len(files) == 0 {
@@ -145,13 +155,14 @@ func TestNoLandedPackageImportsEvidence(t *testing.T) {
 	}
 	scanned := 0
 	for _, file := range files {
-		if filepath.Dir(file) == selfDir {
+		dir := filepath.Dir(file)
+		if dir == selfDir || slices.Contains(allowedImporterDirs, dir) {
 			continue
 		}
 		scanned++
 		for _, imp := range fileImports(t, file) {
 			if imp == target {
-				t.Errorf("%s imports %q: nothing landed may depend on internal/evidence (direction must stay outward)", file, imp)
+				t.Errorf("%s imports %q: only the application layer (internal/app, internal/cli) may depend on internal/evidence", file, imp)
 			}
 		}
 	}
