@@ -17,10 +17,12 @@ import (
 // starts only `gh`. It imports NONE of workspace, repository, repository/
 // transaction, config, document, process, install, harness, cli, or app — in
 // fact no in-module package at all: head commits arrive as plain validated
-// strings, never a gitcli.ObjectID, so even gitcli stays out. And nothing landed
-// may import githubcli, since the future 0315 composition maps its closed
-// outcomes rather than depending on it. Both directions are pinned mechanically
-// here.
+// strings, never a gitcli.ObjectID, so even gitcli stays out. On the inward
+// side, only the application layer (internal/app and internal/cli) may import
+// githubcli — 0315's composition wires it there and maps its closed outcomes.
+// Every OTHER landed package (domain, document, repository, workspace, evidence,
+// process, render, gitcli, config, buildinfo, harness, install, assets, …) must
+// stay clear of it, so the inward direction is still pinned mechanically here.
 //
 // The scans cover production (non-_test) files only.
 
@@ -123,12 +125,21 @@ func TestGithubcliImportsNoInModulePackage(t *testing.T) {
 	}
 }
 
-// TestNoLandedPackageImportsGithubcli pins the INWARD boundary: no production file
-// under internal/ (outside githubcli itself) may import internal/githubcli. The
-// importer set is DERIVED by walking internal/.
+// TestNoLandedPackageImportsGithubcli pins the INWARD boundary: no production
+// file under internal/ (outside githubcli itself, and outside the application
+// layer) may import internal/githubcli. The application layer — internal/app and
+// internal/cli — is the ONLY allowed importer (0315 wires githubcli there); every
+// other package must stay clear. The importer set is DERIVED by walking internal/.
 func TestNoLandedPackageImportsGithubcli(t *testing.T) {
 	root := moduleRoot(t)
 	selfDir := filepath.Join(root, "internal", "githubcli")
+	// The application layer is allowed to import githubcli. A file is exempt only
+	// when it lives directly in one of these package directories (not merely under
+	// them), so a hypothetical internal/app/foo subpackage is still guarded.
+	allowedImporterDirs := []string{
+		filepath.Join(root, "internal", "app"),
+		filepath.Join(root, "internal", "cli"),
+	}
 	target := modulePrefix + "internal/githubcli"
 	files := allProductionGoFilesUnder(t, filepath.Join(root, "internal"))
 	if len(files) == 0 {
@@ -136,13 +147,14 @@ func TestNoLandedPackageImportsGithubcli(t *testing.T) {
 	}
 	scanned := 0
 	for _, file := range files {
-		if filepath.Dir(file) == selfDir {
+		dir := filepath.Dir(file)
+		if dir == selfDir || slices.Contains(allowedImporterDirs, dir) {
 			continue
 		}
 		scanned++
 		for _, imp := range fileImports(t, file) {
 			if imp == target {
-				t.Errorf("%s imports %q: nothing landed may depend on internal/githubcli (direction must stay outward)", file, imp)
+				t.Errorf("%s imports %q: only the application layer (internal/app, internal/cli) may depend on internal/githubcli", file, imp)
 			}
 		}
 	}
