@@ -44,6 +44,20 @@ const roleDispatch = "dispatch"
 //go:embed legacydata/docket-dispatch.mdc
 var legacyCursorDispatchRule []byte
 
+// legacyDispatchBlockInterior is the frozen v0.9.2 docket-managed dispatch-block
+// interior — the bytes between the `<!-- docket:dispatch:start … -->` /
+// `<!-- docket:dispatch:end -->` markers. It is HARNESS-NEUTRAL and PIN-INVARIANT:
+// v0.9.2's sync_dispatch_surfaces wrote the same assemble_agents_md_dispatch
+// output into every targeted instruction file (Claude CLAUDE.md, Codex/OpenCode
+// AGENTS.md), interpolating no model/effort — so it is a single frozen byte
+// string, keyed only on the dispatch block name. The embedded bytes byte-equal
+// testdata/legacy/dispatch-block/interior.md by construction (copied from it).
+// The `.txt` extension keeps it out of the `legacydata/*.md` agent-source glob
+// and loadLegacyAgentSources's `.md` scan, so it is never parsed as a wrapper.
+//
+//go:embed legacydata/dispatch-block-interior.txt
+var legacyDispatchBlockInterior []byte
+
 // legacydata holds the frozen v0.9.2 wrapper-source bodies for every built-in
 // agent — all sixteen, so the reproducer covers every docket-* agent a real
 // legacy machine has, not only the two with captured goldens.
@@ -158,6 +172,17 @@ func NewLegacyReproducer(in LegacyInputs) LegacyReproducer {
 	}
 	pins := in.AgentPins
 	return func(t Target) ([]byte, bool) {
+		// Kind (c): the docket-managed dispatch block. Harness-neutral and
+		// pin-invariant, so the frozen interior is returned verbatim for any
+		// dispatch-block target regardless of harness or pins (a fresh copy, so a
+		// caller cannot mutate the embedded backing array). A managed block of any
+		// other name is outside the inventory.
+		if t.Kind == KindManagedBlock {
+			if t.BlockName != "dispatch" {
+				return nil, false
+			}
+			return append([]byte(nil), legacyDispatchBlockInterior...), true
+		}
 		if t.Kind != KindFile {
 			return nil, false
 		}

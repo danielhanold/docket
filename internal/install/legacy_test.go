@@ -149,9 +149,14 @@ func TestLegacyReproducer_NonInventory(t *testing.T) {
 			target: Target{Path: "/legacyroot/.claude/agents/docket-status.md", Kind: KindFile, Role: roleAgent},
 		},
 		{
-			name:   "non-file kind",
+			name:   "managed block that is not the dispatch block",
 			inputs: full,
-			target: Target{Path: "/legacyroot/.claude/CLAUDE.md", Kind: KindManagedBlock, BlockName: "dispatch", Role: "dispatch"},
+			target: Target{Path: "/legacyroot/.claude/CLAUDE.md", Kind: KindManagedBlock, BlockName: "other", Role: "dispatch"},
+		},
+		{
+			name:   "symlink kind is not a legacy artifact",
+			inputs: full,
+			target: Target{Path: "/legacyroot/.claude/agents/docket-status.md", Kind: KindSymlink, Role: roleAgent},
 		},
 		{
 			name:   "not an agent-definition path",
@@ -243,6 +248,42 @@ func TestLegacyReproducer_EmbedsAllBuiltins(t *testing.T) {
 		if !ok || len(got) == 0 {
 			t.Errorf("built-in %q: reproducer returned ok=%v len=%d", short, ok, len(got))
 		}
+	}
+}
+
+// TestLegacyReproducer_DispatchBlock covers Kind (c): the docket-managed
+// dispatch-block interior. It is harness-neutral and pin-invariant —
+// sync_dispatch_surfaces wrote the same interior into every targeted instruction
+// file — so the reproducer returns the frozen interior for any dispatch-block
+// target regardless of harness or pins, byte-for-byte equal to the captured
+// interior golden. A managed block of any other name is outside the inventory.
+func TestLegacyReproducer_DispatchBlock(t *testing.T) {
+	corpus := legacyCorpusDir(t)
+	golden, err := os.ReadFile(filepath.Join(corpus, "dispatch-block", "interior.md"))
+	if err != nil {
+		t.Fatalf("reading dispatch-block interior golden: %v", err)
+	}
+	target := Target{
+		Path:      filepath.Join("/legacyroot", ".claude", "CLAUDE.md"),
+		Kind:      KindManagedBlock,
+		BlockName: "dispatch",
+		Role:      "dispatch",
+	}
+
+	// Pin-invariant and harness-neutral: even empty inputs reproduce it.
+	rep := NewLegacyReproducer(LegacyInputs{})
+	got, ok := rep(target)
+	if !ok {
+		t.Fatalf("reproducer reported no legacy spelling for the dispatch block")
+	}
+	if !bytes.Equal(got, golden) {
+		t.Fatalf("dispatch block interior differs:\n%s", firstDiff(got, golden))
+	}
+
+	// A managed block of a different name is outside the closed inventory.
+	other := Target{Path: target.Path, Kind: KindManagedBlock, BlockName: "other", Role: "dispatch"}
+	if got, ok := rep(other); ok || got != nil {
+		t.Fatalf("non-dispatch block: expected (nil,false), got ok=%v len=%d", ok, len(got))
 	}
 }
 

@@ -82,7 +82,7 @@ func InspectTarget(t Target, prior *State, legacy LegacyReproducer) (Inspection,
 	case KindSymlink:
 		return inspectSymlink(t, info, rec, hasRec, legacy)
 	case KindManagedBlock:
-		return inspectManagedBlock(t, info, rec, hasRec)
+		return inspectManagedBlock(t, info, rec, hasRec, legacy)
 	default:
 		// validate has already refused every other kind.
 		return Inspection{}, fmt.Errorf("%w: %s has unknown kind %q", ErrInvalidTarget, t.Path, t.Kind)
@@ -161,7 +161,7 @@ func inspectSymlink(t Target, info fs.FileInfo, rec TargetRecord, hasRec bool, l
 // inspectManagedBlock classifies a block inside a file the user also owns. The
 // file's other bytes are never ours, so every outcome here either leaves the
 // file untouched or rewrites exactly one block's interior.
-func inspectManagedBlock(t Target, info fs.FileInfo, rec TargetRecord, hasRec bool) (Inspection, error) {
+func inspectManagedBlock(t Target, info fs.FileInfo, rec TargetRecord, hasRec bool, legacy LegacyReproducer) (Inspection, error) {
 	if !info.Mode().IsRegular() {
 		if owned, err := provenByRecord(rec, hasRec); err != nil {
 			return Inspection{}, err
@@ -201,6 +201,15 @@ func inspectManagedBlock(t Target, info fs.FileInfo, rec TargetRecord, hasRec bo
 	}
 	if hasRec {
 		return conflict(t, ReasonOwnershipConflict, remedyDriftedBlock(t.BlockName)), nil
+	}
+	// Ownership proof three, for a managed block with no prior record: the block
+	// interior on disk is byte-exact (modulo the rewrite-preserving normalisation)
+	// to what the frozen legacy renderer would have produced, so it is an
+	// adoptable legacy install rather than a foreign block. This is reached only
+	// after the marker-validity short-circuit above — valid, ordered, balanced
+	// markers are a precondition of adoption.
+	if provenByLegacyInterior(t, interior, legacy) {
+		return Inspection{Target: t, Disposition: DispositionUpdate}, nil
 	}
 	return conflict(t, ReasonOwnershipConflict, remedyForeignBlock(t.BlockName)), nil
 }
@@ -272,6 +281,19 @@ func provenByLegacy(t Target, data []byte, legacy LegacyReproducer) bool {
 	}
 	want, ok := legacy(t)
 	return ok && bytes.Equal(want, data)
+}
+
+// provenByLegacyInterior is ownership proof three for a managed block: the block
+// interior on disk normalises to exactly what the frozen legacy renderer would
+// have produced for this dispatch block. It compares with normalizeInterior —
+// matching proof-two's comparison, so the same rewrite-preserving tolerance
+// (one trailing newline, CRLF) applies. A nil reproducer disables the proof.
+func provenByLegacyInterior(t Target, interior []byte, legacy LegacyReproducer) bool {
+	if legacy == nil {
+		return false
+	}
+	want, ok := legacy(t)
+	return ok && normalizeInterior(want) == normalizeInterior(interior)
 }
 
 // recordMatchesDisk reports whether the path named by rec still holds exactly
