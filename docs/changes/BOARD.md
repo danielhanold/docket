@@ -1,8 +1,8 @@
 # Backlog
 
-**327 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 193 done · 🗑️ 80 killed
+**328 changes** — 🟡 49 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 194 done · 🗑️ 80 killed
 
-## 🟡 Proposed (48)
+## 🟡 Proposed (49)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -54,6 +54,7 @@
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | needs-brainstorm |
 | [0326](active/0326-pre-go-mutation-configuration-contraction.md) | Pre-Go mutation configuration contraction | `critical` | `chore` | build-ready |
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
+| [0328](active/0328-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full.md) | De-flake TestRecoverMarksCleanlyAbandonedOwnedRun under full-suite load | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -64,12 +65,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0322](active/0322-go-installer-adopt-legacy-bash-installed-user-level-artifact.md) | Bootstrap Go development installation and adopt legacy user-level artifacts | `critical` | `feat` | [#217](https://github.com/danielhanold/docket/pull/217) |  |
-| [0325](active/0325-de-flake-the-gate-run-stop-barrier-test.md) | De-flake the gate-run --stop barrier test | `medium` | `fix` | [#218](https://github.com/danielhanold/docket/pull/218) |  |
 
 ```mermaid
 graph TD
@@ -127,9 +127,9 @@ graph TD
   0321
   0311 --> 0322
   0323
-  0325
   0315 --> 0326
   0327
+  0328
   0192:::done
   0211:::done
   0311:::done
@@ -137,10 +137,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (273)</summary>
+<details><summary>✅🗑️ Archive — done + killed (274)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0325](archive/2026-08-18-0325-de-flake-the-gate-run-stop-barrier-test.md) | De-flake the gate-run --stop barrier test | 2026-08-18 |
 | [0315](archive/2026-08-18-0315-claim-to-implemented-workflow.md) | Claim-to-implemented agent workflow | 2026-08-18 |
 | [0314](archive/2026-08-17-0314-native-process-supervisor-and-local-gate.md) | Native process supervisor and local gate | 2026-08-17 |
 | [0312](archive/2026-08-17-0312-planning-mutations-board-and-adrs.md) | Planning mutations, inline board, and ADRs | 2026-08-17 |
@@ -158,7 +159,6 @@ graph TD
 | [0299](archive/2026-08-12-0299-reshard-tests-test-sync-agents-runners-so-every-file-measure.md) | Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling | 2026-08-12 |
 | [0298](archive/2026-08-12-0298-stacked-changes-build-a-new-change-on-top-of-a-parent-change.md) | Stacked changes — build a new change on top of a parent change's branch | 2026-08-12 |
 | [0285](archive/2026-08-12-0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | 2026-08-12 |
-| [0221](archive/2026-08-12-0221-assert-executes-backticks-in-its-test-description-so-a-verba.md) | assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell | 2026-08-12 |
 | [0268](archive/2026-08-11-0268-de-flake-the-reclaim-leg-of-test-docket-status-under-paralle.md) | De-flake the reclaim leg of test_docket_status under parallel contention | 2026-08-11 |
 | [0278](archive/2026-08-09-0278-test-docket-example-yml-s-fidelity-fixture-goes-intermittent.md) | test_docket_example_yml's fidelity fixture goes intermittently red under parallel contention | 2026-08-09 |
 | [0274](archive/2026-08-09-0274-runner-dispatch-s-value-taking-flags-hang-instead-of-abortin.md) | runner-dispatch's value-taking flags hang instead of aborting when given with no value | 2026-08-09 |
@@ -241,7 +241,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 60 done |
+| [2026-08](archive/) | 61 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
