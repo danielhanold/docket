@@ -137,8 +137,62 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 			setResult(app.ChangeAttachResults(c.Context(), deps, wdeps, repoDir, req))
 		})
 
-	changeCmd.AddCommand(create, groom, block, deferCmd, kill, claim, refreshClaim, reconcile, attachPlan, attachResults)
+	markImplemented := newMarkImplementedSubcommand(setResult)
+
+	changeCmd.AddCommand(create, groom, block, deferCmd, kill, claim, refreshClaim, reconcile, attachPlan, attachResults, markImplemented)
 	return changeCmd
+}
+
+// newMarkImplementedSubcommand builds `change mark-implemented`: the final
+// verified transition. Its scalar identities (id, version, head, pr) ride on
+// flags; the canonical build-evidence record rides in a file (or stdin) via
+// --evidence, reparsed by the operation. It composes the read-only planning
+// seams, the workspace service, and the githubcli adapter — the same three seams
+// pr publish uses — so the reprobe verifies the published PR without a second
+// GitHub client.
+func newMarkImplementedSubcommand(setResult func(app.OperationResult)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "mark-implemented",
+		Short: "Mark an in-progress change implemented after reprobing its head, evidence, and published PR",
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, _ := c.Flags().GetString("repo-dir")
+			id, _ := c.Flags().GetInt("id")
+			version, _ := c.Flags().GetString("version")
+			head, _ := c.Flags().GetString("head")
+			prRef, _ := c.Flags().GetString("pr")
+			evSource, _ := c.Flags().GetString("evidence")
+
+			record, err := readRecordSource(c.InOrStdin(), evSource)
+			if err != nil {
+				return err
+			}
+			deps, wdeps, gdeps, err := newPRDeps()
+			if err != nil {
+				return err
+			}
+			setResult(app.ChangeMarkImplemented(c.Context(), deps, wdeps, gdeps, repoDir, app.MarkImplementedRequest{
+				ID:             id,
+				Version:        version,
+				Head:           head,
+				PR:             prRef,
+				EvidenceRecord: record,
+			}))
+			return nil
+		},
+	}
+	cmd.Flags().Int("id", 0, "change id to mark implemented (required)")
+	cmd.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
+	cmd.Flags().String("head", "", "exact tested feature head the transition must certify (required)")
+	cmd.Flags().String("pr", "", "canonical PR reference returned by pr publish (required)")
+	cmd.Flags().String("evidence", "", "canonical build-evidence record file, or - for stdin (required)")
+	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	_ = cmd.MarkFlagRequired("id")
+	_ = cmd.MarkFlagRequired("version")
+	_ = cmd.MarkFlagRequired("head")
+	_ = cmd.MarkFlagRequired("pr")
+	_ = cmd.MarkFlagRequired("evidence")
+	return cmd
 }
 
 // changeAttachSubcommand builds one `change <verb>` command whose input is the

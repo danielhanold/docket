@@ -25,53 +25,54 @@ import (
 // `docket`. TestAssetIndependentSetExact holds the correspondence with the
 // Cobra tree in both directions.
 var assetIndependent = map[string]bool{
-	"":                       true, // bare `docket`: reports a missing command
-	"help":                   true,
-	"version":                true,
-	"status":                 true,
-	"change":                 true, // the group itself; it reports a missing command
-	"change create":          true,
-	"change groom":           true,
-	"change block":           true,
-	"change defer":           true,
-	"change kill":            true,
-	"change claim":           true,
-	"change refresh-claim":   true,
-	"change reconcile":       true,
-	"change attach-plan":     true,
-	"change attach-results":  true,
-	"context":                true, // the group itself; it reports a missing command
-	"context implementation": true,
-	"artifact":               true, // the group itself; it reports a missing command
-	"artifact backlink":      true,
-	"workspace":              true, // the group itself; it reports a missing command
-	"workspace prepare":      true,
-	"workspace inspect":      true,
-	"workspace publish":      true,
-	"evidence":               true, // the group itself; it reports a missing command
-	"evidence record":        true,
-	"evidence verify":        true,
-	"pr":                     true, // the group itself; it reports a missing command
-	"pr publish":             true,
-	"learning":               true, // the group itself; it reports a missing command
-	"learning record":        true,
-	"learning update":        true,
-	"adr":                    true, // the group itself; it reports a missing command
-	"adr record":             true,
-	"adr supersede":          true,
-	"adr reverse":            true,
-	"gate":                   true, // the group itself; it reports a missing command
-	"gate launch":            true,
-	"gate observe":           true,
-	"gate stop":              true,
-	"gate recover":           true,
-	"diagnostic":             true, // the group itself; it reports a missing command
-	"diagnostic runtime":     true,
-	"diagnostic config":      true,
-	"install":                true,
-	"install check":          true,
-	"development":            true,
-	"development install":    true,
+	"":                        true, // bare `docket`: reports a missing command
+	"help":                    true,
+	"version":                 true,
+	"status":                  true,
+	"change":                  true, // the group itself; it reports a missing command
+	"change create":           true,
+	"change groom":            true,
+	"change block":            true,
+	"change defer":            true,
+	"change kill":             true,
+	"change claim":            true,
+	"change refresh-claim":    true,
+	"change reconcile":        true,
+	"change attach-plan":      true,
+	"change attach-results":   true,
+	"change mark-implemented": true,
+	"context":                 true, // the group itself; it reports a missing command
+	"context implementation":  true,
+	"artifact":                true, // the group itself; it reports a missing command
+	"artifact backlink":       true,
+	"workspace":               true, // the group itself; it reports a missing command
+	"workspace prepare":       true,
+	"workspace inspect":       true,
+	"workspace publish":       true,
+	"evidence":                true, // the group itself; it reports a missing command
+	"evidence record":         true,
+	"evidence verify":         true,
+	"pr":                      true, // the group itself; it reports a missing command
+	"pr publish":              true,
+	"learning":                true, // the group itself; it reports a missing command
+	"learning record":         true,
+	"learning update":         true,
+	"adr":                     true, // the group itself; it reports a missing command
+	"adr record":              true,
+	"adr supersede":           true,
+	"adr reverse":             true,
+	"gate":                    true, // the group itself; it reports a missing command
+	"gate launch":             true,
+	"gate observe":            true,
+	"gate stop":               true,
+	"gate recover":            true,
+	"diagnostic":              true, // the group itself; it reports a missing command
+	"diagnostic runtime":      true,
+	"diagnostic config":       true,
+	"install":                 true,
+	"install check":           true,
+	"development":             true,
+	"development install":     true,
 }
 
 // commandKey is a command's path with the root's own name stripped, which is

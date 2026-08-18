@@ -33,9 +33,12 @@ type fakeGitHub struct {
 	repoErr   error
 	ensureRes githubcli.EnsureResult
 	ensureErr error
+	probePRs  []githubcli.PullRequest
+	probeErr  error
 
 	discoverCalls int
 	ensureCalls   []githubcli.EnsurePullRequestRequest
+	probeCalls    []string // head branch of each FindOpenPullRequestsByHead call
 }
 
 func (f *fakeGitHub) DiscoverRepository(_ context.Context, _ string) (githubcli.Repository, error) {
@@ -46,6 +49,11 @@ func (f *fakeGitHub) DiscoverRepository(_ context.Context, _ string) (githubcli.
 func (f *fakeGitHub) EnsurePullRequest(_ context.Context, req githubcli.EnsurePullRequestRequest) (githubcli.EnsureResult, error) {
 	f.ensureCalls = append(f.ensureCalls, req)
 	return f.ensureRes, f.ensureErr
+}
+
+func (f *fakeGitHub) FindOpenPullRequestsByHead(_ context.Context, _ githubcli.Repository, headBranch string) ([]githubcli.PullRequest, error) {
+	f.probeCalls = append(f.probeCalls, headBranch)
+	return f.probePRs, f.probeErr
 }
 
 // prEvidenceBytes renders the canonical build-evidence block certifying head.

@@ -82,6 +82,12 @@ const (
 type GitHubService interface {
 	DiscoverRepository(ctx context.Context, dir string) (githubcli.Repository, error)
 	EnsurePullRequest(ctx context.Context, req githubcli.EnsurePullRequestRequest) (githubcli.EnsureResult, error)
+	// FindOpenPullRequestsByHead is the read-only reprobe `change mark-implemented`
+	// keys on before its transaction: it returns the open PRs GitHub reports for a
+	// feature head branch and mutates nothing. It shares this seam so the reprobe
+	// composes the same adapter the publication path uses, rather than a second
+	// GitHub client or the package-private fake.
+	FindOpenPullRequestsByHead(ctx context.Context, repo githubcli.Repository, headBranch string) ([]githubcli.PullRequest, error)
 }
 
 // GitHubDeps carries the GitHub-service seam, kept separate from PlanningDeps and
