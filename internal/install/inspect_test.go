@@ -617,6 +617,100 @@ func TestLegacySeamNonReproducible(t *testing.T) {
 	}
 }
 
+// TestInspectManagedBlockLegacyAdoption is the managed-block half of ownership
+// proof three: a docket:dispatch block whose interior is byte-exact to what the
+// frozen legacy renderer would have produced is adopted (DispositionUpdate) even
+// with no prior record, instead of being reported as a foreign-block conflict.
+// The stub reproducer stands in for the real one, so the adoption seam is proven
+// here without pinning a corpus.
+func TestInspectManagedBlockLegacyAdoption(t *testing.T) {
+	const interior = "legacy dispatch interior\n"
+	// The stub reproduces the frozen interior for the dispatch block and nothing
+	// else — matching the real reproducer's KindManagedBlock/BlockName gate.
+	legacyStub := func(tt Target) ([]byte, bool) {
+		if tt.Kind == KindManagedBlock && tt.BlockName == "dispatch" {
+			return []byte(interior), true
+		}
+		return nil, false
+	}
+	dispatchTarget := func(p string) Target {
+		return Target{
+			Path:      p,
+			Kind:      KindManagedBlock,
+			BlockName: "dispatch",
+			Content:   []byte("new dispatch body\n"),
+			Role:      "dispatch",
+		}
+	}
+
+	t.Run("exact legacy block with no prior record is adopted", func(t *testing.T) {
+		dir := t.TempDir()
+		p := filepath.Join(dir, "CLAUDE.md")
+		writeFileOrDie(t, p, managedFile(interior))
+		got, err := InspectTarget(dispatchTarget(p), nil, legacyStub)
+		if err != nil {
+			t.Fatalf("InspectTarget: %v", err)
+		}
+		if got.Disposition != DispositionUpdate {
+			t.Errorf("disposition = %q, want %q", got.Disposition, DispositionUpdate)
+		}
+		if got.Reason != "" {
+			t.Errorf("reason = %q, want empty", got.Reason)
+		}
+	})
+
+	t.Run("legacy block with one byte changed is a foreign-block conflict", func(t *testing.T) {
+		dir := t.TempDir()
+		p := filepath.Join(dir, "CLAUDE.md")
+		writeFileOrDie(t, p, managedFile("legacy dispatch interiorX\n"))
+		got, err := InspectTarget(dispatchTarget(p), nil, legacyStub)
+		if err != nil {
+			t.Fatalf("InspectTarget: %v", err)
+		}
+		if got.Disposition != DispositionConflict {
+			t.Errorf("disposition = %q, want %q", got.Disposition, DispositionConflict)
+		}
+		if got.Reason != ReasonOwnershipConflict {
+			t.Errorf("reason = %q, want %q", got.Reason, ReasonOwnershipConflict)
+		}
+	})
+
+	t.Run("malformed markers short-circuit before the legacy check", func(t *testing.T) {
+		dir := t.TempDir()
+		p := filepath.Join(dir, "CLAUDE.md")
+		// A dangling start marker whose body IS the exact legacy interior: were
+		// the legacy check to run before marker validation, this would be wrongly
+		// adopted. Marker validity is a precondition, so it must stay invalid.
+		writeFileOrDie(t, p, "# Notes\n\n<!-- docket:dispatch:start (managed by docket) -->\n"+interior)
+		got, err := InspectTarget(dispatchTarget(p), nil, legacyStub)
+		if err != nil {
+			t.Fatalf("InspectTarget: %v", err)
+		}
+		if got.Disposition != DispositionConflict {
+			t.Errorf("disposition = %q, want %q", got.Disposition, DispositionConflict)
+		}
+		if got.Reason != ReasonManagedBlockInvalid {
+			t.Errorf("reason = %q, want %q", got.Reason, ReasonManagedBlockInvalid)
+		}
+	})
+
+	t.Run("nil legacy preserves the foreign-block conflict", func(t *testing.T) {
+		dir := t.TempDir()
+		p := filepath.Join(dir, "CLAUDE.md")
+		writeFileOrDie(t, p, managedFile(interior))
+		got, err := InspectTarget(dispatchTarget(p), nil, nil)
+		if err != nil {
+			t.Fatalf("InspectTarget: %v", err)
+		}
+		if got.Disposition != DispositionConflict {
+			t.Errorf("disposition = %q, want %q", got.Disposition, DispositionConflict)
+		}
+		if got.Reason != ReasonOwnershipConflict {
+			t.Errorf("reason = %q, want %q", got.Reason, ReasonOwnershipConflict)
+		}
+	})
+}
+
 // RecordFor is the other half of every ownership proof: what the installer
 // publishes after applying a target must be exactly what a later inspection
 // accepts as proof it owns that target.
