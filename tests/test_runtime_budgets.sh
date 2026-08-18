@@ -25,7 +25,13 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=2125 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2115 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2125 -> 2115 (change 0322): a test file was REMOVED — the file-removal mirror
+                    # of the new-file case. tests/test_install.sh exclusively asserted install.sh's
+                    # legacy 4-primitive behavior (link/sync/env/global-config mutation), which this
+                    # change intentionally deleted; the bootstrapper is now covered by
+                    # tests/test_install_bootstrap.sh and the four standalone scripts keep their own
+                    # direct tests. Dropping the file drops its 10s row, so the total falls by 10.
                     # 2115 -> 2125 (change 0322): ONE legitimate mover — a NEW test file brings its
                     # own row. tests/test_install_bootstrap.sh covers install.sh's POSIX bootstrapper
                     # (source-resolution + tri-state docket discovery + delegation); a brand-new
