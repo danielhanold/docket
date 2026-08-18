@@ -54,6 +54,13 @@ baseline; it understands the still-active configuration and does not depend on t
 Go transaction CLI. This spec does not authorize a temporary Go build to claim, reconcile,
 publish, or close this change.
 
+The bridge must preload the tagged checkout's `docket-implement-next` and `docket-convention`
+skills by absolute path and route every `docket.sh` call through its tagged `scripts/` directory.
+The current named implementer is the Go workflow and is invalid for this change. Running the tagged
+`install.sh` does not switch an existing source-linked installation—its link step skips paths that
+already exist—so a successful installer report is not dispatch proof. Before claim, the run records
+the exact tagged skill and helper roots; any Go transaction verb proves misrouting and aborts.
+
 After the PR lands and the local edit is applied, a Go binary built from reviewed source may run
 the read-only check:
 
@@ -112,7 +119,8 @@ This change does not:
    capture, while global model/effort overrides remain available.
 3. Go's unmodified four-layer diagnostic reports mutation allowed from the reviewed post-change
    checkout, and one-at-a-time negative fixtures still fail closed.
-4. The change is implemented and finalized with the frozen Bash baseline; no uninstalled or
-   from-source Go transaction command writes shared metadata.
+4. The change is implemented and finalized with explicitly resolved tagged Bash skill/helper
+   paths; the current Go implementer is not invoked, and no uninstalled or from-source Go
+   transaction command writes shared metadata.
 5. Installation/adoption remains 0322, finalize/recovery remains 0316, and remaining self-hosting
    and hard-cutover work remains 0318.

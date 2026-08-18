@@ -93,14 +93,29 @@ wrappers and repository-local instructions remain outside this change.
 For Docket's own one-time Go migration, the source-bootstrap command is narrower than the product's
 normal contributor convenience:
 
-- changes 0322 and 0326 are implemented and finalized through the immutable `v0.9.2` Bash workflow;
+- a separate clean checkout of immutable tag `v0.9.2` supplies the bridge skills and helper scripts;
+- the implementer explicitly preloads `skills/docket-implement-next/SKILL.md` and
+  `skills/docket-convention/SKILL.md` from that checkout by absolute path and routes every
+  `docket.sh` call through that checkout's `scripts/` directory;
+- the current named `docket-implement-next` agent is not used for these two changes, because its
+  Steps 2–7 require the unavailable Go transaction CLI;
+- running the tagged `install.sh` is not sufficient to select the legacy workflow: its
+  `link-skills.sh` creates missing links but intentionally skips existing links, so current
+  source-linked skills may remain active; the run must report and verify its exact tagged skill and
+  helper roots before claim;
+- any attempted `docket change`, `docket workspace`, `docket evidence`, `docket pr`, or `docket run`
+  command means the wrong workflow was loaded and aborts before mutation;
+- changes 0322 and 0326 are implemented and finalized through that pinned Bash workflow, while
+  their feature branches still start from current `origin/main`;
 - the bootstrap is then run from a clean checkout at a reviewed `origin/main` commit containing
   both merged changes;
 - the transient `go run` executable may invoke only `development install`; it must not invoke
   `context`, `change`, `workspace`, `evidence`, `pr`, `run`, `finalize`, or any other command that
   mutates shared repository or GitHub state;
 - the newly installed `docket` must pass `install check` and the migration repository must pass
-  `diagnostic config --for-mutation` before change 0316 is eligible to start; and
+  `diagnostic config --for-mutation` before change 0316 is eligible to start;
+- `command -v docket` must resolve to the binary recorded by that successful development install,
+  not an earlier ad-hoc `go install` output; and
 - the host application is restarted after installation so it reloads the generated agents and
   dispatch instructions.
 
@@ -167,7 +182,8 @@ self-hosting proof, Bash removal, documentation replacement, publication, and ha
    reported as a conflict.
 3. Clean and adopted installs build and publish a PATH-resolvable development binary, source-linked
    assets, native harness material, and valid `state/install.json` atomically and idempotently.
-4. The Docket migration-host bootstrap is proven to run only from reviewed merged source, performs
-   machine installation only, and stops on install/config verification failure before 0316.
+4. The Docket migration-host bridge proves it loaded the exact tagged Bash skills and helper root,
+   and the later bootstrap runs only from reviewed merged source, performs machine installation
+   only, and stops on dispatch/install/config/path verification failure before 0316.
 5. No broad overwrite, source-built metadata authority, release packaging, configuration
    contraction, or change 0316 behavior enters this change.

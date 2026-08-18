@@ -78,15 +78,18 @@ self-hosting, Bash-removal, publication, and hard-cutover proof remains 0318.
 Change 0316 does not bootstrap the runtime it needs. The migration program supplies that runtime in
 three explicit stages:
 
-1. Changes 0322 and 0326 are implemented and finalized through the immutable `v0.9.2` Bash
-   workflow. Change 0322 wires exact legacy user-level adoption and makes `install.sh` delegate to
-   the Go development installer. Change 0326 disables the active deferred configuration requests
-   that would otherwise require Go to return `unsupported-config`.
+1. Changes 0322 and 0326 are implemented and finalized through explicitly resolved skill and helper
+   paths from an immutable `v0.9.2` checkout—not the current Go-based named implementer and not a
+   tagged `install.sh` run that leaves existing skill links untouched. Change 0322 wires exact
+   legacy user-level adoption and makes the source `install.sh` delegate to the Go development
+   installer. Change 0326 disables the active deferred configuration requests that would otherwise
+   require Go to return `unsupported-config`.
 2. From a clean checkout at a reviewed `origin/main` commit containing both changes, the migration
    owner runs `go run ./cmd/docket development install --source <checkout>`. That transient process
    is authorized only to perform machine installation; it must not invoke a shared-state
    transaction command.
-3. The installed PATH-resolved binary must pass `docket install check`, and
+3. The installed PATH-resolved binary must pass `docket install check`, `command -v docket` must
+   identify that installed binary rather than an ad-hoc `go install` output, and
    `docket diagnostic config --repo-dir <checkout> --for-mutation --json` must report mutation
    allowed. The host is then restarted so it reloads the installed agents and dispatch material.
 

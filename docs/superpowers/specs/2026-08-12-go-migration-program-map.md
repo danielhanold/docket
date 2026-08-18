@@ -90,19 +90,30 @@ graph exposes it, therefore uses separate clones; otherwise run the ready siblin
 The ordinary loop cannot bootstrap the transaction CLI it already requires. After 0315, use this
 explicit transition instead:
 
-1. From a separate clean checkout of immutable tag `v0.9.2`, install the frozen Bash skills and
-   agents and use that workflow to implement, merge, and finalize changes 0322 and 0326. The feature
-   branches still start from current `origin/main`; the tagged checkout supplies only the sanctioned
-   lifecycle runtime.
-2. Fast-forward the primary checkout to a reviewed `origin/main` commit containing both changes and
+1. Create a separate clean checkout of immutable tag `v0.9.2`. Launch the implementer with an
+   explicit absolute-path preload of that checkout's `docket-implement-next` and
+   `docket-convention` skills, and route every facade call through that checkout's `scripts/`
+   directory. Do not invoke the current named implementer: its Steps 2–7 require the unavailable Go
+   transaction CLI. Do not treat the tagged `install.sh` as a selector: its link installer creates
+   missing links but deliberately does not repoint existing links, so it can leave the current Go
+   skill active while reporting the link as skipped.
+2. Use that pinned Bash workflow to implement, merge, and finalize changes 0322 and 0326. Their
+   feature branches still start from current `origin/main`; the tagged checkout supplies only the
+   sanctioned lifecycle runtime. Before claim, the run must report the tagged skill paths and
+   tagged helper root it resolved. Any attempted `docket change`, `docket workspace`,
+   `docket evidence`, `docket pr`, or `docket run` command proves the wrong workflow was loaded and
+   aborts the dispatch.
+3. Fast-forward the primary checkout to a reviewed `origin/main` commit containing both changes and
    apply 0326's private migration-host config edit.
-3. Run `go run ./cmd/docket development install --source <checkout>`. This invocation may mutate
+4. Run `go run ./cmd/docket development install --source <checkout>`. This invocation may mutate
    only machine installation roots. It may not run Docket metadata, workspace, PR, run, evidence,
    or finalize transactions.
-4. Through the newly installed PATH-resolved binary, run `docket install check` and
+5. Through the newly installed PATH-resolved binary, run `docket install check` and
    `docket diagnostic config --repo-dir <checkout> --for-mutation --json`; require a clean install
-   and mutation-allowed result, then restart the host to reload generated agents and instructions.
-5. Return to the ordinary loop with `docket-implement-next 316`. Any failed bridge check is a real
+   and mutation-allowed result, verify `command -v docket` names that installed binary rather than
+   an earlier ad-hoc `go install` output, then restart the host to reload generated agents and
+   instructions.
+6. Return to the ordinary loop with `docket-implement-next 316`. Any failed bridge check is a real
    precondition failure and stops before claim.
 
 This bridge is deliberately human-attended and one-time. It neither makes the source build a
