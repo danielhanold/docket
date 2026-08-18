@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
@@ -69,6 +70,14 @@ func runToTerminal(t *testing.T, argv []string, wantState string) string {
 	for i := 0; i < 300; i++ {
 		obs := GateObserve(res.RunDir)
 		if string(obs.State) == wantState {
+			// GateObserve reports the terminal state as soon as the supervisor
+			// writes terminalFile, but the supervisor then does an atomic
+			// manifestFile phase-rewrite (a temp file inside the run dir) and
+			// "releases the lock LAST" (internal/process/supervisor.go). Return
+			// before that and the supervisor's temp-file write races the
+			// t.TempDir() RemoveAll, which fails with "directory not empty".
+			// Wait for the lock to free so the run dir is quiescent at cleanup.
+			waitSupervisorGone(t, res.RunDir)
 			return res.RunDir
 		}
 		if obs.State != "running" {
@@ -78,6 +87,32 @@ func runToTerminal(t *testing.T, argv []string, wantState string) string {
 	}
 	t.Fatalf("run never reached %q", wantState)
 	return ""
+}
+
+// waitSupervisorGone blocks until the detached supervisor has released the
+// run's "live.lock" (internal/process liveLockFile) — its final act, performed
+// after every write to the run dir. Acquiring the flock non-blocking succeeds
+// only once the supervisor is done, guaranteeing no concurrent write races a
+// subsequent RemoveAll of the run dir.
+func waitSupervisorGone(t *testing.T, runDir string) {
+	t.Helper()
+	lockPath := filepath.Join(runDir, "live.lock")
+	for i := 0; i < 300; i++ {
+		f, err := os.OpenFile(lockPath, os.O_RDWR, 0)
+		if err != nil {
+			// No lock file means no supervisor holds the run dir.
+			return
+		}
+		err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+		if err == nil {
+			_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+			f.Close()
+			return
+		}
+		f.Close()
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("supervisor never released %s", lockPath)
 }
 
 // runningRunDir launches a long-lived gate and returns while it is still
