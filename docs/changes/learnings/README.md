@@ -80,6 +80,10 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [mirrored-guard-enforces-its-own-property](mirrored-guard-enforces-its-own-property.md) — A guard copied from a working twin enforces the property its ORIGINAL author needed — probe it by execution before naming a broader rule in your diagnostic. · also: spec, validation ⟨needs promotion⟩
 - [refusal-keyed-on-residue-not-condition](refusal-keyed-on-residue-not-condition.md) — A validator that keys on the residue a bad input leaves behind misses the inputs that leave no residue and fires on legal ones that happen to look like it — detect the condition itself, upstream of whatever normalization eats the evidence. · also: config, validation ⟨needs promotion⟩
 
+## migration
+
+- [migration-host-builds-through-the-frozen-prior-workflow](migration-host-builds-through-the-frozen-prior-workflow.md) — A change that unblocks its own tooling cannot be built by the tool it fixes — drive it through a clean checkout of the last release's frozen workflow, and reconcile against the actual code state, never the change's own framing of what its dependency left undone. · also: tooling, reconcile, docket-workflow ⟨needs promotion⟩
+
 ## process
 
 - [capability-absence-needs-a-failed-attempt](capability-absence-needs-a-failed-attempt.md) — An agent's own report that a capability is unavailable is untrusted input — only a failed attempt or a policy denial establishes absence; a missing tool NAME and an unobserved result establish nothing. · also: subagents, verification ⟨needs promotion⟩
