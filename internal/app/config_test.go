@@ -444,15 +444,20 @@ func TestJSONShapeInvalid(t *testing.T) {
 // bug, not a bad .docket.yml. It must surface as an internal error rather than
 // collapse into invalid-input, which would send the user off to edit a valid
 // configuration with no diagnostics explaining what to change.
-// TestMigrationHostContraction reproduces the migration host's real four-layer
-// configuration state and pins the Go v1 capability fence's verdict on it, so
-// the config contraction (change 0326) is proven against the classifier rather
-// than assumed. Three sub-cases:
+// TestMigrationHostContraction reproduces a representative four-layer
+// configuration state — not the migration host's byte-for-byte layers — and
+// pins the Go v1 capability fence's verdict on it, so the config contraction
+// (change 0326) is proven against the classifier rather than assumed. The
+// synthetic global layer here is a supported agent pin, NOT the real host's
+// actual global auto_capture.enabled request (that request is why
+// internal/config's docket-self fixture still resolves MutationAllowed==false);
+// the real-host mutation-allowed proof lives in change 0326's results — the
+// operator's .docket.local.yml edit plus `diagnostic config --for-mutation`.
+// Three sub-cases:
 //
 //   - pre-change: the committed switches on, plus a repository-LOCAL auto_capture
-//     and agent pin, plus a supported GLOBAL agent pin → mutation blocked, and
-//     the block names every repository-layer request while EXCLUDING the global
-//     pin.
+//     request, plus a supported GLOBAL agent pin → mutation blocked, and the
+//     block names every repository-layer request while EXCLUDING the global pin.
 //   - post-change: the switches off and the repository-local layer dropped, the
 //     global pin retained → mutation allowed, zero deferred blockers.
 //   - negatives: from the post-change state, re-activate exactly one blocker →
@@ -461,8 +466,10 @@ func TestJSONShapeInvalid(t *testing.T) {
 // The load-bearing premise is the classifier's layer-awareness
 // (internal/config/capability.go dispAgentsLeaf gated by isRepositoryLayer): a
 // global agent pin is supported, a repository/repository-local one is deferred.
-// The fixture exercises BOTH, so a regression that started flagging global pins
-// would redden here.
+// The global pin and the repository-local agent-pin negative name the SAME agent
+// leaf (agents.claude.implement-next), so the LAYER is the only variable that
+// flips the block/no-block outcome: a regression keyed on agent name rather than
+// layer, or one that started flagging global pins, would redden here.
 func TestMigrationHostContraction(t *testing.T) {
 	// The supported machine-global agent pin. It must never appear as a blocker.
 	globalAgentPin := config.Source{
@@ -485,14 +492,17 @@ func TestMigrationHostContraction(t *testing.T) {
 		}
 	}
 	// The repository-local layer the migration drops: an auto_capture request and
-	// a repo-local agent pin, either or both selectable.
+	// a repo-local agent pin, either or both selectable. The pin names the SAME
+	// agent leaf as globalAgentPin (agents.claude.implement-next), so a resolution
+	// carrying only this repo-local pin differs from one carrying only the global
+	// pin by LAYER alone — the classifier's sole discriminator.
 	repoLocal := func(autoCapture, agentPin bool) config.Source {
 		var b strings.Builder
 		if autoCapture {
 			b.WriteString("auto_capture:\n  enabled: true\n")
 		}
 		if agentPin {
-			b.WriteString("agents:\n  claude:\n    build-standard:\n      model: m\n      effort: medium\n")
+			b.WriteString("agents:\n  claude:\n    implement-next:\n      model: m\n      effort: medium\n")
 		}
 		return config.Source{Layer: config.LayerRepositoryLocal, Name: ".docket.local.yml", Data: []byte(b.String())}
 	}
@@ -508,8 +518,12 @@ func TestMigrationHostContraction(t *testing.T) {
 	}
 
 	// --- Sub-case 1: pre-change — mutation blocked, layer-aware blocker set. ---
+	// The repository-local layer carries auto_capture only, so the global
+	// implement-next pin resolves unshadowed and the layer-awareness claim below
+	// is observable in this combined state (the repo-local pin naming the same
+	// leaf is exercised on its own in the sub-case 3 negative).
 	pre := DiagnosticConfig(
-		[]config.Source{globalAgentPin, repoSwitches(true, true, true), repoLocal(true, true)},
+		[]config.Source{globalAgentPin, repoSwitches(true, true, true), repoLocal(true, false)},
 		mainCtx(), true)
 	if pre.MutationAllowed {
 		t.Errorf("pre-change: mutation_allowed = true, want false (switches + repo-local requests are active)")
@@ -520,15 +534,15 @@ func TestMigrationHostContraction(t *testing.T) {
 		"finalize.skip_results_only_delta",
 		"build.checkpoint",
 		"auto_capture.enabled",
-		"agents.claude.build-standard.model",
-		"agents.claude.build-standard.effort",
 	} {
 		if !preBlockers[want] {
 			t.Errorf("pre-change blockers missing %q; got %v", want, sortedKeys(preBlockers))
 		}
 	}
 	// The global agent pin is supported and must NOT block — this is the
-	// layer-awareness claim the whole change rests on.
+	// layer-awareness claim the whole change rests on. It names the same leaf a
+	// repository layer would (see the sub-case 3 negative), so only the layer
+	// separates this supported case from that blocked one.
 	for _, global := range []string{"agents.claude.implement-next.model", "agents.claude.implement-next.effort"} {
 		if preBlockers[global] {
 			t.Errorf("pre-change: global agent pin %q was reported as a blocker, but a global pin is supported", global)
