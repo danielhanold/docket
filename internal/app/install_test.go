@@ -195,7 +195,7 @@ func TestInstallHumanTextConflictCarriesRemedy(t *testing.T) {
 // not a per-target remedy, so it must appear exactly once on an
 // ownership-conflict outcome and never on any other.
 func TestInstallHumanTextLegacyNoteOnlyOnOwnershipConflict(t *testing.T) {
-	const fragment = "legacy Bash installer"
+	const fragment = "legacy Bash install"
 
 	conflict := NewInstallResult("install", install.Outcome{
 		Reason: install.ReasonOwnershipConflict,
@@ -204,9 +204,14 @@ func TestInstallHumanTextLegacyNoteOnlyOnOwnershipConflict(t *testing.T) {
 	if n := strings.Count(conflict, fragment); n != 1 {
 		t.Errorf("legacy note appears %d time(s), want 1:\n%s", n, conflict)
 	}
-	if !strings.Contains(conflict, "not yet adopted automatically") ||
-		!strings.Contains(conflict, "move them aside") {
+	// The note now describes automatic adoption of an exact legacy tree. It must
+	// NOT tell the person to move an (adoptable) legacy install aside — that is
+	// the pre-adoption remedy this change retires.
+	if !strings.Contains(conflict, "adopted automatically") {
 		t.Errorf("legacy note text = %q", conflict)
+	}
+	if strings.Contains(conflict, "move them aside") {
+		t.Errorf("legacy note still tells the person to move a legacy tree aside:\n%s", conflict)
 	}
 
 	for _, reason := range []string{

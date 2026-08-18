@@ -146,13 +146,16 @@ func classifyInstall(out install.Outcome) Result {
 
 // legacyNotAdoptedNote is the one aggregate sentence an ownership conflict adds
 // beyond the per-target remedies the service already composed into each
-// Action's Detail. It exists because this installer takes over nothing written
-// by docket's legacy Bash installer: legacy reproduction is an unwired seam
-// (see install.LegacyReproducer), so a machine that ran sync-agents.sh sees a
-// conflict at exactly the paths this installer plans, and the per-path remedy
-// alone does not tell the person why.
-const legacyNotAdoptedNote = "note: files installed by docket's legacy Bash installer are not yet " +
-	"adopted automatically; move them aside, then re-run."
+// Action's Detail. An exact-match legacy Bash install — bytes byte-identical to
+// what v0.9.2's sync-agents.sh wrote — is now adopted in place by ownership
+// proof three (see install.LegacyReproducer), so an ownership conflict no longer
+// means "a legacy install docket refuses to touch". It means the paths above are
+// neither a prior docket install nor an exact legacy one, so docket cannot prove
+// they are its to overwrite. The note says exactly that and defers to the
+// per-path remedies; it must never tell the person to move an adoptable legacy
+// tree aside, because that tree is adopted automatically now.
+const legacyNotAdoptedNote = "note: an exact legacy Bash install is adopted automatically; the path(s) above " +
+	"are not one, so docket changed nothing there — follow each path's remedy above, then re-run."
 
 // HumanText renders the same facts as the JSON document, in the order a person
 // reads them: what happened, to what, and then every action by path.

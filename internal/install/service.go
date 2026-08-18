@@ -316,8 +316,9 @@ func Check(o Options) Outcome {
 	// fields — the product version it was written by, the agent digest — are
 	// deliberately not compared, because a rebuilt binary that would install
 	// byte-identical material has not drifted.
+	legacy := legacyReproducerFor(o, plannerNames(selected))
 	for _, t := range targets {
-		inspection, err := InspectTarget(t, state, nil)
+		inspection, err := InspectTarget(t, state, legacy)
 		if err != nil {
 			return fail(out, ReasonFilesystemFailed, err)
 		}
@@ -425,10 +426,17 @@ func applyPlan(o Options, p plannedInstallation, out Outcome) Outcome {
 		return fail(out, ReasonStateInvalid, err)
 	}
 
+	// The legacy reproducer is ownership proof three: an on-disk artifact whose
+	// bytes are byte-exact to what the frozen v0.9.2 Bash installer wrote is
+	// provably docket's, so an exact legacy tree is adopted (DispositionUpdate)
+	// rather than refused as an ownership conflict. Built from the same resolved
+	// global inputs this run planned from; nil when no configuration was supplied.
+	legacy := legacyReproducerFor(o, p.harnesses)
+
 	inspections := make([]Inspection, 0, len(p.targets))
 	var conflicts []Inspection
 	for _, t := range p.targets {
-		inspection, err := InspectTarget(t, prior, nil)
+		inspection, err := InspectTarget(t, prior, legacy)
 		if err != nil {
 			return fail(out, ReasonFilesystemFailed, err)
 		}
