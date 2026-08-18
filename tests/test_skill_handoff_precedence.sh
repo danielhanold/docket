@@ -85,10 +85,13 @@ done <<<"$SITES"
 # every assert above would silently vanish. `checked` counts every wrapper-backed sigil line
 # (invocations AND mentions); `checked - exceptions - mentions` is the marker-bearing invocation
 # population that the DIRECTED-to asserts actually ran over — floored separately so the mention
-# branch cannot silently swallow every invocation.
+# branch cannot silently swallow every invocation. The floor is 3: implement-next's plan, build,
+# and review role invocations. Change 0315 retired implement-next's fourth invocation (finish) —
+# Step 7 now publishes through direct `docket workspace publish` + `docket pr publish` operations
+# rather than the SKILL_FINISH role — so 3, not 4, is the marker-bearing invocation population.
 assert "autonomous role invocations were actually checked (checked=$checked >= 5)" '[ "$checked" -ge 5 ]'
-assert "genuine invocation lines were marker-checked (found $((checked-exceptions-mentions)) >= 4)" \
-  '[ "$((checked-exceptions-mentions))" -ge 4 ]'
+assert "genuine invocation lines were marker-checked (found $((checked-exceptions-mentions)) >= 3)" \
+  '[ "$((checked-exceptions-mentions))" -ge 3 ]'
 assert "exactly one human-present exception exists (found $exceptions)" '[ "$exceptions" -eq 1 ]'
 
 # --- non-vacuity / mutation proof ---------------------------------------------------------------
