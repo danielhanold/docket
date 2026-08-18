@@ -2,9 +2,9 @@
 slug: yielded-worker-return-closes-every-door
 hook: "A worker that backgrounds its work and yields returns its pre-yield text as if it were an outcome — and because the worker may still be running, every cheap recovery door is closed; halt and preserve the worktree."
 topics: [subagents, process, worktrees]
-changes: [231, 309]
+changes: [231, 309, 315]
 created: 2026-08-07
-updated: 2026-08-16
+updated: 2026-08-18
 promotion_state: candidate
 promoted_to:
 ---
@@ -67,3 +67,27 @@ a results file that no gate reads.
   adoption was disclosed honestly and in the right place, and it still reached `done` unchallenged,
   because a prose note in `## Follow-ups` is not a gate. If this class is to be caught rather than
   merely confessed, the signal has to live somewhere a close-out actually reads.
+- 2026-08-18 (#315, PR #216) — **The third door, and the one that is actually open: resume the same
+  agent in place.** Change 0315's build reached its whole-suite gate and the dispatched worker hit
+  this exact shape — backgrounded the suite, yielded on a monitor event it could never receive, and
+  re-notified the controller every ~10 minutes with identical `I'll wait for the suite-exit
+  notification` prose and no new commits. It did this ~5 times across the run; each yield re-arms the
+  wedge. The controller neither halted (#231) nor adopted the child's files (#309). It
+  **`SendMessage`-resumed the same agent**, under an explicit human decision to keep that one agent
+  alive, and re-verified git state after every cycle rather than trusting the identical-looking
+  prose. That move is not on the forbidden list, for a reason: a resume is the agent's *own next
+  turn* on its *own* transcript — there is no second writer to race (unlike re-dispatch-fresh), no
+  double-write, and no foreign-file adoption, so the worker keeps authoring, self-reviewing, and
+  committing its own work. The run finished with a branch every commit of which its own worker wrote
+  — the property #309 lost — and the controller confirmed `verify-run → run-complete` against fresh
+  origin state, never the child's report. The liveness question the family turns on was answered not
+  by presuming death but by a human keeping the single agent alive and driving it forward. Two
+  caveats this entry adds. First, resume-in-place *works* but is *slow*: the wedge re-arms on every
+  yield, so it is a control loop a human babysits, not a fix — the fix is a launch shape that does
+  not wedge (change 0264). Second, the yield is not only a *return* failure, it is a *resource-leak*
+  failure: 0315's background-monitor / suite-runner machinery (compounded by a `pkill`) orphaned ~55
+  CPU-spinning processes that pinned every core (load ~140) and then masqueraded as endless
+  `OVER BUDGET:` advisories and a flaky `TempDir RemoveAll: directory not empty` cleanup race —
+  contention symptoms mistaken all session for real defects. A surviving launch shape that leaks its
+  children is a defective survival; the durable fix (0264) must pin a shape that both returns *and*
+  reaps.

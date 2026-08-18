@@ -6,9 +6,9 @@ status: proposed
 priority: medium
 type: docs
 created: 2026-08-08
-updated: 2026-08-09
+updated: 2026-08-18
 depends_on: []
-related: []
+related: [315]
 discovered_from: [200]
 adrs: []
 spec: docs/superpowers/specs/2026-08-09-claude-forked-mode-gate-verdict-design.md

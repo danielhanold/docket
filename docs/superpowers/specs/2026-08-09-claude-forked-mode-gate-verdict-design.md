@@ -82,6 +82,17 @@ child," or the whole probe repeats 0200's inconclusive run.
   using a short (≤60s) gate. This is what a real `docket-build` worker does; it exercises
   capability 4's forked-mode analogue and is recorded as its own evidence line, scoped to what it
   measured.
+- **Orphan-reaping check (run on every shape that survives rung 1 or rung 3).** A launch shape that
+  outlives the call is a *necessary* condition, not a sufficient one: the shape must also leave no
+  orphaned descendants once the gate finishes. Extend the fixture to spawn one marked, known-PID
+  background descendant (a trivial spinner) *inside* the launched gate; after the sentinel is written
+  and the launcher has returned, the outside observer records whether that descendant — and the
+  gate's own process group — is gone. This is not hypothetical: change 0315's dispatched build ran
+  the gate through the current posture and its monitor/runner machinery orphaned ~55 CPU-spinning
+  processes (reparented to init, load ~140) that then surfaced as spurious `OVER BUDGET:` advisories
+  and a flaky `TempDir RemoveAll: directory not empty` cleanup race — contention symptoms mistaken
+  for defects. A shape that survives but orphans is a *defective* survival and must be recorded as
+  one.
 
 Each rung is one dispatched agent per run (a fresh child per measurement — no rung reuses a child
 whose teardown behavior a prior rung already triggered). The **ladder driver** — the agent that
@@ -119,6 +130,12 @@ with Tier C's authorized-or-halt posture as the backstop if no tier can dispatch
   design deltas from the standard method (the dispatch vehicle, rung 0's rationale), measured launch
   durations per rung, and the narrative. The existing method section is not rewritten; the ladder
   above extends it.
+- **Reaping is part of the verdict, not a footnote.** A shape recorded as `supported` in dispatched
+  mode must have passed the orphan-reaping check. A shape that survives but leaks orphaned
+  descendants is recorded as `supported — leaks orphans`, with the reaping-clean shape (if any) named
+  as the preferred one and a follow-up stub minted to close the leak. If no probed shape both
+  survives and reaps, that gap is stated on the verdict line rather than hidden behind a bare
+  `supported`.
 - **No contract changes:** the six capabilities, the posture clauses in `docket-build/SKILL.md`,
   and the cursor/codex/opencode rows are untouched, per the stub's boundary.
 
@@ -183,4 +200,13 @@ item naming the version pin and the re-probe trigger, mirroring change 0223's re
 9. **No dependencies or file couplings recorded.**
    A whole-active-set grep shows 0264 is the only change touching `gate-execution.md` /
    `gate-execution-evidence.md`; 0200 and 0223 are both done (archived). `discovered_from: [200]`
-   already carries provenance; `depends_on`/`related` stay empty.
+   already carries provenance; `depends_on` stays empty and `related` carries only 0315 (the live
+   reinforcement below, not a build coupling).
+10. **The probe measures reaping as well as survival, on the surviving shapes.**
+    Added from change 0315's live evidence: following the current gate posture from a dispatched
+    worker left ~55 orphaned CPU-spinners that stampeded the machine and manifested as the suite's
+    own `OVER BUDGET:` / flaky-cleanup noise. A launch shape that survives the call but orphans its
+    descendants trades one failure (the gate never runs) for another (the gate runs but poisons every
+    subsequent run's timings). Rejected: scoping 0264 to survival only and filing reaping separately
+    — the same probe run measures both at no extra dispatch cost, and a survival verdict that ignores
+    reaping would ship a "surviving" shape that is unusable in practice.
