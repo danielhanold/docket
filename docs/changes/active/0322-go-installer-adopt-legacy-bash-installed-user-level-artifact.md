@@ -2,12 +2,12 @@
 id: 322
 slug: go-installer-adopt-legacy-bash-installed-user-level-artifact
 title: 'Bootstrap Go development installation and adopt legacy user-level artifacts'
-status: in-progress
+status: implemented
 priority: critical
 type: feat
 created: 2026-08-14
 updated: 2026-08-18
-claimed_at: 2026-08-18T18:47:19Z
+claimed_at: 2026-08-18T18:50:26Z
 depends_on: [311]
 stacked_on:
 related: [316, 326]
@@ -15,11 +15,11 @@ discovered_from: [311]
 adrs: [96]
 spec: docs/superpowers/specs/2026-08-18-development-install-bootstrap-and-legacy-adoption-design.md
 plan: docs/superpowers/plans/2026-08-18-development-install-bootstrap-and-legacy-adoption.md
-results:
+results: docs/results/2026-08-18-go-installer-adopt-legacy-bash-installed-user-level-artifact-results.md
 trivial: false
 auto_groomable:
 branch: feat/go-installer-adopt-legacy-bash-installed-user-level-artifact
-pr:
+pr: https://github.com/danielhanold/docket/pull/217
 blocked_by:
 reconciled: true
 ---
@@ -31,6 +31,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-18-development-install-bootstrap-and-legacy-adoption-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-18-development-install-bootstrap-and-legacy-adoption-design.md) |
 | Plan | [2026-08-18-development-install-bootstrap-and-legacy-adoption.md](https://github.com/danielhanold/docket/blob/feat/go-installer-adopt-legacy-bash-installed-user-level-artifact/docs/superpowers/plans/2026-08-18-development-install-bootstrap-and-legacy-adoption.md) |
+| Results | [2026-08-18-go-installer-adopt-legacy-bash-installed-user-level-artifact-results.md](https://github.com/danielhanold/docket/blob/feat/go-installer-adopt-legacy-bash-installed-user-level-artifact/docs/results/2026-08-18-go-installer-adopt-legacy-bash-installed-user-level-artifact-results.md) |
+| PR | [#217](https://github.com/danielhanold/docket/pull/217) |
 | ADRs | [ADR-0096](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0096-legacy-reproduction-uses-a-frozen-embedded-floor.md) |
 <!-- docket:artifacts:end -->
 
