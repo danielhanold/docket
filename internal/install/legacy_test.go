@@ -2,6 +2,8 @@ package install
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -247,6 +249,81 @@ func TestLegacyReproducer_EmbedsAllBuiltins(t *testing.T) {
 		got, ok := rep(Target{Path: path, Kind: KindFile, Role: roleAgent})
 		if !ok || len(got) == 0 {
 			t.Errorf("built-in %q: reproducer returned ok=%v len=%d", short, ok, len(got))
+		}
+	}
+}
+
+// legacyBuiltinDigests pins the SHA-256 of every frozen v0.9.2 built-in
+// agent-source body embedded under legacydata/docket-*.md, keyed by agent
+// short-name. There are exactly sixteen — the full set a real v0.9.2 machine
+// has — and a real install refuses (no --force) unless every one byte-matches,
+// so an accidental edit to ANY body must redden CI even though only two are
+// pinned by the captured corpus goldens. The digests were computed from the
+// current embedded bytes, which the change verified byte-match the v0.9.2
+// checkout; this guard is the self-contained cross-check that needs no external
+// checkout. Any drift — an edited, added, or removed body — flips a digest or
+// the count and fails TestLegacyReproducer_FrozenBodyDigests below.
+var legacyBuiltinDigests = map[string]string{
+	"adr":                   "3064d7c638ea83dada098034e29ec760cf1c7f1edde17563a2d18eff5425b485",
+	"auto-groom-critic":     "3d28f51fbf68cc9a7b0c28cb328f2f21e2778642abe0ae96847cc9887ec83590",
+	"auto-groom":            "16efa7d4cdd23c7f9e42f603c406b2a5b254e2d56fcd2569aeff86bf7beec275",
+	"brainstorm-consultant": "d3ddefb5afd62739254d9cc777c1de4b4cd576792fa32f1721c852556044b5a6",
+	"build-economy":         "2572cbc2ad69771bdbe94bc9c19964ae9dd8031afd262aef762bec0998ed3f89",
+	"build-max":             "e584b8eba10f853a4ccddd7faa1c6597bfcbe581c5d3b4c2a2e8ab60d03fd9c5",
+	"build-premium":         "2c7d4560e71a966ea2a6b28391b76dbfddd4bc379a1fb3984d6fa793505e30bb",
+	"build-standard":        "a1e1c99d2c0de3a222e09a8ecb5e994a44472c820488e6a92f5792a104ceab9b",
+	"finalize-change":       "9d061281879fdb49383ab1d4a0339938bff062149c905ef479b35bb3ff6aafd4",
+	"implement-next":        "f752983100cc034b2ad7cf79fd9ea610aad216dc888dff2f2148b3f166b269a2",
+	"integration-repair":    "bb133be5d10351762c304c81eb574b1fde3140570687716b1afac7a3cfb31b44",
+	"rebase-resolver":       "db68bbf03f74041eb433b2fbcc0377e0492b7d989674aa195019913b8419c32a",
+	"review-deep":           "026214da8b620ab91b95019d7da8939f14d790cef52d0c05e905adaa244f3a8b",
+	"review-lean":           "c59a81691760fdb1fe5a1d6bffa8e4b496516eb140190ff88d13b9c1feff5e10",
+	"review-standard":       "cfc8e3bae0e8beb946378b7214c587fb0a527656ff3904b346fc77999a40c7e6",
+	"status":                "dc6a323a1e2fc1de09956d80e1c653f4a427cbb953e59380d976c354c5011b11",
+}
+
+// TestLegacyReproducer_FrozenBodyDigests freezes all sixteen embedded v0.9.2
+// agent-source bodies, not just the two the captured corpus goldens pin. It is
+// bound on the property "the frozen bytes are unchanged": each embedded body's
+// raw bytes must hash to its pinned SHA-256, the embedded set must be exactly
+// the sixteen built-ins (count + every name), and no extra .md may appear. A
+// body edit flips its digest; an added/removed body flips the count or a
+// membership check — so any drift reddens here without needing the v0.9.2
+// checkout (the only external cross-check CI lacks). Non-vacuous by
+// construction: change one byte of any legacydata/docket-*.md and its SHA-256
+// no longer equals the pinned hex, failing the per-body assertion.
+func TestLegacyReproducer_FrozenBodyDigests(t *testing.T) {
+	// The embedded set the reproducer actually parses (loadLegacyAgentSources's
+	// `.md` scan) must be exactly the sixteen pinned built-ins.
+	if len(legacyAgentSources) != len(legacyBuiltinDigests) {
+		t.Fatalf("embedded agent-source count = %d, want %d (the frozen v0.9.2 built-ins)",
+			len(legacyAgentSources), len(legacyBuiltinDigests))
+	}
+	for short := range legacyBuiltinDigests {
+		if _, ok := legacyAgentSources[short]; !ok {
+			t.Errorf("pinned built-in %q is absent from the embedded sources", short)
+		}
+	}
+	for short := range legacyAgentSources {
+		if _, ok := legacyBuiltinDigests[short]; !ok {
+			t.Errorf("embedded source %q has no pinned digest (added/renamed body?)", short)
+		}
+	}
+
+	// Every embedded body must hash to its pinned digest. Read the raw bytes
+	// straight from the embed.FS the production loader reads, so the guard sees
+	// exactly the frozen bytes.
+	for short, wantHex := range legacyBuiltinDigests {
+		data, err := legacydata.ReadFile("legacydata/docket-" + short + ".md")
+		if err != nil {
+			t.Errorf("%s: reading embedded body: %v", short, err)
+			continue
+		}
+		sum := sha256.Sum256(data)
+		gotHex := hex.EncodeToString(sum[:])
+		if gotHex != wantHex {
+			t.Errorf("%s: embedded body SHA-256 = %s, want pinned %s (frozen body drifted)",
+				short, gotHex, wantHex)
 		}
 	}
 }
