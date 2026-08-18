@@ -132,16 +132,20 @@ assert "finalize names the wrapper as the tier source" 'grep -Eqi "model/effort 
 assert "repo .docket.yml sets finalize gate to local" \
   '[ "$(gate_of "$DYML")" = "local" ] && grep -Eq "^finalize:" "$DYML" && grep -Eq "^[[:space:]]+gate[[:space:]]*:[[:space:]]*local" "$DYML"'
 
-# ---- 0190: the repo arms the results-only skip, and only because it PROVES the property -------
-# Arming `finalize.skip_results_only_delta` is a claim about THIS repo's own suite — that no
-# executable component of it reads the results tree as a content source. The claim and the guard
-# that establishes it are asserted as a PAIR, deliberately: asserting the arming alone would let
-# the guard be deleted while the merge-gate skip stayed on, which is the state the key exists to
-# make impossible. The guard's own contents are its file's business; what is checked here is that
-# the justification still ships in the suite the gate runs.
-assert "repo .docket.yml arms finalize.skip_results_only_delta" \
-  'grep -Eq "^[[:space:]]+skip_results_only_delta[[:space:]]*:[[:space:]]*true([[:space:]]|#|$)" "$DYML"'
-assert "0190: the invisibility guard that justifies the arming ships in the suite" \
+# ---- 0190/0326: the repo DISARMS the results-only skip, and the invisibility guard stands anyway --
+# Change 0326 defers `finalize.skip_results_only_delta` for Go v1, so this repo now explicitly
+# disarms it: docket's own finalize is governed by the equality-only post-gate delta predicate of
+# change 0170, not by the results-only skip. Asserting the value is explicitly `false` (not merely
+# "absent" or "any value") keeps this an anti-regression check — it reddens if the key is dropped
+# or silently re-armed.
+assert "repo .docket.yml disarms finalize.skip_results_only_delta" \
+  'grep -Eq "^[[:space:]]+skip_results_only_delta[[:space:]]*:[[:space:]]*false([[:space:]]|#|$)" "$DYML"'
+# With the skip disarmed, the invisibility guard is no longer this key's justification. It is
+# retained here as a STANDING INVARIANT in its own right: the property it proves — that no
+# executable component of this suite reads the results tree as a content source — is a fact about
+# this repo's suite that holds independent of the skip, and asserting the guard still ships keeps it
+# from being deleted silently and re-armable-unnoticed later.
+assert "0190: the results-tree invisibility guard ships in the suite as a standing invariant" \
   '[ -f "$REPO/tests/test_skip_allowlist_invisibility.sh" ] && grep -q "results_dir" "$REPO/tests/test_skip_allowlist_invisibility.sh"'
 
 # ---- convention documents the gate + the two new wrappers --------------------
