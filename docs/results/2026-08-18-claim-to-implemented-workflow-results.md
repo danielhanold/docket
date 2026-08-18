@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0315 — Claim-to-implemented agent workflow](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0315-claim-to-implemented-workflow.md)**
+> ↩ **[Change 0315 — Claim-to-implemented agent workflow](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-18-0315-claim-to-implemented-workflow.md)**
 <!-- docket:backlink:end -->
 
 # Claim-to-implemented agent workflow — results
