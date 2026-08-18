@@ -2,12 +2,12 @@
 id: 328
 slug: de-flake-testrecovermarkscleanlyabandonedownedrun-under-full
 title: 'De-flake TestRecoverMarksCleanlyAbandonedOwnedRun under full-suite load'
-status: in-progress
+status: implemented
 priority: medium
 type: fix
 created: 2026-08-18
 updated: 2026-08-18
-claimed_at: 2026-08-18T19:53:08Z
+claimed_at: 2026-08-18T20:05:55Z
 depends_on: []
 stacked_on:
 related: []
@@ -15,11 +15,11 @@ discovered_from: [325]
 adrs: []
 spec:
 plan: docs/superpowers/plans/2026-08-18-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full.md
-results:
+results: docs/results/2026-08-18-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full-results.md
 trivial: true
 auto_groomable:
 branch: feat/de-flake-testrecovermarkscleanlyabandonedownedrun-under-full
-pr:
+pr: https://github.com/danielhanold/docket/pull/219
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Plan | [2026-08-18-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full.md](https://github.com/danielhanold/docket/blob/feat/de-flake-testrecovermarkscleanlyabandonedownedrun-under-full/docs/superpowers/plans/2026-08-18-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full.md) |
+| Results | [2026-08-18-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full-results.md](https://github.com/danielhanold/docket/blob/feat/de-flake-testrecovermarkscleanlyabandonedownedrun-under-full/docs/results/2026-08-18-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full-results.md) |
+| PR | [#219](https://github.com/danielhanold/docket/pull/219) |
 <!-- docket:artifacts:end -->
 
 ## Why
