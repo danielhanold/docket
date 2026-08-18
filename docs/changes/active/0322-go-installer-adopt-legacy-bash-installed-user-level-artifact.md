@@ -2,11 +2,12 @@
 id: 322
 slug: go-installer-adopt-legacy-bash-installed-user-level-artifact
 title: 'Bootstrap Go development installation and adopt legacy user-level artifacts'
-status: proposed
+status: in-progress
 priority: critical
 type: feat
 created: 2026-08-14
 updated: 2026-08-18
+claimed_at: 2026-08-18T15:51:30Z
 depends_on: [311]
 stacked_on:
 related: [316, 326]
@@ -17,7 +18,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/go-installer-adopt-legacy-bash-installed-user-level-artifact
 pr:
 blocked_by:
 reconciled: false
