@@ -16,8 +16,8 @@
 
 ## Global Constraints
 
-- **Do NOT modify `internal/config`** (schema, classifier, resolver) or reclassify any capability, and do NOT add a migration override or ignore `.docket.local.yml` (spec "Explicit exclusions"). This change is config + fixtures only.
-- **Do NOT weaken or delete any existing capability-fence test** (`internal/app/config_test.go`, `internal/config/*_test.go`). Add, never subtract.
+- **Do NOT modify the `internal/config` classifier/schema/resolver LOGIC** or reclassify any capability, and do NOT add a migration override or ignore `.docket.local.yml` (spec "Explicit exclusions"). Note the scope boundary: contracting `.docket.yml` legitimately trips the drift guard `TestFixtureDocketSelf` (`internal/config/fixtures_test.go`), whose OWN remedy message mandates cutting a new versioned fixture tree + re-deriving its expectations. That fixture re-baseline is **sanctioned maintenance the spec's green-suite requirement forces**, not a logic change — it is authorized here (human decision, 2026-08-18). It does not weaken the fence: the guard still fires on future drift.
+- **Do NOT weaken or delete any capability-fence test.** The drift-guard re-baseline (Task 1b) re-derives `TestFixtureDocketSelf`'s expectations against the new frozen state; it must keep the guard live (still byte-compares, still asserts the remaining blocker set + layers). Touch no other `internal/config` test.
 - **The tracked diff changes ONLY the three owned committed switches and their explanatory comments** — preserve every other `.docket.yml` key and comment; do not normalize or reorder the file (spec "Preservation and failure rules").
 - **Set the three booleans explicitly to `false`** (visible decision; robust to a future built-in default move) — never delete the keys.
 - **Global model/effort pins are supported and untouched.** Only repository and repository-local agent pins block.
@@ -58,6 +58,25 @@
 - [ ] **Step 4: Run tests green** — `go test ./internal/app/... ./internal/config/...` all green; `go vet ./...` and `go build ./...` clean. Confirm `TestPreflightUnsupported` and the other existing fence tests still pass unchanged.
 
 - [ ] **Step 5: Commit** — `chore(0326): contract .docket.yml deferred switches; prove four-layer mutation envelope`.
+
+---
+
+## Task 1b: Re-baseline the `docket-self` drift guard for the contracted config
+
+Contracting `.docket.yml` (Task 1) reds `internal/config`'s `TestFixtureDocketSelf` — a drift guard that byte-compares the live `.docket.yml` against a frozen copy at `testdata/repositories/v0.9.2/docket-self/repo/.docket.yml`. The guard's own failure remedy prescribes the fix; follow it exactly.
+
+**Files:**
+- Create: a new versioned fixture tree `testdata/repositories/<new-version>/docket-self/…` (mirror the existing `v0.9.2/docket-self/` layout: `repo/.docket.yml`, `repo/` peers if any, and `xdg/docket/config.yml`) with `repo/.docket.yml` = the **contracted** file, plus a `PROVENANCE.md` for the new tree following the existing `v0.9.2`/`v0.9.3` `PROVENANCE.md` shape (record the current source commit + date).
+- Modify: `internal/config/fixtures_test.go` — re-point `TestFixtureDocketSelf` (and only that test) to the new versioned `docket-self` tree, and re-derive its expectations.
+- Reference (do NOT modify): the classifier/schema/resolver source; `testdata/README.md` (the frozen-fixture immutability + new-versioned-tree protocol).
+
+**Interfaces:**
+- Consumes: `assertFrozenCopyMatchesLive`, `mustResolveFixture`, `blockerPaths`, `PreflightMutation` (all existing in `fixtures_test.go`).
+
+- [ ] **Step 1: Determine the new version + cut the tree** — read `testdata/README.md` for the versioning convention and the two existing `PROVENANCE.md` files for the shape. Cut a new versioned tree holding the `docket-self` fixture: copy `v0.9.2/docket-self/` verbatim, then overwrite `repo/.docket.yml` with the CONTRACTED file (byte-identical to the live `.docket.yml` after Task 1). Change NOTHING else in the copied tree — in particular leave `xdg/docket/config.yml` exactly as frozen (its `auto_capture.enabled` is not this change's to touch). Add `PROVENANCE.md`.
+- [ ] **Step 2: Re-point + re-derive** — update `TestFixtureDocketSelf` to read the frozen `.docket.yml` from the NEW tree (leave every other fixture test on `v0.9.2`). Re-derive its expectations by **running the resolver and observing the actual output**, never by guessing: the committed-layer blockers (`build.checkpoint`, `finalize.skip_results_only_delta`, `terminal_publish`) drop out; whatever remains (e.g. a still-active `auto_capture.enabled` from the fixture's global layer, if present) stays. Update the `blockerPaths` assertion, the per-blocker `wantLayer` map, `MutationAllowed`/`decision.Allowed`, and `finalize.test_command`/`metadata_branch` assertions to match the resolver's actual result for the new fixture. If the re-derived result is `MutationAllowed == true` (no blockers remain), assert that; if a global blocker remains, assert the reduced set — either is correct, whatever the resolver actually produces.
+- [ ] **Step 3: Run** — `go test ./internal/config/... -run TestFixtureDocketSelf -v` green, then the whole `internal/config` package green, then `go build ./...` / `go vet ./...` clean. Confirm the guard is still LIVE: mutate the new frozen `.docket.yml` by one byte, watch `TestFixtureDocketSelf` redden, revert.
+- [ ] **Step 4: Commit** — `test(0326): re-baseline docket-self drift fixture to the contracted config`.
 
 ---
 
