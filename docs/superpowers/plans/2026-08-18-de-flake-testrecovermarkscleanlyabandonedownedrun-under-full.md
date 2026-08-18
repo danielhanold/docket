@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0328 — De-flake TestRecoverMarksCleanlyAbandonedOwnedRun under full-suite load](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0328-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full.md)**
+> ↩ **[Change 0328 — De-flake TestRecoverMarksCleanlyAbandonedOwnedRun under full-suite load](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-18-0328-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full.md)**
 <!-- docket:backlink:end -->
 
 # De-flake TestRecoverMarksCleanlyAbandonedOwnedRun Implementation Plan
