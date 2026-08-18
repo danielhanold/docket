@@ -7,12 +7,12 @@ priority: critical
 type: feat
 created: 2026-08-14
 updated: 2026-08-18
-claimed_at: 2026-08-18T16:02:47Z
+claimed_at: 2026-08-18T18:47:19Z
 depends_on: [311]
 stacked_on:
 related: [316, 326]
 discovered_from: [311]
-adrs: []
+adrs: [96]
 spec: docs/superpowers/specs/2026-08-18-development-install-bootstrap-and-legacy-adoption-design.md
 plan: docs/superpowers/plans/2026-08-18-development-install-bootstrap-and-legacy-adoption.md
 results:
@@ -31,6 +31,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-18-development-install-bootstrap-and-legacy-adoption-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-18-development-install-bootstrap-and-legacy-adoption-design.md) |
 | Plan | [2026-08-18-development-install-bootstrap-and-legacy-adoption.md](https://github.com/danielhanold/docket/blob/feat/go-installer-adopt-legacy-bash-installed-user-level-artifact/docs/superpowers/plans/2026-08-18-development-install-bootstrap-and-legacy-adoption.md) |
+| ADRs | [ADR-0096](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0096-legacy-reproduction-uses-a-frozen-embedded-floor.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
