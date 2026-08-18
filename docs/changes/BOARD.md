@@ -1,8 +1,8 @@
 # Backlog
 
-**327 changes** — 🟡 49 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 193 done · 🗑️ 80 killed
+**327 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 193 done · 🗑️ 80 killed
 
-## 🟡 Proposed (49)
+## 🟡 Proposed (48)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -52,7 +52,6 @@
 | [0320](active/0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | `medium` | `chore` | needs-brainstorm |
 | [0321](active/0321-render-artifact-backlink-sh-eats-artifact-tails-on-marker-sh.md) | render-artifact-backlink.sh eats artifact tails on marker-shaped literals — anchor whole-line, validate balance, refuse | `medium` | `fix` | needs-brainstorm |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | needs-brainstorm |
-| [0325](active/0325-de-flake-the-gate-run-stop-barrier-test.md) | De-flake the gate-run --stop barrier test | `medium` | `fix` | needs-brainstorm |
 | [0326](active/0326-pre-go-mutation-configuration-contraction.md) | Pre-Go mutation configuration contraction | `critical` | `chore` | build-ready |
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
 
@@ -65,11 +64,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0322](active/0322-go-installer-adopt-legacy-bash-installed-user-level-artifact.md) | Bootstrap Go development installation and adopt legacy user-level artifacts | `critical` | `feat` | [#217](https://github.com/danielhanold/docket/pull/217) |  |
+| [0325](active/0325-de-flake-the-gate-run-stop-barrier-test.md) | De-flake the gate-run --stop barrier test | `medium` | `fix` | [#218](https://github.com/danielhanold/docket/pull/218) |  |
 
 ```mermaid
 graph TD
