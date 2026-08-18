@@ -1,6 +1,6 @@
 # Backlog
 
-**328 changes** — 🟡 49 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 194 done · 🗑️ 80 killed
+**328 changes** — 🟡 49 proposed · ⚪ 4 deferred · ✅ 195 done · 🗑️ 80 killed
 
 ## 🟡 Proposed (49)
 
@@ -45,7 +45,7 @@
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
-| [0316](active/0316-finalize-recovery-reclaim-archive-and-stacks.md) | Finalize, recovery, reclaim, archive, and stacks | `critical` | `feat` | ⏳ waiting on #322 — needs your merge |
+| [0316](active/0316-finalize-recovery-reclaim-archive-and-stacks.md) | Finalize, recovery, reclaim, archive, and stacks | `critical` | `feat` | ⏳ waiting on #326 — not yet built |
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | ⏳ waiting on #316 — not yet built |
 | [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Remaining configuration cleanup, self-hosting, and hard cutover | `critical` | `refactor` | ⏳ waiting on #317 — not yet built |
 | [0319](active/0319-test-bash-runtime-routing-sh-s-inventory-assert-is-cwd-depen.md) | test_bash_runtime_routing.sh's inventory assert is cwd-dependent — relative rg globs resolve against the process cwd | `medium` | `fix` | needs-brainstorm |
@@ -64,12 +64,6 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0322](active/0322-go-installer-adopt-legacy-bash-installed-user-level-artifact.md) | Bootstrap Go development installation and adopt legacy user-level artifacts | `critical` | `feat` | [#217](https://github.com/danielhanold/docket/pull/217) |  |
 
 ```mermaid
 graph TD
@@ -125,7 +119,6 @@ graph TD
   0319
   0320
   0321
-  0311 --> 0322
   0323
   0315 --> 0326
   0327
@@ -134,14 +127,16 @@ graph TD
   0211:::done
   0311:::done
   0315:::done
+  0322:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (274)</summary>
+<details><summary>✅🗑️ Archive — done + killed (275)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0325](archive/2026-08-18-0325-de-flake-the-gate-run-stop-barrier-test.md) | De-flake the gate-run --stop barrier test | 2026-08-18 |
+| [0322](archive/2026-08-18-0322-go-installer-adopt-legacy-bash-installed-user-level-artifact.md) | Bootstrap Go development installation and adopt legacy user-level artifacts | 2026-08-18 |
 | [0315](archive/2026-08-18-0315-claim-to-implemented-workflow.md) | Claim-to-implemented agent workflow | 2026-08-18 |
 | [0314](archive/2026-08-17-0314-native-process-supervisor-and-local-gate.md) | Native process supervisor and local gate | 2026-08-17 |
 | [0312](archive/2026-08-17-0312-planning-mutations-board-and-adrs.md) | Planning mutations, inline board, and ADRs | 2026-08-17 |
@@ -157,7 +152,6 @@ graph TD
 | [0304](archive/2026-08-13-0304-go-executable-json-protocol-test-build-skeleton.md) | Go executable, JSON protocol, and test/build skeleton | 2026-08-13 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
 | [0299](archive/2026-08-12-0299-reshard-tests-test-sync-agents-runners-so-every-file-measure.md) | Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling | 2026-08-12 |
-| [0298](archive/2026-08-12-0298-stacked-changes-build-a-new-change-on-top-of-a-parent-change.md) | Stacked changes — build a new change on top of a parent change's branch | 2026-08-12 |
 | [0285](archive/2026-08-12-0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | 2026-08-12 |
 | [0268](archive/2026-08-11-0268-de-flake-the-reclaim-leg-of-test-docket-status-under-paralle.md) | De-flake the reclaim leg of test_docket_status under parallel contention | 2026-08-11 |
 | [0278](archive/2026-08-09-0278-test-docket-example-yml-s-fidelity-fixture-goes-intermittent.md) | test_docket_example_yml's fidelity fixture goes intermittently red under parallel contention | 2026-08-09 |
@@ -241,7 +235,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 61 done |
+| [2026-08](archive/) | 62 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
