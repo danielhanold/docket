@@ -71,13 +71,50 @@ metadata modes can complete the retained claim-to-terminal lifecycle through Go.
 and release-artifact acceptance remains 0317; Docket's own active configuration still blocks Go
 mutation until 0318 performs the already-approved contraction.
 
+## Pre-cutover execution and bootstrap boundary
+
+Change 0316 is developed before an installed Go `docket` executable exists. `DOCKET_SCRIPTS_DIR`
+exposes the frozen Bash `docket.sh` facade, not the Go command tree, and this design does not pretend
+that `context`, `change`, `workspace`, `evidence`, `pr`, `run`, or the new `finalize` verbs exist on
+that facade. The command spellings below define the Go v1 protocol that this change delivers; they
+are not instructions to find a pre-existing `docket` command on `PATH` while building 0316.
+
+Compiling `./cmd/docket` is also not sufficient to make that binary a control plane for Docket's
+own repository. Its resolved configuration currently requests capabilities Go v1 deliberately does
+not ship: `agents.*` model/effort pins from the global configuration and `.docket.local.yml`,
+`auto_capture.enabled` from `.docket.local.yml`, and `build.checkpoint`,
+`finalize.skip_results_only_delta`, and `terminal_publish` from `.docket.yml`. The approved
+capability policy therefore requires a source-built binary to return `unsupported-config` before
+any live Docket metadata mutation. Change 0316 must preserve that refusal. It must not weaken the
+capability fence, hide a configuration layer, add a bypass, or contract those settings; the
+contraction and first Go-managed Docket mutation remain 0318.
+
+The migration host and the product under test are consequently separate:
+
+- bookkeeping for change 0316 itself remains under the frozen `v0.9.2` Bash migration control
+  plane described by the approved program map. This is an execution precondition, not Bash product
+  work in 0316. A source-linked installation that exposes in-progress Go-v1 workflow assets is not
+  used as the host for this pre-cutover change;
+- unit and application tests call Go package seams directly. Protocol and end-to-end tests build an
+  explicit temporary executable from the checkout, never rely on `docket` being on `PATH`, and run
+  it only against disposable repositories with hermetic global/local configuration inside the
+  supported Go v1 capability envelope; and
+- the temporary executable and Go-v1 workflow assets are product-under-test artifacts only. Change
+  0317 owns release binaries and live installed four-harness acceptance; change 0318 owns activating
+  Go as Docket's own authoritative workflow and retiring the Bash host.
+
+This boundary is acceptance-critical. A test must reproduce Docket's current resolved capability
+requests and prove the temporary binary refuses before mutation with diagnostics naming the
+requested paths. No positive 0316 test may make that live configuration supported by suppressing,
+overriding, or silently ignoring it.
+
 ## Chosen architecture
 
 Claude remains the workflow controller. Go exposes small checkpoint operations whose promises are
 independently observable:
 
 ```text
-Claude-hosted docket-finalize-change
+Go-v1 finalize asset under an explicit disposable-repository test host
   |
   +--> context finalize              revision-consistent change/PR/stack/gate facts
   +--> finalize retarget-children    attended override only; probe/act/verify each PR
@@ -132,7 +169,10 @@ internal/cli  -->  internal/app
   derived blocks. A cross-ref update on the integration ref uses the same isolated-worktree,
   explicit-path, request-receipt, and expected-ref principles; it is not a shared checkout edit.
 
-The public operation names settled by this slice are:
+The public operation names settled by this slice are shown below. The examples use `docket` as the
+eventual executable name. During 0316 development and acceptance,
+the same argv is sent to the explicitly built temporary executable described above; neither a bare
+PATH lookup nor `docket.sh` dispatch is permitted.
 
 ```text
 docket context finalize [--id <change-id>] [--allowlist <id,id,...>]
@@ -542,7 +582,9 @@ always asks the authority that owns the promised postcondition.
 
 ## Skill and embedded-asset revisions
 
-This change revises only the workflow assets needed for the retained terminal path:
+This change authors and embeds only the Go-v1 workflow assets needed for the retained terminal
+path. They are exercised explicitly as product-under-test inputs; they do not replace the frozen
+Bash assets hosting change 0316 itself:
 
 - `docket-finalize-change` becomes the Claude-owned sequencer for the operations and sign-off rules
   in this spec, retaining one merge per invocation and its `advanced`/`contended`/`drained`/`halted`
@@ -556,7 +598,8 @@ This change revises only the workflow assets needed for the retained terminal pa
 - `docket-implement-next` and `run verify` gain the persistent halt/resume path without changing
   the already-landed claim-to-implemented checkpoints.
 - Focused references, command manifests, agent templates, and embedded assets are regenerated
-  together so installed and source-linked protocol versions agree.
+  together so the eventual installed protocol is internally consistent. A source-linked
+  installation is not used to activate these revisions on Docket's own repository before 0318.
 
 Go v1 uses the fixed approved roles. The change does not add skill rebinding, per-repository model
 routing, cross-harness delegation, inline resolver/repair substitution, autonomous capture, or
@@ -629,7 +672,9 @@ ambiguous, foreign, and probe-error case.
 
 ### End-to-end and mutation tests
 
-The end-to-end matrix starts from 0315's verified `implemented` state and proves:
+The end-to-end matrix builds `./cmd/docket` to an explicit temporary path, isolates global and
+repository-local configuration, starts from 0315's verified `implemented` state in a disposable
+repository, and proves:
 
 - ordinary local-gate finalize to archive and cleanup in both repository modes;
 - rebase conflict resolution, red-suite repair/sign-off halt, retry, merge, and closeout;
@@ -638,6 +683,13 @@ The end-to-end matrix starts from 0315's verified `implemented` state and proves
   retention/retargeting with open children;
 - out-of-band merge recovered by maintenance; and
 - expired no-work reclaim plus persistent implementation halt/resume.
+
+A separate negative fixture loads the same capability requests that currently resolve for Docket's
+own repository—`agents.*`, `auto_capture.enabled`, `build.checkpoint`,
+`finalize.skip_results_only_delta`, and `terminal_publish`—and proves every mutating 0316 operation
+returns `unsupported-config` before a metadata, Git, GitHub, workspace, gate, or cleanup effect.
+The test invokes the temporary binary by absolute path and also establishes that no test depends on
+a `docket` executable being present on `PATH` or on unsupported verbs in `docket.sh`.
 
 Every safety guard has a mutation that removes or corrupts its premise and observes the operation
 refuse before mutation. The build runs the whole resolved suite and treats every `OVER BUDGET:`
@@ -661,6 +713,9 @@ This change does not:
   0317;
 - contract Docket's active configuration, make Go self-hosting authoritative, remove production
   Bash/tests, publish the release, or perform hard cutover from 0318;
+- install or activate a Go `docket` executable for the migration host, teach `docket.sh` the Go
+  command tree, mutate Docket's live metadata with a source-built binary, or bypass the
+  unsupported-capability refusal;
 - introduce a daemon, database, generic workflow cursor, public Go API, arbitrary Git/`gh` runner,
   force-push/delete escape hatch, automatic merge rollback, or new lifecycle status; or
 - edit merged plan/results authored content, infer stack state from rendered links, or mark a
@@ -668,9 +723,10 @@ This change does not:
 
 ## Acceptance criteria
 
-1. A Claude-hosted Go-v1 run can take one verified `implemented` change through the configured
-   local/off gate, exact merge, terminal metadata transaction, generated-link repair, and owned
-   cleanup without direct skill-owned Git, GitHub, metadata, or process mechanics.
+1. An explicitly built temporary Go-v1 executable, invoked by absolute path against a disposable
+   supported-configuration repository, can take one verified `implemented` change through the
+   configured local/off gate, exact merge, terminal metadata transaction, generated-link repair,
+   and owned cleanup without direct skill-owned Git, GitHub, metadata, or process mechanics.
 2. Resolver and repair agents retain authorship and judgment, while every Git/index/head/gate/PR
    claim they return is mechanically verified before publication or merge.
 3. Every irreversible effect has a postcondition probe and replay path; interruption or response
@@ -685,5 +741,10 @@ This change does not:
    idempotent, and explicitly resumable without losing or racing an existing workspace.
 7. Both repository modes pass the real-Git claim-to-terminal, crash/retry, stack, maintenance,
    backlink, and cleanup matrices under the whole resolved suite.
-8. The implementation contains no behavior allocated to changes 0305–0315 or 0317–0318 and does
+8. With Docket's current resolved configuration, that same temporary executable names the
+   `agents.*`, `auto_capture.enabled`, `build.checkpoint`,
+   `finalize.skip_results_only_delta`, and `terminal_publish` blockers and performs no mutation;
+   no 0316 build or acceptance step assumes `docket` is on `PATH` or that `docket.sh` implements Go
+   verbs.
+9. The implementation contains no behavior allocated to changes 0305–0315 or 0317–0318 and does
    not reintroduce any capability the approved Go v1 architecture deferred or dropped.

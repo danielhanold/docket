@@ -49,7 +49,10 @@ terminal-link repair, and ownership-safe run/workspace/branch cleanup.
 Behavior owned by changes 0305 through 0315; release packaging and four-harness acceptance from
 0317; configuration contraction, self-hosting, Bash removal, and hard cutover from 0318; and
 deferred CI/combined gates, results-only skips, terminal publishing, automatic learning harvest,
-capture/groom automation, cross-harness routing, skill rebinding, or Bash fallback behavior.
+capture/groom automation, cross-harness routing, skill rebinding, or Bash fallback behavior. This
+change also does not install or activate a Go `docket` executable for its own migration host, add
+Go verbs to `docket.sh`, mutate Docket's live metadata with a source-built binary, or bypass the
+unsupported-capability refusal caused by Docket's pre-cutover resolved configuration.
 
 ## Reconcile log
 
