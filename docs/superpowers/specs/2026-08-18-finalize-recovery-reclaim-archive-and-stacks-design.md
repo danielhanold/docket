@@ -5,7 +5,7 @@
 # Finalize, recovery, reclaim, archive, and stacks
 
 **Change:** 0316 · **Type:** feat · **Priority:** critical · **Date:** 2026-08-18 ·
-**Status:** Approved focused design
+**Status:** Focused design; implementation launch blocked
 
 ## Purpose and boundary
 
@@ -66,18 +66,32 @@ Change 0316's independently reviewable deliverable is:
   effect converges on retry without a false `done`, duplicate merge/comment, unsafe deletion, or
   stranded stack.
 
-This slice is independently useful before release packaging: disposable repositories in both
-metadata modes can complete the retained claim-to-terminal lifecycle through Go. Live four-harness
-and release-artifact acceptance remains 0317; Docket's own active configuration still blocks Go
-mutation until 0318 performs the already-approved contraction.
+Once its implementation-launch precondition is resolved, this slice is independently useful before
+release packaging: disposable repositories in both metadata modes can complete the retained
+claim-to-terminal lifecycle through Go. Live four-harness and release-artifact acceptance remains
+0317; Docket's own active configuration still blocks Go mutation until 0318 performs the
+already-approved contraction.
 
-## Pre-cutover execution and bootstrap boundary
+## Implementation launch precondition — unresolved
 
-Change 0316 is developed before an installed Go `docket` executable exists. `DOCKET_SCRIPTS_DIR`
-exposes the frozen Bash `docket.sh` facade, not the Go command tree, and this design does not pretend
-that `context`, `change`, `workspace`, `evidence`, `pr`, `run`, or the new `finalize` verbs exist on
-that facade. The command spellings below define the Go v1 protocol that this change delivers; they
-are not instructions to find a pre-existing `docket` command on `PATH` while building 0316.
+There is currently no sanctioned runtime that can execute the active `docket-implement-next`
+contract for change 0316:
+
+- the machine setup `install.sh` configures the Bash runtime, links source skills, regenerates agent
+  wrappers, and exports `DOCKET_SCRIPTS_DIR`/`DOCKET_BASH_PATH`; it neither builds `./cmd/docket` nor
+  installs a Go `docket` executable on `PATH`;
+- `DOCKET_SCRIPTS_DIR` exposes the Bash `docket.sh` facade. That facade does not implement the Go
+  `context`, `change`, `workspace`, `evidence`, `pr`, `run`, or new `finalize` command families; and
+- the active source-linked `docket-implement-next` asset mandates those Go operations for claim,
+  reconcile, workspace creation, evidence, PR publication, implemented transition, and run
+  verification. The frozen Bash facade cannot substitute for that contract.
+
+A clean build of `./cmd/docket` and a successful read-only `context implementation --id 316` prove
+that the source command is reachable and can inspect the build-ready record. They do not sanction
+the write path. Using an ad hoc build to claim and reconcile change 0316, create its workspace,
+publish its branch and PR, or mark it implemented would make an unshipped transaction layer manage
+its own critical migration change against shared `origin/docket`. That is self-hosting authority,
+not a test fixture or a harmless bootstrap detail, and no autonomous run may infer it.
 
 Compiling `./cmd/docket` is also not sufficient to make that binary a control plane for Docket's
 own repository. Its resolved configuration currently requests capabilities Go v1 deliberately does
@@ -89,24 +103,23 @@ any live Docket metadata mutation. Change 0316 must preserve that refusal. It mu
 capability fence, hide a configuration layer, add a bypass, or contract those settings; the
 contraction and first Go-managed Docket mutation remain 0318.
 
-The migration host and the product under test are consequently separate:
+Change 0316 is therefore blocked before claim, plan, branch, workspace, mutation, or PR creation.
+Exactly one of these human decisions is required before re-dispatch:
 
-- bookkeeping for change 0316 itself remains under the frozen `v0.9.2` Bash migration control
-  plane described by the approved program map. This is an execution precondition, not Bash product
-  work in 0316. A source-linked installation that exposes in-progress Go-v1 workflow assets is not
-  used as the host for this pre-cutover change;
-- unit and application tests call Go package seams directly. Protocol and end-to-end tests build an
-  explicit temporary executable from the checkout, never rely on `docket` being on `PATH`, and run
-  it only against disposable repositories with hermetic global/local configuration inside the
-  supported Go v1 capability envelope; and
-- the temporary executable and Go-v1 workflow assets are product-under-test artifacts only. Change
-  0317 owns release binaries and live installed four-harness acceptance; change 0318 owns activating
-  Go as Docket's own authoritative workflow and retiring the Bash host.
+1. provide a sanctioned Go transaction runtime for the active skill—by installing the intended
+   binary or approving equivalent facade routing—then re-dispatch; or
+2. explicitly authorize one run to use a named from-source binary built from an exact revision,
+   acknowledging that it may mutate shared `origin/docket` and open the real change 0316 PR.
 
-This boundary is acceptance-critical. A test must reproduce Docket's current resolved capability
-requests and prove the temporary binary refuses before mutation with diagnostics naming the
-requested paths. No positive 0316 test may make that live configuration supported by suppressing,
-overriding, or silently ignoring it.
+Neither choice is made by this design. Option 2 is never inferred from the binary building, the
+read-only context succeeding, the change being critical/build-ready, or the absence of a human in
+an autonomous run. Either choice remains subject to the approved unsupported-capability fence: an
+`unsupported-config` result is another hard stop, not permission to hide or rewrite configuration.
+
+After a human resolves the launch gate, unit and application tests may call Go package seams
+directly, while protocol and end-to-end tests build an explicit temporary executable and run it
+only against disposable repositories with hermetic supported configuration. Those product tests
+still never make an ad hoc binary a sanctioned control plane for Docket's own metadata.
 
 ## Chosen architecture
 
@@ -170,9 +183,10 @@ internal/cli  -->  internal/app
   explicit-path, request-receipt, and expected-ref principles; it is not a shared checkout edit.
 
 The public operation names settled by this slice are shown below. The examples use `docket` as the
-eventual executable name. During 0316 development and acceptance,
-the same argv is sent to the explicitly built temporary executable described above; neither a bare
-PATH lookup nor `docket.sh` dispatch is permitted.
+eventual executable name. Product protocol tests send the same argv to the explicitly built
+temporary executable described above; they use neither a bare PATH lookup nor `docket.sh`
+dispatch. The executable used by the implementation host is whichever path the human launch
+decision explicitly sanctions—this document does not infer one.
 
 ```text
 docket context finalize [--id <change-id>] [--allowlist <id,id,...>]
@@ -583,8 +597,9 @@ always asks the authority that owns the promised postcondition.
 ## Skill and embedded-asset revisions
 
 This change authors and embeds only the Go-v1 workflow assets needed for the retained terminal
-path. They are exercised explicitly as product-under-test inputs; they do not replace the frozen
-Bash assets hosting change 0316 itself:
+path. They are exercised explicitly as product-under-test inputs after the launch gate is resolved;
+their presence in a source-linked installation is not authority to implement change 0316 with an
+ad hoc binary:
 
 - `docket-finalize-change` becomes the Claude-owned sequencer for the operations and sign-off rules
   in this spec, retaining one merge per invocation and its `advanced`/`contended`/`drained`/`halted`
@@ -598,8 +613,8 @@ Bash assets hosting change 0316 itself:
 - `docket-implement-next` and `run verify` gain the persistent halt/resume path without changing
   the already-landed claim-to-implemented checkpoints.
 - Focused references, command manifests, agent templates, and embedded assets are regenerated
-  together so the eventual installed protocol is internally consistent. A source-linked
-  installation is not used to activate these revisions on Docket's own repository before 0318.
+  together so the eventual installed protocol is internally consistent. Installation and
+  self-hosting authority remain outside this change.
 
 Go v1 uses the fixed approved roles. The change does not add skill rebinding, per-repository model
 routing, cross-harness delegation, inline resolver/repair substitution, autonomous capture, or
@@ -723,28 +738,31 @@ This change does not:
 
 ## Acceptance criteria
 
-1. An explicitly built temporary Go-v1 executable, invoked by absolute path against a disposable
+1. No implementation run starts until a human either provides a sanctioned Go transaction runtime
+   or explicitly authorizes an exact from-source binary to mutate shared `origin/docket` and open
+   change 0316's PR. A clean build or successful read-only context is not authorization.
+2. An explicitly built temporary Go-v1 executable, invoked by absolute path against a disposable
    supported-configuration repository, can take one verified `implemented` change through the
    configured local/off gate, exact merge, terminal metadata transaction, generated-link repair,
    and owned cleanup without direct skill-owned Git, GitHub, metadata, or process mechanics.
-2. Resolver and repair agents retain authorship and judgment, while every Git/index/head/gate/PR
+3. Resolver and repair agents retain authorship and judgment, while every Git/index/head/gate/PR
    claim they return is mechanically verified before publication or merge.
-3. Every irreversible effect has a postcondition probe and replay path; interruption or response
+4. Every irreversible effect has a postcondition probe and replay path; interruption or response
    loss after any boundary converges without duplicate PR comments/merges, false `done`, unsafe ref
    overwrite/delete, or hidden phase state.
-4. Ordinary, stacked, retargeted, and root-closeout outcomes preserve the invariant that only code
+5. Ordinary, stacked, retargeted, and root-closeout outcomes preserve the invariant that only code
    reachable from the integration branch is `done`; carried descendants close atomically and open
    child PRs are never stranded by branch deletion.
-5. Explicit reclaim and maintenance reclaim mutate only a strictly expired, branchless,
+6. Explicit reclaim and maintenance reclaim mutate only a strictly expired, branchless,
    workspace-less, gate-less claim whose absence probes all succeeded; unknown state is retained.
-6. Persistent `Run halted` and `Finalize blocked` records make human-needed recovery durable,
+7. Persistent `Run halted` and `Finalize blocked` records make human-needed recovery durable,
    idempotent, and explicitly resumable without losing or racing an existing workspace.
-7. Both repository modes pass the real-Git claim-to-terminal, crash/retry, stack, maintenance,
+8. Both repository modes pass the real-Git claim-to-terminal, crash/retry, stack, maintenance,
    backlink, and cleanup matrices under the whole resolved suite.
-8. With Docket's current resolved configuration, that same temporary executable names the
+9. With Docket's current resolved configuration, that same temporary executable names the
    `agents.*`, `auto_capture.enabled`, `build.checkpoint`,
    `finalize.skip_results_only_delta`, and `terminal_publish` blockers and performs no mutation;
    no 0316 build or acceptance step assumes `docket` is on `PATH` or that `docket.sh` implements Go
    verbs.
-9. The implementation contains no behavior allocated to changes 0305–0315 or 0317–0318 and does
+10. The implementation contains no behavior allocated to changes 0305–0315 or 0317–0318 and does
    not reintroduce any capability the approved Go v1 architecture deferred or dropped.
