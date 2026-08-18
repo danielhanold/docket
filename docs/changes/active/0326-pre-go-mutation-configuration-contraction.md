@@ -2,12 +2,12 @@
 id: 326
 slug: pre-go-mutation-configuration-contraction
 title: 'Pre-Go mutation configuration contraction'
-status: in-progress
+status: implemented
 priority: critical
 type: chore
 created: 2026-08-18
 updated: 2026-08-18
-claimed_at: 2026-08-18T19:37:01Z
+claimed_at: 2026-08-18T20:41:38Z
 depends_on: [315]
 stacked_on:
 related: [316, 318, 322]
@@ -15,11 +15,11 @@ discovered_from: [316]
 adrs: []
 spec: docs/superpowers/specs/2026-08-18-pre-go-mutation-configuration-contraction-design.md
 plan: docs/superpowers/plans/2026-08-18-pre-go-mutation-configuration-contraction.md
-results:
+results: docs/results/2026-08-18-pre-go-mutation-configuration-contraction-results.md
 trivial: false
 auto_groomable:
 branch: feat/pre-go-mutation-configuration-contraction
-pr:
+pr: https://github.com/danielhanold/docket/pull/220
 blocked_by:
 reconciled: true
 ---
@@ -31,6 +31,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-18-pre-go-mutation-configuration-contraction-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-18-pre-go-mutation-configuration-contraction-design.md) |
 | Plan | [2026-08-18-pre-go-mutation-configuration-contraction.md](https://github.com/danielhanold/docket/blob/feat/pre-go-mutation-configuration-contraction/docs/superpowers/plans/2026-08-18-pre-go-mutation-configuration-contraction.md) |
+| Results | [2026-08-18-pre-go-mutation-configuration-contraction-results.md](https://github.com/danielhanold/docket/blob/feat/pre-go-mutation-configuration-contraction/docs/results/2026-08-18-pre-go-mutation-configuration-contraction-results.md) |
+| PR | [#220](https://github.com/danielhanold/docket/pull/220) |
 <!-- docket:artifacts:end -->
 
 ## Why
