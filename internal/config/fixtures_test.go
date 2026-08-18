@@ -42,11 +42,21 @@ const (
 // global configuration must be unreachable from this package's tests.
 func loadFixture(t *testing.T, name string) (*Snapshot, []Diagnostic, error) {
 	t.Helper()
+	return loadFixtureFrom(t, fixtureRoot, name)
+}
+
+// loadFixtureFrom is loadFixture parameterized by the versioned tree root, for
+// the rare reader that must resolve a fixture from a tree other than the shared
+// fixtureRoot (TestFixtureDocketSelf, whose frozen copy was re-cut into a newer
+// versioned tree when docket's own .docket.yml changed). Every other fixture
+// test stays on fixtureRoot through loadFixture.
+func loadFixtureFrom(t *testing.T, root, name string) (*Snapshot, []Diagnostic, error) {
+	t.Helper()
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("HOME", tmp)
 
-	repoDir := filepath.Join(fixtureRoot, name, "repo")
+	repoDir := filepath.Join(root, name, "repo")
 	// A missing fixture directory would otherwise resolve to "no layers at
 	// all", which is a PASSING sparse-defaults result — a silent vacuum. Fail
 	// on the directory instead.
@@ -55,7 +65,7 @@ func loadFixture(t *testing.T, name string) (*Snapshot, []Diagnostic, error) {
 	}
 
 	opts := FSOptions{RepoDir: repoDir}
-	globalPath := filepath.Join(fixtureRoot, name, "xdg", "docket", "config.yml")
+	globalPath := filepath.Join(root, name, "xdg", "docket", "config.yml")
 	if _, err := os.Stat(globalPath); err == nil {
 		opts.GlobalPath = globalPath
 	}
@@ -71,7 +81,14 @@ func loadFixture(t *testing.T, name string) (*Snapshot, []Diagnostic, error) {
 // mustResolveFixture is loadFixture for the fixtures that must resolve cleanly.
 func mustResolveFixture(t *testing.T, name string) *Snapshot {
 	t.Helper()
-	snap, diags, err := loadFixture(t, name)
+	return mustResolveFixtureFrom(t, fixtureRoot, name)
+}
+
+// mustResolveFixtureFrom is mustResolveFixture parameterized by the versioned
+// tree root — see loadFixtureFrom.
+func mustResolveFixtureFrom(t *testing.T, root, name string) *Snapshot {
+	t.Helper()
+	snap, diags, err := loadFixtureFrom(t, root, name)
 	if err != nil {
 		t.Fatalf("fixture %s: Resolve: %v\ndiagnostics: %s", name, err, formatDiags(diags))
 	}
@@ -486,12 +503,17 @@ func TestFixtureFencedMachineKeys(t *testing.T) {
 // still matches it: the byte-equality assert is what keeps that true, reddening
 // when the live .docket.yml starts asking for something new.
 func TestFixtureDocketSelf(t *testing.T) {
+	// The frozen copy was re-cut into a newer versioned tree when change 0326
+	// contracted docket's own .docket.yml (the three committed deferred switches
+	// turned explicitly false); this test — and only this test — reads that tree.
+	const docketSelfRoot = "../../testdata/repositories/v0.9.4"
+
 	assertFrozenCopyMatchesLive(t,
-		filepath.Join(fixtureRoot, "docket-self", "repo", ".docket.yml"),
+		filepath.Join(docketSelfRoot, "docket-self", "repo", ".docket.yml"),
 		"../../.docket.yml",
 		"docket's own configuration changed: cut a NEW versioned fixture tree from the current .docket.yml and re-derive this test's expectations (test_command, the blocker set, and each blocker's layer) against it.")
 
-	snap := mustResolveFixture(t, "docket-self")
+	snap := mustResolveFixtureFrom(t, docketSelfRoot, "docket-self")
 
 	if snap.Effective.MetadataBranch.Value != "docket" {
 		t.Errorf("metadata_branch = %q, want docket", snap.Effective.MetadataBranch.Value)
@@ -501,24 +523,23 @@ func TestFixtureDocketSelf(t *testing.T) {
 	}
 
 	decision := PreflightMutation(snap)
+	// After the contraction the three committed switches are explicitly false, so
+	// they no longer request anything. The machine-global auto-capture request in
+	// this fixture's xdg layer is untouched and remains the sole blocker: the
+	// configuration is still refused, now on one deferred capability from one
+	// layer rather than four across two.
 	if decision.Allowed {
-		t.Fatalf("preflight allowed a configuration requesting four deferred capabilities")
+		t.Fatalf("preflight allowed a configuration still requesting global auto-capture")
 	}
 	assertSameStrings(t, "docket-self blockers", blockerPaths(snap), []string{
 		"auto_capture.enabled",
-		"build.checkpoint",
-		"finalize.skip_results_only_delta",
-		"terminal_publish",
 	})
 
-	// The blockers span layers: three from the committed file, one from the
-	// machine-global one. A preflight that only read one layer would still
-	// pass a count check, so assert the layer of each.
+	// The lone surviving blocker comes from the machine-global layer; the
+	// committed file contributes none now that its switches are off. Asserting
+	// the layer keeps the guard honest about which file the request lives in.
 	wantLayer := map[string]LayerKind{
-		"auto_capture.enabled":             LayerGlobal,
-		"build.checkpoint":                 LayerRepository,
-		"finalize.skip_results_only_delta": LayerRepository,
-		"terminal_publish":                 LayerRepository,
+		"auto_capture.enabled": LayerGlobal,
 	}
 	for _, b := range decision.Blockers {
 		if b.Provenance == nil {
