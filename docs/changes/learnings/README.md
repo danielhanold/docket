@@ -58,6 +58,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 ## fixtures
 
+- [config-edit-trips-its-own-frozen-drift-guard](config-edit-trips-its-own-frozen-drift-guard.md) — Editing a file a frozen fixture byte-copies trips that fixture's drift guard — the sanctioned fix (new versioned tree + re-derive) is the guard's OWN remedy message, so obey the guard, not a spec exclusion that names the guard's directory but did not foresee it. · also: config, testing, drift-guards ⟨needs promotion⟩
 - [frozen-corpus-covers-what-it-contains](frozen-corpus-covers-what-it-contains.md) — A frozen real-world corpus covers what it actually contains, not what the plan assumed — inventory it before designing coverage on top of it, and record the empty categories where the fixture lives. · also: testing, planning
 
 ## git
