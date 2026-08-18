@@ -6,7 +6,7 @@
 # for an installed `docket`:
 #
 #   (a) a compatible installed `docket`  -> delegate to `docket development install`
-#   (b) no `docket` on PATH              -> `go run ./cmd/docket development install`
+#   (b) no `docket` on PATH              -> `go run -C <checkout> ./cmd/docket development install`
 #   (c) a `docket` present but whose `development install` probe errors, or does not name
 #       the install operation            -> refuse non-zero, mutating nothing. This third
 #       state must NOT fall through to the go-run path: a broken-but-present docket is a
@@ -105,7 +105,12 @@ case "$state" in
       printf 'docket: install Go (https://go.dev/dl/) and re-run, or install a compatible docket first.\n' >&2
       exit 1
     fi
-    set -- go run ./cmd/docket development install --source "$SOURCE_ROOT" "$@"
+    # Anchor `go run` to the checkout with -C: the `./cmd/docket` package spec resolves RELATIVE
+    # to the process CWD, and this bootstrapper runs from the caller's arbitrary CWD (it resolved
+    # SOURCE_ROOT from $0, never from `pwd`). Without the anchor, a run from any directory other
+    # than the checkout fails package resolution. -C stays two distinct argv words, so it crosses
+    # `exec "$@"` argv-safe like every other word; --source remains the absolute checkout path.
+    set -- go run -C "$SOURCE_ROOT" ./cmd/docket development install --source "$SOURCE_ROOT" "$@"
     ;;
   *)
     printf 'docket: found an incompatible "docket" on PATH; its development-install probe failed.\n' >&2
