@@ -441,7 +441,10 @@ IMPL="$REPO/skills/docket-implement-next/SKILL.md"
 assert "implement-next plan uses SKILL_PLAN"     'grep -qF "SKILL_PLAN" "$IMPL"'
 assert "implement-next build uses SKILL_BUILD"   'grep -qF "SKILL_BUILD" "$IMPL"'
 assert "implement-next review uses SKILL_REVIEW" 'grep -qF "SKILL_REVIEW" "$IMPL"'
-assert "implement-next finish uses SKILL_FINISH" 'grep -qF "SKILL_FINISH" "$IMPL"'
+# implement-next no longer delegates a finish role skill: change 0315 replaced Step 7's
+# SKILL_FINISH invocation with the direct `docket workspace publish` + `docket pr publish`
+# operations (Claude still authors the PR title/body). The finish role survives only in
+# finalize's close-out, asserted next.
 assert "finalize finish uses SKILL_FINISH" \
   'grep -qF "SKILL_FINISH" "$REPO/skills/docket-finalize-change/SKILL.md"'
 
