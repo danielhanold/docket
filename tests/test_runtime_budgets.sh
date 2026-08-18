@@ -25,7 +25,11 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=2115 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2125 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2115 -> 2125 (change 0322): ONE legitimate mover — a NEW test file brings its
+                    # own row. tests/test_install_bootstrap.sh covers install.sh's POSIX bootstrapper
+                    # (source-resolution + tri-state docket discovery + delegation); a brand-new
+                    # surface, so it is a new file at the 10s floor rather than an extension.
                     # 2080 -> 2115 (change 0314): TWO legitimate movers in one diff. First, the
                     # SHARD-of-a-file case (changes 0309/0313 precedent): tests/test_go_race.sh sat AT
                     # the 60s ceiling and change 0314's internal/process package — the native gate
