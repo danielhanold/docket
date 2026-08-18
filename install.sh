@@ -43,9 +43,10 @@ docket_is_compatible() {
   esac
 }
 
-# emit_or_run — dry-run prints the resolved command; otherwise exec it (replacing this shell so the
-# delegated exit status is the caller's). A1 establishes the seam; A2 hardens argv-safety and adds
-# the supported passthrough flags.
+# emit_or_run — dry-run prints the resolved command on one line; otherwise exec it (replacing this
+# shell so the delegated exit status is the caller's, unchanged). The real path is `exec "$@"`, so
+# every argument crosses as its own argv word — a checkout or --bin-dir value carrying a space stays
+# one word. The dry-run join collapses spacing for a legible single-line echo only.
 emit_or_run() {
   if [ "${DOCKET_BOOTSTRAP_DRY_RUN:-}" = 1 ]; then
     printf '%s\n' "$*"
@@ -61,12 +62,50 @@ else
   state=$?
 fi
 
+# Passthrough flags — forward only an explicit allowlist to the delegated installer: --bin-dir <path>
+# and a repeatable --harness <name>, each preserved as a distinct argv word in the order given.
+# Anything else is refused rather than forwarded blind. This rebuilds "$@" in place to hold exactly
+# the normalized passthrough words: the classic count-guarded filter — consume the ORIGINAL args from
+# the front (their number tracked in `argc`) and append accepted words to the back — so no eval and no
+# command string is ever constructed. `argc` bounds the loop to the originals, so an appended word is
+# never re-read as a flag, and a value is only taken while an original remains (argc >= 1) — which is
+# also how a trailing value-less --bin-dir/--harness is caught.
+argc=$#
+while [ "$argc" -gt 0 ]; do
+  arg="$1"; shift; argc=$((argc - 1))
+  case "$arg" in
+    --bin-dir=*|--harness=*)
+      set -- "$@" "$arg"
+      ;;
+    --bin-dir|--harness)
+      if [ "$argc" -lt 1 ]; then
+        printf 'docket: %s requires a value.\n' "$arg" >&2
+        exit 2
+      fi
+      val="$1"; shift; argc=$((argc - 1))
+      set -- "$@" "$arg" "$val"
+      ;;
+    *)
+      printf 'docket: unsupported argument: %s\n' "$arg" >&2
+      printf 'docket: this bootstrapper forwards only --bin-dir <path> and --harness <name> to the installer.\n' >&2
+      exit 2
+      ;;
+  esac
+done
+
+# Build the full delegated argv (base command + validated passthrough) as positional parameters, then
+# hand it to emit_or_run as "$@" — never a concatenated string.
 case "$state" in
   0)
-    emit_or_run docket development install --source "$SOURCE_ROOT"
+    set -- docket development install --source "$SOURCE_ROOT" "$@"
     ;;
   2)
-    emit_or_run go run ./cmd/docket development install --source "$SOURCE_ROOT"
+    if ! command -v go >/dev/null 2>&1; then
+      printf 'docket: no compatible "docket" on PATH and the Go toolchain is required to bootstrap from source.\n' >&2
+      printf 'docket: install Go (https://go.dev/dl/) and re-run, or install a compatible docket first.\n' >&2
+      exit 1
+    fi
+    set -- go run ./cmd/docket development install --source "$SOURCE_ROOT" "$@"
     ;;
   *)
     printf 'docket: found an incompatible "docket" on PATH; its development-install probe failed.\n' >&2
@@ -74,3 +113,5 @@ case "$state" in
     exit 1
     ;;
 esac
+
+emit_or_run "$@"

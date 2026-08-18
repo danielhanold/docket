@@ -57,4 +57,90 @@ assert "A1.2 incompatible docket -> non-zero exit" '[ "$rc" != "0" ]'
 assert "A1.2 incompatible docket -> does not fall through to go run" \
   '! grep -q "go run" <<<"$out"'
 
+# ============================================================================
+# Task A2 — delegation, argument passing, and exit propagation.
+# ============================================================================
+
+# A stub `docket` that advertises compatibility for the --help probe, then on the real
+# delegation call echoes its argv so a test can prove word boundaries were preserved.
+echo_stub(){ # <dir>
+  cat > "$1/docket" <<'EOF'
+#!/bin/sh
+case "$*" in
+  "development install --help"|"development --help") echo "install  bootstrap the development binary"; exit 0;;
+esac
+printf 'ARGC=%s\n' "$#"
+for a in "$@"; do printf 'ARG=[%s]\n' "$a"; done
+EOF
+  chmod +x "$1/docket"
+}
+
+# A compatible stub whose real delegation call exits non-zero, to prove exit propagation.
+exit7_stub(){ # <dir>
+  cat > "$1/docket" <<'EOF'
+#!/bin/sh
+case "$*" in
+  "development install --help"|"development --help") echo "install"; exit 0;;
+esac
+exit 7
+EOF
+  chmod +x "$1/docket"
+}
+
+# A minimal PATH bin dir so `docket` is genuinely ABSENT (the real one is on the ambient
+# PATH and must never be shadowed-behind or executed). install.sh needs only `dirname`
+# externally to resolve its own checkout dir; `go` is added when the test wants it present.
+minbin(){ # <yes|no for go>
+  d="$(mk)"
+  ln -s "$(command -v dirname)" "$d/dirname"
+  if [ "$1" = yes ]; then ln -s "$(command -v go)" "$d/go"; fi
+  printf '%s\n' "$d"
+}
+
+# --- Case A2.a: absent docket + go present selects the go-run delegate ----------------------
+# /bin/sh by absolute path: PATH is stripped to `minbin`, so it must not govern finding sh itself.
+mb="$(minbin yes)"
+out="$( cd / && PATH="$mb" DOCKET_BOOTSTRAP_DRY_RUN=1 /bin/sh "$REPO_ROOT/install.sh" )"; rc=$?
+assert "A2.a go-run dry-run exits 0" '[ "$rc" = "0" ]'
+assert "A2.a absent docket + go present -> go run delegate carries --source <checkout>" \
+  'grep -qF -- "go run ./cmd/docket development install --source $REPO_ROOT" <<<"$out"'
+
+# --- Case A2.b: a checkout path containing a space is passed as ONE argv word ---------------
+sp="$(mktemp -d "${TMPDIR:-/tmp}/it sp.XXXXXX")"; _tmpdirs+=("$sp")
+cp "$REPO_ROOT/install.sh" "$sp/install.sh"
+sp_phys="$(cd "$sp" && pwd -P)"   # install.sh canonicalises its own dir the same way
+tmp="$(mk)"; echo_stub "$tmp"
+out="$( PATH="$tmp:$PATH" sh "$sp/install.sh" )"; rc=$?
+assert "A2.b spaced checkout -> exactly 4 delegated argv words" \
+  'grep -qF "ARGC=4" <<<"$out"'
+assert "A2.b spaced checkout -> --source value is one word with the space intact" \
+  'grep -qF "ARG=[$sp_phys]" <<<"$out"'
+
+# --- Case A2.c: no docket and no go -> non-zero exit with an actionable Go message ----------
+mb="$(minbin no)"
+out="$( cd / && PATH="$mb" /bin/sh "$REPO_ROOT/install.sh" 2>&1 )"; rc=$?
+assert "A2.c missing go on the no-binary path -> non-zero exit" '[ "$rc" != "0" ]'
+assert "A2.c missing go -> actionable 'Go toolchain' message" \
+  'grep -qi "go toolchain" <<<"$out"'
+
+# --- Case A2.d: the delegated command's non-zero exit is propagated unchanged ---------------
+tmp="$(mk)"; exit7_stub "$tmp"
+out="$( cd / && PATH="$tmp:$PATH" sh "$REPO_ROOT/install.sh" 2>&1 )"; rc=$?
+assert "A2.d delegated exit 7 is propagated as install.sh's exit" '[ "$rc" = "7" ]'
+
+# --- Case A2.e: supported passthrough flags forwarded, in order, after --source -------------
+tmp="$(mk)"; compat_stub "$tmp"
+out="$( cd / && PATH="$tmp:$PATH" DOCKET_BOOTSTRAP_DRY_RUN=1 sh "$REPO_ROOT/install.sh" \
+        --bin-dir /opt/docket/bin --harness claude --harness codex )"; rc=$?
+assert "A2.e passthrough dry-run exits 0" '[ "$rc" = "0" ]'
+assert "A2.e --bin-dir and repeatable --harness forwarded in order after --source" \
+  'grep -qF -- "docket development install --source $REPO_ROOT --bin-dir /opt/docket/bin --harness claude --harness codex" <<<"$out"'
+
+# --- Case A2.f: an unsupported flag is refused, not forwarded blind ------------------------
+tmp="$(mk)"; compat_stub "$tmp"
+out="$( cd / && PATH="$tmp:$PATH" DOCKET_BOOTSTRAP_DRY_RUN=1 sh "$REPO_ROOT/install.sh" --frobnicate 2>&1 )"; rc=$?
+assert "A2.f unsupported flag -> non-zero exit" '[ "$rc" != "0" ]'
+assert "A2.f unsupported flag -> the offending flag is named" \
+  'grep -qF -- "--frobnicate" <<<"$out"'
+
 if [ "$fail" -ne 0 ]; then exit 1; fi
