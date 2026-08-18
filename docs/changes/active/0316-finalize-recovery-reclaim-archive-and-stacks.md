@@ -74,25 +74,36 @@ Docket's live metadata, or bypass the unsupported-capability fence.
 
 ## Run halted
 
-2026-08-18 — An autonomous docket-implement-next run scoped to change 0316 halted at Step 2
-(claim), before any claim landed. The claim transaction is a `docket` Go-binary mutation, and the
-binary validates the whole metadata repository before applying any change. That validation fails on
-pre-existing malformed frontmatter on the `docket` metadata branch, so **every** Go-binary mutation
-is currently blocked — not just this change:
+2026-08-18 — An autonomous docket-implement-next run scoped to change 0316 halted at its
+implementation launch precondition, before Step 2 (claim) and before any claim landed. The earlier
+frontmatter blocker recorded here has been repaired (`docket status` reports 0 errors), so that is
+no longer the cause; the current blocker is a different, harder one.
 
-- `docs/adrs/0024-claude-context-fork-skill-dispatch.md` — the `title:` scalar is unquoted and
-  contains a colon-space (`` `context: fork` ``), which the strict Go YAML parser rejects with
-  "mapping values are not allowed here". Reported by the claim as `result: invalid-state`,
-  `disposition: invalid-yaml`, `entity_kind: adr`.
-- `docs/changes/learnings/frontmatter-edit-anchor.md` — a quoted-scalar frontmatter defect a
-  repo-wide parse also flags.
-- (Separately, the Bash `docket-status` health sweep flagged `0044`'s unquoted `blocked_by:` `#`
-  and `0189`'s `|` title — same class of latent frontmatter defects.)
+Change 0316's own **Implementation launch prerequisites** require that it "starts only through the
+installed, verified binary" and that the transient/development `go run` bootstrap "is never used
+for `context`, `change`, `workspace`, `evidence`, `pr`, `run`, or `finalize` against shared Docket
+state." That precondition is **not met** in this environment:
 
-The block is environmental and global, not a defect in change 0316's design (which reads
-build-ready and claim-eligible). What a human must decide/do: repair the malformed frontmatter on
-the `docket` branch (e.g. quote ADR-0024's `title:` and fix the learnings file), keeping each
-record's authored content byte-identical apart from the quoting, then re-run
-docket-implement-next 316. Repairing an immutable Accepted ADR and other point-in-time records is
-outside change 0316's scope, so this run did not perform it. No claim, branch, worktree, plan, or
-code was created; change 0316 remains `proposed`.
+- `docket version` → `docket development (commit unknown, built unknown)` — a development build,
+  not the installed, verified release binary the prerequisites demand.
+- `docket install check` → `install.check: invalid-state`, `reason: installation-required`,
+  `message: install: no installation record`. There is no installation record at
+  `/Users/homer/.local/share/docket/state/install.json`.
+- (For contrast, `docket diagnostic config --for-mutation --repo-dir /Users/homer/dev/docket`
+  reports `configuration: valid` / `mutation: allowed` — so config contraction from 0326 is fine;
+  the failure is purely the install/verify leg from 0322.)
+
+Every metadata operation this skill performs — `docket context`, `docket change claim`, reconcile,
+`docket workspace prepare`, `evidence`, `pr`, `run` — would mutate or read shared Docket state
+through exactly the Go verbs the prerequisites forbid the development binary to run. Change 0316's
+body states plainly: "a failed install/config check remains an abort-and-report precondition
+failure." So this run aborted and reported rather than mutate shared state with an unverified
+binary.
+
+What a human (the migration owner) must do: run the source bootstrap from reviewed, merged
+`origin/main` so a permanent installed runtime exists (change 0322's `development install` →
+permanent install), confirm `docket install check` passes and `docket version` reports a real
+installed identity (not `development`), restart the host, then re-run docket-implement-next 316.
+Performing that install is a human-attended step owned by 0322, outside change 0316's scope and
+outside an autonomous run's authority to self-authorize, so this run did not perform it. No claim,
+branch, worktree, plan, or code was created; change 0316 remains `proposed`.
