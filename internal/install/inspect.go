@@ -39,14 +39,15 @@ func (i Inspection) ConflictDetail() string {
 
 // LegacyReproducer reproduces a legacy user-level artifact's complete bytes
 // from the frozen legacy renderer, reporting false when this target has no
-// legacy spelling. A nil reproducer disables the third proof entirely, which
-// is what this change ships: the production wiring passes nil, so the initial
-// matrix takes over nothing by legacy reproduction and ownership rests on the
-// prior manifest and managed markers. The frozen legacy renderer that would
-// make this seam non-nil — and so adopt an existing Bash-installed tree instead
-// of reporting it as an ownership conflict — is deliberately follow-up work;
-// until it lands, a legacy install must be moved aside by hand. Tests supply
-// their own reproducers, so the seam itself stays exercised.
+// legacy spelling. A nil reproducer disables the third proof entirely — a
+// caller that supplies no configuration adopts nothing by legacy reproduction,
+// and ownership rests on the prior manifest and managed markers alone. The
+// production install path now passes a NON-nil reproducer (NewLegacyReproducer,
+// built from the run's resolved global inputs over the frozen v0.9.2 floor; see
+// legacyReproducerFor), so an existing Bash-installed tree that is byte-exact to
+// what v0.9.2 wrote is adopted here instead of reported as an ownership
+// conflict. Tests supply their own reproducers, so the seam stays exercised on
+// both the nil and non-nil paths.
 type LegacyReproducer func(t Target) ([]byte, bool)
 
 // InspectTarget classifies one target against disk plus the prior state. prior
