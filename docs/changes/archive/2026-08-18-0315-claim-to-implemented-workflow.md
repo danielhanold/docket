@@ -2,7 +2,7 @@
 id: 315
 slug: claim-to-implemented-workflow
 title: 'Claim-to-implemented agent workflow'
-status: implemented
+status: done
 priority: critical
 type: feat
 created: 2026-08-12
@@ -21,7 +21,7 @@ branch: feat/claim-to-implemented-workflow
 pr: https://github.com/danielhanold/docket/pull/216
 blocked_by:
 reconciled: true
-claimed_at: 2026-08-18T06:33:00Z
+claimed_at: 
 ---
 
 ## Artifacts
