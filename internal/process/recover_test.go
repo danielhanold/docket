@@ -1,6 +1,7 @@
 package process
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -9,26 +10,97 @@ import (
 	"time"
 )
 
+// abandonedPreconditionUnmet reports why the run at runDir is not the clean
+// abandoned shape Recover must mark, or "" when it is. Every condition checked
+// here outranks the group probe in classifyRun's decision order, so any one of
+// them makes Marked==1 unreachable for a reason that is SETUP, not a defect —
+// the distinction TestRecoverMarksCleanlyAbandonedOwnedRun could not make
+// before change 0328. Checked in classifyRun's own order so the reported reason
+// names the branch that would actually have fired.
+func abandonedPreconditionUnmet(t *testing.T, runDir string, pgid int) string {
+	t.Helper()
+	if held, ans := probeFlock(filepath.Join(runDir, liveLockFile)); ans == probeUnknown {
+		return "live lock unprovable"
+	} else if held {
+		return "live lock still held"
+	}
+	if term, err := readTerminal(runDir); err != nil {
+		return fmt.Sprintf("terminal record unreadable: %v", err)
+	} else if term != nil {
+		return "durable terminal record present"
+	}
+	if st, err := readStopped(runDir); err != nil {
+		return fmt.Sprintf("stopped marker unreadable: %v", err)
+	} else if st != nil {
+		return "completed-stop marker present"
+	}
+	if ab, err := readAbandoned(runDir); err != nil {
+		return fmt.Sprintf("abandoned marker unreadable: %v", err)
+	} else if ab != nil {
+		return "abandoned marker already present"
+	}
+	if got := groupAlive(pgid); got != probeAbsent {
+		return fmt.Sprintf("recorded group %d probes %v, not absent", pgid, got)
+	}
+	return ""
+}
+
 func TestRecoverMarksCleanlyAbandonedOwnedRun(t *testing.T) {
 	svc := newTestService(t)
-	root := t.TempDir()
-	out := launchHelper(t, svc, root, "sleep")
-	m, _ := readManifest(out.RunDir)
-	// KILL the whole group: supervisor dies without a terminal record —
-	// the abandoned shape.
-	signalGroup(m.PGID, syscall.SIGKILL)
-	waitFor(t, "lock release", 30*time.Second, func() bool {
-		held, _ := probeFlock(filepath.Join(out.RunDir, liveLockFile))
-		return !held
-	})
-	waitFor(t, "group gone", 30*time.Second, func() bool {
-		return groupAlive(m.PGID) == probeAbsent
-	})
+
+	// Setup builds the abandoned shape: an owned run whose supervisor is
+	// SIGKILLed, leaving a free lock, no durable verdict, and a gone group.
+	// Under full-suite contention the setup can lose that race and land in a
+	// shape Recover CORRECTLY declines to mark — a setup failure this test used
+	// to report as a production defect (change 0328). Re-drive setup on a fresh
+	// root when that happens; the Marked==1 assertion below is never weakened.
+	const setupAttempts = 3
+	var root string
+	var out *LaunchOutcome
+	var m *manifestRecord
+	for attempt := 1; ; attempt++ {
+		root = t.TempDir()
+		out = launchHelper(t, svc, root, "sleep")
+		var merr error
+		m, merr = readManifest(out.RunDir)
+		if merr != nil || m == nil {
+			t.Fatalf("read manifest: %v (m=%v)", merr, m)
+		}
+		// KILL the whole group: supervisor dies without a terminal record —
+		// the abandoned shape.
+		signalGroup(m.PGID, syscall.SIGKILL)
+		// 60s, not an isolation-calibrated 30s: under full parallel-suite CPU
+		// contention a SIGKILLed group needs longer merely to be reaped. Safe
+		// in the loose direction because waitFor returns the instant its
+		// predicate holds, so the wider ceiling costs wall-time only on a
+		// genuine hang — the trade change 0325 made for its barrier waits.
+		waitFor(t, "lock release", 60*time.Second, func() bool {
+			held, _ := probeFlock(filepath.Join(out.RunDir, liveLockFile))
+			return !held
+		})
+		waitFor(t, "group gone", 60*time.Second, func() bool {
+			return groupAlive(m.PGID) == probeAbsent
+		})
+		why := abandonedPreconditionUnmet(t, out.RunDir, m.PGID)
+		if why == "" {
+			break
+		}
+		if attempt == setupAttempts {
+			t.Fatalf("setup never reached the abandoned shape in %d attempts; last: %s",
+				setupAttempts, why)
+		}
+		t.Logf("setup attempt %d did not reach the abandoned shape (%s); re-driving", attempt, why)
+	}
+
 	res, err := svc.Recover(root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if res.Marked != 1 || len(res.Entries) != 1 || res.Entries[0].Disposition != "abandoned-marked" {
+		if len(res.Entries) == 1 {
+			t.Fatalf("recover: Marked=%d disposition=%q reason=%q",
+				res.Marked, res.Entries[0].Disposition, res.Entries[0].Reason)
+		}
 		t.Fatalf("recover: %+v", res)
 	}
 	if rec, _ := readAbandoned(out.RunDir); rec == nil {
