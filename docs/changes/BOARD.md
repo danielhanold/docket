@@ -1,8 +1,14 @@
 # Backlog
 
-**328 changes** — 🟡 49 proposed · ⚪ 4 deferred · ✅ 195 done · 🗑️ 80 killed
+**328 changes** — 🟢 1 in progress · 🟡 48 proposed · ⚪ 4 deferred · ✅ 195 done · 🗑️ 80 killed
 
-## 🟡 Proposed (49)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0326](active/0326-pre-go-mutation-configuration-contraction.md) | Pre-Go mutation configuration contraction | `critical` | `chore` | [spec](../superpowers/specs/2026-08-18-pre-go-mutation-configuration-contraction-design.md) | `feat/pre-go-mutation-configuration-contraction` |
+
+## 🟡 Proposed (48)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -52,7 +58,6 @@
 | [0320](active/0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | `medium` | `chore` | needs-brainstorm |
 | [0321](active/0321-render-artifact-backlink-sh-eats-artifact-tails-on-marker-sh.md) | render-artifact-backlink.sh eats artifact tails on marker-shaped literals — anchor whole-line, validate balance, refuse | `medium` | `fix` | needs-brainstorm |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | needs-brainstorm |
-| [0326](active/0326-pre-go-mutation-configuration-contraction.md) | Pre-Go mutation configuration contraction | `critical` | `chore` | build-ready |
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
 | [0328](active/0328-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full.md) | De-flake TestRecoverMarksCleanlyAbandonedOwnedRun under full-suite load | `medium` | `fix` | build-ready |
 
