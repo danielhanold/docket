@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strings"
 	"testing"
@@ -443,6 +444,140 @@ func TestJSONShapeInvalid(t *testing.T) {
 // bug, not a bad .docket.yml. It must surface as an internal error rather than
 // collapse into invalid-input, which would send the user off to edit a valid
 // configuration with no diagnostics explaining what to change.
+// TestMigrationHostContraction reproduces the migration host's real four-layer
+// configuration state and pins the Go v1 capability fence's verdict on it, so
+// the config contraction (change 0326) is proven against the classifier rather
+// than assumed. Three sub-cases:
+//
+//   - pre-change: the committed switches on, plus a repository-LOCAL auto_capture
+//     and agent pin, plus a supported GLOBAL agent pin → mutation blocked, and
+//     the block names every repository-layer request while EXCLUDING the global
+//     pin.
+//   - post-change: the switches off and the repository-local layer dropped, the
+//     global pin retained → mutation allowed, zero deferred blockers.
+//   - negatives: from the post-change state, re-activate exactly one blocker →
+//     each fails closed.
+//
+// The load-bearing premise is the classifier's layer-awareness
+// (internal/config/capability.go dispAgentsLeaf gated by isRepositoryLayer): a
+// global agent pin is supported, a repository/repository-local one is deferred.
+// The fixture exercises BOTH, so a regression that started flagging global pins
+// would redden here.
+func TestMigrationHostContraction(t *testing.T) {
+	// The supported machine-global agent pin. It must never appear as a blocker.
+	globalAgentPin := config.Source{
+		Layer: config.LayerGlobal,
+		Name:  "/xdg/docket/config.yml",
+		Data:  []byte("agents:\n  claude:\n    implement-next:\n      model: m\n      effort: low\n"),
+	}
+	// The committed repository file with the three owned switches at chosen states.
+	repoSwitches := func(terminalPublish, skipResultsOnly, checkpoint bool) config.Source {
+		return config.Source{
+			Layer: config.LayerRepository,
+			Name:  ".docket.yml",
+			Data: []byte(fmt.Sprintf(
+				"metadata_branch: docket\n"+
+					"integration_branch: main\n"+
+					"terminal_publish: %v\n"+
+					"finalize:\n  skip_results_only_delta: %v\n"+
+					"build:\n  checkpoint: %v\n",
+				terminalPublish, skipResultsOnly, checkpoint)),
+		}
+	}
+	// The repository-local layer the migration drops: an auto_capture request and
+	// a repo-local agent pin, either or both selectable.
+	repoLocal := func(autoCapture, agentPin bool) config.Source {
+		var b strings.Builder
+		if autoCapture {
+			b.WriteString("auto_capture:\n  enabled: true\n")
+		}
+		if agentPin {
+			b.WriteString("agents:\n  claude:\n    build-standard:\n      model: m\n      effort: medium\n")
+		}
+		return config.Source{Layer: config.LayerRepositoryLocal, Name: ".docket.local.yml", Data: []byte(b.String())}
+	}
+
+	blockerSet := func(r ConfigInspectionResult) map[string]bool {
+		out := make(map[string]bool)
+		for _, d := range r.Diagnostics {
+			if d.Code == config.CodeDeferredCapRequested {
+				out[d.Path] = true
+			}
+		}
+		return out
+	}
+
+	// --- Sub-case 1: pre-change — mutation blocked, layer-aware blocker set. ---
+	pre := DiagnosticConfig(
+		[]config.Source{globalAgentPin, repoSwitches(true, true, true), repoLocal(true, true)},
+		mainCtx(), true)
+	if pre.MutationAllowed {
+		t.Errorf("pre-change: mutation_allowed = true, want false (switches + repo-local requests are active)")
+	}
+	preBlockers := blockerSet(pre)
+	for _, want := range []string{
+		"terminal_publish",
+		"finalize.skip_results_only_delta",
+		"build.checkpoint",
+		"auto_capture.enabled",
+		"agents.claude.build-standard.model",
+		"agents.claude.build-standard.effort",
+	} {
+		if !preBlockers[want] {
+			t.Errorf("pre-change blockers missing %q; got %v", want, sortedKeys(preBlockers))
+		}
+	}
+	// The global agent pin is supported and must NOT block — this is the
+	// layer-awareness claim the whole change rests on.
+	for _, global := range []string{"agents.claude.implement-next.model", "agents.claude.implement-next.effort"} {
+		if preBlockers[global] {
+			t.Errorf("pre-change: global agent pin %q was reported as a blocker, but a global pin is supported", global)
+		}
+	}
+
+	// --- Sub-case 2: post-change — mutation allowed, zero deferred blockers. ---
+	post := DiagnosticConfig(
+		[]config.Source{globalAgentPin, repoSwitches(false, false, false)},
+		mainCtx(), true)
+	if !post.MutationAllowed {
+		t.Errorf("post-change: mutation_allowed = false, want true; blockers: %v", sortedKeys(blockerSet(post)))
+	}
+	if got := blockerSet(post); len(got) != 0 {
+		t.Errorf("post-change: %d deferred blockers, want 0: %v", len(got), sortedKeys(got))
+	}
+
+	// --- Sub-case 3: one-at-a-time negatives — each re-activated blocker fails closed. ---
+	for _, tc := range []struct {
+		name    string
+		sources []config.Source
+	}{
+		{"build.checkpoint", []config.Source{globalAgentPin, repoSwitches(false, false, true)}},
+		{"finalize.skip_results_only_delta", []config.Source{globalAgentPin, repoSwitches(false, true, false)}},
+		{"terminal_publish", []config.Source{globalAgentPin, repoSwitches(true, false, false)}},
+		{"auto_capture.enabled", []config.Source{globalAgentPin, repoSwitches(false, false, false), repoLocal(true, false)}},
+		{"repo-local agents pin", []config.Source{globalAgentPin, repoSwitches(false, false, false), repoLocal(false, true)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := DiagnosticConfig(tc.sources, mainCtx(), true)
+			if got.MutationAllowed {
+				t.Errorf("re-activating %q: mutation_allowed = true, want false", tc.name)
+			}
+			if n := len(blockerSet(got)); n == 0 {
+				t.Errorf("re-activating %q: no deferred blocker reported", tc.name)
+			}
+		})
+	}
+}
+
+func sortedKeys(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
 func TestDiagnosticConfigInternalError(t *testing.T) {
 	misordered := []config.Source{
 		{Layer: config.LayerRepository, Name: ".docket.yml"},
