@@ -54,6 +54,8 @@ var assetIndependent = map[string]bool{
 	"evidence verify":         true,
 	"pr":                      true, // the group itself; it reports a missing command
 	"pr publish":              true,
+	"run":                     true, // the group itself; it reports a missing command
+	"run verify":              true,
 	"learning":                true, // the group itself; it reports a missing command
 	"learning record":         true,
 	"learning update":         true,
