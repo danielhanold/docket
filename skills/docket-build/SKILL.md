@@ -273,7 +273,11 @@ define the maximum duration of the build gate.
 
 **The shipped implementation of clauses 1–3** is
 `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh gate-run` — `--launch` starts the suite
-detached and durable, `--observe` is each short-lived look, `--stop` terminates one. **Key the wait
+detached and durable, `--observe` is each short-lived look, `--stop` terminates one. The landed
+Go-v1 gate is the native `docket gate launch` / `observe <run-dir>` / `stop <run-dir>` supervisor
+(its `observe` emits protocol-v1 JSON); the `gate-run` facade named here remains the
+observation-loop discipline a worker drives, whose `gate-run.md` `state=<name>` contract — not the
+native JSON — the caller's loop below keys on. **Key the wait
 on the state each observation reports, never on a success marker appearing in the log.** The two
 differ exactly when the child dies, which is the one moment the wait exists for: a marker-keyed loop
 cannot tell *still running* from *died*, so it burns its whole budget before reporting a death a

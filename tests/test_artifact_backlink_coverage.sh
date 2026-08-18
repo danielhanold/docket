@@ -18,9 +18,13 @@ for s in "${SPEC_SKILLS[@]}"; do
   if grep -qF 'docket.sh render-artifact-backlink' "$f"; then ok "$s stamps the spec back-link"; else no "$s stamps the spec back-link"; fi
 done
 
-# (3) docket-implement-next stamps plan (§4) and results (§6.5) on disk, and adds a PR-body back-link (§7).
+# (3) docket-implement-next stamps plan (§4, via the plan-writer child) and results (§6.5) on disk,
+# and adds a PR-body back-link (§7). Change 0315 migrated the on-disk stamp from the legacy
+# `docket.sh render-artifact-backlink` facade to the Go-v1 `docket artifact backlink` command; the
+# coverage is relocated onto that spelling, never dropped (learnings:
+# restatement-accumulates-its-own-guards).
 impl="$ROOT/skills/docket-implement-next/SKILL.md"
-if grep -qF 'docket.sh render-artifact-backlink' "$impl"; then ok "docket-implement-next stamps plan/results back-links"; else no "docket-implement-next stamps plan/results back-links"; fi
+if grep -qF 'docket artifact backlink' "$impl"; then ok "docket-implement-next stamps plan/results back-links (via docket artifact backlink)"; else no "docket-implement-next stamps plan/results back-links (via docket artifact backlink)"; fi
 if grep -qiE 'PR[ -]body back-link|back-link line' "$impl"; then ok "docket-implement-next adds a PR-body back-link"; else no "docket-implement-next adds a PR-body back-link"; fi
 
 # (4) The terminal close-out re-renders the spec back-link at close-out (producer paragraph).
