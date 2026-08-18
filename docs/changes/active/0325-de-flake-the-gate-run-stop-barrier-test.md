@@ -2,11 +2,12 @@
 id: 325
 slug: de-flake-the-gate-run-stop-barrier-test
 title: 'De-flake the gate-run --stop barrier test'
-status: proposed
+status: implemented
 priority: medium
 type: fix
 created: 2026-08-17
-updated: 2026-08-17
+updated: 2026-08-18
+claimed_at: 2026-08-18T18:59:03Z
 depends_on: []
 stacked_on:
 related: []
@@ -15,17 +16,20 @@ adrs: []
 spec:
 plan:
 results:
-trivial: false
+trivial: true
 auto_groomable:
-branch:
-pr:
+branch: feat/deflake-gate-run-stop
+pr: https://github.com/danielhanold/docket/pull/218
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| PR | [#218](https://github.com/danielhanold/docket/pull/218) |
 <!-- docket:artifacts:end -->
 
 ## Why
