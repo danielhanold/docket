@@ -7,7 +7,7 @@ priority: critical
 type: chore
 created: 2026-08-18
 updated: 2026-08-18
-claimed_at: 2026-08-18T19:31:25Z
+claimed_at: 2026-08-18T19:34:14Z
 depends_on: [315]
 stacked_on:
 related: [316, 318, 322]
@@ -21,7 +21,7 @@ auto_groomable:
 branch: feat/pre-go-mutation-configuration-contraction
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -55,3 +55,33 @@ self-hosting.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-18 — reconcile against HEAD, implemented via v0.9.2 Bash bridge
+
+Verified current reality. Change is valid and unchanged in scope; the Go mutation fence is still
+active (0322 merged its installer/adoption but not the config contraction — that is this change).
+Dependency 0315 is `done`; sibling 0322 is now `done` (installation is its job, not this change's).
+
+Confirmed config state to contract:
+- Committed `.docket.yml`: `finalize.skip_results_only_delta: true` (~L27), `terminal_publish: true`
+  (~L33), `build.checkpoint: true` (~L40) — the three deferred switches to set explicitly `false`.
+- Machine-local `.docket.local.yml` (gitignored — confirmed, will not ride the PR): carries
+  `auto_capture.enabled: true` and a repository-local `agents:` block (claude + codex pins). Both are
+  the repo-layer requests Go v1 defers; the operator turns off auto_capture and drops the repo-local
+  `agents:` block on the migration host, recorded as redacted evidence (no private values in-repo).
+- Global `~/.config/docket/config.yml` exists and carries its own `agents:` pins + `agent_harnesses` —
+  the supported Go-v1 machine-wide override layer; left untouched (spec's corrected diagnosis: only
+  repository/repository-local agent pins block, not global).
+
+Confirmed infrastructure already present (this change writes fixtures, not new machinery):
+- `docket diagnostic config --repo-dir <dir> --for-mutation --json` and `MutationAllowed`
+  (`internal/app/config.go`, `internal/cli`), with existing config tests (`internal/app/config_test.go`
+  incl. `TestPreflightUnsupported`). This change must NOT modify `internal/config` or reclassify any
+  capability (spec exclusions).
+
+Net build scope: (1) the tracked `.docket.yml` edit — three switches to explicit `false`, comments
+preserved, no reordering; (2) Go config fixtures proving the pre-change four-layer state reproduces
+the classifier's blockers, the post-change state (global pins kept, repo pins removed, auto_capture
+off) reports `MutationAllowed: true`, and one-at-a-time negative fixtures still fail closed. The
+machine-local edit + the real `diagnostic config --for-mutation` run are operator/verification steps,
+recorded redacted in results. No auto-capture mints; no adjacent follow-up surfaced.
