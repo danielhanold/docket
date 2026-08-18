@@ -272,6 +272,62 @@ func TestChangeAttachCommandsRegistered(t *testing.T) {
 	}
 }
 
+// TestChangeMarkImplementedRegistered proves mark-implemented is wired as a
+// change subcommand carrying its scalar identities plus the --evidence file flag,
+// and is registered asset-independent.
+func TestChangeMarkImplementedRegistered(t *testing.T) {
+	root := captureTree(t)
+	cmd, _, err := root.Find([]string{"change", "mark-implemented"})
+	if err != nil || cmd == nil || cmd.Name() != "mark-implemented" {
+		t.Fatalf("change mark-implemented not registered: cmd=%v err=%v", cmd, err)
+	}
+	for _, flag := range []string{"id", "version", "head", "pr", "evidence", "repo-dir"} {
+		if cmd.Flags().Lookup(flag) == nil {
+			t.Errorf("change mark-implemented: missing --%s flag", flag)
+		}
+	}
+	if !assetIndependent["change mark-implemented"] {
+		t.Errorf("change mark-implemented is not registered asset-independent")
+	}
+}
+
+// TestChangeMarkImplementedFlagsRequired proves the identity/evidence flags are
+// required: omitting them is an argument error (exit 2) before any operation runs.
+func TestChangeMarkImplementedFlagsRequired(t *testing.T) {
+	_, errS, code := runCLI(t, "change", "mark-implemented")
+	if code != 2 || errS == "" {
+		t.Fatalf("err=%q code=%d, want a required-flag argument error", errS, code)
+	}
+}
+
+// TestChangeMarkImplementedReachesOperation proves the command decodes its flags
+// and evidence file and reaches the operation, which returns exactly one
+// protocol-v1 document naming it. A prose-only evidence file does not verify,
+// which is still one well-formed document that names change.mark-implemented.
+func TestChangeMarkImplementedReachesOperation(t *testing.T) {
+	dir := t.TempDir()
+	evFile := filepath.Join(dir, "evidence.md")
+	if err := os.WriteFile(evFile, []byte("# just prose, no block\n"), 0o644); err != nil {
+		t.Fatalf("seed evidence: %v", err)
+	}
+	out, errS, _ := runCLI(t, "change", "mark-implemented",
+		"--id", "7",
+		"--version", "1234123412341234123412341234123412341234",
+		"--head", "1111111111111111111111111111111111111111",
+		"--pr", "github.com/acme/widget#42",
+		"--evidence", evFile,
+		"--repo-dir", dir, "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q", errS)
+	}
+	if !strings.Contains(out, `"operation":"change.mark-implemented"`) {
+		t.Fatalf("document did not name the operation: %q", out)
+	}
+	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
+	}
+}
+
 // TestChangeAttachFlagsRequired proves the scalar flags are required: omitting
 // them is an argument error (exit 2) before any operation runs.
 func TestChangeAttachFlagsRequired(t *testing.T) {
