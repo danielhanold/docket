@@ -71,3 +71,28 @@ Docket's live metadata, or bypass the unsupported-capability fence.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+## Run halted
+
+2026-08-18 — An autonomous docket-implement-next run scoped to change 0316 halted at Step 2
+(claim), before any claim landed. The claim transaction is a `docket` Go-binary mutation, and the
+binary validates the whole metadata repository before applying any change. That validation fails on
+pre-existing malformed frontmatter on the `docket` metadata branch, so **every** Go-binary mutation
+is currently blocked — not just this change:
+
+- `docs/adrs/0024-claude-context-fork-skill-dispatch.md` — the `title:` scalar is unquoted and
+  contains a colon-space (`` `context: fork` ``), which the strict Go YAML parser rejects with
+  "mapping values are not allowed here". Reported by the claim as `result: invalid-state`,
+  `disposition: invalid-yaml`, `entity_kind: adr`.
+- `docs/changes/learnings/frontmatter-edit-anchor.md` — a quoted-scalar frontmatter defect a
+  repo-wide parse also flags.
+- (Separately, the Bash `docket-status` health sweep flagged `0044`'s unquoted `blocked_by:` `#`
+  and `0189`'s `|` title — same class of latent frontmatter defects.)
+
+The block is environmental and global, not a defect in change 0316's design (which reads
+build-ready and claim-eligible). What a human must decide/do: repair the malformed frontmatter on
+the `docket` branch (e.g. quote ADR-0024's `title:` and fix the learnings file), keeping each
+record's authored content byte-identical apart from the quoting, then re-run
+docket-implement-next 316. Repairing an immutable Accepted ADR and other point-in-time records is
+outside change 0316's scope, so this run did not perform it. No claim, branch, worktree, plan, or
+code was created; change 0316 remains `proposed`.
