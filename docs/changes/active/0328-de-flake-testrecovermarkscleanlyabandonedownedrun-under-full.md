@@ -7,14 +7,14 @@ priority: medium
 type: fix
 created: 2026-08-18
 updated: 2026-08-18
-claimed_at: 2026-08-18T19:49:54Z
+claimed_at: 2026-08-18T19:53:08Z
 depends_on: []
 stacked_on:
 related: []
 discovered_from: [325]
 adrs: []
 spec:
-plan:
+plan: docs/superpowers/plans/2026-08-18-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full.md
 results:
 trivial: true
 auto_groomable:
@@ -27,6 +27,9 @@ reconciled: true
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Plan | [2026-08-18-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full.md](https://github.com/danielhanold/docket/blob/feat/de-flake-testrecovermarkscleanlyabandonedownedrun-under-full/docs/superpowers/plans/2026-08-18-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
