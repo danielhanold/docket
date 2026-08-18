@@ -2,14 +2,14 @@
 id: 316
 slug: finalize-recovery-reclaim-archive-and-stacks
 title: 'Finalize, recovery, reclaim, archive, and stacks'
-status: blocked
+status: proposed
 priority: critical
 type: feat
 created: 2026-08-12
 updated: 2026-08-18
-depends_on: [315]
+depends_on: [315, 322, 326]
 stacked_on:
-related: [298]
+related: [298, 318, 322, 326]
 discovered_from: [303]
 adrs: [10, 11, 35, 43, 59, 66, 74, 83, 86, 92, 95]
 spec: docs/superpowers/specs/2026-08-18-finalize-recovery-reclaim-archive-and-stacks-design.md
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch:
 pr:
-blocked_by: "human decision required: provide a sanctioned Go transaction CLI or explicitly authorize an exact from-source binary to mutate shared origin/docket"
+blocked_by:
 reconciled: false
 ---
 
@@ -44,24 +44,29 @@ head publication, merge verification, atomic terminal archive and stack close-ou
 policy-driven reclaim, durable halted/finalize-blocked recovery, merged-PR maintenance, generated
 terminal-link repair, and ownership-safe run/workspace/branch cleanup.
 
-## Implementation launch blocker
+## Implementation launch prerequisites
 
-No sanctioned runtime currently satisfies the active `docket-implement-next` transaction contract:
-`install.sh` does not install the Go binary, `docket.sh` does not implement its verbs, and a clean
-from-source build plus a successful read-only context is not authority to mutate shared
-`origin/docket` or open the real PR. A human must either provide the sanctioned runtime or
-explicitly authorize an exact from-source binary for this run. Until then, abort and report before
-claim, plan, branch, workspace, mutation, or PR creation.
+Changes 0322 and 0326 are explicit dependencies, not behavior to implement here. Change 0322 makes
+the reviewed source bootstrap install and adopt a permanent Go development runtime; change 0326
+contracts Docket's active deferred configuration before the first Go metadata mutation. The
+migration owner then runs the source bootstrap from reviewed merged `origin/main`, verifies
+`docket install check` and `docket diagnostic config --for-mutation`, and restarts the host before
+dispatching this change.
+
+The transient `go run` bootstrap may perform only `development install`. It is never used for
+`context`, `change`, `workspace`, `evidence`, `pr`, `run`, or `finalize` against shared Docket
+state. Change 0316 starts only through the installed, verified binary after both dependencies are
+done; a failed install/config check remains an abort-and-report precondition failure.
 
 ## Out of scope
 
 Behavior owned by changes 0305 through 0315; release packaging and four-harness acceptance from
-0317; configuration contraction, self-hosting, Bash removal, and hard cutover from 0318; and
+0317; remaining self-hosting, Bash removal, and hard cutover from 0318; and
 deferred CI/combined gates, results-only skips, terminal publishing, automatic learning harvest,
 capture/groom automation, cross-harness routing, skill rebinding, or Bash fallback behavior. This
-change also does not itself install or sanction a Go `docket` executable for its migration host,
-add Go verbs to `docket.sh`, authorize a source-built binary to mutate Docket's live metadata, or
-bypass the unsupported-capability refusal caused by Docket's pre-cutover resolved configuration.
+change also does not implement the source bootstrap or legacy adoption from 0322, contract
+configuration from 0326, add Go verbs to `docket.sh`, authorize a source-built binary to mutate
+Docket's live metadata, or bypass the unsupported-capability fence.
 
 ## Reconcile log
 

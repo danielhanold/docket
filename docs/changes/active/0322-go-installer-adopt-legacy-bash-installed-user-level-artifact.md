@@ -1,18 +1,18 @@
 ---
 id: 322
 slug: go-installer-adopt-legacy-bash-installed-user-level-artifact
-title: 'Go installer: adopt legacy Bash-installed user-level artifacts via a frozen legacy renderer'
+title: 'Bootstrap Go development installation and adopt legacy user-level artifacts'
 status: proposed
-priority: medium
+priority: critical
 type: feat
 created: 2026-08-14
-updated: 2026-08-14
-depends_on: []
+updated: 2026-08-18
+depends_on: [311]
 stacked_on:
-related: []
+related: [316, 326]
 discovered_from: [311]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-18-development-install-bootstrap-and-legacy-adoption-design.md
 plan:
 results:
 trivial: false
@@ -26,12 +26,34 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-18-development-install-bootstrap-and-legacy-adoption-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-18-development-install-bootstrap-and-legacy-adoption-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-**Trigger** — change 0311's deep review (important #3): the Go installer's third ownership proof (legacy reproduction) shipped as a nil-wired seam, so any machine that ran the Bash `sync-agents.sh` dead-ends on `ownership-conflict` at exactly the paths `docket install` plans (`~/.claude/agents/docket-*.md`, `~/.cursor/agents/docket-*.md`, `~/.cursor/rules/docket-dispatch.mdc`, `~/.codex/agents/docket-*.toml`, the `docket:dispatch` managed blocks).
-**Opportunity** — a frozen legacy renderer (or an explicit, non-`--force` adoption operation gated on byte reproduction) that proves a target is the Bash installer's output and lets the Go installer take it over safely.
-**Independent value** — every existing docket machine is currently un-migratable to the Go installer without hand-deleting files; adoption unblocks the whole Go v1 rollout and stands even if 0311's internals change.
-**Boundary** — reproduce and adopt only known user-level Bash-installer artifact shapes; never repo-local files (0313's territory), never a broad overwrite switch; the ownership-comparison primitive from 0311 is the mechanism.
-**Reason for deferral** — a byte-faithful frozen copy of the Bash emitters is its own sizable, testable deliverable; carrying it on 0311's branch would have expanded an already 21k-line change. 0311 ships the seam plus an honest human-output limitation note instead.
+Change 0311 shipped the source-linked development installer but left its legacy-reproduction
+ownership seam unwired. Existing contributors therefore cannot use the intended Go installer:
+their Bash-generated user-level agents and dispatch material collide as unknown files, while the
+legacy `install.sh` never creates the Go executable needed to invoke `development install`.
+
+## What changes
+
+Wire byte-proven adoption of known Bash-generated user-level artifacts, and make the checkout's
+`install.sh` a thin source-bootstrap entry point. It uses an installed `docket development install`
+when available and otherwise runs the same operation through `go run ./cmd/docket`; both paths
+build and install the reviewed source binary, source-link the authored assets, render current
+harness material, and publish ownership state through change 0311's transaction engine.
+
+## Out of scope
+
+Repository-local artifact adoption, broad overwrite or deletion switches, release download and
+packaging, repository configuration contraction, metadata transactions, finalize/recovery
+behavior, Bash product removal, and hard cutover. A transient `go run` process is authorized only
+to perform development installation; this change does not make arbitrary from-source transaction
+commands a sanctioned control plane for shared Docket metadata.
+
+## Reconcile log
+
+<!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->

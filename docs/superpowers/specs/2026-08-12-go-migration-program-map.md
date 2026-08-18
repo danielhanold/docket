@@ -9,7 +9,8 @@
 > task-level plan through the ordinary Docket workflow before Claude Code claims it.
 
 **Goal:** Replace Docket's production Bash implementation with a self-hosting Go v1 through
-fifteen independently specified, built, reviewed, and finalized changes.
+fifteen independently specified core changes plus the explicit transition prerequisites needed to
+install and authorize the reviewed Go runtime before the first self-hosted mutation.
 
 **Architecture:** One Go module and one `docket` binary expose a versioned JSON CLI over a
 transaction-oriented domain core. Agent skills retain judgment and prose ownership; Go owns
@@ -38,8 +39,16 @@ GitHub Releases, POSIX installer bootstrap, Claude Code as the implementation ho
 - GitHub Issues/Projects mirroring is removed. GitHub pull-request behavior remains.
 - Automated learning harvest/index/capacity/promotion is deferred; learning consumption and the
   explicit manual learning-record operation remain.
-- Before self-hosting, change 15 is pre-authorized to disable Docket's active deferred settings:
-  `auto_capture`, terminal publishing, build checkpoints, and results-only gate skipping.
+- Before the first Go-managed mutation, transition change 0326 is pre-authorized to disable
+  Docket's active deferred settings: repository-local `auto_capture`, terminal publishing, build
+  checkpoints, and results-only gate skipping, and to remove repository-local agent pins while
+  preserving supported global pins.
+- Transition changes 0322 and 0326 are implemented and finalized through the immutable `v0.9.2`
+  Bash workflow. No from-source Go transaction command manages those changes.
+- The first Go source bootstrap is
+  `go run ./cmd/docket development install --source <reviewed-checkout>` after 0322 and 0326 merge.
+  That transient process performs machine installation only; shared-state commands begin only
+  through the installed binary after install/config verification and a host restart.
 - Every child change receives its own settled spec and task-level implementation plan before claim.
 - Every implementation uses TDD, runs the whole resolved suite at its build gate, and commits in
   reviewable increments.
@@ -48,13 +57,17 @@ GitHub Releases, POSIX installer bootstrap, Claude Code as the implementation ho
 
 ## Sprint accounting
 
-The sprint has exactly **fifteen implementation changes**, numbered 1–15 below and tracked as
-Docket changes 0304–0318. This program map owns their topology and scope; it is not itself a unit
-of delivery. The first attempt to represent it as change 0303 was retired because a change that
-produces no independently reviewable build or product artifact does not belong in the lifecycle.
+The core product sprint has exactly **fifteen implementation changes**, numbered 1–15 below and
+tracked as Docket changes 0304–0318. Two later-discovered transition prerequisites—0322 and
+0326—are also required before core change 13 can start. They do not take finalize/recovery behavior
+from 0316 or hard-cutover behavior from 0318, but they do expand the required delivery sequence.
+This program map owns that topology and scope; it is not itself a unit of delivery. The first
+attempt to represent it as change 0303 was retired because a change that produces no independently
+reviewable build or product artifact does not belong in the lifecycle.
 
-The fifteen change records are the live lifecycle tracker, and `BOARD.md` is their derived view.
-This map records intended topology and gates; it does not duplicate lifecycle status.
+The fifteen core change records plus the two transition records are the live lifecycle tracker, and
+`BOARD.md` is their derived view. This map records intended topology and gates; it does not
+duplicate lifecycle status.
 
 ## Iteration loop
 
@@ -71,6 +84,29 @@ while Bash-era build-ready records remain on the board.
 
 Current Bash Docket permits only one autonomous implementer per clone. Parallel work, where this
 graph exposes it, therefore uses separate clones; otherwise run the ready siblings sequentially.
+
+### One-time bridge before change 0316
+
+The ordinary loop cannot bootstrap the transaction CLI it already requires. After 0315, use this
+explicit transition instead:
+
+1. From a separate clean checkout of immutable tag `v0.9.2`, install the frozen Bash skills and
+   agents and use that workflow to implement, merge, and finalize changes 0322 and 0326. The feature
+   branches still start from current `origin/main`; the tagged checkout supplies only the sanctioned
+   lifecycle runtime.
+2. Fast-forward the primary checkout to a reviewed `origin/main` commit containing both changes and
+   apply 0326's private migration-host config edit.
+3. Run `go run ./cmd/docket development install --source <checkout>`. This invocation may mutate
+   only machine installation roots. It may not run Docket metadata, workspace, PR, run, evidence,
+   or finalize transactions.
+4. Through the newly installed PATH-resolved binary, run `docket install check` and
+   `docket diagnostic config --repo-dir <checkout> --for-mutation --json`; require a clean install
+   and mutation-allowed result, then restart the host to reload generated agents and instructions.
+5. Return to the ordinary loop with `docket-implement-next 316`. Any failed bridge check is a real
+   precondition failure and stops before claim.
+
+This bridge is deliberately human-attended and one-time. It neither makes the source build a
+general transaction authority nor moves self-hosting proof into 0322, 0326, or 0316.
 
 ## Dependency graph
 
@@ -91,6 +127,8 @@ flowchart TD
     C13["13 / #0316 — finalize and recovery"]
     C14["14 / #0317 — release acceptance"]
     C15["15 / #0318 — self-host and cutover"]
+    T1["transition / #0322 — development bootstrap and legacy adoption"]
+    T2["transition / #0326 — pre-Go config contraction"]
 
     C1 --> C2
     C1 --> C3
@@ -112,6 +150,10 @@ flowchart TD
     C10 --> C12
     C11 --> C12
     C12 --> C13
+    C8 --> T1
+    C12 --> T2
+    T1 --> C13
+    T2 --> C13
     C8 --> C14
     C13 --> C14
     C14 --> C15
@@ -305,6 +347,38 @@ reconcile, plan, build/review dispatch, local gate, results, and PR without dire
 
 **Depends on:** Changes 9, 10, and 11.
 
+## Transition prerequisite (Docket 0322): Development bootstrap and legacy adoption
+
+**Purpose:** Make change 8's source-linked Go installer reachable when no Go Docket binary is yet
+installed, and let it take ownership of exact final-Bash user-level artifacts without hand deletion.
+
+**Owns:** The thin `install.sh` delegation to installed `docket development install` or the
+no-binary `go run` form of that same operation; the frozen byte reproducer for known Bash-installed
+user-level agents and dispatch material; production wiring of change 8's legacy ownership seam; and
+bootstrap/adoption failure tests.
+
+**Deliverable:** From reviewed merged source, an existing contributor machine can atomically install
+the permanent development binary and Go-owned source-linked harness state. Unknown, modified, or
+repository-local artifacts still fail closed. The temporary bootstrap process performs installation
+only and never becomes a shared metadata transaction authority.
+
+**Depends on:** Change 8 (Docket 0311).
+
+## Transition prerequisite (Docket 0326): Pre-Go mutation configuration contraction
+
+**Purpose:** Put Docket's repository and migration host inside Go v1's already-approved capability
+envelope before the first Go transaction, without weakening the fail-closed classifier.
+
+**Owns:** Explicitly disabling committed build checkpoints, results-only gate skipping, and terminal
+publishing; removing repository-local agent pins; disabling repository-local automatic capture; and
+the four-layer mutation diagnostic proving global agent pins remain supported.
+
+**Deliverable:** The reviewed repository plus the migration host return mutation-allowed from Go's
+unchanged configuration diagnostic. The change itself is implemented and finalized through the
+frozen Bash baseline, not through a temporary Go transaction binary.
+
+**Depends on:** Change 12 (Docket 0315).
+
 ## Change 13 (Docket 0316): Finalize, recovery, reclaim, archive, and stacks
 
 **Purpose:** Complete the terminal lifecycle and make every cross-system boundary idempotent and
@@ -317,7 +391,7 @@ state, branch/worktree cleanup, and interrupted close-out recovery.
 **Deliverable:** Both repository modes complete claim-to-terminal workflows; failures injected after
 each irreversible external effect converge on retry without false `done` records.
 
-**Depends on:** Change 12.
+**Depends on:** Change 12 and transition prerequisites 0322 and 0326.
 
 ## Change 14 (Docket 0317): Release packaging and four-harness acceptance
 
@@ -332,19 +406,19 @@ complete at least one retained workflow directly through each harness.
 
 **Depends on:** Changes 8 and 13.
 
-## Change 15 (Docket 0318): Configuration contraction, self-hosting, and hard cutover
+## Change 15 (Docket 0318): Remaining configuration cleanup, self-hosting, and hard cutover
 
-**Purpose:** Move Docket's own repository into the supported Go v1 envelope, prove self-hosting, and
-remove the retired production implementation.
+**Purpose:** Prove the installed Go product can manage Docket's complete retained lifecycle, finish
+migration cleanup, and remove the retired production implementation.
 
-**Authorization:** The human approved this configuration contraction on 2026-08-12. The change may
-disable Docket's committed `auto_capture`, terminal publishing, build checkpoints, and results-only
-gate skipping without a second product-scope decision. Its plan must still show the exact diff and
-test the resulting resolved configuration before landing.
+**Authorization:** The human approved the capability contraction on 2026-08-12 and approved moving
+the minimum mutation-enabling subset to 0326 on 2026-08-18. This change does not repeat that work;
+it may finish later cleanup implied by the hard cutover without re-enabling a deferred capability.
 
-**Owns:** Explicit config contraction, self-hosting rehearsal and recovery proof, manual migration
-learning capture, removal of production Bash and Bash-only tests, documentation replacement,
-release publication, and cutover verification.
+**Owns:** Full self-hosting rehearsal and recovery proof through the installed runtime, remaining
+configuration and migration-ledger cleanup, manual migration learning capture, removal of
+production Bash and Bash-only tests, documentation replacement, release publication, and cutover
+verification.
 
 **Deliverable:** The Go binary manages Docket's complete retained lifecycle from all four hosts;
 existing repositories require no format migration; tag `v0.9.2` is the documented rollback artifact.
@@ -392,33 +466,35 @@ foundation is still changing.
 |---|---|
 | Compatibility corpus and hard replacement | 1, 14, 15 |
 | Agent-first boundary and JSON protocol | 1, 12 |
-| Configuration and deferred-capability refusal | 2, 15 |
+| Configuration and deferred-capability refusal | 2, 0326, 15 |
 | Loss-preserving repository documents | 3 |
 | Domain policy and repository-wide validation | 4 |
 | Authoritative Git reads and entity versions | 5, 7 |
 | Isolated metadata transactions and concurrency | 6 |
 | Read-only status and explicit maintenance | 7, 13 |
-| Embedded/source-linked installation and four harnesses | 8, 14 |
+| Embedded/source-linked installation and four harnesses | 8, 0322, 14 |
 | Planning lifecycle, board, ADRs, and manual learnings | 9 |
 | External Git/GitHub effects and owned workspaces | 10, 13 |
 | Native exact-status process supervision | 11 |
 | Claim-to-implemented agent workflow | 12 |
 | Finalization, recovery, archive, and stacks | 13 |
-| Release artifacts, dogfood, config contraction, and cutover | 14, 15 |
+| Reviewed-source bootstrap and legacy user-level adoption | 0322 |
+| Release artifacts, dogfood, remaining config cleanup, and cutover | 14, 15 |
 | Domain/document/transaction/adapter/harness/end-to-end tests | Each owning change; integrated by 14–15 |
 
 ## Sprint completion
 
-The sprint is complete only when changes 1–15 are `done`, the direct backlog-disposition audit has
-no unresolved Bash-only item, the cutover gates in the architecture spec pass, and Go Docket has
-successfully self-hosted a real retained workflow. A green build of the binary alone is not sprint
-completion.
+The sprint is complete only when changes 1–15 plus transition prerequisites 0322 and 0326 are
+`done`, the direct backlog-disposition audit has no unresolved Bash-only item, the cutover gates in
+the architecture spec pass, and Go Docket has successfully self-hosted a real retained workflow.
+A green build of the binary or a successful source bootstrap alone is not sprint completion.
 
-## Post-sprint addenda
+## Other post-sprint addenda
 
-Changes outside the fifteen-change sprint that nonetheless touch the migrated Go surface are
-recorded here so this map stays an accurate index of what moves the shipped registry and its frozen
-oracles. They do not expand the sprint or its dependency graph.
+Changes outside the fifteen core changes and the two transition prerequisites that nonetheless
+touch the migrated Go surface are recorded here so this map stays an accurate index of what moves
+the shipped registry and its frozen oracles. These other addenda do not expand the sprint or its
+dependency graph.
 
 - **Docket 0324 — model-pinned plan-writer agent (agent-side change).** Registers a **17th** shipped
   agent (`docket-plan-writer`) in `agents/harness-defaults.yml`. Because change 0305 made the Go
