@@ -24,6 +24,14 @@
 # Contract: scripts/gate-run.md. Prologue and sandbox: tests/lib/gate_run_common.sh.
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate_run_common.sh"
 
+# Barrier rendezvous waits are load-sensitive (change 0325). A `.reached` marker is written by the
+# backgrounded `gate_run --stop` the instant it reaches an injected rendezvous; under full-parallel-
+# suite CPU contention it can take well over wait_for_file's 10s default to get there, reddening the
+# assert though nothing is actually wrong. Give every barrier wait generous headroom: wait_for_file
+# returns the instant the marker appears, so the larger ceiling only ever costs wall-time on a
+# genuine hang (a real regression, which SHOULD fail) — never on a merely slow-to-schedule stop.
+BARRIER_TICKS=600
+
 # ---- STOPPING A LIVE CHILD: the annotation path, and it is the ORDINARY one -------------
 # The wrapper IGNORES TERM and outlives the group-directed signal just long enough to reap the
 # command and record `kind=signal` — so on every child that dies of the TERM, a terminal record is
@@ -239,7 +247,7 @@ BAR="$SBX/pre-term-barrier"
 ( GATE_RUN_TEST_BARRIER=pre-term GATE_RUN_TEST_BARRIER_FILE="$BAR" \
     gate_run --stop "$RD" >"$SBX/pre-term.out" 2>/dev/null ) &
 bar_job=$!
-assert "the stop really is held at the pre-term rendezvous" 'wait_for_file "$BAR.reached"'
+assert "the stop really is held at the pre-term rendezvous" 'wait_for_file "$BAR.reached" "$BARRIER_TICKS"'
 assert "NOTHING has been signalled at pre-term — the recorded group is still alive" \
   'kill -0 -"$bar_pgid" 2>/dev/null'
 assert "and the stop-intent is unwritten — it belongs immediately before the signal, not before the probe" \
@@ -262,7 +270,7 @@ BAR3="$SBX/stop-window-barrier"
     gate_run --stop "$RD" >"$SBX/window.out" 2>/dev/null ) &
 win_job=$!
 assert "the stop is held between its step-2 validation and its step-4 probe" \
-  'wait_for_file "$BAR3.reached"'
+  'wait_for_file "$BAR3.reached" "$BARRIER_TICKS"'
 kill -KILL -"$window_pgid" 2>/dev/null || true
 assert "the run's own group dies while the stop is held" 'await_group_gone "$window_pgid"'
 sleep 1                                               # whole-second lstart resolution, as above
@@ -285,7 +293,7 @@ BAR2="$SBX/post-kill-barrier"
 ( GATE_RUN_TEST_BARRIER=post-kill-pre-annotate GATE_RUN_TEST_BARRIER_FILE="$BAR2" \
     gate_run --stop "$RD" >"$SBX/post-kill.out" 2>/dev/null ) &
 ann_job=$!
-assert "the stop really is held at the post-kill rendezvous" 'wait_for_file "$BAR2.reached"'
+assert "the stop really is held at the post-kill rendezvous" 'wait_for_file "$BAR2.reached" "$BARRIER_TICKS"'
 assert "termination was VERIFIED before the rendezvous — the group is already gone" \
   '! kill -0 -"$ann_pgid" 2>/dev/null'
 assert "and no completed marker exists yet: verification precedes the marker, never the reverse" \
@@ -346,7 +354,7 @@ F1BAR="$SBX/fixture1-barrier"
 ( GATE_RUN_TEST_BARRIER=pre-term GATE_RUN_TEST_BARRIER_FILE="$F1BAR" \
     gate_run --stop "$RD" >"$SBX/fixture1.out" 2>/dev/null ) &
 f1_job=$!
-assert "the stop is held before it has signalled anything" 'wait_for_file "$F1BAR.reached"'
+assert "the stop is held before it has signalled anything" 'wait_for_file "$F1BAR.reached" "$BARRIER_TICKS"'
 # Non-vacuity: the completion has to happen INSIDE the window, so the child must still be running
 # when the window opens. A child that had already finished would make every assert below trivial.
 assert "the child is still running when the window opens" 'kill -0 -"$f1_pgid" 2>/dev/null'
@@ -381,7 +389,7 @@ F2BAR="$SBX/fixture2-barrier"
 ( GATE_RUN_TEST_BARRIER=post-kill-pre-annotate GATE_RUN_TEST_BARRIER_FILE="$F2BAR" \
     gate_run --stop "$RD" >/dev/null 2>&1 ) &
 f2_job=$!
-assert "the stop is held where the completed marker would be written" 'wait_for_file "$F2BAR.reached"'
+assert "the stop is held where the completed marker would be written" 'wait_for_file "$F2BAR.reached" "$BARRIER_TICKS"'
 # Non-vacuity: the stop got all the way through the kill and the verification. Without this, an
 # absent marker would be equally consistent with a stop that crashed before doing any work.
 assert "the kill and the verification are already behind it — the group is gone" \
@@ -413,7 +421,7 @@ F3BAR="$SBX/fixture3-barrier"
 ( GATE_RUN_TEST_BARRIER=post-kill-pre-annotate GATE_RUN_TEST_BARRIER_FILE="$F3BAR" \
     gate_run --stop "$RD" --reason 'cancelled on purpose' >"$SBX/fixture3.out" 2>/dev/null ) &
 f3_job=$!
-assert "the stop is held between the verified kill and the annotation" 'wait_for_file "$F3BAR.reached"'
+assert "the stop is held between the verified kill and the annotation" 'wait_for_file "$F3BAR.reached" "$BARRIER_TICKS"'
 assert "the wrapper reaped the signal death and recorded it inside the window" \
   'await_terminal "$RD" && grep -q "^kind=signal" "$RD/terminal"'
 assert "and nothing is annotated yet" '[ ! -f "$RD/stopped" ]'
@@ -441,7 +449,7 @@ F4BAR="$SBX/fixture4-barrier"
 ( GATE_RUN_TEST_BARRIER=post-kill-pre-annotate GATE_RUN_TEST_BARRIER_FILE="$F4BAR" \
     gate_run --stop "$RD" >/dev/null 2>&1 ) &
 f4_job=$!
-assert "the stop is held before it can annotate" 'wait_for_file "$F4BAR.reached"'
+assert "the stop is held before it can annotate" 'wait_for_file "$F4BAR.reached" "$BARRIER_TICKS"'
 assert "the wrapper's signal record lands inside the window" \
   'await_terminal "$RD" && grep -q "^kind=signal" "$RD/terminal"'
 assert "the in-flight stop was killed at the rendezvous and left nothing running" \
@@ -472,7 +480,7 @@ F6BAR="$SBX/fixture6-barrier"
     gate_run --stop "$RD" >"$SBX/fixture6.out" 2>"$SBX/fixture6.err" ) &
 f6_job=$!
 assert "the stop is held between its identity check and its pre-signal re-read" \
-  'wait_for_file "$F6BAR.reached"'
+  'wait_for_file "$F6BAR.reached" "$BARRIER_TICKS"'
 # PLACEMENT, and it is the ordering assert this third rendezvous owes — the same one `pre-term`
 # carries. A point placed after the signal would let the fixture below assert about a world the stop
 # had already changed, and the whole claim is that step 3 decides this BEFORE anything is signalled.
