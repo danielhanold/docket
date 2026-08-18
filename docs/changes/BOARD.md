@@ -1,8 +1,8 @@
 # Backlog
 
-**325 changes** — 🟡 48 proposed · ⚪ 4 deferred · ✅ 193 done · 🗑️ 80 killed
+**325 changes** — 🟡 47 proposed · 🔴 1 blocked · ⚪ 4 deferred · ✅ 193 done · 🗑️ 80 killed
 
-## 🟡 Proposed (48)
+## 🟡 Proposed (47)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -45,7 +45,6 @@
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
-| [0316](active/0316-finalize-recovery-reclaim-archive-and-stacks.md) | Finalize, recovery, reclaim, archive, and stacks | `critical` | `feat` | build-ready |
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | ⏳ waiting on #316 — not yet built |
 | [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Configuration contraction, self-hosting, and hard cutover | `critical` | `refactor` | ⏳ waiting on #317 — not yet built |
 | [0319](active/0319-test-bash-runtime-routing-sh-s-inventory-assert-is-cwd-depen.md) | test_bash_runtime_routing.sh's inventory assert is cwd-dependent — relative rg globs resolve against the process cwd | `medium` | `fix` | needs-brainstorm |
@@ -54,6 +53,12 @@
 | [0322](active/0322-go-installer-adopt-legacy-bash-installed-user-level-artifact.md) | Go installer: adopt legacy Bash-installed user-level artifacts via a frozen legacy renderer | `medium` | `feat` | needs-brainstorm |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | needs-brainstorm |
 | [0325](active/0325-de-flake-the-gate-run-stop-barrier-test.md) | De-flake the gate-run --stop barrier test | `medium` | `fix` | needs-brainstorm |
+
+## 🔴 Blocked (1)
+
+| # | Title | Priority | Type | Blocked by |
+|---|-------|----------|------|------------|
+| [0316](active/0316-finalize-recovery-reclaim-archive-and-stacks.md) | Finalize, recovery, reclaim, archive, and stacks | `critical` | `feat` | "human decision required: provide a sanctioned Go transaction CLI or explicitly authorize an exact from-source binary to mutate shared origin/docket" |
 
 ## ⚪ Deferred (4)
 
