@@ -287,6 +287,412 @@ func TestLegacyReproducer_DispatchBlock(t *testing.T) {
 	}
 }
 
+// --- Task B7: mutation refusal matrix ----------------------------------------
+//
+// The tests below prove the third ownership proof is EXACT: adoption is refused
+// the moment any single dimension is perturbed away from the frozen corpus —
+// a flipped byte, a changed pin (a legacy input), an out-of-inventory path, a
+// broken/unbalanced marker, or a changed Target kind. Every dimension is bound
+// on the PROPERTY "adoption is refused" (DispositionConflict, with the reason
+// ManagedBlockInvalid where markers are the cause), never on a byte-spelling of
+// what the refusal looks like (learning byte-pattern-guard-matches-a-spelling).
+//
+// Each row is non-vacuous: it first proves the UNMUTATED artifact IS adopted
+// (DispositionUpdate) with the same reproducer, so a row that always refused —
+// because of an unrelated bug in the reproducer or the harness — is caught. This
+// is itself a mutation-test of the reproducer's own exactness (AGENTS.md "Guards
+// and tests"): perturb the thing the proof guards and watch the adoption redden.
+
+// replacementRender is the plan's DESIRED new bytes for an adopted target — it
+// is deliberately never any legacy golden, so the on-disk legacy bytes differ
+// from Content (ruling out a no-op) and the only route to DispositionUpdate is
+// the legacy proof.
+const replacementRender = "REPLACEMENT RENDER — never any legacy golden\n"
+
+// flipOneByte returns a copy of b with exactly one byte changed (a single-bit
+// flip of the middle byte), so the result is guaranteed to differ from b.
+func flipOneByte(b []byte) []byte {
+	out := append([]byte(nil), b...)
+	i := len(out) / 2
+	out[i] ^= 0x01
+	return out
+}
+
+// legacyAgentShort recovers the agent short-name from a corpus filename
+// (docket-<name>.<ext> -> <name>).
+func legacyAgentShort(filename string) string {
+	return strings.TrimPrefix(strings.TrimSuffix(filename, filepath.Ext(filename)), "docket-")
+}
+
+// legacyNativeCase is one captured native-agent golden plus the coordinates
+// needed to rebuild its inputs and its install-target path.
+type legacyNativeCase struct {
+	harness, shape, filename, agent string
+	golden                          []byte
+}
+
+func (c legacyNativeCase) label() string { return c.harness + "/" + c.shape + "/" + c.agent }
+
+// loadLegacyNativeCases loads every captured native-agent golden (four harnesses
+// x four shapes x two agents = 32).
+func loadLegacyNativeCases(t *testing.T) []legacyNativeCase {
+	t.Helper()
+	corpus := legacyCorpusDir(t)
+	var out []legacyNativeCase
+	for _, harness := range legacyHarnesses {
+		for _, shape := range legacyShapes {
+			agentsDir := filepath.Join(corpus, harness, shape, "agents")
+			entries, err := os.ReadDir(agentsDir)
+			if err != nil {
+				t.Fatalf("reading %s: %v", agentsDir, err)
+			}
+			for _, e := range entries {
+				if e.IsDir() {
+					continue
+				}
+				golden, err := os.ReadFile(filepath.Join(agentsDir, e.Name()))
+				if err != nil {
+					t.Fatalf("reading golden %s: %v", e.Name(), err)
+				}
+				out = append(out, legacyNativeCase{harness, shape, e.Name(), legacyAgentShort(e.Name()), golden})
+			}
+		}
+	}
+	if len(out) != 32 {
+		t.Fatalf("expected 32 native goldens, loaded %d", len(out))
+	}
+	return out
+}
+
+func nativeInputs(shape string) LegacyInputs {
+	return LegacyInputs{
+		Harnesses: append([]string(nil), legacyHarnesses...),
+		AgentPins: pinsForShape(shape),
+	}
+}
+
+func nativeAgentPath(root, harness, filename string) string {
+	return filepath.Join(root, legacyAgentDirName[harness], "agents", filename)
+}
+
+// assertAdopted asserts an unmutated in-inventory artifact is adopted — the
+// non-vacuity half of every mutation row.
+func assertAdopted(t *testing.T, target Target, legacy LegacyReproducer, label string) {
+	t.Helper()
+	got, err := InspectTarget(target, nil, legacy)
+	if err != nil {
+		t.Fatalf("%s: InspectTarget: %v", label, err)
+	}
+	if got.Disposition != DispositionUpdate {
+		t.Fatalf("%s: unmutated artifact was NOT adopted: disposition=%q reason=%q — a mutation row over this would be vacuous",
+			label, got.Disposition, got.Reason)
+	}
+}
+
+// assertRefused asserts a perturbed artifact is refused with the expected
+// reason, never falsely adopted.
+func assertRefused(t *testing.T, target Target, legacy LegacyReproducer, wantReason, label string) {
+	t.Helper()
+	got, err := InspectTarget(target, nil, legacy)
+	if err != nil {
+		t.Fatalf("%s: InspectTarget: %v", label, err)
+	}
+	if got.Disposition != DispositionConflict {
+		t.Errorf("%s: perturbed artifact was adopted (want refusal): disposition=%q reason=%q", label, got.Disposition, got.Reason)
+		return
+	}
+	if got.Reason != wantReason {
+		t.Errorf("%s: refusal reason=%q, want %q", label, got.Reason, wantReason)
+	}
+}
+
+// TestLegacyAdoption_ByteMutationRefused — dimension "byte": one flipped byte of
+// a golden's on-disk content is no longer the frozen bytes, so it is a
+// conflict, not an adoption.
+func TestLegacyAdoption_ByteMutationRefused(t *testing.T) {
+	for _, c := range loadLegacyNativeCases(t) {
+		t.Run(c.label(), func(t *testing.T) {
+			legacy := NewLegacyReproducer(nativeInputs(c.shape))
+			root := t.TempDir()
+			p := nativeAgentPath(root, c.harness, c.filename)
+			target := Target{Path: p, Kind: KindFile, Content: []byte(replacementRender), Role: roleAgent}
+
+			writeFileOrDie(t, p, string(c.golden))
+			assertAdopted(t, target, legacy, "unmutated")
+
+			mutated := flipOneByte(c.golden)
+			if bytes.Equal(mutated, c.golden) {
+				t.Fatal("byte flip did not change the golden")
+			}
+			writeFileOrDie(t, p, string(mutated))
+			assertRefused(t, target, legacy, ReasonOwnershipConflict, "one flipped byte")
+		})
+	}
+}
+
+// TestLegacyAdoption_PinMutationRefused — dimension "input (pin)": changing a
+// resolved model pin (a legacy input) makes the reproduced candidate bytes
+// diverge from the byte-exact on-disk golden, so the same tree no longer adopts.
+func TestLegacyAdoption_PinMutationRefused(t *testing.T) {
+	for _, c := range loadLegacyNativeCases(t) {
+		t.Run(c.label(), func(t *testing.T) {
+			root := t.TempDir()
+			p := nativeAgentPath(root, c.harness, c.filename)
+			writeFileOrDie(t, p, string(c.golden))
+			target := Target{Path: p, Kind: KindFile, Content: []byte(replacementRender), Role: roleAgent}
+
+			assertAdopted(t, target, NewLegacyReproducer(nativeInputs(c.shape)), "correct pins")
+
+			// Perturb exactly this agent's model on this harness. Appending a
+			// suffix changes the emitted bytes on every harness: a concrete model
+			// changes verbatim; the `inherit` sentinel stops being the drop
+			// sentinel and is emitted concretely (adding a line on codex/cursor/
+			// opencode, changing the value on claude).
+			in := nativeInputs(c.shape)
+			ap := in.AgentPins[c.agent]
+			byH := make(map[string]HarnessPin, len(ap.ByHarness))
+			for k, v := range ap.ByHarness {
+				byH[k] = v
+			}
+			hp := byH[c.harness]
+			hp.Model += "-MUTATED"
+			byH[c.harness] = hp
+			ap.ByHarness = byH
+			in.AgentPins[c.agent] = ap
+			mutRep := NewLegacyReproducer(in)
+
+			// Non-vacuity: the mutated pin actually moves the reproduced bytes off
+			// the golden. If it did not, refusal would be trivially guaranteed for
+			// the wrong reason.
+			if cand, ok := mutRep(target); !ok || bytes.Equal(cand, c.golden) {
+				t.Fatalf("pin mutation did not change reproduced bytes (ok=%v, equal-to-golden=%v)", ok, bytes.Equal(cand, c.golden))
+			}
+			assertRefused(t, target, mutRep, ReasonOwnershipConflict, "mutated model pin")
+		})
+	}
+}
+
+// TestLegacyAdoption_PathMutationRefused — dimension "path": the exact golden
+// bytes at a location outside the closed inventory (agents/ -> skills/) resolve
+// to no legacy spelling, so they are a conflict.
+func TestLegacyAdoption_PathMutationRefused(t *testing.T) {
+	for _, c := range loadLegacyNativeCases(t) {
+		t.Run(c.label(), func(t *testing.T) {
+			legacy := NewLegacyReproducer(nativeInputs(c.shape))
+			root := t.TempDir()
+
+			good := nativeAgentPath(root, c.harness, c.filename)
+			writeFileOrDie(t, good, string(c.golden))
+			assertAdopted(t, Target{Path: good, Kind: KindFile, Content: []byte(replacementRender), Role: roleAgent}, legacy, "in-inventory path")
+
+			// Right bytes, wrong location: a sibling skills/ dir is not the
+			// agents/ inventory shape. The reproducer refuses the path outright...
+			bad := filepath.Join(root, legacyAgentDirName[c.harness], "skills", c.filename)
+			badTarget := Target{Path: bad, Kind: KindFile, Content: []byte(replacementRender), Role: roleAgent}
+			if got, ok := legacy(badTarget); ok || got != nil {
+				t.Fatalf("reproducer accepted an out-of-inventory path: ok=%v len=%d", ok, len(got))
+			}
+			// ...and the inspection over those same bytes is therefore a conflict.
+			writeFileOrDie(t, bad, string(c.golden))
+			assertRefused(t, badTarget, legacy, ReasonOwnershipConflict, "out-of-inventory path")
+		})
+	}
+}
+
+// TestLegacyAdoption_KindMutationRefused — dimension "kind": declaring a symlink
+// where a file target belongs breaks the legacy spelling (the reproducer keys on
+// KindFile), so the same on-disk bytes are refused.
+func TestLegacyAdoption_KindMutationRefused(t *testing.T) {
+	for _, c := range loadLegacyNativeCases(t) {
+		t.Run(c.label(), func(t *testing.T) {
+			legacy := NewLegacyReproducer(nativeInputs(c.shape))
+			root := t.TempDir()
+			p := nativeAgentPath(root, c.harness, c.filename)
+			writeFileOrDie(t, p, string(c.golden))
+
+			assertAdopted(t, Target{Path: p, Kind: KindFile, Content: []byte(replacementRender), Role: roleAgent}, legacy, "file kind")
+
+			// A symlink target where a plain file belongs: the reproducer returns
+			// (nil,false) for a non-file kind, so the regular file on disk is
+			// unprovable and preserved.
+			symTarget := Target{
+				Path:       p,
+				Kind:       KindSymlink,
+				LinkTarget: filepath.Join(root, "elsewhere", "target"),
+				Role:       roleAgent,
+			}
+			if got, ok := legacy(symTarget); ok || got != nil {
+				t.Fatalf("reproducer accepted a symlink kind: ok=%v len=%d", ok, len(got))
+			}
+			assertRefused(t, symTarget, legacy, ReasonOwnershipConflict, "symlink where a file belongs")
+		})
+	}
+}
+
+// TestLegacyAdoption_DispatchBlockMutationsRefused covers the managed-block kind
+// (c) across three dimensions: byte (an interior byte flip), marker (broken /
+// unbalanced markers that short-circuit to ManagedBlockInvalid BEFORE any legacy
+// check), and kind (a plain-file target where a managed block belongs). Every
+// mutation is proven against the SAME frozen interior that, unmutated, adopts.
+func TestLegacyAdoption_DispatchBlockMutationsRefused(t *testing.T) {
+	corpus := legacyCorpusDir(t)
+	interior, err := os.ReadFile(filepath.Join(corpus, "dispatch-block", "interior.md"))
+	if err != nil {
+		t.Fatalf("reading dispatch-block interior: %v", err)
+	}
+	// The dispatch interior is harness-neutral and pin-invariant, so empty inputs
+	// reproduce it (matching the real production reproducer for this target).
+	legacy := NewLegacyReproducer(LegacyInputs{})
+	blockTarget := func(p string, kind TargetKind) Target {
+		return Target{Path: p, Kind: kind, BlockName: "dispatch", Content: []byte("new dispatch interior\n"), Role: "dispatch"}
+	}
+
+	t.Run("unmutated interior adopts", func(t *testing.T) {
+		root := t.TempDir()
+		p := filepath.Join(root, "CLAUDE.md")
+		writeFileOrDie(t, p, managedFile(string(interior)))
+		assertAdopted(t, blockTarget(p, KindManagedBlock), legacy, "valid legacy block")
+	})
+
+	t.Run("byte: one interior byte changed is a conflict", func(t *testing.T) {
+		root := t.TempDir()
+		p := filepath.Join(root, "CLAUDE.md")
+		mutated := flipOneByte(interior)
+		if bytes.Equal(mutated, interior) {
+			t.Fatal("byte flip did not change the interior")
+		}
+		writeFileOrDie(t, p, managedFile(string(mutated)))
+		assertRefused(t, blockTarget(p, KindManagedBlock), legacy, ReasonOwnershipConflict, "interior byte flip")
+	})
+
+	t.Run("marker: an unbalanced (dangling start) marker is managed-block-invalid", func(t *testing.T) {
+		root := t.TempDir()
+		p := filepath.Join(root, "CLAUDE.md")
+		// The body IS the exact legacy interior: were the legacy check to run
+		// before marker validation this would be wrongly adopted. Marker validity
+		// is a precondition, so it must short-circuit to ManagedBlockInvalid.
+		writeFileOrDie(t, p, "# Notes\n\n<!-- docket:dispatch:start (managed by docket) -->\n"+string(interior))
+		assertRefused(t, blockTarget(p, KindManagedBlock), legacy, ReasonManagedBlockInvalid, "dangling start marker over the exact legacy interior")
+	})
+
+	t.Run("marker: a malformed start keyword is managed-block-invalid", func(t *testing.T) {
+		root := t.TempDir()
+		p := filepath.Join(root, "CLAUDE.md")
+		// `:begin` is not a valid docket marker keyword; with a lone valid `:end`
+		// the block is unbalanced, so it is refused before any legacy check.
+		writeFileOrDie(t, p, "# Notes\n\n<!-- docket:dispatch:begin (managed by docket) -->\n"+string(interior)+"<!-- docket:dispatch:end -->\n")
+		assertRefused(t, blockTarget(p, KindManagedBlock), legacy, ReasonManagedBlockInvalid, "malformed start keyword")
+	})
+
+	t.Run("kind: a plain-file target where a managed block belongs is a conflict", func(t *testing.T) {
+		root := t.TempDir()
+		p := filepath.Join(root, "CLAUDE.md")
+		writeFileOrDie(t, p, managedFile(string(interior)))
+		// Declaring KindFile makes the whole instruction file the artifact; the
+		// reproducer has no file-level legacy spelling for it, so it is refused.
+		fileTarget := Target{Path: p, Kind: KindFile, Content: []byte(replacementRender), Role: "dispatch"}
+		assertRefused(t, fileTarget, legacy, ReasonOwnershipConflict, "file kind where a managed block belongs")
+	})
+}
+
+// TestLegacyAdoption_CursorRuleMutationsRefused covers the Cursor dispatch-rule
+// kind (b) across byte, path, and input (the cursor harness token) dimensions —
+// each against the same golden that, unmutated, adopts.
+func TestLegacyAdoption_CursorRuleMutationsRefused(t *testing.T) {
+	corpus := legacyCorpusDir(t)
+	golden, err := os.ReadFile(filepath.Join(corpus, "cursor", "docket-dispatch.mdc"))
+	if err != nil {
+		t.Fatalf("reading cursor dispatch golden: %v", err)
+	}
+	legacy := NewLegacyReproducer(LegacyInputs{Harnesses: append([]string(nil), legacyHarnesses...)})
+	root := t.TempDir()
+	good := filepath.Join(root, ".cursor", "rules", "docket-dispatch.mdc")
+	target := Target{Path: good, Kind: KindFile, Content: []byte(replacementRender), Role: "dispatch"}
+
+	writeFileOrDie(t, good, string(golden))
+	assertAdopted(t, target, legacy, "cursor rule unmutated")
+
+	// byte: one flipped byte is no longer the frozen rule.
+	writeFileOrDie(t, good, string(flipOneByte(golden)))
+	assertRefused(t, target, legacy, ReasonOwnershipConflict, "cursor rule byte flip")
+
+	// path: right bytes, wrong filename under the same rules/ dir.
+	bad := filepath.Join(root, ".cursor", "rules", "docket-other.mdc")
+	writeFileOrDie(t, bad, string(golden))
+	assertRefused(t, Target{Path: bad, Kind: KindFile, Content: []byte(replacementRender), Role: "dispatch"},
+		legacy, ReasonOwnershipConflict, "cursor rule wrong filename")
+
+	// input: cursor absent from the targeted harness set puts the rule outside
+	// the inventory even for byte-exact bytes.
+	legacyNoCursor := NewLegacyReproducer(LegacyInputs{Harnesses: []string{"claude", "codex", "opencode"}})
+	writeFileOrDie(t, good, string(golden))
+	assertRefused(t, target, legacyNoCursor, ReasonOwnershipConflict, "cursor absent from harness set")
+}
+
+// TestLegacyReproducer_EmptyCategoryEffortRules closes the coverage the corpus
+// could not: the two documented EMPTY corpus categories (README "Explicitly
+// EMPTY categories") are exercised by LOGIC against the documented emitter rule,
+// since no golden bytes exist for them.
+//
+//   - codex/opencode "effort-only" (empty model + concrete effort): codex emits
+//     model_reasoning_effort with NO model line; opencode DROPS the effort.
+//   - cursor "effort with no model": the effort suffix is dropped (structurally
+//     impossible to emit).
+func TestLegacyReproducer_EmptyCategoryEffortRules(t *testing.T) {
+	const effort = "high"
+	effortOnly := HarnessPin{Model: "", Effort: effort}
+	in := LegacyInputs{
+		Harnesses: append([]string(nil), legacyHarnesses...),
+		AgentPins: map[string]AgentPin{
+			"status": {ByHarness: map[string]HarnessPin{
+				"claude": effortOnly, "codex": effortOnly, "cursor": effortOnly, "opencode": effortOnly,
+			}},
+		},
+	}
+	rep := NewLegacyReproducer(in)
+
+	render := func(harness string) string {
+		ext := "md"
+		if harness == "codex" {
+			ext = "toml"
+		}
+		p := filepath.Join("/legacyroot", legacyAgentDirName[harness], "agents", "docket-status."+ext)
+		got, ok := rep(Target{Path: p, Kind: KindFile, Role: roleAgent})
+		if !ok {
+			t.Fatalf("%s: reproducer refused an in-inventory target %s", harness, p)
+		}
+		return string(got)
+	}
+
+	// codex effort-only: model_reasoning_effort present, model absent.
+	codex := render("codex")
+	if !strings.Contains(codex, `model_reasoning_effort = "`+effort+`"`) {
+		t.Errorf("codex effort-only: want a model_reasoning_effort line, got:\n%s", codex)
+	}
+	if strings.Contains(codex, "\nmodel = ") {
+		t.Errorf("codex effort-only: unexpected model line:\n%s", codex)
+	}
+
+	// opencode effort-only: effort DROPPED (guarded by model presence), no model.
+	oc := render("opencode")
+	if strings.Contains(oc, "reasoningEffort:") {
+		t.Errorf("opencode effort-only: effort must be dropped, got:\n%s", oc)
+	}
+	if strings.Contains(oc, "\nmodel:") {
+		t.Errorf("opencode effort-only: unexpected model line:\n%s", oc)
+	}
+
+	// cursor effort-with-no-model: the [effort=…] suffix is dropped and no model
+	// line is emitted.
+	cur := render("cursor")
+	if strings.Contains(cur, "[effort=") {
+		t.Errorf("cursor effort-no-model: effort suffix must be dropped, got:\n%s", cur)
+	}
+	if strings.Contains(cur, "\nmodel:") {
+		t.Errorf("cursor effort-no-model: unexpected model line:\n%s", cur)
+	}
+}
+
 // firstDiff renders the first differing line between two byte slices.
 func firstDiff(got, want []byte) string {
 	gl := strings.SplitAfter(string(got), "\n")
