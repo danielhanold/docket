@@ -1465,12 +1465,27 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 # other home. Set per the rounding rule above from the measured actual: 6983 words -> 7000 leaves 17
 # (within the 25-word threshold) so the multiple after, 7050. The LINE budget was not raised (384
 # actual, 385 budget) — every edit reflowed inside existing lines.
+# Change 0315 re-sequences skills/docket-implement-next/SKILL.md and the build-gate portion of
+# skills/docket-build/SKILL.md onto the Go-v1 operation commands (`docket context implementation`,
+# `docket change claim|refresh-claim|reconcile|attach-plan|attach-results|mark-implemented`,
+# `docket artifact backlink`, `docket workspace prepare|inspect|publish`, `docket evidence
+# record|verify`, `docket pr publish`, `docket run verify`, and the native `docket gate` naming),
+# replacing the compact hand-edit/facade prose with each operation's own contract. WHERE ELSE IT WAS
+# CONSIDERED: the operation contracts are the spec's authority for the sequencer and cannot move to a
+# reference without breaking the verbatim dispatch/postcondition/disposition anchors many suites grep
+# against SKILL.md (test_change_links_coverage, test_board_refresh_on_transition, test_loop_continuation,
+# test_dispatch_capability, test_plan_writer_step4). The prose was trimmed hard first (implement-next
+# 6176 -> 5926 words, docket-build's added sentence compressed) rather than raising to the untrimmed
+# actual. Set per the rounding rule above from the measured post-edit actuals:
+#   docket-implement-next 180/5926 -> word budget 5950 leaves 24 (within the 25-word floor) so the
+#   multiple after, 6000; LINE budget unchanged (180 actual == 180 budget, still within).
+#   docket-build 380/3720 -> word budget 3750 (30 words of margin); LINE budget unchanged (380 == 380).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           70 1550
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-build/SKILL.md                               380 3700
+skills/docket-build/SKILL.md                               380 3750
 skills/docket-build/references/delegation-execution.md      85  850
 skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            130 1200
@@ -1487,7 +1502,7 @@ skills/docket-convention/references/terminal-close-out.md  200 1750
 skills/docket-finalize-change/SKILL.md                     190 4150
 skills/docket-finalize-change/references/gate-failure.md    40 1250
 skills/docket-groom-next/SKILL.md                           77 1550
-skills/docket-implement-next/SKILL.md                      180 5050
+skills/docket-implement-next/SKILL.md                      180 6000
 skills/docket-implement-next/references/edge-paths.md       50  700
 skills/docket-implement-next/references/fix-loop.md        185 1900
 skills/docket-implement-next/results-template.md            25  250

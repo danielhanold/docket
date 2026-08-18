@@ -14,11 +14,18 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 assert "board-refresh invariant present in the convention" \
   'grep -q "Board refresh on status writes" skills/docket-convention/SKILL.md'
 
-# B. docket-implement-next wires its three inline refreshes, best-effort.
-assert "implement-next defines best-effort board refresh" \
+# B. docket-implement-next (change 0315): the claim/reconcile/mark-implemented transitions render the
+# inline board ATOMICALLY inside their own `docket change` transaction — no separate Board pass — so
+# only the non-transactional reconcile-kill path still runs the gated best-effort Board pass. The
+# board-refresh-on-transition guarantee is preserved, relocated onto the transaction render plus the
+# retained kill-path pass (learnings: restatement-accumulates-its-own-guards), never dropped.
+assert "implement-next names the best-effort board refresh (retained for the kill path)" \
   'grep -q "Best-effort board refresh" skills/docket-implement-next/SKILL.md'
-assert "implement-next has 3 best-effort Board-pass site clauses (claim, reconcile-kill, implemented)" \
-  '[ "$(grep -c "run the Board pass (best-effort" skills/docket-implement-next/SKILL.md)" -ge 3 ]'
+# Mutation twin: strip the atomic inline-board render from the transitions and this reddens.
+assert "implement-next renders the inline board atomically inside its change transactions" \
+  'grep -qiE "inline board[^.]{0,60}(atomic|metadata commit)|(atomic|metadata commit)[^.]{0,60}inline board" skills/docket-implement-next/SKILL.md'
+assert "implement-next retains the gated best-effort Board pass for the non-transactional kill path" \
+  '[ "$(grep -c "run the Board pass (best-effort" skills/docket-implement-next/SKILL.md)" -ge 1 ]'
 
 # C. docket-new-change proposed-kill refreshes the board (must-land, not best-effort).
 assert "new-change proposed-kill refreshes board (must-land Board pass)" \
