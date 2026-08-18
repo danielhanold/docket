@@ -2,7 +2,7 @@
 slug: tolerance-constant-calibrated-on-one-machine
 hook: "A tolerance constant measured on one machine's contention profile is wrong in both directions elsewhere — too tight it flakes, too loose enforcement goes vacuous; record the measurement, not just the number."
 topics: [thresholds, performance, portability]
-changes: [227, 312, 325]
+changes: [227, 312, 325, 328]
 created: 2026-08-07
 updated: 2026-08-18
 promotion_state: retained
@@ -70,3 +70,29 @@ vary with contention, so the threshold can be tightened back into a real gate
   as **#0328** — confirming the pattern is family-wide: a supervisor test whose timing assumption
   holds in isolation breaks under load. Sizing a *test barrier* for load rather than isolation is the
   same record-and-widen-for-contention move as the runtime-budget constants above.
+- 2026-08-18 (#328, PR #219 — merged) — **The predicted sibling closed, and it did not behave like
+  0325.** The entry above named #0328 as the family-wide next case; this is its outcome, and it adds
+  a limit to the family's method. The same widen-for-contention move was applied — the two `waitFor`
+  deadlines went 30s → 60s, safe in the loose direction for the same reason as 0325's barrier
+  (`waitFor` returns the instant its predicate holds, so the wider ceiling costs wall-time only on a
+  genuine hang). But unlike 0325, **the flake would not reproduce**: 8 copies × `-count=5` of the
+  target test, then 16 copies × `-count=2` of the whole `internal/process` package (~50s per copy,
+  32 executions under real self-contention) — all green. 0325's 8-copy technique is therefore not a
+  general oracle for this family: it reproduced a *barrier-wait* flake, where contention delays a
+  scheduled rendezvous, and failed to reproduce a *state-race* flake, where the losing interleaving
+  needs a specific ordering rather than merely a slow machine.
+
+  So the fix landed as **diagnostics rather than a demonstrated repair**, and was labelled that way
+  in the results file and PR body: a precondition helper asserting every durable verdict absent
+  before `Recover` runs, plus a bounded setup retry, which converts a future mystery `Marked:0` into
+  a named setup failure. Mutation-tested both directions (forced permanently-unmet → retries then
+  fatals at the cap; forced unmet once → re-drives and passes). What this adds to the family: when
+  the stress technique that worked on the previous member comes back green, that is evidence about
+  *the technique's fit*, not about the flake's absence — widen the diagnostics so the next
+  occurrence carries its own cause, and say plainly which of the two you shipped.
+
+  Runtime footnote, per [[budget-headroom-is-spent-before-it-is-breached]]: the change cost nothing
+  measurable — 16-copy stress ran **47.9–50.8s → 45.8–48.3s** before vs after, with zero retry
+  events on healthy runs. `test_go_toolchain` measured **153s against its 55s ceiling** versus 150s
+  at 0325's gate, i.e. unchanged; ten files were over at once at roughly 3x, which is the
+  whole-suite cliff this finding's #312 entry says to read as a statement about the machine.

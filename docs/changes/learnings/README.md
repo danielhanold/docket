@@ -96,6 +96,10 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [size-target-is-direction](size-target-is-direction.md) — On a behavior-neutral slim the size target is a direction, not a gate — behavior-neutrality outranks hitting the number. · also: refactoring, review
 - [verify-the-claim](verify-the-claim.md) — A document asserting a fact about another artifact is not an oracle — verify it against the artifact or the RUNNING CODE before acting on it. · also: review, spec
 
+## reconcile
+
+- [groomed-root-cause-is-a-hypothesis](groomed-root-cause-is-a-hypothesis.md) — A groomed change's stated root cause is a hypothesis someone inferred from a symptom — verify it against the code at reconcile, because the fix was scoped to that cause and inherits its error. · also: diagnostics, planning ⟨needs promotion⟩
+
 ## refactoring
 
 - [consolidation-flattens-caller-variance](consolidation-flattens-caller-variance.md) — Restatements across N callers are not pure duplication — diff them against each other before templating, or the shared source silently rewrites the callers that differed. · also: docs, contracts
