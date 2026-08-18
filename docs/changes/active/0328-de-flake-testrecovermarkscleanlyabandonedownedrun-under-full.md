@@ -2,11 +2,12 @@
 id: 328
 slug: de-flake-testrecovermarkscleanlyabandonedownedrun-under-full
 title: 'De-flake TestRecoverMarksCleanlyAbandonedOwnedRun under full-suite load'
-status: proposed
+status: in-progress
 priority: medium
 type: fix
 created: 2026-08-18
 updated: 2026-08-18
+claimed_at: 2026-08-18T19:47:30Z
 depends_on: []
 stacked_on:
 related: []
@@ -17,7 +18,7 @@ plan:
 results:
 trivial: true
 auto_groomable:
-branch:
+branch: feat/de-flake-testrecovermarkscleanlyabandonedownedrun-under-full
 pr:
 blocked_by:
 reconciled: false
