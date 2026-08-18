@@ -1,8 +1,14 @@
 # Backlog
 
-**326 changes** — 🟡 49 proposed · ⚪ 4 deferred · ✅ 193 done · 🗑️ 80 killed
+**326 changes** — 🟢 1 in progress · 🟡 48 proposed · ⚪ 4 deferred · ✅ 193 done · 🗑️ 80 killed
 
-## 🟡 Proposed (49)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0322](active/0322-go-installer-adopt-legacy-bash-installed-user-level-artifact.md) | Bootstrap Go development installation and adopt legacy user-level artifacts | `critical` | `feat` | [spec](../superpowers/specs/2026-08-18-development-install-bootstrap-and-legacy-adoption-design.md) | `feat/go-installer-adopt-legacy-bash-installed-user-level-artifact` |
+
+## 🟡 Proposed (48)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -51,7 +57,6 @@
 | [0319](active/0319-test-bash-runtime-routing-sh-s-inventory-assert-is-cwd-depen.md) | test_bash_runtime_routing.sh's inventory assert is cwd-dependent — relative rg globs resolve against the process cwd | `medium` | `fix` | needs-brainstorm |
 | [0320](active/0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | `medium` | `chore` | needs-brainstorm |
 | [0321](active/0321-render-artifact-backlink-sh-eats-artifact-tails-on-marker-sh.md) | render-artifact-backlink.sh eats artifact tails on marker-shaped literals — anchor whole-line, validate balance, refuse | `medium` | `fix` | needs-brainstorm |
-| [0322](active/0322-go-installer-adopt-legacy-bash-installed-user-level-artifact.md) | Bootstrap Go development installation and adopt legacy user-level artifacts | `critical` | `feat` | build-ready |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | needs-brainstorm |
 | [0325](active/0325-de-flake-the-gate-run-stop-barrier-test.md) | De-flake the gate-run --stop barrier test | `medium` | `fix` | needs-brainstorm |
 | [0326](active/0326-pre-go-mutation-configuration-contraction.md) | Pre-Go mutation configuration contraction | `critical` | `chore` | build-ready |
