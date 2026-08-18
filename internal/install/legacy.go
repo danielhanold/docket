@@ -28,6 +28,22 @@ import (
 // (harness, agent) out of the path.
 const roleAgent = "agent"
 
+// roleDispatch is the Role the cursor adapter stamps on the docket-dispatch
+// rule target (internal/harness/cursor roleDispatch = "dispatch"). The
+// reproducer keys on it to identify the Cursor dispatch-rule target before
+// matching its path shape.
+const roleDispatch = "dispatch"
+
+// legacyCursorDispatchRule is the frozen v0.9.2 Cursor dispatch rule, embedded
+// verbatim from the captured corpus golden. It is PIN-INVARIANT — v0.9.2's
+// assemble_dispatch_rule splices a static head + run-gate + per-agent fragments
+// and interpolates no model/effort — so it is a single frozen byte string, not
+// a rendered form. The embedded bytes byte-equal
+// testdata/legacy/cursor/docket-dispatch.mdc by construction (copied from it).
+//
+//go:embed legacydata/docket-dispatch.mdc
+var legacyCursorDispatchRule []byte
+
 // legacydata holds the frozen v0.9.2 wrapper-source bodies for every built-in
 // agent — all sixteen, so the reproducer covers every docket-* agent a real
 // legacy machine has, not only the two with captured goldens.
@@ -142,7 +158,21 @@ func NewLegacyReproducer(in LegacyInputs) LegacyReproducer {
 	}
 	pins := in.AgentPins
 	return func(t Target) ([]byte, bool) {
-		if t.Kind != KindFile || t.Role != roleAgent {
+		if t.Kind != KindFile {
+			return nil, false
+		}
+		// Kind (b): Cursor's docket-dispatch.mdc rule — a regular file, keyed
+		// on the dispatch role and its frozen path shape, gated on cursor being
+		// in the targeted harness set. The rule is pin-invariant, so the frozen
+		// bytes are returned verbatim (a fresh copy, so a caller cannot mutate
+		// the embedded backing array).
+		if t.Role == roleDispatch {
+			if !harnessSet["cursor"] || !isLegacyCursorDispatchPath(t.Path) {
+				return nil, false
+			}
+			return append([]byte(nil), legacyCursorDispatchRule...), true
+		}
+		if t.Role != roleAgent {
 			return nil, false
 		}
 		harness, agent, ok := parseLegacyAgentPath(t.Path)
@@ -195,6 +225,24 @@ func parseLegacyAgentPath(p string) (harness, agent string, ok bool) {
 		return "", "", false
 	}
 	return harness, agent, true
+}
+
+// isLegacyCursorDispatchPath reports whether p is the frozen shape of the
+// v0.9.2 Cursor dispatch rule, `<…>/.cursor/rules/docket-dispatch.mdc`. The
+// path is cleaned first so stray separators do not change the parse. Only the
+// `.cursor` root is accepted — Claude/Codex/OpenCode emit no such rule — and the
+// filename must be exactly the dispatch rule, so a different file under the same
+// rules/ dir is outside the inventory.
+func isLegacyCursorDispatchPath(p string) bool {
+	p = filepath.Clean(p)
+	if filepath.Base(p) != "docket-dispatch.mdc" {
+		return false
+	}
+	rulesDir := filepath.Dir(p)
+	if filepath.Base(rulesDir) != "rules" {
+		return false
+	}
+	return filepath.Base(filepath.Dir(rulesDir)) == ".cursor"
 }
 
 // legacyRender dispatches to the frozen port of the v0.9.2 per-harness emitter.

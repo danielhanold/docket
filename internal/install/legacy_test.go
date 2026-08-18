@@ -156,7 +156,12 @@ func TestLegacyReproducer_NonInventory(t *testing.T) {
 		{
 			name:   "not an agent-definition path",
 			inputs: full,
-			target: Target{Path: "/legacyroot/.cursor/rules/docket-dispatch.mdc", Kind: KindFile, Role: "dispatch"},
+			target: Target{Path: "/legacyroot/.claude/skills/docket-status.md", Kind: KindFile, Role: roleAgent},
+		},
+		{
+			name:   "cursor rules dir but not the dispatch rule",
+			inputs: full,
+			target: Target{Path: "/legacyroot/.cursor/rules/docket-other.mdc", Kind: KindFile, Role: "dispatch"},
 		},
 		{
 			name:   "unknown agent short-name",
@@ -182,6 +187,42 @@ func TestLegacyReproducer_NonInventory(t *testing.T) {
 				t.Fatalf("expected (nil,false) for %q, got ok=%v len(bytes)=%d", tc.target.Path, ok, len(got))
 			}
 		})
+	}
+}
+
+// TestLegacyReproducer_CursorDispatchRule covers the frozen Cursor
+// docket-dispatch.mdc rule (Kind (b) of the closed inventory): pin-invariant,
+// a regular KindFile at ~/.cursor/rules/docket-dispatch.mdc. With cursor in the
+// harness set the reproducer returns the captured bytes byte-for-byte; with
+// cursor absent it is outside the inventory and returns (nil,false).
+func TestLegacyReproducer_CursorDispatchRule(t *testing.T) {
+	corpus := legacyCorpusDir(t)
+	golden, err := os.ReadFile(filepath.Join(corpus, "cursor", "docket-dispatch.mdc"))
+	if err != nil {
+		t.Fatalf("reading cursor dispatch golden: %v", err)
+	}
+	target := Target{
+		Path: filepath.Join("/legacyroot", ".cursor", "rules", "docket-dispatch.mdc"),
+		Kind: KindFile,
+		Role: "dispatch",
+	}
+
+	// cursor present -> frozen bytes + true. The rule is pin-invariant, so no
+	// AgentPins are needed.
+	rep := NewLegacyReproducer(LegacyInputs{Harnesses: append([]string(nil), legacyHarnesses...)})
+	got, ok := rep(target)
+	if !ok {
+		t.Fatalf("cursor present: reproducer reported no legacy spelling for %s", target.Path)
+	}
+	if !bytes.Equal(got, golden) {
+		t.Fatalf("cursor dispatch bytes differ:\n%s", firstDiff(got, golden))
+	}
+
+	// cursor absent from the harness set -> outside the inventory.
+	repNoCursor := NewLegacyReproducer(LegacyInputs{Harnesses: []string{"claude", "codex", "opencode"}})
+	got, ok = repNoCursor(target)
+	if ok || got != nil {
+		t.Fatalf("cursor absent: expected (nil,false), got ok=%v len=%d", ok, len(got))
 	}
 }
 
