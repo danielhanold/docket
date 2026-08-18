@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/document"
@@ -266,6 +267,20 @@ func claimPreflight(ctx context.Context, deps PlanningDeps, repoDir, opKey strin
 			return pin, eff, false, repo, &r
 		}
 		r := newChangeClaimResult(opKey, ResultInternalError, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(ReasonStatusInternalError, err.Error())}})
+		return pin, eff, false, repo, &r
+	}
+
+	// Capability preflight: a configuration that actively requests a deferred
+	// capability docket does not ship in this version blocks every metadata
+	// mutation before its transaction (spec "Failure, concurrency, and security
+	// rules"; maps to unsupported-config). It runs here, before Discover and the
+	// engine, so a blocked configuration writes nothing.
+	if decision := config.PreflightMutation(&pin.Config); !decision.Allowed {
+		r := newChangeClaimResult(opKey, ResultUnsupportedConfig, ChangeClaimResult{
+			Findings: []StatusFinding{lifecycleFinding(ReasonDeferredCapRequested,
+				"configuration actively requests a deferred capability docket does not ship in this version ("+
+					strings.Join(blockerPaths(decision.Blockers), ", ")+"); withdraw it before any mutation")},
+		})
 		return pin, eff, false, repo, &r
 	}
 
