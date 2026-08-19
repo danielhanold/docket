@@ -84,6 +84,8 @@ var assetIndependent = map[string]bool{
 	"finalize merge":             true,
 	"finalize closeout":          true,
 	"finalize cleanup":           true,
+	"maintenance":                true, // the group itself; it reports a missing command
+	"maintenance sweep":          true,
 	"diagnostic":                 true, // the group itself; it reports a missing command
 	"diagnostic runtime":         true,
 	"diagnostic config":          true,
