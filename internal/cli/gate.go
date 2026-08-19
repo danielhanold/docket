@@ -102,6 +102,19 @@ func newGateCommand(setResult func(app.OperationResult)) *cobra.Command {
 	recover.Flags().String("root", "", "absolute directory that holds run slots to scan (required)")
 	_ = recover.MarkFlagRequired("root")
 
-	gateCmd.AddCommand(launch, observe, stop, recover)
+	cleanup := &cobra.Command{
+		Use:   "cleanup <run-dir>",
+		Short: "Remove one owned, terminal, reported run directory's logs, retaining every other run",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(c *cobra.Command, args []string) error {
+			// GateCleanup reads only the run directory; the FinalizeDeps parameter is
+			// present for signature parity with the other cleanup operation and is
+			// unused, so an empty value is correct here.
+			setResult(app.GateCleanup(c.Context(), app.FinalizeDeps{}, args[0]))
+			return nil
+		},
+	}
+
+	gateCmd.AddCommand(launch, observe, stop, recover, cleanup)
 	return gateCmd
 }

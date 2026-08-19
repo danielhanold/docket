@@ -72,6 +72,7 @@ var assetIndependent = map[string]bool{
 	"gate observe":               true,
 	"gate stop":                  true,
 	"gate recover":               true,
+	"gate cleanup":               true,
 	"finalize":                   true, // the group itself; it reports a missing command
 	"finalize retarget-children": true,
 	"finalize rebase":            true,
@@ -82,6 +83,7 @@ var assetIndependent = map[string]bool{
 	"finalize clear-block":       true,
 	"finalize merge":             true,
 	"finalize closeout":          true,
+	"finalize cleanup":           true,
 	"diagnostic":                 true, // the group itself; it reports a missing command
 	"diagnostic runtime":         true,
 	"diagnostic config":          true,
