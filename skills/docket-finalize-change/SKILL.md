@@ -52,7 +52,7 @@ The driver's decision is binary: **continue on `advanced`/`contended`, stop on `
 
 The final report enumerates the change merged (if any), each change skipped with its closed reason, and the disposition that ended the run.
 
-**Dummy mode:** when `DUMMY_MODE_ENABLED` is `true` (Step-0 export) — or the human asks for it in-session — write this skill's human-present prompts and reports calibrated to `DUMMY_MODE_PERSONA`, and give any authored block report an `### In plain terms` block alongside the full technical content, per the convention's *Dummy mode* shared definition.
+**Dummy mode** is a *deferred capability* in the Go runtime: `dummy_mode.enabled` is rejected at the config gate, so a repo that sets it cannot mutate at all and this skill never runs with it on. Treat it as unavailable — do not calibrate prose to `DUMMY_MODE_PERSONA` and do not author an `### In plain terms` block. When a human asks for plainer language in-session, simply write plainer language; that is an ordinary request, not this setting.
 
 ## The sequence
 
@@ -85,6 +85,8 @@ If the candidate has open child PRs targeting this change's branch, they must be
 
 The gate is composed into `finalize rebase`/`rebase-continue`: a completed rebase runs the full resolved suite unless the rebase was a **no-op and** the PR body carries green build-evidence for the **exact** current head, in which case the run is skipped and the permit named in the gate report. There is no strict-ancestor or results-only skip. A passing gate records its evidence through the landed `evidence record` seam and returns the block in the rebase document; a red gate returns `failed`/`gate-failed` (step 5).
 
+`docket gate` owns the gate's mechanics — the supervised run outliving any foreground call, the durable run directory, completion established from that artifact, and the bounded `gate_observation_budget` that fails closed when spent. **One clause of `docket-build`'s *Gate execution posture* it cannot own is yours to obey:** whether you may **yield** while the gate runs is decided by *your own* dispatch posture, never by the gate's. Only a top-level session agent, able to receive a resumption signal, may yield and then make short observations. Running as a dispatched or forked child you have no such channel, so you may **never** yield — observe by *blocking* instead, in repeated short foreground reads, control never handed back to your caller mid-gate. `gate observe` is a single read-only report and cannot tell which you are; a child that yields here parks until a human notices.
+
 ### 5. Repair a red gate
 
 A red suite after the rebase is repair work, regardless of cause. Dispatch `docket-integration-repair` (foreground, at the model/effort its wrapper resolves) naming the feature worktree. It root-causes the red tests, authors a **bounded** fix in at most two attempts, commits it on the feature branch, and returns a report naming its claimed commits and `repaired`/`stuck`; it never runs the rebase, merges, or transitions metadata. Then re-run the gate on the repaired head yourself: `docket gate launch --root <run-root> --cwd <feature worktree> -- <resolved suite>` then `docket gate observe <run-dir>` under the gate-execution posture `docket-build` owns (its `references/gate-execution.md`, including the observation budget). On a `passed` terminal observation whose head equals the repaired head, `docket evidence record --id <id> --run <absolute-run-dir> --head <repaired head>` returns the immutable block — there is **no** agent-supplied `passed` boolean; a failed/running/stopped/vanished/malformed/head-mismatched run produces none, and a repair that cannot reach green in two attempts, or a repair dispatch that is unavailable (the carve-out below), is `halted`.
@@ -109,6 +111,8 @@ A pass with **no** authored repair (an exact-head-evidence skip, or a clean reba
 `--admin` is honored **only** on an attended, explicitly-named run where a sole maintainer chooses to force past an otherwise-unsatisfiable required review; it is never inferred from an approval absence or a permission error, and a `merge-denied` stays `denied` (`halted`). A named id overrides the `approval-required` and `finalize-blocked` skips (step 1); it never overrides malformed state, a wrong PR identity, an unsafe stack, or the repair sign-off.
 
 ### 9. Closeout — archive the terminal records
+
+Every mutating Go transaction re-renders `BOARD.md` in the same commit as the record it reflects, so the board needs no separate pass and stays fresh by construction. The board is the live planning view and is **never** published to the integration branch.
 
 `docket finalize closeout --id <id>`. No caller-supplied done boolean or archive date: it reloads metadata, reprobes the PR and its destination, derives the UTC archive date from the verified `mergedAt`, and applies one atomic transaction. Route on `disposition`:
 
