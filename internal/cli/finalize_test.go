@@ -113,3 +113,94 @@ func TestFinalizeGroupAssetIndependent(t *testing.T) {
 		t.Errorf("%q is not registered asset-independent", "finalize")
 	}
 }
+
+// TestFinalizeRebaseRegistered proves `finalize rebase` is wired with its scalar
+// identity flags (no authored request body) plus --repo-dir.
+func TestFinalizeRebaseRegistered(t *testing.T) {
+	root := captureTree(t)
+	cmd, _, err := root.Find([]string{"finalize", "rebase"})
+	if err != nil || cmd == nil || cmd.Name() != "rebase" {
+		t.Fatalf("finalize rebase not registered: cmd=%v err=%v", cmd, err)
+	}
+	for _, flag := range []string{"id", "version", "head", "repo-dir"} {
+		if cmd.Flags().Lookup(flag) == nil {
+			t.Errorf("finalize rebase: missing --%s flag", flag)
+		}
+	}
+}
+
+// TestFinalizeRebaseResolverSubcommandsRegistered proves rebase-continue and
+// rebase-abort are wired with the scalar identity (id, attempt) on flags and the
+// authored resolver report in --input (never argv).
+func TestFinalizeRebaseResolverSubcommandsRegistered(t *testing.T) {
+	root := captureTree(t)
+	for _, name := range []string{"rebase-continue", "rebase-abort"} {
+		cmd, _, err := root.Find([]string{"finalize", name})
+		if err != nil || cmd == nil || cmd.Name() != name {
+			t.Fatalf("finalize %s not registered: cmd=%v err=%v", name, cmd, err)
+		}
+		for _, flag := range []string{"id", "attempt", "input", "repo-dir"} {
+			if cmd.Flags().Lookup(flag) == nil {
+				t.Errorf("finalize %s: missing --%s flag", name, flag)
+			}
+		}
+	}
+}
+
+// TestFinalizeRebaseSubcommandsAssetIndependent guards the install.go registration
+// for the three rebase subcommands: they read the repository, never installed assets.
+func TestFinalizeRebaseSubcommandsAssetIndependent(t *testing.T) {
+	for _, key := range []string{"finalize rebase", "finalize rebase-continue", "finalize rebase-abort"} {
+		if !assetIndependent[key] {
+			t.Errorf("%q is not registered asset-independent", key)
+		}
+	}
+}
+
+// TestFinalizeRebaseFlagsRequired proves --id, --version, and --head are required.
+func TestFinalizeRebaseFlagsRequired(t *testing.T) {
+	_, errS, code := runCLI(t, "finalize", "rebase")
+	if code != 2 || errS == "" {
+		t.Fatalf("err=%q code=%d, want a required-flag argument error", errS, code)
+	}
+	for _, flag := range []string{"id", "version", "head"} {
+		if !strings.Contains(errS, flag) {
+			t.Errorf("required-flag error does not name %q: %q", flag, errS)
+		}
+	}
+}
+
+// TestFinalizeRebaseReachesOperation proves the command decodes its flags and
+// reaches the operation, which emits exactly one protocol-v1 document naming it.
+func TestFinalizeRebaseReachesOperation(t *testing.T) {
+	out, errS, _ := runCLI(t, "finalize", "rebase",
+		"--id", "80", "--version", "1234123412341234123412341234123412341234",
+		"--head", "abcabcabcabcabcabcabcabcabcabcabcabcabca", "--repo-dir", t.TempDir(), "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q", errS)
+	}
+	if !strings.Contains(out, `"operation":"finalize.rebase"`) {
+		t.Fatalf("document did not name the operation: %q", out)
+	}
+	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
+	}
+}
+
+// TestFinalizeRebaseContinueReachesOperation proves the command decodes the
+// resolver report from --input and reaches the operation, emitting one document.
+func TestFinalizeRebaseContinueReachesOperation(t *testing.T) {
+	out, errS, _ := runCLIStdin(t,
+		`{"change_id":80,"attempt":"a1","disposition":"resolved","conflicted_paths":["x.txt"]}`,
+		"finalize", "rebase-continue",
+		"--id", "80", "--attempt", "a1", "--input", "-", "--repo-dir", t.TempDir(), "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q", errS)
+	}
+	if !strings.Contains(out, `"operation":"finalize.rebase-continue"`) {
+		t.Fatalf("document did not name the operation: %q", out)
+	}
+	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
+	}
+}

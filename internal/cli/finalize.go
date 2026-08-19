@@ -35,6 +35,9 @@ func newFinalizeCommand(setResult func(app.OperationResult)) *cobra.Command {
 		},
 	}
 	finalizeCmd.AddCommand(newFinalizeRetargetChildrenSubcommand(setResult))
+	finalizeCmd.AddCommand(newFinalizeRebaseSubcommand(setResult))
+	finalizeCmd.AddCommand(newFinalizeRebaseContinueSubcommand(setResult))
+	finalizeCmd.AddCommand(newFinalizeRebaseAbortSubcommand(setResult))
 	return finalizeCmd
 }
 
@@ -88,6 +91,111 @@ func newFinalizeRetargetChildrenSubcommand(setResult func(app.OperationResult)) 
 	return cmd
 }
 
+// newFinalizeRebaseSubcommand builds `finalize rebase`: it rebases an implemented
+// change's feature branch onto its effective base and composes the local gate. The
+// scalar identity (id, pinned version, expected head) rides on flags; there is no
+// authored request body.
+func newFinalizeRebaseSubcommand(setResult func(app.OperationResult)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "rebase",
+		Short: "Rebase a change's feature branch onto its effective base and run the local gate",
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, _ := c.Flags().GetString("repo-dir")
+			id, _ := c.Flags().GetInt("id")
+			version, _ := c.Flags().GetString("version")
+			head, _ := c.Flags().GetString("head")
+			deps, err := newFinalizeDeps()
+			if err != nil {
+				return err
+			}
+			setResult(app.FinalizeRebase(c.Context(), deps, repoDir, app.FinalizeRebaseRequest{
+				ID: id, Version: version, Head: head,
+			}))
+			return nil
+		},
+	}
+	cmd.Flags().Int("id", 0, "implemented change id to rebase (required)")
+	cmd.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
+	cmd.Flags().String("head", "", "expected local feature head the rebase begins from (required)")
+	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	_ = cmd.MarkFlagRequired("id")
+	_ = cmd.MarkFlagRequired("version")
+	_ = cmd.MarkFlagRequired("head")
+	return cmd
+}
+
+// newFinalizeRebaseContinueSubcommand builds `finalize rebase-continue`: it feeds a
+// conflict-resolver's report into the owned rebase, staging exactly the reported
+// (and verified) paths and continuing. The scalar identity (id, attempt token)
+// rides on flags; the authored resolver report rides in --input (never argv).
+func newFinalizeRebaseContinueSubcommand(setResult func(app.OperationResult)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "rebase-continue",
+		Short: "Continue an owned rebase from a verified conflict-resolver report",
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, _ := c.Flags().GetString("repo-dir")
+			id, _ := c.Flags().GetInt("id")
+			attempt, _ := c.Flags().GetString("attempt")
+			var report app.ResolverReport
+			if err := decodeInputFlag(c, &report); err != nil {
+				return err
+			}
+			deps, err := newFinalizeDeps()
+			if err != nil {
+				return err
+			}
+			setResult(app.FinalizeRebaseContinue(c.Context(), deps, repoDir, id, attempt, report))
+			return nil
+		},
+	}
+	finalizeReportFlags(cmd)
+	return cmd
+}
+
+// newFinalizeRebaseAbortSubcommand builds `finalize rebase-abort`: it proves the
+// owned attempt, aborts the rebase, and verifies the original head was restored.
+// The scalar identity rides on flags; the authored resolver report rides in
+// --input (never argv).
+func newFinalizeRebaseAbortSubcommand(setResult func(app.OperationResult)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "rebase-abort",
+		Short: "Abort an owned rebase and verify restoration to the recorded original head",
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, _ := c.Flags().GetString("repo-dir")
+			id, _ := c.Flags().GetInt("id")
+			attempt, _ := c.Flags().GetString("attempt")
+			var report app.ResolverReport
+			if err := decodeInputFlag(c, &report); err != nil {
+				return err
+			}
+			deps, err := newFinalizeDeps()
+			if err != nil {
+				return err
+			}
+			setResult(app.FinalizeRebaseAbort(c.Context(), deps, repoDir, id, attempt, report))
+			return nil
+		},
+	}
+	finalizeReportFlags(cmd)
+	return cmd
+}
+
+// finalizeReportFlags declares the shared scalar-identity + report-file flags the
+// resolver-fed rebase subcommands take: id and attempt on flags, the authored
+// report in --input.
+func finalizeReportFlags(cmd *cobra.Command) {
+	cmd.Flags().Int("id", 0, "change id whose owned rebase is continued or aborted (required)")
+	cmd.Flags().String("attempt", "", "the owned rebase attempt token from the conflicted result (required)")
+	cmd.Flags().String("input", "", "JSON resolver report file, or - for stdin (required)")
+	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	_ = cmd.MarkFlagRequired("id")
+	_ = cmd.MarkFlagRequired("attempt")
+	_ = cmd.MarkFlagRequired("input")
+}
+
 // newFinalizeDeps assembles the production seams every finalize operation needs:
 // the read-only planning seams (reader/engine/git client/clock), the GitHub
 // client, the workspace service over the same git client, and the PR-facts
@@ -110,5 +218,6 @@ func newFinalizeDeps() (app.FinalizeDeps, error) {
 		GitHub:    ghClient,
 		Workspace: ws,
 		PRProber:  app.NewGitHubFinalizeProber(ghClient),
+		Gate:      app.NewFinalizeGate(planning, app.WorkspaceDeps{Service: ws}),
 	}, nil
 }

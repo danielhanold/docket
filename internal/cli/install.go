@@ -71,6 +71,9 @@ var assetIndependent = map[string]bool{
 	"gate recover":               true,
 	"finalize":                   true, // the group itself; it reports a missing command
 	"finalize retarget-children": true,
+	"finalize rebase":            true,
+	"finalize rebase-continue":   true,
+	"finalize rebase-abort":      true,
 	"diagnostic":                 true, // the group itself; it reports a missing command
 	"diagnostic runtime":         true,
 	"diagnostic config":          true,

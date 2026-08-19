@@ -100,6 +100,13 @@ type FinalizeDeps struct {
 	GitHub    FinalizeGitHub
 	Workspace FinalizeWorkspace
 	PRProber  FinalizePRProber
+	// Gate is the local-gate composition seam finalize rebase drives after a
+	// completed rebase (Task 8): it launches the resolved suite in the feature
+	// workspace, observes it to a terminal within the observation budget, and maps
+	// the outcome. The read-only context operation and the retarget operation
+	// never touch it, so it is nil in their wiring; the mutating rebase operation
+	// requires it.
+	Gate FinalizeGate
 }
 
 // FinalizeContextRequest is the closed request. ID==0 applies the deterministic
