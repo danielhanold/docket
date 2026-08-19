@@ -86,3 +86,32 @@ Verified the launch precondition and the landed-foundations assumptions the desi
 - The work this change owns is genuinely unbuilt: there is no `internal/finalize` package, no `docket finalize` or `docket maintenance` command tree, and `docket change` carries claim/reconcile/attach-*/mark-implemented/block/create/defer/groom/kill/refresh-claim but not the `halt`/`resume-halted`/`reclaim` verbs this change adds. `docket run` is present but read-only (verify), matching the pre-0316 checkpoint set.
 
 No proposal-section rewrite and no relation change are warranted: the spec was authored (2026-08-18) specifically for this launch point, its `depends_on`/`related`/`adrs`/`discovered_from` still describe reality, and the change carries no `stacked_on`. AUTO_CAPTURE is disabled, so no adjacent-work stubs are minted this pass; none surfaced that would warrant one regardless.
+
+## Run halted
+
+An autonomous `docket-implement-next` run stopped needing a human at the Step-5 build gate.
+
+### 2026-08-19
+
+**What stopped the run.** The whole-suite build gate came back red: `SUITE files=123 passed=95 failed=28`. The build worker fan-out (Tasks 1–18) completed and each task's focused checks passed, but the single end-of-build full-suite gate — the deliverable of Step 5 — is not green, so the branch is uncertified and no PR may open. Per the run's autonomy contract no test was weakened to force green.
+
+**Root cause.** Task 18's rewrite of `skills/docket-finalize-change/SKILL.md` (and its references) into the Go-v1 sequencer, plus the agent-template rewrites and asset regeneration, **over-deleted** required skill content and busted budgets. The 28 failures fall into three buckets:
+
+1. **Finalize-skill content/wiring stripped (majority).** ~20 shell tests assert content and facade wiring the rewrite removed, much of it cross-cutting invariants orthogonal to the finalize Go-migration that must survive it — not obsolete pins of an old contract:
+   - `test_board_refresh_on_transition` — the "BOARD.md is never published" guarantee + single-facade Board-pass call.
+   - `test_closeout`, `test_stack_closeout`, `test_docket_stack`, `test_docket_metadata_branch` — archive-change / terminal-publish / cleanup-feature-branch facade invocations, close-out + descendants ops, integration_branch knob.
+   - `test_change_links_coverage` — render-change-links facade invocation.
+   - `test_learnings_ledger` — the harvest step + idempotency probe keyed on the `changes:` list.
+   - `test_dummy_mode` — dialogue/reports dummy-mode surface bindings.
+   - `test_docket_example_yml`, `test_finalize_gate` — `require_pr_approval` documentation + the FINALIZE_REQUIRE_PR_APPROVAL provenance clause.
+   - `test_finalize_disposition`, `test_gate_execution_posture`, `test_docket_review` — gate-failure reference pointer, skipped-with-reason enumeration, non-vacuity anchors, skip-requires-no-op-rebase/result-green.
+   - `test_results_artifact`, `test_shared_worktree_commit_scope`, `test_config_read_channel`, `test_configured_bash_finalize`, `test_readme_finalize_docs`, `test_skill_facade_wiring`, `test_dispatch_capability`, `test_skill_handoff_precedence`, `test_sync_agents_run_gate` (committed AGENTS.md block now stale).
+2. **Real regressions independent of the migration.**
+   - `test_skill_size_budgets` — the rewritten skills exceed budget: `docket-implement-next/SKILL.md` 6089 > 6000 words; `docket-finalize-change/references/gate-failure.md` 111 > 40 lines; `docket-implement-next/references/edge-paths.md` 54 > 50 lines / 775 > 700 words; `docket-status/SKILL.md` 121 > 118 lines / 2798 > 2650 words.
+   - `test_sync_agents` — `docket-rebase-resolver` / `docket-integration-repair` bodies no longer carry the required abort-and-report directive shape the validator matches.
+   - `test_go_toolchain`, `test_go_race` — the harness golden fixtures (`internal/harness/{claude,codex,cursor,opencode}` GoldenAgents + DispatchGolden) drifted against the rewritten agent templates and dispatch instructions and were not regenerated.
+   - `test_docket_config` — `finalize finish uses SKILL_FINISH` wiring assertion.
+
+**Why this needs a human (not an autonomous gate fix).** Correct remediation requires deciding, per assertion, which finalize-skill content Task 18 intentionally removed as part of the Go-migration versus wrongly removed — the plan/spec did not carry that test-migration mapping, and several failing invariants (BOARD.md-never-published, terminal-publish, learnings harvest, dummy-mode) are clearly must-survive. Guessing that boundary would either weaken a test or ship a broken finalize skill. Task 18's scope must be re-cut to (a) restore the required, migration-orthogonal finalize-skill content and wiring, (b) trim the rewritten skills back under their size budgets, (c) restore the agent-body abort-and-report directives, and (d) regenerate the harness goldens + AGENTS.md block — then re-run the whole suite.
+
+**State left in place.** Change is `in-progress`, `reconciled: true`, `claimed_at` fresh; branch `feat/finalize-recovery-reclaim-archive-and-stacks` carries 19 commits (Tasks 1–18) with a clean worktree; no `pr:`. Build-evidence record was NOT minted (the gate is red). Gate run dir: `gate-run.QLwh2a/docket-0316-suite` (terminal `kind=exit code=1`). Separately, an `OVER BUDGET` breach affected 10 files under parallel contention (e.g. `test_go_toolchain` 363s vs 55s ceiling); that is a wall-clock finding, not a pass/fail cause.
