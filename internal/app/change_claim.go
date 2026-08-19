@@ -48,12 +48,17 @@ const (
 
 // The closed set of claim dispositions a result may carry. `applied` is a fresh
 // claim; `already-claimed` is an idempotent replay of this exact request's own
-// prior claim; `contended` is a lost race the caller must not overwrite; any
-// other value is a policy refusal reason token (e.g. not-ready-<kind>).
+// prior claim; `contended` is a lost race the caller must not overwrite;
+// `failed` is a transaction that failed mid-flight, its cause carried in the
+// envelope's failure field; any other value is a policy refusal reason token
+// (e.g. not-ready-<kind>).
 const (
 	ClaimDispositionApplied        = "applied"
 	ClaimDispositionAlreadyClaimed = "already-claimed"
 	ClaimDispositionContended      = "contended"
+	// ClaimDispositionFailed is a transaction that failed mid-flight; the
+	// cause is carried in the envelope's failure field.
+	ClaimDispositionFailed = "failed"
 )
 
 // ChangeClaimRequest is the closed, caller-supplied request for one claim or
@@ -365,7 +370,9 @@ func claimResultFromOutcome(opKey string, res transaction.Result, execErr error)
 		}
 		out.Revision = string(res.AppliedCommit)
 	}
-	return newChangeClaimResult(opKey, result, out)
+	r := newChangeClaimResult(opKey, result, out)
+	r.Failure = failureStatus(res, execErr)
+	return r
 }
 
 // claimDisposition maps a transaction outcome onto the closed claim disposition
@@ -379,6 +386,8 @@ func claimDisposition(res transaction.Result, result Result, replayed bool) stri
 		return ClaimDispositionAlreadyClaimed
 	case transaction.DispositionContended:
 		return ClaimDispositionContended
+	case transaction.DispositionFailed:
+		return ClaimDispositionFailed
 	case transaction.DispositionRefused:
 		if code := firstFindingCode(res.Findings); code != "" {
 			return code
