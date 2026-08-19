@@ -5,7 +5,11 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/render"
+	"github.com/danielhanold/docket/internal/repository/transaction"
 	"github.com/danielhanold/docket/internal/workspace"
 )
 
@@ -315,6 +319,167 @@ func TestAttachPlanBoardLinkAtomicity(t *testing.T) {
 			final, ok := originFile(t, repo.origin, m.branch, recPath)
 			if !ok || !strings.Contains(final, "plan: '"+planPath+"'") {
 				t.Errorf("attach commit did not land the plan field on the record:\n%s", final)
+			}
+		})
+	}
+}
+
+// --- 0329 spike: refresh-claim fails when the re-rendered board is unchanged --
+
+// planningDepsForClock is planningDepsFor with an explicit clock, so a refresh
+// run can happen at a later wall time than the claim that preceded it against the
+// same origin — the record's claimed_at/updated then genuinely change while the
+// inline board (which shows none of those fields) re-renders byte-identical.
+func planningDepsForClock(t *testing.T, dir string, clock transaction.Clock) realNode {
+	t.Helper()
+	client := newGitClient(t)
+	engine, err := transaction.NewEngine(client, clock)
+	if err != nil {
+		t.Fatalf("transaction.NewEngine: %v", err)
+	}
+	return realNode{
+		dir: dir,
+		deps: PlanningDeps{
+			Client: client,
+			Engine: engine,
+			Reader: NewGitStatusReader(client),
+			Clock:  clock,
+		},
+	}
+}
+
+// rawRefreshClaimOutcome drives the exact transaction ChangeRefreshClaim drives
+// but returns the engine's raw Result and typed error, so the spike can assert
+// the failure's Stage and Kind with positive evidence. The app-level
+// ChangeRefreshClaim discards that typed Failure today — that discard is exactly
+// the 0329 bug — so the raw engine boundary is the only place the mechanism is
+// observable before the fix lands.
+func rawRefreshClaimOutcome(t *testing.T, node realNode, req ChangeClaimRequest) (transaction.Result, error) {
+	t.Helper()
+	ctx := context.Background()
+	pin, eff, inline, repo, pre := claimPreflight(ctx, node.deps, node.dir, OperationChangeRefreshClaim)
+	if pre != nil {
+		t.Fatalf("refresh preflight refused before the transaction: %+v", *pre)
+	}
+	recPath, _, terr := resolveClaimTarget(ctx, node.deps, pin, eff, req.ID, OperationChangeRefreshClaim)
+	if terr != nil {
+		t.Fatalf("resolving the refresh target refused before the transaction: %+v", *terr)
+	}
+	op := changeClaimOp{
+		opKey:      OperationChangeRefreshClaim,
+		changeID:   req.ID,
+		refresh:    true,
+		eff:        eff,
+		clock:      node.deps.Clock,
+		ttlHours:   eff.Reclaim.LeaseTTL.Value,
+		inline:     inline,
+		link:       render.LinkContext{MetadataBranch: metadataBranchOf(pin)},
+		changesDir: eff.ChangesDir.Value,
+	}
+	return node.deps.Engine.Execute(ctx, transaction.Request{
+		Repository: repo,
+		Remote:     originRemote,
+		TargetRef:  gitcli.RefName(branchRefPrefix + metadataBranchOf(pin)),
+		Expected: []transaction.EntityExpectation{{
+			Path:    gitcli.RepoPath(recPath),
+			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
+		}},
+		Loader:    newPlanningLoader(eff),
+		Operation: op,
+	})
+}
+
+// TestRefreshClaimFailsWhenBoardReRenderIsUnchanged reproduces the 0316
+// refresh-claim failure. A refresh re-stamps a claimed record's claimed_at and
+// updated fields (a real change to the record) and re-renders the inline board.
+// The board's in-progress row shows only id/title/priority/type/spec/branch —
+// none of which a refresh touches — so the re-rendered board is byte-identical to
+// the one the claim already committed. The refresh plan nonetheless DECLARES both
+// the record and the board, so the engine's two-way actual-delta guard rejects
+// the board as "a declared path is not an actual change": a *Failure at stage
+// verify-delta, kind invalid-state, which the DispositionFailed path maps to
+// result: invalid-state, disposition: invalid-state, findings: [] — the reported
+// symptom, with the typed cause dropped.
+//
+// The refresh runs a day after the claim (advancedClock) so the record genuinely
+// changes; that isolates the board as the sole declared-but-unchanged path and
+// distinguishes this from a fixed-clock artifact where the record too would be
+// unchanged.
+func TestRefreshClaimFailsWhenBoardReRenderIsUnchanged(t *testing.T) {
+	requireRealGit(t)
+	const (
+		id   = 3
+		slug = "widget"
+	)
+	recPath := groomPath(id, slug)
+	advanced := fixedClock{t: time.Date(2026, 8, 17, 12, 0, 0, 0, time.UTC)}
+	for _, m := range planRepoModes() {
+		m := m
+		t.Run(m.name, func(t *testing.T) {
+			repo := m.build(t, map[string]string{
+				recPath: buildReadyChange(id, slug),
+			})
+			ctx := context.Background()
+
+			// Claim the change at the base clock: this stamps the record in-progress
+			// and commits the inline board reflecting that in-progress row.
+			claimNode := planningDepsFor(t, cloneOrigin(t, repo.origin))
+			claimCtx := ContextImplementation(ctx, claimNode.deps, claimNode.dir, ImplementationContextRequest{ID: id})
+			if claimCtx.Result != ResultApplied || claimCtx.Context == nil || !claimCtx.Context.ClaimEligible {
+				t.Fatalf("claim context read = %q (reason %q)", claimCtx.Result, claimCtx.Reason)
+			}
+			claim := ChangeClaim(ctx, claimNode.deps, claimNode.dir, ChangeClaimRequest{ID: id, Version: claimCtx.Context.Change.Version})
+			if claim.Result != ResultApplied || claim.Disposition != ClaimDispositionApplied {
+				t.Fatalf("claim = (%q, %q), want applied/applied (findings %v)", claim.Result, claim.Disposition, claim.Findings)
+			}
+			// The claim committed a board that is a fresh render of the corpus.
+			assertBoardMatchesCommitted(t, repo.origin, m.branch, claimNode.dir)
+
+			// The record's still-valid version after the claim.
+			claimedVersion := blobVersionAt(t, repo.origin, m.branch, recPath)
+			tipAfterClaim := originTip(t, repo.origin, m.branch)
+
+			// Refresh a day later, so claimed_at/updated genuinely change on the
+			// record while the board would re-render identically.
+			refreshNode := planningDepsForClock(t, cloneOrigin(t, repo.origin), advanced)
+
+			// App-level symptom: the exact reported shape.
+			res := ChangeRefreshClaim(ctx, refreshNode.deps, refreshNode.dir, ChangeClaimRequest{ID: id, Version: claimedVersion})
+			if res.Result != ResultInvalidState {
+				t.Fatalf("refresh result = %q, want %q (the reported invalid-state)", res.Result, ResultInvalidState)
+			}
+			if res.Disposition != string(ResultInvalidState) {
+				t.Errorf("refresh disposition = %q, want the tautological %q the bug produces", res.Disposition, string(ResultInvalidState))
+			}
+			if len(res.Findings) != 0 {
+				t.Errorf("refresh findings = %v, want empty — the failure carried no diagnostic", res.Findings)
+			}
+
+			// The failed refresh committed nothing.
+			if tip := originTip(t, repo.origin, m.branch); tip != tipAfterClaim {
+				t.Errorf("failed refresh moved the metadata remote: %q -> %q", tipAfterClaim, tip)
+			}
+
+			// Mechanism, with positive evidence: the raw engine outcome is a
+			// verify-delta invalid-state Failure, not merely "it failed" — this
+			// distinguishes hypothesis 1 (verify-delta) from load-after or
+			// idempotency-scan invalid-state.
+			rawRes, execErr := rawRefreshClaimOutcome(t, refreshNode, ChangeClaimRequest{ID: id, Version: claimedVersion})
+			if rawRes.Disposition != transaction.DispositionFailed {
+				t.Fatalf("raw refresh disposition = %q, want %q", rawRes.Disposition, transaction.DispositionFailed)
+			}
+			f, ok := transaction.AsFailure(execErr)
+			if !ok {
+				t.Fatalf("failed refresh carried no typed transaction.Failure: %v", execErr)
+			}
+			if f.Stage != transaction.StageVerifyDelta {
+				t.Errorf("failure stage = %q, want %q", f.Stage, transaction.StageVerifyDelta)
+			}
+			if f.Kind != transaction.KindInvalidState {
+				t.Errorf("failure kind = %q, want %q", f.Kind, transaction.KindInvalidState)
+			}
+			if !strings.Contains(f.Detail, "a declared path is not an actual change") {
+				t.Errorf("failure detail = %q, want the declared-but-unchanged-path message", f.Detail)
 			}
 		})
 	}
