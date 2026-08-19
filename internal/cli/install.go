@@ -80,6 +80,7 @@ var assetIndependent = map[string]bool{
 	"finalize block":             true,
 	"finalize clear-block":       true,
 	"finalize merge":             true,
+	"finalize closeout":          true,
 	"diagnostic":                 true, // the group itself; it reports a missing command
 	"diagnostic runtime":         true,
 	"diagnostic config":          true,

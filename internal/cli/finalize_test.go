@@ -420,3 +420,59 @@ func TestFinalizeClearBlockReachesOperation(t *testing.T) {
 		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
 	}
 }
+
+// TestFinalizeCloseoutRegistered proves `finalize closeout` is wired under the
+// finalize group carrying only the scalar --id and --repo-dir flags — no done
+// boolean and no archive-date flag (the archive date is derived from the verified
+// GitHub mergedAt, never supplied).
+func TestFinalizeCloseoutRegistered(t *testing.T) {
+	root := captureTree(t)
+	cmd, _, err := root.Find([]string{"finalize", "closeout"})
+	if err != nil || cmd == nil || cmd.Name() != "closeout" {
+		t.Fatalf("finalize closeout not registered: cmd=%v err=%v", cmd, err)
+	}
+	for _, flag := range []string{"id", "repo-dir"} {
+		if cmd.Flags().Lookup(flag) == nil {
+			t.Errorf("finalize closeout: missing --%s flag", flag)
+		}
+	}
+	for _, forbidden := range []string{"done", "archive-date", "version", "head"} {
+		if cmd.Flags().Lookup(forbidden) != nil {
+			t.Errorf("finalize closeout must not carry a --%s flag", forbidden)
+		}
+	}
+}
+
+// TestFinalizeCloseoutAssetIndependent guards the install.go registration: the
+// command reads the repository, never installed assets.
+func TestFinalizeCloseoutAssetIndependent(t *testing.T) {
+	if !assetIndependent["finalize closeout"] {
+		t.Errorf("%q is not registered asset-independent", "finalize closeout")
+	}
+}
+
+// TestFinalizeCloseoutFlagsRequired proves --id is required.
+func TestFinalizeCloseoutFlagsRequired(t *testing.T) {
+	_, errS, code := runCLI(t, "finalize", "closeout")
+	if code != 2 || errS == "" {
+		t.Fatalf("err=%q code=%d, want a required-flag argument error", errS, code)
+	}
+	if !strings.Contains(errS, "id") {
+		t.Errorf("required-flag error does not name id: %q", errS)
+	}
+}
+
+// TestFinalizeCloseoutReachesOperation proves the command decodes --id and reaches
+// the operation, which emits exactly one protocol-v1 document naming it.
+func TestFinalizeCloseoutReachesOperation(t *testing.T) {
+	out, errS, _ := runCLI(t, "finalize", "closeout", "--id", "80", "--repo-dir", t.TempDir(), "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q", errS)
+	}
+	if !strings.Contains(out, `"operation":"finalize.closeout"`) {
+		t.Fatalf("document did not name the operation: %q", out)
+	}
+	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
+	}
+}
