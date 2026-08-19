@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'feat/finalize-recovery-reclaim-archive-and-stacks'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-19T00:42:22Z'
+reconciled: true
+claimed_at: '2026-08-19T00:47:43Z'
 ---
 
 ## Artifacts
@@ -72,3 +72,16 @@ Docket's live metadata, or bypass the unsupported-capability fence.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-19
+
+Reconciled against current reality at claim time; no scope change.
+
+Verified the launch precondition and the landed-foundations assumptions the design rests on:
+
+- Dependencies 0315, 0322, and 0326 are all `done` (the `context implementation` readiness for 316 is `build-ready` with the deps satisfied).
+- The migration-host bootstrap is in place: the PATH-resolved `docket` binary is installed (`install check` -> `no-op`, release asset set), `command -v docket` -> `/Users/homer/.local/bin/docket`, and `diagnostic config --for-mutation` reports `mutation: allowed` with a valid supported configuration. The earlier missing-installation-record blocker recorded in the prior halt is cleared.
+- The landed Go foundations the spec consumes as dependencies are present: `internal/{config,domain,document,render,repository,gitcli,githubcli,workspace,process,evidence,app,cli,assets,install,harness}`.
+- The work this change owns is genuinely unbuilt: there is no `internal/finalize` package, no `docket finalize` or `docket maintenance` command tree, and `docket change` carries claim/reconcile/attach-*/mark-implemented/block/create/defer/groom/kill/refresh-claim but not the `halt`/`resume-halted`/`reclaim` verbs this change adds. `docket run` is present but read-only (verify), matching the pre-0316 checkpoint set.
+
+No proposal-section rewrite and no relation change are warranted: the spec was authored (2026-08-18) specifically for this launch point, its `depends_on`/`related`/`adrs`/`discovered_from` still describe reality, and the change carries no `stacked_on`. AUTO_CAPTURE is disabled, so no adjacent-work stubs are minted this pass; none surfaced that would warrant one regardless.
