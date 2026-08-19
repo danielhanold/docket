@@ -265,6 +265,20 @@
 # The file now exceeds its old 45 row, so per this header's rule it is re-sized from the worst
 # reading: next multiple of 5 above 48 is 50, plus the 5s margin -> 55, still well under the 60s
 # ceiling. EXPECTED_TOTAL moves 2105 -> 2115.
+#
+# tests/test_go_finalize_e2e.sh is a NEW FILE brought by change 0316 (Task 17) — the header's
+# new-test-file case. It runs the hermetic finalize end-to-end matrix
+# (internal/app/finalize_e2e_test.go), which builds ./cmd/docket and a fake `gh` and drives full
+# finalize lifecycles through CLI argv against real bare-remote repositories — genuine wall clock,
+# and none avoidable: those lifecycles ARE the acceptance proof. It is deliberately NOT folded into
+# tests/test_go_toolchain.sh's `go test ./...`: the matrix carries the `e2e` build tag, so the
+# default-tag Go gate excludes it (it neither runs twice nor inflates that 55s row), and this file
+# runs it alone behind `-tags e2e`. The build tag also lets the matrix use t.Parallel(), so the
+# eight lifecycle tests overlap. Measured standalone serial, one machine, as
+# `scripts/run-tests.sh -j 1 --timings PATH tests/test_go_finalize_e2e.sh`:
+#   16  16  16  -> worst 16
+# Next multiple of 5 above 16 is 20, plus the 5s margin -> 25, well under the 60s ceiling.
+# EXPECTED_TOTAL moves 2115 -> 2140.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -320,6 +334,7 @@ tests/test_gate_execution_posture.sh	10	parallel
 tests/test_gate_run.sh	20	parallel
 tests/test_gate_run_stop.sh	35	parallel
 tests/test_github_mirror.sh	10	parallel
+tests/test_go_finalize_e2e.sh	25	parallel
 tests/test_go_toolchain.sh	55	parallel
 tests/test_go_race.sh	60	parallel
 tests/test_go_race_process.sh	25	parallel
