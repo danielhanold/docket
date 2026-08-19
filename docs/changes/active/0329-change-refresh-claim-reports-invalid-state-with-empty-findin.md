@@ -12,7 +12,7 @@ stacked_on:
 related: [315]
 discovered_from: [316]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-19-failed-transaction-diagnostics-design.md
 plan:
 results:
 trivial: false
@@ -26,6 +26,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-19-failed-transaction-diagnostics-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-19-failed-transaction-diagnostics-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -46,13 +49,13 @@ Separately, the trigger itself is still unexplained and worth pinning down as pa
 
 ## What changes
 
-Propagate the typed `transaction.Failure` into the result envelope on the `DispositionFailed` path so a failed operation names its own cause. Concretely: carry the Failure's kind and message into `Findings` (or an equivalent diagnostic field) rather than dropping it, and give `claimDisposition` a real `DispositionFailed` arm instead of letting it fall through to `default:` and echo the result string back as the disposition.
+Propagate the typed `transaction.Failure` into the result envelope on the `DispositionFailed` path so a failed operation names its own cause. Settled design (see spec): a new, **additive `failure` field** on the protocol-v1 result envelope — `{stage, kind, detail}`, present only on failed dispositions — produced by one shared app-layer helper; findings remain the refusal channel and are never overloaded. `claimDisposition` and every sibling mapper with the same `default:` fall-through get a real `DispositionFailed` arm instead of echoing the result string back as the disposition.
 
-Derive the full set of affected call sites from a grep over the shared helpers (`mapOutcome`, `mapFailure`, `claimResultFromOutcome`, and the other `*ResultFromOutcome` builders), then sort them into ones that already surface failure detail and ones that redact it. Fix the shape once in the shared layer if the call sites permit it.
+Scope is **every affected builder**, not just claim/refresh-claim: derive the full set from a grep over the shared helpers (`mapOutcome`, `mapFailure`, and the `*ResultFromOutcome` family), sort into surfacing vs redacting, and wire each redacting one to the shared helper.
 
-First task is a reproduction: establish what makes `refresh-claim` fail deterministically against an in-progress change at a valid version, since `domain.RefreshClaim`'s only guard is the status and that guard was satisfied. Build it as a hermetic fixture — do not reproduce against a live claimed change.
+First task is a **time-boxed reproduction** (not a ship gate): establish what makes `refresh-claim` fail deterministically against an in-progress change at a valid version — prime suspect is the engine's verify-delta invalid-state on a concurrently-dirtied shared `.docket` worktree. Build it as a hermetic fixture — do not reproduce against a live claimed change. Not reproduced within the box → record that and ship the propagation anyway.
 
-Add a regression test asserting that a failed transaction surfaces a non-empty, non-tautological cause: the assert must fail if the Failure detail is dropped again. Per AGENTS.md, mutation-test the guard — strip the propagation, watch it redden — or it is decoration.
+Add regression tests asserting that a failed transaction surfaces a non-empty, non-tautological cause: the assert must fail if the Failure detail is dropped again. Per AGENTS.md, mutation-test the guard — strip the propagation, watch it redden — or it is decoration.
 
 ## Out of scope
 
