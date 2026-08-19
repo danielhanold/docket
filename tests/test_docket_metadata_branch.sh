@@ -41,6 +41,8 @@ assert "bootstrap guard present in convention" \
   'grep -qiE "half-migrated|bootstrap guard|migrate-to-docket" "skills/docket-convention/SKILL.md"'
 
 # F. The v1 docket caveat is REMOVED from docket-implement-next.
+assert "implement-next SKILL is present (non-vacuity anchor)" \
+  'grep -qF "docket-implement-next — the implementer" skills/docket-implement-next/SKILL.md'
 assert "v1 docket caveat removed from implement-next" \
   '! grep -qi "v1 rough edge" skills/docket-implement-next/SKILL.md'
 
