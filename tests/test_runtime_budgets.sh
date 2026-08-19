@@ -25,7 +25,13 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=2115 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2140 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2115 -> 2140 (change 0316): ONE legitimate mover — a NEW test file brings its
+                    # own row. tests/test_go_finalize_e2e.sh runs the hermetic finalize end-to-end
+                    # matrix (Task 17) behind the `e2e` build tag, kept out of the plain Go gate so it
+                    # neither double-runs nor inflates that row; measured at a worst 16s serial ->
+                    # 25s row (see the rationale beside the row in tests/runtime-budgets.tsv). The
+                    # total rises by that one 25s row.
                     # 2125 -> 2115 (change 0322): a test file was REMOVED — the file-removal mirror
                     # of the new-file case. tests/test_install.sh exclusively asserted install.sh's
                     # legacy 4-primitive behavior (link/sync/env/global-config mutation), which this
