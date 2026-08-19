@@ -8,9 +8,10 @@ fail=0
 ok(){ printf 'ok - %s\n' "$1"; }
 no(){ printf 'NOT OK - %s\n' "$1"; fail=1; }
 
+# docket-finalize-change is handled separately below (migrated to the Go-v1 sequencer, 0316).
 SKILLS=(
   docket-new-change docket-groom-next docket-auto-groom
-  docket-finalize-change docket-status
+  docket-status
 )
 for s in "${SKILLS[@]}"; do
   f="$ROOT/skills/$s/SKILL.md"
@@ -26,6 +27,16 @@ done
 IMPL="$ROOT/skills/docket-implement-next/SKILL.md"
 if grep -qiE 'Artifacts. block[^.]{0,40}(same commit|atomic)|(regenerat|render)[^.]{0,40}Artifacts. block' "$IMPL"; then ok "docket-implement-next regenerates the Artifacts block inside its change transactions"; else no "docket-implement-next regenerates the Artifacts block inside its change transactions"; fi
 if grep -qF 'docket.sh render-change-links' "$IMPL"; then no "docket-implement-next no longer invokes the legacy render-change-links facade"; else ok "docket-implement-next no longer invokes the legacy render-change-links facade"; fi
+
+# docket-finalize-change migrated to the Go-v1 sequencer (change 0316): its close-out backlink leg
+# is owned by `docket finalize closeout` (the `docket`-mode integration-ref leg patches the existing
+# `docket:backlink` blocks), so the skill no longer invokes the legacy facade renderer. Same
+# treatment as docket-implement-next above (Authority #2: finalize closeout owns the backlink leg):
+# assert the closeout-owned backlink render, and — the mutation twin — that the retired facade call
+# is GONE, so its reintroduction reddens.
+FINCL="$ROOT/skills/docket-finalize-change/SKILL.md"
+if grep -qF 'docket finalize closeout' "$FINCL" && grep -qiE 'backlink' "$FINCL"; then ok "docket-finalize-change renders its backlinks inside the Go closeout transaction"; else no "docket-finalize-change renders its backlinks inside the Go closeout transaction"; fi
+if grep -qF 'docket.sh render-change-links' "$FINCL"; then no "docket-finalize-change no longer invokes the legacy render-change-links facade"; else ok "docket-finalize-change no longer invokes the legacy render-change-links facade"; fi
 
 # The renderer script exists and is executable.
 [ -x "$ROOT/scripts/render-change-links.sh" ] && ok "renderer script present + executable" || no "renderer script present + executable"

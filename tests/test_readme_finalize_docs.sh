@@ -50,15 +50,26 @@ assert "no live auto-approve subsystem reference" \
 assert "the deleted setup guide is not linked" \
   '[ ! -f "$ROOT/docs/auto-approve-setup.md" ]'
 
-# (e) configured-Bash boundary for finalize's local suite (change 0132). The
-# executable fixture in test_configured_bash_finalize.sh proves both branches;
-# these sharp doc sentinels keep the user-facing contract explicit.
-assert "auto-detected shell tests use the configured Bash runtime" \
-  'grep -qF -- '"'"'"$DOCKET_BASH_PATH" "$test"'"'"' "$FIN"'
-assert "explicit finalize command is evaluated without an interpreter prefix" \
-  'grep -qF -- '"'"'eval "$FINALIZE_TEST_COMMAND"'"'"' "$FIN"'
-assert "explicit finalize command retains DOCKET_BASH_PATH in its environment" \
-  'grep -Eqi "FINALIZE_TEST_COMMAND.{0,180}(exported|environment).{0,80}DOCKET_BASH_PATH|DOCKET_BASH_PATH.{0,180}(environment).{0,80}FINALIZE_TEST_COMMAND" "$FIN"'
+# (e) configured-Bash boundary — RETIRED (0316, category (a)). Change 0132 gave the finalize skill a
+# published configured-Bash shell-test invocation (`"$DOCKET_BASH_PATH" "$test"`, an explicit
+# `eval "$FINALIZE_TEST_COMMAND"`, DOCKET_BASH_PATH kept in the environment). Change 0316 removed it:
+# the local gate is now COMPOSED into `docket finalize rebase`, which launches and observes a
+# supervised run through `docket gate` — there is no shell-test fragment in the skill. This mirrors
+# the whole-file inversion already landed in tests/test_configured_bash_finalize.sh. Authority #3
+# (the skill states "The gate is composed into `finalize rebase`") + *Out of scope* (Bash fallback
+# behavior). Inverted guards proving the configured-Bash shell-test prose stayed out, with a
+# non-vacuity anchor. (Bash removal is change 0318's; the guards are inverted here, deleted there.)
+# The literals are held in single-quoted variables so their `$DOCKET_BASH_PATH`/`$test` reach grep
+# verbatim rather than expanding under `assert`'s eval.
+BASH_TEST_LIT='"$DOCKET_BASH_PATH" "$test"'
+EVAL_LIT='eval "$FINALIZE_TEST_COMMAND"'
+assert "finalize SKILL is the Go sequencer (non-vacuity anchor)" 'grep -qF "docket finalize" "$FIN"'
+assert "finalize carries no configured-Bash shell-test invocation" \
+  '! grep -qF -- "$BASH_TEST_LIT" "$FIN"'
+assert "finalize carries no explicit FINALIZE_TEST_COMMAND eval" \
+  '! grep -qF -- "$EVAL_LIT" "$FIN"'
+assert "finalize composes the local gate into the Go rebase verb instead" \
+  'grep -Eqi "gate is composed into .finalize rebase|composed into .{0,3}docket .?finalize rebase" "$FIN"'
 
 # (f) the runtime installer is shipped, not future work. Search current user-facing surfaces as a
 # set so moving stale copy between files cannot evade the guard.

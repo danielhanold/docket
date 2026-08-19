@@ -224,9 +224,12 @@ done
 # NON-VACUITY (LEARNINGS: a guard that parses nothing passes everything — assert the unit count the
 # extractor found, not just its verdict). The sweep above is only meaningful if the corpus is real
 # and the canonical Board-pass call is actually PRESENT where it belongs. Verified directly
-# (`grep -rlF 'docket.sh docket-status --board-only' skills/ | sort`) against 7 files: the 5
-# status-writing skills (docket-auto-groom, docket-finalize-change, docket-groom-next,
-# docket-implement-next, docket-new-change) + the convention SKILL.md + terminal-close-out.md;
+# (`grep -rlF 'docket.sh docket-status --board-only' skills/ | sort`) against 6 files: the 4
+# still-Bash status-writing skills (docket-auto-groom, docket-groom-next, docket-implement-next,
+# docket-new-change) + the convention SKILL.md + terminal-close-out.md. Change 0316 rewrote
+# docket-finalize-change into a Go-verb sequencer whose board refresh is absorbed into every
+# mutating transaction (Authority #2; see test_board_refresh_on_transition.sh's dedicated
+# assertion), so it no longer carries the facade call — the count dropped from 7 to 6.
 # docket-status/SKILL.md and docket-adr/SKILL.md have no Board site of their own. This is a
 # per-FILE count (grep -l), not a per-occurrence count — the facade string legitimately repeats
 # inside docket-new-change's SKILL.md. Widening the scan corpus to SCOPE3 (finding 2, above) adds
@@ -235,7 +238,7 @@ done
 assert "the in-scope corpus is non-empty (the sentinel actually scanned files)" \
   '[ "${#SCOPE3[@]}" -ge 8 ]'
 assert "the canonical Board-pass call is present in every rewired file (found $board_pass_files)" \
-  '[ "$board_pass_files" -eq 7 ]'
+  '[ "$board_pass_files" -eq 6 ]'
 
 # ── change 0094: Step 1 acquires its candidate set from the digest's `ready` line ─────────────
 # specified-but-unreachable: a contract with a PRODUCER and a CONSUMER needs at least one assert

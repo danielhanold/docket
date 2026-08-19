@@ -64,11 +64,12 @@ assert "convention defines the single Board-pass facade call" \
 assert "convention states the stdout report-line contract (not an exit code)" \
   'grep -qF "never on the exit code" skills/docket-convention/SKILL.md'
 
+# docket-finalize-change is NOT in this facade-caller loop as of 0316 — see the dedicated
+# absorption assertion after the loop.
 CALLERS=(
   skills/docket-new-change/SKILL.md
   skills/docket-groom-next/SKILL.md
   skills/docket-auto-groom/SKILL.md
-  skills/docket-finalize-change/SKILL.md
   skills/docket-implement-next/SKILL.md
 )
 
@@ -81,5 +82,21 @@ for f in "${CALLERS[@]}"; do
   assert "$name no longer spells a surfaces value at its Board site" \
     "! grep -qE '\-\-surfaces|BOARD_SURFACES' \"$f\""
 done
+
+# RETIRED (0316, category (a)): docket-finalize-change no longer routes a Board site through the
+# `docket.sh docket-status --board-only` facade — board refresh is absorbed into every mutating Go
+# transaction ("Every mutating Go transaction re-renders `BOARD.md` in the same commit as the record
+# it reflects, so the board needs no separate pass"). Authority #2 (the ~12 board-render sites under
+# internal/app; the skill no longer calls the facade) + Authority #3 (the skill states the board
+# needs no separate pass). Guard re-pointed at the absorption and the never-published invariant
+# (restored in 8c74c1c8).
+FIN_BR="skills/docket-finalize-change/SKILL.md"
+fin_br_flat="$(tr -s '[:space:]' ' ' < "$FIN_BR")"
+assert "docket-finalize-change: board refresh is absorbed into every mutating Go transaction" \
+  'grep -qiE "[Ee]very mutating .{0,4}Go .{0,4}transaction re-renders .BOARD.md|board needs no separate pass" <<<"$fin_br_flat"'
+assert "docket-finalize-change keeps the 'BOARD.md is never published' invariant" \
+  'grep -qiE "never.{0,4}published to the integration branch|BOARD.md.{0,20}never.{0,20}published" <<<"$fin_br_flat"'
+assert "docket-finalize-change no longer spells a surfaces value at its Board site" \
+  '! grep -qE "\-\-surfaces|BOARD_SURFACES" "$FIN_BR"'
 
 exit $fail

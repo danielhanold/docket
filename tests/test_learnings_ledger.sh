@@ -30,15 +30,25 @@ assert "directory layout lists the learnings dir" \
   'grep -qE "^  learnings/ +# curated build-loop findings" "$CONV"'
 assert "convention keeps the LEARNINGS.md stub pointer" 'grep -qF "remains as a pointer stub" "$CONV"'
 
-# (b) the harvest procedure: single-sourced in finalize, referenced by status
-assert "finalize carries the harvest step" \
-  'grep -qF "Harvest learnings" "$REPO/skills/docket-finalize-change/SKILL.md"'
-assert "finalize's idempotency probe keys on the changes: list" \
-  'grep -qF "already contains this change" "$REPO/skills/docket-finalize-change/SKILL.md"'
-assert "finalize gates the harvest on learnings.enabled" \
-  'grep -qF "learnings disabled — harvest skipped" "$REPO/skills/docket-finalize-change/SKILL.md"'
-assert "finalize re-renders the index through the facade" \
-  'grep -qF "docket.sh render-learnings-index" "$REPO/skills/docket-finalize-change/SKILL.md"'
+# (b) the harvest procedure — RETIRED for the finalize Go sequencer (0316, Out of scope).
+# RETIRED (0316, category (a)): the finalize skill used to single-source an automatic "Harvest
+# learnings" step (a changes:-list idempotency probe, a learnings.enabled gate, and an index
+# re-render through `docket.sh render-learnings-index`). 0316's *Out of scope* defers "automatic
+# learning harvest" — by design `docket learning` is MANUAL `record`/`update` only, so the Go
+# sequencer carries no harvest step. Authority #1 (Out of scope: automatic learning harvest). Do NOT
+# restore the harvest step to make these green. Inverted guards proving the automatic harvest is
+# absent from the finalize sequencer, with a non-vacuity anchor. (docket-status still references the
+# harvest by name — it is not rewritten by 0316 — so assert (b)'s status leg below is unchanged.)
+FIN_LL="$REPO/skills/docket-finalize-change/SKILL.md"
+assert "finalize SKILL is the Go sequencer (non-vacuity anchor)" 'grep -qF "docket finalize" "$FIN_LL"'
+assert "finalize carries no deferred automatic learning-harvest step" \
+  '! grep -qF "Harvest learnings" "$FIN_LL"'
+assert "finalize carries no deferred harvest idempotency probe" \
+  '! grep -qF "already contains this change" "$FIN_LL"'
+assert "finalize carries no deferred learnings.enabled harvest gate" \
+  '! grep -qF "learnings disabled — harvest skipped" "$FIN_LL"'
+assert "finalize does not re-render the learnings index by hand (deferred harvest)" \
+  '! grep -qF "docket.sh render-learnings-index" "$FIN_LL"'
 assert "status sweep invokes the harvest by reference" \
   'grep -qF "Harvest learnings" "$REPO/skills/docket-status/SKILL.md" && grep -qF "docket-finalize-change" "$REPO/skills/docket-status/SKILL.md"'
 

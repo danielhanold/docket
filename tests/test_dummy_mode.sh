@@ -116,7 +116,22 @@ check_pointer(){ # check_pointer <skill-relpath> <token>...
 check_pointer skills/docket-new-change/SKILL.md      dialogue
 check_pointer skills/docket-groom-next/SKILL.md      dialogue
 check_pointer skills/docket-implement-next/SKILL.md  pr reports change-sections results
-check_pointer skills/docket-finalize-change/SKILL.md dialogue reports change-sections
+# RETIRED (0316, category (a)): the finalize Go sequencer no longer carries a dummy-mode
+# surface-binding pointer (dialogue / reports / change-sections). `dummy_mode.enabled` is
+# `dispDeferred` in internal/config/schema.go — enabling it BLOCKS all mutation, so this skill never
+# runs with it on and cannot exercise any surface. Commit 8c74c1c8 deflated the paragraph to state
+# exactly that deferred status. Authority #2 (dispDeferred: dummy_mode.enabled blocks mutation) +
+# Authority #3 (the skill's positive "Dummy mode is a deferred capability … rejected at the config
+# gate"). Guard re-pointed at the deflation: finalize states dummy mode is deferred and binds no
+# surface. (The token-cap and DUMMY_MODE_SURFACES no-restatement asserts below still cover finalize.)
+FIN_DM="$REPO/skills/docket-finalize-change/SKILL.md"
+fin_dm_flat="$(flat "$FIN_DM")"
+assert "finalize states dummy mode is a deferred capability (deflated, not a surface pointer)" \
+  'grep -qiE "[Dd]ummy mode.{0,6}is a.{0,12}deferred capability" <<<"$fin_dm_flat"'
+assert "finalize states dummy_mode.enabled is rejected at the config gate" \
+  'grep -qiE "rejected at the config gate" <<<"$fin_dm_flat"'
+assert "finalize binds no dummy-mode surface (deferred, cannot be exercised)" \
+  '! grep -qiE "[Dd]ummy mode[^.]{0,200}.(dialogue|reports|change-sections). surface" <<<"$fin_dm_flat"'
 check_pointer skills/docket-status/SKILL.md          reports
 check_pointer skills/docket-auto-groom/SKILL.md      reports change-sections
 

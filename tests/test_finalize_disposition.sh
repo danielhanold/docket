@@ -23,8 +23,20 @@ FIN="$REPO/skills/docket-finalize-change/SKILL.md"
 # selection consults on the hot path (skip / override / already-merged / board cell) stays on FIN.
 GF="$REPO/skills/docket-finalize-change/references/gate-failure.md"
 assert "gate-failure reference exists" '[ -f "$GF" ]'
-assert "SKILL points at the gate-failure reference (blocking)" \
-  'grep -Eqi "read .references/gate-failure\.md. now \(blocking\)" "$FIN"'
+# gate-failure.md is a hard-wrapped reference doc (unlike the sequencer SKILL's unwrapped
+# paragraphs), so a phrase-spanning `grep` over it silently doubles as a line-wrap guard: a clause
+# that lands a wrap between two words reddens on a pure re-flow. Several 0316 marker/abort asserts
+# below key on phrases the rewrite wrapped, so they read this FLATTENED copy. `-s` (squeeze) is
+# load-bearing — a wrapped bullet indents its continuation, so a bare newline-to-space swap leaves
+# words several spaces apart and a single-space pattern misses.
+GF_FLAT="$(tr '\n' ' ' < "$GF" | tr -s '[:space:]' ' ')"
+assert "gate-failure flattened haystack is non-vacuous (>= 2000 chars)" '[ "${#GF_FLAT}" -ge 2000 ]'
+# RE-KEYED (0316, category (c)): the Go-sequencer rewrite states the same blocking pointer as
+# "…live in `references/gate-failure.md` — read it at any abort" rather than the old
+# "read `references/gate-failure.md` now (blocking)". Behavior preserved (GF is still the blocking
+# reference for the failure flows); locator keyed on shape.
+assert "SKILL points at the gate-failure reference (blocking read)" \
+  'grep -Eqi "references/gate-failure\.md.{0,30}read it at any abort" "$FIN"'
 
 # --- SKILL.md: the four-disposition terminal contract ---
 assert "SKILL has a Terminal disposition section" 'grep -Eqi "Terminal disposition" "$FIN"'
@@ -35,7 +47,9 @@ done
 # The binary driver rule — both halves must be present (non-vacuous).
 assert "SKILL states continue-on advanced/contended" 'grep -Eqi "continue on .{0,4}advanced" "$FIN"'
 assert "SKILL states stop-on drained/halted" 'grep -Eqi "stop on .{0,4}drained" "$FIN"'
-assert "SKILL enumerates skipped-with-reason" 'grep -Eqi "skipped with (its|the) reason" "$FIN"'
+# RE-KEYED (0316, category (c)): "each change skipped with its closed reason" (was "…with its
+# reason"). The final-report enumeration is preserved; the locator now tolerates the qualifier.
+assert "SKILL enumerates skipped-with-reason" 'grep -Eqi "skipped with (its|the) [a-z]* ?reason" "$FIN"'
 
 # --- SKILL.md: the finalize-specific disposition semantics ---
 assert "SKILL ties every abort-and-report point to halted" \
@@ -45,100 +59,106 @@ assert "SKILL states a blocked-but-non-empty set is halted, not drained" \
 assert "SKILL states one merge per invocation" \
   'grep -Eqi "run merges.{0,20}exactly one.{0,20}change" "$FIN"'
 assert "SKILL states it never batches" 'grep -Eqi "never batch" "$FIN"'
-# The multi-candidate prompt is an interactive-BATCH guard; one-merge-per-invocation supersedes it,
-# so the unscoped drain selects by Ordering instead of halting on an impossible prompt.
-assert "SKILL states the multi-candidate prompt is superseded on the driver path" \
-  'grep -Eqi "multi-candidate prompt is an interactive.{0,10}\*?batch\*? guard.{0,60}supersed" "$FIN"'
-assert "SKILL states a driver/autonomous run never prompts and takes the Ordering head" \
-  'grep -Eqi "(driver|autonomous) run selects by .{0,15}Ordering.{0,15} and never prompts" "$FIN"'
-assert "the selection matrix scopes the multi-candidate prompt to attended runs" \
-  'grep -Eqi "More than one eligible.{0,120}NO prompt.{0,140}Attended run" "$FIN"'
+# --- RETIRED (0316, category (a)): the interactive multi-candidate PROMPT and the selection MATRIX
+# were the old Bash procedure's attended batch-disambiguation UI. Selection is now owned by
+# `internal/app/finalize_context.go` — `SelectFinalizeQueue` returns candidates already ordered and
+# the sequencer TAKES THE HEAD; there is no interactive prompt to supersede and no matrix to scope.
+# Authority #2: the Go symbol `SelectFinalizeQueue`/`FinalizePolicy` owns selection eligibility,
+# ordering, and skip reasons. The guard is re-pointed at the surviving substance rather than
+# deleted: the skill names the Go ordering owner and takes its ordered head deterministically.
+assert "SKILL selection is owned by SelectFinalizeQueue and takes the ordered head" \
+  'grep -qF -- "SelectFinalizeQueue" "$FIN" && grep -Eqi "[Tt]ake the head" "$FIN"'
 # Already-merged close-out is `advanced`, not `drained` — real work ran, so the driver must continue.
 assert "SKILL maps an already-merged close-out to advanced" \
   'grep -Eqi "archived an already-merged PR" "$FIN"'
+# RE-KEYED (0316, category (c) — the plan's canonical example): the rewrite inserted a parenthetical
+# ("(each a merged-recovery candidate with no merge to perform)") between "already-merged" and "does
+# not violate", overrunning the old `.{0,40}` window. Nothing changed but the spacing — key on the
+# shape, not the character distance.
 assert "SKILL exempts already-merged archiving from one-merge-per-invocation" \
-  'grep -Eqi "already-merged.{0,40}changes in one run does not violate" "$FIN"'
+  'grep -Eqi "already-merged.{0,120}does not violate this rule" "$FIN"'
 # `contended` must not swallow a raced success this run actually merged.
 assert "SKILL qualifies contended against a raced success" \
   'grep -Eqi "if .{0,5}this.{0,5} run performed the merge, it is .\`?advanced" "$FIN"'
 
 # --- SKILL.md: id-set scoping ---
 assert "SKILL documents an id allowlist" 'grep -Eqi "allowlist" "$FIN"'
-assert "SKILL shows the comma-separated id-set form" 'grep -Eq "docket-finalize-change 90,92,94" "$FIN"'
+# RE-KEYED (0316, category (c)): the old concrete invocation `docket-finalize-change 90,92,94`
+# became the `--allowlist <ids>` flag form on `docket context finalize`; the id-set capability is
+# preserved (the concrete comma-separated example still lives in the README, asserted below).
+assert "SKILL shows the id-set (allowlist) form" 'grep -qF -- "--allowlist <ids>" "$FIN"'
 assert "SKILL states naming the ids IS the authorization" \
   'grep -Eqi "naming the ids.{0,30}authorization" "$FIN"'
-assert "SKILL ties the allowlist to the require_pr_approval override" \
-  'grep -Eqi "allowlist never prompts.{0,60}require_pr_approval" "$FIN"'
+# RE-KEYED (0316, category (c)/(a)): the `require_pr_approval` override is now owned by
+# `internal/app/finalize_merge.go` (`ApprovalSatisfied: in.explicitID || !in.requireApproval`). The
+# skill expresses the same tie as the allowlist authorization OVERRIDING the `approval-required`
+# skip reason — preserved substance, keyed on the sequencer's vocabulary.
+assert "SKILL ties the allowlist authorization to the approval override" \
+  'grep -Eqi "naming the ids is the same authorization" "$FIN" && grep -Eqi "overrides the .approval-required" "$FIN"'
 
-# --- SKILL.md: mergeability ordering, asserted IN ORDER (order is part of the contract) ---
-# NOTE: never `grep … | head` under `set -o pipefail` (AGENTS.md) — the producer takes SIGPIPE and
-# the 141 becomes an intermittent failure. Capture the whole match set, then take the first line
-# with parameter expansion.
-first_line_no(){ # first_line_no ERE -> line number of the first matching line, empty if none
-  local m; m="$(grep -nEi -e "$1" "$FIN" || true)"
-  [ -n "$m" ] || return 0
-  m="${m%%$'\n'*}"        # first match only
-  printf '%s' "${m%%:*}"  # strip everything from the first colon
-}
-p_dep="$(first_line_no '^[[:space:]]*1\..*depends_on')"
-p_mrg="$(first_line_no '^[[:space:]]*2\..*mergeable')"
-p_dif="$(first_line_no '^[[:space:]]*3\..*(smallest diff|changedFiles)')"
-p_tie="$(first_line_no '^[[:space:]]*4\..*priority')"
-assert "ordering key 1 is depends_on" '[ -n "$p_dep" ]'
-assert "ordering key 2 is mergeable" '[ -n "$p_mrg" ]'
-assert "ordering key 3 is diff size" '[ -n "$p_dif" ]'
-assert "ordering key 4 is the priority tiebreak" '[ -n "$p_tie" ]'
-assert "the four ordering keys appear in contract order" \
-  '[ -n "$p_dep" ] && [ -n "$p_mrg" ] && [ -n "$p_dif" ] && [ -n "$p_tie" ] &&
-   [ "$p_dep" -lt "$p_mrg" ] && [ "$p_mrg" -lt "$p_dif" ] && [ "$p_dif" -lt "$p_tie" ]'
-# CONFLICTING DEPRIORITIZES, it is not excluded — the "keeps conflict resolution delegated to the
-# rebase-resolver" assert's delegation to the rebase-retest gate
-# is preserved, so `docket-rebase-resolver` still owns resolution. A bare grep for "CONFLICTING"
-# would be decorative (the word predates this change), so anchor on the deprioritize/never-exclude
-# shape and on the delegation surviving.
-assert "SKILL deprioritizes CONFLICTING rather than excluding it" \
-  'grep -Eqi "CONFLICTING.{0,40}(deprioritize|sorts? last).{0,40}never excludes?|CONFLICTING[^.]{0,60}never excludes?" "$FIN"'
+# --- SKILL.md: mergeability ordering (now the Go owner's contract) ---
+# RETIRED (0316, category (a)): the mergeability ORDERING was a hand-numbered 1./2./3./4. list whose
+# contract order this block verified by LINE NUMBER; the lazy-mergeable POLL and the
+# no-pairwise-file-overlap prohibition were the Bash procedure's own selection logic. All three are
+# now owned by `internal/app/finalize_context.go` — `SelectFinalizeQueue` orders the queue and
+# `FinalizePolicy`/`FinalizeCandidateReport.Band` classify mergeability; the skill states the order
+# as the Go owner's contract, not a re-derivable numbered list, so the `first_line_no` order
+# machinery is retired with it. Authority #2: SelectFinalizeQueue owns ordering and the mergeability
+# band. The guard is re-pointed at the ordering contract the skill still states, keyed on shape
+# (the sequence within the SelectFinalizeQueue sentence), and on CONFLICTING being DEPRIORITIZED
+# (ordered after MERGEABLE) rather than excluded.
+sfq_line="$(grep -F "SelectFinalizeQueue" "$FIN" || true)"
+assert "SKILL names the Go ordering owner (SelectFinalizeQueue)" '[ -n "$sfq_line" ]'
+assert "SKILL states the ordering contract in the Go owner's terms (depends-eligible, mergeable, diff, priority)" \
+  'grep -Eqi "dependency-eligible.{0,80}MERGEABLE. before .CONFLICTING.{0,120}changed-files and diff.{0,40}priority" <<<"$sfq_line"'
+assert "SKILL deprioritizes CONFLICTING (ordered after MERGEABLE) rather than excluding it" \
+  'grep -Eqi "MERGEABLE. before .CONFLICTING" <<<"$sfq_line"'
+# RE-KEYED (0316, category (c)): conflict resolution is still delegated to docket-rebase-resolver —
+# step 3's resolver loop dispatches it on a `conflicted` rebase. Preserved behavior, keyed on the
+# sequencer's own dispatch sentence.
 assert "SKILL keeps conflict resolution delegated to the rebase-resolver" \
-  'grep -Eqi "(resolution|resolving).{0,60}delegated.{0,60}docket-rebase-resolver|delegated to the gate.{0,20}.?s .docket-rebase-resolver" "$FIN"'
-assert "SKILL marks Finalize blocked only for a conflict the GATE can not act on" \
-  'grep -Eqi "only a conflict the .{0,10}gate.{0,10}(can.t|cannot|can not) act on" "$FIN"'
-assert "SKILL documents the lazy-mergeable poll" \
-  'grep -q "UNKNOWN" "$FIN" && grep -Eqi "poll" "$FIN"'
-assert "SKILL forbids pairwise file-overlap ranking" \
-  'grep -Eqi "(not|never|do not|don.t) build pairwise|pairwise file-overlap" "$FIN"'
+  'grep -Eqi "conflicted.{0,40}dispatch .docket-rebase-resolver" "$FIN"'
+# RE-KEYED (0316): the "mark only when the gate cannot act on the conflict" rule moved with the rest
+# of the marker lifecycle into gate-failure.md, phrased as "Marking happens only at an abort-and-
+# report point" (the resolver resolves an ordinary CONFLICTING PR, so it is not marked up front).
+assert "gate-failure marks Finalize blocked only at an abort-and-report point (not an ordinary conflict)" \
+  'grep -Eqi "[Mm]arking happens only at an abort-and-report point" "$GF"'
 
-# --- SKILL.md: the `## Finalize blocked` marker (D4) ---
-# NOTE: the three assertions below are anchored tighter than a bare substring grep for
-# "## Finalize blocked" / "CONFLICTING…mark" / "metadata write" — Task 1 already left forward
-# references containing those exact substrings (the ordering block's "*Finalize blocked* below",
-# the skipped-with-reason list's "already carrying `## Finalize blocked`", and the durable-root
-# paragraph's "the metadata writes"), so a bare version of each would pass before Task 2 adds
-# anything. Anchoring on the actual heading / bullet phrasing keeps them non-vacuous.
-assert "SKILL has the Finalize blocked marker subsection heading" \
-  'grep -qF "### \`## Finalize blocked\` — marking a change that needs a human" "$FIN"'
-assert "SKILL states it is NOT a new status" \
-  'grep -Eqi "not (a new|an eighth) status|never an eighth status" "$FIN"'
-assert "SKILL states it is not a reuse of blocked" \
-  'grep -Eqi "(not|never) a reuse of .{0,3}\`?blocked" "$FIN"'
-assert "SKILL states selection SKIPS a marked change" \
-  'grep -Eqi "skip.{0,40}(carrying|marked|section)" "$FIN"'
+# --- the `## Finalize blocked` marker (D4) — write shape + lifecycle now in gate-failure.md ---
+# RE-KEYED (0316, category (c)): the marker's WRITE SHAPE and LIFECYCLE moved out of the SKILL body
+# into references/gate-failure.md's "## The `## Finalize blocked` marker — write shape and lifecycle"
+# section (the Go-sequencer SKILL points at GF as a blocking read at every abort, asserted above).
+# The behavior is preserved verbatim there — heading, "not a new status / not a reuse of blocked",
+# the auto-detect skip scoped to unmerged changes already carrying the section, the named-id
+# override, and the metadata-write shape — only these locators move from FIN to GF. The board-cell
+# wording moved to the convention (and to `internal/render/board.go`, which now renders the board —
+# the skill no longer does), so that assert reads the convention.
+CONV="$REPO/skills/docket-convention/SKILL.md"
+assert "gate-failure has the Finalize blocked marker subsection heading" \
+  'grep -qF "## The \`## Finalize blocked\` marker — write shape and lifecycle" "$GF"'
+assert "gate-failure states it is NOT a new status" \
+  'grep -Eqi "not.{0,5}a new lifecycle status|not.{0,5}an eighth status" "$GF"'
+assert "gate-failure states it is not a reuse of blocked" \
+  'grep -Eqi "(not|never).{0,5}a reuse of .{0,3}\`?blocked" "$GF"'
+assert "gate-failure states selection SKIPS a marked change" \
+  'grep -Eqi "selection skips.{0,40}(carrying|marked|section)" "$GF"'
 # The skip must be scoped to auto-detect and overridable by a named id, or the marker deadlocks:
 # a permanently-skipped change can never be finalized, so the clearing rule below can never fire.
-assert "SKILL scopes the marker skip to the auto-detect path" \
-  'grep -Eqi "auto-detect selection skips" "$FIN"'
-assert "SKILL states a named id or allowlist member OVERRIDES the marker skip" \
-  'grep -Eqi "(explicitly named id|named id).{0,60}overrides the skip|overrides the skip.{0,60}named id" "$FIN"'
-assert "the skipped-with-reason list scopes the marker skip to auto-detect" \
-  'grep -Eqi "already carrying .\`?## Finalize blocked.{0,80}(auto-detect|named id)" "$FIN"'
+assert "gate-failure scopes the marker skip to the auto-detect path" \
+  'grep -Eqi "[Aa]uto-detect selection skips" "$GF"'
+assert "gate-failure states a named id or allowlist member OVERRIDES the marker skip" \
+  'grep -Eqi "named id or allowlist member overrides.{0,20}skip|overrides the skip.{0,60}named id" <<<"$GF_FLAT"'
+assert "the marker skip is scoped to auto-detect over changes already carrying the section" \
+  'grep -Eqi "auto-detect selection skips.{0,4}any unmerged change already carrying the section" "$GF"'
 assert "gate-failure states a CONFLICTING PR is NOT marked at selection time" \
   'grep -Eqi "CONFLICTING.{0,10}PR is .{0,4}NOT marked at selection time" "$GF"'
 assert "gate-failure states a successful finalize CLEARS the section" \
   'grep -Eqi "(remove|clear)s?.{0,40}section|section.{0,40}(removed|cleared)" "$GF"'
-assert "SKILL names the board cell wording" 'grep -qF "finalize blocked — needs you" "$FIN"'
+assert "convention names the board cell wording (board render owned by Go)" \
+  'grep -qF "finalize blocked — needs you" "$CONV"'
 assert "gate-failure says the marker is a metadata write" \
-  'grep -qF "**metadata write**" "$GF"'
+  'grep -Eqi "metadata write" "$GF"'
 
-CONV="$REPO/skills/docket-convention/SKILL.md"
 assert "convention lists the Finalize blocked body section" 'grep -qF "## Finalize blocked" "$CONV"'
 # The convention entry must not foreclose a human retry (it used to say "not a human re-arm",
 # which combined with an unconditional skip made a marked change permanently unfinalizable).
@@ -196,25 +216,37 @@ assert "README's drain subsection cross-links the branch-protection prerequisite
 # --- The marker WRITE must be reachable from the procedure, not only from its own definition. ---
 # Without this the whole marker/skip/clear apparatus is inert: every other marker assertion below
 # passes on the *definition* alone, so nothing else catches "no code path ever writes it".
+# RE-KEYED (0316, category (c)): the surfacing step is preserved — `docket finalize block` records
+# the reason durably, first as the owned PR comment, then as the `## Finalize blocked` marker — but
+# reworded (no longer "appends the …") and hard-wrapped, so it reads the flattened GF.
 assert "gate-failure wires the marker write into the abort-and-report surfacing step" \
-  'grep -Eqi "where the reason surfaces.*appends the .{0,4}## Finalize blocked" "$GF"'
+  'grep -Eqi "[Ww]here the reason surfaces.{0,220}docket finalize block. records it durably.{0,220}## Finalize blocked. marker" <<<"$GF_FLAT"'
 # A retry that fails again must not accrete a second heading — the marker is state, not a log.
+# RE-KEYED (0316, category (c)): GF says "never a second heading" (was "never appends a second
+# heading"); preserved behavior, keyed on shape over the flattened GF.
 assert "gate-failure states a re-mark REPLACES the section rather than appending a second heading" \
-  'grep -Eqi "re-mark.{0,60}replaces.{0,120}never appends a second heading" "$GF"'
-# The transition-out gap: a human-merged PR carrying a stale marker must still be archived.
-assert "SKILL states an already-merged PR is archived regardless of the marker" \
-  'grep -Eqi "already-merged PR is archived regardless" "$FIN"'
+  'grep -Eqi "re-mark.{0,60}replaces.{0,140}never a second heading" <<<"$GF_FLAT"'
+# The transition-out gap: a human-merged PR carrying a stale marker must still be recovered.
+# RE-KEYED (0316, category (c)): the rule moved into GF and is phrased "an already-merged PR is a
+# merged-recovery candidate regardless of the marker" (was "archived regardless"); flattened GF.
+assert "gate-failure states an already-merged PR is a recovery candidate regardless of the marker" \
+  'grep -Eqi "already-merged PR is a merged-recovery candidate regardless.{0,10}of the marker" <<<"$GF_FLAT"'
 # The skip is scoped to UNMERGED changes; an unscoped "skips any change carrying it" strands them.
-assert "SKILL scopes the auto-detect marker skip to unmerged changes" \
-  'grep -Eqi "selection skips\*\* any \*\*unmerged\*\*" "$FIN"'
+# RE-KEYED (0316, category (c)): moved into GF, unbolded ("skips any unmerged change"); flattened GF.
+assert "gate-failure scopes the auto-detect marker skip to unmerged changes" \
+  'grep -Eqi "selection skips.{0,4}any unmerged change" <<<"$GF_FLAT"'
 # The drained/halted boundary must be decidable, not inferred — same backlog, same disposition.
 assert "SKILL resolves the drained boundary: in-scope-but-human-requiring counts as halted" \
   'grep -Eqi "counts toward the non-empty set and yields .{0,4}halted" "$FIN"'
+# RE-KEYED (0316, category (c)): "drained requires that context finalize surfaced no implemented
+# candidate at all" (was "requires that no implemented change was in scope"); preserved boundary.
 assert "SKILL states drained requires nothing in scope at all" \
-  'grep -Eqi "drained.{0,40}requires that no .{0,4}implemented.{0,4} change was in scope" "$FIN"'
-# A classifier/harness denial of the merge is on the critical path and mapped nowhere otherwise.
-assert "gate-failure maps a harness/classifier merge denial into the abort-and-report set" \
-  'grep -Eqi "classifier denying the merge" "$GF"'
+  'grep -Eqi "drained. requires that .{0,25}surfaced no .{0,4}implemented.{0,4}(candidate|change)" "$FIN"'
+# RE-KEYED (0316, category (c)/(a)): a merge denial is no longer framed as a harness/classifier
+# decision — the Go `docket finalize merge` verb returns `merge-denied`/`denied`. The abort-and-
+# report mapping is preserved: an authoritatively denied merge maps to halted. Flattened GF.
+assert "gate-failure maps a denied merge (merge-denied) into the abort-and-report set" \
+  'grep -Eqi "authoritatively .{0,4}denied.{0,4} merge.{0,120}merge-denied" <<<"$GF_FLAT"'
 
 # --- Non-vacuity / mutation proof: the code-formatted disposition grep actually bites. ---
 probe="$(mktemp)"; printf 'plain advanced word, no code formatting\n' > "$probe"

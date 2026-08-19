@@ -180,49 +180,55 @@ assert "build: the Halting conditions section was located (non-vacuity anchor)" 
 assert "build: Halting conditions carries the exhausted-budget bullet" \
   'grep -qiE "^- \*\*.*budget" <<<"$halt_blk"'
 
-# --- (8) finalize CITES the posture, never restates it -------------------------
+# --- (8) finalize CITES docket-build for the yield rule; the run mechanics are the binary's -------
+# RE-KEYED BY CHANGE 0316 (plan Task 20, category (c): behavior preserved, locators brittle — do
+# NOT edit the skill to satisfy these). Change 0316 rewrote docket-finalize-change/SKILL.md from a
+# Bash procedure into a Go-verb sequencer, and commit 8c74c1c8 NARROWED what finalize cites from
+# docket-build's *Gate execution posture* to point 4 ALONE — the yield-vs-block rule, a property of
+# the CALLER's own dispatch posture that `docket gate` cannot own. The run mechanics docket-build's
+# posture used to be the sole home for — the supervised run, the durable run directory, artifact-
+# based completion, and the fail-closed observation budget — are now owned by the `docket gate` verb
+# (plan authority #2: "`docket gate` owns the gate's mechanics") and are legitimately DESCRIBED as
+# its ownership in the skill. So this group is re-keyed, not deleted:
+#   * the CITATION positives survive, re-pointed from the old `- `local` runs the suite` per-step
+#     bullet (gone with the Bash procedure) to step 4's gate paragraph, located by its own subject;
+#   * the two no-restatement NEGATIVES are RETIRED. They forbade the durable-artifact and fail-closed
+#     clauses as docket-build restatements, but those clauses are no longer docket-build's to
+#     restate — they are the binary's, and the skill states so on purpose (Authority #3: the skill's
+#     positive "`docket gate` owns the gate's mechanics … One clause … it cannot own is yours to
+#     obey"). Deleting a guard is how a regression hides, so each is replaced by the POSITIVE that
+#     pins the new split: mechanics attributed to `docket gate`, the ONE cited clause the yield rule.
+#     Undoing the split reddens the replacements.
 FIN="$REPO/skills/docket-finalize-change/SKILL.md"
 assert "finalize: SKILL.md exists" '[ -f "$FIN" ]'
 fin_body="$(cat "$FIN" 2>/dev/null)"
 fin_flat="$(flatten <<<"$fin_body")"
-assert "finalize: body is non-vacuous (>= 100 lines)" \
-  '[ "$(grep <<<"$fin_body" -c .)" -ge 100 ]'
-# The POSITIVES read the gate flow's item-5 `local` bullet, not the whole file. That bullet IS the
-# run this posture governs, and the plan's file-wide draft would be satisfied by the phrase turning
-# up anywhere in the file — including a mention that leaves the gate's own run uncited, which is the
-# exact mutation these asserts exist to catch. Same reasoning as groups (2)-(4)'s section slices.
-# A bullet-level anchor is deliberately tighter than a `## The rebase-retest merge gate` section
-# slice: the section also contains items 4, 6 and 7, and a citation parked beside the CI leg would
-# satisfy a section-scoped grep while leaving the local run — the only leg that runs a suite here —
-# uncited.
-fin_local="$(grep -E '^[[:space:]]*- `local` runs the suite' <<<"$fin_body")"
-local_flat="$(flatten <<<"$fin_local")"
-assert "finalize: the item-5 local-gate bullet was located (non-vacuity anchor)" \
-  '[ -n "$fin_local" ]'
+# Non-vacuity floor, re-baselined to the Go sequencer's real size (79 non-empty lines at 0316); an
+# unreadable or truncated file must redden HERE rather than passing every positive grep by default.
+assert "finalize: body is non-vacuous (>= 70 lines)" \
+  '[ "$(grep <<<"$fin_body" -c .)" -ge 70 ]'
+# The POSITIVES read step 4's gate paragraph — the one run this posture governs — not the whole
+# file, so a citation parked in an unrelated paragraph does not satisfy them. The sequencer states
+# the same governance the old item-5 bullet did, in one paragraph located by its own subject phrase
+# ("owns the gate's mechanics"), which is unique to that paragraph.
+fin_gate="$(grep -E "owns the gate.s mechanics" <<<"$fin_body")"
+gate_flat="$(flatten <<<"$fin_gate")"
+assert "finalize: the gate-posture paragraph was located (non-vacuity anchor)" \
+  '[ -n "$fin_gate" ]'
 # The citation names the OWNER, so a reader lands on the single source.
 assert "finalize: local gate cites the gate execution posture" \
-  'grep -qiE "gate execution posture" <<<"$local_flat"'
+  'grep -qiE "gate execution posture" <<<"$gate_flat"'
 assert "finalize: the citation names docket-build as the owner" \
-  'grep -qiE "gate execution posture[^.]{0,120}docket-build|docket-build[^.]{0,120}gate execution posture" <<<"$local_flat"'
-# ...and does NOT restate it. Restatement accumulates its own guards and then goes stale; these
-# negatives are what keep the single source single. Deliberately WHOLE-FILE, unlike the positives
-# above: the no-restatement rule binds finalize everywhere, not only inside the bullet that cites.
-# Both phrases are absent from the pre-change file (measured: zero matches), so neither negative
-# arrives already red — each is mutation-tested by PLANTING the restatement it forbids. The file's
-# pre-existing "durable root" prose (change 0075) does not reach an "artifact" inside the window.
-# (The plan drafted the first as `durable[^.]{0,60}(result artifact|artifact)`; the first branch is
-# subsumed by the second, so this keys on `artifact` alone and matches strictly more.)
-assert "finalize: does not restate the durable-artifact clause" \
-  '! grep -qiE "durable[^.]{0,60}artifact" <<<"$fin_flat"'
-# The fail-closed negative keys on the gate-specific PROPOSITION, not the bare phrase. The bare
-# phrase discriminated on orthography in both directions: the file's pre-existing "enforces the
-# bootstrap verdict fail-closed" (an unrelated concept, Step 0's bootstrap guard) was kept green
-# only by the hyphen, so ordinary copy-editing would redden it; and a genuine restatement spelled
-# "fails-closed" sailed through. So the spelling is now permissive (`fails?[- ]closed`) and the
-# DISCRIMINATION moved to co-occurrence with the gate's own subject — the budget or the observation
-# — inside a window `[^.]` cannot carry across a sentence end.
-assert "finalize: does not restate the fail-closed clause" \
-  '! grep -qiE "fails?[- ]closed[^.]{0,120}(budget|observ)|(budget|observ)[^.]{0,120}fails?[- ]closed" <<<"$fin_flat"'
+  'grep -qiE "gate execution posture[^.]{0,120}docket-build|docket-build[^.]{0,120}gate execution posture" <<<"$gate_flat"'
+# RETIREMENT REPLACEMENTS for the two no-restatement negatives (see the header). These pin the split
+# 8c74c1c8 drew, keyed on SHAPE within the located paragraph (whose non-vacuity is anchored above),
+# never on character distance. Re-attributing the durable dir / fail-closed budget to docket-build,
+# or dropping the yield-clause cite, reddens them. `.` stands for the backtick around `docket gate`
+# — a literal backtick in the assert expression would be command-substituted by `assert`'s `eval`.
+assert "finalize: the run mechanics (durable dir, fail-closed budget) are attributed to docket gate" \
+  'grep -qiE "docket gate. owns the gate" <<<"$gate_flat" && grep -qiE "durable run directory" <<<"$gate_flat" && grep -qiE "fails? closed" <<<"$gate_flat"'
+assert "finalize: the ONE clause cited from docket-build is the yield-vs-block rule (the narrowing)" \
+  'grep -qiE "cannot own" <<<"$gate_flat" && grep -qiE "yield" <<<"$gate_flat"'
 
 # --- (9) the default budget agrees across every surface that states it ---------
 # Four independent statements of one value drift silently. Derive each from its own file with its

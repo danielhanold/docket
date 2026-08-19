@@ -142,14 +142,24 @@ assert "population: excluded file skills/docket-convention/SKILL.md is NOT scann
   '! grep -q -- "$(printf "^file\tskills/docket-convention/SKILL.md$")" <<<"$out"'
 assert "population: excluded file skills/docket-convention/references/agent-layer.md is NOT scanned" \
   '! grep -q -- "$(printf "^file\tskills/docket-convention/references/agent-layer.md$")" <<<"$out"'
-assert "population: at least 4 occurrences were reached and classified (got $oks)" '[ "$oks" -ge 4 ]'
+# RE-BASELINED (0316, category (a)): the finalize skill's Step-0 export-channel config-read
+# occurrence — a `negative` "never by parsing `.docket.yml`" clause — was removed with the Bash flow.
+# The Go sequencer reads config through `docket context finalize`/preflight, naming no config
+# filename, so it contributes no occurrence. The classified-occurrence population is now 3 (the two
+# docket-status write-backs + the board-mirror reference). This floor is a non-vacuity guard on the
+# scan reaching real occurrences; 3 is the true current count. Authority #2: config read moved to
+# context/preflight.
+assert "population: at least 3 occurrences were reached and classified (got $oks)" '[ "$oks" -ge 3 ]'
 
-# Coverage: BOTH admissible classes are actually exercised by the real tree, so neither arm of the
-# classifier is dead code. "At least one occurrence is marked" pins a population, never coverage.
+# Coverage: the WRITE-BACK arm is still exercised by the real tree (docket-status's field write-back).
+# RETIRED (0316, category (a)): the NEGATIVE arm no longer is — 0316 removed the finalize skill's
+# "never by parsing `.docket.yml`" occurrence, which was the only `negative` occurrence the real tree
+# carried, and the design intentionally leaves the Go sequencer naming no config filename. The
+# negative arm is NOT dead code: mutation fixture (b) below marks a `negative` occurrence and asserts
+# the class is read off the marker (`^ok\t…\tnegative$`), so the arm's liveness is proven there. The
+# real-tree negative-coverage assert is therefore retired; the write-back real-tree coverage stays.
 assert "coverage: at least one write-back occurrence exists" \
   'grep -q -- "$(printf "^ok\t")" <<<"$(grep -- "write-back$" <<<"$out")"'
-assert "coverage: at least one negative occurrence exists" \
-  'grep -q -- "$(printf "^ok\t")" <<<"$(grep -- "negative$" <<<"$out")"'
 
 # THE RULE.
 assert "every occurrence in a scanned skill file is classified

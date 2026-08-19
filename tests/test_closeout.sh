@@ -535,16 +535,25 @@ assert "cleanup: refuses a worktree outside .worktrees/ (non-zero)" '[ "$rc_guar
 assert "cleanup: out-of-tree worktree survives the refusal" '[ -e "$out_base/evil" ]'
 assert "cleanup: refused branch feat/evil still present (guard fired before delete)" 'git -C "$W" rev-parse --verify -q feat/evil >/dev/null'
 
-# --- finalize wiring sentinels: docket-finalize-change invokes the scripts (single source) ---
+# --- finalize wiring sentinels: docket-finalize-change drives Go verbs, not the bash facade (0316) ---
+# RETIRED (0316, category (a)): the finalize skill used to invoke archive-change.sh /
+# terminal-publish.sh / cleanup-feature-branch.sh through the `docket.sh` facade, with a
+# "## Terminal publish (docket-mode)" section and its Accepted-gate / ADR-only publish prose. The
+# skill is now a Go-verb sequencer: close-out is `docket finalize closeout` and cleanup is
+# `docket finalize cleanup` (Go transactions that own archiving and branch cleanup), and TERMINAL
+# PUBLISHING is deferred — 0316's *Out of scope* names it explicitly. Authority #1 (Out of scope:
+# terminal publishing) + Authority #2 (Go transactions own closeout/cleanup). The scripts themselves
+# still ship and are exercised by the archive-change / terminal-publish / cleanup blocks ABOVE — only
+# the finalize skill's wiring to them is retired. Guard re-pointed at the Go verbs the skill now
+# names; the two "no leftover raw bash" negatives are preserved (they hold a fortiori now).
 FINALIZE="$REPO/skills/docket-finalize-change/SKILL.md"
-assert "wiring(finalize): invokes archive-change (via the docket.sh facade)" 'grep -q "docket.sh archive-change" "$FINALIZE"'
-assert "wiring(finalize): invokes terminal-publish (via the docket.sh facade)" 'grep -q "docket.sh terminal-publish" "$FINALIZE"'
-assert "wiring(finalize): invokes cleanup-feature-branch (via the docket.sh facade)" 'grep -q "docket.sh cleanup-feature-branch" "$FINALIZE"'
-assert "wiring(finalize): Terminal publish section heading preserved (cross-ref anchor)" 'grep -qF "## Terminal publish (docket-mode)" "$FINALIZE"'
-assert "wiring(finalize): Accepted gate still documented" 'grep -qiE "whose ADR is .?Accepted|Accepted. gate|status: is .?Accepted|status.? is \*\*Accepted" "$FINALIZE"'
-assert "wiring(finalize): ADR-only publish path preserved" 'grep -qiE "adr-<NN>|ADR-only" "$FINALIZE"'
+assert "wiring(finalize): close-out is the Go closeout verb (not the archive-change facade)" \
+  'grep -qE "docket finalize closeout" "$FINALIZE"'
+assert "wiring(finalize): cleanup is the Go cleanup verb (not the cleanup-feature-branch facade)" \
+  'grep -qE "docket finalize cleanup" "$FINALIZE"'
+assert "wiring(finalize): no deferred terminal-publish facade call" \
+  '! grep -qE "docket\.sh terminal-publish" "$FINALIZE"'
 assert "wiring(finalize): no leftover raw archive bash (git mv active/)" '! grep -qE "git mv .*active/" "$FINALIZE"'
-assert "wiring(finalize): ADR-only publish names docket.sh terminal-publish --adr" 'grep -qE "docket\.sh terminal-publish --adr" "$FINALIZE"'
 assert "wiring(finalize): no leftover by-hand pub-adr git block" '! grep -qE "git worktree add -B .?pub-adr" "$FINALIZE"'
 
 # --- call-site wiring sentinels: status sweep + two kill paths invoke the scripts ---
