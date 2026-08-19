@@ -2,7 +2,7 @@
 id: 316
 slug: finalize-recovery-reclaim-archive-and-stacks
 title: 'Finalize, recovery, reclaim, archive, and stacks'
-status: 'in-progress'
+status: 'implemented'
 priority: critical
 type: feat
 created: 2026-08-12
@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable:
 branch: 'feat/finalize-recovery-reclaim-archive-and-stacks'
-pr:
+pr: 'github.com/danielhanold/docket#221'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-19T16:50:28Z'
