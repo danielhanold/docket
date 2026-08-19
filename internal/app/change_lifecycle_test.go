@@ -504,3 +504,26 @@ func hasDomainFindingCode(findings []domain.Finding, code string) bool {
 	}
 	return false
 }
+
+// TestLifecycleResultFromOutcomeFailedCarriesCause proves a lifecycle
+// transaction that fails mid-flight surfaces its typed cause in the envelope's
+// failure diagnosis instead of dropping it.
+func TestLifecycleResultFromOutcomeFailedCarriesCause(t *testing.T) {
+	execErr := &transaction.Failure{
+		Stage:  transaction.StageLoadAfter,
+		Kind:   transaction.KindInvalidState,
+		Detail: "plan violates before/after tree rules",
+	}
+	out := lifecycleResultFromOutcome(OperationChangeMarkImplemented,
+		transaction.Result{Disposition: transaction.DispositionFailed}, execErr)
+
+	if out.Failure == nil {
+		t.Fatal("failure diagnosis missing on a failed lifecycle transaction")
+	}
+	if out.Failure.Detail == "" {
+		t.Error("failure.detail is empty")
+	}
+	if out.Failure.Stage != string(transaction.StageLoadAfter) {
+		t.Errorf("failure.stage = %q, want %q", out.Failure.Stage, transaction.StageLoadAfter)
+	}
+}

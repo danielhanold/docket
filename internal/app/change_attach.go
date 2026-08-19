@@ -568,7 +568,9 @@ func attachResultFromOutcome(opKey, kind, artifactPath string, res transaction.R
 		}
 		out.Revision = string(res.AppliedCommit)
 	}
-	return newAttachResult(opKey, result, out)
+	r := newAttachResult(opKey, result, out)
+	r.Failure = failureStatus(res, execErr)
+	return r
 }
 
 // decodeChangeAttachReceipt decodes a persisted attach receipt.

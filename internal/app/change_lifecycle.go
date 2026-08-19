@@ -221,7 +221,9 @@ func lifecycleResultFromOutcome(opKey string, res transaction.Result, execErr er
 		}
 		out.Revision = string(res.AppliedCommit)
 	}
-	return newChangeLifecycleResult(opKey, result, out)
+	r := newChangeLifecycleResult(opKey, result, out)
+	r.Failure = failureStatus(res, execErr)
+	return r
 }
 
 // validateLifecycleShape runs the pinned-entity request checks common to both

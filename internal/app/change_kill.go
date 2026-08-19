@@ -186,7 +186,9 @@ func changeKillResultFromOutcome(res transaction.Result, execErr error) ChangeKi
 		}
 		out.Revision = string(res.AppliedCommit)
 	}
-	return newChangeKillResult(result, out)
+	r := newChangeKillResult(result, out)
+	r.Failure = failureStatus(res, execErr)
+	return r
 }
 
 // decodeChangeKillReceipt decodes a persisted receipt into its identity fields.

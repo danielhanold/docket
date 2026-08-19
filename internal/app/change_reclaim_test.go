@@ -8,6 +8,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/render"
+	"github.com/danielhanold/docket/internal/repository/transaction"
 	"github.com/danielhanold/docket/internal/workspace"
 )
 
@@ -352,5 +353,25 @@ func assertOriginRecordUnchanged(t *testing.T, origin, branch, path, before stri
 	}
 	if after != before {
 		t.Errorf("a refused reclaim mutated the origin record:\n--before--\n%s\n--after--\n%s", before, after)
+	}
+}
+
+// TestReclaimResultFromOutcomeFailedCarriesCause proves a reclaim transaction
+// that fails mid-flight is dispositioned `failed` (not mislabeled as a reasonless
+// `skipped`) and carries its typed cause in the envelope's failure diagnosis.
+func TestReclaimResultFromOutcomeFailedCarriesCause(t *testing.T) {
+	execErr := &transaction.Failure{
+		Stage:  transaction.StageVerifyDelta,
+		Kind:   transaction.KindInvalidState,
+		Detail: "an undeclared path changed in the worktree",
+	}
+	out := reclaimResultFromOutcome(
+		transaction.Result{Disposition: transaction.DispositionFailed}, execErr)
+
+	if out.Disposition != ReclaimDispFailed {
+		t.Errorf("disposition = %q, want %q — a failed reclaim is not a reasonless skip", out.Disposition, ReclaimDispFailed)
+	}
+	if out.Failure == nil || out.Failure.Detail == "" {
+		t.Fatalf("failure diagnosis missing or empty: %+v", out.Failure)
 	}
 }

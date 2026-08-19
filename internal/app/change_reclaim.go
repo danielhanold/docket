@@ -69,6 +69,9 @@ const (
 	// ReclaimDispContended: the exact-version transaction lost to a fresh
 	// incompatible state (the record moved out from under the submitted version).
 	ReclaimDispContended = "contended"
+	// ReclaimDispFailed: a transaction failure; the cause is in the envelope's
+	// failure field.
+	ReclaimDispFailed = "failed"
 )
 
 // The stable machine reasons `change reclaim` reports. Message text is
@@ -373,19 +376,23 @@ func reclaimResultFromOutcome(res transaction.Result, execErr error) ChangeRecla
 	if rec, ok := decodeChangeReclaimReceipt(res.Receipt); ok {
 		out.ID = rec.ID
 	}
-	switch result {
-	case ResultApplied:
+	switch {
+	case res.Disposition == transaction.DispositionFailed:
+		out.Disposition = ReclaimDispFailed
+	case result == ResultApplied:
 		out.Disposition = ReclaimDispReclaimed
 		out.Revision = string(res.AppliedCommit)
-	case ResultNoOp:
+	case result == ResultNoOp:
 		out.Disposition = ReclaimDispReclaimed
-	case ResultContended:
+	case result == ResultContended:
 		out.Disposition = ReclaimDispContended
 	default:
 		out.Disposition = ReclaimDispSkipped
 		out.Reason = firstFindingCode(res.Findings)
 	}
-	return newChangeReclaimResult(result, out)
+	r := newChangeReclaimResult(result, out)
+	r.Failure = failureStatus(res, execErr)
+	return r
 }
 
 // decodeChangeReclaimReceipt decodes a persisted reclaim receipt.

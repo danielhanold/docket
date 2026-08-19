@@ -91,6 +91,9 @@ const (
 	// BlockDispRefused: a retained precondition refusal (a clear-block conjunct
 	// did not hold, or the change is not blockable).
 	BlockDispRefused = "refused"
+	// BlockDispFailed: a transaction failure; the cause is in the envelope's
+	// failure field.
+	BlockDispFailed = "failed"
 )
 
 // The stable machine reasons the block operations report for their typed
@@ -516,18 +519,22 @@ func blockResultFromOutcome(op string, res transaction.Result, execErr error, ur
 	if rec, ok := decodeBlockReceipt(res.Receipt); ok {
 		out.ID = rec.ID
 	}
-	switch result {
-	case ResultApplied:
+	switch {
+	case res.Disposition == transaction.DispositionFailed:
+		out.Disposition = BlockDispFailed
+	case result == ResultApplied:
 		out.Disposition = BlockDispRecorded
 		out.Revision = string(res.AppliedCommit)
-	case ResultNoOp:
+	case result == ResultNoOp:
 		out.Disposition = BlockDispAlready
-	case ResultContended:
+	case result == ResultContended:
 		out.Disposition = BlockDispContended
 	default:
 		out.Disposition = BlockDispRefused
 	}
-	return newBlockResult(op, result, out)
+	r := newBlockResult(op, result, out)
+	r.Failure = failureStatus(res, execErr)
+	return r
 }
 
 // clearBlockResultFromOutcome folds a `finalize clear-block` transaction outcome
@@ -538,18 +545,22 @@ func clearBlockResultFromOutcome(res transaction.Result, execErr error) BlockRes
 	if rec, ok := decodeBlockReceipt(res.Receipt); ok {
 		out.ID = rec.ID
 	}
-	switch result {
-	case ResultApplied:
+	switch {
+	case res.Disposition == transaction.DispositionFailed:
+		out.Disposition = BlockDispFailed
+	case result == ResultApplied:
 		out.Disposition = BlockDispCleared
 		out.Revision = string(res.AppliedCommit)
-	case ResultNoOp:
+	case result == ResultNoOp:
 		out.Disposition = BlockDispNothingToClear
-	case ResultContended:
+	case result == ResultContended:
 		out.Disposition = BlockDispContended
 	default:
 		out.Disposition = BlockDispRefused
 	}
-	return newBlockResult(OperationFinalizeClearBlock, result, out)
+	r := newBlockResult(OperationFinalizeClearBlock, result, out)
+	r.Failure = failureStatus(res, execErr)
+	return r
 }
 
 // decodeBlockReceipt decodes a persisted block/clear receipt.

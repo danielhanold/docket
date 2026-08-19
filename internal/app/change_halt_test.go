@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/repository/transaction"
 	"github.com/danielhanold/docket/internal/workspace"
 )
 
@@ -187,4 +188,25 @@ func setupHaltedFixture(t *testing.T, m planRepoMode) *rebaseFixture {
 	f.repo.writerAdvance(t, f.branch, map[string]string{groomPath(f.id, f.slug): halted})
 	f.version = blobVersionAt(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
 	return f
+}
+
+// TestHaltResultFromOutcomeFailedCarriesCause proves a halt transaction that
+// fails mid-flight is dispositioned `failed` (not mislabeled as a refusal) and
+// carries its typed cause in the envelope's failure diagnosis.
+func TestHaltResultFromOutcomeFailedCarriesCause(t *testing.T) {
+	execErr := &transaction.Failure{
+		Stage:  transaction.StageVerifyDelta,
+		Kind:   transaction.KindInvalidState,
+		Detail: "an undeclared path changed in the worktree",
+	}
+	out := haltResultFromOutcome(OperationChangeHalt,
+		transaction.Result{Disposition: transaction.DispositionFailed}, execErr,
+		HaltDispHalted, ReasonHaltNotInProgress)
+
+	if out.Disposition != HaltDispFailed {
+		t.Errorf("disposition = %q, want %q — a failed transaction is not a refusal", out.Disposition, HaltDispFailed)
+	}
+	if out.Failure == nil || out.Failure.Detail == "" {
+		t.Fatalf("failure diagnosis missing or empty: %+v", out.Failure)
+	}
 }

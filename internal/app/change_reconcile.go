@@ -42,6 +42,9 @@ const OperationChangeReconcile = "change.reconcile"
 const (
 	ReconcileDispositionApplied   = "applied"
 	ReconcileDispositionContended = "contended"
+	// ReconcileDispositionFailed: a transaction failure; the cause is in the
+	// envelope's failure field.
+	ReconcileDispositionFailed = "failed"
 )
 
 // reasonReconcileNotInProgress is the stable plan-refusal reason for a change
@@ -253,6 +256,9 @@ func changeReconcileResultFromOutcome(res transaction.Result, execErr error) Cha
 
 	result, _ := mapOutcome(res, execErr, ResultInvalidState)
 	out := ChangeReconcileResult{Findings: findingsToStatus(res.Findings)}
+	if res.Disposition == transaction.DispositionFailed {
+		out.Disposition = ReconcileDispositionFailed
+	}
 	switch result {
 	case ResultApplied:
 		if rec, ok := decodeChangeReconcileReceipt(res.Receipt); ok {
@@ -263,7 +269,9 @@ func changeReconcileResultFromOutcome(res transaction.Result, execErr error) Cha
 	case ResultContended:
 		out.Disposition = ReconcileDispositionContended
 	}
-	return newChangeReconcileResult(result, out)
+	r := newChangeReconcileResult(result, out)
+	r.Failure = failureStatus(res, execErr)
+	return r
 }
 
 // decodeChangeReconcileReceipt decodes a persisted reconcile receipt.
