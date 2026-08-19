@@ -1,33 +1,111 @@
-# gate-failure — the merge-gate failure flows
+# gate-failure — the rebase/gate failure flows
 
-The merge-gate *failure* flows for `docket-finalize-change` — read when the gate does not pass
-clean (a rebase conflict, a red rebased suite, or any abort-and-report condition). Loaded on
-demand from `docket-finalize-change/SKILL.md`; sibling files are not auto-loaded with the skill.
+The rebase and local-gate *failure* flows for `docket-finalize-change` — read when the sequence
+does not pass clean (a rebase conflict, a red rebased suite, an unavailable dispatch, or any
+abort-and-report condition). Loaded on demand from `docket-finalize-change/SKILL.md`; sibling files
+are not auto-loaded with the skill.
 
 ## The two agents (split at rebase-completion)
 
-`docket-rebase-resolver` resolves conflicts *during* the rebase and never runs tests; `docket-integration-repair` owns the **red suite** *after* the rebase lands, regardless of cause. Neither wraps a skill (only `docket-convention`); both are dispatched **foreground at the model/effort its wrapper resolves** — never a literal tier. Name the **feature worktree** in the dispatch payload for either agent — both are feature-scoped, so reached through a runner delegation each receives that worktree through the facade's `--worktree` flag, and a delegated dispatch that names none is refused. An authored repair from `docket-integration-repair` is what fires the sign-off rule below; pure conflict resolution does not.
+`docket-rebase-resolver` resolves conflicts *during* the rebase and never runs Git rebase mechanics
+or tests; `docket-integration-repair` owns the **red suite** *after* the rebase lands, regardless of
+cause. Neither wraps a skill (only `docket-convention`); both are dispatched **foreground at the
+model/effort its wrapper resolves** — never a literal tier. Name the **feature worktree** in the
+dispatch payload for either agent — both are feature-scoped, so reached through a runner delegation
+each receives that worktree through the facade's `--worktree` flag, and a delegated dispatch that
+names none is refused. An authored repair from `docket-integration-repair` is what fires the
+sign-off rule below; pure conflict resolution does not.
 
-On a gate-step-2 conflict, the resolver reconciles every hunk until the rebase completes; an **ambiguous conflict** it can't resolve aborts the rebase and the gate abort-and-reports. On a gate-step-5 red, the repair agent root-causes and writes a minimal fix in at most two attempts; green → the sign-off rule below; stuck or cannot reach green → abort-and-report.
+Both agents return an **authored hint, never authority**: the controller feeds it to the matching
+`docket` operation, which verifies every mechanical claim against live Git — the reported paths
+against the live unmerged set, the claimed commits against the real branch delta — before the next
+effect. Report bodies are redaction-only and are never echoed into a result document.
 
-**If the dispatch itself is unavailable — the `carve-out`.** Both gate dispatches sit outside the convention's A/B/C tier table by an explicit carve-out; read its *Dispatch-capability resolution* section for the rule that decides when unavailability is established at all — resolution first, then one trivial attempt, and **never from a tool name**. A conflicted rebase whose `docket-rebase-resolver` cannot be dispatched takes that carve-out posture, abort-and-report, exactly as an ambiguous conflict does; a red rebased suite whose `docket-integration-repair` cannot be dispatched takes the same carve-out posture, exactly as a repair stuck short of green does. Neither is ever substituted inline: reconciling hunks, or authoring a repair, in the same agent that would then merge that work is the self-approval shape the convention's carve-out forbids.
+1. **The resolver** reconciles each conflicted hunk by merge intent in the returned workspace and
+   returns a versioned `ResolverReport` JSON document — no argv. Its fields:
+   `change_id` (int), `attempt` (the owned rebase attempt token from the conflicted result),
+   `disposition` (`resolved` | `stuck`), `summary` (bounded prose), `touched_paths` and
+   `conflicted_paths` (repo-relative), `observed_head`, `observed_base`, and `recommended_action`.
+   The controller feeds a `resolved` report to `docket finalize rebase-continue --id <id>
+   --attempt <attempt> --input <report>`, which stages exactly the reported-and-verified paths and
+   continues; a `stuck` report, or paths outside the live unmerged set (refused `report-not-resolved`),
+   routes to `docket finalize rebase-abort --id <id> --attempt <attempt> --input <report>` and a
+   `halted` outcome. The resolver gets **at most two dispatches, enforced by the skill**.
+2. **The repair agent** root-causes the red rebased suite, authors a **bounded** minimal fix in at
+   most two attempts, commits it on the feature branch, and returns a report naming its **claimed
+   commits** and `repaired` | `stuck`; it never weakens a test, never runs the rebase, and never
+   merges or transitions metadata. The controller re-runs the gate on the repaired head through
+   `docket gate launch`/`observe` and records the exact-head evidence through `docket evidence
+   record` — a `stuck` repair, or a repair that cannot reach green in two attempts, is `halted`.
 
 ## Sign-off on auto-authored repairs
 
-A repair is code the human's approval predated, so it never merges unseen:
+A repair is code the human's PR approval predated, so it never merges unseen:
 
-- **Interactive finalize**: force-push the repaired branch, report the repair diff + what broke, and **prompt** for go-ahead before `gh pr merge`.
-- **Autonomous finalize**: cannot prompt, so it force-pushes the repair and follows **abort-and-report** — STOP, do not merge; the human reviews the pushed repair on the PR and re-runs finalize to merge.
+- **Autonomous finalize** cannot prompt. It records the sign-off requirement durably and STOPS:
+  `docket finalize block --id <id> --version <version> --pr-number <n> --attempt <attempt>
+  --reason repair-needs-signoff --head <repaired head> --input <block report>` — the disposition is
+  `halted`. The human reviews the pushed repair on the PR and re-runs finalize; the retry clears the
+  block (`docket finalize clear-block`) and merges.
+- **Interactive finalize** publishes the repaired head, reports the repair diff and what broke, and
+  **prompts** for go-ahead before `docket finalize merge`.
 
 ## abort-and-report points (the full set)
 
-Each leaves the **PR open** and the change **`implemented`**: an ambiguous rebase conflict · `local`/`both` with no detectable suite and no `test_command` override · repair cannot reach green in ≤2 attempts · `ci`/`both` with red or absent CI checks · a `--force-with-lease` rejected by a concurrent push · any repair under **autonomous** finalize (sign-off) · **a harness or permission classifier denying the merge itself** (the branch-protection recipe in the README is what makes `gh pr merge` land unattended; if a denial still fires, that is a `halted`, not a retry loop) · **the dispatch mechanism being unavailable for either gate agent** (the `carve-out` above — never substituted inline) · **a harness or permission classifier denying the gate's own post-rebase `--force-with-lease` push** — named by that noun, never by a step number — which fires only *after* the convention's *Harness-native recovery* retry has been exhausted or is unavailable; like the merge denial, a denial that still stands is a `halted`, not a retry loop.
+Each maps to the **`halted`** disposition and leaves the **PR open** and the change **`implemented`**:
 
-**Where the reason surfaces.** The subagent returns its diagnosis in-context; finalize relays it to the human (interactive) or the dispatching caller (autonomous), records it durably as a **comment on the PR** (`gh pr comment`) — a human returning later reads exactly why the auto-merge stopped — **and appends the `## Finalize blocked` marker to the change file** (see below). Every abort-and-report point does all three; the comment is the narrative, the marker is the state.
+- an **ambiguous rebase conflict** — the resolver returns `stuck`, or is still `conflicted` after
+  its second dispatch; the owned rebase is restored via `docket finalize rebase-abort`;
+- a **red rebased suite the repair cannot green** in ≤2 attempts (`stuck`);
+- an **authored repair under autonomous finalize** — the sign-off rule above (`repair-needs-signoff`);
+- an **unresolved effective base, foreign in-progress rebase, moved base, or dirty workspace** —
+  `docket finalize rebase` returns `blocked`;
+- a **rewrite the publish cannot certify** — `docket finalize publish` returns `rewrite-unknown`/
+  `pr-probe-failed` (an `unknown` never authorizes a second mutation);
+- a **merge conjunct that fails at the fresh recheck** or an authoritatively **denied** merge —
+  `docket finalize merge` returns the conjunct's token or `merge-denied`; a denial that still stands
+  is `halted`, never a retry loop;
+- an **open unauthorized child** on an autonomous run, or a `children-retarget-required` closeout;
+- the **dispatch mechanism being unavailable** for either gate agent — the carve-out below,
+  established only per the convention's *Dispatch-capability resolution*, never from a tool name,
+  and never substituted inline;
+- a **deferred capability requested by config** — any mutating operation returns `unsupported-config`
+  before any effect, naming the blockers.
+
+A `contended` from any operation is **not** in this set: it is a lost race the next `context finalize`
+read resolves, a continue-able outcome the driver re-selects past, never `halted`.
+
+**Where the reason surfaces.** The subagent returns its diagnosis in-context; finalize relays it to
+the human (interactive) or the dispatching caller (autonomous), and `docket finalize block` records
+it durably — first as the owned **comment on the PR** (idempotent by the attempt marker, so a
+human returning later reads exactly why the auto-merge stopped), then as the `## Finalize blocked`
+marker on the change record. The comment is the narrative, the marker is the state; the operation
+writes them in that order so a crash between them replays by finding the comment by its marker.
 
 ## The `## Finalize blocked` marker — write shape and lifecycle
 
-A gate failure is recorded as a `## Finalize blocked` body section on the change file — a **metadata write** on `metadata_branch` like any other field write, appended in the metadata working tree and pushed immediately. **Stage by explicit path** — that tree is shared, so a bare `add -A` commits another agent's staged work under your message. The heading itself is **bare**, never dated (`has_section` is a whole-line match, so `## Finalize blocked — 2026-07-18` would not be detected); the date lives inside the section body instead, exactly as the live `## Auto-groom blocked` instances already do. It is deliberately not a new status and not a reuse of `blocked`: the change really *is* `implemented` with an open PR, and a status of its own would flatten the distinct abort reasons into one label while forcing changes to the lifecycle diagram, the board renderer, the GitHub mirror's status mapping, and the health checks. **The objection is to encoding a *transient, multi-cause abort* as a status** — not to lifecycle statuses in general. `stacked-merged` (change 0298) earns one on exactly the terms this case fails: it is a durable position in the lifecycle with **one** cause (the PR merged into the stack parent) and **one** exit (the stack root lands), so every derived view has a single thing to say about it, where a finalize-blocked status would have to say six. Shape mirrors the proven `## Auto-groom blocked`: a dated entry naming **which** reason fired and what the human must do. A **re-mark REPLACES the existing section, never appends a second heading** — the marker is state, not a log, and a retry that fails again must leave exactly one section (record successive attempts as dated bullets *inside* it).
+A gate or merge failure is recorded as a `## Finalize blocked` body section on the change record —
+a metadata write through `docket finalize block`'s exact-version transaction, never a hand-edit. It
+is deliberately **not** a new lifecycle status and **not** a reuse of `blocked`: the change really
+*is* `implemented` with an open PR, and a transient multi-cause abort encoded as a status would
+force every derived view to say six different things about one label. `stacked-merged` earns a
+status on exactly the terms this case fails — a durable position with one cause and one exit.
 
-- **A `CONFLICTING` PR is NOT marked at selection time** — the gate's `docket-rebase-resolver` usually resolves it, so marking it up front would strand a fixable PR as human-blocked. Marking happens only where every other abort-and-report reason does: at the gate.
-- **A successful finalize removes the section.** Unlike auto-groom's human-only re-arm, the condition is machine-verifiable (the gate passed), so requiring a human to delete it would strand stale markers on changes that are fine. That removal is a **live-path obligation** — an `implemented` change that stays `implemented` must not carry a stale needs-you cell — **not** a guarantee about archived files: nothing strips the section at close-out, so on an out-of-band human merge it rides into `archive/` verbatim, and nothing needs to. **Every automated reader is scoped to a change short of `done`** (the board cell, the auto-detect skip, the `stale-finalize-blocked` check, and the mirror's readiness label — the one reader that also scans `archive/`, whose `readiness_label` has no `done` arm), so archiving retires the marker's meaning whether or not the section survives; what the archived section keeps is its **human** reader, the record of why the change stalled. That is the presence-encoded-state rule **discharged, not waived** — removal is its usual *means*; the *end* is that no reader is left misinformed. Do **not** add strip-on-archive to satisfy it literally: it destroys that record and puts body surgery into the shared terminal primitive for zero observable gain.
+- The single section names **which** reason fired (the `--reason` token) and what the human must do;
+  a re-mark **replaces** the interior or appends a dated attempt bullet — never a second heading. The
+  operation validates marker order and balance before rewriting and rerenders the inline board in the
+  same transaction.
+- **Auto-detect selection skips** any unmerged change already carrying the section — without this a
+  re-run re-selects the same known-bad change forever. A **named id or allowlist member overrides**
+  the skip (naming the id is the human's "I looked at it, retry" signal); an **already-merged PR is
+  a merged-recovery candidate regardless** of the marker.
+- A **`CONFLICTING` PR is not marked at selection time** — the resolver usually resolves it, so
+  marking up front would strand a fixable PR. Marking happens only at an abort-and-report point.
+- **A successful finalize removes the section** via `docket finalize clear-block`, which reprobes the
+  exact current head, valid gate evidence, the published remote ref, and the matching open PR before
+  removal — each missing conjunct refuses. The condition is machine-verifiable, so requiring a human
+  to delete it would strand stale markers on changes that are fine. Nothing strips the section at
+  closeout: on an out-of-band merge it rides into the archive verbatim, where its only remaining
+  reader is the human record of why the change once stalled — every automated reader is scoped to a
+  change short of `done`, so archiving retires the marker's meaning whether or not the section
+  survives.

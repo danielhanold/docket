@@ -19,6 +19,16 @@ re-run the full reconcile pass if `reconciled` is still `false` (crash, interrup
 whenever `origin/<integration_branch>` has advanced since the last pass (idempotent,
 non-interactive).
 
+**A change carrying a `## Run halted` marker** — `run verify` reads it back as the closed
+`run-halted` verdict — resumes only through `docket change resume-halted --id <id>
+--version <entity-version> --acknowledge-quiescent`, never a fresh claim or a hand-deleted section.
+The operation requires the exact marked record and the explicit acknowledgement that the prior
+worker is quiescent, reprobes the branch/workspace/live gate, refreshes the claim, and removes
+exactly the marker section while preserving every other byte and checkpoint. It refuses (writing
+nothing) without the acknowledgement, on version drift (`contended`), or on a live gate lock — it
+never resets or adopts a workspace whose writer may still be live. Once resumed, the change re-enters
+this resume path with its marker gone.
+
 **The plan seam (change 0324).** An attributed caller-side re-dispatch — one naming the id and
 `verify-run`'s unmet conjuncts — enters this resume path before ordinary ready-queue and
 proposed-only allowlist filtering; a normal invocation that merely names an already-`in-progress`

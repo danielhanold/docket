@@ -26,6 +26,24 @@ Invoke the `docket-convention` skill via the Skill tool first — unless already
 - **The user only wants to *see* the backlog** (no explicit refresh requested, nothing merged recently that you know of) ⇒ run the board-only pass: `--board-only`.
 - **Everything else** — an explicit refresh/cleanup request, `docket-implement-next`'s step-0 safety net, or a post-merge cleanup after a PR merged via the GitHub button ⇒ run the full pass (no flag): board + merge sweep + health checks + judgment lines + learnings self-heal + integration sync.
 
+## Maintenance sweep — the merged-PR recovery mutation (only when asked)
+
+The **read is separate from the mutation.** The human `docket status` read stays read-only: it
+reports the backlog and never merges, archives, reclaims, or cleans up. When the caller explicitly
+asks to refresh or clean up — a post-merge cleanup, an out-of-band merge to recover, `docket-implement-next`'s
+step-0 safety net — run `docket maintenance sweep` **before** the read, then read the refreshed state.
+
+`docket maintenance sweep` pins an initial inventory, walks it in deterministic order, and reloads
+fresh authority before **every** mutation. It closes out each `implemented` change whose PR merged
+(stacked children before ancestors, then the root carrying its descendants), retries pending
+backlink-repair and cleanup suffixes, and attempts an eligible reclaim only when `reclaim.auto` is
+true. It emits one structured entry per item with a closed disposition — `applied` | `noop` |
+`contended` | `blocked` | `unknown` | `failed` | `skipped`, each with its stable reason — never a
+collapsed boolean. It never merges an open PR, never overrides approval, never retargets an
+unauthorized child, and never edits authored results; a destructive suffix never runs after an
+`unknown` prerequisite, and one item's failure never stops the independent items. Surface the
+per-item report; act only on the `blocked`/`failed`/`unknown` entries a human must see.
+
 ## Run the orchestrator
 
 ```
