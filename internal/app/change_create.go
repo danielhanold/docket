@@ -248,7 +248,9 @@ func changeCreateResultFromOutcome(res transaction.Result, execErr error) Change
 		out.Revision = string(res.AppliedCommit)
 		out.Replayed = replayed
 	}
-	return newChangeCreateResult(result, out)
+	r := newChangeCreateResult(result, out)
+	r.Failure = failureStatus(res, execErr)
+	return r
 }
 
 // validateChangeCreateShape runs the configuration-independent request checks:

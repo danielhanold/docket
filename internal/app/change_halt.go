@@ -60,6 +60,9 @@ const (
 	HaltDispContended = "contended"
 	// HaltDispRefused: a retained precondition refusal.
 	HaltDispRefused = "refused"
+	// HaltDispFailed: a transaction failure; the cause is in the envelope's
+	// failure field.
+	HaltDispFailed = "failed"
 )
 
 // The stable machine reasons the halt operations report. Message text is
@@ -366,18 +369,22 @@ func haltResultFromOutcome(op string, res transaction.Result, execErr error, app
 	if rec, ok := decodeHaltReceipt(res.Receipt); ok {
 		out.ID = rec.ID
 	}
-	switch result {
-	case ResultApplied:
+	switch {
+	case res.Disposition == transaction.DispositionFailed:
+		out.Disposition = HaltDispFailed
+	case result == ResultApplied:
 		out.Disposition = appliedDisp
 		out.Revision = string(res.AppliedCommit)
-	case ResultNoOp:
+	case result == ResultNoOp:
 		out.Disposition = appliedDisp
-	case ResultContended:
+	case result == ResultContended:
 		out.Disposition = HaltDispContended
 	default:
 		out.Disposition = HaltDispRefused
 	}
-	return newHaltResult(op, result, out)
+	r := newHaltResult(op, result, out)
+	r.Failure = failureStatus(res, execErr)
+	return r
 }
 
 // decodeHaltReceipt decodes a persisted halt/resume receipt.

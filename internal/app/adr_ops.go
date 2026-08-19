@@ -212,7 +212,9 @@ func ADRRecordOp(ctx context.Context, deps PlanningDeps, repoDir string, req ADR
 		out.Revision = string(res.AppliedCommit)
 		out.Replayed = replayed
 	}
-	return newADRResult(OperationADRRecord, result, out)
+	r := newADRResult(OperationADRRecord, result, out)
+	r.Failure = failureStatus(res, execErr)
+	return r
 }
 
 // adrFinding builds one error-severity request-shape finding.
@@ -724,7 +726,9 @@ func adrReplace(ctx context.Context, deps PlanningDeps, repoDir, opKey string, r
 		out.Revision = string(res.AppliedCommit)
 		out.Replayed = replayed
 	}
-	return newADRResult(opKey, result, out)
+	r := newADRResult(opKey, result, out)
+	r.Failure = failureStatus(res, execErr)
+	return r
 }
 
 // adrReplaceRefusalKind chooses the result a supersede/reverse refusal maps to:

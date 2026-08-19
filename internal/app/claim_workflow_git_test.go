@@ -397,9 +397,11 @@ func rawRefreshClaimOutcome(t *testing.T, node realNode, req ChangeClaimRequest)
 // the one the claim already committed. The refresh plan nonetheless DECLARES both
 // the record and the board, so the engine's two-way actual-delta guard rejects
 // the board as "a declared path is not an actual change": a *Failure at stage
-// verify-delta, kind invalid-state, which the DispositionFailed path maps to
-// result: invalid-state, disposition: invalid-state, findings: [] — the reported
-// symptom, with the typed cause dropped.
+// verify-delta, kind invalid-state. The DispositionFailed path once mapped that
+// to result: invalid-state, disposition: invalid-state, findings: [] — the
+// reported symptom, with the typed cause dropped. Post-fix it maps to result:
+// invalid-state, disposition: failed, and the typed cause rides the envelope's
+// failure field; this test now pins that payoff.
 //
 // The refresh runs a day after the claim (advancedClock) so the record genuinely
 // changes; that isolates the board as the sole declared-but-unchanged path and
@@ -443,16 +445,29 @@ func TestRefreshClaimFailsWhenBoardReRenderIsUnchanged(t *testing.T) {
 			// record while the board would re-render identically.
 			refreshNode := planningDepsForClock(t, cloneOrigin(t, repo.origin), advanced)
 
-			// App-level symptom: the exact reported shape.
+			// App-level payoff (post-fix): the verify-delta result still surfaces as
+			// invalid-state, but the disposition is now the honest `failed` (not the
+			// tautological restatement of the result), and the typed cause rides the
+			// envelope's failure field instead of being dropped. Findings stay empty —
+			// findings are the refusal channel, not the failure channel.
 			res := ChangeRefreshClaim(ctx, refreshNode.deps, refreshNode.dir, ChangeClaimRequest{ID: id, Version: claimedVersion})
 			if res.Result != ResultInvalidState {
-				t.Fatalf("refresh result = %q, want %q (the reported invalid-state)", res.Result, ResultInvalidState)
+				t.Fatalf("refresh result = %q, want %q (the verify-delta invalid-state)", res.Result, ResultInvalidState)
 			}
-			if res.Disposition != string(ResultInvalidState) {
-				t.Errorf("refresh disposition = %q, want the tautological %q the bug produces", res.Disposition, string(ResultInvalidState))
+			if res.Disposition != ClaimDispositionFailed {
+				t.Errorf("refresh disposition = %q, want %q — a failure is not a tautology", res.Disposition, ClaimDispositionFailed)
+			}
+			if res.Failure == nil {
+				t.Fatal("refresh failure diagnosis missing — the typed cause was dropped again")
+			}
+			if res.Failure.Stage != string(transaction.StageVerifyDelta) {
+				t.Errorf("refresh failure.stage = %q, want %q", res.Failure.Stage, transaction.StageVerifyDelta)
+			}
+			if res.Failure.Detail == "" {
+				t.Error("refresh failure.detail is empty — the cause names nothing")
 			}
 			if len(res.Findings) != 0 {
-				t.Errorf("refresh findings = %v, want empty — the failure carried no diagnostic", res.Findings)
+				t.Errorf("refresh findings = %v, want empty — findings are the refusal channel, not the failure channel", res.Findings)
 			}
 
 			// The failed refresh committed nothing.

@@ -208,7 +208,9 @@ func changeGroomResultFromOutcome(res transaction.Result, execErr error) ChangeG
 		}
 		out.Revision = string(res.AppliedCommit)
 	}
-	return newChangeGroomResult(result, out)
+	r := newChangeGroomResult(result, out)
+	r.Failure = failureStatus(res, execErr)
+	return r
 }
 
 // validateChangeGroomShape runs the configuration-independent request checks:

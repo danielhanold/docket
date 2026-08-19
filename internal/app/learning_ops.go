@@ -215,7 +215,9 @@ func LearningRecordOp(ctx context.Context, deps PlanningDeps, repoDir string, re
 		out.Revision = string(res.AppliedCommit)
 		out.Replayed = replayed
 	}
-	return newLearningResult(OperationLearningRecord, result, out)
+	r := newLearningResult(OperationLearningRecord, result, out)
+	r.Failure = failureStatus(res, execErr)
+	return r
 }
 
 // LearningUpdate validates the request, pins authoritative context, refuses if
@@ -273,7 +275,9 @@ func LearningUpdate(ctx context.Context, deps PlanningDeps, repoDir string, req 
 		}
 		out.Revision = string(res.AppliedCommit)
 	}
-	return newLearningResult(OperationLearningUpdate, result, out)
+	r := newLearningResult(OperationLearningUpdate, result, out)
+	r.Failure = failureStatus(res, execErr)
+	return r
 }
 
 // learningPreflightRefusal folds a preflight *planningError into a result

@@ -99,6 +99,9 @@ const (
 	// CloseoutDispUnknown: an external effect could not be established (a probe or
 	// reachability error). Retained; never permits a terminal write.
 	CloseoutDispUnknown = "unknown"
+	// CloseoutDispFailed: a transaction failure; the cause is in the envelope's
+	// failure field.
+	CloseoutDispFailed = "failed"
 )
 
 // The stable machine reasons `finalize closeout` reports. Message text is
@@ -615,18 +618,22 @@ func closeoutStacked(ctx context.Context, deps FinalizeDeps, cc *closeoutContext
 	})
 	result, _ := mapOutcome(res, execErr, ResultInvalidState)
 	out := CloseoutResult{ID: id, Findings: findingsToStatus(res.Findings)}
-	switch result {
-	case ResultApplied:
+	switch {
+	case res.Disposition == transaction.DispositionFailed:
+		out.Disposition = CloseoutDispFailed
+	case result == ResultApplied:
 		out.Disposition = CloseoutDispStackedMerged
 		out.Revision = string(res.AppliedCommit)
-	case ResultNoOp:
+	case result == ResultNoOp:
 		out.Disposition = CloseoutDispAlready
-	case ResultContended:
+	case result == ResultContended:
 		out.Disposition = CloseoutDispContended
 	default:
 		out.Disposition = CloseoutDispBlocked
 	}
-	return newCloseoutResult(result, out)
+	r := newCloseoutResult(result, out)
+	r.Failure = failureStatus(res, execErr)
+	return r
 }
 
 // runCloseoutArchiveTransaction drives the metadata transaction that marks every
@@ -668,14 +675,18 @@ func runCloseoutArchiveTransaction(ctx context.Context, deps FinalizeDeps, cc *c
 		out.ArchivePath = targets[0].archivePath
 		out.Revision = string(res.AppliedCommit)
 	} else {
-		switch result {
-		case ResultContended:
+		switch {
+		case res.Disposition == transaction.DispositionFailed:
+			out.Disposition = CloseoutDispFailed
+		case result == ResultContended:
 			out.Disposition = CloseoutDispContended
 		default:
 			out.Disposition = CloseoutDispBlocked
 		}
 	}
-	return newCloseoutResult(result, out)
+	r := newCloseoutResult(result, out)
+	r.Failure = failureStatus(res, execErr)
+	return r
 }
 
 // runCloseoutBacklinkLeg retargets the merged plan/results backlinks on the
