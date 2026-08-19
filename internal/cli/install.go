@@ -40,6 +40,8 @@ var assetIndependent = map[string]bool{
 	"change reconcile":           true,
 	"change attach-plan":         true,
 	"change attach-results":      true,
+	"change halt":                true,
+	"change resume-halted":       true,
 	"change mark-implemented":    true,
 	"context":                    true, // the group itself; it reports a missing command
 	"context implementation":     true,
@@ -75,6 +77,8 @@ var assetIndependent = map[string]bool{
 	"finalize rebase-continue":   true,
 	"finalize rebase-abort":      true,
 	"finalize publish":           true,
+	"finalize block":             true,
+	"finalize clear-block":       true,
 	"finalize merge":             true,
 	"diagnostic":                 true, // the group itself; it reports a missing command
 	"diagnostic runtime":         true,

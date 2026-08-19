@@ -39,8 +39,117 @@ func newFinalizeCommand(setResult func(app.OperationResult)) *cobra.Command {
 	finalizeCmd.AddCommand(newFinalizeRebaseContinueSubcommand(setResult))
 	finalizeCmd.AddCommand(newFinalizeRebaseAbortSubcommand(setResult))
 	finalizeCmd.AddCommand(newFinalizePublishSubcommand(setResult))
+	finalizeCmd.AddCommand(newFinalizeBlockSubcommand(setResult))
+	finalizeCmd.AddCommand(newFinalizeClearBlockSubcommand(setResult))
 	finalizeCmd.AddCommand(newFinalizeMergeSubcommand(setResult))
 	return finalizeCmd
+}
+
+// finalizeBlockInput is the bounded request-file payload for `finalize block`:
+// the authored report that crosses to the PR comment and the authored concrete
+// remedy recorded in the marker. The scalar identities (id, version, pr number,
+// attempt, reason, head) ride on flags — only the authored Markdown travels
+// through the request file (Global Constraints). DisallowUnknownFields (via
+// decodeInputFlag) rejects any other key.
+type finalizeBlockInput struct {
+	Report string `json:"report"`
+	Remedy string `json:"remedy"`
+}
+
+// newFinalizeBlockSubcommand builds `finalize block`: it ensures the owned PR
+// comment first, then upserts the single durable "## Finalize blocked" marker in
+// one exact-version transaction. The scalar identity rides on flags; the authored
+// report and remedy ride in --input (never argv).
+func newFinalizeBlockSubcommand(setResult func(app.OperationResult)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "block",
+		Short: "Record a blocked finalize attempt: an owned PR comment then a durable marker",
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, _ := c.Flags().GetString("repo-dir")
+			id, _ := c.Flags().GetInt("id")
+			version, _ := c.Flags().GetString("version")
+			prNumber, _ := c.Flags().GetInt("pr-number")
+			attempt, _ := c.Flags().GetString("attempt")
+			reason, _ := c.Flags().GetString("reason")
+			head, _ := c.Flags().GetString("head")
+			var in finalizeBlockInput
+			if err := decodeInputFlag(c, &in); err != nil {
+				return err
+			}
+			deps, err := newFinalizeDeps()
+			if err != nil {
+				return err
+			}
+			setResult(app.FinalizeBlock(c.Context(), deps, repoDir, app.BlockRequest{
+				ID:       id,
+				Version:  version,
+				PRNumber: prNumber,
+				Attempt:  attempt,
+				Reason:   reason,
+				Head:     head,
+				Report:   in.Report,
+				Remedy:   in.Remedy,
+			}))
+			return nil
+		},
+	}
+	cmd.Flags().Int("id", 0, "change id whose finalize attempt is blocked (required)")
+	cmd.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
+	cmd.Flags().Int("pr-number", 0, "pull-request number the owned comment is ensured on (required)")
+	cmd.Flags().String("attempt", "", "opaque owned attempt token keying the comment marker and marker idempotency (required)")
+	cmd.Flags().String("reason", "", "stable machine reason token for the block (required)")
+	cmd.Flags().String("head", "", "verified feature head recorded as a fact (required)")
+	cmd.Flags().String("input", "", "JSON request file with the authored report and remedy, or - for stdin (required)")
+	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	_ = cmd.MarkFlagRequired("id")
+	_ = cmd.MarkFlagRequired("version")
+	_ = cmd.MarkFlagRequired("pr-number")
+	_ = cmd.MarkFlagRequired("attempt")
+	_ = cmd.MarkFlagRequired("reason")
+	_ = cmd.MarkFlagRequired("head")
+	_ = cmd.MarkFlagRequired("input")
+	return cmd
+}
+
+// newFinalizeClearBlockSubcommand builds `finalize clear-block`: it reprobes an
+// exact current head, a published remote ref, a matching open PR, and green body
+// evidence (gate on) before transactionally removing the marker. The scalar
+// identity rides on flags; there is no authored request body.
+func newFinalizeClearBlockSubcommand(setResult func(app.OperationResult)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "clear-block",
+		Short: "Remove a finalize-blocked marker after reprobing head, remote ref, PR, and evidence",
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, _ := c.Flags().GetString("repo-dir")
+			id, _ := c.Flags().GetInt("id")
+			version, _ := c.Flags().GetString("version")
+			head, _ := c.Flags().GetString("head")
+			prNumber, _ := c.Flags().GetInt("pr-number")
+			deps, err := newFinalizeDeps()
+			if err != nil {
+				return err
+			}
+			setResult(app.FinalizeClearBlock(c.Context(), deps, repoDir, app.ClearBlockRequest{
+				ID:       id,
+				Version:  version,
+				Head:     head,
+				PRNumber: prNumber,
+			}))
+			return nil
+		},
+	}
+	cmd.Flags().Int("id", 0, "change id whose finalize-blocked marker to clear (required)")
+	cmd.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
+	cmd.Flags().String("head", "", "exact current feature head the reprobe must confirm (required)")
+	cmd.Flags().Int("pr-number", 0, "canonical pull-request number whose open state is reprobed (required)")
+	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	_ = cmd.MarkFlagRequired("id")
+	_ = cmd.MarkFlagRequired("version")
+	_ = cmd.MarkFlagRequired("head")
+	_ = cmd.MarkFlagRequired("pr-number")
+	return cmd
 }
 
 // newFinalizeMergeSubcommand builds `finalize merge`: it merges one exact pull

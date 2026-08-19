@@ -268,3 +268,27 @@ func TestRunVerifyOperationalError(t *testing.T) {
 		t.Errorf("operational error exit code = 0, want non-zero (result %q)", res.Env().Result)
 	}
 }
+
+// TestRunVerifyHaltedVerdict proves `run verify` reports the closed run-halted
+// verdict for a change carrying the durable "## Run halted" marker,
+// short-circuiting the postcondition reprobe (no git or GitHub is consulted).
+func TestRunVerifyHaltedVerdict(t *testing.T) {
+	src := strings.TrimRight(lifecycleChange(3, "widget", "in-progress"), "\n") +
+		"\n\n## Run halted\n\n### 2026-08-14\n\nPaused.\n"
+	corpus := []StatusBlob{{
+		Kind:     repository.KindChange,
+		Location: repository.LocationActive,
+		Path:     groomPath(3, "widget"),
+		Version:  "v3",
+		Data:     []byte(src),
+	}}
+	fake := &fakeReader{pin: docketPin(t), corpus: corpus}
+	got := RunVerify(context.Background(), PlanningDeps{Reader: fake, Clock: testClock()},
+		WorkspaceDeps{}, GitHubDeps{}, "", RunVerifyRequest{ID: 3})
+	if got.Verdict != VerdictRunHalted {
+		t.Fatalf("verdict=%q reason=%q, want %q", got.Verdict, got.Reason, VerdictRunHalted)
+	}
+	if got.Result != ResultApplied {
+		t.Errorf("result=%q, want a success-shaped verdict envelope", got.Result)
+	}
+}

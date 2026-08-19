@@ -362,3 +362,82 @@ func TestChangeAttachCommandsReachOperation(t *testing.T) {
 		}
 	}
 }
+
+// --- change halt / resume-halted -------------------------------------------
+
+// TestChangeHaltRegistered proves `change halt` is wired with the scalar identity
+// flags plus the --input request-file flag (the authored report rides in the
+// file, never shell-escaped flags), and is asset-independent.
+func TestChangeHaltRegistered(t *testing.T) {
+	root := captureTree(t)
+	cmd, _, err := root.Find([]string{"change", "halt"})
+	if err != nil || cmd == nil || cmd.Name() != "halt" {
+		t.Fatalf("change halt not registered: cmd=%v err=%v", cmd, err)
+	}
+	for _, flag := range []string{"id", "version", "input", "repo-dir"} {
+		if cmd.Flags().Lookup(flag) == nil {
+			t.Errorf("change halt: missing --%s flag", flag)
+		}
+	}
+	if !assetIndependent["change halt"] {
+		t.Errorf("%q is not registered asset-independent", "change halt")
+	}
+}
+
+// TestChangeHaltReachesOperation proves halt decodes its --input body and reaches
+// the operation, which returns exactly one protocol-v1 document naming it. An
+// empty report fails the up-front shape check, reaching the operation without a
+// live repository.
+func TestChangeHaltReachesOperation(t *testing.T) {
+	out, errS, _ := runCLIStdin(t, `{}`, "change", "halt",
+		"--id", "3", "--version", "1234123412341234123412341234123412341234", "--input", "-", "--repo-dir", t.TempDir(), "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q", errS)
+	}
+	if !strings.Contains(out, `"operation":"change.halt"`) {
+		t.Fatalf("document did not name the operation: %q", out)
+	}
+	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
+	}
+}
+
+// TestChangeResumeHaltedRegistered proves `change resume-halted` is wired with the
+// scalar identity flags and the --acknowledge-quiescent gate flag, and is
+// asset-independent.
+func TestChangeResumeHaltedRegistered(t *testing.T) {
+	root := captureTree(t)
+	cmd, _, err := root.Find([]string{"change", "resume-halted"})
+	if err != nil || cmd == nil || cmd.Name() != "resume-halted" {
+		t.Fatalf("change resume-halted not registered: cmd=%v err=%v", cmd, err)
+	}
+	for _, flag := range []string{"id", "version", "acknowledge-quiescent", "repo-dir"} {
+		if cmd.Flags().Lookup(flag) == nil {
+			t.Errorf("change resume-halted: missing --%s flag", flag)
+		}
+	}
+	if !assetIndependent["change resume-halted"] {
+		t.Errorf("%q is not registered asset-independent", "change resume-halted")
+	}
+}
+
+// TestChangeResumeHaltedReachesOperation proves resume-halted decodes its flags
+// and reaches the operation. Without --acknowledge-quiescent the operation
+// refuses before any effect, naming itself in one protocol-v1 document — so no
+// live repository is consulted.
+func TestChangeResumeHaltedReachesOperation(t *testing.T) {
+	out, errS, _ := runCLI(t, "change", "resume-halted",
+		"--id", "3", "--version", "1234123412341234123412341234123412341234", "--repo-dir", t.TempDir(), "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q", errS)
+	}
+	if !strings.Contains(out, `"operation":"change.resume-halted"`) {
+		t.Fatalf("document did not name the operation: %q", out)
+	}
+	if !strings.Contains(out, `"reason":"quiescence-not-acknowledged"`) {
+		t.Fatalf("resume without acknowledgement should refuse: %q", out)
+	}
+	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
+	}
+}

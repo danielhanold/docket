@@ -329,3 +329,94 @@ func TestFinalizeMergeReachesOperation(t *testing.T) {
 		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
 	}
 }
+
+// --- finalize block / clear-block ------------------------------------------
+
+// TestFinalizeBlockRegistered proves `finalize block` is wired with the scalar
+// identity flags plus the --input request-file flag (the authored report and
+// remedy ride in the file, never shell-escaped flags).
+func TestFinalizeBlockRegistered(t *testing.T) {
+	root := captureTree(t)
+	cmd, _, err := root.Find([]string{"finalize", "block"})
+	if err != nil || cmd == nil || cmd.Name() != "block" {
+		t.Fatalf("finalize block not registered: cmd=%v err=%v", cmd, err)
+	}
+	for _, flag := range []string{"id", "version", "pr-number", "attempt", "reason", "head", "input", "repo-dir"} {
+		if cmd.Flags().Lookup(flag) == nil {
+			t.Errorf("finalize block: missing --%s flag", flag)
+		}
+	}
+	if !assetIndependent["finalize block"] {
+		t.Errorf("%q is not registered asset-independent", "finalize block")
+	}
+}
+
+// TestFinalizeBlockReachesOperation proves the command decodes its flags and
+// --input body and reaches the operation, which returns exactly one protocol-v1
+// document naming it. An empty report fails the up-front shape check, so this
+// reaches the operation without a live repository.
+func TestFinalizeBlockReachesOperation(t *testing.T) {
+	out, errS, _ := runCLIStdin(t, `{"remedy":"fix it"}`,
+		"finalize", "block", "--id", "3", "--version", "1234123412341234123412341234123412341234",
+		"--pr-number", "7", "--attempt", "att1", "--reason", "gate-repair-required",
+		"--head", "aaaa", "--input", "-", "--repo-dir", t.TempDir(), "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q", errS)
+	}
+	if !strings.Contains(out, `"operation":"finalize.block"`) {
+		t.Fatalf("document did not name the operation: %q", out)
+	}
+	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
+	}
+}
+
+// TestFinalizeBlockFlagsRequired proves the scalar identity and --input flags are
+// required: omitting them is an argument error (exit 2) before any operation runs.
+func TestFinalizeBlockFlagsRequired(t *testing.T) {
+	_, errS, code := runCLI(t, "finalize", "block")
+	if code != 2 || errS == "" {
+		t.Fatalf("err=%q code=%d, want a required-flag argument error", errS, code)
+	}
+	for _, flag := range []string{"id", "version", "pr-number", "attempt", "reason", "head", "input"} {
+		if !strings.Contains(errS, flag) {
+			t.Errorf("required-flag error does not name %q: %q", flag, errS)
+		}
+	}
+}
+
+// TestFinalizeClearBlockRegistered proves `finalize clear-block` is wired with the
+// scalar reprobe flags and no authored request body.
+func TestFinalizeClearBlockRegistered(t *testing.T) {
+	root := captureTree(t)
+	cmd, _, err := root.Find([]string{"finalize", "clear-block"})
+	if err != nil || cmd == nil || cmd.Name() != "clear-block" {
+		t.Fatalf("finalize clear-block not registered: cmd=%v err=%v", cmd, err)
+	}
+	for _, flag := range []string{"id", "version", "head", "pr-number", "repo-dir"} {
+		if cmd.Flags().Lookup(flag) == nil {
+			t.Errorf("finalize clear-block: missing --%s flag", flag)
+		}
+	}
+	if !assetIndependent["finalize clear-block"] {
+		t.Errorf("%q is not registered asset-independent", "finalize clear-block")
+	}
+}
+
+// TestFinalizeClearBlockReachesOperation proves the command decodes its flags and
+// reaches the operation, which names itself in one protocol-v1 document (a bare
+// tempdir is no docket repo, so it fails past its shape check — after naming itself).
+func TestFinalizeClearBlockReachesOperation(t *testing.T) {
+	out, errS, _ := runCLI(t, "finalize", "clear-block",
+		"--id", "3", "--version", "1234123412341234123412341234123412341234",
+		"--head", "aaaa", "--pr-number", "7", "--repo-dir", t.TempDir(), "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q", errS)
+	}
+	if !strings.Contains(out, `"operation":"finalize.clear-block"`) {
+		t.Fatalf("document did not name the operation: %q", out)
+	}
+	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
+	}
+}
