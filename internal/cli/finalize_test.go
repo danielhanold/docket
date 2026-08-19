@@ -204,3 +204,66 @@ func TestFinalizeRebaseContinueReachesOperation(t *testing.T) {
 		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
 	}
 }
+
+// TestFinalizePublishRegistered proves the subcommand is wired under the finalize
+// group carrying the scalar --id/--attempt/--head identity flags and the
+// --evidence request-file flag (the canonical evidence bytes ride in the file,
+// never a shell-escaped flag), plus --repo-dir.
+func TestFinalizePublishRegistered(t *testing.T) {
+	root := captureTree(t)
+	cmd, _, err := root.Find([]string{"finalize", "publish"})
+	if err != nil || cmd == nil || cmd.Name() != "publish" {
+		t.Fatalf("finalize publish not registered: cmd=%v err=%v", cmd, err)
+	}
+	for _, flag := range []string{"id", "attempt", "head", "evidence", "repo-dir"} {
+		if cmd.Flags().Lookup(flag) == nil {
+			t.Errorf("finalize publish: missing --%s flag", flag)
+		}
+	}
+}
+
+// TestFinalizePublishAssetIndependent guards the install.go registration: the
+// command reads the repository, never installed assets.
+func TestFinalizePublishAssetIndependent(t *testing.T) {
+	if !assetIndependent["finalize publish"] {
+		t.Errorf("%q is not registered asset-independent", "finalize publish")
+	}
+}
+
+// TestFinalizePublishFlagsRequired proves --id, --attempt, --head, and --evidence
+// are required: omitting them is an argument error (exit 2) before any operation.
+func TestFinalizePublishFlagsRequired(t *testing.T) {
+	_, errS, code := runCLI(t, "finalize", "publish")
+	if code != 2 || errS == "" {
+		t.Fatalf("err=%q code=%d, want a required-flag argument error", errS, code)
+	}
+	for _, flag := range []string{"id", "attempt", "head", "evidence"} {
+		if !strings.Contains(errS, flag) {
+			t.Errorf("required-flag error does not name %q: %q", flag, errS)
+		}
+	}
+}
+
+// TestFinalizePublishReachesOperation proves the command decodes its flags and the
+// --evidence bytes and reaches the operation, which emits exactly one protocol-v1
+// document naming it. A bare tempdir is no docket repo, so the operation fails past
+// its shape check — but only after naming itself.
+func TestFinalizePublishReachesOperation(t *testing.T) {
+	out, errS, _ := runCLIStdin(t, "canonical evidence bytes",
+		"finalize", "publish",
+		"--id", "80", "--attempt", "a1",
+		"--head", "abcabcabcabcabcabcabcabcabcabcabcabcabca",
+		"--evidence", "-", "--repo-dir", t.TempDir(), "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q", errS)
+	}
+	if !strings.Contains(out, `"operation":"finalize.publish"`) {
+		t.Fatalf("document did not name the operation: %q", out)
+	}
+	if !strings.Contains(out, `"protocol_version":1`) {
+		t.Fatalf("missing protocol version: %q", out)
+	}
+	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
+	}
+}
