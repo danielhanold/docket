@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0316 — Finalize, recovery, reclaim, archive, and stacks](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0316-finalize-recovery-reclaim-archive-and-stacks.md)**
+> ↩ **[Change 0316 — Finalize, recovery, reclaim, archive, and stacks](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-19-0316-finalize-recovery-reclaim-archive-and-stacks.md)**
 <!-- docket:backlink:end -->
 
 # Finalize, recovery, reclaim, archive, and stacks
