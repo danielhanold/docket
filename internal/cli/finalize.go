@@ -43,7 +43,37 @@ func newFinalizeCommand(setResult func(app.OperationResult)) *cobra.Command {
 	finalizeCmd.AddCommand(newFinalizeClearBlockSubcommand(setResult))
 	finalizeCmd.AddCommand(newFinalizeMergeSubcommand(setResult))
 	finalizeCmd.AddCommand(newFinalizeCloseoutSubcommand(setResult))
+	finalizeCmd.AddCommand(newFinalizeCleanupSubcommand(setResult))
 	return finalizeCmd
+}
+
+// newFinalizeCleanupSubcommand builds `finalize cleanup`: the ownership-safe
+// destructive suffix over one terminal change. It reloads the archived/stacked
+// state and the verified merge destination, repairs the terminal backlinks,
+// removes the feature checkout, and deletes the local and remote feature refs
+// under exact proof — retaining any resource whose proof it cannot answer. Only
+// the change id and the target directory ride on flags; there is no authored
+// request body.
+func newFinalizeCleanupSubcommand(setResult func(app.OperationResult)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "cleanup",
+		Short: "Clean a terminal change's workspace and feature refs under exact ownership proof",
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, _ := c.Flags().GetString("repo-dir")
+			id, _ := c.Flags().GetInt("id")
+			deps, err := newFinalizeDeps()
+			if err != nil {
+				return err
+			}
+			setResult(app.FinalizeCleanup(c.Context(), deps, repoDir, id))
+			return nil
+		},
+	}
+	cmd.Flags().Int("id", 0, "terminal change id to clean up (required)")
+	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	_ = cmd.MarkFlagRequired("id")
+	return cmd
 }
 
 // newFinalizeCloseoutSubcommand builds `finalize closeout`: it reloads the
@@ -444,10 +474,11 @@ func newFinalizeDeps() (app.FinalizeDeps, error) {
 		return app.FinalizeDeps{}, err
 	}
 	return app.FinalizeDeps{
-		Planning:  planning,
-		GitHub:    ghClient,
-		Workspace: ws,
-		PRProber:  app.NewGitHubFinalizeProber(ghClient),
-		Gate:      app.NewFinalizeGate(planning, app.WorkspaceDeps{Service: ws}),
+		Planning:   planning,
+		GitHub:     ghClient,
+		Workspace:  ws,
+		PRProber:   app.NewGitHubFinalizeProber(ghClient),
+		Gate:       app.NewFinalizeGate(planning, app.WorkspaceDeps{Service: ws}),
+		CleanupGit: planning.Client,
 	}, nil
 }

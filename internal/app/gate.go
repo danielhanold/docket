@@ -246,6 +246,42 @@ func GateRecover(root string) GateRecoverResult {
 	}
 }
 
+// observeGateRun is the ownership/terminal probe `gate cleanup` (Task 14) reads
+// a run's disposability from. It is the read-only process.Observe decision
+// surfaced as the raw Observation plus a mapped protocol result: a validation
+// error (an unownable or malformed run slot) is returned as (nil, result,
+// reason) so the caller RETAINS the directory rather than treating an unprovable
+// ownership as clean. internal/cli must not import internal/process, so this
+// bridge lives in the app layer beside the other gate operations.
+func observeGateRun(runDir string) (*process.Observation, Result, string) {
+	svc, res, reason := gateService()
+	if svc == nil {
+		return nil, res, reason
+	}
+	obs, err := svc.Observe(runDir)
+	if err != nil {
+		res, reason := mapGateFailure(err)
+		return nil, res, reason
+	}
+	return obs, ResultApplied, ""
+}
+
+// gateRunRemovable reports whether an observed gate run is safely disposable: a
+// passed run carries durable exact-head green evidence (its own green terminal
+// record), and a stopped run carries a persisted halt/finalize stop report.
+// Failed, signalled, vanished, and running runs are retained so their
+// diagnostics survive. It lives here because it reads process.State spellings.
+func gateRunRemovable(obs *process.Observation) bool {
+	switch obs.State {
+	case process.StatePassed:
+		return obs.Terminal != nil
+	case process.StateStopped:
+		return true
+	default:
+		return false
+	}
+}
+
 // HumanText renders GateResult as stable labeled lines in a fixed order,
 // emitting only the fields that are set.
 func (r GateResult) HumanText() string {

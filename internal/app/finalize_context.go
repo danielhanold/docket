@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/danielhanold/docket/internal/domain"
+	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/workspace"
@@ -76,6 +77,31 @@ type FinalizeWorkspace interface {
 	ClearRebaseReceipt(ctx context.Context, dir string) error
 	PublishRewrite(ctx context.Context, req workspace.RewriteRequest) (workspace.RewriteOutcome, error)
 	PublishHead(ctx context.Context, req workspace.PublishRequest) (workspace.PublishResult, error)
+	// Cleanup is the landed, manifest-fact-driven, non-forcing removal of one
+	// owned, ready, clean feature checkout. `finalize cleanup` (Task 14) drives it
+	// as the workspace-removal leg of its ordered destructive suffix. The real
+	// service satisfies it; unit tests inject a fake that faults the manifest/lock
+	// probe to prove the leg is retained on an unprovable inspection.
+	Cleanup(ctx context.Context, req workspace.CleanupRequest) (workspace.CleanupResult, error)
+}
+
+// FinalizeCleanupGit is the narrow Git seam `finalize cleanup` (Task 14) drives
+// its ownership-proven branch deletion through: read-only tip/registration/
+// ancestry/remote probes and the two checked ref-deletion primitives (Task 3).
+// *gitcli.Client satisfies it; unit tests inject a fake that faults exactly one
+// probe to prove the destructive leg fails closed (the resource is RETAINED,
+// never destroyed, on any unknown — learning probe-error-is-not-clean-absence).
+// It is a distinct seam from the concrete Planning.Client so a cleanup test can
+// inject a probe error without a live-git condition; production wires it to the
+// same client.
+type FinalizeCleanupGit interface {
+	ResolveRef(ctx context.Context, repo gitcli.Repository, ref gitcli.RefName) (gitcli.ObjectID, error)
+	ProbeRemoteBranch(ctx context.Context, repo gitcli.Repository, remote gitcli.RemoteName, ref gitcli.RefName) (gitcli.RemoteRef, error)
+	ListWorktrees(ctx context.Context, repo gitcli.Repository) ([]gitcli.WorktreeInfo, error)
+	IsAncestor(ctx context.Context, repo gitcli.Repository, ancestor, descendant gitcli.ObjectID) (bool, error)
+	FetchBranch(ctx context.Context, repo gitcli.Repository, remote gitcli.RemoteName, branch gitcli.RefName) (gitcli.Revision, error)
+	DeleteLocalBranchChecked(ctx context.Context, repo gitcli.Repository, branch gitcli.RefName, expectedTip gitcli.ObjectID) error
+	DeleteRemoteRefLease(ctx context.Context, repo gitcli.Repository, remote gitcli.RemoteName, ref gitcli.RefName, expectedTip gitcli.ObjectID) (gitcli.PushOutcome, error)
 }
 
 // FinalizePRProber reads one change's live pull-request facts as the domain
@@ -107,6 +133,11 @@ type FinalizeDeps struct {
 	// never touch it, so it is nil in their wiring; the mutating rebase operation
 	// requires it.
 	Gate FinalizeGate
+	// CleanupGit is the narrow branch-deletion Git seam `finalize cleanup` (Task
+	// 14) drives its ownership-proven ref deletion through. It is nil in every
+	// other operation's wiring; the cleanup operation falls back to
+	// Planning.Client when it is nil, so production may leave it unset.
+	CleanupGit FinalizeCleanupGit
 }
 
 // FinalizeContextRequest is the closed request. ID==0 applies the deterministic
@@ -643,7 +674,8 @@ func NewGitHubFinalizeProber(gh FinalizeGitHub) FinalizePRProber {
 // Compile-time seam assertions: the production clients satisfy the finalize
 // seams, so FinalizeDeps can carry the real wiring.
 var (
-	_ FinalizeGitHub    = (*githubcli.Client)(nil)
-	_ FinalizeWorkspace = (*workspace.Service)(nil)
-	_ FinalizePRProber  = (*githubFinalizeProber)(nil)
+	_ FinalizeGitHub     = (*githubcli.Client)(nil)
+	_ FinalizeWorkspace  = (*workspace.Service)(nil)
+	_ FinalizePRProber   = (*githubFinalizeProber)(nil)
+	_ FinalizeCleanupGit = (*gitcli.Client)(nil)
 )
