@@ -42,7 +42,36 @@ func newFinalizeCommand(setResult func(app.OperationResult)) *cobra.Command {
 	finalizeCmd.AddCommand(newFinalizeBlockSubcommand(setResult))
 	finalizeCmd.AddCommand(newFinalizeClearBlockSubcommand(setResult))
 	finalizeCmd.AddCommand(newFinalizeMergeSubcommand(setResult))
+	finalizeCmd.AddCommand(newFinalizeCloseoutSubcommand(setResult))
 	return finalizeCmd
+}
+
+// newFinalizeCloseoutSubcommand builds `finalize closeout`: it reloads the
+// metadata, reprobes the recorded PR and its merge destination, and applies the
+// one verified terminal shape (done-archived, stacked-merged, or root carry). It
+// takes NO done boolean and NO archive date — the UTC archive date is derived
+// from the verified GitHub mergedAt — so only the change id and the target
+// directory ride on flags.
+func newFinalizeCloseoutSubcommand(setResult func(app.OperationResult)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "closeout",
+		Short: "Close out a merged change: mark done and archive, mark stacked-merged, or carry a stack root",
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, _ := c.Flags().GetString("repo-dir")
+			id, _ := c.Flags().GetInt("id")
+			deps, err := newFinalizeDeps()
+			if err != nil {
+				return err
+			}
+			setResult(app.FinalizeCloseout(c.Context(), deps, repoDir, id))
+			return nil
+		},
+	}
+	cmd.Flags().Int("id", 0, "change id to close out (required)")
+	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	_ = cmd.MarkFlagRequired("id")
+	return cmd
 }
 
 // finalizeBlockInput is the bounded request-file payload for `finalize block`:
