@@ -7,7 +7,7 @@ priority: 'medium'
 type: 'feat'
 created: '2026-08-19'
 updated: '2026-08-19'
-depends_on: []
+depends_on: [316]
 stacked_on:
 related: [316]
 discovered_from: [316]
