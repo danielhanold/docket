@@ -13,7 +13,7 @@ related: [315]
 discovered_from: [316]
 adrs: []
 spec: docs/superpowers/specs/2026-08-19-failed-transaction-diagnostics-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-19-failed-transaction-diagnostics.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-19T18:58:34Z'
 | Artifact | Link |
 |---|---|
 | Spec | `docs/superpowers/specs/2026-08-19-failed-transaction-diagnostics-design.md` |
+| Plan | `docs/superpowers/plans/2026-08-19-failed-transaction-diagnostics.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
