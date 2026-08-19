@@ -85,3 +85,50 @@ Verified the spec's premises against the current tree before planning:
 - Related changes 251 and 273 remain `proposed` and orthogonal (budget-check regime and shell-row re-seed); discovered_from 329 remains halted at its gate. None alters this change's scope.
 
 No scope adjustment required; proceeding to plan and build as specified.
+
+## Run halted
+
+Halted 2026-08-19 by an autonomous docket-implement-next run at the Step-5 build gate.
+
+**What the run completed.** Reconcile is done (`reconciled: true`, above). The plan is written and
+attached (`plan:` set; commit on the feature branch). Task 1 of the plan — the actual fix — is built
+and committed on branch `feat/route-race-shards-to-serial-lane` (commit `d602ef1e`): the four
+instrumented `-race` shard rows in `tests/runtime-budgets.tsv` are flipped `parallel` -> `serial`,
+`tests/test_runtime_budgets.sh`'s relief counter `EXPECTED_SERIAL` moved `0 -> 4` with the forcing
+shared state named at the counter, `EXPECTED_TOTAL` unmoved at 2140, the tsv header note added.
+`bash tests/test_runtime_budgets.sh` passes and the runner schedules the four files into the serial
+lane (verified against `tests/test_go_race_process.sh` + `tests/test_runtime_budgets.sh`).
+
+**Why halted (needs a human).** Plan Task 2 — the serial-lane re-measurement that must record
+trustworthy readings and confirm the rows hold — could not complete on this host, and the same
+contamination defeats the Step-5 full-suite build gate, so no trustworthy green build-evidence can be
+minted here:
+
+- The measurement worker took three interleaved standalone-serial readings per shard
+  (`scripts/run-tests.sh -j 1 --timings`). `test_go_race.sh` read 218/220/222s against its 60s row
+  (its always-measured standalone cost is 53–60s); `test_go_race_workspace.sh` read 41/42/41s
+  against its 45s row (history 37/37). `test_go_race_process.sh` (17s→row 25) and
+  `test_go_race_transaction.sh` (39s→row 45) held.
+- This is **host contention, not a genuine re-shape**: Task 1 changed only the tsv lane column — the
+  shards' test code is byte-identical to when the header last measured them — and a shard's cost
+  cannot re-shape without a code change. `ANECompilerService`, XprotectService, and Spotlight
+  `mds`/`mds_stores` were saturating the machine during the run (the gitcli-dominated main shard
+  re-execs dozens of freshly-built instrumented git binaries, each of which Xprotect/Gatekeeper
+  scans), and the three rounds were stably slow (218/220/222), ruling out cold-cache warmup.
+- The repo's standing rule forbids the alternatives: recording these numbers as the shards' serial
+  cost, marking the rows "holds" off a 222s worst, or raising the workspace row to 50, would be
+  "papering over a slow host" (Global Constraints; learnings `budget-headroom-is-spent-before-it-is-breached`,
+  `tolerance-constant-calibrated-on-one-machine`). Plan Step 2 explicitly routes a main-shard reading
+  over its 60s ceiling to "STOP and report the readings as a blocker" — a shard split is out of scope.
+- This is not an escalation: a stronger model faces the identical macOS host with the same
+  Xprotect/Spotlight/ANE daemons, which cannot be quiesced from inside the run. At the time of the
+  halt the load average was still ~2.1 with Spotlight/WindowServer active.
+
+**What a human must decide.** Re-measure the four shards on a genuinely idle machine to obtain
+trustworthy standalone-serial readings, then finish plan Tasks 2–3 (write the results artifact, run
+the full-suite gate that IS the experiment, record the overlap residual) and open the PR — or, if the
+existing rows are accepted on the strength of the design argument (a lane change moves no code, and
+the rows were originally sized from exactly this standalone-serial reading), decide that explicitly.
+The lane-flip fix itself (commit `d602ef1e`) is sound and its guard is green; only the re-measurement
+validation and the trustworthy full-suite green gate are blocked. The interleaved timing TSVs and the
+measurement log are on this machine for inspection (see the run report).
