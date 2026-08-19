@@ -346,13 +346,30 @@ assert "0237 prose: the convention's entry names it presence-encoded" \
 step3="$(awk "/^### Step 3 — Reconcile/,/^### Step 4/" "$IMPL" | tr '\n' ' ' | tr -s ' ')"
 assert "0237 prose: Step 3's halted disposition WRITES the section" \
   'grep -qiE "(write|writing|append)[^.]{0,250}## Run halted" <<<"$step3"'
-# WRITE SHAPE — the reader is a whole-line match, so a producer told to write a "dated" section
-# emits a heading the reader never sees. The instruction must name the heading as bare/undated,
-# exactly as the twin `## Finalize blocked` marker's doc already does.
-assert "0237 prose: the producer names the '## Run halted' heading as bare/undated" \
-  'flat "$IMPL" | grep >/dev/null -iE "## Run halted.{0,120}(bare|undated|never dated)"'
-assert "0237 prose: the halted write is described as a COMMITTED git act" \
-  'grep -qiE "## Run halted[^.]{0,250}commit" <<<"$step3"'
+# WRITE SHAPE — RETIRED (0316 plan Task 20 follow-up, category (a)). Under the Bash procedure the
+# agent hand-authored the `## Run halted` heading, so the producer prose had to name it bare/undated:
+# `has_section` is a whole-line match, and a dated H2 the agent typed would be invisible to the
+# reader (the `## Run halted — <date>` fixtures above pin that behavior and STAY guarded by them —
+# this retires only the PROSE instruction, never that behavior). The Go verb now OWNS the heading:
+# `internal/app/change_halt.go` sets `runHaltedSectionHeading = domain.RunHaltedSection` (the bare
+# `## Run halted` H2), writes the section through `render.ApplySectionEdits`, and `haltReportBody`
+# puts the date in a `### <date> — halted` SUB-heading inside the body — so an agent calling
+# `docket change halt` cannot emit a dated H2 and the producer prose need not name the heading shape.
+# Authority #2: change_halt.go's `runHaltedSectionHeading` / `domain.RunHaltedSection` own the
+# heading. Guard re-pointed at the surviving substance: the producer delegates the write to that Go
+# verb rather than hand-authoring the heading.
+assert "0237 prose: the producer delegates the '## Run halted' write to the Go verb that owns the heading" \
+  'grep -qiE "docket change halt[^.]{0,250}## Run halted|## Run halted[^.]{0,250}docket change halt" <<<"$step3"'
+# GIT-WRITE SHAPE — RE-KEYED (0316 plan Task 20 follow-up, category (c)). The halted write is still a
+# committed git act, only the vocabulary moved: the producer says "**write that halt into git before
+# stopping**" and `docket change halt` "records ... into a `## Run halted` section ... in one
+# exact-version transaction" (change_halt.go commits it, subject "change NNNN run halted"). The
+# literal token "commit" left the window — key on the git-write shape (into-git / exact-version
+# transaction), not the word. The property is unchanged: a `halted` disposition is a COMMITTED git
+# fact `verify-run` reads, never an untrusted sentence in a report. The old `commit` spelling stays
+# as a third alternative so a future reword back to it still passes.
+assert "0237 prose: the halted write is described as a committed git act (into-git / a git transaction)" \
+  'grep -qiE "into git[^.]{0,200}## Run halted|## Run halted[^.]{0,250}(exact-version transaction|transaction|commit)" <<<"$step3"'
 
 # REMOVAL — owned by Step 2's claim (presence-encoded-state: every transition out removes it).
 step2="$(awk "/^### Step 2 — Claim/,/^### Step 3/" "$IMPL" | tr '\n' ' ' | tr -s ' ')"
