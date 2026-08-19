@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:580dc704ed3cce2130ecee998cda0e6f375fdbbb618e74d966b6c9b07d883d48",
+  "asset_set_id": "sha256:15328b90a06a090880231041a2ac71d8cd6b2b7e0c9def74c11685d01155adef",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -84,8 +84,8 @@
       "path": "agents/docket-integration-repair.md",
       "role": "agent-source",
       "mode": 420,
-      "size": 2268,
-      "sha256": "78e52739eae4ae57dbdfbc674290acdb325eab5dd5aba9f6fbe276d7cb374e96"
+      "size": 2422,
+      "sha256": "a276b9cff8d451a8ea4fc79617b859d9c6ad8388469e1670d383e4d5e745bee4"
     },
     {
       "path": "agents/docket-plan-writer.md",
@@ -98,8 +98,8 @@
       "path": "agents/docket-rebase-resolver.md",
       "role": "agent-source",
       "mode": 420,
-      "size": 2704,
-      "sha256": "24578e01e8bee447de120e61b6f44c7ae2caee012f2e071ba228972787fe87d1"
+      "size": 2858,
+      "sha256": "e24b5eab0d402183b410b428affee71fac36c84493ff55f40fcddc3d6d8a390e"
     },
     {
       "path": "agents/docket-review-deep.md",
@@ -399,8 +399,8 @@
       "path": "skills/docket-finalize-change/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 21653,
-      "sha256": "8360f2bf4e6b13dbf77f7cbe5f07ce268355d8c687f83468e764484fc81a30d8"
+      "size": 22899,
+      "sha256": "76f1314ff63ab3988131b20100d65d578b686eb4748298b7b7057bf9deebcff2"
     },
     {
       "path": "skills/docket-finalize-change/references/gate-failure.md",

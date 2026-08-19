@@ -1500,17 +1500,32 @@ skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/stacked-changes.md     215 2050
 skills/docket-convention/references/terminal-close-out.md  200 1750
 skills/docket-finalize-change/SKILL.md                     190 4150
-skills/docket-finalize-change/references/gate-failure.md    40 1250
+skills/docket-finalize-change/references/gate-failure.md   115 1300
 skills/docket-groom-next/SKILL.md                           77 1550
-skills/docket-implement-next/SKILL.md                      180 6000
-skills/docket-implement-next/references/edge-paths.md       50  700
+skills/docket-implement-next/SKILL.md                      180 6150
+skills/docket-implement-next/references/edge-paths.md       58  800
 skills/docket-implement-next/references/fix-loop.md        185 1900
 skills/docket-implement-next/results-template.md            25  250
 skills/docket-review/SKILL.md                              110  900
 skills/docket-new-change/SKILL.md                           61 1450
 skills/docket-new-change/change-template.md                 51  250
-skills/docket-status/SKILL.md                              118 2650
+skills/docket-status/SKILL.md                              126 2850
 "
+
+# Change 0316 (the Go migration of finalize/recovery/reclaim/archive/stacks) raised four budgets.
+# Each raise pays for documentation of a Go capability that did not exist before, not for prose
+# bloat; the growth was inspected before the number moved:
+#   gate-failure.md            40 ->  115 lines / 1250 -> 1300 words. The file took ownership of the
+#                              resolver/repair split and the abort mechanics, which the finalize
+#                              SKILL now cites as a blocking read instead of restating inline. The
+#                              line budget moved far more than the word budget because the content
+#                              was reformatted from dense paragraphs into enumerated steps.
+#   implement-next/SKILL.md   6000 -> 6150 words. Go-verb sequencing replaced facade invocations.
+#   edge-paths.md               50 ->   58 lines /  700 ->  800 words. Documents the new
+#                              `docket change resume-halted` path for a `## Run halted` marker.
+#   docket-status/SKILL.md     118 ->  126 lines / 2650 -> 2850 words. Documents `docket maintenance
+#                              sweep` and the read/mutation split that keeps `docket status`
+#                              read-only.
 
 # Every tracked file is within budget.
 budgeted=""

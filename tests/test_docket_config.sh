@@ -443,10 +443,21 @@ assert "implement-next build uses SKILL_BUILD"   'grep -qF "SKILL_BUILD" "$IMPL"
 assert "implement-next review uses SKILL_REVIEW" 'grep -qF "SKILL_REVIEW" "$IMPL"'
 # implement-next no longer delegates a finish role skill: change 0315 replaced Step 7's
 # SKILL_FINISH invocation with the direct `docket workspace publish` + `docket pr publish`
-# operations (Claude still authors the PR title/body). The finish role survives only in
-# finalize's close-out, asserted next.
-assert "finalize finish uses SKILL_FINISH" \
-  'grep -qF "SKILL_FINISH" "$REPO/skills/docket-finalize-change/SKILL.md"'
+# operations (Claude still authors the PR title/body).
+#
+# Change 0316 retired the last holdout. The finish role does NOT survive in finalize's close-out
+# any more, because the whole role is a DEFERRED capability under the Go runtime: `skills.finish`
+# carries `dispDeferredActive` in internal/config/schema.go -- "any explicit value blocks" -- so a
+# repo that sets it cannot mutate at all, and 0316's *Out of scope* names skill rebinding among the
+# capabilities it defers. A skill that still invoked SKILL_FINISH would be instructing an agent to
+# drive a path the binary refuses. So the assertion is inverted: finalize must NOT name it.
+#
+# The inverted form is guarded against vacuity -- an absent or empty SKILL.md would satisfy a bare
+# `! grep` while proving nothing -- so the file's existence and non-emptiness are asserted first.
+assert "finalize SKILL.md exists and is non-empty (non-vacuity anchor for the next assert)" \
+  '[ -s "$REPO/skills/docket-finalize-change/SKILL.md" ]'
+assert "finalize no longer invokes the deferred finish role (SKILL_FINISH)" \
+  '! grep -qF "SKILL_FINISH" "$REPO/skills/docket-finalize-change/SKILL.md"'
 
 # --- (G) skills: absent -> the five built-in defaults (three superpowers, two docket-owned) ---
 mkrepo "$tmp/g"

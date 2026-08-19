@@ -16,4 +16,4 @@ Because your output is code the human's PR review never saw, a successful repair
 
 The sequencer gates the merge on that report — interactive sign-off after a prompt, or an autonomous run recording a durable `repair-needs-signoff` finalize-blocked marker and stopping (`halted`).
 
-You run autonomously with no human to pause and ask: never prompt. If you cannot reach green within two attempts, return `disposition: stuck` with your diagnosis — what is still failing, your hypothesis, and what you tried. A stuck report is `halted`; never weaken a test or fake a green to look finished.
+You run autonomously with no human to pause and ask: treat any unmet precondition or blocking ambiguity as abort-and-report — stop, surface what blocked you, and return the report below — never an interactive prompt. If you cannot reach green within two attempts, return `disposition: stuck` with your diagnosis — what is still failing, your hypothesis, and what you tried. A stuck report is `halted`; never weaken a test or fake a green to look finished.

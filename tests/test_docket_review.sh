@@ -702,99 +702,38 @@ assert "controller: the review role keeps its Tier C dispatch paragraph" \
   'grep -qF -- "resolved review skill" "$IMPL"'
 
 # --- the build-evidence chain: finalize (consumer #2) --------------------------------------
+#
+# RETIRED BY CHANGE 0316 (Go migration). The prose assertions that used to live here required the
+# finalize SKILL to restate the whole conditional-skip predicate: the three skip conditions, the
+# fails-toward-running posture, the audit log, and change 0190's second limb (strict-ancestor
+# head_sha + a results_dir allowlist derived with --name-only -z --no-renames over tracked paths).
+#
+# Two independent reasons none of that belongs in the skill any more:
+#
+#   1. The DECISION moved into Go. internal/app/finalize_rebase.go owns `gateDecision`, the pure
+#      local-gate skip policy; the gate is composed into `docket finalize rebase`/`rebase-continue`,
+#      which report the compose state ("skipped"/"ran") and the Permit naming the evidence head a
+#      skip rests on. A skill restating a predicate the binary evaluates is duplication that drifts.
+#   2. The SECOND LIMB is deferred, not merely relocated. Change 0316's *Out of scope* defers
+#      "results-only skips", and the skill says so positively rather than staying silent:
+#      "There is no strict-ancestor or results-only skip."
+#
+# What survives is the property worth guarding: finalize must still consume the build-evidence
+# chain, and must still state the deferral positively so a reader cannot mistake silence for an
+# undocumented skip. Both asserts below are anchored for non-vacuity.
 FIN="$REPO/skills/docket-finalize-change/SKILL.md"
+assert "finalize SKILL.md exists and is non-empty (non-vacuity anchor)" '[ -s "$FIN" ]'
 assert "finalize: reads the PR body's build-evidence block" \
   'grep -qF -- "build-evidence" "$FIN"'
-# All three skip conditions must be stated; any one missing turns "fails toward running" into
-# "fails toward merging an untested branch".
-assert "finalize: skip requires a no-op rebase" \
-  'grep -qiE "no-op rebase|rebase was a no-op" "$FIN"'
-assert "finalize: skip requires result green" 'grep -qF -- "result: green" "$FIN"'
-assert "finalize: skip requires the head_sha to match the branch HEAD" \
-  'grep -qF -- "head_sha" "$FIN"'
-# The posture is the safety property, not a nicety.
-assert "finalize: any doubt runs the suite (fails toward running)" \
-  'grep -qiE "fails? toward running|any doubt .{0,40}runs" "$FIN"'
-assert "finalize: a skip is logged so the decision is auditable" \
-  'grep -qiE "log.{0,60}skip|skip .{0,40}logged" "$FIN"'
-assert "finalize: only the local gate path is affected" \
-  'grep -qE "\`ci\`.{0,60}untouched|untouched.{0,60}\`ci\`" "$FIN"'
-# The skip must NOT live inside the executable fragment, which the suite runs verbatim.
-frag="$(awk "/configured-bash-finalize:start/{f=1;next} /configured-bash-finalize:end/{f=0} f" "$FIN")"
-# Non-vacuity anchor, deliberately paired with the purity assert below: an awk range over a renamed
-# or deleted marker yields an EMPTY haystack, and a negated grep over nothing is permanently green.
-# Anchoring on the fragment's own control variable proves the extraction found the real fragment.
-assert "finalize: the executable fragment was located (non-vacuity anchor)" \
-  '[ -n "$frag" ] && grep -qF -- "FINALIZE_TEST_COMMAND" <<<"$frag"'
-assert "finalize: the executable bash fragment is untouched by the skip logic" \
-  '! grep -qiE "evidence|skip|head_sha" <<<"$frag"'
+assert "finalize: the gate is composed into the Go rebase verb (not restated as skill prose)" \
+  'grep -qiE "composed into .?.?docket .?finalize rebase|gate is composed into" "$FIN"'
+assert "finalize: the deferred results-only skip is stated positively, never left silent" \
+  'grep -qiE "no strict-ancestor or results-only skip" "$FIN"'
+# The exact-head permit is the one skip that DOES survive, and it must stay conditioned on a no-op
+# rebase — otherwise "skip" would mean "merge an untested branch".
+assert "finalize: the surviving skip still requires a no-op rebase and exact-head green evidence" \
+  'grep -qiE "no-op" "$FIN" && grep -qiE "exact" "$FIN" && grep -qiE "green build-evidence|build-evidence for the" "$FIN"'
 
-# --- change 0190: the docs-only ancestor limb of the skip predicate -------------------------
-# The sentinels above all survive 0190 as substrings, but none of them binds the NEW disjunct:
-# with every one of them green the allowlist limb could widen to "any path" — or vanish — unseen.
-# Keyed on syntactic SHAPE (an ancestor condition co-present with a paths-under-the-allowlisted-
-# prefix condition), not on one blessed spelling, and read from a newline-flattened haystack so a
-# reflow of this very long prose item cannot silently unbind it. The extraction runs to the next
-# top-level numbered item, and its non-vacuity is anchored first: an awk range over a renamed or
-# deleted item yields an EMPTY haystack, on which the shape grep would fail loudly rather than a
-# negated grep passing on nothing.
-skip_item="$(awk '/^4\. \*\*Conditional skip/{f=1} f && /^5\. /{f=0} f' "$FIN")"
-skip_flat="$(flatten <<<"$skip_item")"
-assert "finalize: the conditional-skip item was located (non-vacuity anchor)" \
-  '[ -n "$skip_flat" ] && grep -qF -- "build-evidence" <<<"$skip_flat"'
-assert "finalize: the skip's second limb needs a strict-ancestor head_sha AND an allowlisted-prefix path set" \
-  'grep -qiE "strict ancestor" <<<"$skip_flat" && grep -qiE "(every|all) paths? changed[^|]{0,120}(under|within)[^|]{0,60}allowlist" <<<"$skip_flat"'
-# The derivation's FLAGS are load-bearing, not incidental spelling. git's rename detection is on by
-# default and `--name-only` emits only a rename pair's DESTINATION, so without rename detection
-# disabled a post-gate `git mv tests/foo.sh <results_dir>/foo.sh` yields a delta that is 100%
-# docs-only by the prefix test — the skip fires and a branch whose suite composition changed after
-# the gate merges unvalidated. Bind the three tokens as CO-PRESENT in the skip item (the
-# rename-suppressing flag by shape, either spelling, since `-M0` is equivalent), so a later reflow
-# or a "simplify the command" edit cannot silently drop the guard. Same flattened haystack, whose
-# non-vacuity is anchored by the "conditional-skip item was located" assert above.
-assert "finalize: the delta derivation names --name-only, -z, and a rename-suppressing flag" \
-  'grep -qF -- "--name-only" <<<"$skip_flat" && grep -qE -e "-z" <<<"$skip_flat" && grep -qE -e "--no-renames|-M0" <<<"$skip_flat"'
-
-# THE REMAINING NORMATIVE CLAUSES OF THE SAME ITEM. The flags above are bound; these three are the
-# rest of what step 4 actually promises, and every one of them is a sentence a reflow or a
-# "tighten the prose" edit deletes without moving any assert already written. Each is keyed on
-# SHAPE — a claim co-present with its counter-claim — never on one blessed spelling, and read from
-# the same flattened haystack whose non-vacuity the "conditional-skip item was located" assert
-# above establishes.
-#
-# (1) TRACKED PATHS ONLY. The prefix test is a statement about the DIFF, not about the working
-# tree: a filesystem walk of the results directory would see untracked scratch files and ignore a
-# tracked deletion, so "all under <results_dir>/" would stop meaning what the skip needs it to
-# mean. The shape is a tracked-only claim co-present with a refusal to traverse the filesystem.
-assert "finalize: the delta is tested over tracked paths only, never by filesystem traversal" \
-  'grep -qiE "tracked[^|]{0,20}paths?[^|]{0,30}only" <<<"$skip_flat" && grep -qiE "never[^|]{0,40}(filesystem|traversal|traverse)" <<<"$skip_flat"'
-# (2) EMPTY DIFF OVER A NON-EMPTY RANGE IS DOUBT. `head_sha..HEAD` can be non-empty on the graph
-# while `git diff` reports nothing — an empty commit, a revert pair, a merge collapsed away. An
-# empty path list trivially satisfies "every path is under the allowlist", so without this clause
-# the widest possible uncertainty produces the strongest possible permit. The shape is the
-# graph/diff disagreement co-present with the run-the-suite disposition.
-assert "finalize: a range non-empty on the graph but empty in the diff is doubt and runs the suite" \
-  'grep -qiE "(non-?empty|not empty)[^|]{0,40}graph[^|]{0,80}empty[^|]{0,40}diff" <<<"$skip_flat" && grep -qiE "diff[^|]{0,60}(doubt|runs? the suite)" <<<"$skip_flat"'
-# (3) THE LOG NAMES WHICH PERMIT MATCHED. 0170 already required a skip to be logged (asserted over
-# the whole file above), and that assert survives 0190 unchanged while the log goes on saying only
-# "skipped" — which makes the two permits indistinguishable in the audit trail, exactly when a
-# second, weaker permit has just been added. The shape is a matched-permit log line naming both.
-assert "finalize: the skip log names which permit matched (exact-SHA vs the ancestor permit)" \
-  'grep -qiE "(match|name)[^|]{0,40}permit" <<<"$skip_flat" && grep -qiE "exact-?SHA[^|]{0,120}(ancestor|docs-only)" <<<"$skip_flat"'
-
-# ARMING (change 0190 whole-branch review, finding 2). The two shape asserts above bind the second
-# limb's PREDICATE; neither binds its GATE. With both of them green the limb can still be stated as
-# unconditionally ON — which is exactly how it first shipped, carrying a trailing "degrade off"
-# sentence that no code read and every downstream repo would have had to self-apply. Bind the
-# arming key INTO the skip item (same flattened haystack, same non-vacuity anchor above), in three
-# independent directions: the exported name is present, the default reading is stated, and the
-# self-applied framing it replaced is gone. Deleting any one of the three reddens on its own.
-assert "finalize: the skip item names the exported key its second limb is gated on" \
-  'grep -qF -- "FINALIZE_SKIP_RESULTS_ONLY_DELTA" <<<"$skip_flat"'
-assert "finalize: the skip item states the unset/false reading (0170's equality-only predicate)" \
-  'grep -qiE "(unset|false)[^|]{0,140}equality-only" <<<"$skip_flat"'
-assert "finalize: the limb is no longer a self-applied degrade-off judgement" \
-  '! grep -qiF -- "degrade off" <<<"$skip_flat"'
 # ...and the key the prose names must be a REAL resolved key, not a plausible-looking literal. The
 # resolver has to BOTH assign it from its own leaf name and fence it to the repo-committed layer;
 # an arming switch settable from a machine-scoped layer would re-open the finding it closes (a
