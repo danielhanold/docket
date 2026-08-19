@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'feat/route-race-shards-to-serial-lane'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-19T21:48:35Z'
+reconciled: true
+claimed_at: '2026-08-19T21:50:14Z'
 ---
 
 ## Artifacts
@@ -72,3 +72,15 @@ the re-measurement step, not by up-front decision.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-19
+
+### 2026-08-19 — reconciled against current reality
+
+Verified the spec's premises against the current tree before planning:
+
+- The four instrumented `-race` shard rows in `tests/runtime-budgets.tsv` (`test_go_race.sh`, `test_go_race_process.sh`, `test_go_race_transaction.sh`, `test_go_race_workspace.sh`) are all still lane `parallel` — the exact rows this change flips.
+- The serial lane in `scripts/run-tests.sh` is still wired and unused: `mode_of`, the `PAR`/`SER` split, and the `SER` loop's `launch; wait` sequence are present, and no current budget row is `serial` — so the flip needs no runner-code change, as the spec states.
+- Related changes 251 and 273 remain `proposed` and orthogonal (budget-check regime and shell-row re-seed); discovered_from 329 remains halted at its gate. None alters this change's scope.
+
+No scope adjustment required; proceeding to plan and build as specified.
