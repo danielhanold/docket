@@ -640,6 +640,139 @@ func MaintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string) Ma
 - [ ] **Step 4:** Fix any red; re-run the affected files, then the whole suite once more if anything changed.
 - [ ] **Step 5: Commit** any fixes: `git commit -m "test(0316): suite gate fixes"` (explicit paths only).
 
+### Task 20: Migrate the tests that describe the skills Task 18 rewrote
+
+**Why this task exists.** Task 18 rewrote `docket-finalize-change` from a Bash procedure into a
+Go-verb sequencer but carried no step for the tests that assert what that skill says. The Step-5
+gate came back red with `files=123 passed=95 failed=28`, and the run halted because — in its own
+words — "the plan/spec carried no test-migration mapping, and guessing that boundary would either
+weaken a test or ship a broken skill." That mapping is this task. Do not re-derive it from the
+diff: the diff cannot tell a deliberate deletion from a reworded one, and deriving it from the diff
+is what produced the wrong first answers (restore the learning harvest; the Go failures are stale
+goldens; `SKILL_FINISH` is a regression — all three are wrong).
+
+**The authority is not your judgement.** Every assertion you retire must cite one of exactly three
+sources. If an assertion matches none of them, it is a genuine loss: STOP and surface it rather
+than retiring it.
+
+1. **This change's own *Out of scope* section** names the deferred capabilities verbatim:
+   "deferred CI/combined gates, results-only skips, terminal publishing, automatic learning
+   harvest, capture/groom automation, cross-harness routing, skill rebinding, or Bash fallback
+   behavior." An assertion testing any of these is obsolete-by-deferral.
+2. **A Go symbol that now owns the behavior.** Each is verified to exist on this branch:
+
+   | Behavior the skill used to restate | Go owner |
+   |---|---|
+   | Selection eligibility, ordering, skip reasons | `internal/app/finalize_context.go` — `FinalizeCandidateReport.Band`/`.SkipReason`/`.OverrideNote`, `FinalizePolicy` |
+   | Explicit id overriding `require_pr_approval` | `internal/app/finalize_merge.go` — `ApprovalSatisfied: in.explicitID \|\| !in.requireApproval` |
+   | The conditional local-suite skip | `internal/app/finalize_rebase.go` — `gateDecision` |
+   | Board refresh after a transition | 12 sites under `internal/app/`, `finalize_closeout.go` among them — every mutating transaction re-renders `BOARD.md` in its own commit |
+   | Commit scoping / staging discipline | Go transactions; the skill no longer commits |
+   | `skills.finish` (`SKILL_FINISH`) | `internal/config/schema.go` — `dispDeferredActive`: any explicit value BLOCKS mutation |
+   | `dummy_mode.enabled` | `internal/config/schema.go` — `dispDeferred`: enabling it blocks mutation, so the skill never runs with it on |
+   | Bash suite routing (`runtime.bash`) | classified `obsolete-setting` — "docket no longer ships" it |
+
+3. **A positive statement in the rewritten skill.** Where a deferral could be mistaken for an
+   oversight, the skill says so outright — e.g. "There is no strict-ancestor or results-only skip."
+   Assert that sentence rather than deleting the guard.
+
+**Three categories, not two.** The halt report framed this as "content was stripped." Re-triage of
+all 142 failing assertions found three kinds, and the third is the trap:
+
+- **(a) Rightly deleted** — a Go verb absorbed it, or *Out of scope* defers it. Retire with a cite.
+- **(b) Wrongly deleted** — genuine collateral damage. Restore. Only three were found, all already
+  fixed in commit `8c74c1c8`: the `docket-build` *Gate execution posture* citation (narrowed to
+  point 4, the yield-vs-block rule, which `docket gate` cannot own because it is a property of the
+  CALLER's dispatch posture); the dummy-mode paragraph (deflated to state its deferred status); and
+  the "BOARD.md is never published" invariant.
+- **(c) Not deleted at all** — the behavior is preserved and the assertion is brittle. The canonical
+  example: `grep -Eqi "already-merged.{0,40}changes in one run does not violate"` fails because the
+  rewrite inserted a 51-character parenthetical, overrunning a `{0,40}` window. Nothing changed but
+  the spacing. **Rewrite these to key on shape, never on character distance** — AGENTS.md: "Key a
+  guard on syntactic shape, never an enumerated list of spellings." Do not "fix" category (c) by
+  editing the skill back; the skill is correct.
+
+**How to retire, precisely.** Deleting a guard is how a regression hides, so a retired assertion
+becomes an INVERTED guard that proves the boundary stayed retired, preceded by a non-vacuity anchor
+(an absent or empty file satisfies every bare `! grep` while proving nothing). The pattern, as
+landed in `tests/test_configured_bash_finalize.sh`:
+
+```sh
+assert "finalize SKILL.md exists and is non-empty" '[ -s "$FIN" ]'
+assert "finalize SKILL.md is the Go sequencer (non-vacuity anchor)" 'grep -qF "docket finalize" "$FIN"'
+assert "finalize publishes no configured-bash start marker" \
+  '! grep -qF -- "<!-- configured-bash-finalize:start -->" "$FIN"'
+```
+
+Each retired block carries a comment naming (i) what it used to guard, (ii) which of the three
+authorities retires it, and (iii) when the file may be deleted outright. Bash removal is change
+0318's, not this change's, so Bash-era files are inverted here and deleted there.
+
+**Mutation-test every guard you touch.** Strip the thing it guards and watch it redden; a guard
+that stays green is a defect. `tests/test_configured_bash_finalize.sh` was verified this way —
+re-adding the marker reddens three assertions.
+
+**Beware the vacuous loop.** The repo's shell is zsh in some contexts; `for t in $TESTS` does NOT
+word-split there, so a re-baseline loop silently runs once on a non-existent filename and reports
+zero failures. Run batch loops under `/opt/homebrew/bin/bash -c`, and sanity-check any "0 remaining"
+against a direct single-file run before believing it.
+
+**Inventory — 118 failing assertions across 20 files**, each with its category and the authority
+that settles it. Counts were measured on this branch at commit `52226dba`; re-measure before you
+start, because Task 18 fixes move them.
+
+| File | # | Cat | Authority |
+|---|---|---|---|
+| `test_finalize_disposition.sh` | 33 | a, c | `finalize_context.go` owns selection/ordering/skips; some are (c) — brittle `.{0,N}` windows over preserved text |
+| `test_finalize_gate.sh` | 27 | a | `finalize_context.go` (`Policy`, `Band`, `SkipReason`), `finalize_merge.go` (`ApprovalSatisfied`), `finalize publish` receipt lease; terminal-publish rows are *Out of scope* |
+| `test_dispatch_capability.sh` | 9 | **c** | Content is INTACT at `SKILL.md` "## Dispatch unavailability — the carve-out" — names both agents, cites the convention's *Dispatch-capability resolution*, forbids inferring from a tool name. Nine per-step mentions became one section; rewrite the locators, change nothing in the skill |
+| `test_closeout.sh` | 7 | a | *Out of scope*: terminal publishing; plus `docket.sh` facade calls |
+| `test_gate_execution_posture.sh` | 6 | c | Citation restored in `8c74c1c8`; the remainder are structural locators keyed to the old per-step layout |
+| `test_docket_metadata_branch.sh` | 5 | a | *Out of scope*: terminal publishing (`origin/docket` copy, main-mode skip, Accepted gate) |
+| `test_stack_closeout.sh` | 4 | a | `docket.sh stack-closeout` → `docket finalize closeout` (root carry) |
+| `test_learnings_ledger.sh` | 4 | a | *Out of scope*: automatic learning harvest. **Do NOT restore the harvest step** — `docket learning` is manual `record`/`update` only, by design |
+| `test_dummy_mode.sh` | 4 | a | `dummy_mode.enabled` is `dispDeferred` — enabling it blocks all mutation, so surface bindings cannot be exercised |
+| `test_docket_example_yml.sh` | 3 | a | Step-0 export / `FINALIZE_*` env channel → `context finalize`'s `Policy` block |
+| `test_shared_worktree_commit_scope.sh` | 3 | a | Go transactions own committing; the skill stages nothing |
+| `test_readme_finalize_docs.sh` | 3 | a | README prose describing the Bash flow |
+| `test_config_read_channel.sh` | 2 | a | Step-0 export channel |
+| `test_skill_handoff_precedence.sh` | 2 | a | `skills.finish` is `dispDeferredActive`; the "human is present" exception is an exception TO a capability the binary refuses, so zero occurrences is correct |
+| `test_board_refresh_on_transition.sh` | 1 | a | Board absorbed into every mutating transaction; the never-published invariant was restored in `8c74c1c8` |
+| `test_docket_stack.sh` | 1 | a | `docket.sh stack-children` → context bundle `Descendants`/`OpenChildPRs` |
+| `test_change_links_coverage.sh` | 1 | a | `docket.sh render-change-links` → `finalize closeout` backlink leg |
+| `test_skill_facade_wiring.sh` | 1 | a | Bash facade wiring |
+| `test_sync_agents_run_gate.sh` | 1 | — | Mechanical: regenerate the committed AGENTS.md block per the recipe in the test |
+| `test_results_artifact.sh` | 1 | **STOP** | Post-merge results appending is a GENUINE loss, NOT deferred — it is absent from *Out of scope*. Tracked as **change 0330**. Leave this assertion failing or skip it with a pointer to 0330; do NOT retire it as obsolete and do NOT invent a home for it here |
+
+**Worked examples already landed** (follow their shape): `tests/test_configured_bash_finalize.sh`
+(whole-file inversion), `tests/test_docket_review.sh` (block retirement, 15 assertions), and
+`tests/test_docket_config.sh` (single assertion inverted with a non-vacuity anchor).
+
+- [ ] **Step 1: Re-measure.** Run each file in the inventory under `/opt/homebrew/bin/bash` and
+      record the current failing count per file. Do not trust the table's numbers without this.
+- [ ] **Step 2: Category (c) first** — `test_dispatch_capability.sh` and
+      `test_gate_execution_posture.sh`. Rewrite locators to match the consolidated sections. **No
+      skill edits**: if you find yourself editing `SKILL.md` to satisfy one of these, you have
+      mis-categorised it.
+- [ ] **Step 3: Category (a), largest first** — `test_finalize_disposition.sh` then
+      `test_finalize_gate.sh`, then the remainder. Invert each retired block with a non-vacuity
+      anchor and a comment citing its authority. Where a section fails wholesale for one reason,
+      retire the section with one header rather than scattering a dozen comments.
+- [ ] **Step 4: `test_sync_agents_run_gate.sh`** — regenerate the AGENTS.md block per the recipe
+      the test itself carries; do not hand-edit the block.
+- [ ] **Step 5: Mutation pass.** For every guard touched, strip what it guards, confirm it reddens,
+      restore. Record the mutations in the results file.
+- [ ] **Step 6: Whole suite.** `scripts/run-tests.sh` backgrounded to a log; inspect the complete
+      log. Treat `OVER BUDGET:` lines as findings per Task 19 Step 3 — the branch already carries a
+      known breach on ~10 files under parallel contention (`test_go_toolchain` 363s vs a 55s
+      budget), which is a finding to act on, not a pass/fail cause.
+- [ ] **Step 7: Commit** with explicit paths: `git add tests/ && git commit -m "test(0316): migrate
+      the finalize-skill tests to the Go sequencer contract"`.
+
+**Halt rather than guess.** If an assertion matches none of the three authorities, it is category
+(b) — a real loss. Surface it; do not retire it, and do not restore a deferred capability to make a
+test green. Weakening a test to reach green is the one unrecoverable move here.
+
 ## Self-Review
 
 Checked against the spec section by section:
@@ -648,4 +781,7 @@ Checked against the spec section by section:
 - **Chosen architecture / command boundaries:** every listed operation has a task (context finalize 6; retarget 7; rebase/continue/abort 8; publish 9; block/clear-block 11; merge 10; closeout 12; cleanup 14; halt/resume/reclaim 11/13; sweep 15; gate cleanup 14). No `finalize advance`, no phase machine (Task 8 receipt is an effect receipt; Task 16 asserts no hidden state is consulted).
 - **Context/selection:** Task 1 ordering + Task 6. **Open-child gate:** Tasks 7 and 10. **Rebase/local gate:** Tasks 3, 5, 8. **Reports:** Task 8 envelope + Task 18 agents. **Publication:** Tasks 5, 9. **Halt/blocked:** Task 11. **Merge:** Task 10. **Terminal transaction/archive:** Task 12. **Stack closeout:** Tasks 2, 12. **Backlinks both modes:** Task 12. **Reclaim:** Task 13. **Sweep:** Task 15. **Cleanup/retention:** Task 14. **Recovery matrix:** Task 16 mirrors the spec table row-for-row. **Testing strategy:** pure (1,2, unit parts of 6–15), real-git (3,5,16), protocol-faithful fake (4), gate/repair/retention (8,14), e2e + mutation (17). **Skills:** Task 18. **Exclusions:** Global Constraints.
 - **Type consistency:** `PRFacts`/`FinalizeCandidate`/`MergeConjuncts` (Task 1) consumed in 6/10/15; `RebaseReceipt` (5) in 8/9; `ResolverReport` (8) in 18; `VerifiedMerge` (10) in 12; `FinalizeDeps` introduced in 6 and reused 7–17.
+- **Test migration (added post-hoc):** the original plan had NO task for migrating the tests that
+  describe the skills Task 18 rewrites. That omission is what turned the Step-5 gate red and
+  halted the run; Task 20 closes it and carries the mapping the halt report said was missing.
 - **Placeholders:** none — every step names its tests, commands, and closed tokens; implementation steps point at the concrete landed pattern to follow (a deliberate choice for workers in this codebase, matching the accepted 0315 plan style).
