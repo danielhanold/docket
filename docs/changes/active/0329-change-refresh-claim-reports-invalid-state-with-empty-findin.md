@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'feat/change-refresh-claim-reports-invalid-state-with-empty-findin'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-19T18:56:46Z'
+reconciled: true
+claimed_at: '2026-08-19T18:58:34Z'
 ---
 
 ## Artifacts
@@ -61,3 +61,9 @@ Add regression tests asserting that a failed transaction surfaces a non-empty, n
 ## Out of scope
 
 Changing the claim/refresh-claim lease semantics themselves, the reclaim TTL policy, or reconcile's internal claim-refresh (which is working and covered the gap). Not a redesign of the protocol-v1 envelope or the finding vocabulary. Not the unrelated Step-5 gate failures on change 0316's branch.
+
+## Reconcile log
+
+### 2026-08-19
+
+2026-08-19: Reconciled against current `main`. The spec's code sites are all present and unchanged: `mapOutcome`/`mapFailure` at internal/app/planning.go:250/274, `claimResultFromOutcome`/`claimDisposition` at internal/app/change_claim.go:354/374, and the `*ResultFromOutcome` builder family across change_claim/kill/groom/halt/reclaim/reconcile/lifecycle/implemented/attach/create + finalize_block. No `failure` envelope field or shared `failureStatus` helper exists yet, so the diagnostic-propagation gap the change targets is still live. Related change 315 (claim-to-implemented workflow) and the discovered-from change 316 (finalize-recovery) are both archived (done), so the workflow surface this fix touches has landed and is stable. Scope, design, and task shape hold as written — no adjustment needed. Build-time grep remains authoritative for the affected-builder set per the spec.
