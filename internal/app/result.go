@@ -34,13 +34,25 @@ var AllResults = []Result{
 	ResultInternalError,
 }
 
-// Envelope carries the three fields every protocol-v1 result begins with.
-// Operation-specific result structs embed it; reserved envelope names cannot
-// be shadowed by an operation's own fields.
+// FailureStatus is the additive protocol-v1 diagnosis of a failed
+// transaction: the engine stage that failed, the failure kind, and a bounded
+// human-readable detail. It is populated only when the outcome's disposition
+// was failed; on every other outcome the field is omitted entirely.
+type FailureStatus struct {
+	Stage  string `json:"stage,omitempty"`
+	Kind   string `json:"kind"`
+	Detail string `json:"detail"`
+}
+
+// Envelope carries the three fields every protocol-v1 result begins with, plus
+// an optional failure diagnosis that is present only when the transaction's
+// disposition was failed. Operation-specific result structs embed it; reserved
+// envelope names cannot be shadowed by an operation's own fields.
 type Envelope struct {
-	ProtocolVersion int    `json:"protocol_version"`
-	Operation       string `json:"operation"`
-	Result          Result `json:"result"`
+	ProtocolVersion int            `json:"protocol_version"`
+	Operation       string         `json:"operation"`
+	Result          Result         `json:"result"`
+	Failure         *FailureStatus `json:"failure,omitempty"`
 }
 
 // NewEnvelope builds the envelope for one operation outcome.

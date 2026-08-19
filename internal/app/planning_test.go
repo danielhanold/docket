@@ -319,3 +319,49 @@ func TestMapOutcome(t *testing.T) {
 		}
 	}
 }
+
+func TestFailureStatus(t *testing.T) {
+	failed := transaction.Result{Disposition: transaction.DispositionFailed}
+
+	cases := []struct {
+		name string
+		res  transaction.Result
+		err  error
+		want *FailureStatus
+	}{
+		{"non-failed-disposition-is-nil",
+			transaction.Result{Disposition: transaction.DispositionRefused},
+			&transaction.Failure{Kind: transaction.KindInvalidState}, nil},
+		{"typed-failure",
+			failed,
+			&transaction.Failure{Stage: transaction.StageVerifyDelta, Kind: transaction.KindInvalidState, Detail: "an undeclared path changed in the worktree"},
+			&FailureStatus{Stage: "verify-delta", Kind: "invalid-state", Detail: "an undeclared path changed in the worktree"}},
+		{"typed-failure-folds-wrapped-err",
+			failed,
+			&transaction.Failure{Stage: transaction.StageLoadAfter, Kind: transaction.KindInvalidState, Detail: "plan violates before/after tree rules", Err: errors.New("boom")},
+			&FailureStatus{Stage: "load-after", Kind: "invalid-state", Detail: "plan violates before/after tree rules: boom"}},
+		{"non-failure-error-is-internal-error",
+			failed, errors.New("bare"),
+			&FailureStatus{Kind: "internal-error", Detail: "bare"}},
+		{"nil-error-is-contract-violation",
+			failed, nil,
+			&FailureStatus{Kind: "internal-error", Detail: "failed disposition carried no error (engine contract violation)"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := failureStatus(tc.res, tc.err)
+			if tc.want == nil {
+				if got != nil {
+					t.Fatalf("failureStatus = %+v, want nil", got)
+				}
+				return
+			}
+			if got == nil {
+				t.Fatal("failureStatus = nil, want a diagnosis")
+			}
+			if *got != *tc.want {
+				t.Errorf("failureStatus = %+v, want %+v", *got, *tc.want)
+			}
+		})
+	}
+}
