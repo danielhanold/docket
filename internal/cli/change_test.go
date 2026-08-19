@@ -441,3 +441,50 @@ func TestChangeResumeHaltedReachesOperation(t *testing.T) {
 		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
 	}
 }
+
+// --- change reclaim --------------------------------------------------------
+
+// TestChangeReclaimRegistered proves `change reclaim` is wired with the scalar
+// identity flags and is asset-independent.
+func TestChangeReclaimRegistered(t *testing.T) {
+	root := captureTree(t)
+	cmd, _, err := root.Find([]string{"change", "reclaim"})
+	if err != nil || cmd == nil || cmd.Name() != "reclaim" {
+		t.Fatalf("change reclaim not registered: cmd=%v err=%v", cmd, err)
+	}
+	for _, flag := range []string{"id", "version", "repo-dir"} {
+		if cmd.Flags().Lookup(flag) == nil {
+			t.Errorf("change reclaim: missing --%s flag", flag)
+		}
+	}
+	if !assetIndependent["change reclaim"] {
+		t.Errorf("%q is not registered asset-independent", "change reclaim")
+	}
+}
+
+// TestChangeReclaimFlagsRequired proves --id and --version are required: omitting
+// them is an argument error (exit 2) before any operation runs.
+func TestChangeReclaimFlagsRequired(t *testing.T) {
+	_, errS, code := runCLI(t, "change", "reclaim")
+	if code != 2 || errS == "" {
+		t.Fatalf("err=%q code=%d, want a required-flag argument error", errS, code)
+	}
+}
+
+// TestChangeReclaimReachesOperation proves reclaim decodes its scalar flags and
+// reaches the operation, which returns exactly one protocol-v1 document naming
+// it. A non-repository repo-dir refuses while pinning context, so no live
+// metadata is mutated.
+func TestChangeReclaimReachesOperation(t *testing.T) {
+	out, errS, _ := runCLI(t, "change", "reclaim",
+		"--id", "3", "--version", "1234123412341234123412341234123412341234", "--repo-dir", t.TempDir(), "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q", errS)
+	}
+	if !strings.Contains(out, `"operation":"change.reclaim"`) {
+		t.Fatalf("document did not name the operation: %q", out)
+	}
+	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
+	}
+}

@@ -156,9 +156,11 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 	resumeHalted := newResumeHaltedSubcommand(setResult)
 
+	reclaim := newReclaimSubcommand(setResult)
+
 	markImplemented := newMarkImplementedSubcommand(setResult)
 
-	changeCmd.AddCommand(create, groom, block, deferCmd, kill, claim, refreshClaim, reconcile, attachPlan, attachResults, halt, resumeHalted, markImplemented)
+	changeCmd.AddCommand(create, groom, block, deferCmd, kill, claim, refreshClaim, reconcile, attachPlan, attachResults, halt, resumeHalted, reclaim, markImplemented)
 	return changeCmd
 }
 
@@ -201,6 +203,40 @@ func newResumeHaltedSubcommand(setResult func(app.OperationResult)) *cobra.Comma
 	cmd.Flags().Int("id", 0, "halted change id to resume (required)")
 	cmd.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
 	cmd.Flags().Bool("acknowledge-quiescent", false, "explicit acknowledgement that the prior worker is quiescent (required to resume)")
+	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	_ = cmd.MarkFlagRequired("id")
+	_ = cmd.MarkFlagRequired("version")
+	return cmd
+}
+
+// newReclaimSubcommand builds `change reclaim`: the proof-gated return of a
+// strictly-expired in-progress claim to proposed. Its scalar identities (id,
+// version) ride on flags; the reclaim generates its own dated log entry, so it
+// takes no request file. It composes the read-only planning seams and the
+// workspace service — the workspace inspection is the reclaim's ownership and
+// live-gate probe.
+func newReclaimSubcommand(setResult func(app.OperationResult)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "reclaim",
+		Short: "Return a strictly-expired, branchless, workspaceless in-progress claim to proposed",
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, _ := c.Flags().GetString("repo-dir")
+			id, _ := c.Flags().GetInt("id")
+			version, _ := c.Flags().GetString("version")
+			deps, wdeps, err := newWorkspaceDeps()
+			if err != nil {
+				return err
+			}
+			setResult(app.ChangeReclaim(c.Context(), deps, wdeps, repoDir, app.ChangeReclaimRequest{
+				ID:      id,
+				Version: version,
+			}))
+			return nil
+		},
+	}
+	cmd.Flags().Int("id", 0, "expired in-progress change id to reclaim (required)")
+	cmd.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
 	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
 	_ = cmd.MarkFlagRequired("version")
