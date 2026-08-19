@@ -1,8 +1,8 @@
 # Backlog
 
-**330 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 197 done · 🗑️ 80 killed
+**331 changes** — 🟡 49 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 197 done · 🗑️ 80 killed
 
-## 🟡 Proposed (48)
+## 🟡 Proposed (49)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -54,6 +54,7 @@
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
 | [0329](active/0329-change-refresh-claim-reports-invalid-state-with-empty-findin.md) | change refresh-claim reports invalid-state with empty findings — the transaction Failure is dropped on the DispositionFailed path | `high` | `fix` | needs-brainstorm |
 | [0330](active/0330-post-merge-results-appending-has-no-home-in-the-go-runtime-f.md) | Post-merge results appending has no home in the Go runtime — finalize dropped it and change attach-results does not cover it | `medium` | `feat` | ⏳ waiting on #316 — needs your merge |
+| [0331](active/0331-docket-implement-next-s-re-mint-path-never-names-docket-gate.md) | docket-implement-next's re-mint path never names docket gate launch, so a resumed run cannot produce the run directory evidence record requires | `high` | `fix` | ⏳ waiting on #316 — needs your merge |
 
 ## ⚪ Deferred (4)
 
@@ -128,6 +129,7 @@ graph TD
   0327
   0329
   0316 --> 0330
+  0316 --> 0331
   0192:::done
   0211:::done
   0311:::done
