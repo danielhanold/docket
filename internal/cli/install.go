@@ -74,6 +74,7 @@ var assetIndependent = map[string]bool{
 	"finalize rebase":            true,
 	"finalize rebase-continue":   true,
 	"finalize rebase-abort":      true,
+	"finalize publish":           true,
 	"diagnostic":                 true, // the group itself; it reports a missing command
 	"diagnostic runtime":         true,
 	"diagnostic config":          true,

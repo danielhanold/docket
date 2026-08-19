@@ -38,6 +38,7 @@ func newFinalizeCommand(setResult func(app.OperationResult)) *cobra.Command {
 	finalizeCmd.AddCommand(newFinalizeRebaseSubcommand(setResult))
 	finalizeCmd.AddCommand(newFinalizeRebaseContinueSubcommand(setResult))
 	finalizeCmd.AddCommand(newFinalizeRebaseAbortSubcommand(setResult))
+	finalizeCmd.AddCommand(newFinalizePublishSubcommand(setResult))
 	return finalizeCmd
 }
 
@@ -180,6 +181,51 @@ func newFinalizeRebaseAbortSubcommand(setResult func(app.OperationResult)) *cobr
 		},
 	}
 	finalizeReportFlags(cmd)
+	return cmd
+}
+
+// newFinalizePublishSubcommand builds `finalize publish`: it publishes a rewritten
+// feature head onto its remote ref under the owned rebase receipt's exact lease and
+// converges the PR build-evidence block onto that head. The scalar identity (id,
+// attempt token, expected head) rides on flags; the canonical evidence bytes ride
+// in --evidence (a request file or stdin), never a shell-escaped flag.
+func newFinalizePublishSubcommand(setResult func(app.OperationResult)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "publish",
+		Short: "Publish a rebased feature head under its receipt lease and update the PR build-evidence block",
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, _ := c.Flags().GetString("repo-dir")
+			id, _ := c.Flags().GetInt("id")
+			attempt, _ := c.Flags().GetString("attempt")
+			head, _ := c.Flags().GetString("head")
+			evSource, _ := c.Flags().GetString("evidence")
+			ev, err := readRecordSource(c.InOrStdin(), evSource)
+			if err != nil {
+				return err
+			}
+			deps, err := newFinalizeDeps()
+			if err != nil {
+				return err
+			}
+			setResult(app.FinalizePublish(c.Context(), deps, repoDir, app.FinalizePublishRequest{
+				ID:             id,
+				Attempt:        attempt,
+				Head:           head,
+				EvidenceRecord: ev,
+			}))
+			return nil
+		},
+	}
+	cmd.Flags().Int("id", 0, "change id whose rewritten head to publish (required)")
+	cmd.Flags().String("attempt", "", "the owned rebase attempt token that authorizes the rewrite push (required)")
+	cmd.Flags().String("head", "", "exact rewritten feature head to publish and certify (required)")
+	cmd.Flags().String("evidence", "", "canonical build-evidence record file, or - for stdin (required)")
+	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	_ = cmd.MarkFlagRequired("id")
+	_ = cmd.MarkFlagRequired("attempt")
+	_ = cmd.MarkFlagRequired("head")
+	_ = cmd.MarkFlagRequired("evidence")
 	return cmd
 }
 
