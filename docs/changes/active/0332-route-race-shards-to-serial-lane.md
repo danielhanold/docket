@@ -13,7 +13,7 @@ related: [251, 273]
 discovered_from: [329]
 adrs: []
 spec: docs/superpowers/specs/2026-08-19-route-race-shards-to-serial-lane-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-19-route-race-shards-to-serial-lane.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-19T21:50:14Z'
 | Artifact | Link |
 |---|---|
 | Spec | `docs/superpowers/specs/2026-08-19-route-race-shards-to-serial-lane-design.md` |
+| Plan | `docs/superpowers/plans/2026-08-19-route-race-shards-to-serial-lane.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
