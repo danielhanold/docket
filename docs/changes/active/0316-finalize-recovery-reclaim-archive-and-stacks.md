@@ -72,38 +72,40 @@ Docket's live metadata, or bypass the unsupported-capability fence.
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
 
-## Run halted
+## Run halted — resolved 2026-08-18
 
 2026-08-18 — An autonomous docket-implement-next run scoped to change 0316 halted at its
-implementation launch precondition, before Step 2 (claim) and before any claim landed. The earlier
-frontmatter blocker recorded here has been repaired (`docket status` reports 0 errors), so that is
-no longer the cause; the current blocker is a different, harder one.
+implementation launch precondition, before Step 2 (claim) and before any claim landed. No claim,
+branch, worktree, plan, or code was created. **This blocker has since been cleared; the change is
+dispatchable again.** The record is kept, with its one factual error corrected, because the
+correction matters more than the halt.
 
-Change 0316's own **Implementation launch prerequisites** require that it "starts only through the
-installed, verified binary" and that the transient/development `go run` bootstrap "is never used
-for `context`, `change`, `workspace`, `evidence`, `pr`, `run`, or `finalize` against shared Docket
-state." That precondition is **not met** in this environment:
+An earlier halt on this change recorded a malformed-frontmatter blocker (ADR-0024's unquoted
+`title:` failed the strict Go YAML parser, which validates the whole metadata repository before any
+mutation). That was repaired separately; `docket status` reports 0 errors.
 
-- `docket version` → `docket development (commit unknown, built unknown)` — a development build,
-  not the installed, verified release binary the prerequisites demand.
+**The real blocker was a missing installation record**, not an unbuilt release binary:
+
 - `docket install check` → `install.check: invalid-state`, `reason: installation-required`,
-  `message: install: no installation record`. There is no installation record at
+  `message: install: no installation record`. Nothing at
   `/Users/homer/.local/share/docket/state/install.json`.
-- (For contrast, `docket diagnostic config --for-mutation --repo-dir /Users/homer/dev/docket`
-  reports `configuration: valid` / `mutation: allowed` — so config contraction from 0326 is fine;
-  the failure is purely the install/verify leg from 0322.)
+- `docket diagnostic config --for-mutation --repo-dir <repo>` reported `configuration: valid` /
+  `mutation: allowed` throughout — the config contraction from 0326 was never implicated.
 
-Every metadata operation this skill performs — `docket context`, `docket change claim`, reconcile,
-`docket workspace prepare`, `evidence`, `pr`, `run` — would mutate or read shared Docket state
-through exactly the Go verbs the prerequisites forbid the development binary to run. Change 0316's
-body states plainly: "a failed install/config check remains an abort-and-report precondition
-failure." So this run aborted and reported rather than mutate shared state with an unverified
-binary.
+**Correction.** The superseded text of this record claimed the fix required a binary whose
+`docket version` reports "a real installed identity (not `development`)". That is wrong in a way
+that sends a reader in a circle. This change's own prerequisites call for "a permanent Go
+**development** runtime" (0322), and `internal/buildinfo/buildinfo.go` states that release
+packaging belongs to change 0317 — which is `waiting-dependency` on **this change**. Requiring a
+release-stamped binary to build 0316 is therefore circular and unsatisfiable. A `development`
+version string is expected and correct. What "the installed, verified binary" means here is the
+binary installed *through docket's own journaled install transaction*, not a release build.
 
-What a human (the migration owner) must do: run the source bootstrap from reviewed, merged
-`origin/main` so a permanent installed runtime exists (change 0322's `development install` →
-permanent install), confirm `docket install check` passes and `docket version` reports a real
-installed identity (not `development`), restart the host, then re-run docket-implement-next 316.
-Performing that install is a human-attended step owned by 0322, outside change 0316's scope and
-outside an autonomous run's authority to self-authorize, so this run did not perform it. No claim,
-branch, worktree, plan, or code was created; change 0316 remains `proposed`.
+**Resolution.** `./install.sh` (resolving to `docket development install --source <checkout>`) run
+from a clean checkout at merged `origin/main`. Its first attempt refused with
+`reason: ownership-conflict` — 18 targets "not provably docket's", left by the legacy Bash
+installer, which 0322 does not adopt automatically. After moving those aside (17 generated
+`~/.claude/agents/docket-*.md`, plus a `~/.agents/skills/docket-convention` symlink that had been
+dangling into the deleted `.worktrees/convention-extraction-skill/` since 2026-06-10), the install
+completed. Post-state: `install.check: no-op`, `mutation: allowed`, 17 agents regenerated, and the
+convention symlink repointed into the content-addressed version store.
