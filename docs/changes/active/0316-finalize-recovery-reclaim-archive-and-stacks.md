@@ -21,7 +21,7 @@ branch: 'feat/finalize-recovery-reclaim-archive-and-stacks'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-19T00:47:43Z'
+claimed_at: '2026-08-19T16:50:28Z'
 ---
 
 ## Artifacts

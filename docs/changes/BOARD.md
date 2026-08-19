@@ -59,7 +59,7 @@
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | needs-brainstorm |
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
 | [0329](active/0329-change-refresh-claim-reports-invalid-state-with-empty-findin.md) | change refresh-claim reports invalid-state with empty findings — the transaction Failure is dropped on the DispositionFailed path | `high` | `fix` | needs-brainstorm |
-| [0330](active/0330-post-merge-results-appending-has-no-home-in-the-go-runtime-f.md) | Post-merge results appending has no home in the Go runtime — finalize dropped it and change attach-results does not cover it | `medium` | `feat` | needs-brainstorm |
+| [0330](active/0330-post-merge-results-appending-has-no-home-in-the-go-runtime-f.md) | Post-merge results appending has no home in the Go runtime — finalize dropped it and change attach-results does not cover it | `medium` | `feat` | ⏳ waiting on #316 — not yet built |
 
 ## ⚪ Deferred (4)
 
@@ -127,7 +127,7 @@ graph TD
   0323
   0327
   0329
-  0330
+  0316 --> 0330
   0192:::done
   0211:::done
   0311:::done
