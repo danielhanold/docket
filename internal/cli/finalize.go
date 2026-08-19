@@ -22,7 +22,7 @@ import (
 // newFinalizeCommand builds the `finalize` command group. setResult is the
 // closure that hands a computed operation result back to Run's single
 // presentation point, mirroring newChangeCommand.
-func newFinalizeCommand(_ func(app.OperationResult)) *cobra.Command {
+func newFinalizeCommand(setResult func(app.OperationResult)) *cobra.Command {
 	finalizeCmd := &cobra.Command{
 		Use:   "finalize",
 		Short: "Sequence a change's terminal half: rebase, publish, merge, and closeout",
@@ -34,7 +34,58 @@ func newFinalizeCommand(_ func(app.OperationResult)) *cobra.Command {
 			return errors.New("missing command")
 		},
 	}
+	finalizeCmd.AddCommand(newFinalizeRetargetChildrenSubcommand(setResult))
 	return finalizeCmd
+}
+
+// retargetChildrenInput is the bounded request-file payload for `finalize
+// retarget-children`: the exact human-authorized child set from context finalize.
+// The scalar identities (parent id, entity version) ride on flags — only the
+// authored authorization set travels through the request file (Global
+// Constraints). DisallowUnknownFields (via decodeInputFlag) rejects any other key.
+type retargetChildrenInput struct {
+	Children []app.AuthorizedChild `json:"children"`
+}
+
+// newFinalizeRetargetChildrenSubcommand builds `finalize retarget-children`: it
+// reads the parent id and pinned entity version from flags, decodes the exact
+// authorized child set from --input, and hands the assembled request to the
+// operation over the shared finalize seams. No lifecycle, Git, GitHub, or stack
+// policy lives here — the operation owns all of it.
+func newFinalizeRetargetChildrenSubcommand(setResult func(app.OperationResult)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "retarget-children",
+		Short: "Retarget each authorized open child PR onto the parent's effective base",
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, _ := c.Flags().GetString("repo-dir")
+			id, _ := c.Flags().GetInt("id")
+			version, _ := c.Flags().GetString("version")
+
+			var input retargetChildrenInput
+			if err := decodeInputFlag(c, &input); err != nil {
+				return err
+			}
+			deps, err := newFinalizeDeps()
+			if err != nil {
+				return err
+			}
+			setResult(app.FinalizeRetargetChildren(c.Context(), deps, repoDir, app.RetargetChildrenRequest{
+				ID:       id,
+				Version:  version,
+				Children: input.Children,
+			}))
+			return nil
+		},
+	}
+	cmd.Flags().Int("id", 0, "parent change id whose open children are retargeted (required)")
+	cmd.Flags().String("version", "", "exact parent record blob object id from the authoritative context read (required)")
+	cmd.Flags().String("input", "", "JSON request file with the authorized child set, or - for stdin (required)")
+	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	_ = cmd.MarkFlagRequired("id")
+	_ = cmd.MarkFlagRequired("version")
+	_ = cmd.MarkFlagRequired("input")
+	return cmd
 }
 
 // newFinalizeDeps assembles the production seams every finalize operation needs:
