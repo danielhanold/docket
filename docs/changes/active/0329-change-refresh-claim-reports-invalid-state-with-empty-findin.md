@@ -2,7 +2,7 @@
 id: 329
 slug: 'change-refresh-claim-reports-invalid-state-with-empty-findin'
 title: 'change refresh-claim reports invalid-state with empty findings — the transaction Failure is dropped on the DispositionFailed path'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-08-19'
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'feat/change-refresh-claim-reports-invalid-state-with-empty-findin'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-19T18:56:46Z'
 ---
 
 ## Artifacts
@@ -28,7 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-19-failed-transaction-diagnostics-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-19-failed-transaction-diagnostics-design.md) |
+| Spec | `docs/superpowers/specs/2026-08-19-failed-transaction-diagnostics-design.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
