@@ -63,10 +63,22 @@ therefore out of scope, not merely deferred.
 
 ## Validation
 
+**The build gate is self-validating — it runs the serialized table, not the parallel one.** The
+gate invokes `scripts/run-tests.sh` from *this change's own feature branch*, and that branch's
+`tests/runtime-budgets.tsv` already carries the four `serial` rows this change introduces.
+`run-tests.sh` reads the lane column from the table in the tree it is run against, so the gate
+schedules the `-race` shards into the serial lane by construction — there is no separate "run the
+parallel version" path and no way for the gate to test the pre-change scheduling. This is the
+distinguishing fact from change 0329: 0329's gate flaked because the contention was still present on
+its branch (and on the untouched merge-base); 332's branch *removes* the contention, so if the
+serialization works, 332's own gate goes green under the same load that halted 0329. A green gate
+here is therefore direct evidence the fix works, not merely evidence the change is inert.
+
 - The four shards each pass in the serial lane (`scripts/run-tests.sh` full run), and their budget
   rows hold under re-measurement.
 - A **full-suite run under load** no longer flakes the shell tests: the failure mode that halted
-  0329 (shell files breaching their rows while the `-race` shards run) does not reproduce.
+  0329 (shell files breaching their rows while the `-race` shards run) does not reproduce — and the
+  run demonstrating this is the gate's own run against the branch's serialized table, per above.
 - Any test that guards the budget table's shape (row count, column values, partition asserts in the
   shards themselves) still passes — a lane-column edit must not falsify a table-shape guard.
 
