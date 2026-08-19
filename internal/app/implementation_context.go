@@ -109,6 +109,17 @@ type ContextLearningEntry struct {
 	Hook string `json:"hook,omitempty"`
 }
 
+// ContextHalt reports the durable, human-needed checkpoint markers the selected
+// change's record carries: a paused implementation run ("## Run halted", cleared
+// by change resume-halted) and a blocked finalize attempt ("## Finalize
+// blocked", cleared by finalize clear-block). Both are keyed on heading shape,
+// never an interior spelling. The implementation workflow reads these to know a
+// run must be resumed rather than re-dispatched.
+type ContextHalt struct {
+	RunHalted       bool `json:"run_halted"`
+	FinalizeBlocked bool `json:"finalize_blocked"`
+}
+
 // ContextWorkflow is the supported workflow configuration the bundle reports.
 type ContextWorkflow struct {
 	RepoMode          string `json:"repo_mode"`
@@ -130,6 +141,7 @@ type ImplementationContext struct {
 	Readiness      string                 `json:"readiness"`
 	ClaimEligible  bool                   `json:"claim_eligible"`
 	ClaimRefusal   string                 `json:"claim_refusal,omitempty"`
+	Halt           ContextHalt            `json:"halt"`
 	EffectiveBase  ContextBase            `json:"effective_base"`
 	ADRs           []ContextADREntry      `json:"adrs"`
 	Learnings      []ContextLearningEntry `json:"learnings"`
@@ -277,6 +289,10 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 		Related:       relatedSummaries(snap, selected),
 		Readiness:     string(domain.EvaluateReadiness(snap, selected, facts).Kind),
 		ClaimEligible: true,
+		Halt: ContextHalt{
+			RunHalted:       selected.HasRunHalted(),
+			FinalizeBlocked: selected.HasFinalizeBlocked(),
+		},
 		EffectiveBase: contextBase(domain.ResolveEffectiveBase(snap, selected, facts)),
 		ADRs:          acceptedADRs(snap),
 		Workflow: ContextWorkflow{

@@ -323,3 +323,29 @@ func TestContextImplementationDoesNotEchoAuthoredBody(t *testing.T) {
 		t.Errorf("protocol JSON did not carry the spec source bytes")
 	}
 }
+
+// TestContextImplementationReportsHalt proves the bundle surfaces the durable
+// halt checkpoints — a build-ready change carrying a historical "## Run halted"
+// section (a prior aborted run) reports Halt.RunHalted so the implementer knows a
+// run was halted rather than re-dispatching blind.
+func TestContextImplementationReportsHalt(t *testing.T) {
+	pin := docketPin(t)
+	specA := "docs/changes/specs/spec-a.md"
+	src := "---\nid: 11\nslug: alpha\ntitle: Alpha\nstatus: proposed\npriority: high\ntype: feat\ncreated: 2026-01-02\nspec: " + specA +
+		"\n---\n\nBody.\n\n## Run halted\n\n### 2026-08-14\n\nPrior run paused.\n"
+	corpus := []StatusBlob{{
+		Kind: repository.KindChange, Location: repository.LocationActive,
+		Path: "docs/changes/active/0011-alpha.md", Version: "v11", Data: []byte(src),
+	}}
+	fake := &fakeReader{
+		pin: pin, corpus: corpus,
+		artifactData: map[string]StatusArtifact{sourceMetadata + "|" + specA: {Found: true, Version: "sa", Data: []byte("spec a\n")}},
+	}
+	got := ContextImplementation(context.Background(), contextDeps(fake), "", ImplementationContextRequest{ID: 11})
+	if got.Result != ResultApplied || got.Context == nil {
+		t.Fatalf("result=%q reason=%q", got.Result, got.Reason)
+	}
+	if !got.Context.Halt.RunHalted {
+		t.Errorf("bundle did not surface the durable run-halted checkpoint: %+v", got.Context.Halt)
+	}
+}

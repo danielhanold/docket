@@ -137,10 +137,74 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 			setResult(app.ChangeAttachResults(c.Context(), deps, wdeps, repoDir, req))
 		})
 
+	halt := changeInputSubcommand("halt",
+		"Record a bounded run-halted report on an in-progress change from a JSON request",
+		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
+			id, _ := c.Flags().GetInt("id")
+			version, _ := c.Flags().GetString("version")
+			var in changeHaltInput
+			if err := decodeInputFlag(c, &in); err != nil {
+				return err
+			}
+			setResult(app.ChangeHalt(c.Context(), deps, repoDir, app.HaltRequest{ID: id, Version: version, Report: in.Report}))
+			return nil
+		})
+	halt.Flags().Int("id", 0, "in-progress change id to halt (required)")
+	halt.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
+	_ = halt.MarkFlagRequired("id")
+	_ = halt.MarkFlagRequired("version")
+
+	resumeHalted := newResumeHaltedSubcommand(setResult)
+
 	markImplemented := newMarkImplementedSubcommand(setResult)
 
-	changeCmd.AddCommand(create, groom, block, deferCmd, kill, claim, refreshClaim, reconcile, attachPlan, attachResults, markImplemented)
+	changeCmd.AddCommand(create, groom, block, deferCmd, kill, claim, refreshClaim, reconcile, attachPlan, attachResults, halt, resumeHalted, markImplemented)
 	return changeCmd
+}
+
+// changeHaltInput is the bounded request-file payload for `change halt`: the
+// authored run-halted report. The scalar identity (id, version) rides on flags —
+// only the authored Markdown travels through the request file (Global
+// Constraints).
+type changeHaltInput struct {
+	Report string `json:"report"`
+}
+
+// newResumeHaltedSubcommand builds `change resume-halted`: human-authorized
+// recovery of a halted run. It requires the exact marked record, the explicit
+// --acknowledge-quiescent acknowledgement, reprobes the owned workspace, then
+// refreshes the claim and removes the marker. The scalar identity rides on flags;
+// there is no authored request body. It composes the read-only planning seams and
+// the workspace service (to reprobe the owned checkout).
+func newResumeHaltedSubcommand(setResult func(app.OperationResult)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "resume-halted",
+		Short: "Recover a halted run: reprobe the workspace, refresh the claim, and remove the marker",
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, _ := c.Flags().GetString("repo-dir")
+			id, _ := c.Flags().GetInt("id")
+			version, _ := c.Flags().GetString("version")
+			ack, _ := c.Flags().GetBool("acknowledge-quiescent")
+			deps, wdeps, err := newWorkspaceDeps()
+			if err != nil {
+				return err
+			}
+			setResult(app.ChangeResumeHalted(c.Context(), deps, wdeps, repoDir, app.ResumeRequest{
+				ID:                   id,
+				Version:              version,
+				AcknowledgeQuiescent: ack,
+			}))
+			return nil
+		},
+	}
+	cmd.Flags().Int("id", 0, "halted change id to resume (required)")
+	cmd.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
+	cmd.Flags().Bool("acknowledge-quiescent", false, "explicit acknowledgement that the prior worker is quiescent (required to resume)")
+	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	_ = cmd.MarkFlagRequired("id")
+	_ = cmd.MarkFlagRequired("version")
+	return cmd
 }
 
 // newMarkImplementedSubcommand builds `change mark-implemented`: the final

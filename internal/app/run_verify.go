@@ -42,6 +42,11 @@ const (
 	VerdictRunComplete   = "run-complete"
 	VerdictRunUnclaimed  = "run-unclaimed"
 	VerdictRunIncomplete = "run-incomplete"
+	// VerdictRunHalted: the change carries a durable "## Run halted" marker — the
+	// run was deliberately paused and a human must resume it. A halted run is
+	// neither complete nor incomplete; automation keys on this closed verdict to
+	// stop re-dispatching (never a re-dispatch of a halt).
+	VerdictRunHalted = "run-halted"
 )
 
 // The stable machine reasons `run verify` records for each unmet postcondition.
@@ -198,6 +203,15 @@ func RunVerify(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 	// A still-proposed change was never claimed: no run to verify.
 	if c.Status() == domain.StatusProposed {
 		return runVerdict(VerdictRunUnclaimed, req.ID, "", "", nil)
+	}
+
+	// A change carrying a durable run-halted marker is halted: the run was
+	// deliberately paused and a human must resume it (via change resume-halted).
+	// This is a closed verdict of its own — neither complete nor incomplete — so
+	// it short-circuits the postcondition reprobe. HasRunHalted is the domain's
+	// shape-keyed detection of the "## Run halted" body section.
+	if c.HasRunHalted() {
+		return runVerdict(VerdictRunHalted, req.ID, "", strings.TrimSpace(c.PR().Value), nil)
 	}
 
 	recordedPR := strings.TrimSpace(c.PR().Value)
