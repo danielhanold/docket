@@ -289,3 +289,31 @@ func mapFailure(err error) Result {
 		return ResultInternalError
 	}
 }
+
+// failureStatus converts a failed transaction's typed Failure into the
+// envelope's failure diagnosis. It returns nil on every non-failed
+// disposition. A failed disposition whose error is missing or not a
+// *transaction.Failure is the same contract violation mapFailure reports as
+// internal-error; it still yields a diagnosis, so a failed result can never
+// again reach the caller cause-free.
+func failureStatus(res transaction.Result, execErr error) *FailureStatus {
+	if res.Disposition != transaction.DispositionFailed {
+		return nil
+	}
+	if execErr == nil {
+		return &FailureStatus{Kind: "internal-error", Detail: "failed disposition carried no error (engine contract violation)"}
+	}
+	f, ok := transaction.AsFailure(execErr)
+	if !ok {
+		return &FailureStatus{Kind: "internal-error", Detail: execErr.Error()}
+	}
+	detail := f.Detail
+	if f.Err != nil {
+		if detail == "" {
+			detail = f.Err.Error()
+		} else {
+			detail = detail + ": " + f.Err.Error()
+		}
+	}
+	return &FailureStatus{Stage: string(f.Stage), Kind: string(f.Kind), Detail: detail}
+}

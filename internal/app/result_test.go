@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 )
@@ -47,5 +48,25 @@ func TestEnvelopeFieldNamesAndOrder(t *testing.T) {
 	want := `{"protocol_version":1,"operation":"op.name","result":"applied"}`
 	if string(b) != want {
 		t.Fatalf("envelope encoding = %s, want %s", b, want)
+	}
+}
+
+func TestEnvelopeFailureMarshalsOnlyWhenPresent(t *testing.T) {
+	env := NewEnvelope("change.claim", ResultApplied)
+	b, err := json.Marshal(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(b, []byte(`"failure"`)) {
+		t.Errorf("failure must be absent on a non-failed envelope: %s", b)
+	}
+
+	env.Failure = &FailureStatus{Stage: "verify-delta", Kind: "invalid-state", Detail: "x"}
+	b, err = json.Marshal(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(b, []byte(`"failure":{"stage":"verify-delta","kind":"invalid-state","detail":"x"}`)) {
+		t.Errorf("failure field missing or misshapen: %s", b)
 	}
 }
