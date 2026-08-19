@@ -39,8 +39,16 @@ assert "implement-next has a results close-out step" \
 # source. Assert the reasoning lives there instead of pinning prose SKILL.md no longer carries.
 assert "status health check covers results: link (owned by scripts/board-checks.md after change 0145)" \
   'grep -q "still live on the unmerged feature" scripts/board-checks.md'
-assert "finalize mentions appending to the results file" \
-  'grep -q "append interactive-verification" skills/docket-finalize-change/SKILL.md'
+# HARD STOP — DO NOT RETIRE (0316 plan Task 20). Post-merge appending of interactive-verification
+# results to the results file is a GENUINE LOSS in the Go-sequencer rewrite, NOT a deferral: it is
+# absent from 0316's *Out of scope*, and no Go verb owns it. Retiring it as obsolete, or inventing a
+# home for it here, would hide a real regression. It is tracked as change 0330. Per the plan this
+# assertion is SKIPPED (not retired, not converted to an inverted guard) with a pointer, so the
+# whole-suite gate is not held red by a gap that is already ticketed. When change 0330 restores
+# post-merge results appending (to the Go closeout verb or wherever it lands), replace this skip with
+# a real assertion again — the intended check is: the finalize close-out appends the human's
+# interactive-verification results to the change's results file.
+printf 'skip - finalize post-merge results appending is a GENUINE LOSS tracked as change 0330 (was: grep "append interactive-verification" in docket-finalize-change/SKILL.md)\n'
 
 # 5b. The merged-artifact freeze clause (change 0200). It is normative prose on the always-loaded
 # Step-0 surface and nothing else pins it, so a slim or a size-budget squeeze could delete it

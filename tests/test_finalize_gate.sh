@@ -42,16 +42,18 @@ assert "config-parse: gate off (opt-out)"    '[ "$(gate_of "$TMPC/off.yml")"   =
 assert "config-parse: absent block => local" '[ "$(gate_of "$TMPC/absent.yml")" = "local" ]'
 rm -rf "$TMPC"
 
-# ---- finalize SKILL documents require_pr_approval with default false ----------
-# Two sharp anchors (not one broad "require_pr_approval.*default.*false" that the YAML
-# comment AND the prose both satisfy — dropping the substantive prose would leave it green):
-#   (1) the config-block YAML knob line, and (2) the prose paragraph's unique sentence.
-assert "finalize config block documents require_pr_approval default false" \
-  'grep -Eqi "require_pr_approval: *false +#.*default false" "$FIN"'
-assert "finalize prose explains require_pr_approval as the human-sign-off gate" \
-  'grep -Eqi "validates .{1,3}human sign-off" "$FIN"'
-assert "finalize ties require_pr_approval to the auto-detect path + unapproved PR" \
-  'grep -q "reviewDecision != APPROVED" "$FIN"'
+# ---- approval gating is owned by Go, not restated in the skill (0316) ----------
+# RETIRED (0316, category (a)): the old Bash skill carried a `require_pr_approval: false # default
+# false` config block, prose calling it "the human sign-off gate", and the GraphQL
+# `reviewDecision != APPROVED` predicate. Approval is now owned by `internal/app/finalize_merge.go`
+# — `ApprovalSatisfied: in.explicitID || !in.requireApproval` — enforced as a merge conjunct
+# ("approval satisfied", SKILL step 8); the skill expresses an unapproved PR as the
+# `approval-required` closed skip reason (finalize_context.go), never a restated GraphQL query.
+# Authority #2: finalize_merge.go / finalize_context.go own approval. The config KEY still ships in
+# .docket.example.yml (asserted below); only the skill's restatement of it is retired. Guard
+# re-pointed at the surviving substance.
+assert "SKILL enforces approval as a Go-owned merge conjunct, not restated GraphQL" \
+  'grep -Eqi "approval satisfied" "$FIN" && grep -Eqi "approval-required" "$FIN"'
 
 # ---- the canonical example carries the knob, active, at its default ----------
 # Change 0101 moved the user-facing config documentation out of this repo's own .docket.yml
@@ -74,54 +76,78 @@ assert "the example ships require_pr_approval as an active key" \
 assert "the example leaves require_pr_approval at default false" \
   'grep -Eq "^[[:space:]]+require_pr_approval[[:space:]]*:[[:space:]]*false([[:space:]]|$)" "$EXAMPLE"'
 
-# ---- Selection: ambiguity-only prompting (the §4.1 matrix) --------------------
-# Anchor each assert to the UNIQUE phrase its matrix row owns (LEARNINGS #15) — not a
-# broad keyword set that could latch onto step-1 prose. Each is a single-line grep so
-# the two halves must co-occur in the same row.
-assert "selection: exactly one eligible => no prompt" \
-  'grep -Eqi "exactly one eligible.*no prompt" "$FIN"'
-assert "selection: more than one eligible => prompt" \
-  'grep -Eqi "more than one eligible.*prompt" "$FIN"'
-assert "selection: surface-don't-merge an un-mergeable candidate" \
-  'grep -Eqi "not git-mergeable.*surface, do not merge" "$FIN"'
-assert "selection: surface-don't-merge an unapproved PR under the policy" \
-  'grep -Eqi "require_pr_approval.{0,40}surface, do not merge|reviewDecision != APPROVED.{0,80}surface, do not merge" "$FIN"'
-# ---- §4.2 explicit id overrides the approval policy --------------------------
-assert "selection: explicit id overrides require_pr_approval" \
-  'grep -Eqi "explicit id overrides .{0,4}require_pr_approval|explicit id.{0,40}overrides.{0,40}require_pr_approval" "$FIN"'
+# ---- selection is owned by Go; the explicit-id approval override survives (0316) ----
+# RETIRED (0316, category (a)): the §4.1 ambiguity-only PROMPTING matrix (one-eligible→no-prompt,
+# many-eligible→prompt, surface-don't-merge an un-mergeable/unapproved candidate) was the Bash
+# procedure's interactive selection UI. Selection is now owned by `internal/app/finalize_context.go`
+# — `SelectFinalizeQueue` orders the queue, `FinalizeCandidateReport.Band`/`.SkipReason` classify
+# each candidate, and every skipped candidate surfaces its closed skip-reason token (no interactive
+# prompt). Authority #2: finalize_context.go owns selection eligibility, ordering, and skip reasons.
+assert "SKILL surfaces every skipped candidate with its closed skip-reason token (no prompt)" \
+  'grep -Eqi "surfaced with its closed skip-reason token" "$FIN"'
+# The one member that SURVIVES is the explicit-id / allowlist authorization overriding the
+# approval-required skip (`ApprovalSatisfied: in.explicitID || !in.requireApproval`, finalize_merge.go).
+assert "selection: an explicit id overrides the approval-required skip" \
+  'grep -Eqi "named id .{0,4}is.{0,4} the human authorization|A named id overrides the .approval-required" "$FIN"'
 
-# ---- finalize SKILL gates on finalize.gate ------------------------------------
-assert "finalize references the finalize.gate config" 'grep -Eq "finalize\.gate|finalize:" "$FIN"'
-assert "finalize names all four gate modes" \
-  'grep -q "local" "$FIN" && grep -q "ci" "$FIN" && grep -q "both" "$FIN" && grep -qE "\boff\b" "$FIN"'
-assert "finalize: off restores today's no-rebase behavior" 'grep -Eqi "off[^.]*(today|no rebase|no re-test|trust)" "$FIN"'
+# ---- the gate is composed into the Go rebase verb; multi-mode gate config is deferred (0316) ----
+# RETIRED (0316): the `finalize.gate` config and its four modes (local/ci/both/off) were the Bash
+# gate's dispatch table. The local gate is now COMPOSED into `docket finalize rebase`/`rebase-continue`
+# (SKILL step 4), and *Out of scope* defers "CI/combined gates" — so `ci`/`both` do not ship and
+# there is no `off` no-rebase mode (the sequencer always rebases and gates). Authority #1 (Out of
+# scope: deferred CI/combined gates) + Authority #3 (the skill states the gate is composed into the
+# rebase verb). The "names all four gate modes" assert went with them — three of the four modes no
+# longer exist. Guard re-pointed at the surviving composition.
+assert "SKILL composes the local gate into the Go rebase verb" \
+  'grep -Eqi "gate is composed into .finalize rebase|composed into .{0,3}docket .?finalize rebase" "$FIN"'
 
 # ---- dispatches the two agents at the right triggers --------------------------
 assert "finalize dispatches docket-rebase-resolver on conflict" 'grep -q "docket-rebase-resolver" "$FIN"'
 assert "rebase-resolver dispatch is tied to a rebase conflict" \
   'grep -Eqi "conflict[^.]*docket-rebase-resolver|docket-rebase-resolver[^.]*conflict" "$FIN"'
 assert "finalize dispatches docket-integration-repair on red tests" 'grep -q "docket-integration-repair" "$FIN"'
+# RE-KEYED (0316, category (c)): the dispatch is still tied to a red suite — step 5 is headed
+# "Repair a red gate" and dispatches docket-integration-repair on "A red suite after the rebase".
+# The old `[^.]*` window broke on the sentence boundary the rewrite inserted ("…regardless of
+# cause. Dispatch `docket-integration-repair`"); key on the section header plus the red-suite
+# dispatch sentence instead.
 assert "integration-repair dispatch is tied to a red/failed suite" \
-  'grep -Eqi "(red|fail)[^.]*docket-integration-repair|docket-integration-repair[^.]*(red|fail)" "$FIN"'
+  'grep -Eqi "Repair a red gate" "$FIN" && grep -Eqi "red suite.{0,80}[Dd]ispatch .docket-integration-repair" "$FIN"'
 
-# ---- local validation runs BEFORE the force-push (ordering is the contract) ----
-assert "finalize force-pushes with --force-with-lease" 'grep -q "force-with-lease" "$FIN"'
-local_ln="$(grep -ni "before any push" "$FIN" | sed -n 1p | cut -d: -f1)"
-push_ln="$(grep -ni "force-with-lease" "$FIN" | sed -n 1p | cut -d: -f1)"
-assert "finalize states local validation precedes the push" '[ -n "$local_ln" ] && [ -n "$push_ln" ] && [ "$local_ln" -lt "$push_ln" ]'
+# ---- the rebased-head push is the Go publish verb's lease, not a hand force-push (0316) ----
+# RETIRED (0316, category (a)): the Bash skill force-pushed with `--force-with-lease` after a local
+# validation, and this block asserted that ordering by LINE NUMBER. Publishing the rebased head is
+# now `docket finalize publish`, which "pushes exactly `head` under the receipt's exact old-value
+# lease" AFTER the gate is composed into `finalize rebase` — the ordering (validate, then push) is
+# owned by the Go verb sequence, not a skill line order. Authority #2: `finalize publish` receipt
+# lease. Guard re-pointed at the surviving substance.
+assert "SKILL publishes the rebased head under the publish verb's exact lease" \
+  'grep -Eqi "finalize publish" "$FIN" && grep -Eqi "exact old-value lease|under the receipt.s exact" "$FIN"'
 
-# ---- §6 sign-off: interactive prompt vs autonomous abort-and-report -----------
+# ---- §6 sign-off: attended prompt vs autonomous halt --------------------------
 assert "finalize documents repair sign-off" 'grep -qi "sign-off" "$FIN"'
-assert "finalize: interactive sign-off prompts before merge" 'grep -Eqi "interactive[^.]*(prompt|sign-off)" "$FIN"'
-assert "finalize: autonomous repair aborts-and-reports" 'grep -Eqi "autonomous[^.]*abort-and-report" "$FIN"'
+# RE-KEYED (0316, category (c)): the sign-off flow is preserved in step 6 — an ATTENDED run prompts
+# the human before merging; an AUTONOMOUS run records the block (repair-needs-signoff) and halts.
+# The skill uses "Attended run:"/"Autonomous run:" rather than the old "interactive"/"autonomous".
+assert "finalize: attended sign-off prompts before merge" \
+  'grep -Eqi "[Aa]ttended run:.{0,200}before merging" "$FIN"'
+assert "finalize: autonomous repair records the block and halts" \
+  'grep -Eqi "[Aa]utonomous run:.{0,200}repair-needs-signoff" "$FIN"'
 
 # ---- §7 abort-and-report set (the full list of stop points) -------------------
-ab="$(grep -ci "abort-and-report" "$FIN")"
-assert "finalize names abort-and-report multiple times" '[ "$ab" -ge 3 ]'
+# RE-KEYED (0316, category (c)): the full abort-and-report SET moved into gate-failure.md (the skill
+# points at it as a blocking read); count the enumeration in GF, where it now lives.
+ab="$(grep -ci "abort-and-report" "$GF")"
+assert "gate-failure names abort-and-report multiple times (the enumeration lives here)" '[ "$ab" -ge 3 ]'
 assert "abort path: ambiguous rebase conflict"     'grep -Eqi "ambiguous[^.]*conflict|conflict[^.]*ambiguous" "$FIN"'
 assert "abort path: no detectable test suite"      'grep -Eqi "no[^.]*suite|suite[^.]*not[^.]*found|no[^.]*test_command" "$FIN"'
 assert "abort path: cannot reach green in <=2"      'grep -Eqi "two attempts|<=2|cannot reach green|stuck" "$FIN"'
-assert "abort path: force-with-lease rejected"      'grep -Eqi "lease[^.]*reject|reject[^.]*lease|concurrent push" "$FIN"'
+# RE-KEYED (0316, category (a)): the force-with-lease-rejected / concurrent-push abort member is
+# obsolete — the rebased-head push is now `docket finalize publish`, whose un-certifiable push
+# surfaces as `rewrite-unknown`/`pr-probe-failed` in the GF abort set, not a hand force-push
+# rejection. Keyed on the surviving publish-abort member (which now lives in gate-failure.md).
+assert "abort path: a publish that cannot certify (rewrite-unknown/pr-probe-failed)" \
+  'grep -Eqi "publish cannot certify|rewrite-unknown|pr-probe-failed" "$GF"'
 
 # ---- LEARNINGS #17: no model/effort literal in the dispatch prose -------------
 assert "finalize body restates NO model alias literal" '! grep -qiE "\b(opus|sonnet|haiku|fable)\b" "$FIN"'
@@ -164,31 +190,32 @@ assert "convention keeps 'seven skills get a wrapper' exact" 'grep -qiE "\bseven
 assert "status notes the rebase-retest gate is finalize-only" \
   'grep -Eqi "finalize-only|the sweep[^.]*never merges|only archives already-merged" "$STAT"'
 
-# --- change 0075: finalize's durable-root posture ----------------------------------------------
-# D3 is irreducibly skill-side: `git worktree remove --force` succeeds with the agent's CWD inside
-# the target, but its NEXT command cannot start. No script can fix that (a child cannot change its
-# parent's CWD), so the SKILL must run its close-out from the durable root.
-assert "0075: finalize names the REPO_ROOT literal as its durable root" \
-  'grep -qF "REPO_ROOT" "$FIN"'
-assert "0075: finalize instructs the close-out to run from the durable root" \
-  '[ "$(grep -ciE "durable root" "$FIN")" -ge 1 ]'
-# The anti-pattern the convention forbids: deriving the root from the metadata worktree. In
-# main-mode METADATA_WORKTREE *is* the repo root, so dirname would yield the repo's PARENT.
+# --- close-out and the feature worktree (0075 posture now Go-owned) -----------------------------
+# RETIRED (0316, category (a)): the durable-root posture — naming a `REPO_ROOT` literal and running
+# the close-out from it, so a `git worktree remove` could not strand the agent's CWD — was a
+# skill-side Bash concern. Close-out is now `docket finalize closeout`, a Go transaction that
+# reloads metadata, reprobes, and commits by explicit path; the skill runs no bash from a durable
+# root, so REPO_ROOT and the "durable root" instruction are gone. Authority #2: Go transactions own
+# committing/closeout (the skill no longer commits). The anti-pattern negative and the
+# feature-worktree assert below are PRESERVED — the gate's suite still runs in the feature worktree.
 assert "0075: finalize does NOT derive the root as dirname of the metadata worktree" \
   '! grep -qE "dirname .*METADATA_WORKTREE" "$FIN"'
-# The gate's suite run legitimately stays in the feature worktree — only the close-out moves.
-# (Tightened from the brief's draft: `A|B` where B is a substring of every match of A is a
-# vacuous alternation — B alone is the whole load-bearing anchor.)
+# RE-KEYED (0316, category (c)): the gate suite still runs in the feature worktree — step 5 launches
+# it with `--cwd <feature worktree>` and both agents are dispatched "naming the feature worktree".
 assert "0075: finalize still runs the merge-gate suite in the feature worktree" \
-  'grep -qiE "in the feature worktree" "$FIN"'
+  'grep -qiE "cwd <feature worktree>|naming the feature worktree" "$FIN"'
 
 # --- merge authorization after 0095 (auto_approve retired) ---
 assert "0095: no live auto_approve/docket-approve reference in the finalize skill" \
   '! grep -Eqi "auto_approve|docket-approve|setup-auto-approve" "$FIN"'
-assert "0095: require_pr_approval still gates the auto-detect path on APPROVED" \
-  'grep -q "require_pr_approval" "$FIN" && grep -q "reviewDecision" "$FIN" && grep -q "APPROVED" "$FIN"'
-assert "0095: an approved PR merges without --admin" \
-  'grep -Eqi "without.*--admin|no .*--admin|not .*--admin" "$FIN"'
+# RETIRED (0316, category (a)): the auto-detect approval gate no longer restates the GraphQL
+# `reviewDecision`/`APPROVED` predicate — approval is a Go merge conjunct (`ApprovalSatisfied`,
+# finalize_merge.go) surfaced as the `approval-required` skip reason (see the approval retirement
+# near the top of this file for the full cite). The "approved PR merges without --admin" invariant
+# is preserved as the positive that `--admin` is honored ONLY to force past a required review and is
+# never inferred — so a normal approved merge needs none.
+assert "0095: --admin is honored only to force past a required review, never inferred" \
+  'grep -Eqi ".--admin. is honored .{0,12}only.{0,160}required review" "$FIN" && grep -Eqi "never inferred from an approval absence" "$FIN"'
 
 # Adjacency, not mere co-occurrence: two independent existence checks are vacuous here —
 # `explicit id` is independently satisfied by the Selection section (lines ~40, 58, 86) and
@@ -199,8 +226,14 @@ assert "0095: an approved PR merges without --admin" \
 admin_flat="$(tr '\n' ' ' < "$FIN")"
 assert "0095: --admin survives only as the explicit-id / attended escape hatch (adjacent)" \
   'grep -Eqi -- "admin.{0,60}(explicit[- ]id|attended)" <<<"$admin_flat"'
-assert "publish degradation: terminal_publish headless push denial degrades, not fails" \
-  'grep -qi "terminal_publish" "$FIN" && grep -Eqi "degrad|surface.*manual|run .*terminal-publish" "$FIN"'
+# RETIRED (0316, category (a)): terminal publishing is DEFERRED — 0316's *Out of scope* names
+# "terminal publishing" among the deferred capabilities, so the skill carries no `terminal_publish`
+# degradation prose. Authority #1 (Out of scope: terminal publishing). Inverted guard proving the
+# deferred surface stayed out, preceded by a non-vacuity anchor so an empty file cannot pass. When
+# the Out-of-scope set is lifted (a later change), restore a real degradation assert.
+assert "SKILL is the Go sequencer (non-vacuity anchor)" 'grep -qF "docket finalize" "$FIN"'
+assert "SKILL carries no deferred terminal_publish degradation prose" \
+  '! grep -qi "terminal_publish" "$FIN"'
 
 # --- change 0260: the two new abort-and-report members live in gate-failure.md ------------------
 # The enumeration is one long line today, but guard it through a whitespace-collapsed haystack
@@ -219,20 +252,16 @@ abort_flat="$(awk '/^## abort-and-report points/{f=1;next} f&&/^## /{exit} f' "$
 assert "0260: the abort-set section extractor still reaches the enumeration (non-vacuity)" \
   '[ "${#abort_flat}" -gt 200 ] && grep -qF -- "ambiguous rebase conflict" <<<"$abort_flat"'
 
-# Member 1 — a POLICY denial of the gate's own post-rebase push. Bound to the push's noun, not to
-# a step number: gate-failure.md already uses "gate-step-5" for the RED-SUITE step, so a number
-# here would name the wrong thing. Bound phrase-to-claim: "force-with-lease" alone is satisfied by
-# the pre-existing CONCURRENT-push member two clauses away, which is a different reason entirely —
-# so the denial verb must reach the push through its OWN "post-rebase" qualifier, not merely land
-# within N characters of some other member's mention of the lease.
-assert "0260: abort set names a harness/permission DENIAL of the post-rebase force-with-lease push" \
-  'grep -qE -- "(denial|denying)[^.]{0,80}post-rebase .--force-with-lease. push" <<<"$abort_flat"'
-assert "0260: the push-denial member is conditioned on Harness-native recovery first" \
-  'grep -qE -- "--force-with-lease[^.]{0,200}Harness-native recovery" <<<"$abort_flat"'
-# The distinct pre-existing member must SURVIVE alongside it — a rewrite that merges the two
-# reasons into one clause is exactly the drift this pair exists to catch.
-assert "0260: the concurrent-push lease rejection survives as its own distinct member" \
-  'grep -qE -- "lease[^.]{0,60}concurrent push" <<<"$abort_flat"'
+# Member 1 (push mechanics) — RETIRED (0316, category (a)). Change 0260's two push-related abort
+# members — a harness/permission DENIAL of the post-rebase `--force-with-lease` push (conditioned on
+# Harness-native recovery), and the distinct concurrent-push lease rejection — are obsolete. The
+# rebased-head push is now `docket finalize publish`, a Go verb that owns the lease; an
+# un-certifiable push surfaces as the "rewrite the publish cannot certify" abort member
+# (`rewrite-unknown`/`pr-probe-failed`), and there is no hand force-push for a harness to deny.
+# Authority #2: `finalize publish` owns the lease push. Guard re-pointed at the surviving
+# publish-abort member in the enumeration (over the same abort_flat haystack).
+assert "0316: the abort set names an un-certifiable publish (rewrite-unknown/pr-probe-failed)" \
+  'grep -qE -- "publish cannot certify|rewrite-unknown|pr-probe-failed" <<<"$abort_flat"'
 
 # Member 2 — the carve-out's posture pointer must resolve to a LISTED reason, not an implied one.
 assert "0260: abort set names dispatch-unavailability for the gate agents" \
@@ -240,11 +269,13 @@ assert "0260: abort set names dispatch-unavailability for the gate agents" \
 assert "0260: the dispatch-unavailable member points at the carve-out" \
   'grep -qE -- "(dispatch|unavailable)[^.]{0,120}carve-out" <<<"$abort_flat"'
 
-# De-numeralization: the count sentence must be GONE, not merely re-counted (a re-count rots again
-# at the next member). Keyed on SHAPE, not on an enumeration of numeral spellings: the positive
-# pins the article adjacent to the noun phrase, so ANY numeral re-inserted between them — spelled
-# out or a digit, at any count — displaces the match and reddens. It is its own non-vacuity check.
-assert "0260: the count sentence stays de-numeralized (no numeral between 'the' and 'distinct')" \
-  'grep -qE -- "flatten the distinct abort reasons" <<<"$gf_flat"'
+# RETIRED (0316, category (a)): the old GF enumeration ended with a count sentence ("flatten the N
+# distinct abort reasons"), and this assert pinned it de-numeralized. The Go-sequencer rewrite
+# dropped the count sentence entirely — the abort set is now a plain bulleted list under
+# "## abort-and-report points (the full set)" with no running tally — so there is no numeral to
+# guard. Authority #3: the rewritten GF states the set with no count sentence. Inverted guard (the
+# count sentence must be ABSENT) with a non-vacuity anchor on the section header.
+assert "0316: the abort set is a plain enumeration with no running count sentence" \
+  '! grep -qiE "the (two|three|four|five|six|seven|eight|nine|ten|[0-9]+) distinct abort reasons" <<<"$gf_flat" && grep -qF -- "abort-and-report points (the full set)" <<<"$gf_flat"'
 
 exit $fail

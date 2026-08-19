@@ -89,10 +89,22 @@ done <<<"$SITES"
 # and review role invocations. Change 0315 retired implement-next's fourth invocation (finish) —
 # Step 7 now publishes through direct `docket workspace publish` + `docket pr publish` operations
 # rather than the SKILL_FINISH role — so 3, not 4, is the marker-bearing invocation population.
-assert "autonomous role invocations were actually checked (checked=$checked >= 5)" '[ "$checked" -ge 5 ]'
+# RE-BASELINED (0316): docket-finalize-change was rewritten into a Go-verb sequencer and no longer
+# invokes any `$SKILL_*` role (its former SKILL_FINISH close-out and the human-present exception went
+# with it — `skills.finish` is `dispDeferredActive`, so any explicit value blocks mutation and the
+# skill can never drive that role). The wrapper-backed sigil population is now 4 lines, all in
+# docket-implement-next (one mention + three invocations). Authority #2 (dispDeferredActive) +
+# Authority #1 (Out of scope: skill rebinding).
+assert "autonomous role invocations were actually checked (checked=$checked >= 4)" '[ "$checked" -ge 4 ]'
 assert "genuine invocation lines were marker-checked (found $((checked-exceptions-mentions)) >= 3)" \
   '[ "$((checked-exceptions-mentions))" -ge 3 ]'
-assert "exactly one human-present exception exists (found $exceptions)" '[ "$exceptions" -eq 1 ]'
+# RE-BASELINED (0316): zero human-present exceptions is now correct. The one exception was
+# docket-finalize-change's SKILL_FINISH close-out; the Go-sequencer rewrite retired it (the finish
+# role is a deferred capability the binary refuses), so no autonomous role invocation carries a
+# human-present hand-off any more. The conditional assert inside the loop still fires if a NEW
+# human-present exception is introduced (in any skill).
+assert "no human-present exception remains (the finalize finish-role exception is retired; found $exceptions)" \
+  '[ "$exceptions" -eq 0 ]'
 
 # --- non-vacuity / mutation proof ---------------------------------------------------------------
 # The marker check must reject an unmarked invocation line — the exact shape of today's defective §4.

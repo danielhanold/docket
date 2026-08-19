@@ -568,12 +568,15 @@ for flag in $KIDS_REQUIRED; do
 done
 assert "the gate command asks for the OPEN subset, not the whole graph" \
   'grep -qF -- "--open-only" <<<"$gate_block"'
-# Finalize's own body must reach the op too: its step 3.5 close-out gate ("does this change have
-# stacked descendants") had the same rendered-row oracle, and a trigger nobody can evaluate is a
-# step nobody runs.
+# Finalize's own body reaches descendants through the Go context bundle now, not the bash facade.
+# RE-KEYED (0316, category (a)): the descendant op `docket.sh stack-children` is absorbed into
+# `docket context finalize`, whose bundle carries the descendant relations and the open-child PR set
+# (finalize_context.go — `Descendants`/`OpenChildPRs`). Authority #2: the context bundle owns
+# descendants. Guard re-pointed at the context bundle carrying them. (The reference's fenced facade
+# invocation above is unchanged — references/stacked-changes.md is not rewritten by 0316.)
 fin_flat="$(tr -s '[:space:]' ' ' < "$FINSK")"
-assert "docket-finalize-change names the descendants op" \
-  'grep -qF "docket.sh stack-children" <<<"$fin_flat"'
+assert "docket-finalize-change reaches descendants through the context bundle (not the bash facade)" \
+  'grep -qiE "descendant relations|open-child PR set|descendant" <<<"$fin_flat" && grep -qF "docket context finalize" <<<"$fin_flat"'
 
 printf '%s\n' "--- done"
 exit "$fail"

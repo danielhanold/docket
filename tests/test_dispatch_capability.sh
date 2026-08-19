@@ -129,7 +129,6 @@ assert "convention: a skill that was invoked but cannot DISPATCH is Tier C" \
 IMPL="$REPO/skills/docket-implement-next/SKILL.md"
 AUTOGROOM="$REPO/skills/docket-auto-groom/SKILL.md"
 FIXLOOP="$REPO/skills/docket-implement-next/references/fix-loop.md"
-GATEFAIL="$REPO/skills/docket-finalize-change/references/gate-failure.md"
 
 # Print the single paragraph (blank-line-delimited block) containing the first anchor match,
 # FLATTENED to one line — same hazard and same technique as `carveout_para` above and as
@@ -193,14 +192,53 @@ check_site "$AUTOGROOM" "docket-auto-groom-critic"               "Tier B" "auto-
 # so the convention's Tier C row must NAME the fix consumer or this reddens. Rewording either side
 # independently is exactly what the derivation catches; nothing here quotes a sentence.
 check_site "$FIXLOOP"   "fix dispatch is"                        "Tier C" "implement-next §6 fix loop"      "fix"
-# Change 0260: the two finalize gate dispatches, formerly parked in $PENDING_TIER. Their posture is
-# the `carve-out` — not a tier letter — because their contract is an in-context report gating the
-# merge. Anchored on gate-failure.md, which SKILL.md blocking-loads at BOTH dispatch moments, so
-# this is the one canonical marker home and nothing is copy-pinned across two files. The anchors are
-# each clause's own unique phrase, so moving a clause out of the paragraph reddens "site found"
-# rather than silently re-pointing at the neighbouring paragraph that also names both agents.
-check_site "$GATEFAIL" "conflicted rebase whose"  "carve-out" "finalize gate rebase-resolver"    "docket-rebase-resolver"
-check_site "$GATEFAIL" "red rebased suite whose"  "carve-out" "finalize gate integration-repair" "docket-integration-repair"
+# Change 0260 tiered the two finalize gate dispatches as `carve-out` — not a tier letter — because
+# their contract is an in-context report gating the merge. Change 0316 then rewrote
+# docket-finalize-change/SKILL.md from a Bash procedure into a Go-verb sequencer, collapsing what
+# had been nine per-step mentions across the old procedure into ONE section,
+# "## Dispatch unavailability — the carve-out". Category (c) (plan 0316 Task 20): the content is
+# INTACT — that section names BOTH agents, cites the convention's *Dispatch-capability resolution*
+# rule, forbids inferring unavailability from a tool name, and gives the self-approval reason — only
+# the LOCATORS moved. The old per-agent `check_site` row bound its noun to the `carve-out` label
+# with an 80-char single-clause proximity window over two SEPARATE gate-failure.md paragraphs; that
+# window is the wrong shape for one consolidated section (the section's own first sentence lists
+# both nouns, so the second noun already sits >80 chars from the label). So bind on SHAPE instead:
+# membership in the section HEADED by the carve-out label IS "this noun is carve-out-classified" —
+# the same binding the convention-side coherence loop below uses for its own `carve-out` case. This
+# is not the skill being edited to fit the test (that would mis-categorise a preserved-text (c)
+# failure): the skill is correct; only these locators are rewritten.
+FIN="$REPO/skills/docket-finalize-change/SKILL.md"
+# The carve-out SECTION as one flattened, emphasis-stripped haystack: the heading record (which
+# carries the "carve-out" label) through the body paragraph (which carries the clauses and both
+# agent nouns). Emphasis is stripped with `tr -d '*'` so a bolded `**never**` reads as the prose
+# "never" the phrase assert keys on. Non-vacuity is intrinsic here: every assert below is a POSITIVE
+# grep, so an absent or renamed section yields an empty haystack that reddens them rather than
+# passing vacuously.
+carveout_section="$(awk 'BEGIN{RS="";} /Dispatch unavailability — the carve-out/{f=1} f{print} f&&/self-approval/{exit}' "$FIN" | tr '\n' ' ' | tr -s '[:space:]' ' ' | tr -d '*')"
+# Both agents share the ONE consolidated section, so each row asserts its own noun's presence in it
+# rather than a private paragraph. Bookkeeping (seen / all_nouns / a `carve-out|<noun>` site_rows
+# record) is identical to check_site, so the population floor and the table-coherence loop below are
+# unchanged.
+check_carveout_site(){ # $1 site noun  $2 label
+  local noun label; noun="$1"; label="$2"
+  echo "seen docket-finalize-change/SKILL.md carve-out"  # per-site record, before any skip
+  if grep -qF -- "$noun" <<<"$carveout_section"; then seen=$((seen+1)); fi
+  all_nouns="$all_nouns $noun"
+  site_rows="${site_rows}carve-out|$noun
+"
+  assert "$label: dispatch site found (named in the consolidated carve-out section)" \
+    'grep -qF -- "$noun" <<<"$carveout_section"'
+  assert "$label: section cites the convention's Dispatch-capability resolution rule" \
+    'grep -qF -- "Dispatch-capability resolution" <<<"$carveout_section"'
+  assert "$label: section forbids concluding unavailability from a tool name" \
+    'grep -qF -- "never from a tool name" <<<"$carveout_section"'
+  # Carve-out classification by co-location with the label, not an 80-char window: the section is
+  # headed by the carve-out label, so the noun's presence inside it IS the classification.
+  assert "$label: the noun is classified carve-out (co-located with the carve-out label)" \
+    'grep -qF -- "carve-out" <<<"$carveout_section" && grep -qF -- "$noun" <<<"$carveout_section"'
+}
+check_carveout_site "docket-rebase-resolver"    "finalize gate rebase-resolver"
+check_carveout_site "docket-integration-repair" "finalize gate integration-repair"
 
 # Population floor: the scanner must have REACHED all eight sites. A renamed heading or a moved
 # paragraph now genuinely reddens this floor too, because `seen` only increments on an actual find

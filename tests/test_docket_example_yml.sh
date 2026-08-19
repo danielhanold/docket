@@ -910,35 +910,21 @@ assert "runners.codex.sandbox is still read by the codex adapter" \
 assert "runners.opencode.permissions is still read by the opencode adapter" \
   'grep -q "DOCKET_RUNNER_CFG_PERMISSIONS" "$REPO/scripts/runners/opencode.sh"'
 
-# change 0102: require_pr_approval is now RESOLVER-read. The skill still NAMES the policy (that is
-# what the (2c) consumer grep anchors on), but it must obtain the VALUE from the Step-0 export
-# block — never by parsing .docket.yml itself. The next two asserts are the sole-channel proof.
-# Reviewed and replaced (task-3 review, finding 1): the original single "does not parse .docket.yml"
-# assert required the key name and the framing string on the SAME line, which no line in this file
-# has ever satisfied — it was vacuous on day one and stayed green under both a revert of the
-# finalize SKILL's export-block sentence
-# and a bolted-on fallback sentence (mutation-tested; see task-3-report.md). Replaced with two
-# assertions anchored on the real positive/negative shape of the sole-channel contract:
-assert "require_pr_approval is still named by the finalize skill body" \
-  'grep -q "require_pr_approval" "$REPO/skills/docket-finalize-change/SKILL.md"'
-# (finding 2) Anchored on the PROVENANCE clause in the finalize SKILL — the `require_pr_approval`
-# sentence naming FINALIZE_REQUIRE_PR_APPROVAL as "the sole channel" — the sentence that actually
-# tells
-# the agent where the value comes from — not a bare "does FINALIZE_REQUIRE_PR_APPROVAL appear
-# anywhere" check. FINALIZE_REQUIRE_PR_APPROVAL also appears in the SKILL's "Every value below is
-# read from the Step-0 `preflight` export block" framing
-# sentence, so an existence-anywhere grep stays green even if this provenance clause is deleted
-# outright;
-# this requires the full provenance phrase (mutation-tested against deleting the clause).
-assert "0102: the finalize skill's provenance clause (the 'sole channel' sentence) ties FINALIZE_REQUIRE_PR_APPROVAL to the Step-0 export block" \
-  'grep -Eq "reads its resolved value as.{0,60}FINALIZE_REQUIRE_PR_APPROVAL.{0,80}Step-0 export block.{0,60}sole channel" "$REPO/skills/docket-finalize-change/SKILL.md"'
-# (finding 1a) Positive framing: the SKILL's export-block sentence states the sole-channel rule as
-# "never by parsing
-# .docket.yml", tied to the exported keys it names. Reverting the export-block sentence back to its
-# pre-0102 framing
-# ("Configured by `.docket.yml`:") removes this phrase entirely, reddening this assert.
-assert "0102: the finalize skill states its sole channel positively (never by parsing .docket.yml)" \
-  'grep -Eq "FINALIZE_REQUIRE_PR_APPROVAL.{0,20}never by parsing.{0,15}\.docket\.yml" "$REPO/skills/docket-finalize-change/SKILL.md"'
+# change 0102 → RETIRED (0316, category (a)): under the Bash skill, require_pr_approval was
+# RESOLVER-read and delivered to the skill through the Step-0 `preflight` export block as
+# FINALIZE_REQUIRE_PR_APPROVAL ("the sole channel, never by parsing .docket.yml"). The Go sequencer
+# reads approval through `docket context finalize`'s Policy block — `FinalizePolicy` in
+# internal/app/finalize_context.go, enforced as the `approval satisfied` merge conjunct
+# (finalize_merge.go `ApprovalSatisfied`) — so there is no Step-0 env channel to guard. Authority
+# #2: finalize_context.go's Policy block / finalize_merge.go own approval. The config KEY still
+# ships in .docket.example.yml (the discoverability asserts above are unchanged); only the skill's
+# Step-0 export-channel provenance clause is retired. Guard re-pointed at the surviving substance:
+# the finalize skill resolves the gate/approval policy from the context bundle, not by hand-parsing.
+FIN_EX="$REPO/skills/docket-finalize-change/SKILL.md"
+assert "finalize resolves the approval policy from the context bundle's Policy block" \
+  'grep -Eqi "resolved gate/approval/repo-mode policy|approval satisfied" "$FIN_EX"'
+assert "finalize does not hand-parse .docket.yml for approval (context/preflight resolves config)" \
+  '! grep -Eqi "pars(e|ing) .docket.yml.{0,40}require_pr_approval|require_pr_approval.{0,40}pars(e|ing) .docket.yml" "$FIN_EX"'
 # (finding 1b) Negative guard: no bolted-on fallback sentence ("...fall back to reading
 # require_pr_approval from .docket.yml") — the explicit no-fallback-by-design contract. The
 # positive assert above cannot catch an ADDED fallback sentence (it would leave "never by parsing"

@@ -13,9 +13,15 @@ assert "metadata_branch default is docket in the convention" \
   'grep -Eq "^metadata_branch: docket" skills/docket-convention/SKILL.md'
 
 # B. integration_branch vocabulary propagated into every skill (the knob itself is guarded in docket-convention below).
+# RE-KEYED (0316, category (c)): the assertion guards VOCABULARY propagation, not the raw config
+# knob (which the convention guards below). The Go-sequencer docket-finalize-change reads the base
+# through `docket context finalize`/preflight and states the abstraction as the spaced prose
+# "integration branch" rather than the underscored config literal. Key on the vocabulary in either
+# separator so the propagation guard survives that surface change without weakening for the skills
+# that still name the literal.
 for s in "${SKILLS[@]}"; do
-  assert "integration_branch knob present in $s" \
-    'grep -q "integration_branch" "skills/'"$s"'/SKILL.md"'
+  assert "integration_branch vocabulary present in $s" \
+    'grep -qiE "integration.branch" "skills/'"$s"'/SKILL.md"'
 done
 assert "integration_branch knob present in the convention" \
   'grep -q "integration_branch" skills/docket-convention/SKILL.md'
@@ -38,13 +44,20 @@ assert "bootstrap guard present in convention" \
 assert "v1 docket caveat removed from implement-next" \
   '! grep -qi "v1 rough edge" skills/docket-implement-next/SKILL.md'
 
-# G. Terminal-publish: single-sourced in finalize; copies from origin/docket; Accepted gate.
-assert "terminal-publish procedure in finalize" \
-  'grep -qi "terminal publish\|terminal-publish" skills/docket-finalize-change/SKILL.md'
-assert "publish copies from origin/docket (not a branch merge)" \
-  'grep -q "checkout origin/docket" skills/docket-finalize-change/SKILL.md'
-assert "Accepted gate on ADR publish (copy-site gate, not the ADR schema)" \
-  'grep -q "whose ADR is \`Accepted\`" skills/docket-finalize-change/SKILL.md'
+# G. Terminal-publish is DEFERRED for the finalize Go sequencer (0316, Out of scope).
+# RETIRED (0316, category (a)): the finalize skill used to single-source the terminal-publish
+# procedure (copy from `origin/docket`, the Accepted-ADR copy-site gate, the main-mode skip). 0316's
+# *Out of scope* defers "terminal publishing", so the Go-sequencer finalize carries none of it — the
+# still-bash sweep (docket-status, asserted in section I below) owns terminal publishing until a
+# later change. Authority #1 (Out of scope: terminal publishing). Inverted guards proving finalize
+# carries no terminal-publish procedure, with a non-vacuity anchor so an empty/renamed file cannot
+# pass.
+assert "finalize SKILL is the Go sequencer (non-vacuity anchor)" \
+  'grep -qF "docket finalize" skills/docket-finalize-change/SKILL.md'
+assert "finalize carries no deferred terminal-publish procedure" \
+  '! grep -qi "terminal publish\|terminal-publish" skills/docket-finalize-change/SKILL.md'
+assert "finalize does not copy from origin/docket by hand (Go closeout owns backlinks)" \
+  '! grep -q "checkout origin/docket" skills/docket-finalize-change/SKILL.md'
 
 # H. Kill-publish wired in BOTH kill origins (producer + implementer), not just finalize.
 assert "proposed-kill wired in docket-new-change" \
@@ -66,9 +79,12 @@ assert "adr skill references terminal-publish / publish" \
 # K1. Convention documents the pinned main-mode opt-out (non-vacuous: the exact opt-out prose).
 assert "main-mode opt-out documented in convention" \
   'grep -q "pinning \`metadata_branch: main\`" "skills/docket-convention/SKILL.md"'
-# K2. Terminal-publish is explicitly skipped in main-mode (degradation at the publish site).
-assert "terminal-publish skipped entirely in main-mode" \
-  'grep -q "Skipped entirely in \`main\`-mode" skills/docket-finalize-change/SKILL.md'
+# K2. RETIRED (0316, category (a)): terminal publishing is deferred (Out of scope), so there is no
+# publish site in the finalize sequencer to carry a main-mode skip clause. Finalize's own main-mode
+# closeout behavior is Go-owned (the `docket` mode backlink leg in step 9). Inverted guard proving
+# the deferred publish-site skip clause is absent, anchored non-vacuously by section G above.
+assert "finalize carries no deferred main-mode terminal-publish skip clause" \
+  '! grep -q "Skipped entirely in \`main\`-mode" skills/docket-finalize-change/SKILL.md'
 # K3. Proposed-kill (docket-new-change) delegates to the close-out reference, which carries the
 #     main-mode archive-move degradation clause (moved out of the skill by the kill-path rewire).
 assert "close-out ref documents main-mode archive-move degradation (proposed-kill)" \

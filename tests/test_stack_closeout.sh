@@ -500,21 +500,20 @@ for token in $REPORT_TOKENS; do
     'grep -qF -- "$token" <<<"$closeout_flat"'
 done
 
-# Finalize: it must have a STEP that runs the op, and that step must sit between the archive it
-# depends on and the cleanup that deletes the root's branch.
+# Finalize: RETIRED (0316, category (a)). The stack close-out was a separate `docket.sh stack-closeout`
+# facade call the finalize skill sequenced BETWEEN `docket.sh archive-change` and
+# `docket.sh cleanup-feature-branch` (this block asserted that line order). Root-carry archiving is
+# now absorbed into the Go `docket finalize closeout` verb: its `root-archived` disposition "archives
+# the root and every descendant using the root's merge date" in one transaction, and its
+# `stacked-merged` disposition marks a child in place until the root lands. Authority #2:
+# `docket finalize closeout` owns root-carry archiving — the skill no longer sequences bash facade
+# calls, so the archive→stack-closeout→cleanup line-order machinery is retired with them. Guard
+# re-pointed at the closeout verb owning the stack dispositions.
 fin_flat="$(tr -s '[:space:]' ' ' < "$FIN")"
-assert "docket-finalize-change names the close-out op" \
-  'grep -qF "docket.sh stack-closeout" <<<"$fin_flat"'
-assert "finalize's close-out step points at the section that owns the invocation" \
-  'grep -qF "The stack close-out is idempotent" <<<"$fin_flat"'
-assert "finalize's stacked-changes trigger line names the close-out" \
-  'trig="$(grep -F "references/stacked-changes.md" "$FIN" | tr -s "[:space:]" " ")"; \
-   grep -qF "close-out" <<<"$trig"'
-assert "finalize runs the close-out AFTER the archive and BEFORE the branch cleanup" \
-  'a="$(grep -n -F "docket.sh archive-change" "$FIN" | cut -d: -f1 | sed -n 1p)"; \
-   c="$(grep -n -F "docket.sh cleanup-feature-branch" "$FIN" | cut -d: -f1 | sed -n 1p)"; \
-   s="$(grep -n -F "docket.sh stack-closeout" "$FIN" | cut -d: -f1 | sed -n 1p)"; \
-   [ -n "$a" ] && [ -n "$c" ] && [ -n "$s" ] && [ "$s" -gt "$a" ] && [ "$s" -lt "$c" ]'
+assert "finalize's Go closeout verb owns the stack root-carry (root-archived)" \
+  'grep -qF "docket finalize closeout" <<<"$fin_flat" && grep -qF "root-archived" <<<"$fin_flat"'
+assert "finalize's closeout retains a stacked-merged child until the root lands" \
+  'grep -qF "stacked-merged" <<<"$fin_flat"'
 
 printf '%s\n' "--- done"
 exit "$fail"

@@ -357,6 +357,18 @@ while IFS= read -r f; do
   sk="$(basename "$(dirname "$f")")"
   hay="$(flatten < "$f")"
   covered=$((covered+1))
+  # RE-KEYED (0316, category (a)): docket-finalize-change reads the shared tree via `docket.sh
+  # preflight` (so it stays in scope AND in B2b's worktree-scope:metadata cross-check) but no longer
+  # STAGES OR COMMITS by hand — every metadata write is a Go transaction (`docket finalize <verb>`)
+  # that stages by explicit path inside the binary. The 'Stage by explicit path' SKILL marker guards
+  # a hand-authored commit and does not apply to it; assert instead that the skill delegates
+  # committing to the Go verbs and writes no metadata by hand. Authority #2: Go transactions own
+  # committing (the skill stages nothing).
+  if [ "$sk" = docket-finalize-change ]; then
+    assert "B2: $sk commits via Go transactions, not a hand commit (skill writes no metadata by hand)" \
+      'grep -qF -- "writes metadata by hand" <<<"$hay"'
+    continue
+  fi
   assert "B2: $sk carries the marker at its commit instruction" \
     'grep -qF -- "$MARKER" <<<"$hay"'
 done <<<"$IN_SCOPE"
@@ -453,8 +465,14 @@ REF_SCOPE="$(select_commit_refs)"
 # COUNT FLOOR — without it the selector may silently degrade to matching nothing and the loop below
 # becomes a vacuous zero-iteration guard, which is this whole file's named failure mode.
 assert "B2c: the derivation selected reference files (selector floor)" '[ -n "$REF_SCOPE" ]'
-assert "B2c: the derivation yields exactly 2 commit-instructing references (found $(grep -c . <<<"$REF_SCOPE"))" \
-  '[ "$(grep -c . <<<"$REF_SCOPE")" -eq 2 ]'
+# RE-BASELINED (0316, category (a)): pre-0316 TWO references bound a shared-tree commit —
+# terminal-close-out.md (docket-status's sweep) and docket-finalize-change/references/gate-failure.md
+# (finalize's marker write). The Go-sequencer rewrite made finalize's marker write a `docket finalize
+# block` transaction, so gate-failure.md no longer instructs a hand commit on metadata_branch and
+# drops out of scope. One commit-instructing reference remains (terminal-close-out.md, for
+# docket-status's still-Bash sweep). Authority #2: Go transactions own committing.
+assert "B2c: the derivation yields exactly 1 commit-instructing reference (found $(grep -c . <<<"$REF_SCOPE"))" \
+  '[ "$(grep -c . <<<"$REF_SCOPE")" -eq 1 ]'
 
 covered_refs=0
 while IFS= read -r f; do
@@ -465,8 +483,8 @@ while IFS= read -r f; do
   assert "B2c: $rel carries the marker at its commit instruction" \
     'grep -qF -- "$MARKER" <<<"$hay"'
 done <<<"$REF_SCOPE"
-assert "B2c: every in-scope reference was actually checked (covered_refs=$covered_refs = 2)" \
-  '[ "$covered_refs" -eq 2 ]'
+assert "B2c: every in-scope reference was actually checked (covered_refs=$covered_refs = 1)" \
+  '[ "$covered_refs" -eq 1 ]'
 
 # References that NAME `metadata_branch` but instruct no commit there must stay OUT: `learnings.md`
 # states where `promotion_state:` lives, `edge-paths.md` states what a PR back-link points AT.
