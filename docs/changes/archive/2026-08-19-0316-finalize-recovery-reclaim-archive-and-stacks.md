@@ -2,11 +2,11 @@
 id: 316
 slug: finalize-recovery-reclaim-archive-and-stacks
 title: 'Finalize, recovery, reclaim, archive, and stacks'
-status: 'implemented'
+status: done
 priority: critical
 type: feat
 created: 2026-08-12
-updated: '2026-08-19'
+updated: 2026-08-19
 depends_on: [315, 322, 326]
 stacked_on:
 related: [298, 318, 322, 326]
@@ -21,7 +21,7 @@ branch: 'feat/finalize-recovery-reclaim-archive-and-stacks'
 pr: 'github.com/danielhanold/docket#221'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-19T16:50:28Z'
+claimed_at: 
 ---
 
 ## Artifacts
