@@ -43,6 +43,7 @@ var assetIndependent = map[string]bool{
 	"change mark-implemented": true,
 	"context":                 true, // the group itself; it reports a missing command
 	"context implementation":  true,
+	"context finalize":        true,
 	"artifact":                true, // the group itself; it reports a missing command
 	"artifact backlink":       true,
 	"workspace":               true, // the group itself; it reports a missing command
@@ -68,6 +69,7 @@ var assetIndependent = map[string]bool{
 	"gate observe":            true,
 	"gate stop":               true,
 	"gate recover":            true,
+	"finalize":                true, // the group itself; it reports a missing command
 	"diagnostic":              true, // the group itself; it reports a missing command
 	"diagnostic runtime":      true,
 	"diagnostic config":       true,

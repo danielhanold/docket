@@ -78,9 +78,61 @@ func TestContextImplementationHumanMode(t *testing.T) {
 // context commands read the repository, never installed assets, so they must be
 // asset-independent (not refused on a machine with no installation).
 func TestContextCommandsAssetIndependent(t *testing.T) {
-	for _, key := range []string{"context", "context implementation"} {
+	for _, key := range []string{"context", "context implementation", "context finalize"} {
 		if !assetIndependent[key] {
 			t.Errorf("%q is not registered asset-independent", key)
 		}
+	}
+}
+
+// TestContextFinalizeRegistered: `docket context finalize` is registered under
+// the `context` group carrying --id, --allowlist, and --repo-dir flags.
+func TestContextFinalizeRegistered(t *testing.T) {
+	root := captureTree(t)
+
+	cmd, _, err := root.Find([]string{"context", "finalize"})
+	if err != nil || cmd == nil || cmd.Name() != "finalize" {
+		t.Fatalf("context finalize not registered: cmd=%v err=%v", cmd, err)
+	}
+	for _, flag := range []string{"id", "allowlist", "repo-dir"} {
+		if cmd.Flags().Lookup(flag) == nil {
+			t.Errorf("context finalize: missing --%s flag", flag)
+		}
+	}
+}
+
+// TestContextFinalizeReachesOperation is the JSON-mode wiring assertion: the
+// command reaches app.ContextFinalize, which — against a non-repository
+// directory — returns exactly one protocol-v1 document naming the operation.
+func TestContextFinalizeReachesOperation(t *testing.T) {
+	out, errS, code := runCLI(t, "context", "finalize", "--repo-dir", t.TempDir(), "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q (code=%d)", errS, code)
+	}
+	if !strings.Contains(out, `"operation":"context.finalize"`) {
+		t.Fatalf("document did not name the operation: %q", out)
+	}
+	if !strings.Contains(out, `"protocol_version":1`) {
+		t.Fatalf("missing protocol version: %q", out)
+	}
+	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
+	}
+}
+
+// TestContextFinalizeRoutesFlags: --id and --allowlist are accepted and typed,
+// and the command still reaches the operation with exactly one document.
+func TestContextFinalizeRoutesFlags(t *testing.T) {
+	out, errS, code := runCLI(t, "context", "finalize", "--id", "7", "--allowlist", "7,8", "--repo-dir", t.TempDir(), "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q (code=%d)", errS, code)
+	}
+	if !strings.Contains(out, `"operation":"context.finalize"`) {
+		t.Fatalf("document did not name the operation: %q", out)
+	}
+	// A non-integer --id is an argument error (exit 2), proving the flag is typed.
+	_, errBad, codeBad := runCLI(t, "context", "finalize", "--id", "notanint", "--repo-dir", t.TempDir())
+	if codeBad != 2 || !strings.Contains(errBad, "id") {
+		t.Fatalf("non-integer --id not rejected as an argument error: err=%q code=%d", errBad, codeBad)
 	}
 }
