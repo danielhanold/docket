@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -36,8 +37,18 @@ const (
 // argument vector wins; a call matching no arm exits fakeExitUnmatched with a
 // diagnostic, so an unexpected gh call can never silently succeed (a catch-all
 // exit 0 is forbidden by the spec).
+//
+// Sequential opts into consume-in-order matching (default: first-match-wins,
+// untouched). When set, an incoming invocation is bound to the FIRST arm whose
+// prefix matches AND that an earlier invocation has not already consumed —
+// consumption replayed from the NUL-delimited witness log at each re-exec, since
+// every gh call is a fresh process with no shared memory. That lets a probe→act→
+// verify sequence script two IDENTICAL-argv `pr view` calls (before-state, then
+// after-state) as two distinct arms served in order — the retarget and merge
+// paths reprobe the same PR by number and must observe a CHANGED snapshot.
 type fakeScenario struct {
 	Invocations []fakeArm `json:"invocations"`
+	Sequential  bool      `json:"sequential"`
 }
 
 // fakeArm is one scripted response. Stdout carries the EXACT nested JSON field
@@ -92,7 +103,18 @@ func fakeGHMain() {
 		}
 	}
 
-	arm, ok := matchArm(scenario, argv)
+	var (
+		arm fakeArm
+		ok  bool
+	)
+	if scenario.Sequential {
+		// Consume-in-order needs the witness log (the only cross-process memory of
+		// prior calls). A sequential scenario without a log is a test-authoring
+		// error, not a GitHub condition.
+		arm, ok = matchArmSequential(scenario, os.Getenv("FAKE_GH_LOG"))
+	} else {
+		arm, ok = matchArm(scenario, argv)
+	}
 	if !ok {
 		os.Stderr.WriteString("fake gh: no scenario arm matched invocation: " + strings.Join(argv, " ") + "\n")
 		os.Exit(fakeExitUnmatched)
@@ -145,6 +167,59 @@ func matchArm(s fakeScenario, argv []string) (fakeArm, bool) {
 		}
 	}
 	return fakeArm{}, false
+}
+
+// matchArmSequential binds the CURRENT invocation (the last record in the
+// witness log) to a scripted arm under consume-in-order semantics. It replays
+// every logged invocation in arrival order, greedily assigning each to the first
+// not-yet-consumed arm whose prefix matches, and returns the arm the last record
+// landed on. Two arms sharing a prefix are therefore served to two successive
+// calls in scenario order — the before/after snapshot pattern. A missing log, an
+// undecodable record, or a last record no unconsumed arm matches is a miss
+// (fakeExitUnmatched), never a silent answer.
+func matchArmSequential(s fakeScenario, logPath string) (fakeArm, bool) {
+	if logPath == "" {
+		return fakeArm{}, false
+	}
+	raw, err := os.ReadFile(logPath)
+	if err != nil {
+		return fakeArm{}, false
+	}
+	var argvs [][]string
+	for _, field := range bytes.Split(raw, []byte{0}) {
+		if len(field) == 0 {
+			continue
+		}
+		var rec invocationRecord
+		if err := json.Unmarshal(field, &rec); err != nil {
+			return fakeArm{}, false
+		}
+		argvs = append(argvs, rec.Argv)
+	}
+	if len(argvs) == 0 {
+		return fakeArm{}, false
+	}
+	consumed := make([]bool, len(s.Invocations))
+	assigned := -1
+	for i, av := range argvs {
+		for a := range s.Invocations {
+			arm := s.Invocations[a]
+			if consumed[a] || len(arm.ArgvPrefix) == 0 {
+				continue
+			}
+			if hasArgvPrefix(av, arm.ArgvPrefix) {
+				consumed[a] = true
+				if i == len(argvs)-1 {
+					assigned = a
+				}
+				break
+			}
+		}
+	}
+	if assigned == -1 {
+		return fakeArm{}, false
+	}
+	return s.Invocations[assigned], true
 }
 
 func hasArgvPrefix(argv, prefix []string) bool {
@@ -287,6 +362,97 @@ func withDonePath(p string) clientOverride {
 // JSON gh documents for the given PR fields.
 func prViewArm(j string) fakeArm {
 	return fakeArm{ArgvPrefix: []string{"pr", "view"}, Stdout: j, Exit: 0}
+}
+
+// mergePRJSON renders one PR object in the exact nested shape `gh pr view --json
+// ...,mergedAt,mergeCommit,mergeable` documents — the merge-fact vocabulary the
+// retarget/comment paths never read. mergedAt and mergeCommit are emitted as
+// JSON null (gh's shape for an unmerged PR) when their arguments are empty, and
+// mergeCommit as the nested {"oid": ...} object gh returns otherwise, so a
+// decoder that keys on the object shape (not a flat string) round-trips it.
+func mergePRDoc(number int, state string, headBranch, oid, base, title, body, mergedAt, mergeCommitOID, mergeable string) string {
+	m := map[string]any{
+		"number":      number,
+		"url":         fmt.Sprintf("https://github.com/acme/widget/pull/%d", number),
+		"state":       state,
+		"isDraft":     false,
+		"headRefName": headBranch,
+		"headRefOid":  oid,
+		"baseRefName": base,
+		"title":       title,
+		"body":        body,
+		"mergeable":   mergeable,
+	}
+	if mergedAt != "" {
+		m["mergedAt"] = mergedAt
+	} else {
+		m["mergedAt"] = nil
+	}
+	if mergeCommitOID != "" {
+		m["mergeCommit"] = map[string]any{"oid": mergeCommitOID}
+	} else {
+		m["mergeCommit"] = nil
+	}
+	b, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
+}
+
+// commentObj renders one PR-comment object in gh's `--json comments` element
+// shape: a body and its permalink url.
+func commentObj(body, url string) string {
+	b, err := json.Marshal(map[string]any{"body": body, "url": url})
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
+}
+
+// prCommentsJSON wraps zero or more comment objects into the `{"comments": [...]}`
+// envelope `gh pr view --json comments` emits.
+func prCommentsJSON(objs ...string) string {
+	return `{"comments":[` + strings.Join(objs, ",") + `]}`
+}
+
+// TestFakeSequentialArms proves the consume-in-order matcher serves two arms
+// that share the `pr view` prefix to two successive identical calls in scenario
+// order (before-state, then after-state) — the mechanism retarget/merge reprobes
+// depend on. First-match-wins (the default) would answer both with the first arm.
+func TestFakeSequentialArms(t *testing.T) {
+	before := ensMatchPR(7)
+	after := ensPRJSON(7, "OPEN", false, ensHead, ensHeadOid, "release", ensTitle, ensBody)
+	c, _ := newFakeClient(t, fakeScenario{
+		Sequential: true,
+		Invocations: []fakeArm{
+			{ArgvPrefix: []string{"pr", "view", "7"}, Stdout: before, Exit: 0},
+			{ArgvPrefix: []string{"pr", "view", "7"}, Stdout: after, Exit: 0},
+		},
+	})
+	viewArgs := []string{"pr", "view", "7", "--repo", ensRepoSpec, "--json", prJSONFields}
+	first, f := c.run(context.Background(), runRequest{op: "probe", args: viewArgs, network: true})
+	if f != nil {
+		t.Fatalf("first run: %v", f)
+	}
+	pr1, err := decodePullRequest("probe", first.stdout)
+	if err != nil {
+		t.Fatalf("decode first: %v", err)
+	}
+	if pr1.BaseBranch != ensBase {
+		t.Fatalf("first call base = %q, want %q", pr1.BaseBranch, ensBase)
+	}
+	second, f := c.run(context.Background(), runRequest{op: "probe", args: viewArgs, network: true})
+	if f != nil {
+		t.Fatalf("second run: %v", f)
+	}
+	pr2, err := decodePullRequest("probe", second.stdout)
+	if err != nil {
+		t.Fatalf("decode second: %v", err)
+	}
+	if pr2.BaseBranch != "release" {
+		t.Fatalf("second call base = %q, want %q (sequential arm not consumed in order)", pr2.BaseBranch, "release")
+	}
 }
 
 // --- Witness tests on the fake itself (Task 9 step 1 a–d) ---
