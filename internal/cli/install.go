@@ -42,6 +42,7 @@ var assetIndependent = map[string]bool{
 	"change attach-results":      true,
 	"change halt":                true,
 	"change resume-halted":       true,
+	"change reclaim":             true,
 	"change mark-implemented":    true,
 	"context":                    true, // the group itself; it reports a missing command
 	"context implementation":     true,
