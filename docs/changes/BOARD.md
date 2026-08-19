@@ -1,6 +1,6 @@
 # Backlog
 
-**328 changes** — 🟢 1 in progress · 🟡 46 proposed · ⚪ 4 deferred · ✅ 197 done · 🗑️ 80 killed
+**329 changes** — 🟢 1 in progress · 🟡 47 proposed · ⚪ 4 deferred · ✅ 197 done · 🗑️ 80 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0316](active/0316-finalize-recovery-reclaim-archive-and-stacks.md) | Finalize, recovery, reclaim, archive, and stacks | `critical` | `feat` | [spec](../superpowers/specs/2026-08-18-finalize-recovery-reclaim-archive-and-stacks-design.md) | `feat/finalize-recovery-reclaim-archive-and-stacks` |
 
-## 🟡 Proposed (46)
+## 🟡 Proposed (47)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -58,6 +58,7 @@
 | [0321](active/0321-render-artifact-backlink-sh-eats-artifact-tails-on-marker-sh.md) | render-artifact-backlink.sh eats artifact tails on marker-shaped literals — anchor whole-line, validate balance, refuse | `medium` | `fix` | needs-brainstorm |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | needs-brainstorm |
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
+| [0329](active/0329-change-refresh-claim-reports-invalid-state-with-empty-findin.md) | change refresh-claim reports invalid-state with empty findings — the transaction Failure is dropped on the DispositionFailed path | `high` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -124,6 +125,7 @@ graph TD
   0321
   0323
   0327
+  0329
   0192:::done
   0211:::done
   0311:::done
