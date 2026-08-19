@@ -1,14 +1,15 @@
 # Backlog
 
-**332 changes** — 🟢 1 in progress · 🟡 49 proposed · ⚪ 4 deferred · ✅ 198 done · 🗑️ 80 killed
+**332 changes** — 🟢 2 in progress · 🟡 48 proposed · ⚪ 4 deferred · ✅ 198 done · 🗑️ 80 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0329](active/0329-change-refresh-claim-reports-invalid-state-with-empty-findin.md) | change refresh-claim reports invalid-state with empty findings — the transaction Failure is dropped on the DispositionFailed path | `high` | `fix` | [spec](../superpowers/specs/2026-08-19-failed-transaction-diagnostics-design.md) | `feat/change-refresh-claim-reports-invalid-state-with-empty-findin` |
+| [0332](active/0332-route-race-shards-to-serial-lane.md) | Route the -race test shards out of the parallel test pool | `high` | `refactor` | [spec](../superpowers/specs/2026-08-19-route-race-shards-to-serial-lane-design.md) | `feat/route-race-shards-to-serial-lane` |
 
-## 🟡 Proposed (49)
+## 🟡 Proposed (48)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -60,7 +61,6 @@
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
 | [0330](active/0330-post-merge-results-appending-has-no-home-in-the-go-runtime-f.md) | Post-merge results appending has no home in the Go runtime — finalize dropped it and change attach-results does not cover it | `medium` | `feat` | needs-brainstorm |
 | [0331](active/0331-docket-implement-next-s-re-mint-path-never-names-docket-gate.md) | docket-implement-next's re-mint path never names docket gate launch, so a resumed run cannot produce the run directory evidence record requires | `high` | `fix` | needs-brainstorm |
-| [0332](active/0332-route-race-shards-to-serial-lane.md) | Route the -race test shards out of the parallel test pool | `high` | `refactor` | build-ready |
 
 ## ⚪ Deferred (4)
 

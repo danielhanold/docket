@@ -2,11 +2,11 @@
 id: 332
 slug: route-race-shards-to-serial-lane
 title: Route the -race test shards out of the parallel test pool
-status: proposed
+status: 'in-progress'
 priority: high
 type: refactor
 created: 2026-08-19
-updated: 2026-08-19
+updated: '2026-08-19'
 depends_on: []
 stacked_on:
 related: [251, 273]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'feat/route-race-shards-to-serial-lane'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-19T21:48:35Z'
 ---
 
 ## Artifacts
@@ -28,7 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-19-route-race-shards-to-serial-lane-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-19-route-race-shards-to-serial-lane-design.md) |
+| Spec | `docs/superpowers/specs/2026-08-19-route-race-shards-to-serial-lane-design.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
