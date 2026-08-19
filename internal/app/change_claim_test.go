@@ -375,3 +375,41 @@ func TestChangeRefreshClaimStampsOnly(t *testing.T) {
 		}
 	})
 }
+
+func TestClaimResultFromOutcomeFailedCarriesCause(t *testing.T) {
+	execErr := &transaction.Failure{
+		Stage:  transaction.StageVerifyDelta,
+		Kind:   transaction.KindInvalidState,
+		Detail: "an undeclared path changed in the worktree",
+	}
+	res := transaction.Result{Disposition: transaction.DispositionFailed}
+
+	out := claimResultFromOutcome(OperationChangeRefreshClaim, res, execErr)
+
+	if out.Result != ResultInvalidState {
+		t.Fatalf("result = %q, want %q", out.Result, ResultInvalidState)
+	}
+	if out.Disposition != ClaimDispositionFailed {
+		t.Errorf("disposition = %q, want %q", out.Disposition, ClaimDispositionFailed)
+	}
+	if out.Disposition == string(out.Result) {
+		t.Errorf("disposition %q merely restates the result — the tautology is back", out.Disposition)
+	}
+	if out.Failure == nil {
+		t.Fatal("failure diagnosis missing on a failed disposition — the Failure was dropped again")
+	}
+	if out.Failure.Detail == "" {
+		t.Error("failure.detail is empty")
+	}
+	if out.Failure.Stage != string(transaction.StageVerifyDelta) || out.Failure.Kind != string(transaction.KindInvalidState) {
+		t.Errorf("failure = %+v, want stage %q kind %q", out.Failure, transaction.StageVerifyDelta, transaction.KindInvalidState)
+	}
+	if len(out.Findings) != 0 {
+		t.Errorf("findings = %v, want empty — findings are the refusal channel, not the failure channel", out.Findings)
+	}
+
+	ok := claimResultFromOutcome(OperationChangeClaim, transaction.Result{Disposition: transaction.DispositionApplied}, nil)
+	if ok.Failure != nil {
+		t.Errorf("failure must be nil on an applied outcome, got %+v", ok.Failure)
+	}
+}
