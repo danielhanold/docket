@@ -267,3 +267,65 @@ func TestFinalizePublishReachesOperation(t *testing.T) {
 		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
 	}
 }
+
+// TestFinalizeMergeRegistered proves the subcommand is wired under the finalize
+// group carrying the scalar --id/--version/--head identity flags, the --admin
+// override flag, and --repo-dir.
+func TestFinalizeMergeRegistered(t *testing.T) {
+	root := captureTree(t)
+	cmd, _, err := root.Find([]string{"finalize", "merge"})
+	if err != nil || cmd == nil || cmd.Name() != "merge" {
+		t.Fatalf("finalize merge not registered: cmd=%v err=%v", cmd, err)
+	}
+	for _, flag := range []string{"id", "version", "head", "admin", "repo-dir"} {
+		if cmd.Flags().Lookup(flag) == nil {
+			t.Errorf("finalize merge: missing --%s flag", flag)
+		}
+	}
+}
+
+// TestFinalizeMergeAssetIndependent guards the install.go registration: the
+// command reads the repository, never installed assets.
+func TestFinalizeMergeAssetIndependent(t *testing.T) {
+	if !assetIndependent["finalize merge"] {
+		t.Errorf("%q is not registered asset-independent", "finalize merge")
+	}
+}
+
+// TestFinalizeMergeFlagsRequired proves --id, --version, and --head are required:
+// omitting them is an argument error (exit 2) before any operation runs. --admin
+// is optional.
+func TestFinalizeMergeFlagsRequired(t *testing.T) {
+	_, errS, code := runCLI(t, "finalize", "merge")
+	if code != 2 || errS == "" {
+		t.Fatalf("err=%q code=%d, want a required-flag argument error", errS, code)
+	}
+	for _, flag := range []string{"id", "version", "head"} {
+		if !strings.Contains(errS, flag) {
+			t.Errorf("required-flag error does not name %q: %q", flag, errS)
+		}
+	}
+}
+
+// TestFinalizeMergeReachesOperation proves the command decodes its flags and
+// reaches the operation, which emits exactly one protocol-v1 document naming it.
+// A bare tempdir is no docket repo, so the operation fails past its shape check —
+// but only after naming itself.
+func TestFinalizeMergeReachesOperation(t *testing.T) {
+	out, errS, _ := runCLI(t, "finalize", "merge",
+		"--id", "80", "--version", "1234123412341234123412341234123412341234",
+		"--head", "abcabcabcabcabcabcabcabcabcabcabcabcabca",
+		"--repo-dir", t.TempDir(), "--json")
+	if errS != "" {
+		t.Fatalf("unexpected stderr %q", errS)
+	}
+	if !strings.Contains(out, `"operation":"finalize.merge"`) {
+		t.Fatalf("document did not name the operation: %q", out)
+	}
+	if !strings.Contains(out, `"protocol_version":1`) {
+		t.Fatalf("missing protocol version: %q", out)
+	}
+	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
+	}
+}

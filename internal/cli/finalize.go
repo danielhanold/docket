@@ -39,7 +39,53 @@ func newFinalizeCommand(setResult func(app.OperationResult)) *cobra.Command {
 	finalizeCmd.AddCommand(newFinalizeRebaseContinueSubcommand(setResult))
 	finalizeCmd.AddCommand(newFinalizeRebaseAbortSubcommand(setResult))
 	finalizeCmd.AddCommand(newFinalizePublishSubcommand(setResult))
+	finalizeCmd.AddCommand(newFinalizeMergeSubcommand(setResult))
 	return finalizeCmd
+}
+
+// newFinalizeMergeSubcommand builds `finalize merge`: it merges one exact pull
+// request at its authorized head after a fresh recheck of every merge conjunct,
+// then verifies the merge authoritatively. The scalar identity (id, pinned
+// version, expected head) rides on flags; --admin requests an admin-override
+// merge. Invoking this attended command is itself the human authorization, so
+// the request always carries ExplicitID — the app layer is what gates --admin on
+// it, refusing any merge whose admin was not explicitly named.
+func newFinalizeMergeSubcommand(setResult func(app.OperationResult)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "merge",
+		Short: "Merge a change's pull request at its expected head and verify it authoritatively",
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, _ := c.Flags().GetString("repo-dir")
+			id, _ := c.Flags().GetInt("id")
+			version, _ := c.Flags().GetString("version")
+			head, _ := c.Flags().GetString("head")
+			admin, _ := c.Flags().GetBool("admin")
+			deps, err := newFinalizeDeps()
+			if err != nil {
+				return err
+			}
+			setResult(app.FinalizeMerge(c.Context(), deps, repoDir, app.FinalizeMergeRequest{
+				ID:      id,
+				Version: version,
+				Head:    head,
+				Admin:   admin,
+				// The attended `finalize merge --id` invocation IS the explicit human
+				// authorization the approval and finalize-blocked overrides read.
+				ExplicitID: true,
+			}))
+			return nil
+		},
+	}
+	cmd.Flags().Int("id", 0, "change id whose pull request to merge (required)")
+	cmd.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
+	cmd.Flags().String("head", "", "exact feature head the merge must match (required)")
+	cmd.Flags().Bool("admin", false, "request an admin-override merge (honored only on this attended, explicitly-named run)")
+	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	_ = cmd.MarkFlagRequired("id")
+	_ = cmd.MarkFlagRequired("version")
+	_ = cmd.MarkFlagRequired("head")
+	return cmd
 }
 
 // retargetChildrenInput is the bounded request-file payload for `finalize
