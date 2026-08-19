@@ -13,7 +13,7 @@ related: [298, 318, 322, 326]
 discovered_from: [303]
 adrs: [10, 11, 35, 43, 59, 66, 74, 83, 86, 92, 95]
 spec: docs/superpowers/specs/2026-08-18-finalize-recovery-reclaim-archive-and-stacks-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-18-finalize-recovery-reclaim-archive-and-stacks.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-19T00:47:43Z'
 | Artifact | Link |
 |---|---|
 | Spec | `docs/superpowers/specs/2026-08-18-finalize-recovery-reclaim-archive-and-stacks-design.md` |
+| Plan | `docs/superpowers/plans/2026-08-18-finalize-recovery-reclaim-archive-and-stacks.md` |
 | ADRs | `docs/adrs/0010-finalize-merge-gate-split-agents.md`, `docs/adrs/0011-finalize-consent-model.md`, `docs/adrs/0035-cleanup-teardown-fail-closed.md`, `docs/adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md`, `docs/adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md`, `docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md`, `docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md`, `docs/adrs/0083-agent-worktree-scope-is-a-declared-frontmatter-fact.md`, `docs/adrs/0086-in-context-gating-dispatch-carved-out-of-the-tier-taxonomy.md`, `docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md`, `docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md` |
 <!-- docket:artifacts:end -->
 
