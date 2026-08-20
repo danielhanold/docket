@@ -1,6 +1,6 @@
 # Backlog
 
-**333 changes** — 🟢 1 in progress · 🟡 49 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 198 done · 🗑️ 80 killed
+**333 changes** — 🟢 1 in progress · 🟡 49 proposed · ⚪ 4 deferred · ✅ 199 done · 🗑️ 80 killed
 
 ## 🟢 In progress (1)
 
@@ -71,12 +71,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0332](active/0332-route-race-shards-to-serial-lane.md) | Route the -race test shards out of the parallel test pool | `high` | `refactor` | #docket#222 |  |
-
 ```mermaid
 graph TD
   0007
@@ -133,7 +127,6 @@ graph TD
   0329
   0316 --> 0330
   0316 --> 0331
-  0332
   0333
   0192:::done
   0211:::done
@@ -142,10 +135,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (278)</summary>
+<details><summary>✅🗑️ Archive — done + killed (279)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0332](archive/2026-08-20-0332-route-race-shards-to-serial-lane.md) | Route the -race test shards out of the parallel test pool | 2026-08-20 |
 | [0316](archive/2026-08-19-0316-finalize-recovery-reclaim-archive-and-stacks.md) | Finalize, recovery, reclaim, archive, and stacks | 2026-08-19 |
 | [0328](archive/2026-08-18-0328-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full.md) | De-flake TestRecoverMarksCleanlyAbandonedOwnedRun under full-suite load | 2026-08-18 |
 | [0326](archive/2026-08-18-0326-pre-go-mutation-configuration-contraction.md) | Pre-Go mutation configuration contraction | 2026-08-18 |
@@ -160,7 +154,6 @@ graph TD
 | [0324](archive/2026-08-15-0324-model-pinned-plan-writer-agent.md) | Extract plan writing into a model-pinned internal agent | 2026-08-15 |
 | [0308](archive/2026-08-15-0308-git-adapter-and-authoritative-object-source.md) | Git adapter and authoritative object source | 2026-08-15 |
 | [0311](archive/2026-08-14-0311-installer-embedded-assets-and-four-harnesses.md) | Installer, embedded assets, and four first-class harnesses | 2026-08-14 |
-| [0307](archive/2026-08-14-0307-domain-snapshot-validation-graphs-and-selection.md) | Domain snapshot, validation, graphs, and selection | 2026-08-14 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
 | [0299](archive/2026-08-12-0299-reshard-tests-test-sync-agents-runners-so-every-file-measure.md) | Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling | 2026-08-12 |
 | [0285](archive/2026-08-12-0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | 2026-08-12 |
@@ -246,7 +239,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 65 done |
+| [2026-08](archive/) | 66 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
