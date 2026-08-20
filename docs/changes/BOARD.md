@@ -1,12 +1,6 @@
 # Backlog
 
-**333 changes** — 🟢 1 in progress · 🟡 49 proposed · ⚪ 4 deferred · ✅ 199 done · 🗑️ 80 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0329](active/0329-change-refresh-claim-reports-invalid-state-with-empty-findin.md) | change refresh-claim reports invalid-state with empty findings — the transaction Failure is dropped on the DispositionFailed path | `high` | `fix` | [spec](../superpowers/specs/2026-08-19-failed-transaction-diagnostics-design.md) | `feat/change-refresh-claim-reports-invalid-state-with-empty-findin` |
+**333 changes** — 🟡 49 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 199 done · 🗑️ 80 killed
 
 ## 🟡 Proposed (49)
 
@@ -70,6 +64,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0329](active/0329-change-refresh-claim-reports-invalid-state-with-empty-findin.md) | change refresh-claim reports invalid-state with empty findings — the transaction Failure is dropped on the DispositionFailed path | `high` | `fix` | #docket#223 |  |
 
 ```mermaid
 graph TD

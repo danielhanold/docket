@@ -2,11 +2,11 @@
 id: 329
 slug: 'change-refresh-claim-reports-invalid-state-with-empty-findin'
 title: 'change refresh-claim reports invalid-state with empty findings — the transaction Failure is dropped on the DispositionFailed path'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'fix'
 created: '2026-08-19'
-updated: '2026-08-19'
+updated: '2026-08-20'
 depends_on: []
 stacked_on:
 related: [315]
@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable:
 branch: 'feat/change-refresh-claim-reports-invalid-state-with-empty-findin'
-pr:
+pr: 'github.com/danielhanold/docket#223'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-19T18:58:34Z'
