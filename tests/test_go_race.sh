@@ -1,34 +1,44 @@
 #!/usr/bin/env bash
-# tests/test_go_race.sh — the module data-race gate (change 0308), sharded in
-# change 0309 and again in changes 0313 and 0314.
+# tests/test_go_race.sh — the whole-module data-race gate (change 0308), collapsed
+# back to a single `go test -race ./...` run by change 0332.
 #
-# Runs `go test -race` over every package EXCEPT the three heavy packages that
-# carry their own sibling shards: internal/repository/transaction
-# (tests/test_go_race_transaction.sh, change 0309), internal/workspace
-# (tests/test_go_race_workspace.sh, change 0313), and internal/process
-# (tests/test_go_race_process.sh, change 0314 — the real-process gate supervisor
-# suite). See those files' headers for the shard rationale and the 60s-ceiling
-# arithmetic. The four shards partition `go list ./...` exactly; the completeness
-# guard at the foot of this file proves it. The exclusions are derived from
-# `go list`, so a new package joins this shard automatically.
+# HISTORY. Changes 0309, 0313, and 0314 sharded this gate four ways so each piece
+# could fit under the parallel phase's hard 60s budget ceiling. Change 0332
+# measured the shards and collapsed them: the shards existed to fit the PARALLEL
+# phase, and the parallel phase is exactly what 0332 removed this gate from. In
+# the serial lane the four shard invocations ran sequentially and summed to
+# ~299s, while a single `go test -race ./...` invocation is ~206s because go test
+# overlaps packages internally — so once serialized, the shard structure was not
+# just unnecessary scaffolding but slower than not sharding. One `./...` run
+# covers the module by construction: nothing to partition, no completeness guard
+# to maintain.
+#
+# LANE AND CEILING. tests/runtime-budgets.tsv pins this file `serial` with a
+# 300s row — the table's one documented exemption to the hard 60s ceiling (see
+# the exemption note at RELIEF COUNTER A in tests/test_runtime_budgets.sh). The
+# serial pin is the point of change 0332: `go test -race` spawns GOMAXPROCS-wide
+# race workers, and inside the parallel `-j` fan-out those workers oversubscribe
+# the cores the shell test jobs need, inflating every OTHER file's wall clock —
+# the load-dependent gate that halted change 0329. Run alone in the serial phase
+# this gate uses the whole machine, which is what an isolated gate should do, so
+# its internal parallelism is deliberately NOT capped (no GOMAXPROCS/-p pin).
+# The ~206s is dominated by internal/app's ~190s integration suite — a cost the
+# race detector barely moves (~1.05x multiplier) and that no lane or `go list`
+# shard can split, because internal/app is one Go package. The durable fix, a
+# test-level partition of internal/app, is owned by follow-up change 0333; when
+# it lands, this gate's row and the exemption shrink with it.
 #
 # WHY THIS IS ITS OWN FILE and not a fifth check inside
 # tests/test_go_toolchain.sh. The detector is expensive — instrumented binaries
-# run several times slower, and internal/gitcli alone goes from 12s to ~49s
-# because its real-git fixtures and deadline tests re-exec instrumented test
-# binaries dozens of times. Folded into the Go gate, that single file's measured
-# runtime lands above the 60s hard ceiling in tests/test_runtime_budgets.sh —
-# and that ceiling is a RELIEF COUNTER, deliberately positioned to catch slow
-# work being laundered into one row's budget. Raising it to fit is the evasion
-# it exists to detect. Sharding is the sanctioned answer: two rows, each under
-# the ceiling, running concurrently in the parallel phase.
+# run several times slower — and this file's 300s exemption is deliberately
+# scoped to the race gate alone. Folding the detector into the Go gate would
+# drag that file's row through the same exemption and blur the two verdicts.
 #
-# WHY REPO-WIDE and not `-race ./internal/gitcli`. The adapter surfaces there
-# are the ones held concurrently by design today — one Client and one pinned
-# ObjectSource, many in-flight reads — but an enumerated package list gates only
-# the packages someone remembered to enumerate, and the package that grows a
-# race is by definition the one nobody thought of. `./...` is the shape-keyed
-# spelling and needs no maintenance as packages are added.
+# WHY REPO-WIDE and not an enumerated package list. The adapter surfaces held
+# concurrently by design today are known — but an enumerated list gates only the
+# packages someone remembered to enumerate, and the package that grows a race is
+# by definition the one nobody thought of. `./...` is the shape-keyed spelling
+# and needs no maintenance as packages are added.
 #
 # THIS FILE DOES NOT REPLACE THE PLAIN RUN. tests/test_go_toolchain.sh keeps its
 # own `go test ./...`, which is also the single owner of the four-tuple CGO-off
@@ -87,67 +97,12 @@ if [ -z "${GOMODCACHE:-}" ] || [ -z "${GOCACHE:-}" ]; then
   fi
 fi
 
-# The race gate is SHARDED (change 0309, extended in changes 0313 and 0314): this
-# file runs every package EXCEPT internal/repository/transaction,
-# internal/workspace, and internal/process, whose real-git and real-process
-# fixtures each pushed the combined `-race ./...` run past the 60s hard ceiling.
-# tests/test_go_race_transaction.sh, tests/test_go_race_workspace.sh, and
-# tests/test_go_race_process.sh run those three packages. The exclusions are
-# DERIVED from `go list` with three literal import paths — never a hand-enumerated
-# package list — so a newly added package lands on this shard automatically, and
-# the completeness guard below proves the four shards partition `go list ./...`
-# exactly.
-TXN_PKG="github.com/danielhanold/docket/internal/repository/transaction"
-WS_PKG="github.com/danielhanold/docket/internal/workspace"
-PROC_PKG="github.com/danielhanold/docket/internal/process"
-all_pkgs="$(go list ./... 2>/dev/null)"
-main_pkgs="$(printf '%s\n' "$all_pkgs" | grep -v -F -x -e "$TXN_PKG" -e "$WS_PKG" -e "$PROC_PKG")"
-txn_pkgs="$(printf '%s\n' "$all_pkgs" | grep -F -x -e "$TXN_PKG")"
-ws_pkgs="$(printf '%s\n' "$all_pkgs" | grep -F -x -e "$WS_PKG")"
-proc_pkgs="$(printf '%s\n' "$all_pkgs" | grep -F -x -e "$PROC_PKG")"
-
-# The detector's verdict for this shard. A race is reported on stderr and turns
-# the exit non-zero, so the captured output is replayed on failure rather than
+# The detector's verdict. A race is reported on stderr and turns the exit
+# non-zero, so the captured output is replayed on failure rather than
 # summarized — the WARNING block names the two conflicting stacks and is the
-# whole diagnostic. main_pkgs is deliberately UNQUOTED so it word-splits into one
-# argument per package.
-# shellcheck disable=SC2086 # deliberate word-splitting: one package per line.
-race_out="$(go test -race $main_pkgs 2>&1)"
+# whole diagnostic.
+race_out="$(go test -race ./... 2>&1)"
 race_rc=$?
-assert "go test -race (all packages except the transaction, workspace, and process shards) passes" '[ "$race_rc" -eq 0 ] || { printf "%s\n" "$race_out" >&2; false; }'
-
-# Completeness guard: the four race shards must together cover `go list ./...`
-# exactly once each — no package silently dropped from the race gate, none run
-# twice. All four sets are DERIVED from `go list` here (never hand-enumerated),
-# and each sibling shard is checked to actually target its package, so a drift in
-# any file's selector reddens rather than quietly narrowing coverage.
-union_pkgs="$(printf '%s\n%s\n%s\n%s\n' "$main_pkgs" "$txn_pkgs" "$ws_pkgs" "$proc_pkgs" | grep -v '^$' | sort -u)"
-all_sorted="$(printf '%s\n' "$all_pkgs" | grep -v '^$' | sort -u)"
-main_sorted="$(printf '%s\n' "$main_pkgs" | grep -v '^$' | sort -u)"
-txn_sorted="$(printf '%s\n' "$txn_pkgs" | grep -v '^$' | sort -u)"
-ws_sorted="$(printf '%s\n' "$ws_pkgs" | grep -v '^$' | sort -u)"
-proc_sorted="$(printf '%s\n' "$proc_pkgs" | grep -v '^$' | sort -u)"
-overlap_main_txn="$(comm -12 <(printf '%s\n' "$main_sorted") <(printf '%s\n' "$txn_sorted"))"
-overlap_main_ws="$(comm -12 <(printf '%s\n' "$main_sorted") <(printf '%s\n' "$ws_sorted"))"
-overlap_main_proc="$(comm -12 <(printf '%s\n' "$main_sorted") <(printf '%s\n' "$proc_sorted"))"
-overlap_txn_ws="$(comm -12 <(printf '%s\n' "$txn_sorted") <(printf '%s\n' "$ws_sorted"))"
-overlap_txn_proc="$(comm -12 <(printf '%s\n' "$txn_sorted") <(printf '%s\n' "$proc_sorted"))"
-overlap_ws_proc="$(comm -12 <(printf '%s\n' "$ws_sorted") <(printf '%s\n' "$proc_sorted"))"
-txn_sibling="$REPO/tests/test_go_race_transaction.sh"
-ws_sibling="$REPO/tests/test_go_race_workspace.sh"
-proc_sibling="$REPO/tests/test_go_race_process.sh"
-assert "the transaction shard's package exists in the module" '[ -n "$txn_pkgs" ]'
-assert "the workspace shard's package exists in the module" '[ -n "$ws_pkgs" ]'
-assert "the process shard's package exists in the module" '[ -n "$proc_pkgs" ]'
-assert "the four race shards' union equals go list ./... (no package dropped)" '[ "$union_pkgs" = "$all_sorted" ]'
-assert "the main and transaction shards are disjoint (no package run twice)" '[ -z "$overlap_main_txn" ]'
-assert "the main and workspace shards are disjoint (no package run twice)" '[ -z "$overlap_main_ws" ]'
-assert "the main and process shards are disjoint (no package run twice)" '[ -z "$overlap_main_proc" ]'
-assert "the transaction and workspace shards are disjoint (no package run twice)" '[ -z "$overlap_txn_ws" ]'
-assert "the transaction and process shards are disjoint (no package run twice)" '[ -z "$overlap_txn_proc" ]'
-assert "the workspace and process shards are disjoint (no package run twice)" '[ -z "$overlap_ws_proc" ]'
-assert "the sibling shard targets the transaction package" 'grep -qF -- "go test -race ./internal/repository/transaction/" "$txn_sibling"'
-assert "the sibling shard targets the workspace package" 'grep -qF -- "go test -race ./internal/workspace/" "$ws_sibling"'
-assert "the sibling shard targets the process package" 'grep -qF -- "go test -race ./internal/process/" "$proc_sibling"'
+assert "go test -race ./... (the whole module) passes" '[ "$race_rc" -eq 0 ] || { printf "%s\n" "$race_out" >&2; false; }'
 
 exit "$fail"
