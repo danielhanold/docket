@@ -2,7 +2,7 @@
 id: 332
 slug: route-race-shards-to-serial-lane
 title: Route the -race test shards out of the parallel test pool
-status: 'in-progress'
+status: 'implemented'
 priority: high
 type: refactor
 created: 2026-08-19
@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable:
 branch: 'feat/route-race-shards-to-serial-lane'
-pr:
+pr: 'github.com/danielhanold/docket#222'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-20T17:47:13Z'
