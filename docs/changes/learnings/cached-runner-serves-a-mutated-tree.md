@@ -2,9 +2,9 @@
 slug: cached-runner-serves-a-mutated-tree
 hook: "A test runner with a result cache can report a green PASS against a tree you just mutated — every mutation probe and manual re-verification must defeat the cache explicitly (Go: -count=1)."
 topics: [testing, mutation, caching]
-changes: [304]
+changes: [304, 332]
 created: 2026-08-13
-updated: 2026-08-13
+updated: 2026-08-20
 promotion_state: candidate
 promoted_to:
 ---
@@ -43,3 +43,9 @@ that was never actually produced by the mutated tree.
   just been mutated, briefly reading as "the guard does not fire". `-count=1` reproduced the
   expected red immediately. Recorded as a standing rule for changes 0305–0318, which all grow this
   same package set and will all be mutation-probed against it.
+- 2026-08-20 (#332, PR #222) — Collapsing the four `-race` shards back into one whole-module
+  `go test -race ./...` serial gate, review caught that the gate omitted `-count=1`: the race
+  detector could serve a *cached* pass and silently skip re-executing against the current tree,
+  so a real data race introduced later would read as green. The rule applies to the gate itself,
+  not only to mutation probes — any run whose job is to observe the current tree's behavior must
+  defeat the cache. Fixed to `go test -race -count=1 ./...` before merge.
