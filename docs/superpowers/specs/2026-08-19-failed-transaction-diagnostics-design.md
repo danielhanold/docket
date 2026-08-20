@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0329 — change refresh-claim reports invalid-state with empty findings — the transaction Failure is dropped on the DispositionFailed path](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0329-change-refresh-claim-reports-invalid-state-with-empty-findin.md)**
+> ↩ **[Change 0329 — change refresh-claim reports invalid-state with empty findings — the transaction Failure is dropped on the DispositionFailed path](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-20-0329-change-refresh-claim-reports-invalid-state-with-empty-findin.md)**
 <!-- docket:backlink:end -->
 
 # Failed-transaction diagnostics — propagate the typed Failure into the result envelope
