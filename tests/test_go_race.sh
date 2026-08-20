@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # tests/test_go_race.sh — the whole-module data-race gate (change 0308), collapsed
-# back to a single `go test -race ./...` run by change 0332.
+# back to a single `go test -race -count=1 ./...` run by change 0332.
 #
 # HISTORY. Changes 0309, 0313, and 0314 sharded this gate four ways so each piece
 # could fit under the parallel phase's hard 60s budget ceiling. Change 0332
 # measured the shards and collapsed them: the shards existed to fit the PARALLEL
 # phase, and the parallel phase is exactly what 0332 removed this gate from. In
 # the serial lane the four shard invocations ran sequentially and summed to
-# ~299s, while a single `go test -race ./...` invocation is ~206s because go test
+# ~299s, while a single `go test -race -count=1 ./...` invocation is ~206s because go test
 # overlaps packages internally — so once serialized, the shard structure was not
 # just unnecessary scaffolding but slower than not sharding. One `./...` run
 # covers the module by construction: nothing to partition, no completeness guard
@@ -101,8 +101,8 @@ fi
 # non-zero, so the captured output is replayed on failure rather than
 # summarized — the WARNING block names the two conflicting stacks and is the
 # whole diagnostic.
-race_out="$(go test -race ./... 2>&1)"
+race_out="$(go test -race -count=1 ./... 2>&1)"
 race_rc=$?
-assert "go test -race ./... (the whole module) passes" '[ "$race_rc" -eq 0 ] || { printf "%s\n" "$race_out" >&2; false; }'
+assert "go test -race -count=1 ./... (the whole module) passes" '[ "$race_rc" -eq 0 ] || { printf "%s\n" "$race_out" >&2; false; }'
 
 exit "$fail"
