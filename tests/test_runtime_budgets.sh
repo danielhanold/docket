@@ -22,10 +22,26 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 
 TBL="$REPO/tests/runtime-budgets.tsv"
 CEILING=60          # the hard ceiling; no row may exceed it
-EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
-                    # a serial pin removes a file from the parallel phase, so it must be justified
-                    # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=2140 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_SERIAL=1   # tests/test_go_race.sh (change 0332). The shared state that forces the pin is
+                    # the machine's cores: `go test -race` spawns GOMAXPROCS-wide race workers,
+                    # which inside the parallel fan-out oversubscribe the cores every other job
+                    # needs — the load-dependent gate that halted change 0329. RAISING THIS IS A
+                    # FINDING: a serial pin removes a file from the parallel phase, so it must be
+                    # justified in the same diff with the shared state that forced it.
+EXPECTED_TOTAL=2265 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2140 -> 2265 (change 0332): the SHARD-RE-CUT case, in reverse — four race
+                    # rows collapse into one. The serial lane removes the oversubscription the
+                    # shards were cut for, and in that lane the four shard invocations ran
+                    # sequentially anyway, summing to ~299s, while one `go test -race ./...`
+                    # invocation is ~206s because go test overlaps packages internally. So
+                    # tests/test_go_race_process.sh (25), tests/test_go_race_transaction.sh (45)
+                    # and tests/test_go_race_workspace.sh (45) are DELETED, and
+                    # tests/test_go_race.sh moves 60 parallel -> 300 serial — the one documented
+                    # exemption to the 60s ceiling (see RELIEF COUNTER A), a TEMPORARY hole owned
+                    # by follow-up change 0333. Net move: -115 for the deleted rows, +240 for the
+                    # re-cut row.
+                    # Recomputed from the table itself, never hand-adjusted:
+                    #   awk -F'\t' '!/^#/ && NF>=2 {s+=$2} END{print s}' tests/runtime-budgets.tsv
                     # 2115 -> 2140 (change 0316): ONE legitimate mover — a NEW test file brings its
                     # own row. tests/test_go_finalize_e2e.sh runs the hermetic finalize end-to-end
                     # matrix (Task 17) behind the `e2e` build tag, kept out of the plain Go gate so it
@@ -451,14 +467,34 @@ assert "every tests/test_*.sh has a budget row, and every row has a live file" \
 
 # (3) RELIEF COUNTER A — rows above the hard ceiling. Independent of (2): laundering a single
 # file's ceiling upward leaves (2) green and reddens only this.
-over="$(awk -F'\t' -v c="$CEILING" '$2 > c {print $1}' <<<"$rows")"
-assert "no budget row exceeds the ${CEILING}s ceiling" \
+#
+# ONE DOCUMENTED EXEMPTION (change 0332) — A TEMPORARY HOLE, owned by follow-up change 0333.
+# tests/test_go_race.sh is the serial-isolated whole-module race gate; its ~206s is dominated by
+# internal/app's ~190s integration suite — a cost the race detector barely moves (~1.05x) and that
+# no lane or `go list` shard can split, because internal/app is one Go package. Until change 0333
+# partitions that package, the race gate answers to its own explicit sub-ceiling here instead of
+# the 60s one. The exemption is keyed on the row's PATH: every other row still answers to the 60s
+# ceiling, and the race gate creeping past ${RACE_CEILING}s still reddens this same assert. The
+# serial binding lives with assertion (4): the single serial row must BE the race gate, so an
+# exempt row cannot ride the parallel phase and reintroduce the oversubscription 0332 removed.
+RACE_GATE="tests/test_go_race.sh"
+RACE_CEILING=300
+over="$(awk -F'\t' -v c="$CEILING" -v rg="$RACE_GATE" -v rc="$RACE_CEILING" \
+  '($1 == rg ? $2 > rc : $2 > c) {print $1}' <<<"$rows")"
+assert "no budget row exceeds the ${CEILING}s ceiling (sole exemption: $RACE_GATE at ${RACE_CEILING}s)" \
   '[ -z "$over" ] || { echo "  over ceiling: $over" >&2; echo "  Shard the file or move its new assertions into a shard with room. Raising the ceiling is not the remedy." >&2; false; }'
 
 # (4) RELIEF COUNTER B — files pinned serial, budgeted exactly. Also independent of (2).
 serial_n="$(awk -F'\t' '$3 == "serial" {n++} END{print n+0}' <<<"$rows")"
 assert "exactly $EXPECTED_SERIAL files are pinned serial" \
   '[ "$serial_n" = "$EXPECTED_SERIAL" ] || { echo "  serial rows: $(awk -F"\t" "\$3==\"serial\"{print \$1}" <<<"$rows" | tr "\n" " ")" >&2; echo "  A serial pin removes a file from the parallel phase. Name the shared state that forces it, in this diff." >&2; false; }'
+
+# (4b) the serial pin and the ceiling exemption must be the SAME file: an exempt row riding the
+# parallel phase would reintroduce the oversubscription change 0332 removed, and a second serial
+# row would hide behind the exemption's justification. Both directions collapse to one equality.
+serial_rows="$(awk -F'\t' '$3 == "serial" {print $1}' <<<"$rows")"
+assert "the serial row is the race gate (the exemption is serial-bound)" \
+  '[ "$serial_rows" = "$RACE_GATE" ] || { echo "  serial rows: ${serial_rows:-<none>}" >&2; echo "  The one sanctioned serial row is $RACE_GATE — its 300s exemption exists only because the serial lane isolates it. Any other serial pin needs its own justified counter bump." >&2; false; }'
 
 # (5) RELIEF COUNTER C — the table's TOTAL. Counters A and B only see the two loud reliefs; a row
 # raised from 35 to 60 trips neither, and completeness never looks at column 2 at all. The sum sees
