@@ -364,6 +364,10 @@ func finalizeCleanupBacklinkRepair(ctx context.Context, deps FinalizeDeps, cc *c
 		Loader:     newPlanningLoader(cc.eff),
 		Operation:  op,
 	})
+	// Best-effort secondary leg: it surfaces only the coarse result token, not the
+	// typed transaction.Failure (stage/kind/detail). It folds a *StatusFinding into a
+	// larger result — there is no Envelope failure field here to carry the cause — and
+	// the sweep retries it, so the coarse token in the warning is enough.
 	result, _ := mapOutcome(res, execErr, ResultInvalidState)
 	if result == ResultApplied || result == ResultNoOp {
 		return nil
