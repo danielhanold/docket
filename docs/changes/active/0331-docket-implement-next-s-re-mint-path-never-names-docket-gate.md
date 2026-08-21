@@ -2,11 +2,11 @@
 id: 331
 slug: 'docket-implement-next-s-re-mint-path-never-names-docket-gate'
 title: 'docket-implement-next''s re-mint path never names docket gate launch, so a resumed run cannot produce the run directory evidence record requires'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-08-19'
-updated: '2026-08-20'
+updated: '2026-08-21'
 depends_on: [316]
 stacked_on:
 related: [330]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'feat/docket-implement-next-s-re-mint-path-never-names-docket-gate'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-21T01:37:43Z'
 ---
 
 ## Artifacts
@@ -28,8 +29,8 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-20-docket-implement-next-evidence-remint-gate-launch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-20-docket-implement-next-evidence-remint-gate-launch-design.md) |
-| ADRs | [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md), [ADR-0074](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md) |
+| Spec | `docs/superpowers/specs/2026-08-20-docket-implement-next-evidence-remint-gate-launch-design.md` |
+| ADRs | `docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md`, `docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md`, `docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
