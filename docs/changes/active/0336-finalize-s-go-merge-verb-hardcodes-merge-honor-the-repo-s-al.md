@@ -2,7 +2,7 @@
 id: 336
 slug: finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al
 title: 'Finalize selects the best merge method permitted by repository and branch policy'
-status: 'in-progress'
+status: 'implemented'
 priority: medium
 type: fix
 created: 2026-08-21
@@ -18,7 +18,7 @@ results: 'docs/results/2026-08-21-finalize-s-go-merge-verb-hardcodes-merge-honor
 trivial: false
 auto_groomable:
 branch: 'feat/finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al'
-pr:
+pr: 'github.com/danielhanold/docket#227'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-21T21:02:42Z'
