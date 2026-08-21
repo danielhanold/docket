@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'feat/release-packaging-and-four-harness-acceptance'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-21T02:56:09Z'
+reconciled: true
+claimed_at: '2026-08-21T02:58:15Z'
 ---
 
 ## Artifacts
@@ -64,3 +64,7 @@ process and observed named-agent child in each harness; generated goldens cannot
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-21
+
+2026-08-21 — Reconciled at claim. Verified against current reality: dependencies 311 (installer embedded assets + four harnesses) and 316 (finalize/recovery/reclaim/archive/stacks) are both merged and `done`, so the landed foundation the spec names is in place — `cmd/docket`, `internal/buildinfo` ldflags identity (Version/Commit/BuildDate), `internal/install` + `install`/`install check` commands, and the four native harness definitions (Claude, Codex, Cursor, OpenCode). No `release`/packaging package, POSIX downloader, or `.github/workflows/release-candidate` exists yet — all remain 317's net-new deliverables, so no work has been done elsewhere to drop. Scope, out-of-scope boundaries against 0318/0322/0323, and relations (depends_on [311,316], related [318,322,323], adrs [60]) remain accurate; no adjustment needed. The buildable branch deliverable is the deterministic Go packager + artifact contract, the `/bin/sh` checksum-verifying release downloader with its ownership record, the non-publishing release-candidate GitHub Actions workflow, and the hermetic package/downloader tests. The fresh-session four-harness live acceptance is external truth that no in-repo test can promote (per the spec's own gate); it is carried to the human merge gate as a documented manual checklist in the results record rather than automated in-branch.
