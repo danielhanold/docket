@@ -351,7 +351,19 @@ jobs:
           for t in "${expected[@]}"; do
             [ -f "verdicts/${t}.json" ] || missing+=("$t")
           done
-          verdicts_json="$(jq -s '.' verdicts/*.json)"
+          # Collect whatever tuple verdict files were downloaded. nullglob so a zero-match glob
+          # expands to nothing (not the literal `verdicts/*.json`) — otherwise `jq -s` is handed a
+          # non-existent path and dies under `set -e`, aborting BEFORE evidence.json is written and
+          # breaking the "written regardless" guarantee below. With no files the tuples array is an
+          # explicit empty array.
+          shopt -s nullglob
+          verdict_files=(verdicts/*.json)
+          shopt -u nullglob
+          if [ "${#verdict_files[@]}" -ne 0 ]; then
+            verdicts_json="$(jq -s '.' "${verdict_files[@]}")"
+          else
+            verdicts_json='[]'
+          fi
           jq -n \
             --arg commit "$COMMIT" \
             --arg head "$HEAD_VERSION" \

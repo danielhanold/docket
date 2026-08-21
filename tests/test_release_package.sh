@@ -37,9 +37,12 @@ else
 fi
 
 # ================================================================================================
-# SECTION B — read-only permissions. SPELLING LIMIT: this scans the text of the top-level
-# `permissions:` block for a `contents: read` grant and for the absence of any `write` spelling. It
-# cannot prove GitHub resolves an effective read-only token — only that this file requests one.
+# SECTION B — read-only permissions. SPELLING LIMIT: this scans permissions-block TEXT for the
+# `contents: read` grant and for the `write` spelling; it matches those spellings, not the effective
+# GitHub token. The `contents: read` and top-level-presence asserts read the TOP-LEVEL block only;
+# the write-grant scan covers the top-level block AND every indented (job-level) `permissions:`
+# mapping, since a job-level `permissions: contents: write` escalates a token just as a top-level one
+# would. It cannot prove GitHub resolves an effective read-only token — only what this file requests.
 # ================================================================================================
 # The block is `permissions:` plus the indented lines under it, up to the next column-0 line.
 perm_block="$(awk '/^permissions:/{p=1;print;next} p&&/^[^[:space:]]/{p=0} p{print}' "$WF")"
@@ -53,13 +56,24 @@ if grep -Eq 'contents:[[:space:]]*read' <<<"$perm_block"; then
 else
   nok "permissions block does not grant contents: read"
 fi
-# Any `write` spelling inside the permissions context is a write grant (contents: write, write-all,
-# packages: write, …). The permissions block must carry none.
-if grep -qw 'write' <<<"$perm_block"; then
-  nok "a write grant appears in the permissions context (block must be read-only):"
-  grep -nw 'write' <<<"$perm_block" | sed 's/^/    /'
+# The write-grant scan must cover EVERY permissions: mapping, not just the top-level one — a
+# job-level `permissions: contents: write` would escalate a token and evade a top-level-only scan.
+# Keyed on SHAPE, not an indent list: a line whose first non-space token is `permissions:` opens a
+# block at whatever column it sits (0 for top-level, indented for job-level); its body is the
+# more-indented lines beneath it, up to the next line at or below the opener's indent.
+all_perm_blocks="$(awk '
+  function indent(s){ match(s, /^[[:space:]]*/); return RLENGTH }
+  { if (p && $0 !~ /^[[:space:]]*$/ && indent($0) <= base) p=0 }
+  /^[[:space:]]*permissions:/ { p=1; base=indent($0); print; next }
+  p { print }
+' "$WF")"
+# Any `write` spelling inside a permissions context is a write grant (contents: write, write-all,
+# packages: write, …). No permissions mapping — top-level or job-level — may carry one.
+if grep -qw 'write' <<<"$all_perm_blocks"; then
+  nok "a write grant appears in a permissions context (every permissions block must be read-only):"
+  grep -nw 'write' <<<"$all_perm_blocks" | sed 's/^/    /'
 else
-  ok "no write grant appears in the permissions context"
+  ok "no write grant appears in any permissions context (top-level or job-level)"
 fi
 
 # ================================================================================================
