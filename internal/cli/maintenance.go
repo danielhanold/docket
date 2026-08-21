@@ -49,7 +49,10 @@ func newMaintenanceSweepSubcommand(setResult func(app.OperationResult)) *cobra.C
 		Short: "Close out merged changes, retry terminal cleanup, and reclaim expired claims in one pass",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			deps, err := newFinalizeDeps()
 			if err != nil {
 				return err

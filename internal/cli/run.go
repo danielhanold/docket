@@ -37,7 +37,10 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Short: "Verify one change's implemented-run postconditions and report a closed verdict",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			deps, wdeps, gdeps, err := newPRDeps()
 			if err != nil {

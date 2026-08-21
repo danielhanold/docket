@@ -37,7 +37,10 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Short: "Prepare (or resume) the feature workspace for an in-progress change at an exact version",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			version, _ := c.Flags().GetString("version")
 			deps, wdeps, err := newWorkspaceDeps()
@@ -60,7 +63,10 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Short: "Classify a change's feature workspace state (read-only)",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			deps, wdeps, err := newWorkspaceDeps()
 			if err != nil {
@@ -80,7 +86,10 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Short: "Publish a change's ready workspace head to the remote feature ref",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			head, _ := c.Flags().GetString("head")
 			deps, wdeps, err := newWorkspaceDeps()

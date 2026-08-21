@@ -184,7 +184,10 @@ func newResumeHaltedSubcommand(setResult func(app.OperationResult)) *cobra.Comma
 		Short: "Recover a halted run: reprobe the workspace, refresh the claim, and remove the marker",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			version, _ := c.Flags().GetString("version")
 			ack, _ := c.Flags().GetBool("acknowledge-quiescent")
@@ -221,7 +224,10 @@ func newReclaimSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 		Short: "Return a strictly-expired, branchless, workspaceless in-progress claim to proposed",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			version, _ := c.Flags().GetString("version")
 			deps, wdeps, err := newWorkspaceDeps()
@@ -256,7 +262,10 @@ func newMarkImplementedSubcommand(setResult func(app.OperationResult)) *cobra.Co
 		Short: "Mark an in-progress change implemented after reprobing its head, evidence, and published PR",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			version, _ := c.Flags().GetString("version")
 			head, _ := c.Flags().GetString("head")
@@ -306,7 +315,10 @@ func changeAttachSubcommand(verb, short string, run func(c *cobra.Command, deps 
 		Short: short,
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			version, _ := c.Flags().GetString("version")
 			artifactPath, _ := c.Flags().GetString("path")
@@ -342,7 +354,10 @@ func changeInputSubcommand(verb, short string, run func(c *cobra.Command, deps a
 		Short: short,
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			deps, err := newPlanningDeps()
 			if err != nil {
 				return err
@@ -374,7 +389,10 @@ func changeIDVersionSubcommand(verb, short string, run func(c *cobra.Command, de
 		Short: short,
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			version, _ := c.Flags().GetString("version")
 			deps, err := newPlanningDeps()
@@ -404,7 +422,10 @@ func changeSubcommand(verb, short string, run func(c *cobra.Command, deps app.Pl
 		Short: short,
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			deps, err := newPlanningDeps()
 			if err != nil {
 				return err

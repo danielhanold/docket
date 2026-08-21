@@ -35,7 +35,10 @@ func newArtifactCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Short: "Stamp the managed backlink block onto an artifact, pointing home to its change",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			artifact, _ := c.Flags().GetString("artifact")
 			change, _ := c.Flags().GetString("change")
 			deps, err := newPlanningDeps()

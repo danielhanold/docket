@@ -38,7 +38,10 @@ func newEvidenceCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Short: "Record build evidence from a passed gate run at the current feature head",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			run, _ := c.Flags().GetString("run")
 			head, _ := c.Flags().GetString("head")
