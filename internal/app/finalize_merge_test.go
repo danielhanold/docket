@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -43,13 +44,16 @@ type fakeMergeGitHub struct {
 	findErr    error
 
 	// MergePullRequest result and recorded call state.
-	mergeOutcome   githubcli.MergeOutcome
-	mergeFacts     githubcli.MergedFacts
-	mergeErr       error
-	mergeCalls     int
-	lastMergeAdmin bool
-	lastMergeHead  githubcli.ObjectRef
-	lastMergeNum   int
+	mergeOutcome       githubcli.MergeOutcome
+	mergeMethod        githubcli.MergeMethod
+	mergeRepoMethods   []githubcli.MergeMethod
+	mergeBranchMethods []githubcli.MergeMethod
+	mergeFacts         githubcli.MergedFacts
+	mergeErr           error
+	mergeCalls         int
+	lastMergeAdmin     bool
+	lastMergeHead      githubcli.ObjectRef
+	lastMergeNum       int
 }
 
 func (f *fakeMergeGitHub) DiscoverRepository(context.Context, string) (githubcli.Repository, error) {
@@ -81,7 +85,13 @@ func (f *fakeMergeGitHub) MergePullRequest(_ context.Context, _ githubcli.Reposi
 	if f.mergeErr != nil {
 		return githubcli.MergeResult{Outcome: githubcli.MergeUnknown}, f.mergeErr
 	}
-	return githubcli.MergeResult{Outcome: f.mergeOutcome, Facts: f.mergeFacts}, nil
+	return githubcli.MergeResult{
+		Outcome:       f.mergeOutcome,
+		Method:        f.mergeMethod,
+		Facts:         f.mergeFacts,
+		RepoMethods:   f.mergeRepoMethods,
+		BranchMethods: f.mergeBranchMethods,
+	}, nil
 }
 
 func (f *fakeMergeGitHub) RetargetPullRequest(context.Context, githubcli.Repository, int, string, string) (githubcli.RetargetOutcome, githubcli.PullRequest, error) {
@@ -631,5 +641,121 @@ func TestFinalizeMergeAlreadyMergedNoop(t *testing.T) {
 	}
 	if gh.mergeCalls != 0 {
 		t.Fatalf("an already-merged PR issued %d merge call(s); want 0 (never a second merge)", gh.mergeCalls)
+	}
+}
+
+// --- TestFinalizeMergeMethodMapping ---------------------------------------
+
+// TestFinalizeMergeMethodUnavailableBlocks proves a cleanly-observed empty
+// effective method set maps to a BLOCK before any effect: result blocked,
+// disposition blocked, reason merge-method-unavailable (the literal token, not a
+// constant equaling itself), no VerifiedMerge, no attempted method, and a
+// message naming both the repository-enabled and the branch-permitted sets so a
+// human can reconcile them. It is neither merge-denied (nothing was attempted)
+// nor an unknown disposition (the incompatible policy WAS observed).
+func TestFinalizeMergeMethodUnavailableBlocks(t *testing.T) {
+	requireRealGit(t)
+	m := planRepoModes()[0]
+	f := setupMergeFixture(t, m)
+	gh := f.baselineFake(t)
+	gh.mergeOutcome = githubcli.MergeMethodUnavailable
+	gh.mergeRepoMethods = []githubcli.MergeMethod{"squash"}
+	gh.mergeBranchMethods = []githubcli.MergeMethod{"rebase", "merge"}
+	res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+	if res.Result != ResultBlocked {
+		t.Fatalf("result = %q, want %q", res.Result, ResultBlocked)
+	}
+	if res.Disposition != MergeDispBlocked {
+		t.Fatalf("disposition = %q, want %q", res.Disposition, MergeDispBlocked)
+	}
+	if res.Reason != "merge-method-unavailable" {
+		t.Fatalf("reason = %q, want literal %q", res.Reason, "merge-method-unavailable")
+	}
+	if res.Reason == "merge-denied" {
+		t.Fatalf("reason is merge-denied; a pre-effect block was mislabeled as an attempted denial")
+	}
+	if res.Disposition == "unknown" {
+		t.Fatalf("disposition is unknown; the incompatible policy was observed cleanly, not unobservably")
+	}
+	if res.Merge != nil {
+		t.Fatalf("a method-unavailable block carried a VerifiedMerge")
+	}
+	if res.Method != "" {
+		t.Fatalf("a pre-effect block carried an attempted method %q; none was issued", res.Method)
+	}
+	if !strings.Contains(res.Message, "squash") || !strings.Contains(res.Message, "rebase") {
+		t.Fatalf("message must name both observed sets, got %q", res.Message)
+	}
+}
+
+// TestFinalizeMergeReportsAttemptedMethod proves a successful merge surfaces the
+// method Docket chose on the protocol document.
+func TestFinalizeMergeReportsAttemptedMethod(t *testing.T) {
+	requireRealGit(t)
+	m := planRepoModes()[0]
+	f := setupMergeFixture(t, m)
+	mergeCommit := f.mergeFeatureIntoBase(t)
+	gh := f.baselineFake(t)
+	gh.mergeOutcome = githubcli.MergeMerged
+	gh.mergeMethod = githubcli.MethodRebase
+	gh.mergeFacts = mergedFactsFor(f.head, "main", mergeCommit)
+	res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+	if res.Result != ResultApplied || res.Merge == nil {
+		t.Fatalf("verified merge = %q merge %v (reason %q)", res.Result, res.Merge, res.Reason)
+	}
+	if res.Method != "rebase" {
+		t.Fatalf("Method = %q, want %q", res.Method, "rebase")
+	}
+}
+
+// TestFinalizeMergeDeniedCarriesMethod proves an authoritative denial still
+// records the attempted method (the merge command WAS issued) while keeping the
+// unchanged external-failed/denied/merge-denied mapping.
+func TestFinalizeMergeDeniedCarriesMethod(t *testing.T) {
+	requireRealGit(t)
+	m := planRepoModes()[0]
+	f := setupMergeFixture(t, m)
+	gh := f.baselineFake(t)
+	gh.mergeOutcome = githubcli.MergeDenied
+	gh.mergeMethod = githubcli.MethodSquash
+	res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+	if res.Result != ResultExternalFailed {
+		t.Fatalf("result = %q, want %q", res.Result, ResultExternalFailed)
+	}
+	if res.Disposition != MergeDispDenied {
+		t.Fatalf("disposition = %q, want %q", res.Disposition, MergeDispDenied)
+	}
+	if res.Reason != "merge-denied" {
+		t.Fatalf("reason = %q, want %q", res.Reason, "merge-denied")
+	}
+	if res.Method != "squash" {
+		t.Fatalf("Method = %q, want %q", res.Method, "squash")
+	}
+}
+
+// TestFinalizeMergeAlreadyMergedOmitsMethod proves already-merged recovery
+// surfaces no method (Docket did not choose the historical merge) and the
+// omitempty tag keeps the "method" key out of the document entirely.
+func TestFinalizeMergeAlreadyMergedOmitsMethod(t *testing.T) {
+	requireRealGit(t)
+	m := planRepoModes()[0]
+	f := setupMergeFixture(t, m)
+	mergeCommit := f.mergeFeatureIntoBase(t)
+	gh := f.baselineFake(t)
+	gh.probeOutcome = githubcli.MergeAlreadyMerged
+	gh.probeFacts = mergedFactsFor(f.head, "main", mergeCommit)
+	res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+	if res.Result != ResultNoOp || res.Merge == nil {
+		t.Fatalf("already-merged = %q merge %v (reason %q)", res.Result, res.Merge, res.Reason)
+	}
+	if res.Method != "" {
+		t.Fatalf("already-merged recovery carried an attempted method %q", res.Method)
+	}
+	doc, err := json.Marshal(res)
+	if err != nil {
+		t.Fatalf("marshal result: %v", err)
+	}
+	if strings.Contains(string(doc), "\"method\"") {
+		t.Fatalf("document carries a \"method\" key despite an empty method: %s", doc)
 	}
 }
