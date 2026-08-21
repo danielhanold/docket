@@ -29,9 +29,10 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | `docs/superpowers/specs/2026-08-20-docket-implement-next-evidence-remint-gate-launch-design.md` |
-| Plan | `docs/superpowers/plans/2026-08-20-docket-implement-next-remint-gate-launch.md` |
-| ADRs | `docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md`, `docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md`, `docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md` |
+| Spec | [2026-08-20-docket-implement-next-evidence-remint-gate-launch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-20-docket-implement-next-evidence-remint-gate-launch-design.md) |
+| Plan | [2026-08-20-docket-implement-next-remint-gate-launch.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-20-docket-implement-next-remint-gate-launch.md) |
+| PR | github.com/danielhanold/docket#224 |
+| ADRs | [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md), [ADR-0074](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
