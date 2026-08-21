@@ -248,6 +248,18 @@
 #   2.56  -> worst 2.56
 # Next multiple of 5 is 5, plus the 5s margin -> 10, this table's floor. EXPECTED_TOTAL moves
 # 2285 -> 2295.
+#
+# tests/test_release_package.sh is a NEW FILE brought by change 0317 (Task 11) — the header's
+# new-test-file case. It is the hermetic guard suite over the two authored release-candidate
+# surfaces: the non-publishing .github/workflows/release-candidate.yml (read-only permissions, no
+# publishing verb, every uses: SHA-pinned, both workflow_dispatch inputs, all four native tuples)
+# and scripts/release-smoke.sh's SMOKE PASS / --base-bundle contract, plus the render.go embed tie.
+# Every assertion is a pure grep over source text — no Go build, no fixtures, no subprocess beyond
+# grep/awk/sed — so it is near-instant. Sized per this header's rule from a standalone serial
+# reading (`/usr/bin/time -p bash tests/test_release_package.sh`):
+#   0.06  -> worst 0.06
+# Next multiple of 5 is 5, plus the 5s margin -> 10, this table's floor. EXPECTED_TOTAL moves
+# 2295 -> 2305.
 # tests/test_gate_facade.sh is a NEW FILE brought by change 0334 (Task 5) — the header's
 # new-test-file case, for a brand-new surface no existing shard owns: the shell run-gate facade
 # delegators (scripts/gate-before.sh / scripts/gate-verdict.sh) over the Go binary. It is the
@@ -451,6 +463,7 @@ tests/test_reclaim_claims.sh	10	parallel
 tests/test_release_downloader.sh	10	parallel
 tests/test_release_downloader_converge.sh	10	parallel
 tests/test_release_downloader_refusals.sh	10	parallel
+tests/test_release_package.sh	10	parallel
 tests/test_render_adr_index.sh	10	parallel
 tests/test_render_artifact_backlink.sh	10	parallel
 tests/test_render_board.sh	25	parallel
