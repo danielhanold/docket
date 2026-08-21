@@ -28,7 +28,41 @@ EXPECTED_SERIAL=1   # tests/test_go_race.sh (change 0332). The shared state that
                     # needs — the load-dependent gate that halted change 0329. RAISING THIS IS A
                     # FINDING: a serial pin removes a file from the parallel phase, so it must be
                     # justified in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=2265 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2305 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2295 -> 2305 (change 0317, Task 11): ONE legitimate mover — a NEW test file
+                    # brings its own row. tests/test_release_package.sh is the hermetic guard suite
+                    # over the two authored release surfaces: the non-publishing
+                    # .github/workflows/release-candidate.yml (read-only permissions, no publishing
+                    # verb, every uses: SHA-pinned, both workflow_dispatch inputs, all four native
+                    # tuples) and scripts/release-smoke.sh's SMOKE PASS / --base-bundle contract, plus
+                    # the render.go embed tie. Every assertion is a pure grep over source text — no
+                    # Go build, no fixtures — measured standalone serial at a worst 0.06s, so it
+                    # enters at the 10s floor (see the tsv header for the reading).
+                    # 2285 -> 2295 (change 0317, Task 9): ONE legitimate mover — a NEW test file
+                    # brings its own row. tests/test_release_downloader_converge.sh owns the
+                    # downloader's interruption-point convergence and upgrade guards: FAIL_ON
+                    # (install|check) and a doctored-copy `exit 97` at the rename / record-publish
+                    # boundaries inject failure, then a rerun of the real script must converge on the
+                    # requested version and repair the record, replacing only the owned bytes.
+                    # Each case is a fresh sandboxed /bin/sh run against a file:// release. Measured
+                    # standalone serial at a worst 2.56s, so it enters at the 10s floor (see the tsv
+                    # header for the reading). The third SIBLING of tests/test_release_downloader.sh,
+                    # not an extension: each downloader test file is hermetic and re-carries the
+                    # fixture block.
+                    # 2275 -> 2285 (change 0317, Task 8): ONE legitimate mover — a NEW test file
+                    # brings its own row. tests/test_release_downloader_refusals.sh owns the
+                    # downloader's refusal and ownership guards (checksum/manifest, hostile archive,
+                    # unsupported tuple, missing tool, download failure, usage, ownership), each a
+                    # fresh sandboxed /bin/sh run that must preserve every existing byte. Measured
+                    # standalone serial at a worst 3.59s, so it enters at the 10s floor (see the tsv
+                    # header for the reading). A SIBLING of tests/test_release_downloader.sh, not an
+                    # extension: each downloader test file is hermetic and re-carries the fixture block.
+                    # 2265 -> 2275 (change 0317): ONE legitimate mover — a NEW test file brings its
+                    # own row. tests/test_release_downloader.sh guards the POSIX release downloader
+                    # internal/release/downloader/install.sh; its Task-4 static section (existence,
+                    # shebang, render placeholder, forbidden-spelling ban) is a pure source scan, so
+                    # it enters at the 10s floor. Tasks 7-9 add the hermetic behavior sections and
+                    # will re-measure this row against wall clock at that point.
                     # 2140 -> 2265 (change 0332): the SHARD-RE-CUT case, in reverse — four race
                     # rows collapse into one. The serial lane removes the oversubscription the
                     # shards were cut for, and in that lane the four shard invocations ran

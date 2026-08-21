@@ -219,6 +219,47 @@
 #   16  16  16  -> worst 16
 # Next multiple of 5 above 16 is 20, plus the 5s margin -> 25, well under the 60s ceiling.
 # EXPECTED_TOTAL moves 2115 -> 2140.
+#
+# tests/test_release_downloader_refusals.sh is a NEW FILE brought by change 0317 (Task 8) — the
+# header's new-test-file case. It is a SIBLING of tests/test_release_downloader.sh (which carries the
+# Task 4 static scan and the Task 7 happy paths) rather than an extension of it: each file is
+# hermetic per tests/README.md and re-carries the shared fixture block, and this one owns the refusal
+# and ownership surface — the checksum/manifest, hostile-archive, unsupported-tuple, missing-tool,
+# download-failure, usage, and ownership guards that must preserve every existing byte. Each of its
+# ~30 cases runs a fresh /bin/sh under the locked-down PATH sandbox against a file:// release, so its
+# cost is real tar + real hashing + real curl(file://), not mocks. Sized per this header's rule from
+# a standalone serial reading (`/usr/bin/time -p bash tests/test_release_downloader_refusals.sh`):
+#   3.59  -> worst 3.59
+# Next multiple of 5 is 5, plus the 5s margin -> 10, this table's floor. EXPECTED_TOTAL moves
+# 2275 -> 2285.
+#
+# tests/test_release_downloader_converge.sh is a NEW FILE brought by change 0317 (Task 9) — the
+# header's new-test-file case. It is the third SIBLING of tests/test_release_downloader.sh (each
+# downloader test file is hermetic per tests/README.md and re-carries the shared fixture block), and
+# it owns the interruption-point convergence and upgrade surface: the downloader's install sequence
+# has filesystem-boundary interruption points, and a rerun after any of them must converge on the
+# requested version without ever replacing a binary it does not own. Its cases inject failure two
+# ways — the fake docket's own FAIL_ON (install|check), and a doctored copy of the downloader with a
+# single mv line replaced by `exit 97` (before-rename, before-record-publication) — then rerun the
+# real script and assert convergence; a final case proves the upgrade path replaces only the owned
+# bytes. Each case runs a fresh /bin/sh under the locked-down PATH sandbox against a file:// release,
+# so its cost is real tar + real hashing + real curl(file://), not mocks. Sized per this header's
+# rule from a standalone serial reading (`/usr/bin/time -p bash tests/test_release_downloader_converge.sh`):
+#   2.56  -> worst 2.56
+# Next multiple of 5 is 5, plus the 5s margin -> 10, this table's floor. EXPECTED_TOTAL moves
+# 2285 -> 2295.
+#
+# tests/test_release_package.sh is a NEW FILE brought by change 0317 (Task 11) — the header's
+# new-test-file case. It is the hermetic guard suite over the two authored release-candidate
+# surfaces: the non-publishing .github/workflows/release-candidate.yml (read-only permissions, no
+# publishing verb, every uses: SHA-pinned, both workflow_dispatch inputs, all four native tuples)
+# and scripts/release-smoke.sh's SMOKE PASS / --base-bundle contract, plus the render.go embed tie.
+# Every assertion is a pure grep over source text — no Go build, no fixtures, no subprocess beyond
+# grep/awk/sed — so it is near-instant. Sized per this header's rule from a standalone serial
+# reading (`/usr/bin/time -p bash tests/test_release_package.sh`):
+#   0.06  -> worst 0.06
+# Next multiple of 5 is 5, plus the 5s margin -> 10, this table's floor. EXPECTED_TOTAL moves
+# 2295 -> 2305.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -296,6 +337,10 @@ tests/test_plan_writer_step4.sh	10	parallel
 tests/test_readme_finalize_docs.sh	10	parallel
 tests/test_readme_skill_catalog.sh	10	parallel
 tests/test_reclaim_claims.sh	10	parallel
+tests/test_release_downloader.sh	10	parallel
+tests/test_release_downloader_converge.sh	10	parallel
+tests/test_release_downloader_refusals.sh	10	parallel
+tests/test_release_package.sh	10	parallel
 tests/test_render_adr_index.sh	10	parallel
 tests/test_render_artifact_backlink.sh	10	parallel
 tests/test_render_board.sh	25	parallel
