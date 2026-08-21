@@ -1,14 +1,15 @@
 # Backlog
 
-**333 changes** — 🟢 1 in progress · 🟡 47 proposed · ⚪ 4 deferred · ✅ 201 done · 🗑️ 80 killed
+**333 changes** — 🟢 2 in progress · 🟡 46 proposed · ⚪ 4 deferred · ✅ 201 done · 🗑️ 80 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
+| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [spec](../superpowers/specs/2026-08-20-release-packaging-and-four-harness-acceptance-design.md) | `feat/release-packaging-and-four-harness-acceptance` |
 | [0330](active/0330-post-merge-results-appending-has-no-home-in-the-go-runtime-f.md) | Optional closeout notes preserve post-merge verification without rewriting frozen results | `medium` | `feat` | [spec](../superpowers/specs/2026-08-21-terminal-closeout-notes-design.md) | `feat/post-merge-results-appending-has-no-home-in-the-go-runtime-f` |
 
-## 🟡 Proposed (47)
+## 🟡 Proposed (46)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -51,7 +52,6 @@
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
-| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | build-ready |
 | [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Remaining configuration cleanup, self-hosting, and hard cutover | `critical` | `refactor` | ⏳ waiting on #317 — not yet built |
 | [0319](active/0319-test-bash-runtime-routing-sh-s-inventory-assert-is-cwd-depen.md) | test_bash_runtime_routing.sh's inventory assert is cwd-dependent — relative rg globs resolve against the process cwd | `medium` | `fix` | needs-brainstorm |
 | [0320](active/0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | `medium` | `chore` | needs-brainstorm |

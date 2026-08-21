@@ -2,11 +2,11 @@
 id: 317
 slug: release-packaging-and-four-harness-acceptance
 title: 'Release packaging and four-harness acceptance'
-status: proposed
+status: 'in-progress'
 priority: critical
 type: feat
 created: 2026-08-12
-updated: 2026-08-20
+updated: '2026-08-21'
 depends_on: [311, 316]
 stacked_on:
 related: [318, 322, 323]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'feat/release-packaging-and-four-harness-acceptance'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-21T02:56:09Z'
 ---
 
 ## Artifacts
@@ -28,8 +29,8 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-20-release-packaging-and-four-harness-acceptance-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-20-release-packaging-and-four-harness-acceptance-design.md) |
-| ADRs | [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md) |
+| Spec | `docs/superpowers/specs/2026-08-20-release-packaging-and-four-harness-acceptance-design.md` |
+| ADRs | `docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
