@@ -160,6 +160,11 @@ squash commit have different ancestry, but all must satisfy that reachability pr
 implementation path may require the merge-result commit to have two parents or equal the original
 PR head.
 
+The same graph-shape independence binds branch cleanup's local-ref merge-chain containment proof
+(`finalizeCleanupLocalRef`): it too must key on the recorded merge-result commit, never the original
+head, so a rebase-first or squash finalize can still clean up its local feature ref (see the
+2026-08-21 amendment).
+
 ## Components
 
 - `internal/cli` — add the shared defaulted-repository-directory resolver and route every command
@@ -238,7 +243,30 @@ truth, the eventual results record must carry named human verification items for
 - Retrying another method after GitHub rejects an attempted merge.
 - Inferring or reporting the historical method of a PR already merged by another actor.
 - Changing approval requirements, explicit-id authorization, `--admin` policy, gate execution,
-  rebase/repair behavior, terminal closeout, merged recovery, or branch cleanup.
+  rebase/repair behavior, terminal closeout, merged recovery, or branch cleanup — **except** the
+  one cleanup change the fixed preference order forces (see the 2026-08-21 amendment below): making
+  the local-ref merge-chain containment predicate graph-shape independent. The rest of branch
+  cleanup — the ref-identity lease, the worktree-detached check, the remote-ref and child-retarget
+  logic — stays out of scope and unchanged.
 - Change 0327's stacked-child reachability and stale-worktree protections.
 - Change 0330's closeout-note channel or change 0331's evidence re-mint path.
 - Reintroducing a Bash finalize fallback or altering repository-side merge-method defaults.
+
+## Amendment — 2026-08-21: cleanup containment predicate brought in scope
+
+The build (Step 5) surfaced a spec-internal contradiction that a human resolved by amending scope.
+
+**Contradiction.** Making the fixed order **rebase → merge commit → squash** the merge policy makes
+*rebase* the effective default for this repository (rebase + squash enabled, merge commits off).
+`finalizeCleanupLocalRef` proved local-ref deletion by requiring the *original PR head* to be an
+ancestor of the freshly-fetched integration tip. Under a rebase or squash merge the integration tip
+is a fresh commit chain with new object ids, so the original head is never an ancestor: cleanup
+returned `tip-not-in-merge-chain` and blocked, a real functional regression (the local feature
+branch would never be cleaned up after a rebase-first finalize).
+
+**Resolution.** Bring exactly one cleanup change in scope: key the containment proof on the recorded
+merge-result commit (`facts.MergeCommit`), which `verifyMerge` and `closeoutIntegrationDestination`
+already certify reachable, instead of the original head — the same graph-shape-independent proof the
+post-merge verification section mandates. The ref-identity lease (live tip must equal the exact
+merged head), the worktree-detached check, and the `DeleteLocalBranchChecked(head)` lease are
+unchanged. No other cleanup behavior — remote ref, child retarget, workspace — is touched.
