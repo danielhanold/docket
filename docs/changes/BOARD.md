@@ -1,6 +1,6 @@
 # Backlog
 
-**333 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 200 done · 🗑️ 80 killed
+**333 changes** — 🟡 48 proposed · ⚪ 4 deferred · ✅ 201 done · 🗑️ 80 killed
 
 ## 🟡 Proposed (48)
 
@@ -64,12 +64,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0331](active/0331-docket-implement-next-s-re-mint-path-never-names-docket-gate.md) | docket-implement-next's re-mint path never names docket gate launch, so a resumed run cannot produce the run directory evidence record requires | `high` | `fix` | [#docket#224](https://github.com/danielhanold/docket/pull/docket#224) |  |
-
 ```mermaid
 graph TD
   0007
@@ -124,7 +118,6 @@ graph TD
   0323
   0327
   0316 --> 0330
-  0316 --> 0331
   0333
   0192:::done
   0211:::done
@@ -133,10 +126,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (280)</summary>
+<details><summary>✅🗑️ Archive — done + killed (281)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0331](archive/2026-08-21-0331-docket-implement-next-s-re-mint-path-never-names-docket-gate.md) | docket-implement-next's re-mint path never names docket gate launch, so a resumed run cannot produce the run directory evidence record requires | 2026-08-21 |
 | [0332](archive/2026-08-20-0332-route-race-shards-to-serial-lane.md) | Route the -race test shards out of the parallel test pool | 2026-08-20 |
 | [0329](archive/2026-08-20-0329-change-refresh-claim-reports-invalid-state-with-empty-findin.md) | change refresh-claim reports invalid-state with empty findings — the transaction Failure is dropped on the DispositionFailed path | 2026-08-20 |
 | [0316](archive/2026-08-19-0316-finalize-recovery-reclaim-archive-and-stacks.md) | Finalize, recovery, reclaim, archive, and stacks | 2026-08-19 |
@@ -151,7 +145,6 @@ graph TD
 | [0310](archive/2026-08-16-0310-read-only-status-and-health-vertical-slice.md) | Read-only status and health vertical slice | 2026-08-16 |
 | [0309](archive/2026-08-16-0309-isolated-metadata-transaction-engine.md) | Isolated metadata transaction engine | 2026-08-16 |
 | [0324](archive/2026-08-15-0324-model-pinned-plan-writer-agent.md) | Extract plan writing into a model-pinned internal agent | 2026-08-15 |
-| [0308](archive/2026-08-15-0308-git-adapter-and-authoritative-object-source.md) | Git adapter and authoritative object source | 2026-08-15 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
 | [0299](archive/2026-08-12-0299-reshard-tests-test-sync-agents-runners-so-every-file-measure.md) | Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling | 2026-08-12 |
 | [0285](archive/2026-08-12-0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | 2026-08-12 |
@@ -237,7 +230,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 67 done |
+| [2026-08](archive/) | 68 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
