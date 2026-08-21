@@ -1,13 +1,12 @@
 # Backlog
 
-**333 changes** — 🟢 2 in progress · 🟡 46 proposed · ⚪ 4 deferred · ✅ 201 done · 🗑️ 80 killed
+**333 changes** — 🟢 1 in progress · 🟡 46 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 201 done · 🗑️ 80 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [spec](../superpowers/specs/2026-08-20-release-packaging-and-four-harness-acceptance-design.md) | `feat/release-packaging-and-four-harness-acceptance` |
-| [0330](active/0330-post-merge-results-appending-has-no-home-in-the-go-runtime-f.md) | Optional closeout notes preserve post-merge verification without rewriting frozen results | `medium` | `feat` | [spec](../superpowers/specs/2026-08-21-terminal-closeout-notes-design.md) | `feat/post-merge-results-appending-has-no-home-in-the-go-runtime-f` |
 
 ## 🟡 Proposed (46)
 
@@ -68,6 +67,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0330](active/0330-post-merge-results-appending-has-no-home-in-the-go-runtime-f.md) | Optional closeout notes preserve post-merge verification without rewriting frozen results | `medium` | `feat` | #docket#225 |  |
 
 ```mermaid
 graph TD

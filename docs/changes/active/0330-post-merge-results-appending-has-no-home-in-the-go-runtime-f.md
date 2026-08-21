@@ -2,7 +2,7 @@
 id: 330
 slug: 'post-merge-results-appending-has-no-home-in-the-go-runtime-f'
 title: 'Optional closeout notes preserve post-merge verification without rewriting frozen results'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-08-19'
@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable:
 branch: 'feat/post-merge-results-appending-has-no-home-in-the-go-runtime-f'
-pr:
+pr: 'github.com/danielhanold/docket#225'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-21T02:43:01Z'
