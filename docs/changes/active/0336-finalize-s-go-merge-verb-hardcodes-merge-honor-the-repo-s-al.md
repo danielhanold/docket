@@ -2,11 +2,11 @@
 id: 336
 slug: finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al
 title: 'Finalize selects the best merge method permitted by repository and branch policy'
-status: proposed
+status: 'in-progress'
 priority: medium
 type: fix
 created: 2026-08-21
-updated: 2026-08-21
+updated: '2026-08-21'
 depends_on: []
 stacked_on:
 related: [316, 327, 330]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'feat/finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-21T19:19:13Z'
 ---
 
 ## Artifacts
@@ -28,8 +29,8 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-21-finalize-effective-merge-method-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-21-finalize-effective-merge-method-design.md) |
-| ADRs | [ADR-0010](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0010-finalize-merge-gate-split-agents.md), [ADR-0011](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0011-finalize-consent-model.md), [ADR-0043](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md) |
+| Spec | `docs/superpowers/specs/2026-08-21-finalize-effective-merge-method-design.md` |
+| ADRs | `docs/adrs/0010-finalize-merge-gate-split-agents.md`, `docs/adrs/0011-finalize-consent-model.md`, `docs/adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
