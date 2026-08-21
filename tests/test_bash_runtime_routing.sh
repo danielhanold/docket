@@ -133,6 +133,15 @@ assert "nested renderer never selects bash from PATH" '[ ! -s "$PATH_LOG" ]'
 # Whole-repo executable-shape inventory. Derive candidates from every production shell file,
 # classify comments/sources/assignments and the pre-runtime installer bootstrap, and require every
 # remaining Docket-owned child-script launch to carry the configured runtime on that same command.
+#
+# Release downloader exemption (change 0317): scripts/release-smoke.sh drives the release bundle's
+# rendered downloader ($BUNDLE/install.sh and $BASE_BUNDLE/install.sh, via the run_dl helper and the
+# doctored-copy machinery that reads that same install.sh). That downloader is a portable /bin/sh
+# program BY CONTRACT (scripts/release-smoke.md) — never Bash, never a Docket runtime dependency — so
+# it MUST NOT route through DOCKET_BASH_PATH; run_dl launches it with a literal /bin/sh. The awk rule
+# below exempts ONLY that downloader-launch shape in ONLY that one file: it is keyed on the bundle
+# install.sh reference, so a genuine un-routed Docket helper launch in release-smoke.sh (e.g.
+# $SCRIPTS_DIR/render-board.sh) does not match and is still covered by the assert.
 inventory="$tmp/launch-inventory"
 rg -n --glob '*.sh' --glob '!tests/**' --glob '!docs/**' --glob '!.superpowers/**' \
   '(^|[[:space:]<(;])("?\$[A-Z_][A-Z0-9_]*"?/[^[:space:]]*\.sh|bash[[:space:]]+[^[:space:]]*\.sh)' \
@@ -145,6 +154,10 @@ awk '
   /DOCKET_BASH_PATH/ { next }
   /CONFIG_EXPORT_CMD|RENDER_BOARD_EXPLICIT|DOCKET_CONFIG_EXPLICIT/ { next }
   /(^|[[:space:]])(die|say|log)[[:space:]]+"/ { next }
+  # Release downloader (change 0317): the bundle install.sh is a portable /bin/sh program that by
+  # design does not route through DOCKET_BASH_PATH (header above). Scoped to release-smoke.sh AND the
+  # bundle-install shape, so a genuine Docket helper launch in that file is still caught.
+  /\/scripts\/release-smoke\.sh:[0-9]+:/ && (/run_dl / || /\$(BUNDLE|BASE_BUNDLE)\/install\.sh/) { next }
   { print }
 ' "$inventory" > "$unrouted"
 assert "inventory: every Docket-owned nested script launch names DOCKET_BASH_PATH" \
