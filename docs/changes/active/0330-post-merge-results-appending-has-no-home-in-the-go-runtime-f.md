@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'feat/post-merge-results-appending-has-no-home-in-the-go-runtime-f'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-21T02:39:04Z'
+reconciled: true
+claimed_at: '2026-08-21T02:43:01Z'
 ---
 
 ## Artifacts
@@ -67,3 +67,9 @@ Editing or redesigning `results:`, changing `attach-results`, adding free-form c
 third category, adding a post-merge pause or lifecycle state, automatically creating follow-ups or
 harvesting learnings, and the capabilities 0316 deliberately deferred: terminal publishing,
 CI/combined gates, results-only skips, skill rebinding, and Bash fallback.
+
+## Reconcile log
+
+### 2026-08-21
+
+Reconciled against current main. Verified the spec's premises still hold: internal/cli/finalize.go registers a `finalize closeout` subcommand carrying `--id`/`--repo-dir` only (no `--input`); internal/app/finalize_closeout.go exposes `FinalizeCloseout(ctx, deps, repoDir, id)` with a scalar id and no request/notes payload in its CloseoutResult; render.ApplySectionEdits is H2-section-granular and marker/fence-aware (so a `## Closeout notes` body with `### Verification`/`### Late findings` subsections is authored as one section body, exactly as the spec anticipates); tests/test_results_artifact.sh still carries the skipped Bash-era post-merge-append assertion naming change 0330; and skills/docket-finalize-change/SKILL.md's `### 9. Closeout` invokes `docket finalize closeout --id <id>` with no notes ingress. Dependency 316 is done; sibling 331 (related) is already merged/done and addresses the evidence/gate-launch re-mint path, not closeout notes, so there is no scope overlap. Frozen-artifact rule (AGENTS.md / convention) unchanged and compatible with the design. No scope adjustment needed; relations left as-is.
