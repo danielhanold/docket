@@ -806,4 +806,67 @@ assert "the example config states the shipped docket-review default" \
 assert "the example config no longer ships the superpowers review default" \
   '! grep -qE "^ +review: +superpowers:requesting-code-review$" "$REPO/.docket.example.yml"'
 
+# --- change 0331: Step 6's re-mint path names its producer ---------------------------------
+# The recovery path for missing/malformed/stale evidence must be an executable chain:
+# `docket gate launch` produces the run dir that `docket gate observe` reports and
+# `docket evidence record` consumes at the exact feature head, with `docket evidence verify`
+# re-checking the same head. Guarded on command SHAPE and ORDERING, whitespace-collapsed so a
+# Markdown re-flow is not a semantic failure, one bounded gap per ERE (two stacked gaps
+# backtrack catastrophically on exactly the mutated input). The checker takes the file as an
+# argument so the same code runs against the authored skill and the mutated copy.
+
+# Position of a fixed literal in a haystack (fails when absent) — pure bash, no regex.
+remint_pos(){ local pre="${1%%"$2"*}"; [ "$pre" != "$1" ] || return 1; printf '%s\n' "${#pre}"; }
+
+check_remint_chain(){
+  local file="$1" sec flat p_launch p_observe p_record p_verify
+  sec="$(awk '/^### Step 6 — Review/{f=1;next} /^### Step 6\.5 — Results close-out/{f=0} f' "$file")"
+  [ -n "$sec" ] || { echo "step6-slice-empty"; return 1; }
+  flat="$(tr -s '[:space:]' ' ' <<<"$sec")"
+  # (a) the producer exists on the re-mint path
+  grep -qF -- "docket gate launch" <<<"$flat" || { echo "launch-missing"; return 1; }
+  # (b) launch shape: --root, --cwd, and the child-command `--` boundary (one gap per pattern)
+  grep -qE -e "docket gate launch [^.]{0,120}--root" <<<"$flat" || { echo "root-missing"; return 1; }
+  grep -qE -e "--root [^.]{0,120}--cwd" <<<"$flat" || { echo "cwd-missing"; return 1; }
+  grep -qE -e "--cwd [^.]{0,160} -- " <<<"$flat" || { echo "separator-missing"; return 1; }
+  # (c) ordering: launch precedes observe precedes record; record precedes verify
+  p_launch="$(remint_pos "$flat" "docket gate launch")" || { echo "launch-missing"; return 1; }
+  p_observe="$(remint_pos "$flat" "docket gate observe")" || { echo "observe-missing"; return 1; }
+  p_record="$(remint_pos "$flat" "docket evidence record")" || { echo "record-missing"; return 1; }
+  p_verify="$(remint_pos "$flat" "docket evidence verify")" || { echo "verify-missing"; return 1; }
+  [ "$p_launch" -lt "$p_observe" ] || { echo "launch-after-observe"; return 1; }
+  [ "$p_observe" -lt "$p_record" ] || { echo "observe-after-record"; return 1; }
+  [ "$p_record" -lt "$p_verify" ] || { echo "record-after-verify"; return 1; }
+  # (d) record consumes the produced run dir and binds the exact feature head
+  grep -qE -e "docket gate observe [^.]{0,40}run" <<<"$flat" || { echo "observe-no-rundir"; return 1; }
+  grep -qE -e "docket evidence record [^.]{0,80}--run" <<<"$flat" || { echo "record-no-rundir"; return 1; }
+  grep -qE -e "--run [^.]{0,80}--head <feature head>" <<<"$flat" || { echo "record-no-head"; return 1; }
+  # (e) verify follows record and checks the same head
+  grep -qE -e "docket evidence verify [^.]{0,100}--head <feature head>" <<<"$flat" || { echo "verify-no-head"; return 1; }
+  return 0
+}
+
+# SEPARATE non-vacuity anchors: an empty or renamed section must fail HERE, positively, so the
+# negative conditions inside the checker can never pass against text that was simply not searched.
+remint_sec="$(awk '/^### Step 6 — Review/{f=1;next} /^### Step 6\.5 — Results close-out/{f=0} f' "$IMPL")"
+assert "remint: Step 6 section slice is non-empty (existence anchor)" '[ -n "$remint_sec" ]'
+assert "remint: the named terminator heading still exists (slice cannot widen to EOF)" \
+  'grep -qF -- "### Step 6.5 — Results close-out" "$IMPL"'
+
+assert "remint: launch -> observe -> record -> verify chain holds in the authored skill" \
+  'check_remint_chain "$IMPL"'
+
+# Mutation proof: the guard is load-bearing. Copy, confirm the occurrence, remove it, confirm the
+# removal landed, and require the SAME checker to reject the copy. Temp copy only — the real
+# worktree is never edited, so no restoration step exists to get wrong.
+remint_mut="$(mktemp "${TMPDIR:-/tmp}/remint-mutation.XXXXXX")"
+assert "remint mutation: the gate-launch occurrence exists before removal" \
+  'grep -qF -- "docket gate launch" "$IMPL"'
+grep -vF -- "docket gate launch" "$IMPL" >"$remint_mut"
+assert "remint mutation: the removal landed in the copy" \
+  '! grep -qF -- "docket gate launch" "$remint_mut"'
+assert "remint mutation: the checker rejects the launch-less copy" \
+  '! check_remint_chain "$remint_mut" >/dev/null'
+rm -f "$remint_mut"
+
 echo "---"; [ "$fails" -eq 0 ] && echo "PASS" || { echo "FAIL ($fails)"; exit 1; }
