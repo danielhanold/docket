@@ -14,7 +14,7 @@ discovered_from: [316]
 adrs: [10, 11, 43]
 spec: docs/superpowers/specs/2026-08-21-finalize-effective-merge-method-design.md
 plan: 'docs/superpowers/plans/2026-08-21-finalize-effective-merge-method.md'
-results:
+results: 'docs/results/2026-08-21-finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al-results.md'
 trivial: false
 auto_groomable:
 branch: 'feat/finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al'
@@ -31,6 +31,7 @@ claimed_at: '2026-08-21T21:02:42Z'
 |---|---|
 | Spec | `docs/superpowers/specs/2026-08-21-finalize-effective-merge-method-design.md` |
 | Plan | `docs/superpowers/plans/2026-08-21-finalize-effective-merge-method.md` |
+| Results | `docs/results/2026-08-21-finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al-results.md` |
 | ADRs | `docs/adrs/0010-finalize-merge-gate-split-agents.md`, `docs/adrs/0011-finalize-consent-model.md`, `docs/adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md` |
 <!-- docket:artifacts:end -->
 
