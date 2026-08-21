@@ -94,7 +94,7 @@ func newFinalizeCloseoutSubcommand(setResult func(app.OperationResult)) *cobra.C
 			if err != nil {
 				return err
 			}
-			setResult(app.FinalizeCloseout(c.Context(), deps, repoDir, id))
+			setResult(app.FinalizeCloseout(c.Context(), deps, repoDir, id, app.CloseoutNotes{}))
 			return nil
 		},
 	}

@@ -142,6 +142,10 @@ const (
 	// done) but the follow-up integration-ref backlink leg did not; a retryable
 	// health/maintenance finding.
 	ReasonCloseoutBacklinkPending = "terminal-backlink-pending"
+	// ReasonCloseoutNotesFrozen: the change is already terminal and the request
+	// carries notes that differ from the terminal record; refused — a terminal
+	// record is never rewritten.
+	ReasonCloseoutNotesFrozen = "terminal-notes-frozen"
 )
 
 // closeoutBacklinkArtifactHeadings is the marker heading set the closeout record
@@ -206,6 +210,7 @@ func closeoutRefusal(result Result, disposition, reason, message string, id int)
 type closeoutReceipt struct {
 	ArchiveDate string `json:"archive_date"`
 	IDs         []int  `json:"ids"`
+	Notes       string `json:"notes,omitempty"`
 	Op          string `json:"op"`
 	Root        int    `json:"root"`
 }
@@ -233,11 +238,18 @@ type closeoutTarget struct {
 // selects. It never asserts done without a merge-commit reachability proof, never
 // leaves a remotely partial metadata outcome, and (in docket mode) retargets the
 // merged plan/results backlinks in an isolated retryable follow-up leg.
-func FinalizeCloseout(ctx context.Context, deps FinalizeDeps, repoDir string, id int) CloseoutResult {
+func FinalizeCloseout(ctx context.Context, deps FinalizeDeps, repoDir string, id int, notes CloseoutNotes) CloseoutResult {
 	if id <= 0 {
 		return newCloseoutResult(ResultInvalidInput, CloseoutResult{
 			ID: id, Findings: []StatusFinding{lifecycleFinding("invalid-id", "id must be a positive change id")},
 		})
+	}
+
+	// Normalize and validate the whole authored-notes set before any external
+	// probe or mutation: invalid notes produce no probe and no metadata write.
+	notes, noteFindings := normalizeCloseoutNotes(notes)
+	if len(noteFindings) != 0 {
+		return newCloseoutResult(ResultInvalidInput, CloseoutResult{ID: id, Disposition: CloseoutDispBlocked, Findings: noteFindings})
 	}
 
 	cc, refusal := loadCloseoutContext(ctx, deps, repoDir, id)
@@ -250,6 +262,15 @@ func FinalizeCloseout(ctx context.Context, deps FinalizeDeps, repoDir string, id
 	// killed/other terminal record is an illegal source.
 	switch cc.change.Status() {
 	case domain.StatusDone:
+		// Replay is proven against the terminal record's own bytes: the writer is
+		// the reader. Empty notes replay any terminal record; identical notes are a
+		// byte-level no-op; different notes cannot rewrite a frozen terminal record.
+		if match, err := closeoutNotesMatchTerminal(cc.body, notes); err != nil {
+			return closeoutRefusal(ResultInvalidState, CloseoutDispBlocked, ReasonCloseoutNotesFrozen, err.Error(), id)
+		} else if !match {
+			return closeoutRefusal(ResultInvalidState, CloseoutDispBlocked, ReasonCloseoutNotesFrozen,
+				fmt.Sprintf("change %04d is already terminal; a retry carrying different notes is not a replay and cannot rewrite the terminal record", id), id)
+		}
 		return newCloseoutResult(ResultNoOp, CloseoutResult{
 			ID: id, Disposition: CloseoutDispAlready, ArchivePath: cc.change.Path(),
 			Message: fmt.Sprintf("change %04d is already done and archived", id),
@@ -281,7 +302,7 @@ func FinalizeCloseout(ctx context.Context, deps FinalizeDeps, repoDir string, id
 	// Route by the verified merge destination.
 	integrationBranch := cc.integrationBranch
 	if facts.BaseRef == integrationBranch {
-		return closeoutIntegrationDestination(ctx, deps, cc, ghRepo, canonicalN, facts)
+		return closeoutIntegrationDestination(ctx, deps, cc, ghRepo, canonicalN, facts, notes)
 	}
 
 	// A stacked change whose destination is its live parent's branch takes the
@@ -290,12 +311,28 @@ func FinalizeCloseout(ctx context.Context, deps FinalizeDeps, repoDir string, id
 	if pout == domain.LookupFound && !parent.Status().Terminal() {
 		parentBranch := domain.BranchForSlug(parent.Slug())
 		if facts.BaseRef == parentBranch {
-			return closeoutStacked(ctx, deps, cc, parentBranch, facts)
+			return closeoutStacked(ctx, deps, cc, parentBranch, facts, notes)
 		}
 	}
 
 	return closeoutRefusal(ResultBlocked, CloseoutDispBlocked, ReasonCloseoutDestinationMismatch,
 		fmt.Sprintf("change %04d merged into %q, which is neither the integration branch nor a live parent branch", id, facts.BaseRef), id)
+}
+
+// closeoutNotesMatchTerminal reports whether the terminal record already
+// carries exactly the promise this request makes: splicing the request's notes
+// into the terminal bytes is a byte-level no-op. Empty notes match any
+// terminal record (the pre-notes replay). The comparison uses the same splice
+// that writes, so reader and writer can never disagree.
+func closeoutNotesMatchTerminal(body []byte, notes CloseoutNotes) (bool, error) {
+	if notes.Empty() {
+		return true, nil
+	}
+	respliced, err := spliceCloseoutNotes(body, notes)
+	if err != nil {
+		return false, err
+	}
+	return string(respliced) == string(body), nil
 }
 
 // closeoutContext is the fresh reload every closeout decision reads from.
@@ -437,7 +474,7 @@ func reprobeMerged(ctx context.Context, deps FinalizeDeps, ghRepo githubcli.Repo
 // integration branch: it proves reachability, derives the stack-root closeout
 // set, and drives the archive transaction (ordinary or root carry) plus the
 // docket-mode backlink leg.
-func closeoutIntegrationDestination(ctx context.Context, deps FinalizeDeps, cc *closeoutContext, ghRepo githubcli.Repository, canonicalN int, facts githubcli.MergedFacts) CloseoutResult {
+func closeoutIntegrationDestination(ctx context.Context, deps FinalizeDeps, cc *closeoutContext, ghRepo githubcli.Repository, canonicalN int, facts githubcli.MergedFacts, notes CloseoutNotes) CloseoutResult {
 	id := int(cc.change.ID())
 
 	// Merge-commit reachability from the freshly-fetched integration tip. A fetch
@@ -505,7 +542,7 @@ func closeoutIntegrationDestination(ctx context.Context, deps FinalizeDeps, cc *
 		}
 	}
 
-	res := runCloseoutArchiveTransaction(ctx, deps, cc, targets, archiveDate, disposition, carried)
+	res := runCloseoutArchiveTransaction(ctx, deps, cc, targets, archiveDate, disposition, carried, notes)
 	if res.Result != ResultApplied {
 		return res
 	}
@@ -588,9 +625,17 @@ func probeDescendantFacts(ctx context.Context, deps FinalizeDeps, ghRepo githubc
 // finalize-blocked marker, and rerenders the board — never archiving. A change
 // already stacked-merged whose destination is still its parent's branch is a
 // verified no-op.
-func closeoutStacked(ctx context.Context, deps FinalizeDeps, cc *closeoutContext, parentBranch string, facts githubcli.MergedFacts) CloseoutResult {
+func closeoutStacked(ctx context.Context, deps FinalizeDeps, cc *closeoutContext, parentBranch string, facts githubcli.MergedFacts, notes CloseoutNotes) CloseoutResult {
 	id := int(cc.change.ID())
 	if cc.change.Status() == domain.StatusStackedMerged {
+		// Replay against the terminal in-place record's own bytes: identical notes
+		// (or none) are a byte-level no-op; different notes cannot rewrite it.
+		if match, err := closeoutNotesMatchTerminal(cc.body, notes); err != nil {
+			return closeoutRefusal(ResultInvalidState, CloseoutDispBlocked, ReasonCloseoutNotesFrozen, err.Error(), id)
+		} else if !match {
+			return closeoutRefusal(ResultInvalidState, CloseoutDispBlocked, ReasonCloseoutNotesFrozen,
+				fmt.Sprintf("change %04d is already stacked-merged; a retry carrying different notes is not a replay and cannot rewrite the terminal record", id), id)
+		}
 		return newCloseoutResult(ResultNoOp, CloseoutResult{
 			ID: id, Disposition: CloseoutDispAlready,
 			Message: fmt.Sprintf("change %04d is already stacked-merged into %q", id, parentBranch),
@@ -601,6 +646,7 @@ func closeoutStacked(ctx context.Context, deps FinalizeDeps, cc *closeoutContext
 		id:           id,
 		parentBranch: parentBranch,
 		destination:  facts.BaseRef,
+		notes:        notes,
 		eff:          cc.eff,
 		inline:       cc.inline,
 		changesDir:   cc.changesDir,
@@ -639,7 +685,7 @@ func closeoutStacked(ctx context.Context, deps FinalizeDeps, cc *closeoutContext
 // runCloseoutArchiveTransaction drives the metadata transaction that marks every
 // target done, relocates it into the archive, retargets its metadata-resident
 // backlinks, and rerenders the board — all-or-nothing.
-func runCloseoutArchiveTransaction(ctx context.Context, deps FinalizeDeps, cc *closeoutContext, targets []closeoutTarget, archiveDate, disposition string, carried []int) CloseoutResult {
+func runCloseoutArchiveTransaction(ctx context.Context, deps FinalizeDeps, cc *closeoutContext, targets []closeoutTarget, archiveDate, disposition string, carried []int, notes CloseoutNotes) CloseoutResult {
 	id := int(cc.change.ID())
 
 	expectations := make([]transaction.EntityExpectation, 0, len(targets))
@@ -655,6 +701,7 @@ func runCloseoutArchiveTransaction(ctx context.Context, deps FinalizeDeps, cc *c
 		rootID:      id,
 		targets:     targets,
 		archiveDate: archiveDate,
+		notes:       notes,
 		eff:         cc.eff,
 		inline:      cc.inline,
 		link:        cc.link,
@@ -832,6 +879,7 @@ type closeoutArchiveOp struct {
 	rootID      int
 	targets     []closeoutTarget
 	archiveDate string
+	notes       CloseoutNotes
 	eff         config.Effective
 	inline      bool
 	link        render.LinkContext
@@ -869,6 +917,15 @@ func (o closeoutArchiveOp) Plan(ctx context.Context, st transaction.AttemptState
 		cleared, err := clearFinalizeBlockedSection(src)
 		if err != nil {
 			return refuseCloseout("marker-clear-failed", err.Error())
+		}
+		// Notes land ONLY on the root (the explicit change); descendants ride
+		// through untouched, so root notes never propagate and a descendant's own
+		// authored `## Closeout notes` survives root archival.
+		if tg.id == o.rootID {
+			cleared, err = spliceCloseoutNotes(cleared, o.notes)
+			if err != nil {
+				return refuseCloseout("notes-splice-failed", err.Error())
+			}
 		}
 		doc1, err := document.Parse(cleared)
 		if err != nil {
@@ -944,7 +1001,7 @@ func (o closeoutArchiveOp) Plan(ctx context.Context, st transaction.AttemptState
 	for _, tg := range o.targets {
 		ids = append(ids, tg.id)
 	}
-	receipt, err := json.Marshal(closeoutReceipt{ArchiveDate: o.archiveDate, IDs: ids, Op: OperationFinalizeCloseout, Root: o.rootID})
+	receipt, err := json.Marshal(closeoutReceipt{ArchiveDate: o.archiveDate, IDs: ids, Notes: closeoutNotesDigest(o.notes), Op: OperationFinalizeCloseout, Root: o.rootID})
 	if err != nil {
 		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("closeout: encoding receipt: %w", err)
 	}
@@ -964,6 +1021,7 @@ type closeoutStackedOp struct {
 	id           int
 	parentBranch string
 	destination  string
+	notes        CloseoutNotes
 	eff          config.Effective
 	inline       bool
 	changesDir   string
@@ -990,6 +1048,10 @@ func (o closeoutStackedOp) Plan(ctx context.Context, st transaction.AttemptState
 	cleared, err := clearFinalizeBlockedSection(src)
 	if err != nil {
 		return refuseCloseout("marker-clear-failed", err.Error())
+	}
+	cleared, err = spliceCloseoutNotes(cleared, o.notes)
+	if err != nil {
+		return refuseCloseout("notes-splice-failed", err.Error())
 	}
 	doc, err := document.Parse(cleared)
 	if err != nil {
@@ -1027,7 +1089,7 @@ func (o closeoutStackedOp) Plan(ctx context.Context, st transaction.AttemptState
 		files = append(files, transaction.FileMutation{Path: gitcli.RepoPath(boardPath), Kind: kind, Bytes: boardBytes})
 	}
 
-	receipt, err := json.Marshal(closeoutReceipt{IDs: []int{o.id}, Op: OperationFinalizeCloseout, Root: o.id})
+	receipt, err := json.Marshal(closeoutReceipt{IDs: []int{o.id}, Notes: closeoutNotesDigest(o.notes), Op: OperationFinalizeCloseout, Root: o.id})
 	if err != nil {
 		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("closeout stacked: encoding receipt: %w", err)
 	}
