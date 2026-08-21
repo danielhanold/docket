@@ -1,12 +1,6 @@
 # Backlog
 
-**333 changes** — 🟢 1 in progress · 🟡 48 proposed · ⚪ 4 deferred · ✅ 200 done · 🗑️ 80 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0331](active/0331-docket-implement-next-s-re-mint-path-never-names-docket-gate.md) | docket-implement-next's re-mint path never names docket gate launch, so a resumed run cannot produce the run directory evidence record requires | `high` | `fix` | [spec](../superpowers/specs/2026-08-20-docket-implement-next-evidence-remint-gate-launch-design.md) | `feat/docket-implement-next-s-re-mint-path-never-names-docket-gate` |
+**333 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 200 done · 🗑️ 80 killed
 
 ## 🟡 Proposed (48)
 
@@ -69,6 +63,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0331](active/0331-docket-implement-next-s-re-mint-path-never-names-docket-gate.md) | docket-implement-next's re-mint path never names docket gate launch, so a resumed run cannot produce the run directory evidence record requires | `high` | `fix` | #docket#224 |  |
 
 ```mermaid
 graph TD

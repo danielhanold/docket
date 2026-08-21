@@ -2,7 +2,7 @@
 id: 331
 slug: 'docket-implement-next-s-re-mint-path-never-names-docket-gate'
 title: 'docket-implement-next''s re-mint path never names docket gate launch, so a resumed run cannot produce the run directory evidence record requires'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'fix'
 created: '2026-08-19'
@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable:
 branch: 'feat/docket-implement-next-s-re-mint-path-never-names-docket-gate'
-pr:
+pr: 'github.com/danielhanold/docket#224'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-21T01:39:40Z'
