@@ -12,7 +12,7 @@ stacked_on:
 related: []
 discovered_from: [330]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-21-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board-design.md
 plan:
 results:
 trivial: false
@@ -26,6 +26,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-21-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-21-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -44,21 +47,34 @@ re-stamp should never make the transaction declare a path that has no delta.
 
 ## What changes
 
-Fix docket's `change_claim` / refresh-claim op so a `claimed_at` re-stamp that leaves the
-board byte-unchanged does not declare the unchanged board path (and therefore does not trip
-`verify-delta`). The board is a derived view; declaring it only when it actually changed is
-the intended contract.
+Fix docket's shared `change_claim` / `change refresh-claim` op (`changeClaimOp.Plan` in
+`internal/app/change_claim.go`) so a `claimed_at` re-stamp that leaves the inline board
+byte-identical does not declare the unchanged board path — and therefore does not trip
+`verify-delta`. Concretely: replace the op's unconditional board `FileMutation` (appended via
+`boardMutationKind`) with the **declare-only-when-changed** switch that two sibling ops —
+`change_attach` and `change_reconcile` — already use verbatim: read the base-tree board blob and
+declare the board mutation only when it is absent (create) or `!bytes.Equal` to the render
+(replace). A byte-identical re-render is not declared, so the transaction applies cleanly. Both
+claim and refresh share one `Plan`, so the fix covers both; the fresh-claim path (which flips a
+board-visible status) is unaffected. Ships with a mutation-tested regression test in
+`change_claim_test.go`. Design, precedent citations, and the assumptions audit trail are in the
+linked spec.
 
 ## Out of scope
 
 - Broader `verify-delta` redesign beyond this no-op-board case.
 - Changing when or how often claim leases are re-stamped.
+- Generalizing the byte-compare switch to `change_groom` (a plausible latent carrier) or the other
+  `boardMutationKind` callers, or extracting a shared helper — recommended follow-ups, not this
+  change.
 
 ## Open questions
 
-- Should the fix drop the board from the declared set when its render is byte-identical, or
-  should `verify-delta` tolerate a declared-but-unchanged derived-view path? (The former is
-  narrower and matches the "derived view, commit only if changed" rule elsewhere.)
+- ~~Should the fix drop the board from the declared set when its render is byte-identical, or should
+  `verify-delta` tolerate a declared-but-unchanged derived-view path?~~ **Resolved (grooming):** drop
+  the board from the declared set — narrower, matches the "derived view, commit only if changed"
+  contract, and is the established in-repo precedent (`change_attach`, `change_reconcile`).
+  Relaxing the global `verify-delta` safety predicate for one op is rejected.
 
 ## Reconcile log
 
