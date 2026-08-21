@@ -36,7 +36,10 @@ func newContextCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Short: "Assemble the authoritative implementation-context bundle (read-only)",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			deps, err := newPlanningDeps()
 			if err != nil {
@@ -54,7 +57,10 @@ func newContextCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Short: "Assemble the authoritative finalize-context bundle (read-only)",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			allowlist, _ := c.Flags().GetIntSlice("allowlist")
 			deps, err := newFinalizeDeps()

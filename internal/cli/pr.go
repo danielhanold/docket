@@ -46,7 +46,10 @@ func newPRCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Short: "Publish (create or adopt) the pull request for a published feature head with its build evidence",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			head, _ := c.Flags().GetString("head")
 			bodySource, _ := c.Flags().GetString("body")

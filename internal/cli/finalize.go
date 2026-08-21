@@ -60,7 +60,10 @@ func newFinalizeCleanupSubcommand(setResult func(app.OperationResult)) *cobra.Co
 		Short: "Clean a terminal change's workspace and feature refs under exact ownership proof",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			deps, err := newFinalizeDeps()
 			if err != nil {
@@ -99,7 +102,10 @@ func newFinalizeCloseoutSubcommand(setResult func(app.OperationResult)) *cobra.C
 		Short: "Close out a merged change: mark done and archive, mark stacked-merged, or carry a stack root",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			var in closeoutInput
 			if src, _ := c.Flags().GetString("input"); src != "" {
@@ -146,7 +152,10 @@ func newFinalizeBlockSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 		Short: "Record a blocked finalize attempt: an owned PR comment then a durable marker",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			version, _ := c.Flags().GetString("version")
 			prNumber, _ := c.Flags().GetInt("pr-number")
@@ -202,7 +211,10 @@ func newFinalizeClearBlockSubcommand(setResult func(app.OperationResult)) *cobra
 		Short: "Remove a finalize-blocked marker after reprobing head, remote ref, PR, and evidence",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			version, _ := c.Flags().GetString("version")
 			head, _ := c.Flags().GetString("head")
@@ -245,7 +257,10 @@ func newFinalizeMergeSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 		Short: "Merge a change's pull request at its expected head and verify it authoritatively",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			version, _ := c.Flags().GetString("version")
 			head, _ := c.Flags().GetString("head")
@@ -297,7 +312,10 @@ func newFinalizeRetargetChildrenSubcommand(setResult func(app.OperationResult)) 
 		Short: "Retarget each authorized open child PR onto the parent's effective base",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			version, _ := c.Flags().GetString("version")
 
@@ -337,7 +355,10 @@ func newFinalizeRebaseSubcommand(setResult func(app.OperationResult)) *cobra.Com
 		Short: "Rebase a change's feature branch onto its effective base and run the local gate",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			version, _ := c.Flags().GetString("version")
 			head, _ := c.Flags().GetString("head")
@@ -371,7 +392,10 @@ func newFinalizeRebaseContinueSubcommand(setResult func(app.OperationResult)) *c
 		Short: "Continue an owned rebase from a verified conflict-resolver report",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			attempt, _ := c.Flags().GetString("attempt")
 			var report app.ResolverReport
@@ -400,7 +424,10 @@ func newFinalizeRebaseAbortSubcommand(setResult func(app.OperationResult)) *cobr
 		Short: "Abort an owned rebase and verify restoration to the recorded original head",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			attempt, _ := c.Flags().GetString("attempt")
 			var report app.ResolverReport
@@ -430,7 +457,10 @@ func newFinalizePublishSubcommand(setResult func(app.OperationResult)) *cobra.Co
 		Short: "Publish a rebased feature head under its receipt lease and update the PR build-evidence block",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			id, _ := c.Flags().GetInt("id")
 			attempt, _ := c.Flags().GetString("attempt")
 			head, _ := c.Flags().GetString("head")

@@ -195,7 +195,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 		Short: "Report backlog status, readiness, selection, and repository health (read-only)",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			repoDir, _ := c.Flags().GetString("repo-dir")
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
 			types, _ := c.Flags().GetStringArray("type")
 			priorities, _ := c.Flags().GetStringArray("priority")
 			client, err := gitcli.NewClient()
