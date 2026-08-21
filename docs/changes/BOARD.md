@@ -54,7 +54,7 @@
 | [0333](active/0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition internal/app to retire the -race gate's 300s ceiling exemption | `medium` | `refactor` | needs-brainstorm |
 | [0334](active/0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | CLAUDE.md global and project copies drift on finalize-agent descriptions | `medium` | `docs` | needs-brainstorm |
 | [0335](active/0335-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board.md) | refresh-claim fails verify-delta when the board is byte-unchanged | `medium` | `fix` | needs-brainstorm |
-| [0336](active/0336-finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al.md) | Finalize's Go merge verb hardcodes --merge; honor the repo's allowed methods (prefer rebase, never squash) | `medium` | `fix` | needs-brainstorm |
+| [0336](active/0336-finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al.md) | Finalize selects the best merge method permitted by repository and branch policy | `medium` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
 
