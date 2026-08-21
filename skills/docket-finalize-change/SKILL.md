@@ -9,6 +9,13 @@ description: Use when a change's PR is approved or merged and you want to close 
 
 `docket-finalize-change` drives a verified `implemented` change through its terminal half: it reads one authoritative finalize context, retargets any authorized open children, rebases the feature branch onto its current effective base through the resolver/repair loop, runs the local gate, publishes the rebased head with its evidence, merges the PR exactly once against an authoritative verification, archives the terminal records, and cleans only Docket-owned resources. The skill is the **workflow controller**: every mechanical effect is one named `docket` operation that reloads fresh authority, submits exact identities, and returns one protocol-v1 document with a closed disposition. The skill never merges, rebases, deletes, force-pushes, or writes metadata by hand — it sequences the operations and keys on their tokens.
 
+**Closeout notes ride the invocation, not a pause.** The caller may include already-known
+verification outcomes or late findings in the finalize request; step 9 routes them into the
+closeout operation's structured request. The skill never pauses after merge and never asks a new
+mid-run question — it records context supplied when finalize was invoked, nothing more. Post-merge
+observations belong in the terminal change record's `## Closeout notes` section, never appended to
+the frozen merged `results:` file.
+
 ## When to use
 
 - A PR was approved (merge + close out in one step), or was merged out of band and you want it archived — with branch/worktree cleanup and a board refresh — now rather than at the next `maintenance sweep`.
@@ -114,7 +121,14 @@ A pass with **no** authored repair (an exact-head-evidence skip, or a clean reba
 
 Every mutating Go transaction re-renders `BOARD.md` in the same commit as the record it reflects, so the board needs no separate pass and stays fresh by construction. The board is the live planning view and is **never** published to the integration branch.
 
-`docket finalize closeout --id <id>`. No caller-supplied done boolean or archive date: it reloads metadata, reprobes the PR and its destination, derives the UTC archive date from the verified `mergedAt`, and applies one atomic transaction. Route on `disposition`:
+`docket finalize closeout --id <id> [--input <request-file>]`. When the finalize invocation
+supplied verification outcomes or late findings, translate that prose into the two structured
+lists — `verification_outcomes` and `late_findings`, each an array of strings — write them as a
+bounded JSON request file, and pass it via `--input`; closeout renders them under `## Closeout
+notes` in the same transaction that archives the record, and an identical-notes retry replays as
+`already` while different notes against a terminal record are refused (`terminal-notes-frozen`).
+When no notes were supplied, call the unchanged no-input form and archive immediately — there is
+no post-merge pause or second user step. No caller-supplied done boolean or archive date: it reloads metadata, reprobes the PR and its destination, derives the UTC archive date from the verified `mergedAt`, and applies one atomic transaction. Route on `disposition`:
 
 - `done-archived` — an ordinary change merged to the integration branch: marked `done` (only after the merge-commit reachability proof), relocated to the dated archive path, artifact block + spec backlink + inline board rerendered, validated, committed by explicit path, lease-pushed.
 - `stacked-merged` — the PR merged into a live parent's branch: marked `stacked-merged` in place, not archived, branch and workspace retained until the root lands.
