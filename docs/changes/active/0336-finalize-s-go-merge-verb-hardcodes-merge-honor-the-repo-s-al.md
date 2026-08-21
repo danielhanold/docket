@@ -21,7 +21,7 @@ branch: 'feat/finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-21T19:20:59Z'
+claimed_at: '2026-08-21T21:02:42Z'
 ---
 
 ## Artifacts
@@ -76,12 +76,6 @@ result is a two-parent merge commit.
 ### 2026-08-21
 
 2026-08-21 — Reconciled at claim. Confirmed against current `docket` HEAD: `internal/githubcli/merge.go` `MergePullRequest` still hardcodes `--merge` (line ~159), and the empty-`--repo-dir` seam is live (a `docket change claim` without `--repo-dir` fails `gitcli discover: invalid-request: invocation path is empty`, reproduced during this claim). No `MergeMethod` type, repository/branch capability probe, or effective-set selection exists yet. Related changes 316, 330, 331 are all `done` (archived); their finalize-recovery, results-append, and evidence-remint work is complete and does not overlap this change's merge-method-selection scope. Spec and proposal scope are accurate as written; no section or relation edits required.
-
-## Run halted
-
-### 2026-08-21
-
-Halted 2026-08-21 by docket-implement-next (Step 5 build).
 
 ## Why halted
 
