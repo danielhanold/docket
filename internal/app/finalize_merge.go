@@ -123,6 +123,11 @@ const (
 	ReasonMergeNotMergeable = "not-mergeable"
 	// ReasonMergeDenied: the merge was authoritatively rejected.
 	ReasonMergeDenied = "merge-denied"
+	// ReasonMergeMethodUnavailable: repository settings and branch rules leave
+	// no permitted merge method for this PR's base; observed cleanly, blocked
+	// BEFORE any merge command. Not merge-denied (nothing was attempted) and
+	// not unknown (the incompatible configuration was observed successfully).
+	ReasonMergeMethodUnavailable = "merge-method-unavailable"
 	// ReasonMergeProbeUnknown: an external merge/reprobe could not establish the
 	// truth; retained, never a closeout-permitting success.
 	ReasonMergeProbeUnknown = "merge-probe-unknown"
@@ -185,8 +190,13 @@ type FinalizeMergeResult struct {
 	Reference   string          `json:"reference,omitempty"`
 	Merge       *VerifiedMerge  `json:"merge,omitempty"`
 	Reason      string          `json:"reason,omitempty"`
-	Message     string          `json:"message,omitempty"`
-	Findings    []StatusFinding `json:"findings"`
+	// Method is the merge method Docket attempted — evidence of Docket's
+	// choice, never an inference about how another actor historically merged.
+	// Absent when no merge command was issued (already-merged recovery,
+	// validation failures, pre-effect blocks).
+	Method   string          `json:"method,omitempty"`
+	Message  string          `json:"message,omitempty"`
+	Findings []StatusFinding `json:"findings"`
 }
 
 // HumanText renders a one-line summary naming identity and disposition only —
@@ -436,7 +446,9 @@ func FinalizeMerge(ctx context.Context, deps FinalizeDeps, repoDir string, req F
 		})
 	}
 	if outcome == githubcli.MergeAlreadyMerged {
-		return verifyMerge(ctx, deps, mc, repo, canonicalN, req, mfacts, false, MergeDispAlreadyMerged, ResultNoOp)
+		// Pre-attempt recovery: Docket issued no merge command, so it attempted no
+		// method — pass the empty method through.
+		return verifyMerge(ctx, deps, mc, repo, canonicalN, req, mfacts, false, MergeDispAlreadyMerged, ResultNoOp, "")
 	}
 
 	// Recheck every conjunct from the fresh reload plus live probes. No merge call
@@ -520,9 +532,15 @@ func FinalizeMerge(ctx context.Context, deps FinalizeDeps, repoDir string, req F
 	}
 	switch mres.Outcome {
 	case githubcli.MergeMerged:
-		return verifyMerge(ctx, deps, mc, repo, canonicalN, req, mres.Facts, true, MergeDispMerged, ResultApplied)
+		return verifyMerge(ctx, deps, mc, repo, canonicalN, req, mres.Facts, true, MergeDispMerged, ResultApplied, string(mres.Method))
 	case githubcli.MergeAlreadyMerged:
-		return verifyMerge(ctx, deps, mc, repo, canonicalN, req, mres.Facts, false, MergeDispAlreadyMerged, ResultNoOp)
+		return verifyMerge(ctx, deps, mc, repo, canonicalN, req, mres.Facts, false, MergeDispAlreadyMerged, ResultNoOp, string(mres.Method))
+	case githubcli.MergeMethodUnavailable:
+		// Repository settings and branch rules left no permitted method for this
+		// PR's base; the incompatible policy was observed cleanly and NO merge was
+		// issued. A pre-effect block, never merge-denied and never unknown.
+		return mergeRefusal(ResultBlocked, MergeDispBlocked, ReasonMergeMethodUnavailable,
+			fmt.Sprintf("no merge method is permitted for this PR's base: repository enables %v, branch rules permit %v; align the repository merge settings with the branch rules", mres.RepoMethods, mres.BranchMethods), id)
 	case githubcli.MergeHeadMoved:
 		return mergeRefusal(ResultContended, MergeDispContended, ReasonMergeHeadMoved,
 			"the pull request head moved from the expected head; re-read context finalize", id)
@@ -530,16 +548,18 @@ func FinalizeMerge(ctx context.Context, deps FinalizeDeps, repoDir string, req F
 		return mergeRefusal(ResultBlocked, MergeDispNotMergeable, ReasonMergeNotMergeable,
 			"the pull request cannot be merged (conflicting or closed unmerged)", id)
 	case githubcli.MergeDenied:
-		return mergeRefusal(ResultExternalFailed, MergeDispDenied, ReasonMergeDenied,
+		r := mergeRefusal(ResultExternalFailed, MergeDispDenied, ReasonMergeDenied,
 			"the merge was authoritatively rejected; it is never retried with admin", id)
+		r.Method = string(mres.Method)
+		return r
 	case githubcli.MergeUnknown:
 		return newMergeResult(ResultExternalFailed, FinalizeMergeResult{
 			ID: id, Disposition: MergeDispUnknown, Number: canonicalN, Reason: ReasonMergeProbeUnknown,
 			Message: "the merge outcome could not be verified; retained, no closeout",
 		})
 	default:
-		// MergeMethodUnavailable reaches here until Task 5 maps it: a fail-closed
-		// internal-error, never a permissive fall-through.
+		// An outcome outside the closed set is a fail-closed internal-error, never
+		// a permissive fall-through.
 		return mergeRefusal(ResultInternalError, MergeDispBlocked, ReasonStatusInternalError,
 			fmt.Sprintf("unexpected merge outcome %q", mres.Outcome), id)
 	}
@@ -552,7 +572,7 @@ func FinalizeMerge(ctx context.Context, deps FinalizeDeps, repoDir string, req F
 // commit reachable from the freshly-fetched destination tip. Only a fully proven
 // merge yields a VerifiedMerge; every failure is contended or unknown and carries
 // no closeout permit.
-func verifyMerge(ctx context.Context, deps FinalizeDeps, mc *mergeContext, repo githubcli.Repository, number int, req FinalizeMergeRequest, facts githubcli.MergedFacts, requireHead bool, disp string, success Result) FinalizeMergeResult {
+func verifyMerge(ctx context.Context, deps FinalizeDeps, mc *mergeContext, repo githubcli.Repository, number int, req FinalizeMergeRequest, facts githubcli.MergedFacts, requireHead bool, disp string, success Result, method string) FinalizeMergeResult {
 	id := int(mc.change.ID())
 	if requireHead && facts.HeadOID != req.Head {
 		return mergeRefusal(ResultContended, MergeDispContended, ReasonMergeHeadDivergence,
@@ -595,6 +615,7 @@ func verifyMerge(ctx context.Context, deps FinalizeDeps, mc *mergeContext, repo 
 		Disposition: disp,
 		Number:      number,
 		Reference:   fmt.Sprintf("%s#%d", repo.Spec(), number),
+		Method:      method,
 		Merge: &VerifiedMerge{
 			PRNumber:    number,
 			PRVersion:   facts.Version,
