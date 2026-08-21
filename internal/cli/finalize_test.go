@@ -3,6 +3,10 @@ package cli
 import (
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
+
+	"github.com/danielhanold/docket/internal/app"
 )
 
 // TestFinalizeRetargetChildrenRegistered proves the subcommand is wired under the
@@ -474,5 +478,42 @@ func TestFinalizeCloseoutReachesOperation(t *testing.T) {
 	}
 	if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
 		t.Fatalf("must be exactly one newline-terminated document, got %q", out)
+	}
+}
+
+// TestFinalizeCloseoutInputFlag proves --input is OPTIONAL (the no-input form
+// is unchanged), decodes exactly the two documented arrays, and rejects
+// unknown fields and malformed JSON as argument errors before any operation.
+func TestFinalizeCloseoutInputFlag(t *testing.T) {
+	cmd := newFinalizeCloseoutSubcommand(func(app.OperationResult) {})
+	if cmd.Flags().Lookup("input") == nil {
+		t.Fatalf("finalize closeout has no --input flag")
+	}
+	// --input must NOT be required: the no-input form is the unchanged default.
+	if ann := cmd.Flags().Lookup("input").Annotations[cobra.BashCompOneRequiredFlag]; len(ann) != 0 {
+		t.Fatalf("--input must be optional, found required annotation %v", ann)
+	}
+}
+
+func TestFinalizeCloseoutInputDecode(t *testing.T) {
+	valid := `{"verification_outcomes":["a"],"late_findings":["b"]}`
+	var in closeoutInput
+	if err := decodeRequest(strings.NewReader(valid), "-", &in); err != nil {
+		t.Fatalf("valid request rejected: %v", err)
+	}
+	if len(in.VerificationOutcomes) != 1 || in.VerificationOutcomes[0] != "a" ||
+		len(in.LateFindings) != 1 || in.LateFindings[0] != "b" {
+		t.Fatalf("decoded = %+v", in)
+	}
+	for name, bad := range map[string]string{
+		"unknown field":      `{"verification_outcomes":[],"extra":true}`,
+		"wrong element type": `{"late_findings":[42]}`,
+		"malformed":          `{"late_findings":`,
+		"two documents":      `{}{}`,
+	} {
+		var dst closeoutInput
+		if err := decodeRequest(strings.NewReader(bad), "-", &dst); err == nil {
+			t.Errorf("%s accepted", name)
+		}
 	}
 }

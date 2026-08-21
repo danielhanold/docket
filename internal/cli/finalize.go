@@ -76,12 +76,23 @@ func newFinalizeCleanupSubcommand(setResult func(app.OperationResult)) *cobra.Co
 	return cmd
 }
 
+// closeoutInput is the bounded request-file payload for `finalize closeout`:
+// the two optional authored note lists, and nothing else. Omitted arrays and
+// empty arrays are the same no-notes request. DisallowUnknownFields (via
+// decodeInputFlag) rejects any other key; the app layer owns entry validation,
+// bounds, and rendering.
+type closeoutInput struct {
+	VerificationOutcomes []string `json:"verification_outcomes"`
+	LateFindings         []string `json:"late_findings"`
+}
+
 // newFinalizeCloseoutSubcommand builds `finalize closeout`: it reloads the
 // metadata, reprobes the recorded PR and its merge destination, and applies the
 // one verified terminal shape (done-archived, stacked-merged, or root carry). It
 // takes NO done boolean and NO archive date — the UTC archive date is derived
-// from the verified GitHub mergedAt — so only the change id and the target
-// directory ride on flags.
+// from the verified GitHub mergedAt — so the change id and the target directory
+// ride on flags; the optional authored closeout notes ride in --input (never
+// argv), and the no-input form is the unchanged default.
 func newFinalizeCloseoutSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "closeout",
@@ -90,15 +101,25 @@ func newFinalizeCloseoutSubcommand(setResult func(app.OperationResult)) *cobra.C
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, _ := c.Flags().GetString("repo-dir")
 			id, _ := c.Flags().GetInt("id")
+			var in closeoutInput
+			if src, _ := c.Flags().GetString("input"); src != "" {
+				if err := decodeInputFlag(c, &in); err != nil {
+					return err
+				}
+			}
 			deps, err := newFinalizeDeps()
 			if err != nil {
 				return err
 			}
-			setResult(app.FinalizeCloseout(c.Context(), deps, repoDir, id, app.CloseoutNotes{}))
+			setResult(app.FinalizeCloseout(c.Context(), deps, repoDir, id, app.CloseoutNotes{
+				VerificationOutcomes: in.VerificationOutcomes,
+				LateFindings:         in.LateFindings,
+			}))
 			return nil
 		},
 	}
 	cmd.Flags().Int("id", 0, "change id to close out (required)")
+	cmd.Flags().String("input", "", "optional JSON request file with closeout notes (verification_outcomes, late_findings), or - for stdin")
 	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
 	return cmd
