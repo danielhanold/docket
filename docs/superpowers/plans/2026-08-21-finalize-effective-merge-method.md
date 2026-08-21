@@ -917,6 +917,39 @@ git commit -m "feat(0336): finalize merge maps method-unavailable to blocked and
 
 ---
 
+### Task 5a: Graph-shape-independent local-ref cleanup containment (spec amendment 2026-08-21)
+
+**Added mid-build.** Task 6's e2e coverage surfaced a spec-internal contradiction: once rebase is the
+effective default, `finalizeCleanupLocalRef` blocked local-ref deletion because it proved merge-chain
+containment against the *original PR head*, which is never an ancestor of the integration tip after a
+rebase or squash merge (`tip-not-in-merge-chain`). The human amended the spec (see its 2026-08-21
+amendment) to bring exactly this predicate in scope. Two pre-existing e2e tests
+(`TestE2EOrdinaryFinalize`, `TestE2ENoPathDocketDependency`) plus every new shape test depend on this.
+
+**Files:**
+- Modify: `internal/app/finalize_cleanup.go`
+
+**Interfaces:**
+- Consumes: `githubcli.MergedFacts.MergeCommit`, `validFullObjectID` (`finalize_rebase.go`), the
+  existing `FinalizeCleanupGit.IsAncestor`/`FetchBranch`, and the `ReasonCleanupRefProbe`/
+  `ReasonCleanupAncestryProbe`/`ReasonCleanupUnreachable` constants. Mirrors the identical
+  merge-commit-keyed containment proof already in `verifyMerge` and `closeoutIntegrationDestination`.
+
+- [x] **Step 1: The failing tests already exist** — Task 6's `TestE2EMergeSelectsRebaseShape` et al.,
+  and the two pre-existing ordinary-finalize e2e tests, are red at `finalize cleanup = "blocked" /
+  tip-not-in-merge-chain` once rebase is the default. No new test needed; this predicate is what makes
+  them green.
+- [x] **Step 2: Key the containment proof on the merge-result commit** — in `finalizeCleanupLocalRef`,
+  validate `facts.MergeCommit` with `validFullObjectID` (retain on absence, `ReasonCleanupRefProbe`)
+  and prove `IsAncestor(mergeCommit, integrationTip)` instead of `IsAncestor(expectedTip, …)`. The
+  live-tip identity check (`tip != expectedTip`) and the `DeleteLocalBranchChecked(expectedTip)` lease
+  keep using the original head unchanged.
+- [x] **Step 3: Run the e2e suite** — `go test -tags e2e ./internal/app/` green, including the two
+  formerly-red ordinary-finalize tests and all four shape tests.
+- [x] **Step 4: Committed with Task 6.**
+
+---
+
 ### Task 6: End-to-end coverage — method-aware fake gh and all three merge graph shapes
 
 **Files:**
@@ -926,7 +959,7 @@ git commit -m "feat(0336): finalize merge maps method-unavailable to blocked and
 - Consumes: the embedded `finalizeFakeGHSource` fake gh (stateful, performs REAL git commits in the bare origin via its `git(...)`/`doMerge` helpers), the `reachImplemented`/`e2eState`/`s.dk(...)` harness, `runGit`, and the env plumbing in `newImplEnv` (the fake reads `FAKE_GH_STATE`, `FAKE_GH_ORIGIN`, `FAKE_GH_OWNER`, `FAKE_GH_NAME`, `FAKE_GH_REPO_URL`, `FAKE_GH_FAULT{,_VERB}`).
 - Produces: two new fake-gh env knobs — `FAKE_GH_REPO_SETTINGS` (JSON object; absent → all three methods enabled) and `FAKE_GH_BRANCH_RULES` (JSON array; absent → `[]`) — and a method-aware `doMerge`.
 
-- [ ] **Step 1: Extend the fake gh inside `finalizeFakeGHSource`**
+- [x] **Step 1: Extend the fake gh inside `finalizeFakeGHSource`**
 
 (a) Handle `gh api` before the `pr` dispatch in `main()`:
 
@@ -1005,11 +1038,11 @@ git commit -m "feat(0336): finalize merge maps method-unavailable to blocked and
 
 `humanMergePR` (out-of-band human merge) already passes `--merge` explicitly and keeps working. Keep the existing `mergedAt`/`MergeCommit`/state bookkeeping on `mc`.
 
-- [ ] **Step 2: Update existing e2e expectations that assumed a two-parent merge**
+- [x] **Step 2: Update existing e2e expectations that assumed a two-parent merge**
 
 With all methods enabled by default, finalize now selects **rebase**. Grep the e2e file for `rev-list", "--merges` and any assert equating the destination tip's parent count or the merge commit with the PR head; rewrite each to the graph-shape-independent proof: the document's `merge.merge_commit` is reachable from the freshly-read origin base tip (`runGit(t, origin, "merge-base", "--is-ancestor", mergeCommit, baseTip)` exits 0), the PR reports `MERGED`, and head/base facts match. Where a test exists specifically to count merge commits from the out-of-band human `--merge` path, leave it — that path still produces a merge commit.
 
-- [ ] **Step 3: Write the new failing e2e tests**
+- [x] **Step 3: Write the new failing e2e tests**
 
 Add four tests following the existing pattern (`sharedBinaries` → `reachImplemented` → drive `finalize rebase`/`merge` via `s.dk`; set the env knobs through the state the harness passes to both the in-process seams and the argv subprocess — extend `s.env`/`env.env` the same way `withFault` injects `FAKE_GH_FAULT`):
 
@@ -1018,7 +1051,7 @@ Add four tests following the existing pattern (`sharedBinaries` → `reachImplem
 3. `TestE2ESquashOnlyShape`: settings squash-only → `"method":"squash"`, tip is single-parent, not equal to the original PR head, reachable.
 4. `TestE2EMergeMethodUnavailable`: settings all-false → document `result: blocked`, `reason: merge-method-unavailable`, no `"method"` key, the PR still `OPEN` in the fake state file, and the origin base tip unmoved (capture it before, compare after — zero merge commands is proven by state, not absence of logging).
 
-- [ ] **Step 4: Run the e2e tests**
+- [x] **Step 4: Run the e2e tests**
 
 Run: `go test ./internal/app/ -run 'E2E' -count=1 -v` (respect the suite's actual e2e test-name pattern — reuse the file's existing naming so `scripts/run-tests.sh` picks them up unchanged).
 Expected: PASS, including all pre-existing finalize e2e tests.

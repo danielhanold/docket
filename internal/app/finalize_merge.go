@@ -184,12 +184,12 @@ type VerifiedMerge struct {
 // shape refusal carries findings. It leaks no PR body bytes.
 type FinalizeMergeResult struct {
 	Envelope
-	ID          int             `json:"id,omitempty"`
-	Disposition string          `json:"disposition,omitempty"`
-	Number      int             `json:"number,omitempty"`
-	Reference   string          `json:"reference,omitempty"`
-	Merge       *VerifiedMerge  `json:"merge,omitempty"`
-	Reason      string          `json:"reason,omitempty"`
+	ID          int            `json:"id,omitempty"`
+	Disposition string         `json:"disposition,omitempty"`
+	Number      int            `json:"number,omitempty"`
+	Reference   string         `json:"reference,omitempty"`
+	Merge       *VerifiedMerge `json:"merge,omitempty"`
+	Reason      string         `json:"reason,omitempty"`
 	// Method is the merge method Docket attempted — evidence of Docket's
 	// choice, never an inference about how another actor historically merged.
 	// Absent when no merge command was issued (already-merged recovery,

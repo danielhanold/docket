@@ -469,9 +469,12 @@ func finalizeCleanupWorkspace(ctx context.Context, deps FinalizeDeps, cc *closeo
 
 // finalizeCleanupLocalRef deletes the local feature ref only when the live tip
 // equals the exact merged head, the ref is checked out in no worktree, and the
-// merged head is contained in the verified merge chain (an ancestor of the
-// freshly-fetched integration tip). A cleanly-absent ref is an already-done leg;
-// every unprovable probe or unmet proof is a pending finding with the ref intact.
+// recorded merge-result commit is contained in the verified merge chain (an
+// ancestor of the freshly-fetched integration tip). The containment proof keys
+// on the merge-result commit, not the original head, so it holds identically
+// for a two-parent merge commit, a single-parent squash, and a rebased chain.
+// A cleanly-absent ref is an already-done leg; every unprovable probe or unmet
+// proof is a pending finding with the ref intact.
 func finalizeCleanupLocalRef(ctx context.Context, deps FinalizeDeps, git FinalizeCleanupGit, cc *closeoutContext, featureRef gitcli.RefName, featureBranch string, facts githubcli.MergedFacts) (done bool, removedRef string, finding *StatusFinding) {
 	expectedTip := gitcli.ObjectID(facts.HeadOID)
 	if !validFullObjectID(string(expectedTip)) {
@@ -492,20 +495,30 @@ func finalizeCleanupLocalRef(ctx context.Context, deps FinalizeDeps, git Finaliz
 		return false, "", &w
 	}
 
-	// Merge-chain containment: fetch the integration tip and prove the merged head
-	// is an ancestor of it. A fetch or ancestry probe error is unknown (retain).
+	// Merge-chain containment: fetch the integration tip and prove the recorded
+	// merge-result commit is an ancestor of it. Keying the proof on the merge
+	// commit (the commit verifyMerge already certified reachable) rather than the
+	// original head keeps it graph-shape independent: a rebase or squash merge
+	// rewrites the head into a fresh chain the head is no longer an ancestor of,
+	// but the recorded merge commit is always contained in the integration tip.
+	// A fetch or ancestry probe error is unknown (retain).
+	mergeCommit := gitcli.ObjectID(facts.MergeCommit)
+	if !validFullObjectID(string(mergeCommit)) {
+		w := cleanupWarning(ReasonCleanupRefProbe, "the verified merge carries no usable merge-result commit; the local ref is retained")
+		return false, "", &w
+	}
 	rev, err := git.FetchBranch(ctx, cc.repo, originRemote, gitcli.RefName(branchRefPrefix+cc.integrationBranch))
 	if err != nil {
 		w := cleanupWarning(ReasonCleanupAncestryProbe, "the integration tip could not be fetched; the local ref is retained")
 		return false, "", &w
 	}
-	reachable, err := git.IsAncestor(ctx, cc.repo, expectedTip, rev.Commit)
+	reachable, err := git.IsAncestor(ctx, cc.repo, mergeCommit, rev.Commit)
 	if err != nil {
 		w := cleanupWarning(ReasonCleanupAncestryProbe, "merge-chain containment could not be proven; the local ref is retained")
 		return false, "", &w
 	}
 	if !reachable {
-		w := cleanupWarning(ReasonCleanupUnreachable, "the recorded tip is not contained in the verified merge chain; the local ref is retained")
+		w := cleanupWarning(ReasonCleanupUnreachable, "the recorded merge-result commit is not contained in the verified merge chain; the local ref is retained")
 		return false, "", &w
 	}
 
