@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'feat/finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-21T19:19:13Z'
+reconciled: true
+claimed_at: '2026-08-21T19:20:59Z'
 ---
 
 ## Artifacts
@@ -69,3 +69,9 @@ result is a two-parent merge commit.
 - Retrying a lower-priority method after GitHub rejects an attempted merge.
 - Reworking the broader finalize sequence, the rebase/gate/publish steps, or the merged-recovery
   archive path — only the merge-method selection is in scope.
+
+## Reconcile log
+
+### 2026-08-21
+
+2026-08-21 — Reconciled at claim. Confirmed against current `docket` HEAD: `internal/githubcli/merge.go` `MergePullRequest` still hardcodes `--merge` (line ~159), and the empty-`--repo-dir` seam is live (a `docket change claim` without `--repo-dir` fails `gitcli discover: invalid-request: invocation path is empty`, reproduced during this claim). No `MergeMethod` type, repository/branch capability probe, or effective-set selection exists yet. Related changes 316, 330, 331 are all `done` (archived); their finalize-recovery, results-append, and evidence-remint work is complete and does not overlap this change's merge-method-selection scope. Spec and proposal scope are accurate as written; no section or relation edits required.
