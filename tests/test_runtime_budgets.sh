@@ -31,7 +31,15 @@ EXPECTED_SERIAL=0   # no file is currently pinned serial. tests/test_go_race.sh 
                     # run no longer starves the other parallel jobs. RAISING THIS IS A FINDING: a
                     # serial pin removes a file from the parallel phase, so it must be justified in
                     # the same diff with the shared state that forces it.
-EXPECTED_TOTAL=2555 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2565 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2555 -> 2565 (change 0317, Task 8): ONE legitimate mover — a NEW test file
+                    # brings its own row. tests/test_release_downloader_refusals.sh owns the
+                    # downloader's refusal and ownership guards (checksum/manifest, hostile archive,
+                    # unsupported tuple, missing tool, download failure, usage, ownership), each a
+                    # fresh sandboxed /bin/sh run that must preserve every existing byte. Measured
+                    # standalone serial at a worst 3.59s, so it enters at the 10s floor (see the tsv
+                    # header for the reading). A SIBLING of tests/test_release_downloader.sh, not an
+                    # extension: each downloader test file is hermetic and re-carries the fixture block.
                     # 2545 -> 2555 (change 0317): ONE legitimate mover — a NEW test file brings its
                     # own row. tests/test_release_downloader.sh guards the POSIX release downloader
                     # internal/release/downloader/install.sh; its Task-4 static section (existence,
