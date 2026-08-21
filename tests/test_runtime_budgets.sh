@@ -28,7 +28,16 @@ EXPECTED_SERIAL=1   # tests/test_go_race.sh (change 0332). The shared state that
                     # needs — the load-dependent gate that halted change 0329. RAISING THIS IS A
                     # FINDING: a serial pin removes a file from the parallel phase, so it must be
                     # justified in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=2295 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2305 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2295 -> 2305 (change 0317, Task 11): ONE legitimate mover — a NEW test file
+                    # brings its own row. tests/test_release_package.sh is the hermetic guard suite
+                    # over the two authored release surfaces: the non-publishing
+                    # .github/workflows/release-candidate.yml (read-only permissions, no publishing
+                    # verb, every uses: SHA-pinned, both workflow_dispatch inputs, all four native
+                    # tuples) and scripts/release-smoke.sh's SMOKE PASS / --base-bundle contract, plus
+                    # the render.go embed tie. Every assertion is a pure grep over source text — no
+                    # Go build, no fixtures — measured standalone serial at a worst 0.06s, so it
+                    # enters at the 10s floor (see the tsv header for the reading).
                     # 2285 -> 2295 (change 0317, Task 9): ONE legitimate mover — a NEW test file
                     # brings its own row. tests/test_release_downloader_converge.sh owns the
                     # downloader's interruption-point convergence and upgrade guards: FAIL_ON
