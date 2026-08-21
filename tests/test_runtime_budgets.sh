@@ -28,7 +28,10 @@ EXPECTED_SERIAL=1   # tests/test_go_race.sh (change 0332). The shared state that
                     # needs — the load-dependent gate that halted change 0329. RAISING THIS IS A
                     # FINDING: a serial pin removes a file from the parallel phase, so it must be
                     # justified in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=2265 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2275 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2265 -> 2275 (change 0330): the NEW-FILE case — tests/test_finalize_closeout_notes.sh
+                    # is a brand-new grep/awk contract guard (~0.1s standalone), budgeted at the 10s
+                    # floor; it brings its own row, so the total moves by +10.
                     # 2140 -> 2265 (change 0332): the SHARD-RE-CUT case, in reverse — four race
                     # rows collapse into one. The serial lane removes the oversubscription the
                     # shards were cut for, and in that lane the four shard invocations ran
