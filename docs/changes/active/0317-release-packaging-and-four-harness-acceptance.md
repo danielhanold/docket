@@ -13,7 +13,7 @@ related: [318, 322, 323]
 discovered_from: [303]
 adrs: [60]
 spec: docs/superpowers/specs/2026-08-20-release-packaging-and-four-harness-acceptance-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-20-release-packaging-and-four-harness-acceptance.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-21T02:58:15Z'
 | Artifact | Link |
 |---|---|
 | Spec | `docs/superpowers/specs/2026-08-20-release-packaging-and-four-harness-acceptance-design.md` |
+| Plan | `docs/superpowers/plans/2026-08-20-release-packaging-and-four-harness-acceptance.md` |
 | ADRs | `docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md` |
 <!-- docket:artifacts:end -->
 
