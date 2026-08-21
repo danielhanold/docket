@@ -13,7 +13,7 @@ related: [330]
 discovered_from: [316]
 adrs: [66, 74, 95]
 spec: 'docs/superpowers/specs/2026-08-20-docket-implement-next-evidence-remint-gate-launch-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-08-20-docket-implement-next-remint-gate-launch.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-21T01:39:40Z'
 | Artifact | Link |
 |---|---|
 | Spec | `docs/superpowers/specs/2026-08-20-docket-implement-next-evidence-remint-gate-launch-design.md` |
+| Plan | `docs/superpowers/plans/2026-08-20-docket-implement-next-remint-gate-launch.md` |
 | ADRs | `docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md`, `docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md`, `docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md` |
 <!-- docket:artifacts:end -->
 
