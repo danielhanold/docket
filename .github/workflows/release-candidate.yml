@@ -1,0 +1,397 @@
+# release-candidate — NON-PUBLISHING candidate build + native four-tuple smoke (change 0317).
+#
+# This workflow proves a release-candidate bundle end to end WITHOUT publishing anything: it grants
+# only read access, mints no tag, cuts no GitHub Release, edits no docs, and writes no Docket
+# metadata. Publication is change 0318's job; this one stops at an evidence artifact.
+#
+# Four phases:
+#   1. source-gate  — prove the checkout is clean, resolve the identity the bundle is stamped with
+#                     (full commit + source epoch), prove the embedded asset bundle is not drifted,
+#                     and run the whole resolved test suite (read from .docket.yml, never a copy).
+#   2. package      — run cmd/releasepkg ONCE for the head candidate (and, on a PR, a distinct base
+#                     candidate the upgrade smoke needs), and upload the complete candidate dir(s).
+#   3. smoke        — on four NATIVE runners (no emulation, no cross-compile), download the packaged
+#                     bytes and run scripts/release-smoke.sh against them.
+#   4. summary      — collect every tuple's verdict into one machine-readable JSON evidence artifact.
+#
+# RUNNER LABELS were revalidated against actions/runner-images at authoring time (2026-08-21):
+#   macos-15        -> arm64   (macos-15 / macos-15-xlarge are the Apple-silicon image)
+#   macos-15-intel  -> amd64   (the x86-64 macOS 15 image)
+#   ubuntu-24.04    -> amd64   (the x64 Ubuntu 24.04 image)
+#   ubuntu-24.04-arm -> arm64  (the arm64 Ubuntu 24.04 image)
+# Each label exists and carries the claimed architecture; the PR description records this check.
+#
+# Every `uses:` is pinned to a full 40-hex commit SHA with a trailing `# vN` comment (supply-chain
+# pinning; the SHA guard in tests/test_release_package.sh enforces the shape).
+
+name: release-candidate
+
+on:
+  pull_request:
+    paths:
+      - 'cmd/**'
+      - 'internal/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'skills/**'
+      - 'agents/**'
+      - 'install.sh'
+      - 'scripts/**'
+      - '.github/workflows/release-candidate.yml'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to build the candidate from (branch, tag, or full SHA). Empty = the triggering ref.'
+        required: false
+        default: ''
+      version:
+        description: 'Safe candidate version to stamp (e.g. v1.2.3-rc.1). Empty = an auto v0.0.0-candidate.head.<sha>.'
+        required: false
+        default: ''
+
+# READ-ONLY, and nothing else. No packaging, smoke, or summary step needs write access, and no
+# publication token appears anywhere in this file. Adding a write scope here is the exact mistake
+# the permissions guard in tests/test_release_package.sh exists to catch.
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # -------------------------------------------------------------------------------------------------
+  # Phase 1 — source gate. Establish that the tree is clean and resolve the identity the bundle is
+  # stamped with, then run the embedded-asset drift check and the whole resolved suite.
+  # -------------------------------------------------------------------------------------------------
+  source-gate:
+    runs-on: ubuntu-24.04
+    outputs:
+      commit: ${{ steps.identity.outputs.commit }}
+      short: ${{ steps.identity.outputs.short }}
+      epoch: ${{ steps.identity.outputs.epoch }}
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.ref }}
+
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: '1.26'
+
+      - name: Prove tree cleanliness and resolve build identity
+        id: identity
+        run: |
+          set -euo pipefail
+          dirty="$(git status --porcelain)"
+          if [ -n "$dirty" ]; then
+            echo "::error::working tree is not clean at checkout" >&2
+            printf '%s\n' "$dirty" >&2
+            exit 1
+          fi
+          commit="$(git rev-parse HEAD)"
+          epoch="$(git log -1 --format=%ct)"
+          short="${commit:0:7}"
+          echo "commit=$commit" >>"$GITHUB_OUTPUT"
+          echo "short=$short" >>"$GITHUB_OUTPUT"
+          echo "epoch=$epoch" >>"$GITHUB_OUTPUT"
+          {
+            echo "### Source gate"
+            echo ""
+            echo "- commit: \`$commit\`"
+            echo "- source epoch: \`$epoch\`"
+          } >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Embedded asset bundle is not drifted
+        run: |
+          set -euo pipefail
+          # Regenerate the committed embedded bundle from the authored roots and require no change,
+          # the same invariant tests/test_asset_bundle_drift.sh proves with cmd/genassets.
+          go run ./cmd/genassets
+          git diff --exit-code
+
+      - name: Run the resolved test suite
+        run: |
+          set -uo pipefail
+          # Read the suite command from .docket.yml (finalize.test_command) — never a second copy.
+          test_cmd="$(awk '/^finalize:/{f=1} f && /test_command:/{sub(/.*test_command:[[:space:]]*/,""); sub(/[[:space:]]*#.*/,""); print; exit}' .docket.yml)"
+          if [ -z "$test_cmd" ]; then
+            echo "::error::could not read finalize.test_command from .docket.yml" >&2
+            exit 1
+          fi
+          echo "resolved suite command: $test_cmd" >&2
+          set +e
+          bash $test_cmd 2>&1 | tee suite.log
+          status=${PIPESTATUS[0]}
+          set -e
+          # Surface any OVER BUDGET: block into the job summary as a finding (it does not fail the
+          # run — a wall-clock number is machine-dependent — so nothing else would report it).
+          over="$(grep -n '^OVER BUDGET:' suite.log || true)"
+          if [ -n "$over" ]; then
+            {
+              echo "### OVER BUDGET findings"
+              echo ""
+              echo '```'
+              printf '%s\n' "$over"
+              echo '```'
+            } >>"$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$status"
+
+  # -------------------------------------------------------------------------------------------------
+  # Phase 2 — package once. Build the head candidate (and, on a PR, a distinct base candidate) and
+  # upload the complete candidate directory as an artifact for the native smokes to consume.
+  # -------------------------------------------------------------------------------------------------
+  package:
+    needs: source-gate
+    runs-on: ubuntu-24.04
+    outputs:
+      head_version: ${{ steps.versions.outputs.head_version }}
+      base_version: ${{ steps.versions.outputs.base_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.ref }}
+
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: '1.26'
+
+      - name: Resolve and validate candidate versions
+        id: versions
+        env:
+          COMMIT: ${{ needs.source-gate.outputs.commit }}
+          SHORT: ${{ needs.source-gate.outputs.short }}
+          DISPATCH_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          set -euo pipefail
+          # Safe version grammar — identical to release.ValidateVersion (Task 1). A herestring, not a
+          # pipe, so there is no producer/consumer SIGPIPE under pipefail (AGENTS.md Shell).
+          grammar='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z][0-9A-Za-z.-]*)?$'
+          if [ -n "$DISPATCH_VERSION" ]; then
+            head_version="$DISPATCH_VERSION"
+          else
+            head_version="v0.0.0-candidate.head.$SHORT"
+          fi
+          grep -Eq -- "$grammar" <<<"$head_version" || { echo "::error::head version fails the safe grammar: $head_version" >&2; exit 1; }
+          # A base candidate exists only for PRs — the upgrade smoke needs a real prior Go binary.
+          base_version=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base_version="v0.0.0-candidate.base.$SHORT"
+            grep -Eq -- "$grammar" <<<"$base_version" || { echo "::error::base version fails the safe grammar: $base_version" >&2; exit 1; }
+          fi
+          echo "head_version=$head_version" >>"$GITHUB_OUTPUT"
+          echo "base_version=$base_version" >>"$GITHUB_OUTPUT"
+
+      - name: Package the head candidate
+        env:
+          COMMIT: ${{ needs.source-gate.outputs.commit }}
+          EPOCH: ${{ needs.source-gate.outputs.epoch }}
+          HEAD_VERSION: ${{ steps.versions.outputs.head_version }}
+        run: |
+          set -euo pipefail
+          go run ./cmd/releasepkg \
+            --source "$PWD" \
+            --version "$HEAD_VERSION" \
+            --commit "$COMMIT" \
+            --source-epoch "$EPOCH" \
+            --out "$RUNNER_TEMP/candidate-head"
+
+      - name: Package the base candidate (PR only)
+        if: github.event_name == 'pull_request'
+        env:
+          COMMIT: ${{ needs.source-gate.outputs.commit }}
+          EPOCH: ${{ needs.source-gate.outputs.epoch }}
+          BASE_VERSION: ${{ steps.versions.outputs.base_version }}
+        run: |
+          set -euo pipefail
+          go run ./cmd/releasepkg \
+            --source "$PWD" \
+            --version "$BASE_VERSION" \
+            --commit "$COMMIT" \
+            --source-epoch "$EPOCH" \
+            --out "$RUNNER_TEMP/candidate-base"
+
+      - name: Upload the head candidate bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: candidate-head
+          path: ${{ runner.temp }}/candidate-head
+          if-no-files-found: error
+
+      - name: Upload the base candidate bundle (PR only)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: candidate-base
+          path: ${{ runner.temp }}/candidate-base
+          if-no-files-found: error
+
+  # -------------------------------------------------------------------------------------------------
+  # Phase 3 — native smoke matrix. Each tuple runs on its OWN native runner against the packaged
+  # bytes (never a rebuild, never emulation). Each leg emits a verdict artifact the summary collects.
+  # -------------------------------------------------------------------------------------------------
+  smoke:
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            os: darwin
+            arch: arm64
+          - runner: macos-15-intel
+            os: darwin
+            arch: amd64
+          - runner: ubuntu-24.04
+            os: linux
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            os: linux
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    env:
+      HEAD_VERSION: ${{ needs.package.outputs.head_version }}
+      BASE_VERSION: ${{ needs.package.outputs.base_version }}
+    steps:
+      - name: Checkout (for scripts/release-smoke.sh)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.inputs.ref }}
+
+      - name: Download the head candidate bundle
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: candidate-head
+          path: ${{ runner.temp }}/candidate-head
+
+      - name: Download the base candidate bundle (PR only)
+        if: github.event_name == 'pull_request'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: candidate-base
+          path: ${{ runner.temp }}/candidate-base
+
+      - name: Native tuple smoke
+        id: smoke
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          args=(--bundle "$RUNNER_TEMP/candidate-head" --version "$HEAD_VERSION")
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ -n "$BASE_VERSION" ]; then
+            args+=(--base-bundle "$RUNNER_TEMP/candidate-base" --base-version "$BASE_VERSION")
+          fi
+          bash scripts/release-smoke.sh "${args[@]}"
+
+      - name: Record tuple verdict
+        if: always()
+        run: |
+          set -euo pipefail
+          verdict="${{ steps.smoke.outcome }}"
+          mkdir -p "$RUNNER_TEMP/verdict"
+          out="$RUNNER_TEMP/verdict/${{ matrix.os }}_${{ matrix.arch }}.json"
+          printf '{"tuple":"%s/%s","runner":"%s","version":"%s","verdict":"%s"}\n' \
+            "${{ matrix.os }}" "${{ matrix.arch }}" "${{ matrix.runner }}" "$HEAD_VERSION" "$verdict" >"$out"
+
+      - name: Upload tuple verdict
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: smoke-verdict-${{ matrix.os }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/verdict
+          if-no-files-found: error
+
+      - name: Fail the leg if the smoke did not pass
+        if: steps.smoke.outcome != 'success'
+        run: |
+          echo "::error::smoke failed on ${{ matrix.runner }} (${{ matrix.os }}/${{ matrix.arch }})" >&2
+          exit 1
+
+  # -------------------------------------------------------------------------------------------------
+  # Phase 4 — evidence summary. Always runs, checks every tuple explicitly, and writes ONE
+  # machine-readable JSON artifact. This is evidence, not a release and not a Docket record. The
+  # live four-harness host acceptance stays outstanding — an external-truth human gate.
+  # -------------------------------------------------------------------------------------------------
+  summary:
+    needs: [source-gate, package, smoke]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download the head candidate bundle
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: candidate-head
+          path: candidate-head
+
+      - name: Download all tuple verdicts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: smoke-verdict-*
+          path: verdicts
+          merge-multiple: true
+
+      - name: Assemble the evidence JSON
+        env:
+          COMMIT: ${{ needs.source-gate.outputs.commit }}
+          HEAD_VERSION: ${{ needs.package.outputs.head_version }}
+          BASE_VERSION: ${{ needs.package.outputs.base_version }}
+          SMOKE_RESULT: ${{ needs.smoke.result }}
+        run: |
+          set -euo pipefail
+          checksums="$(cat candidate-head/checksums.txt)"
+          # Every one of the four tuples must have reported, and every report must say "success".
+          expected=(darwin_amd64 darwin_arm64 linux_amd64 linux_arm64)
+          missing=()
+          for t in "${expected[@]}"; do
+            [ -f "verdicts/${t}.json" ] || missing+=("$t")
+          done
+          verdicts_json="$(jq -s '.' verdicts/*.json)"
+          jq -n \
+            --arg commit "$COMMIT" \
+            --arg head "$HEAD_VERSION" \
+            --arg base "$BASE_VERSION" \
+            --arg checksums "$checksums" \
+            --arg smoke_result "$SMOKE_RESULT" \
+            --argjson tuples "$verdicts_json" \
+            '{
+              source_commit: $commit,
+              head_version: $head,
+              base_version: $base,
+              checksums_txt: $checksums,
+              smoke_result: $smoke_result,
+              tuples: $tuples,
+              live_host_acceptance: "outstanding — see docs/release/four-harness-acceptance.md"
+            }' >evidence.json
+          cat evidence.json
+          {
+            echo "### Candidate evidence"
+            echo ""
+            echo '```json'
+            cat evidence.json
+            echo '```'
+          } >>"$GITHUB_STEP_SUMMARY"
+          # The evidence artifact is written regardless; the workflow's verdict still requires that
+          # every tuple reported and the whole smoke matrix succeeded.
+          if [ "${#missing[@]}" -ne 0 ]; then
+            echo "::error::missing tuple verdicts: ${missing[*]}" >&2
+            fail=1
+          fi
+          if [ "$SMOKE_RESULT" != "success" ]; then
+            echo "::error::not every tuple smoke succeeded (smoke result: $SMOKE_RESULT)" >&2
+            fail=1
+          fi
+          [ -z "${fail:-}" ]
+
+      - name: Upload the evidence artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: candidate-evidence
+          path: evidence.json
+          if-no-files-found: error
