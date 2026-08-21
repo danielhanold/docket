@@ -869,4 +869,29 @@ assert "remint mutation: the checker rejects the launch-less copy" \
   '! check_remint_chain "$remint_mut" >/dev/null'
 rm -f "$remint_mut"
 
+# Mutation (i): break the launch SHAPE only. Strip the child-command ` -- ` boundary from the
+# launch line (keeping `docket gate launch`, `--root`, `--cwd` present) and require clause (b)'s
+# separator check — and ONLY it — to redden. Keying on the checker's exact first-failing error
+# string proves the launch line's separator is what's guarded, not some other clause tripping.
+remint_shape_mut="$(mktemp "${TMPDIR:-/tmp}/remint-shape-mutation.XXXXXX")"
+sed '/docket gate launch/ s/ -- / /g' "$IMPL" >"$remint_shape_mut"
+assert "remint mutation (shape): all four command literals survive the launch-line edit" \
+  'grep -qF -- "docket gate launch" "$remint_shape_mut" && grep -qF -- "docket gate observe" "$remint_shape_mut" && grep -qF -- "docket evidence record" "$remint_shape_mut" && grep -qF -- "docket evidence verify" "$remint_shape_mut"'
+assert "remint mutation (shape): the checker rejects on the separator clause specifically" \
+  '[ "$(check_remint_chain "$remint_shape_mut")" = "separator-missing" ]'
+rm -f "$remint_shape_mut"
+
+# Mutation (ii): break the ORDERING only. Swap the `docket gate observe` and `docket evidence
+# record` occurrences (all four command tokens stay present, the launch line is untouched) so
+# observe no longer precedes record, and require clause (c) — and ONLY it — to redden.
+remint_ord_mut="$(mktemp "${TMPDIR:-/tmp}/remint-ordering-mutation.XXXXXX")"
+sed -e 's/docket gate observe/@@REMINT_SWAP@@/g' \
+    -e 's/docket evidence record/docket gate observe/g' \
+    -e 's/@@REMINT_SWAP@@/docket evidence record/g' "$IMPL" >"$remint_ord_mut"
+assert "remint mutation (ordering): all four command literals survive the swap" \
+  'grep -qF -- "docket gate launch" "$remint_ord_mut" && grep -qF -- "docket gate observe" "$remint_ord_mut" && grep -qF -- "docket evidence record" "$remint_ord_mut" && grep -qF -- "docket evidence verify" "$remint_ord_mut"'
+assert "remint mutation (ordering): the checker rejects on the observe-before-record clause specifically" \
+  '[ "$(check_remint_chain "$remint_ord_mut")" = "observe-after-record" ]'
+rm -f "$remint_ord_mut"
+
 echo "---"; [ "$fails" -eq 0 ] && echo "PASS" || { echo "FAIL ($fails)"; exit 1; }
