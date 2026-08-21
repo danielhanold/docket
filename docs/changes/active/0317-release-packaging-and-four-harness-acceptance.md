@@ -2,7 +2,7 @@
 id: 317
 slug: release-packaging-and-four-harness-acceptance
 title: 'Release packaging and four-harness acceptance'
-status: 'in-progress'
+status: 'implemented'
 priority: critical
 type: feat
 created: 2026-08-12
@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable:
 branch: 'feat/release-packaging-and-four-harness-acceptance'
-pr:
+pr: 'github.com/danielhanold/docket#226'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-21T02:58:15Z'
