@@ -28,7 +28,13 @@ EXPECTED_SERIAL=1   # tests/test_go_race.sh (change 0332). The shared state that
                     # needs — the load-dependent gate that halted change 0329. RAISING THIS IS A
                     # FINDING: a serial pin removes a file from the parallel phase, so it must be
                     # justified in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=2265 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2275 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2265 -> 2275 (change 0317): ONE legitimate mover — a NEW test file brings its
+                    # own row. tests/test_release_downloader.sh guards the POSIX release downloader
+                    # internal/release/downloader/install.sh; its Task-4 static section (existence,
+                    # shebang, render placeholder, forbidden-spelling ban) is a pure source scan, so
+                    # it enters at the 10s floor. Tasks 7-9 add the hermetic behavior sections and
+                    # will re-measure this row against wall clock at that point.
                     # 2140 -> 2265 (change 0332): the SHARD-RE-CUT case, in reverse — four race
                     # rows collapse into one. The serial lane removes the oversubscription the
                     # shards were cut for, and in that lane the four shard invocations ran

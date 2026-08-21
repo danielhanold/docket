@@ -296,6 +296,7 @@ tests/test_plan_writer_step4.sh	10	parallel
 tests/test_readme_finalize_docs.sh	10	parallel
 tests/test_readme_skill_catalog.sh	10	parallel
 tests/test_reclaim_claims.sh	10	parallel
+tests/test_release_downloader.sh	10	parallel
 tests/test_render_adr_index.sh	10	parallel
 tests/test_render_artifact_backlink.sh	10	parallel
 tests/test_render_board.sh	25	parallel
