@@ -1,8 +1,8 @@
 # Backlog
 
-**335 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 202 done · 🗑️ 80 killed
+**336 changes** — 🟡 49 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 202 done · 🗑️ 80 killed
 
-## 🟡 Proposed (48)
+## 🟡 Proposed (49)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -54,6 +54,7 @@
 | [0333](active/0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition internal/app to retire the -race gate's 300s ceiling exemption | `medium` | `refactor` | needs-brainstorm |
 | [0334](active/0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | CLAUDE.md global and project copies drift on finalize-agent descriptions | `medium` | `docs` | needs-brainstorm |
 | [0335](active/0335-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board.md) | refresh-claim fails verify-delta when the board is byte-unchanged | `medium` | `fix` | needs-brainstorm |
+| [0336](active/0336-finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al.md) | Finalize's Go merge verb hardcodes --merge; honor the repo's allowed methods (prefer rebase, never squash) | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -68,7 +69,7 @@
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
-| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | #docket#226 |  |
+| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [#docket#226](https://github.com/danielhanold/docket/pull/docket#226) |  |
 
 ```mermaid
 graph TD
@@ -126,6 +127,7 @@ graph TD
   0333
   0334
   0335
+  0336
   0192:::done
   0211:::done
   0311:::done
