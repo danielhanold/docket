@@ -34,7 +34,7 @@ check_notes_handoff(){ # check_notes_handoff FILE -> 0 when the handoff contract
   grep -qF -- "late_findings" <<<"$flat" || return 1
   # Producer->consumer: the request file is PASSED to the closeout invocation.
   grep -qE 'docket finalize closeout --id <id> \[--input <request-file>\]' <<<"$flat" || return 1
-  grep -qF -- "pass it via \`--input\`" <<<"$flat" || return 1
+  grep -qF -- 'pass it via `--input`' <<<"$flat" || return 1
   # No new pause: the unchanged no-input default is stated in the same step.
   grep -qF -- "no post-merge pause" <<<"$flat" || return 1
   return 0
