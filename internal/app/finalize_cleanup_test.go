@@ -139,7 +139,7 @@ func (f *closeoutFixture) archiveClosed(t *testing.T) (head, mergeCommit string)
 	t.Helper()
 	mergeCommit = f.mergeIntoBase(t)
 	gh := f.baselineMergedFake(f.head, mergeCommit)
-	res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id)
+	res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 	if res.Result != ResultApplied || res.Disposition != CloseoutDispDoneArchived {
 		t.Fatalf("archiveClosed: closeout = %q disp %q (%s)", res.Result, res.Disposition, res.Message)
 	}

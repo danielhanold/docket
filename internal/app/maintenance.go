@@ -184,7 +184,8 @@ func MaintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string) Ma
 
 	ops := sweepOps{
 		closeout: func(ctx context.Context, id int) CloseoutResult {
-			return FinalizeCloseout(ctx, deps, repoDir, id)
+			// The safety-net sweep carries no authored notes.
+			return FinalizeCloseout(ctx, deps, repoDir, id, CloseoutNotes{})
 		},
 		cleanup: func(ctx context.Context, id int) CleanupOpResult {
 			return FinalizeCleanup(ctx, deps, repoDir, id)

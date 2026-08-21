@@ -205,7 +205,7 @@ func TestCloseoutOrdinary(t *testing.T) {
 			mergeCommit := f.mergeIntoBase(t)
 			gh := f.baselineMergedFake(f.head, mergeCommit)
 
-			res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id)
+			res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 			if res.Result != ResultApplied || res.Disposition != CloseoutDispDoneArchived {
 				t.Fatalf("closeout = %q disp %q (reason %q msg %q)", res.Result, res.Disposition, res.Reason, res.Message)
 			}
@@ -276,13 +276,13 @@ func TestCloseoutIdempotent(t *testing.T) {
 	mergeCommit := f.mergeIntoBase(t)
 	gh := f.baselineMergedFake(f.head, mergeCommit)
 
-	first := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id)
+	first := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 	if first.Result != ResultApplied || first.Disposition != CloseoutDispDoneArchived {
 		t.Fatalf("first closeout = %q disp %q", first.Result, first.Disposition)
 	}
 	tipAfterFirst := originTip(t, f.repo.origin, f.branch)
 
-	replay := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id)
+	replay := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 	if replay.Disposition != CloseoutDispAlready {
 		t.Fatalf("replay disposition = %q, want %q (result %q)", replay.Disposition, CloseoutDispAlready, replay.Result)
 	}
@@ -307,7 +307,7 @@ func TestCloseoutRefusals(t *testing.T) {
 		f := setupCloseoutFixture(t, m)
 		gh := &fakeCloseoutGitHub{repo: retargetRepo(), merged: map[int]closeoutProbe{}} // #7 not merged
 		before := originTip(t, f.repo.origin, f.branch)
-		res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id)
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 		if res.Result == ResultApplied || res.Result == ResultNoOp {
 			t.Fatalf("a not-merged PR reported success %q", res.Result)
 		}
@@ -323,7 +323,7 @@ func TestCloseoutRefusals(t *testing.T) {
 		f := setupCloseoutFixture(t, m)
 		gh := &fakeCloseoutGitHub{repo: retargetRepo(), probeErr: errors.New("gh probe boom")}
 		before := originTip(t, f.repo.origin, f.branch)
-		res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id)
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 		if res.Disposition != CloseoutDispUnknown {
 			t.Fatalf("disposition = %q, want %q (result %q)", res.Disposition, CloseoutDispUnknown, res.Result)
 		}
@@ -337,7 +337,7 @@ func TestCloseoutRefusals(t *testing.T) {
 		// Merged facts name main + a real object (the feature head) that is NOT
 		// reachable from main's tip: a present-but-unreachable answer, contended.
 		gh := f.baselineMergedFake(f.head, f.head)
-		res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id)
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 		if res.Result != ResultContended || res.Disposition != CloseoutDispContended {
 			t.Fatalf("unreachable merge = %q disp %q, want contended", res.Result, res.Disposition)
 		}
@@ -352,7 +352,7 @@ func TestCloseoutRefusals(t *testing.T) {
 		})
 		mergeCommit := f.mergeIntoBase(t)
 		gh := f.baselineMergedFake(f.head, mergeCommit)
-		res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id)
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 		if res.Result == ResultApplied || res.Result == ResultNoOp {
 			t.Fatalf("closeout of a proposed record reported success %q", res.Result)
 		}
@@ -388,7 +388,7 @@ func TestCloseoutStackedMerged(t *testing.T) {
 			closeoutPR: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/parent", strings.Repeat("a", 40))},
 		},
 	}
-	res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id)
+	res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 	if res.Result != ResultApplied || res.Disposition != CloseoutDispStackedMerged {
 		t.Fatalf("closeout = %q disp %q (reason %q msg %q)", res.Result, res.Disposition, res.Reason, res.Message)
 	}
@@ -407,7 +407,7 @@ func TestCloseoutStackedMerged(t *testing.T) {
 	assertBoardMatchesCommitted(t, f.repo.origin, f.branch, f.repo.invocation)
 
 	// A replay is a verified no-op keyed on the promised stacked-merged state.
-	replay := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id)
+	replay := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 	if replay.Disposition != CloseoutDispAlready {
 		t.Fatalf("stacked replay disposition = %q, want %q", replay.Disposition, CloseoutDispAlready)
 	}
@@ -449,7 +449,7 @@ func TestCloseoutRootCarry(t *testing.T) {
 				8:          {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(strings.Repeat("c", 40), "feat/widget", strings.Repeat("b", 40))},
 			},
 		}
-		res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id)
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 		if res.Result != ResultApplied || res.Disposition != CloseoutDispRootArchived {
 			t.Fatalf("root carry = %q disp %q (reason %q msg %q)", res.Result, res.Disposition, res.Reason, res.Message)
 		}
@@ -482,7 +482,7 @@ func TestCloseoutRootCarry(t *testing.T) {
 			},
 		}
 		before := originTip(t, f.repo.origin, f.branch)
-		res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id)
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 		if res.Result == ResultApplied || res.Result == ResultNoOp {
 			t.Fatalf("an unproven descendant let the root close out: %q", res.Result)
 		}
@@ -515,7 +515,7 @@ func TestCloseoutBacklinkLegDocketMode(t *testing.T) {
 	metaBefore := originTip(t, f.repo.origin, "docket")
 	mainBefore := originTip(t, f.repo.origin, "main")
 
-	res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id)
+	res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 	if res.Result != ResultApplied || res.Disposition != CloseoutDispDoneArchived {
 		t.Fatalf("closeout = %q disp %q (reason %q)", res.Result, res.Disposition, res.Reason)
 	}
@@ -560,7 +560,7 @@ func TestCloseoutNeverEditsAuthoredBytes(t *testing.T) {
 			mergeCommit := f.mergeIntoBase(t)
 			gh := f.baselineMergedFake(f.head, mergeCommit)
 
-			res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id)
+			res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 			if res.Result != ResultApplied {
 				t.Fatalf("closeout did not apply: %q (reason %q)", res.Result, res.Reason)
 			}
@@ -584,5 +584,258 @@ func TestCloseoutNeverEditsAuthoredBytes(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// --- closeout notes -------------------------------------------------------
+
+// closeoutTestNotes is the both-category request the spec's rendering example uses.
+func closeoutTestNotes() CloseoutNotes {
+	return CloseoutNotes{
+		VerificationOutcomes: []string{"Production health check passed after deployment"},
+		LateFindings:         []string{"The upgrade guide should mention the legacy config cleanup"},
+	}
+}
+
+const closeoutWantNotesSection = "## Closeout notes\n\n" +
+	"### Verification\n\n" +
+	"- Production health check passed after deployment\n\n" +
+	"### Late findings\n\n" +
+	"- The upgrade guide should mention the legacy config cleanup\n"
+
+// TestCloseoutNotesLandWithArchive proves notes land in the SAME transaction as
+// the ordinary archive, as the final section, in both repository modes — and
+// that the lifecycle transition still happened.
+func TestCloseoutNotesLandWithArchive(t *testing.T) {
+	requireRealGit(t)
+	for _, m := range planRepoModes() {
+		m := m
+		t.Run(m.name, func(t *testing.T) {
+			f := setupCloseoutFixture(t, m)
+			mergeCommit := f.mergeIntoBase(t)
+			gh := f.baselineMergedFake(f.head, mergeCommit)
+
+			res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, closeoutTestNotes())
+			if res.Result != ResultApplied || res.Disposition != CloseoutDispDoneArchived {
+				t.Fatalf("closeout = %q disp %q (reason %q)", res.Result, res.Disposition, res.Reason)
+			}
+			archived, ok := originFile(t, f.repo.origin, f.branch, res.ArchivePath)
+			if !ok {
+				t.Fatalf("archived record absent at %q", res.ArchivePath)
+			}
+			if !strings.HasSuffix(archived, closeoutWantNotesSection) {
+				t.Errorf("archived record does not END with the notes section:\n%s", archived)
+			}
+			if !strings.Contains(archived, "status: 'done'") {
+				t.Errorf("notes landed without the lifecycle transition:\n%s", archived)
+			}
+		})
+	}
+}
+
+// TestCloseoutNoNotesEmitsNoSection pins the byte-for-byte-today promise.
+func TestCloseoutNoNotesEmitsNoSection(t *testing.T) {
+	requireRealGit(t)
+	m := planRepoModes()[0]
+	f := setupCloseoutFixture(t, m)
+	mergeCommit := f.mergeIntoBase(t)
+	gh := f.baselineMergedFake(f.head, mergeCommit)
+	res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
+	if res.Result != ResultApplied {
+		t.Fatalf("closeout = %q", res.Result)
+	}
+	archived, _ := originFile(t, f.repo.origin, f.branch, res.ArchivePath)
+	if strings.Contains(archived, "## Closeout notes") {
+		t.Errorf("no-notes closeout conjured a notes section:\n%s", archived)
+	}
+}
+
+// TestCloseoutNotesInvalidInputMutatesNothing: empty-after-trim, control
+// characters, marker text, and an oversized entry each refuse before any
+// probe or transaction — the change stays implemented and the tip unmoved.
+func TestCloseoutNotesInvalidInputMutatesNothing(t *testing.T) {
+	requireRealGit(t)
+	m := planRepoModes()[0]
+	f := setupCloseoutFixture(t, m)
+	mergeCommit := f.mergeIntoBase(t)
+	gh := f.baselineMergedFake(f.head, mergeCommit)
+	tipBefore := originTip(t, f.repo.origin, f.branch)
+
+	bad := []CloseoutNotes{
+		{VerificationOutcomes: []string{"   "}},
+		{LateFindings: []string{"bell\x07"}},
+		{LateFindings: []string{"crlf\r\nmid"}}, // interior CR survives trimming; must be rejected
+		{VerificationOutcomes: []string{"<!-- docket:backlink:start -->"}},
+		{VerificationOutcomes: []string{strings.Repeat("a", maxAuthoredMarkdownBytes+1)}},
+	}
+	for i, n := range bad {
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, n)
+		if res.Result != ResultInvalidInput {
+			t.Fatalf("bad[%d] result = %q, want invalid input", i, res.Result)
+		}
+	}
+	if tip := originTip(t, f.repo.origin, f.branch); tip != tipBefore {
+		t.Errorf("an invalid-notes request moved the metadata tip: %q -> %q", tipBefore, tip)
+	}
+	if gh.probes != 0 {
+		t.Errorf("an invalid-notes request reached the PR probe (%d probes)", gh.probes)
+	}
+}
+
+// TestCloseoutNotesReplayAndFrozen: an identical-notes retry replays as a
+// no-op with no second commit; a different-notes retry is refused with
+// terminal-notes-frozen and moves nothing.
+func TestCloseoutNotesReplayAndFrozen(t *testing.T) {
+	requireRealGit(t)
+	m := planRepoModes()[0]
+	f := setupCloseoutFixture(t, m)
+	mergeCommit := f.mergeIntoBase(t)
+	gh := f.baselineMergedFake(f.head, mergeCommit)
+
+	first := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, closeoutTestNotes())
+	if first.Result != ResultApplied {
+		t.Fatalf("first closeout = %q", first.Result)
+	}
+	tipAfterFirst := originTip(t, f.repo.origin, f.branch)
+
+	replay := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, closeoutTestNotes())
+	if replay.Disposition != CloseoutDispAlready || replay.Result == ResultApplied {
+		t.Fatalf("identical-notes replay = %q disp %q, want no-op already", replay.Result, replay.Disposition)
+	}
+
+	different := closeoutTestNotes()
+	different.LateFindings = []string{"a different late finding"}
+	refused := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, different)
+	if refused.Reason != ReasonCloseoutNotesFrozen {
+		t.Fatalf("different-notes retry reason = %q, want %q (result %q disp %q)",
+			refused.Reason, ReasonCloseoutNotesFrozen, refused.Result, refused.Disposition)
+	}
+	if tip := originTip(t, f.repo.origin, f.branch); tip != tipAfterFirst {
+		t.Errorf("a refused retry produced a commit")
+	}
+	archived, _ := originFile(t, f.repo.origin, f.branch, first.ArchivePath)
+	if !strings.HasSuffix(archived, closeoutWantNotesSection) {
+		t.Errorf("terminal record's notes changed after the refused retry:\n%s", archived)
+	}
+}
+
+// TestCloseoutNotesStackedInPlace proves the stacked-merged in-place path also
+// carries notes into the terminal record, with the same replay/frozen semantics.
+func TestCloseoutNotesStackedInPlace(t *testing.T) {
+	requireRealGit(t)
+	m := planRepoModes()[0]
+	f := setupCloseoutFixture(t, m)
+
+	recPath := groomPath(f.id, f.slug)
+	child := closeoutRecord(f.id, f.slug, "implemented", closeoutRef, f.specPath, f.planPath, f.resultsPath)
+	child = strings.Replace(child, "stacked_on:\n", "stacked_on: 4\n", 1)
+	f.repo.writerAdvance(t, f.branch, map[string]string{
+		groomPath(4, "parent"): lifecycleChange(4, "parent", "in-progress"),
+		recPath:                child,
+	})
+
+	gh := &fakeCloseoutGitHub{
+		repo: retargetRepo(),
+		merged: map[int]closeoutProbe{
+			closeoutPR: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feat/parent", strings.Repeat("a", 40))},
+		},
+	}
+	res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, closeoutTestNotes())
+	if res.Result != ResultApplied || res.Disposition != CloseoutDispStackedMerged {
+		t.Fatalf("closeout = %q disp %q (reason %q)", res.Result, res.Disposition, res.Reason)
+	}
+
+	rec, ok := originFile(t, f.repo.origin, f.branch, recPath)
+	if !ok {
+		t.Fatalf("stacked-merged record was archived away from %q", recPath)
+	}
+	if !strings.Contains(rec, "status: 'stacked-merged'") {
+		t.Errorf("record not stacked-merged:\n%s", rec)
+	}
+	if !strings.HasSuffix(rec, closeoutWantNotesSection) {
+		t.Errorf("in-place record does not END with the notes section:\n%s", rec)
+	}
+
+	// Identical-notes replay is a no-op; different notes are frozen.
+	replay := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, closeoutTestNotes())
+	if replay.Disposition != CloseoutDispAlready || replay.Result == ResultApplied {
+		t.Fatalf("stacked identical-notes replay = %q disp %q, want no-op already", replay.Result, replay.Disposition)
+	}
+	different := closeoutTestNotes()
+	different.LateFindings = []string{"a different late finding"}
+	refused := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, different)
+	if refused.Reason != ReasonCloseoutNotesFrozen {
+		t.Fatalf("stacked different-notes retry reason = %q, want %q (result %q)", refused.Reason, ReasonCloseoutNotesFrozen, refused.Result)
+	}
+}
+
+// TestCloseoutNotesRootCarryNoPropagation proves root notes land ONLY on the
+// root: a carried descendant's own notes survive root archival, and the root's
+// notes never propagate onto the descendant.
+func TestCloseoutNotesRootCarryNoPropagation(t *testing.T) {
+	requireRealGit(t)
+	m := planRepoModes()[0] // main mode: one ref carries every backlink
+
+	descPlan := "docs/superpowers/plans/2026-08-16-gadget-plan.md"
+	f := setupCloseoutFixture(t, m)
+	childPath := groomPath(6, "gadget")
+	desc := closeoutRecord(6, "gadget", "implemented", "github.com/acme/widget#8", "", descPlan, "")
+	desc = strings.Replace(desc, "stacked_on:\n", "stacked_on: 5\n", 1)
+	f.repo.writerAdvance(t, f.branch, map[string]string{
+		childPath: desc,
+		descPlan:  artifactWithBacklink(childPath, "Gadget plan", "The gadget plan."),
+	})
+
+	// Establish the ROOT's verified merge into integration up front (in main mode
+	// the metadata ref IS main, so this must land before any closeout advances it).
+	mergeCommit := f.mergeIntoBase(t)
+
+	// First: close out the CHILD (id 6) as stacked-merged into the root's branch,
+	// carrying its OWN notes.
+	childNotes := CloseoutNotes{LateFindings: []string{"child-owned note"}}
+	ghChild := &fakeCloseoutGitHub{
+		repo: retargetRepo(),
+		merged: map[int]closeoutProbe{
+			8: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(strings.Repeat("c", 40), "feat/widget", strings.Repeat("b", 40))},
+		},
+	}
+	childRes := FinalizeCloseout(context.Background(), f.closeoutDeps(ghChild), f.repo.invocation, 6, childNotes)
+	if childRes.Result != ResultApplied || childRes.Disposition != CloseoutDispStackedMerged {
+		t.Fatalf("child closeout = %q disp %q (reason %q)", childRes.Result, childRes.Disposition, childRes.Reason)
+	}
+
+	// Then: carry the ROOT (id 5) with DIFFERENT notes.
+	ghRoot := &fakeCloseoutGitHub{
+		repo: retargetRepo(),
+		merged: map[int]closeoutProbe{
+			closeoutPR: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "main", mergeCommit)},
+			8:          {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(strings.Repeat("c", 40), "feat/widget", strings.Repeat("b", 40))},
+		},
+	}
+	rootRes := FinalizeCloseout(context.Background(), f.closeoutDeps(ghRoot), f.repo.invocation, f.id, closeoutTestNotes())
+	if rootRes.Result != ResultApplied || rootRes.Disposition != CloseoutDispRootArchived {
+		t.Fatalf("root carry = %q disp %q (reason %q)", rootRes.Result, rootRes.Disposition, rootRes.Reason)
+	}
+
+	// (a) the archived ROOT record ends with the root's notes section.
+	rootArchived, ok := originFile(t, f.repo.origin, f.branch, "docs/changes/archive/2026-08-18-0005-widget.md")
+	if !ok {
+		t.Fatalf("root archived record absent")
+	}
+	if !strings.HasSuffix(rootArchived, closeoutWantNotesSection) {
+		t.Errorf("archived ROOT record does not end with its notes section:\n%s", rootArchived)
+	}
+
+	childArchived, ok := originFile(t, f.repo.origin, f.branch, "docs/changes/archive/2026-08-18-0006-gadget.md")
+	if !ok {
+		t.Fatalf("child archived record absent")
+	}
+	// (b) the root's notes never propagated onto the descendant.
+	if strings.Contains(childArchived, "Production health check") {
+		t.Errorf("root notes propagated to the carried child:\n%s", childArchived)
+	}
+	// (c) the child's own notes survived root archival.
+	if !strings.Contains(childArchived, "child-owned note") {
+		t.Errorf("child's own notes did not survive root archival:\n%s", childArchived)
 	}
 }

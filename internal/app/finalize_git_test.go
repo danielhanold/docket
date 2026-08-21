@@ -228,7 +228,7 @@ func matrixCloseout(t *testing.T, m planRepoMode) {
 	mergeCommit := f.mergeIntoBase(t)
 	gh := f.baselineMergedFake(f.head, mergeCommit)
 
-	first := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id)
+	first := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 	if first.Result != ResultApplied || first.Disposition != CloseoutDispDoneArchived {
 		t.Fatalf("first closeout = %q disp %q (reason %q)", first.Result, first.Disposition, first.Reason)
 	}
@@ -247,7 +247,7 @@ func matrixCloseout(t *testing.T, m planRepoMode) {
 
 	// The response was lost; the replay is keyed on the promised archive record, not
 	// a clean tree, so it is a no-op that adds no commit on either ref.
-	second := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id)
+	second := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 	if second.Disposition != CloseoutDispAlready {
 		t.Fatalf("replay disposition = %q, want %q (keyed on the archive record)", second.Disposition, CloseoutDispAlready)
 	}
@@ -466,7 +466,7 @@ func TestFinalizeBytePreservation(t *testing.T) {
 
 			mergeCommit := f.mergeIntoBase(t)
 			gh := f.baselineMergedFake(f.head, mergeCommit)
-			res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id)
+			res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 			if res.Result != ResultApplied {
 				t.Fatalf("closeout did not apply: %q (reason %q)", res.Result, res.Reason)
 			}
@@ -534,7 +534,7 @@ func TestFinalizeNoForeignWrites(t *testing.T) {
 			featHeadBefore := runGit(t, f.wp, "rev-parse", "HEAD")
 			featStatusBefore := runGit(t, f.wp, "status", "--porcelain")
 
-			res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id)
+			res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
 			if res.Result != ResultApplied {
 				t.Fatalf("closeout did not apply: %q (reason %q)", res.Result, res.Reason)
 			}
