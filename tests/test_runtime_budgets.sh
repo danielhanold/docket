@@ -31,7 +31,13 @@ EXPECTED_SERIAL=0   # no file is currently pinned serial. tests/test_go_race.sh 
                     # run no longer starves the other parallel jobs. RAISING THIS IS A FINDING: a
                     # serial pin removes a file from the parallel phase, so it must be justified in
                     # the same diff with the shared state that forces it.
-EXPECTED_TOTAL=2545 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2555 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2545 -> 2555 (change 0317): ONE legitimate mover — a NEW test file brings its
+                    # own row. tests/test_release_downloader.sh guards the POSIX release downloader
+                    # internal/release/downloader/install.sh; its Task-4 static section (existence,
+                    # shebang, render placeholder, forbidden-spelling ban) is a pure source scan, so
+                    # it enters at the 10s floor. Tasks 7-9 add the hermetic behavior sections and
+                    # will re-measure this row against wall clock at that point.
                     # 2785 -> 2545 (change 0333): the SHARD-RE-CUT case on one row — the race gate
                     # returns from its temporary 300s serial exemption to an ordinary 60s parallel
                     # row. Change 0332 moved tests/test_go_race.sh to 300 serial because
