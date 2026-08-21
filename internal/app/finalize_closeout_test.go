@@ -67,7 +67,7 @@ func (f *fakeCloseoutGitHub) EnsureComment(context.Context, githubcli.Repository
 func (f *fakeCloseoutGitHub) FindComment(context.Context, githubcli.Repository, int, string) (bool, string, error) {
 	panic("FindComment: closeout must not call this")
 }
-func (f *fakeCloseoutGitHub) MergePullRequest(context.Context, githubcli.Repository, int, githubcli.ObjectRef, bool) (githubcli.MergeOutcome, githubcli.MergedFacts, error) {
+func (f *fakeCloseoutGitHub) MergePullRequest(context.Context, githubcli.Repository, int, githubcli.ObjectRef, bool) (githubcli.MergeResult, error) {
 	panic("MergePullRequest: closeout must not call this")
 }
 

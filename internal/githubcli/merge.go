@@ -1,8 +1,15 @@
 package githubcli
 
 // This file owns MergePullRequest and ProbeMerged: the expected-head merge of one
-// exact pull request with merge-commit semantics, and the authoritative merged
-// reprobe usable after success, timeout, cancellation, or a lost response.
+// exact pull request, and the authoritative merged reprobe usable after success,
+// timeout, cancellation, or a lost response.
+//
+// MergePullRequest selects the effective merge method — via probeRepoMergeMethods
+// and probeBranchMergeRules (mergemethod.go), composed by intersect and resolved
+// by selectMergeMethod in the fixed priority rebase → merge commit → squash — and
+// attempts exactly that one method, never retrying a lower-priority one on
+// rejection. A cleanly observed empty permitted set is MergeMethodUnavailable and
+// issues no merge; an unobservable capability probe is unknown (retain).
 //
 // The merge is gated on an authoritative pre-decision snapshot and issued with an
 // exact `--match-head-commit`, so GitHub itself refuses if the head moved between
@@ -70,6 +77,11 @@ const (
 	// A transport/decode failure carries a diagnostic error; a cleanly observed
 	// non-authorizing state carries a nil error.
 	MergeUnknown MergeOutcome = "unknown"
+	// MergeMethodUnavailable: repository settings and branch rules leave no
+	// permitted merge method; the incompatible policy was observed cleanly and
+	// NO merge was issued. Distinct from denied (nothing was attempted) and
+	// from unknown (the policy WAS observable).
+	MergeMethodUnavailable MergeOutcome = "method-unavailable"
 )
 
 // MergedFacts is the authoritative post-merge evidence. It is populated on
@@ -77,6 +89,20 @@ const (
 type MergedFacts struct {
 	HeadOID, BaseRef, MergedAtUTC, MergeCommit string
 	Version                                    string
+}
+
+// MergeResult is the outcome of one MergePullRequest call. Method is attempt
+// metadata, not a merged fact: it is set exactly when Docket issued the merge
+// command — success, authoritative denial, or a lost response later recovered —
+// and empty for validation failures, pre-effect refusals, and already-merged
+// recovery (Docket did not choose the historical merge's method). RepoMethods
+// and BranchMethods are populated only on MergeMethodUnavailable, naming the
+// two observed permitted sets so a human can correct the conflicting setting.
+type MergeResult struct {
+	Outcome                    MergeOutcome
+	Method                     MergeMethod
+	Facts                      MergedFacts
+	RepoMethods, BranchMethods []MergeMethod
 }
 
 // mergePRJSON is the merge-specific projection of gh's nested PR shape. mergedAt
@@ -110,53 +136,84 @@ func (s mergeSnapshot) facts() MergedFacts {
 	}
 }
 
-// MergePullRequest merges one PR with merge-commit semantics at an exact expected
-// head. merged/already-merged/head-moved/not-mergeable/denied are value outcomes
-// with a nil error; unknown carries a typed *Failure only when an actual
-// transport/decode failure occurred. It never issues a second merge for an
-// already-merged PR and never requests branch deletion.
-func (c *Client) MergePullRequest(ctx context.Context, repo Repository, number int, expectedHead ObjectRef, admin bool) (MergeOutcome, MergedFacts, error) {
+// MergePullRequest merges one PR at an exact expected head with the effective
+// merge method the repository settings and the base branch's active rules permit,
+// selected in the fixed priority rebase → merge commit → squash. It attempts
+// exactly one method and never retries a lower-priority one on rejection.
+// merged/already-merged/head-moved/not-mergeable/denied/method-unavailable are
+// value outcomes with a nil error; unknown carries a typed *Failure only when an
+// actual transport/decode failure occurred (an unobservable capability probe
+// included). It never issues a second merge for an already-merged PR and never
+// requests branch deletion.
+func (c *Client) MergePullRequest(ctx context.Context, repo Repository, number int, expectedHead ObjectRef, admin bool) (MergeResult, error) {
 	if err := validateRepository(repo); err != nil {
-		return MergeUnknown, MergedFacts{}, newFailure(mergeOp, StageValidate, KindInvalidInput, "repository identity invalid: "+err.Error(), err)
+		return MergeResult{Outcome: MergeUnknown}, newFailure(mergeOp, StageValidate, KindInvalidInput, "repository identity invalid: "+err.Error(), err)
 	}
 	if number <= 0 {
-		return MergeUnknown, MergedFacts{}, newFailure(mergeOp, StageValidate, KindInvalidInput, "pull request number must be positive", nil)
+		return MergeResult{Outcome: MergeUnknown}, newFailure(mergeOp, StageValidate, KindInvalidInput, "pull request number must be positive", nil)
 	}
 	if err := validateFullObjectID(string(expectedHead)); err != nil {
-		return MergeUnknown, MergedFacts{}, newFailure(mergeOp, StageValidate, KindInvalidInput, "expected head oid invalid: "+err.Error(), err)
+		return MergeResult{Outcome: MergeUnknown}, newFailure(mergeOp, StageValidate, KindInvalidInput, "expected head oid invalid: "+err.Error(), err)
 	}
 
 	// Pre-decision: an authoritative snapshot decides whether a merge is authorized.
 	snap, f := c.probeMergeSnapshot(ctx, repo, number)
 	if f != nil {
-		return MergeUnknown, MergedFacts{}, f
+		return MergeResult{Outcome: MergeUnknown}, f
 	}
 	switch snap.pr.State {
 	case StateMerged:
-		return MergeAlreadyMerged, snap.facts(), nil
+		return MergeResult{Outcome: MergeAlreadyMerged, Facts: snap.facts()}, nil
 	case StateOpen:
 		if snap.pr.HeadCommit != string(expectedHead) {
-			return MergeHeadMoved, MergedFacts{}, nil
+			return MergeResult{Outcome: MergeHeadMoved}, nil
 		}
 		switch snap.mergeable {
 		case mergeableMergeable:
-			// proceed to act
+			// proceed to policy + act
 		case mergeableConflicting:
-			return MergeNotMergeable, MergedFacts{}, nil
+			return MergeResult{Outcome: MergeNotMergeable}, nil
 		default:
 			// UNKNOWN (lazy mergeability) or an unrecognized enum: never authorize.
-			return MergeUnknown, MergedFacts{}, nil
+			return MergeResult{Outcome: MergeUnknown}, nil
 		}
 	default:
 		// Closed, unmerged: cannot be merged.
-		return MergeNotMergeable, MergedFacts{}, nil
+		return MergeResult{Outcome: MergeNotMergeable}, nil
 	}
 
-	// Act: merge-commit semantics at the exact expected head. No --delete-branch.
+	// Policy: read repository-enabled methods and the active rules for the PR's
+	// ACTUAL base branch, intersect, and select the fixed priority. An
+	// unobservable policy is unknown; a cleanly observed empty set is
+	// method-unavailable. Neither issues a merge.
+	repoSet, pf := c.probeRepoMergeMethods(ctx, repo)
+	if pf != nil {
+		return MergeResult{Outcome: MergeUnknown}, pf
+	}
+	branchSet, pf := c.probeBranchMergeRules(ctx, repo, snap.pr.BaseBranch)
+	if pf != nil {
+		return MergeResult{Outcome: MergeUnknown}, pf
+	}
+	method, ok := selectMergeMethod(repoSet.intersect(branchSet))
+	if !ok {
+		return MergeResult{
+			Outcome:       MergeMethodUnavailable,
+			RepoMethods:   repoSet.list(),
+			BranchMethods: branchSet.list(),
+		}, nil
+	}
+
+	// Act: the selected method at the exact expected head. No --delete-branch. The
+	// closed vocabulary is guarded — a method outside it renders no flag.
+	flag := method.mergeFlag()
+	if flag == "" {
+		return MergeResult{Outcome: MergeUnknown}, newFailure(mergeOp, StageValidate, KindInvalidInput,
+			"selected merge method outside the closed vocabulary", nil)
+	}
 	args := []string{
 		"pr", "merge", strconv.Itoa(number),
 		"--repo", repo.Spec(),
-		"--merge",
+		flag,
 		"--match-head-commit", string(expectedHead),
 	}
 	if admin {
@@ -165,45 +222,46 @@ func (c *Client) MergePullRequest(ctx context.Context, repo Repository, number i
 	res, mf := c.run(ctx, runRequest{op: mergeOp, args: args, network: true})
 	if mf != nil {
 		if mf.Stage == StageLaunch {
-			// gh never started; nothing merged. Retain as unknown.
-			return MergeUnknown, MergedFacts{}, mf
+			// gh never started; nothing merged. Retain as unknown with no method.
+			return MergeResult{Outcome: MergeUnknown}, mf
 		}
 		// A timeout/cancel may have landed the merge; it is NOT a denial. Verify.
-		return c.verifyMerge(ctx, repo, number, expectedHead, false)
+		return c.verifyMerge(ctx, repo, number, expectedHead, false, method)
 	}
 	// A non-zero exit is a candidate denial; a zero exit is the expected success.
 	// Both are resolved against a fresh authoritative reprobe.
-	return c.verifyMerge(ctx, repo, number, expectedHead, res.exitCode != 0)
+	return c.verifyMerge(ctx, repo, number, expectedHead, res.exitCode != 0, method)
 }
 
 // verifyMerge re-derives the post-merge truth from a fresh authoritative snapshot.
 // mergeRejected marks that the merge command exited non-zero (a candidate denial);
 // it is honored only when the PR is left cleanly open, mergeable, and at the
-// expected head.
-func (c *Client) verifyMerge(ctx context.Context, repo Repository, number int, expectedHead ObjectRef, mergeRejected bool) (MergeOutcome, MergedFacts, error) {
+// expected head. method is the method Docket issued: the merge command WAS issued
+// on every path that reaches here, so every returned MergeResult carries it.
+func (c *Client) verifyMerge(ctx context.Context, repo Repository, number int, expectedHead ObjectRef, mergeRejected bool, method MergeMethod) (MergeResult, error) {
 	snap, f := c.probeMergeSnapshot(ctx, repo, number)
 	if f != nil {
-		return MergeUnknown, MergedFacts{}, f
+		return MergeResult{Outcome: MergeUnknown, Method: method}, f
 	}
 	switch snap.pr.State {
 	case StateMerged:
-		return MergeMerged, snap.facts(), nil
+		return MergeResult{Outcome: MergeMerged, Method: method, Facts: snap.facts()}, nil
 	case StateOpen:
 		if snap.pr.HeadCommit != string(expectedHead) {
-			return MergeHeadMoved, MergedFacts{}, nil
+			return MergeResult{Outcome: MergeHeadMoved, Method: method}, nil
 		}
 		if snap.mergeable == mergeableConflicting {
-			return MergeNotMergeable, MergedFacts{}, nil
+			return MergeResult{Outcome: MergeNotMergeable, Method: method}, nil
 		}
 		if mergeRejected && snap.mergeable == mergeableMergeable {
-			return MergeDenied, MergedFacts{}, nil
+			return MergeResult{Outcome: MergeDenied, Method: method}, nil
 		}
 		// A zero-exit merge that is not observed merged, a transient error, or an
 		// UNKNOWN mergeability: retain rather than fabricate a success.
-		return MergeUnknown, MergedFacts{}, newFailure(mergeOp, StageInvoke, KindExternal,
+		return MergeResult{Outcome: MergeUnknown, Method: method}, newFailure(mergeOp, StageInvoke, KindExternal,
 			"merge outcome could not be verified merged after the attempt", nil)
 	default:
-		return MergeNotMergeable, MergedFacts{}, nil
+		return MergeResult{Outcome: MergeNotMergeable, Method: method}, nil
 	}
 }
 

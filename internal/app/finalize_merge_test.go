@@ -73,15 +73,15 @@ func (f *fakeMergeGitHub) FindOpenPullRequestsByHead(_ context.Context, _ github
 	return f.openByHead[head], nil
 }
 
-func (f *fakeMergeGitHub) MergePullRequest(_ context.Context, _ githubcli.Repository, number int, expectedHead githubcli.ObjectRef, admin bool) (githubcli.MergeOutcome, githubcli.MergedFacts, error) {
+func (f *fakeMergeGitHub) MergePullRequest(_ context.Context, _ githubcli.Repository, number int, expectedHead githubcli.ObjectRef, admin bool) (githubcli.MergeResult, error) {
 	f.mergeCalls++
 	f.lastMergeAdmin = admin
 	f.lastMergeHead = expectedHead
 	f.lastMergeNum = number
 	if f.mergeErr != nil {
-		return githubcli.MergeUnknown, githubcli.MergedFacts{}, f.mergeErr
+		return githubcli.MergeResult{Outcome: githubcli.MergeUnknown}, f.mergeErr
 	}
-	return f.mergeOutcome, f.mergeFacts, nil
+	return githubcli.MergeResult{Outcome: f.mergeOutcome, Facts: f.mergeFacts}, nil
 }
 
 func (f *fakeMergeGitHub) RetargetPullRequest(context.Context, githubcli.Repository, int, string, string) (githubcli.RetargetOutcome, githubcli.PullRequest, error) {

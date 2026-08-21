@@ -63,7 +63,7 @@ type FinalizeGitHub interface {
 	RetargetPullRequest(ctx context.Context, repo githubcli.Repository, number int, expectedVersion, newBase string) (githubcli.RetargetOutcome, githubcli.PullRequest, error)
 	EnsureComment(ctx context.Context, repo githubcli.Repository, number int, marker, body string) (githubcli.CommentOutcome, string, error)
 	FindComment(ctx context.Context, repo githubcli.Repository, number int, marker string) (bool, string, error)
-	MergePullRequest(ctx context.Context, repo githubcli.Repository, number int, expectedHead githubcli.ObjectRef, admin bool) (githubcli.MergeOutcome, githubcli.MergedFacts, error)
+	MergePullRequest(ctx context.Context, repo githubcli.Repository, number int, expectedHead githubcli.ObjectRef, admin bool) (githubcli.MergeResult, error)
 }
 
 // FinalizeWorkspace is the workspace seam the terminal-half operations delegate

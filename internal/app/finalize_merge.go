@@ -510,7 +510,7 @@ func FinalizeMerge(ctx context.Context, deps FinalizeDeps, repoDir string, req F
 	// with an explicit id (already gated above) — the AND is belt-and-braces so no
 	// path can pass admin without it.
 	admin := req.Admin && req.ExplicitID
-	mo, facts, merr := deps.GitHub.MergePullRequest(ctx, repo, canonicalN, githubcli.ObjectRef(req.Head), admin)
+	mres, merr := deps.GitHub.MergePullRequest(ctx, repo, canonicalN, githubcli.ObjectRef(req.Head), admin)
 	if merr != nil {
 		// A transport/launch failure is unknown — the merge may or may not have
 		// landed; retain and reprobe on the next run, never fabricate a result.
@@ -518,11 +518,11 @@ func FinalizeMerge(ctx context.Context, deps FinalizeDeps, repoDir string, req F
 			ID: id, Disposition: MergeDispUnknown, Number: canonicalN, Reason: ReasonMergeProbeUnknown, Message: merr.Error(),
 		})
 	}
-	switch mo {
+	switch mres.Outcome {
 	case githubcli.MergeMerged:
-		return verifyMerge(ctx, deps, mc, repo, canonicalN, req, facts, true, MergeDispMerged, ResultApplied)
+		return verifyMerge(ctx, deps, mc, repo, canonicalN, req, mres.Facts, true, MergeDispMerged, ResultApplied)
 	case githubcli.MergeAlreadyMerged:
-		return verifyMerge(ctx, deps, mc, repo, canonicalN, req, facts, false, MergeDispAlreadyMerged, ResultNoOp)
+		return verifyMerge(ctx, deps, mc, repo, canonicalN, req, mres.Facts, false, MergeDispAlreadyMerged, ResultNoOp)
 	case githubcli.MergeHeadMoved:
 		return mergeRefusal(ResultContended, MergeDispContended, ReasonMergeHeadMoved,
 			"the pull request head moved from the expected head; re-read context finalize", id)
@@ -538,8 +538,10 @@ func FinalizeMerge(ctx context.Context, deps FinalizeDeps, repoDir string, req F
 			Message: "the merge outcome could not be verified; retained, no closeout",
 		})
 	default:
+		// MergeMethodUnavailable reaches here until Task 5 maps it: a fail-closed
+		// internal-error, never a permissive fall-through.
 		return mergeRefusal(ResultInternalError, MergeDispBlocked, ReasonStatusInternalError,
-			fmt.Sprintf("unexpected merge outcome %q", mo), id)
+			fmt.Sprintf("unexpected merge outcome %q", mres.Outcome), id)
 	}
 }
 

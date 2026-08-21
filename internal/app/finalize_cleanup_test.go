@@ -63,7 +63,7 @@ func (f *fakeCleanupGitHub) EnsureComment(context.Context, githubcli.Repository,
 func (f *fakeCleanupGitHub) FindComment(context.Context, githubcli.Repository, int, string) (bool, string, error) {
 	panic("FindComment: cleanup must not call this")
 }
-func (f *fakeCleanupGitHub) MergePullRequest(context.Context, githubcli.Repository, int, githubcli.ObjectRef, bool) (githubcli.MergeOutcome, githubcli.MergedFacts, error) {
+func (f *fakeCleanupGitHub) MergePullRequest(context.Context, githubcli.Repository, int, githubcli.ObjectRef, bool) (githubcli.MergeResult, error) {
 	panic("MergePullRequest: cleanup must not call this")
 }
 
