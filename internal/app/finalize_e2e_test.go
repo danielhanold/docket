@@ -1543,6 +1543,28 @@ func main() {
 		})
 		os.Exit(0)
 	}
+	if len(args) >= 1 && args[0] == "api" {
+		owner, name := os.Getenv("FAKE_GH_OWNER"), os.Getenv("FAKE_GH_NAME")
+		path := args[len(args)-1] // last arg is the endpoint path; --hostname rides earlier
+		if path == "repos/"+owner+"/"+name {
+			body := os.Getenv("FAKE_GH_REPO_SETTINGS")
+			if body == "" {
+				body = "{\"allow_rebase_merge\":true,\"allow_merge_commit\":true,\"allow_squash_merge\":true}"
+			}
+			fmt.Fprintln(os.Stdout, body)
+			os.Exit(0)
+		}
+		if strings.HasPrefix(path, "repos/"+owner+"/"+name+"/rules/branches/") {
+			body := os.Getenv("FAKE_GH_BRANCH_RULES")
+			if body == "" {
+				body = "[]"
+			}
+			fmt.Fprintln(os.Stdout, body)
+			os.Exit(0)
+		}
+		fmt.Fprintf(os.Stderr, "fake gh: unmatched api path %q\n", path)
+		os.Exit(64)
+	}
 	if len(args) < 2 || args[0] != "pr" {
 		fmt.Fprintf(os.Stderr, "fake gh: unmatched invocation %v\n", args)
 		os.Exit(64)

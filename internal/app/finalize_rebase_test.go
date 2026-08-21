@@ -67,7 +67,7 @@ func (f *fakeRebaseGitHub) EnsureComment(context.Context, githubcli.Repository, 
 func (f *fakeRebaseGitHub) FindComment(context.Context, githubcli.Repository, int, string) (bool, string, error) {
 	panic("FindComment: rebase must not call this")
 }
-func (f *fakeRebaseGitHub) MergePullRequest(context.Context, githubcli.Repository, int, githubcli.ObjectRef, bool) (githubcli.MergeOutcome, githubcli.MergedFacts, error) {
+func (f *fakeRebaseGitHub) MergePullRequest(context.Context, githubcli.Repository, int, githubcli.ObjectRef, bool) (githubcli.MergeResult, error) {
 	panic("MergePullRequest: rebase must not call this")
 }
 

@@ -119,7 +119,7 @@ func (f *fakeRetargetGitHub) EnsureComment(context.Context, githubcli.Repository
 func (f *fakeRetargetGitHub) FindComment(context.Context, githubcli.Repository, int, string) (bool, string, error) {
 	panic("FindComment: retarget must not call this")
 }
-func (f *fakeRetargetGitHub) MergePullRequest(context.Context, githubcli.Repository, int, githubcli.ObjectRef, bool) (githubcli.MergeOutcome, githubcli.MergedFacts, error) {
+func (f *fakeRetargetGitHub) MergePullRequest(context.Context, githubcli.Repository, int, githubcli.ObjectRef, bool) (githubcli.MergeResult, error) {
 	panic("MergePullRequest: retarget must not call this")
 }
 

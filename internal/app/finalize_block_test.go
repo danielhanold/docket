@@ -66,7 +66,7 @@ func (f *fakeBlockGitHub) RetargetPullRequest(context.Context, githubcli.Reposit
 func (f *fakeBlockGitHub) FindComment(context.Context, githubcli.Repository, int, string) (bool, string, error) {
 	panic("FindComment: block must not call this")
 }
-func (f *fakeBlockGitHub) MergePullRequest(context.Context, githubcli.Repository, int, githubcli.ObjectRef, bool) (githubcli.MergeOutcome, githubcli.MergedFacts, error) {
+func (f *fakeBlockGitHub) MergePullRequest(context.Context, githubcli.Repository, int, githubcli.ObjectRef, bool) (githubcli.MergeResult, error) {
 	panic("MergePullRequest: block must not call this")
 }
 

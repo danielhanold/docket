@@ -88,7 +88,7 @@ func (f *fakePublishGitHub) EnsureComment(context.Context, githubcli.Repository,
 func (f *fakePublishGitHub) FindComment(context.Context, githubcli.Repository, int, string) (bool, string, error) {
 	panic("FindComment: publish must not call this")
 }
-func (f *fakePublishGitHub) MergePullRequest(context.Context, githubcli.Repository, int, githubcli.ObjectRef, bool) (githubcli.MergeOutcome, githubcli.MergedFacts, error) {
+func (f *fakePublishGitHub) MergePullRequest(context.Context, githubcli.Repository, int, githubcli.ObjectRef, bool) (githubcli.MergeResult, error) {
 	panic("MergePullRequest: publish must not call this")
 }
 
