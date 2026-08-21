@@ -1,8 +1,14 @@
 # Backlog
 
-**333 changes** — 🟡 48 proposed · ⚪ 4 deferred · ✅ 201 done · 🗑️ 80 killed
+**333 changes** — 🟢 1 in progress · 🟡 47 proposed · ⚪ 4 deferred · ✅ 201 done · 🗑️ 80 killed
 
-## 🟡 Proposed (48)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0330](active/0330-post-merge-results-appending-has-no-home-in-the-go-runtime-f.md) | Optional closeout notes preserve post-merge verification without rewriting frozen results | `medium` | `feat` | [spec](../superpowers/specs/2026-08-21-terminal-closeout-notes-design.md) | `feat/post-merge-results-appending-has-no-home-in-the-go-runtime-f` |
+
+## 🟡 Proposed (47)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -52,7 +58,6 @@
 | [0321](active/0321-render-artifact-backlink-sh-eats-artifact-tails-on-marker-sh.md) | render-artifact-backlink.sh eats artifact tails on marker-shaped literals — anchor whole-line, validate balance, refuse | `medium` | `fix` | needs-brainstorm |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | needs-brainstorm |
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
-| [0330](active/0330-post-merge-results-appending-has-no-home-in-the-go-runtime-f.md) | Optional closeout notes preserve post-merge verification without rewriting frozen results | `medium` | `feat` | build-ready |
 | [0333](active/0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition internal/app to retire the -race gate's 300s ceiling exemption | `medium` | `refactor` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
