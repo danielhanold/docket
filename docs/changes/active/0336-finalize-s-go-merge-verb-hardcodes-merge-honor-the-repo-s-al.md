@@ -13,7 +13,7 @@ related: [316, 327, 330]
 discovered_from: [316]
 adrs: [10, 11, 43]
 spec: docs/superpowers/specs/2026-08-21-finalize-effective-merge-method-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-21-finalize-effective-merge-method.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-21T19:20:59Z'
 | Artifact | Link |
 |---|---|
 | Spec | `docs/superpowers/specs/2026-08-21-finalize-effective-merge-method-design.md` |
+| Plan | `docs/superpowers/plans/2026-08-21-finalize-effective-merge-method.md` |
 | ADRs | `docs/adrs/0010-finalize-merge-gate-split-agents.md`, `docs/adrs/0011-finalize-consent-model.md`, `docs/adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md` |
 <!-- docket:artifacts:end -->
 
