@@ -52,7 +52,7 @@
 | [0321](active/0321-render-artifact-backlink-sh-eats-artifact-tails-on-marker-sh.md) | render-artifact-backlink.sh eats artifact tails on marker-shaped literals — anchor whole-line, validate balance, refuse | `medium` | `fix` | needs-brainstorm |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | needs-brainstorm |
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
-| [0330](active/0330-post-merge-results-appending-has-no-home-in-the-go-runtime-f.md) | Post-merge results appending has no home in the Go runtime — finalize dropped it and change attach-results does not cover it | `medium` | `feat` | needs-brainstorm |
+| [0330](active/0330-post-merge-results-appending-has-no-home-in-the-go-runtime-f.md) | Optional closeout notes preserve post-merge verification without rewriting frozen results | `medium` | `feat` | build-ready |
 | [0333](active/0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition internal/app to retire the -race gate's 300s ceiling exemption | `medium` | `refactor` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
@@ -68,7 +68,7 @@
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
-| [0331](active/0331-docket-implement-next-s-re-mint-path-never-names-docket-gate.md) | docket-implement-next's re-mint path never names docket gate launch, so a resumed run cannot produce the run directory evidence record requires | `high` | `fix` | #docket#224 |  |
+| [0331](active/0331-docket-implement-next-s-re-mint-path-never-names-docket-gate.md) | docket-implement-next's re-mint path never names docket gate launch, so a resumed run cannot produce the run directory evidence record requires | `high` | `fix` | [#docket#224](https://github.com/danielhanold/docket/pull/docket#224) |  |
 
 ```mermaid
 graph TD
