@@ -13,7 +13,7 @@ related: [316, 331]
 discovered_from: [316]
 adrs: []
 spec: 'docs/superpowers/specs/2026-08-21-terminal-closeout-notes-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-08-21-terminal-closeout-notes.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-21T02:43:01Z'
 | Artifact | Link |
 |---|---|
 | Spec | `docs/superpowers/specs/2026-08-21-terminal-closeout-notes-design.md` |
+| Plan | `docs/superpowers/plans/2026-08-21-terminal-closeout-notes.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
