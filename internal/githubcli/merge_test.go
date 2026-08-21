@@ -248,9 +248,9 @@ func TestMergeExpectedHead(t *testing.T) {
 				mrgViewArm(openPR(ensHeadOid, "MERGEABLE"), 0), // decision
 				mrgRepoSettingsArm(repoAllTrue, 0),             // repository settings
 				mrgBranchRulesArm(rulesNone, 0),                // branch rules
-				mrgMergeArm(1),            // act: lost response
-				mrgViewArm(mergedPR(), 0), // MergePullRequest verify
-				mrgViewArm(mergedPR(), 0), // ProbeMerged
+				mrgMergeArm(1),                                 // act: lost response
+				mrgViewArm(mergedPR(), 0),                      // MergePullRequest verify
+				mrgViewArm(mergedPR(), 0),                      // ProbeMerged
 			},
 		})
 		res, err := c.MergePullRequest(context.Background(), mrgRepo(), 7, head, false)

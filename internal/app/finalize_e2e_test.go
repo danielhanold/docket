@@ -1015,6 +1015,13 @@ func TestE2EResponseLossConvergence(t *testing.T) {
 	if mg1.result() != "applied" {
 		t.Fatalf("merge under lost response = %q (want applied via reprobe convergence)\n%s", mg1.result(), mg1.stdout)
 	}
+	// The reprobe converged on a real, reachable merge commit. Capture the base
+	// tip it landed on: the default all-enabled policy selects rebase, a
+	// single-parent chain with ZERO merge commits, so "no duplicate merge" is
+	// proven graph-shape-independently by the destination tip standing still on
+	// the rerun — not by counting merge commits.
+	landedMerge := assertMergeReachable(t, s, mg1)
+	landedBaseTip := runGit(t, s.repo.origin, "rev-parse", "refs/heads/main")
 
 	// A rerun with the fault cleared must NOT merge again: it converges to a
 	// verified already-merged no-op.
@@ -1023,8 +1030,11 @@ func TestE2EResponseLossConvergence(t *testing.T) {
 	if mg2.str("disposition") != "already-merged" {
 		t.Fatalf("merge rerun disposition = %q (want already-merged)\n%s", mg2.str("disposition"), mg2.stdout)
 	}
-	if mergeCommits := countMergeCommits(t, s.repo.origin, "main"); mergeCommits != 1 {
-		t.Fatalf("response-loss rerun duplicated the merge: %d merge commits on the integration branch, want 1", mergeCommits)
+	if mc := mergeCommitField(t, mg2); mc != landedMerge {
+		t.Fatalf("response-loss rerun reported a different merge commit %s, want the landed %s", mc, landedMerge)
+	}
+	if after := runGit(t, s.repo.origin, "rev-parse", "refs/heads/main"); after != landedBaseTip {
+		t.Fatalf("response-loss rerun advanced the base tip %s -> %s: the merge was issued twice", landedBaseTip, after)
 	}
 
 	// Closeout converges to a single true done state.
@@ -1044,6 +1054,170 @@ func TestE2EResponseLossConvergence(t *testing.T) {
 func withFault(env []string, verb, mode string) []string {
 	env = scrub(env, "FAKE_GH_FAULT_VERB", "FAKE_GH_FAULT")
 	return append(env, "FAKE_GH_FAULT_VERB="+verb, "FAKE_GH_FAULT="+mode)
+}
+
+// --- TestE2EMergeMethodShapes ---------------------------------------------
+
+// These four tests drive the full argv finalize preamble and then `finalize
+// merge` under each merge-method policy the fake gh exposes through
+// FAKE_GH_REPO_SETTINGS, proving that finalize selects the best permitted
+// method (rebase -> merge commit -> squash), lands the REAL corresponding graph
+// shape on the origin base, and verifies the merge WITHOUT any two-parent
+// assumption: every reachability proof is `merge-base --is-ancestor
+// <merge_commit> <freshly-read base tip>`, which holds for a single-parent
+// rebase chain, a single-parent squash commit, and a two-parent merge commit
+// alike. The all-false policy is refused `blocked / merge-method-unavailable`
+// with the origin base tip and the PR state provably unmoved.
+
+// withRepoSettings returns a copy of env with the fake gh repository merge-method
+// settings JSON knob set (or cleared when body is ""). Absent, the fake enables
+// all three methods, so the default finalize path selects rebase.
+func withRepoSettings(env []string, body string) []string {
+	env = scrub(env, "FAKE_GH_REPO_SETTINGS")
+	if body == "" {
+		return env
+	}
+	return append(env, "FAKE_GH_REPO_SETTINGS="+body)
+}
+
+// mergeCommitField reads the merge document's verified merge_commit oid, failing
+// if the applied merge carried no reachable merge object.
+func mergeCommitField(t *testing.T, mg dkResult) string {
+	t.Helper()
+	merge, _ := mg.doc["merge"].(map[string]any)
+	if merge == nil {
+		t.Fatalf("merge document carries no merge object:\n%s", mg.stdout)
+	}
+	mc, _ := merge["merge_commit"].(string)
+	if mc == "" {
+		t.Fatalf("merge document carries no merge_commit oid:\n%s", mg.stdout)
+	}
+	return mc
+}
+
+// assertMergeReachable proves the reported merge commit is reachable from the
+// freshly-read origin base tip — the graph-shape-independent verification the
+// spec mandates (no two-parent or head-equality requirement).
+func assertMergeReachable(t *testing.T, s *e2eState, mg dkResult) string {
+	t.Helper()
+	mc := mergeCommitField(t, mg)
+	baseTip := runGit(t, s.repo.origin, "rev-parse", "refs/heads/main")
+	if _, err := tryGit(s.repo.origin, "merge-base", "--is-ancestor", mc, baseTip); err != nil {
+		t.Errorf("merge commit %s not reachable from origin base tip %s: %v", mc, baseTip, err)
+	}
+	return mc
+}
+
+// TestE2EMergeSelectsRebaseShape: the default all-enabled policy selects rebase.
+// The document reports method "rebase", the merge commit is reachable, and the
+// origin base carries ZERO new merge commits — a single-parent chain — proving
+// the shape POSITIVELY without the verification depending on it.
+func TestE2EMergeSelectsRebaseShape(t *testing.T) {
+	t.Parallel()
+	requireRealGit(t)
+	docketBin, ghBin := sharedBinaries(t)
+	m := planRepoModes()[1] // docket mode: deterministic no-op rebase preamble.
+	s := reachImplemented(t, m, docketBin, ghBin)
+
+	head, version := rebaseAndPublish(t, s)
+	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--version", version, "--head", head)
+	if mg.result() != "applied" {
+		t.Fatalf("finalize merge = %q\n%s", mg.result(), mg.stdout)
+	}
+	if method := mg.str("method"); method != "rebase" {
+		t.Fatalf("selected method = %q, want rebase\n%s", method, mg.stdout)
+	}
+	assertMergeReachable(t, s, mg)
+	if n := countMergeCommits(t, s.repo.origin, "main"); n != 0 {
+		t.Errorf("rebase selection produced %d merge commits on the base, want 0 (single-parent chain)", n)
+	}
+}
+
+// TestE2EMergeCommitShape: rebase disabled, merge+squash enabled selects the
+// merge commit. The document reports method "merge", exactly one merge commit
+// lands on the base, and it is reachable.
+func TestE2EMergeCommitShape(t *testing.T) {
+	t.Parallel()
+	requireRealGit(t)
+	docketBin, ghBin := sharedBinaries(t)
+	m := planRepoModes()[1]
+	s := reachImplemented(t, m, docketBin, ghBin)
+	s.env = withRepoSettings(s.env, `{"allow_rebase_merge":false,"allow_merge_commit":true,"allow_squash_merge":true}`)
+
+	head, version := rebaseAndPublish(t, s)
+	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--version", version, "--head", head)
+	if mg.result() != "applied" {
+		t.Fatalf("finalize merge = %q\n%s", mg.result(), mg.stdout)
+	}
+	if method := mg.str("method"); method != "merge" {
+		t.Fatalf("selected method = %q, want merge\n%s", method, mg.stdout)
+	}
+	assertMergeReachable(t, s, mg)
+	if n := countMergeCommits(t, s.repo.origin, "main"); n != 1 {
+		t.Errorf("merge-commit selection produced %d merge commits on the base, want exactly 1", n)
+	}
+}
+
+// TestE2ESquashOnlyShape: squash-only policy selects the last-priority fallback.
+// The document reports method "squash", the base tip is a single-parent commit
+// (zero merge commits), it is NOT the original PR head, and it is reachable.
+func TestE2ESquashOnlyShape(t *testing.T) {
+	t.Parallel()
+	requireRealGit(t)
+	docketBin, ghBin := sharedBinaries(t)
+	m := planRepoModes()[1]
+	s := reachImplemented(t, m, docketBin, ghBin)
+	s.env = withRepoSettings(s.env, `{"allow_rebase_merge":false,"allow_merge_commit":false,"allow_squash_merge":true}`)
+
+	head, version := rebaseAndPublish(t, s)
+	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--version", version, "--head", head)
+	if mg.result() != "applied" {
+		t.Fatalf("finalize merge = %q\n%s", mg.result(), mg.stdout)
+	}
+	if method := mg.str("method"); method != "squash" {
+		t.Fatalf("selected method = %q, want squash\n%s", method, mg.stdout)
+	}
+	mc := assertMergeReachable(t, s, mg)
+	if n := countMergeCommits(t, s.repo.origin, "main"); n != 0 {
+		t.Errorf("squash selection produced %d merge commits on the base, want 0 (single-parent commit)", n)
+	}
+	if mc == head {
+		t.Errorf("squash merge commit equals the original PR head %s; it must be a distinct commit", head)
+	}
+}
+
+// TestE2EMergeMethodUnavailable: an all-false policy leaves no permitted method.
+// finalize refuses `blocked / merge-method-unavailable` BEFORE any merge — the
+// document carries no `method` key, the PR is still OPEN in the fake state, and
+// the origin base tip is unmoved (zero merge commands proven by effect, not by
+// the absence of logging).
+func TestE2EMergeMethodUnavailable(t *testing.T) {
+	t.Parallel()
+	requireRealGit(t)
+	docketBin, ghBin := sharedBinaries(t)
+	m := planRepoModes()[1]
+	s := reachImplemented(t, m, docketBin, ghBin)
+	s.env = withRepoSettings(s.env, `{"allow_rebase_merge":false,"allow_merge_commit":false,"allow_squash_merge":false}`)
+
+	head, version := rebaseAndPublish(t, s)
+	baseBefore := runGit(t, s.repo.origin, "rev-parse", "refs/heads/main")
+
+	mg := s.dk(t, "", "finalize", "merge", "--id", strconv.Itoa(s.id), "--version", version, "--head", head)
+	if mg.result() != "blocked" {
+		t.Fatalf("finalize merge under empty policy = %q, want blocked\n%s", mg.result(), mg.stdout)
+	}
+	if r := mg.str("reason"); r != "merge-method-unavailable" {
+		t.Fatalf("blocked reason = %q, want merge-method-unavailable\n%s", r, mg.stdout)
+	}
+	if _, ok := mg.doc["method"]; ok {
+		t.Errorf("a pre-effect refusal reported a merge method; the document must omit it:\n%s", mg.stdout)
+	}
+	if st := fakeGHPRState(t, s.stateFile); st != "OPEN" {
+		t.Errorf("the refused merge changed the PR state to %q; it must stay OPEN", st)
+	}
+	if after := runGit(t, s.repo.origin, "rev-parse", "refs/heads/main"); after != baseBefore {
+		t.Errorf("the refused merge moved the origin base tip: %s -> %s (a merge command ran)", baseBefore, after)
+	}
 }
 
 // --- TestE2EHaltResumeAndReclaim ------------------------------------------
@@ -1661,7 +1835,24 @@ func main() {
 			fmt.Fprintln(os.Stderr, "fake gh: merge denied by branch protection")
 			os.Exit(1)
 		}
-		doMerge(argNumber(args), flagVal(args, "--match-head-commit"))
+		// Exactly one of the three method flags must be present: finalize selects
+		// one method and attempts only it, so a merge with none or several is a
+		// protocol error, not a permissive default.
+		method := ""
+		for _, f := range []string{"--rebase", "--merge", "--squash"} {
+			if hasFlag(args, f) {
+				if method != "" {
+					fmt.Fprintln(os.Stderr, "fake gh: pr merge carries multiple method flags")
+					os.Exit(64)
+				}
+				method = f
+			}
+		}
+		if method == "" {
+			fmt.Fprintln(os.Stderr, "fake gh: pr merge without a method flag")
+			os.Exit(64)
+		}
+		doMerge(argNumber(args), flagVal(args, "--match-head-commit"), method)
 		if faultMode("merge") == "loss" {
 			fmt.Fprintln(os.Stderr, "fake gh: injected merge transport loss")
 			os.Exit(1)
@@ -1672,9 +1863,15 @@ func main() {
 	os.Exit(64)
 }
 
-// doMerge performs a real merge commit on the origin base branch when the PR is
-// open at the expected head, records the merged facts, and is idempotent.
-func doMerge(number int, matchHead string) {
+// doMerge lands the REAL graph shape for the selected method on the origin base
+// branch when the PR is open at the expected head, records the merged facts, and
+// is idempotent. The method flag governs the shape: "--merge" writes a two-parent
+// merge commit, "--squash" a single-parent commit carrying the head tree, and
+// "--rebase" a single-parent chain of one commit per feature commit not on the
+// base. Whichever shape lands is recorded as MergeCommit; the destination base
+// ref is fast-forwarded to it, so the adapter's reachability proof runs against
+// genuine Git objects regardless of parent count.
+func doMerge(number int, matchHead, method string) {
 	list := load()
 	i := find(list, number)
 	if i < 0 {
@@ -1695,7 +1892,36 @@ func doMerge(number int, matchHead string) {
 	if err != nil {
 		os.Exit(1)
 	}
-	mc, err := git("commit-tree", tree, "-p", baseTip, "-p", head, "-m", "Merge pull request #"+strconv.Itoa(number))
+	var mc string
+	switch method {
+	case "--merge":
+		mc, err = git("commit-tree", tree, "-p", baseTip, "-p", head, "-m", "Merge pull request #"+strconv.Itoa(number))
+	case "--squash":
+		mc, err = git("commit-tree", tree, "-p", baseTip, "-m", "squash merge PR #"+strconv.Itoa(number))
+	case "--rebase":
+		// One rebased commit per feature commit not on base; single-parent chain.
+		revs, rerr := git("rev-list", "--reverse", baseTip+".."+head)
+		if rerr != nil {
+			os.Exit(1)
+		}
+		tip := baseTip
+		for _, rev := range strings.Fields(revs) {
+			rtree, terr := git("rev-parse", rev+"^{tree}")
+			if terr != nil {
+				os.Exit(1)
+			}
+			tip, terr = git("commit-tree", rtree, "-p", tip, "-m", "rebased "+rev)
+			if terr != nil {
+				os.Exit(1)
+			}
+		}
+		mc = tip
+		if mc == baseTip {
+			os.Exit(1) // nothing to rebase: refuse rather than fake
+		}
+	default:
+		os.Exit(64)
+	}
 	if err != nil {
 		os.Exit(1)
 	}
