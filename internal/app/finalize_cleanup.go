@@ -361,7 +361,7 @@ func finalizeCleanupBacklinkRepair(ctx context.Context, deps FinalizeDeps, cc *c
 		Repository: cc.repo,
 		Remote:     originRemote,
 		TargetRef:  gitcli.RefName(branchRefPrefix + cc.integrationBranch),
-		Loader:     newPlanningLoader(cc.eff),
+		Loader:     newBacklinkArtifactLoader(backlinkTargets),
 		Operation:  op,
 	})
 	// Best-effort secondary leg: it surfaces only the coarse result token, not the

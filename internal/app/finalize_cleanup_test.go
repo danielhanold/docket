@@ -544,3 +544,61 @@ func planRepoModeDocket() planRepoMode {
 	}
 	panic("docket mode not found")
 }
+
+// --- TestCleanupBacklinkRepairIgnoresUnrelatedCorpusErrors ----------------
+
+// TestCleanupBacklinkRepairIgnoresUnrelatedCorpusErrors is the 0337 sweep
+// self-heal proof: a change closed out while the bug was live left stale
+// active-path backlinks on the integration branch, which ALSO carries an
+// unrelated malformed corpus record. The next cleanup must land the retarget
+// anyway — the repair leg's gate is scoped to the artifacts it patches.
+func TestCleanupBacklinkRepairIgnoresUnrelatedCorpusErrors(t *testing.T) {
+	requireRealGit(t)
+	f := setupCloseoutFixture(t, planRepoModeDocket())
+	head, mergeCommit := f.archiveClosed(t)
+
+	// archiveClosed advanced origin/main via the closeout backlink leg, leaving
+	// the writer clone's local main behind; sync it so the fixture advance below
+	// fast-forwards rather than being rejected as non-fast-forward.
+	runGit(t, f.repo.writer, "fetch", "-q", "origin", "main")
+	runGit(t, f.repo.writer, "reset", "--hard", "origin/main")
+
+	// Recreate the stuck state on the integration branch: revert both artifacts
+	// to stale active-path backlinks AND plant the unrelated malformed record.
+	recPath := groomPath(f.id, f.slug)
+	f.repo.writerAdvance(t, "main", map[string]string{
+		f.planPath:    artifactWithBacklink(recPath, "Plan", "The widget plan."),
+		f.resultsPath: artifactWithBacklink(recPath, "Results", "The widget results."),
+		"docs/adrs/0099-malformed.md": "---\n" +
+			"id: 99\n" +
+			"title: uses `context: fork` dispatch\n" +
+			"status: Accepted\n" +
+			"date: 2026-08-22\n" +
+			"---\n\n# 99. Malformed on purpose\n",
+	})
+
+	gh := f.mergedCleanupFake(head, mergeCommit)
+	res := FinalizeCleanup(context.Background(), f.cleanupDeps(gh, f.deps.Client, f.svc), f.repo.invocation, f.id)
+	for _, fd := range res.Findings {
+		if fd.Code == ReasonCleanupBacklinkPending {
+			t.Fatalf("unrelated corpus error refused the cleanup repair leg: %+v", fd)
+		}
+	}
+	if res.Disposition != CleanupDispCleaned {
+		t.Fatalf("cleanup disposition = %q (reason %q msg %q), want %q",
+			res.Disposition, res.Reason, res.Message, CleanupDispCleaned)
+	}
+	// The stale backlinks were re-pointed at the archive path.
+	for _, p := range []string{f.planPath, f.resultsPath} {
+		got, ok := originFile(t, f.repo.origin, "main", p)
+		if !ok {
+			t.Fatalf("artifact %q vanished from main", p)
+		}
+		if strings.Contains(got, recPath) {
+			t.Errorf("artifact %q still backlinks the stale active path %q:\n%s", p, recPath, got)
+		}
+		if !strings.Contains(got, "docs/changes/archive/") {
+			t.Errorf("artifact %q does not backlink an archive path:\n%s", p, got)
+		}
+	}
+}
