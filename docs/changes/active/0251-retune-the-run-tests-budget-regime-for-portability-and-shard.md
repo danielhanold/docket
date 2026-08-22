@@ -20,7 +20,7 @@ branch: 'feat/retune-the-run-tests-budget-regime-for-portability-and-shard'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-22T18:22:58Z'
+claimed_at: '2026-08-22T18:23:34Z'
 ---
 
 ## Artifacts
