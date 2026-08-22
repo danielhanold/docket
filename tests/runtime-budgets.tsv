@@ -320,6 +320,7 @@ tests/test_render_learnings_index.sh	10	parallel
 tests/test_results_artifact.sh	10	parallel
 tests/test_role_skill_self_description.sh	10	parallel
 tests/test_run_tests.sh	30	parallel
+tests/test_run_tests_budget_state.sh	10	parallel
 tests/test_runner_cursor.sh	10	parallel
 tests/test_runner_dispatch.sh	20	parallel
 tests/test_runner_dispatch_build_gate.sh	10	parallel
