@@ -298,6 +298,89 @@ state_write(){   # full replacement via temp-beside-destination + atomic rename;
   mv -f "$tmpf" "$STATE_FILE" || { rm -f "$tmpf"; STATE_USABLE=0; return 1; }
 }
 
+# ---- execution-context key + qualifying-overrun state machine (change 0251) ---------------------
+# A parallel measurement is a SCREENING observation, tracked per test AND execution context — never
+# an authoritative breach (spec "Reporting": a parallel screen crossing is never labeled OVER
+# BUDGET). The key embeds every dimension that makes two measurements incomparable (spec
+# "Execution-context isolation"): a -j16 contention profile says nothing about -j4, and a ceiling or
+# mode change starts a fresh record rather than reinterpreting an old one. Ceiling/mode/schema
+# changes therefore invalidate through the key ITSELF — a changed component is simply a different
+# key, so the old record is neither read nor advanced.
+CTX_CPUS="$(cpu_count)"; CTX_OS="$(uname -s)"; CTX_ARCH="$(uname -m)"
+context_key(){  # context_key <test-path> <ceiling> <mode>
+  printf '%s|j%s|c%s|%s|%s|b%s|m%s|s%s' "$1" "$JOBS" "$CTX_CPUS" "$CTX_OS" "$CTX_ARCH" "$2" "$3" "$BS_SCHEMA"
+}
+
+# apply_screen_observations: fold this run's parallel-executed measurements (collected into the
+# PE_* arrays during the report loop) into the loaded BS_* state. Called ONLY on a qualifying run,
+# under the lock, between state_load and state_write. Spec "Initial confirmation trigger" +
+# "Periodic revalidation":
+#   overrun (parallel_time > ceiling * 5/2):
+#     unobserved/watching        -> initial streak +1 (a consecutive-evidence counter)
+#     parallel-sensitive/breach  -> overruns_since_confirmation +1 (accumulated, not consecutive)
+#   below threshold (a "clean" qualifying measurement):
+#     unobserved/watching        -> initial streak resets to 0 (the asymmetry is deliberate)
+#     parallel-sensitive/breach  -> since-counter is neither incremented NOR reset (spec tests 7/8)
+# A record first becomes due (streak reaches 5, or since reaches 10) is stamped with a monotonic
+# due_sequence for the confirmation scheduler's tie-break (Task 4 consumes it). A clean file with no
+# prior record has no history worth a row.
+apply_screen_observations(){
+  local i t ceil secs over k st streak since lp ls cr ds
+  for i in "${!PE_PATH[@]}"; do
+    t="${PE_PATH[$i]}"; ceil="${PE_CEIL[$i]}"; secs="${PE_SECS[$i]}"; over="${PE_OVER[$i]}"
+    k="$(context_key "$t" "$ceil" parallel)"
+    [ "$over" = 1 ] || [ -n "${BS_STATE[$k]:-}" ] || continue   # clean + no record: nothing to track
+    st="${BS_STATE[$k]:-unobserved}"; streak="${BS_STREAK[$k]:-0}"; since="${BS_SINCE[$k]:-0}"
+    lp="$secs"; ls="${BS_LASTSOLO[$k]:--}"; cr="${BS_CONFRES[$k]:--}"; ds="${BS_DUESEQ[$k]:--}"
+    if [ "$over" = 1 ]; then
+      case "$st" in
+        unobserved|watching)
+          st=watching; streak=$((streak + 1))
+          if [ "$streak" -ge 5 ] && [ "$ds" = "-" ]; then ds="$BS_NEXT_SEQ"; BS_NEXT_SEQ=$((BS_NEXT_SEQ + 1)); fi ;;
+        parallel-sensitive|confirmed-breach)
+          since=$((since + 1))
+          if [ "$since" -ge 10 ] && [ "$ds" = "-" ]; then ds="$BS_NEXT_SEQ"; BS_NEXT_SEQ=$((BS_NEXT_SEQ + 1)); fi ;;
+      esac
+    else
+      case "$st" in
+        unobserved|watching) streak=0 ;;
+        # parallel-sensitive/confirmed-breach: leave the since-counter exactly where it was.
+      esac
+    fi
+    BS_STATE[$k]="$st"; BS_STREAK[$k]="$streak"; BS_SINCE[$k]="$since"
+    BS_LASTPAR[$k]="$lp"; BS_LASTSOLO[$k]="$ls"; BS_CEIL[$k]="$ceil"
+    BS_CONFRES[$k]="$cr"; BS_DUESEQ[$k]="$ds"; BS_PATHOF[$k]="$t"
+  done
+}
+
+# emit_screen_report: print one classification line per CURRENT candidate (a parallel-executed test
+# that crossed the screening threshold this run), in LC_ALL=C path order, reading the just-updated
+# BS_* state. Spec "Reporting" label spellings are exact. Task 4 adds the SERIAL CONFIRMATION lines.
+emit_screen_report(){
+  local i rec t idx ceil secs k st streak since ls
+  local -a rows=() sorted=()
+  for i in "${!PE_PATH[@]}"; do
+    [ "${PE_OVER[$i]}" = 1 ] || continue
+    rows+=("${PE_PATH[$i]}"$'\t'"$i")
+  done
+  [ "${#rows[@]}" -gt 0 ] || return 0
+  mapfile -t sorted < <(printf '%s\n' "${rows[@]}" | LC_ALL=C sort -t$'\t' -k1,1)
+  for rec in "${sorted[@]}"; do
+    t="${rec%%$'\t'*}"; idx="${rec##*$'\t'}"
+    ceil="${PE_CEIL[$idx]}"; secs="${PE_SECS[$idx]}"
+    k="$(context_key "$t" "$ceil" parallel)"
+    st="${BS_STATE[$k]:-unobserved}"; streak="${BS_STREAK[$k]:-0}"; since="${BS_SINCE[$k]:-0}"; ls="${BS_LASTSOLO[$k]:--}"
+    case "$st" in
+      parallel-sensitive|confirmed-breach)
+        printf 'PARALLEL-SENSITIVE: %s — %ss under -j%s; last solo measurement %ss; recheck progress %s/10\n' \
+          "$t" "$secs" "$JOBS" "$ls" "$since" ;;
+      *)
+        printf 'BUDGET WATCH: %s — %ss under -j%s; consecutive parallel-overrun streak %s/5\n' \
+          "$t" "$secs" "$JOBS" "$streak" ;;
+    esac
+  done
+}
+
 # ---- ordering: longest budget first, so the tail starts immediately ----------------------------
 PAR=(); SER=()
 for t in "${TARGETS[@]}"; do
@@ -412,6 +495,9 @@ SUITE_WALL=$(( $(date +%s) - SUITE_START ))
 # ---- report: deterministic, sorted by basename, independent of completion order ----------------
 files=0; passed=0; failed=0; asserts=0; overbudget=0; noresult=0
 failed_names=""; over_names=""; noresult_names=""
+# Parallel-executed measurements this run, collected for the post-report screening state machine
+# (change 0251): path, ceiling, injected/measured seconds, and whether the screen threshold crossed.
+PE_PATH=(); PE_CEIL=(); PE_SECS=(); PE_OVER=()
 
 mapfile -t ORDERED < <(
   for t in "${TARGETS[@]}"; do printf '%s\t%s\n' "${t##*/}" "$t"; done |
@@ -439,9 +525,19 @@ for t in "${ORDERED[@]}"; do
   fi
   files=$((files + 1)); asserts=$((asserts + p + f))
   ceil="$(ceiling_of "$t")"
+  fmode="$(mode_of "$t")"
   over=0
-  if [ "$BUDGET_CHECK" = 1 ] && [ $((secs * SLACK_DEN)) -gt $((ceil * SLACK_NUM)) ]; then
-    over=1; overbudget=$((overbudget + 1)); over_names="$over_names $base"
+  # Budget classification splits on JOBS (change 0251). The parallel path NEVER labels a crossing
+  # OVER BUDGET — a contended measurement is only a screening observation (spec "Reporting"); it is
+  # collected here and classified by the post-report state machine. The direct OVER BUDGET verdict
+  # survives solely on the uncontended -j 1 path (Task 5 retunes its threshold to 3/2).
+  if [ "$BUDGET_CHECK" = 1 ] && [ "$JOBS" -eq 1 ]; then
+    if [ $((secs * SLACK_DEN)) -gt $((ceil * SLACK_NUM)) ]; then
+      over=1; overbudget=$((overbudget + 1)); over_names="$over_names $base"
+    fi
+  elif [ "$BUDGET_CHECK" = 1 ] && [ "$JOBS" -gt 1 ] && [ "$fmode" = parallel ]; then
+    PE_PATH+=("$t"); PE_CEIL+=("$ceil"); PE_SECS+=("$secs")
+    if [ "$rc" = 0 ] && [ $((secs * SLACK_DEN)) -gt $((ceil * SLACK_NUM)) ]; then PE_OVER+=(1); else PE_OVER+=(0); fi
   fi
   if [ "$rc" = 0 ]; then passed=$((passed + 1)); else failed=$((failed + 1)); failed_names="$failed_names $base"; fi
   printf '%-52s %4ss  rc=%s  ok=%-5s notok=%-4s%s\n' "$base" "$secs" "$rc" "$p" "$f" \
@@ -487,18 +583,29 @@ if [ -n "$over_names" ]; then
 fi
 
 # ---- budget-state application (change 0251) -------------------------------------------------
-# Task 2 placeholder: exercise the store's lock/load/write path so its mechanics are covered end to
-# end. Task 3 replaces this with the qualifying-run state machine (its "Screening" apply logic).
+# Only a QUALIFYING parallel overrun advances persistent state (spec "Qualifying parallel
+# overrun"): budget checking on, the default discovered corpus (not a targeted subset), JOBS > 1,
+# the whole suite green (no failed file), and every requested test produced a result. Red,
+# incomplete, interrupted (which exits above, before ever reaching here), targeted, and
+# --no-budget-check runs neither advance nor reset counters — and --no-budget-check does not even
+# READ history, since the whole block is gated below its BUDGET_CHECK=1 conjunct.
+#
 # Fail-open throughout — an empty or unusable path, an unacquirable lock, or a failed write never
 # changes the run's verdict, and this block sits BELOW the exit-affecting report so it cannot.
-if [ "$BUDGET_CHECK" = 1 ]; then
+RUN_QUALIFYING=0
+if [ "$DEFAULT_CORPUS" = 1 ] && [ "$JOBS" -gt 1 ] && [ "$BUDGET_CHECK" = 1 ] \
+   && [ "$failed" -eq 0 ] && [ "$noresult" -eq 0 ]; then RUN_QUALIFYING=1; fi
+
+if [ "$RUN_QUALIFYING" = 1 ]; then
   if [ -z "$STATE_FILE" ] || ! mkdir -p "$(dirname "$STATE_FILE")" 2>/dev/null; then
     STATE_USABLE=0
     printf 'run-tests: budget state unavailable — running without budget history.\n' >&2
   elif state_lock; then
     state_load
+    apply_screen_observations
     state_write
     state_unlock
+    emit_screen_report
   fi
 fi
 

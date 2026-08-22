@@ -107,5 +107,114 @@ s27c_rc=0; s27c_all="$(run_rt "$tmp/s27" "$tmp/s27.tsv" "$tmp/s27.durs" /dev/ful
 assert "store: an unusable state path never blocks the run, and the report says so" \
   '[ "$s27c_rc" -eq 0 ] && grep -qiE "without (budget )?history" <<<"$s27c_all"'
 
+# =========================================================================================
+# Task 3 (change 0251): parallel screening + qualifying-overrun state machine
+# =========================================================================================
+# The recurring fixture: one file test_slow.sh, ceiling 10, injected parallel duration 99
+# (99 > 10 * 5/2, so every "over" run crosses the screening threshold), solo 1. A "clean" run
+# injects parallel 1. All runs are -j 2 default-corpus via run_rt unless stated otherwise.
+
+# overrun_n <n> <suite> <budgets> <durs> <state> [runner args...] : run N runs against one
+# persistent state file; returns the LAST run's stdout.
+overrun_n(){ local n="$1" suite="$2" budgets="$3" durs="$4" state="$5"; shift 5
+  local i out; for ((i=0; i<n; i++)); do out="$(run_rt "$suite" "$budgets" "$durs" "$state" "$@")"; done
+  printf '%s' "$out"; }
+
+mk_suite "$tmp/sm" test_slow.sh
+mk_budgets "$tmp/sm.tsv" "test_slow.sh 10 parallel"
+mk_durations "$tmp/sm.over" "test_slow.sh 99 1"
+mk_durations "$tmp/sm.clean" "test_slow.sh 1 1"
+
+# ---- spec test 1: four consecutive qualifying overruns trigger no confirmation ----------
+sm1_out="$(overrun_n 4 "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/sm1.state")"
+assert "1: the fourth overrun reports a WATCH, not a confirmation" \
+  'grep -qE "^BUDGET WATCH: .*test_slow\.sh.*streak 4/5" <<<"$sm1_out"'
+assert "1: no solo confirmation ran in the first four overruns" \
+  '! grep -qE "SERIAL CONFIRM" <<<"$sm1_out"'
+assert "1: a parallel screen crossing is never labeled OVER BUDGET" \
+  '! grep -qF "OVER BUDGET" <<<"$sm1_out"'
+assert "1: the overrun run still exits 0 (advisory)" \
+  'run_rt "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.clean" "$tmp/throwaway.state" >/dev/null'
+
+# ---- spec test 3: a qualifying clean result resets the initial streak -------------------
+overrun_n 4 "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/sm3.state" >/dev/null
+run_rt "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.clean" "$tmp/sm3.state" >/dev/null   # clean qualifying run
+sm3_out="$(run_rt "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/sm3.state")"
+assert "3: a clean qualifying run reset the streak (next overrun reads 1/5)" \
+  'grep -qE "streak 1/5" <<<"$sm3_out"'
+
+# ---- spec tests 9/10/11/13: non-qualifying runs mutate nothing --------------------------
+freeze_check(){ # freeze_check <label> <state-file> <run...>: state bytes identical across the run
+  local label="$1" st="$2"; shift 2
+  local before after; before="$(cat "$st" 2>/dev/null || true)"
+  "$@" >/dev/null 2>&1 || true
+  after="$(cat "$st" 2>/dev/null || true)"
+  assert "$label" '[ "$before" = "$after" ]'; }
+overrun_n 2 "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/smf.state" >/dev/null
+freeze_check "9: a targeted run does not mutate history" "$tmp/smf.state" \
+  run_rt "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/smf.state" "$tmp/sm/test_slow.sh"
+mk_red "$tmp/sm" test_red.sh
+freeze_check "10: a red suite run does not mutate history" "$tmp/smf.state" \
+  run_rt "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/smf.state"
+rm -f "$tmp/sm/test_red.sh"
+freeze_check "13: --no-budget-check neither reads nor writes history" "$tmp/smf.state" \
+  run_rt "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/smf.state" --no-budget-check
+# test 11 (missing result): a fixture that kills its own process subtree — the job records no
+# healthy result, so the suite is not green and the run does not qualify.
+printf '#!/usr/bin/env bash\nkill -9 $$\n' > "$tmp/sm/test_dies.sh"
+freeze_check "11: a run with a missing result does not mutate history" "$tmp/smf.state" \
+  run_rt "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/smf.state"
+rm -f "$tmp/sm/test_dies.sh"
+
+# ---- spec test 12: interrupted runs mutate nothing --------------------------------------
+# Behavioral (spec-preferred): the interrupt handler exits BEFORE the report loop, so state
+# application is never reached. Start a run whose only fixture blocks after signalling that it
+# started, signal the runner directly, and confirm the (empty) state file was never written.
+# SIGTERM, not SIGINT: this runner is BACKGROUNDED from a non-interactive shell, and bash sets
+# SIGINT to ignored in async children — an ignored-on-entry signal cannot be trapped, so the
+# runner's INT trap would be a no-op here. SIGTERM is not auto-ignored and the runner's on_signal
+# handles TERM identically (exit 143), so it exercises the same "exit before the report" path.
+mk_suite "$tmp/sint" _placeholder.sh; rm -f "$tmp/sint/_placeholder.sh"
+printf '#!/usr/bin/env bash\ntouch "%s"\nexec sleep 3\n' "$tmp/sint.started" > "$tmp/sint/test_slow.sh"
+mk_budgets "$tmp/sint.tsv" "test_slow.sh 10 parallel"
+mk_durations "$tmp/sint.durs" "test_slow.sh 99 1"
+sint_before="$(cat "$tmp/sint.state" 2>/dev/null || true)"   # no file yet -> empty
+rm -f "$tmp/sint.started"
+DOCKET_RUNTESTS_TESTS_DIR="$tmp/sint" DOCKET_RUNTESTS_TEST_DURATIONS="$tmp/sint.durs" \
+  bash "$RUNNER" --budgets "$tmp/sint.tsv" --budget-state "$tmp/sint.state" -j 2 >/dev/null 2>&1 &
+sint_pid=$!
+for _i in $(seq 1 50); do [ -f "$tmp/sint.started" ] && break; sleep 0.1; done
+kill -TERM "$sint_pid" 2>/dev/null
+wait "$sint_pid" 2>/dev/null
+sint_after="$(cat "$tmp/sint.state" 2>/dev/null || true)"
+assert "12: an interrupted run does not mutate persistent history" \
+  '[ "$sint_before" = "$sint_after" ]'
+
+# ---- spec test 17: -j values keep independent histories ---------------------------------
+overrun_n 3 "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/sm17.state" >/dev/null       # -j 2
+sm17_out="$(run_rt "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/sm17.state" -j 3)"    # -j 3
+assert "17: a -j 3 overrun starts its own streak at 1/5" 'grep -qE "streak 1/5" <<<"$sm17_out"'
+sm17b_out="$(run_rt "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/sm17.state")"        # back to -j 2
+assert "17: the -j 2 history was neither advanced nor consumed by the -j 3 run" \
+  'grep -qE "streak 4/5" <<<"$sm17b_out"'
+
+# ---- spec test 18: a ceiling change invalidates the record ------------------------------
+overrun_n 3 "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/sm18.state" >/dev/null
+mk_budgets "$tmp/sm18b.tsv" "test_slow.sh 20 parallel"     # ceiling moved 10 -> 20; 99 > 50 still qualifies
+sm18_out="$(run_rt "$tmp/sm" "$tmp/sm18b.tsv" "$tmp/sm.over" "$tmp/sm18.state")"
+assert "18: a ceiling change starts a fresh record (streak 1/5)" 'grep -qE "streak 1/5" <<<"$sm18_out"'
+
+# ---- spec test 19: a mode change does not advance the parallel-context record -----------
+# The discriminating assert (not the plan's illustrative `[ 1 = 1 ]`): a serial-mode budget
+# means the file is not parallel-executed, so a serial run must not touch the parallel-context
+# streak. Seed 3 parallel overruns (streak 3), interpose one serial-mode run, then one parallel
+# overrun — the streak must read 4/5 (unpolluted continuation), never 5/5.
+overrun_n 3 "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/sm19.state" >/dev/null       # parallel streak 3
+mk_budgets "$tmp/sm19s.tsv" "test_slow.sh 10 serial"
+run_rt "$tmp/sm" "$tmp/sm19s.tsv" "$tmp/sm.over" "$tmp/sm19.state" >/dev/null         # serial-mode run
+sm19_out="$(run_rt "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/sm19.state")"         # parallel overrun again
+assert "19: a serial-mode run did not advance the parallel-context streak (continues at 4/5)" \
+  'grep -qE "streak 4/5" <<<"$sm19_out"'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
