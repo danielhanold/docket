@@ -343,7 +343,9 @@ apply_screen_observations(){
       esac
     else
       case "$st" in
-        unobserved|watching) streak=0 ;;
+        # Resetting the streak drops any stale due stamp with it: a watching record whose streak
+        # falls back below five is no longer due for its first confirmation (change 0251, Task 4).
+        unobserved|watching) streak=0; ds="-" ;;
         # parallel-sensitive/confirmed-breach: leave the since-counter exactly where it was.
       esac
     fi
@@ -379,6 +381,119 @@ emit_screen_report(){
           "$t" "$secs" "$JOBS" "$streak" ;;
     esac
   done
+}
+
+# solo_confirm: re-run ONE test file serially, in a fresh sandbox that mirrors launch()'s, to get an
+# uncontended (solo) measurement (spec "Scheduled solo confirmation"). It writes into $WORK/solo/ so
+# the parallel run's own stat/log records stay the SOLE authority for results, asserts, and logs
+# (spec test 29). It exports DOCKET_RUNTESTS_SOLO=1 so a test can tell its confirmation apart from
+# its parallel execution. Sets SOLO_RC and SOLO_SECS; the injection seam's SOLO duration is column 3.
+# A confirmation never alters the suite pass/fail verdict — the caller reads SOLO_RC only to classify.
+SOLO_RC=0; SOLO_SECS=0
+solo_confirm(){  # solo_confirm <test-path>
+  local t="$1" base solodir start end rc secs inj
+  base="${t##*/}"; base="${base%.sh}"
+  solodir="$WORK/solo/$base"
+  rm -rf "$solodir"; mkdir -p "$solodir/home/.config" "$solodir/tmp"
+  start=$(date +%s)
+  (
+    # Sandbox mirrors launch()'s: isolated HOME/TMPDIR/git config, no interactive prompts, so the
+    # confirmation execution is as hermetic as the parallel one it re-measures.
+    export HOME="$solodir/home"
+    export TMPDIR="$solodir/tmp"
+    export XDG_CONFIG_HOME="$solodir/home/.config"
+    export GIT_CONFIG_GLOBAL="$solodir/home/.gitconfig"
+    export GIT_CONFIG_SYSTEM="$solodir/home/.gitconfig-system"
+    : > "$GIT_CONFIG_SYSTEM"
+    printf '[user]\n\tname = docket test\n\temail = test@docket.invalid\n[init]\n\tdefaultBranch = main\n' \
+      > "$GIT_CONFIG_GLOBAL"
+    export GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=true GIT_EDITOR=true EDITOR=true VISUAL=true
+    export GIT_PAGER=cat PAGER=cat GIT_MERGE_AUTOEDIT=no
+    export DOCKET_RUNTESTS_SOLO=1
+    "$TEST_BASH" "$t" > "$solodir/log" 2>&1
+  )
+  rc=$?
+  end=$(date +%s)
+  secs=$((end - start))
+  # Test-only seam (change 0251): the injected SOLO duration is column 3 (column 2 is parallel).
+  if [ -n "${DOCKET_RUNTESTS_TEST_DURATIONS:-}" ] && [ -f "${DOCKET_RUNTESTS_TEST_DURATIONS}" ]; then
+    inj="$(awk -F'\t' -v b="${base}.sh" '$1==b{print $3; exit}' "$DOCKET_RUNTESTS_TEST_DURATIONS")"
+    case "${inj:-}" in ''|*[!0-9]*) ;; *) secs="$inj" ;; esac
+  fi
+  SOLO_RC="$rc"; SOLO_SECS="$secs"
+}
+
+# schedule_confirmation: the bounded confirmation tail (spec "Bounded confirmation tail"). A normal
+# qualifying run performs AT MOST ONE scheduled solo confirmation. Called under the lock, BETWEEN
+# apply_screen_observations and state_write, so a single write captures the confirmation outcome.
+# Selection among the records DUE in the CURRENT execution context (a set-due record carries a
+# due_sequence stamp): (1) largest overdue amount — the counter beyond its 5-initial / 10-recheck
+# trigger; (2) lowest due_sequence; (3) LC_ALL=C test path. Prints the SERIAL CONFIRMATION report
+# lines. The confirmation never changes the suite verdict, and a FAILED confirmation clears nothing,
+# resets no counter, and leaves the candidate due (spec "Confirmation failure").
+schedule_confirmation(){
+  local k path st streak since ovd dseq
+  local -a due=()
+  for k in "${!BS_STATE[@]}"; do
+    path="${BS_PATHOF[$k]:-}"
+    [ -n "$path" ] || continue
+    [ -f "$path" ] || continue                                       # cannot confirm a vanished file
+    # Current execution context ONLY: reconstructing the key from the record's own path+ceiling and
+    # comparing to k filters out every other -j / ceiling / mode / arch history in one shot.
+    [ "$(context_key "$path" "${BS_CEIL[$k]:-0}" parallel)" = "$k" ] || continue
+    dseq="${BS_DUESEQ[$k]:--}"
+    [ "$dseq" != "-" ] || continue                                   # a due_sequence is set iff due
+    st="${BS_STATE[$k]}"; streak="${BS_STREAK[$k]:-0}"; since="${BS_SINCE[$k]:-0}"
+    case "$st" in
+      unobserved|watching)                 ovd=$((streak - 5)) ;;
+      parallel-sensitive|confirmed-breach) ovd=$((since - 10)) ;;
+      *) continue ;;
+    esac
+    due+=("$ovd"$'\t'"$dseq"$'\t'"$path"$'\t'"$k")
+  done
+  [ "${#due[@]}" -gt 0 ] || return 0
+  # Deterministic order: largest overdue first, then lowest due_sequence, then LC_ALL=C path.
+  # printf | sort is safe under pipefail — sort reads to EOF, it is not an early-exiting consumer.
+  local sorted; sorted="$(printf '%s\n' "${due[@]}" | LC_ALL=C sort -t$'\t' -k1,1nr -k2,2n -k3,3)"
+  local chosen; chosen="$(sed -n '1p' <<<"$sorted")"
+  local c_ovd c_seq c_path c_key
+  IFS=$'\t' read -r c_ovd c_seq c_path c_key <<<"$chosen"
+
+  # Confirm the chosen test. DUE announces that a confirmation ran, whatever its outcome.
+  printf 'SERIAL CONFIRMATION DUE: %s\n' "$c_path"
+  solo_confirm "$c_path"
+  local ceil half threshold
+  ceil="${BS_CEIL[$c_key]:-0}"
+  half=$((ceil * 3))
+  if [ $((half % 2)) -eq 0 ]; then threshold="$((half / 2))"; else threshold="$((half / 2)).5"; fi
+  if [ "$SOLO_RC" != 0 ]; then
+    # Failed: a crashed confirm yields a spuriously low time, so it clears nothing, resets no
+    # counter, and only records last_confirmation_result=failed — the candidate stays due.
+    BS_CONFRES[$c_key]=failed
+    printf 'SERIAL CONFIRMATION FAILED: %s\n' "$c_path"
+  else
+    # Successful: the uncontended measurement establishes the classification. Reset the recheck
+    # counter, record the solo seconds, and drop the due stamp (the record is no longer due).
+    BS_SINCE[$c_key]=0
+    BS_LASTSOLO[$c_key]="$SOLO_SECS"
+    BS_DUESEQ[$c_key]="-"
+    if [ $((SOLO_SECS * 2)) -gt $((ceil * 3)) ]; then
+      BS_STATE[$c_key]=confirmed-breach; BS_CONFRES[$c_key]=breached
+      printf 'SERIAL CONFIRMED OVER BUDGET: %s — %ss under -j%s; %ss solo; solo threshold %ss\n' \
+        "$c_path" "${BS_LASTPAR[$c_key]:--}" "$JOBS" "$SOLO_SECS" "$threshold"
+    else
+      BS_STATE[$c_key]=parallel-sensitive; BS_CONFRES[$c_key]=cleared
+    fi
+  fi
+
+  # The deferred tail: every OTHER due test stays due (its counter is untouched) and is reported so
+  # the reason it was not confirmed this run is visible.
+  local r_ovd r_seq r_path r_key
+  while IFS=$'\t' read -r r_ovd r_seq r_path r_key; do
+    [ -n "$r_key" ] || continue
+    [ "$r_key" = "$c_key" ] && continue
+    printf 'SERIAL CONFIRMATION DEFERRED: %s — Recheck is due; another test consumed this run'\''s confirmation slot\n' "$r_path"
+  done <<<"$sorted"
 }
 
 # ---- ordering: longest budget first, so the tail starts immediately ----------------------------
@@ -603,6 +718,9 @@ if [ "$RUN_QUALIFYING" = 1 ]; then
   elif state_lock; then
     state_load
     apply_screen_observations
+    # At most ONE scheduled solo confirmation per qualifying run, taken BEFORE the write so its
+    # outcome lands in the same state_write. It prints its own SERIAL CONFIRMATION report lines.
+    schedule_confirmation
     state_write
     state_unlock
     emit_screen_report
