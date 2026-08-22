@@ -216,5 +216,82 @@ sm19_out="$(run_rt "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/sm19.state")"   
 assert "19: a serial-mode run did not advance the parallel-context streak (continues at 4/5)" \
   'grep -qE "streak 4/5" <<<"$sm19_out"'
 
+# ==== Task 4: scheduled solo confirmation ================================================
+# Same fixture family as Task 3 (test_slow.sh, ceiling 10, injected parallel 99 = overrun, solo 1).
+# A confirmation re-runs ONE file serially through solo_confirm, reads the injection seam's SOLO
+# column (column 3), and compares solo*2 > ceiling*3. It NEVER changes the suite verdict.
+
+# ---- spec test 2: the fifth consecutive overrun triggers exactly one solo confirmation ---
+sm2_out="$(overrun_n 5 "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/sm2.state")"
+assert "2: the fifth consecutive overrun runs exactly one solo confirmation" \
+  '[ "$(grep -cE "^SERIAL CONFIRMATION DUE:" <<<"$sm2_out")" -eq 1 ]'
+assert "2: a healthy fifth-overrun confirmation is neither OVER BUDGET nor FAILED" \
+  '! grep -qE "^SERIAL CONFIRMED OVER BUDGET|^SERIAL CONFIRMATION FAILED" <<<"$sm2_out"'
+
+# ---- spec test 4: a healthy solo result (1s <= 15s) records parallel-sensitive/cleared ---
+assert "4: a healthy solo classifies the record parallel-sensitive" \
+  'grep -qE "parallel-sensitive" "$tmp/sm2.state"'
+assert "4: a healthy solo records last_confirmation_result=cleared" \
+  'grep -qE "cleared" "$tmp/sm2.state"'
+
+# ---- spec test 5: the next nine later overruns trigger no further confirmation -----------
+sm5_out="$(overrun_n 9 "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/sm2.state")"
+assert "5: recheck progress reads 9/10 after nine later overruns" \
+  'grep -qE "recheck progress 9/10" <<<"$sm5_out"'
+assert "5: no confirmation ran across the nine later overruns" \
+  '! grep -qE "^SERIAL CONFIRM" <<<"$sm5_out"'
+
+# ---- spec test 6: the tenth later overrun triggers exactly one recheck -------------------
+sm6_out="$(run_rt "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/sm2.state")"
+assert "6: the tenth later overrun runs exactly one recheck confirmation" \
+  '[ "$(grep -cE "^SERIAL CONFIRMATION DUE:" <<<"$sm6_out")" -eq 1 ]'
+
+# ---- spec tests 7/8: clean parallel results neither advance nor reset the 10-counter -----
+# After test 6 the recheck counter reset to 0. Bump it to 3, interpose ONE clean qualifying run,
+# then one overrun: the counter must read 4/10. Advancing on the clean run would read 5/10;
+# resetting it would read 1/10 — a single assert discriminates both directions (mutation (c)).
+overrun_n 3 "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/sm2.state" >/dev/null   # since 0 -> 3
+run_rt "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.clean" "$tmp/sm2.state" >/dev/null        # clean: must leave since = 3
+sm78_out="$(run_rt "$tmp/sm" "$tmp/sm.tsv" "$tmp/sm.over" "$tmp/sm2.state")"      # overrun: since 3 -> 4
+assert "7/8: a clean parallel run neither advanced nor reset the recheck counter (now 4/10)" \
+  'grep -qE "recheck progress 4/10" <<<"$sm78_out"'
+
+# ---- spec tests 20/21/22: one confirmation per run; deterministic order; deferred stays due
+mk_suite "$tmp/s20" test_aa.sh test_bb.sh
+mk_budgets "$tmp/s20.tsv" "test_aa.sh 10 parallel" "test_bb.sh 10 parallel"
+mk_durations "$tmp/s20.durs" "test_aa.sh 99 1" "test_bb.sh 99 1"
+s20_out="$(overrun_n 5 "$tmp/s20" "$tmp/s20.tsv" "$tmp/s20.durs" "$tmp/s20.state")"
+assert "20: two tests become due together, but exactly ONE confirmation runs this run" \
+  '[ "$(grep -cE "^SERIAL CONFIRMATION DUE:" <<<"$s20_out")" -eq 1 ]'
+assert "20/21: the tie breaks by due_sequence then LC_ALL=C path — test_aa confirmed first" \
+  'grep -qE "^SERIAL CONFIRMATION DUE: .*test_aa\.sh" <<<"$s20_out"'
+assert "22: the other due test is reported deferred, not confirmed" \
+  'grep -qE "^SERIAL CONFIRMATION DEFERRED: .*test_bb\.sh" <<<"$s20_out"'
+s21_out="$(run_rt "$tmp/s20" "$tmp/s20.tsv" "$tmp/s20.durs" "$tmp/s20.state")"
+assert "21: the deferred test stayed due and is confirmed on the next run" \
+  'grep -qE "^SERIAL CONFIRMATION DUE: .*test_bb\.sh" <<<"$s21_out"'
+
+# ---- spec tests 23/24: a failed confirmation clears nothing and never changes the verdict -
+# The fixture is green in the parallel run but exits 1 once solo_confirm exports DOCKET_RUNTESTS_SOLO.
+mk_suite "$tmp/s23" test_cc.sh
+printf '#!/usr/bin/env bash\n[ -n "${DOCKET_RUNTESTS_SOLO:-}" ] && exit 1\necho "ok - trivial"\nexit 0\n' > "$tmp/s23/test_cc.sh"
+mk_budgets "$tmp/s23.tsv" "test_cc.sh 10 parallel"
+mk_durations "$tmp/s23.durs" "test_cc.sh 99 1"
+overrun_n 4 "$tmp/s23" "$tmp/s23.tsv" "$tmp/s23.durs" "$tmp/s23.state" >/dev/null   # streak -> 4
+s23_rc=0; s23_out="$(run_rt "$tmp/s23" "$tmp/s23.tsv" "$tmp/s23.durs" "$tmp/s23.state")" || s23_rc=$?
+assert "24: a failed advisory confirmation leaves the suite verdict green (exit 0)" '[ "$s23_rc" -eq 0 ]'
+assert "23: the failure is reported as SERIAL CONFIRMATION FAILED" \
+  'grep -qE "^SERIAL CONFIRMATION FAILED: .*test_cc\.sh" <<<"$s23_out"'
+assert "23: the failed confirmation cleared nothing — the record stays watching/due, result=failed" \
+  'grep -qE "failed" "$tmp/s23.state" && grep -qE "watching" "$tmp/s23.state"'
+
+# ---- spec test 30: a confirmed breach reports parallel evidence, solo evidence, threshold --
+mk_suite "$tmp/s30" test_dd.sh
+mk_budgets "$tmp/s30.tsv" "test_dd.sh 10 parallel"
+mk_durations "$tmp/s30.durs" "test_dd.sh 99 99"   # solo 99 > 10 * 3/2 -> a genuine solo breach
+s30_out="$(overrun_n 5 "$tmp/s30" "$tmp/s30.tsv" "$tmp/s30.durs" "$tmp/s30.state")"
+assert "30: a confirmed breach names parallel seconds, solo seconds, and the solo threshold" \
+  'grep -qE "^SERIAL CONFIRMED OVER BUDGET: .*test_dd\.sh .* [0-9]+s under -j[0-9]+; [0-9.]+s solo; solo threshold [0-9.]+s" <<<"$s30_out"'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
