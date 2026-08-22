@@ -2,11 +2,11 @@
 id: 337
 slug: finalize-leaves-a-permanent-terminal-backlink-pending-leg-un
 title: Finalize's integration-ref backlink leg refuses on unrelated pre-existing corpus errors
-status: proposed
+status: 'in-progress'
 priority: medium
 type: fix
 created: 2026-08-22
-updated: 2026-08-22
+updated: '2026-08-22'
 depends_on: []
 stacked_on:
 related: []
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'feat/finalize-leaves-a-permanent-terminal-backlink-pending-leg-un'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-22T13:31:23Z'
 ---
 
 ## Artifacts
@@ -28,7 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-22-finalize-integration-backlink-corpus-scoping-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-22-finalize-integration-backlink-corpus-scoping-design.md) |
+| Spec | `docs/superpowers/specs/2026-08-22-finalize-integration-backlink-corpus-scoping-design.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
