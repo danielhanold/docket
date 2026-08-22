@@ -496,6 +496,52 @@ schedule_confirmation(){
   done <<<"$sorted"
 }
 
+# strict_confirm_candidates: the --strict-budget path (spec "--strict-budget bypasses the
+# schedule"). Where a normal run screens and performs AT MOST ONE scheduled confirmation, strict
+# reruns EVERY current parallel candidate individually and immediately — the five-overrun initial
+# threshold, ten-overrun recheck interval, and one-per-run bound all do not apply, and no stored
+# history is read to decide what to confirm (strict stays authoritative even with a corrupt/missing
+# state file). A current candidate is a parallel-executed test whose contended time crossed the
+# screening threshold THIS run (PE_OVER=1). Each is measured solo and compared against the SAME
+# authoritative `ceiling * 3/2` the scheduler uses: a healthy solo clears the candidate
+# (parallel-sensitive, cleared); a solo over threshold is a confirmed breach; a non-zero
+# confirmation cannot clear the candidate and fails closed. A breach or a failed confirmation arms
+# exit 4 through STRICT_ARMED. Only confirmation outcomes are written — never screening counters —
+# so a targeted strict run persists what it confirmed without advancing any streak. The suite
+# verdict is never changed here; exit precedence (1 > 3 > 4 > 0) is applied by the exit block.
+STRICT_ARMED=0
+strict_confirm_candidates(){
+  local i t ceil psecs k half threshold
+  for i in "${!PE_PATH[@]}"; do
+    [ "${PE_OVER[$i]}" = 1 ] || continue
+    t="${PE_PATH[$i]}"; ceil="${PE_CEIL[$i]}"; psecs="${PE_SECS[$i]}"
+    k="$(context_key "$t" "$ceil" parallel)"
+    printf 'SERIAL CONFIRMATION DUE: %s\n' "$t"
+    solo_confirm "$t"
+    half=$((ceil * 3))
+    if [ $((half % 2)) -eq 0 ]; then threshold="$((half / 2))"; else threshold="$((half / 2)).5"; fi
+    BS_LASTPAR[$k]="$psecs"; BS_CEIL[$k]="$ceil"; BS_PATHOF[$k]="$t"
+    if [ "$SOLO_RC" != 0 ]; then
+      # A crashed confirm yields a spuriously low time, so it clears nothing (spec "Confirmation
+      # failure"): record failed, keep the candidate due, and fail closed on the strict axis.
+      BS_CONFRES[$k]=failed
+      [ -n "${BS_STATE[$k]:-}" ] || BS_STATE[$k]=watching
+      printf 'SERIAL CONFIRMATION FAILED: %s\n' "$t"
+      STRICT_ARMED=1
+    else
+      BS_LASTSOLO[$k]="$SOLO_SECS"
+      if [ $((SOLO_SECS * 2)) -gt $((ceil * 3)) ]; then
+        BS_STATE[$k]=confirmed-breach; BS_CONFRES[$k]=breached
+        printf 'SERIAL CONFIRMED OVER BUDGET: %s — %ss under -j%s; %ss solo; solo threshold %ss\n' \
+          "$t" "$psecs" "$JOBS" "$SOLO_SECS" "$threshold"
+        STRICT_ARMED=1
+      else
+        BS_STATE[$k]=parallel-sensitive; BS_CONFRES[$k]=cleared
+      fi
+    fi
+  done
+}
+
 # ---- ordering: longest budget first, so the tail starts immediately ----------------------------
 PAR=(); SER=()
 for t in "${TARGETS[@]}"; do
@@ -645,9 +691,13 @@ for t in "${ORDERED[@]}"; do
   # Budget classification splits on JOBS (change 0251). The parallel path NEVER labels a crossing
   # OVER BUDGET — a contended measurement is only a screening observation (spec "Reporting"); it is
   # collected here and classified by the post-report state machine. The direct OVER BUDGET verdict
-  # survives solely on the uncontended -j 1 path (Task 5 retunes its threshold to 3/2).
+  # survives solely on the uncontended -j 1 path, which compares against the SOLO threshold
+  # `ceiling * 3/2` directly (spec "-j 1"): the measurement is already uncontended, so it is the
+  # same authoritative comparison a scheduled solo confirmation makes — no screening slack, no
+  # second execution, no counters. The 5/2 SLACK_NUM/SLACK_DEN constants stay the SCREENING factor
+  # on the parallel branch below.
   if [ "$BUDGET_CHECK" = 1 ] && [ "$JOBS" -eq 1 ]; then
-    if [ $((secs * SLACK_DEN)) -gt $((ceil * SLACK_NUM)) ]; then
+    if [ $((secs * 2)) -gt $((ceil * 3)) ]; then
       over=1; overbudget=$((overbudget + 1)); over_names="$over_names $base"
     fi
   elif [ "$BUDGET_CHECK" = 1 ] && [ "$JOBS" -gt 1 ] && [ "$fmode" = parallel ]; then
@@ -711,7 +761,30 @@ RUN_QUALIFYING=0
 if [ "$DEFAULT_CORPUS" = 1 ] && [ "$JOBS" -gt 1 ] && [ "$BUDGET_CHECK" = 1 ] \
    && [ "$failed" -eq 0 ] && [ "$noresult" -eq 0 ]; then RUN_QUALIFYING=1; fi
 
-if [ "$RUN_QUALIFYING" = 1 ]; then
+# Current candidates this run: parallel-executed files whose contended time crossed the screening
+# threshold (PE_OVER=1). --strict-budget confirms all of them; the advisory path screens them.
+STRICT_CANDIDATES=0
+for _pe_over in ${PE_OVER[@]+"${PE_OVER[@]}"}; do
+  [ "$_pe_over" = 1 ] && STRICT_CANDIDATES=$((STRICT_CANDIDATES + 1))
+done
+
+if [ "$BUDGET_STRICT" = 1 ] && [ "$JOBS" -gt 1 ] && [ "$BUDGET_CHECK" = 1 ] \
+   && [ "$failed" -eq 0 ] && [ "$noresult" -eq 0 ] && [ "$STRICT_CANDIDATES" -gt 0 ]; then
+  # --strict-budget bypasses the schedule: confirm EVERY current candidate immediately, regardless
+  # of streak/recheck history and of the one-per-run bound, and regardless of whether the run would
+  # otherwise qualify (a targeted strict run confirms too). State persistence stays advisory and
+  # fail-open — but arming exit 4 does NOT: STRICT_ARMED is set inside strict_confirm_candidates, so
+  # a store that cannot be locked or written still fails closed on a confirmed/failed breach.
+  if [ -n "$STATE_FILE" ] && mkdir -p "$(dirname "$STATE_FILE")" 2>/dev/null && state_lock; then
+    state_load
+    strict_confirm_candidates
+    state_write
+    state_unlock
+  else
+    STATE_USABLE=0
+    strict_confirm_candidates
+  fi
+elif [ "$RUN_QUALIFYING" = 1 ]; then
   if [ -z "$STATE_FILE" ] || ! mkdir -p "$(dirname "$STATE_FILE")" 2>/dev/null; then
     STATE_USABLE=0
     printf 'run-tests: budget state unavailable — running without budget history.\n' >&2
@@ -734,5 +807,9 @@ fi
 # certify the suite. It ranks BELOW a real failure: when a run is both red and incomplete, exit 1
 # is the more actionable signal and the NO RESULT block above is printed either way.
 [ "$noresult" -gt 0 ] && exit 3
-[ "$overbudget" -gt 0 ] && [ "$BUDGET_STRICT" = 1 ] && exit 4
+# Exit 4 is the strict-budget breach axis (spec precedence 1 > 3 > 4 > 0). Two sources feed it:
+# a direct -j 1 OVER BUDGET crossing (overbudget) and a strict parallel confirmation that breached
+# or failed (STRICT_ARMED). Both are gated so only --strict-budget can reach exit 4.
+{ [ "$overbudget" -gt 0 ] && [ "$BUDGET_STRICT" = 1 ]; } && exit 4
+[ "$STRICT_ARMED" = 1 ] && exit 4
 exit 0

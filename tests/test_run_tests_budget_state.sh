@@ -293,5 +293,40 @@ s30_out="$(overrun_n 5 "$tmp/s30" "$tmp/s30.tsv" "$tmp/s30.durs" "$tmp/s30.state
 assert "30: a confirmed breach names parallel seconds, solo seconds, and the solo threshold" \
   'grep -qE "^SERIAL CONFIRMED OVER BUDGET: .*test_dd\.sh .* [0-9]+s under -j[0-9]+; [0-9.]+s solo; solo threshold [0-9.]+s" <<<"$s30_out"'
 
+# ---- spec test 14: strict confirms every current candidate immediately ------------------
+mk_suite "$tmp/s14" test_aa.sh test_bb.sh
+mk_budgets "$tmp/s14.tsv" "test_aa.sh 10 parallel" "test_bb.sh 10 parallel"
+mk_durations "$tmp/s14.durs" "test_aa.sh 99 1" "test_bb.sh 99 1"
+s14_rc=0; s14_out="$(run_rt "$tmp/s14" "$tmp/s14.tsv" "$tmp/s14.durs" "$tmp/s14.state" --strict-budget)" || s14_rc=$?
+assert "14: strict ran a confirmation for BOTH candidates on the first run" \
+  '[ "$(grep -cE "^SERIAL CONFIRM|^PARALLEL-SENSITIVE" <<<"$s14_out")" -ge 2 ]'
+assert "14: both confirmations were healthy, so strict exits 0" '[ "$s14_rc" -eq 0 ]'
+# ---- spec test 15: strict confirmations update stored state -----------------------------
+assert "15: strict wrote parallel-sensitive records" \
+  '[ "$(grep -c "parallel-sensitive" "$tmp/s14.state")" -eq 2 ]'
+# strict with a genuinely slow solo → exit 4
+mk_durations "$tmp/s14b.durs" "test_aa.sh 99 99" "test_bb.sh 1 1"
+s14b_rc=0; run_rt "$tmp/s14" "$tmp/s14.tsv" "$tmp/s14b.durs" "$tmp/s14b.state" --strict-budget >/dev/null || s14b_rc=$?
+assert "14: a strict-confirmed breach exits 4" '[ "$s14b_rc" -eq 4 ]'
+# ---- spec test 25: a failed strict confirmation is exit 4 when 1 and 3 do not apply -----
+s25_rc=0; run_rt "$tmp/s23" "$tmp/s23.tsv" "$tmp/s23.durs" "$tmp/s25.state" --strict-budget >/dev/null 2>&1 || s25_rc=$?
+assert "25: a failed strict confirmation fails closed (exit 4)" '[ "$s25_rc" -eq 4 ]'
+# precedence: red suite beats budget — reuse s14 with an added red file
+mk_red "$tmp/s14" test_red.sh
+s25b_rc=0; run_rt "$tmp/s14" "$tmp/s14.tsv" "$tmp/s14b.durs" "$tmp/s25b.state" --strict-budget >/dev/null 2>&1 || s25b_rc=$?
+assert "25: exit 1 outranks the strict breach" '[ "$s25b_rc" -eq 1 ]'
+rm -f "$tmp/s14/test_red.sh"
+# ---- spec test 16: -j 1 compares directly at 3/2, runs nothing twice, writes no counters -
+mk_suite "$tmp/s16" test_aa.sh
+mk_budgets "$tmp/s16.tsv" "test_aa.sh 10 parallel"
+mk_durations "$tmp/s16.durs" "test_aa.sh 16 16"    # 16 > 10*3/2 — over solo threshold
+s16_out="$(run_rt "$tmp/s16" "$tmp/s16.tsv" "$tmp/s16.durs" "$tmp/s16.state" -j 1)"
+assert "16: -j 1 may say OVER BUDGET (it is already uncontended)" 'grep -qF "OVER BUDGET" <<<"$s16_out"'
+assert "16: -j 1 ran no second execution" '! grep -qE "^SERIAL CONFIRM" <<<"$s16_out"'
+assert "16: -j 1 advanced no parallel-overrun counters" \
+  '! grep -qE "watching|streak" "$tmp/s16.state" 2>/dev/null'
+s16b_rc=0; run_rt "$tmp/s16" "$tmp/s16.tsv" "$tmp/s16.durs" "$tmp/s16b.state" -j 1 --strict-budget >/dev/null || s16b_rc=$?
+assert "16: -j 1 over threshold under strict exits 4" '[ "$s16b_rc" -eq 4 ]'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
