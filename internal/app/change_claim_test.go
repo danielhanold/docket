@@ -376,6 +376,66 @@ func TestChangeRefreshClaimStampsOnly(t *testing.T) {
 	})
 }
 
+// --- TestChangeRefreshClaimSkipsUnchangedBoard ------------------------------
+
+// TestChangeRefreshClaimSkipsUnchangedBoard: a refresh re-stamps only
+// claimed_at and updated — neither is board-visible — so its board re-render
+// can be byte-identical to the committed BOARD.md. Declaring an unchanged
+// path trips the engine's verify-delta guard ("a declared path is not an
+// actual change") and fails the whole refresh (change 0335), so the plan must
+// declare the board only when it truly changes the tree: absent -> create,
+// differing -> replace, byte-identical -> not declared at all.
+func TestChangeRefreshClaimSkipsUnchangedBoard(t *testing.T) {
+	recPath := groomPath(3, "widget")
+	src := lifecycleChange(3, "widget", "in-progress")
+	const boardPath = "docs/changes/BOARD.md"
+
+	// Pass 1: no committed board. The refresh must still declare the board as
+	// a create — and its declared bytes are the canonical render for this
+	// corpus at the fixed test clock, which seeds the byte-identical case.
+	plan, opRes := claimPlanFor(t, map[string]string{recPath: src}, baseRefreshOp([]string{"inline"}, 3))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		recPath:   transaction.MutationReplace,
+		boardPath: transaction.MutationCreate,
+	})
+	var boardBytes []byte
+	for _, f := range plan.Files {
+		if string(f.Path) == boardPath {
+			boardBytes = f.Bytes
+		}
+	}
+	if len(boardBytes) == 0 {
+		t.Fatal("absent-board refresh declared no board bytes")
+	}
+
+	t.Run("byte-identical committed board is not declared", func(t *testing.T) {
+		files := map[string]string{recPath: src, boardPath: string(boardBytes)}
+		plan, opRes := claimPlanFor(t, files, baseRefreshOp([]string{"inline"}, 3))
+		if opRes.Refused {
+			t.Fatalf("unexpected refusal: %v", opRes.Findings)
+		}
+		// Exactly the record — a declared-but-unchanged board is the 0335 bug.
+		assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+			recPath: transaction.MutationReplace,
+		})
+	})
+
+	t.Run("stale committed board is still declared", func(t *testing.T) {
+		files := map[string]string{recPath: src, boardPath: "# Backlog\n\nstale\n"}
+		plan, opRes := claimPlanFor(t, files, baseRefreshOp([]string{"inline"}, 3))
+		if opRes.Refused {
+			t.Fatalf("unexpected refusal: %v", opRes.Findings)
+		}
+		assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+			recPath:   transaction.MutationReplace,
+			boardPath: transaction.MutationReplace,
+		})
+	})
+}
+
 func TestClaimResultFromOutcomeFailedCarriesCause(t *testing.T) {
 	execErr := &transaction.Failure{
 		Stage:  transaction.StageVerifyDelta,

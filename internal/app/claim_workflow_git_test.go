@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/danielhanold/docket/internal/gitcli"
-	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 	"github.com/danielhanold/docket/internal/workspace"
 )
@@ -324,7 +322,7 @@ func TestAttachPlanBoardLinkAtomicity(t *testing.T) {
 	}
 }
 
-// --- 0329 spike: refresh-claim fails when the re-rendered board is unchanged --
+// --- 0335: refresh-claim succeeds when the re-rendered board is unchanged ---
 
 // planningDepsForClock is planningDepsFor with an explicit clock, so a refresh
 // run can happen at a later wall time than the claim that preceded it against the
@@ -348,66 +346,22 @@ func planningDepsForClock(t *testing.T, dir string, clock transaction.Clock) rea
 	}
 }
 
-// rawRefreshClaimOutcome drives the exact transaction ChangeRefreshClaim drives
-// but returns the engine's raw Result and typed error, so the spike can assert
-// the failure's Stage and Kind with positive evidence. The app-level
-// ChangeRefreshClaim discards that typed Failure today — that discard is exactly
-// the 0329 bug — so the raw engine boundary is the only place the mechanism is
-// observable before the fix lands.
-func rawRefreshClaimOutcome(t *testing.T, node realNode, req ChangeClaimRequest) (transaction.Result, error) {
-	t.Helper()
-	ctx := context.Background()
-	pin, eff, inline, repo, pre := claimPreflight(ctx, node.deps, node.dir, OperationChangeRefreshClaim)
-	if pre != nil {
-		t.Fatalf("refresh preflight refused before the transaction: %+v", *pre)
-	}
-	recPath, _, terr := resolveClaimTarget(ctx, node.deps, pin, eff, req.ID, OperationChangeRefreshClaim)
-	if terr != nil {
-		t.Fatalf("resolving the refresh target refused before the transaction: %+v", *terr)
-	}
-	op := changeClaimOp{
-		opKey:      OperationChangeRefreshClaim,
-		changeID:   req.ID,
-		refresh:    true,
-		eff:        eff,
-		clock:      node.deps.Clock,
-		ttlHours:   eff.Reclaim.LeaseTTL.Value,
-		inline:     inline,
-		link:       render.LinkContext{MetadataBranch: metadataBranchOf(pin)},
-		changesDir: eff.ChangesDir.Value,
-	}
-	return node.deps.Engine.Execute(ctx, transaction.Request{
-		Repository: repo,
-		Remote:     originRemote,
-		TargetRef:  gitcli.RefName(branchRefPrefix + metadataBranchOf(pin)),
-		Expected: []transaction.EntityExpectation{{
-			Path:    gitcli.RepoPath(recPath),
-			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
-		}},
-		Loader:    newPlanningLoader(eff),
-		Operation: op,
-	})
-}
-
-// TestRefreshClaimFailsWhenBoardReRenderIsUnchanged reproduces the 0316
-// refresh-claim failure. A refresh re-stamps a claimed record's claimed_at and
-// updated fields (a real change to the record) and re-renders the inline board.
-// The board's in-progress row shows only id/title/priority/type/spec/branch —
-// none of which a refresh touches — so the re-rendered board is byte-identical to
-// the one the claim already committed. The refresh plan nonetheless DECLARES both
-// the record and the board, so the engine's two-way actual-delta guard rejects
-// the board as "a declared path is not an actual change": a *Failure at stage
-// verify-delta, kind invalid-state. The DispositionFailed path once mapped that
-// to result: invalid-state, disposition: invalid-state, findings: [] — the
-// reported symptom, with the typed cause dropped. Post-fix it maps to result:
-// invalid-state, disposition: failed, and the typed cause rides the envelope's
-// failure field; this test now pins that payoff.
+// TestRefreshClaimAppliesWhenBoardReRenderIsUnchanged: a refresh re-stamps a
+// claimed record's claimed_at and updated fields (a real change to the record)
+// and re-renders the inline board. The board's in-progress row shows only
+// id/title/priority/type/spec/branch — none of which a refresh touches — so
+// the re-render is byte-identical to the board the claim already committed.
+// Pre-0335 the plan nonetheless DECLARED the board, and the engine's two-way
+// actual-delta guard rejected it as "a declared path is not an actual change"
+// (a *Failure at stage verify-delta), silently failing every such lease
+// refresh. Post-fix the plan declares only the record, so the refresh applies:
+// one metadata commit touching exactly the record, the lease re-stamped, the
+// committed board untouched and still matching a fresh render.
 //
-// The refresh runs a day after the claim (advancedClock) so the record genuinely
-// changes; that isolates the board as the sole declared-but-unchanged path and
-// distinguishes this from a fixed-clock artifact where the record too would be
-// unchanged.
-func TestRefreshClaimFailsWhenBoardReRenderIsUnchanged(t *testing.T) {
+// The refresh runs a day after the claim (advanced clock) so the record
+// genuinely changes; that isolates the board as the sole would-be
+// declared-but-unchanged path.
+func TestRefreshClaimAppliesWhenBoardReRenderIsUnchanged(t *testing.T) {
 	requireRealGit(t)
 	const (
 		id   = 3
@@ -423,8 +377,8 @@ func TestRefreshClaimFailsWhenBoardReRenderIsUnchanged(t *testing.T) {
 			})
 			ctx := context.Background()
 
-			// Claim the change at the base clock: this stamps the record in-progress
-			// and commits the inline board reflecting that in-progress row.
+			// Claim at the base clock: stamps the record in-progress and
+			// commits the inline board reflecting that in-progress row.
 			claimNode := planningDepsFor(t, cloneOrigin(t, repo.origin))
 			claimCtx := ContextImplementation(ctx, claimNode.deps, claimNode.dir, ImplementationContextRequest{ID: id})
 			if claimCtx.Result != ResultApplied || claimCtx.Context == nil || !claimCtx.Context.ClaimEligible {
@@ -434,68 +388,44 @@ func TestRefreshClaimFailsWhenBoardReRenderIsUnchanged(t *testing.T) {
 			if claim.Result != ResultApplied || claim.Disposition != ClaimDispositionApplied {
 				t.Fatalf("claim = (%q, %q), want applied/applied (findings %v)", claim.Result, claim.Disposition, claim.Findings)
 			}
-			// The claim committed a board that is a fresh render of the corpus.
 			assertBoardMatchesCommitted(t, repo.origin, m.branch, claimNode.dir)
 
-			// The record's still-valid version after the claim.
 			claimedVersion := blobVersionAt(t, repo.origin, m.branch, recPath)
-			tipAfterClaim := originTip(t, repo.origin, m.branch)
 
-			// Refresh a day later, so claimed_at/updated genuinely change on the
-			// record while the board would re-render identically.
+			// Refresh a day later: claimed_at/updated genuinely change on the
+			// record while the board re-renders byte-identical.
 			refreshNode := planningDepsForClock(t, cloneOrigin(t, repo.origin), advanced)
-
-			// App-level payoff (post-fix): the verify-delta result still surfaces as
-			// invalid-state, but the disposition is now the honest `failed` (not the
-			// tautological restatement of the result), and the typed cause rides the
-			// envelope's failure field instead of being dropped. Findings stay empty —
-			// findings are the refusal channel, not the failure channel.
 			res := ChangeRefreshClaim(ctx, refreshNode.deps, refreshNode.dir, ChangeClaimRequest{ID: id, Version: claimedVersion})
-			if res.Result != ResultInvalidState {
-				t.Fatalf("refresh result = %q, want %q (the verify-delta invalid-state)", res.Result, ResultInvalidState)
+			if res.Result != ResultApplied || res.Disposition != ClaimDispositionApplied {
+				t.Fatalf("refresh = (%q, %q), want applied/applied (failure %+v, findings %v)",
+					res.Result, res.Disposition, res.Failure, res.Findings)
 			}
-			if res.Disposition != ClaimDispositionFailed {
-				t.Errorf("refresh disposition = %q, want %q — a failure is not a tautology", res.Disposition, ClaimDispositionFailed)
-			}
-			if res.Failure == nil {
-				t.Fatal("refresh failure diagnosis missing — the typed cause was dropped again")
-			}
-			if res.Failure.Stage != string(transaction.StageVerifyDelta) {
-				t.Errorf("refresh failure.stage = %q, want %q", res.Failure.Stage, transaction.StageVerifyDelta)
-			}
-			if res.Failure.Detail == "" {
-				t.Error("refresh failure.detail is empty — the cause names nothing")
-			}
-			if len(res.Findings) != 0 {
-				t.Errorf("refresh findings = %v, want empty — findings are the refusal channel, not the failure channel", res.Findings)
+			if res.Revision == "" {
+				t.Fatal("applied refresh carried no committed revision")
 			}
 
-			// The failed refresh committed nothing.
-			if tip := originTip(t, repo.origin, m.branch); tip != tipAfterClaim {
-				t.Errorf("failed refresh moved the metadata remote: %q -> %q", tipAfterClaim, tip)
+			// The refresh commit touches exactly the record — the
+			// byte-identical board was not declared, so it is not in the
+			// commit's changed-path set.
+			got := originCommitPaths(t, repo.origin, res.Revision)
+			if strings.Join(got, ",") != recPath {
+				t.Errorf("refresh commit changed %v, want exactly [%s] (unchanged board must not be declared)", got, recPath)
 			}
 
-			// Mechanism, with positive evidence: the raw engine outcome is a
-			// verify-delta invalid-state Failure, not merely "it failed" — this
-			// distinguishes hypothesis 1 (verify-delta) from load-after or
-			// idempotency-scan invalid-state.
-			rawRes, execErr := rawRefreshClaimOutcome(t, refreshNode, ChangeClaimRequest{ID: id, Version: claimedVersion})
-			if rawRes.Disposition != transaction.DispositionFailed {
-				t.Fatalf("raw refresh disposition = %q, want %q", rawRes.Disposition, transaction.DispositionFailed)
-			}
-			f, ok := transaction.AsFailure(execErr)
+			// The lease actually moved to the advanced clock.
+			final, ok := originFile(t, repo.origin, m.branch, recPath)
 			if !ok {
-				t.Fatalf("failed refresh carried no typed transaction.Failure: %v", execErr)
+				t.Fatalf("record %s missing from origin after refresh", recPath)
 			}
-			if f.Stage != transaction.StageVerifyDelta {
-				t.Errorf("failure stage = %q, want %q", f.Stage, transaction.StageVerifyDelta)
+			if !strings.Contains(final, "claimed_at: '2026-08-17T12:00:00Z'") {
+				t.Errorf("refresh did not re-stamp claimed_at:\n%s", final)
 			}
-			if f.Kind != transaction.KindInvalidState {
-				t.Errorf("failure kind = %q, want %q", f.Kind, transaction.KindInvalidState)
+			if !strings.Contains(final, "updated: '2026-08-17'") {
+				t.Errorf("refresh did not re-stamp updated:\n%s", final)
 			}
-			if !strings.Contains(f.Detail, "a declared path is not an actual change") {
-				t.Errorf("failure detail = %q, want the declared-but-unchanged-path message", f.Detail)
-			}
+
+			// The committed board still matches a fresh render of the corpus.
+			assertBoardMatchesCommitted(t, repo.origin, m.branch, refreshNode.dir)
 		})
 	}
 }
