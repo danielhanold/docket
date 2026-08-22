@@ -1,6 +1,6 @@
 # docket's test suite
 
-86 standalone Bash files, discovered by the `tests/test_*.sh` glob — so a new file self-registers
+123 standalone Bash files, discovered by the `tests/test_*.sh` glob — so a new file self-registers
 with the runner. It does **not** self-register with the budget table: every file also needs a row in
 `tests/runtime-budgets.tsv`, which is a registry, or `tests/test_runtime_budgets.sh` fails. Each
 file is hermetic: `set -uo pipefail`, its own tmpdir fixtures, no
@@ -35,9 +35,9 @@ serial cost plus a scheduling tail, so placement is a real decision:
 
 1. **Extend the topical shard your assertion belongs to.** This is almost always right. Find the
    file already covering that subsystem and add to it — if it has room in `tests/runtime-budgets.tsv`.
-2. **If that shard has no room, extend a sibling shard or start a new one.** `test_sync_agents*.sh`
-   and `test_harness_defaults*.sh` are already split this way; adding `_<topic>` to the family is
-   cheap and keeps every part under its ceiling.
+2. **If that shard has no room, extend a sibling shard or start a new one.** `test_sync_agents*.sh`,
+   `test_harness_defaults*.sh`, and `test_docket_config*.sh` are already split this way; adding
+   `_<topic>` to the family is cheap and keeps every part under its ceiling.
 3. **A brand-new file is for a brand-new subsystem** — a new script, a new surface. It needs a row
    in `tests/runtime-budgets.tsv`, or `tests/test_runtime_budgets.sh` fails.
 
@@ -54,7 +54,7 @@ asserts that the resolved `finalize.test_command` runs the runner and does not p
 `--no-budget-check`. The total is what catches the quiet edit: a row moved from 35 to 60 breaks no
 ceiling and pins nothing serial, but it moves the sum, so it reddens on its own. If a file legitimately
 cannot be split, that is a decision to argue in the diff, not a number to bump. Two files were
-argued that way at change 0227; one of them has since been split:
+argued that way at change 0227; both have since been split:
 
 - `test_sync_agents_codex.sh` — argued whole at change 0227 on the grounds that it had "no internal
   section banners, so there is no mechanical boundary". That was already inaccurate then and the
@@ -63,11 +63,14 @@ argued that way at change 0227; one of them has since been split:
   — nothing above it reads the `AGENTS.md` fixture, nothing below it reads a `.toml` wrapper. The
   dispatch half is now `test_sync_agents_codex_dispatch.sh`. Recorded here because "there is no
   boundary" is the claim a later reader would otherwise trust instead of re-checking.
-- `test_docket_config.sh` — it carries the change-0126 prelude-correspondence guard, which scans
-  its own `${BASH_SOURCE[0]}` and asserts a whole-file floor of **≥60 `eval` sites** against a
-  64-site corpus, with a derived cross-check over the same file. Any split halves the corpus and
-  falsifies both. Splitting it means changing that assertion — so do not re-attempt the split
-  without deciding, deliberately, what the guard's population should be across several files.
+- `test_docket_config.sh` — argued whole at change 0227 because the change-0126 prelude-correspondence
+  guard scanned its own `${BASH_SOURCE[0]}` and asserted whole-file floors (**≥60 `eval` sites**, a
+  derived cross-check) that any split would have halved and falsified. Change 0251 resolved exactly
+  that: it moved the guard's population from `${BASH_SOURCE[0]}` to the discovered
+  `tests/test_docket_config*.sh` family corpus (its floors now sum across the family), so splitting
+  the file is routine and a new shard self-registers with the guard just as it does with the runner.
+  The file was then split at its change-0102 section banner into `test_docket_config.sh` (head) and
+  `test_docket_config_guards.sh` (tail, which carries the guard); further shards need no guard change.
 
 ## Backticks in test source
 
