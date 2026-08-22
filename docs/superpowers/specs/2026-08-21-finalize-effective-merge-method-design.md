@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0336 — Finalize selects the best merge method permitted by repository and branch policy](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0336-finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al.md)**
+> ↩ **Change 0336 — Finalize selects the best merge method permitted by repository and branch policy** — `docs/changes/archive/2026-08-22-0336-finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al.md`
 <!-- docket:backlink:end -->
 
 # Finalize effective merge-method selection

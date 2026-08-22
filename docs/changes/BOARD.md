@@ -1,6 +1,6 @@
 # Backlog
 
-**336 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 202 done · 🗑️ 80 killed
+**336 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 203 done · 🗑️ 80 killed
 
 ## 🟡 Proposed (48)
 
@@ -64,12 +64,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | #docket#226 |  |
-| [0336](active/0336-finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al.md) | Finalize selects the best merge method permitted by repository and branch policy | `medium` | `fix` | #docket#227 |  |
 
 ```mermaid
 graph TD
@@ -127,7 +126,6 @@ graph TD
   0333
   0334
   0335
-  0336
   0192:::done
   0211:::done
   0311:::done
@@ -135,10 +133,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (282)</summary>
+<details><summary>✅🗑️ Archive — done + killed (283)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0336](archive/2026-08-22-0336-finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al.md) | Finalize selects the best merge method permitted by repository and branch policy | 2026-08-22 |
 | [0331](archive/2026-08-21-0331-docket-implement-next-s-re-mint-path-never-names-docket-gate.md) | docket-implement-next's re-mint path never names docket gate launch, so a resumed run cannot produce the run directory evidence record requires | 2026-08-21 |
 | [0330](archive/2026-08-21-0330-post-merge-results-appending-has-no-home-in-the-go-runtime-f.md) | Optional closeout notes preserve post-merge verification without rewriting frozen results | 2026-08-21 |
 | [0332](archive/2026-08-20-0332-route-race-shards-to-serial-lane.md) | Route the -race test shards out of the parallel test pool | 2026-08-20 |
@@ -153,7 +152,6 @@ graph TD
 | [0312](archive/2026-08-17-0312-planning-mutations-board-and-adrs.md) | Planning mutations, inline board, and ADRs | 2026-08-17 |
 | [0313](archive/2026-08-16-0313-workspaces-github-pr-adapter-and-build-evidence.md) | Workspaces, GitHub PR adapter, and build evidence | 2026-08-16 |
 | [0310](archive/2026-08-16-0310-read-only-status-and-health-vertical-slice.md) | Read-only status and health vertical slice | 2026-08-16 |
-| [0309](archive/2026-08-16-0309-isolated-metadata-transaction-engine.md) | Isolated metadata transaction engine | 2026-08-16 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
 | [0299](archive/2026-08-12-0299-reshard-tests-test-sync-agents-runners-so-every-file-measure.md) | Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling | 2026-08-12 |
 | [0285](archive/2026-08-12-0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | 2026-08-12 |
@@ -239,7 +237,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 69 done |
+| [2026-08](archive/) | 70 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
