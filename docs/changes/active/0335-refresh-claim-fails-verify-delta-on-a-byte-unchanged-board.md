@@ -2,11 +2,11 @@
 id: 335
 slug: refresh-claim-fails-verify-delta-on-a-byte-unchanged-board
 title: refresh-claim fails verify-delta when the board is byte-unchanged
-status: proposed
+status: 'in-progress'
 priority: medium
 type: fix
 created: 2026-08-21
-updated: 2026-08-21
+updated: '2026-08-22'
 depends_on: []
 stacked_on:
 related: []
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'feat/refresh-claim-fails-verify-delta-on-a-byte-unchanged-board'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-22T15:54:19Z'
 ---
 
 ## Artifacts
@@ -28,7 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-21-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-21-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board-design.md) |
+| Spec | `docs/superpowers/specs/2026-08-21-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board-design.md` |
 <!-- docket:artifacts:end -->
 
 ## Why

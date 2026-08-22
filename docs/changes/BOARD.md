@@ -1,8 +1,14 @@
 # Backlog
 
-**338 changes** — 🟡 49 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 204 done · 🗑️ 80 killed
+**338 changes** — 🟢 1 in progress · 🟡 48 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 204 done · 🗑️ 80 killed
 
-## 🟡 Proposed (49)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0335](active/0335-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board.md) | refresh-claim fails verify-delta when the board is byte-unchanged | `medium` | `fix` | [spec](../superpowers/specs/2026-08-21-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board-design.md) | `feat/refresh-claim-fails-verify-delta-on-a-byte-unchanged-board` |
+
+## 🟡 Proposed (48)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -53,7 +59,6 @@
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
 | [0333](active/0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition internal/app to retire the -race gate's 300s ceiling exemption | `medium` | `refactor` | needs-brainstorm |
 | [0334](active/0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | CLAUDE.md global and project copies drift on finalize-agent descriptions | `medium` | `docs` | needs-brainstorm |
-| [0335](active/0335-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board.md) | refresh-claim fails verify-delta when the board is byte-unchanged | `medium` | `fix` | build-ready |
 | [0338](active/0338-gate-execution-terminal-sentinel-has-no-format-contract-poll.md) | Gate-execution terminal sentinel has no format contract — poll grepping JSON never matches the plain-text state: line and spins forever | `medium` | `fix` | auto-groom blocked — needs you |
 
 ## ⚪ Deferred (4)
@@ -69,7 +74,7 @@
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
-| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [#docket#226](https://github.com/danielhanold/docket/pull/docket#226) |  |
+| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | #docket#226 |  |
 
 ```mermaid
 graph TD
