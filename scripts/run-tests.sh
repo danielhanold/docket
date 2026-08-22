@@ -56,29 +56,33 @@ TEST_BASH="${DOCKET_BASH_PATH:-$(command -v bash)}"
 # Default ceiling for a file with no budget row. Also the value tests/test_runtime_budgets.sh
 # asserts no row exceeds.
 DEFAULT_CEILING=60
-# A wall-clock assertion on a shared developer machine must tolerate load, or it becomes a flake
-# that teaches people to pass --no-budget-check. It must ALSO tolerate this runner's own
-# contention: a budget row is a claim about a file's cost measured SERIALLY, but enforcement
-# happens during a parallel run where every job competes. Measured inflation on the change-0227
-# hardware reached 2.22x (test_render_board.sh 18s -> 40s; test_harness_defaults.sh 39s -> 86s),
-# so 3/2 rejected 11 healthy files. 5/2 covers the measured worst case with margin while still
-# catching the regrowth this table exists to prevent — a file that doubles its OWN serial cost
-# breaches, because the ceiling it is measured against did not move.
-# Breach = measured > ceiling * 5/2.
+# TWO THRESHOLDS, TWO ROLES (change 0251). A budget row is a claim about a file's cost measured
+# SERIALLY, but the suite runs in parallel where every job competes, so a raw parallel wall-clock
+# number cannot be an authoritative breach. Measured inflation on the change-0227 hardware
+# (Apple Silicon, `-j` = CPU count) reached 2.22x (test_render_board.sh 18s -> 40s;
+# test_harness_defaults.sh 39s -> 86s) — always UPWARD, contention only ever inflates — so a naive
+# 3/2 comparison rejected 11 healthy files. That measurement is why 5/2 is the SCREENING threshold
+# and 3/2 is the SOLO threshold:
+#   * 5/2 (SLACK_NUM/SLACK_DEN): a parallel run over ceiling * 5/2 is a candidate OBSERVATION,
+#     never a breach. It records a screening finding, nothing more. A parallel screen crossing is
+#     NEVER labeled OVER BUDGET.
+#   * 3/2: the only AUTHORITATIVE comparison. It is applied to a SOLO measurement (a -j 1 run, or a
+#     scheduled serial confirmation), where contention is absent and the number is trustworthy.
+# The state machine between them: five consecutive qualifying overruns schedule the first solo
+# confirmation; ten later overruns schedule a recheck; at most ONE scheduled confirmation runs per
+# normal run; --strict-budget confirms all current candidates immediately (fail-closed, exit 4).
+# The screening history is persisted per-worktree and per-execution-context (see budget_state_path
+# below), is purely ADVISORY, and is fail-open: missing/corrupt/locked/unwritable state never fails
+# or blocks a run. Red, incomplete, interrupted, targeted, and --no-budget-check runs mutate no
+# history.
 #
-# AND THAT IS WHY A BREACH IS ADVISORY BY DEFAULT. This constant is calibrated to ONE machine's
-# measured contention, so the comparison it drives is hardware- and load-dependent in both
-# directions (change 0229 tracks settling a contention-independent basis for it). A measurement
-# that shaky may inform a merge, but it must not BLOCK one — and it especially must not block one
-# by exiting non-zero, because "non-zero" is the only budget vocabulary this runner's callers
-# have. finalize's configured-bash-finalize block and docket-build's build gate both read any
-# non-zero exit as "the suite is red" and answer it by dispatching a repair agent to root-cause
-# failing tests, of which a breach has none. The breach therefore leaves by the channel every
-# caller does read — the report — and turns fatal only for a caller that opted in with
-# --strict-budget. What that costs is stated plainly in scripts/run-tests.md: nothing in this repo
-# runs the strict path automatically today, so the guard against regrowth is a loud line in every
-# run's output plus tests/test_runtime_budgets.sh's structural discipline, and closing that gap is
-# change 0229's job.
+# AND THAT IS WHY A DEFAULT-RUN BREACH IS ADVISORY. A screening candidate must inform a merge but
+# never BLOCK one — and it especially must not block one by exiting non-zero, because "non-zero" is
+# the only budget vocabulary this runner's callers have. finalize's configured-bash-finalize block
+# and docket-build's build gate both read any non-zero exit as "the suite is red" and answer it by
+# dispatching a repair agent to root-cause failing tests, of which a breach has none. The finding
+# therefore leaves by the channel every caller does read — the report — and turns fatal only for a
+# caller that opted in with --strict-budget. Exit codes are unchanged from the pre-0251 contract.
 SLACK_NUM=5; SLACK_DEN=2
 
 cpu_count(){
@@ -743,7 +747,7 @@ if [ -n "$over_names" ]; then
     printf 'Strict: --strict-budget was given, so this breach fails the run (exit 4). The tests themselves passed.\n'
   else
     printf 'Advisory: the tests all passed, so this run does not fail on the breach (exit 0).\n'
-    printf 'Pass --strict-budget to gate on it — but see scripts/run-tests.md first: the slack factor is calibrated to one machine (change 0229).\n'
+    printf 'Pass --strict-budget to gate on it — but see scripts/run-tests.md first: the screening factor is calibrated to one machine (change 0251).\n'
   fi
 fi
 

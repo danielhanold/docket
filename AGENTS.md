@@ -59,9 +59,11 @@ means), this file does not restate them.
 - Run the whole suite at the build gate, never only the tests the spec enumerated. The suite command is
   whatever `finalize.test_command` resolves to — read it there, never from a second copy. It runs
   the files in parallel with per-job isolation and measures each file against its wall-clock budget.
-  A trailing `OVER BUDGET:` line is a finding to act on, not noise: it does not fail the run (a
-  wall-clock number is machine-dependent; see `scripts/run-tests.md`), so nothing else will catch it
-  for you. `tests/README.md` covers how to run the suite and where a new test belongs.
+  A `BUDGET WATCH:` / `PARALLEL-SENSITIVE:` line is a screening finding, and a
+  `SERIAL CONFIRMED OVER BUDGET:` line is an authoritative breach to act on: neither fails the run by
+  default (a parallel wall-clock number is machine-dependent, so a real breach is confirmed serially;
+  see `scripts/run-tests.md`), so nothing else will catch them for you. `tests/README.md` covers how
+  to run the suite and where a new test belongs.
 
 ## Comments and cross-references
 
