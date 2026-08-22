@@ -126,10 +126,11 @@ chmod +x "$T/tests/test_slow.sh"
 printf 'tests/test_slow.sh\t1\tparallel\n' > "$T/budgets.tsv"
 
 # A second, CHEAPER breach fixture for the asserts below that are about posture and reporting
-# rather than about the slack arithmetic. `test_slow` at a 1s ceiling is the one that exercises
-# the 5/2 boundary (3s breaches, 2s would not); these only need *a* breach, and a 1s sleeper at a
-# 0s ceiling is the shortest one that exists. Cost matters here: this file is itself in the budget
-# table, and padding it out is the regrowth the table exists to catch.
+# rather than about the slack arithmetic. `test_slow` at a 1s ceiling is the one that exercises the
+# uncontended -j 1 solo threshold — `ceiling * 3/2` since change 0251, so 1.5s here, which its 3s
+# sleep breaches with margin; these only need *a* breach, and a 1s sleeper at a 0s ceiling is the
+# shortest one that exists. Cost matters here: this file is itself in the budget table, and padding
+# it out is the regrowth the table exists to catch.
 cat > "$T/tests/test_slowish.sh" <<'EOF'
 #!/usr/bin/env bash
 sleep 1
