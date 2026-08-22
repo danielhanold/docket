@@ -2,7 +2,7 @@
 id: 335
 slug: refresh-claim-fails-verify-delta-on-a-byte-unchanged-board
 title: refresh-claim fails verify-delta when the board is byte-unchanged
-status: 'in-progress'
+status: 'implemented'
 priority: medium
 type: fix
 created: 2026-08-21
@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable:
 branch: 'feat/refresh-claim-fails-verify-delta-on-a-byte-unchanged-board'
-pr:
+pr: 'github.com/danielhanold/docket#230'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-22T15:57:11Z'
