@@ -13,7 +13,7 @@ related: []
 discovered_from: [336]
 adrs: []
 spec: docs/superpowers/specs/2026-08-22-finalize-integration-backlink-corpus-scoping-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-22-finalize-backlink-leg-corpus-scoping.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-22T13:33:42Z'
 | Artifact | Link |
 |---|---|
 | Spec | `docs/superpowers/specs/2026-08-22-finalize-integration-backlink-corpus-scoping-design.md` |
+| Plan | `docs/superpowers/plans/2026-08-22-finalize-backlink-leg-corpus-scoping.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
