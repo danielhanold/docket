@@ -114,8 +114,15 @@ if [ "$BUDGET_CHECK" = 0 ] && [ "$BUDGET_STRICT" = 1 ]; then
   exit 2
 fi
 
+# Test-only seam (change 0251): tests/test_run_tests_budget_state.sh points discovery at a
+# fixture suite so the state machine can be exercised without running the real corpus.
+# Production behavior is identical when the variable is unset.
+TESTS_DIR="${DOCKET_RUNTESTS_TESTS_DIR:-$REPO/tests}"
 if [ "${#TARGETS[@]}" -eq 0 ]; then
-  while IFS= read -r f; do TARGETS+=("$f"); done < <(find "$REPO/tests" -maxdepth 1 -name 'test_*.sh' | LC_ALL=C sort)
+  DEFAULT_CORPUS=1
+  while IFS= read -r f; do TARGETS+=("$f"); done < <(find "$TESTS_DIR" -maxdepth 1 -name 'test_*.sh' | LC_ALL=C sort)
+else
+  DEFAULT_CORPUS=0
 fi
 [ "${#TARGETS[@]}" -gt 0 ] || { printf 'run-tests: no test files to run\n' >&2; exit 2; }
 
@@ -340,6 +347,12 @@ for t in "${ORDERED[@]}"; do
     continue
   fi
   IFS=$'\t' read -r rc secs p f < "$WORK/stat/$base"
+  # Test-only seam (change 0251): replace the measured duration with an injected one so the
+  # budget state machine's tests are deterministic. Column 2 = parallel seconds.
+  if [ -n "${DOCKET_RUNTESTS_TEST_DURATIONS:-}" ] && [ -f "${DOCKET_RUNTESTS_TEST_DURATIONS}" ]; then
+    inj="$(awk -F'\t' -v b="${base}.sh" '$1==b{print $2; exit}' "$DOCKET_RUNTESTS_TEST_DURATIONS")"
+    case "${inj:-}" in ''|*[!0-9]*) ;; *) secs="$inj" ;; esac
+  fi
   files=$((files + 1)); asserts=$((asserts + p + f))
   ceil="$(ceiling_of "$t")"
   over=0

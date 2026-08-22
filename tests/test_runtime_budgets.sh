@@ -28,7 +28,13 @@ EXPECTED_SERIAL=1   # tests/test_go_race.sh (change 0332). The shared state that
                     # needs — the load-dependent gate that halted change 0329. RAISING THIS IS A
                     # FINDING: a serial pin removes a file from the parallel phase, so it must be
                     # justified in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=2275 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2285 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2275 -> 2285 (change 0251): the NEW-FILE case — tests/test_run_tests_budget_state.sh
+                    # is the deterministic fixture suite for run-tests.sh's stateful budget-confirmation
+                    # regime; it injects durations through the seam rather than sleeping, so it measures
+                    # ~0-1s serial (scripts/run-tests.sh -j 1 --timings PATH). It brings its own row at
+                    # the table's 10s floor (next multiple of 5 plus a 5s margin, min 10), so the total
+                    # moves by +10.
                     # 2265 -> 2275 (change 0330): the NEW-FILE case — tests/test_finalize_closeout_notes.sh
                     # is a brand-new grep/awk contract guard (~0.1s standalone), budgeted at the 10s
                     # floor; it brings its own row, so the total moves by +10.
