@@ -2,7 +2,7 @@
 id: 337
 slug: finalize-leaves-a-permanent-terminal-backlink-pending-leg-un
 title: Finalize's integration-ref backlink leg refuses on unrelated pre-existing corpus errors
-status: 'implemented'
+status: 'done'
 priority: medium
 type: fix
 created: 2026-08-22
@@ -21,7 +21,7 @@ branch: 'feat/finalize-leaves-a-permanent-terminal-backlink-pending-leg-un'
 pr: 'github.com/danielhanold/docket#228'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-22T13:33:42Z'
+claimed_at:
 ---
 
 ## Artifacts

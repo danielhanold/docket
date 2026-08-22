@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0337 — Finalize's integration-ref backlink leg refuses on unrelated pre-existing corpus errors](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0337-finalize-leaves-a-permanent-terminal-backlink-pending-leg-un.md)**
+> ↩ **Change 0337 — Finalize's integration-ref backlink leg refuses on unrelated pre-existing corpus errors** — `docs/changes/archive/2026-08-22-0337-finalize-leaves-a-permanent-terminal-backlink-pending-leg-un.md`
 <!-- docket:backlink:end -->
 
 # Finalize's integration-ref backlink leg refuses on unrelated pre-existing corpus errors
