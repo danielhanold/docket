@@ -19,8 +19,8 @@ auto_groomable: true
 branch: 'feat/retune-the-run-tests-budget-regime-for-portability-and-shard'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-22T18:20:19Z'
+reconciled: true
+claimed_at: '2026-08-22T18:22:58Z'
 ---
 
 ## Artifacts
@@ -87,3 +87,14 @@ the glob corpus makes the guard indifferent to where 0258's asserts land. Residu
 spec's assumption 2): budget table values still encode the calibration host's absolute speed —
 confined to the opt-in strict path; a serial-canary rescale is the named follow-up shape if that
 path proves flaky on slower hosts.
+
+## Reconcile log
+
+### 2026-08-22
+
+Reconciled against current `origin/main` (f94844d7) and `origin/docket`. Design holds on both legs; scope unchanged; no fundamental invalidation. Findings folded in as build-time guidance:
+
+- **Related #0258 has landed** (archived done, 2026-08-09) touching the same file. It introduced a `tests/test_docket_config*.sh` family glob for its OWN L2 control (test_docket_config.sh:~3015-3043), but the 0126 prelude-correspondence guard (test_docket_config.sh:~2600-2790) STILL does a whole-file `${BASH_SOURCE[0]}` scan with the `>= 60` sites floor — so Leg 2's actual target is intact and the build must move that guard, not assume 0258 already did. 0258's existing family-glob control is prior art to mirror, not duplicate.
+- **Every cited count/line number in the spec and change body is stale — re-derive mechanically at build time, never copy the spec's literals** (learning: backstops compute, never re-enumerate): suite is now **121** `tests/test_*.sh` files (spec/docs say 86/88; run-tests.md:346 still says "86 files"); `test_docket_config.sh` is now **3304** lines (spec said 2868); `EXPECTED_TOTAL` is **2275** (spec said 1345); `runtime-budgets.tsv` has grown; `SLACK_NUM=5; SLACK_DEN=2` now at run-tests.sh:80 (spec said :78), advisory comparison at :346. The post-split suite file count and re-cut budget rows must come from measured `-j 1 --timings` runs at build time.
+- **Doc-count updates (assumption 8) expand accordingly**: the stale suite-file counts to correct are wherever they now live (run-tests.sh header, run-tests.md, tests/README.md), derived from a fresh count — not the spec's frozen "89".
+- Leg 1 (stateful budget confirmation state machine + measured-duration injection seam, 30 deterministic tests) is unaffected by codebase drift; the advisory/strict exit contract (0/1/3/4) is still byte-compatible in run-tests.sh. AUTO_CAPTURE is disabled this run; no adjacent stubs minted.
