@@ -12,7 +12,7 @@ stacked_on:
 related: []
 discovered_from: [337]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-22-gate-observe-json-convergence-design.md
 plan:
 results:
 trivial: false
@@ -26,6 +26,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-22-gate-observe-json-convergence-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-22-gate-observe-json-convergence-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -80,6 +83,16 @@ liveness-checking machinery it shares with `runner-dispatch.sh` via `scripts/lib
 (jobs beyond emitting the observe line); converging the observe *format* on JSON does not require
 deleting that shared code, and whether to collapse the two launch/liveness paths is a separable
 decision. This change closes the serialization seam only.
+
+## Groomed design (2026-08-22)
+
+Groomed with Daniel; detail in the linked spec. Three decisions settled: (1) the caller loop
+invokes the native `docket gate observe` directly — no facade passthrough; (2) `gate-run.sh
+--observe` is hard-retired in this change (non-zero refusal with a pointer), so the text
+serialization dies when this lands — launch/liveness/stop verbs stay for 0339; (3) the loop
+parses the JSON with **jq**, which becomes a documented required dependency of the loop (already
+a working docket dependency elsewhere); the fail-closed-on-unknown arm survives and also covers
+jq-absent and unparseable-document cases.
 
 ## Rescope
 
