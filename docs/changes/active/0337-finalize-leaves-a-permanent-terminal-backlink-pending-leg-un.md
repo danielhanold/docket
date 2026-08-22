@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'feat/finalize-leaves-a-permanent-terminal-backlink-pending-leg-un'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-22T13:31:23Z'
+reconciled: true
+claimed_at: '2026-08-22T13:33:42Z'
 ---
 
 ## Artifacts
@@ -86,3 +86,15 @@ migration, and its backlog of stuck backlinks self-heals on the next maintenance
 - What artifacts a feature branch merges onto the integration branch.
 - A general facility to validate/repair the integration branch's frozen corpus — A's point is that
   this leg should not gate on that corpus at all.
+
+## Reconcile log
+
+### 2026-08-22
+
+**2026-08-22** — Reconciled against current `origin/docket` and `origin/main`. Every claim in the spec re-verified from source, and the design (A + D + C) holds unchanged:
+
+- **A/D bug is live and matches the spec.** Both integration-ref backlink legs — `runCloseoutBacklinkLeg` (`internal/app/finalize_closeout.go`) and `finalizeCleanupBacklinkRepair` (`internal/app/finalize_cleanup.go`) — still execute against `refs/heads/<integration_branch>` with `Loader: newPlanningLoader(cc.eff)` (the full-corpus loader) and still discard the typed transaction failure via `result, _ := mapOutcome(res, execErr, ResultInvalidState)`, folding only the coarse token into the warning.
+- **C trigger confirmed.** `docs/adrs/0024-claude-context-fork-skill-dispatch.md` on `origin/main` carries an unquoted `title:` containing a colon-space (`` `context: fork` ``) that fails `document.Parse`; the quoted, parse-clean form already lives on `origin/docket`.
+- **Scope note on C.** A + D are the binary-level code fix and are the PR's deliverable. C (republishing the already-clean ADR-0024 from `docket` onto `main`) is repo-local data hygiene, explicitly not a functional dependency of A/D, and does not fit the feature-branch model (feature branches never modify docket metadata / ADRs). It is recorded here and surfaced to the human at the merge gate as a separate direct-to-`main` publish, not carried on the feature branch.
+
+No scope change; `discovered_from: [336]` retained. reconciled → true.
