@@ -54,7 +54,7 @@
 | [0333](active/0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition internal/app to retire the -race gate's 300s ceiling exemption | `medium` | `refactor` | needs-brainstorm |
 | [0334](active/0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | CLAUDE.md global and project copies drift on finalize-agent descriptions | `medium` | `docs` | needs-brainstorm |
 | [0335](active/0335-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board.md) | refresh-claim fails verify-delta when the board is byte-unchanged | `medium` | `fix` | build-ready |
-| [0337](active/0337-finalize-leaves-a-permanent-terminal-backlink-pending-leg-un.md) | Finalize leaves a permanent terminal-backlink-pending leg under terminal_publish: false | `medium` | `fix` | needs-brainstorm |
+| [0337](active/0337-finalize-leaves-a-permanent-terminal-backlink-pending-leg-un.md) | Finalize's integration-ref backlink leg refuses on unrelated pre-existing corpus errors | `medium` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
 
