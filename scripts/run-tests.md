@@ -187,49 +187,65 @@ exit status, never a scraped count.
 
 ### Budget enforcement
 
-When a budget table is in effect, each file's measured wall clock is compared against its ceiling
-with a 5/2 slack factor — a breach is `measured > ceiling * 2.5`. The slack is deliberate, and it
-covers two distinct effects. First, a wall-clock assertion with no headroom becomes a flake on a
-loaded laptop, and a flaky gate teaches people to pass `--no-budget-check`, which is worse than no
-gate. Second, and larger: a ceiling is a claim about a file's cost measured *serially*, but
-enforcement happens inside a parallel run where every job competes for the machine. Measured
-contention inflation on the change-0227 hardware reached 2.22x, so the original 3/2 factor rejected
-11 healthy files. 5/2 covers that worst case with margin.
+When a budget table is in effect, each file's measured wall clock is weighed against its ceiling —
+but a parallel wall-clock number can never be an authoritative breach on its own, so the runner uses
+**two thresholds with two different roles** (change 0251).
 
-**What that leaves the comparison able to catch, stated honestly.** A breach needs `measured >
-ceiling * 2.5`, and the seeded ceiling already sits 5–10s *above* the file's measured serial cost
-(rounded up to the next multiple of 5, plus a 5s margin, minimum 10s). So the growth multiple a
-file must actually reach is not 2x — it runs from roughly **2.75x** for the largest rows to about
-**25x** for a ~1s file sitting on the 10s floor, and 69 of the table's 86 rows are on that floor.
-This comparison is therefore a check on the **tail**: it catches a big file getting much bigger,
-which is the shape that produced the original 629s suite. It does not notice a small file tripling.
-What covers the small rows is not this comparison at all but the table itself — `EXPECTED_TOTAL` in
-`tests/test_runtime_budgets.sh` pins the sum of every ceiling, so a row cannot be raised to absorb
-growth without reddening. A contention-independent basis that would let the per-file comparison
-bite lower down is change **0229**'s.
+- **5/2 — the screening threshold.** A parallel run over `ceiling * 5/2` is a candidate
+  *observation*, never a breach. A ceiling is a claim about a file's cost measured *serially*, but
+  enforcement happens inside a parallel run where every job competes for the machine. Measured
+  contention inflation on the change-0227 hardware reached 2.22x — always *upward*; contention only
+  inflates — so the original 3/2 factor rejected 11 healthy files. 5/2 covers that worst case with
+  margin while still noticing a file that grows enough to matter. A parallel screen crossing is
+  **never** labeled `OVER BUDGET`; it is reported as `BUDGET WATCH:` (or, once confirmed slow,
+  `PARALLEL-SENSITIVE:`).
+- **3/2 — the solo threshold, the only authoritative comparison.** It is applied to a *solo*
+  measurement — a `-j 1` run, or a scheduled serial confirmation the runner performs itself — where
+  contention is absent and the number is honest. Only a solo measurement over `ceiling * 3/2` is a
+  real breach (`SERIAL CONFIRMED OVER BUDGET:`).
 
-A breach does not mask a failure. Failures win: a run with both reports exit 1.
+**The screen-then-confirm state machine.** A qualifying parallel overrun (default corpus, parallel
+`-j`, budgets on, suite green and complete) advances a persistent, per-execution-context counter.
+Five consecutive qualifying overruns schedule the first serial confirmation; a healthy confirmation
+records the file `parallel-sensitive` and every ten later overruns schedules a recheck. At most
+**one** scheduled confirmation runs per normal run, so a run with several due files confirms one and
+defers the rest (`SERIAL CONFIRMATION DEFERRED:`), each staying due for a later run. A clean parallel
+result resets the initial five-counter but does not touch the ten-counter. Red, incomplete,
+interrupted, targeted, and `--no-budget-check` runs mutate no history, and `--no-budget-check` reads
+none either.
 
-The breach message names the file and the remedy, and the remedy is **shard the file or extend an
+`--strict-budget` skips the wait: it confirms **every current candidate** immediately and fails
+closed (exit 4) on any confirmed breach or any failed confirmation. A confirmation never changes the
+suite pass/fail verdict, and a *failed* confirmation clears no candidate.
+
+The seeded ceiling already sits 5–10s *above* the file's measured serial cost (rounded up to the
+next multiple of 5, plus a 5s margin, minimum 10s), so the growth a file must reach before even the
+3/2 solo comparison bites is a real regrowth, not noise. What covers a small file tripling is not
+either comparison but the table itself — `EXPECTED_TOTAL` in `tests/test_runtime_budgets.sh` pins the
+sum of every ceiling, so a row cannot be raised to absorb growth without reddening.
+
+A confirmed breach does not mask a failure. Failures win: a run with both reports exit 1.
+
+The report message names the file and the remedy, and the remedy is **shard the file or extend an
 existing shard** — never "raise the ceiling". A budget guard whose stated remedy is to raise the
 number teaches the evasion it exists to catch (repo learning `guard-remedy-must-not-teach-the-evasion`).
 
 A malformed seconds field in the table falls back to the default ceiling rather than crashing the
 run; making a malformed row loud is `tests/test_runtime_budgets.sh`'s job, not the runner's.
 
-#### Why a breach is advisory by default
+#### The state store, and why a default-run finding is advisory
 
-A breach is **reported, not fatal**, unless the caller passes `--strict-budget`. That is a
-deliberate reversal of this script's first posture, and the reasoning is worth keeping.
+Screening history lives in a persistent state file — one per worktree and per execution context
+(`-j` value, CPU count, OS, arch, ceiling, mode, schema). Its default path is under the worktree's
+git dir; `--budget-state PATH` overrides it and `--print-budget-state-path` prints the resolved path
+and exits without running anything. The store is **purely advisory and fail-open**: a
+missing, corrupt, locked, or unwritable state file never fails or blocks a run — the run simply
+proceeds without history and says so. Only `--strict-budget` fails closed, and it needs no stored
+history because it re-measures the current candidates directly.
 
-The slack factor above is calibrated to **one machine's** measured contention. The comparison it
-drives is therefore hardware- and load-dependent in both directions: on a smaller machine relative
-to the job count, inflation exceeds 2.5x and healthy files breach; on a much larger one, 2.5x makes
-enforcement nearly vacuous. Change **0229** exists to settle a contention-independent basis for it.
-A measurement that shaky may usefully *inform* a merge. It must not *block* one.
-
-And blocking is exactly what a non-zero exit does here, because "non-zero" is the only budget
-vocabulary this runner's callers have. All three read any non-zero exit as *the suite is red*:
+A screening finding is **reported, not fatal**, unless the caller passes `--strict-budget`, because
+"non-zero" is the only budget vocabulary this runner's callers have. All three read any non-zero
+exit as *the suite is red*:
 
 - `docket-finalize-change`'s `configured-bash-finalize` block is a bare `eval` of the configured
   test command, and its step 5 answers red by dispatching `docket-integration-repair`;
@@ -239,27 +255,27 @@ vocabulary this runner's callers have. All three read any non-zero exit as *the 
 
 None of them can tell 4 from 1, and the first two would send a repair agent to root-cause failing
 tests when `failed=0`. Encoding a diagnostic as a failure exit only works if every caller is
-budget-aware; here, none is. So the breach leaves by the channel every caller *does* read — the
+budget-aware; here, none is. So the finding leaves by the channel every caller *does* read — the
 report — and turns fatal only for a caller that opted in.
 
 **What this costs, stated plainly.** Nothing in this repo runs `--strict-budget` automatically
 today (there is no CI; the suite is the gate). So the third pillar of change 0227 — a runtime
-budget so the tail cannot regrow — is currently defended by three things, none of which turns a
-*measured* breach into an automatic red:
+budget so the tail cannot regrow — is defended by three things, none of which turns a screening
+observation into an automatic red:
 
-1. Every default run **prints** `OVER BUDGET:` with the offending files and the shard remedy,
-   including the merge-gate run, whose output a human or agent reads.
+1. Every default run **prints** its findings — `BUDGET WATCH:` / `PARALLEL-SENSITIVE:` screening
+   lines, and any `SERIAL CONFIRMED OVER BUDGET:` a scheduled confirmation established — with the
+   offending files and the shard remedy, including the merge-gate run, whose output a human or agent
+   reads.
 2. `tests/test_runtime_budgets.sh` still hard-fails on the table itself — a missing row for a new
    test file, a row above the 60s ceiling, any `serial` pin, **any change to the sum of every
    ceiling**, and a configured `finalize.test_command` that passes `--no-budget-check`. The last
    two are what make this a real defence rather than a structural one: a row raised from 35 to 60
    breaks no ceiling and pins nothing serial, and disarming the check at the merge gate leaves
    every other assertion green. Both now redden on their own.
-3. `--strict-budget` exists for a caller that knows what it is asking for. Run it at `-j 1`, where
-   a serial ceiling is the honest comparison, if you want the sharp answer today.
-
-Closing that gap — an automatic, contention-independent regrowth check — is **change 0229's job,
-and it is explicitly deferred to it**, not quietly dropped.
+3. `--strict-budget` exists for a caller that knows what it is asking for. It confirms every
+   candidate serially and fails closed on a real breach, so run it when you want the sharp answer
+   today.
 
 ## Exit codes
 
@@ -277,8 +293,8 @@ Exit **4** is separated from **1** on purpose: "the suite is red" and "the suite
 something got slow" are different problems with different owners, and collapsing them would make
 the budget table's failures indistinguishable from real regressions. It is behind `--strict-budget`
 for the mirror-image reason — a caller that cannot tell 4 from 1 collapses them right back, and
-every caller wired to this script today is such a caller (see "Why a breach is advisory by
-default"). Exit-code semantics beyond this are change 0224's, not this script's.
+every caller wired to this script today is such a caller (see "The state store, and why a
+default-run finding is advisory"). Exit-code semantics beyond this are change 0224's, not this script's.
 
 Exit **3** is the harness saying it lost a job. A per-file verdict is a stat record written by the
 job's own subshell after the test exits; if that subshell dies first — an OOM kill under

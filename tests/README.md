@@ -14,9 +14,13 @@ scripts/run-tests.sh -j 1        # serial reference
 scripts/run-tests.sh --verbose tests/test_docket_config.sh   # one file, full output
 ```
 
-`scripts/run-tests.md` is the contract. A budget breach is **advisory by default**: it is reported
-loudly as an `OVER BUDGET:` block and the run still exits `0`. `--strict-budget` opts into the
-failing exit; `--no-budget-check` skips the comparison entirely, so nothing is measured or reported.
+`scripts/run-tests.md` is the contract. Budgets are enforced by a **screen-then-confirm** regime:
+a parallel run over `ceiling * 5/2` records an advisory screening finding (`BUDGET WATCH:` /
+`PARALLEL-SENSITIVE:`), and only a solo measurement over `ceiling * 3/2` — from `-j 1`, or from a
+scheduled serial confirmation the runner triggers after repeated overruns — is an authoritative
+breach (`SERIAL CONFIRMED OVER BUDGET:`). A default run reports its findings loudly and still exits
+`0`. `--strict-budget` confirms every current candidate immediately and opts into the failing exit;
+`--no-budget-check` skips the comparison entirely, so nothing is measured or reported.
 
 Exit `0` green (including a green run that breached a budget), `1` a test failed, `3` green but at
 least one target produced no result at all — the run certified nothing about it, `4` a breach under

@@ -115,7 +115,7 @@ assert "timings carries the assert counts" 'awk -F"\t" "\$1 ~ /test_alpha/ && \$
 # gate, and a human or agent following AGENTS.md. None of them can tell 4 from 1, and the first two
 # answer red by dispatching a repair agent to root-cause failing tests that do not exist. So a
 # green-but-slow run exits 0 while saying so out loud. See scripts/run-tests.md, "Budget
-# enforcement", for the full argument and for what is deferred to change 0229.
+# enforcement", for the full argument and for the screen-then-confirm regime of change 0251.
 cat > "$T/tests/test_slow.sh" <<'EOF'
 #!/usr/bin/env bash
 sleep 3

@@ -11,7 +11,7 @@
 #   A  a ceiling ABOVE the hard 60s limit                       — assertion (3)
 #   B  a `serial` pin, removing the file from the parallel phase — assertion (4)
 #   C  a ceiling raised anywhere BELOW the limit — the quiet one: a row moved 35 -> 60 breaks no
-#      ceiling and pins nothing serial, yet buys 62s MORE measured slack under the 5/2 factor.
+#      ceiling and pins nothing serial, yet buys 62s MORE measured slack under the 5/2 screening factor.
 #      The table's TOTAL is pinned instead, so any raise moves it                — assertion (5)
 #   D  the wiring site: disarming the budget report at the merge gate, which leaves every
 #      assertion about the table green and the table itself decoration            — assertion (7)
@@ -249,9 +249,10 @@ EXPECTED_TOTAL=2285 # the sum of every ceiling, seeded with the table from the m
                     # the rule puts at 45. The added block's own cost is ~1.5s, measured directly
                     # with epoch stamps around its four fixture runs: the rest of the gap was
                     # already there.
-                    # This is not a number raised to absorb a breach. The file has never been
-                    # reported OVER BUDGET — the runner's breach test is `measured > ceiling * 5/2`,
-                    # and the full parallel suite for this change (106 files, 8665 asserts, wall
+                    # This is not a number raised to absorb a breach. The file has never crossed
+                    # the parallel screen — the runner's screening test is `measured > ceiling * 5/2`
+                    # (a BUDGET WATCH observation, never a breach), and the full parallel suite for
+                    # this change (106 files, 8665 asserts, wall
                     # 192s) reads it at 66s against a 87.5s threshold. What is raised is the CLAIM,
                     # which was already false by ~0.8s at the merge-base and is false by ~1.8s now.
                     # 1680 -> 1690 (change 0284): the new-test-file case —
@@ -301,8 +302,8 @@ EXPECTED_TOTAL=2285 # the sum of every ceiling, seeded with the table from the m
                     # The rows are KEPT rather than re-sized upward, for the reason the
                     # harness-gaps entry below already states: a row is a SERIAL claim, and
                     # parallel-phase contention is what the runner's own comparison factor
-                    # (SLACK_NUM/SLACK_DEN = 5/2) absorbs. Under that factor these rows report OVER
-                    # BUDGET only past 50s and 87s, so the hazard the entry below names — "a ceiling
+                    # (SLACK_NUM/SLACK_DEN = 5/2) absorbs. Under that factor these rows cross the
+                    # parallel screen (BUDGET WATCH) only past 50s and 87s, so the hazard the entry below names — "a ceiling
                     # set just above a load-sensitive reading manufactures intermittent findings" —
                     # is not the state either of them is in, and the total does not move.
                     # 1655 -> 1660 (change 0282 review, launch-failure identity blocker): the
@@ -517,9 +518,10 @@ assert "run-tests.sh defaults to tests/runtime-budgets.tsv" \
   'grep -q "tests/runtime-budgets.tsv" "$REPO/scripts/run-tests.sh"'
 
 # (7) RELIEF PATH D — THE WIRING SITE. (6) proves the runner reads the table when it runs; it says
-# nothing about the command the merge gate actually runs. Since a breach became advisory, that gate
-# no longer turns red on one — the `OVER BUDGET:` REPORT is the whole remaining channel (see
-# scripts/run-tests.md, "Why a breach is advisory by default"). So what has to hold is that the
+# nothing about the command the merge gate actually runs. Since a screening finding is advisory, that gate
+# no longer turns red on one — the budget REPORT (`BUDGET WATCH:` / `PARALLEL-SENSITIVE:` /
+# `SERIAL CONFIRMED OVER BUDGET:`) is the whole remaining channel (see
+# scripts/run-tests.md, "The state store, and why a default-run finding is advisory"). So what has to hold is that the
 # configured command still emits that report: `--no-budget-check` measures no breach and prints
 # none, and would leave every assertion above green over a table nothing reads.
 #
