@@ -13,7 +13,7 @@ related: []
 discovered_from: [330]
 adrs: []
 spec: docs/superpowers/specs/2026-08-21-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-22-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-22T15:57:11Z'
 | Artifact | Link |
 |---|---|
 | Spec | `docs/superpowers/specs/2026-08-21-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board-design.md` |
+| Plan | `docs/superpowers/plans/2026-08-22-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
