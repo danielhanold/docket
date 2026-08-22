@@ -2593,13 +2593,19 @@ assert "0128 glob: the auto_capture.types diagnostic quotes the LITERAL token" \
 # it. That is also what lets the pre-existing `unset`-idiom blocks satisfy this
 # guard byte-untouched (change 0126, spec assumption 2).
 #
-# Corpus is the WHOLE file minus this section's own marker-delimited self-block.
-# Deliberately NOT truncated at an end-of-file marker: the file's tail is where
-# new fixtures land, so truncation would make them permanently invisible.
+# Population unit is the DISCOVERED `tests/test_docket_config*.sh` family corpus,
+# never a single ${BASH_SOURCE[0]} scan (mirrors the "0258 leg 2" control's family
+# glob below; ADR-0050, learning backstop-must-compute-not-reenumerate): a new
+# shard self-registers with this guard exactly as it self-registers with the
+# runner. Each file's own scan covers the WHOLE file minus its marker-delimited
+# self-block (only the marker-carrying shard has one). Deliberately NOT truncated
+# at an end-of-file marker: the file's tail is where new fixtures land, so
+# truncation would make them permanently invisible. SITE lines carry the file
+# basename (`SITE <basename>:<line>`) so a corpus of several shards stays legible.
 
 prelude_report(){
-  local file="$1" keys="$2"
-  awk -v keys="$keys" '
+  local file="$1" keys="$2" fbase="$3"
+  awk -v keys="$keys" -v fbase="$fbase" '
     { L[NR] = $0 }
     END {
       n = NR
@@ -2680,9 +2686,9 @@ prelude_report(){
 
         cnt = 0; miss = ""
         for (w in need) { cnt++; if (!(w in cleared)) miss = miss " " w }
-        if (cnt == 0)        { exempt++; print "SITE " SL[k] " exempt" }
-        else if (miss == "") { okc++;    print "SITE " SL[k] " ok" }
-        else                 { viol++;   print "SITE " SL[k] " viol" miss }
+        if (cnt == 0)        { exempt++; print "SITE " fbase ":" SL[k] " exempt" }
+        else if (miss == "") { okc++;    print "SITE " fbase ":" SL[k] " ok" }
+        else                 { viol++;   print "SITE " fbase ":" SL[k] " viol" miss }
       }
       print "TOTALS sites=" ns " exempt=" exempt " ok=" okc " viol=" viol
     }
@@ -2716,34 +2722,75 @@ t_keys="$(run "$tmp/tkeys" --export 2>/dev/null | sed 's/=.*//' | sort | tr '\n'
 # but an empty or badly-truncated set does).
 t_keycount="$(printf '%s\n' "$t_keys" | tr ' ' '\n' | sed '/^$/d' | wc -l | tr -d ' ')"
 
-t_out="$(prelude_report "${BASH_SOURCE[0]}" "$t_keys")"
-t_sites="$(printf '%s\n' "$t_out" | sed -n 's/^TOTALS sites=\([0-9]*\) .*/\1/p')"
-t_viol="$(printf '%s\n' "$t_out" | sed -n 's/^TOTALS .* viol=\([0-9]*\)$/\1/p')"
+# The population is the DISCOVERED family corpus, never an enumerated list
+# (ADR-0050; learning backstop-must-compute-not-reenumerate): a new shard
+# self-registers with this guard exactly as it self-registers with the runner.
+# Mirrors the "0258 leg 2" control's `"$REPO"/tests/test_docket_config*.sh` glob
+# below — same spelling, LC_ALL=C sorted.
+t_corpus=()
+while IFS= read -r tc_f; do t_corpus+=("$tc_f"); done \
+  < <(printf '%s\n' "$REPO"/tests/test_docket_config*.sh | LC_ALL=C sort)
+assert "0126 T: the family glob resolved to real files" '[ -e "${t_corpus[0]}" ]'
+
+# Aggregate the site report and both extractors ACROSS the corpus. Every count is
+# summed from per-file runs; the self-block subtraction (t_selflit/t_selfrefs)
+# applies only to the one shard that carries the guard's own markers.
+t_out=""
+t_sites=0; t_exempt=0; t_ok=0; t_viol=0
+t_raw=0; t_helper=0; t_comments=0
+t_selfcount=0; t_selflit=0; t_selfrefs=0
+for tc_f in "${t_corpus[@]}"; do
+  tc_base="$(basename "$tc_f")"
+  tc_out="$(prelude_report "$tc_f" "$t_keys" "$tc_base")"
+  t_out="$t_out$tc_out"$'\n'
+
+  # per-file TOTALS, summed into the whole-corpus figures.
+  tc_sites="$(printf '%s\n' "$tc_out" | sed -n 's/^TOTALS sites=\([0-9]*\) .*/\1/p')"
+  tc_exempt="$(printf '%s\n' "$tc_out" | sed -n 's/^TOTALS .* exempt=\([0-9]*\) .*/\1/p')"
+  tc_ok="$(printf '%s\n' "$tc_out" | sed -n 's/^TOTALS .* ok=\([0-9]*\) .*/\1/p')"
+  tc_viol="$(printf '%s\n' "$tc_out" | sed -n 's/^TOTALS .* viol=\([0-9]*\)$/\1/p')"
+  t_sites=$(( t_sites + tc_sites )); t_exempt=$(( t_exempt + tc_exempt ))
+  t_ok=$(( t_ok + tc_ok )); t_viol=$(( t_viol + tc_viol ))
+
+  # Structurally-different extractor, summed per file: a plain grep of the raw
+  # literal, minus the known non-sites — the one canonical assert() helper per
+  # family file (whose eval takes a positional rather than a cmdsub var) and
+  # every COMMENT line that merely mentions the literal in prose (a real site is
+  # never a comment line — this mirrors the site-discovery awk's own
+  # `if (s ~ /^#/) continue`). Each count is derived at runtime, not hand-counted,
+  # so file drift cannot silently desync the two extractors.
+  tc_raw="$(/usr/bin/grep -cF "$T_EVAL_LITERAL" "$tc_f")"
+  tc_helper="$(/usr/bin/grep -cE '^assert\(\)\{' "$tc_f")"
+  tc_comments="$(/usr/bin/grep -E '^[[:space:]]*#' "$tc_f" | /usr/bin/grep -cF "$T_EVAL_LITERAL")"
+  t_raw=$(( t_raw + tc_raw )); t_helper=$(( t_helper + tc_helper ))
+  t_comments=$(( t_comments + tc_comments ))
+
+  # Self-block subtraction is scoped to the marker-carrying shard: only it holds a
+  # quoted T_EVAL_LITERAL copy (counted by t_raw but not a site) and the bounded
+  # self-block the site scan excludes.
+  tc_hasself="$(/usr/bin/grep -cF -- "$T_SELF_START" "$tc_f")"
+  if [ "$tc_hasself" -gt 0 ]; then
+    t_selfcount=$(( t_selfcount + 1 ))
+    t_selflit="$(/usr/bin/grep -cE '^T_EVAL_LITERAL=' "$tc_f")"
+    t_selfrefs="$(awk -v s="$T_SELF_START" -v e="$T_SELF_END" '
+      index($0,s)>0 && !st {st=NR} index($0,e)>0 && st && !en {en=NR}
+      END{ if (st && en) print en-st+1; else print 0 }' "$tc_f")"
+  fi
+done
 # t_exempt is diagnostic-only, on purpose: since change 0149 replaced the absolute exempt ceiling
 # with the proportional `ok` floor below, no assert reads this variable and nothing prints it.
-# Kept extracted (not deleted) for a reader diffing this TOTALS line by eye — an unread variable
+# Kept summed (not deleted) for a reader diffing the TOTALS lines by eye — an unread variable
 # here is deliberate, not an oversight.
-t_exempt="$(printf '%s\n' "$t_out" | sed -n 's/^TOTALS .* exempt=\([0-9]*\) .*/\1/p')"
-t_ok="$(printf '%s\n' "$t_out" | sed -n 's/^TOTALS .* ok=\([0-9]*\) .*/\1/p')"
-# Print the TOTALS line AND every violating site. Printing totals alone leaves the
-# next author staring at `viol=1` with no line number and no variable name.
+: "$t_exempt"
+# Print every per-file TOTALS line AND every violating site. Printing totals alone
+# leaves the next author staring at `viol=1` with no file, line, or variable name.
 printf '%s\n' "$t_out" | /usr/bin/grep -E '^(TOTALS|SITE .* viol)'
 
-# Population floor, from a STRUCTURALLY DIFFERENT extractor: a plain grep of the
-# raw literal, minus the known non-sites: the assert() helper at :8 (whose eval
-# takes a positional rather than a cmdsub var), every COMMENT line that merely
-# mentions the literal in prose (a real site is never a comment line — this
-# mirrors the site-discovery awk's own `if (s ~ /^#/) continue`), and this
-# guard's own T_EVAL_LITERAL holder (a quoted copy of the pattern, not a site).
-# Each count is derived at runtime, not hand-counted, so file drift (new
-# fixtures, new prose elsewhere) cannot silently desync the two extractors.
-t_raw="$(/usr/bin/grep -cF "$T_EVAL_LITERAL" "${BASH_SOURCE[0]}")"
-t_helper="$(/usr/bin/grep -cE '^assert\(\)\{' "${BASH_SOURCE[0]}")"
-t_comments="$(/usr/bin/grep -E '^[[:space:]]*#' "${BASH_SOURCE[0]}" | /usr/bin/grep -cF "$T_EVAL_LITERAL")"
-t_selflit="$(/usr/bin/grep -cE '^T_EVAL_LITERAL=' "${BASH_SOURCE[0]}")"
-t_selfrefs="$(awk -v s="$T_SELF_START" -v e="$T_SELF_END" '
-  index($0,s)>0 && !st {st=NR} index($0,e)>0 && st && !en {en=NR}
-  END{ if (st && en) print en-st+1; else print 0 }' "${BASH_SOURCE[0]}")"
+# Exactly one corpus file carries the guard's own markers: the self-block
+# subtraction above (t_selflit/t_selfrefs) is only sound if precisely one shard
+# holds T_SELF_START. Two would double-count; zero would silently disable it.
+assert "0126 T: exactly one corpus file carries the guard self-block markers" \
+  '[ "$t_selfcount" -eq 1 ]'
 
 assert "0126 T: guard reached a real population (>= 60 sites)" '[ "$t_sites" -ge 60 ]'
 assert "0126 T: the derived key set is non-vacuous (>= 20 keys)" '[ "$t_keycount" -ge 20 ]'
@@ -2779,15 +2826,21 @@ assert "0126 T: every eval site clears the exported vars its asserts read" \
 # The real invariants are that the guard still proves something everywhere, and that the
 # require_pr_approval site kept a NON-EMPTY need set after losing its DOCKET_BASH_PATH poison —
 # it retains FINALIZE_REQUIRE_PR_APPROVAL (an emitted key), so it does not fall into the exempt
-# bucket and t_exempt legitimately stays 3. The site's line number is derived, not hand-counted:
-# it is the last `eval "$out"` line for the r9 fixture seen before the assert that immediately
-# follows it, so file drift above this point cannot silently desync the two.
-r9_poison_site_line="$(awk '
-  /out="\$\(rung "\$tmp\/r9\.xdg" "\$tmp\/r9" --export\)"; eval "\$out"/ { last = NR }
-  /0102 R9: repo-local false beats global true/ { print last; exit }
-' "${BASH_SOURCE[0]}")"
+# bucket and t_exempt legitimately stays 3. The site is derived, not hand-counted:
+# it is the last `eval "$out"` line for the r9 fixture seen before the assert that
+# immediately follows it, keyed to `<basename>:<line>` of whichever corpus shard
+# holds the fixture — so file drift above it, or the r9 fixture moving to another
+# shard, cannot silently desync the two.
+r9_poison_site=""
+for tc_f in "${t_corpus[@]}"; do
+  tc_r9line="$(awk '
+    /out="\$\(rung "\$tmp\/r9\.xdg" "\$tmp\/r9" --export\)"; eval "\$out"/ { last = NR }
+    /0102 R9: repo-local false beats global true/ { print last; exit }
+  ' "$tc_f")"
+  if [ -n "$tc_r9line" ]; then r9_poison_site="$(basename "$tc_f"):$tc_r9line"; break; fi
+done
 assert "0148: the require_pr_approval site still has a non-empty need set (not exempt)" \
-  '/usr/bin/grep -qE "^SITE $r9_poison_site_line (ok|viol)" <<<"$t_out"'
+  '/usr/bin/grep -qE "^SITE $r9_poison_site (ok|viol)" <<<"$t_out"'
 
 # ============================================================================
 # Change 0223 — gate_observation_budget (GATE_OBSERVATION_BUDGET)
