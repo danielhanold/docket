@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **Change 0335 — refresh-claim fails verify-delta when the board is byte-unchanged** — `docs/changes/active/0335-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board.md`
+> ↩ **Change 0335 — refresh-claim fails verify-delta when the board is byte-unchanged** — `docs/changes/archive/2026-08-22-0335-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board.md`
 <!-- docket:backlink:end -->
 # Refresh-Claim Byte-Unchanged Board Fix Implementation Plan
 
