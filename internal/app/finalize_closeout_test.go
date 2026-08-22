@@ -933,13 +933,12 @@ func TestCloseoutBacklinkPendingFindingNamesTheCause(t *testing.T) {
 	if pending == nil {
 		t.Fatalf("an in-scope malformed artifact did not leave the leg pending: %+v", res.Findings)
 	}
-	// The finding names the cause: the exact offending artifact path.
+	// The finding names the cause: the exact offending artifact path, and the
+	// typed detail separator — proof it carries more than the old coarse token.
 	if !strings.Contains(pending.Message, f.planPath) {
 		t.Errorf("pending finding does not name the offending artifact:\n%s", pending.Message)
 	}
-	// And is not merely the old opaque form ending at the coarse token.
-	if strings.HasSuffix(strings.TrimSpace(pending.Message), "the sweep will retry it") &&
-		!strings.Contains(pending.Message, f.planPath) {
-		t.Errorf("pending finding is still cause-free: %q", pending.Message)
+	if !strings.Contains(pending.Message, "): ") {
+		t.Errorf("pending finding carries no typed detail (still cause-free): %q", pending.Message)
 	}
 }
