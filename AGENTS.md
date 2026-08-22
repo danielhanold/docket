@@ -75,6 +75,11 @@ means), this file does not restate them.
   specs, and Accepted ADRs — keep whatever pointer was true when written; rewriting them falsifies
   history.
 
+## Rebuild the binary after a merge to main
+
+- Whenever a PR is successfully merged into `main`, rebuild the `docket` binary so the installed
+  tool matches source: `docket development install --source /Users/homer/dev/docket`.
+
 <!-- docket:dispatch:start (managed by docket — do not hand-edit) -->
 ## Docket agents — dispatch, don't run inline
 
