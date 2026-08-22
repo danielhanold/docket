@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'feat/refresh-claim-fails-verify-delta-on-a-byte-unchanged-board'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-22T15:54:19Z'
+reconciled: true
+claimed_at: '2026-08-22T15:57:11Z'
 ---
 
 ## Artifacts
@@ -80,3 +80,7 @@ linked spec.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-22
+
+2026-08-22 — Reconciled against current `main`. Root cause confirmed live: `internal/app/change_claim.go` `changeClaimOp.Plan` (shared by claim + refresh-claim) still appends the board `FileMutation` unconditionally via `boardMutationKind` (line ~559), which never byte-compares the render. The declare-only-when-changed precedent the spec cites is present and current in both `change_reconcile.go` (lines ~478-504, imports `bytes`) and `change_attach.go`. Spec matches reality with no scope drift; `depends_on: []` still empty. Proceeding to plan + build as specified.
