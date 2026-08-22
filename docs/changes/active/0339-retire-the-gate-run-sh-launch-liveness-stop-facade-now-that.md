@@ -7,7 +7,7 @@ priority: medium
 type: refactor
 created: 2026-08-22
 updated: 2026-08-22
-depends_on: []
+depends_on: [338]
 stacked_on:
 related: []
 discovered_from: [338]
