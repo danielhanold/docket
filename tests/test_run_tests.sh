@@ -165,12 +165,16 @@ assert "--no-budget-check reports no breach" '! grep -q "OVER BUDGET" <<<"$nout"
 ( cd "$T" && bash "$RT" -j 1 --budgets "$T/budgets_cheap.tsv" --no-budget-check --strict-budget "$T/tests/test_slowish.sh" >/dev/null 2>&1 ); crc=$?
 assert "--no-budget-check with --strict-budget is a usage error" '[ "$crc" = "2" ]'
 
-# Failures still win, and the advisory text must not contradict them. A run that is BOTH red and
-# over budget exits 1 — and must not print "the tests all passed" at a reader whose tests did not.
+# Failures still win, and the budget machinery must not contradict them. A run that is BOTH red and
+# over its parallel screening threshold exits 1 — and because a red run does not QUALIFY to advance
+# budget state (change 0251), the parallel crossing is neither confirmed nor labeled: a parallel
+# screen crossing is never "OVER BUDGET" (that vocabulary lives only on the -j 1 path), and a
+# non-qualifying run screens nothing at all. It must still not print "the tests all passed" at a
+# reader whose tests did not.
 printf 'tests/test_slowish.sh\t0\tparallel\ntests/test_red.sh\t60\tparallel\n' > "$T/budgets_mixed.tsv"
 mout="$( cd "$T" && bash "$RT" -j 2 --budgets "$T/budgets_mixed.tsv" "$T/tests/test_slowish.sh" "$T/tests/test_red.sh" 2>&1 )"; mrc=$?
 assert "red + over budget exits 1, not 0 or 4" '[ "$mrc" = "1" ]'
-assert "red + over budget still reports the breach" 'grep -q "OVER BUDGET" <<<"$mout"'
+assert "red parallel run never labels a screen crossing OVER BUDGET (change 0251)" '! grep -q "OVER BUDGET" <<<"$mout"'
 assert "red run is NOT told its tests all passed" '! grep -qi "tests all passed" <<<"$mout"'
 
 # The check must not fire on a file comfortably inside its ceiling — otherwise the strict assert
