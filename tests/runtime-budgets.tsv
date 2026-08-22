@@ -264,7 +264,8 @@ tests/test_cursor_dispatch_rule.sh	10	parallel
 tests/test_cursor_permissions_docs.sh	10	parallel
 tests/test_dispatch_capability.sh	10	parallel
 tests/test_docket_build.sh	10	parallel
-tests/test_docket_config.sh	55	parallel
+tests/test_docket_config.sh	45	parallel
+tests/test_docket_config_guards.sh	35	parallel
 tests/test_docket_example_yml.sh	15	parallel
 tests/test_docket_facade.sh	10	parallel
 tests/test_docket_frontmatter.sh	10	parallel
@@ -320,7 +321,7 @@ tests/test_render_learnings_index.sh	10	parallel
 tests/test_results_artifact.sh	10	parallel
 tests/test_role_skill_self_description.sh	10	parallel
 tests/test_run_tests.sh	30	parallel
-tests/test_run_tests_budget_state.sh	10	parallel
+tests/test_run_tests_budget_state.sh	30	parallel
 tests/test_runner_cursor.sh	10	parallel
 tests/test_runner_dispatch.sh	20	parallel
 tests/test_runner_dispatch_build_gate.sh	10	parallel

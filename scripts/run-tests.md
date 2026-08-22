@@ -359,7 +359,7 @@ standing between the run and executing that source.
   not `kill 0` — the runner shares its caller's process group whenever job control is off, which is
   every non-interactive invocation. See "Interruption" above.
 - **Audited for parallel-execution races on 2026-08-06 — the 80 files that existed then, none
-  found.** The suite is now 86 files; the six added by the later sharding commits were never in
+  found.** The suite is now 123 files; the forty-three added since were never in
   this sweep or in the equivalence proof below. Every
   `tests/test_*.sh` was swept for the shapes that make a file unsafe to run beside its neighbours:
   a read of — or a write through — the ambient `$HOME`, a `git config --global` or `--system`

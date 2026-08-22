@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/run-tests.sh — parallel runner for docket's OWN test suite (change 0227).
 #
-# The suite is 86 hermetic per-file scripts with no ordering dependencies, so serial execution buys
+# The suite is 123 hermetic per-file scripts with no ordering dependencies, so serial execution buys
 # nothing and costs ~10 minutes. This runs N at a time, each job in its own HOME/TMPDIR/git-config
 # sandbox, buffering per-file output and reporting a deterministic aggregate.
 #
