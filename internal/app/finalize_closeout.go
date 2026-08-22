@@ -761,18 +761,24 @@ func runCloseoutBacklinkLeg(ctx context.Context, deps FinalizeDeps, cc *closeout
 		Loader:     newBacklinkArtifactLoader(backlinkTargets),
 		Operation:  op,
 	})
-	// Best-effort secondary leg: it surfaces only the coarse result token, not the
-	// typed transaction.Failure (stage/kind/detail). It returns a *StatusFinding into a
-	// larger result — there is no Envelope failure field here to carry the cause — and
-	// the sweep retries it, so the coarse token in the warning is enough.
+	// Best-effort secondary leg: the change stays truthfully done and the sweep
+	// retries. The finding carries the transaction's typed cause — the failure's
+	// stage/kind/detail, or a refusal's finding codes and paths — so a stuck leg
+	// is self-diagnosing (change 0337); after the scoped loader, an in-scope
+	// artifact-level problem is the only refusal left, and this names it.
 	result, _ := mapOutcome(res, execErr, ResultInvalidState)
 	if result == ResultApplied || result == ResultNoOp {
 		return nil
 	}
+	msg := fmt.Sprintf("the change is done, but the integration-ref backlink leg did not land (%s)", result)
+	if d := backlinkLegDetail(res, execErr); d != "" {
+		msg += ": " + d
+	}
+	msg += "; the sweep will retry it"
 	return &StatusFinding{
 		Code:     ReasonCloseoutBacklinkPending,
 		Severity: string(domain.SeverityWarning),
-		Message:  fmt.Sprintf("the change is done, but the integration-ref backlink leg did not land (%s); the sweep will retry it", result),
+		Message:  msg,
 	}
 }
 

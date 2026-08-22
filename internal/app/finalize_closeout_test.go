@@ -898,3 +898,48 @@ func TestCloseoutBacklinkLegIgnoresUnrelatedCorpusErrors(t *testing.T) {
 		t.Errorf("authored plan body disturbed:\n%s", plan)
 	}
 }
+
+// --- TestCloseoutBacklinkPendingFindingNamesTheCause ----------------------
+
+// TestCloseoutBacklinkPendingFindingNamesTheCause is the 0337 diagnosability
+// proof (spec D): when the leg still cannot land — here an IN-SCOPE failure,
+// the targeted plan artifact's own bytes fail document.Parse — the
+// terminal-backlink-pending finding carries the typed cause (the offending
+// artifact path), never a bare coarse token. The change itself still closes
+// out done+archived: the leg stays best-effort.
+func TestCloseoutBacklinkPendingFindingNamesTheCause(t *testing.T) {
+	requireRealGit(t)
+	f := setupCloseoutFixture(t, planRepoModeDocket())
+	// Corrupt the targeted plan artifact on the integration branch: malformed
+	// frontmatter fails document.Parse, an in-scope condition even after the
+	// gate is scoped to the patched artifacts.
+	f.repo.writerAdvance(t, "main", map[string]string{
+		f.planPath: "---\ntitle: uses `context: fork` dispatch\n---\n\n" +
+			artifactWithBacklink(groomPath(f.id, f.slug), "Plan", "The widget plan."),
+	})
+	mergeCommit := f.mergeIntoBase(t)
+	gh := f.baselineMergedFake(f.head, mergeCommit)
+
+	res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
+	if res.Result != ResultApplied || res.Disposition != CloseoutDispDoneArchived {
+		t.Fatalf("closeout = %q disp %q (reason %q)", res.Result, res.Disposition, res.Reason)
+	}
+	var pending *StatusFinding
+	for i, fd := range res.Findings {
+		if fd.Code == ReasonCloseoutBacklinkPending {
+			pending = &res.Findings[i]
+		}
+	}
+	if pending == nil {
+		t.Fatalf("an in-scope malformed artifact did not leave the leg pending: %+v", res.Findings)
+	}
+	// The finding names the cause: the exact offending artifact path.
+	if !strings.Contains(pending.Message, f.planPath) {
+		t.Errorf("pending finding does not name the offending artifact:\n%s", pending.Message)
+	}
+	// And is not merely the old opaque form ending at the coarse token.
+	if strings.HasSuffix(strings.TrimSpace(pending.Message), "the sweep will retry it") &&
+		!strings.Contains(pending.Message, f.planPath) {
+		t.Errorf("pending finding is still cause-free: %q", pending.Message)
+	}
+}
