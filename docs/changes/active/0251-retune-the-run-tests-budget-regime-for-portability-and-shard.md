@@ -2,11 +2,11 @@
 id: 251
 slug: retune-the-run-tests-budget-regime-for-portability-and-shard
 title: 'Retune the run-tests budget regime for portability and sharding'
-status: proposed
+status: 'in-progress'
 priority: high
 type: refactor
 created: 2026-08-07
-updated: 2026-08-11
+updated: '2026-08-22'
 depends_on: []
 related: [258, 273]
 discovered_from: [229, 230]
@@ -16,10 +16,11 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: 'feat/retune-the-run-tests-budget-regime-for-portability-and-shard'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-22T18:20:19Z'
 ---
 
 ## Artifacts
@@ -27,7 +28,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-07-retune-the-run-tests-budget-regime-for-portability-and-shard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-retune-the-run-tests-budget-regime-for-portability-and-shard-design.md) |
+| Spec | `docs/superpowers/specs/2026-08-07-retune-the-run-tests-budget-regime-for-portability-and-shard-design.md` |
 <!-- docket:artifacts:end -->
 
 ## Why

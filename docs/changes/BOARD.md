@@ -1,8 +1,14 @@
 # Backlog
 
-**340 changes** — 🟡 50 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 205 done · 🗑️ 80 killed
+**340 changes** — 🟢 1 in progress · 🟡 49 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 205 done · 🗑️ 80 killed
 
-## 🟡 Proposed (50)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0251](active/0251-retune-the-run-tests-budget-regime-for-portability-and-shard.md) | Retune the run-tests budget regime for portability and sharding | `high` | `refactor` | [spec](../superpowers/specs/2026-08-07-retune-the-run-tests-budget-regime-for-portability-and-shard-design.md) | `feat/retune-the-run-tests-budget-regime-for-portability-and-shard` |
+
+## 🟡 Proposed (49)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -16,7 +22,6 @@
 | [0195](active/0195-retune-the-opencode-shipped-model-defaults-for-cost.md) | Retune the opencode shipped model defaults for cost | `low` | `chore` | build-ready |
 | [0222](active/0222-raise-docket-s-minimum-bash-from-4-to-4-4.md) | Raise docket's minimum Bash from 4+ to 4.4 | `medium` | `chore` | build-ready |
 | [0248](active/0248-role-self-description-enforce-the-positive-half-and-harden-t.md) | Role self-description: enforce the positive half and harden the guard | `low` | `chore` | build-ready |
-| [0251](active/0251-retune-the-run-tests-budget-regime-for-portability-and-shard.md) | Retune the run-tests budget regime for portability and sharding | `high` | `refactor` | build-ready |
 | [0252](active/0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md) | Harden test fixtures and hermeticity into tests-lib | `high` | `chore` | build-ready |
 | [0253](active/0253-settle-and-enforce-the-prose-anchored-guard-house-pattern.md) | Settle and enforce the prose-anchored guard house pattern | `medium` | `chore` | build-ready |
 | [0256](active/0256-config-reader-consolidation-one-extractor-or-a-recorded-adr.md) | Config-reader consolidation: one extractor or a recorded ADR | `medium` | `refactor` | build-ready |
@@ -70,7 +75,7 @@
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
-| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [#docket#226](https://github.com/danielhanold/docket/pull/docket#226) |  |
+| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | #docket#226 |  |
 
 ```mermaid
 graph TD
