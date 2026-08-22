@@ -839,3 +839,62 @@ func TestCloseoutNotesRootCarryNoPropagation(t *testing.T) {
 		t.Errorf("child's own notes did not survive root archival:\n%s", childArchived)
 	}
 }
+
+// --- TestCloseoutBacklinkLegIgnoresUnrelatedCorpusErrors ------------------
+
+// TestCloseoutBacklinkLegIgnoresUnrelatedCorpusErrors is the 0337 regression:
+// the integration branch carries a pre-existing corpus record the mutation
+// never touches whose bytes fail document.Parse (an ADR with an unquoted
+// colon-space title — the live ADR-0024 trigger). The backlink-only patch must
+// LAND anyway: the leg's gate is scoped to the artifacts it patches, not the
+// health of the integration branch's partial corpus.
+func TestCloseoutBacklinkLegIgnoresUnrelatedCorpusErrors(t *testing.T) {
+	requireRealGit(t)
+	f := setupCloseoutFixture(t, planRepoModeDocket())
+	// Pre-existing, mutation-unrelated corpus error on the integration branch.
+	f.repo.writerAdvance(t, "main", map[string]string{
+		"docs/adrs/0099-malformed.md": "---\n" +
+			"id: 99\n" +
+			"title: uses `context: fork` dispatch\n" +
+			"status: Accepted\n" +
+			"date: 2026-08-22\n" +
+			"---\n\n# 99. Malformed on purpose\n",
+	})
+	mergeCommit := f.mergeIntoBase(t)
+	gh := f.baselineMergedFake(f.head, mergeCommit)
+	mainBefore := originTip(t, f.repo.origin, "main")
+
+	res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
+	if res.Result != ResultApplied || res.Disposition != CloseoutDispDoneArchived {
+		t.Fatalf("closeout = %q disp %q (reason %q)", res.Result, res.Disposition, res.Reason)
+	}
+	// The leg LANDED: no pending finding, and the integration ref advanced.
+	for _, fd := range res.Findings {
+		if fd.Code == ReasonCloseoutBacklinkPending {
+			t.Fatalf("unrelated corpus error refused the backlink leg: %+v", fd)
+		}
+	}
+	mainAfter := originTip(t, f.repo.origin, "main")
+	if mainAfter == mainBefore {
+		t.Fatalf("the integration ref did not advance (no backlink leg)")
+	}
+	// The leg's commit touched exactly the plan/results — the malformed record
+	// and every other corpus byte are untouched.
+	got := originCommitPaths(t, f.repo.origin, mainAfter)
+	want := []string{f.planPath, f.resultsPath}
+	sort.Strings(want)
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("integration-ref commit changed %v, want exactly %v", got, want)
+	}
+	// The retarget itself happened: the plan now backlinks the archive path.
+	plan, ok := originFile(t, f.repo.origin, "main", f.planPath)
+	if !ok {
+		t.Fatalf("plan artifact vanished from main")
+	}
+	if !strings.Contains(plan, res.ArchivePath) {
+		t.Errorf("plan backlink does not point at the archive path %q:\n%s", res.ArchivePath, plan)
+	}
+	if !strings.Contains(plan, "# Plan\n\nThe widget plan.") {
+		t.Errorf("authored plan body disturbed:\n%s", plan)
+	}
+}
