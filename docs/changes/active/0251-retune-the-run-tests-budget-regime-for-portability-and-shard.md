@@ -12,7 +12,7 @@ related: [258, 273]
 discovered_from: [229, 230]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-retune-the-run-tests-budget-regime-for-portability-and-shard-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-22-retune-the-run-tests-budget-regime-for-portability-and-shard.md'
 results:
 trivial: false
 auto_groomable: true
@@ -29,6 +29,7 @@ claimed_at: '2026-08-22T18:23:34Z'
 | Artifact | Link |
 |---|---|
 | Spec | `docs/superpowers/specs/2026-08-07-retune-the-run-tests-budget-regime-for-portability-and-shard-design.md` |
+| Plan | `docs/superpowers/plans/2026-08-22-retune-the-run-tests-budget-regime-for-portability-and-shard.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
