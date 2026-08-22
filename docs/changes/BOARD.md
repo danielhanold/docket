@@ -1,8 +1,8 @@
 # Backlog
 
-**339 changes** — 🟡 49 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 205 done · 🗑️ 80 killed
+**340 changes** — 🟡 50 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 205 done · 🗑️ 80 killed
 
-## 🟡 Proposed (49)
+## 🟡 Proposed (50)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -55,6 +55,7 @@
 | [0334](active/0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | CLAUDE.md global and project copies drift on finalize-agent descriptions | `medium` | `docs` | needs-brainstorm |
 | [0338](active/0338-gate-execution-terminal-sentinel-has-no-format-contract-poll.md) | Gate observe ships two serializations (shell state=name vs native protocol-v1 JSON) reconciled only by prose — converge on JSON, migrate the caller loop, retire the text contract | `medium` | `fix` | build-ready |
 | [0339](active/0339-retire-the-gate-run-sh-launch-liveness-stop-facade-now-that.md) | Retire the gate-run.sh launch/liveness/stop facade now that the native Go-v1 gate is canonical (collapse the shared docket-liveness.sh seam with runner-dispatch.sh) | `medium` | `refactor` | ⏳ waiting on #338 — not yet built |
+| [0340](active/0340-stamp-build-identity-in-development-install.md) | Stamp build identity into the `development install` binary | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -128,6 +129,7 @@ graph TD
   0334
   0338
   0338 --> 0339
+  0340
   0192:::done
   0211:::done
   0311:::done
