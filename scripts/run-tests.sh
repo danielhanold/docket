@@ -16,13 +16,15 @@
 # is why nothing keys on its order.
 #
 # Usage: run-tests.sh [-j N] [--verbose] [--timings PATH] [--budgets PATH] [--no-budget-check]
-#                     [--strict-budget] [TEST ...]
+#                     [--strict-budget] [--budget-state PATH] [--print-budget-state-path] [TEST ...]
 #   -j N               parallel jobs (default: CPU count; -j 1 is serial)
 #   --verbose          print every file's output, not only failing files'
 #   --timings PATH     write <relpath>\t<seconds>\t<rc>\t<passes>\t<failures> per file
 #   --budgets PATH     budget table (default: tests/runtime-budgets.tsv when present)
 #   --no-budget-check  skip the budget comparison entirely — no breach is measured or reported
 #   --strict-budget    make a breach FATAL (exit 4); by default a breach is reported, not fatal
+#   --budget-state PATH  override the advisory budget-state store path (default: under the git dir)
+#   --print-budget-state-path  print the resolved budget-state store path and exit 0 (runs nothing)
 #   TEST ...           test files to run (default: tests/test_*.sh)
 # Exit: 0 every test file passed — including green-but-over-budget, which is reported loudly and
 #       is fatal only under --strict-budget; 1 a test file failed; 3 a job produced no result at
@@ -85,7 +87,22 @@ cpu_count(){
   else echo 4; fi
 }
 
+# ---- budget state store: path resolution (change 0251) ------------------------------------------
+# Defined up here, ahead of the option loop, so --print-budget-state-path can resolve the store path
+# and exit BEFORE any discovery or the source-hygiene preflight runs (it "runs nothing"). The store's
+# lock/load/write functions and their arrays live below the budget table, where the run uses them.
+BS_SCHEMA=1
+budget_state_path(){
+  if [ -n "${BUDGET_STATE_OVERRIDE:-}" ]; then printf '%s' "$BUDGET_STATE_OVERRIDE"; return; fi
+  local gd; gd="$(git -C "$REPO" rev-parse --git-dir 2>/dev/null)" || { printf ''; return; }
+  # rev-parse may print a relative path; anchor it. Linked worktrees get their own git dir,
+  # hence their own history (spec: "Persistent state store").
+  case "$gd" in /*) ;; *) gd="$REPO/$gd" ;; esac
+  printf '%s/docket/run-tests-budget-state.tsv' "$gd"
+}
+
 JOBS=""; VERBOSE=0; TIMINGS=""; BUDGETS=""; BUDGET_CHECK=1; BUDGET_STRICT=0; TARGETS=()
+BUDGET_STATE_OVERRIDE=""; PRINT_STATE_PATH=0
 while [ $# -gt 0 ]; do
   case "$1" in
     -j) JOBS="${2:-}"; shift 2 || exit 2 ;;
@@ -95,6 +112,8 @@ while [ $# -gt 0 ]; do
     --budgets) BUDGETS="${2:-}"; shift 2 || exit 2 ;;
     --no-budget-check) BUDGET_CHECK=0; shift ;;
     --strict-budget) BUDGET_STRICT=1; shift ;;
+    --budget-state) BUDGET_STATE_OVERRIDE="${2:-}"; shift 2 || exit 2 ;;
+    --print-budget-state-path) PRINT_STATE_PATH=1; shift ;;
     # Range ends at the blank comment line AFTER the Exit block, not at `# Exit:` itself — Exit
     # wraps onto a continuation line, and a range ending on its first line silently drops the rest.
     -h|--help) sed -n '/^# Usage:/,/^#$/p' "${BASH_SOURCE[0]}" | sed -e '/^# *$/d' -e 's/^# \{0,1\}//'; exit 0 ;;
@@ -103,6 +122,12 @@ while [ $# -gt 0 ]; do
     *) TARGETS+=("$1"); shift ;;
   esac
 done
+
+# Debug flag (change 0251): print the resolved store path and exit 0 immediately after option
+# parsing — before discovery, the hygiene preflight, or any test launch. Order-independent: a
+# --budget-state that appeared anywhere on the line has already set BUDGET_STATE_OVERRIDE.
+if [ "$PRINT_STATE_PATH" = 1 ]; then printf '%s\n' "$(budget_state_path)"; exit 0; fi
+
 JOBS="${JOBS:-$(cpu_count)}"
 case "$JOBS" in ''|*[!0-9]*|0) printf 'run-tests: -j needs a positive integer, got "%s"\n' "$JOBS" >&2; exit 2 ;; esac
 
@@ -213,6 +238,65 @@ fi
 
 ceiling_of(){ local k="${1##*/}"; printf '%s' "${CEILING[$k]:-$DEFAULT_CEILING}"; }
 mode_of(){    local k="${1##*/}"; printf '%s' "${MODE[$k]:-parallel}"; }
+
+# ---- budget state store (change 0251) ---------------------------------------------------
+# Advisory infrastructure: fail-open everywhere. Nothing authoritative reads stored state —
+# --strict-budget re-measures current candidates directly (spec assumption 11). budget_state_path
+# and BS_SCHEMA are defined above the option loop; the store's resolved path, lock, and I/O live
+# here. File format: header `# docket-run-tests-budget-state v1`, then `# next_due_sequence N`, then
+# tab-separated rows `context_key state initial_overrun_streak overruns_since_confirmation
+# last_parallel_seconds last_solo_seconds budget_seconds last_confirmation_result due_sequence
+# test_path`.
+STATE_FILE="$(budget_state_path)"
+STATE_USABLE=1   # flipped to 0 on any store problem; the run continues without history
+STATE_LOCKED=0
+state_lock(){   # bounded: ~3s of 0.1s attempts; failure is a warning, never a run failure
+  local i=0
+  while [ "$i" -lt 30 ]; do
+    if mkdir "$STATE_FILE.lock" 2>/dev/null; then STATE_LOCKED=1; return 0; fi
+    i=$((i + 1)); sleep 0.1
+  done
+  printf 'run-tests: budget-state lock not acquired (%s.lock) — this run reads and writes no budget history. Remove the lock dir by hand if its owner is dead.\n' "$STATE_FILE" >&2
+  return 1
+}
+state_unlock(){ [ "$STATE_LOCKED" = 1 ] && rmdir "$STATE_FILE.lock" 2>/dev/null; STATE_LOCKED=0; }
+declare -A BS_STATE=() BS_STREAK=() BS_SINCE=() BS_LASTPAR=() BS_LASTSOLO=() BS_CEIL=() BS_CONFRES=() BS_DUESEQ=() BS_PATHOF=()
+BS_NEXT_SEQ=1
+state_load(){    # under the lock; malformed rows ignored + reported once, wrong schema discarded
+  [ -f "$STATE_FILE" ] || return 0
+  # Capture-then-match, never `head | grep -q`: an early-exiting consumer under pipefail turns a
+  # SIGPIPE into an intermittent 141 (AGENTS.md, Shell).
+  local hdr; hdr="$(head -n1 "$STATE_FILE" 2>/dev/null)"
+  grep -qF "docket-run-tests-budget-state v$BS_SCHEMA" <<<"$hdr" || return 0
+  local reported=0 k st streak since lp ls bc cr ds tp
+  BS_NEXT_SEQ="$(sed -n '2s/^# next_due_sequence \([0-9]*\)$/\1/p' "$STATE_FILE")"; BS_NEXT_SEQ="${BS_NEXT_SEQ:-1}"
+  while IFS=$'\t' read -r k st streak since lp ls bc cr ds tp; do
+    case "$k" in ''|'#'*) continue ;; esac
+    if [ -z "$tp" ] || [ -z "$st" ]; then
+      [ "$reported" = 0 ] && { printf 'run-tests: malformed budget-state record ignored in %s\n' "$STATE_FILE" >&2; reported=1; }
+      continue
+    fi
+    BS_STATE[$k]="$st"; BS_STREAK[$k]="$streak"; BS_SINCE[$k]="$since"; BS_LASTPAR[$k]="$lp"
+    BS_LASTSOLO[$k]="$ls"; BS_CEIL[$k]="$bc"; BS_CONFRES[$k]="$cr"; BS_DUESEQ[$k]="$ds"; BS_PATHOF[$k]="$tp"
+  done < "$STATE_FILE"
+}
+state_write(){   # full replacement via temp-beside-destination + atomic rename; explicit chmod
+  local dir tmpf k
+  dir="$(dirname "$STATE_FILE")"
+  mkdir -p "$dir" 2>/dev/null || { STATE_USABLE=0; return 1; }
+  tmpf="$(mktemp "$dir/.run-tests-budget-state.XXXXXX")" 2>/dev/null || { STATE_USABLE=0; return 1; }
+  {
+    printf '# docket-run-tests-budget-state v%s\n' "$BS_SCHEMA"
+    printf '# next_due_sequence %s\n' "$BS_NEXT_SEQ"
+    for k in "${!BS_STATE[@]}"; do
+      printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$k" "${BS_STATE[$k]}" "${BS_STREAK[$k]:-0}" \
+        "${BS_SINCE[$k]:-0}" "${BS_LASTPAR[$k]:--}" "${BS_LASTSOLO[$k]:--}" "${BS_CEIL[$k]:-0}" \
+        "${BS_CONFRES[$k]:--}" "${BS_DUESEQ[$k]:--}" "${BS_PATHOF[$k]}"
+    done | LC_ALL=C sort
+  } > "$tmpf" || { rm -f "$tmpf"; STATE_USABLE=0; return 1; }
+  chmod 600 "$tmpf"   # umask makes the mktemp mode a request, not a promise
+  mv -f "$tmpf" "$STATE_FILE" || { rm -f "$tmpf"; STATE_USABLE=0; return 1; }
+}
 
 # ---- ordering: longest budget first, so the tail starts immediately ----------------------------
 PAR=(); SER=()
@@ -399,6 +483,22 @@ if [ -n "$over_names" ]; then
   else
     printf 'Advisory: the tests all passed, so this run does not fail on the breach (exit 0).\n'
     printf 'Pass --strict-budget to gate on it — but see scripts/run-tests.md first: the slack factor is calibrated to one machine (change 0229).\n'
+  fi
+fi
+
+# ---- budget-state application (change 0251) -------------------------------------------------
+# Task 2 placeholder: exercise the store's lock/load/write path so its mechanics are covered end to
+# end. Task 3 replaces this with the qualifying-run state machine (its "Screening" apply logic).
+# Fail-open throughout — an empty or unusable path, an unacquirable lock, or a failed write never
+# changes the run's verdict, and this block sits BELOW the exit-affecting report so it cannot.
+if [ "$BUDGET_CHECK" = 1 ]; then
+  if [ -z "$STATE_FILE" ] || ! mkdir -p "$(dirname "$STATE_FILE")" 2>/dev/null; then
+    STATE_USABLE=0
+    printf 'run-tests: budget state unavailable — running without budget history.\n' >&2
+  elif state_lock; then
+    state_load
+    state_write
+    state_unlock
   fi
 fi
 
