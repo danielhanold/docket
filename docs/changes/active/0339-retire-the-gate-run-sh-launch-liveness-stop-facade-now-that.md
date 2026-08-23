@@ -21,7 +21,7 @@ branch: 'feat/retire-the-gate-run-sh-launch-liveness-stop-facade-now-that'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-23T20:07:29Z'
+claimed_at: '2026-08-23T20:07:59Z'
 ---
 
 ## Artifacts
