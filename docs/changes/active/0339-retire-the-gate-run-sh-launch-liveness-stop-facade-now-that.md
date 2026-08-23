@@ -100,3 +100,43 @@ Per the docket-build contract this is a planning defect at a task/commit boundar
 ## Suggested human action
 
 Amend the plan to remove the Task 1 commit-boundary contradiction (option a, b, or c above — b is the smallest edit: add `tests/test_gate_execution_posture.sh` to Task 1's Files and move the assert-591/606 retargets from Task 4 into Task 1), then resume change 0339 by id via the halted-resume path.
+
+## Run halted
+
+### 2026-08-23
+
+Halted 2026-08-23 during the build step (Step 5). This is the SECOND plan-boundary defect of the same family as the original halt: the plan amendment (commit 1b15ce84) fixed Task 1's posture-assert commit boundary but did not fix Task 1's size-budget commit boundary.
+
+## What happened
+
+- Task 1 (commit `14cd56c9`) executed as amended: it moved `## The caller's loop`, `## State vocabulary and retryability`, and the shell-era `## Per-platform capability note` into `skills/docket-build/references/gate-execution.md`, and retargeted the two reference-side posture asserts. Task 1's own Step 7 verification passed.
+- Task 2 (+ folded Task 4) returned BLOCKED. Its SKILL.md rewrite and helper-assert retarget are complete and green in isolation, but the FULL suite is red on `tests/test_skill_size_budgets.sh`, and the worker correctly refused to commit or to absorb the fix into Task 2's stage list.
+
+## The defect (verified from git, not prose)
+
+At Task 1's committed HEAD `14cd56c9`, `bash tests/test_skill_size_budgets.sh` FAILS: `skills/docket-build/references/gate-execution.md` is **258 lines / 2493 words** against its unchanged ceiling of **130 / 1200** (`tests/test_skill_size_budgets.sh:1491`). Task 1's content move roughly doubled the file. NO plan task raises this ceiling — Task 2 Step 6 only contemplated a *comment-block* edit and explicitly (wrongly) asserted "the ceilings themselves should hold since the rewrite is size-neutral." That assertion is about SKILL.md's size-neutral rewrite; it does not cover Task 1's deliberate content growth in gate-execution.md.
+
+Because Task 1's Step 7 verification command omitted `test_skill_size_budgets.sh`, Task 1 passed in isolation while leaving the full suite red — the exact commit-boundary-greenness failure mode the first amendment was supposed to close, recurring on a different guard.
+
+## Why this needs a human (design judgment, not a mechanical bump)
+
+The size-budget test's own comment ledger shows `gate-execution.md`'s budget was **deliberately kept tight and ratcheted DOWN** under a stated one-directional "neutrality invariant" (see `tests/test_skill_size_budgets.sh` comments ~652, ~872, ~922, ~957: "gate-execution.md is UNCHANGED by this pass and keeps 130/1200"; change 0234 RATCHETED it 175/1650 -> 130/1200; other prose was refused a home there precisely because of that invariant). Task 1's plan-directed move of ~130 lines of caller-loop content INTO that file collides with that invariant. The resolution is a design decision, not a mechanical retarget:
+  (a) raise gate-execution.md's budget row substantially (e.g. to ~260/2550 per the table's next-multiple+margin rule) and author a ledger comment attributing the growth to change 0339 Task 1 — while reconciling with the file's neutrality invariant; OR
+  (b) relocate the moved caller-loop / vocabulary / platform-note content to a different or new reference file (the spec's "New home" decision chose gate-execution.md without reckoning with its budget invariant); OR
+  (c) trim the moved content to fit the existing budget.
+
+This is a plan amendment for a human, mirroring the first amendment.
+
+## Additional plan landmine found (Task 5, not yet reached)
+
+Task 2's worker flagged that `tests/test_gate_execution_posture.sh` still reads `scripts/gate-run.md` (`CONTRACT=`, `contract_body`, the `stop_tokens` table feeding the `died:` group). Task 5 deletes `scripts/gate-run.md` but its file list does NOT include this test, so Task 5's commit will redden the `died:` stop-token asserts. There is also no native 3-token twin for `stopped`/`already-terminal`/`unavailable` (native stop returns `applied`/`no-op` + `.state`), so migrating that table off the contract needs a design decision, not a mechanical retarget. The second amendment should address this too.
+
+## Repo state at halt
+
+- Feature branch HEAD: `14cd56c9` (Task 1 committed). Task 1's commit is sound but leaves the full suite red as above.
+- Worktree is DIRTY with Task 2's uncommitted edits (NOT adopted, NOT committed, per the child-uncommitted-files rule): `skills/docket-build/SKILL.md`, `tests/test_gate_execution_posture.sh`, `internal/assets/embedded/manifest.json`, `internal/assets/embedded/tree/skills/docket-build/SKILL.md`. On resume, discard these (as the first resume did) and redo Task 2 after the plan is amended, OR the human may inspect them first.
+- reconciled: true; plan and its first amendment committed; no build commit beyond Task 1.
+
+## Recommended resolution
+
+Amend the plan a second time to (1) add a step/task raising gate-execution.md's size-budget row (or relocate/trim the moved content) so Task 1's boundary is full-suite green, and (2) add `tests/test_gate_execution_posture.sh` to Task 5's file list with a designed retarget of the `died:` stop-token group off the deleted `gate-run.md` contract. Then resume via `docket change resume-halted --acknowledge-quiescent`.
