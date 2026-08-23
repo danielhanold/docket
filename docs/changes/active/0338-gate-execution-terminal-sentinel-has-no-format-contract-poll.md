@@ -2,11 +2,11 @@
 id: 338
 slug: gate-execution-terminal-sentinel-has-no-format-contract-poll
 title: 'Gate observe ships two serializations (shell state=name vs native protocol-v1 JSON) reconciled only by prose — converge on JSON, migrate the caller loop, retire the text contract'
-status: proposed
+status: 'in-progress'
 priority: medium
 type: fix
 created: 2026-08-22
-updated: 2026-08-22
+updated: '2026-08-23'
 depends_on: []
 stacked_on:
 related: []
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable: false
-branch:
+branch: 'feat/gate-execution-terminal-sentinel-has-no-format-contract-poll'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-23T04:37:51Z'
 ---
 
 ## Artifacts
@@ -28,7 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-22-gate-observe-json-convergence-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-22-gate-observe-json-convergence-design.md) |
+| Spec | `docs/superpowers/specs/2026-08-22-gate-observe-json-convergence-design.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
