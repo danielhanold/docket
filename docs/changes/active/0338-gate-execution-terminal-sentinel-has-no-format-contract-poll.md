@@ -13,7 +13,7 @@ related: []
 discovered_from: [337]
 adrs: []
 spec: docs/superpowers/specs/2026-08-22-gate-observe-json-convergence-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-23-gate-observe-json-convergence.md'
 results:
 trivial: false
 auto_groomable: false
@@ -30,6 +30,7 @@ claimed_at: '2026-08-23T04:40:40Z'
 | Artifact | Link |
 |---|---|
 | Spec | `docs/superpowers/specs/2026-08-22-gate-observe-json-convergence-design.md` |
+| Plan | `docs/superpowers/plans/2026-08-23-gate-observe-json-convergence.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
