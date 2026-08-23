@@ -1,6 +1,6 @@
 # Backlog
 
-**340 changes** — 🟢 1 in progress · 🟡 48 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 205 done · 🗑️ 80 killed
+**340 changes** — 🟢 1 in progress · 🟡 48 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 206 done · 🗑️ 80 killed
 
 ## 🟢 In progress (1)
 
@@ -58,7 +58,7 @@
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
 | [0333](active/0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition internal/app to retire the -race gate's 300s ceiling exemption | `medium` | `refactor` | needs-brainstorm |
 | [0334](active/0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | CLAUDE.md global and project copies drift on finalize-agent descriptions | `medium` | `docs` | needs-brainstorm |
-| [0339](active/0339-retire-the-gate-run-sh-launch-liveness-stop-facade-now-that.md) | Retire the gate-run.sh launch/liveness/stop facade now that the native Go-v1 gate is canonical (collapse the shared docket-liveness.sh seam with runner-dispatch.sh) | `medium` | `refactor` | ⏳ waiting on #338 — needs your merge |
+| [0339](active/0339-retire-the-gate-run-sh-launch-liveness-stop-facade-now-that.md) | Retire the gate-run.sh launch/liveness/stop facade now that the native Go-v1 gate is canonical (collapse the shared docket-liveness.sh seam with runner-dispatch.sh) | `medium` | `refactor` | needs-brainstorm |
 | [0340](active/0340-stamp-build-identity-in-development-install.md) | Stamp build identity into the `development install` binary | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
@@ -70,12 +70,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | #docket#226 |  |
-| [0338](active/0338-gate-execution-terminal-sentinel-has-no-format-contract-poll.md) | Gate observe ships two serializations (shell state=name vs native protocol-v1 JSON) reconciled only by prose — converge on JSON, migrate the caller loop, retire the text contract | `medium` | `fix` | #docket#231 |  |
 
 ```mermaid
 graph TD
@@ -132,20 +131,21 @@ graph TD
   0327
   0333
   0334
-  0338
   0338 --> 0339
   0340
   0192:::done
   0211:::done
   0311:::done
   0316:::done
+  0338:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (285)</summary>
+<details><summary>✅🗑️ Archive — done + killed (286)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0338](archive/2026-08-23-0338-gate-execution-terminal-sentinel-has-no-format-contract-poll.md) | Gate observe ships two serializations (shell state=name vs native protocol-v1 JSON) reconciled only by prose — converge on JSON, migrate the caller loop, retire the text contract | 2026-08-23 |
 | [0337](archive/2026-08-22-0337-finalize-leaves-a-permanent-terminal-backlink-pending-leg-un.md) | Finalize's integration-ref backlink leg refuses on unrelated pre-existing corpus errors | 2026-08-22 |
 | [0336](archive/2026-08-22-0336-finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al.md) | Finalize selects the best merge method permitted by repository and branch policy | 2026-08-22 |
 | [0335](archive/2026-08-22-0335-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board.md) | refresh-claim fails verify-delta when the board is byte-unchanged | 2026-08-22 |
@@ -160,7 +160,6 @@ graph TD
 | [0322](archive/2026-08-18-0322-go-installer-adopt-legacy-bash-installed-user-level-artifact.md) | Bootstrap Go development installation and adopt legacy user-level artifacts | 2026-08-18 |
 | [0315](archive/2026-08-18-0315-claim-to-implemented-workflow.md) | Claim-to-implemented agent workflow | 2026-08-18 |
 | [0314](archive/2026-08-17-0314-native-process-supervisor-and-local-gate.md) | Native process supervisor and local gate | 2026-08-17 |
-| [0312](archive/2026-08-17-0312-planning-mutations-board-and-adrs.md) | Planning mutations, inline board, and ADRs | 2026-08-17 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
 | [0299](archive/2026-08-12-0299-reshard-tests-test-sync-agents-runners-so-every-file-measure.md) | Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling | 2026-08-12 |
 | [0285](archive/2026-08-12-0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | 2026-08-12 |
@@ -246,7 +245,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 72 done |
+| [2026-08](archive/) | 73 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
