@@ -58,8 +58,11 @@ assert "the intent carries the caller's reason" 'grep -qF -- "budget exhausted" 
 term_rec="$(cat "$RD/terminal" 2>/dev/null || true)"
 assert "the terminal record here is the WRAPPER's signal record, not a --stop synthesis" \
   '[ "${term_rec%% *}" = "kind=signal" ]'
-assert "a stopped run observes as stopped — never died, never passed" \
-  '[ "$(gate_run --observe "$RD")" = "state=stopped" ]'
+# The --observe oracle retired with change 0338 (the state=<name> serialization is gone), so every
+# verdict here is read off the run dir's own records — the same files observe classified. What each
+# assert GUARDS is unchanged: --stop's marker writes and their ordering.
+assert "a stopped live child is annotated over its own signal's record" \
+  '[ -f "$RD/stopped" ] && grep -q "^kind=signal" "$RD/terminal"'
 
 # `--reason` is caller-supplied free text and the intent is a KEY=value record every reader parses
 # with a line-oriented `sed -n 's/^key=//p'` — so the flattening happens unconditionally at the
@@ -92,14 +95,16 @@ assert "KILL escalation removed the group" '! kill -0 -"$kill_pgid" 2>/dev/null'
 assert "the completed marker records the verified stop" '[ -f "$RD/stopped" ]'
 assert "--stop wrote NO terminal record — a KILLed group leaves none and --stop synthesizes none" \
   '[ ! -f "$RD/terminal" ]'
-assert "a KILL-escalated stop observes as stopped" '[ "$(gate_run --observe "$RD")" = "state=stopped" ]'
+assert "a KILL-escalated stop leaves the marker with no terminal record" \
+  '[ -f "$RD/stopped" ] && [ ! -f "$RD/terminal" ]'
 
 # ---- IDEMPOTENCE: a second call, and a call on a run that finished on its own --------------
 second_out="$(gate_run --stop "$RD" 2>/dev/null)"; second_rc=$?
 assert "a second --stop reports already-terminal" '[ "$second_out" = "already-terminal" ]'
 assert "a second --stop is not an error" '[ "$second_rc" = "0" ]'
 assert "a second --stop leaves the completed marker alone" '[ -f "$RD/stopped" ]'
-assert "and the run still observes as stopped" '[ "$(gate_run --observe "$RD")" = "state=stopped" ]'
+assert "and the marker-with-no-record survives the second stop" \
+  '[ -f "$RD/stopped" ] && [ ! -f "$RD/terminal" ]'
 
 RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'exit 0')"; await_terminal "$RD"
 passed_out="$(gate_run --stop "$RD" 2>/dev/null)"; passed_rc=$?
@@ -109,8 +114,8 @@ assert "and that is not an error either" '[ "$passed_rc" = "0" ]'
 # termination over a verdict the child reached by itself.
 assert "and it writes no marker over a run that finished on its own" '[ ! -f "$RD/stopped" ]'
 assert "and no intent either — nothing was signalled" '[ ! -f "$RD/stop-intent" ]'
-assert "and it observes as passed still — the stop did not reclassify it" \
-  '[ "$(gate_run --observe "$RD")" = "state=passed" ]'
+assert "and the passed verdict stands, unmarked by the stop" \
+  '[ "$(cat "$RD/terminal" 2>/dev/null)" = "kind=exit code=0" ] && [ ! -f "$RD/stopped" ]'
 
 # ---- --stop NEVER WRITES A TERMINAL RECORD, and that is a property of the CODE --------------
 # The behavioural half is the KILL-escalation assert above (`[ ! -f "$RD/terminal" ]` on a run whose
@@ -171,8 +176,8 @@ assert "a vanished group reports already-terminal" '[ "$van_out" = "already-term
 assert "and that is not an error" '[ "$van_rc" = "0" ]'
 assert "and writes NO stop marker — the vanished death must stay relaunchable" '[ ! -f "$RD/stopped" ]'
 assert "and no stop-intent either — nothing was ever signalled" '[ ! -f "$RD/stop-intent" ]'
-assert "so it still observes as died cause=vanished" \
-  '[ "$(gate_run --observe "$RD" 2>/dev/null)" = "state=died cause=vanished" ]'
+assert "so it still reads as a vanished death — no record, no marker" \
+  '[ ! -f "$RD/terminal" ] && [ ! -f "$RD/stopped" ]'
 
 # ---- THE ORPHAN PROBE on the record-present path ---------------------------------------------
 # The leader is dead, so ownership of anything still under the recorded pgid is unprovable — but
@@ -370,8 +375,8 @@ assert "and claimed nothing — no completed marker over a run that finished by 
   '[ ! -f "$RD/stopped" ]'
 assert "the terminal record is still the child's own verdict" \
   '[ "$(cat "$RD/terminal" 2>/dev/null)" = "kind=exit code=0" ]'
-assert "and it observes as passed — the completed run kept its verdict" \
-  '[ "$(gate_run --observe "$RD")" = "state=passed" ]'
+assert "and the completed run kept its verdict — its own record, no marker" \
+  '[ "$(cat "$RD/terminal" 2>/dev/null)" = "kind=exit code=0" ] && [ ! -f "$RD/stopped" ]'
 
 # ---- (2) MARKER BEFORE VERIFICATION: a stop that dies mid-flight may claim nothing -------------
 # Assumption 21. The completed marker is what `--observe` reads to report `stopped`, and `stopped`
@@ -402,8 +407,8 @@ assert "the intent it wrote before signalling survives — that is the record al
 assert "and it synthesized no terminal record on its way down" '[ ! -f "$RD/terminal" ]'
 # THE CONSEQUENCE the gate exists for: with no marker the run does not read as a completed stop, so
 # a kill that was never confirmed is never treated downstream as one that was.
-assert "a run whose stop died mid-flight does not observe as stopped" \
-  '[ "$(gate_run --observe "$RD" 2>/dev/null)" = "state=died cause=vanished" ]'
+assert "a run whose stop died mid-flight reads as a vanished death, not a stop" \
+  '[ ! -f "$RD/terminal" ] && [ ! -f "$RD/stopped" ]'
 f2_retry="$(gate_run --stop "$RD" 2>/dev/null)"
 assert "a subsequent --stop re-decides from the world, not from the dead stop's leavings" \
   '[ "$f2_retry" = "already-terminal" ]'
@@ -432,8 +437,8 @@ assert "the annotation path reports already-terminal — the record outranks the
 assert "and the signal death was annotated as a deliberate stop" '[ -f "$RD/stopped" ]'
 assert "the annotation carries the caller's reason" \
   'grep -qF -- "cancelled on purpose" "$RD/stopped"'
-assert "so a deliberately cancelled run observes as stopped, never died" \
-  '[ "$(gate_run --observe "$RD")" = "state=stopped" ]'
+assert "so a deliberately cancelled run carries its annotation over the signal's record" \
+  '[ -f "$RD/stopped" ] && grep -q "^kind=signal" "$RD/terminal"'
 assert "and the terminal record is still the wrapper's, unrewritten by the annotation" \
   '[ "$(cat "$RD/terminal" 2>/dev/null)" = "kind=signal signal=15" ]'
 
@@ -456,8 +461,8 @@ assert "the in-flight stop was killed at the rendezvous and left nothing running
   'kill_held_stop "$f4_job" "$RD"'
 assert "the annotation never happened" '[ ! -f "$RD/stopped" ]'
 assert "but the pre-signal intent record survives the crash" '[ -f "$RD/stop-intent" ]'
-assert "and intent ALONE reclassifies the signal death as deliberate" \
-  '[ "$(gate_run --observe "$RD")" = "state=stopped" ]'
+assert "and the pre-signal intent survives beside the signal's own record" \
+  '[ -f "$RD/stop-intent" ] && grep -q "^kind=signal" "$RD/terminal"'
 
 # ---- (6) THE RECORD ARRIVES INSIDE THE WINDOW, OVER A GROUP THAT IS NOT EMPTY ------------------
 # Assumptions 22 and 24, and the reason step 1's probe alone is not the guarantee. `already-terminal`
