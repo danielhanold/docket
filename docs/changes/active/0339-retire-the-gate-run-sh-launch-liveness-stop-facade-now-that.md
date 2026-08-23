@@ -2,11 +2,11 @@
 id: 339
 slug: retire-the-gate-run-sh-launch-liveness-stop-facade-now-that
 title: 'Retire the gate-run.sh launch/liveness/stop facade now that the native Go-v1 gate is canonical (collapse the shared docket-liveness.sh seam with runner-dispatch.sh)'
-status: proposed
+status: 'in-progress'
 priority: medium
 type: refactor
 created: 2026-08-22
-updated: 2026-08-23
+updated: '2026-08-23'
 depends_on: [338]
 stacked_on:
 related: [284, 314]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'feat/retire-the-gate-run-sh-launch-liveness-stop-facade-now-that'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-23T19:55:05Z'
 ---
 
 ## Artifacts
@@ -28,7 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-23-retire-gate-run-facade-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-23-retire-gate-run-facade-design.md) |
+| Spec | `docs/superpowers/specs/2026-08-23-retire-gate-run-facade-design.md` |
 <!-- docket:artifacts:end -->
 
 ## Why

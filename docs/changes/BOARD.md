@@ -1,8 +1,14 @@
 # Backlog
 
-**340 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 207 done · 🗑️ 80 killed
+**340 changes** — 🟢 1 in progress · 🟡 47 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 207 done · 🗑️ 80 killed
 
-## 🟡 Proposed (48)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0339](active/0339-retire-the-gate-run-sh-launch-liveness-stop-facade-now-that.md) | Retire the gate-run.sh launch/liveness/stop facade now that the native Go-v1 gate is canonical (collapse the shared docket-liveness.sh seam with runner-dispatch.sh) | `medium` | `refactor` | [spec](../superpowers/specs/2026-08-23-retire-gate-run-facade-design.md) | `feat/retire-the-gate-run-sh-launch-liveness-stop-facade-now-that` |
+
+## 🟡 Proposed (47)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -52,7 +58,6 @@
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
 | [0333](active/0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition internal/app to retire the -race gate's 300s ceiling exemption | `medium` | `refactor` | needs-brainstorm |
 | [0334](active/0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | CLAUDE.md global and project copies drift on finalize-agent descriptions | `medium` | `docs` | needs-brainstorm |
-| [0339](active/0339-retire-the-gate-run-sh-launch-liveness-stop-facade-now-that.md) | Retire the gate-run.sh launch/liveness/stop facade now that the native Go-v1 gate is canonical (collapse the shared docket-liveness.sh seam with runner-dispatch.sh) | `medium` | `refactor` | build-ready |
 | [0340](active/0340-stamp-build-identity-in-development-install.md) | Stamp build identity into the `development install` binary | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
@@ -68,7 +73,7 @@
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
-| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [#docket#226](https://github.com/danielhanold/docket/pull/docket#226) |  |
+| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | #docket#226 |  |
 
 ```mermaid
 graph TD
