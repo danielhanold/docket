@@ -2,11 +2,11 @@
 id: 340
 slug: stamp-build-identity-in-development-install
 title: "Stamp build identity into the `development install` binary"
-status: proposed
+status: 'in-progress'
 priority: medium
 type: fix
 created: 2026-08-22
-updated: 2026-08-23
+updated: '2026-08-23'
 depends_on: []
 stacked_on:
 related: [317]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'feat/stamp-build-identity-in-development-install'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-23T21:56:06Z'
 ---
 
 ## Artifacts
@@ -28,7 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-23-stamp-build-identity-in-development-install-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-23-stamp-build-identity-in-development-install-design.md) |
+| Spec | `docs/superpowers/specs/2026-08-23-stamp-build-identity-in-development-install-design.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
