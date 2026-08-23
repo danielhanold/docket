@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'feat/stamp-build-identity-in-development-install'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-23T21:56:06Z'
+reconciled: true
+claimed_at: '2026-08-23T21:58:24Z'
 ---
 
 ## Artifacts
@@ -71,3 +71,14 @@ rather than introducing a parallel mechanism.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-23
+
+### 2026-08-23 — reconciled against current main
+
+Verified the design against current source; no scope change.
+
+- `internal/buildinfo` carries the `Version`/`Commit`/`BuildDate` ldflags vars and `Info`/`Current()` exactly as the spec assumes — untouched, no new fields needed.
+- `internal/install/devmode.go` `buildBinary` still runs a bare `go build -o <staged> ./cmd/docket` through the injectable `GoRunner` seam (wired to `install.DefaultGoRunner` in `internal/cli/root.go`); the new git-probe runner seam lands beside it as designed.
+- Change 0317's `internal/release/package.go` is NOT merged (the `internal/release/` directory is absent on main; 0317 is `implemented`, PR open, not `done`). The spec already anticipated this: duplicate the three-`-X` format string locally rather than sharing 0317's helper, and do not take a dependency on 0317's branch. The exact `-X github.com/danielhanold/docket/internal/buildinfo.{Version,Commit,BuildDate}=...` format is confirmed by the existing injection test at `cmd/docket/main_test.go`.
+- No related/archived change or ADR invalidates the approach; relations left unchanged.
