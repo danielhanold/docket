@@ -252,7 +252,6 @@ mode_of(){    local k="${1##*/}"; printf '%s' "${MODE[$k]:-parallel}"; }
 # last_parallel_seconds last_solo_seconds budget_seconds last_confirmation_result due_sequence
 # test_path`.
 STATE_FILE="$(budget_state_path)"
-STATE_USABLE=1   # flipped to 0 on any store problem; the run continues without history
 STATE_LOCKED=0
 state_lock(){   # bounded: ~3s of 0.1s attempts; failure is a warning, never a run failure
   local i=0
@@ -287,8 +286,8 @@ state_load(){    # under the lock; malformed rows ignored + reported once, wrong
 state_write(){   # full replacement via temp-beside-destination + atomic rename; explicit chmod
   local dir tmpf k
   dir="$(dirname "$STATE_FILE")"
-  mkdir -p "$dir" 2>/dev/null || { STATE_USABLE=0; return 1; }
-  tmpf="$(mktemp "$dir/.run-tests-budget-state.XXXXXX")" 2>/dev/null || { STATE_USABLE=0; return 1; }
+  mkdir -p "$dir" 2>/dev/null || return 1
+  tmpf="$(mktemp "$dir/.run-tests-budget-state.XXXXXX")" 2>/dev/null || return 1
   {
     printf '# docket-run-tests-budget-state v%s\n' "$BS_SCHEMA"
     printf '# next_due_sequence %s\n' "$BS_NEXT_SEQ"
@@ -297,9 +296,9 @@ state_write(){   # full replacement via temp-beside-destination + atomic rename;
         "${BS_SINCE[$k]:-0}" "${BS_LASTPAR[$k]:--}" "${BS_LASTSOLO[$k]:--}" "${BS_CEIL[$k]:-0}" \
         "${BS_CONFRES[$k]:--}" "${BS_DUESEQ[$k]:--}" "${BS_PATHOF[$k]}"
     done | LC_ALL=C sort
-  } > "$tmpf" || { rm -f "$tmpf"; STATE_USABLE=0; return 1; }
+  } > "$tmpf" || { rm -f "$tmpf"; return 1; }
   chmod 600 "$tmpf"   # umask makes the mktemp mode a request, not a promise
-  mv -f "$tmpf" "$STATE_FILE" || { rm -f "$tmpf"; STATE_USABLE=0; return 1; }
+  mv -f "$tmpf" "$STATE_FILE" || { rm -f "$tmpf"; return 1; }
 }
 
 # ---- execution-context key + qualifying-overrun state machine (change 0251) ---------------------
@@ -788,12 +787,10 @@ if [ "$BUDGET_STRICT" = 1 ] && [ "$JOBS" -gt 1 ] && [ "$BUDGET_CHECK" = 1 ] \
     state_write
     state_unlock
   else
-    STATE_USABLE=0
     strict_confirm_candidates
   fi
 elif [ "$RUN_QUALIFYING" = 1 ]; then
   if [ -z "$STATE_FILE" ] || ! mkdir -p "$(dirname "$STATE_FILE")" 2>/dev/null; then
-    STATE_USABLE=0
     printf 'run-tests: budget state unavailable — running without budget history.\n' >&2
   elif state_lock; then
     state_load
