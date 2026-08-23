@@ -692,15 +692,18 @@ for t in "${ORDERED[@]}"; do
   ceil="$(ceiling_of "$t")"
   fmode="$(mode_of "$t")"
   over=0
-  # Budget classification splits on JOBS (change 0251). The parallel path NEVER labels a crossing
-  # OVER BUDGET — a contended measurement is only a screening observation (spec "Reporting"); it is
-  # collected here and classified by the post-report state machine. The direct OVER BUDGET verdict
-  # survives solely on the uncontended -j 1 path, which compares against the SOLO threshold
-  # `ceiling * 3/2` directly (spec "-j 1"): the measurement is already uncontended, so it is the
-  # same authoritative comparison a scheduled solo confirmation makes — no screening slack, no
-  # second execution, no counters. The 5/2 SLACK_NUM/SLACK_DEN constants stay the SCREENING factor
-  # on the parallel branch below.
-  if [ "$BUDGET_CHECK" = 1 ] && [ "$JOBS" -eq 1 ]; then
+  # Budget classification splits on WHETHER THE MEASUREMENT IS UNCONTENDED, not on JOBS alone
+  # (change 0251). The direct OVER BUDGET verdict applies the SOLO threshold `ceiling * 3/2`
+  # (spec "-j 1") to any authoritative — i.e. uncontended — measurement, of which there are two:
+  # a -j 1 run (every file runs on the serial lane), AND a `serial`-mode file under a normal -jN run
+  # (the SER lane launches serial files one at a time and waits on each, so its wall clock is
+  # uncontended too). Gating that authoritative comparison on job count alone dropped serial-mode
+  # files from budget checking under the default -jN gate; keying it on the file's execution mode
+  # restores their enforcement. The parallel screening path — for a `parallel`-mode file under -jN —
+  # is unchanged: it NEVER labels a crossing OVER BUDGET (a contended measurement is only a
+  # screening observation, spec "Reporting"); it is collected here and classified by the post-report
+  # state machine against the 5/2 SLACK_NUM/SLACK_DEN screening factor.
+  if [ "$BUDGET_CHECK" = 1 ] && { [ "$JOBS" -eq 1 ] || [ "$fmode" = serial ]; }; then
     if [ $((secs * 2)) -gt $((ceil * 3)) ]; then
       over=1; overbudget=$((overbudget + 1)); over_names="$over_names $base"
     fi
