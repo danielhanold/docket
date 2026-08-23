@@ -281,8 +281,8 @@ pointer. **Key the wait
 on the state each observation reports, never on a success marker appearing in the log.** The two
 differ exactly when the child dies, which is the one moment the wait exists for: a marker-keyed loop
 cannot tell *still running* from *died*, so it burns its whole budget before reporting a death a
-state-keyed wait catches on the next observation. The six states and their retryability are
-`gate-run.md`'s contract, and **only `running` is retryable**. **Reuse the canonical loop** in
+state-keyed wait catches on the next observation. The states and their retryability are the
+native gate's contract, and **only `running` is retryable**. **Reuse the canonical loop** in
 `gate-run.md` § *The caller's loop* verbatim rather than authoring one: it captures the document,
 extracts `.state` with jq, resolves the native spellings (`signaled`/`vanished` resolve to `died`),
 and fails closed — a hand-rolled reading of the document is exactly the parser drift that spun the
