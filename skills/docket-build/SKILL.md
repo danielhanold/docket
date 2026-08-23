@@ -273,7 +273,7 @@ define the maximum duration of the build gate.
 
 **The shipped implementation of clauses 1–3** is
 `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh gate-run` — `--launch` starts the suite
-detached and durable, `--observe` is each short-lived look, `--stop` terminates one. Observation is
+detached and durable, `--stop` terminates one. Observation is
 the native gate's: each short-lived look is `docket gate observe <run-dir> --json`, one protocol-v1
 JSON document per call, parsed with jq — the observe serialization since change 0338, and the only
 one. The plain-text state-name observe contract is retired; `gate-run --observe` refuses with a
