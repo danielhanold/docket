@@ -183,8 +183,8 @@ ordering rule below holds regardless.
 
 **The invariant every verb rests on:** the wrapper is the **only** writer of `terminal`, so a
 `terminal` file visible *after* a liveness probe was necessarily written by a child that completed.
-That is what makes `--observe`'s step-3 re-read and `--stop`'s steps 3 and 6 correct rather than
-merely defensive.
+That is what makes the native gate's re-read (`internal/app/gate.go`) and `--stop`'s steps 3 and 6
+correct rather than merely defensive.
 
 ## Behavior
 
@@ -473,22 +473,24 @@ whole lifetime.
 - **stdout is the protocol and it is exactly one line wide.** Every verb prints one report line and
   nothing else; every diagnostic, including a failing run's log tail, goes to stderr. The trim is
   structural, applied once where the report is emitted, so no branch can widen the channel — and so
-  is the **closed vocabulary** beside it: `--observe` and `--stop` each validate their line against
-  the tokens this page defines and fall back to `unavailable`, so a classifier that died mid-flight
-  cannot hand the caller an empty line, and a future branch cannot slip an unknown token past the
-  page.
+  is the **closed vocabulary** beside it: `--stop` validates its line against the tokens this page
+  defines and falls back to `unavailable`, so a stop that died mid-flight cannot hand the caller an
+  empty line, and a future branch cannot slip an unknown token past the page. The observation
+  vocabulary is the native gate's now (`internal/app/gate.go`); the caller loop above closes it the
+  same way, disposing any document outside the vocabulary as `unavailable` rather than retrying.
 - **The wrapper is the only writer of `terminal`, and it writes it only on the command's exit.** No
-  verb ever synthesizes one. This is the invariant every re-read in `--observe` and `--stop` rests
-  on: a record visible after a liveness probe was necessarily written by a child that completed.
+  verb ever synthesizes one. This is the invariant every re-read rests on — the native gate's
+  observation (`internal/app/gate.go`) and `--stop`'s re-reads alike: a record visible after a
+  liveness probe was necessarily written by a child that completed.
 - **No probe whose answer could read a dead run as `running`, or could aim a signal at a group not
   proven ours, is a bare `kill -0`.** The rule is **about fail direction, not a syscall ban** (spec
   assumption 9, scoped at critic round 5), so it is stated by direction rather than as a count of
   sites — a count is what goes stale the first time a site is added, and an invariant that overstates
   is the one a later reader trusts instead of reading the code. Identity is checked wherever a match
-  is possible and the answer decides something: `--observe`'s `running` classification, `--stop`'s
-  step-2 ownership check and its step-4 pre-signal probe, and `--launch`'s failure-path group
-  signal. A bare probe is admissible in exactly two shapes, and both can only move the outcome
-  fail-closed:
+  is possible and the answer decides something: the native gate's `running` classification
+  (`internal/app/gate.go`), `--stop`'s step-2 ownership check and its step-4 pre-signal probe, and
+  `--launch`'s failure-path group signal. A bare probe is admissible in exactly two shapes, and both
+  can only move the outcome fail-closed:
   - **Detection where the leader is known dead**, so no match is possible and nothing is signalled
     off the answer — the orphan probe `--stop` steps 1 and 3 share (`unavailable`) and `--launch`'s
     failure-path leak check (the loud unverified report).
@@ -510,9 +512,10 @@ whole lifetime.
   a later idempotent call no-ops on while the child runs; a marker written without a signal mints a
   `stopped` for a run that vanished on its own, which makes the vanished-death relaunch leg
   unreachable.
-- **`--observe` and `--stop` are idempotent and mutate nothing a caller can observe** — except the
-  stop's own `stop-intent` and `stopped` markers, which exist so a cancellation is read identically
-  forever after.
+- **`--stop` is idempotent and mutates nothing a caller can observe** — except its own `stop-intent`
+  and `stopped` markers, which exist so a cancellation is read identically forever after. Observation
+  is idempotent and mutates nothing too, but that is the native gate's property now
+  (`internal/app/gate.go`), not this facade's.
 - **The test hooks are env-gated and inert by default.** `GATE_RUN_TEST_WEDGE` is a one-way stall
   (fixtures arm it and let the launcher's own establishment timeout abandon the run — it models a
   crash window); `GATE_RUN_TEST_BARRIER` is a two-way rendezvous that announces arrival and waits for
