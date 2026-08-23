@@ -54,6 +54,11 @@ type DevOptions struct {
 	// command string on purpose: no part of a path a user typed is ever handed
 	// to a shell.
 	GoRunner func(dir string, argv []string) error
+	// GitRunner runs a git argument vector in a directory and returns its
+	// stdout. Like GoRunner it is a vector, never a shell string. It only
+	// feeds build identity, which is a nicety: probe failures degrade the
+	// build to unstamped, but a missing runner is a wiring bug and refused.
+	GitRunner func(dir string, argv []string) (string, error)
 }
 
 // DefaultGoRunner is the production toolchain seam.
@@ -70,6 +75,22 @@ func DefaultGoRunner(dir string, argv []string) error {
 	return nil
 }
 
+// DefaultGitRunner is the production git seam. It returns stdout alone:
+// git writes progress and advice to stderr, and captured stderr must never
+// leak into ldflags values.
+func DefaultGitRunner(dir string, argv []string) (string, error) {
+	if len(argv) == 0 {
+		return "", fmt.Errorf("%w: empty command", ErrInvalidInput)
+	}
+	cmd := exec.Command(argv[0], argv[1:]...)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", argv[0], err)
+	}
+	return string(out), nil
+}
+
 // DevelopmentInstall installs from a checkout: harness material is linked into
 // the source tree and the binary is built from it.
 func DevelopmentInstall(o DevOptions) Outcome {
@@ -79,6 +100,9 @@ func DevelopmentInstall(o DevOptions) Outcome {
 	}
 	if o.GoRunner == nil {
 		return fail(out, ReasonInvalidOptions, fmt.Errorf("%w: no Go toolchain runner", ErrInvalidInput))
+	}
+	if o.GitRunner == nil {
+		return fail(out, ReasonInvalidOptions, fmt.Errorf("%w: no git runner", ErrInvalidInput))
 	}
 	if decision := config.PreflightMutation(o.Config); !decision.Allowed {
 		return fail(out, ReasonDeferredCapability, fmt.Errorf("%w: %d blocker(s), first: %s",
