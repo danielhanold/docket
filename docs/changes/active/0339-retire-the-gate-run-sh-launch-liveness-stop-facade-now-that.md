@@ -13,7 +13,7 @@ related: [284, 314]
 discovered_from: [338]
 adrs: []
 spec: docs/superpowers/specs/2026-08-23-retire-gate-run-facade-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-23-retire-gate-run-facade.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-23T20:07:29Z'
 | Artifact | Link |
 |---|---|
 | Spec | `docs/superpowers/specs/2026-08-23-retire-gate-run-facade-design.md` |
+| Plan | `docs/superpowers/plans/2026-08-23-retire-gate-run-facade.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
