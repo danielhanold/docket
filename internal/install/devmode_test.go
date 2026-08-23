@@ -138,7 +138,13 @@ func outputPath(argv []string) (string, error) {
 func (w *world) devOptions(t *testing.T, src, bin string, g *goRun) install.DevOptions {
 	o := w.options(nil)
 	o.Planners = []install.Planner{devPlanner(t, w.path(".toy"))}
-	return install.DevOptions{Options: o, SourceRoot: src, BinDir: bin, GoRunner: g.runner()}
+	return install.DevOptions{
+		Options: o, SourceRoot: src, BinDir: bin, GoRunner: g.runner(),
+		// Fixtures are not git checkouts; identity degrades to unstamped.
+		GitRunner: func(string, []string) (string, error) {
+			return "", errors.New("no git in this fixture")
+		},
+	}
 }
 
 // ---------------------------------------------------------------------------
