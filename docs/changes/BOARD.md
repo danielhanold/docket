@@ -58,7 +58,7 @@
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
 | [0333](active/0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition internal/app to retire the -race gate's 300s ceiling exemption | `medium` | `refactor` | needs-brainstorm |
 | [0334](active/0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | CLAUDE.md global and project copies drift on finalize-agent descriptions | `medium` | `docs` | needs-brainstorm |
-| [0340](active/0340-stamp-build-identity-in-development-install.md) | Stamp build identity into the `development install` binary | `medium` | `fix` | needs-brainstorm |
+| [0340](active/0340-stamp-build-identity-in-development-install.md) | Stamp build identity into the `development install` binary | `medium` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
 
@@ -73,7 +73,7 @@
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
-| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | #docket#226 |  |
+| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [#docket#226](https://github.com/danielhanold/docket/pull/docket#226) |  |
 
 ```mermaid
 graph TD
