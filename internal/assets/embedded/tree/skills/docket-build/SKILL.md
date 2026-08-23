@@ -273,20 +273,20 @@ define the maximum duration of the build gate.
 
 **The shipped implementation of clauses 1–3** is
 `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh gate-run` — `--launch` starts the suite
-detached and durable, `--observe` is each short-lived look, `--stop` terminates one. The landed
-Go-v1 gate is the native `docket gate launch` / `observe <run-dir>` / `stop <run-dir>` supervisor
-(its `observe` emits protocol-v1 JSON); the `gate-run` facade named here remains the
-observation-loop discipline a worker drives, whose `gate-run.md` `state=<name>` contract — not the
-native JSON — the caller's loop below keys on. **Key the wait
+detached and durable, `--observe` is each short-lived look, `--stop` terminates one. Observation is
+the native gate's: each short-lived look is `docket gate observe <run-dir> --json`, one protocol-v1
+JSON document per call, parsed with jq — the observe serialization since change 0338, and the only
+one. The plain-text state-name observe contract is retired; `gate-run --observe` refuses with a
+pointer. **Key the wait
 on the state each observation reports, never on a success marker appearing in the log.** The two
 differ exactly when the child dies, which is the one moment the wait exists for: a marker-keyed loop
 cannot tell *still running* from *died*, so it burns its whole budget before reporting a death a
 state-keyed wait catches on the next observation. The six states and their retryability are
 `gate-run.md`'s contract, and **only `running` is retryable**. **Reuse the canonical loop** in
-`gate-run.md` § *The caller's loop* verbatim rather than authoring one, and key each `case` arm on
-the full printed `state=<name>` line: a loop that re-tokenizes that line and matches bare state
-names matches nothing, so it never terminates on a state — it polls a finished gate until the
-budget is spent.
+`gate-run.md` § *The caller's loop* verbatim rather than authoring one: it captures the document,
+extracts `.state` with jq, resolves the native spellings (`signaled`/`vanished` resolve to `died`),
+and fails closed — a hand-rolled reading of the document is exactly the parser drift that spun the
+0337 gate until a human resumed it.
 
 **On a failed launch.** `--launch` prints either the run dir's absolute path or the token
 `launch-failed` — a **slash-free token rather than an absolute path**, which is the shape a caller
@@ -296,16 +296,16 @@ handle exists to observe.
 
 **On the died state.** The child never finished, so it never produced a verdict: `died` is **not** a
 red suite and **never** mints repair work. Where the child is **idempotent** — the suite gate is —
-the posture is `--stop`, then at most **one** bounded relaunch, gated on the token `--stop` reports.
-Two vocabularies overlap here and **one spelling appears in both**: `stopped` is a `--stop` token
-*and* an `--observe` state, with opposite dispositions — so each bullet below is a **token the verb
-`--stop` reports**, and every state named inside a bullet is written `state=<name>` for the value
-the verb `--observe` returns:
+the posture is `docket gate stop <run-dir>`, then at most **one** bounded relaunch, gated on the
+token that stop reports. Two vocabularies overlap here and **one spelling appears in both**:
+`stopped` is a stop token *and* an observe state, with opposite dispositions — so each bullet below
+is a **token `docket gate stop <run-dir>` reports**, and every state named inside a bullet is the
+loop's resolved reading of a fresh `docket gate observe <run-dir> --json` document:
 
 - `already-terminal` (stop token) — the **ordinary** outcome of stopping a live child, and also what
-  an already-absent run reports; re-observe first and key on the state that comes back:
-  `state=passed` or `state=failed` keep that verdict (the run finished after all), `state=died`
-  takes the one relaunch, `state=stopped` and `state=unavailable` never relaunch.
+  an already-absent run reports; re-observe first and key on the state that comes back: an observed
+  `passed` or `failed` keeps that verdict (the run finished after all), a `died` resolution (`signaled`
+  or `vanished` in the document) takes the one relaunch, `stopped` and `unavailable` never relaunch.
 - `stopped` (stop token) — the run was signalled and verified gone with no verdict of its own.
   Relaunch once.
 - `unavailable` (stop token) — abort and report **without** relaunching: what survives could not be proven to be
