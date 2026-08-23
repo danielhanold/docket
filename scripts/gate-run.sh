@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# scripts/gate-run.sh — detached launch / liveness-keyed observation / identity-checked stop
-# for one long-running child process. Contract: scripts/gate-run.md
+# scripts/gate-run.sh — detached launch / identity-checked stop for one long-running child process.
+# The observe operation moved to the native gate (docket gate observe --json); --observe refuses with a pointer.
+# Contract: scripts/gate-run.md
 #
 # ORDERING RULE (spec assumption 14, load-bearing): the user's command is NEVER exec'd before
 # the pid/pgid/identity record is durably in the run dir. The wrapper records ITSELF after
@@ -488,155 +489,6 @@ identity_matches() {  # $1 = run dir, $2 = pgid
   [ "$have" = "$want" ]
 }
 
-# LIVENESS, IDENTITY-CHECKED — never a bare `kill -0` (spec assumption 9). The predicate itself now
-# lives in scripts/lib/docket-liveness.sh, shared with runner-dispatch.sh; this file keeps only its
-# own record readers, which is the split that let one predicate serve two incompatible layouts.
-#
-# The lib's `0`/`1` refusal is a NO-OP here — `recorded_pgid` already refuses anything not `> 1`
-# before this call. It is carried in the lib for runner-dispatch.sh, whose pgid is a raw record read
-# with no such filter. Stating it so a reader does not mistake the lib call for a behaviour change.
-group_alive_and_ours() {  # $1 = run dir
-  docket_group_alive_and_ours "$(recorded_pgid "$1")" "$(recorded_identity "$1")"
-}
-
-# Map the terminal record to a state line. Returns NON-ZERO when there is no record at all — that
-# is the only "keep looking" answer; every other outcome is a verdict.
-#
-# `kind=signal` reads `stopped` when this run was CANCELLED on purpose: `--stop` writes `stop-intent`
-# immediately before it signals and `stopped` once it has verified the group gone, so either file
-# means the signal that killed the child was ours. Without that, a deliberately cancelled run would
-# read `died` forever and an idempotent call site would relaunch a cancellation.
-classify_record() {  # $1 = run dir -> prints one state line; non-zero when `terminal` is absent
-  local rd="$1" rec payload
-  [ -f "$rd/terminal" ] || return 1
-  rec="$(cat "$rd/terminal" 2>/dev/null || true)"
-  case "$rec" in
-    'kind=exit code='*)
-      payload="$(numeric_or_empty "${rec#kind=exit code=}")"
-      if [ -z "$payload" ]; then :
-      elif [ "$payload" = 0 ]; then printf 'state=passed\n'; return 0
-      else printf 'state=failed\n'; return 0
-      fi
-      ;;
-    'kind=signal signal='*)
-      payload="$(numeric_or_empty "${rec#kind=signal signal=}")"
-      if [ -n "$payload" ]; then
-        if [ -f "$rd/stopped" ] || [ -f "$rd/stop-intent" ]; then printf 'state=stopped\n'
-        else printf 'state=died cause=signal\n'
-        fi
-        return 0
-      fi
-      ;;
-  esac
-  # Anything unparseable. A malformed record says the SUPERVISOR did not finish cleanly, which is
-  # not a verdict about the child — and a verdict read out of garbage is fabricated.
-  die "malformed terminal record in $rd: ${rec//$'\n'/ }"
-  printf 'state=unavailable\n'
-}
-
-# The last N lines of the run's own streams, to STDERR. Never stdout: a tail is multiline and
-# arbitrary, and stdout is a protocol exactly one line wide.
-log_tail_to_stderr() {  # $1 = run dir
-  local rd="$1" stream body
-  for stream in stderr.log stdout.log; do
-    [ -s "$rd/$stream" ] || continue
-    body="$(tail -n 20 "$rd/$stream" 2>/dev/null || true)"
-    [ -n "$body" ] || continue
-    printf 'gate-run: --- last 20 lines of %s ---\n%s\n' "$rd/$stream" "$body" >&2
-  done
-}
-
-# THE READ ORDER IS THE CONTRACT. Prints the state line on stdout and nothing else; every
-# diagnostic goes to stderr. `do_observe` captures this, so there is structurally no path by which
-# a second line can reach the protocol channel.
-observe_state() {  # $1 = run dir
-  local rd="$1" rec
-
-  { [ -d "$rd" ] && [ -r "$rd/launch" ]; } || {
-    die "rundir-unreadable: $rd"
-    printf 'state=unavailable\n'
-    return 0
-  }
-
-  # 1. TERMINAL RECORD FIRST — it always wins. The child's own verdict outranks any probe of the
-  #    group it used to lead, and the wrapper is the only writer of that record.
-  if rec="$(classify_record "$rd")"; then printf '%s\n' "$rec"; return 0; fi
-
-  # THE TOCTOU WINDOW, NAMED SO A FIXTURE CAN HOLD IT OPEN. Everything this function does between
-  # the read above and the probe below is speculation about a world that may already have changed;
-  # the re-read at step 3 is the only thing that makes the verdict honest, and nothing can tell the
-  # two reads apart unless a test can stop the observer right here. Inert unless armed.
-  barrier post-first-record
-
-  # 2. Liveness — identity-checked (assumption 9), never a bare `kill -0`.
-  if group_alive_and_ours "$rd"; then printf 'state=running\n'; return 0; fi
-
-  # 3. Dead or identity-mismatched ⇒ RE-READ. THE WHOLE POINT: atomicity prevents partial reads,
-  #    not stale ones. The record read in step 1 was a snapshot of a moment that has passed, and
-  #    the child had every chance to finish since. Without this re-read the sequence
-  #    "no record → child completes → dead probe" turns a run that PASSED into a `died`, and a
-  #    call site keyed on `died` relaunches it. The re-read is sound rather than merely defensive
-  #    because of the invariant the wrapper holds — it is the ONLY writer of `terminal`, so a
-  #    record visible now was necessarily written by a child that completed.
-  if rec="$(classify_record "$rd")"; then printf '%s\n' "$rec"; return 0; fi
-
-  if [ -f "$rd/stopped" ]; then printf 'state=stopped\n'; return 0; fi
-
-  # 4b. A RECORD THAT CANNOT NAME A GROUP IS `unavailable`, NEVER `died` — the same refusal
-  #     `signalable_pgid` makes on the `--stop` side, so the two verbs cannot disagree about the
-  #     identical bytes. `died cause=vanished` is a verdict ABOUT THE CHILD, and it rests on the
-  #     probe above having asked its question of THIS run's group; when the recorded pgid is empty,
-  #     `0`, `1` or non-numeric, `group_alive_and_ours` failed its FIRST conjunct and nothing was
-  #     probed at all. Reporting `died` there reads a verdict off a record that names nothing —
-  #     which is the same fabrication `classify_record` refuses over a malformed `terminal`.
-  #
-  #     AND IT SITS HERE RATHER THAN AT THE TOP, WHICH IS THE ASYMMETRY WITH `--stop` AND IS THE
-  #     POINT. `--stop` refuses first because its next act is a SIGNAL and an unnameable group is a
-  #     signalling PRECONDITION. `--observe` signals nothing, so every real verdict is consulted
-  #     first and only the fabricated one is withheld: a run that recorded `kind=exit code=0` and
-  #     then had its `launch` corrupted still reads `passed` (steps 1 and 3), and a `stopped`
-  #     marker still reads `stopped`.
-  if [ -z "$(recorded_pgid "$rd")" ]; then
-    die "unavailable: $rd/launch names no usable process group, so nothing was probed and no verdict about the child can be read"
-    printf 'state=unavailable\n'
-    return 0
-  fi
-
-  # No record, and the group this run recorded is gone or is not ours. Nothing survives that could
-  # ever write a verdict, so this is terminal — and it is detected on THIS observation rather than
-  # at the far end of a caller's budget, which is the promptness the whole contract exists for.
-  die "died: the recorded group is gone and no terminal record was ever written (run dir: $rd)"
-  log_tail_to_stderr "$rd"
-  printf 'state=died cause=vanished\n'
-}
-
-do_observe() {
-  local rd="${1:-}" state
-  [ $# -le 1 ] || { die "observe: expected exactly one run dir"; report "state=unavailable"; return 1; }
-  [ -n "$rd" ] || { die "observe: missing run dir"; report "state=unavailable"; return 1; }
-  state="$(observe_state "$rd")" || state=""
-  # stdout is a protocol exactly one line wide, and the state vocabulary is CLOSED — the same
-  # normalization `do_stop` applies to its token, for the same reason and deliberately in the same
-  # shape. Trimming makes the one-line rule structural rather than a convention every branch above
-  # has to remember; validating against the vocabulary makes the LINE structural too, so an
-  # `observe_state` that died mid-flight (a non-zero return, or an armed-but-misconfigured
-  # `barrier` aborting its subshell) cannot leave the caller an empty line to parse, and no future
-  # branch can slip an out-of-vocabulary token onto the protocol channel. The exit status is keyed
-  # to the SAME value the caller was handed, so the two can never disagree about what was reported.
-  state="${state%%$'\n'*}"
-  case "$state" in
-    'state=running'|'state=passed'|'state=failed'|'state=stopped'|'state=unavailable') ;;
-    'state=died cause=signal'|'state=died cause=vanished') ;;
-    *) die "observe: no state line was produced; reporting unavailable (run dir: $rd)"
-       state='state=unavailable' ;;
-  esac
-  report "$state"
-  # Callers key on the report line, never on this. Documented in scripts/gate-run.md § Exit codes:
-  # non-zero says only "no verdict was available", which is `unavailable` and nothing else.
-  case "$state" in state=unavailable) return 1 ;; esac
-  return 0
-}
-
 # ==================================================================================
 # --stop
 # ==================================================================================
@@ -842,8 +694,8 @@ do_stop() {
 usage() {
   printf '%s\n' \
     'usage: gate-run.sh --launch [--root <dir>] [--run-name <name>] -- <command…>' \
-    '       gate-run.sh --observe <run-dir>' \
     '       gate-run.sh --stop <run-dir> [--reason <text>]' \
+    '       (--observe is retired; use: docket gate observe <run-dir> --json)' \
     'Contract: scripts/gate-run.md' >&2
 }
 
@@ -851,7 +703,8 @@ VERB="${1:-}"
 [ $# -gt 0 ] && shift || true
 case "$VERB" in
   --launch)  do_launch "$@" ;;
-  --observe) do_observe "$@" ;;
+  --observe) die "the --observe verb is retired (change 0338); observe the native gate instead: docket gate observe <run-dir> --json"
+             exit 2 ;;
   --stop)    do_stop "$@" ;;
   --__wrap)  do_wrap "$@" ;;
   -h|--help) usage; exit 0 ;;
