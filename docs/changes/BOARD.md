@@ -1,13 +1,12 @@
 # Backlog
 
-**340 changes** — 🟢 2 in progress · 🟡 46 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 207 done · 🗑️ 80 killed
+**340 changes** — 🟢 1 in progress · 🟡 46 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 207 done · 🗑️ 80 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0339](active/0339-retire-the-gate-run-sh-launch-liveness-stop-facade-now-that.md) | Retire the gate-run.sh launch/liveness/stop facade now that the native Go-v1 gate is canonical (collapse the shared docket-liveness.sh seam with runner-dispatch.sh) | `medium` | `refactor` | [spec](../superpowers/specs/2026-08-23-retire-gate-run-facade-design.md) | `feat/retire-the-gate-run-sh-launch-liveness-stop-facade-now-that` |
-| [0340](active/0340-stamp-build-identity-in-development-install.md) | Stamp build identity into the `development install` binary | `medium` | `fix` | [spec](../superpowers/specs/2026-08-23-stamp-build-identity-in-development-install-design.md) | `feat/stamp-build-identity-in-development-install` |
 
 ## 🟡 Proposed (46)
 
@@ -69,11 +68,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | #docket#226 |  |
+| [0340](active/0340-stamp-build-identity-in-development-install.md) | Stamp build identity into the `development install` binary | `medium` | `fix` | #docket#233 |  |
 
 ```mermaid
 graph TD

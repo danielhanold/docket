@@ -2,7 +2,7 @@
 id: 340
 slug: stamp-build-identity-in-development-install
 title: "Stamp build identity into the `development install` binary"
-status: 'in-progress'
+status: 'implemented'
 priority: medium
 type: fix
 created: 2026-08-22
@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable:
 branch: 'feat/stamp-build-identity-in-development-install'
-pr:
+pr: 'github.com/danielhanold/docket#233'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-23T22:05:44Z'
