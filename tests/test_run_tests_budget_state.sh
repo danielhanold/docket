@@ -328,5 +328,30 @@ assert "16: -j 1 advanced no parallel-overrun counters" \
 s16b_rc=0; run_rt "$tmp/s16" "$tmp/s16.tsv" "$tmp/s16.durs" "$tmp/s16b.state" -j 1 --strict-budget >/dev/null || s16b_rc=$?
 assert "16: -j 1 over threshold under strict exits 4" '[ "$s16b_rc" -eq 4 ]'
 
+# ---- serial-mode budget enforcement under the default -jN gate (finding, change 0251) ---
+# A `serial`-mode file runs on its own UNCONTENDED serial lane (SER files are launched one at a
+# time and waited on), so its wall clock is authoritative even under a normal -jN run — it must go
+# through the SAME `ceiling * 3/2` direct comparison the -j 1 path uses, NOT the parallel screening
+# arm. Before the fix it satisfied neither arm (direct required JOBS -eq 1; screening required
+# fmode = parallel), so a serial-mode overrun went entirely unchecked at the default gate.
+mk_suite "$tmp/sser" test_ser.sh
+mk_budgets "$tmp/sser.tsv" "test_ser.sh 10 serial"
+mk_durations "$tmp/sser.over"  "test_ser.sh 16 1"   # report-loop column 2 = 16 > 10*3/2 = 15 (uncontended lane)
+mk_durations "$tmp/sser.under" "test_ser.sh 14 1"   # 14 < 15 — under the solo threshold
+# default -j 2 run: an uncontended serial-lane overrun IS authoritative, so it says OVER BUDGET
+sser_rc=0; sser_out="$(run_rt "$tmp/sser" "$tmp/sser.tsv" "$tmp/sser.over" "$tmp/sser.state")" || sser_rc=$?
+assert "serial: a serial-mode overrun is flagged OVER BUDGET even under the default -j 2 gate" \
+  'grep -qE "^test_ser .* OVER BUDGET \(ceiling 10s\)" <<<"$sser_out"'
+assert "serial: the OVER BUDGET breach is advisory by default (exit 0)" '[ "$sser_rc" -eq 0 ]'
+assert "serial: a serial-mode file is never routed through the parallel screening arm" \
+  '! grep -qE "^BUDGET WATCH:|^PARALLEL-SENSITIVE:" <<<"$sser_out"'
+# --strict-budget promotes the same serial-mode breach to a fatal exit 4
+sser_s_rc=0; run_rt "$tmp/sser" "$tmp/sser.tsv" "$tmp/sser.over" "$tmp/sser_s.state" --strict-budget >/dev/null 2>&1 || sser_s_rc=$?
+assert "serial: a serial-mode breach exits 4 under --strict-budget" '[ "$sser_s_rc" -eq 4 ]'
+# a serial-mode file under the solo threshold is not flagged
+sser_u_rc=0; sser_u_out="$(run_rt "$tmp/sser" "$tmp/sser.tsv" "$tmp/sser.under" "$tmp/sser_u.state")" || sser_u_rc=$?
+assert "serial: a serial-mode file under the solo threshold is not flagged, exit 0" \
+  '[ "$sser_u_rc" -eq 0 ] && ! grep -qF "OVER BUDGET" <<<"$sser_u_out"'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
