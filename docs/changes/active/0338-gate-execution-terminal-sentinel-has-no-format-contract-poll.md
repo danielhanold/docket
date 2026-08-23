@@ -21,7 +21,7 @@ branch: 'feat/gate-execution-terminal-sentinel-has-no-format-contract-poll'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-23T04:40:03Z'
+claimed_at: '2026-08-23T04:40:40Z'
 ---
 
 ## Artifacts
