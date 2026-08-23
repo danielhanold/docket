@@ -6,13 +6,13 @@ status: proposed
 priority: medium
 type: fix
 created: 2026-08-22
-updated: 2026-08-22
+updated: 2026-08-23
 depends_on: []
 stacked_on:
 related: [317]
 discovered_from: [335]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-23-stamp-build-identity-in-development-install-design.md
 plan:
 results:
 trivial: false
@@ -26,6 +26,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-23-stamp-build-identity-in-development-install-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-23-stamp-build-identity-in-development-install-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -47,9 +50,13 @@ Surfaced while finalizing change 0335.
 ## What changes
 
 Make `docket development install` inject build-identity ldflags when it compiles the
-binary from a checkout, so `docket version` reports a truthful commit + build date
-(and a dirty-tree marker when the checkout has uncommitted changes). Reuse the
-existing `internal/buildinfo` variables and the release build's stamping approach
+binary from a checkout, so `docket version` reports a truthful version, commit, and
+build date (with a `-dirty` marker when the checkout has uncommitted changes).
+Version comes from `git describe --tags --always --dirty`; git probes run through an
+injectable runner seam beside the existing `GoRunner` in
+`internal/install/devmode.go`. On any git failure the build proceeds unstamped
+(compiled-in defaults) — identity is a nicety, never an install gate. Reuses the
+existing `internal/buildinfo` variables and the release build's `-X` stamping format
 rather than introducing a parallel mechanism.
 
 ## Out of scope
@@ -59,13 +66,6 @@ rather than introducing a parallel mechanism.
 - Any change to the AGENTS.md rebuild-on-merge convention (it stays as a safety net).
 
 ## Open questions
-
-- Version string source for a development build: `git describe --tags --dirty`, or
-  raw commit SHA + a `-dirty` suffix? What should `Version` read when the checkout is
-  not at a tag?
-- How to represent a dirty working tree (uncommitted changes) in the stamped identity.
-- Where the ldflags are assembled — inside the Go build invocation `development
-  install` issues, computed from the `--source` checkout's git state.
 
 ## Reconcile log
 
