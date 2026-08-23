@@ -1,6 +1,6 @@
 # Backlog
 
-**340 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 206 done · 🗑️ 80 killed
+**340 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 207 done · 🗑️ 80 killed
 
 ## 🟡 Proposed (48)
 
@@ -26,7 +26,7 @@
 | [0265](active/0265-branch-the-adr-0065-quote-leg-diagnostic-so-it-stops-claimin.md) | Branch the ADR-0065 quote-leg diagnostic so it stops claiming a truncation that did not happen | `low` | `fix` | build-ready |
 | [0266](active/0266-deterministic-frontmatter-field-writer-no-skill-hand-rolls-a.md) | Deterministic frontmatter field writer — no skill hand-rolls a manifest edit | `medium` | `feat` | build-ready |
 | [0272](active/0272-de-duplicate-the-gitignore-block-writer-s-second-copy-of-the.md) | De-duplicate the gitignore-block writer's second copy of the write orchestration | `low` | `fix` | build-ready |
-| [0273](active/0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md) | Put runtime budgets on a host-relative basis and re-seed the table | `high` | `refactor` | ⏳ waiting on #251 — needs your merge |
+| [0273](active/0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md) | Put runtime budgets on a host-relative basis and re-seed the table | `high` | `refactor` | build-ready |
 | [0279](active/0279-settle-the-walk-site-classifier-s-reachability-gap-and-re-la.md) | Settle the walk-site classifier's reachability gap and re-land 0258's reverted fixes | `medium` | `chore` | build-ready |
 | [0280](active/0280-shard-or-re-budget-the-test-files-the-suite-runner-reports-o.md) | Shard or re-budget the test files the suite runner reports OVER BUDGET | `medium` | `chore` | needs-brainstorm |
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | build-ready |
@@ -64,11 +64,10 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
-| [0251](active/0251-retune-the-run-tests-budget-regime-for-portability-and-shard.md) | Retune the run-tests budget regime for portability and sharding | `high` | `refactor` | #docket#232 |  |
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | #docket#226 |  |
 
 ```mermaid
@@ -87,7 +86,6 @@ graph TD
   0192 --> 0195
   0211 --> 0222
   0248
-  0251
   0252
   0253
   0256
@@ -130,17 +128,19 @@ graph TD
   0340
   0192:::done
   0211:::done
+  0251:::done
   0311:::done
   0316:::done
   0338:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (286)</summary>
+<details><summary>✅🗑️ Archive — done + killed (287)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0338](archive/2026-08-23-0338-gate-execution-terminal-sentinel-has-no-format-contract-poll.md) | Gate observe ships two serializations (shell state=name vs native protocol-v1 JSON) reconciled only by prose — converge on JSON, migrate the caller loop, retire the text contract | 2026-08-23 |
+| [0251](archive/2026-08-23-0251-retune-the-run-tests-budget-regime-for-portability-and-shard.md) | Retune the run-tests budget regime for portability and sharding | 2026-08-23 |
 | [0337](archive/2026-08-22-0337-finalize-leaves-a-permanent-terminal-backlink-pending-leg-un.md) | Finalize's integration-ref backlink leg refuses on unrelated pre-existing corpus errors | 2026-08-22 |
 | [0336](archive/2026-08-22-0336-finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al.md) | Finalize selects the best merge method permitted by repository and branch policy | 2026-08-22 |
 | [0335](archive/2026-08-22-0335-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board.md) | refresh-claim fails verify-delta when the board is byte-unchanged | 2026-08-22 |
@@ -154,7 +154,6 @@ graph TD
 | [0325](archive/2026-08-18-0325-de-flake-the-gate-run-stop-barrier-test.md) | De-flake the gate-run --stop barrier test | 2026-08-18 |
 | [0322](archive/2026-08-18-0322-go-installer-adopt-legacy-bash-installed-user-level-artifact.md) | Bootstrap Go development installation and adopt legacy user-level artifacts | 2026-08-18 |
 | [0315](archive/2026-08-18-0315-claim-to-implemented-workflow.md) | Claim-to-implemented agent workflow | 2026-08-18 |
-| [0314](archive/2026-08-17-0314-native-process-supervisor-and-local-gate.md) | Native process supervisor and local gate | 2026-08-17 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
 | [0299](archive/2026-08-12-0299-reshard-tests-test-sync-agents-runners-so-every-file-measure.md) | Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling | 2026-08-12 |
 | [0285](archive/2026-08-12-0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | 2026-08-12 |
@@ -240,7 +239,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 73 done |
+| [2026-08](archive/) | 74 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
