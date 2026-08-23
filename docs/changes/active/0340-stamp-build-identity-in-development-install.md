@@ -21,7 +21,7 @@ branch: 'feat/stamp-build-identity-in-development-install'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-23T21:58:24Z'
+claimed_at: '2026-08-23T21:59:03Z'
 ---
 
 ## Artifacts
