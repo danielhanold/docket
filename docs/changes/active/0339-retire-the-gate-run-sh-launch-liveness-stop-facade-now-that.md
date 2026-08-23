@@ -21,7 +21,7 @@ branch: 'feat/retire-the-gate-run-sh-launch-liveness-stop-facade-now-that'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-23T20:07:59Z'
+claimed_at: '2026-08-23T20:46:29Z'
 ---
 
 ## Artifacts
@@ -75,12 +75,6 @@ launch/liveness/stop facade seam and its shared lib, NOT the observe-format seam
 ### 2026-08-23
 
 2026-08-23 — Reconciled against origin/main @ 38d9206f. Dependency 0338 (observe→JSON convergence) is `done`: `gate-run --observe` already refuses with a pointer to the native `docket gate observe --json`, so the launch/liveness/stop facade seam this change targets is exactly the residual 0338 left out of scope. Confirmed current reality still matches the settled spec: `scripts/gate-run.sh` + `scripts/gate-run.md` exist on origin/main and `gate-run` is in `WRAPPED_OPS` (`scripts/docket.sh`); the native Go-v1 gate (`docket gate launch|observe|stop`) is canonical; `skills/docket-build/SKILL.md` is the last skill-level caller of `gate-run --launch`/`--stop`; `skills/docket-build/references/gate-execution.md` exists as the destination for the orphaned caller guidance; `scripts/lib/docket-liveness.sh` is shared by `gate-run.sh` and `runner-dispatch.sh` (the latter its future sole consumer); the facade tests `tests/test_gate_run.sh` and `tests/test_gate_run_stop.sh` and the posture test `tests/test_gate_execution_posture.sh` all exist. Maintained-source `gate-run` references to sweep at build time (derived by whole-repo grep, per the house rule): `scripts/docket.md`, `scripts/docket.sh`, `scripts/lib/docket-liveness.sh`, `scripts/runner-dispatch.md`, `scripts/runner-dispatch.sh`, `skills/docket-build/SKILL.md`, `skills/docket-build/references/gate-execution.md`; frozen records (archived changes, results, merged plans, prior specs, Accepted ADRs) stay untouched. No scope, relation, or design changes required — proceeding to plan and build as specified.
-
-## Run halted
-
-### 2026-08-23
-
-Halted 2026-08-23 during Step 5 (build). A human is needed to correct a plan-sequencing defect; the design is sound and reconcile confirmed it against current reality — this is a plan-quality problem, not a fundamentally-invalidated design.
 
 ## What happened
 
