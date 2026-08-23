@@ -282,6 +282,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 				SourceRoot: source,
 				BinDir:     binDir,
 				GoRunner:   install.DefaultGoRunner,
+				GitRunner:  install.DefaultGitRunner,
 			})
 			return nil
 		},
