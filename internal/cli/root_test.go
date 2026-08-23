@@ -525,6 +525,22 @@ func TestDevelopmentInstallRequiresSource(t *testing.T) {
 	}
 }
 
+func TestDevelopmentInstallWiresBothRunners(t *testing.T) {
+	pinInstallEnv(t)
+	bogus := filepath.Join(t.TempDir(), "not-a-checkout")
+	out, errS, code := runCLI(t, "development", "install", "--source", bogus, "--json")
+	// invalid-input results exit 2 (the convention every other install/flag
+	// error test in this file asserts, e.g. TestVersionExtraArgsJSON).
+	if code != 2 || errS != "" {
+		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
+	}
+	// invalid-source-root proves execution got PAST the runner nil-checks:
+	// an unwired GoRunner or GitRunner would have refused as invalid-options.
+	if !strings.Contains(out, `"reason":"invalid-source-root"`) {
+		t.Fatalf("stdout = %q, want an invalid-source-root refusal (a runner is unwired if this reads invalid-options)", out)
+	}
+}
+
 // captureTree runs a scratch command whose only job is to hand this test the
 // Cobra tree the production wiring built.
 func captureTree(t *testing.T) *cobra.Command {
