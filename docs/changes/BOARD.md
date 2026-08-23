@@ -1,12 +1,6 @@
 # Backlog
 
-**340 changes** — 🟢 1 in progress · 🟡 48 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 206 done · 🗑️ 80 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0251](active/0251-retune-the-run-tests-budget-regime-for-portability-and-shard.md) | Retune the run-tests budget regime for portability and sharding | `high` | `refactor` | [spec](../superpowers/specs/2026-08-07-retune-the-run-tests-budget-regime-for-portability-and-shard-design.md) | `feat/retune-the-run-tests-budget-regime-for-portability-and-shard` |
+**340 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 206 done · 🗑️ 80 killed
 
 ## 🟡 Proposed (48)
 
@@ -32,7 +26,7 @@
 | [0265](active/0265-branch-the-adr-0065-quote-leg-diagnostic-so-it-stops-claimin.md) | Branch the ADR-0065 quote-leg diagnostic so it stops claiming a truncation that did not happen | `low` | `fix` | build-ready |
 | [0266](active/0266-deterministic-frontmatter-field-writer-no-skill-hand-rolls-a.md) | Deterministic frontmatter field writer — no skill hand-rolls a manifest edit | `medium` | `feat` | build-ready |
 | [0272](active/0272-de-duplicate-the-gitignore-block-writer-s-second-copy-of-the.md) | De-duplicate the gitignore-block writer's second copy of the write orchestration | `low` | `fix` | build-ready |
-| [0273](active/0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md) | Put runtime budgets on a host-relative basis and re-seed the table | `high` | `refactor` | ⏳ waiting on #251 — not yet built |
+| [0273](active/0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md) | Put runtime budgets on a host-relative basis and re-seed the table | `high` | `refactor` | ⏳ waiting on #251 — needs your merge |
 | [0279](active/0279-settle-the-walk-site-classifier-s-reachability-gap-and-re-la.md) | Settle the walk-site classifier's reachability gap and re-land 0258's reverted fixes | `medium` | `chore` | build-ready |
 | [0280](active/0280-shard-or-re-budget-the-test-files-the-suite-runner-reports-o.md) | Shard or re-budget the test files the suite runner reports OVER BUDGET | `medium` | `chore` | needs-brainstorm |
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | build-ready |
@@ -70,10 +64,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
+| [0251](active/0251-retune-the-run-tests-budget-regime-for-portability-and-shard.md) | Retune the run-tests budget regime for portability and sharding | `high` | `refactor` | #docket#232 |  |
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | #docket#226 |  |
 
 ```mermaid

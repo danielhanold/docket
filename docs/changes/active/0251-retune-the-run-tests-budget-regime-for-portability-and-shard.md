@@ -2,11 +2,11 @@
 id: 251
 slug: retune-the-run-tests-budget-regime-for-portability-and-shard
 title: 'Retune the run-tests budget regime for portability and sharding'
-status: 'in-progress'
+status: 'implemented'
 priority: high
 type: refactor
 created: 2026-08-07
-updated: '2026-08-22'
+updated: '2026-08-23'
 depends_on: []
 related: [258, 273]
 discovered_from: [229, 230]
@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable: true
 branch: 'feat/retune-the-run-tests-budget-regime-for-portability-and-shard'
-pr:
+pr: 'github.com/danielhanold/docket#232'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-22T18:34:00Z'
