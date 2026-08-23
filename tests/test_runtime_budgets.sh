@@ -29,12 +29,14 @@ EXPECTED_SERIAL=1   # tests/test_go_race.sh (change 0332). The shared state that
                     # FINDING: a serial pin removes a file from the parallel phase, so it must be
                     # justified in the same diff with the shared state that forced it.
 EXPECTED_TOTAL=2330 # the sum of every ceiling, seeded with the table from the measured serial run.
-                    # 2275 -> 2285 (change 0251): the NEW-FILE case — tests/test_run_tests_budget_state.sh
-                    # is the deterministic fixture suite for run-tests.sh's stateful budget-confirmation
-                    # regime; it injects durations through the seam rather than sleeping, so it measures
-                    # ~0-1s serial (scripts/run-tests.sh -j 1 --timings PATH). It brings its own row at
-                    # the table's 10s floor (next multiple of 5 plus a 5s margin, min 10), so the total
-                    # moves by +10.
+                    # 2275 -> 2330 (change 0251): two movers, +55 together. First, the NEW-FILE case —
+                    # tests/test_run_tests_budget_state.sh is the deterministic fixture suite for
+                    # run-tests.sh's stateful budget-confirmation regime; it injects durations through the
+                    # seam rather than sleeping, but its many fixture invocations of run-tests.sh push its
+                    # measured serial cost to a 30s row (scripts/run-tests.sh -j 1 --timings PATH), so it
+                    # brings +30. Second, the SHARD-RE-CUT case — tests/test_docket_config.sh was re-cut
+                    # from 55 to 45 and its overflow moved into the new shard tests/test_docket_config_guards.sh
+                    # at 35, a net +25 (-10 +35). 2275 + 30 + 25 = 2330.
                     # 2265 -> 2275 (change 0330): the NEW-FILE case — tests/test_finalize_closeout_notes.sh
                     # is a brand-new grep/awk contract guard (~0.1s standalone), budgeted at the 10s
                     # floor; it brings its own row, so the total moves by +10.
