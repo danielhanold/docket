@@ -20,8 +20,8 @@ auto_groomable: false
 branch: 'feat/gate-execution-terminal-sentinel-has-no-format-contract-poll'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-23T04:37:51Z'
+reconciled: true
+claimed_at: '2026-08-23T04:40:03Z'
 ---
 
 ## Artifacts
@@ -123,3 +123,18 @@ merged — never a `depends_on` gate. Change **0264** (forked-mode launch shape)
 non-adjacency, not a coupling. If the follow-up to retire the `gate-run.sh` facade is ever cut, it
 would couple to `runner-dispatch.sh` / `scripts/lib/docket-liveness.sh` — but that is out of scope
 here, so no frontmatter link is set.
+
+## Reconcile log
+
+### 2026-08-23
+
+2026-08-23 — Reconciled against current `main`/`docket` reality; the groomed design holds unchanged and no scope or relation edits were needed.
+
+Verified against source:
+- `scripts/gate-run.sh` still emits the plain-text `state=<name>` contract from `do_observe`/`observe_state` (e.g. `printf 'state=running\n'`, `state=died cause=signal`, `state=unavailable`), exactly the serialization this change retires.
+- The native gate `internal/app/gate.go` emits protocol-v1 JSON with top-level `state` (omitempty) and `cause` (omitempty) fields, confirmed by `internal/cli/gate_test.go` (`doc["state"]`, `obs["state"] == "passed"`). The document shape already carries what the caller loop needs — no schema change, as the spec's file-by-file scope predicted.
+- Change 0286 (the canonical `state=<name>` loop and its fail-closed arm) is merged; it is a build-on, never a `depends_on` gate. Change 0339 (retire the rest of the `gate-run.sh` facade) correctly carries `depends_on: [338]` and is waiting on this change — unchanged.
+
+One build-relevant mechanics nuance for the plan: `docket gate observe <run-dir>` emits a HUMAN text form (`state: <name>`) by default and protocol-v1 JSON only under the global `--json` flag (`internal/cli/gate.go` observe cmd; `internal/app/gate.go` text branch `"state: "+string(r.State)`). The new caller loop must therefore invoke `docket gate observe <run-dir> --json` before the `jq -r '.state // empty'` extraction; capture into a variable first per the pipefail house rule. The fail-closed-on-unknown arm (empty/unparseable/jq-absent -> `unavailable`, break loudly) survives per the spec.
+
+Auto-capture is disabled for this repo; no follow-up stubs minted. No adjacent work surfaced beyond the already-tracked 0339.
