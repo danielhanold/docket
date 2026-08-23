@@ -588,6 +588,84 @@ assert "a running run that never settles stops at the budget with no verdict" \
 assert "an unset budget aborts the loop instead of passing for a configured zero" \
   '[ "$(run_loop UNSET jq "$J")" = "ERRExit||0" ]'
 
+# ---- AND THE FENCE RUNS AGAINST THE REAL GATE'S OWN DOCUMENTS -------------------------------
+# The scripted stub above proves the ARMS; this leg proves the documents are real — the fence's
+# jq extraction against bytes internal/app/gate.go actually emits, through every terminal state.
+# Built once, like tests/test_asset_bundle_drift.sh builds its comparator.
+REALBIN="$SBX/realbin"; mkdir -p "$REALBIN"
+build_out="$( (cd "$REPO" && go build -o "$REALBIN/docket" ./cmd/docket) 2>&1 )"
+assert "the native gate binary builds" '[ -x "$REALBIN/docket" ] || { printf "%s\n" "$build_out" >&2; false; }'
+
+# Launch through the REAL binary; wait until the run is terminal (cheap raw polls, budget-bounded
+# by the loop below at 60 real iterations of 0.5s); then run the byte-unmodified fence ONCE with
+# a fresh simulated clock, so each terminal state is read by the fence in exactly one observation.
+real_loop(){ # $1 = run dir -> prints `<state>|<cause>`
+  local rd="$1"
+  {
+    printf '%s\n' 'set -euo pipefail' \
+      "PATH=$REALBIN:\$PATH" \
+      '__now=0' 'date(){ printf "%s\n" "$__now"; }' 'sleep(){ __now=$(( __now + ${1:-0} )); }' \
+      "run_dir=$rd" 'GATE_OBSERVATION_BUDGET=5'
+    cat "$LOOPBOX/loop.body"
+    printf '%s\n' 'printf "%s|%s" "${state}" "${cause:-}"'
+  } >"$LOOPBOX/real-harness.sh"
+  "$DOCKET_BASH_PATH" "$LOOPBOX/real-harness.sh" 2>/dev/null
+}
+real_launch(){ # $@ = child command -> prints the run dir
+  # `--json` is a PERSISTENT root flag and Cobra stops flag parsing at `--` — launch reads its child
+  # argv via ArgsLenAtDash (internal/cli/gate.go), so a `--json` trailing the child argv is handed to
+  # the CHILD and launch prints human text jq cannot parse. `--json` therefore precedes `--`. Fix is
+  # in this helper, never the fence.
+  PATH="$REALBIN:$PATH" docket gate launch --root "$SBX/native-runs" --cwd "$REPO" --json -- "$@" \
+    | jq -r '.run_dir'
+}
+await_native_terminal(){ # $1 = run dir -> waits (real time) until observe stops saying running
+  local i=0 st doc
+  while [ "$i" -lt 60 ]; do
+    # Capture THEN parse, exactly as the fence does: observe exits non-zero for every terminal
+    # verdict (failed/interrupted -> exit 1), so under `set -o pipefail` a `docket | jq` capture
+    # would inherit that non-zero, fire the `||`, and wipe the terminal state back to empty — a
+    # poll that never sees the run settle and burns its whole 30s window (AGENTS.md § Shell).
+    doc="$(PATH="$REALBIN:$PATH" docket gate observe "$1" --json 2>/dev/null)" || true
+    st="$(jq -r '.state // empty' <<<"$doc" 2>/dev/null)" || st=""
+    case "$st" in running|"") /bin/sleep 0.5; i=$(( i + 1 )) ;; *) return 0 ;; esac
+  done
+  return 1
+}
+
+# passed / failed — the child's own verdicts.
+RDP="$(real_launch /bin/sh -c 'exit 0')"
+assert "real launch handed back a run dir" '[ -d "$RDP" ]'
+assert "the real run reached a terminal state" 'await_native_terminal "$RDP"'
+assert "the fence reads the real passed document as passed" '[ "$(real_loop "$RDP")" = "passed|" ]'
+RDF="$(real_launch /bin/sh -c 'exit 3')"
+assert "the failed run reached a terminal state" 'await_native_terminal "$RDF"'
+assert "the fence reads the real failed document as failed" '[ "$(real_loop "$RDF")" = "failed|" ]'
+# stopped — the gate's own stop verb.
+RDS="$(real_launch /bin/sh -c 'sleep 30')"
+PATH="$REALBIN:$PATH" docket gate stop "$RDS" --json >/dev/null 2>&1 || true
+assert "the stopped run reached a terminal state" 'await_native_terminal "$RDS"'
+assert "the fence reads the real stopped document as stopped" '[ "$(real_loop "$RDS")" = "stopped|" ]'
+# signaled — an external TERM of the real group, read from the run's own manifest (pgid; verified
+# against internal/process/records.go's manifestRecord). Racy against the supervisor by design, so
+# the assert keys on the RESOLVED disposition (died) only, never on the cause string.
+RDG="$(real_launch /bin/sh -c 'sleep 30')"
+sig_native_pgid="$(jq -r '.pgid' "$RDG/manifest.json")"
+kill -TERM -"$sig_native_pgid" 2>/dev/null || true
+assert "the signaled run reached a terminal state" 'await_native_terminal "$RDG"'
+sig_read="$(real_loop "$RDG")"
+assert "the fence resolves the real signaled document to died (got '$sig_read')" \
+  '[ "${sig_read%%|*}" = "died" ]'
+# vanished — KILL the whole group so no record can ever be written. Signaled and vanished both
+# resolve to died, so keying on died holds whichever the supervisor race produces.
+RDV="$(real_launch /bin/sh -c 'sleep 30')"
+van_native_pgid="$(jq -r '.pgid' "$RDV/manifest.json")"
+kill -KILL -"$van_native_pgid" 2>/dev/null || true
+assert "the vanished run reached a terminal state" 'await_native_terminal "$RDV"'
+van_read="$(real_loop "$RDV")"
+assert "the fence resolves the real vanished document to died (got '$van_read')" \
+  '[ "${van_read%%|*}" = "died" ]'
+
 # Budgets: a new test file with no budget row is how the suite silently grows. Keyed on the ROW
 # SHAPE the file documents — path, seconds, lane — because a commented-out row still carries the
 # path, and a commented-out row is exactly the state this assert exists to catch.
