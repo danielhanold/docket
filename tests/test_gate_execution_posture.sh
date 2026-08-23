@@ -483,7 +483,10 @@ assert "helper: the posture names the facade invocation" \
   'grep -qE "docket\.sh gate-run" <<<"$helper_blk"'
 verbs="$(grep -oE '^gate-run\.sh --[a-z-]+' <<<"$contract_body" | sed 's/.*--/--/' | sort -u)"
 n_verbs="$(grep -c . <<<"$verbs")"
-assert "helper: the contract's verb set was located (got $n_verbs)" '[ "$n_verbs" -ge 3 ]'
+# Floor at 2, not 3: change 0338 retired the observe operation to the native gate, so the contract's
+# Usage block publishes exactly `--launch` and `--stop` (`--observe` is a refusal documented in a
+# bullet, not a usage line). The floor stays a non-vacuity anchor; a fourth verb still reddens it.
+assert "helper: the contract's verb set was located (got $n_verbs)" '[ "$n_verbs" -ge 2 ]'
 for v in $verbs; do
   assert "helper: the posture gives the '$v' verb a role" 'grep -qF -- "'"$v"'" <<<"$helper_blk"'
 done
@@ -509,10 +512,18 @@ assert "helper: only running is retryable" \
 # against a file where the sentence is plainly present.
 assert "helper: the posture points at the contract's canonical loop rather than inviting a new one" \
   'grep -qiE "canonical[^.]{0,80}loop" <<<"$helper_flat"'
-assert "helper: the keying rule is bound to the full printed state= form" \
-  'grep -qiE "(key|match)[^.]{0,120}state=[^.]{0,60}(form|printed|line)" <<<"$helper_flat"'
-assert "helper: and the bare-token loop is named as the thing that never terminates" \
-  'grep -qiE "bare[^.]{0,60}(never terminat|does not terminat)" <<<"$helper_flat"'
+# RE-KEYED BY CHANGE 0338: the observe serialization is now the native gate's protocol-v1 JSON, so
+# the loop is bound to the document and its jq extraction, not to a printed `state=<name>` line.
+# Mutation: restore clause (a)'s old `state=<name>` sentence -> the negative below reddens.
+assert "helper: the loop is bound to the JSON document and its jq extraction" \
+  'grep -qiE "docket gate observe[^.]{0,120}--json" <<<"$helper_flat" && grep -qiE "jq" <<<"$helper_flat"'
+assert "helper: the retired state= keying no longer appears in the posture" \
+  '! grep -qF -- "state=" <<<"$helper_flat"'
+# The 0286 lesson survives the reserialization: the spin does not come from a bare-token match any
+# more but from a hand-rolled reading of the document — the same non-termination the 0337 incident
+# is. Mutation: delete the fence-reuse sentence's "hand-rolled reading ... spun" clause -> red.
+assert "helper: a hand-rolled reading of the document is named as the drift that spins the gate" \
+  'grep -qiE "hand-rolled[^.]{0,120}(drift|spun|spin)" <<<"$helper_flat"'
 
 # (12b) the `died` posture. The three legs are DERIVED from the contract's own token table, never
 # hand-listed: a fourth token added there reddens this automatically, which an allowlist could not.
