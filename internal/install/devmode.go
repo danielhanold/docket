@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/danielhanold/docket/internal/assets"
 	"github.com/danielhanold/docket/internal/config"
@@ -42,6 +44,12 @@ const (
 	// roleBinary marks the built binary in the installed state. It belongs to
 	// the installation itself rather than to any harness.
 	roleBinary = "binary"
+	// buildinfoPkg is the package whose exported identity vars the stamp
+	// targets. The three-`-X` format deliberately duplicates the release
+	// packager's ("reusing the release packager's exact `-X` triple format"
+	// per the 0340 spec): change 0317's internal/release is not merged, and
+	// its branch must not become a dependency of this path.
+	buildinfoPkg = "github.com/danielhanold/docket/internal/buildinfo"
 )
 
 // DevOptions is a development install's inputs: the release options plus the
@@ -176,7 +184,7 @@ func DevelopmentInstall(o DevOptions) Outcome {
 	// The build runs before the transaction opens: a toolchain failure must
 	// leave the user's installation exactly as it was, and the surest way to
 	// promise that is to have written nothing yet.
-	binary, err := buildBinary(o.GoRunner, source)
+	binary, err := buildBinary(o.GoRunner, source, buildIdentity(o.GitRunner, source, time.Now))
 	if err != nil {
 		return fail(out, ReasonBuildFailed, err)
 	}
@@ -288,11 +296,43 @@ func readCommittedManifest(bundleDir string) (assets.Manifest, error) {
 	return assets.DecodeManifest(raw)
 }
 
+// buildIdentity renders the -ldflags value stamping this build's identity,
+// or "" when the checkout's git state cannot be read. Identity is a nicety,
+// never a gate: every failure path degrades to an unstamped build, and the
+// stamp is all-three-or-none — a Version beside an unknown Commit would be a
+// new, misleading shape. Dirtiness is probed once, via describe's --dirty
+// suffix, and applied to both Version and Commit.
+func buildIdentity(run func(string, []string) (string, error), source string, now func() time.Time) string {
+	describe, err := run(source, []string{"git", "describe", "--tags", "--always", "--dirty"})
+	if err != nil {
+		return ""
+	}
+	head, err := run(source, []string{"git", "rev-parse", "HEAD"})
+	if err != nil {
+		return ""
+	}
+	version := strings.TrimSpace(describe)
+	commit := strings.TrimSpace(head)
+	if strings.HasSuffix(version, "-dirty") {
+		commit += "-dirty"
+	}
+	for _, v := range []string{version, commit} {
+		// A value with whitespace would silently corrupt the space-separated
+		// -X list; treat it as a failed probe, not a stampable identity.
+		if v == "" || strings.ContainsAny(v, " \t\n") {
+			return ""
+		}
+	}
+	return fmt.Sprintf("-X %s.Version=%s -X %s.Commit=%s -X %s.BuildDate=%s",
+		buildinfoPkg, version, buildinfoPkg, commit, buildinfoPkg,
+		now().UTC().Format(time.RFC3339))
+}
+
 // buildBinary runs the toolchain into a staging directory outside the user's
 // installation and returns the bytes it produced. Staging elsewhere is what
 // makes a failed build a no-op: nothing under the destination has been touched
 // when the runner returns an error.
-func buildBinary(run func(string, []string) error, source string) ([]byte, error) {
+func buildBinary(run func(string, []string) error, source, ldflags string) ([]byte, error) {
 	staging, err := os.MkdirTemp("", "docket-build-")
 	if err != nil {
 		return nil, fmt.Errorf("%w: staging the build: %s", ErrBuildFailed, err)
@@ -300,7 +340,12 @@ func buildBinary(run func(string, []string) error, source string) ([]byte, error
 	defer os.RemoveAll(staging)
 
 	staged := filepath.Join(staging, binaryName)
-	if err := run(source, []string{"go", "build", "-o", staged, "./cmd/docket"}); err != nil {
+	argv := []string{"go", "build"}
+	if ldflags != "" {
+		argv = append(argv, "-ldflags", ldflags)
+	}
+	argv = append(argv, "-o", staged, "./cmd/docket")
+	if err := run(source, argv); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrBuildFailed, err)
 	}
 	body, err := os.ReadFile(staged)
