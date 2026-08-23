@@ -327,19 +327,33 @@ for s in Purpose Usage "Run-directory layout" Behavior "Exit codes" \
   assert "the contract has a $s section" 'grep -qxF -- "## '"$s"'" <<<"$contract"'
 done
 
-# The retryable rule is stated TWICE by design — once in Purpose as a property every caller may
-# rely on, once beside the table where the states are defined — so each statement is pinned in its
-# own slice. Measured: a whole-page grep let either one be deleted while the other kept it green.
+# The retryable rule was stated twice before change 0338 — once in Purpose, once beside the
+# six-state table. That table and its restatement retired with the --observe serialization, so
+# only the Purpose statement is pinned here now; Task 4 retargets the --observe slice to the
+# retirement stub (premise-died: test-premise-deleted-not-regated).
 purpose_blk="$(csection Purpose)"
-observe_blk="$(cfrom '### `--observe`')"
 assert "the Purpose section was located (non-vacuity anchor)" \
   '[ "$(grep -c . <<<"$purpose_blk")" -ge 10 ]'
-assert "the --observe section was located (non-vacuity anchor)" \
-  '[ "$(grep -c . <<<"$observe_blk")" -ge 18 ]'
 assert "Purpose states that only running is retryable" \
   'grep -qiE "only .running. is retryable" <<<"$purpose_blk"'
-assert "and the section that defines the states states it there too" \
-  'grep -qiE "only .running. is retryable" <<<"$observe_blk"'
+
+# The --observe section is now the retirement STUB (change 0338): Task 4 retargets what this slice
+# proves. The old "the section that defines the states states it there too" assert retired with the
+# six-state table it read (Tasks 1/3 removed it); these asserts pin the retirement instead.
+observe_blk="$(cfrom '### `--observe`')"
+observe_flat="$(flat "$observe_blk")"
+assert "the --observe section was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$observe_blk")" -ge 4 ]'
+# NEGATIVE FIRST: the page must no longer publish a state=<state> stdout payload for observe —
+# the serialization this change retires. Scoped to the payload table so body prose about records
+# cannot satisfy or violate it. Mutation: restore the old table row and this reddens.
+payload_tbl="$(awk '/^\| Verb \| stdout payload \|/{f=1} f && /^\|/{print} f && !/^\|/{f=0}' <<<"$contract")"
+assert "the stdout-payload table was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$payload_tbl")" -ge 3 ]'
+assert "the payload table carries no observe state= row any more" \
+  '! grep -qF -- "state=" <<<"$payload_tbl"'
+assert "the retirement points at the native invocation, json flag included" \
+  'grep -qF -- "docket gate observe" <<<"$observe_flat" && grep -qF -- "--json" <<<"$observe_flat"'
 
 # THE PER-PLATFORM NOTE, and the two things that make it honest rather than aspirational: it must
 # name the narrowing, and it must never claim a session it does not deliver. The section-located
@@ -444,6 +458,135 @@ assert "the contract records that launch is written before identity" \
   'grep -qiE "launch. is written (first|before)" <<<"$layout_blk"'
 assert "the exit-code section defers to the report line" \
   'grep -qiE "key on the stdout report line" <<<"$exit_blk"'
+
+# ---- THE CALLER'S LOOP IS A TAUGHT, EXECUTABLE SURFACE (0286 shape, 0338 serialization) --------
+# The loop now parses the native gate's protocol-v1 JSON with jq. An agent runs the fence's bytes
+# verbatim (learnings: agent-executed-markdown-is-code), so these asserts EXECUTE the fence.
+usage_blk="$(csection Usage)"
+assert "the contract carries a caller-loop subsection, inside Usage" \
+  'grep -qxF -- "### The caller'"'"'s loop" <<<"$usage_blk"'
+loop_sec="$(awk '
+  /^### The caller'"'"'s loop$/ {f=1; next}
+  !f {next}
+  /^```/ {inf = 1 - inf; print; next}
+  !inf && /^#+ / {f=0; next}
+  {print}
+' <<<"$contract")"
+assert "the caller-loop section was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$loop_sec")" -ge 20 ]'
+loop_fence="$(awk '/^```bash$/ {inf=1; next}  inf && /^```$/ {inf=0; next}  inf {print}' <<<"$loop_sec")"
+assert "the canonical loop fence was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$loop_fence")" -ge 15 ]'
+loop_flat="$(flat "$loop_sec")"
+# jq is a DOCUMENTED required dependency, bound to the loop rather than merely mentioned
+# (learnings: prose-guard-binds-phrase-to-claim). Mutation: drop the dependency sentence.
+assert "the section documents jq as a required dependency of the loop" \
+  'grep -qiE "jq[^.]{0,80}required dependency" <<<"$loop_flat"'
+assert "and it names the unknown-document arm as terminal, never a retry" \
+  'grep -qiE "unknown[^.]{0,140}(never a retry|stop[s]? polling)" <<<"$loop_flat"'
+assert "the section defers disposition policy to the build skill's posture" \
+  'grep -qF -- "Gate execution posture" <<<"$loop_sec"'
+assert "the section names the mandatory stop on the abandon-while-running leg" \
+  'grep -qiE "abandon[^.]{0,100}gate stop[^.]{0,60}before it reports" <<<"$loop_flat"'
+
+LOOPBOX="$SBX/loopbox"; mkdir -p "$LOOPBOX/bin"
+cat >"$LOOPBOX/bin/docket" <<'STUB'
+#!/usr/bin/env bash
+# Stub native gate: answers the Nth line of $OBS_SCRIPT as a whole protocol document, repeating
+# the last line forever. Mirrors the real exit mapping (internal/app/result.go ExitCode +
+# gate.go mapObservation): running/passed -> 0, everything else -> 1. Past the cap it answers a
+# vocabulary-outside document so a mutated, never-terminating fence resolves to a comparable
+# `unavailable|201` instead of hanging the suite (learnings: mutation-target-needs-a-forced-exit).
+n=$(( $(cat "$OBS_COUNT") + 1 )); printf '%s' "$n" >"$OBS_COUNT"
+[ "$n" -le 200 ] || { printf '{"protocol_version":1,"operation":"gate.observe","result":"internal-error","state":"LOOPCAP"}\n'; exit 1; }
+line="$(sed -n "${n}p" "$OBS_SCRIPT")"
+[ -n "$line" ] || line="$(sed -n '$p' "$OBS_SCRIPT")"
+printf '%s\n' "$line"
+case "$line" in
+  *'"state":"running"'*|*'"state":"passed"'*) exit 0 ;;
+  *) exit 1 ;;
+esac
+STUB
+chmod +x "$LOOPBOX/bin/docket"
+printf '%s\n' "$loop_fence" >"$LOOPBOX/loop.body"
+
+# Runs the byte-unmodified fence under `set -euo pipefail` with a SIMULATED clock (sleep advances
+# a counter; date reports it), exactly the 0286 harness shape. $2 selects the PATH: `jq` keeps the
+# real PATH (jq present) behind the stub dir; `nojq` restricts PATH to the stub dir alone, which
+# is the simulated jq-absent machine. Output: `<state>|<cause>|<count>`.
+run_loop(){ # $1 = budget minutes or UNSET; $2 = jq|nojq; $3… = scripted observe documents
+  local budget="$1" pathmode="$2"; shift 2
+  printf '%s\n' "$@" >"$LOOPBOX/script"
+  printf '0' >"$LOOPBOX/count"
+  {
+    if [ "$budget" = UNSET ]; then printf '%s\n' 'set -eo pipefail'
+    else                           printf '%s\n' 'set -euo pipefail'; fi
+    if [ "$pathmode" = nojq ]; then printf 'PATH=%q\n' "$LOOPBOX/bin"
+    else                            printf 'PATH=%q\n' "$LOOPBOX/bin:$PATH"; fi
+    printf '%s\n' '__now=0' \
+      'date(){ printf "%s\n" "$__now"; }' \
+      'sleep(){ __now=$(( __now + ${1:-0} )); }' \
+      'run_dir=/nonexistent-run-dir'
+    [ "$budget" = UNSET ] || printf '%s\n' "GATE_OBSERVATION_BUDGET=$budget"
+    cat "$LOOPBOX/loop.body"
+    printf '%s\n' 'printf "%s|%s" "${state}" "${cause:-}"'
+  } >"$LOOPBOX/harness.sh"
+  local st
+  st="$(OBS_SCRIPT="$LOOPBOX/script" OBS_COUNT="$LOOPBOX/count" \
+        "$DOCKET_BASH_PATH" "$LOOPBOX/harness.sh" 2>"$LOOPBOX/harness.err")" || st="ERRExit|"
+  printf '%s|%s' "$st" "$(cat "$LOOPBOX/count")"
+}
+J='{"protocol_version":1,"operation":"gate.observe","result":"applied","state":"running"}'
+P='{"protocol_version":1,"operation":"gate.observe","result":"applied","state":"passed"}'
+F='{"protocol_version":1,"operation":"gate.observe","result":"gate-failed","state":"failed","exit_code":1}'
+S='{"protocol_version":1,"operation":"gate.observe","result":"interrupted","state":"stopped"}'
+G='{"protocol_version":1,"operation":"gate.observe","result":"interrupted","state":"signaled","cause":"terminated"}'
+V='{"protocol_version":1,"operation":"gate.observe","result":"interrupted","state":"vanished"}'
+E='{"protocol_version":1,"operation":"gate.observe","result":"invalid-state","reason":"observe: no run at that path"}'
+
+# 1 — terminal states dispose in one observation, in the loop's own vocabulary.
+assert "the loop disposes a passed document as passed, in one observation" \
+  '[ "$(run_loop 5 jq "$P")" = "passed||1" ]'
+assert "the loop disposes a failed document as failed (despite its exit-1 transport)" \
+  '[ "$(run_loop 5 jq "$F")" = "failed||1" ]'   # mutation key: drop the fence's `|| true` -> ERRExit
+assert "the loop disposes a stopped document as stopped" \
+  '[ "$(run_loop 5 jq "$S")" = "stopped||1" ]'
+# 2 — running is the ONLY retryable state, and the retry actually happens.
+assert "the loop retries running and takes the next document's verdict" \
+  '[ "$(run_loop 5 jq "$J" "$J" "$F")" = "failed||3" ]'
+# 3 — THE VOCABULARY CORRECTION THE SPEC'S SKETCH MISSED: the native gate spells a death
+# signaled/vanished, never died. Both must resolve to the died disposition, cause carried —
+# an arm that leaves them to `*)` reads every real signal death as unavailable.
+assert "a signaled document resolves to the died disposition, cause extracted" \
+  '[ "$(run_loop 5 jq "$G")" = "died|terminated|1" ]'
+assert "a vanished document resolves to died too, with an empty cause" \
+  '[ "$(run_loop 5 jq "$V")" = "died||1" ]'
+# 4 — THE DEFECT THIS CHANGE EXISTS FOR, in each garbled shape: disposed in ONE observation,
+# never polled. Mutation key: rewrite `*)` into a retry arm -> both halves invert (and the
+# LOOPCAP stub bounds the mutated run at unavailable||201 instead of a hang).
+assert "the loop fails closed on a stateless failure document, in exactly one observation" \
+  '[ "$(run_loop 5 jq "$E")" = "unavailable||1" ]'
+assert "the loop fails closed on a non-JSON line" \
+  '[ "$(run_loop 5 jq "hello world")" = "unavailable||1" ]'
+assert "the loop fails closed on an empty line" \
+  '[ "$(run_loop 5 jq "")" = "unavailable||1" ]'
+assert "the fail-closed diagnostic is loud, on stderr" \
+  'run_loop 5 jq "$E" >/dev/null; grep -qiF -- "failing closed" "$LOOPBOX/harness.err"'
+# 5 — jq ABSENT is a NAMED terminal diagnostic before any observation, never a silent spin.
+# Mutation key: delete the fence's `command -v jq` check -> the count reads 1 (the doc was
+# fetched) and the named diagnostic vanishes; both asserts redden.
+assert "a jq-less PATH resolves unavailable with zero observations" \
+  '[ "$(run_loop 5 nojq "$P")" = "unavailable||0" ]'
+assert "and the diagnostic names jq by the contract's own words" \
+  'run_loop 5 nojq "$P" >/dev/null; grep -qF -- "jq not found — the gate observe loop requires it" "$LOOPBOX/harness.err"'
+# 6 — budget semantics, unchanged from 0286. Mutation keys: (a) drop the deadline check -> the
+# running fixture resolves unavailable||201 off the stub cap; (b) drop the `:?` -> UNSET reads "||1".
+assert "a zero budget buys one observation and reports no verdict" \
+  '[ "$(run_loop 0 jq "$J")" = "||1" ]'
+assert "a running run that never settles stops at the budget with no verdict" \
+  '[ "$(run_loop 5 jq "$J")" = "||31" ]'
+assert "an unset budget aborts the loop instead of passing for a configured zero" \
+  '[ "$(run_loop UNSET jq "$J")" = "ERRExit||0" ]'
 
 # Budgets: a new test file with no budget row is how the suite silently grows. Keyed on the ROW
 # SHAPE the file documents — path, seconds, lane — because a commented-out row still carries the
