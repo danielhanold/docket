@@ -21,7 +21,7 @@ branch: 'feat/retire-the-gate-run-sh-launch-liveness-stop-facade-now-that'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-23T20:48:32Z'
+claimed_at: '2026-08-23T23:27:34Z'
 ---
 
 ## Artifacts
@@ -100,12 +100,6 @@ Per the docket-build contract this is a planning defect at a task/commit boundar
 ## Suggested human action
 
 Amend the plan to remove the Task 1 commit-boundary contradiction (option a, b, or c above — b is the smallest edit: add `tests/test_gate_execution_posture.sh` to Task 1's Files and move the assert-591/606 retargets from Task 4 into Task 1), then resume change 0339 by id via the halted-resume path.
-
-## Run halted
-
-### 2026-08-23
-
-Halted 2026-08-23 during the build step (Step 5). This is the SECOND plan-boundary defect of the same family as the original halt: the plan amendment (commit 1b15ce84) fixed Task 1's posture-assert commit boundary but did not fix Task 1's size-budget commit boundary.
 
 ## What happened
 
