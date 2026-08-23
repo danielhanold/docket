@@ -379,7 +379,7 @@ assert "and the completed run kept its verdict — its own record, no marker" \
   '[ "$(cat "$RD/terminal" 2>/dev/null)" = "kind=exit code=0" ] && [ ! -f "$RD/stopped" ]'
 
 # ---- (2) MARKER BEFORE VERIFICATION: a stop that dies mid-flight may claim nothing -------------
-# Assumption 21. The completed marker is what `--observe` reads to report `stopped`, and `stopped`
+# Assumption 21. The completed marker is the durable record that the run was `stopped`, and `stopped`
 # is terminal — no caller ever relaunches it. A marker written before termination was verified
 # would therefore let a stop that died between its signal and its verification leave a durable
 # claim that the child is gone while the child is still running, and the run would never be looked
@@ -447,8 +447,9 @@ assert "and the terminal record is still the wrapper's, unrewritten by the annot
 # marker after it. Fixture (3)'s annotation is a second record of a fact the intent already carries;
 # this is the leg where that second record never gets written, because the stop dies in the very
 # window fixture (3) is released from. The evidence that the death was deliberate then rests
-# entirely on `stop-intent` — and `--observe` must still read `stopped`, or a cancellation that
-# outlived its own canceller reads `died` forever and an idempotent call site relaunches it.
+# entirely on `stop-intent` — and the run dir's records must still resolve to `stopped`, or a
+# cancellation that outlived its own canceller reads `died` forever and an idempotent call site
+# relaunches it.
 RD="$(gate_run --launch --root "$SBX/runs" -- /bin/sh -c 'sleep 60')"
 F4BAR="$SBX/fixture4-barrier"
 ( GATE_RUN_TEST_BARRIER=post-kill-pre-annotate GATE_RUN_TEST_BARRIER_FILE="$F4BAR" \
