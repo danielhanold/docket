@@ -6,13 +6,13 @@ status: proposed
 priority: medium
 type: refactor
 created: 2026-08-22
-updated: 2026-08-22
+updated: 2026-08-23
 depends_on: [338]
 stacked_on:
-related: []
+related: [284, 314]
 discovered_from: [338]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-23-retire-gate-run-facade-design.md
 plan:
 results:
 trivial: false
@@ -26,6 +26,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-23-retire-gate-run-facade-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-23-retire-gate-run-facade-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -47,18 +50,20 @@ shape that drifted before (the liveness predicate had already diverged between `
 
 ## What changes
 
-Decide the disposition of the `gate-run.sh` facade now that the native Go-v1 gate is the canonical
-observe/launch/stop supervisor, and collapse the duplication rather than leaving two launch/liveness
-paths held together by convention. Open questions for the brainstorm:
+Fully retire the `gate-run.sh` facade — the native Go-v1 gate is the sole launch/liveness/stop
+supervisor (design settled 2026-08-23; detail in the linked spec):
 
-- Retire `gate-run.sh`'s launch/observe/stop entirely in favor of `docket gate …`, or keep the shell
-  facade as a thin wrapper over the Go binary?
-- What becomes of `scripts/lib/docket-liveness.sh` and its second consumer `runner-dispatch.sh` —
-  does the native gate subsume the shared predicate, or does `runner-dispatch.sh` keep the shell
-  liveness path?
-- Migration/compat: any caller still invoking `docket.sh gate-run` (the `WRAPPED_OPS` entry, the
-  `docket-build` posture) must be moved before the facade is removed.
+- Delete `scripts/gate-run.sh` + `scripts/gate-run.md`; drop the `WRAPPED_OPS` entry. No wrapper,
+  no shim — the 0338 posture, applied to the remaining verbs.
+- Migrate `docket-build`'s gate posture (the last skill-level caller) to
+  `docket gate launch`/`stop` and the protocol-v1 JSON vocabulary.
+- Move the orphaned caller guidance (canonical loop, state/retryability vocabulary, per-platform
+  capability note) into `skills/docket-build/references/gate-execution.md`, with a recorded
+  evidence-carryover note for the per-harness verdicts.
+- Keep `scripts/lib/docket-liveness.sh` with `runner-dispatch.sh` as sole consumer; rewrite the
+  ownership prose only. Migrating `runner-dispatch.sh` natively is out of scope (future change).
+- Tests: delete the facade's tests after sorting subject-mechanics guards (die) from
+  posture-prose guards (move to `test_gate_execution_posture.sh`).
 
-**Sequenced after 0338** — this only makes sense once the observe format has converged on JSON, so
-it depends on 0338. Boundary: the launch/liveness/stop facade seam and its shared lib, NOT the
-observe-format seam 0338 owns.
+**Sequenced after 0338** (done) — the observe format converged on JSON there. Boundary: the
+launch/liveness/stop facade seam and its shared lib, NOT the observe-format seam 0338 owns.
