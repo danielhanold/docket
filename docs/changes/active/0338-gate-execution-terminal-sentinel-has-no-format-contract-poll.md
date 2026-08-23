@@ -2,7 +2,7 @@
 id: 338
 slug: gate-execution-terminal-sentinel-has-no-format-contract-poll
 title: 'Gate observe ships two serializations (shell state=name vs native protocol-v1 JSON) reconciled only by prose — converge on JSON, migrate the caller loop, retire the text contract'
-status: 'in-progress'
+status: 'implemented'
 priority: medium
 type: fix
 created: 2026-08-22
@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable: false
 branch: 'feat/gate-execution-terminal-sentinel-has-no-format-contract-poll'
-pr:
+pr: 'github.com/danielhanold/docket#231'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-23T04:54:49Z'
