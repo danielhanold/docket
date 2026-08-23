@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:fab09a6b867574b0ea482d917c184b0ef41544a7af1c5845d2b107cd8db78320",
+  "asset_set_id": "sha256:d5fef7cc3a78a474fbb8348040e5732eb388887c3ddb46be4d4dcff8e0bc106d",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -308,8 +308,8 @@
       "path": "skills/docket-build/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 24638,
-      "sha256": "4af03eda52a19d10975b1f1900983b62a8ccf267a401789eeeefe0f4bb79db11"
+      "size": 24600,
+      "sha256": "54f3b30db5681b966eb2c10d62ad6acf22129516c50331265072e3ec0b4f3e69"
     },
     {
       "path": "skills/docket-build/references/delegation-execution.md",
