@@ -19,19 +19,19 @@ Three properties follow from that, and every caller may rely on them:
   verdict. `failed` — the child ran and went red — is the only state that may feed repair work.
 - **The caller owns the polling loop and its budget.** This helper never polls the run on the
   caller's behalf: no verb waits for the child to finish. That is not the same as "every call is
-  instant", and a caller sizing its budget must not read it that way — **`--observe` is the only
-  verb that is a short call that returns**. `--stop` bounds itself but is not short: it spends up
+  instant", and a caller sizing its budget must not read it that way — **`docket gate observe` is
+  the only verb that is a short call that returns**. `--stop` bounds itself but is not short: it spends up
   to **10s** of `TERM` grace plus up to **5s** verifying the group is gone, so budget **up to 15s**
   for one stop. `--launch` blocks for the establishment handshake (`GATE_RUN_ESTABLISH_SECS`,
   default 10s) and, on the failure path only, up to ~6s more tearing the failed launch down. All
   three bounds are fixed in the script; none is a caller-tunable knob.
-- **Only `running` is retryable.** The other five states are terminal.
+- **Only `running` is retryable.** Every other observed state is terminal — the vocabulary and its
+  reading now live with the native gate and the loop above.
 
 ## Usage
 
 ```
 gate-run.sh --launch [--root <dir>] [--run-name <name>] -- <command…>
-gate-run.sh --observe <run-dir>
 gate-run.sh --stop <run-dir> [--reason <text>]
 ```
 
@@ -48,8 +48,11 @@ Reached through the facade as `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/do
     collide on one; an existing dir is **refused, never reused**.
   - `-- <command…>` — required. Everything after `--` is the command, run with `stdout.log` /
     `stderr.log` attached and stdin from `/dev/null`.
-- `--observe <run-dir>` — one short, idempotent look. Prints `state=<state>` (plus `cause=<cause>`
-  for `died`) and returns.
+- `--observe` — **retired (change 0338).** The observe operation has exactly one serialization:
+  the native gate's protocol-v1 JSON, read as `docket gate observe <run-dir> --json`. Invoking
+  this verb refuses with a non-zero exit and a one-line stderr pointer to that command; nothing
+  is printed on stdout. There is deliberately no passthrough shim — a second spelling of the same
+  observation is the drift this retirement closes.
 - `--stop <run-dir> [--reason <text>]` — terminate the run, identity-checked before anything is
   signalled. `--reason` is free text recorded in the intent and stop markers; it is flattened to one
   line, because every reader of those records is line-oriented.
@@ -70,7 +73,6 @@ every diagnostic — including a failing run's log tail — goes to stderr.
 | Verb | stdout payload |
 |---|---|
 | `--launch` | the absolute run-directory path, or the single slash-free token `launch-failed` |
-| `--observe` | `state=<state>`, or `state=died cause=<signal\|vanished>` |
 | `--stop` | one of `stopped`, `already-terminal`, `unavailable` |
 
 `launch-failed` is one shape and never a taxonomy: it carries no slash, so a caller can tell it from
@@ -78,54 +80,65 @@ a handle by shape alone without parsing.
 
 ### The caller's loop
 
-The helper never polls for you, so the loop is yours to write — and there is exactly one correct
-shape for reading what it prints. Copy this one verbatim; `tests/test_gate_run.sh` extracts this
-fence and executes it against every state below.
+The helper never polls for you, and since change 0338 it does not observe for you either: the
+loop drives the **native gate** directly and parses its protocol-v1 JSON with **jq — a required
+dependency of this loop** (already a docket dependency elsewhere: `scripts/ensure-docket-env.sh`,
+`scripts/docket-status.sh`). A missing jq is a loud terminal diagnostic, never a silent spin.
+Copy this loop verbatim; `tests/test_gate_run.sh` extracts this fence and executes it against
+scripted documents and against the real gate.
 
 ```bash
-# `run_dir` is the handle --launch printed. GATE_OBSERVATION_BUDGET is the docket execution policy
-# from the Step-0 config export, in minutes; 0 is legal and buys exactly one observation. The `:?`
-# is load-bearing for exactly that reason: bash arithmetic reads an unset name as 0, so a bare read
-# would make a MISSING export look like a configured 0 and halt a healthy run one observation in.
+# `run_dir` is the run directory `docket gate launch` reported. GATE_OBSERVATION_BUDGET is the
+# docket execution policy from the Step-0 config export, in minutes; 0 is legal and buys exactly
+# one observation. The `:?` is load-bearing: bash arithmetic reads an unset name as 0, so a bare
+# read would make a MISSING export look like a configured 0 and halt a healthy run one
+# observation in.
 deadline=$(( $(date +%s) + ${GATE_OBSERVATION_BUDGET:?from the Step-0 config export} * 60 ))
-state=""
+state="" cause=""
 while :; do
-  # Capture, THEN match. The `|| true` is load-bearing: --observe exits 1 on `unavailable`, and the
-  # rule is that callers key on the stdout report line, never on the exit code — without it an
-  # errexit caller dies before any arm below runs.
-  out="$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh gate-run --observe "$run_dir")" || true
-  case "$out" in
-    state=running*)     : ;;                         # the only retryable state
-    state=passed*)      state=passed;      break ;;
-    state=failed*)      state=failed;      break ;;
-    state=died*)        state=died;        break ;;  # the trailing `cause=…` is matched by the `*`
-    state=stopped*)     state=stopped;     break ;;
-    state=unavailable*) state=unavailable; break ;;
-    *)                  state=unavailable; break ;;  # unknown line: fail closed, NEVER a retry arm
+  # The loop's one hard dependency, checked where it is used: without jq no document can be
+  # read, so the only honest answer is a LOUD terminal unavailable — never a poll-again.
+  if ! command -v jq >/dev/null 2>&1; then
+    printf '%s\n' "jq not found — the gate observe loop requires it" >&2
+    state=unavailable; break
+  fi
+  # Capture, THEN parse. The `|| true` is load-bearing: observe exits non-zero for real
+  # verdicts too (failed, and every interrupted state), and the rule is that callers key on the
+  # document, never the exit code — without it an errexit caller dies before any arm runs.
+  doc="$(docket gate observe "$run_dir" --json)" || true
+  st="$(jq -r '.state // empty' <<<"$doc" 2>/dev/null)" || st=""
+  case "$st" in
+    running) : ;;                                  # the only retryable state
+    passed|failed|stopped) state="$st"; break ;;
+    signaled|vanished)                             # the JSON spellings of a death: the child
+      state=died                                   # never finished, so this is never `failed`
+      cause="$(jq -r '.cause // empty' <<<"$doc" 2>/dev/null)" || cause=""
+      break ;;
+    *)                                             # empty state, garbled document, jq failure:
+      printf '%s\n' "gate observe returned no recognizable state; failing closed as unavailable" >&2
+      state=unavailable; break ;;                  # fail closed, NEVER a retry arm
   esac
-  [ "$(date +%s)" -lt "$deadline" ] || break         # budget spent; `state` stays empty
+  [ "$(date +%s)" -lt "$deadline" ] || break       # budget spent; `state` stays empty
   sleep 10
 done
-# An empty `state` means the budget ran out with the run still `running` — that is the fail-closed
-# case, not a verdict about the child. The child was last seen live, so a caller abandoning here
-# calls `--stop` before it reports (`skills/docket-build/SKILL.md` § *Gate execution posture*,
-# *Abandoning a live child*).
+# An empty `state` means the budget ran out with the run still `running` — the fail-closed case,
+# not a verdict about the child. The child was last seen live, so a caller abandoning here calls
+# `docket gate stop "$run_dir"` before it reports (`skills/docket-build/SKILL.md`
+# § *Gate execution posture*, *Abandoning a live child*).
 ```
 
-**Never re-tokenize the report line and match bare state names.** `awk '{print $1}'`, `cut -d= -f2`,
-or stripping the `state=` prefix all re-introduce a parsing step that can drift, and the observed
-failure is silent: the first field *is* `state=passed`, so a `case` on bare `passed` matches
-nothing, every observation falls to `*)`, and a gate that finished in seconds is polled until its
-budget is exhausted. Match the **whole printed line by its prefix** instead — no state name is a
-prefix of another, and the closed vocabulary is validated helper-side, so the prefix match is exact.
+**Never re-derive the state by hand from the document.** A grep or `cut` over the JSON re-creates
+exactly the parser drift this loop's jq extraction retired; the document is parsed, or the arm is
+the fail-closed one. The **unknown-document arm is terminal, never a retry**: a document outside
+the vocabulary means the invocation or the environment is wrong, so the loop stops polling and
+disposes it as `unavailable`. A retry there is precisely the shape that never terminates — it is
+the 0337 incident.
 
-The **unknown-line arm is terminal, never a retry**: a line outside the vocabulary means the
-invocation or the environment is wrong, so the loop stops polling and disposes it as `unavailable`.
-A retry there is precisely the shape that never terminates.
-
-What to *do* with each state is the caller's policy, not the helper's: dispositions — which states
-may be relaunched, when a budget exhaustion halts — are stated in `skills/docket-build/SKILL.md`
-§ *Gate execution posture*.
+The loop RESOLVES the native spellings into the caller's disposition vocabulary: `signaled` and
+`vanished` both resolve to `died` (with `cause` carrying the document's own qualifier, possibly
+empty), because a signalled or vanished child **never finished** — `died` is never `failed`, and
+only `failed` may feed repair work. What to *do* with each resolved state is the caller's policy:
+dispositions are stated in `skills/docket-build/SKILL.md` § *Gate execution posture*.
 
 ## Run-directory layout
 
@@ -228,50 +241,13 @@ never written, which made `kind=signal` unreachable and degraded every signal de
 the wrapper survives. **SIGKILL is deliberately not survivable:** a KILLed group leaves no record,
 which is exactly the `cause=vanished` reading it should get.
 
-### `--observe`
+### `--observe` (retired)
 
-The read order **is** the contract:
-
-1. **Terminal record first — it always wins.** The child's own verdict outranks any probe of the
-   group it used to lead.
-2. **Liveness, identity-checked** — never a bare `kill -0`. The conjunction is: the recorded group
-   exists **and** the process leading it started at the instant this run recorded. A pgid is a
-   reusable name; without the second conjunct a recycled group reads as `running` and the caller
-   waits out its whole budget on a run that is not there. Every leg fails **closed**.
-3. **Dead or identity-mismatched ⇒ re-read the record.** Atomicity prevents partial reads, not stale
-   ones: the step-1 read was a snapshot of a moment that has passed, and the child had every chance
-   to finish since. Without this re-read the sequence "no record → child completes → dead probe"
-   turns a run that **passed** into a `died`, and a call site keyed on `died` relaunches it.
-4. A `stopped` marker with no record ⇒ `state=stopped`.
-5. **A `launch` record that names no usable process group ⇒ `state=unavailable`**, never `died`.
-   `died cause=vanished` is a verdict about the **child**, and it rests on the step-2 probe having
-   asked its question of *this run's* group; an empty, `0`, `1` or non-numeric recorded `pgid` fails
-   that probe's **first** conjunct, so nothing was asked of anything and there is no verdict to read.
-   `--stop` refuses the identical record the same way and in the same words, so the two verbs cannot
-   disagree about the same bytes. The check sits **after** the reads above rather than before them —
-   the asymmetry with `--stop`, which refuses first because its next act is a **signal** — so a run
-   that recorded its own verdict and *then* had its `launch` corrupted still reads that verdict.
-6. Otherwise the recorded group is gone and nothing survives that could ever write a verdict:
-   `state=died cause=vanished`, with the last lines of the run's own streams on **stderr**.
-
-The six states:
-
-| State | Meaning | Retryable |
-|---|---|---|
-| `running` | the recorded group is alive and its leader's identity matches | **yes** |
-| `passed` | `kind=exit code=0` — the child ran and finished green | no |
-| `failed` | `kind=exit` with a non-zero code — the child ran and went red | no |
-| `died cause=signal` | `kind=signal`, with no stop of ours recorded — killed by something else | no |
-| `died cause=vanished` | the recorded group is gone and no record was ever written | no |
-| `stopped` | a `--stop` of ours: `stopped` or `stop-intent` exists beside a `kind=signal` record, or `stopped` exists with no record | no |
-| `unavailable` | no verdict could be read: an unreadable run dir, a malformed `terminal`, a `launch` record naming no usable process group, or a usage error | no |
-
-**Only `running` is retryable.** The other five are terminal, and a caller that keeps polling past
-one of them is polling a decided run.
-
-A malformed `terminal` is `unavailable` rather than a guess: a record that does not parse says the
-**supervisor** did not finish cleanly, which is not a verdict about the child, and a verdict read
-out of garbage is fabricated.
+The verb refuses: non-zero exit, empty stdout, one stderr line pointing at
+`docket gate observe <run-dir> --json`. The observation itself — read order, identity-checked
+liveness, the state vocabulary — is the native gate's contract now (`internal/app/gate.go`), and
+this page no longer restates it. What a caller does with each observed state lives with the loop
+below and in `skills/docket-build/SKILL.md` § *Gate execution posture*.
 
 ### `--stop`
 
@@ -371,7 +347,7 @@ The tokens below are stated against the legs that actually produce them:
 for scripting completeness only, and it is deliberately coarse — a taxonomy of exit codes invites a
 caller to branch on it, which is the coupling this section exists to discourage.
 
-`--observe` and `--stop` agree on the same two-value mapping:
+`--stop` uses a two-value mapping:
 
 | Exit | Meaning |
 |---|---|
@@ -381,6 +357,8 @@ caller to branch on it, which is the coupling this section exists to discourage.
 Argument errors (a missing run dir, an unknown flag, more than one run dir, a `--reason` with no
 value) report `unavailable` and exit `1`; there is no separate usage code, because a caller reading
 the report line must not have to distinguish one.
+
+`--observe` exits `2` with nothing on stdout — a refusal, not a verdict.
 
 `--launch` is the one verb with a different pair, because its payload is a handle rather than a
 verdict: `0` with the absolute run-dir path on stdout, non-zero with the token `launch-failed`.
@@ -548,9 +526,11 @@ whole lifetime.
 
 ## Tests
 
-`tests/test_gate_run.sh` (launch, the records, the terminal record, `--observe`, and this contract's
-own shape) and `tests/test_gate_run_stop.sh` (`--stop` and its deterministic interleaving fixtures),
-sharing the prologue in `tests/lib/gate_run_common.sh`. Every assert is keyed to a mutation that
+`tests/test_gate_run.sh` (launch, the records, the terminal record, the `--observe` refusal, the
+caller-loop fence executed against scripted and real native-gate JSON, and this contract's own
+shape) and `tests/test_gate_run_stop.sh` (`--stop` and its deterministic interleaving fixtures,
+reading the run dir's own records directly rather than the retired `--observe` oracle), sharing the
+prologue in `tests/lib/gate_run_common.sh`. Every assert is keyed to a mutation that
 reddens it — no exceptions. `--stop` step 3 was the last holdout, and taking step 1's orphan probe is
 what gave it distinct, observable behavior (`unavailable` where it used to emit the same
 `already-terminal` as step 4's absent-group branch). Its fixture is the interleaving in which the stop
