@@ -13,7 +13,7 @@ related: [317]
 discovered_from: [335]
 adrs: []
 spec: docs/superpowers/specs/2026-08-23-stamp-build-identity-in-development-install-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-23-stamp-build-identity-in-development-install.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-23T21:59:03Z'
 | Artifact | Link |
 |---|---|
 | Spec | `docs/superpowers/specs/2026-08-23-stamp-build-identity-in-development-install-design.md` |
+| Plan | `docs/superpowers/plans/2026-08-23-stamp-build-identity-in-development-install.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
