@@ -93,6 +93,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0094](0094-plan-authoring-is-a-pinned-internal-composition-agent.md) — Plan authoring is a pinned internal composition agent owning one git-verifiable artifact (Accepted) ← change #324 · relates to ADR-0008, ADR-0018, ADR-0044, ADR-0059, ADR-0064, ADR-0083
 - [ADR-0095](0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md) — The native per-run supervisor delivers a genuine session and an exact terminal record on every supported platform (Accepted) ← change #314 → supersedes ADR-0081 · relates to ADR-0080, ADR-0087
 - [ADR-0096](0096-legacy-reproduction-uses-a-frozen-embedded-floor.md) — Legacy reproduction resolves pins from a frozen embedded v0.9.2 floor, not the live defaults table (Accepted) ← change #322
+- [ADR-0097](0097-pr-identity-is-verified-by-parsed-pr-number.md) — Manifest pr: stores the canonical URL; PR identity is verified by parsed number (Accepted) ← change #344
 
 ## Superseded / Reversed
 
