@@ -92,6 +92,14 @@ func (r *gitStatusReader) PinContext(ctx context.Context, repoDir string) (Statu
 		return StatusPin{}, err
 	}
 
+	// 0341: derive the repository web URL once per pin, from origin's raw
+	// configured URL. Bash-renderer parity: an unreadable URL degrades to
+	// bare-path links, never a failed pin.
+	remoteURL, uerr := r.client.RemoteURL(ctx, repo, originRemote)
+	if uerr != nil {
+		remoteURL = ""
+	}
+
 	// Configuration is read from the pinned default-branch source (never the
 	// working tree), then layered under the filesystem-only machine layers.
 	docketYML, err := r.readOptionalBlob(ctx, defaultRev, ".docket.yml")
@@ -126,6 +134,7 @@ func (r *gitStatusReader) PinContext(ctx context.Context, repoDir string) (Statu
 		IntegrationRevision: integrationRev,
 		Config:              *snap,
 		ConfigDiags:         diags,
+		RepoWebURL:          githubWebURL(remoteURL),
 	}
 
 	if eff.MetadataBranch.Value == metadataModeMain {
