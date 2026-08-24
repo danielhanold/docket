@@ -20,8 +20,8 @@ auto_groomable: true
 branch: 'feat/finalize-pr-prober-cannot-parse-the-full-url-pr-form'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-24T18:46:02Z'
+reconciled: true
+claimed_at: '2026-08-24T18:48:27Z'
 ---
 
 ## Artifacts
@@ -88,3 +88,9 @@ Resolved at design time; see the spec's `## Assumptions` block for the full audi
 - **Reuse 0341's helper** — no: 0341's `link_context.go` helpers are on its unmerged branch, 0344
   carries no `depends_on: [341]`, and they parse the opposite direction (remote → URL). A small
   local extractor keeps 0344 independent and mergeable on its own.
+
+## Reconcile log
+
+### 2026-08-24
+
+2026-08-24 — Reconciled against current `origin/main`. The spec's code-proven root cause holds unchanged: `internal/app/finalize_context.go` still defines the only two `pr:`-number parsers, `parsePRNumber` (5 call sites — probe `finalize_context.go:609`, cleanup `finalize_cleanup.go:233`, closeout `finalize_closeout.go:286` + `:604`, merge `finalize_merge.go:425`) and `prNumberToken` (1 call site, `finalize_context.go:514`), and both key solely on `strings.LastIndex(ref, "#")`, so a full-URL `pr:` (no `#`) fails to parse. The two still diverge on non-positive acceptance (`parsePRNumber` requires `n > 0`; `prNumberToken` runs bare `strconv.Atoi`), exactly the latent divergence the shared-`parsePRRef` consolidation closes. Change 341 remains `implemented` (not `done`); `depends_on: []` and `discovered_from: [341]` are correct and retained. No scope change; proceeding to plan and build as specified.
