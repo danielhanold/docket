@@ -2,11 +2,11 @@
 id: 344
 slug: finalize-pr-prober-cannot-parse-the-full-url-pr-form
 title: 'Finalize PR prober cannot parse the full-URL pr: form'
-status: proposed
+status: 'in-progress'
 priority: high
 type: fix
 created: 2026-08-24
-updated: 2026-08-24
+updated: '2026-08-24'
 depends_on: []
 stacked_on:
 related: []
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: 'feat/finalize-pr-prober-cannot-parse-the-full-url-pr-form'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-24T18:46:02Z'
 ---
 
 ## Artifacts
@@ -28,7 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form-design.md) |
+| Spec | `docs/superpowers/specs/2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form-design.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
