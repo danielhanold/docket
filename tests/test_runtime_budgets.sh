@@ -28,7 +28,21 @@ EXPECTED_SERIAL=1   # tests/test_go_race.sh (change 0332). The shared state that
                     # needs — the load-dependent gate that halted change 0329. RAISING THIS IS A
                     # FINDING: a serial pin removes a file from the parallel phase, so it must be
                     # justified in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=2330 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2345 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2330 -> 2345 (change 0339): the NEW-FILE case — tests/test_gate_caller_loop.sh
+                    # is the relocated caller-loop fence guard, moved out of tests/test_gate_run.sh so
+                    # it survives that file's deletion (the facade retirement). It extracts the fence
+                    # from skills/docket-build/references/gate-caller-loop.md § The caller's loop and
+                    # runs it against the scripted stub arms and, once, against the real native gate
+                    # through all five terminal states (builds ./cmd/docket once). Measured standalone
+                    # serial as `/usr/bin/time -p bash tests/test_gate_caller_loop.sh`, three warm
+                    # readings 2.38/2.37/2.41 and one fully-cold-cache reading 5.50 (GOCACHE/GOMODCACHE
+                    # pointed at empty scratch dirs, the drift test's methodology) — worst 5.50, next
+                    # multiple of 5 is 10, plus the 5s margin -> 15. The Go build is the only
+                    # cold-sensitive term and it is warm in the suite (the Go-touching shards share
+                    # GOCACHE). The total rises by that one 15s row.
+                    # Recomputed from the table itself, never hand-adjusted:
+                    #   awk -F'\t' '$1 ~ /^tests\// {s += $2} END {print s}' tests/runtime-budgets.tsv
                     # 2275 -> 2330 (change 0251): two movers, +55 together. First, the NEW-FILE case —
                     # tests/test_run_tests_budget_state.sh is the deterministic fixture suite for
                     # run-tests.sh's stateful budget-confirmation regime; it injects durations through the
