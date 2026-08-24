@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'feat/harden-autonomous-build-implement-agents-against-the-suite-y'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-24T21:58:13Z'
+reconciled: true
+claimed_at: '2026-08-24T22:01:43Z'
 ---
 
 ## Artifacts
@@ -100,3 +100,9 @@ and became reliably visible as the suite approached the foreground-call ceiling.
   used `pgrep -f` against a command line containing its own pattern, then repeated background/yield
   resumptions multiplied the orchestrators and process monitors. Git inspection, rather than agent
   completion prose, was required to discover that the workflow had never reached publication.
+
+## Reconcile log
+
+### 2026-08-24
+
+**2026-08-24** — Reconciled against current `docket` reality before planning. Confirmed the change is unstarted and its premise still holds: `docket gate` exposes only the raw `launch`/`observe`/`stop`/`recover`/`cleanup` primitives (no `drive` verb), and no `run-waiting` verdict exists anywhere in the tree. The two caller loops the spec targets are present as written — `docket-build`'s Bash caller loop (embedded `skills/docket-build/references/gate-caller-loop.md`, mirrored under `~/.claude/skills/docket-build`) and finalize's in-process Go polling loop (`internal/app`). Related work is already landed and reflected: the native supervisor (0314/ADR-0095) lives in `internal/app/gate_supervisor.go` + `internal/app/gate.go`, and the incident forensics (0339/0341) match the spec's Evidence section. No scope drift, no work done elsewhere, no new external constraints — proposal, spec, and relations (adrs 24, 95; the new structured-waiting ADR is minted in the review phase) carry forward unchanged.
