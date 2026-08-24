@@ -2,7 +2,7 @@
 id: 344
 slug: finalize-pr-prober-cannot-parse-the-full-url-pr-form
 title: 'Finalize PR prober cannot parse the full-URL pr: form'
-status: 'in-progress'
+status: 'implemented'
 priority: high
 type: fix
 created: 2026-08-24
@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable: true
 branch: 'feat/finalize-pr-prober-cannot-parse-the-full-url-pr-form'
-pr:
+pr: 'github.com/danielhanold/docket#236'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-24T18:55:30Z'

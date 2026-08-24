@@ -1,12 +1,6 @@
 # Backlog
 
-**344 changes** — 🟢 1 in progress · 🟡 48 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 209 done · 🗑️ 80 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0344](active/0344-finalize-pr-prober-cannot-parse-the-full-url-pr-form.md) | Finalize PR prober cannot parse the full-URL pr: form | `high` | `fix` | [spec](../superpowers/specs/2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form-design.md) | `feat/finalize-pr-prober-cannot-parse-the-full-url-pr-form` |
+**344 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 3 implemented · ✅ 209 done · 🗑️ 80 killed
 
 ## 🟡 Proposed (48)
 
@@ -70,12 +64,13 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [#226](https://github.com/danielhanold/docket/pull/226) |  |
 | [0341](active/0341-artifact-table-links-render-as-bare-code-spans-instead-of-gi.md) | Artifact-table links render as bare code spans instead of GitHub links | `medium` | `fix` | [#235](https://github.com/danielhanold/docket/pull/235) |  |
+| [0344](active/0344-finalize-pr-prober-cannot-parse-the-full-url-pr-form.md) | Finalize PR prober cannot parse the full-URL pr: form | `high` | `fix` | #docket#236 |  |
 
 ```mermaid
 graph TD
