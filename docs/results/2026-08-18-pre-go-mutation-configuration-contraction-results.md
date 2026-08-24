@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0326 — Pre-Go mutation configuration contraction](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0326-pre-go-mutation-configuration-contraction.md)**
+> ↩ **[Change 0326 — Pre-Go mutation configuration contraction](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-18-0326-pre-go-mutation-configuration-contraction.md)**
 <!-- docket:backlink:end -->
 
 # Results — 0326 Pre-Go mutation configuration contraction

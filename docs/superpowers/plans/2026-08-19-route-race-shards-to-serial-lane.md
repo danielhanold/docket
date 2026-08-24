@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **Change 0332 — Route the -race test shards out of the parallel test pool** — `docs/changes/active/0332-route-race-shards-to-serial-lane.md`
+> ↩ **[Change 0332 — Route the -race test shards out of the parallel test pool](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-20-0332-route-race-shards-to-serial-lane.md)**
 <!-- docket:backlink:end -->
 
 # Route the -race Test Shards Out of the Parallel Test Pool — Implementation Plan
