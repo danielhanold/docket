@@ -700,6 +700,24 @@ func parsePositiveInt(seg string) (int, bool) {
 	return n, true
 }
 
+// samePRRef reports whether two pr: references name the same pull request. It
+// tolerates both recorded forms — the full GitHub URL and the "owner/repo#N"
+// shorthand — by comparing the number parsePRRef reads from each, so a value
+// recorded in either form matches a request in either form. When a reference
+// does not parse (neither form), it falls back to exact string equality, so an
+// unparseable value still matches only its byte-identical self and never a
+// differently-spelled one. It underpins the mark-implemented replay guard, which
+// must read a recorded canonical URL and a supplied shorthand (or vice versa) as
+// the same PR rather than a conflicting one.
+func samePRRef(a, b string) bool {
+	na, aOK := parsePRRef(a)
+	nb, bOK := parsePRRef(b)
+	if aOK && bOK {
+		return na == nb
+	}
+	return a == b
+}
+
 // NewGitHubFinalizeProber builds the production PR-facts prober over a GitHub
 // seam. The CLI wires it into FinalizeDeps.
 func NewGitHubFinalizeProber(gh FinalizeGitHub) FinalizePRProber {

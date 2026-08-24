@@ -37,13 +37,17 @@ import (
 //	(2) local and remote feature heads both equal the supplied head;
 //	(3) valid build evidence names that head and a passed gate;
 //	(4) exactly one open PR for the feature branch targets the resolved
-//	    effective-base branch, names that head, and equals the supplied reference;
+//	    effective-base branch, names that head, and matches the supplied PR number
+//	    (parsePRRef reads the --pr assertion as either the full URL or shorthand);
 //	(5) any attached results path still resolves to a tracked regular file at that
 //	    head.
 //
-// A response-loss retry re-reads authority: a change already `implemented` whose
-// recorded PR reference matches the request replays the prior applied outcome as
-// a no-op rather than a second transition. Child-agent returns are never trusted;
+// The transaction records the verified PR's canonical URL (pr.URL) as the manifest
+// pr:, the board-safe form; the --pr assertion may be either form. A response-loss
+// retry re-reads authority: a change already `implemented` whose recorded PR names
+// the same pull request as the request (by number, samePRRef) replays the prior
+// applied outcome as a no-op rather than a second transition. Child-agent returns
+// are never trusted;
 // every conjunct is verified from Git/GitHub/evidence/metadata.
 
 // OperationChangeMarkImplemented is the operation key the implemented transition
@@ -177,12 +181,15 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 		return *refusal
 	}
 
-	// (Retry) An already-implemented change whose recorded PR reference matches the
-	// request is a response-loss replay: return the prior applied outcome as a
-	// no-op rather than a second transition. A different recorded reference is a
-	// genuine conflict, refused as contended.
+	// (Retry) An already-implemented change whose recorded PR names the same pull
+	// request as the request is a response-loss replay: return the prior applied
+	// outcome as a no-op rather than a second transition. A different recorded PR
+	// is a genuine conflict, refused as contended. The comparison is by parsed
+	// number (samePRRef) so the recorded canonical URL and a supplied shorthand
+	// (or the reverse) read as the same PR — the transition now records the URL
+	// form while callers may still assert either.
 	if c.Status() == domain.StatusImplemented {
-		if c.PR().Value == req.PR {
+		if samePRRef(c.PR().Value, req.PR) {
 			return newChangeLifecycleResult(op, ResultNoOp, ChangeLifecycleResult{ID: req.ID, Status: string(domain.StatusImplemented)})
 		}
 		return implementedRefusal(ResultContended, ReasonImplementedVersionMismatch,
@@ -237,8 +244,8 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 	}
 
 	// (Conjunct 4) exactly one open PR for the feature branch, targeting the
-	// resolved effective base, naming the supplied head, equal to the supplied
-	// reference. The adapter's read-only probe mutates nothing.
+	// resolved effective base, naming the supplied head, and naming the supplied
+	// PR number. The adapter's read-only probe mutates nothing.
 	ghRepo, err := gdeps.Service.DiscoverRepository(ctx, repoDir)
 	if err != nil {
 		return implementedRefusal(ResultExternalFailed, ReasonImplementedRepositoryUnresolved, err.Error(), req.ID)
@@ -260,7 +267,13 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 		return implementedRefusal(ResultInvalidState, ReasonImplementedPRBaseMismatch,
 			"the open PR targets a base other than the resolved effective-base branch", req.ID)
 	}
-	if reference := fmt.Sprintf("%s#%d", ghRepo.Spec(), pr.Number); reference != req.PR {
+	// Identity is by parsed PR number within the already-resolved repository: the
+	// repo was pinned by DiscoverRepository and the PR was found by
+	// FindOpenPullRequestsByHead on this feature branch, so the number is a
+	// complete discriminator — the owner/repo prefix of the old shorthand compare
+	// was redundant with an already-verified fact. Routing through parsePRRef lets
+	// the supplied --pr assertion arrive as either the full URL or the shorthand.
+	if want, ok := parsePRRef(req.PR); !ok || want != pr.Number {
 		return implementedRefusal(ResultInvalidState, ReasonImplementedPRReferenceMismatch,
 			"the verified open PR is not the one supplied by reference", req.ID)
 	}
@@ -275,9 +288,14 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 
 	// Every conjunct holds: open the exact-version transaction that applies
 	// domain.MarkImplemented and re-renders the derived views.
+	// Record the verified PR's canonical URL (never the owner/repo#N shorthand):
+	// it is the only board-safe form — boardPRCell renders "[#N](url)" from a URL
+	// but mangles a shorthand to "#owner/repo#N". The value is sourced from the
+	// reprobed snapshot, so the manifest pr: is the canonical URL regardless of
+	// which form the --pr assertion arrived in (change 0344).
 	txOp := changeImplementedOp{
 		changeID:   req.ID,
-		pr:         req.PR,
+		pr:         pr.URL,
 		eff:        eff,
 		clock:      deps.Clock,
 		inline:     inline,
