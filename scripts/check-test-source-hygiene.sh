@@ -58,8 +58,9 @@
 #     `tests/**/*.sh` the caller did NOT pass, because run-tests.sh hands the preflight only its
 #     `tests/test_*.sh` targets while tests/lib/runner_dispatch_detach_common.sh and
 #     tests/lib/sync_agents_common.sh each define an assert helper outside that glob. Trusting the
-#     caller list would leave those permanently unguarded. tests/fixtures/ is excluded from the sweep — its red half is drifted on purpose,
-#     and is a verdict only when a caller names one of those files explicitly.
+#     caller list would leave those permanently unguarded. tests/fixtures/ is excluded from the
+#     sweep — its red half is drifted on purpose, and is a verdict only when a caller names one of
+#     those files explicitly.
 #
 # ---- HOW THE HELPER NAMES ARE DERIVED, NOT ENUMERATED -------------------------------------------
 #
