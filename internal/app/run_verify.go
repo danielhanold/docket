@@ -303,8 +303,8 @@ func RunVerify(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 	}
 
 	// PR identity and evidence: exactly one open PR for the feature branch, naming
-	// the head, targeting the base, equal to the recorded reference; the PR body is
-	// the durable evidence store, verified against the head.
+	// the head, targeting the base, and naming the recorded PR number; the PR body
+	// is the durable evidence store, verified against the head.
 	ghRepo, err := gdeps.Service.DiscoverRepository(ctx, repoDir)
 	if err != nil {
 		return runOperationalRefusal(ResultExternalFailed, ReasonRunRepoUnresolved, err.Error(), req.ID)
@@ -318,13 +318,18 @@ func RunVerify(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 		add(ReasonRunEvidenceUnverified, "no unique pull-request body to read evidence from")
 	} else {
 		pr := prs[0]
-		reference := fmt.Sprintf("%s#%d", ghRepo.Spec(), pr.Number)
+		// Identity is by parsed PR number within the already-resolved repository
+		// (DiscoverRepository pinned the repo; FindOpenPullRequestsByHead pinned the
+		// feature branch), so the number is a complete discriminator. parsePRRef
+		// reads the recorded pr: in either form, so a manifest written as the
+		// canonical URL or the legacy owner/repo#N shorthand both verify.
+		recordedNum, recordedOK := parsePRRef(recordedPR)
 		switch {
 		case pr.HeadCommit != head:
 			add(ReasonRunPRUnverified, "the open PR names a head other than the feature head")
 		case pr.BaseBranch != baseBranch:
 			add(ReasonRunPRUnverified, "the open PR targets a base other than the resolved effective base")
-		case reference != recordedPR:
+		case !recordedOK || recordedNum != pr.Number:
 			add(ReasonRunPRUnverified, "the open PR is not the one recorded on the change")
 		}
 		if v := evidence.Verify([]byte(pr.Body), head); v != evidence.VerdictVerified {

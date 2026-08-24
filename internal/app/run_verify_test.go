@@ -127,6 +127,55 @@ func rvProposedDeps(t *testing.T) PlanningDeps {
 	return PlanningDeps{Reader: reader, Clock: testClock()}
 }
 
+// rvRecordedPRURL is the canonical full-URL form of the recorded pr:, the form
+// 0344's writer now stamps. Its host/owner/name mirror prRepo().
+func rvRecordedPRURL() string { return "https://github.com/acme/widget/pull/42" }
+
+// TestRunVerifyPRIdentityForms is the mutation test for the migrated PR-identity
+// conjunct: run verify accepts a recorded pr: in EITHER form (canonical URL or
+// legacy owner/repo#N shorthand) when its parsed number equals the verified PR's
+// number, and flags pr-unverified when the number differs or the recorded value
+// is unparseable. The verified PR is number 42 (rvPR).
+func TestRunVerifyPRIdentityForms(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	ev := string(prEvidenceBytes(t, f.head))
+
+	cases := []struct {
+		name       string
+		recorded   string
+		wantVerify bool
+	}{
+		{"url form matches", rvRecordedPRURL(), true},
+		{"shorthand form matches", rvRecordedPR(), true},
+		{"url form wrong number", "https://github.com/acme/widget/pull/99", false},
+		{"shorthand wrong number", prRepo().Spec() + "#99", false},
+		{"unparseable recorded pr", "not-a-pr-ref", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			deps, wdeps, gdeps := f.deps(
+				rvRecord(rvPlanPath, rvResultsPath, tc.recorded, "feat/"+rvSlug),
+				rvPR(f.head, ev),
+			)
+			res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
+			reasons := unmetReasons(res)
+			hasPRUnverified := false
+			for _, r := range reasons {
+				if r == ReasonRunPRUnverified {
+					hasPRUnverified = true
+				}
+			}
+			if tc.wantVerify {
+				if res.Verdict != VerdictRunComplete {
+					t.Fatalf("recorded %q: verdict = %q, want run-complete (unmet %v)", tc.recorded, res.Verdict, reasons)
+				}
+			} else if !hasPRUnverified {
+				t.Fatalf("recorded %q: expected a pr-unverified conjunct, got unmet %v (verdict %q)", tc.recorded, reasons, res.Verdict)
+			}
+		})
+	}
+}
+
 // TestRunVerifyComplete: an implemented change satisfying every postcondition ⇒
 // run-complete with no unmet conjuncts.
 func TestRunVerifyComplete(t *testing.T) {

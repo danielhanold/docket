@@ -156,11 +156,18 @@ func buildMI(t *testing.T, client *gitcli.Client, invocation string, k miKit) (
 	return deps, wdeps, gdeps, invocation, req, engine
 }
 
-// happyPR is the single open PR that satisfies conjunct 4 for the given head.
+// miPRURL is the verified PR's canonical full-URL form — the board-safe value
+// the transition records into the manifest pr: (change 0344). Its host/owner/name
+// mirror prRepo(); parsePRRef reads the number after "/pull/".
+func miPRURL() string { return "https://github.com/acme/widget/pull/42" }
+
+// happyPR is the single open PR that satisfies conjunct 4 for the given head. It
+// carries the canonical URL the adapter always decodes for a real PR, which the
+// transition records as the manifest pr:.
 func happyPR(head string) githubcli.PullRequest {
 	return githubcli.PullRequest{
 		Number: 42, State: githubcli.StateOpen, HeadBranch: "feat/" + miSlug,
-		HeadCommit: head, BaseBranch: "main",
+		HeadCommit: head, BaseBranch: "main", URL: miPRURL(),
 	}
 }
 
@@ -335,6 +342,141 @@ func TestMarkImplementedRetry(t *testing.T) {
 	}
 	if len(engine.calls) != 0 {
 		t.Errorf("retry called the engine %d times, want 0 (no duplicate transition)", len(engine.calls))
+	}
+}
+
+// TestMarkImplementedRecordsURL: the transition records the verified PR's
+// canonical URL (pr.URL from the reprobe) as the manifest pr:, NOT the
+// owner/repo#N shorthand the caller supplied. This is the board-safe form
+// (boardPRCell mangles a shorthand to "#owner/repo#N"); the value is sourced from
+// the snapshot, so it is the canonical URL even when --pr arrives as shorthand
+// (change 0344).
+func TestMarkImplementedRecordsURL(t *testing.T) {
+	requireRealGit(t)
+	repo := newMainModeRepo(t, nil)
+	head := repo.writerAdvance(t, "feat/"+miSlug, map[string]string{"impl.go": "package impl\n"})
+	client := newGitClient(t)
+	shorthand := prRepo().Spec() + "#42" // the caller may still assert the shorthand
+
+	deps, wdeps, gdeps, inv, req, engine := buildMI(t, client, repo.invocation, miKit{
+		reconciled: true, plan: miPlanPath(), version: miVersion, reqVersion: miVersion,
+		reqHead: head, localHead: head, evidence: prEvidenceBytes(t, head),
+		probePRs: []githubcli.PullRequest{happyPR(head)}, reqPR: shorthand,
+	})
+
+	res := ChangeMarkImplemented(context.Background(), deps, wdeps, gdeps, inv, req)
+	if res.Result != ResultApplied {
+		t.Fatalf("result = %q, want applied (findings %v)", res.Result, res.Findings)
+	}
+	if len(engine.calls) != 1 {
+		t.Fatalf("engine calls = %d, want exactly 1", len(engine.calls))
+	}
+	op, ok := engine.calls[0].Operation.(changeImplementedOp)
+	if !ok {
+		t.Fatalf("recorded operation is %T, want changeImplementedOp", engine.calls[0].Operation)
+	}
+	if op.pr != miPRURL() {
+		t.Errorf("recorded pr: = %q, want the canonical URL %q (not the supplied shorthand %q)", op.pr, miPRURL(), shorthand)
+	}
+}
+
+// TestMarkImplementedIdentityForms is the mutation test for the migrated identity
+// conjunct (parsePRRef number vs the verified pr.Number): the transition applies
+// when the supplied --pr names the verified PR in EITHER accepted form and
+// refuses with pr-reference-mismatch when the number differs or the reference is
+// unparseable. Number 42 is the verified PR (happyPR).
+func TestMarkImplementedIdentityForms(t *testing.T) {
+	requireRealGit(t)
+	repo := newMainModeRepo(t, nil)
+	head := repo.writerAdvance(t, "feat/"+miSlug, map[string]string{"impl.go": "package impl\n"})
+	client := newGitClient(t)
+
+	cases := []struct {
+		name        string
+		reqPR       string
+		wantApplied bool
+	}{
+		{"url form matches", miPRURL(), true},
+		{"shorthand form matches", prRepo().Spec() + "#42", true},
+		{"url form wrong number", "https://github.com/acme/widget/pull/99", false},
+		{"shorthand wrong number", prRepo().Spec() + "#99", false},
+		{"unparseable reference", "not-a-pr-ref", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			deps, wdeps, gdeps, inv, req, engine := buildMI(t, client, repo.invocation, miKit{
+				reconciled: true, plan: miPlanPath(), version: miVersion, reqVersion: miVersion,
+				reqHead: head, localHead: head, evidence: prEvidenceBytes(t, head),
+				probePRs: []githubcli.PullRequest{happyPR(head)}, reqPR: tc.reqPR,
+			})
+			res := ChangeMarkImplemented(context.Background(), deps, wdeps, gdeps, inv, req)
+			if tc.wantApplied {
+				if res.Result != ResultApplied {
+					t.Fatalf("reqPR %q: result = %q, want applied (findings %v)", tc.reqPR, res.Result, res.Findings)
+				}
+				return
+			}
+			if res.Result == ResultApplied {
+				t.Fatalf("reqPR %q: applied, want refusal", tc.reqPR)
+			}
+			if len(engine.calls) != 0 {
+				t.Fatalf("reqPR %q: engine called %d times on a refusal", tc.reqPR, len(engine.calls))
+			}
+			if code := firstStatusFindingCode(res.Findings); code != ReasonImplementedPRReferenceMismatch {
+				t.Fatalf("reqPR %q: reason = %q, want %q", tc.reqPR, code, ReasonImplementedPRReferenceMismatch)
+			}
+		})
+	}
+}
+
+// TestMarkImplementedRetryCrossForm: the response-loss replay guard is now by
+// parsed number (samePRRef), so an already-implemented change recorded in the
+// canonical URL form replays as a no-op when the retry asserts the same PR in the
+// shorthand form, and still refuses as contended when the asserted number
+// differs. This mutation-tests the migrated guard on the recorded-URL path 0344
+// introduces.
+func TestMarkImplementedRetryCrossForm(t *testing.T) {
+	requireRealGit(t)
+	repo := newMainModeRepo(t, nil)
+	head := repo.writerAdvance(t, "feat/"+miSlug, map[string]string{"impl.go": "package impl\n"})
+	client := newGitClient(t)
+
+	// An implemented record carrying the canonical URL form (what 0344 records).
+	src := lifecycleChange(3, miSlug, "in-progress")
+	src = strings.Replace(src, "status: in-progress", "status: implemented", 1)
+	src = strings.Replace(src, "plan:\n", "plan: '"+miPlanPath()+"'\n", 1)
+	src = strings.Replace(src, "blocked_by:\n", "pr: '"+miPRURL()+"'\nblocked_by:\n", 1)
+
+	newDeps := func() (PlanningDeps, WorkspaceDeps, GitHubDeps, *recordingEngine) {
+		blob := StatusBlob{Kind: repository.KindChange, Location: repository.LocationActive, Path: groomPath(3, miSlug), Version: miVersion, Data: []byte(src)}
+		reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{blob}, facts: domain.NewBranchFacts(nil)}
+		engine := &recordingEngine{}
+		deps := PlanningDeps{Client: client, Engine: engine, Reader: reader, Clock: testClock()}
+		wdeps := WorkspaceDeps{Service: &fakeWorkspaceService{inspection: workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(head)}}}
+		gdeps := GitHubDeps{Service: &fakeGitHub{repo: prRepo(), probePRs: []githubcli.PullRequest{happyPR(head)}}}
+		return deps, wdeps, gdeps, engine
+	}
+
+	// Same PR asserted in the shorthand form: response-loss replay ⇒ no-op.
+	deps, wdeps, gdeps, engine := newDeps()
+	res := ChangeMarkImplemented(context.Background(), deps, wdeps, gdeps, repo.invocation,
+		MarkImplementedRequest{ID: 3, Version: miVersion, Head: head, PR: prRepo().Spec() + "#42", EvidenceRecord: prEvidenceBytes(t, head)})
+	if res.Result != ResultNoOp {
+		t.Fatalf("cross-form replay result = %q, want no-op (findings %v)", res.Result, res.Findings)
+	}
+	if len(engine.calls) != 0 {
+		t.Errorf("cross-form replay called the engine %d times, want 0", len(engine.calls))
+	}
+
+	// A different PR number: genuine conflict ⇒ contended.
+	deps, wdeps, gdeps, engine = newDeps()
+	res = ChangeMarkImplemented(context.Background(), deps, wdeps, gdeps, repo.invocation,
+		MarkImplementedRequest{ID: 3, Version: miVersion, Head: head, PR: prRepo().Spec() + "#99", EvidenceRecord: prEvidenceBytes(t, head)})
+	if res.Result != ResultContended {
+		t.Fatalf("different-PR replay result = %q, want contended (findings %v)", res.Result, res.Findings)
+	}
+	if len(engine.calls) != 0 {
+		t.Errorf("different-PR replay called the engine %d times, want 0", len(engine.calls))
 	}
 }
 
