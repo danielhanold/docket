@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: medium
 type: refactor
 created: 2026-08-22
-updated: '2026-08-23'
+updated: '2026-08-24'
 depends_on: [338]
 stacked_on:
 related: [284, 314]
@@ -21,7 +21,7 @@ branch: 'feat/retire-the-gate-run-sh-launch-liveness-stop-facade-now-that'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-23T23:42:05Z'
+claimed_at: '2026-08-24T02:43:31Z'
 ---
 
 ## Artifacts
