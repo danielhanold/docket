@@ -64,8 +64,11 @@ type StatusPin struct {
 	IntegrationRevision string
 	MetadataBranch      string // "" in main mode
 	MetadataRevision    string
-	Config              config.Snapshot
-	ConfigDiags         []config.Diagnostic
+	// RepoWebURL is the https web base derived from origin's configured URL
+	// ("https://github.com/owner/repo"), "" for non-GitHub/unreadable remotes.
+	RepoWebURL  string
+	Config      config.Snapshot
+	ConfigDiags []config.Diagnostic
 }
 
 // StatusBlob is one record read from a pinned source: its declared kind and
