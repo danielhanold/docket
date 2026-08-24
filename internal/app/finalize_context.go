@@ -671,25 +671,29 @@ func parsePRRef(ref string) (int, bool) {
 		if j := strings.IndexAny(seg, "/?#"); j >= 0 {
 			seg = seg[:j]
 		}
-		if seg == "" {
-			return 0, false
-		}
-		for _, r := range seg {
-			if r < '0' || r > '9' {
-				return 0, false
-			}
-		}
-		n, err := strconv.Atoi(seg)
-		if err != nil || n <= 0 {
-			return 0, false
-		}
-		return n, true
+		return parsePositiveInt(seg)
 	}
 	i := strings.LastIndex(ref, "#")
 	if i < 0 || i+1 >= len(ref) {
 		return 0, false
 	}
-	n, err := strconv.Atoi(ref[i+1:])
+	return parsePositiveInt(ref[i+1:])
+}
+
+// parsePositiveInt reads a strictly positive base-10 integer from seg,
+// returning (0, false) unless every character is a digit and the value is > 0.
+// The all-digit guard rejects a signed segment ("+42", "-1") identically in
+// both parsePRRef branches, so a leading sign never slips through Atoi.
+func parsePositiveInt(seg string) (int, bool) {
+	if seg == "" {
+		return 0, false
+	}
+	for _, r := range seg {
+		if r < '0' || r > '9' {
+			return 0, false
+		}
+	}
+	n, err := strconv.Atoi(seg)
 	if err != nil || n <= 0 {
 		return 0, false
 	}

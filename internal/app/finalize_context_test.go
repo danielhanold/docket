@@ -363,6 +363,8 @@ func TestParsePRNumberForms(t *testing.T) {
 		{"url signed", "https://github.com/acme/widgets/pull/+42", 0, false},
 		{"shorthand zero", "acme/widgets#0", 0, false},
 		{"shorthand negative", "acme/widgets#-1", 0, false},
+		{"shorthand signed", "acme/widgets#+42", 0, false},
+		{"shorthand plus-only", "acme/widgets#+", 0, false},
 		{"garbage", "not a pr ref", 0, false},
 		{"empty", "", 0, false},
 	}
@@ -391,6 +393,7 @@ func TestPRNumberTokenForms(t *testing.T) {
 		{"https://github.com/acme/widgets/pull/235/files", "235"},
 		{"acme/widgets#0", ""},
 		{"acme/widgets#-7", ""},
+		{"acme/widgets#+42", ""},
 		{"https://github.com/acme/widgets/pull/abc", ""},
 		{"", ""},
 	}
