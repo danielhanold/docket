@@ -228,3 +228,46 @@ func TestFetchFailureClassificationSharesOneNetworkBudget(t *testing.T) {
 		t.Fatalf("fetch failure cost more than one network budget: elapsed %v, limit %v (spawn %v)", elapsed, limit, spawnCost)
 	}
 }
+
+// TestRemoteURLReturnsConfiguredURL proves RemoteURL reads the raw configured
+// remote URL from local config, offline — including a GitHub spelling no
+// network op could reach from this test.
+func TestRemoteURLReturnsConfiguredURL(t *testing.T) {
+	requireGit(t)
+	c := newRealClient(t)
+	ctx := context.Background()
+	r := newMainModeRepos(t)
+	repo := mustDiscover(t, c, r.Invocation)
+
+	url, err := c.RemoteURL(ctx, repo, "origin")
+	if err != nil {
+		t.Fatalf("RemoteURL error: %v", err)
+	}
+	if url != r.Origin {
+		t.Fatalf("RemoteURL = %q, want %q", url, r.Origin)
+	}
+
+	gitOut(t, r.Invocation, "remote", "set-url", "origin", "git@github.com:owner/widgets.git")
+	url, err = c.RemoteURL(ctx, repo, "origin")
+	if err != nil {
+		t.Fatalf("RemoteURL after set-url error: %v", err)
+	}
+	if url != "git@github.com:owner/widgets.git" {
+		t.Fatalf("RemoteURL = %q, want git@github.com:owner/widgets.git", url)
+	}
+}
+
+// TestRemoteURLUnconfiguredRemoteIsRemoteUnavailable proves an unknown remote
+// name is a typed remote-unavailable failure, not a command error.
+func TestRemoteURLUnconfiguredRemoteIsRemoteUnavailable(t *testing.T) {
+	requireGit(t)
+	c := newRealClient(t)
+	r := newMainModeRepos(t)
+	repo := mustDiscover(t, c, r.Invocation)
+
+	_, err := c.RemoteURL(context.Background(), repo, "nosuch")
+	f, ok := AsFailure(err)
+	if !ok || f.Kind != KindRemoteUnavailable {
+		t.Fatalf("RemoteURL(nosuch) = %v, want KindRemoteUnavailable failure", err)
+	}
+}

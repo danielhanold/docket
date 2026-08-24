@@ -11,6 +11,7 @@ const (
 	remoteDefaultBranchOp Operation = "remote-default-branch"
 	fetchBranchOp         Operation = "fetch-branch"
 	resolveRefOp          Operation = "resolve-ref"
+	remoteURLOp           Operation = "remote-url"
 )
 
 // branchRefPrefix is the fully-qualified local-branch namespace; FetchBranch
@@ -151,6 +152,33 @@ func (c *Client) ensureRemoteConfigured(ctx context.Context, op Operation, repo 
 		return newFailure(op, KindRemoteUnavailable, "remote is not configured", nil).withExitCode(res.exitCode)
 	}
 	return nil
+}
+
+// RemoteURL returns the configured URL of a named remote, read from raw local
+// config (`git config --get remote.<name>.url`); offline, no network. Raw
+// config is deliberate: a url.<base>.insteadOf transport rewrite must not
+// perturb the value (change 0341 derives the repository WEB URL from it). An
+// unconfigured remote name is remote-unavailable.
+func (c *Client) RemoteURL(ctx context.Context, repo Repository, remote RemoteName) (string, error) {
+	if err := validateRemoteName(remote); err != nil {
+		return "", newFailure(remoteURLOp, KindInvalidRequest, "invalid remote name", err)
+	}
+	res, f := c.run(ctx, runRequest{
+		op:   remoteURLOp,
+		dir:  repo.PrimaryWorktree,
+		args: []string{"config", "--get", "remote." + string(remote) + ".url"},
+	})
+	if f != nil {
+		return "", f
+	}
+	if res.exitCode != 0 {
+		return "", newFailure(remoteURLOp, KindRemoteUnavailable, "remote is not configured", nil).withExitCode(res.exitCode)
+	}
+	lines := stdoutLines(res.stdout)
+	if len(lines) != 1 {
+		return "", newFailure(remoteURLOp, KindInvalidOutput, "unexpected remote url output", nil)
+	}
+	return lines[0], nil
 }
 
 // classifyFetchFailure distinguishes an absent source branch from a genuine
