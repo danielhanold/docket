@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0341 — Artifact-table links render as bare code spans instead of GitHub links](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0341-artifact-table-links-render-as-bare-code-spans-instead-of-gi.md)**
+> ↩ **Change 0341 — Artifact-table links render as bare code spans instead of GitHub links** — `docs/changes/archive/2026-08-24-0341-artifact-table-links-render-as-bare-code-spans-instead-of-gi.md`
 <!-- docket:backlink:end -->
 
 # Artifact-table links render as bare code spans instead of GitHub links — design (change 0341)
