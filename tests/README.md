@@ -1,6 +1,6 @@
 # docket's test suite
 
-123 standalone Bash files, discovered by the `tests/test_*.sh` glob — so a new file self-registers
+124 standalone Bash files, discovered by the `tests/test_*.sh` glob — so a new file self-registers
 with the runner. It does **not** self-register with the budget table: every file also needs a row in
 `tests/runtime-budgets.tsv`, which is a registry, or `tests/test_runtime_budgets.sh` fails. Each
 file is hermetic: `set -uo pipefail`, its own tmpdir fixtures, no

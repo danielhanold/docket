@@ -287,6 +287,7 @@ tests/test_finalize_closeout_notes.sh	10	parallel
 tests/test_finalize_disposition.sh	10	parallel
 tests/test_finalize_gate.sh	10	parallel
 tests/test_frontmatter_read_shapes.sh	10	parallel
+tests/test_gate_caller_loop.sh	15	parallel
 tests/test_gate_execution_posture.sh	10	parallel
 tests/test_gate_run.sh	20	parallel
 tests/test_gate_run_stop.sh	35	parallel
