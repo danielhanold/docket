@@ -20,8 +20,8 @@ auto_groomable: true
 branch: 'feat/artifact-table-links-render-as-bare-code-spans-instead-of-gi'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-24T13:28:33Z'
+reconciled: true
+claimed_at: '2026-08-24T13:30:43Z'
 ---
 
 ## Artifacts
@@ -47,3 +47,9 @@ Derive the repository web URL once in the Go app layer (a new remote-URL getter 
 ## Out of scope
 
 Redesigning the `## Artifacts` block format or its columns; changes to the legacy bash renderers (already correct); other renderers (board, ADR index, learnings index) beyond sharing the same link-context fix; non-GitHub remote link styles (the bare-path fallback stays).
+
+## Reconcile log
+
+### 2026-08-24
+
+2026-08-24 — Reconciled against current `main`/`docket`. Spec's code-proven root cause verified as still accurate: `grep` confirms ~18 app-layer `render.LinkContext{MetadataBranch: metadataBranchOf(pin)}` construction sites (pr_publish, artifact_backlink, change_{create,groom,claim,attach,implemented,reconcile,kill,lifecycle,reclaim}, finalize_closeout, adr_ops) — none set `RepoWebURL`; `internal/render/link.go` remains pure (blob URL iff `RepoWebURL` non-empty); and `gitcli`'s only `remote get-url` call is inside `ensureRemoteConfigured` (refs.go), which discards the URL. No web-URL parser exists in the Go tree. No scope adjustment, no dependency change: `related: [35]` (done) retained, no `depends_on` gate, `adrs: []`. Proceeding to plan + build as specified.
