@@ -1,6 +1,6 @@
 # Backlog
 
-**342 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 208 done · 🗑️ 80 killed
+**342 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 209 done · 🗑️ 80 killed
 
 ## 🟡 Proposed (48)
 
@@ -64,12 +64,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
-| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [#docket#226](https://github.com/danielhanold/docket/pull/docket#226) |  |
-| [0339](active/0339-retire-the-gate-run-sh-launch-liveness-stop-facade-now-that.md) | Retire the gate-run.sh launch/liveness/stop facade now that the native Go-v1 gate is canonical (collapse the shared docket-liveness.sh seam with runner-dispatch.sh) | `medium` | `refactor` | [#docket#234](https://github.com/danielhanold/docket/pull/docket#234) |  |
+| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | #docket#226 |  |
 
 ```mermaid
 graph TD
@@ -125,7 +124,6 @@ graph TD
   0327
   0333
   0334
-  0338 --> 0339
   0341
   0342
   0192:::done
@@ -133,14 +131,14 @@ graph TD
   0251:::done
   0311:::done
   0316:::done
-  0338:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (288)</summary>
+<details><summary>✅🗑️ Archive — done + killed (289)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0339](archive/2026-08-24-0339-retire-the-gate-run-sh-launch-liveness-stop-facade-now-that.md) | Retire the gate-run.sh launch/liveness/stop facade now that the native Go-v1 gate is canonical (collapse the shared docket-liveness.sh seam with runner-dispatch.sh) | 2026-08-24 |
 | [0340](archive/2026-08-23-0340-stamp-build-identity-in-development-install.md) | Stamp build identity into the `development install` binary | 2026-08-23 |
 | [0338](archive/2026-08-23-0338-gate-execution-terminal-sentinel-has-no-format-contract-poll.md) | Gate observe ships two serializations (shell state=name vs native protocol-v1 JSON) reconciled only by prose — converge on JSON, migrate the caller loop, retire the text contract | 2026-08-23 |
 | [0251](archive/2026-08-23-0251-retune-the-run-tests-budget-regime-for-portability-and-shard.md) | Retune the run-tests budget regime for portability and sharding | 2026-08-23 |
@@ -155,7 +153,6 @@ graph TD
 | [0328](archive/2026-08-18-0328-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full.md) | De-flake TestRecoverMarksCleanlyAbandonedOwnedRun under full-suite load | 2026-08-18 |
 | [0326](archive/2026-08-18-0326-pre-go-mutation-configuration-contraction.md) | Pre-Go mutation configuration contraction | 2026-08-18 |
 | [0325](archive/2026-08-18-0325-de-flake-the-gate-run-stop-barrier-test.md) | De-flake the gate-run --stop barrier test | 2026-08-18 |
-| [0322](archive/2026-08-18-0322-go-installer-adopt-legacy-bash-installed-user-level-artifact.md) | Bootstrap Go development installation and adopt legacy user-level artifacts | 2026-08-18 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
 | [0299](archive/2026-08-12-0299-reshard-tests-test-sync-agents-runners-so-every-file-measure.md) | Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling | 2026-08-12 |
 | [0285](archive/2026-08-12-0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | 2026-08-12 |
@@ -241,7 +238,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 75 done |
+| [2026-08](archive/) | 76 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 

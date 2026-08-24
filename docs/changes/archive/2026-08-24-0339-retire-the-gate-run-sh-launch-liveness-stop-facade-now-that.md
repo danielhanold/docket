@@ -2,7 +2,7 @@
 id: 339
 slug: retire-the-gate-run-sh-launch-liveness-stop-facade-now-that
 title: 'Retire the gate-run.sh launch/liveness/stop facade now that the native Go-v1 gate is canonical (collapse the shared docket-liveness.sh seam with runner-dispatch.sh)'
-status: 'implemented'
+status: 'done'
 priority: medium
 type: refactor
 created: 2026-08-22
@@ -21,7 +21,7 @@ branch: 'feat/retire-the-gate-run-sh-launch-liveness-stop-facade-now-that'
 pr: 'github.com/danielhanold/docket#234'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-24T05:11:08Z'
+claimed_at:
 ---
 
 ## Artifacts

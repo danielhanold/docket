@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0339 — Retire the gate-run.sh launch/liveness/stop facade now that the native Go-v1 gate is canonical (collapse the shared docket-liveness.sh seam with runner-dispatch.sh)](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0339-retire-the-gate-run-sh-launch-liveness-stop-facade-now-that.md)**
+> ↩ **Change 0339 — Retire the gate-run.sh launch/liveness/stop facade now that the native Go-v1 gate is canonical (collapse the shared docket-liveness.sh seam with runner-dispatch.sh)** — `docs/changes/archive/2026-08-24-0339-retire-the-gate-run-sh-launch-liveness-stop-facade-now-that.md`
 <!-- docket:backlink:end -->
 
 # Retire the gate-run.sh launch/liveness/stop facade — design
