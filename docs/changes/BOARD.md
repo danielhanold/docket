@@ -1,8 +1,8 @@
 # Backlog
 
-**343 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 209 done · 🗑️ 80 killed
+**344 changes** — 🟡 49 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 209 done · 🗑️ 80 killed
 
-## 🟡 Proposed (48)
+## 🟡 Proposed (49)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -54,6 +54,7 @@
 | [0334](active/0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | CLAUDE.md global and project copies drift on finalize-agent descriptions | `medium` | `docs` | needs-brainstorm |
 | [0342](active/0342-harden-autonomous-build-implement-agents-against-the-suite-y.md) | Harden autonomous build/implement agents against the suite-yield deadlock (ADR-0024) | `high` | `fix` | build-ready |
 | [0343](active/0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | `medium` | `fix` | needs-brainstorm |
+| [0344](active/0344-finalize-pr-prober-cannot-parse-the-full-url-pr-form.md) | Finalize PR prober cannot parse the full-URL pr: form | `high` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -128,6 +129,7 @@ graph TD
   0341
   0342
   0343
+  0344
   0192:::done
   0211:::done
   0251:::done
