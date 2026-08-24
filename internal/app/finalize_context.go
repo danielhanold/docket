@@ -570,19 +570,15 @@ func allowlistChangeIDs(ids []int) []domain.ChangeID {
 	return out
 }
 
-// prNumberToken extracts the trailing "#<n>" number from a canonical PR
-// reference ("owner/repo#42"), returning "" when the reference has no parseable
-// number. It never fabricates a number.
+// prNumberToken extracts the canonical PR number from a PR reference in either
+// accepted form (see parsePRRef), returning "" when the reference has no
+// parseable positive number. It never fabricates a number.
 func prNumberToken(ref string) string {
-	i := strings.LastIndex(ref, "#")
-	if i < 0 || i+1 >= len(ref) {
+	n, ok := parsePRRef(ref)
+	if !ok {
 		return ""
 	}
-	tail := ref[i+1:]
-	if _, err := strconv.Atoi(tail); err != nil {
-		return ""
-	}
-	return tail
+	return strconv.Itoa(n)
 }
 
 // githubFinalizeProber is the production FinalizePRProber. It composes the
@@ -650,10 +646,45 @@ func (p *githubFinalizeProber) ProbePR(ctx context.Context, repoDir, prRef, head
 	return domain.PRFacts{Number: strconv.Itoa(number), State: "closed"}, nil
 }
 
-// parsePRNumber extracts the positive PR number from a canonical reference
-// ("owner/repo#42"). It returns false for a reference with no trailing "#<n>" or
-// a non-positive number.
-func parsePRNumber(ref string) (int, bool) {
+// parsePRNumber extracts the positive PR number from a canonical reference in
+// either accepted form (see parsePRRef). It returns false for a reference with
+// no parseable positive number.
+func parsePRNumber(ref string) (int, bool) { return parsePRRef(ref) }
+
+// parsePRRef is the single source of truth for reading a PR number out of a
+// pr: reference. It accepts both canonical forms:
+//
+//   - the full GitHub URL — ".../pull/N", tolerating a trailing slash, a
+//     "?query", a "#fragment", or a deeper sub-page (".../pull/N/files"),
+//     because the number immediately after "/pull/" is unambiguous in every
+//     one of those shapes;
+//   - the "owner/repo#N" shorthand — the integer after the last "#".
+//
+// The "/pull/" check runs before the "#" fallback so a URL fragment is never
+// mistaken for the number. Both forms require a positive integer; anything
+// else — a non-numeric segment, a missing number, zero or negative — returns
+// (0, false). Both parsePRNumber and prNumberToken delegate here so the two
+// can never diverge on which forms they accept.
+func parsePRRef(ref string) (int, bool) {
+	if i := strings.Index(ref, "/pull/"); i >= 0 {
+		seg := ref[i+len("/pull/"):]
+		if j := strings.IndexAny(seg, "/?#"); j >= 0 {
+			seg = seg[:j]
+		}
+		if seg == "" {
+			return 0, false
+		}
+		for _, r := range seg {
+			if r < '0' || r > '9' {
+				return 0, false
+			}
+		}
+		n, err := strconv.Atoi(seg)
+		if err != nil || n <= 0 {
+			return 0, false
+		}
+		return n, true
+	}
 	i := strings.LastIndex(ref, "#")
 	if i < 0 || i+1 >= len(ref) {
 		return 0, false
