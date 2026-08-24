@@ -2,7 +2,7 @@
 id: 341
 slug: 'artifact-table-links-render-as-bare-code-spans-instead-of-gi'
 title: 'Artifact-table links render as bare code spans instead of GitHub links'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'fix'
 created: '2026-08-24'
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: 'feat/artifact-table-links-render-as-bare-code-spans-instead-of-gi'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-24T13:28:33Z'
 ---
 
 ## Artifacts
@@ -28,7 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-design.md) |
+| Spec | `docs/superpowers/specs/2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-design.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
