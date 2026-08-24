@@ -69,7 +69,6 @@ rather than a `bash` selected from `PATH`.
 | `mint-stub` | `mint-stub.sh` | mint one discovered-work stub into `active/` with `discovered_from:` provenance (auto-capture, change 0091) |
 | `backfill-change-types` | `backfill-change-types.sh` | apply a human-approved `id=type` mapping to ACTIVE change files, all-or-nothing and idempotent; never touches `archive/` (change 0127) |
 | `runner-dispatch` | `runner-dispatch.sh` | delegate one agent run to a child harness via a registered runner adapter (change 0079) |
-| `gate-run` | `gate-run.sh` | launch one long-running child detached, observe it (six liveness-keyed states), or stop it identity-checked (change 0282) |
 | `mark-publish-deferred` | `mark-publish-deferred.sh` | add/remove the `## Publish deferred` marker on a change file (terminal-publish gap visibility, change 0083) |
 | `verify-run` | `verify-run.sh` | evaluate docket-implement-next's Step 7 postcondition for one change and report a verdict (change 0237) |
 | `stack-base` | `stack-base.sh` | print one change's effective base branch — its `stacked_on` parent's branch, or the integration branch (change 0298) |
