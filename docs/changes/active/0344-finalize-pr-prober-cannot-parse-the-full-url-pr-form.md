@@ -12,7 +12,7 @@ stacked_on:
 related: []
 discovered_from: [341]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form-design.md
 plan:
 results:
 trivial: false
@@ -26,6 +26,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -35,9 +38,11 @@ in the full-URL form (`https://github.com/owner/repo/pull/N`), making that chang
 through the binary — the merge gate refuses before it ever contacts GitHub.
 
 The finalize PR prober resolves a PR number from the `pr:` field via `parsePRNumber` and
-`prNumberToken` in `internal/app/finalize_context.go`, both of which parse only the
-`owner/repo#N` shorthand (`strings.LastIndex(ref, "#")`). A full URL has no `#`, so parsing fails,
-the failure is folded into unknown PR facts, and the selector reports `pr-unknown`.
+`prNumberToken` in `internal/app/finalize_context.go` — the only two `pr:`-number parsers in the
+tree — both of which parse only the `owner/repo#N` shorthand (`strings.LastIndex(ref, "#")`). A full
+URL has no `#`, so parsing fails, the failure is folded into unknown PR facts, and the selector
+reports `pr-unknown`. `parsePRNumber` also feeds the cleanup, closeout, and merge paths, so a
+URL-form `pr:` is mis-handled there too, not only on the probe path.
 
 This directly collides with a standing requirement: `pr:` **must** be a full URL for the board to
 render it as a proper GitHub link (the shorthand renders as plain text / mangles on the board).
@@ -53,10 +58,16 @@ merely first hit live while finalizing 341 (PR #235), whose `pr:` is the require
 
 ## What changes
 
-Teach the finalize PR prober to also accept the full-URL `pr:` form: extract the trailing PR
-integer from a `.../pull/N` URL in addition to the existing `owner/repo#N` shorthand, in both
-`parsePRNumber` and `prNumberToken` (keep the two representations reconciled). Cover the new form
-with tests, including the existing shorthand so it keeps working.
+Teach the finalize PR prober to also accept the full-URL `pr:` form. Introduce one shared internal
+extractor (`parsePRRef`) that accepts **both** representations — the trailing integer of a
+`.../pull/N` URL and the existing `owner/repo#N` shorthand — requiring a positive number, and route
+both `parsePRNumber` and `prNumberToken` through it so they can never diverge on which forms they
+accept. Because the widening lands in `parsePRNumber` itself, all five of its call sites (probe,
+cleanup, closeout ×2, merge) accept the URL form for free. Accept the canonical `.../pull/N` plus a
+trailing slash, `?query`, `#fragment`, and sub-page suffix (the number after `/pull/` is
+unambiguous), checking `/pull/` before `#` so a URL fragment is not mistaken for the number. Cover
+the new form and the retained shorthand with tests. Full design, alternatives, and the assumptions
+ledger are in the linked spec.
 
 ## Out of scope
 
@@ -66,10 +77,13 @@ with tests, including the existing shorthand so it keeps working.
 
 ## Open questions
 
-- Which exact URL shapes to accept: canonical `.../pull/N`, plus a trailing slash or query/fragment
-  suffix? Reject the `.../pull/N/files` sub-page form, or tolerate it?
-- Should both `parsePRNumber` and `prNumberToken` share one internal extractor to guarantee they
-  never diverge on which forms they accept?
-- Is there a reusable URL helper already introduced by change 341 (`githubWebURL` /
-  `linkContextOf` in `internal/app/link_context.go`) worth routing through, or is a small local
-  extractor cleaner given the different parse direction (URL → number, vs remote → web URL)?
+Resolved at design time; see the spec's `## Assumptions` block for the full audit trail.
+
+- **URL shapes** — accept canonical `.../pull/N` and tolerate a trailing slash, `?query`,
+  `#fragment`, and sub-page suffix (the number after `/pull/` is always unambiguous); rejecting
+  benign suffixes would only recreate the un-finalizable failure.
+- **Shared extractor** — yes: one `parsePRRef` both functions delegate to, so they cannot re-diverge
+  (they already differ on non-positive acceptance today).
+- **Reuse 0341's helper** — no: 0341's `link_context.go` helpers are on its unmerged branch, 0344
+  carries no `depends_on: [341]`, and they parse the opposite direction (remote → URL). A small
+  local extractor keeps 0344 independent and mergeable on its own.
