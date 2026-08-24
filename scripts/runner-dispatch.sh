@@ -64,10 +64,12 @@ DOCKET_FACADE="${DOCKET_FACADE:-$SELF_DIR/docket.sh}"
 # while leaving this probe silently reading every agent as metadata scope.
 . "$SELF_DIR/lib/docket-agent-scope.sh"
 # shellcheck source=lib/docket-liveness.sh
-# The liveness predicate, shared with gate-run.sh (change 0284). Before this lib, the identity
-# conjuncts below existed here as an inline ladder and in gate-run.sh as its own copy, and the two
-# had already diverged: on an EMPTY recorded token this file SKIPPED the conjunct while gate-run.sh
-# failed closed. The lib is fail-closed, and this file inherits that — see `terminate_dispatch`'s
+# The liveness predicate. This file is now its sole consumer (change 0284 extracted it; change 0339
+# retired gate-run.sh, the other consumer of the era). Before the lib, the identity conjuncts below
+# existed here as an inline ladder and in gate-run.sh as its own copy, and the two had already
+# diverged: on an EMPTY recorded token this file SKIPPED the conjunct while gate-run.sh failed
+# closed — the war story the extraction closed. The lib is fail-closed, and this file inherits that
+# — see `terminate_dispatch`'s
 # "IDENTITY BEFORE SIGNAL" header for why the change is behaviour-preserving on every reachable
 # input. `docket_identity_of` also stands in for the private start-time reader this file used to
 # carry beside the ladder, which was that same predicate's other half.
@@ -569,7 +571,8 @@ launch_field(){  # $1 = dispatch dir, $2 = field -> first value, empty when abse
   printf '%s' "${raw%%$'\n'*}"
 }
 
-# Test-only synchronization point, the same shape as gate-run.sh's `barrier` (change 0284). A
+# Test-only synchronization point, the same shape as the retired gate-run.sh's `barrier` (change
+# 0284; gate-run.sh retired by change 0339). A
 # TWO-WAY RENDEZVOUS: it announces its arrival (`<file>.reached`) so a fixture knows the process is
 # held at exactly this point and nowhere else, then waits to be let go (`<file>.release`). That
 # handshake is what makes an INTERLEAVING deterministic instead of a sleep-tuned guess — and the
@@ -924,10 +927,10 @@ if [ "$VERB" = "observe" ]; then
     #      (pid reuse is what makes the whole hazard reachable in the first place, and a recycled
     #      pid that calls setpgid(0,0) is an ordinary background job, not an exotic state).
     #      NEVER SKIPPED — an empty recorded token FAILS THE CONJUNCT rather than dropping it
-    #      (change 0284: this conjunct is now scripts/lib/docket-liveness.sh's, shared with
-    #      gate-run.sh, and the lib fails closed on either token being empty). The earlier spelling
-    #      here skipped it, and that asymmetry against gate-run.sh's copy was the drift extracting
-    #      the predicate removed. It costs nothing on any REACHABLE input: `--launch` records an
+    #      (change 0284: this conjunct is now scripts/lib/docket-liveness.sh's, and the lib fails
+    #      closed on either token being empty). The earlier spelling here skipped it, and that
+    #      asymmetry against the then-other copy in gate-run.sh (retired by change 0339) was the
+    #      drift extracting the predicate removed. It costs nothing on any REACHABLE input: `--launch` records an
     #      empty `child_lstart` only when its `ps` saw no process at all — i.e. the child had
     #      already finished — and such a child's wrapper wrote `done`, which the observation's
     #      sentinel read disposes on before this path can be entered.
@@ -1283,8 +1286,10 @@ if [ "$VERB" = "observe" ]; then
   #    existed in this file, inside `terminate_dispatch`, but were consulted only when the facade was
   #    about to SIGNAL; this consults them one lifecycle phase earlier, as a VERDICT INPUT.
   #    AND NOT EVERY NON-ZERO ANSWER IS A DEATH (change 0284 review, finding 1). The predicate is
-  #    fail-closed by design and gate-run.sh is right to read any non-zero as "not alive": there a
-  #    false `dead` costs one bounded relaunch. HERE it is terminal and irreversible — a `killed`
+  #    fail-closed by design, and a consumer for whom a false `dead` is cheap may read any non-zero
+  #    as "not alive" — the native gate's per-run supervisor (internal/process `Service.Launch`, a
+  #    "Setsid session-leader supervisor with the live lock and a handshake") is such a consumer, one
+  #    bounded relaunch being its whole cost. HERE it is terminal and irreversible — a `killed`
   #    marker, a terminal code, and the end of the caller's polling loop — and because git decides
   #    the code it can be `0`, telling a driver "the work landed" for a child that is STILL RUNNING
   #    and still writing. So only the ONE leg that is positive evidence (`kill -0` proving the group
