@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **Change 0344 — Finalize PR prober cannot parse the full-URL pr: form** — `docs/changes/active/0344-finalize-pr-prober-cannot-parse-the-full-url-pr-form.md`
+> ↩ **Change 0344 — Finalize PR prober cannot parse the full-URL pr: form** — `docs/changes/archive/2026-08-24-0344-finalize-pr-prober-cannot-parse-the-full-url-pr-form.md`
 <!-- docket:backlink:end -->
 # Finalize PR Prober Full-URL `pr:` Parsing Implementation Plan
 
