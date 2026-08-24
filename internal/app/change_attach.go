@@ -315,7 +315,7 @@ func changeAttach(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, r
 		eff:        eff,
 		clock:      deps.Clock,
 		inline:     inline,
-		link:       render.LinkContext{MetadataBranch: metadataBranchOf(pin)},
+		link:       linkContextOf(pin),
 		changesDir: eff.ChangesDir.Value,
 	}
 
@@ -387,7 +387,7 @@ func resolveAttachChange(ctx context.Context, deps PlanningDeps, pin StatusPin, 
 	return attachChange{
 		change:  c,
 		recPath: c.Path(),
-		link:    render.LinkContext{MetadataBranch: metadataBranchOf(pin)},
+		link:    linkContextOf(pin),
 	}, nil
 }
 

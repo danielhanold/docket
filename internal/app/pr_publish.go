@@ -270,7 +270,7 @@ func resolvePRChange(ctx context.Context, deps PlanningDeps, repoDir string, id 
 		r := prRefusal(result, reason, msg, id)
 		return domain.Change{}, render.LinkContext{}, &r
 	}
-	return c, render.LinkContext{MetadataBranch: metadataBranchOf(pin)}, nil
+	return c, linkContextOf(pin), nil
 }
 
 // assemblePRBody weaves the Docket-owned backlink and build-evidence blocks into

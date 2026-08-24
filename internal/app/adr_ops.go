@@ -177,7 +177,7 @@ func ADRRecordOp(ctx context.Context, deps PlanningDeps, repoDir string, req ADR
 		eff:     eff,
 		slug:    slug,
 		clock:   deps.Clock,
-		link:    render.LinkContext{MetadataBranch: metadataBranchOf(pin)},
+		link:    linkContextOf(pin),
 		adrsDir: eff.ADRsDir.Value,
 	}
 
@@ -685,7 +685,7 @@ func adrReplace(ctx context.Context, deps PlanningDeps, repoDir, opKey string, r
 		eff:      eff,
 		slug:     slug,
 		clock:    deps.Clock,
-		link:     render.LinkContext{MetadataBranch: metadataBranchOf(pin)},
+		link:     linkContextOf(pin),
 		adrsDir:  eff.ADRsDir.Value,
 	}
 

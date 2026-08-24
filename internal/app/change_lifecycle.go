@@ -188,7 +188,7 @@ func executeChangeLifecycle(ctx context.Context, deps PlanningDeps, repoDir, opK
 		eff:        eff,
 		clock:      deps.Clock,
 		inline:     inline,
-		link:       render.LinkContext{MetadataBranch: metadataBranchOf(pin)},
+		link:       linkContextOf(pin),
 		changesDir: eff.ChangesDir.Value,
 	}
 

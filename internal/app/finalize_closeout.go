@@ -438,7 +438,7 @@ func loadCloseoutContext(ctx context.Context, deps FinalizeDeps, repoDir string,
 		pin: pin, eff: eff, snap: snap, change: c, version: version, body: body,
 		blobVersions: blobVersions, sources: sources, repo: repo, integrationBranch: integration,
 		inline:     inline,
-		link:       render.LinkContext{MetadataBranch: metadataBranchOf(pin)},
+		link:       linkContextOf(pin),
 		changesDir: eff.ChangesDir.Value,
 	}, nil
 }

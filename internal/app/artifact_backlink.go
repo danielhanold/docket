@@ -251,7 +251,7 @@ func resolveBacklinkChange(ctx context.Context, deps PlanningDeps, repoDir, chan
 		if c.Path() == changePath {
 			return backlinkChange{
 				change: c,
-				link:   render.LinkContext{MetadataBranch: metadataBranchOf(pin)},
+				link:   linkContextOf(pin),
 			}, nil
 		}
 	}
