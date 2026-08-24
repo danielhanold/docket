@@ -1,12 +1,6 @@
 # Backlog
 
-**342 changes** — 🟢 1 in progress · 🟡 47 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 209 done · 🗑️ 80 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0341](active/0341-artifact-table-links-render-as-bare-code-spans-instead-of-gi.md) | Artifact-table links render as bare code spans instead of GitHub links | `medium` | `fix` | [spec](../superpowers/specs/2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-design.md) | `feat/artifact-table-links-render-as-bare-code-spans-instead-of-gi` |
+**342 changes** — 🟡 47 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 209 done · 🗑️ 80 killed
 
 ## 🟡 Proposed (47)
 
@@ -69,11 +63,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
-| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | #docket#226 |  |
+| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [#docket#226](https://github.com/danielhanold/docket/pull/docket#226) |  |
+| [0341](active/0341-artifact-table-links-render-as-bare-code-spans-instead-of-gi.md) | Artifact-table links render as bare code spans instead of GitHub links | `medium` | `fix` | [#docket#235](https://github.com/danielhanold/docket/pull/docket#235) |  |
 
 ```mermaid
 graph TD
