@@ -29,8 +29,9 @@ claimed_at:
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | `docs/superpowers/specs/2026-08-23-retire-gate-run-facade-design.md` |
-| Plan | `docs/superpowers/plans/2026-08-23-retire-gate-run-facade.md` |
+| Spec | [2026-08-23-retire-gate-run-facade-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-23-retire-gate-run-facade-design.md) |
+| Plan | [2026-08-23-retire-gate-run-facade.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-23-retire-gate-run-facade.md) |
+| PR | github.com/danielhanold/docket#234 |
 <!-- docket:artifacts:end -->
 
 ## Why

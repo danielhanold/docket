@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **Change 0340 — Stamp build identity into the `development install` binary** — `docs/changes/archive/2026-08-23-0340-stamp-build-identity-in-development-install.md`
+> ↩ **[Change 0340 — Stamp build identity into the `development install` binary](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-23-0340-stamp-build-identity-in-development-install.md)**
 <!-- docket:backlink:end -->
 
 # Stamp build identity into the `development install` binary — design

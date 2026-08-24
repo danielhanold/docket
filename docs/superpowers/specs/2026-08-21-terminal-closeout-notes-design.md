@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **Change 0330 — Optional closeout notes preserve post-merge verification without rewriting frozen results** — `docs/changes/archive/2026-08-21-0330-post-merge-results-appending-has-no-home-in-the-go-runtime-f.md`
+> ↩ **[Change 0330 — Optional closeout notes preserve post-merge verification without rewriting frozen results](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-21-0330-post-merge-results-appending-has-no-home-in-the-go-runtime-f.md)**
 <!-- docket:backlink:end -->
 
 # Terminal closeout notes — preserve post-merge verification without rewriting results

@@ -30,8 +30,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-18-development-install-bootstrap-and-legacy-adoption-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-18-development-install-bootstrap-and-legacy-adoption-design.md) |
-| Plan | [2026-08-18-development-install-bootstrap-and-legacy-adoption.md](https://github.com/danielhanold/docket/blob/feat/go-installer-adopt-legacy-bash-installed-user-level-artifact/docs/superpowers/plans/2026-08-18-development-install-bootstrap-and-legacy-adoption.md) |
-| Results | [2026-08-18-go-installer-adopt-legacy-bash-installed-user-level-artifact-results.md](https://github.com/danielhanold/docket/blob/feat/go-installer-adopt-legacy-bash-installed-user-level-artifact/docs/results/2026-08-18-go-installer-adopt-legacy-bash-installed-user-level-artifact-results.md) |
+| Plan | [2026-08-18-development-install-bootstrap-and-legacy-adoption.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-18-development-install-bootstrap-and-legacy-adoption.md) |
+| Results | [2026-08-18-go-installer-adopt-legacy-bash-installed-user-level-artifact-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-18-go-installer-adopt-legacy-bash-installed-user-level-artifact-results.md) |
 | PR | [#217](https://github.com/danielhanold/docket/pull/217) |
 | ADRs | [ADR-0096](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0096-legacy-reproduction-uses-a-frozen-embedded-floor.md) |
 <!-- docket:artifacts:end -->

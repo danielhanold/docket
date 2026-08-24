@@ -29,8 +29,8 @@ claimed_at: '2026-08-24T13:42:32Z'
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | `docs/superpowers/specs/2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-design.md` |
-| Plan | `docs/superpowers/plans/2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi.md` |
+| Spec | [2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-design.md) |
+| Plan | [2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi.md](https://github.com/danielhanold/docket/blob/feat/artifact-table-links-render-as-bare-code-spans-instead-of-gi/docs/superpowers/plans/2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

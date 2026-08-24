@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **Change 0251 — Retune the run-tests budget regime for portability and sharding** — `docs/changes/archive/2026-08-23-0251-retune-the-run-tests-budget-regime-for-portability-and-shard.md`
+> ↩ **[Change 0251 — Retune the run-tests budget regime for portability and sharding](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-23-0251-retune-the-run-tests-budget-regime-for-portability-and-shard.md)**
 <!-- docket:backlink:end -->
 
 # Retune the run-tests budget regime for portability and sharding — design

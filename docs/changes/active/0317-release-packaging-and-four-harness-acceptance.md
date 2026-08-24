@@ -29,9 +29,10 @@ claimed_at: '2026-08-21T02:58:15Z'
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | `docs/superpowers/specs/2026-08-20-release-packaging-and-four-harness-acceptance-design.md` |
-| Plan | `docs/superpowers/plans/2026-08-20-release-packaging-and-four-harness-acceptance.md` |
-| ADRs | `docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md` |
+| Spec | [2026-08-20-release-packaging-and-four-harness-acceptance-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-20-release-packaging-and-four-harness-acceptance-design.md) |
+| Plan | [2026-08-20-release-packaging-and-four-harness-acceptance.md](https://github.com/danielhanold/docket/blob/feat/release-packaging-and-four-harness-acceptance/docs/superpowers/plans/2026-08-20-release-packaging-and-four-harness-acceptance.md) |
+| PR | github.com/danielhanold/docket#226 |
+| ADRs | [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
