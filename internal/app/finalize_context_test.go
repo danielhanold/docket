@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/domain"
+	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/repository"
 )
 
@@ -274,6 +275,48 @@ func TestContextFinalizeTypedReasons(t *testing.T) {
 	buf, _ := json.Marshal(got)
 	if strings.Contains(string(buf), "null") {
 		t.Errorf("null leaked into protocol document: %s", buf)
+	}
+}
+
+// prURLFor builds the full-URL pr: reference the board requires — the form the
+// pre-0344 prober could not parse.
+func prURLFor(number int) string {
+	return fmt.Sprintf("https://github.com/acme/widgets/pull/%d", number)
+}
+
+// TestContextFinalizeURLFormPRRef: a change whose pr: is the board-required
+// full-URL form flows through the PRODUCTION prober (which parses the ref
+// before contacting GitHub) and surfaces as a probed merged-recovery candidate
+// — never pr-unknown. Before 0344 the prober refused the ref with "carries no
+// parseable number" and the selector read pr-unknown, making the change
+// un-finalizable through the binary.
+func TestContextFinalizeURLFormPRRef(t *testing.T) {
+	pin := docketPin(t)
+	corpus := []StatusBlob{finalizeBlob(90, "urlform", "implemented", "high", prURLFor(235), "")}
+	gh := &fakeCloseoutGitHub{
+		repo: githubcli.Repository{Host: "github.com", Owner: "acme", Name: "widgets"},
+		merged: map[int]closeoutProbe{
+			235: {outcome: githubcli.MergeAlreadyMerged, facts: githubcli.MergedFacts{
+				Version: "v235", HeadOID: "h235", BaseRef: "main",
+				MergedAtUTC: "2026-08-24T00:00:00Z", MergeCommit: "m235",
+			}},
+		},
+	}
+	fake := &fakeReader{pin: pin, corpus: corpus}
+
+	got := ContextFinalize(context.Background(), finalizeDeps(fake, NewGitHubFinalizeProber(gh), &recordingEngine{}), "", FinalizeContextRequest{})
+	if got.Result != ResultApplied || len(got.Candidates) != 1 {
+		t.Fatalf("result=%q reason=%q candidates=%d", got.Result, got.Reason, len(got.Candidates))
+	}
+	c := got.Candidates[0]
+	if c.SkipReason == "pr-unknown" {
+		t.Fatalf("URL-form pr: still reads as pr-unknown — the prober refused the reference")
+	}
+	if c.PR.Verdict != "probed" || c.PR.State != "merged" || c.PR.Number != "235" {
+		t.Errorf("PR report = verdict %q state %q number %q, want probed/merged/235", c.PR.Verdict, c.PR.State, c.PR.Number)
+	}
+	if c.Band != "merged-recovery" {
+		t.Errorf("band = %q, want merged-recovery", c.Band)
 	}
 }
 
