@@ -11,7 +11,7 @@ depends_on: []
 stacked_on:
 related: []
 discovered_from: [341]
-adrs: []
+adrs: [97]
 spec: docs/superpowers/specs/2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form-design.md
 plan: 'docs/superpowers/plans/2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form.md'
 results:
@@ -29,8 +29,10 @@ claimed_at: '2026-08-24T18:55:30Z'
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | `docs/superpowers/specs/2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form-design.md` |
-| Plan | `docs/superpowers/plans/2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form.md` |
+| Spec | [2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form-design.md) |
+| Plan | [2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form.md](https://github.com/danielhanold/docket/blob/feat/finalize-pr-prober-cannot-parse-the-full-url-pr-form/docs/superpowers/plans/2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form.md) |
+| PR | github.com/danielhanold/docket#236 |
+| ADRs | [ADR-0097](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0097-pr-identity-is-verified-by-parsed-pr-number.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
