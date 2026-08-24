@@ -2,7 +2,7 @@
 id: 344
 slug: finalize-pr-prober-cannot-parse-the-full-url-pr-form
 title: 'Finalize PR prober cannot parse the full-URL pr: form'
-status: 'implemented'
+status: 'done'
 priority: high
 type: fix
 created: 2026-08-24
@@ -21,7 +21,7 @@ branch: 'feat/finalize-pr-prober-cannot-parse-the-full-url-pr-form'
 pr: 'github.com/danielhanold/docket#236'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-24T18:55:30Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -29,10 +29,9 @@ claimed_at: '2026-08-24T18:55:30Z'
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form-design.md) |
-| Plan | [2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form.md](https://github.com/danielhanold/docket/blob/feat/finalize-pr-prober-cannot-parse-the-full-url-pr-form/docs/superpowers/plans/2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form.md) |
-| PR | github.com/danielhanold/docket#236 |
-| ADRs | [ADR-0097](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0097-pr-identity-is-verified-by-parsed-pr-number.md) |
+| Spec | `docs/superpowers/specs/2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form-design.md` |
+| Plan | `docs/superpowers/plans/2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form.md` |
+| ADRs | `docs/adrs/0097-pr-identity-is-verified-by-parsed-pr-number.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
