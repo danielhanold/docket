@@ -13,7 +13,7 @@ related: []
 discovered_from: [341]
 adrs: []
 spec: docs/superpowers/specs/2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form.md'
 results:
 trivial: false
 auto_groomable: true
@@ -30,6 +30,7 @@ claimed_at: '2026-08-24T18:49:05Z'
 | Artifact | Link |
 |---|---|
 | Spec | `docs/superpowers/specs/2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form-design.md` |
+| Plan | `docs/superpowers/plans/2026-08-24-finalize-pr-prober-cannot-parse-the-full-url-pr-form.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
