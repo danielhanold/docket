@@ -1,18 +1,24 @@
 #!/usr/bin/env bash
 # scripts/lib/docket-liveness.sh — process-group liveness, IDENTITY-CHECKED (change 0284).
-# Sourced by scripts/gate-run.sh and scripts/runner-dispatch.sh; never executed directly.
+# Sourced by scripts/runner-dispatch.sh; never executed directly. It is now the sole consumer —
+# the retired gate-run.sh facade was the other (change 0339; the native gate in internal/process
+# owns that launch/liveness/stop side now).
 #
-# ONE PREDICATE, TWO CONSUMERS. Before this lib each script carried its own copy: gate-run.sh's
-# `group_alive_and_ours` and runner-dispatch.sh's inline ladder inside `terminate_dispatch`. Two
-# copies of a predicate that must AGREE is the drift the `duplicated-gate-copies-the-whole-predicate`
-# learning describes, and the copies had already diverged on one leg (an empty recorded token: the
-# gate failed closed, the dispatch SKIPPED the conjunct). This file is the single definition.
+# ONE PREDICATE, ONE SURVIVING CONSUMER — extracted by change 0284 from what were then TWO copies.
+# Before this lib each script carried its own: gate-run.sh's `group_alive_and_ours` and
+# runner-dispatch.sh's inline ladder inside `terminate_dispatch`. Two copies of a predicate that
+# must AGREE is the drift the `duplicated-gate-copies-the-whole-predicate` learning describes, and
+# the copies had already diverged on one leg — an empty recorded token: the gate failed closed, the
+# dispatch SKIPPED the conjunct. That divergence is the war story that justifies this file's
+# existence; the extraction into one definition is what closed it. gate-run.sh has since been
+# retired (change 0339), so runner-dispatch.sh is the lone consumer today.
 #
-# IT TAKES VALUES, NEVER RUN DIRS. The two consumers store their records in incompatible layouts —
-# gate-run.sh keys `pid`/`pgid`/`identity` across `$rd/launch` plus a separate `$rd/identity` file,
-# runner-dispatch.sh keys `pgid`/`child_pid`/`child_lstart` in `$DDIR/launch`. Each keeps its own
-# reader and passes the extracted values in. A layout-aware lib would have to know both, which is
-# exactly the coupling change 0282's assumption 1 rejected.
+# IT TAKES VALUES, NEVER RUN DIRS. The two consumers stored their records in incompatible layouts —
+# gate-run.sh keyed `pid`/`pgid`/`identity` across `$rd/launch` plus a separate `$rd/identity` file,
+# runner-dispatch.sh keys `pgid`/`child_pid`/`child_lstart` in `$DDIR/launch`. Each kept its own
+# reader and passed the extracted values in. A layout-aware lib would have to know both, which is
+# exactly the coupling change 0282's assumption 1 rejected — the value-in interface is retained even
+# now that only one layout remains.
 #
 # WHY A PGID IS NOT ENOUGH: a pgid is a REUSABLE NAME. An hour after a child died the OS may have
 # handed that id to an unrelated tree, and `kill -0 -<pgid>` would answer for the stranger. So the
@@ -26,9 +32,10 @@
 # an empty live token. The asymmetry is the whole justification: a false `dead` costs one wasted
 # observation, while a false `alive` costs the caller its ENTIRE budget on a run that is not there.
 #
-# BUT "NOT ALIVE" IS NOT ONE FACT, and the second consumer is why (change 0284 review, finding 1).
-# In gate-run.sh a false `dead` costs one bounded relaunch; on runner-dispatch.sh's `--observe` seam
-# it writes a TERMINAL marker and ends the caller's polling loop — and because git decides that
+# BUT "NOT ALIVE" IS NOT ONE FACT, and the second consumer was why (change 0284 review, finding 1).
+# For a caller for whom a false `dead` is cheap (the retired gate-run.sh: one bounded relaunch) any
+# non-zero answer could be read as "not alive"; on runner-dispatch.sh's `--observe` seam it writes a
+# TERMINAL marker and ends the caller's polling loop — and because git decides that
 # leg's exit code, it can return `0` ("the work landed") for a child that is STILL RUNNING. Only
 # `kill -0 -<pgid>` failing is POSITIVE EVIDENCE of death; an unreadable `ps`, an empty token on
 # either side and a mismatch say only that the question could not be answered this pass. So every
@@ -38,7 +45,7 @@
 
 # The normalized start-time token for a pid; empty when the pid is gone or `ps` cannot be read.
 # ALWAYS RETURNS 0: an absent pid is an empty token, not an error, so a caller under `set -e` can
-# assign from it (gate-run.sh does, at `SPAWN_IDENT=`).
+# assign from it (the retired gate-run.sh did, at `SPAWN_IDENT=`).
 #
 # THE RENDERING IS PINNED, not merely whitespace-normalized. `ps -o lstart=` formats through the
 # CALLER's environment — `TZ` moves the clock and `LC_TIME` moves the weekday and month names — so
@@ -49,7 +56,7 @@
 # goal is that the caller's environment cannot move the rendering, and unsetting it lands on the
 # machine's own zone — which is what an ambient reader on the same machine already produces, so a
 # token recorded by an earlier build still compares equal. Forcing `UTC` would instead re-render
-# every one of them (and redden gate-run.sh's own recorded-vs-ambient assert on any machine not
+# every one of them (and redden a consumer's own recorded-vs-ambient assert on any machine not
 # already in UTC). `localtime()` resolves an absolute start time under the zone rules in force at
 # THAT instant, so a DST transition does not move an already-recorded token either.
 docket_identity_of(){  # $1 = pid -> normalized `ps -o lstart=` token, or empty
@@ -80,8 +87,8 @@ DOCKET_LIVENESS_WHY=""
 #                demonstrably alive on that leg, and a token rendered by an older, unpinned build of
 #                `docket_identity_of` differs for a reason that has nothing to do with the process.
 #
-# A caller for whom a false `dead` is cheap (gate-run.sh: one bounded relaunch) may ignore this
-# entirely and read the exit status alone — which is what keeps the field additive.
+# A caller for whom a false `dead` is cheap (the retired gate-run.sh: one bounded relaunch) may
+# ignore this entirely and read the exit status alone — which is what keeps the field additive.
 DOCKET_LIVENESS_CLASS=""
 
 # 0 when the group exists AND is still the one the caller recorded; non-zero otherwise.

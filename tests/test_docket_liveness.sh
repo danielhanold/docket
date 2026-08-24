@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # tests/test_docket_liveness.sh — scripts/lib/docket-liveness.sh, the ONE identity-checked liveness
-# predicate shared by gate-run.sh and runner-dispatch.sh (change 0284).
+# predicate whose sole consumer is now runner-dispatch.sh (change 0284 extracted it; the retired
+# gate-run.sh was the other consumer until change 0339).
 # Run: bash tests/test_docket_liveness.sh
 #
 # The lib takes VALUES, never run dirs: its two consumers store their records in incompatible
@@ -16,7 +17,8 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 
 # --- a real self-spawned group -----------------------------------------------------
 # `set -m` in a subshell makes the background job a PROCESS-GROUP LEADER, so its pid IS its pgid —
-# the same construction runner-dispatch.sh's --launch uses and gate-run.sh's rung 3 falls back to.
+# the same construction runner-dispatch.sh's --launch uses and the retired gate-run.sh's rung 3 fell
+# back to (gate-run.sh retired by change 0339).
 PGIDS=()
 cleanup(){ local p; for p in "${PGIDS[@]:-}"; do case "$p" in ''|*[!0-9]*) continue ;; esac
   kill -KILL -"$p" 2>/dev/null; done; }
@@ -62,7 +64,7 @@ assert "docket_identity_of renders identically under any caller locale" \
   '[ "$(LC_ALL=fr_FR.UTF-8 docket_identity_of "$SPAWN_PID")" = "$tok" ]'
 assert "the token is whitespace-normalized (no runs, no edges)" \
   '[ "$tok" = "$(tr -s "[:space:]" " " <<<"$tok" | sed -e "s/^ //" -e "s/ $//")" ]'
-# Always-0 is load-bearing: gate-run.sh runs under `set -e` and ASSIGNS from this.
+# Always-0 is load-bearing: a `set -e` caller ASSIGNS from this (the retired gate-run.sh did).
 docket_identity_of 999999 >/dev/null; rc=$?
 assert "docket_identity_of returns 0 even for a gone pid (set -e callers assign from it)" '[ "$rc" = "0" ]'
 assert "docket_identity_of is empty for a gone pid" '[ -z "$(docket_identity_of 999999)" ]'
@@ -76,7 +78,8 @@ assert "DOCKET_LIVENESS_WHY is cleared on the alive leg" '[ -z "$DOCKET_LIVENESS
 assert "DOCKET_LIVENESS_CLASS is cleared on the alive leg" '[ -z "$DOCKET_LIVENESS_CLASS" ]'
 
 # ---- THE REASON CLASS (0284 review, finding 1b) ----------------------------------
-# Every non-zero return is "not alive", and gate-run.sh may keep reading it that way. But the two
+# Every non-zero return is "not alive", and a cheap-false-dead consumer (the retired gate-run.sh was
+# one) may keep reading it that way. But the two
 # ways of being not-alive are not the same fact: `kill -0` failing is POSITIVE EVIDENCE that the
 # group is gone, while every other leg says only that the question could not be answered this pass.
 # A consumer for whom a false `dead` is terminal and irreversible must be able to tell them apart,

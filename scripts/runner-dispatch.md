@@ -496,9 +496,10 @@ is still the launched one, on two conjuncts: the recorded `child_pid` must **sti
 recorded `pgid` (the child is its group's leader by construction), and that pid's start time must
 still equal the recorded `child_lstart` — the first conjunct alone is satisfied by a **recycled pid**
 that happens to lead a group of the same id, which is an ordinary background job and not an exotic
-state. A launch record carrying **no** token fails the conjunct closed (change 0284, adopting
-`gate-run.sh`'s posture through the shared predicate `docket_group_alive_and_ours` in
-`scripts/lib/docket-liveness.sh`). That is behaviour-preserving on every reachable input: `--launch`
+state. A launch record carrying **no** token fails the conjunct closed (change 0284, adopting the
+fail-closed posture of the then-shared predicate `docket_group_alive_and_ours` in
+`scripts/lib/docket-liveness.sh` — a predicate this script is now the sole consumer of, the retired
+`gate-run.sh` having been the other until change 0339). That is behaviour-preserving on every reachable input: `--launch`
 records an empty `child_lstart` only when `ps` saw no process — i.e. the child had already
 finished — in which case the wrapper writes `done` and the sentinel read disposes before either leg
 is reached.
@@ -521,13 +522,14 @@ first, process liveness second, git last.** A `done` sentinel or a `killed` mark
 probe of the group the child used to lead — the wrapper is the only writer of the sentinel, so a
 record that exists describes a child that reached the end. Only when neither exists does the facade
 probe **liveness**, through the identity-checked predicate `docket_group_alive_and_ours` in
-`scripts/lib/docket-liveness.sh`, shared with `gate-run.sh`: the recorded group must still exist
+`scripts/lib/docket-liveness.sh`, of which this script is now the sole consumer (the retired
+`gate-run.sh` was the other, until change 0339): the recorded group must still exist
 *and* the process leading it must still have started at the instant `--launch` recorded. Fail-closed
 on every leg, because a false *alive* costs the caller its entire budget on a run that is not there.
 
 **But "not alive" is two different facts, and only one of them disposes** (change 0284 review).
-In `gate-run.sh` a false *dead* costs one bounded relaunch, so that consumer reads any non-zero
-answer as "not alive" and is right to. On this seam a false *dead* is terminal and irreversible — a
+For a consumer whose false *dead* costs only one bounded relaunch — the retired `gate-run.sh` was
+one — any non-zero answer can be read as "not alive". On this seam a false *dead* is terminal and irreversible — a
 `killed` marker, a terminal code, and the end of the caller's polling loop — and because git decides
 that code it can be **`0`**, telling a driver *the work landed* for a child that is still running and
 still writing. So the predicate carries a **class** beside its reason: `gone` when `kill -0` proved
