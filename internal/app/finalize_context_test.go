@@ -294,3 +294,66 @@ func descendantIDs(ds []FinalizeDescendant) []int {
 	}
 	return out
 }
+
+// TestParsePRNumberForms pins parsePRNumber's accepted PR-reference grammar: the
+// full GitHub URL in every real shape (canonical, trailing slash, query,
+// fragment, deeper sub-page) and the "owner/repo#N" shorthand both yield the
+// positive number, while a non-numeric/missing/zero/signed URL segment and a
+// non-positive or garbage shorthand return (0, false). The url rows are the bug
+// this change fixes — the prober previously could not read a full-URL pr: ref.
+func TestParsePRNumberForms(t *testing.T) {
+	cases := []struct {
+		name string
+		ref  string
+		want int
+		ok   bool
+	}{
+		{"shorthand", "acme/widgets#42", 42, true},
+		{"url canonical", "https://github.com/acme/widgets/pull/235", 235, true},
+		{"url trailing slash", "https://github.com/acme/widgets/pull/235/", 235, true},
+		{"url query", "https://github.com/acme/widgets/pull/235?w=1", 235, true},
+		{"url fragment", "https://github.com/acme/widgets/pull/235#discussion_r1", 235, true},
+		{"url sub-page", "https://github.com/acme/widgets/pull/235/files", 235, true},
+		{"url non-numeric", "https://github.com/acme/widgets/pull/abc", 0, false},
+		{"url missing number", "https://github.com/acme/widgets/pull/", 0, false},
+		{"url zero", "https://github.com/acme/widgets/pull/0", 0, false},
+		{"url signed", "https://github.com/acme/widgets/pull/+42", 0, false},
+		{"shorthand zero", "acme/widgets#0", 0, false},
+		{"shorthand negative", "acme/widgets#-1", 0, false},
+		{"garbage", "not a pr ref", 0, false},
+		{"empty", "", 0, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			n, ok := parsePRNumber(tc.ref)
+			if n != tc.want || ok != tc.ok {
+				t.Errorf("parsePRNumber(%q) = (%d, %v), want (%d, %v)", tc.ref, n, ok, tc.want, tc.ok)
+			}
+		})
+	}
+}
+
+// TestPRNumberTokenForms pins prNumberToken's string projection over the same
+// grammar: it emits the canonical number for both accepted forms (URL and
+// shorthand, including a deeper sub-page URL) and "" for any reference with no
+// parseable positive number, proving the token stays in lockstep with
+// parsePRNumber via the shared parsePRRef extractor.
+func TestPRNumberTokenForms(t *testing.T) {
+	cases := []struct {
+		ref  string
+		want string
+	}{
+		{"acme/widgets#42", "42"},
+		{"https://github.com/acme/widgets/pull/235", "235"},
+		{"https://github.com/acme/widgets/pull/235/files", "235"},
+		{"acme/widgets#0", ""},
+		{"acme/widgets#-7", ""},
+		{"https://github.com/acme/widgets/pull/abc", ""},
+		{"", ""},
+	}
+	for _, tc := range cases {
+		if got := prNumberToken(tc.ref); got != tc.want {
+			t.Errorf("prNumberToken(%q) = %q, want %q", tc.ref, got, tc.want)
+		}
+	}
+}
