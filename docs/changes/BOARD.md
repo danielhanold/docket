@@ -1,8 +1,8 @@
 # Backlog
 
-**342 changes** — 🟡 47 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 209 done · 🗑️ 80 killed
+**343 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 209 done · 🗑️ 80 killed
 
-## 🟡 Proposed (47)
+## 🟡 Proposed (48)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -52,7 +52,8 @@
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
 | [0333](active/0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition internal/app to retire the -race gate's 300s ceiling exemption | `medium` | `refactor` | needs-brainstorm |
 | [0334](active/0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | CLAUDE.md global and project copies drift on finalize-agent descriptions | `medium` | `docs` | needs-brainstorm |
-| [0342](active/0342-harden-autonomous-build-implement-agents-against-the-suite-y.md) | Harden autonomous build/implement agents against the suite-yield deadlock (ADR-0024) | `high` | `fix` | needs-brainstorm |
+| [0342](active/0342-harden-autonomous-build-implement-agents-against-the-suite-y.md) | Harden autonomous build/implement agents against the suite-yield deadlock (ADR-0024) | `high` | `fix` | build-ready |
+| [0343](active/0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -126,6 +127,7 @@ graph TD
   0334
   0341
   0342
+  0343
   0192:::done
   0211:::done
   0251:::done
