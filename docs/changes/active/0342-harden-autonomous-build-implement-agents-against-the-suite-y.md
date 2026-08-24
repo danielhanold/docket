@@ -107,3 +107,19 @@ and became reliably visible as the suite approached the foreground-call ceiling.
 ### 2026-08-24
 
 **2026-08-24** — Reconciled against current `docket` reality before planning. Confirmed the change is unstarted and its premise still holds: `docket gate` exposes only the raw `launch`/`observe`/`stop`/`recover`/`cleanup` primitives (no `drive` verb), and no `run-waiting` verdict exists anywhere in the tree. The two caller loops the spec targets are present as written — `docket-build`'s Bash caller loop (embedded `skills/docket-build/references/gate-caller-loop.md`, mirrored under `~/.claude/skills/docket-build`) and finalize's in-process Go polling loop (`internal/app`). Related work is already landed and reflected: the native supervisor (0314/ADR-0095) lives in `internal/app/gate_supervisor.go` + `internal/app/gate.go`, and the incident forensics (0339/0341) match the spec's Evidence section. No scope drift, no work done elsewhere, no new external constraints — proposal, spec, and relations (adrs 24, 95; the new structured-waiting ADR is minted in the review phase) carry forward unchanged.
+
+## Run halted
+
+### 2026-08-24
+
+**2026-08-24 — halted at Step 5 (build): profile worker agents un-dispatchable in this session.**
+
+Steps 0–4 completed and are preserved:
+- Claimed (branch `feat/harden-autonomous-build-implement-agents-against-the-suite-y`), reconciled against current reality (spec still valid; `docket gate` exposes only the raw primitives, no `drive` verb; no `run-waiting`; caller loops present as the spec describes).
+- Plan authored via the resolved `superpowers:writing-plans` skill and committed on the feature branch at `2316e30e55729e97eb2db0edf7a3ea1337738736` (`docs/superpowers/plans/2026-08-24-resumable-native-gate-driver.md`, 18 ordered TDD tasks), backlink stamped, `Docket-Plan-Path` trailer present, and attached (`plan:` landed).
+
+**Why halted (docket-build authorized-or-halt / Tier C):** the build role `docket-build` must dispatch a fresh profile worker per task (`docket-build-economy` / `-standard` / `-premium` / `-max`). This run executed inside an inline slash-command session that has no named-agent (Task) dispatch tool: the only dispatch surface is the Skill tool, which reaches the skills in `~/.claude/skills/` but NOT the pinned wrappers in `~/.claude/agents/`. A concrete trivial-dispatch probe of `docket-build-standard` was rejected by the harness with `Unknown skill: docket-build-standard`, establishing un-dispatchability per the convention's Dispatch-capability resolution (not inferred from a missing tool name). `skills.build` resolves to `docket-build` (not `auto`), so inline execution is NOT authorized — the correct disposition is halt, leaving the change in-progress with the claim refreshed and the worktree preserved.
+
+The same limitation would block Step 4's `docket-plan-writer` (worked around here by invoking `superpowers:writing-plans` directly), Step 5's build profile workers, and Step 6's `docket-review-*` rung wrappers — every pinned-agent dispatch this workflow requires.
+
+**Remedy:** resume change 342 from a session that has native named-agent (Task) dispatch and the docket agent registry loaded — i.e. run `docket-implement-next` as a properly dispatched named agent per this repo's "dispatch, don't run inline" rule (CLAUDE.md), not as an inline slash-command. The agent wrappers already exist on disk (`~/.claude/agents/docket-build-*.md`, generated 2026-08-21); a session started after `install.sh`/`sync-agents.sh` loads them at process start. Resume by id (342) through the halted-resume path (`docket change resume-halted --id 342 --version <v> --acknowledge-quiescent`), then continue from Step 5 (build) — Steps 0–4 are already done; trust the commits, not the plan's unticked checkboxes. The prior worker (this session) is quiescent: it committed only the plan on the feature branch and holds no live process.
