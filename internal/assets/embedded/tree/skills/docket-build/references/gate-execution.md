@@ -27,7 +27,7 @@ differently.
 5. **Distinguish *still running* from *completed successfully*, *completed unsuccessfully*, and
    *result unavailable*.** Four states, not two. This capability is mechanized
    **harness-independently**: the state vocabulary a caller keys on — and which of those states is
-   retryable — is defined once in [`scripts/gate-run.md`](../../../scripts/gate-run.md), which is
+   retryable — is defined once in [`gate-caller-loop.md`](gate-caller-loop.md), which is
    why a per-harness capability list is the wrong owner for it. What a harness must supply is the
    ability to make the observations at all; it never defines states of its own.
 6. **Enforce the observation budget without depending on a single long-lived foreground call.**
@@ -38,16 +38,14 @@ result artifact — one discipline, three payoffs. It carries one non-obvious pr
 and recorded as evidence: the new session must be **fully established before the initiating
 call returns**, or the harness's teardown wins the race. That precondition was measured, not
 reasoned about; the measurement is in the evidence file linked at the end of this reference.
-Docket ships that mitigation as `gate-run.sh`, reached through the facade as
-`"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh gate-run` and specified by
-[`scripts/gate-run.md`](../../../scripts/gate-run.md): it
-performs the detached launch, the durable unmerged streams, and the establishment handshake the
+Docket ships that mitigation as `docket gate launch`, implemented in `internal/process/launch.go`:
+it performs the detached launch, the durable unmerged streams, and the establishment handshake the
 precondition names, so a call site satisfies these capabilities by using it rather than by
-re-deriving a launch shape. **What its detachment delivers is decided by a runtime probe, never
-assumed** — where the platform offers no session primitive the contract narrows honestly to the
-weaker guarantee and says so per platform, in that page's *Per-platform capability note*. The
-capability required above is unchanged by that narrowing; only the claim about how it is obtained is
-bounded by what the platform provides.
+re-deriving a launch shape. **What its detachment delivers is uniform across every supported
+platform** — ADR-0095 records that the native per-run supervisor establishes a genuine new session on
+both Darwin and Linux, so the page carries no per-platform narrowing and claims the session guarantee
+outright. The capability required above is met on every platform, not bounded by what a weaker
+launch shape could provide.
 
 ## Reading a verdict
 

@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:02789eede4573d80a5ddc9b068ad69f1eac8b8850558dbfc091dee8c552a4e5e",
+  "asset_set_id": "sha256:49cb8efc13113e227102d8ce21aa09e67d4289bdbd6b2fbf306ba49523fd09ad",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -336,8 +336,8 @@
       "path": "skills/docket-build/references/gate-execution.md",
       "role": "skill",
       "mode": 420,
-      "size": 7682,
-      "sha256": "8f016ce39f8934b39b348ba1144bf28514b4249d5a7f160a12c43c370ff5a792"
+      "size": 7549,
+      "sha256": "c92915cee127278daaa96c6bedb9da81296da7c396a3860f70fc42baecba8b33"
     },
     {
       "path": "skills/docket-build/references/task-routing.md",
