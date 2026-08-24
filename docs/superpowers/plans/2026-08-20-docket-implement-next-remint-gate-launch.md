@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **Change 0331 — docket-implement-next's re-mint path never names docket gate launch, so a resumed run cannot produce the run directory evidence record requires** — `docs/changes/active/0331-docket-implement-next-s-re-mint-path-never-names-docket-gate.md`
+> ↩ **[Change 0331 — docket-implement-next's re-mint path never names docket gate launch, so a resumed run cannot produce the run directory evidence record requires](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-21-0331-docket-implement-next-s-re-mint-path-never-names-docket-gate.md)**
 <!-- docket:backlink:end -->
 # Step 6 Re-mint Gate-Launch Chain Implementation Plan
 

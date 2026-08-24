@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **Change 0338 — Gate observe ships two serializations (shell state=name vs native protocol-v1 JSON) reconciled only by prose — converge on JSON, migrate the caller loop, retire the text contract** — `docs/changes/archive/2026-08-23-0338-gate-execution-terminal-sentinel-has-no-format-contract-poll.md`
+> ↩ **[Change 0338 — Gate observe ships two serializations (shell state=name vs native protocol-v1 JSON) reconciled only by prose — converge on JSON, migrate the caller loop, retire the text contract](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-23-0338-gate-execution-terminal-sentinel-has-no-format-contract-poll.md)**
 <!-- docket:backlink:end -->
 # Gate Observe JSON Convergence Implementation Plan (change 0338)
 

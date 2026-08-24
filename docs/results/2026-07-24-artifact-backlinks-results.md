@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0136 — Artifact back-links — a generated link at the top of every artifact pointing to the change](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0136-artifact-backlinks.md)**
+> ↩ **[Change 0136 — Artifact back-links — a generated link at the top of every artifact pointing to the change](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-24-0136-artifact-backlinks.md)**
 <!-- docket:backlink:end -->
 
 # Artifact back-links — results
