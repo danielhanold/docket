@@ -13,7 +13,7 @@ related: [223, 231, 282, 285, 314, 315, 341]
 discovered_from: [339]
 adrs: [24, 95]
 spec: docs/superpowers/specs/2026-08-24-resumable-native-gate-driver-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-24-resumable-native-gate-driver.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-24T22:03:00Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-24-resumable-native-gate-driver-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-24-resumable-native-gate-driver-design.md) |
+| Plan | [2026-08-24-resumable-native-gate-driver.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-24-resumable-native-gate-driver.md) |
 | ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md) |
 <!-- docket:artifacts:end -->
 
