@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable:
 branch: 'feat/release-packaging-and-four-harness-acceptance'
-pr: 'github.com/danielhanold/docket#226'
+pr: 'https://github.com/danielhanold/docket/pull/226'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-21T02:58:15Z'
@@ -31,7 +31,7 @@ claimed_at: '2026-08-21T02:58:15Z'
 |---|---|
 | Spec | [2026-08-20-release-packaging-and-four-harness-acceptance-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-20-release-packaging-and-four-harness-acceptance-design.md) |
 | Plan | [2026-08-20-release-packaging-and-four-harness-acceptance.md](https://github.com/danielhanold/docket/blob/feat/release-packaging-and-four-harness-acceptance/docs/superpowers/plans/2026-08-20-release-packaging-and-four-harness-acceptance.md) |
-| PR | github.com/danielhanold/docket#226 |
+| PR | [#226](https://github.com/danielhanold/docket/pull/226) |
 | ADRs | [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md) |
 <!-- docket:artifacts:end -->
 

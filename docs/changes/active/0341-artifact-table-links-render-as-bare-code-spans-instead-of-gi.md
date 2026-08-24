@@ -18,7 +18,7 @@ results: docs/results/2026-08-24-artifact-table-links-render-as-bare-code-spans-
 trivial: false
 auto_groomable: true
 branch: 'feat/artifact-table-links-render-as-bare-code-spans-instead-of-gi'
-pr: 'github.com/danielhanold/docket#235'
+pr: 'https://github.com/danielhanold/docket/pull/235'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-24T13:42:32Z'
@@ -32,7 +32,7 @@ claimed_at: '2026-08-24T13:42:32Z'
 | Spec | [2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-design.md) |
 | Plan | [2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi.md](https://github.com/danielhanold/docket/blob/feat/artifact-table-links-render-as-bare-code-spans-instead-of-gi/docs/superpowers/plans/2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi.md) |
 | Results | [2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-results.md](https://github.com/danielhanold/docket/blob/feat/artifact-table-links-render-as-bare-code-spans-instead-of-gi/docs/results/2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-results.md) |
-| PR | github.com/danielhanold/docket#235 |
+| PR | [#235](https://github.com/danielhanold/docket/pull/235) |
 <!-- docket:artifacts:end -->
 
 ## Why
