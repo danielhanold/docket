@@ -446,11 +446,13 @@ assert "reference: carries no measured launch-duration figures (shape: bold **Ns
 # No pattern below may contain a backtick: `assert` runs its argument through `eval`, so a
 # backtick inside the pattern would be command substitution rather than a literal. `[^.]` already
 # covers the code spans these rules are written with.
-CONTRACT="$REPO/scripts/gate-run.md"
-assert "helper: the contract file exists" '[ -f "$CONTRACT" ]'
-contract_body="$(cat "$CONTRACT" 2>/dev/null)"
-assert "helper: the contract is non-vacuous (>= 100 lines)" \
-  '[ "$(grep <<<"$contract_body" -c .)" -ge 100 ]'
+LOOP_REF="$REPO/skills/docket-build/references/gate-caller-loop.md"
+assert "helper: the caller-loop reference file exists" '[ -f "$LOOP_REF" ]'
+loop_body="$(cat "$LOOP_REF" 2>/dev/null)"
+# Non-vacuity floor set comfortably below the file's measured length (171 lines at change 0339): an
+# unreadable or truncated file must redden HERE rather than passing every derivation by default.
+assert "helper: the caller-loop reference is non-vacuous (>= 120 lines)" \
+  '[ "$(grep <<<"$loop_body" -c .)" -ge 120 ]'
 
 # PARAGRAPH slices, the same shape `$relax_blk` above uses: a column-0 bolded lead-in opens the
 # slice, the next column-0 bolded lead-in or heading closes it. Section-wide scope is too weak
@@ -474,24 +476,32 @@ assert "abandon: the abandon paragraph was located (non-vacuity anchor)" \
   '[ "$(grep -c . <<<"$abandon_blk")" -ge 2 ]'
 
 # (12a) the helper, and the wait predicate it exists for.
-# A bare `grep -F gate-run` is NOT enough, measured: replacing the invocation with the prose "the
-# helper" left it green off the `gate-run.md` pointer two sentences later. So the posture must name
-# the INVOCATION a worker actually runs — the facade op — and every verb the contract publishes.
-# The verb set is DERIVED from the contract's own Usage block, so a fourth verb reddens this
-# automatically instead of aging into a hand-written list.
-assert "helper: the posture names the facade invocation" \
-  'grep -qE "docket\.sh gate-run" <<<"$helper_blk"'
-verbs="$(grep -oE '^gate-run\.sh --[a-z-]+' <<<"$contract_body" | sed 's/.*--/--/' | sort -u)"
+# A bare `grep -F` on a token is NOT enough, measured: replacing the invocation with the prose "the
+# helper" once left it green off the reference pointer two sentences later. So the posture must name
+# the native INVOCATIONS a worker actually runs — `docket gate launch` and `docket gate stop` — and
+# every caller-loop verb the reference publishes; the negative pins the facade's retirement (no
+# `gate-run` spelling in any form survives). `-F --`: the AGENTS.md leading-`--` literal-safety rule.
+assert "helper: the posture names the native launch and stop invocations" \
+  'grep -qE "docket gate launch" <<<"$helper_blk" && grep -qE "docket gate stop" <<<"$helper_blk" && ! grep -qF -- "gate-run" <<<"$helper_blk"'
+# The verb set is DERIVED from gate-caller-loop.md's `## The caller's verbs` table (its first-column
+# code-span token), so a fourth caller-loop verb reddens this automatically instead of aging into a
+# hand-written list. Not from internal/cli/gate.go: it registers five subcommands, two of which
+# (`recover`, `cleanup`) are operator verbs the posture correctly does not discuss.
+verbs="$(awk -F'|' '
+  /^\| *Verb *\| *What it returns/ {f=1; next}
+  !f {next}
+  /^\|[ -]*\|[ -]*\|?/ {next}
+  /^\|/ {n=split($2, a, "`"); if (n>=2) {t=a[2]; gsub(/[^a-z-]/, "", t); if (t != "") print t}; next}
+  {f=0}' <<<"$loop_body" | sort -u)"
 n_verbs="$(grep -c . <<<"$verbs")"
-# Floor at 2, not 3: change 0338 retired the observe operation to the native gate, so the contract's
-# Usage block publishes exactly `--launch` and `--stop` (`--observe` is a refusal documented in a
-# bullet, not a usage line). The floor stays a non-vacuity anchor; a fourth verb still reddens it.
-assert "helper: the contract's verb set was located (got $n_verbs)" '[ "$n_verbs" -ge 2 ]'
+# Floor at 2, not 3, as a non-vacuity anchor: the table has three rows (`launch`, `observe`, `stop`);
+# a fourth row still reddens the per-verb loop if the posture misses it.
+assert "helper: the reference's caller-verb set was located (got $n_verbs)" '[ "$n_verbs" -ge 2 ]'
 for v in $verbs; do
-  assert "helper: the posture gives the '$v' verb a role" 'grep -qF -- "'"$v"'" <<<"$helper_blk"'
+  assert "helper: the posture gives the '$v' verb a role" 'grep -qE "docket gate '"$v"'" <<<"$helper_blk"'
 done
-assert "helper: the posture points at the helper contract for the state vocabulary" \
-  'grep -qF -- "gate-run.md" <<<"$helper_blk"'
+assert "helper: the posture points at the caller-loop reference for the state vocabulary" \
+  'grep -qF -- "gate-caller-loop.md" <<<"$helper_blk"'
 # THE headline rule. Keyed on its two poles — what the wait IS keyed on (the observed state) and
 # what it is NOT keyed on (a marker) — with the negation required to attach to the marker, because
 # the paragraph's own explanatory sentence also contains the word "marker" and must not be able to
@@ -525,16 +535,17 @@ assert "helper: the retired state= keying no longer appears in the posture" \
 assert "helper: a hand-rolled reading of the document is named as the drift that spins the gate" \
   'grep -qiE "hand-rolled[^.]{0,120}(drift|spun|spin)" <<<"$helper_flat"'
 
-# (12b) the `died` posture. The three legs are DERIVED from the contract's own token table, never
-# hand-listed: a fourth token added there reddens this automatically, which an allowlist could not.
+# (12b) the `died` posture. The three legs are DERIVED from gate-caller-loop.md's stop mapping table
+# (its first-column code-span token), never hand-listed: a fourth row added there reddens this
+# automatically, which an allowlist could not.
 stop_tokens="$(awk -F'|' '
-  /^\| *Token *\| *Produced when *\|/ {f=1; next}
+  /^\| *Native stop outcome *\|/ {f=1; next}
   !f {next}
   /^\|[ -]*\|[ -]*\|/ {next}
-  /^\|/ {t=$2; gsub(/[^a-z-]/, "", t); if (t != "") print t; next}
-  {f=0}' <<<"$contract_body")"
+  /^\|/ {n=split($2, a, "`"); if (n>=2) {t=a[2]; gsub(/[^a-z-]/, "", t); if (t != "") print t}; next}
+  {f=0}' <<<"$loop_body")"
 n_tokens="$(grep -c . <<<"$stop_tokens")"
-assert "died: the contract's stop-token table was located (got $n_tokens)" '[ "$n_tokens" -ge 3 ]'
+assert "died: the reference's stop mapping table was located (got $n_tokens)" '[ "$n_tokens" -ge 3 ]'
 # Presence alone is NOT the property, and that is measured rather than assumed: deleting the whole
 # `unavailable` bullet left a bare `grep -F unavailable` GREEN, because the neighbouring bullet
 # names the token in passing ("`stopped` and `unavailable` never relaunch"). So each token must
@@ -554,21 +565,18 @@ assert "died: a non-idempotent child keeps its site's existing posture" \
   'grep -qiE "non-idempotent[^.]{0,140}(existing|its site|unchanged)" <<<"$died_flat"'
 assert "died: the relaunch is gated on the stop report" \
   'grep -qiE "(gated|keyed)[^.]{0,60}(on|by)[^.]{0,60}(stop|report)" <<<"$died_flat"'
-# MEASURED against the shipped script, and the reason this assert exists: the ordinary stop of a
-# live child reports `already-terminal`, not `stopped` (the wrapper survives the TERM, records the
-# child's exit, and step 6 finds that record). Prose that implies `stopped` is the common case
-# contradicts the shipped behavior, so the ordinary-case naming is pinned here rather than left to
-# a reader to rediscover.
-assert "died: already-terminal is named as the ordinary live-child stop" \
-  'grep -qiE "already-terminal[^.]{0,100}ordinary|ordinary[^.]{0,100}already-terminal" <<<"$died_flat"'
-assert "died: the already-terminal leg re-observes and keys on what returns" \
-  'grep -qiE "already-terminal[^.]{0,220}observ" <<<"$died_flat"'
-# `abort` is required inside the same sentence, and that is mutation evidence too: without it the
-# assert was satisfied by the already-terminal bullet's "`stopped` and `unavailable` never
-# relaunch" — a true but different statement — so deleting the unavailable leg outright stayed
-# green. The rule is that this leg ABORTS and does not relaunch, so both halves must attach.
-assert "died: the unavailable leg aborts WITHOUT relaunching" \
-  'grep -qiE "unavailable[^.]{0,80}abort[^.]{0,120}(without|never|no)[^.]{0,60}relaunch" <<<"$died_flat"'
+# The ordinary stop of a live child is the `no-op` row of the stop mapping table (the state is
+# preserved and the stop performed nothing). Prose that implies some other outcome is the common
+# case contradicts what `docket gate stop` returns, so the ordinary-case naming is pinned here.
+assert "died: no-op is named as the ordinary live-child stop" \
+  'grep -qiE "no-op[^.]{0,100}ordinary|ordinary[^.]{0,100}no-op" <<<"$died_flat"'
+assert "died: the no-op leg re-observes and keys on what returns" \
+  'grep -qiE "no-op[^.]{0,220}observ" <<<"$died_flat"'
+# `abort` is required inside the same window as the `error` token, and that is mutation evidence: a
+# bare `error` mention elsewhere is not the rule. The rule is that this leg ABORTS and does not
+# relaunch, so both halves must attach.
+assert "died: the error leg aborts WITHOUT relaunching" \
+  'grep -qiE "error[^.]{0,80}abort[^.]{0,120}(without|never|no)[^.]{0,60}relaunch" <<<"$died_flat"'
 assert "died: a second died is abort-and-report" \
   'grep -qiE "second[^.]{0,60}died[^.]{0,80}abort" <<<"$died_flat"'
 
