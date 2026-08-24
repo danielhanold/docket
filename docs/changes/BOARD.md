@@ -1,6 +1,6 @@
 # Backlog
 
-**341 changes** — 🟢 1 in progress · 🟡 47 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 208 done · 🗑️ 80 killed
+**342 changes** — 🟢 1 in progress · 🟡 48 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 208 done · 🗑️ 80 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0339](active/0339-retire-the-gate-run-sh-launch-liveness-stop-facade-now-that.md) | Retire the gate-run.sh launch/liveness/stop facade now that the native Go-v1 gate is canonical (collapse the shared docket-liveness.sh seam with runner-dispatch.sh) | `medium` | `refactor` | [spec](../superpowers/specs/2026-08-23-retire-gate-run-facade-design.md) | `feat/retire-the-gate-run-sh-launch-liveness-stop-facade-now-that` |
 
-## 🟡 Proposed (47)
+## 🟡 Proposed (48)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -59,6 +59,7 @@
 | [0333](active/0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition internal/app to retire the -race gate's 300s ceiling exemption | `medium` | `refactor` | needs-brainstorm |
 | [0334](active/0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | CLAUDE.md global and project copies drift on finalize-agent descriptions | `medium` | `docs` | needs-brainstorm |
 | [0341](active/0341-artifact-table-links-render-as-bare-code-spans-instead-of-gi.md) | Artifact-table links render as bare code spans instead of GitHub links | `medium` | `fix` | needs-brainstorm |
+| [0342](active/0342-harden-autonomous-build-implement-agents-against-the-suite-y.md) | Harden autonomous build/implement agents against the suite-yield deadlock (ADR-0024) | `high` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -131,6 +132,7 @@ graph TD
   0334
   0338 --> 0339
   0341
+  0342
   0192:::done
   0211:::done
   0251:::done
