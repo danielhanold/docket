@@ -308,3 +308,117 @@ Expected: PASS with no `SERIAL CONFIRMED OVER BUDGET:` line. A `BUDGET WATCH:` /
 
 Run: `git status --porcelain`
 Expected: empty output — everything this plan produced is committed on `feat/finalize-pr-prober-cannot-parse-the-full-url-pr-form`. (The plan document itself was committed by the plan writer before the build began.)
+
+---
+
+### Task 4: Stamp the full-URL `pr:` on write, and verify PR identity by parsed number
+
+> **Scope note (human-directed addendum, 2026-08-24):** Tasks 1–3 widened the *reader* so a
+> full-URL `pr:` no longer strands finalize at `pr-unknown`. But the *writer* still records the
+> `owner/repo#N` shorthand into the manifest `pr:` field — the exact form that renders as bare text
+> in the change block and mangles to `[#docket#N](…/pull/docket#N)` on the board. This task closes
+> the loop: record the canonical full URL, and migrate the two remaining string-equality identity
+> checks onto the `parsePRRef` extractor Task 1 introduced, so the recorded value and the identity
+> comparison stay consistent regardless of form.
+
+**The two coupled facts (established by trace, not assumption):**
+1. The manifest `pr:` field is written from the `pr-publish` result. That result already carries
+   **both** `Reference` (the `spec#number` shorthand, `pr_publish.go` / `finalize_publish.go`) and
+   `URL` (the canonical `https://…/pull/N`, sourced from the verified PR snapshot). Only `URL` is
+   the board-safe form.
+2. The **same** recorded string is re-used as the PR *identity token*: `change_implemented.go`
+   (`reference := fmt.Sprintf("%s#%d", ghRepo.Spec(), pr.Number); reference != req.PR`) and
+   `run_verify.go` (`reference != recordedPR`) recompute the shorthand live and string-compare it to
+   the recorded `pr:`. If the recorded value becomes a URL while these still compare shorthand, both
+   checks break (implemented-verify and run-verify would reject the very PR they wrote).
+
+**Files (confirm the exact set by grep — do not trust this list blind; per repo rule, derive gated
+sites from a whole-repo grep of `fmt.Sprintf("%s#%d"` and the recorded-`pr:` readers):**
+- `internal/app/pr_publish.go` and/or the CLI wiring that plumbs the pr-publish result into the
+  mark-implemented request — record `URL`, not `Reference`, as the manifest `pr:` value.
+- `internal/app/change_implemented.go` — the `reference != req.PR` identity conjunct.
+- `internal/app/run_verify.go` — the `reference != recordedPR` identity conjunct.
+- `internal/app/finalize_context.go` — `parsePRRef` (already exists from Task 1; reused, not
+  modified, unless a shared comparison helper belongs beside it).
+- Their `_test.go` neighbours, plus any e2e/fixture that hard-codes a recorded `pr:` in shorthand
+  form (`change_implemented_test.go`, `run_verify_test.go`, finalize e2e fixtures — grep
+  `Spec() + "#"` and `#42`/`#8` recorded-PR literals and update them to exercise **both** forms).
+
+**Interfaces:**
+- Consumes: `parsePRRef` (Task 1); the `URL` field already on the pr-publish result struct.
+- Produces: a manifest `pr:` that is the canonical PR URL; identity conjuncts that accept either
+  recorded form by comparing the **parsed PR number** within the already-resolved repository.
+
+**Design decision to honor (record as an ADR — see Step 6):** the migrated identity checks compare
+by **parsed PR number**, not by full-string equality. This is sound because the repository is already
+pinned upstream of the comparison: `DiscoverRepository` + `FindOpenPullRequestsByHead(ghRepo, branch)`
+establish that the live PR belongs to `ghRepo` on the feature branch, so the PR *number* is a complete
+discriminator at that point — the `owner/repo` prefix in the old shorthand comparison was redundant
+with an already-verified fact. Parse the recorded `pr:` via `parsePRRef`; if it does not parse to a
+positive number, that is an identity failure (unchanged severity). Do **not** widen this into a
+cross-repo number match in code that has *not* already pinned the repo — if any such site exists, it
+keeps a repo-qualified comparison. Verify by grep that the only two recorded-`pr:` identity
+comparisons are the two named above.
+
+- [ ] **Step 1: Write the failing tests**
+
+Add/extend package-internal tests proving: (a) a mark-implemented transition records the **URL** form
+(not shorthand) as `pr:`; (b) `change_implemented`'s identity conjunct **passes** when the recorded
+`pr:` is the URL form and the live PR number matches, and **fails** when the number differs; (c) the
+same for `run_verify`'s identity conjunct. Table-drive both recorded forms (URL and legacy shorthand)
+so a future regression on either is caught. Use `-count=1` on every run (Global Constraints).
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+`go test -count=1 ./internal/app/` — expect the new assertions red (writer still records shorthand;
+comparisons still string-equal). A test that passes before implementation is not testing the change.
+
+- [ ] **Step 3: Implement**
+
+Record `URL` as the manifest `pr:` at the write boundary; route both identity conjuncts through
+`parsePRRef`-based number comparison per the design decision above. Keep `Reference` (shorthand) only
+where it is genuinely a human-facing *display* string (protocol result output), not an identity or a
+recorded value — confirm each surviving `Reference` use is display-only by reading its consumer.
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+`go test -count=1 ./internal/app/` — green, including the legacy-shorthand rows (a manifest written
+before this change must still verify).
+
+- [ ] **Step 5: Mutation-test the identity guards**
+
+For each migrated conjunct, strip the comparison (or hard-code it to match) and confirm the
+number-mismatch row reddens — the guard must be load-bearing, not decoration (repo rule; Global
+Constraints).
+
+- [ ] **Step 6: Record the ADR and commit**
+
+The number-based identity decision is non-obvious and must be captured in the immutable ledger:
+dispatch the `docket-adr` agent (do not hand-write the ADR) to record *"manifest `pr:` is the
+canonical PR URL; PR identity is verified by parsed number within the already-resolved repository,
+via `parsePRRef`"*, scoped to the `docket` branch, adding the ADR id to change 0344's `adrs:` so
+finalize publishes it at merge (per the superseded-ADR / main-publish conventions). Then commit the
+code with a `fix(0344):` subject that names the writer + identity migration; reference the ADR id in
+the body.
+
+### Task 5: Full-suite gate (re-run after Task 4)
+
+**Files:**
+- None modified — verification only.
+
+**Interfaces:**
+- Consumes: the committed work of Task 4 (atop Tasks 1–2).
+- Produces: a green whole-suite run; refreshed build evidence.
+
+- [ ] **Step 1: Run the whole suite**
+
+From the feature worktree root, run: `scripts/run-tests.sh`
+Expected: PASS with no `SERIAL CONFIRMED OVER BUDGET:` line. Treat a `BUDGET WATCH:` /
+`PARALLEL-SENSITIVE:` line as a screening finding to note, per repo rules. Run the whole suite, never
+only the enumerated tests.
+
+- [ ] **Step 2: Verify a clean tree**
+
+Run: `git status --porcelain`
+Expected: empty output — everything is committed on
+`feat/finalize-pr-prober-cannot-parse-the-full-url-pr-form`.
