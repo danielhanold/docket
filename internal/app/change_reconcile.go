@@ -184,7 +184,7 @@ func ChangeReconcile(ctx context.Context, deps PlanningDeps, repoDir string, req
 		eff:        eff,
 		clock:      deps.Clock,
 		inline:     inline,
-		link:       render.LinkContext{MetadataBranch: metadataBranchOf(pin)},
+		link:       linkContextOf(pin),
 		changesDir: eff.ChangesDir.Value,
 	}
 

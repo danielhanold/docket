@@ -153,7 +153,7 @@ func ChangeKill(ctx context.Context, deps PlanningDeps, repoDir string, req Chan
 		eff:        eff,
 		clock:      deps.Clock,
 		inline:     inline,
-		link:       render.LinkContext{MetadataBranch: metadataBranchOf(pin)},
+		link:       linkContextOf(pin),
 		changesDir: eff.ChangesDir.Value,
 	}
 

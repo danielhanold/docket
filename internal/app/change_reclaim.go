@@ -239,7 +239,7 @@ func ChangeReclaim(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, 
 		eff:          eff,
 		clock:        deps.Clock,
 		inline:       inline,
-		link:         render.LinkContext{MetadataBranch: metadataBranchOf(pin)},
+		link:         linkContextOf(pin),
 		changesDir:   eff.ChangesDir.Value,
 	}
 	res, execErr := deps.Engine.Execute(ctx, transaction.Request{

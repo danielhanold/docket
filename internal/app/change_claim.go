@@ -180,7 +180,7 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 		clock:      deps.Clock,
 		ttlHours:   eff.Reclaim.LeaseTTL.Value,
 		inline:     inline,
-		link:       render.LinkContext{MetadataBranch: metadataBranchOf(pin)},
+		link:       linkContextOf(pin),
 		changesDir: eff.ChangesDir.Value,
 	}
 
@@ -233,7 +233,7 @@ func ChangeRefreshClaim(ctx context.Context, deps PlanningDeps, repoDir string, 
 		clock:      deps.Clock,
 		ttlHours:   eff.Reclaim.LeaseTTL.Value,
 		inline:     inline,
-		link:       render.LinkContext{MetadataBranch: metadataBranchOf(pin)},
+		link:       linkContextOf(pin),
 		changesDir: eff.ChangesDir.Value,
 	}
 

@@ -215,7 +215,7 @@ func ChangeCreate(ctx context.Context, deps PlanningDeps, repoDir string, req Ch
 		slug:       slug,
 		clock:      deps.Clock,
 		inline:     inline,
-		link:       render.LinkContext{MetadataBranch: metadataBranchOf(pin)},
+		link:       linkContextOf(pin),
 		changesDir: eff.ChangesDir.Value,
 	}
 
