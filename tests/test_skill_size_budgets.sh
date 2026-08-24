@@ -1480,6 +1480,22 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 #   docket-implement-next 180/5926 -> word budget 5950 leaves 24 (within the 25-word floor) so the
 #   multiple after, 6000; LINE budget unchanged (180 actual == 180 budget, still within).
 #   docket-build 380/3720 -> word budget 3750 (30 words of margin); LINE budget unchanged (380 == 380).
+# skills/docket-build/references/gate-caller-loop.md is a NEW row added by change 0339, which retires
+# the gate-run shell facade and relocates its surviving caller guidance here: the caller's loop (the
+# fence moved byte-identical), the state vocabulary and retryability rule, the caller's-verbs table,
+# the stop mapping table, and the shell-era per-platform measurement record with its native-launcher
+# carryover. This is a first row rather than a raise, so the WHERE-ELSE clause is not strictly
+# required (it binds a raise); recorded anyway per this block's practice. The two homes considered
+# and rejected: skills/docket-build/references/gate-execution.md — its 130/1200 budget is change
+# 0234's one-directional ratchet and its charter is the HARNESS QUARANTINE (measured per-harness
+# verdicts, read once ahead of the act), so a caller-side rule that must be PERFORMED at the moment
+# the gate is driven cannot live there; building that move is exactly what change 0339's first two
+# halts proved unbuildable (258/2493 against 130/1200). And gate-execution-evidence.md — evidence of
+# probes, re-measured when a harness version moves, not a caller contract. Set per the rounding rule
+# above from the measured actuals: 171 lines -> the next multiple of 5 is 175 (4 lines of margin, the
+# accepted half-step proportion this block takes for new reference rows); 1691 words -> the next
+# multiple of 50 is 1700, which leaves 9 words (within the 25-word threshold), so the multiple after
+# it: 1750 (59 words of margin).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -1487,6 +1503,7 @@ skills/docket-auto-groom/SKILL.md                           70 1550
 skills/docket-brainstorm/SKILL.md                           84  692
 skills/docket-build/SKILL.md                               380 3750
 skills/docket-build/references/delegation-execution.md      85  850
+skills/docket-build/references/gate-caller-loop.md         175 1750
 skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            130 1200
 skills/docket-build/references/task-routing.md              50  500
