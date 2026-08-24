@@ -21,7 +21,7 @@ branch: 'feat/artifact-table-links-render-as-bare-code-spans-instead-of-gi'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-24T13:30:43Z'
+claimed_at: '2026-08-24T13:31:18Z'
 ---
 
 ## Artifacts
