@@ -56,10 +56,9 @@
 #
 #     ITS SCOPE IS THE TESTS TREE, NOT THE PATH LIST. Rule (a) additionally sweeps every
 #     `tests/**/*.sh` the caller did NOT pass, because run-tests.sh hands the preflight only its
-#     `tests/test_*.sh` targets while tests/lib/gate_run_common.sh,
-#     tests/lib/runner_dispatch_detach_common.sh and tests/lib/sync_agents_common.sh each define an
-#     assert helper outside that glob. Trusting the caller list would leave those permanently
-#     unguarded. tests/fixtures/ is excluded from the sweep — its red half is drifted on purpose,
+#     `tests/test_*.sh` targets while tests/lib/runner_dispatch_detach_common.sh and
+#     tests/lib/sync_agents_common.sh each define an assert helper outside that glob. Trusting the
+#     caller list would leave those permanently unguarded. tests/fixtures/ is excluded from the sweep — its red half is drifted on purpose,
 #     and is a verdict only when a caller names one of those files explicitly.
 #
 # ---- HOW THE HELPER NAMES ARE DERIVED, NOT ENUMERATED -------------------------------------------
@@ -559,9 +558,9 @@ done
 
 # ---- rule (a) discovers definitions on its own -------------------------------------------------
 # Scope for rule (a) is the whole tests tree, NOT the path list the caller passed. run-tests.sh
-# hands the preflight its target list, which is tests/test_*.sh — and tests/lib/gate_run_common.sh,
+# hands the preflight its target list, which is tests/test_*.sh — and
 # tests/lib/runner_dispatch_detach_common.sh and tests/lib/sync_agents_common.sh each define an
-# assert helper without matching that glob. Trusting the caller list would leave those three
+# assert helper without matching that glob. Trusting the caller list would leave those two
 # definitions permanently unguarded, so the sweep below covers whatever the list missed.
 # tests/fixtures/ is excluded: its red half is drifted ON PURPOSE and is only ever a verdict when
 # a caller names one of those files explicitly.

@@ -116,10 +116,9 @@ shape to `name(){` and both `function assert { … }` and `assert () { … }` go
 
 **Rule (a)'s scope is the tests tree, not the path list.** In addition to the paths handed in, it
 sweeps every `tests/**/*.sh` the caller did *not* pass. `scripts/run-tests.sh` hands the preflight
-only its `tests/test_*.sh` targets, while `tests/lib/gate_run_common.sh`,
-`tests/lib/runner_dispatch_detach_common.sh` and `tests/lib/sync_agents_common.sh` each define an
-`assert` helper outside that glob; trusting the caller's list would leave those three definitions
-permanently unguarded. `tests/fixtures/` is excluded from the sweep — its red half is drifted on
+only its `tests/test_*.sh` targets, while `tests/lib/runner_dispatch_detach_common.sh` and
+`tests/lib/sync_agents_common.sh` each define an `assert` helper outside that glob; trusting the
+caller's list would leave those two definitions permanently unguarded. `tests/fixtures/` is excluded from the sweep — its red half is drifted on
 purpose, and is a verdict only when a caller names one of those files explicitly. Swept files are
 reported by absolute path, after the caller's own paths.
 

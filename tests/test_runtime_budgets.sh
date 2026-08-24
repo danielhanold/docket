@@ -28,7 +28,12 @@ EXPECTED_SERIAL=1   # tests/test_go_race.sh (change 0332). The shared state that
                     # needs — the load-dependent gate that halted change 0329. RAISING THIS IS A
                     # FINDING: a serial pin removes a file from the parallel phase, so it must be
                     # justified in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=2345 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2290 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2345 -> 2290 (change 0339): two rows re-cut to zero by deletion (change 0339
+                    # retires the gate-run facade); the caller-loop leg's coverage moved to
+                    # tests/test_gate_caller_loop.sh with its own row. tests/test_gate_run.sh (20) and
+                    # tests/test_gate_run_stop.sh (35) leave the table together with the files they
+                    # budgeted, -55.
                     # 2330 -> 2345 (change 0339): the NEW-FILE case — tests/test_gate_caller_loop.sh
                     # is the relocated caller-loop fence guard, moved out of tests/test_gate_run.sh so
                     # it survives that file's deletion (the facade retirement). It extracts the fence

@@ -19,21 +19,6 @@
 # ceiling. The total does legitimately move when a new test file brings its own row, or when
 # a sharded file's rows are re-cut — re-seed it from a measured serial run and say which.
 #
-# tests/test_gate_run.sh STAYS at 20 (change 0338), re-measured after its Task 5 leg was added — the
-# case the header does NOT list as a mover: a file that grew but whose row already covers it. The
-# leg builds ./cmd/docket once and drives the caller-loop fence against the REAL native gate through
-# all five terminal states (passed/failed/stopped, plus signaled/vanished via a TERM/KILL of the
-# run's own recorded group). Re-measured standalone serial, one machine, three readings as
-# `/usr/bin/time -p bash tests/test_gate_run.sh`:
-#   14.98  14.77  14.79  -> worst 14.98
-# Next multiple of 5 above 14.98 is 15, plus the 5s margin -> 20, which is the row it already holds,
-# so EXPECTED_TOTAL does not move. The Go build is the only cold-sensitive term and it is small:
-# `go build ./cmd/docket` measures 0.30s warm and 2.99s wall with the whole cache cleared
-# (`go clean -cache`), so even a fully-cold standalone run is ~18s -> 20 by the same rule. In the
-# suite the term is warm anyway (the Go-touching shards share GOCACHE), and either reading sits far
-# under the row's 50s breach threshold (ceiling x 5/2). The five launches are sub-second each; the
-# await-terminal poll is bounded at 60 x 0.5s and settles in one poll on a healthy machine.
-#
 # tests/test_docket_status.sh was raised 45 -> 50 and then 50 -> 60 by change 0118, which adds two
 # sweep runs, three fault-injection runs, and — from review finding 2 — one wedged-shared-worktree
 # sweep run to the one file that owns sweep_execute coverage. The first raise's note argued from a
@@ -289,8 +274,6 @@ tests/test_finalize_gate.sh	10	parallel
 tests/test_frontmatter_read_shapes.sh	10	parallel
 tests/test_gate_caller_loop.sh	15	parallel
 tests/test_gate_execution_posture.sh	10	parallel
-tests/test_gate_run.sh	20	parallel
-tests/test_gate_run_stop.sh	35	parallel
 tests/test_github_mirror.sh	10	parallel
 tests/test_go_finalize_e2e.sh	25	parallel
 tests/test_go_toolchain.sh	55	parallel
