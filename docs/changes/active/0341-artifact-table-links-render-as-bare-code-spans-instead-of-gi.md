@@ -12,7 +12,7 @@ stacked_on:
 related: [35]
 discovered_from: [339]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-design.md
 plan:
 results:
 trivial: false
@@ -26,20 +26,23 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-24-artifact-table-links-render-as-bare-code-spans-instead-of-gi-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-The `## Artifacts` link block that `render-change-links.sh` stamps into every change file (and the same table shape in results files and PR bodies) renders the spec/plan/results paths as bare inline code spans (`` `docs/...` ``) rather than clickable links. A survey of recent active and archived changes shows this is systemic — nearly every change file is affected — so the paths are shown but none of the `a` tags work.
+The generated `## Artifacts` link block on change files — and the reciprocal `docket:backlink` block on specs/plans/results, and the artifact/PR links in PR bodies — renders artifact paths as bare inline code spans (`` `docs/...` ``) instead of clickable `https://github.com/.../blob/...` links. Affected files are all recent: at survey time, 2 active and 9 archived change files (e.g. 0317, 0342, 0339, 0340, 0251, 0330, 0335–0338).
 
-Root cause: the renderer emits a real markdown link `[name](https://github.com/OWNER/REPO/blob/<ref>/<path>)` only when its GitHub mode is on (`GITHUB=1`), which it derives from `git -C "$(dirname "$CHANGE_FILE")" remote get-url origin`. When that origin lookup returns empty at render time it silently falls back to `GITHUB=0` and emits code spans. Run against the change file in its real `.docket` worktree location the SAME renderer produces valid `https://github.com/...` links, so the committed code-span form proves the actual render call site (at mint / frontmatter-write time) invokes it from a context where the origin remote is not resolvable, and nothing re-renders it afterward. It is also inconsistent with the reciprocal backlink block (`render-artifact-backlink.sh`), whose own GitHub detection resolves correctly and DOES emit a proper link — the observed 'backlink works, artifact table does not' mismatch.
+Root cause (code-proven, and it supersedes the stub's original cwd-based theory): rendering has been ported to the Go runtime, and the Go **app layer** constructs its link context (`render.LinkContext`) at every lifecycle call site — create, groom, claim, attach, implemented, reconcile, kill, reclaim, finalize close-out, ADR ops, PR publish — setting only the metadata branch and **never the repository web URL**. Nothing in the Go code derives that URL from the origin remote (the one `remote get-url origin` call it makes is used only to check a remote is configured, then discards the URL). The pure Go render layer faithfully emits a bare code span whenever the web URL is empty — so every block the `docket` **binary** renders comes out unlinked, unconditionally. The "good" files were last rendered by the legacy bash renderers (`render-change-links.sh` / `render-artifact-backlink.sh`), which still derive origin correctly and are what the grooming skills and the `docket.sh` facade invoke; the per-file "backlink links but artifact table doesn't" mismatch is just a coincidence of which runtime ran that file's *last* render, not a detection difference.
 
 Discovered while generating artifacts for change 0339.
 
 ## What changes
 
-Make the artifact-link renderer's GitHub-mode detection robust so it resolves the origin remote regardless of the caller's cwd or how the change-file path is passed (e.g. resolve the repo/worktree from the change file deterministically, or reuse the resolver the config/backlink path already uses, rather than `git -C dirname ... remote get-url`). Then add a one-time re-render sweep so existing change files pick up valid links. Confirm the fix against both the metadata-worktree render path and any mint-time path, and add a guard that fails if a rendered artifact row is a bare code span when origin is a GitHub remote.
+Derive the repository web URL once in the Go app layer (a new remote-URL getter plus a pure GitHub URL parser matching the bash renderers' accepted forms) and thread it through a single shared link-context constructor, so all ~18 call sites are fixed at once and none can silently omit it again. This fixes the artifact table, the backlinks, and PR-body links uniformly. Then heal the already-broken files with a one-time re-render sweep — split across the two branches the artifacts live on: change files and specs on the metadata branch in one commit, and merged plan/results backlinks (which live on the integration branch) re-stamped via this change's own feature-branch PR. Finally, add a mutation-tested regression guard asserting that, given a GitHub origin, rendered artifact output carries blob URLs rather than code spans. Detailed design, alternatives, and the assumptions ledger are in the linked spec.
 
 ## Out of scope
 
-Redesigning the `## Artifacts` block format or its columns; changes to unrelated renderers (board, ADR index, learnings index) beyond the shared GitHub-detection fix; non-GitHub remote link styles.
+Redesigning the `## Artifacts` block format or its columns; changes to the legacy bash renderers (already correct); other renderers (board, ADR index, learnings index) beyond sharing the same link-context fix; non-GitHub remote link styles (the bare-path fallback stays).
