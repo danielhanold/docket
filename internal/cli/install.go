@@ -73,6 +73,11 @@ var assetIndependent = map[string]bool{
 	"gate stop":                  true,
 	"gate recover":               true,
 	"gate cleanup":               true,
+	"gate drive":                 true, // the group itself; it reports a missing command
+	"gate drive start":           true,
+	"gate drive advance":         true,
+	"gate drive handoff":         true,
+	"gate drive claim":           true,
 	"finalize":                   true, // the group itself; it reports a missing command
 	"finalize retarget-children": true,
 	"finalize rebase":            true,
