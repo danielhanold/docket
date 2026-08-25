@@ -1496,18 +1496,33 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 # accepted half-step proportion this block takes for new reference rows); 1691 words -> the next
 # multiple of 50 is 1700, which leaves 9 words (within the 25-word threshold), so the multiple after
 # it: 1750 (59 words of margin).
+# docket-build/SKILL.md 380/3750 -> 385/3850 and docket-build-task/SKILL.md 145/1350 -> 155/1550,
+# raised by change 0342, which migrates both build contracts onto the native gate DRIVER: the
+# controller gains a "## Task-level WAITING and the continuation" section (it claims the worker's
+# handoff and drives the same drive to a terminal disposition, starting no competing task), and the
+# worker gains a fourth return outcome `WAITING` with its handoff-required rule and the driver-based
+# "## The cycle" pointer. WHERE ELSE IT WAS CONSIDERED: the harness-neutral driver MECHANISM moved
+# to skills/docket-build/references/gate-caller-loop.md (which SHRANK 171->84 lines with the Bash
+# loop retired), but a worker's RETURN VOCABULARY and the controller's WAITING-continuation POLICY
+# are docket-build's own contract keyed on by name in SKILL.md — the same reason task-routing's
+# consumer-specific rules stay in the controller — and a dispatched worker reads its SKILL body, not
+# a reference it may never load, so the outcome definition cannot live in a reference. The posture
+# rewrite (Bash observe loop + jq + stop-mapping legs -> the four driver operations) was compressed
+# hard first; the residual is net-new normative controller/worker behavior. Set per the rounding
+# rule above from the post-edit actuals: docket-build 383 lines -> 385, 3803 words -> 3850 (47 of
+# margin); docket-build-task 153 lines -> 155, 1505 words -> 1550 (45 of margin).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           70 1550
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-build/SKILL.md                               380 3750
+skills/docket-build/SKILL.md                               385 3850
 skills/docket-build/references/delegation-execution.md      85  850
 skills/docket-build/references/gate-caller-loop.md         175 1750
 skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            130 1200
 skills/docket-build/references/task-routing.md              50  500
-skills/docket-build-task/SKILL.md                          145 1350
+skills/docket-build-task/SKILL.md                          155 1550
 skills/docket-convention/SKILL.md                          385 7050
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         205 2350
