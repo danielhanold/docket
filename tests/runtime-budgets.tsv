@@ -273,6 +273,8 @@ tests/test_finalize_disposition.sh	10	parallel
 tests/test_finalize_gate.sh	10	parallel
 tests/test_frontmatter_read_shapes.sh	10	parallel
 tests/test_gate_caller_loop.sh	15	parallel
+tests/test_gate_driver_boundary.sh	10	parallel
+tests/test_gate_driver_boundary_mutation.sh	10	parallel
 tests/test_gate_execution_posture.sh	10	parallel
 tests/test_github_mirror.sh	10	parallel
 tests/test_go_finalize_e2e.sh	25	parallel
