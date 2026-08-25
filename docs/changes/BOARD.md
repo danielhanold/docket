@@ -1,6 +1,6 @@
 # Backlog
 
-**345 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 211 done · 🗑️ 80 killed
+**345 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 212 done · 🗑️ 80 killed
 
 ## 🟡 Proposed (48)
 
@@ -64,12 +64,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [#226](https://github.com/danielhanold/docket/pull/226) |  |
-| [0342](active/0342-harden-autonomous-build-implement-agents-against-the-suite-y.md) | Harden autonomous build/implement agents against the suite-yield deadlock (ADR-0024) | `high` | `fix` | [#237](https://github.com/danielhanold/docket/pull/237) |  |
 
 ```mermaid
 graph TD
@@ -125,7 +124,6 @@ graph TD
   0327
   0333
   0334
-  0342
   0343
   0345
   0192:::done
@@ -136,10 +134,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (291)</summary>
+<details><summary>✅🗑️ Archive — done + killed (292)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0342](archive/2026-08-25-0342-harden-autonomous-build-implement-agents-against-the-suite-y.md) | Harden autonomous build/implement agents against the suite-yield deadlock (ADR-0024) | 2026-08-25 |
 | [0344](archive/2026-08-24-0344-finalize-pr-prober-cannot-parse-the-full-url-pr-form.md) | Finalize PR prober cannot parse the full-URL pr: form | 2026-08-24 |
 | [0341](archive/2026-08-24-0341-artifact-table-links-render-as-bare-code-spans-instead-of-gi.md) | Artifact-table links render as bare code spans instead of GitHub links | 2026-08-24 |
 | [0339](archive/2026-08-24-0339-retire-the-gate-run-sh-launch-liveness-stop-facade-now-that.md) | Retire the gate-run.sh launch/liveness/stop facade now that the native Go-v1 gate is canonical (collapse the shared docket-liveness.sh seam with runner-dispatch.sh) | 2026-08-24 |
@@ -154,7 +153,6 @@ graph TD
 | [0332](archive/2026-08-20-0332-route-race-shards-to-serial-lane.md) | Route the -race test shards out of the parallel test pool | 2026-08-20 |
 | [0329](archive/2026-08-20-0329-change-refresh-claim-reports-invalid-state-with-empty-findin.md) | change refresh-claim reports invalid-state with empty findings — the transaction Failure is dropped on the DispositionFailed path | 2026-08-20 |
 | [0316](archive/2026-08-19-0316-finalize-recovery-reclaim-archive-and-stacks.md) | Finalize, recovery, reclaim, archive, and stacks | 2026-08-19 |
-| [0328](archive/2026-08-18-0328-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full.md) | De-flake TestRecoverMarksCleanlyAbandonedOwnedRun under full-suite load | 2026-08-18 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
 | [0299](archive/2026-08-12-0299-reshard-tests-test-sync-agents-runners-so-every-file-measure.md) | Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling | 2026-08-12 |
 | [0285](archive/2026-08-12-0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | 2026-08-12 |
@@ -240,7 +238,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 78 done |
+| [2026-08](archive/) | 79 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
