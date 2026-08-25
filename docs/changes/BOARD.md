@@ -1,12 +1,6 @@
 # Backlog
 
-**345 changes** — 🟢 1 in progress · 🟡 48 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 211 done · 🗑️ 80 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0342](active/0342-harden-autonomous-build-implement-agents-against-the-suite-y.md) | Harden autonomous build/implement agents against the suite-yield deadlock (ADR-0024) | `high` | `fix` | [spec](../superpowers/specs/2026-08-24-resumable-native-gate-driver-design.md) | `feat/harden-autonomous-build-implement-agents-against-the-suite-y` |
+**345 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 211 done · 🗑️ 80 killed
 
 ## 🟡 Proposed (48)
 
@@ -70,11 +64,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [#226](https://github.com/danielhanold/docket/pull/226) |  |
+| [0342](active/0342-harden-autonomous-build-implement-agents-against-the-suite-y.md) | Harden autonomous build/implement agents against the suite-yield deadlock (ADR-0024) | `high` | `fix` | [#237](https://github.com/danielhanold/docket/pull/237) |  |
 
 ```mermaid
 graph TD

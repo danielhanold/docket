@@ -2,7 +2,7 @@
 id: 342
 slug: 'harden-autonomous-build-implement-agents-against-the-suite-y'
 title: 'Harden autonomous build/implement agents against the suite-yield deadlock (ADR-0024)'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'fix'
 created: '2026-08-24'
@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable:
 branch: 'feat/harden-autonomous-build-implement-agents-against-the-suite-y'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/237'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-25T09:22:58Z'
