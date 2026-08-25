@@ -58,7 +58,11 @@ GATE_LINES="$(grep -c "" "$GATE_SRC" 2>/dev/null || echo 0)"
 # so a line-wise diff of the two reads every id as new; and `DISPATCH_EPOCH` is spelled like a shell
 # variable in a harness where shell state does not survive the next tool call. Three lines buy the
 # output shape, the id-field comparison, and the instruction to record the epoch out of band.
-assert "gate text is at most 48 lines" '[ "$GATE_LINES" -ge 1 ] && [ "$GATE_LINES" -le 48 ]'
+# Raised 48 -> 52 (change 0342): step 4 gains the `run-waiting` verdict — a resumable continuation
+# that is neither complete nor failed. Its bullet must say all three of "resume the named handoff",
+# "never draw another change", and "otherwise report and stop", which the existing verdicts' one-line
+# form cannot carry, so the bullet runs to the same length as run-incomplete's.
+assert "gate text is at most 52 lines" '[ "$GATE_LINES" -ge 1 ] && [ "$GATE_LINES" -le 52 ]'
 
 # --- the behavioral claims, each bound to what it is asserted ABOUT ---
 # (learnings: prose-guard-binds-phrase-to-claim — never a bare phrase-presence grep)
@@ -130,6 +134,15 @@ assert "gate: run-halted never re-dispatches" \
   '[[ "$G" == *"run-halted"*"never re-dispatch"* ]]'
 assert "gate: run-incomplete re-dispatches exactly ONCE, then stops" \
   '[[ "$G" == *"run-incomplete"*"once"* ]] && [[ "$G" == *"Never a third"* ]]'
+# run-waiting (change 0342) — a resumable continuation, neither complete nor failed. The consumer
+# must NOT read it as permission to draw another change: it resumes the named handoff when it holds
+# an exact continuation dispatch, otherwise reports the waiting continuation and stops. All three
+# clauses are asserted, because dropping any one turns a stop-safely disposition back into the
+# next-change / re-dispatch reading this verdict exists to forbid.
+assert "gate: run-waiting resumes the named handoff, never draws another change" \
+  '[[ "$G" == *"run-waiting"*"resume"* ]] && [[ "$G" == *"run-waiting"*"never"*"another change"* ]]'
+assert "gate: run-waiting otherwise reports the continuation and stops" \
+  '[[ "$G" == *"run-waiting"*"report"*"stop"* ]]'
 
 # --- the detached path: the dispatch shape the gate had no runnable procedure for (change 0275) --
 # Bound to the DETACHED window, never to $G. Every phrase below also has a legitimate home in

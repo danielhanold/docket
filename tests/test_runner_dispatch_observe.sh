@@ -984,6 +984,26 @@ assert "0284: a replayed halt is still a halt, not a downgraded failure" \
   '[ "$rc2" = "3" ] && [ "$rc3" = "3" ]'
 assert "0284: and it replays identically" '[ "$out3" = "$out2" ]'
 
+# --- implement-next + run-waiting => the WAITING disposition (change 0342) ----------
+# A vanished child whose git verdict is `run-waiting` left a resumable continuation. It is neither
+# complete (0) nor a failure (1): the default `vanished_code` mapping would have called it 1 and
+# reported a resumable run as failed. It shares the halt's stop-and-surface code (3) — the facade
+# cannot resume a handoff — but the wording keeps it apart from a halt: resume the continuation, do
+# not send a reader to a "## Run halted" section that a waiting run never wrote.
+printf 'run-waiting 7 h-xyz build\n' > "$SNAP/verdict.7"
+vlaunch implement-next
+out="$(vobserve "$KEY" implement-next 2>&1)"; rc=$?
+assert "0342: a vanished implement-next that is WAITING is never reported as complete" '[ "$rc" != "0" ]'
+assert "0342: it takes the stop-and-surface code (3), not a generic failure (1)" '[ "$rc" = "3" ]'
+assert "0342: and the waiting wording names the continuation and says resume, not a human" \
+  'grep -qF "run-waiting 7 h-xyz build" <<<"$out" && grep -qi "resume" <<<"$out" && ! grep -qi "needs a human" <<<"$out"'
+# The transition (first observation) reads git and records the marker; the replay reads the marker.
+# So idempotence is asserted replay-against-replay, the same idiom the halt case above uses.
+out2="$(vobserve "$KEY" implement-next 2>&1)"; rc2=$?
+out3="$(vobserve "$KEY" implement-next 2>&1)"; rc3=$?
+assert "0342: a replayed waiting verdict is still 3, and replays identically" \
+  '[ "$rc2" = "3" ] && [ "$rc3" = "3" ] && [ "$out3" = "$out2" ]'
+
 # --- any other agent => 1, and git is never asked ---------------------------------
 # The stub is left holding a POSITIVE verdict, so an implementation that read git for every agent
 # would exit 0 here rather than merely printing an extra word.

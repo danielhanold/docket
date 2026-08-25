@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:096287ba5da5b5d8b3e8754d49e1079cf2e867cbcc1c50bed1fac42e5a6833f4",
+  "asset_set_id": "sha256:35d920cb2486e9daa75cf6abca8b0ead37b86b6cd4595d3b83a202642eab8472",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -266,8 +266,8 @@
       "path": "cursor-rules/run-gate.md",
       "role": "dispatch",
       "mode": 420,
-      "size": 3883,
-      "sha256": "73c379d3fe9a4b60c6811694f9afafc544282f168637dae09f46557259d45b2a"
+      "size": 4276,
+      "sha256": "b2d0163ffb69edca09794de19d1093c3b1a0daed883ba7dd4a07b217cd507acf"
     },
     {
       "path": "skills/docket-adr/SKILL.md",
@@ -427,8 +427,8 @@
       "path": "skills/docket-implement-next/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 42453,
-      "sha256": "a33c9831672ed0866e9a48abe5d834ac8efa6fdfe580a3364f8fd002cbea9d6c"
+      "size": 42918,
+      "sha256": "d9efadcb82c5113cb8e9ada268cd2ff0401b36f9d33660fe5484b8a08b957aab"
     },
     {
       "path": "skills/docket-implement-next/references/edge-paths.md",

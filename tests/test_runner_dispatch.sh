@@ -1165,6 +1165,24 @@ assert "0237 gate: run-halted says a human is needed" 'grep -qiF "human" <<<"$er
 assert "0237 gate: run-halted does NOT re-dispatch" '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "1" ]'
 rm -rf "$SBX"
 
+# (d2) run-waiting (change 0342) — a resumable continuation is neither complete nor failed. It is
+#      TERMINAL at this seam and shares the halt's stop-and-surface code (3): the facade has no
+#      channel to resume a handoff, and returning the adapter's (healthy) 0 would tell a `/loop`
+#      driver to draw the next change on a run that has not finished. It is RELAYED, never
+#      re-dispatched (a fresh dispatch is a new run, not a resume of the waiting handoff).
+make_gate_fixture
+printf '\n' > "$SNAP/current"; printf '%s\n' "9 $FUT" > "$SNAP/after.1"
+printf 'run-waiting 9 h-abc build\n' > "$SNAP/verdict.9"
+err="$( run_gate --runner ad --agent implement-next 2>&1 >/dev/null )"; rc=$?
+assert "0342 gate: run-waiting is never the adapter's 0 (no next change drawn)" '[ "$rc" != "0" ]'
+assert "0342 gate: run-waiting stops + surfaces with the halt family's terminal code (3)" '[ "$rc" = "3" ]'
+assert "0342 gate: run-waiting relays the handoff continuation verbatim" \
+  'grep -qF "run-waiting 9 h-abc build" <<<"$err"'
+assert "0342 gate: run-waiting tells the reader to resume, not that it failed" \
+  'grep -qi "resume" <<<"$err" && ! grep -qi "human" <<<"$err"'
+assert "0342 gate: run-waiting does NOT re-dispatch" '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "1" ]'
+rm -rf "$SBX"
+
 # (e) a broken snapshot disables the gate and warns — it never converts a healthy
 #     dispatch into a failure (the facade's standing tolerant posture on this live path).
 make_gate_fixture

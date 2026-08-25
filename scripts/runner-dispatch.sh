@@ -789,6 +789,18 @@ if [ "$VERB" = "observe" ]; then
           "$OBSERVE_KEY" "$verdict" >&2
         relay_child_stdout
         exit 1 ;;
+      run-waiting*)
+        # A SAFE, RESUMABLE CONTINUATION (change 0342's run-waiting verdict). Faithfully relayed,
+        # never converted: 0 would tell a driver to draw the next change on a run that has NOT
+        # finished, and 1 would report a resumable continuation as a failure — both forbidden. It
+        # shares the halt's stop-and-surface terminal code (3): this facade has no channel to resume
+        # a handoff, so a waiting run stops here exactly as a halt does. The wording keeps the two
+        # apart — resume the named handoff, never a "## Run halted" section a waiting run never wrote —
+        # and a fresh re-dispatch is a NEW run, not a resume, so none is made.
+        printf 'runner-dispatch: observe %s — RUN WAITING (%s); the delegated implement-next run stopped at a safe continuation and did NOT draw the next change — resume its named handoff (do not re-dispatch a fresh run)\n' \
+          "$OBSERVE_KEY" "$verdict" >&2
+        relay_child_stdout
+        exit 3 ;;
       run-complete*|run-unclaimed*)
         printf 'runner-dispatch: observe %s — complete (%s)\n' "$OBSERVE_KEY" "$verdict" >&2
         relay_child_stdout
@@ -1115,6 +1127,12 @@ if [ "$VERB" = "observe" ]; then
       # human" — the prose-level failure change 0237 exists to eliminate. What a vanished child
       # changes is how the facade LEARNED the run stopped, never what the run's own state is.
       run-halted*) printf '3' ;;
+      # run-waiting shares the halt's stop-and-surface code for the same reason it does on the
+      # sentinel path (change 0342): a resumable continuation is neither complete (0) nor a failure
+      # (1), and the facade has no channel to resume the handoff itself. Without this arm the default
+      # below would map it to 1 and report a waiting run as failed. `say_vanished` keys the WORDING
+      # off the verdict, so sharing the code with a halt does not blur the two in prose.
+      run-waiting*) printf '3' ;;
       *) printf '1' ;;
     esac
   }
@@ -1142,8 +1160,18 @@ if [ "$VERB" = "observe" ]; then
         printf 'runner-dispatch: observe %s — COMPLETE (the delegated child %s: %s; but git says %s, so the work landed); nothing was signalled, so any processes it spawned are still running — inspect %s\n' \
           "$OBSERVE_KEY" "$fate" "$why" "$gitv" "$DDIR" >&2 ;;
       3)
-        printf 'runner-dispatch: observe %s — RUN HALTED (the delegated child %s: %s; and git says %s); the delegated implement-next run stopped and needs a human — read the change file'"'"'s "## Run halted" section. Nothing was signalled, so any processes it spawned are still running — inspect %s\n' \
-          "$OBSERVE_KEY" "$fate" "$why" "$gitv" "$DDIR" >&2 ;;
+        # Code 3 is shared by a halt and a run-waiting continuation — both stop and surface, neither
+        # is a failure — so the WORDING is keyed on the git verdict, not on the code (change 0342). A
+        # waiting run wrote no "## Run halted" section and needs no human; it needs its handoff
+        # resumed. Reporting it as a halt would send a reader hunting for a section that is not there.
+        case "$gitv" in
+          run-waiting*)
+            printf 'runner-dispatch: observe %s — RUN WAITING (the delegated child %s: %s; and git says %s); the delegated implement-next run stopped at a safe continuation and did NOT draw the next change — resume its named handoff (do not re-dispatch a fresh run). Nothing was signalled, so any processes it spawned are still running — inspect %s\n' \
+              "$OBSERVE_KEY" "$fate" "$why" "$gitv" "$DDIR" >&2 ;;
+          *)
+            printf 'runner-dispatch: observe %s — RUN HALTED (the delegated child %s: %s; and git says %s); the delegated implement-next run stopped and needs a human — read the change file'"'"'s "## Run halted" section. Nothing was signalled, so any processes it spawned are still running — inspect %s\n' \
+              "$OBSERVE_KEY" "$fate" "$why" "$gitv" "$DDIR" >&2 ;;
+        esac ;;
       *)
         printf 'runner-dispatch: observe %s — RESULT UNAVAILABLE (the delegated child %s: %s%s); nothing was signalled, so any processes it spawned are still running — inspect %s\n' \
           "$OBSERVE_KEY" "$fate" "$why" "${gitv:+; and git has no evidence the work landed: $gitv}" "$DDIR" >&2 ;;
@@ -1499,7 +1527,7 @@ if [ "${#NEW_IDS[@]}" -gt 1 ]; then
   exit "$rc"
 fi
 
-STILL_INCOMPLETE=(); HALTED=(); GATE_VERIFIED_DONE=0
+STILL_INCOMPLETE=(); HALTED=(); WAITING=(); GATE_VERIFIED_DONE=0
 for nid in "${NEW_IDS[@]:-}"; do
   [ -n "$nid" ] || continue
   verdict="$("$DOCKET_BASH_PATH" "$VERIFY_RUN" "$nid" 2>/dev/null)"
@@ -1512,6 +1540,13 @@ for nid in "${NEW_IDS[@]:-}"; do
     # a driver to draw the next change, which is exactly the prose-level failure this change exists
     # to replace. It gets its OWN terminal code at this seam (see below).
     run-halted*) HALTED+=("$verdict"); continue ;;
+    # run-waiting (change 0342) is the SAME disposition as a halt at this seam — STOP + SURFACE with
+    # a non-zero terminal code — and for the same reason: this facade has no channel to resume a
+    # handoff, so it cannot itself continue the waiting run, and returning the adapter's (often 0)
+    # code would tell a driver to draw the next change on a run that has not finished. It never
+    # re-dispatches (a fresh run is not a resume of the waiting handoff) and is never converted to a
+    # failure; the WAITING bucket keeps its wording apart from a halt's below.
+    run-waiting*) WAITING+=("$verdict"); continue ;;
     # run-complete and run-unclaimed need nothing. An empty/unparseable verdict falls here too —
     # the gate acts only on a POSITIVE finding, never on a guess.
     *) continue ;;
@@ -1564,6 +1599,10 @@ for nid in "${NEW_IDS[@]:-}"; do
     # first: terminal, exit 3. The re-dispatched run stopping deliberately is not a success, so it
     # never reaches the override below.
     run-halted*) HALTED+=("$verdict") ;;
+    # …and so is a run-waiting continuation discovered on the second verdict (change 0342): the
+    # re-dispatched run stopped at a resumable handoff, which is neither a failure nor a success, so
+    # it takes the WAITING disposition rather than the adapter's stale first code below.
+    run-waiting*) WAITING+=("$verdict") ;;
     # The re-dispatch DROVE THE RUN HOME. From here the gate's own git-read verdict is a stronger
     # fact than the first adapter's status: that first code very often accompanies a run that
     # stopped short, and returning it would report a now-verified-complete run as a failure. Only a
@@ -1598,6 +1637,22 @@ if [ "${#HALTED[@]}" -gt 0 ]; then
   printf 'runner-dispatch: RUN HALTED — a delegated implement-next run stopped and needs a human:\n' >&2
   for v in "${HALTED[@]}"; do printf '  %s\n' "$v" >&2; done
   printf 'runner-dispatch: not continuing — read the change file'"'"'s "## Run halted" section.\n' >&2
+  exit 3
+fi
+
+if [ "${#WAITING[@]}" -gt 0 ]; then
+  # STOP + SURFACE, sharing the halt's terminal code (3). A run-waiting verdict means the delegated
+  # run stopped at a SAFE, RESUMABLE continuation — neither complete nor failed — and this facade has
+  # no channel to resume a handoff itself. Returning the adapter's (often 0) code would tell a `/loop`
+  # driver to draw the next change on a run that has not finished; 1 would report a resumable
+  # continuation as a failure. The verdict is relayed verbatim so a driver or human can resume the
+  # NAMED handoff; a fresh re-dispatch would start a new run, not resume the one that is waiting, so
+  # none is made. It is placed AFTER the halt block because a persisted halt is terminal and outranks
+  # a waiting continuation; in practice the gate verifies at most one change, so the two never
+  # co-occur, but the ordering states the precedence.
+  printf 'runner-dispatch: RUN WAITING — a delegated implement-next run stopped at a safe continuation:\n' >&2
+  for v in "${WAITING[@]}"; do printf '  %s\n' "$v" >&2; done
+  printf 'runner-dispatch: not drawing the next change — resume the named handoff; do not re-dispatch a fresh run.\n' >&2
   exit 3
 fi
 
