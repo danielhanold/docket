@@ -276,6 +276,24 @@ assert "0271-gate: a halted run still relays the child's stdout" 'grep -qF "fake
 out2="$(gobserve "$KEY" 2>&1)"; rc2=$?
 assert "0271-gate: the halt verdict is idempotent in code" '[ "$rc2" = "$rc" ]'
 
+# (e2) RUN WAITING (change 0342) — a resumable continuation is neither complete (0) nor a failure
+#      (1). It shares the halt's stop-and-surface terminal code (3): the facade has no channel to
+#      resume a handoff, so it relays the verdict and stops rather than drawing the next change.
+#      Keyed on the phrase that separates a WAITING from a halt (resume vs a human), not on the
+#      verdict token alone, which is echoed on every disposition.
+mkgatefixture "run-waiting 7 h-xyz build"
+KEY="$(glaunch)"
+gsettle "$KEY"
+out="$(gobserve "$KEY" 2>&1)"; rc=$?
+assert "0342-gate: a WAITING delegated implement-next run observes as 3, never 0" \
+  '[ "$rc" = "3" ]'
+assert "0342-gate: the waiting diagnostic names the continuation and says resume, not a human" \
+  'grep -qF "run-waiting 7 h-xyz build" <<<"$out" && grep -qi "resume" <<<"$out" && ! grep -qi "needs a human" <<<"$out"'
+assert "0342-gate: a waiting run is never re-dispatched from an observation" \
+  '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "1" ]'
+rout2="$(gobserve "$KEY" 2>&1)"; rc2=$?
+assert "0342-gate: the waiting verdict is idempotent in code" '[ "$rc2" = "$rc" ]'
+
 # (f) COMPLETE — a positive green verdict observes as 0.
 mkgatefixture "run-complete 7"
 KEY="$(glaunch)"

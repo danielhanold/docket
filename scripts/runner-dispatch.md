@@ -212,16 +212,25 @@ sides of the handoff, default `scripts/docket.sh`).
    **stands down with a warning**. Each surviving id (at most one) is checked with
    `verify-run <id>`:
 
-   - `run-complete` / `run-halted` / `run-unclaimed` → nothing; exit the adapter's code.
+   - `run-complete` / `run-unclaimed` → nothing; exit the adapter's code.
+   - `run-halted` → **stop and surface** with exit `3` (its own terminal code, not the adapter's) —
+     a halt means a human is needed and is never re-dispatched.
+   - `run-waiting` → **stop and surface** with exit `3` as well (change 0342): the run stopped at a
+     safe, resumable continuation, which is neither complete nor failed. The facade has no channel
+     to resume a handoff, so it relays the verdict and stops rather than drawing the next change or
+     re-dispatching a fresh run. It shares the halt's terminal code but its diagnostic names the
+     continuation and says *resume the named handoff*, never a `## Run halted` section.
    - `run-incomplete` → **one** bounded re-dispatch of the same adapter, with the change id and the
      unmet conjuncts as task context. The **second** verdict then decides: still `run-incomplete` ⇒
      abort loudly with exit `1`, naming the change and the still-unmet conjuncts; `run-halted` ⇒
      exit `3`, the same terminal halt as a first-verdict halt (a re-dispatched run stopping
-     deliberately is not a success); `run-complete` / `run-unclaimed` ⇒ exit **`0`**; anything
+     deliberately is not a success); `run-waiting` ⇒ exit `3` likewise, the re-dispatched run having
+     stopped at a resumable continuation; `run-complete` / `run-unclaimed` ⇒ exit **`0`**; anything
      else (empty, unparseable) ⇒ the adapter's code, since the gate acts only on a positive
      finding.
 
-   `run-halted` never re-dispatches — a halt means a human is needed. A `build-*` delegation leaves
+   `run-halted` never re-dispatches — a halt means a human is needed; `run-waiting` never
+   re-dispatches either — a fresh dispatch is a new run, not a resume of the waiting handoff. A `build-*` delegation leaves
    its change `in-progress` by design, which is why the agent gate is load-bearing rather than an
    optimization; a build task's terminal state is a **commit on its feature branch**, not a change
    status, so its disposition lives on the `--observe` seam (see *Liveness vs correctness* below)
@@ -609,8 +618,11 @@ stopped; it never changes what the run's state **is**. Collapsing a stop-for-a-h
 failure is exactly the prose-level failure change 0237 exists to prevent, so the halt keeps its own
 code on this leg as on every other. The mapping is shape-keyed on the verdict's leading token
 (`vanished_code`), never on an enumerated list of full verdict strings: `task-committed` /
-`run-complete` / `run-unclaimed` ⇒ `0`, `run-halted` ⇒ `3`, everything else including an empty
-verdict ⇒ `1`.
+`run-complete` / `run-unclaimed` ⇒ `0`, `run-halted` / `run-waiting` ⇒ `3`, everything else
+including an empty verdict ⇒ `1`. `run-waiting` (change 0342) shares the halt's code for the same
+reason — a resumable continuation is neither complete nor a failure, and the default `1` would
+report a waiting run as failed — while `say_vanished` keys the wording off the verdict so the two
+stay apart in prose (resume the named handoff, never a `## Run halted` section).
 
 **The orphan residual now shapes a verdict, not only a kill decision.** A supervisor that died while
 processes it spawned keep running is reported dead and those orphans are **not** reaped — the same
@@ -654,6 +666,7 @@ after-set). The single surviving id is checked with `verify-run <id>`:
 | Verdict | Exit |
 |---|---|
 | `run-halted` | **`3`** — stop and surface; the run stopped deliberately and needs a human |
+| `run-waiting` | **`3`** — stop and surface (change 0342); the run stopped at a safe, resumable continuation. Neither complete nor failed: the facade cannot resume a handoff, so it relays the verdict and stops rather than drawing the next change or re-dispatching. The diagnostic names the continuation and says *resume the named handoff* |
 | `run-complete` / `run-unclaimed` | **`0`** |
 | `run-incomplete` | **`1`** — the run did not reach its PR |
 | empty, unparseable, or the gate unarmed / stood down | the **sentinel-only** disposition (`0` on `exit_code=0`, `1` otherwise) |
@@ -739,20 +752,25 @@ detachment *mechanism* was measured hermetically, no child CLI was.
   step's job.
 - `1` — the run gate's two-strikes abort: a delegated `implement-next` run was still
   `run-incomplete` after one re-dispatch. The change stays `in-progress` with its claim intact.
-- `3` — the run gate's **halt** stop: the delegated `implement-next` run wrote a `## Run halted`
-  section, so it stopped deliberately and needs a human. Distinct from `1` because it is not a
-  failure of the run — a driver that wants to tell "did not finish" from "stopped on purpose"
-  can. Never re-dispatched, and it applies to a halt seen on either verdict — a halt after a
-  re-dispatch is terminal too, never folded into the success below. The generated shim wrappers
-  read any non-zero as abort-and-report-stderr, which is the correct handling for both. **The same
-  `3` is returned by `--observe`**, which is where a *delegated* halt now surfaces.
+- `3` — the run gate's **halt or waiting** stop. `run-halted`: the delegated `implement-next` run
+  wrote a `## Run halted` section, so it stopped deliberately and needs a human. `run-waiting`
+  (change 0342): the run stopped at a safe, resumable continuation — neither complete nor failed —
+  and the facade, having no channel to resume a handoff, relays the verdict and stops rather than
+  drawing the next change. Both are distinct from `1` because neither is a failure of the run — a
+  driver that wants to tell "did not finish" from "stopped on purpose" or "stopped, resumable" can,
+  by the stderr diagnostic (a halt names its `## Run halted` section; a waiting stop names the
+  continuation and says *resume the named handoff*). Never re-dispatched, and each applies to a
+  verdict seen on either the first or the second (post-re-dispatch) read — terminal too, never
+  folded into the success below. The generated shim wrappers read any non-zero as
+  abort-and-report-stderr, the correct handling for all of them. **The same `3` is returned by
+  `--observe`**, which is where a *delegated* halt or waiting stop now surfaces.
 - `0` — a re-dispatch ran and the **second** verdict was `run-complete` or `run-unclaimed`. The
   gate's git-read verdict outranks the first adapter's (possibly non-zero, now stale) code. Only
   on this path — a gate that took no action never overrides.
 - otherwise — the adapter's exit code, propagated verbatim.
 
 The full post-re-dispatch matrix, second verdict → exit: `run-complete` → `0`, `run-unclaimed` → `0`,
-`run-halted` → `3`, `run-incomplete` → `1`, anything else → the adapter's code.
+`run-halted` → `3`, `run-waiting` → `3`, `run-incomplete` → `1`, anything else → the adapter's code.
 
 ### `--observe` (change 0271)
 
@@ -760,7 +778,7 @@ The full post-re-dispatch matrix, second verdict → exit: `run-complete` → `0
 |---|---|
 | `0` | terminal — the dispatch completed: a green git verdict, or a sentinel saying `exit_code=0` that no git read disagrees with. Since change 0284 a **child that vanished without a sentinel** also lands here when git says the work landed |
 | `1` | terminal — failed, **or** the result is unavailable (a distinct stderr diagnostic tells them apart: a `FAILED` line names the child's code, the git verdict that contradicts it, or the `run-incomplete` conjuncts, and a `RESULT UNAVAILABLE` line says why no code could be trusted). A **vanished** child with no positive git evidence lands here, as does a `child-vanished` marker whose recorded `disposition` is absent or unreadable |
-| `3` | terminal — **halted**: a delegated `implement-next` run stopped deliberately and needs a human (`run-halted`). Not a failure of the dispatch, which is why it is not folded into `1`. Reached from **either** liveness source — the sentinel path, or change 0284's liveness probe when the child vanished and git says `run-halted` |
+| `3` | terminal — **halted or waiting**: a delegated `implement-next` run either stopped deliberately and needs a human (`run-halted`), or stopped at a safe, resumable continuation (`run-waiting`, change 0342 — neither complete nor failed; the diagnostic says *resume the named handoff*). Not a failure of the dispatch, which is why neither is folded into `1`. Reached from **either** liveness source — the sentinel path, or change 0284's liveness probe when the child vanished and git says `run-halted` or `run-waiting` |
 | `4` | **not terminal — still running; observe again**. Since change 0284 this requires the recorded process group to be **provably still the launched child's**; a dead group is terminal on that pass instead of spinning out the budget |
 | other | a usage error from the shared validation above (missing/invalid key, unknown key, rejected `--worktree`), which exits `1` like any other abort |
 
@@ -817,12 +835,16 @@ perturbed by it.
   every adapter — adapters keep a one-line defensive twin for their documented hand-invocation
   path, never as a second decision. Real model IDs are untouched (ADR-0015).
 - The adapter's exit code is propagated verbatim whenever the run gate takes no action; the
-  two-strikes abort (`1`) and the halt stop (`3`) are the only new non-zeros, and both are on paths
-  that were previously silent.
+  two-strikes abort (`1`), the halt stop (`3`), and the waiting stop (`3`, change 0342) are the only
+  new non-zeros, and all are on paths that were previously silent.
 - The adapter's code is overridden with `0` on exactly one path: a re-dispatch ran **and** the
   second verdict positively showed the run finished. No re-dispatch ⇒ no override, ever.
 - A `run-halted` verdict is terminal at this seam whichever verdict surfaces it: never
   re-dispatched, never exit-0. Stop and surface, per `docket-implement-next`'s disposition table.
+- A `run-waiting` verdict (change 0342) is likewise terminal at this seam: never re-dispatched (a
+  fresh dispatch is a new run, not a resume of the waiting handoff), never exit-0 (that would draw
+  the next change on a run that has not finished), never folded into a failure. Stop and surface,
+  relaying the verdict so a driver or human can resume the named handoff.
 - The run gate is scoped to `--agent implement-next` and never writes docket state — it acts only
   by running an agent. On the **synchronous** path it re-dispatches an unfinished change **at most
   once**; on the **observe** seam it re-dispatches **never** (a re-dispatch out of a repeated short

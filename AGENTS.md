@@ -142,6 +142,10 @@ only in the after-read and is attributed to this run.
    - `run-halted` — done; **never re-dispatch** a halt, which means a human is needed.
    - `run-incomplete` — re-dispatch the same agent **once**, passing the id and the unmet
      conjuncts; verify again; if still incomplete, stop and report loudly. Never a third dispatch.
+   - `run-waiting <change-id> <handoff-id> <phase>` — a safe continuation exists; the run is
+     neither complete nor failed, so **never draw another change** off it. If you hold an exact
+     continuation dispatch for that handoff, resume it; otherwise report the waiting continuation
+     and stop. Never a fresh re-dispatch — that starts a new run, it does not resume the waiting one.
 
 ### Detached dispatch — you did not foreground-block; choose by what you HOLD, not launch shape
 
