@@ -61,9 +61,12 @@ const productionPollInterval = 250 * time.Millisecond
 // idempotent suite gate eligible for the single relaunch. The application seam
 // (Task 9) resolves these from authoritative config before calling Start.
 type StartRequest struct {
-	// RepoDir is where the git reads for the fingerprint run (the working tree),
-	// and Worktree is the canonical worktree path recorded on the drive. In a
-	// linked-worktree layout they are the same directory.
+	// Worktree is the working tree that is fingerprinted (Start computes the
+	// fingerprint over it, and every later boundary re-fingerprints the recorded
+	// WorktreePath), and is the canonical worktree path recorded on the drive.
+	// RepoDir is the repository identity recorded on the drive (stored as
+	// RepoIdentity); it does not drive the fingerprint. In a linked-worktree
+	// layout they are the same directory.
 	RepoDir  string
 	Worktree string
 
