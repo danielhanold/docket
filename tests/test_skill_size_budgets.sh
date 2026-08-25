@@ -1511,6 +1511,23 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 # hard first; the residual is net-new normative controller/worker behavior. Set per the rounding
 # rule above from the post-edit actuals: docket-build 383 lines -> 385, 3803 words -> 3850 (47 of
 # margin); docket-build-task 153 lines -> 155, 1505 words -> 1550 (45 of margin).
+# docket-implement-next/SKILL.md 180/6150 -> 180/6300, raised by change 0342 (Task 15), which
+# migrates Step 6's build-evidence re-mint and every post-review re-gate onto the same native gate
+# DRIVER the build contracts above moved to: the recipe now names `docket gate drive start`/`advance`
+# (with their --repo-dir/--run-root/--drive-id/--owner-gen flags) and keys the recording on the four
+# typed dispositions — only `PASSED` exposes the raw run dir; `FAILED`/`HALTED`/`WAITING` never do.
+# The file arrived 6207/6150 — already over budget from change 0315's run-waiting growth — so this
+# raise also resolves that residual. WHERE ELSE IT WAS CONSIDERED:
+# skills/docket-implement-next/references/edge-paths.md — rejected for the same reason every
+# implement-next raise above rejects it: the re-mint recipe fires on the COMMON Step-6 path on every
+# run that reaches review, while edge-paths.md is read CONDITIONALLY only once a rare edge is known
+# hit, so a recipe parked there is unread exactly when it must intervene. The driver MECHANISM lives
+# in docket-build's references/gate-caller-loop.md (pointed at, not restated). The prose was
+# compressed first (the disposition list replaced the longer failed/running/stopped/vanished/
+# malformed enumeration); the residual is load-bearing normative procedure another agent executes
+# verbatim. Set per the rounding rule above from the measured actual: 6254 words -> the next multiple
+# of 50 is 6300 (46 words of margin, above the within-25 threshold). The LINE budget was NOT raised
+# (180 actual == 180 budget) — every edit reflowed inside existing lines.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -1534,7 +1551,7 @@ skills/docket-convention/references/terminal-close-out.md  200 1750
 skills/docket-finalize-change/SKILL.md                     190 4150
 skills/docket-finalize-change/references/gate-failure.md   115 1300
 skills/docket-groom-next/SKILL.md                           77 1550
-skills/docket-implement-next/SKILL.md                      180 6150
+skills/docket-implement-next/SKILL.md                      180 6300
 skills/docket-implement-next/references/edge-paths.md       58  800
 skills/docket-implement-next/references/fix-loop.md        185 1900
 skills/docket-implement-next/results-template.md            25  250
