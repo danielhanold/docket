@@ -471,4 +471,78 @@ out="$( cd "$SBX" && vr 50 )"
 assert "plan-only stop: a committed plan (with Docket-Plan-Path: trailer) does NOT flip the verdict off run-incomplete" \
   '[ "$out" = "run-incomplete 50 status pr" ]'
 
+# ---- change 0342: run-waiting is DELEGATED to the Go authority ----------------------
+# The run-waiting verdict is derived from agreeing LOCAL gate-drive receipts that live OUTSIDE the
+# change file, so this script cannot read it from frontmatter — it shells out to `docket run verify`
+# (internal/app RunVerify's evaluateRunWaiting) on the run-incomplete fallthrough ONLY and relays a
+# run-waiting verdict when the Go op reports one. Before this leg existed, every `run-waiting*`
+# consumer in runner-dispatch.sh was dead under the default VERIFY_RUN and a genuine WAITING
+# continuation was reported as `run-incomplete`, re-dispatched as a FRESH run. The mock DOCKET_BIN
+# stub stands in for the Go binary so the case is hermetic; it also RECORDS whether it was called,
+# which is how the precedence/short-circuit asserts prove the Go op is not consulted where the
+# frontmatter already decides the verdict.
+make_sbx
+STUBLOG="$SBX/stub.calls"
+cat > "$SBX/stub-docket.sh" <<EOF
+#!/usr/bin/env bash
+# mock \`docket\` — records the call and emits whatever JSON STUB_JSON carries, ignoring args.
+printf 'called\n' >> "$STUBLOG"
+printf '%s\n' "\${STUB_JSON:-}"
+EOF
+chmod +x "$SBX/stub-docket.sh"
+STUB="$SBX/stub-docket.sh"
+vrw(){ DOCKET_BIN="$STUB" STUB_JSON="$1" bash "$VR" "$2" --changes-dir "$CH" 2>/dev/null; }
+
+# (a) the fallthrough case: an in-progress change with no PR (run-incomplete: status pr branch),
+#     and the Go op reports a waiting continuation -> verify-run relays it in the consumer shape.
+: > "$STUBLOG"
+write_change 60 in-progress feat/slug60 ""
+out="$( cd "$SBX" && vrw '{"verdict":"run-waiting","handoff_id":"drive-abc123","phase":"gate"}' 60 )"; rc=$?
+assert "run-waiting: verify-run emits 'run-waiting <id> <handoff-id> <phase>'" \
+  '[ "$out" = "run-waiting 60 drive-abc123 gate" ]'
+assert "run-waiting: a produced verdict exits 0" '[ "$rc" = "0" ]'
+assert "run-waiting: the Go authority was actually consulted on the fallthrough" \
+  '[ -s "$STUBLOG" ]'
+
+# (b) precedence: run-halted still wins where it applies — a change carrying a `## Run halted`
+#     section returns run-halted BEFORE the waiting probe, and the Go op is never consulted.
+: > "$STUBLOG"
+write_change 61 in-progress feat/slug61 "" "
+## Run halted
+
+### 2026-08-24 — halted
+
+needs a human."
+out="$( cd "$SBX" && vrw '{"verdict":"run-waiting","handoff_id":"drive-x","phase":"gate"}' 61 )"
+assert "run-waiting: run-halted takes precedence over a waiting continuation" '[ "$out" = "run-halted 61" ]'
+assert "run-waiting: the Go op is NOT consulted once run-halted decides" '[ ! -s "$STUBLOG" ]'
+
+# (c) short-circuit: a run-complete change never reaches the probe, so the Go op is not consulted
+#     even when it would report waiting — the existing verdict is unchanged.
+: > "$STUBLOG"
+write_change 62 implemented feat/slug62 "https://github.com/o/r/pull/20"
+push_branch feat/slug62
+out="$( cd "$SBX" && vrw '{"verdict":"run-waiting","handoff_id":"drive-y","phase":"gate"}' 62 )"
+assert "run-waiting: run-complete is unchanged and never consults the Go op" \
+  '[ "$out" = "run-complete 62" ] && [ ! -s "$STUBLOG" ]'
+
+# (d) the Go op reports a NON-waiting verdict -> verify-run's own reading stands (run-incomplete);
+#     the Go op never overrides the conjuncts this script read.
+out="$( cd "$SBX" && vrw '{"verdict":"run-incomplete","unmet":[]}' 60 )"
+assert "run-waiting: a non-waiting Go verdict does not override run-incomplete" \
+  '[ "$out" = "run-incomplete 60 status pr branch" ]'
+
+# (e) a partial waiting report (handoff present, phase empty) is a MALFORMED verdict, not waiting —
+#     the consumers parse three fields, so an incomplete line must degrade to run-incomplete.
+out="$( cd "$SBX" && vrw '{"verdict":"run-waiting","handoff_id":"drive-z","phase":""}' 60 )"
+assert "run-waiting: a partial waiting report degrades to run-incomplete" \
+  '[ "$out" = "run-incomplete 60 status pr branch" ]'
+
+# (f) a missing/erroring binary is swallowed and the run-incomplete finding stands — the delegation
+#     never turns a finding into a script failure.
+out="$( cd "$SBX" && DOCKET_BIN="$SBX/does-not-exist" bash "$VR" 60 --changes-dir "$CH" 2>/dev/null )"; rc=$?
+assert "run-waiting: a missing Go binary falls through to run-incomplete" \
+  '[ "$out" = "run-incomplete 60 status pr branch" ]'
+assert "run-waiting: a missing Go binary still exits 0 (a finding is not a failure)" '[ "$rc" = "0" ]'
+
 exit $fail
