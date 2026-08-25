@@ -12,7 +12,7 @@ related: [316, 327, 336, 344]
 discovered_from: []
 adrs: [35, 92, 97]
 spec: docs/superpowers/specs/2026-08-25-recorded-branch-identity-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-25-honor-recorded-branch-over-feat-prefix.md'
 results:
 trivial: false
 auto_groomable:
@@ -29,6 +29,7 @@ claimed_at: '2026-08-25T23:46:49Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-25-recorded-branch-identity-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-25-recorded-branch-identity-design.md) |
+| Plan | [2026-08-25-honor-recorded-branch-over-feat-prefix.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-25-honor-recorded-branch-over-feat-prefix.md) |
 | ADRs | [ADR-0035](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0035-cleanup-teardown-fail-closed.md), [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md), [ADR-0097](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0097-pr-identity-is-verified-by-parsed-pr-number.md) |
 <!-- docket:artifacts:end -->
 
