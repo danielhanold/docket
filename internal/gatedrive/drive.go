@@ -107,6 +107,16 @@ type driveRecord struct {
 	Command []string `json:"command"`
 	Cwd     string   `json:"cwd"`
 
+	// RunRoot is the native process-supervisor allocation root (the raw
+	// LaunchRequest.Root). It is the deterministic launch input the one admitted
+	// relaunch replays, so it is persisted with the rest of the launch identity.
+	RunRoot string `json:"run_root"`
+
+	// IdempotentSuiteGate marks a workflow suite gate the application contract
+	// designates idempotent. It is condition 1 of the single relaunch: only such
+	// a gate may earn a second raw run after a proven death.
+	IdempotentSuiteGate bool `json:"idempotent_suite_gate"`
+
 	// Config provenance + resolved observation budget.
 	ConfigProvenance string        `json:"config_provenance"`
 	Budget           time.Duration `json:"budget"`
@@ -129,6 +139,19 @@ type driveRecord struct {
 	Attempt         int    `json:"attempt"`
 	RelaunchCount   int    `json:"relaunch_count"`
 	TerminalReceipt string `json:"terminal_receipt"`
+
+	// PriorRawRunDir links the dead first attempt after the one admitted
+	// relaunch, so both attempts' diagnostics are preserved (spec: "A relaunch
+	// preserves both attempts").
+	PriorRawRunDir string `json:"prior_raw_run_dir,omitempty"`
+
+	// LastOutcome + LastCause record the last transition the driver persisted.
+	// A terminal LastOutcome (PASSED/FAILED/HALTED) makes the drive idempotent:
+	// re-advancing returns the recorded verdict rather than re-driving the run.
+	// WAITING is nonterminal and drives again. These are private runtime state,
+	// never change frontmatter.
+	LastOutcome Outcome `json:"last_outcome,omitempty"`
+	LastCause   string  `json:"last_cause,omitempty"`
 
 	// Current owner generation, or the single-use handoff generation when the
 	// drive is offered for claim (Task 5). Exactly one owner at a time.
