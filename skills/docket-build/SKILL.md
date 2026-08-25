@@ -99,7 +99,7 @@ a re-run of `install.sh` plus a fresh session as the remedy.
 
 ## Reading a worker's return
 
-Valid outcomes are `COMPLETE`, `NEEDS_ESCALATION`, and `BLOCKED`. A
+Valid outcomes are `COMPLETE`, `WAITING`, `NEEDS_ESCALATION`, and `BLOCKED`. A
 **missing or malformed outcome halts** the build. Never infer success from a child merely
 reporting that it finished: a child's completion report is unreliable in **both** directions, so
 every claim is settled against git state and never against the return's prose — a SHA-shaped string
@@ -112,6 +112,23 @@ not on this branch is a malformed return — halt per *Halting conditions*, and 
 task to "fix" its own return. A `COMPLETE` must equally carry the focused verification result, and
 a task without a commit is not complete. A `NEEDS_ESCALATION` carrying no concrete reason is
 malformed the same way (see *Escalation*).
+
+## Task-level WAITING and the continuation
+
+A **`WAITING`** return means the worker drove its focused gate through the native gate driver,
+reached the end of an observation slice, and had to stop before a terminal disposition. It is valid
+**only** when it names an explicit driver handoff — the drive id and the single-use handoff token; a
+bare "still waiting" with no handoff token is a **malformed return** and halts, exactly as a
+commitless `COMPLETE` does. `WAITING` is neither a completion nor a failure, and it is **never**
+permission to start another task in the shared worktree.
+
+You are the nearest live owner while that worker is absent, so you **own the continuation**: `docket
+gate drive claim` the named handoff and drive the same drive through short `docket gate drive
+advance` calls yourself to a terminal disposition — never a raw observe loop, background suite, or
+notification wait. When agent judgment is needed again, dispatch a fresh worker for the **same** task
+and worktree with an explicit continuation; a trusted `PASSED` is not re-driven because the
+transcript changed. Waiting consumes neither the task's repair allowance nor its one escalation. If
+you must unwind, hand off to your parent rather than stranding the drive.
 
 ## Escalation
 
@@ -184,7 +201,12 @@ disposition.
 
 ## The build gate
 
-Workers run focused tests only. After every plan task has committed, run the **whole suite once**:
+Workers run focused tests only. After every plan task has committed, run the **whole suite once**,
+driving it through the native gate **driver** (`docket gate drive start` then `advance`) — never a
+raw observe loop. A worker's passed *task* gate does **not** substitute for this final full-suite
+gate: task gates cover only what each worker ran, and this is the one run that certifies the branch.
+On the final `PASSED`, the drive's raw run directory remains available to the existing evidence
+operation. Resolve the suite command:
 
 1. Use the already-resolved `FINALIZE_TEST_COMMAND` when it is non-empty.
 2. Otherwise reuse finalize's existing suite **auto-detection**.
@@ -271,51 +293,35 @@ define the maximum duration of the build gate.
    is not a failing one, so it must **not** mint an integration-repair task. Same refusal the
    configuration-gap case above already gets.
 
-**The shipped implementation of clauses 1–3** is the native `docket gate` verbs:
-`docket gate launch --root <dir> --cwd <dir> -- <command…>` starts the suite detached and durable,
-and `docket gate stop <run-dir>` terminates one. Observation is
-the native gate's: each short-lived look is `docket gate observe <run-dir> --json`, one protocol-v1
-JSON document per call, parsed with jq — the observe serialization since change 0338, and the only
-one. **Key the wait
-on the state each observation reports, never on a success marker appearing in the log.** The two
-differ exactly when the child dies, which is the one moment the wait exists for: a marker-keyed loop
-cannot tell *still running* from *died*, so it burns its whole budget before reporting a death a
-state-keyed wait catches on the next observation. The states and their retryability are the
-native gate's contract, and **only `running` is retryable**. **Reuse the canonical loop** in
-`references/gate-caller-loop.md` § *The caller's loop* verbatim rather than authoring one: it captures the document,
-extracts `.state` with jq, resolves the native spellings (`signaled`/`vanished` resolve to `died`),
-and fails closed — a hand-rolled reading of the document is exactly the parser drift that spun the
-0337 gate until a human resumed it.
+**The shipped implementation of clauses 1–6** is the native gate **driver** — the `docket gate
+drive` operations (`start`, `advance`, `handoff`, `claim`), whose caller-side contract and
+disposition vocabulary live in `references/gate-caller-loop.md` (**read it now, blocking, before the
+gate**). Drive the suite through short synchronous `docket gate drive start` then `docket gate drive
+advance` calls; the driver composes the raw supervisor and owns the detached run, the durable drive
+record, artifact-based completion, and the fail-closed observation budget. **Reuse the driver
+operations rather than authoring a shell observe loop:** a hand-rolled sleep-and-parse over `docket
+gate observe` is exactly the drift that spun the 0337 gate until a human resumed it, and the driver
+retired it. The raw `docket gate launch`/`observe`/`stop` verbs are primitives the driver composes,
+not workflow APIs for this role — never call them directly and never re-derive a launch or poll shape
+from them.
 
-**On a failed launch.** A failed `docket gate launch` is read from the launch's own protocol-v1 JSON
-envelope with jq: the envelope's `result` is a failure taxonomy value rather than `applied`, and no
-`run_dir` handle is present. The disposition is unchanged — **abort and report** per *Halting
-conditions*: never a retry loop, and never observed, since no handle exists to observe.
+**Keying on the disposition.** Key the wait on the typed disposition the driver returns
+(`WAITING`/`PASSED`/`FAILED`/`HALTED`), never on a success marker appearing in the log — a
+marker-keyed reading cannot tell *still running* from a process death, which is the one moment the
+wait exists for. `WAITING` is the only nonterminal disposition and the only one that advances again;
+`PASSED`/`FAILED`/`HALTED` are terminal. Only `FAILED` — the suite ran and went red — feeds repair. A
+process death, an identity drift, an uncertain ownership, a deadline expiry, or a malformed
+observation is `HALTED`, **not** a red suite and it **never** mints repair work. The one bounded
+relaunch of a proven-dead **idempotent** suite gate, under the original deadline, is the driver's own
+— the caller never relaunches, never stops a raw run by hand, and never composes the raw verbs to do
+so; a non-idempotent gate earns no relaunch at all.
 
-**On the died state.** The child never finished, so it never produced a verdict: `died` is **not** a
-red suite and **never** mints repair work. Where the child is **idempotent** — the suite gate is —
-the posture is `docket gate stop <run-dir>`, then at most **one** bounded relaunch, gated on what
-that stop reported. The three legs below are the `docket gate stop <run-dir>` outcomes of
-`references/gate-caller-loop.md` § *The stop mapping table*, and every state named inside a leg is
-the loop's resolved reading of a fresh `docket gate observe <run-dir> --json` document:
-
-- `no-op` — the **ordinary** outcome of stopping a live child; the state is preserved, so re-observe
-  and key on what returns: an observed `passed` or `failed` keeps that verdict (the run finished
-  after all), a `died` resolution (`signaled` or `vanished` in the document) takes the one relaunch,
-  anything else never relaunches.
-- `applied` — we terminated it; the run produced no verdict of its own. Relaunch once, and only
-  where the child is idempotent.
-- `error` — abort and report **loudly, without relaunching**: what survives could not be proven to
-  be this run's, so a relaunch would race a suite that may still be live.
-
-A second `died` is abort-and-report, never a third attempt. Where the child is **non-idempotent**,
-the relaunch is not licensed at all and the site keeps its existing failure posture — the permission
-comes from idempotence, not from the state.
-
-**Abandoning a live child.** A caller that stops observing while the state is still `running` —
-budget exhausted, halt, or abort — calls `docket gate stop <run-dir>` **before it reports**, so no suite outlives the run
-a human is about to inspect. Every leg then halts per *Halting conditions*; the `unavailable` leg
-halts **loudly**, because that is the one leg where the human inherits a live process.
+**Abandoning a live drive.** A caller that must stop while the drive is still `WAITING` — budget
+exhausted, halt, or abort — performs an explicit `docket gate drive handoff` **before it reports** and
+returns the drive id, phase, and single-use handoff token, so the nearest live owner can `claim` and
+continue and no suite is stranded, backgrounded, or waited on through a notification. Every leg then
+halts per *Halting conditions*; the leg where the handoff itself is **unavailable** halts **loudly**,
+because that is the one leg where a human inherits a live drive.
 
 **The false-completion rule.** A caller-visible completion signal is never gate completion.
 Reciprocally, a **stale pre-yield report is not evidence of a crashed run**: an observer seeing a

@@ -26,14 +26,20 @@ worker_body="$(cat "$WORKER" 2>/dev/null)"
 assert "worker: contract is non-vacuous (>= 40 lines)" \
   '[ "$(grep <<<"$worker_body" -c .)" -ge 40 ]'
 
-# The three outcome tokens are the controller's entire input vocabulary — each must be defined
+# The four outcome tokens are the controller's entire input vocabulary — each must be defined
 # by its Outcomes-section bullet (the shape a token-presence-anywhere grep cannot observe being
 # removed, since each token also appears in the frontmatter description, the commit section, and
-# the return template regardless of whether its defining bullet exists).
-for tok in COMPLETE NEEDS_ESCALATION BLOCKED; do
+# the return template regardless of whether its defining bullet exists). WAITING joined the vocabulary
+# at change 0342 (the native gate-driver migration) alongside the original three.
+for tok in COMPLETE WAITING NEEDS_ESCALATION BLOCKED; do
   assert "worker: defines the $tok outcome (Outcomes bullet)" \
     'grep -qE "^- \*\*\`'"$tok"'\`\*\*" <<<"$worker_body"'
 done
+# A valid WAITING MUST name an explicit driver handoff — a bare "still waiting" is invalid. Keyed on
+# the WAITING bullet's own co-occurrence of the handoff requirement, not a file-wide mention.
+worker_flat="$(flat "$worker_body")"
+assert "worker: a WAITING return requires an explicit driver handoff token" \
+  'grep -qiE "WAITING[^.]{0,120}handoff" <<<"$worker_flat" && grep -qiE "(bare|no handoff)[^.]{0,80}(not[^.]{0,20}valid|invalid|strand)" <<<"$worker_flat"'
 
 # Exactly-one-commit rule: the deliverable of a task is one commit, and only on success.
 assert "worker: requires exactly one commit on success" \
@@ -324,6 +330,38 @@ assert "controller: performs no final review of its own" \
   'grep -qiE "no final review|no whole-branch review of its own" <<<"$ctrl_body"'
 assert "controller: hands the single review to docket-implement-next Step 6" \
   'grep -qiE "skills.review|Step 6" <<<"$ctrl_body"'
+
+# --- change 0342: the controller understands a task-level WAITING return, owns the continuation
+# while the worker is absent, and drives its final gate through the native gate DRIVER. ------------
+ctrl_flat="$(flat "$ctrl_body")"
+assert "0342: WAITING is a valid worker outcome the controller reads" \
+  'grep -qiE "valid outcomes[^.]{0,120}WAITING" <<<"$ctrl_flat"'
+# The WAITING-continuation section, sliced by its own heading (a whole-file grep would be satisfied
+# by the outcome-list sentence above and could not observe the section itself being deleted).
+wait_blk="$(awk '/^## Task-level WAITING/{f=1;next} f&&/^## /{f=0} f' <<<"$ctrl_body")"
+wait_flat="$(flat "$wait_blk")"
+assert "0342: the WAITING-continuation section is extractable and non-vacuous" \
+  '[ "$(grep -c . <<<"$wait_blk")" -ge 8 ]'
+assert "0342: a valid WAITING names an explicit driver handoff; a bare one is malformed and halts" \
+  'grep -qiE "handoff" <<<"$wait_flat" &&
+   grep -qiE "(bare|no handoff)[^.]{0,120}(malformed|invalid|not[^.]{0,20}valid)" <<<"$wait_flat"'
+assert "0342: WAITING is never permission to start another task in the shared worktree" \
+  'grep -qiE "never[^.]{0,80}(another|competing) task" <<<"$wait_flat"'
+assert "0342: the controller owns the continuation — claims the handoff and drives the same drive" \
+  'grep -qF -- "docket gate drive claim" <<<"$wait_flat" && grep -qF -- "docket gate drive advance" <<<"$wait_flat"'
+assert "0342: waiting consumes neither the task's repair allowance nor its one escalation" \
+  'grep -qiE "(neither|not)[^.]{0,80}(repair|escalation)" <<<"$wait_flat"'
+# The final gate uses the driver, a passed TASK gate does not substitute for it, and the final raw
+# run dir stays available to evidence. Sliced to the build-gate section (defined below at gate_blk's
+# own extractor, re-derived here so this group does not depend on ordering).
+bgate_blk="$(awk '/^## The build gate$/{f=1;next} f && /^### Gate execution posture$/{f=0} f' <<<"$ctrl_body")"
+bgate_flat="$(flat "$bgate_blk")"
+assert "0342: the final full-suite gate is driven through docket gate drive" \
+  'grep -qF -- "docket gate drive" <<<"$bgate_flat"'
+assert "0342: a passed task gate does NOT substitute for the final full-suite gate" \
+  'grep -qiE "task gate[^.]{0,80}(not|never)[^.]{0,40}substitute|(not|never)[^.]{0,40}substitute[^.]{0,80}(final|full-suite) gate" <<<"$bgate_flat"'
+assert "0342: on the final PASSED the raw run dir stays available to evidence" \
+  'grep -qiE "(raw run director|run director)[^.]{0,120}evidence" <<<"$bgate_flat"'
 
 # The full-suite gate is DERIVED, never a second config key or a hand-copied fragment.
 assert "controller: full-suite gate reads finalize.test_command" \
@@ -908,10 +946,23 @@ assert "0249: the cycle forbids yielding to await the run" \
 assert "0249: the cycle bounds the blocking observation as finite" \
   'grep -qiE "keep the observation[^.]{0,40}finite" <<<"$worker_cycle_flat"'
 
-# (1d) Fail-closed, bound to its subject with ONE gap: it is the UNFINISHED run that is not green.
-# A bare presence grep for "not green" survives a rewrite that keeps the words and drops the rule.
-assert "0249: an unfinished run at the observation bound is not green" \
-  'grep -qiE "unfinished[^.]{0,80}not green" <<<"$worker_cycle_flat"'
+# (1d) RE-KEYED BY CHANGE 0342: the worker drives its focused gate through the native gate DRIVER.
+# A slice that ends WAITING is not "not green -> BLOCKED" any more; the worker performs an explicit
+# handoff and returns WAITING, never inferring success and never stranding the drive. Both poles are
+# pinned — the handoff and the not-inferred-success — so a rewrite that keeps one and drops the other
+# reddens. `HALTED` remains the fail-closed-to-BLOCKED disposition, pinned by (1e) below.
+assert "0342: a WAITING slice-end performs an explicit handoff, not inferred success" \
+  'grep -qiE "WAITING[^.]{0,200}handoff" <<<"$worker_cycle_flat" &&
+   grep -qiE "(do not|never)[^.]{0,20}infer success" <<<"$worker_cycle_flat"'
+assert "0342: a WAITING slice-end returns WAITING naming that handoff" \
+  'grep -qiE "return[^.]{0,20}WAITING[^.]{0,60}handoff|handoff[^.]{0,80}return[^.]{0,20}WAITING" <<<"$worker_cycle_flat"'
+# The contract forbids the exact 0223/0337 failure shapes: raw gate verbs, a background suite, an
+# agent-authored poll loop, and a notification wait. Each is a distinct prohibition, one gap each.
+assert "0342: the cycle forbids raw gate verbs, background suite, polling, and notification waits" \
+  'grep -qiE "never[^.]{0,40}background" <<<"$worker_cycle_flat" &&
+   grep -qiE "never[^.]{0,40}(polling|poll loop)" <<<"$worker_cycle_flat" &&
+   grep -qiE "never[^.]{0,40}notification" <<<"$worker_cycle_flat" &&
+   grep -qiE "never call the raw|raw[^.]{0,40}verbs? directly" <<<"$worker_cycle_flat"'
 
 # (1e) ...and fail-closed names the OUTCOME to return. "## Outcomes" enumerates exactly three, and
 # the controller halts on a NEEDS_ESCALATION carrying no capacity reason — so a clause that says

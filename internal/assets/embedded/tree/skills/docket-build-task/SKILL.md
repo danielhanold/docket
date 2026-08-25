@@ -57,13 +57,21 @@ Where a meaningful behavioral test is possible:
 5. Self-review the diff, then commit.
 
 When the narrowest honest verification is still a run that may outlast a single foreground call —
-step 4's focused set may itself be such a run — run it under the capabilities in
-[`../docket-build/references/gate-execution.md`](../docket-build/references/gate-execution.md), and
-read that file before you start such a run. You are a dispatched worker with no resumption channel:
-**never yield to await the run.** Observe it by blocking — short foreground reads of the durable
-result — keep the observation **finite**, and treat a run still unfinished when you stop observing
-as **not green**: never infer success — report it unverified and fail closed by returning
-`BLOCKED`, naming the verification you could not finish.
+step 4's focused set may itself be such a run — drive it through the native gate **driver**, whose
+caller-side contract lives in
+[`../docket-build/references/gate-caller-loop.md`](../docket-build/references/gate-caller-loop.md)
+and the capabilities it composes in
+[`../docket-build/references/gate-execution.md`](../docket-build/references/gate-execution.md); read
+both first. You are a dispatched worker with no resumption channel: **never yield to await the run**,
+never background the suite, never author a polling loop, never wait on a notification, and never call
+the raw `docket gate launch`/`observe`/`stop` verbs directly — they are primitives, not this role's
+workflow API. Drive it in short synchronous `docket gate drive start`/`advance` calls, each bounded
+to one slice; keep the observation **finite**. Key on the typed disposition: `PASSED` is green,
+`FAILED` is a real red focused failure to fix, and `HALTED` is unsafe to continue — fail closed by
+returning `BLOCKED` with the driver's cause. When a slice ends `WAITING` and you must stop before a
+terminal disposition, do not infer success and do not strand the drive: perform an explicit `docket
+gate drive handoff` and return `WAITING` naming that handoff, so the controller can `claim` and
+continue.
 
 Two obligations the cycle does not relax:
 
@@ -98,16 +106,16 @@ Examples of genuine cases — illustrative, not an exhaustive allowlist:
 ## The commit
 
 A task produces a commit **only on success** — `COMPLETE` means focused verification is green and
-**exactly one successful task commit** exists for this task. Never commit on `NEEDS_ESCALATION` or
-`BLOCKED`: leave the worktree as it stands so the next worker or the human can read it. A commit
-left behind by a failed attempt does not get escalated onto — it halts the build.
+**exactly one successful task commit** exists for this task. Never commit on `WAITING`,
+`NEEDS_ESCALATION`, or `BLOCKED`: leave the worktree as it stands so the next worker or the human can
+read it. A commit left behind by a failed attempt does not get escalated onto — it halts the build.
 
 If the **task text itself** prescribes more than one commit, the plan wins over this default:
 follow the task and report every SHA in your return.
 
 ## Outcomes
 
-Return exactly one of three outcomes. A missing or malformed outcome halts the build, so state it
+Return exactly one of four outcomes. A missing or malformed outcome halts the build, so state it
 plainly.
 
 **Scope of this return:** if you invoked this skill yourself while running another role, returning
@@ -115,6 +123,11 @@ ends only the worker role — you continue to your own next step. Wrapper preloa
 self-invocation: only an agent whose entire assignment is this role ends its turn here.
 
 - **`COMPLETE`** — focused verification is green and exactly one task commit exists.
+- **`WAITING`** — a slice-bounded focused gate run is still live and you must stop before a terminal
+  disposition. Valid **only** when you have performed an explicit `docket gate drive handoff` and
+  your return **names that handoff** — the drive id and single-use handoff token the controller
+  `claim`s. A bare "still waiting" with no handoff token strands the drive and is not a valid return.
+  `WAITING` is neither repair nor escalation, and never accompanies a commit.
 - **`NEEDS_ESCALATION`** — the task proves materially more complex or riskier than the assigned
   profile, with a **concrete reason** naming what exceeded it. An expected RED test, ordinary
   debugging, or a single failed test run is **not** an escalation condition, and without a concrete
@@ -130,10 +143,11 @@ Keep it short. The controller keeps only this; there are no brief files, task re
 records.
 
 ```text
-OUTCOME: COMPLETE | NEEDS_ESCALATION | BLOCKED
+OUTCOME: COMPLETE | WAITING | NEEDS_ESCALATION | BLOCKED
 PROFILE: <economy|standard|premium|max> — <one-line routing reason as given to you>
 VERIFICATION: <the focused command you ran> -> <result>
 TDD: <RED/GREEN evidence, or the three-part exception: why unsuitable / what replaced it / residual risk>
+HANDOFF: <drive-id + single-use handoff token — REQUIRED on WAITING, omit otherwise>
 COMMIT: <sha — every sha, if the task text prescribed more than one — or "none" for a non-COMPLETE outcome>
 NOTES: <only what the next worker or the PR genuinely needs — omit when there is nothing>
 ```

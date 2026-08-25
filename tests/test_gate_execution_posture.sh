@@ -436,158 +436,125 @@ assert "reference: carries no Method section (evidence stays off the blocking su
 assert "reference: carries no measured launch-duration figures (shape: bold **Ns**)" \
   '! grep -qE "\*\*[0-9]+s\*\*" <<<"$ref_body"'
 
-# --- (12) the posture is wired to the SHIPPED helper (change 0282) --------------
-# Three rules joined the posture beside clauses 1-6: the helper plus the liveness-keyed wait, the
-# `died` posture with its ONE `--stop`-gated relaunch for an idempotent child, and the rule for
-# abandoning a child that is still running. Each assert keys on the RULE's shape — a negation or a
+# --- (12) the posture is wired to the native gate DRIVER (change 0342) ----------
+# Change 0342 retired the Bash observe loop + jq and migrated this posture onto the typed
+# `docket gate drive` operations. Three paragraphs carry the driver contract: the shipped
+# implementation (the driver operations, the reuse-the-driver rule), keying on the typed disposition
+# (the four dispositions, only-FAILED-feeds-repair, the driver's own single relaunch), and abandoning
+# a live drive (handoff-before-report). Each assert keys on the RULE's shape — a negation or a
 # co-occurrence inside a window `[^.]` cannot carry across a sentence end — never on an enumerated
 # list of spellings, and never on wording this change alone introduced.
 #
-# No pattern below may contain a backtick: `assert` runs its argument through `eval`, so a
-# backtick inside the pattern would be command substitution rather than a literal. `[^.]` already
-# covers the code spans these rules are written with.
+# No pattern below may contain a backtick: `assert` runs its argument through `eval`, so a backtick
+# inside the pattern would be command substitution rather than a literal. `[^.]` already covers the
+# code spans these rules are written with.
 LOOP_REF="$REPO/skills/docket-build/references/gate-caller-loop.md"
-assert "helper: the caller-loop reference file exists" '[ -f "$LOOP_REF" ]'
+assert "helper: the gate-driver reference file exists" '[ -f "$LOOP_REF" ]'
 loop_body="$(cat "$LOOP_REF" 2>/dev/null)"
-# Non-vacuity floor set comfortably below the file's measured length (171 lines at change 0339): an
+# Non-vacuity floor set comfortably below the file's measured length (86 lines at change 0342): an
 # unreadable or truncated file must redden HERE rather than passing every derivation by default.
-assert "helper: the caller-loop reference is non-vacuous (>= 120 lines)" \
-  '[ "$(grep <<<"$loop_body" -c .)" -ge 120 ]'
+assert "helper: the gate-driver reference is non-vacuous (>= 40 lines)" \
+  '[ "$(grep <<<"$loop_body" -c .)" -ge 40 ]'
 
 # PARAGRAPH slices, the same shape `$relax_blk` above uses: a column-0 bolded lead-in opens the
-# slice, the next column-0 bolded lead-in or heading closes it. Section-wide scope is too weak
-# here for the reason groups (2)-(4) slice at all — all three rules discuss the helper and its
-# states, so any one of them could be deleted while its neighbours kept a section-wide grep green.
+# slice, the next column-0 bolded lead-in or heading closes it. Section-wide scope is too weak here
+# for the reason groups (2)-(4) slice at all — all three paragraphs discuss the driver, so any one of
+# them could be deleted while its neighbours kept a section-wide grep green.
 para(){ awk -v pat="$1" 'index($0,pat)==1{f=1;print;next} f && (/^\*\*/ || /^#/){f=0} f' <<<"$posture_blk"; }
 helper_blk="$(para '**The shipped implementation')"
-died_blk="$(para '**On the died state')"
-abandon_blk="$(para '**Abandoning a live child')"
+keying_blk="$(para '**Keying on the disposition')"
+abandon_blk="$(para '**Abandoning a live drive')"
 helper_flat="$(flatten <<<"$helper_blk")"
-died_flat="$(flatten <<<"$died_blk")"
+keying_flat="$(flatten <<<"$keying_blk")"
 abandon_flat="$(flatten <<<"$abandon_blk")"
 # Non-vacuity anchors FIRST: an unlocated slice is empty, and every positive grep below would then
-# read a deleted rule as a missing paragraph rather than passing silently — but only if the anchor
-# reddens with a message that says so.
+# read a deleted rule as a missing paragraph rather than passing silently.
 assert "helper: the shipped-implementation paragraph was located (non-vacuity anchor)" \
   '[ "$(grep -c . <<<"$helper_blk")" -ge 3 ]'
-assert "died: the died-posture paragraph was located (non-vacuity anchor)" \
-  '[ "$(grep -c . <<<"$died_blk")" -ge 6 ]'
+assert "keying: the disposition-keying paragraph was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$keying_blk")" -ge 4 ]'
 assert "abandon: the abandon paragraph was located (non-vacuity anchor)" \
   '[ "$(grep -c . <<<"$abandon_blk")" -ge 2 ]'
 
-# (12a) the helper, and the wait predicate it exists for.
-# A bare `grep -F` on a token is NOT enough, measured: replacing the invocation with the prose "the
-# helper" once left it green off the reference pointer two sentences later. So the posture must name
-# the native INVOCATIONS a worker actually runs — `docket gate launch` and `docket gate stop` — and
-# every caller-loop verb the reference publishes; the negative pins the facade's retirement (no
-# `gate-run` spelling in any form survives). `-F --`: the AGENTS.md leading-`--` literal-safety rule.
-assert "helper: the posture names the native launch and stop invocations" \
-  'grep -qE "docket gate launch" <<<"$helper_blk" && grep -qE "docket gate stop" <<<"$helper_blk" && ! grep -qF -- "gate-run" <<<"$helper_blk"'
-# The verb set is DERIVED from gate-caller-loop.md's `## The caller's verbs` table (its first-column
-# code-span token), so a fourth caller-loop verb reddens this automatically instead of aging into a
-# hand-written list. Not from internal/cli/gate.go: it registers five subcommands, two of which
-# (`recover`, `cleanup`) are operator verbs the posture correctly does not discuss.
-verbs="$(awk -F'|' '
-  /^\| *Verb *\| *What it returns/ {f=1; next}
+# (12a) the shipped implementation names the DRIVER operations and points at the driver contract.
+# The verb set is DERIVED from gate-caller-loop.md's `## The driver's operations` table (its
+# first-column code-span token), so a fifth driver operation reddens this automatically instead of
+# aging into a hand-written list. The negative pins the facade's retirement (no `gate-run` spelling
+# survives). `-F --`: the AGENTS.md leading-`--` literal-safety rule.
+assert "helper: the posture names the native driver command group" \
+  'grep -qE "docket gate drive" <<<"$helper_blk" && ! grep -qF -- "gate-run" <<<"$helper_blk"'
+ops="$(awk -F'|' '
+  /^\| *Operation *\|/ {f=1; next}
   !f {next}
   /^\|[ -]*\|[ -]*\|?/ {next}
   /^\|/ {n=split($2, a, "`"); if (n>=2) {t=a[2]; gsub(/[^a-z-]/, "", t); if (t != "") print t}; next}
   {f=0}' <<<"$loop_body" | sort -u)"
-n_verbs="$(grep -c . <<<"$verbs")"
-# Floor at 2, not 3, as a non-vacuity anchor: the table has three rows (`launch`, `observe`, `stop`);
-# a fourth row still reddens the per-verb loop if the posture misses it.
-assert "helper: the reference's caller-verb set was located (got $n_verbs)" '[ "$n_verbs" -ge 2 ]'
-for v in $verbs; do
-  assert "helper: the posture gives the '$v' verb a role" 'grep -qE "docket gate '"$v"'" <<<"$helper_blk"'
+n_ops="$(grep -c . <<<"$ops")"
+# Floor at 3 as a non-vacuity anchor: the table has four rows; a fifth still reddens the per-op loop.
+assert "helper: the reference's driver-operation set was located (got $n_ops)" '[ "$n_ops" -ge 3 ]'
+for op in $ops; do
+  # The op must have a role in the paragraph. `[^a-z]` boundaries keep `start` from matching inside
+  # `restart`; the paragraph names the group `docket gate drive` plus the ops list, so each token is
+  # present as a code span there.
+  assert "helper: the posture gives the '$op' driver operation a role" \
+    'grep -qiE "(^|[^a-z])'"$op"'([^a-z]|$)" <<<"$helper_blk"'
 done
-assert "helper: the posture points at the caller-loop reference for the state vocabulary" \
+assert "helper: the posture points at the gate-driver reference for the contract" \
   'grep -qF -- "gate-caller-loop.md" <<<"$helper_blk"'
-# THE headline rule. Keyed on its two poles — what the wait IS keyed on (the observed state) and
-# what it is NOT keyed on (a marker) — with the negation required to attach to the marker, because
-# the paragraph's own explanatory sentence also contains the word "marker" and must not be able to
-# stand in for the rule it explains. Mutation: delete the liveness-keyed sentence -> red.
-assert "helper: the wait is keyed on the observed state, never on a marker" \
-  'grep -qiE "(state|observ)[^.]{0,160}[^[:alnum:]](never|not)[^[:alnum:]][^.]{0,40}marker" <<<"$helper_flat"'
-assert "helper: only running is retryable" \
-  'grep -qiE "only[^.]{0,20}running[^.]{0,20}retryable" <<<"$helper_flat"'
-
-# (12a-ii) THE CALLER'S LOOP IS NOT REINVENTED PER CALL SITE (change 0286). A live loop matched
-# bare state names against a line whose first field is the printed "state=passed" form, so a
-# finished gate read as unfinished until its budget burned. This is where loops are actually
-# authored, so the keying rule is restated here — bound to what it is asserted ABOUT, not merely
-# present (learnings: prose-guard-binds-phrase-to-claim). Mutation: delete the added sentence ->
-# all three redden. The asserted sentence lives inside `$helper_blk`, and `para()` closes its slice
-# at the next column-0 `**` — so the sentence must stay MID-LINE in SKILL.md: reflowing it so
-# `**Reuse the canonical loop**` starts a line truncates the slice before it and reddens all three
-# against a file where the sentence is plainly present.
-assert "helper: the posture points at the contract's canonical loop rather than inviting a new one" \
-  'grep -qiE "canonical[^.]{0,80}loop" <<<"$helper_flat"'
-# RE-KEYED BY CHANGE 0338: the observe serialization is now the native gate's protocol-v1 JSON, so
-# the loop is bound to the document and its jq extraction, not to a printed `state=<name>` line.
-# Mutation: restore clause (a)'s old `state=<name>` sentence -> the negative below reddens.
-assert "helper: the loop is bound to the JSON document and its jq extraction" \
-  'grep -qiE "docket gate observe[^.]{0,120}--json" <<<"$helper_flat" && grep -qiE "jq" <<<"$helper_flat"'
+# THE headline rule, re-keyed onto the driver: reuse the driver operations rather than authoring a
+# shell observe loop. Mutation: delete the reuse sentence -> red.
+assert "helper: reuse the driver operations rather than authoring a shell observe loop" \
+  'grep -qiE "(reuse|driver)[^.]{0,120}(rather than|not)[^.]{0,60}(shell|observe|poll) loop" <<<"$helper_flat"'
+# The retired mechanism is GONE from the posture: no jq workflow parsing, no printed `state=` keying.
+# ABSENCE asserts, deliberately — reintroducing the thing is the only way to redden them.
+assert "helper: the retired jq workflow parsing no longer appears in the posture" \
+  '! grep -qiw "jq" <<<"$helper_flat"'
 assert "helper: the retired state= keying no longer appears in the posture" \
   '! grep -qF -- "state=" <<<"$helper_flat"'
-# The 0286 lesson survives the reserialization: the spin does not come from a bare-token match any
-# more but from a hand-rolled reading of the document — the same non-termination the 0337 incident
-# is. Mutation: delete the fence-reuse sentence's "hand-rolled reading ... spun" clause -> red.
-assert "helper: a hand-rolled reading of the document is named as the drift that spins the gate" \
-  'grep -qiE "hand-rolled[^.]{0,120}(drift|spun|spin)" <<<"$helper_flat"'
 
-# (12b) the `died` posture. The three legs are DERIVED from gate-caller-loop.md's stop mapping table
-# (its first-column code-span token), never hand-listed: a fourth row added there reddens this
-# automatically, which an allowlist could not.
-stop_tokens="$(awk -F'|' '
-  /^\| *Native stop outcome *\|/ {f=1; next}
+# (12b) keying on the typed disposition. The four dispositions are DERIVED from gate-caller-loop.md's
+# disposition table (its first-column code-span token), never hand-listed.
+disp="$(awk -F'|' '
+  /^\| *Disposition *\|/ {f=1; next}
   !f {next}
   /^\|[ -]*\|[ -]*\|/ {next}
-  /^\|/ {n=split($2, a, "`"); if (n>=2) {t=a[2]; gsub(/[^a-z-]/, "", t); if (t != "") print t}; next}
+  /^\|/ {n=split($2, a, "`"); if (n>=2) {t=a[2]; gsub(/[^A-Z]/, "", t); if (t != "") print t}; next}
   {f=0}' <<<"$loop_body")"
-n_tokens="$(grep -c . <<<"$stop_tokens")"
-assert "died: the reference's stop mapping table was located (got $n_tokens)" '[ "$n_tokens" -ge 3 ]'
-# Presence alone is NOT the property, and that is measured rather than assumed: deleting the whole
-# `unavailable` bullet left a bare `grep -F unavailable` GREEN, because the neighbouring bullet
-# names the token in passing ("`stopped` and `unavailable` never relaunch"). So each token must
-# open a disposition of its own, keyed on the list's own bullet SHAPE — a column-0 `- ` followed by
-# the token in a code span — never on a mention anywhere in the paragraph.
-for t in $stop_tokens; do
-  assert "died: the '$t' leg carries a disposition bullet of its own" \
-    'grep -qE "^- .'"$t"'. " <<<"$died_blk"'
-done
-assert "died: a died run is not red and mints no repair work" \
-  'grep -qiE "died[^.]{0,120}[^[:alnum:]](not|never|no)[^[:alnum:]][^.]{0,80}(red|repair)" <<<"$died_flat"'
-# The ONE relaunch is licensed by IDEMPOTENCE, not by the state — so the two must co-occur, and a
+n_disp="$(grep -c . <<<"$disp")"
+assert "keying: the reference's disposition set was located (got $n_disp)" '[ "$n_disp" -ge 4 ]'
+# THE headline rule: keyed on its two poles — what the wait IS keyed on (the typed disposition) and
+# what it is NOT keyed on (a marker), with the negation required to attach to the marker.
+assert "keying: the wait is keyed on the typed disposition, never on a marker" \
+  'grep -qiE "disposition[^.]{0,160}[^[:alnum:]](never|not)[^[:alnum:]][^.]{0,40}marker" <<<"$keying_flat"'
+assert "keying: WAITING is the only nonterminal disposition that advances again" \
+  'grep -qiE "WAITING[^.]{0,80}only nonterminal|only nonterminal[^.]{0,80}WAITING" <<<"$keying_flat"'
+# Only FAILED feeds repair — the distinction that keeps an unfinished/ambiguous run from minting an
+# integration-repair task.
+assert "keying: only FAILED feeds repair" \
+  'grep -qiE "only[^.]{0,20}FAILED[^.]{0,60}(feed|repair)" <<<"$keying_flat"'
+assert "keying: a death/drift/deadline is HALTED, not red and mints no repair" \
+  'grep -qiE "(death|drift|deadline|uncertain|malformed)[^.]{0,140}HALTED" <<<"$keying_flat" &&
+   grep -qiE "HALTED[^.]{0,60}[^[:alnum:]](not|never|no)[^[:alnum:]][^.]{0,80}(red|repair)" <<<"$keying_flat"'
+# The ONE relaunch is the DRIVER's own, scoped to an idempotent gate under the original deadline —
+# the caller never relaunches. Idempotence scope and caller-never-relaunches are both pinned, and a
 # bare mention of either word is not the rule.
-assert "died: the one relaunch is scoped to an idempotent child" \
-  'grep -qiE "idempotent[^.]{0,200}(one|single)[^.]{0,80}relaunch|(one|single)[^.]{0,80}relaunch[^.]{0,200}idempotent" <<<"$died_flat"'
-assert "died: a non-idempotent child keeps its site's existing posture" \
-  'grep -qiE "non-idempotent[^.]{0,140}(existing|its site|unchanged)" <<<"$died_flat"'
-assert "died: the relaunch is gated on the stop report" \
-  'grep -qiE "(gated|keyed)[^.]{0,60}(on|by)[^.]{0,60}(stop|report)" <<<"$died_flat"'
-# The ordinary stop of a live child is the `no-op` row of the stop mapping table (the state is
-# preserved and the stop performed nothing). Prose that implies some other outcome is the common
-# case contradicts what `docket gate stop` returns, so the ordinary-case naming is pinned here.
-assert "died: no-op is named as the ordinary live-child stop" \
-  'grep -qiE "no-op[^.]{0,100}ordinary|ordinary[^.]{0,100}no-op" <<<"$died_flat"'
-assert "died: the no-op leg re-observes and keys on what returns" \
-  'grep -qiE "no-op[^.]{0,220}observ" <<<"$died_flat"'
-# `abort` is required inside the same window as the `error` token, and that is mutation evidence: a
-# bare `error` mention elsewhere is not the rule. The rule is that this leg ABORTS and does not
-# relaunch, so both halves must attach.
-assert "died: the error leg aborts WITHOUT relaunching" \
-  'grep -qiE "error[^.]{0,80}abort[^.]{0,120}(without|never|no)[^.]{0,60}relaunch" <<<"$died_flat"'
-assert "died: a second died is abort-and-report" \
-  'grep -qiE "second[^.]{0,60}died[^.]{0,80}abort" <<<"$died_flat"'
+assert "keying: the one relaunch is scoped to an idempotent gate" \
+  'grep -qiE "idempotent[^.]{0,200}(one|single)[^.]{0,80}relaunch|(one|single)[^.]{0,80}relaunch[^.]{0,200}idempotent" <<<"$keying_flat"'
+assert "keying: the relaunch is the driver's own; the caller never relaunches" \
+  'grep -qiE "caller never[^.]{0,60}relaunch|driver.{0,20}own" <<<"$keying_flat"'
+assert "keying: a non-idempotent gate earns no relaunch" \
+  'grep -qiE "non-idempotent[^.]{0,140}(no relaunch|earns no|not[^.]{0,20}relaunch)" <<<"$keying_flat"'
 
-# (12c) abandoning a child that is still running.
-assert "abandon: a run left in the running state is stopped BEFORE the report" \
-  'grep -qiE "running[^.]{0,200}stop[^.]{0,100}before[^.]{0,60}report" <<<"$abandon_flat"'
+# (12c) abandoning a live drive: an explicit handoff before the report, not a stranded suite.
+assert "abandon: a drive left WAITING triggers an explicit handoff BEFORE the report" \
+  'grep -qiE "(WAITING[^.]{0,120})?handoff[^.]{0,80}before[^.]{0,40}report" <<<"$abandon_flat"'
+assert "abandon: the departing owner returns the handoff token so the nearest owner can claim" \
+  'grep -qiE "handoff token" <<<"$abandon_flat" && grep -qiE "claim" <<<"$abandon_flat"'
 assert "abandon: every leg still halts" \
   'grep -qiE "(every|each)[^.]{0,40}leg[^.]{0,60}halt" <<<"$abandon_flat"'
-# The one leg where the human inherits a live process is the one leg that must be loud.
-assert "abandon: the unavailable leg halts LOUDLY" \
-  'grep -qiE "unavailable[^.]{0,140}loud|loud[^.]{0,140}unavailable" <<<"$abandon_flat"'
+# The one leg where the human inherits a live drive is the one leg that must be loud.
+assert "abandon: the unavailable-handoff leg halts LOUDLY" \
+  'grep -qiE "(unavailable|cannot)[^.]{0,140}loud|loud[^.]{0,140}(unavailable|inherit)" <<<"$abandon_flat"'
 
 # (12d) the reference gains a POINTER at capability 5 and a named mitigation — and NO verdict is
 # rewritten. Sliced to the numbered item that owns the four-state requirement: a pointer parked
