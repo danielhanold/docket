@@ -135,6 +135,19 @@ assert "controller: Step 6 validates the evidence before dispatching review" \
   'grep -qF -- "build-evidence" <<<"$step6"'
 assert "controller: uncertified evidence re-runs the gate rather than reviewing blind" \
   'grep -qiE "re-run.{0,40}(gate|suite)" <<<"$step6"'
+# --- change 0342: the evidence re-mint DRIVES the native gate, never a raw launch/observe recipe ---
+# Task 15 migrated Step 6's evidence re-mint (and every post-review re-gate) onto the typed gate
+# DRIVER — the same `docket gate drive` contract Task 14 moved the build workers onto. The raw
+# `docket gate launch`/`observe` verbs are primitives the driver composes (gate-caller-loop.md § the
+# raw verbs are primitive/operator APIs); a Step-6 recipe that composes them by hand IS the
+# full-budget observe loop change 0342 retired. Keyed on shape, one clause at a time: the driver
+# command group must be named, and neither raw verb may appear as Step 6's workflow recipe.
+# Mutation: revert the recipe to `docket gate launch`/`observe` -> the negative reddens; drop the
+# `docket gate drive` naming -> the positive reddens.
+assert "controller: Step 6 evidence re-mint drives the native gate (docket gate drive)" \
+  'grep -qF -- "docket gate drive" <<<"$step6"'
+assert "controller: Step 6 composes no raw launch/observe verb as a workflow recipe" \
+  '! grep -qF -- "docket gate launch" <<<"$step6" && ! grep -qF -- "docket gate observe" <<<"$step6"'
 # Subshell, deliberately: `assert` runs its expression through `eval` in the CURRENT shell, so a
 # bare `exit 1` inside the loop would terminate the whole test run at the first missing rung
 # instead of recording one FAIL and continuing — every later assert would go unreported (observed
@@ -806,39 +819,42 @@ assert "the example config states the shipped docket-review default" \
 assert "the example config no longer ships the superpowers review default" \
   '! grep -qE "^ +review: +superpowers:requesting-code-review$" "$REPO/.docket.example.yml"'
 
-# --- change 0331: Step 6's re-mint path names its producer ---------------------------------
-# The recovery path for missing/malformed/stale evidence must be an executable chain:
-# `docket gate launch` produces the run dir that `docket gate observe` reports and
-# `docket evidence record` consumes at the exact feature head, with `docket evidence verify`
-# re-checking the same head. Guarded on command SHAPE and ORDERING, whitespace-collapsed so a
-# Markdown re-flow is not a semantic failure, one bounded gap per ERE (two stacked gaps
-# backtrack catastrophically on exactly the mutated input). The checker takes the file as an
-# argument so the same code runs against the authored skill and the mutated copy.
+# --- change 0331 (re-keyed onto the driver by change 0342): Step 6's re-mint path names its producer ---
+# The recovery path for missing/malformed/stale evidence must be an executable chain, and change 0342
+# migrated it off the raw `docket gate launch`/`observe` verbs onto the native gate DRIVER:
+# `docket gate drive start` produces the drive that `docket gate drive advance` carries to a terminal
+# disposition, and only a `PASSED` disposition exposes the raw run dir that `docket evidence record`
+# consumes at the exact feature head, with `docket evidence verify` re-checking the same head. Guarded
+# on command SHAPE and ORDERING, whitespace-collapsed so a Markdown re-flow is not a semantic failure,
+# one bounded gap per ERE (two stacked gaps backtrack catastrophically on exactly the mutated input).
+# The checker takes the file as an argument so the same code runs against the authored skill and the
+# mutated copy.
 
 # Position of a fixed literal in a haystack (fails when absent) — pure bash, no regex.
 remint_pos(){ local pre="${1%%"$2"*}"; [ "$pre" != "$1" ] || return 1; printf '%s\n' "${#pre}"; }
 
 check_remint_chain(){
-  local file="$1" sec flat p_launch p_observe p_record p_verify
+  local file="$1" sec flat p_start p_advance p_record p_verify
   sec="$(awk '/^### Step 6 — Review/{f=1;next} /^### Step 6\.5 — Results close-out/{f=0} f' "$file")"
   [ -n "$sec" ] || { echo "step6-slice-empty"; return 1; }
   flat="$(tr -s '[:space:]' ' ' <<<"$sec")"
-  # (a) the producer exists on the re-mint path
-  grep -qF -- "docket gate launch" <<<"$flat" || { echo "launch-missing"; return 1; }
-  # (b) launch shape: --root, --cwd, and the child-command `--` boundary (one gap per pattern)
-  grep -qE -e "docket gate launch [^.]{0,120}--root" <<<"$flat" || { echo "root-missing"; return 1; }
-  grep -qE -e "--root [^.]{0,120}--cwd" <<<"$flat" || { echo "cwd-missing"; return 1; }
-  grep -qE -e "--cwd [^.]{0,160} -- " <<<"$flat" || { echo "separator-missing"; return 1; }
-  # (c) ordering: launch precedes observe precedes record; record precedes verify
-  p_launch="$(remint_pos "$flat" "docket gate launch")" || { echo "launch-missing"; return 1; }
-  p_observe="$(remint_pos "$flat" "docket gate observe")" || { echo "observe-missing"; return 1; }
+  # (a) the DRIVER producer exists on the re-mint path — never the retired raw launch/observe verbs
+  grep -qF -- "docket gate drive start" <<<"$flat" || { echo "start-missing"; return 1; }
+  grep -qF -- "docket gate drive advance" <<<"$flat" || { echo "advance-missing"; return 1; }
+  # (b) start shape: --repo-dir, --run-root, and the child-command `--` boundary (one gap per pattern)
+  grep -qE -e "docket gate drive start [^.]{0,120}--repo-dir" <<<"$flat" || { echo "repo-dir-missing"; return 1; }
+  grep -qE -e "--repo-dir [^.]{0,120}--run-root" <<<"$flat" || { echo "run-root-missing"; return 1; }
+  grep -qE -e "--run-root [^.]{0,160} -- " <<<"$flat" || { echo "separator-missing"; return 1; }
+  # (c) ordering: start precedes advance precedes record; record precedes verify
+  p_start="$(remint_pos "$flat" "docket gate drive start")" || { echo "start-missing"; return 1; }
+  p_advance="$(remint_pos "$flat" "docket gate drive advance")" || { echo "advance-missing"; return 1; }
   p_record="$(remint_pos "$flat" "docket evidence record")" || { echo "record-missing"; return 1; }
   p_verify="$(remint_pos "$flat" "docket evidence verify")" || { echo "verify-missing"; return 1; }
-  [ "$p_launch" -lt "$p_observe" ] || { echo "launch-after-observe"; return 1; }
-  [ "$p_observe" -lt "$p_record" ] || { echo "observe-after-record"; return 1; }
+  [ "$p_start" -lt "$p_advance" ] || { echo "start-after-advance"; return 1; }
+  [ "$p_advance" -lt "$p_record" ] || { echo "advance-after-record"; return 1; }
   [ "$p_record" -lt "$p_verify" ] || { echo "record-after-verify"; return 1; }
-  # (d) record consumes the produced run dir and binds the exact feature head
-  grep -qE -e "docket gate observe [^.]{0,40}run" <<<"$flat" || { echo "observe-no-rundir"; return 1; }
+  # (d) only a PASSED disposition exposes the raw run dir that record consumes at the exact head
+  grep -qE -e "PASSED[^.]{0,140}raw run dir" <<<"$flat" || { echo "passed-no-rundir"; return 1; }
   grep -qE -e "docket evidence record [^.]{0,80}--run" <<<"$flat" || { echo "record-no-rundir"; return 1; }
   grep -qE -e "--run [^.]{0,80}--head <feature head>" <<<"$flat" || { echo "record-no-head"; return 1; }
   # (e) verify follows record and checks the same head
@@ -853,45 +869,45 @@ assert "remint: Step 6 section slice is non-empty (existence anchor)" '[ -n "$re
 assert "remint: the named terminator heading still exists (slice cannot widen to EOF)" \
   'grep -qF -- "### Step 6.5 — Results close-out" "$IMPL"'
 
-assert "remint: launch -> observe -> record -> verify chain holds in the authored skill" \
+assert "remint: start -> advance -> record -> verify driver chain holds in the authored skill" \
   'check_remint_chain "$IMPL"'
 
 # Mutation proof: the guard is load-bearing. Copy, confirm the occurrence, remove it, confirm the
 # removal landed, and require the SAME checker to reject the copy. Temp copy only — the real
 # worktree is never edited, so no restoration step exists to get wrong.
 remint_mut="$(mktemp "${TMPDIR:-/tmp}/remint-mutation.XXXXXX")"
-assert "remint mutation: the gate-launch occurrence exists before removal" \
-  'grep -qF -- "docket gate launch" "$IMPL"'
-grep -vF -- "docket gate launch" "$IMPL" >"$remint_mut"
+assert "remint mutation: the gate-drive-start occurrence exists before removal" \
+  'grep -qF -- "docket gate drive start" "$IMPL"'
+grep -vF -- "docket gate drive start" "$IMPL" >"$remint_mut"
 assert "remint mutation: the removal landed in the copy" \
-  '! grep -qF -- "docket gate launch" "$remint_mut"'
-assert "remint mutation: the checker rejects the launch-less copy" \
+  '! grep -qF -- "docket gate drive start" "$remint_mut"'
+assert "remint mutation: the checker rejects the start-less copy" \
   '! check_remint_chain "$remint_mut" >/dev/null'
 rm -f "$remint_mut"
 
-# Mutation (i): break the launch SHAPE only. Strip the child-command ` -- ` boundary from the
-# launch line (keeping `docket gate launch`, `--root`, `--cwd` present) and require clause (b)'s
-# separator check — and ONLY it — to redden. Keying on the checker's exact first-failing error
-# string proves the launch line's separator is what's guarded, not some other clause tripping.
+# Mutation (i): break the start SHAPE only. Strip the child-command ` -- ` boundary from the
+# start line (keeping `docket gate drive start`, `--repo-dir`, `--run-root` present) and require
+# clause (b)'s separator check — and ONLY it — to redden. Keying on the checker's exact first-failing
+# error string proves the start line's separator is what's guarded, not some other clause tripping.
 remint_shape_mut="$(mktemp "${TMPDIR:-/tmp}/remint-shape-mutation.XXXXXX")"
-sed '/docket gate launch/ s/ -- / /g' "$IMPL" >"$remint_shape_mut"
-assert "remint mutation (shape): all four command literals survive the launch-line edit" \
-  'grep -qF -- "docket gate launch" "$remint_shape_mut" && grep -qF -- "docket gate observe" "$remint_shape_mut" && grep -qF -- "docket evidence record" "$remint_shape_mut" && grep -qF -- "docket evidence verify" "$remint_shape_mut"'
+sed '/docket gate drive start/ s/ -- / /g' "$IMPL" >"$remint_shape_mut"
+assert "remint mutation (shape): all four command literals survive the start-line edit" \
+  'grep -qF -- "docket gate drive start" "$remint_shape_mut" && grep -qF -- "docket gate drive advance" "$remint_shape_mut" && grep -qF -- "docket evidence record" "$remint_shape_mut" && grep -qF -- "docket evidence verify" "$remint_shape_mut"'
 assert "remint mutation (shape): the checker rejects on the separator clause specifically" \
   '[ "$(check_remint_chain "$remint_shape_mut")" = "separator-missing" ]'
 rm -f "$remint_shape_mut"
 
-# Mutation (ii): break the ORDERING only. Swap the `docket gate observe` and `docket evidence
-# record` occurrences (all four command tokens stay present, the launch line is untouched) so
-# observe no longer precedes record, and require clause (c) — and ONLY it — to redden.
+# Mutation (ii): break the ORDERING only. Swap the `docket gate drive advance` and `docket evidence
+# record` occurrences (all four command tokens stay present, the start line's shape is untouched) so
+# advance no longer precedes record, and require clause (c) — and ONLY it — to redden.
 remint_ord_mut="$(mktemp "${TMPDIR:-/tmp}/remint-ordering-mutation.XXXXXX")"
-sed -e 's/docket gate observe/@@REMINT_SWAP@@/g' \
-    -e 's/docket evidence record/docket gate observe/g' \
+sed -e 's/docket gate drive advance/@@REMINT_SWAP@@/g' \
+    -e 's/docket evidence record/docket gate drive advance/g' \
     -e 's/@@REMINT_SWAP@@/docket evidence record/g' "$IMPL" >"$remint_ord_mut"
 assert "remint mutation (ordering): all four command literals survive the swap" \
-  'grep -qF -- "docket gate launch" "$remint_ord_mut" && grep -qF -- "docket gate observe" "$remint_ord_mut" && grep -qF -- "docket evidence record" "$remint_ord_mut" && grep -qF -- "docket evidence verify" "$remint_ord_mut"'
-assert "remint mutation (ordering): the checker rejects on the observe-before-record clause specifically" \
-  '[ "$(check_remint_chain "$remint_ord_mut")" = "observe-after-record" ]'
+  'grep -qF -- "docket gate drive start" "$remint_ord_mut" && grep -qF -- "docket gate drive advance" "$remint_ord_mut" && grep -qF -- "docket evidence record" "$remint_ord_mut" && grep -qF -- "docket evidence verify" "$remint_ord_mut"'
+assert "remint mutation (ordering): the checker rejects on the advance-before-record clause specifically" \
+  '[ "$(check_remint_chain "$remint_ord_mut")" = "advance-after-record" ]'
 rm -f "$remint_ord_mut"
 
 echo "---"; [ "$fails" -eq 0 ] && echo "PASS" || { echo "FAIL ($fails)"; exit 1; }
