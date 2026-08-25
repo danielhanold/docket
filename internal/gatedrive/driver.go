@@ -128,6 +128,14 @@ func NewDriver(store *Store, clock Clock, proc ProcessSeam, git GitSeam) *Driver
 	}
 }
 
+// NewSystemDriver builds a production Driver over the real monotonic clock and
+// the real git seam, composing the given store and process seam. The application
+// service seam (internal/app) uses it so an in-process caller composes the same
+// state machine the CLI drives, without shelling out to docket's own CLI.
+func NewSystemDriver(store *Store, proc ProcessSeam) *Driver {
+	return NewDriver(store, systemClock{}, proc, realGit{})
+}
+
 // Start creates a drive, validates and fingerprints the execution context,
 // launches the first raw run through the process seam, persists the drive
 // identity, and advances through at most one slice — returning the same typed
@@ -232,6 +240,107 @@ func (d *Driver) Advance(id, ownerGen string) (DriveDoc, error) {
 	}
 
 	return d.driveAndPersist(id, ownerGen, rec)
+}
+
+// Handoff transfers a live drive to a fresh owner through the single-use handoff
+// receipt. It loads the durable record, recomputes the current repository
+// fingerprint through the injected git seam, and — under the ownership CAS —
+// invalidates the presented owner and writes the receipt only when that owner is
+// current and the worktree still matches the drive-start identity (spec
+// "Explicit handoff and nearest-owner continuation"). The returned document
+// carries, in Generation, the single-use handoff token a claimant presents to
+// Claim. A record that cannot be read at all is a command failure; a
+// recognized-but-unusable record, a stale owner, an outstanding handoff, or a
+// drifted worktree fails closed to HALTED — never a silent transfer.
+func (d *Driver) Handoff(id, ownerGen string) (DriveDoc, error) {
+	rec, err := d.store.Load(id)
+	if err != nil {
+		return d.loadHalt(id, ownerGen, err)
+	}
+	current, ferr := ComputeFingerprint(rec.WorktreePath, d.git)
+	if ferr != nil {
+		return d.haltDoc(id, ownerGen, rec, "fingerprint-error"), nil
+	}
+	receipt, herr := d.store.writeHandoffReceipt(id, ownerGen, current)
+	if herr != nil {
+		if oe, ok := AsOwnershipError(herr); ok {
+			return d.haltDoc(id, ownerGen, rec, string(oe.Kind)), nil
+		}
+		return DriveDoc{}, herr
+	}
+	cur, err := d.store.Load(id)
+	if err != nil {
+		return DriveDoc{}, err
+	}
+	return d.transferDoc(id, receipt.HandoffGeneration, cur), nil
+}
+
+// Claim consumes an outstanding single-use handoff receipt for a fresh owner. It
+// loads the durable record, recomputes the current repository fingerprint through
+// the injected git seam, and — under the ownership CAS — installs a new owner only
+// when the presented handoff token is the drive's current outstanding one and the
+// recomputed identity still matches the drive-start fingerprint. The returned
+// document carries, in Generation, the fresh owner generation the claimant
+// advances with. A record that cannot be read at all is a command failure; no
+// outstanding handoff, a mismatched token, or a drifted worktree fails closed to
+// HALTED, so a claimant that lost the race or no longer matches acquires no
+// authority.
+func (d *Driver) Claim(id, handoffID string) (DriveDoc, error) {
+	rec, err := d.store.Load(id)
+	if err != nil {
+		return d.loadHalt(id, "", err)
+	}
+	current, ferr := ComputeFingerprint(rec.WorktreePath, d.git)
+	if ferr != nil {
+		return d.haltDoc(id, "", rec, "fingerprint-error"), nil
+	}
+	newOwner, cerr := d.store.consumeHandoffCAS(id, handoffID, current)
+	if cerr != nil {
+		if oe, ok := AsOwnershipError(cerr); ok {
+			return d.haltDoc(id, "", rec, string(oe.Kind)), nil
+		}
+		return DriveDoc{}, cerr
+	}
+	cur, err := d.store.Load(id)
+	if err != nil {
+		return DriveDoc{}, err
+	}
+	return d.transferDoc(id, newOwner, cur), nil
+}
+
+// loadHalt maps a store Load error at an ownership boundary the same way Advance
+// does: a recognized-but-unusable record (unknown schema, corrupt) fails closed
+// to a HALTED document, while a missing or malformed id is a command failure
+// (there is no drive to report on).
+func (d *Driver) loadHalt(id, gen string, err error) (DriveDoc, error) {
+	if se, ok := AsStoreError(err); ok {
+		switch se.Kind {
+		case ErrUnknownSchema, ErrCorruptRecord:
+			return d.haltDoc(id, gen, driveRecord{}, "schema-mismatch"), nil
+		}
+	}
+	return DriveDoc{}, err
+}
+
+// transferDoc builds the document a successful ownership transfer returns:
+// Generation carries the credential the caller presents next — the single-use
+// handoff token after Handoff, or the fresh owner generation after Claim — while
+// Outcome/Cause report the drive's last recorded verdict and only a PASSED drive
+// exposes its raw run dir.
+func (d *Driver) transferDoc(id, generation string, rec driveRecord) DriveDoc {
+	doc := DriveDoc{
+		ProtocolVersion: ProtocolVersion,
+		DriveID:         id,
+		Generation:      generation,
+		Attempt:         rec.Attempt,
+		Deadline:        rec.Deadline,
+		Outcome:         rec.LastOutcome,
+		Cause:           rec.LastCause,
+	}
+	if rec.LastOutcome == PASSED {
+		doc.RawRunDir = rec.RawRunDir
+	}
+	return doc
 }
 
 // driveAndPersist runs one slice over rec, persists the resulting transition
