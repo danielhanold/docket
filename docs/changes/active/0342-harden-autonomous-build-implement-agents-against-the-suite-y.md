@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-08-24'
-updated: '2026-08-24'
+updated: '2026-08-25'
 depends_on: []
 stacked_on:
 related: [223, 231, 282, 285, 314, 315, 341]
@@ -21,7 +21,7 @@ branch: 'feat/harden-autonomous-build-implement-agents-against-the-suite-y'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-25T01:52:31Z'
+claimed_at: '2026-08-25T01:53:32Z'
 ---
 
 ## Artifacts
