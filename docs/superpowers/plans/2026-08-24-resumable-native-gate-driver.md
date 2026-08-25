@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0342 — Harden autonomous build/implement agents against the suite-yield deadlock (ADR-0024)](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0342-harden-autonomous-build-implement-agents-against-the-suite-y.md)**
+> ↩ **[Change 0342 — Harden autonomous build/implement agents against the suite-yield deadlock (ADR-0024)](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-25-0342-harden-autonomous-build-implement-agents-against-the-suite-y.md)**
 <!-- docket:backlink:end -->
 # Resumable Native Gate Driver Implementation Plan
 
