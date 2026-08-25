@@ -19,8 +19,8 @@ auto_groomable:
 branch: 'feat/honor-recorded-branch-over-feat-prefix'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-25T23:44:20Z'
+reconciled: true
+claimed_at: '2026-08-25T23:46:06Z'
 ---
 
 ## Artifacts
@@ -85,3 +85,9 @@ out of scope.
 - A CircleCI / Docker-tag sanitizer in a consumer repo
 - Changing `integration_branch` or stacked-on merge policy (ADR-0092)
 - Inventing a new lifecycle state
+
+## Reconcile log
+
+### 2026-08-25
+
+2026-08-25 — Reconciled at claim time against current `main`/`docket` reality. Confirmed every premise still holds in the Go runtime: `domain.BranchForSlug` is reconstructed at all the sites the spec names (`implementation_context.go`, `finalize_context.go` context + block, `finalize_retarget.go`, `finalize_cleanup.go`, `finalize_closeout.go`, `finalize_merge.go`, `change_reclaim.go`), `FindOpenPullRequestsByHead` is still the head-discovery path in `finalize_publish.go`/`pr_publish.go`/`change_implemented.go`/`finalize_block.go`, and `finalize_context.ProbePR` still takes a reconstructed `headBranch`. The live `pr-closed` misclassification path (a clean head-search miss read as closed) is unchanged. Related changes 316/327/336/344 and ADRs 35/92/97 remain the correct context. No scope adjustment, no drops; proceeding to plan under the spec as written.
