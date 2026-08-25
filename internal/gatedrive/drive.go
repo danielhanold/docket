@@ -96,11 +96,11 @@ type driveRecord struct {
 	Ref     string `json:"ref"`
 	HeadOID string `json:"head_oid"`
 
-	// Repository execution-identity fingerprint. Stored as the canonical
-	// per-dimension hash digest (never file/diff content); the Fingerprint type
-	// and its equality land in Task 3, which refines this field's concrete
-	// shape.
-	Fingerprint string `json:"fingerprint"`
+	// Repository execution-identity fingerprint: per-dimension hashes and
+	// structural counts only, never file/diff content (see fingerprint.go). The
+	// driver recomputes it at every ownership boundary and before accepting a
+	// terminal pass; any drift HALTs rather than going red.
+	Fingerprint Fingerprint `json:"fingerprint"`
 
 	// Resolved command + working directory. Authoritative config resolves these
 	// — never agent input.
