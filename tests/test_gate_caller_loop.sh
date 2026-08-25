@@ -61,7 +61,7 @@ ops="$(awk -F'|' '
 assert "the operations table lists exactly start/advance/handoff/claim" \
   '[ "$(printf "%s\n" $ops)" = "$(printf "%s\n" advance claim handoff start | sort)" ]'
 for op in $ops; do
-  assert "the contract names the '$op' driver operation as \`docket gate drive $op\`" \
+  assert "the contract names the '$op' driver operation as "'`docket gate drive '"$op"'`' \
     'grep -qF -- "docket gate drive '"$op"'" <<<"$ref"'
 done
 

@@ -85,7 +85,7 @@ skills/docket-review/SKILL.md|One shot at the dispatched rung|second-person proh
 skills/docket-review/SKILL.md|An unmet precondition or a blocking ambiguity is **abort-and-report**|terminal stop
 skills/docket-status/SKILL.md|stop rather than improvising a fix|hard-error stop (Tier A inline path)
 skills/docket-build-task/SKILL.md|revise or replace them, but never discard them blindly|second-person prohibitions
-skills/docket-build-task/SKILL.md|Return exactly one of three outcomes|terminal return
+skills/docket-build-task/SKILL.md|Return exactly one of four outcomes|terminal return
 skills/docket-brainstorm/SKILL.md|STOP AT THE SPEC|terminal stop (always-inlined body)
 "
 
@@ -117,7 +117,7 @@ EOF
 # preload is not self-invocation. Asserted per-site, not file-wide (the 0199 co-occurrence lesson).
 PRELOAD="Wrapper preload is not self-invocation"
 BT="$REPO/skills/docket-build-task/SKILL.md"
-for a in "revise or replace them, but never discard them blindly" "Return exactly one of three outcomes"; do
+for a in "revise or replace them, but never discard them blindly" "Return exactly one of four outcomes"; do
   bt_ln="$(anchor_line "$BT" "$a")"
   assert "docket-build-task still carries its anchor: $a" '[ -n "$bt_ln" ]'
   [ -n "$bt_ln" ] || continue
