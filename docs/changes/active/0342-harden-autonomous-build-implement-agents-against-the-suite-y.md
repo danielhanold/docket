@@ -11,7 +11,7 @@ depends_on: []
 stacked_on:
 related: [223, 231, 282, 285, 314, 315, 341]
 discovered_from: [339]
-adrs: [24, 95]
+adrs: [24, 95, 98]
 spec: docs/superpowers/specs/2026-08-24-resumable-native-gate-driver-design.md
 plan: 'docs/superpowers/plans/2026-08-24-resumable-native-gate-driver.md'
 results:
@@ -21,7 +21,7 @@ branch: 'feat/harden-autonomous-build-implement-agents-against-the-suite-y'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-25T08:35:51Z'
+claimed_at: '2026-08-25T09:22:58Z'
 ---
 
 ## Artifacts
@@ -31,7 +31,7 @@ claimed_at: '2026-08-25T08:35:51Z'
 |---|---|
 | Spec | [2026-08-24-resumable-native-gate-driver-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-24-resumable-native-gate-driver-design.md) |
 | Plan | [2026-08-24-resumable-native-gate-driver.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-24-resumable-native-gate-driver.md) |
-| ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md) |
+| ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0098](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0098-structured-gate-waiting-and-ownership-handoff.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -108,3 +108,6 @@ and became reliably visible as the suite approached the foreground-call ceiling.
 
 **2026-08-24** — Reconciled against current `docket` reality before planning. Confirmed the change is unstarted and its premise still holds: `docket gate` exposes only the raw `launch`/`observe`/`stop`/`recover`/`cleanup` primitives (no `drive` verb), and no `run-waiting` verdict exists anywhere in the tree. The two caller loops the spec targets are present as written — `docket-build`'s Bash caller loop (embedded `skills/docket-build/references/gate-caller-loop.md`, mirrored under `~/.claude/skills/docket-build`) and finalize's in-process Go polling loop (`internal/app`). Related work is already landed and reflected: the native supervisor (0314/ADR-0095) lives in `internal/app/gate_supervisor.go` + `internal/app/gate.go`, and the incident forensics (0339/0341) match the spec's Evidence section. No scope drift, no work done elsewhere, no new external constraints — proposal, spec, and relations (adrs 24, 95; the new structured-waiting ADR is minted in the review phase) carry forward unchanged.
 
+### 2026-08-25
+
+2026-08-25: Recorded ADR-0098 (structured gate waiting + fingerprinted ownership handoff + nearest-owner continuation) into adrs: after the review-phase docket-adr dispatch assigned it. ADR-0024 and ADR-0095 remain related, not reversed. No scope change.
