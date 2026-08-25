@@ -2,11 +2,13 @@ package app
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/domain"
+	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/repository"
@@ -315,6 +317,199 @@ func TestRunVerifyOperationalError(t *testing.T) {
 	}
 	if code := ExitCode(res.Env().Result); code == 0 {
 		t.Errorf("operational error exit code = 0, want non-zero (result %q)", res.Env().Result)
+	}
+}
+
+// --- run-waiting: local receipt-derived verdict (Task 12) --------------------
+
+// fakeWaitingReader is the injected WaitingReceiptReader seam. It returns a
+// preassembled receipt bundle so a test can drive one fully-agreeing chain and
+// mutate exactly one receipt dimension per row.
+type fakeWaitingReader struct {
+	receipt WaitingReceipt
+	found   bool
+	err     error
+}
+
+func (f fakeWaitingReader) Read(_ context.Context, _ string, _ int) (WaitingReceipt, bool, error) {
+	return f.receipt, f.found, f.err
+}
+
+// rvInProgressRecord renders an in-progress (claimed, not yet implemented)
+// change 3 carrying the given linkage — the status a waiting run sits in
+// (waiting is private runtime state and never advances the change file).
+func rvInProgressRecord(plan, results, branch string) []byte {
+	src := lifecycleChange(3, rvSlug, "in-progress")
+	if plan != "" {
+		src = strings.Replace(src, "plan:\n", "plan: '"+plan+"'\n", 1)
+	}
+	if results != "" {
+		src = strings.Replace(src, "results:\n", "results: '"+results+"'\n", 1)
+	}
+	if branch != "" {
+		src = strings.Replace(src, "branch: feat/"+rvSlug, "branch: "+branch, 1)
+	}
+	return []byte(src)
+}
+
+// rvAgreeingReceipt is the fully-agreeing local receipt chain for the fixture
+// head: every independent condition of the run-waiting verdict holds. Each
+// mutation row below flips exactly one of these to prove waiting disappears.
+func rvAgreeingReceipt(head string) WaitingReceipt {
+	fp := gatedrive.Fingerprint{Head: head, Index: "idx", Status: "st", Worktree: "wt", Entries: 2}
+	return WaitingReceipt{
+		DriveID:             "d0opaque",
+		HasUnclaimedHandoff: true,
+		ChangeID:            "3",
+		TaskID:              "t1",
+		Phase:               "build",
+		Branch:              "feat/" + rvSlug,
+		WorktreePath:        "/some/worktree",
+		WorktreeExists:      true,
+		DriveHead:           head,
+		DriveFingerprint:    fp,
+		LiveFingerprint:     fp,
+		DeadlineLive:        true,
+		TerminalWaiting:     false,
+		RawRunMatches:       true,
+	}
+}
+
+// rvWaitingDeps assembles a published, in-progress fixture whose only unmet
+// postcondition is not-implemented (so the reprobe is non-empty and run verify
+// reaches the waiting check), wiring the given waiting reader.
+func rvWaitingDeps(t *testing.T, f *rvFixture, reader WaitingReceiptReader) (PlanningDeps, WorkspaceDeps, GitHubDeps) {
+	t.Helper()
+	deps, wdeps, gdeps := f.deps(
+		rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug),
+		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+	)
+	wdeps.Waiting = reader
+	return deps, wdeps, gdeps
+}
+
+// TestRunVerifyWaitingAgreeingChain: a fully-agreeing local receipt chain over an
+// in-progress change yields run-waiting, exposing the opaque handoff id and phase
+// (never an owner credential), as a success-shaped, exit-0 verdict.
+func TestRunVerifyWaitingAgreeingChain(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	reader := fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true}
+	deps, wdeps, gdeps := rvWaitingDeps(t, f, reader)
+
+	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
+	if res.Verdict != VerdictRunWaiting {
+		t.Fatalf("verdict = %q, want %q (unmet %v)", res.Verdict, VerdictRunWaiting, unmetReasons(res))
+	}
+	if res.HandoffID != "d0opaque" {
+		t.Errorf("handoff id = %q, want %q", res.HandoffID, "d0opaque")
+	}
+	if res.Phase != "build" {
+		t.Errorf("phase = %q, want %q", res.Phase, "build")
+	}
+	if len(res.Unmet) != 0 {
+		t.Errorf("run-waiting carried unmet conjuncts: %v", unmetReasons(res))
+	}
+	if code := ExitCode(res.Env().Result); code != 0 {
+		t.Errorf("run-waiting exit code = %d, want 0", code)
+	}
+}
+
+// TestRunVerifyWaitingTerminalOverridesDeadline: an expired deadline still yields
+// run-waiting WHEN a durable terminal result is waiting to be consumed — the one
+// admitted exception to the live-deadline condition.
+func TestRunVerifyWaitingTerminalOverridesDeadline(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	rcpt := rvAgreeingReceipt(f.head)
+	rcpt.DeadlineLive = false
+	rcpt.TerminalWaiting = true
+	deps, wdeps, gdeps := rvWaitingDeps(t, f, fakeWaitingReader{receipt: rcpt, found: true})
+
+	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
+	if res.Verdict != VerdictRunWaiting {
+		t.Fatalf("verdict = %q, want %q", res.Verdict, VerdictRunWaiting)
+	}
+}
+
+// TestRunVerifyWaitingMutationsDisappear is the spec's mutation rule: flip exactly
+// one receipt dimension of the agreeing chain and prove waiting disappears —
+// falling through to the ordinary run-incomplete verdict. A found=false / errored
+// reader (missing local state, e.g. another machine) also never invents waiting.
+func TestRunVerifyWaitingMutationsDisappear(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	base := rvAgreeingReceipt(f.head)
+
+	rows := []struct {
+		name    string
+		mutate  func(*WaitingReceipt)
+		found   bool
+		readErr error
+	}{
+		{name: "head drift (drive vs workspace)", mutate: func(r *WaitingReceipt) { r.DriveHead = "0000000000000000000000000000000000000000" }, found: true},
+		{name: "head drift (live vs drive)", mutate: func(r *WaitingReceipt) { r.LiveFingerprint.Head = "0000000000000000000000000000000000000000" }, found: true},
+		{name: "fingerprint drift", mutate: func(r *WaitingReceipt) { r.LiveFingerprint.Worktree = "drifted" }, found: true},
+		{name: "claimed handoff", mutate: func(r *WaitingReceipt) { r.HasUnclaimedHandoff = false }, found: true},
+		{name: "expired deadline without terminal", mutate: func(r *WaitingReceipt) { r.DeadlineLive = false; r.TerminalWaiting = false }, found: true},
+		{name: "mismatched raw run", mutate: func(r *WaitingReceipt) { r.RawRunMatches = false }, found: true},
+		{name: "broken chain: change id mismatch", mutate: func(r *WaitingReceipt) { r.ChangeID = "99" }, found: true},
+		{name: "broken chain: empty drive id", mutate: func(r *WaitingReceipt) { r.DriveID = "" }, found: true},
+		{name: "broken chain: empty phase", mutate: func(r *WaitingReceipt) { r.Phase = "" }, found: true},
+		{name: "worktree missing", mutate: func(r *WaitingReceipt) { r.WorktreeExists = false }, found: true},
+		{name: "recorded branch mismatch", mutate: func(r *WaitingReceipt) { r.Branch = "feat/other" }, found: true},
+		{name: "missing local state (not found)", mutate: func(r *WaitingReceipt) {}, found: false},
+		{name: "reader error", mutate: func(r *WaitingReceipt) {}, found: true, readErr: errors.New("store unreadable")},
+	}
+
+	for _, row := range rows {
+		t.Run(row.name, func(t *testing.T) {
+			rcpt := base
+			row.mutate(&rcpt)
+			deps, wdeps, gdeps := rvWaitingDeps(t, f, fakeWaitingReader{receipt: rcpt, found: row.found, err: row.readErr})
+			res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
+			if res.Verdict == VerdictRunWaiting {
+				t.Fatalf("mutation %q still reported run-waiting", row.name)
+			}
+			if res.Verdict != VerdictRunIncomplete {
+				t.Fatalf("mutation %q verdict = %q, want %q", row.name, res.Verdict, VerdictRunIncomplete)
+			}
+		})
+	}
+}
+
+// TestRunVerifyCompletePrecedesStaleHandoff: when every completed-run
+// postcondition holds, run-complete wins even though a fully-agreeing local
+// handoff receipt is present.
+func TestRunVerifyCompletePrecedesStaleHandoff(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := f.deps(
+		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
+		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+	)
+	wdeps.Waiting = fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true}
+
+	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
+	if res.Verdict != VerdictRunComplete {
+		t.Fatalf("verdict = %q, want %q (a completed run must outrank a stale handoff)", res.Verdict, VerdictRunComplete)
+	}
+}
+
+// TestRunVerifyHaltedPrecedesHandoff: a durable persisted run-halt stays terminal
+// even when a fully-agreeing local handoff receipt is present.
+func TestRunVerifyHaltedPrecedesHandoff(t *testing.T) {
+	src := strings.TrimRight(lifecycleChange(3, "widget", "in-progress"), "\n") +
+		"\n\n## Run halted\n\n### 2026-08-14\n\nPaused.\n"
+	corpus := []StatusBlob{{
+		Kind:     repository.KindChange,
+		Location: repository.LocationActive,
+		Path:     groomPath(3, "widget"),
+		Version:  "v3",
+		Data:     []byte(src),
+	}}
+	fake := &fakeReader{pin: docketPin(t), corpus: corpus}
+	wdeps := WorkspaceDeps{Waiting: fakeWaitingReader{receipt: rvAgreeingReceipt("deadbeef"), found: true}}
+	got := RunVerify(context.Background(), PlanningDeps{Reader: fake, Clock: testClock()},
+		wdeps, GitHubDeps{}, "", RunVerifyRequest{ID: 3})
+	if got.Verdict != VerdictRunHalted {
+		t.Fatalf("verdict = %q, want %q (a persisted halt stays terminal)", got.Verdict, VerdictRunHalted)
 	}
 }
 

@@ -3,10 +3,12 @@ package app
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/evidence"
+	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/repository"
 )
@@ -47,6 +49,16 @@ const (
 	// neither complete nor incomplete; automation keys on this closed verdict to
 	// stop re-dispatching (never a re-dispatch of a halt).
 	VerdictRunHalted = "run-halted"
+	// VerdictRunWaiting: a safe local continuation exists — a fingerprinted gate
+	// drive has an explicit unclaimed handoff that a fresh owner on THIS machine
+	// can claim, and every independent local receipt agrees (see
+	// evaluateRunWaiting). Its report line is `run-waiting <change-id>
+	// <opaque-handoff-id> <phase>`. It is a closed verdict of its own — the change
+	// stays in-progress and no metadata is written — consumed by its spelling, and
+	// it exposes only the opaque drive/handoff locator and workflow phase, never an
+	// owner credential or the suite command. It means "a safe local continuation
+	// exists," not merely "a process might still be running."
+	VerdictRunWaiting = "run-waiting"
 )
 
 // The stable machine reasons `run verify` records for each unmet postcondition.
@@ -116,13 +128,78 @@ type RunVerifyResult struct {
 	Head    string              `json:"head,omitempty"`
 	PR      string              `json:"pr,omitempty"`
 	Unmet   []RunVerifyConjunct `json:"unmet"`
-	Reason  string              `json:"reason,omitempty"`
-	Message string              `json:"message,omitempty"`
+	// HandoffID and Phase are populated on a run-waiting verdict only: the opaque
+	// drive/handoff locator a fresh owner claims, and the workflow phase to resume.
+	// They are the ONLY fields the run-waiting line exposes beyond the change id;
+	// neither is an owner credential or the suite command.
+	HandoffID string `json:"handoff_id,omitempty"`
+	Phase     string `json:"phase,omitempty"`
+	Reason    string `json:"reason,omitempty"`
+	Message   string `json:"message,omitempty"`
+}
+
+// WaitingReceipt is the redaction-safe bundle of agreeing local receipts `run
+// verify` folds into the run-waiting verdict. It carries per-dimension identity
+// hashes and structural booleans only — never an owner credential, the suite
+// command, launch environment, or worktree content — so it is safe to compute in
+// a read-only reporter. A WaitingReceiptReader assembles it from the durable gate
+// drive record, the live worktree recomputation, and the native process
+// ownership receipt; evaluateRunWaiting is the sole authority that folds it into
+// a verdict, checking every field's agreement so each is independently
+// mutation-testable.
+type WaitingReceipt struct {
+	// DriveID is the opaque drive/handoff locator exposed as <opaque-handoff-id>.
+	DriveID string
+	// HasUnclaimedHandoff is true only when the drive record carries an explicit
+	// unclaimed handoff (an offered, not-yet-claimed transfer).
+	HasUnclaimedHandoff bool
+	// ChangeID/TaskID/Phase are the drive's recorded work identity — the chain the
+	// verdict proves is unambiguous.
+	ChangeID string
+	TaskID   string
+	Phase    string
+	// Branch is the drive's recorded branch, cross-checked against the change's
+	// recorded claim branch.
+	Branch string
+	// WorktreePath is the drive's linked worktree; WorktreeExists reports whether
+	// it still resolves on disk.
+	WorktreePath   string
+	WorktreeExists bool
+	// DriveHead is the drive-start HEAD object id; DriveFingerprint is the
+	// drive-start execution identity; LiveFingerprint is the recomputation over the
+	// current worktree. HEAD and the full dirty-worktree fingerprint must agree
+	// across all three (and the workspace head) for a waiting continuation to be safe.
+	DriveHead        string
+	DriveFingerprint gatedrive.Fingerprint
+	LiveFingerprint  gatedrive.Fingerprint
+	// DeadlineLive is true while the drive's fixed deadline has not passed.
+	// TerminalWaiting is true when a durable terminal result (a passed or failed
+	// suite) is already waiting to be consumed — the one admitted exception to the
+	// live-deadline condition.
+	DeadlineLive    bool
+	TerminalWaiting bool
+	// RawRunMatches reports whether the referenced raw run and its native ownership
+	// receipt still match the drive's active attempt.
+	RawRunMatches bool
+}
+
+// WaitingReceiptReader gathers the local run-waiting receipts for a change. It
+// returns found=false — never an invented waiting — when no local drive matches
+// the change (for example on another machine, where the local state is absent),
+// when the match is ambiguous, or when the identity cannot be recomputed. An
+// error is a receipt-read fault the caller folds to "no waiting" rather than a
+// verdict, so a receipt-reader problem can never upgrade an incomplete run.
+type WaitingReceiptReader interface {
+	Read(ctx context.Context, repoDir string, changeID int) (WaitingReceipt, bool, error)
 }
 
 // HumanText renders the one report line plus, for an incomplete run, its unmet
 // postconditions. An operational refusal names its reason instead.
 func (r RunVerifyResult) HumanText() string {
+	if r.Verdict == VerdictRunWaiting {
+		// The spec's one-line form: run-waiting <change-id> <opaque-handoff-id> <phase>.
+		return fmt.Sprintf("run verify: change %04d %s %s %s", r.ID, r.Verdict, r.HandoffID, r.Phase)
+	}
 	if r.Verdict != "" {
 		if len(r.Unmet) == 0 {
 			return fmt.Sprintf("run verify: change %04d %s", r.ID, r.Verdict)
@@ -337,10 +414,86 @@ func RunVerify(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 		}
 	}
 
+	// Completed-run postconditions take precedence over a stale local handoff: a
+	// run that satisfies every postcondition is complete regardless of any drive
+	// receipt still on disk.
 	if len(unmet) == 0 {
 		return runVerdict(VerdictRunComplete, req.ID, head, recordedPR, nil)
 	}
+
+	// A valid local run-waiting precedes ordinary run-incomplete. It is derived
+	// EXCLUSIVELY from agreeing local receipts; a missing/ambiguous/unreadable
+	// receipt source, or any single disagreeing receipt, folds back to
+	// run-incomplete rather than inventing waiting.
+	if wdeps.Waiting != nil {
+		if rcpt, ok, rerr := wdeps.Waiting.Read(ctx, repoDir, req.ID); rerr == nil && ok {
+			if handoffID, phase, valid := evaluateRunWaiting(req.ID, c, head, rcpt); valid {
+				return newRunVerifyResult(ResultApplied, RunVerifyResult{
+					ID: req.ID, Verdict: VerdictRunWaiting, Head: head, PR: recordedPR,
+					HandoffID: handoffID, Phase: phase,
+				})
+			}
+		}
+	}
+
 	return runVerdict(VerdictRunIncomplete, req.ID, head, recordedPR, unmet)
+}
+
+// evaluateRunWaiting folds one WaitingReceipt into the run-waiting decision. It is
+// the sole authority for the verdict and fails closed: EVERY independent
+// condition from the spec's "Local run-waiting verdict" must agree, so any single
+// disagreeing receipt makes waiting disappear (and each is mutation-testable). On
+// success it returns the opaque handoff locator and phase the report line
+// exposes; it never returns, and the receipt never carries, an owner credential
+// or the suite command.
+func evaluateRunWaiting(changeID int, c domain.Change, workspaceHead string, r WaitingReceipt) (handoffID, phase string, ok bool) {
+	// The change is still the claimed in-progress change the workflow expects.
+	if c.Status() != domain.StatusInProgress {
+		return "", "", false
+	}
+	// The referenced change identity resolves to exactly this change — one link of
+	// the unambiguous change/task/phase/drive chain.
+	if n, err := strconv.Atoi(strings.TrimSpace(r.ChangeID)); err != nil || n != changeID {
+		return "", "", false
+	}
+	// The driver record is recognized and carries an explicit UNCLAIMED handoff.
+	if !r.HasUnclaimedHandoff {
+		return "", "", false
+	}
+	// The change's recorded claim branch exists and matches the handoff's branch.
+	b := c.Branch()
+	if b.State == domain.FieldAbsent || strings.TrimSpace(b.Value) == "" || b.Value != r.Branch {
+		return "", "", false
+	}
+	// The recorded/linked worktree is named and still exists on disk.
+	if strings.TrimSpace(r.WorktreePath) == "" || !r.WorktreeExists {
+		return "", "", false
+	}
+	// HEAD agrees across the workspace, the drive receipt, and the live
+	// recomputation.
+	if r.DriveHead == "" || r.DriveHead != workspaceHead || r.LiveFingerprint.Head != r.DriveHead {
+		return "", "", false
+	}
+	// The full dirty-worktree fingerprint still matches the drive-start identity.
+	if !r.LiveFingerprint.Equal(r.DriveFingerprint) {
+		return "", "", false
+	}
+	// The deadline is still live, UNLESS a durable terminal result is already
+	// waiting to be consumed.
+	if !r.DeadlineLive && !r.TerminalWaiting {
+		return "", "", false
+	}
+	// The referenced raw run and its native ownership receipt match the active
+	// driver attempt.
+	if !r.RawRunMatches {
+		return "", "", false
+	}
+	// The exposed chain links are present: an opaque drive/handoff locator and a
+	// workflow phase (the change link was proven above).
+	if strings.TrimSpace(r.DriveID) == "" || strings.TrimSpace(r.Phase) == "" {
+		return "", "", false
+	}
+	return r.DriveID, r.Phase, true
 }
 
 // trackedRegularBlob reports whether path resolves to a tracked, regular (non
