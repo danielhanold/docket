@@ -47,6 +47,30 @@ const (
 	HALTED Outcome = "HALTED"
 )
 
+// The HALTED cause tokens a workflow consumer distinguishes when it maps a
+// driver document onto its own vocabulary. A consumer (e.g. the finalize local
+// gate's mapDriveHaltCause) MUST switch on these exported constants, never on
+// the literal spellings, so a rename of a token here is a COMPILE error at every
+// consumer rather than a silent reclassification (repo rule: key a guard on a
+// typed identity, never an enumerated list of spellings). These are the single
+// source for the tokens; the driver's emission sites reference them too. Other
+// emitted causes (owner-superseded, fingerprint-error, uncertain-ownership, …)
+// are not distinguished by any consumer — they fall through a consumer's default
+// — so they need no exported identity here.
+const (
+	// CauseSchemaMismatch: the persisted record's schema version is unknown or the
+	// record is corrupt — a fail-closed halt on an unusable record.
+	CauseSchemaMismatch = "schema-mismatch"
+	// CauseObservationUnreadable: the native run observation could not be read.
+	CauseObservationUnreadable = "observation-unreadable"
+	// CauseUnknownObservation: the native run reported an unrecognized state.
+	CauseUnknownObservation = "unknown-observation"
+	// CauseDeadlineExpired: the observation budget expired with a live run. It is
+	// the running-at-budget analog; a consumer matches it as a PREFIX because a
+	// variant (deadline-expired-stop-unproven) extends it.
+	CauseDeadlineExpired = "deadline-expired"
+)
+
 // DriveDoc is the protocol-v1 outcome document emitted by every driver
 // operation, shared verbatim by the CLI, the app service seam, and tests. It is
 // a diagnostic surface: it carries bounded execution identity, the typed
@@ -62,6 +86,14 @@ type DriveDoc struct {
 	Outcome         Outcome   `json:"outcome"`
 	Cause           string    `json:"cause,omitempty"`
 	RawRunDir       string    `json:"raw_run_dir,omitempty"`
+	// RunRoot is the drive's private process-supervisor allocation root (the
+	// parent of the raw run dir(s)). It is populated on a TERMINAL document only
+	// (PASSED/FAILED/HALTED, omitempty) and never on WAITING — a live drive may
+	// still relaunch under it, so a WAITING consumer must retain it. It is exposed
+	// for exactly one purpose: the owning caller that minted the root removes it at
+	// the terminal to avoid leaking one temp dir per drive across retries. Like
+	// RawRunDir it is a host path, not a secret; it carries no argv/env/credential.
+	RunRoot string `json:"run_root,omitempty"`
 }
 
 // driveRecord is the durable, owner-private persisted schema of one drive. It is

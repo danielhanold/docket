@@ -1049,6 +1049,13 @@ func (g *processFinalizeGate) RunLocalGate(ctx context.Context, req LocalGateReq
 			RunRoot:             runRoot,
 			IdempotentSuiteGate: true,
 		})
+		// A Start command failure never persisted a drive, so the just-minted run
+		// root is orphaned (mapDriveOutcome cannot recover it — no drive document).
+		// Remove it here so a failed Start does not leak the temp dir. A drive that
+		// DID persist owns the root; its removal is at the terminal in mapDriveOutcome.
+		if out.Drive == nil {
+			removeGateRunRoot(runRoot)
+		}
 	}
 	return g.mapDriveOutcome(ctx, req, out), nil
 }
@@ -1088,16 +1095,35 @@ func (g *processFinalizeGate) mapDriveOutcome(ctx context.Context, req LocalGate
 		return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltUnavailable}
 	}
 	doc := out.Drive
-	switch doc.Outcome {
-	case gatedrive.WAITING:
+	if doc.Outcome == gatedrive.WAITING {
+		// Nonterminal: the run is still live and may relaunch under the run root, so
+		// the root MUST be retained. No cleanup here.
 		return LocalGateResult{
 			Outcome:      FinalizeGateWaiting,
 			Continuation: GateContinuation{DriveID: doc.DriveID, Generation: doc.Generation},
 		}
+	}
+	// Every remaining outcome is terminal (PASSED/FAILED/HALTED): the drive is done
+	// with its run root, so remove it once the outcome is mapped — for PASSED that
+	// means AFTER evidence is minted from the raw run dir below, which the deferred
+	// removal guarantees (defer runs after the return value is evaluated). doc.RunRoot
+	// is exposed on terminal documents only, so this recovers the root the ORIGINAL
+	// Start minted even when the terminal is reached on a later Advance slice. The one
+	// exception is a PASSED run whose evidence could not be minted: that maps to a
+	// halt and the raw run dir is the human's only diagnostic, so the root is retained
+	// (removal is gated on evidence actually being minted).
+	removeRoot := true
+	defer func() {
+		if removeRoot {
+			removeGateRunRoot(doc.RunRoot)
+		}
+	}()
+	switch doc.Outcome {
 	case gatedrive.PASSED:
 		evd := EvidenceRecord(ctx, g.planning, g.wdeps, req.RepoDir,
 			EvidenceRecordRequest{ID: req.ID, RunDir: doc.RawRunDir, Head: req.Head})
 		if evd.Result != ResultApplied || evd.Block == "" {
+			removeRoot = false
 			return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltUnavailable, RunDir: doc.RawRunDir}
 		}
 		return LocalGateResult{Outcome: FinalizeGatePassed, Evidence: evd.Block, RunDir: doc.RawRunDir}
@@ -1108,6 +1134,18 @@ func (g *processFinalizeGate) mapDriveOutcome(ctx context.Context, req LocalGate
 	}
 }
 
+// removeGateRunRoot removes a finalize gate's private run-root temp dir at a
+// terminal outcome, so the per-drive dir minted in RunLocalGate does not
+// accumulate under TMPDIR across finalize retries/rebases. It is best-effort: a
+// removal failure leaves at most one dir behind and never affects the gate
+// outcome. An empty root (a halt document that exposes none) is a no-op.
+func removeGateRunRoot(runRoot string) {
+	if runRoot == "" {
+		return
+	}
+	_ = os.RemoveAll(runRoot)
+}
+
 // mapDriveHaltCause maps a driver HALTED cause token onto the closed finalize
 // halt vocabulary. A deadline expiry is the running-at-budget analog; every other
 // fail-closed cause (identity drift, uncertain ownership, malformed/unreadable
@@ -1115,9 +1153,11 @@ func (g *processFinalizeGate) mapDriveOutcome(ctx context.Context, req LocalGate
 // never fabricates a decidable pass/fail.
 func mapDriveHaltCause(cause string) string {
 	switch {
-	case strings.HasPrefix(cause, "deadline-expired"):
+	case strings.HasPrefix(cause, gatedrive.CauseDeadlineExpired):
 		return GateHaltRunningAtBudget
-	case cause == "schema-mismatch" || cause == "observation-unreadable" || cause == "unknown-observation":
+	case cause == gatedrive.CauseSchemaMismatch ||
+		cause == gatedrive.CauseObservationUnreadable ||
+		cause == gatedrive.CauseUnknownObservation:
 		return GateHaltMalformed
 	default:
 		return GateHaltUnavailable

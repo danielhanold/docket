@@ -1,7 +1,9 @@
 package app
 
 import (
+	"context"
 	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -200,5 +202,98 @@ func TestNewGateDriveServiceResolvesConfig(t *testing.T) {
 	}
 	if svc.provenance == "" {
 		t.Fatalf("the service must record a config provenance")
+	}
+}
+
+// --- FIX #4: run-root cleanup at the terminal (temp-dir leak) --------------
+
+// runRootFixture makes a real directory that stands in for a drive's private
+// run root, so a test can assert whether mapDriveOutcome removed it.
+func runRootFixture(t *testing.T) string {
+	t.Helper()
+	d, err := os.MkdirTemp(t.TempDir(), "runroot-*")
+	if err != nil {
+		t.Fatalf("mktemp: %v", err)
+	}
+	return d
+}
+
+func dirExists(t *testing.T, p string) bool {
+	t.Helper()
+	_, err := os.Stat(p)
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return false
+	}
+	t.Fatalf("stat %q: %v", p, err)
+	return false
+}
+
+// TestMapDriveOutcomeRemovesRunRootOnTerminal proves the per-drive run root is
+// removed once the drive reaches a terminal FAILED/HALTED outcome — including
+// when that terminal is reached on a resume slice, where the root is recovered
+// from the terminal document's RunRoot rather than from a local variable.
+func TestMapDriveOutcomeRemovesRunRootOnTerminal(t *testing.T) {
+	g := &processFinalizeGate{}
+	for _, tc := range []struct {
+		name string
+		doc  gatedrive.DriveDoc
+	}{
+		{"failed", gatedrive.DriveDoc{Outcome: gatedrive.FAILED}},
+		{"halted", gatedrive.DriveDoc{Outcome: gatedrive.HALTED, Cause: gatedrive.CauseUnknownObservation}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := runRootFixture(t)
+			doc := tc.doc
+			doc.RunRoot = root
+			g.mapDriveOutcome(context.Background(), LocalGateRequest{}, GateDriveResult{Drive: &doc})
+			if dirExists(t, root) {
+				t.Fatalf("terminal %s outcome must remove the run root %q", tc.name, root)
+			}
+		})
+	}
+}
+
+// TestMapDriveOutcomeRetainsRunRootWhileWaiting proves a WAITING slice never
+// removes the run root — the run is still live and may relaunch under it. This
+// is the guard that keeps the terminal-only removal from deleting a live drive's
+// root; stripping the outcome check reddens it.
+func TestMapDriveOutcomeRetainsRunRootWhileWaiting(t *testing.T) {
+	g := &processFinalizeGate{}
+	root := runRootFixture(t)
+	doc := gatedrive.DriveDoc{Outcome: gatedrive.WAITING, DriveID: "d1", Generation: "g1", RunRoot: root}
+	res := g.mapDriveOutcome(context.Background(), LocalGateRequest{}, GateDriveResult{Drive: &doc})
+	if res.Outcome != FinalizeGateWaiting {
+		t.Fatalf("outcome = %q, want waiting", res.Outcome)
+	}
+	if !dirExists(t, root) {
+		t.Fatalf("a live WAITING drive must retain its run root %q", root)
+	}
+}
+
+// --- FIX #5: halt-cause mapping keyed on exported gatedrive constants -------
+
+// TestMapDriveHaltCauseKeysOnGatedriveConstants pins each gatedrive cause
+// constant to its intended finalize halt classification, referencing the
+// EXPORTED constants (never literal spellings) so a rename of a token in
+// gatedrive is a compile error at this mapping rather than a silent
+// reclassification.
+func TestMapDriveHaltCauseKeysOnGatedriveConstants(t *testing.T) {
+	cases := map[string]string{
+		gatedrive.CauseDeadlineExpired:       GateHaltRunningAtBudget,
+		gatedrive.CauseSchemaMismatch:        GateHaltMalformed,
+		gatedrive.CauseObservationUnreadable: GateHaltMalformed,
+		gatedrive.CauseUnknownObservation:    GateHaltMalformed,
+		// A deadline-expired variant is matched as a prefix of the constant.
+		gatedrive.CauseDeadlineExpired + "-stop-unproven": GateHaltRunningAtBudget,
+		// Any cause the mapping does not distinguish falls through to unavailable.
+		"owner-superseded": GateHaltUnavailable,
+	}
+	for cause, want := range cases {
+		if got := mapDriveHaltCause(cause); got != want {
+			t.Fatalf("mapDriveHaltCause(%q) = %q, want %q", cause, got, want)
+		}
 	}
 }

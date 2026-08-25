@@ -222,7 +222,7 @@ func (d *Driver) Advance(id, ownerGen string) (DriveDoc, error) {
 		if se, ok := AsStoreError(err); ok {
 			switch se.Kind {
 			case ErrUnknownSchema, ErrCorruptRecord:
-				return d.haltDoc(id, ownerGen, driveRecord{}, "schema-mismatch"), nil
+				return d.haltDoc(id, ownerGen, driveRecord{}, CauseSchemaMismatch), nil
 			default:
 				return DriveDoc{}, err
 			}
@@ -319,7 +319,7 @@ func (d *Driver) loadHalt(id, gen string, err error) (DriveDoc, error) {
 	if se, ok := AsStoreError(err); ok {
 		switch se.Kind {
 		case ErrUnknownSchema, ErrCorruptRecord:
-			return d.haltDoc(id, gen, driveRecord{}, "schema-mismatch"), nil
+			return d.haltDoc(id, gen, driveRecord{}, CauseSchemaMismatch), nil
 		}
 	}
 	return DriveDoc{}, err
@@ -459,7 +459,7 @@ func (d *Driver) driveSlice(rec driveRecord) sliceResult {
 		observation, err := d.proc.Observe(runDir)
 		if err != nil {
 			// An unreadable observation is fail-closed: HALT, never a guessed state.
-			return halt(&res, "observation-unreadable")
+			return halt(&res, CauseObservationUnreadable)
 		}
 
 		switch observation.State {
@@ -483,7 +483,7 @@ func (d *Driver) driveSlice(rec driveRecord) sliceResult {
 				if _, serr := d.proc.Stop(runDir, "gatedrive-halt"); serr != nil {
 					return halt(&res, "deadline-expired-stop-unproven")
 				}
-				return halt(&res, "deadline-expired")
+				return halt(&res, CauseDeadlineExpired)
 			}
 			if d.clock.Since(sliceStart) >= d.slice {
 				// The slice ended with the run still live: record the observation
@@ -550,7 +550,7 @@ func (d *Driver) driveSlice(rec driveRecord) sliceResult {
 
 		default:
 			// An unrecognized native state fails closed.
-			return halt(&res, "unknown-observation")
+			return halt(&res, CauseUnknownObservation)
 		}
 	}
 }
@@ -594,7 +594,7 @@ func (d *Driver) relaunchRefusal(rec *driveRecord, now time.Time) string {
 		return "not-idempotent"
 	}
 	if expired, _ := rec.deadlineState(now); expired {
-		return "deadline-expired"
+		return CauseDeadlineExpired
 	}
 	cur, err := ComputeFingerprint(rec.WorktreePath, d.git)
 	if err != nil {
@@ -618,7 +618,9 @@ func (d *Driver) stopIfOwned(runDir string) bool {
 
 // recordedDoc builds the outcome document from an authoritative persisted record
 // (a terminal re-advance, a concurrent-writer verdict, or a just-persisted
-// transition). Only PASSED exposes the raw run dir.
+// transition). Only PASSED exposes the raw run dir; every terminal outcome
+// exposes the private run root so the owning caller can remove it at the
+// terminal.
 func (d *Driver) recordedDoc(id, ownerGen string, rec driveRecord) DriveDoc {
 	doc := DriveDoc{
 		ProtocolVersion: ProtocolVersion,
@@ -631,6 +633,13 @@ func (d *Driver) recordedDoc(id, ownerGen string, rec driveRecord) DriveDoc {
 	}
 	if rec.LastOutcome == PASSED {
 		doc.RawRunDir = rec.RawRunDir
+	}
+	// A terminal document exposes the private run root so the owning caller that
+	// minted it removes it at the terminal (WAITING retains it — a relaunch may
+	// still replay under it). haltDoc paths (empty or stale-owner records) never
+	// reach here, so a superseded owner never deletes a live drive's root.
+	if isTerminalOutcome(rec.LastOutcome) {
+		doc.RunRoot = rec.RunRoot
 	}
 	return doc
 }
