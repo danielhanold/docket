@@ -1,8 +1,14 @@
 # Backlog
 
-**347 changes** — 🟡 50 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 212 done · 🗑️ 80 killed
+**347 changes** — 🟢 1 in progress · 🟡 49 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 212 done · 🗑️ 80 killed
 
-## 🟡 Proposed (50)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0347](active/0347-honor-recorded-branch-over-feat-prefix.md) | Honor recorded branch names instead of reconstructing feat/<slug> | `medium` | `fix` | [spec](../superpowers/specs/2026-08-25-recorded-branch-identity-design.md) | `feat/honor-recorded-branch-over-feat-prefix` |
+
+## 🟡 Proposed (49)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -55,7 +61,6 @@
 | [0343](active/0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | `medium` | `fix` | needs-brainstorm |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `medium` | `feat` | needs-brainstorm |
 | [0346](active/0346-finalize-rebuilds-binary-from-unpulled-source-tree.md) | Finalize's post-merge binary rebuild runs against an unpulled source tree | `medium` | `fix` | needs-brainstorm |
-| [0347](active/0347-honor-recorded-branch-over-feat-prefix.md) | Honor recorded branch names instead of reconstructing feat/<slug> | `medium` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
 

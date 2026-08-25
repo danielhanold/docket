@@ -2,11 +2,11 @@
 id: 347
 slug: honor-recorded-branch-over-feat-prefix
 title: Honor recorded branch names instead of reconstructing feat/<slug>
-status: proposed
+status: 'in-progress'
 priority: medium
 type: fix
 created: 2026-08-25
-updated: 2026-08-25
+updated: '2026-08-25'
 depends_on: []
 related: [316, 327, 336, 344]
 discovered_from: []
@@ -16,10 +16,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'feat/honor-recorded-branch-over-feat-prefix'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-25T23:44:20Z'
 ---
 
 ## Artifacts
