@@ -358,6 +358,19 @@ func (d *Driver) driveAndPersist(id, ownerGen string, rec driveRecord) (DriveDoc
 		if isTerminalOutcome(r.LastOutcome) {
 			return errAlreadyTerminal
 		}
+		// The single relaunch is decided HERE, under the store lock, against the
+		// AUTHORITATIVE record — not against the stale rec driveSlice observed.
+		// driveSlice performs its irreversible Launch outside this CAS, so two
+		// concurrent same-owner advances can both observe the death and both
+		// Launch a fresh run before either commits. If this advance relaunched
+		// but the authoritative record already carries a relaunch
+		// (RelaunchCount>0), a concurrent advance won the one admitted relaunch:
+		// this one LOST and must not commit a second (which would double-count
+		// and leave two live owned trees). Signal the loss so the just-launched
+		// orphan is stopped after the lock releases.
+		if res.relaunched && r.RelaunchCount > 0 {
+			return errRelaunchRaceLost
+		}
 		r.UpdatedAt = res.lastClock
 		r.LastClock = res.lastClock
 		if res.relaunched {
@@ -372,9 +385,15 @@ func (d *Driver) driveAndPersist(id, ownerGen string, rec driveRecord) (DriveDoc
 		return nil
 	})
 	if err != nil {
-		if errors.Is(err, errAlreadyTerminal) {
-			// The drive reached a terminal verdict under a concurrent writer;
-			// return that authoritative verdict.
+		if errors.Is(err, errAlreadyTerminal) || errors.Is(err, errRelaunchRaceLost) {
+			// This advance lost the write race. If it had already launched a fresh
+			// run outside the lock (errAlreadyTerminal after a relaunch, or the
+			// errRelaunchRaceLost double-relaunch loss), that run is an orphan the
+			// winner does not own — stop it best-effort so no duplicate/leaked
+			// suite tree survives — then return the authoritative recorded verdict.
+			if res.relaunched {
+				d.stopIfOwned(res.newRawRunDir)
+			}
 			cur, lerr := d.store.Load(id)
 			if lerr != nil {
 				return DriveDoc{}, lerr
@@ -395,6 +414,13 @@ func (d *Driver) driveAndPersist(id, ownerGen string, rec driveRecord) (DriveDoc
 // over a drive a concurrent writer already finished; it never escapes as a
 // workflow error.
 var errAlreadyTerminal = errors.New("gatedrive: drive already terminal")
+
+// errRelaunchRaceLost is a sentinel used inside the persist CAS when this advance
+// launched a fresh run outside the lock but the authoritative record already
+// carries the one admitted relaunch (a concurrent same-owner advance won it).
+// The loser applies no second relaunch and stops its just-launched orphan after
+// the lock releases; it never escapes as a workflow error.
+var errRelaunchRaceLost = errors.New("gatedrive: relaunch already consumed by a concurrent advance")
 
 // sliceResult is one slice's decision: the outcome/cause to persist and, on the
 // single admitted relaunch, the new raw run identity. lastClock is the freshly
