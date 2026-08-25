@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -88,6 +89,23 @@ func (g *fakeGate) RunLocalGate(_ context.Context, _ LocalGateRequest) (LocalGat
 		return LocalGateResult{}, g.err
 	}
 	return g.result, nil
+}
+
+// seqGate is a FinalizeGate that returns a scripted sequence of results, one per
+// call, and records every request it received — so a test can assert the second
+// slice RESUMED with the exact continuation the first (WAITING) slice returned
+// (driver Advance semantics), not started a fresh drive.
+type seqGate struct {
+	results []LocalGateResult
+	reqs    []LocalGateRequest
+}
+
+func (g *seqGate) RunLocalGate(_ context.Context, req LocalGateRequest) (LocalGateResult, error) {
+	g.reqs = append(g.reqs, req)
+	if len(g.reqs) > len(g.results) {
+		return LocalGateResult{}, fmt.Errorf("seqGate: unexpected call %d (only %d scripted)", len(g.reqs), len(g.results))
+	}
+	return g.results[len(g.reqs)-1], nil
 }
 
 // --- fixture --------------------------------------------------------------
@@ -512,6 +530,95 @@ func TestFinalizeRebaseGateOutcomes(t *testing.T) {
 			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
 		if res.Result != ResultBlocked || res.Gate.HaltCause != GateHaltUnavailable {
 			t.Fatalf("seam error = %q halt %q, want blocked/unavailable", res.Result, res.Gate.HaltCause)
+		}
+	})
+}
+
+// --- TestFinalizeRebaseGateWaiting ----------------------------------------
+
+// TestFinalizeRebaseGateWaiting proves the slice-bounded driver contract: a
+// nonterminal WAITING slice returns a waiting disposition carrying the opaque
+// continuation, mints NO evidence, and is NOT routed to integration-repair;
+// re-entering the same local-gate phase with that continuation advances the SAME
+// drive without repeating the completed rewrite, and a subsequent PASSED slice is
+// the only outcome that mints evidence.
+func TestFinalizeRebaseGateWaiting(t *testing.T) {
+	requireRealGit(t)
+	main := planRepoModes()[0]
+
+	t.Run("waiting-returns-continuation-no-evidence-no-repair", func(t *testing.T) {
+		f := setupRebaseFixture(t, main)
+		f.advanceBase(t)
+		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+		cont := GateContinuation{DriveID: "drive-1", Generation: "gen-1"}
+		gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGateWaiting, Continuation: cont}}
+		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+		if res.Disposition != RebaseDispWaiting {
+			t.Fatalf("waiting disposition = %q, want %q (result %q reason %q)", res.Disposition, RebaseDispWaiting, res.Result, res.Reason)
+		}
+		if res.Result == ResultGateFailed || res.Disposition == RebaseDispFailed {
+			t.Errorf("a WAITING slice was routed to repair; waiting is neither repair nor a red terminal")
+		}
+		if res.Gate == nil || res.Gate.Outcome != string(FinalizeGateWaiting) {
+			t.Fatalf("gate report = %+v, want ran/waiting", res.Gate)
+		}
+		if res.Gate.Evidence != "" {
+			t.Errorf("a WAITING slice minted evidence: %q", res.Gate.Evidence)
+		}
+		if res.Gate.Continuation == nil || *res.Gate.Continuation != cont {
+			t.Fatalf("gate continuation = %+v, want %+v", res.Gate.Continuation, cont)
+		}
+	})
+
+	t.Run("resume-advances-same-drive-without-repeating-rebase-then-mints-on-passed", func(t *testing.T) {
+		f := setupRebaseFixture(t, main)
+		f.advanceBase(t) // the base moved: a real rewrite is required.
+		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+		cont := GateContinuation{DriveID: "drive-9", Generation: "gen-9"}
+		gate := &seqGate{results: []LocalGateResult{
+			{Outcome: FinalizeGateWaiting, Continuation: cont},
+			{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"},
+		}}
+		deps := f.finalizeDeps(gh, gate)
+
+		first := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+		if first.Disposition != RebaseDispWaiting || first.Gate == nil || first.Gate.Continuation == nil {
+			t.Fatalf("first call = disp %q gate %+v, want waiting with a continuation", first.Disposition, first.Gate)
+		}
+		rewritten := f.localHead()
+		recFirst, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+
+		// Re-enter the SAME local-gate phase with the continuation the WAITING slice
+		// returned. The rebase must not be repeated; only the gate advances.
+		second := FinalizeRebase(context.Background(), deps, f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head, Continuation: *first.Gate.Continuation})
+		if second.Result != ResultApplied || second.Disposition != RebaseDispRebased {
+			t.Fatalf("resume = %q disp %q (reason %q msg %q), want applied/rebased", second.Result, second.Disposition, second.Reason, second.Message)
+		}
+		if second.Gate == nil || second.Gate.Evidence == "" {
+			t.Fatalf("resume produced no evidence on PASSED: %+v", second.Gate)
+		}
+		// The completed rewrite was NOT repeated: the head and the owned attempt token
+		// are unchanged across the re-entry.
+		if f.localHead() != rewritten {
+			t.Fatalf("resume repeated the rewrite: %q -> %q", rewritten, f.localHead())
+		}
+		recSecond, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		if recSecond.Attempt != recFirst.Attempt {
+			t.Errorf("resume minted a new rebase attempt %q; want the owned %q", recSecond.Attempt, recFirst.Attempt)
+		}
+		// The gate saw exactly two slices: the first STARTED (no continuation), the
+		// second RESUMED with the exact continuation (Advance semantics).
+		if len(gate.reqs) != 2 {
+			t.Fatalf("gate slices = %d, want 2 (one per re-entry)", len(gate.reqs))
+		}
+		if gate.reqs[0].Continuation != (GateContinuation{}) {
+			t.Errorf("the first slice carried a continuation %+v; it must start a fresh drive", gate.reqs[0].Continuation)
+		}
+		if gate.reqs[1].Continuation != cont {
+			t.Errorf("resume slice continuation = %+v, want the first slice's %+v", gate.reqs[1].Continuation, cont)
 		}
 	})
 }

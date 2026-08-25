@@ -6,11 +6,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/evidence"
+	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/workspace"
@@ -65,6 +65,7 @@ const (
 	RebaseDispContended  = "contended"  // a lost race the caller resolves by re-reading context
 	RebaseDispBlocked    = "blocked"    // retained foreign/precondition/halt state; a human is needed
 	RebaseDispFailed     = "failed"     // the rebase or the local gate failed; repair work
+	RebaseDispWaiting    = "waiting"    // the local-gate slice ended; re-enter with the continuation
 )
 
 // The closed gate-composition sub-outcomes reported in GateReport.
@@ -109,8 +110,9 @@ const (
 	ReasonRebaseNoConflict        = "no-conflict-to-continue"  // continue with no rebase in progress
 	ReasonRebaseAbortRestore      = "abort-restore-failed"     // abort did not restore the recorded orig head
 	// Gate-composition outcomes.
-	ReasonRebaseGateFailed = "gate-failed" // the local suite failed; repair work
-	ReasonRebaseGateHalted = "gate-halted" // the run was not a decidable pass/fail; a human is needed
+	ReasonRebaseGateFailed  = "gate-failed"  // the local suite failed; repair work
+	ReasonRebaseGateHalted  = "gate-halted"  // the run was not a decidable pass/fail; a human is needed
+	ReasonRebaseGateWaiting = "gate-waiting" // the local-gate slice ended; re-enter with the continuation
 	// Config refusals.
 	ReasonRebaseGateOff = "gate-off" // finalize.gate is off; no rebase and no local retest
 )
@@ -122,6 +124,11 @@ type FinalizeRebaseRequest struct {
 	ID      int    `json:"id"`
 	Version string `json:"version"`
 	Head    string `json:"head"`
+	// Continuation, when set, resumes the local-gate drive a prior slice returned
+	// as WAITING. The rebase itself is recovered idempotently from the owned
+	// receipt, so a re-entry never repeats a completed rewrite; only the local
+	// gate advances. It is empty on the first call.
+	Continuation GateContinuation `json:"continuation,omitempty"`
 }
 
 // ResolverReport is the versioned, bounded JSON envelope a conflict-resolver
@@ -153,12 +160,13 @@ const (
 // evidence head a skip rests on. Outcome/HaltCause/RunDir describe a run that
 // executed; Evidence is the canonical build-evidence block a passed run produced.
 type GateReport struct {
-	Compose   string `json:"compose"`
-	Permit    string `json:"permit,omitempty"`
-	Outcome   string `json:"outcome,omitempty"`
-	HaltCause string `json:"halt_cause,omitempty"`
-	RunDir    string `json:"run_dir,omitempty"`
-	Evidence  string `json:"evidence,omitempty"`
+	Compose      string            `json:"compose"`
+	Permit       string            `json:"permit,omitempty"`
+	Outcome      string            `json:"outcome,omitempty"`
+	HaltCause    string            `json:"halt_cause,omitempty"`
+	RunDir       string            `json:"run_dir,omitempty"`
+	Evidence     string            `json:"evidence,omitempty"`
+	Continuation *GateContinuation `json:"continuation,omitempty"`
 }
 
 // FinalizeRebaseResult is the protocol-v1 document the three rebase operations
@@ -242,7 +250,22 @@ const (
 	// budget, signaled, stopped, vanished, or its state was unobservable. Never a
 	// fabricated red; a human is needed.
 	FinalizeGateHalted FinalizeGateOutcome = "halted"
+	// FinalizeGateWaiting: the driver's slice ended while the suite is still live.
+	// It is NONTERMINAL — it mints no evidence and is not repair work. The caller
+	// carries the opaque continuation and re-enters the same local-gate phase to
+	// advance the SAME drive again, never re-launching the suite (spec "Finalize").
+	FinalizeGateWaiting FinalizeGateOutcome = "waiting"
 )
+
+// GateContinuation is the opaque handle a WAITING slice hands back so the caller
+// can re-enter the local gate and advance the SAME drive across slices — without
+// re-launching the suite or repeating the already-completed rebase. It carries
+// the drive id and owner generation only: never an argv, an environment value, a
+// worktree diff, or a run dir. An empty DriveID means "no drive yet" — start one.
+type GateContinuation struct {
+	DriveID    string `json:"drive_id,omitempty"`
+	Generation string `json:"generation,omitempty"`
+}
 
 // The closed halt causes a halted gate carries. They are the exact non-pass/fail
 // observations the spec enumerates.
@@ -261,6 +284,10 @@ type LocalGateRequest struct {
 	ID           int
 	WorkspaceDir string
 	Head         string
+	// Continuation, when set (non-empty DriveID), resumes the drive a prior
+	// WAITING slice returned — the seam advances that SAME drive rather than
+	// launching a new suite. Empty on the first slice.
+	Continuation GateContinuation
 }
 
 // LocalGateResult is the gate seam's closed return. On passed, Evidence carries
@@ -271,6 +298,9 @@ type LocalGateResult struct {
 	HaltCause string
 	Evidence  string
 	RunDir    string
+	// Continuation is populated on a WAITING outcome only: the opaque handle the
+	// caller re-presents to advance the same drive on the next slice.
+	Continuation GateContinuation
 }
 
 // FinalizeGate runs the resolved local suite in the feature workspace, observes
@@ -514,13 +544,13 @@ func FinalizeRebase(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 	if err != nil {
 		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseGitFailed, err.Error(), id)
 	}
-	return mapBegunRebase(ctx, deps, repoDir, op, rc, pr, baseHead, attempt, status)
+	return mapBegunRebase(ctx, deps, repoDir, op, rc, pr, baseHead, attempt, status, req.Continuation)
 }
 
 // mapBegunRebase maps a completed BeginRebase/continue status to a result: a
 // conflict surfaces its paths for the resolver; a completed rebase composes the
 // local gate; a structural failure is retained.
-func mapBegunRebase(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, pr githubcli.PullRequest, baseHead gitcli.ObjectID, attempt string, status gitcli.RebaseStatus) FinalizeRebaseResult {
+func mapBegunRebase(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, pr githubcli.PullRequest, baseHead gitcli.ObjectID, attempt string, status gitcli.RebaseStatus, cont GateContinuation) FinalizeRebaseResult {
 	id := int(rc.change.ID())
 	switch status.Disposition {
 	case gitcli.RebaseConflicted:
@@ -532,7 +562,7 @@ func mapBegunRebase(ctx context.Context, deps FinalizeDeps, repoDir, op string, 
 		})
 	case gitcli.RebaseUnchanged, gitcli.RebaseRebased:
 		noop := status.Disposition == gitcli.RebaseUnchanged
-		return composeLocalGate(ctx, deps, repoDir, op, rc, pr, baseHead, attempt, rc.insp.HeadCommit, status.HeadOID, noop)
+		return composeLocalGate(ctx, deps, repoDir, op, rc, pr, baseHead, attempt, rc.insp.HeadCommit, status.HeadOID, noop, cont)
 	case gitcli.RebaseInProgressForeign:
 		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseForeignInProgress,
 			"a foreign rebase is in progress; retained, not adopted", id)
@@ -595,7 +625,7 @@ func recoverFromReceipt(ctx context.Context, deps FinalizeDeps, repoDir string, 
 			"an owned attempt exists but the workspace head does not descend the base; retained for abort", id)
 	}
 	noop := string(localHead) == rec.OrigHead
-	return composeLocalGate(ctx, deps, repoDir, op, rc, pr, baseHead, rec.Attempt, gitcli.ObjectID(rec.OrigHead), localHead, noop)
+	return composeLocalGate(ctx, deps, repoDir, op, rc, pr, baseHead, rec.Attempt, gitcli.ObjectID(rec.OrigHead), localHead, noop, req.Continuation)
 }
 
 // ---------------------------------------------------------------------------
@@ -683,7 +713,10 @@ func mapContinuedRebase(ctx context.Context, deps FinalizeDeps, repoDir, op stri
 			Message: fmt.Sprintf("the rebase stopped at %d further conflicted path(s); dispatch the resolver", len(status.UnmergedPaths)),
 		})
 	case gitcli.RebaseUnchanged, gitcli.RebaseRebased:
-		return composeLocalGate(ctx, deps, repoDir, op, rc, pr, baseHead, attempt, origHead, status.HeadOID, false)
+		// The rebase-continue path always starts a fresh gate drive; a WAITING slice
+		// is resumed by re-entering FinalizeRebase (which recovers from the receipt),
+		// not this operation, so no continuation is threaded here.
+		return composeLocalGate(ctx, deps, repoDir, op, rc, pr, baseHead, attempt, origHead, status.HeadOID, false, GateContinuation{})
 	default: // RebaseInProgressForeign / RebaseFailed
 		return rebaseRefusal(op, ResultBlocked, RebaseDispFailed, ReasonRebaseGitFailed,
 			"the owned rebase-continue did not reach a resolvable state; retained for abort", id)
@@ -766,7 +799,7 @@ func requireOwnedAttempt(ctx context.Context, deps FinalizeDeps, op string, rc *
 // otherwise it runs the full suite through the gate seam. A passed run carries the
 // evidence block; a failed run is repair work (failed); a halt is retained
 // (blocked) — never a fabricated red.
-func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, pr githubcli.PullRequest, baseHead gitcli.ObjectID, attempt string, origHead, head gitcli.ObjectID, noop bool) FinalizeRebaseResult {
+func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, pr githubcli.PullRequest, baseHead gitcli.ObjectID, attempt string, origHead, head gitcli.ObjectID, noop bool, cont GateContinuation) FinalizeRebaseResult {
 	id := int(rc.change.ID())
 	disposition := RebaseDispRebased
 	if noop {
@@ -794,7 +827,7 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 			"no local-gate seam is wired; cannot run the suite", id)
 	}
 	gres, gerr := deps.Gate.RunLocalGate(ctx, LocalGateRequest{
-		RepoDir: repoDir, ID: id, WorkspaceDir: rc.wsDir, Head: string(head),
+		RepoDir: repoDir, ID: id, WorkspaceDir: rc.wsDir, Head: string(head), Continuation: cont,
 	})
 	if gerr != nil {
 		base.Disposition = RebaseDispBlocked
@@ -807,6 +840,18 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 	switch gres.Outcome {
 	case FinalizeGatePassed:
 		base.Gate.Evidence = gres.Evidence
+		return newRebaseResult(op, ResultApplied, base)
+	case FinalizeGateWaiting:
+		// A nonterminal slice: the suite is still running under the detached
+		// supervisor. Surface the opaque continuation so the caller re-enters this
+		// same phase and advances the SAME drive. Waiting mints no evidence and is
+		// not repair work; no run dir is exposed on a nonterminal outcome.
+		c := gres.Continuation
+		base.Disposition = RebaseDispWaiting
+		base.Gate.RunDir = ""
+		base.Gate.Continuation = &c
+		base.Reason = ReasonRebaseGateWaiting
+		base.Message = "the local-gate slice ended while the suite is still running; re-enter with the continuation to advance the same drive"
 		return newRebaseResult(op, ResultApplied, base)
 	case FinalizeGateFailed:
 		base.Disposition = RebaseDispFailed
@@ -947,104 +992,135 @@ func validFullObjectID(s string) bool {
 // production gate seam
 // ---------------------------------------------------------------------------
 
-// processFinalizeGate is the production FinalizeGate. It launches the resolved
-// suite command in the feature workspace through the native gate supervisor,
-// observes it to a terminal within the observation budget, and — on a passed
-// terminal — produces evidence ONLY through the landed evidence-record
-// operation. It composes the same GateLaunch/GateObserve/EvidenceRecord seams the
-// end-to-end path uses; unit tests inject a fake FinalizeGate rather than this
-// process-backed implementation.
+// processFinalizeGate is the production FinalizeGate. It composes the shared
+// native gate-drive service (internal/gatedrive via GateDriveService) and
+// advances the resolved suite in ONE short slice per call — never the old
+// 30-minute synchronous polling loop (retired with change 0342). A first call
+// starts a fresh drive; a call carrying a continuation resumes the SAME drive.
+// A WAITING slice is nonterminal and returns the opaque continuation; only a
+// trusted PASSED terminal mints evidence, through the landed evidence-record
+// operation; a FAILED terminal is repair work; every other uncertainty is a
+// halt — never a fabricated red. Unit tests inject a fake FinalizeGate rather
+// than this process-backed implementation.
 type processFinalizeGate struct {
 	planning PlanningDeps
 	wdeps    WorkspaceDeps
 }
 
+// finalizeLocalGatePhase names the workflow phase a finalize local-gate drive
+// certifies. It is recorded on the drive record only.
+const finalizeLocalGatePhase = "finalize-local-gate"
+
 // NewFinalizeGate builds the production local-gate seam over the planning and
 // workspace dependencies the CLI already assembled. The gate reads the resolved
-// finalize.test_command from authoritative config; it never takes an
-// agent-supplied command.
+// finalize.test_command and observation budget from authoritative config; it
+// never takes an agent-supplied command.
 func NewFinalizeGate(planning PlanningDeps, wdeps WorkspaceDeps) FinalizeGate {
 	return &processFinalizeGate{planning: planning, wdeps: wdeps}
 }
 
-const (
-	// finalizeGatePollInterval is the observe cadence while a run is live.
-	finalizeGatePollInterval = 500 * time.Millisecond
-	// finalizeGateObserveBudget bounds the synchronous observation; a run still
-	// live when it elapses is a running-at-budget halt, not a fabricated red.
-	finalizeGateObserveBudget = 30 * time.Minute
-)
-
-// RunLocalGate launches and observes the resolved suite, mapping the terminal
-// observation to a closed outcome. Any seam failure (unresolved config, an
-// unlaunchable run, an unobservable state, an evidence-record refusal on a passed
-// run) is a halt (unavailable/malformed), never a fabricated red.
+// RunLocalGate advances the resolved suite by one driver slice. With no
+// continuation it starts a fresh drive over the authoritative-config command and
+// budget; with a continuation it resumes that drive. It maps the typed driver
+// outcome onto the finalize gate vocabulary: WAITING carries the continuation for
+// re-entry, PASSED mints evidence from the exact terminal raw run dir, FAILED is
+// repair work, and every other outcome (a HALTED drive or a command failure) is a
+// halt — never a fabricated red.
 func (g *processFinalizeGate) RunLocalGate(ctx context.Context, req LocalGateRequest) (LocalGateResult, error) {
-	pin, err := g.planning.Reader.PinContext(ctx, req.RepoDir)
-	if err != nil {
+	svc, ok := g.buildDriveService(ctx, req.RepoDir)
+	if !ok {
 		return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltUnavailable}, nil
 	}
-	command := pin.Config.Effective.Finalize.TestCommand.Value
-	if command == "" {
-		return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltUnavailable}, nil
-	}
-	root, err := os.MkdirTemp("", "docket-finalize-gate-*")
-	if err != nil {
-		return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltUnavailable}, nil
-	}
-	launch := GateLaunch(root, req.WorkspaceDir, []string{"/bin/sh", "-c", command})
-	if launch.Result != ResultApplied || launch.RunDir == "" {
-		return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltUnavailable}, nil
-	}
-	outcome := g.observeToTerminal(ctx, launch.RunDir)
-	outcome.RunDir = launch.RunDir
-	if outcome.Outcome == FinalizeGatePassed {
-		evd := EvidenceRecord(ctx, g.planning, g.wdeps, req.RepoDir,
-			EvidenceRecordRequest{ID: req.ID, RunDir: launch.RunDir, Head: req.Head})
-		if evd.Result != ResultApplied || evd.Block == "" {
-			return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltUnavailable, RunDir: launch.RunDir}, nil
+
+	var out GateDriveResult
+	if req.Continuation.DriveID != "" {
+		out = svc.Advance(req.Continuation.DriveID, req.Continuation.Generation)
+	} else {
+		runRoot, err := os.MkdirTemp("", "docket-finalize-gate-*")
+		if err != nil {
+			return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltUnavailable}, nil
 		}
-		outcome.Evidence = evd.Block
+		out = svc.Start(GateDriveStartRequest{
+			RepoDir:             req.WorkspaceDir,
+			Worktree:            req.WorkspaceDir,
+			ChangeID:            strconv.Itoa(req.ID),
+			Phase:               finalizeLocalGatePhase,
+			Cwd:                 req.WorkspaceDir,
+			RunRoot:             runRoot,
+			IdempotentSuiteGate: true,
+		})
 	}
-	return outcome, nil
+	return g.mapDriveOutcome(ctx, req, out), nil
 }
 
-// observeToTerminal polls the run until it reaches a terminal or the observation
-// budget elapses, mapping each observation to a closed outcome.
-func (g *processFinalizeGate) observeToTerminal(ctx context.Context, runDir string) LocalGateResult {
-	deadline := g.planning.Clock.Now().Add(finalizeGateObserveBudget)
-	for {
-		obs := GateObserve(runDir)
-		switch {
-		case obs.Result == ResultApplied && obs.State == "passed":
-			return LocalGateResult{Outcome: FinalizeGatePassed}
-		case obs.Result == ResultApplied && obs.State == "running":
-			// still live; fall through to the wait
-		case obs.State == "failed":
-			return LocalGateResult{Outcome: FinalizeGateFailed}
-		case obs.State == "signaled":
-			return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltSignaled}
-		case obs.State == "stopped":
-			return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltStopped}
-		case obs.State == "vanished":
-			return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltVanished}
-		default:
-			// An unobservable run: a malformed run dir vs. an unreadable one. Neither is
-			// a clean absence, and neither is a red.
-			cause := GateHaltUnavailable
-			if obs.Result == ResultInvalidState {
-				cause = GateHaltMalformed
-			}
-			return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: cause}
+// buildDriveService composes the in-process gate-drive seam for one slice: it
+// resolves the authoritative finalize.test_command and observation budget from
+// config, roots the durable drive store at the repository's Git common dir, and
+// binds the detached-supervisor re-exec target. Any resolution failure fails
+// closed (ok=false) so the caller returns a halt, never a fabricated red.
+func (g *processFinalizeGate) buildDriveService(ctx context.Context, repoDir string) (*GateDriveService, bool) {
+	pin, err := g.planning.Reader.PinContext(ctx, repoDir)
+	if err != nil || pin.Config.Effective.Finalize.TestCommand.Value == "" {
+		return nil, false
+	}
+	repo, err := g.planning.Client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
+	if err != nil {
+		return nil, false
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return nil, false
+	}
+	svc, _, _ := NewGateDriveService(repo.CommonDir, exe, pin.Config.Effective)
+	if svc == nil {
+		return nil, false
+	}
+	return svc, true
+}
+
+// mapDriveOutcome maps one driver document onto the finalize gate result. A
+// command failure (no drive document) is a halt. WAITING surfaces the
+// continuation; PASSED records evidence from the exact terminal raw run dir and
+// halts (unavailable) if evidence cannot be minted; FAILED is repair work; a
+// HALTED drive maps its typed cause into the finalize halt vocabulary.
+func (g *processFinalizeGate) mapDriveOutcome(ctx context.Context, req LocalGateRequest, out GateDriveResult) LocalGateResult {
+	if out.Drive == nil {
+		return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltUnavailable}
+	}
+	doc := out.Drive
+	switch doc.Outcome {
+	case gatedrive.WAITING:
+		return LocalGateResult{
+			Outcome:      FinalizeGateWaiting,
+			Continuation: GateContinuation{DriveID: doc.DriveID, Generation: doc.Generation},
 		}
-		if g.planning.Clock.Now().After(deadline) {
-			return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltRunningAtBudget}
+	case gatedrive.PASSED:
+		evd := EvidenceRecord(ctx, g.planning, g.wdeps, req.RepoDir,
+			EvidenceRecordRequest{ID: req.ID, RunDir: doc.RawRunDir, Head: req.Head})
+		if evd.Result != ResultApplied || evd.Block == "" {
+			return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltUnavailable, RunDir: doc.RawRunDir}
 		}
-		select {
-		case <-ctx.Done():
-			return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: GateHaltRunningAtBudget}
-		case <-time.After(finalizeGatePollInterval):
-		}
+		return LocalGateResult{Outcome: FinalizeGatePassed, Evidence: evd.Block, RunDir: doc.RawRunDir}
+	case gatedrive.FAILED:
+		return LocalGateResult{Outcome: FinalizeGateFailed, RunDir: doc.RawRunDir}
+	default: // gatedrive.HALTED or an unrecognized outcome — fail closed, never red.
+		return LocalGateResult{Outcome: FinalizeGateHalted, HaltCause: mapDriveHaltCause(doc.Cause)}
+	}
+}
+
+// mapDriveHaltCause maps a driver HALTED cause token onto the closed finalize
+// halt vocabulary. A deadline expiry is the running-at-budget analog; every other
+// fail-closed cause (identity drift, uncertain ownership, malformed/unreadable
+// state, an unadmitted death) is reported as unavailable — a human is needed. It
+// never fabricates a decidable pass/fail.
+func mapDriveHaltCause(cause string) string {
+	switch {
+	case strings.HasPrefix(cause, "deadline-expired"):
+		return GateHaltRunningAtBudget
+	case cause == "schema-mismatch" || cause == "observation-unreadable" || cause == "unknown-observation":
+		return GateHaltMalformed
+	default:
+		return GateHaltUnavailable
 	}
 }
 
