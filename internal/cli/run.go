@@ -1,11 +1,14 @@
 package cli
 
 import (
+	"context"
 	"errors"
+	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/danielhanold/docket/internal/app"
+	"github.com/danielhanold/docket/internal/gitcli"
 )
 
 // This file is the `docket run` command family: a thin adapter that reads its
@@ -46,6 +49,11 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			// Best-effort wire the local run-waiting receipt reader. It is an
+			// ADDITIVE derivation: if the drive store root or the supervisor cannot
+			// be resolved, run verify simply reports its ordinary postcondition
+			// verdict rather than deriving run-waiting — never a report failure.
+			wdeps.Waiting = newWaitingReader(c.Context(), repoDir)
 			setResult(app.RunVerify(c.Context(), deps, wdeps, gdeps, repoDir, app.RunVerifyRequest{ID: id}))
 			return nil
 		},
@@ -56,4 +64,31 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 	runCmd.AddCommand(verify)
 	return runCmd
+}
+
+// newWaitingReader composes the production run-waiting receipt reader for repoDir,
+// rooting the durable drive store at the repository's Git common directory and
+// binding the native supervisor at this binary's path. Every resolution step is
+// best-effort: any failure returns a nil reader, and run verify then reports its
+// ordinary postcondition verdict without deriving run-waiting. internal/cli never
+// imports internal/process — it reaches the supervisor only through the app
+// boundary (app.NewWaitingReceiptReader), exactly as the gate-drive adapters do.
+func newWaitingReader(ctx context.Context, repoDir string) app.WaitingReceiptReader {
+	client, err := gitcli.NewClient()
+	if err != nil {
+		return nil
+	}
+	repo, err := client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
+	if err != nil {
+		return nil
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return nil
+	}
+	reader, err := app.NewWaitingReceiptReader(repo.CommonDir, exe)
+	if err != nil {
+		return nil
+	}
+	return reader
 }

@@ -88,8 +88,15 @@ type WorkspaceService interface {
 // WorkspaceDeps carries the workspace-service seam, kept separate from
 // PlanningDeps so the operation composes the read-only planning seams with the
 // workspace engine without folding one into the other.
+//
+// Waiting is the OPTIONAL run-waiting receipt reader consulted only by `run
+// verify` (Task 12). It is nil for every other workspace operation and for a
+// caller that does not wire a receipt source; a nil reader simply means run
+// verify never derives the local run-waiting verdict and reports its ordinary
+// postcondition verdict instead.
 type WorkspaceDeps struct {
 	Service WorkspaceService
+	Waiting WaitingReceiptReader
 }
 
 // WorkspaceOpResult is the protocol-v1 document the three workspace operations
