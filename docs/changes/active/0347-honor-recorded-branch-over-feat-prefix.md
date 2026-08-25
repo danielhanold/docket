@@ -20,7 +20,7 @@ branch: 'feat/honor-recorded-branch-over-feat-prefix'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-25T23:46:49Z'
+claimed_at: '2026-08-25T23:56:52Z'
 ---
 
 ## Artifacts
