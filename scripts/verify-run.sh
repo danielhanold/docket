@@ -30,6 +30,7 @@
 #   Verdict lines (one, on stdout):
 #     run-complete <id>                    every conjunct holds
 #     run-halted <id>                      a `## Run halted` record is present — deliberate stop
+#     run-waiting <id> <handoff-id> <phase> a safe, resumable gate-drive continuation (change 0342)
 #     run-incomplete <id> <unmet…>         one or more conjuncts unmet (tokens: status pr branch)
 #     run-unclaimed <id>                   not in-progress, implemented, or stacked-merged — no run
 #   Exit 0 WHENEVER A VERDICT WAS PRODUCED. `run-incomplete` is a FINDING, not a script failure:
@@ -39,9 +40,18 @@
 #   NO TIME FLOOR. Sound only because of WHERE this is called: at a seam where the child process
 #   has already returned, so "stopped" and "still working" are not ambiguous. board-checks.sh
 #   cannot make that assumption and therefore keeps its floors — it is deliberately untouched.
-#   Mock seams: GIT="${GIT:-git}", CONFIG_EXPORT_CMD (config resolution).
+#   run-waiting DELEGATES to the Go authority: the verdict is derived from agreeing LOCAL gate-drive
+#   receipts that live OUTSIDE the change file, so it cannot be read from frontmatter here. On the
+#   run-incomplete fallthrough ONLY, this script shells out to `docket run verify` (internal/app
+#   RunVerify's `evaluateRunWaiting`, change 0342) and relays a run-waiting verdict when it reports
+#   one — every other verdict it might return is already decided above by the conjuncts read here,
+#   so the Go op never overrides them, and a missing binary / probe error / non-waiting verdict just
+#   falls through to run-incomplete. This one leg is NOT a pure git+filesystem read (the Go op probes
+#   remote/PR before folding the local receipts); every other mode stays pure. See verify-run.md.
+#   Mock seams: GIT="${GIT:-git}", CONFIG_EXPORT_CMD (config resolution), DOCKET_BIN (the Go binary).
 set -uo pipefail
 GIT="${GIT:-git}"
+DOCKET_BIN="${DOCKET_BIN:-docket}"
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 die(){ printf 'verify-run: %s\n' "$*" >&2; exit 2; }
@@ -262,5 +272,31 @@ fi
 if has_section "$FILE" "## Run halted"; then
   printf 'run-halted %s\n' "$ID"; exit 0
 fi
+
+# --- run-waiting: a safe, resumable gate-drive continuation (change 0342) ------
+# ORDER: after the halt check (run-halted must still win where it applies) and before the
+# run-incomplete fallthrough. This script reads ONLY the change frontmatter; the run-waiting verdict
+# is derived from agreeing LOCAL gate-drive receipts that live OUTSIDE the change file, so the
+# receipt-agreement predicate cannot be reimplemented here. Delegate the probe to the ONE Go
+# authority that owns it — `docket run verify` (evaluateRunWaiting) — and relay ONLY a run-waiting
+# verdict. Every other verdict the Go op could report is already decided above by the conjuncts this
+# script read, so we never let it override them: a missing binary, a probe error, or any non-waiting
+# verdict falls through to run-incomplete unchanged. Capture-then-parse with a here-string — never
+# `producer | jq` under pipefail (CLAUDE.md Shell). `|| true` keeps a non-zero probe from tripping a
+# `run-incomplete` finding into a script failure.
+wjson="$("$DOCKET_BIN" --json run verify --id "$ID" 2>/dev/null || true)"
+if [ -n "$wjson" ]; then
+  wverdict="$(jq -r '.verdict // empty' <<<"$wjson" 2>/dev/null || true)"
+  if [ "$wverdict" = "run-waiting" ]; then
+    whandoff="$(jq -r '.handoff_id // empty' <<<"$wjson" 2>/dev/null || true)"
+    wphase="$(jq -r '.phase // empty' <<<"$wjson" 2>/dev/null || true)"
+    # Both locators must be present — the consumers parse `run-waiting <id> <handoff-id> <phase>`,
+    # and a partial line would be a malformed verdict. An incomplete waiting report is no waiting.
+    if [ -n "$whandoff" ] && [ -n "$wphase" ]; then
+      printf 'run-waiting %s %s %s\n' "$ID" "$whandoff" "$wphase"; exit 0
+    fi
+  fi
+fi
+
 printf 'run-incomplete %s %s\n' "$ID" "${unmet[*]}"
 exit 0

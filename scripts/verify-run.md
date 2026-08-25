@@ -8,9 +8,13 @@ postcondition** holds — a statement entirely readable from git that no code re
 runs executed a prefix of the seven steps and reported success. This script is the missing reader
 (change 0237).
 
-It is a **pure reader**: git and filesystem only. No network, no `gh`, no harness. It flips no
-status, releases no claim, and writes no file. The only thing that acts on a verdict is
-`runner-dispatch.sh`.
+It flips no status, releases no claim, and writes no file — the only thing that acts on a verdict is
+`runner-dispatch.sh`. It is a **pure reader** (git and filesystem only, no network, no `gh`, no
+harness) on every mode **except one leg**: the single-id verdict path, on its run-incomplete
+fallthrough only, shells out to the Go authority `docket run verify` to derive the `run-waiting`
+verdict (see *run-waiting*, change 0342). That leg is not pure — the Go op probes remote/PR before
+folding its local receipts — but it still writes nothing, and it fires only when the frontmatter
+conjuncts would otherwise report `run-incomplete`.
 
 ## Usage
 
@@ -44,7 +48,7 @@ verify-run.sh --build --worktree DIR --branch NAME --since SHA
   unparseable stamp is "no positive evidence", printed as empty output and still exit `0`; the
   caller reads the shape of the output, never the code.
 
-Mock seams: `GIT`, `CONFIG_EXPORT_CMD`.
+Mock seams: `GIT`, `CONFIG_EXPORT_CMD`, `DOCKET_BIN` (the Go binary the `run-waiting` probe calls).
 
 When `--changes-dir` is not given, the changes directory is resolved by sourcing
 `docket-config.sh --export` (the same config resolver every other facade op uses), then anchoring
@@ -68,6 +72,8 @@ line, never on the exit code**:
 
 - `run-complete <id>` — every conjunct holds.
 - `run-halted <id>` — a `## Run halted` record is present; the run ended deliberately.
+- `run-waiting <id> <handoff-id> <phase>` — a safe, resumable gate-drive continuation exists
+  (change 0342). See *run-waiting* below.
 - `run-incomplete <id> <unmet…>` — tokens in the fixed order `status pr branch`.
 - `run-unclaimed <id>` — the change is none of `in-progress`, `implemented`, or `stacked-merged`;
   there is no run to verify (`proposed` after a reclaim, `deferred`, or archived).
@@ -81,7 +87,32 @@ unchanged and still apply.
 **Precedence.** The conjuncts are evaluated **before** the halt record, so a satisfied
 postcondition outranks a stale `## Run halted`. The section's removal is owned by
 `docket-implement-next`'s Step 2 claim, which does not run on a resume, so a stale record is
-reachable; this ordering means it can never downgrade a complete run.
+reachable; this ordering means it can never downgrade a complete run. The `run-waiting` probe runs
+**after** the halt check and **before** the `run-incomplete` fallthrough, so `run-halted` still wins
+where it applies.
+
+## run-waiting (change 0342)
+
+A run can stop at a fingerprinted **gate-drive handoff** a fresh owner can claim — neither a
+completed run nor a failed one. That verdict is derived from agreeing **local gate-drive receipts**
+that live **outside** the change file, so it cannot be read from frontmatter and this script does
+**not** reimplement the receipt-agreement predicate. Instead, on the `run-incomplete` fallthrough
+only, it delegates to the single Go authority — `docket --json run verify --id <id>`
+(`internal/app` `RunVerify`'s `evaluateRunWaiting`) — and relays a `run-waiting <id> <handoff-id>
+<phase>` line, in the exact shape `runner-dispatch.sh` and `cursor-rules/run-gate.md` parse, when
+the Go op reports one.
+
+- The Go op is consulted **only** on the fallthrough. `run-complete`, `run-halted`, and
+  `run-unclaimed` short-circuit above it and never invoke the binary.
+- **Only** a `run-waiting` verdict is relayed. Every other verdict the Go op could return is already
+  decided here by the conjuncts this script read, so it never overrides them.
+- A missing binary, a probe error, or a partial waiting report (a handoff or phase field absent)
+  degrades to `run-incomplete` — the delegation never turns a finding into a script failure.
+
+Before this leg existed, `verify-run.sh` emitted only the four verdicts above and reported a genuine
+waiting continuation as `run-incomplete`; the run gate's `run-incomplete` rule then re-dispatched the
+agent as a **fresh** run, and every `run-waiting*` branch in `runner-dispatch.sh` was dead under the
+default `VERIFY_RUN`.
 
 **No time floor.** This is the point of the script, and it is sound only because of where it is
 called: at a seam where the child process has already returned, so "stopped" and "still working"
@@ -145,7 +176,9 @@ stays with `docket-build`'s suite gate and the review role.
 
 ## Invariants
 
-- Never writes: no status flip, no claim release, no file write, no `gh`, no network.
+- Never writes: no status flip, no claim release, no file write. Pure git+filesystem on every mode
+  except the `run-waiting` probe, which shells out to `docket run verify` (network-touching, but
+  still write-free) on the `run-incomplete` fallthrough alone.
 - Every *conjunct* read (`status`, `pr`, `branch`) is `fm_field`, never `field` — `pr:`, `branch:`
   and `claimed_at:` are optional keys and this repo's change bodies routinely open lines with
   them. The `id` read uses the shared `int_field` (unanchored, whole-file); `id:` is a mandatory
