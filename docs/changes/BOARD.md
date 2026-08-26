@@ -1,6 +1,6 @@
 # Backlog
 
-**347 changes** — 🟢 1 in progress · 🟡 49 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 212 done · 🗑️ 80 killed
+**347 changes** — 🟢 1 in progress · 🟡 48 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 212 done · 🗑️ 81 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0347](active/0347-honor-recorded-branch-over-feat-prefix.md) | Honor recorded branch names instead of reconstructing feat/<slug> | `medium` | `fix` | [spec](../superpowers/specs/2026-08-25-recorded-branch-identity-design.md) | `feat/honor-recorded-branch-over-feat-prefix` |
 
-## 🟡 Proposed (49)
+## 🟡 Proposed (48)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -43,7 +43,6 @@
 | [0291](active/0291-load-gate-failure-md-before-the-dispatch-verb-at-both-finali.md) | Load gate-failure.md before the dispatch verb at both finalize gate steps | `medium` | `refactor` | needs-brainstorm |
 | [0292](active/0292-shared-tested-mutation-probe-harness-take-the-landing-check.md) | Shared, tested mutation-probe harness — take the landing check out of each plan author's care | `high` | `feat` | needs-brainstorm |
 | [0293](active/0293-test-gate-run-stop-s-term-escalation-fixture-deadline-is-at.md) | test_gate_run_stop's TERM-escalation fixture deadline is at exact parity with stop_run's own TERM budget | `high` | `fix` | needs-brainstorm |
-| [0294](active/0294-shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru.md) | Shrink AGENTS.md's always-loaded footprint: script-ify the run gate's caller procedure and de-duplicate the dispatch table | `medium` | `refactor` | needs-brainstorm |
 | [0295](active/0295-make-render-change-links-sh-genuinely-offline-safe-stop-re-r.md) | Make render-change-links.sh genuinely offline-safe — stop re-resolving config with a network fetch | `high` | `fix` | needs-brainstorm |
 | [0296](active/0296-shard-tests-test-docket-status-sh-its-runtime-row-is-at-the.md) | Shard tests/test_docket_status.sh — its runtime row is at the table's hard 60s ceiling | `medium` | `chore` | needs-brainstorm |
 | [0297](active/0297-relax-0212-s-sites-backtick-ban-now-that-the-hygiene-gate-en.md) | Relax 0212's SITES backtick ban now that the hygiene gate enforces it | `medium` | `refactor` | needs-brainstorm |
@@ -57,7 +56,7 @@
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | needs-brainstorm |
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
 | [0333](active/0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition internal/app to retire the -race gate's 300s ceiling exemption | `medium` | `refactor` | needs-brainstorm |
-| [0334](active/0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | Consolidate the docket dispatch block — subagent guard + single per-repo source | `high` | `fix` | build-ready |
+| [0334](active/0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | Make Docket dispatch minimal, non-recursive, and mechanically gated | `high` | `fix` | build-ready |
 | [0343](active/0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | `medium` | `fix` | needs-brainstorm |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `medium` | `feat` | needs-brainstorm |
 | [0346](active/0346-finalize-rebuilds-binary-from-unpulled-source-tree.md) | Finalize's post-merge binary rebuild runs against an unpulled source tree | `medium` | `fix` | needs-brainstorm |
@@ -114,7 +113,6 @@ graph TD
   0291
   0292
   0293
-  0294
   0295
   0296
   0297
@@ -143,10 +141,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (292)</summary>
+<details><summary>✅🗑️ Archive — done + killed (293)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0294](archive/2026-08-26-0294-shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru.md) | Shrink AGENTS.md's always-loaded footprint: script-ify the run gate's caller procedure and de-duplicate the dispatch table | 2026-08-26 |
 | [0342](archive/2026-08-25-0342-harden-autonomous-build-implement-agents-against-the-suite-y.md) | Harden autonomous build/implement agents against the suite-yield deadlock (ADR-0024) | 2026-08-25 |
 | [0344](archive/2026-08-24-0344-finalize-pr-prober-cannot-parse-the-full-url-pr-form.md) | Finalize PR prober cannot parse the full-URL pr: form | 2026-08-24 |
 | [0341](archive/2026-08-24-0341-artifact-table-links-render-as-bare-code-spans-instead-of-gi.md) | Artifact-table links render as bare code spans instead of GitHub links | 2026-08-24 |
