@@ -2,11 +2,11 @@
 id: 294
 slug: shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru
 title: 'Shrink AGENTS.md''s always-loaded footprint: script-ify the run gate''s caller procedure and de-duplicate the dispatch table'
-status: proposed
+status: killed
 priority: medium
 type: refactor
 created: 2026-08-11
-updated: 2026-08-11
+updated: 2026-08-26
 depends_on: []
 related: [283, 275, 242]
 discovered_from: [275]
@@ -87,3 +87,7 @@ available-agent listing, so the text loads twice per session on those harnesses.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+## Why killed
+
+Absorbed into change 0334, which now owns the compact dispatch roster, mechanical run-gate facade, wrapper self-recursion guard, and global-copy retirement as one coherent fix.
