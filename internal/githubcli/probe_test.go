@@ -71,6 +71,89 @@ func TestFindOpenPullRequestsByHeadErrorNotAbsence(t *testing.T) {
 	}
 }
 
+// TestViewPullRequestByNumber: the exact-number read decodes the full normalized
+// snapshot — number, open state, and the head branch verbatim from headRefName.
+func TestViewPullRequestByNumber(t *testing.T) {
+	doc := ensPRJSON(7, "OPEN", false, "feature/renamed-head", ensHeadOid, ensBase, ensTitle, ensBody)
+	c, _ := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
+		{ArgvPrefix: []string{"pr", "view", "7", "--repo", ensRepoSpec, "--json"}, Stdout: doc, Exit: 0},
+	}})
+
+	pr, err := c.ViewPullRequest(context.Background(), probeRepo(), 7)
+	if err != nil {
+		t.Fatalf("ViewPullRequest: %v", err)
+	}
+	if pr.Number != 7 {
+		t.Errorf("Number = %d, want 7", pr.Number)
+	}
+	if pr.State != StateOpen {
+		t.Errorf("State = %q, want %q", pr.State, StateOpen)
+	}
+	if pr.HeadBranch != "feature/renamed-head" {
+		t.Errorf("HeadBranch = %q, want %q", pr.HeadBranch, "feature/renamed-head")
+	}
+}
+
+// TestViewPullRequestMergedState: a MERGED PR decodes to StateMerged with no
+// error — a terminal state is a clean read, not a failure.
+func TestViewPullRequestMergedState(t *testing.T) {
+	doc := ensPRJSON(7, "MERGED", false, ensHead, ensHeadOid, ensBase, ensTitle, ensBody)
+	c, _ := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
+		{ArgvPrefix: []string{"pr", "view", "7", "--repo", ensRepoSpec, "--json"}, Stdout: doc, Exit: 0},
+	}})
+
+	pr, err := c.ViewPullRequest(context.Background(), probeRepo(), 7)
+	if err != nil {
+		t.Fatalf("ViewPullRequest: %v", err)
+	}
+	if pr.State != StateMerged {
+		t.Fatalf("State = %q, want %q", pr.State, StateMerged)
+	}
+}
+
+// TestViewPullRequestErrorIsNotAbsence: a non-zero exit and an undecodable JSON
+// document are each a returned error carrying the zero PR — never a zero-value
+// snapshot read as truth (probe-error-is-not-clean-absence).
+func TestViewPullRequestErrorIsNotAbsence(t *testing.T) {
+	t.Run("non-zero-exit", func(t *testing.T) {
+		c, _ := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
+			{ArgvPrefix: []string{"pr", "view", "7", "--repo", ensRepoSpec, "--json"}, Exit: 1, Stderr: "boom"},
+		}})
+		pr, err := c.ViewPullRequest(context.Background(), probeRepo(), 7)
+		if err == nil {
+			t.Fatalf("want a typed failure on non-zero exit, got nil (pr %+v)", pr)
+		}
+		if pr != (PullRequest{}) {
+			t.Errorf("errored read returned %+v, want the zero PR", pr)
+		}
+	})
+	t.Run("undecodable-json", func(t *testing.T) {
+		c, _ := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
+			{ArgvPrefix: []string{"pr", "view", "7", "--repo", ensRepoSpec, "--json"}, Stdout: "{ not json", Exit: 0},
+		}})
+		pr, err := c.ViewPullRequest(context.Background(), probeRepo(), 7)
+		if err == nil {
+			t.Fatalf("want an error on undecodable JSON, got nil (pr %+v)", pr)
+		}
+		if pr != (PullRequest{}) {
+			t.Errorf("errored read returned %+v, want the zero PR", pr)
+		}
+	})
+}
+
+// TestViewPullRequestRejectsNonPositive: a non-positive number is invalid input
+// refused before any gh process runs.
+func TestViewPullRequestRejectsNonPositive(t *testing.T) {
+	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{}})
+
+	if _, err := c.ViewPullRequest(context.Background(), probeRepo(), 0); err == nil {
+		t.Errorf("number 0: want a validation failure, got nil")
+	}
+	if recs := log.records(t); len(recs) != 0 {
+		t.Errorf("a rejected read issued %d gh invocations, want 0", len(recs))
+	}
+}
+
 // TestFindOpenPullRequestsByHeadRejectsBadInput: an invalid repository identity
 // or empty head branch is refused before any invocation.
 func TestFindOpenPullRequestsByHeadRejectsBadInput(t *testing.T) {

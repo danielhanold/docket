@@ -87,6 +87,7 @@ const (
 // MergedFacts is the authoritative post-merge evidence. It is populated on
 // merged/already-merged and is the zero value on every non-merged outcome.
 type MergedFacts struct {
+	HeadBranch                                 string
 	HeadOID, BaseRef, MergedAtUTC, MergeCommit string
 	Version                                    string
 }
@@ -128,6 +129,7 @@ type mergeSnapshot struct {
 // facts renders the merged evidence from the snapshot.
 func (s mergeSnapshot) facts() MergedFacts {
 	return MergedFacts{
+		HeadBranch:  s.pr.HeadBranch,
 		HeadOID:     s.pr.HeadCommit,
 		BaseRef:     s.pr.BaseBranch,
 		MergedAtUTC: s.mergedAt,

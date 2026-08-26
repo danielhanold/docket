@@ -119,33 +119,19 @@ func (c *Client) verifyRetarget(ctx context.Context, repo Repository, number int
 	return RetargetContended, PullRequest{}, nil
 }
 
-// viewPullRequest reads one PR by number for the explicit repository with the
-// standard field set. --repo is always explicit so a caller's CWD or GH_REPO
-// cannot retarget the query. A transport failure, a non-zero exit, or a decode
-// hazard is returned as a typed *Failure — never a zero-value PR read as truth.
+// viewPullRequest is the retarget path's by-number PR read: a thin wrapper over
+// the exported ViewPullRequest that keeps the *Failure return the probe→act→
+// verify sequence threads. The exported method owns the single JSON
+// interpretation (decodePullRequest) and the three-outcome discipline — a
+// transport failure, a non-zero exit, or a decode hazard is a typed error, never
+// a zero-value PR read as truth.
 func (c *Client) viewPullRequest(ctx context.Context, repo Repository, number int) (PullRequest, *Failure) {
-	res, f := c.run(ctx, runRequest{
-		op: retargetOp,
-		args: []string{
-			"pr", "view", strconv.Itoa(number),
-			"--repo", repo.Spec(),
-			"--json", prJSONFields,
-		},
-		network: true,
-	})
-	if f != nil {
-		return PullRequest{}, f
-	}
-	if res.exitCode != 0 {
-		return PullRequest{}, newFailure(retargetOp, StageInvoke, KindExternal,
-			"gh pr view failed: "+stderrExcerpt(res.stderr), nil)
-	}
-	pr, err := decodePullRequest(retargetOp, res.stdout)
+	pr, err := c.ViewPullRequest(ctx, repo, number)
 	if err != nil {
 		if ff, ok := AsFailure(err); ok {
 			return PullRequest{}, ff
 		}
-		return PullRequest{}, newFailure(retargetOp, StageDecode, KindInvalidOutput, "pull-request view undecodable", err)
+		return PullRequest{}, newFailure(retargetOp, StageInvoke, KindExternal, err.Error(), err)
 	}
 	return pr, nil
 }

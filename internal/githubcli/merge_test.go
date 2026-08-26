@@ -83,6 +83,9 @@ func assertMergedFacts(t *testing.T, f MergedFacts) {
 	if f.BaseRef != mrgBase {
 		t.Errorf("BaseRef = %q, want %q", f.BaseRef, mrgBase)
 	}
+	if f.HeadBranch != ensHead {
+		t.Errorf("HeadBranch = %q, want %q", f.HeadBranch, ensHead)
+	}
 	if f.MergedAtUTC != mrgMergedAt {
 		t.Errorf("MergedAtUTC = %q, want %q", f.MergedAtUTC, mrgMergedAt)
 	}
