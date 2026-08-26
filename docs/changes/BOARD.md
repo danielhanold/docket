@@ -1,8 +1,14 @@
 # Backlog
 
-**352 changes** — 🟡 51 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 215 done · 🗑️ 81 killed
+**352 changes** — 🟢 1 in progress · 🟡 50 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 215 done · 🗑️ 81 killed
 
-## 🟡 Proposed (51)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0351](active/0351-complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard.md) | Complete change 0334: stop writing global instruction files and actually deploy the recursion guard | `high` | `fix` | [spec](../superpowers/specs/2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding-design.md) | `fix/complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard` |
+
+## 🟡 Proposed (50)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -55,7 +61,6 @@
 | [0346](active/0346-finalize-rebuilds-binary-from-unpulled-source-tree.md) | Finalize's post-merge binary rebuild runs against an unpulled source tree | `medium` | `fix` | needs-brainstorm |
 | [0349](active/0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | `medium` | `feat` | needs-brainstorm |
 | [0350](active/0350-surface-the-swallowed-validation-failure-behind-a-bare-inter.md) | Surface the swallowed validation failure behind a bare internal-error in the transaction engine | `medium` | `fix` | needs-brainstorm |
-| [0351](active/0351-complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard.md) | Complete change 0334: stop writing global instruction files and actually deploy the recursion guard | `high` | `fix` | build-ready |
 | [0352](active/0352-native-repository-initialization-and-health-check.md) | Native repository initialization and health check | `high` | `feat` | needs-brainstorm |
 
 ## ⚪ Deferred (4)

@@ -2,11 +2,11 @@
 id: 351
 slug: complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard
 title: "Complete change 0334: stop writing global instruction files and actually deploy the recursion guard"
-status: proposed
+status: 'in-progress'
 priority: high
 type: fix
 created: 2026-08-26
-updated: 2026-08-26
+updated: '2026-08-26'
 depends_on: []
 stacked_on:
 related: [334, 294, 346]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'fix/complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-26T15:33:44Z'
 ---
 
 ## Artifacts
