@@ -21,7 +21,7 @@ branch: 'fix/unquote-cursor-agent-wrapper-names'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-26T21:08:45Z'
+claimed_at: '2026-08-26T21:09:23Z'
 ---
 
 ## Artifacts
