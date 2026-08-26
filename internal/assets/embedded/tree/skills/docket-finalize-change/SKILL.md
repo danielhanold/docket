@@ -141,6 +141,20 @@ no post-merge pause or second user step. No caller-supplied done boolean or arch
 
 `docket finalize cleanup --id <id>`. An ordered, independently retryable suffix: repair a pending backlink first, remove the workspace from manifest facts, delete the local branch only when its exact recorded tip is worktree-detached and contained in the verified merge chain, and delete the remote ref only under the exact lease after a fresh probe shows no open child PR targets it. Every probe treats present, cleanly absent, and unknown as three outcomes — an injected or real probe error retains the resource with a pending result and `children-retarget-required`/a retention reason, never a destroy. A non-terminal change refuses (the one pre-terminal exception is restoring an aborted owned rebase). Stacked-merged changes retain their workspace and branches until the root closes. Cleanup failure never unwinds the merge — the merge is never rolled back.
 
+## Identity repair checkpoint
+
+Two skip reasons from `context finalize` name a mismatch between the recorded `branch:` and the PR's identity rather than an ordinary blocker. Each is `halted` for a non-interactive caller and a human-gated repair for an attended one. **Never reconstruct a branch name and never search for a likely branch or PR** — the only names offered come from the recorded field and the exact PR the prober read.
+
+- **`branch-pr-head-mismatch`** — the recorded `branch:` and the exact PR's reported head disagree. Present the evidence — change id + version, the recorded `branch:`, the exact PR number and state, and the reported head — and offer exactly three choices:
+  - **Trust the PR** — adopt the PR's head as the record: `docket change repair-identity --id N --expect-version V --adopt-pr-head --expect-pr M --expect-head H`.
+  - **Trust the record** — keep `branch:` and re-point the record at the correct PR the human supplies: `docket change repair-identity --id N --expect-version V --adopt-pr <ref> --expect-branch B`.
+  - **Abort** — no writes.
+- **`branch-missing`** — the recorded `branch:` resolves to no remote ref. Offer **only** the exact PR's reported head (the repair op itself proves that remote branch exists); confirm it or abort. Never search for a likely branch or PR.
+
+After a successful repair, **reload and re-probe from scratch** — run `docket context finalize --id N` again before any finalize effect; the repaired record is authority only once re-read. A `stale-evidence` / `workspace-conflict` / `pr-unknown` / `candidate-branch-absent` refusal from the repair op is reported to the human **verbatim** and stops the flow — it is never retried around.
+
+**Non-interactive callers** (implement-next's finalize sweep) never repair autonomously: they `halt` with the structured evidence for a human to resolve.
+
 ## Sign-off, abort, and the blocked marker
 
 The full abort-and-report set, the two-agent split, the sign-off rule, and the `## Finalize blocked` marker's write shape and lifecycle live in **`references/gate-failure.md`** — **read it at any abort** (a conflict, a red gate, an unavailable dispatch, a denied merge) before recording or reporting. Every abort-and-report point maps to `halted`, leaves the PR open and the change `implemented`, and records the `## Finalize blocked` marker via `docket finalize block` (comment first, then the single upserted section); `docket finalize clear-block` removes it after a successful reprobe.
