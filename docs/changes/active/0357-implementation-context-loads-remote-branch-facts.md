@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'fix/implementation-context-loads-remote-branch-facts'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-26T22:09:02Z'
+reconciled: true
+claimed_at: '2026-08-26T22:11:24Z'
 ---
 
 ## Artifacts
@@ -57,3 +57,9 @@ Cover the orchestration at the fake-reader seam and with a real-Git workflow reg
 ## Open questions
 
 None — settled in the 2026-08-26 grooming session. The regression boundary includes both focused unit coverage and a real-Git workflow proof.
+
+## Reconcile log
+
+### 2026-08-26
+
+2026-08-26 — Reconciled against current `main`. `internal/app/implementation_context.go` still builds an empty fact set at the `facts := domain.NewBranchFacts(nil)` seam (with the stale comment) and threads it through `selectContextChange`, `EvaluateReadiness`, and `ResolveEffectiveBase` — exactly the defect the spec describes; no upstream change has fixed or moved it. The reader seam is unchanged: `deps.Reader.BranchFacts(ctx, pin, stackBranches(snap))` is the established call shape (change_claim.go, workspace_ops.go, status.go, finalize_*.go), and `classifyStatusError` is the existing typed-failure path. Cited ADR-0092 remains Accepted and its rules are untouched by this change. Related changes 298/316/327/347/356 remain out of scope per the spec. Design holds as written; no scope adjustment. Proceeding to plan and build.
