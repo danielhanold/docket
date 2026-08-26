@@ -241,6 +241,30 @@ func TestSelectFinalizeQueueIdentityClassification(t *testing.T) {
 	}
 }
 
+// TestSelectFinalizeQueueIdentityBeforeApproval pins the production shape: an
+// open PR whose exact head disagrees with the recorded branch surfaces
+// branch-pr-head-mismatch even when Approved is false — the shape githubcli's
+// open-PR view always yields, since prJSONFields omits reviewDecision so
+// PRFacts.Approved is never populated true in production. Identity is more
+// fundamental than approval and must be reconciled before the approval gate;
+// before the classify reorder this masked the mismatch as approval-required and
+// never routed to the repair checkpoint. The head is observed (non-empty), so
+// the facts are cleanly observed and identity applies.
+func TestSelectFinalizeQueueIdentityBeforeApproval(t *testing.T) {
+	const recorded = "feat/renamed-head"
+	changes := []Change{finChange(1, withBranch(recorded))}
+	facts := map[ChangeID]PRFacts{
+		1: {State: "open", Approved: false, Mergeable: "MERGEABLE", HeadBranch: "feat/actual-head"},
+	}
+	got := SelectFinalizeQueue(finSnapshot(changes...), facts, nil, nil)
+	if len(got) != 1 {
+		t.Fatalf("candidates = %d, want 1", len(got))
+	}
+	if got[0].SkipReason != "branch-pr-head-mismatch" {
+		t.Errorf("skip = %q, want branch-pr-head-mismatch (identity must outrank the approval gate)", got[0].SkipReason)
+	}
+}
+
 func TestSelectFinalizeQueueExplicitOverride(t *testing.T) {
 	// approval-required and finalize-blocked are skip reasons in auto mode; the
 	// app layer (Task 10) overrides them for an explicit --id. Here we only

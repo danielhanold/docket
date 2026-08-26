@@ -153,13 +153,17 @@ func SelectFinalizeQueue(s Snapshot, facts map[ChangeID]PRFacts, blocked map[Cha
 // reported before any state-dependent decision; a merged PR takes the recovery
 // band regardless of stored status (the merge already happened and needs
 // closeout), unless its recorded branch cannot be reconciled with the merged
-// PR's own head; then status, PR state, draft, block, dependency, and approval
-// gates in turn; an otherwise-actionable open PR whose recorded branch cannot be
-// reconciled with the exact PR's head is surfaced with an identity skip rather
-// than banded; anything surviving is an actionable open PR banded by
-// mergeability. Identity is computed ONLY against cleanly observed open/merged
-// evidence — a closed/unknown PR classifies by the existing bands first. f is
-// the resolved facts (zero value when absent).
+// PR's own head; then status, PR state, draft, block, and dependency gates in
+// turn; an open PR whose exact head is observed but cannot be reconciled with the
+// recorded branch is surfaced with an identity skip BEFORE the approval gate, so a
+// head mismatch outranks approval — identity is more fundamental, and githubcli's
+// open-PR view omits reviewDecision so Approved is never true in production;
+// anything surviving is an actionable open PR banded by mergeability. Identity is
+// computed ONLY against cleanly observed open/merged evidence — a closed/unknown
+// PR classifies by the existing bands first, and an open PR whose head was not
+// observed (empty HeadBranch) falls through to the approval gate rather than
+// reconciling against a head it never saw. f is the resolved facts (zero value
+// when absent).
 func classifyFinalize(s Snapshot, c Change, facts map[ChangeID]PRFacts, blocked map[ChangeID]bool) (band, skip string, f PRFacts) {
 	if _, out := s.Change(c.ID()); out == LookupAmbiguous {
 		return "", skipMalformed, PRFacts{}
@@ -193,11 +197,13 @@ func classifyFinalize(s Snapshot, c Change, facts map[ChangeID]PRFacts, blocked 
 	if !EvaluateDependencies(s, c).Satisfied {
 		return "", skipDependencyUnmerged, f
 	}
+	if f.HeadBranch != "" {
+		if skip := identitySkip(c.Branch(), f.HeadBranch); skip != "" {
+			return "", skip, f
+		}
+	}
 	if !f.Approved {
 		return "", skipApprovalRequired, f
-	}
-	if skip := identitySkip(c.Branch(), f.HeadBranch); skip != "" {
-		return "", skip, f
 	}
 	return mergeBand(f.Mergeable), "", f
 }
