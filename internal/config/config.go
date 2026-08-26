@@ -110,7 +110,14 @@ type Effective struct {
 	GateObservation   Value[int]      `json:"gate_observation_budget"` // minutes
 	BoardSurfaces     Value[[]string] `json:"board_surfaces"`
 	ChangeTypes       Value[[]string] `json:"change_types"`
-	Agents            AgentsTable     `json:"agents"`
+	// AgentHarnesses is the repository's explicit parent-facing dispatch opt-in.
+	// Write authority for repository surfaces exists iff it is Explicit AND its
+	// provenance is the repository or repository-local layer; a global-layer
+	// declaration resolves but is never honored by the installer. Explicit with
+	// an empty list is the deliberate retire-everything state; non-explicit is
+	// the touch-nothing state.
+	AgentHarnesses Value[[]string] `json:"agent_harnesses"`
+	Agents         AgentsTable     `json:"agents"`
 }
 
 type Finalize struct {

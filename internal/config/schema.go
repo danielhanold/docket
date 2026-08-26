@@ -115,6 +115,12 @@ var (
 
 	// dummySurfaceTokens is the closed token set of dummy_mode.surfaces.
 	dummySurfaceTokens = []string{"dialogue", "reports", "results", "change-sections", "pr"}
+
+	// agentHarnessTokens is the closed token set of agent_harnesses: the four
+	// shipped parent-facing harnesses. `default` is an agents-table selector,
+	// never a harness a repository opts a dispatch surface into, so it is
+	// deliberately absent here.
+	agentHarnessTokens = []string{"claude", "codex", "cursor", "opencode"}
 )
 
 // changeTypeToken is the shape of a change type; `all` and `untyped` match it
@@ -238,10 +244,13 @@ func buildRegistry() []pathSpec {
 			merge: mergeListReplace, scope: scopeAny, disp: dispInertCompanion,
 			validate: stringOrListLeaf("all", listOpts{allowed: dummySurfaceTokens})},
 
-		// 30: harness list — historical; Go v1 derives harnesses elsewhere.
+		// 30: harness list — the repository's explicit parent-facing dispatch
+		// opt-in. Provenance decides write authority (see Effective.AgentHarnesses),
+		// so resolution is scope-open; only the repository/repository-local layers
+		// grant the installer authority to touch repository surfaces.
 		{path: "agent_harnesses", kind: kindStringList,
-			merge: mergeListReplace, scope: scopeAny, disp: dispInert,
-			validate: listLeaf(listOpts{})},
+			merge: mergeListReplace, scope: scopeAny, disp: dispSupported,
+			validate: listLeaf(listOpts{dupFree: true, allowed: agentHarnessTokens})},
 
 		// 31: skill bindings. Every role is a deferred capability, so ANY
 		// explicit leaf blocks — even one repeating the shipped default.

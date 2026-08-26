@@ -273,6 +273,7 @@ func (r *resolution) assemble(byLayer map[LayerKind]map[string]leafDecl) (Effect
 	set(assign(&eff.GateObservation, r.declared, "gate_observation_budget"))
 	set(assign(&eff.BoardSurfaces, r.declared, "board_surfaces"))
 	set(assign(&eff.ChangeTypes, r.declared, "change_types"))
+	set(assign(&eff.AgentHarnesses, r.declared, "agent_harnesses"))
 	if len(errs) > 0 {
 		return eff, errs[0]
 	}
