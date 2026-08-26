@@ -28,11 +28,11 @@ EXPECTED_SERIAL=1   # tests/test_go_race.sh (change 0332). The shared state that
                     # needs — the load-dependent gate that halted change 0329. RAISING THIS IS A
                     # FINDING: a serial pin removes a file from the parallel phase, so it must be
                     # justified in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=2320 # the sum of every ceiling, seeded with the table from the measured serial run.
-                    # 2310 -> 2320: the NEW-FILE case, one row, +10. The static branch-reconstruction
+EXPECTED_TOTAL=2335 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2325 -> 2335: the NEW-FILE case, one row, +10. The static branch-reconstruction
                     # guard tests/test_branch_reconstruction_guard.sh joins the table — a pure
                     # grep/git-ls-files sweep over internal/ with no Go build, so no cold-cache term;
-                    # it lands at the 10s minimum.
+                    # it lands at the 10s minimum (reconciled from main during the 0334 rebase).
                     # 2290 -> 2310 (change 0342): the NEW-FILE case, two rows, +20 together. The
                     # gate-driver architectural boundary guard tests/test_gate_driver_boundary.sh and
                     # its mutation proofs tests/test_gate_driver_boundary_mutation.sh join the table.
