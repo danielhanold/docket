@@ -120,6 +120,7 @@ type changeWire struct {
 	Plan           scalar     `yaml:"plan"`
 	Results        scalar     `yaml:"results"`
 	Trivial        scalar     `yaml:"trivial"`
+	BranchPrefix   scalar     `yaml:"branch_prefix"`
 	Branch         scalar     `yaml:"branch"`
 	ClaimedAt      scalar     `yaml:"claimed_at"`
 	PR             scalar     `yaml:"pr"`
@@ -494,6 +495,7 @@ func decodeChange(in InputDocument) (domain.Change, []domain.Finding) {
 	spec.Plan = d.optionalString("plan", wire.Plan)
 	spec.Results = d.optionalString("results", wire.Results)
 	spec.Trivial = d.boolean("trivial", wire.Trivial)
+	spec.BranchPrefix = d.optionalString("branch_prefix", wire.BranchPrefix)
 	spec.Branch = d.optionalString("branch", wire.Branch)
 	spec.ClaimedAt = d.optionalTime("claimed_at", wire.ClaimedAt, stampLayout)
 	spec.PR = d.optionalString("pr", wire.PR)

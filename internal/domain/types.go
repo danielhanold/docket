@@ -233,3 +233,45 @@ func ValidSlugToken(s string) bool {
 func BranchForSlug(slug string) string {
 	return "feat/" + slug
 }
+
+// ValidBranchComponent reports whether s is usable as the single path
+// component ahead of "/<slug>" in a minted branch name: non-empty, exactly one
+// component (no slash, so never ref-qualified), and legal under the same
+// shape rules workspace's validBranchRef applies to a full ref.
+func ValidBranchComponent(s string) bool {
+	if s == "" || strings.Contains(s, "/") {
+		return false
+	}
+	// A component of "refs" mints a branch "refs/<slug>", which reads as
+	// ref-qualified — exactly the shape workspace's NewTarget rejects with its
+	// HasPrefix(base.Branch, "refs/") guard — so reject the reserved namespace
+	// root here.
+	if s == "refs" {
+		return false
+	}
+	if strings.HasPrefix(s, "-") || strings.HasPrefix(s, ".") {
+		return false
+	}
+	if strings.HasSuffix(s, ".lock") || strings.HasSuffix(s, ".") {
+		return false
+	}
+	if strings.Contains(s, "..") || strings.Contains(s, "@{") {
+		return false
+	}
+	if strings.ContainsAny(s, " \t\r\n\v\f~^:?*[\\") || strings.IndexByte(s, 0) >= 0 {
+		return false
+	}
+	return true
+}
+
+// MintBranch constructs the full feature-branch name a claim records:
+// (branch_prefix when present and non-empty, otherwise the change type) +
+// "/" + slug. This is the ONLY branch-name constructor; every post-claim
+// operation consumes the recorded branch: field instead.
+func MintBranch(typeToken string, prefix OptionalString, slug string) string {
+	p := typeToken
+	if prefix.State == FieldPresent && prefix.Value != "" {
+		p = prefix.Value
+	}
+	return p + "/" + slug
+}

@@ -772,6 +772,26 @@ func TestDecodeChangeBooleanMalformed(t *testing.T) {
 	}
 }
 
+// TestDecodeChangeBranchPrefix — the branch_prefix override is wired through
+// the decoder as an optional text field, present when written and absent when
+// the key is missing.
+func TestDecodeChangeBranchPrefix(t *testing.T) {
+	const withPrefix = "---\nid: 1\nslug: s\nbranch_prefix: hotfix\n---\n\nbody\n"
+	change, findings := decodeChange(input(t, KindChange, LocationActive, "docs/changes/active/0001-s.md", withPrefix))
+	if len(findings) != 0 {
+		t.Fatalf("unexpected findings: %v", findingCodes(findings))
+	}
+	if got := change.BranchPrefix(); got.State != domain.FieldPresent || got.Value != "hotfix" {
+		t.Errorf("BranchPrefix = %+v, want present hotfix", got)
+	}
+
+	const noPrefix = "---\nid: 1\nslug: s\n---\n\nbody\n"
+	change, _ = decodeChange(input(t, KindChange, LocationActive, "docs/changes/active/0001-s.md", noPrefix))
+	if got := change.BranchPrefix(); got.State != domain.FieldAbsent {
+		t.Errorf("BranchPrefix = %+v, want absent", got)
+	}
+}
+
 // TestDecodeChangeNonScalarWhereScalarExpected — a collection written where a
 // scalar belongs is malformed, not a panic and not a zero value.
 func TestDecodeChangeNonScalarWhereScalarExpected(t *testing.T) {

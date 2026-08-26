@@ -10,18 +10,20 @@ var actNow = time.Date(2026, 8, 14, 9, 30, 15, 0, time.UTC)
 
 // actSpec is a compact description of one change for the action tests.
 type actSpec struct {
-	id         ChangeID
-	slug       string
-	status     Status
-	branch     string
-	claimedAt  string
-	blockedBy  string
-	pr         string
-	plan       string
-	reconciled bool
-	parent     OptionalInt
-	runHalted  bool
-	dependsOn  []ChangeID
+	id           ChangeID
+	slug         string
+	status       Status
+	typ          string // change type token; build defaults an empty value to "feat"
+	branchPrefix string // per-change branch_prefix override, present when non-empty
+	branch       string
+	claimedAt    string
+	blockedBy    string
+	pr           string
+	plan         string
+	reconciled   bool
+	parent       OptionalInt
+	runHalted    bool
+	dependsOn    []ChangeID
 }
 
 // build turns an actSpec into an immutable Change.
@@ -31,6 +33,7 @@ func (as actSpec) build() Change {
 		Slug:         as.slug,
 		Status:       as.status,
 		RawStatus:    string(as.status),
+		Type:         as.typ,
 		Reconciled:   as.reconciled,
 		StackedOn:    as.parent,
 		DependsOn:    as.dependsOn,
@@ -38,6 +41,12 @@ func (as actSpec) build() Change {
 	}
 	if as.slug == "" {
 		cs.Slug = "a-slug"
+	}
+	if as.typ == "" {
+		cs.Type = "feat"
+	}
+	if as.branchPrefix != "" {
+		cs.BranchPrefix = OptionalString{State: FieldPresent, Value: as.branchPrefix}
 	}
 	if as.branch != "" {
 		cs.Branch = OptionalString{State: FieldPresent, Value: as.branch}
@@ -771,7 +780,7 @@ func TestClaimEligibility(t *testing.T) {
 }
 
 func TestClaimEligibilityDoesNotTransition(t *testing.T) {
-	c := NewChange(ChangeSpec{ID: 2, Slug: "a-slug", Status: StatusProposed})
+	c := NewChange(ChangeSpec{ID: 2, Slug: "a-slug", Status: StatusProposed, Type: "feat"})
 	s := NewSnapshot(SnapshotSpec{
 		Policy:  RepositoryPolicy{IntegrationBranch: "main"},
 		Changes: []Change{c},
@@ -804,13 +813,73 @@ func TestClaimRefusesUnusableSlug(t *testing.T) {
 
 	for _, slug := range []string{"a-slug", "2fa-support", "x"} {
 		t.Run("ok="+slug, func(t *testing.T) {
-			c := NewChange(ChangeSpec{ID: 4, Slug: slug, Status: StatusProposed})
+			c := NewChange(ChangeSpec{ID: 4, Slug: slug, Status: StatusProposed, Type: "feat"})
 			got, fail := Claim(c, actNow)
 			if fail != nil {
 				t.Fatalf("Claim(%q) failed: %v", slug, fail)
 			}
 			if branch := got.Change.Branch().Value; branch != "feat/"+slug {
 				t.Fatalf("branch = %q; want %q", branch, "feat/"+slug)
+			}
+		})
+	}
+}
+
+func TestClaimMintsTypePrefixedBranch(t *testing.T) {
+	// A claim mints <type>/<slug>; a non-built-in configured type behaves
+	// identically because the mint keys on the token's shape, not a set.
+	for _, tc := range []struct{ typ, want string }{
+		{"fix", "fix/widget"},
+		{"chore", "chore/widget"},
+		{"spike", "spike/widget"},
+	} {
+		t.Run(tc.typ, func(t *testing.T) {
+			c := actSpec{id: 20, slug: "widget", status: StatusProposed, typ: tc.typ}.build()
+			got, fail := Claim(c, actNow)
+			if fail != nil {
+				t.Fatalf("Claim failed: %v", fail)
+			}
+			if b := got.Change.Branch(); b.State != FieldPresent || b.Value != tc.want {
+				t.Fatalf("branch = %+v, want %q", b, tc.want)
+			}
+		})
+	}
+}
+
+func TestClaimHonorsBranchPrefixOverride(t *testing.T) {
+	c := actSpec{
+		id: 21, slug: "widget", status: StatusProposed, typ: "fix", branchPrefix: "hotfix",
+	}.build()
+	got, fail := Claim(c, actNow)
+	if fail != nil {
+		t.Fatalf("Claim failed: %v", fail)
+	}
+	if b := got.Change.Branch(); b.State != FieldPresent || b.Value != "hotfix/widget" {
+		t.Fatalf("branch = %+v, want hotfix/widget", b)
+	}
+}
+
+func TestClaimRejectsInvalidBranchComponent(t *testing.T) {
+	cases := []struct {
+		name string
+		spec actSpec
+	}{
+		{"prefix", actSpec{id: 22, slug: "widget", status: StatusProposed, typ: "fix", branchPrefix: "a/b"}},
+		{"type", actSpec{id: 22, slug: "widget", status: StatusProposed, typ: "bad type"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			input := tc.spec.build()
+			before := fingerprint(input)
+			_, fail := Claim(input, actNow)
+			if fail == nil {
+				t.Fatal("Claim accepted an invalid branch component")
+			}
+			if fail.Kind != FailInvalidInput || fail.Reason != "invalid-branch-component" {
+				t.Fatalf("Claim = %s/%s; want %s/invalid-branch-component", fail.Kind, fail.Reason, FailInvalidInput)
+			}
+			if after := fingerprint(input); after != before {
+				t.Fatalf("input mutated: %q -> %q", before, after)
 			}
 		})
 	}
