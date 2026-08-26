@@ -241,15 +241,16 @@ func TestSelectFinalizeQueueIdentityClassification(t *testing.T) {
 	}
 }
 
-// TestSelectFinalizeQueueIdentityBeforeApproval pins the production shape: an
+// TestSelectFinalizeQueueIdentityBeforeApproval pins the classify ordering: an
 // open PR whose exact head disagrees with the recorded branch surfaces
-// branch-pr-head-mismatch even when Approved is false — the shape githubcli's
-// open-PR view always yields, since prJSONFields omits reviewDecision so
-// PRFacts.Approved is never populated true in production. Identity is more
-// fundamental than approval and must be reconciled before the approval gate;
-// before the classify reorder this masked the mismatch as approval-required and
-// never routed to the repair checkpoint. The head is observed (non-empty), so
-// the facts are cleanly observed and identity applies.
+// branch-pr-head-mismatch even when Approved is false. The Approved: false
+// input is an intentional unapproved fixture — production now observes real
+// approval via the exact view's reviewDecision — and identity must still win
+// for an unapproved PR. Identity is more fundamental than approval and must be
+// reconciled before the approval gate; before the classify reorder this masked
+// the mismatch as approval-required and never routed to the repair checkpoint.
+// The head is observed (non-empty), so the facts are cleanly observed and
+// identity applies.
 func TestSelectFinalizeQueueIdentityBeforeApproval(t *testing.T) {
 	const recorded = "feat/renamed-head"
 	changes := []Change{finChange(1, withBranch(recorded))}
