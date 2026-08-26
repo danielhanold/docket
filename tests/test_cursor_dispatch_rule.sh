@@ -145,4 +145,34 @@ assert "0208: feature-scoped population floor reached (>= 9 of $((n_feature+n_me
 assert "0208: metadata-scoped population floor reached (>= 7 of $((n_feature+n_meta)) sources)" \
   '[ "$n_meta" -ge 7 ]'
 
+# ---- change 0334, Task 9: Cursor shares the compact gate payload, keeps its own routing surface --
+# Spec Part 4: the Cursor always-applied rule stays a DISTINCT routing surface (per-agent fragments
+# with their own headings, dispatch.head.md intact — pinned above), while its ASSEMBLED rule carries
+# the SAME compact gate payload the AGENTS.md/CLAUDE.md block carries (Task 6's run-gate.md text,
+# appended by the Cursor assembler). This pins the shared trigger and the removed procedure on the
+# Cursor artifact specifically — Cursor does NOT consume the AGENTS.md/CLAUDE.md managed block; it
+# has its own fragments plus this assembled rule, so the property must be re-verified here rather
+# than inferred from test_sync_agents_run_gate.sh's AGENTS.md-surface asserts.
+# The assembled rule is read from a hermetic sandbox generation, exactly as test_sync_agents_cursor.sh
+# does — never the committed copy, which a machine-local opt-in gates.
+SYNC="$REPO/sync-agents.sh"
+CURSBX="$(mktemp -d "${TMPDIR:-/tmp}/cursor-gate.XXXXXX")"
+git -C "$CURSBX" init --quiet
+git -C "$CURSBX" config user.email t@t.test
+git -C "$CURSBX" config user.name Test
+printf 'agent_harnesses: [cursor]\n' > "$CURSBX/.docket.yml"
+( cd "$CURSBX" && DOCKET_HARNESS_ROOT="$CURSBX" bash "$SYNC" >/dev/null 2>&1 )
+CURRULE="$CURSBX/.cursor/rules/docket-dispatch.mdc"
+assert "assembled cursor rule was generated" '[ -f "$CURRULE" ]'
+# (a) shared facade trigger — the gate payload's first runnable step reaches the Cursor surface.
+assert "cursor rule carries the shared gate trigger (gate-before implement-next)" \
+  'grep -q -- "gate-before implement-next" "$CURRULE"'
+# (b) same negative pair as Task 6, scoped to the Cursor artifact: the hand-executed
+#     detached-dispatch procedure moved behind the facade and must not linger on this surface.
+assert "cursor rule carries NO DISPATCH_EPOCH (epoch filter moved behind the facade)" \
+  '! grep -q -- "DISPATCH_EPOCH" "$CURRULE"'
+assert "cursor rule carries NO Detached dispatch procedure" \
+  '! grep -q -- "Detached dispatch" "$CURRULE"'
+rm -rf "$CURSBX"
+
 echo "---"; [ "$fail" = "0" ] && echo "ALL PASS" || echo "FAILURES"; exit $fail
