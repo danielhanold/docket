@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -87,18 +88,24 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	}
 	gateBefore.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
 
-	// gate-verdict <key> reports the attributed run-gate verdict: it loads the
-	// durable record armed by gate-before, attributes exactly one new in-progress
-	// claim, delegates the run predicate to app.RunVerify, and prints one line of
-	// the attributed vocabulary (gate-done / gate-retry-once / gate-stop …). It
-	// wires the SAME read-only planning + workspace + GitHub seams as verify,
-	// including the best-effort local run-waiting receipt reader, because the run
-	// predicate it delegates to is verify's. Every outcome is a report line that
-	// exits 0; the key is the sole positional argument.
+	// gate-verdict reports the run-gate verdict in one of two modes. In ATTRIBUTED
+	// mode (`gate-verdict <key>`) it loads the durable record armed by gate-before,
+	// attributes exactly one new in-progress claim, delegates the run predicate to
+	// app.RunVerify, and prints one line of the attributed vocabulary (gate-done /
+	// gate-retry-once / gate-stop …). In UNATTRIBUTED mode (`gate-verdict
+	// --unattributed [<id>...]`) it holds no key, writes nothing, and prints one
+	// observe-only line per verified id (gate-observe …) — a separate app entry
+	// (RunGateVerdictObserve) with no path to a retry grant. Both modes wire the
+	// SAME read-only planning + workspace + GitHub seams as verify, including the
+	// best-effort local run-waiting receipt reader, because the run predicate is
+	// verify's. Every outcome is a report line that exits 0; a mode/argument
+	// mismatch (a key alongside --unattributed, or a missing key without it) is a
+	// usage error. Positionals are the key (attributed) or the hint ids
+	// (unattributed), so argument arity is validated per mode inside RunE.
 	gateVerdict := &cobra.Command{
-		Use:   "gate-verdict <key>",
-		Short: "Report the attributed run-gate verdict for a dispatched workflow",
-		Args:  cobra.ExactArgs(1),
+		Use:   "gate-verdict <key> | --unattributed [<id>...]",
+		Short: "Report the run-gate verdict for a dispatched workflow (attributed or observe-only)",
+		Args:  cobra.ArbitraryArgs,
 		RunE: func(c *cobra.Command, args []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -109,10 +116,23 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 				return err
 			}
 			wdeps.Waiting = newWaitingReader(c.Context(), repoDir)
+			unattributed, _ := c.Flags().GetBool("unattributed")
+			if unattributed {
+				// Observe-only mode: the positionals are change-id hints (zero or
+				// more); the app entry owns hint parsing and the usage error for a
+				// non-integer positional (a key is not a hint).
+				setResult(app.RunGateVerdictObserve(c.Context(), deps, wdeps, gdeps, repoDir, args))
+				return nil
+			}
+			// Attributed mode requires exactly one positional: the durable key.
+			if len(args) != 1 {
+				return fmt.Errorf("gate-verdict requires exactly one <key>, or --unattributed [<id>...]")
+			}
 			setResult(app.RunGateVerdict(c.Context(), deps, wdeps, gdeps, repoDir, args[0]))
 			return nil
 		},
 	}
+	gateVerdict.Flags().Bool("unattributed", false, "observe-only mode: verify hint ids (or every in-progress id) and print gate-observe lines, holding no key and writing nothing")
 	gateVerdict.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
 
 	runCmd.AddCommand(verify, gateBefore, gateVerdict)
