@@ -2,11 +2,11 @@
 id: 358
 slug: treat-empty-review-decision-as-no-decision
 title: 'Treat empty-string reviewDecision as no-decision, not an invalid enum'
-status: proposed
+status: 'in-progress'
 priority: critical
 type: fix
 created: 2026-08-26
-updated: 2026-08-26
+updated: '2026-08-26'
 depends_on: []
 stacked_on:
 related: [347, 348, 356]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: true
 auto_groomable:
-branch:
+branch: 'fix/treat-empty-review-decision-as-no-decision'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-26T23:14:11Z'
 ---
 
 ## Artifacts
