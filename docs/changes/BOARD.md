@@ -1,6 +1,6 @@
 # Backlog
 
-**354 changes** — 🟢 1 in progress · 🟡 51 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 215 done · 🗑️ 82 killed
+**356 changes** — 🟢 1 in progress · 🟡 53 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 215 done · 🗑️ 82 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0351](active/0351-complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard.md) | Complete change 0334: stop writing global instruction files and actually deploy the recursion guard | `critical` | `fix` | [spec](../superpowers/specs/2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding-design.md) | `fix/complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard` |
 
-## 🟡 Proposed (51)
+## 🟡 Proposed (53)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -57,12 +57,14 @@
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
 | [0333](active/0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition internal/app to retire the -race gate's 300s ceiling exemption | `medium` | `refactor` | needs-brainstorm |
 | [0343](active/0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | `medium` | `fix` | needs-brainstorm |
-| [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `medium` | `feat` | needs-brainstorm |
+| [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | needs-brainstorm |
 | [0346](active/0346-finalize-rebuilds-binary-from-unpulled-source-tree.md) | Finalize's post-merge binary rebuild runs against an unpulled source tree | `medium` | `fix` | needs-brainstorm |
 | [0349](active/0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | `medium` | `feat` | needs-brainstorm |
 | [0350](active/0350-surface-the-swallowed-validation-failure-behind-a-bare-inter.md) | Surface the swallowed validation failure behind a bare internal-error in the transaction engine | `medium` | `fix` | needs-brainstorm |
 | [0352](active/0352-native-repository-initialization-and-health-check.md) | Native repository initialization and health check | `high` | `feat` | needs-brainstorm |
 | [0354](active/0354-halt-report-authoring-writes-a-duplicate-run-halted-heading.md) | Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted | `high` | `fix` | needs-brainstorm |
+| [0355](active/0355-build-review-roles-are-skill-invoked-that-fan-out-to-profile.md) | Build/review roles are skill-invoked that fan out to profile agents — Step 5 'dispatch' vocabulary invites an agent-not-found misfire | `medium` | `fix` | needs-brainstorm |
+| [0356](active/0356-unquote-cursor-agent-wrapper-names.md) | Emit unquoted name: on Cursor agent wrappers | `high` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
 
@@ -139,6 +141,8 @@ graph TD
   0351
   0352
   0354
+  0355
+  0356
   0192:::done
   0211:::done
   0251:::done
