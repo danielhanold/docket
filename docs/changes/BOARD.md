@@ -1,8 +1,8 @@
 # Backlog
 
-**349 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 214 done · 🗑️ 81 killed
+**350 changes** — 🟡 49 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 214 done · 🗑️ 81 killed
 
-## 🟡 Proposed (48)
+## 🟡 Proposed (49)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -54,6 +54,7 @@
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `medium` | `feat` | needs-brainstorm |
 | [0346](active/0346-finalize-rebuilds-binary-from-unpulled-source-tree.md) | Finalize's post-merge binary rebuild runs against an unpulled source tree | `medium` | `fix` | needs-brainstorm |
 | [0349](active/0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | `medium` | `feat` | needs-brainstorm |
+| [0350](active/0350-surface-the-swallowed-validation-failure-behind-a-bare-inter.md) | Surface the swallowed validation failure behind a bare internal-error in the transaction engine | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -128,6 +129,7 @@ graph TD
   0346
   0348
   0349
+  0350
   0192:::done
   0211:::done
   0251:::done
