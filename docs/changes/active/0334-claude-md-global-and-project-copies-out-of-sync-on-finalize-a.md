@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'feat/claude-md-global-and-project-copies-out-of-sync-on-finalize-a'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-26T02:19:30Z'
+reconciled: true
+claimed_at: '2026-08-26T02:26:38Z'
 ---
 
 ## Artifacts
@@ -45,17 +45,38 @@ avoidable context weight, and safety policy spread across generated prose and sc
 
 ## What changes
 
-- Inject an exact-name self-recursion guard through the shared wrapper generator while
-  preserving every required dispatch to a different agent.
-- Replace the generated 17-agent description roster with a compact rule that treats each
-  harness's native agent registry as authoritative.
-- Move foreground, detached, and unattributed `docket-implement-next` run-gate mechanics
-  behind a durable `gate-before` / `gate-verdict` facade with opaque per-dispatch state and
-  atomic one-retry accounting.
+- Inject an exact-name self-recursion guard through the shared wrapper-emission path
+  while preserving every required dispatch to a *different* agent. No such guard exists
+  today, and no wrapper body currently references "your preloaded skill".
+- Replace the always-loaded dispatch block's per-agent roster with a compact rule that
+  treats each harness's native agent registry as authoritative. The block today enumerates
+  all 17 agents (one compact line each, derived from the agent inventory) — that roster is
+  what shrinks.
+- Move the foreground / detached / unattributed run-gate mechanics behind a durable
+  `gate-before` / `gate-verdict` facade with opaque per-dispatch state and atomic one-retry
+  accounting. Today those mechanics are hand-executed prose the model runs, shipped from an
+  authored payload; the facade replaces the prose with two commands over durable state.
 - Retire the hand-authored global Claude dispatch block at the human merge gate, leaving the
-  generated per-repository surface authoritative for Claude, Codex, and OpenCode; Cursor
-  keeps its distinct routing rule while consuming the same compact gate facade.
+  generated per-repository surface authoritative for Claude, Codex, and OpenCode; Cursor keeps
+  its distinct routing rule while consuming the same compact gate facade.
 - Absorb change 0294's dispatch-roster and run-gate slimming scope into this change.
+
+**Implementation reality (reconciled 2026-08-26).** Generation has moved into the Go binary
+since this change was drafted: the per-harness wrapper and dispatch-block emitters now live under
+`internal/harness/` (`dispatch.go`'s `DispatchInterior`/`RunGate`, the `claude`/`codex`/`cursor`/
+`opencode` adapters, `inventory.go`), and `install.sh` drives the Go binary — not `sync-agents.sh`.
+The shell `sync-agents.sh` (with `assemble_agents_md_dispatch`) still coexists as a `--check`-tested
+mirror that must stay byte-identical, so every emitter change lands in BOTH the Go adapter and the
+shell generator in lockstep, and both test surfaces must move together. The compact routing rule,
+the recursion guard, and the compact gate trigger all originate from the authored payload sources
+(`cursor-rules/run-gate.md` and its embedded copy under `internal/assets/embedded/`, plus the
+per-agent `cursor-rules/dispatch/` fragments) consumed by both generators. The `gate-before` /
+`gate-verdict` facade is implemented as new Go `docket` subcommands (spelling to follow the repo's
+existing `docket <group> <verb>` conventions, as the spec permits) that reuse and generalize the
+dispatch-record machinery already in `scripts/lib/docket-dispatch-dir.sh` (state root under the git
+common dir, key mint/validation, atomic replacement, retention) and delegate the run predicate to
+the existing `verify-run` / `internal/app/run_verify.go`. No behavior in `verify-run`'s predicates
+or the ADR-0075/0084/0088 safety policy changes.
 
 ## Out of scope
 
@@ -68,9 +89,42 @@ avoidable context weight, and safety policy spread across generated prose and sc
 
 ## Open questions
 
-None. Detailed mechanics, failure postures, assumptions, and acceptance criteria are settled
-in the linked spec.
+None remaining for the design. Reconcile confirmed the two design dependencies the spec
+flagged are settled in current reality: change 0294 is already killed and archived (its scope is
+absorbed here), and generation has already moved to the Go binary with a shell mirror, so the
+"reuse the existing dispatch-record machinery" and "single shared emitter" assumptions have concrete
+homes (`scripts/lib/docket-dispatch-dir.sh` and `internal/harness/` + `sync-agents.sh`). The
+four-harness external behavioral acceptance and the removal of the personal global
+`~/.claude/CLAUDE.md` block remain human merge-gate preconditions, not implementation work.
 
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-26
+
+### 2026-08-26 — reconcile before planning
+
+Re-read the change + spec against current code, the `related`/`discovered_from` changes, and the
+cited ADRs (0016/0024/0059/0075/0078/0084/0088). Findings:
+
+- **294 already killed.** Change 0294 (the absorbed roster/run-gate slimming scope) is already
+  archived as killed (2026-08-26); the absorb-and-retire PM op the spec calls for is done. `related:
+  [294]` retained as historical linkage; no relations change needed.
+- **Generation moved to Go.** The spec assumes shell-based generation (`sync-agents.sh`). In current
+  reality the production generator is the Go binary (`internal/harness/` adapters + `dispatch.go`
+  `DispatchInterior`/`RunGate`; `install.sh` runs the binary). `sync-agents.sh` still exists as a
+  `--check`-tested byte-identical mirror. Both must change in lockstep; the spec's acceptance already
+  names `test_sync_agents_claude_surface.sh` as remaining green, consistent with the shell path
+  staying. Recorded this in `## What changes` so the plan targets both generators + their tests.
+- **No recursion guard exists yet**, and no wrapper body says "your preloaded skill" — the guard is
+  net-new, injected once through the shared emitter for all four harnesses.
+- **The run-gate algorithm is authored prose**, shipped from `cursor-rules/run-gate.md` (+ embedded
+  copy), appended verbatim by both generators; the three-filter attribution is a hand-executed
+  procedure, not code. The facade will implement it as Go subcommands reusing
+  `scripts/lib/docket-dispatch-dir.sh` and delegating to `verify-run`.
+- **No `gate-before`/`gate-verdict` command exists** today; `docket gate` currently exposes
+  launch/observe/stop/recover/cleanup and the `gate drive` group only.
+- **Design is NOT invalidated** — all five decision parts remain implementable against current
+  reality. Scope unchanged; auto-capture disabled this run (no stubs minted). Global-copy removal and
+  four-harness fresh-process acceptance stay human merge-gate preconditions.
