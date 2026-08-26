@@ -21,7 +21,7 @@ branch: 'feat/claude-md-global-and-project-copies-out-of-sync-on-finalize-a'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-26T02:27:15Z'
+claimed_at: '2026-08-26T02:36:27Z'
 ---
 
 ## Artifacts
