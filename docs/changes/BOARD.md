@@ -1,8 +1,8 @@
 # Backlog
 
-**351 changes** — 🟡 50 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 215 done · 🗑️ 81 killed
+**352 changes** — 🟡 51 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 215 done · 🗑️ 81 killed
 
-## 🟡 Proposed (50)
+## 🟡 Proposed (51)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -56,6 +56,7 @@
 | [0349](active/0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | `medium` | `feat` | needs-brainstorm |
 | [0350](active/0350-surface-the-swallowed-validation-failure-behind-a-bare-inter.md) | Surface the swallowed validation failure behind a bare internal-error in the transaction engine | `medium` | `fix` | needs-brainstorm |
 | [0351](active/0351-complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard.md) | Complete change 0334: stop writing global instruction files and actually deploy the recursion guard | `high` | `fix` | build-ready |
+| [0352](active/0352-native-repository-initialization-and-health-check.md) | Native repository initialization and health check | `high` | `feat` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -130,6 +131,7 @@ graph TD
   0349
   0350
   0351
+  0352
   0192:::done
   0211:::done
   0251:::done
