@@ -1,14 +1,15 @@
 # Backlog
 
-**356 changes** — 🟢 1 in progress · 🟡 53 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 215 done · 🗑️ 82 killed
+**356 changes** — 🟢 2 in progress · 🟡 52 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 215 done · 🗑️ 82 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0351](active/0351-complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard.md) | Complete change 0334: stop writing global instruction files and actually deploy the recursion guard | `critical` | `fix` | [spec](../superpowers/specs/2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding-design.md) | `fix/complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard` |
+| [0356](active/0356-unquote-cursor-agent-wrapper-names.md) | Emit unquoted name: on Cursor agent wrappers | `high` | `fix` | [spec](../) | `fix/unquote-cursor-agent-wrapper-names` |
 
-## 🟡 Proposed (53)
+## 🟡 Proposed (52)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -64,7 +65,6 @@
 | [0352](active/0352-native-repository-initialization-and-health-check.md) | Native repository initialization and health check | `high` | `feat` | needs-brainstorm |
 | [0354](active/0354-halt-report-authoring-writes-a-duplicate-run-halted-heading.md) | Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted | `high` | `fix` | needs-brainstorm |
 | [0355](active/0355-build-review-roles-are-skill-invoked-that-fan-out-to-profile.md) | Build/review roles are skill-invoked that fan out to profile agents — Step 5 'dispatch' vocabulary invites an agent-not-found misfire | `medium` | `fix` | needs-brainstorm |
-| [0356](active/0356-unquote-cursor-agent-wrapper-names.md) | Emit unquoted name: on Cursor agent wrappers | `high` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
 

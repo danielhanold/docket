@@ -2,11 +2,11 @@
 id: 356
 slug: unquote-cursor-agent-wrapper-names
 title: 'Emit unquoted name: on Cursor agent wrappers'
-status: proposed
+status: 'in-progress'
 priority: high
 type: fix
 created: 2026-08-26
-updated: 2026-08-26
+updated: '2026-08-26'
 depends_on: []
 stacked_on:
 related: [135, 235]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: true
 auto_groomable:
-branch:
+branch: 'fix/unquote-cursor-agent-wrapper-names'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-26T21:06:37Z'
 ---
 
 ## Artifacts
