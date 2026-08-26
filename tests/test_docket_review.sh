@@ -13,6 +13,11 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 fails=0
 assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n' "$1"; fails=$((fails+1)); fi; }
 
+# Collapse runs of whitespace so a phrase assert survives a pure re-flow of hard-wrapped markdown
+# (learnings: phrase-grep-over-wrapped-prose). Runs, not only newlines: an indented list
+# continuation leaves several spaces behind, and `tr '\n' ' '` alone would not close them up.
+flat(){ tr -s '[:space:]' ' ' <<<"$1"; }
+
 REV="$REPO/skills/docket-review/SKILL.md"
 
 # --- the skill exists and declares itself -------------------------------------------------
@@ -173,6 +178,24 @@ assert "controller: blockers still route through the docket-build-task contract"
   'grep -qF -- "docket-build-task" <<<"$step6"'
 assert "controller: no re-review round after fixes" \
   'grep -qiE "no re-review|never re-review" <<<"$step6"'
+
+# --- change 0355: rung dispatch is docket-review's topology, not a universal post-step -------
+# A resolved skills.review value is invoked as a skill; ONLY the built-in docket-review binding
+# gets the deterministic Docket rung dispatch. A custom binding returns its own findings and
+# receives no additional Docket review. Guards bind the dispatch sentence to its condition so
+# deleting the condition (re-unconditionalizing the dispatch) reddens.
+assert "controller: the named Step-6 slice terminator exists" 'grep -q "^### Step 6.5" "$IMPL"'
+step6_flat="$(flat "$step6")"
+assert "controller: \$SKILL_REVIEW remains a directed skill invocation" \
+  'grep -qE "SKILL_REVIEW[^.]{0,160}DIRECTED to:" <<<"$step6_flat"'
+assert "controller: rung dispatch is conditional on the docket-review binding" \
+  'grep -qiE "is \`docket-review\`\*\*[^.]{0,120}rung wrapper" <<<"$step6_flat"'
+assert "controller: the rung fan-out is the binding's topology, not a universal post-step" \
+  'grep -qiE "\`docket-review\`.s (own )?topology" <<<"$step6_flat"'
+assert "controller: a custom review binding receives no additional Docket rung" \
+  'grep -qiE "dispatch \*\*no\*\* docket reviewer rung in addition" <<<"$step6_flat"'
+assert "controller: the auto fallback dispatches no reviewer" \
+  'grep -qiE "warning prominently.[^.]{0,60}dispatch no reviewer" <<<"$step6_flat"'
 
 # --- the fix-loop reference itself --------------------------------------------
 FIX="$REPO/skills/docket-implement-next/references/fix-loop.md"
