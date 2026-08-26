@@ -1,5 +1,5 @@
 ---
-name: 'docket-integration-repair'
+name: docket-integration-repair
 description: 'Makes the test suite pass after finalize''s rebase lands — root-causes the red tests, writes a minimal fix in at most two attempts, never weakens tests, and returns a structured repair report the sequencer gates behind sign-off.'
 ---
 

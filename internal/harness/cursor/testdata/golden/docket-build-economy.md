@@ -1,5 +1,5 @@
 ---
-name: 'docket-build-economy'
+name: docket-build-economy
 description: 'Economy build-profile worker for docket-build — implements one fully-specified, pattern-following plan task under the docket-build-task contract; the cheapest of docket-build''s four profiles.'
 ---
 

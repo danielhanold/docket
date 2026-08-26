@@ -1,5 +1,5 @@
 ---
-name: 'docket-auto-groom-critic'
+name: docket-auto-groom-critic
 description: 'Adversarial reviewer of an auto-groom draft spec or trivial verdict — attacks it, never improves it, and returns exactly one verdict per the dispatching skill''s protocol.'
 ---
 

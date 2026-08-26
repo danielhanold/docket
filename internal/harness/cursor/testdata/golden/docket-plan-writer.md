@@ -1,5 +1,5 @@
 ---
-name: 'docket-plan-writer'
+name: docket-plan-writer
 description: 'Internal plan-writing agent for docket-implement-next Step 4 — invokes the resolved plan skill in a pinned context, commits the plan artifact with its backlink on the feature branch, and returns only the plan''s repo-relative path. Not invoked directly by a human.'
 ---
 

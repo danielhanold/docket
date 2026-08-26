@@ -1,5 +1,5 @@
 ---
-name: 'docket-brainstorm-consultant'
+name: docket-brainstorm-consultant
 description: 'Pinned design consultant that authors a spec or returns critique concerns for a settled brainstorm — wraps no skill, injects no convention.'
 ---
 

@@ -288,9 +288,17 @@ func TestCursorGoldenAgents(t *testing.T) {
 					t.Errorf("%s emits %s, which docket does not set", tc.file, key)
 				}
 			}
+			// name: is a bare scalar — Cursor registers the Task subagent_type
+			// enum token verbatim, quotes included, so a quoted name is
+			// undispatchable by its own spelling (ADR-0060). description: stays
+			// single-quoted free text (ADR-0071); verifyRoundTrip is what keeps
+			// the bare form safe.
 			name := strings.TrimSuffix(tc.file, ".md")
-			if !strings.HasPrefix(content, "---\nname: '"+name+"'\n") {
-				t.Errorf("%s does not open with its name field: %.60q", tc.file, content)
+			if !strings.HasPrefix(content, "---\nname: "+name+"\n") {
+				t.Errorf("%s does not open with a bare name scalar: %.60q", tc.file, content)
+			}
+			if !strings.Contains(content, "\ndescription: '") {
+				t.Errorf("%s no longer single-quotes its description", tc.file)
 			}
 		})
 	}
