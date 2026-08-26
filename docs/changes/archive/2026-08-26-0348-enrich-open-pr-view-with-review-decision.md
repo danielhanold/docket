@@ -2,7 +2,7 @@
 id: 348
 slug: enrich-open-pr-view-with-review-decision
 title: Enrich the exact-PR view with reviewDecision so open-PR snapshots populate Approved
-status: 'implemented'
+status: 'done'
 priority: medium
 type: fix
 created: 2026-08-26
@@ -21,7 +21,7 @@ branch: 'fix/enrich-open-pr-view-with-review-decision'
 pr: 'https://github.com/danielhanold/docket/pull/240'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-26T11:55:15Z'
+claimed_at:
 ---
 
 ## Artifacts
