@@ -2,11 +2,11 @@
 id: 348
 slug: enrich-open-pr-view-with-review-decision
 title: Enrich the exact-PR view with reviewDecision so open-PR snapshots populate Approved
-status: proposed
+status: 'in-progress'
 priority: medium
 type: fix
 created: 2026-08-26
-updated: 2026-08-26
+updated: '2026-08-26'
 depends_on: []
 stacked_on:
 related: [347]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: 'fix/enrich-open-pr-view-with-review-decision'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-26T11:20:18Z'
 ---
 
 ## Artifacts
