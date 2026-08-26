@@ -13,7 +13,7 @@ related: [347, 348, 356]
 discovered_from: [348]
 adrs: [97]
 spec:
-plan:
+plan: 'docs/superpowers/plans/2026-08-26-treat-empty-review-decision-as-no-decision.md'
 results:
 trivial: true
 auto_groomable:
@@ -29,6 +29,7 @@ claimed_at: '2026-08-26T23:17:21Z'
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Plan | [2026-08-26-treat-empty-review-decision-as-no-decision.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-26-treat-empty-review-decision-as-no-decision.md) |
 | ADRs | [ADR-0097](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0097-pr-identity-is-verified-by-parsed-pr-number.md) |
 <!-- docket:artifacts:end -->
 
