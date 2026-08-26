@@ -143,3 +143,12 @@ cited ADRs (0016/0024/0059/0075/0078/0084/0088). Findings:
 - Comment: https://github.com/danielhanold/docket/pull/239#issuecomment-5424467072
 
 Remedy: A human should reconcile this branch onto main manually (the conflicts are the runtime-budget EXPECTED_TOTAL pin and the embedded-asset manifest digest, both mechanically resolvable — re-run the asset generator and re-sum the budget table after rebasing), push the rebased head, then re-run docket-finalize-change by naming change id 334 to clear this block and merge. Alternatively, if the installed docket-rebase-resolver agent is intended to drive the whole rebase to completion in a single dispatch (its registered contract says so), that mismatch with the skill body's two-dispatch controller loop should be reconciled before retrying.
+
+### 2026-08-26 — attempt pr-head-mismatch-fd40c629
+
+<!-- attempt:pr-head-mismatch-fd40c629 -->
+
+- Reason: pr-head-mismatch
+- Head: fd40c6296dfa99c481f271f7c4e0905c26bf3f4b
+- PR: #239
+- Comment: https://github.com/danielhanold/docket/pull/239#issuecomment-5424951651
