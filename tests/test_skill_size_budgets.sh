@@ -1576,7 +1576,7 @@ skills/docket-status/SKILL.md                              126 2850
 #                              sweep` and the read/mutation split that keeps `docket status`
 #                              read-only.
 
-# Change 0343 (honor the recorded branch over the feat/ prefix) raised two budgets to pay for the
+# Change 0347 (honor the recorded branch over the feat/ prefix) raised two budgets to pay for the
 # branch_prefix manifest field and the retargeted mint rule:
 #   docket-convention/SKILL.md 385/7050 -> 390/7150. The Change manifest field list gains a
 #   `branch_prefix:` row documented beside `branch:`, and the *Branch model* section's mint rule is
