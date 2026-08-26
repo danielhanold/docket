@@ -9,6 +9,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/githubcli"
+	"github.com/danielhanold/docket/internal/repository"
 )
 
 // This file drives `finalize merge` over a REAL feature workspace (the same
@@ -399,6 +400,57 @@ func TestFinalizeMergeConjunctsRechecked(t *testing.T) {
 		}}
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
 		assertMergeRefusal(t, res, gh, "open-children")
+	})
+}
+
+// TestProbeUnretargetedOpenChildrenBranchIdentity proves the open-child gate
+// probes each child by ITS OWN recorded branch (never a slug-derived name): a
+// non-derived recorded head is the branch queried, and a child whose record
+// carries no branch is returned as an error the caller retains as unknown — so
+// the parent merge is never issued.
+func TestProbeUnretargetedOpenChildrenBranchIdentity(t *testing.T) {
+	pin := docketPin(t)
+	repo := retargetRepo()
+	const parentBranch = "feat/root"
+
+	build := func(t *testing.T, childBranchLine string) (domain.Snapshot, domain.Change) {
+		t.Helper()
+		root := finalizeBlob(80, "root", "implemented", "high", prRefFor(800), "")
+		child := finalizeBlob(81, "child-a", "implemented", "high", prRefFor(810), "stacked_on: 80\n")
+		child.Data = []byte(strings.Replace(string(child.Data), "branch: feat/child-a\n", childBranchLine, 1))
+		reader := &fakeReader{pin: pin, corpus: []StatusBlob{root, child}}
+		inputs, _ := parseCorpus(reader.corpus)
+		b, err := repository.BuildSnapshot(repository.BuildInput{Config: reader.pin.Config.Effective, Documents: inputs})
+		if err != nil {
+			t.Fatalf("BuildSnapshot: %v", err)
+		}
+		parent, out := b.Snapshot.Change(80)
+		if out != domain.LookupFound {
+			t.Fatalf("parent 80 not found in snapshot (%v)", out)
+		}
+		return b.Snapshot, parent
+	}
+
+	t.Run("non-derived-recorded-head-probed", func(t *testing.T) {
+		snap, parent := build(t, "branch: feature/child-head\n")
+		gh := &fakeMergeGitHub{repo: repo, openByHead: map[string][]githubcli.PullRequest{
+			"feature/child-head": {{Number: 8, State: githubcli.StateOpen, HeadBranch: "feature/child-head", BaseBranch: parentBranch}},
+		}}
+		open, err := probeUnretargetedOpenChildren(context.Background(), FinalizeDeps{GitHub: gh}, repo, snap, parent, parentBranch)
+		if err != nil {
+			t.Fatalf("probe error: %v", err)
+		}
+		if len(open) != 1 || open[0] != 81 {
+			t.Errorf("open children = %v, want [81] found by its recorded head feature/child-head", open)
+		}
+	})
+
+	t.Run("missing-branch-is-unknown-error", func(t *testing.T) {
+		snap, parent := build(t, "")
+		gh := &fakeMergeGitHub{repo: repo, openByHead: map[string][]githubcli.PullRequest{}}
+		if _, err := probeUnretargetedOpenChildren(context.Background(), FinalizeDeps{GitHub: gh}, repo, snap, parent, parentBranch); err == nil {
+			t.Fatal("a child with no recorded branch must return an error (retained as unknown, no merge), got nil")
+		}
 	})
 }
 

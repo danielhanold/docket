@@ -181,12 +181,6 @@ func TestValidTypeToken(t *testing.T) {
 	}
 }
 
-func TestBranchForSlug(t *testing.T) {
-	if got := BranchForSlug("x-y"); got != "feat/x-y" {
-		t.Errorf("BranchForSlug(\"x-y\") = %q; want %q", got, "feat/x-y")
-	}
-}
-
 func TestValidBranchComponent(t *testing.T) {
 	valid := []string{"feat", "fix", "chore", "hotfix", "feature", "a", "release-2"}
 	invalid := []string{

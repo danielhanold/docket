@@ -235,6 +235,61 @@ func countEdits(calls []retargetCall) int {
 	return n
 }
 
+// TestRetargetChildBranchIdentity proves each child is addressed by ITS OWN
+// recorded branch (never a slug-derived name): a non-derived recorded head is
+// the branch probed and retargeted, and a child whose record carries no branch
+// fails closed to invalid-state BEFORE any GitHub probe or edit.
+func TestRetargetChildBranchIdentity(t *testing.T) {
+	pin := docketPin(t)
+
+	t.Run("non-derived-recorded-head-honored", func(t *testing.T) {
+		root := finalizeBlob(80, "root", "implemented", "high", prRefFor(800), "")
+		child := finalizeBlob(81, "child-a", "implemented", "high", prRefFor(810), "stacked_on: 80\n")
+		child.Data = []byte(strings.Replace(string(child.Data), "branch: feat/child-a\n", "branch: feature/child-head\n", 1))
+		gh := &fakeRetargetGitHub{
+			repo: retargetRepo(),
+			prs:  []*fakePR{{number: 810, head: "feature/child-head", base: "feat/root", version: "cv810"}},
+		}
+		fake := &fakeReader{pin: pin, corpus: []StatusBlob{root, child}}
+		req := RetargetChildrenRequest{ID: 80, Version: "blobfin0080", Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRVersion: "cv810"}}}
+
+		got := FinalizeRetargetChildren(context.Background(), retargetDeps(fake, gh, &recordingEngine{}), "", req)
+		if got.Result != ResultApplied || got.Disposition != RetargetDispositionRetargeted {
+			t.Fatalf("result=%q disp=%q reason=%q", got.Result, got.Disposition, got.Reason)
+		}
+		if c := childOutcomeByID(t, got, 81); c.Outcome != childOutcomeRetargeted {
+			t.Errorf("child outcome=%q, want retargeted by its recorded head", c.Outcome)
+		}
+		// The probe addressed the RECORDED head, never feat/child-a.
+		if len(gh.finds) != 1 || gh.finds[0] != "feature/child-head" {
+			t.Errorf("probed heads = %v, want exactly [feature/child-head]", gh.finds)
+		}
+	})
+
+	t.Run("missing-branch-refuses-before-any-effect", func(t *testing.T) {
+		root := finalizeBlob(80, "root", "implemented", "high", prRefFor(800), "")
+		child := finalizeBlob(81, "child-a", "implemented", "high", prRefFor(810), "stacked_on: 80\n")
+		child.Data = []byte(strings.Replace(string(child.Data), "branch: feat/child-a\n", "", 1))
+		gh := &fakeRetargetGitHub{
+			repo: retargetRepo(),
+			prs:  []*fakePR{{number: 810, head: "feat/child-a", base: "feat/root", version: "cv810"}},
+		}
+		fake := &fakeReader{pin: pin, corpus: []StatusBlob{root, child}}
+		req := RetargetChildrenRequest{ID: 80, Version: "blobfin0080", Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRVersion: "cv810"}}}
+
+		got := FinalizeRetargetChildren(context.Background(), retargetDeps(fake, gh, &recordingEngine{}), "", req)
+		if got.Result != ResultInvalidState {
+			t.Fatalf("result=%q reason=%q, want invalid-state on a child with no recorded branch", got.Result, got.Reason)
+		}
+		if len(gh.finds) != 0 {
+			t.Errorf("an unusable child branch was probed (%v); the refusal must precede every GitHub effect", gh.finds)
+		}
+		if len(gh.retargets) != 0 {
+			t.Errorf("an unusable child branch issued %d retarget edit(s); want 0", len(gh.retargets))
+		}
+	})
+}
+
 // TestRetargetChildrenNewChildBlocks: a child open in the live graph but absent
 // from the authorized set is contended, and NO edit is issued.
 func TestRetargetChildrenNewChildBlocks(t *testing.T) {

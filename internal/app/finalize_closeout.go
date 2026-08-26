@@ -309,7 +309,15 @@ func FinalizeCloseout(ctx context.Context, deps FinalizeDeps, repoDir string, id
 	// in-place stacked-merged path.
 	parent, pout := domain.StackParent(cc.snap, cc.change)
 	if pout == domain.LookupFound && !parent.Status().Terminal() {
-		parentBranch := domain.BranchForSlug(parent.Slug())
+		// Read the PARENT's own recorded branch (spec: "Stack parent and child
+		// operations use each record's branch independently"), never a slug-derived
+		// name. A live parent with no usable recorded branch cannot anchor the
+		// stacked destination, so the closeout fails closed with no effect.
+		parentBranch, berr := recordedBranch(parent)
+		if berr != nil {
+			return closeoutRefusal(ResultInvalidState, CloseoutDispBlocked, berr.Error(),
+				fmt.Sprintf("change %04d's live parent %04d has no usable recorded branch; the stacked destination cannot be verified", id, int(parent.ID())), id)
+		}
 		if facts.BaseRef == parentBranch {
 			return closeoutStacked(ctx, deps, cc, parentBranch, facts, notes)
 		}

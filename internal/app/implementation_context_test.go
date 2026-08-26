@@ -135,6 +135,35 @@ func TestContextImplementationExplicitID(t *testing.T) {
 	}
 }
 
+// TestContextImplementationFeatureBranchHonorsMintPrefix proves the pre-claim
+// context previews the branch the imminent claim will MINT through the single
+// constructor — honoring branch_prefix over the change type, never a hardcoded
+// feat/<slug>. The context runs before the claim, so no branch is recorded yet;
+// the previewed name must equal exactly what claim would stamp.
+func TestContextImplementationFeatureBranchHonorsMintPrefix(t *testing.T) {
+	pin := docketPin(t)
+	specPath := "docs/changes/specs/spec-hot.md"
+	corpus := []StatusBlob{
+		// type fix, with a branch_prefix override of hotfix: the mint is hotfix/<slug>.
+		changeBlob(11, "urgent", "fix", "high", "branch_prefix: hotfix\nspec: "+specPath+"\n"),
+	}
+	fake := &fakeReader{
+		pin:    pin,
+		corpus: corpus,
+		artifactData: map[string]StatusArtifact{
+			sourceMetadata + "|" + specPath: {Found: true, Version: "sh", Data: []byte("hot\n")},
+		},
+	}
+
+	got := ContextImplementation(context.Background(), contextDeps(fake), "", ImplementationContextRequest{})
+	if got.Result != ResultApplied || got.Context == nil {
+		t.Fatalf("result=%q reason=%q message=%q", got.Result, got.Reason, got.Message)
+	}
+	if got.Context.Workflow.FeatureBranch != "hotfix/urgent" {
+		t.Errorf("FeatureBranch = %q, want the minted hotfix/urgent (branch_prefix honored over feat and over the fix type)", got.Context.Workflow.FeatureBranch)
+	}
+}
+
 // TestContextImplementationRevisionConsistency: every fact derives from one
 // pinned snapshot — PinContext is called exactly once.
 func TestContextImplementationRevisionConsistency(t *testing.T) {

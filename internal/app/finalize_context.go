@@ -400,13 +400,17 @@ func finalizeExplicitGuard(snap domain.Snapshot, id int, policy FinalizePolicy) 
 // and the probed facts. explicitID is the request id (0 for the selection path);
 // a skip reason an explicit id may override carries an override note.
 func buildCandidateReport(snap domain.Snapshot, c domain.Change, cand domain.FinalizeCandidate, facts map[domain.ChangeID]domain.PRFacts, probed map[domain.ChangeID]bool, branchFacts domain.BranchFacts, explicitID int, blobByPath map[string]StatusBlob) FinalizeCandidateReport {
+	// The report echoes the branch recorded at claim time; it never reconstructs
+	// one from the slug. A record with no usable branch carries the empty string
+	// (this report only describes; identity classification is a later concern).
+	recorded, _ := recordedBranch(c)
 	rep := FinalizeCandidateReport{
 		ID:            int(c.ID()),
 		Slug:          c.Slug(),
 		Path:          c.Path(),
 		Version:       blobByPath[c.Path()].Version,
 		Status:        c.RawStatus(),
-		Branch:        domain.BranchForSlug(c.Slug()),
+		Branch:        recorded,
 		Band:          cand.Band,
 		SkipReason:    cand.SkipReason,
 		EffectiveBase: contextBase(domain.ResolveEffectiveBase(snap, c, branchFacts)),
@@ -508,7 +512,13 @@ func finalizeOpenChildPRs(snap domain.Snapshot, c domain.Change, facts map[domai
 // rather than a clean absence.
 func probeFinalizeFacts(ctx context.Context, prober FinalizePRProber, repoDir string, c domain.Change) (domain.PRFacts, bool) {
 	ref := c.PR().Value
-	head := domain.BranchForSlug(c.Slug())
+	// Probe the candidate's own PR against its recorded head; never a slug-derived
+	// name. An unusable recorded branch is unresolved (unknown facts), the same
+	// fail-closed verdict a probe error yields — never a fabricated clean state.
+	head, berr := recordedBranch(c)
+	if berr != nil {
+		return domain.PRFacts{Number: prNumberToken(ref), State: "unknown"}, true
+	}
 	f, err := prober.ProbePR(ctx, repoDir, ref, head)
 	if err != nil {
 		return domain.PRFacts{Number: prNumberToken(ref), State: "unknown"}, true

@@ -263,7 +263,19 @@ func FinalizeRetargetChildren(ctx context.Context, deps FinalizeDeps, repoDir st
 			children = append(children, ChildRetargetOutcome{ID: int(childID), Outcome: childOutcomeSkippedDone})
 			continue
 		}
-		head := domain.BranchForSlug(child.Slug())
+		// Address the child by ITS OWN recorded branch (spec: "Stack parent and
+		// child operations use each record's branch independently"), never a
+		// slug-derived name. A child whose branch is unusable fails closed before any
+		// probe or edit — no child PR is retargeted.
+		head, berr := recordedBranch(child)
+		if berr != nil {
+			children = append(children, ChildRetargetOutcome{ID: int(childID), Outcome: childOutcomeUnknown})
+			return newRetargetResult(ResultInvalidState, RetargetChildrenResult{
+				ID: req.ID, Base: newBase, Disposition: RetargetDispositionUnknown,
+				Children: children, Reason: berr.Error(),
+				Message: fmt.Sprintf("child %04d's recorded feature branch is unusable (%v); no child PR is retargeted", int(childID), berr),
+			})
+		}
 		prs, perr := deps.GitHub.FindOpenPullRequestsByHead(ctx, repo, head)
 		if perr != nil {
 			// A probe that cannot be established is unknown — retain, no edit, no merge.

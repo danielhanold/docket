@@ -413,6 +413,68 @@ func TestCloseoutStackedMerged(t *testing.T) {
 	}
 }
 
+// TestCloseoutStackedParentBranchIdentity proves the stacked-merged path reads
+// the live PARENT's OWN recorded branch (never a slug-derived name): a merge
+// into the parent's non-derived recorded branch takes the in-place stacked path,
+// and a live parent whose record carries no branch fails closed to invalid-state
+// with the child record left untouched.
+func TestCloseoutStackedParentBranchIdentity(t *testing.T) {
+	requireRealGit(t)
+	m := planRepoModes()[0]
+
+	seedChild := func(t *testing.T, f *closeoutFixture, parentRecord string) string {
+		t.Helper()
+		recPath := groomPath(f.id, f.slug)
+		child := closeoutRecord(f.id, f.slug, "implemented", closeoutRef, f.specPath, f.planPath, f.resultsPath)
+		child = strings.Replace(child, "stacked_on:\n", "stacked_on: 4\n", 1)
+		f.repo.writerAdvance(t, f.branch, map[string]string{
+			groomPath(4, "parent"): parentRecord,
+			recPath:                child,
+		})
+		return recPath
+	}
+
+	t.Run("non-derived-parent-branch-honored", func(t *testing.T) {
+		f := setupCloseoutFixture(t, m)
+		parent := strings.Replace(lifecycleChange(4, "parent", "in-progress"), "branch: feat/parent\n", "branch: feature/live-parent\n", 1)
+		recPath := seedChild(t, f, parent)
+		gh := &fakeCloseoutGitHub{
+			repo: retargetRepo(),
+			merged: map[int]closeoutProbe{
+				closeoutPR: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feature/live-parent", strings.Repeat("a", 40))},
+			},
+		}
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
+		if res.Result != ResultApplied || res.Disposition != CloseoutDispStackedMerged {
+			t.Fatalf("closeout = %q disp %q (reason %q msg %q); the parent's recorded non-derived branch must anchor the stacked path", res.Result, res.Disposition, res.Reason, res.Message)
+		}
+		rec, ok := originFile(t, f.repo.origin, f.branch, recPath)
+		if !ok || !strings.Contains(rec, "status: 'stacked-merged'") {
+			t.Errorf("record not marked stacked-merged in place:\n%s", rec)
+		}
+	})
+
+	t.Run("missing-parent-branch-refuses-untouched", func(t *testing.T) {
+		f := setupCloseoutFixture(t, m)
+		parent := strings.Replace(lifecycleChange(4, "parent", "in-progress"), "branch: feat/parent\n", "", 1)
+		recPath := seedChild(t, f, parent)
+		gh := &fakeCloseoutGitHub{
+			repo: retargetRepo(),
+			merged: map[int]closeoutProbe{
+				closeoutPR: {outcome: githubcli.MergeAlreadyMerged, facts: mergedFactsFor(f.head, "feature/live-parent", strings.Repeat("a", 40))},
+			},
+		}
+		res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
+		if res.Result != ResultInvalidState {
+			t.Fatalf("closeout = %q disp %q reason %q, want invalid-state on a live parent with no recorded branch", res.Result, res.Disposition, res.Reason)
+		}
+		rec, ok := originFile(t, f.repo.origin, f.branch, recPath)
+		if !ok || strings.Contains(rec, "stacked-merged") {
+			t.Errorf("a refused stacked closeout must leave the child record untouched (never marked stacked-merged):\n%s", rec)
+		}
+	})
+}
+
 // --- TestCloseoutRootCarry ------------------------------------------------
 
 // TestCloseoutRootCarry proves a stack root merged to integration archives the

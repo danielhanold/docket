@@ -229,11 +229,6 @@ func ValidSlugToken(s string) bool {
 	return true
 }
 
-// BranchForSlug returns the deterministic feature branch name for a slug.
-func BranchForSlug(slug string) string {
-	return "feat/" + slug
-}
-
 // ValidBranchComponent reports whether s is usable as the single path
 // component ahead of "/<slug>" in a minted branch name: non-empty, exactly one
 // component (no slash, so never ref-qualified), and legal under the same

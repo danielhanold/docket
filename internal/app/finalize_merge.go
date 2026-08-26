@@ -645,7 +645,14 @@ func probeUnretargetedOpenChildren(ctx context.Context, deps FinalizeDeps, repo 
 		if lookup != domain.LookupFound {
 			continue
 		}
-		head := domain.BranchForSlug(child.Slug())
+		// Address the child by ITS OWN recorded branch (spec: "Stack parent and
+		// child operations use each record's branch independently"), never a
+		// slug-derived name. A child whose branch is unusable is returned as an
+		// error the caller retains as unknown, so the parent merge is not issued.
+		head, berr := recordedBranch(child)
+		if berr != nil {
+			return nil, berr
+		}
 		prs, err := deps.GitHub.FindOpenPullRequestsByHead(ctx, repo, head)
 		if err != nil {
 			return nil, err

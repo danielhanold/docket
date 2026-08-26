@@ -266,8 +266,9 @@ func TestClaimSetsBranchStampAndReconciled(t *testing.T) {
 	if got.Change.Status() != StatusInProgress {
 		t.Fatalf("status = %q", got.Change.Status())
 	}
-	if b := got.Change.Branch(); b.State != FieldPresent || b.Value != BranchForSlug("widget-work") {
-		t.Fatalf("branch = %+v, want %q", b, BranchForSlug("widget-work"))
+	wantBranch := MintBranch(got.Change.Type(), got.Change.BranchPrefix(), "widget-work")
+	if b := got.Change.Branch(); b.State != FieldPresent || b.Value != wantBranch {
+		t.Fatalf("branch = %+v, want %q", b, wantBranch)
 	}
 	stamp := got.Change.ClaimedAt()
 	if stamp.State != FieldPresent || stamp.Raw != "2026-08-14T09:30:15Z" {
