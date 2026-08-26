@@ -2,7 +2,7 @@
 id: 356
 slug: unquote-cursor-agent-wrapper-names
 title: 'Emit unquoted name: on Cursor agent wrappers'
-status: 'in-progress'
+status: 'implemented'
 priority: high
 type: fix
 created: 2026-08-26
@@ -18,7 +18,7 @@ results:
 trivial: true
 auto_groomable:
 branch: 'fix/unquote-cursor-agent-wrapper-names'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/241'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-26T21:12:54Z'
