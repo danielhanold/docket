@@ -490,6 +490,28 @@ func TestProbePRReadsExactNumber(t *testing.T) {
 	}
 }
 
+// TestProbePRPropagatesApproval: the exact view's Approved observation flows
+// into PRFacts for a non-merged PR — true and false both propagate. The true
+// leg is the mutation seam: deleting the Approved copy in ProbePR must redden
+// it (a zero-value PRFacts already reads false, so only true discriminates).
+func TestProbePRPropagatesApproval(t *testing.T) {
+	for _, approved := range []bool{true, false} {
+		gh := &fakeProberGitHub{
+			repo: proberRepo(),
+			views: map[int]githubcli.PullRequest{
+				7: {Number: 7, State: githubcli.StateOpen, Approved: approved, HeadBranch: "feature/head", HeadCommit: "h7", BaseBranch: "main", Version: "v7"},
+			},
+		}
+		facts, err := NewGitHubFinalizeProber(gh).ProbePR(context.Background(), "", prRefFor(7))
+		if err != nil {
+			t.Fatalf("ProbePR(approved=%v): %v", approved, err)
+		}
+		if facts.Approved != approved {
+			t.Errorf("PRFacts.Approved = %v, want %v", facts.Approved, approved)
+		}
+	}
+}
+
 // TestProbePRClosedOnlyFromCleanExactRead: a closed state is reported only when
 // the exact-number view cleanly returns it.
 func TestProbePRClosedOnlyFromCleanExactRead(t *testing.T) {

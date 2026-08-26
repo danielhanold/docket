@@ -598,11 +598,12 @@ func prNumberToken(ref string) string {
 // (parsed by parsePRNumber), never a feature-head discovery — a renamed or
 // reused head can never misidentify the change's own pull request.
 //
-// Field coverage: the current githubcli probes do not carry a PR's review
-// decision, mergeability, or diff size for an OPEN pull request, so those fields
-// (Approved, Mergeable, ChangedFiles, DiffLines) stay zero for an open PR — a
-// conservative reading (an open PR bands as UNKNOWN mergeability and unapproved)
-// that never over-permits. The merged path is fully faithful.
+// Field coverage: the exact-number view carries reviewDecision, so Approved
+// reflects GitHub's actual review decision for a non-merged PR. The probes
+// still do not carry mergeability or diff size for an OPEN pull request, so
+// those fields (Mergeable, ChangedFiles, DiffLines) stay zero — a conservative
+// reading (an open PR bands as UNKNOWN mergeability) that never over-permits.
+// The merged path is fully faithful.
 type githubFinalizeProber struct {
 	gh FinalizeGitHub
 }
@@ -647,6 +648,7 @@ func (p *githubFinalizeProber) ProbePR(ctx context.Context, repoDir, prRef strin
 		Version:    pr.Version,
 		State:      string(pr.State),
 		Draft:      pr.Draft,
+		Approved:   pr.Approved,
 		HeadBranch: pr.HeadBranch,
 		HeadOID:    pr.HeadCommit,
 		BaseRef:    pr.BaseBranch,

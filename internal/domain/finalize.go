@@ -156,8 +156,8 @@ func SelectFinalizeQueue(s Snapshot, facts map[ChangeID]PRFacts, blocked map[Cha
 // PR's own head; then status, PR state, draft, block, and dependency gates in
 // turn; an open PR whose exact head is observed but cannot be reconciled with the
 // recorded branch is surfaced with an identity skip BEFORE the approval gate, so a
-// head mismatch outranks approval — identity is more fundamental, and githubcli's
-// open-PR view omits reviewDecision so Approved is never true in production;
+// head mismatch outranks approval — identity is more fundamental than the
+// approval observation, whatever the observed decision;
 // anything surviving is an actionable open PR banded by mergeability. Identity is
 // computed ONLY against cleanly observed open/merged evidence — a closed/unknown
 // PR classifies by the existing bands first, and an open PR whose head was not
