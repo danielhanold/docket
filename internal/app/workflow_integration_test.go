@@ -1174,6 +1174,113 @@ func TestIntegrationWorkflowRefreshClaimAppliesWhenBoardReRenderIsUnchanged(t *t
 	}
 }
 
+// TestIntegrationWorkflowStackedContextClaimWorkspaceFromParentBranch is the
+// change-0357 regression: a proposed, designed child stacked on a LIVE parent
+// whose recorded branch is pushed to the origin must pass the pre-claim
+// implementation-context gate (both automatic selection and explicit id),
+// resolve its effective base to the exact recorded parent branch, be claimed
+// under claim's independent in-transaction re-proof, and prepare its workspace
+// at the parent branch tip — not the integration-branch tip. Pre-0357
+// ContextImplementation judged the stack base against an empty fact set, so this
+// exact topology was refused stack-base-unresolved before claim could run.
+// Reverting ContextImplementation's BranchFacts read to domain.NewBranchFacts(nil)
+// must make this test fail at the pre-claim gate. It joins
+// TestIntegrationWorkflowEffectiveBaseConsumedFromDomain (which starts PAST the
+// gate, from an already-claimed child) rather than replacing it. Both metadata
+// modes; the git reader is the production NewGitStatusReader.
+func TestIntegrationWorkflowStackedContextClaimWorkspaceFromParentBranch(t *testing.T) {
+	requireRealGit(t)
+	const (
+		parentID   = 20
+		parentSlug = "parent"
+		childID    = 21
+		childSlug  = "child"
+	)
+	parentRec := groomPath(parentID, parentSlug)
+	childRec := groomPath(childID, childSlug)
+	// The child is proposed + designed (trivial: true stands in for a spec,
+	// as in buildReadyChange) and stacked on the live parent.
+	childBody := strings.Replace(buildReadyChange(childID, childSlug),
+		"stacked_on:\n", "stacked_on: 20\n", 1)
+
+	for _, m := range planRepoModes() {
+		m := m
+		t.Run(m.name, func(t *testing.T) {
+			repo := m.build(t, map[string]string{
+				parentRec: lifecycleChange(parentID, parentSlug, "in-progress"),
+				childRec:  childBody,
+			})
+			ctx := context.Background()
+
+			// The parent's recorded branch exists on the origin, advanced past
+			// the integration branch — the live-parent topology of domain rule 4.
+			runGit(t, repo.writer, "checkout", "-q", "-B", "feat/"+parentSlug, "origin/main")
+			writeRepoFile(t, repo.writer, "parent-work.txt", "parent feature work\n")
+			runGit(t, repo.writer, "add", "-A")
+			runGit(t, repo.writer, "commit", "-q", "-m", "parent feature work")
+			runGit(t, repo.writer, "push", "-q", "origin", "feat/"+parentSlug)
+			parentTip := originTip(t, repo.origin, "refs/heads/feat/"+parentSlug)
+			mainTip := originTip(t, repo.origin, "main")
+			if parentTip == mainTip {
+				t.Fatalf("parent branch did not advance past main; the base contrast is vacuous")
+			}
+
+			node := planningDepsFor(t, repo.invocation)
+
+			// The pre-claim gate applies for BOTH request shapes — this is the
+			// gate that pre-0357 refused stack-base-unresolved.
+			for name, req := range map[string]ImplementationContextRequest{
+				"automatic-selection": {},
+				"explicit-id":         {ID: childID},
+			} {
+				got := ContextImplementation(ctx, node.deps, node.dir, req)
+				if got.Result != ResultApplied || got.Context == nil {
+					t.Fatalf("%s context = %q (reason %q msg %q); want an applied bundle", name, got.Result, got.Reason, got.Message)
+				}
+				if got.Context.Change.Summary == nil || got.Context.Change.Summary.ID != childID {
+					t.Fatalf("%s selected %+v, want the stacked child %d", name, got.Context.Change.Summary, childID)
+				}
+				if !got.Context.ClaimEligible {
+					t.Fatalf("%s bundle not claim-eligible: %q", name, got.Context.ClaimRefusal)
+				}
+				if got.Context.EffectiveBase.Branch != "feat/"+parentSlug {
+					t.Fatalf("%s effective base = %+v, want the exact recorded parent branch feat/%s", name, got.Context.EffectiveBase, parentSlug)
+				}
+			}
+
+			// Claim succeeds under its own in-transaction, facts-backed re-proof.
+			bundle := ContextImplementation(ctx, node.deps, node.dir, ImplementationContextRequest{ID: childID})
+			if bundle.Result != ResultApplied || bundle.Context == nil {
+				t.Fatalf("claim context read = %q (reason %q)", bundle.Result, bundle.Reason)
+			}
+			claim := ChangeClaim(ctx, node.deps, node.dir, ChangeClaimRequest{ID: childID, Version: bundle.Context.Change.Version})
+			if claim.Result != ResultApplied || claim.Disposition != ClaimDispositionApplied {
+				t.Fatalf("claim = (%q, %q), want applied/applied (findings %v)", claim.Result, claim.Disposition, claim.Findings)
+			}
+
+			// Workspace preparation uses the parent branch tip, not the
+			// integration-branch tip — the child builds on the parent's
+			// unmerged work.
+			version := blobVersionAt(t, repo.origin, m.branch, childRec)
+			svc, err := workspace.NewService(node.deps.Client)
+			if err != nil {
+				t.Fatalf("workspace.NewService: %v", err)
+			}
+			wdeps := WorkspaceDeps{Service: svc}
+			prep := WorkspacePrepare(ctx, node.deps, wdeps, repo.invocation, WorkspaceIDRequest{ID: childID, Version: version})
+			if prep.Result != ResultApplied {
+				t.Fatalf("prepare workspace = %q (reason %q msg %q)", prep.Result, prep.Reason, prep.Message)
+			}
+			if prep.BaseCommit != parentTip {
+				t.Fatalf("prepared base = %q, want the parent branch tip %q", prep.BaseCommit, parentTip)
+			}
+			if prep.BaseCommit == mainTip {
+				t.Fatalf("prepared base is the integration-branch tip; the parent's unmerged work was lost")
+			}
+		})
+	}
+}
+
 // TestWorkspaceOpsGitLifecycle walks one change through prepare (fresh + resume),
 // inspect, and publish (create, fast-forward, and a contended divergence) against
 // a real bare remote, in both metadata modes.
