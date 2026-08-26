@@ -52,6 +52,14 @@ const (
 	buildinfoPkg = "github.com/danielhanold/docket/internal/buildinfo"
 )
 
+// HandoffRunner executes the freshly built candidate binary with an explicit
+// argument vector, relaying its stdio, and returns the candidate's exit code.
+// It is a vector and never a shell string, for the same reason GoRunner is: no
+// path a user typed is ever handed to a shell. A non-nil error means the
+// candidate could not be launched at all; a launched candidate that exits
+// non-zero reports that through exitCode with a nil error.
+type HandoffRunner func(binary string, argv []string, env []string) (exitCode int, err error)
+
 // DevOptions is a development install's inputs: the release options plus the
 // checkout, the destination for the built binary, and the toolchain seam.
 type DevOptions struct {
@@ -67,6 +75,23 @@ type DevOptions struct {
 	// feeds build identity, which is a nicety: probe failures degrade the
 	// build to unstamped, but a missing runner is a wiring bug and refused.
 	GitRunner func(dir string, argv []string) (string, error)
+	// Handoff runs the built candidate binary as the internal continuation that
+	// actually plans and installs. It is required on the parent path exactly as
+	// GoRunner is: the parent builds a candidate and hands the whole
+	// installation to it, never installing anything itself.
+	Handoff HandoffRunner
+	// Continuation marks THIS process as the candidate: it plans and applies the
+	// installation, builds nothing, and hands off to nothing. It is the
+	// structural recursion stop — the candidate never re-enters the build path
+	// — rather than a flag consulted from inside a shared body. It is set by the
+	// private --internal-continuation flag and is not a supported public mode.
+	Continuation bool
+	// RepoDir is the explicit repository selection the public command received,
+	// propagated verbatim into the candidate's handoff argv so parent and
+	// candidate resolve the same repository. Empty means none was given. The
+	// flag that populates it is wired by a later change; today it is always
+	// empty and omitted from the handoff argv.
+	RepoDir string
 }
 
 // DefaultGoRunner is the production toolchain seam.
@@ -81,6 +106,28 @@ func DefaultGoRunner(dir string, argv []string) error {
 		return fmt.Errorf("%s: %w\n%s", argv[0], err, out)
 	}
 	return nil
+}
+
+// DefaultHandoffRunner is the production handoff seam: it execs the candidate
+// binary with the given argv and environment, wiring the candidate's stdio
+// straight through to this process's own so the candidate's one result
+// document reaches the user's terminal. A candidate that runs and exits
+// non-zero returns that code with a nil error; only a failure to launch the
+// candidate at all is an error.
+func DefaultHandoffRunner(binary string, argv []string, env []string) (int, error) {
+	cmd := exec.Command(binary, argv...)
+	cmd.Env = env
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) {
+			return exit.ExitCode(), nil
+		}
+		return -1, fmt.Errorf("%s: %w", binary, err)
+	}
+	return 0, nil
 }
 
 // DefaultGitRunner is the production git seam. It returns stdout alone:
@@ -101,64 +148,95 @@ func DefaultGitRunner(dir string, argv []string) (string, error) {
 
 // DevelopmentInstall installs from a checkout: harness material is linked into
 // the source tree and the binary is built from it.
+//
+// It is two actors behind one entry point. The PARENT (Continuation == false)
+// validates the checkout and builds a candidate binary from it, then hands the
+// entire installation to that candidate — it acquires no lock, calls no
+// planner, renders no target, and writes no destination. The CANDIDATE
+// (Continuation == true) is that freshly built binary re-entering through the
+// private continuation: it repeats every validation, then plans and applies,
+// installing its OWN bytes as the binary target. Splitting the two is what
+// makes the recursion stop structural — the candidate never reaches the build
+// path — and what guarantees the renderer that produces the wrappers is the one
+// the user just built, not the older binary that started the command.
 func DevelopmentInstall(o DevOptions) Outcome {
+	if o.Continuation {
+		return developmentInstallCandidate(o)
+	}
+	return developmentInstallParent(o)
+}
+
+// developmentInstallParent is the currently-running binary's half: validate,
+// build a candidate, hand off. It never mutates the user's installation — the
+// candidate owns all of that — so it takes no lock and touches no destination.
+func developmentInstallParent(o DevOptions) Outcome {
 	out := Outcome{Mode: ModeDevelopment, StatePath: o.Roots.StatePath()}
 	if err := requireOptions(o.Options); err != nil {
 		return fail(out, ReasonInvalidOptions, err)
 	}
+	// The parent's own seams: it builds and it hands off. A missing one is a
+	// wiring bug, refused before any work — exactly as the release path treats
+	// a missing catalog.
 	if o.GoRunner == nil {
 		return fail(out, ReasonInvalidOptions, fmt.Errorf("%w: no Go toolchain runner", ErrInvalidInput))
 	}
 	if o.GitRunner == nil {
 		return fail(out, ReasonInvalidOptions, fmt.Errorf("%w: no git runner", ErrInvalidInput))
 	}
-	if decision := config.PreflightMutation(o.Config); !decision.Allowed {
-		return fail(out, ReasonDeferredCapability, fmt.Errorf("%w: %d blocker(s), first: %s",
-			config.ErrUnsupportedConfig, len(decision.Blockers), decision.Blockers[0].Path))
+	if o.Handoff == nil {
+		return fail(out, ReasonInvalidOptions, fmt.Errorf("%w: no handoff runner", ErrInvalidInput))
 	}
 
-	source, err := validateSourceRoot(o.SourceRoot)
-	if err != nil {
-		return fail(out, ReasonInvalidSourceRoot, err)
+	ds, refusal := validateDevSource(o)
+	if refusal != nil {
+		return *refusal
 	}
-	binDir, err := resolveBinDir(o.BinDir, o.Roots)
+
+	// Build the candidate into a private staging directory and keep it alive
+	// until the handoff that runs it returns. A toolchain failure must leave the
+	// user's installation exactly as it was, and the surest way to promise that
+	// is to have written nothing to it — which the parent never does.
+	staged, cleanup, err := buildStagedBinary(o.GoRunner, ds.source, buildIdentity(o.GitRunner, ds.source, time.Now))
 	if err != nil {
+		return fail(out, ReasonBuildFailed, err)
+	}
+	defer cleanup()
+
+	argv := parentHandoffArgv(ds.source, ds.binDir, o.Harnesses, o.RepoDir)
+	code, err := o.Handoff(staged, argv, os.Environ())
+	if err != nil {
+		return fail(out, ReasonHandoffFailed, fmt.Errorf(
+			"%w: the candidate could not be launched: %s", ErrHandoffFailed, err))
+	}
+	if code != 0 {
+		return fail(out, ReasonHandoffFailed, fmt.Errorf(
+			"%w: the candidate installation exited %d", ErrHandoffFailed, code))
+	}
+	// The candidate already printed the sole result document to the shared
+	// stdout; the parent adds nothing of its own and simply relays the success.
+	out.Relayed = true
+	out.RelayExitCode = code
+	return out
+}
+
+// developmentInstallCandidate is the freshly built binary's half: repeat every
+// mutable-world validation, then plan and apply. It builds nothing and hands
+// off to nothing — its installed binary target is its OWN running bytes.
+func developmentInstallCandidate(o DevOptions) Outcome {
+	out := Outcome{Mode: ModeDevelopment, StatePath: o.Roots.StatePath()}
+	if err := requireOptions(o.Options); err != nil {
 		return fail(out, ReasonInvalidOptions, err)
 	}
 
-	committed := filepath.Join(source, filepath.FromSlash(embeddedBundleRel))
-	declared, err := readCommittedManifest(committed)
-	if err != nil {
-		return fail(out, ReasonAssetManifestInvalid, err)
+	// All the same read-only gates the parent passed are re-run here: a source
+	// or committed bundle that changed between the parent's build and this
+	// handoff must be caught before anything is installed from it.
+	ds, refusal := validateDevSource(o)
+	if refusal != nil {
+		return *refusal
 	}
-	if declared.AssetProtocol != assets.AssetProtocol {
-		return fail(out, ReasonAssetProtocolMismatch, fmt.Errorf(
-			"%w: %s declares asset protocol %d, this binary speaks %d",
-			assets.ErrManifestInvalid, source, declared.AssetProtocol, assets.AssetProtocol))
-	}
-
-	manifest, payload, err := assets.Generate(source, assets.DefaultAllowedRoots())
-	if err != nil {
-		return fail(out, ReasonInvalidSourceRoot, fmt.Errorf("%w: %s", ErrInvalidInput, err))
-	}
-	diffs, err := assets.DiffTree(committed, manifest, payload)
-	if err != nil {
-		return fail(out, ReasonSourceAssetsDrifted, err)
-	}
-	if len(diffs) > 0 {
-		for _, d := range diffs {
-			out.Actions = append(out.Actions, Action{Op: OpDrift, Path: committed, Detail: d})
-		}
-		return fail(out, ReasonSourceAssetsDrifted, fmt.Errorf(
-			"%w: %s is stale in %d path(s) — run: go generate ./internal/assets/",
-			ErrDrifted, embeddedBundleRel, len(diffs)))
-	}
-	digest, err := assets.ComputeAssetSetID(manifest)
-	if err != nil {
-		return fail(out, ReasonAssetManifestInvalid, err)
-	}
-	out.AssetSetID = digest
-	out.AssetProtocol = manifest.AssetProtocol
+	out.AssetSetID = ds.digest
+	out.AssetProtocol = ds.manifest.AssetProtocol
 
 	selected, err := selectPlanners(o.Planners, o.Harnesses, o.Roots)
 	if err != nil {
@@ -167,9 +245,8 @@ func DevelopmentInstall(o DevOptions) Outcome {
 	out.Harnesses = plannerNames(selected)
 
 	// The lock spans everything from here to the commit, exactly as it does for
-	// a release install: the two share applyPlan, and a build is not a licence
-	// to interleave with another run's transaction. Taking it before the build
-	// also keeps a refused run from spending a compile on work it will not do.
+	// a release install: the two share applyPlan, and this run is not a licence
+	// to interleave with another run's transaction.
 	lock, err := acquireInstallLock(o.Roots)
 	if err != nil {
 		return fail(out, lockReason(err), err)
@@ -181,20 +258,17 @@ func DevelopmentInstall(o DevOptions) Outcome {
 		return fail(out, ReasonTransactionRecoveryRequired, err)
 	}
 
-	// The build runs before the transaction opens: a toolchain failure must
-	// leave the user's installation exactly as it was, and the surest way to
-	// promise that is to have written nothing yet.
-	binary, err := buildBinary(o.GoRunner, source, buildIdentity(o.GitRunner, source, time.Now))
+	// The installed binary is this candidate's OWN bytes: it is the binary the
+	// parent just built, so the renderer that produces the wrappers below and
+	// the executable that lands in the bin directory are one and the same.
+	binary, err := candidateOwnBytes()
 	if err != nil {
-		return fail(out, ReasonBuildFailed, err)
+		return fail(out, ReasonFilesystemFailed, err)
 	}
-	// The build itself is not an action: it produced bytes, and whether those
-	// bytes change anything is the binary target's create/update to report. An
-	// action here would make every development install look like work.
-	installedBinary := filepath.Join(binDir, binaryName)
+	installedBinary := filepath.Join(ds.binDir, binaryName)
 
-	catalog := assets.NewCatalog(manifest, payloadOpener(payload))
-	targets, owner, err := planTargets(selected, ModeDevelopment, source, catalog)
+	catalog := assets.NewCatalog(ds.manifest, payloadOpener(ds.payload))
+	targets, owner, err := planTargets(selected, ModeDevelopment, ds.source, catalog)
 	if err != nil {
 		return fail(out, ReasonInternal, err)
 	}
@@ -209,16 +283,133 @@ func DevelopmentInstall(o DevOptions) Outcome {
 		Role:    roleBinary,
 	})
 
+	// The repository half is nil here: this change wires only the machine
+	// installation through the candidate. A later change assembles a real
+	// RepoPhase and passes it in its place.
 	return applyPlan(o.Options, plannedInstallation{
 		mode:          ModeDevelopment,
 		harnesses:     out.Harnesses,
 		targets:       targets,
 		owner:         owner,
-		assetSetID:    digest,
-		assetProtocol: manifest.AssetProtocol,
-		sourceRoot:    source,
-		sourceDigest:  digest,
+		assetSetID:    ds.digest,
+		assetProtocol: ds.manifest.AssetProtocol,
+		sourceRoot:    ds.source,
+		sourceDigest:  ds.digest,
 	}, nil, out)
+}
+
+// devSource is the validated, freshly generated view of a checkout that both
+// the parent and the candidate need: the canonical source root, the resolved
+// bin directory, and the regenerated bundle plus its digest.
+type devSource struct {
+	source   string
+	binDir   string
+	manifest assets.Manifest
+	payload  map[string][]byte
+	digest   string
+}
+
+// validateDevSource runs every read-only gate a development install passes
+// before it touches anything: config preflight, source root, bin directory,
+// committed-manifest protocol, and source/asset drift. The parent and the
+// candidate both call it, so the two cannot diverge in what they accept — a
+// checkout the parent built from but that has since drifted is refused here by
+// the candidate too. It writes nothing and takes no lock. requireOptions is the
+// caller's to run first, because the two paths report a missing seam
+// differently (the parent additionally requires its runners).
+func validateDevSource(o DevOptions) (*devSource, *Outcome) {
+	out := Outcome{Mode: ModeDevelopment, StatePath: o.Roots.StatePath()}
+	if decision := config.PreflightMutation(o.Config); !decision.Allowed {
+		return refuse(out, ReasonDeferredCapability, fmt.Errorf("%w: %d blocker(s), first: %s",
+			config.ErrUnsupportedConfig, len(decision.Blockers), decision.Blockers[0].Path))
+	}
+
+	source, err := validateSourceRoot(o.SourceRoot)
+	if err != nil {
+		return refuse(out, ReasonInvalidSourceRoot, err)
+	}
+	binDir, err := resolveBinDir(o.BinDir, o.Roots)
+	if err != nil {
+		return refuse(out, ReasonInvalidOptions, err)
+	}
+
+	committed := filepath.Join(source, filepath.FromSlash(embeddedBundleRel))
+	declared, err := readCommittedManifest(committed)
+	if err != nil {
+		return refuse(out, ReasonAssetManifestInvalid, err)
+	}
+	if declared.AssetProtocol != assets.AssetProtocol {
+		return refuse(out, ReasonAssetProtocolMismatch, fmt.Errorf(
+			"%w: %s declares asset protocol %d, this binary speaks %d",
+			assets.ErrManifestInvalid, source, declared.AssetProtocol, assets.AssetProtocol))
+	}
+
+	manifest, payload, err := assets.Generate(source, assets.DefaultAllowedRoots())
+	if err != nil {
+		return refuse(out, ReasonInvalidSourceRoot, fmt.Errorf("%w: %s", ErrInvalidInput, err))
+	}
+	diffs, err := assets.DiffTree(committed, manifest, payload)
+	if err != nil {
+		return refuse(out, ReasonSourceAssetsDrifted, err)
+	}
+	if len(diffs) > 0 {
+		for _, d := range diffs {
+			out.Actions = append(out.Actions, Action{Op: OpDrift, Path: committed, Detail: d})
+		}
+		return refuse(out, ReasonSourceAssetsDrifted, fmt.Errorf(
+			"%w: %s is stale in %d path(s) — run: go generate ./internal/assets/",
+			ErrDrifted, embeddedBundleRel, len(diffs)))
+	}
+	digest, err := assets.ComputeAssetSetID(manifest)
+	if err != nil {
+		return refuse(out, ReasonAssetManifestInvalid, err)
+	}
+	return &devSource{source: source, binDir: binDir, manifest: manifest, payload: payload, digest: digest}, nil
+}
+
+// refuse packages a failed Outcome as validateDevSource's error return: the
+// devSource is nil, the Outcome pointer non-nil, and the caller returns it.
+func refuse(out Outcome, reason string, err error) (*devSource, *Outcome) {
+	f := fail(out, reason, err)
+	return nil, &f
+}
+
+// parentHandoffArgv is the exact argument vector the parent runs the candidate
+// with. It names the private continuation (so the candidate does not build
+// another candidate), the canonical source and bin directory, and the public
+// command's requested scope — one --harness per explicit selection and
+// --repo-dir when the public command received one.
+func parentHandoffArgv(source, binDir string, harnesses []string, repoDir string) []string {
+	argv := []string{"development", "install", "--internal-continuation",
+		"--source", source, "--bin-dir", binDir}
+	for _, h := range harnesses {
+		argv = append(argv, "--harness", h)
+	}
+	if repoDir != "" {
+		argv = append(argv, "--repo-dir", repoDir)
+	}
+	return argv
+}
+
+// candidateOwnBytes reads the running executable's own bytes. In a development
+// install's candidate these bytes ARE the freshly built binary this process is,
+// so they become the installed binary target's content. The path is resolved
+// through its symlinks so a candidate launched by a symlinked path still reads
+// the real file.
+func candidateOwnBytes() ([]byte, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return nil, fmt.Errorf("install: locating the running binary: %w", err)
+	}
+	resolved, err := filepath.EvalSymlinks(exe)
+	if err != nil {
+		return nil, fmt.Errorf("install: resolving %s: %w", exe, err)
+	}
+	body, err := os.ReadFile(resolved)
+	if err != nil {
+		return nil, fmt.Errorf("install: reading %s: %w", resolved, err)
+	}
+	return body, nil
 }
 
 // generateSourceCatalog reads a checkout's authored roots and returns the
@@ -328,16 +519,19 @@ func buildIdentity(run func(string, []string) (string, error), source string, no
 		now().UTC().Format(time.RFC3339))
 }
 
-// buildBinary runs the toolchain into a staging directory outside the user's
-// installation and returns the bytes it produced. Staging elsewhere is what
-// makes a failed build a no-op: nothing under the destination has been touched
-// when the runner returns an error.
-func buildBinary(run func(string, []string) error, source, ldflags string) ([]byte, error) {
+// buildStagedBinary runs the toolchain into a staging directory outside the
+// user's installation and returns the path to the binary it produced plus a
+// cleanup that removes the staging directory. Staging elsewhere is what makes a
+// failed build a no-op: nothing under the destination has been touched when the
+// runner returns an error. The caller keeps the staged file alive until the
+// handoff that executes it returns, then calls cleanup — so, unlike a
+// build-and-read helper, this one hands back the path, not the bytes.
+func buildStagedBinary(run func(string, []string) error, source, ldflags string) (string, func(), error) {
 	staging, err := os.MkdirTemp("", "docket-build-")
 	if err != nil {
-		return nil, fmt.Errorf("%w: staging the build: %s", ErrBuildFailed, err)
+		return "", nil, fmt.Errorf("%w: staging the build: %s", ErrBuildFailed, err)
 	}
-	defer os.RemoveAll(staging)
+	cleanup := func() { os.RemoveAll(staging) }
 
 	staged := filepath.Join(staging, binaryName)
 	argv := []string{"go", "build"}
@@ -346,13 +540,14 @@ func buildBinary(run func(string, []string) error, source, ldflags string) ([]by
 	}
 	argv = append(argv, "-o", staged, "./cmd/docket")
 	if err := run(source, argv); err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrBuildFailed, err)
+		cleanup()
+		return "", nil, fmt.Errorf("%w: %s", ErrBuildFailed, err)
 	}
-	body, err := os.ReadFile(staged)
-	if err != nil {
-		return nil, fmt.Errorf("%w: the build reported success but produced no binary: %s", ErrBuildFailed, err)
+	if _, err := os.Stat(staged); err != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("%w: the build reported success but produced no binary: %s", ErrBuildFailed, err)
 	}
-	return body, nil
+	return staged, cleanup, nil
 }
 
 // payloadOpener turns a generated payload map into a catalog accessor. Each

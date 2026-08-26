@@ -38,7 +38,21 @@ type InstallResult struct {
 	Actions       []install.Action `json:"actions"`
 	Reason        string           `json:"reason,omitempty"`
 	Message       string           `json:"message,omitempty"`
+
+	// relayed marks a development-install parent result whose candidate already
+	// printed the sole document to the shared stdout. It is unexported so it
+	// never enters the protocol: the presenter reads it through Relay and emits
+	// nothing for it rather than a second document. relayExit is the code the
+	// CLI exits with in that case.
+	relayed   bool
+	relayExit int
 }
+
+// Relay reports whether this is a development-install parent relay: when it is,
+// the candidate subprocess has already written the one result document to the
+// shared stdout, so the CLI must present nothing and exit with the returned
+// code.
+func (r InstallResult) Relay() (int, bool) { return r.relayExit, r.relayed }
 
 // The three operation names. They are protocol, so they are spelled once.
 const (
@@ -78,6 +92,8 @@ func NewInstallResult(operation string, out install.Outcome) InstallResult {
 		AppliedWork:   out.Applied,
 		Actions:       nonNilActions(out.Actions),
 		Reason:        out.Reason,
+		relayed:       out.Relayed,
+		relayExit:     out.RelayExitCode,
 	}
 	if out.Err != nil {
 		r.Message = out.Err.Error()
@@ -136,6 +152,10 @@ func classifyInstall(out install.Outcome) Result {
 		return ResultInvalidInput
 
 	case install.ReasonBuildFailed,
+		// The build succeeded but the candidate installation it handed off to
+		// failed to launch or exited non-zero. It is an execution failure like
+		// a build failure, not a defect in the user's input or filesystem.
+		install.ReasonHandoffFailed,
 		install.ReasonFilesystemFailed:
 		return ResultExternalFailed
 

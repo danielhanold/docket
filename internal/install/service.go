@@ -110,9 +110,15 @@ const (
 	ReasonInvalidOptions    = "invalid-options"
 	ReasonInvalidSourceRoot = "invalid-source-root"
 	ReasonBuildFailed       = "build-failed"
-	ReasonStateInvalid      = "installed-state-invalid"
-	ReasonFilesystemFailed  = "filesystem-failed"
-	ReasonInternal          = "internal-error"
+	// ReasonHandoffFailed is a development install whose parent built a
+	// candidate but could not run it to completion: the candidate failed to
+	// launch, or it ran and exited non-zero. It is spelled apart from
+	// build-failed because the build succeeded — the failure is the candidate's
+	// own installation, whose exit code the message carries.
+	ReasonHandoffFailed    = "handoff-failed"
+	ReasonStateInvalid     = "installed-state-invalid"
+	ReasonFilesystemFailed = "filesystem-failed"
+	ReasonInternal         = "internal-error"
 )
 
 var (
@@ -128,6 +134,10 @@ var (
 	ErrDrifted = errors.New("install: installation has drifted")
 	// ErrBuildFailed wraps a failure of the injected Go toolchain runner.
 	ErrBuildFailed = errors.New("install: building the development binary failed")
+	// ErrHandoffFailed wraps a development install whose freshly built candidate
+	// could not be launched, or ran and exited non-zero. The build already
+	// succeeded; the candidate's installation is what failed.
+	ErrHandoffFailed = errors.New("install: the development-install candidate handoff failed")
 )
 
 // Outcome is one operation's complete result. Err is set on every failure and
@@ -142,6 +152,12 @@ type Outcome struct {
 	Actions       []Action
 	Reason        string
 	Err           error
+	// Relayed marks a development-install PARENT outcome whose candidate has
+	// already printed the sole result document to the shared stdout. The parent
+	// itself planned nothing and wrote nothing; the CLI presenter emits no
+	// document of its own for a relayed outcome and exits with RelayExitCode.
+	Relayed       bool
+	RelayExitCode int
 }
 
 func fail(out Outcome, reason string, err error) Outcome {

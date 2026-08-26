@@ -135,6 +135,11 @@ func outputPath(argv []string) (string, error) {
 	return "", errors.New("no -o in argv")
 }
 
+// devOptions builds the PARENT (Continuation == false) options: the actor that
+// validates the checkout, builds a candidate, and hands off. Its Handoff
+// defaults to a stub that reports the candidate succeeded, so a test that only
+// exercises the parent's validate-and-build behavior gets a clean relay; tests
+// that care about the handoff override it or record through a handoffStub.
 func (w *world) devOptions(t *testing.T, src, bin string, g *goRun) install.DevOptions {
 	o := w.options(nil)
 	o.Planners = []install.Planner{devPlanner(t, w.path(".toy"))}
@@ -144,6 +149,59 @@ func (w *world) devOptions(t *testing.T, src, bin string, g *goRun) install.DevO
 		GitRunner: func(string, []string) (string, error) {
 			return "", errors.New("no git in this fixture")
 		},
+		Handoff: func(string, []string, []string) (int, error) { return 0, nil },
+	}
+}
+
+// devCandidate builds the CANDIDATE (Continuation == true) options: the actor
+// that plans and installs. It needs no toolchain, git, or handoff seam — the
+// candidate builds nothing and its installed binary is its OWN running bytes.
+func (w *world) devCandidate(t *testing.T, src, bin string) install.DevOptions {
+	o := w.options(nil)
+	o.Planners = []install.Planner{devPlanner(t, w.path(".toy"))}
+	return install.DevOptions{Options: o, SourceRoot: src, BinDir: bin, Continuation: true}
+}
+
+// selfBytes is the running test binary's own bytes, resolved exactly as the
+// candidate resolves them (os.Executable → EvalSymlinks → ReadFile). It is what
+// a candidate installs as its binary target, so a candidate test compares the
+// installed binary against it rather than against a stub-built body.
+func selfBytes(t *testing.T) string {
+	t.Helper()
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatalf("os.Executable: %v", err)
+	}
+	resolved, err := filepath.EvalSymlinks(exe)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%s): %v", exe, err)
+	}
+	body, err := os.ReadFile(resolved)
+	if err != nil {
+		t.Fatalf("reading self %s: %v", resolved, err)
+	}
+	return string(body)
+}
+
+// handoffStub records the argv a parent handed off with and returns a
+// configurable exit code and error, so a parent test can assert both the exact
+// vector and how the parent classifies the candidate's result.
+type handoffStub struct {
+	calls  int
+	binary string
+	argv   []string
+	env    []string
+	code   int
+	err    error
+}
+
+func (h *handoffStub) runner() install.HandoffRunner {
+	return func(binary string, argv []string, env []string) (int, error) {
+		h.calls++
+		h.binary = binary
+		h.argv = append([]string(nil), argv...)
+		h.env = append([]string(nil), env...)
+		return h.code, h.err
 	}
 }
 
@@ -156,9 +214,8 @@ func TestDevInstallLinksToSource(t *testing.T) {
 	mkdirAll(t, w.path(".toy"))
 	src := newSource(t)
 	bin := filepath.Join(w.home, ".local", "bin")
-	g := &goRun{body: "#!/bin/sh\necho docket\n"}
 
-	out := install.DevelopmentInstall(w.devOptions(t, src, bin, g))
+	out := install.DevelopmentInstall(w.devCandidate(t, src, bin))
 	if out.Err != nil {
 		t.Fatalf("DevelopmentInstall: %v (reason %q)", out.Err, out.Reason)
 	}
@@ -190,10 +247,11 @@ func TestDevInstallLinksToSource(t *testing.T) {
 		t.Errorf("wrapper = %q, want the source asset %q", got, want)
 	}
 
-	// The built binary is an ordinary owned target, and it is executable.
+	// The candidate installs its OWN bytes as the binary target: the installed
+	// binary equals the running process's executable, not a stub-built body.
 	installed := filepath.Join(bin, "docket")
-	if got := readFile(t, installed); got != g.body {
-		t.Errorf("installed binary = %q, want the built bytes", got)
+	if got := readFile(t, installed); got != selfBytes(t) {
+		t.Errorf("installed binary does not equal the candidate's own bytes")
 	}
 	info, err := os.Stat(installed)
 	if err != nil {
@@ -224,7 +282,7 @@ func TestDevInstallLinksToSource(t *testing.T) {
 	// the truth in development mode.
 	writeFile(t, filepath.Join(src, "agents", "docket-toy.md"), agentSource("v2"))
 	regenerateSource(t, src)
-	if out := install.DevelopmentInstall(w.devOptions(t, src, bin, g)); out.Err != nil {
+	if out := install.DevelopmentInstall(w.devCandidate(t, src, bin)); out.Err != nil {
 		t.Fatalf("second DevelopmentInstall: %v (reason %q)", out.Err, out.Reason)
 	}
 	if got, want := readFile(t, wrapper), agentSource("v2"); got != want {
@@ -236,9 +294,8 @@ func TestDevInstallRecordsSourceDigest(t *testing.T) {
 	w := newWorld(t)
 	mkdirAll(t, w.path(".toy"))
 	src := newSource(t)
-	g := &goRun{body: "binary\n"}
 
-	out := install.DevelopmentInstall(w.devOptions(t, src, filepath.Join(w.home, "bin"), g))
+	out := install.DevelopmentInstall(w.devCandidate(t, src, filepath.Join(w.home, "bin")))
 	if out.Err != nil {
 		t.Fatalf("DevelopmentInstall: %v (reason %q)", out.Err, out.Reason)
 	}
@@ -293,6 +350,9 @@ func TestDevInstallProtocolMismatch(t *testing.T) {
 	assertUnchanged(t, homeBefore, snapshot(t, w.home), "protocol mismatch")
 }
 
+// A parent build failure is a total no-op: no binary, no published state, and —
+// because the parent never reaches the candidate — no lock file, no journal,
+// and no handoff.
 func TestDevInstallBuildFailureNoPublish(t *testing.T) {
 	w := newWorld(t)
 	mkdirAll(t, w.path(".toy"))
@@ -300,19 +360,31 @@ func TestDevInstallBuildFailureNoPublish(t *testing.T) {
 	bin := filepath.Join(w.home, "bin")
 	homeBefore := snapshot(t, w.home)
 	g := &goRun{failure: errors.New("compile error")}
+	o := w.devOptions(t, src, bin, g)
+	h := &handoffStub{}
+	o.Handoff = h.runner()
 
-	out := install.DevelopmentInstall(w.devOptions(t, src, bin, g))
+	out := install.DevelopmentInstall(o)
 	if !errors.Is(out.Err, install.ErrBuildFailed) {
 		t.Fatalf("err = %v, want ErrBuildFailed", out.Err)
 	}
 	if out.Reason != install.ReasonBuildFailed {
 		t.Errorf("reason = %q", out.Reason)
 	}
+	if h.calls != 0 {
+		t.Errorf("a failed build still handed off %d time(s)", h.calls)
+	}
 	if _, err := os.Stat(filepath.Join(bin, "docket")); !os.IsNotExist(err) {
 		t.Errorf("a binary was installed despite a failed build: %v", err)
 	}
 	if _, err := os.Stat(w.roots.StatePath()); !os.IsNotExist(err) {
 		t.Errorf("state published despite a failed build: %v", err)
+	}
+	if _, err := os.Stat(w.roots.LockPath()); !os.IsNotExist(err) {
+		t.Errorf("a lock file exists despite a parent that never locks: %v", err)
+	}
+	if _, err := os.Stat(w.roots.TransactionsDir()); !os.IsNotExist(err) {
+		t.Errorf("a journal exists despite a failed build: %v", err)
 	}
 	assertUnchanged(t, homeBefore, snapshot(t, w.home), "failed build")
 }
@@ -411,18 +483,17 @@ func TestDevInstallMissingSource(t *testing.T) {
 	}
 }
 
-// A development install shares the release install's whole mutating span, so it
-// shares its lock. The refusal lands before the toolchain runs: a build under a
-// lock this run will never get is work nobody asked for.
+// The candidate shares the release install's whole mutating span, so it shares
+// its lock: it acquires it before planning and refuses when another run holds
+// it, having written nothing.
 func TestDevInstallRefusesWhileAnotherRunHoldsTheLock(t *testing.T) {
 	w := newWorld(t)
 	mkdirAll(t, w.path(".toy"))
 	src := newSource(t)
-	g := &goRun{body: "binary\n"}
 	holdInstallLock(t, w.roots)
 	before := snapshot(t, w.home)
 
-	out := install.DevelopmentInstall(w.devOptions(t, src, filepath.Join(w.home, "bin"), g))
+	out := install.DevelopmentInstall(w.devCandidate(t, src, filepath.Join(w.home, "bin")))
 	if out.Reason != install.ReasonInstallInProgress {
 		t.Fatalf("reason = %q, want %q (err %v)", out.Reason, install.ReasonInstallInProgress, out.Err)
 	}
@@ -432,9 +503,6 @@ func TestDevInstallRefusesWhileAnotherRunHoldsTheLock(t *testing.T) {
 	if out.Applied {
 		t.Errorf("a refused development install reported applied work")
 	}
-	if g.calls != 0 {
-		t.Errorf("a refused development install still ran the toolchain %d time(s)", g.calls)
-	}
 	assertUnchanged(t, before, snapshot(t, w.home), "development install under a held lock")
 }
 
@@ -443,13 +511,12 @@ func TestDevInstallIsIdempotent(t *testing.T) {
 	mkdirAll(t, w.path(".toy"))
 	src := newSource(t)
 	bin := filepath.Join(w.home, "bin")
-	g := &goRun{body: "binary\n"}
-	if out := install.DevelopmentInstall(w.devOptions(t, src, bin, g)); out.Err != nil {
+	if out := install.DevelopmentInstall(w.devCandidate(t, src, bin)); out.Err != nil {
 		t.Fatalf("first DevelopmentInstall: %v (reason %q)", out.Err, out.Reason)
 	}
 	before := snapshot(t, w.home)
 
-	out := install.DevelopmentInstall(w.devOptions(t, src, bin, g))
+	out := install.DevelopmentInstall(w.devCandidate(t, src, bin))
 	if out.Err != nil {
 		t.Fatalf("second DevelopmentInstall: %v", out.Err)
 	}
@@ -463,8 +530,7 @@ func TestCheckDevelopmentSourceDrift(t *testing.T) {
 	w := newWorld(t)
 	mkdirAll(t, w.path(".toy"))
 	src := newSource(t)
-	g := &goRun{body: "binary\n"}
-	dev := w.devOptions(t, src, filepath.Join(w.home, "bin"), g)
+	dev := w.devCandidate(t, src, filepath.Join(w.home, "bin"))
 	if out := install.DevelopmentInstall(dev); out.Err != nil {
 		t.Fatalf("DevelopmentInstall: %v (reason %q)", out.Err, out.Reason)
 	}
@@ -495,8 +561,7 @@ func TestDevInstallRepointedLinkRefuses(t *testing.T) {
 	mkdirAll(t, w.path(".toy"))
 	src := newSource(t)
 	bin := filepath.Join(w.home, "bin")
-	g := &goRun{body: "binary\n"}
-	if out := install.DevelopmentInstall(w.devOptions(t, src, bin, g)); out.Err != nil {
+	if out := install.DevelopmentInstall(w.devCandidate(t, src, bin)); out.Err != nil {
 		t.Fatalf("first DevelopmentInstall: %v (reason %q)", out.Err, out.Reason)
 	}
 
@@ -511,7 +576,7 @@ func TestDevInstallRepointedLinkRefuses(t *testing.T) {
 	}
 	before := snapshot(t, w.home)
 
-	out := install.DevelopmentInstall(w.devOptions(t, src, bin, g))
+	out := install.DevelopmentInstall(w.devCandidate(t, src, bin))
 	if out.Reason != install.ReasonOwnershipConflict {
 		t.Fatalf("reason = %q, want %q (err %v)", out.Reason, install.ReasonOwnershipConflict, out.Err)
 	}
@@ -551,7 +616,7 @@ func TestCheckVerifiesTheDevelopmentBinary(t *testing.T) {
 		w := newWorld(t)
 		mkdirAll(t, w.path(".toy"))
 		bin := filepath.Join(w.home, "bin")
-		dev := w.devOptions(t, newSource(t), bin, &goRun{body: "binary\n"})
+		dev := w.devCandidate(t, newSource(t), bin)
 		if out := install.DevelopmentInstall(dev); out.Err != nil {
 			t.Fatalf("DevelopmentInstall: %v (reason %q)", out.Err, out.Reason)
 		}
@@ -614,4 +679,109 @@ func TestCheckVerifiesTheDevelopmentBinary(t *testing.T) {
 		}
 		assertUnchanged(t, before, snapshot(t, w.home), "check over a deleted binary")
 	})
+}
+
+// ---------------------------------------------------------------------------
+// Parent / candidate split
+// ---------------------------------------------------------------------------
+
+// The parent validates and builds, then hands the whole installation to the
+// candidate. It plans nothing and writes nothing of its own: a planner it
+// invoked would t.Fatal, and a filesystem write would panic. The proof that
+// this test is not vacuous is the spec's remove-the-handoff check — reinstating
+// a parent-side applyPlan call must trip the planner or the panicking FS.
+func TestDevParentNeverPlansOrMutates(t *testing.T) {
+	w := newWorld(t)
+	mkdirAll(t, w.path(".toy"))
+	src := newSource(t)
+	bin := filepath.Join(w.home, "bin")
+
+	o := w.devOptions(t, src, bin, &goRun{body: "binary\n"})
+	o.Planners = []install.Planner{{
+		Name:   "toy",
+		Detect: func(install.UserRoots) (bool, string) { return true, w.path(".toy") },
+		Plan: func(install.Mode, string, assets.Catalog) ([]install.Target, error) {
+			t.Fatal("parent invoked a planner")
+			return nil, nil
+		},
+	}}
+	o.FS = panicFS{} // any write the parent attempts panics the test
+	h := &handoffStub{}
+	o.Handoff = h.runner()
+	before := snapshot(t, w.home)
+
+	out := install.DevelopmentInstall(o)
+	if out.Err != nil {
+		t.Fatalf("parent relay failed: %v (reason %q)", out.Err, out.Reason)
+	}
+	if !out.Relayed || out.RelayExitCode != 0 {
+		t.Fatalf("parent did not relay a clean handoff: %+v", out)
+	}
+	if h.calls != 1 {
+		t.Fatalf("handoff ran %d time(s), want exactly 1", h.calls)
+	}
+	// The recorded argv is exactly the continuation vector: no --harness (none
+	// selected) and no --repo-dir (none given).
+	want := []string{"development", "install", "--internal-continuation",
+		"--source", src, "--bin-dir", filepath.Clean(bin)}
+	if strings.Join(h.argv, "\x00") != strings.Join(want, "\x00") {
+		t.Fatalf("handoff argv = %q, want %q", h.argv, want)
+	}
+	// The candidate is run from the private staging directory, never straight
+	// from the destination.
+	if h.binary == filepath.Join(bin, "docket") || !strings.HasSuffix(h.binary, string(filepath.Separator)+"docket") {
+		t.Errorf("handoff binary = %q, want a staged docket outside the destination", h.binary)
+	}
+	assertUnchanged(t, before, snapshot(t, w.home), "parent development install")
+}
+
+// A non-zero candidate exit is the parent's result: it does not swallow it as
+// success. The exit code reaches the user in the reason and message.
+func TestDevParentHandoffExitPropagates(t *testing.T) {
+	w := newWorld(t)
+	mkdirAll(t, w.path(".toy"))
+	src := newSource(t)
+	bin := filepath.Join(w.home, "bin")
+
+	o := w.devOptions(t, src, bin, &goRun{body: "binary\n"})
+	h := &handoffStub{code: 3}
+	o.Handoff = h.runner()
+
+	out := install.DevelopmentInstall(o)
+	if out.Reason != install.ReasonHandoffFailed {
+		t.Fatalf("reason = %q, want %q (err %v)", out.Reason, install.ReasonHandoffFailed, out.Err)
+	}
+	if !errors.Is(out.Err, install.ErrHandoffFailed) {
+		t.Errorf("err = %v, want ErrHandoffFailed", out.Err)
+	}
+	if out.Err == nil || !strings.Contains(out.Err.Error(), "3") {
+		t.Errorf("err = %v, want it to name the exit code 3", out.Err)
+	}
+	if out.Relayed {
+		t.Errorf("a failed handoff must not relay success")
+	}
+}
+
+// The candidate repeats the drift gate: a source that drifted between the
+// parent's build and this handoff is refused before anything is installed.
+func TestDevCandidateRefusesDrift(t *testing.T) {
+	w := newWorld(t)
+	mkdirAll(t, w.path(".toy"))
+	src := newSource(t)
+	// The parent built from a consistent checkout; the source then drifted —
+	// an authored file edited without regenerating the committed bundle.
+	writeFile(t, filepath.Join(src, "skills", "docket-toy", "SKILL.md"), "# drifted after the build\n")
+	homeBefore := snapshot(t, w.home)
+
+	out := install.DevelopmentInstall(w.devCandidate(t, src, filepath.Join(w.home, "bin")))
+	if out.Reason != install.ReasonSourceAssetsDrifted {
+		t.Fatalf("reason = %q, want %q (err %v)", out.Reason, install.ReasonSourceAssetsDrifted, out.Err)
+	}
+	if out.Applied {
+		t.Errorf("a drifted candidate reported applied work")
+	}
+	if _, err := os.Stat(w.roots.StatePath()); !os.IsNotExist(err) {
+		t.Errorf("state published despite a drifted candidate source: %v", err)
+	}
+	assertUnchanged(t, homeBefore, snapshot(t, w.home), "drifted candidate source")
 }
