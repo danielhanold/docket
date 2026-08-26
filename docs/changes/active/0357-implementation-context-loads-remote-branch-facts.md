@@ -69,8 +69,39 @@ None — settled in the 2026-08-26 grooming session. The regression boundary inc
 
 ### 2026-08-26
 
-2026-08-26 — Halted at the build-evidence gate (Step 6). The code build is COMPLETE and correct: commits dbba40d1 (plan), 33f5db87 (fix), 5becf53b (real-git regression) on branch `fix/implementation-context-loads-remote-branch-facts` implement the spec exactly — `ContextImplementation` now reads `deps.Reader.BranchFacts(ctx, pin, stackBranches(snap))` in place of `domain.NewBranchFacts(nil)`, with a typed reader-failure path. The four new tests (fake-reader seam + real-Git workflow regression `TestStackedContextClaimWorkspaceFromParentBranch`) all PASS in ~4s in isolation. Worktree is clean; branch delta is 4 files, 685 net lines, plan-plus-code only.
+Halted 2026-08-26 (UTC) at the build gate: the full suite is reproducibly RED and no fix exists within change 357's scope. A human decision is required.
 
-Blocker: the whole-suite gate (`scripts/run-tests.sh`) FAILS on `test_go_toolchain`, whose `go test ./...` panics with `test timed out after 10m0s` on the `internal/app` package. This is NOT a regression from change 357 — it reproduces on pristine `main` (6e74df71) and my new tests add only ~4s. Root cause is environmental: at halt time `uptime` reported load average 51 on an 11-core machine (~5x oversubscribed), with at least three concurrent `run-tests.sh` full-suite runs from other autonomous docket loops (7 active feature worktrees present). Under that contention the `internal/app` package cannot finish within `go test`'s default 10m per-package timeout, so the gate can never certify green regardless of branch. I cannot fabricate PASSED evidence, and cannot reduce the external load.
+## What was built (correct, do not discard)
 
-Human action needed (pick one): (1) re-run the gate / re-dispatch this change when machine load has dropped and no other suite runs are competing — the build should then certify green with no code change; or (2) if `internal/app` is genuinely near the 10m ceiling even uncontended, raise it as its own change to shard the package or pass a longer `-timeout` to `go test ./...` in `tests/test_go_toolchain.sh` (out of scope for 357). No branch, workspace, lease, or evidence was mutated by this halt. Resume via `docket change resume-halted --acknowledge-quiescent` once load clears; Step 6 (drive gate -> record evidence) is the resume point, followed by review, push, PR, mark-implemented.
+- Production fix landed at commit `33f5db87`: `internal/app/implementation_context.go` now loads remote branch facts via `deps.Reader.BranchFacts(ctx, pin, stackBranches(snap))` from the pinned snapshot and threads one fact set through `selectContextChange`, `EvaluateReadiness`, and `ResolveEffectiveBase`; a facts-read error classifies through `classifyStatusError` and returns no bundle. This is exactly the spec's design and the whole point of change 357.
+- Focused fake-reader tests landed in the same commit (`internal/app/implementation_context_test.go`): stacked-live-parent apply for both request shapes, absent-branch refusal, and facts-error typed failure. All pass.
+- Real-Git regression landed at commit `5becf53b` (`internal/app/claim_workflow_git_test.go`): `TestStackedContextClaimWorkspaceFromParentBranch` proves the pre-claim gate applies, resolves the parent branch, claims, and prepares the workspace at the parent tip — in both metadata modes. It passes, and was mutation-verified (reverting the `BranchFacts` read reddens it at the pre-claim gate).
+
+Reconcile (`reconciled: true`) and the plan are attached. The change's own behavior is complete and correct.
+
+## Why the run halted
+
+The build gate runs the whole suite (`scripts/run-tests.sh`). It is reproducibly RED, on two independent full-suite runs and one isolated run:
+
+- Both full-suite runs failed with `panic: test timed out after 10m0s` in the Go package `internal/app` (`FAIL github.com/danielhanold/docket/internal/app` at ~506-600s), tripping `tests/test_go_toolchain.sh` (`go test ./...`) and, on the second run, also `tests/test_go_race.sh` (`go test -race ./...`).
+- A premium integration-repair worker measured the package in isolation: `go test -race -count=1 ./internal/app/` -> `FAIL ... 600.315s` (643.76s wall). The package exceeds Go's default 600s per-package test timeout **even when run alone**, not merely under full-suite parallel load.
+
+Root cause is systemic, not 357-scoped: `internal/app` is a single Go package whose real-Git integration suite is at/over Go's default 10-minute per-package timeout on this machine. The repo already documents this and assigns its durable fix — a test-level partition of `internal/app` — to follow-up **change 0333** (see `tests/test_go_race.sh` header, `tests/test_runtime_budgets.sh` RELIEF COUNTER A, `tests/runtime-budgets.tsv`). Change 357's spec-mandated `TestStackedContextClaimWorkspaceFromParentBranch` (~14-17s, both metadata modes) is a legitimately-sized addition that tips an already-near/over-budget package past the timeout.
+
+## Why no in-scope fix exists
+
+Every real remedy is out of change 357's scope or forbidden by the build contract:
+
+- **Partition `internal/app`** into multiple packages/test binaries — this is change 0333's charter, a cross-cutting refactor beyond change 357.
+- **Raise the `go test` timeout or cap GOMAXPROCS** in `tests/test_go_toolchain.sh` / `tests/test_go_race.sh` — suite-runner infrastructure (change 0304/0333 territory), out of change 357's scope.
+- **Drop a metadata mode or weaken coverage** in 357's own regression — forbidden: the spec explicitly requires both metadata modes plus the focused and real-Git coverage; and the build contract forbids weakening tests.
+
+The only coverage-preserving in-scope trim the repair worker found — eliminating one redundant `ContextImplementation` "claim-read" call in `claim_workflow_git_test.go` — saves ~2s, which does not bring the package to comfortable margin under the 600s timeout. Even fully removing 357's ~15s test would leave the package at ~585s, still razor-thin. The repair worker returned BLOCKED (not NEEDS_ESCALATION): a stronger model faces the identical structural wall.
+
+## Recommended human decision (one of)
+
+1. Sequence change **0333** (partition `internal/app`) ahead of 357, then resume 357's build gate; or
+2. Grant an explicit out-of-scope allowance to adjust the per-package `go test` timeout and/or parallelism in the suite runner (0304/0333 territory), then resume; or
+3. Accept single-mode coverage for 357's real-Git regression (a spec amendment), then resume.
+
+None of these is decidable within change 357's autonomous build. The branch (`fix/implementation-context-loads-remote-branch-facts`, head `5becf53b`), its claim/lease, and the workspace are left intact for a resumed run.
