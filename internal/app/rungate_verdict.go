@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -301,4 +302,204 @@ func gateUnmetTokens(v RunVerifyResult) []string {
 		out = append(out, u.Reason)
 	}
 	return out
+}
+
+// ---------------------------------------------------------------------------
+// UNATTRIBUTED (observe-only) mode — `docket run gate-verdict --unattributed
+// [<id>...]` (change 0334, Task 4).
+//
+// This mode holds NO key, reads and writes NO gate record, and consumes NO retry
+// permit: it never mints, saves, or calls ConsumeGateRetry, so the rungate root
+// is never even created. It re-syncs to fresh origin, then verifies either the
+// supplied hint ids (each a hint to verify, NEVER attribution evidence) or, when
+// none are supplied, every current in-progress id, and renders one line per id
+// using RunVerify's verdict verbatim. An empty backlog with no hints reports
+// `gate-observe no-current-run`; a re-sync/read fault fails closed to a single
+// `gate-observe gate-unavailable <reason>` line.
+//
+// STRUCTURAL SEPARATION (spec, CRITICAL): observe rendering is a SEPARATE render
+// path (gateObserveLine) that only knows the `gate-observe` prefix and the
+// observe outcome set. It has no access to GateDecisionRetryOnce and no branch
+// that could emit it — there is, by construction, NO code path from
+// --unattributed to gate-retry-once. The attributed retry accounting above is
+// unreachable from here.
+
+// GateDecisionObserve is the leading word of every unattributed report line. It
+// is the ONLY decision token the observe renderer knows; the retry/done/stop
+// tokens are structurally out of reach on this path.
+const GateDecisionObserve = "gate-observe"
+
+// GateOutcomeNoCurrentRun is the observe outcome when there is no run to observe:
+// no in-progress ids and no hints supplied.
+const GateOutcomeNoCurrentRun = "no-current-run"
+
+// ReasonGateUnattributedKey is the usage-error reason when --unattributed is
+// given a non-integer positional: hints are change ids, and a gate key can never
+// be one. This is a usage error (non-zero exit), never a report line.
+const ReasonGateUnattributedKey = "unattributed-key"
+
+// GateObservation is one observed id's outcome: a RunVerify verdict (verbatim),
+// or a whole-report outcome (no-current-run / gate-unavailable) that carries no
+// id. It is rendered by gateObserveLine, which is structurally unable to emit a
+// retry.
+type GateObservation struct {
+	Outcome   string   `json:"outcome"`
+	ID        int      `json:"id,omitempty"`
+	Unmet     []string `json:"unmet,omitempty"`
+	HandoffID string   `json:"handoff_id,omitempty"`
+	Phase     string   `json:"phase,omitempty"`
+	Reason    string   `json:"reason,omitempty"`
+}
+
+// RunGateVerdictObserveResult is the protocol-v1 document the unattributed mode
+// returns. On the report path Result is applied (exit 0) and Observations holds
+// one entry per rendered line; a usage error carries a non-applied Result with a
+// Reason and no observations.
+type RunGateVerdictObserveResult struct {
+	Envelope
+	Observations []GateObservation `json:"observations,omitempty"`
+	Reason       string            `json:"reason,omitempty"`
+	Message      string            `json:"message,omitempty"`
+}
+
+// HumanText renders the observe report: one `gate-observe …` line per
+// observation. A usage error (non-applied result) names its reason instead.
+func (r RunGateVerdictObserveResult) HumanText() string {
+	if r.Result != ResultApplied {
+		if r.Reason != "" {
+			return fmt.Sprintf("%s: %s (%s)", r.Operation, r.Result, r.Reason)
+		}
+		return fmt.Sprintf("%s: %s", r.Operation, r.Result)
+	}
+	lines := make([]string, 0, len(r.Observations))
+	for _, o := range r.Observations {
+		lines = append(lines, gateObserveLine(o))
+	}
+	return strings.Join(lines, "\n")
+}
+
+// gateObserveLine renders ONE observe report line. Its leading token is always
+// the GateDecisionObserve literal, and the outcome word is one of the observe
+// outcome set (a RunVerify verdict, no-current-run, or gate-unavailable). It has
+// no knowledge of and no branch to GateDecisionRetryOnce — the structural
+// guarantee that --unattributed can never authorize a retry.
+func gateObserveLine(o GateObservation) string {
+	fields := []string{GateDecisionObserve, o.Outcome}
+	switch o.Outcome {
+	case GateOutcomeNoCurrentRun:
+		// no trailing fields
+	case GateOutcomeUnavailable:
+		fields = append(fields, o.Reason)
+	case VerdictRunComplete, VerdictRunUnclaimed, VerdictRunHalted:
+		fields = append(fields, strconv.Itoa(o.ID))
+	case VerdictRunWaiting:
+		fields = append(fields, strconv.Itoa(o.ID), o.HandoffID, o.Phase)
+	case VerdictRunIncomplete:
+		fields = append(fields, strconv.Itoa(o.ID))
+		fields = append(fields, o.Unmet...)
+	}
+	return strings.Join(fields, " ")
+}
+
+// newGateObserveReport builds an applied (exit-0) observe report over the given
+// observation lines.
+func newGateObserveReport(obs ...GateObservation) RunGateVerdictObserveResult {
+	r := RunGateVerdictObserveResult{Observations: obs}
+	r.Envelope = NewEnvelope(OperationRunGateVerdict, ResultApplied)
+	return r
+}
+
+// RunGateVerdictObserve reports the unattributed (observe-only) run-gate verdicts.
+// hints are the raw positional arguments; each must parse as an integer change id
+// (a non-integer — for example a gate key — is a usage error). See the section
+// header for the no-writes / no-retry structural contract.
+func RunGateVerdictObserve(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdeps GitHubDeps, repoDir string, hints []string) RunGateVerdictObserveResult {
+	// Parse the hints. A non-integer positional is a gate key (or garbage), not a
+	// change-id hint: usage error, non-zero exit, never a report line.
+	hintIDs := make([]int, 0, len(hints))
+	for _, h := range hints {
+		id, err := strconv.Atoi(strings.TrimSpace(h))
+		if err != nil {
+			out := RunGateVerdictObserveResult{
+				Reason:  ReasonGateUnattributedKey,
+				Message: fmt.Sprintf("--unattributed takes change-id hints, not %q; a gate key is not a hint", h),
+			}
+			out.Envelope = NewEnvelope(OperationRunGateVerdict, ResultInvalidInput)
+			return out
+		}
+		hintIDs = append(hintIDs, id)
+	}
+
+	// Re-sync + read the current in-progress set. A sync/read fault fails closed
+	// to a single gate-unavailable line. This is the ONLY read; it writes nothing.
+	inProgress, reason := observeInProgressIDs(ctx, deps, repoDir)
+	if reason != "" {
+		return newGateObserveReport(GateObservation{Outcome: GateOutcomeUnavailable, Reason: reason})
+	}
+
+	// Hints win when supplied (verified in input order); otherwise verify every
+	// current in-progress id (sorted). No ids and no hints → no-current-run.
+	ids := hintIDs
+	if len(ids) == 0 {
+		ids = inProgress
+	}
+	if len(ids) == 0 {
+		return newGateObserveReport(GateObservation{Outcome: GateOutcomeNoCurrentRun})
+	}
+
+	obs := make([]GateObservation, 0, len(ids))
+	for _, id := range ids {
+		v := RunVerify(ctx, deps, wdeps, gdeps, repoDir, RunVerifyRequest{ID: id})
+		obs = append(obs, observeFromVerdict(id, v))
+	}
+	return newGateObserveReport(obs...)
+}
+
+// observeInProgressIDs re-syncs to fresh origin and returns the current
+// in-progress change ids (sorted), or a non-empty gate-unavailable reason token
+// on a re-sync / corpus-read fault (fail closed). It writes nothing — the same
+// read-only plumbing gate-before and attribution use.
+func observeInProgressIDs(ctx context.Context, deps PlanningDeps, repoDir string) (ids []int, reason string) {
+	pin, err := deps.Reader.PinContext(ctx, repoDir)
+	if err != nil {
+		return nil, ReasonGateSyncFailed
+	}
+	blobs, err := deps.Reader.ReadCorpus(ctx, pin)
+	if err != nil {
+		return nil, ReasonGateChangesUnreadable
+	}
+	inputs, _ := parseCorpus(blobs)
+	build, err := repository.BuildSnapshot(repository.BuildInput{Config: pin.Config.Effective, Documents: inputs})
+	if err != nil {
+		return nil, ReasonGateChangesUnreadable
+	}
+	for _, c := range build.Snapshot.Changes() {
+		if c.Status() == domain.StatusInProgress {
+			ids = append(ids, int(c.ID()))
+		}
+	}
+	sort.Ints(ids)
+	return ids, ""
+}
+
+// observeFromVerdict maps ONE RunVerify result onto an observation, using its
+// verdict verbatim. An operational error (no verdict) or an unrecognized verdict
+// becomes a gate-unavailable observation carrying RunVerify's own reason (or
+// unknown-verdict) — never a retry: this path has no retry to grant.
+func observeFromVerdict(id int, v RunVerifyResult) GateObservation {
+	switch v.Verdict {
+	case VerdictRunComplete, VerdictRunUnclaimed, VerdictRunHalted:
+		return GateObservation{Outcome: v.Verdict, ID: id}
+	case VerdictRunWaiting:
+		// Handoff id and phase pass through verbatim — never reformatted.
+		return GateObservation{Outcome: v.Verdict, ID: id, HandoffID: v.HandoffID, Phase: v.Phase}
+	case VerdictRunIncomplete:
+		return GateObservation{Outcome: v.Verdict, ID: id, Unmet: gateUnmetTokens(v)}
+	default:
+		reason := v.Reason
+		if reason == "" {
+			reason = GateReasonUnknownVerdict
+		}
+		return GateObservation{Outcome: GateOutcomeUnavailable, Reason: reason}
+	}
 }

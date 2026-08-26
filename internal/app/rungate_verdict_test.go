@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -517,5 +518,150 @@ func TestRunGateVerdictRestartDurability(t *testing.T) {
 	}
 	if res.Decision != GateDecisionRetryOnce {
 		t.Fatalf("Decision = %q, want gate-retry-once", res.Decision)
+	}
+}
+
+// --- unattributed (observe-only) mode --------------------------------------
+//
+// RunGateVerdictObserve is the `--unattributed` mode (change 0334, Task 4): NO
+// key, NO record, NO writes. It re-syncs, verifies each supplied hint id (a hint
+// is an id to verify, never attribution evidence) — or every current in-progress
+// id when none are supplied — and renders one `gate-observe <verdict> <id>` line
+// per id using RunVerify's verdict verbatim, through a SEPARATE render function
+// that only knows the `gate-observe` prefix and is structurally unable to emit
+// gate-retry-once.
+
+// gateHaltedInProgressBlob builds an in-progress change carrying a durable
+// "## Run halted" body section — status stays in-progress (so observeInProgress
+// counts it) while RunVerify short-circuits it to run-halted with reader-only
+// deps, letting the observe tests assert exact lines without the full git path.
+func gateHaltedInProgressBlob(id int, slug string) StatusBlob {
+	src := strings.TrimRight(lifecycleChange(id, slug, "in-progress"), "\n") +
+		"\n\n## Run halted\n\n### 2026-08-14\n\nPaused.\n"
+	return StatusBlob{
+		Kind:     repository.KindChange,
+		Location: repository.LocationActive,
+		Path:     groomPath(id, slug),
+		Version:  miVersion,
+		Data:     []byte(src),
+	}
+}
+
+// gateProposedBlob builds a proposed (never-claimed) change — RunVerify maps it
+// to run-unclaimed with reader-only deps.
+func gateProposedBlob(id int, slug string) StatusBlob {
+	return StatusBlob{
+		Kind:     repository.KindChange,
+		Location: repository.LocationActive,
+		Path:     groomPath(id, slug),
+		Version:  miVersion,
+		Data:     []byte(lifecycleChange(id, slug, "proposed")),
+	}
+}
+
+// TestRunGateVerdictObserveHintsMixedVerdicts: supplied hint ids are each verified
+// and rendered as one `gate-observe <verdict> <id>` line, in the INPUT order given
+// (never re-sorted), using RunVerify's verdict verbatim.
+func TestRunGateVerdictObserveHintsMixedVerdicts(t *testing.T) {
+	repo := newGateRepo(t)
+	deps := gateLightDeps(t, []StatusBlob{
+		gateProposedBlob(3, "alpha"),
+		gateHaltedInProgressBlob(7, "bravo"),
+	})
+
+	res := RunGateVerdictObserve(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, []string{"7", "3"})
+	if got, want := res.HumanText(), "gate-observe run-halted 7\ngate-observe run-unclaimed 3"; got != want {
+		t.Fatalf("HumanText = %q, want %q (one line per hint, input order)", got, want)
+	}
+	if code := ExitCode(res.Env().Result); code != 0 {
+		t.Errorf("exit code = %d, want 0 (report lines)", code)
+	}
+}
+
+// TestRunGateVerdictObserveNoHintsAllInProgress: with no hints, every current
+// in-progress id is verified (sorted), one line each.
+func TestRunGateVerdictObserveNoHintsAllInProgress(t *testing.T) {
+	repo := newGateRepo(t)
+	deps := gateLightDeps(t, []StatusBlob{
+		gateHaltedInProgressBlob(7, "bravo"),
+		gateHaltedInProgressBlob(3, "alpha"),
+		gateProposedBlob(9, "charlie"), // proposed: not in-progress, never observed
+	})
+
+	res := RunGateVerdictObserve(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, nil)
+	if got, want := res.HumanText(), "gate-observe run-halted 3\ngate-observe run-halted 7"; got != want {
+		t.Fatalf("HumanText = %q, want %q (all in-progress ids, sorted)", got, want)
+	}
+}
+
+// TestRunGateVerdictObserveEmptyBacklogNoCurrentRun: no in-progress ids and no
+// hints → a single terminal-shaped `gate-observe no-current-run` line.
+func TestRunGateVerdictObserveEmptyBacklogNoCurrentRun(t *testing.T) {
+	repo := newGateRepo(t)
+	deps := gateLightDeps(t, []StatusBlob{gateProposedBlob(9, "charlie")})
+
+	res := RunGateVerdictObserve(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, nil)
+	if got, want := res.HumanText(), "gate-observe no-current-run"; got != want {
+		t.Fatalf("HumanText = %q, want %q", got, want)
+	}
+	if code := ExitCode(res.Env().Result); code != 0 {
+		t.Errorf("exit code = %d, want 0", code)
+	}
+}
+
+// TestRunGateVerdictObserveIncompleteWritesNothing: an incomplete run observed
+// unattributed emits `gate-observe run-incomplete <id> <unmet...>` and writes NO
+// record and consumes NOTHING — the rungate root is never created (no mint, no
+// save, no retry consumption on the observe path).
+func TestRunGateVerdictObserveIncompleteWritesNothing(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := f.deps(
+		gateIncompleteRecord(),
+		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+	)
+
+	res := RunGateVerdictObserve(context.Background(), deps, wdeps, gdeps, f.repo.invocation, []string{"3"})
+	if got, want := res.HumanText(), "gate-observe run-incomplete 3 not-implemented"; got != want {
+		t.Fatalf("HumanText = %q, want %q", got, want)
+	}
+	if strings.HasPrefix(res.HumanText(), GateDecisionRetryOnce) {
+		t.Fatalf("observe must never emit %q", GateDecisionRetryOnce)
+	}
+
+	// NO record, NO writes: the rungate root is never created by the observe path.
+	root, err := gateRoot(f.repo.invocation)
+	if err != nil {
+		t.Fatalf("gateRoot: %v", err)
+	}
+	if _, statErr := os.Stat(root); !os.IsNotExist(statErr) {
+		t.Fatalf("rungate root %q exists (stat err %v); observe must write nothing", root, statErr)
+	}
+}
+
+// TestRunGateVerdictObserveKeyIsUsageError: `--unattributed` combined with a key
+// (a non-integer positional) is a usage error — a non-zero exit, never a report
+// line. Hints are change ids; a key can never be one.
+func TestRunGateVerdictObserveKeyIsUsageError(t *testing.T) {
+	repo := newGateRepo(t)
+	deps := gateLightDeps(t, []StatusBlob{gateHaltedInProgressBlob(3, "alpha")})
+
+	res := RunGateVerdictObserve(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, []string{"implement-next-20260826T000000Z-1-abcd"})
+	if res.Env().Result != ResultInvalidInput {
+		t.Fatalf("Result = %q, want ResultInvalidInput (a key is not a hint)", res.Env().Result)
+	}
+	if code := ExitCode(res.Env().Result); code == 0 {
+		t.Fatalf("exit code = %d, want non-zero (usage error)", code)
+	}
+}
+
+// TestRunGateVerdictObserveSyncFailureUnavailable: a re-sync/read fault fails
+// closed to a single `gate-observe gate-unavailable <reason>` line.
+func TestRunGateVerdictObserveSyncFailureUnavailable(t *testing.T) {
+	repo := newGateRepo(t)
+	deps := PlanningDeps{Reader: &fakeReader{pinErr: errors.New("boom")}, Clock: testClock()}
+
+	res := RunGateVerdictObserve(context.Background(), deps, WorkspaceDeps{}, GitHubDeps{}, repo, nil)
+	if got, want := res.HumanText(), "gate-observe gate-unavailable "+ReasonGateSyncFailed; got != want {
+		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
 }
