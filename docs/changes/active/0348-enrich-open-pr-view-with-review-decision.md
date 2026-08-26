@@ -20,8 +20,8 @@ auto_groomable: true
 branch: 'fix/enrich-open-pr-view-with-review-decision'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-26T11:20:18Z'
+reconciled: true
+claimed_at: '2026-08-26T11:22:15Z'
 ---
 
 ## Artifacts
@@ -66,3 +66,7 @@ None remain.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-26
+
+2026-08-26 — Reconciled against current `main`. Verified every premise still holds: change 347 (ADR-0097, exact-PR-number identity) is archived/done; `githubcli.ViewPullRequest` (internal/githubcli/probe.go) still reads one PR by exact number using the shared `prJSONFields` set (internal/githubcli/ensure.go), which does NOT include `reviewDecision`; the normalized `PullRequest` (internal/githubcli/pr.go) carries no approval field and `computeVersion` excludes any; all three read paths (view, list, create/edit) funnel through `toPullRequest`, so a single nullable decoder field cleanly serves the null/absent→false rule for the non-enriched callers while the exact view supplies the value. No scope drift: the enrichment is additive to the exact-PR-number identity path and touches no identity, selection, or approval-gate policy. Relations unchanged (related 347, discovered_from 347, adrs 97); no new ADR (localized adapter completion under existing ADR-0097). Proceeding to plan + build as specified.
