@@ -2,11 +2,11 @@
 id: 357
 slug: implementation-context-loads-remote-branch-facts
 title: Implementation context must load remote branch facts before judging stack base
-status: proposed
+status: 'in-progress'
 priority: high
 type: fix
 created: 2026-08-26
-updated: 2026-08-26
+updated: '2026-08-26'
 depends_on: []
 stacked_on:
 related: [298, 316, 327, 347, 356]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'fix/implementation-context-loads-remote-branch-facts'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-26T22:09:02Z'
 ---
 
 ## Artifacts
