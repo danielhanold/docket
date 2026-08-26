@@ -1020,5 +1020,37 @@ assert "0249: an inherited path within the task boundary is staged normally" \
 assert "0249: an inherited path outside the task boundary is not staged" \
   'grep -qiE "outside the task boundary[^.]{0,60}not staged" <<<"$worker_scope_flat"'
 
+# --- change 0355: the Step-5 seam in docket-implement-next -----------------------------------
+# The build role is a SKILL INVOCATION whose profile fan-out belongs to the docket-build binding;
+# a custom skills.build value owns its own topology. Guards detect the removed state (the
+# role-invocation-as-dispatch framing observed live on change 0351), not merely the new wording.
+IMPL="$REPO/skills/docket-implement-next/SKILL.md"
+step5="$(awk '/^### Step 5 — Build/{f=1;next} /^### Step 6 — Review/{f=0} f' "$IMPL")"
+assert "seam: Step 5 was located (non-vacuity anchor)" '[ -n "$step5" ]'
+# Named terminator + existence assert (learnings: section-slice-needs-a-named-terminator): a
+# renamed Step-6 heading must redden here, not silently widen the slice to EOF.
+assert "seam: the named Step-5 slice terminator exists" 'grep -q "^### Step 6 — Review" "$IMPL"'
+step5_flat="$(flat "$step5")"
+# Detect the removed state: Step 5 must never again call the role invocation a build dispatch.
+assert "seam: the role-invocation-as-dispatch framing is absent (no 'long build dispatch')" \
+  '! grep -qiE "long build dispatch" <<<"$step5_flat"'
+# The invocation itself stays directed — sigil bound to the marker with one bounded gap.
+assert "seam: \$SKILL_BUILD is invoked with the DIRECTED-to marker" \
+  'grep -qE "SKILL_BUILD[^.]{0,160}DIRECTED to:" <<<"$step5_flat"'
+# docket-build is the CONDITION that owns Docket profile routing (bound, single gap).
+assert "seam: the docket-build binding owns the profile-worker fan-out" \
+  'grep -qiE "when the value is \`docket-build\`[^.]{0,160}build-profile worker" <<<"$step5_flat"'
+# The custom-binding branch adds no Docket topology (bound, single gap).
+assert "seam: a custom build skill owns its own topology" \
+  'grep -qiE "custom build skill owns its own[^.]{0,80}topology" <<<"$step5_flat"'
+assert "seam: no Docket profile dispatches are added to a custom binding" \
+  'grep -qiE "adds no docket profile dispatch" <<<"$step5_flat"'
+# A rejected same-name role-agent attempt is the wrong operation, never the Tier-C trigger.
+assert "seam: a rejected same-name docket-build attempt is not Tier-C evidence" \
+  'grep -qiE "same-name \`docket-build\` agent[^.]{0,120}wrong operation" <<<"$step5_flat"'
+# Tier C still attaches — but at the REQUIRED NESTED dispatch boundary, not the role noun.
+assert "seam: Tier C keys on a required nested dispatch" \
+  'grep -qiE "required nested dispatch[^.]{0,240}Tier C" <<<"$step5_flat"'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
