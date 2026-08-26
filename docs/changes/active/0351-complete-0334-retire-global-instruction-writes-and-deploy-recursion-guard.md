@@ -13,7 +13,7 @@ related: [334, 294, 346]
 discovered_from: [334]
 adrs: []
 spec: docs/superpowers/specs/2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-26T17:42:12Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding-design.md) |
+| Plan | [2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
