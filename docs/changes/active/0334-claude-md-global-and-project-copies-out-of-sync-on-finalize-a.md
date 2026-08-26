@@ -13,7 +13,7 @@ related: [294]
 discovered_from: [317]
 adrs: []
 spec: docs/superpowers/specs/2026-08-25-consolidate-dispatch-block-subagent-guard-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-26-minimal-non-recursive-gated-dispatch.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-26T02:27:15Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-25-consolidate-dispatch-block-subagent-guard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-25-consolidate-dispatch-block-subagent-guard-design.md) |
+| Plan | [2026-08-26-minimal-non-recursive-gated-dispatch.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-26-minimal-non-recursive-gated-dispatch.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
