@@ -117,17 +117,19 @@ func ClaimEligibility(s Snapshot, c Change, facts BranchFacts) *PolicyFailure {
 	})
 }
 
-// Claim moves a proposed change to in-progress, recording the deterministic
-// feat/<slug> branch, the injected timestamp as claimed_at, and reconciled:
+// Claim moves a proposed change to in-progress, recording the minted
+// <type>/<slug> branch, or <branch_prefix>/<slug> when the optional per-change
+// override is present, the injected timestamp as claimed_at, and reconciled:
 // false. A historical "## Run halted" section is reported as an owned removal
 // — the domain identifies the marker; the document layer removes it.
 //
 // Claim guards only what it can see from the record itself: a legal source
-// status and a slug that is a usable branch component. Build-readiness — met
-// dependencies, existing design, a resolved stack base, an unambiguous id — is
-// NOT checked here, because it needs the Snapshot this signature deliberately
-// does not take; ClaimEligibility is that conjunct and the workflow layer calls
-// it first.
+// status, a slug that is a usable branch component, and a mint component (the
+// override, else the type) that is itself a usable branch component.
+// Build-readiness — met dependencies, existing design, a resolved stack base,
+// an unambiguous id — is NOT checked here, because it needs the Snapshot this
+// signature deliberately does not take; ClaimEligibility is that conjunct and
+// the workflow layer calls it first.
 func Claim(c Change, now time.Time) (ActionResult, *PolicyFailure) {
 	if fail := requireStatus(c, "claim", StatusProposed); fail != nil {
 		return ActionResult{}, fail
@@ -137,9 +139,18 @@ func Claim(c Change, now time.Time) (ActionResult, *PolicyFailure) {
 			"slug": c.Slug(),
 		})
 	}
+	component := c.Type()
+	if p := c.BranchPrefix(); p.State == FieldPresent && p.Value != "" {
+		component = p.Value
+	}
+	if !ValidBranchComponent(component) {
+		return ActionResult{}, newFailure(c, FailInvalidInput, "invalid-branch-component", map[string]string{
+			"component": component,
+		})
+	}
 	b := newChangeBuilder(c)
 	b.setStatus(StatusInProgress)
-	b.setBranch(BranchForSlug(c.Slug()))
+	b.setBranch(MintBranch(c.Type(), c.BranchPrefix(), c.Slug()))
 	b.setClaimedAt(now)
 	b.setReconciled(false)
 	if c.HasRunHalted() {
@@ -413,6 +424,7 @@ func newChangeBuilder(c Change) *changeBuilder {
 		Plan:           c.Plan(),
 		Results:        c.Results(),
 		Trivial:        c.Trivial(),
+		BranchPrefix:   c.BranchPrefix(),
 		Branch:         c.Branch(),
 		ClaimedAt:      c.ClaimedAt(),
 		PR:             c.PR(),

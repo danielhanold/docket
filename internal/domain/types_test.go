@@ -186,3 +186,34 @@ func TestBranchForSlug(t *testing.T) {
 		t.Errorf("BranchForSlug(\"x-y\") = %q; want %q", got, "feat/x-y")
 	}
 }
+
+func TestValidBranchComponent(t *testing.T) {
+	valid := []string{"feat", "fix", "chore", "hotfix", "feature", "a", "release-2"}
+	invalid := []string{
+		"", "feat/", "refs", "refs/heads", "a/b", "-lead", ".lead",
+		"has space", "has\ttab", "a..b", "a@{b", "a~b", "a^b", "a:b",
+		"a?b", "a*b", "a[b", "a\\b", "end.lock", "end.",
+	}
+	for _, s := range valid {
+		if !ValidBranchComponent(s) {
+			t.Errorf("ValidBranchComponent(%q) = false, want true", s)
+		}
+	}
+	for _, s := range invalid {
+		if ValidBranchComponent(s) {
+			t.Errorf("ValidBranchComponent(%q) = true, want false", s)
+		}
+	}
+}
+
+func TestMintBranch(t *testing.T) {
+	if got := MintBranch("fix", OptionalString{}, "my-slug"); got != "fix/my-slug" {
+		t.Fatalf("type mint = %q, want fix/my-slug", got)
+	}
+	if got := MintBranch("fix", OptionalString{State: FieldPresent, Value: "hotfix"}, "my-slug"); got != "hotfix/my-slug" {
+		t.Fatalf("prefix mint = %q, want hotfix/my-slug", got)
+	}
+	if got := MintBranch("chore", OptionalString{State: FieldPresent, Value: ""}, "s"); got != "chore/s" {
+		t.Fatalf("empty prefix mint = %q, want chore/s", got)
+	}
+}

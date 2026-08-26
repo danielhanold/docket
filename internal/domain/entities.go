@@ -80,6 +80,7 @@ type ChangeSpec struct {
 	Plan           OptionalString
 	Results        OptionalString
 	Trivial        bool
+	BranchPrefix   OptionalString // per-change mint-prefix override; durable input
 	Branch         OptionalString
 	ClaimedAt      OptionalTime // second-precision UTC; Raw kept
 	PR             OptionalString
@@ -168,6 +169,11 @@ func (c Change) Results() OptionalString { return c.spec.Results }
 
 // Trivial reports whether the change is marked trivial.
 func (c Change) Trivial() bool { return c.spec.Trivial }
+
+// BranchPrefix returns the optional per-change mint-prefix override. It is
+// durable human input consumed only at claim time; once branch: is populated
+// it is informational and inert.
+func (c Change) BranchPrefix() OptionalString { return c.spec.BranchPrefix }
 
 // Branch returns the optional feature branch name.
 func (c Change) Branch() OptionalString { return c.spec.Branch }
