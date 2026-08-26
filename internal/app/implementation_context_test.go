@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -24,6 +25,22 @@ func learningBlob(slug string) StatusBlob {
 		Location: repository.LocationLedger,
 		Path:     "docs/changes/learnings/" + slug + ".md",
 		Version:  "bloblearn-" + slug,
+		Data:     []byte(fm),
+	}
+}
+
+// liveParentBlob builds an in-progress (claimed) change record carrying a
+// recorded feature branch — the live stack parent the facts-backed effective
+// base resolver consults (domain rule 4: a live parent resolves to its
+// recorded branch only when that branch is present in facts).
+func liveParentBlob(id int, slug, branch string) StatusBlob {
+	fm := fmt.Sprintf("---\nid: %d\nslug: %s\ntitle: Change %d\nstatus: 'in-progress'\npriority: medium\ntype: feat\ncreated: 2026-01-02\nbranch: '%s'\nclaimed_at: '2026-01-03T00:00:00Z'\nreconciled: true\n---\n\nBody of %d.\n",
+		id, slug, id, branch, id)
+	return StatusBlob{
+		Kind:     repository.KindChange,
+		Location: repository.LocationActive,
+		Path:     fmt.Sprintf("docs/changes/active/%04d-%s.md", id, slug),
+		Version:  fmt.Sprintf("blobchange%04d", id),
 		Data:     []byte(fm),
 	}
 }
@@ -376,5 +393,127 @@ func TestContextImplementationReportsHalt(t *testing.T) {
 	}
 	if !got.Context.Halt.RunHalted {
 		t.Errorf("bundle did not surface the durable run-halted checkpoint: %+v", got.Context.Halt)
+	}
+}
+
+// TestContextImplementationStackedLiveParentUsesRemoteFacts: a proposed,
+// designed child stacked on a live parent whose recorded branch IS in the
+// reader's facts gets an applied bundle — build-ready, claim-eligible, and an
+// effective base resolved to the parent's recorded branch — through BOTH
+// automatic selection and explicit-id inspection. The reader is asked for
+// exactly the deterministic stackBranches set, once, with the original pin.
+func TestContextImplementationStackedLiveParentUsesRemoteFacts(t *testing.T) {
+	pin := docketPin(t)
+	specPath := "docs/changes/specs/spec-child.md"
+	corpus := []StatusBlob{
+		liveParentBlob(20, "parent", "feat/parent"),
+		changeBlob(21, "child", "feat", "high", "spec: "+specPath+"\nstacked_on: 20\n"),
+	}
+	for name, req := range map[string]ImplementationContextRequest{
+		"automatic-selection": {},
+		"explicit-id":         {ID: 21},
+	} {
+		t.Run(name, func(t *testing.T) {
+			fake := &fakeReader{
+				pin:    pin,
+				corpus: corpus,
+				facts:  domain.NewBranchFacts(map[string]bool{"feat/parent": true}),
+				artifactData: map[string]StatusArtifact{
+					sourceMetadata + "|" + specPath: {Found: true, Version: "sc", Data: []byte("spec child\n")},
+				},
+			}
+			got := ContextImplementation(context.Background(), contextDeps(fake), "", req)
+			if got.Result != ResultApplied || got.Context == nil {
+				t.Fatalf("result=%q reason=%q message=%q", got.Result, got.Reason, got.Message)
+			}
+			b := got.Context
+			if b.Change.Summary == nil || b.Change.Summary.ID != 21 {
+				t.Fatalf("selected change = %+v, want the stacked child 21", b.Change.Summary)
+			}
+			if b.Readiness != string(domain.ReadyBuildReady) {
+				t.Errorf("readiness = %q, want build-ready", b.Readiness)
+			}
+			if !b.ClaimEligible || b.ClaimRefusal != "" {
+				t.Errorf("claim eligibility = %v / %q, want eligible", b.ClaimEligible, b.ClaimRefusal)
+			}
+			if b.EffectiveBase.Kind != string(domain.BaseResolved) || b.EffectiveBase.Branch != "feat/parent" {
+				t.Errorf("effective base = %+v, want resolved/feat/parent (the parent's recorded branch, not the integration branch)", b.EffectiveBase)
+			}
+			// The reader was asked exactly once, for the deterministic
+			// stackBranches(snapshot) set, with the original pin threaded.
+			if len(fake.branchAsks) != 1 {
+				t.Fatalf("BranchFacts called %d times, want exactly 1 (asks: %v)", len(fake.branchAsks), fake.branchAsks)
+			}
+			if want := []string{"feat/parent"}; !reflect.DeepEqual(fake.branchAsks[0], want) {
+				t.Errorf("BranchFacts asked for %v, want %v", fake.branchAsks[0], want)
+			}
+			for i, seen := range fake.seenPins {
+				if !reflect.DeepEqual(seen, pin) {
+					t.Errorf("post-pin call %d threaded a different pin", i)
+				}
+			}
+		})
+	}
+}
+
+// TestContextImplementationStackedParentBranchAbsent: the SAME stacked child
+// with the parent branch absent from the returned facts remains refused —
+// an empty fact set is a valid "branch does not exist" answer, and docket
+// must not claim a child from an invented fallback base. Explicit id refuses
+// as not-ready-stack-base-unresolved; automatic selection skips it entirely.
+func TestContextImplementationStackedParentBranchAbsent(t *testing.T) {
+	pin := docketPin(t)
+	specPath := "docs/changes/specs/spec-child.md"
+	corpus := []StatusBlob{
+		liveParentBlob(20, "parent", "feat/parent"),
+		changeBlob(21, "child", "feat", "high", "spec: "+specPath+"\nstacked_on: 20\n"),
+	}
+	art := map[string]StatusArtifact{
+		sourceMetadata + "|" + specPath: {Found: true, Version: "sc", Data: []byte("spec child\n")},
+	}
+
+	t.Run("explicit-id", func(t *testing.T) {
+		fake := &fakeReader{pin: pin, corpus: corpus, facts: domain.NewBranchFacts(nil), artifactData: art}
+		got := ContextImplementation(context.Background(), contextDeps(fake), "", ImplementationContextRequest{ID: 21})
+		if got.Result != ResultInvalidState || got.Reason != "not-ready-"+string(domain.ReadyStackBaseUnresolved) {
+			t.Errorf("result=%q reason=%q, want invalid-state/not-ready-stack-base-unresolved", got.Result, got.Reason)
+		}
+		if got.Context != nil {
+			t.Errorf("refusal fabricated a bundle: %+v", got.Context)
+		}
+	})
+
+	t.Run("automatic-selection", func(t *testing.T) {
+		fake := &fakeReader{pin: pin, corpus: corpus, facts: domain.NewBranchFacts(nil), artifactData: art}
+		got := ContextImplementation(context.Background(), contextDeps(fake), "", ImplementationContextRequest{})
+		if got.Result != ResultNoOp || got.Reason != ReasonContextNoCandidate {
+			t.Errorf("result=%q reason=%q, want no-op/no-candidate (the unresolved child must not be selected)", got.Result, got.Reason)
+		}
+	})
+}
+
+// TestContextImplementationBranchFactsFailure: a failed facts lookup is a
+// typed operation failure through classifyStatusError, never an empty fact
+// set — an observation failure must not be misreported as proven branch
+// absence (learning probe-error-is-not-clean-absence). No partial bundle.
+func TestContextImplementationBranchFactsFailure(t *testing.T) {
+	pin := docketPin(t)
+	specPath := "docs/changes/specs/spec-child.md"
+	fake := &fakeReader{
+		pin: pin,
+		corpus: []StatusBlob{
+			changeBlob(11, "alpha", "feat", "high", "spec: "+specPath+"\n"),
+		},
+		factsErr: fmt.Errorf("git ls-remote: connection reset: %w", ErrStatusExternal),
+		artifactData: map[string]StatusArtifact{
+			sourceMetadata + "|" + specPath: {Found: true, Version: "sa", Data: []byte("spec a\n")},
+		},
+	}
+	got := ContextImplementation(context.Background(), contextDeps(fake), "", ImplementationContextRequest{})
+	if got.Result != ResultExternalFailed || got.Reason != ReasonStatusExternal {
+		t.Errorf("result=%q reason=%q, want external-failed/external-failed", got.Result, got.Reason)
+	}
+	if got.Context != nil {
+		t.Errorf("failed facts read fabricated a bundle: %+v", got.Context)
 	}
 }
