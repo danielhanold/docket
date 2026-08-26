@@ -144,9 +144,9 @@ func TestSweepFindsMergedImplemented(t *testing.T) {
 	}
 	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
-		prRefFor(30): mergedFacts(30, "main"),
-		prRefFor(31): mergedFacts(31, "feat/root"),
-		prRefFor(32): mergedFacts(32, "feat/root"),
+		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/root"),
+		prRefFor(31): withHead(mergedFacts(31, "feat/root"), "feat/childa"),
+		prRefFor(32): withHead(mergedFacts(32, "feat/root"), "feat/childb"),
 	}}
 	ops := &recordingSweepOps{closeout: map[int]CloseoutResult{
 		30: newCloseoutResult(ResultApplied, CloseoutResult{ID: 30, Disposition: CloseoutDispRootArchived, CarriedIDs: []int{31, 32}}),
@@ -262,7 +262,7 @@ func TestSweepNeverEscalates(t *testing.T) {
 	}
 	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
-		prRefFor(60): mergedFacts(60, "main"),
+		prRefFor(60): withHead(mergedFacts(60, "main"), "feat/merged"),
 		prRefFor(61): openFacts(61, "MERGEABLE", 2, 20),
 	}}
 	ops := &recordingSweepOps{}
@@ -294,8 +294,8 @@ func TestSweepItemIsolation(t *testing.T) {
 	}
 	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
-		prRefFor(70): mergedFacts(70, "main"),
-		prRefFor(71): mergedFacts(71, "main"),
+		prRefFor(70): withHead(mergedFacts(70, "main"), "feat/unknownitem"),
+		prRefFor(71): withHead(mergedFacts(71, "main"), "feat/gooditem"),
 	}}
 	ops := &recordingSweepOps{closeout: map[int]CloseoutResult{
 		70: newCloseoutResult(ResultExternalFailed, CloseoutResult{ID: 70, Disposition: CloseoutDispUnknown}),
@@ -338,7 +338,7 @@ func TestSweepStructuredReport(t *testing.T) {
 	}
 	reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
-		prRefFor(80): mergedFacts(80, "main"),
+		prRefFor(80): withHead(mergedFacts(80, "main"), "feat/merged"),
 	}}
 	ops := &recordingSweepOps{}
 
@@ -374,7 +374,7 @@ func TestSweepReloadsBeforeMutation(t *testing.T) {
 	}
 	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
-		prRefFor(90): mergedFacts(90, "main"),
+		prRefFor(90): withHead(mergedFacts(90, "main"), "feat/merged"),
 	}}
 	ops := &recordingSweepOps{}
 

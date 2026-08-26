@@ -65,6 +65,15 @@ func finalizeDeps(fake *fakeReader, prober FinalizePRProber, engine *recordingEn
 	}
 }
 
+// withHead stamps the PR's live head branch onto facts so the domain identity
+// classifier reconciles it against the branch recorded at claim time. The
+// finalize-population fixtures record branch: feat/<slug>, so an actionable
+// candidate pairs its facts with the matching feat/<slug> head.
+func withHead(f domain.PRFacts, head string) domain.PRFacts {
+	f.HeadBranch = head
+	return f
+}
+
 // openFacts is the domain facts of an open, approved, mergeable PR.
 func openFacts(number int, mergeable string, files, lines int) domain.PRFacts {
 	return domain.PRFacts{
@@ -93,9 +102,9 @@ func TestContextFinalizeSelection(t *testing.T) {
 		finalizeBlob(30, "alpha", "implemented", "high", prRefFor(30), ""), // merged (recovery)
 	}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
-		prRefFor(30): {Number: "30", Version: "v30", State: "merged", HeadOID: "h30", BaseRef: "main", MergedAtUTC: "2026-01-03T00:00:00Z", MergeCommit: "m30"},
-		prRefFor(31): openFacts(31, "MERGEABLE", 2, 20),
-		prRefFor(32): openFacts(32, "CONFLICTING", 2, 20),
+		prRefFor(30): {Number: "30", Version: "v30", State: "merged", HeadBranch: "feat/alpha", HeadOID: "h30", BaseRef: "main", MergedAtUTC: "2026-01-03T00:00:00Z", MergeCommit: "m30"},
+		prRefFor(31): withHead(openFacts(31, "MERGEABLE", 2, 20), "feat/beta"),
+		prRefFor(32): withHead(openFacts(32, "CONFLICTING", 2, 20), "feat/gamma"),
 	}}
 	engine := &recordingEngine{}
 	fake := &fakeReader{pin: pin, corpus: corpus}
@@ -166,6 +175,40 @@ func TestContextFinalizeReportBranchFromRecord(t *testing.T) {
 	}
 	if byID[42].Branch != "" {
 		t.Errorf("branchless record: Branch = %q, want the empty string (no fabricated feat/<slug>)", byID[42].Branch)
+	}
+}
+
+// TestContextFinalizeIdentityMismatchReport: when the branch recorded at claim
+// time disagrees with the exact PR's live head, the candidate is surfaced with
+// the branch-pr-head-mismatch skip and its report carries BOTH identities — the
+// recorded branch verbatim and the PR's actual head branch — so the reader sees
+// the exact disagreement rather than a silent misclassification. The mismatch is
+// not --id-overridable: an explicit --id selects it but sets no override note.
+func TestContextFinalizeIdentityMismatchReport(t *testing.T) {
+	pin := docketPin(t)
+	corpus := []StatusBlob{finalizeBlob(45, "one", "implemented", "high", prRefFor(45), "")}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
+		prRefFor(45): withHead(openFacts(45, "MERGEABLE", 1, 5), "feature/other"),
+	}}
+	fake := &fakeReader{pin: pin, corpus: corpus}
+
+	got := ContextFinalize(context.Background(), finalizeDeps(fake, prober, &recordingEngine{}), "", FinalizeContextRequest{ID: 45})
+	if got.Result != ResultApplied || len(got.Candidates) != 1 {
+		t.Fatalf("result=%q reason=%q candidates=%d", got.Result, got.Reason, len(got.Candidates))
+	}
+	c := got.Candidates[0]
+	if c.SkipReason != "branch-pr-head-mismatch" {
+		t.Errorf("skip reason = %q, want branch-pr-head-mismatch", c.SkipReason)
+	}
+	if c.Branch != "feat/one" {
+		t.Errorf("recorded branch = %q, want feat/one (verbatim from the record)", c.Branch)
+	}
+	if c.PR.HeadBranch != "feature/other" {
+		t.Errorf("PR head branch = %q, want feature/other (the exact PR's live head)", c.PR.HeadBranch)
+	}
+	// An unresolved-identity skip is never --id-overridable.
+	if c.OverrideNote != "" {
+		t.Errorf("identity mismatch must carry no override note, got %q", c.OverrideNote)
 	}
 }
 
@@ -287,7 +330,7 @@ func TestContextFinalizeTypedReasons(t *testing.T) {
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
 		prRefFor(70): openFacts(70, "MERGEABLE", 1, 1),
 		prRefFor(71): {Number: "71", Version: "v71", State: "open", Draft: true, Approved: true, Mergeable: "MERGEABLE", HeadOID: "h71", BaseRef: "main"},
-		prRefFor(72): openFacts(72, "MERGEABLE", 1, 1),
+		prRefFor(72): withHead(openFacts(72, "MERGEABLE", 1, 1), "feat/ok"),
 	}}
 	fake := &fakeReader{pin: pin, corpus: corpus}
 
@@ -344,7 +387,7 @@ func TestContextFinalizeURLFormPRRef(t *testing.T) {
 		repo: githubcli.Repository{Host: "github.com", Owner: "acme", Name: "widgets"},
 		merged: map[int]closeoutProbe{
 			235: {outcome: githubcli.MergeAlreadyMerged, facts: githubcli.MergedFacts{
-				Version: "v235", HeadOID: "h235", BaseRef: "main",
+				Version: "v235", HeadBranch: "feat/urlform", HeadOID: "h235", BaseRef: "main",
 				MergedAtUTC: "2026-08-24T00:00:00Z", MergeCommit: "m235",
 			}},
 		},

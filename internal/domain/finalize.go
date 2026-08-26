@@ -1,6 +1,9 @@
 package domain
 
-import "slices"
+import (
+	"slices"
+	"strings"
+)
 
 // PRFacts is the live pull-request state a finalize decision consults, copied
 // out of a GitHub probe by the app layer. Every field is a plain value so the
@@ -55,6 +58,13 @@ const (
 	skipDependencyUnmerged = "dependency-unmerged"
 	skipMalformed          = "malformed"
 	skipPRUnknown          = "pr-unknown"
+	// The identity skip reasons, surfaced only against a cleanly observed open or
+	// merged PR (a closed/unknown PR classifies by the existing bands first —
+	// identity repair is meaningless against unknown evidence). The interactive
+	// skill and the CLI key on these exact tokens.
+	skipBranchMissing   = "branch-missing"          // recorded branch absent/empty; the exact PR's head is the only candidate
+	skipBranchMismatch  = "branch-pr-head-mismatch" // recorded branch and the exact PR's head differ
+	skipBranchMalformed = "branch-malformed"        // recorded branch is shape-invalid
 )
 
 // skippedRank sorts every skipped candidate after every actionable one; it is
@@ -142,9 +152,14 @@ func SelectFinalizeQueue(s Snapshot, facts map[ChangeID]PRFacts, blocked map[Cha
 // most-authoritative first: a malformed identity or an unknown PR probe is
 // reported before any state-dependent decision; a merged PR takes the recovery
 // band regardless of stored status (the merge already happened and needs
-// closeout); then status, PR state, draft, block, dependency, and approval
-// gates in turn; anything surviving is an actionable open PR banded by
-// mergeability. f is the resolved facts (zero value when absent).
+// closeout), unless its recorded branch cannot be reconciled with the merged
+// PR's own head; then status, PR state, draft, block, dependency, and approval
+// gates in turn; an otherwise-actionable open PR whose recorded branch cannot be
+// reconciled with the exact PR's head is surfaced with an identity skip rather
+// than banded; anything surviving is an actionable open PR banded by
+// mergeability. Identity is computed ONLY against cleanly observed open/merged
+// evidence — a closed/unknown PR classifies by the existing bands first. f is
+// the resolved facts (zero value when absent).
 func classifyFinalize(s Snapshot, c Change, facts map[ChangeID]PRFacts, blocked map[ChangeID]bool) (band, skip string, f PRFacts) {
 	if _, out := s.Change(c.ID()); out == LookupAmbiguous {
 		return "", skipMalformed, PRFacts{}
@@ -158,6 +173,9 @@ func classifyFinalize(s Snapshot, c Change, facts map[ChangeID]PRFacts, blocked 
 		return "", skipPRUnknown, f
 	}
 	if f.State == prStateMerged {
+		if skip := identitySkip(c.Branch(), f.HeadBranch); skip != "" {
+			return "", skip, f
+		}
 		return bandMergedRecovery, "", f
 	}
 	if c.Status() != StatusImplemented && c.Status() != StatusStackedMerged {
@@ -178,7 +196,39 @@ func classifyFinalize(s Snapshot, c Change, facts map[ChangeID]PRFacts, blocked 
 	if !f.Approved {
 		return "", skipApprovalRequired, f
 	}
+	if skip := identitySkip(c.Branch(), f.HeadBranch); skip != "" {
+		return "", skip, f
+	}
 	return mergeBand(f.Mergeable), "", f
+}
+
+// identitySkip reconciles the branch recorded at claim time with the exact PR's
+// own head branch, returning the identity skip token for an unusable or
+// disagreeing recorded branch, or "" when the recorded branch is present,
+// well-formed, and equal to the head. It is consulted only for a cleanly
+// observed open or merged PR. The shape rules mirror the app layer's
+// recordedBranch (refs/ prefix, a leading "-", embedded whitespace, "@{", "..",
+// or a NUL): a value carrying any of them cannot be a plain feature-branch ref.
+func identitySkip(recorded OptionalString, headBranch string) string {
+	present := recorded.State == FieldPresent && recorded.Value != ""
+	if present && malformedBranchRef(recorded.Value) {
+		return skipBranchMalformed
+	}
+	if !present {
+		return skipBranchMissing
+	}
+	if headBranch != recorded.Value {
+		return skipBranchMismatch
+	}
+	return ""
+}
+
+// malformedBranchRef reports whether s cannot be a plain feature-branch ref
+// under the same shape rules the app layer's recordedBranch enforces.
+func malformedBranchRef(s string) bool {
+	return strings.HasPrefix(s, "refs/") || strings.HasPrefix(s, "-") ||
+		strings.ContainsAny(s, " \t\r\n\v\f") || strings.Contains(s, "@{") ||
+		strings.Contains(s, "..") || strings.IndexByte(s, 0) >= 0
 }
 
 // mergeBand maps a mergeability token to its actionable band. Anything that is
