@@ -2,11 +2,11 @@
 id: 334
 slug: claude-md-global-and-project-copies-out-of-sync-on-finalize-a
 title: Make Docket dispatch minimal, non-recursive, and mechanically gated
-status: proposed
+status: 'in-progress'
 priority: high
 type: fix
 created: 2026-08-21
-updated: 2026-08-25
+updated: '2026-08-26'
 depends_on: []
 stacked_on:
 related: [294]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'feat/claude-md-global-and-project-copies-out-of-sync-on-finalize-a'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-26T02:19:30Z'
 ---
 
 ## Artifacts
