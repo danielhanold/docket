@@ -264,6 +264,23 @@ func TestSelectFinalizeQueueIdentityBeforeApproval(t *testing.T) {
 	if got[0].SkipReason != "branch-pr-head-mismatch" {
 		t.Errorf("skip = %q, want branch-pr-head-mismatch (identity must outrank the approval gate)", got[0].SkipReason)
 	}
+
+	// Approved sibling: this change makes Approved:true producible in production
+	// for the first time (the exact view's reviewDecision now feeds real
+	// approval). The dangerous combination is an APPROVED open PR whose exact
+	// head disagrees with the recorded branch — identity must still surface
+	// branch-pr-head-mismatch and must NOT fall through to a merge/actionable
+	// band. Same fixture shape as above; only Approved flips to true.
+	approvedFacts := map[ChangeID]PRFacts{
+		1: {State: "open", Approved: true, Mergeable: "MERGEABLE", HeadBranch: "feat/actual-head"},
+	}
+	gotApproved := SelectFinalizeQueue(finSnapshot(changes...), approvedFacts, nil, nil)
+	if len(gotApproved) != 1 {
+		t.Fatalf("approved candidates = %d, want 1", len(gotApproved))
+	}
+	if gotApproved[0].SkipReason != "branch-pr-head-mismatch" {
+		t.Errorf("approved skip = %q, want branch-pr-head-mismatch (identity must outrank approval even when Approved is true)", gotApproved[0].SkipReason)
+	}
 }
 
 func TestSelectFinalizeQueueExplicitOverride(t *testing.T) {
