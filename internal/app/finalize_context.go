@@ -163,6 +163,7 @@ type FinalizePRReport struct {
 	Draft        bool   `json:"draft,omitempty"`
 	Approved     bool   `json:"approved,omitempty"`
 	Mergeable    string `json:"mergeable,omitempty"`
+	HeadBranch   string `json:"head_branch,omitempty"`
 	HeadOID      string `json:"head_oid,omitempty"`
 	BaseRef      string `json:"base_ref,omitempty"`
 	ChangedFiles int    `json:"changed_files,omitempty"`
@@ -451,6 +452,7 @@ func finalizePRReport(c domain.Change, f domain.PRFacts, wasProbed bool) Finaliz
 		Draft:        f.Draft,
 		Approved:     f.Approved,
 		Mergeable:    f.Mergeable,
+		HeadBranch:   f.HeadBranch,
 		HeadOID:      f.HeadOID,
 		BaseRef:      f.BaseRef,
 		ChangedFiles: f.ChangedFiles,

@@ -5,14 +5,22 @@ import (
 	"testing"
 )
 
-// finChange builds an implemented change carrying a PR reference, the default
-// finalize-candidate shape. Options mutate the spec for the case under test.
+// finDefaultBranch is the recorded feature branch finChange stamps by default,
+// and the head branch the actionable-candidate fixtures pair with it so an
+// implemented open/merged PR reconciles cleanly and bands rather than surfacing
+// an identity skip. A shared constant keeps the ordering fixtures branch-uniform.
+const finDefaultBranch = "feat/head"
+
+// finChange builds an implemented change carrying a PR reference and the recorded
+// feature branch stamped at claim time, the default finalize-candidate shape.
+// Options mutate the spec for the case under test.
 func finChange(id ChangeID, opts ...func(*ChangeSpec)) Change {
 	spec := ChangeSpec{
 		ID:     id,
 		Slug:   fmt.Sprintf("c-%d", id),
 		Status: StatusImplemented,
 		PR:     OptionalString{State: FieldPresent, Value: fmt.Sprintf("#%d", id)},
+		Branch: OptionalString{State: FieldPresent, Value: finDefaultBranch},
 	}
 	for _, o := range opts {
 		o(&spec)
@@ -21,7 +29,14 @@ func finChange(id ChangeID, opts ...func(*ChangeSpec)) Change {
 }
 
 func withStatus(s Status) func(*ChangeSpec) { return func(sp *ChangeSpec) { sp.Status = s } }
-func withSlug(s string) func(*ChangeSpec)   { return func(sp *ChangeSpec) { sp.Slug = s } }
+
+// withBranch sets the recorded feature branch; noBranch clears it (a record with
+// no usable branch). Together they drive the identity classification cases.
+func withBranch(b string) func(*ChangeSpec) {
+	return func(sp *ChangeSpec) { sp.Branch = OptionalString{State: FieldPresent, Value: b} }
+}
+func noBranch() func(*ChangeSpec)         { return func(sp *ChangeSpec) { sp.Branch = OptionalString{} } }
+func withSlug(s string) func(*ChangeSpec) { return func(sp *ChangeSpec) { sp.Slug = s } }
 func withPriority(p Priority) func(*ChangeSpec) {
 	return func(sp *ChangeSpec) { sp.Priority = p }
 }
@@ -78,11 +93,11 @@ func TestSelectFinalizeQueueOrdering(t *testing.T) {
 		finChange(1), finChange(2), finChange(3), finChange(4), finChange(5),
 	}
 	facts := map[ChangeID]PRFacts{
-		1: {State: "merged"},
-		2: {State: "open", Approved: true, Mergeable: "MERGEABLE", ChangedFiles: 5, DiffLines: 100},
-		3: {State: "open", Approved: true, Mergeable: "MERGEABLE", ChangedFiles: 2, DiffLines: 999},
-		4: {State: "open", Approved: true, Mergeable: "CONFLICTING", ChangedFiles: 1, DiffLines: 50},
-		5: {State: "open", Approved: true, Mergeable: "UNKNOWN", ChangedFiles: 1, DiffLines: 1},
+		1: {State: "merged", HeadBranch: finDefaultBranch},
+		2: {State: "open", Approved: true, Mergeable: "MERGEABLE", HeadBranch: finDefaultBranch, ChangedFiles: 5, DiffLines: 100},
+		3: {State: "open", Approved: true, Mergeable: "MERGEABLE", HeadBranch: finDefaultBranch, ChangedFiles: 2, DiffLines: 999},
+		4: {State: "open", Approved: true, Mergeable: "CONFLICTING", HeadBranch: finDefaultBranch, ChangedFiles: 1, DiffLines: 50},
+		5: {State: "open", Approved: true, Mergeable: "UNKNOWN", HeadBranch: finDefaultBranch, ChangedFiles: 1, DiffLines: 1},
 	}
 	got := SelectFinalizeQueue(finSnapshot(changes...), facts, nil, nil)
 	eqIDs(t, candidateIDs(got), []ChangeID{1, 3, 2, 5, 4})
@@ -112,7 +127,7 @@ func TestSelectFinalizeQueueOrdering(t *testing.T) {
 		finChange(9, withPriority(PriorityHigh), withCreated(createdOn("2026-01-01"))),
 		finChange(10, withPriority(PriorityMedium)),
 	}
-	tf := PRFacts{State: "open", Approved: true, Mergeable: "MERGEABLE", ChangedFiles: 3, DiffLines: 3}
+	tf := PRFacts{State: "open", Approved: true, Mergeable: "MERGEABLE", HeadBranch: finDefaultBranch, ChangedFiles: 3, DiffLines: 3}
 	tfacts := map[ChangeID]PRFacts{6: tf, 7: tf, 8: tf, 9: tf, 10: tf}
 	tgot := SelectFinalizeQueue(finSnapshot(tail...), tfacts, nil, nil)
 	eqIDs(t, candidateIDs(tgot), []ChangeID{8, 9, 7, 10, 6})
@@ -174,6 +189,58 @@ func TestSelectFinalizeQueueSkipReasons(t *testing.T) {
 	}
 }
 
+// TestSelectFinalizeQueueIdentityClassification pins the recorded-branch vs
+// exact-PR-head reconciliation: a clean match bands normally, a disagreement or
+// an unusable recorded branch surfaces a structured identity skip, and — the
+// regression pin — a head mismatch NEVER reclassifies a cleanly closed PR (which
+// stays pr-closed) nor an unknown probe (which stays pr-unknown). Identity is
+// computed only against cleanly observed open/merged evidence.
+func TestSelectFinalizeQueueIdentityClassification(t *testing.T) {
+	const recorded = "feature/renamed-head"
+	open := func(head string) PRFacts {
+		return PRFacts{State: "open", Approved: true, Mergeable: "MERGEABLE", HeadBranch: head}
+	}
+	changes := []Change{
+		finChange(1, withBranch(recorded)),       // open, head matches -> banded
+		finChange(2, withBranch(recorded)),       // open, head differs -> mismatch
+		finChange(3, noBranch()),                 // open, recorded absent -> branch-missing
+		finChange(4, withBranch("refs/heads/x")), // open, recorded shape-invalid -> branch-malformed
+		finChange(5, withBranch(recorded)),       // unknown probe -> pr-unknown regardless of branch
+		finChange(6, withBranch(recorded)),       // cleanly closed -> pr-closed regardless of head
+	}
+	facts := map[ChangeID]PRFacts{
+		1: open(recorded),
+		2: open("feature/other"),
+		3: open("feature/other"), // the exact PR's head is present; it is the recorded value that is missing
+		4: open("feature/other"),
+		5: {State: "unknown", HeadBranch: "feature/other"},
+		6: {State: "closed", HeadBranch: "feature/other"},
+	}
+	got := SelectFinalizeQueue(finSnapshot(changes...), facts, nil, nil)
+
+	bands := map[ChangeID]string{}
+	skips := map[ChangeID]string{}
+	for _, c := range got {
+		bands[c.ID] = c.Band
+		skips[c.ID] = c.SkipReason
+	}
+	if bands[1] != "mergeable" || skips[1] != "" {
+		t.Errorf("id 1 (head matches recorded) = band %q skip %q, want mergeable/actionable", bands[1], skips[1])
+	}
+	wantSkip := map[ChangeID]string{
+		2: "branch-pr-head-mismatch",
+		3: "branch-missing",
+		4: "branch-malformed",
+		5: "pr-unknown",
+		6: "pr-closed",
+	}
+	for id, want := range wantSkip {
+		if skips[id] != want {
+			t.Errorf("id %d skip = %q, want %q", id, skips[id], want)
+		}
+	}
+}
+
 func TestSelectFinalizeQueueExplicitOverride(t *testing.T) {
 	// approval-required and finalize-blocked are skip reasons in auto mode; the
 	// app layer (Task 10) overrides them for an explicit --id. Here we only
@@ -200,9 +267,9 @@ func TestSelectFinalizeQueueExplicitOverride(t *testing.T) {
 func TestSelectFinalizeQueueAllowlist(t *testing.T) {
 	changes := []Change{finChange(1), finChange(2), finChange(3)}
 	facts := map[ChangeID]PRFacts{
-		1: {State: "open", Approved: true, Mergeable: "MERGEABLE", ChangedFiles: 1},
-		2: {State: "open", Approved: true, Mergeable: "MERGEABLE", ChangedFiles: 2},
-		3: {State: "open", Approved: true, Mergeable: "MERGEABLE", ChangedFiles: 3},
+		1: {State: "open", Approved: true, Mergeable: "MERGEABLE", HeadBranch: finDefaultBranch, ChangedFiles: 1},
+		2: {State: "open", Approved: true, Mergeable: "MERGEABLE", HeadBranch: finDefaultBranch, ChangedFiles: 2},
+		3: {State: "open", Approved: true, Mergeable: "MERGEABLE", HeadBranch: finDefaultBranch, ChangedFiles: 3},
 	}
 	full := SelectFinalizeQueue(finSnapshot(changes...), facts, nil, nil)
 	eqIDs(t, candidateIDs(full), []ChangeID{1, 2, 3})
@@ -218,7 +285,7 @@ func TestSelectFinalizeQueueDependencyOrder(t *testing.T) {
 		finChange(1, withDeps(2)),
 		finChange(2, withStatus(StatusImplemented), noPR()),
 	}
-	facts := map[ChangeID]PRFacts{1: {State: "open", Approved: true, Mergeable: "MERGEABLE"}}
+	facts := map[ChangeID]PRFacts{1: {State: "open", Approved: true, Mergeable: "MERGEABLE", HeadBranch: finDefaultBranch}}
 	got := SelectFinalizeQueue(finSnapshot(unmerged...), facts, nil, nil)
 	if len(got) != 1 || got[0].ID != 1 || got[0].SkipReason != "dependency-unmerged" {
 		t.Fatalf("got %+v, want single id 1 dependency-unmerged", got)
