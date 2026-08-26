@@ -33,6 +33,14 @@ assert "the Skill layer section is non-empty" '[ -n "$LAYER" ]'
 assert "Skill layer states an invoked skill never outranks the caller" 'grep -qi "never outranks" <<<"$LAYER"'
 assert "Skill layer names pre-specification as the mechanism" 'grep -qi "pre-specif" <<<"$LAYER"'
 assert "Skill layer names the call-site marker" 'grep -qF -- "$MARKER" <<<"$LAYER"'
+# Change 0355: the Skill layer states the generic role-binding boundary — a resolved binding is
+# INVOKED as a skill (never dispatched as a same-name agent), and nested agent dispatch belongs
+# to the invoked skill's own contract. Flattened haystack; one bounded gap per pattern.
+LAYER_FLAT="$(tr -s '[:space:]' ' ' <<<"$LAYER")"
+assert "Skill layer: a resolved binding names a skill to invoke, not a same-name agent" \
+  'grep -qiE "names a skill to \*\*invoke\*\*[^.]{0,80}not a same-name agent" <<<"$LAYER_FLAT"'
+assert "Skill layer: nested agent dispatch belongs to the invoked skill.s contract" \
+  'grep -qiE "nested (named-)?agent dispatch[^.]{0,80}invoked skill" <<<"$LAYER_FLAT"'
 
 # --- group 2: coverage over every autonomous role invocation ------------------------------------
 # A skill is AUTONOMOUS iff a wrapper exists for it at agents/<skill>.md — the committed source
@@ -79,6 +87,13 @@ while IFS= read -r entry; do
   fi
   assert "$rel:$lno autonomous role invocation pre-specifies its outcome" \
     'grep -qF -- "$MARKER" <<<"$text"'
+  # Change 0355: an invocation line must not frame the ROLE invocation itself as a dispatch
+  # ("this long build dispatch" — the observed 0351 misfire bait). Genuine nested-dispatch prose
+  # ("dispatch the selected rung wrapper") is untouched: the ban keys on the removed framing
+  # shape, not on the word dispatch. Step 4's "long plan dispatch" line is a real subagent
+  # dispatch AND a sigil MENTION, so the mention branch above already exempts it.
+  assert "$rel:$lno role invocation is not framed as a dispatch" \
+    '! grep -qiE "long [a-z-]+ dispatch" <<<"$text"'
 done <<<"$SITES"
 
 # The classifier must not go vacuous: if wrapper detection broke, every site would be skipped and
@@ -127,6 +142,12 @@ assert "the exception classifier is non-vacuous (a plain line is not an exceptio
 BRACED='Run the **resolved plan skill** — `${SKILL_PLAN}` from the Step-0 config export.'
 assert "site discovery matches the braced spelling too" 'grep -q -e "$SITE_RE" <<<"$BRACED"'
 assert "site discovery matches the bare spelling too" 'grep -q -e "$SITE_RE" <<<"$UNMARKED"'
+# The dispatch-framing ban must catch the observed defect shape (change 0351's Step-5 line).
+FRAMED='Refresh the claim immediately before this long build dispatch — the resolved build skill `$SKILL_BUILD` is invoked **DIRECTED to:** execute the plan.'
+assert "the framing ban is non-vacuous (the 0351 defect line is caught)" \
+  'grep -qiE "long [a-z-]+ dispatch" <<<"$FRAMED"'
+assert "the framing ban permits genuine nested-dispatch prose" \
+  '! grep -qiE "long [a-z-]+ dispatch" <<<"Dispatch the selected rung wrapper by name, foreground"'
 
 [ "$fail" -eq 0 ] && echo "ALL OK" || echo "FAILURES"
 exit "$fail"
