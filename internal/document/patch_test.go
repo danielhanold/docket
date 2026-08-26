@@ -560,6 +560,60 @@ func TestBatchMixesFieldAndBlockOps(t *testing.T) {
 	}
 }
 
+// TestRemoveBlockLeavesSurroundingProseByteIdentical pins the core guarantee:
+// exactly the block's marker-to-marker line range is removed, and every byte of
+// the surrounding prose — including the blank separation the block was inserted
+// with — survives untouched.
+func TestRemoveBlockLeavesSurroundingProseByteIdentical(t *testing.T) {
+	block := "<!-- docket:dispatch:start -->\ninner\n<!-- docket:dispatch:end -->\n"
+	src := "Intro prose.\n\n" + block + "\nMore prose.\n"
+	got := applyOne(t, src, func(p *PatchSet) { p.RemoveBlock("dispatch") })
+	want := strings.Replace(src, block, "", 1)
+	if got != want {
+		t.Fatalf("got:\n%q\nwant:\n%q", got, want)
+	}
+}
+
+func TestRemoveAbsentBlockRejected(t *testing.T) {
+	d := mustParse(t, "---\nid: 1\n---\nbody\n")
+	var p PatchSet
+	p.RemoveBlock("nope")
+	_, err := d.Apply(p)
+	if !IsKind(err, KindMissingPatchTarget) {
+		t.Fatalf("got %v", err)
+	}
+	if !strings.Contains(err.Error(), "(nope)") {
+		t.Fatalf("error must name the absent block, got %v", err)
+	}
+}
+
+// TestRemoveOneOfTwoBlocksLeavesTheOtherUntouched checks the removal is scoped
+// to exactly the named block and its neighbour is byte-identical afterwards.
+func TestRemoveOneOfTwoBlocksLeavesTheOtherUntouched(t *testing.T) {
+	gone := "<!-- docket:dispatch:start -->\ngo away\n<!-- docket:dispatch:end -->\n"
+	kept := "<!-- docket:backlink:start -->\n> home\n<!-- docket:backlink:end -->\n"
+	src := "top\n\n" + gone + "\nmid\n\n" + kept + "\nend\n"
+	got := applyOne(t, src, func(p *PatchSet) { p.RemoveBlock("dispatch") })
+	want := strings.Replace(src, gone, "", 1)
+	if got != want {
+		t.Fatalf("got:\n%q\nwant:\n%q", got, want)
+	}
+	if !strings.Contains(got, kept) {
+		t.Fatalf("the untouched block must survive byte-identically:\n%q", got)
+	}
+}
+
+// TestRemoveBlockFailsAtParseOnAMalformedMarkerDocument proves a dangling marker
+// is rejected by Parse itself, before RemoveBlock ever runs — so a removal can
+// never be handed a half-trusted population whose unbounded range consumes to
+// EOF.
+func TestRemoveBlockFailsAtParseOnAMalformedMarkerDocument(t *testing.T) {
+	malformed := "top\n\n<!-- docket:dispatch:start -->\ninner\nno end marker\n"
+	if _, err := Parse([]byte(malformed)); err == nil {
+		t.Fatal("a dangling start marker must fail Parse before RemoveBlock is reachable")
+	}
+}
+
 // TestReparseGateRejectsACorruptingPayload drives the gate directly through the
 // internal edit list: a payload the public constructors cannot produce proves
 // the candidate reparse, not the value validator, is what refuses it.
