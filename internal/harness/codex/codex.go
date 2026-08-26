@@ -1,8 +1,10 @@
 // Package codex renders Docket's installation for Codex: skill symlinks under
-// the harness-neutral agents root, one native TOML agent definition per agent
-// source, and the managed dispatch block in the user-level ~/.codex/AGENTS.md.
-// It plans only — nothing here writes to the filesystem apart from Detect's
-// read-only stat.
+// the harness-neutral agents root and one native TOML agent definition per
+// agent source. It no longer plans a user-global dispatch block (change
+// 0351) — parent-facing routing belongs to a repository's own AGENTS.md, not a
+// personal global one — but it still exports GlobalDispatchTarget so the
+// installer can retire a leftover a prior install owns. It plans only: nothing
+// here writes to the filesystem apart from Detect's read-only stat.
 package codex
 
 import (
@@ -95,13 +97,9 @@ func (adapter) Plan(in harness.PlanInput) ([]install.Target, error) {
 	if err != nil {
 		return nil, err
 	}
-	runGate, err := harness.RunGate(in.Assets)
-	if err != nil {
-		return nil, err
-	}
 
 	skillDirs := harness.SkillDirs(in.Assets)
-	targets := make([]install.Target, 0, len(sources)+len(skillDirs)+1)
+	targets := make([]install.Target, 0, len(sources)+len(skillDirs))
 
 	for _, dir := range skillDirs {
 		targets = append(targets, install.Target{
@@ -122,17 +120,26 @@ func (adapter) Plan(in harness.PlanInput) ([]install.Target, error) {
 		})
 	}
 
-	targets = append(targets, install.Target{
-		Path:       filepath.Join(root, dispatchFile),
+	sort.Slice(targets, func(i, j int) bool { return targets[i].Path < targets[j].Path })
+	return targets, nil
+}
+
+// GlobalDispatchTarget is the user-global dispatch destination this adapter
+// USED to plan and no longer does (change 0351): the managed `dispatch` block
+// in ~/.codex/AGENTS.md. Parent-facing routing instructions now live in a
+// repository's own AGENTS.md, never a personal global one, so Plan omits this
+// target — but the installer still needs its location and identity to RETIRE a
+// leftover a prior install owns. Content is left nil: retirement proves
+// ownership from the recorded interior or the frozen legacy reproducer, never
+// from a freshly rendered body.
+func GlobalDispatchTarget(r install.UserRoots) install.Target {
+	return install.Target{
+		Path:       filepath.Join(r.Home, rootDir, dispatchFile),
 		Kind:       install.KindManagedBlock,
-		Content:    []byte(harness.DispatchInterior(runGate)),
 		BlockName:  dispatchBlockName,
 		Annotation: dispatchAnnotation,
 		Role:       roleDispatch,
-	})
-
-	sort.Slice(targets, func(i, j int) bool { return targets[i].Path < targets[j].Path })
-	return targets, nil
+	}
 }
 
 // renderAgent maps one agent source onto a Codex TOML agent document,

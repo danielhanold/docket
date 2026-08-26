@@ -250,7 +250,6 @@ func TestClaudeGoldenAgents(t *testing.T) {
 	for _, s := range sources {
 		delete(frozen, s.Name+".md")
 	}
-	delete(frozen, dispatchGoldenName)
 	if len(frozen) != 0 {
 		names := make([]string, 0, len(frozen))
 		for n := range frozen {
@@ -377,80 +376,40 @@ func TestClaudeAgentMirrorsSource(t *testing.T) {
 	}
 }
 
-const dispatchGoldenName = "dispatch-block-interior.md"
-
-func dispatchTarget(t *testing.T) install.Target {
-	t.Helper()
-	var found []install.Target
+// Change 0351 retired the user-global dispatch surface: Plan no longer emits a
+// managed block into ~/.claude/CLAUDE.md. Parent-facing routing now lives in a
+// repository's own CLAUDE.md, never a personal global one.
+func TestClaudePlanHasNoGlobalDispatch(t *testing.T) {
 	for _, tg := range planFixture(t) {
+		if tg.Role == "dispatch" {
+			t.Errorf("plan still carries a dispatch-role target at %q", tg.Path)
+		}
 		if tg.Kind == install.KindManagedBlock {
-			found = append(found, tg)
+			t.Errorf("plan still carries a managed-block target at %q", tg.Path)
 		}
 	}
-	if len(found) != 1 {
-		t.Fatalf("plan carries %d managed-block targets, want 1", len(found))
-	}
-	return found[0]
 }
 
-func TestClaudeDispatchGolden(t *testing.T) {
-	tg := dispatchTarget(t)
+// GlobalDispatchTarget still names the historical destination so the installer
+// can retire a leftover a prior install owns. It carries the location and
+// identity fields only — no Content, because retirement proves ownership from
+// bytes on disk, not from a rendered body.
+func TestClaudeGlobalDispatchTarget(t *testing.T) {
+	tg := GlobalDispatchTarget(fixtureRoots())
 	if want := filepath.Join(fakeHome, ".claude", "CLAUDE.md"); tg.Path != want {
 		t.Errorf("dispatch path = %q, want %q", tg.Path, want)
+	}
+	if tg.Kind != install.KindManagedBlock {
+		t.Errorf("dispatch kind = %v, want a managed block", tg.Kind)
 	}
 	if tg.BlockName != "dispatch" {
 		t.Errorf("block name = %q, want dispatch", tg.BlockName)
 	}
-	if tg.Annotation != "managed by docket — do not hand-edit" {
-		t.Errorf("annotation = %q", tg.Annotation)
+	if tg.Role != "dispatch" {
+		t.Errorf("role = %q, want dispatch", tg.Role)
 	}
-
-	interior := string(tg.Content)
-	checkGolden(t, dispatchGoldenName, tg.Content)
-
-	// The roster is gone (change 0334): assert its removal by SHAPE — no line is
-	// a `- **docket-...` bullet and the delegation clause is absent — never by a
-	// spelling list. The compact routing rule carries its load-bearing phrases in
-	// the roster's place.
-	for _, line := range strings.Split(interior, "\n") {
-		if strings.HasPrefix(line, "- **docket-") {
-			t.Errorf("dispatch interior still carries a roster bullet: %q", line)
-		}
-	}
-	if strings.Contains(interior, "Delegate to the") {
-		t.Errorf("dispatch interior still carries the roster delegation clause")
-	}
-	for _, phrase := range []string{
-		"registered same-name",
-		"authoritative for agent names, descriptions, and availability",
-		"do not invent one",
-	} {
-		if !strings.Contains(interior, phrase) {
-			t.Errorf("dispatch interior is missing the routing-rule phrase %q", phrase)
-		}
-	}
-	if !strings.HasPrefix(interior, "## Docket agents — dispatch, don't run inline\n") {
-		t.Errorf("dispatch interior does not open with the heading: %.60q", interior)
-	}
-	if !strings.Contains(interior, "## Run gate — bracket a dispatched implement-next run with the gate facade") {
-		t.Errorf("dispatch interior does not carry the run-gate heading")
-	}
-
-	// The run-gate payload is passthrough, never re-authored.
-	in := fixtureInput(t)
-	runGate, err := in.Assets.Bytes("cursor-rules/run-gate.md")
-	if err != nil {
-		t.Fatalf("run-gate payload: %v", err)
-	}
-	if !strings.Contains(interior, strings.TrimRight(string(runGate), "\n")) {
-		t.Errorf("dispatch interior does not carry the run-gate asset verbatim")
-	}
-
-	// Nothing in a claude-bound artifact may name another harness or its runner.
-	for _, token := range []string{"codex", "cursor", "opencode", "runner"} {
-		if strings.Contains(strings.ToLower(interior), token) {
-			t.Errorf("dispatch interior names %q, which belongs to another harness", token)
-		}
+	if tg.Content != nil {
+		t.Errorf("historical target carries content: %q", tg.Content)
 	}
 }
 
@@ -554,13 +513,11 @@ func syntheticAgentCatalog(agentFiles map[string]string) assets.Catalog {
 }
 
 // Adding an agent source to the bundle must grow the plan by exactly one agent
-// file with no adapter edit. Since change 0334 the dispatch block no longer
-// restates the roster, so the added agent must NOT surface in the dispatch
-// interior — the harness's own registry, not this block, is the roster.
+// file with no adapter edit. Since change 0351 the plan carries no global
+// dispatch surface at all, so the growth is purely the added agent wrapper.
 func TestInventoryAdditionPropagates(t *testing.T) {
 	in := fixtureInput(t)
 	before := planFixture(t)
-	beforeInterior := string(dispatchTarget(t).Content)
 
 	const extraPath = "agents/docket-zzz-synthetic.md"
 	const extraBody = "---\nname: docket-zzz-synthetic\ndescription: A synthetic seventeenth agent.\n---\nSynthetic body.\n"
@@ -589,56 +546,16 @@ func TestInventoryAdditionPropagates(t *testing.T) {
 
 	wantPath := filepath.Join(fakeHome, ".claude", "agents", "docket-zzz-synthetic.md")
 	var found bool
-	var afterInterior string
 	for _, tg := range after {
 		if tg.Path == wantPath && tg.Kind == install.KindFile {
 			found = true
 		}
-		if tg.Kind == install.KindManagedBlock {
-			afterInterior = string(tg.Content)
+		if tg.Role == "dispatch" || tg.Kind == install.KindManagedBlock {
+			t.Errorf("the grown plan carries a global dispatch surface at %q", tg.Path)
 		}
 	}
 	if !found {
 		t.Errorf("the grown plan carries no agent file at %s", wantPath)
-	}
-	// The dispatch interior is inventory-independent now: adding an agent leaves
-	// it byte-for-byte unchanged and never leaks the added agent's name.
-	if afterInterior != beforeInterior {
-		t.Errorf("adding an agent changed the (now inventory-independent) dispatch interior")
-	}
-	if strings.Contains(afterInterior, "docket-zzz-synthetic") {
-		t.Errorf("the dispatch interior leaked the added agent name")
-	}
-}
-
-// A bundle with no run-gate payload is a corrupt bundle, never a plan that
-// silently ships a dispatch block missing its gate.
-func TestClaudePlanRequiresRunGate(t *testing.T) {
-	base := syntheticAgentCatalog(map[string]string{
-		"agents/docket-alpha.md": "---\nname: docket-alpha\ndescription: Alpha.\n---\nBody.\n",
-	})
-	m := base.Manifest
-	kept := m.Entries[:0:0]
-	for _, e := range m.Entries {
-		if e.Path != "cursor-rules/run-gate.md" {
-			kept = append(kept, e)
-		}
-	}
-	m.Entries = kept
-	stripped := assets.NewCatalog(m, base.Bytes)
-
-	_, err := New().Plan(harness.PlanInput{
-		Assets:    stripped,
-		Mode:      harness.ModeRelease,
-		AssetsDir: assetsDir,
-		Roots:     fixtureRoots(),
-		Agents:    fixtureAgents(),
-	})
-	if err == nil {
-		t.Fatalf("Plan accepted a bundle with no run-gate payload")
-	}
-	if !strings.Contains(err.Error(), "run-gate") {
-		t.Fatalf("error %q does not name the missing run-gate payload", err)
 	}
 }
 

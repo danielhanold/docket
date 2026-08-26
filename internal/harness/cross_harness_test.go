@@ -200,6 +200,59 @@ func TestWrapperRecursionGuard(t *testing.T) {
 	}
 }
 
+// TestNoGlobalParentSurface is the spec's harness-contract gate (change 0351):
+// after retiring user-global dispatch, NO adapter's planned target inventory may
+// contain a global parent surface. It anchors on Plan output across every
+// adapter in harness.Order, not on any golden listing, so a renderer that
+// re-added a dispatch block or rule reddens here regardless of what a golden
+// says. A parent surface is a dispatch-role target or a managed block — the two
+// shapes a global CLAUDE.md/AGENTS.md dispatch block or a .cursor rule took.
+func TestNoGlobalParentSurface(t *testing.T) {
+	in := crossPlanInput(t)
+	adapters := map[string]harness.Adapter{
+		"claude":   claude.New(),
+		"codex":    codex.New(),
+		"cursor":   cursor.New(),
+		"opencode": opencode.New(),
+	}
+	if len(adapters) != len(harness.Order) {
+		t.Fatalf("the guard covers %d adapters for %d harnesses in Order", len(adapters), len(harness.Order))
+	}
+
+	sources, err := harness.ParseInventory(in.Assets)
+	if err != nil {
+		t.Fatalf("ParseInventory: %v", err)
+	}
+
+	for _, name := range harness.Order {
+		a, ok := adapters[name]
+		if !ok {
+			t.Fatalf("no adapter for %q", name)
+		}
+		targets, err := a.Plan(in)
+		if err != nil {
+			t.Fatalf("%s Plan: %v", name, err)
+		}
+		agentOrSkill := 0
+		for _, tg := range targets {
+			if tg.Role == "dispatch" {
+				t.Errorf("%s plans a dispatch-role target at %q", name, tg.Path)
+			}
+			if tg.Kind == install.KindManagedBlock {
+				t.Errorf("%s plans a managed-block target at %q", name, tg.Path)
+			}
+			if tg.Role == "agent" || tg.Role == "skill" {
+				agentOrSkill++
+			}
+		}
+		// Non-vacuity: the adapter still plans its real work, so a Plan that emits
+		// nothing at all cannot pass this gate silently.
+		if agentOrSkill == 0 || len(targets) < len(sources) {
+			t.Errorf("%s planned %d targets for %d agent sources; the gate would be vacuous", name, len(targets), len(sources))
+		}
+	}
+}
+
 // TestNoCrossHarnessDelegation plans all four adapters under one shared input
 // and asserts the two ways an installation could bleed across harnesses: an
 // agent definition that instructs its harness to launch a sibling's runner,

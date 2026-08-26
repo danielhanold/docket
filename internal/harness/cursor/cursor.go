@@ -1,7 +1,10 @@
-// Package cursor renders Docket's installation for Cursor: skill symlinks,
-// one native custom-agent document per agent source, and the dedicated
-// dispatch rule at ~/.cursor/rules/docket-dispatch.mdc. It plans only —
-// nothing here writes to the filesystem apart from Detect's read-only stat.
+// Package cursor renders Docket's installation for Cursor: skill symlinks and
+// one native custom-agent document per agent source. It no longer plans a
+// user-global dispatch rule (change 0351) — parent-facing routing belongs to a
+// repository's own .cursor/rules, not a personal global one — but it still
+// exports GlobalDispatchTarget so the installer can retire a leftover a prior
+// install owns. It plans only: nothing here writes to the filesystem apart from
+// Detect's read-only stat.
 package cursor
 
 import (
@@ -94,13 +97,9 @@ func (adapter) Plan(in harness.PlanInput) ([]install.Target, error) {
 	if err != nil {
 		return nil, err
 	}
-	rule, err := assembleDispatchRule(in.Assets, sources)
-	if err != nil {
-		return nil, err
-	}
 
 	skillDirs := harness.SkillDirs(in.Assets)
-	targets := make([]install.Target, 0, len(sources)+len(skillDirs)+1)
+	targets := make([]install.Target, 0, len(sources)+len(skillDirs))
 
 	for _, dir := range skillDirs {
 		targets = append(targets, install.Target{
@@ -125,19 +124,26 @@ func (adapter) Plan(in harness.PlanInput) ([]install.Target, error) {
 		})
 	}
 
-	// Cursor's dispatch surface is a rule file docket owns whole, not a
-	// managed block inside a file the user also writes — so it is a KindFile
-	// target, and its bytes are the authored payloads passed straight through
-	// rather than harness.DispatchInterior's machine-neutral roster.
-	targets = append(targets, install.Target{
-		Path:    filepath.Join(root, rulesDir, dispatchFile),
-		Kind:    install.KindFile,
-		Content: rule,
-		Role:    roleDispatch,
-	})
-
 	sort.Slice(targets, func(i, j int) bool { return targets[i].Path < targets[j].Path })
 	return targets, nil
+}
+
+// GlobalDispatchTarget is the user-global dispatch destination this adapter
+// USED to plan and no longer does (change 0351): the dedicated rule file
+// ~/.cursor/rules/docket-dispatch.mdc. Unlike the other three harnesses this is
+// a whole file docket owns — a KindFile, not a managed block inside a file the
+// user also writes. Parent-facing routing instructions now live in a
+// repository's own .cursor/rules, never a personal global one, so Plan omits
+// this target — but the installer still needs its location and identity to
+// RETIRE a leftover a prior install owns. Content is left nil: retirement
+// proves ownership from the recorded whole-file digest or the frozen legacy
+// reproducer, never from a freshly assembled rule.
+func GlobalDispatchTarget(r install.UserRoots) install.Target {
+	return install.Target{
+		Path: filepath.Join(r.Home, rootDir, rulesDir, dispatchFile),
+		Kind: install.KindFile,
+		Role: roleDispatch,
+	}
 }
 
 // assembleDispatchRule concatenates the authored dispatch payloads: the static

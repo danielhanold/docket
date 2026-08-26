@@ -208,6 +208,17 @@ func (r InstallResult) HumanText() string {
 // than from the bytes this binary shipped with.
 func Planners(roots install.UserRoots, agents config.AgentsTable) []install.Planner {
 	adapters := []harness.Adapter{claude.New(), codex.New(), cursor.New(), opencode.New()}
+	// The user-global dispatch destination each adapter USED to plan (change
+	// 0351). Plan no longer emits it, but the installer still needs its location
+	// and identity to retire a leftover a prior install owns. It is a
+	// package-level function per adapter, not a method on Adapter, so it is
+	// mapped by name here rather than reached through the interface.
+	globalDispatch := map[string]func(install.UserRoots) install.Target{
+		claude.Name:   claude.GlobalDispatchTarget,
+		codex.Name:    codex.GlobalDispatchTarget,
+		cursor.Name:   cursor.GlobalDispatchTarget,
+		opencode.Name: opencode.GlobalDispatchTarget,
+	}
 	planners := make([]install.Planner, 0, len(adapters))
 	for _, a := range adapters {
 		adapter := a
@@ -226,6 +237,7 @@ func Planners(roots install.UserRoots, agents config.AgentsTable) []install.Plan
 					Agents:    agents,
 				})
 			},
+			GlobalDispatchTarget: globalDispatch[adapter.Name()],
 		})
 	}
 	return planners

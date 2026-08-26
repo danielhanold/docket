@@ -123,6 +123,14 @@ func embeddedCatalog(t *testing.T) assets.Catalog {
 // the installer consumes. It is the shape internal/app will build.
 func adapterPlanners(roots install.UserRoots, agents config.AgentsTable) []install.Planner {
 	adapters := []harness.Adapter{claude.New(), codex.New(), cursor.New(), opencode.New()}
+	// The historical user-global dispatch destination each adapter USED to plan
+	// and no longer does (change 0351); the installer retires a proven leftover.
+	globalDispatch := map[string]func(install.UserRoots) install.Target{
+		claude.Name:   claude.GlobalDispatchTarget,
+		codex.Name:    codex.GlobalDispatchTarget,
+		cursor.Name:   cursor.GlobalDispatchTarget,
+		opencode.Name: opencode.GlobalDispatchTarget,
+	}
 	planners := make([]install.Planner, 0, len(adapters))
 	for _, a := range adapters {
 		a := a
@@ -145,6 +153,7 @@ func adapterPlanners(roots install.UserRoots, agents config.AgentsTable) []insta
 					Agents:    agents,
 				})
 			},
+			GlobalDispatchTarget: globalDispatch[a.Name()],
 		})
 	}
 	return planners
@@ -360,9 +369,6 @@ func TestInstallFreshApplies(t *testing.T) {
 	if body := readFile(t, w.path(".claude", "agents", "docket-build-standard.md")); !strings.Contains(body, "docket-build-standard") {
 		t.Errorf("claude agent wrapper does not name its agent:\n%s", body)
 	}
-	if body := readFile(t, w.path(".claude", "CLAUDE.md")); !strings.Contains(body, "docket:dispatch:start") {
-		t.Errorf("claude dispatch block missing:\n%s", body)
-	}
 	// Codex reads skills from $HOME/.agents, not from its own root.
 	if _, err := os.Lstat(w.path(".agents", "skills", "docket-build")); err != nil {
 		t.Errorf("codex skill link: %v", err)
@@ -370,11 +376,18 @@ func TestInstallFreshApplies(t *testing.T) {
 	if _, err := os.Lstat(w.path(".codex", "agents", "docket-build-standard.toml")); err != nil {
 		t.Errorf("codex agent wrapper: %v", err)
 	}
-	if _, err := os.Lstat(w.path(".cursor", "rules", "docket-dispatch.mdc")); err != nil {
-		t.Errorf("cursor dispatch file: %v", err)
-	}
-	if body := readFile(t, w.path(".config", "opencode", "AGENTS.md")); !strings.Contains(body, "docket:dispatch:start") {
-		t.Errorf("opencode dispatch block missing")
+	// Change 0351: a fresh install plans NO user-global dispatch surface. Parent
+	// routing belongs to a repository's own files, so none of these personal
+	// global destinations are created.
+	for _, p := range [][]string{
+		{".claude", "CLAUDE.md"},
+		{".codex", "AGENTS.md"},
+		{".cursor", "rules", "docket-dispatch.mdc"},
+		{".config", "opencode", "AGENTS.md"},
+	} {
+		if _, err := os.Lstat(w.path(p...)); !os.IsNotExist(err) {
+			t.Errorf("fresh install created a global dispatch surface at %v (err=%v)", p, err)
+		}
 	}
 
 	state := loadState(t, w.roots)
@@ -489,6 +502,40 @@ func TestInstallConflictPreservesEverything(t *testing.T) {
 		}
 	}
 	assertUnchanged(t, before, snapshot(t, w.home), "ownership conflict")
+	if _, err := os.Stat(w.roots.StatePath()); !os.IsNotExist(err) {
+		t.Errorf("state published despite a conflict: %v", err)
+	}
+}
+
+// One unprovable global dispatch surface refuses the ENTIRE installation:
+// change 0351's retirement conflicts join the plan's own, so a single edited
+// leftover blocks every wrapper, skill, and the published state alike — the same
+// all-or-nothing boundary a foreign wrapper enforces.
+func TestInstallGlobalDispatchConflictBlocksEverything(t *testing.T) {
+	w := newWorld(t, allHarnessDirs...)
+	// A well-formed but unprovable dispatch block in the personal global CLAUDE.md:
+	// balanced markers (so it parses), but an interior that is neither a prior
+	// docket install nor the frozen legacy reproducer's bytes.
+	claudeMD := w.path(".claude", "CLAUDE.md")
+	writeFile(t, claudeMD, "# my instructions\n\n"+
+		"<!-- docket:dispatch:start (managed by docket — do not hand-edit) -->\n"+
+		"I hand-wrote this dispatch block myself; it is not docket's.\n"+
+		"<!-- docket:dispatch:end -->\n\nmore of my own notes\n")
+	before := snapshot(t, w.home)
+
+	out := install.Install(w.options(nil))
+	if out.Reason != install.ReasonOwnershipConflict {
+		t.Fatalf("reason = %q, want %q (err %v)", out.Reason, install.ReasonOwnershipConflict, out.Err)
+	}
+	if out.Applied {
+		t.Fatalf("conflicted install reported applied work")
+	}
+	if _, ok := findAction(out, install.OpConflict, claudeMD); !ok {
+		t.Fatalf("conflict not reported for %s: %v", claudeMD, out.Actions)
+	}
+	// Nothing else was touched: no skills, no agent wrappers, no dispatch retired,
+	// no state published — the whole home tree is byte-for-byte as it was found.
+	assertUnchanged(t, before, snapshot(t, w.home), "global dispatch conflict")
 	if _, err := os.Stat(w.roots.StatePath()); !os.IsNotExist(err) {
 		t.Errorf("state published despite a conflict: %v", err)
 	}
@@ -610,11 +657,18 @@ func TestInstallUpgradeDriftBlocks(t *testing.T) {
 	}
 }
 
-func TestStaleManagedBlockRecordNeverDeletesTheFile(t *testing.T) {
+// Change 0351: a managed block that leaves the plan is no longer silently
+// retained. It becomes a proof-gated removal — the block's own lines are struck
+// while every surrounding user byte survives, the file is left in place, and no
+// stale record remains.
+func TestManagedBlockPruneRetiresBlockAndPreservesProse(t *testing.T) {
 	w := newWorld(t)
 	root := w.path(".toy")
 	mkdirAll(t, root)
 	notes := filepath.Join(root, "NOTES.md")
+	// User prose the install must never disturb, into which the block is appended.
+	const prose = "# My notes\n\nkeep me exactly\n"
+	writeFile(t, notes, prose)
 
 	blocky := install.Planner{
 		Name:   "toy",
@@ -635,10 +689,13 @@ func TestStaleManagedBlockRecordNeverDeletesTheFile(t *testing.T) {
 	if out := install.Install(o); out.Err != nil {
 		t.Fatalf("first Install: %v", out.Err)
 	}
-	body := readFile(t, notes)
+	withBlock := readFile(t, notes)
+	if !strings.Contains(withBlock, "docket:dispatch:start") {
+		t.Fatalf("first install did not write the managed block:\n%s", withBlock)
+	}
 
-	// The block leaves the plan. Deleting the file would take the user's own
-	// content with it, so the record is retained and the file is left alone.
+	// The block leaves the plan. Its record still matches disk, so the block is
+	// proven docket's and retired — not kept, and not a whole-file delete.
 	empty := toy{name: "toy", root: root, files: map[string]string{"a.md": "a\n"}}
 	o2 := w.options(nil)
 	o2.Planners = []install.Planner{empty.planner()}
@@ -646,11 +703,24 @@ func TestStaleManagedBlockRecordNeverDeletesTheFile(t *testing.T) {
 	if out.Err != nil {
 		t.Fatalf("second Install: %v (reason %q)", out.Err, out.Reason)
 	}
-	if readFile(t, notes) != body {
-		t.Errorf("the managed-block file was rewritten or truncated")
+	if !hasAction(out, install.OpRemove, notes) {
+		t.Errorf("the retired block was not reported as a removal; actions: %v", out.Actions)
+	}
+	after := readFile(t, notes)
+	if strings.Contains(after, "docket:dispatch") {
+		t.Errorf("the managed block was not retired:\n%s", after)
+	}
+	if !strings.Contains(after, "keep me exactly") || !strings.HasPrefix(after, "# My notes\n") {
+		t.Errorf("surrounding user prose was not preserved:\n%s", after)
 	}
 	if _, err := os.Stat(notes); err != nil {
-		t.Fatalf("the managed-block file was deleted: %v", err)
+		t.Fatalf("the file was deleted rather than having its block retired: %v", err)
+	}
+	// No stale record: the retired block leaves the published state.
+	for _, rec := range loadState(t, w.roots).Targets {
+		if rec.Path == notes {
+			t.Errorf("a stale record for the retired block survives: %+v", rec)
+		}
 	}
 }
 
