@@ -231,6 +231,7 @@ tests/test_board_checks.sh	55	parallel
 tests/test_board_checks_stack.sh	10	parallel
 tests/test_board_refresh.sh	10	parallel
 tests/test_board_refresh_on_transition.sh	10	parallel
+tests/test_branch_reconstruction_guard.sh	10	parallel
 tests/test_bsd_tool_defaults.sh	10	parallel
 tests/test_change_links_coverage.sh	10	parallel
 tests/test_change_types.sh	10	parallel
