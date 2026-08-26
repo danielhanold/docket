@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'fix/build-review-roles-are-skill-invoked-that-fan-out-to-profile'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-26T21:41:23Z'
+reconciled: true
+claimed_at: '2026-08-26T21:43:38Z'
 ---
 
 ## Artifacts
@@ -96,3 +96,18 @@ and lifecycle behavior remain unchanged.
 - The Tier-C authorized-or-halt safety invariant itself — clarify what does and does not *trigger*
   it, never relax it.
 - Changing `docket-brainstorm`; the shared rule already describes its consultant fan-out.
+
+## Reconcile log
+
+### 2026-08-26
+
+### 2026-08-26 — reconcile (implement-next)
+
+Re-read the linked spec, related changes 212/257/283, and the cited ADRs (0059/0063/0066/0069) against current source. Findings:
+
+- The observed defect still stands verbatim in the source. `skills/docket-implement-next/SKILL.md` Step 5 still calls the operation a "long build dispatch" while also saying the build skill is "invoked" and framing Tier C as "cannot dispatch"; Step 6 still dispatches the Docket reviewer rung unconditionally. `skills/docket-convention/SKILL.md`'s Skill layer still lacks the generic role-binding-is-a-skill-invocation rule.
+- Change 212 is `done` (ADR-0069 inline-loaded-role-skill scoping already landed) — its precedent holds and needs no rework here.
+- Related changes 257 and 283 are still `proposed` (unbuilt), so neither has touched the shared convention/build/review prose or the three target test files yet. No landed conflict to fold in; per the spec's relationships note, whichever of us lands second reconciles the shared anchors, and 355 is landing first.
+- Scope, relations, and the five-file source list in the spec remain accurate. No obsolescence, no fundamental design invalidation. Proceeding to plan/build unchanged.
+
+Auto-capture disabled (AUTO_CAPTURE_ENABLED=false); no follow-up stubs minted.
