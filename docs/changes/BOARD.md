@@ -1,12 +1,6 @@
 # Backlog
 
-**349 changes** — 🟢 1 in progress · 🟡 48 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 213 done · 🗑️ 81 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0348](active/0348-enrich-open-pr-view-with-review-decision.md) | Enrich the exact-PR view with reviewDecision so open-PR snapshots populate Approved | `medium` | `fix` | [spec](../superpowers/specs/2026-08-26-enrich-open-pr-view-with-review-decision-design.md) | `fix/enrich-open-pr-view-with-review-decision` |
+**349 changes** — 🟡 48 proposed · ⚪ 4 deferred · 🔵 3 implemented · ✅ 213 done · 🗑️ 81 killed
 
 ## 🟡 Proposed (48)
 
@@ -70,12 +64,13 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [#226](https://github.com/danielhanold/docket/pull/226) |  |
 | [0334](active/0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | Make Docket dispatch minimal, non-recursive, and mechanically gated | `high` | `fix` | [#239](https://github.com/danielhanold/docket/pull/239) | finalize blocked — needs you |
+| [0348](active/0348-enrich-open-pr-view-with-review-decision.md) | Enrich the exact-PR view with reviewDecision so open-PR snapshots populate Approved | `medium` | `fix` | [#240](https://github.com/danielhanold/docket/pull/240) |  |
 
 ```mermaid
 graph TD
