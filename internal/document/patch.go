@@ -14,6 +14,7 @@ const (
 	opInsertField                // add an ABSENT field before the closing fence
 	opReplaceBlock               // rewrite a managed block's interior
 	opInsertBlock                // create a managed block at a generic insertion point
+	opRemoveBlock                // delete a managed block, markers and interior
 )
 
 // BlockInsertionPoint names the only two generic insertion points this change
@@ -73,6 +74,16 @@ func (p *PatchSet) InsertBlock(name, annotation, content string, at BlockInserti
 		op: opInsertBlock, name: name, annotation: annotation, content: content, at: at})
 }
 
+// RemoveBlock requests that the named managed block be deleted in full — both
+// marker lines and the interior between them — leaving every byte outside that
+// marker-to-marker line range untouched. It removes exactly the block's own
+// lines and does not chase the blank separation InsertBlock lays down around a
+// new block. Resolution fails through Apply's error path when the block is
+// absent, mirroring ReplaceBlock's missing-target error.
+func (p *PatchSet) RemoveBlock(name string) {
+	p.edits = append(p.edits, edit{op: opRemoveBlock, name: name})
+}
+
 // resolvedEdit is one validated edit reduced to bytes: replace span with
 // payload. A zero-width span is an insertion; a nil payload is a deletion.
 type resolvedEdit struct {
@@ -120,6 +131,8 @@ func (d Document) resolve(p PatchSet) ([]resolvedEdit, error) {
 			r, err = d.resolveReplaceBlock(e, seen)
 		case opInsertBlock:
 			r, err = d.resolveInsertBlock(e, seen)
+		case opRemoveBlock:
+			r, err = d.resolveRemoveBlock(e, seen)
 		default:
 			err = &Error{Kind: KindUnsupportedPatchShape, Name: e.name, Offset: -1,
 				Msg: "unknown patch operation"}
@@ -235,6 +248,27 @@ func (d Document) resolveReplaceBlock(e edit, seen map[string]bool) (resolvedEdi
 	}
 	payload := renderBlockContent(e.content, d.blockLineEnding(b))
 	return resolvedEdit{span: b.Interior, payload: []byte(payload)}, nil
+}
+
+// resolveRemoveBlock validates one RemoveBlock edit and reduces it to the
+// deletion of the block's whole marker-to-marker line range. The span runs from
+// the start marker's first byte to the end marker's last, so both markers and
+// the interior go and nothing outside them moves; a nil payload is the deletion.
+func (d Document) resolveRemoveBlock(e edit, seen map[string]bool) (resolvedEdit, error) {
+	if !validBlockName(e.name) {
+		return resolvedEdit{}, &Error{Kind: KindInvalidValue, Name: e.name, Offset: -1,
+			Msg: "block name does not match the Docket marker grammar"}
+	}
+	b, ok := d.Block(e.name)
+	if !ok {
+		return resolvedEdit{}, &Error{Kind: KindMissingPatchTarget, Name: e.name, Offset: -1,
+			Msg: "managed block is not present in the document"}
+	}
+	if err := claimName(seen, "block", e.name,
+		"block is edited more than once in the same patch set"); err != nil {
+		return resolvedEdit{}, err
+	}
+	return resolvedEdit{span: Span{b.Start.Start, b.End.End}, payload: nil}, nil
 }
 
 // resolveInsertBlock validates one InsertBlock edit and reduces it to a
