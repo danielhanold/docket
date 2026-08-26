@@ -408,28 +408,36 @@ func TestClaudeDispatchGolden(t *testing.T) {
 	interior := string(tg.Content)
 	checkGolden(t, dispatchGoldenName, tg.Content)
 
-	in := fixtureInput(t)
-	sources, err := harness.ParseInventory(in.Assets)
-	if err != nil {
-		t.Fatalf("ParseInventory: %v", err)
-	}
-	for _, s := range sources {
-		bullet := fmt.Sprintf("- **%s** — %s Delegate to the `%s` agent.", s.Name, s.Description, s.Name)
-		if !strings.Contains(interior, bullet) {
-			t.Errorf("dispatch interior is missing the bullet for %s", s.Name)
+	// The roster is gone (change 0334): assert its removal by SHAPE — no line is
+	// a `- **docket-...` bullet and the delegation clause is absent — never by a
+	// spelling list. The compact routing rule carries its load-bearing phrases in
+	// the roster's place.
+	for _, line := range strings.Split(interior, "\n") {
+		if strings.HasPrefix(line, "- **docket-") {
+			t.Errorf("dispatch interior still carries a roster bullet: %q", line)
 		}
 	}
-	if got := strings.Count(interior, "\n- **docket-"); got != len(sources) {
-		t.Errorf("dispatch interior carries %d bullets for %d sources", got, len(sources))
+	if strings.Contains(interior, "Delegate to the") {
+		t.Errorf("dispatch interior still carries the roster delegation clause")
+	}
+	for _, phrase := range []string{
+		"registered same-name",
+		"authoritative for agent names, descriptions, and availability",
+		"do not invent one",
+	} {
+		if !strings.Contains(interior, phrase) {
+			t.Errorf("dispatch interior is missing the routing-rule phrase %q", phrase)
+		}
 	}
 	if !strings.HasPrefix(interior, "## Docket agents — dispatch, don't run inline\n") {
-		t.Errorf("dispatch interior does not open with the preamble heading: %.60q", interior)
+		t.Errorf("dispatch interior does not open with the heading: %.60q", interior)
 	}
 	if !strings.Contains(interior, "## Run gate — bracket a dispatched implement-next run with the gate facade") {
 		t.Errorf("dispatch interior does not carry the run-gate heading")
 	}
 
 	// The run-gate payload is passthrough, never re-authored.
+	in := fixtureInput(t)
 	runGate, err := in.Assets.Bytes("cursor-rules/run-gate.md")
 	if err != nil {
 		t.Fatalf("run-gate payload: %v", err)
@@ -545,8 +553,10 @@ func syntheticAgentCatalog(agentFiles map[string]string) assets.Catalog {
 	})
 }
 
-// Adding an agent source to the bundle must grow the plan by one agent file and
-// one dispatch bullet with no adapter edit — the inventory is the single roster.
+// Adding an agent source to the bundle must grow the plan by exactly one agent
+// file with no adapter edit. Since change 0334 the dispatch block no longer
+// restates the roster, so the added agent must NOT surface in the dispatch
+// interior — the harness's own registry, not this block, is the roster.
 func TestInventoryAdditionPropagates(t *testing.T) {
 	in := fixtureInput(t)
 	before := planFixture(t)
@@ -591,11 +601,13 @@ func TestInventoryAdditionPropagates(t *testing.T) {
 	if !found {
 		t.Errorf("the grown plan carries no agent file at %s", wantPath)
 	}
-	if strings.Count(afterInterior, "\n- **docket-") != strings.Count(beforeInterior, "\n- **docket-")+1 {
-		t.Errorf("the dispatch interior did not grow by exactly one bullet")
+	// The dispatch interior is inventory-independent now: adding an agent leaves
+	// it byte-for-byte unchanged and never leaks the added agent's name.
+	if afterInterior != beforeInterior {
+		t.Errorf("adding an agent changed the (now inventory-independent) dispatch interior")
 	}
-	if !strings.Contains(afterInterior, "- **docket-zzz-synthetic** — A synthetic seventeenth agent. Delegate to the `docket-zzz-synthetic` agent.") {
-		t.Errorf("the dispatch interior carries no bullet for the added agent")
+	if strings.Contains(afterInterior, "docket-zzz-synthetic") {
+		t.Errorf("the dispatch interior leaked the added agent name")
 	}
 }
 

@@ -1768,59 +1768,42 @@ write_dispatch_rule() {  # $1 = <root>/.<harness> base path
 }
 
 # Assemble the committed AGENTS.md docket dispatch block (markers included) to stdout.
-# Machine-neutral: agent names + delegation prose only, NO model IDs (pins live in each harness's
-# own generated agent definitions).
+# Machine-neutral: a compact routing rule + the run gate, NO model IDs and NO per-agent roster
+# (pins and agent inventory both live in each harness's own generated definitions and registry).
 #
 # This block is COMMITTED into consumer repos and checked by `--check`, so a false claim here ships
 # rather than merely displaying. It is SHARED by every harness in AGENTS_MD_DISPATCH_HARNESSES
 # (codex and opencode), so its prose names no harness's artifact path and no harness's model
-# vocabulary — a claim true for Codex only would be false in an opencode repo. The default store is
-# agents/harness-defaults.yml, whose blocks are complete for every shipped harness, so the head
-# states the pinned truth — and names that roster by interpolating HD_SHIPPED_HARNESSES, so a fifth
-# shipped harness cannot leave a stale hand-list behind. The dispatch is required either way — the
-# agent carries the skill's contract and preload, not just a model. Guarded, against the sidecar rather than a literal, in
+# vocabulary — a claim true for Codex only would be false in an opencode repo. Since change 0334 the
+# block no longer enumerates the agent roster or the shipped-harness list: it defers to the harness's
+# own agent registry, which stays true as agents or harnesses are added without a hand-list going
+# stale. Guarded, against the emitted block rather than a literal, in
 # tests/test_sync_agents_codex_dispatch.sh and tests/test_sync_agents_opencode.sh.
 assemble_agents_md_dispatch(){
   printf '%s\n' "$DISPATCH_START"
-  # The shipped-harness roster is DERIVED from HD_SHIPPED_HARNESSES, never hand-listed: this head is
-  # committed into consumer repos and --check-enforced, so a literal would ship a false claim the day
-  # a fifth harness starts shipping defaults. Rendered as the lowercase harness tokens themselves —
-  # a capitalized restatement alongside it would be exactly the literal this avoids. The heredoc is
-  # unquoted so this interpolates; its body carries no $, backtick, or backslash.
-  local shipped_list
-  shipped_list="$(printf '%s' "$HD_SHIPPED_HARNESSES" | sed 's/ /, /g')"
-  cat <<HEAD
+  # Change 0334 dropped the per-agent roster AND the interpolated shipped-harness list from this
+  # block: the compact rule below defers to the harness's own agent registry instead of restating
+  # it. Removing the list also retires the one deliberate Go/shell emitter variance — this mirror
+  # used to interpolate HD_SHIPPED_HARNESSES here where internal/harness/dispatch.go's
+  # dispatchPreamble stated the equivalent quantified claim, so the two generators emitted subtly
+  # different prose. With the list gone the two are now textually identical here (learnings:
+  # consolidation-flattens-caller-variance — the divergence was deliberate and is being retired, not
+  # overlooked). The heredoc is QUOTED (`<<'HEAD'`): the body now carries backticks (`docket-*`) and
+  # interpolates nothing, so a quoted delimiter keeps them literal and byte-identical to the Go emitter.
+  cat <<'HEAD'
 ## Docket agents — dispatch, don't run inline
 
-Docket generates an agent definition per docket skill in your harness's own agents directory. When
-you are asked to run one of the docket skills below, run the matching **agent** instead of executing
-the skill inline at the session model: the agent carries that skill's dispatch contract, its skill
-preload, and whatever model and reasoning effort your config layers pin for it. Docket ships a
-validated model and reasoning effort for every one of these agents on the harnesses it ships
-defaults for — $shipped_list — so they are pinned out of the box there; your
-config layers override either field per agent, and set them for any other harness. Dispatch through
-the hosting harness's native named-agent dispatch either way — the pin is not the only reason, since
-the agent also carries the skill's dispatch contract and preload. Pass the request through
-unchanged, including any change or ADR id.
+When a requested Docket workflow has a registered same-name `docket-*` agent, dispatch that agent
+instead of running the workflow inline: the agent carries that workflow's dispatch contract, its
+skill preload, and whatever model and reasoning effort your config layers pin for it. Your
+harness's native agent registry is authoritative for agent names, descriptions, and availability —
+this block does not restate it. If no same-name agent is registered, do not invent one; follow the
+workflow's own inline or unavailable-capability contract. Dispatch through the harness's native
+named-agent dispatch, and pass the request through unchanged, including any change or ADR id.
 HEAD
-  printf '\n'
-  # The roster follows its OWN head, and the gate comes after both. This is a markdown document
-  # with headings, so order is structure: with `## Run gate` spliced between the head and the
-  # bullets, the head's "run one of the docket skills below" pointed across an unrelated section and
-  # a reader sectioning the file read the agent roster as part of the gate (change 0242 review,
-  # finding 10). The Cursor assembler keeps the opposite order on purpose — there each agent
-  # fragment carries its own `## docket-<name>` heading, so the gate is not sitting on top of an
-  # unheaded list. The two surroundings genuinely differ; flattening them into one shared assembler
-  # is what caused an earlier finding on this branch.
-  local src name desc
-  for src in "$AGENTS_SRC"/docket-*.md; do
-    [ -e "$src" ] || continue
-    printf '%s\n' "$src"
-  done | LC_ALL=C sort | while IFS= read -r src; do
-    name="$(short_name "$src")"
-    desc="$(agent_description "$src")"
-    printf -- '- **docket-%s** — %s Delegate to the `docket-%s` agent.\n' "$name" "$desc" "$name"
-  done
+  # The compact rule precedes the run gate's `## Run gate` heading so the two sections read as
+  # siblings — order is structure in a headed markdown document. The block no longer restates the
+  # agent roster (change 0334); the harness's own registry, not this list, is the roster.
   printf '\n'
   assemble_run_gate
   printf '%s\n' "$DISPATCH_END"
