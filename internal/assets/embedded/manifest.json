@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:629e0508cf453a81cc0b46afc63fa62530563955bca63480dc4fd9770d67aacc",
+  "asset_set_id": "sha256:36fccacb9ffab8b821e24a5951d731a8643fa9706aea1b1d336a5d57c015f209",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -266,8 +266,8 @@
       "path": "cursor-rules/run-gate.md",
       "role": "dispatch",
       "mode": 420,
-      "size": 4276,
-      "sha256": "b2d0163ffb69edca09794de19d1093c3b1a0daed883ba7dd4a07b217cd507acf"
+      "size": 1793,
+      "sha256": "4b97f5408d7c7b83565ad56179576d33b642c8a5d6e60bed42db3693ccb6ab6a"
     },
     {
       "path": "skills/docket-adr/SKILL.md",
