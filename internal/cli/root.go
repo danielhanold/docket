@@ -272,17 +272,20 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 			harnesses, _ := c.Flags().GetStringArray("harness")
 			source, _ := c.Flags().GetString("source")
 			binDir, _ := c.Flags().GetString("bin-dir")
+			continuation, _ := c.Flags().GetBool("internal-continuation")
 			opts, refusal := installOptions(harnesses, info)
 			if refusal != nil {
 				result = refusal.result(app.OperationDevelopmentInstall)
 				return nil
 			}
 			result = app.RunDevelopmentInstall(install.DevOptions{
-				Options:    opts,
-				SourceRoot: source,
-				BinDir:     binDir,
-				GoRunner:   install.DefaultGoRunner,
-				GitRunner:  install.DefaultGitRunner,
+				Options:      opts,
+				SourceRoot:   source,
+				BinDir:       binDir,
+				GoRunner:     install.DefaultGoRunner,
+				GitRunner:    install.DefaultGitRunner,
+				Handoff:      install.DefaultHandoffRunner,
+				Continuation: continuation,
 			})
 			return nil
 		},
@@ -291,6 +294,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	developmentInstallCmd.Flags().String("bin-dir", "", "directory the built binary is installed into (default: XDG_BIN_HOME or ~/.local/bin)")
 	developmentInstallCmd.Flags().StringArray("harness", nil,
 		"harness to install into: claude, codex, cursor, or opencode (repeatable; default: detect)")
+	// The private continuation: the parent re-executes the candidate it just
+	// built with this flag so the candidate plans and applies rather than
+	// building yet another candidate. It is hidden because it is not a supported
+	// installation mode a person invokes.
+	developmentInstallCmd.Flags().Bool("internal-continuation", false, "internal; not a supported installation mode")
+	_ = developmentInstallCmd.Flags().MarkHidden("internal-continuation")
 	_ = developmentInstallCmd.MarkFlagRequired("source")
 
 	// The change command family is a thin adapter tree, like the commands above:
@@ -362,6 +371,15 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 		}
 		return p.PresentHumanError(res)
 	case result != nil:
+		// A development-install parent that handed off to its candidate has no
+		// document of its own: the candidate already wrote the one result to the
+		// shared stdout. Mirror the already-rendered-help path — present nothing
+		// and exit with the child's code — rather than printing a second document.
+		if ir, ok := result.(app.InstallResult); ok {
+			if code, relayed := ir.Relay(); relayed {
+				return code
+			}
+		}
 		return p.Present(result)
 	case helpRendered:
 		// Human help was rendered by Cobra on stdout; exit 0.
