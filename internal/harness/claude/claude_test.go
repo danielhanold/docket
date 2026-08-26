@@ -425,7 +425,7 @@ func TestClaudeDispatchGolden(t *testing.T) {
 	if !strings.HasPrefix(interior, "## Docket agents — dispatch, don't run inline\n") {
 		t.Errorf("dispatch interior does not open with the preamble heading: %.60q", interior)
 	}
-	if !strings.Contains(interior, "## Run gate — verify a dispatched implement-next run before you relay it") {
+	if !strings.Contains(interior, "## Run gate — bracket a dispatched implement-next run with the gate facade") {
 		t.Errorf("dispatch interior does not carry the run-gate heading")
 	}
 
