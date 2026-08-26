@@ -62,7 +62,32 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	verify.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
 	_ = verify.MarkFlagRequired("id")
 
-	runCmd.AddCommand(verify)
+	// gate-before arms the implement-next run gate: it re-syncs, records the
+	// before-set + dispatch epoch in a durable record, and prints `gate-armed
+	// <key>` (or `gate-unarmed <reason>`). The sole positional argument is the
+	// gate target; only `implement-next` is accepted, and any other value is an
+	// invalid-input result (non-zero exit) the app layer owns. It reuses the same
+	// read-only planning seams as verify.
+	gateBefore := &cobra.Command{
+		Use:   "gate-before <target>",
+		Short: "Arm the run gate for a dispatched workflow and print gate-armed <key>",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(c *cobra.Command, args []string) error {
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
+			deps, _, _, err := newPRDeps()
+			if err != nil {
+				return err
+			}
+			setResult(app.RunGateBefore(c.Context(), deps, repoDir, args[0]))
+			return nil
+		},
+	}
+	gateBefore.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+
+	runCmd.AddCommand(verify, gateBefore)
 	return runCmd
 }
 
