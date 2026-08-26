@@ -3,7 +3,7 @@ id: 351
 slug: complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard
 title: "Complete change 0334: stop writing global instruction files and actually deploy the recursion guard"
 status: 'in-progress'
-priority: high
+priority: critical
 type: fix
 created: 2026-08-26
 updated: '2026-08-26'
@@ -86,6 +86,17 @@ Verified against current reality before planning:
 - Parent change 0334 is `done` (merged); this change correctly completes its unshipped installer state. `discovered_from: [334]` and `related: [334, 294, 346]` remain accurate (294 is `killed`, 346 is `proposed` and correctly kept independent — not folded in, per the spec's non-goals).
 - Confirmed both defects still live in source: all four harness planners (e.g. `internal/harness/claude/claude.go`) still emit the `docket:dispatch` managed-block target under the harness's global `root`, and `internal/install/devmode.go` still has the currently-running binary plan and render the install (no fresh-binary candidate handoff). No `--repo-dir` flag, no repository `agent_harnesses` surface reconciliation, and no per-working-tree `<git-dir>/docket/install.json` ownership record exist yet.
 - Scope, out-of-scope, and design decisions in the spec are current; change 0349 (finalize-resolver cap) remains out of scope. No relation, section, or spec edits required — proceeding to plan against the change and spec as written.
+
+## Live repro & priority rationale (2026-08-26)
+
+Bumped to **critical** — this is a live regression, not cleanup. `docket-implement-next` (whether dispatched or run via `/docket-implement-next`) self-dispatches recursively ~3 levels deep until the nested-subagent limit is reached, so no non-trivial change can be built through the dispatch/slash path right now.
+
+Verified mechanism:
+
+- The wrapper Claude Code actually loads in a repo is the **project-level** `.claude/agents/docket-*.md`. On this machine all 17 were the pre-0334 **no-guard** copies (untracked, dated Aug 18), shadowing the guarded user-level `~/.claude/agents/` copies. Without the guard, a running `docket-implement-next` reads the `docket:dispatch` block (in both the global `~/.claude/CLAUDE.md` and the project `CLAUDE.md`) and re-dispatches itself — the recursion.
+- Local unblock applied while this change is pending: deleted the stale project-level `.claude/agents/docket-*.md` so the guarded user-level wrappers take effect (to be confirmed in a fresh session).
+
+Open question for implementation: `## Out of scope` excludes per-repository agent wrappers and guard-wording changes, and the spec keeps wrappers global — but the copies that shadow the guard are **project-level** wrappers. Confirm 351's install/cleanup actually removes or updates project-level `.claude/agents/` wrappers (or documents deleting them); otherwise the guard stays shadowed in-repo even after 351 deploys it globally.
 
 ## Run halted
 
