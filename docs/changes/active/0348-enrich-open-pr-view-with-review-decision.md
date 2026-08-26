@@ -21,7 +21,7 @@ branch: 'fix/enrich-open-pr-view-with-review-decision'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-26T11:22:15Z'
+claimed_at: '2026-08-26T11:22:51Z'
 ---
 
 ## Artifacts
