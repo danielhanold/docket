@@ -183,6 +183,13 @@ func renderAgent(s harness.AgentSource, model, effort string) ([]byte, error) {
 	}
 	b.WriteString("---\n")
 
+	// The self-recursion guard is its own paragraph, injected at one consistent
+	// position: immediately after the frontmatter, ahead of the body this
+	// renderer already emits. harness.RecursionGuard is the single shared emitter
+	// every adapter and sync-agents.sh use, so the paragraph is byte-identical
+	// across all four harnesses.
+	b.WriteString("\n" + harness.RecursionGuard(s.Name) + "\n\n")
+
 	body := s.Body
 	if body != "" && !strings.HasSuffix(body, "\n") {
 		body += "\n"

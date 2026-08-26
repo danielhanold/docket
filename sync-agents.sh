@@ -1199,6 +1199,25 @@ validate_runner_config() {
   return $rc
 }
 
+# --- the shared self-recursion guard paragraph -------------------------------
+# The byte-identical mirror of internal/harness.RecursionGuard: the self-recursion
+# guard every named emitter injects as its own paragraph between a wrapper's
+# frontmatter/heading and its body. It prohibits exactly one edge — docket-X
+# dispatching another docket-X for the assignment it already holds — and preserves
+# required dispatches to DIFFERENT agents. The name comes from the source inventory
+# the mirror already trusts (parse_wrapper_source / short_name), so it is only
+# shape-checked here: a name that is not a `docket-*` token would mean the inventory
+# minted an identity docket does not own, and interpolating it into every wrapper is
+# a run-aborting defect rather than something to paper over. printf's %s never
+# re-evaluates its argument, so the backticks and apostrophe below are literal data.
+recursion_guard(){  # $1=agent name -> the guard paragraph on stdout (no trailing newline)
+  case "$1" in
+    docket-*) : ;;
+    *) log "ERROR recursion_guard: refusing to interpolate the non-docket agent name '$1' into a wrapper guard"; exit 1 ;;
+  esac
+  printf 'You are already running as `%s`. Carry out this wrapper'\''s assigned charter directly. Do not dispatch another `%s` merely to perform the current assignment. Dispatches to different agents explicitly required by the active charter remain required.' "$1" "$1"
+}
+
 # --- emit a resolved wrapper to stdout ---------------------------------------
 # Model/effort are the FINAL resolved values (change 0168): agents/harness-defaults.yml, not the
 # source frontmatter, is the default store. This STRIPS any model:/effort: line the source still
@@ -1221,14 +1240,25 @@ validate_runner_config() {
 emit() {  # $1=src file  $2=model  $3=effort
   local m="$2" e="$3"
   [ "$e" = "auto" ] && e=""
-  awk -v model="$m" -v effort="$e" '
+  # The self-recursion guard paragraph, injected immediately after the closing
+  # frontmatter fence (the one consistent position the named emitters and the Go
+  # renderers share). The name is derived exactly as parse_wrapper_source does —
+  # the `name:` field, or the `docket-<short>` filename fallback — but this stays a
+  # stream transform: the name is computed here and passed in, not parsed inside awk.
+  local guard_name guard
+  guard_name="$(sed -n '/^name:/{s/^name:[[:space:]]*//;p;q;}' "$1")"
+  [ -n "$guard_name" ] || guard_name="docket-$(short_name "$1")"
+  guard="$(recursion_guard "$guard_name")"
+  awk -v model="$m" -v effort="$e" -v guard="$guard" '
     /^---[[:space:]]*$/ {
       d++
       if (d==1) { print; infm=1; next }
       if (d==2 && infm) {                             # closing fence: insert the resolved pair
         if (model!="")  print "model: " model
         if (effort!="") print "effort: " effort
-        infm=0; print; next
+        infm=0; print                                 # the closing fence
+        print ""; print guard; print ""              # the guard as its own paragraph
+        next
       }
       print; next
     }
@@ -1338,6 +1368,12 @@ ${body}"
   else
     dev="$body"
   fi
+  # The self-recursion guard is the first paragraph of the instructions — the one
+  # consistent position, immediately after the frontmatter/heading, ahead of the
+  # body (skills preamble included) this emitter already builds.
+  dev="$(recursion_guard "$name")
+
+${dev}"
   # Emit TOML.
   printf 'name = "%s"\n' "$(toml_escape_basic "$name")"
   printf 'description = "%s"\n' "$(toml_escape_basic "$desc")"
@@ -1406,6 +1442,10 @@ emit_cursor_md(){  # $1=src md  $2=model  $3=effort   (both FINAL resolved value
     log "WARN cursor/$name: effort '$effort' dropped — Cursor encodes effort inside the model value, and no model is resolved (either none is configured or it is the 'inherit' sentinel). Set an explicit model to pin effort on Cursor."
   fi
   printf -- '---\n\n'
+  # The self-recursion guard is its own paragraph immediately after the
+  # frontmatter, ahead of the skills preamble and body (the one consistent
+  # position the named emitters and the Go renderers share).
+  printf '%s\n\n' "$(recursion_guard "$name")"
   if [ -n "$skills_csv" ]; then
     printf 'Before acting, load these docket skills from your Cursor skills directory: %s.\n\n' "$skills_csv"
   fi
@@ -1464,6 +1504,11 @@ emit_opencode_md(){  # $1=src md  $2=model  $3=effort   (both FINAL resolved val
     log "WARN opencode/docket-$(short_name "$src"): effort '$effort' dropped — opencode carries effort as a provider model option, and no model is resolved (either none is configured or it is the 'inherit' sentinel). Set an explicit model to pin effort on opencode."
   fi
   printf -- '---\n\n'
+  # The self-recursion guard is its own paragraph immediately after the
+  # frontmatter, ahead of the skills preamble and body (the one consistent
+  # position the named emitters and the Go renderers share). opencode carries no
+  # name: field, so the guard names the agent via WSRC_NAME from parse_wrapper_source.
+  printf '%s\n\n' "$(recursion_guard "$WSRC_NAME")"
   if [ -n "$skills_csv" ]; then
     printf 'Before acting, load these docket skills from your opencode skills directory: %s.\n\n' "$skills_csv"
   fi

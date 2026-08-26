@@ -3,6 +3,9 @@ name: 'docket-finalize-change'
 description: 'Use when a change''s PR is approved or merged and you want to close it out to done promptly rather than waiting for the safety-net sweep — merging if approved, verifying the merge landed, archiving the change, cleaning up its branch and worktree, and refreshing the board. The human''s closing bookend; mirrors docket-new-change.'
 skills: ['docket-finalize-change', 'docket-convention']
 ---
+
+You are already running as `docket-finalize-change`. Carry out this wrapper's assigned charter directly. Do not dispatch another `docket-finalize-change` merely to perform the current assignment. Dispatches to different agents explicitly required by the active charter remain required.
+
 Execute docket-finalize-change to close out the change. Follow the skill exactly.
 
 You run autonomously with no human to pause and ask: treat any unmet precondition (PR not actually approved, merge conflict, dirty worktree) or blocking ambiguity as abort-and-report (stop and surface what blocked you), never an interactive prompt.

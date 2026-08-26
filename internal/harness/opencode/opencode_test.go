@@ -379,14 +379,21 @@ func TestOpencodeAgentMirrorsSource(t *testing.T) {
 		if !ok {
 			t.Fatalf("no rendered file for %s", s.Name)
 		}
+		// The self-recursion guard is the first paragraph after the frontmatter;
+		// the skills preamble, when present, follows it. Both anchors move down by
+		// the guard paragraph, so they are re-anchored on it here.
+		guard := harness.RecursionGuard(s.Name)
+		if !strings.Contains(content, "---\n\n"+guard+"\n\n") {
+			t.Errorf("%s does not carry the recursion guard right after its frontmatter", s.Name)
+		}
 		preamble := "Before acting, load these docket skills from your opencode skills directory: " +
 			strings.Join(s.Skills, ", ") + "."
 		if len(s.Skills) == 0 {
 			if strings.Contains(content, "Before acting, load these docket skills") {
 				t.Errorf("%s carries a skills preamble for an agent that preloads none", s.Name)
 			}
-		} else if !strings.Contains(content, "---\n\n"+preamble+"\n\n") {
-			t.Errorf("%s does not carry the skills preamble %q", s.Name, preamble)
+		} else if !strings.Contains(content, guard+"\n\n"+preamble+"\n\n") {
+			t.Errorf("%s does not carry the skills preamble %q after the guard", s.Name, preamble)
 		}
 		if !strings.Contains(content, strings.TrimRight(s.Body, "\n")) {
 			t.Errorf("%s does not carry its source body verbatim", s.Name)

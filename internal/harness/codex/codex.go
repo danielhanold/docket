@@ -170,6 +170,12 @@ func renderAgent(s harness.AgentSource, model, effort string) []byte {
 	if len(s.Skills) > 0 {
 		dev = fmt.Sprintf(skillsPreambleFormat, strings.Join(s.Skills, ", ")) + "\n\n" + body
 	}
+	// The self-recursion guard is the first paragraph of the instructions, at the
+	// one consistent position every renderer uses: immediately after the
+	// frontmatter/heading, ahead of the body (skills preamble included) this
+	// renderer already emits. harness.RecursionGuard is the shared emitter, so the
+	// paragraph is byte-identical across all four harnesses.
+	dev = harness.RecursionGuard(s.Name) + "\n\n" + dev
 	b.WriteString("developer_instructions = \"\"\"\n" + escapeMultiline(dev) + "\n\"\"\"\n")
 
 	return []byte(b.String())

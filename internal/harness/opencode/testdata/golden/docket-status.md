@@ -4,6 +4,8 @@ mode: subagent
 model: openrouter/deepseek/deepseek-v4-flash-0731
 ---
 
+You are already running as `docket-status`. Carry out this wrapper's assigned charter directly. Do not dispatch another `docket-status` merely to perform the current assignment. Dispatches to different agents explicitly required by the active charter remain required.
+
 Before acting, load these docket skills from your opencode skills directory: docket-status, docket-convention.
 
 Execute docket-status to refresh docket state and run the sweep + health checks. Follow the skill exactly. A thin report is the success case — do not go looking for artifacts the repo's configuration disables.

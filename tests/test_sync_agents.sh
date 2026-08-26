@@ -108,10 +108,15 @@ assert "all 17 wrappers land in .claude/agents" '[ "$(find "$SBX/.claude/agents"
 assert "does NOT create an absent harness (.cursor)" '[ ! -d "$SBX/.cursor/agents" ]'
 # Change 0168 replaced the byte-identity assert here: the generator now INJECTS the pin from
 # agents/harness-defaults.yml instead of copying the source's frontmatter, so byte identity is
-# structurally impossible. The mechanism this guarded — an unconfigured run reproduces the source
-# faithfully and adds nothing of its own — is asserted directly instead.
-assert "no override => body verbatim from the built-in source" \
-  'diff -q <(body_of "$REPO/agents/docket-status.md") <(body_of "$SBX/.claude/agents/docket-status.md") >/dev/null'
+# structurally impossible. Change 0334 added a second injection — the shared exact-name
+# self-recursion guard as the body's first paragraph — so the source body is now preserved
+# verbatim as the TAIL, with the guard the only body addition. Both halves are asserted so
+# dropping the guard OR corrupting the source body reddens.
+assert "no override => source body carried verbatim after the recursion guard" \
+  'case "$(body_of "$SBX/.claude/agents/docket-status.md")" in *"$(body_of "$REPO/agents/docket-status.md")") true;; *) false;; esac'
+assert "no override => carries the exact-name recursion guard for its own agent" \
+  'grep -q "You are already running as .docket-status." "$SBX/.claude/agents/docket-status.md" &&
+   grep -q "dispatch another .docket-status." "$SBX/.claude/agents/docket-status.md"'
 assert "no override => name/description/skills come from the source" \
   '[ "$(fm "$SBX/.claude/agents/docket-status.md" name)" = "docket-status" ] &&
    [ "$(fm "$SBX/.claude/agents/docket-status.md" description)" = "$(fm "$REPO/agents/docket-status.md" description)" ] &&

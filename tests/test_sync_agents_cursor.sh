@@ -104,8 +104,15 @@ assert "cursor: the four build profiles carry four DISTINCT models" \
 # behavior-only template and the generator INJECTS the pin from agents/harness-defaults.yml. The
 # mechanism this guarded — the emitter split changes NOTHING on the Claude side except that
 # injection — is asserted directly instead.
-assert "cursor split: claude wrapper body is verbatim from its source" \
-  'diff -q <(body_of "$REPO/agents/docket-status.md") <(body_of "$SBX/.claude/agents/docket-status.md") >/dev/null'
+# The Claude body now opens with the shared exact-name self-recursion guard paragraph
+# (change 0334), so it is no longer byte-identical to the source: the source body is
+# preserved verbatim as the TAIL, and the guard is the only addition. Both halves are
+# asserted so dropping the guard OR corrupting the body reddens.
+assert "cursor split: claude wrapper source body is carried verbatim after the recursion guard" \
+  'case "$(body_of "$SBX/.claude/agents/docket-status.md")" in *"$(body_of "$REPO/agents/docket-status.md")") true;; *) false;; esac'
+assert "cursor split: claude wrapper carries the exact-name recursion guard for its own agent" \
+  'grep -q "You are already running as .docket-status." "$SBX/.claude/agents/docket-status.md" &&
+   grep -q "dispatch another .docket-status." "$SBX/.claude/agents/docket-status.md"'
 assert "cursor split: claude wrapper name/description/skills come from the source" \
   '[ "$(fm "$SBX/.claude/agents/docket-status.md" name)" = "docket-status" ] &&
    [ "$(fm "$SBX/.claude/agents/docket-status.md" description)" = "$(fm "$REPO/agents/docket-status.md" description)" ] &&

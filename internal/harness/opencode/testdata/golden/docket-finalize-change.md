@@ -3,6 +3,8 @@ description: 'Use when a change''s PR is approved or merged and you want to clos
 mode: subagent
 ---
 
+You are already running as `docket-finalize-change`. Carry out this wrapper's assigned charter directly. Do not dispatch another `docket-finalize-change` merely to perform the current assignment. Dispatches to different agents explicitly required by the active charter remain required.
+
 Before acting, load these docket skills from your opencode skills directory: docket-finalize-change, docket-convention.
 
 Execute docket-finalize-change to close out the change. Follow the skill exactly.
