@@ -1540,7 +1540,7 @@ skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            130 1200
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          155 1550
-skills/docket-convention/SKILL.md                          385 7050
+skills/docket-convention/SKILL.md                          390 7150
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         205 2350
 skills/docket-convention/references/auto-capture.md        130 1250
@@ -1556,7 +1556,7 @@ skills/docket-implement-next/references/edge-paths.md       58  800
 skills/docket-implement-next/references/fix-loop.md        185 1900
 skills/docket-implement-next/results-template.md            25  250
 skills/docket-review/SKILL.md                              110  900
-skills/docket-new-change/SKILL.md                           61 1450
+skills/docket-new-change/SKILL.md                           61 1500
 skills/docket-new-change/change-template.md                 51  250
 skills/docket-status/SKILL.md                              126 2850
 "
@@ -1575,6 +1575,27 @@ skills/docket-status/SKILL.md                              126 2850
 #   docket-status/SKILL.md     118 ->  126 lines / 2650 -> 2850 words. Documents `docket maintenance
 #                              sweep` and the read/mutation split that keeps `docket status`
 #                              read-only.
+
+# Change 0343 (honor the recorded branch over the feat/ prefix) raised two budgets to pay for the
+# branch_prefix manifest field and the retargeted mint rule:
+#   docket-convention/SKILL.md 385/7050 -> 390/7150. The Change manifest field list gains a
+#   `branch_prefix:` row documented beside `branch:`, and the *Branch model* section's mint rule is
+#   restated as "<type>/<slug>, or <branch_prefix>/<slug> when the override is present; after claim
+#   the recorded branch: is the sole source of truth and is never reconstructed". The reference
+#   considered was references/stacked-changes.md, which already owns the branch-cut detail; it
+#   cannot host this because the per-field manifest documentation and the base mint rule are
+#   canonical in SKILL.md itself — a field documented only in a reference would not sit beside the
+#   other manifest fields an agent reads at claim time, and the mint rule is the top-level convention
+#   every operating skill keys on, not a stacked-changes exception. Set per the rounding rule from
+#   the measured actual: 386 lines -> 390, 7112 words -> 7150 (38 words of margin).
+#   docket-new-change/SKILL.md 61/1450 -> 61/1500 (words only). Step 4 gains the one instruction
+#   block for capturing branch_prefix from the human's natural-language request (normalize one
+#   trailing slash; refuse a slash-embedded/refs-qualified value). new-change has NO references/
+#   directory — only SKILL.md and change-template.md — so there is no reference file to host it, and
+#   change-template.md is an emitted artifact template, not human-facing instruction prose; the rule
+#   must intervene at the draft moment beside the other frontmatter-drafting instructions. Set per
+#   the rounding rule from the measured actual: 1464 words -> 1500 (36 words of margin). The LINE
+#   budget was not raised (57 actual, 61 budget).
 
 # Every tracked file is within budget.
 budgeted=""
