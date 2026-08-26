@@ -121,6 +121,13 @@ docket's five workflow steps are **pluggable roles**: the optional `skills:` map
 | finish | `superpowers:finishing-a-development-branch` | `docket-implement-next` §7; `docket-finalize-change` close-out | a pushed feature branch + open PR — never merged; stop |
 
 - **Passthrough.** A value is passed verbatim to the Skill tool — never validated against a registry (ADR-0015); any third-party or in-repo skill plugs in. Unknown *role keys* are warned-and-ignored.
+- **Role binding is a skill invocation.** A resolved `skills.<role>` value names a skill to
+  **invoke**, not a same-name agent to dispatch; any nested agent dispatch belongs to the
+  invoked skill's own contract, and the driver never infers or adds a topology from the role
+  noun or the configured skill name. A rejected attempt to dispatch a nonexistent same-name role
+  agent is the wrong operation — neither this section's missing-skill condition nor
+  *Dispatch-capability resolution*'s Tier-C evidence, which attaches only at a required nested
+  dispatch the invoked skill's contract actually reaches.
 - **`auto` sentinel.** No skill is invoked; the running agent does the step itself. The per-role fallback defines only the **final artifact / stop-point** (column 4) — never the method.
 - **Missing-skill rule — degrade to auto + warn** prominently (run output and, for plan/build/review/finish, the PR body) when the resolved skill cannot be invoked at runtime. Softer than abort-and-report because skill availability is per-machine, not repo state.
 - **Resolution** is deterministic via `docket-config.sh --export`, which emits `SKILL_BRAINSTORM`, `SKILL_PLAN`, `SKILL_BUILD`, `SKILL_REVIEW`, `SKILL_FINISH` (defaulted when unset); skill bodies read the variable, never re-parse YAML. `finalize.gate` still validates regardless of the resolved build method.
