@@ -225,7 +225,14 @@ func assembleDispatchRule(c assets.Catalog, sources []harness.AgentSource) ([]by
 func renderAgent(s harness.AgentSource, model, effort string) ([]byte, error) {
 	var b strings.Builder
 	b.WriteString("---\n")
-	b.WriteString("name: " + quoteYAML(s.Name) + "\n")
+	// name: is a bare scalar, not quoteYAML'd: Cursor builds its Task
+	// subagent_type enum from this field's raw token, quotes included, so a
+	// quoted name is rejected under its own unquoted spelling (ADR-0060).
+	// The name is a docket-authored docket-* identifier, not free text, so
+	// ADR-0071's always-quote rule does not reach it; as with the model line
+	// below, the round-trip check is what makes "bare" safe — a name that
+	// would not read back as itself is refused rather than shipped.
+	b.WriteString("name: " + s.Name + "\n")
 	b.WriteString("description: " + quoteYAML(s.Description) + "\n")
 	// Model and effort are opaque vendor scalars (ADR-0015): docket keeps no
 	// allowlist and passes whatever resolved through, bare. The round-trip

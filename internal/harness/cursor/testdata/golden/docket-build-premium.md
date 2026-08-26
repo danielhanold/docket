@@ -1,5 +1,5 @@
 ---
-name: 'docket-build-premium'
+name: docket-build-premium
 description: 'Premium build-profile worker for docket-build — implements one plan task carrying consequential but correctable risk under the docket-build-task contract; the tier for named risk, one rung below max.'
 ---
 

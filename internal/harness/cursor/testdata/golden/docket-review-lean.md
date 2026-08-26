@@ -1,5 +1,5 @@
 ---
-name: 'docket-review-lean'
+name: docket-review-lean
 description: 'Bounded read-only whole-branch reviewer for docket''s review role — reads the branch diff and the build-evidence record, returns severity-tiered findings, and never fixes, dispatches, or runs the test suite.'
 ---
 

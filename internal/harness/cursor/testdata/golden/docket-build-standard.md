@@ -1,5 +1,5 @@
 ---
-name: 'docket-build-standard'
+name: docket-build-standard
 description: 'Standard build-profile worker for docket-build — implements one normal feature, integration, refactor, or debugging plan task under the docket-build-task contract; docket-build''s default profile and its uncertainty sink.'
 model: gpt-5.5-cursor[effort=high]
 ---

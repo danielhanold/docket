@@ -1,5 +1,5 @@
 ---
-name: 'docket-rebase-resolver'
+name: docket-rebase-resolver
 description: 'Resolves rebase conflicts during finalize''s rebase-onto-base gate — reconciles each conflicted hunk by merge intent and returns a structured report; never runs Git rebase mechanics or tests.'
 ---
 
