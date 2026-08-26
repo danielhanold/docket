@@ -11,13 +11,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
 
-	"github.com/danielhanold/docket/internal/assets"
 	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/harness"
 	"github.com/danielhanold/docket/internal/install"
@@ -41,12 +39,6 @@ const (
 	roleSkill    = "skill"
 	roleAgent    = "agent"
 	roleDispatch = "dispatch"
-
-	// The authored dispatch payloads, matched by path below the dispatch
-	// asset root: a static head, one fragment per agent, and the run gate.
-	dispatchRoot     = "cursor-rules"
-	dispatchHeadPath = dispatchRoot + "/dispatch.head.md"
-	fragmentDir      = dispatchRoot + "/dispatch"
 
 	// skillsPreambleFormat is the sentence that tells a Cursor agent to
 	// preload its docket skills. It is spelled per harness rather than
@@ -146,69 +138,29 @@ func GlobalDispatchTarget(r install.UserRoots) install.Target {
 	}
 }
 
-// assembleDispatchRule concatenates the authored dispatch payloads: the static
-// head, every per-agent fragment in sorted order, then the run gate. Every
-// payload is opaque — it is Cursor-specific prose docket authors in the bundle
-// and never re-derives here, so the rule ships exactly what was reviewed.
-//
-// Each agent source must have a fragment and each fragment an agent source. A
-// missing fragment would ship a rule that leaves one agent silently
-// un-dispatched, which is precisely the failure the rule exists to prevent, so
-// it is an error rather than a generated stand-in.
-func assembleDispatchRule(c assets.Catalog, sources []harness.AgentSource) ([]byte, error) {
-	// Every payload is located through the manifest, never fetched by a
-	// hard-coded path alone: the manifest is what says the bundle carries it,
-	// and a byte reader that happens to answer for an unlisted path would let
-	// an incomplete bundle assemble a rule anyway.
-	fragments := map[string]bool{}
-	hasHead := false
-	for _, e := range c.EntriesByRole(assets.RoleDispatch) {
-		switch {
-		case e.Path == dispatchHeadPath:
-			hasHead = true
-		case path.Dir(e.Path) == fragmentDir:
-			fragments[path.Base(e.Path)] = true
-		}
-	}
-	if !hasHead {
-		return nil, fmt.Errorf("%w: the asset bundle carries no %s", ErrRender, dispatchHeadPath)
-	}
-	head, err := c.Bytes(dispatchHeadPath)
-	if err != nil {
-		return nil, fmt.Errorf("%w: reading %s: %w", ErrRender, dispatchHeadPath, err)
-	}
-	runGate, err := harness.RunGate(c)
-	if err != nil {
-		return nil, err
-	}
+// dispatchRuleFrontmatter is the always-apply Cursor rule header. Cursor reads a
+// `.mdc` rule's YAML frontmatter for its activation policy, so the header is
+// Cursor chrome and lives here rather than in harness.DispatchInterior (which is
+// the machine-neutral body every harness shares). `alwaysApply: true` keeps the
+// routing rule in context for every request against the repository. The
+// description is the reviewed wording the retired user-global rule carried; it
+// names no personal-global path, so it reads correctly as a repository rule.
+const dispatchRuleFrontmatter = "---\n" +
+	"description: Docket agents must be dispatched, never run inline. Cursor runs a directly-invoked skill at the current model and outside its wrapper, dropping the wrapper's model/effort pin where one is set and its skill preload and isolation always — so force a dispatch to the matching docket subagent.\n" +
+	"alwaysApply: true\n" +
+	"---\n\n"
 
-	var b strings.Builder
-	b.Write(head)
-	// Sources arrive in ParseInventory's ascending short-name order, which is
-	// the fragments' sorted order too: the fragment basename is the agent name
-	// and the agent name is the prefixed short name.
-	for _, s := range sources {
-		base := s.Name + ".md"
-		if !fragments[base] {
-			return nil, fmt.Errorf("%w: the asset bundle carries no dispatch fragment %s/%s for agent %s", ErrRender, fragmentDir, base, s.Name)
-		}
-		delete(fragments, base)
-		frag, err := c.Bytes(fragmentDir + "/" + base)
-		if err != nil {
-			return nil, fmt.Errorf("%w: reading dispatch fragment %s: %w", ErrRender, base, err)
-		}
-		b.WriteString("\n" + strings.TrimRight(string(frag), "\n") + "\n")
-	}
-	if len(fragments) != 0 {
-		orphans := make([]string, 0, len(fragments))
-		for name := range fragments {
-			orphans = append(orphans, name)
-		}
-		sort.Strings(orphans)
-		return nil, fmt.Errorf("%w: dispatch fragments with no agent source: %s", ErrRender, strings.Join(orphans, ", "))
-	}
-	b.WriteString("\n" + strings.TrimRight(string(runGate), "\n") + "\n")
-	return []byte(b.String()), nil
+// DispatchRuleContent renders the compact Cursor dispatch rule as a whole `.mdc`
+// file: the always-apply frontmatter above, then the shared machine-neutral
+// dispatch interior (heading, compact routing rule, run gate) verbatim from
+// harness.DispatchInterior. It emits NO per-agent definitions — a Cursor agent
+// resolves the named docket subagents through its own registry, exactly as the
+// compact rule instructs (change 0334) — so it needs only the run-gate payload,
+// not the asset catalog. It replaces the retired global rule's assembler: a
+// repository's `.cursor/rules`, not a personal global one, is where parent-facing
+// routing now lives (change 0351), and internal/reposeed is its only caller.
+func DispatchRuleContent(runGate []byte) []byte {
+	return []byte(dispatchRuleFrontmatter + harness.DispatchInterior(runGate))
 }
 
 // renderAgent maps one agent source onto a Cursor custom-agent document,
