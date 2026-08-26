@@ -87,7 +87,35 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	}
 	gateBefore.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
 
-	runCmd.AddCommand(verify, gateBefore)
+	// gate-verdict <key> reports the attributed run-gate verdict: it loads the
+	// durable record armed by gate-before, attributes exactly one new in-progress
+	// claim, delegates the run predicate to app.RunVerify, and prints one line of
+	// the attributed vocabulary (gate-done / gate-retry-once / gate-stop …). It
+	// wires the SAME read-only planning + workspace + GitHub seams as verify,
+	// including the best-effort local run-waiting receipt reader, because the run
+	// predicate it delegates to is verify's. Every outcome is a report line that
+	// exits 0; the key is the sole positional argument.
+	gateVerdict := &cobra.Command{
+		Use:   "gate-verdict <key>",
+		Short: "Report the attributed run-gate verdict for a dispatched workflow",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(c *cobra.Command, args []string) error {
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
+			deps, wdeps, gdeps, err := newPRDeps()
+			if err != nil {
+				return err
+			}
+			wdeps.Waiting = newWaitingReader(c.Context(), repoDir)
+			setResult(app.RunGateVerdict(c.Context(), deps, wdeps, gdeps, repoDir, args[0]))
+			return nil
+		},
+	}
+	gateVerdict.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+
+	runCmd.AddCommand(verify, gateBefore, gateVerdict)
 	return runCmd
 }
 
