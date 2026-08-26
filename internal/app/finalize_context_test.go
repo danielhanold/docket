@@ -17,8 +17,16 @@ import (
 // finalizeBlob builds a change record in finalize's population: a chosen status,
 // a canonical PR reference, and any extra frontmatter (e.g. stacked_on).
 func finalizeBlob(id int, slug, status, priority, prRef, extra string) StatusBlob {
-	fm := fmt.Sprintf("---\nid: %d\nslug: %s\ntitle: Change %d\nstatus: %s\npriority: %s\ntype: feat\ncreated: 2026-01-02\npr: %q\n%s---\n\nBody of %d.\n",
-		id, slug, id, status, priority, prRef, extra, id)
+	// A post-claim record carries the branch stamped once at claim time; every
+	// finalize-population status is post-claim, so the recorded branch is what
+	// each operation consumes (a still-proposed fixture stays branchless).
+	branchField := ""
+	switch status {
+	case "in-progress", "blocked", "implemented", "done", "stacked-merged":
+		branchField = fmt.Sprintf("branch: feat/%s\n", slug)
+	}
+	fm := fmt.Sprintf("---\nid: %d\nslug: %s\ntitle: Change %d\nstatus: %s\npriority: %s\ntype: feat\ncreated: 2026-01-02\npr: %q\n%s%s---\n\nBody of %d.\n",
+		id, slug, id, status, priority, prRef, branchField, extra, id)
 	return StatusBlob{
 		Kind:     repository.KindChange,
 		Location: repository.LocationActive,
@@ -122,6 +130,45 @@ func TestContextFinalizeSelection(t *testing.T) {
 // TestContextFinalizeExplicitID: an explicit id inspects exactly that record even
 // when skip-reasoned — an unapproved open PR surfaces as a candidate carrying the
 // approval-required skip and an override note — while an absent id is refused.
+// TestContextFinalizeReportBranchFromRecord proves the candidate report echoes
+// the branch RECORDED at claim time — a non-derived name is surfaced verbatim,
+// and a record that carries no branch reports the empty string rather than a
+// fabricated feat/<slug> (this report only describes; it invents no identity).
+func TestContextFinalizeReportBranchFromRecord(t *testing.T) {
+	pin := docketPin(t)
+	named := finalizeBlob(41, "one", "implemented", "high", prRefFor(41), "")
+	named.Data = []byte(strings.Replace(string(named.Data), "branch: feat/one\n", "branch: feature/renamed-head\n", 1))
+	branchless := finalizeBlob(42, "two", "implemented", "low", prRefFor(42), "")
+	branchless.Data = []byte(strings.Replace(string(branchless.Data), "branch: feat/two\n", "", 1))
+	corpus := []StatusBlob{named, branchless}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
+		prRefFor(41): openFacts(41, "MERGEABLE", 1, 5),
+		prRefFor(42): openFacts(42, "MERGEABLE", 1, 5),
+	}}
+	fake := &fakeReader{pin: pin, corpus: corpus}
+
+	got := ContextFinalize(context.Background(), finalizeDeps(fake, prober, &recordingEngine{}), "", FinalizeContextRequest{})
+	if got.Result != ResultApplied {
+		t.Fatalf("result=%q reason=%q", got.Result, got.Reason)
+	}
+	byID := make(map[int]FinalizeCandidateReport, len(got.Candidates))
+	for _, c := range got.Candidates {
+		byID[c.ID] = c
+	}
+	if _, ok := byID[41]; !ok {
+		t.Fatalf("candidate 41 not surfaced: %v", candidateIDs(got.Candidates))
+	}
+	if _, ok := byID[42]; !ok {
+		t.Fatalf("candidate 42 not surfaced: %v", candidateIDs(got.Candidates))
+	}
+	if byID[41].Branch != "feature/renamed-head" {
+		t.Errorf("recorded branch not echoed: Branch = %q, want feature/renamed-head", byID[41].Branch)
+	}
+	if byID[42].Branch != "" {
+		t.Errorf("branchless record: Branch = %q, want the empty string (no fabricated feat/<slug>)", byID[42].Branch)
+	}
+}
+
 func TestContextFinalizeExplicitID(t *testing.T) {
 	pin := docketPin(t)
 	corpus := []StatusBlob{

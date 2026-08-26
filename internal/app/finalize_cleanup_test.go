@@ -303,9 +303,43 @@ func TestFinalizeCleanupBranchDeletion(t *testing.T) {
 	})
 }
 
+// TestFinalizeCleanupChildRemoteBranchIdentity proves the remote-ref open-child
+// probe addresses each child by ITS OWN recorded branch, never a slug-derived
+// name: an open child PR on a NON-DERIVED recorded head that still targets the
+// parent branch retains the remote and reports children-retarget-required. Were
+// the probe to query the slug-derived feat/child instead, it would find no PR
+// and wrongly delete the remote — so the retention proves the recorded head.
+func TestFinalizeCleanupChildRemoteBranchIdentity(t *testing.T) {
+	requireRealGit(t)
+	f := setupCloseoutFixture(t, planRepoModeDocket())
+	head, mergeCommit := f.archiveClosed(t)
+	gh := f.mergedCleanupFake(head, mergeCommit)
+	// The live open child PR sits on a non-derived recorded head and still targets
+	// the parent's feature branch.
+	gh.openByHead["feature/child-head"] = []githubcli.PullRequest{{
+		Number: 99, State: githubcli.StateOpen, HeadBranch: "feature/child-head", BaseBranch: "feat/" + f.slug,
+	}}
+	f.seedStackChildBranch(t, 6, "child", "feature/child-head")
+
+	res := FinalizeCleanup(context.Background(), f.cleanupDeps(gh, f.deps.Client, f.svc), f.repo.invocation, f.id)
+	if res.Disposition != CleanupDispChildrenRetargetRequired {
+		t.Fatalf("an open child on its recorded head must report children-retarget-required, got %q (%s)", res.Disposition, res.Message)
+	}
+	if !f.remoteBranchPresent(t) {
+		t.Fatalf("an open child on its recorded head must retain the parent remote branch")
+	}
+}
+
 // seedStackChild adds a child record stacked on the fixture change to the
 // metadata ref so StackChildren sees it.
 func (f *closeoutFixture) seedStackChild(t *testing.T, id int, slug string) {
+	t.Helper()
+	f.seedStackChildBranch(t, id, slug, "")
+}
+
+// seedStackChildBranch is seedStackChild with an optional non-derived recorded
+// branch override (empty keeps the claim-minted feat/<slug>).
+func (f *closeoutFixture) seedStackChildBranch(t *testing.T, id int, slug, branch string) {
 	t.Helper()
 	// Advance the metadata branch to origin first: closeout has already pushed the
 	// archive commit, so the writer clone's local branch is behind and a plain
@@ -315,6 +349,9 @@ func (f *closeoutFixture) seedStackChild(t *testing.T, id int, slug string) {
 	runGit(t, f.repo.writer, "reset", "-q", "--hard", "origin/"+f.branch)
 	rec := lifecycleChange(id, slug, "in-progress")
 	rec = strings.Replace(rec, "stacked_on:\n", "stacked_on: "+itoa(f.id)+"\n", 1)
+	if branch != "" {
+		rec = strings.Replace(rec, "branch: feat/"+slug+"\n", "branch: "+branch+"\n", 1)
+	}
 	writeRepoFile(t, f.repo.writer, groomPath(id, slug), rec)
 	runGit(t, f.repo.writer, "add", "-A")
 	runGit(t, f.repo.writer, "commit", "-q", "-m", "seed child")

@@ -252,7 +252,14 @@ func finalizeCleanupDone(ctx context.Context, deps FinalizeDeps, cc *closeoutCon
 			"the verified merge destination is not the integration branch; cleanup preserves the resources", id)
 	}
 
-	featureBranch := domain.BranchForSlug(cc.change.Slug())
+	// Delete the change's own feature ref by its RECORDED branch, never a
+	// slug-derived name. A record with no usable branch fails closed before any ref
+	// deletion — the branches are retained.
+	featureBranch, berr := recordedBranch(cc.change)
+	if berr != nil {
+		return cleanupRefusal(ResultInvalidState, CleanupDispPending, berr.Error(),
+			"the change's recorded feature branch is unusable; the branches are retained", id)
+	}
 	featureRef := gitcli.RefName(branchRefPrefix + featureBranch)
 	git := cleanupGit(deps)
 
@@ -567,7 +574,14 @@ func finalizeCleanupRemoteRef(ctx context.Context, deps FinalizeDeps, git Finali
 		if ok != domain.LookupFound {
 			continue
 		}
-		childHead := domain.BranchForSlug(child.Slug())
+		// Probe the child by ITS OWN recorded branch (spec: "Stack parent and child
+		// operations use each record's branch independently"), never a slug-derived
+		// name. A child whose branch is unusable retains the remote ref, no delete.
+		childHead, berr := recordedBranch(child)
+		if berr != nil {
+			w := cleanupWarning(berr.Error(), "a stack child's recorded feature branch is unusable; the remote ref is retained")
+			return false, "", false, &w
+		}
 		prs, err := deps.GitHub.FindOpenPullRequestsByHead(ctx, ghRepo, childHead)
 		if err != nil {
 			w := cleanupWarning(ReasonCleanupChildProbe, "an open-child probe could not be answered; the remote ref is retained")
@@ -616,7 +630,15 @@ func finalizeCleanupAbortedRebase(ctx context.Context, deps FinalizeDeps, cc *cl
 	if deps.Workspace == nil {
 		return CleanupOpResult{}, false
 	}
-	featureRef := gitcli.RefName(branchRefPrefix + domain.BranchForSlug(cc.change.Slug()))
+	// Locate the owned scratch by the change's RECORDED branch, never a
+	// slug-derived name. A record with no usable branch fails closed — the owned
+	// scratch is retained.
+	featureBranch, berr := recordedBranch(cc.change)
+	if berr != nil {
+		return cleanupRefusal(ResultInvalidState, CleanupDispPending, berr.Error(),
+			"the change's recorded feature branch is unusable; the owned scratch is retained", id), true
+	}
+	featureRef := gitcli.RefName(branchRefPrefix + featureBranch)
 	metaDir := workspace.MetaDir(cc.repo.CommonDir, featureRef)
 
 	rec, present, err := deps.Workspace.ReadRebaseReceipt(ctx, metaDir)
