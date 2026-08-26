@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'fix/unquote-cursor-agent-wrapper-names'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-26T21:06:37Z'
+reconciled: true
+claimed_at: '2026-08-26T21:08:45Z'
 ---
 
 ## Artifacts
@@ -50,3 +50,9 @@ Emit Cursor wrapper `name:` as a bare scalar (`name: docket-implement-next`), no
 - Changing `quoteYAML` for descriptions or other free-text fields.
 - A Cursor product fix for not unquoting YAML scalars (workaround is still to emit what the harness consumes).
 - Broader ADR-0071 revisiting for mint-stub / change-file writers.
+
+## Reconcile log
+
+### 2026-08-26
+
+Reconciled against current source. `internal/harness/cursor/cursor.go` still unconditionally single-quotes the wrapper `name:` via `quoteYAML(s.Name)` on the `name:` line of `renderAgent`, exactly as described; `quoteYAML`'s comment still frames quoting as being for free text docket did not author. All 18 Cursor goldens under `internal/harness/cursor/testdata/golden/` open with `name: '<name>'`, and `cursor_test.go` asserts `HasPrefix(content, "---\nname: '"+name+"'\n")`. Scope holds unchanged: emit `name:` as a bare scalar, keep `description:` quoted, regenerate the goldens, and relax the test assert. ADR-0060 (wrapper must match the target harness's contract) and ADR-0071 (always-quote free text) remain the governing decisions. No rescope; still trivial.
