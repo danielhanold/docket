@@ -2,7 +2,7 @@
 id: 353
 slug: 'dispatched-docket-implement-next-subagent-cannot-reach-agent'
 title: 'Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4'
-status: 'proposed'
+status: 'killed'
 priority: 'critical'
 type: 'fix'
 created: '2026-08-26'
@@ -54,3 +54,7 @@ Design decision needed (needs brainstorm). Candidate directions:
 - The duplicate `## Run halted` heading defect in the halt-report authoring path (observed on 0351: the child's request body repeats the `## Run halted` H2 that the `docket change halt` transaction already wraps, which additionally wedges `docket change resume-halted` via `ApplySectionEdits`' duplicate-owned-heading guard). Real and adjacent, but a DISTINCT bug — not folded into this change; capture it separately.
 - Actually changing plan-writer's runtime-passthrough design is a solution candidate to evaluate during brainstorm, not a committed outcome here.
 - The run-gate attribution machinery (`gate-before`/`gate-verdict`) behaved correctly on 0351 and is not in scope.
+
+## Why killed
+
+Misdiagnosis. This stub claimed docket structurally cannot dispatch its agent-only workers (plan-writer/build/review), halting every non-trivial change. That is false for the real invocation path: docket's autonomous skills carry `context: fork` + `agent:` frontmatter, so the intended invocation (a slash command / the Skill tool, and the autonomous loop) FORKS the session and retains the Agent/Task tool, which dispatches the workers fine (a prior `/docket-implement-next` run built change 251 end-to-end). The 0351 halt was caused by invoking docket-implement-next through the raw Agent/Task tool as a named subagent (an operator tool-choice error), which spawns a tool-stripped subagent. The one genuinely real defect uncovered on 0351 — the duplicate `## Run halted` heading in the halt-report authoring path — is re-captured as a focused stub. Superseded by that stub; see it and change 0351.

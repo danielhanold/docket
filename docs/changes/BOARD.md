@@ -1,6 +1,6 @@
 # Backlog
 
-**353 changes** — 🟢 1 in progress · 🟡 51 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 215 done · 🗑️ 81 killed
+**353 changes** — 🟢 1 in progress · 🟡 50 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 215 done · 🗑️ 82 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0351](active/0351-complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard.md) | Complete change 0334: stop writing global instruction files and actually deploy the recursion guard | `high` | `fix` | [spec](../superpowers/specs/2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding-design.md) | `fix/complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard` |
 
-## 🟡 Proposed (51)
+## 🟡 Proposed (50)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -62,7 +62,6 @@
 | [0349](active/0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | `medium` | `feat` | needs-brainstorm |
 | [0350](active/0350-surface-the-swallowed-validation-failure-behind-a-bare-inter.md) | Surface the swallowed validation failure behind a bare internal-error in the transaction engine | `medium` | `fix` | needs-brainstorm |
 | [0352](active/0352-native-repository-initialization-and-health-check.md) | Native repository initialization and health check | `high` | `feat` | needs-brainstorm |
-| [0353](active/0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | `critical` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -138,7 +137,6 @@ graph TD
   0350
   0351
   0352
-  0353
   0192:::done
   0211:::done
   0251:::done
@@ -147,10 +145,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (296)</summary>
+<details><summary>✅🗑️ Archive — done + killed (297)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0353](archive/2026-08-26-0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | 2026-08-26 |
 | [0348](archive/2026-08-26-0348-enrich-open-pr-view-with-review-decision.md) | Enrich the exact-PR view with reviewDecision so open-PR snapshots populate Approved | 2026-08-26 |
 | [0347](archive/2026-08-26-0347-honor-recorded-branch-over-feat-prefix.md) | Honor recorded branch names instead of reconstructing feat/<slug> | 2026-08-26 |
 | [0334](archive/2026-08-26-0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | Make Docket dispatch minimal, non-recursive, and mechanically gated | 2026-08-26 |
