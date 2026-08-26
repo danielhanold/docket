@@ -2,11 +2,11 @@
 id: 347
 slug: honor-recorded-branch-over-feat-prefix
 title: Honor recorded branch names instead of reconstructing feat/<slug>
-status: 'in-progress'
+status: 'implemented'
 priority: medium
 type: fix
 created: 2026-08-25
-updated: '2026-08-25'
+updated: '2026-08-26'
 depends_on: []
 related: [316, 327, 336, 344]
 discovered_from: []
@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable:
 branch: 'feat/honor-recorded-branch-over-feat-prefix'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/238'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-25T23:56:52Z'

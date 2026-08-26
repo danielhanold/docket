@@ -1,13 +1,12 @@
 # Backlog
 
-**347 changes** — 🟢 2 in progress · 🟡 47 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 212 done · 🗑️ 81 killed
+**347 changes** — 🟢 1 in progress · 🟡 47 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 212 done · 🗑️ 81 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0334](active/0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | Make Docket dispatch minimal, non-recursive, and mechanically gated | `high` | `fix` | [spec](../superpowers/specs/2026-08-25-consolidate-dispatch-block-subagent-guard-design.md) | `feat/claude-md-global-and-project-copies-out-of-sync-on-finalize-a` |
-| [0347](active/0347-honor-recorded-branch-over-feat-prefix.md) | Honor recorded branch names instead of reconstructing feat/<slug> | `medium` | `fix` | [spec](../superpowers/specs/2026-08-25-recorded-branch-identity-design.md) | `feat/honor-recorded-branch-over-feat-prefix` |
 
 ## 🟡 Proposed (47)
 
@@ -70,11 +69,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [#226](https://github.com/danielhanold/docket/pull/226) |  |
+| [0347](active/0347-honor-recorded-branch-over-feat-prefix.md) | Honor recorded branch names instead of reconstructing feat/<slug> | `medium` | `fix` | [#238](https://github.com/danielhanold/docket/pull/238) |  |
 
 ```mermaid
 graph TD
