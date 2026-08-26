@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'fix/treat-empty-review-decision-as-no-decision'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-26T23:14:11Z'
+reconciled: true
+claimed_at: '2026-08-26T23:16:40Z'
 ---
 
 ## Artifacts
@@ -79,3 +79,7 @@ Once merged and rebuilt, re-run `docket-finalize-change 356`.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-26
+
+2026-08-26: Reconciled against origin/main. Verified the defect is still present: `normalizeReviewDecision` in `internal/githubcli/pr.go` returns `false,nil` only for a nil pointer, and a non-nil pointer to "" falls through to `default` → `errEnum`. Scope, ADR-0097 link, and related changes (347/348 done, 356 implemented) remain accurate. No scope change; proceeding as a trivial one-function fix plus regression test complementing the existing `TestViewPullRequestUnknownReviewDecisionFailsClosed`.
