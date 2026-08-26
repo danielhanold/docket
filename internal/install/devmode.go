@@ -218,7 +218,7 @@ func DevelopmentInstall(o DevOptions) Outcome {
 		assetProtocol: manifest.AssetProtocol,
 		sourceRoot:    source,
 		sourceDigest:  digest,
-	}, out)
+	}, nil, out)
 }
 
 // generateSourceCatalog reads a checkout's authored roots and returns the

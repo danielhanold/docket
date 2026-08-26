@@ -304,6 +304,35 @@ func actionPaths(out install.Outcome) []string {
 	return paths
 }
 
+// Every install and development install now names the repository no-op: with no
+// repository phase wired yet (the app layer supplies it in Task 10), that is the
+// fixed "repository reconciliation not authorized" keep action. A test that
+// counts or scans MACHINE work filters it out; a no-op run is exactly this one
+// action, so its presence is asserted on its own where it matters.
+func isRepoNotAuthorized(a install.Action) bool {
+	return a.Op == install.OpKeep && strings.Contains(a.Detail, "repository reconciliation not authorized")
+}
+
+func machineActions(out install.Outcome) []install.Action {
+	kept := make([]install.Action, 0, len(out.Actions))
+	for _, a := range out.Actions {
+		if isRepoNotAuthorized(a) {
+			continue
+		}
+		kept = append(kept, a)
+	}
+	return kept
+}
+
+func hasRepoNotAuthorized(out install.Outcome) bool {
+	for _, a := range out.Actions {
+		if isRepoNotAuthorized(a) {
+			return true
+		}
+	}
+	return false
+}
+
 func hasAction(out install.Outcome, op, path string) bool {
 	_, ok := findAction(out, op, path)
 	return ok
@@ -400,8 +429,13 @@ func TestInstallFreshApplies(t *testing.T) {
 	if state.AgentDigest != o.AgentDigest || state.ProductVersion != "test" {
 		t.Errorf("state identity = %q/%q", state.AgentDigest, state.ProductVersion)
 	}
-	if len(state.Targets) != len(out.Actions) {
-		t.Errorf("state records %d targets, outcome reported %d actions", len(state.Targets), len(out.Actions))
+	if machine := machineActions(out); len(state.Targets) != len(machine) {
+		t.Errorf("state records %d targets, outcome reported %d machine actions", len(state.Targets), len(machine))
+	}
+	// The repository no-op is named even on a fresh machine-only install: with no
+	// opt-in wired, the outcome says so rather than implying it.
+	if !hasRepoNotAuthorized(out) {
+		t.Errorf("fresh install did not name the repository no-op: %v", out.Actions)
 	}
 	for _, rec := range state.Targets {
 		if rec.Harness == "" {
@@ -416,8 +450,13 @@ func TestInstallFreshApplies(t *testing.T) {
 	if again.Err != nil {
 		t.Fatalf("second Install: %v", again.Err)
 	}
-	if again.Applied || len(again.Actions) != 0 || again.Reason != "" {
+	if again.Applied || len(machineActions(again)) != 0 || again.Reason != "" {
 		t.Fatalf("second Install did work: applied=%v reason=%q actions=%v", again.Applied, again.Reason, actionPaths(again))
+	}
+	// A no-op run still names the repository no-op — that is the one action it
+	// legitimately carries.
+	if !hasRepoNotAuthorized(again) {
+		t.Errorf("no-op install did not name the repository no-op: %v", again.Actions)
 	}
 	assertUnchanged(t, before, snapshot(t, w.home), "second install")
 }
@@ -588,7 +627,7 @@ func TestInstallGlobalPinChangeTouchesOnlyAgents(t *testing.T) {
 	if !out.Applied {
 		t.Fatalf("a changed pin produced no work")
 	}
-	for _, a := range out.Actions {
+	for _, a := range machineActions(out) {
 		if !strings.Contains(a.Path, string(filepath.Separator)+"agents"+string(filepath.Separator)) {
 			t.Errorf("a pin change touched %s (%s)", a.Path, a.Op)
 		}
@@ -908,7 +947,7 @@ func TestRepoLayerNeverLoaded(t *testing.T) {
 	if out.Err != nil {
 		t.Fatalf("second Install: %v (reason %q)", out.Err, out.Reason)
 	}
-	if out.Applied || len(out.Actions) != 0 {
+	if out.Applied || len(machineActions(out)) != 0 {
 		t.Fatalf("a repo-local .docket.yml changed the installation: %v", actionPaths(out))
 	}
 	assertUnchanged(t, before, snapshot(t, w.home), "repo-local config")
