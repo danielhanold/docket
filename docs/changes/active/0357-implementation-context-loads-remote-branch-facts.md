@@ -21,7 +21,7 @@ branch: 'fix/implementation-context-loads-remote-branch-facts'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-26T22:11:24Z'
+claimed_at: '2026-08-26T22:12:11Z'
 ---
 
 ## Artifacts
