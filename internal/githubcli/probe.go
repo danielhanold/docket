@@ -24,7 +24,9 @@ const probeOp = "probe-pull-requests"
 // ViewPullRequest reads ONE pull request by repository identity and exact
 // positive number, returning the full normalized snapshot (state — open,
 // closed, or merged — head branch, head object id, base branch, version). It
-// reuses decodePullRequest: one JSON interpretation, never a second. --repo is
+// reuses decodePullRequest: one JSON interpretation, never a second. It alone
+// requests reviewDecision (prViewJSONFields), so the snapshot's Approved
+// reflects GitHub's review decision. --repo is
 // always explicit so a caller's CWD or GH_REPO cannot retarget the query. A
 // transport failure, a non-zero exit, or a decode hazard is a returned typed
 // *Failure — never a zero-value PR read as truth, and never "absent"
@@ -41,7 +43,7 @@ func (c *Client) ViewPullRequest(ctx context.Context, repo Repository, number in
 		args: []string{
 			"pr", "view", strconv.Itoa(number),
 			"--repo", repo.Spec(),
-			"--json", prJSONFields,
+			"--json", prViewJSONFields,
 		},
 		network: true,
 	})

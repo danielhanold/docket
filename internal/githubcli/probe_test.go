@@ -2,6 +2,9 @@ package githubcli
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -92,6 +95,9 @@ func TestViewPullRequestByNumber(t *testing.T) {
 	if pr.HeadBranch != "feature/renamed-head" {
 		t.Errorf("HeadBranch = %q, want %q", pr.HeadBranch, "feature/renamed-head")
 	}
+	if pr.Approved {
+		t.Errorf("Approved = true for a view response with no reviewDecision field; absent must read false")
+	}
 }
 
 // TestViewPullRequestMergedState: a MERGED PR decodes to StateMerged with no
@@ -167,5 +173,144 @@ func TestFindOpenPullRequestsByHeadRejectsBadInput(t *testing.T) {
 	}
 	if recs := log.records(t); len(recs) != 0 {
 		t.Errorf("a rejected probe issued %d gh invocations, want 0", len(recs))
+	}
+}
+
+// strPtr returns a pointer to s, for nullable fixture fields.
+func strPtr(s string) *string { return &s }
+
+// probePRJSONWithDecision renders one PR view object in gh's nested shape with
+// an explicit reviewDecision: a string value, or JSON null when decision is nil.
+// ensPRJSON deliberately stays decision-free — it feeds the standard-field
+// list/create/edit tests, whose absent-field decode this change must preserve.
+func probePRJSONWithDecision(number int, state string, decision *string) string {
+	m := map[string]any{
+		"number":      number,
+		"url":         fmt.Sprintf("https://github.com/acme/widget/pull/%d", number),
+		"state":       state,
+		"isDraft":     false,
+		"headRefName": ensHead,
+		"headRefOid":  ensHeadOid,
+		"baseRefName": ensBase,
+		"title":       ensTitle,
+		"body":        ensBody,
+	}
+	if decision == nil {
+		m["reviewDecision"] = nil
+	} else {
+		m["reviewDecision"] = *decision
+	}
+	b, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
+}
+
+// TestViewPullRequestRequestsReviewDecision pins the exact --json field set the
+// exact-number view sends, as ONE LITERAL STRING. Matching against the
+// prViewJSONFields constant instead would stay green if the constant silently
+// lost the field (defaulted-param-hides-caller-wiring); the fake answers only a
+// matching argv, so a view that requests anything else errors here.
+func TestViewPullRequestRequestsReviewDecision(t *testing.T) {
+	doc := probePRJSONWithDecision(7, "OPEN", strPtr("APPROVED"))
+	c, _ := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
+		{ArgvPrefix: []string{"pr", "view", "7", "--repo", ensRepoSpec, "--json",
+			"number,url,state,isDraft,headRefName,headRefOid,baseRefName,title,body,reviewDecision"}, Stdout: doc, Exit: 0},
+	}})
+	pr, err := c.ViewPullRequest(context.Background(), probeRepo(), 7)
+	if err != nil {
+		t.Fatalf("ViewPullRequest: %v", err)
+	}
+	if !pr.Approved {
+		t.Errorf("Approved = false, want true for reviewDecision APPROVED")
+	}
+}
+
+// TestViewPullRequestReviewDecisionMapping: the strict mapping — only APPROVED
+// is true; REVIEW_REQUIRED, CHANGES_REQUESTED, and JSON null are false.
+func TestViewPullRequestReviewDecisionMapping(t *testing.T) {
+	cases := []struct {
+		name     string
+		decision *string
+		want     bool
+	}{
+		{"approved", strPtr("APPROVED"), true},
+		{"review-required", strPtr("REVIEW_REQUIRED"), false},
+		{"changes-requested", strPtr("CHANGES_REQUESTED"), false},
+		{"null", nil, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			doc := probePRJSONWithDecision(7, "OPEN", tc.decision)
+			c, _ := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
+				{ArgvPrefix: []string{"pr", "view", "7"}, Stdout: doc, Exit: 0},
+			}})
+			pr, err := c.ViewPullRequest(context.Background(), probeRepo(), 7)
+			if err != nil {
+				t.Fatalf("ViewPullRequest: %v", err)
+			}
+			if pr.Approved != tc.want {
+				t.Errorf("Approved = %v, want %v", pr.Approved, tc.want)
+			}
+		})
+	}
+}
+
+// TestViewPullRequestUnknownReviewDecisionFailsClosed: unknown non-null
+// vocabulary is invalid external state — a typed invalid-state Failure and the
+// zero PR, never a silently chosen boolean.
+func TestViewPullRequestUnknownReviewDecisionFailsClosed(t *testing.T) {
+	doc := probePRJSONWithDecision(7, "OPEN", strPtr("DISMISSED"))
+	c, _ := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
+		{ArgvPrefix: []string{"pr", "view", "7"}, Stdout: doc, Exit: 0},
+	}})
+	pr, err := c.ViewPullRequest(context.Background(), probeRepo(), 7)
+	if err == nil {
+		t.Fatalf("unknown reviewDecision decoded cleanly; want typed invalid-state failure")
+	}
+	f, ok := AsFailure(err)
+	if !ok {
+		t.Fatalf("error is not a typed *Failure: %v", err)
+	}
+	if f.Kind != KindInvalidState {
+		t.Errorf("Kind = %v, want KindInvalidState", f.Kind)
+	}
+	if pr != (PullRequest{}) {
+		t.Errorf("returned PR is not the zero value alongside the error")
+	}
+}
+
+// TestVersionExcludesReviewDecision: the write-CAS token must not depend on
+// review state — the same PR yields one token whether it arrived approved via
+// the exact view or decision-free via a standard read. The Approved inequality
+// assert keeps the fixture honest: if both documents decoded to the same
+// Approved, equal versions would prove nothing.
+func TestVersionExcludesReviewDecision(t *testing.T) {
+	approved, err := decodePullRequest("probe", []byte(probePRJSONWithDecision(7, "OPEN", strPtr("APPROVED"))))
+	if err != nil {
+		t.Fatalf("decode approved: %v", err)
+	}
+	plain, err := decodePullRequest("probe", []byte(probePRJSONWithDecision(7, "OPEN", nil)))
+	if err != nil {
+		t.Fatalf("decode plain: %v", err)
+	}
+	if approved.Approved == plain.Approved {
+		t.Fatalf("fixture vacuous: both documents decode to Approved=%v", approved.Approved)
+	}
+	if approved.Version != plain.Version {
+		t.Errorf("Version differs on review state alone:\n approved %s\n plain    %s", approved.Version, plain.Version)
+	}
+}
+
+// TestStandardFieldSetExcludesReviewDecision: only the exact-number view widens.
+// The standard list/create/edit set must not gain review state, and the view
+// set must be exactly the standard set plus reviewDecision.
+func TestStandardFieldSetExcludesReviewDecision(t *testing.T) {
+	if strings.Contains(prJSONFields, "reviewDecision") {
+		t.Fatalf("prJSONFields gained reviewDecision; only ViewPullRequest requests review state")
+	}
+	if prViewJSONFields != prJSONFields+",reviewDecision" {
+		t.Fatalf("prViewJSONFields = %q, want prJSONFields+%q", prViewJSONFields, ",reviewDecision")
 	}
 }

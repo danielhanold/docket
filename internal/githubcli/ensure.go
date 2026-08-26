@@ -50,6 +50,12 @@ const ensureOp = "ensure-pull-request"
 // prViewJSON), never a flattened fake-only shape.
 const prJSONFields = "number,url,state,isDraft,headRefName,headRefOid,baseRefName,title,body"
 
+// prViewJSONFields is the exact-number view's field set: the standard
+// prJSONFields plus GitHub's nullable reviewDecision. Only ViewPullRequest
+// requests review state — the list/create/edit paths keep the standard set, so
+// their snapshots and write-CAS versions are untouched by review activity.
+const prViewJSONFields = prJSONFields + ",reviewDecision"
+
 // EnsureDisposition is the closed set of idempotent publication outcomes.
 type EnsureDisposition string
 

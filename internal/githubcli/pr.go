@@ -32,6 +32,7 @@ type PullRequest struct {
 	BaseBranch string
 	Title      string
 	Body       string
+	Approved   bool   // reviewDecision == APPROVED on an enriched exact view; always false from standard-field reads
 	Version    string // "sha256:" + 64 hex over the exact mutable snapshot
 }
 
@@ -50,6 +51,10 @@ type prViewJSON struct {
 	BaseRefName string  `json:"baseRefName"`
 	Title       string  `json:"title"`
 	Body        string  `json:"body"`
+	// ReviewDecision is requested only by the exact-number view
+	// (prViewJSONFields). Absent (standard field set) and JSON null (no
+	// decision yet) are both nil and both map to unapproved.
+	ReviewDecision *string `json:"reviewDecision"`
 }
 
 // decodePullRequest decodes ONE PR object from gh's JSON and validates every
@@ -105,6 +110,10 @@ func (raw prViewJSON) toPullRequest(op string) (PullRequest, error) {
 	if err != nil {
 		return PullRequest{}, newFailure(op, StageDecode, KindInvalidState, err.Error(), err)
 	}
+	approved, err := normalizeReviewDecision(raw.ReviewDecision)
+	if err != nil {
+		return PullRequest{}, newFailure(op, StageDecode, KindInvalidState, err.Error(), err)
+	}
 	pr := PullRequest{
 		Number:     raw.Number,
 		URL:        raw.URL,
@@ -115,6 +124,7 @@ func (raw prViewJSON) toPullRequest(op string) (PullRequest, error) {
 		BaseBranch: raw.BaseRefName,
 		Title:      raw.Title,
 		Body:       raw.Body,
+		Approved:   approved,
 	}
 	pr.Version = computeVersion(pr)
 	return pr, nil
@@ -135,6 +145,25 @@ func normalizeState(raw *string) (State, error) {
 		return StateMerged, nil
 	default:
 		return "", errEnum("unrecognized pull-request state enum")
+	}
+}
+
+// normalizeReviewDecision maps GitHub's nullable reviewDecision enum to the
+// Approved boolean. Only APPROVED is an affirmative decision; REVIEW_REQUIRED,
+// CHANGES_REQUESTED, and null/absent are false — null never becomes true merely
+// because a repository has no required-review rule. Unknown non-null vocabulary
+// is invalid external state and is rejected, never folded into either outcome.
+func normalizeReviewDecision(raw *string) (bool, error) {
+	if raw == nil {
+		return false, nil
+	}
+	switch *raw {
+	case "APPROVED":
+		return true, nil
+	case "REVIEW_REQUIRED", "CHANGES_REQUESTED":
+		return false, nil
+	default:
+		return false, errEnum("unrecognized pull-request reviewDecision enum")
 	}
 }
 
@@ -165,6 +194,12 @@ func validateFullObjectID(id string) error {
 // endian length so no rearrangement of field boundaries — e.g. Title="ab",
 // Body="c" versus Title="a", Body="bc" — can collide. It contains no body bytes,
 // only their digest.
+//
+// Approved is deliberately excluded too: review state is view-only, read-only
+// gate evidence — the standard list/create/edit snapshots never request it, and
+// including it would give the same PR incompatible tokens depending on which
+// read shape produced the snapshot. Finalize reloads review state directly
+// before effects rather than authorizing a review mutation through this token.
 func computeVersion(pr PullRequest) string {
 	fields := []string{
 		strconv.Itoa(pr.Number),
