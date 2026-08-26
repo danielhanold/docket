@@ -66,11 +66,11 @@ type ReclaimVerdict struct {
 
 // EvaluateReclaim reports whether c's claim may be reclaimed. Three conjuncts
 // must all hold: the record is in-progress, its lease is strictly expired, and
-// neither the branch it recorded nor the conventional feat/<slug> branch exists
-// among the supplied facts. A live branch is unfinished work whoever left it,
-// so it blocks the reclaim independently of the lease age — BlockingBranch is
-// populated even for a fresh lease, naming the recorded branch in preference to
-// the conventional one.
+// neither the branch it recorded nor the branch a fresh claim would mint from
+// type/branch_prefix/slug exists among the supplied facts. A live branch is
+// unfinished work whoever left it, so it blocks the reclaim independently of the
+// lease age — BlockingBranch is populated even for a fresh lease, naming the
+// recorded branch in preference to the mint candidate.
 func EvaluateReclaim(c Change, now time.Time, ttlHours int, facts BranchFacts) ReclaimVerdict {
 	lease := EvaluateLease(c, now, ttlHours)
 	blocking := blockingBranch(c, facts)
@@ -89,8 +89,8 @@ func blockingBranch(c Change, facts BranchFacts) string {
 			return recorded.Value
 		}
 	}
-	if conventional := BranchForSlug(c.Slug()); facts.HasBranch(conventional) {
-		return conventional
+	if minted := MintBranch(c.Type(), c.BranchPrefix(), c.Slug()); facts.HasBranch(minted) {
+		return minted
 	}
 	return ""
 }

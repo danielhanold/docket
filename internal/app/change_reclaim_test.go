@@ -156,6 +156,23 @@ func TestReclaimRequiresProvenAbsence(t *testing.T) {
 				assertOriginRecordUnchanged(t, repo.origin, m.branch, recPath, before)
 			})
 
+			// the fresh-mint candidate is <type>/<slug>, not the fixed feat/
+			// prefix: a type-fix change probes fix/<slug> alongside its recorded
+			// name. Here the recorded feat/widget is absent, so the block can only
+			// come from the minted fix/widget candidate.
+			t.Run("mint-candidate-probes-type", func(t *testing.T) {
+				rec := strings.Replace(lifecycleChange(3, "widget", "in-progress"), "type: feat", "type: fix", 1)
+				repo := m.build(t, map[string]string{recPath: rec})
+				node := planningDepsFor(t, repo.invocation)
+				runGit(t, repo.invocation, "branch", "fix/widget")
+				ver := blobVersionAt(t, repo.origin, m.branch, recPath)
+				before, _ := originFile(t, repo.origin, m.branch, recPath)
+				res := ChangeReclaim(context.Background(), node.deps, reclaimClearWorkspace, node.dir,
+					ChangeReclaimRequest{ID: 3, Version: ver})
+				assertReclaimSkipped(t, res, ReasonReclaimBranchPresent)
+				assertOriginRecordUnchanged(t, repo.origin, m.branch, recPath, before)
+			})
+
 			// branch present remotely (local absent).
 			t.Run("remote-branch-present", func(t *testing.T) {
 				repo := m.build(t, map[string]string{recPath: lifecycleChange(3, "widget", "in-progress")})
