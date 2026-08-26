@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0334 — Make Docket dispatch minimal, non-recursive, and mechanically gated](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md)**
+> ↩ **[Change 0334 — Make Docket dispatch minimal, non-recursive, and mechanically gated](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-26-0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md)**
 <!-- docket:backlink:end -->
 # Minimal, Non-Recursive, Mechanically Gated Dispatch — Implementation Plan (change 0334)
 
