@@ -38,6 +38,13 @@ type InstallResult struct {
 	Actions       []install.Action `json:"actions"`
 	Reason        string           `json:"reason,omitempty"`
 	Message       string           `json:"message,omitempty"`
+	// RepoDir and RepoHarnesses report the repository this run reconciled and the
+	// opted-in harnesses whose surfaces it touched, so a scoped or default
+	// repository run is visible rather than inferred from changed files (change
+	// 0351). Both are empty for a machine-only run; the not-authorized action
+	// already names an unreconciled repository.
+	RepoDir       string   `json:"repo_dir,omitempty"`
+	RepoHarnesses []string `json:"repo_harnesses,omitempty"`
 
 	// relayed marks a development-install parent result whose candidate already
 	// printed the sole document to the shared stdout. It is unexported so it
@@ -63,17 +70,43 @@ const (
 
 // RunInstall performs a release installation.
 func RunInstall(o install.Options) InstallResult {
-	return NewInstallResult(OperationInstall, install.Install(o))
+	return withRepoReporting(NewInstallResult(OperationInstall, install.Install(o)), o.RepoPhase)
 }
 
-// RunInstallCheck reports on the installation without writing anything.
+// RunInstallCheck reports on the installation without writing anything. Check is
+// a user-level, machine-only operation, so it carries no repository reporting.
 func RunInstallCheck(o install.Options) InstallResult {
 	return NewInstallResult(OperationInstallCheck, install.Check(o))
 }
 
 // RunDevelopmentInstall installs from a contributor's checkout.
 func RunDevelopmentInstall(o install.DevOptions) InstallResult {
-	return NewInstallResult(OperationDevelopmentInstall, install.DevelopmentInstall(o))
+	return withRepoReporting(NewInstallResult(OperationDevelopmentInstall, install.DevelopmentInstall(o)), o.RepoPhase)
+}
+
+// withRepoReporting stamps the scope-visibility fields from the reconciled
+// repository phase: the selected working tree and the sorted opt-in harnesses
+// whose surfaces were reconciled. An unauthorized or nil phase leaves both empty
+// — the outcome's not-authorized action already names an unreconciled repository
+// — so the two lines appear only when a repository was actually acted on.
+func withRepoReporting(r InstallResult, phase *install.RepoPhase) InstallResult {
+	if phase == nil || !phase.Authorized {
+		return r
+	}
+	r.RepoDir = phase.Worktree
+	seen := map[string]bool{}
+	var harnesses []string
+	for _, owners := range phase.Owners {
+		for _, h := range owners {
+			if !seen[h] {
+				seen[h] = true
+				harnesses = append(harnesses, h)
+			}
+		}
+	}
+	sort.Strings(harnesses)
+	r.RepoHarnesses = harnesses
+	return r
 }
 
 // NewInstallResult renders one service outcome as a protocol document. It is
@@ -148,6 +181,7 @@ func classifyInstall(out install.Outcome) Result {
 	case install.ReasonUnknownHarness,
 		install.ReasonInvalidOptions,
 		install.ReasonInvalidSourceRoot,
+		install.ReasonInvalidRepoDir,
 		ReasonInvalidConfig:
 		return ResultInvalidInput
 
@@ -193,6 +227,12 @@ func (r InstallResult) HumanText() string {
 	}
 	if r.StatePath != "" {
 		fmt.Fprintf(&b, "state: %s\n", r.StatePath)
+	}
+	if r.RepoDir != "" {
+		fmt.Fprintf(&b, "repository: %s\n", r.RepoDir)
+	}
+	if len(r.RepoHarnesses) > 0 {
+		fmt.Fprintf(&b, "repository harnesses: %s\n", strings.Join(r.RepoHarnesses, ", "))
 	}
 	if r.Reason != "" {
 		fmt.Fprintf(&b, "reason: %s\n", r.Reason)

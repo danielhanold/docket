@@ -64,6 +64,18 @@ type Options struct {
 	// AgentDigest identifies the resolved agent settings the plan was rendered
 	// from. The caller computes it, because the caller owns the table.
 	AgentDigest string
+	// HarnessOptIns are the repository's explicit parent-facing opt-in harnesses
+	// (change 0351). They widen the DEFAULT machine selection — detection ∪
+	// opt-ins — so a newly opted-in harness receives its global wrappers even when
+	// it is not otherwise present, but only when Harnesses is empty: an explicit
+	// --harness scope is authoritative and consults nothing here. The caller
+	// resolves them from the repository configuration layer.
+	HarnessOptIns []string
+	// RepoPhase is the repository half of the plan the app layer assembled from
+	// the opted-in surfaces (change 0351). It is nil for a machine-only run and
+	// carries Authorized==false when no repository opt-in licenses a write; either
+	// way applyPlan touches no repository destination. Check never consumes it.
+	RepoPhase *RepoPhase
 }
 
 // Action is one thing an operation did, or would have to do.
@@ -119,6 +131,11 @@ const (
 	ReasonStateInvalid     = "installed-state-invalid"
 	ReasonFilesystemFailed = "filesystem-failed"
 	ReasonInternal         = "internal-error"
+	// ReasonInvalidRepoDir is an explicit --repo-dir that is absent, not a Git
+	// working tree, or otherwise unresolvable. It is a caller-side defect like an
+	// unknown harness, so it classifies as invalid input — spelled apart from the
+	// generic invalid-options so the message can name the repository selection.
+	ReasonInvalidRepoDir = "invalid-repo-dir"
 )
 
 var (
@@ -194,7 +211,7 @@ func Install(o Options) Outcome {
 			assets.ErrManifestInvalid, o.Catalog.Manifest.AssetProtocol, assets.AssetProtocol))
 	}
 
-	selected, err := selectPlanners(o.Planners, o.Harnesses, o.Roots)
+	selected, err := selectPlanners(o.Planners, o.Harnesses, o.HarnessOptIns, o.Roots)
 	if err != nil {
 		return fail(out, selectionReason(err), err)
 	}
@@ -236,7 +253,7 @@ func Install(o Options) Outcome {
 		owner:         owner,
 		assetSetID:    o.Catalog.Manifest.AssetSetID,
 		assetProtocol: o.Catalog.Manifest.AssetProtocol,
-	}, nil, out)
+	}, o.RepoPhase, out)
 }
 
 // Check reports whether the installation on disk is still the one this binary
@@ -922,10 +939,13 @@ func globalDispatchTargets(planners []Planner, harnesses []string, roots UserRoo
 }
 
 // selectPlanners resolves the harnesses this run acts on: the explicit names
-// when the caller gave any, else whatever detection finds. Explicit selection
-// never consults detection — installing into a harness whose directory does not
-// exist yet is exactly what an explicit flag is for.
-func selectPlanners(planners []Planner, explicit []string, roots UserRoots) ([]Planner, error) {
+// when the caller gave any, else detection widened by the repository's opt-ins.
+// Explicit selection never consults detection OR the opt-ins — installing into a
+// harness whose directory does not exist yet is exactly what an explicit flag is
+// for, and an explicit scope is authoritative (change 0351). Without a flag, the
+// default set is detection ∪ optIns, so a harness a repository newly opted into
+// receives its global wrappers even when it is not otherwise present.
+func selectPlanners(planners []Planner, explicit, optIns []string, roots UserRoots) ([]Planner, error) {
 	known := make(map[string]bool, len(planners))
 	for _, p := range planners {
 		if p.Name == "" || p.Plan == nil {
@@ -949,18 +969,28 @@ func selectPlanners(planners []Planner, explicit []string, roots UserRoots) ([]P
 		return selected, nil
 	}
 
-	var selected []Planner
+	chosen := make(map[string]bool, len(planners))
 	for _, p := range planners {
 		if p.Detect == nil {
 			continue
 		}
 		if present, _ := p.Detect(roots); present {
-			selected = append(selected, p)
+			chosen[p.Name] = true
 		}
 	}
-	if len(selected) == 0 {
+	// The repository's opt-ins join detection. A token that names no planner is a
+	// caller-side defect the configuration layer already rejected, so a stray one
+	// here is a wiring bug rather than user error.
+	for _, name := range optIns {
+		if !known[name] {
+			return nil, fmt.Errorf("%w: repository opted into unknown harness %q", ErrInvalidInput, name)
+		}
+		chosen[name] = true
+	}
+	if len(chosen) == 0 {
 		return nil, ErrNoHarness
 	}
+	selected, _ := plannersFor(planners, keysOf(chosen))
 	return selected, nil
 }
 

@@ -229,7 +229,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
 			harnesses, _ := c.Flags().GetStringArray("harness")
-			opts, refusal := installOptions(harnesses, info)
+			repoDir, _ := c.Flags().GetString("repo-dir")
+			opts, refusal := installOptions(c.Context(), harnesses, repoDir, true, info)
 			if refusal != nil {
 				result = refusal.result(app.OperationInstall)
 				return nil
@@ -240,13 +241,15 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	}
 	installCmd.Flags().StringArray("harness", nil,
 		"harness to install into: claude, codex, cursor, or opencode (repeatable; default: detect)")
+	installCmd.Flags().String("repo-dir", "",
+		"repository whose parent-facing dispatch surfaces are reconciled; default: the Git worktree containing the current directory; outside Git, machine-only")
 
 	installCheckCmd := &cobra.Command{
 		Use:   "check",
 		Short: "Report whether this machine's installation is current (writes nothing)",
 		Args:  cobra.NoArgs,
-		RunE: func(_ *cobra.Command, _ []string) error {
-			opts, refusal := installOptions(nil, info)
+		RunE: func(c *cobra.Command, _ []string) error {
+			opts, refusal := installOptions(c.Context(), nil, "", false, info)
 			if refusal != nil {
 				result = refusal.result(app.OperationInstallCheck)
 				return nil
@@ -272,8 +275,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 			harnesses, _ := c.Flags().GetStringArray("harness")
 			source, _ := c.Flags().GetString("source")
 			binDir, _ := c.Flags().GetString("bin-dir")
+			repoDir, _ := c.Flags().GetString("repo-dir")
 			continuation, _ := c.Flags().GetBool("internal-continuation")
-			opts, refusal := installOptions(harnesses, info)
+			opts, refusal := installOptions(c.Context(), harnesses, repoDir, true, info)
 			if refusal != nil {
 				result = refusal.result(app.OperationDevelopmentInstall)
 				return nil
@@ -282,6 +286,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 				Options:      opts,
 				SourceRoot:   source,
 				BinDir:       binDir,
+				RepoDir:      repoDir,
 				GoRunner:     install.DefaultGoRunner,
 				GitRunner:    install.DefaultGitRunner,
 				Handoff:      install.DefaultHandoffRunner,
@@ -291,6 +296,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 		},
 	}
 	developmentInstallCmd.Flags().String("source", "", "docket checkout to install from (required)")
+	developmentInstallCmd.Flags().String("repo-dir", "",
+		"repository whose parent-facing dispatch surfaces are reconciled; default: the Git worktree containing the current directory; outside Git, machine-only")
 	developmentInstallCmd.Flags().String("bin-dir", "", "directory the built binary is installed into (default: XDG_BIN_HOME or ~/.local/bin)")
 	developmentInstallCmd.Flags().StringArray("harness", nil,
 		"harness to install into: claude, codex, cursor, or opencode (repeatable; default: detect)")
