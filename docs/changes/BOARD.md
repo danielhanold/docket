@@ -64,7 +64,7 @@
 | [0350](active/0350-surface-the-swallowed-validation-failure-behind-a-bare-inter.md) | Surface the swallowed validation failure behind a bare internal-error in the transaction engine | `medium` | `fix` | needs-brainstorm |
 | [0352](active/0352-native-repository-initialization-and-health-check.md) | Native repository initialization and health check | `high` | `feat` | needs-brainstorm |
 | [0354](active/0354-halt-report-authoring-writes-a-duplicate-run-halted-heading.md) | Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted | `high` | `fix` | needs-brainstorm |
-| [0355](active/0355-build-review-roles-are-skill-invoked-that-fan-out-to-profile.md) | Build/review roles are skill-invoked that fan out to profile agents — Step 5 'dispatch' vocabulary invites an agent-not-found misfire | `medium` | `fix` | needs-brainstorm |
+| [0355](active/0355-build-review-roles-are-skill-invoked-that-fan-out-to-profile.md) | Build/review roles are skill-invoked that fan out to profile agents — Step 5 'dispatch' vocabulary invites an agent-not-found misfire | `medium` | `fix` | build-ready |
 | [0357](active/0357-implementation-context-loads-remote-branch-facts.md) | Implementation context must load remote branch facts before judging stack base | `high` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
