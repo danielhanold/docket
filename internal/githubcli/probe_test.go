@@ -257,6 +257,26 @@ func TestViewPullRequestReviewDecisionMapping(t *testing.T) {
 	}
 }
 
+// TestViewPullRequestEmptyReviewDecisionIsNoDecision: GitHub returns
+// reviewDecision "" — an empty string, not JSON null — for a repository whose
+// branch protection requires a PR but zero approvals. Empty string means the
+// same thing as null: no required-review decision, so Approved is false and
+// decode succeeds. Complements TestViewPullRequestUnknownReviewDecisionFailsClosed,
+// which keeps genuinely unknown non-empty vocabulary failing closed.
+func TestViewPullRequestEmptyReviewDecisionIsNoDecision(t *testing.T) {
+	doc := probePRJSONWithDecision(7, "OPEN", strPtr(""))
+	c, _ := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
+		{ArgvPrefix: []string{"pr", "view", "7"}, Stdout: doc, Exit: 0},
+	}})
+	pr, err := c.ViewPullRequest(context.Background(), probeRepo(), 7)
+	if err != nil {
+		t.Fatalf("empty-string reviewDecision errored; want no-decision success: %v", err)
+	}
+	if pr.Approved {
+		t.Errorf("Approved = true, want false for empty-string reviewDecision")
+	}
+}
+
 // TestViewPullRequestUnknownReviewDecisionFailsClosed: unknown non-null
 // vocabulary is invalid external state — a typed invalid-state Failure and the
 // zero PR, never a silently chosen boolean.

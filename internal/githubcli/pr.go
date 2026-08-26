@@ -151,10 +151,13 @@ func normalizeState(raw *string) (State, error) {
 // normalizeReviewDecision maps GitHub's nullable reviewDecision enum to the
 // Approved boolean. Only APPROVED is an affirmative decision; REVIEW_REQUIRED,
 // CHANGES_REQUESTED, and null/absent are false — null never becomes true merely
-// because a repository has no required-review rule. Unknown non-null vocabulary
-// is invalid external state and is rejected, never folded into either outcome.
+// because a repository has no required-review rule. GitHub also reports "no
+// decision" as an empty STRING (not JSON null) when branch protection requires
+// a PR but zero approvals, so empty string is equally no-decision, never an
+// invalid enum. Unknown non-empty vocabulary is invalid external state and is
+// rejected, never folded into either outcome.
 func normalizeReviewDecision(raw *string) (bool, error) {
-	if raw == nil {
+	if raw == nil || *raw == "" {
 		return false, nil
 	}
 	switch *raw {
