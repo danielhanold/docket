@@ -122,10 +122,19 @@ type journalStep struct {
 }
 
 // journal is the on-disk plan.json.
+//
+// Docs are the ownership documents the commit publishes — the machine state and,
+// when a repository was reconciled, its per-worktree record. They are not target
+// steps: Apply never touches them (they are written last, at commit, as the act
+// that publishes the transaction), but their pre-images ARE journaled — captured
+// and referenced by plan.json before the first document is published — so a
+// commit interrupted between two documents, or a synchronous publish failure,
+// rolls BOTH documents and every target back to the same side of the operation.
 type journal struct {
 	FormatVersion int           `json:"format_version"`
 	TxnID         string        `json:"txn_id"`
 	Steps         []journalStep `json:"steps"`
+	Docs          []journalStep `json:"docs,omitempty"`
 }
 
 type txnPhase int
@@ -534,22 +543,156 @@ func (t *Txn) Rollback() error {
 	return nil
 }
 
-// Commit publishes the installation record and only then removes the journal.
-// The order is the recovery contract: until state/install.json is on disk the
+// Commit publishes the single machine state document and removes the journal. It
+// is the thin one-document wrapper over CommitDocs: an installation with no
+// repository phase publishes exactly this one record, so the old caller keeps its
+// old shape while the multi-document machinery underneath stays one path.
+func (t *Txn) Commit(statePath string, s *State) error {
+	if s == nil {
+		return errors.New("install: Commit requires a state")
+	}
+	data, err := encodeState(s)
+	if err != nil {
+		return err
+	}
+	return t.CommitDocs([]StateDoc{{Path: statePath, Bytes: data}})
+}
+
+// CommitDocs publishes every ownership document the operation produced — the
+// machine state, and the repository record when a repository was reconciled — as
+// the act that finalises the transaction, and only then removes the journal. The
+// order is the recovery contract: until the documents are on disk the
 // transaction is unpublished, and an unpublished transaction is one a later run
 // must be able to find and undo.
-func (t *Txn) Commit(statePath string, s *State) error {
+//
+// The documents are journaled before any of them is published (see
+// commitDocsApply), so the two failure modes are covered symmetrically. A
+// synchronous publish failure rolls the whole transaction back — every published
+// document AND every applied target — before returning, so both ownership
+// records and every surface land on the same side. An abrupt process death
+// leaves the journal, now carrying the documents' pre-images, for the next run's
+// Recover to roll back the same way.
+func (t *Txn) CommitDocs(docs []StateDoc) error {
 	if t.phase != phaseApplied {
 		return fmt.Errorf("install: transaction %s cannot commit before a successful apply", t.journal.TxnID)
 	}
-	if err := WriteStateAtomic(statePath, s); err != nil {
-		return err
+	if err := t.commitDocsApply(docs); err != nil {
+		commitErr := fmt.Errorf("%w: %w", ErrApplyFailed, err)
+		if rbErr := t.Rollback(); rbErr != nil {
+			return errors.Join(commitErr, rbErr)
+		}
+		return commitErr
 	}
 	if err := removeTree(t.fs, t.dir); err != nil {
 		return fmt.Errorf("install: removing transaction %s: %w", t.journal.TxnID, err)
 	}
 	t.phase = phaseFinished
 	return nil
+}
+
+// commitDocsApply is CommitDocs without its rollback: it captures each document's
+// pre-image into the journal, rewrites plan.json to reference them — the durable
+// point past which an interruption rolls the documents back too — and then
+// publishes each document by a same-directory staged rename. It is separate so a
+// test can stop a commit the way a killed process does: mid-publish, with the
+// journal on disk carrying the document pre-images and nobody left to undo it.
+func (t *Txn) commitDocsApply(docs []StateDoc) error {
+	docSteps := make([]journalStep, len(docs))
+	for i, d := range docs {
+		path := filepath.Clean(d.Path)
+		if !filepath.IsAbs(path) {
+			return fmt.Errorf("%w: commit document %q is not an absolute path", ErrInvalidTarget, d.Path)
+		}
+		docSteps[i] = journalStep{
+			Seq:         i,
+			Path:        path,
+			Kind:        KindFile,
+			Staging:     docStagingPath(path, t.journal.TxnID, i),
+			CreatedDirs: missingAncestors(path),
+		}
+		if err := captureDoc(t.fs, t.dir, &docSteps[i], fmt.Sprintf("doc-%d", i)); err != nil {
+			return err
+		}
+	}
+	// Write-ahead: the documents' pre-images are referenced by plan.json before
+	// the first one is published, so any stop from here on has a complete way
+	// back for both the documents and the already-applied targets.
+	t.journal.Docs = docSteps
+	if err := writeJournal(t.fs, t.dir, t.journal); err != nil {
+		return err
+	}
+	for i := range docSteps {
+		if err := t.publishDoc(&docSteps[i], docs[i].Bytes); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// captureDoc records what a commit document's destination holds now — absent, or
+// a regular file whose bytes are copied into the journal — so a rollback can
+// reinstate it. A document is one docket owns outright: never a symlink, never a
+// user's file, so a destination that is neither absent nor a regular file is a
+// defect that refuses the commit rather than promising a rollback it cannot
+// deliver. backupName is the document's private slot under the journal's backup
+// directory, kept distinct from the numeric target slots.
+func captureDoc(fsops FSOps, dir string, doc *journalStep, backupName string) error {
+	info, err := os.Lstat(doc.Path)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		doc.PreImage = preImage{State: preAbsent}
+		doc.Action = actionCreate
+		return nil
+	case err != nil:
+		return fmt.Errorf("install: inspecting %s: %w", doc.Path, err)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("%w: %s is not a regular file, so no rollback material exists for it",
+			ErrInvalidTarget, doc.Path)
+	}
+	data, err := os.ReadFile(doc.Path)
+	if err != nil {
+		return fmt.Errorf("install: reading %s: %w", doc.Path, err)
+	}
+	rel := journalBackupDir + "/" + backupName
+	if err := fsops.WriteFile(filepath.Join(dir, filepath.FromSlash(rel)), data, 0o600); err != nil {
+		return fmt.Errorf("install: recording rollback material for %s: %w", doc.Path, err)
+	}
+	doc.PreImage = preImage{State: preFile, Backup: rel, Mode: uint32(info.Mode().Perm())}
+	doc.Action = actionUpdate
+	return nil
+}
+
+// publishDoc writes one ownership document to its destination through a
+// same-directory staged rename, the same atomicity a target write gets. A
+// document is docket's own private record, so it lands at a fixed 0o600 whatever
+// mode a prior copy held — the state and the record are never the user's to
+// widen — and its directory is created private (0o700) to match.
+func (t *Txn) publishDoc(doc *journalStep, data []byte) error {
+	if err := t.fs.MkdirAll(filepath.Dir(doc.Path), journalDirMode); err != nil {
+		return fmt.Errorf("creating %s: %w", filepath.Dir(doc.Path), err)
+	}
+	if err := t.fs.WriteFile(doc.Staging, data, 0o600); err != nil {
+		return fmt.Errorf("staging %s: %w", doc.Path, err)
+	}
+	// WriteFile's mode is filtered by the umask at creation, so the private mode
+	// is enforced with an explicit chmod before the rename, exactly as a target
+	// write does — the record must never land readable to the world.
+	if err := t.fs.Chmod(doc.Staging, 0o600); err != nil {
+		return fmt.Errorf("setting the mode of %s: %w", doc.Path, err)
+	}
+	if err := t.fs.Rename(doc.Staging, doc.Path); err != nil {
+		return fmt.Errorf("publishing %s: %w", doc.Path, err)
+	}
+	return nil
+}
+
+// docStagingPath is the temp file a commit document is published through: beside
+// its destination so the rename is atomic, and named apart from a target step's
+// staging so the two can never collide when a document happens to share a
+// directory with a target.
+func docStagingPath(dest, txnID string, i int) string {
+	return filepath.Join(filepath.Dir(dest), fmt.Sprintf(".docket-install-%s-doc%d.tmp", txnID, i))
 }
 
 // DetectRecovery reports the oldest unpublished journal an interrupted run left
@@ -620,10 +763,19 @@ func Recover(fsops FSOps, roots UserRoots, txnID string) error {
 	return nil
 }
 
-// rollbackJournal restores every step newest first, then prunes the directories
-// the transaction created. Newest first is what makes repeated destinations —
-// two managed blocks in one file — end at the original bytes.
+// rollbackJournal restores every destination newest first, then prunes the
+// directories the transaction created. The commit documents are the newest
+// things the transaction touched — published last — so they are restored first,
+// then the target steps. Newest first is also what makes repeated destinations —
+// two managed blocks in one file — end at the original bytes. Documents and
+// targets never share a path, so their relative order is immaterial; restoring
+// the documents first only keeps the "newest first" reading honest.
 func rollbackJournal(fsops FSOps, dir string, j journal) error {
+	for i := len(j.Docs) - 1; i >= 0; i-- {
+		if err := restoreStep(fsops, dir, j.Docs[i]); err != nil {
+			return fmt.Errorf("install: rolling back transaction %s: %w", j.TxnID, err)
+		}
+	}
 	for i := len(j.Steps) - 1; i >= 0; i-- {
 		if err := restoreStep(fsops, dir, j.Steps[i]); err != nil {
 			return fmt.Errorf("install: rolling back transaction %s: %w", j.TxnID, err)
@@ -692,14 +844,18 @@ func restoreStep(fsops FSOps, dir string, step journalStep) error {
 func pruneCreatedDirs(fsops FSOps, j journal) {
 	seen := map[string]bool{}
 	var dirs []string
-	for _, step := range j.Steps {
-		for _, d := range step.CreatedDirs {
-			if !seen[d] {
-				seen[d] = true
-				dirs = append(dirs, d)
+	collect := func(steps []journalStep) {
+		for _, step := range steps {
+			for _, d := range step.CreatedDirs {
+				if !seen[d] {
+					seen[d] = true
+					dirs = append(dirs, d)
+				}
 			}
 		}
 	}
+	collect(j.Steps)
+	collect(j.Docs)
 	// A child path is always longer than its parent, so longest-first is
 	// deepest-first.
 	sort.Slice(dirs, func(i, k int) bool {
@@ -989,27 +1145,46 @@ func readJournal(dir string) (journal, error) {
 			ErrJournalInvalid, dir, j.FormatVersion, journalFormatVersion)
 	}
 	for _, step := range j.Steps {
-		switch {
-		case !filepath.IsAbs(step.Path):
-			return journal{}, fmt.Errorf("%w: step %d names a relative path %q", ErrJournalInvalid, step.Seq, step.Path)
-		case !filepath.IsAbs(step.Staging):
-			return journal{}, fmt.Errorf("%w: step %d names a relative staging path %q", ErrJournalInvalid, step.Seq, step.Staging)
-		case filepath.Dir(step.Staging) != filepath.Dir(step.Path):
-			return journal{}, fmt.Errorf("%w: step %d stages %q outside the directory of %q",
-				ErrJournalInvalid, step.Seq, step.Staging, step.Path)
+		if err := validateJournalStep(step); err != nil {
+			return journal{}, err
 		}
-		for _, d := range step.CreatedDirs {
-			if !filepath.IsAbs(d) {
-				return journal{}, fmt.Errorf("%w: step %d names a relative created directory %q",
-					ErrJournalInvalid, step.Seq, d)
-			}
-		}
-		if step.PreImage.State == preFile && !safeBackupRef(step.PreImage.Backup) {
-			return journal{}, fmt.Errorf("%w: step %d names rollback material %q outside the journal",
-				ErrJournalInvalid, step.Seq, step.PreImage.Backup)
+	}
+	// Documents steer the same staged-rename writes the target steps do, so every
+	// field that could aim a write is validated for them too before a single one
+	// happens.
+	for _, doc := range j.Docs {
+		if err := validateJournalStep(doc); err != nil {
+			return journal{}, err
 		}
 	}
 	return j, nil
+}
+
+// validateJournalStep checks every field of one journaled step that steers a
+// write or a restore: an absolute destination, an absolute staging path beside
+// it, absolute created directories, and rollback material that names a file
+// inside the journal. A corrupted journal must fail here, never misfire.
+func validateJournalStep(step journalStep) error {
+	switch {
+	case !filepath.IsAbs(step.Path):
+		return fmt.Errorf("%w: step %d names a relative path %q", ErrJournalInvalid, step.Seq, step.Path)
+	case !filepath.IsAbs(step.Staging):
+		return fmt.Errorf("%w: step %d names a relative staging path %q", ErrJournalInvalid, step.Seq, step.Staging)
+	case filepath.Dir(step.Staging) != filepath.Dir(step.Path):
+		return fmt.Errorf("%w: step %d stages %q outside the directory of %q",
+			ErrJournalInvalid, step.Seq, step.Staging, step.Path)
+	}
+	for _, d := range step.CreatedDirs {
+		if !filepath.IsAbs(d) {
+			return fmt.Errorf("%w: step %d names a relative created directory %q",
+				ErrJournalInvalid, step.Seq, d)
+		}
+	}
+	if step.PreImage.State == preFile && !safeBackupRef(step.PreImage.Backup) {
+		return fmt.Errorf("%w: step %d names rollback material %q outside the journal",
+			ErrJournalInvalid, step.Seq, step.PreImage.Backup)
+	}
+	return nil
 }
 
 // safeBackupRef reports whether ref names a file this journal owns: a

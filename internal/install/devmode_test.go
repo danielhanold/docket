@@ -453,7 +453,7 @@ func TestDevInstallIsIdempotent(t *testing.T) {
 	if out.Err != nil {
 		t.Fatalf("second DevelopmentInstall: %v", out.Err)
 	}
-	if out.Applied || len(out.Actions) != 0 {
+	if out.Applied || len(machineActions(out)) != 0 {
 		t.Fatalf("second run did work: %v", actionPaths(out))
 	}
 	assertUnchanged(t, before, snapshot(t, w.home), "second development install")

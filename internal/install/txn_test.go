@@ -1259,6 +1259,203 @@ func TestTxnRemovalsAreExemptFromDispositionAgreement(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Commit documents: the machine state and the repository record as one publish
+// ---------------------------------------------------------------------------
+//
+// An installation that reconciles a repository publishes TWO ownership
+// documents, and two renames cannot be one atomic act. The journal buys the
+// missing atomicity for the pair exactly as it does for the targets: the
+// documents' pre-images are captured before the first is published, so a
+// synchronous failure between them rolls both — and every applied target — back,
+// and an interrupted commit is recovered to the same side by the next run.
+
+func assertDocMode(t *testing.T, path string, want fs.FileMode) {
+	t.Helper()
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("Stat(%s): %v", path, err)
+	}
+	if got := info.Mode().Perm(); got != want {
+		t.Errorf("%s mode = %v, want %v", path, got, want)
+	}
+}
+
+func TestCommitDocsPublishesBothDocuments(t *testing.T) {
+	f := newFixture(t)
+	docA := f.path("docs", "machine.json")
+	docB := f.path("docs", "repo.json")
+
+	txn, err := BeginTxn(RealFS{}, f.roots, f.plan)
+	if err != nil {
+		t.Fatalf("BeginTxn: %v", err)
+	}
+	if err := txn.Apply(); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	docs := []StateDoc{{Path: docA, Bytes: []byte("machine-state\n")}, {Path: docB, Bytes: []byte("repo-record\n")}}
+	if err := txn.CommitDocs(docs); err != nil {
+		t.Fatalf("CommitDocs: %v", err)
+	}
+
+	if got := readOrDie(t, docA); got != "machine-state\n" {
+		t.Errorf("first document = %q", got)
+	}
+	if got := readOrDie(t, docB); got != "repo-record\n" {
+		t.Errorf("second document = %q", got)
+	}
+	// A document is docket's own private record, never the user's to widen.
+	assertDocMode(t, docA, 0o600)
+	assertDocMode(t, docB, 0o600)
+	// The machine plan still landed: the documents are the commit, not a
+	// replacement for the apply.
+	if got := readOrDie(t, f.path("agents", "new-agent.md")); got != "new agent\n" {
+		t.Errorf("new-agent.md = %q", got)
+	}
+	// A published commit owns no journal and leaves nothing to recover.
+	if n := journalCount(t, f.roots); n != 0 {
+		t.Errorf("journal count after CommitDocs = %d, want 0", n)
+	}
+	if _, found, err := DetectRecovery(f.roots); err != nil || found {
+		t.Errorf("DetectRecovery after CommitDocs = (found %v, err %v), want (false, nil)", found, err)
+	}
+	assertNoStaging(t, f.targets)
+}
+
+func TestCommitDocsRollsBackBothDocumentsOnPublishFailure(t *testing.T) {
+	f := newFixture(t)
+	docA := f.path("docs", "machine.json")
+	docB := f.path("docs", "repo.json")
+	// Prior bytes so the rollback exercises restore-from-backup, not merely
+	// restore-by-removal.
+	writeFileOrDie(t, docA, "old machine\n")
+	writeFileOrDie(t, docB, "old repo\n")
+	before := snapshotWorld(t, f.targets)
+
+	ifs := &injectFS{inner: RealFS{}}
+	txn, err := BeginTxn(ifs, f.roots, f.plan)
+	if err != nil {
+		t.Fatalf("BeginTxn: %v", err)
+	}
+	if err := txn.Apply(); err != nil {
+		t.Fatalf("clean Apply: %v", err)
+	}
+	// Fail the publish of the SECOND document, once — the rollback that follows
+	// renames to the same path to restore it, and must be allowed through.
+	fired := false
+	ifs.fail = func(op, path string) error {
+		if op == "Rename" && path == filepath.Clean(docB) && !fired {
+			fired = true
+			return errors.New("injected rename failure on the second document")
+		}
+		return nil
+	}
+	docs := []StateDoc{{Path: docA, Bytes: []byte("new machine\n")}, {Path: docB, Bytes: []byte("new repo\n")}}
+	if err := txn.CommitDocs(docs); err == nil {
+		t.Fatal("CommitDocs succeeded despite an injected failure on the second document")
+	}
+	if !fired {
+		t.Fatal("the injected publish failure was never reached; the test proves nothing")
+	}
+	// The first document was already published, and the rollback put it back: a
+	// commit that cannot publish every document publishes none, so both documents
+	// read as their pre-images — and the whole machine world with them.
+	if got := readOrDie(t, docA); got != "old machine\n" {
+		t.Errorf("first document after rollback = %q, want the pre-image", got)
+	}
+	if got := readOrDie(t, docB); got != "old repo\n" {
+		t.Errorf("second document after rollback = %q, want the pre-image", got)
+	}
+	assertWorld(t, before, snapshotWorld(t, f.targets), "after a failed second-document publish")
+	assertNoStaging(t, f.targets)
+	if _, found, err := DetectRecovery(f.roots); err != nil || found {
+		t.Errorf("DetectRecovery after a rolled-back commit = (found %v, err %v), want (false, nil)", found, err)
+	}
+}
+
+// TestRecoveryAtEveryCommitInterruptPoint is the document half of the recovery
+// table: for every mutation the commit performs, a process that dies right there
+// leaves a journal a FRESH process finds and rolls back — restoring BOTH
+// documents and every applied target to the same side of the operation.
+func TestRecoveryAtEveryCommitInterruptPoint(t *testing.T) {
+	docsFor := func(f *fixture) []StateDoc {
+		return []StateDoc{
+			{Path: f.path("docs", "machine.json"), Bytes: []byte("new machine\n")},
+			{Path: f.path("docs", "repo.json"), Bytes: []byte("new repo\n")},
+		}
+	}
+	seedDocs := func(f *fixture) {
+		writeFileOrDie(t, f.path("docs", "machine.json"), "old machine\n")
+		writeFileOrDie(t, f.path("docs", "repo.json"), "old repo\n")
+	}
+
+	var ops []string
+	func() {
+		f := newFixture(t)
+		seedDocs(f)
+		ifs := &injectFS{inner: RealFS{}}
+		txn, err := BeginTxn(ifs, f.roots, f.plan)
+		if err != nil {
+			t.Fatalf("BeginTxn: %v", err)
+		}
+		if err := txn.Apply(); err != nil {
+			t.Fatalf("clean Apply: %v", err)
+		}
+		ifs.fail = recordCalls(&ops) // armed after apply: only the commit is indexed
+		if err := txn.commitDocsApply(docsFor(f)); err != nil {
+			t.Fatalf("clean commitDocsApply: %v", err)
+		}
+	}()
+	if len(ops) == 0 {
+		t.Fatal("a clean commit performed no mutations; the table would be vacuous")
+	}
+
+	for n := 1; n <= len(ops); n++ {
+		t.Run(fmt.Sprintf("interrupt-at-%02d-%s", n, ops[n-1]), func(t *testing.T) {
+			f := newFixture(t)
+			seedDocs(f)
+			before := snapshotWorld(t, f.targets)
+
+			ifs := &injectFS{inner: RealFS{}}
+			txn, err := BeginTxn(ifs, f.roots, f.plan)
+			if err != nil {
+				t.Fatalf("BeginTxn: %v", err)
+			}
+			if err := txn.Apply(); err != nil {
+				t.Fatalf("clean Apply: %v", err)
+			}
+			// commitDocsApply is CommitDocs without its rollback: calling it
+			// directly is how a test kills the process mid-commit, leaving the
+			// journal behind exactly as an interrupted run would.
+			ifs.fail = failAtCall(n)
+			if err := txn.commitDocsApply(docsFor(f)); err == nil {
+				t.Fatal("commitDocsApply succeeded despite an injected failure")
+			}
+
+			// A fresh process knows only the roots.
+			id, found, err := DetectRecovery(f.roots)
+			if err != nil {
+				t.Fatalf("DetectRecovery: %v", err)
+			}
+			if !found {
+				t.Fatal("an interrupted commit left no journal to recover")
+			}
+			if err := Recover(RealFS{}, f.roots, id); err != nil {
+				t.Fatalf("Recover(%s): %v", id, err)
+			}
+
+			assertWorld(t, before, snapshotWorld(t, f.targets), "after recovery")
+			assertNoStaging(t, f.targets)
+			if _, found, err := DetectRecovery(f.roots); err != nil || found {
+				t.Errorf("DetectRecovery after Recover = (found %v, err %v), want (false, nil)", found, err)
+			}
+			if got := journalCount(t, f.roots); got != 0 {
+				t.Errorf("%d journals survived recovery", got)
+			}
+		})
+	}
+}
+
 // TestCaptureRefusesAnUncheckableDisposition covers the branch planSteps makes
 // unreachable: a write step whose disposition is neither a create nor an update
 // cannot be checked against the disk at all, and the whole point of the capture

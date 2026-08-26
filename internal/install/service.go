@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/danielhanold/docket/internal/assets"
 	"github.com/danielhanold/docket/internal/buildinfo"
@@ -219,7 +220,7 @@ func Install(o Options) Outcome {
 		owner:         owner,
 		assetSetID:    o.Catalog.Manifest.AssetSetID,
 		assetProtocol: o.Catalog.Manifest.AssetProtocol,
-	}, out)
+	}, nil, out)
 }
 
 // Check reports whether the installation on disk is still the one this binary
@@ -442,11 +443,25 @@ type plannedInstallation struct {
 // applyPlan is the shared tail of Install and DevelopmentInstall: classify,
 // refuse or apply, publish. Everything before it differs by mode; nothing after
 // it does.
-func applyPlan(o Options, p plannedInstallation, out Outcome) Outcome {
+//
+// repo is the repository half of the plan, assembled by the app layer (Task 10);
+// it is nil, or carries Authorized==false, whenever no repository opt-in licenses
+// a write. When it IS authorized, its surfaces are inspected against its own
+// prior record alongside the machine targets, every conflict across the machine,
+// the retired globals, and the repository collects into one refusal, and the
+// single journaled transaction carries all of it — machine writes, global
+// retirements, repository writes, repository removals — with CommitDocs
+// publishing the machine state and the repository record together. When it is not
+// authorized, no repository destination is inspected or touched, any prior
+// repository record is left exactly as it was, and the no-op is named in the
+// outcome rather than left to be inferred from an absence of changed files.
+func applyPlan(o Options, p plannedInstallation, repo *RepoPhase, out Outcome) Outcome {
 	out.Mode = p.mode
 	out.AssetSetID = p.assetSetID
 	out.AssetProtocol = p.assetProtocol
 	out.Harnesses = p.harnesses
+
+	repoActive := repo != nil && repo.Authorized
 
 	prior, err := LoadState(o.Roots.StatePath())
 	if err != nil {
@@ -487,6 +502,28 @@ func applyPlan(o Options, p plannedInstallation, out Outcome) Outcome {
 		return fail(out, ReasonFilesystemFailed, err)
 	}
 	conflicts = append(conflicts, retireConflicts...)
+
+	// Repository surfaces are inspected against the repository's OWN prior record
+	// (never the machine state), and their conflicts join the machine and
+	// retirement ones so a single refusal collects every ownership problem across
+	// all three. This inspection is the all-or-nothing preflight for the
+	// repository half: an unowned, drifted, or malformed repository surface must
+	// refuse the whole operation before the first destination — machine or
+	// repository — is touched. A phase that is nil or unauthorized contributes
+	// nothing here and leaves the repository untouched.
+	var repoInspections []Inspection
+	if repoActive {
+		for _, t := range repo.Targets {
+			inspection, err := InspectTarget(t, repo.PriorState, legacy)
+			if err != nil {
+				return fail(out, ReasonFilesystemFailed, err)
+			}
+			if inspection.Disposition == DispositionConflict {
+				conflicts = append(conflicts, inspection)
+			}
+			repoInspections = append(repoInspections, inspection)
+		}
+	}
 
 	if len(conflicts) > 0 {
 		for _, c := range conflicts {
@@ -542,33 +579,62 @@ func applyPlan(o Options, p plannedInstallation, out Outcome) Outcome {
 			"%w: %d recorded target(s) have drifted and will not be removed", ErrDrifted, len(blocked)))
 	}
 
+	// The repository removals — a retire-everything empty list, or a surface a
+	// scoped run drops — ride the same transaction as the writes. They are
+	// proof-gated by the app layer against the repository's own record or the
+	// frozen legacy reproducer before they arrive here.
+	if repoActive {
+		removals = append(removals, repo.Removals...)
+	}
+
 	desired, err := desiredState(o, p, prior)
 	if err != nil {
 		return fail(out, ReasonInternal, err)
 	}
-
-	steps := 0
-	for _, inspection := range inspections {
-		if inspection.Disposition != DispositionNoop {
-			steps++
-		}
-	}
-	settled, err := stateSettled(prior, desired)
+	desiredBytes, err := encodeState(desired)
 	if err != nil {
 		return fail(out, ReasonInternal, err)
 	}
-	if steps == 0 && len(removals) == 0 && settled {
+
+	// The machine writes and the repository writes are one ordered step list; the
+	// two never name the same destination, so they sort and apply together
+	// without collision.
+	txnInspections := inspections
+	if len(repoInspections) > 0 {
+		txnInspections = append(append([]Inspection(nil), inspections...), repoInspections...)
+	}
+
+	// The commit publishes the machine state and, when a repository was
+	// reconciled, its record — together, both journaled, both rolled back as one.
+	docs := []StateDoc{{Path: o.Roots.StatePath(), Bytes: desiredBytes}}
+	if repoActive && repo.RecordBytes != nil {
+		docs = append(docs, StateDoc{Path: repo.RecordPath, Bytes: repo.RecordBytes})
+	}
+
+	steps := nonNoopCount(inspections) + nonNoopCount(repoInspections)
+	settledMachine, err := stateSettled(prior, desired)
+	if err != nil {
+		return fail(out, ReasonInternal, err)
+	}
+	settledRepo, err := repoRecordSettled(repoActive, repo)
+	if err != nil {
+		return fail(out, ReasonFilesystemFailed, err)
+	}
+	if steps == 0 && len(removals) == 0 && settledMachine && settledRepo {
+		if !repoActive {
+			out.Actions = append(out.Actions, notAuthorizedAction(repo))
+		}
 		return out
 	}
 
-	txn, err := BeginTxnWithRemovals(o.FS, o.Roots, inspections, removals)
+	txn, err := BeginTxnWithRemovals(o.FS, o.Roots, txnInspections, removals)
 	if err != nil {
 		return fail(out, transactionReason(err), err)
 	}
 	if err := txn.Apply(); err != nil {
 		return fail(out, ReasonFilesystemFailed, err)
 	}
-	if err := txn.Commit(o.Roots.StatePath(), desired); err != nil {
+	if err := txn.CommitDocs(docs); err != nil {
 		return fail(out, ReasonFilesystemFailed, err)
 	}
 
@@ -583,6 +649,15 @@ func applyPlan(o Options, p plannedInstallation, out Outcome) Outcome {
 				Detail: p.owner[filepath.Clean(inspection.Target.Path)]})
 		}
 	}
+	for _, inspection := range repoInspections {
+		detail := strings.Join(repo.Owners[filepath.Clean(inspection.Target.Path)], ",")
+		switch inspection.Disposition {
+		case DispositionCreate:
+			out.Actions = append(out.Actions, Action{Op: OpCreate, Path: inspection.Target.Path, Detail: detail})
+		case DispositionUpdate:
+			out.Actions = append(out.Actions, Action{Op: OpUpdate, Path: inspection.Target.Path, Detail: detail})
+		}
+	}
 	for _, rec := range removals {
 		out.Actions = append(out.Actions, Action{Op: OpRemove, Path: rec.Path, Detail: rec.Harness})
 	}
@@ -590,7 +665,55 @@ func applyPlan(o Options, p plannedInstallation, out Outcome) Outcome {
 		out.Actions = append(out.Actions, Action{Op: OpState, Path: o.Roots.StatePath(),
 			Detail: "installation record refreshed"})
 	}
+	if !repoActive {
+		out.Actions = append(out.Actions, notAuthorizedAction(repo))
+	}
 	return out
+}
+
+// nonNoopCount is the number of inspections that would become a transaction
+// step: everything but a no-op.
+func nonNoopCount(inspections []Inspection) int {
+	n := 0
+	for _, inspection := range inspections {
+		if inspection.Disposition != DispositionNoop {
+			n++
+		}
+	}
+	return n
+}
+
+// repoRecordSettled reports whether the repository ownership record on disk
+// already holds exactly the bytes this operation would publish, so an authorized
+// run whose repository is already converged opens no transaction for it. An
+// unauthorized run, or one that publishes no record, is settled by definition. A
+// read error other than "absent" refuses the run rather than being mistaken for a
+// difference — the three probe outcomes are kept apart.
+func repoRecordSettled(active bool, repo *RepoPhase) (bool, error) {
+	if !active || repo.RecordBytes == nil {
+		return true, nil
+	}
+	existing, err := os.ReadFile(repo.RecordPath)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return false, nil
+		}
+		return false, fmt.Errorf("install: reading %s: %w", repo.RecordPath, err)
+	}
+	return string(existing) == string(repo.RecordBytes), nil
+}
+
+// notAuthorizedAction names the repository no-op so a run that touched no
+// repository surface says so, rather than leaving the person to infer it from an
+// absence of changed files. Its path is the selected working tree when one was
+// discovered, and "(none)" for a machine-only run outside any repository.
+func notAuthorizedAction(repo *RepoPhase) Action {
+	path := "(none)"
+	if repo != nil && repo.Worktree != "" {
+		path = repo.Worktree
+	}
+	return Action{Op: OpKeep, Path: path,
+		Detail: "repository reconciliation not authorized: no explicit agent_harnesses declaration"}
 }
 
 // desiredState is the record this operation would publish: one entry per
