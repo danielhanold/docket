@@ -53,7 +53,7 @@
 | [0343](active/0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | `medium` | `fix` | needs-brainstorm |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `medium` | `feat` | needs-brainstorm |
 | [0346](active/0346-finalize-rebuilds-binary-from-unpulled-source-tree.md) | Finalize's post-merge binary rebuild runs against an unpulled source tree | `medium` | `fix` | needs-brainstorm |
-| [0348](active/0348-enrich-open-pr-view-with-review-decision.md) | Enrich the exact-PR view with reviewDecision so open-PR snapshots populate Approved | `medium` | `fix` | needs-brainstorm |
+| [0348](active/0348-enrich-open-pr-view-with-review-decision.md) | Enrich the exact-PR view with reviewDecision so open-PR snapshots populate Approved | `medium` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
 
