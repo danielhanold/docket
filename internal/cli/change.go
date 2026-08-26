@@ -160,8 +160,68 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 
 	markImplemented := newMarkImplementedSubcommand(setResult)
 
-	changeCmd.AddCommand(create, groom, block, deferCmd, kill, claim, refreshClaim, reconcile, attachPlan, attachResults, halt, resumeHalted, reclaim, markImplemented)
+	repairIdentity := newRepairIdentitySubcommand(setResult)
+
+	changeCmd.AddCommand(create, groom, block, deferCmd, kill, claim, refreshClaim, reconcile, attachPlan, attachResults, halt, resumeHalted, reclaim, markImplemented, repairIdentity)
 	return changeCmd
+}
+
+// newRepairIdentitySubcommand builds `change repair-identity`: the version-pinned
+// single-field identity repair the finalize identity checkpoint hands a human's
+// decision to. Its scalar identities and the approved evidence ride on flags —
+// the op writes exactly one frontmatter field (branch: or pr:), so there is no
+// authored request body. Exactly one mode is chosen: --adopt-pr-head (trust the
+// PR, the missing/mismatched-branch recovery) with --expect-pr/--expect-head, or
+// --adopt-pr (trust the record) with --expect-branch. The app layer owns the
+// mode/evidence validation and the closed reason-token vocabulary, so a
+// contradictory flag combination is refused as invalid-request there. It
+// composes the finalize seams — the read-only planning seams, the GitHub adapter
+// (the exact PR read), and the workspace service (the ownership gate) — the same
+// wiring the other terminal-half operations use.
+func newRepairIdentitySubcommand(setResult func(app.OperationResult)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "repair-identity",
+		Short: "Repair a change's recorded identity at an exact version: adopt the PR's head as branch, or a PR reference as pr",
+		Args:  cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
+			id, _ := c.Flags().GetInt("id")
+			expectVersion, _ := c.Flags().GetString("expect-version")
+			adoptPRHead, _ := c.Flags().GetBool("adopt-pr-head")
+			expectPR, _ := c.Flags().GetInt("expect-pr")
+			expectHead, _ := c.Flags().GetString("expect-head")
+			adoptPR, _ := c.Flags().GetString("adopt-pr")
+			expectBranch, _ := c.Flags().GetString("expect-branch")
+			deps, err := newFinalizeDeps()
+			if err != nil {
+				return err
+			}
+			setResult(app.RepairIdentity(c.Context(), deps, repoDir, app.RepairIdentityRequest{
+				ID:             id,
+				ExpectVersion:  expectVersion,
+				AdoptPRHead:    adoptPRHead,
+				ExpectPRNumber: expectPR,
+				ExpectHead:     expectHead,
+				AdoptPR:        adoptPR,
+				ExpectBranch:   expectBranch,
+			}))
+			return nil
+		},
+	}
+	cmd.Flags().Int("id", 0, "change id whose recorded identity to repair (required)")
+	cmd.Flags().String("expect-version", "", "exact change-record version token from the finalize report (required)")
+	cmd.Flags().Bool("adopt-pr-head", false, "trust the PR: adopt the exact PR's reported head branch as branch:")
+	cmd.Flags().Int("expect-pr", 0, "the exact PR number the approved evidence showed (with --adopt-pr-head)")
+	cmd.Flags().String("expect-head", "", "the head branch the human approved (with --adopt-pr-head)")
+	cmd.Flags().String("adopt-pr", "", "trust the record: adopt this PR reference as pr: (with --expect-branch)")
+	cmd.Flags().String("expect-branch", "", "the recorded branch the human approved (with --adopt-pr)")
+	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	_ = cmd.MarkFlagRequired("id")
+	_ = cmd.MarkFlagRequired("expect-version")
+	return cmd
 }
 
 // changeHaltInput is the bounded request-file payload for `change halt`: the

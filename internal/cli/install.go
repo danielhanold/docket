@@ -44,6 +44,7 @@ var assetIndependent = map[string]bool{
 	"change resume-halted":       true,
 	"change reclaim":             true,
 	"change mark-implemented":    true,
+	"change repair-identity":     true,
 	"context":                    true, // the group itself; it reports a missing command
 	"context implementation":     true,
 	"context finalize":           true,
