@@ -454,7 +454,12 @@ func finalizeCleanupWorkspace(ctx context.Context, deps FinalizeDeps, cc *closeo
 		f := cleanupWarning(ReasonCleanupUnresolvedBase, "the change's effective base did not resolve; the workspace is retained")
 		return false, &f
 	}
-	target, err := workspace.NewTarget(cc.change.ID(), cc.change.Slug(), base)
+	branch, berr := recordedBranch(cc.change)
+	if berr != nil {
+		f := cleanupWarning(berr.Error(), "the change's recorded feature branch is unusable; the workspace is retained")
+		return false, &f
+	}
+	target, err := workspace.NewTarget(cc.change.ID(), cc.change.Slug(), base, branch)
 	if err != nil {
 		f := cleanupWarning(ReasonCleanupUnresolvedBase, "the change's workspace target is malformed; the workspace is retained")
 		return false, &f
@@ -663,7 +668,11 @@ func finalizeCleanupWorkspacePath(ctx context.Context, deps FinalizeDeps, cc *cl
 	if base.Kind != domain.BaseResolved {
 		return ""
 	}
-	target, err := workspace.NewTarget(cc.change.ID(), cc.change.Slug(), base)
+	branch, berr := recordedBranch(cc.change)
+	if berr != nil {
+		return ""
+	}
+	target, err := workspace.NewTarget(cc.change.ID(), cc.change.Slug(), base, branch)
 	if err != nil {
 		return ""
 	}

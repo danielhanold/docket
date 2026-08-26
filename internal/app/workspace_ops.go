@@ -235,7 +235,16 @@ func resolveWorkspaceTarget(opKey string, wc workspaceContext) (workspace.Target
 		})
 		return workspace.Target{}, &r
 	}
-	target, err := workspace.NewTarget(wc.change.ID(), wc.change.Slug(), wc.base)
+	branch, berr := recordedBranch(wc.change)
+	if berr != nil {
+		r := newWorkspaceResult(opKey, ResultInvalidState, WorkspaceOpResult{
+			ID:      int(wc.change.ID()),
+			Reason:  berr.Error(),
+			Message: fmt.Sprintf("change %04d's recorded feature branch is unusable (%v); no workspace is built", int(wc.change.ID()), berr),
+		})
+		return workspace.Target{}, &r
+	}
+	target, err := workspace.NewTarget(wc.change.ID(), wc.change.Slug(), wc.base, branch)
 	if err != nil {
 		r := newWorkspaceResult(opKey, ResultInvalidInput, WorkspaceOpResult{
 			ID:      int(wc.change.ID()),

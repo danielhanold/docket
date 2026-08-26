@@ -265,10 +265,16 @@ func TestRunVerifyIncompleteEnumeratesConjuncts(t *testing.T) {
 			want:   ReasonRunResultsIdentity,
 		},
 		{
-			name:   "lease contended",
+			// The recorded branch is honored end-to-end: run verify inspects and
+			// probes feat/other (the record's branch), never a reconstructed
+			// feat/<slug>. Since only feat/<slug> was published, the recorded
+			// branch's remote head is absent — caught as remote-head-mismatch. Were
+			// the branch reconstructed from the slug, the remote probe would find the
+			// published head and this conjunct would wrongly pass.
+			name:   "recorded branch honored — its remote head is absent",
 			record: rvRecord(rvPlanPath, rvResultsPath, recordedPR, "feat/other"),
 			pr:     rvPR(pub.head, ev),
-			want:   ReasonRunLeaseContended,
+			want:   ReasonRunRemoteHeadMismatch,
 		},
 	}
 

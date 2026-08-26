@@ -166,7 +166,7 @@ func setupRebaseFixtureStatus(t *testing.T, m planRepoMode, status string) *reba
 		t.Fatalf("discover: %v", err)
 	}
 	base := domain.EffectiveBase{Kind: domain.BaseResolved, Branch: "main"}
-	target, err := workspace.NewTarget(domain.ChangeID(id), slug, base)
+	target, err := workspace.NewTarget(domain.ChangeID(id), slug, base, "feat/"+slug)
 	if err != nil {
 		t.Fatalf("NewTarget: %v", err)
 	}

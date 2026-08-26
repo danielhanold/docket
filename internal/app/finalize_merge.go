@@ -378,7 +378,13 @@ func loadMergeContext(ctx context.Context, deps FinalizeDeps, repoDir string, id
 			fmt.Sprintf("change %04d's effective base did not resolve to a branch (kind %q)", id, base.Kind), id)
 		return nil, &r
 	}
-	target, terr := workspace.NewTarget(c.ID(), c.Slug(), base)
+	branch, berr := recordedBranch(c)
+	if berr != nil {
+		r := mergeRefusal(ResultInvalidState, MergeDispBlocked, berr.Error(),
+			fmt.Sprintf("change %04d's recorded feature branch is unusable (%v); no merge is issued", id, berr), id)
+		return nil, &r
+	}
+	target, terr := workspace.NewTarget(c.ID(), c.Slug(), base, branch)
 	if terr != nil {
 		r := mergeRefusal(ResultInvalidInput, MergeDispBlocked, ReasonMergeMalformedTarget, terr.Error(), id)
 		return nil, &r

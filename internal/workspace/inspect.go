@@ -238,7 +238,7 @@ func (s *Service) dirtyPaths(ctx context.Context, path string) ([]string, error)
 // slug and base, reusing NewTarget's rules and re-tagging any rejection to the
 // inspect operation.
 func validateInspectTarget(t Target) error {
-	derived, err := NewTarget(t.ChangeID, t.Slug, t.Base)
+	derived, err := NewTarget(t.ChangeID, t.Slug, t.Base, t.FeatureBranch())
 	if err != nil {
 		return &Failure{Op: inspectOp, Stage: "validate", Kind: KindInvalidInput, Detail: "target is not self-consistent with its slug and base"}
 	}

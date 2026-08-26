@@ -185,7 +185,7 @@ func TestPrepareFreshUnstacked(t *testing.T) {
 		}
 
 		base := resolveBase(t, []domain.ChangeSpec{{ID: 7, Status: domain.StatusProposed}}, nil, 7)
-		tgt, err := NewTarget(7, prepSlug, base)
+		tgt, err := NewTarget(7, prepSlug, base, "feat/"+prepSlug)
 		if err != nil {
 			t.Fatalf("NewTarget: %v", err)
 		}
@@ -215,7 +215,7 @@ func TestPrepareFreshLiveParentStack(t *testing.T) {
 		if base.Branch != "feat/five" {
 			t.Fatalf("resolved base branch = %q; want feat/five", base.Branch)
 		}
-		tgt, err := NewTarget(7, prepSlug, base)
+		tgt, err := NewTarget(7, prepSlug, base, "feat/"+prepSlug)
 		if err != nil {
 			t.Fatalf("NewTarget: %v", err)
 		}
@@ -249,7 +249,7 @@ func TestPrepareFreshDoneParent(t *testing.T) {
 		if base.Branch != "main" {
 			t.Fatalf("resolved base branch = %q; want main (done parent -> integration)", base.Branch)
 		}
-		tgt, err := NewTarget(7, prepSlug, base)
+		tgt, err := NewTarget(7, prepSlug, base, "feat/"+prepSlug)
 		if err != nil {
 			t.Fatalf("NewTarget: %v", err)
 		}
@@ -280,7 +280,7 @@ func TestPrepareFreshStackedMergedRecurse(t *testing.T) {
 		if base.Branch != "feat/four" {
 			t.Fatalf("resolved base branch = %q; want feat/four", base.Branch)
 		}
-		tgt, err := NewTarget(7, prepSlug, base)
+		tgt, err := NewTarget(7, prepSlug, base, "feat/"+prepSlug)
 		if err != nil {
 			t.Fatalf("NewTarget: %v", err)
 		}
@@ -304,7 +304,7 @@ func TestPrepareReturnsReinspectedFacts(t *testing.T) {
 	svc, repo := r.newService(t)
 
 	base := resolveBase(t, []domain.ChangeSpec{{ID: 7, Status: domain.StatusProposed}}, nil, 7)
-	tgt, err := NewTarget(7, prepSlug, base)
+	tgt, err := NewTarget(7, prepSlug, base, "feat/"+prepSlug)
 	if err != nil {
 		t.Fatalf("NewTarget: %v", err)
 	}
@@ -332,7 +332,7 @@ func TestPrepareRejectsMismatchedRepository(t *testing.T) {
 	bad.CommonDir = otherRepo.CommonDir
 
 	base := resolveBase(t, []domain.ChangeSpec{{ID: 7, Status: domain.StatusProposed}}, nil, 7)
-	tgt, err := NewTarget(7, prepSlug, base)
+	tgt, err := NewTarget(7, prepSlug, base, "feat/"+prepSlug)
 	if err != nil {
 		t.Fatalf("NewTarget: %v", err)
 	}
@@ -362,7 +362,7 @@ func TestPrepareFetchFailureCreatesNothing(t *testing.T) {
 
 		// A resolved base whose branch never exists on the remote.
 		base := domain.EffectiveBase{Kind: domain.BaseResolved, Branch: "ghostbase"}
-		tgt, err := NewTarget(7, prepSlug, base)
+		tgt, err := NewTarget(7, prepSlug, base, "feat/"+prepSlug)
 		if err != nil {
 			t.Fatalf("NewTarget: %v", err)
 		}
@@ -514,7 +514,7 @@ func countWorktreePathOccurrences(porcelain, want string) int {
 func freshTarget(t *testing.T, id int) Target {
 	t.Helper()
 	base := resolveBase(t, []domain.ChangeSpec{{ID: domain.ChangeID(id), Status: domain.StatusProposed}}, nil, domain.ChangeID(id))
-	tgt, err := NewTarget(domain.ChangeID(id), prepSlug, base)
+	tgt, err := NewTarget(domain.ChangeID(id), prepSlug, base, "feat/"+prepSlug)
 	if err != nil {
 		t.Fatalf("NewTarget: %v", err)
 	}
@@ -1012,12 +1012,12 @@ func TestPrepareConcurrentDistinctTargets(t *testing.T) {
 	svc, repo := r.newService(t)
 
 	baseA := resolveBase(t, []domain.ChangeSpec{{ID: 7, Status: domain.StatusProposed}}, nil, 7)
-	tgtA, err := NewTarget(7, "alpha-slug", baseA)
+	tgtA, err := NewTarget(7, "alpha-slug", baseA, "feat/alpha-slug")
 	if err != nil {
 		t.Fatalf("NewTarget A: %v", err)
 	}
 	baseB := resolveBase(t, []domain.ChangeSpec{{ID: 8, Status: domain.StatusProposed}}, nil, 8)
-	tgtB, err := NewTarget(8, "beta-slug", baseB)
+	tgtB, err := NewTarget(8, "beta-slug", baseB, "feat/beta-slug")
 	if err != nil {
 		t.Fatalf("NewTarget B: %v", err)
 	}
