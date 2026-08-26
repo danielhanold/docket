@@ -130,3 +130,16 @@ cited ADRs (0016/0024/0059/0075/0078/0084/0088). Findings:
 - **Design is NOT invalidated** — all five decision parts remain implementable against current
   reality. Scope unchanged; auto-capture disabled this run (no stubs minted). Global-copy removal and
   four-harness fresh-process acceptance stay human merge-gate preconditions.
+
+## Finalize blocked
+
+### 2026-08-26 — attempt 20260826T110316Z-d736ecdcc93c
+
+<!-- attempt:20260826T110316Z-d736ecdcc93c -->
+
+- Reason: rebase-conflict-unresolved
+- Head: 7d84970d91f6c16fed36f29fc9b321d1498fadf2
+- PR: #239
+- Comment: https://github.com/danielhanold/docket/pull/239#issuecomment-5424467072
+
+Remedy: A human should reconcile this branch onto main manually (the conflicts are the runtime-budget EXPECTED_TOTAL pin and the embedded-asset manifest digest, both mechanically resolvable — re-run the asset generator and re-sum the budget table after rebasing), push the rebased head, then re-run docket-finalize-change by naming change id 334 to clear this block and merge. Alternatively, if the installed docket-rebase-resolver agent is intended to drive the whole rebase to completion in a single dispatch (its registered contract says so), that mismatch with the skill body's two-dispatch controller loop should be reconciled before retrying.
