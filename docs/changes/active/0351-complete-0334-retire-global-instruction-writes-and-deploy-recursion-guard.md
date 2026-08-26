@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'fix/complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-26T15:33:44Z'
+reconciled: true
+claimed_at: '2026-08-26T15:35:36Z'
 ---
 
 ## Artifacts
@@ -76,3 +76,13 @@ before mutation, and synchronous failures roll back the complete operation.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-26
+
+### 2026-08-26 — reconcile (docket-implement-next)
+
+Verified against current reality before planning:
+
+- Parent change 0334 is `done` (merged); this change correctly completes its unshipped installer state. `discovered_from: [334]` and `related: [334, 294, 346]` remain accurate (294 is `killed`, 346 is `proposed` and correctly kept independent — not folded in, per the spec's non-goals).
+- Confirmed both defects still live in source: all four harness planners (e.g. `internal/harness/claude/claude.go`) still emit the `docket:dispatch` managed-block target under the harness's global `root`, and `internal/install/devmode.go` still has the currently-running binary plan and render the install (no fresh-binary candidate handoff). No `--repo-dir` flag, no repository `agent_harnesses` surface reconciliation, and no per-working-tree `<git-dir>/docket/install.json` ownership record exist yet.
+- Scope, out-of-scope, and design decisions in the spec are current; change 0349 (finalize-resolver cap) remains out of scope. No relation, section, or spec edits required — proceeding to plan against the change and spec as written.
