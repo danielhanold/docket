@@ -18,6 +18,7 @@ func leaseChange(status Status, stamp OptionalTime, branch string) Change {
 	cs := ChangeSpec{
 		ID:        7,
 		Slug:      "lease-slug",
+		Type:      "feat",
 		Status:    status,
 		RawStatus: string(status),
 		ClaimedAt: stamp,
@@ -270,5 +271,91 @@ func TestReclaimBranchFailureNamesTheBranch(t *testing.T) {
 	}
 	if fail.Detail["branch"] != "feat/renamed-branch" {
 		t.Fatalf("detail branch = %q, want %q", fail.Detail["branch"], "feat/renamed-branch")
+	}
+}
+
+// mintCandidateChange builds an in-progress, branchless, strictly-expired change
+// whose fresh-mint candidate is minted from its type and optional branch_prefix
+// — the branch a fresh claim would take, which blockingBranch must probe.
+func mintCandidateChange(changeType string, prefix OptionalString) Change {
+	return NewChange(ChangeSpec{
+		ID:           7,
+		Slug:         "lease-slug",
+		Type:         changeType,
+		Status:       StatusInProgress,
+		RawStatus:    string(StatusInProgress),
+		ClaimedAt:    leaseStamp(-10 * time.Hour),
+		BranchPrefix: prefix,
+	})
+}
+
+func TestBlockingBranchProbesMintCandidate(t *testing.T) {
+	// blockingBranch probes the branch a fresh claim would MINT from
+	// type/branch_prefix/slug, not the fixed feat/<slug>: a type-fix change is
+	// blocked by a live fix/<slug>; a branch_prefix override moves the candidate;
+	// and a live feat/<slug> alone does not block a fix change.
+	cases := []struct {
+		name         string
+		changeType   string
+		prefix       OptionalString
+		branches     []string
+		wantBlocking string
+	}{
+		{
+			name: "type mints the candidate", changeType: "fix",
+			branches: []string{"fix/lease-slug"}, wantBlocking: "fix/lease-slug",
+		},
+		{
+			name: "branch_prefix overrides the type", changeType: "fix",
+			prefix:   OptionalString{State: FieldPresent, Value: "hotfix"},
+			branches: []string{"hotfix/lease-slug"}, wantBlocking: "hotfix/lease-slug",
+		},
+		{
+			name: "feat/<slug> does not block a fix change", changeType: "fix",
+			branches: []string{"feat/lease-slug"}, wantBlocking: "",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := mintCandidateChange(tc.changeType, tc.prefix)
+			got := EvaluateReclaim(c, leaseNow, leaseTTL, leaseBranches(tc.branches...))
+			if got.BlockingBranch != tc.wantBlocking {
+				t.Fatalf("BlockingBranch = %q, want %q", got.BlockingBranch, tc.wantBlocking)
+			}
+		})
+	}
+}
+
+func TestBlockingBranchPrefersRecorded(t *testing.T) {
+	// A live recorded branch is named ahead of the mint candidate even when the
+	// mint candidate (feature/lease-slug) is also live.
+	c := NewChange(ChangeSpec{
+		ID:        7,
+		Slug:      "lease-slug",
+		Type:      "feature",
+		Status:    StatusInProgress,
+		RawStatus: string(StatusInProgress),
+		ClaimedAt: leaseStamp(-10 * time.Hour),
+		Branch:    OptionalString{State: FieldPresent, Value: "feature/other-name"},
+	})
+	got := EvaluateReclaim(c, leaseNow, leaseTTL, leaseBranches("feature/other-name", "feature/lease-slug"))
+	if got.BlockingBranch != "feature/other-name" {
+		t.Fatalf("BlockingBranch = %q, want recorded %q", got.BlockingBranch, "feature/other-name")
+	}
+}
+
+func TestReclaimPreservesBranchPrefix(t *testing.T) {
+	// Reclaiming a branchless expired claim clears the branch but leaves
+	// branch_prefix exactly as recorded — the next claimant re-mints from it.
+	c := mintCandidateChange("fix", OptionalString{State: FieldPresent, Value: "hotfix"})
+	got, fail := Reclaim(c, leaseNow, leaseTTL, leaseBranches())
+	if fail != nil {
+		t.Fatalf("Reclaim failed: %v", fail)
+	}
+	if b := got.Change.Branch(); b.State != FieldAbsent || b.Value != "" {
+		t.Errorf("branch = %+v, want cleared", b)
+	}
+	if bp := got.Change.BranchPrefix(); bp.State != FieldPresent || bp.Value != "hotfix" {
+		t.Errorf("branch_prefix = %+v, want preserved {Present hotfix}", bp)
 	}
 }

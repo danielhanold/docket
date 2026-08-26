@@ -302,7 +302,7 @@ func reclaimProveBranchesAbsent(ctx context.Context, deps PlanningDeps, repo git
 	if recorded := c.Branch(); recorded.State == domain.FieldPresent && recorded.Value != "" {
 		candidates = append(candidates, recorded.Value)
 	}
-	candidates = append(candidates, domain.BranchForSlug(c.Slug()))
+	candidates = append(candidates, domain.MintBranch(c.Type(), c.BranchPrefix(), c.Slug()))
 
 	id := int(c.ID())
 	for _, branch := range candidates {
