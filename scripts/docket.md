@@ -71,6 +71,8 @@ rather than a `bash` selected from `PATH`.
 | `runner-dispatch` | `runner-dispatch.sh` | delegate one agent run to a child harness via a registered runner adapter (change 0079) |
 | `mark-publish-deferred` | `mark-publish-deferred.sh` | add/remove the `## Publish deferred` marker on a change file (terminal-publish gap visibility, change 0083) |
 | `verify-run` | `verify-run.sh` | evaluate docket-implement-next's Step 7 postcondition for one change and report a verdict (change 0237) |
+| `gate-before` | `gate-before.sh` | thin delegator to `docket run gate-before`: arm the implement-next run gate and print `gate-armed <key>` (change 0334) |
+| `gate-verdict` | `gate-verdict.sh` | thin delegator to `docket run gate-verdict`: report the run-gate verdict, attributed (`<key>`) or observe-only (`--unattributed`) (change 0334) |
 | `stack-base` | `stack-base.sh` | print one change's effective base branch — its `stacked_on` parent's branch, or the integration branch (change 0298) |
 | `stack-children` | `stack-children.sh` | list one change's stacked descendants — id, status, PR — the oracle the finalize open-children and close-out gates read (change 0298) |
 | `stack-closeout` | `stack-closeout.sh` | promote a merged stack root's `stacked-merged` descendants to `done` and write the root's Stack carried table (change 0298) |

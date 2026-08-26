@@ -219,6 +219,23 @@
 #   16  16  16  -> worst 16
 # Next multiple of 5 above 16 is 20, plus the 5s margin -> 25, well under the 60s ceiling.
 # EXPECTED_TOTAL moves 2115 -> 2140.
+#
+# tests/test_gate_facade.sh is a NEW FILE brought by change 0334 (Task 5) — the header's
+# new-test-file case, for a brand-new surface no existing shard owns: the shell run-gate facade
+# delegators (scripts/gate-before.sh / scripts/gate-verdict.sh) over the Go binary. It is the
+# CROSS-PROCESS half of the gate-facade acceptance matrix — the in-process half lives in Go
+# (internal/app/rungate_*_test.go) and cannot prove that the durable gate record survives across
+# separate OS processes or that the `docket.sh gate-before|gate-verdict …` spelling carries the
+# report line through. It builds ./cmd/docket ONCE and drives roughly a dozen fresh `docket.sh …`
+# processes against hermetic bare-remote main-mode fixtures with a tiny fake `gh`. Not folded into
+# tests/test_go_toolchain.sh's `go test ./...` (that gate is in-process Go only, never a shell
+# facade), nor into tests/test_docket_facade.sh (that file stubs the SCRIPTS_DIR seam and never
+# builds or runs the real binary). Sized per this header's rule from the WORST standalone serial
+# reading, one machine, as `/usr/bin/time -p bash tests/test_gate_facade.sh >/dev/null`:
+#   cold cache (empty GOCACHE/GOMODCACHE): 6.46   warm (shared repo cache): 3.20  2.98  2.96
+# The cold reading dominates (it compiles ./cmd/docket) and is the reachable worst on any fresh
+# clone or CI image; per the sizing rule next multiple of 5 above 6.46 is 10, plus the 5s margin
+# -> 15. EXPECTED_TOTAL moves 2310 -> 2325.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -277,6 +294,7 @@ tests/test_gate_caller_loop.sh	15	parallel
 tests/test_gate_driver_boundary.sh	10	parallel
 tests/test_gate_driver_boundary_mutation.sh	10	parallel
 tests/test_gate_execution_posture.sh	10	parallel
+tests/test_gate_facade.sh	15	parallel
 tests/test_github_mirror.sh	10	parallel
 tests/test_go_finalize_e2e.sh	25	parallel
 tests/test_go_toolchain.sh	55	parallel
