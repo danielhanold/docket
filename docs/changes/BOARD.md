@@ -1,6 +1,6 @@
 # Backlog
 
-**348 changes** — 🟢 1 in progress · 🟡 47 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 213 done · 🗑️ 81 killed
+**349 changes** — 🟢 1 in progress · 🟡 48 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 213 done · 🗑️ 81 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0348](active/0348-enrich-open-pr-view-with-review-decision.md) | Enrich the exact-PR view with reviewDecision so open-PR snapshots populate Approved | `medium` | `fix` | [spec](../superpowers/specs/2026-08-26-enrich-open-pr-view-with-review-decision-design.md) | `fix/enrich-open-pr-view-with-review-decision` |
 
-## 🟡 Proposed (47)
+## 🟡 Proposed (48)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -59,6 +59,7 @@
 | [0343](active/0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | `medium` | `fix` | needs-brainstorm |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `medium` | `feat` | needs-brainstorm |
 | [0346](active/0346-finalize-rebuilds-binary-from-unpulled-source-tree.md) | Finalize's post-merge binary rebuild runs against an unpulled source tree | `medium` | `fix` | needs-brainstorm |
+| [0349](active/0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | `medium` | `feat` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -133,6 +134,7 @@ graph TD
   0345
   0346
   0348
+  0349
   0192:::done
   0211:::done
   0251:::done
