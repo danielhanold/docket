@@ -52,6 +52,15 @@ result. The shape is settled by Cursor's published contract and certified by Tie
 The certifying tier. A human runs this in the Cursor IDE, in a repo opted in with
 `agent_harnesses: [claude, cursor]`.
 
+> `agent_harnesses` is the explicit repository opt-in (change 0351). At install time
+> `docket development install` (reached through `install.sh`) reconciles Cursor's wrappers and the
+> `docket-dispatch.mdc` rule in Go; an *absent* key keeps the shipped Claude-only default, a
+> *non-empty* list reconciles exactly the harnesses named, and an *explicit empty* list
+> (`agent_harnesses: []`) retires every docket-owned repository surface. Running `./sync-agents.sh`
+> directly, as Phase 1 does, still regenerates the same artifacts for inspection. Start a fresh
+> Cursor session after any change to a wrapper or the dispatch rule — Cursor registers agents at
+> process start, so clearing a conversation is not enough.
+
 **Pass condition: passes when phases 1–3 and 5 are green and phases 4, 6, and 7 have definitive
 observed answers.** Phase 7 applies only to a repo running `skills.build: docket-build`. A phase that
 is merely "seemed fine" is not an answer. Every gap found becomes a follow-up stub, not a silent

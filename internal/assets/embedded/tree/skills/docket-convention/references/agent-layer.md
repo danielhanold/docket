@@ -4,6 +4,24 @@
 > `agents:` / `agent_harnesses:` in any config layer, or running/debugging `sync-agents.sh`.
 > The runtime contract (which skills get wrappers, dispatch semantics, abort-and-report)
 > stays in `SKILL.md`'s *Agent layer* stub; this file is the full configuration mechanics.
+>
+> **Install-time reconciliation is Go-owned (change 0351).** `docket development install` — reached
+> through `install.sh`, which is only a thin bootstrapper — builds a fresh binary and, in one
+> journaled transaction, links the machine-global skills, reconciles the machine-global agent
+> wrappers, reconciles each repository's parent-facing dispatch surfaces from that repository's
+> **explicit** `agent_harnesses`, and **retires** the old global parent-facing dispatch blocks that
+> earlier docket versions wrote into personal instruction files (`~/.claude/CLAUDE.md` and the other
+> harnesses' globals). Retirement is **proof-gated**: a block is removed only while it still matches
+> docket's exact ownership marker; there is **no `--force`**; a modified or foreign block is left
+> untouched and reported to remedy-and-rerun. As a repository opt-in, `agent_harnesses` has three
+> states — *absent* keeps the shipped default (Claude only) and writes no other harness's repository
+> surfaces, a *non-empty* list reconciles exactly those harnesses, and an *explicit empty* list
+> (`agent_harnesses: []`) retires every docket-owned repository surface the repo previously had.
+> `--repo-dir <path>` targets a repository other than the current directory's, and a repeatable
+> `--harness <name>` scopes the run. `sync-agents.sh` remains the generator that resolves the layered
+> config below and writes the wrapper files; the Go install invocation drives it and owns the
+> transaction. Restart the harness process after any run that changed a wrapper or a parent surface —
+> agents and instruction files are read at process start, so clearing a conversation is not enough.
 
 Contents: [Layered config](#layered-config) · [Harness-first agents: blocks](#harness-first-agents-blocks) · [Generation scope: agent_harnesses](#generation-scope-agent_harnesses) · [Harness-portable model IDs](#harness-portable-model-ids) · [Always-full-set generation + the Cursor dispatch rule](#always-full-set-generation--the-cursor-dispatch-rule) · [sync-agents.sh runs + the --check gate](#sync-agentssh-runs--the---check-gate)
 
