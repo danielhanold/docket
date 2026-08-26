@@ -14,7 +14,7 @@ discovered_from: [317]
 adrs: []
 spec: docs/superpowers/specs/2026-08-25-consolidate-dispatch-block-subagent-guard-design.md
 plan: 'docs/superpowers/plans/2026-08-26-minimal-non-recursive-gated-dispatch.md'
-results:
+results: 'docs/results/2026-08-26-claude-md-global-and-project-copies-out-of-sync-on-finalize-a-results.md'
 trivial: false
 auto_groomable:
 branch: 'feat/claude-md-global-and-project-copies-out-of-sync-on-finalize-a'
@@ -31,6 +31,7 @@ claimed_at: '2026-08-26T02:36:27Z'
 |---|---|
 | Spec | [2026-08-25-consolidate-dispatch-block-subagent-guard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-25-consolidate-dispatch-block-subagent-guard-design.md) |
 | Plan | [2026-08-26-minimal-non-recursive-gated-dispatch.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-26-minimal-non-recursive-gated-dispatch.md) |
+| Results | [2026-08-26-claude-md-global-and-project-copies-out-of-sync-on-finalize-a-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-26-claude-md-global-and-project-copies-out-of-sync-on-finalize-a-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
