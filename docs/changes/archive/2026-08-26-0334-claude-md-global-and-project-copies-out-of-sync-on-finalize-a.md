@@ -2,7 +2,7 @@
 id: 334
 slug: claude-md-global-and-project-copies-out-of-sync-on-finalize-a
 title: Make Docket dispatch minimal, non-recursive, and mechanically gated
-status: 'implemented'
+status: 'done'
 priority: high
 type: fix
 created: 2026-08-21
@@ -21,7 +21,7 @@ branch: 'feat/claude-md-global-and-project-copies-out-of-sync-on-finalize-a'
 pr: 'https://github.com/danielhanold/docket/pull/239'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-26T02:36:27Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -131,24 +131,3 @@ cited ADRs (0016/0024/0059/0075/0078/0084/0088). Findings:
   reality. Scope unchanged; auto-capture disabled this run (no stubs minted). Global-copy removal and
   four-harness fresh-process acceptance stay human merge-gate preconditions.
 
-## Finalize blocked
-
-### 2026-08-26 — attempt 20260826T110316Z-d736ecdcc93c
-
-<!-- attempt:20260826T110316Z-d736ecdcc93c -->
-
-- Reason: rebase-conflict-unresolved
-- Head: 7d84970d91f6c16fed36f29fc9b321d1498fadf2
-- PR: #239
-- Comment: https://github.com/danielhanold/docket/pull/239#issuecomment-5424467072
-
-Remedy: A human should reconcile this branch onto main manually (the conflicts are the runtime-budget EXPECTED_TOTAL pin and the embedded-asset manifest digest, both mechanically resolvable — re-run the asset generator and re-sum the budget table after rebasing), push the rebased head, then re-run docket-finalize-change by naming change id 334 to clear this block and merge. Alternatively, if the installed docket-rebase-resolver agent is intended to drive the whole rebase to completion in a single dispatch (its registered contract says so), that mismatch with the skill body's two-dispatch controller loop should be reconciled before retrying.
-
-### 2026-08-26 — attempt pr-head-mismatch-fd40c629
-
-<!-- attempt:pr-head-mismatch-fd40c629 -->
-
-- Reason: pr-head-mismatch
-- Head: fd40c6296dfa99c481f271f7c4e0905c26bf3f4b
-- PR: #239
-- Comment: https://github.com/danielhanold/docket/pull/239#issuecomment-5424951651
