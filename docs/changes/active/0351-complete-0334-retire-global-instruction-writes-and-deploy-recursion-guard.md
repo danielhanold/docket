@@ -91,8 +91,6 @@ Verified against current reality before planning:
 
 ### 2026-08-26
 
-## Run halted
-
 **Disposition:** halted (hard error — dispatch capability unavailable)
 **When:** 2026-08-26, docket-implement-next Step 4 (worktree + plan), before any plan authoring.
 **Phase reached:** claimed, reconciled, feature workspace prepared and clean; no plan authored, no code written.
