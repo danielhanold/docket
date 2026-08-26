@@ -443,20 +443,29 @@ func TestRunGateVerdictUnknownVerdictFailsClosed(t *testing.T) {
 // stale Retry mirror and consuming afterward — double-grants and reddens here.
 func TestRunGateVerdictConcurrentRetryGrantsOnce(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
-	deps, wdeps, gdeps := f.deps(
-		rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
-	)
+	ev := string(prEvidenceBytes(t, f.head))
 	key := gateMintArmed(t, f.repo.invocation, nil, 1)
 
+	// Each goroutine gets its OWN deps triple: in production the two concurrent
+	// verdict calls are separate processes, each with its own reader/workspace/
+	// GitHub adapters. The in-memory fakes record their calls without locks, so
+	// sharing one triple across both goroutines races under -race on that
+	// bookkeeping — a test-double artifact, not the behavior under test. The only
+	// resource the two calls genuinely contend on is the on-disk gate record under
+	// f.repo.invocation, whose single-grant guarantee is the O_EXCL CAS in
+	// ConsumeGateRetry — that contention is preserved.
 	var wg sync.WaitGroup
 	results := make([]RunGateVerdictResult, 2)
 	for i := 0; i < 2; i++ {
 		wg.Add(1)
-		go func(idx int) {
+		deps, wdeps, gdeps := f.deps(
+			rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug),
+			rvPR(f.head, ev),
+		)
+		go func(idx int, deps PlanningDeps, wdeps WorkspaceDeps, gdeps GitHubDeps) {
 			defer wg.Done()
 			results[idx] = RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-		}(i)
+		}(i, deps, wdeps, gdeps)
 	}
 	wg.Wait()
 

@@ -58,7 +58,7 @@ assert "opencode-only repo gets the AGENTS.md dispatch block" '[ -f "$A" ] && gr
 # Change 0334 removed the roster: the block no longer lists per-agent bullets — it carries a compact
 # routing rule that defers to the harness's own registry. Assert the roster's REMOVAL by SHAPE, and
 # assert the routing rule replaced it.
-assert "block carries no roster bullets (shape `^- **docket-`, roster removed)" \
+assert 'block carries no roster bullets (shape `^- **docket-`, roster removed)' \
   '[ "$(grep -c "^- \*\*docket-" "$A")" = "0" ]'
 assert "block carries no roster delegation clause" '! grep -qF -- "Delegate to the" "$A"'
 assert "block carries the compact routing rule" 'grep -qF "registered same-name" "$A"'
