@@ -848,22 +848,173 @@ func TestTxnRemovalRollsBack(t *testing.T) {
 	}
 }
 
-func TestTxnRefusesToRemoveAManagedBlock(t *testing.T) {
+// managedBlockSpan is the exact marker-to-marker byte range managedFile lays
+// down for the dispatch block, so a test can assert the prose that survives its
+// removal without hand-transcribing it.
+func managedBlockSpan(interior string) string {
+	return "<!-- docket:dispatch:start (managed by docket) -->\n" +
+		interior + "<!-- docket:dispatch:end -->\n"
+}
+
+func TestTxnManagedBlockRemovalStripsOnlyTheBlock(t *testing.T) {
 	f := newFixture(t)
-	// Deleting the file to retire one block would take the user's own prose
-	// with it, so the record is refused rather than obeyed.
+	// managed.md carries a dispatch block wrapped in the user's own prose, seeded
+	// by newFixture. Retiring the block must leave every surrounding byte exactly
+	// as it was and the file itself in place — it is a rewrite, not a deletion.
+	path := f.path("dispatch", "managed.md")
+	interior := "old interior\n"
+	proseOnly := strings.Replace(managedFile(interior), managedBlockSpan(interior), "", 1)
+
+	removal := TargetRecord{Path: path, Kind: KindManagedBlock, BlockName: "dispatch", Role: "dispatch"}
+	txn, err := BeginTxnWithRemovals(RealFS{}, f.roots, nil, []TargetRecord{removal})
+	if err != nil {
+		t.Fatalf("BeginTxnWithRemovals: %v", err)
+	}
+	if err := txn.Apply(); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if got := readOrDie(t, path); got != proseOnly {
+		t.Errorf("after removal =\n%q\nwant\n%q", got, proseOnly)
+	}
+	if _, err := os.Lstat(path); err != nil {
+		t.Errorf("a managed-block removal must leave the file in place: %v", err)
+	}
+	// The block's own bytes are gone; the surrounding prose is present verbatim.
+	if strings.Contains(readOrDie(t, path), "docket:dispatch") {
+		t.Errorf("the dispatch markers survived the removal")
+	}
+	assertNoStaging(t, f.targets)
+}
+
+func TestTxnManagedBlockRemovalRollsBack(t *testing.T) {
+	// The removal rewrites managed.md; a later create fails, so the rewrite must
+	// be undone byte-for-byte. The clean run first tells the table how many
+	// mutations the pair performs, so every one gets an injection.
+	makePlan := func(f *fixture) ([]Inspection, []TargetRecord) {
+		insp := []Inspection{{
+			Target: Target{
+				Path: f.path("dispatch", "zzz.md"), Kind: KindFile,
+				Content: []byte("later\n"), Role: "agent",
+			},
+			Disposition: DispositionCreate,
+		}}
+		rem := []TargetRecord{{
+			Path: f.path("dispatch", "managed.md"), Kind: KindManagedBlock,
+			BlockName: "dispatch", Role: "dispatch",
+		}}
+		return insp, rem
+	}
+
+	var ops []string
+	func() {
+		f := newFixture(t)
+		insp, rem := makePlan(f)
+		ifs := &injectFS{inner: RealFS{}}
+		txn, err := BeginTxnWithRemovals(ifs, f.roots, insp, rem)
+		if err != nil {
+			t.Fatalf("BeginTxnWithRemovals: %v", err)
+		}
+		ifs.fail = recordCalls(&ops)
+		if err := txn.Apply(); err != nil {
+			t.Fatalf("clean Apply: %v", err)
+		}
+	}()
+	if len(ops) == 0 {
+		t.Fatal("a clean apply performed no mutations; the table would be vacuous")
+	}
+
+	for n := 1; n <= len(ops); n++ {
+		t.Run(fmt.Sprintf("fail-at-%02d-%s", n, ops[n-1]), func(t *testing.T) {
+			f := newFixture(t)
+			insp, rem := makePlan(f)
+			before := snapshotWorld(t, f.targets)
+
+			ifs := &injectFS{inner: RealFS{}}
+			txn, err := BeginTxnWithRemovals(ifs, f.roots, insp, rem)
+			if err != nil {
+				t.Fatalf("BeginTxnWithRemovals: %v", err)
+			}
+			ifs.fail = failAtCall(n)
+
+			if err := txn.Apply(); err == nil {
+				t.Fatal("Apply succeeded despite an injected filesystem failure")
+			}
+			assertWorld(t, before, snapshotWorld(t, f.targets), "after rollback")
+			assertNoStaging(t, f.targets)
+			if _, found, err := DetectRecovery(f.roots); err != nil || found {
+				t.Errorf("DetectRecovery after rollback = (found %v, err %v), want (false, nil)", found, err)
+			}
+		})
+	}
+}
+
+func TestTxnRefusesRemovalOfAMalformedMarkerFile(t *testing.T) {
+	f := newFixture(t)
+	// A dangling start marker cannot be parsed, so the block cannot be located
+	// and the removal must refuse rather than let an unbounded range consume to
+	// EOF. The refusal surfaces at apply, before any byte of the file is
+	// rewritten.
+	path := f.path("dispatch", "broken.md")
+	malformed := "# Notes\n\n<!-- docket:dispatch:start (managed by docket) -->\nbody with no end marker\n"
+	writeFileOrDie(t, path, malformed)
+	before := snapshotWorld(t, f.targets)
+
+	removal := TargetRecord{Path: path, Kind: KindManagedBlock, BlockName: "dispatch", Role: "dispatch"}
+	txn, err := BeginTxnWithRemovals(RealFS{}, f.roots, nil, []TargetRecord{removal})
+	if err != nil {
+		t.Fatalf("BeginTxnWithRemovals: %v", err)
+	}
+	if err := txn.Apply(); err == nil {
+		t.Fatal("Apply retired a block from a file whose markers are malformed")
+	}
+	if got := readOrDie(t, path); got != malformed {
+		t.Errorf("the malformed file was disturbed:\n%q", got)
+	}
+	assertWorld(t, before, snapshotWorld(t, f.targets), "after refusing a malformed removal")
+	assertNoStaging(t, f.targets)
+}
+
+func TestTxnRefusesManagedBlockRemovalWithoutABlockName(t *testing.T) {
+	f := newFixture(t)
+	// A managed-block removal is now a first-class step, but the record must name
+	// the block to retire: a nameless one cannot be located, so it is refused at
+	// planning before any journal exists.
 	_, err := BeginTxnWithRemovals(RealFS{}, f.roots, nil, []TargetRecord{{
-		Path: f.path("dispatch", "rules.md"), Kind: KindManagedBlock, BlockName: "dispatch", Role: "dispatch",
+		Path: f.path("dispatch", "managed.md"), Kind: KindManagedBlock, Role: "dispatch",
 	}})
 	if !errors.Is(err, ErrInvalidTarget) {
 		t.Fatalf("err = %v, want ErrInvalidTarget", err)
 	}
-	if readOrDie(t, f.path("dispatch", "rules.md")) != userRules {
+	if readOrDie(t, f.path("dispatch", "managed.md")) != managedFile("old interior\n") {
 		t.Errorf("the file was disturbed anyway")
 	}
 	if journalCount(t, f.roots) != 0 {
 		t.Errorf("a refused plan left a journal behind")
 	}
+}
+
+func TestTxnRefusesToRemoveAManagedBlockThroughASymlink(t *testing.T) {
+	f := newFixture(t)
+	// The user keeps the dispatch file in a dotfiles checkout and links it into
+	// place. Rewriting the block by rename would replace the link with a plain
+	// file, so a managed-block removal on a symlinked path must refuse and put
+	// everything back — the same guarantee the update path gives.
+	real := f.path("dotfiles", "managed.md")
+	writeFileOrDie(t, real, managedFile("old interior\n"))
+	link := f.path("linked", "managed.md")
+	symlinkOrDie(t, real, link)
+	before := snapshotWorld(t, f.targets)
+
+	removal := TargetRecord{Path: link, Kind: KindManagedBlock, BlockName: "dispatch", Role: "dispatch"}
+	txn, err := BeginTxnWithRemovals(RealFS{}, f.roots, nil, []TargetRecord{removal})
+	if err != nil {
+		t.Fatalf("BeginTxnWithRemovals: %v", err)
+	}
+	if err := txn.Apply(); err == nil {
+		t.Fatal("Apply rewrote a managed block through a symlink")
+	}
+	assertWorld(t, before, snapshotWorld(t, f.targets), "after refusing a symlinked removal")
+	assertNoStaging(t, f.targets)
 }
 
 func TestTxnRefusesRemovalOfAWrittenDestination(t *testing.T) {

@@ -173,10 +173,12 @@ func BeginTxn(fsops FSOps, roots UserRoots, inspections []Inspection) (*Txn, err
 // same risk — a removal whose pre-image is not journaled is a deletion nothing
 // can undo — so each one's bytes (or link) are captured before anything runs.
 //
-// Only KindFile and KindSymlink may be removed. A managed block lives inside a
-// file the user also owns, and deleting that file to retire one block would
-// take content docket was never given; the operation layer retains such records
-// instead.
+// KindFile and KindSymlink removals delete the destination outright. A
+// KindManagedBlock removal is different: the block lives inside a file the user
+// also owns, so retiring it rewrites the file with only that block's own lines
+// gone — through the same staged rename a write uses — and requires the record
+// to name the block. Either way the pre-image is captured before anything runs,
+// so no removal happens whose undo is not already journaled.
 func BeginTxnWithRemovals(fsops FSOps, roots UserRoots, inspections []Inspection, removals []TargetRecord) (*Txn, error) {
 	if fsops == nil {
 		return nil, errors.New("install: BeginTxn requires a filesystem")
@@ -276,9 +278,13 @@ func (t *Txn) Apply() error {
 // its step.
 func (t *Txn) verifyPreImages() error {
 	for _, step := range t.journal.Steps {
-		if step.Remove {
-			// A removal deletes whatever it finds and restores what it captured;
-			// a target that vanished on its own has simply arrived early.
+		if step.Remove && step.Kind != KindManagedBlock {
+			// A whole-file removal deletes whatever it finds and restores what it
+			// captured; a target that vanished on its own has simply arrived early.
+			// A managed-block removal is exempt from that exemption: it rewrites the
+			// file in place, so it is verified like an update — the destination must
+			// still hold what the journal recorded, or the rewrite has nothing it
+			// can safely undo.
 			continue
 		}
 		info, err := os.Lstat(step.Path)
@@ -347,6 +353,12 @@ func (t *Txn) applyStep(i int) error {
 	target := t.targets[i]
 
 	if step.Remove {
+		if step.Kind == KindManagedBlock {
+			// A managed-block removal rewrites the file with only that block's
+			// lines gone, keeping every surrounding byte; it is not a whole-file
+			// deletion.
+			return t.removeManagedBlock(step)
+		}
 		// Nothing is created on the way to a deletion, so the destination's
 		// directory is left exactly as it was found — including absent.
 		return removeIfPresent(t.fs, step.Path)
@@ -462,6 +474,46 @@ func renderManagedBlock(path string, target Target) ([]byte, error) {
 		return nil, fmt.Errorf("rewriting the %s block in %s: %w", target.BlockName, path, err)
 	}
 	return out, nil
+}
+
+// removeManagedBlock retires one managed block from a file the user also owns,
+// rewriting it with exactly that block's marker-to-marker lines gone and every
+// surrounding byte untouched. It is the deletion counterpart of
+// renderManagedBlock and publishes through the same staged rename, so the
+// journal's pre-image covers the whole rewrite for rollback.
+func (t *Txn) removeManagedBlock(step *journalStep) error {
+	switch step.PreImage.State {
+	case preAbsent:
+		// The file that carried the block is already gone: there is nothing to
+		// retire and no bytes to rewrite. verifyPreImages has confirmed the disk
+		// still agrees, so this is the "already retired" no-op, not a lost file.
+		return nil
+	case preSymlink:
+		// A rewrite publishes by rename, which would replace the link itself with
+		// a regular file. A managed block is never installed through a symlink
+		// (see the KindManagedBlock write branch), so a link here appeared after
+		// the record was written and the transaction refuses rather than quietly
+		// eating the user's link.
+		return fmt.Errorf("%w: %s is a symlink, which cannot carry a managed block",
+			ErrInvalidTarget, step.Path)
+	}
+	existing, err := os.ReadFile(step.Path)
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", step.Path, err)
+	}
+	doc, err := document.Parse(existing)
+	if err != nil {
+		return fmt.Errorf("parsing %s: %w", step.Path, err)
+	}
+	var patch document.PatchSet
+	patch.RemoveBlock(step.BlockName)
+	out, err := doc.Apply(patch)
+	if err != nil {
+		return fmt.Errorf("retiring the %s block in %s: %w", step.BlockName, step.Path, err)
+	}
+	// want == 0 keeps the file's recorded pre-image mode: the surrounding bytes
+	// are the user's, and so is the mode.
+	return t.writeThroughStaging(step, out, 0)
 }
 
 // Rollback restores every journaled destination, newest first, and removes the
@@ -742,6 +794,19 @@ func removalTarget(rec TargetRecord) (Target, error) {
 			Kind:       rec.Kind,
 			LinkTarget: rec.LinkTarget,
 			Role:       rec.Role,
+		}, nil
+	case KindManagedBlock:
+		// The block is what the removal deletes, so a record that cannot name it
+		// describes no deletable thing and refuses the whole transaction.
+		if rec.BlockName == "" {
+			return Target{}, fmt.Errorf("%w: %s is recorded as a managed block with no block name",
+				ErrInvalidTarget, rec.Path)
+		}
+		return Target{
+			Path:      rec.Path,
+			Kind:      rec.Kind,
+			BlockName: rec.BlockName,
+			Role:      rec.Role,
 		}, nil
 	default:
 		return Target{}, fmt.Errorf("%w: %s is recorded as %q, which a transaction never deletes",
