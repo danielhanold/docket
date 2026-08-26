@@ -15,7 +15,7 @@ adrs: [92]
 spec:
 plan:
 results:
-trivial: true
+trivial: false
 auto_groomable:
 branch:
 pr:
