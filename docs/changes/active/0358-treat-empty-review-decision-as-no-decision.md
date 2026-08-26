@@ -21,7 +21,7 @@ branch: 'fix/treat-empty-review-decision-as-no-decision'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-26T23:16:40Z'
+claimed_at: '2026-08-26T23:17:21Z'
 ---
 
 ## Artifacts
