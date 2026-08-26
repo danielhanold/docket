@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0348 — Enrich the exact-PR view with reviewDecision so open-PR snapshots populate Approved](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0348-enrich-open-pr-view-with-review-decision.md)**
+> ↩ **[Change 0348 — Enrich the exact-PR view with reviewDecision so open-PR snapshots populate Approved](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-26-0348-enrich-open-pr-view-with-review-decision.md)**
 <!-- docket:backlink:end -->
 # Enrich Exact-PR View With reviewDecision Implementation Plan
 
