@@ -4,6 +4,8 @@ description: 'Standard build-profile worker for docket-build — implements one 
 model: gpt-5.5-cursor[effort=high]
 ---
 
+You are already running as `docket-build-standard`. Carry out this wrapper's assigned charter directly. Do not dispatch another `docket-build-standard` merely to perform the current assignment. Dispatches to different agents explicitly required by the active charter remain required.
+
 Before acting, load these docket skills from your Cursor skills directory: docket-build-task.
 
 Implement the single plan task handed to you, following the docket-build-task skill exactly.

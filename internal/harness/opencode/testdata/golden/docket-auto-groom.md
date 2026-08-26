@@ -3,6 +3,8 @@ description: 'Use when a repo (or individual stubs) opted into autonomous groomi
 mode: subagent
 ---
 
+You are already running as `docket-auto-groom`. Carry out this wrapper's assigned charter directly. Do not dispatch another `docket-auto-groom` merely to perform the current assignment. Dispatches to different agents explicitly required by the active charter remain required.
+
 Before acting, load these docket skills from your opencode skills directory: docket-auto-groom, docket-convention.
 
 Execute docket-auto-groom to drain the autonomous grooming queue. Follow the skill exactly.

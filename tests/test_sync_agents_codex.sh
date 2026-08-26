@@ -83,8 +83,15 @@ assert "codex TOML: dev_instructions name the skills to load" 'grep -qi "docket-
 # the pin from agents/harness-defaults.yml — so the property is asserted directly: the codex
 # emitter changed NOTHING on the Claude side except that injection.
 assert "claude side still .md, not .toml" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
-assert "claude side: body is verbatim from its source" \
-  'diff -q <(body_of "$REPO/agents/docket-status.md") <(body_of "$SBX/.claude/agents/docket-status.md") >/dev/null'
+# The Claude body now opens with the shared exact-name self-recursion guard paragraph
+# (change 0334), so it is no longer byte-identical to the source: the source body is
+# preserved verbatim as the TAIL, and the guard is the only addition. Both halves are
+# asserted so dropping the guard OR corrupting the body reddens.
+assert "claude side: source body is carried verbatim after the recursion guard" \
+  'case "$(body_of "$SBX/.claude/agents/docket-status.md")" in *"$(body_of "$REPO/agents/docket-status.md")") true;; *) false;; esac'
+assert "claude side: carries the exact-name recursion guard for its own agent" \
+  'grep -q "You are already running as .docket-status." "$SBX/.claude/agents/docket-status.md" &&
+   grep -q "dispatch another .docket-status." "$SBX/.claude/agents/docket-status.md"'
 assert "claude side: name/description/skills come from the source" \
   '[ "$(fm "$SBX/.claude/agents/docket-status.md" name)" = "docket-status" ] &&
    [ "$(fm "$SBX/.claude/agents/docket-status.md" description)" = "$(fm "$REPO/agents/docket-status.md" description)" ] &&

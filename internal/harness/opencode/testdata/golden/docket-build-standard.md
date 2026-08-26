@@ -5,6 +5,8 @@ model: openrouter/anthropic/claude-opus-5
 reasoningEffort: high
 ---
 
+You are already running as `docket-build-standard`. Carry out this wrapper's assigned charter directly. Do not dispatch another `docket-build-standard` merely to perform the current assignment. Dispatches to different agents explicitly required by the active charter remain required.
+
 Before acting, load these docket skills from your opencode skills directory: docket-build-task.
 
 Implement the single plan task handed to you, following the docket-build-task skill exactly.

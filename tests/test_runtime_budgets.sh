@@ -28,15 +28,15 @@ EXPECTED_SERIAL=1   # tests/test_go_race.sh (change 0332). The shared state that
                     # needs — the load-dependent gate that halted change 0329. RAISING THIS IS A
                     # FINDING: a serial pin removes a file from the parallel phase, so it must be
                     # justified in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=2345 # the sum of every ceiling, seeded with the table from the measured serial run.
-                    # 2325 -> 2345 (change 0334 rebase): two NEW-FILE rows, +10 each. From change 0334,
-                    # the compact dispatch-block regrowth guard tests/test_dispatch_block_budget.sh joins
-                    # the table — measured standalone 2.04s, rounds to 5 plus the 5s margin, floored at
-                    # the 10s minimum -> 10; a single git-init + sync-agents.sh + wc sweep with no Go
-                    # build. Reconciled from main, the static branch-reconstruction guard
-                    # tests/test_branch_reconstruction_guard.sh joins too — a pure grep/git-ls-files
-                    # sweep over internal/ with no Go build, at the 10s minimum. Neither carries a
-                    # cold-cache term.
+EXPECTED_TOTAL=2355 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2325 -> 2355 (change 0334 rebase): three NEW-FILE rows, +10 each, all pure shell
+                    # sweeps with no Go build and no cold-cache term, each floored at the 10s minimum.
+                    # From change 0334: the exact-name self-recursion guard
+                    # tests/test_sync_agents_recursion_guard.sh (standalone 4.45s, a git-init +
+                    # sync-agents.sh + per-wrapper grep sweep) and the compact dispatch-block regrowth
+                    # guard tests/test_dispatch_block_budget.sh (2.04s, a git-init + sync-agents.sh + wc
+                    # sweep). Reconciled from main: the static branch-reconstruction guard
+                    # tests/test_branch_reconstruction_guard.sh, a grep/git-ls-files sweep over internal/.
                     # 2290 -> 2310 (change 0342): the NEW-FILE case, two rows, +20 together. The
                     # gate-driver architectural boundary guard tests/test_gate_driver_boundary.sh and
                     # its mutation proofs tests/test_gate_driver_boundary_mutation.sh join the table.

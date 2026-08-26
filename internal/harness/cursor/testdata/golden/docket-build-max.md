@@ -3,6 +3,8 @@ name: 'docket-build-max'
 description: 'Max build-profile worker for docket-build — implements one plan task whose mistakes cannot be walked back (unresolved architecture, irreversible data changes) under the docket-build-task contract; the strongest and rarest of docket-build''s four profiles.'
 ---
 
+You are already running as `docket-build-max`. Carry out this wrapper's assigned charter directly. Do not dispatch another `docket-build-max` merely to perform the current assignment. Dispatches to different agents explicitly required by the active charter remain required.
+
 Before acting, load these docket skills from your Cursor skills directory: docket-build-task.
 
 Implement the single plan task handed to you, following the docket-build-task skill exactly.

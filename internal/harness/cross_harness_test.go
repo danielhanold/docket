@@ -105,6 +105,101 @@ func crossPlanInput(t *testing.T) harness.PlanInput {
 	}
 }
 
+// collapseWS folds every run of whitespace to a single space so a phrase assert
+// binds to the words, not to the wrapping the renderer happened to choose
+// (AGENTS.md: phrase greps collapse whitespace before matching).
+func collapseWS(s string) string {
+	return strings.Join(strings.Fields(s), " ")
+}
+
+// TestWrapperRecursionGuard is the exact-name self-recursion guard's Go
+// acceptance, iterating every adapter (harness.Order) over the definitions each
+// actually renders (harness.ParseInventory — never a hand list). The asserts key
+// on LITERAL substrings, not on RecursionGuard's own output: an assert phrased as
+// `Contains(body, RecursionGuard(name))` would move in lockstep with a mutated
+// emitter and stay green, so each expected phrase is spelled here independently.
+//
+// Mutation matrix (each probe reddens the named assert; restore by hand after):
+//
+//	(1) remove the injection call from ONE adapter        -> that adapter fails identity+prohibition+clause
+//	(2) replace the <name> substitution with a fixed str  -> the per-name identity assert fails
+//	(3) delete the different-agent sentence               -> the clause assert fails
+//	(4) broaden to "any agent" (drop "another `<name>`")  -> the exact-name prohibition assert fails
+func TestWrapperRecursionGuard(t *testing.T) {
+	in := crossPlanInput(t)
+	adapters := map[string]harness.Adapter{
+		"claude":   claude.New(),
+		"codex":    codex.New(),
+		"cursor":   cursor.New(),
+		"opencode": opencode.New(),
+	}
+	if len(adapters) != len(harness.Order) {
+		t.Fatalf("the guard covers %d adapters for %d harnesses in Order", len(adapters), len(harness.Order))
+	}
+
+	sources, err := harness.ParseInventory(in.Assets)
+	if err != nil {
+		t.Fatalf("ParseInventory: %v", err)
+	}
+	if len(sources) == 0 {
+		t.Fatal("the inventory carries no agent sources; the guard would assert nothing")
+	}
+
+	for _, name := range harness.Order {
+		a, ok := adapters[name]
+		if !ok {
+			t.Fatalf("no adapter for %q", name)
+		}
+		targets, err := a.Plan(in)
+		if err != nil {
+			t.Fatalf("%s Plan: %v", name, err)
+		}
+
+		byAgent := map[string]string{}
+		for _, tg := range targets {
+			if tg.Role != "agent" {
+				continue
+			}
+			base := filepath.Base(tg.Path)
+			agent := strings.TrimSuffix(base, filepath.Ext(base))
+			byAgent[agent] = collapseWS(string(tg.Content))
+		}
+		// Both directions of the correspondence, each as its own one-way check
+		// (AGENTS.md: correspondence-guard-runs-one-way). Population: every source
+		// rendered exactly one wrapper.
+		if len(byAgent) != len(sources) {
+			t.Errorf("%s rendered %d agent wrappers for %d sources", name, len(byAgent), len(sources))
+		}
+		for _, s := range sources {
+			body, ok := byAgent[s.Name]
+			if !ok {
+				t.Errorf("%s rendered no wrapper for source %s", name, s.Name)
+				continue
+			}
+			// Identity: the guard opens naming this wrapper's own exact agent
+			// (probe 2 reddens this).
+			if want := "running as `" + s.Name + "`"; !strings.Contains(body, want) {
+				t.Errorf("%s wrapper %s: missing guard identity %q", name, s.Name, want)
+			}
+			// Exact-name prohibition: the forbidden edge names the SAME exact
+			// agent, not "any agent" (probe 2 and probe 4 redden this).
+			if want := "dispatch another `" + s.Name + "`"; !strings.Contains(body, want) {
+				t.Errorf("%s wrapper %s: missing exact-name prohibition %q", name, s.Name, want)
+			}
+			// The different-agent clause the guard must preserve (probe 3 reddens
+			// this).
+			if want := "Dispatches to different agents explicitly required"; !strings.Contains(body, want) {
+				t.Errorf("%s wrapper %s: missing different-agent clause", name, s.Name)
+			}
+			// The wording must not regress to the skill-preload phrasing, which is
+			// wrong for skill-less and shared-role-skill wrappers (spec).
+			if strings.Contains(body, "your preloaded skill") {
+				t.Errorf("%s wrapper %s: guard mentions \"your preloaded skill\"", name, s.Name)
+			}
+		}
+	}
+}
+
 // TestNoCrossHarnessDelegation plans all four adapters under one shared input
 // and asserts the two ways an installation could bleed across harnesses: an
 // agent definition that instructs its harness to launch a sibling's runner,

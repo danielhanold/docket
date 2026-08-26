@@ -516,11 +516,16 @@ rm -rf "$SBX"
 make_sandbox
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
 # Change 0168: byte identity with the source is structurally impossible (the pin is injected, not
-# copied). What this fence guards is that a repo with NO runner config anywhere gets the NATIVE
-# wrapper — source body verbatim, no delegation shim — carrying the shipped pin.
-assert "0079: no-runner repo output stays native (source body verbatim, no shim)" \
-  'diff -q <(body_of "$REPO/agents/docket-status.md") <(body_of "$SBX/.claude/agents/docket-status.md") >/dev/null &&
+# copied). Change 0334 injects a second thing — the shared exact-name self-recursion guard as the
+# body's first paragraph — so the source body is now preserved verbatim as the TAIL. What this
+# fence guards is that a repo with NO runner config anywhere gets the NATIVE wrapper — source body
+# carried faithfully, the guard the only body addition, and NO delegation shim.
+assert "0079: no-runner repo output stays native (source body verbatim after the guard, no shim)" \
+  'case "$(body_of "$SBX/.claude/agents/docket-status.md")" in *"$(body_of "$REPO/agents/docket-status.md")") true;; *) false;; esac &&
    ! grep -qF "runner-dispatch" "$SBX/.claude/agents/docket-status.md"'
+assert "0079: no-runner repo output carries the exact-name recursion guard" \
+  'grep -q "You are already running as .docket-status." "$SBX/.claude/agents/docket-status.md" &&
+   grep -q "dispatch another .docket-status." "$SBX/.claude/agents/docket-status.md"'
 assert "0079: no-runner repo output carries the shipped pin" \
   '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "$(hd_field "$HD" claude status model)" ]'
 rm -rf "$SBX"
