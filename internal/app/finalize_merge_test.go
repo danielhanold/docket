@@ -71,6 +71,9 @@ func (f *fakeMergeGitHub) ProbeMerged(_ context.Context, _ githubcli.Repository,
 	return f.probeOutcome, f.probeFacts, nil
 }
 
+func (f *fakeMergeGitHub) ViewPullRequest(context.Context, githubcli.Repository, int) (githubcli.PullRequest, error) {
+	panic("ViewPullRequest: merge must not call this")
+}
 func (f *fakeMergeGitHub) FindOpenPullRequestsByHead(_ context.Context, _ githubcli.Repository, head string) ([]githubcli.PullRequest, error) {
 	if f.findErr != nil {
 		return nil, f.findErr

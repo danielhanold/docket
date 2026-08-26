@@ -59,6 +59,7 @@ const (
 type FinalizeGitHub interface {
 	DiscoverRepository(ctx context.Context, dir string) (githubcli.Repository, error)
 	ProbeMerged(ctx context.Context, repo githubcli.Repository, number int) (githubcli.MergeOutcome, githubcli.MergedFacts, error)
+	ViewPullRequest(ctx context.Context, repo githubcli.Repository, number int) (githubcli.PullRequest, error)
 	FindOpenPullRequestsByHead(ctx context.Context, repo githubcli.Repository, headBranch string) ([]githubcli.PullRequest, error)
 	RetargetPullRequest(ctx context.Context, repo githubcli.Repository, number int, expectedVersion, newBase string) (githubcli.RetargetOutcome, githubcli.PullRequest, error)
 	EnsureComment(ctx context.Context, repo githubcli.Repository, number int, marker, body string) (githubcli.CommentOutcome, string, error)
@@ -113,7 +114,7 @@ type FinalizeCleanupGit interface {
 // error is returned as an error; the caller substitutes unknown facts and never
 // a clean absence.
 type FinalizePRProber interface {
-	ProbePR(ctx context.Context, repoDir, prRef, headBranch string) (domain.PRFacts, error)
+	ProbePR(ctx context.Context, repoDir, prRef string) (domain.PRFacts, error)
 }
 
 // FinalizeDeps is every seam the terminal-half operations compose. It layers the
@@ -512,14 +513,11 @@ func finalizeOpenChildPRs(snap domain.Snapshot, c domain.Change, facts map[domai
 // rather than a clean absence.
 func probeFinalizeFacts(ctx context.Context, prober FinalizePRProber, repoDir string, c domain.Change) (domain.PRFacts, bool) {
 	ref := c.PR().Value
-	// Probe the candidate's own PR against its recorded head; never a slug-derived
-	// name. An unusable recorded branch is unresolved (unknown facts), the same
-	// fail-closed verdict a probe error yields — never a fabricated clean state.
-	head, berr := recordedBranch(c)
-	if berr != nil {
-		return domain.PRFacts{Number: prNumberToken(ref), State: "unknown"}, true
-	}
-	f, err := prober.ProbePR(ctx, repoDir, ref, head)
+	// Identity is the exact PR number recorded in pr:, never a head discovery, so
+	// no branch is threaded here. A probe error is unresolved (unknown facts
+	// carrying only the parsed number token) — the fail-closed verdict, never a
+	// fabricated clean state.
+	f, err := prober.ProbePR(ctx, repoDir, ref)
 	if err != nil {
 		return domain.PRFacts{Number: prNumberToken(ref), State: "unknown"}, true
 	}
@@ -593,25 +591,27 @@ func prNumberToken(ref string) string {
 
 // githubFinalizeProber is the production FinalizePRProber. It composes the
 // existing githubcli probes: the authoritative merged reprobe first (a merged PR
-// carries full facts and is the finalize recovery band), then the open-PR probe
-// by feature head for a non-merged PR.
+// carries full facts and is the finalize recovery band), then the exact-number
+// view for a non-merged PR. Identity is the exact PR number recorded in pr:
+// (parsed by parsePRNumber), never a feature-head discovery — a renamed or
+// reused head can never misidentify the change's own pull request.
 //
 // Field coverage: the current githubcli probes do not carry a PR's review
 // decision, mergeability, or diff size for an OPEN pull request, so those fields
 // (Approved, Mergeable, ChangedFiles, DiffLines) stay zero for an open PR — a
 // conservative reading (an open PR bands as UNKNOWN mergeability and unapproved)
-// that never over-permits. A later task enriching githubcli with a full open-PR
-// facts view (reviewDecision, mergeStateStatus, changedFiles/additions) slots in
-// here without changing the operation. The merged path is fully faithful.
+// that never over-permits. The merged path is fully faithful.
 type githubFinalizeProber struct {
 	gh FinalizeGitHub
 }
 
 // ProbePR reads one change's live PR facts. It resolves the repository from
 // repoDir, reprobes the exact PR number for a merged outcome, and otherwise
-// reads the open PR by feature head. A repository-resolution or probe failure is
-// a returned error; the caller substitutes unknown facts.
-func (p *githubFinalizeProber) ProbePR(ctx context.Context, repoDir, prRef, headBranch string) (domain.PRFacts, error) {
+// reads that exact PR number with ViewPullRequest. A repository-resolution or
+// probe failure is a returned error; the caller substitutes unknown facts. A
+// non-merged state (open or closed) is reported only from a clean exact read —
+// a view error never launders into a closed state.
+func (p *githubFinalizeProber) ProbePR(ctx context.Context, repoDir, prRef string) (domain.PRFacts, error) {
 	number, ok := parsePRNumber(prRef)
 	if !ok {
 		return domain.PRFacts{}, fmt.Errorf("pull-request reference %q carries no parseable number", prRef)
@@ -629,31 +629,26 @@ func (p *githubFinalizeProber) ProbePR(ctx context.Context, repoDir, prRef, head
 			Number:      strconv.Itoa(number),
 			Version:     mf.Version,
 			State:       "merged",
+			HeadBranch:  mf.HeadBranch,
 			HeadOID:     mf.HeadOID,
 			BaseRef:     mf.BaseRef,
 			MergedAtUTC: mf.MergedAtUTC,
 			MergeCommit: mf.MergeCommit,
 		}, nil
 	}
-	prs, err := p.gh.FindOpenPullRequestsByHead(ctx, repo, headBranch)
+	pr, err := p.gh.ViewPullRequest(ctx, repo, number)
 	if err != nil {
 		return domain.PRFacts{}, err
 	}
-	for _, pr := range prs {
-		if pr.Number != number {
-			continue
-		}
-		return domain.PRFacts{
-			Number:  strconv.Itoa(number),
-			Version: pr.Version,
-			State:   string(pr.State),
-			Draft:   pr.Draft,
-			HeadOID: pr.HeadCommit,
-			BaseRef: pr.BaseBranch,
-		}, nil
-	}
-	// Cleanly observed as not merged and not open for its head: closed unmerged.
-	return domain.PRFacts{Number: strconv.Itoa(number), State: "closed"}, nil
+	return domain.PRFacts{
+		Number:     strconv.Itoa(number),
+		Version:    pr.Version,
+		State:      string(pr.State),
+		Draft:      pr.Draft,
+		HeadBranch: pr.HeadBranch,
+		HeadOID:    pr.HeadCommit,
+		BaseRef:    pr.BaseBranch,
+	}, nil
 }
 
 // parsePRNumber extracts the positive PR number from a canonical reference in

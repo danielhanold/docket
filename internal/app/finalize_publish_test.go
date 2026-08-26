@@ -41,6 +41,9 @@ func (f *fakePublishGitHub) DiscoverRepository(context.Context, string) (githubc
 	return f.repo, nil
 }
 
+func (f *fakePublishGitHub) ViewPullRequest(context.Context, githubcli.Repository, int) (githubcli.PullRequest, error) {
+	panic("ViewPullRequest: publish must not call this")
+}
 func (f *fakePublishGitHub) FindOpenPullRequestsByHead(_ context.Context, _ githubcli.Repository, head string) ([]githubcli.PullRequest, error) {
 	if f.findErr != nil {
 		return nil, f.findErr
