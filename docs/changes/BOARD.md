@@ -1,8 +1,8 @@
 # Backlog
 
-**350 changes** — 🟡 49 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 214 done · 🗑️ 81 killed
+**351 changes** — 🟡 50 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 214 done · 🗑️ 81 killed
 
-## 🟡 Proposed (49)
+## 🟡 Proposed (50)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -55,6 +55,7 @@
 | [0346](active/0346-finalize-rebuilds-binary-from-unpulled-source-tree.md) | Finalize's post-merge binary rebuild runs against an unpulled source tree | `medium` | `fix` | needs-brainstorm |
 | [0349](active/0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | `medium` | `feat` | needs-brainstorm |
 | [0350](active/0350-surface-the-swallowed-validation-failure-behind-a-bare-inter.md) | Surface the swallowed validation failure behind a bare internal-error in the transaction engine | `medium` | `fix` | needs-brainstorm |
+| [0351](active/0351-complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard.md) | Complete change 0334: stop writing global instruction files and actually deploy the recursion guard | `high` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -130,6 +131,7 @@ graph TD
   0348
   0349
   0350
+  0351
   0192:::done
   0211:::done
   0251:::done
