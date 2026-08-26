@@ -2,9 +2,7 @@ package cursor
 
 import (
 	"flag"
-	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -243,7 +241,6 @@ func TestCursorGoldenAgents(t *testing.T) {
 	for _, s := range sources {
 		delete(frozen, s.Name+".md")
 	}
-	delete(frozen, dispatchGoldenName)
 	if len(frozen) != 0 {
 		names := make([]string, 0, len(frozen))
 		for n := range frozen {
@@ -391,138 +388,42 @@ func frontmatterOf(content string) string {
 	return fm
 }
 
-const dispatchGoldenName = "docket-dispatch.mdc"
-
-func dispatchTarget(t *testing.T) install.Target {
-	t.Helper()
-	want := filepath.Join(fakeHome, ".cursor", "rules", "docket-dispatch.mdc")
+// Change 0351 retired the user-global dispatch surface: Plan no longer emits the
+// ~/.cursor/rules/docket-dispatch.mdc rule. Parent-facing routing now lives in a
+// repository's own .cursor/rules, never a personal global one.
+func TestCursorPlanHasNoGlobalDispatch(t *testing.T) {
+	globalRule := filepath.Join(fakeHome, ".cursor", "rules", "docket-dispatch.mdc")
 	for _, tg := range planFixture(t) {
-		if tg.Path == want {
-			return tg
+		if tg.Role == "dispatch" {
+			t.Errorf("plan still carries a dispatch-role target at %q", tg.Path)
+		}
+		if tg.Path == globalRule {
+			t.Errorf("plan still carries the global dispatch rule at %q", tg.Path)
 		}
 	}
-	t.Fatalf("plan carries no dispatch rule at %s", want)
-	return install.Target{}
 }
 
-// The dispatch rule is a dedicated file assembled from the authored payloads,
-// verbatim: head, one fragment per agent source, then the run gate. Count
-// equality is asserted BOTH ways against ParseInventory — a fragment with no
-// agent source is as much a defect as an agent source with no fragment.
-func TestCursorDispatchFileAssembled(t *testing.T) {
-	tg := dispatchTarget(t)
+// GlobalDispatchTarget still names the historical destination so the installer
+// can retire a leftover a prior install owns. Cursor's rule is a whole file
+// docket owns — a KindFile, not a managed block. Location and identity only, no
+// Content.
+func TestCursorGlobalDispatchTarget(t *testing.T) {
+	tg := GlobalDispatchTarget(fixtureRoots())
+	if want := filepath.Join(fakeHome, ".cursor", "rules", "docket-dispatch.mdc"); tg.Path != want {
+		t.Errorf("dispatch path = %q, want %q", tg.Path, want)
+	}
 	if tg.Kind != install.KindFile {
 		t.Errorf("dispatch kind = %v, want a plain file", tg.Kind)
 	}
 	if tg.BlockName != "" || tg.Annotation != "" {
-		t.Errorf("dispatch target carries managed-block fields: %q / %q", tg.BlockName, tg.Annotation)
+		t.Errorf("historical target carries managed-block fields: %q / %q", tg.BlockName, tg.Annotation)
 	}
-	content := string(tg.Content)
-	checkGolden(t, dispatchGoldenName, tg.Content)
-
-	in := fixtureInput(t)
-	head, err := in.Assets.Bytes("cursor-rules/dispatch.head.md")
-	if err != nil {
-		t.Fatalf("head payload: %v", err)
+	if tg.Role != "dispatch" {
+		t.Errorf("role = %q, want dispatch", tg.Role)
 	}
-	if !strings.HasPrefix(content, string(head)) {
-		t.Errorf("dispatch rule does not open with the authored head payload verbatim")
+	if tg.Content != nil {
+		t.Errorf("historical target carries content: %q", tg.Content)
 	}
-	runGate, err := in.Assets.Bytes("cursor-rules/run-gate.md")
-	if err != nil {
-		t.Fatalf("run-gate payload: %v", err)
-	}
-	if !strings.HasSuffix(content, strings.TrimRight(string(runGate), "\n")+"\n") {
-		t.Errorf("dispatch rule does not end with the run-gate payload verbatim")
-	}
-
-	sources, err := harness.ParseInventory(in.Assets)
-	if err != nil {
-		t.Fatalf("ParseInventory: %v", err)
-	}
-	fragments := map[string]bool{}
-	for _, e := range in.Assets.EntriesByRole(assets.RoleDispatch) {
-		if path.Dir(e.Path) == "cursor-rules/dispatch" {
-			fragments[path.Base(e.Path)] = true
-		}
-	}
-	if len(fragments) != len(sources) {
-		t.Errorf("the bundle carries %d dispatch fragments for %d agent sources", len(fragments), len(sources))
-	}
-	for _, s := range sources {
-		if !fragments[s.Name+".md"] {
-			t.Errorf("agent source %s has no dispatch fragment", s.Name)
-			continue
-		}
-		frag, err := in.Assets.Bytes("cursor-rules/dispatch/" + s.Name + ".md")
-		if err != nil {
-			t.Fatalf("fragment payload for %s: %v", s.Name, err)
-		}
-		if !strings.Contains(content, strings.TrimRight(string(frag), "\n")) {
-			t.Errorf("dispatch rule does not carry %s's fragment verbatim", s.Name)
-		}
-		delete(fragments, s.Name+".md")
-	}
-	if len(fragments) != 0 {
-		t.Errorf("dispatch fragments with no agent source: %v", fragments)
-	}
-}
-
-// A bundle missing a dispatch payload is a corrupt bundle, never a rule that
-// silently ships without its head, a fragment, or its gate.
-func TestCursorPlanRequiresDispatchPayloads(t *testing.T) {
-	for _, missing := range []string{
-		"cursor-rules/dispatch.head.md",
-		"cursor-rules/run-gate.md",
-		"cursor-rules/dispatch/docket-alpha.md",
-	} {
-		t.Run(missing, func(t *testing.T) {
-			base := syntheticCatalog()
-			m := base.Manifest
-			kept := m.Entries[:0:0]
-			for _, e := range m.Entries {
-				if e.Path != missing {
-					kept = append(kept, e)
-				}
-			}
-			m.Entries = kept
-			_, err := New().Plan(harness.PlanInput{
-				Assets:    assets.NewCatalog(m, base.Bytes),
-				Mode:      harness.ModeRelease,
-				AssetsDir: assetsDir,
-				Roots:     fixtureRoots(),
-				Agents:    fixtureAgents(),
-			})
-			if err == nil {
-				t.Fatalf("Plan accepted a bundle missing %s", missing)
-			}
-		})
-	}
-}
-
-// syntheticCatalog is a minimal well-formed bundle: one agent source with a
-// matching fragment, plus the head and the gate.
-func syntheticCatalog() assets.Catalog {
-	payload := map[string][]byte{}
-	m := assets.Manifest{FormatVersion: assets.ManifestFormatVersion, AssetProtocol: assets.AssetProtocol}
-	add := func(p string, role assets.Role, body string) {
-		payload[p] = []byte(body)
-		m.Entries = append(m.Entries, assets.Entry{Path: p, Role: role, Mode: 0o644, Size: int64(len(body))})
-	}
-	add("agents/docket-alpha.md", assets.RoleAgentSource, "---\nname: docket-alpha\ndescription: Alpha.\n---\nBody.\n")
-	add("cursor-rules/dispatch.head.md", assets.RoleDispatch, "head\n")
-	add("cursor-rules/dispatch/docket-alpha.md", assets.RoleDispatch, "## docket-alpha\n")
-	add("cursor-rules/run-gate.md", assets.RoleDispatch, "## Run gate\n\nRead git.\n")
-	add("skills/docket-build-task/SKILL.md", assets.RoleSkill, "skill")
-	sort.Slice(m.Entries, func(i, j int) bool { return m.Entries[i].Path < m.Entries[j].Path })
-
-	return assets.NewCatalog(m, func(p string) ([]byte, error) {
-		b, ok := payload[p]
-		if !ok {
-			return nil, fmt.Errorf("no such payload %q", p)
-		}
-		return b, nil
-	})
 }
 
 func TestCursorPlanRejectsUnusableInput(t *testing.T) {
@@ -544,50 +445,29 @@ func TestCursorPlanRejectsUnusableInput(t *testing.T) {
 	})
 }
 
-// Adding an agent source to the bundle must grow the plan by one agent file and
-// carry that agent's authored dispatch fragment into the rule, with no adapter
-// edit — the inventory is the single roster, so a renderer-side name list would
-// fail to grow here. Cursor's dispatch surface is assembled from authored
-// per-agent fragments rather than a rendered roster, so the probe also proves
-// the half a bundle can get wrong: an agent source shipped without its fragment
-// is refused rather than silently un-dispatched.
+// Adding an agent source to the bundle must grow the plan by exactly one agent
+// file with no adapter edit. Since change 0351 the plan carries no global
+// dispatch rule, so the growth is purely the added agent wrapper.
 func TestCursorInventoryAdditionPropagates(t *testing.T) {
 	in := fixtureInput(t)
 	before := planFixture(t)
-	beforeRule := string(dispatchTarget(t).Content)
 
 	const extraPath = "agents/docket-zzz-synthetic.md"
 	const extraBody = "---\nname: docket-zzz-synthetic\ndescription: A synthetic seventeenth agent.\n---\nSynthetic body.\n"
-	const fragPath = "cursor-rules/dispatch/docket-zzz-synthetic.md"
-	const fragBody = "- **docket-zzz-synthetic** — A synthetic seventeenth agent. Delegate to the `docket-zzz-synthetic` agent.\n"
 
 	base := in.Assets
-	grow := func(extra ...assets.Entry) assets.Catalog {
-		m := base.Manifest
-		m.Entries = append(append([]assets.Entry(nil), m.Entries...), extra...)
-		sort.Slice(m.Entries, func(i, j int) bool { return m.Entries[i].Path < m.Entries[j].Path })
-		return assets.NewCatalog(m, func(p string) ([]byte, error) {
-			switch p {
-			case extraPath:
-				return []byte(extraBody), nil
-			case fragPath:
-				return []byte(fragBody), nil
-			}
-			return base.Bytes(p)
-		})
-	}
-	agentEntry := assets.Entry{Path: extraPath, Role: assets.RoleAgentSource, Mode: 0o644, Size: int64(len(extraBody))}
-	fragEntry := assets.Entry{Path: fragPath, Role: assets.RoleDispatch, Mode: 0o644, Size: int64(len(fragBody))}
-
-	t.Run("agent source without its fragment is refused", func(t *testing.T) {
-		bad := in
-		bad.Assets = grow(agentEntry)
-		if _, err := New().Plan(bad); err == nil {
-			t.Fatal("Plan assembled a rule for an agent with no dispatch fragment")
+	m := base.Manifest
+	m.Entries = append(append([]assets.Entry(nil), m.Entries...), assets.Entry{
+		Path: extraPath, Role: assets.RoleAgentSource, Mode: 0o644, Size: int64(len(extraBody)),
+	})
+	sort.Slice(m.Entries, func(i, j int) bool { return m.Entries[i].Path < m.Entries[j].Path })
+	in.Assets = assets.NewCatalog(m, func(p string) ([]byte, error) {
+		if p == extraPath {
+			return []byte(extraBody), nil
 		}
+		return base.Bytes(p)
 	})
 
-	in.Assets = grow(agentEntry, fragEntry)
 	after, err := New().Plan(in)
 	if err != nil {
 		t.Fatalf("Plan over the grown catalog: %v", err)
@@ -598,22 +478,16 @@ func TestCursorInventoryAdditionPropagates(t *testing.T) {
 
 	wantPath := filepath.Join(fakeHome, rootDir, agentsDir, "docket-zzz-synthetic.md")
 	var found bool
-	var afterRule string
+	globalRule := filepath.Join(fakeHome, rootDir, rulesDir, dispatchFile)
 	for _, tg := range after {
 		if tg.Path == wantPath && tg.Kind == install.KindFile {
 			found = true
 		}
-		if tg.Path == filepath.Join(fakeHome, rootDir, rulesDir, dispatchFile) {
-			afterRule = string(tg.Content)
+		if tg.Role == "dispatch" || tg.Path == globalRule {
+			t.Errorf("the grown plan carries a global dispatch surface at %q", tg.Path)
 		}
 	}
 	if !found {
 		t.Errorf("the grown plan carries no agent file at %s", wantPath)
-	}
-	if !strings.Contains(afterRule, strings.TrimRight(fragBody, "\n")) {
-		t.Errorf("the dispatch rule does not carry the added agent's fragment")
-	}
-	if len(afterRule) <= len(beforeRule) {
-		t.Errorf("the dispatch rule did not grow: %d bytes before, %d after", len(beforeRule), len(afterRule))
 	}
 }

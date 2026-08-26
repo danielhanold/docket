@@ -42,6 +42,13 @@ type Planner struct {
 	Name   string
 	Detect func(UserRoots) (present bool, root string)
 	Plan   func(mode Mode, assetsDir string, catalog assets.Catalog) ([]Target, error)
+	// GlobalDispatchTarget names the user-global dispatch destination this
+	// harness USED to plan and no longer does (change 0351): the location and
+	// identity of a leftover the installer must retire when it can prove
+	// ownership. It carries no Content — retirement proves ownership from bytes on
+	// disk, never from a rendered body. Nil for a planner with no such historical
+	// surface; the four real harness adapters each supply one.
+	GlobalDispatchTarget func(UserRoots) Target
 }
 
 // Options is everything a release install or a check reads.
@@ -335,6 +342,28 @@ func Check(o Options) Outcome {
 		drift = append(drift, Action{Op: OpDrift, Path: t.Path, Detail: detail})
 	}
 
+	// A still-present global dispatch surface is drift `install` would retire:
+	// a proven leftover is drift awaiting retirement, and an unprovable one is
+	// the conflict it is, reported with its remedy. A probe failure is a genuine
+	// filesystem error here as it is in `install`. The historical paths are
+	// retirement's to report, so they are excluded from the prune scan below.
+	historical, _ := globalDispatchTargets(o.Planners, state.Harnesses, o.Roots)
+	retiredPaths := make(map[string]bool, len(historical))
+	for _, t := range historical {
+		retiredPaths[filepath.Clean(t.Path)] = true
+	}
+	retireRemovals, retireConflicts, err := PlanGlobalRetirements(o.Roots, historical, state, legacy)
+	if err != nil {
+		return fail(out, ReasonFilesystemFailed, err)
+	}
+	for _, rec := range retireRemovals {
+		drift = append(drift, Action{Op: OpDrift, Path: rec.Path,
+			Detail: "global dispatch surface awaiting retirement; run docket install"})
+	}
+	for _, c := range retireConflicts {
+		drift = append(drift, Action{Op: OpDrift, Path: c.Target.Path, Detail: c.ConflictDetail()})
+	}
+
 	// The installation's own binary belongs to no harness, so nothing above
 	// looked at it: it is not replanned by any planner, and scopedTo drops
 	// empty-harness records before the prune scan below can see it. Verified
@@ -351,8 +380,8 @@ func Check(o Options) Outcome {
 		return fail(out, ReasonStateInvalid, err)
 	}
 	for _, prune := range prunes {
-		if prune.Record.Kind == KindManagedBlock {
-			continue // retained by design; see applyPlan
+		if retiredPaths[filepath.Clean(prune.Record.Path)] {
+			continue // reported by the retirement pass above.
 		}
 		drift = append(drift, Action{Op: OpDrift, Path: prune.Record.Path, Detail: "recorded but no longer planned"})
 	}
@@ -445,6 +474,20 @@ func applyPlan(o Options, p plannedInstallation, out Outcome) Outcome {
 		}
 		inspections = append(inspections, inspection)
 	}
+
+	// Retirement of the user-global dispatch surfaces the adapters no longer
+	// plan. Its probe of each historical destination reads disk directly, so a
+	// stat/read failure refuses the whole run rather than being mistaken for
+	// "absent"; its conflicts join the plan's own so one refusal collects every
+	// ownership problem across machine targets and retirement alike; and its
+	// removals ride the same journaled transaction as the writes.
+	historical, histOwner := globalDispatchTargets(o.Planners, p.harnesses, o.Roots)
+	retireRemovals, retireConflicts, err := PlanGlobalRetirements(o.Roots, historical, prior, legacy)
+	if err != nil {
+		return fail(out, ReasonFilesystemFailed, err)
+	}
+	conflicts = append(conflicts, retireConflicts...)
+
 	if len(conflicts) > 0 {
 		for _, c := range conflicts {
 			// The detail carries the remedy as well as the reason: there is no
@@ -456,30 +499,39 @@ func applyPlan(o Options, p plannedInstallation, out Outcome) Outcome {
 			"%w: %d target(s) are not provably docket's", ErrPlanConflict, len(conflicts)))
 	}
 
+	// The historical dispatch paths are retirement's to own: a proven one is in
+	// retireRemovals, an unprovable one already refused above, and a
+	// cleanly-absent or already-retired one is nothing to do. Excluding them from
+	// the prune scan keeps a single destination from being both retired and
+	// pruned — two removal steps for one path would collide in the transaction.
+	retiredPaths := make(map[string]bool, len(historical))
+	for _, t := range historical {
+		retiredPaths[filepath.Clean(t.Path)] = true
+	}
+	// A retirement removal is attributed to the harness whose historical target it
+	// came from, so the reported removal names its harness even when no prior
+	// record survived (a legacy adoption-and-retire).
+	for i := range retireRemovals {
+		if owner := histOwner[retireRemovals[i].Path]; owner != "" {
+			retireRemovals[i].Harness = owner
+		}
+	}
+
 	prunes, err := PruneCandidates(scopedTo(prior, p.harnesses), p.targets)
 	if err != nil {
 		return fail(out, ReasonStateInvalid, err)
 	}
-	var (
-		removals  []TargetRecord
-		retained  []TargetRecord
-		keptNotes []Action
-		blocked   []Prune
-	)
+	removals := append([]TargetRecord(nil), retireRemovals...)
+	var blocked []Prune
 	for _, prune := range prunes {
-		switch {
-		case prune.Record.Kind == KindManagedBlock:
-			// The file around the block is the user's. Retiring one block by
-			// deleting its file would take content docket was never given, so
-			// the record is carried forward and the file is left alone.
-			retained = append(retained, prune.Record)
-			keptNotes = append(keptNotes, Action{Op: OpKeep, Path: prune.Record.Path,
-				Detail: "managed block retired from the plan; the file is the user's and is left in place"})
-		case !prune.Removable:
-			blocked = append(blocked, prune)
-		default:
-			removals = append(removals, prune.Record)
+		if retiredPaths[filepath.Clean(prune.Record.Path)] {
+			continue // owned by retirement above.
 		}
+		if !prune.Removable {
+			blocked = append(blocked, prune)
+			continue
+		}
+		removals = append(removals, prune.Record)
 	}
 	if len(blocked) > 0 {
 		for _, b := range blocked {
@@ -490,7 +542,7 @@ func applyPlan(o Options, p plannedInstallation, out Outcome) Outcome {
 			"%w: %d recorded target(s) have drifted and will not be removed", ErrDrifted, len(blocked)))
 	}
 
-	desired, err := desiredState(o, p, prior, retained)
+	desired, err := desiredState(o, p, prior)
 	if err != nil {
 		return fail(out, ReasonInternal, err)
 	}
@@ -506,7 +558,6 @@ func applyPlan(o Options, p plannedInstallation, out Outcome) Outcome {
 		return fail(out, ReasonInternal, err)
 	}
 	if steps == 0 && len(removals) == 0 && settled {
-		out.Actions = append(out.Actions, keptNotes...)
 		return out
 	}
 
@@ -535,7 +586,6 @@ func applyPlan(o Options, p plannedInstallation, out Outcome) Outcome {
 	for _, rec := range removals {
 		out.Actions = append(out.Actions, Action{Op: OpRemove, Path: rec.Path, Detail: rec.Harness})
 	}
-	out.Actions = append(out.Actions, keptNotes...)
 	if steps == 0 && len(removals) == 0 {
 		out.Actions = append(out.Actions, Action{Op: OpState, Path: o.Roots.StatePath(),
 			Detail: "installation record refreshed"})
@@ -545,8 +595,11 @@ func applyPlan(o Options, p plannedInstallation, out Outcome) Outcome {
 
 // desiredState is the record this operation would publish: one entry per
 // planned target, plus every record belonging to a harness this run did not
-// plan for.
-func desiredState(o Options, p plannedInstallation, prior *State, retained []TargetRecord) (*State, error) {
+// plan for. A role-dispatch record for a harness this run DID plan is neither
+// planned nor carried, so it drops out here — which is exactly right once its
+// surface has been retired: no stale record is left to make a future run think a
+// global dispatch artifact still needs managing.
+func desiredState(o Options, p plannedInstallation, prior *State) (*State, error) {
 	records := make([]TargetRecord, 0, len(p.targets))
 	claimed := make(map[string]bool, len(p.targets))
 	for _, t := range p.targets {
@@ -578,9 +631,6 @@ func desiredState(o Options, p plannedInstallation, prior *State, retained []Tar
 				carry(rec)
 			}
 		}
-	}
-	for _, rec := range retained {
-		carry(rec)
 	}
 
 	harnesses := map[string]bool{}
@@ -706,6 +756,30 @@ func planTargets(selected []Planner, mode Mode, assetsDir string, catalog assets
 		}
 	}
 	return targets, owner, nil
+}
+
+// globalDispatchTargets gathers the historical user-global dispatch destinations
+// for the harnesses this run planned, so retirement can probe each one. It is
+// scoped to the run's harnesses the same way the prune scan is: a claude-only
+// run retires claude's leftover and leaves codex's alone. It returns the targets
+// and a cleaned-path → harness owner map, so a retirement removal can name the
+// harness it retired even when no prior record survives.
+func globalDispatchTargets(planners []Planner, harnesses []string, roots UserRoots) ([]Target, map[string]string) {
+	selected := make(map[string]bool, len(harnesses))
+	for _, name := range harnesses {
+		selected[name] = true
+	}
+	var targets []Target
+	owner := map[string]string{}
+	for _, pl := range planners {
+		if pl.GlobalDispatchTarget == nil || !selected[pl.Name] {
+			continue
+		}
+		t := pl.GlobalDispatchTarget(roots)
+		targets = append(targets, t)
+		owner[filepath.Clean(t.Path)] = pl.Name
+	}
+	return targets, owner
 }
 
 // selectPlanners resolves the harnesses this run acts on: the explicit names
