@@ -240,12 +240,20 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 		blobByPath[b.Path] = b
 	}
 
-	// The context bundle resolves the effective base from the pinned snapshot
-	// alone; remote-branch existence is not re-read here (the authoritative,
-	// facts-backed resolution happens inside the claim transaction). A stacked
-	// change whose base needs a live remote branch therefore reports an
-	// unresolved-base readiness rather than a fabricated resolution.
-	facts := domain.NewBranchFacts(nil)
+	// One facts read from the same pin drives the whole decision: automatic
+	// selection, explicit-id eligibility, readiness, and the reported
+	// effective base all consume this single fact set, so the base whose
+	// resolution licensed the bundle is the one the bundle reports. Claim
+	// still re-reads the corpus and branch facts inside its transaction and
+	// re-proves eligibility there; this read only supplies the pre-claim gate
+	// with real remote evidence instead of a fabricated empty set. A failed
+	// lookup is a typed failure, never an empty fact set — an observation
+	// failure must not be misreported as proven branch absence.
+	facts, err := deps.Reader.BranchFacts(ctx, pin, stackBranches(snap))
+	if err != nil {
+		result, reason := classifyStatusError(ctx, err)
+		return newContextResult(result, reason, err.Error(), nil)
+	}
 
 	selected, refusal := selectContextChange(snap, facts, req)
 	if refusal != nil {
