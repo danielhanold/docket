@@ -51,6 +51,9 @@ func (f *fakeBlockGitHub) EnsureComment(_ context.Context, _ githubcli.Repositor
 	}
 	return f.commentOutcome, f.commentURL, nil
 }
+func (f *fakeBlockGitHub) ViewPullRequest(context.Context, githubcli.Repository, int) (githubcli.PullRequest, error) {
+	panic("ViewPullRequest: block must not call this")
+}
 func (f *fakeBlockGitHub) FindOpenPullRequestsByHead(_ context.Context, _ githubcli.Repository, head string) ([]githubcli.PullRequest, error) {
 	if f.findErr != nil {
 		return nil, f.findErr

@@ -12,6 +12,7 @@ type PRFacts struct {
 	State                   string // "open" | "closed" | "merged" | "unknown"
 	Draft, Approved         bool
 	Mergeable               string // "MERGEABLE" | "CONFLICTING" | "UNKNOWN"
+	HeadBranch              string
 	HeadOID, BaseRef        string
 	ChangedFiles, DiffLines int
 	MergedAtUTC             string // RFC3339 or ""

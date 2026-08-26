@@ -43,6 +43,9 @@ func (f *fakeRebaseGitHub) DiscoverRepository(context.Context, string) (githubcl
 	return f.repo, nil
 }
 
+func (f *fakeRebaseGitHub) ViewPullRequest(context.Context, githubcli.Repository, int) (githubcli.PullRequest, error) {
+	panic("ViewPullRequest: rebase must not call this")
+}
 func (f *fakeRebaseGitHub) FindOpenPullRequestsByHead(_ context.Context, _ githubcli.Repository, headBranch string) ([]githubcli.PullRequest, error) {
 	if f.findErr != nil {
 		return nil, f.findErr

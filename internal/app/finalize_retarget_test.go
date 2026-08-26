@@ -52,6 +52,9 @@ func (f *fakeRetargetGitHub) DiscoverRepository(_ context.Context, _ string) (gi
 	return f.repo, nil
 }
 
+func (f *fakeRetargetGitHub) ViewPullRequest(context.Context, githubcli.Repository, int) (githubcli.PullRequest, error) {
+	panic("ViewPullRequest: retarget must not call this")
+}
 func (f *fakeRetargetGitHub) FindOpenPullRequestsByHead(_ context.Context, _ githubcli.Repository, headBranch string) ([]githubcli.PullRequest, error) {
 	f.finds = append(f.finds, headBranch)
 	if e := f.findErr[headBranch]; e != nil {

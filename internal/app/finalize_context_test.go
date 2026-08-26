@@ -48,7 +48,7 @@ type fakeFinalizeProber struct {
 	calls int
 }
 
-func (f *fakeFinalizeProber) ProbePR(_ context.Context, _, prRef, _ string) (domain.PRFacts, error) {
+func (f *fakeFinalizeProber) ProbePR(_ context.Context, _, prRef string) (domain.PRFacts, error) {
 	f.calls++
 	if e := f.errs[prRef]; e != nil {
 		return domain.PRFacts{}, e
@@ -364,6 +364,159 @@ func TestContextFinalizeURLFormPRRef(t *testing.T) {
 	}
 	if c.Band != "merged-recovery" {
 		t.Errorf("band = %q, want merged-recovery", c.Band)
+	}
+}
+
+// --- production prober: exact-number identity -----------------------------
+
+// fakeProberGitHub is a recording FinalizeGitHub for the production
+// githubFinalizeProber tests. It scripts DiscoverRepository, the merged reprobe,
+// and the exact-number view, and COUNTS head-search calls so a test can assert
+// the exact-number probe path never falls back to FindOpenPullRequestsByHead —
+// the assert that reddens if head discovery is reintroduced on this path.
+type fakeProberGitHub struct {
+	repo            githubcli.Repository
+	merged          map[int]closeoutProbe
+	views           map[int]githubcli.PullRequest
+	viewErrs        map[int]error
+	headSearchCalls int
+}
+
+func (f *fakeProberGitHub) DiscoverRepository(context.Context, string) (githubcli.Repository, error) {
+	return f.repo, nil
+}
+func (f *fakeProberGitHub) ProbeMerged(_ context.Context, _ githubcli.Repository, number int) (githubcli.MergeOutcome, githubcli.MergedFacts, error) {
+	if p, ok := f.merged[number]; ok {
+		return p.outcome, p.facts, nil
+	}
+	return githubcli.MergeNotMergeable, githubcli.MergedFacts{}, nil
+}
+func (f *fakeProberGitHub) ViewPullRequest(_ context.Context, _ githubcli.Repository, number int) (githubcli.PullRequest, error) {
+	if e := f.viewErrs[number]; e != nil {
+		return githubcli.PullRequest{}, e
+	}
+	return f.views[number], nil
+}
+func (f *fakeProberGitHub) FindOpenPullRequestsByHead(context.Context, githubcli.Repository, string) ([]githubcli.PullRequest, error) {
+	f.headSearchCalls++
+	return nil, nil
+}
+func (f *fakeProberGitHub) RetargetPullRequest(context.Context, githubcli.Repository, int, string, string) (githubcli.RetargetOutcome, githubcli.PullRequest, error) {
+	panic("RetargetPullRequest: prober must not call this")
+}
+func (f *fakeProberGitHub) EnsureComment(context.Context, githubcli.Repository, int, string, string) (githubcli.CommentOutcome, string, error) {
+	panic("EnsureComment: prober must not call this")
+}
+func (f *fakeProberGitHub) FindComment(context.Context, githubcli.Repository, int, string) (bool, string, error) {
+	panic("FindComment: prober must not call this")
+}
+func (f *fakeProberGitHub) MergePullRequest(context.Context, githubcli.Repository, int, githubcli.ObjectRef, bool) (githubcli.MergeResult, error) {
+	panic("MergePullRequest: prober must not call this")
+}
+
+func proberRepo() githubcli.Repository {
+	return githubcli.Repository{Host: "github.com", Owner: "acme", Name: "widgets"}
+}
+
+// TestProbePRReadsExactNumber: the recorded pr: parses to 7, the exact-number
+// view returns an open PR, and its state and (renamed) head flow into the facts
+// — while the head-search method is NEVER called. That last assert reddens if
+// FindOpenPullRequestsByHead is reintroduced to identify this change's PR.
+func TestProbePRReadsExactNumber(t *testing.T) {
+	gh := &fakeProberGitHub{
+		repo: proberRepo(),
+		views: map[int]githubcli.PullRequest{
+			7: {Number: 7, State: githubcli.StateOpen, HeadBranch: "feature/renamed-head", HeadCommit: "h7", BaseBranch: "main", Version: "v7"},
+		},
+	}
+	facts, err := NewGitHubFinalizeProber(gh).ProbePR(context.Background(), "", prRefFor(7))
+	if err != nil {
+		t.Fatalf("ProbePR: %v", err)
+	}
+	if facts.State != "open" {
+		t.Errorf("State = %q, want open", facts.State)
+	}
+	if facts.HeadBranch != "feature/renamed-head" {
+		t.Errorf("HeadBranch = %q, want feature/renamed-head", facts.HeadBranch)
+	}
+	if facts.Number != "7" {
+		t.Errorf("Number = %q, want 7", facts.Number)
+	}
+	if gh.headSearchCalls != 0 {
+		t.Errorf("FindOpenPullRequestsByHead called %d times; the exact-number path must never fall back to head discovery", gh.headSearchCalls)
+	}
+}
+
+// TestProbePRClosedOnlyFromCleanExactRead: a closed state is reported only when
+// the exact-number view cleanly returns it.
+func TestProbePRClosedOnlyFromCleanExactRead(t *testing.T) {
+	gh := &fakeProberGitHub{
+		repo: proberRepo(),
+		views: map[int]githubcli.PullRequest{
+			7: {Number: 7, State: githubcli.StateClosed, HeadBranch: "feature/renamed-head", HeadCommit: "h7", BaseBranch: "main", Version: "v7"},
+		},
+	}
+	facts, err := NewGitHubFinalizeProber(gh).ProbePR(context.Background(), "", prRefFor(7))
+	if err != nil {
+		t.Fatalf("ProbePR: %v", err)
+	}
+	if facts.State != "closed" {
+		t.Errorf("State = %q, want closed", facts.State)
+	}
+	if gh.headSearchCalls != 0 {
+		t.Errorf("FindOpenPullRequestsByHead called %d times; closed comes only from the exact-number view", gh.headSearchCalls)
+	}
+}
+
+// TestProbePRUnknownOnViewError: an errored exact-number view is folded into
+// unknown facts (carrying only the parsed number token) — never a fabricated
+// closed state.
+func TestProbePRUnknownOnViewError(t *testing.T) {
+	pin := docketPin(t)
+	corpus := []StatusBlob{finalizeBlob(80, "solo", "implemented", "high", prRefFor(7), "")}
+	reader := &fakeReader{pin: pin, corpus: corpus}
+	c := prSnapshotChange(t, reader, 80)
+
+	gh := &fakeProberGitHub{
+		repo:     proberRepo(),
+		viewErrs: map[int]error{7: fmt.Errorf("gh pr view timed out")},
+	}
+	facts, unresolved := probeFinalizeFacts(context.Background(), NewGitHubFinalizeProber(gh), "", c)
+	if !unresolved {
+		t.Fatalf("a view error must surface as unresolved")
+	}
+	if facts.State != "unknown" {
+		t.Errorf("State = %q, want unknown (a view error must not read as closed)", facts.State)
+	}
+	if facts.Number != "7" {
+		t.Errorf("Number = %q, want the parsed token 7", facts.Number)
+	}
+}
+
+// TestProbePRMergedCarriesHeadBranch: a merged reprobe carries its head branch
+// through into the merged facts, short-circuiting the view.
+func TestProbePRMergedCarriesHeadBranch(t *testing.T) {
+	gh := &fakeProberGitHub{
+		repo: proberRepo(),
+		merged: map[int]closeoutProbe{
+			7: {outcome: githubcli.MergeAlreadyMerged, facts: githubcli.MergedFacts{
+				Version: "v7", HeadBranch: "feature/merged-head", HeadOID: "h7", BaseRef: "main",
+				MergedAtUTC: "2026-08-24T00:00:00Z", MergeCommit: "m7",
+			}},
+		},
+	}
+	facts, err := NewGitHubFinalizeProber(gh).ProbePR(context.Background(), "", prRefFor(7))
+	if err != nil {
+		t.Fatalf("ProbePR: %v", err)
+	}
+	if facts.State != "merged" {
+		t.Errorf("State = %q, want merged", facts.State)
+	}
+	if facts.HeadBranch != "feature/merged-head" {
+		t.Errorf("HeadBranch = %q, want feature/merged-head", facts.HeadBranch)
+	}
+	if gh.headSearchCalls != 0 {
+		t.Errorf("FindOpenPullRequestsByHead called %d times; the merged path must never touch head discovery", gh.headSearchCalls)
 	}
 }
 

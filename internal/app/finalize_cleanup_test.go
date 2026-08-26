@@ -48,6 +48,9 @@ func (f *fakeCleanupGitHub) ProbeMerged(_ context.Context, _ githubcli.Repositor
 	}
 	return p.outcome, p.facts, nil
 }
+func (f *fakeCleanupGitHub) ViewPullRequest(context.Context, githubcli.Repository, int) (githubcli.PullRequest, error) {
+	panic("ViewPullRequest: cleanup must not call this")
+}
 func (f *fakeCleanupGitHub) FindOpenPullRequestsByHead(_ context.Context, _ githubcli.Repository, head string) ([]githubcli.PullRequest, error) {
 	if f.findErr != nil {
 		return nil, f.findErr

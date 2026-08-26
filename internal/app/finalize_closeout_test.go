@@ -55,6 +55,9 @@ func (f *fakeCloseoutGitHub) ProbeMerged(_ context.Context, _ githubcli.Reposito
 	return p.outcome, p.facts, nil
 }
 
+func (f *fakeCloseoutGitHub) ViewPullRequest(context.Context, githubcli.Repository, int) (githubcli.PullRequest, error) {
+	panic("ViewPullRequest: closeout must not call this")
+}
 func (f *fakeCloseoutGitHub) FindOpenPullRequestsByHead(context.Context, githubcli.Repository, string) ([]githubcli.PullRequest, error) {
 	panic("FindOpenPullRequestsByHead: closeout must not call this")
 }
