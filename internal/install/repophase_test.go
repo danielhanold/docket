@@ -5,8 +5,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/assets"
 )
 
 // These tests drive applyPlan directly with a repository phase — the one seam
@@ -369,6 +372,65 @@ func TestApplyPlanTwoWorktreesIsolation(t *testing.T) {
 	}
 	if got := readOrDie(t, recordB); got != beforeRecordB {
 		t.Errorf("B's record changed under a run against A:\n%q", got)
+	}
+}
+
+// TestSelectPlannersUnionWithOptIns pins the machine-selection contract change
+// 0351 introduced: without an explicit --harness scope, the default set is
+// detection ∪ the repository's opt-ins, so a harness a repository newly opted
+// into is installed even when it is not otherwise present; an explicit scope
+// stays authoritative and consults neither detection nor the opt-ins.
+//
+// MUTATION TEST (by hand): deleting the opt-in union loop in selectPlanners (so
+// optIns never join `chosen`) reddens the "detection ∪ opt-ins" and
+// "opt-in only" sub-cases below — they would then resolve to detection alone.
+func TestSelectPlannersUnionWithOptIns(t *testing.T) {
+	detected := "a"
+	planners := []Planner{
+		selectTestPlanner("a", true),
+		selectTestPlanner("b", false),
+		selectTestPlanner("c", false),
+	}
+	names := func(ps []Planner) []string {
+		var out []string
+		for _, p := range ps {
+			out = append(out, p.Name)
+		}
+		sort.Strings(out)
+		return out
+	}
+
+	// Explicit scope is authoritative: opt-ins are ignored.
+	sel, err := selectPlanners(planners, []string{"b"}, []string{"c"}, UserRoots{})
+	if err != nil || strings.Join(names(sel), ",") != "b" {
+		t.Fatalf("explicit scope = %v (%v), want [b]", names(sel), err)
+	}
+
+	// No scope: detection ∪ opt-ins.
+	sel, err = selectPlanners(planners, nil, []string{"c"}, UserRoots{})
+	if err != nil || strings.Join(names(sel), ",") != "a,c" {
+		t.Fatalf("union = %v (%v), want [a c]", names(sel), err)
+	}
+
+	// No scope, no opt-ins: detection alone.
+	sel, err = selectPlanners(planners, nil, nil, UserRoots{})
+	if err != nil || strings.Join(names(sel), ",") != detected {
+		t.Fatalf("detection = %v (%v), want [a]", names(sel), err)
+	}
+
+	// An opt-in naming no planner is a wiring bug, refused.
+	if _, err := selectPlanners(planners, nil, []string{"zzz"}, UserRoots{}); err == nil {
+		t.Fatalf("an unknown opt-in token was accepted")
+	}
+}
+
+func selectTestPlanner(name string, present bool) Planner {
+	return Planner{
+		Name:   name,
+		Detect: func(UserRoots) (bool, string) { return present, "" },
+		Plan: func(Mode, string, assets.Catalog) ([]Target, error) {
+			return []Target{{Path: "/" + name, Kind: KindFile, Content: []byte(name)}}, nil
+		},
 	}
 }
 

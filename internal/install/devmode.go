@@ -238,7 +238,7 @@ func developmentInstallCandidate(o DevOptions) Outcome {
 	out.AssetSetID = ds.digest
 	out.AssetProtocol = ds.manifest.AssetProtocol
 
-	selected, err := selectPlanners(o.Planners, o.Harnesses, o.Roots)
+	selected, err := selectPlanners(o.Planners, o.Harnesses, o.HarnessOptIns, o.Roots)
 	if err != nil {
 		return fail(out, selectionReason(err), err)
 	}
@@ -283,9 +283,9 @@ func developmentInstallCandidate(o DevOptions) Outcome {
 		Role:    roleBinary,
 	})
 
-	// The repository half is nil here: this change wires only the machine
-	// installation through the candidate. A later change assembles a real
-	// RepoPhase and passes it in its place.
+	// The candidate re-resolved the repository phase itself (the parent passed
+	// --repo-dir through verbatim), so machine and repository writes ride one
+	// transaction here exactly as a release install does.
 	return applyPlan(o.Options, plannedInstallation{
 		mode:          ModeDevelopment,
 		harnesses:     out.Harnesses,
@@ -295,7 +295,7 @@ func developmentInstallCandidate(o DevOptions) Outcome {
 		assetProtocol: ds.manifest.AssetProtocol,
 		sourceRoot:    ds.source,
 		sourceDigest:  ds.digest,
-	}, nil, out)
+	}, o.RepoPhase, out)
 }
 
 // devSource is the validated, freshly generated view of a checkout that both

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -226,6 +227,40 @@ func TestInstallHumanTextLegacyNoteOnlyOnOwnershipConflict(t *testing.T) {
 		if strings.Contains(other, fragment) {
 			t.Errorf("legacy note leaked into reason %q:\n%s", reason, other)
 		}
+	}
+}
+
+// TestInstallResultRepoReporting pins the two scope-visibility fields: a run
+// that reconciled a repository names the repository and the harnesses whose
+// surfaces it touched, in both the JSON document and the human text, so a scoped
+// run is visible rather than inferred from changed files.
+func TestInstallResultRepoReporting(t *testing.T) {
+	r := NewInstallResult("install", install.Outcome{Applied: true, Mode: install.ModeRelease})
+	r.RepoDir = "/repo/root"
+	r.RepoHarnesses = []string{"claude", "codex"}
+
+	blob, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := string(blob)
+	for _, want := range []string{`"repo_dir":"/repo/root"`, `"repo_harnesses":["claude","codex"]`} {
+		if !strings.Contains(js, want) {
+			t.Errorf("JSON missing %q:\n%s", want, js)
+		}
+	}
+
+	text := r.HumanText()
+	for _, want := range []string{"repository: /repo/root", "repository harnesses: claude, codex"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("human text missing %q:\n%s", want, text)
+		}
+	}
+
+	// A machine-only run leaves both empty and prints neither line.
+	plain := NewInstallResult("install", install.Outcome{Applied: true}).HumanText()
+	if strings.Contains(plain, "repository:") || strings.Contains(plain, "repository harnesses:") {
+		t.Errorf("machine-only run printed a repository line:\n%s", plain)
 	}
 }
 

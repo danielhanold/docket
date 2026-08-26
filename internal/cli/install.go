@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -11,6 +13,8 @@ import (
 	"github.com/danielhanold/docket/internal/assets"
 	"github.com/danielhanold/docket/internal/buildinfo"
 	"github.com/danielhanold/docket/internal/config"
+	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/harness"
 	"github.com/danielhanold/docket/internal/install"
 )
 
@@ -165,12 +169,19 @@ func RequireCompatibleInstallation(roots install.UserRoots) error {
 // document these commands emit.
 const installDefaultBranch = "main"
 
-// installOptions assembles what the three operations read. Everything it
-// touches is user-level: the home roots, this binary's embedded bundle, and
-// the GLOBAL configuration layer alone. A repository layer is deliberately
-// unreachable — a .docket.yml in whatever directory the user happens to stand
-// in must not steer what gets written into their home.
-func installOptions(harnesses []string, info buildinfo.Info) (install.Options, *InstallRefusal) {
+// installOptions assembles what the three operations read. The MACHINE half is
+// strictly user-level: the home roots, this binary's embedded bundle, and the
+// GLOBAL configuration layer alone — a .docket.yml in whatever directory the user
+// happens to stand in must never steer what gets written into their home, and in
+// particular never reaches Planners' agent table.
+//
+// When resolveRepo is set (install and development install, never check), it also
+// grows the REPOSITORY half: the repository containing repoDir — or the current
+// directory when repoDir is empty — is resolved, and its explicit agent_harnesses
+// opt-in feeds ONLY the repository phase and the machine-selection union, staying
+// clear of the HOME-write path above. Check never resolves a repository: it is a
+// read-only, machine-only report with no --repo-dir.
+func installOptions(ctx context.Context, harnesses []string, repoDir string, resolveRepo bool, info buildinfo.Info) (install.Options, *InstallRefusal) {
 	roots, err := install.ResolveRoots(os.UserHomeDir, os.Getenv)
 	if err != nil {
 		return install.Options{}, &InstallRefusal{Reason: install.ReasonInvalidOptions, Err: err}
@@ -192,7 +203,7 @@ func installOptions(harnesses []string, info buildinfo.Info) (install.Options, *
 	if err != nil {
 		return install.Options{}, &InstallRefusal{Reason: install.ReasonInternal, Err: err}
 	}
-	return install.Options{
+	opts := install.Options{
 		Roots:       roots,
 		Planners:    app.Planners(roots, agents),
 		Harnesses:   harnesses,
@@ -201,5 +212,68 @@ func installOptions(harnesses []string, info buildinfo.Info) (install.Options, *
 		Info:        info,
 		FS:          install.RealFS{},
 		AgentDigest: digest,
-	}, nil
+	}
+	if !resolveRepo {
+		return opts, nil
+	}
+
+	phase, refusal := resolveRepoPhase(ctx, opts, harnesses, repoDir)
+	if refusal != nil {
+		return install.Options{}, refusal
+	}
+	opts.RepoPhase = phase
+	opts.HarnessOptIns = repoOptIns(phase)
+	return opts, nil
+}
+
+// resolveRepoPhase discovers and assembles the repository half of an install. The
+// run-gate payload rides from the same embedded bundle the machine plan renders
+// from, and the legacy reproducer is the same frozen one the machine transaction
+// inspects against, so machine and repository agree on what "unchanged" means.
+func resolveRepoPhase(ctx context.Context, opts install.Options, harnesses []string, repoDir string) (*install.RepoPhase, *InstallRefusal) {
+	runGate, err := harness.RunGate(opts.Catalog)
+	if err != nil {
+		return nil, &InstallRefusal{Reason: install.ReasonAssetManifestInvalid, Err: err}
+	}
+	git, err := gitcli.NewClient()
+	if err != nil {
+		return nil, &InstallRefusal{Reason: install.ReasonInvalidOptions, Err: err}
+	}
+	legacy := install.LegacyReproducerFor(opts, harnessNamesForLegacy(harnesses))
+	phase, _, err := app.ResolveRepoPhase(ctx, git, repoDir, harnesses, runGate, legacy)
+	if err != nil {
+		var re *app.RepoResolutionError
+		if errors.As(err, &re) {
+			return nil, &InstallRefusal{Reason: re.Reason, Err: re.Err}
+		}
+		return nil, &InstallRefusal{Reason: install.ReasonInternal, Err: err}
+	}
+	return phase, nil
+}
+
+// harnessNamesForLegacy is the harness set the repository legacy reproducer must
+// cover: the explicit --harness scope when there is one, else every harness, so
+// a surface owned by any harness can be proof-gated against a legacy artifact.
+func harnessNamesForLegacy(explicit []string) []string {
+	return app.HarnessNames(explicit)
+}
+
+// repoOptIns are the opt-in harnesses the machine-selection union widens the
+// default detection with. They are the owners the assembled phase actually
+// planned surfaces for; an unauthorized or nil phase contributes none.
+func repoOptIns(phase *install.RepoPhase) []string {
+	if phase == nil || !phase.Authorized {
+		return nil
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, owners := range phase.Owners {
+		for _, h := range owners {
+			if !seen[h] {
+				seen[h] = true
+				out = append(out, h)
+			}
+		}
+	}
+	return out
 }

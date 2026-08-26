@@ -469,6 +469,40 @@ func TestInstallCommandsRegistered(t *testing.T) {
 	}
 }
 
+// TestInstallRepoDirFlagRegistered proves --repo-dir is a real option on both
+// install commands (the repository-selection contract), carrying the advertised
+// help text.
+func TestInstallRepoDirFlagRegistered(t *testing.T) {
+	for _, args := range [][]string{
+		{"install", "--help"},
+		{"development", "install", "--help"},
+	} {
+		out, errS, code := runCLI(t, args...)
+		if code != 0 || errS != "" {
+			t.Fatalf("%v: err=%q code=%d", args, errS, code)
+		}
+		if !strings.Contains(out, "--repo-dir") {
+			t.Errorf("%v help does not mention --repo-dir:\n%s", args, out)
+		}
+	}
+}
+
+// TestInstallInvalidRepoDir proves an explicit --repo-dir that is not a Git
+// working tree refuses with the distinct invalid-repo-dir reason before any
+// mutation.
+func TestInstallInvalidRepoDir(t *testing.T) {
+	pinInstallEnv(t)
+	notARepo := t.TempDir()
+	out, errS, code := runCLI(t, "install", "--repo-dir", notARepo, "--json")
+	if code != 2 || errS != "" {
+		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
+	}
+	if !strings.Contains(out, `"result":"invalid-input"`) ||
+		!strings.Contains(out, `"reason":"invalid-repo-dir"`) {
+		t.Fatalf("stdout = %q", out)
+	}
+}
+
 // TestInstallCheckWithoutInstallation is the wiring assertion: the command
 // reaches the operation, and an unwritten machine answers invalid-state with
 // the installation-required reason rather than an argument error.

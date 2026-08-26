@@ -168,6 +168,14 @@ func legacyInputsFor(harnesses []string, agents config.AgentsTable) LegacyInputs
 	return LegacyInputs{Harnesses: append([]string(nil), harnesses...), AgentPins: pins}
 }
 
+// LegacyReproducerFor is the exported production seam builder the app layer needs
+// to proof-gate repository-surface removals with the SAME frozen reproducer the
+// machine transaction inspects against (change 0351). It delegates to the
+// unexported builder so the two can never diverge; a nil Config disables the seam.
+func LegacyReproducerFor(o Options, harnesses []string) LegacyReproducer {
+	return legacyReproducerFor(o, harnesses)
+}
+
 // legacyReproducerFor is the production seam builder: the frozen reproducer over
 // the inputs an install has already resolved, for the harnesses it plans for. A
 // nil Config disables the seam (returns nil), preserving the pre-wiring
