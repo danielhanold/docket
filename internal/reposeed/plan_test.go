@@ -38,8 +38,8 @@ func mustPlan(t *testing.T, in PlanInput) ([]install.Target, map[string][]string
 	return targets, owners
 }
 
-func claudeMD() string  { return filepath.Join(worktreeRoot, "CLAUDE.md") }
-func agentsMD() string  { return filepath.Join(worktreeRoot, "AGENTS.md") }
+func claudeMD() string { return filepath.Join(worktreeRoot, "CLAUDE.md") }
+func agentsMD() string { return filepath.Join(worktreeRoot, "AGENTS.md") }
 func cursorRule() string {
 	return filepath.Join(worktreeRoot, ".cursor", "rules", "docket-dispatch.mdc")
 }
