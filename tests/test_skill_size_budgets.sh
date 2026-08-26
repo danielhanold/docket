@@ -1540,7 +1540,7 @@ skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            130 1200
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          155 1550
-skills/docket-convention/SKILL.md                          390 7150
+skills/docket-convention/SKILL.md                          400 7250
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         205 2350
 skills/docket-convention/references/auto-capture.md        130 1250
@@ -1551,7 +1551,7 @@ skills/docket-convention/references/terminal-close-out.md  200 1750
 skills/docket-finalize-change/SKILL.md                     190 4150
 skills/docket-finalize-change/references/gate-failure.md   115 1300
 skills/docket-groom-next/SKILL.md                           77 1550
-skills/docket-implement-next/SKILL.md                      180 6300
+skills/docket-implement-next/SKILL.md                      180 6500
 skills/docket-implement-next/references/edge-paths.md       58  800
 skills/docket-implement-next/references/fix-loop.md        185 1900
 skills/docket-implement-next/results-template.md            25  250
@@ -1596,6 +1596,21 @@ skills/docket-status/SKILL.md                              126 2850
 #   must intervene at the draft moment beside the other frontmatter-drafting instructions. Set per
 #   the rounding rule from the measured actual: 1464 words -> 1500 (36 words of margin). The LINE
 #   budget was not raised (57 actual, 61 budget).
+
+# Change 0355 (role-skill invocation and nested-agent topology) raised two budgets to pay for prose
+# the build/review guards match verbatim — a resolved role binding is a skill invocation, not a
+# same-name agent dispatch, and the build role owns the profile fan-out. The prose cannot compress
+# into a pointer: tests/test_docket_build.sh, tests/test_docket_review.sh, and
+# tests/test_skill_handoff_precedence.sh assert on the exact sentences, so a reference file could
+# not host them. Set per the rounding rule above from the measured actuals:
+#   docket-convention/SKILL.md 390/7150 -> 400/7250. 393 lines -> the next multiple of 5 is 395,
+#   whose 2-line margin is the near-zero mode this block warns about at a file this size, so the
+#   multiple after was taken: 400 (7 lines of margin). 7202 words -> 7250 (48 words of margin,
+#   above the 25-word threshold).
+#   docket-implement-next/SKILL.md 6300 -> 6500 words. 6445 words -> the next multiple of 50 is
+#   6450, whose 5-word margin is within the 25-word threshold, so the multiple after: 6500 (55
+#   words of margin). The LINE budget was not raised (180 actual, 180 budget — the added prose
+#   landed within the standing line budget).
 
 # Every tracked file is within budget.
 budgeted=""
