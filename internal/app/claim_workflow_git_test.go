@@ -77,3 +77,7 @@ func planningDepsForClock(t *testing.T, dir string, clock transaction.Clock) rea
 }
 
 // --- effective base consumed from the domain resolver, not hard-coded --------
+
+// --- 0357: stacked child passes the pre-claim gate on real remote facts ------
+// The regression itself is TestIntegrationWorkflowStackedContextClaimWorkspaceFromParentBranch,
+// which lives with the other real-git workflow tests in workflow_integration_test.go.
