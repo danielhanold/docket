@@ -3,10 +3,10 @@ id: 345
 slug: slash-command-implement-dispatch-attribution-gap
 title: "Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop"
 status: proposed
-priority: medium
+priority: high
 type: feat
 created: 2026-08-25
-updated: 2026-08-25
+updated: 2026-08-26
 depends_on: []
 related: []
 discovered_from: [342]
