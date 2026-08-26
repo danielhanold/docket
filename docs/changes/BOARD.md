@@ -69,7 +69,7 @@
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [#226](https://github.com/danielhanold/docket/pull/226) |  |
-| [0334](active/0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | Make Docket dispatch minimal, non-recursive, and mechanically gated | `high` | `fix` | [#239](https://github.com/danielhanold/docket/pull/239) |  |
+| [0334](active/0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | Make Docket dispatch minimal, non-recursive, and mechanically gated | `high` | `fix` | [#239](https://github.com/danielhanold/docket/pull/239) | finalize blocked — needs you |
 
 ```mermaid
 graph TD
