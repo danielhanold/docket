@@ -2,7 +2,7 @@
 id: 334
 slug: claude-md-global-and-project-copies-out-of-sync-on-finalize-a
 title: Make Docket dispatch minimal, non-recursive, and mechanically gated
-status: 'in-progress'
+status: 'implemented'
 priority: high
 type: fix
 created: 2026-08-21
@@ -18,7 +18,7 @@ results: 'docs/results/2026-08-26-claude-md-global-and-project-copies-out-of-syn
 trivial: false
 auto_groomable:
 branch: 'feat/claude-md-global-and-project-copies-out-of-sync-on-finalize-a'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/239'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-26T02:36:27Z'
