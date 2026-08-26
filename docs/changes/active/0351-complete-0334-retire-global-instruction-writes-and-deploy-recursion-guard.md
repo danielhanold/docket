@@ -21,7 +21,7 @@ branch: 'fix/complete-0334-retire-global-instruction-writes-and-deploy-recursion
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-26T15:36:09Z'
+claimed_at: '2026-08-26T17:41:32Z'
 ---
 
 ## Artifacts
@@ -98,29 +98,3 @@ Verified mechanism:
 
 Open question for implementation: `## Out of scope` excludes per-repository agent wrappers and guard-wording changes, and the spec keeps wrappers global — but the copies that shadow the guard are **project-level** wrappers. Confirm 351's install/cleanup actually removes or updates project-level `.claude/agents/` wrappers (or documents deleting them); otherwise the guard stays shadowed in-repo even after 351 deploys it globally.
 
-## Run halted
-
-### 2026-08-26
-
-**Disposition:** halted (hard error — dispatch capability unavailable)
-**When:** 2026-08-26, docket-implement-next Step 4 (worktree + plan), before any plan authoring.
-**Phase reached:** claimed, reconciled, feature workspace prepared and clean; no plan authored, no code written.
-
-### Why
-
-Step 4 requires dispatching the `docket-plan-writer` subagent (the pinned, model-effort-scoped internal plan author). That dispatch is unavailable in this session:
-
-- The only agent-launch mechanism exposed is the Skill tool, which forks skill-backed docket agents (verified: `docket-status` forked successfully in Step 0). `docket-plan-writer` wraps no skill (it is a passthrough to `skills.plan`), so it is not a registered skill — a dispatch attempt returned `Unknown skill: docket-plan-writer`.
-- No `Task`/spawn tool exists in this session's tool surface. The full deferred-tool list contains only `SendMessage`, `TaskStop`, `Monitor`, `EnterWorktree`/`ExitWorktree`, and non-agent tools (browser/Gmail/Calendar/Drive/Spotify/context7); none spawns a named subagent. `SendMessage` addresses only pre-existing peers.
-
-Per the convention's Dispatch-capability resolution, a subagent-dispatch mechanism was resolved (Skill-fork) and one trivial dispatch was attempted; the attempt failed for this specific agent, which establishes unavailability. Step 4's dispatch posture is Tier C (authorized-or-halt): an explicitly resolved `SKILL_PLAN=auto` would authorize the parent's inline plan fallback, but the resolved value is `SKILL_PLAN=superpowers:writing-plans` (not `auto`). Any non-`auto` value that cannot dispatch is abort-and-report. Inline authoring by the parent is therefore not authorized here.
-
-### State left behind (safe to resume)
-
-- `status: in-progress`, `reconciled: true`, claim lease refreshed (`claimed_at` current). Reconcile log entry landed.
-- Feature branch `fix/complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard` cut from `origin/main` at `6e74df71`; worktree clean; no commits beyond base. No `plan:` attached.
-- Nothing to roll back; no partial work.
-
-### What a human needs to do
-
-Re-run with a session/harness where the `docket-plan-writer` agent is dispatchable (registered subagent + a Task-style dispatch, or the wrapper registered as a forkable skill) — then resume via `docket change resume-halted --id 351 --acknowledge-quiescent`. Alternatively, if inline planning is acceptable for this run, set `skills.plan: auto` (repo or machine-local), which authorizes the parent to author the plan directly, then resume.
