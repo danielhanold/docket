@@ -86,3 +86,32 @@ Verified against current reality before planning:
 - Parent change 0334 is `done` (merged); this change correctly completes its unshipped installer state. `discovered_from: [334]` and `related: [334, 294, 346]` remain accurate (294 is `killed`, 346 is `proposed` and correctly kept independent — not folded in, per the spec's non-goals).
 - Confirmed both defects still live in source: all four harness planners (e.g. `internal/harness/claude/claude.go`) still emit the `docket:dispatch` managed-block target under the harness's global `root`, and `internal/install/devmode.go` still has the currently-running binary plan and render the install (no fresh-binary candidate handoff). No `--repo-dir` flag, no repository `agent_harnesses` surface reconciliation, and no per-working-tree `<git-dir>/docket/install.json` ownership record exist yet.
 - Scope, out-of-scope, and design decisions in the spec are current; change 0349 (finalize-resolver cap) remains out of scope. No relation, section, or spec edits required — proceeding to plan against the change and spec as written.
+
+## Run halted
+
+### 2026-08-26
+
+## Run halted
+
+**Disposition:** halted (hard error — dispatch capability unavailable)
+**When:** 2026-08-26, docket-implement-next Step 4 (worktree + plan), before any plan authoring.
+**Phase reached:** claimed, reconciled, feature workspace prepared and clean; no plan authored, no code written.
+
+### Why
+
+Step 4 requires dispatching the `docket-plan-writer` subagent (the pinned, model-effort-scoped internal plan author). That dispatch is unavailable in this session:
+
+- The only agent-launch mechanism exposed is the Skill tool, which forks skill-backed docket agents (verified: `docket-status` forked successfully in Step 0). `docket-plan-writer` wraps no skill (it is a passthrough to `skills.plan`), so it is not a registered skill — a dispatch attempt returned `Unknown skill: docket-plan-writer`.
+- No `Task`/spawn tool exists in this session's tool surface. The full deferred-tool list contains only `SendMessage`, `TaskStop`, `Monitor`, `EnterWorktree`/`ExitWorktree`, and non-agent tools (browser/Gmail/Calendar/Drive/Spotify/context7); none spawns a named subagent. `SendMessage` addresses only pre-existing peers.
+
+Per the convention's Dispatch-capability resolution, a subagent-dispatch mechanism was resolved (Skill-fork) and one trivial dispatch was attempted; the attempt failed for this specific agent, which establishes unavailability. Step 4's dispatch posture is Tier C (authorized-or-halt): an explicitly resolved `SKILL_PLAN=auto` would authorize the parent's inline plan fallback, but the resolved value is `SKILL_PLAN=superpowers:writing-plans` (not `auto`). Any non-`auto` value that cannot dispatch is abort-and-report. Inline authoring by the parent is therefore not authorized here.
+
+### State left behind (safe to resume)
+
+- `status: in-progress`, `reconciled: true`, claim lease refreshed (`claimed_at` current). Reconcile log entry landed.
+- Feature branch `fix/complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard` cut from `origin/main` at `6e74df71`; worktree clean; no commits beyond base. No `plan:` attached.
+- Nothing to roll back; no partial work.
+
+### What a human needs to do
+
+Re-run with a session/harness where the `docket-plan-writer` agent is dispatchable (registered subagent + a Task-style dispatch, or the wrapper registered as a forkable skill) — then resume via `docket change resume-halted --id 351 --acknowledge-quiescent`. Alternatively, if inline planning is acceptable for this run, set `skills.plan: auto` (repo or machine-local), which authorizes the parent to author the plan directly, then resume.
