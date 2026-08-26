@@ -55,8 +55,13 @@ assert "opencode: the per-agent loop covered the whole block" '[ "$n" -ge 16 ]'
 # block serves both harnesses. It is COMMITTED into consumer repos, so a false claim here ships.
 A="$R/AGENTS.md"
 assert "opencode-only repo gets the AGENTS.md dispatch block" '[ -f "$A" ] && grep -q "docket:dispatch:start" "$A"'
-assert "block lists every wrapper source" \
-  '[ "$(grep -c "^- \*\*docket-" "$A")" = "17" ]'
+# Change 0334 removed the roster: the block no longer lists per-agent bullets — it carries a compact
+# routing rule that defers to the harness's own registry. Assert the roster's REMOVAL by SHAPE, and
+# assert the routing rule replaced it.
+assert "block carries no roster bullets (shape `^- **docket-`, roster removed)" \
+  '[ "$(grep -c "^- \*\*docket-" "$A")" = "0" ]'
+assert "block carries no roster delegation clause" '! grep -qF -- "Delegate to the" "$A"'
+assert "block carries the compact routing rule" 'grep -qF "registered same-name" "$A"'
 # Machine-neutrality (ADR-0036): the committed block must carry no model IDs.
 assert "block carries no model IDs" \
   '! grep -qE "openrouter/|gpt-5|claude-opus|kimi-k3|deepseek" "$A"'
@@ -65,8 +70,8 @@ assert "block carries no model IDs" \
 # generated-file path in its head prose.
 assert "block prose is harness-neutral about the generated path" \
   '! grep -qE "\.codex/agents/docket-\*\.toml|\.opencode/agents/docket-\*\.md" "$A"'
-assert "block prose names the hosting harness generically" \
-  'grep -qi "hosting harness" "$A"'
+assert "block prose names the harness generically" \
+  'grep -qi "harness.s native" "$A"'
 
 # De-list: dropping the only AGENTS.md-dispatch harness strips the block. The replacement harness
 # must target NO parent-facing surface: since change 0242 `claude` is itself one, adopting AGENTS.md
@@ -93,8 +98,8 @@ assert "two dispatch harnesses get the block EXACTLY once" \
   '[ "$(grep -c "docket:dispatch:start" "$A3")" = "1" ]'
 assert "two dispatch harnesses: exactly one closing marker" \
   '[ "$(grep -c "docket:dispatch:end" "$A3")" = "1" ]'
-assert "two dispatch harnesses: the block still lists every wrapper source once" \
-  '[ "$(grep -c "^- \*\*docket-" "$A3")" = "17" ]'
+assert "two dispatch harnesses: the block carries no roster bullets (roster removed)" \
+  '[ "$(grep -c "^- \*\*docket-" "$A3")" = "0" ]'
 
 # De-list ONE of the two: the block must SURVIVE. This is the assert no single-owner fixture reaches.
 printf 'agent_harnesses: [opencode]\n' > "$R3/.docket.yml"

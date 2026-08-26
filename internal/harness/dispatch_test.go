@@ -50,33 +50,40 @@ func TestRunGateUnreadable(t *testing.T) {
 var errUnreadable = errors.New("unreadable payload")
 
 func TestDispatchInterior(t *testing.T) {
-	sources := []AgentSource{
-		{ShortName: "alpha", Name: "docket-alpha", Description: "Alpha does things."},
-		{ShortName: "zeta", Name: "docket-zeta", Description: "Zeta does other things."},
-	}
 	const gate = "## Run gate — verify a dispatched implement-next run before you relay it\n\nRead git.\n\n\n"
 
-	got := DispatchInterior(sources, []byte(gate))
+	got := DispatchInterior([]byte(gate))
 
 	if !strings.HasPrefix(got, DispatchHeading+"\n") {
 		t.Errorf("interior does not open with the heading: %.60q", got)
 	}
-	for _, s := range sources {
-		bullet := "- **" + s.Name + "** — " + s.Description + " Delegate to the `" + s.Name + "` agent.\n"
-		if !strings.Contains(got, bullet) {
-			t.Errorf("interior is missing the bullet for %s", s.Name)
+	// The compact routing rule (change 0334): its load-bearing phrases replace
+	// the roster it used to enumerate.
+	for _, phrase := range []string{
+		"registered same-name",
+		"authoritative for agent names, descriptions, and availability",
+		"do not invent one",
+	} {
+		if !strings.Contains(got, phrase) {
+			t.Errorf("interior is missing the routing-rule phrase %q", phrase)
 		}
 	}
-	// The roster follows the preamble and the gate follows both: order is
-	// structure in a headed markdown document.
-	preambleAt := strings.Index(got, "Docket generates an agent definition")
-	rosterAt := strings.Index(got, "- **docket-alpha**")
+	// The routing rule precedes the run gate's heading: order is structure in a
+	// headed markdown document.
+	ruleAt := strings.Index(got, "registered same-name")
 	gateAt := strings.Index(got, "## Run gate")
-	if !(preambleAt < rosterAt && rosterAt < gateAt) {
-		t.Errorf("sections out of order: preamble %d, roster %d, gate %d", preambleAt, rosterAt, gateAt)
+	if !(ruleAt >= 0 && gateAt >= 0 && ruleAt < gateAt) {
+		t.Errorf("sections out of order: rule %d, gate %d", ruleAt, gateAt)
 	}
-	if strings.Index(got, "- **docket-alpha**") > strings.Index(got, "- **docket-zeta**") {
-		t.Errorf("bullets do not follow the inventory order")
+	// The roster is gone. Detect its removal by SHAPE, never a spelling list: no
+	// line is a `- **docket-...` bullet, and the delegation clause is absent.
+	for _, line := range strings.Split(got, "\n") {
+		if strings.HasPrefix(line, "- **docket-") {
+			t.Errorf("interior still carries a roster bullet: %q", line)
+		}
+	}
+	if strings.Contains(got, "Delegate to the") {
+		t.Errorf("interior still carries the roster delegation clause")
 	}
 	// Exactly one trailing newline, whatever the payload carried.
 	if !strings.HasSuffix(got, "Read git.\n") || strings.HasSuffix(got, "\n\n") {
@@ -90,12 +97,14 @@ func TestDispatchInterior(t *testing.T) {
 	}
 }
 
-func TestDispatchInteriorEmptyInventory(t *testing.T) {
-	got := DispatchInterior(nil, []byte("## Run gate\n"))
+// The interior is inventory-independent: it renders the same block whatever the
+// bundle carries, because the roster has moved to the harness's own registry.
+func TestDispatchInteriorCarriesGate(t *testing.T) {
+	got := DispatchInterior([]byte("## Run gate\n"))
 	if strings.Contains(got, "- **") {
-		t.Errorf("an empty inventory rendered a bullet: %q", got)
+		t.Errorf("the interior rendered a bullet: %q", got)
 	}
 	if !strings.Contains(got, "## Run gate") {
-		t.Errorf("an empty inventory dropped the run gate")
+		t.Errorf("the interior dropped the run gate")
 	}
 }

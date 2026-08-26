@@ -125,7 +125,7 @@ func (adapter) Plan(in harness.PlanInput) ([]install.Target, error) {
 	targets = append(targets, install.Target{
 		Path:       filepath.Join(root, dispatchFile),
 		Kind:       install.KindManagedBlock,
-		Content:    []byte(harness.DispatchInterior(sources, runGate)),
+		Content:    []byte(harness.DispatchInterior(runGate)),
 		BlockName:  dispatchBlockName,
 		Annotation: dispatchAnnotation,
 		Role:       roleDispatch,

@@ -190,33 +190,31 @@ done
 # unterminated block is a corrupt managed region, not a rendering detail.
 assert "the AGENTS.md dispatch end marker exists" 'grep -q "docket:dispatch:end" "$AGM"'
 
-# --- section ORDER: the roster belongs to the dispatch head, not to the gate ---
-# Change 0242 review, finding 10. These are markdown documents with headings, so order is structure.
-# The gate used to be spliced BETWEEN the dispatch head and the agent bullets, which left the head's
-# own sentence — "run one of the docket skills below" — pointing across an unrelated `## Run gate`
-# section, and made a reader sectioning the file read the roster as part of the gate.
-# The two surfaces are asserted SEPARATELY and in opposite directions on purpose: the Cursor rule's
-# per-agent fragments each carry their own `## docket-<name>` heading, so there the gate sitting
-# above them heads nothing it does not own. Flattening the two assemblers is what produced an
-# earlier finding on this branch, so the divergence is pinned rather than assumed away.
+# --- section ORDER: head, routing rule, then the gate — and NO roster (change 0334) ---
+# These are markdown documents with headings, so order is structure. Since change 0334 the per-agent
+# roster is GONE: the head carries a compact routing rule that defers to the harness's own registry,
+# and the gate is the very next `## ` heading. Change 0242 finding 10 (the gate must not sit BETWEEN
+# the head and the roster) is subsumed — there is no roster to sit above any more. The Cursor rule is
+# asserted SEPARATELY: its per-agent fragments each keep their own `## docket-<name>` heading, so its
+# gate-above-fragments order is pinned rather than assumed away.
 # Line numbers via awk, never `grep -n | head` (AGENTS.md, shell: SIGPIPE under pipefail).
 first_line(){ awk -v p="$1" '$0 ~ p { print NR; exit }' "$2"; }
-last_line(){  awk -v p="$1" '$0 ~ p { n=NR } END { print n+0 }' "$2"; }
 AGM_HEAD="$(first_line '^## Docket agents' "$AGM")"
-# Bracket expressions, never `\*`: awk's -v does escape processing on the value, and `\*` is an
-# undefined escape whose handling differs across awks — BWK awk (macOS) drops the backslash, leaving
-# the repetition operator `**` and a pattern that matches no bullet at all. A silently non-matching
-# pattern here would have made `last_line` print 0 and the ordering assert below pass vacuously.
-AGM_BULLET1="$(first_line '^- [*][*]docket-' "$AGM")"
-AGM_BULLETN="$(last_line  '^- [*][*]docket-' "$AGM")"
 AGM_GATE="$(first_line '^## Run gate' "$AGM")"
-assert "AGENTS.md: head, roster and gate are all present to be ordered" \
-  '[ "$AGM_HEAD" -ge 1 ] && [ "$AGM_BULLET1" -ge 1 ] && [ "$AGM_GATE" -ge 1 ] && [ "$AGM_BULLETN" -ge "$AGM_BULLET1" ]'
-assert "AGENTS.md: the gate comes AFTER the whole agent roster" '[ "$AGM_GATE" -gt "$AGM_BULLETN" ]'
-# The head's "below" must reach the roster with no other section in between — a stronger claim than
-# "the gate is elsewhere", and the one that stays true if a third section is ever added.
-assert "AGENTS.md: no heading separates the dispatch head from its roster" \
-  '[ "$(awk -v a="$AGM_HEAD" -v b="$AGM_BULLET1" "NR>a && NR<b && /^## /" "$AGM" | grep -c "")" = "0" ]'
+assert "AGENTS.md: head and gate are both present to be ordered" \
+  '[ "$AGM_HEAD" -ge 1 ] && [ "$AGM_GATE" -ge 1 ]'
+assert "AGENTS.md: the gate comes AFTER the dispatch head" '[ "$AGM_GATE" -gt "$AGM_HEAD" ]'
+# The gate must be the NEXT `## ` heading after the head — nothing else, and no roster, sits between
+# the head's routing rule and the gate. Stronger than "the gate is elsewhere", and it stays true if a
+# third section is ever added.
+AGM_BETWEEN="$(awk -v a="$AGM_HEAD" -v b="$AGM_GATE" 'NR>a && NR<b && /^## /' "$AGM")"
+assert "AGENTS.md: no heading separates the dispatch head from the gate" '[ -z "$AGM_BETWEEN" ]'
+# The roster is REMOVED: no interior line is a `- **docket-...` bullet (SHAPE, not a spelling list;
+# learnings: assert-detects-removal-not-replacement). Bracket expressions, never `\*`: awk's -v does
+# escape processing, and `\*` is an undefined escape BWK awk (macOS) drops, leaving `**` — a pattern
+# that matches no bullet and passes vacuously. Captured into a var, so no `producer | grep -q`.
+AGM_BULLETS="$(awk '/^- [*][*]docket-/' "$AGM")"
+assert 'AGENTS.md: the roster is gone — no `- **docket-` bullet survives' '[ -z "$AGM_BULLETS" ]'
 CUR_GATE="$(first_line '^## Run gate' "$CUR")"
 CUR_FRAG="$(first_line '^## docket-' "$CUR")"
 assert "cursor rule: its own order is unchanged — gate above the per-agent sections" \
@@ -251,8 +249,8 @@ assert "convention: Composition points at the managed-block gate" \
 # .docket.yml carries neither (the opt-in lives in the gitignored, machine-local .docket.local.yml),
 # so a bare `bash sync-agents.sh` here is a no-op and nothing reddens when the template moves on.
 # That is not hypothetical: change 0242 fixed the gate text four times and the committed block
-# carried the pre-fix wording the whole way. The block also embeds the full agent roster, which
-# turns over whenever an agents/docket-*.md is added.
+# carried the pre-fix wording the whole way. Since change 0334 the block no longer embeds the agent
+# roster, so the drift it can accumulate is the gate/routing-rule prose — which this guard catches.
 #
 # These are pure reads of the repo under test — no sandbox, no writes. Sourcing is how
 # tests/test_sync_agents.sh reaches generator internals; sync-agents.sh guards its main on

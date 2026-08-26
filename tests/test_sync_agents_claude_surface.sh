@@ -56,7 +56,7 @@ assert "AGENTS-only: CLAUDE.md is created"            '[ -e "$SBX/CLAUDE.md" ]'
 assert "AGENTS-only: CLAUDE.md is a symlink"          '[ -L "$SBX/CLAUDE.md" ]'
 assert "AGENTS-only: symlink is RELATIVE to AGENTS.md" '[ "$(readlink "$SBX/CLAUDE.md")" = "AGENTS.md" ]'
 assert "AGENTS-only: exactly ONE dispatch block"      '[ "$(blocks_in "$SBX/AGENTS.md")" = "1" ]'
-assert "AGENTS-only: the block carries the run gate"  'grep -q "verify-run --in-progress-ids" "$SBX/AGENTS.md"'
+assert "AGENTS-only: the block carries the run gate"  'grep -q "gate-before implement-next" "$SBX/AGENTS.md"'
 assert "AGENTS-only: pre-existing content survives"   'grep -qxF "# Repo instructions" "$SBX/AGENTS.md"'
 
 # --- virgin repo, BOTH surfaces wanted: still ONE physical file ---
@@ -69,13 +69,13 @@ assert "virgin both: CLAUDE.md is a symlink, not a second real file" '[ -L "$SBX
 assert "virgin both: AGENTS.md was created"                '[ -f "$SBX/AGENTS.md" ] && [ ! -L "$SBX/AGENTS.md" ]'
 assert "virgin both: exactly ONE dispatch block"           '[ "$(blocks_in "$SBX/AGENTS.md")" = "1" ]'
 assert "virgin both: the link resolves (gate readable through it)" \
-  'grep -q "verify-run --in-progress-ids" "$SBX/CLAUDE.md"'
+  'grep -q "gate-before implement-next" "$SBX/CLAUDE.md"'
 
 # --- claude alone (no AGENTS.md-dispatch harness): a real CLAUDE.md is seeded ---
 mk_repo "[claude]" none
 assert "claude-only/neither: CLAUDE.md is created"       '[ -f "$SBX/CLAUDE.md" ]'
 assert "claude-only/neither: it is a REAL file, no link" '[ ! -L "$SBX/CLAUDE.md" ]'
-assert "claude-only/neither: it carries the gate"        'grep -q "verify-run --in-progress-ids" "$SBX/CLAUDE.md"'
+assert "claude-only/neither: it carries the gate"        'grep -q "gate-before implement-next" "$SBX/CLAUDE.md"'
 assert "claude-only/neither: no AGENTS.md is created"    '[ ! -e "$SBX/AGENTS.md" ]'
 
 # --- an existing CLAUDE.md is written INTO, never replaced ---

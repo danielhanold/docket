@@ -36,62 +36,59 @@ assert "agentsmd: has closing marker" 'grep -qF "docket:dispatch:end" "$A"'
 assert "agentsmd: names an agent to delegate to" 'grep -qi "docket-implement-next" "$A"'
 assert "agentsmd: carries NO model id (machine-neutral)" '! grep -qE "claude-|gpt-|model_reasoning_effort|model[[:space:]]*=" "$A"'
 
-# 0168 whole-branch review, IMPORTANT 4. This block is COMMITTED into consumer repos and checked by
-# `sync-agents.sh --check`, so a false claim in it is shipped, not just displayed. It used to open
-# "Docket ships model/effort-pinned agent definitions … its pinned model and reasoning effort are
-# the whole point" — true when the wrapper sources carried pins, false since change 0168 moved the
-# default store to a harness-indexed sidecar that ships NO codex entries. The premise is derived
-# from that sidecar rather than hard-coded. Change 0169 landed a complete codex block, so the
-# premise is now false and the `else` arm below asserts the post-0169 claim just as hard.
+# This block is COMMITTED into consumer repos and checked by `sync-agents.sh --check`, so a false
+# claim in it ships rather than merely displaying. Since change 0334 it no longer enumerates the
+# agent roster OR the shipped-harness list: it carries a compact registered-agent routing rule that
+# defers to the harness's own registry. The guards below assert that compact block, and — as
+# importantly — assert the roster STAYS removed (learnings: assert-detects-removal-not-replacement);
+# an absence guard keyed on new wording would go green the day the roster crept back under a rename.
+# These are the shell twins of the Go interior guard in internal/harness/dispatch_test.go — the two
+# generators emit a byte-identical block, so both surfaces move together.
 # shellcheck source=/dev/null
 . "$REPO/scripts/lib/harness-defaults.sh"
-HD="$REPO/agents/harness-defaults.yml"
-n_codex_shipped="$(hd_agents "$HD" codex | grep -c . || true)"
-if [ "$n_codex_shipped" = "0" ]; then
-  assert "agentsmd: makes no blanket 'ships pinned agent definitions' claim while the sidecar ships no codex pins" \
-    '! grep -qiE "ships model/effort-pinned agent definitions" "$A"'
-  assert "agentsmd: says an unconfigured codex agent runs UNPINNED" 'grep -qi "unpinned" "$A"'
-  assert "agentsmd: still requires the dispatch regardless of the pin" \
-    'grep -qi "either way" "$A"'
-else
-  # Change 0169 shipped the codex block, so the premise above is false and that arm no longer runs.
-  # A guard that merely switches off leaves its NEW truth unguarded — which is exactly how the
-  # cursor dispatch head kept a stale "ships IDs for the three build profiles only" claim after
-  # change 0168 completed the cursor block. So the else arm asserts the post-0169 claim just as
-  # hard: the block must no longer call an unconfigured Codex agent unpinned, and must still
-  # require the dispatch for a reason that survives the pin.
-  assert "agentsmd: no longer claims an unconfigured codex agent runs unpinned" \
-    '! grep -qi "unpinned" "$A"'
-  assert "agentsmd: no longer promises validated IDs are still to come" \
-    '! grep -qiE "ships no validated|no validated codex|change 0169" "$A"'
-  assert "agentsmd: states the dispatch is required for reasons beyond the pin" \
-    'grep -qi "either way" "$A"'
-  assert "agentsmd: still carries NO model id (machine-neutral even now that pins exist)" \
-    '! grep -qE "claude-|gpt-|model_reasoning_effort|model[[:space:]]*=" "$A"'
-fi
-# 0245 whole-branch review, finding 1. The head's shipped-harness roster must be DERIVED from
-# HD_SHIPPED_HARNESSES, not hand-listed: this block is committed into consumer repos and
-# --check-enforced, so a hand-list goes silently false the day a fifth harness ships defaults.
-# Scoped to the head (start marker .. first agent bullet) so the per-agent descriptions below
-# cannot satisfy it. Case-sensitive on purpose: the derived list is lowercase, so a capitalized
-# literal reintroduced alongside it reddens here.
-head_txt="$(awk '/docket:dispatch:start/{f=1} f && /^- \*\*docket-/{exit} f' "$A")"
-for tok in $HD_SHIPPED_HARNESSES; do
-  assert "agentsmd: head names shipped harness '$tok' (derived roster)" \
-    'grep <<<"$head_txt" -qw -- "$tok"'
-done
+
+# Whitespace-collapse the managed block so a CLAIM survives a pure re-flow (learnings:
+# phrase-grep-over-wrapped-prose). block_flat is the marker-to-marker interior on one line;
+# block_lines keeps the line structure so the roster-bullet SHAPE can be matched per line.
+block_flat="$(awk '/docket:dispatch:start/{f=1;next} /docket:dispatch:end/{f=0} f' "$A" | tr '\n' ' ' | tr -s '[:space:]' ' ')"
+block_lines="$(awk '/docket:dispatch:start/{f=1;next} /docket:dispatch:end/{f=0} f' "$A")"
+
+# Positive — the routing rule's load-bearing claims, each bound to what it asserts.
+assert "agentsmd: routes only when a same-name agent is registered" \
+  '[[ "$block_flat" == *"registered same-name"* ]]'
+assert "agentsmd: defers to the harness registry for names/descriptions/availability" \
+  '[[ "$block_flat" == *"authoritative for agent names, descriptions, and availability"* ]]'
+assert "agentsmd: forbids inventing an unregistered agent" \
+  '[[ "$block_flat" == *"do not invent one"* ]]'
+# The dispatch is still required for a reason that survives the pin: the agent carries the
+# workflow's dispatch contract and skill preload, not just a model/effort pin.
+assert "agentsmd: states the dispatch carries the contract + preload, beyond the pin" \
+  '[[ "$block_flat" == *"dispatch contract"*"skill preload"* ]]'
+
+# Negative — the roster is GONE. Detect its REMOVAL by SHAPE, never a spelling list (learnings:
+# key-a-guard-on-shape): no interior line is a `- **docket-...` roster bullet, and the delegation
+# clause is absent. Captured into a variable first, then grepped from a here-string — never
+# `producer | grep -q` under pipefail (repo AGENTS.md shell rule).
+assert 'agentsmd: no roster bullet survives (shape `- **docket-`)' \
+  '! grep <<<"$block_lines" -qE "^- \*\*docket-"'
+assert "agentsmd: no roster delegation clause survives" \
+  '! grep -qF -- "Delegate to the" "$A"'
+# Machine-neutral: the block names NO harness token at all (roster + shipped-harness list removed).
+# A capitalized or lowercase reintroduction of any known/adjacent harness name reddens here.
 for tok in $HD_KNOWN_HARNESSES windsurf aider zed gemini copilot; do
-  case " $HD_SHIPPED_HARNESSES " in *" $tok "*) continue;; esac
-  assert "agentsmd: head does not name unshipped harness '$tok'" \
-    '! grep <<<"$head_txt" -qwi -- "$tok"'
+  assert "agentsmd: block names no harness token '$tok' (machine-neutral, roster removed)" \
+    '! grep <<<"$block_flat" -qwi -- "$tok"'
 done
 
-# Population floor: without this, an emptied codex block would take the else arm out of service and
-# BOTH arms would be satisfied by whichever branch happened to run. Anchored on the source glob so a
-# seventeenth wrapper does not redden it.
+# Codex-sidecar completeness (independent of the dispatch block, which no longer restates the
+# roster): the codex default store must ship a pin for every source agent, so a de-pinned sidecar
+# cannot slip through unnoticed. Anchored on the source glob so a seventeenth wrapper does not
+# redden it.
+HD="$REPO/agents/harness-defaults.yml"
+n_codex_shipped="$(hd_agents "$HD" codex | grep -c . || true)"
 n_src_codex=0
 for f in "$REPO"/agents/docket-*.md; do [ -e "$f" ] || continue; n_src_codex=$((n_src_codex+1)); done
-assert "agentsmd: the pinned-premise branch is the live one (codex ships $n_codex_shipped of $n_src_codex)" \
+assert "agentsmd: codex sidecar ships a pin for every source agent ($n_codex_shipped of $n_src_codex)" \
   '[ "$n_codex_shipped" = "$n_src_codex" ] && [ "$n_src_codex" -ge 16 ]'
 
 # idempotent second run: byte-identical
