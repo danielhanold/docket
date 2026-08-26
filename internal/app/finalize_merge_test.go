@@ -364,11 +364,27 @@ func TestFinalizeMergeConjunctsRechecked(t *testing.T) {
 	})
 
 	t.Run("not-implemented", func(t *testing.T) {
+		// A claimed-but-not-yet-implemented record: it carries a recorded branch (so
+		// identity resolves), and the Implemented conjunct is what refuses.
+		f := setupMergeFixture(t, m)
+		f.patchParent(t, "in-progress", mergePRRef(), "")
+		gh := f.baselineFake(t)
+		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
+		assertMergeRefusal(t, res, gh, "not-implemented")
+	})
+
+	t.Run("unclaimed-branch-missing", func(t *testing.T) {
+		// A proposed (never-claimed) record has no recorded branch, so the merge
+		// fails closed on identity before any external effect — never a second merge
+		// and never a reconstruction of the branch from the slug.
 		f := setupMergeFixture(t, m)
 		f.patchParent(t, "proposed", mergePRRef(), "")
 		gh := f.baselineFake(t)
 		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
-		assertMergeRefusal(t, res, gh, "not-implemented")
+		assertMergeRefusal(t, res, gh, "branch-missing")
+		if res.Result != ResultInvalidState {
+			t.Fatalf("unclaimed merge result = %q, want invalid-state", res.Result)
+		}
 	})
 
 	t.Run("unretargeted-open-child", func(t *testing.T) {

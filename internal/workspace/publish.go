@@ -271,7 +271,7 @@ func remapPublishInventory(err error) *Failure {
 // slug and base, reusing NewTarget's rules and re-tagging any rejection to the
 // publish operation.
 func validatePublishTarget(t Target) error {
-	derived, err := NewTarget(t.ChangeID, t.Slug, t.Base)
+	derived, err := NewTarget(t.ChangeID, t.Slug, t.Base, t.FeatureBranch())
 	if err != nil {
 		return &Failure{Op: publishOp, Stage: "validate", Kind: KindInvalidInput, Detail: "target is not self-consistent with its slug and base"}
 	}

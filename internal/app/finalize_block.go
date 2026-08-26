@@ -373,7 +373,12 @@ func FinalizeClearBlock(ctx context.Context, deps FinalizeDeps, repoDir string, 
 		return blockRefusal(OperationFinalizeClearBlock, ResultInvalidState, BlockDispRefused,
 			ReasonMergeUnresolvedBase, fmt.Sprintf("change %04d's effective base did not resolve to a branch", req.ID), req.ID)
 	}
-	target, terr := workspace.NewTarget(c.ID(), c.Slug(), base)
+	branch, berr := recordedBranch(c)
+	if berr != nil {
+		return blockRefusal(OperationFinalizeClearBlock, ResultInvalidState, BlockDispRefused,
+			berr.Error(), fmt.Sprintf("change %04d's recorded feature branch is unusable (%v); the marker stays", req.ID, berr), req.ID)
+	}
+	target, terr := workspace.NewTarget(c.ID(), c.Slug(), base, branch)
 	if terr != nil {
 		return blockRefusal(OperationFinalizeClearBlock, ResultInvalidInput, BlockDispRefused,
 			ReasonMergeMalformedTarget, terr.Error(), req.ID)

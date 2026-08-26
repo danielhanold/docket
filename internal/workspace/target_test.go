@@ -12,7 +12,7 @@ func resolvedBase(branch string) domain.EffectiveBase {
 }
 
 func TestNewTargetAcceptsValidAndDerives(t *testing.T) {
-	tgt, err := NewTarget(7, "fix-the-thing", resolvedBase("main"))
+	tgt, err := NewTarget(7, "fix-the-thing", resolvedBase("main"), "feat/fix-the-thing")
 	if err != nil {
 		t.Fatalf("NewTarget valid = %v; want nil", err)
 	}
@@ -33,34 +33,62 @@ func TestNewTargetAcceptsValidAndDerives(t *testing.T) {
 	}
 }
 
+// TestNewTargetHonorsRecordedFeatureBranch: an explicit recorded branch distinct
+// from any slug-derivation is the one FeatureRef carries — proving the feature
+// branch is the caller-supplied input, never re-derived from the slug. Mutation:
+// derive FeatureRef from the slug and this reddens (it would be feat/my-slug).
+func TestNewTargetHonorsRecordedFeatureBranch(t *testing.T) {
+	tgt, err := NewTarget(1, "my-slug", resolvedBase("main"), "feature/other-name")
+	if err != nil {
+		t.Fatalf("NewTarget valid = %v; want nil", err)
+	}
+	if want := gitcli.RefName("refs/heads/feature/other-name"); tgt.FeatureRef != want {
+		t.Errorf("FeatureRef = %q; want %q (the recorded branch, not a slug derivation)", tgt.FeatureRef, want)
+	}
+	if got := tgt.FeatureBranch(); got != "feature/other-name" {
+		t.Errorf("FeatureBranch() = %q; want feature/other-name", got)
+	}
+}
+
 func TestNewTargetRejects(t *testing.T) {
+	// fb defaults to a valid feature branch so the id/slug/base rejection cases
+	// still fire on their own field; the featureBranch cases set fb explicitly.
+	const okFB = "feat/ok-slug"
 	tests := []struct {
 		name string
 		id   domain.ChangeID
 		slug string
 		base domain.EffectiveBase
+		fb   string
 	}{
-		{"id zero", 0, "ok-slug", resolvedBase("main")},
-		{"id negative", -1, "ok-slug", resolvedBase("main")},
-		{"slug empty", 7, "", resolvedBase("main")},
-		{"slug uppercase", 7, "Fix", resolvedBase("main")},
-		{"slug underscore", 7, "a_b", resolvedBase("main")},
-		{"slug space", 7, "a b", resolvedBase("main")},
-		{"slug slash", 7, "feat/x", resolvedBase("main")},
-		{"slug unicode", 7, "café", resolvedBase("main")},
-		{"slug leading hyphen", 7, "-x", resolvedBase("main")},
-		{"slug trailing hyphen", 7, "x-", resolvedBase("main")},
-		{"slug doubled hyphen", 7, "a--b", resolvedBase("main")},
-		{"base empty branch", 7, "ok-slug", resolvedBase("")},
-		{"base already qualified", 7, "ok-slug", resolvedBase("refs/heads/main")},
-		{"base dotdot", 7, "ok-slug", resolvedBase("ma..in")},
-		{"base space", 7, "ok-slug", resolvedBase("ma in")},
+		{"id zero", 0, "ok-slug", resolvedBase("main"), okFB},
+		{"id negative", -1, "ok-slug", resolvedBase("main"), okFB},
+		{"slug empty", 7, "", resolvedBase("main"), okFB},
+		{"slug uppercase", 7, "Fix", resolvedBase("main"), okFB},
+		{"slug underscore", 7, "a_b", resolvedBase("main"), okFB},
+		{"slug space", 7, "a b", resolvedBase("main"), okFB},
+		{"slug slash", 7, "feat/x", resolvedBase("main"), okFB},
+		{"slug unicode", 7, "café", resolvedBase("main"), okFB},
+		{"slug leading hyphen", 7, "-x", resolvedBase("main"), okFB},
+		{"slug trailing hyphen", 7, "x-", resolvedBase("main"), okFB},
+		{"slug doubled hyphen", 7, "a--b", resolvedBase("main"), okFB},
+		{"base empty branch", 7, "ok-slug", resolvedBase(""), okFB},
+		{"base already qualified", 7, "ok-slug", resolvedBase("refs/heads/main"), okFB},
+		{"base dotdot", 7, "ok-slug", resolvedBase("ma..in"), okFB},
+		{"base space", 7, "ok-slug", resolvedBase("ma in"), okFB},
+		{"feature branch empty", 7, "ok-slug", resolvedBase("main"), ""},
+		{"feature branch already qualified", 7, "ok-slug", resolvedBase("main"), "refs/heads/feature/x"},
+		{"feature branch leading hyphen", 7, "ok-slug", resolvedBase("main"), "-lead"},
+		{"feature branch dotdot", 7, "ok-slug", resolvedBase("main"), "a..b"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := NewTarget(tc.id, tc.slug, tc.base)
+			tgt, err := NewTarget(tc.id, tc.slug, tc.base, tc.fb)
 			if err == nil {
-				t.Fatalf("NewTarget(%d, %q, %+v) = nil error; want rejection", tc.id, tc.slug, tc.base)
+				t.Fatalf("NewTarget(%d, %q, %+v, %q) = nil error; want rejection", tc.id, tc.slug, tc.base, tc.fb)
+			}
+			if tgt != (Target{}) {
+				t.Errorf("rejected NewTarget returned non-zero Target %+v; want zero", tgt)
 			}
 			if f, ok := AsFailure(err); !ok {
 				t.Errorf("error %v is not a *Failure", err)
@@ -91,7 +119,7 @@ func TestNewTargetRejectsEveryNonResolvedBaseKind(t *testing.T) {
 		t.Run(string(kind), func(t *testing.T) {
 			// A non-resolved outcome carries no meaningful branch.
 			base := domain.EffectiveBase{Kind: kind, Cause: 3}
-			_, err := NewTarget(7, "ok-slug", base)
+			_, err := NewTarget(7, "ok-slug", base, "feat/ok-slug")
 			if err == nil {
 				t.Fatalf("NewTarget with base kind %q = nil error; want rejection", kind)
 			}
@@ -177,7 +205,7 @@ func TestNewTargetSpendsResolverBranch(t *testing.T) {
 				t.Fatalf("resolver base kind = %q; want resolved (fixture bug)", base.Kind)
 			}
 
-			tgt, err := NewTarget(tc.subject, "ok-slug", base)
+			tgt, err := NewTarget(tc.subject, "ok-slug", base, "feat/ok-slug")
 			if err != nil {
 				t.Fatalf("NewTarget = %v; want nil", err)
 			}

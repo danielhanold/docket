@@ -355,7 +355,7 @@ func (s *Service) validateIdentity(ctx context.Context, repo gitcli.Repository) 
 // were not produced by NewTarget's rules is rejected as invalid-input. This
 // reuses every rule NewTarget enforces rather than restating them.
 func validatePreparedTarget(t Target) error {
-	derived, err := NewTarget(t.ChangeID, t.Slug, t.Base)
+	derived, err := NewTarget(t.ChangeID, t.Slug, t.Base, t.FeatureBranch())
 	if err != nil {
 		return err // already a *Failure{Op:"prepare", Stage:"validate", invalid-input}
 	}

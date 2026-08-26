@@ -15,9 +15,11 @@ const blobV = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 // lifecycleChange renders a canonical change record in the given stored status,
 // carrying every relationship field (present and empty), the empty
-// docket:artifacts managed block, and a single ## Why authored section.
-// in-progress and blocked records additionally carry the branch/reconciled
-// fields a claimed record holds; a blocked record also carries blocked_by.
+// docket:artifacts managed block, and a single ## Why authored section. Every
+// post-claim status (in-progress, blocked, implemented, done, stacked-merged)
+// additionally carries the branch/reconciled fields a claimed record holds — a
+// claim records the branch once and it persists through the terminal statuses;
+// a blocked record also carries blocked_by.
 func lifecycleChange(id int, slug, status string) string {
 	var b strings.Builder
 	b.WriteString("---\n")
@@ -38,7 +40,9 @@ func lifecycleChange(id int, slug, status string) string {
 	b.WriteString("plan:\n")
 	b.WriteString("results:\n")
 	b.WriteString("trivial: false\n")
-	if status == "in-progress" || status == "blocked" {
+	switch status {
+	case "in-progress", "blocked", "implemented", "done", "stacked-merged":
+		// A post-claim record carries the claim facts recorded once at claim time.
 		b.WriteString("branch: feat/" + slug + "\n")
 		b.WriteString("claimed_at: 2026-08-02T00:00:00Z\n")
 		b.WriteString("reconciled: true\n")
