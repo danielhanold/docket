@@ -9,10 +9,10 @@ created: 2026-08-26
 updated: 2026-08-26
 depends_on: []
 stacked_on:
-related: [356, 298]
+related: [298, 316, 327, 347, 356]
 discovered_from: []
 adrs: [92]
-spec:
+spec: docs/superpowers/specs/2026-08-26-implementation-context-remote-branch-facts-design.md
 plan:
 results:
 trivial: false
@@ -28,6 +28,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-08-26-implementation-context-remote-branch-facts-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-26-implementation-context-remote-branch-facts-design.md) |
 | ADRs | [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md) |
 <!-- docket:artifacts:end -->
 
@@ -41,9 +42,9 @@ Observed live 2026-08-26 in scp-qarch-deploy: child 0003 stacked on stack-root 0
 
 ## What changes
 
-In `ContextImplementation`, load remote branch facts the same way `Status` and workspace-prepare already do (`deps.Reader.BranchFacts(ctx, pin, stackBranches(snap))`) and pass that set into `selectContextChange` / `EvaluateReadiness` / `ResolveEffectiveBase`. Drop the empty-facts shortcut and the comment that treats an unresolved base as safer than a fabricated one — fabricating nothing while refusing to look is what blocks every stacked child.
+Load remote branch facts in `ContextImplementation` from the same pinned snapshot and through the same reader seam used by status, claim, and workspace preparation. Use that one fact set for automatic selection, explicit-id eligibility, readiness, and effective-base reporting. A facts read that fails stops with the existing typed reader failure; a genuinely absent parent branch remains unresolved.
 
-Pin with a test: a proposed child stacked on an in-progress parent whose `branch:` is in the fake reader's remote set must return a claimable bundle whose `EffectiveBase` is that parent branch, not `not-ready-stack-base-unresolved`. A parent whose branch is absent from facts still refuses.
+Cover the orchestration at the fake-reader seam and with a real-Git workflow regression. The real path must show that a proposed child stacked on a live parent with a pushed recorded branch passes implementation context, can be claimed, and prepares its workspace from the parent branch rather than the integration branch. Full design: see the linked spec.
 
 ## Out of scope
 
@@ -51,3 +52,7 @@ Pin with a test: a proposed child stacked on an in-progress parent whose `branch
 - `aborted-run` false positives on long-lived stack roots.
 - Other `NewBranchFacts(nil)` sites (reclaim, finalize cleanup) unless they also gate stacked claim.
 - Changing stack-resolution rules or `stack-base.sh`.
+
+## Open questions
+
+None — settled in the 2026-08-26 grooming session. The regression boundary includes both focused unit coverage and a real-Git workflow proof.
