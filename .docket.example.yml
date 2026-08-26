@@ -363,6 +363,15 @@ dummy_mode:
 # sync-agents.sh's USER-LEVEL pass only (which harnesses get ~/.claude/agents/docket-*.md, etc.)
 # and never opts any repo into the per-repo generation pass above — that opt-in is presence in a
 # REPO file (this key or `agents:`, in .docket.yml or .docket.local.yml) and only that.
+# AT INSTALL TIME (change 0351) this same key is the EXPLICIT opt-in for a repository's
+# parent-facing dispatch surfaces, which `docket development install` (reached through the
+# install.sh bootstrapper) reconciles for you in Go — no separate script to run. It has three
+# states: absent leaves the shipped default (Claude only) and touches no other harness's
+# repository surfaces; a non-empty list reconciles exactly the harnesses named; and an explicit
+# empty list ([]) retires every docket-owned repository surface the repo previously had. The same
+# install run also retires the old GLOBAL parent-facing dispatch blocks earlier docket versions
+# wrote into personal instruction files — proof-gated (exact ownership marker only), with no
+# --force, leaving a modified block untouched to remedy-and-rerun.
 # PRESENCE-SENSITIVE: uncommenting this key changes behavior even at these default values.
 # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
 # agent_harnesses: [claude]

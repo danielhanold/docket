@@ -528,4 +528,35 @@ assert "0255 docs: every doc slice is non-empty" \
   '[ -n "$readme_global" ] && [ -n "$readme_local" ] && [ -n "$skill_agents_line" ] &&
    [ -n "$layer_example" ] && [ -n "$example_intro" ]'
 
+# ============================================================================
+# Change 0351 — the install section documents the Go-owned repository opt-in,
+# not the retired Bash sync-agents.sh synchronization path.
+# ============================================================================
+# `install.sh` now delegates the install to the Go engine; `agent_harnesses` is the explicit
+# repository opt-in, and the installation section no longer tells the reader to run sync-agents.sh
+# as part of that install. Both asserts are scoped to the `## Install` … `## Updating docket` slice
+# so a claim that drifts into unrelated prose (or a heading rename) reddens rather than passing
+# vacuously against the whole README.
+norm351(){ tr '\n' ' ' | tr -s '[:space:]' ' '; }
+install_sec="$(sed -n '/^## Install$/,/^## Updating docket$/p' "$READMEF")"
+install_sec_norm="$(norm351 <<<"$install_sec")"
+assert "0351 docs: install section is non-empty (heading not renamed)" '[ -n "$install_sec" ]'
+
+# Bind the claim ("opt-in") to the phrase (`agent_harnesses`): they must co-occur within a bounded
+# window of the whitespace-collapsed slice, so a line wrap between them is invisible and a stray
+# `agent_harnesses` mention far from any "opt-in" cannot satisfy it. `within` is the tested helper
+# from the common prologue; feed it the normalized slice via a temp file (bare mktemp ignores
+# TMPDIR on macOS, so template it — repo shell rules).
+install_slice_file="$(mktemp "${TMPDIR:-/tmp}/docket-install-slice.XXXXXX")"
+printf '%s\n' "$install_sec_norm" > "$install_slice_file"
+assert "0351 docs: install section binds agent_harnesses to 'opt-in'" \
+  'within "$install_slice_file" "agent_harnesses" "opt-in" 80'
+rm -f "$install_slice_file"
+
+# Negated: the installation section must not instruct running the Bash sync-agents.sh generator.
+# grep -qF -- guards the literal per repo shell rules (a leading -- would be read as an option);
+# herestring, never a pipe, so pipefail cannot turn a no-match into an intermittent 141.
+assert "0351 docs: install section no longer instructs running sync-agents.sh" \
+  '! grep -qF -- "sync-agents.sh" <<<"$install_sec"'
+
 exit $fail

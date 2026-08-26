@@ -123,30 +123,44 @@ Place the docket repo at `~/dev/docket` (the source of truth the symlinks point 
 bash ~/dev/docket/install.sh
 ```
 
-That is the whole install. `install.sh` discovers an absolute Bash 4+ interpreter (Homebrew first,
-then standard Homebrew locations, then an absolute PATH result), validates it with `--version`,
-and persists it as `runtime.bash`. It runs four primitives in order and is idempotent —
-re-run it any time (after adding a harness, after editing `~/.config/docket/config.yml`, and after
-every version update — see [Updating docket](#updating-docket)):
+That is the whole install. `install.sh` is a thin bootstrapper: it resolves this checkout and hands
+the install off to docket's Go engine (`docket development install`), which does the real work as
+**one journaled, all-or-nothing transaction** and is idempotent — re-run it any time (after adding a
+harness, after editing `~/.config/docket/config.yml`, and after every version update — see
+[Updating docket](#updating-docket)). A single run:
 
-- **`link-skills.sh`** creates absolute symlinks from each present harness's global skill directory back to `~/dev/docket/skills/<name>`. It links into harnesses that already exist on your machine, creating the `skills/` subdirectory when the harness itself is present but that subdirectory is missing, and never creates a harness you don't use. Because skills are symlinks, editing one in the repo takes effect everywhere immediately.
-- **`ensure-global-config.sh`** discovers, validates, and persists the one managed `runtime.bash` value in `~/.config/docket/config.yml` while preserving unrelated user content. It also adds a pointer to [`.docket.example.yml`](.docket.example.yml), docket's canonical reference for every key and its default (see step 2).
-- **`sync-agents.sh`** generates docket's model/effort-pinned subagent wrappers from layered config (built-in defaults ⊕ global `config.yml` ⊕ a repo's committed `.docket.yml` ⊕ that repo's `.docket.local.yml`) into each present harness's `agents/` directory. For any repo that opts in (via an `agents:` block or an `agent_harnesses:` key, in either file), it also writes the full per-repo agent set as **machine-local**, gitignored files — **never committed**. Unlike the skill symlinks, these are generated **copies** (they bake in the resolved model and effort), so re-run it after editing any config layer — `install.sh` does this for you, or call `sync-agents.sh` directly. Run `sync-agents.sh --check` in CI to catch a missing or stale `.gitignore` block, or an accidentally-tracked generated file.
-- **`ensure-docket-env.sh`** exports `DOCKET_SCRIPTS_DIR` and the validated `DOCKET_BASH_PATH` into your shell profile (and, for the Claude Code harness, its user-level `settings.json` `env`) so every docket skill can reach and run its helpers from *any* repo. Re-running `install.sh` back-fills already-migrated repos.
+- **Builds a fresh binary and hands the install off to that binary**, so the version that plans and writes your machine is the one you are installing — never the older binary that happened to be running. The recursion-guarded dispatch wrappers therefore land on the **first** run, not the second.
+- **Links each present harness's global `skills/`** back to `~/dev/docket/skills/<name>` (symlinks, so editing a skill in the repo takes effect everywhere at once) and **reconciles that harness's global agent wrappers** — the model/effort-pinned subagent copies, resolved from your config layers over docket's shipped defaults. It also points `~/.config/docket/config.yml` at [`.docket.example.yml`](.docket.example.yml), docket's canonical reference for every key and its default (see step 2).
+- **Retires the old global parent-facing dispatch blocks** that earlier docket versions wrote into your personal `~/.claude/CLAUDE.md` and the other harnesses' global instruction files, while keeping the global skills and agent wrappers. Removal is **proof-gated** — the engine deletes a block only while it still matches docket's exact ownership marker, byte for byte. There is **no `--force`**: a block you edited, or one that no longer matches, is left untouched and the run reports it so you can remedy it and re-run.
+- **Reconciles each repository's parent-facing dispatch surfaces** from that repository's *explicit* `agent_harnesses` opt-in (see [step 2](#2-set-up-your-global-config) and below) — automatic and Go-owned, with no separate Bash synchronization script to run.
 
-(You can still run any primitive on its own — `install.sh` just saves you from remembering all four.)
+Two flags scope a run: **`--repo-dir <path>`** targets a repository other than the one containing your
+current directory, and a repeatable **`--harness <name>`** limits the run to the named harness(es)
+instead of every harness present on your machine.
 
 ### 2. Set up your global config
 
-`install.sh` writes a minimal `~/.config/docket/config.yml` the first time it runs and
-non-destructively maintains its only managed active value, the discovered `runtime.bash`.
-Docket's ordinary behavior defaults already apply.
+The installer writes a minimal `~/.config/docket/config.yml` the first time it runs and
+non-destructively maintains its managed values. Docket's ordinary behavior defaults already apply.
 
 The canonical reference for every key is [`.docket.example.yml`](.docket.example.yml) in this repo: every config key, active at its shipped default, with full documentation and a scope tag saying which layers may set it. Copy the keys you want to change into the layer you want them in.
 
 - **To see docket's built-in per-skill model and effort:** they all live in one file, [`agents/harness-defaults.yml`](agents/harness-defaults.yml) — docket's shipped, harness-indexed default sidecar, not a file you edit. All four of the example's commented harness blocks — `agents.claude`, `agents.cursor`, `agents.codex`, and `agents.opencode` — mirror it in full, value for value. So you can read every shipped default and tune the ones you want in a single place.
 - **Claude-only users can skip this entirely** — the defaults already apply.
-- **To enable another harness (Cursor, Codex, opencode):** uncomment `agent_harnesses` and add the harness, then re-run `install.sh` so `sync-agents.sh` regenerates the wrappers. That is the whole step — leave the harness's `agents:` block commented, since it only restates the shipped defaults and uncommenting it would freeze today's values into your config forever. `agent_harnesses` is **presence-sensitive**: uncommenting it opts the repo into per-repo wrapper generation even at default values.
+- **To enable another harness (Cursor, Codex, opencode):** add it to `agent_harnesses` and re-run `install.sh`; the Go engine reconciles that harness's wrappers and dispatch surfaces for you. That is the whole step — leave the harness's `agents:` block commented, since it only restates the shipped defaults and uncommenting it would freeze today's values into your config forever. `agent_harnesses` is the **explicit opt-in** for a repository's parent-facing dispatch surfaces, and it has **three states**: *absent* leaves the shipped default (Claude only) in force and writes no other harness's repository surfaces; a *non-empty* list reconciles exactly the harnesses you name; and an *explicit empty* list (`agent_harnesses: []`) retires every docket-owned repository surface the repo previously had. An absent key touches nothing — only an explicit value reconciles or retires.
+
+> **Stale project-level Claude wrappers shadow the guard.** Docket installs agent wrappers
+> **machine-globally** (under `~/.claude/agents/`), never inside a repository. If a repo still carries
+> its own `.claude/agents/docket-*.md` copies — as docket versions before the recursion-guard change
+> left behind — Claude Code loads *those* project-level wrappers in preference to the guarded global
+> ones, which re-enables recursive self-dispatch. The remedy is to **delete those project-level
+> copies**; docket will not touch them, because it never owned them.
+
+> **Start a fresh harness process after any install that changed a wrapper or a parent surface.**
+> Harnesses register their agents and read their global and repository instruction files **at process
+> start**, so a changed dispatch wrapper or a retired dispatch block only takes effect in a newly
+> started process — **clearing a conversation is not enough**. This is what lets the recursion guard
+> actually take hold: until the process restarts, the old, unguarded wrappers keep running.
 
 See [Configuration](#configuration--docketyml-global-config-and-machine-local-overrides) for the layer model.
 
@@ -164,11 +178,12 @@ git fetch --tags && git pull        # or: git checkout v0.8.0
 bash ~/dev/docket/install.sh        # always — not only when something looks broken
 ```
 
-Pulling alone is **not** enough. Skills are symlinks, so those do update the moment you pull — but the rest of docket's on-disk footprint is generated or persisted, and only `install.sh` refreshes it:
+Pulling alone is **not** enough. Skills are symlinks, so those do update the moment you pull — but the rest of docket's on-disk footprint is generated or persisted, and only an install run refreshes it:
 
-- **Agent wrappers are generated copies**, not symlinks — they bake in the resolved model and effort. A version that adds a subagent, renames one, or changes a pin lands only when `sync-agents.sh` re-runs.
-- **New harness support**, and any harness you installed since last time, gets its `skills/` symlinks and `agents/` wrappers only on the next `link-skills.sh` / `sync-agents.sh` pass.
-- **Managed config and env** — the validated `runtime.bash` in `~/.config/docket/config.yml`, and the `DOCKET_SCRIPTS_DIR` / `DOCKET_BASH_PATH` exports in your shell profile and Claude Code's user-level `settings.json` — are back-filled by `ensure-global-config.sh` and `ensure-docket-env.sh`.
+- **Agent wrappers are generated copies**, not symlinks — they bake in the resolved model and effort. A version that adds a subagent, renames one, or changes a pin lands only when the installer reconciles the wrappers.
+- **New harness support**, and any harness you installed since last time, gets its `skills/` symlinks and `agents/` wrappers only on the next install run.
+- **Managed global config** in `~/.config/docket/config.yml` is back-filled non-destructively by the same run.
+- **Retired global dispatch blocks and reconciled repository surfaces** land on this run too — which is why the recursion-guarded wrappers you are pulling only take effect after it, in a freshly started harness process (clearing a conversation is not enough).
 
 Re-running it is **in addition to** anything the release notes call for, never a substitute. A release may also carry a per-repo step — a `migrate-to-docket.sh` run, a `.docket.yml` key to add, a remedy commit to land — and those are listed in the notes for that version. Do the machine-level `install.sh` first, then the per-repo steps.
 
@@ -713,7 +728,7 @@ The config **shape** — the `agents:` keys and how the model and effort are wri
 **2. Refresh the generated wrappers.** The resolved model and effort are baked into generated wrapper *copies* (not symlinks), so after editing any layer, regenerate them:
 
 ```bash
-bash sync-agents.sh        # or re-run install.sh, which calls it for you
+bash sync-agents.sh        # or re-run install.sh, whose Go engine reconciles them for you
 ```
 
 - A **global** edit rewrites user-level wrappers into every **present** harness root (`~/.<harness>/agents/`, e.g. `~/.claude/agents/`, `~/.cursor/agents/`, `~/.codex/agents/`).

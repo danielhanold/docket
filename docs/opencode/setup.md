@@ -48,7 +48,18 @@ agent_harnesses: [claude, opencode]
 ```
 
 Either file opts the repo in; the first of local-then-committed that declares the key wins the list
-outright. Re-run `sync-agents.sh` (or `install.sh`) after editing any config layer.
+outright. Re-run `install.sh` after editing any config layer — it delegates to docket's Go engine
+(`docket development install`), which reconciles opencode's definitions and the committed `AGENTS.md`
+dispatch block for you in one journaled transaction (change 0351). As a repository opt-in,
+`agent_harnesses` has three states: *absent* keeps the shipped default (Claude only) and writes no
+opencode surfaces, a *non-empty* list reconciles exactly the harnesses named, and an *explicit empty*
+list (`agent_harnesses: []`) retires every docket-owned repository surface — including the shared
+`AGENTS.md` block once the last `AGENTS.md`-dispatch harness is de-listed — that the repo previously
+had. That same install run also retires the old **global** parent-facing dispatch blocks earlier
+docket versions wrote into personal instruction files, proof-gated against docket's exact ownership
+marker with no `--force`. Restart opencode after any run that changed a definition or the dispatch
+block: it registers agents and reads `AGENTS.md` at process start, so clearing a conversation is not
+enough.
 
 **Why it works this way.** The `AGENTS.md` dispatch block is *committed*. If a global setting on
 your machine generated that committed block, a collaborator (or CI) without the same global config
