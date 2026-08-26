@@ -46,7 +46,10 @@ func builtinEffective() Effective {
 		GateObservation: builtinValue(30),
 		BoardSurfaces:   builtinValue([]string{"inline"}),
 		ChangeTypes:     builtinValue([]string{"chore", "docs", "feat", "fix", "refactor", "perf"}),
-		Agents:          builtinAgents(),
+		// No built-in default: an absent agent_harnesses is the touch-nothing
+		// state, so the built-in value is a nil list that stays non-explicit.
+		AgentHarnesses: builtinValue([]string(nil)),
+		Agents:         builtinAgents(),
 	}
 }
 

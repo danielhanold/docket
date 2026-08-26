@@ -259,11 +259,11 @@ func TestClassifyMatrix(t *testing.T) {
 			blockers: []string{"dummy_mode.enabled"},
 		},
 
-		// Row 30 — the historical harness list.
+		// Row 30 — the repository's parent-facing dispatch opt-in is now
+		// supported policy: a valid declaration classifies to nothing.
 		{
-			name:    "agent_harnesses is inert",
+			name:    "agent_harnesses is supported",
 			sources: []Source{srcR("agent_harnesses: [claude, codex]\n")},
-			want:    []capWant{{"agent_harnesses", Inert, false, false, LayerRepository}},
 		},
 
 		// Row 31 — every skill binding is an active deferred request.

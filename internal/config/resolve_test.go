@@ -355,6 +355,89 @@ func TestBoardGithubTokenMachineFence(t *testing.T) {
 	}
 }
 
+// TestAgentHarnessesResolution pins the typed, provenance-carrying repository
+// input: it resolves with the list-replace precedence, records which layer
+// supplied it, and distinguishes the deliberate empty-list retire-everything
+// state from the untouched-because-absent state.
+func TestAgentHarnessesResolution(t *testing.T) {
+	cases := []struct {
+		name         string
+		sources      []Source
+		wantValue    []string
+		wantExplicit bool
+		wantLayer    LayerKind
+	}{
+		{
+			name:         "repository layer supplies the list",
+			sources:      []Source{srcR("agent_harnesses: [claude, codex]\n")},
+			wantValue:    []string{"claude", "codex"},
+			wantExplicit: true,
+			wantLayer:    LayerRepository,
+		},
+		{
+			name: "repository-local empty list replaces, not appends",
+			sources: []Source{
+				srcR("agent_harnesses: [claude, codex]\n"),
+				srcL("agent_harnesses: []\n"),
+			},
+			wantValue:    []string{},
+			wantExplicit: true,
+			wantLayer:    LayerRepositoryLocal,
+		},
+		{
+			name:         "global-only declaration resolves but carries the global provenance",
+			sources:      []Source{srcG("agent_harnesses: [claude]\n")},
+			wantValue:    []string{"claude"},
+			wantExplicit: true,
+			wantLayer:    LayerGlobal,
+		},
+		{
+			name:         "absent everywhere is the touch-nothing state",
+			sources:      nil,
+			wantExplicit: false,
+			wantLayer:    LayerBuiltIn,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := mustResolve(t, tc.sources, mainCtx)
+			got := res.effective.AgentHarnesses
+			if got.Explicit != tc.wantExplicit {
+				t.Errorf("agent_harnesses explicit = %v, want %v", got.Explicit, tc.wantExplicit)
+			}
+			if got.Provenance.Layer != tc.wantLayer {
+				t.Errorf("agent_harnesses provenance layer = %q, want %q", got.Provenance.Layer, tc.wantLayer)
+			}
+			if tc.wantExplicit && !reflect.DeepEqual(got.Value, tc.wantValue) {
+				t.Errorf("agent_harnesses value = %#v, want %#v", got.Value, tc.wantValue)
+			}
+		})
+	}
+}
+
+// TestAgentHarnessesInvalidTokens pins that a duplicate or an out-of-set token
+// is a CodeInvalidValue diagnostic that invalidates the whole snapshot.
+func TestAgentHarnessesInvalidTokens(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		doc  string
+	}{
+		{"duplicate token", "agent_harnesses: [claude, claude]\n"},
+		{"out-of-set token", "agent_harnesses: [emacs]\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := resolve([]Source{srcR(tc.doc)}, mainCtx)
+			if !errors.Is(err, ErrInvalidConfig) {
+				t.Fatalf("resolve error = %v, want ErrInvalidConfig", err)
+			}
+			bad := diagsWithCode(res, CodeInvalidValue)
+			if len(bad) != 1 || bad[0].Path != "agent_harnesses" {
+				t.Errorf("want one invalid-value diagnostic on agent_harnesses, got %v", diagSummary(res))
+			}
+		})
+	}
+}
+
 // Model and effort resolve independently, and inside one layer a harness-
 // specific pin falls back to `default` before the next layer is consulted.
 func TestAgentsHarnessFirstFallback(t *testing.T) {
