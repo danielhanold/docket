@@ -3,7 +3,7 @@ id: 334
 slug: claude-md-global-and-project-copies-out-of-sync-on-finalize-a
 title: Consolidate the docket dispatch block — subagent guard + single per-repo source
 status: proposed
-priority: medium
+priority: high
 type: fix
 created: 2026-08-21
 updated: 2026-08-25
