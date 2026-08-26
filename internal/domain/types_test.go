@@ -186,7 +186,7 @@ func TestValidBranchComponent(t *testing.T) {
 	invalid := []string{
 		"", "feat/", "refs", "refs/heads", "a/b", "-lead", ".lead",
 		"has space", "has\ttab", "a..b", "a@{b", "a~b", "a^b", "a:b",
-		"a?b", "a*b", "a[b", "a\\b", "end.lock", "end.",
+		"a?b", "a*b", "a[b", "a\\z", "end.lock", "end.",
 	}
 	for _, s := range valid {
 		if !ValidBranchComponent(s) {

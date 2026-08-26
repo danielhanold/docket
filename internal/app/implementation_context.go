@@ -303,7 +303,7 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 			// The context is produced BEFORE the claim, so no branch is recorded yet;
 			// this is the branch the imminent claim will mint and record, through the
 			// one branch constructor (never a bare slug-derived name).
-			FeatureBranch:     domain.MintBranch(selected.Type(), selected.BranchPrefix(), selected.Slug()),
+			FeatureBranch: domain.MintBranch(selected.Type(), selected.BranchPrefix(), selected.Slug()),
 		},
 	}
 	bundle.Learnings, bundle.Warnings = learningEntries(snap)

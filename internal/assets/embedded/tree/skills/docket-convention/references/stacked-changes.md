@@ -107,7 +107,7 @@ there. Everything else about the feature branch is unchanged: it is cut after cl
 carries only plan + results + code, and never modifies docket metadata.
 
 ```
-git worktree add .worktrees/<slug> -b feat/<slug> origin/<effective-base>
+git worktree add .worktrees/<slug> -b <type>/<slug> origin/<effective-base>
 ```
 
 The PR **targets that same base**, not the integration branch. Fetch the base ref directly before
