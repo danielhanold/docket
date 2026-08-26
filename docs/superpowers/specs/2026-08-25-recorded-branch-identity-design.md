@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0347 — Honor recorded branch names instead of reconstructing feat/<slug>](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0347-honor-recorded-branch-over-feat-prefix.md)**
+> ↩ **[Change 0347 — Honor recorded branch names instead of reconstructing feat/<slug>](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-26-0347-honor-recorded-branch-over-feat-prefix.md)**
 <!-- docket:backlink:end -->
 
 # Recorded branch identity and per-change branch prefixes — design (change 0347)

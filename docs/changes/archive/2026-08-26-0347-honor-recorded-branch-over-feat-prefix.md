@@ -2,7 +2,7 @@
 id: 347
 slug: honor-recorded-branch-over-feat-prefix
 title: Honor recorded branch names instead of reconstructing feat/<slug>
-status: 'implemented'
+status: 'done'
 priority: medium
 type: fix
 created: 2026-08-25
@@ -20,7 +20,7 @@ branch: 'feat/honor-recorded-branch-over-feat-prefix'
 pr: 'https://github.com/danielhanold/docket/pull/238'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-25T23:56:52Z'
+claimed_at:
 ---
 
 ## Artifacts
