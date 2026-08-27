@@ -22,13 +22,30 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 
 TBL="$REPO/tests/runtime-budgets.tsv"
 CEILING=60          # the hard ceiling; no row may exceed it
-EXPECTED_SERIAL=1   # tests/test_go_race.sh (change 0332). The shared state that forces the pin is
-                    # the machine's cores: `go test -race` spawns GOMAXPROCS-wide race workers,
-                    # which inside the parallel fan-out oversubscribe the cores every other job
-                    # needs — the load-dependent gate that halted change 0329. RAISING THIS IS A
-                    # FINDING: a serial pin removes a file from the parallel phase, so it must be
-                    # justified in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=2785 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_SERIAL=0   # no file is currently pinned serial. tests/test_go_race.sh returned to the
+                    # parallel lane when change 0333 partitioned the slow real-git corpus of
+                    # internal/app, internal/githubcli and internal/gitcli behind the `integration`
+                    # build tag: the oversubscription that forced change 0332's serial pin was
+                    # `go test -race`'s GOMAXPROCS-wide race workers running over internal/app's
+                    # heavy tail, and with that tail out of the default corpus the fast-corpus race
+                    # run no longer starves the other parallel jobs. RAISING THIS IS A FINDING: a
+                    # serial pin removes a file from the parallel phase, so it must be justified in
+                    # the same diff with the shared state that forces it.
+EXPECTED_TOTAL=2545 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2785 -> 2545 (change 0333): the SHARD-RE-CUT case on one row — the race gate
+                    # returns from its temporary 300s serial exemption to an ordinary 60s parallel
+                    # row. Change 0332 moved tests/test_go_race.sh to 300 serial because
+                    # internal/app's ~190s real-git tail ran inside `go test -race ./...` and one Go
+                    # package cannot be `go list`-sharded; change 0333 partitions that tail (and
+                    # githubcli's and gitcli's) behind the `integration` build tag, so the default
+                    # corpus this gate covers no longer carries it. Re-measured standalone serial,
+                    # one machine (darwin/arm64, go1.26.5, `/usr/bin/time -p bash
+                    # tests/test_go_race.sh`): 53.17/49.27/49.57 -> worst 53.17 -> 55 + 5 -> 60.
+                    # tests/test_go_toolchain.sh's `go test ./...` over the same shrunken corpus was
+                    # re-measured (recompile 47.95, warm 1.80/1.82 -> worst 47.95 -> 50 + 5 -> 55)
+                    # and held its 55 row. Net -240 for the 300 -> 60 re-cut; the toolchain
+                    # re-measure contributes 0. Rationale and readings are beside the rows in the tsv
+                    # header.
                     # 2770 -> 2785 (change 0333): the NEW-FILE case, once — the fail-closed
                     # completeness contract tests/test_go_integration_contract.sh joins the table.
                     # It is a new surface, not an extension of any shard: the sixteen shard runners
@@ -563,35 +580,20 @@ assert "every tests/test_*.sh has a budget row, and every row has a live file" \
   '[ "$listed" = "$actual" ] || { diff <(echo "$listed") <(echo "$actual") >&2; false; }'
 
 # (3) RELIEF COUNTER A — rows above the hard ceiling. Independent of (2): laundering a single
-# file's ceiling upward leaves (2) green and reddens only this.
-#
-# ONE DOCUMENTED EXEMPTION (change 0332) — A TEMPORARY HOLE, owned by follow-up change 0333.
-# tests/test_go_race.sh is the serial-isolated whole-module race gate; its ~206s is dominated by
-# internal/app's ~190s integration suite — a cost the race detector barely moves (~1.05x) and that
-# no lane or `go list` shard can split, because internal/app is one Go package. Until change 0333
-# partitions that package, the race gate answers to its own explicit sub-ceiling here instead of
-# the 60s one. The exemption is keyed on the row's PATH: every other row still answers to the 60s
-# ceiling, and the race gate creeping past ${RACE_CEILING}s still reddens this same assert. The
-# serial binding lives with assertion (4): the single serial row must BE the race gate, so an
-# exempt row cannot ride the parallel phase and reintroduce the oversubscription 0332 removed.
-RACE_GATE="tests/test_go_race.sh"
-RACE_CEILING=300
-over="$(awk -F'\t' -v c="$CEILING" -v rg="$RACE_GATE" -v rc="$RACE_CEILING" \
-  '($1 == rg ? $2 > rc : $2 > c) {print $1}' <<<"$rows")"
-assert "no budget row exceeds the ${CEILING}s ceiling (sole exemption: $RACE_GATE at ${RACE_CEILING}s)" \
+# file's ceiling upward leaves (2) green and reddens only this. There is no exemption: every row
+# answers to the 60s ceiling (change 0333 retired change 0332's temporary race-gate exemption when
+# it partitioned internal/app's slow tail behind the `integration` build tag).
+over="$(awk -F'\t' -v c="$CEILING" '$2 > c {print $1}' <<<"$rows")"
+assert "no budget row exceeds the ${CEILING}s ceiling" \
   '[ -z "$over" ] || { echo "  over ceiling: $over" >&2; echo "  Shard the file or move its new assertions into a shard with room. Raising the ceiling is not the remedy." >&2; false; }'
 
-# (4) RELIEF COUNTER B — files pinned serial, budgeted exactly. Also independent of (2).
+# (4) RELIEF COUNTER B — files pinned serial, budgeted exactly. Also independent of (2). It stays
+# the guard that a future serial pin is a conscious, counted decision: EXPECTED_SERIAL is 0 today
+# (change 0333 returned the race gate to the parallel lane), and raising it is a finding that must
+# name the shared state forcing the pin in the same diff.
 serial_n="$(awk -F'\t' '$3 == "serial" {n++} END{print n+0}' <<<"$rows")"
 assert "exactly $EXPECTED_SERIAL files are pinned serial" \
   '[ "$serial_n" = "$EXPECTED_SERIAL" ] || { echo "  serial rows: $(awk -F"\t" "\$3==\"serial\"{print \$1}" <<<"$rows" | tr "\n" " ")" >&2; echo "  A serial pin removes a file from the parallel phase. Name the shared state that forces it, in this diff." >&2; false; }'
-
-# (4b) the serial pin and the ceiling exemption must be the SAME file: an exempt row riding the
-# parallel phase would reintroduce the oversubscription change 0332 removed, and a second serial
-# row would hide behind the exemption's justification. Both directions collapse to one equality.
-serial_rows="$(awk -F'\t' '$3 == "serial" {print $1}' <<<"$rows")"
-assert "the serial row is the race gate (the exemption is serial-bound)" \
-  '[ "$serial_rows" = "$RACE_GATE" ] || { echo "  serial rows: ${serial_rows:-<none>}" >&2; echo "  The one sanctioned serial row is $RACE_GATE — its 300s exemption exists only because the serial lane isolates it. Any other serial pin needs its own justified counter bump." >&2; false; }'
 
 # (5) RELIEF COUNTER C — the table's TOTAL. Counters A and B only see the two loud reliefs; a row
 # raised from 35 to 60 trips neither, and completeness never looks at column 2 at all. The sum sees
