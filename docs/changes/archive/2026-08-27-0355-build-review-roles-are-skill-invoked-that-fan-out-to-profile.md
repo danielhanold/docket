@@ -2,7 +2,7 @@
 id: 355
 slug: build-review-roles-are-skill-invoked-that-fan-out-to-profile
 title: 'Build/review roles are skill-invoked that fan out to profile agents — Step 5 ''dispatch'' vocabulary invites an agent-not-found misfire'
-status: 'implemented'
+status: 'done'
 priority: medium
 type: fix
 created: 2026-08-26
@@ -21,7 +21,7 @@ branch: 'fix/build-review-roles-are-skill-invoked-that-fan-out-to-profile'
 pr: 'https://github.com/danielhanold/docket/pull/243'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-27T11:34:18Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -113,3 +113,12 @@ Re-read the linked spec, related changes 212/257/283, and the cited ADRs (0059/0
 
 Auto-capture disabled (AUTO_CAPTURE_ENABLED=false); no follow-up stubs minted.
 
+## Closeout notes
+
+### Verification
+
+- Local finalize gate (scripts/run-tests.sh) passed green at the rebased head 5a421f20 onto current main.
+
+### Late findings
+
+- 355 had previously stalled on the internal/app suite wall-clock timeout under run-tests.sh parallel load; change 0333 (PR #244) partitioned internal/app behind a build tag, so the rebase onto post-0333 main cleared the suite gate that previously halted finalize.
