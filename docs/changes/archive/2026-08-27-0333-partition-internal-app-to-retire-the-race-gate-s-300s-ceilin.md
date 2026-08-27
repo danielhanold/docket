@@ -2,7 +2,7 @@
 id: 333
 slug: partition-internal-app-to-retire-the-race-gate-s-300s-ceilin
 title: 'Partition slow Go integration tests and retire the race gate''s 300s ceiling exemption'
-status: 'implemented'
+status: 'done'
 priority: high
 type: refactor
 created: 2026-08-20
@@ -21,7 +21,7 @@ branch: 'refactor/partition-internal-app-to-retire-the-race-gate-s-300s-ceilin'
 pr: 'https://github.com/danielhanold/docket/pull/244'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-27T10:04:33Z'
+claimed_at:
 ---
 
 ## Artifacts

@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0333 — Partition slow Go integration tests and retire the race gate's 300s ceiling exemption](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md)**
+> ↩ **[Change 0333 — Partition slow Go integration tests and retire the race gate's 300s ceiling exemption](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-27-0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md)**
 <!-- docket:backlink:end -->
 
 # Partition Slow Go Integration Tests — Design
