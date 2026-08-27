@@ -1,8 +1,8 @@
 # Backlog
 
-**359 changes** — 🟡 51 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 221 done · 🗑️ 82 killed
+**360 changes** — 🟡 52 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 221 done · 🗑️ 82 killed
 
-## 🟡 Proposed (51)
+## 🟡 Proposed (52)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -57,6 +57,7 @@
 | [0352](active/0352-native-repository-initialization-and-health-check.md) | Native repository initialization and health check | `high` | `feat` | needs-brainstorm |
 | [0354](active/0354-halt-report-authoring-writes-a-duplicate-run-halted-heading.md) | Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted | `high` | `fix` | needs-brainstorm |
 | [0359](active/0359-run-gate-gives-up-too-soon.md) | the run gate gives up too soon | `high` | `fix` | needs-brainstorm |
+| [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `medium` | `feat` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -132,6 +133,7 @@ graph TD
   0352
   0354
   0359
+  0360
   0192:::done
   0211:::done
   0251:::done
