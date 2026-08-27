@@ -43,24 +43,19 @@ workflow's suite gate is meaningless. It needs to be a real signal before 0318's
 
 ## What changes
 
-Move the `source-gate` job's runner from `ubuntu-24.04` to `macos-14` (arm64) — the platform the
-suite is built for — so the suite runs where it is valid and goes green. No step logic changes. The
-`package`, `smoke`, and `summary` jobs keep their runners: real Linux coverage still comes from the
-native-tuple `package`/`smoke` matrix, which builds and smokes the candidate on Darwin and Linux ×
-amd64/arm64. The build ensures the macOS job resolves a modern bash; a green `SUITE … failed=0` run
-is the acceptance signal.
+Move the `source-gate` job's runner from `ubuntu-24.04` to the standard arm64 `macos-15` runner — the
+platform family the suite is built for — and explicitly install, version-check, and route the suite
+through Homebrew Bash 4.3+. Add `tests/**` and `.docket.yml` to the pull-request triggers, surface the
+suite runner's current budget-finding vocabulary, fail on an authoritative budget breach, and add
+mutation-tested workflow guards. The `package`, `smoke`, and `summary` jobs keep their runners: real
+Linux coverage still comes from the native-tuple matrix, which builds and smokes the candidate on
+Darwin and Linux × amd64/arm64.
 
 ## Out of scope
 
 Any change to the `package`/`smoke`/`summary` runners or logic; a general Linux port of
-`run-tests.sh` or its tests; retuning `runtime-budgets.tsv` for CI hardware; the gzip
-downloader-sandbox fix (already landed in 0317); and 0318's Bash removal and cutover.
-
-## Open questions
-
-The exact mechanism for guaranteeing a suite-capable bash on the `macos-14` image (rely on the
-image's `PATH` bash vs. an explicit provisioning step) is settled at build time against the
-green-run acceptance signal.
+`run-tests.sh` or its tests; retuning or persisting `runtime-budgets.tsv` state for CI hardware; the
+gzip downloader-sandbox fix (already landed in 0317); and 0318's Bash removal and cutover.
 
 ## Reconcile log
 
