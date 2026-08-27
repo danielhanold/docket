@@ -21,7 +21,7 @@ branch: 'fix/release-candidate-source-gate-macos-runner'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-27T22:56:55Z'
+claimed_at: '2026-08-27T22:58:14Z'
 ---
 
 ## Artifacts
