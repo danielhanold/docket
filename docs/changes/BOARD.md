@@ -1,16 +1,17 @@
 # Backlog
 
-**358 changes** — 🟢 3 in progress · 🟡 51 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 217 done · 🗑️ 82 killed
+**358 changes** — 🟢 4 in progress · 🟡 50 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 217 done · 🗑️ 82 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (4)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
+| [0333](active/0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition slow Go integration tests and retire the race gate's 300s ceiling exemption | `high` | `refactor` | [spec](../superpowers/specs/2026-08-27-partition-slow-go-integration-tests-design.md) | `refactor/partition-internal-app-to-retire-the-race-gate-s-300s-ceilin` |
 | [0351](active/0351-complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard.md) | Complete change 0334: stop writing global instruction files and actually deploy the recursion guard | `critical` | `fix` | [spec](../superpowers/specs/2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding-design.md) | `fix/complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard` |
 | [0355](active/0355-build-review-roles-are-skill-invoked-that-fan-out-to-profile.md) | Build/review roles are skill-invoked that fan out to profile agents — Step 5 'dispatch' vocabulary invites an agent-not-found misfire | `medium` | `fix` | [spec](../superpowers/specs/2026-08-26-role-skill-invocation-and-nested-agent-topology-design.md) | `fix/build-review-roles-are-skill-invoked-that-fan-out-to-profile` |
 | [0357](active/0357-implementation-context-loads-remote-branch-facts.md) | Implementation context must load remote branch facts before judging stack base | `high` | `fix` | [spec](../superpowers/specs/2026-08-26-implementation-context-remote-branch-facts-design.md) | `fix/implementation-context-loads-remote-branch-facts` |
 
-## 🟡 Proposed (51)
+## 🟡 Proposed (50)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -57,7 +58,6 @@
 | [0321](active/0321-render-artifact-backlink-sh-eats-artifact-tails-on-marker-sh.md) | render-artifact-backlink.sh eats artifact tails on marker-shaped literals — anchor whole-line, validate balance, refuse | `medium` | `fix` | needs-brainstorm |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | needs-brainstorm |
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
-| [0333](active/0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition slow Go integration tests and retire the race gate's 300s ceiling exemption | `high` | `refactor` | build-ready |
 | [0343](active/0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | `medium` | `fix` | needs-brainstorm |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | needs-brainstorm |
 | [0346](active/0346-finalize-rebuilds-binary-from-unpulled-source-tree.md) | Finalize's post-merge binary rebuild runs against an unpulled source tree | `medium` | `fix` | needs-brainstorm |
