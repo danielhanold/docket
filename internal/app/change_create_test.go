@@ -4,14 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
-	"testing"
-	"time"
-
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository/transaction"
+	"strings"
+	"testing"
+	"time"
 )
 
 // --- fakes ----------------------------------------------------------------
@@ -172,119 +171,6 @@ func TestChangeCreateFencesGithubBoardSurface(t *testing.T) {
 }
 
 // --- outcome mapping (engine reached; Discover over a real temp repo) ------
-
-func TestChangeCreateAppliedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
-	receipt := mustMarshal(t, changeCreateReceipt{
-		ID: 7, Op: OperationChangeCreate, Path: "docs/changes/active/0007-add-a-widget.md", Slug: "add-a-widget",
-	})
-	engine := &recordingEngine{result: transaction.Result{
-		Disposition:   transaction.DispositionApplied,
-		AppliedCommit: "cafebabecafebabecafebabecafebabecafebabe",
-		Receipt:       receipt,
-	}}
-	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
-	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
-
-	res := ChangeCreate(context.Background(), deps, repoDir, validChangeCreateRequest())
-
-	if res.Result != ResultApplied {
-		t.Fatalf("result = %q, want applied", res.Result)
-	}
-	if res.ID != 7 || res.Slug != "add-a-widget" || res.Path != "docs/changes/active/0007-add-a-widget.md" {
-		t.Errorf("identity from receipt = (%d, %q, %q)", res.ID, res.Slug, res.Path)
-	}
-	if res.Revision != "cafebabecafebabecafebabecafebabecafebabe" {
-		t.Errorf("revision = %q", res.Revision)
-	}
-	if res.Replayed {
-		t.Errorf("Replayed = true on a fresh apply")
-	}
-
-	if len(engine.calls) != 1 {
-		t.Fatalf("engine calls = %d, want 1", len(engine.calls))
-	}
-	req := engine.calls[0]
-	if req.Operation.Key() != OperationChangeCreate {
-		t.Errorf("operation key = %q", req.Operation.Key())
-	}
-	if req.TargetRef != "refs/heads/main" {
-		t.Errorf("target ref = %q, want refs/heads/main", req.TargetRef)
-	}
-	if req.Remote != originRemote {
-		t.Errorf("remote = %q", req.Remote)
-	}
-	if req.Idempotency == nil || req.Idempotency.RequestID != "req-00000001" {
-		t.Errorf("idempotency key = %+v", req.Idempotency)
-	}
-	if req.Loader == nil {
-		t.Errorf("loader is nil")
-	}
-}
-
-func TestChangeCreateReplayResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
-	receipt := mustMarshal(t, changeCreateReceipt{
-		ID: 4, Op: OperationChangeCreate, Path: "docs/changes/active/0004-add-a-widget.md", Slug: "add-a-widget",
-	})
-	engine := &recordingEngine{result: transaction.Result{
-		Disposition:   transaction.DispositionAlreadyApplied,
-		AppliedCommit: "0000000000000000000000000000000000000abc",
-		Receipt:       receipt,
-	}}
-	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
-	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
-
-	res := ChangeCreate(context.Background(), deps, repoDir, validChangeCreateRequest())
-
-	if res.Result != ResultApplied {
-		t.Fatalf("result = %q, want applied", res.Result)
-	}
-	if !res.Replayed {
-		t.Errorf("Replayed = false on an already-applied replay")
-	}
-	if res.ID != 4 {
-		t.Errorf("id = %d, want 4 (from the original receipt)", res.ID)
-	}
-}
-
-func TestChangeCreateRefusedMapsInvalidInput(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
-	engine := &recordingEngine{result: transaction.Result{
-		Disposition: transaction.DispositionRefused,
-		Findings: []domain.Finding{{
-			Code: "dangling-reference", Severity: domain.SeverityError,
-			Entity: domain.EntityRef{Kind: domain.EntityChange}, Field: "depends_on",
-		}},
-	}}
-	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
-	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
-
-	res := ChangeCreate(context.Background(), deps, repoDir, validChangeCreateRequest())
-
-	if res.Result != ResultInvalidInput {
-		t.Fatalf("refused disposition mapped to %q, want invalid-input", res.Result)
-	}
-	if !hasFindingCode(res.Findings, "dangling-reference") {
-		t.Errorf("refusal findings not surfaced: %v", res.Findings)
-	}
-}
-
-func TestChangeCreateContendedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
-	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
-	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
-	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
-
-	res := ChangeCreate(context.Background(), deps, repoDir, validChangeCreateRequest())
-
-	if res.Result != ResultContended {
-		t.Fatalf("result = %q, want contended", res.Result)
-	}
-	if res.Findings == nil {
-		t.Errorf("Findings must marshal as [], not nil")
-	}
-}
 
 // --- plan closure ----------------------------------------------------------
 

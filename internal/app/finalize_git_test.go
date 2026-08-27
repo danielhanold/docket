@@ -2,12 +2,11 @@ package app
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/githubcli"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/danielhanold/docket/internal/githubcli"
 )
 
 // This file is Task 16: the real-git failure-injection and concurrency matrix for
@@ -61,41 +60,6 @@ func assertNoHiddenPhaseState(t *testing.T, metaDir string) {
 }
 
 // --- TestFinalizeInterruptionMatrix ---------------------------------------
-
-// TestFinalizeInterruptionMatrix walks the spec's recovery table in BOTH metadata
-// modes. Each boundary runs its operation once (the effect lands), then replays the
-// same operation against the durable authority and asserts convergence: the effect
-// is adopted, never duplicated, and no false-success or unsafe overwrite/delete
-// results.
-func TestFinalizeInterruptionMatrix(t *testing.T) {
-	requireRealGit(t)
-	for _, m := range planRepoModes() {
-		m := m
-		t.Run(m.name, func(t *testing.T) {
-			t.Run("rebase-completion-adopts-not-reruns", func(t *testing.T) {
-				matrixRebaseCompletion(t, m)
-			})
-			t.Run("force-with-lease-push-and-pr-evidence", func(t *testing.T) {
-				matrixPublish(t, m)
-			})
-			t.Run("pr-merge-never-merges-twice", func(t *testing.T) {
-				matrixMerge(t, m)
-			})
-			t.Run("metadata-closeout-and-backlink-idempotent", func(t *testing.T) {
-				matrixCloseout(t, m)
-			})
-			t.Run("worktree-and-ref-delete-retryable", func(t *testing.T) {
-				matrixCleanup(t, m)
-			})
-		})
-	}
-
-	// Gate-run deletion is repository-mode invariant (a private run directory, no
-	// metadata topology), and child retarget opens no transaction and touches no
-	// Git — both are covered once.
-	t.Run("gate-run-delete-tombstoned", matrixGateRunDelete)
-	t.Run("child-retarget-adopts-exact-pr", matrixChildRetarget)
-}
 
 // matrixRebaseCompletion covers "Rebase completes": a lost response replays against
 // the owned receipt/refs and adopts the completed rewrite — it never rebases a
@@ -357,148 +321,7 @@ func matrixChildRetarget(t *testing.T) {
 
 // --- TestFinalizeConcurrentMovement ---------------------------------------
 
-// TestFinalizeConcurrentMovement proves that a concurrent base move, a remote
-// feature-head move, and a same-entity version contention each produce a
-// contended/refused outcome — never a text-merge, a silent overwrite, or a merge —
-// because every effect is fenced by the exact old-value it read.
-func TestFinalizeConcurrentMovement(t *testing.T) {
-	requireRealGit(t)
-	m := planRepoModes()[0]
-
-	t.Run("remote-feature-head-move-contends-publish", func(t *testing.T) {
-		f := setupPublishFixture(t, m)
-		// A concurrent writer moves the remote feature ref off the head the receipt
-		// recorded, after the receipt was written. The receipt's lease is pinned to
-		// that original remote head, so the rewrite push must lose the lease — never
-		// clobber. Build the rival commit on the live remote feature ref and push it.
-		w := f.repo.writer
-		runGit(t, w, "fetch", "-q", "origin", "feat/"+f.slug)
-		runGit(t, w, "checkout", "-q", "-B", "rival", "FETCH_HEAD")
-		writeRepoFile(t, w, "concurrent.txt", "a rival writer\n")
-		runGit(t, w, "add", "-A")
-		runGit(t, w, "commit", "-q", "-m", "rival writer")
-		moved := runGit(t, w, "rev-parse", "HEAD")
-		runGit(t, w, "push", "-q", "--force", "origin", "HEAD:refs/heads/feat/"+f.slug)
-		if tip := f.remoteFeatureTip(t); tip != moved {
-			t.Fatalf("precondition: remote feature tip = %q, want the rival commit %q", tip, moved)
-		}
-		_, evBytes := recFor(t, f.rewritten)
-		gh := &fakePublishGitHub{repo: retargetRepo(), pr: f.openPRForPublish(f.rewritten, authoredPRBody(t, f.origHead))}
-		res := FinalizePublish(context.Background(), f.publishDeps(gh), f.repo.invocation,
-			FinalizePublishRequest{ID: f.id, Attempt: f.attempt, Head: f.rewritten, EvidenceRecord: evBytes})
-		if res.Result == ResultApplied || res.Disposition == PublishDispPublished {
-			t.Fatalf("a concurrent feature-head move let the rewrite publish: %q disp %q", res.Result, res.Disposition)
-		}
-		if res.Disposition != PublishDispContended {
-			t.Fatalf("disposition = %q, want %q", res.Disposition, PublishDispContended)
-		}
-		if tip := f.remoteFeatureTip(t); tip != moved {
-			t.Fatalf("the lease-losing push OVERWROTE the rival commit: %q -> %q", moved, tip)
-		}
-	})
-
-	t.Run("base-move-contends-merge", func(t *testing.T) {
-		f := setupMergeFixture(t, m)
-		// The PR merged against a base that has since diverged from the parent's
-		// effective base: a present-but-wrong destination, contended, never a merge
-		// the closeout could act on.
-		gh := f.baselineFake(t)
-		gh.mergeOutcome = githubcli.MergeMerged
-		gh.mergeFacts = mergedFactsFor(f.head, "develop", strings.Repeat("a", 40))
-		res := FinalizeMerge(context.Background(), f.mergeDeps(gh), f.repo.invocation, mergeReq(f, f.head, true, false))
-		if res.Result != ResultContended || res.Merge != nil {
-			t.Fatalf("base divergence = %q merge %v, want contended and no VerifiedMerge", res.Result, res.Merge)
-		}
-	})
-
-	t.Run("same-entity-version-contends-retarget", func(t *testing.T) {
-		pin := docketPin(t)
-		corpus := []StatusBlob{
-			finalizeBlob(80, "root", "implemented", "high", prRefFor(800), ""),
-			finalizeBlob(81, "child-a", "implemented", "high", prRefFor(810), "stacked_on: 80\n"),
-		}
-		// The authorized set names cv810, but the live PR entity moved to cv810-new: a
-		// same-entity contention. The retarget must refuse the edit, never force it.
-		gh := &fakeRetargetGitHub{
-			repo: retargetRepo(),
-			prs:  []*fakePR{{number: 810, head: "feat/child-a", base: "feat/root", version: "cv810-new"}},
-		}
-		engine := &recordingEngine{}
-		req := RetargetChildrenRequest{
-			ID: 80, Version: "blobfin0080",
-			Children: []AuthorizedChild{{ID: 81, PRNumber: 810, PRVersion: "cv810"}},
-		}
-		res := FinalizeRetargetChildren(context.Background(), retargetDeps(&fakeReader{pin: pin, corpus: corpus}, gh, engine), "", req)
-		if res.Result == ResultApplied {
-			t.Fatalf("a version-contended child was retargeted: %q disp %q", res.Result, res.Disposition)
-		}
-		if c := childOutcomeByID(t, res, 81); c.Outcome != childOutcomeContended {
-			t.Fatalf("child 81 outcome = %q, want contended", c.Outcome)
-		}
-		// The rival version stands: no forced edit.
-		if gh.prs[0].base != "feat/root" || gh.prs[0].version != "cv810-new" {
-			t.Fatalf("the contended retarget overwrote the rival PR: base %q version %q", gh.prs[0].base, gh.prs[0].version)
-		}
-	})
-}
-
 // --- TestFinalizeBytePreservation -----------------------------------------
-
-// TestFinalizeBytePreservation proves that after a closeout, every byte outside the
-// generated blocks the operation owns is identical to its pre-image: the authored
-// bodies of the merged plan/results, the repository config, and an unrelated file
-// are compared in full against snapshots taken before the transaction.
-func TestFinalizeBytePreservation(t *testing.T) {
-	requireRealGit(t)
-	for _, m := range planRepoModes() {
-		m := m
-		t.Run(m.name, func(t *testing.T) {
-			f := setupCloseoutFixture(t, m)
-
-			integrationBranch := f.branch
-			if m.name == "docket" {
-				integrationBranch = "main"
-			}
-			// Pre-images of files the closeout must not disturb outside its owned blocks.
-			planBefore, _ := originFile(t, f.repo.origin, integrationBranch, f.planPath)
-			resultsBefore, _ := originFile(t, f.repo.origin, integrationBranch, f.resultsPath)
-			readmeBefore, hadReadme := originFile(t, f.repo.origin, integrationBranch, "README.md")
-
-			mergeCommit := f.mergeIntoBase(t)
-			gh := f.baselineMergedFake(f.head, mergeCommit)
-			res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
-			if res.Result != ResultApplied {
-				t.Fatalf("closeout did not apply: %q (reason %q)", res.Result, res.Reason)
-			}
-
-			// The authored body after the backlink block is byte-identical.
-			for _, tc := range []struct {
-				path   string
-				before string
-			}{
-				{f.planPath, planBefore},
-				{f.resultsPath, resultsBefore},
-			} {
-				after, ok := originFile(t, f.repo.origin, integrationBranch, tc.path)
-				if !ok {
-					t.Fatalf("artifact %q vanished after closeout", tc.path)
-				}
-				if matrixAuthoredBody(t, tc.before) != matrixAuthoredBody(t, after) {
-					t.Errorf("artifact %q authored body changed outside its backlink block:\n--before--\n%q\n--after--\n%q",
-						tc.path, matrixAuthoredBody(t, tc.before), matrixAuthoredBody(t, after))
-				}
-			}
-
-			// A file the closeout never targets is byte-identical in full.
-			if hadReadme {
-				readmeAfter, ok := originFile(t, f.repo.origin, integrationBranch, "README.md")
-				if !ok || readmeAfter != readmeBefore {
-					t.Errorf("README.md was disturbed by closeout:\n--before--\n%q\n--after--\n%q", readmeBefore, readmeAfter)
-				}
-			}
-		})
-	}
-}
 
 // matrixAuthoredBody returns the bytes of an artifact after its docket:backlink
 // block — the authored region a generated-only patch must never touch.
@@ -512,48 +335,3 @@ func matrixAuthoredBody(t *testing.T, artifact string) string {
 }
 
 // --- TestFinalizeNoForeignWrites ------------------------------------------
-
-// TestFinalizeNoForeignWrites proves the terminal metadata transaction writes only
-// through its own detached candidate worktree and the remote: the invocation's
-// primary checkout, the sibling feature worktree, and the transactions root are all
-// left as they were — no foreign index, HEAD, or worktree is touched.
-func TestFinalizeNoForeignWrites(t *testing.T) {
-	requireRealGit(t)
-	for _, m := range planRepoModes() {
-		m := m
-		t.Run(m.name, func(t *testing.T) {
-			f := setupCloseoutFixture(t, m)
-			mergeCommit := f.mergeIntoBase(t)
-			gh := f.baselineMergedFake(f.head, mergeCommit)
-
-			// Primary (invocation) checkout and the sibling feature worktree before.
-			// The invariant is that closeout does not CHANGE these indexes/HEADs, so
-			// capture the exact status and compare — not a pristine assumption.
-			invHeadBefore := runGit(t, f.repo.invocation, "rev-parse", "HEAD")
-			invStatusBefore := runGit(t, f.repo.invocation, "status", "--porcelain")
-			featHeadBefore := runGit(t, f.wp, "rev-parse", "HEAD")
-			featStatusBefore := runGit(t, f.wp, "status", "--porcelain")
-
-			res := FinalizeCloseout(context.Background(), f.closeoutDeps(gh), f.repo.invocation, f.id, CloseoutNotes{})
-			if res.Result != ResultApplied {
-				t.Fatalf("closeout did not apply: %q (reason %q)", res.Result, res.Reason)
-			}
-
-			if got := runGit(t, f.repo.invocation, "rev-parse", "HEAD"); got != invHeadBefore {
-				t.Errorf("closeout moved the primary checkout HEAD: %q -> %q", invHeadBefore, got)
-			}
-			if got := runGit(t, f.repo.invocation, "status", "--porcelain"); got != invStatusBefore {
-				t.Errorf("closeout wrote into the primary checkout index:\n--before--\n%s\n--after--\n%s", invStatusBefore, got)
-			}
-			if got := runGit(t, f.wp, "rev-parse", "HEAD"); got != featHeadBefore {
-				t.Errorf("closeout moved the sibling feature worktree HEAD: %q -> %q", featHeadBefore, got)
-			}
-			if got := runGit(t, f.wp, "status", "--porcelain"); got != featStatusBefore {
-				t.Errorf("closeout wrote into the sibling feature worktree index:\n--before--\n%s\n--after--\n%s", featStatusBefore, got)
-			}
-			if !transactionsRootEmpty(t, f.deps.Client, f.repo.invocation) {
-				t.Errorf("closeout left a candidate worktree under the transactions root")
-			}
-		})
-	}
-}

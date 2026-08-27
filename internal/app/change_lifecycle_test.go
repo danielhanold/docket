@@ -2,12 +2,11 @@ package app
 
 import (
 	"context"
-	"strings"
-	"testing"
-
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository/transaction"
+	"strings"
+	"testing"
 )
 
 // blobV is a 40-char blob object id the pinned-entity requests carry.
@@ -175,114 +174,6 @@ func TestChangeDeferFencesGithubBoardSurface(t *testing.T) {
 }
 
 // --- outcome mapping (engine reached; Discover over a real temp repo) ------
-
-func TestChangeBlockAppliedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
-	receipt := mustMarshal(t, changeLifecycleReceipt{
-		ID: 3, Op: OperationChangeBlock, Status: "blocked",
-	})
-	engine := &recordingEngine{result: transaction.Result{
-		Disposition:   transaction.DispositionApplied,
-		AppliedCommit: "cafebabecafebabecafebabecafebabecafebabe",
-		Receipt:       receipt,
-	}}
-	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
-	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
-
-	res := ChangeBlock(context.Background(), deps, repoDir, validBlockRequest())
-
-	if res.Result != ResultApplied {
-		t.Fatalf("result = %q, want applied", res.Result)
-	}
-	if res.ID != 3 || res.Status != "blocked" {
-		t.Errorf("identity from receipt = (%d, %q)", res.ID, res.Status)
-	}
-	if res.Revision != "cafebabecafebabecafebabecafebabecafebabe" {
-		t.Errorf("revision = %q", res.Revision)
-	}
-	if res.Operation != OperationChangeBlock {
-		t.Errorf("operation = %q, want %q", res.Operation, OperationChangeBlock)
-	}
-
-	if len(engine.calls) != 1 {
-		t.Fatalf("engine calls = %d, want 1", len(engine.calls))
-	}
-	req := engine.calls[0]
-	if req.Operation.Key() != OperationChangeBlock {
-		t.Errorf("operation key = %q", req.Operation.Key())
-	}
-	if req.TargetRef != "refs/heads/main" {
-		t.Errorf("target ref = %q, want refs/heads/main", req.TargetRef)
-	}
-	if req.Idempotency != nil {
-		t.Errorf("lifecycle is non-allocating; it must carry no idempotency key, got %+v", req.Idempotency)
-	}
-	if len(req.Expected) != 1 {
-		t.Fatalf("expected %d entity expectations, want 1", len(req.Expected))
-	}
-	exp := req.Expected[0]
-	if string(exp.Path) != groomPath(3, "widget") {
-		t.Errorf("expectation path = %q", exp.Path)
-	}
-	if exp.Version.Kind != transaction.VersionBlob || string(exp.Version.ObjectID) != blobV {
-		t.Errorf("expectation version = %+v", exp.Version)
-	}
-}
-
-func TestChangeDeferAppliedResultCarriesDeferStatus(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
-	receipt := mustMarshal(t, changeLifecycleReceipt{
-		ID: 3, Op: OperationChangeDefer, Status: "deferred",
-	})
-	engine := &recordingEngine{result: transaction.Result{
-		Disposition:   transaction.DispositionApplied,
-		AppliedCommit: "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
-		Receipt:       receipt,
-	}}
-	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
-	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
-
-	res := ChangeDefer(context.Background(), deps, repoDir, validDeferRequest())
-
-	if res.Result != ResultApplied {
-		t.Fatalf("result = %q, want applied", res.Result)
-	}
-	if res.Status != "deferred" || res.Operation != OperationChangeDefer {
-		t.Errorf("result = (%q, %q)", res.Status, res.Operation)
-	}
-	if engine.calls[0].Operation.Key() != OperationChangeDefer {
-		t.Errorf("operation key = %q", engine.calls[0].Operation.Key())
-	}
-}
-
-func TestChangeLifecycleContendedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
-	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
-	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
-	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
-
-	res := ChangeBlock(context.Background(), deps, repoDir, validBlockRequest())
-
-	if res.Result != ResultContended {
-		t.Fatalf("result = %q, want contended", res.Result)
-	}
-	if res.Findings == nil {
-		t.Errorf("Findings must marshal as [], not nil")
-	}
-}
-
-func TestChangeLifecycleRefusedMapsInvalidState(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
-	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionRefused}}
-	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
-	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
-
-	res := ChangeBlock(context.Background(), deps, repoDir, validBlockRequest())
-
-	if res.Result != ResultInvalidState {
-		t.Fatalf("refused disposition mapped to %q, want invalid-state", res.Result)
-	}
-}
 
 // --- plan closure ----------------------------------------------------------
 

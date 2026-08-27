@@ -2,11 +2,10 @@ package app
 
 import (
 	"context"
-	"strings"
-	"testing"
-
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/repository/transaction"
+	"strings"
+	"testing"
 )
 
 // --- fixtures --------------------------------------------------------------
@@ -187,150 +186,6 @@ func TestLearningUpdateFencesWhenLearningsDisabled(t *testing.T) {
 }
 
 // --- outcome mapping (engine reached; Discover over a real temp repo) -------
-
-func TestLearningRecordAppliedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
-	receipt := mustMarshal(t, learningReceipt{
-		Op: OperationLearningRecord, Path: learningPath("a-lesson"), Slug: "a-lesson",
-	})
-	engine := &recordingEngine{result: transaction.Result{
-		Disposition:   transaction.DispositionApplied,
-		AppliedCommit: "cafebabecafebabecafebabecafebabecafebabe",
-		Receipt:       receipt,
-	}}
-	reader := &fakeChangeReader{pin: mainModePin([]string{})}
-	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
-
-	res := LearningRecordOp(context.Background(), deps, repoDir, validLearningRecordRequest())
-
-	if res.Result != ResultApplied {
-		t.Fatalf("result = %q, want applied", res.Result)
-	}
-	if res.Slug != "a-lesson" || res.Path != learningPath("a-lesson") {
-		t.Errorf("identity from receipt = (%q, %q)", res.Slug, res.Path)
-	}
-	if res.Revision != "cafebabecafebabecafebabecafebabecafebabe" {
-		t.Errorf("revision = %q", res.Revision)
-	}
-	if res.Replayed {
-		t.Errorf("Replayed = true on a fresh apply")
-	}
-	if res.Operation != OperationLearningRecord {
-		t.Errorf("operation = %q, want %q", res.Operation, OperationLearningRecord)
-	}
-
-	if len(engine.calls) != 1 {
-		t.Fatalf("engine calls = %d, want 1", len(engine.calls))
-	}
-	req := engine.calls[0]
-	if req.Operation.Key() != OperationLearningRecord {
-		t.Errorf("operation key = %q", req.Operation.Key())
-	}
-	if req.TargetRef != "refs/heads/main" {
-		t.Errorf("target ref = %q, want refs/heads/main", req.TargetRef)
-	}
-	if req.Idempotency == nil || req.Idempotency.RequestID != "learn-00000001" {
-		t.Errorf("idempotency key = %+v", req.Idempotency)
-	}
-	if len(req.Expected) != 0 {
-		t.Errorf("record is allocating; it must carry no entity expectation, got %+v", req.Expected)
-	}
-}
-
-func TestLearningRecordReplayResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
-	receipt := mustMarshal(t, learningReceipt{
-		Op: OperationLearningRecord, Path: learningPath("a-lesson"), Slug: "a-lesson",
-	})
-	engine := &recordingEngine{result: transaction.Result{
-		Disposition:   transaction.DispositionAlreadyApplied,
-		AppliedCommit: "0000000000000000000000000000000000000abc",
-		Receipt:       receipt,
-	}}
-	reader := &fakeChangeReader{pin: mainModePin([]string{})}
-	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
-
-	res := LearningRecordOp(context.Background(), deps, repoDir, validLearningRecordRequest())
-
-	if res.Result != ResultApplied {
-		t.Fatalf("result = %q, want applied", res.Result)
-	}
-	if !res.Replayed {
-		t.Errorf("Replayed = false on an already-applied replay")
-	}
-	if res.Slug != "a-lesson" {
-		t.Errorf("slug = %q, want a-lesson (from the original receipt)", res.Slug)
-	}
-}
-
-func TestLearningRecordRefusedMapsInvalidInput(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
-	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionRefused}}
-	reader := &fakeChangeReader{pin: mainModePin([]string{})}
-	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
-
-	res := LearningRecordOp(context.Background(), deps, repoDir, validLearningRecordRequest())
-
-	if res.Result != ResultInvalidInput {
-		t.Fatalf("refused disposition mapped to %q, want invalid-input", res.Result)
-	}
-	if res.Findings == nil {
-		t.Errorf("Findings must marshal as [], not nil")
-	}
-}
-
-func TestLearningUpdateContendedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
-	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
-	reader := &fakeChangeReader{pin: mainModePin([]string{})}
-	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
-
-	res := LearningUpdate(context.Background(), deps, repoDir, validLearningUpdateRequest())
-
-	if res.Result != ResultContended {
-		t.Fatalf("result = %q, want contended", res.Result)
-	}
-	if res.Findings == nil {
-		t.Errorf("Findings must marshal as [], not nil")
-	}
-}
-
-func TestLearningUpdateAppliedResultCarriesExactVersion(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
-	receipt := mustMarshal(t, learningReceipt{
-		Op: OperationLearningUpdate, Path: learningPath("a-lesson"), Slug: "a-lesson",
-	})
-	engine := &recordingEngine{result: transaction.Result{
-		Disposition:   transaction.DispositionApplied,
-		AppliedCommit: "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
-		Receipt:       receipt,
-	}}
-	reader := &fakeChangeReader{pin: mainModePin([]string{})}
-	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
-
-	res := LearningUpdate(context.Background(), deps, repoDir, validLearningUpdateRequest())
-
-	if res.Result != ResultApplied {
-		t.Fatalf("result = %q, want applied", res.Result)
-	}
-	if res.Slug != "a-lesson" || res.Operation != OperationLearningUpdate {
-		t.Errorf("result = (%q, %q)", res.Slug, res.Operation)
-	}
-	req := engine.calls[0]
-	if req.Idempotency != nil {
-		t.Errorf("update is non-allocating; it must carry no idempotency key, got %+v", req.Idempotency)
-	}
-	if len(req.Expected) != 1 {
-		t.Fatalf("expected 1 entity expectation, got %d", len(req.Expected))
-	}
-	exp := req.Expected[0]
-	if string(exp.Path) != learningPath("a-lesson") {
-		t.Errorf("expectation path = %q", exp.Path)
-	}
-	if exp.Version.Kind != transaction.VersionBlob || string(exp.Version.ObjectID) != blobV {
-		t.Errorf("expectation version = %+v", exp.Version)
-	}
-}
 
 // --- record plan closure ---------------------------------------------------
 

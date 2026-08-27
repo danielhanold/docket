@@ -278,6 +278,33 @@
 #   harness   1.05 0.98 1.02 -> worst 1.05 -> next multiple of 5 is 5, plus 5 -> 10
 # All four ride the parallel lane (each is a single-package normal-mode go-test invocation).
 # EXPECTED_TOTAL moves 2420 -> 2460: +10 +10 +10 +10.
+#
+# tests/test_go_integration_app_*.sh are EIGHT NEW FILES brought by change 0333 — the same
+# new-test-file + integration-SHARD case as the gitcli/githubcli blocks above, for the dominant
+# package internal/app. Change 0333 partitions internal/app's slow real-git and process-lifecycle
+# corpus behind the `integration` build tag (internal/app/*_integration_test.go plus one
+# *_race_integration_test.go; completeness proven by tests/test_go_integration_contract.sh); each
+# runner drives one shard through the shared executor tests/lib/go-integration-shard.sh. The
+# finalize_e2e corpus (`e2e` tag) is untouched. No existing shard could take them: every other
+# Go-touching row here runs the DEFAULT-tag corpus, which by construction cannot see this tagged
+# one. The partition drops the default `go test ./internal/app/` cost from ~228s to ~1.8s wall
+# (0.6s of tests) — the number that unblocks change 0357 — and pulls internal/app's ~226s real-git
+# tail out of the whole-module -race gate. Seven runners ride NORMAL mode; ONE (concurrency) rides
+# RACE mode — the six goroutine-bearing tests (concurrent planning mutations and the gate-retry
+# O_EXCL CAS) each carry an adjacent rationale in app_concurrency_race_integration_test.go; no
+# other app test exercises real concurrent behavior, so none earns a -race shard. All eight ride
+# the parallel lane (each is a single-package go-test invocation, not a whole-module -race run).
+# Sized per this header's rule from the WORST of the standalone serial readings, one machine
+# (darwin/arm64, go1.26.5), as `/usr/bin/time -p bash tests/test_go_integration_app_<feature>.sh`:
+#   change      46.57 47.14 47.20 -> worst 47.20 -> next multiple of 5 is 50, plus 5 -> 55
+#   cleanup     30.36 30.59 29.99 -> worst 30.59 -> next multiple of 5 is 35, plus 5 -> 40
+#   closeout    29.54 30.09 30.07 -> worst 30.09 -> next multiple of 5 is 35, plus 5 -> 40
+#   state       40.41 39.77       -> worst 40.41 -> next multiple of 5 is 45, plus 5 -> 50
+#   workflow    37.74 38.22       -> worst 38.22 -> next multiple of 5 is 40, plus 5 -> 45
+#   merge       21.39 21.07       -> worst 21.39 -> next multiple of 5 is 25, plus 5 -> 30
+#   rebase      18.81 18.71       -> worst 18.81 -> next multiple of 5 is 20, plus 5 -> 25
+#   concurrency 17.73 15.59 15.47 -> worst 17.73 -> next multiple of 5 is 20, plus 5 -> 25 (race mode, measured WITH -race)
+# EXPECTED_TOTAL moves 2460 -> 2770: +55 +40 +40 +50 +45 +30 +25 +25.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -340,6 +367,14 @@ tests/test_gate_execution_posture.sh	10	parallel
 tests/test_gate_facade.sh	15	parallel
 tests/test_github_mirror.sh	10	parallel
 tests/test_go_finalize_e2e.sh	25	parallel
+tests/test_go_integration_app_change.sh	55	parallel
+tests/test_go_integration_app_cleanup.sh	40	parallel
+tests/test_go_integration_app_closeout.sh	40	parallel
+tests/test_go_integration_app_concurrency.sh	25	parallel
+tests/test_go_integration_app_merge.sh	30	parallel
+tests/test_go_integration_app_rebase.sh	25	parallel
+tests/test_go_integration_app_state.sh	50	parallel
+tests/test_go_integration_app_workflow.sh	45	parallel
 tests/test_go_integration_gitcli_concurrency.sh	10	parallel
 tests/test_go_integration_gitcli_process.sh	15	parallel
 tests/test_go_integration_gitcli_repo.sh	30	parallel

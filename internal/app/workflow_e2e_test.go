@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/githubcli"
+	"github.com/danielhanold/docket/internal/workspace"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,9 +12,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/danielhanold/docket/internal/githubcli"
-	"github.com/danielhanold/docket/internal/workspace"
 )
 
 // This is the hermetic, end-to-end claim→implemented workflow test: it drives
@@ -40,34 +39,6 @@ import (
 // runs with no `$DOCKET_SCRIPTS_DIR` on the environment, so no legacy Bash facade
 // could have been consulted; and the unsupported-capability fixture is refused
 // with the metadata remote left exactly where it started.
-
-// TestClaimToImplementedWorkflow is the acceptance-1/6 end-to-end proof.
-func TestClaimToImplementedWorkflow(t *testing.T) {
-	requireRealGit(t)
-	// The workflow must need no legacy Bash facade: clear the facade env var so a
-	// stray export cannot silently satisfy anything, then assert it stayed clear.
-	t.Setenv("DOCKET_SCRIPTS_DIR", "")
-
-	ghBin := buildFakeGH(t)
-
-	for _, m := range planRepoModes() {
-		m := m
-		t.Run(m.name, func(t *testing.T) {
-			runClaimToImplemented(t, m, ghBin)
-		})
-	}
-
-	// Acceptance 6, second clause: an actively-requested deferred capability fails
-	// before any mutation. Kept in main mode — the property is about the mutation
-	// preflight, not the metadata topology.
-	t.Run("unsupported-capability-refused-before-mutation", func(t *testing.T) {
-		assertDeferredCapabilityBlocksClaim(t)
-	})
-
-	if got := os.Getenv("DOCKET_SCRIPTS_DIR"); got != "" {
-		t.Errorf("the workflow relied on a legacy Bash facade: DOCKET_SCRIPTS_DIR = %q", got)
-	}
-}
 
 // runClaimToImplemented drives the full positive sequence for one metadata mode.
 func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string) {
