@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0317 — Release packaging and four-harness acceptance](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0317-release-packaging-and-four-harness-acceptance.md)**
+> ↩ **[Change 0317 — Release packaging and four-harness acceptance](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-27-0317-release-packaging-and-four-harness-acceptance.md)**
 <!-- docket:backlink:end -->
 
 # Release packaging and four-harness acceptance

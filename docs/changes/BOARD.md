@@ -1,6 +1,6 @@
 # Backlog
 
-**361 changes** — 🟡 53 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 221 done · 🗑️ 82 killed
+**361 changes** — 🟡 53 proposed · ⚪ 4 deferred · ✅ 222 done · 🗑️ 82 killed
 
 ## 🟡 Proposed (53)
 
@@ -43,7 +43,7 @@
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
-| [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Remaining configuration cleanup, self-hosting, and hard cutover | `critical` | `refactor` | ⏳ waiting on #317 — needs your merge |
+| [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Remaining configuration cleanup, self-hosting, and hard cutover | `critical` | `refactor` | needs-brainstorm |
 | [0319](active/0319-test-bash-runtime-routing-sh-s-inventory-assert-is-cwd-depen.md) | test_bash_runtime_routing.sh's inventory assert is cwd-dependent — relative rg globs resolve against the process cwd | `medium` | `fix` | needs-brainstorm |
 | [0320](active/0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | `medium` | `chore` | needs-brainstorm |
 | [0321](active/0321-render-artifact-backlink-sh-eats-artifact-tails-on-marker-sh.md) | render-artifact-backlink.sh eats artifact tails on marker-shaped literals — anchor whole-line, validate balance, refuse | `medium` | `fix` | needs-brainstorm |
@@ -58,7 +58,7 @@
 | [0354](active/0354-halt-report-authoring-writes-a-duplicate-run-halted-heading.md) | Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted | `high` | `fix` | needs-brainstorm |
 | [0359](active/0359-run-gate-gives-up-too-soon.md) | the run gate gives up too soon | `high` | `fix` | needs-brainstorm |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `medium` | `feat` | needs-brainstorm |
-| [0361](active/0361-release-candidate-source-gate-macos-runner.md) | Release-candidate source-gate green on a macOS runner | `high` | `fix` | ⏳ waiting on #317 — needs your merge |
+| [0361](active/0361-release-candidate-source-gate-macos-runner.md) | Release-candidate source-gate green on a macOS runner | `high` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
 
@@ -68,12 +68,6 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [#226](https://github.com/danielhanold/docket/pull/226) |  |
 
 ```mermaid
 graph TD
@@ -118,8 +112,6 @@ graph TD
   0300
   0301
   0302
-  0311 --> 0317
-  0316 --> 0317
   0317 --> 0318
   0319
   0320
@@ -139,12 +131,11 @@ graph TD
   0192:::done
   0211:::done
   0251:::done
-  0311:::done
-  0316:::done
+  0317:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (303)</summary>
+<details><summary>✅🗑️ Archive — done + killed (304)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -154,6 +145,7 @@ graph TD
 | [0355](archive/2026-08-27-0355-build-review-roles-are-skill-invoked-that-fan-out-to-profile.md) | Build/review roles are skill-invoked that fan out to profile agents — Step 5 'dispatch' vocabulary invites an agent-not-found misfire | 2026-08-27 |
 | [0351](archive/2026-08-27-0351-complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard.md) | Complete change 0334: stop writing global instruction files and actually deploy the recursion guard | 2026-08-27 |
 | [0333](archive/2026-08-27-0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition slow Go integration tests and retire the race gate's 300s ceiling exemption | 2026-08-27 |
+| [0317](archive/2026-08-27-0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | 2026-08-27 |
 | [0353](archive/2026-08-26-0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | 2026-08-26 |
 | [0348](archive/2026-08-26-0348-enrich-open-pr-view-with-review-decision.md) | Enrich the exact-PR view with reviewDecision so open-PR snapshots populate Approved | 2026-08-26 |
 | [0347](archive/2026-08-26-0347-honor-recorded-branch-over-feat-prefix.md) | Honor recorded branch names instead of reconstructing feat/<slug> | 2026-08-26 |
@@ -164,7 +156,6 @@ graph TD
 | [0341](archive/2026-08-24-0341-artifact-table-links-render-as-bare-code-spans-instead-of-gi.md) | Artifact-table links render as bare code spans instead of GitHub links | 2026-08-24 |
 | [0339](archive/2026-08-24-0339-retire-the-gate-run-sh-launch-liveness-stop-facade-now-that.md) | Retire the gate-run.sh launch/liveness/stop facade now that the native Go-v1 gate is canonical (collapse the shared docket-liveness.sh seam with runner-dispatch.sh) | 2026-08-24 |
 | [0340](archive/2026-08-23-0340-stamp-build-identity-in-development-install.md) | Stamp build identity into the `development install` binary | 2026-08-23 |
-| [0338](archive/2026-08-23-0338-gate-execution-terminal-sentinel-has-no-format-contract-poll.md) | Gate observe ships two serializations (shell state=name vs native protocol-v1 JSON) reconciled only by prose — converge on JSON, migrate the caller loop, retire the text contract | 2026-08-23 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
 | [0299](archive/2026-08-12-0299-reshard-tests-test-sync-agents-runners-so-every-file-measure.md) | Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling | 2026-08-12 |
 | [0285](archive/2026-08-12-0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | 2026-08-12 |
@@ -250,7 +241,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 88 done |
+| [2026-08](archive/) | 89 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 

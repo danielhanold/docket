@@ -2,11 +2,11 @@
 id: 317
 slug: release-packaging-and-four-harness-acceptance
 title: 'Release packaging and four-harness acceptance'
-status: 'implemented'
+status: 'done'
 priority: critical
 type: feat
 created: 2026-08-12
-updated: '2026-08-21'
+updated: '2026-08-27'
 depends_on: [311, 316]
 stacked_on:
 related: [318, 322, 323]
@@ -21,7 +21,7 @@ branch: 'feat/release-packaging-and-four-harness-acceptance'
 pr: 'https://github.com/danielhanold/docket/pull/226'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-21T02:58:15Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -30,8 +30,7 @@ claimed_at: '2026-08-21T02:58:15Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-20-release-packaging-and-four-harness-acceptance-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-20-release-packaging-and-four-harness-acceptance-design.md) |
-| Plan | [2026-08-20-release-packaging-and-four-harness-acceptance.md](https://github.com/danielhanold/docket/blob/feat/release-packaging-and-four-harness-acceptance/docs/superpowers/plans/2026-08-20-release-packaging-and-four-harness-acceptance.md) |
-| PR | [#226](https://github.com/danielhanold/docket/pull/226) |
+| Plan | [2026-08-20-release-packaging-and-four-harness-acceptance.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-20-release-packaging-and-four-harness-acceptance.md) |
 | ADRs | [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md) |
 <!-- docket:artifacts:end -->
 
@@ -70,3 +69,14 @@ process and observed named-agent child in each harness; generated goldens cannot
 ### 2026-08-21
 
 2026-08-21 — Reconciled at claim. Verified against current reality: dependencies 311 (installer embedded assets + four harnesses) and 316 (finalize/recovery/reclaim/archive/stacks) are both merged and `done`, so the landed foundation the spec names is in place — `cmd/docket`, `internal/buildinfo` ldflags identity (Version/Commit/BuildDate), `internal/install` + `install`/`install check` commands, and the four native harness definitions (Claude, Codex, Cursor, OpenCode). No `release`/packaging package, POSIX downloader, or `.github/workflows/release-candidate` exists yet — all remain 317's net-new deliverables, so no work has been done elsewhere to drop. Scope, out-of-scope boundaries against 0318/0322/0323, and relations (depends_on [311,316], related [318,322,323], adrs [60]) remain accurate; no adjustment needed. The buildable branch deliverable is the deterministic Go packager + artifact contract, the `/bin/sh` checksum-verifying release downloader with its ownership record, the non-publishing release-candidate GitHub Actions workflow, and the hermetic package/downloader tests. The fresh-session four-harness live acceptance is external truth that no in-repo test can promote (per the spec's own gate); it is carried to the human merge gate as a documented manual checklist in the results record rather than automated in-branch.
+
+## Closeout notes
+
+### Verification
+
+- Local finalize gate (scripts/run-tests.sh) ran green at head 329c6ed4 (149/149); merged into main via rebase, merge commit 410009f5, merged_at 2026-08-27T21:52:12Z.
+- Change 317's own tests, including all three downloader tests, pass on both macOS and Linux.
+
+### Late findings
+
+- The GitHub release-candidate workflow's source-gate check is red, but only on 7 macOS-authored tests that fail solely because that job runs on an ubuntu-24.04 runner: test_bash_runtime_install, test_board_refresh, test_ensure_docket_env, test_ensure_global_config, test_go_race, test_go_toolchain, test_run_tests_budget_state. These are non-required checks; the fix is tracked separately as change 0361 (move source-gate to a macOS runner). Not a blocker for this merge.
