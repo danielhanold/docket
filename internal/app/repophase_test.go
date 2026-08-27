@@ -232,3 +232,68 @@ func TestResolveRepoPhaseScopedHarnessCarriesUnrelatedRecord(t *testing.T) {
 		t.Errorf("scoped run planned removals: %v", phase.Removals)
 	}
 }
+
+// TestResolveRepoPhaseRetiresDroppedClaudeLink is the symlink-retirement row: a
+// repo that once opted into [claude codex] now opts into [codex] alone, with a
+// prior record owning CLAUDE.md as a claude symlink to the shared AGENTS.md. The
+// dropped claude link must be a provable removal — the install no longer
+// hard-fails on a KindSymlink retirement cannot reason about — carried as exactly
+// one removal whose Path/Kind/LinkTarget/Harness name the link.
+//
+// MUTATION TEST: drop the LinkTarget threading in computeRemovals (the symlink
+// arm that joins s.LinkTarget under root) and the LinkTarget assertion below
+// reddens — the removal would name no destination.
+func TestResolveRepoPhaseRetiresDroppedClaudeLink(t *testing.T) {
+	root, gitDir := initGitRepo(t, "agent_harnesses: [codex]\n")
+	git := newGitClient(t)
+
+	// On disk: codex's shared AGENTS.md and the claude CLAUDE.md link to it.
+	writeRepoFile(t, root, "AGENTS.md", "shared agents surface\n")
+	if err := os.Symlink("AGENTS.md", filepath.Join(root, "CLAUDE.md")); err != nil {
+		t.Fatalf("Symlink: %v", err)
+	}
+
+	// A prior record owning CLAUDE.md as a claude symlink to AGENTS.md.
+	prior := &reposeed.Record{
+		FormatVersion: reposeed.RecordFormatVersion,
+		Surfaces: []reposeed.SurfaceRecord{
+			{Path: "CLAUDE.md", Kind: install.KindSymlink, LinkTarget: "AGENTS.md",
+				Harnesses: []string{"claude"}},
+		},
+	}
+	priorBytes, err := reposeed.EncodeRecord(prior)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recPath := reposeed.RecordPath(gitDir)
+	if err := os.MkdirAll(filepath.Dir(recPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(recPath, priorBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	phase, _, err := ResolveRepoPhase(context.Background(), git, root, nil, []byte("gate\n"), nil)
+	if err != nil {
+		t.Fatalf("ResolveRepoPhase hard-failed on the dropped symlink: %v", err)
+	}
+	if phase == nil || !phase.Authorized {
+		t.Fatalf("phase = %+v, want an authorized phase", phase)
+	}
+	if len(phase.Removals) != 1 {
+		t.Fatalf("removals = %+v, want exactly one (the dropped claude link)", phase.Removals)
+	}
+	rem := phase.Removals[0]
+	if want := filepath.Join(root, "CLAUDE.md"); rem.Path != want {
+		t.Errorf("removal path = %q, want %q", rem.Path, want)
+	}
+	if rem.Kind != install.KindSymlink {
+		t.Errorf("removal kind = %q, want %q", rem.Kind, install.KindSymlink)
+	}
+	if want := filepath.Join(root, "AGENTS.md"); rem.LinkTarget != want {
+		t.Errorf("removal link target = %q, want %q", rem.LinkTarget, want)
+	}
+	if rem.Harness != "claude" {
+		t.Errorf("removal harness = %q, want claude", rem.Harness)
+	}
+}

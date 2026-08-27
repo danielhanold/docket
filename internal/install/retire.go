@@ -81,6 +81,8 @@ func inspectGlobalRetirement(t Target, prior *State, legacy LegacyReproducer) (r
 		return retireManagedBlock(t, info, rec, hasRec, legacy)
 	case KindFile:
 		return retireFile(t, info, rec, hasRec, legacy)
+	case KindSymlink:
+		return retireSymlink(t, info, rec, hasRec)
 	default:
 		return false, nil, fmt.Errorf(
 			"%w: %s is a global dispatch target of kind %q, which retirement cannot reason about",
@@ -169,16 +171,46 @@ func retireFile(t Target, info fs.FileInfo, rec TargetRecord, hasRec bool, legac
 	return false, &c, nil
 }
 
+// retireSymlink decides the fate of a shared-link dispatch surface — the
+// CLAUDE.md that shares codex/opencode's AGENTS.md through a relative link. Docket
+// owns the whole link, so a proven one is deleted outright and an unprovable one
+// is preserved. Unlike the managed block and the whole-file rule, a shared link
+// never existed in the frozen legacy global installer (it is new to change 0351),
+// so ownership rests solely on the recorded destination still matching disk; there
+// is no legacy proof to fall back on.
+func retireSymlink(t Target, info fs.FileInfo, rec TargetRecord, hasRec bool) (bool, *Inspection, error) {
+	if info.Mode()&fs.ModeSymlink == 0 {
+		// A regular file, directory, or device where the shared link belongs is a
+		// foreign kind; retirement will not delete through it — even with a prior
+		// record naming the link, what is on disk now is not a link docket wrote.
+		c := conflict(t, ReasonOwnershipConflict, remedyForPath(hasRec))
+		return false, &c, nil
+	}
+	// Ownership proof: the link on disk still points where the recorded install
+	// left it (recordMatchesDisk canonicalises both sides). A user-retargeted link
+	// no longer matches and is preserved; a link with no prior record is likewise
+	// unprovable, never a blind delete.
+	if owned, err := provenByRecord(rec, hasRec); err != nil {
+		return false, nil, err
+	} else if owned {
+		return true, nil, nil
+	}
+	c := conflict(t, ReasonOwnershipConflict, remedyForPath(hasRec))
+	return false, &c, nil
+}
+
 // retirementRecord is the ownership record whose removal the transaction
-// journals. It carries only what removalTarget consumes — path, kind, and the
-// block name for a managed block — plus the harness attribution the prior record
-// held, so the reported removal names the harness it retired.
+// journals. It carries only what removalTarget consumes — path, kind, the block
+// name for a managed block, and the link destination for a symlink — plus the
+// harness attribution the prior record held, so the reported removal names the
+// harness it retired and, for a link, the destination it pointed at.
 func retirementRecord(t Target, prior *State) TargetRecord {
 	rec := TargetRecord{
-		Path:      filepath.Clean(t.Path),
-		Kind:      t.Kind,
-		BlockName: t.BlockName,
-		Role:      t.Role,
+		Path:       filepath.Clean(t.Path),
+		Kind:       t.Kind,
+		BlockName:  t.BlockName,
+		LinkTarget: t.LinkTarget,
+		Role:       t.Role,
 	}
 	if prev, ok := priorRecord(prior, t.Path); ok {
 		rec.Harness = prev.Harness
