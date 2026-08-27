@@ -1,3 +1,5 @@
+//go:build integration
+
 package gitcli
 
 import (
@@ -46,7 +48,7 @@ func findWorktree(t *testing.T, infos []WorktreeInfo, want string) WorktreeInfo 
 // AddDetachedWorktree registers a detached worktree at the requested commit,
 // creates no branch, and leaves the primary checkout's HEAD, branch, and index
 // untouched.
-func TestAddDetachedWorktreeRegistersDetachedAndPreservesPrimary(t *testing.T) {
+func TestIntegrationRepoAddDetachedWorktreeRegistersDetachedAndPreservesPrimary(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -104,7 +106,7 @@ func TestAddDetachedWorktreeRegistersDetachedAndPreservesPrimary(t *testing.T) {
 // TestRemoveWorktreeForcesDirtyWorktreeAndRejectsUnregistered proves
 // RemoveWorktree deregisters a worktree carrying staged and untracked state, and
 // returns a typed *Failure (never a panic) for an unregistered path.
-func TestRemoveWorktreeForcesDirtyWorktreeAndRejectsUnregistered(t *testing.T) {
+func TestIntegrationRepoRemoveWorktreeForcesDirtyWorktreeAndRejectsUnregistered(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -162,7 +164,7 @@ func registeredAt(t *testing.T, infos []WorktreeInfo, want string) bool {
 // and that a second call for an already-existing branch is command-failed with
 // no reset of the existing branch tip — the observable proof that -B/reset
 // semantics are absent.
-func TestAddBranchWorktreeCreatesBranchAndRefusesReset(t *testing.T) {
+func TestIntegrationRepoAddBranchWorktreeCreatesBranchAndRefusesReset(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -232,7 +234,7 @@ func TestAddBranchWorktreeCreatesBranchAndRefusesReset(t *testing.T) {
 // TestAddBranchWorktreeInvalidRequests proves a non-refs/heads branch, a
 // well-formed ref that is not a branch, and a relative path are all rejected as
 // invalid-request before any Git process runs.
-func TestAddBranchWorktreeInvalidRequests(t *testing.T) {
+func TestIntegrationRepoAddBranchWorktreeInvalidRequests(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -271,7 +273,7 @@ func TestAddBranchWorktreeInvalidRequests(t *testing.T) {
 // TestAttachBranchWorktreeAttachesExistingAndRejectsMissing proves
 // AttachBranchWorktree attaches an existing local branch to a new worktree and
 // that a missing branch is command-failed with nothing created — never a create.
-func TestAttachBranchWorktreeAttachesExistingAndRejectsMissing(t *testing.T) {
+func TestIntegrationRepoAttachBranchWorktreeAttachesExistingAndRejectsMissing(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -328,7 +330,7 @@ func TestAttachBranchWorktreeAttachesExistingAndRejectsMissing(t *testing.T) {
 // local branch survives at its tip; a worktree with a dirty tracked file or an
 // untracked file is refused (git rechecks cleanliness at the destructive
 // boundary) with the file bytes and the registration intact.
-func TestRemoveWorktreeCleanPreservesBranchAndRefusesDirty(t *testing.T) {
+func TestIntegrationRepoRemoveWorktreeCleanPreservesBranchAndRefusesDirty(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)

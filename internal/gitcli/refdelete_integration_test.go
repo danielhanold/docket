@@ -1,3 +1,5 @@
+//go:build integration
+
 package gitcli
 
 import (
@@ -10,7 +12,7 @@ import (
 // removes a branch whose tip matches exactly and which is checked out nowhere,
 // and refuses (leaving the branch intact) both when the tip has moved and when
 // the branch is checked out in a worktree.
-func TestDeleteLocalBranchChecked(t *testing.T) {
+func TestIntegrationRepoDeleteLocalBranchChecked(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -87,7 +89,7 @@ func TestDeleteLocalBranchChecked(t *testing.T) {
 // remote is rejected (lease-lost) with the ref retained at the winner; an
 // already-absent ref reads as applied (idempotent), distinct from an
 // unobservable remote which reads as failed (unknown, retain).
-func TestDeleteRemoteRefLease(t *testing.T) {
+func TestIntegrationRepoDeleteRemoteRefLease(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)

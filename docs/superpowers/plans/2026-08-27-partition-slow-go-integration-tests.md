@@ -243,15 +243,15 @@ git commit -m "test(0333): shared Go integration shard executor with inspection 
 - Consumes: Task 2's runner protocol (`SHARD_PKG`/`SHARD_PREFIX`/`SHARD_MODE` + `shard_inspect_maybe` + `run_integration_shard`), Task 1's per-test timings.
 - Produces: a tagged gitcli corpus whose every test carries a `TestIntegration…`/`TestRaceIntegration…` prefix and belongs to exactly one committed runner; map-file lines for every moved/renamed test.
 
-- [ ] **Step 1: Classify every gitcli test against the tag criterion**
+- [x] **Step 1: Classify every gitcli test against the tag criterion**
 
 A test moves behind `integration` when it runs real Git subprocesses, constructs multi-repository/worktree workflows, exercises process timeouts, or drives a complete operation through those boundaries. Fake-backed and fast pure-orchestration tests stay untagged. Use Task 1's per-test timings as the tiebreaker: the partition exists to remove wall clock, so a sub-100ms test with a real repo may stay untagged if its family is fast — but a family with a broad slow tail (the spec names `readblobs`' ~14s malformed-batch test and the 2–4s process/repository tests) moves as a family. Homogeneous files move whole (`git mv file_test.go file_integration_test.go` then add the tag line); mixed files split — fast tests must not become integration tests because a sibling is slow.
 
-- [ ] **Step 2: Move, tag, and rename**
+- [x] **Step 2: Move, tag, and rename**
 
 For each moved file: first line becomes exactly `//go:build integration` followed by a blank line, then `package gitcli`. Rename each moved top-level test to `TestIntegration<Feature><Rest>` — feature names are stable behavioral areas, chosen so that **no runner prefix is a string prefix of another runner prefix** (the contract's exactly-one check reddens on overlap). Audit `internal/gitcli/concurrency_test.go` as the seed race candidate: a test qualifies for `TestRaceIntegration<Feature>` + a `*_race_integration_test.go` file only for shared mutable state, concurrent adapter calls, process lifecycle coordination, or a race/recovery protocol — and each such test gets a short adjacent comment naming that concurrent behavior. Sequential drivers stay `TestIntegration…` in normal shards; broad race coverage of sequential code is explicitly not wanted. Shared real-repository helpers used only by tagged tests move into a tagged helper file (e.g. `harness_integration_test.go`); no untagged test may reference a tagged helper — `go test ./internal/gitcli/` (default tags) failing to compile is the detector, and the fix is relocating the helper, never tagging unrelated fast tests. Append one map line per moved test: `internal/gitcli<TAB><old><TAB><new>`.
 
-- [ ] **Step 3: Verify both tag states compile and the fast corpus is genuinely fast**
+- [x] **Step 3: Verify both tag states compile and the fast corpus is genuinely fast**
 
 ```bash
 go vet ./internal/gitcli/ && go vet -tags integration ./internal/gitcli/
@@ -260,7 +260,7 @@ go test -tags integration -count=1 ./internal/gitcli/     # whole tagged corpus 
 gofmt -l internal/gitcli/                                 # empty
 ```
 
-- [ ] **Step 4: Measure and cut shards fresh, then write the runners**
+- [x] **Step 4: Measure and cut shards fresh, then write the runners**
 
 ```bash
 go test -tags integration -count=1 -timeout 30m -v ./internal/gitcli/ 2>&1 | grep -E -e '^--- PASS'
@@ -293,7 +293,7 @@ exit "$fail"
 
 (Adapt the three literals and both header sentences per shard; a race shard sets `SHARD_MODE="race"` and a `TestRaceIntegration…` prefix.)
 
-- [ ] **Step 5: Measure each runner standalone and add its budget row + total in the same commit**
+- [x] **Step 5: Measure each runner standalone and add its budget row + total in the same commit**
 
 ```bash
 for r in tests/test_go_integration_gitcli_*.sh; do
@@ -303,7 +303,7 @@ done
 
 Size each row per the table rule from the WORST reading; add `<path><TAB><row><TAB>parallel` rows (sorted into the table), a header note carrying the readings/command/machine context, and move `EXPECTED_TOTAL` in `tests/test_runtime_budgets.sh` with a ledger entry ("NEW-FILE case, change 0333, gitcli integration shards"). Recompute the total from the table itself: `awk -F'\t' '!/^#/ && NF>=2 {s+=$2} END{print s}' tests/runtime-budgets.tsv`.
 
-- [ ] **Step 6: Run the budget guard and the shards, then commit**
+- [x] **Step 6: Run the budget guard and the shards, then commit**
 
 ```bash
 bash tests/test_runtime_budgets.sh

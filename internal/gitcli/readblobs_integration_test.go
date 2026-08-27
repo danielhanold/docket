@@ -1,3 +1,5 @@
+//go:build integration
+
 package gitcli
 
 import (
@@ -65,7 +67,7 @@ func scriptBlobSource(t *testing.T, lstree, catfile []byte, extraEnv ...string) 
 // executable, symlink, and both hostile-path blobs from the main-mode fixture
 // and asserts every result carries the exact plumbing-oracle bytes, mode, and
 // id, in the REQUEST order (deliberately not the tree's raw-byte sort order).
-func TestReadBlobsMatchesOracleInRequestOrder(t *testing.T) {
+func TestIntegrationSourceReadBlobsMatchesOracleInRequestOrder(t *testing.T) {
 	requireGit(t)
 	c := newRealClient(t)
 	ctx := context.Background()
@@ -119,7 +121,7 @@ func TestReadBlobsMatchesOracleInRequestOrder(t *testing.T) {
 // escape to the whole tree. Stripping the literal control (or the _PATHSPECS
 // scrub that keeps it unopposed) reddens these assertions: without it,
 // "-- ':weird.md'" matches nothing and "-- ':'" expands to the entire tree.
-func TestPathspecMagicPathsResolveLiterally(t *testing.T) {
+func TestIntegrationSourcePathspecMagicPathsResolveLiterally(t *testing.T) {
 	requireGit(t)
 	c := newRealClient(t)
 	ctx := context.Background()
@@ -186,7 +188,7 @@ func TestPathspecMagicPathsResolveLiterally(t *testing.T) {
 // ls-tree. The suffix scrub clears the inherited setting, so ReadBlobs of a
 // ':'-leading path still succeeds. Removing either the scrub or the literal
 // append reddens this test.
-func TestReadBlobsNeutralizesInheritedPathspecMagic(t *testing.T) {
+func TestIntegrationSourceReadBlobsNeutralizesInheritedPathspecMagic(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	r := newMainModeRepos(t)
@@ -216,7 +218,7 @@ func TestReadBlobsNeutralizesInheritedPathspecMagic(t *testing.T) {
 // its slot while other slots stay intact, a duplicate request path is rejected
 // invalid-request, and empty input returns an empty result WITHOUT spawning any
 // git process (asserted via an empty spawn log).
-func TestReadBlobsMissingDuplicateEmpty(t *testing.T) {
+func TestIntegrationSourceReadBlobsMissingDuplicateEmpty(t *testing.T) {
 	requireGit(t)
 	c := newRealClient(t)
 	ctx := context.Background()
@@ -260,7 +262,7 @@ func TestReadBlobsMissingDuplicateEmpty(t *testing.T) {
 // target string (never the target file's contents), and that a gitlink path or
 // a directory path requested as a blob fails the whole call with
 // unexpected-object.
-func TestReadBlobsSymlinkGitlinkDirectory(t *testing.T) {
+func TestIntegrationSourceReadBlobsSymlinkGitlinkDirectory(t *testing.T) {
 	requireGit(t)
 	c := newRealClient(t)
 	ctx := context.Background()
@@ -291,7 +293,7 @@ func TestReadBlobsSymlinkGitlinkDirectory(t *testing.T) {
 // TestReadBlobsUsesOneBatchProcess proves a 5-path read spawns exactly two git
 // processes — one ls-tree resolve and one cat-file batch — not one per blob,
 // counted through the helper's spawn log.
-func TestReadBlobsUsesOneBatchProcess(t *testing.T) {
+func TestIntegrationSourceReadBlobsUsesOneBatchProcess(t *testing.T) {
 	paths := []RepoPath{"a.md", "b.md", "c.md", "d.md", "e.md"}
 	entries := make([]lsTreeBlobEntry, len(paths))
 	var catfile bytes.Buffer
@@ -338,7 +340,7 @@ func TestReadBlobsUsesOneBatchProcess(t *testing.T) {
 // wrong oid, wrong type, short and long size, an extra trailing frame, and
 // reordered frames — asserting each is reported invalid-output with no partial
 // result.
-func TestReadBlobsMalformedBatchFrames(t *testing.T) {
+func TestIntegrationSourceReadBlobsMalformedBatchFrames(t *testing.T) {
 	o0 := strings.Repeat("a", 40)
 	o1 := strings.Repeat("b", 40)
 	other := strings.Repeat("c", 40)
@@ -378,7 +380,7 @@ func TestReadBlobsMalformedBatchFrames(t *testing.T) {
 // git so the buffer deterministically holds a trailing frame after the one under
 // test, and the returned slice is mutated in place to confirm nothing panics or
 // depends on the shared array.
-func TestReadBlobsResultOwnership(t *testing.T) {
+func TestIntegrationSourceReadBlobsResultOwnership(t *testing.T) {
 	o0 := strings.Repeat("a", 40)
 	o1 := strings.Repeat("b", 40)
 	c0 := "hello"
@@ -416,7 +418,7 @@ func TestReadBlobsResultOwnership(t *testing.T) {
 // relative to the process's cwd prefix — a silent mis-scope the moment the
 // working directory is anything but the root. The guarantee lives in the
 // argument vector, so that is where it is asserted.
-func TestReadBlobsResolvesFromRepositoryRoot(t *testing.T) {
+func TestIntegrationSourceReadBlobsResolvesFromRepositoryRoot(t *testing.T) {
 	oid := strings.Repeat("a", 40)
 	entries := []lsTreeBlobEntry{{oid: oid, path: "a.md"}}
 	var catfile bytes.Buffer

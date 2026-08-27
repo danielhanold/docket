@@ -1,3 +1,5 @@
+//go:build integration
+
 package gitcli
 
 import (
@@ -26,7 +28,7 @@ func detachedChildCommit(t *testing.T, c *Client, repo Repository, r *testRepos,
 // TestPushLeaseAppliedWhenExpectedMatches proves a push whose expected old value
 // matches the remote target applies, and the origin ref then equals the pushed
 // commit.
-func TestPushLeaseAppliedWhenExpectedMatches(t *testing.T) {
+func TestIntegrationRepoPushLeaseAppliedWhenExpectedMatches(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -54,7 +56,7 @@ func TestPushLeaseAppliedWhenExpectedMatches(t *testing.T) {
 // TestPushLeaseLostWhenRemoteAdvanced proves that when the remote target has been
 // advanced to a commit the pushed commit does not contain, the structurally
 // rejected push is classified lease-lost with Remote set to the winner.
-func TestPushLeaseLostWhenRemoteAdvanced(t *testing.T) {
+func TestIntegrationRepoPushLeaseLostWhenRemoteAdvanced(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -90,7 +92,7 @@ func TestPushLeaseLostWhenRemoteAdvanced(t *testing.T) {
 // failure (the remote made unreadable) with an otherwise-matching expected value
 // classifies as PushFailed, never lease-lost — a non-zero git status alone is
 // never a lease loss.
-func TestPushLeaseFailedNotLeaseLostOnTransportError(t *testing.T) {
+func TestIntegrationRepoPushLeaseFailedNotLeaseLostOnTransportError(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -117,7 +119,7 @@ func TestPushLeaseFailedNotLeaseLostOnTransportError(t *testing.T) {
 // TestPushCreateLeaseAppliedOnAbsentRef proves that pushing to a ref the caller
 // asserts is absent creates it and classifies applied, with the origin ref then
 // equal to the pushed commit.
-func TestPushCreateLeaseAppliedOnAbsentRef(t *testing.T) {
+func TestIntegrationRepoPushCreateLeaseAppliedOnAbsentRef(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -146,7 +148,7 @@ func TestPushCreateLeaseAppliedOnAbsentRef(t *testing.T) {
 // when the target ref already holds a DIVERGENT commit (a winner created it
 // first), the absent-lease push is rejected and classified lease-lost with
 // Remote set to the winner, and the loser's commit never lands on origin.
-func TestPushCreateLeaseLostWhenRefCreatedWithDivergentCommit(t *testing.T) {
+func TestIntegrationRepoPushCreateLeaseLostWhenRefCreatedWithDivergentCommit(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -182,7 +184,7 @@ func TestPushCreateLeaseLostWhenRefCreatedWithDivergentCommit(t *testing.T) {
 // case: when the ref already holds EXACTLY the pushed commit (a prior push whose
 // success response was lost), the rejected create-lease push is classified
 // applied — the effect is adopted, not duplicated.
-func TestPushCreateLeaseAdoptsOwnLostResponse(t *testing.T) {
+func TestIntegrationRepoPushCreateLeaseAdoptsOwnLostResponse(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -212,7 +214,7 @@ func TestPushCreateLeaseAdoptsOwnLostResponse(t *testing.T) {
 // failure (the remote made unreadable) classifies as PushFailed, never
 // lease-lost — a non-zero git status with no per-ref rejection line is never a
 // create race.
-func TestPushCreateLeaseFailedNotLeaseLostOnTransportError(t *testing.T) {
+func TestIntegrationRepoPushCreateLeaseFailedNotLeaseLostOnTransportError(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -239,7 +241,7 @@ func TestPushCreateLeaseFailedNotLeaseLostOnTransportError(t *testing.T) {
 // TestIsAncestorTruthTable proves IsAncestor reports the exact ancestry relation:
 // forward true, reverse false, reflexive true, and diverged siblings false both
 // ways.
-func TestIsAncestorTruthTable(t *testing.T) {
+func TestIntegrationRepoIsAncestorTruthTable(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)

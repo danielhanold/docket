@@ -1,3 +1,5 @@
+//go:build integration
+
 package gitcli
 
 import (
@@ -108,7 +110,7 @@ func sameEntries(t *testing.T, a, b []TreeEntry) {
 // fixture equals an independently-parsed `ls-tree -r -z` listing — every raw
 // path (including the tab/space/non-ASCII and embedded-newline hostile names),
 // mode, type, and object id.
-func TestListTreeMatchesPlumbingOracle(t *testing.T) {
+func TestIntegrationSourceListTreeMatchesPlumbingOracle(t *testing.T) {
 	requireGit(t)
 	c := newRealClient(t)
 	ctx := context.Background()
@@ -145,7 +147,7 @@ func TestListTreeMatchesPlumbingOracle(t *testing.T) {
 // TestListTreePrefixesOverlapAndAbsent verifies prefix scoping, dedup across
 // overlapping prefixes, an absent prefix contributing zero entries with a nil
 // error, and raw-byte-sorted output.
-func TestListTreePrefixesOverlapAndAbsent(t *testing.T) {
+func TestIntegrationSourceListTreePrefixesOverlapAndAbsent(t *testing.T) {
 	requireGit(t)
 	c := newRealClient(t)
 	ctx := context.Background()
@@ -188,7 +190,7 @@ func TestListTreePrefixesOverlapAndAbsent(t *testing.T) {
 // TestListTreeQuotePathTrueFixture proves the NUL-delimited read defeats
 // core.quotePath=true: hostile paths return as raw bytes, never C-quoted
 // spellings (no backslash escapes, no octal "\303" for the non-ASCII rune).
-func TestListTreeQuotePathTrueFixture(t *testing.T) {
+func TestIntegrationSourceListTreeQuotePathTrueFixture(t *testing.T) {
 	requireGit(t)
 	c := newRealClient(t)
 	ctx := context.Background()
@@ -219,7 +221,7 @@ func TestListTreeQuotePathTrueFixture(t *testing.T) {
 // TestListTreePinnedAfterFetch opens a source at commit A, advances origin/main
 // to B in the writer, fetches B locally, and proves the source still lists A's
 // tree — not B's (the ListTree-local slice of the Task 8 proof matrix).
-func TestListTreePinnedAfterFetch(t *testing.T) {
+func TestIntegrationSourceListTreePinnedAfterFetch(t *testing.T) {
 	requireGit(t)
 	c := newRealClient(t)
 	ctx := context.Background()
@@ -261,7 +263,7 @@ func TestListTreePinnedAfterFetch(t *testing.T) {
 // TestOpenObjectSourceRejections proves OpenObjectSource rejects a non-commit
 // object (a blob id) as unexpected-object and a well-formed but absent id as
 // ref-unavailable.
-func TestOpenObjectSourceRejections(t *testing.T) {
+func TestIntegrationSourceOpenObjectSourceRejections(t *testing.T) {
 	requireGit(t)
 	c := newRealClient(t)
 	ctx := context.Background()
@@ -286,7 +288,7 @@ func TestOpenObjectSourceRejections(t *testing.T) {
 // reported as invalid-output with no partial result. The payload is delivered
 // via a file (GITCLI_HELPER_STDOUT_FILE) so it can carry NUL delimiters an
 // environment variable cannot.
-func TestListTreeMalformedOutput(t *testing.T) {
+func TestIntegrationSourceListTreeMalformedOutput(t *testing.T) {
 	validOID := strings.Repeat("a", 40)
 	cases := []struct {
 		name    string

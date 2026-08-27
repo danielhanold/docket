@@ -236,6 +236,25 @@
 # The cold reading dominates (it compiles ./cmd/docket) and is the reachable worst on any fresh
 # clone or CI image; per the sizing rule next multiple of 5 above 6.46 is 10, plus the 5s margin
 # -> 15. EXPECTED_TOTAL moves 2310 -> 2325.
+#
+# tests/test_go_integration_gitcli_*.sh are FOUR NEW FILES brought by change 0333 — the
+# header's new-test-file case, four times, and the first Go integration SHARD runners. Change
+# 0333 partitions internal/gitcli's slow real-git corpus behind the `integration` build tag
+# (internal/gitcli/*_integration_test.go; completeness proven by
+# tests/test_go_integration_contract.sh), and each runner drives one shard through the shared
+# executor tests/lib/go-integration-shard.sh — a package/prefix/mode declaration plus
+# `go test -tags integration [-race] -run ^<prefix>`. No existing shard could take them: every
+# other Go-touching row here runs the DEFAULT-tag corpus, which by construction cannot see this
+# tagged one. The partition also drops the default internal/gitcli cost from ~32s to ~0.3s (the
+# 12 fast validation/pure tests that stay untagged). Sized per this header's rule from the WORST
+# of three standalone serial readings, one session, one machine (darwin/arm64, go1.26.5), as
+# `/usr/bin/time -p bash tests/test_go_integration_gitcli_<feature>.sh >/dev/null`:
+#   repo         21.61 21.48 21.29 -> worst 21.61 -> next multiple of 5 is 25, plus 5 -> 30
+#   process       8.89  8.93  8.83 -> worst  8.93 -> next multiple of 5 is 10, plus 5 -> 15
+#   source        3.35  3.40  3.23 -> worst  3.40 -> next multiple of 5 is  5, plus 5 -> 10
+#   concurrency   2.89  2.11  2.07 -> worst  2.89 -> next multiple of 5 is  5, plus 5 -> 10 (race mode, measured WITH -race)
+# All four ride the parallel lane (each is a single-package go-test invocation, not a
+# whole-module -race run). EXPECTED_TOTAL moves 2355 -> 2420: +30 +15 +10 +10.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -298,6 +317,10 @@ tests/test_gate_execution_posture.sh	10	parallel
 tests/test_gate_facade.sh	15	parallel
 tests/test_github_mirror.sh	10	parallel
 tests/test_go_finalize_e2e.sh	25	parallel
+tests/test_go_integration_gitcli_concurrency.sh	10	parallel
+tests/test_go_integration_gitcli_process.sh	15	parallel
+tests/test_go_integration_gitcli_repo.sh	30	parallel
+tests/test_go_integration_gitcli_source.sh	10	parallel
 tests/test_go_toolchain.sh	55	parallel
 tests/test_go_race.sh	300	serial
 tests/test_grep_portability.sh	10	parallel

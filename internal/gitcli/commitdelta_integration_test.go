@@ -1,3 +1,5 @@
+//go:build integration
+
 package gitcli
 
 import (
@@ -12,7 +14,7 @@ import (
 // two, and a rename yields the source delete plus the destination add (never one
 // collapsed rename record). It is the single-artifact-delta oracle the plan and
 // results attachment guards depend on.
-func TestCommitChangedPathsSingleAndMultiArtifact(t *testing.T) {
+func TestIntegrationRepoCommitChangedPathsSingleAndMultiArtifact(t *testing.T) {
 	requireGit(t)
 	c := newRealClient(t)
 	ctx := context.Background()
@@ -60,7 +62,7 @@ func TestCommitChangedPathsSingleAndMultiArtifact(t *testing.T) {
 
 // TestCommitChangedPathsRejectsMalformedID proves an invalid commit id is a typed
 // invalid-request Failure, before any process runs.
-func TestCommitChangedPathsRejectsMalformedID(t *testing.T) {
+func TestIntegrationRepoCommitChangedPathsRejectsMalformedID(t *testing.T) {
 	requireGit(t)
 	c := newRealClient(t)
 	r := newMainModeRepos(t)

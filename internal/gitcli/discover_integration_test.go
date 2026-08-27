@@ -1,3 +1,5 @@
+//go:build integration
+
 package gitcli
 
 import (
@@ -6,18 +8,6 @@ import (
 	"path/filepath"
 	"testing"
 )
-
-// newRealClient builds a Client bound to the real git on PATH for the
-// discovery tests that exercise genuine repositories.
-func newRealClient(t *testing.T) *Client {
-	t.Helper()
-	requireGit(t)
-	c, err := NewClient()
-	if err != nil {
-		t.Fatal(err)
-	}
-	return c
-}
 
 // canon is the test-side oracle for "absolute + every-symlink-hop resolved",
 // mirroring what Discover must return so /var -> /private/var on macOS is
@@ -35,26 +25,11 @@ func canon(t *testing.T, p string) string {
 	return r
 }
 
-// assertKind fails unless err is a *Failure of the wanted kind.
-func assertKind(t *testing.T, err error, want FailureKind) {
-	t.Helper()
-	if err == nil {
-		t.Fatalf("expected error of kind %q, got nil", want)
-	}
-	f, ok := AsFailure(err)
-	if !ok {
-		t.Fatalf("error is not a *Failure: %v", err)
-	}
-	if f.Kind != want {
-		t.Fatalf("Failure kind = %q, want %q (%v)", f.Kind, want, err)
-	}
-}
-
 // TestDiscoverCanonicalIdentityAcrossWorktrees proves that for BOTH topologies,
 // discovery from the primary root, a nested dir under it, each linked worktree
 // (docket mode), and a path reached through an extra symlink all resolve to the
 // SAME canonical primary worktree and common dir.
-func TestDiscoverCanonicalIdentityAcrossWorktrees(t *testing.T) {
+func TestIntegrationRepoDiscoverCanonicalIdentityAcrossWorktrees(t *testing.T) {
 	requireGit(t)
 	c := newRealClient(t)
 	ctx := context.Background()
@@ -120,7 +95,7 @@ func TestDiscoverCanonicalIdentityAcrossWorktrees(t *testing.T) {
 // TestDiscoverRejections asserts the typed failure kinds for an empty path
 // (invalid-request), a missing path, a plain non-repo dir, and a bare repo
 // (all invalid-repository).
-func TestDiscoverRejections(t *testing.T) {
+func TestIntegrationRepoDiscoverRejections(t *testing.T) {
 	requireGit(t)
 	c := newRealClient(t)
 	ctx := context.Background()
@@ -142,7 +117,7 @@ func TestDiscoverRejections(t *testing.T) {
 // TestDiscoverInconsistentIdentityOutput drives Discover with a helper-process
 // git whose rev-parse answer is a single bogus line, proving a malformed
 // identity read is reported as invalid-output.
-func TestDiscoverInconsistentIdentityOutput(t *testing.T) {
+func TestIntegrationRepoDiscoverInconsistentIdentityOutput(t *testing.T) {
 	c := helperClient(t, "script", "GITCLI_HELPER_STDOUT=bogus-single-line")
 	_, err := c.Discover(context.Background(), DiscoverOptions{InvocationPath: t.TempDir()})
 	assertKind(t, err, KindInvalidOutput)
@@ -150,7 +125,7 @@ func TestDiscoverInconsistentIdentityOutput(t *testing.T) {
 
 // TestDiscoverIsReadOnly captures the invocation repo's full porcelain status
 // and HEAD before and after Discover and requires them byte-identical.
-func TestDiscoverIsReadOnly(t *testing.T) {
+func TestIntegrationRepoDiscoverIsReadOnly(t *testing.T) {
 	requireGit(t)
 	c := newRealClient(t)
 	ctx := context.Background()
