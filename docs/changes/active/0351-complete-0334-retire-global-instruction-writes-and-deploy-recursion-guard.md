@@ -21,7 +21,7 @@ branch: 'fix/complete-0334-retire-global-instruction-writes-and-deploy-recursion
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-26T17:54:01Z'
+claimed_at: '2026-08-27T11:34:53Z'
 ---
 
 ## Artifacts
@@ -99,58 +99,3 @@ Verified mechanism:
 
 Open question for implementation: `## Out of scope` excludes per-repository agent wrappers and guard-wording changes, and the spec keeps wrappers global — but the copies that shadow the guard are **project-level** wrappers. Confirm 351's install/cleanup actually removes or updates project-level `.claude/agents/` wrappers (or documents deleting them); otherwise the guard stays shadowed in-repo even after 351 deploys it globally.
 
-## Run halted
-
-### 2026-08-27
-
-### 2026-08-26
-
-**Disposition:** halted (build gate cannot be certified green — environmental host oversubscription + a pre-existing gate-driver test flake; NOT a change-0351 code defect).
-**When:** docket-implement-next Step 6 (build gate / evidence), after the full plan was built and committed.
-**Phase reached:** All 12 plan tasks implemented and committed on `fix/complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard`; the two real regressions the first gate surfaced are fixed and committed (`df4ef188`). The build-evidence record could not be minted because the full suite will not reach `failed=0` on this host.
-
-### What was built (complete)
-
-Twelve task commits on the feature branch (base `6e74df71`), plan attached (`plan:` set on the metadata branch):
-
-- Task 1 `9ea73295` — `document.RemoveBlock` patch op
-- Task 2 `912a03fd` — managed-block removal as a journaled transaction step
-- Task 3 `0f3dda66` — retire global dispatch surfaces with ownership proof; adapters stop planning them
-- Task 4 `c79aa7ea` — `agent_harnesses` typed repo-surface list with provenance
-- Task 5 `d3916d78` — `gitcli.DiscoverWorktree`
-- Task 6 `2aec6a07` — `internal/reposeed` parent-facing repository surface planner
-- Task 7 `f4869a13` — per-worktree ownership record
-- Task 8 `90f551d7` — single journaled transaction across machine, retirement, repository, both ownership records
-- Task 9 `415155f3` — fresh-binary candidate handoff owns all development-install mutation (the recursion fix)
-- Task 10 `39359127` — `--repo-dir`, explicit repository opt-in, scope-visible install reporting
-- Task 11 `75e14bca` — docs: repository dispatch opt-in, retirement safety, fresh-process requirement
-- Repair `df4ef188` — gofmt `internal/reposeed/plan_test.go` + trim `agent-layer.md` under the skill size budget (the two real first-gate failures)
-
-Feature HEAD at halt: `df4ef188`. Worktree clean.
-
-### Why the gate could not be certified green
-
-The first full-suite drive was RED on two real, in-scope regressions from this branch, both now fixed and re-verified green in-suite: `test_go_toolchain` (a gofmt-unformatted `internal/reposeed/plan_test.go`) and `test_skill_size_budgets` (`skills/docket-convention/references/agent-layer.md` over its 205-line / 2350-word budget after the Task 11 edit — now 193 lines / 2341 words, substance preserved). These were committed in `df4ef188`.
-
-After that fix, seven independent full-suite drives (two by me as controller, plus a premium and a max repair worker's runs) all reach `files=128 passed=127 failed=1` (or worse under peak load), and the sole remaining failure is a DIFFERENT environmental/flaky victim each run, never in a package this change touches:
-
-- `internal/app` — `panic: test timed out after 10m0s` (the go-test 600s ceiling) mid-`os.WriteFile` in git-fixture tests (`TestFinalizeMergeDeniedCarriesMethod`, `TestClaimToImplementedWorkflow`, `TestFinalizeRebasePreconditions`). The same package PASSES at 53s–545s when the host is less loaded — load-sensitivity, not a hang or deadlock.
-- `internal/gatedrive` (under `go test -race`) — `TestIntegrationDriverSlicesAcrossLiveChildThenPasses` fails on a `t.TempDir()` `RemoveAll` cleanup race: "directory not empty" because a detached gate child is still writing into the run dir at teardown. A pre-existing gate-driver test-cleanup flake, in a package change 0351 does not modify.
-
-Root cause is host oversubscription: 16–41 concurrent `scripts/run-tests.sh` processes from OTHER worktrees' autonomous loops held 1-minute load averages of 30–92 for the entire build. Failure count scales directly with load (1 failure at load ~13, 5 failures at load ~92). This is exactly the machine-dependent parallel wall-clock breach the repo's own CLAUDE.md warns is confirmed serially, not a suite failure to repair.
-
-Per the docket-build contract I must not weaken a test, bump the 600s go-test timeout, or fabricate a green build-evidence record, and the repair ladder (premium → max) is exhausted with both real regressions fixed. So the gate cannot be certified and no PR was opened.
-
-### What a human needs to do
-
-Re-run the suite gate once on this worktree when the host is not oversubscribed by sibling loops:
-
-    /Users/homer/dev/docket/.worktrees/complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard
-
-Drive `scripts/run-tests.sh` via `docket gate drive` (or run it directly). Expected: `failed=0` with NO further code change — every failure observed was an environmental wall-clock timeout or the pre-existing `internal/gatedrive` TempDir cleanup flake. If `internal/gatedrive`'s `TestIntegrationDriverSlicesAcrossLiveChildThenPasses` still flakes on an idle host, that is a separate, pre-existing gate-driver test-cleanup bug (a live child racing `t.TempDir()` teardown) worth its own change — it is not introduced by 0351.
-
-Then resume this run via:
-
-    docket change resume-halted --id 351 --acknowledge-quiescent
-
-On the resumed run, the branch is already fully built at `df4ef188`; only the build-gate → evidence → review → PR steps remain.
