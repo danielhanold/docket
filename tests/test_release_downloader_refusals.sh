@@ -40,8 +40,11 @@ fi
 # Some hosts ship only one hashing provider; a case whose provider is absent is skipped, not failed.
 have(){ command -v "$1" >/dev/null 2>&1; }
 
-# Portable file-mode read: BSD stat first, then GNU stat.
-pmode(){ stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1"; }
+# Portable file-mode read: GNU stat first, then BSD stat. GNU-form MUST lead: on Linux `stat -f`
+# means --file-system (not "format"), so a BSD-first `stat -f '%Lp'` prints a filesystem block to
+# stdout AND exits non-zero, poisoning the captured mode so it never equals 755. BSD `stat -c` fails
+# clean (rc!=0, no stdout), so the `|| stat -f '%Lp'` fallback is safe on macOS.
+pmode(){ stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1"; }
 
 # Host-side SHA-256 — TEST SCAFFOLDING ONLY, not the script's seam. Prefer sha256sum, else openssl;
 # both yield the same lowercase-hex digest, so the recomputed expectation is provider-independent.
