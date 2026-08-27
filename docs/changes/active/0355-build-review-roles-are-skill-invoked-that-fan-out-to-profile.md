@@ -21,7 +21,7 @@ branch: 'fix/build-review-roles-are-skill-invoked-that-fan-out-to-profile'
 pr: 'https://github.com/danielhanold/docket/pull/243'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-26T21:52:18Z'
+claimed_at: '2026-08-27T10:56:49Z'
 ---
 
 ## Artifacts
@@ -113,20 +113,3 @@ Re-read the linked spec, related changes 212/257/283, and the cited ADRs (0059/0
 
 Auto-capture disabled (AUTO_CAPTURE_ENABLED=false); no follow-up stubs minted.
 
-## Run halted
-
-### 2026-08-27
-
-2026-08-26 — Build-evidence gate cannot go green on this machine under the full parallel suite; a human is needed.
-
-**State reached.** All build work for change 355 is complete and committed on `fix/build-review-roles-are-skill-invoked-that-fan-out-to-profile` (HEAD `bfddc28c`): the three role-invocation edits (through `2b341739`) plus the regenerated embedded asset bundle and the two skill-size-budget bumps (`bfddc28c`). `go generate ./internal/assets/` is idempotent over the committed tree (identical sha256). No PR opened; nothing marked implemented.
-
-**Blocker.** The native evidence gate (`docket gate drive` over `scripts/run-tests.sh`) returned FAILED. Three of 128 files were red: `test_go_race`, `test_go_toolchain`, `test_sync_agents_claude_surface`. `docket evidence record` mints a durable record only from a PASSED drive at head, so no green evidence can be produced here — and without it the PR/mark-implemented path is correctly closed.
-
-**Serial confirmation (per repo discipline) — all three are load-induced, not defects:**
-- `internal/app` package alone: PASS in 410.8s (`go test ./internal/app/ -timeout 30m`, exit 0). Under the parallel suite, `test_go_race` (`-race`, ~2x) and `test_go_toolchain` (`go test ./...`) both drive the `internal/app` binary concurrently and each exceeds Go's hard 600s per-package default → killed → rc=1.
-- `test_sync_agents_claude_surface` serially: ALL PASS. Its one red assert under load — "cycle: the sync terminates (the link walk is bounded)" — is a 20s wall-clock watchdog (line 152, 40×0.5s) blown under contention; the immediately following assert ("AGENTS.md still got its block") passed, proving the sync actually completed its work within the run, just past the 20s window.
-
-**Not a regression from this change.** The branch diff touches ZERO Go files — `internal/app` is byte-identical to `origin/main`, and none of the three failing test files is modified by this branch. The failures reproduce on `origin/main` for the same machine-load reason.
-
-**What a human must decide.** The evidence gate has no serial-confirmation escape hatch for Go's own per-package timeout, so green evidence requires one of: (a) run the gate on a faster / higher-core machine where the parallel `internal/app` load stays under 600s; (b) reduce `scripts/run-tests.sh` parallelism or raise the `internal/app` go-test `-timeout` in `test_go_race`/`test_go_toolchain` (separate, tracked work — NOT change 355's scope); or (c) accept the serial-confirmation evidence and open the PR manually. I did not modify unrelated test files to force a pass, and did not fabricate evidence.
