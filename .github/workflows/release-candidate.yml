@@ -155,17 +155,36 @@ jobs:
           bash $test_cmd 2>&1 | tee suite.log
           status=${PIPESTATUS[0]}
           set -e
-          # Surface any OVER BUDGET: block into the job summary as a finding (it does not fail the
-          # run — a wall-clock number is machine-dependent — so nothing else would report it).
-          over="$(grep -n '^OVER BUDGET:' suite.log || true)"
-          if [ -n "$over" ]; then
+          # Budget-report classification (change 0361) — run-tests.sh's complete vocabulary, all
+          # patterns line-anchored so a per-file "  OVER BUDGET (ceiling …)" suffix never matches.
+          # Screening findings are contended parallel wall-clock observations: machine-dependent
+          # by design, so they are summarized and never change the exit status.
+          screening="$(grep -nE '^(BUDGET WATCH|PARALLEL-SENSITIVE):' suite.log || true)"
+          if [ -n "$screening" ]; then
             {
-              echo "### OVER BUDGET findings"
+              echo "### Budget screening findings (non-fatal)"
               echo ""
               echo '```'
-              printf '%s\n' "$over"
+              printf '%s\n' "$screening"
               echo '```'
             } >>"$GITHUB_STEP_SUMMARY"
+          fi
+          # Authoritative findings — a direct uncontended breach or a serial confirmation. The
+          # suite itself exits 0 on an advisory breach (no --strict-budget), so an otherwise-green
+          # gate must fail here or nothing fails at all.
+          authoritative="$(grep -nE '^(OVER BUDGET|SERIAL CONFIRMED OVER BUDGET):' suite.log || true)"
+          if [ -n "$authoritative" ]; then
+            {
+              echo "### Authoritative budget findings"
+              echo ""
+              echo '```'
+              printf '%s\n' "$authoritative"
+              echo '```'
+            } >>"$GITHUB_STEP_SUMMARY"
+            if [ "$status" -eq 0 ]; then
+              echo "::error::authoritative budget finding on an otherwise-green suite" >&2
+              status=1
+            fi
           fi
           exit "$status"
 
