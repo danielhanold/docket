@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0355 — Build/review roles are skill-invoked that fan out to profile agents — Step 5 'dispatch' vocabulary invites an agent-not-found misfire](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0355-build-review-roles-are-skill-invoked-that-fan-out-to-profile.md)**
+> ↩ **[Change 0355 — Build/review roles are skill-invoked that fan out to profile agents — Step 5 'dispatch' vocabulary invites an agent-not-found misfire](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-27-0355-build-review-roles-are-skill-invoked-that-fan-out-to-profile.md)**
 <!-- docket:backlink:end -->
 # Role-Skill Invocation and Nested-Agent Topology Implementation Plan
 
