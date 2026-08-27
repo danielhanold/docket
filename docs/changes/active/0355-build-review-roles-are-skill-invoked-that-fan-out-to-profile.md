@@ -21,7 +21,7 @@ branch: 'fix/build-review-roles-are-skill-invoked-that-fan-out-to-profile'
 pr: 'https://github.com/danielhanold/docket/pull/243'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-27T11:29:51Z'
+claimed_at: '2026-08-27T11:34:18Z'
 ---
 
 ## Artifacts
