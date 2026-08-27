@@ -13,7 +13,7 @@ related: [318, 322]
 discovered_from: [317]
 adrs: []
 spec: docs/superpowers/specs/2026-08-27-release-candidate-source-gate-macos-runner-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-27-release-candidate-source-gate-macos-runner.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-27T23:24:37Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-27-release-candidate-source-gate-macos-runner-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-27-release-candidate-source-gate-macos-runner-design.md) |
+| Plan | [2026-08-27-release-candidate-source-gate-macos-runner.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-27-release-candidate-source-gate-macos-runner.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
