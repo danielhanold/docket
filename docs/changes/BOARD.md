@@ -1,15 +1,14 @@
 # Backlog
 
-**358 changes** — 🟢 4 in progress · 🟡 51 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 215 done · 🗑️ 82 killed
+**358 changes** — 🟢 3 in progress · 🟡 51 proposed · ⚪ 4 deferred · 🔵 3 implemented · ✅ 215 done · 🗑️ 82 killed
 
-## 🟢 In progress (4)
+## 🟢 In progress (3)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0351](active/0351-complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard.md) | Complete change 0334: stop writing global instruction files and actually deploy the recursion guard | `critical` | `fix` | [spec](../superpowers/specs/2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding-design.md) | `fix/complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard` |
 | [0355](active/0355-build-review-roles-are-skill-invoked-that-fan-out-to-profile.md) | Build/review roles are skill-invoked that fan out to profile agents — Step 5 'dispatch' vocabulary invites an agent-not-found misfire | `medium` | `fix` | [spec](../superpowers/specs/2026-08-26-role-skill-invocation-and-nested-agent-topology-design.md) | `fix/build-review-roles-are-skill-invoked-that-fan-out-to-profile` |
 | [0357](active/0357-implementation-context-loads-remote-branch-facts.md) | Implementation context must load remote branch facts before judging stack base | `high` | `fix` | [spec](../superpowers/specs/2026-08-26-implementation-context-remote-branch-facts-design.md) | `fix/implementation-context-loads-remote-branch-facts` |
-| [0358](active/0358-treat-empty-review-decision-as-no-decision.md) | Treat empty-string reviewDecision as no-decision, not an invalid enum | `critical` | `fix` | [spec](../) | `fix/treat-empty-review-decision-as-no-decision` |
 
 ## 🟡 Proposed (51)
 
@@ -76,12 +75,13 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [#226](https://github.com/danielhanold/docket/pull/226) |  |
 | [0356](active/0356-unquote-cursor-agent-wrapper-names.md) | Emit unquoted name: on Cursor agent wrappers | `high` | `fix` | [#241](https://github.com/danielhanold/docket/pull/241) |  |
+| [0358](active/0358-treat-empty-review-decision-as-no-decision.md) | Treat empty-string reviewDecision as no-decision, not an invalid enum | `critical` | `fix` | [#242](https://github.com/danielhanold/docket/pull/242) |  |
 
 ```mermaid
 graph TD
