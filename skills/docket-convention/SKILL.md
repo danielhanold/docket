@@ -125,7 +125,7 @@ docket's five workflow steps are **pluggable roles**: the optional `skills:` map
   **invoke**, not a same-name agent to dispatch; any nested agent dispatch belongs to the
   invoked skill's own contract, and the driver never infers or adds a topology from the role
   noun or the configured skill name. A rejected attempt to dispatch a nonexistent same-name role
-  agent is the wrong operation — neither this section's missing-skill condition nor
+  agent is the wrong operation: it is neither this section's missing-skill condition nor
   *Dispatch-capability resolution*'s Tier-C evidence, which attaches only at a required nested
   dispatch the invoked skill's contract actually reaches.
 - **`auto` sentinel.** No skill is invoked; the running agent does the step itself. The per-role fallback defines only the **final artifact / stop-point** (column 4) — never the method.
