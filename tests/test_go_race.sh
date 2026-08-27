@@ -1,38 +1,34 @@
 #!/usr/bin/env bash
-# tests/test_go_race.sh — the whole-module data-race gate (change 0308), collapsed
-# back to a single `go test -race -count=1 ./...` run by change 0332.
+# tests/test_go_race.sh — the whole-module data-race gate (change 0308), a single
+# `go test -race -count=1 ./...` run over the default (fast) corpus.
 #
 # HISTORY. Changes 0309, 0313, and 0314 sharded this gate four ways so each piece
-# could fit under the parallel phase's hard 60s budget ceiling. Change 0332
-# measured the shards and collapsed them: the shards existed to fit the PARALLEL
-# phase, and the parallel phase is exactly what 0332 removed this gate from. In
-# the serial lane the four shard invocations ran sequentially and summed to
-# ~299s, while a single `go test -race -count=1 ./...` invocation is ~206s because go test
-# overlaps packages internally — so once serialized, the shard structure was not
-# just unnecessary scaffolding but slower than not sharding. One `./...` run
-# covers the module by construction: nothing to partition, no completeness guard
-# to maintain.
+# could fit under the parallel phase's hard 60s budget ceiling; change 0332
+# collapsed the shards back to one `go test -race -count=1 ./...` run. One `./...`
+# run covers the module by construction: nothing to partition, no completeness
+# guard to maintain.
 #
-# LANE AND CEILING. tests/runtime-budgets.tsv pins this file `serial` with a
-# 300s row — the table's one documented exemption to the hard 60s ceiling (see
-# the exemption note at RELIEF COUNTER A in tests/test_runtime_budgets.sh). The
-# serial pin is the point of change 0332: `go test -race` spawns GOMAXPROCS-wide
-# race workers, and inside the parallel `-j` fan-out those workers oversubscribe
-# the cores the shell test jobs need, inflating every OTHER file's wall clock —
-# the load-dependent gate that halted change 0329. Run alone in the serial phase
-# this gate uses the whole machine, which is what an isolated gate should do, so
-# its internal parallelism is deliberately NOT capped (no GOMAXPROCS/-p pin).
-# The ~206s is dominated by internal/app's ~190s integration suite — a cost the
-# race detector barely moves (~1.05x multiplier) and that no lane or `go list`
-# shard can split, because internal/app is one Go package. The durable fix, a
-# test-level partition of internal/app, is owned by follow-up change 0333; when
-# it lands, this gate's row and the exemption shrink with it.
+# PARTITION AND LANE. Change 0333 partitioned the slow real-git, subprocess, and
+# process-lifecycle integration corpus of internal/app, internal/githubcli, and
+# internal/gitcli behind the `integration` build tag — dedicated shard runners
+# (tests/test_go_integration_*.sh) own it, and tests/test_go_integration_contract.sh
+# proves that partition is total. This gate therefore covers the FAST default
+# corpus only: the ~190s internal/app real-git tail that dominated it no longer
+# runs here. With that tail gone, `go test -race`'s GOMAXPROCS-wide race workers
+# no longer oversubscribe the cores the other parallel jobs need (change 0332's
+# reason for the serial lane, and change 0329's load-dependent build-gate halt),
+# so this gate rides the PARALLEL lane under an ordinary sub-60s row in
+# tests/runtime-budgets.tsv like every other file.
+#
+# WHY -count=1. The detector's verdict must never be served from Go's test-result
+# cache: a cached "ok" certifies a previous tree, not this one. -count=1 forces a
+# real run every time.
 #
 # WHY THIS IS ITS OWN FILE and not a fifth check inside
 # tests/test_go_toolchain.sh. The detector is expensive — instrumented binaries
-# run several times slower — and this file's 300s exemption is deliberately
-# scoped to the race gate alone. Folding the detector into the Go gate would
-# drag that file's row through the same exemption and blur the two verdicts.
+# run several times slower and build to a separate cache entry — so folding it
+# into the Go gate would drag that file's row up and blur the two verdicts. They
+# answer different questions and are budgeted separately.
 #
 # WHY REPO-WIDE and not an enumerated package list. The adapter surfaces held
 # concurrently by design today are known — but an enumerated list gates only the

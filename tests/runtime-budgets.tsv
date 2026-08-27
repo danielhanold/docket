@@ -9,10 +9,7 @@
 # deliberate: adding a test file is a conscious placement decision. Read tests/README.md
 # before adding one — the usual right answer is to EXTEND an existing shard.
 #
-# NO row may exceed 60 seconds — with ONE documented exemption: tests/test_go_race.sh, the
-# serial-isolated whole-module race gate, carries a 300s row under its own sub-ceiling in
-# tests/test_runtime_budgets.sh (RELIEF COUNTER A; a TEMPORARY hole owned by follow-up change
-# 0333). If any other file outgrows its ceiling, shard it or move the new
+# NO row may exceed 60 seconds. If a file outgrows its ceiling, shard it or move the new
 # assertions into a shard with room. Raising a number here is not the remedy, and it is not
 # a quiet edit either: tests/test_runtime_budgets.sh pins the SUM of every ceiling in this
 # table (EXPECTED_TOTAL), so a raise of any size reddens whether or not it breaks the 60s
@@ -134,24 +131,27 @@
 # header sizes from the worst standalone serial reading, and a cold cache is still reachable on any
 # fresh clone or CI image. The extra margin is headroom, not slack to reclaim.
 #
-# tests/test_go_race.sh is the whole-module data-race gate (change 0308), sharded four ways by
-# changes 0309/0313/0314 to fit the parallel phase's 60s ceiling, and COLLAPSED back to a single
-# `go test -race ./...` run by change 0332 — which also moved it to the SERIAL lane. The shards
-# existed to fit the parallel phase, and the parallel phase is what 0332 removed this gate from:
-# `go test -race` spawns GOMAXPROCS-wide race workers that oversubscribed the cores the other
-# parallel jobs needed, making the whole suite load-dependent (change 0329's build-gate halt). In
-# the serial lane the four shard invocations ran sequentially and summed to ~299s, while one
-# `./...` invocation measures ~206s standalone serial because go test overlaps packages
-# internally — the collapse is strictly faster AND retires the four-shard completeness guard.
-# The ~206s is dominated by internal/app (~200s under -race, ~190s uninstrumented — a ~1.05x
-# multiplier: the cost is the package's own integration suite, one Go package, unshardable by
-# `go list`). The row is 300, ABOVE the 60s hard ceiling: this table's ONE documented exemption,
-# path-keyed and sub-ceilinged at RELIEF COUNTER A in tests/test_runtime_budgets.sh, serial-bound
-# by that file's serial-identity assert, TEMPORARY, and owned by follow-up change 0333 (partition
-# internal/app). 300 rather than the sizing rule's 215 (206 -> 210 + 5) is deliberate headroom
-# for a ~3.5-minute gate whose reading moves with machine load; when 0333 lands, the row and the
-# exemption shrink with it. EXPECTED_TOTAL moves 2140 -> 2265: -25 -45 -45 for the deleted shard
-# rows, +240 for the 60 -> 300 re-cut.
+# tests/test_go_race.sh is the whole-module data-race gate (change 0308), `go test -race ./...`.
+# Its history: sharded four ways by changes 0309/0313/0314 to fit the parallel phase's 60s
+# ceiling, COLLAPSED to one run and moved to the SERIAL lane by change 0332 under a temporary 300s
+# exemption, and RETURNED to the parallel lane at an ordinary 60s row by change 0333 — this re-cut.
+# Change 0332's 300s exemption existed only because internal/app's ~190s real-git integration tail
+# ran inside `go test -race ./...` and no `go list` shard could split one Go package. Change 0333
+# partitions that tail (and internal/githubcli's and internal/gitcli's) behind the `integration`
+# build tag, so the default corpus this gate covers no longer carries it. The gate then measures,
+# standalone serial, one machine (darwin/arm64, go1.26.5), as
+# `/usr/bin/time -p bash tests/test_go_race.sh >/dev/null`:
+#   race   53.17 49.27 49.57 -> worst 53.17 -> next multiple of 5 is 55, plus 5 -> 60
+# 60 is AT the ceiling with no headroom, which is exactly where change 0308 first sized this gate
+# and the standing remedy applies to the next slowdown: shard the tail further behind the tag,
+# never raise the number. It returns to the PARALLEL lane because the oversubscription that forced
+# the serial pin (change 0332 / 0329's build-gate halt) was `go test -race`'s GOMAXPROCS-wide race
+# workers running over internal/app's heavy tail; with that tail partitioned out, the fast-corpus
+# race run no longer starves the other parallel jobs. tests/test_go_toolchain.sh's `go test ./...`
+# over the same shrunken default corpus was re-measured (`/usr/bin/time -p bash
+# tests/test_go_toolchain.sh`: recompile 47.95, warm 1.80 1.82 -> worst 47.95 -> 50 + 5 -> 55) and
+# its 55 row is unchanged. EXPECTED_TOTAL moves 2785 -> 2545: -240 for the race gate's 300 -> 60
+# re-cut (the toolchain re-measure held its row, so it contributes 0).
 #
 # tests/test_go_toolchain.sh 20 -> 45 (change 0309): a file that GOT SLOWER, defended by measurement.
 # Its `go test ./...` now compiles and runs change 0309's internal/repository/transaction package,
@@ -400,7 +400,7 @@ tests/test_go_integration_githubcli_harness.sh	10	parallel
 tests/test_go_integration_githubcli_merge.sh	10	parallel
 tests/test_go_integration_githubcli_probe.sh	10	parallel
 tests/test_go_toolchain.sh	55	parallel
-tests/test_go_race.sh	300	serial
+tests/test_go_race.sh	60	parallel
 tests/test_grep_portability.sh	10	parallel
 tests/test_groom_recap.sh	10	parallel
 tests/test_harness_defaults.sh	45	parallel
