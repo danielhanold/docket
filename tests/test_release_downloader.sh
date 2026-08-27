@@ -128,9 +128,11 @@ TRIP
 chmod 755 "$TRIPWIRE_SRC"
 
 # The exact real tools a fresh /bin/sh run of the downloader needs (printf is a /bin/sh builtin, so
-# it is not symlinked; dirname IS used by the record path and is required). The banned set gets a
-# tripwire each.
-DL_REAL_TOOLS='curl tar uname mktemp mkdir mv cp chmod rm grep sed cat dirname'
+# it is not symlinked; dirname IS used by the record path and is required). gzip is required for
+# tar's `-z`: GNU tar (Linux) execs the external gzip binary, so its absence from the sandbox reddens
+# `tar -tzf`/`tar -xzf`; BSD tar (macOS) links libz internally and needs none, which is why omitting
+# it only fails on Linux. The banned set gets a tripwire each.
+DL_REAL_TOOLS='curl tar gzip uname mktemp mkdir mv cp chmod rm grep sed cat dirname'
 DL_BANNED='bash python python3 perl shasum jq'
 
 # Build $SANDBOX/bin: real symlinks for the needed tools + a tripwire for each banned tool. $1
