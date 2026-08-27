@@ -1,6 +1,6 @@
 # Backlog
 
-**358 changes** — 🟢 3 in progress · 🟡 51 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 216 done · 🗑️ 82 killed
+**358 changes** — 🟢 3 in progress · 🟡 51 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 217 done · 🗑️ 82 killed
 
 ## 🟢 In progress (3)
 
@@ -75,12 +75,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [#226](https://github.com/danielhanold/docket/pull/226) |  |
-| [0356](active/0356-unquote-cursor-agent-wrapper-names.md) | Emit unquoted name: on Cursor agent wrappers | `high` | `fix` | [#241](https://github.com/danielhanold/docket/pull/241) |  |
 
 ```mermaid
 graph TD
@@ -143,7 +142,6 @@ graph TD
   0352
   0354
   0355
-  0356
   0357
   0192:::done
   0211:::done
@@ -153,11 +151,12 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (298)</summary>
+<details><summary>✅🗑️ Archive — done + killed (299)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0358](archive/2026-08-27-0358-treat-empty-review-decision-as-no-decision.md) | Treat empty-string reviewDecision as no-decision, not an invalid enum | 2026-08-27 |
+| [0356](archive/2026-08-27-0356-unquote-cursor-agent-wrapper-names.md) | Emit unquoted name: on Cursor agent wrappers | 2026-08-27 |
 | [0353](archive/2026-08-26-0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | 2026-08-26 |
 | [0348](archive/2026-08-26-0348-enrich-open-pr-view-with-review-decision.md) | Enrich the exact-PR view with reviewDecision so open-PR snapshots populate Approved | 2026-08-26 |
 | [0347](archive/2026-08-26-0347-honor-recorded-branch-over-feat-prefix.md) | Honor recorded branch names instead of reconstructing feat/<slug> | 2026-08-26 |
@@ -173,7 +172,6 @@ graph TD
 | [0337](archive/2026-08-22-0337-finalize-leaves-a-permanent-terminal-backlink-pending-leg-un.md) | Finalize's integration-ref backlink leg refuses on unrelated pre-existing corpus errors | 2026-08-22 |
 | [0336](archive/2026-08-22-0336-finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al.md) | Finalize selects the best merge method permitted by repository and branch policy | 2026-08-22 |
 | [0335](archive/2026-08-22-0335-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board.md) | refresh-claim fails verify-delta when the board is byte-unchanged | 2026-08-22 |
-| [0331](archive/2026-08-21-0331-docket-implement-next-s-re-mint-path-never-names-docket-gate.md) | docket-implement-next's re-mint path never names docket gate launch, so a resumed run cannot produce the run directory evidence record requires | 2026-08-21 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
 | [0299](archive/2026-08-12-0299-reshard-tests-test-sync-agents-runners-so-every-file-measure.md) | Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling | 2026-08-12 |
 | [0285](archive/2026-08-12-0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | 2026-08-12 |
@@ -259,7 +257,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 83 done |
+| [2026-08](archive/) | 84 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
