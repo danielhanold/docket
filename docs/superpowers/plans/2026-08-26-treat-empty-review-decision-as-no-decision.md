@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0358 — Treat empty-string reviewDecision as no-decision, not an invalid enum](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0358-treat-empty-review-decision-as-no-decision.md)**
+> ↩ **[Change 0358 — Treat empty-string reviewDecision as no-decision, not an invalid enum](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-27-0358-treat-empty-review-decision-as-no-decision.md)**
 <!-- docket:backlink:end -->
 # Treat Empty-String reviewDecision as No-Decision Implementation Plan
 
