@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: medium
 type: fix
 created: 2026-08-26
-updated: '2026-08-26'
+updated: '2026-08-27'
 depends_on: []
 stacked_on:
 related: [212, 257, 283]
@@ -21,7 +21,7 @@ branch: 'fix/build-review-roles-are-skill-invoked-that-fan-out-to-profile'
 pr: 'https://github.com/danielhanold/docket/pull/243'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-27T10:56:49Z'
+claimed_at: '2026-08-27T11:29:51Z'
 ---
 
 ## Artifacts
