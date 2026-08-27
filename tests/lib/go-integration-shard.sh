@@ -28,10 +28,17 @@ shard_inspect_maybe(){
 }
 
 run_integration_shard(){
+  # The assert below already prints the canonical failure marker and sets fail=1;
+  # this diagnostic goes to stderr WITHOUT that marker prefix. A function body
+  # that spells the failure marker (even in a comment) is censused as an
+  # assert-family definition by scripts/check-test-source-hygiene.sh rule (a) and
+  # then demanded to be byte-exact canonical, so neither the printf nor this
+  # comment may carry it. return 1 unwinds to the runner's `exit "$fail"`, which
+  # is 1 once the assert has reddened.
   assert "a Go toolchain is on PATH (the module pins its version)" 'command -v go >/dev/null 2>&1'
   if ! command -v go >/dev/null 2>&1; then
-    printf 'NOT OK - this integration shard cannot certify anything without a Go toolchain\n'
-    exit 1
+    printf 'this integration shard cannot certify anything without a Go toolchain\n' >&2
+    return 1
   fi
 
   export GOFLAGS="${GOFLAGS:+$GOFLAGS }-modcacherw"
