@@ -1,12 +1,6 @@
 # Backlog
 
-**359 changes** — 🟢 1 in progress · 🟡 51 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 220 done · 🗑️ 82 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0351](active/0351-complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard.md) | Complete change 0334: stop writing global instruction files and actually deploy the recursion guard | `critical` | `fix` | [spec](../superpowers/specs/2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding-design.md) | `fix/complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard` |
+**359 changes** — 🟡 51 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 220 done · 🗑️ 82 killed
 
 ## 🟡 Proposed (51)
 
@@ -73,11 +67,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [#226](https://github.com/danielhanold/docket/pull/226) |  |
+| [0351](active/0351-complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard.md) | Complete change 0334: stop writing global instruction files and actually deploy the recursion guard | `critical` | `fix` | [#246](https://github.com/danielhanold/docket/pull/246) |  |
 
 ```mermaid
 graph TD
