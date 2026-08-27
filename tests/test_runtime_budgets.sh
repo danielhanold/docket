@@ -28,7 +28,19 @@ EXPECTED_SERIAL=1   # tests/test_go_race.sh (change 0332). The shared state that
                     # needs — the load-dependent gate that halted change 0329. RAISING THIS IS A
                     # FINDING: a serial pin removes a file from the parallel phase, so it must be
                     # justified in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=2770 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2785 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2770 -> 2785 (change 0333): the NEW-FILE case, once — the fail-closed
+                    # completeness contract tests/test_go_integration_contract.sh joins the table.
+                    # It is a new surface, not an extension of any shard: the sixteen shard runners
+                    # above each execute one feature's tagged tests, while this file proves the
+                    # partition is total (every tagged test in exactly one runner at the right race
+                    # mode, no default-corpus leak, no stale no-op runner, `go vet -tags integration`
+                    # green). It runs no test binary; its cost is the per-package tagged `go test
+                    # -list` plus the three-package tags vet compile. Sized from the WORST reading,
+                    # one machine (darwin/arm64, go1.26.5, `/usr/bin/time -p bash
+                    # tests/test_go_integration_contract.sh`): warm 4.17/4.17/3.96, cold-cache 9.74
+                    # -> worst 9.74 -> next multiple of 5 is 10, plus the 5s margin -> 15. +15.
+                    # Rationale and readings are beside the row in the tsv header.
                     # 2460 -> 2770 (change 0333): the NEW-FILE case, eight more times — the
                     # internal/app integration SHARD runners, the dominant sibling of the gitcli and
                     # githubcli blocks below. Change 0333 partitions internal/app's slow real-git and
