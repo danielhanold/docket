@@ -64,16 +64,23 @@ TAB=$'\t'
 NL=$'\n'
 PKGS="internal/app internal/githubcli internal/gitcli"
 
-# (1) build-constraint placement — first line, exactly.
+# (1) build-constraint placement — line 1 exactly, AND line 2 blank so Go HONORS the
+# constraint. Go treats a `//go:build` line as an ordinary comment (compiling the file
+# into the DEFAULT corpus) unless a blank line separates it from the package clause, so
+# the line-2-blank assert is what makes this a placement guard and not just a text match.
 bad_tag=""
+unhonored_tag=""
 for pkg in $PKGS; do
   for f in "$pkg"/*_integration_test.go; do
     [ -e "$f" ] || continue
     [ "$(sed -n '1p' "$f")" = "//go:build integration" ] || bad_tag="$bad_tag $f"
+    [ -z "$(sed -n '2p' "$f")" ] || unhonored_tag="$unhonored_tag $f"
   done
 done
 assert "every *_integration_test.go opens with //go:build integration" \
   '[ -z "$bad_tag" ] || { echo "  missing/misplaced tag:$bad_tag" >&2; false; }'
+assert "every *_integration_test.go has a blank line 2 so the build constraint is honored" \
+  '[ -z "$unhonored_tag" ] || { echo "  no blank line after //go:build:$unhonored_tag" >&2; false; }'
 
 # (2) tagged corpus, per package. A listing or compile failure is fatal (fail-closed);
 # an empty corpus is fatal; a tagged-only test with neither structural prefix is fatal.
