@@ -14,6 +14,12 @@
 #   (6) no integration-prefixed test is visible to the default-tag corpus
 #   (7) every runner selects at least one test (a stale runner cannot no-op)
 #   (8) go vet -tags integration passes for all three packages
+#   (9) the EXECUTED race decision matches the mode: a mode=race shard passes -race
+#       to go test and a mode=normal shard does not. (4)/(5) prove the label
+#       correspondence; (9) proves the shard actually instruments, so a regression
+#       that dropped -race cannot let the concurrency corpus pass vacuously
+#       (learning guards-are-code). The inspected race= value is the SAME one the
+#       executor passes to go test — a single source (shard_race_flag).
 #
 # FAIL-CLOSED. A probe error is never read as clean absence: every `go test -list`
 # and `go vet` invocation's exit status is asserted before its output is trusted,
@@ -105,13 +111,22 @@ while read -r r; do
   [ -n "$r" ] || continue
   out="$(DOCKET_SHARD_INSPECT=1 bash "$r" 2>&1)"; rc=$?
   p="$(sed -n 's/^package=//p' <<<"$out")"; x="$(sed -n 's/^prefix=//p' <<<"$out")"; m="$(sed -n 's/^mode=//p' <<<"$out")"
+  # The race= line is captured here too, fail-closed: rf_present distinguishes a
+  # missing line (a probe defect) from a present-but-empty one (a normal shard),
+  # so an absent race line reddens rather than reading as a clean normal reading.
+  # Shape is validated (-race or empty) WITHOUT reference to mode — the mode↔race
+  # correspondence is check (9) below, so a dropped -race reddens THERE, not here.
+  rf="$(sed -n 's/^race=//p' <<<"$out")"
+  rf_present="$(grep -c -E -e '^race=' <<<"$out")"
   ok=1
   [ "$rc" -eq 0 ] || ok=0
   case "$p" in ./internal/app|./internal/githubcli|./internal/gitcli) ;; *) ok=0 ;; esac
   case "$m" in normal|race) ;; *) ok=0 ;; esac
   case "$x" in TestIntegration?*|TestRaceIntegration?*) ;; *) ok=0 ;; esac
+  [ "$rf_present" -ge 1 ] || ok=0
+  case "$rf" in -race|'') ;; *) ok=0 ;; esac
   if [ "$ok" = 1 ]; then
-    decl="${decl}${r}${TAB}${p#./}${TAB}${x}${TAB}${m}${NL}"
+    decl="${decl}${r}${TAB}${p#./}${TAB}${x}${TAB}${m}${TAB}${rf}${NL}"
   else
     bad_decl="$bad_decl $r"
   fi
@@ -124,7 +139,7 @@ unmatched=""; multi=""; wrongmode=""
 while IFS="$TAB" read -r pkg t; do
   [ -n "$t" ] || continue
   hits=0; hitmode=""
-  while IFS="$TAB" read -r r rp rx rm; do
+  while IFS="$TAB" read -r r rp rx rm rf; do
     [ -n "$r" ] || continue
     [ "$rp" = "$pkg" ] || continue
     case "$t" in "$rx"*) hits=$((hits+1)); hitmode="$rm";; esac
@@ -143,9 +158,28 @@ assert "every tagged test matches exactly one runner (none doubled)" \
 assert "race-prefixed tests run in race shards, and only they do" \
   '[ -z "$wrongmode" ] || { echo " $wrongmode" >&2; false; }'
 
+# (9) race-detector DIRECTION, from the EXECUTED decision. checks (4)/(5) prove the
+# label correspondence (a TestRaceIntegration* test is assigned to a mode=race
+# runner); this proves the runner actually instruments. shard_race_flag is the one
+# value the shard both inspects (race= line) and passes to `go test`, so a race
+# shard must carry -race and a normal shard must not. If the executor stops passing
+# -race for a race shard, that value empties and this reddens — the guard cannot
+# pass vacuously the way the concurrency corpus itself can (learning guards-are-code).
+raceviol=""
+while IFS="$TAB" read -r r rp rx rm rf; do
+  [ -n "$r" ] || continue
+  case "$rm" in
+    race)   [ "$rf" = "-race" ] || raceviol="$raceviol $r(mode=race,race='$rf')";;
+    normal) [ -z "$rf" ]        || raceviol="$raceviol $r(mode=normal,race='$rf')";;
+    *)      raceviol="$raceviol $r(mode='$rm'?)";;
+  esac
+done <<<"$decl"
+assert "race shards pass -race to go test and normal shards do not (executed decision)" \
+  '[ -z "$raceviol" ] || { echo " $raceviol" >&2; false; }'
+
 # (7) reverse direction: every runner selects at least one tagged test.
 empty_runners=""
-while IFS="$TAB" read -r r rp rx rm; do
+while IFS="$TAB" read -r r rp rx rm rf; do
   [ -n "$r" ] || continue
   n="$(grep -c -E -e "^${rp}${TAB}${rx}" <<<"$tagged")"
   [ "$n" -ge 1 ] || empty_runners="$empty_runners $r"

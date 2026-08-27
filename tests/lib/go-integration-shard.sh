@@ -20,9 +20,27 @@
 # CACHES note in that file's header): <git common dir>/docket-go-cache/{mod,build},
 # shared across worktrees, concurrent-safe, -modcacherw required.
 
+# The SINGLE source of truth for the race-detector decision. Both the inspection
+# line (shard_inspect_maybe) and the executed `go test` invocation
+# (run_integration_shard) read THIS value — never a second copy — so a regression
+# that drops -race here empties both at once and the contract's race-direction
+# check reddens (learning guards-are-code / correspondence-guard-runs-one-way: the
+# label correspondence proved a race test is ASSIGNED to a race runner; this proves
+# the runner actually instruments). The value IS the literal `go test` argument:
+# `-race` for a race shard, the empty string for a normal one (no flag added). This
+# body carries no runner result-marker substring, so scripts/check-test-source-hygiene.sh
+# rule (a) does not census it as an assert-family definition.
+shard_race_flag(){
+  if [ "$SHARD_MODE" = "race" ]; then printf '%s' '-race'; fi
+}
+
 shard_inspect_maybe(){
   if [ "${DOCKET_SHARD_INSPECT:-0}" = "1" ]; then
-    printf 'package=%s\nprefix=%s\nmode=%s\n' "$SHARD_PKG" "$SHARD_PREFIX" "$SHARD_MODE"
+    # First three lines and their spellings are unchanged (the contract's field
+    # parser and every runner depend on them); the race= line is ADDED, carrying
+    # the SAME value the executing run passes to go test.
+    printf 'package=%s\nprefix=%s\nmode=%s\nrace=%s\n' \
+      "$SHARD_PKG" "$SHARD_PREFIX" "$SHARD_MODE" "$(shard_race_flag)"
     exit 0
   fi
 }
@@ -54,8 +72,7 @@ run_integration_shard(){
     fi
   fi
 
-  race_flag=""
-  [ "$SHARD_MODE" = "race" ] && race_flag="-race"
+  race_flag="$(shard_race_flag)"
 
   # The prefix must select at least one test — a renamed corpus must redden the
   # shard, never let it pass vacuously. -list compiles but does not execute.
