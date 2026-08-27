@@ -21,7 +21,7 @@ branch: 'refactor/partition-internal-app-to-retire-the-race-gate-s-300s-ceilin'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-27T01:37:58Z'
+claimed_at: '2026-08-27T02:19:33Z'
 ---
 
 ## Artifacts
