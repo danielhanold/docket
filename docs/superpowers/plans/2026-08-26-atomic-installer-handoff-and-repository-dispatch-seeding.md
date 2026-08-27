@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0351 — Complete change 0334: stop writing global instruction files and actually deploy the recursion guard](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0351-complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard.md)**
+> ↩ **[Change 0351 — Complete change 0334: stop writing global instruction files and actually deploy the recursion guard](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-27-0351-complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard.md)**
 <!-- docket:backlink:end -->
 # Atomic Installer Handoff and Repository Dispatch Seeding — Implementation Plan (change 0351)
 
