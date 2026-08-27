@@ -2,7 +2,7 @@
 id: 357
 slug: implementation-context-loads-remote-branch-facts
 title: Implementation context must load remote branch facts before judging stack base
-status: 'in-progress'
+status: 'implemented'
 priority: high
 type: fix
 created: 2026-08-26
@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable:
 branch: 'fix/implementation-context-loads-remote-branch-facts'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/245'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-27T11:29:29Z'
