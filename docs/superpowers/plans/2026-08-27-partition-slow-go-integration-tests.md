@@ -126,7 +126,7 @@ git commit -m "test(0333): baseline inventory snapshot for the integration parti
 - Produces (consumed by every runner in Tasks 3–5): a sourceable library. A runner defines `SHARD_PKG` (one of `./internal/app`, `./internal/githubcli`, `./internal/gitcli`), `SHARD_PREFIX` (a `TestIntegration…`/`TestRaceIntegration…` top-level prefix), `SHARD_MODE` (`normal`|`race`), plus the canonical `assert`/`fail`, sources the library, then calls `shard_inspect_maybe` and `run_integration_shard`.
 - Produces (consumed by Task 6's contract): under `DOCKET_SHARD_INSPECT=1`, a runner prints exactly three lines — `package=…`, `prefix=…`, `mode=…` — and exits 0 without running any test. The LIVE runner invocation is the source of truth for shard membership.
 
-- [ ] **Step 1: Write the library**
+- [x] **Step 1: Write the library**
 
 ```bash
 #!/usr/bin/env bash
@@ -200,7 +200,7 @@ run_integration_shard(){
 }
 ```
 
-- [ ] **Step 2: Smoke the inspection path with a throwaway runner (not committed)**
+- [x] **Step 2: Smoke the inspection path with a throwaway runner (not committed)**
 
 ```bash
 cat > /tmp/claude-shard-smoke.sh <<'EOF'
@@ -222,7 +222,7 @@ bash /tmp/claude-shard-smoke.sh; echo "rc=$?"
 rm /tmp/claude-shard-smoke.sh
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tests/lib/go-integration-shard.sh
