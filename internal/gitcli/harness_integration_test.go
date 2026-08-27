@@ -1,6 +1,9 @@
+//go:build integration
+
 package gitcli
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -40,15 +43,6 @@ type testRepos struct {
 	Origin     string // bare repo path (file remote)
 	Writer     string // writer clone: pushes advance origin
 	Invocation string // clone under test; remote "origin" -> Origin
-}
-
-// requireGit skips the test when no real git is on PATH. CI and dev machines
-// have it; a skip only fires when git is genuinely absent.
-func requireGit(t *testing.T) {
-	t.Helper()
-	if _, err := exec.LookPath("git"); err != nil {
-		t.Skip("git not found on PATH")
-	}
 }
 
 // gitOut runs real git directly (independent of the adapter under test) with
@@ -250,7 +244,7 @@ func (r *testRepos) writerCommit(t *testing.T, branch string, files map[string]s
 // each builder produces the topology later tasks depend on — a bare origin, a
 // clean invocation checkout, the raw hostile bytes on main, and (docket mode)
 // three registered worktrees.
-func TestHarnessBuildersProduceExpectedTopology(t *testing.T) {
+func TestIntegrationRepoHarnessBuildersProduceExpectedTopology(t *testing.T) {
 	requireGit(t)
 
 	t.Run("main", func(t *testing.T) {
@@ -329,4 +323,15 @@ func countWorktrees(porcelain string) int {
 		}
 	}
 	return n
+}
+
+// mustDiscover resolves repository identity from an invocation path or fails the
+// test; refs tests operate against the discovered primary worktree.
+func mustDiscover(t *testing.T, c *Client, path string) Repository {
+	t.Helper()
+	repo, err := c.Discover(context.Background(), DiscoverOptions{InvocationPath: path})
+	if err != nil {
+		t.Fatalf("Discover(%q): %v", path, err)
+	}
+	return repo
 }

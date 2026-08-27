@@ -1,3 +1,5 @@
+//go:build integration
+
 package gitcli
 
 import (
@@ -68,7 +70,7 @@ func conflictingBranches(t *testing.T, r *testRepos, files []string) (featHead, 
 
 // TestBeginRebaseNoop proves that rebasing a branch onto an ancestor is a no-op:
 // disposition unchanged, HEAD untouched, and the owned orig/base anchors created.
-func TestBeginRebaseNoop(t *testing.T) {
+func TestIntegrationRepoBeginRebaseNoop(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -101,7 +103,7 @@ func TestBeginRebaseNoop(t *testing.T) {
 // TestBeginRebaseRewrites proves a divergent base rewrites history: disposition
 // rebased, a new HEAD distinct from orig, and the orig owned ref preserving the
 // exact pre-rebase commit.
-func TestBeginRebaseRewrites(t *testing.T) {
+func TestIntegrationRepoBeginRebaseRewrites(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -131,7 +133,7 @@ func TestBeginRebaseRewrites(t *testing.T) {
 // TestBeginRebaseConflict proves a conflicting rebase reports conflicted with the
 // exact unmerged path set, including a path carrying a space (NUL-read, not
 // line-split).
-func TestBeginRebaseConflict(t *testing.T) {
+func TestIntegrationRepoBeginRebaseConflict(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -159,7 +161,7 @@ func TestBeginRebaseConflict(t *testing.T) {
 // the worktree and owned refs untouched: a dirty tree (error), a wrong expected
 // head (error), and a pre-existing foreign rebase (in-progress-foreign, no
 // owned refs written).
-func TestBeginRebaseRefusals(t *testing.T) {
+func TestIntegrationRepoBeginRebaseRefusals(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -227,7 +229,7 @@ func TestBeginRebaseRefusals(t *testing.T) {
 // TestStageAndContinueRebaseMultiConflict proves two sequential conflicts drive
 // through: the first continue surfaces the second conflict, the second continue
 // completes with a rebased disposition and the resolved contents on the tip.
-func TestStageAndContinueRebaseMultiConflict(t *testing.T) {
+func TestIntegrationRepoStageAndContinueRebaseMultiConflict(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -302,7 +304,7 @@ func TestStageAndContinueRebaseMultiConflict(t *testing.T) {
 
 // TestAbortRebaseRestoresOrig proves abort restores HEAD to the proven orig and
 // that a mismatched orig is reported as an error.
-func TestAbortRebaseRestoresOrig(t *testing.T) {
+func TestIntegrationRepoAbortRebaseRestoresOrig(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -345,7 +347,7 @@ func TestAbortRebaseRestoresOrig(t *testing.T) {
 // TestOwnedRefFence proves SetOwnedRef and DeleteOwnedRef refuse any ref outside
 // refs/docket/ (a refs/heads name), touch nothing on refusal, and round-trip a
 // genuine owned ref.
-func TestOwnedRefFence(t *testing.T) {
+func TestIntegrationRepoOwnedRefFence(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)

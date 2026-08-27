@@ -1,3 +1,5 @@
+//go:build integration
+
 package gitcli
 
 import (
@@ -184,7 +186,7 @@ func readOneBlob(t *testing.T, ctx context.Context, src ObjectSource, p RepoPath
 // ListTree -> ReadBlobs, then requires the checkout snapshot byte-identical AND
 // that the remote-tracking ref genuinely moved (so the fetch was real, not a
 // no-op that would trivially "preserve" the checkout).
-func TestCheckoutPreservationAcrossWorktreesAndTopologies(t *testing.T) {
+func TestIntegrationRepoCheckoutPreservationAcrossWorktreesAndTopologies(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	const untrackedRel = "preserve-untracked.md"
@@ -248,7 +250,7 @@ func TestCheckoutPreservationAcrossWorktreesAndTopologies(t *testing.T) {
 // bytes after the remote advances to B and B is fetched locally; a source opened
 // at B returns B; and advancing an entirely unrelated branch leaves both
 // sources' revisions and blob reads unchanged.
-func TestRevisionConsistencyABAndUnrelatedBranch(t *testing.T) {
+func TestIntegrationRepoRevisionConsistencyABAndUnrelatedBranch(t *testing.T) {
 	requireGit(t)
 	c := newRealClient(t)
 	ctx := context.Background()
@@ -343,7 +345,7 @@ func TestRevisionConsistencyABAndUnrelatedBranch(t *testing.T) {
 // source at each, reads .docket.yml from main and a planning file from docket,
 // and asserts the cross reads miss — the planning file is absent from the main
 // source and .docket.yml is absent from the orphan docket source.
-func TestDocketModeTwoSourceReads(t *testing.T) {
+func TestIntegrationRepoDocketModeTwoSourceReads(t *testing.T) {
 	requireGit(t)
 	c := newRealClient(t)
 	ctx := context.Background()

@@ -1,3 +1,5 @@
+//go:build integration
+
 package gitcli
 
 import (
@@ -12,7 +14,7 @@ import (
 // file, a hostile non-ASCII/space/tab path, and a `git mv` — and asserts the
 // exact set of paths with their Staged flags, byte-exact hostile names, and that
 // a move reports BOTH source and destination (rename detection off).
-func TestChangedPathsExactSetWithStagedFlags(t *testing.T) {
+func TestIntegrationRepoChangedPathsExactSetWithStagedFlags(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -83,7 +85,7 @@ func TestChangedPathsExactSetWithStagedFlags(t *testing.T) {
 // TestChangedPathsCleanWorktreeIsEmpty proves a worktree with no delta from HEAD
 // yields an empty set — the baseline the transaction engine relies on to detect
 // "the plan changed nothing".
-func TestChangedPathsCleanWorktreeIsEmpty(t *testing.T) {
+func TestIntegrationRepoChangedPathsCleanWorktreeIsEmpty(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)

@@ -1,3 +1,5 @@
+//go:build integration
+
 package gitcli
 
 import (
@@ -29,7 +31,7 @@ func nulPathSet(b []byte) map[string]bool {
 // trailer block as a real trailer block; is unaffected by an exit-1 pre-commit
 // hook (hooksPath override) or by commit.gpgsign=true in the repo (per-command
 // signing disabled); and stamps author and committer dates from req.When.
-func TestCommitPathsExplicitSetTrailersHooksSigningAndDates(t *testing.T) {
+func TestIntegrationRepoCommitPathsExplicitSetTrailersHooksSigningAndDates(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -135,7 +137,7 @@ func TestCommitPathsExplicitSetTrailersHooksSigningAndDates(t *testing.T) {
 // inventing a person or panicking. The repo sets user.useConfigOnly so git will
 // not synthesize an identity, and the client's HOME is pinned to an empty dir so
 // no global identity leaks in.
-func TestCommitPathsMissingIdentityFails(t *testing.T) {
+func TestIntegrationRepoCommitPathsMissingIdentityFails(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 

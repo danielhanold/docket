@@ -1,3 +1,5 @@
+//go:build integration
+
 package gitcli
 
 import (
@@ -12,7 +14,7 @@ import (
 // trailers, and a commit whose subject and body merely contain trailer-looking
 // text outside the trailer block, are both excluded; the one real trailer-bearing
 // commit returns its full trailer set.
-func TestScanCommitTrailersGrammarNotSubstring(t *testing.T) {
+func TestIntegrationRepoScanCommitTrailersGrammarNotSubstring(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)

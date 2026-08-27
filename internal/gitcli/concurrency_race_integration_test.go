@@ -1,3 +1,5 @@
+//go:build integration
+
 package gitcli
 
 import (
@@ -22,7 +24,7 @@ import (
 // Every goroutine's answer is compared against the same serially-computed
 // golden, so a result assembled from another goroutine's request is a failure
 // even when the race detector sees nothing.
-func TestConcurrentOperationsShareClientAndSourceSafely(t *testing.T) {
+func TestRaceIntegrationConcurrencyOperationsShareClientAndSourceSafely(t *testing.T) {
 	requireGit(t)
 	repos := newMainModeRepos(t)
 	c := newRealClient(t)
