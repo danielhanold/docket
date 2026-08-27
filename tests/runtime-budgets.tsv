@@ -305,6 +305,21 @@
 #   rebase      18.81 18.71       -> worst 18.81 -> next multiple of 5 is 20, plus 5 -> 25
 #   concurrency 17.73 15.59 15.47 -> worst 17.73 -> next multiple of 5 is 20, plus 5 -> 25 (race mode, measured WITH -race)
 # EXPECTED_TOTAL moves 2460 -> 2770: +55 +40 +40 +50 +45 +30 +25 +25.
+#
+# tests/test_go_integration_contract.sh is ONE NEW FILE brought by change 0333 — the fail-closed
+# completeness contract over the whole Go integration partition (the sixteen shard runners above).
+# It is a new surface, not an extension of any shard: the shard runners each execute ONE feature's
+# tagged tests, while this file proves the partition is total — every tagged test lands in exactly
+# one runner at the correct race mode, no tagged test leaks into the default corpus, no runner is a
+# stale no-op, and `go vet -tags integration` passes. Its cost is dominated by the tagged-corpus
+# `go test -list` per package and the three-package `go vet -tags integration` compile; it runs no
+# test binary. Sized per this header's rule from the WORST reading, one machine (darwin/arm64,
+# go1.26.5), as `/usr/bin/time -p bash tests/test_go_integration_contract.sh >/dev/null`:
+#   contract   warm 4.17 4.17 3.96, cold-cache 9.74 -> worst 9.74 -> next multiple of 5 is 10, plus 5 -> 15
+# The cold-cache reading (GOCACHE/GOMODCACHE pointed at empty scratch dirs, the drift-test
+# methodology) is the reachable worst — the tags compile is the cold-sensitive term, warm in the
+# suite (the Go-touching shards share GOCACHE). Rides the parallel lane. EXPECTED_TOTAL moves
+# 2770 -> 2785: +15.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -375,6 +390,7 @@ tests/test_go_integration_app_merge.sh	30	parallel
 tests/test_go_integration_app_rebase.sh	25	parallel
 tests/test_go_integration_app_state.sh	50	parallel
 tests/test_go_integration_app_workflow.sh	45	parallel
+tests/test_go_integration_contract.sh	15	parallel
 tests/test_go_integration_gitcli_concurrency.sh	10	parallel
 tests/test_go_integration_gitcli_process.sh	15	parallel
 tests/test_go_integration_gitcli_repo.sh	30	parallel
