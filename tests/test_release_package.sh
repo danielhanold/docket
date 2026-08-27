@@ -13,6 +13,11 @@
 #
 # MUTATION EVIDENCE (Task 11): unpinning one `uses:` to @v4 reddens the SHA-pin guard; adding a
 # `git tag` step reddens the publishing-verb ban. Both were exercised at authoring and restored.
+# MUTATION EVIDENCE (change 0361, Sections I–L): flipping source-gate's runs-on back to
+# ubuntu-24.04 (or package's to macos-15), deleting the tests/** or .docket.yml trigger,
+# stripping the BASH_VERSINFO check or the DOCKET_BASH_PATH export from the suite-Bash step, and
+# reverting either budget-classifier pattern or its status=1 escalation each redden the owning
+# guard. All exercised at authoring and restored.
 #
 # The ok/nok helpers are the tree's canonical byte-for-byte spelling (see tests/test_release_downloader.sh);
 # scripts/run-tests.sh accounts results on the `ok - ` / `NOT OK - ` markers they print.
