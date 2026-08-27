@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable:
 branch: 'fix/build-review-roles-are-skill-invoked-that-fan-out-to-profile'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/243'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-26T21:52:18Z'
