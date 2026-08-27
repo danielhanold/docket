@@ -2,7 +2,7 @@
 id: 358
 slug: treat-empty-review-decision-as-no-decision
 title: 'Treat empty-string reviewDecision as no-decision, not an invalid enum'
-status: 'implemented'
+status: 'done'
 priority: critical
 type: fix
 created: 2026-08-26
@@ -21,7 +21,7 @@ branch: 'fix/treat-empty-review-decision-as-no-decision'
 pr: 'https://github.com/danielhanold/docket/pull/242'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-26T23:20:18Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -84,3 +84,13 @@ Once merged and rebuilt, re-run `docket-finalize-change 356`.
 ### 2026-08-26
 
 2026-08-26: Reconciled against origin/main. Verified the defect is still present: `normalizeReviewDecision` in `internal/githubcli/pr.go` returns `false,nil` only for a nil pointer, and a non-nil pointer to "" falls through to `default` → `errEnum`. Scope, ADR-0097 link, and related changes (347/348 done, 356 implemented) remain accurate. No scope change; proceeding as a trivial one-function fix plus regression test complementing the existing `TestViewPullRequestUnknownReviewDecisionFailsClosed`.
+
+## Closeout notes
+
+### Verification
+
+- PR #242 merged into main via rebase (merge commit aa50aa64), verified reachable from the destination tip; change archived to done.
+
+### Late findings
+
+- This change's own fix (empty-string reviewDecision resolver) is what unblocked its finalize: an earlier attempt halted on pr-unknown, and finalize only succeeded after the docket binary was rebuilt from this branch's head (084bea6c, v0.9.3-329).
