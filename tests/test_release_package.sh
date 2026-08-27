@@ -331,4 +331,56 @@ else
   nok "the suite-Bash step does not state the GNU Bash 4.3 floor"
 fi
 
+# ================================================================================================
+# SECTION L — the suite step's budget-report classifier (change 0361). SPELLING LIMIT: extracts
+# the "Run the resolved test suite" step and asserts the classifier TEXT: the two combined
+# grep patterns (screening and authoritative — asserted as fixed strings, so this pins the exact
+# pattern spelling the step ships), the summary append for screening, and — by line order inside
+# the step — that the authoritative capture precedes a bare status=1 escalation. It cannot prove
+# the branch logic runs or that screening leaves the exit status untouched; the mutation tests
+# and the live run own that.
+# ================================================================================================
+suite_step="$(job_block source-gate | awk '
+  /- name: Run the resolved test suite/ {p=1; print; next}
+  p && /^[[:space:]]*- name:/ {p=0}
+  p {print}
+')"
+if [ -n "$suite_step" ]; then
+  ok "source-gate has the Run the resolved test suite step"
+else
+  nok "source-gate lost its Run the resolved test suite step"
+fi
+if grep -qF 'finalize.test_command' <<<"$suite_step" && grep -qF '.docket.yml' <<<"$suite_step"; then
+  ok "the suite step still resolves the command from .docket.yml finalize.test_command (live companion)"
+else
+  nok "the suite step no longer resolves finalize.test_command from .docket.yml"
+fi
+if grep -qF -- "'^(BUDGET WATCH|PARALLEL-SENSITIVE):'" <<<"$suite_step"; then
+  ok "the classifier recognizes the screening vocabulary (BUDGET WATCH, PARALLEL-SENSITIVE)"
+else
+  nok "the classifier does not recognize the screening vocabulary"
+fi
+if grep -qF -- "'^(OVER BUDGET|SERIAL CONFIRMED OVER BUDGET):'" <<<"$suite_step"; then
+  ok "the classifier recognizes the authoritative vocabulary (OVER BUDGET, SERIAL CONFIRMED OVER BUDGET)"
+else
+  nok "the classifier does not recognize the authoritative vocabulary"
+fi
+# The authoritative capture must be followed by a status=1 escalation (fail an otherwise-green
+# gate); screening must be followed by a step-summary append. Line order inside the step, not a
+# stacked-gap regex.
+scr_ln="$(awk '/\^\(BUDGET WATCH\|PARALLEL-SENSITIVE\):/{print NR; exit}' <<<"$suite_step")"
+scr_sum_ln="$(awk -v start="${scr_ln:-0}" 'NR>start && /GITHUB_STEP_SUMMARY/{print NR; exit}' <<<"$suite_step")"
+aut_ln="$(awk '/\^\(OVER BUDGET\|SERIAL CONFIRMED OVER BUDGET\):/{print NR; exit}' <<<"$suite_step")"
+esc_ln="$(awk -v start="${aut_ln:-0}" 'NR>start && /^[[:space:]]*status=1[[:space:]]*$/{print NR; exit}' <<<"$suite_step")"
+if [ -n "$scr_ln" ] && [ -n "$scr_sum_ln" ]; then
+  ok "screening findings are appended to the job summary"
+else
+  nok "no job-summary append follows the screening capture"
+fi
+if [ -n "$aut_ln" ] && [ -n "$esc_ln" ]; then
+  ok "an authoritative budget finding escalates to status=1 (fails an otherwise-green gate)"
+else
+  nok "no status=1 escalation follows the authoritative capture"
+fi
+
 exit "$fail"
