@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'fix/release-candidate-source-gate-macos-runner'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-27T22:54:19Z'
+reconciled: true
+claimed_at: '2026-08-27T22:56:55Z'
 ---
 
 ## Artifacts
@@ -61,3 +61,7 @@ gzip downloader-sandbox fix (already landed in 0317); and 0318's Bash removal an
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-27
+
+Reconciled against current main at commit 6a9f1dec6ee1cc96d3d79adba4efe5079638e2b8 on 2026-08-27. Change 0317 is done and its release-candidate workflow is present; change 0318 remains proposed and still depends on 0317. The approved scope remains valid: source-gate runner/runtime, pull-request triggers, budget summary/failure classification, and tests/test_release_package.sh regression guards are still the outstanding work. The package, smoke, and summary jobs remain outside the change, as do the landed 0317 gzip fix and 0322 installer work. Relations remain depends_on [317], related [318, 322], discovered_from [317], with no ADRs or stack base. No adjacent follow-up is untracked; auto-capture is disabled.
