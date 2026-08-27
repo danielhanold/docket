@@ -3,15 +3,13 @@ package app
 import (
 	"context"
 	"errors"
-	"strings"
-	"testing"
-
-	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 	"github.com/danielhanold/docket/internal/workspace"
+	"strings"
+	"testing"
 )
 
 // This file drives `change repair-identity`: the version-pinned single-field
@@ -374,129 +372,4 @@ func repairRealDeps(t *testing.T, dir string, blob StatusBlob, gh *fakeRepairGit
 		Workspace: ws,
 	}
 	return deps, engine
-}
-
-// TestRepairCandidateBranchAbsent proves clause 2's candidate-branch proof: the
-// branch the record would carry must be present on the remote; an absent branch
-// is candidate-branch-absent with no write.
-func TestRepairCandidateBranchAbsent(t *testing.T) {
-	requireRealGit(t)
-	repo := newMainModeRepo(t, nil) // origin carries no feat/renamed branch
-	ws := &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}}
-	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairVersion), repairGitHub("feat/renamed"), ws)
-	res := RepairIdentity(context.Background(), deps, repo.invocation, RepairIdentityRequest{
-		ID: 3, ExpectVersion: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
-	})
-	assertRepairRefused(t, res, ResultInvalidState, RepairCandidateBranchAbsent, engine)
-	if len(ws.inspectCalls) != 0 {
-		t.Errorf("the workspace was inspected before the candidate-branch proof failed")
-	}
-}
-
-// TestRepairWorkspaceConflictBlocks proves clause 4: an owned workspace that
-// targets a branch other than the one the record will carry blocks the repair.
-// The fixture's recorded branch (feat/widget) is owned and live while the repair
-// proposes feat/renamed; the fake Inspect's recorded call is the sentinel that
-// the conflicting-workspace check actually executed. Deleting the branch
-// comparison in repairProveWorkspaceClear lets the repair proceed to a write,
-// reddening this assertion.
-func TestRepairWorkspaceConflictBlocks(t *testing.T) {
-	requireRealGit(t)
-	repo := newMainModeRepo(t, nil)
-	// The candidate branch must be present on the remote so the probe passes and
-	// control reaches the workspace gate.
-	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
-	ws := &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateReady}}
-	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairVersion), repairGitHub("feat/renamed"), ws)
-	res := RepairIdentity(context.Background(), deps, repo.invocation, RepairIdentityRequest{
-		ID: 3, ExpectVersion: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
-	})
-	assertRepairRefused(t, res, ResultInvalidState, RepairWorkspaceConflict, engine)
-	if len(ws.inspectCalls) != 1 {
-		t.Fatalf("conflicting-workspace check ran %d times, want exactly 1 (sentinel)", len(ws.inspectCalls))
-	}
-	if got := ws.inspectCalls[0].Target.FeatureBranch(); got != "feat/widget" {
-		t.Errorf("inspected target branch = %q, want the recorded feat/widget", got)
-	}
-}
-
-// TestRepairInspectErrorIsConflict proves the fail-closed reading: an inspection
-// that cannot be answered is ambiguity and takes the workspace-conflict path,
-// never a pass (probe-error-is-not-clean-absence).
-func TestRepairInspectErrorIsConflict(t *testing.T) {
-	requireRealGit(t)
-	repo := newMainModeRepo(t, nil)
-	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
-	ws := &fakeRepairWorkspace{inspectErr: errors.New("inspect boom")}
-	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairVersion), repairGitHub("feat/renamed"), ws)
-	res := RepairIdentity(context.Background(), deps, repo.invocation, RepairIdentityRequest{
-		ID: 3, ExpectVersion: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
-	})
-	assertRepairRefused(t, res, ResultInvalidState, RepairWorkspaceConflict, engine)
-}
-
-// TestRepairAdoptPRHeadWritesBranch proves the applied path end-to-end: every
-// conjunct holds, so the repair opens one exact-version transaction that adopts
-// the PR's reported head as branch:, refreshes updated, and commits only that.
-func TestRepairAdoptPRHeadWritesBranch(t *testing.T) {
-	requireRealGit(t)
-	recPath := groomPath(3, "widget")
-	repo := newMainModeRepo(t, map[string]string{recPath: repairRecord(3, "widget", "")})
-	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
-	node := planningDepsFor(t, repo.invocation)
-	ver := blobVersionAt(t, repo.origin, "main", recPath)
-
-	gh := repairGitHub("feat/renamed")
-	ws := &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}}
-	deps := FinalizeDeps{Planning: node.deps, GitHub: gh, Workspace: ws}
-
-	res := RepairIdentity(context.Background(), deps, node.dir, RepairIdentityRequest{
-		ID: 3, ExpectVersion: ver, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
-	})
-	if res.Result != ResultApplied || res.Reason != RepairRepairedBranch {
-		t.Fatalf("repair = (%q, %q) msg=%q findings=%v", res.Result, res.Reason, res.Message, res.Findings)
-	}
-	if res.Branch != "feat/renamed" || res.Revision == "" {
-		t.Errorf("applied result malformed: %+v", res)
-	}
-	rec, ok := originFile(t, repo.origin, "main", recPath)
-	if !ok {
-		t.Fatalf("record vanished after repair")
-	}
-	for _, want := range []string{"branch: 'feat/renamed'", "updated: '2026-08-16'"} {
-		if !strings.Contains(rec, want) {
-			t.Errorf("repaired origin record missing %q:\n%s", want, rec)
-		}
-	}
-	if strings.Contains(rec, "branch: feat/widget") {
-		t.Errorf("the stale recorded branch survived the repair:\n%s", rec)
-	}
-}
-
-// TestRepairAdoptPRHeadPinsExactVersion proves the transaction pins the approved
-// version exactly, keying the repair op on the exact record blob.
-func TestRepairAdoptPRHeadPinsExactVersion(t *testing.T) {
-	requireRealGit(t)
-	repo := newMainModeRepo(t, nil)
-	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
-	ws := &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}}
-	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairVersion), repairGitHub("feat/renamed"), ws)
-	engine.result = transaction.Result{Disposition: transaction.DispositionApplied, AppliedCommit: gitcli.ObjectID(strings.Repeat("c", 40))}
-
-	res := RepairIdentity(context.Background(), deps, repo.invocation, RepairIdentityRequest{
-		ID: 3, ExpectVersion: repairVersion, AdoptPRHead: true, ExpectPRNumber: 7, ExpectHead: "feat/renamed",
-	})
-	if res.Result != ResultApplied || res.Reason != RepairRepairedBranch {
-		t.Fatalf("repair = (%q, %q)", res.Result, res.Reason)
-	}
-	if len(engine.calls) != 1 {
-		t.Fatalf("engine calls = %d, want exactly 1", len(engine.calls))
-	}
-	exp := engine.calls[0].Expected
-	if len(exp) != 1 || string(exp[0].Version.ObjectID) != repairVersion {
-		t.Errorf("transaction did not pin the exact approved version: %+v", exp)
-	}
-	if engine.calls[0].Operation.Key() != transaction.OperationKey(OperationChangeRepairIdentity) {
-		t.Errorf("operation key = %q", engine.calls[0].Operation.Key())
-	}
 }

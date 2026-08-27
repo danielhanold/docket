@@ -28,7 +28,23 @@ EXPECTED_SERIAL=1   # tests/test_go_race.sh (change 0332). The shared state that
                     # needs — the load-dependent gate that halted change 0329. RAISING THIS IS A
                     # FINDING: a serial pin removes a file from the parallel phase, so it must be
                     # justified in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=2460 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2770 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2460 -> 2770 (change 0333): the NEW-FILE case, eight more times — the
+                    # internal/app integration SHARD runners, the dominant sibling of the gitcli and
+                    # githubcli blocks below. Change 0333 partitions internal/app's slow real-git and
+                    # process-lifecycle corpus behind the `integration` build tag; each new
+                    # tests/test_go_integration_app_*.sh runner drives one shard through
+                    # tests/lib/go-integration-shard.sh — seven NORMAL-mode, one (concurrency) RACE-mode
+                    # for the six goroutine-bearing tests (no other app test exercises real concurrent
+                    # behavior). None extends an existing shard: every other Go row runs the default-tag
+                    # corpus, which cannot see the tagged one. The partition drops the default
+                    # `go test ./internal/app/` from ~228s to ~1.8s wall, the number that unblocks
+                    # change 0357. Sized from the WORST of the standalone serial readings (darwin/arm64,
+                    # go1.26.5, `/usr/bin/time -p bash tests/test_go_integration_app_<feature>.sh`):
+                    # change 47.20 -> 55, cleanup 30.59 -> 40, closeout 30.09 -> 40, state 40.41 -> 50,
+                    # workflow 38.22 -> 45, merge 21.39 -> 30, rebase 18.81 -> 25, concurrency 17.73 -> 25
+                    # (race mode, WITH -race). +55 +40 +40 +50 +45 +30 +25 +25 = +310. Rationale and
+                    # readings are beside the rows in the tsv header.
                     # 2420 -> 2460 (change 0333): the NEW-FILE case, four more times — the
                     # internal/githubcli integration SHARD runners, the sibling of the gitcli block
                     # below. Change 0333 partitions githubcli's fake-gh subprocess corpus behind the

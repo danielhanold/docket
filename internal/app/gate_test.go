@@ -2,12 +2,10 @@ package app
 
 import (
 	"encoding/json"
+	"github.com/danielhanold/docket/internal/process"
 	"os"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/danielhanold/docket/internal/process"
 )
 
 // TestMain routes the supervisor re-exec role of the app test binary: a real
@@ -34,38 +32,6 @@ func TestMapObservationTable(t *testing.T) {
 		if got := mapObservation(st); got != want {
 			t.Errorf("%s -> %s, want %s", st, got, want)
 		}
-	}
-}
-
-func TestGateLaunchObserveEndToEnd(t *testing.T) {
-	root := t.TempDir()
-	res := GateLaunch(root, t.TempDir(), []string{"/bin/echo", "hello"})
-	if res.Operation != "gate.launch" {
-		t.Fatalf("operation %q", res.Operation)
-	}
-	if res.Result != ResultApplied {
-		t.Fatalf("launch result %s (%s)", res.Result, res.Reason)
-	}
-	if res.RunDir == "" || res.RunID == "" {
-		t.Fatalf("no handle: %+v", res)
-	}
-	// Poll observe to terminal; /bin/echo exits 0 fast.
-	deadline := 300 // x100ms
-	for i := 0; ; i++ {
-		obs := GateObserve(res.RunDir)
-		if obs.Result == ResultApplied && obs.State == "passed" {
-			if obs.ExitCode == nil || *obs.ExitCode != 0 {
-				t.Fatalf("exact code: %+v", obs.ExitCode)
-			}
-			break
-		}
-		if obs.State != "running" {
-			t.Fatalf("unexpected: %+v", obs)
-		}
-		if i > deadline {
-			t.Fatal("echo never became terminal")
-		}
-		time.Sleep(100 * time.Millisecond)
 	}
 }
 

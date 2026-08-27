@@ -1,16 +1,12 @@
 package app
 
 import (
-	"context"
+	"github.com/danielhanold/docket/internal/evidence"
 	"os"
 	"path/filepath"
 	"syscall"
 	"testing"
 	"time"
-
-	"github.com/danielhanold/docket/internal/evidence"
-	"github.com/danielhanold/docket/internal/gitcli"
-	"github.com/danielhanold/docket/internal/workspace"
 )
 
 // testGateCommand is the resolved finalize.test_command the evidence fixtures
@@ -137,184 +133,7 @@ func runningRunDir(t *testing.T) string {
 
 // --- record: a passed run at the matching head yields evidence ---------------
 
-// TestEvidenceRecordFromPassedRun: a green terminal record plus a feature head
-// matching the request produces an immutable record carrying the OBSERVED gate
-// command (never a request field) and the exact head; the rendered block
-// round-trips through evidence.Extract.
-func TestEvidenceRecordFromPassedRun(t *testing.T) {
-	svc := &fakeWorkspaceService{
-		inspection: workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(evidenceHead)},
-	}
-	deps, wdeps, repoDir := evidenceDeps(t, svc)
-	runDir := passedRunDir(t)
-
-	res := EvidenceRecord(context.Background(), deps, wdeps, repoDir,
-		EvidenceRecordRequest{ID: 7, RunDir: runDir, Head: evidenceHead})
-
-	if res.Result != ResultApplied {
-		t.Fatalf("result=%q reason=%q msg=%q, want applied", res.Result, res.Reason, res.Message)
-	}
-	if res.Command != testGateCommand {
-		t.Errorf("command=%q, want the observed gate command %q", res.Command, testGateCommand)
-	}
-	if res.Head != evidenceHead {
-		t.Errorf("head=%q, want %q", res.Head, evidenceHead)
-	}
-	if res.Outcome != string(evidence.ResultGreen) {
-		t.Errorf("outcome=%q, want green", res.Outcome)
-	}
-	if res.Block == "" {
-		t.Fatal("no rendered evidence block")
-	}
-	rec, err := evidence.Extract([]byte(res.Block))
-	if err != nil {
-		t.Fatalf("block did not round-trip through Extract: %v", err)
-	}
-	if rec.Command != testGateCommand || rec.Head != evidenceHead || rec.Result != evidence.ResultGreen {
-		t.Errorf("extracted record = %+v, want command/head to match and green", rec)
-	}
-}
-
 // --- record: every non-passed / mismatched / probe-error path refuses --------
-
-// TestEvidenceRecordRefusals: failed, still-running, vanished, malformed, and
-// head-mismatch runs each refuse with a DISTINCT stable reason and never render
-// a block. A malformed or unreadable run dir is a probe error — its own typed
-// failure, never folded into the clean "vanished" absence
-// (probe-error-is-not-clean-absence). The whole table is the mutation guard:
-// strip the passed-only gate and the non-passed rows would produce a block.
-func TestEvidenceRecordRefusals(t *testing.T) {
-	cases := []struct {
-		name       string
-		runDir     func(t *testing.T) string
-		reqHead    string
-		wantReason string
-		reached    bool // whether workspace Inspect should have been reached
-	}{
-		{
-			name:       "failed run",
-			runDir:     func(t *testing.T) string { return runToTerminal(t, []string{"/bin/sh", "-c", "exit 3"}, "failed") },
-			reqHead:    evidenceHead,
-			wantReason: ReasonEvidenceGateFailed,
-		},
-		{
-			name:       "still-running lock",
-			runDir:     runningRunDir,
-			reqHead:    evidenceHead,
-			wantReason: ReasonEvidenceGateRunning,
-		},
-		{
-			name: "vanished dir",
-			runDir: func(t *testing.T) string {
-				d := passedRunDir(t)
-				if err := os.Remove(filepath.Join(d, "terminal.json")); err != nil {
-					t.Fatalf("removing terminal record: %v", err)
-				}
-				return d
-			},
-			reqHead:    evidenceHead,
-			wantReason: ReasonEvidenceGateVanished,
-		},
-		{
-			name: "malformed terminal.json",
-			runDir: func(t *testing.T) string {
-				d := passedRunDir(t)
-				if err := os.WriteFile(filepath.Join(d, "terminal.json"), []byte("{not json"), 0o600); err != nil {
-					t.Fatalf("corrupting terminal record: %v", err)
-				}
-				return d
-			},
-			reqHead:    evidenceHead,
-			wantReason: ReasonEvidenceProbeMalformed,
-		},
-		{
-			name:       "head mismatch",
-			runDir:     passedRunDir,
-			reqHead:    evidenceOtherHead,
-			wantReason: ReasonEvidenceHeadMismatch,
-			reached:    true,
-		},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			svc := &fakeWorkspaceService{
-				inspection: workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(evidenceHead)},
-			}
-			deps, wdeps, repoDir := evidenceDeps(t, svc)
-			runDir := c.runDir(t)
-
-			res := EvidenceRecord(context.Background(), deps, wdeps, repoDir,
-				EvidenceRecordRequest{ID: 7, RunDir: runDir, Head: c.reqHead})
-
-			if res.Result == ResultApplied {
-				t.Fatalf("a %s run produced a record: %+v", c.name, res)
-			}
-			if res.Reason != c.wantReason {
-				t.Fatalf("reason=%q, want %q (result %q)", res.Reason, c.wantReason, res.Result)
-			}
-			if res.Block != "" {
-				t.Errorf("a refusal rendered a block: %q", res.Block)
-			}
-			if !c.reached && len(svc.inspectCalls) != 0 {
-				t.Errorf("workspace Inspect reached on a pre-inspect refusal (%d calls)", len(svc.inspectCalls))
-			}
-		})
-	}
-}
-
-// TestEvidenceRecordUnreadableRunDir: a run dir the process cannot read is a
-// probe error (its own external failure), never a silent "no evidence".
-func TestEvidenceRecordUnreadableRunDir(t *testing.T) {
-	if os.Geteuid() == 0 {
-		t.Skip("root ignores directory permission bits")
-	}
-	svc := &fakeWorkspaceService{}
-	deps, wdeps, repoDir := evidenceDeps(t, svc)
-	runDir := passedRunDir(t)
-	if err := os.Chmod(runDir, 0o000); err != nil {
-		t.Fatalf("chmod: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Chmod(runDir, 0o755) })
-
-	res := EvidenceRecord(context.Background(), deps, wdeps, repoDir,
-		EvidenceRecordRequest{ID: 7, RunDir: runDir, Head: evidenceHead})
-
-	if res.Result == ResultApplied {
-		t.Fatalf("an unreadable run dir produced a record: %+v", res)
-	}
-	if res.Reason != ReasonEvidenceProbeUnreadable {
-		t.Fatalf("reason=%q, want %q", res.Reason, ReasonEvidenceProbeUnreadable)
-	}
-	if len(svc.inspectCalls) != 0 {
-		t.Errorf("workspace Inspect reached on a probe error (%d calls)", len(svc.inspectCalls))
-	}
-}
-
-// TestEvidenceRecordUnconfiguredGate: a passed run but no resolved
-// finalize.test_command has no observed gate command to record, so the
-// operation refuses (unsupported-config) rather than fabricate an empty command.
-func TestEvidenceRecordUnconfiguredGate(t *testing.T) {
-	svc := &fakeWorkspaceService{
-		inspection: workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(evidenceHead)},
-	}
-	reader := &fakeReader{
-		pin:    mainPin(t), // built-in config: test_command resolves to unset ("")
-		corpus: []StatusBlob{inProgressChangeBlob(7, "widget", "v7", "")},
-	}
-	deps := workspaceDepsFor(t, reader)
-	repoDir := newMainModeRepo(t, nil).invocation
-	runDir := passedRunDir(t)
-
-	res := EvidenceRecord(context.Background(), deps, WorkspaceDeps{Service: svc}, repoDir,
-		EvidenceRecordRequest{ID: 7, RunDir: runDir, Head: evidenceHead})
-
-	if res.Result != ResultUnsupportedConfig || res.Reason != ReasonEvidenceUnconfiguredGate {
-		t.Fatalf("result=%q reason=%q, want unsupported-config/%s", res.Result, res.Reason, ReasonEvidenceUnconfiguredGate)
-	}
-	if res.Block != "" {
-		t.Errorf("refusal rendered a block: %q", res.Block)
-	}
-}
 
 // --- verify: the head pin is the invalidate-on-fix property ------------------
 

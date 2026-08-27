@@ -2,12 +2,11 @@ package app
 
 import (
 	"context"
-	"strings"
-	"testing"
-
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 	"github.com/danielhanold/docket/internal/workspace"
+	"strings"
+	"testing"
 )
 
 // This file drives `change halt`, `change resume-halted`, the run-verify
@@ -116,67 +115,6 @@ func TestResumeQuiescenceMapping(t *testing.T) {
 }
 
 // --- resume: reprobe then recover (real git) -------------------------------
-
-// TestChangeResumeHalted proves the full recovery: a live-writer reprobe refuses
-// and leaves the marker; a version drift is contended; a quiescent reprobe
-// refreshes the claim, removes exactly the marker section, and preserves every
-// other byte.
-func TestChangeResumeHalted(t *testing.T) {
-	for _, m := range planRepoModes() {
-		t.Run(m.name, func(t *testing.T) {
-			// A live writer (allocating workspace) refuses; the marker stays.
-			t.Run("live-writer-refuses", func(t *testing.T) {
-				f := setupHaltedFixture(t, m)
-				got := ChangeResumeHalted(context.Background(), f.deps,
-					WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateResumable, head: f.head}}, f.repo.invocation,
-					ResumeRequest{ID: f.id, Version: f.version, AcknowledgeQuiescent: true})
-				if got.Reason != ReasonResumeWorkspaceActive {
-					t.Fatalf("reason=%q, want %q", got.Reason, ReasonResumeWorkspaceActive)
-				}
-				rec, _ := originFile(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
-				if !strings.Contains(rec, "## Run halted") {
-					t.Errorf("marker removed on a refused resume:\n%s", rec)
-				}
-			})
-
-			// A version drift is a lost race: contended, marker retained.
-			t.Run("version-drift-contended", func(t *testing.T) {
-				f := setupHaltedFixture(t, m)
-				got := ChangeResumeHalted(context.Background(), f.deps,
-					WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateReady, head: f.head}}, f.repo.invocation,
-					ResumeRequest{ID: f.id, Version: strings.Repeat("b", 40), AcknowledgeQuiescent: true})
-				if got.Result != ResultContended {
-					t.Fatalf("result=%q disp=%q, want contended", got.Result, got.Disposition)
-				}
-			})
-
-			// A quiescent reprobe recovers: claim refreshed, marker removed, other
-			// bytes preserved.
-			t.Run("quiescent-resumes", func(t *testing.T) {
-				f := setupHaltedFixture(t, m)
-				got := ChangeResumeHalted(context.Background(), f.deps,
-					WorkspaceDeps{Service: fakeResumeWorkspace{kind: workspace.StateReady, head: f.head}}, f.repo.invocation,
-					ResumeRequest{ID: f.id, Version: f.version, AcknowledgeQuiescent: true})
-				if got.Result != ResultApplied || got.Disposition != HaltDispResumed {
-					t.Fatalf("result=%q disp=%q reason=%q", got.Result, got.Disposition, got.Reason)
-				}
-				rec, _ := originFile(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
-				if strings.Contains(rec, "## Run halted") {
-					t.Errorf("marker not removed on resume:\n%s", rec)
-				}
-				if !strings.Contains(rec, "claimed_at: '2026-08-16T12:00:00Z'") {
-					t.Errorf("claim lease not refreshed:\n%s", rec)
-				}
-				// Preserved: branch and the authored ## Why section byte-identical.
-				for _, want := range []string{"branch: feat/widget", "## Why\n\nOriginal why."} {
-					if !strings.Contains(rec, want) {
-						t.Errorf("resume altered a preserved byte; missing %q:\n%s", want, rec)
-					}
-				}
-			})
-		})
-	}
-}
 
 // setupHaltedFixture builds a coherent in-progress feature workspace whose record
 // carries a durable "## Run halted" section — the state resume-halted recovers.

@@ -2,11 +2,10 @@ package app
 
 import (
 	"context"
-	"strings"
-	"testing"
-
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository/transaction"
+	"strings"
+	"testing"
 )
 
 // reconcilableChange renders an in-progress change freshly claimed but not yet
@@ -199,50 +198,6 @@ func TestChangeReconcileRequiresLogEntry(t *testing.T) {
 
 // --- TestChangeReconcileContention -----------------------------------------
 
-// TestChangeReconcileContention proves both contention paths write nothing: a
-// stale version is the engine's CAS contention; a status that is no longer
-// in-progress is an incompatible fresh state the plan closure refuses and the
-// result maps to contended (never a text-merge).
-func TestChangeReconcileContention(t *testing.T) {
-	t.Run("stale version at the engine", func(t *testing.T) {
-		repoDir := newMainModeRepo(t, nil).invocation
-		engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
-		reader := &fakeReader{pin: mainModePin([]string{"inline"}), corpus: []StatusBlob{changeBlob(3, "widget", "feat", "high", "")}}
-		deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
-
-		res := ChangeReconcile(context.Background(), deps, repoDir, validReconcileRequest())
-		if res.Result != ResultContended || res.Disposition != ReconcileDispositionContended {
-			t.Fatalf("result=%q disposition=%q, want contended/contended", res.Result, res.Disposition)
-		}
-	})
-
-	t.Run("no longer in-progress refuses at the plan and maps contended", func(t *testing.T) {
-		// The plan closure refuses a proposed record with the incompatible-state
-		// reason.
-		recPath := groomPath(3, "widget")
-		files := map[string]string{recPath: claimableChange(3, "widget")} // proposed
-		plan, opRes := reconcilePlanFor(t, files, baseReconcileOp(nil, validReconcileRequest()))
-		if !opRes.Refused {
-			t.Fatalf("reconcile of a proposed change must refuse")
-		}
-		if !hasDomainFindingCode(opRes.Findings, reasonReconcileNotInProgress) {
-			t.Errorf("missing %q; got %v", reasonReconcileNotInProgress, opRes.Findings)
-		}
-		if len(plan.Files) != 0 {
-			t.Errorf("a refusal planned %d files, want 0", len(plan.Files))
-		}
-
-		// The result mapping folds that reason onto contended.
-		mapped := changeReconcileResultFromOutcome(transaction.Result{
-			Disposition: transaction.DispositionRefused,
-			Findings:    opRes.Findings,
-		}, nil)
-		if mapped.Result != ResultContended || mapped.Disposition != ReconcileDispositionContended {
-			t.Errorf("mapped result=%q disposition=%q, want contended/contended", mapped.Result, mapped.Disposition)
-		}
-	})
-}
-
 // --- TestChangeReconcileGuardsRedden ---------------------------------------
 
 // TestChangeReconcileGuardsRedden is the mutation-style guard table (spec
@@ -367,56 +322,6 @@ func TestChangeReconcileSpecSectionRequiresLinkedSpec(t *testing.T) {
 }
 
 // --- app seam (engine reached) ---------------------------------------------
-
-// TestChangeReconcileAppliedResult proves the app layer submits the exact
-// expected version and metadata target ref, carries NO idempotency key (a
-// non-allocating edit of an existing record), and decodes the applied receipt.
-func TestChangeReconcileAppliedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
-	receipt := mustMarshal(t, changeReconcileReceipt{ID: 3, Op: OperationChangeReconcile})
-	engine := &recordingEngine{result: transaction.Result{
-		Disposition:   transaction.DispositionApplied,
-		AppliedCommit: "cafebabecafebabecafebabecafebabecafebabe",
-		Receipt:       receipt,
-	}}
-	reader := &fakeReader{pin: mainModePin([]string{"inline"}), corpus: []StatusBlob{changeBlob(3, "widget", "feat", "high", "")}}
-	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
-
-	res := ChangeReconcile(context.Background(), deps, repoDir, validReconcileRequest())
-	if res.Result != ResultApplied {
-		t.Fatalf("result = %q, want applied (findings %v)", res.Result, res.Findings)
-	}
-	if res.ID != 3 || res.Disposition != ReconcileDispositionApplied {
-		t.Errorf("identity/disposition = (%d, %q)", res.ID, res.Disposition)
-	}
-	if res.Revision != "cafebabecafebabecafebabecafebabecafebabe" {
-		t.Errorf("revision = %q", res.Revision)
-	}
-
-	if len(engine.calls) != 1 {
-		t.Fatalf("engine calls = %d, want 1", len(engine.calls))
-	}
-	req := engine.calls[0]
-	if req.Operation.Key() != OperationChangeReconcile {
-		t.Errorf("operation key = %q", req.Operation.Key())
-	}
-	if req.TargetRef != "refs/heads/main" {
-		t.Errorf("target ref = %q, want refs/heads/main", req.TargetRef)
-	}
-	if req.Idempotency != nil {
-		t.Errorf("reconcile is non-allocating; it must carry no idempotency key, got %+v", req.Idempotency)
-	}
-	if len(req.Expected) != 1 {
-		t.Fatalf("expected %d entity expectations, want 1", len(req.Expected))
-	}
-	exp := req.Expected[0]
-	if string(exp.Path) != groomPath(3, "widget") {
-		t.Errorf("expectation path = %q", exp.Path)
-	}
-	if exp.Version.Kind != transaction.VersionBlob || string(exp.Version.ObjectID) != blobV {
-		t.Errorf("expectation version = %+v, want the request's exact version", exp.Version)
-	}
-}
 
 // TestChangeReconcileRejectsBadShapeWithoutEngineCall covers the pinned-entity
 // request checks.

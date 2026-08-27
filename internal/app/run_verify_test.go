@@ -2,17 +2,15 @@ package app
 
 import (
 	"context"
-	"errors"
-	"sort"
-	"strings"
-	"testing"
-
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/workspace"
+	"sort"
+	"strings"
+	"testing"
 )
 
 // run verify is the read-only postcondition report for the claim→implemented
@@ -133,74 +131,6 @@ func rvProposedDeps(t *testing.T) PlanningDeps {
 // 0344's writer now stamps. Its host/owner/name mirror prRepo().
 func rvRecordedPRURL() string { return "https://github.com/acme/widget/pull/42" }
 
-// TestRunVerifyPRIdentityForms is the mutation test for the migrated PR-identity
-// conjunct: run verify accepts a recorded pr: in EITHER form (canonical URL or
-// legacy owner/repo#N shorthand) when its parsed number equals the verified PR's
-// number, and flags pr-unverified when the number differs or the recorded value
-// is unparseable. The verified PR is number 42 (rvPR).
-func TestRunVerifyPRIdentityForms(t *testing.T) {
-	f := newRunVerifyFixture(t, true)
-	ev := string(prEvidenceBytes(t, f.head))
-
-	cases := []struct {
-		name       string
-		recorded   string
-		wantVerify bool
-	}{
-		{"url form matches", rvRecordedPRURL(), true},
-		{"shorthand form matches", rvRecordedPR(), true},
-		{"url form wrong number", "https://github.com/acme/widget/pull/99", false},
-		{"shorthand wrong number", prRepo().Spec() + "#99", false},
-		{"unparseable recorded pr", "not-a-pr-ref", false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			deps, wdeps, gdeps := f.deps(
-				rvRecord(rvPlanPath, rvResultsPath, tc.recorded, "feat/"+rvSlug),
-				rvPR(f.head, ev),
-			)
-			res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
-			reasons := unmetReasons(res)
-			hasPRUnverified := false
-			for _, r := range reasons {
-				if r == ReasonRunPRUnverified {
-					hasPRUnverified = true
-				}
-			}
-			if tc.wantVerify {
-				if res.Verdict != VerdictRunComplete {
-					t.Fatalf("recorded %q: verdict = %q, want run-complete (unmet %v)", tc.recorded, res.Verdict, reasons)
-				}
-			} else if !hasPRUnverified {
-				t.Fatalf("recorded %q: expected a pr-unverified conjunct, got unmet %v (verdict %q)", tc.recorded, reasons, res.Verdict)
-			}
-		})
-	}
-}
-
-// TestRunVerifyComplete: an implemented change satisfying every postcondition ⇒
-// run-complete with no unmet conjuncts.
-func TestRunVerifyComplete(t *testing.T) {
-	f := newRunVerifyFixture(t, true)
-	deps, wdeps, gdeps := f.deps(
-		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
-	)
-	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
-	if res.Verdict != VerdictRunComplete {
-		t.Fatalf("verdict = %q, want %q (unmet %v)", res.Verdict, VerdictRunComplete, unmetReasons(res))
-	}
-	if len(res.Unmet) != 0 {
-		t.Errorf("run-complete carried unmet conjuncts: %v", unmetReasons(res))
-	}
-	if res.Head != f.head {
-		t.Errorf("head = %q, want %q", res.Head, f.head)
-	}
-	if code := ExitCode(res.Env().Result); code != 0 {
-		t.Errorf("run-complete exit code = %d, want 0", code)
-	}
-}
-
 // TestRunVerifyUnclaimed: a proposed change that was never claimed ⇒
 // run-unclaimed, reached before any Git or GitHub probe.
 func TestRunVerifyUnclaimed(t *testing.T) {
@@ -213,116 +143,6 @@ func TestRunVerifyUnclaimed(t *testing.T) {
 	}
 	if code := ExitCode(res.Env().Result); code != 0 {
 		t.Errorf("run-unclaimed exit code = %d, want 0", code)
-	}
-}
-
-// TestRunVerifyIncompleteEnumeratesConjuncts is the spec's own testing rule: each
-// row mutates or removes exactly one promised postcondition and expects
-// run-incomplete carrying that conjunct's stable reason — asserted as the FULL
-// unmet list, not merely non-empty. The happy fixture (TestRunVerifyComplete)
-// satisfies all of them.
-func TestRunVerifyIncompleteEnumeratesConjuncts(t *testing.T) {
-	pub := newRunVerifyFixture(t, true)
-	ev := string(prEvidenceBytes(t, pub.head))
-	recordedPR := rvRecordedPR()
-	ghostPlan := "docs/superpowers/plans/2026-08-17-ghost.md"
-	ghostResults := "docs/changes/results/0003-ghost.md"
-
-	rows := []struct {
-		name   string
-		record []byte
-		pr     githubcli.PullRequest
-		want   string
-	}{
-		{
-			name:   "missing plan link",
-			record: rvRecord("", rvResultsPath, recordedPR, "feat/"+rvSlug),
-			pr:     rvPR(pub.head, ev),
-			want:   ReasonRunPlanUnlinked,
-		},
-		{
-			name:   "plan file gone at recorded path",
-			record: rvRecord(ghostPlan, rvResultsPath, recordedPR, "feat/"+rvSlug),
-			pr:     rvPR(pub.head, ev),
-			want:   ReasonRunPlanMissing,
-		},
-		{
-			name:   "stale evidence names another head",
-			record: rvRecord(rvPlanPath, rvResultsPath, recordedPR, "feat/"+rvSlug),
-			pr:     rvPR(pub.head, string(prEvidenceBytes(t, prOtherHead))),
-			want:   ReasonRunEvidenceUnverified,
-		},
-		{
-			name:   "PR names another head",
-			record: rvRecord(rvPlanPath, rvResultsPath, recordedPR, "feat/"+rvSlug),
-			pr:     rvPR(prOtherHead, ev),
-			want:   ReasonRunPRUnverified,
-		},
-		{
-			name:   "results identity broken",
-			record: rvRecord(rvPlanPath, ghostResults, recordedPR, "feat/"+rvSlug),
-			pr:     rvPR(pub.head, ev),
-			want:   ReasonRunResultsIdentity,
-		},
-		{
-			// The recorded branch is honored end-to-end: run verify inspects and
-			// probes feat/other (the record's branch), never a reconstructed
-			// feat/<slug>. Since only feat/<slug> was published, the recorded
-			// branch's remote head is absent — caught as remote-head-mismatch. Were
-			// the branch reconstructed from the slug, the remote probe would find the
-			// published head and this conjunct would wrongly pass.
-			name:   "recorded branch honored — its remote head is absent",
-			record: rvRecord(rvPlanPath, rvResultsPath, recordedPR, "feat/other"),
-			pr:     rvPR(pub.head, ev),
-			want:   ReasonRunRemoteHeadMismatch,
-		},
-	}
-
-	for _, row := range rows {
-		t.Run(row.name, func(t *testing.T) {
-			deps, wdeps, gdeps := pub.deps(row.record, row.pr)
-			res := RunVerify(context.Background(), deps, wdeps, gdeps, pub.repo.invocation, RunVerifyRequest{ID: 3})
-			if res.Verdict != VerdictRunIncomplete {
-				t.Fatalf("verdict = %q, want %q (unmet %v)", res.Verdict, VerdictRunIncomplete, unmetReasons(res))
-			}
-			if got := unmetReasons(res); len(got) != 1 || got[0] != row.want {
-				t.Fatalf("unmet = %v, want exactly [%s]", got, row.want)
-			}
-			if code := ExitCode(res.Env().Result); code != 0 {
-				t.Errorf("run-incomplete exit code = %d, want 0", code)
-			}
-		})
-	}
-
-	// The remote-head postcondition needs an unpublished feature head: the local
-	// head exists but the remote never received it, so the remote is absent.
-	t.Run("feature head differs from remote", func(t *testing.T) {
-		unpub := newRunVerifyFixture(t, false)
-		deps, wdeps, gdeps := unpub.deps(
-			rvRecord(rvPlanPath, rvResultsPath, recordedPR, "feat/"+rvSlug),
-			rvPR(unpub.head, string(prEvidenceBytes(t, unpub.head))),
-		)
-		res := RunVerify(context.Background(), deps, wdeps, gdeps, unpub.repo.invocation, RunVerifyRequest{ID: 3})
-		if res.Verdict != VerdictRunIncomplete {
-			t.Fatalf("verdict = %q, want %q (unmet %v)", res.Verdict, VerdictRunIncomplete, unmetReasons(res))
-		}
-		if got := unmetReasons(res); len(got) != 1 || got[0] != ReasonRunRemoteHeadMismatch {
-			t.Fatalf("unmet = %v, want exactly [%s]", got, ReasonRunRemoteHeadMismatch)
-		}
-	})
-}
-
-// TestRunVerifyOperationalError: an absent id is an operational error, not a
-// verdict — it carries no verdict and exits non-zero.
-func TestRunVerifyOperationalError(t *testing.T) {
-	f := newRunVerifyFixture(t, true)
-	deps, wdeps, gdeps := f.deps(rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug), rvPR(f.head, string(prEvidenceBytes(t, f.head))))
-	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 999})
-	if res.Verdict != "" {
-		t.Errorf("operational error carried a verdict %q", res.Verdict)
-	}
-	if code := ExitCode(res.Env().Result); code == 0 {
-		t.Errorf("operational error exit code = 0, want non-zero (result %q)", res.Env().Result)
 	}
 }
 
@@ -392,110 +212,6 @@ func rvWaitingDeps(t *testing.T, f *rvFixture, reader WaitingReceiptReader) (Pla
 	)
 	wdeps.Waiting = reader
 	return deps, wdeps, gdeps
-}
-
-// TestRunVerifyWaitingAgreeingChain: a fully-agreeing local receipt chain over an
-// in-progress change yields run-waiting, exposing the opaque handoff id and phase
-// (never an owner credential), as a success-shaped, exit-0 verdict.
-func TestRunVerifyWaitingAgreeingChain(t *testing.T) {
-	f := newRunVerifyFixture(t, true)
-	reader := fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true}
-	deps, wdeps, gdeps := rvWaitingDeps(t, f, reader)
-
-	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
-	if res.Verdict != VerdictRunWaiting {
-		t.Fatalf("verdict = %q, want %q (unmet %v)", res.Verdict, VerdictRunWaiting, unmetReasons(res))
-	}
-	if res.HandoffID != "d0opaque" {
-		t.Errorf("handoff id = %q, want %q", res.HandoffID, "d0opaque")
-	}
-	if res.Phase != "build" {
-		t.Errorf("phase = %q, want %q", res.Phase, "build")
-	}
-	if len(res.Unmet) != 0 {
-		t.Errorf("run-waiting carried unmet conjuncts: %v", unmetReasons(res))
-	}
-	if code := ExitCode(res.Env().Result); code != 0 {
-		t.Errorf("run-waiting exit code = %d, want 0", code)
-	}
-}
-
-// TestRunVerifyWaitingTerminalOverridesDeadline: an expired deadline still yields
-// run-waiting WHEN a durable terminal result is waiting to be consumed — the one
-// admitted exception to the live-deadline condition.
-func TestRunVerifyWaitingTerminalOverridesDeadline(t *testing.T) {
-	f := newRunVerifyFixture(t, true)
-	rcpt := rvAgreeingReceipt(f.head)
-	rcpt.DeadlineLive = false
-	rcpt.TerminalWaiting = true
-	deps, wdeps, gdeps := rvWaitingDeps(t, f, fakeWaitingReader{receipt: rcpt, found: true})
-
-	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
-	if res.Verdict != VerdictRunWaiting {
-		t.Fatalf("verdict = %q, want %q", res.Verdict, VerdictRunWaiting)
-	}
-}
-
-// TestRunVerifyWaitingMutationsDisappear is the spec's mutation rule: flip exactly
-// one receipt dimension of the agreeing chain and prove waiting disappears —
-// falling through to the ordinary run-incomplete verdict. A found=false / errored
-// reader (missing local state, e.g. another machine) also never invents waiting.
-func TestRunVerifyWaitingMutationsDisappear(t *testing.T) {
-	f := newRunVerifyFixture(t, true)
-	base := rvAgreeingReceipt(f.head)
-
-	rows := []struct {
-		name    string
-		mutate  func(*WaitingReceipt)
-		found   bool
-		readErr error
-	}{
-		{name: "head drift (drive vs workspace)", mutate: func(r *WaitingReceipt) { r.DriveHead = "0000000000000000000000000000000000000000" }, found: true},
-		{name: "head drift (live vs drive)", mutate: func(r *WaitingReceipt) { r.LiveFingerprint.Head = "0000000000000000000000000000000000000000" }, found: true},
-		{name: "fingerprint drift", mutate: func(r *WaitingReceipt) { r.LiveFingerprint.Worktree = "drifted" }, found: true},
-		{name: "claimed handoff", mutate: func(r *WaitingReceipt) { r.HasUnclaimedHandoff = false }, found: true},
-		{name: "expired deadline without terminal", mutate: func(r *WaitingReceipt) { r.DeadlineLive = false; r.TerminalWaiting = false }, found: true},
-		{name: "mismatched raw run", mutate: func(r *WaitingReceipt) { r.RawRunMatches = false }, found: true},
-		{name: "broken chain: change id mismatch", mutate: func(r *WaitingReceipt) { r.ChangeID = "99" }, found: true},
-		{name: "broken chain: empty drive id", mutate: func(r *WaitingReceipt) { r.DriveID = "" }, found: true},
-		{name: "broken chain: empty phase", mutate: func(r *WaitingReceipt) { r.Phase = "" }, found: true},
-		{name: "worktree missing", mutate: func(r *WaitingReceipt) { r.WorktreeExists = false }, found: true},
-		{name: "recorded branch mismatch", mutate: func(r *WaitingReceipt) { r.Branch = "feat/other" }, found: true},
-		{name: "missing local state (not found)", mutate: func(r *WaitingReceipt) {}, found: false},
-		{name: "reader error", mutate: func(r *WaitingReceipt) {}, found: true, readErr: errors.New("store unreadable")},
-	}
-
-	for _, row := range rows {
-		t.Run(row.name, func(t *testing.T) {
-			rcpt := base
-			row.mutate(&rcpt)
-			deps, wdeps, gdeps := rvWaitingDeps(t, f, fakeWaitingReader{receipt: rcpt, found: row.found, err: row.readErr})
-			res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
-			if res.Verdict == VerdictRunWaiting {
-				t.Fatalf("mutation %q still reported run-waiting", row.name)
-			}
-			if res.Verdict != VerdictRunIncomplete {
-				t.Fatalf("mutation %q verdict = %q, want %q", row.name, res.Verdict, VerdictRunIncomplete)
-			}
-		})
-	}
-}
-
-// TestRunVerifyCompletePrecedesStaleHandoff: when every completed-run
-// postcondition holds, run-complete wins even though a fully-agreeing local
-// handoff receipt is present.
-func TestRunVerifyCompletePrecedesStaleHandoff(t *testing.T) {
-	f := newRunVerifyFixture(t, true)
-	deps, wdeps, gdeps := f.deps(
-		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
-		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
-	)
-	wdeps.Waiting = fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true}
-
-	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
-	if res.Verdict != VerdictRunComplete {
-		t.Fatalf("verdict = %q, want %q (a completed run must outrank a stale handoff)", res.Verdict, VerdictRunComplete)
-	}
 }
 
 // TestRunVerifyHaltedPrecedesHandoff: a durable persisted run-halt stays terminal

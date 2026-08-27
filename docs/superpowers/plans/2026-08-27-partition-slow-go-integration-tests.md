@@ -353,9 +353,9 @@ git commit -m "test(0333): partition internal/githubcli behind the integration t
 - Consumes: Task 2's runner protocol; Tasks 3–4's pattern.
 - Produces: tagged app corpus, runners, rows; after this task ordinary `go test ./internal/app/` must finish comfortably inside Go's default 10m deadline with real margin.
 
-- [ ] **Step 1: Classify by the file-name seams first, then verify per test.** The `*_git_test.go` files (`change_attach_git_test.go`, `claim_workflow_git_test.go`, `finalize_git_test.go`, `link_context_git_test.go`, `planning_git_test.go`, `status_git_test.go`, `workspace_ops_git_test.go`), `workflow_e2e_test.go` (an untagged file today despite its name), and the finalize merge/rebase/publish/cleanup/retarget families are the expected movers; pure-fake orchestration files (`config_test.go`, `result_test.go`, `version_test.go`, the `rungate_*` in-process tests, etc.) are expected stayers — but the classification criterion and Task 1's timings decide, not the file name. Mixed files split. Every scenario keeps its assertions byte-identical.
-- [ ] **Step 2: Move, tag, rename; relocate shared real-repo helpers** into tagged helper files where only tagged tests consume them. Prove helper placement by compiling both tag states — a default-tag compile failure means a helper moved that an untagged test still needs; relocate the helper back or split it, never tag the fast test.
-- [ ] **Step 3: Verify both tag states, and time the fast corpus**
+- [x] **Step 1: Classify by the file-name seams first, then verify per test.** The `*_git_test.go` files (`change_attach_git_test.go`, `claim_workflow_git_test.go`, `finalize_git_test.go`, `link_context_git_test.go`, `planning_git_test.go`, `status_git_test.go`, `workspace_ops_git_test.go`), `workflow_e2e_test.go` (an untagged file today despite its name), and the finalize merge/rebase/publish/cleanup/retarget families are the expected movers; pure-fake orchestration files (`config_test.go`, `result_test.go`, `version_test.go`, the `rungate_*` in-process tests, etc.) are expected stayers — but the classification criterion and Task 1's timings decide, not the file name. Mixed files split. Every scenario keeps its assertions byte-identical.
+- [x] **Step 2: Move, tag, rename; relocate shared real-repo helpers** into tagged helper files where only tagged tests consume them. Prove helper placement by compiling both tag states — a default-tag compile failure means a helper moved that an untagged test still needs; relocate the helper back or split it, never tag the fast test.
+- [x] **Step 3: Verify both tag states, and time the fast corpus**
 
 ```bash
 go vet ./internal/app/ && go vet -tags integration ./internal/app/
@@ -364,8 +364,8 @@ go test -tags integration -count=1 -timeout 30m ./internal/app/
 gofmt -l internal/app/
 ```
 
-- [ ] **Step 4: Measure, cut, write runners** — Task 3 Step 4's procedure and template with `SHARD_PKG="./internal/app"`. Expect several shards (~190s of integration cost against a 45–50s target ⇒ roughly four to five normal shards, measurement decides). Race shards only for audited concurrency-bearing tests, each with its adjacent rationale comment.
-- [ ] **Step 5: Rows + total, budget guard, all shards standalone, commit**
+- [x] **Step 4: Measure, cut, write runners** — Task 3 Step 4's procedure and template with `SHARD_PKG="./internal/app"`. Expect several shards (~190s of integration cost against a 45–50s target ⇒ roughly four to five normal shards, measurement decides). Race shards only for audited concurrency-bearing tests, each with its adjacent rationale comment.
+- [x] **Step 5: Rows + total, budget guard, all shards standalone, commit**
 
 ```bash
 bash tests/test_runtime_budgets.sh

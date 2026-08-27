@@ -2,12 +2,11 @@ package app
 
 import (
 	"context"
-	"strings"
-	"testing"
-
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/repository/transaction"
+	"strings"
+	"testing"
 )
 
 // This file drives `finalize block` and `finalize clear-block`. The transaction
@@ -182,142 +181,7 @@ func TestFinalizeBlockIdempotentAttempt(t *testing.T) {
 
 // --- entrypoint: comment first, then marker --------------------------------
 
-// TestFinalizeBlockCommentThenMarker proves the comment-first-then-marker
-// discipline over a REAL metadata transaction: a created (or crash-replayed
-// already) comment is followed by the marker landing on origin with the attempt
-// and comment URL; an unknown comment probe writes NO marker and lands no commit.
-func TestFinalizeBlockCommentThenMarker(t *testing.T) {
-	for _, m := range planRepoModes() {
-		t.Run(m.name, func(t *testing.T) {
-			t.Run("created-writes-marker", func(t *testing.T) {
-				f := setupRebaseFixtureStatus(t, m, "in-progress")
-				gh := &fakeBlockGitHub{repo: retargetRepo(), commentOutcome: githubcli.CommentCreated, commentURL: "https://example.test/c/9"}
-				req := BlockRequest{ID: f.id, Version: f.version, PRNumber: 7, Attempt: "att1",
-					Reason: "gate-repair-required", Head: f.head, Report: "The gate failed.\n", Remedy: "Fix and retry.\n"}
-				got := FinalizeBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation, req)
-				if got.Result != ResultApplied || got.Disposition != BlockDispRecorded {
-					t.Fatalf("result=%q disp=%q reason=%q", got.Result, got.Disposition, got.Reason)
-				}
-				if gh.ensureCalls != 1 {
-					t.Fatalf("EnsureComment calls = %d, want 1", gh.ensureCalls)
-				}
-				if !strings.HasPrefix(gh.lastBody, gh.lastMarker) {
-					t.Errorf("comment body must begin with the owned marker: %q", gh.lastBody)
-				}
-				rec, ok := originFile(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
-				if !ok {
-					t.Fatal("record vanished from origin")
-				}
-				for _, want := range []string{"## Finalize blocked", "<!-- attempt:att1 -->", "https://example.test/c/9"} {
-					if !strings.Contains(rec, want) {
-						t.Errorf("origin record missing %q:\n%s", want, rec)
-					}
-				}
-			})
-
-			t.Run("already-comment-replays-marker", func(t *testing.T) {
-				f := setupRebaseFixtureStatus(t, m, "in-progress")
-				gh := &fakeBlockGitHub{repo: retargetRepo(), commentOutcome: githubcli.CommentAlready, commentURL: "https://example.test/c/9"}
-				req := BlockRequest{ID: f.id, Version: f.version, PRNumber: 7, Attempt: "att1",
-					Reason: "gate-repair-required", Head: f.head, Report: "The gate failed.\n", Remedy: "Fix.\n"}
-				got := FinalizeBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation, req)
-				if got.Result != ResultApplied || got.Disposition != BlockDispRecorded {
-					t.Fatalf("crash replay after comment must finish the marker: result=%q disp=%q", got.Result, got.Disposition)
-				}
-				rec, _ := originFile(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
-				if !strings.Contains(rec, "## Finalize blocked") {
-					t.Errorf("marker not written on replay:\n%s", rec)
-				}
-			})
-
-			t.Run("unknown-comment-writes-no-marker", func(t *testing.T) {
-				f := setupRebaseFixtureStatus(t, m, "in-progress")
-				before := originTip(t, f.repo.origin, f.branch)
-				gh := &fakeBlockGitHub{repo: retargetRepo(), commentOutcome: githubcli.CommentUnknown}
-				req := BlockRequest{ID: f.id, Version: f.version, PRNumber: 7, Attempt: "att1",
-					Reason: "gate-repair-required", Head: f.head, Report: "The gate failed.\n", Remedy: "Fix.\n"}
-				got := FinalizeBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation, req)
-				if got.Disposition != BlockDispUnknown || got.Reason != ReasonBlockCommentUnknown {
-					t.Fatalf("unknown comment: disp=%q reason=%q, want unknown/%s", got.Disposition, got.Reason, ReasonBlockCommentUnknown)
-				}
-				if after := originTip(t, f.repo.origin, f.branch); after != before {
-					t.Fatalf("an unknown comment probe committed a marker: tip moved %s -> %s", before, after)
-				}
-				rec, _ := originFile(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
-				if strings.Contains(rec, "## Finalize blocked") {
-					t.Errorf("a marker was written despite an unknown comment probe:\n%s", rec)
-				}
-			})
-		})
-	}
-}
-
 // --- entrypoint: clear-block reprobe ---------------------------------------
-
-// TestFinalizeClearBlockReprobes proves clear-block requires an exact current
-// head, a published remote ref at that head, a matching open PR, and green body
-// evidence (gate on) before removing the marker; each missing conjunct refuses
-// and leaves the marker, and the full-conjunct case removes it.
-func TestFinalizeClearBlockReprobes(t *testing.T) {
-	for _, m := range planRepoModes() {
-		t.Run(m.name, func(t *testing.T) {
-			// Full-conjunct success removes the marker.
-			t.Run("all-hold-clears", func(t *testing.T) {
-				f := setupBlockedFixture(t, m)
-				gh := &fakeBlockGitHub{repo: retargetRepo(),
-					openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, greenEvidenceFor(t, f.head))}}}
-				got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
-					ClearBlockRequest{ID: f.id, Version: f.version, Head: f.head, PRNumber: 1})
-				if got.Result != ResultApplied || got.Disposition != BlockDispCleared {
-					t.Fatalf("result=%q disp=%q reason=%q", got.Result, got.Disposition, got.Reason)
-				}
-				rec, _ := originFile(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
-				if strings.Contains(rec, "## Finalize blocked") {
-					t.Errorf("marker not removed:\n%s", rec)
-				}
-			})
-
-			// Wrong expected head: refuse, marker stays.
-			t.Run("head-mismatch-refuses", func(t *testing.T) {
-				f := setupBlockedFixture(t, m)
-				gh := &fakeBlockGitHub{repo: retargetRepo(),
-					openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, greenEvidenceFor(t, f.head))}}}
-				got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
-					ClearBlockRequest{ID: f.id, Version: f.version, Head: strings.Repeat("b", 40), PRNumber: 1})
-				if got.Reason != ReasonClearHeadMismatch {
-					t.Fatalf("reason=%q, want %q", got.Reason, ReasonClearHeadMismatch)
-				}
-				rec, _ := originFile(t, f.repo.origin, f.branch, groomPath(f.id, f.slug))
-				if !strings.Contains(rec, "## Finalize blocked") {
-					t.Errorf("marker was removed on a refused clear:\n%s", rec)
-				}
-			})
-
-			// No matching open PR: refuse.
-			t.Run("no-open-pr-refuses", func(t *testing.T) {
-				f := setupBlockedFixture(t, m)
-				gh := &fakeBlockGitHub{repo: retargetRepo(), openByHead: map[string][]githubcli.PullRequest{}}
-				got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
-					ClearBlockRequest{ID: f.id, Version: f.version, Head: f.head, PRNumber: 1})
-				if got.Reason != ReasonClearPRNotOpen {
-					t.Fatalf("reason=%q, want %q", got.Reason, ReasonClearPRNotOpen)
-				}
-			})
-
-			// Stale (non-green-for-head) evidence with the gate on: refuse.
-			t.Run("stale-evidence-refuses", func(t *testing.T) {
-				f := setupBlockedFixture(t, m)
-				gh := &fakeBlockGitHub{repo: retargetRepo(),
-					openByHead: map[string][]githubcli.PullRequest{"feat/" + f.slug: {f.prForHead(f.head, "")}}}
-				got := FinalizeClearBlock(context.Background(), FinalizeDeps{Planning: f.deps, GitHub: gh, Workspace: f.svc}, f.repo.invocation,
-					ClearBlockRequest{ID: f.id, Version: f.version, Head: f.head, PRNumber: 1})
-				if got.Reason != ReasonClearEvidenceUnverified {
-					t.Fatalf("reason=%q, want %q", got.Reason, ReasonClearEvidenceUnverified)
-				}
-			})
-		})
-	}
-}
 
 // setupBlockedFixture builds a published feature workspace whose record carries a
 // durable "## Finalize blocked" section — the state clear-block reprobes.
