@@ -1,18 +1,18 @@
 ---
 id: 333
 slug: partition-internal-app-to-retire-the-race-gate-s-300s-ceilin
-title: 'Partition internal/app to retire the -race gate''s 300s ceiling exemption'
+title: 'Partition slow Go integration tests and retire the race gate''s 300s ceiling exemption'
 status: proposed
-priority: medium
+priority: high
 type: refactor
 created: 2026-08-20
-updated: 2026-08-20
+updated: 2026-08-27
 depends_on: []
 stacked_on:
-related: [251, 273, 280]
+related: [251, 273, 280, 357]
 discovered_from: [332]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-27-partition-slow-go-integration-tests-design.md
 plan:
 results:
 trivial: false
@@ -26,50 +26,57 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-27-partition-slow-go-integration-tests-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-27-partition-slow-go-integration-tests-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-**Trigger** — surfaced while re-scoping change 0332 (route the `-race` shards out of the parallel
-pool). 0332 collapsed the four `-race` shards into one serial `go test -race ./...` gate and gave it
-a **temporary 300s exemption** to `tests/test_runtime_budgets.sh`'s hard 60s ceiling, because
-measurement showed the main shard cannot meet 60s by any lane or `go list` shard. That exemption is a
-known hole in a deliberate relief counter; this change closes it properly.
+Change 0332 collapsed the race shards into one serial `go test -race ./...` gate and granted it a
+temporary 300-second exception to the test budget's hard 60-second row ceiling. The dominant cost
+was real-Git and subprocess integration work inside `internal/app`, not race instrumentation, so
+the default Go gate and race gate paid substantially the same slow package twice.
 
-**What measurement found (2026-08-20, one machine, normal load):**
+The structural problem has since become a build blocker. Change 0357's completed high-priority fix
+cannot clear the full gate because `internal/app` now reaches Go's ten-minute per-package timeout.
+Fresh 2026-08-27 measurements also show the original package boundary is too narrow:
+`internal/githubcli` takes 129.43 seconds under `-race`, and `internal/gitcli` takes 91.23 seconds.
+Both contain broad tails of real-process protocol tests rather than one removable hotspot.
 
-- The `-race` main shard is **~206s standalone serial**, and it is **essentially one package**:
-  per-package `-race` was `internal/app` ~200s, `internal/githubcli` 83s, `internal/gitcli` 62s, all
-  17 other packages ≤5s. In a single shared-build `./...` invocation the cheap packages overlap under
-  `internal/app`'s long pole, so `internal/app` sets the shard's wall clock.
-- **The race detector is not the cost.** `internal/app` is **190s uninstrumented**, ~200s under
-  `-race` — a ~1.05× multiplier. The 190s is the package's own suite: 47 test files, ~316 tests,
-  finalize/planning integration tests that shell out to real `git` (slowest single test 14s — a long
-  tail, no hot spot). Per-file buckets: finalize cluster ~115s (cleanup 26, git 22, merge 17, rebase
-  16, closeout 15, block 11, publish 8), change/planning/evidence ~70s, everything else ~15s.
-- **`internal/app` is billed twice per suite.** `tests/test_go_toolchain.sh`'s plain `go test ./...`
-  pays the same ~190s as *its* long pole, and the `-race` gate pays it again. ~380s of suite
-  wall-clock rides on this one package.
+This change separates slow integration coverage from the fast default corpus across all three
+packages. It keeps every scenario mandatory, reserves race instrumentation for tests that exercise
+real concurrent behavior, and restores every Go test entry to the ordinary sub-60-second budget
+regime so the 300-second exemption can be deleted.
 
-**The work.** Bring `internal/app`'s race/integration cost under the normal 60s regime so the 300s
-exemption can be removed, and cut the double-payment. The candidate mechanism is the one change 0316
-already used for `internal/app/finalize_e2e_test.go`: partition the heavy integration/e2e tests
-behind a **build tag** into dedicated shard(s), which excludes them from `go test ./...` *and* lets
-them carry `t.Parallel()`. A `-run` partition is the fallback. Whichever is chosen: multiple shards
-each under 60s, `go test ./...` no longer paying the e2e cost, the 300s exemption in
-`tests/test_runtime_budgets.sh` deleted, and `EXPECTED_SERIAL`/`EXPECTED_TOTAL` re-derived.
+## What changes
 
-**Also in scope to decide, not assume:** whether these sequential subprocess integration tests earn
-their place under `-race` at all (the detector's value is on concurrent code — the adapter surfaces
-in `gitcli`/`githubcli`, not the finalize drivers), and whether some belong in a slower lane run
-outside the per-file-budgeted suite entirely.
+Settled design (2026-08-27 interactive grooming; detail in the linked spec):
 
-**Boundary** — this change owns the `internal/app` partition and the exemption removal. It does not
-re-open 0332's collapse (that gate stays as the single serial `./...` entry point until the partition
-lands). Related to 0251 (budget-check regime) and 0273 (host-relative budgets — the principled home
-the 300s exemption should ultimately be subsumed by) and 0280 (shard/re-budget OVER-BUDGET files);
-none of those measured the Go shards, so this is distinct work.
+- Move slow real-Git, GitHub, subprocess, timeout, and end-to-end operation tests in
+  `internal/app`, `internal/githubcli`, and `internal/gitcli` behind one `integration` build tag.
+  Fast fake-backed tests stay visible to ordinary `go test ./...`.
+- Give tagged tests structural feature prefixes and run them through mandatory, feature-based
+  `tests/test_*.sh` shards. Shards run in the existing parallel lane, target 45–50 seconds of
+  standalone wall clock, and keep every budget row at or below 60 seconds.
+- Mark only concurrency-bearing integration tests with the `TestRaceIntegration...` convention;
+  each carries a nearby rationale and runs exactly once in a dedicated race shard. Sequential
+  subprocess drivers run exactly once without `-race`.
+- Add a fail-closed contract that discovers tagged tests and live runner declarations, proves every
+  test belongs to exactly one shard and the correct race mode, proves tagged tests do not leak into
+  the default corpus, and vets the tagged corpus. Mutation-prove missing tag, missing runner,
+  duplicate prefix, and wrong race-mode detection.
+- Keep the existing `e2e`-tagged finalize matrix unchanged. Add `t.Parallel()` inside new shards
+  only where an isolation audit proves the test owns its repositories, environment, and process
+  resources.
+- Return `tests/test_go_race.sh` to the parallel lane over the fast default corpus. Delete the
+  300-second exception and its serial-coupling guards, then re-derive all affected budget rows,
+  `EXPECTED_SERIAL`, and `EXPECTED_TOTAL` from post-partition measurements.
 
-**Reason for deferral from 0332** — 0332 is blocking other tickets and the partition is a materially
-larger change (identifying the tag boundary across ~316 tests, wiring new shard files + budget rows +
-guards, changing what `go test ./...` covers). 0332 takes the exemption now; this change does it right.
+## Out of scope
+
+- Production package or behavior changes, suite-scheduler changes, and Go timeout increases.
+- Host-relative budget work from #0273 and shell-suite sharding from #0280.
+- Reworking the existing finalize E2E gate.
+- Resuming or finalizing #0357; this change removes its structural gate blocker, after which its
+  existing branch can resume separately.
