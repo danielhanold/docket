@@ -57,7 +57,7 @@
 | [0321](active/0321-render-artifact-backlink-sh-eats-artifact-tails-on-marker-sh.md) | render-artifact-backlink.sh eats artifact tails on marker-shaped literals — anchor whole-line, validate balance, refuse | `medium` | `fix` | needs-brainstorm |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | needs-brainstorm |
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
-| [0333](active/0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition internal/app to retire the -race gate's 300s ceiling exemption | `medium` | `refactor` | needs-brainstorm |
+| [0333](active/0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition slow Go integration tests and retire the race gate's 300s ceiling exemption | `high` | `refactor` | build-ready |
 | [0343](active/0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | `medium` | `fix` | needs-brainstorm |
 | [0345](active/0345-slash-command-implement-dispatch-attribution-gap.md) | Slash-command implement dispatch isn't agent-owned — attribution gap forces human-in-the-loop | `high` | `feat` | needs-brainstorm |
 | [0346](active/0346-finalize-rebuilds-binary-from-unpulled-source-tree.md) | Finalize's post-merge binary rebuild runs against an unpulled source tree | `medium` | `fix` | needs-brainstorm |
