@@ -243,4 +243,37 @@ else
   nok "smoke job block missing or no longer runs on \${{ matrix.runner }}"
 fi
 
+# ================================================================================================
+# SECTION J — pull_request path triggers (change 0361). SPELLING LIMIT: extracts the single
+# paths: list in this file by shape (the "paths:" opener, then contiguous "- " item lines) and
+# scans for the quoted item spellings. It proves the file lists the paths, not that GitHub's
+# filter semantics match them. The scripts/** assert is the live companion: it reads a
+# pre-existing entry through the SAME extractor, so a dead extractor reddens it.
+# ================================================================================================
+paths_block="$(awk '
+  /^[[:space:]]+paths:[[:space:]]*$/ {p=1; next}
+  p { if ($0 ~ /^[[:space:]]*-[[:space:]]/) print; else p=0 }
+' "$WF")"
+if [ -n "$paths_block" ]; then
+  ok "pull_request paths: list extracted"
+else
+  nok "no pull_request paths: list found — the trigger asserts below would be vacuous"
+fi
+# Patterns lead with '-' — declare them with -- so grep does not parse them as options.
+if grep -qF -- "- 'scripts/**'" <<<"$paths_block"; then
+  ok "paths list still triggers on scripts/** (live companion through the same extractor)"
+else
+  nok "paths list lost its scripts/** entry (or the extractor went dead)"
+fi
+if grep -qF -- "- 'tests/**'" <<<"$paths_block"; then
+  ok "a tests/** change triggers the release-candidate workflow"
+else
+  nok "the paths list does not include tests/** — a suite change would bypass the source gate"
+fi
+if grep -qF -- "- '.docket.yml'" <<<"$paths_block"; then
+  ok "a .docket.yml change triggers the release-candidate workflow"
+else
+  nok "the paths list does not include .docket.yml — a finalize.test_command change would bypass the source gate"
+fi
+
 exit "$fail"

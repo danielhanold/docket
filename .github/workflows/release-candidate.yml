@@ -37,6 +37,8 @@ on:
       - 'agents/**'
       - 'install.sh'
       - 'scripts/**'
+      - 'tests/**'
+      - '.docket.yml'
       - '.github/workflows/release-candidate.yml'
   workflow_dispatch:
     inputs:
