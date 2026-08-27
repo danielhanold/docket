@@ -28,7 +28,19 @@ EXPECTED_SERIAL=1   # tests/test_go_race.sh (change 0332). The shared state that
                     # needs — the load-dependent gate that halted change 0329. RAISING THIS IS A
                     # FINDING: a serial pin removes a file from the parallel phase, so it must be
                     # justified in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=2420 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2460 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2420 -> 2460 (change 0333): the NEW-FILE case, four more times — the
+                    # internal/githubcli integration SHARD runners, the sibling of the gitcli block
+                    # below. Change 0333 partitions githubcli's fake-gh subprocess corpus behind the
+                    # `integration` build tag; each new tests/test_go_integration_githubcli_*.sh runner
+                    # drives one NORMAL-mode shard through tests/lib/go-integration-shard.sh (no test
+                    # exercises real concurrent adapter calls, so none earns a -race shard). None
+                    # extends an existing shard: every other Go row runs the default-tag corpus, which
+                    # cannot see the tagged one. Sized from the WORST of three standalone serial readings
+                    # (darwin/arm64, go1.26.5, `/usr/bin/time -p bash
+                    # tests/test_go_integration_githubcli_<feature>.sh`): ensure 3.23 -> 10, merge 1.01
+                    # -> 10, probe 0.79 -> 10, harness 1.05 -> 10. +10 +10 +10 +10 = +40. Rationale and
+                    # readings are beside the rows in the tsv header.
                     # 2355 -> 2420 (change 0333): the NEW-FILE case, four times — the first Go
                     # integration SHARD runners. Change 0333 partitions internal/gitcli's slow real-git
                     # corpus behind the `integration` build tag; each new

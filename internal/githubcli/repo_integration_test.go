@@ -1,3 +1,5 @@
+//go:build integration
+
 package githubcli
 
 import (
@@ -19,9 +21,9 @@ func repoViewArm(j string) fakeArm {
 	return fakeArm{ArgvPrefix: []string{"repo", "view"}, Stdout: j, Exit: 0}
 }
 
-// TestDiscoverRepositoryDecodesIdentity (g): discovery decodes host/owner/name
+// TestIntegrationProbeDiscoverRepositoryDecodesIdentity (g): discovery decodes host/owner/name
 // from the documented fields.
-func TestDiscoverRepositoryDecodesIdentity(t *testing.T) {
+func TestIntegrationProbeDiscoverRepositoryDecodesIdentity(t *testing.T) {
 	c, _ := newFakeClient(t, fakeScenario{Invocations: []fakeArm{repoViewArm(sampleRepoJSON)}})
 	repo, err := c.DiscoverRepository(context.Background(), t.TempDir())
 	if err != nil {
@@ -35,9 +37,9 @@ func TestDiscoverRepositoryDecodesIdentity(t *testing.T) {
 	}
 }
 
-// TestDiscoverRepositoryRejectsBadOutput (g): missing field, malformed JSON, and
+// TestIntegrationProbeDiscoverRepositoryRejectsBadOutput (g): missing field, malformed JSON, and
 // empty owner all yield invalid-output — never a zero-value identity.
-func TestDiscoverRepositoryRejectsBadOutput(t *testing.T) {
+func TestIntegrationProbeDiscoverRepositoryRejectsBadOutput(t *testing.T) {
 	cases := []struct {
 		name string
 		json string
@@ -69,9 +71,9 @@ func TestDiscoverRepositoryRejectsBadOutput(t *testing.T) {
 	}
 }
 
-// TestDiscoverRepositoryRunsInRequestedDir (h): discovery runs in the requested
+// TestIntegrationProbeDiscoverRepositoryRunsInRequestedDir (h): discovery runs in the requested
 // directory (witnessed cwd), so a caller's own CWD cannot retarget it.
-func TestDiscoverRepositoryRunsInRequestedDir(t *testing.T) {
+func TestIntegrationProbeDiscoverRepositoryRunsInRequestedDir(t *testing.T) {
 	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{repoViewArm(sampleRepoJSON)}})
 	dir := t.TempDir()
 	if _, err := c.DiscoverRepository(context.Background(), dir); err != nil {
@@ -88,9 +90,9 @@ func TestDiscoverRepositoryRunsInRequestedDir(t *testing.T) {
 	}
 }
 
-// TestDiscoverRepositoryNonZeroExit maps a non-zero gh exit to an external
+// TestIntegrationProbeDiscoverRepositoryNonZeroExit maps a non-zero gh exit to an external
 // failure rather than a zero-value identity.
-func TestDiscoverRepositoryNonZeroExit(t *testing.T) {
+func TestIntegrationProbeDiscoverRepositoryNonZeroExit(t *testing.T) {
 	c, _ := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
 		{ArgvPrefix: []string{"repo", "view"}, Exit: 1, Stderr: "gh: could not determine repository\n"},
 	}})

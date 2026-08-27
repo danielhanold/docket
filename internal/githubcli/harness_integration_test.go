@@ -1,3 +1,5 @@
+//go:build integration
+
 package githubcli
 
 import (
@@ -416,11 +418,11 @@ func prCommentsJSON(objs ...string) string {
 	return `{"comments":[` + strings.Join(objs, ",") + `]}`
 }
 
-// TestFakeSequentialArms proves the consume-in-order matcher serves two arms
+// TestIntegrationHarnessFakeSequentialArms proves the consume-in-order matcher serves two arms
 // that share the `pr view` prefix to two successive identical calls in scenario
 // order (before-state, then after-state) — the mechanism retarget/merge reprobes
 // depend on. First-match-wins (the default) would answer both with the first arm.
-func TestFakeSequentialArms(t *testing.T) {
+func TestIntegrationHarnessFakeSequentialArms(t *testing.T) {
 	before := ensMatchPR(7)
 	after := ensPRJSON(7, "OPEN", false, ensHead, ensHeadOid, "release", ensTitle, ensBody)
 	c, _ := newFakeClient(t, fakeScenario{
@@ -456,23 +458,14 @@ func TestFakeSequentialArms(t *testing.T) {
 }
 
 // --- Witness tests on the fake itself (Task 9 step 1 a–d) ---
+//
+// samplePRJSON, the canonical `gh pr view --json ...` fixture these tests share
+// with the untagged decode tests (pr_test.go), lives in the untagged
+// fixtures_test.go so the default-tag build can see it — change 0333's partition.
 
-// samplePRJSON is the canonical nested shape `gh pr view --json ...` documents.
-const samplePRJSON = `{
-  "number": 7,
-  "url": "https://github.com/acme/widget/pull/7",
-  "state": "OPEN",
-  "isDraft": false,
-  "headRefName": "feat/x",
-  "headRefOid": "1111111111111111111111111111111111111111",
-  "baseRefName": "main",
-  "title": "Add widget",
-  "body": "Body text"
-}`
-
-// TestFakePassThrough (a): a scripted pr view invoked directly through Client
+// TestIntegrationHarnessFakePassThrough (a): a scripted pr view invoked directly through Client
 // yields the scripted stdout, decoded into the typed PullRequest.
-func TestFakePassThrough(t *testing.T) {
+func TestIntegrationHarnessFakePassThrough(t *testing.T) {
 	c, _ := newFakeClient(t, fakeScenario{Invocations: []fakeArm{prViewArm(samplePRJSON)}})
 	res, f := c.run(context.Background(), runRequest{
 		op:      "probe",
@@ -495,8 +488,8 @@ func TestFakePassThrough(t *testing.T) {
 	}
 }
 
-// TestFakeInvocationWitness (b): the log records exact argv, cwd, and stdin.
-func TestFakeInvocationWitness(t *testing.T) {
+// TestIntegrationHarnessFakeInvocationWitness (b): the log records exact argv, cwd, and stdin.
+func TestIntegrationHarnessFakeInvocationWitness(t *testing.T) {
 	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
 		{ArgvPrefix: []string{"pr", "create"}, Stdout: samplePRJSON, Exit: 0},
 	}})
@@ -535,10 +528,10 @@ func TestFakeInvocationWitness(t *testing.T) {
 	}
 }
 
-// TestFakeUnmatchedInvocationFails (c): deleting a scenario's dispatch arm (an
+// TestIntegrationHarnessFakeUnmatchedInvocationFails (c): deleting a scenario's dispatch arm (an
 // invocation no arm matches) makes the fake exit fakeExitUnmatched with a
 // diagnostic — an unexpected call can never silently succeed.
-func TestFakeUnmatchedInvocationFails(t *testing.T) {
+func TestIntegrationHarnessFakeUnmatchedInvocationFails(t *testing.T) {
 	// Scenario only knows `pr view`; we invoke `pr edit`.
 	c, _ := newFakeClient(t, fakeScenario{Invocations: []fakeArm{prViewArm(samplePRJSON)}})
 	res, f := c.run(context.Background(), runRequest{
@@ -558,10 +551,10 @@ func TestFakeUnmatchedInvocationFails(t *testing.T) {
 	}
 }
 
-// TestFakeCatchAllArmRejected proves the fake refuses a catch-all: an arm with
+// TestIntegrationHarnessFakeCatchAllArmRejected proves the fake refuses a catch-all: an arm with
 // an empty ArgvPrefix never matches, so it cannot become a silent exit-0
 // answer for arbitrary calls.
-func TestFakeCatchAllArmRejected(t *testing.T) {
+func TestIntegrationHarnessFakeCatchAllArmRejected(t *testing.T) {
 	c, _ := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
 		{ArgvPrefix: []string{}, Stdout: "should never be served", Exit: 0},
 	}})
@@ -579,10 +572,10 @@ func TestFakeCatchAllArmRejected(t *testing.T) {
 	}
 }
 
-// TestFakeDelayReapedOnTimeout (d): a DelayMs beyond WithNetworkTimeout produces
+// TestIntegrationHarnessFakeDelayReapedOnTimeout (d): a DelayMs beyond WithNetworkTimeout produces
 // a timed-out Failure and the child is reaped — proven by the completion marker
 // being absent (the fake writes it only AFTER the full delay).
-func TestFakeDelayReapedOnTimeout(t *testing.T) {
+func TestIntegrationHarnessFakeDelayReapedOnTimeout(t *testing.T) {
 	donePath := filepath.Join(t.TempDir(), "done.marker")
 	c, log := newFakeClient(t,
 		fakeScenario{Invocations: []fakeArm{

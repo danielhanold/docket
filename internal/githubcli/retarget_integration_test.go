@@ -1,3 +1,5 @@
+//go:build integration
+
 package githubcli
 
 import (
@@ -24,7 +26,7 @@ func retEditArm(exit int) fakeArm {
 	return fakeArm{ArgvPrefix: []string{"pr", "edit"}, Exit: exit}
 }
 
-func TestRetargetProbeActVerify(t *testing.T) {
+func TestIntegrationMergeRetargetProbeActVerify(t *testing.T) {
 	const oldBase = "main"
 	const newBase = "release"
 	// The PR as first probed: open, at the old base.

@@ -327,10 +327,10 @@ git commit -m "test(0333): partition internal/gitcli behind the integration tag"
 - Consumes: Task 2's runner protocol; Task 3's established file/renaming pattern (repeat it exactly — same tag line, same runner template, same map-line format `internal/githubcli<TAB><old><TAB><new>`).
 - Produces: tagged githubcli corpus, its runners, its rows.
 
-- [ ] **Step 1: Classify, move, tag, rename** — identical procedure to Task 3 Steps 1–2. Package-specific notes: the fake-`gh` protocol tests spawn real subprocesses; the spec's profiling found one ~20s merge test plus many 3–5s command-protocol tests, i.e. a broad tail — expect most of `merge_test.go`, `retarget_test.go`, `ensure_test.go`, `comment_test.go`, `pr_test.go`, `probe_test.go`, `repo_test.go` families to move, with `fakegh_test.go`'s harness helpers relocating to a tagged helper file if only tagged tests consume them (compile both tag states to prove which). Race candidates only where real concurrent adapter calls exist; do not manufacture any.
-- [ ] **Step 2: Verify both tag states** — same four commands as Task 3 Step 3, against `./internal/githubcli/`.
-- [ ] **Step 3: Measure, cut, write runners** — Task 3 Step 4's procedure and template with `SHARD_PKG="./internal/githubcli"`.
-- [ ] **Step 4: Rows + total, budget guard, commit**
+- [x] **Step 1: Classify, move, tag, rename** — identical procedure to Task 3 Steps 1–2. Package-specific notes: the fake-`gh` protocol tests spawn real subprocesses; the spec's profiling found one ~20s merge test plus many 3–5s command-protocol tests, i.e. a broad tail — expect most of `merge_test.go`, `retarget_test.go`, `ensure_test.go`, `comment_test.go`, `pr_test.go`, `probe_test.go`, `repo_test.go` families to move, with `fakegh_test.go`'s harness helpers relocating to a tagged helper file if only tagged tests consume them (compile both tag states to prove which). Race candidates only where real concurrent adapter calls exist; do not manufacture any.
+- [x] **Step 2: Verify both tag states** — same four commands as Task 3 Step 3, against `./internal/githubcli/`.
+- [x] **Step 3: Measure, cut, write runners** — Task 3 Step 4's procedure and template with `SHARD_PKG="./internal/githubcli"`.
+- [x] **Step 4: Rows + total, budget guard, commit**
 
 ```bash
 bash tests/test_runtime_budgets.sh

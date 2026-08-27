@@ -1,3 +1,5 @@
+//go:build integration
+
 package githubcli
 
 import (
@@ -28,7 +30,7 @@ func cmtCommentArm(exit int) fakeArm {
 	return fakeArm{ArgvPrefix: []string{"pr", "comment"}, Exit: exit}
 }
 
-func TestEnsureCommentIdempotent(t *testing.T) {
+func TestIntegrationEnsureCommentIdempotent(t *testing.T) {
 	t.Run("creates-when-absent", func(t *testing.T) {
 		c, log := newFakeClient(t, fakeScenario{
 			Sequential: true,
@@ -126,7 +128,7 @@ func TestEnsureCommentIdempotent(t *testing.T) {
 	})
 }
 
-func TestFindCommentThreeOutcomes(t *testing.T) {
+func TestIntegrationEnsureFindCommentThreeOutcomes(t *testing.T) {
 	t.Run("found", func(t *testing.T) {
 		c, _ := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
 			cmtViewArm(prCommentsJSON(commentObj(cmtBody, cmtURL)), 0),
