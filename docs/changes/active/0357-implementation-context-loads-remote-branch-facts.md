@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: high
 type: fix
 created: 2026-08-26
-updated: '2026-08-26'
+updated: '2026-08-27'
 depends_on: []
 stacked_on:
 related: [298, 316, 327, 347, 356]
@@ -21,7 +21,7 @@ branch: 'fix/implementation-context-loads-remote-branch-facts'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-27T10:53:12Z'
+claimed_at: '2026-08-27T11:29:29Z'
 ---
 
 ## Artifacts
