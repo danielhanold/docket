@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0356 — Emit unquoted name: on Cursor agent wrappers](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0356-unquote-cursor-agent-wrapper-names.md)**
+> ↩ **[Change 0356 — Emit unquoted name: on Cursor agent wrappers](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-27-0356-unquote-cursor-agent-wrapper-names.md)**
 <!-- docket:backlink:end -->
 # Unquote Cursor Agent Wrapper Names Implementation Plan
 
