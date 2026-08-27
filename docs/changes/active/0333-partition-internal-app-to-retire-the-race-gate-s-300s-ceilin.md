@@ -13,7 +13,7 @@ related: [251, 273, 280, 357]
 discovered_from: [332]
 adrs: []
 spec: docs/superpowers/specs/2026-08-27-partition-slow-go-integration-tests-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-27-partition-slow-go-integration-tests.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-27T01:23:57Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-27-partition-slow-go-integration-tests-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-27-partition-slow-go-integration-tests-design.md) |
+| Plan | [2026-08-27-partition-slow-go-integration-tests.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-27-partition-slow-go-integration-tests.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
