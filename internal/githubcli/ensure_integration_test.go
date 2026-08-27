@@ -1,3 +1,5 @@
+//go:build integration
+
 package githubcli
 
 import (
@@ -14,16 +16,10 @@ import (
 // the witness log — which gh calls happened and which did not — so a green
 // result can never hide an unexercised or an extra external mutation (learnings:
 // green-suite-untested-branch). The authored body must travel only on stdin.
-
-const (
-	ensRepoSpec = "github.com/acme/widget"
-	ensHead     = "feat/x"
-	ensBase     = "main"
-	ensTitle    = "Add widget"
-	ensBody     = "Body line one\nBody line two\n"
-	ensHeadOid  = "1111111111111111111111111111111111111111"
-	ensOtherOid = "2222222222222222222222222222222222222222"
-)
+//
+// The ens* fixture constants (ensRepoSpec, ensHead, …) live in the untagged
+// fixtures_test.go: the untagged probePRJSONWithDecision helper (probe_test.go)
+// consumes them, so the default-tag build must see them — change 0333's partition.
 
 func ensRequest() EnsurePullRequestRequest {
 	return EnsurePullRequestRequest{
@@ -119,7 +115,7 @@ func countArgv(recs []invocationRecord, prefix ...string) int {
 
 // --- (a) no PR -> exactly one create, body on stdin, verify runs, created ---
 
-func TestEnsureCreatesWhenNoPR(t *testing.T) {
+func TestIntegrationEnsureCreatesWhenNoPR(t *testing.T) {
 	created := ensMatchPR(42)
 	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
 		ensListAllArm(ensList(), 0, ""),                                // probe: no PR
@@ -184,7 +180,7 @@ func argvContains(argv []string, want string) bool {
 
 // --- (b1) create response lost, same call: create exits nonzero, requery adopts the effect ---
 
-func TestEnsureCreateResponseLostSameCall(t *testing.T) {
+func TestIntegrationEnsureCreateResponseLostSameCall(t *testing.T) {
 	created := ensMatchPR(42)
 	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
 		ensListAllArm(ensList(), 0, ""),
@@ -206,7 +202,7 @@ func TestEnsureCreateResponseLostSameCall(t *testing.T) {
 
 // --- (b2) create response lost, retry call: a fresh Ensure sees the exact PR -> adopted, no create ---
 
-func TestEnsureAdoptsExistingExactMatch(t *testing.T) {
+func TestIntegrationEnsureAdoptsExistingExactMatch(t *testing.T) {
 	existing := ensMatchPR(42)
 	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
 		ensListAllArm(ensList(existing), 0, ""),
@@ -233,7 +229,7 @@ func TestEnsureAdoptsExistingExactMatch(t *testing.T) {
 
 // --- (c) exact open PR + supplied matching version -> unchanged, no mutation ---
 
-func TestEnsureUnchangedWithMatchingVersion(t *testing.T) {
+func TestIntegrationEnsureUnchangedWithMatchingVersion(t *testing.T) {
 	existing := ensMatchPR(42)
 	pr := mustDecodeOne(t, existing)
 	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
@@ -265,7 +261,7 @@ func ensDifferingPR(number int) string {
 	return ensPRJSON(number, "OPEN", false, ensHead, ensHeadOid, ensBase, "Old title", "old body")
 }
 
-func TestEnsureContendedEmptyVersionOnDifferingPR(t *testing.T) {
+func TestIntegrationEnsureContendedEmptyVersionOnDifferingPR(t *testing.T) {
 	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
 		ensListAllArm(ensList(ensDifferingPR(7)), 0, ""),
 	}})
@@ -282,7 +278,7 @@ func TestEnsureContendedEmptyVersionOnDifferingPR(t *testing.T) {
 	}
 }
 
-func TestEnsureContendedMismatchedVersionOnDifferingPR(t *testing.T) {
+func TestIntegrationEnsureContendedMismatchedVersionOnDifferingPR(t *testing.T) {
 	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
 		ensListAllArm(ensList(ensDifferingPR(7)), 0, ""),
 	}})
@@ -300,7 +296,7 @@ func TestEnsureContendedMismatchedVersionOnDifferingPR(t *testing.T) {
 	}
 }
 
-func TestEnsureUpdatesWithMatchingVersion(t *testing.T) {
+func TestIntegrationEnsureUpdatesWithMatchingVersion(t *testing.T) {
 	differing := ensDifferingPR(7)
 	updated := ensMatchPR(7)
 	pr := mustDecodeOne(t, differing)
@@ -353,7 +349,7 @@ func TestEnsureUpdatesWithMatchingVersion(t *testing.T) {
 
 // --- (e) concurrent change: edit lands but a human raced a different body -> contended, no rollback ---
 
-func TestEnsureConcurrentChangeContended(t *testing.T) {
+func TestIntegrationEnsureConcurrentChangeContended(t *testing.T) {
 	differing := ensDifferingPR(7)
 	pr := mustDecodeOne(t, differing)
 	// The post-edit verify observes a body a human raced in.
@@ -381,7 +377,7 @@ func TestEnsureConcurrentChangeContended(t *testing.T) {
 
 // --- (f) edit response lost: edit exits nonzero, requery shows it landed -> updated ---
 
-func TestEnsureEditResponseLostRecovered(t *testing.T) {
+func TestIntegrationEnsureEditResponseLostRecovered(t *testing.T) {
 	differing := ensDifferingPR(7)
 	updated := ensMatchPR(7)
 	pr := mustDecodeOne(t, differing)
@@ -407,7 +403,7 @@ func TestEnsureEditResponseLostRecovered(t *testing.T) {
 
 // --- (g) blocks ---
 
-func TestEnsureBlocksTwoOpenPRs(t *testing.T) {
+func TestIntegrationEnsureBlocksTwoOpenPRs(t *testing.T) {
 	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
 		ensListAllArm(ensList(ensMatchPR(7), ensMatchPR(8)), 0, ""),
 	}})
@@ -416,7 +412,7 @@ func TestEnsureBlocksTwoOpenPRs(t *testing.T) {
 	assertNoMutation(t, log)
 }
 
-func TestEnsureBlocksTerminalSameHead(t *testing.T) {
+func TestIntegrationEnsureBlocksTerminalSameHead(t *testing.T) {
 	closed := ensPRJSON(7, "CLOSED", false, ensHead, ensHeadOid, ensBase, ensTitle, ensBody)
 	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
 		ensListAllArm(ensList(closed), 0, ""),
@@ -426,7 +422,7 @@ func TestEnsureBlocksTerminalSameHead(t *testing.T) {
 	assertNoMutation(t, log)
 }
 
-func TestEnsureBlocksDraft(t *testing.T) {
+func TestIntegrationEnsureBlocksDraft(t *testing.T) {
 	draft := ensPRJSON(7, "OPEN", true, ensHead, ensHeadOid, ensBase, ensTitle, ensBody)
 	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
 		ensListAllArm(ensList(draft), 0, ""),
@@ -436,7 +432,7 @@ func TestEnsureBlocksDraft(t *testing.T) {
 	assertNoMutation(t, log)
 }
 
-func TestEnsureBlocksWrongHead(t *testing.T) {
+func TestIntegrationEnsureBlocksWrongHead(t *testing.T) {
 	wrong := ensPRJSON(7, "OPEN", false, ensHead, ensOtherOid, ensBase, ensTitle, ensBody)
 	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
 		ensListAllArm(ensList(wrong), 0, ""),
@@ -448,7 +444,7 @@ func TestEnsureBlocksWrongHead(t *testing.T) {
 
 // --- (h) decode hazards, auth failure redaction, timeout ---
 
-func TestEnsureBlocksMalformedJSON(t *testing.T) {
+func TestIntegrationEnsureBlocksMalformedJSON(t *testing.T) {
 	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
 		ensListAllArm("{not json", 0, ""),
 	}})
@@ -457,7 +453,7 @@ func TestEnsureBlocksMalformedJSON(t *testing.T) {
 	assertNoMutation(t, log)
 }
 
-func TestEnsureBlocksMissingField(t *testing.T) {
+func TestIntegrationEnsureBlocksMissingField(t *testing.T) {
 	// A PR object missing headRefOid is invalid-output, never zero-value data.
 	missing := ensPRJSON(7, "OPEN", false, ensHead, "", ensBase, ensTitle, ensBody)
 	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
@@ -468,7 +464,7 @@ func TestEnsureBlocksMissingField(t *testing.T) {
 	assertNoMutation(t, log)
 }
 
-func TestEnsureBlocksUnknownEnum(t *testing.T) {
+func TestIntegrationEnsureBlocksUnknownEnum(t *testing.T) {
 	weird := ensPRJSON(7, "WEIRD", false, ensHead, ensHeadOid, ensBase, ensTitle, ensBody)
 	c, log := newFakeClient(t, fakeScenario{Invocations: []fakeArm{
 		ensListAllArm(ensList(weird), 0, ""),
@@ -478,7 +474,7 @@ func TestEnsureBlocksUnknownEnum(t *testing.T) {
 	assertNoMutation(t, log)
 }
 
-func TestEnsureAuthFailureRedacted(t *testing.T) {
+func TestIntegrationEnsureAuthFailureRedacted(t *testing.T) {
 	secretStderr := "gh: authentication failed for host\n" +
 		"token ghp_SECRETTOKENabc123 rejected\n" +
 		"remote https://oauth2:ghp_SECRETTOKENabc123@github.example.com/acme/widget.git\n"
@@ -495,7 +491,7 @@ func TestEnsureAuthFailureRedacted(t *testing.T) {
 	}
 }
 
-func TestEnsureTimeoutMidCreateUnknown(t *testing.T) {
+func TestIntegrationEnsureTimeoutMidCreateUnknown(t *testing.T) {
 	// Probe returns no PR; the create hangs past the network deadline; the
 	// requery scenario is dead (no verify arm) so truth cannot be established.
 	// The network timeout must comfortably exceed a race-instrumented subprocess
@@ -518,7 +514,7 @@ func TestEnsureTimeoutMidCreateUnknown(t *testing.T) {
 
 // --- (i) every post-discovery invocation carries an explicit --repo ---
 
-func TestEnsureEveryPostDiscoveryCallHasRepo(t *testing.T) {
+func TestIntegrationEnsureEveryPostDiscoveryCallHasRepo(t *testing.T) {
 	// Drive the richest path (probe + edit + verify-by-head + verify-by-number)
 	// so the log holds one of every gh subcommand this operation issues. The test
 	// binary's own cwd is a different git checkout that would infer a different

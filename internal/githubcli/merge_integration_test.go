@@ -1,3 +1,5 @@
+//go:build integration
+
 package githubcli
 
 import (
@@ -97,7 +99,7 @@ func assertMergedFacts(t *testing.T, f MergedFacts) {
 	}
 }
 
-func TestMergeExpectedHead(t *testing.T) {
+func TestIntegrationMergeExpectedHead(t *testing.T) {
 	head := ObjectRef(ensHeadOid)
 
 	t.Run("merged", func(t *testing.T) {
@@ -308,9 +310,9 @@ func TestMergeExpectedHead(t *testing.T) {
 	})
 }
 
-// TestMergeNeverDeletesBranch proves no merge invocation ever requests branch
+// TestIntegrationMergeNeverDeletesBranch proves no merge invocation ever requests branch
 // deletion — cleanup is an independent, separately-owned suffix.
-func TestMergeNeverDeletesBranch(t *testing.T) {
+func TestIntegrationMergeNeverDeletesBranch(t *testing.T) {
 	c, log := newFakeClient(t, fakeScenario{
 		Sequential: true,
 		Invocations: []fakeArm{
@@ -333,9 +335,9 @@ func TestMergeNeverDeletesBranch(t *testing.T) {
 	}
 }
 
-// TestMergeSelectsMergeWhenRebaseDisabled: repository settings with rebase off
+// TestIntegrationMergeSelectsMergeWhenRebaseDisabled: repository settings with rebase off
 // but merge and squash on select the merge commit (the next priority).
-func TestMergeSelectsMergeWhenRebaseDisabled(t *testing.T) {
+func TestIntegrationMergeSelectsMergeWhenRebaseDisabled(t *testing.T) {
 	c, log := newFakeClient(t, fakeScenario{
 		Sequential: true,
 		Invocations: []fakeArm{
@@ -359,9 +361,9 @@ func TestMergeSelectsMergeWhenRebaseDisabled(t *testing.T) {
 	assertMergeFlag(t, log, "--merge")
 }
 
-// TestMergeSelectsSquashOnly: a squash-only repository selects squash, the
+// TestIntegrationMergeSelectsSquashOnly: a squash-only repository selects squash, the
 // last-priority method.
-func TestMergeSelectsSquashOnly(t *testing.T) {
+func TestIntegrationMergeSelectsSquashOnly(t *testing.T) {
 	c, log := newFakeClient(t, fakeScenario{
 		Sequential: true,
 		Invocations: []fakeArm{
@@ -385,13 +387,13 @@ func TestMergeSelectsSquashOnly(t *testing.T) {
 	assertMergeFlag(t, log, "--squash")
 }
 
-// TestMergeMethodUnavailableIssuesNoMerge: a cleanly observed empty effective set
+// TestIntegrationMergeMethodUnavailableIssuesNoMerge: a cleanly observed empty effective set
 // (all repository methods disabled, no branch restriction) is method-unavailable
 // — a value outcome (nil error), no method, no merge issued. The scenario has no
 // pr merge arm, so any issued merge would exit fakeExitUnmatched and redden the
 // witness assertion. RepoMethods names the empty repository set; BranchMethods
 // names the unrestricted branch set so a human can see the conflict.
-func TestMergeMethodUnavailableIssuesNoMerge(t *testing.T) {
+func TestIntegrationMergeMethodUnavailableIssuesNoMerge(t *testing.T) {
 	c, log := newFakeClient(t, fakeScenario{
 		Sequential: true,
 		Invocations: []fakeArm{
@@ -421,9 +423,9 @@ func TestMergeMethodUnavailableIssuesNoMerge(t *testing.T) {
 	}
 }
 
-// TestMergeProbeFailureIssuesNoMerge: a failed capability probe is unknown
+// TestIntegrationMergeProbeFailureIssuesNoMerge: a failed capability probe is unknown
 // (retain) with a non-null error, and issues no merge.
-func TestMergeProbeFailureIssuesNoMerge(t *testing.T) {
+func TestIntegrationMergeProbeFailureIssuesNoMerge(t *testing.T) {
 	c, log := newFakeClient(t, fakeScenario{
 		Sequential: true,
 		Invocations: []fakeArm{
@@ -443,10 +445,10 @@ func TestMergeProbeFailureIssuesNoMerge(t *testing.T) {
 	}
 }
 
-// TestMergeDeniedNeverRetriesAnotherMethod: an authoritative denial of the
+// TestIntegrationMergeDeniedNeverRetriesAnotherMethod: an authoritative denial of the
 // selected method is never retried with a lower-priority method — exactly one
 // pr merge invocation reaches the witness log.
-func TestMergeDeniedNeverRetriesAnotherMethod(t *testing.T) {
+func TestIntegrationMergeDeniedNeverRetriesAnotherMethod(t *testing.T) {
 	c, log := newFakeClient(t, fakeScenario{
 		Sequential: true,
 		Invocations: []fakeArm{
@@ -472,9 +474,9 @@ func TestMergeDeniedNeverRetriesAnotherMethod(t *testing.T) {
 	}
 }
 
-// TestFakeLazyMergeability proves an UNKNOWN mergeability round-trips through the
+// TestIntegrationMergeLazyMergeability proves an UNKNOWN mergeability round-trips through the
 // decoder as UNKNOWN — never silently read as clean/mergeable.
-func TestFakeLazyMergeability(t *testing.T) {
+func TestIntegrationMergeLazyMergeability(t *testing.T) {
 	snap, err := decodeMergeSnapshot("test", []byte(openPR(ensHeadOid, "UNKNOWN")))
 	if err != nil {
 		t.Fatalf("decodeMergeSnapshot: %v", err)
