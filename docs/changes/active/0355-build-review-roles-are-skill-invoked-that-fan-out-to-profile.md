@@ -2,7 +2,7 @@
 id: 355
 slug: build-review-roles-are-skill-invoked-that-fan-out-to-profile
 title: 'Build/review roles are skill-invoked that fan out to profile agents — Step 5 ''dispatch'' vocabulary invites an agent-not-found misfire'
-status: 'in-progress'
+status: 'implemented'
 priority: medium
 type: fix
 created: 2026-08-26

@@ -1,13 +1,12 @@
 # Backlog
 
-**359 changes** — 🟢 2 in progress · 🟡 51 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 218 done · 🗑️ 82 killed
+**359 changes** — 🟢 1 in progress · 🟡 51 proposed · ⚪ 4 deferred · 🔵 3 implemented · ✅ 218 done · 🗑️ 82 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0351](active/0351-complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard.md) | Complete change 0334: stop writing global instruction files and actually deploy the recursion guard | `critical` | `fix` | [spec](../superpowers/specs/2026-08-26-atomic-installer-handoff-and-repository-dispatch-seeding-design.md) | `fix/complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard` |
-| [0355](active/0355-build-review-roles-are-skill-invoked-that-fan-out-to-profile.md) | Build/review roles are skill-invoked that fan out to profile agents — Step 5 'dispatch' vocabulary invites an agent-not-found misfire | `medium` | `fix` | [spec](../superpowers/specs/2026-08-26-role-skill-invocation-and-nested-agent-topology-design.md) | `fix/build-review-roles-are-skill-invoked-that-fan-out-to-profile` |
 
 ## 🟡 Proposed (51)
 
@@ -74,11 +73,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [#226](https://github.com/danielhanold/docket/pull/226) |  |
+| [0355](active/0355-build-review-roles-are-skill-invoked-that-fan-out-to-profile.md) | Build/review roles are skill-invoked that fan out to profile agents — Step 5 'dispatch' vocabulary invites an agent-not-found misfire | `medium` | `fix` | [#243](https://github.com/danielhanold/docket/pull/243) |  |
 | [0357](active/0357-implementation-context-loads-remote-branch-facts.md) | Implementation context must load remote branch facts before judging stack base | `high` | `fix` | [#245](https://github.com/danielhanold/docket/pull/245) |  |
 
 ```mermaid
