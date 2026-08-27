@@ -1,6 +1,6 @@
 # Backlog
 
-**359 changes** — 🟢 1 in progress · 🟡 51 proposed · ⚪ 4 deferred · 🔵 3 implemented · ✅ 218 done · 🗑️ 82 killed
+**359 changes** — 🟢 1 in progress · 🟡 51 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 219 done · 🗑️ 82 killed
 
 ## 🟢 In progress (1)
 
@@ -73,13 +73,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (3)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0317](active/0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | `critical` | `feat` | [#226](https://github.com/danielhanold/docket/pull/226) |  |
 | [0355](active/0355-build-review-roles-are-skill-invoked-that-fan-out-to-profile.md) | Build/review roles are skill-invoked that fan out to profile agents — Step 5 'dispatch' vocabulary invites an agent-not-found misfire | `medium` | `fix` | [#243](https://github.com/danielhanold/docket/pull/243) |  |
-| [0357](active/0357-implementation-context-loads-remote-branch-facts.md) | Implementation context must load remote branch facts before judging stack base | `high` | `fix` | [#245](https://github.com/danielhanold/docket/pull/245) |  |
 
 ```mermaid
 graph TD
@@ -141,7 +140,6 @@ graph TD
   0352
   0354
   0355
-  0357
   0359
   0192:::done
   0211:::done
@@ -151,11 +149,12 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (300)</summary>
+<details><summary>✅🗑️ Archive — done + killed (301)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0358](archive/2026-08-27-0358-treat-empty-review-decision-as-no-decision.md) | Treat empty-string reviewDecision as no-decision, not an invalid enum | 2026-08-27 |
+| [0357](archive/2026-08-27-0357-implementation-context-loads-remote-branch-facts.md) | Implementation context must load remote branch facts before judging stack base | 2026-08-27 |
 | [0356](archive/2026-08-27-0356-unquote-cursor-agent-wrapper-names.md) | Emit unquoted name: on Cursor agent wrappers | 2026-08-27 |
 | [0333](archive/2026-08-27-0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition slow Go integration tests and retire the race gate's 300s ceiling exemption | 2026-08-27 |
 | [0353](archive/2026-08-26-0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | 2026-08-26 |
@@ -171,7 +170,6 @@ graph TD
 | [0338](archive/2026-08-23-0338-gate-execution-terminal-sentinel-has-no-format-contract-poll.md) | Gate observe ships two serializations (shell state=name vs native protocol-v1 JSON) reconciled only by prose — converge on JSON, migrate the caller loop, retire the text contract | 2026-08-23 |
 | [0251](archive/2026-08-23-0251-retune-the-run-tests-budget-regime-for-portability-and-shard.md) | Retune the run-tests budget regime for portability and sharding | 2026-08-23 |
 | [0337](archive/2026-08-22-0337-finalize-leaves-a-permanent-terminal-backlink-pending-leg-un.md) | Finalize's integration-ref backlink leg refuses on unrelated pre-existing corpus errors | 2026-08-22 |
-| [0336](archive/2026-08-22-0336-finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al.md) | Finalize selects the best merge method permitted by repository and branch policy | 2026-08-22 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
 | [0299](archive/2026-08-12-0299-reshard-tests-test-sync-agents-runners-so-every-file-measure.md) | Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling | 2026-08-12 |
 | [0285](archive/2026-08-12-0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | 2026-08-12 |
@@ -257,7 +255,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 85 done |
+| [2026-08](archive/) | 86 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 

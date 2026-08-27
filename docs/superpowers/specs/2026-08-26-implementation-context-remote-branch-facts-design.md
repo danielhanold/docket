@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0357 — Implementation context must load remote branch facts before judging stack base](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0357-implementation-context-loads-remote-branch-facts.md)**
+> ↩ **[Change 0357 — Implementation context must load remote branch facts before judging stack base](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-27-0357-implementation-context-loads-remote-branch-facts.md)**
 <!-- docket:backlink:end -->
 
 # Implementation context loads remote branch facts
