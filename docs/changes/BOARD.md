@@ -1,8 +1,14 @@
 # Backlog
 
-**361 changes** — 🟡 53 proposed · ⚪ 4 deferred · ✅ 222 done · 🗑️ 82 killed
+**361 changes** — 🟢 1 in progress · 🟡 52 proposed · ⚪ 4 deferred · ✅ 222 done · 🗑️ 82 killed
 
-## 🟡 Proposed (53)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0361](active/0361-release-candidate-source-gate-macos-runner.md) | Release-candidate source-gate green on a macOS runner | `high` | `fix` | [spec](../superpowers/specs/2026-08-27-release-candidate-source-gate-macos-runner-design.md) | `fix/release-candidate-source-gate-macos-runner` |
+
+## 🟡 Proposed (52)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -58,7 +64,6 @@
 | [0354](active/0354-halt-report-authoring-writes-a-duplicate-run-halted-heading.md) | Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted | `high` | `fix` | needs-brainstorm |
 | [0359](active/0359-run-gate-gives-up-too-soon.md) | the run gate gives up too soon | `high` | `fix` | needs-brainstorm |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `medium` | `feat` | needs-brainstorm |
-| [0361](active/0361-release-candidate-source-gate-macos-runner.md) | Release-candidate source-gate green on a macOS runner | `high` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
 

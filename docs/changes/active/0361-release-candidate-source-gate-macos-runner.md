@@ -2,11 +2,11 @@
 id: 361
 slug: release-candidate-source-gate-macos-runner
 title: 'Release-candidate source-gate green on a macOS runner'
-status: proposed
+status: 'in-progress'
 priority: high
 type: fix
 created: 2026-08-27
-updated: 2026-08-27
+updated: '2026-08-27'
 depends_on: [317]
 stacked_on:
 related: [318, 322]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'fix/release-candidate-source-gate-macos-runner'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-27T22:54:19Z'
 ---
 
 ## Artifacts
