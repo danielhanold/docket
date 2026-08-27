@@ -1,8 +1,8 @@
 # Backlog
 
-**360 changes** — 🟡 52 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 221 done · 🗑️ 82 killed
+**361 changes** — 🟡 53 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 221 done · 🗑️ 82 killed
 
-## 🟡 Proposed (52)
+## 🟡 Proposed (53)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -58,6 +58,7 @@
 | [0354](active/0354-halt-report-authoring-writes-a-duplicate-run-halted-heading.md) | Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted | `high` | `fix` | needs-brainstorm |
 | [0359](active/0359-run-gate-gives-up-too-soon.md) | the run gate gives up too soon | `high` | `fix` | needs-brainstorm |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `medium` | `feat` | needs-brainstorm |
+| [0361](active/0361-release-candidate-source-gate-macos-runner.md) | Release-candidate source-gate green on a macOS runner | `high` | `fix` | ⏳ waiting on #317 — needs your merge |
 
 ## ⚪ Deferred (4)
 
@@ -134,6 +135,7 @@ graph TD
   0354
   0359
   0360
+  0317 --> 0361
   0192:::done
   0211:::done
   0251:::done
