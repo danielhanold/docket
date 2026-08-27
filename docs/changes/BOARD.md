@@ -1,6 +1,6 @@
 # Backlog
 
-**358 changes** — 🟢 4 in progress · 🟡 50 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 217 done · 🗑️ 82 killed
+**359 changes** — 🟢 4 in progress · 🟡 51 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 217 done · 🗑️ 82 killed
 
 ## 🟢 In progress (4)
 
@@ -11,7 +11,7 @@
 | [0355](active/0355-build-review-roles-are-skill-invoked-that-fan-out-to-profile.md) | Build/review roles are skill-invoked that fan out to profile agents — Step 5 'dispatch' vocabulary invites an agent-not-found misfire | `medium` | `fix` | [spec](../superpowers/specs/2026-08-26-role-skill-invocation-and-nested-agent-topology-design.md) | `fix/build-review-roles-are-skill-invoked-that-fan-out-to-profile` |
 | [0357](active/0357-implementation-context-loads-remote-branch-facts.md) | Implementation context must load remote branch facts before judging stack base | `high` | `fix` | [spec](../superpowers/specs/2026-08-26-implementation-context-remote-branch-facts-design.md) | `fix/implementation-context-loads-remote-branch-facts` |
 
-## 🟡 Proposed (50)
+## 🟡 Proposed (51)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -65,6 +65,7 @@
 | [0350](active/0350-surface-the-swallowed-validation-failure-behind-a-bare-inter.md) | Surface the swallowed validation failure behind a bare internal-error in the transaction engine | `medium` | `fix` | needs-brainstorm |
 | [0352](active/0352-native-repository-initialization-and-health-check.md) | Native repository initialization and health check | `high` | `feat` | needs-brainstorm |
 | [0354](active/0354-halt-report-authoring-writes-a-duplicate-run-halted-heading.md) | Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted | `high` | `fix` | needs-brainstorm |
+| [0359](active/0359-run-gate-gives-up-too-soon.md) | the run gate gives up too soon | `high` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -143,6 +144,7 @@ graph TD
   0354
   0355
   0357
+  0359
   0192:::done
   0211:::done
   0251:::done
