@@ -84,6 +84,32 @@ jobs:
         with:
           go-version: '1.26'
 
+      - name: Provision suite Bash (GNU 4.3+)
+        run: |
+          set -euo pipefail
+          # The suite is authored against GNU Bash >= 4.3 (wait -n); the macOS image ships Apple
+          # Bash 3.2 at /bin/bash. Resolve the Homebrew formula's absolute path, refuse anything
+          # older than the floor — never silently fall back — and hand the path to later steps as
+          # DOCKET_BASH_PATH, which scripts/run-tests.sh re-execs itself through.
+          if ! brew list --versions bash >/dev/null 2>&1; then
+            brew install bash
+          fi
+          prefix="$(brew --prefix bash)"
+          suite_bash="$prefix/bin/bash"
+          if [ ! -x "$suite_bash" ]; then
+            echo "::error::no executable bash at $suite_bash (brew --prefix bash resolved $prefix)" >&2
+            exit 1
+          fi
+          ver="$("$suite_bash" -c 'printf %s "${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"')"
+          major="${ver%%.*}"
+          minor="${ver#*.}"
+          if [ "$major" -lt 4 ] || { [ "$major" -eq 4 ] && [ "$minor" -lt 3 ]; }; then
+            echo "::error::suite bash at $suite_bash is $ver; need GNU Bash >= 4.3" >&2
+            exit 1
+          fi
+          echo "suite bash: $suite_bash (GNU Bash $ver)" >&2
+          echo "DOCKET_BASH_PATH=$suite_bash" >>"$GITHUB_ENV"
+
       - name: Prove tree cleanliness and resolve build identity
         id: identity
         run: |
