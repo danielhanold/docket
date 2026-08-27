@@ -351,6 +351,118 @@ func TestRetireCursorFileCleanlyAbsentNothing(t *testing.T) {
 	}
 }
 
+// --- shared-link (CLAUDE.md → AGENTS.md) matrix -------------------------------
+
+// symlinkTarget is a shared-link dispatch destination — the shape reposeed.Plan
+// emits for a CLAUDE.md that shares codex/opencode's AGENTS.md. LinkTarget is the
+// absolute destination the historical target carries, so a removal record can
+// name the link it retires.
+func symlinkTarget(path, linkTarget string) Target {
+	return Target{Path: path, Kind: KindSymlink, LinkTarget: linkTarget, Role: "dispatch"}
+}
+
+// linkRecord is the prior installation record for a shared dispatch link: the
+// recorded destination is the ownership proof a later run checks against disk.
+func linkRecord(path, linkTarget, harness string) TargetRecord {
+	return TargetRecord{
+		Path:       filepath.Clean(path),
+		Kind:       KindSymlink,
+		LinkTarget: filepath.Clean(linkTarget),
+		Role:       "dispatch",
+		Harness:    harness,
+	}
+}
+
+func TestRetireSharedLinkPriorRecord(t *testing.T) {
+	home := t.TempDir()
+	agents := filepath.Join(home, "AGENTS.md")
+	writeFileOrDie(t, agents, "shared agents surface\n")
+	link := filepath.Join(home, "CLAUDE.md")
+	symlinkOrDie(t, agents, link)
+
+	prior := priorWith(linkRecord(link, agents, "claude"))
+	removals, conflicts, err := PlanGlobalRetirements(retireRoots(home), []Target{symlinkTarget(link, agents)}, prior, nil)
+	rec := onlyRemoval(t, removals, conflicts, err)
+	if rec.Path != filepath.Clean(link) || rec.Kind != KindSymlink {
+		t.Errorf("removal record = %+v", rec)
+	}
+	if rec.Harness != "claude" {
+		t.Errorf("removal harness = %q, want claude", rec.Harness)
+	}
+	if rec.LinkTarget != filepath.Clean(agents) {
+		t.Errorf("removal link target = %q, want %q", rec.LinkTarget, filepath.Clean(agents))
+	}
+	// Retirement plans; the transaction removes. The link is still on disk.
+	if _, err := os.Lstat(link); err != nil {
+		t.Errorf("retirement disturbed the link before the transaction: %v", err)
+	}
+}
+
+func TestRetireSharedLinkRetargetedConflicts(t *testing.T) {
+	home := t.TempDir()
+	agents := filepath.Join(home, "AGENTS.md")
+	writeFileOrDie(t, agents, "shared agents surface\n")
+	// The user re-pointed CLAUDE.md at their own notes; it no longer matches the
+	// recorded destination, so ownership cannot be proved.
+	elsewhere := filepath.Join(home, "MY-NOTES.md")
+	writeFileOrDie(t, elsewhere, "my own notes\n")
+	link := filepath.Join(home, "CLAUDE.md")
+	symlinkOrDie(t, elsewhere, link)
+
+	prior := priorWith(linkRecord(link, agents, "claude"))
+	removals, conflicts, err := PlanGlobalRetirements(retireRoots(home), []Target{symlinkTarget(link, agents)}, prior, nil)
+	insp := onlyConflict(t, removals, conflicts, err)
+	if insp.Reason != ReasonOwnershipConflict {
+		t.Errorf("conflict reason = %q, want %q", insp.Reason, ReasonOwnershipConflict)
+	}
+	if insp.Remedy == "" {
+		t.Errorf("conflict carries no remedy")
+	}
+	// The user's retargeted link is untouched.
+	if dest, err := os.Readlink(link); err != nil || dest != elsewhere {
+		t.Errorf("retargeted link was disturbed: dest=%q err=%v", dest, err)
+	}
+}
+
+func TestRetireSharedLinkForeignKindConflict(t *testing.T) {
+	home := t.TempDir()
+	agents := filepath.Join(home, "AGENTS.md")
+	link := filepath.Join(home, "CLAUDE.md")
+	// A regular file where the shared link belongs is a foreign kind — never
+	// deleted, even with a prior record naming the link.
+	onDisk := "a hand-written CLAUDE.md\n"
+	writeFileOrDie(t, link, onDisk)
+
+	prior := priorWith(linkRecord(link, agents, "claude"))
+	removals, conflicts, err := PlanGlobalRetirements(retireRoots(home), []Target{symlinkTarget(link, agents)}, prior, nil)
+	insp := onlyConflict(t, removals, conflicts, err)
+	if insp.Reason != ReasonOwnershipConflict {
+		t.Errorf("conflict reason = %q, want %q", insp.Reason, ReasonOwnershipConflict)
+	}
+	if got, err := os.ReadFile(link); err != nil || string(got) != onDisk {
+		t.Errorf("foreign file was disturbed: err=%v", err)
+	}
+}
+
+func TestRetireSharedLinkNoRecordConflicts(t *testing.T) {
+	home := t.TempDir()
+	agents := filepath.Join(home, "AGENTS.md")
+	writeFileOrDie(t, agents, "shared agents surface\n")
+	link := filepath.Join(home, "CLAUDE.md")
+	symlinkOrDie(t, agents, link)
+
+	// No prior record and no legacy reproducer: a link even to the right place is
+	// unprovable, so it is a conflict, never a blind delete.
+	removals, conflicts, err := PlanGlobalRetirements(retireRoots(home), []Target{symlinkTarget(link, agents)}, nil, nil)
+	insp := onlyConflict(t, removals, conflicts, err)
+	if insp.Reason != ReasonOwnershipConflict {
+		t.Errorf("conflict reason = %q, want %q", insp.Reason, ReasonOwnershipConflict)
+	}
+	if _, err := os.Lstat(link); err != nil {
+		t.Errorf("unprovable link was deleted: %v", err)
+	}
+}
+
 // One refusal collects every conflict: several unprovable destinations in one
 // call all surface, so an operator remedies them in a single pass.
 func TestRetireCollectsAllConflicts(t *testing.T) {

@@ -297,12 +297,19 @@ func computeRemovals(prior *reposeed.Record, root string, optIns []string, scope
 			continue // kept by a remaining owner, or entirely out of scope.
 		}
 		abs := filepath.Clean(filepath.Join(root, filepath.FromSlash(s.Path)))
-		historical = append(historical, install.Target{
+		tgt := install.Target{
 			Path:      abs,
 			Kind:      s.Kind,
 			BlockName: s.BlockName,
 			Role:      "dispatch",
-		})
+		}
+		if s.Kind == install.KindSymlink {
+			// A shared link's retirement removal must name its destination, both to
+			// prove ownership (the recorded link still matching disk) and so the
+			// journaled removal records the link it retired.
+			tgt.LinkTarget = filepath.Clean(filepath.Join(root, filepath.FromSlash(s.LinkTarget)))
+		}
+		historical = append(historical, tgt)
 		harnessByPath[abs] = strings.Join(s.Harnesses, ",")
 	}
 	if len(historical) == 0 {

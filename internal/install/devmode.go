@@ -88,9 +88,9 @@ type DevOptions struct {
 	Continuation bool
 	// RepoDir is the explicit repository selection the public command received,
 	// propagated verbatim into the candidate's handoff argv so parent and
-	// candidate resolve the same repository. Empty means none was given. The
-	// flag that populates it is wired by a later change; today it is always
-	// empty and omitted from the handoff argv.
+	// candidate resolve the same repository. Empty means none was given, and an
+	// empty value is omitted from the handoff argv. It is populated from the
+	// --repo-dir flag that cli/root.go reads.
 	RepoDir string
 }
 
