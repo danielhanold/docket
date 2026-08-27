@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'refactor/partition-internal-app-to-retire-the-race-gate-s-300s-ceilin'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-27T01:20:23Z'
+reconciled: true
+claimed_at: '2026-08-27T01:23:18Z'
 ---
 
 ## Artifacts
@@ -81,3 +81,9 @@ Settled design (2026-08-27 interactive grooming; detail in the linked spec):
 - Reworking the existing finalize E2E gate.
 - Resuming or finalizing #0357; this change removes its structural gate blocker, after which its
   existing branch can resume separately.
+
+## Reconcile log
+
+### 2026-08-27
+
+Reconciled at claim. The design (spec dated 2026-08-27, groomed the day before this build) remains fully current against the tree: change 0332's temporary machinery is present and unchanged in tests/runtime-budgets.tsv (the path-keyed 300s exemption for tests/test_go_race.sh, its RELIEF COUNTER A sub-ceiling, and the serial-identity coupling) and in tests/test_go_race.sh (still serial-pinned over the whole module). No `//go:build integration` files exist yet in internal/app, internal/githubcli, or internal/gitcli, and internal/app remains the dominant package (59 test files). Related-change states verified: 251 done; 273 and 280 proposed and explicitly out of scope; 357 in-progress and still gated on this partition (this change removes 357's structural blocker but does not depend on it, so depends_on stays empty). No ADRs are required at reconcile. Scope, out-of-scope, and all relations hold as authored; no section or relation edits needed.
