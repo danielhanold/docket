@@ -65,7 +65,7 @@ jobs:
   # stamped with, then run the embedded-asset drift check and the whole resolved suite.
   # -------------------------------------------------------------------------------------------------
   source-gate:
-    runs-on: ubuntu-24.04
+    runs-on: macos-15
     outputs:
       commit: ${{ steps.identity.outputs.commit }}
       short: ${{ steps.identity.outputs.short }}

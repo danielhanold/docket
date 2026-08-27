@@ -190,4 +190,57 @@ else
   nok "the embedded downloader source internal/release/downloader/install.sh is missing"
 fi
 
+# ================================================================================================
+# SECTION I — job runner assignments (change 0361). SPELLING LIMIT: extracts each job's block by
+# the shape of its 2-space-indent "  <job>:" opener and scans the runs-on TEXT inside it. It
+# proves which label this file requests, never what GitHub actually schedules — the live-run
+# acceptance is external truth. The macos-15 assert and the no-other-label assert both read the
+# SAME extracted runs_on line, so a dead extractor reddens the positive assert (its non-vacuity
+# companion) instead of leaving a vacuous negative.
+# ================================================================================================
+# A job block: the "  <job>:" opener (exactly 2-space indent) through the lines indented deeper
+# than 2 spaces; the block ends at the next line whose first 2 columns are spaces and third is
+# not (the next job or phase banner).
+job_block(){
+  awk -v job="$1" '
+    $0 ~ "^  " job ":[[:space:]]*$" {p=1; print; next}
+    p && /^  [^[:space:]]/ {p=0}
+    p {print}
+  ' "$WF"
+}
+
+sg_block="$(job_block source-gate)"
+if [ -n "$sg_block" ]; then
+  ok "source-gate job block extracted (population floor for the runner asserts)"
+else
+  nok "source-gate job block not found — the runner asserts below would be vacuous"
+fi
+sg_runs_on="$(grep -E 'runs-on:' <<<"$sg_block" || true)"
+if grep -Eq '^[[:space:]]*runs-on:[[:space:]]*macos-15[[:space:]]*$' <<<"$sg_runs_on"; then
+  ok "source-gate runs on macos-15 (the suite's authored platform)"
+else
+  nok "source-gate does not run on macos-15; its runs-on is: ${sg_runs_on:-<none>}"
+fi
+if [ -n "$sg_runs_on" ] && ! grep -q 'ubuntu' <<<"$sg_runs_on"; then
+  ok "source-gate's runs-on names no ubuntu label"
+else
+  nok "source-gate's runs-on still names an ubuntu label (or is missing): ${sg_runs_on:-<none>}"
+fi
+
+# The other three jobs RETAIN their runners — moving them is out of scope for change 0361.
+for job in package summary; do
+  jb="$(job_block "$job")"
+  if [ -n "$jb" ] && grep -Eq '^[[:space:]]*runs-on:[[:space:]]*ubuntu-24\.04[[:space:]]*$' <<<"$jb"; then
+    ok "$job job retains runs-on ubuntu-24.04"
+  else
+    nok "$job job block missing or no longer runs on ubuntu-24.04"
+  fi
+done
+smoke_block="$(job_block smoke)"
+if [ -n "$smoke_block" ] && grep -qF -- 'runs-on: ${{ matrix.runner }}' <<<"$smoke_block"; then
+  ok "smoke job retains its matrix runner indirection"
+else
+  nok "smoke job block missing or no longer runs on \${{ matrix.runner }}"
+fi
+
 exit "$fail"
