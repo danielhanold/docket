@@ -276,4 +276,59 @@ else
   nok "the paths list does not include .docket.yml — a finalize.test_command change would bypass the source gate"
 fi
 
+# ================================================================================================
+# SECTION K — the suite-Bash provisioning step (change 0361). SPELLING LIMIT: extracts the
+# source-gate step named "Provision suite Bash" by step shape ("- name:" opener to the next
+# "- name:") and asserts its TEXT: the brew resolution spelling, the BASH_VERSINFO version
+# check, and the GITHUB_ENV export — plus the ORDER of check and export by line number inside
+# the extracted step (a single-gap-free way to pin "export only after verifying"). It cannot
+# prove the step runs, that brew serves Bash >= 4.3, or that the exported path is executable —
+# the step's own runtime refusal and the live workflow run own those.
+# ================================================================================================
+bash_step="$(job_block source-gate | awk '
+  /- name: Provision suite Bash/ {p=1; print; next}
+  p && /^[[:space:]]*- name:/ {p=0}
+  p {print}
+')"
+if [ -n "$bash_step" ]; then
+  ok "source-gate has a Provision suite Bash step"
+else
+  nok "source-gate has no Provision suite Bash step — the suite would run on Apple Bash 3.2"
+fi
+if grep -qF 'brew install bash' <<<"$bash_step"; then
+  ok "the suite-Bash step installs the Homebrew bash formula when absent"
+else
+  nok "the suite-Bash step never installs the bash formula"
+fi
+if grep -qF 'prefix="$(brew --prefix bash)"' <<<"$bash_step" \
+   && grep -qF 'suite_bash="$prefix/bin/bash"' <<<"$bash_step"; then
+  ok "the suite-Bash step resolves an absolute path via brew --prefix bash"
+else
+  nok "the suite-Bash step does not resolve the bash path through brew --prefix"
+fi
+# Order: the BASH_VERSINFO floor check must precede the GITHUB_ENV export — line numbers within
+# the extracted step, not a stacked-gap regex.
+ver_ln="$(awk '/BASH_VERSINFO/{print NR; exit}' <<<"$bash_step")"
+exp_ln="$(awk '/DOCKET_BASH_PATH=.*GITHUB_ENV/{print NR; exit}' <<<"$bash_step")"
+if [ -n "$ver_ln" ]; then
+  ok "the suite-Bash step version-checks via BASH_VERSINFO"
+else
+  nok "the suite-Bash step has no BASH_VERSINFO version check"
+fi
+if [ -n "$exp_ln" ]; then
+  ok "the suite-Bash step exports DOCKET_BASH_PATH through GITHUB_ENV"
+else
+  nok "the suite-Bash step never exports DOCKET_BASH_PATH through GITHUB_ENV"
+fi
+if [ -n "$ver_ln" ] && [ -n "$exp_ln" ] && [ "$ver_ln" -lt "$exp_ln" ]; then
+  ok "the version check precedes the DOCKET_BASH_PATH export"
+else
+  nok "DOCKET_BASH_PATH is exported without a preceding version check"
+fi
+if grep -qF 'need GNU Bash >= 4.3' <<<"$bash_step"; then
+  ok "the suite-Bash step names the 4.3 floor in its refusal"
+else
+  nok "the suite-Bash step does not state the GNU Bash 4.3 floor"
+fi
+
 exit "$fail"
