@@ -21,7 +21,7 @@ branch: 'refactor/partition-internal-release-to-clear-the-race-gate-timeout'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-28T01:17:06Z'
+claimed_at: '2026-08-28T02:35:59Z'
 ---
 
 ## Artifacts
