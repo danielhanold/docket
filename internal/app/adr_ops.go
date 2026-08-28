@@ -13,6 +13,7 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/render"
+	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 )
@@ -184,7 +185,7 @@ func ADRRecordOp(ctx context.Context, deps PlanningDeps, repoDir string, req ADR
 	txReq := transaction.Request{
 		Repository:  repo,
 		Remote:      originRemote,
-		TargetRef:   gitcli.RefName(branchRefPrefix + metadataBranchOf(pin)),
+		TargetRef:   gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Idempotency: &transaction.IdempotencyKey{RequestID: req.RequestID, Digest: digest},
 		Loader:      newPlanningLoader(eff),
 		Operation:   op,
@@ -706,7 +707,7 @@ func adrReplace(ctx context.Context, deps PlanningDeps, repoDir, opKey string, r
 	res, execErr := deps.Engine.Execute(ctx, transaction.Request{
 		Repository:  repo,
 		Remote:      originRemote,
-		TargetRef:   gitcli.RefName(branchRefPrefix + metadataBranchOf(pin)),
+		TargetRef:   gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Idempotency: &transaction.IdempotencyKey{RequestID: req.RequestID, Digest: digest},
 		Loader:      newPlanningLoader(eff),
 		Operation:   op,

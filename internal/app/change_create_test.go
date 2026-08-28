@@ -61,11 +61,11 @@ func testClock() fixedClock {
 	return fixedClock{t: time.Date(2026, 8, 16, 12, 0, 0, 0, time.UTC)}
 }
 
-// mainModePin builds a main-mode StatusPin carrying the resolved configuration
-// with the given board surfaces.
+// mainModePin builds a StatusPin carrying the resolved configuration with the
+// given board surfaces. (Named for the historical main topology; there is now a
+// single docket topology, so it is an ordinary pin fixture.)
 func mainModePin(surfaces []string) StatusPin {
 	return StatusPin{
-		Mode:          metadataModeMain,
 		DefaultBranch: "main",
 		Config:        config.Snapshot{Effective: planningTestConfig(surfaces)},
 	}

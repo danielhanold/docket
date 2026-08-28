@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/danielhanold/docket/internal/domain"
+	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 )
 
@@ -278,7 +279,7 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 
 	changeBlob := blobByPath[selected.Path()]
 	bundle := &ImplementationContext{
-		MetadataRef:    metadataBranchOf(pin),
+		MetadataRef:    reposetup.MetadataBranchName,
 		MetadataCommit: metadataRevision(pin),
 		Change: ContextEntity{
 			Path:    selected.Path(),
@@ -304,7 +305,7 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 		EffectiveBase: contextBase(domain.ResolveEffectiveBase(snap, selected, facts)),
 		ADRs:          acceptedADRs(snap),
 		Workflow: ContextWorkflow{
-			RepoMode:          pin.Mode,
+			RepoMode:          reposetup.MetadataBranchName, // 0363 Task 5 removes this
 			IntegrationBranch: pin.IntegrationBranch,
 			TestCommand:       eff.Finalize.TestCommand.Value,
 			Remote:            string(originRemote),

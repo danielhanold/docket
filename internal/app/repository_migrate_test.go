@@ -127,7 +127,6 @@ func TestMigrateConfirmationRequiredPreviewCarriesPlan(t *testing.T) {
 	sc := setupContext{
 		cfg:               effectiveForMigrateTest(),
 		integrationBranch: "main",
-		metadataBranch:    "docket",
 	}
 	plan, err := reposetup.PlanMigration(sc.cfg, nil, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef", nil)
 	if err != nil {
@@ -155,7 +154,7 @@ func TestMigrateConfirmationRequiredPreviewCarriesPlan(t *testing.T) {
 // plan carries repairs the caller did not opt into is refused naming
 // --repair-frontmatter.
 func TestMigrateRepairAuthorizationRequiredNamesFlag(t *testing.T) {
-	sc := setupContext{cfg: effectiveForMigrateTest(), integrationBranch: "main", metadataBranch: "docket"}
+	sc := setupContext{cfg: effectiveForMigrateTest(), integrationBranch: "main"}
 	plan, err := reposetup.PlanMigration(sc.cfg, nil, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef", nil)
 	if err != nil {
 		t.Fatalf("PlanMigration: %v", err)

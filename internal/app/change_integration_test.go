@@ -62,8 +62,8 @@ func TestIntegrationChangeADRRecordAppliedResult(t *testing.T) {
 	if req.Operation.Key() != OperationADRRecord {
 		t.Errorf("operation key = %q", req.Operation.Key())
 	}
-	if req.TargetRef != "refs/heads/main" {
-		t.Errorf("target ref = %q, want refs/heads/main", req.TargetRef)
+	if req.TargetRef != "refs/heads/docket" {
+		t.Errorf("target ref = %q, want refs/heads/docket", req.TargetRef)
 	}
 	if req.Idempotency == nil || req.Idempotency.RequestID != "adr-00000001" {
 		t.Errorf("idempotency key = %+v", req.Idempotency)
@@ -321,8 +321,8 @@ func TestIntegrationChangeBlockAppliedResult(t *testing.T) {
 	if req.Operation.Key() != OperationChangeBlock {
 		t.Errorf("operation key = %q", req.Operation.Key())
 	}
-	if req.TargetRef != "refs/heads/main" {
-		t.Errorf("target ref = %q, want refs/heads/main", req.TargetRef)
+	if req.TargetRef != "refs/heads/docket" {
+		t.Errorf("target ref = %q, want refs/heads/docket", req.TargetRef)
 	}
 	if req.Idempotency != nil {
 		t.Errorf("lifecycle is non-allocating; it must carry no idempotency key, got %+v", req.Idempotency)
@@ -385,8 +385,8 @@ func TestIntegrationChangeClaimApplies(t *testing.T) {
 		if req.Operation.Key() != OperationChangeClaim {
 			t.Errorf("operation key = %q", req.Operation.Key())
 		}
-		if req.TargetRef != "refs/heads/main" {
-			t.Errorf("target ref = %q, want refs/heads/main", req.TargetRef)
+		if req.TargetRef != "refs/heads/docket" {
+			t.Errorf("target ref = %q, want refs/heads/docket", req.TargetRef)
 		}
 		if len(req.Expected) != 1 {
 			t.Fatalf("expected %d entity expectations, want 1", len(req.Expected))
@@ -607,8 +607,8 @@ func TestIntegrationChangeCreateAppliedResult(t *testing.T) {
 	if req.Operation.Key() != OperationChangeCreate {
 		t.Errorf("operation key = %q", req.Operation.Key())
 	}
-	if req.TargetRef != "refs/heads/main" {
-		t.Errorf("target ref = %q, want refs/heads/main", req.TargetRef)
+	if req.TargetRef != "refs/heads/docket" {
+		t.Errorf("target ref = %q, want refs/heads/docket", req.TargetRef)
 	}
 	if req.Remote != originRemote {
 		t.Errorf("remote = %q", req.Remote)
@@ -1230,8 +1230,8 @@ func TestIntegrationChangeGroomAppliedResult(t *testing.T) {
 	if req.Operation.Key() != OperationChangeGroom {
 		t.Errorf("operation key = %q", req.Operation.Key())
 	}
-	if req.TargetRef != "refs/heads/main" {
-		t.Errorf("target ref = %q, want refs/heads/main", req.TargetRef)
+	if req.TargetRef != "refs/heads/docket" {
+		t.Errorf("target ref = %q, want refs/heads/docket", req.TargetRef)
 	}
 	if req.Idempotency != nil {
 		t.Errorf("groom is non-allocating; it must carry no idempotency key, got %+v", req.Idempotency)
@@ -1317,8 +1317,8 @@ func TestIntegrationChangeKillAppliedResult(t *testing.T) {
 	if req.Operation.Key() != OperationChangeKill {
 		t.Errorf("operation key = %q", req.Operation.Key())
 	}
-	if req.TargetRef != "refs/heads/main" {
-		t.Errorf("target ref = %q, want refs/heads/main", req.TargetRef)
+	if req.TargetRef != "refs/heads/docket" {
+		t.Errorf("target ref = %q, want refs/heads/docket", req.TargetRef)
 	}
 	if req.Idempotency != nil {
 		t.Errorf("kill is non-allocating; it must carry no idempotency key, got %+v", req.Idempotency)
@@ -1402,8 +1402,8 @@ func TestIntegrationChangeLearningRecordAppliedResult(t *testing.T) {
 	if req.Operation.Key() != OperationLearningRecord {
 		t.Errorf("operation key = %q", req.Operation.Key())
 	}
-	if req.TargetRef != "refs/heads/main" {
-		t.Errorf("target ref = %q, want refs/heads/main", req.TargetRef)
+	if req.TargetRef != "refs/heads/docket" {
+		t.Errorf("target ref = %q, want refs/heads/docket", req.TargetRef)
 	}
 	if req.Idempotency == nil || req.Idempotency.RequestID != "learn-00000001" {
 		t.Errorf("idempotency key = %+v", req.Idempotency)
@@ -2324,8 +2324,8 @@ func TestIntegrationChangeReconcileAppliedResult(t *testing.T) {
 	if req.Operation.Key() != OperationChangeReconcile {
 		t.Errorf("operation key = %q", req.Operation.Key())
 	}
-	if req.TargetRef != "refs/heads/main" {
-		t.Errorf("target ref = %q, want refs/heads/main", req.TargetRef)
+	if req.TargetRef != "refs/heads/docket" {
+		t.Errorf("target ref = %q, want refs/heads/docket", req.TargetRef)
 	}
 	if req.Idempotency != nil {
 		t.Errorf("reconcile is non-allocating; it must carry no idempotency key, got %+v", req.Idempotency)

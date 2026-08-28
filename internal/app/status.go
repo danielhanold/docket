@@ -57,12 +57,10 @@ type StatusOptions struct {
 // PinContext and threaded verbatim into every later reader call so the whole
 // read observes one authoritative revision of each branch.
 type StatusPin struct {
-	Mode                string // "main" | "docket"
 	DefaultBranch       string
 	DefaultRevision     string
 	IntegrationBranch   string
 	IntegrationRevision string
-	MetadataBranch      string // "" in main mode
 	MetadataRevision    string
 	// RepoWebURL is the https web base derived from origin's configured URL
 	// ("https://github.com/owner/repo"), "" for non-GitHub/unreadable remotes.
@@ -686,12 +684,10 @@ func summarize(snap domain.Snapshot, changes []StatusChange, ready []int, findin
 // contextFromPin echoes the pin into the protocol context verbatim.
 func contextFromPin(pin StatusPin) StatusContext {
 	return StatusContext{
-		MetadataMode:          pin.Mode,
 		DefaultBranch:         pin.DefaultBranch,
 		DefaultBranchRevision: pin.DefaultRevision,
 		IntegrationBranch:     pin.IntegrationBranch,
 		IntegrationRevision:   pin.IntegrationRevision,
-		MetadataBranch:        pin.MetadataBranch,
 		MetadataRevision:      pin.MetadataRevision,
 	}
 }

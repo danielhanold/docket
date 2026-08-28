@@ -13,6 +13,7 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/render"
+	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 )
@@ -222,7 +223,7 @@ func ChangeCreate(ctx context.Context, deps PlanningDeps, repoDir string, req Ch
 	res, execErr := deps.Engine.Execute(ctx, transaction.Request{
 		Repository:  repo,
 		Remote:      originRemote,
-		TargetRef:   gitcli.RefName(branchRefPrefix + metadataBranchOf(pin)),
+		TargetRef:   gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Idempotency: &transaction.IdempotencyKey{RequestID: req.RequestID, Digest: digest},
 		Loader:      newPlanningLoader(eff),
 		Operation:   op,
@@ -379,15 +380,6 @@ func slugifyTitle(title string) string {
 		s = s[:60]
 	}
 	return strings.TrimRight(s, "-")
-}
-
-// metadataBranchOf returns the branch the metadata records live on: the metadata
-// branch in docket mode, and the default branch in main mode.
-func metadataBranchOf(pin StatusPin) string {
-	if pin.Mode == metadataModeMain {
-		return pin.DefaultBranch
-	}
-	return pin.MetadataBranch
 }
 
 // findingsToStatus converts a slice of domain findings into the DTO shape,

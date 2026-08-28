@@ -9,6 +9,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/render"
+	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 )
 
@@ -43,7 +44,7 @@ func changeByPath(t *testing.T, pin StatusPin, corpus []StatusBlob, path string)
 func backlinkGolden(t *testing.T, pin StatusPin, corpus []StatusBlob, changePath string) string {
 	t.Helper()
 	c := changeByPath(t, pin, corpus, changePath)
-	block, err := render.BacklinkContent(c, render.LinkContext{MetadataBranch: metadataBranchOf(pin)})
+	block, err := render.BacklinkContent(c, render.LinkContext{MetadataBranch: reposetup.MetadataBranchName})
 	if err != nil {
 		t.Fatalf("render backlink golden: %v", err)
 	}

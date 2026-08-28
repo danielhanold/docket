@@ -10,7 +10,6 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/repository"
-	"github.com/danielhanold/docket/internal/reposetup"
 )
 
 // This file is the production StatusReader: the one seam implementation that
@@ -24,17 +23,6 @@ import (
 // originRemote is the remote docket reads authoritative state from. Discovery
 // and every fetch/ls-remote go through it.
 const originRemote gitcli.RemoteName = "origin"
-
-// The two metadata-mode spellings StatusPin.Mode still carries. The retired
-// main mode no longer exists as a pinnable topology — the operational loader
-// always pins the fixed docket metadata branch — so the production pin is
-// always metadataModeDocket; metadataModeMain survives only for the
-// metadataBranchOf fallback and test fixtures until 0363 Task 4 removes
-// StatusPin.Mode and both constants.
-const (
-	metadataModeMain   = "main"
-	metadataModeDocket = "docket"
-)
 
 // branchRefPrefix is the fully-qualified local-branch namespace. A short branch
 // name is fetched under it and a fully-qualified default ref is shortened by
@@ -73,12 +61,10 @@ func (r *gitStatusReader) PinContext(ctx context.Context, repoDir string) (Statu
 	}
 	r.repo = oc.repo
 	return StatusPin{
-		Mode:                metadataModeDocket,
 		DefaultBranch:       oc.defaultBranch,
 		DefaultRevision:     oc.defaultRevision,
 		IntegrationBranch:   oc.integrationBranch,
 		IntegrationRevision: oc.integrationRevision,
-		MetadataBranch:      reposetup.MetadataBranchName,
 		MetadataRevision:    oc.metadataRevision,
 		Config:              oc.snapshot,
 		ConfigDiags:         oc.diags,
@@ -223,14 +209,10 @@ func (r *gitStatusReader) openSource(ctx context.Context, rev string) (gitcli.Ob
 	return r.client.OpenObjectSource(ctx, r.repo, gitcli.Revision{Commit: gitcli.ObjectID(rev)})
 }
 
-// metadataRevision is the revision the metadata source reads from: the metadata
-// branch in docket mode, and the default branch in main mode (where planning
-// records live on the default branch and MetadataRevision is empty).
+// metadataRevision is the revision the metadata source reads from: the pinned
+// tip of the fixed docket metadata branch.
 func metadataRevision(pin StatusPin) string {
-	if pin.MetadataRevision != "" {
-		return pin.MetadataRevision
-	}
-	return pin.DefaultRevision
+	return pin.MetadataRevision
 }
 
 // sourceRevision maps a source name to the pinned revision it reads from. An

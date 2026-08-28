@@ -128,12 +128,10 @@ func TestStatusCorpusFrozenSemantics(t *testing.T) {
 	cfg, cfgDiags := corpusConfig(t, docketYML)
 
 	pin := StatusPin{
-		Mode:                "docket",
 		DefaultBranch:       "main",
 		DefaultRevision:     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		IntegrationBranch:   "main",
 		IntegrationRevision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-		MetadataBranch:      "docket",
 		MetadataRevision:    "cccccccccccccccccccccccccccccccccccccccc",
 		Config:              cfg,
 		ConfigDiags:         cfgDiags,
@@ -145,9 +143,8 @@ func TestStatusCorpusFrozenSemantics(t *testing.T) {
 		t.Fatalf("result = %q, want applied; message=%q", got.Result, got.Message)
 	}
 
-	// --- context echoes the docket-mode pin -----------------------------------
-	if got.Context.MetadataMode != "docket" ||
-		got.Context.MetadataRevision != pin.MetadataRevision ||
+	// --- context echoes the pin ----------------------------------------------
+	if got.Context.MetadataRevision != pin.MetadataRevision ||
 		got.Context.IntegrationRevision != pin.IntegrationRevision {
 		t.Errorf("context did not echo the pin: %+v", got.Context)
 	}

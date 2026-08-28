@@ -112,7 +112,6 @@ type setupContext struct {
 	repo              gitcli.Repository
 	defaultBranch     string
 	integrationBranch string
-	metadataBranch    string
 	sourceRevision    string // pinned authoritative integration tip
 	metadataTip       string // remote docket tip when present, else ""
 	diagnostics       []setupDiag
@@ -213,7 +212,6 @@ func gatherRepoFacts(ctx context.Context, p setupProber, in repoFactsInput) (rep
 	}
 
 	sc.integrationBranch = in.cfg.IntegrationBranch.Value
-	sc.metadataBranch = reposetup.MetadataBranchName
 	f.SurfacesAuthorized = in.cfg.AgentHarnesses.Explicit && isRepositoryLayer(in.cfg.AgentHarnesses.Provenance.Layer)
 
 	// The authoritative integration tip is the source revision every later phase
@@ -240,7 +238,7 @@ func gatherRepoFacts(ctx context.Context, p setupProber, in repoFactsInput) (rep
 	// (adopt on the expected empty orphan, refuse on anything foreign), so the
 	// authoritative adopt/conflict decision keys on the promised remote state, not
 	// a gather-time proxy.
-	metaRef := gitcli.RefName(branchRefPrefix + sc.metadataBranch)
+	metaRef := gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)
 	rr, merr := p.ProbeRemoteBranch(ctx, in.repo, setupRemote(), metaRef)
 	if merr != nil {
 		sc.diagnostics = append(sc.diagnostics, setupDiag{Probe: "remote-metadata-branch", Err: merr})

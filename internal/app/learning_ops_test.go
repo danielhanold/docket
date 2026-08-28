@@ -10,13 +10,12 @@ import (
 
 // --- fixtures --------------------------------------------------------------
 
-// learningsDisabledPin builds a main-mode pin whose resolved configuration has
-// learnings disabled (every other leaf as planningTestConfig).
+// learningsDisabledPin builds a pin whose resolved configuration has learnings
+// disabled (every other leaf as planningTestConfig).
 func learningsDisabledPin() StatusPin {
 	eff := planningTestConfig([]string{})
 	eff.Learnings.Enabled.Value = false
 	return StatusPin{
-		Mode:          metadataModeMain,
 		DefaultBranch: "main",
 		Config:        config.Snapshot{Effective: eff},
 	}

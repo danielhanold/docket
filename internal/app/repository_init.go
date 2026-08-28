@@ -97,7 +97,7 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps) RepositoryOpResult {
 	// authoritative metadata operation: on success we created it; on a rejection
 	// the exact remote shape decides adopt (an already-published empty orphan) or
 	// conflict (anything foreign) — the remote is never overwritten.
-	metaRef := gitcli.RefName(branchRefPrefix + sc.metadataBranch)
+	metaRef := gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)
 	metadataTip, createdRemote, refusal := publishOrAdoptMetadataRoot(ctx, d.Git, sc.repo, metaRef)
 	if refusal != nil {
 		return *refusal

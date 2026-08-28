@@ -15,6 +15,7 @@ import (
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/render"
+	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 )
@@ -555,13 +556,11 @@ func closeoutIntegrationDestination(ctx context.Context, deps FinalizeDeps, cc *
 		return res
 	}
 
-	// Docket-mode follow-up: retarget the merged plan/results backlinks on the
-	// integration ref. A failed/contended leg leaves the change truthfully done and
-	// emits a retryable finding.
-	if cc.pin.Mode == "docket" {
-		if finding := runCloseoutBacklinkLeg(ctx, deps, cc, targets, archiveDate); finding != nil {
-			res.Findings = append(res.Findings, *finding)
-		}
+	// Follow-up: retarget the merged plan/results backlinks on the integration
+	// ref. A failed/contended leg leaves the change truthfully done and emits a
+	// retryable finding.
+	if finding := runCloseoutBacklinkLeg(ctx, deps, cc, targets, archiveDate); finding != nil {
+		res.Findings = append(res.Findings, *finding)
 	}
 	return res
 }
@@ -662,7 +661,7 @@ func closeoutStacked(ctx context.Context, deps FinalizeDeps, cc *closeoutContext
 	res, execErr := deps.Planning.Engine.Execute(ctx, transaction.Request{
 		Repository: cc.repo,
 		Remote:     originRemote,
-		TargetRef:  gitcli.RefName(branchRefPrefix + metadataBranchOf(cc.pin)),
+		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
 			Path:    gitcli.RepoPath(cc.change.Path()),
 			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(cc.version)},
@@ -718,7 +717,7 @@ func runCloseoutArchiveTransaction(ctx context.Context, deps FinalizeDeps, cc *c
 	res, execErr := deps.Planning.Engine.Execute(ctx, transaction.Request{
 		Repository: cc.repo,
 		Remote:     originRemote,
-		TargetRef:  gitcli.RefName(branchRefPrefix + metadataBranchOf(cc.pin)),
+		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected:   expectations,
 		Loader:     newPlanningLoader(cc.eff),
 		Operation:  op,
