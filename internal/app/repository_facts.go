@@ -51,16 +51,23 @@ type SetupDeps struct {
 // non-nil error it returns aborts the run at that point (simulating a lost
 // response or an abrupt death just after the preceding durable effect) so a
 // re-run must recover from the durable remote state alone. All hooks are nil in
-// production. beforeLocalFinish fires after BOTH remote postconditions are
+// production. beforeMetadataLeasePush fires on the resume-at-prune path inside
+// reconcileResumeSeed, between the fresh re-read of the published seed and the
+// owned-lease push that updates it — the seam a MetadataLeaseLoss contention
+// fixture advances the remote docket branch through, so the exact-lease push
+// (keyed on the fresh re-read, learning cas-re-read-fresh-origin) loses to the
+// foreign advance and the migration contends without a force or an overwrite.
+// beforeLocalFinish fires after BOTH remote postconditions are
 // published and re-read and before the local finish — the seam the
 // LocalMovedAfterPublish scenario advances the local primary through (returning
 // nil so the finish still runs and reports the pending local sync).
 type setupHooks struct {
-	beforeSeedPush    func() error
-	afterSeedPush     func() error
-	beforePrunePush   func() error
-	afterPrunePush    func() error
-	beforeLocalFinish func() error
+	beforeSeedPush          func() error
+	afterSeedPush           func() error
+	beforeMetadataLeasePush func() error
+	beforePrunePush         func() error
+	afterPrunePush          func() error
+	beforeLocalFinish       func() error
 }
 
 // fire invokes hook when it is non-nil, returning its error (nil hook → nil).

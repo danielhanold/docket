@@ -491,7 +491,7 @@ func migrateExecute(ctx context.Context, git *gitcli.Client, hooks setupHooks, f
 	// seed under its exact owned lease — rather than re-created.
 	var metadataTip gitcli.ObjectID
 	if phase == phaseResumePrune {
-		tip, refusal := reconcileResumeSeed(ctx, git, sc, docketRef, seedReceipt, seedTree)
+		tip, refusal := reconcileResumeSeed(ctx, git, hooks, sc, docketRef, seedReceipt, seedTree)
 		if refusal != nil {
 			return *refusal
 		}
@@ -604,7 +604,7 @@ func migrateExecute(ctx context.Context, git *gitcli.Client, hooks setupHooks, f
 //   - otherwise (no receipt we can trust, or a receipt claiming THIS source while
 //     the tree disagrees — a tampered seed) it refuses as a conflict, destroying
 //     nothing.
-func reconcileResumeSeed(ctx context.Context, git *gitcli.Client, sc setupContext, docketRef gitcli.RefName, seedReceipt reposetup.Receipt, seedTree gitcli.ObjectID) (gitcli.ObjectID, *RepositoryMigrateResult) {
+func reconcileResumeSeed(ctx context.Context, git *gitcli.Client, hooks setupHooks, sc setupContext, docketRef gitcli.RefName, seedReceipt reposetup.Receipt, seedTree gitcli.ObjectID) (gitcli.ObjectID, *RepositoryMigrateResult) {
 	rev, err := git.FetchBranch(ctx, sc.repo, setupRemote(), docketRef)
 	if err != nil {
 		r := migrateExternalFailure(reposetup.StateConflict, "re-reading the published metadata seed", err)
@@ -646,6 +646,14 @@ func reconcileResumeSeed(ctx context.Context, git *gitcli.Client, sc setupContex
 	newSeed, cerr := git.CommitTree(ctx, sc.repo, seedTree, nil, migrateSeedSubject, toGitcliTrailers(newReceipt.Trailers()))
 	if cerr != nil {
 		r := migrateExternalFailure(reposetup.StateLegacy, "re-composing the updated metadata seed commit", cerr)
+		return "", &r
+	}
+	// The owned-lease push keys on metadataTip — the FRESH re-read of the published
+	// seed above (learning cas-re-read-fresh-origin). A second writer that advances
+	// remote docket through this seam loses the lease here, never an overwrite: the
+	// migration contends and the foreign advance stays intact.
+	if err := fire(hooks.beforeMetadataLeasePush); err != nil {
+		r := migrateExternalFailure(reposetup.StateLegacy, "updating the metadata seed under its owned lease (interrupted before publication)", err)
 		return "", &r
 	}
 	out, perr := git.PushLease(ctx, sc.repo, setupRemote(), docketRef, newSeed, metadataTip)
