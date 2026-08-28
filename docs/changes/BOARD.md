@@ -1,8 +1,14 @@
 # Backlog
 
-**363 changes** — 🟡 53 proposed · ⚪ 4 deferred · ✅ 224 done · 🗑️ 82 killed
+**363 changes** — 🟢 1 in progress · 🟡 52 proposed · ⚪ 4 deferred · ✅ 224 done · 🗑️ 82 killed
 
-## 🟡 Proposed (53)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0352](active/0352-native-repository-initialization-and-health-check.md) | Native repository initialization, migration, and health checks | `high` | `feat` | [spec](../superpowers/specs/2026-08-28-native-repository-initialization-migration-and-health-design.md) | `feat/native-repository-initialization-and-health-check` |
+
+## 🟡 Proposed (52)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -54,7 +60,6 @@
 | [0346](active/0346-finalize-rebuilds-binary-from-unpulled-source-tree.md) | Finalize's post-merge binary rebuild runs against an unpulled source tree | `medium` | `fix` | needs-brainstorm |
 | [0349](active/0349-configurable-finalize-resolver-dispatch-cap.md) | Make the finalize rebase-resolver dispatch cap configurable | `medium` | `feat` | needs-brainstorm |
 | [0350](active/0350-surface-the-swallowed-validation-failure-behind-a-bare-inter.md) | Surface the swallowed validation failure behind a bare internal-error in the transaction engine | `medium` | `fix` | needs-brainstorm |
-| [0352](active/0352-native-repository-initialization-and-health-check.md) | Native repository initialization, migration, and health checks | `high` | `feat` | build-ready |
 | [0354](active/0354-halt-report-authoring-writes-a-duplicate-run-halted-heading.md) | Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted | `high` | `fix` | needs-brainstorm |
 | [0359](active/0359-run-gate-gives-up-too-soon.md) | the run gate gives up too soon | `high` | `fix` | needs-brainstorm |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `medium` | `feat` | needs-brainstorm |

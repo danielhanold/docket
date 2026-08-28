@@ -2,11 +2,11 @@
 id: 352
 slug: native-repository-initialization-and-health-check
 title: 'Native repository initialization, migration, and health checks'
-status: proposed
+status: 'in-progress'
 priority: high
 type: feat
 created: 2026-08-26
-updated: 2026-08-28
+updated: '2026-08-28'
 depends_on: [351]
 stacked_on:
 related: [351, 311, 318, 363]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'feat/native-repository-initialization-and-health-check'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-28T15:48:33Z'
 ---
 
 ## Artifacts
