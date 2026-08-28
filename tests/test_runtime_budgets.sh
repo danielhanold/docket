@@ -31,13 +31,23 @@ EXPECTED_SERIAL=0   # no file is currently pinned serial. tests/test_go_race.sh 
                     # run no longer starves the other parallel jobs. RAISING THIS IS A FINDING: a
                     # serial pin removes a file from the parallel phase, so it must be justified in
                     # the same diff with the shared state that forces it.
-EXPECTED_TOTAL=2620 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2640 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2620 -> 2640 (change 0362, Task 7): ONE legitimate mover — the release
+                    # integration SHARD row is finalized from three fresh-GOCACHE readings.
+                    # tests/test_go_integration_release.sh 25 -> 45: the worst cold reading is 38.47s
+                    # (28.43/28.28/38.47), which by the row formula (next 5 -> 40, +5 -> 45) and the
+                    # 45-50s target lands at 45 with no split. The Task 4 provisional (25, warm) is
+                    # superseded. The fidelity floor stayed on its 10s floor even cold (3.19/3.15/3.12),
+                    # so its Task 5 row is unchanged. The race gate and toolchain gate are NOT moved by
+                    # 0362: the partition REMOVES internal/release's package+archive tests from the
+                    # default `-race ./...` corpus, lowering the race gate's cost (its whole point),
+                    # never raising it, and does not touch toolchain's cost — so their existing warm-set
+                    # ceilings (60, 55) stand. (See the tsv header for the per-row readings.)
                     # 2610 -> 2620 (change 0362, Task 5): ONE legitimate mover — a NEW test file
                     # brings its own row. tests/test_release_partition_fidelity.sh is the population
                     # floor that pins the committed release partition map against the live corpus (the
-                    # both-halves-deleted mode the structural contract is blind to). Provisional at 10
-                    # (the floor) from a warm reading (worst 0.99 -> 5 -> +5 -> 10); Task 7 re-derives
-                    # it from three fresh-cache readings and owns the final value (see the tsv header).
+                    # both-halves-deleted mode the structural contract is blind to). Finalized at 10
+                    # (the floor) from three fresh-cache readings (worst 3.19 -> 5 -> +5 -> 10).
                     # 2585 -> 2610 (change 0362, Task 4): ONE legitimate mover — a NEW test file
                     # brings its own row. tests/test_go_integration_release.sh is the release
                     # packaging/archive integration SHARD (internal/release's slow real-tar/gzip/

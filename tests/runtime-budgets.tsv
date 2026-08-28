@@ -373,13 +373,14 @@
 # goroutines, sync primitives, t.Parallel(), or process-lifecycle coordination; the exec.Command
 # subprocesses run sequentially, which does not earn a -race shard). No existing shard could take
 # it: every other Go-touching row runs the DEFAULT-tag corpus, which cannot see this tagged one.
-# PROVISIONAL row from the WORST of three warm standalone readings, one machine (darwin/arm64,
-# go1.26.5), as `/usr/bin/time -p bash tests/test_go_integration_release.sh >/dev/null`:
-#   release    warm 15.53 14.26 13.74 -> worst 15.53 -> next multiple of 5 is 20, plus 5 -> 25
-# provisional — finalized from three fresh-cache readings (0362 Task 7): the shard's COLD compile of
-# the release package (grooming: ~28.62s cold non-race) is expected to dominate the warm number, so
-# Task 7 re-derives this row from empty-GOCACHE readings and owns the final value. Rides the parallel
-# lane. EXPECTED_TOTAL moves 2585 -> 2610: +25.
+# FINAL row from the WORST of three fresh-GOCACHE (empty build cache, shared module cache) readings,
+# idle Mac15,6 / macOS 26.6.2 / go1.26.5 darwin/arm64, as
+# `fresh=$(mktemp -d ...); GOCACHE=$fresh /usr/bin/time -p bash tests/test_go_integration_release.sh` (0362 Task 7):
+#   release    cold 28.43 28.28 38.47 -> worst 38.47 -> next multiple of 5 is 40, plus 5 -> 45
+# The worst cold reading (38.47s) is within the 45-50s target band and under the 60s ceiling, so the
+# single sequential runner stands with no split. The suite runs it warm on the parallel lane, well
+# under 45s (superseded provisional warm reading: 15.53 -> 25). Headroom at 45: ~6.5s over the worst
+# cold reading. EXPECTED_TOTAL moves 2620 -> 2640: +20 (this row 25 -> 45).
 #
 # tests/test_release_partition_fidelity.sh is ONE NEW FILE brought by change 0362 — the header's
 # new-test-file case. It is the population floor of the release partition: the STRUCTURAL contract
@@ -391,13 +392,13 @@
 # test binary. Not an extension of any shard: the shards each EXECUTE one feature's tagged tests,
 # and tests/test_go_integration_contract.sh proves the partition is total — this file proves the
 # committed map still describes the live corpus, the one deletion mode structural discovery is blind
-# to. PROVISIONAL row from the WORST of three warm standalone readings, one machine (darwin/arm64,
-# go1.26.5), as `/usr/bin/time -p bash tests/test_release_partition_fidelity.sh >/dev/null`:
-#   fidelity   warm 0.99 0.80 0.75 -> worst 0.99 -> next multiple of 5 is 5, plus 5 -> 10 (the floor)
-# provisional — finalized from three fresh-cache readings (0362 Task 7): the two `-list` probes share
-# GOCACHE with the other Go-touching files in the suite, so the cold-cache reading is the reachable
-# worst and Task 7 re-derives this row from empty-GOCACHE readings and owns the final value. Rides
-# the parallel lane. EXPECTED_TOTAL moves 2610 -> 2620: +10.
+# to. FINAL row from the WORST of three fresh-GOCACHE readings, idle Mac15,6 / macOS 26.6.2 /
+# go1.26.5 darwin/arm64, as
+# `fresh=$(mktemp -d ...); GOCACHE=$fresh /usr/bin/time -p bash tests/test_release_partition_fidelity.sh` (0362 Task 7):
+#   fidelity   cold 3.19 3.15 3.12 -> worst 3.19 -> next multiple of 5 is 5, plus 5 -> 10 (the floor)
+# Even cold, the two `go test -list` probes finish in ~3.2s, so the row lands on the 10s floor with
+# wide headroom (~6.8s); nothing to split. Rides the parallel lane. (Superseded provisional warm
+# reading: 0.99 -> 10, the same value, so EXPECTED_TOTAL is unchanged by this row.)
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -477,7 +478,7 @@ tests/test_go_integration_githubcli_ensure.sh	10	parallel
 tests/test_go_integration_githubcli_harness.sh	10	parallel
 tests/test_go_integration_githubcli_merge.sh	10	parallel
 tests/test_go_integration_githubcli_probe.sh	10	parallel
-tests/test_go_integration_release.sh	25	parallel
+tests/test_go_integration_release.sh	45	parallel
 tests/test_go_toolchain.sh	55	parallel
 tests/test_go_race.sh	60	parallel
 tests/test_grep_portability.sh	10	parallel
