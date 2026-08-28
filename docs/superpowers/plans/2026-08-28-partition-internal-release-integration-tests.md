@@ -215,7 +215,7 @@ go test -tags integration -count=1 -run '^TestIntegrationReleasePackage' -v ./in
 git diff HEAD -M -- internal/release/
 ```
 
-Expected: default list = exactly the 29 `default`-corpus names from the map (no `TestPackage*`, no archive names); tagged `Integration` list = exactly the 9 moved names; default-corpus run passes (render/version/checksums still green, fast); tagged package run passes with 4 `--- PASS:` lines; `-M` diff hunks = constraint + 4 `func` lines only.
+Expected: default list = exactly the 28 `default`-corpus names from the map (no `TestPackage*`, no archive names); tagged `Integration` list = exactly the 9 moved names; default-corpus run passes (render/version/checksums still green, fast); tagged package run passes with 4 `--- PASS:` lines; `-M` diff hunks = constraint + 4 `func` lines only.
 
 - [ ] **Step 5: Commit**
 
