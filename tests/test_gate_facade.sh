@@ -116,30 +116,49 @@ future_stamp(){ date -u -v+1H +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '+1 
 # invocation clone the facade operates on. main mode keeps the fixture minimal:
 # every change record lives on the default branch, whose .docket.yml declares
 # metadata_branch: main. Mirrors internal/app's newMainModeRepo.
+# newfix builds a docket-topology fixture (change 0363: Go v1 supports one
+# metadata topology). The integration branch `main` carries code only — no live
+# planning surface — and the orphan `docket` branch is the source of the planning
+# surface (active changes, README, BOARD). The operational-repository gate admits
+# this repo; a legacy single-branch layout (planning surface on main, no docket
+# branch) is refused, which is why the pre-0363 main-mode fixture is gone.
 newfix(){
   local root="$1" origin="$1/origin.git" writer="$1/writer" inv="$1/invocation"
   mkdir -p "$root"
   git init --bare -q -b main "$origin"
   git init -q -b main "$writer"
   git -C "$writer" config user.email t@t; git -C "$writer" config user.name docket-test
-  printf 'metadata_branch: main\nfinalize:\n  test_command: '\''exit 0'\''\n' > "$writer/.docket.yml"
+  # .docket.yml lives on the DEFAULT branch (main); default metadata topology, no
+  # metadata_branch selector. Code only on main — the planning surface is NOT here.
+  printf 'finalize:\n  test_command: '\''exit 0'\''\n' > "$writer/.docket.yml"
   printf 'readme\n' > "$writer/README.md"
-  mkdir -p "$writer/docs/changes/active"
   git -C "$writer" add -A
   git -C "$writer" commit -q -m "main content"
   git -C "$writer" remote add origin "$origin"
   git -C "$writer" push -q -u origin main
+  # The orphan docket metadata branch carries the planning surface.
+  git -C "$writer" checkout -q --orphan docket
+  git -C "$writer" rm -rq --cached . >/dev/null 2>&1 || true
+  rm -f "$writer/README.md" "$writer/.docket.yml"
+  mkdir -p "$writer/docs/changes/active"
+  printf 'board\n' > "$writer/docs/changes/BOARD.md"
+  printf 'changes\n' > "$writer/docs/changes/README.md"
+  git -C "$writer" add -A
+  git -C "$writer" commit -q -m "docket metadata branch"
+  git -C "$writer" push -q -u origin docket
+  git -C "$writer" checkout -q main
   git clone -q "$origin" "$inv"
   git -C "$inv" config user.email t@t; git -C "$inv" config user.name docket-test
   printf '%s\n' "$inv"
 }
 
 # push_in_progress writes an in-progress change record ($2=id, $3=slug, $4=claimed_at)
-# to the writer clone of fixture $1 and pushes it to origin main. No pr, no plan, no
-# feature branch — so RunVerify reports run-incomplete on it.
+# to the DOCKET metadata branch of fixture $1 and pushes it to origin docket. No pr,
+# no plan, no feature branch — so RunVerify reports run-incomplete on it.
 push_in_progress(){
   local writer="$1/writer" id="$2" slug="$3" claimed="$4" padded
   printf -v padded '%04d' "$id"
+  git -C "$writer" checkout -q docket
   cat > "$writer/docs/changes/active/$padded-$slug.md" <<EOF
 ---
 id: $id
@@ -157,7 +176,8 @@ Body of $slug.
 EOF
   git -C "$writer" add -A
   git -C "$writer" commit -q -m "claim $id"
-  git -C "$writer" push -q origin main
+  git -C "$writer" push -q origin docket
+  git -C "$writer" checkout -q main
 }
 
 # dk runs the real shell facade against the built binary, gh on PATH, an isolated
@@ -254,6 +274,7 @@ assert "unattributed gate-verdict on an empty backlog reports no-current-run" \
 assert "the observe report line exits 0" '[ "$observe_rc" -eq 0 ]'
 
 FIXD="$TMP/fixd"; INVD="$(newfix "$FIXD")"
+git -C "$FIXD/writer" checkout -q docket
 cat > "$FIXD/writer/docs/changes/active/0009-beta.md" <<'EOF'
 ---
 id: 9
@@ -269,7 +290,8 @@ Body of beta.
 EOF
 git -C "$FIXD/writer" add -A
 git -C "$FIXD/writer" commit -q -m "propose 9"
-git -C "$FIXD/writer" push -q origin main
+git -C "$FIXD/writer" push -q origin docket
+git -C "$FIXD/writer" checkout -q main
 observe_hint_out="$(dk "$INVD" gate-verdict --unattributed 9 2>&1)"
 assert "an unattributed hint verifies the named id verbatim (run-unclaimed)" \
   '[ "$observe_hint_out" = "gate-observe run-unclaimed 9" ]'

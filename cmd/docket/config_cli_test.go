@@ -115,10 +115,16 @@ func TestConfigHumanInspection(t *testing.T) {
 	if code != 0 || errS != "" {
 		t.Fatalf("code=%d stderr=%q", code, errS)
 	}
-	for _, want := range []string{"configuration: valid", "mutation: allowed", "metadata_branch = docket"} {
+	for _, want := range []string{"configuration: valid", "mutation: allowed", "integration_branch = "} {
 		if !strings.Contains(out, want) {
 			t.Errorf("stdout missing %q:\n%s", want, out)
 		}
+	}
+	// metadata_branch is no longer effective configuration (change 0363): Go v1
+	// supports one metadata topology, so the effective inspection carries no
+	// metadata_branch row.
+	if strings.Contains(out, "metadata_branch = ") {
+		t.Errorf("stdout still carries a metadata_branch effective row:\n%s", out)
 	}
 }
 
