@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'refactor/partition-internal-release-to-clear-the-race-gate-timeout'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-28T01:06:07Z'
+reconciled: true
+claimed_at: '2026-08-28T01:07:55Z'
 ---
 
 ## Artifacts
@@ -104,3 +104,7 @@ Settled design (2026-08-28 interactive grooming; detail in the linked spec):
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-28
+
+2026-08-28 (UTC) — Reconciled at claim. Verified current reality on origin/main: change 0333's integration-tag partition machinery is present and in force (tests/test_go_integration_contract.sh plus ~17 tests/test_go_integration_*.sh runners covering internal/app, internal/gitcli, internal/githubcli), and internal/release remains entirely untagged (archive_test.go, checksums_test.go, package_test.go, render_test.go, version_test.go are all default-corpus *_test.go with no //go:build integration files). This confirms the spec's premise: internal/release's slow real-tar/gzip/subprocess corpus still runs inside the default `go test -race ./...` gate and drives the per-package 600s timeout the spec targets. No design invalidation and no scope adjustment: package_test.go + archive_test.go move behind the integration tag under a TestIntegrationRelease... family with one sequential non-race runner (tests/test_go_integration_release.sh); render/version/checksums stay in the default corpus; the contract is generalized to discover tagged packages/runners structurally rather than by allowlist; all affected runtime rows are re-measured from a fresh Go build cache under the 60s ceiling. Relations unchanged: related [333, 361], discovered_from [361]; no depends_on edge on 361 (coordination only — 0361 resumes separately after this lands). A pre-existing scan of internal/release/*_test.go for goroutines/sync/t.Parallel()/process-lifecycle coordination will be confirmed at plan/build time; grooming found none, so no race integration shard is planned unless build-time inspection surfaces a concrete concurrent protocol. No auto-capture (AUTO_CAPTURE_ENABLED=false).
