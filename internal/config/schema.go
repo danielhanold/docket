@@ -146,11 +146,19 @@ func buildRegistry() []pathSpec {
 		{path: "runtime.bash", kind: kindString, merge: mergeScalar, scope: scopeLocalOnly,
 			disp: dispObsolete, validate: stringLeaf(false, false, false)},
 
-		// 2-6: repository identity — coordination-fenced, so a machine layer
-		// cannot silently point one clone at a different metadata branch.
-		{path: "metadata_branch", kind: kindString, enum: []string{"docket", "main"}, def: "docket",
-			merge: mergeScalar, scope: scopeRepoFenced, disp: dispSupported,
-			validate: enumLeaf("docket", "main")},
+		// 2: metadata_branch is an obsolete tombstone (change 0363): docket v1
+		// supports one metadata topology (the orphan `docket` branch), so the
+		// setting selects nothing. It is recognized in EVERY layer so inspection
+		// can attribute it, never resolved, and never a capability — the
+		// repository-layer occurrence is change 0352's migration input. Unlike
+		// runtime.bash (scopeLocalOnly, committed-fenced at decode) it must decode
+		// in every layer including the repository one, so it carries the default
+		// scopeAny; decode excludes it as obsolete before any fence runs.
+		{path: "metadata_branch", kind: kindString, merge: mergeScalar,
+			disp: dispObsolete, validate: stringLeaf(false, false, false)},
+
+		// 3-6: repository identity — coordination-fenced, so a machine layer
+		// cannot silently relocate one clone's planning surfaces.
 		{path: "integration_branch", kind: kindString, def: "auto",
 			merge: mergeScalar, scope: scopeRepoFenced, disp: dispSupported,
 			validate: stringLeaf(true, false, false)},

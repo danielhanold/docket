@@ -173,14 +173,15 @@ func TestStatusCorpusFrozenSemantics(t *testing.T) {
 		t.Errorf("Learnings = %d, want 0 (the tag's tree carries no learnings ledger)", got.Summary.Learnings)
 	}
 	// Error tally: 3 deferred-capability config errors + change 36's dangling
-	// depends_on:[35]. Warning tally: change 36's dangling related:[35]. (The
+	// depends_on:[35]. Warning tally: the committed .docket.yml's obsolete
+	// metadata_branch key (0363) + change 36's dangling related:[35]. (The
 	// deferred-setting learnings.enabled diagnostic is a NOTICE, counted in
 	// neither tally.)
 	if got.Summary.ErrorFindings != 4 {
 		t.Errorf("ErrorFindings = %d, want 4 (3 deferred-capability config errors + change 36 depends_on:[35])", got.Summary.ErrorFindings)
 	}
-	if got.Summary.WarningFindings != 1 {
-		t.Errorf("WarningFindings = %d, want 1 (change 36 related:[35] dangling)", got.Summary.WarningFindings)
+	if got.Summary.WarningFindings != 2 {
+		t.Errorf("WarningFindings = %d, want 2 (obsolete metadata_branch + change 36 related:[35] dangling)", got.Summary.WarningFindings)
 	}
 
 	// --- empty active projection ----------------------------------------------
@@ -234,6 +235,9 @@ func TestStatusCorpusFrozenSemantics(t *testing.T) {
 		{"deferred-capability-requested", "error", "finalize.skip_results_only_delta", ""}: false,
 		{"deferred-capability-requested", "error", "terminal_publish", ""}:                 false,
 		{"deferred-setting", "notice", "learnings.enabled", ""}:                            false,
+		// The committed .docket.yml still carries metadata_branch, now an obsolete
+		// tombstone (0363): a warning-severity obsolete-setting finding.
+		{"obsolete-setting", "warning", "metadata_branch", ""}: false,
 		// Record layer: change 36's two dangling references to the excluded 35.
 		{"change-reference-dangling", "error", "depends_on", "0036"}: false,
 		{"change-reference-dangling", "warning", "related", "0036"}:  false,

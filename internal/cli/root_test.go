@@ -724,6 +724,19 @@ func newStatusFixtureRepo(t *testing.T) string {
 	statusGit(t, writer, "remote", "add", "origin", origin)
 	statusGit(t, writer, "push", "-q", "-u", "origin", "main")
 
+	// 0363: status now fixes the metadata branch at "docket" (metadata_branch is
+	// an obsolete tombstone, so PinContext no longer reads a per-repo metadata
+	// mode from config and always pins refs/heads/docket). The fixture therefore
+	// carries an orphan `docket` metadata branch so the pin resolves. Task 6
+	// rebuilds this fixture as a full docket-topology repository.
+	statusGit(t, writer, "checkout", "--orphan", "docket")
+	statusGit(t, writer, "rm", "-rf", ".")
+	statusWriteFile(t, writer, "docs/changes/BOARD.md", "# Board\n")
+	statusGit(t, writer, "add", "-A")
+	statusGit(t, writer, "commit", "-q", "-m", "docket: initialize metadata branch")
+	statusGit(t, writer, "push", "-q", "-u", "origin", "docket")
+	statusGit(t, writer, "checkout", "-q", "main")
+
 	statusGit(t, root, "clone", "-q", origin, invocation)
 	return invocation
 }

@@ -50,7 +50,7 @@ func decodeAcceptanceCases() []decodeCase {
 			obsolete: true},
 
 		{row: "metadata_branch", path: "metadata_branch",
-			block: "metadata_branch: main\n", value: "main"},
+			block: "metadata_branch: main\n", obsolete: true},
 		{row: "integration_branch", path: "integration_branch",
 			block: "integration_branch: develop\n", value: "develop"},
 		{row: "changes_dir", path: "changes_dir",
@@ -270,7 +270,7 @@ func TestDecodeRejections(t *testing.T) {
 		{"bool quoted string", "auto_groom: \"true\"\n", CodeInvalidType, "auto_groom", SeverityError},
 		{"negative int", "learnings:\n  cap: -1\n", CodeInvalidValue, "learnings.cap", SeverityError},
 		{"bad enum", "finalize:\n  gate: sometimes\n", CodeInvalidValue, "finalize.gate", SeverityError},
-		{"metadata branch enum", "metadata_branch: trunk\n", CodeInvalidValue, "metadata_branch", SeverityError},
+		{"metadata branch obsolete every layer", "metadata_branch: trunk\n", CodeObsoleteSetting, "metadata_branch", SeverityWarning},
 		{"absolute dir", "changes_dir: /etc/changes\n", CodeInvalidValue, "changes_dir", SeverityError},
 		{"unclean dir", "changes_dir: docs/../etc\n", CodeInvalidValue, "changes_dir", SeverityError},
 		{"empty change_types", "change_types: []\n", CodeInvalidValue, "change_types", SeverityError},
@@ -338,14 +338,14 @@ func TestDecodeRejections(t *testing.T) {
 // offending declaration rather than at the document: the failing key is on
 // line 3, and nothing about line 1 or 2 may appear.
 func TestDecodeRejectionProvenanceLine(t *testing.T) {
-	_, diags := decodeDoc(t, "metadata_branch: docket\nauto_groom: false\nnot_a_key: 1\n")
+	_, diags := decodeDoc(t, "integration_branch: develop\nauto_groom: false\nnot_a_key: 1\n")
 	if len(diags) != 1 {
 		t.Fatalf("want one diagnostic, got %+v", diags)
 	}
 	if diags[0].Provenance.Line != 3 {
 		t.Errorf("line %d, want 3", diags[0].Provenance.Line)
 	}
-	for _, leak := range []string{"metadata_branch", "auto_groom", "docket\n"} {
+	for _, leak := range []string{"integration_branch", "auto_groom", "develop\n"} {
 		if strings.Contains(diags[0].Message, leak) {
 			t.Errorf("message %q echoes unrelated document content %q", diags[0].Message, leak)
 		}
@@ -398,11 +398,11 @@ func TestDecodeBoardSurfacesDropsUnknownTokens(t *testing.T) {
 // TestDecodeMultipleLeaves: an ordinary multi-section document yields one leaf
 // per declared setting, in document order, each carrying its own line.
 func TestDecodeMultipleLeaves(t *testing.T) {
-	leaves, diags := decodeDoc(t, "metadata_branch: main\nfinalize:\n  gate: off\n  require_pr_approval: true\n")
+	leaves, diags := decodeDoc(t, "integration_branch: develop\nfinalize:\n  gate: off\n  require_pr_approval: true\n")
 	if len(diags) != 0 {
 		t.Fatalf("unexpected diagnostics %+v", diags)
 	}
-	wantPaths := []string{"metadata_branch", "finalize.gate", "finalize.require_pr_approval"}
+	wantPaths := []string{"integration_branch", "finalize.gate", "finalize.require_pr_approval"}
 	wantLines := []int{1, 3, 4}
 	if len(leaves) != len(wantPaths) {
 		t.Fatalf("want %d leaves, got %+v", len(wantPaths), leaves)

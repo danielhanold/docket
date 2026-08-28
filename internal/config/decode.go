@@ -135,6 +135,25 @@ func (d *layerDecoder) decodeLeaf(path string, spec *pathSpec, key, val *yaml.No
 		diag.Remedy = "remove runtime.bash from this file"
 		d.diags = append(d.diags, diag)
 		return
+	case "metadata_branch":
+		// Obsolete in EVERY layer (change 0363): docket v1 supports one metadata
+		// topology, so the setting selects nothing. It is recognized so
+		// inspection can attribute it and excluded from resolution rather than
+		// fenced. The remedy is layer-aware (learning printed-remedy-state-validity):
+		// the committed .docket.yml occurrence is change 0352's migration input,
+		// so it points at `docket repository check`; a machine layer, over which
+		// migration claims no authority, is told to remove the key by hand.
+		diag := leafDiag(d.src, path, CodeObsoleteSetting, key,
+			"selected the repository metadata topology, which docket no longer offers; it is ignored")
+		diag.Severity = SeverityWarning
+		diag.Classification = Obsolete
+		if d.src.Layer == LayerRepository {
+			diag.Remedy = "run `docket repository check` to move this repository off the removed metadata topology"
+		} else {
+			diag.Remedy = "remove metadata_branch from " + d.src.Name
+		}
+		d.diags = append(d.diags, diag)
+		return
 	case "board_surfaces":
 		value = d.keepKnownSurfaces(path, val, value.([]string))
 	}

@@ -98,7 +98,8 @@ const (
 // deferred/inert companion values surface through Capabilities and
 // Diagnostics, never here.
 type Effective struct {
-	MetadataBranch    Value[string]   `json:"metadata_branch"`
+	// metadata_branch is gone (change 0363): it is an obsolete tombstone, never
+	// resolved policy. The metadata branch is fixed at reposetup.MetadataBranchName.
 	IntegrationBranch Value[string]   `json:"integration_branch"` // auto already resolved
 	ChangesDir        Value[string]   `json:"changes_dir"`
 	ADRsDir           Value[string]   `json:"adrs_dir"`

@@ -177,7 +177,7 @@ func gatherSetupFacts(ctx context.Context, p setupProber, repoDir string, forMut
 	}
 	sc.cfg = eff
 	sc.integrationBranch = eff.IntegrationBranch.Value
-	sc.metadataBranch = eff.MetadataBranch.Value
+	sc.metadataBranch = "docket" // 0363 Task 4 removes this: metadata branch is fixed (config field is an obsolete tombstone)
 	f.SurfacesAuthorized = eff.AgentHarnesses.Explicit && isRepositoryLayer(eff.AgentHarnesses.Provenance.Layer)
 
 	// The authoritative integration tip is the source revision every later phase

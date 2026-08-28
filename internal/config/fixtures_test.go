@@ -173,7 +173,6 @@ func TestFixtureSparseDefaults(t *testing.T) {
 		explicit bool
 		layer    LayerKind
 	}{
-		{"metadata_branch", eff.MetadataBranch.Explicit, eff.MetadataBranch.Provenance.Layer},
 		{"integration_branch", eff.IntegrationBranch.Explicit, eff.IntegrationBranch.Provenance.Layer},
 		{"changes_dir", eff.ChangesDir.Explicit, eff.ChangesDir.Provenance.Layer},
 		{"adrs_dir", eff.ADRsDir.Explicit, eff.ADRsDir.Provenance.Layer},
@@ -235,7 +234,9 @@ func TestFixtureExampleActivated(t *testing.T) {
 		}
 	}
 
-	check("metadata_branch", eff.MetadataBranch.Explicit, eff.MetadataBranch.Provenance)
+	// metadata_branch is an obsolete tombstone (0363): the fixture still declares
+	// it, but it no longer resolves to Effective — the declaration is diagnosed
+	// obsolete instead. Its removal is covered by TestMetadataBranchIsObsoleteTombstone.
 	check("integration_branch", eff.IntegrationBranch.Explicit, eff.IntegrationBranch.Provenance)
 	check("changes_dir", eff.ChangesDir.Explicit, eff.ChangesDir.Provenance)
 	check("adrs_dir", eff.ADRsDir.Explicit, eff.ADRsDir.Provenance)
@@ -254,9 +255,6 @@ func TestFixtureExampleActivated(t *testing.T) {
 
 	// Values: identical to the built-in layer, with the two `auto` sentinels
 	// resolved exactly as they are for a repository that declared nothing.
-	if eff.MetadataBranch.Value != def.MetadataBranch.Value {
-		t.Errorf("metadata_branch = %q, want the built-in %q", eff.MetadataBranch.Value, def.MetadataBranch.Value)
-	}
 	if eff.ChangesDir.Value != def.ChangesDir.Value || eff.ADRsDir.Value != def.ADRsDir.Value || eff.ResultsDir.Value != def.ResultsDir.Value {
 		t.Errorf("directory settings drifted from the built-ins: %q %q %q", eff.ChangesDir.Value, eff.ADRsDir.Value, eff.ResultsDir.Value)
 	}
@@ -380,7 +378,10 @@ func TestFixtureModeMainCustomPaths(t *testing.T) {
 		got, want  string
 		provenance Provenance
 	}{
-		{"metadata_branch", eff.MetadataBranch.Value, "main", eff.MetadataBranch.Provenance},
+		// metadata_branch is an obsolete tombstone (0363): the frozen fixture still
+		// carries `metadata_branch: main`, but it no longer resolves — the
+		// declaration is diagnosed obsolete and the custom paths below are what
+		// this fixture now exercises.
 		{"integration_branch", eff.IntegrationBranch.Value, "develop", eff.IntegrationBranch.Provenance},
 		{"changes_dir", eff.ChangesDir.Value, "planning/changes", eff.ChangesDir.Provenance},
 		{"adrs_dir", eff.ADRsDir.Value, "planning/adrs", eff.ADRsDir.Provenance},
@@ -415,9 +416,9 @@ func TestFixtureModeDocket(t *testing.T) {
 	snap := mustResolveFixture(t, "mode-docket")
 	eff := snap.Effective
 
-	if eff.MetadataBranch.Value != "docket" || !eff.MetadataBranch.Explicit {
-		t.Errorf("metadata_branch = %q (explicit=%v), want an explicit \"docket\"", eff.MetadataBranch.Value, eff.MetadataBranch.Explicit)
-	}
+	// metadata_branch is an obsolete tombstone (0363): the fixture declares
+	// `metadata_branch: docket`, which no longer resolves; the surviving subject
+	// of this fixture is `integration_branch: auto` answered by the context.
 	if eff.IntegrationBranch.Value != "main" {
 		t.Errorf("integration_branch = %q, want the context's default branch", eff.IntegrationBranch.Value)
 	}
@@ -445,9 +446,12 @@ func TestFixtureFencedMachineKeys(t *testing.T) {
 	eff := snap.Effective
 	def := builtinEffective()
 
+	// metadata_branch is no longer fenced — it is an obsolete tombstone (0363),
+	// excluded at decode rather than fenced, so the machine-layer declaration
+	// produces an obsolete-setting warning, not a fenced-setting-ignored one.
 	fenced := diagPathSet(snap, CodeFencedIgnored)
 	for _, path := range []string{
-		"metadata_branch", "integration_branch", "changes_dir", "adrs_dir", "results_dir",
+		"integration_branch", "changes_dir", "adrs_dir", "results_dir",
 		"finalize.skip_results_only_delta", "github_project", "terminal_publish", "board_surfaces",
 	} {
 		if !fenced[path] {
@@ -467,7 +471,6 @@ func TestFixtureFencedMachineKeys(t *testing.T) {
 		got, want string
 		layer     LayerKind
 	}{
-		{"metadata_branch", eff.MetadataBranch.Value, def.MetadataBranch.Value, eff.MetadataBranch.Provenance.Layer},
 		{"integration_branch", eff.IntegrationBranch.Value, "main", eff.IntegrationBranch.Provenance.Layer},
 		{"changes_dir", eff.ChangesDir.Value, def.ChangesDir.Value, eff.ChangesDir.Provenance.Layer},
 		{"adrs_dir", eff.ADRsDir.Value, def.ADRsDir.Value, eff.ADRsDir.Provenance.Layer},
@@ -515,9 +518,11 @@ func TestFixtureDocketSelf(t *testing.T) {
 
 	snap := mustResolveFixtureFrom(t, docketSelfRoot, "docket-self")
 
-	if snap.Effective.MetadataBranch.Value != "docket" {
-		t.Errorf("metadata_branch = %q, want docket", snap.Effective.MetadataBranch.Value)
-	}
+	// metadata_branch is an obsolete tombstone (0363): docket's own committed
+	// .docket.yml still carries `metadata_branch: docket`, which no longer
+	// resolves to Effective (it is diagnosed obsolete). Task 8 re-cuts this
+	// fixture without the key; until then the byte-equality assert above keeps
+	// the frozen copy honest.
 	if snap.Effective.Finalize.TestCommand.Value != "scripts/run-tests.sh" {
 		t.Errorf("finalize.test_command = %q, want scripts/run-tests.sh", snap.Effective.Finalize.TestCommand.Value)
 	}

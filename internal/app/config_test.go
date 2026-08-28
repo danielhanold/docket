@@ -79,8 +79,11 @@ func TestDiagnosticConfigApplied(t *testing.T) {
 	if got.Effective == nil {
 		t.Fatalf("effective is nil on an applied result")
 	}
-	if got.Effective.MetadataBranch.Value != "docket" {
-		t.Errorf("effective.metadata_branch = %q, want docket", got.Effective.MetadataBranch.Value)
+	// 0363 Task 5 restores a metadata-branch assertion here in its new shape:
+	// config.Effective.MetadataBranch is gone (obsolete tombstone), so this pins
+	// the surviving identity leaf instead.
+	if got.Effective.IntegrationBranch.Value != "main" {
+		t.Errorf("effective.integration_branch = %q, want main", got.Effective.IntegrationBranch.Value)
 	}
 	if got.Capabilities == nil {
 		t.Errorf("capabilities is nil on a valid snapshot; want a non-nil (possibly empty) slice")
@@ -273,15 +276,18 @@ func TestHumanTextGrouping(t *testing.T) {
 	}
 
 	// The metadata_branch line names the layer it won from: a value without a
-	// layer does not tell the reader which file to edit.
+	// layer does not tell the reader which file to edit. 0363 Task 5 removes this
+	// row entirely; until then config.Effective.MetadataBranch is gone and the row
+	// is bridged from the fixed built-in value, so the winning layer reads
+	// "built-in" rather than "repository".
 	var effLine string
 	for _, line := range strings.Split(text, "\n") {
 		if strings.Contains(line, "metadata_branch = ") {
 			effLine = line
 		}
 	}
-	if !strings.Contains(effLine, "repository") {
-		t.Errorf("metadata_branch line %q does not name its winning layer", effLine)
+	if !strings.Contains(effLine, "built-in") {
+		t.Errorf("metadata_branch line %q does not name its (bridged) winning layer", effLine)
 	}
 
 	// Diagnostics are grouped by severity with errors first.

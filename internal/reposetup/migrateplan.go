@@ -31,7 +31,7 @@ type RemovalSet struct {
 type MigrationPlan struct {
 	Copy         CopySet
 	Removal      RemovalSet
-	ConfigEdit   bool    // legacy metadata_branch key present in .docket.yml → one edit
+	ConfigEdit   bool    // legacy metadata_branch key present in .docket.yml → one edit (0363 Task 3 rewires the predicate to raw bytes)
 	SeedReceipt  Receipt // OpMigrateSeed: source revision + repair digest (+ copy digest later)
 	PruneReceipt Receipt // OpMigratePrune: source revision (+ metadata revision later)
 }
@@ -42,10 +42,11 @@ type MigrationPlan struct {
 // the copy digest (that requires the composed tree the app layer builds).
 //
 // ConfigEdit keys on the legacy metadata_branch key being present in the
-// repository-layer .docket.yml — surfaced through config resolution as an
-// explicit repository-layer provenance on MetadataBranch. A repository-local or
-// global declaration is not the .docket.yml edit target, so it does not arm the
-// edit.
+// repository-layer .docket.yml. It used to read that off config resolution
+// (explicit repository-layer provenance on MetadataBranch), but change 0363
+// turned metadata_branch into an obsolete tombstone that no longer resolves, so
+// this is temporarily false — 0363 Task 3 re-derives it from the committed
+// .docket.yml raw bytes (RemoveMetadataBranchKey's `removed` result).
 func PlanMigration(cfg config.Effective, sourceRevision string, repairs []RepairFinding) (MigrationPlan, error) {
 	if sourceRevision == "" {
 		return MigrationPlan{}, errors.New("reposetup: PlanMigration requires a pinned source revision")
@@ -58,8 +59,12 @@ func PlanMigration(cfg config.Effective, sourceRevision string, repairs []Repair
 			BoardPath:  path.Join(changes, "BOARD.md"),
 			ReadmePath: path.Join(changes, "README.md"),
 		},
-		ConfigEdit: cfg.MetadataBranch.Explicit &&
-			cfg.MetadataBranch.Provenance.Layer == config.LayerRepository,
+		// 0363 Task 3 removes this: config.Effective.MetadataBranch is gone (it is
+		// now an obsolete tombstone), so ConfigEdit can no longer key on the
+		// resolved field. Task 3 re-derives it from the committed .docket.yml raw
+		// bytes (RemoveMetadataBranchKey's `removed` result); until then the
+		// planner reports no config edit.
+		ConfigEdit: false,
 		SeedReceipt: Receipt{
 			Operation:      OpMigrateSeed,
 			SourceRevision: sourceRevision,

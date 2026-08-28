@@ -67,7 +67,7 @@ func TestRegistryEveryRowHasValidator(t *testing.T) {
 // reddens this test.
 func TestRegistryFencedSet(t *testing.T) {
 	wantRepoFenced := []string{
-		"metadata_branch", "integration_branch", "changes_dir", "adrs_dir",
+		"integration_branch", "changes_dir", "adrs_dir",
 		"results_dir", "finalize.skip_results_only_delta", "github_project",
 		"terminal_publish",
 	}
@@ -96,7 +96,7 @@ func TestRegistryFencedSet(t *testing.T) {
 // default here — the 17x4 agent table is defaults.go's (Reference C).
 func TestRegistryDefaults(t *testing.T) {
 	want := map[string]any{
-		"metadata_branch":                  "docket",
+		// metadata_branch has no default: it is an obsolete tombstone (change 0363).
 		"integration_branch":               "auto",
 		"changes_dir":                      "docs/changes",
 		"adrs_dir":                         "docs/adrs",
@@ -150,7 +150,7 @@ func TestRegistryDefaults(t *testing.T) {
 // member lists — the enum members are policy, not an implementation detail.
 func TestRegistryEnumRows(t *testing.T) {
 	want := map[string][]string{
-		"metadata_branch":              {"docket", "main"},
+		// metadata_branch carries no enum now: it is an obsolete tombstone (0363).
 		"finalize.gate":                {"local", "ci", "both", "off"},
 		"review.min_fix_severity":      {"minor", "important", "blocker"},
 		"runners.codex.sandbox":        {"workspace-write", "danger-full-access"},
@@ -263,8 +263,9 @@ func TestLeafValidators(t *testing.T) {
 		{"enum off is a string not a bool", "finalize.gate", "off", "off", ""},
 		{"enum bad", "finalize.gate", "sometimes", nil, CodeInvalidValue},
 		{"enum wrong type", "finalize.gate", "1", nil, CodeInvalidType},
-		{"metadata branch ok", "metadata_branch", "main", "main", ""},
-		{"metadata branch bad", "metadata_branch", "trunk", nil, CodeInvalidValue},
+		// metadata_branch is an obsolete tombstone (0363): its validator is a
+		// permissive string leaf and its obsolescence is asserted at decode, so it
+		// carries no enum validator case here.
 
 		// strings: relative-path, non-empty, space-free variants.
 		{"dir ok", "changes_dir", "docs/changes", "docs/changes", ""},
@@ -410,8 +411,8 @@ func TestGithubProjectLeaf(t *testing.T) {
 // contents: validating one leaf of a document must not leak a sibling's value.
 func TestDiagnosticsNeverEchoTheDocument(t *testing.T) {
 	src := Source{Layer: LayerGlobal, Name: "/cfg/config.yml"}
-	spec := specFor(t, "metadata_branch")
-	_, diags := spec.validate(src, spec.path, valueNode(t, "trunk"))
+	spec := specFor(t, "changes_dir")
+	_, diags := spec.validate(src, spec.path, valueNode(t, "/etc/changes"))
 	if len(diags) != 1 {
 		t.Fatalf("want one diagnostic, got %+v", diags)
 	}
@@ -419,7 +420,7 @@ func TestDiagnosticsNeverEchoTheDocument(t *testing.T) {
 	if msg == "" {
 		t.Fatal("diagnostic message is empty")
 	}
-	for _, want := range []string{"/cfg/config.yml", "metadata_branch"} {
+	for _, want := range []string{"/cfg/config.yml", "changes_dir"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("message %q does not name %q", msg, want)
 		}

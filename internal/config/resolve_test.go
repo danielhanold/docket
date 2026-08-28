@@ -60,8 +60,6 @@ func diagsWithCode(res *resolution, code string) []Diagnostic {
 func effectiveLeaf(t *testing.T, eff Effective, path string) (any, Provenance, bool) {
 	t.Helper()
 	switch path {
-	case "metadata_branch":
-		return eff.MetadataBranch.Value, eff.MetadataBranch.Provenance, eff.MetadataBranch.Explicit
 	case "integration_branch":
 		return eff.IntegrationBranch.Value, eff.IntegrationBranch.Provenance, eff.IntegrationBranch.Explicit
 	case "changes_dir":
@@ -194,7 +192,9 @@ type fenceCase struct {
 
 func fenceCases() []fenceCase {
 	return []fenceCase{
-		{"metadata_branch", "metadata_branch: main\n", "metadata_branch: docket\n", "main"},
+		// metadata_branch is no longer fenced — it is an obsolete tombstone
+		// (change 0363), excluded at decode. Its tombstone behavior is covered by
+		// TestMetadataBranchIsObsoleteTombstone.
 		{"integration_branch", "integration_branch: develop\n", "integration_branch: trunk\n", "develop"},
 		{"changes_dir", "changes_dir: docs/a\n", "changes_dir: docs/b\n", "docs/a"},
 		{"adrs_dir", "adrs_dir: docs/a\n", "adrs_dir: docs/b\n", "docs/a"},
@@ -613,7 +613,7 @@ func TestAutoCaptureTypesSubset(t *testing.T) {
 // broken configuration, not the first broken layer.
 func TestInvalidLayerFailsWhole(t *testing.T) {
 	res, err := resolve([]Source{
-		srcG("metadata_branch: trunk\n"),
+		srcG("changes_dir: /etc/changes\n"),
 		srcR("a: [unclosed\n"),
 	}, mainCtx)
 	if !errors.Is(err, ErrInvalidConfig) {
@@ -632,7 +632,7 @@ func TestInvalidLayerFailsWhole(t *testing.T) {
 		t.Errorf("diagnostics = %v, want findings from BOTH layers", diagSummary(res))
 	}
 
-	snap, diags, err := Resolve([]Source{srcR("metadata_branch: trunk\n")}, mainCtx)
+	snap, diags, err := Resolve([]Source{srcR("changes_dir: /etc/changes\n")}, mainCtx)
 	if snap != nil || !errors.Is(err, ErrInvalidConfig) || len(diags) == 0 {
 		t.Errorf("Resolve on an invalid layer = (%v, %d diags, %v), want (nil, >0, ErrInvalidConfig)", snap, len(diags), err)
 	}

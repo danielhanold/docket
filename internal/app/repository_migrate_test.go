@@ -14,7 +14,7 @@ import (
 // names a docket-mode repository carries.
 func effectiveForMigrateTest() config.Effective {
 	return config.Effective{
-		MetadataBranch:    config.Value[string]{Value: "docket"},
+		// metadata_branch is gone from config.Effective (obsolete tombstone, 0363).
 		IntegrationBranch: config.Value[string]{Value: "main"},
 		ChangesDir:        config.Value[string]{Value: "docs/changes"},
 		ADRsDir:           config.Value[string]{Value: "docs/adrs"},

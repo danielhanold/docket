@@ -257,7 +257,8 @@ func (r *resolution) assemble(byLayer map[LayerKind]map[string]leafDecl) (Effect
 			errs = append(errs, err)
 		}
 	}
-	set(assign(&eff.MetadataBranch, r.declared, "metadata_branch"))
+	// metadata_branch has no effective leaf: it is an obsolete tombstone
+	// (change 0363), excluded at decode and never assigned here.
 	set(assign(&eff.IntegrationBranch, r.declared, "integration_branch"))
 	set(assign(&eff.ChangesDir, r.declared, "changes_dir"))
 	set(assign(&eff.ADRsDir, r.declared, "adrs_dir"))
