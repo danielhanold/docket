@@ -360,6 +360,26 @@
 # methodology) is the reachable worst — the tags compile is the cold-sensitive term, warm in the
 # suite (the Go-touching shards share GOCACHE). Rides the parallel lane. EXPECTED_TOTAL moves
 # 2770 -> 2785: +15.
+#
+# tests/test_go_integration_release.sh is ONE NEW FILE brought by change 0362 — the new-test-file
+# + integration-SHARD case again, for internal/release. Change 0362 partitions internal/release's
+# slow real-tar/gzip/subprocess corpus (package + archive) behind the `integration` build tag
+# (internal/release/*_integration_test.go; completeness proven by the now-STRUCTURAL
+# tests/test_go_integration_contract.sh — which change 0362 also generalized from a hardcoded
+# three-package allowlist to git-ls-files discovery, so the contract row above is unchanged in cost
+# but now discovers internal/release automatically). The runner drives the shard through the shared
+# executor tests/lib/go-integration-shard.sh — package/prefix/mode declaration plus
+# `go test -tags integration -run ^TestIntegrationRelease`, NORMAL mode (grooming found no
+# goroutines, sync primitives, t.Parallel(), or process-lifecycle coordination; the exec.Command
+# subprocesses run sequentially, which does not earn a -race shard). No existing shard could take
+# it: every other Go-touching row runs the DEFAULT-tag corpus, which cannot see this tagged one.
+# PROVISIONAL row from the WORST of three warm standalone readings, one machine (darwin/arm64,
+# go1.26.5), as `/usr/bin/time -p bash tests/test_go_integration_release.sh >/dev/null`:
+#   release    warm 15.53 14.26 13.74 -> worst 15.53 -> next multiple of 5 is 20, plus 5 -> 25
+# provisional — finalized from three fresh-cache readings (0362 Task 7): the shard's COLD compile of
+# the release package (grooming: ~28.62s cold non-race) is expected to dominate the warm number, so
+# Task 7 re-derives this row from empty-GOCACHE readings and owns the final value. Rides the parallel
+# lane. EXPECTED_TOTAL moves 2585 -> 2610: +25.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -439,6 +459,7 @@ tests/test_go_integration_githubcli_ensure.sh	10	parallel
 tests/test_go_integration_githubcli_harness.sh	10	parallel
 tests/test_go_integration_githubcli_merge.sh	10	parallel
 tests/test_go_integration_githubcli_probe.sh	10	parallel
+tests/test_go_integration_release.sh	25	parallel
 tests/test_go_toolchain.sh	55	parallel
 tests/test_go_race.sh	60	parallel
 tests/test_grep_portability.sh	10	parallel

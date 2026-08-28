@@ -31,7 +31,15 @@ EXPECTED_SERIAL=0   # no file is currently pinned serial. tests/test_go_race.sh 
                     # run no longer starves the other parallel jobs. RAISING THIS IS A FINDING: a
                     # serial pin removes a file from the parallel phase, so it must be justified in
                     # the same diff with the shared state that forces it.
-EXPECTED_TOTAL=2585 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2610 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2585 -> 2610 (change 0362, Task 4): ONE legitimate mover — a NEW test file
+                    # brings its own row. tests/test_go_integration_release.sh is the release
+                    # packaging/archive integration SHARD (internal/release's slow real-tar/gzip/
+                    # subprocess corpus moved behind the `integration` build tag), driving the shared
+                    # executor tests/lib/go-integration-shard.sh in NORMAL mode. Provisional at 25
+                    # from a warm reading (worst 15.53 -> 20 -> +5 -> 25); Task 7 re-derives it from
+                    # three fresh-cache readings and owns the final value (see the tsv header). The
+                    # generalized (allowlist-free) contract row is unchanged in cost.
                     # 2575 -> 2585 (change 0317, Task 11): ONE legitimate mover — a NEW test file
                     # brings its own row. tests/test_release_package.sh is the hermetic guard suite
                     # over the two authored release surfaces: the non-publishing
