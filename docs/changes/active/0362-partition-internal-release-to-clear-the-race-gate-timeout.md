@@ -12,7 +12,7 @@ stacked_on:
 related: [333, 361]
 discovered_from: [361]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-28-partition-internal-release-integration-tests-design.md
 plan:
 results:
 trivial: false
@@ -26,6 +26,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-28-partition-internal-release-integration-tests-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-28-partition-internal-release-integration-tests-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -67,48 +70,35 @@ fail-closed tag-partition contract it introduced.
 
 ## What changes
 
-PM-altitude scope — settle the detail during grooming; model directly on change 0333's design:
+Settled design (2026-08-28 interactive grooming; detail in the linked spec):
 
-- Move the slow real-tar/gzip/subprocess release tests (`package_test.go`, `archive_test.go`, and any
-  other heavy cases) behind the existing `integration` build tag, keeping fast unit tests
-  (`render_test.go`, `version_test.go`, `checksums_test.go` where light) visible to ordinary
-  `go test ./...`.
-- Give the tagged tests a structural feature prefix and route them through a mandatory, feature-based
-  `tests/test_*.sh` shard in the existing parallel lane, budgeted at or under the 60-second row
-  ceiling; re-derive the affected budget rows (`tests/runtime-budgets.tsv`), `EXPECTED_SERIAL`, and
-  `EXPECTED_TOTAL` from post-partition measurements.
-- Mark only genuinely concurrency-bearing tests with the `TestRaceIntegration…` convention (release
-  packaging is expected to be sequential, so likely none) — each with a nearby rationale, run once in
-  a dedicated race shard; sequential subprocess drivers run once without `-race`.
-- Extend 0333's fail-closed partition contract to cover `internal/release`: prove every tagged test
-  belongs to exactly one shard and the correct race mode, prove tagged tests do not leak into the
-  default corpus, and mutation-prove the guards (missing tag, missing runner, duplicate prefix, wrong
-  race-mode detection).
-- Confirm `tests/test_go_race.sh`'s default `-race ./...` corpus drops back under budget once the
-  `internal/release` tail is tagged out.
+- Move `package_test.go` and `archive_test.go` wholesale behind the existing `integration` build
+  tag. Keep render, version, and checksum tests in the default corpus.
+- Rename the moved tests under one `TestIntegrationRelease...` family and run them initially through
+  one mandatory sequential, non-race integration shard. The current release tests exercise no
+  concurrent protocol, so none warrants `TestRaceIntegration...` or a race shard.
+- Generalize 0333's fail-closed partition contract to discover tagged packages and live runner
+  declarations structurally instead of extending its hand-maintained package list. Prove exact
+  one-runner coverage, correct race mode, no default-corpus leakage, non-empty runners, and tagged
+  vet coverage in both directions; mutation-prove the guards.
+- Preserve every existing test scenario and prove the before/after test-name mapping exactly.
+- Measure the release shard, default race gate, and toolchain gate three times with a fresh Go build
+  cache on an otherwise idle supported macOS host. Target 45–50 seconds and enforce a hard 60-second
+  ceiling; split any affected runner that lacks headroom rather than raising a timeout or budget.
+- For any package-level split, derive the package set from `go list ./...` and prove the shards are a
+  disjoint exact cover. Re-derive runtime rows, `EXPECTED_SERIAL`, and `EXPECTED_TOTAL`, then verify
+  the complete parallel suite.
 
 ## Out of scope
 
 - Production release code or behavior changes — `render.go` embeds, packaging/checksum logic, the
   `release-candidate.yml` workflow, and `scripts/release-smoke.sh` are untouched.
-- Raising Go's per-package timeout globally, or any suite-scheduler / parallelism change.
+- Raising Go's per-package timeout globally or accepting a larger-than-60-second runtime row.
 - Re-partitioning `internal/app` / `internal/githubcli` / `internal/gitcli` — 0333 already did that.
 - Resuming or finalizing change 0361: this change removes 0361's structural gate blocker, after which
   0361's existing halted branch resumes separately (`docket change resume-halted
   --acknowledge-quiescent`). No `depends_on` edge is asserted here — the relationship is coordination,
   not a build-readiness gate.
-
-## Open questions
-
-- Is the 139s→600s+ blow-up purely `-race` worker contention under parallel load, or does
-  `internal/release` also carry a cold-compile tail worth measuring separately? Re-measure standalone
-  and under concurrent suite load during grooming.
-- Does 0333's shard/contract machinery generalize cleanly to a 4th package, or does `internal/release`
-  need its own runner and budget rows?
-- Does any release test genuinely exercise concurrency (warranting a `TestRaceIntegration` marker), or
-  is the whole package sequential (→ no race-shard entry at all)?
-- Does `tests/test_go_toolchain.sh`'s non-race `go test ./...` also breach on a cold cache, or is only
-  the `-race` gate affected? Determines whether the toolchain budget row also needs re-derivation.
 
 ## Reconcile log
 
