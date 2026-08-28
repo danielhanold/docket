@@ -21,7 +21,7 @@ branch: 'refactor/remove-main-mode-compatibility-from-go-v1'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-28T21:18:29Z'
+claimed_at: '2026-08-28T21:26:14Z'
 ---
 
 ## Artifacts
