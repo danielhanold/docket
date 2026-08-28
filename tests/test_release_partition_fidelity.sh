@@ -35,7 +35,6 @@ fi
 MAP="tests/fixtures/release-partition-map.tsv"
 map_rows="$(grep -vE -e '^#|^$' "$MAP" 2>/dev/null)"
 assert "the partition map exists and is non-empty" '[ -n "$map_rows" ]'
-n_rows="$(grep -c -E -e '.' <<<"$map_rows")"
 badshape="$(awk -F'\t' 'NF!=3 || $1!~/^Test/ || $2!~/^Test/ || ($3!="integration" && $3!="default"){print NR": "$0}' <<<"$map_rows")"
 assert "every map row is <old>TAB<new>TAB<integration|default>" \
   '[ -z "$badshape" ] || { printf "%s\n" "$badshape" >&2; false; }'

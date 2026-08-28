@@ -27,7 +27,7 @@ const (
 )
 
 // repoRoot resolves the repository checkout that owns this test file:
-// internal/release/package_test.go -> ../.. Package builds ./cmd/docket from
+// internal/release/package_integration_test.go -> ../.. Package builds ./cmd/docket from
 // there, so the path must be the module root.
 func repoRoot(t *testing.T) string {
 	t.Helper()
@@ -83,7 +83,7 @@ func extractMember(t *testing.T, archivePath string) []byte {
 	return body
 }
 
-// TestPackageIntegration is the one real end-to-end run: four cross-builds,
+// TestIntegrationReleasePackageEndToEnd is the one real end-to-end run: four cross-builds,
 // four archives, sorted manifest, rendered downloader, host-tuple identity
 // check. The four cross-builds are warm from tests/test_go_toolchain.sh's
 // existing four-tuple check, so this is seconds warm (minutes cold).
@@ -198,7 +198,7 @@ func TestIntegrationReleasePackageEndToEnd(t *testing.T) {
 	}
 }
 
-// TestPackageDeterministic packages the same inputs twice into two separate
+// TestIntegrationReleasePackageDeterministic packages the same inputs twice into two separate
 // directories and byte-compares checksums.txt. Because checksums.txt transitively
 // pins every archive's bytes, equal manifests prove the whole bundle is
 // byte-deterministic for equal inputs + toolchain.
@@ -227,7 +227,7 @@ func TestIntegrationReleasePackageDeterministic(t *testing.T) {
 	}
 }
 
-// TestPackageRefusesCollision proves the OutDir collision guard: a bundle file
+// TestIntegrationReleasePackageRefusesCollision proves the OutDir collision guard: a bundle file
 // already present in OutDir makes Package refuse before doing any build work,
 // so an existing artifact is never clobbered. Refusal happens before the four
 // cross-builds, so this test is fast even though it exercises Package.
@@ -255,7 +255,7 @@ func TestIntegrationReleasePackageRefusesCollision(t *testing.T) {
 	}
 }
 
-// TestPackageBundleValidatesChecksums is the doctored refusal-path unit test for
+// TestIntegrationReleasePackageBundleValidatesChecksums is the doctored refusal-path unit test for
 // the ValidateChecksums gate Package runs before returning. A hand-built bundle
 // (two tiny files + a manifest) validates clean; flipping one byte of a listed
 // file makes ValidateChecksums — the exact guard Package invokes — redden. This
