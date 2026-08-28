@@ -1665,7 +1665,11 @@ DY="$REPO/.docket.yml"
 assert "repo .docket.yml points at the example" 'grep -qF ".docket.example.yml" "$DY"'
 assert "repo .docket.yml is slim (<= 40 lines)"  '[ "$(wc -l < "$DY")" -le 40 ]'
 assert "repo .docket.yml keeps its set values" \
-  'grep -Eq "^metadata_branch:[[:space:]]*docket" "$DY" && grep -Eq "^terminal_publish:[[:space:]]*false" "$DY"'
+  'grep -Eq "^terminal_publish:[[:space:]]*false" "$DY"'
+# metadata_branch is no longer a setting (change 0363): Go v1 supports one metadata topology, so
+# the repo's own .docket.yml carries no metadata_branch key — it is a decode-only obsolete tombstone.
+assert "repo .docket.yml carries no metadata_branch setting (change 0363)" \
+  '! grep -Eq "^metadata_branch:" "$DY"'
 
 # --- (8) README SNIPPET CORRESPONDENCE ---------------------------------------
 # The README carries a small illustrative .docket.yml snippet (change 0101 cut it down from a
