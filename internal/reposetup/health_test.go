@@ -50,6 +50,42 @@ func TestHealthHealthyIsEmpty(t *testing.T) {
 	}
 }
 
+func TestHealthHealthyTopologyStillSurfacesCorpusFindings(t *testing.T) {
+	// A repo whose topology is healthy but whose metadata corpus carries a
+	// repairable frontmatter finding must surface that finding (not silently
+	// drop the caller-gathered fm), and CheckExit must then be 1 — an
+	// outstanding corpus record IS a required action.
+	c := Classification{State: StateHealthy}
+	fm := []RepairFinding{{Path: "docs/changes/active/0003-y.md", Field: "title", Repairable: true, Code: RepairQuoteScalar, Message: "unsafe scalar"}}
+
+	got := EvaluateHealth(c, Facts{}, fm)
+	if len(got) != 1 {
+		t.Fatalf("healthy topology + one corpus finding must yield exactly one finding, got %d: %+v", len(got), got)
+	}
+	if got[0].Code != string(RepairQuoteScalar) {
+		t.Fatalf("surfaced finding must be the frontmatter finding, got code %q", got[0].Code)
+	}
+	if got[0].Repairable == nil || *got[0].Repairable != true {
+		t.Fatalf("surfaced frontmatter finding must carry Repairable=true")
+	}
+	if exit := CheckExit(c, got); exit != 1 {
+		t.Fatalf("healthy topology carrying a corpus finding must exit 1, got %d", exit)
+	}
+}
+
+func TestHealthHealthyTopologyEmptyCorpusStaysClean(t *testing.T) {
+	// The truly clean repo — healthy topology, no corpus findings — must stay
+	// empty and exit 0.
+	c := Classification{State: StateHealthy}
+	got := EvaluateHealth(c, Facts{}, nil)
+	if len(got) != 0 {
+		t.Fatalf("healthy topology + empty corpus must yield no findings, got %d: %+v", len(got), got)
+	}
+	if exit := CheckExit(c, got); exit != 0 {
+		t.Fatalf("fully clean repo must exit 0, got %d", exit)
+	}
+}
+
 func TestHealthEveryNonHealthyStateYieldsFinding(t *testing.T) {
 	cases := []Classification{
 		{State: StateFresh, Reasons: []string{"no-metadata-no-surface"}},

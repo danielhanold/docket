@@ -74,14 +74,15 @@ func categoryOf(reason string) int {
 
 // EvaluateHealth maps a Classification + Facts (+ frontmatter findings the
 // caller gathered) to the ordered finding list. A healthy classification yields
-// no findings; every non-healthy state yields at least one. Output order is
+// no topology findings, but the caller-gathered frontmatter findings `fm` are
+// still appended: a healthy topology whose metadata corpus carries a
+// repairable/unsafe or malformed record surfaces those corpus findings (and
+// CheckExit then returns 1 — an outstanding corpus record is a required
+// action), while a healthy topology with an empty `fm` stays empty (exit 0).
+// Every non-healthy state yields at least one topology finding. Output order is
 // deterministic: remote/topology findings, then integration-tree findings, then
 // local worktree findings, then surface findings, then frontmatter findings.
 func EvaluateHealth(c Classification, f Facts, fm []RepairFinding) []Finding {
-	if c.State == StateHealthy {
-		return nil
-	}
-
 	buckets := [4][]Finding{}
 	for _, reason := range c.Reasons {
 		fnd := findingFor(reason, f)
