@@ -1,3 +1,5 @@
+//go:build integration
+
 package release
 
 import (
@@ -85,7 +87,7 @@ func extractMember(t *testing.T, archivePath string) []byte {
 // four archives, sorted manifest, rendered downloader, host-tuple identity
 // check. The four cross-builds are warm from tests/test_go_toolchain.sh's
 // existing four-tuple check, so this is seconds warm (minutes cold).
-func TestPackageIntegration(t *testing.T) {
+func TestIntegrationReleasePackageEndToEnd(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping four-tuple build integration in -short mode")
 	}
@@ -200,7 +202,7 @@ func TestPackageIntegration(t *testing.T) {
 // directories and byte-compares checksums.txt. Because checksums.txt transitively
 // pins every archive's bytes, equal manifests prove the whole bundle is
 // byte-deterministic for equal inputs + toolchain.
-func TestPackageDeterministic(t *testing.T) {
+func TestIntegrationReleasePackageDeterministic(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping determinism double-build in -short mode")
 	}
@@ -229,7 +231,7 @@ func TestPackageDeterministic(t *testing.T) {
 // already present in OutDir makes Package refuse before doing any build work,
 // so an existing artifact is never clobbered. Refusal happens before the four
 // cross-builds, so this test is fast even though it exercises Package.
-func TestPackageRefusesCollision(t *testing.T) {
+func TestIntegrationReleasePackageRefusesCollision(t *testing.T) {
 	outDir := t.TempDir()
 	// Plant one of the target archive names.
 	collision := ArchiveName(itVersion, Tuples()[0])
@@ -259,7 +261,7 @@ func TestPackageRefusesCollision(t *testing.T) {
 // file makes ValidateChecksums — the exact guard Package invokes — redden. This
 // pins that the final gate bites on corruption; a full Package build is not
 // needed to exercise the guard function.
-func TestPackageBundleValidatesChecksums(t *testing.T) {
+func TestIntegrationReleasePackageBundleValidatesChecksums(t *testing.T) {
 	dir := t.TempDir()
 	names := []string{"a.tar.gz", "install.sh"}
 	for _, n := range names {
