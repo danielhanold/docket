@@ -122,8 +122,9 @@ type ContextHalt struct {
 }
 
 // ContextWorkflow is the supported workflow configuration the bundle reports.
+// Go v1 supports one metadata topology, so no mode-shaped field appears (change
+// 0363).
 type ContextWorkflow struct {
-	RepoMode          string `json:"repo_mode"`
 	IntegrationBranch string `json:"integration_branch"`
 	TestCommand       string `json:"test_command,omitempty"`
 	Remote            string `json:"remote"`
@@ -305,7 +306,6 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 		EffectiveBase: contextBase(domain.ResolveEffectiveBase(snap, selected, facts)),
 		ADRs:          acceptedADRs(snap),
 		Workflow: ContextWorkflow{
-			RepoMode:          reposetup.MetadataBranchName, // 0363 Task 5 removes this
 			IntegrationBranch: pin.IntegrationBranch,
 			TestCommand:       eff.Finalize.TestCommand.Value,
 			Remote:            string(originRemote),

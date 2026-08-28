@@ -266,7 +266,6 @@ func TestHumanTextGrouping(t *testing.T) {
 		"configuration: valid",
 		"mutation: blocked (4 blockers)",
 		"effective (winning layer):",
-		"metadata_branch = docket",
 		"capabilities:",
 		"diagnostics:",
 	} {
@@ -275,19 +274,13 @@ func TestHumanTextGrouping(t *testing.T) {
 		}
 	}
 
-	// The metadata_branch line names the layer it won from: a value without a
-	// layer does not tell the reader which file to edit. 0363 Task 5 removes this
-	// row entirely; until then config.Effective.MetadataBranch is gone and the row
-	// is bridged from the fixed built-in value, so the winning layer reads
-	// "built-in" rather than "repository".
-	var effLine string
+	// metadata_branch is no longer effective configuration: Go v1 supports one
+	// metadata topology (the fixed orphan `docket` branch), so the human effective
+	// output carries no metadata_branch row at all (change 0363).
 	for _, line := range strings.Split(text, "\n") {
 		if strings.Contains(line, "metadata_branch = ") {
-			effLine = line
+			t.Errorf("effective human output still carries a metadata_branch row: %q", line)
 		}
-	}
-	if !strings.Contains(effLine, "built-in") {
-		t.Errorf("metadata_branch line %q does not name its (bridged) winning layer", effLine)
 	}
 
 	// Diagnostics are grouped by severity with errors first.

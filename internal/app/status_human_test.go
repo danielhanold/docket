@@ -13,12 +13,10 @@ import "testing"
 func healthyStatusResult() StatusResult {
 	return NewStatusResult(ResultApplied, StatusResult{
 		Context: StatusContext{
-			MetadataMode:          "docket",
 			DefaultBranch:         "main",
 			DefaultBranchRevision: "a1b2c3d4e5f6DEADBEEF",
 			IntegrationBranch:     "develop",
 			IntegrationRevision:   "b2c3d4e5f6a1FEEDFACE",
-			MetadataBranch:        "docket",
 			MetadataRevision:      "c3d4e5f6a1b2CAFED00D",
 		},
 		Summary: StatusSummary{
@@ -35,7 +33,7 @@ func healthyStatusResult() StatusResult {
 
 func TestStatusHumanTextHealthy(t *testing.T) {
 	got := healthyStatusResult().HumanText()
-	want := "mode: docket\n" +
+	want := "" +
 		"default branch: main @ a1b2c3d4e5f6\n" +
 		"integration branch: develop @ b2c3d4e5f6a1\n" +
 		"metadata branch: docket @ c3d4e5f6a1b2\n" +
@@ -58,7 +56,6 @@ func TestStatusHumanTextHealthy(t *testing.T) {
 func TestStatusHumanTextUnhealthy(t *testing.T) {
 	r := NewStatusResult(ResultApplied, StatusResult{
 		Context: StatusContext{
-			MetadataMode:          "main",
 			DefaultBranch:         "main",
 			DefaultBranchRevision: "dddddddddddd",
 			IntegrationBranch:     "main",
@@ -80,7 +77,7 @@ func TestStatusHumanTextUnhealthy(t *testing.T) {
 		},
 	})
 	got := r.HumanText()
-	want := "mode: main\n" +
+	want := "" +
 		"default branch: main @ dddddddddddd\n" +
 		"integration branch: main @ dddddddddddd\n" +
 		"\n" +
@@ -107,12 +104,10 @@ func TestStatusHumanTextUnhealthy(t *testing.T) {
 func TestStatusHumanTextFilteredEmptyProjection(t *testing.T) {
 	r := NewStatusResult(ResultApplied, StatusResult{
 		Context: StatusContext{
-			MetadataMode:          "docket",
 			DefaultBranch:         "main",
 			DefaultBranchRevision: "0f0f0f0f0f0f",
 			IntegrationBranch:     "develop",
 			IntegrationRevision:   "a1a1a1a1a1a1",
-			MetadataBranch:        "docket",
 			MetadataRevision:      "b2b2b2b2b2b2",
 		},
 		Summary: StatusSummary{
@@ -124,7 +119,7 @@ func TestStatusHumanTextFilteredEmptyProjection(t *testing.T) {
 		},
 	})
 	got := r.HumanText()
-	want := "mode: docket\n" +
+	want := "" +
 		"default branch: main @ 0f0f0f0f0f0f\n" +
 		"integration branch: develop @ a1a1a1a1a1a1\n" +
 		"metadata branch: docket @ b2b2b2b2b2b2\n" +
@@ -148,7 +143,6 @@ func TestStatusHumanTextFilteredEmptyProjection(t *testing.T) {
 func TestStatusHumanTextEmptyReady(t *testing.T) {
 	r := NewStatusResult(ResultApplied, StatusResult{
 		Context: StatusContext{
-			MetadataMode:          "main",
 			DefaultBranch:         "main",
 			DefaultBranchRevision: "999999999999",
 			IntegrationBranch:     "main",
@@ -163,7 +157,7 @@ func TestStatusHumanTextEmptyReady(t *testing.T) {
 		},
 	})
 	got := r.HumanText()
-	want := "mode: main\n" +
+	want := "" +
 		"default branch: main @ 999999999999\n" +
 		"integration branch: main @ 999999999999\n" +
 		"\n" +

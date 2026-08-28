@@ -9,7 +9,6 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
-	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/workspace"
 )
@@ -222,9 +221,9 @@ type FinalizeCandidateReport struct {
 }
 
 // FinalizePolicy is the repository-wide finalize configuration the bundle
-// reports: repo mode, refs, and the resolved gate/suite/approval/reclaim policy.
+// reports: refs and the resolved gate/suite/approval/reclaim policy. Go v1
+// supports one metadata topology, so no mode-shaped field appears (change 0363).
 type FinalizePolicy struct {
-	RepoMode             string `json:"repo_mode"`
 	IntegrationBranch    string `json:"integration_branch"`
 	Remote               string `json:"remote"`
 	Gate                 string `json:"gate"`
@@ -531,7 +530,6 @@ func probeFinalizeFacts(ctx context.Context, prober FinalizePRProber, repoDir st
 func finalizePolicy(pin StatusPin) FinalizePolicy {
 	eff := pin.Config.Effective
 	return FinalizePolicy{
-		RepoMode:             reposetup.MetadataBranchName, // 0363 Task 5 removes this
 		IntegrationBranch:    pin.IntegrationBranch,
 		Remote:               string(originRemote),
 		Gate:                 eff.Finalize.Gate.Value,
