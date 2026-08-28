@@ -433,6 +433,20 @@
 # commit + push); the run term dominates, the rest is the tagged app-package compile. After the split
 # the reposetup shard is init-only again: re-measured cold 7.66 7.48 7.36 -> worst 7.66 -> still 15,
 # so its row is unchanged. EXPECTED_TOTAL moves 2665 -> 2685: +20 for this one new shard row.
+#
+# tests/test_go_integration_app_repomigration.sh is change 0352 Task 10: the `repository migrate` service — the
+# authorized two-commit remote publication sequence (exact copy/removal sets, byte-preserving legacy-key removal,
+# receipts naming exact revisions, repairs landing in both trees for archives, the non-repairable-finding block
+# before any write, no active-surface resurrection, remote-keyed idempotency, and the local-moved-after-publish
+# remedy), prefix ^TestIntegrationRepoMigration, in the normal (parallel) lane. It is its own shard rather than an
+# extension of the reposetup/repocheck shards: no existing prefix is a name-prefix of TestIntegrationRepoMigration,
+# and each scenario scripts a full legacy repo (bare origin + writer + invocation clones) and drives a real
+# two-commit remote migration. Sized per this header's rule from the WORST of three fresh-GOCACHE readings, idle
+# Mac15,6 / macOS 26.6.2 / go1.26.5 darwin/arm64, as
+# `fresh=$(mktemp -d ...); GOCACHE=$fresh /usr/bin/time -p bash tests/test_go_integration_app_repomigration.sh >/dev/null`:
+#   repomigration  cold 10.30 10.32 10.34 -> worst 10.34 -> next multiple of 5 is 15, plus 5 -> 20
+# The eight scenarios run in ~5.8s; the rest is the tagged app-package compile. Headroom at 20: ~9.7s over the worst
+# cold reading, well under the 60s ceiling. EXPECTED_TOTAL moves 2685 -> 2705: +20.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -502,6 +516,7 @@ tests/test_go_integration_app_concurrency.sh	25	parallel
 tests/test_go_integration_app_merge.sh	30	parallel
 tests/test_go_integration_app_rebase.sh	25	parallel
 tests/test_go_integration_app_repocheck.sh	20	parallel
+tests/test_go_integration_app_repomigration.sh	20	parallel
 tests/test_go_integration_app_reposetup.sh	15	parallel
 tests/test_go_integration_app_state.sh	50	parallel
 tests/test_go_integration_app_workflow.sh	45	parallel
