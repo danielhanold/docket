@@ -57,8 +57,13 @@ assert "29: the SUITE line counts the parallel run's own asserts" \
 
 # ---- store mechanics: default path resolution -------------------------------------------
 sp_out="$(bash "$RUNNER" --print-budget-state-path)"
+# The expected path mirrors budget_state_path()'s OWN anchoring: `git rev-parse --git-dir` prints a
+# RELATIVE `.git` in a normal clone but an ABSOLUTE dir in a linked worktree, and the store anchors a
+# relative result under $REPO. Anchor identically here — an un-anchored expectation passes only in a
+# worktree (where anchoring is a no-op) and fails on a normal clone such as a fresh CI checkout.
+sp_exp_gd="$(git -C "$REPO" rev-parse --git-dir)"; case "$sp_exp_gd" in /*) ;; *) sp_exp_gd="$REPO/$sp_exp_gd" ;; esac
 assert "store: default path lives under this repo's git dir" \
-  '[ "$sp_out" = "$(git -C "$REPO" rev-parse --git-dir)/docket/run-tests-budget-state.tsv" ]'
+  '[ "$sp_out" = "$sp_exp_gd/docket/run-tests-budget-state.tsv" ]'
 
 # ---- store mechanics: created with restrictive permissions, even under a hostile umask ---
 mk_suite "$tmp/sperm" test_a.sh
