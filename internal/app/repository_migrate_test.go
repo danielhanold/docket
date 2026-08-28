@@ -129,7 +129,7 @@ func TestMigrateConfirmationRequiredPreviewCarriesPlan(t *testing.T) {
 		integrationBranch: "main",
 		metadataBranch:    "docket",
 	}
-	plan, err := reposetup.PlanMigration(sc.cfg, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef", nil)
+	plan, err := reposetup.PlanMigration(sc.cfg, nil, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef", nil)
 	if err != nil {
 		t.Fatalf("PlanMigration: %v", err)
 	}
@@ -156,7 +156,7 @@ func TestMigrateConfirmationRequiredPreviewCarriesPlan(t *testing.T) {
 // --repair-frontmatter.
 func TestMigrateRepairAuthorizationRequiredNamesFlag(t *testing.T) {
 	sc := setupContext{cfg: effectiveForMigrateTest(), integrationBranch: "main", metadataBranch: "docket"}
-	plan, err := reposetup.PlanMigration(sc.cfg, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef", nil)
+	plan, err := reposetup.PlanMigration(sc.cfg, nil, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef", nil)
 	if err != nil {
 		t.Fatalf("PlanMigration: %v", err)
 	}

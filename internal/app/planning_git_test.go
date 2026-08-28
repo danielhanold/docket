@@ -24,9 +24,9 @@ import (
 // the current entity versions with an independent git oracle, and calls the
 // operation with repoDir pointed at an invocation clone.
 //
-// The whole matrix runs in BOTH repository modes: `main` (planning records live
-// on the default branch) and `docket` (records live on an orphan metadata
-// branch). The bare origin is the shared authority every concurrent operation
+// The matrix runs on the one supported topology: records live on the orphan
+// `docket` metadata branch (change 0363 removed the retired main-mode row).
+// The bare origin is the shared authority every concurrent operation
 // contends against through the engine's exact-lease push; each operation gets its
 // own invocation clone (its own common dir, its own transactions root) so the
 // only contention point is the origin ref — a faithful concurrent-repository
@@ -36,24 +36,23 @@ import (
 
 // --- mode matrix + real-git harness ---------------------------------------
 
-// planRepoMode names one repository mode and how to build a bare-remote topology
-// whose corpus records live on that mode's metadata branch.
+// planRepoMode names one repository topology and how to build a bare-remote
+// fixture whose corpus records live on its metadata branch.
 type planRepoMode struct {
 	name   string
 	branch string // the metadata branch the corpus and every commit land on
 	build  func(t *testing.T, records map[string]string) *gitRepo
 }
 
-// planRepoModes is the both-mode matrix every integration test iterates.
+// planRepoModes is the topology matrix every integration test iterates. Change
+// 0363 collapsed it to its docket row — the one supported topology — keeping
+// every mode-independent assertion (exact-lease CAS, private transaction
+// worktrees, ref isolation, retries, interruption recovery, finalization,
+// cleanup, link repair) running against the docket metadata branch. The
+// retired main-mode row's topology survives only as newLegacyRepo, whose sole
+// subjects are the operational refusal and the migration path.
 func planRepoModes() []planRepoMode {
 	return []planRepoMode{
-		{
-			name:   "main",
-			branch: "main",
-			build: func(t *testing.T, records map[string]string) *gitRepo {
-				return newMainModeRepo(t, records)
-			},
-		},
 		{
 			name:   "docket",
 			branch: "docket",

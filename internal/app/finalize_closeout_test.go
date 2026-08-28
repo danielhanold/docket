@@ -136,8 +136,8 @@ func setupCloseoutFixture(t *testing.T, m planRepoMode) *closeoutFixture {
 	}
 	recPath := groomPath(f.id, f.slug)
 	// The record and the spec live on the metadata branch. The plan and results
-	// live on the integration branch (main) — in docket mode a genuinely different
-	// ref; in main mode the same ref as everything else.
+	// live on the integration branch (main) — a genuinely different ref, so a
+	// read from the wrong source is observable.
 	metaFiles := map[string]string{
 		recPath:     closeoutRecord(f.id, f.slug, "implemented", closeoutRef, cf.specPath, cf.planPath, cf.resultsPath),
 		cf.specPath: artifactWithBacklink(recPath, "Design", "The widget design."),
@@ -148,12 +148,7 @@ func setupCloseoutFixture(t *testing.T, m planRepoMode) *closeoutFixture {
 		cf.planPath:    artifactWithBacklink(recPath, "Plan", "The widget plan."),
 		cf.resultsPath: artifactWithBacklink(recPath, "Results", "The widget results."),
 	}
-	if m.name == "main" {
-		// Same ref: the plan/results join the metadata branch too.
-		f.repo.writerAdvance(t, f.branch, integrationFiles)
-	} else {
-		f.repo.writerAdvance(t, "main", integrationFiles)
-	}
+	f.repo.writerAdvance(t, "main", integrationFiles)
 
 	cf.version = blobVersionAt(t, f.repo.origin, f.branch, recPath)
 	return cf

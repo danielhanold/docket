@@ -118,9 +118,15 @@ type gitRepo struct {
 	invocation string
 }
 
-// newMainModeRepo builds a main-mode topology: every planning record lives on
-// the default branch main, whose .docket.yml declares metadata_branch: main.
-func newMainModeRepo(t *testing.T, files map[string]string) *gitRepo {
+// newLegacyRepo builds the RETIRED single-branch topology (change 0363): every
+// planning record lives on the default branch main, whose .docket.yml still
+// declares the obsolete metadata_branch: main key, and no docket metadata
+// branch exists. When the committed files include a live planning surface, the
+// operational gate classifies this repository `legacy` and refuses every
+// ordinary command — use it ONLY for tests whose subject is that refusal or
+// the migration path; a test that needs a WORKING repository uses
+// newWorkingRepo.
+func newLegacyRepo(t *testing.T, files map[string]string) *gitRepo {
 	t.Helper()
 	requireRealGit(t)
 	root := t.TempDir()
@@ -150,10 +156,40 @@ func newMainModeRepo(t *testing.T, files map[string]string) *gitRepo {
 	return r
 }
 
-// newDocketModeRepo builds a docket-mode topology: main carries code + a
-// .docket.yml declaring metadata_branch: docket, while an orphan docket branch
-// carries the planning records. The two branches carry genuinely different
-// trees, so a corpus read that came from the wrong branch is observable.
+// newWorkingRepo builds the ONE supported repository topology (change 0363):
+// an orphan docket metadata branch beside the integration branch main. The
+// given files are partitioned by their repository role — metadata-side records
+// (changes, ADRs, specs) land on the docket branch, everything else on main —
+// so a former single-branch fixture converts by intent, not by path surgery at
+// every call site.
+func newWorkingRepo(t *testing.T, files map[string]string) *gitRepo {
+	t.Helper()
+	mainFiles := map[string]string{}
+	docketRecords := map[string]string{}
+	for rel, content := range files {
+		if isMetadataSidePath(rel) {
+			docketRecords[rel] = content
+		} else {
+			mainFiles[rel] = content
+		}
+	}
+	return newDocketModeRepo(t, mainFiles, docketRecords)
+}
+
+// isMetadataSidePath reports whether a repo-relative fixture path belongs on
+// the docket metadata branch under the default configuration: changes (active,
+// archive, learnings, board), ADRs, and specs. Plans, results, code, and
+// documentation stay on the integration branch.
+func isMetadataSidePath(rel string) bool {
+	return strings.HasPrefix(rel, "docs/changes/") ||
+		strings.HasPrefix(rel, "docs/adrs/") ||
+		strings.HasPrefix(rel, "docs/superpowers/specs/")
+}
+
+// newDocketModeRepo builds a docket-topology repository: main carries code
+// while an orphan docket branch carries the planning records. The two branches
+// carry genuinely different trees, so a corpus read that came from the wrong
+// branch is observable.
 func newDocketModeRepo(t *testing.T, mainFiles, docketRecords map[string]string) *gitRepo {
 	t.Helper()
 	requireRealGit(t)
@@ -169,7 +205,7 @@ func newDocketModeRepo(t *testing.T, mainFiles, docketRecords map[string]string)
 	runGit(t, root, "init", "-b", "main", r.writer)
 	gitIdentity(t, r.writer)
 
-	writeRepoFile(t, r.writer, ".docket.yml", "metadata_branch: docket\nintegration_branch: main\n")
+	writeRepoFile(t, r.writer, ".docket.yml", "integration_branch: main\n")
 	writeRepoFile(t, r.writer, "main.go", "package main\n")
 	for rel, content := range mainFiles {
 		writeRepoFile(t, r.writer, rel, content)
@@ -185,6 +221,11 @@ func newDocketModeRepo(t *testing.T, mainFiles, docketRecords map[string]string)
 	runGit(t, r.writer, "checkout", "-q", "--orphan", "docket")
 	runGit(t, r.writer, "rm", "-rfq", "--cached", ".")
 	clearWorktree(t, r.writer)
+	if len(docketRecords) == 0 {
+		// A metadata branch always holds at least the board view, so an empty
+		// record set still produces a committable orphan tree.
+		writeRepoFile(t, r.writer, "docs/changes/BOARD.md", "# Board\n")
+	}
 	for rel, content := range docketRecords {
 		writeRepoFile(t, r.writer, rel, content)
 	}

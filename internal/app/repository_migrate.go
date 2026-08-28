@@ -168,7 +168,14 @@ func migratePhaseDispatch(ctx context.Context, d SetupDeps, o MigrateOptions, fa
 		return migrateExternalFailure(reposetup.StateLegacy, "reading the migration corpus", err)
 	}
 
-	plan, perr := reposetup.PlanMigration(sc.cfg, sourceRevision, mr.repairable)
+	// The ConfigEdit predicate reads the COMMITTED .docket.yml bytes at the
+	// pinned source revision — the exact bytes the execution phase edits — so
+	// the plan and the edit share one authority. An absent file is nil bytes.
+	docketYML, _, yerr := readCommitBlob(ctx, d.Git, sc.repo, sourceRevision, ".docket.yml")
+	if yerr != nil {
+		return migrateExternalFailure(reposetup.StateLegacy, "reading the committed .docket.yml", yerr)
+	}
+	plan, perr := reposetup.PlanMigration(sc.cfg, docketYML, sourceRevision, mr.repairable)
 	if perr != nil {
 		return migrateInternalFailure(reposetup.StateLegacy, "planning the migration", perr)
 	}

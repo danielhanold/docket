@@ -160,12 +160,6 @@ func gatherSetupFacts(ctx context.Context, p setupProber, repoDir string, forMut
 		sc.diagnostics = append(sc.diagnostics, setupDiag{Probe: "remote-default-branch", Err: errors.New("remote default ref is not a branch")})
 		return f, sc, nil
 	}
-	f.RemoteConfigured = reposetup.PresencePresent
-	f.RemoteDefaultBranch.Presence = reposetup.PresencePresent
-	sc.defaultBranch = defaultBranch
-	if rev, ferr := p.FetchBranch(ctx, repo, setupRemote(), defaultRef); ferr == nil {
-		f.RemoteDefaultBranch.Tip = string(rev.Commit)
-	}
 
 	// Configuration is resolved from the primary worktree's filesystem layers,
 	// exactly as the installer's repository-phase resolver does, so an explicit
@@ -175,21 +169,69 @@ func gatherSetupFacts(ctx context.Context, p setupProber, repoDir string, forMut
 	if err != nil {
 		return f, sc, err
 	}
-	sc.cfg = eff
-	sc.integrationBranch = eff.IntegrationBranch.Value
-	sc.metadataBranch = "docket" // 0363 Task 4 removes this: metadata branch is fixed (config field is an obsolete tombstone)
-	f.SurfacesAuthorized = eff.AgentHarnesses.Explicit && isRepositoryLayer(eff.AgentHarnesses.Provenance.Layer)
+
+	f, sc = gatherRepoFacts(ctx, p, repoFactsInput{
+		repo:          repo,
+		defaultBranch: defaultBranch,
+		cfg:           eff,
+	})
+	return f, sc, nil
+}
+
+// repoFactsInput carries what the shared topology fact probe needs from its
+// caller: the discovered repository, the resolved default branch, the resolved
+// configuration, and — when the caller already fetched and pinned them — the
+// default/integration tips, so the shared probe never performs a second fetch
+// of a revision its caller already holds.
+type repoFactsInput struct {
+	repo           gitcli.Repository
+	defaultBranch  string
+	defaultTip     string // pre-pinned default tip; "" → fetched here
+	integrationTip string // pre-pinned integration tip; "" → fetched here
+	cfg            config.Effective
+}
+
+// gatherRepoFacts is the ONE set of Git topology probes behind both the
+// repository command family (check/init/migrate, via gatherSetupFacts) and the
+// shared operational-repository loader (loadOperationalContext). It fills the
+// reposetup.Facts value the pure classifier decides over; every probe error
+// lands as PresenceUnknown with the error retained in setupContext.diagnostics
+// — never as Absent.
+func gatherRepoFacts(ctx context.Context, p setupProber, in repoFactsInput) (reposetup.Facts, setupContext) {
+	var f reposetup.Facts
+	var sc setupContext
+	sc.repo = in.repo
+	sc.cfg = in.cfg
+
+	f.RemoteConfigured = reposetup.PresencePresent
+	f.RemoteDefaultBranch.Presence = reposetup.PresencePresent
+	sc.defaultBranch = in.defaultBranch
+	if in.defaultTip != "" {
+		f.RemoteDefaultBranch.Tip = in.defaultTip
+	} else if rev, ferr := p.FetchBranch(ctx, in.repo, setupRemote(), gitcli.RefName(branchRefPrefix+in.defaultBranch)); ferr == nil {
+		f.RemoteDefaultBranch.Tip = string(rev.Commit)
+	}
+
+	sc.integrationBranch = in.cfg.IntegrationBranch.Value
+	sc.metadataBranch = reposetup.MetadataBranchName
+	f.SurfacesAuthorized = in.cfg.AgentHarnesses.Explicit && isRepositoryLayer(in.cfg.AgentHarnesses.Provenance.Layer)
 
 	// The authoritative integration tip is the source revision every later phase
 	// pins and keys on. A fetch failure leaves the integration probe Unknown.
-	integrationRef := gitcli.RefName(branchRefPrefix + sc.integrationBranch)
-	integrationRev, ierr := p.FetchBranch(ctx, repo, setupRemote(), integrationRef)
-	if ierr != nil {
-		sc.diagnostics = append(sc.diagnostics, setupDiag{Probe: "remote-integration-branch", Err: ierr})
-	} else {
+	if in.integrationTip != "" {
 		f.RemoteIntegration.Presence = reposetup.PresencePresent
-		f.RemoteIntegration.Tip = string(integrationRev.Commit)
-		sc.sourceRevision = string(integrationRev.Commit)
+		f.RemoteIntegration.Tip = in.integrationTip
+		sc.sourceRevision = in.integrationTip
+	} else {
+		integrationRef := gitcli.RefName(branchRefPrefix + sc.integrationBranch)
+		integrationRev, ierr := p.FetchBranch(ctx, in.repo, setupRemote(), integrationRef)
+		if ierr != nil {
+			sc.diagnostics = append(sc.diagnostics, setupDiag{Probe: "remote-integration-branch", Err: ierr})
+		} else {
+			f.RemoteIntegration.Presence = reposetup.PresencePresent
+			f.RemoteIntegration.Tip = string(integrationRev.Commit)
+			sc.sourceRevision = string(integrationRev.Commit)
+		}
 	}
 
 	// The remote docket branch presence is an authoritative ls-remote probe. Its
@@ -199,7 +241,7 @@ func gatherSetupFacts(ctx context.Context, p setupProber, repoDir string, forMut
 	// authoritative adopt/conflict decision keys on the promised remote state, not
 	// a gather-time proxy.
 	metaRef := gitcli.RefName(branchRefPrefix + sc.metadataBranch)
-	rr, merr := p.ProbeRemoteBranch(ctx, repo, setupRemote(), metaRef)
+	rr, merr := p.ProbeRemoteBranch(ctx, in.repo, setupRemote(), metaRef)
 	if merr != nil {
 		sc.diagnostics = append(sc.diagnostics, setupDiag{Probe: "remote-metadata-branch", Err: merr})
 	} else {
@@ -218,23 +260,23 @@ func gatherSetupFacts(ctx context.Context, p setupProber, repoDir string, forMut
 	// only meaningful (and only consulted by the classifier) when the metadata
 	// branch is absent, but it is gathered whenever the integration tip is known.
 	if sc.sourceRevision != "" {
-		f.LiveSurface = liveSurfacePresence(ctx, p, repo, sc.sourceRevision, eff, &sc)
+		f.LiveSurface = liveSurfacePresence(ctx, p, in.repo, sc.sourceRevision, in.cfg, &sc)
 	}
 
 	// Primary-worktree supported-contract facts. The clean check ignores the
 	// docket-managed working-tree surfaces (the unstaged .gitignore edit and the
 	// parent-facing dispatch surfaces) and ignored paths, so a repeat init whose
 	// only working-tree change is its own pending review edits is still clean.
-	f.PrimaryClean = primaryCleanPresence(ctx, p, repo, &sc)
+	f.PrimaryClean = primaryCleanPresence(ctx, p, in.repo, &sc)
 	if sc.sourceRevision != "" {
-		f.PrimaryAtRemoteTip = primaryAtTipPresence(ctx, p, repo, sc.sourceRevision, &sc)
+		f.PrimaryAtRemoteTip = primaryAtTipPresence(ctx, p, in.repo, sc.sourceRevision, &sc)
 	}
 
 	// The .docket path: absent, a correctly registered owned worktree on the
 	// metadata branch, or a foreign directory / conflicting registration.
-	f.DocketWorktree = docketWorktreeFact(ctx, p, repo, metaRef)
+	f.DocketWorktree = docketWorktreeFact(ctx, p, in.repo, metaRef)
 
-	return f, sc, nil
+	return f, sc
 }
 
 // resolveSetupConfig resolves the effective configuration from the primary

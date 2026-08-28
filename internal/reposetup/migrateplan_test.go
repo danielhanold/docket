@@ -28,7 +28,7 @@ func contains(ss []string, want string) bool {
 // ADR dir, and the specs dir — whole prefixes, and nothing else. Plans,
 // results, and source paths never appear.
 func TestPlanMigrationCopySet(t *testing.T) {
-	plan, err := PlanMigration(migrateCfg(), "cafebabe", nil)
+	plan, err := PlanMigration(migrateCfg(), nil, "cafebabe", nil)
 	if err != nil {
 		t.Fatalf("PlanMigration errored: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestPlanMigrationCopySet(t *testing.T) {
 // the board, and the managed README under the configured changes dir — and
 // never a plans/results/source path.
 func TestPlanMigrationRemovalSet(t *testing.T) {
-	plan, err := PlanMigration(migrateCfg(), "cafebabe", nil)
+	plan, err := PlanMigration(migrateCfg(), nil, "cafebabe", nil)
 	if err != nil {
 		t.Fatalf("PlanMigration errored: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestPlanMigrationRemovalSet(t *testing.T) {
 func TestPlanMigrationRemovalHonorsChangesDir(t *testing.T) {
 	cfg := migrateCfg()
 	cfg.ChangesDir = config.Value[string]{Value: "work/changes"}
-	plan, err := PlanMigration(cfg, "cafebabe", nil)
+	plan, err := PlanMigration(cfg, nil, "cafebabe", nil)
 	if err != nil {
 		t.Fatalf("PlanMigration errored: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestPlanMigrationRemovalHonorsChangesDir(t *testing.T) {
 // source revision, the correct versioned operations, and the repair digest on
 // the seed.
 func TestPlanMigrationReceipts(t *testing.T) {
-	plan, err := PlanMigration(migrateCfg(), "cafebabe", nil)
+	plan, err := PlanMigration(migrateCfg(), nil, "cafebabe", nil)
 	if err != nil {
 		t.Fatalf("PlanMigration errored: %v", err)
 	}
@@ -132,7 +132,7 @@ func TestPlanMigrationRepairDigestFlows(t *testing.T) {
 	repairs := []RepairFinding{
 		{Path: "docs/changes/active/0001.md", Field: "title", Code: RepairQuoteScalar, Repairable: true, Patch: []byte("patch")},
 	}
-	plan, err := PlanMigration(migrateCfg(), "cafebabe", repairs)
+	plan, err := PlanMigration(migrateCfg(), nil, "cafebabe", repairs)
 	if err != nil {
 		t.Fatalf("PlanMigration errored: %v", err)
 	}
@@ -144,28 +144,54 @@ func TestPlanMigrationRepairDigestFlows(t *testing.T) {
 	}
 }
 
-// TestPlanMigrationConfigEdit — 0363 Task 3 restores this.
-//
-// ConfigEdit used to key on config.Effective.MetadataBranch's explicit
-// repository-layer provenance. Change 0363 turned metadata_branch into an
-// obsolete tombstone that no longer resolves, so the predicate can no longer
-// read it and PlanMigration reports no config edit. Task 3 re-derives ConfigEdit
-// from the committed .docket.yml raw bytes (RemoveMetadataBranchKey's `removed`
-// result) and restores the present/absent/global-layer matrix this test asserted.
+// TestPlanMigrationConfigEdit proves ConfigEdit is true exactly when the
+// legacy metadata_branch key is present in the COMMITTED .docket.yml raw bytes
+// (the same source-preserving editor the execution phase uses), and false
+// otherwise — a key declared only in a machine layer (global) never reaches
+// the committed bytes, so it plans no edit.
 func TestPlanMigrationConfigEdit(t *testing.T) {
-	plan, err := PlanMigration(migrateCfg(), "cafebabe", nil)
+	// Legacy key present in the committed .docket.yml bytes.
+	present := []byte("metadata_branch: main\nintegration_branch: main\n")
+	plan, err := PlanMigration(migrateCfg(), present, "cafebabe", nil)
 	if err != nil {
 		t.Fatalf("PlanMigration errored: %v", err)
 	}
-	if plan.ConfigEdit {
-		t.Error("ConfigEdit = true, want the 0363 bridge value false until Task 3 restores raw-byte detection")
+	if !plan.ConfigEdit {
+		t.Error("ConfigEdit = false, want true when the legacy key is present in .docket.yml")
+	}
+
+	// Committed bytes without the key → no edit.
+	absent := []byte("integration_branch: main\n")
+	planAbsent, err := PlanMigration(migrateCfg(), absent, "cafebabe", nil)
+	if err != nil {
+		t.Fatalf("PlanMigration errored: %v", err)
+	}
+	if planAbsent.ConfigEdit {
+		t.Error("ConfigEdit = true, want false when the committed bytes carry no metadata_branch key")
+	}
+
+	// No committed .docket.yml at all (nil bytes) — the global-layer-only case:
+	// a machine-layer declaration is invisible to the committed bytes and
+	// migration claims no authority over machine files, so no edit is planned.
+	planGlobal, err := PlanMigration(migrateCfg(), nil, "cafebabe", nil)
+	if err != nil {
+		t.Fatalf("PlanMigration errored: %v", err)
+	}
+	if planGlobal.ConfigEdit {
+		t.Error("ConfigEdit = true, want false when the key exists only outside the committed repository layer")
+	}
+
+	// Bytes the editor refuses to edit fail the plan rather than silently
+	// skipping the edit.
+	if _, err := PlanMigration(migrateCfg(), []byte("{metadata_branch: main, a: b}"), "cafebabe", nil); err == nil {
+		t.Error("PlanMigration accepted bytes the config editor refuses to edit")
 	}
 }
 
 // TestPlanMigrationRequiresSourceRevision proves an empty pinned revision is
 // refused — the planner never fabricates a source.
 func TestPlanMigrationRequiresSourceRevision(t *testing.T) {
-	if _, err := PlanMigration(migrateCfg(), "", nil); err == nil {
+	if _, err := PlanMigration(migrateCfg(), nil, "", nil); err == nil {
 		t.Error("PlanMigration accepted an empty source revision")
 	}
 }

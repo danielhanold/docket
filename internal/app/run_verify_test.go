@@ -73,7 +73,7 @@ type rvFixture struct {
 func newRunVerifyFixture(t *testing.T, publish bool) *rvFixture {
 	t.Helper()
 	requireRealGit(t)
-	repo := newMainModeRepo(t, nil)
+	repo := newWorkingRepo(t, nil)
 	client := newGitClient(t)
 
 	runGit(t, repo.invocation, "checkout", "-q", "-b", "feat/"+rvSlug)

@@ -163,10 +163,10 @@ func TestRemoveMetadataBranchKeyRoundTripThroughConfigLoader(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			before := resolveOrFatal(t, []byte(tc.in))
 			// metadata_branch no longer resolves to an Effective leaf (obsolete
-			// tombstone, 0363), so the precondition is now "the key is present and
-			// diagnosed obsolete" rather than "the leaf is explicit". 0363 Task 3
-			// restores the metadata_branch-specific pre/postconditions once the
-			// migration predicate reads raw bytes.
+			// tombstone, 0363), so the precondition is "the key is present and
+			// diagnosed obsolete" rather than "the leaf is explicit", and the
+			// postcondition is that the diagnosis disappears with the key — the
+			// same raw-byte authority the migration ConfigEdit predicate reads.
 			if !hasMetadataBranchObsolete(before) {
 				t.Fatalf("fixture precondition: metadata_branch must be present (obsolete) before removal; diags %+v", before.Diagnostics)
 			}

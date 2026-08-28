@@ -33,12 +33,9 @@ func PlanInit(cfg config.Effective, f Facts, primaryRoot string) (InitPlan, erro
 		return InitPlan{}, fmt.Errorf("reposetup: PlanInit requires a fresh repository, got state %q (reasons %v)", c.State, c.Reasons)
 	}
 	return InitPlan{
-		RootSubject:  initRootSubject,
-		RootTrailers: Receipt{Operation: OpInitRoot}.Trailers(),
-		// 0363 Task 3 removes this: the metadata branch is fixed now that
-		// config.Effective.MetadataBranch is gone; Task 3 replaces the literal
-		// with reposetup.MetadataBranchName.
-		MetadataRef:   "refs/heads/docket",
+		RootSubject:   initRootSubject,
+		RootTrailers:  Receipt{Operation: OpInitRoot}.Trailers(),
+		MetadataRef:   "refs/heads/" + MetadataBranchName,
 		WorktreePath:  filepath.Join(primaryRoot, ".docket"),
 		GitignorePath: ".gitignore",
 		SeedInput: reposeed.PlanInput{
