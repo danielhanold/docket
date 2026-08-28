@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0361 — Release-candidate source-gate green on a macOS runner](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0361-release-candidate-source-gate-macos-runner.md)**
+> ↩ **[Change 0361 — Release-candidate source-gate green on a macOS runner](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-28-0361-release-candidate-source-gate-macos-runner.md)**
 <!-- docket:backlink:end -->
 
 # Release-candidate source-gate green on a macOS runner
