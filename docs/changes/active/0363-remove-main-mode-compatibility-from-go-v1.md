@@ -2,11 +2,11 @@
 id: 363
 slug: 'remove-main-mode-compatibility-from-go-v1'
 title: 'Remove main-mode compatibility from Go v1'
-status: proposed
+status: 'in-progress'
 priority: high
 type: refactor
 created: 2026-08-28
-updated: 2026-08-28
+updated: '2026-08-28'
 depends_on: [352]
 stacked_on:
 related: [318, 326, 305, 309, 310, 312, 315, 316]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'refactor/remove-main-mode-compatibility-from-go-v1'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-28T21:15:23Z'
 ---
 
 ## Artifacts

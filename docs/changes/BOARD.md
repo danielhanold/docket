@@ -1,14 +1,15 @@
 # Backlog
 
-**363 changes** — 🟢 1 in progress · 🟡 51 proposed · ⚪ 4 deferred · ✅ 225 done · 🗑️ 82 killed
+**363 changes** — 🟢 2 in progress · 🟡 50 proposed · ⚪ 4 deferred · ✅ 225 done · 🗑️ 82 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0252](active/0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md) | Harden test fixtures and hermeticity into tests-lib | `high` | `chore` | [spec](../superpowers/specs/2026-08-07-harden-test-fixtures-and-hermeticity-into-tests-lib-design.md) | `chore/harden-test-fixtures-and-hermeticity-into-tests-lib` |
+| [0363](active/0363-remove-main-mode-compatibility-from-go-v1.md) | Remove main-mode compatibility from Go v1 | `high` | `refactor` | [spec](../superpowers/specs/2026-08-28-remove-main-mode-compatibility-from-go-v1-design.md) | `refactor/remove-main-mode-compatibility-from-go-v1` |
 
-## 🟡 Proposed (51)
+## 🟡 Proposed (50)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -62,7 +63,6 @@
 | [0354](active/0354-halt-report-authoring-writes-a-duplicate-run-halted-heading.md) | Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted | `high` | `fix` | needs-brainstorm |
 | [0359](active/0359-run-gate-gives-up-too-soon.md) | the run gate gives up too soon | `high` | `fix` | needs-brainstorm |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `medium` | `feat` | needs-brainstorm |
-| [0363](active/0363-remove-main-mode-compatibility-from-go-v1.md) | Remove main-mode compatibility from Go v1 | `high` | `refactor` | build-ready |
 
 ## ⚪ Deferred (4)
 
