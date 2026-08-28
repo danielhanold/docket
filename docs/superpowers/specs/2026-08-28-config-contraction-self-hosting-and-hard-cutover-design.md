@@ -25,15 +25,17 @@ In particular:
   smokes, and the first four-harness direct-invocation acceptance;
 - change 0352 is a new hard prerequisite and owns the native repository initialization and health
   operation family required before the Bash repository-migration surface can leave production;
+- change 0363 is a new hard prerequisite, sequenced after 0352, and removes the unused main-mode
+  compatibility path once the native migration command exists;
 - change 0361 owns the macOS source-gate repair for the release-candidate workflow;
 - changes 0322 and 0326 retain ownership of the source-development bootstrap/legacy adoption and
   the earlier configuration contraction respectively; and
 - tag `v0.9.2` remains the immutable rollback artifact. The Go product gains no Bash fallback.
 
-Change 0352 must settle the approved `repository init`, `repository migrate`, and `repository
-check` boundary. If its focused design assigns part of that required family to a successor, that
-successor becomes a prerequisite before 0318 implementation is claimed; 0318 does not absorb the
-missing repository behavior merely to keep cutover moving.
+Change 0352 settles the approved `repository init`, `repository migrate`, and `repository check`
+boundary. Change 0363 then contracts the product to that one docket-mode destination. Both are
+prerequisites before 0318 implementation is claimed; 0318 does not absorb either repository
+operation behavior or cross-product compatibility removal merely to keep cutover moving.
 
 ## Current reality and independently deliverable result
 
@@ -291,7 +293,8 @@ lifecycle and recovery boundary through every supported host.
 
 Change 0318 does not:
 
-- implement or redesign change 0352's repository operation family;
+- implement or redesign change 0352's repository operation family or change 0363's main-mode
+  removal;
 - repeat 0322's source bootstrap/adoption, 0326's capability contraction, 0317's packaging engine,
   or 0361's macOS workflow repair;
 - restore deferred capabilities, add a Bash fallback, or change the existing-repository semantic
@@ -306,9 +309,9 @@ Change 0318 does not:
 ## Acceptance boundary
 
 Change 0318 is designed when this focused spec is linked from the change. It is implemented only
-after 0317, 0352, and any prerequisite 0352 creates for the required repository operation family
-are complete; the Go-only source/configuration/documentation/test cutover is green; the migration
-ledger and manual learnings are complete; one exact post-merge `v1.0.0-rc1` bundle passes all four
+after 0317, 0352, and 0363 are complete; the Go-only source/configuration/documentation/test
+cutover is green; the migration ledger and manual learnings are complete; one exact post-merge
+`v1.0.0-rc1` bundle passes all four
 native tuple smokes and all four fresh-session complete-lifecycle scenarios; isolated `v0.9.2`
 rollback is proven; the exact accepted bytes are published and clean-installed; and Docket closes
 0318 through the installed Go product.

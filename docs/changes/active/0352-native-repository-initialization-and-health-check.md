@@ -9,7 +9,7 @@ created: 2026-08-26
 updated: 2026-08-28
 depends_on: [351]
 stacked_on:
-related: [351, 311, 318]
+related: [351, 311, 318, 363]
 discovered_from: [303, 351]
 adrs: [1, 2, 20, 21, 25, 34, 36, 52, 78]
 spec: docs/superpowers/specs/2026-08-28-native-repository-initialization-migration-and-health-design.md
@@ -78,7 +78,7 @@ design and lifecycle before change 0318 can remove the Bash surface.
 - `check` may fetch authoritative remote state but never changes content, branches, worktree
   registration, ownership records, or remote refs; `0` means healthy, `1` means diagnosed action is
   required, and `2` means invalid usage or unknown authority.
-- A single-branch repository is migration input only. A follow-up removes the remaining unused
+- A single-branch repository is migration input only. Change 0363 removes the remaining unused
   main-mode implementation before change 0318's release-candidate cutover.
 - The linked spec is the complete approved scope, including the closed frontmatter-repair roster,
   safety/refusal model, JSON receipts, and hard integration-test/runtime boundary.

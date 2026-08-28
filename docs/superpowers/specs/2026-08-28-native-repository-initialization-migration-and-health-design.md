@@ -26,9 +26,9 @@ repository-setup boundary and does not absorb machine installation or the final 
 Change 0351 is a landed implementation dependency: its ownership-safe repository-surface planner
 and per-worktree ownership record are reused rather than reimplemented. Change 0352 deliberately
 targets one healthy steady-state topology: the orphan `docket` metadata branch and persistent
-`.docket/` worktree. A follow-up change will remove the unused `main`-mode compatibility path from
-the rest of the Go product. Until that follow-up lands, a single-branch repository is recognized by
-this operation family only as legacy migration input, never as a healthy setup destination.
+`.docket/` worktree. Change 0363 will remove the unused `main`-mode compatibility path from the
+rest of the Go product. Until 0363 lands, a single-branch repository is recognized by this
+operation family only as legacy migration input, never as a healthy setup destination.
 
 The result is a complete native path from an ordinary, remotely anchored Git repository—or an
 existing Bash-era Docket repository—to a checked, recoverable docket-mode repository. Change 0318
@@ -457,6 +457,6 @@ surface ownership remains the single writer; and the full configured test suite 
 long-running work correctly integration-partitioned and no individual test or shard reaching 60
 seconds.
 
-The change stops at repository setup and health. The follow-up main-mode removal and change 0318's
+The change stops at repository setup and health. Change 0363's main-mode removal and change 0318's
 self-hosting, Bash retirement, release-candidate acceptance, and public cutover remain separate
 deliverables.

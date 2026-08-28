@@ -7,7 +7,7 @@ priority: critical
 type: refactor
 created: 2026-08-12
 updated: 2026-08-28
-depends_on: [317, 352]
+depends_on: [317, 352, 363]
 stacked_on:
 related: [322, 326, 361]
 discovered_from: [303]
@@ -39,7 +39,8 @@ compatibility and rollback boundaries while publishing the first public Go relea
 
 ## What changes
 
-- Require 0352's native repository initialization and health operation family before cutover.
+- Require 0352's native repository operation family and 0363's removal of unused main-mode
+  compatibility before cutover.
 - Rehearse and verify full self-hosting from the exact installed candidate through Claude, Codex,
   Cursor, and OpenCode.
 - Finish remaining active configuration and migration-ledger cleanup, and capture migration
@@ -50,9 +51,10 @@ compatibility and rollback boundaries while publishing the first public Go relea
 
 ## Out of scope
 
-Implementing 0352, reintroducing deferred capabilities, repeating 0322's bootstrap/adoption or
-0326's early configuration contraction, retaining a Bash fallback, changing the existing-repository
-compatibility contract, Homebrew, or stable `v1.0.0` promotion.
+Implementing 0352 or 0363, reintroducing deferred capabilities, repeating 0322's
+bootstrap/adoption or 0326's early configuration contraction, retaining a Bash fallback, changing
+the existing-repository compatibility contract inside 0318, Homebrew, or stable `v1.0.0`
+promotion.
 
 ## Design decisions
 
