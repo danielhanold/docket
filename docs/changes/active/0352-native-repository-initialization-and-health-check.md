@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'feat/native-repository-initialization-and-health-check'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-28T15:48:33Z'
+reconciled: true
+claimed_at: '2026-08-28T15:51:19Z'
 ---
 
 ## Artifacts
@@ -87,3 +87,7 @@ design and lifecycle before change 0318 can remove the Bash surface.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-28
+
+Reconciled against current `main`. Dependency 0351 is archived (done): its repository-surface planner and per-worktree ownership record land in `internal/reposeed` (`plan.go`, `record.go`), so the reuse premise holds. No native `docket repository init/migrate/check` command group exists yet (`internal/cli` has no `repository.go`; no repository setup service in `internal/app`), so the change remains fully unbuilt and non-duplicated. Referenced seams are present: config resolver (`internal/config`), source-preserving document layer (`internal/document`), repository validator and transaction concepts (`internal/repository`, `internal/repository/transaction`), `internal/gitcli` primitives, protocol-v1 envelope, and the `internal/reposeed` planner. Downstream changes remain pending as the spec assumes: 0318 (config contraction / hard cutover) and 0363 (remove main-mode compatibility) are still active/unbuilt; 0311 (installer) is archived. The integration-test partition infrastructure the spec mandates is in place: `tests/lib/go-integration-shard.sh`, the `tests/test_go_integration_*.sh` runners, and `tests/runtime-budgets.tsv`. Scope, relations, ADR citations, and the linked spec are all still accurate; no section edits or relation changes required.
