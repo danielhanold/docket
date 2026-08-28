@@ -2,11 +2,11 @@
 id: 362
 slug: partition-internal-release-to-clear-the-race-gate-timeout
 title: 'Partition internal/release integration tests to clear the race-gate per-package timeout'
-status: proposed
+status: 'in-progress'
 priority: high
 type: refactor
 created: 2026-08-28
-updated: 2026-08-28
+updated: '2026-08-28'
 depends_on: []
 stacked_on:
 related: [333, 361]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'refactor/partition-internal-release-to-clear-the-race-gate-timeout'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-28T01:06:07Z'
 ---
 
 ## Artifacts
