@@ -1,3 +1,5 @@
+//go:build integration
+
 package release
 
 import (
@@ -74,7 +76,7 @@ func writeGzTar(t *testing.T, path string, members func(tw *tar.Writer)) {
 	}
 }
 
-func TestWriteArchiveDeterministic(t *testing.T) {
+func TestIntegrationReleaseArchiveWriteDeterministic(t *testing.T) {
 	dir := t.TempDir()
 	bin := []byte("fake docket binary bytes\x00\x01\x02")
 	const epoch = 1700000000
@@ -100,7 +102,7 @@ func TestWriteArchiveDeterministic(t *testing.T) {
 	}
 }
 
-func TestWriteArchiveEpochEntersStream(t *testing.T) {
+func TestIntegrationReleaseArchiveWriteEpochEntersStream(t *testing.T) {
 	dir := t.TempDir()
 	bin := []byte("fake docket binary bytes")
 
@@ -119,7 +121,7 @@ func TestWriteArchiveEpochEntersStream(t *testing.T) {
 	}
 }
 
-func TestVerifyArchiveRoundTrip(t *testing.T) {
+func TestIntegrationReleaseArchiveVerifyRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	bin := []byte("fake docket binary of a known length")
 	path := filepath.Join(dir, "docket_v1.2.3_linux_amd64.tar.gz")
@@ -145,7 +147,7 @@ func TestVerifyArchiveRoundTrip(t *testing.T) {
 // TestWriteArchiveNoHostLeakage reopens WriteArchive's own output and pins the
 // header fields that would otherwise leak the building host's identity, plus
 // the USTAR format selection.
-func TestWriteArchiveNoHostLeakage(t *testing.T) {
+func TestIntegrationReleaseArchiveWriteNoHostLeakage(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "docket.tar.gz")
 	if err := WriteArchive(path, []byte("bin"), 1700000000); err != nil {
@@ -173,7 +175,7 @@ func TestWriteArchiveNoHostLeakage(t *testing.T) {
 // crafted directly with archive/tar and asserts each is refused with an error
 // that names the offending member (learning guards-are-code — each guard has a
 // distinct, mutation-tested branch).
-func TestVerifyArchiveRefusals(t *testing.T) {
+func TestIntegrationReleaseArchiveVerifyRefusals(t *testing.T) {
 	dir := t.TempDir()
 
 	cases := []struct {
