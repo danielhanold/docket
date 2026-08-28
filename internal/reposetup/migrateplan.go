@@ -31,7 +31,7 @@ type RemovalSet struct {
 type MigrationPlan struct {
 	Copy         CopySet
 	Removal      RemovalSet
-	ConfigEdit   bool    // legacy metadata_branch key present in .docket.yml → one edit (0363 Task 3 rewires the predicate to raw bytes)
+	ConfigEdit   bool    // legacy metadata_branch key present in the committed .docket.yml bytes → one edit
 	SeedReceipt  Receipt // OpMigrateSeed: source revision + repair digest (+ copy digest later)
 	PruneReceipt Receipt // OpMigratePrune: source revision (+ metadata revision later)
 }
@@ -42,14 +42,27 @@ type MigrationPlan struct {
 // the copy digest (that requires the composed tree the app layer builds).
 //
 // ConfigEdit keys on the legacy metadata_branch key being present in the
-// repository-layer .docket.yml. It used to read that off config resolution
-// (explicit repository-layer provenance on MetadataBranch), but change 0363
-// turned metadata_branch into an obsolete tombstone that no longer resolves, so
-// this is temporarily false — 0363 Task 3 re-derives it from the committed
-// .docket.yml raw bytes (RemoveMetadataBranchKey's `removed` result).
-func PlanMigration(cfg config.Effective, sourceRevision string, repairs []RepairFinding) (MigrationPlan, error) {
+// COMMITTED repository-layer .docket.yml raw bytes (docketYML — nil when the
+// pinned source tree carries no .docket.yml). Change 0363 turned
+// metadata_branch into an obsolete tombstone that no longer resolves, so the
+// predicate reads the same source-preserving editor the execution phase uses
+// (RemoveMetadataBranchKey's `removed` result) rather than resolved
+// configuration — a key declared only in a machine layer (global or
+// repository-local) is invisible to the committed bytes and plans no edit,
+// because migration claims no authority over machine files. Bytes the editor
+// refuses to edit fail the plan, so an unremovable key can never be silently
+// left behind by an executed migration.
+func PlanMigration(cfg config.Effective, docketYML []byte, sourceRevision string, repairs []RepairFinding) (MigrationPlan, error) {
 	if sourceRevision == "" {
 		return MigrationPlan{}, errors.New("reposetup: PlanMigration requires a pinned source revision")
+	}
+	configEdit := false
+	if docketYML != nil {
+		_, removed, err := RemoveMetadataBranchKey(docketYML)
+		if err != nil {
+			return MigrationPlan{}, err
+		}
+		configEdit = removed
 	}
 	changes := cfg.ChangesDir.Value
 	return MigrationPlan{
@@ -59,12 +72,7 @@ func PlanMigration(cfg config.Effective, sourceRevision string, repairs []Repair
 			BoardPath:  path.Join(changes, "BOARD.md"),
 			ReadmePath: path.Join(changes, "README.md"),
 		},
-		// 0363 Task 3 removes this: config.Effective.MetadataBranch is gone (it is
-		// now an obsolete tombstone), so ConfigEdit can no longer key on the
-		// resolved field. Task 3 re-derives it from the committed .docket.yml raw
-		// bytes (RemoveMetadataBranchKey's `removed` result); until then the
-		// planner reports no config edit.
-		ConfigEdit: false,
+		ConfigEdit: configEdit,
 		SeedReceipt: Receipt{
 			Operation:      OpMigrateSeed,
 			SourceRevision: sourceRevision,

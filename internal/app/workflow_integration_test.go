@@ -227,7 +227,7 @@ func TestIntegrationWorkflowChangeAttachPlanGitVerification(t *testing.T) {
 				t.Fatalf("%s: reason = %q, want %q (msg %q)", row.name, res.Reason, row.reason, res.Message)
 			}
 			// A refusal opens no transaction: the remote record keeps no plan field.
-			final, ok := originFile(t, f.repo.origin, "main", f.recPath)
+			final, ok := originFile(t, f.repo.origin, "docket", f.recPath)
 			if ok && strings.Contains(final, "plan: '") {
 				t.Errorf("%s: a refused attach wrote the plan field to the remote", row.name)
 			}
@@ -252,7 +252,7 @@ func TestIntegrationWorkflowChangeAttachPlanGitVerificationHappyPath(t *testing.
 	if res.Revision == "" || res.Path != f.planPath || res.Kind != attachKindPlan {
 		t.Fatalf("applied result malformed: %+v", res)
 	}
-	final, ok := originFile(t, f.repo.origin, "main", f.recPath)
+	final, ok := originFile(t, f.repo.origin, "docket", f.recPath)
 	if !ok {
 		t.Fatalf("change record missing on origin after attach")
 	}
@@ -434,8 +434,8 @@ func TestIntegrationWorkflowClaimToImplementedWorkflow(t *testing.T) {
 	}
 
 	// Acceptance 6, second clause: an actively-requested deferred capability fails
-	// before any mutation. Kept in main mode — the property is about the mutation
-	// preflight, not the metadata topology.
+	// before any mutation — the property is about the mutation preflight, not the
+	// metadata topology.
 	t.Run("unsupported-capability-refused-before-mutation", func(t *testing.T) {
 		assertDeferredCapabilityBlocksClaim(t)
 	})
@@ -527,7 +527,7 @@ func TestIntegrationWorkflowEffectiveBaseConsumedFromDomain(t *testing.T) {
 // and an absent one reads absent, with no error for the absent case.
 func TestIntegrationWorkflowGitStatusReaderBranchFacts(t *testing.T) {
 	requireRealGit(t)
-	repo := newMainModeRepo(t, map[string]string{
+	repo := newWorkingRepo(t, map[string]string{
 		"docs/changes/active/0001-alpha.md": changeRecord(1, "alpha", "Alpha"),
 	})
 	repo.writerAdvance(t, "feat-present", map[string]string{"feature.txt": "x\n"})
@@ -554,7 +554,7 @@ func TestIntegrationWorkflowGitStatusReaderBranchFacts(t *testing.T) {
 // is fixed at open time and never re-fetches.
 func TestIntegrationWorkflowGitStatusReaderConcurrentRemoteMovement(t *testing.T) {
 	requireRealGit(t)
-	repo := newMainModeRepo(t, map[string]string{
+	repo := newWorkingRepo(t, map[string]string{
 		"docs/changes/active/0001-alpha.md": changeRecord(1, "alpha", "Alpha"),
 	})
 
@@ -563,11 +563,11 @@ func TestIntegrationWorkflowGitStatusReaderConcurrentRemoteMovement(t *testing.T
 	if err != nil {
 		t.Fatalf("PinContext: %v", err)
 	}
-	pinnedRev := pin.DefaultRevision
+	pinnedRev := pin.MetadataRevision
 	wantID := repo.blobID(t, repo.invocation, pinnedRev, "docs/changes/active/0001-alpha.md")
 
 	// The remote advances the SAME record to different content after the pin.
-	repo.writerAdvance(t, "main", map[string]string{"docs/changes/active/0001-alpha.md": changeRecord(1, "alpha", "Alpha REWRITTEN")})
+	repo.writerAdvance(t, "docket", map[string]string{"docs/changes/active/0001-alpha.md": changeRecord(1, "alpha", "Alpha REWRITTEN")})
 
 	blobs, err := reader.ReadCorpus(context.Background(), pin)
 	if err != nil {
@@ -591,10 +591,13 @@ func TestIntegrationWorkflowGitStatusReaderConcurrentRemoteMovement(t *testing.T
 // anywhere inside the worktree.
 func TestIntegrationWorkflowGitStatusReaderDiscoversFromNestedSubdir(t *testing.T) {
 	requireRealGit(t)
-	repo := newMainModeRepo(t, map[string]string{
+	repo := newWorkingRepo(t, map[string]string{
 		"docs/changes/active/0001-alpha.md": changeRecord(1, "alpha", "Alpha"),
 	})
-	nested := filepath.Join(repo.invocation, "docs", "changes", "active")
+	nested := filepath.Join(repo.invocation, "docs", "notes")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	reader := NewGitStatusReader(newGitClient(t))
 	pin, err := reader.PinContext(context.Background(), nested)
@@ -603,9 +606,6 @@ func TestIntegrationWorkflowGitStatusReaderDiscoversFromNestedSubdir(t *testing.
 	}
 	if pin.DefaultBranch != "main" {
 		t.Errorf("default branch = %q, want main", pin.DefaultBranch)
-	}
-	if pin.Mode != "main" {
-		t.Errorf("mode = %q, want main", pin.Mode)
 	}
 }
 
@@ -657,9 +657,9 @@ func TestIntegrationWorkflowGitStatusReaderDocketModeDistinctRevisions(t *testin
 // TestGitStatusReaderMainModePinAndCorpus is the main-mode end-to-end read: the
 // pin resolves the default branch and both revisions collapse to it, and the
 // corpus carries the active change with its blob id from the pinned revision.
-func TestIntegrationWorkflowGitStatusReaderMainModePinAndCorpus(t *testing.T) {
+func TestIntegrationWorkflowGitStatusReaderFullCorpusFromMetadataBranch(t *testing.T) {
 	requireRealGit(t)
-	repo := newMainModeRepo(t, map[string]string{
+	repo := newWorkingRepo(t, map[string]string{
 		"docs/changes/active/0001-alpha.md":             changeRecord(1, "alpha", "Alpha"),
 		"docs/changes/active/0002-beta.md":              changeRecord(2, "beta", "Beta"),
 		"docs/changes/archive/2026-01-01-0003-gamma.md": changeRecord(3, "gamma", "Gamma"),
@@ -673,14 +673,8 @@ func TestIntegrationWorkflowGitStatusReaderMainModePinAndCorpus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PinContext: %v", err)
 	}
-	if pin.Mode != "main" {
-		t.Fatalf("mode = %q, want main", pin.Mode)
-	}
-	if pin.DefaultRevision == "" || pin.IntegrationRevision != pin.DefaultRevision {
-		t.Errorf("main mode should collapse revisions: default=%q integration=%q", pin.DefaultRevision, pin.IntegrationRevision)
-	}
-	if pin.MetadataBranch != "" || pin.MetadataRevision != "" {
-		t.Errorf("main mode carried a metadata branch: %+v", pin)
+	if pin.MetadataRevision == "" || pin.MetadataRevision == pin.IntegrationRevision {
+		t.Fatalf("metadata revision must be pinned distinctly from integration: %+v", pin)
 	}
 
 	blobs, err := reader.ReadCorpus(context.Background(), pin)
@@ -695,7 +689,7 @@ func TestIntegrationWorkflowGitStatusReaderMainModePinAndCorpus(t *testing.T) {
 	if !ok {
 		t.Fatalf("corpus missing the active change; got paths %v", pathsOf(blobs))
 	}
-	wantID := repo.blobID(t, repo.invocation, pin.DefaultRevision, "docs/changes/active/0001-alpha.md")
+	wantID := repo.blobID(t, repo.invocation, pin.MetadataRevision, "docs/changes/active/0001-alpha.md")
 	if got.Version != wantID {
 		t.Errorf("blob version = %q, want the pinned revision's blob id %q", got.Version, wantID)
 	}
@@ -715,17 +709,13 @@ func TestIntegrationWorkflowGitStatusReaderMainModePinAndCorpus(t *testing.T) {
 	}
 }
 
-// TestGitStatusReaderMissingMetadataBranchIsExternal proves a metadata branch
-// declared in configuration but absent from the remote fails as an external
-// error, not a silent empty pin.
+// TestGitStatusReaderMissingMetadataBranchIsExternal proves a repository
+// without the fixed remote docket branch (and without a live surface — a
+// FRESH repository, admitted by the operational gate) fails the pin as an
+// external error, not a silent empty pin and not the legacy refusal.
 func TestIntegrationWorkflowGitStatusReaderMissingMetadataBranchIsExternal(t *testing.T) {
 	requireRealGit(t)
-	// A main-mode topology whose .docket.yml is overwritten to demand a docket
-	// branch that was never pushed.
-	repo := newMainModeRepo(t, nil)
-	repo.writerAdvance(t, "main", map[string]string{
-		".docket.yml": "metadata_branch: docket\nintegration_branch: main\n",
-	})
+	repo := newLegacyRepo(t, nil) // no records → no live surface → fresh, not legacy
 
 	reader := NewGitStatusReader(newGitClient(t))
 	_, err := reader.PinContext(context.Background(), repo.invocation)
@@ -743,7 +733,7 @@ func TestIntegrationWorkflowGitStatusReaderMissingMetadataBranchIsExternal(t *te
 // advancing to a newly-pushed commit — is positively observed.
 func TestIntegrationWorkflowGitStatusReaderReadOnly(t *testing.T) {
 	requireRealGit(t)
-	repo := newMainModeRepo(t, map[string]string{
+	repo := newWorkingRepo(t, map[string]string{
 		"docs/changes/active/0001-alpha.md": changeRecord(1, "alpha", "Alpha"),
 	})
 
@@ -807,7 +797,7 @@ func TestIntegrationWorkflowGitStatusReaderReadOnly(t *testing.T) {
 //   - in PinContext, drop the RemoteURL call / the RepoWebURL assignment;
 //   - in linkContextOf, drop the RepoWebURL field.
 func TestIntegrationWorkflowPinContextDerivesGitHubRepoWebURL(t *testing.T) {
-	repo := newMainModeRepo(t, map[string]string{
+	repo := newWorkingRepo(t, map[string]string{
 		"docs/changes/active/0007-widget.md": changeRecord(7, "widget", "Widget"),
 	})
 	runGit(t, repo.invocation, "remote", "set-url", "origin", "git@github.com:owner/widgets.git")
@@ -824,7 +814,7 @@ func TestIntegrationWorkflowPinContextDerivesGitHubRepoWebURL(t *testing.T) {
 	}
 
 	link := linkContextOf(pin)
-	if got := link.BlobURL("docs/x.md"); got != "https://github.com/owner/widgets/blob/main/docs/x.md" {
+	if got := link.BlobURL("docs/x.md"); got != "https://github.com/owner/widgets/blob/docket/docs/x.md" {
 		t.Fatalf("BlobURL = %q", got)
 	}
 
@@ -837,7 +827,7 @@ func TestIntegrationWorkflowPinContextDerivesGitHubRepoWebURL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BacklinkContent: %v", err)
 	}
-	if !strings.Contains(block, "(https://github.com/owner/widgets/blob/main/docs/changes/active/0007-widget.md)") {
+	if !strings.Contains(block, "(https://github.com/owner/widgets/blob/docket/docs/changes/active/0007-widget.md)") {
 		t.Fatalf("backlink is not a GitHub link:\n%s", block)
 	}
 	if strings.Contains(block, "`docs/changes/active/0007-widget.md`") {
@@ -848,7 +838,7 @@ func TestIntegrationWorkflowPinContextDerivesGitHubRepoWebURL(t *testing.T) {
 // TestPinContextNonGitHubOriginYieldsEmptyWebURL pins the fallback: a plain
 // local-path origin derives "", and rendering stays in repo-relative mode.
 func TestIntegrationWorkflowPinContextNonGitHubOriginYieldsEmptyWebURL(t *testing.T) {
-	repo := newMainModeRepo(t, map[string]string{
+	repo := newWorkingRepo(t, map[string]string{
 		"docs/changes/active/0007-widget.md": changeRecord(7, "widget", "Widget"),
 	})
 	reader := NewGitStatusReader(newGitClient(t))
@@ -1400,7 +1390,7 @@ func TestIntegrationWorkflowWorkspacePrepareHonorsRecordedBranch(t *testing.T) {
 		corpus: []StatusBlob{renamedBranchBlob(30, "widget", ver, "feature/renamed-head")},
 	}
 	svc := &fakeWorkspaceService{prepareWS: workspace.Workspace{Disposition: workspace.PrepareCreated}}
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 
 	res := WorkspacePrepare(context.Background(), workspaceDepsFor(t, reader), WorkspaceDeps{Service: svc},
 		repoDir, WorkspaceIDRequest{ID: 30, Version: ver})
@@ -1436,7 +1426,7 @@ func TestIntegrationWorkflowWorkspacePrepareRefusesMissingBranch(t *testing.T) {
 		}},
 	}
 	svc := &fakeWorkspaceService{}
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 
 	res := WorkspacePrepare(context.Background(), workspaceDepsFor(t, reader), WorkspaceDeps{Service: svc},
 		repoDir, WorkspaceIDRequest{ID: 31, Version: ver})
@@ -1452,7 +1442,7 @@ func TestIntegrationWorkflowWorkspacePrepareRefusesMissingBranch(t *testing.T) {
 // TestWorkspacePrepareRequiresClaimedVersion: a proposed (unclaimed) change and
 // a stale version each refuse before any Git work — the service is never called.
 func TestIntegrationWorkflowWorkspacePrepareRequiresClaimedVersion(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 
 	t.Run("not in-progress", func(t *testing.T) {
 		reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{proposedChangeBlob(7, "widget", "v7")}}
@@ -1497,7 +1487,7 @@ func TestIntegrationWorkflowWorkspacePrepareResolvesBaseFromDomain(t *testing.T)
 	}
 	svc := &fakeWorkspaceService{prepareWS: workspace.Workspace{Disposition: workspace.PrepareCreated}}
 	deps := workspaceDepsFor(t, reader)
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 
 	res := WorkspacePrepare(context.Background(), deps, WorkspaceDeps{Service: svc},
 		repoDir, WorkspaceIDRequest{ID: 21, Version: childVer})
@@ -1520,7 +1510,7 @@ func TestIntegrationWorkflowWorkspacePrepareResolvesBaseFromDomain(t *testing.T)
 // TestWorkspacePublishHeadMismatch: when the reinspected workspace head differs
 // from the expected head, the operation refuses and never calls PublishHead.
 func TestIntegrationWorkflowWorkspacePublishHeadMismatch(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	reader := &fakeReader{pin: mainPin(t), corpus: []StatusBlob{inProgressChangeBlob(7, "widget", "v7", "")}}
 	svc := &fakeWorkspaceService{
 		inspection: workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID("actualhead")},
@@ -1543,7 +1533,7 @@ func TestIntegrationWorkflowWorkspacePublishHeadMismatch(t *testing.T) {
 // disposition maps to a fixed protocol result, with the service's disposition
 // carried through verbatim (no force, no retry).
 func TestIntegrationWorkflowWorkspacePublishPassesThroughDispositions(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	const head = "abcdef0000000000000000000000000000000000"
 
 	cases := []struct {

@@ -95,8 +95,12 @@ type StatusResult struct {
 	Ready    []int           `json:"ready"`
 	Records  []StatusRecord  `json:"records"`
 	Findings []StatusFinding `json:"findings"`
-	Reason   string          `json:"reason,omitempty"` // failure results only
-	Message  string          `json:"message,omitempty"`
+	// RepositoryState is populated only on the operational gate's typed refusal
+	// (change 0363): the classifier's stable repository state (e.g. "legacy"),
+	// the same value `repository check` reports for the same facts.
+	RepositoryState string `json:"repository_state,omitempty"`
+	Reason          string `json:"reason,omitempty"` // failure results only
+	Message         string `json:"message,omitempty"`
 }
 
 // NewStatusResult stamps the envelope and normalizes nil collections to empty

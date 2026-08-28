@@ -75,10 +75,10 @@ func attachSetup(t *testing.T) *attachFixture {
 		slug = "widget"
 	)
 	recPath := groomPath(id, slug)
-	repo := newMainModeRepo(t, map[string]string{
+	repo := newWorkingRepo(t, map[string]string{
 		recPath: lifecycleChange(id, slug, "in-progress"),
 	})
-	version := blobVersionAt(t, repo.origin, "main", recPath)
+	version := blobVersionAt(t, repo.origin, "docket", recPath)
 
 	node := planningDepsFor(t, repo.invocation)
 	svc, err := workspace.NewService(node.deps.Client)

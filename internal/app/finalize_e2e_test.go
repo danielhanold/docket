@@ -431,26 +431,19 @@ func (e *implEnv) implement(t *testing.T, id int, slug, planPath, title string) 
 	return implementedChange{head: head, prRef: pr.Reference, evidence: evidenceBytes, wp: wp}
 }
 
-// buildE2ERepo builds the mode's bare-remote topology with a trivially-passing
+// buildE2ERepo builds the docket-topology bare remote with a trivially-passing
 // resolved finalize.test_command (so a real rebase's local gate genuinely passes
 // on the disposable fixture), plus the one change record on the metadata branch.
 // It mirrors the workflow harness's buildConfiguredRepo but owns its own config so
 // the terminal-path gate is deterministic.
 func buildE2ERepo(t *testing.T, m planRepoMode, records map[string]string) *gitRepo {
 	t.Helper()
-	switch m.name {
-	case "main":
-		return newMainModeRepo(t, mergeMaps(map[string]string{
-			".docket.yml": "metadata_branch: main\nfinalize:\n  test_command: 'exit 0'\n",
-		}, records))
-	case "docket":
-		return newDocketModeRepo(t,
-			map[string]string{".docket.yml": "metadata_branch: docket\nintegration_branch: main\nfinalize:\n  test_command: 'exit 0'\n"},
-			records)
-	default:
-		t.Fatalf("unknown metadata mode %q", m.name)
-		return nil
+	if m.name != "docket" {
+		t.Fatalf("unknown repository topology %q", m.name)
 	}
+	return newDocketModeRepo(t,
+		map[string]string{".docket.yml": "integration_branch: main\nfinalize:\n  test_command: 'exit 0'\n"},
+		records)
 }
 
 // e2eEnv builds the isolated subprocess environment: an empty global-config XDG
@@ -654,7 +647,7 @@ func TestE2EConflictAndRepair(t *testing.T) {
 	t.Parallel()
 	requireRealGit(t)
 	docketBin, ghBin := sharedBinaries(t)
-	m := planRepoModes()[1] // docket mode: the integration branch is the code base.
+	m := planRepoModes()[0] // docket mode: the integration branch is the code base.
 	s := reachImplemented(t, m, docketBin, ghBin)
 
 	// Reconfigure the local gate to a marker-driven suite (red until the repair
@@ -775,7 +768,7 @@ func TestE2EStack(t *testing.T) {
 	t.Parallel()
 	requireRealGit(t)
 	docketBin, ghBin := sharedBinaries(t)
-	m := planRepoModes()[1] // docket mode: integration branch never moves for the setup.
+	m := planRepoModes()[0] // docket mode: integration branch never moves for the setup.
 
 	const (
 		rootID, rootSlug   = 3, "widget"
@@ -947,7 +940,7 @@ func TestE2EOutOfBandMergeRecovered(t *testing.T) {
 	t.Parallel()
 	requireRealGit(t)
 	docketBin, ghBin := sharedBinaries(t)
-	m := planRepoModes()[1] // docket mode: no base move, so no rebase is required.
+	m := planRepoModes()[0] // docket mode: no base move, so no rebase is required.
 	s := reachImplemented(t, m, docketBin, ghBin)
 
 	// A human merges the PR out of band: the fake gh lands a real merge commit on
@@ -1001,7 +994,7 @@ func TestE2EResponseLossConvergence(t *testing.T) {
 	t.Parallel()
 	requireRealGit(t)
 	docketBin, ghBin := sharedBinaries(t)
-	m := planRepoModes()[1] // docket mode: deterministic no-op rebase preamble.
+	m := planRepoModes()[0] // docket mode: deterministic no-op rebase preamble.
 	s := reachImplemented(t, m, docketBin, ghBin)
 
 	head, version := rebaseAndPublish(t, s)
@@ -1116,7 +1109,7 @@ func TestE2EMergeSelectsRebaseShape(t *testing.T) {
 	t.Parallel()
 	requireRealGit(t)
 	docketBin, ghBin := sharedBinaries(t)
-	m := planRepoModes()[1] // docket mode: deterministic no-op rebase preamble.
+	m := planRepoModes()[0] // docket mode: deterministic no-op rebase preamble.
 	s := reachImplemented(t, m, docketBin, ghBin)
 
 	head, version := rebaseAndPublish(t, s)
@@ -1140,7 +1133,7 @@ func TestE2EMergeCommitShape(t *testing.T) {
 	t.Parallel()
 	requireRealGit(t)
 	docketBin, ghBin := sharedBinaries(t)
-	m := planRepoModes()[1]
+	m := planRepoModes()[0]
 	s := reachImplemented(t, m, docketBin, ghBin)
 	s.env = withRepoSettings(s.env, `{"allow_rebase_merge":false,"allow_merge_commit":true,"allow_squash_merge":true}`)
 
@@ -1165,7 +1158,7 @@ func TestE2ESquashOnlyShape(t *testing.T) {
 	t.Parallel()
 	requireRealGit(t)
 	docketBin, ghBin := sharedBinaries(t)
-	m := planRepoModes()[1]
+	m := planRepoModes()[0]
 	s := reachImplemented(t, m, docketBin, ghBin)
 	s.env = withRepoSettings(s.env, `{"allow_rebase_merge":false,"allow_merge_commit":false,"allow_squash_merge":true}`)
 
@@ -1195,7 +1188,7 @@ func TestE2EMergeMethodUnavailable(t *testing.T) {
 	t.Parallel()
 	requireRealGit(t)
 	docketBin, ghBin := sharedBinaries(t)
-	m := planRepoModes()[1]
+	m := planRepoModes()[0]
 	s := reachImplemented(t, m, docketBin, ghBin)
 	s.env = withRepoSettings(s.env, `{"allow_rebase_merge":false,"allow_merge_commit":false,"allow_squash_merge":false}`)
 
@@ -1291,8 +1284,8 @@ func reachInProgress(t *testing.T, docketBin, ghBin string) *e2eState {
 		groomPath(3, "widget"): buildReadyChange(3, "widget"),
 		groomPath(4, "gadget"): buildReadyChange(4, "gadget"),
 	}
-	repo := newMainModeRepo(t, mergeMaps(map[string]string{
-		".docket.yml": "metadata_branch: main\nreclaim:\n  lease_ttl: 1\n  auto: false\nfinalize:\n  test_command: 'exit 0'\n",
+	repo := newWorkingRepo(t, mergeMaps(map[string]string{
+		".docket.yml": "reclaim:\n  lease_ttl: 1\n  auto: false\nfinalize:\n  test_command: 'exit 0'\n",
 	}, records))
 
 	node := e2eNode(t, repo.invocation)

@@ -218,8 +218,21 @@ func Status(ctx context.Context, reader StatusReader, opts StatusOptions) Status
 // statusFailure maps a reader error to the one failure document: the pinned
 // context so far, the classification reason, and the error's own text. It never
 // carries a partial report — a failure emits exactly one document with empty
-// report arrays.
+// report arrays. The operational gate's typed refusal renders as the spec's
+// shared invalid-state document: the classified repository state plus the
+// classifier's own findings (the same typed values `repository check` reports),
+// never a status-specific copy.
 func statusFailure(ctx context.Context, pin StatusPin, err error) StatusResult {
+	var notOp *errRepositoryNotOperational
+	if errors.As(err, &notOp) {
+		return NewStatusResult(ResultInvalidState, StatusResult{
+			Context:         contextFromPin(pin),
+			RepositoryState: string(notOp.State),
+			Findings:        refusalFindings(notOp),
+			Reason:          refusalReason(notOp),
+			Message:         err.Error(),
+		})
+	}
 	result, reason := classifyStatusError(ctx, err)
 	return NewStatusResult(result, StatusResult{
 		Context: contextFromPin(pin),
@@ -228,11 +241,42 @@ func statusFailure(ctx context.Context, pin StatusPin, err error) StatusResult {
 	})
 }
 
+// refusalReason is the stable machine reason of an operational refusal: the
+// first classifier finding's code (for a legacy repository,
+// ReasonLegacyRepository) — sourced from the classifier value, never respelled.
+func refusalReason(notOp *errRepositoryNotOperational) string {
+	if len(notOp.Findings) > 0 {
+		return notOp.Findings[0].Code
+	}
+	return string(notOp.State)
+}
+
+// refusalFindings lifts the classifier's health findings into the status DTO's
+// finding shape verbatim: code, severity, message, and the state-exact remedy.
+func refusalFindings(notOp *errRepositoryNotOperational) []StatusFinding {
+	out := make([]StatusFinding, 0, len(notOp.Findings))
+	for _, f := range notOp.Findings {
+		out = append(out, StatusFinding{
+			Code:     f.Code,
+			Severity: string(f.Severity),
+			Path:     f.Ref,
+			Message:  f.Message,
+			Remedy:   f.Remedy,
+		})
+	}
+	return out
+}
+
 // classifyStatusError maps a reader failure to its protocol result and reason.
-// The sentinels are tested first — a wrapped classification is authoritative —
-// then a context cancellation, and everything else is a contract violation.
+// The operational gate's typed refusal is tested first (every ordinary command
+// inherits the shared invalid-state / legacy-repository refusal through this
+// one mapping), then the sentinels — a wrapped classification is authoritative
+// — then a context cancellation, and everything else is a contract violation.
 func classifyStatusError(ctx context.Context, err error) (Result, string) {
+	var notOp *errRepositoryNotOperational
 	switch {
+	case errors.As(err, &notOp):
+		return ResultInvalidState, refusalReason(notOp)
 	case errors.Is(err, ErrStatusInvalidInput):
 		return ResultInvalidInput, ReasonStatusInvalidInput
 	case errors.Is(err, ErrStatusExternal):

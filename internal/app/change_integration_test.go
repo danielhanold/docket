@@ -25,7 +25,7 @@ import (
 )
 
 func TestIntegrationChangeADRRecordAppliedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, adrRecordReceipt{
 		ID: 7, Op: OperationADRRecord, Path: adrPath("0007", "record-the-widget-decision"),
 	})
@@ -75,7 +75,7 @@ func TestIntegrationChangeADRRecordAppliedResult(t *testing.T) {
 }
 
 func TestIntegrationChangeADRRecordRefusedMapsInvalidInput(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionRefused}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{})}
 	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
@@ -91,7 +91,7 @@ func TestIntegrationChangeADRRecordRefusedMapsInvalidInput(t *testing.T) {
 }
 
 func TestIntegrationChangeADRRecordReplayResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, adrRecordReceipt{
 		ID: 4, Op: OperationADRRecord, Path: adrPath("0004", "record-the-widget-decision"),
 	})
@@ -117,7 +117,7 @@ func TestIntegrationChangeADRRecordReplayResult(t *testing.T) {
 }
 
 func TestIntegrationChangeADRRecordWithProducingChangeCarriesExpectation(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{})}
 	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
@@ -147,7 +147,7 @@ func TestIntegrationChangeADRRecordWithProducingChangeCarriesExpectation(t *test
 }
 
 func TestIntegrationChangeADRReverseUsesReverseOperationKey(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{})}
 	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
@@ -162,7 +162,7 @@ func TestIntegrationChangeADRReverseUsesReverseOperationKey(t *testing.T) {
 }
 
 func TestIntegrationChangeADRSupersedeAppliedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, adrRecordReceipt{
 		ID: 7, Op: OperationADRSupersede, Path: adrPath("0007", "supersede-the-widget-decision"),
 	})
@@ -212,7 +212,7 @@ func TestIntegrationChangeADRSupersedeAppliedResult(t *testing.T) {
 // A blank successor RequestID must NOT fail the shape check — the outer key
 // governs an ADR replacement, the inner one is ignored.
 func TestIntegrationChangeADRSupersedeIgnoresSuccessorRequestID(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{})}
 	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
@@ -230,7 +230,7 @@ func TestIntegrationChangeADRSupersedeIgnoresSuccessorRequestID(t *testing.T) {
 }
 
 func TestIntegrationChangeADRSupersedeRefusedNonAcceptedMapsInvalidState(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	// A refusal carrying the domain not-Accepted reason is state-shaped.
 	engine := &recordingEngine{result: transaction.Result{
 		Disposition: transaction.DispositionRefused,
@@ -246,7 +246,7 @@ func TestIntegrationChangeADRSupersedeRefusedNonAcceptedMapsInvalidState(t *test
 }
 
 func TestIntegrationChangeADRSupersedeRefusedRequestShapedMapsInvalidInput(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{
 		Disposition: transaction.DispositionRefused,
 		Findings:    []domain.Finding{{Code: "adr-dangling-reference", Severity: domain.SeverityError}},
@@ -261,7 +261,7 @@ func TestIntegrationChangeADRSupersedeRefusedRequestShapedMapsInvalidInput(t *te
 }
 
 func TestIntegrationChangeADRSupersedeWithProducingChangeCarriesTwoExpectations(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{})}
 	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
@@ -287,7 +287,7 @@ func TestIntegrationChangeADRSupersedeWithProducingChangeCarriesTwoExpectations(
 }
 
 func TestIntegrationChangeBlockAppliedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, changeLifecycleReceipt{
 		ID: 3, Op: OperationChangeBlock, Status: "blocked",
 	})
@@ -347,7 +347,7 @@ func TestIntegrationChangeClaimApplies(t *testing.T) {
 	const version = "1234123412341234123412341234123412341234"
 
 	t.Run("submitted request", func(t *testing.T) {
-		repoDir := newMainModeRepo(t, nil).invocation
+		repoDir := newWorkingRepo(t, nil).invocation
 		receipt := mustMarshal(t, changeClaimReceipt{
 			Branch: "feat/widget", ClaimedAt: "2026-08-16T12:00:00Z",
 			ID: 3, Lease: "fresh", Op: OperationChangeClaim, Status: "in-progress",
@@ -494,7 +494,7 @@ func TestIntegrationChangeClaimRefusals(t *testing.T) {
 	}
 
 	t.Run("wrong version", func(t *testing.T) {
-		repoDir := newMainModeRepo(t, nil).invocation
+		repoDir := newWorkingRepo(t, nil).invocation
 		engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 		reader := &fakeReader{pin: mainModePin([]string{"inline"}), corpus: []StatusBlob{changeBlob(3, "widget", "feat", "high", "")}}
 		deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
@@ -512,7 +512,7 @@ func TestIntegrationChangeClaimRefusals(t *testing.T) {
 	// A duplicate id cannot be attributed to one record: the pre-read refuses to
 	// choose, before any engine call.
 	t.Run("duplicate id", func(t *testing.T) {
-		repoDir := newMainModeRepo(t, nil).invocation
+		repoDir := newWorkingRepo(t, nil).invocation
 		engine := &recordingEngine{}
 		reader := &fakeReader{pin: mainModePin([]string{"inline"}), corpus: []StatusBlob{
 			changeBlob(3, "widget", "feat", "high", ""),
@@ -536,7 +536,7 @@ func TestIntegrationChangeClaimRefusals(t *testing.T) {
 // foreign edit that moved the record is `contended`.
 func TestIntegrationChangeClaimRetryConvergence(t *testing.T) {
 	setup := func(t *testing.T, res transaction.Result) ChangeClaimResult {
-		repoDir := newMainModeRepo(t, nil).invocation
+		repoDir := newWorkingRepo(t, nil).invocation
 		engine := &recordingEngine{result: res}
 		reader := &fakeReader{pin: mainModePin([]string{"inline"}), corpus: []StatusBlob{changeBlob(3, "widget", "feat", "high", "")}}
 		deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
@@ -573,7 +573,7 @@ func TestIntegrationChangeClaimRetryConvergence(t *testing.T) {
 }
 
 func TestIntegrationChangeCreateAppliedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, changeCreateReceipt{
 		ID: 7, Op: OperationChangeCreate, Path: "docs/changes/active/0007-add-a-widget.md", Slug: "add-a-widget",
 	})
@@ -622,7 +622,7 @@ func TestIntegrationChangeCreateAppliedResult(t *testing.T) {
 }
 
 func TestIntegrationChangeCreateContendedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
 	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
@@ -638,7 +638,7 @@ func TestIntegrationChangeCreateContendedResult(t *testing.T) {
 }
 
 func TestIntegrationChangeCreateRefusedMapsInvalidInput(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{
 		Disposition: transaction.DispositionRefused,
 		Findings: []domain.Finding{{
@@ -660,7 +660,7 @@ func TestIntegrationChangeCreateRefusedMapsInvalidInput(t *testing.T) {
 }
 
 func TestIntegrationChangeCreateReplayResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, changeCreateReceipt{
 		ID: 4, Op: OperationChangeCreate, Path: "docs/changes/active/0004-add-a-widget.md", Slug: "add-a-widget",
 	})
@@ -686,7 +686,7 @@ func TestIntegrationChangeCreateReplayResult(t *testing.T) {
 }
 
 func TestIntegrationChangeDeferAppliedResultCarriesDeferStatus(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, changeLifecycleReceipt{
 		ID: 3, Op: OperationChangeDefer, Status: "deferred",
 	})
@@ -846,7 +846,7 @@ func TestIntegrationChangeEvidenceRecordUnconfiguredGate(t *testing.T) {
 		corpus: []StatusBlob{inProgressChangeBlob(7, "widget", "v7", "")},
 	}
 	deps := workspaceDepsFor(t, reader)
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	runDir := passedRunDir(t)
 
 	res := EvidenceRecord(context.Background(), deps, WorkspaceDeps{Service: svc}, repoDir,
@@ -1198,7 +1198,7 @@ func TestIntegrationChangeGateRetryConsumeOnceThenFalse(t *testing.T) {
 }
 
 func TestIntegrationChangeGroomAppliedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	specPath := "docs/superpowers/specs/2026-08-16-add-a-widget-design.md"
 	receipt := mustMarshal(t, changeGroomReceipt{
 		ID: 2, Op: OperationChangeGroom, Outcome: string(GroomSpec), SpecPath: specPath,
@@ -1250,7 +1250,7 @@ func TestIntegrationChangeGroomAppliedResult(t *testing.T) {
 }
 
 func TestIntegrationChangeGroomContendedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
 	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
@@ -1266,7 +1266,7 @@ func TestIntegrationChangeGroomContendedResult(t *testing.T) {
 }
 
 func TestIntegrationChangeGroomRefusedMapsInvalidState(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{
 		Disposition: transaction.DispositionRefused,
 		Findings:    nil,
@@ -1282,7 +1282,7 @@ func TestIntegrationChangeGroomRefusedMapsInvalidState(t *testing.T) {
 }
 
 func TestIntegrationChangeKillAppliedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	archivePath := killArchivePath(3, "widget")
 	receipt := mustMarshal(t, changeKillReceipt{
 		ArchivePath: archivePath, ID: 3, Op: OperationChangeKill,
@@ -1336,7 +1336,7 @@ func TestIntegrationChangeKillAppliedResult(t *testing.T) {
 }
 
 func TestIntegrationChangeKillContendedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
 	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
@@ -1352,7 +1352,7 @@ func TestIntegrationChangeKillContendedResult(t *testing.T) {
 }
 
 func TestIntegrationChangeKillRefusedMapsInvalidState(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionRefused}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
 	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
@@ -1365,7 +1365,7 @@ func TestIntegrationChangeKillRefusedMapsInvalidState(t *testing.T) {
 }
 
 func TestIntegrationChangeLearningRecordAppliedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, learningReceipt{
 		Op: OperationLearningRecord, Path: learningPath("a-lesson"), Slug: "a-lesson",
 	})
@@ -1414,7 +1414,7 @@ func TestIntegrationChangeLearningRecordAppliedResult(t *testing.T) {
 }
 
 func TestIntegrationChangeLearningRecordRefusedMapsInvalidInput(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionRefused}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{})}
 	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
@@ -1430,7 +1430,7 @@ func TestIntegrationChangeLearningRecordRefusedMapsInvalidInput(t *testing.T) {
 }
 
 func TestIntegrationChangeLearningRecordReplayResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, learningReceipt{
 		Op: OperationLearningRecord, Path: learningPath("a-lesson"), Slug: "a-lesson",
 	})
@@ -1456,7 +1456,7 @@ func TestIntegrationChangeLearningRecordReplayResult(t *testing.T) {
 }
 
 func TestIntegrationChangeLearningUpdateAppliedResultCarriesExactVersion(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, learningReceipt{
 		Op: OperationLearningUpdate, Path: learningPath("a-lesson"), Slug: "a-lesson",
 	})
@@ -1493,7 +1493,7 @@ func TestIntegrationChangeLearningUpdateAppliedResultCarriesExactVersion(t *test
 }
 
 func TestIntegrationChangeLearningUpdateContendedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{})}
 	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
@@ -1509,7 +1509,7 @@ func TestIntegrationChangeLearningUpdateContendedResult(t *testing.T) {
 }
 
 func TestIntegrationChangeLifecycleContendedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
 	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
@@ -1525,7 +1525,7 @@ func TestIntegrationChangeLifecycleContendedResult(t *testing.T) {
 }
 
 func TestIntegrationChangeLifecycleRefusedMapsInvalidState(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionRefused}}
 	reader := &fakeChangeReader{pin: mainModePin([]string{"inline"})}
 	deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
@@ -1541,7 +1541,7 @@ func TestIntegrationChangeLifecycleRefusedMapsInvalidState(t *testing.T) {
 // operation opens exactly one exact-version transaction and returns applied.
 func TestIntegrationChangeMarkImplementedAppliesEndToEnd(t *testing.T) {
 	requireRealGit(t)
-	repo := newMainModeRepo(t, nil)
+	repo := newWorkingRepo(t, nil)
 	head := repo.writerAdvance(t, "feat/"+miSlug, map[string]string{"impl.go": "package impl\n"})
 	client := newGitClient(t)
 	pr := prRepo().Spec() + "#42"
@@ -1577,7 +1577,7 @@ func TestIntegrationChangeMarkImplementedAppliesEndToEnd(t *testing.T) {
 // fixture (proven by TestMarkImplementedAppliesEndToEnd) satisfies all five.
 func TestIntegrationChangeMarkImplementedConjuncts(t *testing.T) {
 	requireRealGit(t)
-	repo := newMainModeRepo(t, nil)
+	repo := newWorkingRepo(t, nil)
 	head := repo.writerAdvance(t, "feat/"+miSlug, map[string]string{"impl.go": "package impl\n"})
 	client := newGitClient(t)
 	pr := prRepo().Spec() + "#42"
@@ -1682,7 +1682,7 @@ func TestIntegrationChangeMarkImplementedConjuncts(t *testing.T) {
 // unparseable. Number 42 is the verified PR (happyPR).
 func TestIntegrationChangeMarkImplementedIdentityForms(t *testing.T) {
 	requireRealGit(t)
-	repo := newMainModeRepo(t, nil)
+	repo := newWorkingRepo(t, nil)
 	head := repo.writerAdvance(t, "feat/"+miSlug, map[string]string{"impl.go": "package impl\n"})
 	client := newGitClient(t)
 
@@ -1732,7 +1732,7 @@ func TestIntegrationChangeMarkImplementedIdentityForms(t *testing.T) {
 // (change 0344).
 func TestIntegrationChangeMarkImplementedRecordsURL(t *testing.T) {
 	requireRealGit(t)
-	repo := newMainModeRepo(t, nil)
+	repo := newWorkingRepo(t, nil)
 	head := repo.writerAdvance(t, "feat/"+miSlug, map[string]string{"impl.go": "package impl\n"})
 	client := newGitClient(t)
 	shorthand := prRepo().Spec() + "#42" // the caller may still assert the shorthand
@@ -1764,7 +1764,7 @@ func TestIntegrationChangeMarkImplementedRecordsURL(t *testing.T) {
 // no duplicate transition, engine never called.
 func TestIntegrationChangeMarkImplementedRetry(t *testing.T) {
 	requireRealGit(t)
-	repo := newMainModeRepo(t, nil)
+	repo := newWorkingRepo(t, nil)
 	head := repo.writerAdvance(t, "feat/"+miSlug, map[string]string{"impl.go": "package impl\n"})
 	client := newGitClient(t)
 	pr := prRepo().Spec() + "#42"
@@ -1803,7 +1803,7 @@ func TestIntegrationChangeMarkImplementedRetry(t *testing.T) {
 // introduces.
 func TestIntegrationChangeMarkImplementedRetryCrossForm(t *testing.T) {
 	requireRealGit(t)
-	repo := newMainModeRepo(t, nil)
+	repo := newWorkingRepo(t, nil)
 	head := repo.writerAdvance(t, "feat/"+miSlug, map[string]string{"impl.go": "package impl\n"})
 	client := newGitClient(t)
 
@@ -1847,7 +1847,7 @@ func TestIntegrationChangeMarkImplementedRetryCrossForm(t *testing.T) {
 }
 
 func TestIntegrationChangePRPublishAgreementChecks(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 
 	baseReq := func() PRPublishRequest {
 		return PRPublishRequest{ID: 7, Head: prHead, Title: "Add widget", Body: "Authored prose.\n", EvidenceRecord: prEvidenceBytes(t, prHead)}
@@ -1949,7 +1949,7 @@ func TestIntegrationChangePRPublishAgreementChecks(t *testing.T) {
 }
 
 func TestIntegrationChangePRPublishBodyAssembly(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	reader := prReader(t)
 
 	// Authored prose already carrying a STALE build-evidence block. Publishing
@@ -2012,7 +2012,7 @@ func TestIntegrationChangePRPublishBodyAssembly(t *testing.T) {
 }
 
 func TestIntegrationChangePRPublishRedaction(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	const secret = "SECRET-PR-BODY-CONTENT-do-not-leak"
 
 	gh := &fakeGitHub{repo: prRepo(), ensureRes: githubcli.EnsureResult{Disposition: githubcli.EnsureCreated, PR: prMatchPR(secret)}}
@@ -2036,7 +2036,7 @@ func TestIntegrationChangePRPublishRedaction(t *testing.T) {
 }
 
 func TestIntegrationChangePRPublishThroughFakeGH(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 
 	cases := []struct {
 		name       string
@@ -2085,12 +2085,12 @@ func TestIntegrationChangePRPublishThroughFakeGH(t *testing.T) {
 func TestIntegrationChangeReclaimIndependentOfAutoPolicy(t *testing.T) {
 	requireRealGit(t)
 	recPath := groomPath(3, "widget")
-	repo := newMainModeRepo(t, map[string]string{
-		".docket.yml": "metadata_branch: main\nreclaim:\n  auto: false\n",
+	repo := newWorkingRepo(t, map[string]string{
+		".docket.yml": "reclaim:\n  auto: false\n",
 		recPath:       lifecycleChange(3, "widget", "in-progress"),
 	})
 	node := planningDepsFor(t, repo.invocation)
-	ver := blobVersionAt(t, repo.origin, "main", recPath)
+	ver := blobVersionAt(t, repo.origin, "docket", recPath)
 	res := ChangeReclaim(context.Background(), node.deps, reclaimClearWorkspace, node.dir,
 		ChangeReclaimRequest{ID: 3, Version: ver})
 	if res.Result != ResultApplied || res.Disposition != ReclaimDispReclaimed {
@@ -2104,13 +2104,12 @@ func TestIntegrationChangeReclaimIndependentOfAutoPolicy(t *testing.T) {
 func TestIntegrationChangeReclaimMalformedLeaseSkips(t *testing.T) {
 	requireRealGit(t)
 	recPath := groomPath(3, "widget")
-	repo := newMainModeRepo(t, map[string]string{
-		".docket.yml": "metadata_branch: main\n",
-		recPath:       reclaimRecordWithClaim(3, "widget", "not-a-timestamp"),
+	repo := newWorkingRepo(t, map[string]string{
+		recPath: reclaimRecordWithClaim(3, "widget", "not-a-timestamp"),
 	})
 	node := planningDepsFor(t, repo.invocation)
-	ver := blobVersionAt(t, repo.origin, "main", recPath)
-	before, _ := originFile(t, repo.origin, "main", recPath)
+	ver := blobVersionAt(t, repo.origin, "docket", recPath)
+	before, _ := originFile(t, repo.origin, "docket", recPath)
 	res := ChangeReclaim(context.Background(), node.deps, reclaimClearWorkspace, node.dir,
 		ChangeReclaimRequest{ID: 3, Version: ver})
 	if res.Result == ResultApplied {
@@ -2119,7 +2118,7 @@ func TestIntegrationChangeReclaimMalformedLeaseSkips(t *testing.T) {
 	if res.Disposition != ReclaimDispSkipped {
 		t.Errorf("disposition = %q, want skipped", res.Disposition)
 	}
-	assertOriginRecordUnchanged(t, repo.origin, "main", recPath, before)
+	assertOriginRecordUnchanged(t, repo.origin, "docket", recPath, before)
 }
 
 // TestReclaimRequiresProvenAbsence proves the destructive gate refuses and
@@ -2274,13 +2273,12 @@ func TestIntegrationChangeReclaimTransaction(t *testing.T) {
 func TestIntegrationChangeReclaimUnreachableRemoteFailsClosed(t *testing.T) {
 	requireRealGit(t)
 	recPath := groomPath(3, "widget")
-	repo := newMainModeRepo(t, map[string]string{
-		".docket.yml": "metadata_branch: main\n",
-		recPath:       lifecycleChange(3, "widget", "in-progress"),
+	repo := newWorkingRepo(t, map[string]string{
+		recPath: lifecycleChange(3, "widget", "in-progress"),
 	})
 	node := planningDepsFor(t, repo.invocation)
-	ver := blobVersionAt(t, repo.origin, "main", recPath)
-	before, _ := originFile(t, repo.origin, "main", recPath)
+	ver := blobVersionAt(t, repo.origin, "docket", recPath)
+	before, _ := originFile(t, repo.origin, "docket", recPath)
 	// Break the remote so no origin state can be authoritatively read or probed.
 	runGit(t, repo.invocation, "remote", "set-url", "origin", t.TempDir()+"/nonexistent.git")
 	res := ChangeReclaim(context.Background(), node.deps, reclaimClearWorkspace, node.dir,
@@ -2291,14 +2289,14 @@ func TestIntegrationChangeReclaimUnreachableRemoteFailsClosed(t *testing.T) {
 	if res.Disposition != ReclaimDispSkipped {
 		t.Errorf("disposition = %q, want skipped", res.Disposition)
 	}
-	assertOriginRecordUnchanged(t, repo.origin, "main", recPath, before)
+	assertOriginRecordUnchanged(t, repo.origin, "docket", recPath, before)
 }
 
 // TestChangeReconcileAppliedResult proves the app layer submits the exact
 // expected version and metadata target ref, carries NO idempotency key (a
 // non-allocating edit of an existing record), and decodes the applied receipt.
 func TestIntegrationChangeReconcileAppliedResult(t *testing.T) {
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	receipt := mustMarshal(t, changeReconcileReceipt{ID: 3, Op: OperationChangeReconcile})
 	engine := &recordingEngine{result: transaction.Result{
 		Disposition:   transaction.DispositionApplied,
@@ -2350,7 +2348,7 @@ func TestIntegrationChangeReconcileAppliedResult(t *testing.T) {
 // result maps to contended (never a text-merge).
 func TestIntegrationChangeReconcileContention(t *testing.T) {
 	t.Run("stale version at the engine", func(t *testing.T) {
-		repoDir := newMainModeRepo(t, nil).invocation
+		repoDir := newWorkingRepo(t, nil).invocation
 		engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 		reader := &fakeReader{pin: mainModePin([]string{"inline"}), corpus: []StatusBlob{changeBlob(3, "widget", "feat", "high", "")}}
 		deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
@@ -2446,7 +2444,7 @@ func TestIntegrationChangeRefreshClaimStampsOnly(t *testing.T) {
 	})
 
 	t.Run("version mismatch is contended", func(t *testing.T) {
-		repoDir := newMainModeRepo(t, nil).invocation
+		repoDir := newWorkingRepo(t, nil).invocation
 		engine := &recordingEngine{result: transaction.Result{Disposition: transaction.DispositionContended}}
 		reader := &fakeReader{pin: mainModePin([]string{"inline"}), corpus: []StatusBlob{changeBlob(3, "widget", "feat", "high", "")}}
 		deps := PlanningDeps{Client: newGitClient(t), Engine: engine, Reader: reader, Clock: testClock()}
@@ -2463,7 +2461,7 @@ func TestIntegrationChangeRefreshClaimStampsOnly(t *testing.T) {
 // version exactly, keying the repair op on the exact record blob.
 func TestIntegrationChangeRepairAdoptPRHeadPinsExactVersion(t *testing.T) {
 	requireRealGit(t)
-	repo := newMainModeRepo(t, nil)
+	repo := newWorkingRepo(t, nil)
 	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
 	ws := &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}}
 	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairVersion), repairGitHub("feat/renamed"), ws)
@@ -2493,10 +2491,10 @@ func TestIntegrationChangeRepairAdoptPRHeadPinsExactVersion(t *testing.T) {
 func TestIntegrationChangeRepairAdoptPRHeadWritesBranch(t *testing.T) {
 	requireRealGit(t)
 	recPath := groomPath(3, "widget")
-	repo := newMainModeRepo(t, map[string]string{recPath: repairRecord(3, "widget", "")})
+	repo := newWorkingRepo(t, map[string]string{recPath: repairRecord(3, "widget", "")})
 	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
 	node := planningDepsFor(t, repo.invocation)
-	ver := blobVersionAt(t, repo.origin, "main", recPath)
+	ver := blobVersionAt(t, repo.origin, "docket", recPath)
 
 	gh := repairGitHub("feat/renamed")
 	ws := &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}}
@@ -2511,7 +2509,7 @@ func TestIntegrationChangeRepairAdoptPRHeadWritesBranch(t *testing.T) {
 	if res.Branch != "feat/renamed" || res.Revision == "" {
 		t.Errorf("applied result malformed: %+v", res)
 	}
-	rec, ok := originFile(t, repo.origin, "main", recPath)
+	rec, ok := originFile(t, repo.origin, "docket", recPath)
 	if !ok {
 		t.Fatalf("record vanished after repair")
 	}
@@ -2530,7 +2528,7 @@ func TestIntegrationChangeRepairAdoptPRHeadWritesBranch(t *testing.T) {
 // is candidate-branch-absent with no write.
 func TestIntegrationChangeRepairCandidateBranchAbsent(t *testing.T) {
 	requireRealGit(t)
-	repo := newMainModeRepo(t, nil) // origin carries no feat/renamed branch
+	repo := newWorkingRepo(t, nil) // origin carries no feat/renamed branch
 	ws := &fakeRepairWorkspace{inspection: workspace.Inspection{Kind: workspace.StateForeign}}
 	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairVersion), repairGitHub("feat/renamed"), ws)
 	res := RepairIdentity(context.Background(), deps, repo.invocation, RepairIdentityRequest{
@@ -2547,7 +2545,7 @@ func TestIntegrationChangeRepairCandidateBranchAbsent(t *testing.T) {
 // never a pass (probe-error-is-not-clean-absence).
 func TestIntegrationChangeRepairInspectErrorIsConflict(t *testing.T) {
 	requireRealGit(t)
-	repo := newMainModeRepo(t, nil)
+	repo := newWorkingRepo(t, nil)
 	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})
 	ws := &fakeRepairWorkspace{inspectErr: errors.New("inspect boom")}
 	deps, engine := repairRealDeps(t, repo.invocation, repairBlob(3, "widget", "", repairVersion), repairGitHub("feat/renamed"), ws)
@@ -2566,7 +2564,7 @@ func TestIntegrationChangeRepairInspectErrorIsConflict(t *testing.T) {
 // reddening this assertion.
 func TestIntegrationChangeRepairWorkspaceConflictBlocks(t *testing.T) {
 	requireRealGit(t)
-	repo := newMainModeRepo(t, nil)
+	repo := newWorkingRepo(t, nil)
 	// The candidate branch must be present on the remote so the probe passes and
 	// control reaches the workspace gate.
 	repo.writerAdvance(t, "feat/renamed", map[string]string{"impl.go": "package impl\n"})

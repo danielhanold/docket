@@ -222,25 +222,17 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string) {
 		[]string{"change.attach-plan", "change.claim", "change.mark-implemented", "change.reconcile"})
 }
 
-// buildConfiguredRepo builds the mode's bare-remote topology with a resolved
-// finalize.test_command in the config layer the mode reads, plus the one
+// buildConfiguredRepo builds the docket-topology bare remote with a resolved
+// finalize.test_command in the repository config layer, plus the one
 // build-ready change record on the metadata branch.
 func buildConfiguredRepo(t *testing.T, m planRepoMode, recPath, record string) *gitRepo {
 	t.Helper()
-	switch m.name {
-	case "main":
-		return newMainModeRepo(t, map[string]string{
-			".docket.yml": "metadata_branch: main\nfinalize:\n  test_command: 'go test ./...'\n",
-			recPath:       record,
-		})
-	case "docket":
-		return newDocketModeRepo(t,
-			map[string]string{".docket.yml": "metadata_branch: docket\nintegration_branch: main\nfinalize:\n  test_command: 'go test ./...'\n"},
-			map[string]string{recPath: record})
-	default:
-		t.Fatalf("unknown metadata mode %q", m.name)
-		return nil
+	if m.name != "docket" {
+		t.Fatalf("unknown repository topology %q", m.name)
 	}
+	return newDocketModeRepo(t,
+		map[string]string{".docket.yml": "integration_branch: main\nfinalize:\n  test_command: 'go test ./...'\n"},
+		map[string]string{recPath: record})
 }
 
 // assertDeferredCapabilityBlocksClaim proves a `.docket.yml` that actively
@@ -255,15 +247,15 @@ func assertDeferredCapabilityBlocksClaim(t *testing.T) {
 		slug = "widget"
 	)
 	recPath := groomPath(id, slug)
-	repo := newMainModeRepo(t, map[string]string{
+	repo := newWorkingRepo(t, map[string]string{
 		// auto_groom: true is a deferred capability request — well-formed and
 		// inspectable, but not mutable until withdrawn.
-		".docket.yml": "metadata_branch: main\nauto_groom: true\n",
+		".docket.yml": "auto_groom: true\n",
 		recPath:       buildReadyChange(id, slug),
 	})
 	node := planningDepsFor(t, repo.invocation)
-	before := originTip(t, repo.origin, "main")
-	version := blobVersionAt(t, repo.origin, "main", recPath)
+	before := originTip(t, repo.origin, "docket")
+	version := blobVersionAt(t, repo.origin, "docket", recPath)
 
 	res := ChangeClaim(context.Background(), node.deps, node.dir, ChangeClaimRequest{ID: id, Version: version})
 	if res.Result != ResultUnsupportedConfig {
@@ -272,7 +264,7 @@ func assertDeferredCapabilityBlocksClaim(t *testing.T) {
 	if !hasFindingCode(res.Findings, ReasonDeferredCapRequested) {
 		t.Errorf("refusal did not name the deferred-capability reason: %v", res.Findings)
 	}
-	if after := originTip(t, repo.origin, "main"); after != before {
+	if after := originTip(t, repo.origin, "docket"); after != before {
 		t.Errorf("a refused-before-mutation claim moved the metadata remote: %q -> %q", before, after)
 	}
 }

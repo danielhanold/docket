@@ -41,7 +41,7 @@ func evidenceDeps(t *testing.T, svc *fakeWorkspaceService) (PlanningDeps, Worksp
 		corpus: []StatusBlob{inProgressChangeBlob(7, "widget", "v7", "")},
 	}
 	deps := workspaceDepsFor(t, reader)
-	repoDir := newMainModeRepo(t, nil).invocation
+	repoDir := newWorkingRepo(t, nil).invocation
 	return deps, WorkspaceDeps{Service: svc}, repoDir
 }
 

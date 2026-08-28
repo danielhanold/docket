@@ -3,15 +3,14 @@ package app
 import (
 	"context"
 	"fmt"
-	"os"
 	"path"
-	"path/filepath"
 	"strings"
 
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/repository"
+	"github.com/danielhanold/docket/internal/reposetup"
 )
 
 // This file is the production StatusReader: the one seam implementation that
@@ -26,10 +25,12 @@ import (
 // and every fetch/ls-remote go through it.
 const originRemote gitcli.RemoteName = "origin"
 
-// The two metadata-mode spellings the operation reports and keys on. A
-// configuration whose metadata_branch resolves to metadataModeMain keeps
-// planning records on the default branch; any other value names a distinct
-// metadata branch (docket mode).
+// The two metadata-mode spellings StatusPin.Mode still carries. The retired
+// main mode no longer exists as a pinnable topology — the operational loader
+// always pins the fixed docket metadata branch — so the production pin is
+// always metadataModeDocket; metadataModeMain survives only for the
+// metadataBranchOf fallback and test fixtures until 0363 Task 4 removes
+// StatusPin.Mode and both constants.
 const (
 	metadataModeMain   = "main"
 	metadataModeDocket = "docket"
@@ -56,112 +57,33 @@ func NewGitStatusReader(client *gitcli.Client) StatusReader {
 	return &gitStatusReader{client: client}
 }
 
-// PinContext discovers the repository, resolves origin's default branch, reads
-// .docket.yml from the pinned default-branch source, resolves configuration
-// over the global (filesystem) + repository (Git blob) + repository-local
-// (filesystem) layers, and fetches and pins every branch the resolved metadata
-// mode requires. The whole read is pinned against exact commit ids so a later
-// concurrent fetch cannot change what any concern observes.
+// PinContext is an adapter over the shared operational-repository loader
+// (loadOperationalContext, change 0363): the loader performs the one ordered
+// read — discovery, config resolution from the pinned repository blob, the
+// fetch-and-pin of the default/integration/metadata revisions, and the single
+// classification whose `legacy` verdict is the shared typed refusal every
+// ordinary command inherits — and this adapter only translates the loader's
+// context into the StatusPin shape the reader concerns thread around. The
+// whole read is pinned against exact commit ids so a later concurrent fetch
+// cannot change what any concern observes.
 func (r *gitStatusReader) PinContext(ctx context.Context, repoDir string) (StatusPin, error) {
-	dir := repoDir
-	if dir == "" {
-		wd, err := os.Getwd()
-		if err != nil {
-			return StatusPin{}, fmt.Errorf("%w: cannot resolve current directory: %v", ErrStatusInvalidInput, err)
-		}
-		dir = wd
-	}
-
-	repo, err := r.client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: dir})
-	if err != nil {
-		return StatusPin{}, classifyGitFailure(err)
-	}
-	r.repo = repo
-
-	ref, err := r.client.RemoteDefaultBranch(ctx, repo, originRemote)
-	if err != nil {
-		return StatusPin{}, classifyGitFailure(err)
-	}
-	defaultBranch, ok := shortBranch(ref)
-	if !ok {
-		return StatusPin{}, fmt.Errorf("%w: remote default ref %q is not a branch", ErrStatusExternal, ref)
-	}
-
-	defaultRev, err := r.fetchRevision(ctx, ref)
+	oc, err := loadOperationalContext(ctx, r.client, repoDir)
 	if err != nil {
 		return StatusPin{}, err
 	}
-
-	// 0341: derive the repository web URL once per pin, from origin's raw
-	// configured URL. Bash-renderer parity: an unreadable URL degrades to
-	// bare-path links, never a failed pin.
-	remoteURL, uerr := r.client.RemoteURL(ctx, repo, originRemote)
-	if uerr != nil {
-		remoteURL = ""
-	}
-
-	// Configuration is read from the pinned default-branch source (never the
-	// working tree), then layered under the filesystem-only machine layers.
-	docketYML, err := r.readOptionalBlob(ctx, defaultRev, ".docket.yml")
-	if err != nil {
-		return StatusPin{}, err
-	}
-	sources, err := r.configSources(repo, docketYML)
-	if err != nil {
-		return StatusPin{}, err
-	}
-	snap, diags, err := config.Resolve(sources, config.ResolveContext{DefaultBranch: defaultBranch})
-	if err != nil {
-		// A resolution error blocks topology (invalid config, or an unresolvable
-		// auto integration branch) — an invalid-input condition.
-		return StatusPin{}, fmt.Errorf("%w: %v", ErrStatusInvalidInput, err)
-	}
-	eff := snap.Effective
-
-	integrationBranch := eff.IntegrationBranch.Value
-	integrationRev := defaultRev
-	if integrationBranch != defaultBranch {
-		integrationRev, err = r.fetchRevision(ctx, gitcli.RefName(branchRefPrefix+integrationBranch))
-		if err != nil {
-			return StatusPin{}, err
-		}
-	}
-
-	pin := StatusPin{
-		DefaultBranch:       defaultBranch,
-		DefaultRevision:     defaultRev,
-		IntegrationBranch:   integrationBranch,
-		IntegrationRevision: integrationRev,
-		Config:              *snap,
-		ConfigDiags:         diags,
-		RepoWebURL:          githubWebURL(remoteURL),
-	}
-
-	// 0363 Task 4 removes this: config.Effective.MetadataBranch is gone (obsolete
-	// tombstone), so the metadata branch is fixed at "docket". Task 4 deletes
-	// StatusPin.Mode/MetadataBranch and the metadataModeMain selector entirely and
-	// sources the fixed branch from reposetup.MetadataBranchName.
-	metadataBranchBridge := "docket" // 0363 Task 4 removes this
-	if metadataBranchBridge == metadataModeMain {
-		pin.Mode = metadataModeMain
-	} else {
-		pin.Mode = metadataModeDocket
-		metaBranch := metadataBranchBridge
-		pin.MetadataBranch = metaBranch
-		switch metaBranch {
-		case defaultBranch:
-			pin.MetadataRevision = defaultRev
-		case integrationBranch:
-			pin.MetadataRevision = integrationRev
-		default:
-			metaRev, err := r.fetchRevision(ctx, gitcli.RefName(branchRefPrefix+metaBranch))
-			if err != nil {
-				return StatusPin{}, err
-			}
-			pin.MetadataRevision = metaRev
-		}
-	}
-	return pin, nil
+	r.repo = oc.repo
+	return StatusPin{
+		Mode:                metadataModeDocket,
+		DefaultBranch:       oc.defaultBranch,
+		DefaultRevision:     oc.defaultRevision,
+		IntegrationBranch:   oc.integrationBranch,
+		IntegrationRevision: oc.integrationRevision,
+		MetadataBranch:      reposetup.MetadataBranchName,
+		MetadataRevision:    oc.metadataRevision,
+		Config:              oc.snapshot,
+		ConfigDiags:         oc.diags,
+		RepoWebURL:          oc.repoWebURL,
+	}, nil
 }
 
 // ReadCorpus lists and reads every configured record from the pinned metadata
@@ -296,70 +218,9 @@ func (r *gitStatusReader) ReadArtifact(ctx context.Context, pin StatusPin, sourc
 	return StatusArtifact{Found: true, Version: string(br.Blob.ObjectID), Data: br.Blob.Bytes}, nil
 }
 
-// fetchRevision fetches one fully-qualified branch through origin and returns
-// its pinned commit id as a string, mapping any adapter failure to a status
-// classification.
-func (r *gitStatusReader) fetchRevision(ctx context.Context, branch gitcli.RefName) (string, error) {
-	rev, err := r.client.FetchBranch(ctx, r.repo, originRemote, branch)
-	if err != nil {
-		return "", classifyGitFailure(err)
-	}
-	return string(rev.Commit), nil
-}
-
 // openSource opens the immutable object source pinned at rev.
 func (r *gitStatusReader) openSource(ctx context.Context, rev string) (gitcli.ObjectSource, error) {
 	return r.client.OpenObjectSource(ctx, r.repo, gitcli.Revision{Commit: gitcli.ObjectID(rev)})
-}
-
-// readOptionalBlob reads one path from a pinned source, returning a nil byte
-// slice and no error when the path is absent — the "absent layer" case for the
-// repository configuration blob.
-func (r *gitStatusReader) readOptionalBlob(ctx context.Context, rev, p string) ([]byte, error) {
-	src, err := r.openSource(ctx, rev)
-	if err != nil {
-		return nil, classifyGitFailure(err)
-	}
-	results, err := src.ReadBlobs(ctx, []gitcli.RepoPath{gitcli.RepoPath(p)})
-	if err != nil {
-		return nil, classifyGitFailure(err)
-	}
-	if !results[0].Found {
-		return nil, nil
-	}
-	return results[0].Blob.Bytes, nil
-}
-
-// configSources assembles the resolution layer stack in the required low→high
-// order: the filesystem global layer, the repository layer read from the pinned
-// Git blob (never the working tree), and the filesystem repository-local layer
-// read beside the discovered primary worktree. LoadFilesystemSources is not
-// called wholesale because its repository .docket.yml read would come from the
-// working tree, which the read-from-pinned-Git contract forbids.
-func (r *gitStatusReader) configSources(repo gitcli.Repository, docketYML []byte) ([]config.Source, error) {
-	var sources []config.Source
-
-	globalSources, err := config.LoadGlobalSource("")
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrStatusExternal, err)
-	}
-	sources = append(sources, globalSources...)
-
-	if docketYML != nil {
-		sources = append(sources, config.Source{Layer: config.LayerRepository, Name: ".docket.yml", Data: docketYML})
-	}
-
-	localPath := filepath.Join(repo.PrimaryWorktree, ".docket.local.yml")
-	data, err := os.ReadFile(localPath)
-	switch {
-	case err == nil:
-		sources = append(sources, config.Source{Layer: config.LayerRepositoryLocal, Name: ".docket.local.yml", Data: data})
-	case os.IsNotExist(err):
-		// repository-local layer absent
-	default:
-		return nil, fmt.Errorf("%w: reading %s: %v", ErrStatusExternal, ".docket.local.yml", err)
-	}
-	return sources, nil
 }
 
 // metadataRevision is the revision the metadata source reads from: the metadata

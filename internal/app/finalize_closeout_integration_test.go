@@ -17,7 +17,7 @@ import (
 // backlinks — never a metadata record, never an authored byte.
 func TestIntegrationFinalizeCloseoutBacklinkLegDocketMode(t *testing.T) {
 	requireRealGit(t)
-	m := planRepoModes()[1] // docket
+	m := planRepoModes()[0] // docket
 	f := setupCloseoutFixture(t, m)
 	mergeCommit := f.mergeIntoBase(t)
 	gh := f.baselineMergedFake(f.head, mergeCommit)
