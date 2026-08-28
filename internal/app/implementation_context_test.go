@@ -113,7 +113,7 @@ func TestContextImplementationSelectsByPolicy(t *testing.T) {
 	if b.EffectiveBase.Kind != string(domain.BaseResolved) || b.EffectiveBase.Branch != "main" {
 		t.Errorf("effective base = %+v, want resolved/main", b.EffectiveBase)
 	}
-	if b.Workflow.RepoMode != "docket" || b.Workflow.IntegrationBranch != "main" ||
+	if b.Workflow.IntegrationBranch != "main" ||
 		b.Workflow.Remote != "origin" || b.Workflow.FeatureBranch != "feat/alpha" {
 		t.Errorf("workflow = %+v", b.Workflow)
 	}

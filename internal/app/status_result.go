@@ -5,16 +5,16 @@ package app
 const OperationStatus = "status"
 
 // StatusContext reports the exact authoritative state the whole read was pinned
-// against: the metadata mode and the branch names with their full object ids.
-// It carries revisions and branch names — the stable identity the spec's
-// host-path rule permits — and never a host-absolute path.
+// against: the branch names with their full object ids. It carries revisions and
+// branch names — the stable identity the spec's host-path rule permits — and
+// never a host-absolute path. Go v1 supports one metadata topology (the fixed
+// orphan `docket` branch), so no mode-shaped field appears here (change 0363);
+// the metadata identity is the revision alone.
 type StatusContext struct {
-	MetadataMode          string `json:"metadata_mode"`           // "main" | "docket"
 	DefaultBranch         string `json:"default_branch"`          // e.g. "main"
 	DefaultBranchRevision string `json:"default_branch_revision"` // full object id
 	IntegrationBranch     string `json:"integration_branch"`
 	IntegrationRevision   string `json:"integration_revision"`
-	MetadataBranch        string `json:"metadata_branch,omitempty"` // docket mode only
 	MetadataRevision      string `json:"metadata_revision,omitempty"`
 }
 

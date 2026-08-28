@@ -237,11 +237,9 @@ type effectiveLine struct {
 // it is the only subtree whose size depends on the harnesses in play.
 func effectiveLines(eff *config.Effective) []effectiveLine {
 	lines := []effectiveLine{
-		// 0363 Task 5 removes this whole row: config.Effective.MetadataBranch is
-		// gone (obsolete tombstone). Task 5 drops the metadata_branch effective row
-		// from human output; the fixed value is bridged here to keep the module
-		// building and the human-output tests green until then.
-		leafLine("metadata_branch", textValue("docket"), config.Provenance{Layer: config.LayerBuiltIn, Source: "built-in"}), // 0363 Task 5 removes this
+		// No metadata_branch row: Go v1 supports one metadata topology (the fixed
+		// orphan `docket` branch), so metadata_branch is not effective
+		// configuration — it is a decode-only obsolete tombstone (change 0363).
 		leafLine("integration_branch", textValue(eff.IntegrationBranch.Value), eff.IntegrationBranch.Provenance),
 		leafLine("changes_dir", textValue(eff.ChangesDir.Value), eff.ChangesDir.Provenance),
 		leafLine("adrs_dir", textValue(eff.ADRsDir.Value), eff.ADRsDir.Provenance),
