@@ -24,7 +24,8 @@ func builtinValue[T any](v T) Value[T] {
 // context's default branch. Explicit is false everywhere.
 func builtinEffective() Effective {
 	return Effective{
-		MetadataBranch:    builtinValue("docket"),
+		// No metadata_branch: it is an obsolete tombstone (change 0363), never a
+		// resolved default.
 		IntegrationBranch: builtinValue("auto"),
 		ChangesDir:        builtinValue("docs/changes"),
 		ADRsDir:           builtinValue("docs/adrs"),

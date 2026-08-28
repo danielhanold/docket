@@ -7,11 +7,11 @@ import (
 )
 
 func migrateCfg() config.Effective {
+	// metadata_branch is gone from config.Effective (obsolete tombstone, 0363).
 	return config.Effective{
-		MetadataBranch: config.Value[string]{Value: "docket"},
-		ChangesDir:     config.Value[string]{Value: "docs/changes"},
-		ADRsDir:        config.Value[string]{Value: "docs/adrs"},
-		ResultsDir:     config.Value[string]{Value: "docs/results"},
+		ChangesDir: config.Value[string]{Value: "docs/changes"},
+		ADRsDir:    config.Value[string]{Value: "docs/adrs"},
+		ResultsDir: config.Value[string]{Value: "docs/results"},
 	}
 }
 
@@ -144,49 +144,21 @@ func TestPlanMigrationRepairDigestFlows(t *testing.T) {
 	}
 }
 
-// TestPlanMigrationConfigEdit proves ConfigEdit is true exactly when the legacy
-// metadata_branch key is present in the repository-layer .docket.yml, and false
-// otherwise.
+// TestPlanMigrationConfigEdit — 0363 Task 3 restores this.
+//
+// ConfigEdit used to key on config.Effective.MetadataBranch's explicit
+// repository-layer provenance. Change 0363 turned metadata_branch into an
+// obsolete tombstone that no longer resolves, so the predicate can no longer
+// read it and PlanMigration reports no config edit. Task 3 re-derives ConfigEdit
+// from the committed .docket.yml raw bytes (RemoveMetadataBranchKey's `removed`
+// result) and restores the present/absent/global-layer matrix this test asserted.
 func TestPlanMigrationConfigEdit(t *testing.T) {
-	// Legacy key present in .docket.yml (repository layer, explicit).
-	present := migrateCfg()
-	present.MetadataBranch = config.Value[string]{
-		Value:      "docket",
-		Explicit:   true,
-		Provenance: config.Provenance{Layer: config.LayerRepository},
-	}
-	plan, err := PlanMigration(present, "cafebabe", nil)
+	plan, err := PlanMigration(migrateCfg(), "cafebabe", nil)
 	if err != nil {
 		t.Fatalf("PlanMigration errored: %v", err)
 	}
-	if !plan.ConfigEdit {
-		t.Error("ConfigEdit = false, want true when the legacy key is present in .docket.yml")
-	}
-
-	// Not explicit (built-in default) → no edit.
-	absent := migrateCfg()
-	absent.MetadataBranch = config.Value[string]{Value: "docket", Explicit: false}
-	planAbsent, err := PlanMigration(absent, "cafebabe", nil)
-	if err != nil {
-		t.Fatalf("PlanMigration errored: %v", err)
-	}
-	if planAbsent.ConfigEdit {
-		t.Error("ConfigEdit = true, want false when the key is not explicitly declared")
-	}
-
-	// Explicit but in the global layer (not .docket.yml) → no edit.
-	global := migrateCfg()
-	global.MetadataBranch = config.Value[string]{
-		Value:      "docket",
-		Explicit:   true,
-		Provenance: config.Provenance{Layer: config.LayerGlobal},
-	}
-	planGlobal, err := PlanMigration(global, "cafebabe", nil)
-	if err != nil {
-		t.Fatalf("PlanMigration errored: %v", err)
-	}
-	if planGlobal.ConfigEdit {
-		t.Error("ConfigEdit = true, want false when the key is declared only in the global layer")
+	if plan.ConfigEdit {
+		t.Error("ConfigEdit = true, want the 0363 bridge value false until Task 3 restores raw-byte detection")
 	}
 }
 

@@ -73,10 +73,12 @@ func TestClassifyMatrix(t *testing.T) {
 			want:    []capWant{{"runtime.bash", Obsolete, false, false, LayerRepositoryLocal}},
 		},
 
-		// Rows 2-6 — repository identity is plain supported policy.
+		// Rows 3-6 — repository identity is plain supported policy. (metadata_branch,
+		// the former row 2, is an obsolete tombstone since change 0363 and is
+		// covered by TestMetadataBranchIsObsoleteTombstone.)
 		{
 			name: "repository identity classifies to nothing",
-			sources: []Source{srcR("metadata_branch: main\nintegration_branch: develop\n" +
+			sources: []Source{srcR("integration_branch: develop\n" +
 				"changes_dir: docs/c\nadrs_dir: docs/a\nresults_dir: docs/r\n")},
 		},
 
@@ -386,8 +388,8 @@ func TestClassifyMultiBlockerCompleteSet(t *testing.T) {
 	}
 	// A blocked snapshot is still a VALID snapshot: inspection must keep working
 	// so the user can read the whole remedy.
-	if snap.Effective.MetadataBranch.Value != "docket" {
-		t.Errorf("effective policy = %q, want the resolved snapshot intact", snap.Effective.MetadataBranch.Value)
+	if snap.Effective.ChangesDir.Value != "docs/changes" {
+		t.Errorf("effective policy = %q, want the resolved snapshot intact", snap.Effective.ChangesDir.Value)
 	}
 }
 

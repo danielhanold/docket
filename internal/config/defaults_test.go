@@ -139,7 +139,7 @@ func TestBuiltinAgentsShape(t *testing.T) {
 func TestBuiltinEffectiveMatchesRegistryDefaults(t *testing.T) {
 	eff := builtinEffective()
 	leaves := map[string]any{
-		"metadata_branch":              eff.MetadataBranch.Value,
+		// metadata_branch is gone from Effective (obsolete tombstone, 0363).
 		"integration_branch":           eff.IntegrationBranch.Value,
 		"changes_dir":                  eff.ChangesDir.Value,
 		"adrs_dir":                     eff.ADRsDir.Value,
@@ -184,10 +184,8 @@ func TestBuiltinEffectiveMatchesRegistryDefaults(t *testing.T) {
 	if eff.IntegrationBranch.Value != "auto" {
 		t.Errorf("integration_branch default = %q, want the raw \"auto\" sentinel", eff.IntegrationBranch.Value)
 	}
-	if eff.MetadataBranch.Provenance != builtinProvenance() || eff.MetadataBranch.Explicit {
-		t.Errorf("metadata_branch: provenance %+v explicit %v, want %+v / false",
-			eff.MetadataBranch.Provenance, eff.MetadataBranch.Explicit, builtinProvenance())
-	}
+	// metadata_branch no longer has a built-in leaf (obsolete tombstone, 0363);
+	// integration_branch above is the surviving built-in provenance witness.
 	if !reflect.DeepEqual(eff.Agents, builtinAgents()) {
 		t.Error("builtinEffective().Agents must be the built-in agent table")
 	}

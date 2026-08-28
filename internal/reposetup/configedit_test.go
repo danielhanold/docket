@@ -162,8 +162,13 @@ func TestRemoveMetadataBranchKeyRoundTripThroughConfigLoader(t *testing.T) {
 	for _, tc := range roundTripCases {
 		t.Run(tc.name, func(t *testing.T) {
 			before := resolveOrFatal(t, []byte(tc.in))
-			if !before.Effective.MetadataBranch.Explicit {
-				t.Fatalf("fixture precondition: metadata_branch must be explicit before removal")
+			// metadata_branch no longer resolves to an Effective leaf (obsolete
+			// tombstone, 0363), so the precondition is now "the key is present and
+			// diagnosed obsolete" rather than "the leaf is explicit". 0363 Task 3
+			// restores the metadata_branch-specific pre/postconditions once the
+			// migration predicate reads raw bytes.
+			if !hasMetadataBranchObsolete(before) {
+				t.Fatalf("fixture precondition: metadata_branch must be present (obsolete) before removal; diags %+v", before.Diagnostics)
 			}
 
 			out, removed, err := RemoveMetadataBranchKey([]byte(tc.in))
@@ -172,15 +177,15 @@ func TestRemoveMetadataBranchKeyRoundTripThroughConfigLoader(t *testing.T) {
 			}
 
 			after := resolveOrFatal(t, out)
-			if after.Effective.MetadataBranch.Explicit {
-				t.Fatalf("metadata_branch still explicit after removal: %+v", after.Effective.MetadataBranch)
+			if hasMetadataBranchObsolete(after) {
+				t.Fatalf("metadata_branch still present after removal: %+v", after.Diagnostics)
 			}
 
-			// Every other decoded setting must be equal. Mask the metadata_branch
-			// leaf (the one field intentionally changed) and zero all provenance
+			// Every other decoded setting must be equal. Zero all provenance
 			// positions before comparing: a leaf's source LINE necessarily shifts
 			// when an earlier line is removed, which is a correct consequence of
-			// the edit, not a changed setting.
+			// the edit, not a changed setting. metadata_branch never reaches
+			// Effective in either snapshot, so no mask is needed for it.
 			b := normalizeEffective(before.Effective)
 			a := normalizeEffective(after.Effective)
 			if !reflect.DeepEqual(a, b) {
@@ -190,14 +195,24 @@ func TestRemoveMetadataBranchKeyRoundTripThroughConfigLoader(t *testing.T) {
 	}
 }
 
+// hasMetadataBranchObsolete reports whether the snapshot carries the
+// obsolete-setting diagnostic for metadata_branch — the observable that the
+// legacy key is present now that it no longer resolves to Effective (0363).
+func hasMetadataBranchObsolete(snap *config.Snapshot) bool {
+	for _, d := range snap.Diagnostics {
+		if d.Code == config.CodeObsoleteSetting && d.Path == "metadata_branch" {
+			return true
+		}
+	}
+	return false
+}
+
 var provType = reflect.TypeOf(config.Provenance{})
 
-// normalizeEffective masks the metadata_branch leaf (intentionally changed by
-// the edit) and zeroes every Provenance in the struct so the comparison reflects
-// decoded VALUES only, not source positions that a line removal necessarily
-// shifts.
+// normalizeEffective zeroes every Provenance in the struct so the comparison
+// reflects decoded VALUES only, not source positions that a line removal
+// necessarily shifts.
 func normalizeEffective(e config.Effective) config.Effective {
-	e.MetadataBranch = config.Value[string]{}
 	zeroProvenance(reflect.ValueOf(&e).Elem())
 	return e
 }

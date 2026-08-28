@@ -137,11 +137,16 @@ func (r *gitStatusReader) PinContext(ctx context.Context, repoDir string) (Statu
 		RepoWebURL:          githubWebURL(remoteURL),
 	}
 
-	if eff.MetadataBranch.Value == metadataModeMain {
+	// 0363 Task 4 removes this: config.Effective.MetadataBranch is gone (obsolete
+	// tombstone), so the metadata branch is fixed at "docket". Task 4 deletes
+	// StatusPin.Mode/MetadataBranch and the metadataModeMain selector entirely and
+	// sources the fixed branch from reposetup.MetadataBranchName.
+	metadataBranchBridge := "docket" // 0363 Task 4 removes this
+	if metadataBranchBridge == metadataModeMain {
 		pin.Mode = metadataModeMain
 	} else {
 		pin.Mode = metadataModeDocket
-		metaBranch := eff.MetadataBranch.Value
+		metaBranch := metadataBranchBridge
 		pin.MetadataBranch = metaBranch
 		switch metaBranch {
 		case defaultBranch:
