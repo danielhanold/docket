@@ -1,25 +1,33 @@
 #!/usr/bin/env bash
 # tests/test_go_integration_contract.sh — the fail-closed completeness contract over
-# the Go integration partition (change 0333). Discovery is live: tagged tests come
-# from `go test -tags integration -list` and shard membership from each runner's
-# own inspection mode (DOCKET_SHARD_INSPECT=1) — never a second registry. Checks:
-#   (1) every *_integration_test.go / *_race_integration_test.go in the three
-#       packages opens with `//go:build integration` on line 1
+# the Go integration partition (change 0333; generalized to structural discovery by
+# change 0362). Discovery is live and allowlist-free: the integration PACKAGES come
+# from the repository's own `git ls-files -- '*_integration_test.go'` census, tagged
+# tests from `go test -tags integration -list`, and shard membership from each
+# runner's own inspection mode (DOCKET_SHARD_INSPECT=1) — never a hand-maintained
+# list or a second registry. Checks:
+#   (1) every discovered *_integration_test.go / *_race_integration_test.go opens
+#       with `//go:build integration` on line 1 and a blank line 2
 #   (2) the tagged corpus lists cleanly per package, is non-empty overall, and
 #       every tagged-only test carries a TestIntegration/TestRaceIntegration prefix
-#   (3) every discovered runner inspects to a well-formed declaration
+#   (3) every discovered runner inspects to a well-formed declaration (its package
+#       is shape-valid AND a live `go list ./...` module member)
 #   (4) every tagged test matches EXACTLY ONE runner (same package, name-prefix)
 #   (5) TestRaceIntegration… tests match a race runner and TestIntegration… tests
 #       never do — both directions (learning correspondence-guard-runs-one-way)
 #   (6) no integration-prefixed test is visible to the default-tag corpus
 #   (7) every runner selects at least one test (a stale runner cannot no-op)
-#   (8) go vet -tags integration passes for all three packages
+#   (8) go vet -tags integration passes for every discovered integration package
 #   (9) the EXECUTED race decision matches the mode: a mode=race shard passes -race
 #       to go test and a mode=normal shard does not. (4)/(5) prove the label
 #       correspondence; (9) proves the shard actually instruments, so a regression
 #       that dropped -race cannot let the concurrency corpus pass vacuously
 #       (learning guards-are-code). The inspected race= value is the SAME one the
 #       executor passes to go test — a single source (shard_race_flag).
+#   (10) bidirectional package-level set correspondence: the discovered
+#        tagged-package set equals the runner-declared package set (both directions
+#        reported — a tagged package with no runner, and a runner whose package has
+#        no tagged file). Learning correspondence-guard-runs-one-way.
 #
 # FAIL-CLOSED. A probe error is never read as clean absence: every `go test -list`
 # and `go vet` invocation's exit status is asserted before its output is trusted,
@@ -62,21 +70,39 @@ fi
 
 TAB=$'\t'
 NL=$'\n'
-PKGS="internal/app internal/githubcli internal/gitcli"
+
+# Packages are DISCOVERED from the repository's own *_integration_test.go files —
+# never a hand-maintained list (learning enumerated-floor / backstop-must-compute-not-
+# reenumerate): the package someone forgets to enumerate is the one that leaks.
+# git ls-files is the census: tracked files only, no .git/.worktrees noise, and a
+# tagged file someone forgot to `git add` cannot certify anything anyway.
+int_files="$(git ls-files -- '*_integration_test.go')"
+assert "at least one *_integration_test.go exists (discovery is non-empty)" '[ -n "$int_files" ]'
+PKGS="$(while read -r f; do [ -n "$f" ] && dirname "$f"; done <<<"$int_files" | LC_ALL=C sort -u)"
+# A discovered path must be a plain relative package dir: the `for pkg in $PKGS`
+# word-splitting and the `./pkg` construction downstream assume no whitespace and no
+# leading `-`, so a malformed discovered path is a red result, shape-checked here.
+badpkg=""
+for pkg in $PKGS; do
+  case "$pkg" in *[![:alnum:]/._-]*|-*) badpkg="$badpkg $pkg";; esac
+done
+assert "every discovered package path is a plain relative dir (no whitespace, no leading -)" \
+  '[ -z "$badpkg" ] || { echo "  malformed discovered path:$badpkg" >&2; false; }'
 
 # (1) build-constraint placement — line 1 exactly, AND line 2 blank so Go HONORS the
 # constraint. Go treats a `//go:build` line as an ordinary comment (compiling the file
 # into the DEFAULT corpus) unless a blank line separates it from the package clause, so
 # the line-2-blank assert is what makes this a placement guard and not just a text match.
+# Iterate the DISCOVERED files directly (not "$pkg"/*_integration_test.go): the census
+# already found every tagged file, including any in a package an old glob never visited.
 bad_tag=""
 unhonored_tag=""
-for pkg in $PKGS; do
-  for f in "$pkg"/*_integration_test.go; do
-    [ -e "$f" ] || continue
-    [ "$(sed -n '1p' "$f")" = "//go:build integration" ] || bad_tag="$bad_tag $f"
-    [ -z "$(sed -n '2p' "$f")" ] || unhonored_tag="$unhonored_tag $f"
-  done
-done
+while read -r f; do
+  [ -n "$f" ] || continue
+  [ -e "$f" ] || continue
+  [ "$(sed -n '1p' "$f")" = "//go:build integration" ] || bad_tag="$bad_tag $f"
+  [ -z "$(sed -n '2p' "$f")" ] || unhonored_tag="$unhonored_tag $f"
+done <<<"$int_files"
 assert "every *_integration_test.go opens with //go:build integration" \
   '[ -z "$bad_tag" ] || { echo "  missing/misplaced tag:$bad_tag" >&2; false; }'
 assert "every *_integration_test.go has a blank line 2 so the build constraint is honored" \
@@ -112,6 +138,16 @@ assert "every tagged-only test carries a TestIntegration/TestRaceIntegration pre
 # (3) runner discovery + inspection. The contract excludes itself by exact name.
 runners="$(find tests -maxdepth 1 -name 'test_go_integration_*.sh' ! -name 'test_go_integration_contract.sh' | LC_ALL=C sort)"
 assert "at least one shard runner exists" '[ -n "$runners" ]'
+
+# Fail-closed module census: a runner may only declare a package that actually exists
+# in the module. Read the module path from `go list -m` and strip it so membership is
+# checked against relative dirs — never hardcode the module path.
+golist_out="$(go list ./... 2>&1)"; golist_rc=$?
+assert "go list ./... succeeds (module package census)" \
+  '[ "$golist_rc" -eq 0 ] || { printf "%s\n" "$golist_out" >&2; false; }'
+mod="$(go list -m 2>/dev/null)"
+module_dirs="$(go list -f '{{.ImportPath}}' ./... 2>/dev/null | sed "s|^${mod}/||")"
+
 decl=""              # lines: <runner><TAB><pkg-dir-no-dot-slash><TAB><prefix><TAB><mode>
 bad_decl=""
 while read -r r; do
@@ -127,7 +163,12 @@ while read -r r; do
   rf_present="$(grep -c -E -e '^race=' <<<"$out")"
   ok=1
   [ "$rc" -eq 0 ] || ok=0
-  case "$p" in ./internal/app|./internal/githubcli|./internal/gitcli) ;; *) ok=0 ;; esac
+  # Well-formed package declaration: shape ./?* AND its dir is a live module member
+  # (structural discovery, not an allowlist — a runner cannot point at a package the
+  # module does not contain). Membership via grep -qxF -- : -x whole-line, -F literal,
+  # -- guards a name that could lead with `-`.
+  case "$p" in ./?*) ;; *) ok=0 ;; esac
+  grep -qxF -- "${p#./}" <<<"$module_dirs" || ok=0
   case "$m" in normal|race) ;; *) ok=0 ;; esac
   case "$x" in TestIntegration?*|TestRaceIntegration?*) ;; *) ok=0 ;; esac
   [ "$rf_present" -ge 1 ] || ok=0
@@ -140,6 +181,21 @@ while read -r r; do
 done <<<"$runners"
 assert "every runner inspects to a well-formed declaration" \
   '[ -z "$bad_decl" ] || { echo "  malformed:$bad_decl" >&2; false; }'
+
+# (10) bidirectional package-level set correspondence (learning correspondence-guard-
+# runs-one-way): the DISCOVERED tagged-package set (dirs of *_integration_test.go, =
+# PKGS) and the RUNNER-DECLARED package set (field 2 of every well-formed declaration)
+# must be EQUAL. comm of the two sorted sets is empty in each direction, reported
+# separately — a tagged package with no runner, and a runner whose package has no
+# tagged file. Check (7) already reddens a runner whose PREFIX matches nothing; (10) is
+# the package-level cover that catches a runner pointed at an untagged package before
+# its prefix math even runs.
+discovered_pkgs="$(printf '%s\n' "$PKGS" | grep -E -e '.' | LC_ALL=C sort -u)"
+runner_pkgs="$(while IFS="$TAB" read -r r rp rx rm rf; do [ -n "$r" ] && printf '%s\n' "$rp"; done <<<"$decl" | grep -E -e '.' | LC_ALL=C sort -u)"
+tagged_no_runner="$(comm -23 <(printf '%s\n' "$discovered_pkgs") <(printf '%s\n' "$runner_pkgs") | tr '\n' ' ')"
+runner_no_tagged="$(comm -13 <(printf '%s\n' "$discovered_pkgs") <(printf '%s\n' "$runner_pkgs") | tr '\n' ' ')"
+assert "every discovered tagged package has a runner and every runner points at a tagged package (set correspondence)" \
+  '[ -z "${tagged_no_runner// /}" ] && [ -z "${runner_no_tagged// /}" ] || { echo "  tagged package with no runner:$tagged_no_runner" >&2; echo "  runner whose package has no tagged file:$runner_no_tagged" >&2; false; }'
 
 # (4)+(5): one matching pass over tagged × declarations.
 unmatched=""; multi=""; wrongmode=""
@@ -207,9 +263,11 @@ assert "no integration-prefixed test is visible to the default-tag corpus" \
   '[ -z "$leak" ] || { echo " $leak" >&2; false; }'
 
 # (8) tagged static analysis — default `go vet ./...` cannot see this corpus.
-vet_out="$(go vet -tags integration ./internal/app/ ./internal/githubcli/ ./internal/gitcli/ 2>&1)"
+vet_pkgs="$(while read -r p; do [ -n "$p" ] && printf './%s/ ' "$p"; done <<<"$PKGS")"
+# shellcheck disable=SC2086 # deliberate word-splitting: one ./pkg/ per token.
+vet_out="$(go vet -tags integration $vet_pkgs 2>&1)"
 vet_rc=$?
-assert "go vet -tags integration passes for all three packages" \
+assert "go vet -tags integration passes for every discovered integration package" \
   '[ "$vet_rc" -eq 0 ] || { printf "%s\n" "$vet_out" >&2; false; }'
 
 exit "$fail"
