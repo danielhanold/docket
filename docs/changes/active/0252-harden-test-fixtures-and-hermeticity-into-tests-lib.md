@@ -20,7 +20,7 @@ branch: 'chore/harden-test-fixtures-and-hermeticity-into-tests-lib'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-28T21:07:58Z'
+claimed_at: '2026-08-28T21:08:34Z'
 ---
 
 ## Artifacts
