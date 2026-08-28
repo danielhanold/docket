@@ -10,14 +10,14 @@ import (
 // unrelated defect.
 func healthyFacts() Facts {
 	return Facts{
-		RemoteConfigured:    PresencePresent,
-		RemoteDefaultBranch: BranchFact{Presence: PresencePresent, Tip: "def0"},
-		RemoteIntegration:   BranchFact{Presence: PresencePresent, Tip: "int0"},
-		RemoteMetadata:      BranchFact{Presence: PresencePresent, Tip: "meta0"},
-		MetadataRoot:        RootParentless,
-		LocalMetadata:       BranchFact{Presence: PresencePresent, Tip: "meta0"},
-		LiveSurface:         PresenceAbsent,
-		LegacyConfigKey:     PresenceAbsent,
+		RemoteConfigured:     PresencePresent,
+		RemoteDefaultBranch:  BranchFact{Presence: PresencePresent, Tip: "def0"},
+		RemoteIntegration:    BranchFact{Presence: PresencePresent, Tip: "int0"},
+		RemoteMetadata:       BranchFact{Presence: PresencePresent, Tip: "meta0"},
+		MetadataRoot:         RootParentless,
+		LocalMetadata:        BranchFact{Presence: PresencePresent, Tip: "meta0"},
+		LiveSurface:          PresenceAbsent,
+		LegacyConfigKey:      PresenceAbsent,
 		CommittedIgnoreBlock: PresencePresent,
 		DocketWorktree: WorktreeFact{
 			Presence:     PresencePresent,
@@ -39,11 +39,11 @@ func healthyFacts() Facts {
 
 func TestClassify(t *testing.T) {
 	cases := []struct {
-		name        string
-		facts       Facts
-		wantState   State
-		wantReason  string // if non-empty, Reasons must contain this token
-		reasonsReq  bool   // Reasons must be non-empty
+		name       string
+		facts      Facts
+		wantState  State
+		wantReason string // if non-empty, Reasons must contain this token
+		reasonsReq bool   // Reasons must be non-empty
 	}{
 		{
 			name:       "zero-value classifies unknown (safe default)",
@@ -288,7 +288,7 @@ func TestClassifyReasonsNonEmptyForFlaggedStates(t *testing.T) {
 	flagged := map[State]bool{StateConflict: true, StatePartial: true, StateUnknown: true}
 	probes := []Facts{
 		{}, // unknown
-		func() Facts { f := healthyFacts(); f.MetadataRoot = RootForeign; return f }(),         // conflict
+		func() Facts { f := healthyFacts(); f.MetadataRoot = RootForeign; return f }(),              // conflict
 		func() Facts { f := healthyFacts(); f.PartialPhase = PartialIntegrationPruned; return f }(), // partial
 	}
 	for i, f := range probes {
@@ -303,9 +303,23 @@ func TestClassifyReasonsNonEmptyForFlaggedStates(t *testing.T) {
 // by some input and that no input yields an empty State.
 func TestClassifyEveryStateReachable(t *testing.T) {
 	reach := map[State]Facts{
-		StateUnknown:     {},
-		StateFresh:       func() Facts { f := healthyFacts(); f.RemoteMetadata = BranchFact{Presence: PresenceAbsent}; f.MetadataRoot = RootUnknown; f.LocalMetadata = BranchFact{Presence: PresenceAbsent}; f.LiveSurface = PresenceAbsent; return f }(),
-		StateLegacy:      func() Facts { f := healthyFacts(); f.RemoteMetadata = BranchFact{Presence: PresenceAbsent}; f.MetadataRoot = RootUnknown; f.LocalMetadata = BranchFact{Presence: PresenceAbsent}; f.LiveSurface = PresencePresent; return f }(),
+		StateUnknown: {},
+		StateFresh: func() Facts {
+			f := healthyFacts()
+			f.RemoteMetadata = BranchFact{Presence: PresenceAbsent}
+			f.MetadataRoot = RootUnknown
+			f.LocalMetadata = BranchFact{Presence: PresenceAbsent}
+			f.LiveSurface = PresenceAbsent
+			return f
+		}(),
+		StateLegacy: func() Facts {
+			f := healthyFacts()
+			f.RemoteMetadata = BranchFact{Presence: PresenceAbsent}
+			f.MetadataRoot = RootUnknown
+			f.LocalMetadata = BranchFact{Presence: PresenceAbsent}
+			f.LiveSurface = PresencePresent
+			return f
+		}(),
 		StateConflict:    func() Facts { f := healthyFacts(); f.MetadataRoot = RootForeign; return f }(),
 		StatePartial:     func() Facts { f := healthyFacts(); f.LiveSurface = PresencePresent; return f }(),
 		StateNeedsReview: func() Facts { f := healthyFacts(); f.PendingReviewPaths = []string{"p"}; return f }(),
