@@ -419,6 +419,20 @@
 #   reposetup  cold 7.39 7.32 7.29 -> worst 7.39 -> next multiple of 5 is 10, plus 5 -> 15
 # The eight tests run in ~2.9s; the cold term is the tagged app-package compile. Headroom at 15:
 # ~7.6s over the worst cold reading, well under the 60s ceiling. EXPECTED_TOTAL moves 2650 -> 2665: +15.
+#
+# tests/test_go_integration_app_repocheck.sh is change 0352 Task 9: the read-only repository check
+# service scenarios (fresh; needs-review -> healthy; every healthy postcondition broken one at a
+# time; read-only invariance; unknown authority), prefix ^TestIntegrationRepoCheck, in the normal
+# (parallel) lane. Appending the check scenarios to the reposetup shard pushed its worst fresh-GOCACHE
+# reading to 16.05 (> its row of 15), so per the budget rule the check scenarios were SPLIT into this
+# own shard rather than raising the reposetup row. Sized per this header's rule from the WORST of three
+# fresh-GOCACHE readings, idle Mac15,6 / macOS 26.6.2 / go1.26.5 darwin/arm64, as
+# `fresh=$(mktemp -d ...); GOCACHE=$fresh /usr/bin/time -p bash tests/test_go_integration_app_repocheck.sh`:
+#   repocheck  cold 13.33 13.06 13.10 -> worst 13.33 -> next multiple of 5 is 15, plus 5 -> 20
+# The check scenarios build a full docket topology several times (each newHealthyRepo runs init +
+# commit + push); the run term dominates, the rest is the tagged app-package compile. After the split
+# the reposetup shard is init-only again: re-measured cold 7.66 7.48 7.36 -> worst 7.66 -> still 15,
+# so its row is unchanged. EXPECTED_TOTAL moves 2665 -> 2685: +20 for this one new shard row.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -487,6 +501,7 @@ tests/test_go_integration_app_closeout.sh	40	parallel
 tests/test_go_integration_app_concurrency.sh	25	parallel
 tests/test_go_integration_app_merge.sh	30	parallel
 tests/test_go_integration_app_rebase.sh	25	parallel
+tests/test_go_integration_app_repocheck.sh	20	parallel
 tests/test_go_integration_app_reposetup.sh	15	parallel
 tests/test_go_integration_app_state.sh	50	parallel
 tests/test_go_integration_app_workflow.sh	45	parallel
