@@ -31,7 +31,12 @@ EXPECTED_SERIAL=0   # no file is currently pinned serial. tests/test_go_race.sh 
                     # run no longer starves the other parallel jobs. RAISING THIS IS A FINDING: a
                     # serial pin removes a file from the parallel phase, so it must be justified in
                     # the same diff with the shared state that forces it.
-EXPECTED_TOTAL=2640 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2650 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2640 -> 2650 (change 0352, Task 2): ONE legitimate mover — a NEW test file
+                    # brings its own row. tests/test_go_integration_gitcli_setuptree.sh is the fifth
+                    # gitcli integration SHARD (^TestIntegrationSetupTree: the setup-tree primitives).
+                    # Finalized at 10 (this table's floor) from three standalone serial readings whose
+                    # worst is 1.68 (1.68/1.09/1.11 -> next 5 -> 5 -> +5 -> 10). See the tsv header.
                     # 2620 -> 2640 (change 0362, Task 7): ONE legitimate mover — the release
                     # integration SHARD row is finalized from three fresh-GOCACHE readings.
                     # tests/test_go_integration_release.sh 25 -> 45: the worst cold reading is 38.47s
