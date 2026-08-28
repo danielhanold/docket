@@ -192,6 +192,14 @@ func TestRepositoryMigrateInteractiveConfirmReinvokes(t *testing.T) {
 	if calls[1].ExpectedSource != "pinnedsrc" {
 		t.Errorf("second call ExpectedSource = %q, want the previewed source pinnedsrc", calls[1].ExpectedSource)
 	}
+	// The human confirmed the whole previewed plan, and the preview carries the
+	// complete repair diff. So the confirmed re-invoke authorizes the repairs it
+	// showed — even without --repair-frontmatter — rather than dead-ending on the
+	// service's repair-required refusal (the interactive confirmation covers
+	// repairs because the diff was in the preview).
+	if !calls[1].RepairAuthorized {
+		t.Errorf("a confirmed interactive re-invoke must authorize the previewed repairs: %+v", calls[1])
+	}
 }
 
 // TestRepositoryMigrateInteractiveDeclineDoesNotAuthorize proves that on `n` (or
