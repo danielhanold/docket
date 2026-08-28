@@ -708,9 +708,11 @@ func mergeMigrateDebris(res RepositoryMigrateResult, debris setupDebrisReport) R
 }
 
 // publishSeed publishes the parentless seed commit under create-only protection.
-// On a create rejection it adopts only an already-published exact commit and
-// refuses anything else — the create-only push is never widened to an
-// overwriting lease (this is the create-only protection mutation probe target).
+// A create rejection here is always a conflict refusal: publishSeed never adopts
+// an existing remote branch — it does not compare the remote to seedCommit — and
+// the create-only push is never widened to an overwriting lease (this is the
+// create-only protection mutation probe target). Resume-time adoption of an
+// already-published seed is owned by reconcileResumeSeed, not by this function.
 func publishSeed(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, docketRef gitcli.RefName, seedCommit gitcli.ObjectID) (gitcli.ObjectID, *RepositoryMigrateResult) {
 	outcome, err := git.PushCreateLease(ctx, repo, setupRemote(), docketRef, seedCommit)
 	if err != nil {
