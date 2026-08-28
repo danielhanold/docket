@@ -152,11 +152,22 @@ func augmentCheckFacts(ctx context.Context, git *gitcli.Client, f *reposetup.Fac
 	// foreign. (Task-11 refines this with receipt / legacy-equivalent tree checks;
 	// the single-orphan-root test is sufficient for the init-created shape.)
 	if sc.metadataTip != "" {
-		roots, err := git.RootCommits(ctx, sc.repo, gitcli.ObjectID(sc.metadataTip))
+		// The base gatherer proves the metadata branch PRESENT via ls-remote (its OID
+		// only); on a clone that never fetched docket the commit object is not yet
+		// local, so a root-shape probe would error into RootUnknown. Fetch the branch
+		// first so both this probe and gatherFrontmatterFindings read a local object.
+		// The fetch updates only a remote-tracking ref (the read-only contract
+		// excludes refs/remotes/*); a fetch error leaves the ls-remote tip in place and
+		// RootCommits maps its own failure to the safe RootUnknown, never a false shape.
+		metaTip := sc.metadataTip
+		if rev, ferr := git.FetchBranch(ctx, sc.repo, setupRemote(), metaRef); ferr == nil {
+			metaTip = string(rev.Commit)
+		}
+		roots, err := git.RootCommits(ctx, sc.repo, gitcli.ObjectID(metaTip))
 		switch {
 		case err != nil:
 			f.MetadataRoot = reposetup.RootUnknown
-		case len(roots) == 1 && string(roots[0]) == sc.metadataTip:
+		case len(roots) == 1 && string(roots[0]) == metaTip:
 			f.MetadataRoot = reposetup.RootParentless
 		default:
 			f.MetadataRoot = reposetup.RootForeign
@@ -179,6 +190,22 @@ func augmentCheckFacts(ctx context.Context, git *gitcli.Client, f *reposetup.Fac
 		f.DocketWorktree.Clean = worktreeCleanPresence(ctx, git, worktreeDir)
 		f.DocketWorktree.Synchronized = synchronizedPresence(f.LocalMetadata, f.RemoteMetadata)
 		f.DocketWorktree.HooksOff = hooksOffPresence(ctx, git, worktreeDir)
+	}
+
+	// A repository whose remote is fully migrated — a parentless docket seed with
+	// the integration surface already pruned — but whose local .docket attachment
+	// did not finish is a resumable PARTIAL, not a terminal conflict. Keyed on the
+	// same authoritative postconditions a migration resumes from, so a concurrent
+	// check that observes this window classifies as partial (the idempotent-resume
+	// remedy) rather than falling through to postconditions-unmet. It never fires
+	// for a healthy repository (its local branch is present and its worktree is
+	// registered) nor for the seed-published-live-surface window (live surface
+	// present), which the classifier already routes to partial on its own.
+	if f.MetadataRoot == reposetup.RootParentless &&
+		f.LiveSurface == reposetup.PresenceAbsent &&
+		(f.LocalMetadata.Presence != reposetup.PresencePresent ||
+			f.DocketWorktree.Registered != reposetup.PresencePresent) {
+		f.PartialPhase = reposetup.PartialIntegrationPruned
 	}
 
 	// Committed guarantees and surface facts proven from the integration COMMIT

@@ -463,6 +463,33 @@
 #   reporecovery  cold 13.97 13.75 13.79 -> worst 13.97 -> next multiple of 5 is 15, plus 5 -> 20
 # The six boundary tests run in ~9.3s; the rest is the tagged app-package compile. Headroom at 20: ~6s over the worst
 # cold reading, well under the 60s ceiling. EXPECTED_TOTAL moves 2705 -> 2725: +20.
+#
+# tests/test_go_integration_app_repocontention.sh is change 0352 Task 12 (normal lane): the sequential
+# migration-contention tests — a second writer advancing remote docket between the resume's fresh re-read and its
+# owned-lease push loses to a clean `contended` with no force and the foreign advance intact; a non-planning
+# integration advance rebuilds the prune atop the fresh re-read (its parent is exactly the advanced tip); and a
+# concurrent `repository check` observes only the resumable `partial` (both the seed-published-live-surface window and
+# the remote-migrated-but-local-attach-incomplete window), never a torn conflict — prefix ^TestIntegrationRepoContention.
+# Its own shard: no existing prefix is a name-prefix of TestIntegrationRepoContention, and each scenario scripts a full
+# legacy repo and interleaves a second writer through the setupHooks seam. Sized per this header's rule from the WORST of
+# three fresh-GOCACHE readings, idle Mac15,6 / macOS 26.6.2 / go1.26.5 darwin/arm64, as
+# `fresh=$(mktemp -d ...); GOCACHE=$fresh /usr/bin/time -p bash tests/test_go_integration_app_repocontention.sh >/dev/null`:
+#   repocontention  cold 8.68 8.51 8.49 -> worst 8.68 -> next multiple of 5 is 10, plus 5 -> 15
+# The four scenarios run in ~4.5s; the rest is the tagged app-package compile. Headroom at 15: ~6.3s over the worst cold
+# reading, well under the 60s ceiling. EXPECTED_TOTAL moves 2725 -> 2740: +15.
+#
+# tests/test_go_integration_app_reposetup_race.sh is change 0352 Task 12 (RACE lane, the one -race shard this change
+# adds): two goroutines race RunRepositoryInit for the create-only metadata root over one upstream (exactly one create
+# wins, the loser adopts, the postcondition is identical to a single run), and a migration races repeated read-only
+# checks (each observes only legacy/partial, never a torn state, and never writes a local branch or worktree) — prefix
+# ^TestRaceIntegrationRepoSetup, NOT a name-prefix of TestIntegrationRepoSetup (different leading token). Its own race
+# shard: the -race detector guards that the shared upstream's create-only / exact-lease and read-only paths carry no
+# data race in production code. Sized per this header's rule from the WORST of three fresh-GOCACHE readings measured
+# WITH -race, idle Mac15,6 / macOS 26.6.2 / go1.26.5 darwin/arm64, as
+# `fresh=$(mktemp -d ...); GOCACHE=$fresh /usr/bin/time -p bash tests/test_go_integration_app_reposetup_race.sh >/dev/null`:
+#   reposetup_race  cold 19.47 19.52 19.49 -> worst 19.52 -> next multiple of 5 is 20, plus 5 -> 25 (race mode, measured WITH -race)
+# The two race tests run in ~7s; the rest is the tagged app-package -race compile. Headroom at 25: ~5.5s over the worst
+# cold reading, well under the 60s ceiling. EXPECTED_TOTAL moves 2740 -> 2765: +25.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -532,9 +559,11 @@ tests/test_go_integration_app_concurrency.sh	25	parallel
 tests/test_go_integration_app_merge.sh	30	parallel
 tests/test_go_integration_app_rebase.sh	25	parallel
 tests/test_go_integration_app_repocheck.sh	20	parallel
+tests/test_go_integration_app_repocontention.sh	15	parallel
 tests/test_go_integration_app_repomigration.sh	20	parallel
 tests/test_go_integration_app_reporecovery.sh	20	parallel
 tests/test_go_integration_app_reposetup.sh	15	parallel
+tests/test_go_integration_app_reposetup_race.sh	25	parallel
 tests/test_go_integration_app_state.sh	50	parallel
 tests/test_go_integration_app_workflow.sh	45	parallel
 tests/test_go_integration_contract.sh	15	parallel
