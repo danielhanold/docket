@@ -119,7 +119,12 @@ func newRepositoryMigrateCommand(setResult func(app.OperationResult)) *cobra.Com
 			}
 
 			// Interactive: print the plan, prompt, and on yes re-invoke authorized,
-			// pinned to the exact revision the preview showed.
+			// pinned to the exact revision the preview showed. The confirmed run
+			// authorizes repairs unconditionally (RepairAuthorized: true): the human
+			// confirmed the whole previewed plan, and the preview carried the complete
+			// repair diff, so --repair-frontmatter is not additionally required here.
+			// This differs from the non-interactive path above, where the service still
+			// requires --repair-frontmatter when repairs are present.
 			fmt.Fprintln(c.OutOrStdout(), preview.HumanText())
 			fmt.Fprint(c.OutOrStdout(), "migrate? [y/N] ")
 			if !repositoryReadYes(c.InOrStdin()) {
@@ -130,7 +135,7 @@ func newRepositoryMigrateCommand(setResult func(app.OperationResult)) *cobra.Com
 			if p, ok := preview.(interface{ SourceRev() string }); ok {
 				expected = p.SourceRev()
 			}
-			setResult(repositoryMigrateRunner(c.Context(), deps, app.MigrateOptions{Authorized: true, RepairAuthorized: repair, ExpectedSource: expected}))
+			setResult(repositoryMigrateRunner(c.Context(), deps, app.MigrateOptions{Authorized: true, RepairAuthorized: true, ExpectedSource: expected}))
 			return nil
 		},
 	}
