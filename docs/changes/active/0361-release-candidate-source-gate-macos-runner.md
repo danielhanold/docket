@@ -2,11 +2,11 @@
 id: 361
 slug: release-candidate-source-gate-macos-runner
 title: 'Release-candidate source-gate green on a macOS runner'
-status: 'in-progress'
+status: 'implemented'
 priority: high
 type: fix
 created: 2026-08-27
-updated: '2026-08-27'
+updated: '2026-08-28'
 depends_on: [317]
 stacked_on:
 related: [318, 322]
@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable:
 branch: 'fix/release-candidate-source-gate-macos-runner'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/248'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-28T10:50:47Z'
