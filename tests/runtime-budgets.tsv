@@ -410,6 +410,15 @@
 # Even cold, the two `go test -list` probes finish in ~3.2s, so the row lands on the 10s floor with
 # wide headroom (~6.8s); nothing to split. Rides the parallel lane. (Superseded provisional warm
 # reading: 0.99 -> 10, the same value, so EXPECTED_TOTAL is unchanged by this row.)
+#
+# tests/test_go_integration_app_reposetup.sh is change 0352 Task 8: the repository init service +
+# first setup shard (init topology, repeat convergence, refusals, gitignore parity, no-prompt),
+# prefix ^TestIntegrationRepoSetup, in the normal (parallel) lane. Sized per this header's rule from
+# the WORST of three fresh-GOCACHE readings, idle Mac15,6 / macOS 26.6.2 / go1.26.5 darwin/arm64, as
+# `fresh=$(mktemp -d ...); GOCACHE=$fresh /usr/bin/time -p bash tests/test_go_integration_app_reposetup.sh`:
+#   reposetup  cold 7.39 7.32 7.29 -> worst 7.39 -> next multiple of 5 is 10, plus 5 -> 15
+# The eight tests run in ~2.9s; the cold term is the tagged app-package compile. Headroom at 15:
+# ~7.6s over the worst cold reading, well under the 60s ceiling. EXPECTED_TOTAL moves 2650 -> 2665: +15.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -478,6 +487,7 @@ tests/test_go_integration_app_closeout.sh	40	parallel
 tests/test_go_integration_app_concurrency.sh	25	parallel
 tests/test_go_integration_app_merge.sh	30	parallel
 tests/test_go_integration_app_rebase.sh	25	parallel
+tests/test_go_integration_app_reposetup.sh	15	parallel
 tests/test_go_integration_app_state.sh	50	parallel
 tests/test_go_integration_app_workflow.sh	45	parallel
 tests/test_go_integration_contract.sh	15	parallel

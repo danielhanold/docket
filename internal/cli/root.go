@@ -324,11 +324,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	gateCmd := newGateCommand(func(r app.OperationResult) { result = r })
 	finalizeCmd := newFinalizeCommand(func(r app.OperationResult) { result = r })
 	maintenanceCmd := newMaintenanceCommand(func(r app.OperationResult) { result = r })
+	repositoryCmd := newRepositoryCommand(func(r app.OperationResult) { result = r })
 
 	installCmd.AddCommand(installCheckCmd)
 	developmentCmd.AddCommand(developmentInstallCmd)
 	diagnosticCmd.AddCommand(runtimeCmd, configCmd)
-	root.AddCommand(versionCmd, statusCmd, changeCmd, contextCmd, artifactCmd, workspaceCmd, evidenceCmd, prCmd, runCmd, learningCmd, adrCmd, gateCmd, finalizeCmd, maintenanceCmd, diagnosticCmd, installCmd, developmentCmd)
+	root.AddCommand(versionCmd, statusCmd, changeCmd, contextCmd, artifactCmd, workspaceCmd, evidenceCmd, prCmd, runCmd, learningCmd, adrCmd, gateCmd, finalizeCmd, maintenanceCmd, repositoryCmd, diagnosticCmd, installCmd, developmentCmd)
 	root.AddCommand(extra...)
 
 	// The asset-dependence guard. Everything docket ships today is registered
@@ -387,7 +388,15 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 				return code
 			}
 		}
-		return p.Present(result)
+		code := p.Present(result)
+		// `repository check` encodes a 0/1/2 diagnostic exit that is not a
+		// process failure, so its result computes its own exit through
+		// CheckExitCode rather than the coarse app.ExitCode the presenter
+		// returns. The document is still the one Present wrote.
+		if ce, ok := result.(interface{ CheckExitCode() int }); ok {
+			return ce.CheckExitCode()
+		}
+		return code
 	case helpRendered:
 		// Human help was rendered by Cobra on stdout; exit 0.
 		return 0
