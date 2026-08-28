@@ -290,18 +290,29 @@ func isDocketManagedWorktreePath(rel string) bool {
 }
 
 // primaryAtTipPresence reports whether the primary worktree's HEAD is exactly the
-// authoritative remote integration tip. A resolve error is PresenceUnknown with a
-// diagnostic.
+// authoritative remote integration tip. The primary HEAD is read from the
+// authoritative worktree registration (ListWorktrees) rather than a bare
+// ResolveRef of "HEAD": gitcli's validateRefName requires a fully-qualified
+// refs/ name, so "HEAD" is not a resolvable ref name there. A list error, or a
+// primary not found among the registered worktrees, is PresenceUnknown with a
+// diagnostic — never a false absence.
 func primaryAtTipPresence(ctx context.Context, p setupProber, repo gitcli.Repository, rev string, sc *setupContext) reposetup.Presence {
-	head, err := p.ResolveRef(ctx, repo, gitcli.RefName("HEAD"))
+	wts, err := p.ListWorktrees(ctx, repo)
 	if err != nil {
 		sc.diagnostics = append(sc.diagnostics, setupDiag{Probe: "primary-head", Err: err})
 		return reposetup.PresenceUnknown
 	}
-	if string(head) == rev {
-		return reposetup.PresencePresent
+	for _, wt := range wts {
+		if filepath.Clean(wt.Path) != filepath.Clean(repo.PrimaryWorktree) {
+			continue
+		}
+		if string(wt.Head) == rev {
+			return reposetup.PresencePresent
+		}
+		return reposetup.PresenceAbsent
 	}
-	return reposetup.PresenceAbsent
+	sc.diagnostics = append(sc.diagnostics, setupDiag{Probe: "primary-head", Err: errors.New("primary worktree not found among registered worktrees")})
+	return reposetup.PresenceUnknown
 }
 
 // docketWorktreeFact probes the .docket path: absent, a correctly registered

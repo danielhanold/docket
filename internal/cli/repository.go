@@ -15,8 +15,8 @@ import (
 // dispatch to the matching internal/app service, letting the presenter own the
 // outcome. Every policy decision — classification, refusal, effect sequencing —
 // belongs to internal/app, so no body here branches on repository state. The
-// `init` service is wired here; `check` and `migrate` are wired by later tasks
-// and until then report the operation as not yet available.
+// `init` and `check` services are wired here; `migrate` is wired by a later task
+// and until then reports the operation as not yet available.
 
 // repositoryInitRunner, repositoryCheckRunner, and repositoryMigrateRunner are
 // the app entry points the repository subcommands dispatch to. They are package
@@ -27,7 +27,7 @@ var (
 		return app.RunRepositoryInit(ctx, d)
 	}
 	repositoryCheckRunner = func(ctx context.Context, d app.SetupDeps) app.OperationResult {
-		return repositoryNotAvailable("repository.check")
+		return app.RunRepositoryCheck(ctx, d)
 	}
 	repositoryMigrateRunner = func(ctx context.Context, d app.SetupDeps) app.OperationResult {
 		return repositoryNotAvailable("repository.migrate")

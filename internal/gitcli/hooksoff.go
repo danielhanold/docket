@@ -180,6 +180,41 @@ func (c *Client) relocateCommonKey(ctx context.Context, worktreeDir, mainWt, key
 	return nil
 }
 
+// WorktreeHooksDisabled reports whether one docket-owned worktree has its git
+// hooks disabled the way DisableWorktreeHooks leaves them: this worktree's
+// per-worktree core.hooksPath points at an existing directory. It is the
+// read-only mirror of DisableWorktreeHooks — a bounded probe that performs no
+// write — so a health read can confirm the effect without re-applying it. A
+// worktree without extensions.worktreeConfig enabled, or without a per-worktree
+// core.hooksPath, reports false (not disabled); a start failure is an error.
+func (c *Client) WorktreeHooksDisabled(ctx context.Context, worktreeDir string) (bool, error) {
+	if worktreeDir == "" {
+		return false, newFailure(disableHooksOp, KindInvalidRequest, "worktree dir is empty", nil)
+	}
+	res, f := c.run(ctx, runRequest{
+		op:   disableHooksOp,
+		dir:  worktreeDir,
+		args: []string{"config", "--worktree", "--get", "core.hooksPath"},
+	})
+	if f != nil {
+		return false, f
+	}
+	if res.exitCode != 0 {
+		// Value absent, or extensions.worktreeConfig not enabled: hooks are not
+		// disabled the docket way.
+		return false, nil
+	}
+	lines := stdoutLines(res.stdout)
+	if len(lines) == 0 || lines[0] == "" {
+		return false, nil
+	}
+	info, err := os.Stat(lines[0])
+	if err != nil || !info.IsDir() {
+		return false, nil
+	}
+	return true, nil
+}
+
 // configGet reads a single local config value, mapping git's "not found" exit
 // (the value is simply absent) to the empty string — the imperative-effect
 // counterpart of the script's `|| true`. A start failure is still a *Failure.
@@ -201,5 +236,3 @@ func (c *Client) configGet(ctx context.Context, dir, key string) (string, *Failu
 	}
 	return lines[0], nil
 }
-
-

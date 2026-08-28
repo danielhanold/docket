@@ -24,14 +24,17 @@ const (
 	SeverityWarning Severity = "warning"
 )
 
-// Finding is one non-repairing health diagnosis about the repository.
+// Finding is one non-repairing health diagnosis about the repository. Its JSON
+// field names are the protocol-v1 snake_case form, because a Finding is
+// serialized verbatim inside the `findings` array of the repository check/op
+// results a JSON consumer reads.
 type Finding struct {
-	Code       string   // stable machine token, e.g. "live-surface-present"
-	Severity   Severity //
-	Ref        string   // path or ref the finding is about, if any
-	Message    string   //
-	Remedy     string   // exact human remedy, branched on the finding's own facts
-	Repairable *bool    // set only for frontmatter findings; nil otherwise
+	Code       string   `json:"code"`                 // stable machine token, e.g. "live-surface-present"
+	Severity   Severity `json:"severity"`             //
+	Ref        string   `json:"ref,omitempty"`        // path or ref the finding is about, if any
+	Message    string   `json:"message"`              //
+	Remedy     string   `json:"remedy,omitempty"`     // exact human remedy, branched on the finding's own facts
+	Repairable *bool    `json:"repairable,omitempty"` // set only for frontmatter findings; nil otherwise
 }
 
 // finding categories, in the deterministic output order the contract fixes:
