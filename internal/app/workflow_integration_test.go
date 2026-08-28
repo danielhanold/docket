@@ -628,12 +628,6 @@ func TestIntegrationWorkflowGitStatusReaderDocketModeDistinctRevisions(t *testin
 	if err != nil {
 		t.Fatalf("PinContext: %v", err)
 	}
-	if pin.Mode != "docket" {
-		t.Fatalf("mode = %q, want docket", pin.Mode)
-	}
-	if pin.MetadataBranch != "docket" {
-		t.Errorf("metadata branch = %q, want docket", pin.MetadataBranch)
-	}
 	if pin.MetadataRevision == "" || pin.IntegrationRevision == "" {
 		t.Fatalf("revisions unset: %+v", pin)
 	}

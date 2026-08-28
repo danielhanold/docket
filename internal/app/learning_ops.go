@@ -13,6 +13,7 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/render"
+	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 )
 
@@ -197,7 +198,7 @@ func LearningRecordOp(ctx context.Context, deps PlanningDeps, repoDir string, re
 	res, execErr := deps.Engine.Execute(ctx, transaction.Request{
 		Repository:  repo,
 		Remote:      originRemote,
-		TargetRef:   gitcli.RefName(branchRefPrefix + metadataBranchOf(pin)),
+		TargetRef:   gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Idempotency: &transaction.IdempotencyKey{RequestID: req.RequestID, Digest: digest},
 		Loader:      newPlanningLoader(eff),
 		Operation:   op,
@@ -255,7 +256,7 @@ func LearningUpdate(ctx context.Context, deps PlanningDeps, repoDir string, req 
 	res, execErr := deps.Engine.Execute(ctx, transaction.Request{
 		Repository: repo,
 		Remote:     originRemote,
-		TargetRef:  gitcli.RefName(branchRefPrefix + metadataBranchOf(pin)),
+		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
 			Path:    gitcli.RepoPath(req.Path),
 			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},

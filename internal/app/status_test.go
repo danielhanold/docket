@@ -85,12 +85,10 @@ func testConfig(t *testing.T) config.Snapshot {
 func docketPin(t *testing.T) StatusPin {
 	t.Helper()
 	return StatusPin{
-		Mode:                "docket",
 		DefaultBranch:       "main",
 		DefaultRevision:     "1111111111111111111111111111111111111111",
 		IntegrationBranch:   "main",
 		IntegrationRevision: "2222222222222222222222222222222222222222",
-		MetadataBranch:      "docket",
 		MetadataRevision:    "3333333333333333333333333333333333333333",
 		Config:              testConfig(t),
 	}
@@ -99,11 +97,11 @@ func docketPin(t *testing.T) StatusPin {
 func mainPin(t *testing.T) StatusPin {
 	t.Helper()
 	return StatusPin{
-		Mode:                "main",
 		DefaultBranch:       "main",
 		DefaultRevision:     "4444444444444444444444444444444444444444",
 		IntegrationBranch:   "main",
 		IntegrationRevision: "4444444444444444444444444444444444444444",
+		MetadataRevision:    "4444444444444444444444444444444444444444",
 		Config:              testConfig(t),
 	}
 }
@@ -134,11 +132,10 @@ func adrBlob(id int, slug string) StatusBlob {
 
 // --- tests ----------------------------------------------------------------
 
-// TestStatusBothModesSourceDistinction is the artifact-source-distinction
-// probe target: in docket mode the operation asks the metadata source for a
-// spec and the integration source for a plan, so the recorded source names
-// diverge; a main-mode run threads its own (single-revision) pin verbatim.
-func TestStatusBothModesSourceDistinction(t *testing.T) {
+// TestStatusSourceDistinction is the artifact-source-distinction probe target:
+// the operation asks the metadata source for a spec and the integration source
+// for a plan, so the recorded source names diverge.
+func TestStatusSourceDistinction(t *testing.T) {
 	pin := docketPin(t)
 	specPath := "docs/changes/specs/spec-a.md"
 	planPath := "docs/changes/plans/plan-a.md"
@@ -185,24 +182,8 @@ func TestStatusBothModesSourceDistinction(t *testing.T) {
 			t.Errorf("reader received a mutated pin: %+v != %+v", p, pin)
 		}
 	}
-	if got.Context.MetadataMode != "docket" || got.Context.MetadataRevision != pin.MetadataRevision {
+	if got.Context.MetadataRevision != pin.MetadataRevision {
 		t.Errorf("context did not echo the pin: %+v", got.Context)
-	}
-}
-
-func TestStatusMainModeReadsSingleSource(t *testing.T) {
-	pin := mainPin(t)
-	fake := &fakeReader{
-		pin:    pin,
-		corpus: []StatusBlob{changeBlob(1, "one", "feat", "high", ""), changeBlob(2, "two", "fix", "low", "")},
-		facts:  domain.NewBranchFacts(nil),
-	}
-	got := Status(context.Background(), fake, StatusOptions{})
-	if got.Result != ResultApplied {
-		t.Fatalf("result = %q, want applied", got.Result)
-	}
-	if got.Context.MetadataBranch != "" || got.Context.MetadataRevision != "" {
-		t.Errorf("main-mode context carried a metadata branch: %+v", got.Context)
 	}
 }
 

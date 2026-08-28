@@ -338,16 +338,12 @@ func finalizeCleanupResult(id int, disp string, removed []string, findings []Sta
 	})
 }
 
-// finalizeCleanupBacklinkRepair re-runs the docket-mode integration-ref backlink
-// retarget idempotently. In the normal flow (closeout already retargeted the
-// blocks) it is a clean no-op; when closeout left the leg pending it lands the
-// exact generated-only patch. A failed/contended leg is a retryable
-// terminal-backlink-pending finding — the change stays truthfully done. Main mode
-// carries the backlinks in the metadata transaction, so there is no second leg.
+// finalizeCleanupBacklinkRepair re-runs the integration-ref backlink retarget
+// idempotently. In the normal flow (closeout already retargeted the blocks) it
+// is a clean no-op; when closeout left the leg pending it lands the exact
+// generated-only patch. A failed/contended leg is a retryable
+// terminal-backlink-pending finding — the change stays truthfully done.
 func finalizeCleanupBacklinkRepair(ctx context.Context, deps FinalizeDeps, cc *closeoutContext, facts githubcli.MergedFacts) *StatusFinding {
-	if cc.pin.Mode != "docket" {
-		return nil
-	}
 	archiveDate, ok := archiveDateFromMerge(facts.MergedAtUTC)
 	if !ok {
 		return nil

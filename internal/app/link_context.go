@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/danielhanold/docket/internal/render"
+	"github.com/danielhanold/docket/internal/reposetup"
 )
 
 // This file owns the app layer's link-context derivation (change 0341). The
@@ -45,10 +46,10 @@ func githubWebURL(remoteURL string) string {
 // linkContextOf is the sole constructor of the LinkContext app operations hand
 // to render: the repository web URL and the metadata branch travel together,
 // so no call site can silently omit the URL again — the exact defect 0341
-// fixes. Companion to metadataBranchOf.
+// fixes. The metadata records always live on the fixed docket branch.
 func linkContextOf(pin StatusPin) render.LinkContext {
 	return render.LinkContext{
 		RepoWebURL:     pin.RepoWebURL,
-		MetadataBranch: metadataBranchOf(pin),
+		MetadataBranch: reposetup.MetadataBranchName,
 	}
 }

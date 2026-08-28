@@ -39,9 +39,7 @@ func TestGithubWebURLAcceptedForms(t *testing.T) {
 // test must redden.
 func TestLinkContextOfCarriesBothFields(t *testing.T) {
 	pin := StatusPin{
-		Mode:           metadataModeDocket,
-		MetadataBranch: "docket",
-		RepoWebURL:     "https://github.com/owner/repo",
+		RepoWebURL: "https://github.com/owner/repo",
 	}
 	got := linkContextOf(pin)
 	want := render.LinkContext{RepoWebURL: "https://github.com/owner/repo", MetadataBranch: "docket"}
@@ -50,10 +48,5 @@ func TestLinkContextOfCarriesBothFields(t *testing.T) {
 	}
 	if url := got.BlobURL("docs/x.md"); url != "https://github.com/owner/repo/blob/docket/docs/x.md" {
 		t.Fatalf("BlobURL = %q", url)
-	}
-
-	pin = StatusPin{Mode: metadataModeMain, DefaultBranch: "main", RepoWebURL: "https://github.com/owner/repo"}
-	if got := linkContextOf(pin); got.MetadataBranch != "main" || got.RepoWebURL != "https://github.com/owner/repo" {
-		t.Fatalf("main-mode linkContextOf = %+v", got)
 	}
 }

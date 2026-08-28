@@ -9,6 +9,7 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
+	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/workspace"
 )
@@ -530,7 +531,7 @@ func probeFinalizeFacts(ctx context.Context, prober FinalizePRProber, repoDir st
 func finalizePolicy(pin StatusPin) FinalizePolicy {
 	eff := pin.Config.Effective
 	return FinalizePolicy{
-		RepoMode:             pin.Mode,
+		RepoMode:             reposetup.MetadataBranchName, // 0363 Task 5 removes this
 		IntegrationBranch:    pin.IntegrationBranch,
 		Remote:               string(originRemote),
 		Gate:                 eff.Finalize.Gate.Value,

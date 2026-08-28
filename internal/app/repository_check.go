@@ -145,7 +145,7 @@ func checkRevisions(facts reposetup.Facts) map[string]string {
 // never to a false absence — so a probe that could not run can never let the
 // classifier read healthy.
 func augmentCheckFacts(ctx context.Context, git *gitcli.Client, f *reposetup.Facts, sc setupContext) {
-	metaRef := gitcli.RefName(branchRefPrefix + sc.metadataBranch)
+	metaRef := gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)
 
 	// Metadata root shape: a single parentless root reachable from the tip is the
 	// docket orphan shape; extra parents, a non-root tip, or more than one root is

@@ -11,6 +11,7 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/render"
+	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/repository/transaction"
 	"github.com/danielhanold/docket/internal/workspace"
@@ -185,7 +186,7 @@ func ChangeHalt(ctx context.Context, deps PlanningDeps, repoDir string, req Halt
 	res, execErr := deps.Engine.Execute(ctx, transaction.Request{
 		Repository: repo,
 		Remote:     originRemote,
-		TargetRef:  gitcli.RefName(branchRefPrefix + metadataBranchOf(pin)),
+		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
 			Path:    gitcli.RepoPath(recPath),
 			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
@@ -266,7 +267,7 @@ func ChangeResumeHalted(ctx context.Context, deps PlanningDeps, wdeps WorkspaceD
 	res, execErr := deps.Engine.Execute(ctx, transaction.Request{
 		Repository: repo,
 		Remote:     originRemote,
-		TargetRef:  gitcli.RefName(branchRefPrefix + metadataBranchOf(pin)),
+		TargetRef:  gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName),
 		Expected: []transaction.EntityExpectation{{
 			Path:    gitcli.RepoPath(recPath),
 			Version: transaction.ExpectedVersion{Kind: transaction.VersionBlob, ObjectID: gitcli.ObjectID(req.Version)},
