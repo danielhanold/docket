@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'refactor/remove-main-mode-compatibility-from-go-v1'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-28T21:15:23Z'
+reconciled: true
+claimed_at: '2026-08-28T21:17:45Z'
 ---
 
 ## Artifacts
@@ -91,3 +91,16 @@ Go-only cutover.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-28
+
+### 2026-08-28 — reconcile at claim
+
+Verified against current `docket`/`main` reality before planning:
+
+- **Prerequisite 0352 is `done`** (archived `2026-08-28-0352-native-repository-initialization-and-health-check.md`). Its repository classifier (`reposetup.StateLegacy`), health findings, and native `repository init`/`repository migrate` operations are landed in `internal/app` — the shared operational-repository gate this change extracts has a real classifier to reuse.
+- **Main mode is still fully present** in production Go code, so the change is not obsolete and no other change has absorbed it. Confirmed live executable mode sites include `config.Effective.MetadataBranch` (`internal/config/config.go`, `defaults.go`, `resolve.go`), the `metadataModeMain`/`metadataModeDocket` selector and `StatusPin.Mode` assignment (`internal/app/status_git.go`), the `metadataBranchOf(pin)` helper (`internal/app/change_create.go` and its ~12 call sites across lifecycle/finalize/attach/reclaim/kill/halt), `status_result.go`'s `metadata_branch` JSON field, and `repository_facts.go`'s `metadataBranch`. Roughly 34 non-test executable sites carry the topology.
+- **Related changes 0305, 0309, 0310, 0312, 0315, 0316, 0326 are all `done`** — Go-migration groundwork — and none removed main mode. **0318 remains `proposed`** and is the later Go-only cutover; it is `waiting-on-363-unbuilt` and does not absorb this contraction. `integration_branch` flexibility and the orphan metadata-branch model are untouched, per the spec's exclusions.
+- **ADR posture unchanged:** this change supersedes ADR-0002 with a new one-topology decision and appends a dated cross-reference update to ADR-0001 (still Accepted); the new ADR id is allocated by the normal docket ADR workflow at review time and attached then.
+
+Scope, boundary, and acceptance criteria in the spec hold as written. No sections, spec sections, or relations changed.
