@@ -380,6 +380,24 @@
 # the release package (grooming: ~28.62s cold non-race) is expected to dominate the warm number, so
 # Task 7 re-derives this row from empty-GOCACHE readings and owns the final value. Rides the parallel
 # lane. EXPECTED_TOTAL moves 2585 -> 2610: +25.
+#
+# tests/test_release_partition_fidelity.sh is ONE NEW FILE brought by change 0362 — the header's
+# new-test-file case. It is the population floor of the release partition: the STRUCTURAL contract
+# tests/test_go_integration_contract.sh discovers packages from what EXISTS, so deleting
+# internal/release's tagged files AND its runner together shrinks discovery instead of reddening it.
+# This file pins the population against the committed map tests/fixtures/release-partition-map.tsv —
+# every mapped name must be listed by `go test -list` in its declared corpus, both directions. Its
+# cost is two `go test -list` probes of internal/release (default and -tags integration); it runs no
+# test binary. Not an extension of any shard: the shards each EXECUTE one feature's tagged tests,
+# and tests/test_go_integration_contract.sh proves the partition is total — this file proves the
+# committed map still describes the live corpus, the one deletion mode structural discovery is blind
+# to. PROVISIONAL row from the WORST of three warm standalone readings, one machine (darwin/arm64,
+# go1.26.5), as `/usr/bin/time -p bash tests/test_release_partition_fidelity.sh >/dev/null`:
+#   fidelity   warm 0.99 0.80 0.75 -> worst 0.99 -> next multiple of 5 is 5, plus 5 -> 10 (the floor)
+# provisional — finalized from three fresh-cache readings (0362 Task 7): the two `-list` probes share
+# GOCACHE with the other Go-touching files in the suite, so the cold-cache reading is the reachable
+# worst and Task 7 re-derives this row from empty-GOCACHE readings and owns the final value. Rides
+# the parallel lane. EXPECTED_TOTAL moves 2610 -> 2620: +10.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -485,6 +503,7 @@ tests/test_release_downloader.sh	10	parallel
 tests/test_release_downloader_converge.sh	10	parallel
 tests/test_release_downloader_refusals.sh	10	parallel
 tests/test_release_package.sh	10	parallel
+tests/test_release_partition_fidelity.sh	10	parallel
 tests/test_render_adr_index.sh	10	parallel
 tests/test_render_artifact_backlink.sh	10	parallel
 tests/test_render_board.sh	25	parallel

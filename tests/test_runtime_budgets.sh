@@ -31,7 +31,13 @@ EXPECTED_SERIAL=0   # no file is currently pinned serial. tests/test_go_race.sh 
                     # run no longer starves the other parallel jobs. RAISING THIS IS A FINDING: a
                     # serial pin removes a file from the parallel phase, so it must be justified in
                     # the same diff with the shared state that forces it.
-EXPECTED_TOTAL=2610 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2620 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2610 -> 2620 (change 0362, Task 5): ONE legitimate mover — a NEW test file
+                    # brings its own row. tests/test_release_partition_fidelity.sh is the population
+                    # floor that pins the committed release partition map against the live corpus (the
+                    # both-halves-deleted mode the structural contract is blind to). Provisional at 10
+                    # (the floor) from a warm reading (worst 0.99 -> 5 -> +5 -> 10); Task 7 re-derives
+                    # it from three fresh-cache readings and owns the final value (see the tsv header).
                     # 2585 -> 2610 (change 0362, Task 4): ONE legitimate mover — a NEW test file
                     # brings its own row. tests/test_go_integration_release.sh is the release
                     # packaging/archive integration SHARD (internal/release's slow real-tar/gzip/
