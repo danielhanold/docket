@@ -76,8 +76,20 @@ NL=$'\n'
 # reenumerate): the package someone forgets to enumerate is the one that leaks.
 # git ls-files is the census: tracked files only, no .git/.worktrees noise, and a
 # tagged file someone forgot to `git add` cannot certify anything anyway.
-int_files="$(git ls-files -- '*_integration_test.go')"
-assert "at least one *_integration_test.go exists (discovery is non-empty)" '[ -n "$int_files" ]'
+# The walk is ROOTED at the literal `internal` pathspec — every Go integration test in
+# this module lives under a package there — so it is provably bounded away from the
+# docs/results tree it must never reach (tests/test_skip_allowlist_invisibility.sh's
+# "no whole-tree walk ... can reach a file under the allowlisted results tree" guard). A
+# glob pathspec ('*_integration_test.go', or even 'internal/*_integration_test.go') is
+# NOT bounded there: git's '*' crosses path separators, so that guard classifies any
+# '*'-bearing positive pathspec as HAZARD. Rooting on the literal directory and
+# suffix-filtering the listing keeps the census tracked-only AND SCOPED. This is a root
+# bound, not a hand-maintained package allowlist: any internal/**/…_integration_test.go
+# is still discovered automatically. Capture-then-filter (never producer|grep under
+# pipefail); the suffix regex is basic ERE, /usr/bin/grep-safe.
+tracked_internal="$(git ls-files -- internal)"
+int_files="$(grep -E -e '_integration_test\.go$' <<<"$tracked_internal")"
+assert "at least one internal *_integration_test.go exists (discovery is non-empty)" '[ -n "$int_files" ]'
 PKGS="$(while read -r f; do [ -n "$f" ] && dirname "$f"; done <<<"$int_files" | LC_ALL=C sort -u)"
 # A discovered path must be a plain relative package dir: the `for pkg in $PKGS`
 # word-splitting and the `./pkg` construction downstream assume no whitespace and no
