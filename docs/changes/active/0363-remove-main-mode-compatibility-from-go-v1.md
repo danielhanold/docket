@@ -12,7 +12,7 @@ stacked_on:
 related: [318, 326, 305, 309, 310, 312, 315, 316]
 discovered_from: [352]
 adrs: [1, 2, 52, 69]
-spec:
+spec: docs/superpowers/specs/2026-08-28-remove-main-mode-compatibility-from-go-v1-design.md
 plan:
 results:
 trivial: false
@@ -28,6 +28,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-08-28-remove-main-mode-compatibility-from-go-v1-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-28-remove-main-mode-compatibility-from-go-v1-design.md) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0002](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0002-docket-mode-default-and-bootstrap.md), [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md), [ADR-0069](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0069-mode-conditioned-clause-discriminates-on-provenance.md) |
 <!-- docket:artifacts:end -->
 
@@ -71,16 +72,20 @@ Go-only cutover.
 - General configuration contraction unrelated to metadata topology, machine installation, Bash
   production removal, self-host acceptance, or release publication owned by change 0318.
 
-## Open questions
+## Design decisions
 
-- Which mode-shaped public JSON fields should disappear versus remain as constant compatibility
-  fields for protocol v1 clients?
-- What exact typed diagnostic should normal commands return for a legacy `metadata_branch: main`
-  repository, and how does that path share detection with 0352 without keeping main mode alive?
-- Which active tests and fixtures contain genuine docket-mode invariants that must be retained when
-  the two-mode matrices are removed, and which are compatibility-only deletion candidates?
-- Should the accepted main-mode decision be superseded by a new ADR or amended through an explicit
-  reversal record when this change is groomed?
+- Make a clean protocol-v1 break: remove the mode-shaped configuration and status JSON fields
+  rather than retaining constant compatibility values.
+- Reuse change 0352's repository classifier and exact `legacy-repository` finding through a shared
+  operational-context loader extracted from the existing status pin path. Normal repository-aware
+  commands require migration; only repository check and migrate diagnose or exit legacy state.
+- Keep `metadata_branch` solely as a decode-only obsolete tombstone and migration input. It never
+  contributes an effective value or selects a branch.
+- Preserve mode-independent tests by moving generic fixtures to docket topology and collapsing true
+  matrices to their docket row; delete only assertions whose subject is the retired topology, and
+  keep frozen compatibility inputs byte-identical.
+- Supersede ADR-0002 with a new one-topology decision while retaining ADR-0001 and appending a dated
+  cross-reference update because its orphan-branch architecture still stands.
 
 ## Reconcile log
 
