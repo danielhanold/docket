@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0352 — Native repository initialization, migration, and health checks](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0352-native-repository-initialization-and-health-check.md)**
+> ↩ **[Change 0352 — Native repository initialization, migration, and health checks](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-28-0352-native-repository-initialization-and-health-check.md)**
 <!-- docket:backlink:end -->
 # Native Repository Initialization, Migration, and Health Checks Implementation Plan
 
