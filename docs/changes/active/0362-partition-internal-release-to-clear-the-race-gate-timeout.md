@@ -13,7 +13,7 @@ related: [333, 361]
 discovered_from: [361]
 adrs: []
 spec: docs/superpowers/specs/2026-08-28-partition-internal-release-integration-tests-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-28-partition-internal-release-integration-tests.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-28T01:08:31Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-28-partition-internal-release-integration-tests-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-28-partition-internal-release-integration-tests-design.md) |
+| Plan | [2026-08-28-partition-internal-release-integration-tests.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-28-partition-internal-release-integration-tests.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
