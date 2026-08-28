@@ -37,6 +37,10 @@ EXPECTED_TOTAL=2765 # the sum of every ceiling, seeded with the table from the m
                     # gitcli integration SHARD (^TestIntegrationSetupTree: the setup-tree primitives).
                     # Finalized at 10 (this table's floor) from three standalone serial readings whose
                     # worst is 1.68 (1.68/1.09/1.11 -> next 5 -> 5 -> +5 -> 10). See the tsv header.
+                    # 2650 -> 2765 (change 0352, Tasks 8-12): +115 across six NEW app integration
+                    # shard files, each bringing its own row. reposetup 15, repocheck 20,
+                    # repomigration 20, reporecovery 20, repocontention 15, reposetup_race 25
+                    # (15+20+20+20+15+25 = 115). Per-row sizings are justified in the tsv header.
                     # 2620 -> 2640 (change 0362, Task 7): ONE legitimate mover — the release
                     # integration SHARD row is finalized from three fresh-GOCACHE readings.
                     # tests/test_go_integration_release.sh 25 -> 45: the worst cold reading is 38.47s
