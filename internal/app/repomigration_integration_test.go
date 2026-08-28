@@ -129,6 +129,15 @@ func (r *initRepo) runMigrate(t *testing.T, o MigrateOptions) RepositoryMigrateR
 	return RunRepositoryMigrate(context.Background(), SetupDeps{Git: client, RepoDir: r.invocation}, o)
 }
 
+// runMigrateWithHooks drives RunRepositoryMigrate with the generalized
+// interruption seam installed — the in-package channel package tests use to
+// crash a run between two durable Git effects.
+func (r *initRepo) runMigrateWithHooks(t *testing.T, o MigrateOptions, hooks setupHooks) RepositoryMigrateResult {
+	t.Helper()
+	client := newGitClient(t)
+	return RunRepositoryMigrate(context.Background(), SetupDeps{Git: client, RepoDir: r.invocation, hooks: hooks}, o)
+}
+
 // --- scenarios ---------------------------------------------------------------
 
 // TestIntegrationRepoMigrationExactCopyAndRemovalSets proves the seed tree is
@@ -390,16 +399,17 @@ func TestIntegrationRepoMigrationMigrateIsIdempotent(t *testing.T) {
 func TestIntegrationRepoMigrationLocalMovedAfterPublish(t *testing.T) {
 	r := newInitRepo(t, legacyDocketYML, cleanLegacyFiles())
 
-	testHookAfterRemotePublish = func() {
+	hooks := setupHooks{beforeLocalFinish: func() error {
 		// Advance the local primary between the remote publication and the local
-		// fast-forward decision.
+		// fast-forward decision. Returning nil lets the local finish still run and
+		// report the pending local sync.
 		writeRepoFile(t, r.invocation, "local-only.txt", "advanced after publish\n")
 		runGit(t, r.invocation, "add", "--", "local-only.txt")
 		runGit(t, r.invocation, "commit", "-q", "-m", "local advance after publish")
-	}
-	defer func() { testHookAfterRemotePublish = nil }()
+		return nil
+	}}
 
-	res := r.runMigrate(t, MigrateOptions{Authorized: true})
+	res := r.runMigrateWithHooks(t, MigrateOptions{Authorized: true}, hooks)
 	if res.Result != ResultApplied {
 		t.Fatalf("migrate = %q (%s), want applied", res.Result, res.HumanText())
 	}
@@ -410,7 +420,6 @@ func TestIntegrationRepoMigrationLocalMovedAfterPublish(t *testing.T) {
 	intTip := r.originTip(t, "main")
 
 	// Retry: the remote is already migrated, so the retry performs no remote work.
-	testHookAfterRemotePublish = nil
 	retry := r.runMigrate(t, MigrateOptions{Authorized: true})
 	if retry.Result != ResultNoOp {
 		t.Fatalf("retry = %q (%s), want no-op (remote already migrated)", retry.Result, retry.HumanText())

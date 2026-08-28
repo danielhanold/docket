@@ -32,9 +32,43 @@ func setupRemote() gitcli.RemoteName { return originRemote }
 // SetupDeps carries the seams every repository service shares: the gitcli client
 // that performs all Git effects and the invocation directory from which the
 // canonical primary worktree is discovered.
+//
+// hooks is an unexported interruption-injection seam, nil in production and
+// settable only from package tests. It lets a test crash the migration between
+// any two durable Git effects (before/after the seed push, before/after the
+// prune push, before the local finish) to exercise response-loss and
+// partial-state recovery. Because the field is unexported and SetupDeps is
+// constructed by callers outside this package with only the exported fields, no
+// production path can install a hook.
 type SetupDeps struct {
 	Git     *gitcli.Client
 	RepoDir string // invocation dir; Discover resolves the canonical primary
+	hooks   setupHooks
+}
+
+// setupHooks is the generalized interruption seam. Each hook, when non-nil, is
+// invoked at exactly one boundary of the migration publication sequence; a
+// non-nil error it returns aborts the run at that point (simulating a lost
+// response or an abrupt death just after the preceding durable effect) so a
+// re-run must recover from the durable remote state alone. All hooks are nil in
+// production. beforeLocalFinish fires after BOTH remote postconditions are
+// published and re-read and before the local finish — the seam the
+// LocalMovedAfterPublish scenario advances the local primary through (returning
+// nil so the finish still runs and reports the pending local sync).
+type setupHooks struct {
+	beforeSeedPush    func() error
+	afterSeedPush     func() error
+	beforePrunePush   func() error
+	afterPrunePush    func() error
+	beforeLocalFinish func() error
+}
+
+// fire invokes hook when it is non-nil, returning its error (nil hook → nil).
+func fire(hook func() error) error {
+	if hook == nil {
+		return nil
+	}
+	return hook()
 }
 
 // setupProber is the narrow interface over the gitcli methods the fact gatherer
@@ -355,4 +389,163 @@ func docketWorktreeFact(ctx context.Context, p setupProber, repo gitcli.Reposito
 	// A .docket directory git does not know as a worktree of this repo is foreign.
 	fact.Foreign = true
 	return fact
+}
+
+// --- partial-phase recovery probing ------------------------------------------
+//
+// These helpers give the migration recovery branches the three facts the spec's
+// interruption boundaries decide on, all read from the durable remote state that
+// is the recovery journal (never a local proxy): the published metadata tip's
+// ROOT SHAPE (a single parentless orphan root is ours-shaped; anything else is
+// foreign), its RECEIPT (the versioned operation marker that proves docket
+// authored it), and LEGACY-EQUIVALENT TREE EQUALITY (a bash-era seed carries no
+// receipt, so a published tree that exactly equals the seed recomposed from the
+// CURRENT pinned source proves the same postcondition a receipt would). Every
+// probe returns its error rather than folding it into a false absence (learning
+// probe-error-is-not-clean-absence).
+
+// metadataRootParentless reports whether tip is a single parentless orphan root
+// — the ours-shaped ancestry every docket seed carries. A probe error is
+// returned, never read as a clean "foreign".
+func metadataRootParentless(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, tip gitcli.ObjectID) (bool, error) {
+	roots, err := git.RootCommits(ctx, repo, tip)
+	if err != nil {
+		return false, err
+	}
+	return len(roots) == 1 && roots[0] == tip, nil
+}
+
+// publishedSeedReceipt scans the published metadata tip's trailers and returns
+// the decoded docket receipt when the tip carries one. ok is false when the tip
+// carries no recognized receipt (a legacy bash-era seed, adopted via tree
+// equality instead). A scan error is returned.
+func publishedSeedReceipt(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, tip gitcli.ObjectID) (reposetup.Receipt, bool, error) {
+	scans, err := git.ScanCommitTrailers(ctx, repo, tip, []string{reposetup.TrailerOperation})
+	if err != nil {
+		return reposetup.Receipt{}, false, err
+	}
+	for _, s := range scans {
+		if s.Commit != tip {
+			continue
+		}
+		rec, ok := reposetup.ParseReceipt(fromGitcliTrailers(s.Trailers))
+		return rec, ok, nil
+	}
+	return reposetup.Receipt{}, false, nil
+}
+
+// remoteTreeEquals reports whether the commit at tip carries exactly expected as
+// its tree — the byte-exact postcondition the seed/prune re-reads key on. A
+// probe error is returned.
+func remoteTreeEquals(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, tip, expected gitcli.ObjectID) (bool, error) {
+	tree, err := git.TreeOID(ctx, repo, tip)
+	if err != nil {
+		return false, err
+	}
+	return tree == expected, nil
+}
+
+// fromGitcliTrailers maps gitcli.Trailer pairs back to reposetup's gitcli-free
+// trailer pairs — the read-side counterpart of toGitcliTrailers.
+func fromGitcliTrailers(in []gitcli.Trailer) []reposetup.Trailer {
+	out := make([]reposetup.Trailer, len(in))
+	for i, t := range in {
+		out[i] = reposetup.Trailer{Key: t.Key, Value: t.Value}
+	}
+	return out
+}
+
+// --- abrupt-death debris cleanup ---------------------------------------------
+
+// setupTmpWorktreePrefix and setupTmpRefNamespace are the invocation-unique
+// owned-naming shapes the repository services reserve for any transient worktree
+// or ref: a temp worktree sits OUTSIDE the repository at a sibling path whose
+// base name starts with setupTmpWorktreePrefix, and its paired ref lives beneath
+// the owned setupTmpRefNamespace under refs/docket/. Only these exact shapes are
+// recognized as owned transient debris and removed; a user worktree or an
+// ambiguous registration (owned-looking but not the exact removable shape) is
+// preserved and reported, never removed.
+const (
+	setupTmpWorktreePrefix = ".docket-setup-tmp-"
+	setupTmpRefNamespace   = "refs/docket/setup-tmp/"
+)
+
+// debrisProber is the narrow seam the debris sweep drives: worktree enumeration,
+// worktree removal, and owned-ref existence/removal. *gitcli.Client satisfies
+// it; a package test injects a fake to force the enumeration probe to error and
+// prove the sweep RETAINS debris rather than reading an errored probe as a clean
+// absence (learning probe-error-is-not-clean-absence).
+type debrisProber interface {
+	ListWorktrees(ctx context.Context, repo gitcli.Repository) ([]gitcli.WorktreeInfo, error)
+	RemoveWorktree(ctx context.Context, repo gitcli.Repository, path string) error
+	ResolveRef(ctx context.Context, repo gitcli.Repository, ref gitcli.RefName) (gitcli.ObjectID, error)
+	DeleteOwnedRef(ctx context.Context, repo gitcli.Repository, ref gitcli.RefName) error
+}
+
+// setupDebrisReport records what a sweep did: the exact owned transient
+// worktrees/refs removed, the preserved owned-looking-but-ambiguous
+// registrations, and any warnings (an enumeration probe that errored, or a
+// removal that failed) — surfaced so retained debris is never silent.
+type setupDebrisReport struct {
+	removedWorktrees []string
+	removedRefs      []string
+	preserved        []string
+	warnings         []string
+}
+
+// pending renders the operator-facing lines a sweep contributes: the ambiguous
+// registrations it refused to remove and any warnings. Routine clean removals
+// are not surfaced.
+func (r setupDebrisReport) pending() []string {
+	var out []string
+	for _, p := range r.preserved {
+		out = append(out, "left an ambiguous worktree registration in place (not an exact owned transient): "+p)
+	}
+	out = append(out, r.warnings...)
+	return out
+}
+
+// sweepSetupDebris removes exactly the owned transient worktrees/refs an abrupt
+// death may have left, recognizing them by ownership shape and NOTHING else. A
+// worktree whose base name starts with setupTmpWorktreePrefix AND is detached is
+// an exact owned transient: it and its paired owned ref are removed. An
+// owned-looking registration that is NOT in that exact shape (attached to a
+// branch, or an empty token) is ambiguous — preserved and reported, never
+// removed. A user worktree is untouched. If the enumeration probe itself errors,
+// the sweep removes nothing and warns: an errored probe is not proof the debris
+// is absent.
+func sweepSetupDebris(ctx context.Context, p debrisProber, repo gitcli.Repository) setupDebrisReport {
+	var rep setupDebrisReport
+	wts, err := p.ListWorktrees(ctx, repo)
+	if err != nil {
+		rep.warnings = append(rep.warnings, "could not enumerate worktrees to identify setup debris; leaving any transient state in place: "+err.Error())
+		return rep
+	}
+	for _, wt := range wts {
+		base := filepath.Base(filepath.Clean(wt.Path))
+		if !strings.HasPrefix(base, setupTmpWorktreePrefix) {
+			continue // a user worktree: not owned-shaped, never touched
+		}
+		token := strings.TrimPrefix(base, setupTmpWorktreePrefix)
+		if token == "" || !wt.Detached {
+			// Owned-looking but not the exact removable shape: preserve and report.
+			rep.preserved = append(rep.preserved, wt.Path)
+			continue
+		}
+		if rerr := p.RemoveWorktree(ctx, repo, wt.Path); rerr != nil {
+			rep.warnings = append(rep.warnings, "failed to remove setup debris worktree "+wt.Path+": "+rerr.Error())
+			continue
+		}
+		rep.removedWorktrees = append(rep.removedWorktrees, wt.Path)
+		ref := gitcli.RefName(setupTmpRefNamespace + token)
+		if _, rerr := p.ResolveRef(ctx, repo, ref); rerr != nil {
+			continue // no paired ref (already gone): nothing more to remove
+		}
+		if derr := p.DeleteOwnedRef(ctx, repo, ref); derr != nil {
+			rep.warnings = append(rep.warnings, "failed to remove setup debris ref "+string(ref)+": "+derr.Error())
+			continue
+		}
+		rep.removedRefs = append(rep.removedRefs, string(ref))
+	}
+	return rep
 }
