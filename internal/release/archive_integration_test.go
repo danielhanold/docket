@@ -144,7 +144,7 @@ func TestIntegrationReleaseArchiveVerifyRoundTrip(t *testing.T) {
 	}
 }
 
-// TestWriteArchiveNoHostLeakage reopens WriteArchive's own output and pins the
+// TestIntegrationReleaseArchiveWriteNoHostLeakage reopens WriteArchive's own output and pins the
 // header fields that would otherwise leak the building host's identity, plus
 // the USTAR format selection.
 func TestIntegrationReleaseArchiveWriteNoHostLeakage(t *testing.T) {
@@ -171,7 +171,7 @@ func TestIntegrationReleaseArchiveWriteNoHostLeakage(t *testing.T) {
 	}
 }
 
-// TestVerifyArchiveRefusals hands VerifyArchive a battery of hostile archives
+// TestIntegrationReleaseArchiveVerifyRefusals hands VerifyArchive a battery of hostile archives
 // crafted directly with archive/tar and asserts each is refused with an error
 // that names the offending member (learning guards-are-code — each guard has a
 // distinct, mutation-tested branch).
