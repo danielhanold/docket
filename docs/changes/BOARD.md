@@ -1,13 +1,12 @@
 # Backlog
 
-**362 changes** — 🟢 2 in progress · 🟡 52 proposed · ⚪ 4 deferred · ✅ 222 done · 🗑️ 82 killed
+**362 changes** — 🟢 1 in progress · 🟡 52 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 222 done · 🗑️ 82 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0361](active/0361-release-candidate-source-gate-macos-runner.md) | Release-candidate source-gate green on a macOS runner | `high` | `fix` | [spec](../superpowers/specs/2026-08-27-release-candidate-source-gate-macos-runner-design.md) | `fix/release-candidate-source-gate-macos-runner` |
-| [0362](active/0362-partition-internal-release-to-clear-the-race-gate-timeout.md) | Partition internal/release integration tests to clear the race-gate per-package timeout | `high` | `refactor` | [spec](../superpowers/specs/2026-08-28-partition-internal-release-integration-tests-design.md) | `refactor/partition-internal-release-to-clear-the-race-gate-timeout` |
 
 ## 🟡 Proposed (52)
 
@@ -74,6 +73,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0362](active/0362-partition-internal-release-to-clear-the-race-gate-timeout.md) | Partition internal/release integration tests to clear the race-gate per-package timeout | `high` | `refactor` | [#247](https://github.com/danielhanold/docket/pull/247) |  |
 
 ```mermaid
 graph TD

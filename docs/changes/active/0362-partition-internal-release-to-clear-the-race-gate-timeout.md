@@ -2,7 +2,7 @@
 id: 362
 slug: partition-internal-release-to-clear-the-race-gate-timeout
 title: 'Partition internal/release integration tests to clear the race-gate per-package timeout'
-status: 'in-progress'
+status: 'implemented'
 priority: high
 type: refactor
 created: 2026-08-28
@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable:
 branch: 'refactor/partition-internal-release-to-clear-the-race-gate-timeout'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/247'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-28T02:35:59Z'
