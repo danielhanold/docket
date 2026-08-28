@@ -6,13 +6,13 @@ status: proposed
 priority: critical
 type: refactor
 created: 2026-08-12
-updated: 2026-08-18
-depends_on: [317]
+updated: 2026-08-28
+depends_on: [317, 352]
 stacked_on:
-related: [322, 326]
+related: [322, 326, 361]
 discovered_from: [303]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-28-config-contraction-self-hosting-and-hard-cutover-design.md
 plan:
 results:
 trivial: false
@@ -26,31 +26,40 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-28-config-contraction-self-hosting-and-hard-cutover-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-28-config-contraction-self-hosting-and-hard-cutover-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
 Docket must prove that the installed Go product can manage its own complete real lifecycle before
-the production Bash implementation is removed. The minimal capability contraction needed to start
-that lifecycle now lands earlier in 0326.
+the production Bash implementation is removed. The final cutover must preserve settled Go v1
+compatibility and rollback boundaries while publishing the first public Go release candidate.
 
 ## What changes
 
-Rehearse and verify full self-hosting from the installed runtime; finish any configuration and
-migration-ledger cleanup not owned by 0326; capture migration learnings manually; remove production
-Bash and Bash-only tests; replace active documentation; publish and verify the hard Go cutover.
+- Require 0352's native repository initialization and health operation family before cutover.
+- Rehearse and verify full self-hosting from the exact installed candidate through Claude, Codex,
+  Cursor, and OpenCode.
+- Finish remaining active configuration and migration-ledger cleanup, and capture migration
+  learnings manually through Go.
+- Remove production Bash and implementation-only Bash tests while preserving retained product
+  coverage and the two approved POSIX bootstrap/downloader surfaces.
+- Replace active documentation and publish the exact accepted artifacts as `v1.0.0-rc1`.
 
 ## Out of scope
 
-Reintroducing deferred capabilities, repeating 0322's bootstrap/adoption or 0326's early
-configuration contraction, retaining a Bash fallback, Homebrew, and changing the existing
-repository compatibility contract.
+Implementing 0352, reintroducing deferred capabilities, repeating 0322's bootstrap/adoption or
+0326's early configuration contraction, retaining a Bash fallback, changing the existing-repository
+compatibility contract, Homebrew, or stable `v1.0.0` promotion.
 
-## Open questions
+## Design decisions
 
-Settle the exact deletion and rollback rehearsal after release acceptance passes. The early
-authorization to disable `auto_capture`, terminal publishing, build checkpoints, and results-only
-gate skipping is consumed by 0326 and is not reopened here.
+The public tag is `v1.0.0-rc1`. The exact post-merge candidate is packaged once, accepted through
+the four target tuples and four fresh host sessions, rehearsed against an isolated `v0.9.2`
+rollback copy, then published without rebuilding. Historical records and the frozen rollback corpus
+are not rewritten during active-surface cleanup.
 
 ## Reconcile log
 
