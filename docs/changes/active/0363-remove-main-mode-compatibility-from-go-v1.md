@@ -13,7 +13,7 @@ related: [318, 326, 305, 309, 310, 312, 315, 316]
 discovered_from: [352]
 adrs: [1, 2, 52, 69]
 spec: docs/superpowers/specs/2026-08-28-remove-main-mode-compatibility-from-go-v1-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-28-remove-main-mode-compatibility-from-go-v1.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-28T21:18:29Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-28-remove-main-mode-compatibility-from-go-v1-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-28-remove-main-mode-compatibility-from-go-v1-design.md) |
+| Plan | [2026-08-28-remove-main-mode-compatibility-from-go-v1.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-28-remove-main-mode-compatibility-from-go-v1.md) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0002](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0002-docket-mode-default-and-bootstrap.md), [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md), [ADR-0069](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0069-mode-conditioned-clause-discriminates-on-provenance.md) |
 <!-- docket:artifacts:end -->
 
