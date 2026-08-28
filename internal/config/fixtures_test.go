@@ -509,7 +509,7 @@ func TestFixtureDocketSelf(t *testing.T) {
 	// The frozen copy was re-cut into a newer versioned tree when change 0326
 	// contracted docket's own .docket.yml (the three committed deferred switches
 	// turned explicitly false); this test — and only this test — reads that tree.
-	const docketSelfRoot = "../../testdata/repositories/v0.9.4"
+	const docketSelfRoot = "../../testdata/repositories/v0.9.5"
 
 	assertFrozenCopyMatchesLive(t,
 		filepath.Join(docketSelfRoot, "docket-self", "repo", ".docket.yml"),
