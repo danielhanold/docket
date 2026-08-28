@@ -2,7 +2,7 @@
 id: 352
 slug: native-repository-initialization-and-health-check
 title: 'Native repository initialization, migration, and health checks'
-status: 'implemented'
+status: 'done'
 priority: high
 type: feat
 created: 2026-08-26
@@ -21,7 +21,7 @@ branch: 'feat/native-repository-initialization-and-health-check'
 pr: 'https://github.com/danielhanold/docket/pull/249'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-28T16:03:49Z'
+claimed_at:
 ---
 
 ## Artifacts
