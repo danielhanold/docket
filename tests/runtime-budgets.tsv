@@ -447,6 +447,22 @@
 #   repomigration  cold 10.30 10.32 10.34 -> worst 10.34 -> next multiple of 5 is 15, plus 5 -> 20
 # The eight scenarios run in ~5.8s; the rest is the tagged app-package compile. Headroom at 20: ~9.7s over the worst
 # cold reading, well under the 60s ceiling. EXPECTED_TOTAL moves 2685 -> 2705: +20.
+#
+# tests/test_go_integration_app_reporecovery.sh is change 0352 Task 11: migration interruption, response-loss, and
+# partial-state recovery — the six spec boundaries (before-seed-push leaves no remote + retry; seed-push response
+# lost adopts the durable seed, a tampered seed conflicts; a bash-shaped partial seed is adopted prune-only or
+# finished local-only; integration advanced before prune rebuilds atop the fresh tip, updates the seed under its
+# owned lease on a planning-byte change, and refuses a foreign advance; prune-push response lost finishes locally on
+# the exact postcondition and contends on a moved tip; abrupt-death debris is removed by ownership shape while a user
+# worktree / ambiguous registration is preserved and an errored probe retains it), prefix ^TestIntegrationRepoRecovery,
+# in the normal (parallel) lane. Its own shard: no existing prefix is a name-prefix of TestIntegrationRepoRecovery, and
+# each scenario scripts a full legacy repo and crashes a real migration at a chosen boundary through the setupHooks
+# seam. Sized per this header's rule from the WORST of three fresh-GOCACHE readings, idle Mac15,6 / macOS 26.6.2 /
+# go1.26.5 darwin/arm64, as
+# `fresh=$(mktemp -d ...); GOCACHE=$fresh /usr/bin/time -p bash tests/test_go_integration_app_reporecovery.sh >/dev/null`:
+#   reporecovery  cold 13.97 13.75 13.79 -> worst 13.97 -> next multiple of 5 is 15, plus 5 -> 20
+# The six boundary tests run in ~9.3s; the rest is the tagged app-package compile. Headroom at 20: ~6s over the worst
+# cold reading, well under the 60s ceiling. EXPECTED_TOTAL moves 2705 -> 2725: +20.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -517,6 +533,7 @@ tests/test_go_integration_app_merge.sh	30	parallel
 tests/test_go_integration_app_rebase.sh	25	parallel
 tests/test_go_integration_app_repocheck.sh	20	parallel
 tests/test_go_integration_app_repomigration.sh	20	parallel
+tests/test_go_integration_app_reporecovery.sh	20	parallel
 tests/test_go_integration_app_reposetup.sh	15	parallel
 tests/test_go_integration_app_state.sh	50	parallel
 tests/test_go_integration_app_workflow.sh	45	parallel

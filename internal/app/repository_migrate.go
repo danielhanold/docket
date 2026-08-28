@@ -42,14 +42,6 @@ const (
 // carries when composed into a tree.
 const blobMode = gitcli.FileMode("100644")
 
-// testHookAfterRemotePublish, when non-nil, is invoked by RunRepositoryMigrate
-// immediately after BOTH remote postconditions are published and re-read and
-// before the local finish. It is nil in production and settable only from
-// package tests, which use it to advance the local primary between the remote
-// publication and the local fast-forward decision (the LocalMovedAfterPublish
-// scenario). Task 11 generalizes this single seam into the full setupHooks set.
-var testHookAfterRemotePublish func()
-
 // MigrateOptions carries the two-pass authorization the CLI resolves. Authorized
 // is true only via --yes or an interactive confirmed preview; RepairAuthorized
 // is --repair-frontmatter; ExpectedSource is the pinned integration OID the
@@ -113,7 +105,8 @@ const (
 	phaseRefuse          migratePhase = iota // a refusal was produced
 	phaseLegacyFull                          // legacy: full seed + prune + local finish
 	phaseResumePrune                         // partial (seed published, surface still live): resume at prune
-	phaseAlreadyMigrated                     // remote migrated, no live surface: no-op
+	phaseResumeLocal                         // remote fully migrated, local attachment incomplete: local steps only
+	phaseAlreadyMigrated                     // remote migrated and local attached: no-op
 )
 
 // RunRepositoryMigrate converts a legacy repository onto the docket topology
@@ -126,13 +119,30 @@ func RunRepositoryMigrate(ctx context.Context, d SetupDeps, o MigrateOptions) Re
 	if err != nil {
 		return migrateGatherFailure(err)
 	}
+	// Before any phase logic, remove exactly the owned transient worktrees/refs an
+	// abrupt death of a prior invocation may have left (recognized by ownership
+	// shape; a user worktree or ambiguous registration is preserved and reported).
+	debris := sweepSetupDebris(ctx, d.Git, sc.repo)
+	return mergeMigrateDebris(migratePhaseDispatch(ctx, d, o, facts, sc), debris)
+}
 
+// migratePhaseDispatch is RunRepositoryMigrate's body once facts are gathered and
+// debris is swept: it routes on the re-read remote postconditions and drives the
+// selected phase to a result. It is split out so the debris sweep can wrap it
+// without threading its report through every branch.
+func migratePhaseDispatch(ctx context.Context, d SetupDeps, o MigrateOptions, facts reposetup.Facts, sc setupContext) RepositoryMigrateResult {
 	phase, refusal := migrateRoute(ctx, d.Git, facts, sc)
 	if refusal != nil {
 		return *refusal
 	}
 	if phase == phaseAlreadyMigrated {
 		return migrateNoOp(sc.sourceRevision)
+	}
+	if phase == phaseResumeLocal {
+		// The remote is fully migrated; only the local attachment is incomplete.
+		// Perform only the clean fast-forward/worktree/hook/ownership steps that
+		// are still provably safe — no remote write, no re-authorization.
+		return migrateResumeLocal(ctx, d.Git, d.hooks, facts, sc)
 	}
 
 	sourceRevision := sc.sourceRevision
@@ -175,14 +185,16 @@ func RunRepositoryMigrate(ctx context.Context, d SetupDeps, o MigrateOptions) Re
 	}
 
 	// Authorized. Publish the remote postconditions, then finish locally.
-	return migrateExecute(ctx, d.Git, facts, sc, plan, mr, phase)
+	return migrateExecute(ctx, d.Git, d.hooks, facts, sc, plan, mr, phase)
 }
 
 // migrateRoute classifies the gathered remote postconditions into a migration
-// phase or a refusal. It probes the metadata root shape itself (a bounded
-// RootCommits read) because the base gatherer deliberately leaves it unproven;
-// Task 11 folds this probe into the gatherer. Every probe error is surfaced, never
-// read as a clean absence (learning probe-error-is-not-clean-absence).
+// phase or a refusal. When the metadata branch is present it fetches it and
+// probes the root shape (metadataRootParentless) directly against the re-read
+// remote tip — the base gatherer deliberately leaves the root shape unproven so
+// the authoritative adopt/conflict decision keys on the promised remote state,
+// not a gather-time proxy. Every probe error is surfaced, never read as a clean
+// absence (learning probe-error-is-not-clean-absence).
 func migrateRoute(ctx context.Context, git *gitcli.Client, facts reposetup.Facts, sc setupContext) (migratePhase, *RepositoryMigrateResult) {
 	if u := migrateUnknownProbes(facts); len(u) > 0 {
 		r := migrateRefusal(reposetup.StateUnknown,
@@ -204,20 +216,36 @@ func migrateRoute(ctx context.Context, git *gitcli.Client, facts reposetup.Facts
 			"the repository has no legacy planning surface to migrate; run `docket repository init` to create the metadata topology")
 		return phaseRefuse, &r
 	case reposetup.PresencePresent:
-		roots, err := git.RootCommits(ctx, sc.repo, gitcli.ObjectID(sc.metadataTip))
+		// Fetch the published metadata branch so its object is local, then re-read
+		// its tip authoritatively (ls-remote gave only the id at gather time). The
+		// branch decision keys on this re-read, never a local proxy.
+		rev, ferr := git.FetchBranch(ctx, sc.repo, setupRemote(), gitcli.RefName(branchRefPrefix+sc.metadataBranch))
+		if ferr != nil {
+			r := migrateExternalFailure(reposetup.StateConflict, "re-reading the published metadata branch", ferr)
+			return phaseRefuse, &r
+		}
+		parentless, err := metadataRootParentless(ctx, git, sc.repo, rev.Commit)
 		if err != nil {
 			r := migrateExternalFailure(reposetup.StateConflict, "inspecting the published metadata branch", err)
 			return phaseRefuse, &r
 		}
-		if len(roots) != 1 || string(roots[0]) != sc.metadataTip {
+		if !parentless {
+			// A foreign metadata advance (a non-orphan tip, or more than one root):
+			// refuse. Never overwrite it.
 			r := migrateRefusal(reposetup.StateConflict,
 				"the remote docket branch is not a single-parentless-root docket metadata branch; inspect and resolve it manually, then run `docket repository check`")
 			return phaseRefuse, &r
 		}
 		if facts.LiveSurface == reposetup.PresencePresent {
+			// Seed published, integration still live: resume at the prune phase.
 			return phaseResumePrune, nil
 		}
-		return phaseAlreadyMigrated, nil
+		// Both remote postconditions are proven. If the local .docket attachment is
+		// still incomplete, finish only the local steps; otherwise it is a no-op.
+		if facts.DocketWorktree.Registered == reposetup.PresencePresent {
+			return phaseAlreadyMigrated, nil
+		}
+		return phaseResumeLocal, nil
 	default:
 		r := migrateRefusal(reposetup.StateUnknown,
 			"the remote docket branch presence could not be resolved; run `docket repository check`")
@@ -414,7 +442,7 @@ func repairedCandidateErrors(cfg config.Effective, mr migrationRepairs) []string
 // protection, verifies its exact remote postcondition before pruning, publishes
 // the integration descendant under an exact source-revision lease, verifies that
 // postcondition, and only then attaches the local metadata worktree.
-func migrateExecute(ctx context.Context, git *gitcli.Client, facts reposetup.Facts, sc setupContext, plan reposetup.MigrationPlan, mr migrationRepairs, phase migratePhase) RepositoryMigrateResult {
+func migrateExecute(ctx context.Context, git *gitcli.Client, hooks setupHooks, facts reposetup.Facts, sc setupContext, plan reposetup.MigrationPlan, mr migrationRepairs, phase migratePhase) RepositoryMigrateResult {
 	sourceRevision := sc.sourceRevision
 	sourceOID := gitcli.ObjectID(sourceRevision)
 	docketRef := gitcli.RefName(branchRefPrefix + sc.metadataBranch)
@@ -458,11 +486,20 @@ func migrateExecute(ctx context.Context, git *gitcli.Client, facts reposetup.Fac
 	seedReceipt.CopyDigest = string(seedTree)
 
 	// Publish or adopt the metadata seed. On a resume (the seed already published,
-	// integration still live) the remote tip is adopted rather than re-created.
+	// integration still live) the durable remote seed is adopted — and, when the
+	// pinned source has moved on since it was seeded, reconciled to the current
+	// seed under its exact owned lease — rather than re-created.
 	var metadataTip gitcli.ObjectID
 	if phase == phaseResumePrune {
-		metadataTip = gitcli.ObjectID(sc.metadataTip)
+		tip, refusal := reconcileResumeSeed(ctx, git, sc, docketRef, seedReceipt, seedTree)
+		if refusal != nil {
+			return *refusal
+		}
+		metadataTip = tip
 	} else {
+		if err := fire(hooks.beforeSeedPush); err != nil {
+			return migrateExternalFailure(reposetup.StateLegacy, "seeding the metadata branch (interrupted before publication)", err)
+		}
 		seedCommit, err := git.CommitTree(ctx, sc.repo, seedTree, nil, migrateSeedSubject, toGitcliTrailers(seedReceipt.Trailers()))
 		if err != nil {
 			return migrateExternalFailure(reposetup.StateLegacy, "creating the metadata seed commit", err)
@@ -472,11 +509,16 @@ func migrateExecute(ctx context.Context, git *gitcli.Client, facts reposetup.Fac
 			return *refusal
 		}
 		metadataTip = tip
+		if err := fire(hooks.afterSeedPush); err != nil {
+			return migrateExternalFailure(reposetup.StateLegacy, "seeding the metadata branch (response lost after publication)", err)
+		}
 	}
 
 	// Verify every seed path FROM THE REMOTE before pruning (learning
 	// idempotency-keying / response-loss safety): the branch decision keys on the
-	// re-read remote tree, never the local commit we believe we pushed.
+	// re-read remote tree, never the local commit we believe we pushed. This is the
+	// deferred mutation probe (c) target — reading the local ref here instead would
+	// let a lost response or a tampered remote seed pass unnoticed.
 	if refusal := verifySeedPublished(ctx, git, sc, docketRef, metadataTip, seedTree, includedPrefixes); refusal != nil {
 		return *refusal
 	}
@@ -498,6 +540,10 @@ func migrateExecute(ctx context.Context, git *gitcli.Client, facts reposetup.Fac
 	pruneCommit, err := git.CommitTree(ctx, sc.repo, pruneTree, []gitcli.ObjectID{sourceOID}, migratePruneSubject, toGitcliTrailers(pruneReceipt.Trailers()))
 	if err != nil {
 		return migrateExternalFailure(reposetup.StateLegacy, "creating the integration prune commit", err)
+	}
+
+	if err := fire(hooks.beforePrunePush); err != nil {
+		return migrateExternalFailure(reposetup.StateLegacy, "pruning the integration branch (interrupted before publication)", err)
 	}
 
 	// Publish the integration descendant under an exact source-revision lease: it
@@ -526,15 +572,131 @@ func migrateExecute(ctx context.Context, git *gitcli.Client, facts reposetup.Fac
 		return migrateContended(string(integrationTip.Commit), sourceRevision)
 	}
 
-	// Both remote postconditions are durable. A test seam may now advance the
-	// local primary to exercise the moved-after-publish remedy.
-	if testHookAfterRemotePublish != nil {
-		testHookAfterRemotePublish()
+	// Both remote postconditions are durable and re-read-verified. An afterPrunePush
+	// seam that errors here simulates a lost response / abrupt death right after the
+	// prune landed: the remote migration stands, and a re-run finishes locally.
+	if err := fire(hooks.afterPrunePush); err != nil {
+		return migrateExternalFailure(reposetup.StateLegacy, "pruning the integration branch (response lost after publication)", err)
+	}
+
+	// Both remote postconditions are durable. The beforeLocalFinish seam fires here
+	// — the LocalMovedAfterPublish scenario advances the local primary through it
+	// (returning nil so the finish still runs and reports the pending local sync).
+	if err := fire(hooks.beforeLocalFinish); err != nil {
+		return migrateExternalFailure(reposetup.StateLegacy, "finishing the local attachment", err)
 	}
 
 	pendingLocal := migrateLocalFinish(ctx, git, facts, sc, docketRef, metadataTip, sourceOID)
 
 	return migrateApplied(sc, metadataTip, pruneCommit, sourceRevision, includedPrefixes, removedPaths, mr.repairable, pendingLocal)
+}
+
+// reconcileResumeSeed adopts the durable remote seed on a resume, reconciling it
+// to the current source when needed. It re-reads the published metadata tip and
+// tree from the remote (never a local proxy) and:
+//   - if the published tree already equals the seed recomposed from the current
+//     pinned source, adopts it as-is (a docket receipt is NOT required — an exact
+//     legacy-equivalent bash-era seed proves the same postcondition);
+//   - if the published tree differs but the seed carries docket's own seed
+//     receipt naming a DIFFERENT source revision, the source has moved on since
+//     the seed was published: it updates docket to the current seed under its
+//     exact owned lease (never a force), which the caller then re-verifies;
+//   - otherwise (no receipt we can trust, or a receipt claiming THIS source while
+//     the tree disagrees — a tampered seed) it refuses as a conflict, destroying
+//     nothing.
+func reconcileResumeSeed(ctx context.Context, git *gitcli.Client, sc setupContext, docketRef gitcli.RefName, seedReceipt reposetup.Receipt, seedTree gitcli.ObjectID) (gitcli.ObjectID, *RepositoryMigrateResult) {
+	rev, err := git.FetchBranch(ctx, sc.repo, setupRemote(), docketRef)
+	if err != nil {
+		r := migrateExternalFailure(reposetup.StateConflict, "re-reading the published metadata seed", err)
+		return "", &r
+	}
+	metadataTip := rev.Commit
+
+	equal, err := remoteTreeEquals(ctx, git, sc.repo, metadataTip, seedTree)
+	if err != nil {
+		r := migrateExternalFailure(reposetup.StateConflict, "reading the published seed tree", err)
+		return "", &r
+	}
+	if equal {
+		// Already exactly the current seed (a docket seed re-run, or an exact
+		// legacy-equivalent bash seed). Adopt it and proceed to prune.
+		return metadataTip, nil
+	}
+
+	rec, ok, rerr := publishedSeedReceipt(ctx, git, sc.repo, metadataTip)
+	if rerr != nil {
+		r := migrateExternalFailure(reposetup.StateConflict, "reading the published seed receipt", rerr)
+		return "", &r
+	}
+	if !ok || rec.Operation != reposetup.OpMigrateSeed || rec.SourceRevision == "" || rec.SourceRevision == sc.sourceRevision {
+		// No receipt we can trust (a bash seed that is not exactly current), or a
+		// receipt claiming the current source while the tree disagrees (a tampered
+		// seed). Refuse — never overwrite what we cannot prove is a stale copy of
+		// our own seed.
+		r := migrateRefusal(reposetup.StateConflict,
+			"the published metadata seed does not match the seed for the current source and is not a docket-authored seed for an earlier source we can safely update; inspect and resolve it manually, then run `docket repository check`")
+		return "", &r
+	}
+
+	// Provably docket's own seed for an EARLIER source (the pinned source moved on
+	// since it was published — planning bytes changed). Update docket to the
+	// re-validated current seed under its exact owned lease.
+	newReceipt := seedReceipt
+	newReceipt.CopyDigest = string(seedTree)
+	newSeed, cerr := git.CommitTree(ctx, sc.repo, seedTree, nil, migrateSeedSubject, toGitcliTrailers(newReceipt.Trailers()))
+	if cerr != nil {
+		r := migrateExternalFailure(reposetup.StateLegacy, "re-composing the updated metadata seed commit", cerr)
+		return "", &r
+	}
+	out, perr := git.PushLease(ctx, sc.repo, setupRemote(), docketRef, newSeed, metadataTip)
+	if perr != nil {
+		r := migrateExternalFailure(reposetup.StateLegacy, "updating the metadata seed under its owned lease", perr)
+		return "", &r
+	}
+	switch out.Disposition {
+	case gitcli.PushApplied:
+		return newSeed, nil
+	case gitcli.PushLeaseLost:
+		r := migrateContended(string(out.Remote), sc.sourceRevision)
+		return "", &r
+	default:
+		r := migrateExternalFailure(reposetup.StateLegacy, "updating the metadata seed under its owned lease", errors.New("owned-lease seed update failed"))
+		return "", &r
+	}
+}
+
+// migrateResumeLocal finishes a migration whose remote postconditions are already
+// durable but whose local .docket attachment is incomplete (a run that died
+// after the prune landed, or a bash-migrated repository whose worktree was never
+// attached). It performs ONLY the local steps — no remote write and no
+// re-authorization — and reports the applied result with any pending local sync.
+func migrateResumeLocal(ctx context.Context, git *gitcli.Client, hooks setupHooks, facts reposetup.Facts, sc setupContext) RepositoryMigrateResult {
+	if err := fire(hooks.beforeLocalFinish); err != nil {
+		return migrateExternalFailure(reposetup.StateHealthy, "finishing the local attachment", err)
+	}
+	metadataTip := gitcli.ObjectID(sc.metadataTip)
+	sourceOID := gitcli.ObjectID(sc.sourceRevision)
+	docketRef := gitcli.RefName(branchRefPrefix + sc.metadataBranch)
+	pendingLocal := migrateLocalFinish(ctx, git, facts, sc, docketRef, metadataTip, sourceOID)
+	return migrateApplied(sc, metadataTip, sourceOID, sc.sourceRevision, []string{}, []string{}, nil, pendingLocal)
+}
+
+// mergeMigrateDebris folds a debris sweep's operator-facing report into a
+// successful migration result, so a preserved ambiguous registration or a
+// retained-debris warning rides back to the caller. It never changes a refusal or
+// a contended result — those already carry their own disposition.
+func mergeMigrateDebris(res RepositoryMigrateResult, debris setupDebrisReport) RepositoryMigrateResult {
+	lines := debris.pending()
+	if len(lines) == 0 {
+		return res
+	}
+	if res.Result == ResultApplied || res.Result == ResultNoOp {
+		res.PendingLocal = append(res.PendingLocal, lines...)
+		if res.RepositoryState == string(reposetup.StateHealthy) {
+			res.RepositoryState = string(reposetup.StateNeedsReview)
+		}
+	}
+	return res
 }
 
 // publishSeed publishes the parentless seed commit under create-only protection.

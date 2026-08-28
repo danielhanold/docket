@@ -86,6 +86,12 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps) RepositoryOpResult {
 		return *refusal
 	}
 
+	// Recovery: remove exactly the owned transient worktrees/refs an abrupt death
+	// of a prior invocation may have left (recognized by ownership shape; a user
+	// worktree or ambiguous registration is preserved and reported). Its report
+	// rides back on the pending review paths.
+	debris := sweepSetupDebris(ctx, d.Git, sc.repo)
+
 	// Effects 1–2: build a parentless empty-tree root with the OpInitRoot receipt
 	// and publish it under create-only protection. The create-only push is the
 	// authoritative metadata operation: on success we created it; on a rejection
@@ -130,6 +136,7 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps) RepositoryOpResult {
 		pending = append(pending, surfacePending...)
 		wroteSurfaces = changed
 	}
+	pending = append(pending, debris.pending()...)
 	sort.Strings(pending)
 
 	// The metadata topology is established with pending integration-worktree
