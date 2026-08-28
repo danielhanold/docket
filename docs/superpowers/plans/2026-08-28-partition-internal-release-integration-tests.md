@@ -68,7 +68,7 @@ out=docs/superpowers/plans/2026-08-28-0362-inventory-before.txt
 } > "$out"
 ```
 
-Verify both listings exited 0 (run each `go test -list` once standalone first and check `$?`; a listing failure is a red result, not an empty corpus — learning probe-error-is-not-clean-absence) and that both sections are identical and contain exactly these 38 names: 5 archive (`TestWriteArchiveDeterministic`, `TestWriteArchiveEpochEntersStream`, `TestVerifyArchiveRoundTrip`, `TestWriteArchiveNoHostLeakage`, `TestVerifyArchiveRefusals`), 4 package (`TestPackageIntegration`, `TestPackageDeterministic`, `TestPackageRefusesCollision`, `TestPackageBundleValidatesChecksums`), 13 checksums, 4 render, 12 version. If the count or the set differs, the tree moved since grooming: STOP and report the delta instead of editing the plan's numbers silently.
+Verify both listings exited 0 (run each `go test -list` once standalone first and check `$?`; a listing failure is a red result, not an empty corpus — learning probe-error-is-not-clean-absence) and that both sections are identical and contain exactly these 37 names: 5 archive (`TestWriteArchiveDeterministic`, `TestWriteArchiveEpochEntersStream`, `TestVerifyArchiveRoundTrip`, `TestWriteArchiveNoHostLeakage`, `TestVerifyArchiveRefusals`), 4 package (`TestPackageIntegration`, `TestPackageDeterministic`, `TestPackageRefusesCollision`, `TestPackageBundleValidatesChecksums`), 14 checksums, 4 render, 10 version. If the count or the set differs, the tree moved since grooming: STOP and report the delta instead of editing the plan's numbers silently. (Reconciled 2026-08-28 by docket-implement-next: the counts were refreshed from the live tree at build time — grooming's 38/13/12 became 37/14/10, a net −1 in the default corpus only, version −2 + checksums +1; the 9 tagged integration names are unchanged, so Tasks 2–4 are unaffected.)
 
 - [ ] **Step 2: Write the committed map fixture**
 
@@ -90,7 +90,7 @@ TestPackageRefusesCollision	TestIntegrationReleasePackageRefusesCollision	integr
 TestPackageBundleValidatesChecksums	TestIntegrationReleasePackageBundleValidatesChecksums	integration
 ```
 
-…followed by one `…<TAB>same-name<TAB>default` row for EVERY test in checksums_test.go, render_test.go, and version_test.go (29 rows, old-name = new-name), generated from the Step 1 snapshot, e.g.:
+…followed by one `…<TAB>same-name<TAB>default` row for EVERY test in checksums_test.go, render_test.go, and version_test.go (28 rows, old-name = new-name), generated from the Step 1 snapshot, e.g.:
 
 ```bash
 go test -list '^Test' ./internal/release/ | grep -E -e '^Test' | LC_ALL=C sort \
@@ -98,7 +98,7 @@ go test -list '^Test' ./internal/release/ | grep -E -e '^Test' | LC_ALL=C sort \
   | awk -F'\t' '{printf "%s\t%s\tdefault\n", $1, $1}' >> tests/fixtures/release-partition-map.tsv
 ```
 
-Verify: map has exactly 38 non-comment rows; 9 `integration`, 29 `default`; every old-name appears exactly once (`cut -f1 | sort | uniq -d` is empty). Note the map's old-name column is what makes deleting-both-halves detectable later — it is the population floor's population (learning frozen-copy-needs-a-drift-assert: a committed copy asserts nothing until a live check reads it; Task 5 wires that check).
+Verify: map has exactly 37 non-comment rows; 9 `integration`, 28 `default`; every old-name appears exactly once (`cut -f1 | sort | uniq -d` is empty). Note the map's old-name column is what makes deleting-both-halves detectable later — it is the population floor's population (learning frozen-copy-needs-a-drift-assert: a committed copy asserts nothing until a live check reads it; Task 5 wires that check).
 
 - [ ] **Step 3: Commit**
 
