@@ -13,7 +13,7 @@ related: [351, 311, 318, 363]
 discovered_from: [303, 351]
 adrs: [1, 2, 20, 21, 25, 34, 36, 52, 78]
 spec: docs/superpowers/specs/2026-08-28-native-repository-initialization-migration-and-health-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-08-28-native-repository-initialization-and-health-check.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-28T15:52:01Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-28-native-repository-initialization-migration-and-health-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-28-native-repository-initialization-migration-and-health-design.md) |
+| Plan | [2026-08-28-native-repository-initialization-and-health-check.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-28-native-repository-initialization-and-health-check.md) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0002](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0002-docket-mode-default-and-bootstrap.md), [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0021](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0021-pipeline-script-authored-mechanical-commits.md), [ADR-0025](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0025-docket-worktrees-disable-git-hooks.md), [ADR-0034](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0034-repo-root-anchored-to-main-worktree.md), [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md), [ADR-0078](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) |
 <!-- docket:artifacts:end -->
 
