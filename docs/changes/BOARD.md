@@ -1,6 +1,6 @@
 # Backlog
 
-**362 changes** — 🟢 1 in progress · 🟡 52 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 222 done · 🗑️ 82 killed
+**362 changes** — 🟢 1 in progress · 🟡 52 proposed · ⚪ 4 deferred · ✅ 223 done · 🗑️ 82 killed
 
 ## 🟢 In progress (1)
 
@@ -74,12 +74,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0362](active/0362-partition-internal-release-to-clear-the-race-gate-timeout.md) | Partition internal/release integration tests to clear the race-gate per-package timeout | `high` | `refactor` | [#247](https://github.com/danielhanold/docket/pull/247) |  |
-
 ```mermaid
 graph TD
   0007
@@ -139,7 +133,6 @@ graph TD
   0359
   0360
   0317 --> 0361
-  0362
   0192:::done
   0211:::done
   0251:::done
@@ -147,10 +140,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (304)</summary>
+<details><summary>✅🗑️ Archive — done + killed (305)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0362](archive/2026-08-28-0362-partition-internal-release-to-clear-the-race-gate-timeout.md) | Partition internal/release integration tests to clear the race-gate per-package timeout | 2026-08-28 |
 | [0358](archive/2026-08-27-0358-treat-empty-review-decision-as-no-decision.md) | Treat empty-string reviewDecision as no-decision, not an invalid enum | 2026-08-27 |
 | [0357](archive/2026-08-27-0357-implementation-context-loads-remote-branch-facts.md) | Implementation context must load remote branch facts before judging stack base | 2026-08-27 |
 | [0356](archive/2026-08-27-0356-unquote-cursor-agent-wrapper-names.md) | Emit unquoted name: on Cursor agent wrappers | 2026-08-27 |
@@ -167,7 +161,6 @@ graph TD
 | [0344](archive/2026-08-24-0344-finalize-pr-prober-cannot-parse-the-full-url-pr-form.md) | Finalize PR prober cannot parse the full-URL pr: form | 2026-08-24 |
 | [0341](archive/2026-08-24-0341-artifact-table-links-render-as-bare-code-spans-instead-of-gi.md) | Artifact-table links render as bare code spans instead of GitHub links | 2026-08-24 |
 | [0339](archive/2026-08-24-0339-retire-the-gate-run-sh-launch-liveness-stop-facade-now-that.md) | Retire the gate-run.sh launch/liveness/stop facade now that the native Go-v1 gate is canonical (collapse the shared docket-liveness.sh seam with runner-dispatch.sh) | 2026-08-24 |
-| [0340](archive/2026-08-23-0340-stamp-build-identity-in-development-install.md) | Stamp build identity into the `development install` binary | 2026-08-23 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
 | [0299](archive/2026-08-12-0299-reshard-tests-test-sync-agents-runners-so-every-file-measure.md) | Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling | 2026-08-12 |
 | [0285](archive/2026-08-12-0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | 2026-08-12 |
@@ -253,7 +246,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 89 done |
+| [2026-08](archive/) | 90 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 

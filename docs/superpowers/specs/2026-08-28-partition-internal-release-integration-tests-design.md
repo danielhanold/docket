@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0362 — Partition internal/release integration tests to clear the race-gate per-package timeout](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0362-partition-internal-release-to-clear-the-race-gate-timeout.md)**
+> ↩ **[Change 0362 — Partition internal/release integration tests to clear the race-gate per-package timeout](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-28-0362-partition-internal-release-to-clear-the-race-gate-timeout.md)**
 <!-- docket:backlink:end -->
 
 # Partition `internal/release` integration tests — design
