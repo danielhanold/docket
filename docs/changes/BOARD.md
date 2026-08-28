@@ -1,6 +1,6 @@
 # Backlog
 
-**361 changes** — 🟢 1 in progress · 🟡 52 proposed · ⚪ 4 deferred · ✅ 222 done · 🗑️ 82 killed
+**362 changes** — 🟢 1 in progress · 🟡 53 proposed · ⚪ 4 deferred · ✅ 222 done · 🗑️ 82 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0361](active/0361-release-candidate-source-gate-macos-runner.md) | Release-candidate source-gate green on a macOS runner | `high` | `fix` | [spec](../superpowers/specs/2026-08-27-release-candidate-source-gate-macos-runner-design.md) | `fix/release-candidate-source-gate-macos-runner` |
 
-## 🟡 Proposed (52)
+## 🟡 Proposed (53)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -64,6 +64,7 @@
 | [0354](active/0354-halt-report-authoring-writes-a-duplicate-run-halted-heading.md) | Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted | `high` | `fix` | needs-brainstorm |
 | [0359](active/0359-run-gate-gives-up-too-soon.md) | the run gate gives up too soon | `high` | `fix` | needs-brainstorm |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `medium` | `feat` | needs-brainstorm |
+| [0362](active/0362-partition-internal-release-to-clear-the-race-gate-timeout.md) | Partition internal/release integration tests to clear the race-gate per-package timeout | `high` | `refactor` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -133,6 +134,7 @@ graph TD
   0359
   0360
   0317 --> 0361
+  0362
   0192:::done
   0211:::done
   0251:::done
