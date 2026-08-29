@@ -165,7 +165,12 @@ type Tally struct {
 // and the FAILED:/NO RESULT:/OVER BUDGET: blocks match scripts/run-tests.sh
 // byte-for-byte (the parity contract); the INVALID/UNSCHEDULED blocks are the
 // Go runner's own additions for failure modes the oracle cannot represent.
-func RenderReport(w io.Writer, outcomes []TargetOutcome, unknown []string, wall int, verbose bool, logsDir string) Tally {
+//
+// strict is the run's confirmed exit disposition for a direct crossing: when it is
+// set, a strict-armed OverDirect breach on an otherwise-green run gates the run
+// (exit 4), so the OVER BUDGET note must render the oracle's strict arm instead of
+// the advisory exit-0 line — the exact ADR-0074 harm the note-selection guards.
+func RenderReport(w io.Writer, outcomes []TargetOutcome, unknown []string, wall int, verbose, strict bool, logsDir string) Tally {
 	ordered := make([]TargetOutcome, len(outcomes))
 	copy(ordered, outcomes)
 	sort.SliceStable(ordered, func(i, j int) bool {
@@ -261,9 +266,22 @@ func RenderReport(w io.Writer, outcomes []TargetOutcome, unknown []string, wall 
 			fmt.Fprintf(w, "Note: this run already fails on test failures (exit 1). The breach above is a separate finding.\n")
 		case t.NoResult > 0 || t.Invalid > 0 || len(unknown) > 0:
 			fmt.Fprintf(w, "Note: this run already fails on missing results (exit 3). The breach above is a separate finding.\n")
+		case strict:
+			// The strict arm: a strict-armed direct crossing on an otherwise-green
+			// run gates the run (exit 4), so a reader must NOT be handed "the tests
+			// all passed … (exit 0)" (ADR-0074, same reason the red branch leads).
+			// Byte-for-byte with the oracle's `BUDGET_STRICT=1` arm in
+			// scripts/run-tests.sh ("Strict: --strict-budget was given …").
+			fmt.Fprintf(w, "Strict: --strict-budget was given, so this breach fails the run (exit 4). The tests themselves passed.\n")
 		default:
 			fmt.Fprintf(w, "Advisory: the tests all passed, so this run does not fail on the breach (exit 0).\n")
-			fmt.Fprintf(w, "Pass --strict-budget to gate on it — but see scripts/run-tests.md first: the screening factor is calibrated to one machine (change 0251).\n")
+			// The Go entry `docket development test` takes cobra.NoArgs and exposes
+			// no --strict-budget flag; strict is reachable ONLY through the
+			// DOCKET_RUNTESTS_STRICT=1 env seam, so name that seam rather than the
+			// oracle's flag (which would be a usage error here). This human-facing
+			// sentence is a documented Go/oracle deviation; the differential harness
+			// normalizes the knob spelling (tests/test_devtest_differential.sh).
+			fmt.Fprintf(w, "Set DOCKET_RUNTESTS_STRICT=1 to gate on it — but see scripts/run-tests.md first: the screening factor is calibrated to one machine (change 0251).\n")
 		}
 	}
 	return t
