@@ -564,9 +564,9 @@ func TestCodexNestedDispatchBoundary(t *testing.T) {
 
 	// The three semantic clauses, as literal behavioral text.
 	clauses := []string{
-		"direct named-agent dispatch",           // (1) how to dispatch
-		"active top-level tool surface",         // (1) from where
-		"omit top-level collaboration controls", // (2) what nested inventories lack
+		"direct named-agent dispatch",              // (1) how to dispatch
+		"active top-level tool surface",            // (1) from where
+		"omit top-level collaboration controls",    // (2) what nested inventories lack
 		"cannot establish dispatch unavailability", // (3) what absence proves: nothing
 	}
 	for _, s := range sources {
