@@ -55,6 +55,20 @@ const (
 	skillsPreambleFormat = "Before acting, load these docket skills from your linked Codex skills directory: %s."
 )
 
+// codexDispatchBoundary is the Codex-specific nested-dispatch boundary
+// (change 0365). It is emitted into EVERY generated agent, unconditionally:
+// composition is a property of the invoked skill and may change through
+// configuration, so an allowlist of today's dispatching wrappers would
+// silently miss a future custom binding, while a leaf agent receiving a
+// conditional instruction incurs no behavioral change. It is Codex-specific
+// tool placement (ADR-0060), so it lives in this renderer — the shared agent
+// bodies stay harness-neutral. It closes the false-negative shape a live run
+// hit: a parent inspected a nested JavaScript tool inventory, found no
+// dispatch entry there, and halted without ever attempting the registered
+// dispatch (see the convention's "Dispatch-capability resolution" section for
+// the harness-neutral rule this instantiates).
+const codexDispatchBoundary = "When your active charter requires another agent, dispatch it with Codex's direct named-agent dispatch from your active top-level tool surface. Nested orchestration inventories — tool lists read from inside another tool — omit top-level collaboration controls, so absence from such a nested inventory cannot establish dispatch unavailability; only a failed direct dispatch attempt or an explicit policy denial does."
+
 // ErrRender is the sentinel for a rendering that cannot be expressed — an
 // input whose value would not survive its own serialization. It is a defect in
 // the bundle or in the resolved configuration, never a state of the user's
@@ -182,7 +196,11 @@ func renderAgent(s harness.AgentSource, model, effort string) []byte {
 	// frontmatter/heading, ahead of the body (skills preamble included) this
 	// renderer already emits. harness.RecursionGuard is the shared emitter, so the
 	// paragraph is byte-identical across all four harnesses.
-	dev = harness.RecursionGuard(s.Name) + "\n\n" + dev
+	// The dispatch boundary is the SECOND paragraph: the recursion guard keeps
+	// its cross-harness first-paragraph position, and the boundary sits ahead
+	// of the skills preamble and body so it reads as harness contract, not
+	// role prose.
+	dev = harness.RecursionGuard(s.Name) + "\n\n" + codexDispatchBoundary + "\n\n" + dev
 	b.WriteString("developer_instructions = \"\"\"\n" + escapeMultiline(dev) + "\n\"\"\"\n")
 
 	return []byte(b.String())

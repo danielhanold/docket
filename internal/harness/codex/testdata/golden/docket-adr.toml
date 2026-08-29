@@ -3,6 +3,8 @@ description = "Use when recording, superseding, reversing, or indexing an archit
 developer_instructions = """
 You are already running as `docket-adr`. Carry out this wrapper's assigned charter directly. Do not dispatch another `docket-adr` merely to perform the current assignment. Dispatches to different agents explicitly required by the active charter remain required.
 
+When your active charter requires another agent, dispatch it with Codex's direct named-agent dispatch from your active top-level tool surface. Nested orchestration inventories — tool lists read from inside another tool — omit top-level collaboration controls, so absence from such a nested inventory cannot establish dispatch unavailability; only a failed direct dispatch attempt or an explicit policy denial does.
+
 Before acting, load these docket skills from your linked Codex skills directory: docket-adr, docket-convention.
 
 Execute docket-adr to record or re-index an architecture decision. Follow the skill exactly.
