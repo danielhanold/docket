@@ -504,6 +504,21 @@
 # the 5s margin -> 15. The cold reading — repeated `go run` recompiling ./cmd/docket once — is the reachable worst on a
 # fresh clone or CI image; warm in the suite (the Go-touching files share GOCACHE). Rides the parallel lane.
 # EXPECTED_TOTAL moves 2765 -> 2780: +15.
+#
+# tests/test_devtest_differential.sh is a NEW FILE brought by change 0318 (Task 8) — the header's
+# new-test-file case, for a brand-new surface no existing shard owns: the Bash-vs-Go differential
+# parity harness (AC 18). It drives BOTH the frozen oracle scripts/run-tests.sh AND the Go source
+# entry `go run ./cmd/docket development test` over the SAME synthetic fixture suites through the
+# shared env seams, and asserts the two runners agree on the observations a caller keys on
+# (normalized: identity, row order, exit codes, ok/notok counts, failure-category lines, budget-clause
+# KINDS). It is NOT an extension of tests/test_devtest_runner.sh (which proves only the Go entry's own
+# contract) nor of tests/test_go_toolchain.sh (which never drives the oracle): this file's whole point
+# is the CROSS-runner comparison, which neither owns. Sized per this header's rule from the WORST
+# reading, one machine (darwin/arm64, go1.26.5): warm 5.51 5.48, cold-cache 9.24 (GOCACHE pointed at
+# an empty scratch dir, the drift-test methodology) -> worst 9.24 -> next multiple of 5 is 10, plus
+# the 5s margin -> 15. The cold reading — repeated `go run` recompiling ./cmd/docket once — is the
+# reachable worst on a fresh clone or CI image; warm in the suite (the Go-touching files share
+# GOCACHE). Rides the parallel lane. EXPECTED_TOTAL moves 2780 -> 2795: +15.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -533,6 +548,7 @@ tests/test_critic_return_channel.sh	10	parallel
 tests/test_cursor_contract_docs.sh	10	parallel
 tests/test_cursor_dispatch_rule.sh	10	parallel
 tests/test_cursor_permissions_docs.sh	10	parallel
+tests/test_devtest_differential.sh	15	parallel
 tests/test_devtest_runner.sh	15	parallel
 tests/test_dispatch_block_budget.sh	10	parallel
 tests/test_dispatch_capability.sh	10	parallel

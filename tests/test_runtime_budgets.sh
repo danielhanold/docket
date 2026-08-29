@@ -31,7 +31,16 @@ EXPECTED_SERIAL=0   # no file is currently pinned serial. tests/test_go_race.sh 
                     # run no longer starves the other parallel jobs. RAISING THIS IS A FINDING: a
                     # serial pin removes a file from the parallel phase, so it must be justified in
                     # the same diff with the shared state that forces it.
-EXPECTED_TOTAL=2780 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2795 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2780 -> 2795 (change 0318, Task 8): ONE legitimate mover — a NEW test file brings its own row.
+                    # tests/test_devtest_differential.sh is the Bash-vs-Go differential parity harness (AC 18): it drives
+                    # BOTH the frozen oracle scripts/run-tests.sh and the Go source entry `go run ./cmd/docket development
+                    # test` over the SAME synthetic fixture suites through the shared env seams and asserts the two runners
+                    # agree on the normalized observations a caller keys on (identity, row order, exit codes, counts,
+                    # failure-category lines, budget-clause KINDS). A brand-new cross-runner surface no existing shard owns —
+                    # tests/test_devtest_runner.sh proves only the Go entry's own contract, and tests/test_go_toolchain.sh
+                    # never drives the oracle. Sized from the WORST reading (warm 5.51/5.48, cold-cache 9.24 with an empty
+                    # GOCACHE -> next multiple of 5 is 10, plus 5 -> 15; see the tsv header). +15.
                     # 2765 -> 2780 (change 0318, Task 7): ONE legitimate mover — a NEW test file brings its own row.
                     # tests/test_devtest_runner.sh is the end-to-end coverage of `docket development test`, the
                     # Go-native whole-suite runner that becomes finalize.test_command. It drives the REAL source entry
