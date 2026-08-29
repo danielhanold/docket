@@ -2,7 +2,7 @@
 id: 2
 slug: docket-mode-default-and-bootstrap
 title: docket-mode is the default; refuse-and-migrate bootstrap; terminal-publish single-sourced in finalize
-status: Accepted
+status: Superseded by ADR-99
 date: 2026-06-03
 supersedes: []
 reverses: []

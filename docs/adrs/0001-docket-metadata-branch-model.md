@@ -28,3 +28,9 @@ Planning metadata lives on a dedicated **orphan `docket` branch** (no shared his
 - **Costs:** a second checkout on disk (`.docket/`); cross-tree reads during build (the reconciled spec is read from `.docket/`, never carried on the feature branch); the publish is the single carefully-guarded metadata→code-line flow (sourced from `origin/docket`, archive-first ordering, fast-forward CAS push).
 - **Given up:** the v1 simplicity of "everything on one branch." `main`-mode remains a pinned opt-out for teams that want it.
 - `.docket/` deliberately sits at the repo root, **not** under `.worktrees/`, to avoid colliding with a feature worktree slug (`.worktrees/<slug>`) and to stay outside the ephemeral-worktree prune blast radius.
+
+## Update — 2026-08-28 (change 0363, ADR-0099)
+
+**The decision still stands.** The orphan `docket` metadata branch, the persistent `.docket/` worktree, and publish-by-copy-not-merge are unchanged and are now the *only* topology Go v1 supports.
+
+One consequence above no longer applies: "`main`-mode remains a pinned opt-out for teams that want it." ADR-0099 removes the single-branch topology as an active configuration/compatibility mode — `metadata_branch: main` is now a decode-only obsolete tombstone and legacy-migration input. Ordinary repository-aware commands refuse a legacy single-branch repository with a typed `legacy-repository` invalid-state refusal, and native `docket repository migrate` (change 0352) is the only legacy exit.
