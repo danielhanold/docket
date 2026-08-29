@@ -2,7 +2,7 @@
 id: 318
 slug: config-contraction-self-hosting-and-hard-cutover
 title: 'Go-only source cutover'
-status: 'implemented'
+status: 'done'
 priority: critical
 type: refactor
 created: 2026-08-12
@@ -21,7 +21,7 @@ branch: 'refactor/config-contraction-self-hosting-and-hard-cutover'
 pr: 'https://github.com/danielhanold/docket/pull/252'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-29T17:54:18Z'
+claimed_at:
 ---
 
 ## Artifacts

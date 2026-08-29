@@ -1,6 +1,6 @@
 # Backlog
 
-**370 changes** — 🟡 56 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 227 done · 🗑️ 82 killed
+**370 changes** — 🟡 56 proposed · ⚪ 4 deferred · ✅ 228 done · 🗑️ 82 killed
 
 ## 🟡 Proposed (56)
 
@@ -60,7 +60,7 @@
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | ⏳ waiting on #370 — not yet built |
 | [0367](active/0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | `medium` | `feat` | ⏳ waiting on #370 — not yet built |
 | [0368](active/0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | `medium` | `fix` | needs-brainstorm |
-| [0369](active/0369-migrate-maintained-consumers-to-the-direct-go-cli.md) | Migrate maintained consumers to the direct Go CLI | `critical` | `refactor` | ⏳ waiting on #318 — needs your merge |
+| [0369](active/0369-migrate-maintained-consumers-to-the-direct-go-cli.md) | Migrate maintained consumers to the direct Go CLI | `critical` | `refactor` | build-ready |
 | [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | ⏳ waiting on #369 — not yet built |
 
 ## ⚪ Deferred (4)
@@ -71,12 +71,6 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Go-only source cutover | `critical` | `refactor` | [#252](https://github.com/danielhanold/docket/pull/252) |  |
 
 ```mermaid
 graph TD
@@ -121,9 +115,6 @@ graph TD
   0300
   0301
   0302
-  0317 --> 0318
-  0352 --> 0318
-  0363 --> 0318
   0319
   0320
   0321
@@ -146,18 +137,18 @@ graph TD
   0192:::done
   0211:::done
   0251:::done
-  0317:::done
+  0318:::done
   0352:::done
-  0363:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (309)</summary>
+<details><summary>✅🗑️ Archive — done + killed (310)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0365](archive/2026-08-29-0365-codex-nested-dispatch-capability-boundary.md) | Make nested Docket dispatch reliable for every Codex agent invocation | 2026-08-29 |
 | [0363](archive/2026-08-29-0363-remove-main-mode-compatibility-from-go-v1.md) | Remove main-mode compatibility from Go v1 | 2026-08-29 |
+| [0318](archive/2026-08-29-0318-config-contraction-self-hosting-and-hard-cutover.md) | Go-only source cutover | 2026-08-29 |
 | [0362](archive/2026-08-28-0362-partition-internal-release-to-clear-the-race-gate-timeout.md) | Partition internal/release integration tests to clear the race-gate per-package timeout | 2026-08-28 |
 | [0361](archive/2026-08-28-0361-release-candidate-source-gate-macos-runner.md) | Release-candidate source-gate green on a macOS runner | 2026-08-28 |
 | [0352](archive/2026-08-28-0352-native-repository-initialization-and-health-check.md) | Native repository initialization, migration, and health checks | 2026-08-28 |
@@ -171,7 +162,6 @@ graph TD
 | [0353](archive/2026-08-26-0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | 2026-08-26 |
 | [0348](archive/2026-08-26-0348-enrich-open-pr-view-with-review-decision.md) | Enrich the exact-PR view with reviewDecision so open-PR snapshots populate Approved | 2026-08-26 |
 | [0347](archive/2026-08-26-0347-honor-recorded-branch-over-feat-prefix.md) | Honor recorded branch names instead of reconstructing feat/<slug> | 2026-08-26 |
-| [0334](archive/2026-08-26-0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | Make Docket dispatch minimal, non-recursive, and mechanically gated | 2026-08-26 |
 | [0294](archive/2026-08-26-0294-shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru.md) | Shrink AGENTS.md's always-loaded footprint: script-ify the run gate's caller procedure and de-duplicate the dispatch table | 2026-08-26 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
 | [0299](archive/2026-08-12-0299-reshard-tests-test-sync-agents-runners-so-every-file-measure.md) | Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling | 2026-08-12 |
@@ -258,7 +248,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 94 done |
+| [2026-08](archive/) | 95 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
