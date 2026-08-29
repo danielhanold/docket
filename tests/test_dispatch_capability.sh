@@ -35,6 +35,23 @@ assert "convention: an absent tool NAME is explicitly insufficient evidence" \
 assert "convention: a tool name is a diagnostic, never a decision input" \
   'grep -qiE "never a decision input" "$CONV"'
 
+# --- the authoritative surface, by shape (change 0365) -------------------------------------------
+# The live failure this closes: a parent read a NESTED tool inventory (a tool list exposed from
+# inside another tool), found no dispatch entry, and halted without attempting the registered
+# dispatch. The rule is stated by SHAPE — no vendor tool name — and each phrase is bound to its
+# claim with ONE bounded gap over a whitespace-collapsed haystack (learnings:
+# prose-guard-binds-phrase-to-claim, phrase-grep-over-wrapped-prose,
+# stacked-gap-regex-hangs-instead-of-failing).
+conv_flat="$(tr '\n' ' ' < "$CONV" | tr -s '[:space:]' ' ')"
+assert "convention 0365: resolution reads the agent's own active, top-level tool surface" \
+  'grep -qE "resolving from the agent.s [*][*]own active, top-level tool surface" <<<"$conv_flat"'
+assert "convention 0365: a nested namespace/inventory is explicitly non-authoritative" \
+  'grep -qE "nested namespace or inventory[^.]{0,120}non-authoritative" <<<"$conv_flat"'
+assert "convention 0365: nested absence establishes nothing" \
+  'grep -qE "cannot be invoked from within that tool[^.]{0,80}absence there establishes nothing" <<<"$conv_flat"'
+assert "convention 0365: nested inventory / absent spelling / tool-search miss never satisfy the rule" \
+  'grep -qE "[Nn]either does inspecting a nested inventory[^.]{0,80}irrelevant tool-search result" <<<"$conv_flat"'
+
 # --- the tiered posture --------------------------------------------------------------------------
 for tier in "A — deterministic" "B — adversarial" "C — discipline"; do
   assert "convention: tier present: $tier" 'grep -qF -- "$tier" "$CONV"'
