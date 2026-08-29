@@ -6,12 +6,12 @@ status: 'in-progress'
 priority: high
 type: refactor
 created: 2026-08-28
-updated: '2026-08-28'
+updated: '2026-08-29'
 depends_on: [352]
 stacked_on:
 related: [318, 326, 305, 309, 310, 312, 315, 316]
 discovered_from: [352]
-adrs: [1, 2, 52, 69]
+adrs: [1, 2, 52, 69, 99]
 spec: docs/superpowers/specs/2026-08-28-remove-main-mode-compatibility-from-go-v1-design.md
 plan: 'docs/superpowers/plans/2026-08-28-remove-main-mode-compatibility-from-go-v1.md'
 results:
@@ -21,7 +21,7 @@ branch: 'refactor/remove-main-mode-compatibility-from-go-v1'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-28T21:26:14Z'
+claimed_at: '2026-08-29T00:15:42Z'
 ---
 
 ## Artifacts
@@ -31,7 +31,7 @@ claimed_at: '2026-08-28T21:26:14Z'
 |---|---|
 | Spec | [2026-08-28-remove-main-mode-compatibility-from-go-v1-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-28-remove-main-mode-compatibility-from-go-v1-design.md) |
 | Plan | [2026-08-28-remove-main-mode-compatibility-from-go-v1.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-28-remove-main-mode-compatibility-from-go-v1.md) |
-| ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0002](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0002-docket-mode-default-and-bootstrap.md), [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md), [ADR-0069](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0069-mode-conditioned-clause-discriminates-on-provenance.md) |
+| ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0002](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0002-docket-mode-default-and-bootstrap.md), [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md), [ADR-0069](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0069-mode-conditioned-clause-discriminates-on-provenance.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -105,3 +105,9 @@ Verified against current `docket`/`main` reality before planning:
 - **ADR posture unchanged:** this change supersedes ADR-0002 with a new one-topology decision and appends a dated cross-reference update to ADR-0001 (still Accepted); the new ADR id is allocated by the normal docket ADR workflow at review time and attached then.
 
 Scope, boundary, and acceptance criteria in the spec hold as written. No sections, spec sections, or relations changed.
+
+### 2026-08-29
+
+### 2026-08-28 — ADR recorded at review
+
+Implementation recorded **ADR-0099** ("One metadata topology for Go v1 (main-mode removed)") via the docket-adr workflow: it supersedes ADR-0002 (whose status flipped to `Superseded by ADR-99`), relates to ADR-0001 and ADR-0052, and is change-tied to 363. ADR-0001 stays Accepted and received a dated `## Update` noting the pinned `metadata_branch: main` opt-out consequence no longer applies. Added 99 to this change's `adrs:` relation (now [1, 2, 52, 69, 99]); all other relations unchanged.
