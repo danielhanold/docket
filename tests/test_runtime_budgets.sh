@@ -31,7 +31,15 @@ EXPECTED_SERIAL=0   # no file is currently pinned serial. tests/test_go_race.sh 
                     # run no longer starves the other parallel jobs. RAISING THIS IS A FINDING: a
                     # serial pin removes a file from the parallel phase, so it must be justified in
                     # the same diff with the shared state that forces it.
-EXPECTED_TOTAL=2795 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2805 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2795 -> 2805 (change 0318, Task 9): ONE legitimate mover — a NEW test file brings its own row.
+                    # tests/test_devtest_cutover.sh is the source-fidelity + docs + RC-workflow cutover guard (AC 3/22):
+                    # it pins finalize.test_command as the source entry go run ./cmd/docket development test (the
+                    # "installed binary at a source gate" mutation guard), the RC workflow's sh -c derivation, the
+                    # AGENTS.md / tests/README.md whole-suite bindings, and scripts/run-tests.md's frozen-oracle notice.
+                    # A brand-new cutover-fidelity surface no existing shard owns. Sized from three standalone serial
+                    # readings (worst 0.64 -> next multiple of 5 is 5, plus 5 -> 10, this table's floor; see the tsv
+                    # header). +10.
                     # 2780 -> 2795 (change 0318, Task 8): ONE legitimate mover — a NEW test file brings its own row.
                     # tests/test_devtest_differential.sh is the Bash-vs-Go differential parity harness (AC 18): it drives
                     # BOTH the frozen oracle scripts/run-tests.sh and the Go source entry `go run ./cmd/docket development
@@ -714,8 +722,15 @@ test_command_of(){   # block-scoped awk, the tests/test_finalize_gate.sh idiom
 TESTCMD="$(test_command_of "$REPO/.docket.local.yml")"
 [ -n "$TESTCMD" ] || TESTCMD="$(test_command_of "$REPO/.docket.yml")"
 
+# Change 0318 cut the gate onto the Go-native whole-suite runner (docket development test), which
+# emits the SAME budget-report vocabulary as scripts/run-tests.sh by construction — see
+# scripts/run-tests.md's frozen-oracle notice and tests/README.md. The guarded property is
+# unchanged (the one run whose output is always read must carry the budget report), so this
+# recognizes BOTH budget-reporting entries: the frozen oracle and the Go-native runner. The
+# source-entry shape (go run vs a bare docket) is a separate concern, guarded by
+# tests/test_devtest_cutover.sh.
 assert "the resolved finalize.test_command runs the budget-reporting runner" \
-  'case "$TESTCMD" in *run-tests.sh*) true ;; *) echo "  resolved finalize.test_command: ${TESTCMD:-<unset>}" >&2; echo "  The merge gate is the one run whose output is always read, so it is where a budget breach gets seen. A command that does not run scripts/run-tests.sh reports no budgets at all; point the gate back at the runner, or record in this diff what carries the report instead." >&2; false ;; esac'
+  'case "$TESTCMD" in *run-tests.sh*|*"development test"*) true ;; *) echo "  resolved finalize.test_command: ${TESTCMD:-<unset>}" >&2; echo "  The merge gate is the one run whose output is always read, so it is where a budget breach gets seen. Only scripts/run-tests.sh (the frozen oracle) or the Go-native docket development test runner emits the budget report; point the gate at one of them, or record in this diff what carries the report instead." >&2; false ;; esac'
 
 assert "the resolved finalize.test_command does not suppress the budget report" \
   'case "$TESTCMD" in *--no-budget-check*) echo "  resolved finalize.test_command: $TESTCMD" >&2; echo "  --no-budget-check measures no breach and prints none, which retires this whole table at the one run everybody reads. If a file is breaching, shard it or move its new assertions into a shard with room; --no-budget-check belongs in measurement runs, where enforcing a ceiling against the number being measured is circular." >&2; false ;; *) true ;; esac'

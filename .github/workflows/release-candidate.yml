@@ -90,7 +90,9 @@ jobs:
           # The suite is authored against GNU Bash >= 4.3 (wait -n); the macOS image ships Apple
           # Bash 3.2 at /bin/bash. Resolve the Homebrew formula's absolute path, refuse anything
           # older than the floor — never silently fall back — and hand the path to later steps as
-          # DOCKET_BASH_PATH, which scripts/run-tests.sh re-execs itself through.
+          # DOCKET_BASH_PATH. The Go-native runner (finalize.test_command, change 0318) launches the
+          # Bash test shards under it, and the frozen oracle scripts/run-tests.sh re-execs itself
+          # through it — the shards still need GNU Bash even under the Go gate.
           if ! brew list --versions bash >/dev/null 2>&1; then
             brew install bash
           fi
@@ -152,7 +154,10 @@ jobs:
           fi
           echo "resolved suite command: $test_cmd" >&2
           set +e
-          bash $test_cmd 2>&1 | tee suite.log
+          # Execute the resolved command as a shell command line (the same /bin/sh -c shape
+          # commandArgv uses in internal/app/gate_drive.go), so the multi-word `go run ./cmd/docket
+          # development test` gate runs as a command — never handed to bash as a single script path.
+          sh -c "$test_cmd" 2>&1 | tee suite.log
           status=${PIPESTATUS[0]}
           set -e
           # Budget-report classification (change 0361) — run-tests.sh's complete vocabulary, all

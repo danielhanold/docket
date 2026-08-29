@@ -506,10 +506,11 @@ func TestFixtureFencedMachineKeys(t *testing.T) {
 // still matches it: the byte-equality assert is what keeps that true, reddening
 // when the live .docket.yml starts asking for something new.
 func TestFixtureDocketSelf(t *testing.T) {
-	// The frozen copy was re-cut into a newer versioned tree when change 0326
-	// contracted docket's own .docket.yml (the three committed deferred switches
-	// turned explicitly false); this test — and only this test — reads that tree.
-	const docketSelfRoot = "../../testdata/repositories/v0.9.5"
+	// The frozen copy is re-cut into a newer versioned tree each time docket's own
+	// .docket.yml changes; this test — and only this test — reads that tree. Change
+	// 0318 cut v0.9.6, moving finalize.test_command onto the Go-native source entry
+	// `go run ./cmd/docket development test` (the whole-suite gate cutover).
+	const docketSelfRoot = "../../testdata/repositories/v0.9.6"
 
 	assertFrozenCopyMatchesLive(t,
 		filepath.Join(docketSelfRoot, "docket-self", "repo", ".docket.yml"),
@@ -518,13 +519,14 @@ func TestFixtureDocketSelf(t *testing.T) {
 
 	snap := mustResolveFixtureFrom(t, docketSelfRoot, "docket-self")
 
-	// metadata_branch is an obsolete tombstone (0363): docket's own committed
-	// .docket.yml still carries `metadata_branch: docket`, which no longer
-	// resolves to Effective (it is diagnosed obsolete). Task 8 re-cuts this
-	// fixture without the key; until then the byte-equality assert above keeps
-	// the frozen copy honest.
-	if snap.Effective.Finalize.TestCommand.Value != "scripts/run-tests.sh" {
-		t.Errorf("finalize.test_command = %q, want scripts/run-tests.sh", snap.Effective.Finalize.TestCommand.Value)
+	// The Go-native whole-suite runner is docket's own gate as of change 0318:
+	// finalize.test_command is the branch-faithful source entry `go run
+	// ./cmd/docket development test`, entered from source so the gate tests the
+	// exact checkout under review and never a stale installed binary. The
+	// byte-equality assert above keeps this expectation honest — a further change
+	// to the live .docket.yml re-cuts a newer versioned fixture tree here.
+	if snap.Effective.Finalize.TestCommand.Value != "go run ./cmd/docket development test" {
+		t.Errorf("finalize.test_command = %q, want go run ./cmd/docket development test", snap.Effective.Finalize.TestCommand.Value)
 	}
 
 	decision := PreflightMutation(snap)

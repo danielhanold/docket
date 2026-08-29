@@ -57,13 +57,15 @@ means), this file does not restate them.
   whole-repo grep, then sort them into prose vs executable. Only the executable ones can violate a
   gate, and a docs-shaped reading skips right past them.
 - Run the whole suite at the build gate, never only the tests the spec enumerated. The suite command is
-  whatever `finalize.test_command` resolves to — read it there, never from a second copy. It runs
-  the files in parallel with per-job isolation and measures each file against its wall-clock budget.
-  A `BUDGET WATCH:` / `PARALLEL-SENSITIVE:` line is a screening finding, and a
-  `SERIAL CONFIRMED OVER BUDGET:` line is an authoritative breach to act on: neither fails the run by
-  default (a parallel wall-clock number is machine-dependent, so a real breach is confirmed serially;
-  see `scripts/run-tests.md`), so nothing else will catch them for you. `tests/README.md` covers how
-  to run the suite and where a new test belongs.
+  whatever `finalize.test_command` resolves to — read it there, never from a second copy — which is now
+  the Go-native `go run ./cmd/docket development test`, entered from source so the gate tests the exact
+  checkout under review. It runs the files in parallel with per-job isolation and measures each file
+  against its wall-clock budget, and the budget clause lines keep their meanings: a `BUDGET WATCH:` /
+  `PARALLEL-SENSITIVE:` line is a screening finding, and a `SERIAL CONFIRMED OVER BUDGET:` line is an
+  authoritative breach to act on — neither fails the run by default (a parallel wall-clock number is
+  machine-dependent, so a real breach is confirmed serially; see `tests/README.md`), so nothing else
+  will catch them for you. `tests/README.md` covers how to run the suite and where a new test belongs.
+  The Bash runner `scripts/run-tests.sh` stays present as the frozen parity oracle, not the gate.
 
 ## Comments and cross-references
 

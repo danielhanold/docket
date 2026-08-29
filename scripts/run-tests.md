@@ -1,5 +1,11 @@
 # run-tests.sh — parallel runner for docket's own test suite
 
+> **Frozen parity oracle (change 0318).** This runner remains present and green as the parity
+> oracle and migration corpus for changes 0369/0370. It is no longer the whole-suite gate: the
+> canonical whole-suite gate is `go run ./cmd/docket development test`, resolved via
+> `finalize.test_command`. The rest of this contract still describes the Bash runner's own
+> behavior, which is unchanged.
+
 ## Purpose
 
 Runs docket's `tests/test_*.sh` **N at a time** instead of one after another, each job in its own
