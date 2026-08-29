@@ -157,11 +157,12 @@ assert "s2: both name the failing file in FAILED:" 'grep -q "^FAILED:.*test_bad"
 
 # ---- Scenario 3: launch / infrastructure failure -----------------------------------------------
 # A 0-length UNREADABLE target (chmod 000). CARVE-OUT: this is the plan's "compare category, not
-# wording" scenario. The two runners decline to certify the bad target by DIFFERENT routes and with
-# different process codes — the oracle refuses at its source-hygiene preflight (the checker cannot
-# read the file: exit 2, zero files executed), while the Go runner schedules it and the child bash
-# fails to open it (exit 1). So this scenario asserts the CATEGORY both share — both exit NON-ZERO,
-# and NEITHER reports a clean two-of-two pass — not exit-code or per-line equality. (A directory
+# wording" scenario. Both runners decline to certify the bad target by fail-closed routes, but the
+# exact process/exit codes are not a guaranteed split: both invoke the same scripts/check-test-source-
+# hygiene.sh on the chmod-000 target, and the Go runner's hygienePreflight maps a non-1 checker exit
+# to exit 2 just as the oracle's `*` case does, so the precise codes may differ run to run. So this
+# scenario asserts only the CATEGORY both share — both exit NON-ZERO, and NEITHER reports a clean
+# two-of-two pass — not exit-code or per-line equality. (A directory
 # target was rejected as the fixture: Go's Discover skips os.DirEntry.IsDir() entries, so a directory
 # would diverge into "Go never schedules it" rather than a shared failure.)
 fix3="$scratch/fix3"; mkdir -p "$fix3"
