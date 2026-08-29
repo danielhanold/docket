@@ -1,13 +1,12 @@
 # Backlog
 
-**364 changes** — 🟢 2 in progress · 🟡 51 proposed · ⚪ 4 deferred · ✅ 225 done · 🗑️ 82 killed
+**364 changes** — 🟢 1 in progress · 🟡 51 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 225 done · 🗑️ 82 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0252](active/0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md) | Harden test fixtures and hermeticity into tests-lib | `high` | `chore` | [spec](../superpowers/specs/2026-08-07-harden-test-fixtures-and-hermeticity-into-tests-lib-design.md) | `chore/harden-test-fixtures-and-hermeticity-into-tests-lib` |
-| [0363](active/0363-remove-main-mode-compatibility-from-go-v1.md) | Remove main-mode compatibility from Go v1 | `high` | `refactor` | [spec](../superpowers/specs/2026-08-28-remove-main-mode-compatibility-from-go-v1-design.md) | `refactor/remove-main-mode-compatibility-from-go-v1` |
 
 ## 🟡 Proposed (51)
 
@@ -49,7 +48,7 @@
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
-| [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Remaining configuration cleanup, self-hosting, and hard cutover | `critical` | `refactor` | ⏳ waiting on #363 — not yet built |
+| [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Remaining configuration cleanup, self-hosting, and hard cutover | `critical` | `refactor` | ⏳ waiting on #363 — needs your merge |
 | [0319](active/0319-test-bash-runtime-routing-sh-s-inventory-assert-is-cwd-depen.md) | test_bash_runtime_routing.sh's inventory assert is cwd-dependent — relative rg globs resolve against the process cwd | `medium` | `fix` | needs-brainstorm |
 | [0320](active/0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | `medium` | `chore` | needs-brainstorm |
 | [0321](active/0321-render-artifact-backlink-sh-eats-artifact-tails-on-marker-sh.md) | render-artifact-backlink.sh eats artifact tails on marker-shaped literals — anchor whole-line, validate balance, refuse | `medium` | `fix` | needs-brainstorm |
@@ -73,6 +72,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0363](active/0363-remove-main-mode-compatibility-from-go-v1.md) | Remove main-mode compatibility from Go v1 | `high` | `refactor` | [#250](https://github.com/danielhanold/docket/pull/250) |  |
 
 ```mermaid
 graph TD
