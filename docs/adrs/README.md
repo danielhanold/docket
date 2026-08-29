@@ -5,7 +5,6 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 ## Active
 
 - [ADR-0001](0001-docket-metadata-branch-model.md) — Planning metadata on an orphan docket branch; publish terminal records by copy, not merge (Accepted) ← change #2
-- [ADR-0002](0002-docket-mode-default-and-bootstrap.md) — docket-mode is the default; refuse-and-migrate bootstrap; terminal-publish single-sourced in finalize (Accepted) ← change #2 · relates to ADR-0001
 - [ADR-0003](0003-convention-reference-loading.md) — The docket convention is reference-loaded from a docket-convention skill, not embedded per skill (Accepted) ← change #5 · relates to ADR-0002
 - [ADR-0004](0004-grooming-takes-no-claim.md) — Grooming takes no claim — final-push CAS suffices for human-attended sessions (Accepted) ← change #12 · relates to ADR-0001
 - [ADR-0005](0005-close-out-only-harvest.md) — Learnings are harvested only at close-out — one writer, one moment, ledger unpublished (Accepted) ← change #6 · relates to ADR-0001, ADR-0003
@@ -95,9 +94,11 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0096](0096-legacy-reproduction-uses-a-frozen-embedded-floor.md) — Legacy reproduction resolves pins from a frozen embedded v0.9.2 floor, not the live defaults table (Accepted) ← change #322
 - [ADR-0097](0097-pr-identity-is-verified-by-parsed-pr-number.md) — Manifest pr: stores the canonical URL; PR identity is verified by parsed number (Accepted) ← change #344
 - [ADR-0098](0098-structured-gate-waiting-and-ownership-handoff.md) — Gate waiting is structured, resumable, and ownership-handed-off (Accepted) ← change #342 · relates to ADR-0024, ADR-0095
+- [ADR-0099](0099-one-metadata-topology-for-go-v1.md) — One metadata topology for Go v1 (main-mode removed) (Accepted) ← change #363 → supersedes ADR-0002 · relates to ADR-0001, ADR-0052
 
 ## Superseded / Reversed
 
+- [ADR-0002](0002-docket-mode-default-and-bootstrap.md) — docket-mode is the default; refuse-and-migrate bootstrap; terminal-publish single-sourced in finalize (Superseded by ADR-99) ← change #2 · relates to ADR-0001
 - [ADR-0017](0017-cursor-dispatch-rule-full-agent-set.md) — Per-repo agent generation goes always-full-set, opt-in, with a Cursor dispatch rule (Superseded by ADR-20) ← change #48 · relates to ADR-0015, ADR-0016
 - [ADR-0023](0023-configurable-sdd-build-model.md) — Configurable SDD build models — a `build:` surface of per-role direct model IDs (Superseded by ADR-63) ← change #44 · relates to ADR-0015, ADR-0016, ADR-0018
 - [ADR-0038](0038-runner-shim-wrapper-single-dispatch-chokepoint.md) — Runner delegation rides a generated shim wrapper body, not per-skill dispatch branching (Superseded by ADR-79) ← change #79 · relates to ADR-0012, ADR-0015, ADR-0020, ADR-0024, ADR-0037
