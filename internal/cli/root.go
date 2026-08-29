@@ -44,6 +44,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	// the refusal document reports the operation the user asked for rather
 	// than the guard.
 	gateOperation := ""
+	// devTestCode carries the exit code of `development test`, which produces no
+	// result document: the whole-suite runner streams its own report and the exit
+	// code is the verdict, so it is threaded straight to the process exit below,
+	// bypassing the presenter (change 0318).
+	var devTestCode *int
 
 	root := &cobra.Command{
 		Use:   "docket",
@@ -309,6 +314,22 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	_ = developmentInstallCmd.Flags().MarkHidden("internal-continuation")
 	_ = developmentInstallCmd.MarkFlagRequired("source")
 
+	developmentTestCmd := &cobra.Command{
+		Use:   "test",
+		Short: "Run the complete configured test suite from this checkout",
+		Args:  cobra.NoArgs,
+		// Non-interactive whole-suite runner (change 0318). The report streams to
+		// this process's stdout/stderr and the exit code carries the verdict
+		// (documented beside "Exit contract" in internal/suiterunner/run.go), so
+		// it bypasses the JSON result presenter deliberately: it sets no result
+		// document, records its exit code, and Run threads that straight out.
+		RunE: func(c *cobra.Command, _ []string) error {
+			code := runDevelopmentTest(c.Context(), stdout, stderr)
+			devTestCode = &code
+			return nil
+		},
+	}
+
 	// The change command family is a thin adapter tree, like the commands above:
 	// each subcommand reads a JSON request, hands it to its internal/app planning
 	// operation, and assigns the outcome to the shared result for the presenter.
@@ -327,7 +348,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	repositoryCmd := newRepositoryCommand(func(r app.OperationResult) { result = r })
 
 	installCmd.AddCommand(installCheckCmd)
-	developmentCmd.AddCommand(developmentInstallCmd)
+	developmentCmd.AddCommand(developmentInstallCmd, developmentTestCmd)
 	diagnosticCmd.AddCommand(runtimeCmd, configCmd)
 	root.AddCommand(versionCmd, statusCmd, changeCmd, contextCmd, artifactCmd, workspaceCmd, evidenceCmd, prCmd, runCmd, learningCmd, adrCmd, gateCmd, finalizeCmd, maintenanceCmd, repositoryCmd, diagnosticCmd, installCmd, developmentCmd)
 	root.AddCommand(extra...)
@@ -378,6 +399,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 			return p.Present(res)
 		}
 		return p.PresentHumanError(res)
+	case devTestCode != nil:
+		// `development test` already streamed its own report to stdout/stderr and
+		// its exit code is the verdict; present nothing and return that code
+		// directly, the way a relayed development-install child does (change 0318).
+		return *devTestCode
 	case result != nil:
 		// A development-install parent that handed off to its candidate has no
 		// document of its own: the candidate already wrote the one result to the

@@ -31,7 +31,16 @@ EXPECTED_SERIAL=0   # no file is currently pinned serial. tests/test_go_race.sh 
                     # run no longer starves the other parallel jobs. RAISING THIS IS A FINDING: a
                     # serial pin removes a file from the parallel phase, so it must be justified in
                     # the same diff with the shared state that forces it.
-EXPECTED_TOTAL=2765 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2780 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2765 -> 2780 (change 0318, Task 7): ONE legitimate mover — a NEW test file brings its own row.
+                    # tests/test_devtest_runner.sh is the end-to-end coverage of `docket development test`, the
+                    # Go-native whole-suite runner that becomes finalize.test_command. It drives the REAL source entry
+                    # `go run ./cmd/docket development test` over synthetic fixture suites (the entry the merge gate runs),
+                    # a brand-new surface no existing shard owns — the suiterunner PACKAGE unit contract lives in
+                    # internal/suiterunner, which tests/test_go_toolchain.sh's `go test ./...` covers, while this file
+                    # proves the wired command through `go run`, which that gate never invokes. Sized from the WORST
+                    # reading (warm 1.88, cold-cache 5.49 with an empty GOCACHE -> next multiple of 5 is 10, plus 5 -> 15;
+                    # see the tsv header). +15.
                     # 2640 -> 2650 (change 0352, Task 2): ONE legitimate mover — a NEW test file
                     # brings its own row. tests/test_go_integration_gitcli_setuptree.sh is the fifth
                     # gitcli integration SHARD (^TestIntegrationSetupTree: the setup-tree primitives).
