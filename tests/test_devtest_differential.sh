@@ -8,12 +8,17 @@
 # stays as the byte-exact oracle.
 #
 # WHAT IS COMPARED — NORMALIZED observations, not raw bytes. A raw diff would flag machine noise the
-# contract does not care about, and two REAL divergences the plan documents as intended: the fixture
+# contract does not care about, and three REAL divergences the plan documents as intended: the fixture
 # suite's own absolute temp path (BSD `find` preserves a `TMPDIR` trailing slash — `T//fix/...` —
-# while Go's filepath cleans it to `T/fix/...`), and wall-clock seconds. So each captured report is
+# while Go's filepath cleans it to `T/fix/...`), wall-clock seconds, and the advisory OVER BUDGET
+# note's strict-knob spelling (the frozen oracle names its `--strict-budget` flag; the Go entry
+# `docket development test` takes cobra.NoArgs and exposes strict only through the
+# DOCKET_RUNTESTS_STRICT=1 env seam, so it names that seam instead — a deliberate human-facing
+# deviation, change 0318). So each captured report is
 # reduced by normalize() to its parity skeleton: every `/…/test_X.sh` path collapses to its basename
-# (the IDENTITY the join key is built on), every `<N>s` wall-clock number becomes `Ns`, and every
-# `-jN` becomes `-jJ`. KEPT, deliberately: target identity, row ORDER, rc values, ok/notok counts,
+# (the IDENTITY the join key is built on), every `<N>s` wall-clock number becomes `Ns`, every
+# `-jN` becomes `-jJ`, and the advisory note's `Pass --strict-budget`/`Set DOCKET_RUNTESTS_STRICT=1`
+# strict-knob directive collapses to `<STRICT-KNOB>`. KEPT, deliberately: target identity, row ORDER, rc values, ok/notok counts,
 # the `FAILED:` / `NO RESULT:` / `OVER BUDGET:` category lines, and the budget-clause KINDS
 # (`BUDGET WATCH:` / `PARALLEL-SENSITIVE:` / `SERIAL CONFIRMATION DUE:` / `SERIAL CONFIRMED OVER
 # BUDGET:`) with their streak/recheck counters — the observations a merge gate and a human read.
@@ -79,9 +84,14 @@ JOBS=2
 # the wall-clock numbers, then the job count. Plain sed over a FILE (no pipeline), so there is no
 # producer|early-exiting-consumer hazard under pipefail.
 normalize(){
+  # The two strict-knob spellings are collapsed with SEPARATE BRE `-e` rules, not one
+  # `\|`-alternation — BSD sed's BRE has no alternation, so an alternation would silently
+  # match nothing here. This is the intended human-facing deviation documented in the header.
   sed -e 's#/[^ ]*/\(test_[A-Za-z0-9_]*\.sh\)#\1#g' \
       -e 's/[0-9][0-9]*s/Ns/g' \
-      -e 's/-j[0-9][0-9]*/-jJ/g' "$1"
+      -e 's/-j[0-9][0-9]*/-jJ/g' \
+      -e 's/Pass --strict-budget to gate on it/<STRICT-KNOB> to gate on it/' \
+      -e 's/Set DOCKET_RUNTESTS_STRICT=1 to gate on it/<STRICT-KNOB> to gate on it/' "$1"
 }
 
 # bash_run <stdout> <stderr> <budget-state> [extra run-tests.sh args...]: drive the frozen oracle.

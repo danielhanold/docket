@@ -181,7 +181,7 @@ func Run(ctx context.Context, cfg Config) int {
 		}
 	}
 
-	tally := RenderReport(stdout, outcomes, unknown, wall, cfg.Verbose, logsDir)
+	tally := RenderReport(stdout, outcomes, unknown, wall, cfg.Verbose, cfg.Strict, logsDir)
 
 	// The budget-state machinery runs BELOW the exit-affecting report so it can
 	// never change the verdict on its own, and is skipped entirely on an

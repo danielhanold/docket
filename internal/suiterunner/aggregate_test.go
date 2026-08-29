@@ -100,7 +100,7 @@ func TestValidateUnknownAndUnscheduled(t *testing.T) {
 	if len(unknown) != 1 || !contains(unknown[0], "test_ghost") {
 		t.Fatalf("unknown = %v, want [test_ghost...]", unknown)
 	}
-	tally := RenderReport(&bytes.Buffer{}, outcomes, unknown, 1, false, "")
+	tally := RenderReport(&bytes.Buffer{}, outcomes, unknown, 1, false, false, "")
 	if got := ExitCode(tally, len(unknown), false); got != 3 {
 		t.Fatalf("ExitCode with unknown>0 = %d, want 3", got)
 	}
@@ -157,8 +157,8 @@ func TestReportOrderIsCompletionIndependent(t *testing.T) {
 	c := TargetOutcome{Target: tgt("test_c.sh", 60, ModeParallel), Kind: OutcomeNoResult}
 
 	var buf1, buf2 bytes.Buffer
-	RenderReport(&buf1, []TargetOutcome{a, b, c}, nil, 9, false, "")
-	RenderReport(&buf2, []TargetOutcome{c, b, a}, nil, 9, false, "")
+	RenderReport(&buf1, []TargetOutcome{a, b, c}, nil, 9, false, false, "")
+	RenderReport(&buf2, []TargetOutcome{c, b, a}, nil, 9, false, false, "")
 	if buf1.String() != buf2.String() {
 		t.Fatalf("report differs by input order:\n--- order1 ---\n%s\n--- order2 ---\n%s", buf1.String(), buf2.String())
 	}
@@ -182,7 +182,7 @@ func TestReportPreservesAllFailures(t *testing.T) {
 		{Target: tgt("test_iv.sh", 60, ModeParallel), Kind: OutcomeInvalidResult, Detail: "malformed"},
 	}
 	var buf bytes.Buffer
-	tally := RenderReport(&buf, outcomes, nil, 5, false, "")
+	tally := RenderReport(&buf, outcomes, nil, 5, false, false, "")
 	if tally.Failed != 2 || tally.NoResult != 1 || tally.Invalid != 1 {
 		t.Fatalf("tally = %+v, want Failed=2 NoResult=1 Invalid=1", tally)
 	}
@@ -241,7 +241,7 @@ func TestAdvisoryBreachExitsZeroWithLoudReport(t *testing.T) {
 		OverDirect: true,
 	}
 	var buf bytes.Buffer
-	tally := RenderReport(&buf, []TargetOutcome{o}, nil, 100, false, "")
+	tally := RenderReport(&buf, []TargetOutcome{o}, nil, 100, false, false, "")
 	out := buf.String()
 	for _, want := range []string{
 		"OVER BUDGET:",
@@ -255,6 +255,35 @@ func TestAdvisoryBreachExitsZeroWithLoudReport(t *testing.T) {
 	}
 	if got := ExitCode(tally, 0, false); got != 0 {
 		t.Fatalf("advisory breach ExitCode = %d, want 0", got)
+	}
+}
+
+// TestStrictBreachRendersStrictNote — under DOCKET_RUNTESTS_STRICT=1 (strict=true) an
+// authoritative direct breach on an otherwise-green run GATES the run (exit 4). The
+// OVER BUDGET note must then render the oracle's strict arm byte-for-byte, and must NOT
+// hand the reader the advisory "the tests all passed … (exit 0)" line — the exact
+// ADR-0074 harm the note-selection guards. This pins the fourth arm the earlier
+// three-arm switch could not reach; the non-strict case is covered by
+// TestAdvisoryBreachExitsZeroWithLoudReport.
+func TestStrictBreachRendersStrictNote(t *testing.T) {
+	o := TargetOutcome{
+		Target:     tgt("test_slow.sh", 60, ModeSerial),
+		Kind:       OutcomePassed,
+		Result:     Result{Schema: 1, Target: "test_slow.sh", RC: 0, Seconds: 100, OK: 1},
+		OverDirect: true,
+	}
+	var buf bytes.Buffer
+	tally := RenderReport(&buf, []TargetOutcome{o}, nil, 100, false, true, "")
+	out := buf.String()
+	if !contains(out, "Strict: --strict-budget was given, so this breach fails the run (exit 4). The tests themselves passed.") {
+		t.Fatalf("strict breach missing the oracle's strict note:\n%s", out)
+	}
+	if contains(out, "Advisory: the tests all passed") {
+		t.Fatalf("strict breach still printed the advisory exit-0 line (ADR-0074 harm):\n%s", out)
+	}
+	// A strict-armed direct crossing exits 4 (run.go sets strictArmed on this path).
+	if got := ExitCode(tally, 0, true); got != 4 {
+		t.Fatalf("strict breach ExitCode = %d, want 4", got)
 	}
 }
 
