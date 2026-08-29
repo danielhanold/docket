@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'refactor/config-contraction-self-hosting-and-hard-cutover'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-29T17:34:05Z'
+reconciled: true
+claimed_at: '2026-08-29T17:40:22Z'
 ---
 
 ## Artifacts
@@ -72,3 +72,6 @@ and 0366 owns external human and release truth.
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
 
+### 2026-08-29
+
+Reconciled the re-narrowed spec (2026-08-28) against current main (origin/main @ 1e558697) with dependencies 317/352/363 all merged to done. Confirmed reality matches the spec's snapshot: no `docket development test` command exists (the `development` parent in internal/cli/root.go carries only `development install`); no Go runner/suite orchestration package exists (nearest analogues are internal/gatedrive and internal/process); whole-suite orchestration is the 819-line scripts/run-tests.sh, selected via `.docket.yml` finalize.test_command: scripts/run-tests.sh; suite discovery is glob-based (`tests/test_*.sh`, no manifest), with Go targets wrapped as Bash shards (test_go_toolchain.sh, test_go_race.sh, test_go_finalize_e2e.sh, and 25 test_go_integration_*.sh shards using DOCKET_SHARD_INSPECT discovery); ADR-0074's tri-state gate verdict remains normative. Scope holds as the FIRST self-contained stage of the 318->369->370 chain: 318 adds the Go-native `docket development test` runner, cuts finalize.test_command / contributor docs / RC source validation to one branch-faithful `go run ./cmd/docket development test` entry, keeps the entire existing Bash+Go corpus present and green as parity oracle, and proves the contract via differential/synthetic/mutation tests. Deletion of the frozen Bash facade and legacy test surface stays in 370; maintained-consumer migration stays in 369; external human/release truth stays in 366; post-cutover board config stays in 367. No forwarding shim, no facade deletion, no DOCKET_SCRIPTS_DIR/runtime.bash contraction in this change. Relations (depends_on 317/352/363, related 322/326/361/366/369/370, adrs 74, discovered_from 303) remain correct; no change required. Auto-capture disabled; no adjacent stubs minted.
