@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'fix/codex-nested-dispatch-capability-boundary'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-29T13:48:09Z'
+reconciled: true
+claimed_at: '2026-08-29T13:52:47Z'
 ---
 
 ## Artifacts
@@ -66,3 +66,17 @@ continuation work tracked by change 0359.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-29
+
+Reconciled against current `main` (integration branch) and the cited context; scope holds unchanged, no obsolescence or fundamental invalidation.
+
+Verified current reality:
+
+- **Prototype precondition already satisfied.** The spec's "Prototype disposition" requires the diagnostic prototype (a Codex renderer paragraph, one Go test, regenerated goldens) to be removed from `main` before implementation. It is already absent: no "direct named-agent dispatch", "nested orchestration inventory", "top-level tool surface", or "collaboration controls" text exists in `internal/harness/codex/` or in any golden on `main`. The implementer starts from a clean base and writes the failing tests first, as the spec directs.
+- **Renderer producer confirmed.** The Codex-specific emitter is `internal/harness/codex/codex.go` (`renderAgent`); the shared agent bodies live in `agents/docket-*.md` and stay harness-neutral, so the new developer-instruction paragraph is prepended in the Codex renderer only. Goldens: `internal/harness/codex/testdata/golden/` (17 `docket-*.toml`); comparison test `internal/harness/codex/codex_test.go` (`TestCodexGoldenAgents`, regenerated with `-update`).
+- **Non-Codex goldens must stay byte-unchanged.** Claude/Cursor/OpenCode goldens under `internal/harness/<h>/testdata/golden/` (17 `docket-*.md` each) — no diff expected.
+- **Convention producer confirmed.** The "Dispatch-capability resolution (change 0137)" section is canonical in `skills/docket-convention/SKILL.md`, with a byte-identical embedded mirror at `internal/assets/embedded/tree/skills/docket-convention/SKILL.md` that MUST be regenerated in lockstep (the embedded tree is generated from the canonical skill). Existing guard: `tests/test_dispatch_capability.sh` — extend it for the active/top-level-surface vs nested-inventory distinction; sibling phrase guards live in `tests/test_docket_build.sh`, `tests/test_docket_review.sh`, `tests/test_skill_size_budgets.sh`.
+- **Codex docs confirmed present and lacking the target language.** `docs/codex/setup.md` and `docs/codex/validation-runbook.md` exist; neither currently states the two supported invocation paths (prose routing + direct `@agent`), the nested-dispatch-uses-top-level-surface rule, or the fresh-process requirement. Runbook structure guard: `tests/test_codex_runbook.sh`.
+- **Relations unchanged.** related=[353 (killed), 359 (proposed)] still accurate; discovered_from=[361]; adrs=[36,59,60,94] are CITED (retained authoritative), not produced. Spec expects no new ADR unless a decision that changes one of those rules surfaces — none did, so no ADR is planned. depends_on empty; not stacked.
+- Suite runner is `scripts/run-tests.sh` (parallel shell suite) plus Go `*_test.go`; treat any `SERIAL CONFIRMED OVER BUDGET` line as a failure to address, `BUDGET WATCH` as screening only.
