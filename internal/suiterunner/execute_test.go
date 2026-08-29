@@ -57,10 +57,17 @@ func TestSandboxIsolation(t *testing.T) {
 	}
 	log := string(logBytes)
 
-	if !strings.Contains(log, "HOME="+work) {
+	// The child's HOME/TMPDIR are built with filepath.Join in Sandbox/ExecuteTarget,
+	// which runs filepath.Clean and collapses any redundant slash. work comes from
+	// t.TempDir(), which inherits $TMPDIR verbatim — and macOS's $TMPDIR carries a
+	// trailing slash, so under the Bash oracle's launch() nesting work can hold a
+	// "T//run-tests" double slash the child path never shows. Compare against the
+	// cleaned form so the isolation assertion tracks what Sandbox actually produces.
+	cleanWork := filepath.Clean(work)
+	if !strings.Contains(log, "HOME="+cleanWork) {
 		t.Fatalf("child HOME not under work dir; log:\n%s", log)
 	}
-	if !strings.Contains(log, "TMPDIR="+work) {
+	if !strings.Contains(log, "TMPDIR="+cleanWork) {
 		t.Fatalf("child TMPDIR not under work dir; log:\n%s", log)
 	}
 	if !strings.Contains(log, "EMAIL=test@docket.invalid") {
