@@ -519,6 +519,20 @@
 # the 5s margin -> 15. The cold reading — repeated `go run` recompiling ./cmd/docket once — is the
 # reachable worst on a fresh clone or CI image; warm in the suite (the Go-touching files share
 # GOCACHE). Rides the parallel lane. EXPECTED_TOTAL moves 2780 -> 2795: +15.
+#
+# tests/test_devtest_cutover.sh is a NEW FILE brought by change 0318 (Task 9) — the header's
+# new-test-file case, for a brand-new surface no existing shard owns: the source-fidelity + docs +
+# RC-workflow cutover guards (AC 3/22). It is a pure text inspection over committed source — the
+# .docket.yml finalize.test_command source-entry (the "installed binary at a source gate" mutation
+# guard), the RC workflow's sh -c derivation, the AGENTS.md / tests/README.md whole-suite bindings,
+# and scripts/run-tests.md's frozen-oracle notice — with no Go build and no subprocess beyond
+# grep/awk/sed/tr. It is NOT an extension of tests/test_devtest_runner.sh or
+# tests/test_devtest_differential.sh (which drive the runner), nor of tests/test_release_package.sh
+# (which guards the RC workflow's OTHER surfaces): this file's whole point is the cutover fidelity,
+# which none of them owns. Sized per this header's rule from three standalone serial readings
+# (`/usr/bin/time -p bash tests/test_devtest_cutover.sh`): 0.64 0.63 0.63 -> worst 0.64 -> next
+# multiple of 5 is 5, plus the 5s margin -> 10, this table's floor. Rides the parallel lane.
+# EXPECTED_TOTAL moves 2795 -> 2805: +10.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -548,6 +562,7 @@ tests/test_critic_return_channel.sh	10	parallel
 tests/test_cursor_contract_docs.sh	10	parallel
 tests/test_cursor_dispatch_rule.sh	10	parallel
 tests/test_cursor_permissions_docs.sh	10	parallel
+tests/test_devtest_cutover.sh	10	parallel
 tests/test_devtest_differential.sh	15	parallel
 tests/test_devtest_runner.sh	15	parallel
 tests/test_dispatch_block_budget.sh	10	parallel

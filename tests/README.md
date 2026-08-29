@@ -8,13 +8,22 @@ ordering dependencies, runnable on its own as `bash tests/test_X.sh`.
 
 ## Running it
 
+The whole suite runs through the Go-native runner — what `finalize.test_command` resolves to and
+what the merge gate runs (change 0318):
+
 ```
-scripts/run-tests.sh             # parallel, all files, budgets measured and reported
-scripts/run-tests.sh -j 1        # serial reference
-scripts/run-tests.sh --verbose tests/test_docket_config.sh   # one file, full output
+go run ./cmd/docket development test    # the whole-suite, branch-faithful source gate
 ```
 
-`scripts/run-tests.md` is the contract. Budgets are enforced by a **screen-then-confirm** regime:
+`scripts/run-tests.sh` remains present as the frozen parity oracle and a focused-file tool; it is
+no longer the whole-suite gate:
+
+```
+scripts/run-tests.sh --verbose tests/test_docket_config.sh   # one file, full output
+scripts/run-tests.sh -j 1                                    # serial reference (the oracle)
+```
+
+`scripts/run-tests.md` is the contract for the frozen oracle. Budgets are enforced by a **screen-then-confirm** regime:
 a parallel run over `ceiling * 5/2` records an advisory screening finding (`BUDGET WATCH:` /
 `PARALLEL-SENSITIVE:`), and only a solo measurement over `ceiling * 3/2` — from `-j 1`, or from a
 scheduled serial confirmation the runner triggers after repeated overruns — is an authoritative
