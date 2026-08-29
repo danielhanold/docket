@@ -21,7 +21,7 @@ branch: 'fix/codex-nested-dispatch-capability-boundary'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-29T13:52:47Z'
+claimed_at: '2026-08-29T13:53:22Z'
 ---
 
 ## Artifacts
