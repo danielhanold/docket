@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0318 — Go-only source cutover](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0318-config-contraction-self-hosting-and-hard-cutover.md)**
+> ↩ **[Change 0318 — Go-only source cutover](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-29-0318-config-contraction-self-hosting-and-hard-cutover.md)**
 <!-- docket:backlink:end -->
 # Go-Native Whole-Suite Test Runner and Gate Cutover — Implementation Plan
 
