@@ -1540,7 +1540,7 @@ skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            130 1200
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          155 1550
-skills/docket-convention/SKILL.md                          400 7250
+skills/docket-convention/SKILL.md                          400 7350
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         205 2350
 skills/docket-convention/references/auto-capture.md        130 1250
@@ -1611,6 +1611,16 @@ skills/docket-status/SKILL.md                              126 2850
 #   6450, whose 5-word margin is within the 25-word threshold, so the multiple after: 6500 (55
 #   words of margin). The LINE budget was not raised (180 actual, 180 budget — the added prose
 #   landed within the standing line budget).
+
+# Change 0365 (Codex nested-dispatch capability boundary) raised docket-convention/SKILL.md's WORD
+# budget 7250 -> 7350 to pay for the *Dispatch-capability resolution* rule now naming the
+# authoritative surface by shape: resolution reads the agent's own active, top-level tool surface, a
+# nested namespace or inventory exposed from inside another tool is non-authoritative, and absence
+# there establishes nothing (mirrored to the never-sufficient list). tests/test_dispatch_capability.sh
+# matches these sentences verbatim, so they cannot compress into a pointer. Set per the rounding rule
+# above from the measured actual: 7281 words -> the next multiple of 50 is 7300, whose 19-word margin
+# is within the 25-word threshold, so the multiple after: 7350 (69 words of margin). The LINE budget
+# was not raised (393 actual, 400 budget — the added sentences landed within the standing line budget).
 
 # Every tracked file is within budget.
 budgeted=""
