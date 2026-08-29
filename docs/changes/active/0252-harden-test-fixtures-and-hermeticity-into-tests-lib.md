@@ -2,11 +2,11 @@
 id: 252
 slug: harden-test-fixtures-and-hermeticity-into-tests-lib
 title: 'Harden test fixtures and hermeticity into tests-lib'
-status: 'in-progress'
+status: proposed
 priority: high
 type: chore
 created: 2026-08-07
-updated: '2026-08-28'
+updated: '2026-08-29'
 depends_on: []
 related: [253, 278, 222]
 discovered_from: [243, 177, 182]
@@ -16,11 +16,10 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch: 'chore/harden-test-fixtures-and-hermeticity-into-tests-lib'
+branch:
 pr:
 blocked_by:
-reconciled: true
-claimed_at: '2026-08-28T21:08:34Z'
+reconciled: false
 ---
 
 ## Artifacts
