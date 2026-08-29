@@ -12,7 +12,7 @@ type LinkContext struct {
 	// e.g. "https://github.com/danielhanold/docket". Empty means "render
 	// repo-relative links only" (callers without a resolvable web remote).
 	RepoWebURL string
-	// MetadataBranch is the branch blob links point at, e.g. "docket" or "main".
+	// MetadataBranch is the branch blob links point at, e.g. "docket".
 	MetadataBranch string
 }
 

@@ -10,14 +10,6 @@ import (
 // protocol output. They are absent — not empty, not a constant compatibility
 // value. Clients key on the surviving revision/integration identity instead.
 
-// modeShapedProtocolKeys is the closed set of JSON keys change 0363 removes from
-// public protocol output. metadata_revision and the integration/default branch
-// identity keys survive and are asserted present elsewhere.
-var modeShapedProtocolKeys = []string{
-	"metadata_mode",
-	"repo_mode",
-}
-
 func TestStatusContextProtocolOmitsModeFields(t *testing.T) {
 	// A fully-populated StatusContext must never serialize a mode-shaped key.
 	ctx := StatusContext{

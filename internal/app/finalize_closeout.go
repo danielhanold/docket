@@ -54,12 +54,11 @@ import (
 //      population. A single unproven descendant keeps the whole root recoverable —
 //      zero descendant writes.
 //
-// Backlinks across repository modes: the metadata transaction lands first and
-// retargets every backlink block resident ON the metadata ref (always the spec;
-// in main mode the plan and results too). In docket mode the merged plan and
-// results live on the integration ref, so a FOLLOW-UP isolated integration-ref
-// transaction patches only their existing docket:backlink blocks under the
-// integration ref's exact lease. That second leg is generated-link maintenance,
+// Backlinks across the one topology: the metadata transaction lands first and
+// retargets every backlink block resident ON the metadata ref (the spec). The
+// merged plan and results live on the integration ref, so a FOLLOW-UP isolated
+// integration-ref transaction patches only their existing docket:backlink blocks
+// under the integration ref's exact lease. That second leg is generated-link maintenance,
 // not terminal publishing: it copies no metadata record and edits no authored
 // bytes. A failed or contended second leg leaves the change truthfully `done` and
 // emits a typed terminal-backlink-pending finding; its idempotency is keyed on the
@@ -1265,9 +1264,9 @@ func buildInPlaceCandidate(eff config.Effective, docs map[string]document.Docume
 
 // retargetArtifactBacklinks retargets, on the metadata tree, the docket:backlink
 // block of each of the archived change's spec/plan/results artifacts that is
-// present ON that tree and carries a block. A metadata-resident artifact (always
-// the spec; in main mode the plan and results too) is retargeted here; an
-// integration-resident one (docket-mode plan/results) is absent from st.Tree and
+// present ON that tree and carries a block. A metadata-resident artifact (the
+// spec) is retargeted here; an integration-resident one (the plan/results) is
+// absent from st.Tree and
 // left to the follow-up leg. It never conjures a block a hand-authored artifact
 // lacks, matching the kill path's spec-retarget contract.
 func retargetArtifactBacklinks(ctx context.Context, tree transaction.Tree, gc domain.Change, link render.LinkContext, files []transaction.FileMutation) ([]transaction.FileMutation, error) {

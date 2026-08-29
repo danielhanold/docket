@@ -24,10 +24,10 @@ const (
 
 // The two source names the operation asks an artifact against. Specs live on
 // the metadata source; plans and results live on the integration source. The
-// Git-backed reader resolves each name to the branch the metadata mode dictates
-// (Task 3); in main mode both resolve to the same default source, but the names
-// the orchestration passes never collapse — that distinction is what keeps a
-// docket-mode spec read pinned to the metadata revision.
+// Git-backed reader resolves the metadata source to the fixed `docket` revision
+// and the integration source to the integration revision — two distinct pinned
+// revisions — which is what keeps a spec read pinned to the metadata revision
+// (change 0363: Go v1 supports one metadata topology).
 const (
 	sourceMetadata    = "metadata"
 	sourceIntegration = "integration"
