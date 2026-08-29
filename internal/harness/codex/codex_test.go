@@ -514,6 +514,75 @@ func syntheticAgentCatalog(agentFiles map[string]string) assets.Catalog {
 	})
 }
 
+// TestCodexNestedDispatchBoundary — change 0365: every rendered Codex agent
+// must carry the nested-dispatch boundary, because composition is a property
+// of the invoked skill and may change through configuration; an allowlist of
+// today's dispatching wrappers would silently miss a future binding. The
+// expected clauses are LITERAL BEHAVIORAL EXPECTATIONS derived independently
+// from the spec — deliberately NOT the renderer's own constant, so deleting
+// the renderer paragraph reddens this test instead of both sides drifting
+// together.
+func TestCodexNestedDispatchBoundary(t *testing.T) {
+	in := fixtureInput(t)
+	sources, err := harness.ParseInventory(in.Assets)
+	if err != nil {
+		t.Fatalf("ParseInventory: %v", err)
+	}
+	if len(sources) == 0 {
+		t.Fatal("inventory is empty — universality would be vacuous")
+	}
+
+	// The spec's five composition families must be present in the inventory,
+	// so "every source carries the paragraph" cannot be satisfied by a
+	// shrunken agent set. This is a sampling floor, not the coverage boundary
+	// — the loop below runs over ALL sources.
+	byName := map[string]bool{}
+	for _, s := range sources {
+		byName[s.Name] = true
+	}
+	families := []string{
+		"docket-implement-next",     // implement-next composition
+		"docket-plan-writer",        // the pinned Step 4 dispatch that failed live
+		"docket-build-standard",     // profile-routed build
+		"docket-review-standard",    // rung-routed review
+		"docket-auto-groom-critic",  // auto-groom critic
+		"docket-rebase-resolver",    // finalize resolver
+		"docket-integration-repair", // finalize repair
+	}
+	for _, want := range families {
+		if !byName[want] {
+			t.Errorf("composition-family agent %s missing from inventory", want)
+		}
+	}
+
+	byPath := map[string][]byte{}
+	for _, tg := range planFixture(t) {
+		if tg.Kind == install.KindFile {
+			byPath[tg.Path] = tg.Content
+		}
+	}
+
+	// The three semantic clauses, as literal behavioral text.
+	clauses := []string{
+		"direct named-agent dispatch",           // (1) how to dispatch
+		"active top-level tool surface",         // (1) from where
+		"omit top-level collaboration controls", // (2) what nested inventories lack
+		"cannot establish dispatch unavailability", // (3) what absence proves: nothing
+	}
+	for _, s := range sources {
+		p := filepath.Join(fakeHome, ".codex", "agents", s.Name+".toml")
+		content, ok := byPath[p]
+		if !ok {
+			t.Fatalf("no rendered agent file at %s", p)
+		}
+		for _, c := range clauses {
+			if !strings.Contains(string(content), c) {
+				t.Errorf("agent %s: rendered wrapper missing nested-dispatch clause %q", s.Name, c)
+			}
+		}
+	}
+}
+
 func TestCodexPlanRejectsUnusableInput(t *testing.T) {
 	in := fixtureInput(t)
 
