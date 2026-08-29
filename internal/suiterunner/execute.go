@@ -75,6 +75,27 @@ func (r *procRegistry) Snapshot() []int {
 	return out
 }
 
+// Signal forwards sig to every live child process GROUP via kill(-pgid, sig).
+// This is the signal layer's forwarding path (InstallSignalHandling). Signalling
+// the GROUP, not the leader's pid, is the whole point of the Setpgid child layout
+// (see ExecuteTarget): a target and every process it forks share one process
+// group but have distinct pids, so kill(pid) would reach only the leader and
+// orphan its grandchildren — the exact data-destroying failure the Bash oracle's
+// on_signal handler (scripts/run-tests.sh) works around pid-by-pid. Each pgid is
+// re-guarded >0 even though Register already refuses non-positive values: passing
+// pgid<=0 to kill(-pgid) would address the caller's own group or a broad set of
+// processes, so the guard is load-bearing, not defensive dead code. A per-group
+// error (ESRCH for a group that already exited — the success case for a kill) is
+// intentionally ignored: the interrupt path must fail open, never wedge on one.
+func (r *procRegistry) Signal(sig syscall.Signal) {
+	for _, pgid := range r.Snapshot() {
+		if pgid <= 0 {
+			continue
+		}
+		_ = syscall.Kill(-pgid, sig)
+	}
+}
+
 // ExecuteTarget runs one target under bash in its sandbox, captures combined
 // output to <work>/logs/<stem>.log, counts ok/NOT OK markers, and atomically
 // publishes the Result to <work>/stat/<stem>.json. It sets the child's process
