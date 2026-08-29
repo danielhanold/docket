@@ -21,7 +21,7 @@ branch: 'refactor/config-contraction-self-hosting-and-hard-cutover'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-29T17:41:07Z'
+claimed_at: '2026-08-29T17:54:18Z'
 ---
 
 ## Artifacts
