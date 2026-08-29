@@ -14,7 +14,7 @@ discovered_from: [352]
 adrs: [1, 2, 52, 69, 99]
 spec: docs/superpowers/specs/2026-08-28-remove-main-mode-compatibility-from-go-v1-design.md
 plan: 'docs/superpowers/plans/2026-08-28-remove-main-mode-compatibility-from-go-v1.md'
-results:
+results: 'docs/results/2026-08-28-remove-main-mode-compatibility-from-go-v1-results.md'
 trivial: false
 auto_groomable:
 branch: 'refactor/remove-main-mode-compatibility-from-go-v1'
@@ -31,6 +31,7 @@ claimed_at: '2026-08-29T00:15:42Z'
 |---|---|
 | Spec | [2026-08-28-remove-main-mode-compatibility-from-go-v1-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-28-remove-main-mode-compatibility-from-go-v1-design.md) |
 | Plan | [2026-08-28-remove-main-mode-compatibility-from-go-v1.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-28-remove-main-mode-compatibility-from-go-v1.md) |
+| Results | [2026-08-28-remove-main-mode-compatibility-from-go-v1-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-28-remove-main-mode-compatibility-from-go-v1-results.md) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0002](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0002-docket-mode-default-and-bootstrap.md), [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md), [ADR-0069](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0069-mode-conditioned-clause-discriminates-on-provenance.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 
