@@ -1,18 +1,18 @@
 ---
 id: 359
 slug: run-gate-gives-up-too-soon
-title: 'the run gate gives up too soon'
+title: 'Run gate gives up too soon'
 status: proposed
 priority: high
 type: fix
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 stacked_on:
-related: [237, 334]
+related: [237, 334, 342, 363]
 discovered_from: [333]
-adrs: []
-spec:
+adrs: [24, 75, 95, 98]
+spec: docs/superpowers/specs/2026-08-28-run-gate-gives-up-too-soon-design.md
 plan:
 results:
 trivial: false
@@ -26,6 +26,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-28-run-gate-gives-up-too-soon-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-28-run-gate-gives-up-too-soon-design.md) |
+| ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0075](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0075-run-gate-attributes-a-claim-conservatively-and-reports-a-halt-with-its-own-exit-code.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0098](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0098-structured-gate-waiting-and-ownership-handoff.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -101,43 +105,54 @@ premature `gate-stop` is what pushes you into the un-attributable resume path.
 
 ## What changes
 
-Design a fix so the gate does not terminally give up on a run that is merely slow rather than
-stuck. Candidate directions to weigh during brainstorm (not yet decided):
+Run every test launched by implement-next through Docket's native gate driver, including baseline,
+RED/GREEN, focused, ad-hoc, repair, configured full-suite, evidence, and re-gate tests. Do not try to
+predict which test will be slow. The 30-second driver slice is a maximum observation call, not a
+minimum test duration; quick tests return as soon as they finish.
 
-- Give the verdict a notion of **in-progress liveness / recent activity** so an actively-progressing
-  run is distinguished from a stalled one — e.g. a `run-working` (or reuse of `run-waiting`)
-  disposition when a fresh claim lease / activity receipt is advancing, mapped to a non-terminal
-  gate decision rather than `gate-stop`.
-- Reconsider **retry accounting** so a slow-but-healthy phase does not consume the single retry
-  permit — spend retries on genuine failure signal, not on "hasn't committed yet."
-- Reconsider whether `gate-stop` on `run-incomplete` should be terminal at all when the run is still
-  live, vs. a "keep waiting / re-poll" decision.
-- Give the gate an **attributed verdict path for a resumed in-progress change** (e.g. accept the
-  change id as an explicit attribution target when a fresh claim cannot be bound), so the human
-  recovery `gate-stop` mandates is itself gate-trackable with retry accounting — instead of
-  degrading to observe mode that can authorize nothing.
+Make the ownership boundary deterministic. If a task worker's first slice returns `WAITING`, it
+always hands the same drive to the build controller. The controller observes it to a terminal
+result, then resumes the same task without rerunning a passed test. If the worker returns before
+making that handoff, the controller uses a parent-only recovery capability prepared before dispatch
+to take over the same drive. If the whole implement-next controller returns, the top-level gated
+parent performs the equivalent takeover. These transfers are authorized by the direct child's real
+return event, never by a timer, heartbeat, or quiet log.
+
+Teach the run-gate facade that a tracked drive is a nonterminal continuation. It keeps the same gate
+key, does not consume `gate-retry-once`, and resumes the same implement-next attempt. Only a truly
+incomplete run with no tracked work alive may spend the retry. Extend `gate-before` with explicit
+resume attribution so an already-`in-progress` change can remain bound to a fresh key.
+
+Verify the complete behavior through the real named-agent paths in Codex, Claude, Cursor, and
+OpenCode. The design does not require any harness to expose its child tree; it uses Docket's durable
+driver, parent-scoped recovery capability, and the direct dispatch-return event every supported path
+must provide.
+
+## Design decisions
+
+- Every test uses the driver from launch; test intent comes from the workflow, not command spelling.
+- Keep the 30-second production slice and configurable 30-minute default overall deadline.
+- A task worker always hands off after the first `WAITING` slice.
+- Normal fingerprinted handoff remains preferred; parent takeover is the exceptional missing-
+  handoff path and invalidates the old owner atomically.
+- A live or terminal-unconsumed tracked drive produces nonterminal `gate-continue`, never
+  `gate-retry-once` or terminal `gate-stop`.
+- Resume the existing implement-next agent when the harness supports it; otherwise dispatch the same
+  role for the same change with the explicit continuation and same key. That is continuation, not
+  retry.
+- Re-probe all four harnesses in their exact supported modes and installed versions before calling
+  the design portable.
+- Record a new ADR superseding ADR-0098's cooperative-only ownership-transfer decision while keeping
+  its structured-waiting and fail-closed guarantees.
 
 ## Out of scope
 
-- The orchestrator **yield-wedge** behaviour (a parent backgrounding a child and yielding to await a
-  notification) is a *separate* known bug and is not what this change fixes — though it interacts
-  with this one, since a yielding parent is what lets the gate be sampled mid-phase.
-- Broad redesign of `RunVerify`'s durable-postcondition model; the fix should be about not giving up
-  too soon, not about replacing the postcondition authority.
-
-## Open questions
-
-- What is the cheapest reliable **liveness/activity signal** available to the gate without turning it
-  into a process probe (claim-lease freshness? a gate-drive activity receipt timestamp?)?
-- Should the answer be a new verdict/decision token, or a change to how `run-incomplete` +
-  spent-retry maps to `gate-stop`?
-- How should a genuinely stuck run still converge to `gate-stop` in bounded time under the new
-  behaviour (avoid trading premature-stop for never-stop)?
-- Should the resume-attribution fix live here or be split into its own change? It is a distinct code
-  path (`attributeGateClaim`) from the liveness/retry question, though both surfaced from the same
-  0333 run and share the "gate can't track a healthy run" root.
-- Is the durable-snapshot-vs-just-committed race (a verdict sampled seconds before a worker commits)
-  better fixed by a short re-poll/grace window before a terminal verdict, or does the liveness signal
-  subsume it?
+- Recovering an agent that disappears while only editing code and owns no tracked test drive.
+- Replacing `RunVerify`'s durable-postcondition model with generic agent liveness.
+- Timer-, heartbeat-, log-activity-, claim-age-, or process-name-based liveness guesses.
+- Requiring native child-tree status from a harness, adding a daemon/notification bus, or making the
+  driver a general shell-command runner.
+- Changing the 30-minute default observation budget, speeding up the suite, or redesigning the
+  native process supervisor.
 
 ## Reconcile log
