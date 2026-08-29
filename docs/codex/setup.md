@@ -129,10 +129,6 @@ docket-convention skill's *Dispatch-capability resolution* section.
 
 ## Restart after (re)generating
 
-Codex registers its agents at process start. After `sync-agents.sh` writes new wrappers, restart
-your Codex session before invoking a docket skill — an already-open session keeps the old
-definitions.
-
 Codex registers agent definitions **once, at process start**. After any install or sync that
 changed a wrapper or the dispatch block, start a **fresh Codex application/CLI process** before
 relying on the new definitions. Opening another conversation inside an already-running process is
