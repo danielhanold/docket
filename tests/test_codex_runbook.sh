@@ -21,18 +21,18 @@ BT='`'
 # --- Assertion 0: the runbook exists ----------------------------------------------------------
 if [ -f "$RUNBOOK" ]; then ok "runbook exists"; else no "runbook exists"; exit 1; fi
 
-# --- Assertion 1: all six phases present, each stamped with a pass criterion -------------------
+# --- Assertion 1: all seven phases present, each stamped with a pass criterion -----------------
 # Count equality, not presence: a phase silently dropped (or added unstamped) must redden.
-NPHASES="$(grep -cE '^## Phase [1-6] — ' "$RUNBOOK")"
-if [ "$NPHASES" = "6" ]; then ok "runbook covers 6 phases"; else no "runbook covers 6 phases (found $NPHASES)"; fi
-# The count alone is identity-blind: renaming `## Phase 6 —` to `## Phase 1 —` keeps it at 6 and
+NPHASES="$(grep -cE '^## Phase [1-7] — ' "$RUNBOOK")"
+if [ "$NPHASES" = "7" ]; then ok "runbook covers 7 phases"; else no "runbook covers 7 phases (found $NPHASES)"; fi
+# The count alone is identity-blind: renaming `## Phase 6 —` to `## Phase 1 —` keeps it at 7 and
 # stays green. Assert each ordinal exists exactly once, so a duplicate/dropped phase reddens.
 missing_phase=""
-for n in 1 2 3 4 5 6; do
+for n in 1 2 3 4 5 6 7; do
   c="$(grep -cE "^## Phase $n — " "$RUNBOOK")"
   [ "$c" = "1" ] || missing_phase="$missing_phase $n(x$c)"
 done
-if [ -z "$missing_phase" ]; then ok "each phase 1..6 appears exactly once"; else no "phase identity broken:$missing_phase"; fi
+if [ -z "$missing_phase" ]; then ok "each phase 1..7 appears exactly once"; else no "phase identity broken:$missing_phase"; fi
 NSTAMPS="$(grep -cF -- '**Pass when:**' "$RUNBOOK")"
 if [ "$NSTAMPS" = "$NPHASES" ] && [ "$NPHASES" != "0" ]; then ok "every phase ($NPHASES) carries a pass criterion ($NSTAMPS)"; else no "phase/pass-criterion mismatch: $NPHASES phases, $NSTAMPS criteria"; fi
 
@@ -162,5 +162,22 @@ README="$REPO/README.md"
 # setup.md is the runbook's sibling; link it relatively from the section it deepens.
 if grep -qF -- '](validation-runbook.md)' "$SETUP"; then ok "setup.md links the runbook"; else no "setup.md links the runbook"; fi
 if grep -qF -- '](docs/codex/validation-runbook.md)' "$README"; then ok "README links the runbook"; else no "README links the runbook"; fi
+
+# --- Assertion 8: Phase 7 certifies nested dispatch on BOTH entry paths (change 0365) ----------
+# Hard-wrapped prose: match a whitespace-collapsed haystack; ONE bounded gap per pattern
+# (learnings: phrase-grep-over-wrapped-prose, stacked-gap-regex-hangs-instead-of-failing).
+RB_FLAT="$(tr '\n' ' ' < "$RUNBOOK" | tr -s '[:space:]' ' ')"
+if grep -qE "prose request[^.]{0,120}dispatch block" <<<"$RB_FLAT"; then ok "phase 7: prose entry path routed by the dispatch block"; else no "phase 7: prose entry path routed by the dispatch block"; fi
+if grep -qF -- "@docket-" "$RUNBOOK"; then ok "phase 7: direct @docket- entry path present"; else no "phase 7: direct @docket- entry path present"; fi
+if grep -qE "fresh Codex[^.]{0,80}process" <<<"$RB_FLAT"; then ok "phase 7: fresh-process requirement stated"; else no "phase 7: fresh-process requirement stated"; fi
+if grep -qE "counts only when[^.]{0,120}return is consumed" <<<"$RB_FLAT"; then ok "phase 7: dispatch evidence rule (child started, return consumed)"; else no "phase 7: dispatch evidence rule (child started, return consumed)"; fi
+if grep -qE "unavailable[^.]{0,140}direct rejection or an explicit policy denial" <<<"$RB_FLAT"; then ok "phase 7: unavailable verdict needs rejection/denial in transcript"; else no "phase 7: unavailable verdict needs rejection/denial in transcript"; fi
+if grep -qE "[Rr]ecord the Codex version" <<<"$RB_FLAT"; then ok "phase 7: Codex version capture"; else no "phase 7: Codex version capture"; fi
+# The two-path claim also lives in setup.md — bind it there too, not only in the runbook.
+SETUP="$REPO/docs/codex/setup.md"
+SETUP_FLAT="$(tr '\n' ' ' < "$SETUP" | tr -s '[:space:]' ' ')"
+if grep -qE "Two invocation paths" <<<"$SETUP_FLAT"; then ok "setup.md: two-invocation-paths section exists"; else no "setup.md: two-invocation-paths section exists"; fi
+if grep -qE "not sufficient[^.]{0,120}definitions it loaded at start" <<<"$SETUP_FLAT"; then ok "setup.md: running-process conversations insufficient"; else no "setup.md: running-process conversations insufficient"; fi
+if grep -qE "active top-level tool surface" <<<"$SETUP_FLAT"; then ok "setup.md: nested dispatch uses the top-level surface"; else no "setup.md: nested dispatch uses the top-level surface"; fi
 
 exit $fail

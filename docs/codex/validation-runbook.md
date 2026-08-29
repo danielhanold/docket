@@ -327,10 +327,53 @@ render — works end to end under a non-Claude harness.
 **Pass when:** the stub's commits are on `origin/docket` and the Board pass reported
 `board inline changed pushed`.
 
+## Phase 7 — Nested dispatch from both entry paths
+
+Change 0365's live certification. Phases 1–6 proved wrappers generate, load, and dispatch once;
+this phase proves a **registered parent agent can perform the nested dispatches its charter
+requires**, on both supported entry paths, without falsely concluding dispatch is unavailable
+from a nested tool inventory. Run it in the **disposable fixture repo** from Phase 1 — never the
+real docket backlog. Install the build under test first (Phase 1), then start a **fresh Codex
+process** (see `docs/codex/setup.md`, *Restart after (re)generating* — a conversation opened in
+an already-running process holds stale definitions and certifies nothing).
+
+- [ ] 1. **Record the Codex version** (`codex --version`) in the results doc before any probe —
+  this certification is scoped to the exact version it ran on.
+
+- [ ] 2. **Entry path A — prose.** In the fixture repo, issue a plain prose request the managed
+  dispatch block routes ("show me the docket status board") — that block lives in the committed
+  `AGENTS.md`. Expected: the request is delegated to the registered `docket-status` agent, and
+  that agent's own composition dispatches run as child agents.
+
+- [ ] 3. **Entry path B — direct invocation.** Start `@docket-implement-next` against a fixture
+  change staged as build-ready in the fixture repo. Expected: the run reaches Step 4 and
+  dispatches the registered `docket-plan-writer` (the exact dispatch the live 0361 run falsely
+  declared unavailable), then continues into build/review composition.
+
+- [ ] 4. **Sample every composition family** across the two runs (and additional fixture
+  invocations as needed): implement-next composition (`docket-status`, `docket-plan-writer`,
+  `docket-adr`), profile-routed build (a `docket-build-*` profile agent), rung-routed review
+  (a `docket-review-*` agent), the auto-groom critic (`docket-auto-groom-critic`), and finalize's
+  resolver and repair (`docket-rebase-resolver`, `docket-integration-repair` — stage a fixture
+  conflict/red-suite if needed, or record them as attempted-dispatch evidence only). For each,
+  capture an **observable child-return sentinel**: a dispatch attempt **counts only when the
+  child actually starts and its expected return is consumed** by the parent — model narration
+  that a dispatch "happened" is not evidence.
+
+- [ ] 5. **Negative-evidence discipline.** If any run reports dispatch unavailable, that verdict
+  is valid **only** if the transcript contains the **direct rejection or an explicit policy
+  denial** of an actually-attempted dispatch. A verdict derived from inspecting a nested tool
+  inventory is the defect this change fixed — record it as a regression, not as an environment
+  finding.
+
+**Pass when:** both entry paths completed their nested dispatches with sentinel evidence for
+every composition family sampled (or a recorded direct rejection/policy denial for any that
+genuinely cannot run), and the Codex version is recorded in the results doc.
+
 ## Pass criteria
 
 The runbook as a whole **passes** when:
-- Phases 1, 2, 3, and 6 pass as stated above, **and**
+- Phases 1, 2, 3, 6, and 7 pass as stated above, **and**
 - Phases 4 and 5 each have a **definitive observed answer**, whether that answer is yes or no.
 
 A "no" on Phase 4 or Phase 5 is a valid, recordable outcome — it is not a runbook failure, it
