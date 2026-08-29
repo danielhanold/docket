@@ -1,14 +1,14 @@
 # Backlog
 
-**366 changes** — 🟢 1 in progress · 🟡 52 proposed · ⚪ 4 deferred · ✅ 227 done · 🗑️ 82 killed
+**367 changes** — 🟢 1 in progress · 🟡 53 proposed · ⚪ 4 deferred · ✅ 227 done · 🗑️ 82 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
-| [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Remaining configuration cleanup, self-hosting, and hard cutover | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-28-config-contraction-self-hosting-and-hard-cutover-design.md) | `refactor/config-contraction-self-hosting-and-hard-cutover` |
+| [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Go-only source cutover | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-28-config-contraction-self-hosting-and-hard-cutover-design.md) | `refactor/config-contraction-self-hosting-and-hard-cutover` |
 
-## 🟡 Proposed (52)
+## 🟡 Proposed (53)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -64,6 +64,7 @@
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `medium` | `feat` | needs-brainstorm |
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | build-ready |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | ⏳ waiting on #318 — not yet built |
+| [0367](active/0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | `medium` | `feat` | ⏳ waiting on #318 — not yet built |
 
 ## ⚪ Deferred (4)
 
@@ -135,6 +136,7 @@ graph TD
   0360
   0352 --> 0364
   0318 --> 0366
+  0318 --> 0367
   0192:::done
   0211:::done
   0251:::done
