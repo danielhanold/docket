@@ -1,13 +1,12 @@
 # Backlog
 
-**365 changes** — 🟢 2 in progress · 🟡 51 proposed · ⚪ 4 deferred · ✅ 226 done · 🗑️ 82 killed
+**365 changes** — 🟢 1 in progress · 🟡 51 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 226 done · 🗑️ 82 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Remaining configuration cleanup, self-hosting, and hard cutover | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-28-config-contraction-self-hosting-and-hard-cutover-design.md) | `refactor/config-contraction-self-hosting-and-hard-cutover` |
-| [0365](active/0365-codex-nested-dispatch-capability-boundary.md) | Make nested Docket dispatch reliable for every Codex agent invocation | `critical` | `fix` | [spec](../superpowers/specs/2026-08-29-codex-nested-dispatch-capability-boundary-design.md) | `fix/codex-nested-dispatch-capability-boundary` |
 
 ## 🟡 Proposed (51)
 
@@ -73,6 +72,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0365](active/0365-codex-nested-dispatch-capability-boundary.md) | Make nested Docket dispatch reliable for every Codex agent invocation | `critical` | `fix` | [#251](https://github.com/danielhanold/docket/pull/251) |  |
 
 ```mermaid
 graph TD

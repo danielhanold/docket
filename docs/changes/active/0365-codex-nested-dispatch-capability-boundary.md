@@ -2,7 +2,7 @@
 id: 365
 slug: codex-nested-dispatch-capability-boundary
 title: 'Make nested Docket dispatch reliable for every Codex agent invocation'
-status: 'in-progress'
+status: 'implemented'
 priority: critical
 type: fix
 created: '2026-08-29'
@@ -18,7 +18,7 @@ results: 'docs/results/2026-08-29-codex-nested-dispatch-capability-boundary-resu
 trivial: false
 auto_groomable:
 branch: 'fix/codex-nested-dispatch-capability-boundary'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/251'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-29T14:02:21Z'
