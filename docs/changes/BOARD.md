@@ -1,12 +1,6 @@
 # Backlog
 
-**370 changes** — 🟢 1 in progress · 🟡 56 proposed · ⚪ 4 deferred · ✅ 227 done · 🗑️ 82 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Go-only source cutover | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-28-config-contraction-self-hosting-and-hard-cutover-design.md) | `refactor/config-contraction-self-hosting-and-hard-cutover` |
+**370 changes** — 🟡 56 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 227 done · 🗑️ 82 killed
 
 ## 🟡 Proposed (56)
 
@@ -66,7 +60,7 @@
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | ⏳ waiting on #370 — not yet built |
 | [0367](active/0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | `medium` | `feat` | ⏳ waiting on #370 — not yet built |
 | [0368](active/0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | `medium` | `fix` | needs-brainstorm |
-| [0369](active/0369-migrate-maintained-consumers-to-the-direct-go-cli.md) | Migrate maintained consumers to the direct Go CLI | `critical` | `refactor` | ⏳ waiting on #318 — not yet built |
+| [0369](active/0369-migrate-maintained-consumers-to-the-direct-go-cli.md) | Migrate maintained consumers to the direct Go CLI | `critical` | `refactor` | ⏳ waiting on #318 — needs your merge |
 | [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | ⏳ waiting on #369 — not yet built |
 
 ## ⚪ Deferred (4)
@@ -77,6 +71,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Go-only source cutover | `critical` | `refactor` | [#252](https://github.com/danielhanold/docket/pull/252) |  |
 
 ```mermaid
 graph TD
