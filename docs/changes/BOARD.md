@@ -63,8 +63,8 @@
 | [0359](active/0359-run-gate-gives-up-too-soon.md) | Run gate gives up too soon | `high` | `fix` | build-ready |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `medium` | `feat` | needs-brainstorm |
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | build-ready |
-| [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | ⏳ waiting on #318 — not yet built |
-| [0367](active/0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | `medium` | `feat` | ⏳ waiting on #318 — not yet built |
+| [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | ⏳ waiting on #370 — not yet built |
+| [0367](active/0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | `medium` | `feat` | ⏳ waiting on #370 — not yet built |
 | [0368](active/0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | `medium` | `fix` | needs-brainstorm |
 | [0369](active/0369-migrate-maintained-consumers-to-the-direct-go-cli.md) | Migrate maintained consumers to the direct Go CLI | `critical` | `refactor` | ⏳ waiting on #318 — not yet built |
 | [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | ⏳ waiting on #369 — not yet built |
@@ -138,8 +138,8 @@ graph TD
   0359
   0360
   0352 --> 0364
-  0318 --> 0366
-  0318 --> 0367
+  0370 --> 0366
+  0370 --> 0367
   0368
   0318 --> 0369
   0369 --> 0370
