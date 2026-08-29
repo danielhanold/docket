@@ -2,368 +2,198 @@
 > ↩ **[Change 0318 — Go-only source cutover](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0318-config-contraction-self-hosting-and-hard-cutover.md)**
 <!-- docket:backlink:end -->
 
-# Go-only source cutover
+# Go-Native Whole-Suite Test Runner and Gate Cutover
 
 ## Summary
 
-Change 0318 completes Docket's source-level hard cutover to Go in one reviewable code pull request.
-After this change, the `docket` executable resolved from `PATH` is the only maintained workflow and
-control path. Maintained agents, skills, generated dispatch material, workflows, setup checks,
-configuration, tests, and operator documentation use public Go CLI or JSON contracts directly.
+Change 0318 introduces `docket development test` as the Go-native owner of whole-repository test orchestration and moves every canonical source-validation gate to that command. It is the first stage of a sequential cutover: 0318 establishes the runner, 0369 migrates maintained consumers to direct Go, and 0370 removes the unused Bash facade and legacy test surface.
 
-The cutover removes the production Bash facade, its helper/runtime tree, compatibility launchers,
-environment bridges, hidden fallbacks, and lifecycle dependencies on Python or Perl. The only
-surviving shell products are repository-root POSIX `install.sh` and the POSIX release downloader.
-Their genuine `/bin/sh` behavior remains tested.
+The merged intermediate state is intentionally complete and usable. The new Go runner owns scheduling, isolation, result validation, aggregation, signal behavior, and budget enforcement while the existing Bash facade, `scripts/run-tests.sh`, helper/runtime tree, callers, and test shards remain present and green as the compatibility corpus and parity oracle.
 
-This change also introduces `docket development test` as the sole whole-suite implementation. It
-tests the exact source copy under review, runs Go coverage plus the two retained POSIX product
-suites, and preserves the repository's isolation, completeness, interruption, and
-budget-confirmation guarantees.
-
-Change 0318 stops at an open code PR. Publication, fresh-host self-hosting, rollback rehearsal,
-release evidence, and active-backlog closeout belong to change 0366, a deliberately ungroomed
-human-attended successor that depends on this change.
-
-## Goals
-
-- Make the PATH-resolved Go binary Docket's sole maintained workflow and control implementation.
-- Remove all active production dependencies on the Bash facade and legacy helper/runtime
-  mechanisms.
-- Preserve the behaviorally meaningful invariants previously protected by legacy tests.
-- Establish one Go-native, branch-faithful whole-suite command for contributors, CI,
-  finalization, and release-candidate source gating.
-- Rewrite active configuration, generated assets, workflows, and documentation so they state the
-  post-cutover architecture truthfully.
-- Produce acceptance evidence that can be established autonomously from the source checkout before
-  merge.
-
-## Non-goals
-
-Change 0318 does not:
-
-- Publish, tag, or create GitHub release `v1.0.0-rc1`.
-- Assert that release URLs, downloadable assets, or public clean-install paths already exist.
-- Perform the whole-active-backlog migration-ledger disposition or create its manual Go learning
-  records.
-- Run native binary smoke tests across every Darwin/Linux and amd64/arm64 tuple.
-- Perform complete mutating lifecycle, restart, or resume scenarios on genuinely fresh Claude,
-  Codex, Cursor, or OpenCode hosts.
-- Rehearse rollback using the frozen `v0.9.2` distribution.
-- Collate immutable release evidence or close release metadata.
-- Deliver stable `v1.0.0`, Homebrew distribution, Windows support, signing/notarization, SBOM or
-  provenance signing, uninstall support, or version-tree garbage collection.
-- Redesign Markdown/Git storage, the JSON protocol, harness topology, or Git/GitHub adapters.
-- Change capabilities unrelated to removing obsolete mechanisms unless the existing capability
-  cannot truthfully operate through the Go-only path.
-- Rewrite historical specs, results, archived changes, Accepted ADRs, or frozen `v0.9.2` fixtures.
-- Treat the existing run-halted lifecycle marker or its later removal as product scope.
-
-All post-merge, irreversible, public-distribution, fresh-host, and human-verified work is owned by
-0366. A failure there must not retroactively expand this PR's scope.
-
-## Governing design constraints
-
-- ADR-0099's single metadata topology remains authoritative for Go v1.
-- The Go migration architecture and program map referenced by the prior design remain governing
-  context where they do not conflict with this narrowed scope.
-- No new ADR is required merely to execute the settled hard cutover. If implementation discovers a
-  durable architectural choice rather than a mechanical consequence of retiring Bash, it records
-  the decision need instead of silently establishing it.
-- Inventories are derived from the reconciled branch under review. Counts and file lists in plans,
-  prior specs, or halted reports are snapshots, never authority.
-- Maintained-source cross-references use symbol names or verbatim quoted clauses, never line
-  numbers.
-- Frozen fixtures remain frozen. An active generated input that needs a changed baseline gets a
-  newly versioned baseline with provenance.
-
-## Repository-wide inventory and classification
-
-Implementation begins with derived whole-repository inventories for legacy mechanisms and their
-dependent guards. Searches key on syntactic shape and executable behavior, not on a hand-maintained
-list of expected filenames or spellings.
-
-At minimum, inventory:
-
-- Bash entry points, sourced helpers, compatibility launchers, runtime libraries, and shell-command
-  construction.
-- `runtime.bash`, `DOCKET_SCRIPTS_DIR`, `DOCKET_BASH_PATH`, helper-path setup, and equivalent
-  indirect runtime selection.
-- Python or Perl invocations participating in Docket lifecycle behavior.
-- Maintained callers that bypass the public Go CLI or approved Go adapters.
-- Skills, native agent definitions, generated dispatch blocks, workflows, setup checks,
-  validators, examples, configuration, and operator instructions encoding the old mechanism.
-- Tests and guards coupled to anything being removed.
-- Historical records and frozen fixtures that mention the old mechanism but remain immutable.
-
-Every occurrence is classified as exactly one of:
-
-1. **Removable production mechanism** — active code, configuration, generated material, or
-   instruction implementing or selecting the legacy path.
-2. **Retained POSIX distribution/bootstrap surface** — repository-root `install.sh` or the release
-   downloader, including genuine `/bin/sh` behavior.
-3. **Retained product-invariant test** — a test whose premise remains required after its legacy
-   subject disappears.
-4. **Removed implementation-detail test** — a test of obsolete Bash spelling, quoting, pipelines,
-   helper protocols, or other deleted implementation details.
-5. **Immutable historical evidence** — point-in-time records, Accepted ADRs, archived material, or
-   frozen `v0.9.2` fixtures.
-
-The PR records the derived inventory and disposition in reviewable form, distinguishes executable
-sites from prose, and shows that every active executable site has a disposition. Searches are rerun
-after implementation; the initial counts are not reused as acceptance evidence.
-
-## Production implementation cutover
-
-The maintained production path resolves `docket` through `PATH` and invokes documented Go commands
-or JSON contracts. There is no repository-relative facade path and no environment-selected alternate
-implementation.
-
-The PR removes:
-
-- The production Bash facade and its production helper/runtime tree.
-- Compatibility launchers and shims whose purpose is to select or emulate the removed
-  implementation.
-- Active `runtime.bash`, `DOCKET_SCRIPTS_DIR`, `DOCKET_BASH_PATH`, and equivalent helper-path
-  bridges.
-- Hidden fallbacks from Go to Bash or another legacy implementation.
-- Python or Perl lifecycle dependencies.
-- Setup logic, validation, or examples whose only purpose is to locate the removed runtime.
-- Duplicate implementations of operations now owned by the Go CLI.
-
-The only retained shell products are repository-root POSIX `install.sh`, whose source-bootstrap and
-legacy-adoption ownership was settled by 0322, and the POSIX release downloader established by
-0317. They remain `/bin/sh` surfaces and may not conceal a route back to a Bash lifecycle.
-
-Direct Git and GitHub effects remain encapsulated by approved Go adapters. Maintained agents,
-skills, workflows, or instructions must not compensate for facade removal by scripting raw
-repository mutations externally.
-
-## Maintained callers and generated assets
-
-Every maintained integration surface moves to the direct-Go model:
-
-- Skills invoke the PATH-resolved `docket` binary.
-- Native agent definitions use public Go CLI or JSON contracts.
-- Generated dispatch blocks describe and execute the direct-Go path.
-- Workflows use the Go command surface and canonical whole-suite command.
-- Setup and health checks verify the binary and supported contracts rather than helper paths.
-- Operator instructions and examples show PATH-based invocation.
-- Validators reject obsolete runtime configuration rather than teaching or accepting it.
-
-Generated files are changed through their generators. Acceptance covers generator output and drift
-detection. Tests that guarded duplicated prose or generated copies move to the canonical source and
-new generated contract; they do not simply disappear with the old copy.
-
-Process-start-loaded assets cannot be validated reliably by the session that edited them. This PR
-therefore proves that generators emit the direct-Go contract, checked-in generated output matches,
-and locally automatable hermetic fresh-process checks pass. Genuinely fresh external harness loading
-is 0366 evidence.
-
-## Configuration contraction
-
-Configuration cleanup is limited to obsolete mechanisms whose consumers disappear here. Remove
-Bash runtime selection, executable/helper discovery, facade examples and validators, environment
-bridges used only by the removed implementation, and obsolete compatibility toggles with no Go
-consumer.
-
-Preserve global model/reasoning pins, unrelated machine overrides, surviving Go capability
-configuration, frozen versioned fixtures and historical examples, and compatibility data still
-needed by the bounded adoption behavior of repository-root `install.sh`.
-
-If removing a field changes an independent product capability rather than deleting a dead
-mechanism, defer it unless the field makes the Go-only claim false. A required active baseline
-change gets a new versioned baseline and provenance; prior-version material is not edited.
-
-## Test disposition and invariant preservation
-
-Production Bash and mechanism-only Bash tests leave together in this PR. Test deletion requires
-assertion-level classification.
-
-Tests leave with their subject when they verify only Bash spelling/quoting, pipeline construction,
-helper sourcing/path selection, shell-specific transport, legacy runtime variables, launcher
-routing, or deleted helper protocols.
-
-Tests are retained or replaced when they protect a surviving property. The inventory must consider:
-
-- Atomic installation and replacement.
-- Managed-marker balance, order, and preservation of unmanaged content.
-- Concurrent Git-write safety.
-- External-effect recovery and resumability.
-- Process and lifecycle state transitions.
-- Ownership and metadata correctness.
-- Installer and downloader integrity.
-- Generated-output determinism and drift detection.
-- Missing-result detection, interruption propagation, and budget confirmation in suite execution.
-
-A surviving invariant receives mutation-sensitive Go coverage or, only for behavior owned by one of
-the two retained shell products, POSIX coverage. Each guard must fail when its protected premise is
-removed or violated. A green mutation is a defect.
-
-## Canonical whole-suite command
-
-The public contributor command is:
+The public command is:
 
 ```text
 docket development test
 ```
 
-It is the sole whole-suite implementation. Contributor documentation and the release-candidate
-source gate reach the same command logic. The committed `finalize.test_command` is the one source of
-truth for the build gate.
+Repository gates validate the checkout under review through a branch-faithful source entry, normally:
 
-### Source-copy fidelity
+```text
+go run ./cmd/docket development test
+```
 
-The suite must test the branch under review, not the globally installed binary. The committed gate
-uses a branch-faithful Go entry—preferably `go run ./cmd/docket development test` from the checkout—
-to build and enter the current source implementation before orchestration. The resulting runner:
+An equivalent entry is acceptable only if it is documented, deterministic, forwards signals and status faithfully, and cannot silently select a previously installed binary.
 
-- Builds or resolves the exact executable from the current checkout.
-- Places that executable first in an isolated test `PATH`, or passes its explicit path internally.
-- Records enough build identity to prove the tested executable matches the action target.
-- Does not overwrite the user's installed binary or mutate unrelated user configuration.
-- Does not depend on the legacy workflow being removed.
+## Goals
 
-The source bootstrap exists only to enter the current Go implementation. It is not a compatibility
-facade or second lifecycle implementation. If a direct `go run` spelling cannot satisfy a settled
-runner constraint, implementation may use an equivalent Go-native source bootstrap, but
-`finalize.test_command`, active documentation, and the acceptance evidence must name the one chosen
-form consistently.
+- Add `docket development test` as the Go-native whole-suite runner.
+- Make it the sole canonical orchestration channel for repository-wide testing.
+- Test the exact checkout under review rather than a stale installed executable.
+- Preserve the observable correctness and diagnostic semantics of the existing runner.
+- Continue executing all existing Bash test shards and Go targets during the transition.
+- Cut `finalize.test_command`, contributor whole-suite instructions, and release-candidate source validation over to the new command.
+- Establish differential, synthetic, and mutation evidence sufficient for later consumer migration and facade deletion.
+- Leave a green, independently usable repository after merge.
 
-### Suite composition
+## Non-goals
 
-The canonical suite runs all applicable Go packages, the retained POSIX behavioral tests for
-repository-root `install.sh` and the release downloader, and the generated-artifact,
-documentation/configuration, absence, and mutation guards required by this design.
+0318 does not migrate facade callers; remove or contract `DOCKET_SCRIPTS_DIR`, `DOCKET_BASH_PATH`, `runtime.bash`, or related configuration; delete `scripts/docket.sh`, `scripts/run-tests.sh`, helpers, runtimes, or test shards; rewrite the Bash corpus as Go tests; introduce a forwarding shim; broadly rewrite dispatch assets or active documentation; publish a release; perform fresh-host self-hosting; execute 0366; or implement 0367.
 
-It rejects Bash-dependent targets, targets requiring the deleted helper/runtime tree, legacy
-compatibility runners, undeclared shell suites outside the two retained products, and configuration
-that routes tests through a stale installed binary. Plain `go test ./...` is not an acceptable
-whole-suite replacement because it omits POSIX product coverage and orchestration guarantees.
+## Command and source-fidelity contract
 
-### Orchestration guarantees
+`docket development test` is non-interactive and runs the complete configured suite. Unsupported arguments and options use the CLI's normal usage-error contract.
 
-The Go-native runner preserves the prior runner's semantic guarantees without preserving its
-implementation:
+Source-validation gates must enter the command from the repository checkout. The entry must:
 
-- Per-target isolation for mutable filesystem, environment, repository, and process state.
-- Parallel execution where targets declare it safe.
-- One durable, identity-matched result for every scheduled target.
-- Failure on missing, malformed, duplicated, or misattributed results.
-- Prompt cancellation and correct failure reporting on interruption or termination.
-- Cleanup that preserves the diagnostic record for interrupted or failed work.
-- Deterministic aggregation and nonzero failure when any required target fails.
-- Per-target wall-clock budget screening and serial confirmation before machine-sensitive parallel
-  overages become authoritative.
-- Explicit distinction between screening findings and authoritative serial breaches.
+- build or invoke CLI source from the current checkout;
+- preserve working-tree and branch fidelity;
+- never fall back to an installed `docket`;
+- forward signals and exit status without reinterpretation;
+- derive repository paths from the checkout being tested; and
+- avoid overwriting the user's installed binary or unrelated configuration.
 
-`BUDGET WATCH:` and `PARALLEL-SENSITIVE:` remain screening findings.
-`SERIAL CONFIRMED OVER BUDGET:` remains an authoritative breach that must be dispositioned even if
-the runner does not fail by default. Output clauses may remain stable where maintained contracts
-depend on them, but legacy structure is not retained solely for textual compatibility.
+After this change, `finalize.test_command`, primary contributor documentation, and release-candidate source validation all use that same authoritative entry. Focused test commands may remain documented, but `scripts/run-tests.sh` is no longer presented as an alternative whole-suite gate.
 
-## Documentation design
+## Suite discovery and composition
 
-Active documentation states that source contributors bootstrap and test the current Go checkout;
-operators invoke `docket` from `PATH`; repositories use 0352's native operations; all four harnesses
-dispatch directly to native Docket agents and generated assets; repository-root `install.sh` and the
-release downloader are the only POSIX products; rollback to `v0.9.2` is separate rather than an
-active fallback; and the whole suite is surfaced through `docket development test` from the
-committed gate.
+The runner obtains the full suite from one authoritative definition or deterministic discovery rule. It must not create a second hand-copied target list. The transitional suite includes all Go targets, existing Bash shards, and any other targets already belonging to the authoritative suite.
 
-`v1.0.0-rc1` is described as the upcoming first public Go candidate. Any public-URL example remains
-future-facing or templated until publication. The bounded interval between this merge and 0366's
-publication is intentional and is not presented as release failure.
+Target identity must be explicit and stable. Discovery errors, invalid declarations, duplicate identities, unreadable inputs, and targets whose execution contracts cannot be constructed fail closed. Concurrency eligibility comes from maintained metadata or structural policy, never an inference that a target is safe because it once passed concurrently.
 
-Historical specs, results, archived changes, Accepted ADRs, and `v0.9.2` fixtures remain unchanged
-even when their instructions no longer describe current operation.
+## Execution model
 
-## Failure handling and follow-up boundary
+Each scheduled target receives an isolated context covering its temporary directory, durable result destination, runner-controlled environment, scratch files, and logs. Repository access remains available when the target contract requires it. Cleanup cannot erase diagnostic evidence before aggregation.
 
-- A legacy caller, fallback, or surviving invariant needed for the Go-only claim is in scope.
-- A missing Go behavior already promised by the product is in scope only to the minimum needed to
-  preserve it through cutover.
-- A new capability, architecture redesign, unrelated cleanup, or broader configuration contraction
-  becomes follow-up work.
-- Irreversible release action, public infrastructure, subjective backlog disposition, or fresh-host
-  manual proof belongs to 0366.
-- A durable new architecture choice is surfaced as an ADR need rather than decided silently.
-- If source testing still depends on the frozen prior workflow, redesign the branch-under-review
-  bootstrap. Do not modify `v0.9.2` fixtures or retain a hidden legacy runtime.
+Parallel-safe targets may run concurrently under a bounded policy. Unsafe or exclusive targets remain serial. Scheduling and completion order may differ, but reporting order is deterministic.
 
-The open PR must remain independently reviewable and mergeable without successor work.
+For every target the runner tracks stable identity, scheduling and start state, process completion or interruption, durable result state, captured diagnostics, elapsed wall time, budget screening, and any serial confirmation.
+
+## Durable result protocol
+
+Exactly one valid durable result must be attributable to every scheduled target. The following are failures:
+
+- no result;
+- duplicate results;
+- wrong-target, unknown-target, or unscheduled-target identity;
+- malformed, truncated, incomplete, or unsupported state;
+- conflict between the result and runner-observed execution; or
+- inability to determine whether publication completed durably.
+
+Publication is atomic from the aggregator's perspective. A successful child status cannot substitute for a missing result, and a nominal result cannot conceal launch, execution, or termination failure. Validation covers the complete scheduled set rather than stopping after the first failure.
+
+## Deterministic aggregation and observability
+
+The aggregate is stable for the same suite and outcomes, independent of process completion order. Stable target order governs summaries, failures, invalid-result diagnostics, budget findings, and final state.
+
+The report distinguishes ordinary assertions, launch/infrastructure failures, invalid or missing results, interruptions, screening findings, authoritative budget breaches, and aggregate gate outcome. All independently discoverable failures are reported. Per-target output remains attributable; raw interleaving is not the only record.
+
+Stable diagnostic clauses relied upon by repository gates, including the budget classifications, remain machine-detectable. Verbose output must not expose unrelated environment secrets.
+
+## Interruption and process lifecycle
+
+On supported termination or interruption signals the runner:
+
+1. stops scheduling;
+2. forwards the signal to running process groups;
+3. allows only a bounded cleanup interval;
+4. prevents orphaned children;
+5. collects already durable results and diagnostics;
+6. marks incomplete targets interrupted or missing; and
+7. exits non-successfully with the expected interruption meaning.
+
+Escalation for children that ignore the first signal is bounded and tested. The contract covers parallel execution, serial execution, serial budget confirmation, and interruption between scheduling and launch. No required interruption can produce a clean pass.
+
+## Budget and gate semantics
+
+The runner preserves the screen-then-confirm model:
+
+- A parallel overage emits a `BUDGET WATCH:`-equivalent screening finding. Machine-sensitive screening is not authoritative failure.
+- A screened target is rerun under defined serial conditions.
+- A confirmed breach emits a `SERIAL CONFIRMED OVER BUDGET:`-equivalent authoritative finding.
+- Confirmation launch failure, test failure, interruption, within-budget confirmation, and confirmed overage remain distinct.
+
+Thresholds, units, measurement boundaries, and rounding remain sourced from authoritative existing policy or are changed only with explicit parity evidence.
+
+ADR-0074 remains normative. The runner preserves clean success, completed-with-observation, and authoritative failure/indeterminate states; callers must not collapse this into a warning grep or a binary child exit interpretation.
+
+## Frozen prior workflow boundary
+
+The Bash facade, helper/runtime tree, `scripts/run-tests.sh`, current callers, and test corpus remain present and green. They serve as a stable prior workflow, parity oracle, and migration corpus for 0369 and 0370. No success criterion depends on weakening a test because its mechanism will later be removed.
+
+0318 introduces no forwarding shim and does not modify the legacy architecture beyond narrowly necessary accommodations to execute its targets under the Go runner. Go owns canonical orchestration; Bash remains temporary compatibility residue, not a second documented canonical command.
+
+## Parity and mutation strategy
+
+A differential harness feeds equivalent controlled suites to the Bash and Go runners and compares normalized observations for discovery, stable order, success, ordinary failure, launch failure, concurrency classification, isolation, missing/malformed/duplicate/wrong-target results, multi-failure aggregation, interruption, budget screening, serial confirmation, and tri-state interpretation.
+
+Normalization may remove temporary paths, PIDs, and timing jitter, but not target identity, failure category, scheduling class, result validity, budget authority, or gate outcome. Any intentional deviation from accidental or unsafe Bash behavior is documented and receives a focused contract test.
+
+Synthetic targets deterministically model success, failure, delays, result omission/corruption/duplication/mismatch, child process trees, signals, parallel overlap, and budget outcomes. Timing tests use synchronization or controllable thresholds rather than narrow sleeps alone.
+
+Mutation-sensitive evidence must redden when the implementation is changed to:
+
+- omit a scheduled target from validation;
+- accept zero, duplicate, malformed, or wrong-target results;
+- aggregate in completion order;
+- schedule an unsafe target concurrently;
+- skip signal propagation or orphan cleanup;
+- treat parallel screening as authoritative;
+- skip required serial confirmation;
+- collapse ADR-0074 states; or
+- invoke an installed binary at a source-validation gate.
+
+## Gate and documentation cutover
+
+`finalize.test_command` is the sole configuration source for the build gate and resolves to the branch-faithful Go entry. Tests and documentation derive it rather than introduce another copy.
+
+Contributor documentation names the same full-suite command and distinguishes source-checkout validation from running an arbitrary installed binary. Release-candidate source validation uses the same source entry without requiring the candidate to have installed itself. Tagging, publication, public installation, rollback, and fresh-host proof remain in 0366.
+
+## Failure handling
+
+Runner uncertainty fails closed. Discovery/parse failure, isolation failure, launch failure, result publication/read failure, identity contradiction, child-reaping failure, serial-confirmation failure, missing aggregation input, and unsupported gate state all yield attributable non-clean results distinct from ordinary test assertions.
+
+If parity exposes behavior that cannot safely be preserved, the implementation documents the difference and proves the replacement contract. It may not silently narrow the suite or bypass the old behavior.
+
+## ADR impact
+
+ADR-0074 remains normative. ADRs 0014, 0029, 0030, 0033, 0036, and 0099 remain operationally relevant because their mechanisms still exist after 0318. Their facade-free disposition belongs to 0369 and 0370. Any durable new architectural choice discovered during implementation is recorded separately rather than hidden in code.
 
 ## Acceptance criteria
 
-Change 0318 reaches its open-PR acceptance gate only when:
-
-1. A fresh whole-repository inventory classifies all relevant active and historical occurrences
-   into the five categories.
-2. Every active executable site has a recorded disposition, and post-change searches find no
-   undispositioned site.
-3. No maintained production caller invokes the Bash facade, helper/runtime tree, compatibility
-   launcher, environment bridge, hidden fallback, or Python/Perl lifecycle logic.
-4. Repository-root POSIX `install.sh` and the POSIX release downloader are the only surviving shell
-   products, and their tests run under `/bin/sh` without the removed runtime.
-5. Maintained skills, agents, generated dispatch blocks, workflows, setup checks, validators, and
-   instructions resolve `docket` from `PATH` and use public Go contracts.
-6. Generated assets reproduce from canonical generators and match the direct-Go contracts.
-7. Generator and hermetic fresh-process checks pass without claiming external harness reloads.
-8. Active `runtime.bash`, `DOCKET_SCRIPTS_DIR`, `DOCKET_BASH_PATH`, helper-path setup, facade
-   examples, and obsolete validators are absent where their consumers disappeared.
-9. Global pins, unrelated machine overrides, historical records, Accepted ADRs, and frozen
-   `v0.9.2` fixtures remain intact.
-10. Every removed legacy assertion has a disposition, and every surviving invariant has
-    mutation-sensitive Go or retained POSIX coverage.
-11. Mutation checks redden when protected premises are stripped or violated.
-12. `docket development test` exists as the sole whole-suite implementation and the committed
-    `finalize.test_command` enters that implementation from current source.
-13. The suite tests the checkout-built executable, not a stale installed binary.
-14. The suite runs all Go tests and only the declared POSIX product suites, rejecting Bash and
-    legacy-runtime targets.
-15. Isolation, result completeness, interruption handling, deterministic aggregation, and
-    screen-then-serial-confirm budgets are covered by tests.
-16. The complete canonical suite passes.
-17. Every authoritative `SERIAL CONFIRMED OVER BUDGET:` breach is corrected or explicitly
-    dispositioned in acceptance evidence.
-18. Active contributor, install, release, troubleshooting, agent, and setup documentation agrees on
-    the Go-only source model and two POSIX exceptions.
-19. `v1.0.0-rc1` is described as upcoming unless immutable publication evidence already exists.
-20. Source/dev installation and suite execution are demonstrated hermetically without mutating the
-    user's live installation or configuration.
-21. The PR contains no tag, GitHub Release, public assets, fresh-host four-harness lifecycle claim,
-    rollback rehearsal, backlog closeout, or other 0366 evidence.
-22. The result is one reviewable code PR that can stop at the human merge gate with no post-merge
-    action required to establish its source-level claims.
-
-## Successor handoff
-
-Change 0366 is deliberately `proposed`, unspecced, `auto_groomable: false`, and dependent on 0318.
-Its detailed stub preserves the whole-active-backlog audit and manual learnings; exact once-only
-candidate packaging; four native tuple smokes; complete fresh-session lifecycles through Claude,
-Codex, Cursor, and OpenCode; isolated `v0.9.2` rollback; immutable tag/Release/assets/checksums;
-public installation; and final evidence and metadata closeout.
-
-Change 0318 supplies the mergeable source state that 0366 will package and verify. It does not
-pre-authorize, simulate, or claim those human and post-merge outcomes.
+1. `docket development test` exists as a non-interactive whole-suite command.
+2. It executes the complete authoritative suite, not a separately maintained subset.
+3. `finalize.test_command`, contributor instructions, and release-candidate source validation use one branch-faithful source entry that cannot select a stale installed binary.
+4. All existing required Go targets and Bash shards run through the new runner.
+5. The Bash facade, old runner, helpers/runtime, callers, and tests remain present and green.
+6. No forwarding shim, caller migration, facade deletion, or broad configuration contraction is introduced.
+7. Every target receives isolated runner-controlled temporary and result state.
+8. Only explicitly safe targets overlap; concurrency is bounded.
+9. Exactly one attributable durable result is required for every scheduled target.
+10. Missing, malformed, duplicate, incomplete, unknown-target, and wrong-target results fail with attributable diagnostics.
+11. Result publication is atomic to the aggregator.
+12. Aggregation and reporting are deterministic and preserve all independently discoverable failures.
+13. Interruption stops scheduling, reaches child trees, prevents orphans, preserves diagnostics, and cannot pass.
+14. Parallel budget overages remain screening findings with a `BUDGET WATCH:`-equivalent clause.
+15. Required serial confirmation precedes authoritative budget failure, which retains a `SERIAL CONFIRMED OVER BUDGET:`-equivalent clause.
+16. Confirmation launch, test, interruption, within-budget, and confirmed-overage outcomes remain distinguishable.
+17. ADR-0074's clean, observed, and authoritative/indeterminate states have focused contract coverage.
+18. Differential tests cover discovery, scheduling, isolation, results, aggregation, interruption, budgets, and gate state.
+19. Synthetic fixtures deterministically cover invalid-result, scheduling, signal, and budget conditions.
+20. Mutation tests prove exact-result validation, stable aggregation, safe scheduling, signals, serial confirmation, tri-state interpretation, and source fidelity are load-bearing.
+21. Internal runner failures fail closed and remain distinct from product assertion failures.
+22. The complete suite passes through the new canonical runner with every authoritative serial budget breach resolved or explicitly dispositioned.
+23. The merged state is usable without 0369, 0370, or 0366.
+24. No release, fresh-host proof, rollback, facade deletion, post-cutover board configuration, or unrelated capability work is included.
 
 ## Assumptions
 
-- The existing change identity, slug, recorded branch, and claim continuity remain; this spec
-  narrows the deliverable without minting a replacement source-cutover change.
-- Changes 0317, 0322, 0326, 0352, 0361, and 0363 are complete and their established contracts are
-  present on the reconciled base.
-- The public command name is `docket development test` unless implementation finds a direct naming
-  conflict. Any alternate preserves the single-command contract and appears identically in the
-  committed gate and active documentation.
-- A small Go-native source bootstrap used only to enter the checkout's runner is acceptable and is
-  not a second lifecycle implementation.
-- The repository can express retained POSIX tests as an explicit finite set owned by `install.sh`
-  and the release downloader.
-- Existing budget vocabulary may remain stable while orchestration moves to Go.
-- Internal Go runner packages and fixtures are in scope; a general-purpose task runner is not.
-- Direct Git/GitHub behavior needed by cutover already exists in approved Go adapters; independent
-  adapter redesign is follow-up work.
-- Naming `v1.0.0-rc1` before download availability is acceptable when prose calls it upcoming.
-- No fresh external harness, public release, irreversible tag, or subjective backlog-disposition
-  evidence is required for this source-only PR.
+- `docket development` is the accepted maintainer namespace.
+- The current suite can expose one authoritative deterministic discovery mechanism without redesigning individual tests.
+- Existing Bash shards can run as child targets before their product-facing callers migrate.
+- The existing result and budget behaviors are intentional unless differential analysis documents a defect.
+- ADR-0074 sufficiently defines the runner-facing tri-state contract.
+- A Go toolchain is available in source-development environments.
+- The Bash runner remains stable enough to serve as a parity oracle.
+- 0369 and 0370 merge sequentially on `main`, not as stacked unmerged branches.
+- 0366 and 0367 will depend on the final deletion stage.
+- Historical records, Accepted ADRs, archived material, and frozen fixtures are not rewritten.

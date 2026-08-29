@@ -7,9 +7,9 @@ priority: 'medium'
 type: 'feat'
 created: '2026-08-29'
 updated: '2026-08-29'
-depends_on: [318]
+depends_on: [370]
 stacked_on:
-related: [22, 261]
+related: [22, 261, 318, 369, 370]
 discovered_from: []
 adrs: [12, 52]
 spec: 'docs/superpowers/specs/2026-08-29-configurable-rendered-board-sections-and-sorting-design.md'
@@ -51,8 +51,8 @@ common config layer can choose section or row order.
   `id`/`updated`/`created`, ascending/descending sorting. Default to updated descending everywhere.
 - Keep Archive fixed after the active board and preserve date-descending, ID-descending-within-day
   ordering with an explicit regression guard.
-- Implement only in the post-0318 Go config and renderer; leave digest, selection, Mermaid, GitHub
-  mirror, lifecycle data, and the retiring Bash renderer unchanged.
+- Implement only after 0370's final Go-only cutover, in the Go config and renderer; leave digest,
+  selection, Mermaid, GitHub mirror, and lifecycle data unchanged.
 
 ## Out of scope
 

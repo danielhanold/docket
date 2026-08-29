@@ -9,9 +9,9 @@ created: 2026-08-12
 updated: '2026-08-29'
 depends_on: [317, 352, 363]
 stacked_on:
-related: [322, 326, 361, 366]
+related: [322, 326, 361, 366, 369, 370]
 discovered_from: [303]
-adrs: []
+adrs: [74]
 spec: docs/superpowers/specs/2026-08-28-config-contraction-self-hosting-and-hard-cutover-design.md
 plan:
 results:
@@ -30,48 +30,43 @@ claimed_at: '2026-08-29T16:48:15Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-28-config-contraction-self-hosting-and-hard-cutover-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-28-config-contraction-self-hosting-and-hard-cutover-design.md) |
+| ADRs | [ADR-0074](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Docket's Go lifecycle is complete, but maintained workflows, configuration, tests, and operator
-documentation still route through the production Bash facade and its helper/runtime tree. That
-dual implementation prevents the reviewed Go source from becoming the one authoritative product
-and keeps the repository's canonical suite tied to the implementation being retired.
+Docket's Go lifecycle is complete, but the repository's canonical whole-suite orchestration still
+lives in the Bash runner that the cutover will eventually retire. Replacing the runner first gives
+the later consumer migration and deletion changes a Go-owned, branch-faithful build gate while
+leaving the frozen prior workflow available as a parity oracle and migration host.
 
 ## What changes
 
-- Derive a whole-repository inventory of legacy executable paths, retained product invariants,
-  dependent guards, immutable history, and the two approved POSIX product surfaces.
-- Rewrite maintained skills, agents, generated dispatch material, workflows, setup checks,
-  configuration, and operator instructions to use the PATH-resolved Go CLI and JSON contracts.
-- Remove the production Bash facade, helper/runtime tree, compatibility paths, environment
-  bridges, legacy-runtime lifecycle dependencies, and mechanism-only tests in the same PR.
-- Preserve every surviving product invariant with mutation-sensitive Go coverage or true `/bin/sh`
-  coverage owned by repository-root `install.sh` and the release downloader.
-- Add `docket development test` as the Go-native whole-suite implementation, entered from source
-  through a branch-faithful Go bootstrap and used by contributors, finalization, and the
-  release-candidate source gate.
-- Replace active documentation with the Go-only model and identify `v1.0.0-rc1` as the upcoming
-  first public Go candidate without asserting that publication already exists.
+- Add `docket development test` as the Go-native whole-suite implementation, entered through a
+  branch-faithful source bootstrap rather than an installed binary.
+- Cut `finalize.test_command`, the contributor whole-suite command, and release-candidate source
+  validation over to that one canonical runner.
+- Continue executing the complete existing Go and Bash test corpus while the facade, helpers,
+  runtime, callers, and old runner remain present and green.
+- Preserve isolation, safe parallelism, exact durable-result accounting, deterministic aggregation,
+  interruption behavior, screen-then-serial-confirm budgets, and ADR-0074 gate semantics.
+- Prove the new orchestration contract through differential parity, deterministic synthetic
+  fixtures, and mutation-sensitive tests.
 
 ## Out of scope
 
-Whole-backlog migration-ledger dispositions, manual migration learning records, post-merge
-candidate packaging, native target smokes, genuinely fresh Claude/Codex/Cursor/OpenCode lifecycle
-proofs, `v0.9.2` rollback rehearsal, tag or GitHub Release creation, public-install verification,
-and final release evidence or metadata closeout. Those human-attended gates belong to change 0366,
-which depends on this source cutover. Also excluded: stable `v1.0.0`, Homebrew, Windows,
-signing/notarization, SBOM or provenance signing, uninstall, version-tree garbage collection,
-unrelated capability changes, and rewrites of historical or frozen records.
+Maintained-consumer migration (0369); facade/runtime/configuration/test deletion (0370); broad
+documentation or generated-asset cutover; a replacement forwarding shim; whole-backlog ledger
+disposition; release packaging or publication; native target smokes; fresh Claude/Codex/Cursor/
+OpenCode lifecycle proof; v0.9.2 rollback; and post-cutover board configuration (0367).
 
 ## Design decisions
 
-Change 0318 remains one reviewable code PR and keeps its existing id, slug, recorded branch, and
-claim continuity. The source gate tests the exact checkout under review rather than a stale
-installed binary. Historical records and frozen `v0.9.2` fixtures are not rewritten; an active
-baseline change creates a new versioned fixture with provenance. Generator behavior may be proved
-inside this PR, while external fresh-process and public-release truth is reserved for 0366.
+Change 0318 keeps its id, slug, recorded branch, and claim continuity but becomes only the runner
+stage of a sequential merged-main dependency chain. The exact checkout under review is tested; the
+existing Bash implementation remains frozen and green as the parity oracle. Each intermediate
+merge is independently usable. Changes 0369 and 0370 own consumer migration and physical deletion,
+and 0366 owns external human and release truth.
 
 ## Reconcile log
 

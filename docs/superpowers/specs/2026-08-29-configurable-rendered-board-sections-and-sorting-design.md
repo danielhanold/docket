@@ -5,7 +5,7 @@
 # Configurable rendered-board sections and sorting
 
 **Change:** 0367 · **Type:** feat · **Priority:** medium · **Date:** 2026-08-29
-**Depends on:** 0318 · **Related:** 0022, 0261 · **ADRs:** 0012, 0052
+**Depends on:** 0370 · **Related:** 0022, 0261, 0318, 0369, 0370 · **ADRs:** 0012, 0052
 
 ## Purpose and boundary
 
@@ -16,8 +16,8 @@ states more closely than the way a human scans work.
 
 This change makes the **rendered inline board only** a configurable human-facing projection. It does
 not add lifecycle statuses, alter readiness, change autonomous selection, reorder the digest, or
-change the GitHub mirror. The change depends on 0318 and targets only the post-cutover Go product;
-the Bash renderer is retired by 0318 and is not extended here.
+change the GitHub mirror. The change depends on 0370 and targets only the final post-cutover Go
+product; the Bash renderer is retired by the 0318 → 0369 → 0370 sequence and is not extended here.
 
 ## Configuration contract
 
@@ -145,7 +145,7 @@ non-default board presentation settings, and no config leaf is passed into those
 
 ## Go implementation shape
 
-After 0318, the Go renderer is the sole inline-board authority. Extend its input with typed board
+After 0370, the Go renderer is the sole inline-board authority. Extend its input with typed board
 presentation options produced by the resolved config. Keep three responsibilities distinct:
 
 1. config owns validation, defaults, layered leaf resolution, provenance, and diagnostics;

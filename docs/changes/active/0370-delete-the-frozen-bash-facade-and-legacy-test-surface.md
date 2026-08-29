@@ -12,7 +12,7 @@ stacked_on:
 related: [318, 322, 326, 361, 366, 367]
 discovered_from: [318]
 adrs: [14, 29, 30, 33, 36, 74, 99]
-spec:
+spec: 'docs/superpowers/specs/2026-08-29-delete-the-frozen-bash-facade-and-legacy-test-surface-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-08-29-delete-the-frozen-bash-facade-and-legacy-test-surface-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-29-delete-the-frozen-bash-facade-and-legacy-test-surface-design.md) |
 | ADRs | [ADR-0014](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0014-consuming-repo-script-resolution.md), [ADR-0029](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0029-docket-facade-routing-and-config-presentation.md), [ADR-0030](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0030-facade-wiring-guard-discriminates-on-invocation-prefix.md), [ADR-0033](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0033-cursor-auto-run-trust-at-facade.md), [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0074](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 
@@ -38,8 +39,28 @@ Once every maintained consumer uses the Go CLI directly, the legacy Bash facade 
 
 ## What changes
 
-Re-prove that the frozen facade has no maintained executable callers, delete the facade and helper/runtime tree, remove mechanism-only tests and obsolete environment/configuration seams, migrate surviving behavioral invariants to mutation-sensitive Go or retained POSIX coverage, and contract the canonical test runner to the final Go-plus-bootstrap product set.
+- Reconcile against merged 0369 and fail closed unless every shape-derived facade/runtime candidate
+  is classified and no maintained executable caller remains.
+- Classify each substantive legacy assertion before deletion; move surviving behavior to
+  mutation-sensitive Go coverage or the retained POSIX owner for repository-root `install.sh` or
+  the release downloader.
+- Delete the facade, production helpers/runtime, legacy runner, compatibility launchers,
+  environment/configuration seams, and mechanism-only tests.
+- Contract `docket development test` to Go plus exactly the two retained POSIX product suites while
+  preserving source fidelity, isolation, completeness, interruption, aggregation, budgets, and
+  ADR-0074 semantics.
+- Add shape-derived, mutation-tested final absence guards and complete the facade-era ADR/index
+  consequences through the ADR workflow.
 
 ## Out of scope
 
-Do not migrate maintained callers; that is change 369. Do not rewrite historical records, archived specs/results, accepted ADR history, or frozen v0.9.2 artifacts. Do not publish v1.0.0-rc1 or run the human fresh-host and rollback protocol.
+Consumer migration (0369); a replacement shim or shell control plane; unrelated configuration
+redesign; rewrites of historical records, archived specs/results, Accepted ADR history, or frozen
+v0.9.2 artifacts; release/tag/assets; and human fresh-host or rollback work (0366).
+
+## Design decisions
+
+Deletion follows coverage replacement, never precedes it. Unknown consumers and uncertain test
+assertions block removal. Final guards classify executable shape and ownership rather than pinning
+current spellings, counts, or filenames. A small missed caller consistent with 0369 may be reconciled;
+a material migration redesign halts for regrooming.
