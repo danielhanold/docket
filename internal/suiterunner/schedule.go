@@ -23,6 +23,12 @@ type Config struct {
 	Jobs     int      // maximum parallel-lane targets in flight (>=1)
 	Work     string   // runner-owned scratch root (stat/, logs/, jobs/ live under it)
 	ExtraEnv []string // extra env appended to every child (overrides sandbox defaults)
+	// DurationsPath is the DOCKET_RUNTESTS_TEST_DURATIONS injection seam (Task 5's
+	// solo confirmation reads column 3 — the solo seconds — from it so a
+	// confirmation re-run reaches a deterministic verdict without sleeping). Task 7
+	// resolves it from the environment; declared here so budgetstate.go's
+	// ScheduleConfirmation/StrictConfirmCandidates compile and are testable now.
+	DurationsPath string
 }
 
 // Schedule partitions targets into the parallel lane and the serial lane. The
