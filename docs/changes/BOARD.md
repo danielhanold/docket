@@ -1,8 +1,14 @@
 # Backlog
 
-**370 changes** — 🟡 56 proposed · ⚪ 4 deferred · ✅ 228 done · 🗑️ 82 killed
+**370 changes** — 🟢 1 in progress · 🟡 55 proposed · ⚪ 4 deferred · ✅ 228 done · 🗑️ 82 killed
 
-## 🟡 Proposed (56)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0369](active/0369-migrate-maintained-consumers-to-the-direct-go-cli.md) | Migrate maintained consumers to the direct Go CLI | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-29-migrate-maintained-consumers-to-the-direct-go-cli-design.md) | `refactor/migrate-maintained-consumers-to-the-direct-go-cli` |
+
+## 🟡 Proposed (55)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -60,7 +66,6 @@
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | ⏳ waiting on #370 — not yet built |
 | [0367](active/0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | `medium` | `feat` | ⏳ waiting on #370 — not yet built |
 | [0368](active/0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | `medium` | `fix` | needs-brainstorm |
-| [0369](active/0369-migrate-maintained-consumers-to-the-direct-go-cli.md) | Migrate maintained consumers to the direct Go CLI | `critical` | `refactor` | build-ready |
 | [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | ⏳ waiting on #369 — not yet built |
 
 ## ⚪ Deferred (4)
