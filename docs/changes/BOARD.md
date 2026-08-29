@@ -1,14 +1,15 @@
 # Backlog
 
-**365 changes** — 🟢 1 in progress · 🟡 52 proposed · ⚪ 4 deferred · ✅ 226 done · 🗑️ 82 killed
+**365 changes** — 🟢 2 in progress · 🟡 51 proposed · ⚪ 4 deferred · ✅ 226 done · 🗑️ 82 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Remaining configuration cleanup, self-hosting, and hard cutover | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-28-config-contraction-self-hosting-and-hard-cutover-design.md) | `refactor/config-contraction-self-hosting-and-hard-cutover` |
+| [0365](active/0365-codex-nested-dispatch-capability-boundary.md) | Make nested Docket dispatch reliable for every Codex agent invocation | `critical` | `fix` | [spec](../superpowers/specs/2026-08-29-codex-nested-dispatch-capability-boundary-design.md) | `fix/codex-nested-dispatch-capability-boundary` |
 
-## 🟡 Proposed (52)
+## 🟡 Proposed (51)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -63,7 +64,6 @@
 | [0359](active/0359-run-gate-gives-up-too-soon.md) | Run gate gives up too soon | `high` | `fix` | build-ready |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `medium` | `feat` | needs-brainstorm |
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | build-ready |
-| [0365](active/0365-codex-nested-dispatch-capability-boundary.md) | Make nested Docket dispatch reliable for every Codex agent invocation | `critical` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
 
