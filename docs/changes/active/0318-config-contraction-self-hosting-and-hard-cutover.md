@@ -1,7 +1,7 @@
 ---
 id: 318
 slug: config-contraction-self-hosting-and-hard-cutover
-title: 'Remaining configuration cleanup, self-hosting, and hard cutover'
+title: 'Go-only source cutover'
 status: 'in-progress'
 priority: critical
 type: refactor
@@ -9,7 +9,7 @@ created: 2026-08-12
 updated: '2026-08-29'
 depends_on: [317, 352, 363]
 stacked_on:
-related: [322, 326, 361]
+related: [322, 326, 361, 366]
 discovered_from: [303]
 adrs: []
 spec: docs/superpowers/specs/2026-08-28-config-contraction-self-hosting-and-hard-cutover-design.md
@@ -34,35 +34,44 @@ claimed_at: '2026-08-29T12:29:14Z'
 
 ## Why
 
-Docket must prove that the installed Go product can manage its own complete real lifecycle before
-the production Bash implementation is removed. The final cutover must preserve settled Go v1
-compatibility and rollback boundaries while publishing the first public Go release candidate.
+Docket's Go lifecycle is complete, but maintained workflows, configuration, tests, and operator
+documentation still route through the production Bash facade and its helper/runtime tree. That
+dual implementation prevents the reviewed Go source from becoming the one authoritative product
+and keeps the repository's canonical suite tied to the implementation being retired.
 
 ## What changes
 
-- Require 0352's native repository operation family and 0363's removal of unused main-mode
-  compatibility before cutover.
-- Rehearse and verify full self-hosting from the exact installed candidate through Claude, Codex,
-  Cursor, and OpenCode.
-- Finish remaining active configuration and migration-ledger cleanup, and capture migration
-  learnings manually through Go.
-- Remove production Bash and implementation-only Bash tests while preserving retained product
-  coverage and the two approved POSIX bootstrap/downloader surfaces.
-- Replace active documentation and publish the exact accepted artifacts as `v1.0.0-rc1`.
+- Derive a whole-repository inventory of legacy executable paths, retained product invariants,
+  dependent guards, immutable history, and the two approved POSIX product surfaces.
+- Rewrite maintained skills, agents, generated dispatch material, workflows, setup checks,
+  configuration, and operator instructions to use the PATH-resolved Go CLI and JSON contracts.
+- Remove the production Bash facade, helper/runtime tree, compatibility paths, environment
+  bridges, legacy-runtime lifecycle dependencies, and mechanism-only tests in the same PR.
+- Preserve every surviving product invariant with mutation-sensitive Go coverage or true `/bin/sh`
+  coverage owned by repository-root `install.sh` and the release downloader.
+- Add `docket development test` as the Go-native whole-suite implementation, entered from source
+  through a branch-faithful Go bootstrap and used by contributors, finalization, and the
+  release-candidate source gate.
+- Replace active documentation with the Go-only model and identify `v1.0.0-rc1` as the upcoming
+  first public Go candidate without asserting that publication already exists.
 
 ## Out of scope
 
-Implementing 0352 or 0363, reintroducing deferred capabilities, repeating 0322's
-bootstrap/adoption or 0326's early configuration contraction, retaining a Bash fallback, changing
-the existing-repository compatibility contract inside 0318, Homebrew, or stable `v1.0.0`
-promotion.
+Whole-backlog migration-ledger dispositions, manual migration learning records, post-merge
+candidate packaging, native target smokes, genuinely fresh Claude/Codex/Cursor/OpenCode lifecycle
+proofs, `v0.9.2` rollback rehearsal, tag or GitHub Release creation, public-install verification,
+and final release evidence or metadata closeout. Those human-attended gates belong to change 0366,
+which depends on this source cutover. Also excluded: stable `v1.0.0`, Homebrew, Windows,
+signing/notarization, SBOM or provenance signing, uninstall, version-tree garbage collection,
+unrelated capability changes, and rewrites of historical or frozen records.
 
 ## Design decisions
 
-The public tag is `v1.0.0-rc1`. The exact post-merge candidate is packaged once, accepted through
-the four target tuples and four fresh host sessions, rehearsed against an isolated `v0.9.2`
-rollback copy, then published without rebuilding. Historical records and the frozen rollback corpus
-are not rewritten during active-surface cleanup.
+Change 0318 remains one reviewable code PR and keeps its existing id, slug, recorded branch, and
+claim continuity. The source gate tests the exact checkout under review rather than a stale
+installed binary. Historical records and frozen `v0.9.2` fixtures are not rewritten; an active
+baseline change creates a new versioned fixture with provenance. Generator behavior may be proved
+inside this PR, while external fresh-process and public-release truth is reserved for 0366.
 
 ## Reconcile log
 
