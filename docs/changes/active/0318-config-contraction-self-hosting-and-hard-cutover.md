@@ -2,11 +2,11 @@
 id: 318
 slug: config-contraction-self-hosting-and-hard-cutover
 title: 'Remaining configuration cleanup, self-hosting, and hard cutover'
-status: proposed
+status: 'in-progress'
 priority: critical
 type: refactor
 created: 2026-08-12
-updated: 2026-08-28
+updated: '2026-08-29'
 depends_on: [317, 352, 363]
 stacked_on:
 related: [322, 326, 361]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'refactor/config-contraction-self-hosting-and-hard-cutover'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-29T12:29:14Z'
 ---
 
 ## Artifacts
