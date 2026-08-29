@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0363 — Remove main-mode compatibility from Go v1](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0363-remove-main-mode-compatibility-from-go-v1.md)**
+> ↩ **[Change 0363 — Remove main-mode compatibility from Go v1](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-29-0363-remove-main-mode-compatibility-from-go-v1.md)**
 <!-- docket:backlink:end -->
 # Remove main-mode compatibility from Go v1 — results
 
