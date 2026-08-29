@@ -2,7 +2,7 @@
 id: 363
 slug: 'remove-main-mode-compatibility-from-go-v1'
 title: 'Remove main-mode compatibility from Go v1'
-status: 'implemented'
+status: 'done'
 priority: high
 type: refactor
 created: 2026-08-28
@@ -21,7 +21,7 @@ branch: 'refactor/remove-main-mode-compatibility-from-go-v1'
 pr: 'https://github.com/danielhanold/docket/pull/250'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-29T00:15:42Z'
+claimed_at:
 ---
 
 ## Artifacts

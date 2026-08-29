@@ -1,6 +1,6 @@
 # Backlog
 
-**364 changes** — 🟢 1 in progress · 🟡 51 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 225 done · 🗑️ 82 killed
+**364 changes** — 🟢 1 in progress · 🟡 51 proposed · ⚪ 4 deferred · ✅ 226 done · 🗑️ 82 killed
 
 ## 🟢 In progress (1)
 
@@ -48,7 +48,7 @@
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
-| [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Remaining configuration cleanup, self-hosting, and hard cutover | `critical` | `refactor` | ⏳ waiting on #363 — needs your merge |
+| [0318](active/0318-config-contraction-self-hosting-and-hard-cutover.md) | Remaining configuration cleanup, self-hosting, and hard cutover | `critical` | `refactor` | build-ready |
 | [0319](active/0319-test-bash-runtime-routing-sh-s-inventory-assert-is-cwd-depen.md) | test_bash_runtime_routing.sh's inventory assert is cwd-dependent — relative rg globs resolve against the process cwd | `medium` | `fix` | needs-brainstorm |
 | [0320](active/0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | `medium` | `chore` | needs-brainstorm |
 | [0321](active/0321-render-artifact-backlink-sh-eats-artifact-tails-on-marker-sh.md) | render-artifact-backlink.sh eats artifact tails on marker-shaped literals — anchor whole-line, validate balance, refuse | `medium` | `fix` | needs-brainstorm |
@@ -72,12 +72,6 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0363](active/0363-remove-main-mode-compatibility-from-go-v1.md) | Remove main-mode compatibility from Go v1 | `high` | `refactor` | [#250](https://github.com/danielhanold/docket/pull/250) |  |
 
 ```mermaid
 graph TD
@@ -138,20 +132,21 @@ graph TD
   0354
   0359
   0360
-  0352 --> 0363
   0352 --> 0364
   0192:::done
   0211:::done
   0251:::done
   0317:::done
   0352:::done
+  0363:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (307)</summary>
+<details><summary>✅🗑️ Archive — done + killed (308)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0363](archive/2026-08-29-0363-remove-main-mode-compatibility-from-go-v1.md) | Remove main-mode compatibility from Go v1 | 2026-08-29 |
 | [0362](archive/2026-08-28-0362-partition-internal-release-to-clear-the-race-gate-timeout.md) | Partition internal/release integration tests to clear the race-gate per-package timeout | 2026-08-28 |
 | [0361](archive/2026-08-28-0361-release-candidate-source-gate-macos-runner.md) | Release-candidate source-gate green on a macOS runner | 2026-08-28 |
 | [0352](archive/2026-08-28-0352-native-repository-initialization-and-health-check.md) | Native repository initialization, migration, and health checks | 2026-08-28 |
@@ -168,7 +163,6 @@ graph TD
 | [0334](archive/2026-08-26-0334-claude-md-global-and-project-copies-out-of-sync-on-finalize-a.md) | Make Docket dispatch minimal, non-recursive, and mechanically gated | 2026-08-26 |
 | [0294](archive/2026-08-26-0294-shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru.md) | Shrink AGENTS.md's always-loaded footprint: script-ify the run gate's caller procedure and de-duplicate the dispatch table | 2026-08-26 |
 | [0342](archive/2026-08-25-0342-harden-autonomous-build-implement-agents-against-the-suite-y.md) | Harden autonomous build/implement agents against the suite-yield deadlock (ADR-0024) | 2026-08-25 |
-| [0344](archive/2026-08-24-0344-finalize-pr-prober-cannot-parse-the-full-url-pr-form.md) | Finalize PR prober cannot parse the full-URL pr: form | 2026-08-24 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
 | [0299](archive/2026-08-12-0299-reshard-tests-test-sync-agents-runners-so-every-file-measure.md) | Reshard tests/test_sync_agents_runners so every file measures under its wall-clock ceiling | 2026-08-12 |
 | [0285](archive/2026-08-12-0285-gate-run-rung-2-a-discovered-python-runtime-for-a-real-sessi.md) | gate-run rung 2 — a discovered Python runtime for a real session and an exact child status | 2026-08-12 |
@@ -254,7 +248,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 92 done |
+| [2026-08](archive/) | 93 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
