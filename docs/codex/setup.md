@@ -108,8 +108,32 @@ honored, and metadata writes landing on `origin/docket` — work through the
 [Codex live-validation runbook](validation-runbook.md), which drives each of these end to end in a
 fixture repo and records the observed outcome.
 
+## Two invocation paths — one contract
+
+Docket supports exactly two ways to start its work under Codex, and both are first-class — neither
+is a workaround, and neither requires flipping a workflow's `skills:` binding to `auto`:
+
+1. **Prose, routed by the dispatch block.** A plain request ("refresh the docket board") is routed
+   by the repo's managed `AGENTS.md` dispatch block to the registered same-name `docket-*` agent.
+2. **Direct invocation.** `@docket-status` (or any `@docket-…` agent) starts that same registered
+   wrapper explicitly.
+
+Either way, the wrapper you land in may need to dispatch further docket agents — planning, build,
+review, grooming's critic, finalize's resolver and repair. Every generated Codex wrapper carries
+the rule for that: **nested dispatch uses Codex's direct named-agent dispatch from the active
+top-level tool surface.** A tool inventory read from *inside* another tool (a nested orchestration
+namespace) intentionally omits Codex's top-level collaboration controls, so an agent must never
+conclude from such an inventory that dispatch is unavailable — only a failed direct attempt or an
+explicit policy denial establishes that. The harness-neutral statement of this rule lives in the
+docket-convention skill's *Dispatch-capability resolution* section.
+
 ## Restart after (re)generating
 
 Codex registers its agents at process start. After `sync-agents.sh` writes new wrappers, restart
 your Codex session before invoking a docket skill — an already-open session keeps the old
 definitions.
+
+Codex registers agent definitions **once, at process start**. After any install or sync that
+changed a wrapper or the dispatch block, start a **fresh Codex application/CLI process** before
+relying on the new definitions. Opening another conversation inside an already-running process is
+**not sufficient** — that process is still holding the definitions it loaded at start.
