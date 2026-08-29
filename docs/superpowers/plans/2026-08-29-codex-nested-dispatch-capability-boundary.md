@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0365 — Make nested Docket dispatch reliable for every Codex agent invocation](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0365-codex-nested-dispatch-capability-boundary.md)**
+> ↩ **[Change 0365 — Make nested Docket dispatch reliable for every Codex agent invocation](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-29-0365-codex-nested-dispatch-capability-boundary.md)**
 <!-- docket:backlink:end -->
 # Codex Nested Dispatch Capability Boundary — Implementation Plan
 
