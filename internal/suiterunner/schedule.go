@@ -10,25 +10,43 @@ package suiterunner
 
 import (
 	"context"
+	"io"
 	"sort"
 	"sync"
+	"time"
 )
 
-// Config carries the fully-resolved run configuration. Task 7's run.go extends
-// this struct in place with the rest of the run's inputs; this task declares
-// only the fields the lanes read so the package compiles and the scheduler can
-// be tested in isolation.
+// Config carries the fully-resolved run configuration. The scheduler (Task 3)
+// declared the lane-facing fields; run.go (Task 7) extends it IN PLACE with the
+// rest of the run's inputs. suiterunner.Run never reads global state it does not
+// list here — the CLI layer resolves every field and hands it a complete Config.
 type Config struct {
-	Bash     string   // absolute path to the bash used for child targets
-	Jobs     int      // maximum parallel-lane targets in flight (>=1)
-	Work     string   // runner-owned scratch root (stat/, logs/, jobs/ live under it)
+	RepoRoot    string // git toplevel of the checkout under test
+	TestsDir    string // default RepoRoot/tests; DOCKET_RUNTESTS_TESTS_DIR overrides
+	BudgetsPath string // default RepoRoot/tests/runtime-budgets.tsv; DOCKET_RUNTESTS_BUDGETS overrides
+
+	Bash     string   // path to the bash used for child targets; "" => resolve "bash" on PATH
+	Jobs     int      // maximum parallel-lane targets in flight (>=1 or usage error)
+	Work     string   // runner-owned scratch root (stat/, logs/, jobs/ live under it); "" => os.MkdirTemp
 	ExtraEnv []string // extra env appended to every child (overrides sandbox defaults)
-	// DurationsPath is the DOCKET_RUNTESTS_TEST_DURATIONS injection seam (Task 5's
-	// solo confirmation reads column 3 — the solo seconds — from it so a
-	// confirmation re-run reaches a deterministic verdict without sleeping). Task 7
-	// resolves it from the environment; declared here so budgetstate.go's
-	// ScheduleConfirmation/StrictConfirmCandidates compile and are testable now.
+
+	HygienePath string // RepoRoot/scripts/check-test-source-hygiene.sh — the fail-closed preflight
+	StatePath   string // default <git-common-dir>/docket/development-test-budget-state.tsv; DOCKET_RUNTESTS_STATE overrides
+	Strict      bool   // DOCKET_RUNTESTS_STRICT=1 — confirm every candidate and gate on a breach (exit 4)
+	Verbose     bool   // reserved false in 0318 (the command exposes no flags)
+
+	// DurationsPath is the DOCKET_RUNTESTS_TEST_DURATIONS injection seam: a TSV
+	// `<base>.sh\t<parallel-secs>\t<solo-secs>` that replaces measured durations so
+	// the budget machinery reaches deterministic verdicts without sleeping. run.go
+	// reads column 2 (parallel) for screening; budgetstate.go reads column 3 (solo)
+	// for a confirmation re-run.
 	DurationsPath string
+
+	Stdout, Stderr io.Writer // the report streams here; the exit code carries the verdict
+
+	// KillAfter bounds the grace period between the first forwarded interrupt and
+	// the SIGKILL escalation. 0 => the signal layer's 5s default.
+	KillAfter time.Duration
 }
 
 // Schedule partitions targets into the parallel lane and the serial lane. The

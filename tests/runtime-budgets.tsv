@@ -490,6 +490,20 @@
 #   reposetup_race  cold 19.47 19.52 19.49 -> worst 19.52 -> next multiple of 5 is 20, plus 5 -> 25 (race mode, measured WITH -race)
 # The two race tests run in ~7s; the rest is the tagged app-package -race compile. Headroom at 25: ~5.5s over the worst
 # cold reading, well under the 60s ceiling. EXPECTED_TOTAL moves 2740 -> 2765: +25.
+#
+# tests/test_devtest_runner.sh is a NEW FILE brought by change 0318 (Task 7) — the header's new-test-file case, for a
+# brand-new surface no existing shard owns: the end-to-end coverage of `docket development test`, the Go-native
+# whole-suite runner that becomes finalize.test_command. It drives the REAL source entry `go run ./cmd/docket
+# development test` (not the built binary — the entry the merge gate runs) over synthetic fixture suites through the
+# shared env seams, asserting the exit contract (green 0, red 1, screening-advisory 0, serial-mode breach advisory 0 /
+# --strict 4, usage non-zero, interrupted 143) and the oracle's report clauses. It is NOT folded into
+# tests/test_go_toolchain.sh's `go test ./...`: the suiterunner PACKAGE unit contract lives there (internal/suiterunner),
+# while this file proves the wired command through `go run`, which that whole-module gate never invokes. Sized per this
+# header's rule from the WORST reading, one machine (darwin/arm64, go1.26.5): warm 1.88 1.88 1.88, cold-cache 5.49
+# (GOCACHE pointed at an empty scratch dir, the drift-test methodology) -> worst 5.49 -> next multiple of 5 is 10, plus
+# the 5s margin -> 15. The cold reading — repeated `go run` recompiling ./cmd/docket once — is the reachable worst on a
+# fresh clone or CI image; warm in the suite (the Go-touching files share GOCACHE). Rides the parallel lane.
+# EXPECTED_TOTAL moves 2765 -> 2780: +15.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -519,6 +533,7 @@ tests/test_critic_return_channel.sh	10	parallel
 tests/test_cursor_contract_docs.sh	10	parallel
 tests/test_cursor_dispatch_rule.sh	10	parallel
 tests/test_cursor_permissions_docs.sh	10	parallel
+tests/test_devtest_runner.sh	15	parallel
 tests/test_dispatch_block_budget.sh	10	parallel
 tests/test_dispatch_capability.sh	10	parallel
 tests/test_docket_build.sh	10	parallel

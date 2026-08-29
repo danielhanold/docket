@@ -109,6 +109,7 @@ var assetIndependent = map[string]bool{
 	"install check":              true,
 	"development":                true,
 	"development install":        true,
+	"development test":           true, // the Go-native whole-suite runner reads this checkout, never installed assets (change 0318)
 }
 
 // commandKey is a command's path with the root's own name stripped, which is
