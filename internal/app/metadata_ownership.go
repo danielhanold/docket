@@ -182,9 +182,23 @@ func verifyLegacyEquivalence(ctx context.Context, git *gitcli.Client, repo gitcl
 	}
 	configCache := map[gitcli.ObjectID]resolvedDirs{}
 	composedKeys := map[string]bool{}
+	seenRootTrees := map[gitcli.ObjectID]bool{}
 
 	for _, e := range entries {
 		commit := e.Commit
+
+		// Fast whole-root-tree skip: two snapshots sharing the identical FULL root
+		// tree (HistoryEntry.Tree) resolve to the identical committed config,
+		// copy-set subtrees, live-surface presence, and projection, so the second
+		// can never change the verdict — skip it before any per-commit read. This
+		// is a strict superset of the composedKeys dedupe below, which still
+		// collapses DISTINCT root trees that happen to share a copy-set projection.
+		if e.Tree != "" {
+			if seenRootTrees[e.Tree] {
+				continue
+			}
+			seenRootTrees[e.Tree] = true
+		}
 
 		cfgEntries, err := git.TreeEntryIDs(ctx, repo, commit, []gitcli.RepoPath{".docket.yml"})
 		if err != nil {
