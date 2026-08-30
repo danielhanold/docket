@@ -2277,4 +2277,20 @@ sigpipe_ok="$(awk "$sigpipe_guard_awk" "$tmp/sigpipe-ok.sh")"
 assert "(10) guard-the-guard: the exempt printf-of-a-variable idiom is NOT reported (got '${sigpipe_ok}')" \
   '[ -z "$sigpipe_ok" ]'
 
+# --- change 0372: deferred keys stay parseable; docs stop promising activation ----------
+# The three deferred Go-v1 families keep their config keys (parseable, values byte-identical) but
+# the user docs must no longer instruct a retired op or promise that an enabled key activates the
+# feature. The no-invocation assert is the shape floor; the "deferred from Go v1" floors keep the
+# reword honest (assert-detects-removal-not-replacement). $REPO is this file's root var (line 28).
+readme372="$(cat "$REPO/README.md")"
+example372="$(cat "$REPO/.docket.example.yml")"
+assert "0372: README carries no retired-op invocation" \
+  '! grep -Eq "docket\.sh[[:space:]]+(mint-stub|render-learnings-index|terminal-publish|mark-publish-deferred)([^[:alnum:]_-]|$)" <<<"$readme372"'
+assert "0372: README documents auto_capture as deferred from Go v1" \
+  'grep -Fq "deferred from Go v1" <<<"$readme372"'
+assert "0372: example yml keeps the auto_capture key (schema preserved)" \
+  'grep -Eq "^auto_capture:" <<<"$example372"'
+assert "0372: example yml marks capture as deferred from Go v1" \
+  'grep -Fq "deferred from Go v1" <<<"$example372"'
+
 exit $fail
