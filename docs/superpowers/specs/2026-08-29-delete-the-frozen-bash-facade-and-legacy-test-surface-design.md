@@ -6,10 +6,7 @@
 
 ## Summary
 
-Change 0370 completes the hard cutover after 0369 has migrated retained lifecycle consumers, 0371
-has established native host dispatch, and 0372 has retired deferred feature paths and installed the
-final maintained-consumer seal. It removes the frozen Bash control plane, runtime and compatibility
-machinery, and tests whose only subject is that deleted implementation.
+Change 0370 completes the hard cutover after 0369 has migrated consumers already covered by typed operations, 0371 has established native host dispatch, 0372 has retired deferred feature paths, and 0377 has supplied the remaining native workflow operations and cut retained skills over to them. It removes the then-unused frozen Bash control plane, runtime and compatibility machinery, and tests whose only subject is that deleted implementation.
 
 Deletion is proven through fresh, shape-derived reconciliation rather than familiar spellings or snapshot counts. Every substantive legacy assertion is classified before removal. Surviving product behavior moves to mutation-sensitive Go coverage, except behavior owned by the two remaining shell products: repository-root `install.sh` and the release downloader.
 
@@ -27,7 +24,7 @@ Finally, 0318's transitional `docket development test` runner contracts from the
 
 ## Non-goals
 
-0370 does not redo consumer migration; introduce a new shim or shell control plane; redesign unrelated configuration; publish/tag/release; conduct fresh-host self-hosting or v0.9.2 rollback; edit frozen release artifacts; rewrite archived changes, historical specs/results, or Accepted ADR history; or weaken runner and gate guarantees.
+0370 does not implement the missing native workflow verbs or their retained-consumer cutover (0377); redo the migrations owned by 0369, 0371, or 0372; introduce a new shim or shell control plane; redesign unrelated configuration; publish/tag/release; conduct fresh-host self-hosting or v0.9.2 rollback; edit frozen release artifacts; rewrite archived changes, historical specs/results, or Accepted ADR history; or weaken runner and gate guarantees.
 
 ## Architectural end state
 
@@ -231,15 +228,13 @@ proof cannot be replaced by a manual belief statement.
 
 ## Assumptions
 
-- 0369, 0371, and 0372 merge sequentially and establish the retained-Go, native-dispatch, and
-  deferred-retirement boundaries.
-- 0372 leaves the facade frozen, unused by maintained consumers, and still tested for deletion.
+- 0369, 0371, 0372, and 0377 merge before 0370 resumes.
+- 0377 supplies native Go homes for every retained preflight, board/status, artifact-link, ADR, and stack operation that still depends on the frozen facade, cuts maintained consumers over, and leaves the facade frozen for deletion.
 - 0318 already defines the runner guarantees 0370 must preserve.
 - Exact helper/runtime paths may change, so responsibility and dependency shape govern the inventory.
 - Repository-root `install.sh` and the release downloader are the only surviving shell products.
 - Shared POSIX helpers may remain only if they serve those products without reconstructing the retired runtime.
 - Historical records, Accepted ADRs, and frozen v0.9.2 artifacts are immutable for this change.
 - Active current-operation documentation may be corrected.
-- A small missed consumer within the settled 0369/0371/0372 architecture may be reconciled;
-  material redesign requires regrooming.
+- A small missed consumer within the settled 0369/0371/0372/0377 architecture may be reconciled; material redesign requires regrooming.
 - No transient count, current filename set, or line number is authoritative.
