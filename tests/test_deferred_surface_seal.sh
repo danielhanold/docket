@@ -123,4 +123,71 @@ assert "control: Go learnings read/validate path untouched" \
   '[ -f "$REPO/internal/repository/decode.go" ] && [ -f "$REPO/internal/repository/validate.go" ] && [ -f "$REPO/internal/render/adrindex.go" ]'
 
 rm -f "$LIST"
+
+# ---- mutation evidence (spec §Mutation evidence): scratch trees, never the live repo ----
+MUT="$(mktemp -d "${TMPDIR:-/tmp}/seal-mut.XXXXXX")"
+trap 'rm -rf "$MUT"' EXIT
+plant(){ # $1=relpath $2=content -> builds the file inside $MUT
+  mkdir -p "$MUT/$(dirname "$1")" && printf '%s\n' "$2" >"$MUT/$1"
+}
+scan_scratch(){ # scans everything planted so far, THROUGH the same filter the live run uses
+  local l="$MUT/.list"
+  (cd "$MUT" && find . -type f ! -name .list | sed 's#^\./##') | seal_filter >"$l"
+  seal_scan "$MUT" "$l"
+}
+expect_hit(){ # $1=name $2=required substrings (space-separated), asserts each appears
+  local out; out="$(scan_scratch)"; local ok=1 s
+  for s in $2; do grep -qF -- "$s" <<<"$out" || ok=0; done
+  [ -n "$out" ] || ok=0
+  assert "mutation $1 detected for the intended reason ($out)" '[ "$ok" = 1 ]'
+  rm -f "$MUT/$LAST_PLANT"
+}
+P(){ LAST_PLANT="$1"; plant "$1" "$2"; }
+
+# M1 — direct facade invocation of a retired op in a maintained workflow
+P 'skills/x/SKILL.md' 'Run `"${DOCKET_SCRIPTS_DIR:?x}"/docket.sh terminal-publish --id 7 --enabled true`.'
+expect_hit M1 'canonical terminal-publish skills/x/SKILL.md'
+# M2 — an auto-capture / mint-stub instruction
+P 'skills/x/SKILL.md' 'Mint it: `docket.sh mint-stub --changes-dir d --type fix`.'
+expect_hit M2 'canonical mint-stub skills/x/SKILL.md'
+# M3 — an executable learnings-index renderer call (direct script shape)
+P 'skills/x/references/r.md' '"${DOCKET_SCRIPTS_DIR:?x}"/render-learnings-index.sh --learnings-dir d'
+expect_hit M3 'canonical render-learnings-index skills/x/references/r.md'
+# M4 — an automated harvest/capacity/promotion leg (re-teaching the renderer op)
+P 'skills/x/SKILL.md' 'After harvesting, re-render via `docket.sh render-learnings-index --learnings-dir d`.'
+expect_hit M4 'canonical render-learnings-index skills/x/SKILL.md'
+# M5 — a terminal-publication marker call
+P 'skills/x/references/t.md' 'mark-publish-deferred.sh --mode add --reason blocked'
+expect_hit M5 'canonical mark-publish-deferred skills/x/references/t.md'
+# M6 — a prohibited caller restored through generated/embedded output
+P 'internal/assets/embedded/tree/skills/x/SKILL.md' 'Run `docket.sh terminal-publish --id 7`.'
+expect_hit M6 'generated terminal-publish internal/assets/embedded/tree/skills/x/SKILL.md'
+# M7 — configuration wiring from an enabled deferred key to Bash
+P 'skills/x/SKILL.md' 'When `terminal_publish: true`, run `"${DOCKET_SCRIPTS_DIR:?x}"/docket.sh docket-status --board-only` afterwards.'
+expect_hit M7 'canonical deferred-key-wiring skills/x/SKILL.md'
+
+# ---- negative controls: every permitted category stays green ---------------------------
+neg(){ # $1=name $2=relpath $3=content — plant, scan, expect silence, unplant
+  plant "$2" "$3"; local out; out="$(scan_scratch)"
+  assert "negative control $1 stays green ($out)" '[ -z "$out" ]'
+  rm -f "$MUT/$2"
+}
+neg history          'docs/adrs/0999-x.md'      'History: `docket.sh terminal-publish --id 7` was the old path.'
+neg frozen-scripts   'scripts/x.md'             'Contract: `docket.sh mint-stub --changes-dir d`.'
+neg frozen-tests     'tests/test_x.sh'          'grep -qF "docket.sh terminal-publish" "$f"'
+neg fixture-corpus   'internal/repository/testdata/c.md' 'docket.sh render-learnings-index --learnings-dir d'
+# root-fixture-corpus — the fifth structural exclusion (root testdata/, distinct from the
+# package-local internal/repository/testdata/ above): a retired-op line in the ROOT frozen
+# repository-fixture corpus is DATA/history, not a maintained caller. Silence here proves the
+# fifth exclusion tolerates exactly the frozen `terminal-publish.sh` line the live corpus
+# carries (plan-with-backlink.md) — and Shape A below proves the exclusion cannot HIDE a live
+# re-activation, since a maintained file with the same line is caught.
+neg root-fixture-corpus 'testdata/repositories/frozen.md' 'docket.sh terminal-publish --id 7'
+neg supported-op     'skills/x/SKILL.md'        'Board pass: `docket.sh docket-status --board-only`.'
+neg frozen-carveout  'skills/x/refs/t.md'       'Killed leg: `docket.sh archive-change --outcome killed`.'
+neg deferred-doc     'skills/x/SKILL.md'        'terminal publication is deferred from Go v1 — `docket finalize closeout` is the boundary.'
+neg schema-key       'skills/x/SKILL.md'        'terminal_publish:            # parseable; publication itself is deferred from Go v1'
+neg noun-mention     'skills/x/SKILL.md'        'The frozen mark-publish-deferred.sh remains on disk until 0370.'
+neg go-adr-path      'skills/x/SKILL.md'        'Record it with `docket adr record` (atomic index render included).'
+
 exit $fail
