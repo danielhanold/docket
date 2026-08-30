@@ -67,10 +67,12 @@ find_ungated_terminal_publish_call_sites(){
       | grep -E -- '--(id|adr)([[:space:]"]|$)' \
       | grep -v -- '--enabled' \
       | sed "s#^#$f:#"
-  done < <(find "$REPO/skills" -type f
-           find "$REPO/scripts" -type f -name '*.sh' ! -name 'terminal-publish.sh'
+  done < <(find "$REPO/scripts" -type f -name '*.sh' ! -name 'terminal-publish.sh'
            find "$REPO" -maxdepth 1 -type f -name '*.sh')
 }
+# change 0372: the skills/ scan is dropped — no maintained skill invokes terminal-publish any more
+# (its retirement is guarded by the 0372 ABSENCE assert below), so this helper now guards only the
+# FROZEN scripts/*.sh tree (awaiting change 0370) and the repo-root entry points.
 
 # new_repo: prints "<work> <origin>" — a fresh clone with a bare origin holding docket + main.
 # docket branch: docs/changes/active/0007-sample.md, its spec, one Accepted + one Proposed ADR.
@@ -560,8 +562,6 @@ assert "wiring(finalize): no leftover by-hand pub-adr git block" '! grep -qE "gi
 STATUS="$REPO/skills/docket-status/SKILL.md"
 TCO="$REPO/skills/docket-convention/references/terminal-close-out.md"
 assert "wiring(status): sweep points at the terminal-close-out reference" 'grep -qF "terminal-close-out.md" "$STATUS"'
-NEWCHG="$REPO/skills/docket-new-change/SKILL.md"
-IMPL="$REPO/skills/docket-implement-next/SKILL.md"
 # change 0369: the two DONE drivers (docket-finalize-change + the docket-status sweep) drive the
 # done-path archive/cleanup through the Go finalize transactions (`docket finalize closeout` /
 # `docket finalize cleanup`); the two KILL drivers keep the FROZEN `docket.sh archive-change
@@ -569,17 +569,12 @@ IMPL="$REPO/skills/docket-implement-next/SKILL.md"
 # RELOCATED onto the Go spelling, never dropped (learnings: restatement-accumulates-its-own-guards);
 # the retired cleanup facade spelling must be GONE (learnings: assert-detects-removal-not-replacement).
 assert "wiring(close-out ref): sweep archives the done path via the Go closeout verb"     'grep -qF "docket finalize closeout --id" "$TCO"'
-assert "wiring(close-out ref): sweep invokes terminal-publish (via the docket.sh facade)" 'grep -q "docket.sh terminal-publish" "$TCO"'
 assert "wiring(close-out ref): sweep cleans up via the Go cleanup verb"                    'grep -qF "docket finalize cleanup --id" "$TCO"'
 assert "wiring(close-out ref): retired cleanup facade spelling is gone from close-out"     '! grep -E -e "docket\.sh[[:space:]]+cleanup-feature-branch" "$TCO"'
 # --- change 0036: the sweep delegates archiving to archive-change.sh (no manual double-archive) ---
 # The sweep's per-change archive must NOT hand-roll the move any more (mirrors the finalize sentinel).
 assert "wiring(status): sweep has no leftover raw archive bash (git mv active/)" \
   '! grep -qE "git mv .*active/" "$STATUS"'
-# The renderer re-render must be ordered AFTER archive-change.sh and BEFORE terminal-publish
-# (LEARNINGS #0035 — anchor to the unique "before … terminal-publish" phrasing, assert order not presence).
-assert "wiring(close-out ref): sweep re-renders the Artifacts block before terminal-publish" \
-  'awk "/docket\\.sh render-change-links/{r=NR} /docket\\.sh terminal-publish/{if(r && r<NR){print \"ok\"; exit}}" "$TCO" | grep >/dev/null ok'
 assert "wiring(status): sweep names render-change-links (via the docket.sh facade) in the delegated archive flow" \
   'grep -q "docket.sh render-change-links" "$STATUS"'
 # The sweep's failure posture is log-and-continue (its own unique phrasing), NOT abort-and-report.
@@ -588,32 +583,37 @@ assert "wiring(status): sweep failure posture is log-and-continue (abandon the r
 assert "wiring(status): sweep documents abort-and-report as a deliberate divergence, not its own posture" \
   'grep -qiE "deliberately divergent from .?docket-finalize-change" "$STATUS"'
 assert "wiring(close-out ref): proposed-kill invokes archive-change (via the docket.sh facade)"   'grep -q "docket.sh archive-change" "$TCO"'
-assert "wiring(close-out ref): proposed-kill invokes terminal-publish (via the docket.sh facade)" 'grep -q "docket.sh terminal-publish" "$TCO"'
 assert "wiring(close-out ref): reconcile-kill invokes archive-change (via the docket.sh facade)"     'grep -q "docket.sh archive-change" "$TCO"'
 assert "wiring(close-out ref): reconcile-kill cleans up via the Go cleanup verb" 'grep -qF "docket finalize cleanup --id" "$TCO"'
-assert "wiring(close-out ref): reconcile-kill invokes terminal-publish (via the docket.sh facade)" 'grep -q "docket.sh terminal-publish" "$TCO"'
 
-# --- change 0064: every documented terminal-publish call site passes --enabled ---
-ADRSKILL="$REPO/skills/docket-adr/SKILL.md"
-assert "0064 wiring: close-out step 3 passes --enabled" \
-  'grep -q -- "--enabled" "$TCO"'
-assert "0064 wiring: close-out step 3 passes the terminal_publish placeholder" \
-  'grep -q -- "--enabled <terminal_publish>" "$TCO"'
-assert "0064 wiring: docket-adr passes --enabled on BOTH --adr call sites" \
-  '[ "$(grep -c -- "--enabled <terminal_publish>" "$ADRSKILL")" -eq 2 ]'
-# The invariant: no REAL terminal-publish.sh call site may omit the gate — checked across BOTH
-# skills/ prose AND scripts/*.sh code (the earlier version only grepped skills/, and only matched
-# --id/--adr as the literal next token on the same physical line, so it was blind to
-# scripts/docket-status.sh's real sweep call site and to ordinary flag reordering).
-assert "0064 wiring: no terminal-publish.sh call site (skills/ prose or scripts/*.sh) omits --enabled" \
+# --- change 0372: terminal publication + deferral marking retired from maintained prose --
+# The maintained-publish call sites (close-out step 3, both docket-adr --adr sites, the sweep's
+# terminal-publish / mark-publish-deferred remedies) are RETIRED. Every assert above that REQUIRED
+# an active `docket.sh terminal-publish` / `mark-publish-deferred` site in skills/ prose is deleted
+# WITH its premise (learnings: test-premise-deleted-not-regated); the frozen-script blocks further
+# up (archive-change / terminal-publish / cleanup executed against fixtures) are untouched. The
+# invariant is now an ABSENCE across skills/, floored by the deferral diagnostics so it cannot go
+# vacuously green (learnings: assert-detects-removal-not-replacement).
+tp372_hits="$(grep -rn -E 'docket\.sh[[:space:]]+(terminal-publish|mark-publish-deferred)([^[:alnum:]_-]|$)|(terminal-publish|mark-publish-deferred)\.sh[[:space:]]+--' "$REPO/skills/" || true)"
+assert "0372: no maintained skill invokes terminal-publish or mark-publish-deferred (hits:[$tp372_hits])" \
+  '[ -z "$tp372_hits" ]'
+tco372="$(cat "$REPO/skills/docket-convention/references/terminal-close-out.md")"
+assert "0372: close-out states the publication deferral diagnostic (floor)" \
+  'grep -Fq "terminal publication is deferred from Go v1" <<<"$tco372"'
+assert "0372: close-out states the marker deferral diagnostic (floor)" \
+  'grep -Fq "publication-deferral marking is deferred from Go v1" <<<"$tco372"'
+assert "0372: close-out still drives the done path through Go closeout (floor)" \
+  'grep -Fq "docket finalize closeout --id" <<<"$tco372"'
+assert "0372: the frozen killed-outcome archive leg survives (0369 carve-out untouched)" \
+  'grep -Fq "docket.sh archive-change" <<<"$tco372"'
+
+# --- change 0064 / change 0372: the --enabled gate invariant now guards only the FROZEN scripts ---
+# The maintained skills-prose call sites are retired (0372), so find_ungated_terminal_publish_call_sites
+# (narrowed to drop its skills/ scan) now guards only scripts/*.sh (the frozen tree awaiting change
+# 0370) and the repo-root entry points: a frozen terminal-publish.sh invocation that omits --enabled
+# must still fail the build.
+assert "0064/0372 wiring: no terminal-publish.sh call site in the FROZEN scripts omits --enabled" \
   '[ -z "$(find_ungated_terminal_publish_call_sites)" ]'
-
-# The close-out contract: a SUPPRESSED publish is success, so it must not trip the skip-publish
-# guard — cleanup (step 4) and the board refresh (step 5) still run. This is the spec's
-# "close-out integration" requirement; the sequence is skill-driven prose, so it is asserted here
-# as a contract sentinel rather than an executable close-out fixture.
-assert "0064 wiring: close-out states a suppressed publish does not skip steps 4-5" \
-  'grep -qi "does NOT trip the\|not trip the skip-publish" "$TCO"'
 
 # --- change 0075 / defect D1: cleanup must be CWD-independent and fail-closed -------------------
 # The whole class was untested: every pre-0075 cleanup test invoked from the main root, the ONE
@@ -725,44 +725,14 @@ assert "D1(remote-guard): the local branch still exists (still checked out elsew
 assert "D1(remote-guard): refusal names the local-branch-survives reason on stderr" \
   'grep -qi "local branch still exists" "$tmp/d1-remote-guard.err"'
 
-# --- change 0118: the mark rule reaches every HANDLED abandonment, scoped per leg ---------------
-# Written as NEGATIVES against the states 0118 removed, plus positives, because a guard that only
-# confirms the new wording is green the moment the edit lands and stays green even if the old
-# claim is reintroduced beside it.
-assert "0118: the guard no longer claims the commit/push clause binds ALL callers" \
-  '! grep -qF -- "The skip-publish guard (all callers):" "$TCO"'
-assert "0118: the guard carves the sweep out of the commit/push clause" \
-  'grep -qF -- "carved out of that second clause" "$TCO"'
-assert "0118: the carve-out points at the sweep deviation's owning doc" \
-  'grep -qF -- "scripts/docket-status.md\` §6a" "$TCO"'
-assert "0118: the mark rule states it reaches HANDLED paths, not any path" \
-  'grep -qF -- "every HANDLED path that abandons an expected publish" "$TCO"'
-assert "0118: the mark rule keeps the hard-crash residual explicitly out of scope" \
-  'grep -qF -- "a hard crash between archive and publish can write nothing" "$TCO"'
-assert "0118: the re-render leg is stated as owed by EVERY driver" \
-  'grep -qF -- "abandons the publish for *every* driver" "$TCO"'
-assert "0118: the sweep is stated to owe no mark on the commit/push leg" \
-  'grep -qF -- "so it owes no mark there" "$TCO"'
-assert "0118: never-mark-under-suppression survives the edit (non-vacuity)" \
-  'grep -qF -- "**Never mark under suppression.**" "$TCO"'
-
-# The *Sweep posture* paragraph is what an agent triaging a `sweep-failed <id> render-change-links
-# skipped-publish` line actually reads, so its remediation must not be the one the same paragraph
-# forbids: `terminal-publish` alone succeeds, strips the deferral marker, and publishes the stale
-# `## Artifacts` block. The two legs need DIFFERENT follow-ups. Written first as a NEGATIVE against
-# the publish-only form this fix removed — a positive alone goes green on arrival and stays green
-# if the old single-step instruction is reintroduced beside it. Patterns held in variables (not
-# inlined) because the assert body is eval'd: a literal backtick inside a double-quoted grep
-# pattern would be command substitution.
-skill_pubonly_removed='needing a manual `docket.sh terminal-publish --id <id> --enabled true` follow-up'
-skill_skippub_fixup='after `skipped-publish`, `docket.sh render-change-links` on the archived file FIRST, then that same publish'
-skill_termpub_fixup='after `terminal-publish` failed, `docket.sh terminal-publish --id <id> --enabled true` alone'
-assert "0118: the sweep posture no longer prescribes a publish-only follow-up for both legs" \
-  '! grep -qF -- "$skill_pubonly_removed" "$STATUS"'
-assert "0118: the skipped-publish leg's follow-up re-renders BEFORE publishing (exactly once)" \
-  '[ "$(grep -cF -- "$skill_skippub_fixup" "$STATUS")" -eq 1 ]'
-assert "0118: the terminal-publish leg's follow-up stays publish-only (no re-render needed)" \
-  '[ "$(grep -cF -- "$skill_termpub_fixup" "$STATUS")" -eq 1 ]'
+# --- change 0372: the 0118 mark-rule + Sweep-posture publish-follow-up sentinels are RETIRED -----
+# 0118's asserts pinned the terminal-close-out.md mark-rule prose (`## Publish deferred` marking,
+# the skip-publish guard, the per-leg mark scoping) and the docket-status Sweep-posture two-leg
+# publish follow-ups. Change 0372 retires terminal publication and the deferral-marking step from
+# maintained prose, so every one of those premises is gone — the block is deleted, not re-gated
+# (learnings: test-premise-deleted-not-regated). The surviving Sweep-posture anchors (log-and-continue,
+# the deliberate divergence from docket-finalize-change, render-change-links) are re-asserted in the
+# wiring-sentinels block above; the deferral itself is floored by the 0372 diagnostics there.
 
 assert "0174 template integrity: the shared template is unmutated after the full run" \
   '[ "$(git -C "$NEW_REPO_TEMPLATE/tpl/origin.git" for-each-ref --format="%(refname) %(objectname)" | LC_ALL=C sort)" = "$tplint_refs" ] &&
