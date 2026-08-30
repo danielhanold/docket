@@ -3,7 +3,9 @@ package app
 import (
 	"context"
 	"errors"
+	"path"
 
+	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
@@ -141,16 +143,195 @@ func verifyMetadataOwnership(ctx context.Context, git *gitcli.Client, repo gitcl
 }
 
 // verifyLegacyEquivalence proves (or refuses) a receiptless NONEMPTY legacy seed
-// root by exact-tree equivalence against the historical integration snapshots.
+// root by EXACT-tree equivalence against the reachable historical integration
+// snapshots. It enumerates the COMPLETE reachable integration history (never just
+// today's already-pruned tip), and for each live-surface-bearing snapshot composes
+// the copy-set projection ({changes, adrs, specs}) resolved through that
+// snapshot's OWN committed .docket.yml — never current user/machine config — and
+// compares it to rootTree by git's content-addressed tree OID. Git tree identity
+// gives complete path+mode+type+object-identity equality across the copied
+// prefixes (unknown files within them preserved), and refuses any extra root path,
+// missing copied path, changed bytes/mode, or unrelated tree.
 //
-// This is the Task 3 STUB: it returns RootUnknown with a diagnostic error. An
-// unimplemented probe is Unknown, never a fabricated foreign — nothing consumes
-// the verifier yet, and Task 4 replaces this with the real historical-snapshot
-// search.
+//   - An exact match sets RootParentless / proofLegacyEquivalent with the matching
+//     snapshot as SourceRevision (newest-first, so the first match wins — more than
+//     one snapshot proving the same tree is content identity, not ambiguity).
+//   - Any gitcli read/enumeration/composition error mid-search sets RootUnknown
+//     with Err immediately: a truncated search is never reported as foreign.
+//   - Readable history exhausted with no match sets RootForeign.
+//
+// It is content-read-only: BuildTree writes only loose objects through its own
+// temp index; no checkout, ref, real-index, metadata, or receipt write occurs.
 func verifyLegacyEquivalence(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, own metadataOwnership, rootTree, integrationTip gitcli.ObjectID, defaultBranch string) metadataOwnership {
-	own.Shape = reposetup.RootUnknown
-	own.Err = errors.New("legacy-equivalence search not implemented")
+	entries, err := git.ListHistoryTrees(ctx, repo, integrationTip)
+	if err != nil {
+		own.Err = err
+		own.Shape = reposetup.RootUnknown
+		return own
+	}
+	specsDir := gitcli.RepoPath(reposetup.SpecsDir)
+
+	// Historical config is resolved once per distinct committed .docket.yml blob
+	// OID (an absent file keys as ""). The projection-tuple set dedupes candidates
+	// by (configBlobOID, changes/adrs/specs subtree OIDs) so an identical copy-set
+	// projection is composed at most once — its eligibility and composition are a
+	// pure function of that key.
+	type resolvedDirs struct {
+		changes, adrs string
+		ok            bool
+	}
+	configCache := map[gitcli.ObjectID]resolvedDirs{}
+	composedKeys := map[string]bool{}
+
+	for _, e := range entries {
+		commit := e.Commit
+
+		cfgEntries, err := git.TreeEntryIDs(ctx, repo, commit, []gitcli.RepoPath{".docket.yml"})
+		if err != nil {
+			own.Err = err
+			own.Shape = reposetup.RootUnknown
+			return own
+		}
+		configOID := treeEntryOID(cfgEntries, ".docket.yml")
+
+		dirs, cached := configCache[configOID]
+		if !cached {
+			var docketYML []byte
+			if configOID != "" {
+				b, _, rerr := readCommitBlob(ctx, git, repo, string(commit), ".docket.yml")
+				if rerr != nil {
+					own.Err = rerr
+					own.Shape = reposetup.RootUnknown
+					return own
+				}
+				docketYML = b
+			}
+			changes, adrs, ok := historicalDirs(docketYML, defaultBranch)
+			dirs = resolvedDirs{changes: changes, adrs: adrs, ok: ok}
+			configCache[configOID] = dirs
+		}
+		if !dirs.ok {
+			// The snapshot's committed config does not resolve: readable but
+			// ineligible — skip it, never error the whole search.
+			continue
+		}
+		changesDir := gitcli.RepoPath(dirs.changes)
+		adrsDir := gitcli.RepoPath(dirs.adrs)
+
+		subEntries, err := git.TreeEntryIDs(ctx, repo, commit, []gitcli.RepoPath{changesDir, adrsDir, specsDir})
+		if err != nil {
+			own.Err = err
+			own.Shape = reposetup.RootUnknown
+			return own
+		}
+		key := string(configOID) + "\x00" +
+			string(treeEntryOID(subEntries, string(changesDir))) + "\x00" +
+			string(treeEntryOID(subEntries, string(adrsDir))) + "\x00" +
+			string(treeEntryOID(subEntries, string(specsDir)))
+		if composedKeys[key] {
+			continue
+		}
+		composedKeys[key] = true
+
+		// Eligibility: the snapshot must carry the legacy live planning surface
+		// (a blob under <changes>/active/, or a <changes>/BOARD.md).
+		eligible, err := candidateHasLiveSurface(ctx, git, repo, commit, dirs.changes)
+		if err != nil {
+			own.Err = err
+			own.Shape = reposetup.RootUnknown
+			return own
+		}
+		if !eligible {
+			continue
+		}
+
+		// Compose the copy-set projection exactly as migrateExecute composes a seed:
+		// IncludePrefix only for the prefixes that exist in the candidate.
+		var ops []gitcli.TreeOp
+		for _, p := range []gitcli.RepoPath{changesDir, adrsDir, specsDir} {
+			if treeEntryOID(subEntries, string(p)) != "" {
+				ops = append(ops, gitcli.TreeOp{IncludePrefix: &gitcli.IncludePrefixOp{From: commit, Prefix: p}})
+			}
+		}
+		projection, err := git.BuildTree(ctx, repo, "", ops)
+		if err != nil {
+			own.Err = err
+			own.Shape = reposetup.RootUnknown
+			return own
+		}
+		if projection == rootTree {
+			own.Shape = reposetup.RootParentless
+			own.Proof = proofLegacyEquivalent
+			own.SourceRevision = string(commit)
+			return own
+		}
+	}
+
+	// Readable history exhausted cleanly with no exact match: foreign.
+	own.Shape = reposetup.RootForeign
 	return own
+}
+
+// historicalDirs resolves the changes/adrs directories from a snapshot's OWN
+// committed .docket.yml bytes with shipped defaults where absent. It builds a
+// single repository-layer source (nil bytes → defaults only) and resolves it
+// through config.Resolve — NEVER the global or repository-local machine layers,
+// so current user/machine configuration cannot redefine historical evidence. The
+// obsolete metadata_branch tombstone decodes as a warning, not an error, so a
+// snapshot carrying it still resolves. A snapshot whose committed config fails to
+// resolve is readable-but-ineligible (ok == false): the caller skips it.
+func historicalDirs(docketYML []byte, defaultBranch string) (changes, adrs string, ok bool) {
+	var sources []config.Source
+	if docketYML != nil {
+		sources = []config.Source{{Layer: config.LayerRepository, Name: ".docket.yml", Data: docketYML}}
+	}
+	snap, _, err := config.Resolve(sources, config.ResolveContext{DefaultBranch: defaultBranch})
+	if err != nil {
+		return "", "", false
+	}
+	return snap.Effective.ChangesDir.Value, snap.Effective.ADRsDir.Value, true
+}
+
+// candidateHasLiveSurface reports whether a historical snapshot carries the legacy
+// live planning surface — a blob under <changes>/active/, or a <changes>/BOARD.md.
+// It mirrors liveSurfacePresence's predicate, evaluated against the candidate
+// commit's object source. A read error is returned to the caller (never a false
+// absence), so an unreadable candidate maps to Unknown, not Foreign.
+func candidateHasLiveSurface(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, commit gitcli.ObjectID, changesDir string) (bool, error) {
+	src, err := git.OpenObjectSource(ctx, repo, gitcli.Revision{Commit: commit})
+	if err != nil {
+		return false, err
+	}
+	activePrefix := gitcli.RepoPath(path.Join(changesDir, "active"))
+	entries, err := src.ListTree(ctx, []gitcli.RepoPath{activePrefix})
+	if err != nil {
+		return false, err
+	}
+	for _, e := range entries {
+		if e.Type == "blob" {
+			return true, nil
+		}
+	}
+	boardPath := gitcli.RepoPath(path.Join(changesDir, "BOARD.md"))
+	results, err := src.ReadBlobs(ctx, []gitcli.RepoPath{boardPath})
+	if err != nil {
+		return false, err
+	}
+	if len(results) == 1 && results[0].Found {
+		return true, nil
+	}
+	return false, nil
+}
+
+// treeEntryOID returns the object id of the entry at exactly repoPath, or "" when
+// no such entry is present (an absent copy-set prefix or config file).
+func treeEntryOID(entries []gitcli.TreeEntry, repoPath string) gitcli.ObjectID {
+	for _, e := range entries {
+		if string(e.Path) == repoPath {
+			return e.ObjectID
+		}
+	}
+	return ""
 }
 
 // isFullObjectID reports whether s is a full 40-character lowercase-hex Git

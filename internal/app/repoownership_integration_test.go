@@ -4,6 +4,7 @@ package app
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -381,5 +382,324 @@ func TestIntegrationRepoOwnershipUnknownIntegrationTipIsUnknown(t *testing.T) {
 	}
 	if own.Err == nil {
 		t.Error("Err is nil, want the retained diagnostic")
+	}
+}
+
+// --- Task 4: receiptless legacy exact-tree equivalence ------------------------
+//
+// A receiptless NONEMPTY orphan root is proven (or refused) by exact-tree
+// equivalence against the historical integration snapshots: its whole tree must
+// equal the copy-set projection ({changes, adrs, specs}) of some reachable,
+// live-surface-bearing snapshot, resolved through that snapshot's OWN committed
+// directory configuration. These fixtures build a real integration history on
+// main and compose the metadata root's tree from a snapshot's projection so the
+// content-identity comparison is exercised end to end.
+
+// defaultCopyPrefixes are the copy-set prefixes for a default-config snapshot,
+// in the order the verifier composes them. changes/adrs default per config;
+// specs is the fixed convention path (reposetup.SpecsDir).
+var defaultCopyPrefixes = []string{"docs/changes", "docs/adrs", reposetup.SpecsDir}
+
+// commitOnMain writes files into the working tree and commits them onto the
+// integration branch (main), returning the new tip OID.
+func (f *ownFixture) commitOnMain(files map[string]string, message string) string {
+	f.t.Helper()
+	for rel, content := range files {
+		writeRepoFile(f.t, f.dir, rel, content)
+	}
+	runGit(f.t, f.dir, "add", "-A")
+	runGit(f.t, f.dir, "commit", "-q", "-m", message)
+	return f.mainTip()
+}
+
+// treeExists reports whether commit^{tree}:path resolves (a present tree or blob).
+func (f *ownFixture) treeExists(commit, path string) bool {
+	f.t.Helper()
+	_, err := tryGit(f.dir, "rev-parse", "--verify", "-q", commit+"^{tree}:"+path)
+	return err == nil
+}
+
+// projectTree composes the copy-set projection of commit exactly as the verifier
+// (and migrateExecute) do: for each existing prefix, read-tree --prefix mounts
+// the source subtree onto a private index, then write-tree yields the tree OID.
+// An absent prefix is skipped, never an error — matching BuildTree's caller.
+func (f *ownFixture) projectTree(commit string, prefixes []string) string {
+	f.t.Helper()
+	idx := filepath.Join(f.t.TempDir(), "index")
+	env := []string{"GIT_INDEX_FILE=" + idx}
+	for _, p := range prefixes {
+		if !f.treeExists(commit, p) {
+			continue
+		}
+		f.gitEnv(env, "read-tree", "--prefix="+p+"/", commit+"^{tree}:"+p)
+	}
+	return f.gitEnv(env, "write-tree")
+}
+
+// treePlusFile returns baseTree with one extra blob added at rel (mode 100644).
+func (f *ownFixture) treePlusFile(baseTree, rel, content string) string {
+	f.t.Helper()
+	idx := filepath.Join(f.t.TempDir(), "index")
+	env := []string{"GIT_INDEX_FILE=" + idx}
+	f.gitEnv(env, "read-tree", baseTree)
+	blob := f.gitStdin(content, "hash-object", "-w", "-t", "blob", "--stdin")
+	f.gitEnv(env, "update-index", "--add", "--cacheinfo", "100644", blob, rel)
+	return f.gitEnv(env, "write-tree")
+}
+
+// treeChmod returns baseTree with the blob at rel re-staged at a different mode,
+// its content (blob OID) unchanged.
+func (f *ownFixture) treeChmod(baseTree, rel, mode string) string {
+	f.t.Helper()
+	idx := filepath.Join(f.t.TempDir(), "index")
+	env := []string{"GIT_INDEX_FILE=" + idx}
+	f.gitEnv(env, "read-tree", baseTree)
+	blob := f.gitEnv(env, "rev-parse", baseTree+":"+rel)
+	f.gitEnv(env, "update-index", "--add", "--cacheinfo", mode, blob, rel)
+	return f.gitEnv(env, "write-tree")
+}
+
+// deleteLooseObject removes one loose object from the store, forcing a read of it
+// to fail (used to simulate truncated/unreadable history mid-search).
+func (f *ownFixture) deleteLooseObject(oid string) {
+	f.t.Helper()
+	p := filepath.Join(f.dir, ".git", "objects", oid[:2], oid[2:])
+	if err := os.Remove(p); err != nil {
+		f.t.Fatalf("removing loose object %s: %v", oid, err)
+	}
+}
+
+// A receiptless nonempty root whose tree equals the CURRENT integration tip's
+// copy-set projection: proven legacy-equivalent, source == that tip.
+func TestIntegrationRepoOwnershipLegacyMatchesCurrentTip(t *testing.T) {
+	f := newOwnFixture(t)
+	tip := f.commitOnMain(map[string]string{
+		"docs/changes/active/0001-a.md": "a\n",
+		"docs/adrs/0001-x.md":           "adr\n",
+		reposetup.SpecsDir + "/foo.md":  "spec\n",
+	}, "populate the copy set")
+	proj := f.projectTree(tip, defaultCopyPrefixes)
+	root := f.commitTree(proj, nil, "legacy metadata seed") // receiptless, nonempty
+
+	own := f.verify(t, gitcli.ObjectID(root), gitcli.ObjectID(tip))
+	if own.Shape != reposetup.RootParentless {
+		t.Fatalf("Shape = %v, want RootParentless (err=%v)", own.Shape, own.Err)
+	}
+	if own.Proof != proofLegacyEquivalent {
+		t.Errorf("Proof = %d, want proofLegacyEquivalent", own.Proof)
+	}
+	if own.SourceRevision != tip {
+		t.Errorf("SourceRevision = %s, want the current tip %s", own.SourceRevision, tip)
+	}
+}
+
+// The live case's shape: the metadata root matches an OLDER snapshot whose live
+// surface was later pruned from the current tip. Descendants on the metadata
+// branch do not change the verdict.
+func TestIntegrationRepoOwnershipLegacyMatchesOlderSnapshotAfterPrune(t *testing.T) {
+	f := newOwnFixture(t)
+	snapOld := f.commitOnMain(map[string]string{
+		"docs/changes/active/0001-a.md": "a\n",
+		"docs/adrs/0001-x.md":           "adr\n",
+		reposetup.SpecsDir + "/foo.md":  "spec\n",
+	}, "legacy planning surface")
+	proj := f.projectTree(snapOld, defaultCopyPrefixes)
+
+	// Advance integration past a prune of the live planning surface.
+	runGit(t, f.dir, "rm", "-q", "-r", "docs/changes/active")
+	runGit(t, f.dir, "commit", "-q", "-m", "prune legacy planning surface")
+	prunedTip := f.mainTip()
+	if f.treeExists(prunedTip, "docs/changes/active") {
+		t.Fatal("fixture error: active/ still present on the pruned tip")
+	}
+
+	root := f.commitTree(proj, nil, "legacy metadata seed")
+	own := f.verify(t, gitcli.ObjectID(root), gitcli.ObjectID(prunedTip))
+	if own.Shape != reposetup.RootParentless || own.Proof != proofLegacyEquivalent {
+		t.Fatalf("got Shape=%v Proof=%d, want RootParentless/proofLegacyEquivalent (err=%v)", own.Shape, own.Proof, own.Err)
+	}
+	if own.SourceRevision != snapOld {
+		t.Errorf("SourceRevision = %s, want the older snapshot %s", own.SourceRevision, snapOld)
+	}
+
+	// Descendants on the metadata branch: still the same verified root.
+	metaTip := f.commitTree(f.mktree(map[string]string{"docs/changes/active/0009-z.md": "z\n"}), []string{root}, "metadata commit")
+	own2 := f.verify(t, gitcli.ObjectID(metaTip), gitcli.ObjectID(prunedTip))
+	if own2.Shape != reposetup.RootParentless || own2.Proof != proofLegacyEquivalent {
+		t.Fatalf("with descendants: Shape=%v Proof=%d, want RootParentless/proofLegacyEquivalent (err=%v)", own2.Shape, own2.Proof, own2.Err)
+	}
+	if own2.Root != gitcli.ObjectID(root) {
+		t.Errorf("Root = %s, want the legacy seed root %s", own2.Root, root)
+	}
+}
+
+// Historical NONDEFAULT directory config decides the copy set: the old snapshot
+// keeps changes under planning/changes/, and the current committed .docket.yml
+// (plus a repository-local .docket.local.yml) naming a different changes_dir must
+// not redefine historical evidence.
+func TestIntegrationRepoOwnershipLegacyHistoricalNondefaultDirs(t *testing.T) {
+	f := newOwnFixture(t)
+	snapOld := f.commitOnMain(map[string]string{
+		".docket.yml":                       "changes_dir: planning/changes\n",
+		"planning/changes/active/0001-a.md": "a\n",
+		"docs/adrs/0001-x.md":               "adr\n",
+		reposetup.SpecsDir + "/foo.md":      "spec\n",
+	}, "legacy surface under a nondefault changes_dir")
+	proj := f.projectTree(snapOld, []string{"planning/changes", "docs/adrs", reposetup.SpecsDir})
+
+	// The current tip's config, and a repository-local override, say something
+	// else. Neither may leak into the historical resolution.
+	tip := f.commitOnMain(map[string]string{
+		".docket.yml":       "changes_dir: docs/changes\n",
+		".docket.local.yml": "changes_dir: elsewhere/changes\n",
+	}, "current config names a different changes_dir")
+
+	root := f.commitTree(proj, nil, "legacy metadata seed")
+	own := f.verify(t, gitcli.ObjectID(root), gitcli.ObjectID(tip))
+	if own.Shape != reposetup.RootParentless || own.Proof != proofLegacyEquivalent {
+		t.Fatalf("got Shape=%v Proof=%d, want RootParentless/proofLegacyEquivalent — historical config must decide (err=%v)", own.Shape, own.Proof, own.Err)
+	}
+	if own.SourceRevision != snapOld {
+		t.Errorf("SourceRevision = %s, want the nondefault snapshot %s", own.SourceRevision, snapOld)
+	}
+}
+
+// A snapshot carrying the obsolete metadata_branch tombstone key resolves (a
+// warning, never an error) and stays eligible.
+func TestIntegrationRepoOwnershipLegacyMetadataBranchKeyResolves(t *testing.T) {
+	f := newOwnFixture(t)
+	tip := f.commitOnMain(map[string]string{
+		".docket.yml":                   "metadata_branch: docket\n",
+		"docs/changes/active/0001-a.md": "a\n",
+		"docs/adrs/0001-x.md":           "adr\n",
+		reposetup.SpecsDir + "/foo.md":  "spec\n",
+	}, "legacy surface with an obsolete metadata_branch key")
+	proj := f.projectTree(tip, defaultCopyPrefixes)
+	root := f.commitTree(proj, nil, "legacy metadata seed")
+
+	own := f.verify(t, gitcli.ObjectID(root), gitcli.ObjectID(tip))
+	if own.Shape != reposetup.RootParentless || own.Proof != proofLegacyEquivalent {
+		t.Fatalf("got Shape=%v Proof=%d, want RootParentless/proofLegacyEquivalent (err=%v)", own.Shape, own.Proof, own.Err)
+	}
+}
+
+// --- Task 4 negatives: readable history, exhausted, no exact match → Foreign --
+
+// The Task 3 deferred negative: a receiptless nonempty root with no historical
+// match at all (no snapshot ever carried the live surface) is Foreign — a
+// plausible commit subject rescues nothing.
+func TestIntegrationRepoOwnershipLegacyNoHistoricalMatch(t *testing.T) {
+	f := newOwnFixture(t) // main carries only README: no live planning surface
+	root := f.commitTree(f.mktree(map[string]string{"docs/changes/active/0001-a.md": "a\n"}), nil, "docket metadata seed")
+
+	own := f.verify(t, gitcli.ObjectID(root), gitcli.ObjectID(f.mainTip()))
+	if own.Shape != reposetup.RootForeign {
+		t.Fatalf("Shape = %v, want RootForeign for a receiptless root with no historical match (err=%v)", own.Shape, own.Err)
+	}
+}
+
+// One extra file outside the copy set: the root is the projection PLUS a top-level
+// path, so a subset-tolerant equality would wrongly pass. Exact identity refuses.
+func TestIntegrationRepoOwnershipLegacyExtraFile(t *testing.T) {
+	f := newOwnFixture(t)
+	tip := f.commitOnMain(map[string]string{
+		"docs/changes/active/0001-a.md": "a\n",
+		"docs/adrs/0001-x.md":           "adr\n",
+		reposetup.SpecsDir + "/foo.md":  "spec\n",
+	}, "populate the copy set")
+	proj := f.projectTree(tip, defaultCopyPrefixes)
+	root := f.commitTree(f.treePlusFile(proj, "EXTRA.md", "extra\n"), nil, "legacy seed + extra")
+
+	own := f.verify(t, gitcli.ObjectID(root), gitcli.ObjectID(tip))
+	if own.Shape != reposetup.RootForeign {
+		t.Fatalf("Shape = %v, want RootForeign for a root with an extra path outside the copy set (err=%v)", own.Shape, own.Err)
+	}
+}
+
+// A missing copied path: the root omits one copy-set file the snapshot carries.
+func TestIntegrationRepoOwnershipLegacyMissingFile(t *testing.T) {
+	f := newOwnFixture(t)
+	tip := f.commitOnMain(map[string]string{
+		"docs/changes/active/0001-a.md": "a\n",
+		"docs/adrs/0001-x.md":           "adr\n",
+		reposetup.SpecsDir + "/foo.md":  "spec\n",
+	}, "populate the copy set")
+	// The root's tree omits docs/adrs entirely.
+	root := f.commitTree(f.mktree(map[string]string{
+		"docs/changes/active/0001-a.md": "a\n",
+		reposetup.SpecsDir + "/foo.md":  "spec\n",
+	}), nil, "legacy seed missing adrs")
+
+	own := f.verify(t, gitcli.ObjectID(root), gitcli.ObjectID(tip))
+	if own.Shape != reposetup.RootForeign {
+		t.Fatalf("Shape = %v, want RootForeign for a root missing a copied path (err=%v)", own.Shape, own.Err)
+	}
+}
+
+// One changed byte in a copied blob: content identity refuses.
+func TestIntegrationRepoOwnershipLegacyChangedByte(t *testing.T) {
+	f := newOwnFixture(t)
+	tip := f.commitOnMain(map[string]string{
+		"docs/changes/active/0001-a.md": "a\n",
+		"docs/adrs/0001-x.md":           "adr\n",
+		reposetup.SpecsDir + "/foo.md":  "spec\n",
+	}, "populate the copy set")
+	root := f.commitTree(f.mktree(map[string]string{
+		"docs/changes/active/0001-a.md": "a\n",
+		"docs/adrs/0001-x.md":           "adr CHANGED\n", // one blob differs
+		reposetup.SpecsDir + "/foo.md":  "spec\n",
+	}), nil, "legacy seed changed byte")
+
+	own := f.verify(t, gitcli.ObjectID(root), gitcli.ObjectID(tip))
+	if own.Shape != reposetup.RootForeign {
+		t.Fatalf("Shape = %v, want RootForeign for a root with a changed byte (err=%v)", own.Shape, own.Err)
+	}
+}
+
+// One changed mode (100755 vs 100644) with identical content: mode identity refuses.
+func TestIntegrationRepoOwnershipLegacyChangedMode(t *testing.T) {
+	f := newOwnFixture(t)
+	tip := f.commitOnMain(map[string]string{
+		"docs/changes/active/0001-a.md": "a\n",
+		"docs/adrs/0001-x.md":           "adr\n",
+		reposetup.SpecsDir + "/foo.md":  "spec\n",
+	}, "populate the copy set")
+	proj := f.projectTree(tip, defaultCopyPrefixes)
+	root := f.commitTree(f.treeChmod(proj, "docs/adrs/0001-x.md", "100755"), nil, "legacy seed changed mode")
+
+	own := f.verify(t, gitcli.ObjectID(root), gitcli.ObjectID(tip))
+	if own.Shape != reposetup.RootForeign {
+		t.Fatalf("Shape = %v, want RootForeign for a root with a changed mode (err=%v)", own.Shape, own.Err)
+	}
+}
+
+// A candidate read that errors mid-search maps to Unknown, never Foreign: the
+// sole eligible snapshot's tree object is removed, so reading it fails.
+func TestIntegrationRepoOwnershipLegacyUnreadableHistoryIsUnknown(t *testing.T) {
+	f := newOwnFixture(t)
+	tip := f.commitOnMain(map[string]string{
+		"docs/changes/active/0001-a.md": "a\n",
+		"docs/adrs/0001-x.md":           "adr\n",
+		reposetup.SpecsDir + "/foo.md":  "spec\n",
+	}, "populate the copy set")
+	// A receiptless nonempty root that does NOT match the tip's projection, so
+	// the search must actually read the (soon-unreadable) candidate.
+	root := f.commitTree(f.mktree(map[string]string{"docs/changes/active/zzz.md": "different\n"}), nil, "legacy seed")
+
+	// Remove the tip snapshot's tree object. Its COMMIT object stays, so the
+	// commit graph (RootCommits, merge-base, rev-list) is still walkable, but any
+	// read of that snapshot's tree content fails mid-search.
+	tipTree := runGit(t, f.dir, "rev-parse", tip+"^{tree}")
+	f.deleteLooseObject(tipTree)
+
+	own := f.verify(t, gitcli.ObjectID(root), gitcli.ObjectID(tip))
+	if own.Shape != reposetup.RootUnknown {
+		t.Fatalf("Shape = %v, want RootUnknown when a candidate read errors mid-search (err=%v)", own.Shape, own.Err)
+	}
+	if own.Shape == reposetup.RootForeign {
+		t.Fatal("a truncated/unreadable history was collapsed into RootForeign")
+	}
+	if own.Err == nil {
+		t.Error("Err is nil, want the retained probe error")
 	}
 }
