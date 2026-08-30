@@ -1,12 +1,6 @@
 # Backlog
 
-**372 changes** — 🟢 1 in progress · 🟡 56 proposed · ⚪ 4 deferred · ✅ 229 done · 🗑️ 82 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0371](active/0371-cut-generated-agent-invocation-over-to-native-host-dispatch.md) | Cut generated agent invocation over to native host dispatch | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-30-cut-generated-agent-invocation-over-to-native-host-dispatch-design.md) | `refactor/cut-generated-agent-invocation-over-to-native-host-dispatch` |
+**372 changes** — 🟡 56 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 229 done · 🗑️ 82 killed
 
 ## 🟡 Proposed (56)
 
@@ -67,7 +61,7 @@
 | [0367](active/0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | `medium` | `feat` | ⏳ waiting on #370 — not yet built |
 | [0368](active/0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | `medium` | `fix` | needs-brainstorm |
 | [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | ⏳ waiting on #372 — not yet built |
-| [0372](active/0372-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume.md) | Retire deferred Go v1 workflow surfaces and seal the consumer cutover | `critical` | `refactor` | ⏳ waiting on #371 — not yet built |
+| [0372](active/0372-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume.md) | Retire deferred Go v1 workflow surfaces and seal the consumer cutover | `critical` | `refactor` | ⏳ waiting on #371 — needs your merge |
 
 ## ⚪ Deferred (4)
 
@@ -77,6 +71,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0371](active/0371-cut-generated-agent-invocation-over-to-native-host-dispatch.md) | Cut generated agent invocation over to native host dispatch | `critical` | `refactor` | [#254](https://github.com/danielhanold/docket/pull/254) |  |
 
 ```mermaid
 graph TD
