@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:37b2d660dfec2d32fc23e98a4898b3ec7acc9bf82661bc24607ec694d1fd6ac3",
+  "asset_set_id": "sha256:0d5c3d737af03332b96551ecdace15aec26ebcfd89e6da8b9059ba9df311a189",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -399,8 +399,8 @@
       "path": "skills/docket-convention/references/terminal-close-out.md",
       "role": "skill",
       "mode": 420,
-      "size": 12592,
-      "sha256": "f06333767dacfc36fd913eeafe9912939f45af070976273088cd0f83e548c238"
+      "size": 15589,
+      "sha256": "a893a033499ce8262751cccd24df8fbad9be2668d602a100aeb13834921afbba"
     },
     {
       "path": "skills/docket-finalize-change/SKILL.md",

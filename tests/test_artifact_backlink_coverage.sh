@@ -34,8 +34,16 @@ if grep -qF 'docket artifact backlink' "$impl"; then ok "docket-implement-next s
 if grep -qiE 'PR[ -]body back-link|back-link line' "$impl"; then ok "docket-implement-next adds a PR-body back-link"; else no "docket-implement-next adds a PR-body back-link"; fi
 
 # (4) The terminal close-out re-renders the spec back-link at close-out (producer paragraph).
+# Change 0369: the DONE path's spec back-link restamp is absorbed atomically by the step-1
+# `docket finalize closeout` transaction (a second Class D removal — proven by
+# internal/app/finalize_closeout_test.go's TestCloseoutBacklinkLegDocketMode); the surviving KILL
+# leg — which closeout does not drive — migrated from the legacy `docket.sh render-artifact-backlink`
+# facade to the Go-v1 `docket artifact backlink` command. Coverage is RELOCATED onto that spelling,
+# never dropped; the retired facade spelling must be GONE (learnings:
+# assert-detects-removal-not-replacement).
 tco="$ROOT/skills/docket-convention/references/terminal-close-out.md"
-if grep -qF 'docket.sh render-artifact-backlink' "$tco"; then ok "close-out re-renders the spec back-link"; else no "close-out re-renders the spec back-link"; fi
+if grep -qF 'docket artifact backlink' "$tco"; then ok "close-out re-renders the spec back-link (via docket artifact backlink)"; else no "close-out re-renders the spec back-link (via docket artifact backlink)"; fi
+if grep -E -e 'docket\.sh[[:space:]]+render-artifact-backlink' "$tco" >/dev/null; then no "close-out retired the render-artifact-backlink facade spelling"; else ok "close-out retired the render-artifact-backlink facade spelling"; fi
 
 # (5) The convention names the renderer in the derived-view script family.
 if grep -qF 'render-artifact-backlink.sh' "$ROOT/skills/docket-convention/SKILL.md"; then ok "convention names the back-link renderer"; else no "convention names the back-link renderer"; fi

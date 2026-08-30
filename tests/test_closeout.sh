@@ -562,9 +562,16 @@ TCO="$REPO/skills/docket-convention/references/terminal-close-out.md"
 assert "wiring(status): sweep points at the terminal-close-out reference" 'grep -qF "terminal-close-out.md" "$STATUS"'
 NEWCHG="$REPO/skills/docket-new-change/SKILL.md"
 IMPL="$REPO/skills/docket-implement-next/SKILL.md"
-assert "wiring(close-out ref): sweep invokes archive-change (via the docket.sh facade)"   'grep -q "docket.sh archive-change" "$TCO"'
+# change 0369: the two DONE drivers (docket-finalize-change + the docket-status sweep) drive the
+# done-path archive/cleanup through the Go finalize transactions (`docket finalize closeout` /
+# `docket finalize cleanup`); the two KILL drivers keep the FROZEN `docket.sh archive-change
+# --outcome killed` leg (finalize closeout does not cover the killed outcome). Coverage is
+# RELOCATED onto the Go spelling, never dropped (learnings: restatement-accumulates-its-own-guards);
+# the retired cleanup facade spelling must be GONE (learnings: assert-detects-removal-not-replacement).
+assert "wiring(close-out ref): sweep archives the done path via the Go closeout verb"     'grep -qF "docket finalize closeout --id" "$TCO"'
 assert "wiring(close-out ref): sweep invokes terminal-publish (via the docket.sh facade)" 'grep -q "docket.sh terminal-publish" "$TCO"'
-assert "wiring(close-out ref): sweep invokes cleanup-feature-branch (via the docket.sh facade)" 'grep -q "docket.sh cleanup-feature-branch" "$TCO"'
+assert "wiring(close-out ref): sweep cleans up via the Go cleanup verb"                    'grep -qF "docket finalize cleanup --id" "$TCO"'
+assert "wiring(close-out ref): retired cleanup facade spelling is gone from close-out"     '! grep -E -e "docket\.sh[[:space:]]+cleanup-feature-branch" "$TCO"'
 # --- change 0036: the sweep delegates archiving to archive-change.sh (no manual double-archive) ---
 # The sweep's per-change archive must NOT hand-roll the move any more (mirrors the finalize sentinel).
 assert "wiring(status): sweep has no leftover raw archive bash (git mv active/)" \
@@ -583,7 +590,7 @@ assert "wiring(status): sweep documents abort-and-report as a deliberate diverge
 assert "wiring(close-out ref): proposed-kill invokes archive-change (via the docket.sh facade)"   'grep -q "docket.sh archive-change" "$TCO"'
 assert "wiring(close-out ref): proposed-kill invokes terminal-publish (via the docket.sh facade)" 'grep -q "docket.sh terminal-publish" "$TCO"'
 assert "wiring(close-out ref): reconcile-kill invokes archive-change (via the docket.sh facade)"     'grep -q "docket.sh archive-change" "$TCO"'
-assert "wiring(close-out ref): reconcile-kill invokes cleanup-feature-branch (via the docket.sh facade)" 'grep -q "docket.sh cleanup-feature-branch" "$TCO"'
+assert "wiring(close-out ref): reconcile-kill cleans up via the Go cleanup verb" 'grep -qF "docket finalize cleanup --id" "$TCO"'
 assert "wiring(close-out ref): reconcile-kill invokes terminal-publish (via the docket.sh facade)" 'grep -q "docket.sh terminal-publish" "$TCO"'
 
 # --- change 0064: every documented terminal-publish call site passes --enabled ---
