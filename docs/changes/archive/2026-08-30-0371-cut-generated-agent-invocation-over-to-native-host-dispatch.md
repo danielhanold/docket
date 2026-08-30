@@ -2,7 +2,7 @@
 id: 371
 slug: 'cut-generated-agent-invocation-over-to-native-host-dispatch'
 title: 'Cut generated agent invocation over to native host dispatch'
-status: 'implemented'
+status: 'done'
 priority: 'critical'
 type: 'refactor'
 created: '2026-08-30'
@@ -22,7 +22,7 @@ branch: 'refactor/cut-generated-agent-invocation-over-to-native-host-dispatch'
 pr: 'https://github.com/danielhanold/docket/pull/254'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-30T12:34:12Z'
+claimed_at:
 ---
 
 ## Artifacts
