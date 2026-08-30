@@ -78,32 +78,11 @@ repo-committed > global > built-in** without the generator hand-merging the two 
 harness/agent pair with no entry in any layer — user or shipped — omits the field: the wrapper carries no
 `model`/`effort`, and the harness applies its own default.
 
-**`runner:` — cross-harness delegation (change 0079).** An agent entry may carry `runner: <name>` naming a registered
-runner (shipped: `codex`, `cursor`, `opencode`); its wrapper body becomes a shim delegating the whole run to that
-child harness through `docket.sh runner-dispatch` — since change 0271 a **launch-then-observe** pair, not one blocking
-call: `--launch` detaches and returns a dispatch key, then bounded `--observe <key>` calls read the exit code. Two
-verbs, one dispatch seam. `runner` resolves per-field through the same four layers and is global-able (a machine
-preference, like `model`/`effort`, writing no shared state). It is honored under the `claude` key (or `default:` when
-generating claude's files); under any other key it is reserved and warned-and-ignored, and an unregistered name is a
-loud generation-time error. Per-runner knobs live in a top-level `runners.<name>:` block (any layer); each adapter's
-knobs and prerequisites are in `scripts/runners/<name>.md`, the walkthrough in README's *Runner delegation*
-subsection.
-
-**Model and effort on a delegated agent (0168, 0205).** A shipped `harness-defaults.yml` value is **never forwarded to
-a child harness**: the sidecar is harness-indexed and the runner path resolves under the *parent*, so it is a parent
-default, not evidence the string means anything to the child. Only user-configured values cross. Two
-consequences, runner-wide, not per-adapter. **`model:` is required** — a model-less (or `inherit`, the no-pin sentinel
-every adapter normalizes away) `runner:` entry is a generation-time error (ADR-0067), reversing the old "omitted ⇒
-child default" posture. **`effort:` stays optional, but omitting ≠ opting out** — it defers to lower *user* layers,
-whose value IS forwarded, while `effort: auto` suppresses the flag. With no flag baked the child uses its own default.
-
-**The shim's own pin is a third value (change 0269).** A shim wrapper is executed by the PARENT harness — its whole
-body is that launch-then-observe `docket.sh runner-dispatch` pair plus a stdout relay — so its frontmatter
-`model:`/`effort:` govern that relay and must be resolvable by the parent, never the child. They come from
-`runners.<name>.shim_model` and `runners.<name>.shim_effort`, resolved per-key across the same layers, defaulting to
-`inherit` and `low`. The child's pin is the baked `--model`/`--effort` argument, only that. Pinning a shim to the
-child's model tells the parent to run the relay on a model it cannot resolve, killing the run before the dispatch
-script is reached.
+**Cross-harness delegation is retired (change 0371).** An agent entry carries no `runner:` key on the
+maintained surface: a parent invokes a registered `docket-*` agent through its own harness's native
+named-agent dispatch — the generated `docket:dispatch` block is the contract — and a workflow with no
+registration on the current host fails visibly rather than falling back to a shell runner, another
+harness, or a generic agent.
 
 ## Generation scope: agent_harnesses
 
