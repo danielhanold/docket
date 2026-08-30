@@ -1,8 +1,8 @@
 # Backlog
 
-**374 changes** — 🟡 57 proposed · ⚪ 4 deferred · ✅ 231 done · 🗑️ 82 killed
+**376 changes** — 🟡 59 proposed · ⚪ 4 deferred · ✅ 231 done · 🗑️ 82 killed
 
-## 🟡 Proposed (57)
+## 🟡 Proposed (59)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -63,6 +63,8 @@
 | [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | build-ready |
 | [0373](active/0373-harden-integration-race-test-isolation-under-parallel-load.md) | Harden integration/race test isolation under parallel load | `medium` | `chore` | needs-brainstorm |
 | [0374](active/0374-separate-build-and-finalize-test-configuration.md) | Separate build and finalize test configuration | `high` | `refactor` | ⏳ waiting on #370 — not yet built |
+| [0375](active/0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | `medium` | `fix` | needs-brainstorm |
+| [0376](active/0376-gate-drive-start-human-output-omits-drive-id-generation.md) | `docket gate drive start` human-readable output omits drive_id/generation | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -136,6 +138,8 @@ graph TD
   0372 --> 0370
   0373
   0370 --> 0374
+  0375
+  0376
   0192:::done
   0211:::done
   0251:::done
