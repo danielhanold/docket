@@ -22,7 +22,7 @@ branch: 'refactor/migrate-deferred-bash-facade-workflow-operations-to-native-g'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-30T23:37:58Z'
+claimed_at: '2026-08-30T23:40:04Z'
 ---
 
 ## Artifacts
@@ -31,7 +31,7 @@ claimed_at: '2026-08-30T23:37:58Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-30-migrate-deferred-bash-facade-workflow-operations-to-native-g-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-30-migrate-deferred-bash-facade-workflow-operations-to-native-g-design.md) |
-| Plan | [2026-08-30-migrate-deferred-bash-facade-workflow-operations-to-native-g.md](https://github.com/danielhanold/docket/blob/refactor/migrate-deferred-bash-facade-workflow-operations-to-native-g/docs/superpowers/plans/2026-08-30-migrate-deferred-bash-facade-workflow-operations-to-native-g.md) |
+| Plan | [2026-08-30-migrate-deferred-bash-facade-workflow-operations-to-native-g.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-30-migrate-deferred-bash-facade-workflow-operations-to-native-g.md) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0014](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0014-consuming-repo-script-resolution.md), [ADR-0029](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0029-docket-facade-routing-and-config-presentation.md), [ADR-0030](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0030-facade-wiring-guard-discriminates-on-invocation-prefix.md), [ADR-0033](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0033-cursor-auto-run-trust-at-facade.md), [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md), [ADR-0074](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md), [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 
@@ -79,3 +79,16 @@ Verified the design against the current `docket`/`main` tree at claim time; no s
 
 No obsolescence and no fundamental design invalidation found. Proposal sections and relations left as authored.
 
+### 2026-08-30
+
+### 2026-08-30 — resume after 0378 merged (blocker resolution b)
+
+The halt's recommended resolution (b) was taken: the shared metadata-root ownership classifier was split into change 0378 and is now MERGED to origin/main. This branch was rebased cleanly onto main (tip 7722a8f5); Task 1 (repository_prepare.go app op) and Task 2 (repository prepare CLI verb) remain committed and correct.
+
+Verified against the rebased base:
+
+- 0378 landed the shared verifier `verifyMetadataOwnership` (internal/app/metadata_ownership.go) plus the receiptless legacy-equivalence path, and removed the duplicated root-equals-tip predicates from check/init/migrate (commits 857a07f7, 336f23f8, b35a4991, ...). `repository check --json` now classifies the real multi-commit docket branch as owned (RootParentless), not `metadata-root-foreign`.
+- 0377's own `prepareAugment` (internal/app/repository_prepare.go, committed at Task 1) still carries the OLD copied predicate `len(roots)==1 && roots[0]==metaTip`, which misclassifies the real docket chain as RootForeign. Per the predecessor decision recorded above, prepare must be rewired to consume 0378's shared `verifyMetadataOwnership` (setting `f.MetadataRoot = own.Shape`, mirroring repository_check.go incl. the fetch-error→RootUnknown handling), while preserving prepare's own clean-worktree, fast-forward-only, and divergence guards. This rewire is folded into Task 3, whose integration tests against a real multi-commit local repo are its proof.
+- Relations unchanged: depends_on [372, 378] both `done`; no scope change to proposal sections or non-goals.
+
+Continuing the build from Task 3 onward (Tasks 3–14) with TDD; the two uncommitted Task-3 artifacts left for inspection are re-derived against the merged 0378 fix rather than adopted as-is.
