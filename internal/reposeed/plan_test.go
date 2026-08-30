@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/harness"
@@ -327,6 +328,38 @@ func TestPlanTargetsSorted(t *testing.T) {
 	for path, o := range owners {
 		if !sort.StringsAreSorted(o) {
 			t.Errorf("owners for %q not sorted: %v", path, o)
+		}
+	}
+}
+
+// TestPlanRunnerFreeAndByteStable: change 0371 — the parent-facing
+// docket:dispatch block is native-only and deterministic. Iterates every target
+// Plan renders — never a path allowlist.
+func TestPlanRunnerFreeAndByteStable(t *testing.T) {
+	in := PlanInput{
+		WorktreeRoot: worktreeRoot,
+		Harnesses:    []string{"claude", "codex", "cursor", "opencode"},
+		RunGate:      runGate,
+	}
+	first, _ := mustPlan(t, in)
+	if len(first) == 0 {
+		t.Fatal("Plan rendered no targets — the ban below would be vacuous")
+	}
+	for _, tg := range first {
+		lower := strings.ToLower(strings.Join(strings.Fields(string(tg.Content)), " "))
+		for _, tok := range []string{"runner-dispatch", "docket.sh", "scripts/runners"} {
+			if strings.Contains(lower, tok) {
+				t.Errorf("dispatch target %q carries runner-era token %q", tg.Path, tok)
+			}
+		}
+	}
+	second, _ := mustPlan(t, in)
+	if len(first) != len(second) {
+		t.Fatalf("target count moved between renders: %d then %d", len(first), len(second))
+	}
+	for i := range first {
+		if first[i].Path != second[i].Path || !bytes.Equal(first[i].Content, second[i].Content) {
+			t.Errorf("target %q is not byte-stable across renders", first[i].Path)
 		}
 	}
 }
