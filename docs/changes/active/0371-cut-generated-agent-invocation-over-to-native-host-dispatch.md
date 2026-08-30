@@ -2,7 +2,7 @@
 id: 371
 slug: 'cut-generated-agent-invocation-over-to-native-host-dispatch'
 title: 'Cut generated agent invocation over to native host dispatch'
-status: 'proposed'
+status: 'in-progress'
 priority: 'critical'
 type: 'refactor'
 created: '2026-08-30'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/cut-generated-agent-invocation-over-to-native-host-dispatch'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-30T11:20:06Z'
 ---
 
 ## Artifacts
