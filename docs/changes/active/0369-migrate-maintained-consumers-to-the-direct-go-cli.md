@@ -2,7 +2,7 @@
 id: 369
 slug: 'migrate-maintained-consumers-to-the-direct-go-cli'
 title: 'Migrate retained lifecycle consumers to typed Go operations'
-status: 'proposed'
+status: 'in-progress'
 priority: 'critical'
 type: 'refactor'
 created: '2026-08-29'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/migrate-maintained-consumers-to-the-direct-go-cli'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-30T01:20:36Z'
 ---
 
 ## Artifacts
