@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0369 — Migrate retained lifecycle consumers to typed Go operations](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0369-migrate-maintained-consumers-to-the-direct-go-cli.md)**
+> ↩ **[Change 0369 — Migrate retained lifecycle consumers to typed Go operations](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-30-0369-migrate-maintained-consumers-to-the-direct-go-cli.md)**
 <!-- docket:backlink:end -->
 # Migrate Retained Lifecycle Consumers to Typed Go Operations — Implementation Plan
 
