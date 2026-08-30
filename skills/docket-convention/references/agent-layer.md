@@ -47,8 +47,6 @@ agents:                                 # harness-first: reserved `default:` + h
     status:         { model: gpt-5.5-medium-fast }
     # CONFIG shape, identical across harnesses; the GENERATED Cursor wrapper carries the effort
     # inside the model value instead of an `effort:` key. See the wrapper-shape table below.
-  claude:                               # runner: delegates the whole run to a child harness
-    status: { model: gpt-5.1-codex, runner: codex }   # (change 0079; see below)
   # Write model/effort values unquoted and space-free; `#` cannot appear inside the `{…}` flow map
   # — docket strips comments before parsing, so an in-map `#` truncates the value; both validators
   # refuse it, not ship a clipped pin.
