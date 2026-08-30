@@ -307,6 +307,17 @@
 #   setuptree     1.68  1.09  1.11 -> worst  1.68 -> next multiple of 5 is  5, plus 5 -> 10 (min 10 floor)
 # Parallel lane (a single-package go-test invocation). EXPECTED_TOTAL moves 2640 -> 2650: +10.
 #
+# tests/test_go_integration_gitcli_history.sh is ONE NEW FILE brought by change 0378 (Task 2) —
+# the same new-test-file + integration-SHARD case as the gitcli block above, a sixth gitcli shard.
+# It selects the narrow history reads (^TestIntegrationHistory: HasSharedAncestry/ListHistoryTrees/
+# TreeEntryIDs), tagged `integration`, and cannot ride any existing shard — the DEFAULT-tag corpus
+# can't see the tagged tests, and no other gitcli shard's prefix is a name-prefix of
+# TestIntegrationHistory. Sized per this header's rule from the WORST of three standalone COLD-cache
+# serial readings, one session, one machine (darwin/arm64, go1.26.5), as
+# `fresh=$(mktemp -d …/gocache.XXXXXX); GOCACHE=$fresh /usr/bin/time -p bash tests/test_go_integration_gitcli_history.sh >/dev/null`:
+#   history       3.73  3.56  3.53 -> worst  3.73 -> next multiple of 5 is  5, plus 5 -> 10 (min 10 floor)
+# Parallel lane (a single-package go-test invocation). EXPECTED_TOTAL moves 2830 -> 2840: +10.
+#
 # tests/test_go_integration_githubcli_*.sh are FOUR NEW FILES brought by change 0333 — the
 # same new-test-file + integration-SHARD case as the gitcli block above, for internal/githubcli.
 # Change 0333 partitions githubcli's fake-gh subprocess corpus behind the `integration` build
@@ -627,6 +638,7 @@ tests/test_go_integration_app_state.sh	50	parallel
 tests/test_go_integration_app_workflow.sh	45	parallel
 tests/test_go_integration_contract.sh	15	parallel
 tests/test_go_integration_gitcli_concurrency.sh	10	parallel
+tests/test_go_integration_gitcli_history.sh	10	parallel
 tests/test_go_integration_gitcli_process.sh	15	parallel
 tests/test_go_integration_gitcli_repo.sh	30	parallel
 tests/test_go_integration_gitcli_setuptree.sh	10	parallel
