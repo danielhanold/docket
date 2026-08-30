@@ -1,8 +1,14 @@
 # Backlog
 
-**373 changes** — 🟡 57 proposed · ⚪ 4 deferred · ✅ 230 done · 🗑️ 82 killed
+**373 changes** — 🟢 1 in progress · 🟡 56 proposed · ⚪ 4 deferred · ✅ 230 done · 🗑️ 82 killed
 
-## 🟡 Proposed (57)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0372](active/0372-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume.md) | Retire deferred Go v1 workflow surfaces and seal the consumer cutover | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-30-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consumer-cutover-design.md) | `refactor/retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume` |
+
+## 🟡 Proposed (56)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -61,7 +67,6 @@
 | [0367](active/0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | `medium` | `feat` | ⏳ waiting on #370 — not yet built |
 | [0368](active/0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | `medium` | `fix` | needs-brainstorm |
 | [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | ⏳ waiting on #372 — not yet built |
-| [0372](active/0372-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume.md) | Retire deferred Go v1 workflow surfaces and seal the consumer cutover | `critical` | `refactor` | build-ready |
 | [0373](active/0373-harden-integration-race-test-isolation-under-parallel-load.md) | Harden integration/race test isolation under parallel load | `medium` | `chore` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
