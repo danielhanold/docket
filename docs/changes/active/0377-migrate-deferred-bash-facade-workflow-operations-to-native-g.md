@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/migrate-deferred-bash-facade-workflow-operations-to-native-g'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-30T17:59:07Z'
+reconciled: true
+claimed_at: '2026-08-30T18:03:21Z'
 ---
 
 ## Artifacts
@@ -50,3 +50,19 @@ Change 0370 cannot delete the frozen Bash facade while retained workflow skills 
 ## Out of scope
 
 Physical facade or legacy-suite deletion (0370); resuming, dispatching, planning, implementing, or opening a PR for 0370; one-for-one compatibility verbs or a forwarding shim; retired/deferred product features, GitHub board mirroring, or main mode; lifecycle, topology, or transaction redesign; historical and frozen-artifact rewrites; and release or fresh-host work.
+
+## Reconcile log
+
+### 2026-08-30
+
+### 2026-08-30 — reconcile at claim
+
+Verified the design against the current `docket`/`main` tree at claim time; no scope change required.
+
+- **Dependency 372 is `done`** and its work (retire deferred feature families) is merged; 377's dependency boundary holds.
+- **`docket repository prepare` is genuinely absent** — the `repository` command group currently exposes only `init`, `check`, and `migrate` (`internal/cli/repository.go`, `internal/app/repository_{init,check,migrate}.go`). The new `repository.prepare` operation must be added, not reconciled away.
+- **The Go config/topology foundation prepare builds on already exists**: `internal/config` carries a full resolver including `preflight.go`, `resolve.go`, `schema.go`, and the bootstrap 2×2; `internal/app/repository_facts.go` supplies the classifier facts; `SetupDeps`/`RunRepository*` provide the CLI→app seam. Preparation is a new closed operation over these, not new topology logic.
+- **The Bash facade remains frozen and present** — `scripts/docket.sh preflight` still resolves config for the shared Step-0 preamble, confirming the migration host is intact and 0370 has not deleted it. `Out of scope` (physical facade/legacy-suite deletion, 0370 resume) is unchanged and still correct.
+- **370 remains run-halted** and is untouched by this change; the independent-merge relationship (377 not stacked on 370) is intact.
+
+No obsolescence and no fundamental design invalidation found. Proposal sections and relations left as authored.
