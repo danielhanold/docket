@@ -1529,7 +1529,7 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 # of 50 is 6300 (46 words of margin, above the within-25 threshold). The LINE budget was NOT raised
 # (180 actual == 180 budget) — every edit reflowed inside existing lines.
 BUDGETS="
-skills/docket-adr/SKILL.md                                  86 1408
+skills/docket-adr/SKILL.md                                 110 1600
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           70 1550
 skills/docket-brainstorm/SKILL.md                           84  692
@@ -1547,7 +1547,7 @@ skills/docket-convention/references/auto-capture.md        130 1250
 skills/docket-convention/references/dummy-mode.md           85  800
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/stacked-changes.md     215 2050
-skills/docket-convention/references/terminal-close-out.md  200 1750
+skills/docket-convention/references/terminal-close-out.md  240 2150
 skills/docket-finalize-change/SKILL.md                     190 4150
 skills/docket-finalize-change/references/gate-failure.md   115 1300
 skills/docket-groom-next/SKILL.md                           77 1550
@@ -1621,6 +1621,43 @@ skills/docket-status/SKILL.md                              126 2850
 # above from the measured actual: 7281 words -> the next multiple of 50 is 7300, whose 19-word margin
 # is within the 25-word threshold, so the multiple after: 7350 (69 words of margin). The LINE budget
 # was not raised (393 actual, 400 budget — the added sentences landed within the standing line budget).
+
+# Change 0369 (migrate the maintained ADR/close-out consumers to the direct Go CLI) raised two
+# budgets. Like change 0316's four raises above, each pays for documentation of a Go capability that
+# did not exist before — the typed transactions and their JSON request schemas — not for prose
+# bloat; the growth was inspected before the number moved and found irreducible:
+#   docket-adr/SKILL.md                86/1408 -> 110/1600. Create/Supersede/Reverse now document the
+#                                      `docket adr record|supersede|reverse --request -` transactions
+#                                      and their JSON request objects field-by-field (ADRRecordRequest
+#                                      / ADRReplaceRequest, DisallowUnknownFields, request_id / target
+#                                      / successor / relates_to / change), plus the atomic single-commit
+#                                      guarantee that replaced the hand allocate/template/CAS-rename
+#                                      steps. The schema field lists are the transaction's contract an
+#                                      agent submits verbatim — they have no other home (a reference
+#                                      file an agent does not read at the moment of building the request
+#                                      cannot carry a request schema), and adr-template.md is the emitted
+#                                      record template, not caller instruction. Set per the rounding
+#                                      rule above from the measured actuals: 105 lines -> the next
+#                                      multiple of 5 is 105 itself (0 margin — the near-zero mode this
+#                                      block warns against), so the multiple after: 110 (5 lines of
+#                                      margin); 1536 words -> the next multiple of 50 is 1550, whose
+#                                      14-word margin is within the 25-word threshold, so the multiple
+#                                      after: 1600 (64 words of margin).
+#   terminal-close-out.md             200/1750 -> 240/2150. The step-1 archive leg now documents the
+#                                      done/kill split (done drives `docket finalize closeout`, kill
+#                                      stays on the frozen Bash archiver), the closeout transaction's
+#                                      single-commit atomicity (archive move + Artifacts re-render +
+#                                      every metadata-resident back-link incl. the spec + inline board),
+#                                      the migrated `docket artifact backlink` step-2 kill-path restamp,
+#                                      and step-4's `docket finalize cleanup` ownership-proof mechanics.
+#                                      None compresses into a pointer: the per-caller failure posture
+#                                      and the done-vs-kill divergence are the file's own subject, and
+#                                      the closeout back-link claim is anchored to its proving tests by
+#                                      symbol name (AGENTS.md cross-reference rule). Set per the rounding
+#                                      rule: 233 lines -> the next multiple of 5 is 235, whose 2-line
+#                                      margin is the near-zero mode, so the multiple after: 240 (7 lines
+#                                      of margin); 2105 words -> 2150 (45 words of margin, above the
+#                                      25-word threshold).
 
 # Every tracked file is within budget.
 budgeted=""

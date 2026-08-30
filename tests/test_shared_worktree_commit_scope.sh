@@ -369,6 +369,22 @@ while IFS= read -r f; do
       'grep -qF -- "writes metadata by hand" <<<"$hay"'
     continue
   fi
+  # RE-KEYED (0369, category (a), same class as docket-finalize-change above): docket-adr's
+  # Create / Supersede / Reverse — the ADR-ledger writes — migrated to the
+  # `docket adr record|supersede|reverse --request -` Go transactions, which stage and commit by
+  # explicit path INSIDE the binary; the hand `git add`/commit those steps used to carry (and with
+  # it the 'Stage by explicit path' marker) was deleted. The marker guarded that hand-authored
+  # commit and no longer applies to the migrated record path, so — like docket-finalize-change —
+  # assert instead that the record write delegates committing to the Go verb, keyed on the invoked
+  # COMMAND STRING (immune to reflow/rewording, per this group's rationale above). docket-adr is
+  # NOT asserted with the identical "writes no metadata by hand" phrase because it truthfully
+  # retains two rare hand-metadata paths outside the record path — the `## Update` note append and
+  # the frozen stale-index render — so the blanket claim would be a false guard.
+  if [ "$sk" = docket-adr ]; then
+    assert "B2: $sk commits the ADR record via a Go transaction, not a hand commit" \
+      'grep -qF -- "docket adr record --request" <<<"$hay"'
+    continue
+  fi
   assert "B2: $sk carries the marker at its commit instruction" \
     'grep -qF -- "$MARKER" <<<"$hay"'
 done <<<"$IN_SCOPE"
