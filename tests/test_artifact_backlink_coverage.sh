@@ -11,11 +11,17 @@ no(){ printf 'NOT OK - %s\n' "$1"; fail=1; }
 # (1) The renderer script exists + is executable.
 [ -x "$ROOT/scripts/render-artifact-backlink.sh" ] && ok "renderer script present + executable" || no "renderer script present + executable"
 
-# (2) Every skill that WRITES a spec artifact invokes the renderer through the facade.
+# (2) Every skill that WRITES a spec artifact invokes the back-link stamp. Change 0369 migrated
+# these three from the legacy `docket.sh render-artifact-backlink` facade to the Go-v1
+# `docket artifact backlink` command (mirroring docket-implement-next's 0315 migration below);
+# the coverage is RELOCATED onto that spelling, never dropped (learnings:
+# restatement-accumulates-its-own-guards). The absence assert detects removal-not-replacement:
+# the retired facade spelling must be GONE (learnings: assert-detects-removal-not-replacement).
 SPEC_SKILLS=( docket-new-change docket-groom-next docket-auto-groom )
 for s in "${SPEC_SKILLS[@]}"; do
   f="$ROOT/skills/$s/SKILL.md"
-  if grep -qF 'docket.sh render-artifact-backlink' "$f"; then ok "$s stamps the spec back-link"; else no "$s stamps the spec back-link"; fi
+  if grep -qF 'docket artifact backlink' "$f"; then ok "$s stamps the spec back-link (via docket artifact backlink)"; else no "$s stamps the spec back-link (via docket artifact backlink)"; fi
+  if grep -E -e 'docket\.sh[[:space:]]+render-artifact-backlink' "$f" >/dev/null; then no "$s retired the render-artifact-backlink facade spelling"; else ok "$s retired the render-artifact-backlink facade spelling"; fi
 done
 
 # (3) docket-implement-next stamps plan (§4, via the plan-writer child) and results (§6.5) on disk,
