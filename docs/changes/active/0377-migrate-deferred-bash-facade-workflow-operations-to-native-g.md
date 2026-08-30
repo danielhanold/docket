@@ -7,9 +7,9 @@ priority: 'critical'
 type: 'refactor'
 created: '2026-08-30'
 updated: '2026-08-30'
-depends_on: [372]
+depends_on: [372, 378]
 stacked_on:
-related: [318, 352, 363, 367, 369, 370, 371, 372]
+related: [318, 352, 363, 367, 369, 370, 371, 372, 378]
 discovered_from: [370]
 adrs: [12, 14, 29, 30, 33, 36, 52, 74, 92, 99]
 spec: 'docs/superpowers/specs/2026-08-30-migrate-deferred-bash-facade-workflow-operations-to-native-g-design.md'
@@ -31,7 +31,7 @@ claimed_at: '2026-08-30T18:15:21Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-30-migrate-deferred-bash-facade-workflow-operations-to-native-g-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-30-migrate-deferred-bash-facade-workflow-operations-to-native-g-design.md) |
-| Plan | [2026-08-30-migrate-deferred-bash-facade-workflow-operations-to-native-g.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-30-migrate-deferred-bash-facade-workflow-operations-to-native-g.md) |
+| Plan | [2026-08-30-migrate-deferred-bash-facade-workflow-operations-to-native-g.md](https://github.com/danielhanold/docket/blob/refactor/migrate-deferred-bash-facade-workflow-operations-to-native-g/docs/superpowers/plans/2026-08-30-migrate-deferred-bash-facade-workflow-operations-to-native-g.md) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0014](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0014-consuming-repo-script-resolution.md), [ADR-0029](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0029-docket-facade-routing-and-config-presentation.md), [ADR-0030](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0030-facade-wiring-guard-discriminates-on-invocation-prefix.md), [ADR-0033](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0033-cursor-auto-run-trust-at-facade.md), [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md), [ADR-0074](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md), [ADR-0092](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0092-a-stacked-changes-base-is-its-parents-merge-destination.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 
@@ -53,6 +53,17 @@ Change 0370 cannot delete the frozen Bash facade while retained workflow skills 
 Physical facade or legacy-suite deletion (0370); resuming, dispatching, planning, implementing, or opening a PR for 0370; one-for-one compatibility verbs or a forwarding shim; retired/deferred product features, GitHub board mirroring, or main mode; lifecycle, topology, or transaction redesign; historical and frozen-artifact rewrites; and release or fresh-host work.
 
 ## Reconcile log
+
+### 2026-08-30 — predecessor decision from grooming 0378
+
+The human approved 0378 as a separate, independently mergeable prerequisite for the shared
+metadata-root ownership fix. Wait for 0378 to reach `done`; on the later explicitly authorized
+continuation, reconcile/rebase this work onto it and make `repository prepare` consume its shared
+verifier rather than retaining `prepareAugment`'s copied root-equals-tip predicate. Preserve the
+prepare-specific clean-worktree, fast-forward-only, and divergence guards.
+
+This records the scope decision only. The run remains halted; its branch, committed tasks,
+uncommitted artifacts, and halt record are unchanged. This grooming does not resume 0377 or 0370.
 
 ### 2026-08-30
 
