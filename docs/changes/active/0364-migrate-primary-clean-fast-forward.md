@@ -2,11 +2,11 @@
 id: 364
 slug: migrate-primary-clean-fast-forward
 title: 'Advance the primary in place on migrate via a gitcli clean-fast-forward primitive'
-status: proposed
+status: 'in-progress'
 priority: medium
 type: feat
 created: 2026-08-28
-updated: 2026-08-28
+updated: '2026-08-30'
 depends_on: [352]
 stacked_on:
 related: [352]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'feat/migrate-primary-clean-fast-forward'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-30T19:25:11Z'
 ---
 
 ## Artifacts
