@@ -38,6 +38,9 @@ var (
 	repositoryMigrateRunner = func(ctx context.Context, d app.SetupDeps, o app.MigrateOptions) app.OperationResult {
 		return app.RunRepositoryMigrate(ctx, d, o)
 	}
+	repositoryPrepareRunner = func(ctx context.Context, d app.SetupDeps, o app.PrepareOptions) app.OperationResult {
+		return app.RunRepositoryPrepare(ctx, d, o)
+	}
 )
 
 // repositoryConfirmInteractive reports whether migrate may prompt for
@@ -77,8 +80,15 @@ func newRepositoryCommand(setResult func(app.OperationResult)) *cobra.Command {
 			setResult(repositoryCheckRunner(c.Context(), deps))
 		})
 	migrateCmd := newRepositoryMigrateCommand(setResult)
+	prepareCmd := repositorySubcommand("prepare",
+		"Prepare the repository for a workflow: pin topology and attach or fast-forward the .docket worktree (Step 0)",
+		func(c *cobra.Command, deps app.SetupDeps) {
+			// deps.RepoDir already carries the resolved --repo-dir; RunRepository
+			// prepare keeps its own PrepareOptions.RepoDir override empty here.
+			setResult(repositoryPrepareRunner(c.Context(), deps, app.PrepareOptions{}))
+		})
 
-	repositoryCmd.AddCommand(initCmd, checkCmd, migrateCmd)
+	repositoryCmd.AddCommand(initCmd, checkCmd, migrateCmd, prepareCmd)
 	return repositoryCmd
 }
 
