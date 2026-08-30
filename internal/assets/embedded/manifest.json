@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:7e804f5ef5cf25dc2ce6e4856b3a1dc7e1477bc1de941147887c676116fb3f22",
+  "asset_set_id": "sha256:9f5cd33262795902cc456224b3a073f2fe6c788aec031bfdf3447a2cf76b185c",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -315,8 +315,8 @@
       "path": "skills/docket-build/references/delegation-execution.md",
       "role": "skill",
       "mode": 420,
-      "size": 5301,
-      "sha256": "690c3800357f10516bf3766411ed8ba1350e233ae217e0cc821e939f1a584036"
+      "size": 5517,
+      "sha256": "db83e791868f50fa12d244e2e98e2fd15eb22cdbac3f8c7555ca98d50aaf6527"
     },
     {
       "path": "skills/docket-build/references/gate-caller-loop.md",
