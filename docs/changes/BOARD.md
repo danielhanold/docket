@@ -1,15 +1,14 @@
 # Backlog
 
-**378 changes** — 🟢 4 in progress · 🟡 57 proposed · ⚪ 4 deferred · ✅ 231 done · 🗑️ 82 killed
+**378 changes** — 🟢 3 in progress · 🟡 57 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 231 done · 🗑️ 82 killed
 
-## 🟢 In progress (4)
+## 🟢 In progress (3)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [spec](../superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) | `feat/migrate-primary-clean-fast-forward` |
 | [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-29-delete-the-frozen-bash-facade-and-legacy-test-surface-design.md) | `refactor/delete-the-frozen-bash-facade-and-legacy-test-surface` |
 | [0377](active/0377-migrate-deferred-bash-facade-workflow-operations-to-native-g.md) | Migrate deferred Bash-facade workflow operations to native Go CLI verbs | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-30-migrate-deferred-bash-facade-workflow-operations-to-native-g-design.md) | `refactor/migrate-deferred-bash-facade-workflow-operations-to-native-g` |
-| [0378](active/0378-metadata-root-classifier-rejects-multi-commit-docket-branch.md) | Shared metadata-root classifier misreads any multi-commit docket branch as foreign | `high` | `fix` | [spec](../superpowers/specs/2026-08-30-metadata-root-classifier-rejects-multi-commit-docket-branch-design.md) | `fix/metadata-root-classifier-rejects-multi-commit-docket-branch` |
 
 ## 🟡 Proposed (57)
 
@@ -81,6 +80,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0378](active/0378-metadata-root-classifier-rejects-multi-commit-docket-branch.md) | Shared metadata-root classifier misreads any multi-commit docket branch as foreign | `high` | `fix` | [#256](https://github.com/danielhanold/docket/pull/256) |  |
 
 ```mermaid
 graph TD
