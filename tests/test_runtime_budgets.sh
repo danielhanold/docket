@@ -31,7 +31,13 @@ EXPECTED_SERIAL=0   # no file is currently pinned serial. tests/test_go_race.sh 
                     # run no longer starves the other parallel jobs. RAISING THIS IS A FINDING: a
                     # serial pin removes a file from the parallel phase, so it must be justified in
                     # the same diff with the shared state that forces it.
-EXPECTED_TOTAL=2805 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2815 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2805 -> 2815 (change 0369, Task 7): ONE legitimate mover — a NEW test file brings its own row.
+                    # tests/test_go_consumer_migration_guard.sh is the stage-local, mutation-tested, shape-derived
+                    # guard over the migrated Class A/D consumer surface (the run-gate, planning-backlink, status
+                    # digest, CREATE_ORPHAN bootstrap, terminal close-out, and ADR-transaction sites). A pure prose
+                    # grep over ~9 canonical files — its cost is the table's 10s floor (sibling prose-grep guards
+                    # like tests/test_sync_agents_run_gate.sh sit at the same ceiling). +10.
                     # 2795 -> 2805 (change 0318, Task 9): ONE legitimate mover — a NEW test file brings its own row.
                     # tests/test_devtest_cutover.sh is the source-fidelity + docs + RC-workflow cutover guard (AC 3/22):
                     # it pins finalize.test_command as the source entry go run ./cmd/docket development test (the

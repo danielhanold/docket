@@ -597,6 +597,7 @@ tests/test_gate_driver_boundary_mutation.sh	10	parallel
 tests/test_gate_execution_posture.sh	10	parallel
 tests/test_gate_facade.sh	15	parallel
 tests/test_github_mirror.sh	10	parallel
+tests/test_go_consumer_migration_guard.sh	10	parallel
 tests/test_go_finalize_e2e.sh	25	parallel
 tests/test_go_integration_app_change.sh	55	parallel
 tests/test_go_integration_app_cleanup.sh	40	parallel
