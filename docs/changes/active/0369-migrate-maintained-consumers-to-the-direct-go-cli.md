@@ -13,7 +13,7 @@ related: [317, 322, 326, 361, 366, 367, 370, 371, 372]
 discovered_from: [318]
 adrs: [36, 74, 99]
 spec: 'docs/superpowers/specs/2026-08-29-migrate-maintained-consumers-to-the-direct-go-cli-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-08-30-migrate-maintained-consumers-to-the-direct-go-cli.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-08-30T01:29:30Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-29-migrate-maintained-consumers-to-the-direct-go-cli-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-29-migrate-maintained-consumers-to-the-direct-go-cli-design.md) |
+| Plan | [2026-08-30-migrate-maintained-consumers-to-the-direct-go-cli.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-30-migrate-maintained-consumers-to-the-direct-go-cli.md) |
 | ADRs | [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0074](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 
