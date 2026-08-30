@@ -533,6 +533,17 @@
 # (`/usr/bin/time -p bash tests/test_devtest_cutover.sh`): 0.64 0.63 0.63 -> worst 0.64 -> next
 # multiple of 5 is 5, plus the 5s margin -> 10, this table's floor. Rides the parallel lane.
 # EXPECTED_TOTAL moves 2795 -> 2805: +10.
+#
+# tests/test_deferred_surface_seal.sh is a NEW FILE brought by change 0372 (Task 5) — the header's
+# first legitimate mover. It is the repo-wide, shape-derived consumer-cutover seal: it derives a
+# maintained corpus (git ls-files MINUS five structural exclusions) and asserts no maintained file
+# re-activates a retired deferred-Go-v1 op (mint-stub, render-learnings-index, terminal-publish,
+# mark-publish-deferred), plus scratch-tree mutation evidence in Task 6. No existing shard owns this
+# surface — it is a brand-new whole-repo grep sweep with no Go build and no subprocess beyond
+# grep/sed/find/git-ls-files. Sized per this header's rule from three standalone serial readings
+# (`/usr/bin/time -p bash tests/test_deferred_surface_seal.sh`): 8.17 8.15 8.15 -> worst 8.17 ->
+# next multiple of 5 is 10, plus the 5s margin -> 15. Rides the parallel lane.
+# EXPECTED_TOTAL moves 2815 -> 2830: +15.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -562,6 +573,7 @@ tests/test_critic_return_channel.sh	10	parallel
 tests/test_cursor_contract_docs.sh	10	parallel
 tests/test_cursor_dispatch_rule.sh	10	parallel
 tests/test_cursor_permissions_docs.sh	10	parallel
+tests/test_deferred_surface_seal.sh	15	parallel
 tests/test_devtest_cutover.sh	10	parallel
 tests/test_devtest_differential.sh	15	parallel
 tests/test_devtest_runner.sh	15	parallel

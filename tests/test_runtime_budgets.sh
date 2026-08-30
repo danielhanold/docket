@@ -31,7 +31,15 @@ EXPECTED_SERIAL=0   # no file is currently pinned serial. tests/test_go_race.sh 
                     # run no longer starves the other parallel jobs. RAISING THIS IS A FINDING: a
                     # serial pin removes a file from the parallel phase, so it must be justified in
                     # the same diff with the shared state that forces it.
-EXPECTED_TOTAL=2815 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2830 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 2815 -> 2830 (change 0372, Task 5): ONE legitimate mover — a NEW test file brings its own row.
+                    # tests/test_deferred_surface_seal.sh is the repo-wide, shape-derived consumer-cutover seal over the
+                    # four retired deferred-Go-v1 op families (mint-stub, render-learnings-index, terminal-publish,
+                    # mark-publish-deferred): it derives a maintained corpus (git ls-files MINUS five structural
+                    # exclusions — scripts/, docs/, tests/, internal/repository/testdata/, and the root testdata/ frozen
+                    # fixture corpus) and asserts no maintained file re-activates a retired op. No existing shard owns this
+                    # whole-repo grep sweep. Sized from three standalone serial readings (worst 8.17 -> next multiple of 5
+                    # is 10, plus the 5s margin -> 15; see the tsv header). +15.
                     # 2805 -> 2815 (change 0369, Task 7): ONE legitimate mover — a NEW test file brings its own row.
                     # tests/test_go_consumer_migration_guard.sh is the stage-local, mutation-tested, shape-derived
                     # guard over the migrated Class A/D consumer surface (the run-gate, planning-backlink, status
