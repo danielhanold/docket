@@ -1,12 +1,6 @@
 # Backlog
 
-**373 changes** — 🟢 1 in progress · 🟡 56 proposed · ⚪ 4 deferred · ✅ 230 done · 🗑️ 82 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0372](active/0372-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume.md) | Retire deferred Go v1 workflow surfaces and seal the consumer cutover | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-30-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consumer-cutover-design.md) | `refactor/retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume` |
+**373 changes** — 🟡 56 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 230 done · 🗑️ 82 killed
 
 ## 🟡 Proposed (56)
 
@@ -66,7 +60,7 @@
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | ⏳ waiting on #370 — not yet built |
 | [0367](active/0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | `medium` | `feat` | ⏳ waiting on #370 — not yet built |
 | [0368](active/0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | `medium` | `fix` | needs-brainstorm |
-| [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | ⏳ waiting on #372 — not yet built |
+| [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | ⏳ waiting on #372 — needs your merge |
 | [0373](active/0373-harden-integration-race-test-isolation-under-parallel-load.md) | Harden integration/race test isolation under parallel load | `medium` | `chore` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
@@ -77,6 +71,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0372](active/0372-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume.md) | Retire deferred Go v1 workflow surfaces and seal the consumer cutover | `critical` | `refactor` | [#255](https://github.com/danielhanold/docket/pull/255) |  |
 
 ```mermaid
 graph TD
