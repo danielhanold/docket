@@ -22,7 +22,7 @@ branch: 'refactor/migrate-maintained-consumers-to-the-direct-go-cli'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-30T01:28:49Z'
+claimed_at: '2026-08-30T01:29:30Z'
 ---
 
 ## Artifacts
