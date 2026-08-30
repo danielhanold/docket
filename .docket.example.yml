@@ -136,16 +136,18 @@ finalize:
 # finding per file) with a GENERATED README.md index; groom/plan/review load the index and pull
 # only relevant findings.
 learnings:
-  # enabled — false turns the WHOLE subsystem off: readers skip (zero token cost), the harvest
-  # no-ops with a one-line note, and the index is never rendered. It is a read/write GATE, never
-  # a purge: existing learnings/ files are left untouched and re-enabling resumes from them.
-  # Note: because the harvest is one-shot at close-out, a change that closes on a disabled
-  # machine is permanently un-harvested — a deliberate, bounded cost.
+  # enabled — the read GATE for the learnings subsystem: false makes readers skip (zero token
+  # cost), true lets groom/plan/review pull relevant findings from the index. It is a read GATE,
+  # never a purge: existing learnings/ files are left untouched and re-enabling resumes from them.
+  # The WRITE side is deferred: automated learnings harvest is deferred from Go v1 — record or
+  # update findings by editing `learnings/` files directly; automated learnings-index rendering is
+  # deferred from Go v1 — existing `learnings/README.md` bytes are preserved, not refreshed.
   # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
   enabled: true
 
-  # cap — the ACTIVE-finding count (retained + candidate; promoted ones don't count) past which
-  # docket flags "needs curation". docket never auto-merges its own memory — you curate.
+  # cap — the ACTIVE-finding count past which the ledger is considered to need curation. automated
+  # learnings capacity and promotion are deferred from Go v1 — ledger curation is human-directed;
+  # the value is preserved as parseable configuration and docket never auto-merges its own memory.
   # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
   cap: 300
 
@@ -275,13 +277,12 @@ github_project: auto
 
 # ═══ Publishing & autonomy ═════════════════════════════════════════════════════════════════
 
-# terminal_publish — the terminal-record publish opt-in (changes 0064/0084). Default FALSE:
-# terminal records stay on the metadata branch only, and the integration branch gets code, plans,
-# and results via PRs alone. Set true to ALSO copy the archived change file + its spec + its
-# Accepted ADRs from the metadata branch onto the integration branch in a direct commit at
-# close-out (and to let docket-adr publish ADRs the same way). That is a direct push to the code
-# line: it bypasses PRs, can trip branch protection, and can be denied mid-run by an agent
-# permission classifier — so opt in deliberately. Inert in main-mode.
+# terminal_publish — the terminal-record publish opt-in (changes 0064/0084). DEFERRED FROM GO v1:
+# the key remains a parseable, coordination-fenced configuration value but activates nothing.
+# terminal publication is deferred from Go v1 — `docket finalize closeout` is the complete
+# automated closeout boundary. Terminal records stay on the metadata branch; the integration
+# branch gets code, plans, and results via PRs alone. An enabled value copies nothing onto the
+# integration branch and is not a Bash fallback; existing published records remain as history.
 # scope: repo-only (coordination-fenced, ADR-0019)
 terminal_publish: false
 
@@ -300,25 +301,25 @@ auto_groom: false
 # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
 change_types: [chore, docs, feat, fix, refactor, perf]
 
-# auto_capture — (change 0091; became a MAP in change 0127) mid-run discovered work becomes a
-# proposed stub instead of prose. When an AUTONOMOUS run surfaces genuine follow-up work
-# (implement-next's reconcile/review, a close-out finding), there is no human to ask. With
-# enabled: true the skill classifies the discovery and mints a needs-brainstorm stub carrying
-# discovered_from: provenance and type:; you still gate it at groom time, so this buys capture
-# fidelity, not autonomy. Bounded: a cheap active-slug dedup check and a hardcoded cap of 3 stubs
-# per invocation, with any overflow reported rather than dropped. docket-auto-groom is deliberately
-# never a mint site.
+# auto_capture — (change 0091; became a MAP in change 0127) the intended shape for turning mid-run
+# discovered work into a proposed stub. DEFERRED FROM GO v1: the map remains a parseable
+# configuration key and its stored values are never rewritten, but it activates nothing.
+# automatic change capture is deferred from Go v1 — capture work deliberately with
+# `docket change create`. An AUTONOMOUS run (implement-next's reconcile/review, a close-out
+# finding) reports the follow-up work it surfaces in its final report; an enabled value is answered
+# with a capability-specific unsupported diagnostic before any leg mutates state, never a Bash
+# fallback.
 #
 # BREAKING (change 0127): the old scalar `auto_capture: true|false` is no longer valid and has no
 # compatibility shim — it fails closed with a diagnostic printing the nested replacement.
 #
 # Leaves resolve INDEPENDENTLY, so a machine-local layer can flip `enabled` while inheriting
-# `types` from the committed layer. Both leaves fail closed on garbage.
-#   enabled — gates all minting.
+# `types` from the committed layer. Both leaves fail closed on garbage. They document the shape
+# capture would take; neither leg runs while capture is deferred from Go v1.
+#   enabled — the read/parse gate for the (deferred) capture leg.
 #   types   — `all` (every effective change_type) or a list drawn from change_types, e.g.
 #             [feat, fix] to keep chores and docs findings out of the backlog. A list REPLACES
-#             `all` rather than narrowing it in place. A type-excluded candidate is reported as
-#             policy-suppressed and does NOT consume one of the three mint slots.
+#             `all` rather than narrowing it in place.
 # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
 auto_capture:
   enabled: false

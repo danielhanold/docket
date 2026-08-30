@@ -288,30 +288,24 @@ reclaim:
 
 Agents constantly surface follow-up work mid-task: a reconcile pass notices an adjacent gap, a build
 uncovers a latent bug, a close-out finding implies a next step. With a human in the room the model
-asks. In an unattended run there is nobody to ask, so that work is mentioned in prose that scrolls
-away — and lost.
+asks. In an unattended run there is nobody to ask, so that work is mentioned in the run's final
+report rather than acted on silently.
 
-`auto_capture.enabled: true` closes that gap. An autonomous skill that identifies genuine follow-up
-work classifies it and mints it as an ordinary `proposed` needs-brainstorm stub, with
-`discovered_from:` recording which change surfaced it and `type:` recording what kind of work it is.
-Nothing is designed, built, or merged — you still gate every stub at groom time. It buys **capture
-fidelity, not autonomy**.
+The `auto_capture` map (`enabled`, `types`) remains a parseable configuration key and its stored
+values are never rewritten, but it activates nothing: **automatic change capture is deferred from
+Go v1 — capture work deliberately with `docket change create`**. An enabled value is answered with a
+capability-specific unsupported diagnostic before any leg mutates state, never a Bash fallback — so a
+run **reports** the follow-up work it discovers and a human files it deliberately.
 
-- **Off by default.** With `auto_capture` unset or `enabled: false`, behavior is exactly as before.
-- **Where it fires.** `docket-implement-next` (reconcile and review) and the
-  `docket-finalize-change` / `docket-status` close-out harvest. `docket-auto-groom` deliberately
-  never mints — a stub it created would be its own next input, so grooming could grow the queue it
-  exists to drain.
-- **What gets minted.** Only work that would be its own change/PR. Build-loop lessons go to
+- **Parseable, inactive.** With `auto_capture` set (`enabled: true` or `false`) the resolver still
+  reads it and never rewrites your stored values; no run mints a stub from it.
+- **Where discovered work goes.** `docket-implement-next` (reconcile and review) and the close-out
+  pass surface genuine follow-up work **in the run's final report**. Build-loop lessons go to
   [learnings](#learnings--the-loops-memory); drift inside the current change goes to its reconcile
   log.
-- **Selective by type.** `types` admits only the kinds of work you want captured. A candidate whose
-  type is excluded is reported as policy-suppressed and does **not** consume one of the run's three
-  mint slots, so a narrow `docs` finding can never crowd out a `feat` one.
-- **Bounded.** A cheap dedup check against active changes, plus a cap of 3 stubs per invocation.
-  Overflow is reported in the run output, never silently dropped.
-- **Global-able.** Set it per-repo, in your global config, or in `.docket.local.yml`. The two leaves
-  resolve independently, so a machine-local layer can flip `enabled` while inheriting `types`.
+- **The taxonomy still governs creation.** `change_types` and `auto_capture.types` remain the
+  documented vocabulary a deliberately-created change draws from (see below): they type the work you
+  file, they do not schedule its capture.
 
 ```yaml
 change_types: [chore, docs, feat, fix, refactor, perf]   # the taxonomy — see below
@@ -321,8 +315,8 @@ auto_capture:
   types: [feat, fix]                                     # a subset of change_types, or `all`
 ```
 
-Minted stubs appear on the board as ordinary `needs-brainstorm` work and flow into
-`docket-groom-next`'s queue like anything else you filed by hand.
+Work you file with `docket change create` appears on the board as ordinary `needs-brainstorm` work
+and flows into `docket-groom-next`'s queue like anything else you filed by hand.
 
 #### The taxonomy (`change_types`)
 
@@ -520,7 +514,7 @@ agents:                      # agent model/effort defaults (same agents: shape a
   default:
     implement-next: { model: claude-opus-5, effort: medium }
 auto_groom: false
-auto_capture:                # a MAP since change 0127 — a bare scalar is a hard config error
+auto_capture:                # a MAP since change 0127 — a bare scalar is a hard config error; capture itself is deferred from Go v1
   enabled: false
   types: all
 dummy_mode:                  # persona-calibrated human-facing prose; off by default
@@ -557,7 +551,7 @@ agent_harnesses: [claude]     # can opt a tracking-only repo into per-repo agent
 finalize:
   gate: local
 auto_groom: false
-auto_capture:                 # a MAP since change 0127 — a bare scalar is a hard config error
+auto_capture:                 # a MAP since change 0127 — a bare scalar is a hard config error; capture itself is deferred from Go v1
   enabled: false
   types: all
 dummy_mode:                   # persona-calibrated human-facing prose; off by default
@@ -1075,7 +1069,7 @@ bash /path/to/docket/migrate-to-docket.sh
 
 It prints the resolved target repo and prompts for confirmation before changing anything; pass `--yes` (or `-y`) to skip the prompt in automation. It then creates the orphan `docket` branch seeded from your current planning directories, prunes the live planning surface (`active/` changes, the changes `README.md`, `BOARD.md`) off the integration branch while keeping terminal records and build artifacts there, and adds `.docket/` + `.worktrees/` to `.gitignore`. Re-running it converges from any partial state.
 
-Migration also grants one **local, per-repo** Claude Code permission: an allow-rule for docket's terminal-publish push to the integration branch (written to `.claude/settings.local.json`, which migration adds to `.gitignore`). This pre-authorizes the push the permission classifier guards on close-out — granted unconditionally by migration, but only exercised when the repo opts in with `terminal_publish: true`; narrowly and only in this repo — force-pushes and pushes to other branches stay guarded. Because `settings.local.json` is gitignored and per-user, anyone who later **clones** an already-migrated repo can grant themselves the same rule by running the helper standalone:
+Migration also grants one **local, per-repo** Claude Code permission: an allow-rule for a push to the integration branch (written to `.claude/settings.local.json`, which migration adds to `.gitignore`). This allow-rule is **historical compatibility** — it pre-authorized the terminal-record publish push the permission classifier once guarded on close-out, but **terminal publication is deferred from Go v1 — `docket finalize closeout` is the complete automated closeout boundary**, so `terminal_publish: true` no longer exercises it. The rule stays granted (narrowly, and only in this repo — force-pushes and pushes to other branches stay guarded) as a harmless remnant. Because `settings.local.json` is gitignored and per-user, anyone who later **clones** an already-migrated repo can grant themselves the same rule by running the helper standalone:
 
 ```bash
 bash /path/to/docket/scripts/ensure-claude-settings.sh
