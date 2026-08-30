@@ -22,7 +22,7 @@ branch: 'refactor/delete-the-frozen-bash-facade-and-legacy-test-surface'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-30T16:32:34Z'
+claimed_at: '2026-08-30T16:39:49Z'
 ---
 
 ## Artifacts
