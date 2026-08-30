@@ -438,29 +438,18 @@ func docketWorktreeFact(ctx context.Context, p setupProber, repo gitcli.Reposito
 	return fact
 }
 
-// --- partial-phase recovery probing ------------------------------------------
+// --- reconcileResumeSeed mutation-boundary reads -----------------------------
 //
-// These helpers give the migration recovery branches the three facts the spec's
-// interruption boundaries decide on, all read from the durable remote state that
-// is the recovery journal (never a local proxy): the published metadata tip's
-// ROOT SHAPE (a single parentless orphan root is ours-shaped; anything else is
-// foreign), its RECEIPT (the versioned operation marker that proves docket
-// authored it), and LEGACY-EQUIVALENT TREE EQUALITY (a bash-era seed carries no
-// receipt, so a published tree that exactly equals the seed recomposed from the
-// CURRENT pinned source proves the same postcondition a receipt would). Every
-// probe returns its error rather than folding it into a false absence (learning
+// Root-shape ownership is now owned by verifyMetadataOwnership; these two helpers
+// remain the mutation-boundary reads reconcileResumeSeed keys its seed-replacement
+// decision on, both read from the durable remote state that is the recovery
+// journal (never a local proxy): the published metadata tip's RECEIPT (the
+// versioned operation marker that proves docket authored the seed) and
+// LEGACY-EQUIVALENT TREE EQUALITY (a bash-era seed carries no receipt, so a
+// published tree that exactly equals the seed recomposed from the CURRENT pinned
+// source proves the same postcondition a receipt would). Every probe returns its
+// error rather than folding it into a false absence (learning
 // probe-error-is-not-clean-absence).
-
-// metadataRootParentless reports whether tip is a single parentless orphan root
-// — the ours-shaped ancestry every docket seed carries. A probe error is
-// returned, never read as a clean "foreign".
-func metadataRootParentless(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, tip gitcli.ObjectID) (bool, error) {
-	roots, err := git.RootCommits(ctx, repo, tip)
-	if err != nil {
-		return false, err
-	}
-	return len(roots) == 1 && roots[0] == tip, nil
-}
 
 // publishedSeedReceipt scans the published metadata tip's trailers and returns
 // the decoded docket receipt when the tip carries one. ok is false when the tip
