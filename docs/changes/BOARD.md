@@ -1,8 +1,14 @@
 # Backlog
 
-**376 changes** — 🟡 59 proposed · ⚪ 4 deferred · ✅ 231 done · 🗑️ 82 killed
+**376 changes** — 🟢 1 in progress · 🟡 58 proposed · ⚪ 4 deferred · ✅ 231 done · 🗑️ 82 killed
 
-## 🟡 Proposed (59)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-29-delete-the-frozen-bash-facade-and-legacy-test-surface-design.md) | `refactor/delete-the-frozen-bash-facade-and-legacy-test-surface` |
+
+## 🟡 Proposed (58)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -60,7 +66,6 @@
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | ⏳ waiting on #370 — not yet built |
 | [0367](active/0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | `medium` | `feat` | ⏳ waiting on #370 — not yet built |
 | [0368](active/0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | `medium` | `fix` | needs-brainstorm |
-| [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | build-ready |
 | [0373](active/0373-harden-integration-race-test-isolation-under-parallel-load.md) | Harden integration/race test isolation under parallel load | `medium` | `chore` | needs-brainstorm |
 | [0374](active/0374-separate-build-and-finalize-test-configuration.md) | Separate build and finalize test configuration | `high` | `refactor` | ⏳ waiting on #370 — not yet built |
 | [0375](active/0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | `medium` | `fix` | needs-brainstorm |
