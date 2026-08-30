@@ -2,7 +2,7 @@
 id: 378
 slug: 'metadata-root-classifier-rejects-multi-commit-docket-branch'
 title: 'Shared metadata-root classifier misreads any multi-commit docket branch as foreign'
-status: 'implemented'
+status: 'done'
 priority: high
 type: fix
 created: '2026-08-30'
@@ -21,7 +21,7 @@ branch: 'fix/metadata-root-classifier-rejects-multi-commit-docket-branch'
 pr: 'https://github.com/danielhanold/docket/pull/256'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-30T19:47:43Z'
+claimed_at:
 ---
 
 ## Artifacts

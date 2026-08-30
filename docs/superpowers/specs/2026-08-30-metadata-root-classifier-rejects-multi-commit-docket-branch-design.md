@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0378 — Shared metadata-root classifier misreads any multi-commit docket branch as foreign](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0378-metadata-root-classifier-rejects-multi-commit-docket-branch.md)**
+> ↩ **[Change 0378 — Shared metadata-root classifier misreads any multi-commit docket branch as foreign](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-30-0378-metadata-root-classifier-rejects-multi-commit-docket-branch.md)**
 <!-- docket:backlink:end -->
 # Verify docket metadata ownership at the seed root
 
