@@ -1,14 +1,15 @@
 # Backlog
 
-**377 changes** — 🟢 1 in progress · 🟡 59 proposed · ⚪ 4 deferred · ✅ 231 done · 🗑️ 82 killed
+**377 changes** — 🟢 2 in progress · 🟡 58 proposed · ⚪ 4 deferred · ✅ 231 done · 🗑️ 82 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-29-delete-the-frozen-bash-facade-and-legacy-test-surface-design.md) | `refactor/delete-the-frozen-bash-facade-and-legacy-test-surface` |
+| [0377](active/0377-migrate-deferred-bash-facade-workflow-operations-to-native-g.md) | Migrate deferred Bash-facade workflow operations to native Go CLI verbs | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-30-migrate-deferred-bash-facade-workflow-operations-to-native-g-design.md) | `refactor/migrate-deferred-bash-facade-workflow-operations-to-native-g` |
 
-## 🟡 Proposed (59)
+## 🟡 Proposed (58)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -70,7 +71,6 @@
 | [0374](active/0374-separate-build-and-finalize-test-configuration.md) | Separate build and finalize test configuration | `high` | `refactor` | ⏳ waiting on #370 — not yet built |
 | [0375](active/0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | `medium` | `fix` | needs-brainstorm |
 | [0376](active/0376-gate-drive-start-human-output-omits-drive-id-generation.md) | `docket gate drive start` human-readable output omits drive_id/generation | `medium` | `fix` | needs-brainstorm |
-| [0377](active/0377-migrate-deferred-bash-facade-workflow-operations-to-native-g.md) | Migrate deferred Bash-facade workflow operations to native Go CLI verbs | `critical` | `refactor` | build-ready |
 
 ## ⚪ Deferred (4)
 

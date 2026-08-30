@@ -2,7 +2,7 @@
 id: 377
 slug: 'migrate-deferred-bash-facade-workflow-operations-to-native-g'
 title: 'Migrate deferred Bash-facade workflow operations to native Go CLI verbs'
-status: 'proposed'
+status: 'in-progress'
 priority: 'critical'
 type: 'refactor'
 created: '2026-08-30'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/migrate-deferred-bash-facade-workflow-operations-to-native-g'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-30T17:59:07Z'
 ---
 
 ## Artifacts
