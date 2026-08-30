@@ -94,6 +94,71 @@ func ParseReceipt(trailers []Trailer) (Receipt, bool) {
 	return r, true
 }
 
+// SeedVerdict is the deterministic decision over a ROOT commit's raw trailer
+// scan: is this a valid native seed receipt, an invalid docket-claiming one
+// (foreign — never downgraded to the receiptless legacy path), or no receipt
+// at all (legacy path eligible)? It is stricter than ParseReceipt on purpose:
+// duplicated recognized fields, a prune receipt on the root, an unsupported
+// operation version, and operation-inappropriate fields are all invalid here
+// even where a last-wins reader would tolerate them.
+type SeedVerdict int
+
+const (
+	SeedAbsent  SeedVerdict = iota // no recognized receipt trailer: legacy eligible
+	SeedInvalid                    // docket-claiming but not a valid seed receipt
+	SeedInit                       // valid OpInitRoot receipt (operation only)
+	SeedMigrate                    // valid OpMigrateSeed receipt (source+copy+repair)
+)
+
+// EvaluateSeedTrailers decides the seed verdict from the root commit's full
+// trailer set. Unrecognized keys are ignored; any recognized key seen more
+// than once, or carrying a control byte, is invalid.
+func EvaluateSeedTrailers(trailers []Trailer) (Receipt, SeedVerdict) {
+	counts := map[string]int{}
+	var r Receipt
+	for _, t := range trailers {
+		var dst *string
+		switch t.Key {
+		case TrailerOperation:
+			dst = &r.Operation
+		case TrailerSourceRevision:
+			dst = &r.SourceRevision
+		case TrailerMetadataRev:
+			dst = &r.MetadataRevision
+		case TrailerCopyDigest:
+			dst = &r.CopyDigest
+		case TrailerRepairDigest:
+			dst = &r.RepairDigest
+		default:
+			continue
+		}
+		counts[t.Key]++
+		if counts[t.Key] > 1 || hasControlByte(t.Value) {
+			return Receipt{}, SeedInvalid
+		}
+		*dst = t.Value
+	}
+	if len(counts) == 0 {
+		return Receipt{}, SeedAbsent
+	}
+	switch r.Operation {
+	case OpInitRoot:
+		if r.SourceRevision != "" || r.MetadataRevision != "" || r.CopyDigest != "" || r.RepairDigest != "" {
+			return Receipt{}, SeedInvalid
+		}
+		return r, SeedInit
+	case OpMigrateSeed:
+		if r.SourceRevision == "" || r.CopyDigest == "" || r.RepairDigest == "" || r.MetadataRevision != "" {
+			return Receipt{}, SeedInvalid
+		}
+		return r, SeedMigrate
+	default:
+		// No operation, a prune receipt, or an unknown/unsupported version:
+		// docket-claiming trailers with no valid seed operation.
+		return Receipt{}, SeedInvalid
+	}
+}
+
 // knownOperation reports whether op is one of the versioned operation values.
 func knownOperation(op string) bool {
 	switch op {
