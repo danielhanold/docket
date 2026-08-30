@@ -1,8 +1,8 @@
 # Backlog
 
-**372 changes** — 🟡 56 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 229 done · 🗑️ 82 killed
+**373 changes** — 🟡 57 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 229 done · 🗑️ 82 killed
 
-## 🟡 Proposed (56)
+## 🟡 Proposed (57)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -62,6 +62,7 @@
 | [0368](active/0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | `medium` | `fix` | needs-brainstorm |
 | [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | ⏳ waiting on #372 — not yet built |
 | [0372](active/0372-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume.md) | Retire deferred Go v1 workflow surfaces and seal the consumer cutover | `critical` | `refactor` | ⏳ waiting on #371 — needs your merge |
+| [0373](active/0373-harden-integration-race-test-isolation-under-parallel-load.md) | Harden integration/race test isolation under parallel load | `medium` | `chore` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -141,6 +142,7 @@ graph TD
   0372 --> 0370
   0369 --> 0371
   0371 --> 0372
+  0373
   0192:::done
   0211:::done
   0251:::done
