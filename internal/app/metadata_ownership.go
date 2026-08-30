@@ -334,11 +334,17 @@ func treeEntryOID(entries []gitcli.TreeEntry, repoPath string) gitcli.ObjectID {
 	return ""
 }
 
-// isFullObjectID reports whether s is a full 40-character lowercase-hex Git
-// object id. A receipt's recorded source revision is untrusted input, so it is
-// validated here before it is ever handed to a gitcli reader.
+// isFullObjectID reports whether s is a full lowercase-hex Git object id of a
+// width the gitcli reader accepts: length 40 (SHA-1) or 64 (SHA-256 full
+// representation), never truncated. It mirrors gitcli.validateObjectID exactly so
+// a source revision that passes this gate cannot then be rejected by IsAncestor —
+// a legitimate OpMigrateSeed receipt in a SHA-256 repository carries a 64-char
+// Docket-Source-Revision, and gating it on length 40 alone would misclassify a
+// real docket branch as RootForeign. A receipt's recorded source revision is
+// untrusted input, so it is validated here before it is ever handed to a gitcli
+// reader; this stays strict (full widths only, lowercase hex, no abbreviation).
 func isFullObjectID(s string) bool {
-	if len(s) != 40 {
+	if len(s) != 40 && len(s) != 64 {
 		return false
 	}
 	for i := 0; i < len(s); i++ {
