@@ -94,6 +94,9 @@ harness's native agent registry is authoritative for agent names, descriptions, 
 this block does not restate it. If no same-name agent is registered, do not invent one; follow the
 workflow's own inline or unavailable-capability contract. Dispatch through the harness's native
 named-agent dispatch, and pass the request through unchanged, including any change or ADR id.
+Never reroute a registered workflow through a shell runner, another harness, a generic agent, or
+an inline reconstruction of its contract — a missing registration is a visible capability
+failure, not a fallback trigger.
 
 ## Run gate — bracket a dispatched implement-next run with the gate facade
 

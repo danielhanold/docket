@@ -23,19 +23,31 @@ const DispatchHeading = "## Docket agents — dispatch, don't run inline"
 // Change 0334 dropped the per-agent roster (and, with it, sync-agents.sh's
 // interpolated shipped-harness list) from this block: the compact rule below
 // defers to the harness's own agent registry instead of restating it. Removing
-// the list also retires the one deliberate Go/shell emitter variance — the
+// the list also retired the one deliberate Go/shell emitter variance — the
 // shell mirror used to interpolate HD_SHIPPED_HARNESSES here where this constant
 // stated the equivalent quantified claim, so the two generators emitted subtly
-// different prose. With the list gone the two are now textually identical here
-// (learnings: consolidation-flattens-caller-variance — the divergence was
-// deliberate and is being retired, not overlooked).
+// different prose (learnings: consolidation-flattens-caller-variance — the
+// divergence was deliberate and was retired, not overlooked).
+//
+// Change 0371 made this Go emitter the single canonical dispatch policy and
+// appended the never-fall-back sentence. sync-agents.sh still carries a textual
+// twin of this preamble, but it is FROZEN (0370-owned) and intentionally lags
+// one sentence behind — that frozen mirror is deleted by change 0370, so it is
+// not amended to match here. No test asserts Go/shell textual parity.
+//
+// The machine-neutral rationale above still holds and Task 2's cross-surface
+// guards depend on the property it documents: this interior names NO harness, so
+// the identical bytes can land on every host surface.
 const dispatchPreamble = "When a requested Docket workflow has a registered same-name `docket-*` agent, dispatch that agent\n" +
 	"instead of running the workflow inline: the agent carries that workflow's dispatch contract, its\n" +
 	"skill preload, and whatever model and reasoning effort your config layers pin for it. Your\n" +
 	"harness's native agent registry is authoritative for agent names, descriptions, and availability —\n" +
 	"this block does not restate it. If no same-name agent is registered, do not invent one; follow the\n" +
 	"workflow's own inline or unavailable-capability contract. Dispatch through the harness's native\n" +
-	"named-agent dispatch, and pass the request through unchanged, including any change or ADR id."
+	"named-agent dispatch, and pass the request through unchanged, including any change or ADR id.\n" +
+	"Never reroute a registered workflow through a shell runner, another harness, a generic agent, or\n" +
+	"an inline reconstruction of its contract — a missing registration is a visible capability\n" +
+	"failure, not a fallback trigger."
 
 // RunGateAsset is the basename of the dispatch-role payload carrying the run
 // gate. It is matched by basename rather than by full path so the bundle's root
