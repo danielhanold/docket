@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/delete-the-frozen-bash-facade-and-legacy-test-surface'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-30T16:29:36Z'
+reconciled: true
+claimed_at: '2026-08-30T16:32:01Z'
 ---
 
 ## Artifacts
@@ -70,3 +70,9 @@ Deletion follows coverage replacement, never precedes it. Unknown consumers and 
 assertions block removal. Final guards classify executable shape and ownership rather than pinning
 current spellings, counts, or filenames. A small missed caller consistent with the merged cutover
 may be reconciled; a material migration redesign halts for regrooming.
+
+## Reconcile log
+
+### 2026-08-30
+
+Reconciled against the merged 0369 -> 0371 -> 0372 consumer-cutover chain. Confirmed current reality on origin/main: changes 0369 (retained-consumer typed-Go migration), 0371 (native host dispatch), and 0372 (deferred-feature retirement + consumer seal) are all archived at status done, so the base contains the whole prerequisite chain and the spec's opening premise holds. The frozen surface is still physically present and unused by maintained consumers, exactly as the spec assumes: scripts/docket.sh, scripts/lib/docket-runtime.sh, and scripts/run-tests.sh all resolve on origin/main; scripts/ still carries ~49 shell scripts across ~88 tracked files; ~188 shell/bats tests remain under tests/; and ~204 maintained references to DOCKET_SCRIPTS_DIR / DOCKET_BASH_PATH / runtime.bash remain outside the immutable archive/ADR/spec history. The canonical runner is the Go-native docket development test (internal/cli/development_test_cmd.go + internal/suiterunner), which still executes the Go-plus-legacy corpus and must contract to Go plus exactly the two retained POSIX product suites (repository-root install.sh and the release downloader). No fundamental invalidation: the design's shape-derived, coverage-before-deletion, fail-closed-on-unknowns approach is intact and no maintained consumer has already been removed out from under it. Relations (depends_on [372]; related 318/322/326/361/366/367/369/371/372; adrs 14/29/30/33/36/74/99) remain accurate and are left untouched. Scope, goals, and acceptance criteria stand as written; concrete counts above are review context only, never architectural gates, per the spec. Proceeding to plan and build. NOTE for follow-up capture: this change deletes the very facade (docket.sh / DOCKET_SCRIPTS_DIR) that installed docket skills invoke at runtime via the Step-0 preamble; the installed skill copies and their harness wiring are outside this repo's tree and outside 0370's deletion surface, so their migration off the retired env vars (if any remains) is separate operator work to be captured deliberately if not already covered by 0371's native-dispatch cutover.
