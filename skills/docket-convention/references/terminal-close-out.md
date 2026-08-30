@@ -57,7 +57,7 @@ before the first read; every commit pushes immediately.
    only** on `metadata_branch`, so the re-render and the board stay separate commits and
    concurrent archivers converge tree-identically (see *Determinism invariant*).
 
-2. **Re-render the `## Artifacts` block — follow-on commit, pushed BEFORE publish.** Regenerate
+2. **Re-render the `## Artifacts` block — separate follow-on commit, pushed before cleanup.** Regenerate
    the block on the **archived** file (plan/results re-point to the integration branch at
    terminal state; the renderer is the block's sole writer):
 
@@ -68,11 +68,11 @@ before the first read; every commit pushes immediately.
 
    Commit as a separate follow-on metadata commit on `metadata_branch` and push `origin/docket`.
    **Stage by explicit path** — that tree is shared, so a bare `add -A` commits another agent's
-   staged work under your message. **Ordering is load-bearing:** `terminal-publish.sh` copies the
-   change file *from `origin/docket`* — publishing before this commit lands would publish the stale
-   block onto the integration branch, defeating the re-point on the exact surface it targets. Never
-   bundle this into the step-1 archive commit (which must stay change-file-only and byte-identical
-   across concurrent archivers).
+   staged work under your message. This re-render re-points the durable `## Artifacts` block in
+   place on the archived record; terminal publication is deferred from Go v1, so nothing is copied
+   onto the integration branch. Never bundle it into the step-1 archive commit (which must stay
+   change-file-only and byte-identical across concurrent archivers) — keeping the re-render a
+   separate follow-on commit is what preserves that determinism.
 
    **The spec's back-link (change 0136)** re-points on the `active/ → archive/` move too, but only
    the **kill** path restamps it here. On the **done** path the step-1 `docket finalize closeout`

@@ -61,11 +61,23 @@ assert "finalize carries no deferred terminal-publish procedure" \
 assert "finalize does not copy from origin/docket by hand (Go closeout owns backlinks)" \
   '! grep -q "checkout origin/docket" skills/docket-finalize-change/SKILL.md'
 
-# H. Kill-publish wired in BOTH kill origins (producer + implementer), not just finalize.
-assert "proposed-kill wired in docket-new-change" \
-  'grep -qi "kill" skills/docket-new-change/SKILL.md && grep -qi "terminal.publish\|terminal-publish" skills/docket-new-change/SKILL.md'
-assert "reconcile-kill wired in docket-implement-next" \
-  'grep -qi "kill" skills/docket-implement-next/SKILL.md && grep -qi "terminal.publish\|terminal-publish" skills/docket-implement-next/SKILL.md'
+# H. RETIRED (0372): terminal publication is deferred from Go v1, so NEITHER kill origin (the
+#    producer's proposed-kill, the implementer's reconcile-kill) invokes terminal-publish. The old
+#    positive premise — kill-publish wired in both — is gone (learnings: test-premise-deleted-not-regated);
+#    inverted to prove the invocation shape is absent, floored by the deferral diagnostic and a
+#    non-vacuity anchor on the surviving kill wiring.
+assert "proposed-kill carries no docket.sh terminal-publish invocation (0372)" \
+  '! grep -qE "docket\.sh[[:space:]]+terminal-publish" skills/docket-new-change/SKILL.md'
+assert "proposed-kill states terminal publication is deferred (0372 floor)" \
+  'grep -qF "terminal publication is deferred from Go v1" skills/docket-new-change/SKILL.md'
+assert "proposed-kill still wired (non-vacuity anchor on the kill)" \
+  'grep -qi "kill" skills/docket-new-change/SKILL.md'
+assert "reconcile-kill carries no docket.sh terminal-publish invocation (0372)" \
+  '! grep -qE "docket\.sh[[:space:]]+terminal-publish" skills/docket-implement-next/SKILL.md'
+assert "reconcile-kill states terminal publication is deferred (0372 floor)" \
+  'grep -qF "terminal publication is deferred from Go v1" skills/docket-implement-next/SKILL.md'
+assert "reconcile-kill still wired (non-vacuity anchor on the kill)" \
+  'grep -qi "kill" skills/docket-implement-next/SKILL.md'
 
 # I. RETIRED (0372): terminal publication is deferred from Go v1, so the sweep no longer invokes
 #    terminal-publish. The old positive premise is gone (learnings: test-premise-deleted-not-regated);
