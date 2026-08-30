@@ -31,7 +31,7 @@ EXPECTED_SERIAL=0   # no file is currently pinned serial. tests/test_go_race.sh 
                     # run no longer starves the other parallel jobs. RAISING THIS IS A FINDING: a
                     # serial pin removes a file from the parallel phase, so it must be justified in
                     # the same diff with the shared state that forces it.
-EXPECTED_TOTAL=2865 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=2870 # the sum of every ceiling, seeded with the table from the measured serial run.
                     # 2815 -> 2830 (change 0372, Task 5): ONE legitimate mover — a NEW test file brings its own row.
                     # tests/test_deferred_surface_seal.sh is the repo-wide, shape-derived consumer-cutover seal over the
                     # four retired deferred-Go-v1 op families (mint-stub, render-learnings-index, terminal-publish,

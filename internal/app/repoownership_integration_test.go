@@ -4,6 +4,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -1033,5 +1034,227 @@ func TestIntegrationRepoOwnershipInitRefusesMultiCommitForeignBranch(t *testing.
 	}
 	if snapAfter := r.readOnlySnapshot(t); snapAfter != snapBefore {
 		t.Errorf("a refusal wrote observable local state:\nbefore:\n%s\nafter:\n%s", snapBefore, snapAfter)
+	}
+}
+
+// --- Migrate-level scenarios: migrateRoute + reconcileResumeSeed consume the verifier ---
+//
+// These drive RunRepositoryMigrate end to end against the legacy migration fixture
+// (newInitRepo with legacyDocketYML + cleanLegacyFiles; runMigrate /
+// runMigrateWithHooks and the origin* oracles from repomigration_integration_test.go).
+// They prove migrate recognizes an ESTABLISHED migrated branch however many commits
+// it has grown (no-op / local attachment at the ACTUAL latest tip), and — the
+// data-loss boundary this change guards — that a seed replacement is refused once
+// descendants exist while the integration surface still needs pruning, so a
+// broadened ownership proof can never discard a descendant commit. Every
+// refusal/contention case asserts the remote OIDs and local state are preserved.
+
+// cloneFreshInvocation clones the bare origin into a new sibling working clone with
+// its own identity and NO local .docket, returning its path — a second invocation
+// against the same remote for the local-attachment recovery scenario.
+func (r *initRepo) cloneFreshInvocation(t *testing.T, name string) string {
+	t.Helper()
+	dir := filepath.Join(r.root, name)
+	runGit(t, r.root, "clone", "-q", r.origin, dir)
+	gitIdentity(t, dir)
+	return dir
+}
+
+// advanceDocketDescendant fetches the remote docket branch into the writer clone,
+// commits one file onto it as a DESCENDANT of the current tip, pushes it, and
+// returns the new remote docket tip. The branch keeps its established seed root and
+// grows a child — exactly the multi-commit history the fix must keep recognizing
+// and the descendants guard must refuse replacing.
+func (r *initRepo) advanceDocketDescendant(t *testing.T, rel, content string) string {
+	t.Helper()
+	runGit(t, r.writer, "fetch", "-q", "origin", "docket")
+	runGit(t, r.writer, "checkout", "-q", "-B", "docket", "origin/docket")
+	writeRepoFile(t, r.writer, rel, content)
+	runGit(t, r.writer, "add", "--", rel)
+	runGit(t, r.writer, "commit", "-q", "-m", "descendant on docket: "+rel)
+	runGit(t, r.writer, "push", "-q", "origin", "docket")
+	return r.originTip(t, "docket")
+}
+
+// TestIntegrationRepoOwnershipMigrateNoOpAtLatestTip is the migrate defect's
+// headline: a fully migrated repository whose metadata branch has grown ordinary
+// metadata commits (its root no longer equals its tip) re-runs as a no-op — the
+// pre-fix root-equals-tip predicate refused this as foreign and would have tried to
+// re-seed, discarding the descendants.
+func TestIntegrationRepoOwnershipMigrateNoOpAtLatestTip(t *testing.T) {
+	r := newInitRepo(t, legacyDocketYML, cleanLegacyFiles())
+	if first := r.runMigrate(t, MigrateOptions{Authorized: true}); first.Result != ResultApplied {
+		t.Fatalf("first migrate = %q (%s), want applied", first.Result, first.HumanText())
+	}
+	r.pushMetadataCommits(t, 4)
+	metaTip := r.originTip(t, "docket")
+	intTip := r.originTip(t, "main")
+
+	res := r.runMigrate(t, MigrateOptions{Authorized: true})
+	if res.Result != ResultNoOp {
+		t.Fatalf("re-run over an established multi-commit migrated branch = %q (%s), want no-op", res.Result, res.HumanText())
+	}
+	if got := r.originTip(t, "docket"); got != metaTip {
+		t.Errorf("no-op moved the metadata branch from %s to %s (a descendant was lost or the branch was reset to seed)", metaTip, got)
+	}
+	if got := r.originTip(t, "main"); got != intTip {
+		t.Errorf("no-op moved the integration branch from %s to %s", intTip, got)
+	}
+}
+
+// TestIntegrationRepoOwnershipMigrateLocalAttachmentAtLatestTip proves a fresh
+// clone with no local .docket, run against an established multi-commit migrated
+// remote, finishes ONLY the local attachment at the ACTUAL latest tip (not the seed
+// root), leaving both remote branches byte-untouched.
+func TestIntegrationRepoOwnershipMigrateLocalAttachmentAtLatestTip(t *testing.T) {
+	r := newInitRepo(t, legacyDocketYML, cleanLegacyFiles())
+	if res := r.runMigrate(t, MigrateOptions{Authorized: true}); res.Result != ResultApplied {
+		t.Fatalf("first migrate = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	r.pushMetadataCommits(t, 4)
+	metaTip := r.originTip(t, "docket")
+	intTip := r.originTip(t, "main")
+
+	fresh := r.cloneFreshInvocation(t, "invocation2")
+	res := RunRepositoryMigrate(context.Background(), SetupDeps{Git: newGitClient(t), RepoDir: fresh}, MigrateOptions{Authorized: true})
+	if res.Result != ResultApplied {
+		t.Fatalf("local-attachment resume = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	dotDocket := filepath.Join(fresh, ".docket")
+	if head := runGit(t, dotDocket, "rev-parse", "HEAD"); head != metaTip {
+		t.Errorf(".docket HEAD = %s, want the multi-commit remote tip %s (must attach at the latest tip, not the seed)", head, metaTip)
+	}
+	if got := r.originTip(t, "docket"); got != metaTip {
+		t.Errorf("local attachment moved the metadata branch from %s to %s", metaTip, got)
+	}
+	if got := r.originTip(t, "main"); got != intTip {
+		t.Errorf("local attachment moved the integration branch from %s to %s", intTip, got)
+	}
+}
+
+// TestIntegrationRepoOwnershipMigrateDescendantsBlockSeedReplacement is the
+// data-loss guard: a migration interrupted after the seed (integration still live),
+// whose metadata branch then grows a descendant AND whose source has moved so a
+// resume would want to replace the seed, is refused — the descendant is never
+// discarded and nothing is pruned; a human must reconcile the partial migration.
+func TestIntegrationRepoOwnershipMigrateDescendantsBlockSeedReplacement(t *testing.T) {
+	r := newInitRepo(t, legacyDocketYML, cleanLegacyFiles())
+	r.runMigrateWithHooks(t, MigrateOptions{Authorized: true}, setupHooks{
+		afterSeedPush: func() error { return errors.New("crash after seed") },
+	})
+	if !r.remoteBranchExists(t, "docket") {
+		t.Fatal("the seed push did not land")
+	}
+	descendantTip := r.advanceDocketDescendant(t, "docs/changes/active/0009-descendant.md", migChangeRecord(9, "descendant", "proposed", ""))
+	// Advance the legacy source so a resume WOULD want to replace the seed.
+	r.advanceIntegration(t, "docs/adrs/0002-second-decision.md",
+		"---\nid: 2\nslug: second-decision\nstatus: Accepted\ntitle: Second decision\n---\nContext.\n")
+	intTip := r.originTip(t, "main")
+	snapBefore := r.readOnlySnapshot(t)
+
+	res := r.runMigrate(t, MigrateOptions{Authorized: true})
+	if res.Result != ResultInvalidState || res.RepositoryState != "conflict" {
+		t.Fatalf("resume over a branch with descendants = %q (%s), want invalid-state conflict", res.Result, res.HumanText())
+	}
+	if !strings.Contains(res.HumanText(), "partial migration must be reconciled by a human") {
+		t.Errorf("refusal %q must name the human-reconcile partial-migration remedy", res.HumanText())
+	}
+	if got := r.originTip(t, "docket"); got != descendantTip {
+		t.Errorf("the descendant on the metadata branch was discarded (%s -> %s); a seed replacement must never lose a descendant", descendantTip, got)
+	}
+	if got := r.originTip(t, "main"); got != intTip {
+		t.Errorf("the refusal pruned/moved integration from %s to %s; nothing must be written before a human reconciles", intTip, got)
+	}
+	if snapAfter := r.readOnlySnapshot(t); snapAfter != snapBefore {
+		t.Errorf("a refusal wrote observable local state:\nbefore:\n%s\nafter:\n%s", snapBefore, snapAfter)
+	}
+}
+
+// TestIntegrationRepoOwnershipMigrateDescendantsBlockWithUnchangedSource proves the
+// descendants guard keys on descendants-while-prune-pending, NOT on a tree
+// difference: even with the source unchanged (the published seed still exactly the
+// current seed), a descendant present while integration is still live refuses.
+func TestIntegrationRepoOwnershipMigrateDescendantsBlockWithUnchangedSource(t *testing.T) {
+	r := newInitRepo(t, legacyDocketYML, cleanLegacyFiles())
+	r.runMigrateWithHooks(t, MigrateOptions{Authorized: true}, setupHooks{
+		afterSeedPush: func() error { return errors.New("crash after seed") },
+	})
+	descendantTip := r.advanceDocketDescendant(t, "docs/changes/active/0009-descendant.md", migChangeRecord(9, "descendant", "proposed", ""))
+	intTip := r.originTip(t, "main")
+	snapBefore := r.readOnlySnapshot(t)
+
+	res := r.runMigrate(t, MigrateOptions{Authorized: true})
+	if res.Result != ResultInvalidState || res.RepositoryState != "conflict" {
+		t.Fatalf("resume with unchanged source but descendants present = %q (%s), want invalid-state conflict", res.Result, res.HumanText())
+	}
+	if !strings.Contains(res.HumanText(), "partial migration must be reconciled by a human") {
+		t.Errorf("refusal %q must name the human-reconcile remedy (the guard keys on descendants, not tree difference)", res.HumanText())
+	}
+	if got := r.originTip(t, "docket"); got != descendantTip {
+		t.Errorf("the descendant was discarded (%s -> %s)", descendantTip, got)
+	}
+	if got := r.originTip(t, "main"); got != intTip {
+		t.Errorf("integration moved from %s to %s on a refusal", intTip, got)
+	}
+	if snapAfter := r.readOnlySnapshot(t); snapAfter != snapBefore {
+		t.Errorf("a refusal wrote observable local state:\nbefore:\n%s\nafter:\n%s", snapBefore, snapAfter)
+	}
+}
+
+// TestIntegrationRepoOwnershipMigrateMovedSourceReplaceBoundToFreshTip is the
+// ownership-shard copy of the moved-source seed replacement: with NO descendants,
+// an advanced source recomposes and replaces the seed under the owned lease bound to
+// the fresh re-read tip, then prunes. It pins that the descendants guard does not
+// fire when the tip still equals the verified seed root and that the existing
+// recovery replace survives the refactor.
+func TestIntegrationRepoOwnershipMigrateMovedSourceReplaceBoundToFreshTip(t *testing.T) {
+	r := newInitRepo(t, legacyDocketYML, cleanLegacyFiles())
+	r.runMigrateWithHooks(t, MigrateOptions{Authorized: true}, setupHooks{
+		afterSeedPush: func() error { return errors.New("crash after seed") },
+	})
+	seedTip := r.originTip(t, "docket")
+	r.advanceIntegration(t, "docs/adrs/0002-second-decision.md",
+		"---\nid: 2\nslug: second-decision\nstatus: Accepted\ntitle: Second decision\n---\nContext.\n")
+
+	res := r.runMigrate(t, MigrateOptions{Authorized: true})
+	if res.Result != ResultApplied {
+		t.Fatalf("moved-source resume = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	if got := r.originTip(t, "docket"); got == seedTip {
+		t.Error("the seed was not replaced; the new copy-set bytes would be missing")
+	}
+	if _, ok := r.originBlob(t, "docket", "docs/adrs/0002-second-decision.md"); !ok {
+		t.Error("the replaced seed is missing the newly added ADR")
+	}
+	if contains(r.originTreePaths(t, "main"), "docs/changes/active/0001-first-change.md") {
+		t.Error("the resume did not prune the active surface after replacing the seed")
+	}
+}
+
+// TestIntegrationRepoOwnershipMigrateConcurrentAdvanceDuringRace proves the
+// publication race is safe: a concurrent writer advancing remote docket to a
+// descendant BETWEEN the fresh re-read and the owned-lease push makes the lease
+// (bound to the fresh tip) lost, the migration contends, and the winner's
+// descendant survives intact — the lease never forces over it.
+func TestIntegrationRepoOwnershipMigrateConcurrentAdvanceDuringRace(t *testing.T) {
+	r := newInitRepo(t, legacyDocketYML, cleanLegacyFiles())
+	r.runMigrateWithHooks(t, MigrateOptions{Authorized: true}, setupHooks{
+		afterSeedPush: func() error { return errors.New("crash after seed") },
+	})
+	r.advanceIntegration(t, "docs/adrs/0002-second-decision.md",
+		"---\nid: 2\nslug: second-decision\nstatus: Accepted\ntitle: Second decision\n---\nContext.\n")
+
+	var racerTip string
+	res := r.runMigrateWithHooks(t, MigrateOptions{Authorized: true}, setupHooks{
+		beforeMetadataLeasePush: func() error {
+			racerTip = r.advanceDocketDescendant(t, "docs/changes/active/0009-racer.md", migChangeRecord(9, "racer", "proposed", ""))
+			return nil
+		},
+	})
+	if res.Result != ResultContended {
+		t.Fatalf("a concurrent advance during the lease push = %q (%s), want contended", res.Result, res.HumanText())
+	}
+	if got := r.originTip(t, "docket"); got != racerTip {
+		t.Errorf("the concurrent winner's descendant was overwritten (%s -> %s); the lease must never force over it", racerTip, got)
 	}
 }

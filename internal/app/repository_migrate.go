@@ -131,7 +131,7 @@ func RunRepositoryMigrate(ctx context.Context, d SetupDeps, o MigrateOptions) Re
 // selected phase to a result. It is split out so the debris sweep can wrap it
 // without threading its report through every branch.
 func migratePhaseDispatch(ctx context.Context, d SetupDeps, o MigrateOptions, facts reposetup.Facts, sc setupContext) RepositoryMigrateResult {
-	phase, refusal := migrateRoute(ctx, d.Git, facts, sc)
+	phase, refusal := migrateRoute(ctx, d.Git, facts, &sc)
 	if refusal != nil {
 		return *refusal
 	}
@@ -196,13 +196,16 @@ func migratePhaseDispatch(ctx context.Context, d SetupDeps, o MigrateOptions, fa
 }
 
 // migrateRoute classifies the gathered remote postconditions into a migration
-// phase or a refusal. When the metadata branch is present it fetches it and
-// probes the root shape (metadataRootParentless) directly against the re-read
-// remote tip — the base gatherer deliberately leaves the root shape unproven so
-// the authoritative adopt/conflict decision keys on the promised remote state,
-// not a gather-time proxy. Every probe error is surfaced, never read as a clean
-// absence (learning probe-error-is-not-clean-absence).
-func migrateRoute(ctx context.Context, git *gitcli.Client, facts reposetup.Facts, sc setupContext) (migratePhase, *RepositoryMigrateResult) {
+// phase or a refusal. When the metadata branch is present it fetches it and runs
+// the shared ownership verifier (verifyMetadataOwnership) at the re-read remote
+// tip — the base gatherer deliberately leaves the root shape unproven so the
+// authoritative adopt/conflict decision keys on the promised remote state, not a
+// gather-time proxy. It pins sc.metadataTip to that re-read tip so a local-finish
+// resume attaches at the ACTUAL latest tip (not the seed root), and an established
+// migrated branch is recognized however many descendants it has grown. Every probe
+// error is surfaced, never read as a clean absence (learning
+// probe-error-is-not-clean-absence).
+func migrateRoute(ctx context.Context, git *gitcli.Client, facts reposetup.Facts, sc *setupContext) (migratePhase, *RepositoryMigrateResult) {
 	if u := migrateUnknownProbes(facts); len(u) > 0 {
 		r := migrateRefusal(reposetup.StateUnknown,
 			"a required repository probe could not be resolved ("+strings.Join(u, ", ")+"); run `docket repository check` after ensuring the remote is configured and reachable")
@@ -231,18 +234,26 @@ func migrateRoute(ctx context.Context, git *gitcli.Client, facts reposetup.Facts
 			r := migrateExternalFailure(reposetup.StateConflict, "re-reading the published metadata branch", ferr)
 			return phaseRefuse, &r
 		}
-		parentless, err := metadataRootParentless(ctx, git, sc.repo, rev.Commit)
-		if err != nil {
-			r := migrateExternalFailure(reposetup.StateConflict, "inspecting the published metadata branch", err)
+		// Pin the re-read tip as the authoritative metadata tip for later phases: a
+		// local-finish resume attaches the .docket worktree at THIS tip, so an
+		// established migrated branch with descendants is finished at its latest tip,
+		// never reset to the seed.
+		sc.metadataTip = string(rev.Commit)
+		own := verifyMetadataOwnership(ctx, git, sc.repo, rev.Commit, gitcli.ObjectID(sc.sourceRevision), sc.defaultBranch)
+		switch own.Shape {
+		case reposetup.RootUnknown:
+			// Incomplete or unreadable evidence: an external failure retaining the probe
+			// error, never a fabricated foreign or a silent adoption.
+			r := migrateExternalFailure(reposetup.StateConflict, "inspecting the published metadata branch", own.Err)
 			return phaseRefuse, &r
-		}
-		if !parentless {
-			// A foreign metadata advance (a non-orphan tip, or more than one root):
-			// refuse. Never overwrite it.
+		case reposetup.RootForeign:
+			// Readable evidence with no ownership proof (a non-docket lineage, >1 root, or
+			// ancestry shared with integration): refuse. Never overwrite it.
 			r := migrateRefusal(reposetup.StateConflict,
-				"the remote docket branch is not a single-parentless-root docket metadata branch; inspect and resolve it manually, then run `docket repository check`")
+				"the remote docket branch is not a verified docket metadata branch; inspect and resolve it manually, then run `docket repository check`")
 			return phaseRefuse, &r
 		}
+		// Verified (RootParentless), with any number of permitted descendants.
 		if facts.LiveSurface == reposetup.PresencePresent {
 			// Seed published, integration still live: resume at the prune phase.
 			return phaseResumePrune, nil
@@ -618,6 +629,32 @@ func reconcileResumeSeed(ctx context.Context, git *gitcli.Client, hooks setupHoo
 		return "", &r
 	}
 	metadataTip := rev.Commit
+
+	// Recheck ownership at THIS mutation boundary against the fresh re-read tip — the
+	// route's earlier read is never trusted here. A broadened ownership proof must
+	// never let this path replace a mature branch with a newly composed parentless
+	// seed, so identity is re-verified and the descendants guard below fires before
+	// any seed replacement or integration prune.
+	own := verifyMetadataOwnership(ctx, git, sc.repo, metadataTip, gitcli.ObjectID(sc.sourceRevision), sc.defaultBranch)
+	switch own.Shape {
+	case reposetup.RootUnknown:
+		r := migrateExternalFailure(reposetup.StateConflict, "inspecting the published metadata branch", own.Err)
+		return "", &r
+	case reposetup.RootForeign:
+		r := migrateRefusal(reposetup.StateConflict,
+			"the remote docket branch is not a verified docket metadata branch; inspect and resolve it manually, then run `docket repository check`")
+		return "", &r
+	}
+	// Descendants guard (the data-loss boundary): if the verified tip carries commits
+	// after its seed root while the integration branch still needs pruning, refuse
+	// before replacing the seed or pruning integration — replacing the seed here
+	// would rewrite the branch to a parentless commit and discard those descendants.
+	// A human must reconcile the partial migration.
+	if own.Tip != own.Root {
+		r := migrateRefusal(reposetup.StateConflict,
+			"the published metadata branch has commits after its seed while the integration branch still carries the live planning surface; this partial migration must be reconciled by a human — inspect both branches, then run `docket repository check`")
+		return "", &r
+	}
 
 	equal, err := remoteTreeEquals(ctx, git, sc.repo, metadataTip, seedTree)
 	if err != nil {
