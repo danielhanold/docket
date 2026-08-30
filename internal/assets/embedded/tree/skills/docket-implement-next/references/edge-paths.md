@@ -9,8 +9,8 @@ demand; sibling files are not auto-loaded with the skill.
 The convention's terminal close-out reference owns invocations, ordering, and the `main`-mode
 degradation; this skill's posture is CALLER-side only: trust each exit code, a failure aborts the
 kill and is surfaced. The reference's cleanup step prunes any feature worktree/branch already
-created; its publish step is `terminal-publish` (a no-op in `main`-mode, or without the
-`terminal_publish: true` opt-in).
+created. Terminal publication is deferred from Go v1 — the kill archives on `docket` via the frozen
+`archive-change` leg and copies nothing onto the integration branch.
 
 ## Resume of an `in-progress` change
 

@@ -195,6 +195,9 @@ descendants, so an unstacked change pays nothing: not a subprocess, not the fetc
   --adrs-dir <adrs_dir> --terminal-publish <terminal_publish>
 ```
 
+Terminal publication of stacked descendants is deferred from Go v1 — the forwarded
+`--terminal-publish` value activates nothing.
+
 `--date` is the root's `mergedAt` in **UTC**, never `now()`: the pass is re-run, and a clock-derived
 date makes two runs disagree about the same descendant's archive filename. Key on the report lines —
 `promoted`, `promote-skipped`, `promote-failed`, `stack-carried`, `stack-carried-failed` — never on
