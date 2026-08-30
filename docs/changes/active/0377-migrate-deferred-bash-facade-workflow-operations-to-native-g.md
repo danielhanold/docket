@@ -22,7 +22,7 @@ branch: 'refactor/migrate-deferred-bash-facade-workflow-operations-to-native-g'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-30T18:03:59Z'
+claimed_at: '2026-08-30T18:15:21Z'
 ---
 
 ## Artifacts
