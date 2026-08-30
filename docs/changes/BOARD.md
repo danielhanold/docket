@@ -1,12 +1,6 @@
 # Backlog
 
-**372 changes** — 🟢 1 in progress · 🟡 57 proposed · ⚪ 4 deferred · ✅ 228 done · 🗑️ 82 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0369](active/0369-migrate-maintained-consumers-to-the-direct-go-cli.md) | Migrate retained lifecycle consumers to typed Go operations | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-29-migrate-maintained-consumers-to-the-direct-go-cli-design.md) | `refactor/migrate-maintained-consumers-to-the-direct-go-cli` |
+**372 changes** — 🟡 57 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 228 done · 🗑️ 82 killed
 
 ## 🟡 Proposed (57)
 
@@ -67,7 +61,7 @@
 | [0367](active/0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | `medium` | `feat` | ⏳ waiting on #370 — not yet built |
 | [0368](active/0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | `medium` | `fix` | needs-brainstorm |
 | [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | ⏳ waiting on #372 — not yet built |
-| [0371](active/0371-cut-generated-agent-invocation-over-to-native-host-dispatch.md) | Cut generated agent invocation over to native host dispatch | `critical` | `refactor` | ⏳ waiting on #369 — not yet built |
+| [0371](active/0371-cut-generated-agent-invocation-over-to-native-host-dispatch.md) | Cut generated agent invocation over to native host dispatch | `critical` | `refactor` | ⏳ waiting on #369 — needs your merge |
 | [0372](active/0372-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume.md) | Retire deferred Go v1 workflow surfaces and seal the consumer cutover | `critical` | `refactor` | ⏳ waiting on #371 — not yet built |
 
 ## ⚪ Deferred (4)
@@ -78,6 +72,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0369](active/0369-migrate-maintained-consumers-to-the-direct-go-cli.md) | Migrate retained lifecycle consumers to typed Go operations | `critical` | `refactor` | [#253](https://github.com/danielhanold/docket/pull/253) |  |
 
 ```mermaid
 graph TD
