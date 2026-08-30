@@ -6,10 +6,10 @@ status: 'proposed'
 priority: 'medium'
 type: 'feat'
 created: '2026-08-29'
-updated: '2026-08-29'
+updated: '2026-08-30'
 depends_on: [370]
 stacked_on:
-related: [22, 261, 318, 369, 370]
+related: [22, 261, 318, 369, 370, 371, 372]
 discovered_from: []
 adrs: [12, 52]
 spec: 'docs/superpowers/specs/2026-08-29-configurable-rendered-board-sections-and-sorting-design.md'

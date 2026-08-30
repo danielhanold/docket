@@ -5,7 +5,7 @@
 # Configurable rendered-board sections and sorting
 
 **Change:** 0367 · **Type:** feat · **Priority:** medium · **Date:** 2026-08-29
-**Depends on:** 0370 · **Related:** 0022, 0261, 0318, 0369, 0370 · **ADRs:** 0012, 0052
+**Depends on:** 0370 · **Related:** 0022, 0261, 0318, 0369, 0371, 0372, 0370 · **ADRs:** 0012, 0052
 
 ## Purpose and boundary
 
@@ -17,7 +17,8 @@ states more closely than the way a human scans work.
 This change makes the **rendered inline board only** a configurable human-facing projection. It does
 not add lifecycle statuses, alter readiness, change autonomous selection, reorder the digest, or
 change the GitHub mirror. The change depends on 0370 and targets only the final post-cutover Go
-product; the Bash renderer is retired by the 0318 → 0369 → 0370 sequence and is not extended here.
+product; the Bash renderer is retired by the 0318 → 0369 → 0371 → 0372 → 0370 sequence and is not
+extended here.
 
 ## Configuration contract
 

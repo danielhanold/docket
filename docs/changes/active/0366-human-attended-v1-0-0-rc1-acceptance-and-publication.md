@@ -6,10 +6,10 @@ status: 'proposed'
 priority: 'critical'
 type: 'chore'
 created: '2026-08-29'
-updated: '2026-08-29'
+updated: '2026-08-30'
 depends_on: [370]
 stacked_on:
-related: [317, 318, 322, 326, 352, 361, 363, 369, 370]
+related: [317, 318, 322, 326, 352, 361, 363, 369, 370, 371, 372]
 discovered_from: [318]
 adrs: [95, 96, 99]
 spec:
@@ -34,7 +34,7 @@ reconciled: false
 
 ## Why
 
-Changes 0318, 0369, and 0370 will make the reviewed source Go-only through three independently
+Changes 0318, 0369, 0371, 0372, and 0370 will make the reviewed source Go-only through independently
 mergeable stages, but source acceptance is not release acceptance. The exact merged 0370 candidate
 still needs human-attended proof across native targets and genuinely fresh harness processes, an
 isolated rollback rehearsal, explicit migration-ledger dispositions, and irreversible publication.
@@ -54,7 +54,7 @@ This stub deliberately has no linked spec and is not build-ready. When a human o
 session, grooming must preserve the following protocol rather than collapsing it into a normal
 single-PR implementation:
 
-1. **Establish the release source.** Verify changes 0318, 0369, and 0370 are merged, the integration branch is clean,
+1. **Establish the release source.** Verify changes 0318, 0369, 0371, 0372, and 0370 are merged, the integration branch is clean,
    the Go-only source gate passed on the exact merge commit, and no later source commit is being
    silently substituted.
 2. **Close the migration ledger.** Read every active backlog item rather than bulk-editing by
@@ -135,7 +135,7 @@ claim cannot substitute for direct observation. Missing or ambiguous evidence fa
 
 ## Out of scope
 
-Source-cutover implementation owned by 0318, 0369, and 0370; changes to the accepted candidate after
+Source-cutover implementation owned by 0318, 0369, 0371, 0372, and 0370; changes to the accepted candidate after
 packaging; rebuilding or substituting bytes mid-protocol; a Bash fallback or compatibility launcher;
 stable v1.0.0 promotion; Homebrew, Windows, signing/notarization, SBOM or provenance signing;
 uninstall or version-tree garbage collection; and redesign of Docket storage, JSON protocol, harness
