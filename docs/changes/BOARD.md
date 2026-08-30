@@ -71,7 +71,7 @@
 | [0374](active/0374-separate-build-and-finalize-test-configuration.md) | Separate build and finalize test configuration | `high` | `refactor` | ⏳ waiting on #370 — not yet built |
 | [0375](active/0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | `medium` | `fix` | needs-brainstorm |
 | [0376](active/0376-gate-drive-start-human-output-omits-drive-id-generation.md) | `docket gate drive start` human-readable output omits drive_id/generation | `medium` | `fix` | needs-brainstorm |
-| [0378](active/0378-metadata-root-classifier-rejects-multi-commit-docket-branch.md) | Shared metadata-root classifier misreads any multi-commit docket branch as foreign | `high` | `fix` | needs-brainstorm |
+| [0378](active/0378-metadata-root-classifier-rejects-multi-commit-docket-branch.md) | Shared metadata-root classifier misreads any multi-commit docket branch as foreign | `high` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
 
@@ -149,6 +149,7 @@ graph TD
   0375
   0376
   0372 --> 0377
+  0378 --> 0377
   0378
   0192:::done
   0211:::done
