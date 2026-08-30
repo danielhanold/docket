@@ -22,7 +22,7 @@ branch: 'refactor/cut-generated-agent-invocation-over-to-native-host-dispatch'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-30T11:23:09Z'
+claimed_at: '2026-08-30T11:34:03Z'
 ---
 
 ## Artifacts
