@@ -37,7 +37,7 @@ finalize:                    # merge gate: rebase onto base + re-test before mer
   skip_results_only_delta: false  # arms the gate's docs-only post-gate skip. Per-repo-only (fenced)
 learnings:                   # the build-loop memory subsystem (change 0067)
   enabled: true              # default. false = whole subsystem off (read/write gate, never a purge)
-  cap: 300                   # default. active-finding count past which the harvest flags "needs curation"
+  cap: 300                   # default. active-finding count past the human-read curation threshold
 github_project:              # {owner, number} of the auto-managed Projects v2 board; unset ⇒ auto-create on first github sync
 agent_harnesses: [claude]    # harnesses the per-repo agent pass generates wrapper files for;
                              # default [claude], e.g. [claude, cursor] for a Cursor repo.
@@ -144,9 +144,9 @@ docket's five workflow steps are **pluggable roles**: the optional `skills:` map
   BOARD.md                # generated board (NEVER hand-edited); spans active + archive
   README.md               # small static blurb linking to BOARD.md (NOT generated)
   LEARNINGS.md            # pointer stub → learnings/ (the pre-0067 single-file ledger)
-  learnings/              # curated build-loop findings; harvested at close-out (see "Learnings ledger")
+  learnings/              # curated build-loop findings; recorded by human curation (see "Learnings ledger")
     <slug>.md             # one finding per lesson/family — living files, extended on re-hit
-    README.md             # GENERATED index (render-learnings-index.sh); never hand-edited
+    README.md             # derived index; refresh deferred from Go v1, never hand-edited
 <adrs_dir>/               # default docs/adrs/  — flat; ADRs are NEVER archived
   <NNNN>-<slug>.md        # immutable once Accepted (only its status: line ever changes)
   README.md               # generated ADR index
@@ -330,25 +330,26 @@ enablement, the not-eligible list, and the authoring guidance.
 `<changes_dir>/learnings/` — the project's **build-loop memory** (change 0067): one curated finding
 per file, on `metadata_branch` only, never published to the integration branch.
 `LEARNINGS.md` remains as a pointer stub to the pre-0067 single-file ledger. The finding files are
-written only by the harvest and by human curation; the index (`learnings/README.md`)
-is a **derived view**, rendered by `render-learnings-index.sh` (its sole writer, ADR-0012).
+written by human curation; the index (`learnings/README.md`)
+is a **derived view** whose recorded bytes are the sole authority readers consult — automated
+learnings-index rendering is deferred from Go v1 (existing bytes are preserved, not refreshed).
 
-**Full mechanics — finding-file frontmatter, the harvest (create/extend), promotion, capacity, and
+**Full mechanics — finding-file frontmatter, recording (create/extend), promotion, capacity, and
 the off-switch — are in [references/learnings.md](references/learnings.md); read it before
-harvesting, promoting, or curating findings.**
+recording, promoting, or curating findings.**
 
 **Read contract — pay per relevance.** Gated on `learnings.enabled`; when `false`, readers perform
 **zero** learnings reads:
 1. Load `learnings/README.md` (the index) always — a small, grouped hint surface.
 2. Read only the finding files whose index line (hook + topics) bears on the change at hand.
 
-**Readers:** `docket-implement-next` at plan time and at review; `docket-groom-next` before a brainstorm; `docket-auto-groom` before its self-brainstorm. **Writer:** only the harvest at close-out (single source: the *Harvest learnings* step in `docket-finalize-change`; `docket-status`'s sweep invokes it by reference) — it creates or extends a finding, never merges two distinct ones.
+**Readers:** `docket-implement-next` at plan time and at review; `docket-groom-next` before a brainstorm; `docket-auto-groom` before its self-brainstorm. **Writers:** human curation only — automated learnings harvest is deferred from Go v1, so a finding is created or extended by editing `learnings/` files directly, never merging two distinct ones.
 
 Compressed rules (detail in the reference): the promotion tiering criterion is
 *"will the agent know to search for this?"* — a rule that must fire unprompted graduates
 (`promotion_state: retained | candidate | promoted`; promotion and consolidation are human acts);
-`learnings.cap` counts **active findings** (`retained` + `candidate`), and past it the loop
-flags needs-curation, never auto-merging its own memory; `learnings.enabled: false` is
+`learnings.cap` counts **active findings** (`retained` + `candidate`), and past it the ledger is
+over its human-read curation threshold, never auto-merging its own memory; `learnings.enabled: false` is
 a no-op **read/write gate, never a purge** — existing files stay byte-untouched, re-enabling resumes.
 
 ### GitHub board mirror (shared definition)

@@ -37,8 +37,9 @@ assert "convention keeps the LEARNINGS.md stub pointer" 'grep -qF "remains as a 
 # learning harvest" — by design `docket learning` is MANUAL `record`/`update` only, so the Go
 # sequencer carries no harvest step. Authority #1 (Out of scope: automatic learning harvest). Do NOT
 # restore the harvest step to make these green. Inverted guards proving the automatic harvest is
-# absent from the finalize sequencer, with a non-vacuity anchor. (docket-status still references the
-# harvest by name — it is not rewritten by 0316 — so assert (b)'s status leg below is unchanged.)
+# absent from the finalize sequencer, with a non-vacuity anchor. (docket-status's own harvest leg,
+# index self-heal, and capacity/promotion advisories are RETIRED by change 0372 — the 0372 block
+# below asserts their absence; keep it and the finalize inversions here together.)
 FIN_LL="$REPO/skills/docket-finalize-change/SKILL.md"
 assert "finalize SKILL is the Go sequencer (non-vacuity anchor)" 'grep -qF "docket finalize" "$FIN_LL"'
 assert "finalize carries no deferred automatic learning-harvest step" \
@@ -49,16 +50,25 @@ assert "finalize carries no deferred learnings.enabled harvest gate" \
   '! grep -qF "learnings disabled — harvest skipped" "$FIN_LL"'
 assert "finalize does not re-render the learnings index by hand (deferred harvest)" \
   '! grep -qF "docket.sh render-learnings-index" "$FIN_LL"'
-assert "status sweep invokes the harvest by reference" \
-  'grep -qF "Harvest learnings" "$REPO/skills/docket-status/SKILL.md" && grep -qF "docket-finalize-change" "$REPO/skills/docket-status/SKILL.md"'
-
-# (b') change 0067 task 6: docket-status documents its own learnings pass (self-heal + advisories)
-assert "status documents the learnings enable gate" \
-  'grep -qF "learnings disabled" "$REPO/skills/docket-status/SKILL.md"'
-assert "status documents the index self-heal as a derived view" \
-  'grep -qF "render-learnings-index" "$REPO/skills/docket-status/SKILL.md"'
-assert "status documents both needs-you advisories" \
-  'grep -qF "over-cap" "$REPO/skills/docket-status/SKILL.md" && grep -qF "promotion-pending" "$REPO/skills/docket-status/SKILL.md"'
+# --- change 0372: learnings automation is retired; the read path and ledger format stay --
+st372="$(cat "$REPO/skills/docket-status/SKILL.md")"
+assert "0372: docket-status carries no harvest leg" '! grep -Fq "Harvest learnings" <<<"$st372"'
+assert "0372: docket-status never invokes the learnings-index renderer" \
+  '! grep -Eq "render-learnings-index" <<<"$st372"'
+assert "0372: docket-status computes no capacity/promotion advisories" \
+  '! grep -Fq "over-cap" <<<"$st372" && ! grep -Fq "promotion-pending" <<<"$st372"'
+ll372="$(cat "$REPO/skills/docket-convention/references/learnings.md")"
+assert "0372: learnings ref states the harvest deferral diagnostic (floor)" \
+  'grep -Fq "automated learnings harvest is deferred from Go v1" <<<"$ll372"'
+assert "0372: learnings ref states the index deferral diagnostic (floor)" \
+  'grep -Fq "automated learnings-index rendering is deferred from Go v1" <<<"$ll372"'
+assert "0372: learnings ref states the capacity/promotion deferral diagnostic (floor)" \
+  'grep -Fq "automated learnings capacity and promotion are deferred from Go v1" <<<"$ll372"'
+# read path survives (non-vacuity companions through the same files the absence asserts read)
+assert "0372: implement-next still reads the learnings index" \
+  '[ "$(grep -cF "learnings/README.md" "$REPO/skills/docket-implement-next/SKILL.md")" -ge 2 ]'
+assert "0372: implement-next still gates reads on learnings.enabled" \
+  '[ "$(grep -cF "learnings.enabled" "$REPO/skills/docket-implement-next/SKILL.md")" -ge 1 ]'
 
 # (c) the readers — the two-step index-first read contract, at all three hot moments
 assert "implement-next reads the index at plan time AND review" \
