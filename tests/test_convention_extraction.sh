@@ -30,7 +30,9 @@ SENTINELS=(
   "immutable once Accepted"
   "live planning surface"
   "half-migrated"
-  "only flow of metadata onto the code line"
+  # 0372 retired the Branch-model terminal-publish anchor ("only flow of metadata
+  # onto the code line"); re-anchor on the surviving hook-coexistence clause.
+  "machine-generated bookkeeping commits coexist"
   "zero-padded to 4 digits"
   "PM-altitude proposal"
   "must never trail the change files"
