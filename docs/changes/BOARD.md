@@ -1,6 +1,6 @@
 # Backlog
 
-**377 changes** — 🟢 2 in progress · 🟡 58 proposed · ⚪ 4 deferred · ✅ 231 done · 🗑️ 82 killed
+**378 changes** — 🟢 2 in progress · 🟡 59 proposed · ⚪ 4 deferred · ✅ 231 done · 🗑️ 82 killed
 
 ## 🟢 In progress (2)
 
@@ -9,7 +9,7 @@
 | [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-29-delete-the-frozen-bash-facade-and-legacy-test-surface-design.md) | `refactor/delete-the-frozen-bash-facade-and-legacy-test-surface` |
 | [0377](active/0377-migrate-deferred-bash-facade-workflow-operations-to-native-g.md) | Migrate deferred Bash-facade workflow operations to native Go CLI verbs | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-30-migrate-deferred-bash-facade-workflow-operations-to-native-g-design.md) | `refactor/migrate-deferred-bash-facade-workflow-operations-to-native-g` |
 
-## 🟡 Proposed (58)
+## 🟡 Proposed (59)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -71,6 +71,7 @@
 | [0374](active/0374-separate-build-and-finalize-test-configuration.md) | Separate build and finalize test configuration | `high` | `refactor` | ⏳ waiting on #370 — not yet built |
 | [0375](active/0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | `medium` | `fix` | needs-brainstorm |
 | [0376](active/0376-gate-drive-start-human-output-omits-drive-id-generation.md) | `docket gate drive start` human-readable output omits drive_id/generation | `medium` | `fix` | needs-brainstorm |
+| [0378](active/0378-metadata-root-classifier-rejects-multi-commit-docket-branch.md) | Shared metadata-root classifier misreads any multi-commit docket branch as foreign | `high` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -148,6 +149,7 @@ graph TD
   0375
   0376
   0372 --> 0377
+  0378
   0192:::done
   0211:::done
   0251:::done
