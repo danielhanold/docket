@@ -311,26 +311,26 @@ assert "skill allowlist still skips with a reason and never aborts" \
 assert "skill Step 1 still routes an empty queue to drained" \
   'grep -q "drained" "$impl"'
 
-# --- change 0127: capture prose reads the new exports -----------------------------------------
-# The scalar AUTO_CAPTURE export is gone (change 0127), so any surviving reference in skill prose
-# names a variable the Step-0 block no longer emits — a silently dead gate. Matched on shape
-# (AUTO_CAPTURE not followed by _) so AUTO_CAPTURE_ENABLED / AUTO_CAPTURE_TYPES pass.
-for f in docket-implement-next docket-finalize-change docket-status docket-convention; do
-  ac_body="$(cat "$REPO/skills/$f/SKILL.md")"
-  assert "0127: $f carries no retired AUTO_CAPTURE reference" \
-    '! grep -Eq "AUTO_CAPTURE([^_]|$)" <<<"$ac_body"'
+# --- change 0372: auto-capture is retired from maintained instructions -------------------
+# What this block GUARDS: no maintained skill instructs minting a stub or activating
+# auto-capture. The schema keys stay documented as parseable-and-inactive (spec: preserved
+# inactive configuration). Absence asserts are scoped per-file; the presence floor on the
+# deferral diagnostic keeps them non-vacuous (assert-detects-removal-not-replacement).
+for f in docket-implement-next docket-status docket-convention docket-new-change docket-groom-next docket-auto-groom; do
+  ac372="$(cat "$REPO/skills/$f/SKILL.md")"
+  assert "0372: $f carries no mint-stub instruction" \
+    '! grep -Eq "docket\.sh[[:space:]]+mint-stub|mint-stub\.sh" <<<"$ac372"'
+  assert "0372: $f never keys behavior on AUTO_CAPTURE_ENABLED being true" \
+    '! grep -Fq "AUTO_CAPTURE_ENABLED\` is \`true" <<<"$ac372"'
 done
-conv0127="$(cat "$REPO/skills/docket-convention/SKILL.md")"
-assert "0127: convention names AUTO_CAPTURE_ENABLED" 'grep -q "AUTO_CAPTURE_ENABLED" <<<"$conv0127"'
-assert "0127: convention names AUTO_CAPTURE_TYPES"   'grep -q "AUTO_CAPTURE_TYPES" <<<"$conv0127"'
-assert "0127: convention documents the --type mint argument" 'grep -q -- "--type" <<<"$conv0127"'
-# The cap-ordering rule is the one behavioral subtlety a mint site can silently get wrong: a
-# suppressed candidate must not spend one of the three slots.
-assert "0127: convention states type filtering precedes the cap" \
-  'grep -Eqi "before the (per-invocation )?cap|precedes the cap" <<<"$conv0127"'
-assert "0127: convention documents the policy-suppressed report outcome" \
-  'grep -qi "policy-suppressed" <<<"$conv0127"'
-assert "0127: convention's manifest block carries the type field" \
-  'grep -Eq "^type: " <<<"$conv0127"'
+assert "0372: the auto-capture reference file is gone" \
+  '[ ! -e "$REPO/skills/docket-convention/references/auto-capture.md" ]'
+assert "0372: no maintained pointer to references/auto-capture.md survives in skills/" \
+  '! grep -rq "references/auto-capture.md" "$REPO/skills/"'
+conv372="$(cat "$REPO/skills/docket-convention/SKILL.md")"
+assert "0372: convention states the capture deferral diagnostic (floor)" \
+  'grep -Fq "automatic change capture is deferred from Go v1" <<<"$conv372"'
+assert "0372: convention names the supported alternative (floor)" \
+  'grep -Fq "docket change create" <<<"$conv372"'
 
 exit $fail

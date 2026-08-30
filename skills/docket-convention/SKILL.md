@@ -24,8 +24,8 @@ adrs_dir: docs/adrs          # default
 results_dir: docs/results    # default  — close-out 'results' artifacts (build-time files, like plans)
 auto_groom: false            # repo default for autonomous grooming; per-change auto_groomable overrides
 change_types: [chore, docs, feat, fix, refactor, perf]  # a higher layer REPLACES this list, never merges
-auto_capture:                # autonomous mid-run capture of discovered work into stubs
-  enabled: false             # breaking: the old scalar `auto_capture: true` is now a hard error
+auto_capture:                # parseable; capture itself is deferred from Go v1 (activates nothing)
+  enabled: false             # a MAP since change 0127 — the old scalar `auto_capture: true` is a hard error
   types: all                 # `all` or a change_types subset; leaves resolve independently
 board_surfaces: [inline]     # which derived board view(s) to render: inline (BOARD.md) and/or github; [] = none
 terminal_publish: false      # false (default) = terminal records stay on the metadata branch;
@@ -289,29 +289,18 @@ A stub is **autonomous-eligible** — selectable by `docket-auto-groom` — when
 
 **Interactive selection bands.** `docket-groom-next` still sees every needs-brainstorm stub, but its default order prefers stubs that need a human: (1) abstained (`## Auto-groom blocked` present), (2) effective `auto_groomable: false`, (3) effective auto-groomable — flagged "docket-auto-groom will handle it unless you want it now." Within each band, the deterministic selection order applies. The board renders abstained stubs as **auto-groom blocked — needs you**, distinct from plain needs-brainstorm.
 
-### Auto-capture (shared definition)
+### Discovered work (auto-capture deferred)
 
-Auto-capture is **capability discovery under strict admission gates**: an autonomous skill actively
-looks for independently valuable work it discovers mid-run — and files it only if that work clears
-every gate. `auto_capture` (a map: `enabled` default `false`, `types` default `all`; global-able —
-resolved as `AUTO_CAPTURE_ENABLED` / `AUTO_CAPTURE_TYPES`) governs what happens then. Disabled, the
-model reports it in prose; enabled, it **classifies** the work and — only if that type is admitted —
-mints an ordinary `proposed` needs-brainstorm stub (`mint-stub --type`, one per call) with
-`discovered_from:` and `type:` set. Capture fidelity, **not** autonomy: every stub still waits at
-the human's groom gate. A type outside policy is reported as **policy-suppressed**, never minted —
-and type filtering runs **before the cap** is consumed.
+`auto_capture` (a map: `enabled` default `false`, `types` default `all`; global-able — resolved as
+`AUTO_CAPTURE_ENABLED` / `AUTO_CAPTURE_TYPES`) remains a **parseable configuration key and activates
+nothing**. automatic change capture is deferred from Go v1 — capture work deliberately with
+`docket change create`.
 
-**Mint sites** are the autonomous *single-change* skills: `docket-implement-next` (reconcile and
-review) and the `docket-finalize-change` / `docket-status` harvest. **`docket-auto-groom` is never a
-mint site** — a minted stub is itself autonomous-eligible, so minting would break its
-provable-termination invariant. **Interactive skills need no auto-capture path** — a human is
-present to decide what gets filed.
-
-**At each mint site — on arrival, before anything has surfaced — and again on any discovered
-follow-up work mid-run → read [`references/auto-capture.md`](references/auto-capture.md) now
-(blocking)** before minting or suppressing — it owns what to look for, the admission gates and
-the suppression list, the materiality bar, the per-site routing, what a captured discovery must say,
-and the deterministic mint with its exit codes and cross-site `--minted` carry-forward.
+Work an autonomous skill discovers mid-run is **reported in the run's final report, never silently
+minted or discarded** — a human captures reported work deliberately with `docket change create`. An
+explicit request to capture, or an enabled `auto_capture` key, must be answered with this diagnostic
+**before any mutation** — never by invoking the frozen Bash scripts, and reinstalling will not make a
+missing verb appear.
 
 ### Dummy mode (shared definition)
 
