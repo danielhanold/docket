@@ -5,21 +5,25 @@
 #
 # Change 0334: the gate no longer teaches a hand-executed attribution procedure. The mechanics
 # (attribution, durable state, retry accounting, the detached-dispatch branches, the epoch/
-# claimed_at filters) moved behind the `gate-before`/`gate-verdict` facade — a durable Go store
-# fronted by `docket.sh` wrappers, exercised by tests/test_gate_facade.sh and the runner-dispatch /
-# verify-run suites. What the always-loaded PAYLOAD must now carry is only the five compact parent
-# instructions: arm before dispatch, read the verdict after, obey the report line, act only on
-# `gate-retry-once`, and never hand-reimplement attribution. The guards below assert that compact
-# payload and — as importantly — assert that the removed procedure STAYS removed (learnings:
-# assert-detects-removal-not-replacement); an absence guard keyed on new wording would go green the
-# day the old procedure crept back under a different phrasing.
+# claimed_at filters) moved into a durable Go store, exercised by tests/test_gate_facade.sh and the
+# runner-dispatch / verify-run suites. Change 0369: the always-loaded PAYLOAD now invokes that store
+# through the bare installed binary — `docket run gate-before` / `docket run gate-verdict` — on PATH,
+# not the `docket.sh` facade wrappers (0334 exec-delegators, still covered by test_gate_facade.sh).
+# What the payload must carry is only the five compact parent instructions: arm before dispatch,
+# read the verdict after, obey the report line, act only on `gate-retry-once`, and never hand-
+# reimplement attribution. The guards below assert that compact payload and — as importantly —
+# assert that the removed procedure STAYS removed (learnings: assert-detects-removal-not-
+# replacement); an absence guard keyed on new wording would go green the day the old procedure
+# crept back under a different phrasing.
 #
 # Mutation checks (run by hand at the build gate, learnings: guard-is-code):
 #   * restore one old detached-dispatch sentence into cursor-rules/run-gate.md — e.g. re-add a line
 #     mentioning `DISPATCH_EPOCH`, `--with-claimed-at`, `ALL THREE filters`, or a `### Detached
 #     dispatch` heading — and a NEGATIVE assert below reddens.
-#   * delete the `gate-before implement-next` line from the payload — and the POSITIVE
+#   * delete the `docket run gate-before implement-next` line from the payload — and the POSITIVE
 #     "arms the gate before dispatch" assert reddens.
+#   * restore a `docket.sh gate-before|gate-verdict` facade spelling — and the NEGATIVE
+#     "retired docket.sh gate facade spelling is gone" assert reddens.
 set -uo pipefail
 unset XDG_CONFIG_HOME
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -122,11 +126,19 @@ assert "gate: item 5 forbids hand-reimplementing attribution or inferring permis
 assert "gate: item 5 names the signals that do NOT authorize a re-dispatch" \
   '[[ "$G" == *"child prose"*"launch shape"*"timestamps"*"ids"*"exit codes"* ]]'
 
-# The full DOCKET_SCRIPTS_DIR expansion spelling must survive verbatim: the reader of this block has
-# never loaded docket-convention (that is WHY the commands run verbatim), so a bare `docket.sh`
-# spelling has no referent. Every command line carries the mandatory facade prefix.
-assert "gate: the DOCKET_SCRIPTS_DIR expansion spelling survives verbatim" \
-  '[[ "$G" == *'"'"'"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh'"'"'* ]]'
+# Change 0369: the payload invokes the bare installed `docket` binary on PATH — the two gate
+# commands are `docket run gate-before` / `docket run gate-verdict`, with NO DOCKET_SCRIPTS_DIR
+# facade prefix and NO `docket.sh` wrapper spelling surviving. Positive floor plus a shape-keyed
+# removal assert (learnings: assert-detects-removal-not-replacement): a guard keyed only on the new
+# wording would go green the day a `docket.sh gate-*` spelling crept back.
+assert "gate: item 1 arms via the Go verb 'docket run gate-before implement-next'" \
+  'grep -qF "docket run gate-before implement-next" "$GATE_SRC"'
+assert "gate: item 2 reads the verdict via the Go verb 'docket run gate-verdict'" \
+  'grep -qF "docket run gate-verdict" "$GATE_SRC"'
+assert "gate: retired docket.sh gate facade spelling is gone from the source" \
+  '! grep -E -e "docket\.sh[[:space:]]+gate-(before|verdict)" "$GATE_SRC"'
+assert "gate: no DOCKET_SCRIPTS_DIR facade prefix survives in the gate source" \
+  '[[ "$G" != *"DOCKET_SCRIPTS_DIR"* ]]'
 
 # --- NEGATIVE: the hand-executed procedure STAYS removed (learnings:
 # assert-detects-removal-not-replacement). Keyed on the OLD state's own load-bearing tokens, not on
@@ -173,17 +185,17 @@ assert "the AGENTS.md block renders the template verbatim" \
   'diff -q "$GATE_SRC" "$SBX/.gate-agents" >/dev/null'
 assert "the two rendered gates are byte-identical" \
   'diff -q "$SBX/.gate-cursor" "$SBX/.gate-agents" >/dev/null'
-# --- runnability: no BARE `docket.sh` survives into either rendered surface ---
-# `docket.sh` is on no PATH — ensure-docket-env.sh exports DOCKET_SCRIPTS_DIR and nothing else — and
-# the parent session reading this managed block has never loaded docket-convention, so it has no
-# referent for the bare spelling. Keyed on shape, not on an enumerated command list: every
-# `docket.sh` occurrence must be the tail of a DOCKET_SCRIPTS_DIR expansion (`…}"/docket.sh`).
+# --- runnability: the migrated gate runs the bare `docket` binary on PATH (change 0369) ---
+# The parent session reading this managed block invokes `docket` directly — no `docket.sh` facade
+# spelling (bare or DOCKET_SCRIPTS_DIR-prefixed) survives into either rendered surface. Keyed on
+# shape, not an enumerated command list: zero `docket.sh` occurrences, and the distinctive Go verb
+# present at least once so the payload still carries a runnable command.
 sh_total(){ grep -oE 'docket\.sh' "$1" | grep -c ""; }
-sh_prefixed(){ grep -oE 'DOCKET_SCRIPTS_DIR[^"]*\}"/docket\.sh' "$1" | grep -c ""; }
 for rendered in "$SBX/.gate-cursor" "$SBX/.gate-agents"; do
-  T="$(sh_total "$rendered")"; P="$(sh_prefixed "$rendered")"
-  assert "rendered gate ($(basename "$rendered")) mentions the facade at all" '[ "$P" -ge 1 ]'
-  assert "rendered gate ($(basename "$rendered")) has no bare docket.sh" '[ "$T" = "$P" ]'
+  T="$(sh_total "$rendered")"
+  assert "rendered gate ($(basename "$rendered")) invokes the Go verb 'docket run gate-before'" \
+    'grep -qF "docket run gate-before implement-next" "$rendered"'
+  assert "rendered gate ($(basename "$rendered")) has no docket.sh facade spelling" '[ "$T" = "0" ]'
 done
 
 # The AGENTS.md block must still close: the gate is spliced INSIDE the managed block, and an
