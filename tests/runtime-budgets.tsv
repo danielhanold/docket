@@ -318,6 +318,20 @@
 #   history       3.73  3.56  3.53 -> worst  3.73 -> next multiple of 5 is  5, plus 5 -> 10 (min 10 floor)
 # Parallel lane (a single-package go-test invocation). EXPECTED_TOTAL moves 2830 -> 2840: +10.
 #
+# tests/test_go_integration_app_repoownership.sh is ONE NEW FILE brought by change 0378 (Task 3) —
+# the shared metadata-root ownership verifier scenarios (topology + native-receipt proofs + the
+# unknown mapping), prefix ^TestIntegrationRepoOwnership, tagged `integration`, in the normal
+# (parallel) lane. It is its own shard rather than an extension of the reposetup/repocheck shards:
+# the DEFAULT-tag corpus cannot see the tagged tests, and no existing app prefix is a name-prefix of
+# TestIntegrationRepoOwnership. Each scenario assembles a precisely-shaped fixture repo object-by-
+# object (commit-tree / write-tree) and drives verifyMetadataOwnership directly. Sized per this
+# header's rule from the WORST of three standalone COLD-cache serial readings, one session, one
+# machine (darwin/arm64, go1.26.5), as
+# `fresh=$(mktemp -d …/gocache.XXXXXX); GOCACHE=$fresh /usr/bin/time -p bash tests/test_go_integration_app_repoownership.sh >/dev/null`:
+#   repoownership  cold  6.39  6.26  6.30 -> worst  6.39 -> next multiple of 5 is 10, plus 5 -> 15
+# The fixtures are plumbing-only (no init/push topology), so the run is fast; the rest is the tagged
+# app-package compile. Parallel lane. EXPECTED_TOTAL moves 2840 -> 2855: +15.
+#
 # tests/test_go_integration_githubcli_*.sh are FOUR NEW FILES brought by change 0333 — the
 # same new-test-file + integration-SHARD case as the gitcli block above, for internal/githubcli.
 # Change 0333 partitions githubcli's fake-gh subprocess corpus behind the `integration` build
@@ -631,6 +645,7 @@ tests/test_go_integration_app_rebase.sh	25	parallel
 tests/test_go_integration_app_repocheck.sh	20	parallel
 tests/test_go_integration_app_repocontention.sh	15	parallel
 tests/test_go_integration_app_repomigration.sh	20	parallel
+tests/test_go_integration_app_repoownership.sh	15	parallel
 tests/test_go_integration_app_reporecovery.sh	20	parallel
 tests/test_go_integration_app_reposetup.sh	15	parallel
 tests/test_go_integration_app_reposetup_race.sh	25	parallel
