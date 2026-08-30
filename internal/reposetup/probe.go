@@ -23,9 +23,9 @@ const (
 type RootShape int
 
 const (
-	RootUnknown    RootShape = iota
-	RootParentless           // single parentless root, expected receipt or exact legacy-equivalent tree
-	RootForeign              // readable but not provably docket's (no receipt, tree mismatch, >1 root)
+	RootUnknown    RootShape = iota // incomplete or unreadable evidence — never collapsed into foreign
+	RootParentless                  // a verified docket seed root with permitted descendants and merges sharing that root; the root need not equal the tip
+	RootForeign                     // readable, exhausted evidence, no ownership proof (no valid seed receipt, no legacy-equivalent tree, or >1 root)
 )
 
 // BranchFact carries a branch's presence and, when Present, its tip object id.
