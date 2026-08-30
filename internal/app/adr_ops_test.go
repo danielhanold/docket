@@ -451,6 +451,32 @@ func TestADRReversePlanFlipsAndRecordsEdge(t *testing.T) {
 	}
 }
 
+func TestADRReversePlanFileSet(t *testing.T) {
+	files := map[string]string{
+		"docs/adrs/0001-one.md": fixtureADR(1, "one"),
+	}
+	plan, opRes := adrReplacePlanFor(t, files, baseADRReplaceOp(OperationADRReverse, true, validADRReplaceRequest()))
+	if opRes.Refused {
+		t.Fatalf("unexpected refusal: %v", opRes.Findings)
+	}
+	// Atomic index ownership: the reverse transaction lands the new ADR, the old
+	// ADR's status flip, AND the re-rendered index in ONE plan (commit) — never a
+	// caller-owned follow-up render. max(1)+1 = 2.
+	assertPlanPaths(t, plan, map[string]transaction.MutationKind{
+		adrPath("0002", "supersede-the-widget-decision"): transaction.MutationCreate,
+		"docs/adrs/0001-one.md":                          transaction.MutationReplace,
+		adrsIndexPath:                                    transaction.MutationCreate,
+	})
+	// The re-rendered index in the same plan reflects the reversal and the new ADR.
+	idx := planFileBytes(t, plan, adrsIndexPath)
+	if !strings.Contains(idx, "ADR-0002") {
+		t.Errorf("index does not reflect the new ADR-0002:\n%s", idx)
+	}
+	if !strings.Contains(idx, "Reversed by ADR-0002") {
+		t.Errorf("index does not show the target's reversed status:\n%s", idx)
+	}
+}
+
 func TestADRSupersedeIndexReflectsFlipAndNewADR(t *testing.T) {
 	files := map[string]string{"docs/adrs/0001-one.md": fixtureADR(1, "one")}
 	plan, _ := adrReplacePlanFor(t, files, baseADRReplaceOp(OperationADRSupersede, false, validADRReplaceRequest()))
