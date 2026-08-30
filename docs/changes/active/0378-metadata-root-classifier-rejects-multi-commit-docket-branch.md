@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'fix/metadata-root-classifier-rejects-multi-commit-docket-branch'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-30T19:31:37Z'
+reconciled: true
+claimed_at: '2026-08-30T19:34:49Z'
 ---
 
 ## Artifacts
@@ -76,3 +76,13 @@ The linked spec defines the operation-specific safety boundaries. There are no o
 questions or dependencies; grooming does not authorize implementation or continuation of 0377.
 
 ## Reconcile log
+
+### 2026-08-30
+
+Reconciled against current `main` and `docket` state. The design still holds without scope change:
+
+- Confirmed the three faulty root-equals-tip ownership predicates named in the spec still exist in the app layer: `augmentCheckFacts`, `expectedInitShape`, and `metadataRootParentless` all compare the sole reachable metadata root against the current metadata tip, so any docket branch with more than one commit is misclassified `metadata-root-foreign`. The `reposetup.RootCommits`/`RootParentless` contracts already describe receipt/tree and legacy-equivalence proofs the implementation does not yet fulfill.
+- Confirmed the surrounding-work assumptions: changes 0352, 0363, 0371, 0372 are `done`; 0377 is `in-progress` and halted after its first two build tasks (its prepare implementation copied the faulty predicate); 0370 remains halted behind 0377. ADR-0001 (orphan metadata branch) and ADR-0099 (one metadata topology) are unchanged.
+- Scope, out-of-scope, and relations remain accurate: `depends_on` empty (no stack parent), `related: [352, 363, 370, 371, 372, 377]`, `adrs: [1, 99]`, `discovered_from: [377]`. No relation edits required.
+- This change stays a standalone, independently-mergeable predecessor of 0377. Grooming already added 0378 to 0377's dependency set and this reconcile deliberately does not touch 0377's branch, halt record, or frozen build plan.
+- Build with the currently functioning workflow; do not require 0377's unfinished `repository prepare` command. Stop at an open PR.
