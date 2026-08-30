@@ -597,6 +597,20 @@
 # (`/usr/bin/time -p bash tests/test_deferred_surface_seal.sh`): 8.17 8.15 8.15 -> worst 8.17 ->
 # next multiple of 5 is 10, plus the 5s margin -> 15. Rides the parallel lane.
 # EXPECTED_TOTAL moves 2815 -> 2830: +15.
+#
+# tests/test_go_integration_app_repoprepare.sh is change 0377 Task 3: the shared Step-0 `repository
+# prepare` service — a real MULTI-COMMIT docket chain classifies owned (RootParentless, the crux of the
+# prepareAugment rewire onto the shared verifier), worktree attachment to a healthy remote, the
+# clean-behind fast-forward to the pinned revision, dirty/ahead/diverged refusals with byte-untouched
+# worktree evidence, and re-run idempotence — prefix ^TestIntegrationRepoPrepare, in the normal
+# (parallel) lane. Its own shard: no existing app prefix is a name-prefix of TestIntegrationRepoPrepare,
+# and each scenario scripts a full repo (bare origin + writer + invocation/fresh clones) and drives the
+# real attach/fast-forward Git effects. Sized per this header's rule from the WORST of three fresh-GOCACHE
+# readings, idle Mac15,6 / macOS 26.6.2 / go1.26.5 darwin/arm64, as
+# `fresh=$(mktemp -d ...); GOCACHE=$fresh /usr/bin/time -p bash tests/test_go_integration_app_repoprepare.sh >/dev/null`:
+#   repoprepare  cold 10.36 10.03 10.11 -> worst 10.36 -> next multiple of 5 is 15, plus 5 -> 20
+# The seven scenarios run in ~5.6s; the rest is the tagged app-package compile. Headroom at 20: ~9.6s over
+# the worst cold reading, well under the 60s ceiling. EXPECTED_TOTAL moves 2870 -> 2890: +20.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_assert_hygiene.sh	10	parallel
@@ -674,6 +688,7 @@ tests/test_go_integration_app_repocheck.sh	20	parallel
 tests/test_go_integration_app_repocontention.sh	15	parallel
 tests/test_go_integration_app_repomigration.sh	20	parallel
 tests/test_go_integration_app_repoownership.sh	30	parallel
+tests/test_go_integration_app_repoprepare.sh	20	parallel
 tests/test_go_integration_app_reporecovery.sh	20	parallel
 tests/test_go_integration_app_reposetup.sh	15	parallel
 tests/test_go_integration_app_reposetup_race.sh	25	parallel

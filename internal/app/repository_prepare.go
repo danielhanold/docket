@@ -480,21 +480,30 @@ func RunRepositoryPrepare(ctx context.Context, d SetupDeps, o PrepareOptions) Re
 func prepareAugment(ctx context.Context, git *gitcli.Client, f *reposetup.Facts, sc setupContext) prepareSync {
 	metaRef := gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)
 
-	// Root shape of the published metadata branch (fetch it first so the object is
-	// local on a clone that never fetched docket). A probe error is the safe
-	// RootUnknown, which the router refuses on rather than reading parentless.
+	// Metadata root shape at the FETCHED remote docket tip (fetch it first so the
+	// object is local on a clone that never fetched docket). The shared ownership
+	// verifier — the same one repository_check.go's augmentCheckFacts consumes via
+	// `verifyMetadataOwnership(` — decides whether the tip's sole parentless-root
+	// lineage is a verified docket seed root (RootParentless: a native init/migrate
+	// receipt or a receiptless legacy-equivalent tree, with ANY number of permitted
+	// descendants and merges, so the root need NOT equal the tip — a real
+	// multi-commit docket branch is owned, not foreign), readable evidence with no
+	// ownership proof (RootForeign), or unreadable evidence (RootUnknown). This
+	// replaces the earlier copied root-equals-tip predicate, which misclassified
+	// every real multi-commit docket chain as RootForeign and refused it. A fetch
+	// error is the safe RootUnknown, which the router refuses on rather than reading
+	// parentless (never a stale object, never a false shape); the fetched tip is the
+	// single authority the ownership proof is computed at.
 	metaTip := sc.metadataTip
-	if rev, ferr := git.FetchBranch(ctx, sc.repo, setupRemote(), metaRef); ferr == nil {
-		metaTip = string(rev.Commit)
-		f.RemoteMetadata.Tip = metaTip
-	}
 	if metaTip != "" {
-		if roots, rerr := git.RootCommits(ctx, sc.repo, gitcli.ObjectID(metaTip)); rerr == nil {
-			if len(roots) == 1 && string(roots[0]) == metaTip {
-				f.MetadataRoot = reposetup.RootParentless
-			} else {
-				f.MetadataRoot = reposetup.RootForeign
-			}
+		rev, ferr := git.FetchBranch(ctx, sc.repo, setupRemote(), metaRef)
+		if ferr != nil {
+			f.MetadataRoot = reposetup.RootUnknown
+		} else {
+			metaTip = string(rev.Commit)
+			f.RemoteMetadata.Tip = metaTip
+			own := verifyMetadataOwnership(ctx, git, sc.repo, rev.Commit, gitcli.ObjectID(sc.sourceRevision), sc.defaultBranch)
+			f.MetadataRoot = own.Shape
 		}
 	}
 
