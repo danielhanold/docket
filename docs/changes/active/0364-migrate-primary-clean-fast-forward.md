@@ -21,7 +21,7 @@ branch: 'feat/migrate-primary-clean-fast-forward'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-30T19:28:11Z'
+claimed_at: '2026-08-30T19:29:18Z'
 ---
 
 ## Artifacts
