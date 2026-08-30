@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0371 — Cut generated agent invocation over to native host dispatch](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0371-cut-generated-agent-invocation-over-to-native-host-dispatch.md)**
+> ↩ **[Change 0371 — Cut generated agent invocation over to native host dispatch](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-30-0371-cut-generated-agent-invocation-over-to-native-host-dispatch.md)**
 <!-- docket:backlink:end -->
 # Cut Generated Agent Invocation Over to Native Host Dispatch — Implementation Plan
 
