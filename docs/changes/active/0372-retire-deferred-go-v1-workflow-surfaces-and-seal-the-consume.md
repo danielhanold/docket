@@ -22,7 +22,7 @@ branch: 'refactor/retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-30T13:43:02Z'
+claimed_at: '2026-08-30T15:30:05Z'
 ---
 
 ## Artifacts
