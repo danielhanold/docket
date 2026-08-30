@@ -94,11 +94,13 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps) RepositoryOpResult {
 
 	// Effects 1–2: build a parentless empty-tree root with the OpInitRoot receipt
 	// and publish it under create-only protection. The create-only push is the
-	// authoritative metadata operation: on success we created it; on a rejection
-	// the exact remote shape decides adopt (an already-published empty orphan) or
-	// conflict (anything foreign) — the remote is never overwritten.
+	// authoritative metadata operation: on success we created it; on a lost lease
+	// the shared ownership verifier decides at the reread remote tip — adopt a
+	// verified init-equivalent lineage AT ITS TIP (descendants preserved), or
+	// refuse a migration-seeded, foreign, or unreadable branch — the remote is
+	// never overwritten or reset to the seed.
 	metaRef := gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)
-	metadataTip, createdRemote, refusal := publishOrAdoptMetadataRoot(ctx, d.Git, sc.repo, metaRef)
+	metadataTip, createdRemote, refusal := publishOrAdoptMetadataRoot(ctx, d.Git, sc.repo, metaRef, sc.sourceRevision, sc.defaultBranch)
 	if refusal != nil {
 		return *refusal
 	}
@@ -197,12 +199,15 @@ func initGuard(facts reposetup.Facts) (reposetup.Classification, *RepositoryOpRe
 
 // publishOrAdoptMetadataRoot builds a parentless empty-tree root carrying the
 // OpInitRoot receipt and publishes it under create-only protection. It returns
-// the metadata tip (the root it created, or the exact already-published root it
-// adopted), whether it created the remote branch, and a non-nil refusal when the
-// remote holds a foreign or non-corresponding branch. The create-only push is
-// never widened to an overwriting lease — that is the guard the create-only
-// protection mutation probe strips.
-func publishOrAdoptMetadataRoot(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, metaRef gitcli.RefName) (gitcli.ObjectID, bool, *RepositoryOpResult) {
+// the metadata tip (the root it created, or the reread remote tip of an
+// already-published init-equivalent lineage it adopted), whether it created the
+// remote branch, and a non-nil refusal when the remote holds a migration-seeded,
+// foreign, or unreadable branch. The create-only push is never widened to an
+// overwriting lease — that is the guard the create-only protection mutation probe
+// strips — and adoption of the reread tip never re-pushes or resets to the seed.
+// sourceRevision (the pinned integration tip) and defaultBranch thread into the
+// shared ownership verifier for the lost-lease inspection.
+func publishOrAdoptMetadataRoot(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, metaRef gitcli.RefName, sourceRevision, defaultBranch string) (gitcli.ObjectID, bool, *RepositoryOpResult) {
 	emptyTree, err := git.EmptyTreeOID(ctx, repo)
 	if err != nil {
 		r := repositoryExternalFailure(OperationRepositoryInit, reposetup.StateFresh, "resolving the empty tree", err)
@@ -225,23 +230,38 @@ func publishOrAdoptMetadataRoot(ctx context.Context, git *gitcli.Client, repo gi
 	case gitcli.PushApplied:
 		return root, true, nil
 	case gitcli.PushLeaseLost:
-		// The ref already exists at outcome.Remote. Fetch the object so its shape
-		// can be inspected locally, then adopt an exact empty orphan or refuse a
-		// foreign branch. The create-only push never overwrote it.
+		// The ref already exists at outcome.Remote. Fetch the object so the shared
+		// ownership verifier can inspect its lineage locally at the reread tip, then
+		// adopt a verified init-equivalent lineage (descendants preserved) or refuse
+		// a migration-seeded, foreign, or unreadable branch. The create-only push
+		// never overwrote it, and adoption of the reread tip must not either.
 		if _, ferr := git.FetchBranch(ctx, repo, setupRemote(), metaRef); ferr != nil {
 			r := repositoryExternalFailure(OperationRepositoryInit, reposetup.StateConflict, "reading the published metadata branch", ferr)
 			return "", false, &r
 		}
-		ok, serr := expectedInitShape(ctx, git, repo, outcome.Remote, emptyTree)
-		if serr != nil {
-			r := repositoryExternalFailure(OperationRepositoryInit, reposetup.StateConflict, "inspecting the published metadata branch", serr)
+		own := verifyMetadataOwnership(ctx, git, repo, outcome.Remote, gitcli.ObjectID(sourceRevision), defaultBranch)
+		switch own.Shape {
+		case reposetup.RootUnknown:
+			// Incomplete or unreadable evidence: an external failure retaining the
+			// probe error, never a fabricated foreign or a silent adoption.
+			r := repositoryExternalFailure(OperationRepositoryInit, reposetup.StateConflict, "inspecting the published metadata branch", own.Err)
 			return "", false, &r
-		}
-		if !ok {
+		case reposetup.RootForeign:
 			r := initRefusal(reposetup.StateConflict,
-				"the remote docket branch is not a docket-created empty orphan root; inspect and resolve it manually, then run `docket repository check`")
+				"the remote docket branch is not a verified docket metadata branch; inspect and resolve it manually, then run `docket repository check`")
 			return "", false, &r
 		}
+		// Verified (RootParentless). Only an init-equivalent lineage — a native
+		// OpInitRoot seed or a receiptless legacy-bootstrap empty root — is
+		// init-adoptable; a migration-seeded lineage is recognized but refused, so a
+		// broadened proof never becomes permission to initialize.
+		if !initEquivalent(own) {
+			r := initRefusal(reposetup.StateConflict,
+				"the remote docket branch is an established migrated metadata branch; `docket repository init` cannot adopt it — run `docket repository check`")
+			return "", false, &r
+		}
+		// Adopt the reread remote tip: descendants preserved, never re-pushed, never
+		// reset to the seed.
 		return outcome.Remote, false, nil
 	default:
 		r := repositoryExternalFailure(OperationRepositoryInit, reposetup.StateFresh, "publishing the metadata branch", errors.New("create-only push failed"))
@@ -249,23 +269,15 @@ func publishOrAdoptMetadataRoot(ctx context.Context, git *gitcli.Client, repo gi
 	}
 }
 
-// expectedInitShape reports whether commit is the exact shape init publishes: a
-// single parentless root over the empty tree. A non-corresponding tree, extra
-// parents, or more than one root is foreign. A probe error is returned as an
-// error, never a false "not expected".
-func expectedInitShape(ctx context.Context, git *gitcli.Client, repo gitcli.Repository, commit, emptyTree gitcli.ObjectID) (bool, error) {
-	roots, err := git.RootCommits(ctx, repo, commit)
-	if err != nil {
-		return false, err
-	}
-	if len(roots) != 1 || roots[0] != commit {
-		return false, nil
-	}
-	tree, err := git.TreeOID(ctx, repo, commit)
-	if err != nil {
-		return false, err
-	}
-	return tree == emptyTree, nil
+// initEquivalent reports whether a verified lineage is init-adoptable: its
+// verified ROOT carries the empty tree — a native OpInitRoot seed, or the
+// receiptless legacy-bootstrap empty root. It tests the root's tree, never the
+// current tip's tree, so descendants are permitted and preserved. A
+// migration-seeded lineage (proofMigrateReceipt / proofLegacyEquivalent) is NOT
+// init-equivalent: recognizing it never becomes permission to initialize.
+func initEquivalent(own metadataOwnership) bool {
+	return own.Shape == reposetup.RootParentless &&
+		(own.Proof == proofInitReceipt || own.Proof == proofLegacyEmpty)
 }
 
 // ensureMetadataWorktree creates or adopts the local metadata branch and attaches
