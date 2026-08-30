@@ -141,6 +141,16 @@ cfg_invocations="$(grep -hoF -- "$CFG_INVOKE" "${SCOPE[@]}" | wc -l | tr -d ' ')
 assert "no prefixed docket-config.sh invocation survives in skill prose (carve-out retired)" \
   '[ "$cfg_invocations" = "0" ]'
 
+# change 0369: the CREATE_ORPHAN executable command migrated from the `docket.sh bootstrap`
+# facade verb to the typed `docket repository init`. The verdict vocabulary, the STOP_MIGRATE
+# arm, and the preflight re-run stay Bash-frozen; only the one bootstrap invocation moves. The
+# absence assert keys on shape (`docket.sh` + whitespace + the op token) so a prefix variant also
+# reddens; it does NOT match the descriptive `docket-config.sh --bootstrap` mechanics prose.
+assert "CREATE_ORPHAN routes through docket repository init" \
+  'grep -qF "docket repository init" "$CONV"'
+assert "retired bootstrap facade routing is gone from the convention" \
+  '! grep -qE -e "docket\.sh[[:space:]]+bootstrap" "$CONV"'
+
 # ---- Layer 2: presence anchors on the convention (grep -c == 1) ----
 assert "Step-0 preamble runs preflight as its own call (unique anchor)" \
   '[ "$(grep -cF "as its own Bash call" "$CONV")" = "1" ]'
@@ -263,23 +273,29 @@ pfln=$(awk -v s="$mainln" 'NR>s && /docket_preflight "\$SCRIPTS_DIR"/ {print NR;
 assert "producer: the digest-only path short-circuits before docket_preflight" \
   '[ -n "$dgln" ] && [ -n "$pfln" ] && [ "$dgln" -lt "$pfln" ]'
 
-# CONSUMER end — Step 1 names the exact invocation a reader must run.
-assert "skill Step 1 names the --digest-only invocation" \
-  'grep -q -- "docket-status --digest-only" "$impl"'
+# CONSUMER end — Step 1 names the exact invocation a reader must run (change 0369: the typed
+# `docket status --json` read replaces the retired `docket.sh docket-status --digest-only` facade).
+assert "skill Step 1 acquires the digest via docket status --json" \
+  'grep -qF "docket status --json" "$impl"'
+assert "retired digest-only facade spelling is gone from implement-next" \
+  '! grep -qE -e "docket\.sh[[:space:]]+docket-status[[:space:]]+--digest-only" "$impl"'
 assert "skill Step 1 names the ready line as its candidate source" \
   'grep -q "\`ready\`" "$impl"'
 assert "skill Step 1 keeps the change files authoritative (accelerator, not sole channel)" \
   'grep -qi "accelerator" "$impl"'
-assert "skill Step 1 documents the no-ready-line fallback to walking active/" \
-  'grep -qi "fall back" "$impl"'
-# Important 2 (0094 whole-branch review): the ORIGINAL fallback paragraph treated a missing ready
-# line as ONE cause ("an older render-board, a failed render") with ONE response (fall back to
-# active/) — but --digest-only now has non-zero-exit, zero-stdout hard-error paths of its own
-# (config export failure, a non-PROCEED bootstrap, a missing metadata worktree, a failed render
-# after Important 1's fix). Walking active/ on those silently converts a hard fail-closed error
-# into `drained` in an autonomous drain loop. The exit status must govern: non-zero => halted,
-# never the fallback, never drained; only exit-0-with-no-ready-line falls back.
-assert "skill Step 1 treats a non-zero --digest-only exit as a hard error" \
+# change 0369: the typed `docket status --json` envelope ALWAYS carries a `ready` key, so the
+# old "no ready line at all → walk active/ yourself" degradation branch is retired. A parseable
+# envelope MISSING `ready` is now malformed machine output and maps to `halted`, exactly like a
+# hard error — there is no walk-active/ path left to document.
+assert "skill Step 1 rejects a malformed envelope (missing ready) as halted — no walk-active/ degradation" \
+  'grep -qi "malformed machine output" "$impl"'
+# Important 2 (0094 whole-branch review, updated for 0369): the read still has non-zero-exit /
+# unparseable-stdout hard-error paths of its own (config export failure, a non-PROCEED bootstrap,
+# a missing metadata worktree, a failed render, or malformed output). Treating any of those as an
+# empty queue silently converts a hard fail-closed error into `drained` in an autonomous drain
+# loop. The disposition must govern: hard error => halted, never a fallback, never drained; only
+# exit-0 with a valid envelope carrying an EMPTY `ready` array is `drained`.
+assert "skill Step 1 treats a non-zero / unparseable read as a hard error" \
   'grep -qi "is a hard error" "$impl"'
 assert "skill Step 1 maps a --digest-only hard error to halted, never the active/ fallback or drained" \
   'grep -qi "never fall back to \`active/\` for a hard error" "$impl" \
