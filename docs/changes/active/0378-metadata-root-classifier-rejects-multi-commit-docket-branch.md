@@ -13,7 +13,7 @@ related: [352, 363, 370, 371, 372, 377]
 discovered_from: [377]
 adrs: [1, 99]
 spec: 'docs/superpowers/specs/2026-08-30-metadata-root-classifier-rejects-multi-commit-docket-branch-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-08-30-metadata-root-classifier-rejects-multi-commit-docket-branch.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-30T19:35:28Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-30-metadata-root-classifier-rejects-multi-commit-docket-branch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-30-metadata-root-classifier-rejects-multi-commit-docket-branch-design.md) |
+| Plan | [2026-08-30-metadata-root-classifier-rejects-multi-commit-docket-branch.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-30-metadata-root-classifier-rejects-multi-commit-docket-branch.md) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md) |
 <!-- docket:artifacts:end -->
 
