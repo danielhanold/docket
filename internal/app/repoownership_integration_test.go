@@ -881,3 +881,157 @@ func TestIntegrationRepoOwnershipCheckIsReadOnly(t *testing.T) {
 		t.Errorf("check wrote observable state:\nbefore:\n%s\nafter:\n%s", before, after)
 	}
 }
+
+// --- Init-level scenarios: publishOrAdoptMetadataRoot consumes the verifier -----
+//
+// These drive RunRepositoryInit end to end against the bare-upstream + clone
+// fixture (initRepo, from reposetup_integration_test.go), with the remote docket
+// branch pre-published as a precisely-shaped lineage crafted through plumbing in
+// the writer clone (reusing the ownFixture helpers bound to r.writer). They prove
+// the race-loser arm: on a lost create-only lease, init adopts a verified
+// INIT-EQUIVALENT lineage AT ITS REREAD TIP (descendants preserved, never reset
+// to the seed, never re-pushed), refuses a migration-seeded or foreign or
+// unreadable branch, and never overwrites the remote. The create-only
+// TestIntegrationRepoSetupInitRefusesForeignMetadataBranch (single-commit foreign,
+// shared ancestry) stays in the reposetup shard; this shard adds a multi-commit
+// disjoint foreign lineage.
+
+// publishCraftedDocket force-publishes commit (a tip built in the writer clone via
+// plumbing) to the origin docket branch and returns the resulting remote tip OID.
+func (r *initRepo) publishCraftedDocket(t *testing.T, commit string) string {
+	t.Helper()
+	runGit(t, r.writer, "update-ref", "refs/heads/docket", commit)
+	runGit(t, r.writer, "push", "-q", "-f", "origin", "docket")
+	return runGit(t, r.origin, "rev-parse", "refs/heads/docket")
+}
+
+// TestIntegrationRepoOwnershipInitAdoptsInitLineageWithDescendants is the race
+// arm's headline: a genuine init seed (empty-tree OpInitRoot root) that has ALREADY
+// grown descendants on the remote is adopted at its multi-commit tip, not reset to
+// the seed. Init loses the create-only lease, verifies ownership at the reread tip,
+// finds it init-equivalent, and adopts it — the remote is left byte-untouched.
+func TestIntegrationRepoOwnershipInitAdoptsInitLineageWithDescendants(t *testing.T) {
+	r := newInitRepo(t, defaultSetupYML, nil)
+	wf := &ownFixture{t: t, dir: r.writer}
+	root := wf.commitTree(wf.emptyTree(), nil, seedMessage("docket init", opTrailer(reposetup.OpInitRoot)))
+	c1 := wf.commitTree(wf.mktree(map[string]string{"docs/changes/active/0001-a.md": "a\n"}), []string{root}, "meta 1")
+	tip := wf.commitTree(wf.mktree(map[string]string{"docs/changes/active/0002-b.md": "b\n"}), []string{c1}, "meta 2")
+	before := r.publishCraftedDocket(t, tip)
+
+	res := r.runInit(t)
+
+	if res.Result == ResultInvalidState {
+		t.Fatalf("init refused a verified init lineage: %q (%s)", res.Result, res.HumanText())
+	}
+	if res.RepositoryState != string(reposetup.StateNeedsReview) {
+		t.Errorf("RepositoryState = %q, want needs-review", res.RepositoryState)
+	}
+	if res.MetadataTip != before {
+		t.Errorf("adopted MetadataTip = %s, want the multi-commit remote tip %s", res.MetadataTip, before)
+	}
+	if res.MetadataTip == root {
+		t.Error("adopted the seed root, not the descendant tip: descendants were reset to seed")
+	}
+	if after := runGit(t, r.origin, "rev-parse", "refs/heads/docket"); after != before {
+		t.Errorf("remote docket tip moved from %s to %s; a race adoption must never re-push or reset to seed", before, after)
+	}
+}
+
+// TestIntegrationRepoOwnershipInitAdoptsLegacyEmptyBootstrapWithDescendants proves
+// the receiptless empty-root legacy bootstrap lineage is equally init-equivalent:
+// an empty-tree root with NO receipt plus descendants is adopted at its tip.
+func TestIntegrationRepoOwnershipInitAdoptsLegacyEmptyBootstrapWithDescendants(t *testing.T) {
+	r := newInitRepo(t, defaultSetupYML, nil)
+	wf := &ownFixture{t: t, dir: r.writer}
+	root := wf.commitTree(wf.emptyTree(), nil, "legacy bootstrap seed") // no receipt trailer
+	tip := wf.commitTree(wf.mktree(map[string]string{"docs/changes/active/0001-a.md": "a\n"}), []string{root}, "first metadata commit")
+	before := r.publishCraftedDocket(t, tip)
+
+	res := r.runInit(t)
+
+	if res.Result == ResultInvalidState {
+		t.Fatalf("init refused a receiptless empty-bootstrap lineage: %q (%s)", res.Result, res.HumanText())
+	}
+	if res.MetadataTip != before {
+		t.Errorf("adopted MetadataTip = %s, want the multi-commit remote tip %s", res.MetadataTip, before)
+	}
+	if res.MetadataTip == root {
+		t.Error("adopted the seed root, not the descendant tip: descendants were reset to seed")
+	}
+	if after := runGit(t, r.origin, "rev-parse", "refs/heads/docket"); after != before {
+		t.Errorf("remote docket tip moved from %s to %s; adoption must never re-push", before, after)
+	}
+}
+
+// TestIntegrationRepoOwnershipInitRefusesMigrationSeededBranch proves a broadened
+// ownership proof never becomes permission to initialize: a verified but
+// MIGRATION-seeded lineage (OpMigrateSeed root + descendants) is recognized yet
+// refused — init cannot adopt an established migrated branch. The remote and every
+// local surface are left untouched.
+func TestIntegrationRepoOwnershipInitRefusesMigrationSeededBranch(t *testing.T) {
+	r := newInitRepo(t, defaultSetupYML, nil)
+	wf := &ownFixture{t: t, dir: r.writer}
+	proj := wf.mktree(map[string]string{
+		"docs/changes/active/0001-a.md": "a\n",
+		"docs/adrs/0001-x.md":           "adr\n",
+	})
+	src := runGit(t, r.origin, "rev-parse", "refs/heads/main") // reachable integration tip
+	root := wf.commitTree(proj, nil, seedMessage("docket migrate seed",
+		opTrailer(reposetup.OpMigrateSeed),
+		srcTrailer(src),
+		copyTrailer(proj),
+		repairTrailer("deadbeef")))
+	tip := wf.commitTree(wf.mktree(map[string]string{"docs/changes/active/0002-b.md": "b\n"}), []string{root}, "meta after migrate")
+	before := r.publishCraftedDocket(t, tip)
+	snapBefore := r.readOnlySnapshot(t)
+
+	res := r.runInit(t)
+
+	if res.Result != ResultInvalidState {
+		t.Fatalf("Result = %q (%s), want invalid-state for a migration-seeded branch", res.Result, res.HumanText())
+	}
+	if res.RepositoryState != string(reposetup.StateConflict) {
+		t.Errorf("RepositoryState = %q, want conflict", res.RepositoryState)
+	}
+	if !strings.Contains(res.HumanText(), "established migrated metadata branch") {
+		t.Errorf("remedy %q must name the established migrated metadata branch", res.HumanText())
+	}
+	if after := runGit(t, r.origin, "rev-parse", "refs/heads/docket"); after != before {
+		t.Errorf("migration-seeded refusal moved the remote docket tip from %s to %s; it must be untouched", before, after)
+	}
+	if snapAfter := r.readOnlySnapshot(t); snapAfter != snapBefore {
+		t.Errorf("a refusal wrote observable local state:\nbefore:\n%s\nafter:\n%s", snapBefore, snapAfter)
+	}
+}
+
+// TestIntegrationRepoOwnershipInitRefusesMultiCommitForeignBranch adds the
+// multi-commit disjoint foreign case the create-only single-commit test does not
+// cover: a nonempty orphan root with no valid receipt and no historical match,
+// plus a descendant, is refused as not a verified docket metadata branch. Remote
+// and local state are preserved.
+func TestIntegrationRepoOwnershipInitRefusesMultiCommitForeignBranch(t *testing.T) {
+	r := newInitRepo(t, defaultSetupYML, nil)
+	wf := &ownFixture{t: t, dir: r.writer}
+	root := wf.commitTree(wf.mktree(map[string]string{"foreign.txt": "not docket's\n"}), nil, "foreign root")
+	tip := wf.commitTree(wf.mktree(map[string]string{"foreign2.txt": "more\n"}), []string{root}, "foreign descendant")
+	before := r.publishCraftedDocket(t, tip)
+	snapBefore := r.readOnlySnapshot(t)
+
+	res := r.runInit(t)
+
+	if res.Result != ResultInvalidState {
+		t.Fatalf("Result = %q (%s), want invalid-state for a foreign multi-commit branch", res.Result, res.HumanText())
+	}
+	if res.RepositoryState != string(reposetup.StateConflict) {
+		t.Errorf("RepositoryState = %q, want conflict", res.RepositoryState)
+	}
+	if !strings.Contains(res.HumanText(), "not a verified docket metadata branch") {
+		t.Errorf("remedy %q must say the branch is not a verified docket metadata branch", res.HumanText())
+	}
+	if after := runGit(t, r.origin, "rev-parse", "refs/heads/docket"); after != before {
+		t.Errorf("foreign refusal moved the remote docket tip from %s to %s; create-only protection must leave it untouched", before, after)
+	}
+	if snapAfter := r.readOnlySnapshot(t); snapAfter != snapBefore {
+		t.Errorf("a refusal wrote observable local state:\nbefore:\n%s\nafter:\n%s", snapBefore, snapAfter)
+	}
+}
