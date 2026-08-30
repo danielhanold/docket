@@ -67,3 +67,34 @@ Verified the design against the current `docket`/`main` tree at claim time; no s
 - **370 remains run-halted** and is untouched by this change; the independent-merge relationship (377 not stacked on 370) is intact.
 
 No obsolescence and no fundamental design invalidation found. Proposal sections and relations left as authored.
+
+## Run halted
+
+### 2026-08-30
+
+**Halted at build Phase 1, Task 3 (integration tests), 2026-08-30.** A `standard` build worker returned `BLOCKED` on a genuine, empirically confirmed defect that requires a human scope/design decision the autonomous loop cannot make.
+
+### What is built and committed on `refactor/migrate-deferred-bash-facade-workflow-operations-to-native-g`
+
+- **Task 1** (731aa3e1): `internal/app/repository_prepare.go` + test — `RunRepositoryPrepare`, `PrepareContext`, refusal matrix, `const OperationRepositoryPrepare`.
+- **Task 2** (029ab59c): `docket repository prepare --json` CLI verb (+ asset-independent allowlist entry).
+
+Tasks 3–14 are unbuilt. Task 3's uncommitted artifacts (`internal/app/repoprepare_integration_test.go`, `tests/test_go_integration_app_repoprepare.sh`) were left in the worktree for inspection; they encode the empirical proof below.
+
+### The blocker
+
+`repository prepare` — the change's central deliverable, intended to replace `docket.sh preflight` as the shared Step-0 operation on real repos — reuses the shared metadata-root classifier predicate `len(roots)==1 && roots[0]==metadataTip` (`internal/app/repository_prepare.go` `prepareAugment`, copied verbatim from `repository_check.go`, `repository_init.go`, and `metadataRootParentless` in `repository_migrate.go`).
+
+That predicate is only true for a **one-commit** metadata branch. The real docket branch is a **3722-commit chain** with a single orphan seed root (`f8b226f2` — "seed metadata branch from main"); its tip has one parent. `git rev-list --max-parents=0 origin/docket` returns exactly that one root, which is not the tip, so the predicate evaluates FALSE and the branch is classified `RootForeign`.
+
+**Confirmed against the live repo:** `docket repository check --json` (the binary built from `main`) already emits `metadata-root-foreign` (severity error) on this very repository. So `prepare` as built refuses every real docket repo, and the plan's clean-behind fast-forward and diverged-refusal deliverables (Task 3) are unreachable end-to-end. `RootCommits`' own doc states the correct orphan proof is "len == 1 **and that root's tree/receipt**" — not `root == tip` — so the shared predicate is a latent bug on `main` that 0377 is the first change to depend on.
+
+### Why this needs a human (not an autonomous fix)
+
+1. **Security-relevant.** The predicate is the foreign-branch adoption boundary — which remote metadata branches `prepare`/`init`/`migrate` will attach, fast-forward, or adopt. A bare `len(roots)==1` relaxation weakens foreign detection; the safe fix must additionally verify the single root carries the docket seed receipt (`OpInitRoot` / `publishedSeedReceipt`).
+2. **Cross-service scope the plan did not authorize.** To stay coherent the fix must change the shared predicate in `repository_check.go`, `repository_init.go`, `repository_migrate.go`, and the `reposetup` `RootParentless` contract — none of which are in this change's plan tasks (scoped to `repository_prepare.go` + CLI + integration tests). A prepare-only fix would make `prepare` accept a chain that `repository check` still calls foreign — a knowingly-introduced incoherence.
+3. **Against a stated non-goal.** The spec fences "metadata topology ... redesign" as a non-goal. Whether correcting this shared classifier belongs inside 0377 or in a separate predecessor change is a scoping decision for the maintainer.
+
+### Recommended resolution
+
+Decide one of: (a) authorize expanding 0377 to fix the shared metadata-root predicate (chain model: `len(roots)==1` AND the single root carries the docket seed receipt) consistently across prepare/check/init/migrate/reposetup, with Task 3's integration tests as the proof; or (b) split that classifier fix into a new predecessor change (it is a pre-existing `main` bug independent of 0377) and rebuild 0377 on top of it. Then resume 0377 via `docket change resume-halted --id 377 --acknowledge-quiescent`.
