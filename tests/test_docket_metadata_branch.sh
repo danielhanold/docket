@@ -67,13 +67,26 @@ assert "proposed-kill wired in docket-new-change" \
 assert "reconcile-kill wired in docket-implement-next" \
   'grep -qi "kill" skills/docket-implement-next/SKILL.md && grep -qi "terminal.publish\|terminal-publish" skills/docket-implement-next/SKILL.md'
 
-# I. docket-status: sweep invokes terminal-publish.
-assert "status sweep invokes terminal-publish" \
-  'grep -qi "terminal.publish\|terminal-publish" skills/docket-status/SKILL.md'
+# I. RETIRED (0372): terminal publication is deferred from Go v1, so the sweep no longer invokes
+#    terminal-publish. The old positive premise is gone (learnings: test-premise-deleted-not-regated);
+#    inverted to prove the invocation shape is absent, floored by the deferral diagnostic and a
+#    non-vacuity anchor on the surviving close-out-reference pointer.
+assert "status sweep carries no docket.sh terminal-publish invocation (0372)" \
+  '! grep -qE "docket\.sh[[:space:]]+terminal-publish" skills/docket-status/SKILL.md'
+assert "status sweep states terminal publication is deferred (0372 floor)" \
+  'grep -qF "terminal publication is deferred from Go v1" skills/docket-status/SKILL.md'
+assert "status sweep still chains the close-out reference (non-vacuity)" \
+  'grep -qF "terminal-close-out.md" skills/docket-status/SKILL.md'
 
-# J. docket-adr: Accepted ADRs publish.
-assert "adr skill references terminal-publish / publish" \
-  'grep -qi "terminal.publish\|terminal-publish\|publish" skills/docket-adr/SKILL.md'
+# J. RETIRED (0372): ADR terminal publication is deferred from Go v1, so docket-adr no longer
+#    invokes terminal-publish --adr. Inverted to prove the invocation shape is absent, floored by
+#    the deferral diagnostic and a non-vacuity anchor on the surviving adr-unpublished visibility check.
+assert "adr skill carries no docket.sh terminal-publish invocation (0372)" \
+  '! grep -qE "docket\.sh[[:space:]]+terminal-publish" skills/docket-adr/SKILL.md'
+assert "adr skill states terminal publication is deferred (0372 floor)" \
+  'grep -qF "terminal publication is deferred from Go v1" skills/docket-adr/SKILL.md'
+assert "adr skill still names the adr-unpublished visibility check (non-vacuity)" \
+  'grep -qF "adr-unpublished" skills/docket-adr/SKILL.md'
 
 # K. main-mode backward-compat: the degradation is documented at each docket-mode
 #    mechanic site (spec §7.6/§12). These assertions FAIL if a degradation clause is

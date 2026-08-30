@@ -1,7 +1,8 @@
 # Terminal close-out — the shared per-change sequence
 
 > Single source for the close-out sequence a terminal transition (`done` or `killed`) runs:
-> archive → re-render `## Artifacts` → terminal-publish → cleanup → board. All four drivers route
+> archive → re-render `## Artifacts` → cleanup → board (terminal publication is deferred from Go v1).
+> All four drivers route
 > through this file: `docket-finalize-change`'s per-change close-out and `docket-status`'s merge
 > sweep (the two `done` drivers), plus the kill callers — `docket-implement-next`'s reconcile-kill
 > and `docket-new-change`'s proposed-kill (changes 0054/0055). The sequence is one; only the
@@ -92,71 +93,17 @@ before the first read; every commit pushes immediately.
    The operation is the sole writer of the `docket:backlink` block; a typed refusal (malformed
    markers, missing artifact) leaves the file untouched — surface it, never hand-edit the block.
 
-3. **Publish the terminal record.** Reached only after the step-2 commit is on `origin/docket`.
-   **Gated by `TERMINAL_PUBLISH`** (change 0064) — pass `<terminal_publish>`, the resolved config's
-   `TERMINAL_PUBLISH` value from Step 0's `preflight`/`env` block, straight through:
-
-   ```
-   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh terminal-publish --id <id> --outcome <done|killed> \
-     --integration-branch <integration_branch> --metadata-branch docket \
-     --changes-dir <changes_dir> --adrs-dir <adrs_dir> --message "<msg>" \
-     --enabled <terminal_publish>
-   ```
-
-   Copies the archived change file + its `spec:` (if set) + the **`Accepted`** ADRs in `adrs:`
-   from `origin/docket` onto the integration branch in one dedicated commit — the only flow of
-   metadata onto the code line. Trust the exit code; its reuse-existing-file idempotency makes two
-   drivers racing on the same change a safe no-op.
-
-   **Plan/results + PR back-links re-render here too (change 0136).** `terminal-publish.sh`
-   re-stamps the `docket:backlink` block on the change's `plan:`/`results:` inside this same publish
-   commit when `terminal_publish: true` (internal — no extra step; a no-op under the default and in
-   `main`-mode, where those back-links are stamp-once at creation and go stale after archive). A
-   driver editing the PR body may likewise re-render its back-link line via `gh pr edit` —
-   best-effort, never aborts close-out.
-
-   When `terminal_publish` is `false` — **the default** since change 0084 — the script is a
-   **no-op that exits 0**: the record stays on `docket`, and a suppressed publish is *success* —
-   it does NOT trip the skip-publish guard, so steps 4–5 still run. Callers pass the flag and
-   keep trusting the exit code; no caller branches on the knob itself.
-
-   **When the publish is expected but does NOT complete — mark it (change 0083).** If
-   `terminal_publish` is `true` and this is docket-mode, but the publish is consciously deferred
-   (a human gate) or blocked (a wall the run cannot pass, e.g. a protected-branch push denial),
-   the driver appends the durable `## Publish deferred` marker before reporting:
-
-   ```
-   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh mark-publish-deferred --mode add \
-     --change-file .docket/<changes_dir>/archive/<UTC-date>-<id>-<slug>.md \
-     --reason <deferred|blocked> --detail "<short single-line why>" \
-     --date <UTC-date> --integration-branch <integration_branch> --id <id>
-   ```
-
-   Commit and push it on `metadata_branch` like any other metadata write. Autonomous callers
-   still abort-and-report — the marker makes that abort **durable and self-describing** instead
-   of living only in a chat thread, which is precisely how #0043's record went missing for eight
-   days with every health check reporting clean. `mark-publish-deferred.sh` **replaces** an
-   existing section rather than appending a second, so re-marking is safe.
-
-   **The rule reaches every HANDLED path that abandons an expected publish (change 0118)** — not
-   "any path": a hard crash between archive and publish can write nothing by definition, and that
-   residual stays accepted per ADR-0051, so this rule must not claim coverage it cannot enforce.
-   Scope it per leg, because the drivers diverge:
-
-   - A failed **step-2 re-render** abandons the publish for *every* driver, and every driver is
-     required by this contract to mark there. The `docket-status` sweep discharges that duty in
-     code (change 0118); the three skill-driven drivers discharge it by following this rule — no
-     executable enforcement is added for them, so read it as their duty, not as an accomplished
-     fact.
-   - A failed **step-2 commit/push** skips the publish only in the skill-driven drivers, which is
-     where the mark is owed. The sweep deliberately **continues** to publish on that leg (change
-     0075 §5, documented in `scripts/docket-status.md` §6a), so it owes no mark there.
-
-   **Never mark under suppression.** When `terminal_publish` is `false`, or in `main`-mode, the
-   publish is legitimately a no-op that exits 0 — that is *success*, not a deferral, and no
-   marker is written. **Never mark on a successful publish**, and never remove the marker by
-   hand: `terminal-publish.sh` clears it itself on the success path, so the state stays
-   presence-encoded.
+3. **Terminal publication (deferred).**
+   terminal publication is deferred from Go v1 — `docket finalize closeout` is the complete automated closeout boundary.
+   publication-deferral marking is deferred from Go v1 — existing `publish-deferred` markers remain as historical evidence.
+   Step 1's supported Go metadata closeout — `docket finalize closeout` on the done path, the frozen
+   `archive-change` leg on the kill path — is the whole automated closeout: no terminal record is
+   copied onto the integration branch, and no `## Publish deferred` marker is ever written. A request
+   that specifically requires *published* terminal artifacts on the integration branch stops
+   **before** claiming that outcome, even when the metadata transaction itself succeeded. Existing
+   published records and any existing `## Publish deferred` markers remain untouched historical
+   evidence — the `publish-deferred` health check keeps them visible. The frozen Bash publisher is
+   **not** a supported fallback, and an enabled `terminal_publish:` key activates nothing.
 
 4. **Clean up the feature branch + worktree.**
 
@@ -202,7 +149,8 @@ makes the publish a no-op, so there is no surface for the knob to act on.
 
 ## Failure posture — per caller
 
-The sequence is shared; the posture on a non-zero exit from steps 1–3 is the caller's:
+The sequence is shared; the posture on a non-zero exit from steps 1–2 is the caller's (step 3 is a
+deferred no-op that cannot fail):
 
 | Caller | Posture |
 |---|---|
@@ -211,18 +159,12 @@ The sequence is shared; the posture on a non-zero exit from steps 1–3 is the c
 | `docket-implement-next` reconcile-kill | trust each exit code; a failure aborts the kill and is surfaced before looping back to selection |
 | `docket-new-change` proposed-kill | same as reconcile-kill — surface and stop; nothing else is in flight |
 
-**The skip-publish guard:** a failed step 1 skips steps 2–3 for every caller; a **failed step-2
-commit/push skips step 3** in the skill-driven callers — a stale `## Artifacts` block must never
-be published. The `docket-status` sweep is **carved out of that second clause**: on the
-commit/push leg it continues to publish (change 0075 §5), because there the block is merely stale
-and cosmetic while an aborted close-out is not — see `scripts/docket-status.md` §6a. A failed
-step-2 **re-render** skips step 3 for every caller, sweep included. A **no-diff
-re-render is success**: commit the block only when it actually changed; an unchanged block
-(nothing to re-point) is not a failure and proceeds to publish — the skip-publish guard fires on
-a *failed* commit/push, never on an empty diff. Steps 4–5
-follow the caller's own skill body: the sweep treats both as best-effort (log and continue; the
-board self-heals on the next pass); other callers keep their own posture (e.g.
-`docket-new-change`'s post-kill Board pass is must-land).
+**Step-failure propagation:** a failed step 1 (archive) skips step 2 (re-render) for every caller.
+A **no-diff re-render is success**: commit the block only when it actually changed; an unchanged
+block (nothing to re-point) is not a failure. Step 3 (terminal publication) is a deferred no-op and
+never fails. Steps 4–5 follow the caller's own skill body: the sweep treats both as best-effort
+(log and continue; the board self-heals on the next pass); other callers keep their own posture
+(e.g. `docket-new-change`'s post-kill Board pass is must-land).
 
 ## Determinism invariant
 
