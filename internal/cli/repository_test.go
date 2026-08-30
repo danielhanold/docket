@@ -9,11 +9,11 @@ import (
 )
 
 // TestRepositoryCommandsRegistered proves `docket repository` carries exactly the
-// three settled subcommands, each with a --repo-dir flag, and that the bare
+// four settled subcommands, each with a --repo-dir flag, and that the bare
 // group and an unknown subcommand both fail rather than silently succeeding.
 func TestRepositoryCommandsRegistered(t *testing.T) {
 	root := captureTree(t)
-	for _, sub := range []string{"init", "check", "migrate"} {
+	for _, sub := range []string{"init", "check", "migrate", "prepare"} {
 		cmd, _, err := root.Find([]string{"repository", sub})
 		if err != nil || cmd == nil || cmd.Name() != sub {
 			t.Fatalf("repository %s not registered: cmd=%v err=%v", sub, cmd, err)
@@ -222,6 +222,73 @@ func TestRepositoryMigrateInteractiveDeclineDoesNotAuthorize(t *testing.T) {
 	}
 	if calls[0].Authorized {
 		t.Errorf("a declined preview must never authorize: %+v", calls[0])
+	}
+}
+
+// TestRepositoryPrepareJSONEnvelope proves `docket repository prepare --json`
+// emits the protocol-v1 envelope carrying the repository.prepare operation key,
+// exiting 0 for an applied preparation.
+func TestRepositoryPrepareJSONEnvelope(t *testing.T) {
+	old := repositoryPrepareRunner
+	repositoryPrepareRunner = func(ctx context.Context, d app.SetupDeps, o app.PrepareOptions) app.OperationResult {
+		return app.RepositoryPrepareResult{
+			Envelope:        app.NewEnvelope(app.OperationRepositoryPrepare, app.ResultApplied),
+			Disposition:     app.PrepareDispositionApplied,
+			RepositoryState: "healthy",
+		}
+	}
+	defer func() { repositoryPrepareRunner = old }()
+
+	out, _, code := runCLI(t, "repository", "prepare", "--json")
+	if code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	if !strings.HasPrefix(strings.TrimSpace(out), "{") || !strings.Contains(out, `"operation":"repository.prepare"`) {
+		t.Fatalf("--json did not emit the prepare envelope: %q", out)
+	}
+}
+
+// TestRepositoryPrepareHumanSummaryRedacted proves the non-JSON path presents a
+// one-line summary through the result's HumanText and never dumps the full
+// context: neither the origin URL credentials nor the resolved skills map reach
+// human stdout, even when the returned context carries both.
+func TestRepositoryPrepareHumanSummaryRedacted(t *testing.T) {
+	old := repositoryPrepareRunner
+	repositoryPrepareRunner = func(ctx context.Context, d app.SetupDeps, o app.PrepareOptions) app.OperationResult {
+		return app.RepositoryPrepareResult{
+			Envelope:        app.NewEnvelope(app.OperationRepositoryPrepare, app.ResultApplied),
+			Disposition:     app.PrepareDispositionApplied,
+			RepositoryState: "healthy",
+			Context: &app.PrepareContext{
+				RepoRoot:  "/repo",
+				OriginURL: "https://user:s3cr3ttoken@github.com/acme/docket.git",
+				Skills:    app.PrepareSkills{Brainstorm: "docket-brainstorm-secret", Plan: "docket-plan", Build: "docket-build"},
+			},
+		}
+	}
+	defer func() { repositoryPrepareRunner = old }()
+
+	out, _, code := runCLI(t, "repository", "prepare")
+	if code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	if !strings.Contains(out, "repository prepare") {
+		t.Fatalf("human output is missing the one-line summary: %q", out)
+	}
+	if strings.Contains(out, "s3cr3ttoken") {
+		t.Errorf("human output leaked origin URL credentials: %q", out)
+	}
+	if strings.Contains(out, "docket-brainstorm-secret") {
+		t.Errorf("human output dumped the resolved skills map: %q", out)
+	}
+}
+
+// TestRepositoryPrepareUnknownFlagFails proves an unrecognized flag is refused
+// as an argument error before the operation runs.
+func TestRepositoryPrepareUnknownFlagFails(t *testing.T) {
+	_, _, code := runCLI(t, "repository", "prepare", "--bogus")
+	if code == 0 {
+		t.Fatalf("unknown flag on repository prepare must fail, got exit 0")
 	}
 }
 
