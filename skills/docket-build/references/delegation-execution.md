@@ -1,8 +1,10 @@
 # Delegation execution — required capabilities and per-harness evidence
 
-Reference for `scripts/runner-dispatch.md` § *Delegation execution posture*. The six required
-capabilities are defined once, in [`gate-execution.md`](gate-execution.md) — this file does not
-restate them. What it adds is the evidence for a *different launch shape*: the **adapter** launch
+Point-in-time evidence record for the retired Bash delegation facade's adapter launch shape. The
+maintained dispatch surface is host-native (change 0371) and never invokes the facade; this page is
+kept as the measurement record behind the frozen facade until change 0370 deletes it. The six
+required capabilities are defined once, in [`gate-execution.md`](gate-execution.md) — this file does
+not restate them. What it adds is the evidence for a *different launch shape*: the **adapter** launch
 that starts a whole delegated agent run, rather than the **gate** launch that starts a test command.
 
 Two things on this page are deliberately kept apart. The **mechanism** — docket's own detachment
@@ -34,8 +36,8 @@ Independent of any harness, the facade's detachment mechanism was measured herme
   one not, then the launcher's whole **process group** received `TERM`. The `set -m` child (own
   PGID) **survived**; the non-`set -m` child (the launcher's PGID) was **killed**.
 - That is capability 1's stronger reading — survival of the teardown of the initiating call's
-  process group, not merely of its parent's exit. `tests/test_runner_dispatch_detach.sh` pins it
-  with a fake adapter, and the assert is mutation-tested by removing `set -m`.
+  process group, not merely of its parent's exit. The frozen facade's own detach test pins it with a
+  fake adapter, and that assert is mutation-tested by removing `set -m`.
 
 This measures the **facade**, not any harness. It says nothing about whether a given child CLI
 tolerates being started that way, which is what the next section is about.
@@ -56,16 +58,16 @@ so nothing on this page licenses treating a delegated run on these harnesses as 
 
 The population is the shipped harness roster (`HD_SHIPPED_HARNESSES`), so every harness docket ships
 defaults for is accounted for here, including the one that carries no adapter. Each shape named
-above is read from that runner's own adapter (`scripts/runners/<name>.md` and its sibling script);
-it is what *would* be probed, not what has been.
+above is read from that runner's own adapter (each runner's own adapter contract in the frozen
+facade); it is what *would* be probed, not what has been.
 
 ## Probe recipe
 
 For each harness that has a shipped adapter, with its CLI installed and authenticated, changing
 **one** variable per run:
 
-1. Launch a delegated agent whose task is deliberately longer than the parent harness's foreground
-   ceiling: `docket.sh runner-dispatch --launch --runner <h> --agent status`.
+1. Launch a delegated agent through the frozen facade's launch verb (see the facade's own contract
+   doc) with a task deliberately longer than the parent harness's foreground ceiling.
 2. Confirm the call returns in seconds with a dispatch key, and that
    `<git-common-dir>/docket/dispatch/<key>/launch` records a `pgid` different from the launching
    shell's.
