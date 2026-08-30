@@ -37,7 +37,6 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0034](0034-repo-root-anchored-to-main-worktree.md) — docket scripts anchor the repo root to the main worktree, never the caller's CWD (Accepted) ← change #75 · relates to ADR-0068
 - [ADR-0035](0035-cleanup-teardown-fail-closed.md) — docket's feature-branch teardown is fail-closed, never half-destructive (Accepted) ← change #75 · relates to ADR-0034
 - [ADR-0036](0036-codex-agents-md-dispatch-block-committed-machine-neutral.md) — Codex AGENTS.md dispatch block is committed and machine-neutral (Accepted) ← change #77 · relates to ADR-0015, ADR-0017, ADR-0020
-- [ADR-0037](0037-runner-delegation-explicit-runner-field.md) — Cross-harness runner delegation is switched by an explicit runner field, never model-ID sniffing (Accepted) ← change #79 · relates to ADR-0015, ADR-0012
 - [ADR-0040](0040-terminal-publish-default-opt-in.md) — terminal_publish defaults to false — publishing is opt-in (Accepted) ← change #84 · relates to ADR-0027
 - [ADR-0041](0041-learnings-findings-directory-and-promotion-valve.md) — Learnings ledger restructure — findings directory + derived index + human-gated promotion valve (Accepted) ← change #67 · relates to ADR-0005, ADR-0012, ADR-0019, ADR-0028, ADR-0030, ADR-0031, ADR-0032, ADR-0039
 - [ADR-0043](0043-retire-bot-auto-approval-zero-approvals-branch-protection.md) — Retire bot auto-approval — branch protection with zero required approvals is the single-maintainer merge path (Accepted) ← change #95 → reverses ADR-0042 · relates to ADR-0011
@@ -95,12 +94,14 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0097](0097-pr-identity-is-verified-by-parsed-pr-number.md) — Manifest pr: stores the canonical URL; PR identity is verified by parsed number (Accepted) ← change #344
 - [ADR-0098](0098-structured-gate-waiting-and-ownership-handoff.md) — Gate waiting is structured, resumable, and ownership-handed-off (Accepted) ← change #342 · relates to ADR-0024, ADR-0095
 - [ADR-0099](0099-one-metadata-topology-for-go-v1.md) — One metadata topology for Go v1 (main-mode removed) (Accepted) ← change #363 → supersedes ADR-0002 · relates to ADR-0001, ADR-0052
+- [ADR-0100](0100-native-host-dispatch-is-authoritative-for-registered-docket.md) — Native host dispatch is authoritative for registered docket agents (Accepted) ← change #371 → supersedes ADR-0037 · relates to ADR-0036, ADR-0074
 
 ## Superseded / Reversed
 
 - [ADR-0002](0002-docket-mode-default-and-bootstrap.md) — docket-mode is the default; refuse-and-migrate bootstrap; terminal-publish single-sourced in finalize (Superseded by ADR-99) ← change #2 · relates to ADR-0001
 - [ADR-0017](0017-cursor-dispatch-rule-full-agent-set.md) — Per-repo agent generation goes always-full-set, opt-in, with a Cursor dispatch rule (Superseded by ADR-20) ← change #48 · relates to ADR-0015, ADR-0016
 - [ADR-0023](0023-configurable-sdd-build-model.md) — Configurable SDD build models — a `build:` surface of per-role direct model IDs (Superseded by ADR-63) ← change #44 · relates to ADR-0015, ADR-0016, ADR-0018
+- [ADR-0037](0037-runner-delegation-explicit-runner-field.md) — Cross-harness runner delegation is switched by an explicit runner field, never model-ID sniffing (Superseded by ADR-0100) ← change #79 · relates to ADR-0015, ADR-0012
 - [ADR-0038](0038-runner-shim-wrapper-single-dispatch-chokepoint.md) — Runner delegation rides a generated shim wrapper body, not per-skill dispatch branching (Superseded by ADR-79) ← change #79 · relates to ADR-0012, ADR-0015, ADR-0020, ADR-0024, ADR-0037
 - [ADR-0039](0039-config-example-mirrors-wrapper-defaults.md) — config.yml.example is a documented mirror of the shipped wrapper defaults (Superseded by ADR-48) ← change #81
 - [ADR-0042](0042-auto-approve-consent-model.md) — Auto-approve consent model — a bot approval proves docket's pipeline signed off, not human review (Reversed by ADR-0043) ← change #62 · relates to ADR-0011

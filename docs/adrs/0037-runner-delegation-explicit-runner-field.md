@@ -2,7 +2,7 @@
 id: 37
 slug: runner-delegation-explicit-runner-field
 title: Cross-harness runner delegation is switched by an explicit runner field, never model-ID sniffing
-status: Accepted
+status: 'Superseded by ADR-0100'
 date: 2026-07-15
 supersedes: []
 reverses: []
