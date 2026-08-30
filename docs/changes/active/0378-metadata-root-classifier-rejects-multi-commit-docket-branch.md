@@ -21,7 +21,7 @@ branch: 'fix/metadata-root-classifier-rejects-multi-commit-docket-branch'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-30T19:34:49Z'
+claimed_at: '2026-08-30T19:35:28Z'
 ---
 
 ## Artifacts
