@@ -89,10 +89,47 @@ func TestDispatchInterior(t *testing.T) {
 	if !strings.HasSuffix(got, "Read git.\n") || strings.HasSuffix(got, "\n\n") {
 		t.Errorf("interior does not end with exactly one newline: %q", got[len(got)-12:])
 	}
-	// Shared by three harnesses, so it may name none of them.
-	for _, token := range []string{"claude", "codex", "cursor", "opencode", "runner"} {
+	// Shared by three harnesses, so it may name none of them. The retired runner
+	// path is banned by its full `runner-dispatch` spelling, not the bare word
+	// "runner": change 0371's never-fall-back rule legitimately says "shell
+	// runner" while forbidding exactly that reroute.
+	for _, token := range []string{"claude", "codex", "cursor", "opencode", "runner-dispatch"} {
 		if strings.Contains(strings.ToLower(got), token) {
 			t.Errorf("the shared dispatch interior names the harness token %q", token)
+		}
+	}
+}
+
+// TestDispatchPreambleStatesNativeOnlyPolicy pins the canonical policy's
+// load-bearing clauses (change 0371, spec § Canonical dispatch policy). Asserts
+// collapse whitespace so a re-wrap never reddens them, and each phrase is a
+// verbatim slice of the claim, not a common noun (learnings:
+// assert-detects-removal-not-replacement).
+func TestDispatchPreambleStatesNativeOnlyPolicy(t *testing.T) {
+	collapse := func(s string) string { return strings.Join(strings.Fields(s), " ") }
+	got := collapse(dispatchPreamble)
+	for _, phrase := range []string{
+		// exact registered same-name identity
+		"registered same-name `docket-*` agent",
+		// native facility, request forwarded unchanged
+		"harness's native named-agent dispatch, and pass the request through unchanged",
+		// registry is authoritative; no invented registration
+		"native agent registry is authoritative",
+		"do not invent one",
+		// the never-fall-back rule (NEW in 0371)
+		"Never reroute a registered workflow through a shell runner, another harness, a generic agent, or an inline reconstruction of its contract",
+		"a missing registration is a visible capability failure, not a fallback trigger",
+	} {
+		if !strings.Contains(got, phrase) {
+			t.Errorf("dispatchPreamble lost the policy clause %q", phrase)
+		}
+	}
+	// The policy must never name or recommend the retired runner path, and must
+	// stay machine-neutral (no harness names — the same interior lands on every
+	// host surface).
+	for _, banned := range []string{"runner-dispatch", "docket.sh", "scripts/runners", "claude", "codex", "cursor", "opencode"} {
+		if strings.Contains(strings.ToLower(got), banned) {
+			t.Errorf("dispatchPreamble contains banned token %q", banned)
 		}
 	}
 }
