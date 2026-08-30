@@ -147,30 +147,33 @@ func checkRevisions(facts reposetup.Facts) map[string]string {
 func augmentCheckFacts(ctx context.Context, git *gitcli.Client, f *reposetup.Facts, sc setupContext) {
 	metaRef := gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)
 
-	// Metadata root shape: a single parentless root reachable from the tip is the
-	// docket orphan shape; extra parents, a non-root tip, or more than one root is
-	// foreign. (Task-11 refines this with receipt / legacy-equivalent tree checks;
-	// the single-orphan-root test is sufficient for the init-created shape.)
+	// Metadata root shape: the shared ownership verifier decides, at the FETCHED
+	// remote docket tip, whether the tip's sole parentless-root lineage is a
+	// verified docket seed root (RootParentless — a native init/migrate receipt or
+	// a receiptless legacy-equivalent tree, with any number of permitted
+	// descendants and merges; the root need not equal the tip), readable evidence
+	// with no ownership proof (RootForeign), or unreadable evidence (RootUnknown).
+	// The fetched tip is the single authority (learning
+	// decide-and-act-on-the-same-copy): it becomes RemoteMetadata's reported
+	// revision and the synchronizedPresence comparison's remote side, so the
+	// reported tip is exactly the tip the ownership proof was computed at.
 	if sc.metadataTip != "" {
 		// The base gatherer proves the metadata branch PRESENT via ls-remote (its OID
 		// only); on a clone that never fetched docket the commit object is not yet
-		// local, so a root-shape probe would error into RootUnknown. Fetch the branch
-		// first so both this probe and gatherFrontmatterFindings read a local object.
-		// The fetch updates only a remote-tracking ref (the read-only contract
-		// excludes refs/remotes/*); a fetch error leaves the ls-remote tip in place and
-		// RootCommits maps its own failure to the safe RootUnknown, never a false shape.
-		metaTip := sc.metadataTip
-		if rev, ferr := git.FetchBranch(ctx, sc.repo, setupRemote(), metaRef); ferr == nil {
-			metaTip = string(rev.Commit)
-		}
-		roots, err := git.RootCommits(ctx, sc.repo, gitcli.ObjectID(metaTip))
-		switch {
-		case err != nil:
+		// local. Fetch the branch first so both the ownership probe and
+		// gatherFrontmatterFindings read a local object. The fetch updates only a
+		// remote-tracking ref (the read-only contract excludes refs/remotes/*).
+		rev, ferr := git.FetchBranch(ctx, sc.repo, setupRemote(), metaRef)
+		if ferr != nil {
+			// A fetch error is unknown even if an older object happens to be available
+			// locally: never fall back to the ls-remote tip and never prove ownership
+			// from a stale object. Unknown, never a false shape.
 			f.MetadataRoot = reposetup.RootUnknown
-		case len(roots) == 1 && string(roots[0]) == metaTip:
-			f.MetadataRoot = reposetup.RootParentless
-		default:
-			f.MetadataRoot = reposetup.RootForeign
+			sc.diagnostics = append(sc.diagnostics, setupDiag{Probe: "metadata-fetch", Err: ferr})
+		} else {
+			f.RemoteMetadata.Tip = string(rev.Commit)
+			own := verifyMetadataOwnership(ctx, git, sc.repo, rev.Commit, gitcli.ObjectID(sc.sourceRevision), sc.defaultBranch)
+			f.MetadataRoot = own.Shape
 		}
 	}
 

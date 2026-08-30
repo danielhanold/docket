@@ -337,6 +337,13 @@
 #   repoownership  cold  8.37  8.26  8.36 -> worst  8.37 -> next multiple of 5 is 10, plus 5 -> 15
 # The worst reading grew 6.39 -> 8.37 but the computed ceiling is still 15, so the row and
 # EXPECTED_TOTAL are unchanged.
+# Change 0378 (Task 5) re-shaped this file again — it adds the check-level scenarios that drive the
+# read-only `repository check` service end to end through augmentCheckFacts (newHealthyRepo's full
+# init + clone topology, multi-commit metadata pushes, foreign/shared-ancestry lineages, and a
+# direct failed-fetch unknown case), which are heavier than the plumbing-only verifier fixtures. It
+# was re-measured the same way:
+#   repoownership  cold  13.73  13.74  13.77 -> worst  13.77 -> next multiple of 5 is 15, plus 5 -> 20
+# The computed ceiling moves 15 -> 20, so the row rises and EXPECTED_TOTAL moves 2855 -> 2860: +5.
 #
 # tests/test_go_integration_githubcli_*.sh are FOUR NEW FILES brought by change 0333 — the
 # same new-test-file + integration-SHARD case as the gitcli block above, for internal/githubcli.
@@ -651,7 +658,7 @@ tests/test_go_integration_app_rebase.sh	25	parallel
 tests/test_go_integration_app_repocheck.sh	20	parallel
 tests/test_go_integration_app_repocontention.sh	15	parallel
 tests/test_go_integration_app_repomigration.sh	20	parallel
-tests/test_go_integration_app_repoownership.sh	15	parallel
+tests/test_go_integration_app_repoownership.sh	20	parallel
 tests/test_go_integration_app_reporecovery.sh	20	parallel
 tests/test_go_integration_app_reposetup.sh	15	parallel
 tests/test_go_integration_app_reposetup_race.sh	25	parallel

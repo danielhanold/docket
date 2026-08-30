@@ -4,6 +4,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -701,5 +702,182 @@ func TestIntegrationRepoOwnershipLegacyUnreadableHistoryIsUnknown(t *testing.T) 
 	}
 	if own.Err == nil {
 		t.Error("Err is nil, want the retained probe error")
+	}
+}
+
+// --- Check-level scenarios: augmentCheckFacts consumes the verifier -----------
+//
+// These drive the read-only `repository check` service end to end against the
+// real bare-upstream + clone fixture (newHealthyRepo, from
+// repocheck_integration_test.go). They live in this shard (prefix
+// TestIntegrationRepoOwnership) rather than the RepoCheck shard because that
+// shard's runtime-budget row has little headroom. They prove the defect fix at
+// the check boundary: a multi-commit verified metadata branch classifies healthy
+// with no metadata-root-foreign, while genuinely foreign lineages still do.
+
+// pushMetadataCommits adds n content-changing metadata commits (new active-change
+// records, no seed receipt on any of them) to the .docket worktree and pushes
+// them to origin. The .docket worktree HEAD is the docket branch, so both the
+// local docket ref and the remote docket tip advance in lockstep and stay
+// synchronized; the seed's root tree contents are not retained at the new tip.
+func (r *initRepo) pushMetadataCommits(t *testing.T, n int) {
+	t.Helper()
+	dotDocket := filepath.Join(r.invocation, ".docket")
+	for i := 1; i <= n; i++ {
+		slug := fmt.Sprintf("meta%d", i)
+		rel := fmt.Sprintf("docs/changes/active/%04d-%s.md", i, slug)
+		writeRepoFile(t, dotDocket, rel, changeRecord(i, slug, fmt.Sprintf("Meta %d", i)))
+		runGit(t, dotDocket, "add", "-A")
+		runGit(t, dotDocket, "commit", "-q", "-m", fmt.Sprintf("meta commit %d", i))
+	}
+	runGit(t, dotDocket, "push", "-q", "origin", "docket")
+}
+
+// findingWithCode reports whether the check result carries a finding of the given
+// code (e.g. the metadata-root-foreign conflict finding).
+func findingWithCode(res RepositoryCheckResult, code string) bool {
+	for _, f := range res.Findings {
+		if f.Code == code {
+			return true
+		}
+	}
+	return false
+}
+
+// TestIntegrationRepoOwnershipCheckHealthyMultiCommit is the defect's headline
+// check-level test: a healthy repository whose metadata branch has grown ordinary
+// content-changing metadata commits (so its root no longer equals its tip) still
+// classifies healthy — the old root-equals-tip predicate reported it foreign.
+func TestIntegrationRepoOwnershipCheckHealthyMultiCommit(t *testing.T) {
+	r := newHealthyRepo(t)
+	r.pushMetadataCommits(t, 3)
+
+	res := r.runCheck(t)
+	if res.RepositoryState != string(reposetup.StateHealthy) {
+		t.Errorf("RepositoryState = %q (%s), want healthy (a multi-commit verified metadata branch is not foreign)", res.RepositoryState, res.HumanText())
+	}
+	if findingWithCode(res, "metadata-root-foreign") {
+		t.Errorf("check reported metadata-root-foreign on a verified multi-commit branch:\n%s", res.HumanText())
+	}
+	if code := res.CheckExitCode(); code != 0 {
+		t.Errorf("exit = %d (%s), want 0", code, res.HumanText())
+	}
+}
+
+// TestIntegrationRepoOwnershipCheckDescendantsPreserveFrontmatterFindings proves
+// the ownership fix silences nothing else: a metadata branch with descendants AND
+// a deliberately broken frontmatter record still surfaces that frontmatter
+// finding (independent corpus validation runs regardless of the root proof).
+func TestIntegrationRepoOwnershipCheckDescendantsPreserveFrontmatterFindings(t *testing.T) {
+	r := newHealthyRepo(t)
+	r.pushMetadataCommits(t, 2)
+
+	dotDocket := filepath.Join(r.invocation, ".docket")
+	broken := "docs/changes/active/0099-broken.md"
+	// A malformed record: missing required frontmatter fields (only id present),
+	// which the corpus validator reports as a finding referencing this path.
+	writeRepoFile(t, dotDocket, broken, "---\nid: 99\n---\n\nbroken record\n")
+	runGit(t, dotDocket, "add", "-A")
+	runGit(t, dotDocket, "commit", "-q", "-m", "broken frontmatter record")
+	runGit(t, dotDocket, "push", "-q", "origin", "docket")
+
+	res := r.runCheck(t)
+	if findingWithCode(res, "metadata-root-foreign") {
+		t.Errorf("check reported metadata-root-foreign on a verified multi-commit branch:\n%s", res.HumanText())
+	}
+	found := false
+	for _, f := range res.Findings {
+		if strings.Contains(f.Ref, "0099-broken.md") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("no frontmatter finding referencing the broken record; findings = %+v", res.Findings)
+	}
+}
+
+// TestIntegrationRepoOwnershipCheckForeignNonemptyRoot proves a single-root
+// nonempty metadata branch that carries no seed receipt and matches no historical
+// snapshot is still reported foreign at the check boundary.
+func TestIntegrationRepoOwnershipCheckForeignNonemptyRoot(t *testing.T) {
+	r := newHealthyRepo(t)
+	// Replace origin/docket with a disjoint parentless NONEMPTY commit (built on an
+	// orphan branch in the writer clone) carrying no receipt.
+	runGit(t, r.writer, "checkout", "-q", "--orphan", "foreign-docket")
+	runGit(t, r.writer, "rm", "-rf", "-q", ".")
+	writeRepoFile(t, r.writer, "foreign.txt", "not a docket seed\n")
+	runGit(t, r.writer, "add", "-A")
+	runGit(t, r.writer, "commit", "-q", "-m", "foreign nonempty root")
+	runGit(t, r.writer, "push", "-q", "-f", "origin", "foreign-docket:docket")
+
+	res := r.runCheck(t)
+	if !findingWithCode(res, "metadata-root-foreign") {
+		t.Errorf("foreign nonempty root not reported foreign; state=%q findings=%+v", res.RepositoryState, res.Findings)
+	}
+}
+
+// TestIntegrationRepoOwnershipCheckForeignSharedAncestry proves a metadata branch
+// created FROM the integration branch (shared ancestry) — even carrying
+// docket-looking files — is reported foreign at the check boundary.
+func TestIntegrationRepoOwnershipCheckForeignSharedAncestry(t *testing.T) {
+	r := newHealthyRepo(t)
+	runGit(t, r.writer, "fetch", "-q", "origin", "main")
+	runGit(t, r.writer, "checkout", "-q", "-B", "shared-docket", "origin/main")
+	writeRepoFile(t, r.writer, "docs/changes/active/0001-x.md", changeRecord(1, "x", "X"))
+	runGit(t, r.writer, "add", "-A")
+	runGit(t, r.writer, "commit", "-q", "-m", "docket branched from integration")
+	runGit(t, r.writer, "push", "-q", "-f", "origin", "shared-docket:docket")
+
+	res := r.runCheck(t)
+	if !findingWithCode(res, "metadata-root-foreign") {
+		t.Errorf("shared-ancestry metadata branch not reported foreign; state=%q findings=%+v", res.RepositoryState, res.Findings)
+	}
+}
+
+// TestIntegrationRepoOwnershipCheckFailedFetchIsUnknown proves a failed metadata
+// fetch is unknown, never foreign: augmentCheckFacts leaves f.MetadataRoot at
+// RootUnknown (even if an older object were available locally) and the classifier
+// does not report metadata-root-foreign. augmentCheckFacts is driven directly
+// with a setupContext whose remote has no docket branch to fetch.
+func TestIntegrationRepoOwnershipCheckFailedFetchIsUnknown(t *testing.T) {
+	r := newInitRepo(t, healthySetupYML, nil)
+	mainTip := runGit(t, r.invocation, "rev-parse", "origin/main")
+
+	f := reposetup.Facts{}
+	f.RemoteMetadata.Presence = reposetup.PresencePresent
+	f.RemoteMetadata.Tip = mainTip // an ls-remote-observed OID; the fetch below still fails
+	sc := setupContext{
+		repo:              gitcli.Repository{PrimaryWorktree: r.invocation},
+		defaultBranch:     "main",
+		integrationBranch: "main",
+		sourceRevision:    mainTip,
+		metadataTip:       mainTip,
+	}
+	augmentCheckFacts(context.Background(), newGitClient(t), &f, sc)
+
+	if f.MetadataRoot != reposetup.RootUnknown {
+		t.Errorf("MetadataRoot = %v, want RootUnknown after a failed metadata fetch", f.MetadataRoot)
+	}
+	if f.MetadataRoot == reposetup.RootForeign {
+		t.Fatal("a failed fetch was collapsed into RootForeign")
+	}
+	cls := reposetup.Classify(f)
+	if contains(cls.Reasons, "metadata-root-foreign") {
+		t.Errorf("classifier reported metadata-root-foreign after a failed fetch; reasons=%v", cls.Reasons)
+	}
+}
+
+// TestIntegrationRepoOwnershipCheckIsReadOnly proves check on a multi-commit
+// metadata branch performs no observable write apart from the permitted
+// refs/remotes/* advance and fetched objects.
+func TestIntegrationRepoOwnershipCheckIsReadOnly(t *testing.T) {
+	r := newHealthyRepo(t)
+	r.pushMetadataCommits(t, 3)
+
+	before := r.readOnlySnapshot(t)
+	r.runCheck(t)
+	after := r.readOnlySnapshot(t)
+	if before != after {
+		t.Errorf("check wrote observable state:\nbefore:\n%s\nafter:\n%s", before, after)
 	}
 }
