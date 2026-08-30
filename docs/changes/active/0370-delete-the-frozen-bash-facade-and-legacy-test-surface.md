@@ -77,3 +77,37 @@ may be reconciled; a material migration redesign halts for regrooming.
 ### 2026-08-30
 
 Reconciled against the merged 0369 -> 0371 -> 0372 consumer-cutover chain. Confirmed current reality on origin/main: changes 0369 (retained-consumer typed-Go migration), 0371 (native host dispatch), and 0372 (deferred-feature retirement + consumer seal) are all archived at status done, so the base contains the whole prerequisite chain and the spec's opening premise holds. The frozen surface is still physically present and unused by maintained consumers, exactly as the spec assumes: scripts/docket.sh, scripts/lib/docket-runtime.sh, and scripts/run-tests.sh all resolve on origin/main; scripts/ still carries ~49 shell scripts across ~88 tracked files; ~188 shell/bats tests remain under tests/; and ~204 maintained references to DOCKET_SCRIPTS_DIR / DOCKET_BASH_PATH / runtime.bash remain outside the immutable archive/ADR/spec history. The canonical runner is the Go-native docket development test (internal/cli/development_test_cmd.go + internal/suiterunner), which still executes the Go-plus-legacy corpus and must contract to Go plus exactly the two retained POSIX product suites (repository-root install.sh and the release downloader). No fundamental invalidation: the design's shape-derived, coverage-before-deletion, fail-closed-on-unknowns approach is intact and no maintained consumer has already been removed out from under it. Relations (depends_on [372]; related 318/322/326/361/366/367/369/371/372; adrs 14/29/30/33/36/74/99) remain accurate and are left untouched. Scope, goals, and acceptance criteria stand as written; concrete counts above are review context only, never architectural gates, per the spec. Proceeding to plan and build. NOTE for follow-up capture: this change deletes the very facade (docket.sh / DOCKET_SCRIPTS_DIR) that installed docket skills invoke at runtime via the Step-0 preamble; the installed skill copies and their harness wiring are outside this repo's tree and outside 0370's deletion surface, so their migration off the retired env vars (if any remains) is separate operator work to be captured deliberately if not already covered by 0371's native-dispatch cutover.
+
+## Run halted
+
+### 2026-08-30
+
+2026-08-30 — Autonomous implement-next run HALTED at Task 1 (shape-derived inventory), before any code was written (feature branch head e3068d6 carries only the plan commit; Task 1 committed nothing). The build's fail-closed classification pass found a material, load-bearing contradiction between this change's spec premise and the merged base it is built on, and I verified it directly from git before halting.
+
+## What blocks the change
+
+The spec's foundational assumption — "0372 leaves the facade frozen, unused by maintained consumers" — and Acceptance criterion 2 ("shape-derived reconciliation classifies all candidates with no unknown/error state or maintained consumer") are contradicted by the merged base. The retained docket workflow skills are still LIVE executable consumers of a whole family of Bash-facade operations that have NO Go CLI verb, and 0370's plan builds none:
+
+| Facade op (deleted when scripts/docket.sh + scripts/lib/ go) | Go verb? | Live skill invocations verified from git |
+|---|---|---|
+| `docket.sh preflight` (Step-0 bootstrap of EVERY docket skill: config-resolve + metadata-worktree sync) | none | skills/docket-convention/SKILL.md:75 and every operating skill's Step 0 |
+| `docket.sh docket-status --board-only` (the Board pass) | none | 12 live skill-command references |
+| `docket.sh render-change-links` (the `## Artifacts` block writer) | none | 5 live references |
+| `docket.sh render-adr-index` | none | 2 live references (docket-adr) |
+| `docket.sh stack-base` / stack-children / stack-closeout | none | stacked-changes reference |
+| `docket.sh adr-checks` | none | 1 live reference (docket-adr) |
+| `docket.sh docket-status` (plain) | none | docket-status skill |
+
+Verification performed directly (not taken on the worker's word): `git grep -nE 'Use:\s*"(preflight|env|board-refresh|render-change-links|render-adr-index|adr-checks|stack-base|stack-children|stack-closeout|docket-status)"'` over internal/**/*.go and cmd/**/*.go returns EXIT 1 (no such cobra verb for any of them), while the canonical skills/**/SKILL.md files still invoke `"${DOCKET_SCRIPTS_DIR}"/docket.sh preflight` etc. as their live Step-0/Board/ADR commands.
+
+## Why this is regrooming, not a reconcile adjustment
+
+- The merged cutover chain deliberately deferred exactly these ops. Change 0369's reconcile log lists preflight, board-refresh, render-change-links, stack-base/children/closeout, and adr-checks as "Frozen / unmapped — no landed Go verb, left unchanged and reported (not this change)," with the abort boundary "Reconciliation halts if an in-scope caller needs a new operation or substantial bespoke adapter." Change 0372 states these "remain maintained callers until change 370 deletes the facade."
+- But 0370's plan provides no Go homes: Task 7 only "corrects active prose" (it cannot retarget a skill to a Go verb that does not exist), and Task 8 deletes scripts/docket.sh + scripts/lib/ (which every op script sources) plus the op scripts. Deleting the facade therefore removes docket's own bootstrap (`preflight`) and its Board/artifacts/stack/ADR lifecycle from every skill with nothing to replace them.
+- 0370's own "Out of scope" explicitly excludes "Retained consumer migration (0369)," so 0370 cannot legitimately absorb this by widening scope. Providing Go homes is a new subsystem's worth of work (a Go preflight/bootstrap for config-resolve + metadata-worktree sync, a Board-pass verb, a change-links renderer verb, stack verbs, ADR-index/adr-checks verbs) — a material lifecycle-migration gap, which the spec's "Failure and recovery" section routes to REGROOMING, not to in-run reconcile.
+
+## Recommended human action
+
+A predecessor change must migrate the deferred facade operations (preflight/bootstrap, board-refresh, render-change-links, render-adr-index, adr-checks, stack-base/children/closeout, docket-status) to Go CLI verbs and cut the skills over to them, BEFORE 0370 can delete the facade. Alternatively, re-scope/re-groom 0370 to include that migration (which contradicts its current Out-of-scope boundary and its dependency framing). Either way this is a design decision for a human/groomer.
+
+The base itself is healthy: b853e8c0 is the merged 0369/0371/0372 tip, and scripts/docket.sh, scripts/lib/, and scripts/run-tests.sh are all present as expected. The block is the plan's premise against that base, not a moved base. No code was written; the reconcile log entry and this halt record are the only run artifacts on the metadata branch, and the feature branch carries only the plan commit.
