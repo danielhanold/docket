@@ -15,14 +15,40 @@ Contents: [The sequence](#the-sequence-docket-mode) · [main-mode degradation](#
 All metadata writes happen in the metadata working tree (`.docket/`), synced to `origin/docket`
 before the first read; every commit pushes immediately.
 
-1. **Archive on `docket` first.** Compute the terminal date in **UTC** — the merge commit's date
-   for `done` (`gh`'s `mergedAt`, or `TZ=UTC git show -s --date=format-local:%Y-%m-%d <merge-sha>`),
-   the kill commit's date for `killed`. Never `now()`. Author the commit message, pass
-   `--results <path>` when a `results:` file arrived via the merge, `--reason "<why>"` on a kill:
+1. **Archive on `docket` first.** The two terminal outcomes split here: `done` runs the Go
+   `finalize closeout` transaction; `killed` stays on the frozen Bash archiver (`finalize closeout`
+   does not cover the `killed` outcome — change 0369).
+
+   **Done drivers** (`docket-finalize-change`'s close-out, the `docket-status` merge sweep) archive
+   through the typed transaction. There is **no caller-supplied date**: it derives the UTC archive
+   date from the verified GitHub `mergedAt` **inside** the transaction (never `now()`), so nothing
+   is computed or passed for it here:
+
+   ```
+   docket finalize closeout --id <id> [--input <notes.json>]
+   ```
+
+   `--input` carries only the optional authored closeout notes (`verification_outcomes`,
+   `late_findings`; `-` for stdin); the merged `results:` file is read from the verified merge, not
+   passed. Trust the typed outcome: `done-archived` (or `stacked-merged` / `root-archived` for a
+   stack) ⇒ the change is marked done and relocated to the dated archive path — idempotent if
+   already archived, including across a day boundary. This ONE metadata commit atomically owns the
+   archive move, the `## Artifacts` re-render, the re-stamp of **every metadata-resident back-link
+   including the spec** (which lives on the metadata ref), and the inline board render; a typed
+   refusal or process failure writes nothing and aborts per the caller's posture, with **no partial
+   caller-owned follow-up**. It still relocates the change file in its own step, so concurrent done
+   drivers converge tree-identically (see *Determinism invariant*). The frozen step-2 re-render and
+   step-5 board pass below still run for this path — they re-confirm what the transaction already
+   landed and are idempotent no-ops (a no-diff re-render is success).
+
+   **Kill drivers** (`docket-implement-next`'s reconcile-kill, `docket-new-change`'s proposed-kill)
+   keep the FROZEN Bash archive leg. Compute the terminal date in **UTC** — the kill commit's date
+   (`TZ=UTC git show -s --date=format-local:%Y-%m-%d <kill-sha>`). Never `now()`. Author the commit
+   message and pass `--reason "<why>"` (`--results <path>` when a `results:` file arrived):
 
    ```
    "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh archive-change --changes-dir .docket/<changes_dir> \
-     --id <id> --outcome <done|killed> --date <UTC-date> [--results <path>] [--reason "<why>"] --message "<msg>"
+     --id <id> --outcome killed --date <UTC-date> [--results <path>] [--reason "<why>"] --message "<msg>"
    ```
 
    Trust the exit code: `0` ⇒ archived — an idempotent no-op if already archived, including across
@@ -47,14 +73,24 @@ before the first read; every commit pushes immediately.
    bundle this into the step-1 archive commit (which must stay change-file-only and byte-identical
    across concurrent archivers).
 
-   **Also re-render the spec's back-link (change 0136)** in the same follow-on commit — re-stamp its
-   `docket:backlink` block to point at the now-**archived** change path (the `active/ → archive/`
-   move stales an earlier back-link). Skip when there is no `spec:`; must-land:
+   **The spec's back-link (change 0136)** re-points on the `active/ → archive/` move too, but only
+   the **kill** path restamps it here. On the **done** path the step-1 `docket finalize closeout`
+   transaction already owns this restamp atomically — it re-renders every metadata-resident
+   back-link, the spec included, in the same metadata commit as the archive (change 0369; proven by
+   `internal/app/finalize_closeout_test.go`'s `TestCloseoutBacklinkLegDocketMode` and
+   `internal/app/finalize_closeout_integration_test.go`'s
+   `TestIntegrationFinalizeCloseoutBacklinkLegDocketMode`) — so **no separate caller step runs for
+   the done path**. On the **kill** path — which `finalize closeout` does not drive — re-stamp the
+   spec's `docket:backlink` block in this same follow-on commit to point at the now-**archived**
+   change path. Skip when there is no `spec:`; must-land:
 
    ```
-   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh render-artifact-backlink \
-     --artifact-file .docket/<spec-path> --change-file .docket/<changes_dir>/archive/<UTC-date>-<id>-<slug>.md
+   docket artifact backlink --repo-dir .docket \
+     --artifact <spec-path> --change <changes_dir>/archive/<UTC-date>-<id>-<slug>.md
    ```
+
+   The operation is the sole writer of the `docket:backlink` block; a typed refusal (malformed
+   markers, missing artifact) leaves the file untouched — surface it, never hand-edit the block.
 
 3. **Publish the terminal record.** Reached only after the step-2 commit is on `origin/docket`.
    **Gated by `TERMINAL_PUBLISH`** (change 0064) — pass `<terminal_publish>`, the resolved config's
@@ -125,12 +161,17 @@ before the first read; every commit pushes immediately.
 4. **Clean up the feature branch + worktree.**
 
    ```
-   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh cleanup-feature-branch --slug <slug>
+   docket finalize cleanup --id <id>
    ```
 
-   Trust the exit code. The provenance guard lives in the script: only worktrees resolving under
-   `.worktrees/<slug>` are removed — never the `.docket/` metadata worktree or any out-of-tree
-   path.
+   Trust the typed outcome. Ownership is proven **inside the transaction** (change 0369): only
+   workspaces and feature refs proven owned by *this* terminal change are removed — the local ref
+   only when its recorded tip is detached from every worktree AND contained in the verified merge
+   chain, the remote ref only under an exact old-value lease with no open child PR still targeting
+   it — never the `.docket/` metadata worktree, the primary tree, or any out-of-tree path. Any
+   resource whose ownership it cannot prove is **retained**, not force-removed (so a kill leg whose
+   branch never merged keeps its feature ref rather than losing it). A failure aborts per the
+   caller's posture.
 
 5. **Board refresh.** Run the Board pass — the single facade call
    `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh docket-status --board-only` (a
