@@ -6,7 +6,10 @@
 
 ## Summary
 
-Change 0370 completes the hard cutover after 0369 has migrated every maintained executable consumer to the PATH-resolved Go CLI. It removes the frozen Bash control plane, runtime and compatibility machinery, and tests whose only subject is that deleted implementation.
+Change 0370 completes the hard cutover after 0369 has migrated retained lifecycle consumers, 0371
+has established native host dispatch, and 0372 has retired deferred feature paths and installed the
+final maintained-consumer seal. It removes the frozen Bash control plane, runtime and compatibility
+machinery, and tests whose only subject is that deleted implementation.
 
 Deletion is proven through fresh, shape-derived reconciliation rather than familiar spellings or snapshot counts. Every substantive legacy assertion is classified before removal. Surviving product behavior moves to mutation-sensitive Go coverage, except behavior owned by the two remaining shell products: repository-root `install.sh` and the release downloader.
 
@@ -31,7 +34,8 @@ Finally, 0318's transitional `docket development test` runner contracts from the
 After 0370:
 
 - the Go CLI is the sole maintained Docket control plane;
-- maintained consumers use the direct PATH-resolved architecture from 0369;
+- retained consumers use the typed-Go architecture from 0369, registered agents use the native
+  dispatch architecture from 0371, and deferred feature paths are sealed by 0372;
 - `scripts/docket.sh`, its production helper/runtime tree, and `scripts/run-tests.sh` are absent;
 - compatibility launchers and environment setup used to locate/load the facade are absent;
 - `DOCKET_SCRIPTS_DIR`, `DOCKET_BASH_PATH`, `runtime.bash`, and equivalent concepts are absent from active maintained execution;
@@ -40,9 +44,11 @@ After 0370:
 - ADR-0036 machine neutrality, ADR-0074 gate semantics, and ADR-0099 topology remain true; and
 - historical records may still name the retired system because they preserve point-in-time truth.
 
-## Reconciliation against merged 0369
+## Reconciliation against the merged consumer-cutover chain
 
-Implementation begins only from a base containing merged 0369 and derives candidate sites by syntactic/behavioral shape. Seeds such as `DOCKET_SCRIPTS_DIR`, `DOCKET_BASH_PATH`, `runtime.bash`, `scripts/docket.sh`, and `scripts/run-tests.sh` are useful but not proof of completeness.
+Implementation begins only from a base containing merged 0369, 0371, and 0372 and derives candidate
+sites by syntactic/behavioral shape. Seeds such as `DOCKET_SCRIPTS_DIR`, `DOCKET_BASH_PATH`,
+`runtime.bash`, `scripts/docket.sh`, and `scripts/run-tests.sh` are useful but not proof of completeness.
 
 Discovery covers direct execution/sourcing, shared runtime imports, environment-variable construction and forwarding, wrapper functions and command arrays, compatibility launchers, test helpers, generator/product output, workflow/setup behavior, and active operator/agent instructions.
 
@@ -148,11 +154,16 @@ Update canonical generators before products, use normal deterministic regenerati
 
 ## ADR treatment
 
-0369 owns the direct-Go decision. 0370 consumes it and records that its physical consequences are complete. Reconcile ADRs 0014, 0029, 0030, and 0033 through the formal ADR workflow. If 0369 already changed status, verify the promised deletion condition; if a status could not truthfully change until deletion, complete it now. Accepted records are not silently rewritten. ADRs 0036, 0074, and 0099 remain authoritative.
+0369 owns the retained typed-Go migration, 0371 owns native host dispatch, and 0372 owns deferred
+feature retirement plus the facade-era ADR audit. 0370 consumes those decisions and records only
+physical-deletion consequences that could not truthfully land earlier. Verify the promised deletion
+conditions and use the formal ADR workflow for any remaining status consequence. Accepted records
+are not silently rewritten. ADRs 0036, 0074, and 0099 remain authoritative.
 
 ## Implementation gates
 
-1. **Reconcile and classify:** confirm merged 0369, inventory every candidate, and stop on maintained consumers or unknowns.
+1. **Reconcile and classify:** confirm merged 0369, 0371, and 0372, inventory every candidate, and
+   stop on maintained consumers or unknowns.
 2. **Build replacement coverage:** classify assertions, add Go/retained-POSIX coverage, and prove mutations before deleting old tests.
 3. **Contract the runner:** remove the legacy corpus category while preserving all runner guarantees.
 4. **Update generators and active integration material:** change canonical sources, regenerate, and verify determinism.
@@ -164,11 +175,16 @@ These are build gates inside one reviewable change, not permission for partial m
 
 ## Failure and recovery
 
-A missed maintained consumer stops deletion. A small migration correction consistent with 0369 may be reconciled; a material new migration design requires regrooming. An unclassifiable assertion remains until understood. Runner contraction that loses targets, weakens isolation, changes gate semantics, or converts uncertainty into success is incomplete. Generated output is not committed until its generator is reproducible. A failed absence proof cannot be replaced by a manual belief statement.
+A missed maintained consumer stops deletion. A small correction consistent with the merged cutover
+may be reconciled; a material lifecycle, dispatch, or deferred-feature design change requires
+regrooming. An unclassifiable assertion remains until understood. Runner contraction that loses
+targets, weakens isolation, changes gate semantics, or converts uncertainty into success is
+incomplete. Generated output is not committed until its generator is reproducible. A failed absence
+proof cannot be replaced by a manual belief statement.
 
 ## Verification strategy
 
-- Base evidence proves 0369 is merged and all candidates are classified.
+- Base evidence proves 0369, 0371, and 0372 are merged and all candidates are classified.
 - Behavior evidence maps every surviving assertion to mutation-sensitive Go or one of the two POSIX suites.
 - Runner evidence proves final topology and preservation of missing-result, interruption, aggregation, budget, and tri-state behavior.
 - Deletion evidence proves no active source, generator, setup, or configuration can recreate the retired control plane.
@@ -178,7 +194,7 @@ A missed maintained consumer stops deletion. A small migration correction consis
 
 ## Acceptance criteria
 
-1. The base contains merged 0369.
+1. The base contains merged 0369, 0371, and 0372.
 2. Shape-derived reconciliation classifies all candidates with no unknown/error state or maintained consumer.
 3. `scripts/docket.sh`, its production runtime/helpers, and `scripts/run-tests.sh` are removed.
 4. Facade/runner compatibility launchers and active runtime-loading/script-location setup are removed.
@@ -210,17 +226,20 @@ A missed maintained consumer stops deletion. A small migration correction consis
 - **Brittle guard:** use shape and ownership categories rather than snapshot inventory.
 - **Historical falsification:** explicitly classify and test immutable/frozen exclusions.
 - **Renamed compatibility layer:** forbid indirect delegation and runtime reconstruction, not only old names.
-- **Moving base:** reconcile only against merged 0369 and repeat discovery after deletion.
+- **Moving base:** reconcile only against the merged 0369 → 0371 → 0372 chain and repeat discovery
+  after deletion.
 
 ## Assumptions
 
-- 0369 merges first and establishes the authoritative direct-Go ADR.
-- 0369 leaves the facade frozen, unused, and still tested.
+- 0369, 0371, and 0372 merge sequentially and establish the retained-Go, native-dispatch, and
+  deferred-retirement boundaries.
+- 0372 leaves the facade frozen, unused by maintained consumers, and still tested for deletion.
 - 0318 already defines the runner guarantees 0370 must preserve.
 - Exact helper/runtime paths may change, so responsibility and dependency shape govern the inventory.
 - Repository-root `install.sh` and the release downloader are the only surviving shell products.
 - Shared POSIX helpers may remain only if they serve those products without reconstructing the retired runtime.
 - Historical records, Accepted ADRs, and frozen v0.9.2 artifacts are immutable for this change.
 - Active current-operation documentation may be corrected.
-- A small missed consumer within 0369's settled architecture may be reconciled; material redesign requires regrooming.
+- A small missed consumer within the settled 0369/0371/0372 architecture may be reconciled;
+  material redesign requires regrooming.
 - No transient count, current filename set, or line number is authoritative.

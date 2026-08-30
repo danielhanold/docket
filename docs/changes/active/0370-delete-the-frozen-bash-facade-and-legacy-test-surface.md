@@ -6,10 +6,10 @@ status: 'proposed'
 priority: 'critical'
 type: 'refactor'
 created: '2026-08-29'
-updated: '2026-08-29'
-depends_on: [369]
+updated: '2026-08-30'
+depends_on: [372]
 stacked_on:
-related: [318, 322, 326, 361, 366, 367]
+related: [318, 322, 326, 361, 366, 367, 369, 371, 372]
 discovered_from: [318]
 adrs: [14, 29, 30, 33, 36, 74, 99]
 spec: 'docs/superpowers/specs/2026-08-29-delete-the-frozen-bash-facade-and-legacy-test-surface-design.md'
@@ -35,11 +35,15 @@ reconciled: false
 
 ## Why
 
-Once every maintained consumer uses the Go CLI directly, the legacy Bash facade and its helper/runtime tree become duplicate production machinery. Keeping them would preserve two control planes, two test architectures, and the configuration seams the v1 cutover is intended to retire.
+Once retained lifecycle consumers use Go, registered-agent invocation uses native host dispatch, and
+deferred feature paths are sealed, the legacy Bash facade and its helper/runtime tree become
+duplicate production machinery. Keeping them would preserve two control planes, two test
+architectures, and the configuration seams the v1 cutover is intended to retire.
 
 ## What changes
 
-- Reconcile against merged 0369 and fail closed unless every shape-derived facade/runtime candidate
+- Reconcile against the merged 0369 → 0371 → 0372 cutover and fail closed unless every
+  shape-derived facade/runtime candidate
   is classified and no maintained executable caller remains.
 - Classify each substantive legacy assertion before deletion; move surviving behavior to
   mutation-sensitive Go coverage or the retained POSIX owner for repository-root `install.sh` or
@@ -54,7 +58,8 @@ Once every maintained consumer uses the Go CLI directly, the legacy Bash facade 
 
 ## Out of scope
 
-Consumer migration (0369); a replacement shim or shell control plane; unrelated configuration
+Retained consumer migration (0369), native dispatch migration (0371), deferred-feature retirement
+and the final consumer seal (0372); a replacement shim or shell control plane; unrelated configuration
 redesign; rewrites of historical records, archived specs/results, Accepted ADR history, or frozen
 v0.9.2 artifacts; release/tag/assets; and human fresh-host or rollback work (0366).
 
@@ -62,5 +67,5 @@ v0.9.2 artifacts; release/tag/assets; and human fresh-host or rollback work (036
 
 Deletion follows coverage replacement, never precedes it. Unknown consumers and uncertain test
 assertions block removal. Final guards classify executable shape and ownership rather than pinning
-current spellings, counts, or filenames. A small missed caller consistent with 0369 may be reconciled;
-a material migration redesign halts for regrooming.
+current spellings, counts, or filenames. A small missed caller consistent with the merged cutover
+may be reconciled; a material migration redesign halts for regrooming.
