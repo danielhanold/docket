@@ -793,6 +793,181 @@ git commit -m "test(0369): stage-local mutation-tested guard over the migrated G
 
 ## Task 1 findings
 
-(Recorded by Task 1's worker — the pinned exemplars, outcome coverage, and inventory table land
-here or in the task's commit message; later tasks follow this record where it refines the
-candidates named above.)
+Recorded by Task 1's worker (premium). All eight steps executed against the source tree and a
+built `./cmd/docket` binary run over scratch docket-topology fixtures
+(`"${TMPDIR:-/tmp}/docket-0369-verify.XXXXXX"`). **Abort boundary: CLEARED** — every mapped verb is
+a pre-existing public Go verb reachable by a straight invocation/structured-output swap; none needs
+a new/expanded verb or a bespoke adapter. Two frozen discrepancies (below), neither a halt.
+
+### Pinned invocation exemplars (skill-prose spelling — bare installed binary, Global Constraint 5)
+
+Later tasks copy these VERBATIM; this record is authoritative where it refines a Task's candidate.
+
+| Verb | Pinned exemplar | Consumers |
+|---|---|---|
+| gate-before | `docket run gate-before implement-next` | run-gate.md, AGENTS.md (Task 2) |
+| gate-verdict (attributed) | `docket run gate-verdict <key>` | run-gate.md, AGENTS.md (Task 2) |
+| gate-verdict (observe) | `docket run gate-verdict --unattributed [<id>…]` | run-gate.md, AGENTS.md (Task 2) |
+| artifact backlink (active) | `docket artifact backlink --repo-dir .docket --artifact <spec-path> --change docs/changes/active/<id>-<slug>.md` | planning skills (Task 3), terminal-close-out (Task 5) |
+| artifact backlink (archived) | `docket artifact backlink --repo-dir .docket --artifact <spec-path> --change docs/changes/archive/<UTC-date>-<id>-<slug>.md` | terminal-close-out (Task 5) |
+| status digest | `docket status --json` (`--repo-dir <dir>` where needed) | implement-next (Task 4) |
+| finalize closeout | `docket finalize closeout --id <id> [--input <notes.json>]` | terminal-close-out (Task 5) |
+| finalize cleanup | `docket finalize cleanup --id <id>` | terminal-close-out (Task 5) |
+| repository init | `docket repository init` (`--repo-dir <dir>` where needed) | convention CREATE_ORPHAN (Task 4) |
+| adr record | `docket adr record --request -` | docket-adr (Task 6) |
+| adr supersede | `docket adr supersede --request -` | docket-adr (Task 6) |
+| adr reverse | `docket adr reverse --request -` | docket-adr (Task 6) |
+
+`--change` / `--artifact` are the FULL canonical repository-relative paths as they appear in the
+pinned corpus (`c.Path()` == `docs/changes/active/<id>-<slug>.md`, not a `changes_dir`-relative
+tail); `--artifact` and `--change` are both `MarkFlagRequired`. `--input` / `--request` accept `-`
+for stdin. All twelve verbs are pre-existing landed public Go commands (`internal/cli/{gate,run,
+artifact,change,finalize,repository,adr}.go`).
+
+### Gate pair (PARTICULAR RISK) — straight binary swap, no adapter
+
+- `scripts/gate-before.sh` / `scripts/gate-verdict.sh` are change-0334 thin delegators:
+  `DOCKET_BIN="${DOCKET_BIN:-docket}"; exec "$DOCKET_BIN" run gate-before|gate-verdict "$@"` — argv
+  forwarded, stdout + exit code passthrough, ZERO owned behavior. `scripts/docket.sh`'s dispatch
+  (`WRAPPED_OPS` loop) just `exec`s the wrapper — no preflight, env mutation, or output rewriting.
+  So the migrated caller calling `docket run gate-*` directly hits the EXACT same binary entrypoint
+  the Bash facade reaches; attribution key, unattributed fallback, and one-retry accounting are all
+  owned by the Go binary (`internal/app/rungate_before.go`, `rungate_verdict.go`) and are unchanged
+  by the swap. `scripts/verify-run.sh` reaches the Go authority through the same `DOCKET_BIN` seam.
+- **Report-line vocabulary** (Task 2 prose must keep these tokens exactly):
+  - gate-before: `gate-armed <key>` | `gate-unarmed <reason>` (both exit 0); bad target → usage
+    error, exit 2 (verified: `docket run gate-before bogus` → rc 2).
+  - gate-verdict attributed: leading decision `gate-done` | `gate-retry-once` | `gate-stop`;
+    outcome word ∈ {`no-attributable-claim`, `ambiguous-claims`, `gate-unavailable`,
+    `run-complete`, `run-unclaimed`, `run-halted`, `run-waiting`, `run-incomplete`}.
+  - gate-verdict observe (`--unattributed`): `gate-observe <outcome>`, outcome ∈ {`no-current-run`,
+    `gate-unavailable`, `run-*`}. Observe is a structurally separate render path with NO branch to
+    `gate-retry-once` — `--unattributed` can never authorize a retry.
+- **Fixture execution (verified, exit 0 throughout):** `gate-before implement-next` →
+  `gate-armed implement-next-<utc>-<pid>-<hex>`; `gate-verdict <key>` (fresh process, empty backlog)
+  → `gate-done <key> no-attributable-claim`; `gate-verdict --unattributed` → `gate-observe
+  no-current-run`. `--json` yields protocol-v1 envelopes: `{"protocol_version":1,"operation":
+  "run.gate-before","result":"applied","armed":true,"key":…,"target":"docket-implement-next"}` and
+  `{"protocol_version":1,"operation":"run.gate-verdict","result":"applied","observations":[…]}`.
+  Cross-process durability + the exactly-one `gate-retry-once` / later `gate-stop` retry accounting
+  are covered by `tests/test_gate_facade.sh` cases (c) (read, not re-run).
+
+### artifact backlink — metadata-worktree stamp, idempotent, no new capability
+
+Go op `internal/app/artifact_backlink.go` takes `--repo-dir` (worktree the artifact lives in) and
+canonical repo-relative `--artifact`/`--change`; refuses absolute paths, `..` escapes, symlink
+escapes, malformed markers, unknown change. Verified in a metadata-worktree-shaped fixture
+(a `.docket`-style docket-branch checkout): stamp #1 → `rendered`; stamp #2 → NoOp `unchanged`,
+byte-identical file (idempotent). `--json` → `{"…","operation":"artifact.backlink","result":
+"no-op","disposition":"unchanged"}`. Refusals exit 2 with typed reasons (`absolute-path`,
+`unknown-change`). It stamps a metadata-worktree artifact with NO new capability.
+
+### status --json contract
+
+Top-level keys (verified against the live repo): `protocol_version` (=1), `operation` (=`status`),
+`result` (=`applied`), `ready` (array of ids in selection order — the build-ready queue),
+`changes`, `records`, `findings`, `summary`, and `context`. Change objects carry `id`, `slug`,
+`title`, `status`, `priority`, `type`, `location`, `path`, `version`, `readiness`,
+`readiness_reason`, `unmet_dependencies`, `effective_base`, `ready`. **Write-free**: `git -C
+.docket status --porcelain` unchanged before/after, no board write. `readiness` vocabulary (Task 4):
+`build-ready` ("ready to build"), `needs-brainstorm` ("needs a design brainstorm before it can be
+built"), `waiting-dependency` ("waiting on unmet dependencies"), `not-proposed` ("not in proposed
+status"), `auto-groom-blocked` ("auto-groom blocked; needs a human design pass"). The implement-next
+skip vocabulary ("needs-brainstorm", dependency waits) maps to `needs-brainstorm` and
+`waiting-dependency`.
+
+### finalize closeout / cleanup
+
+- **(a) closeout outcome coverage** (`internal/app/finalize_closeout.go`): covers `done-archived`
+  (integration-branch merge), `stacked-merged` (in place), `root-archived` (stack-root carry), plus
+  the retained/terminal dispositions `already`, `children-retarget-required`, `contended`,
+  `blocked`, `unknown`, `failed`. Legal closeout SOURCE statuses are `implemented` or
+  `stacked-merged` ONLY (`ReasonCloseoutIllegalSource`). **The `killed` outcome is NOT covered** →
+  **DISCREPANCY (frozen, not a halt):** the kill drivers' `docket.sh archive-change … --outcome
+  killed` legs stay frozen; Task 5 gives the Go verb to the done drivers and keeps a frozen
+  labeled `--outcome killed` block for the kill legs.
+- **(b) closeout atomic-ownership set** (done-archived shape, ONE metadata transaction): `MarkDone`
+  after a merge-commit reachability proof; `updated` stamped from the verified GitHub `mergedAt`
+  (the UTC terminal/archive date is derived INSIDE the transaction — no caller date input); claim
+  cleared with historical branch/PR fields preserved; record relocated to the dated archive path
+  (create-archive + delete-active in one plan); the artifact `## Artifacts` block re-rendered;
+  **every metadata-resident backlink re-rendered (this INCLUDES the spec, which lives on the
+  metadata ref)**; the inline board re-rendered. A separate follow-up integration-ref leg
+  (`finalize.closeout-backlink`) patches only the merged plan/results `docket:backlink` blocks.
+  **Task 5 implication:** closeout OWNS the spec backlink restamp for the done path →
+  **second Class D absorption** — Task 5 DELETES the caller's spec-backlink restamp for the done
+  path (keep only for legs closeout does not drive; cite `internal/app/finalize_closeout_*_test.go`).
+  Task 5 must not double-run any step closeout owns; it keeps only the frozen `render-change-links`
+  `## Artifacts` writer (which closeout also re-renders, but that call is the frozen Bash surface —
+  left byte-untouched per the change's mixed-state blessing) and publish/board frozen steps.
+- **(c) cleanup ownership proof** (`internal/app/finalize_cleanup.go`): manifest-fact-driven
+  `workspace.Cleanup` (never a base recomputed from the terminal record); LOCAL feature ref deleted
+  only when the exact recorded tip is detached from every worktree AND contained in the verified
+  merge chain; REMOTE feature ref deleted only under an exact old-value lease AND after a fresh
+  probe proves no open child PR still targets it; "never calls a global worktree prune, force-
+  removes a checkout, recursively deletes by pathname, or touches the primary, metadata,
+  transaction, sibling, or foreign worktree." → **equal-or-stricter** than the Bash `--slug` guard
+  (which only bounded removal to `.worktrees/<slug>`, never `.docket/`). Fail-closed on every
+  unanswerable probe (pending/retained dispositions).
+
+### repository init vs docket.sh bootstrap
+
+`internal/app/repository_init.go` (`RunRepositoryInit`) performs the guarded CREATE_ORPHAN
+creation: a parentless empty-tree orphan `docket` root with a versioned receipt; a create-only
+publish that adopts an already-published exact shape and refuses a foreign one; the local branch +
+persistent `.docket` worktree; disabled worktree hooks; the unstaged managed `.gitignore` edit +
+(only when authorized) the parent-facing dispatch surfaces; the ownership record. Idempotent on
+re-run. Fail-closed refusals (`initGuard`): legacy → `docket repository migrate`; unknown probe →
+`docket repository check`; foreign/conflicting `.docket` → `docket repository check`; dirty primary
+→ refuse. Never prompts, never reads stdin. → **equal-or-stricter** refusal surface than
+`docket-config.sh --bootstrap`. No HALT. (Not executed against the live repo to avoid mutating it;
+verified by source + guard classification.)
+
+### ADR transactions and index ownership (Class D)
+
+`internal/app/adr_ops.go`: record / supersede / reverse each drive ONE validated atomic transaction
+commit landing the ADR record, the re-rendered index `docs/adrs/README.md` (MutationCreate or
+MutationReplace — "rerendered on every ADR operation, unconditionally"), the target's status flip
+("Superseded by ADR-<n>" / "Reversed by ADR-<n>") for supersede/reverse, and — when a producing
+change is supplied — that change's `adrs:` append + re-rendered artifact block. Index-atomicity
+assertions already exist in `internal/app/adr_ops_test.go` (plan is EXACTLY {new ADR, index} and
+{new ADR, index, producing change}; index reflects the new ADR; `adrs: [2]` append) → the
+standalone `render-adr-index` follow-up in `skills/docket-adr/SKILL.md` is genuinely redundant, so
+the **Class D removal is justified** (Task 6). JSON request schemas (`--request -`, stdin):
+- **record** (`ADRRecordRequest`): `request_id`, `title`, `context`, `decision`, `consequences`,
+  `alternatives`, `relates_to` []int, optional `change` {`id`, `path`, `version`}.
+- **supersede / reverse** (`ADRReplaceRequest`): `request_id`, `target` {`id`, `path`, `version`},
+  `successor` (a full `ADRRecordRequest`; the successor's own `request_id` is ignored — the outer
+  key governs). Decoders use `DisallowUnknownFields`.
+
+### Inventory classification (from the change file's Reconcile log + this task's findings)
+
+**Class A — migrate to a landed public Go verb (invocation/structured-output swap):**
+
+| Old (`docket.sh …`) | New (`docket …`) | Files |
+|---|---|---|
+| `gate-before` | `run gate-before` | cursor-rules/run-gate.md, AGENTS.md (CLAUDE.md symlink) |
+| `gate-verdict` | `run gate-verdict` | cursor-rules/run-gate.md, AGENTS.md |
+| `render-artifact-backlink` | `artifact backlink` | docket-new-change, docket-auto-groom, docket-groom-next, terminal-close-out |
+| `docket-status --digest-only` | `status --json` | docket-implement-next |
+| `cleanup-feature-branch` | `finalize cleanup` | terminal-close-out |
+| `archive-change` (done path) | `finalize closeout` | terminal-close-out |
+| `bootstrap` | `repository init` | docket-convention (CREATE_ORPHAN) |
+
+**Class D — redundant follow-up absorbed by a transaction (remove, do not replace):** standalone
+`render-adr-index` after `adr record/supersede/reverse` in docket-adr. PLUS the second absorption
+found here: the done-path spec-backlink restamp in terminal-close-out (closeout owns it atomically).
+
+**Frozen / unmapped (leave byte-untouched, permitted in guards):** `preflight` (~22 sites),
+`docket-status --board-only` / full orchestrator, `render-change-links`, `terminal-publish`,
+`mint-stub`, `mark-publish-deferred`, `render-learnings-index`, `runner-dispatch`,
+`stack-base`/`stack-children`/`stack-closeout`, `backfill-change-types`, `adr-checks`, all
+`scripts/*.sh`. A file mixing frozen + migrated calls (terminal-close-out.md, docket-status
+SKILL.md) ends partially migrated — the spec-blessed intermediate state.
+
+**Discrepancies (frozen, recorded, NOT halts):** (1) `finalize closeout` does not cover the
+`killed` outcome → kill legs keep `archive-change … --outcome killed`. (2) `docket-status/SKILL.md`
+carries no standalone `--digest-only` call site (digest lines are the frozen orchestrator's own
+output) — no-op. (3) `README.md`'s `docket-status --digest-only --type untyped` example is coupled
+to the frozen `backfill-change-types` one-off — stays; the Task 7 guard permits it. (4) the
+repair-only `render-adr-index` in docket-adr's Index/validate section stays, reframed repair-only.
