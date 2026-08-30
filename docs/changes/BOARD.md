@@ -1,6 +1,6 @@
 # Backlog
 
-**378 changes** — 🟢 3 in progress · 🟡 57 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 231 done · 🗑️ 82 killed
+**381 changes** — 🟢 3 in progress · 🟡 60 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 231 done · 🗑️ 82 killed
 
 ## 🟢 In progress (3)
 
@@ -10,7 +10,7 @@
 | [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-29-delete-the-frozen-bash-facade-and-legacy-test-surface-design.md) | `refactor/delete-the-frozen-bash-facade-and-legacy-test-surface` |
 | [0377](active/0377-migrate-deferred-bash-facade-workflow-operations-to-native-g.md) | Migrate deferred Bash-facade workflow operations to native Go CLI verbs | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-30-migrate-deferred-bash-facade-workflow-operations-to-native-g-design.md) | `refactor/migrate-deferred-bash-facade-workflow-operations-to-native-g` |
 
-## 🟡 Proposed (57)
+## 🟡 Proposed (60)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -71,6 +71,9 @@
 | [0374](active/0374-separate-build-and-finalize-test-configuration.md) | Separate build and finalize test configuration | `high` | `refactor` | ⏳ waiting on #370 — not yet built |
 | [0375](active/0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | `medium` | `fix` | needs-brainstorm |
 | [0376](active/0376-gate-drive-start-human-output-omits-drive-id-generation.md) | `docket gate drive start` human-readable output omits drive_id/generation | `medium` | `fix` | needs-brainstorm |
+| [0379](active/0379-reapply-sha256-source-revision-width-fix-isfullobjectid.md) | Re-apply the SHA-256 (64-hex) source-revision width fix to isFullObjectID | `medium` | `fix` | needs-brainstorm |
+| [0380](active/0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | `medium` | `chore` | needs-brainstorm |
+| [0381](active/0381-stabilize-internal-process-observe-running-terminal-race-flake.md) | Stabilize internal/process TestObserveRunningThenTerminal parallel-load -race flake | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -156,6 +159,9 @@ graph TD
   0372 --> 0377
   0378 --> 0377
   0378
+  0379
+  0380
+  0381
   0192:::done
   0211:::done
   0251:::done
