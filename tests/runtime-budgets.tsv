@@ -331,6 +331,12 @@
 #   repoownership  cold  6.39  6.26  6.30 -> worst  6.39 -> next multiple of 5 is 10, plus 5 -> 15
 # The fixtures are plumbing-only (no init/push topology), so the run is fast; the rest is the tagged
 # app-package compile. Parallel lane. EXPECTED_TOTAL moves 2840 -> 2855: +15.
+# Change 0378 (Task 4) re-shaped this file — it adds the receiptless legacy exact-tree equivalence
+# scenarios (a real integration history on main, copy-set projection composition, and the
+# unreadable-history unknown mapping) — and it was re-measured the same way:
+#   repoownership  cold  8.37  8.26  8.36 -> worst  8.37 -> next multiple of 5 is 10, plus 5 -> 15
+# The worst reading grew 6.39 -> 8.37 but the computed ceiling is still 15, so the row and
+# EXPECTED_TOTAL are unchanged.
 #
 # tests/test_go_integration_githubcli_*.sh are FOUR NEW FILES brought by change 0333 — the
 # same new-test-file + integration-SHARD case as the gitcli block above, for internal/githubcli.
