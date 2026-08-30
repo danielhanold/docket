@@ -169,7 +169,6 @@ func augmentCheckFacts(ctx context.Context, git *gitcli.Client, f *reposetup.Fac
 			// locally: never fall back to the ls-remote tip and never prove ownership
 			// from a stale object. Unknown, never a false shape.
 			f.MetadataRoot = reposetup.RootUnknown
-			sc.diagnostics = append(sc.diagnostics, setupDiag{Probe: "metadata-fetch", Err: ferr})
 		} else {
 			f.RemoteMetadata.Tip = string(rev.Commit)
 			own := verifyMetadataOwnership(ctx, git, sc.repo, rev.Commit, gitcli.ObjectID(sc.sourceRevision), sc.defaultBranch)
