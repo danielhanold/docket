@@ -1543,7 +1543,6 @@ skills/docket-build-task/SKILL.md                          155 1550
 skills/docket-convention/SKILL.md                          400 7350
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         205 2350
-skills/docket-convention/references/auto-capture.md        130 1250
 skills/docket-convention/references/dummy-mode.md           85  800
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/stacked-changes.md     215 2050

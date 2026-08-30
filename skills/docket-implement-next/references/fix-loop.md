@@ -120,9 +120,9 @@ unfixed blocker, so a cap that counted them would disarm the gate the floor abov
 protect. The unit is the **task**, not the finding — a minor batch spends one slot. Fill the slots
 deterministically in the dispatch order above: importants in the reviewer's returned order, then
 the minor batches — so two runs over the same findings fix the same set. Overflow findings take the
-disposition table's `deferred` state, with the cap named as the reason. The default of 10 sits
-above auto-capture's three-mints-per-run precedent because a fix commit inside an already-reviewed
-diff is far cheaper than a minted change. This bounds aggregate **count**; per-finding **size**
+disposition table's `deferred` state, with the cap named as the reason. The default of 10 is
+generous because a fix commit inside an already-reviewed diff is cheap. This bounds aggregate
+**count**; per-finding **size**
 remains the rubric ceiling above — the "no separate knob for too big" sentence is about size, and
 the two rules do not overlap.
 
@@ -167,15 +167,15 @@ about each one:
 | **deferred** | below `REVIEW_MIN_FIX_SEVERITY`, a max-character non-blocker, or fix-task cap overflow; recorded for merge-time judgment |
 | **reverted** | fixed, then rolled back by the suite gate; the finding stands |
 | **recorded** | the fix was attempted and its escalation allowance was exhausted; name the failure |
-| **minted** | genuinely distinct, beyond-the-branch work captured as its own change; cite the stub id |
+| **reported** | genuinely distinct, beyond-the-branch work reported for deliberate capture |
 
 Every finding returned by the reviewer takes exactly one of these states — the table is the complete
-accounting, so a finding that reached the narrow mint path below still gets a row rather than
+accounting, so a finding that reached the report path below still gets a row rather than
 vanishing from the human's view.
 
-## Auto-capture is narrower here
+## Beyond-the-branch findings are reported
 
-**A finding about this branch's own diff is never mintable** — it is fixed or it is recorded.
-Minting from review survives only for genuinely distinct, beyond-the-branch work that independently
-clears the materiality bar in
-[`../../docket-convention/references/auto-capture.md`](../../docket-convention/references/auto-capture.md).
+**A finding about this branch's own diff is fixed or recorded** — never captured as separate work.
+A genuinely distinct, beyond-the-branch finding is **reported as follow-up work in the final
+report**, never minted: automatic change capture is deferred from Go v1, so a human captures
+reported work deliberately with `docket change create`.
