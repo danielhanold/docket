@@ -2,7 +2,7 @@
 id: 372
 slug: 'retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume'
 title: 'Retire deferred Go v1 workflow surfaces and seal the consumer cutover'
-status: 'implemented'
+status: 'done'
 priority: 'critical'
 type: 'refactor'
 created: '2026-08-30'
@@ -22,7 +22,7 @@ branch: 'refactor/retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume'
 pr: 'https://github.com/danielhanold/docket/pull/255'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-30T16:04:13Z'
+claimed_at:
 ---
 
 ## Artifacts

@@ -1,6 +1,6 @@
 # Backlog
 
-**374 changes** — 🟡 57 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 230 done · 🗑️ 82 killed
+**374 changes** — 🟡 57 proposed · ⚪ 4 deferred · ✅ 231 done · 🗑️ 82 killed
 
 ## 🟡 Proposed (57)
 
@@ -60,7 +60,7 @@
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | ⏳ waiting on #370 — not yet built |
 | [0367](active/0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | `medium` | `feat` | ⏳ waiting on #370 — not yet built |
 | [0368](active/0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | `medium` | `fix` | needs-brainstorm |
-| [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | ⏳ waiting on #372 — needs your merge |
+| [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | build-ready |
 | [0373](active/0373-harden-integration-race-test-isolation-under-parallel-load.md) | Harden integration/race test isolation under parallel load | `medium` | `chore` | needs-brainstorm |
 | [0374](active/0374-separate-build-and-finalize-test-configuration.md) | Separate build and finalize test configuration | `high` | `refactor` | ⏳ waiting on #370 — not yet built |
 
@@ -72,12 +72,6 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0372](active/0372-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume.md) | Retire deferred Go v1 workflow surfaces and seal the consumer cutover | `critical` | `refactor` | [#255](https://github.com/danielhanold/docket/pull/255) |  |
 
 ```mermaid
 graph TD
@@ -140,21 +134,21 @@ graph TD
   0370 --> 0367
   0368
   0372 --> 0370
-  0371 --> 0372
   0373
   0370 --> 0374
   0192:::done
   0211:::done
   0251:::done
   0352:::done
-  0371:::done
+  0372:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (312)</summary>
+<details><summary>✅🗑️ Archive — done + killed (313)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0372](archive/2026-08-30-0372-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume.md) | Retire deferred Go v1 workflow surfaces and seal the consumer cutover | 2026-08-30 |
 | [0371](archive/2026-08-30-0371-cut-generated-agent-invocation-over-to-native-host-dispatch.md) | Cut generated agent invocation over to native host dispatch | 2026-08-30 |
 | [0369](archive/2026-08-30-0369-migrate-maintained-consumers-to-the-direct-go-cli.md) | Migrate retained lifecycle consumers to typed Go operations | 2026-08-30 |
 | [0365](archive/2026-08-29-0365-codex-nested-dispatch-capability-boundary.md) | Make nested Docket dispatch reliable for every Codex agent invocation | 2026-08-29 |
@@ -169,7 +163,6 @@ graph TD
 | [0355](archive/2026-08-27-0355-build-review-roles-are-skill-invoked-that-fan-out-to-profile.md) | Build/review roles are skill-invoked that fan out to profile agents — Step 5 'dispatch' vocabulary invites an agent-not-found misfire | 2026-08-27 |
 | [0351](archive/2026-08-27-0351-complete-0334-retire-global-instruction-writes-and-deploy-recursion-guard.md) | Complete change 0334: stop writing global instruction files and actually deploy the recursion guard | 2026-08-27 |
 | [0333](archive/2026-08-27-0333-partition-internal-app-to-retire-the-race-gate-s-300s-ceilin.md) | Partition slow Go integration tests and retire the race gate's 300s ceiling exemption | 2026-08-27 |
-| [0317](archive/2026-08-27-0317-release-packaging-and-four-harness-acceptance.md) | Release packaging and four-harness acceptance | 2026-08-27 |
 | [0353](archive/2026-08-26-0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | 2026-08-26 |
 | [0294](archive/2026-08-26-0294-shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru.md) | Shrink AGENTS.md's always-loaded footprint: script-ify the run gate's caller procedure and de-duplicate the dispatch table | 2026-08-26 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
@@ -257,7 +250,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 97 done |
+| [2026-08](archive/) | 98 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 

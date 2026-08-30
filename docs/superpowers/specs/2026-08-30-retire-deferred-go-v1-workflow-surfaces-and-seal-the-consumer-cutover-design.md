@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0372 — Retire deferred Go v1 workflow surfaces and seal the consumer cutover](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0372-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume.md)**
+> ↩ **[Change 0372 — Retire deferred Go v1 workflow surfaces and seal the consumer cutover](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-30-0372-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume.md)**
 <!-- docket:backlink:end -->
 
 # Retire Deferred Go v1 Workflow Surfaces and Seal the Consumer Cutover
