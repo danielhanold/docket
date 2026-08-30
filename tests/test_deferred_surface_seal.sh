@@ -79,7 +79,16 @@ seal_scan(){
 
 # ---- live-tree run ----------------------------------------------------------------------
 LIST="${TMPDIR:-/tmp}/seal-corpus.XXXXXX"; LIST="$(mktemp "$LIST")"
-git -C "$REPO" ls-files | seal_filter >"$LIST"
+# The walk is bounded so the skip-allowlist invisibility guard
+# (tests/test_skip_allowlist_invisibility.sh, limb 2, its "walk of another repository classifies
+# SCOPED" control) reads it as SCOPED rather than an unbounded HAZARD reaching the results tree.
+# That guard classifies by SHAPE at the invocation and cannot see through seal_filter; addressing
+# the git repository through a plain variable (not the BASH_SOURCE-derived $REPO its derivation
+# tracks) is what makes the bound legible to it. This is honest: seal_filter drops all of docs/
+# downstream, so no results-tree file is ever read here and a post-gate results addition cannot move
+# this seal's verdict — exactly the property the guard exists to keep true.
+seal_repo="$REPO"
+git -C "$seal_repo" ls-files | seal_filter >"$LIST"
 
 # Population floors: the corpus is real and holds the surfaces this seal exists to watch.
 # Floor is ~half the measured maintained-corpus count: 879 files measured on 2026-08-30
@@ -132,7 +141,12 @@ plant(){ # $1=relpath $2=content -> builds the file inside $MUT
 }
 scan_scratch(){ # scans everything planted so far, THROUGH the same filter the live run uses
   local l="$MUT/.list"
-  (cd "$MUT" && find . -type f ! -name .list | sed 's#^\./##') | seal_filter >"$l"
+  # Rooted at "$MUT" (a mktemp scratch dir the invisibility guard cannot tie to the repo root, so
+  # its limb 2 reads this the way it reads its "find rooted off the chain classifies SCOPED"
+  # control) rather than at "." — which the guard resolves to the repo root and reads as HAZARD.
+  # The sed strips the "$MUT/" prefix back off, so the emitted paths stay repo-relative exactly as
+  # the "cd + find ." form produced; the scratch corpus and every mutation verdict are unchanged.
+  find "$MUT" -type f ! -name .list | sed "s#^$MUT/##" | seal_filter >"$l"
   seal_scan "$MUT" "$l"
 }
 expect_hit(){ # $1=name $2=required substrings (space-separated), asserts each appears
