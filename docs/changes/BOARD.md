@@ -1,6 +1,6 @@
 # Backlog
 
-**371 changes** — 🟢 1 in progress · 🟡 56 proposed · ⚪ 4 deferred · ✅ 228 done · 🗑️ 82 killed
+**372 changes** — 🟢 1 in progress · 🟡 57 proposed · ⚪ 4 deferred · ✅ 228 done · 🗑️ 82 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0369](active/0369-migrate-maintained-consumers-to-the-direct-go-cli.md) | Migrate maintained consumers to the direct Go CLI | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-29-migrate-maintained-consumers-to-the-direct-go-cli-design.md) | `refactor/migrate-maintained-consumers-to-the-direct-go-cli` |
 
-## 🟡 Proposed (56)
+## 🟡 Proposed (57)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -68,6 +68,7 @@
 | [0368](active/0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | `medium` | `fix` | needs-brainstorm |
 | [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | ⏳ waiting on #369 — not yet built |
 | [0371](active/0371-cut-generated-agent-invocation-over-to-native-host-dispatch.md) | Cut generated agent invocation over to native host dispatch | `critical` | `refactor` | ⏳ waiting on #369 — not yet built |
+| [0372](active/0372-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume.md) | Retire deferred Go v1 workflow surfaces and seal the consumer cutover | `critical` | `refactor` | ⏳ waiting on #371 — not yet built |
 
 ## ⚪ Deferred (4)
 
@@ -141,6 +142,7 @@ graph TD
   0318 --> 0369
   0369 --> 0370
   0369 --> 0371
+  0371 --> 0372
   0192:::done
   0211:::done
   0251:::done
