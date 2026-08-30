@@ -22,7 +22,7 @@ branch: 'refactor/cut-generated-agent-invocation-over-to-native-host-dispatch'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-30T11:34:03Z'
+claimed_at: '2026-08-30T12:34:12Z'
 ---
 
 ## Artifacts
@@ -65,3 +65,7 @@ cannot support the four adapters as one bounded cutover.
 ### 2026-08-30
 
 Reconciled against current `main` (0369 merged and archived; dependency satisfied). Verified the Go seam this change targets already exists: canonical policy in `internal/harness/dispatch.go` (`dispatchPreamble`, `DispatchInterior`, `RunGate`), the four `internal/harness/{claude,codex,cursor,opencode}` adapters, and the parent-facing generator `internal/reposeed/plan.go` (`docket:dispatch` managed block, `dispatchBlockName = "dispatch"`). Change 0334 already stripped the per-agent roster from the preamble and 0351 moved routing out of user-global files, so the policy is largely native-dispatch already; the remaining maintained `runner-dispatch` references are exactly two shipped skill files — `skills/docket-convention/references/agent-layer.md` (the `runner:` delegation section) and `skills/docket-build/references/delegation-execution.md` — plus their embedded mirrors under `internal/assets/embedded/`. The frozen Bash facade (`scripts/runner-dispatch.sh`, `scripts/runners/*`, `sync-agents.sh`) and the Bash `tests/test_runner_dispatch*.sh` surface are owned by change 0370 and stay untouched; archived changes/results/ADR bodies are point-in-time records and are not rewritten. Design holds unchanged — no fundamental invalidation; scope preserved, `## What changes` refreshed to name the concrete current-code targets. Relations unchanged (depends_on [369], related [311,317,318,370,366], discovered_from [369], adrs [36,74]).
+
+### 2026-08-30
+
+Recorded ADR-0100 (Accepted; supersedes ADR-0037) produced by this change's build-time ADR audit — native host dispatch is authoritative for registered docket agents; missing registration fails visibly with no shell/cross-harness/generic/inline fallback. adrs: now [36, 74, 100].
