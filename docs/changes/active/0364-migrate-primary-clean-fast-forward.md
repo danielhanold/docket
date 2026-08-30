@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'feat/migrate-primary-clean-fast-forward'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-30T19:25:11Z'
+reconciled: true
+claimed_at: '2026-08-30T19:28:11Z'
 ---
 
 ## Artifacts
@@ -77,3 +77,15 @@ fast-forward migrate could perform itself. Surfaced as a recorded follow-up when
   satisfies the contract; the implementer picks per the package's conventions.
 
 ## Reconcile log
+
+### 2026-08-30
+
+### 2026-08-30
+
+Verified against current `main` after claiming:
+
+- Dependency #352 is archived as `done`, and #363 is also done; the repository migration service and the single metadata topology it consumes are both present in the current tree.
+- The proposed `internal/gitcli` primitive is still absent, while `IsAncestor`, the existing typed failure vocabulary, and the integration-test partition are available for the implementation.
+- `migrateLocalFinish` still calls `migratePrimarySyncRemedy`; the not-moved path still emits the manual `git -C <primary> merge --ff-only <remote>/<branch>` remedy, and the moved path still emits the `pull --rebase` remedy. No other change has absorbed this work.
+
+The scope, linked spec, dependency, related, and discovery relations remain accurate. No proposal or spec-section edits are required.
