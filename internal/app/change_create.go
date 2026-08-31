@@ -502,18 +502,10 @@ func (o changeCreateOp) Plan(ctx context.Context, st transaction.AttemptState) (
 	}
 
 	if o.inline {
-		boardBytes, err := render.Board(render.BoardInput{Snapshot: candidate})
-		if err != nil {
-			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change create: rendering board: %w", err)
-		}
 		boardPath := path.Join(o.changesDir, "BOARD.md")
-		kind, err := boardMutationKind(ctx, st.Tree, boardPath)
-		if err != nil {
-			return transaction.MutationPlan{}, transaction.OperationResult{}, err
+		if err := includeBoard(ctx, st.Tree, boardPath, candidate, &files); err != nil {
+			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change create: %w", err)
 		}
-		files = append(files, transaction.FileMutation{
-			Path: gitcli.RepoPath(boardPath), Kind: kind, Bytes: boardBytes,
-		})
 	}
 
 	receipt, err := json.Marshal(changeCreateReceipt{
@@ -617,19 +609,6 @@ func buildCandidateSnapshot(eff config.Effective, docs map[string]document.Docum
 		return domain.Snapshot{}, fmt.Errorf("change create: building candidate snapshot: %w", err)
 	}
 	return build.Snapshot, nil
-}
-
-// boardMutationKind reports whether the board file already exists on the base
-// tree — a replace — or is being created for the first time.
-func boardMutationKind(ctx context.Context, tree transaction.Tree, boardPath string) (transaction.MutationKind, error) {
-	results, err := tree.ReadBlobs(ctx, []gitcli.RepoPath{gitcli.RepoPath(boardPath)})
-	if err != nil {
-		return "", fmt.Errorf("change create: probing board path: %w", err)
-	}
-	if len(results) == 1 && results[0].Found {
-		return transaction.MutationReplace, nil
-	}
-	return transaction.MutationCreate, nil
 }
 
 func toChangeIDs(ids []int) []domain.ChangeID {

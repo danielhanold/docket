@@ -997,16 +997,10 @@ func (o closeoutArchiveOp) Plan(ctx context.Context, st transaction.AttemptState
 
 	// Phase D: one board over the final population.
 	if o.inline {
-		boardBytes, err := render.Board(render.BoardInput{Snapshot: candidate})
-		if err != nil {
-			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("closeout: rendering board: %w", err)
-		}
 		boardPath := path.Join(o.changesDir, "BOARD.md")
-		kind, err := boardMutationKind(ctx, st.Tree, boardPath)
-		if err != nil {
-			return transaction.MutationPlan{}, transaction.OperationResult{}, err
+		if err := includeBoard(ctx, st.Tree, boardPath, candidate, &files); err != nil {
+			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("closeout: %w", err)
 		}
-		files = append(files, transaction.FileMutation{Path: gitcli.RepoPath(boardPath), Kind: kind, Bytes: boardBytes})
 	}
 
 	ids := make([]int, 0, len(o.targets))
@@ -1089,16 +1083,10 @@ func (o closeoutStackedOp) Plan(ctx context.Context, st transaction.AttemptState
 		if err != nil {
 			return transaction.MutationPlan{}, transaction.OperationResult{}, err
 		}
-		boardBytes, err := render.Board(render.BoardInput{Snapshot: candidate})
-		if err != nil {
-			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("closeout stacked: rendering board: %w", err)
-		}
 		boardPath := path.Join(o.changesDir, "BOARD.md")
-		kind, err := boardMutationKind(ctx, st.Tree, boardPath)
-		if err != nil {
-			return transaction.MutationPlan{}, transaction.OperationResult{}, err
+		if err := includeBoard(ctx, st.Tree, boardPath, candidate, &files); err != nil {
+			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("closeout stacked: %w", err)
 		}
-		files = append(files, transaction.FileMutation{Path: gitcli.RepoPath(boardPath), Kind: kind, Bytes: boardBytes})
 	}
 
 	receipt, err := json.Marshal(closeoutReceipt{IDs: []int{o.id}, Notes: closeoutNotesDigest(o.notes), Op: OperationFinalizeCloseout, Root: o.id})

@@ -358,18 +358,10 @@ func (o changeKillOp) Plan(ctx context.Context, st transaction.AttemptState) (tr
 	}
 
 	if o.inline {
-		boardBytes, err := render.Board(render.BoardInput{Snapshot: candidate})
-		if err != nil {
-			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change kill: rendering board: %w", err)
-		}
 		boardPath := path.Join(o.changesDir, "BOARD.md")
-		kind, err := boardMutationKind(ctx, st.Tree, boardPath)
-		if err != nil {
-			return transaction.MutationPlan{}, transaction.OperationResult{}, err
+		if err := includeBoard(ctx, st.Tree, boardPath, candidate, &files); err != nil {
+			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change kill: %w", err)
 		}
-		files = append(files, transaction.FileMutation{
-			Path: gitcli.RepoPath(boardPath), Kind: kind, Bytes: boardBytes,
-		})
 	}
 
 	receipt, err := json.Marshal(changeKillReceipt{
