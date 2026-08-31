@@ -2,11 +2,11 @@
 id: 367
 slug: 'configurable-rendered-board-sections-and-sorting'
 title: 'Configurable rendered-board sections and sorting'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'feat'
 created: '2026-08-29'
-updated: '2026-08-30'
+updated: '2026-08-31'
 depends_on: [370]
 stacked_on:
 related: [22, 261, 318, 369, 370, 371, 372]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'feat/configurable-rendered-board-sections-and-sorting'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-31T15:12:46Z'
 ---
 
 ## Artifacts
