@@ -131,7 +131,7 @@ func executeDerivedRepair(ctx context.Context, git *gitcli.Client, sc setupConte
 
 	var ops []gitcli.TreeOp
 	for _, f := range files {
-		content, cerr := composeDerivedRepairBytes(sc, snap, corpus, recByPath, f, repairable)
+		content, cerr := composeDerivedRepairBytes(sc, snap, corpus, recByPath, f)
 		if cerr != nil {
 			return migrateInternalFailure(reposetup.StateHealthy, "composing the repaired "+f, cerr)
 		}
@@ -180,7 +180,7 @@ func executeDerivedRepair(ctx context.Context, git *gitcli.Client, sc setupConte
 // The board and ADR index are whole-file renders; an artifact-links file is the
 // record with its managed block rewritten (or, when absent, inserted after the
 // frontmatter) — never any other authored byte.
-func composeDerivedRepairBytes(sc setupContext, snap domain.Snapshot, corpus checkCorpus, recByPath map[string]corpusRecord, file string, repairable []reposetup.DerivedFinding) ([]byte, error) {
+func composeDerivedRepairBytes(sc setupContext, snap domain.Snapshot, corpus checkCorpus, recByPath map[string]corpusRecord, file string) ([]byte, error) {
 	switch file {
 	case boardCorpusPath(sc.cfg):
 		return renderCanonicalBoard(snap)

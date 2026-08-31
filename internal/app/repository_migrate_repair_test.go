@@ -90,7 +90,7 @@ func TestComposeDerivedRepairBoardBytes(t *testing.T) {
 	corpus := checkCorpus{records: []corpusRecord{rec}, link: render.LinkContext{MetadataBranch: reposetup.MetadataBranchName}}
 	recByPath := map[string]corpusRecord{rec.path: rec}
 
-	got, err := composeDerivedRepairBytes(setupContext{cfg: cfg}, snap, corpus, recByPath, boardCorpusPath(cfg), nil)
+	got, err := composeDerivedRepairBytes(setupContext{cfg: cfg}, snap, corpus, recByPath, boardCorpusPath(cfg))
 	if err != nil {
 		t.Fatalf("compose board: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestComposeDerivedRepairArtifactLinksBytes(t *testing.T) {
 	corpus := checkCorpus{records: []corpusRecord{stale}, link: render.LinkContext{MetadataBranch: reposetup.MetadataBranchName}}
 	recByPath := map[string]corpusRecord{path: stale}
 
-	got, err := composeDerivedRepairBytes(setupContext{cfg: cfg}, snap, corpus, recByPath, path, nil)
+	got, err := composeDerivedRepairBytes(setupContext{cfg: cfg}, snap, corpus, recByPath, path)
 	if err != nil {
 		t.Fatalf("compose artifact-links: %v", err)
 	}
