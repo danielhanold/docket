@@ -1,6 +1,6 @@
 # Backlog
 
-**383 changes** — 🟢 2 in progress · 🟡 62 proposed · ⚪ 4 deferred · ✅ 233 done · 🗑️ 82 killed
+**384 changes** — 🟢 2 in progress · 🟡 63 proposed · ⚪ 4 deferred · ✅ 233 done · 🗑️ 82 killed
 
 ## 🟢 In progress (2)
 
@@ -9,7 +9,7 @@
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [spec](../superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) | `feat/migrate-primary-clean-fast-forward` |
 | [0370](active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | `critical` | `refactor` | [spec](../superpowers/specs/2026-08-29-delete-the-frozen-bash-facade-and-legacy-test-surface-design.md) | `refactor/delete-the-frozen-bash-facade-and-legacy-test-surface` |
 
-## 🟡 Proposed (62)
+## 🟡 Proposed (63)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -75,6 +75,7 @@
 | [0381](active/0381-stabilize-internal-process-observe-running-terminal-race-flake.md) | Stabilize internal/process TestObserveRunningThenTerminal parallel-load -race flake | `medium` | `fix` | needs-brainstorm |
 | [0382](active/0382-changecreaterequest-typed-auto-groomable-branch-prefix-scalars.md) | ChangeCreateRequest should accept typed auto_groomable / branch_prefix scalars | `medium` | `feat` | needs-brainstorm |
 | [0383](active/0383-remove-dead-metadata-fetch-diagnostic-append-augmentcheckfacts.md) | Remove or plumb the dead metadata-fetch diagnostic append in augmentCheckFacts | `low` | `fix` | needs-brainstorm |
+| [0384](active/0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md) | Launch compositional Docket agents in coordinator-capable harness contexts | `critical` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -156,6 +157,7 @@ graph TD
   0381
   0382
   0383
+  0384
   0192:::done
   0211:::done
   0251:::done
