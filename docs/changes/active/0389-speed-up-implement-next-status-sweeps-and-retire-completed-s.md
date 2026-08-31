@@ -22,7 +22,7 @@ branch: 'fix/speed-up-implement-next-status-sweeps-and-retire-completed-s'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-31T17:54:05Z'
+claimed_at: '2026-08-31T18:09:48Z'
 ---
 
 ## Artifacts
