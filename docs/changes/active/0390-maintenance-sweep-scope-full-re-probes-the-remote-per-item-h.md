@@ -22,7 +22,7 @@ branch: 'fix/maintenance-sweep-scope-full-re-probes-the-remote-per-item-h'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-31T21:08:12Z'
+claimed_at: '2026-08-31T21:09:23Z'
 ---
 
 ## Artifacts
