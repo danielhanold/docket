@@ -350,8 +350,8 @@ func TestAssessInvalidRecordDataIsSnapshotInvalid(t *testing.T) {
 func TestAssessFailedRemoteHeadsBlocksNoWorkButNotLocalLegs(t *testing.T) {
 	planPath := "docs/changes/plans/plan-42.md"
 	corpus := []StatusBlob{
-		assessDoneBlob(41, "cleanarchived", ""),           // clean everywhere except the failed remote
-		assessDoneBlob(42, "stalearchived", planPath),     // stale backlink = local work
+		assessDoneBlob(41, "cleanarchived", ""),       // clean everywhere except the failed remote
+		assessDoneBlob(42, "stalearchived", planPath), // stale backlink = local work
 	}
 	f := newAssessFixture(t, corpus, map[string]StatusArtifact{
 		integrationArtifactKey(planPath): assessArtifactWithBacklink("> ↩ **stale**"),
@@ -389,7 +389,7 @@ func TestAssessEmptyAdvertisementMeansNoHeads(t *testing.T) {
 // leg stays named in the message.
 func TestAssessUnknownLegNamedInMessageEvenWhenBlocked(t *testing.T) {
 	f := newAssessFixture(t, []StatusBlob{assessDoneBlob(41, "archived", "")}, nil)
-	ws := wsState(41, workspace.StateForeign) // workspace leg: blocked
+	ws := wsState(41, workspace.StateForeign)                                  // workspace leg: blocked
 	shared := sweepSharedFacts{remoteHeadsErr: errors.New("ls-remote failed")} // remote leg: unknown
 	entries, actionable := f.assess(t, ws, shared, 41)
 

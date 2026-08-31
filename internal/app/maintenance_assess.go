@@ -193,9 +193,13 @@ type sweepLegAssessment struct {
 	blocked []string
 }
 
-func (a *sweepLegAssessment) markWork()                     { a.hasWork = true }
-func (a *sweepLegAssessment) markUnknown(leg, detail string) { a.unknown = append(a.unknown, leg+": "+detail) }
-func (a *sweepLegAssessment) markBlocked(leg, detail string) { a.blocked = append(a.blocked, leg+": "+detail) }
+func (a *sweepLegAssessment) markWork() { a.hasWork = true }
+func (a *sweepLegAssessment) markUnknown(leg, detail string) {
+	a.unknown = append(a.unknown, leg+": "+detail)
+}
+func (a *sweepLegAssessment) markBlocked(leg, detail string) {
+	a.blocked = append(a.blocked, leg+": "+detail)
+}
 
 // verdict maps the accumulated legs onto the non-actionable disposition. Unresolved
 // dominates blocked: an unknown leg means absence could not be proven, so a record
