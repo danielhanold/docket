@@ -8,12 +8,12 @@ import (
 	"testing"
 )
 
-// TestListRemoteHeadsCompleteAdvertisement proves one ls-remote --heads call
+// TestIntegrationListRemoteHeadsCompleteAdvertisement proves one ls-remote --heads call
 // returns the whole heads advertisement: an origin carrying main, docket, and
 // feature/x yields a map with exactly those three fully qualified refs, each at
 // the exact full object id the origin's own ref holds (oracle read straight
 // from origin, never from the adapter under test).
-func TestListRemoteHeadsCompleteAdvertisement(t *testing.T) {
+func TestIntegrationListRemoteHeadsCompleteAdvertisement(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -47,10 +47,10 @@ func TestListRemoteHeadsCompleteAdvertisement(t *testing.T) {
 	}
 }
 
-// TestListRemoteHeadsEmptyOriginIsEmptyMapNotError proves a bare origin with no
+// TestIntegrationListRemoteHeadsEmptyOriginIsEmptyMapNotError proves a bare origin with no
 // refs yields a clean empty NON-NIL map, never an error and never a nil map —
 // absence of heads is a proven emptiness, not an unknown.
-func TestListRemoteHeadsEmptyOriginIsEmptyMapNotError(t *testing.T) {
+func TestIntegrationListRemoteHeadsEmptyOriginIsEmptyMapNotError(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
@@ -75,10 +75,10 @@ func TestListRemoteHeadsEmptyOriginIsEmptyMapNotError(t *testing.T) {
 	}
 }
 
-// TestListRemoteHeadsMalformedLineIsFailureNotPartial proves a single malformed
+// TestIntegrationListRemoteHeadsMalformedLineIsFailureNotPartial proves a single malformed
 // advertisement line (an abbreviated/non-hex object id) fails the whole read as
 // invalid-output — never a partial map that would understate the inventory.
-func TestListRemoteHeadsMalformedLineIsFailureNotPartial(t *testing.T) {
+func TestIntegrationListRemoteHeadsMalformedLineIsFailureNotPartial(t *testing.T) {
 	ctx := context.Background()
 	c := helperClient(t, "script",
 		"GITCLI_HELPER_STDOUT=deadbeef\trefs/heads/main\n")
@@ -91,10 +91,10 @@ func TestListRemoteHeadsMalformedLineIsFailureNotPartial(t *testing.T) {
 	assertKind(t, err, KindInvalidOutput)
 }
 
-// TestListRemoteHeadsDuplicateRefIsFailure proves the same ref advertised twice
+// TestIntegrationListRemoteHeadsDuplicateRefIsFailure proves the same ref advertised twice
 // is refused as a typed *Failure — a duplicated inventory line is never silently
 // collapsed.
-func TestListRemoteHeadsDuplicateRefIsFailure(t *testing.T) {
+func TestIntegrationListRemoteHeadsDuplicateRefIsFailure(t *testing.T) {
 	ctx := context.Background()
 	const oid = "1111111111111111111111111111111111111111"
 	c := helperClient(t, "script",
@@ -110,10 +110,10 @@ func TestListRemoteHeadsDuplicateRefIsFailure(t *testing.T) {
 	}
 }
 
-// TestListRemoteHeadsTransportFailureIsError proves a non-zero exit from the
+// TestIntegrationListRemoteHeadsTransportFailureIsError proves a non-zero exit from the
 // advertisement command is command-failed — a failed shared inventory is
 // unknown, never an empty advertisement the caller could read as "no heads".
-func TestListRemoteHeadsTransportFailureIsError(t *testing.T) {
+func TestIntegrationListRemoteHeadsTransportFailureIsError(t *testing.T) {
 	ctx := context.Background()
 	c := helperClient(t, "exit", "GITCLI_HELPER_EXIT=128")
 	repo := Repository{PrimaryWorktree: t.TempDir()}

@@ -1710,6 +1710,55 @@ func main() {
 		})
 		os.Exit(0)
 	}
+	if len(args) >= 2 && args[0] == "api" && args[1] == "graphql" {
+		// The batched PR read the maintenance sweep issues: one aliased query
+		// resolving several exact-number pull requests in ONE process
+		// (githubcli.ViewPullRequestsBatch). The query passes as -f query=<Q>, and
+		// each slot is "<alias>: pullRequest(number: <n>){...}". Answer with the
+		// data.repository envelope the batch decoder reads: every alias mapped to
+		// this fake's live snapshot of that number (JSON null for an unknown one),
+		// so a merged PR decodes with its retained head, mergedAt, and mergeCommit
+		// exactly as the per-change gh pr view path did.
+		query := ""
+		for _, a := range args {
+			if strings.HasPrefix(a, "query=") {
+				query = strings.TrimPrefix(a, "query=")
+			}
+		}
+		list := load()
+		repo := map[string]interface{}{}
+		const marker = ": pullRequest(number: "
+		off := 0
+		for {
+			rel := strings.Index(query[off:], marker)
+			if rel < 0 {
+				break
+			}
+			idx := off + rel
+			pre := query[:idx]
+			j := len(pre) - 1
+			for j >= 0 && pre[j] != ' ' && pre[j] != '{' && pre[j] != '\t' {
+				j--
+			}
+			alias := pre[j+1:]
+			after := query[idx+len(marker):]
+			end := strings.Index(after, ")")
+			if end < 0 {
+				break
+			}
+			n, _ := strconv.Atoi(strings.TrimSpace(after[:end]))
+			if i := find(list, n); i >= 0 {
+				repo[alias] = snapshot(list[i])
+			} else {
+				repo[alias] = nil
+			}
+			off = idx + len(marker)
+		}
+		_ = json.NewEncoder(os.Stdout).Encode(map[string]interface{}{
+			"data": map[string]interface{}{"repository": repo},
+		})
+		os.Exit(0)
+	}
 	if len(args) >= 1 && args[0] == "api" {
 		owner, name := os.Getenv("FAKE_GH_OWNER"), os.Getenv("FAKE_GH_NAME")
 		path := args[len(args)-1] // last arg is the endpoint path; --hostname rides earlier
