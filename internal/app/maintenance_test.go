@@ -492,3 +492,99 @@ func TestSweepHumanTextNamesScopeAndDeferred(t *testing.T) {
 		t.Errorf("full-scope summary must name its scope, got %q", full.HumanText())
 	}
 }
+
+// countingReader delegates to an inner StatusReader and counts authority reads.
+// Implement EVERY method of the StatusReader interface by delegation (grep
+// `type StatusReader interface` in this package for the current method set),
+// incrementing pins on PinContext and corpusReads on ReadCorpus.
+type countingReader struct {
+	inner       StatusReader
+	pins        int
+	corpusReads int
+}
+
+func (c *countingReader) PinContext(ctx context.Context, repoDir string) (StatusPin, error) {
+	c.pins++
+	return c.inner.PinContext(ctx, repoDir)
+}
+
+func (c *countingReader) ReadCorpus(ctx context.Context, pin StatusPin) ([]StatusBlob, error) {
+	c.corpusReads++
+	return c.inner.ReadCorpus(ctx, pin)
+}
+
+func (c *countingReader) BranchFacts(ctx context.Context, pin StatusPin, branches []string) (domain.BranchFacts, error) {
+	return c.inner.BranchFacts(ctx, pin, branches)
+}
+
+func (c *countingReader) ArtifactExists(ctx context.Context, pin StatusPin, source, path string) (bool, error) {
+	return c.inner.ArtifactExists(ctx, pin, source, path)
+}
+
+func (c *countingReader) ReadArtifact(ctx context.Context, pin StatusPin, source, path string) (StatusArtifact, error) {
+	return c.inner.ReadArtifact(ctx, pin, source, path)
+}
+
+// countingProber delegates to an inner FinalizePRProber counting every probe.
+// Implement the interface's method set by delegation, incrementing probes once
+// per call.
+type countingProber struct {
+	inner  FinalizePRProber
+	probes int
+}
+
+func (c *countingProber) ProbePR(ctx context.Context, repoDir, prRef string) (domain.PRFacts, error) {
+	c.probes++
+	return c.inner.ProbePR(ctx, repoDir, prRef)
+}
+
+// TestSweepImplementationScopeDoesNotGrowWithHistory: growing ONLY the
+// historical done population 0 -> 300 -> 1000 must not change the cleanup
+// dispatch count, the per-item authority reload count, or the remote probe
+// count in implementation scope. Reading/parsing the larger corpus is allowed —
+// the invariant is per-item work, not corpus size. Full scope on the same
+// corpora DOES grow, proving the filter is scope-keyed rather than dead.
+func TestSweepImplementationScopeDoesNotGrowWithHistory(t *testing.T) {
+	type counts struct{ cleanups, pins, probes, deferred int }
+	measure := func(t *testing.T, historical int, scope SweepScope) counts {
+		t.Helper()
+		corpus := []StatusBlob{
+			finalizeBlob(30, "current", "implemented", "high", prRefFor(30), ""),
+			sweepInProgressBlob(50, "stale"),
+		}
+		for i := 0; i < historical; i++ {
+			id := 1000 + i
+			corpus = append(corpus, finalizeBlob(id, fmt.Sprintf("hist%04d", i), "done", "high", prRefFor(id), ""))
+		}
+		cr := &countingReader{inner: &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}}
+		cp := &countingProber{inner: &fakeFinalizeProber{facts: map[string]domain.PRFacts{
+			prRefFor(30): withHead(mergedFacts(30, "main"), "feat/current"),
+		}}}
+		ops := &recordingSweepOps{}
+		deps := FinalizeDeps{Planning: PlanningDeps{Reader: cr, Clock: testClock()}, PRProber: cp}
+		res := maintenanceSweep(context.Background(), deps, "repo", ops.seam(), scope)
+		return counts{
+			cleanups: len(ops.callIDs(sweepKindCleanup)),
+			pins:     cr.pins,
+			probes:   cp.probes,
+			deferred: res.DeferredHistoricalCleanups,
+		}
+	}
+
+	base := measure(t, 0, SweepScopeImplementation)
+	for _, n := range []int{300, 1000} {
+		got := measure(t, n, SweepScopeImplementation)
+		if got.cleanups != base.cleanups || got.pins != base.pins || got.probes != base.probes {
+			t.Errorf("historical=%d amplified work: got %+v, base %+v", n, got, base)
+		}
+		if got.deferred != n {
+			t.Errorf("historical=%d: deferred = %d, want %d", n, got.deferred, n)
+		}
+	}
+
+	// Scope-keyed, not dead: full scope grows with the archive.
+	full0, full300 := measure(t, 0, SweepScopeFull), measure(t, 300, SweepScopeFull)
+	if full300.cleanups-full0.cleanups != 300 {
+		t.Errorf("full scope must retain historical retries: cleanups %d -> %d", full0.cleanups, full300.cleanups)
+	}
+}
