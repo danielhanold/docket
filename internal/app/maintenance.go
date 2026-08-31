@@ -129,12 +129,29 @@ type sweepOps struct {
 	closeout func(ctx context.Context, id int, obs *sweepObservation) CloseoutResult
 	cleanup  func(ctx context.Context, id int, obs *sweepObservation) CleanupOpResult
 	reclaim  func(ctx context.Context, id int, version string, obs *sweepObservation) ChangeReclaimResult
+	// assessHistorical, when set, resolves FULL-scope historical (done/stacked-
+	// merged) cleanup candidates from the pinned inventory and shared read-only
+	// inventories BEFORE they are dispatched, returning the non-actionable
+	// pre-dispatch entries plus the subset warranting one fresh cleanup attempt. It
+	// gathers the invocation-shared facts once (one ListRemoteHeads only when there
+	// are done candidates) and dispatches no per-item metadata, PR, or remote-ref
+	// read. A nil assessHistorical (an orchestration test seam) enqueues every
+	// historical candidate unassessed — the pre-assessment behavior — so the
+	// orchestration tests exercise dispatch order and isolation without the filter.
+	// Production wires it in MaintenanceSweep; it is consulted only in full scope.
+	assessHistorical func(ctx context.Context, inv sweepInventory, pin StatusPin, historical []sweepWorkItem) (entries []MaintenanceEntry, actionable []sweepWorkItem)
 }
 
 // MaintenanceEntry is one item's structured outcome. Disposition is a closed
-// sweep token; Operation names the op key that produced it (empty for a
-// pre-dispatch skip). It leaks no authored artifact bytes. The fresh-authority
-// contract behind every entry is now one metadata fetch for the whole operation
+// sweep token. Operation distinguishes the two kinds of entry: a DISPATCHED-
+// operation result names the op key that produced it (finalize.closeout,
+// finalize.cleanup, change.reclaim) and carries that operation's own protocol
+// verdict; a PRE-DISPATCH observation — a policy skip, a vanished/reload skip, or
+// a full-scope snapshot assessment that resolved a historical record locally
+// without dispatching anything — carries an EMPTY Operation and is never a
+// fabricated cleanup result. No applied count is manufactured from a pre-dispatch
+// observation. It leaks no authored artifact bytes. The fresh-authority contract
+// behind every DISPATCHED entry is one metadata fetch for the whole operation
 // attempt and zero repeated setup probes or nested-reader fetches: the attempt's
 // presence decision and its dispatched operation observe one shared metadata
 // observation, never a per-check re-pin.
@@ -291,6 +308,14 @@ func MaintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, sc
 			// finalize population — never a probe per change.
 			return sweepSelectPRFacts(ctx, deps.PRBatch, repoDir, snap)
 		},
+		assessHistorical: func(ctx context.Context, inv sweepInventory, pin StatusPin, historical []sweepWorkItem) ([]MaintenanceEntry, []sweepWorkItem) {
+			// Gather the invocation-shared read-only inventories ONCE (one remote-heads
+			// advertisement, one worktree list) — and only when a done candidate needs
+			// them — then resolve every historical record locally, enqueuing only the
+			// records that warrant a fresh cleanup attempt.
+			shared := gatherSweepSharedFacts(ctx, deps, inv, historical)
+			return sweepAssessHistorical(ctx, deps, wdeps, inv, pin, shared, historical)
+		},
 	}
 	return maintenanceSweep(ctx, deps, repoDir, ops, scope)
 }
@@ -358,7 +383,32 @@ func maintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, op
 
 	items, deferredHistorical := sweepWorklist(inv.snap, queue, eff, deps.Planning.Clock.Now(), scope)
 
-	entries := make([]MaintenanceEntry, 0, len(items))
+	// Full-scope snapshot assessment: resolve the historical (done/stacked-merged)
+	// cleanup candidates locally from the pinned inventory and the shared read-only
+	// inventories, dispatching only the records that warrant a fresh attempt. The
+	// non-actionable records become pre-dispatch observation entries (empty
+	// Operation). A nil assessHistorical (an orchestration test seam) leaves the
+	// historical candidates enqueued unassessed. Implementation scope never reaches
+	// here — it defers historical records as an unprobed count in sweepWorklist.
+	var assessEntries []MaintenanceEntry
+	if scope == SweepScopeFull && ops.assessHistorical != nil {
+		var historical, others []sweepWorkItem
+		for _, it := range items {
+			if it.kind == sweepKindCleanup {
+				historical = append(historical, it)
+			} else {
+				others = append(others, it)
+			}
+		}
+		if len(historical) > 0 {
+			var actionable []sweepWorkItem
+			assessEntries, actionable = ops.assessHistorical(ctx, inv, pin, historical)
+			items = append(others, actionable...)
+		}
+	}
+
+	entries := make([]MaintenanceEntry, 0, len(items)+len(assessEntries))
+	entries = append(entries, assessEntries...)
 	for _, it := range items {
 		switch it.kind {
 		case sweepKindCloseout:
@@ -417,6 +467,44 @@ func sweepBuildSnapshot(ctx context.Context, reader StatusReader, pin StatusPin,
 		versions[b.Path] = b.Version
 	}
 	return sweepInventory{snap: build.Snapshot, versionByPath: versions}, nil
+}
+
+// gatherSweepSharedFacts reads the invocation-shared read-only inventories the
+// snapshot assessment reasons over: one complete remote-heads advertisement and
+// one worktree list. It is LAZY — only a `done` candidate consumes the remote/
+// local-ref legs, so a historical worklist carrying only stacked-merged (retained)
+// records fetches neither inventory (zero ListRemoteHeads calls). A failed read is
+// recorded as the leg's error (a failed shared inventory is unknown, never a clean
+// absence and never a fan-out into per-ref probes); a missing git client/repository
+// makes both inventories unknown rather than silently empty.
+func gatherSweepSharedFacts(ctx context.Context, deps FinalizeDeps, inv sweepInventory, historical []sweepWorkItem) sweepSharedFacts {
+	needsShared := false
+	for _, it := range historical {
+		if c, out := inv.snap.Change(domain.ChangeID(it.id)); out == domain.LookupFound && c.Status() == domain.StatusDone {
+			needsShared = true
+			break
+		}
+	}
+	if !needsShared {
+		return sweepSharedFacts{}
+	}
+	repo := sweepAssessRepo(deps)
+	if deps.Planning.Client == nil || repo.PrimaryWorktree == "" {
+		err := fmt.Errorf("no git client or repository is wired to read the shared sweep inventories")
+		return sweepSharedFacts{remoteHeadsErr: err, worktreesErr: err}
+	}
+	var shared sweepSharedFacts
+	if heads, err := deps.Planning.Client.ListRemoteHeads(ctx, repo, originRemote); err != nil {
+		shared.remoteHeadsErr = err
+	} else {
+		shared.remoteHeads = heads
+	}
+	if wts, err := deps.Planning.Client.ListWorktrees(ctx, repo); err != nil {
+		shared.worktreesErr = err
+	} else {
+		shared.worktrees = wts
+	}
+	return shared
 }
 
 // sweepWorklist derives the deterministic ordered worklist from one pinned

@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
@@ -412,20 +411,13 @@ func (o cleanupBacklinkOp) Plan(ctx context.Context, st transaction.AttemptState
 			if !present {
 				continue
 			}
-			doc, err := document.Parse(original)
+			// The byte comparison lives once in backlinkLegRetarget; a missing block
+			// is never conjured and already-retargeted bytes are a no-op.
+			updated, hasBlock, changed, err := backlinkLegRetarget(original, tg.interior)
 			if err != nil {
 				return transaction.MutationPlan{}, transaction.OperationResult{}, err
 			}
-			if _, ok := doc.Block(backlinkBlockName); !ok {
-				continue
-			}
-			var ps document.PatchSet
-			ps.ReplaceBlock(backlinkBlockName, tg.interior)
-			updated, err := doc.Apply(ps)
-			if err != nil {
-				return transaction.MutationPlan{}, transaction.OperationResult{}, err
-			}
-			if string(updated) == string(original) {
+			if !hasBlock || !changed {
 				continue
 			}
 			files = append(files, transaction.FileMutation{Path: gitcli.RepoPath(p), Kind: transaction.MutationReplace, Bytes: updated})
