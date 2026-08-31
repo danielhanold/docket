@@ -63,12 +63,13 @@ func runDevelopmentTest(ctx context.Context, stdout, stderr io.Writer) int {
 	}
 
 	cfg := suiterunner.Config{
-		RepoRoot:      repoRoot,
-		TestsDir:      testsDir,
-		BudgetsPath:   budgets,
-		Jobs:          jobs,
-		Bash:          os.Getenv("DOCKET_BASH_PATH"), // "" => suiterunner.Run resolves bash on PATH
-		HygienePath:   filepath.Join(repoRoot, "scripts", "check-test-source-hygiene.sh"),
+		RepoRoot:    repoRoot,
+		TestsDir:    testsDir,
+		BudgetsPath: budgets,
+		Jobs:        jobs,
+		// Bash is left unset: suiterunner.Run resolves "bash" on PATH (and its
+		// existing unusable-bash exit-2 still fires). The DOCKET_BASH_PATH seam was
+		// retired with the frozen Bash control plane (change 0370).
 		StatePath:     state,
 		Strict:        os.Getenv("DOCKET_RUNTESTS_STRICT") == "1",
 		DurationsPath: os.Getenv("DOCKET_RUNTESTS_TEST_DURATIONS"),
@@ -79,8 +80,8 @@ func runDevelopmentTest(ctx context.Context, stdout, stderr io.Writer) int {
 }
 
 // gitToplevel resolves the worktree root of the checkout the command runs in.
-// The runner tests THIS checkout, so discovery, budgets, and the hygiene checker
-// are all anchored here rather than at any installed asset tree.
+// The runner tests THIS checkout, so discovery and budgets are anchored here
+// rather than at any installed asset tree.
 func gitToplevel() (string, error) {
 	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
 	if err != nil {
