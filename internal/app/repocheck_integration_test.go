@@ -204,6 +204,47 @@ func TestIntegrationRepoCheckHealthyFullPostcondition(t *testing.T) {
 	})
 }
 
+// writeDocketFileAndPush commits a file INTO the .docket metadata worktree (on
+// the docket branch) and pushes it to origin, so a derived-view file drifts on
+// the authoritative metadata branch while the local worktree stays synchronized
+// (healthy topology, stale derived view).
+func (r *initRepo) writeDocketFileAndPush(t *testing.T, relPath, content, message string) {
+	t.Helper()
+	dotDocket := filepath.Join(r.invocation, ".docket")
+	writeRepoFile(t, dotDocket, relPath, content)
+	runGit(t, dotDocket, "add", "--", relPath)
+	runGit(t, dotDocket, "commit", "-q", "-m", message)
+	runGit(t, dotDocket, "push", "-q", "origin", string(reposetup.MetadataBranchName))
+}
+
+// TestIntegrationRepoCheckDerivedViewDrift proves a healthy repository whose
+// inline board on the metadata branch differs from the canonical render is
+// reported as a repairable board-stale finding with exit 1 — a derived-view drift
+// is a diagnosed action, not a clean repository.
+func TestIntegrationRepoCheckDerivedViewDrift(t *testing.T) {
+	r := newHealthyRepo(t)
+	// The healthy metadata tree has no board. Publish a board whose bytes cannot
+	// be the canonical render of an empty corpus.
+	r.writeDocketFileAndPush(t, "docs/changes/BOARD.md", "# Backlog\n\nhand-written stale board\n", "publish a stale inline board")
+
+	res := r.runCheck(t)
+	if code := res.CheckExitCode(); code != 1 {
+		t.Errorf("exit = %d (%s), want 1 (a stale board is a diagnosed action)", code, res.HumanText())
+	}
+	var stale *reposetup.Finding
+	for i := range res.Findings {
+		if res.Findings[i].Code == reposetup.CodeBoardStale {
+			stale = &res.Findings[i]
+		}
+	}
+	if stale == nil {
+		t.Fatalf("check did not report board-stale; findings: %+v", res.Findings)
+	}
+	if stale.Repairable == nil || !*stale.Repairable {
+		t.Errorf("board-stale finding must be repairable, got %+v", stale)
+	}
+}
+
 // TestIntegrationRepoCheckIsReadOnly proves check performs no write: across
 // several fixture states the local refs (excluding refs/remotes/*, which a bounded
 // fetch may advance), the primary HEAD, and both worktrees' porcelain status are

@@ -5,6 +5,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -472,4 +473,129 @@ func keysOf(m map[string]bool) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// --- healthy-repository derived-view repair (change 0377) --------------------
+//
+// migrate's second job is authorized mechanical repair of deterministic
+// derived-view drift on an ALREADY-HEALTHY repository. These exercise it end to
+// end: publish drift onto the healthy metadata branch, preview it, authorize the
+// repair, and prove the canonical bytes were recomputed while authored content
+// stayed byte-identical.
+
+// staleRepairRecord is a change record with a spec but an EMPTY managed
+// artifact-links block (so the canonical render drifts) and a distinctive
+// authored sentence the repair must never touch.
+const repairAuthoredSentinel = "AUTHORED-PROSE-SENTINEL-do-not-touch"
+
+func staleRepairRecord() string {
+	return "---\n" +
+		"id: 1\nslug: example\ntitle: Example change\nstatus: proposed\npriority: medium\n" +
+		"type: feature\ncreated: 2026-08-30\nupdated: 2026-08-30\n" +
+		"spec: docs/superpowers/specs/2026-08-30-example-design.md\n" +
+		"---\n\n## Artifacts\n\n" +
+		"<!-- docket:artifacts:start (generated — do not hand-edit) -->\n" +
+		"<!-- docket:artifacts:end -->\n\n## Why\n\n" + repairAuthoredSentinel + "\n"
+}
+
+// publishHealthyDrift publishes a stale board and a stale artifact-links record
+// onto the healthy metadata branch, returning the pinned docket tip afterward.
+func (r *initRepo) publishHealthyDrift(t *testing.T) {
+	t.Helper()
+	dotDocket := filepath.Join(r.invocation, ".docket")
+	writeRepoFile(t, dotDocket, "docs/changes/BOARD.md", "# Backlog\n\nhand-written stale board\n")
+	writeRepoFile(t, dotDocket, "docs/changes/active/0001-example.md", staleRepairRecord())
+	runGit(t, dotDocket, "add", "--", "docs/changes/BOARD.md", "docs/changes/active/0001-example.md")
+	runGit(t, dotDocket, "commit", "-q", "-m", "publish stale derived views")
+	runGit(t, dotDocket, "push", "-q", "origin", string(reposetup.MetadataBranchName))
+}
+
+// TestIntegrationRepoMigrationHealthyRepairPreview proves migrate on a healthy
+// repository with derived-view drift, WITHOUT --yes, returns confirmation-required
+// naming the pinned metadata revision and the repaired file set — and writes
+// nothing to the remote docket branch.
+func TestIntegrationRepoMigrationHealthyRepairPreview(t *testing.T) {
+	r := newHealthyRepo(t)
+	r.publishHealthyDrift(t)
+	before := currentDocketTip(t, r)
+
+	res := r.runMigrate(t, MigrateOptions{RepairAuthorized: true})
+	if res.Result != ResultInvalidState || res.RepositoryState != "confirmation-required" {
+		t.Fatalf("preview = %q/%q (%s), want invalid-state/confirmation-required", res.Result, res.RepositoryState, res.HumanText())
+	}
+	if res.SourceRevision != before {
+		t.Errorf("preview SourceRevision = %q, want the pinned docket tip %q", res.SourceRevision, before)
+	}
+	if !containsPath(res.RepairedViews, "docs/changes/BOARD.md") || !containsPath(res.RepairedViews, "docs/changes/active/0001-example.md") {
+		t.Errorf("RepairedViews = %v, want both the board and the record", res.RepairedViews)
+	}
+	if after := currentDocketTip(t, r); after != before {
+		t.Errorf("preview advanced the docket branch %q -> %q; a preview must not write", before, after)
+	}
+}
+
+// TestIntegrationRepoMigrationHealthyRepairApplies proves an authorized repair
+// recomputes the canonical derived bytes on the metadata branch, leaves the
+// authored prose byte-identical, and is idempotent on a second run.
+func TestIntegrationRepoMigrationHealthyRepairApplies(t *testing.T) {
+	r := newHealthyRepo(t)
+	r.publishHealthyDrift(t)
+	before := currentDocketTip(t, r)
+
+	res := r.runMigrate(t, MigrateOptions{Authorized: true, RepairAuthorized: true})
+	if res.Result != ResultApplied {
+		t.Fatalf("repair = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	if !containsPath(res.RepairedViews, "docs/changes/BOARD.md") {
+		t.Errorf("RepairedViews = %v, want the board", res.RepairedViews)
+	}
+	after := currentDocketTip(t, r)
+	if after == before {
+		t.Fatalf("repair did not advance the docket branch")
+	}
+
+	// The repaired record carries the canonical Spec row AND the untouched authored
+	// prose; the board is no longer the stale bytes.
+	record := showDocketFile(t, r, "docs/changes/active/0001-example.md")
+	if !strings.Contains(record, "| Spec |") {
+		t.Errorf("repaired record missing the canonical Spec row:\n%s", record)
+	}
+	if !strings.Contains(record, repairAuthoredSentinel) {
+		t.Errorf("repair modified authored prose; the sentinel is gone:\n%s", record)
+	}
+	board := showDocketFile(t, r, "docs/changes/BOARD.md")
+	if strings.Contains(board, "hand-written stale board") {
+		t.Errorf("board was not recomputed:\n%s", board)
+	}
+
+	// Idempotent: a second authorized run finds no drift and is a no-op.
+	second := r.runMigrate(t, MigrateOptions{Authorized: true, RepairAuthorized: true})
+	if second.Result != ResultNoOp {
+		t.Errorf("second repair = %q (%s), want no-op (nothing left to repair)", second.Result, second.HumanText())
+	}
+}
+
+// currentDocketTip returns the remote docket branch tip via an independent git
+// oracle.
+func currentDocketTip(t *testing.T, r *initRepo) string {
+	t.Helper()
+	runGit(t, r.invocation, "fetch", "-q", "origin", string(reposetup.MetadataBranchName))
+	return strings.TrimSpace(runGit(t, r.invocation, "rev-parse", "FETCH_HEAD"))
+}
+
+// showDocketFile reads a file from the remote docket branch tip.
+func showDocketFile(t *testing.T, r *initRepo, relPath string) string {
+	t.Helper()
+	runGit(t, r.invocation, "fetch", "-q", "origin", string(reposetup.MetadataBranchName))
+	return runGit(t, r.invocation, "show", "FETCH_HEAD:"+relPath)
+}
+
+// containsPath reports whether s contains p.
+func containsPath(s []string, p string) bool {
+	for _, v := range s {
+		if v == p {
+			return true
+		}
+	}
+	return false
 }
