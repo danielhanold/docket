@@ -10,13 +10,14 @@
 # no-callers seal is explicitly NOT this guard's claim: it never asserts a repo-wide zero
 # `docket.sh` count.
 #
-# Two frozen callers legitimately keep a legacy op INSIDE a migrated file, so this guard slices
-# the migrated region with NAMED terminators (asserting each terminator exists, so a rename
-# reddens instead of silently widening the slice to EOF) and bans the token only within it:
-#   - terminal-close-out.md: the `killed`-outcome leg keeps `docket.sh archive-change` (finalize
-#     closeout does not cover killed — Task 1 disposition); only the done-path slice is scanned.
-#   - docket-adr/SKILL.md: the Index/validate section keeps a repair-only `docket.sh
-#     render-adr-index`; only the transaction sections (Create..Index/validate) are scanned.
+# HISTORICAL (0369): two frozen callers once kept a legacy op INSIDE a migrated file, and this
+# guard sliced the migrated region with named terminators to ban the token only within the migrated
+# slice. Change 0377 RETIRED both slice exemptions in one commit — the legacy op is now gone from
+# BOTH files entirely, so each is scanned whole-file with a plain ban plus its new Go-verb floor:
+#   - terminal-close-out.md: the `killed`-outcome leg migrated `docket.sh archive-change` ->
+#     `docket change kill` (Task 10), which archives killed changes atomically. Whole-file ban.
+#   - docket-adr/SKILL.md: the repair-only `docket.sh render-adr-index` migrated ->
+#     `docket repository migrate` repair (Task 9). Whole-file ban.
 #
 # SHAPE, NOT SPELLINGS: the legacy-invocation discriminator is `docket.sh <op-token>` with both
 # sides of the op token bounded — any path or variable prefix reaching `docket.sh` matches, so a
@@ -79,26 +80,21 @@ assert "no legacy cleanup call in terminal-close-out" '! banned "$TCO" "cleanup-
 assert "no legacy backlink call in terminal-close-out" '! banned "$TCO" "render-artifact-backlink"'
 assert "Go finalize pair present in terminal-close-out (floor)" \
   'grep -qF "docket finalize closeout --id" "$TCO" && grep -qF "docket finalize cleanup --id" "$TCO"'
-# archive-change: the done path is migrated to `finalize closeout`, but the killed-outcome leg
-# legitimately keeps `docket.sh archive-change` (Task 1 disposition). Slice the done-path region
-# with named terminators (**Done drivers** .. **Kill drivers**) and ban the token inside it only.
-assert "close-out done/kill terminators still exist (slice is bounded)" \
-  'grep -qF "**Done drivers**" "$TCO" && grep -qF "**Kill drivers**" "$TCO"'
-done_path_span(){ awk '/\*\*Done drivers\*\*/{f=1} /\*\*Kill drivers\*\*/{f=0} f' "$TCO"; }
-assert "no legacy archive-change on the done path (killed leg stays frozen)" \
-  '! done_path_span | grep -E -e "docket\.sh[[:space:]]+archive-change([^[:alnum:]_-]|$)"'
+# archive-change: 0377 Task 10 retired the killed-leg exemption — the done path is on `finalize
+# closeout` and the killed leg is on `docket change kill`, so `docket.sh archive-change` is banned
+# WHOLE-FILE now (no slice). Floor on the new killed-leg Go verb so deleting it reddens.
+assert "no legacy archive-change anywhere in terminal-close-out (killed leg now on change kill)" \
+  '! banned "$TCO" "archive-change"'
+assert "Go change kill present in terminal-close-out (killed-leg floor)" \
+  'grep -qF "docket change kill" "$TCO"'
 
 # --- ADR family (Class D): transactions on Go verbs; index-render follow-up removed ------------
 ADR="$REPO/skills/docket-adr/SKILL.md"
 assert "docket-adr transactions on Go verbs (floor)" \
   'grep -qF "docket adr record" "$ADR" && grep -qF "docket adr supersede" "$ADR" && grep -qF "docket adr reverse" "$ADR"'
-# Class D: no `render-adr-index` follow-up inside the transaction sections. A repair-only mention
-# in Index/validate is permitted (frozen — no Go verb). Slice Create..Index/validate with named
-# terminators and assert each exists so a heading rename reddens rather than widening the slice.
-assert "ADR Create + Index/validate terminators still exist (slice is bounded)" \
-  'grep -qE "^### Create" "$ADR" && grep -qE "^### Index / validate" "$ADR"'
-adr_txn_span(){ awk '/^### Create/{f=1} /^### Index \/ validate/{f=0} f' "$ADR"; }
-assert "no index-render follow-up inside ADR transaction sections (Class D stays removed)" \
-  '! adr_txn_span | grep -E -e "docket\.sh[[:space:]]+render-adr-index([^[:alnum:]_-]|$)"'
+# Class D: 0377 Task 9 retired the repair-only `docket.sh render-adr-index` exemption — the repair
+# leg migrated to `docket repository migrate`, so the token is banned WHOLE-FILE now (no slice).
+assert "no legacy render-adr-index anywhere in docket-adr (repair leg now on repository migrate)" \
+  '! banned "$ADR" "render-adr-index"'
 
 exit $fail
