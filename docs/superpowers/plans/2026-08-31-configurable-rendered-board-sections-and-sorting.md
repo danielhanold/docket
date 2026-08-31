@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0367 — Configurable rendered-board sections and sorting](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0367-configurable-rendered-board-sections-and-sorting.md)**
+> ↩ **[Change 0367 — Configurable rendered-board sections and sorting](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-31-0367-configurable-rendered-board-sections-and-sorting.md)**
 <!-- docket:backlink:end -->
 # Configurable Rendered-Board Sections and Sorting — Implementation Plan
 
