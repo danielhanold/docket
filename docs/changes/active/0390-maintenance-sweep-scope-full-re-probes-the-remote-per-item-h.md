@@ -13,7 +13,7 @@ related: [389]
 discovered_from: [389]
 adrs: [101]
 spec: 'docs/superpowers/specs/2026-08-31-maintenance-sweep-scope-full-re-probes-the-remote-per-item-h-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-08-31-maintenance-sweep-scope-full-re-probes-the-remote-per-item-h.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-08-31T21:09:23Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-31-maintenance-sweep-scope-full-re-probes-the-remote-per-item-h-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-31-maintenance-sweep-scope-full-re-probes-the-remote-per-item-h-design.md) |
+| Plan | [2026-08-31-maintenance-sweep-scope-full-re-probes-the-remote-per-item-h.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-31-maintenance-sweep-scope-full-re-probes-the-remote-per-item-h.md) |
 | ADRs | [ADR-0101](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0101-maintenance-sweep-scope-defer-historical-cleanup-out-of-impl.md) |
 <!-- docket:artifacts:end -->
 
