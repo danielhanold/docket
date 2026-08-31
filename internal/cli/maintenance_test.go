@@ -30,6 +30,54 @@ func TestMaintenanceSweepAssetIndependent(t *testing.T) {
 	}
 }
 
+// TestMaintenanceSweepScopeFlag: the closed --scope flag is registered with
+// full as its omitted default, and the RESOLVED scope is echoed in the
+// envelope — asserting the non-default value proves the wiring, since a
+// defaulted parameter hides a dropped argument (learnings:
+// defaulted-param-hides-caller-wiring).
+func TestMaintenanceSweepScopeFlag(t *testing.T) {
+	root := captureTree(t)
+	cmd, _, err := root.Find([]string{"maintenance", "sweep"})
+	if err != nil || cmd == nil {
+		t.Fatalf("maintenance sweep not registered: %v", err)
+	}
+	f := cmd.Flags().Lookup("scope")
+	if f == nil || f.DefValue != "full" {
+		t.Fatalf("--scope must exist with default full, got %+v", f)
+	}
+
+	out, errS, _ := runCLI(t, "maintenance", "sweep", "--repo-dir", t.TempDir(), "--json")
+	if errS != "" || !strings.Contains(out, `"scope":"full"`) {
+		t.Errorf("omitted scope must resolve and echo full: out=%q err=%q", out, errS)
+	}
+	out, errS, _ = runCLI(t, "maintenance", "sweep", "--scope", "implementation", "--repo-dir", t.TempDir(), "--json")
+	if errS != "" || !strings.Contains(out, `"scope":"implementation"`) {
+		t.Errorf("explicit implementation must reach the operation and echo back: out=%q err=%q", out, errS)
+	}
+}
+
+// TestMaintenanceSweepScopeRefusedBeforeWork: an unknown or empty explicit
+// scope is refused before any repo/network/mutation work — no maintenance.sweep
+// document is ever produced.
+func TestMaintenanceSweepScopeRefusedBeforeWork(t *testing.T) {
+	for _, bad := range []string{"bogus", ""} {
+		out, errS, code := runCLI(t, "maintenance", "sweep", "--scope", bad, "--repo-dir", t.TempDir(), "--json")
+		if code == 0 {
+			t.Errorf("scope %q must fail, exit=0", bad)
+		}
+		if strings.Contains(out, `"operation":"maintenance.sweep"`) {
+			t.Errorf("scope %q must refuse BEFORE dispatching the operation: %q", bad, out)
+		}
+		// In --json mode a RunE refusal renders as the "cli" invalid-input
+		// document on stdout, its message carrying the flag name; in human mode
+		// it routes to stderr. Assert the flag-naming diagnostic on whichever
+		// channel carried it.
+		if !strings.Contains(out+errS, "scope") {
+			t.Errorf("scope %q: diagnostic must name the flag, got out=%q err=%q", bad, out, errS)
+		}
+	}
+}
+
 // TestMaintenanceGroupMissingCommand proves the bare group reports a missing
 // command rather than doing anything, mirroring finalize and gate.
 func TestMaintenanceGroupMissingCommand(t *testing.T) {
