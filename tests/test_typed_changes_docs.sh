@@ -137,21 +137,22 @@ assert "(B) README's inventory step flags the read as write-free" \
 para(){ awk -v pat="$1" 'index($0,pat){f=1} f && /^[[:space:]]*$/{exit} f{print}' "$2"; }
 section(){ awk -v pat="$1" 'index($0,pat){f=1;print;next} f && /^## /{exit} f{print}' "$2"; }
 
-DRAFT="$(para 'Draft the change' "$NC")"
+# change 0377 Task 11: docket-new-change's Brainstorm-mode record write migrated from a hand-drafted
+# frontmatter block to the typed `docket change create` transaction, which takes `type` as a
+# REQUIRED, validated request field (create refuses an unknown/empty type). The untyped-set invariant
+# is therefore enforced by the OP, stronger than by prose — and there is no template comment to
+# replace, so the old fm_field-hazard asserts (REPLACE the template's comment / unfilled line) are
+# retired. Re-pointed (mechanical) at the surviving substance: the create step binds `type` to a
+# configured `change_type` and states that create refuses an untyped change.
+DRAFT="$(para 'Create the proposed change' "$NC")"
 SCAN="$(section '## Scan mode' "$NC")"
 
-assert "(C) the Brainstorm-mode draft step was found" '[ -n "$DRAFT" ]'
+assert "(C) the Brainstorm-mode create step was found" '[ -n "$DRAFT" ]'
 assert "(C) the Scan mode section was found" '[ -n "$SCAN" ]'
-assert "(C) the draft step writes type: into the frontmatter" \
-  'grep <<<"$DRAFT" -q "type:"'
-assert "(C) the draft step binds type: to a configured change_type" \
+assert "(C) the create step carries a type field bound to a configured change_type" \
   'grep <<<"$DRAFT" -q "change_type"'
-assert "(C) the draft step says to REPLACE the template's comment (an unfilled type: line is neither a real type nor untyped — the fm_field hazard)" \
-  'grep <<<"$DRAFT" -qi "replace" &&
-   grep <<<"$DRAFT" -qi "template" &&
-   grep <<<"$DRAFT" -Eqi "unfilled|blank|empty|left as|comment"'
-assert "(C) the draft step names untyped as what an unfilled line is NOT" \
-  'grep <<<"$DRAFT" -q "untyped"'
+assert "(C) the create step states the typed create refuses an untyped change (invariant enforced by the op)" \
+  'grep <<<"$DRAFT" -Eqi "refuse|reject|require" && grep <<<"$DRAFT" -q "untyped"'
 assert "(C) Scan-mode stubs carry a type: too (scan is the bulk creation path — the one that grew the untyped set fastest)" \
   'grep <<<"$SCAN" -q "type:"'
 assert "(C) Scan mode restates the shrink-only invariant" \

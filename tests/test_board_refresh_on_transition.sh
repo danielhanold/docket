@@ -33,9 +33,14 @@ assert "implement-next renders the reconcile-kill board atomically via docket ch
 assert "implement-next no longer runs a separate best-effort Board pass" \
   '! grep -q "run the Board pass (best-effort" skills/docket-implement-next/SKILL.md'
 
-# C. docket-new-change proposed-kill refreshes the board (must-land, not best-effort).
-assert "new-change proposed-kill refreshes board (must-land Board pass)" \
-  'grep -q "must-land Board pass" skills/docket-new-change/SKILL.md'
+# C. docket-new-change proposed-kill (change 0377 Task 11): the kill is a `docket change kill`
+# transaction that renders the inline board ATOMICALLY inside its own metadata commit — so no
+# separate must-land Board pass survives. Assert the atomic-kill board render (floor on the Go verb),
+# and the mutation twin — that the retired must-land facade pass is GONE.
+assert "new-change proposed-kill renders the board atomically via docket change kill" \
+  'grep -qF "docket change kill" skills/docket-new-change/SKILL.md'
+assert "new-change no longer runs a separate must-land Board pass" \
+  '! grep -q "must-land Board pass" skills/docket-new-change/SKILL.md'
 
 # D. terminal-publish stays board-agnostic — the kill gap is fixed at the SITES, not here.
 assert "terminal-publish keeps the 'BOARD.md is never published' guarantee" \
@@ -56,7 +61,7 @@ assert "terminal-publish keeps the 'BOARD.md is never published' guarantee" \
 # The diff-only rule 0059 asserted in PROSE is now asserted where it actually executes:
 # tests/test_docket_status.sh ("board_pass second (clean) run reports clean") proves the
 # orchestrator does not commit an unchanged board.
-BOARD_PASS_CALL="docket.sh docket-status --board-only"
+RETIRED_BOARD_PASS_CALL="docket.sh docket-status --board-only"
 
 # E. The convention still names board-refresh.sh as the gated inline writer (a NOUN mention —
 # permitted by ADR-0030, and load-bearing: it is what documents the single write choke point).
@@ -74,19 +79,27 @@ assert "convention names the exceptional-drift repair path (check + authorized m
   'grep -qF "docket repository check" skills/docket-convention/SKILL.md && grep -qF "docket repository migrate" skills/docket-convention/SKILL.md'
 
 # docket-finalize-change is NOT in this facade-caller loop as of 0316 — see the dedicated
-# absorption assertion after the loop. docket-implement-next left the loop as of 0377 Task 10: its
-# reconcile-kill board pass is now absorbed into the `docket change kill` transaction (asserted in
-# block B above).
-CALLERS=(
+# absorption assertion after the loop. docket-implement-next left the loop as of 0377 Task 10 (its
+# reconcile-kill board pass is absorbed into `docket change kill`, block B). Change 0377 Task 11
+# then migrated the LAST three status-writing skills (docket-new-change, docket-groom-next,
+# docket-auto-groom) onto the Go-v1 change transactions (`docket change create`/`groom`/`defer`/
+# `kill`), each rendering the inline board ATOMICALLY in its own metadata commit — so NO facade
+# Board pass survives in ANY skill. The facade-caller loop is therefore inverted: assert the retired
+# pass is GONE from each, floored on the atomic-board invariant so it cannot go vacuously green
+# (restatement-accumulates-its-own-guards; assert-detects-removal-not-replacement).
+MIGRATED=(
   skills/docket-new-change/SKILL.md
   skills/docket-groom-next/SKILL.md
   skills/docket-auto-groom/SKILL.md
 )
 
-for f in "${CALLERS[@]}"; do
+for f in "${MIGRATED[@]}"; do
   name="$(basename "$(dirname "$f")")"
-  assert "$name routes its Board site through the single facade call" \
-    "grep -qF \"$BOARD_PASS_CALL\" \"$f\""
+  assert "$name no longer routes a Board site through the retired facade pass" \
+    "! grep -qF \"\$RETIRED_BOARD_PASS_CALL\" \"$f\""
+  # Mutation twin: strip the atomic-board invariant and this reddens.
+  assert "$name states the board renders with no separate pass (atomic floor)" \
+    "grep -qF 'no separate Board pass' \"$f\""
   # The retired shapes must be GONE: a skill that still spells a surfaces value is a skill that
   # can still send an unresolved one.
   assert "$name no longer spells a surfaces value at its Board site" \

@@ -218,6 +218,7 @@ B_SURF_FLAG='--surfaces'             # the retired flag
 B_REFRESH_CALL='docket.sh board-refresh'   # the retired direct invocation
 
 board_pass_files=0
+atomic_board_files=0
 for f in "${SCOPE3[@]}"; do
   rel="${f#$REPO/}"
   units="$(extract_code_units "$f")"
@@ -232,6 +233,10 @@ for f in "${SCOPE3[@]}"; do
     '! grep -qF -- "$B_REFRESH_CALL" "$f"'
 
   grep -qF -- 'docket.sh docket-status --board-only' "$f" && board_pass_files=$((board_pass_files + 1))
+  # Atomic-board floor (change 0377 Task 11): every skill that previously carried the facade Board
+  # pass now states the board renders with no separate pass. Count files carrying that invariant so
+  # the board_pass==0 assert below cannot be satisfied by "0370 already deleted everything."
+  grep -qF -- 'no separate Board pass' "$f" && atomic_board_files=$((atomic_board_files + 1))
 done
 
 # NON-VACUITY (LEARNINGS: a guard that parses nothing passes everything — assert the unit count the
@@ -246,17 +251,21 @@ done
 # Task 9 then rewrote the convention's Board-pass definition to the absorbed atomic model (board
 # renders inside the typed mutation, no separate pass), removing its facade call: 6 to 5; Task 10
 # absorbed docket-implement-next's reconcile-kill board pass into `docket change kill` and
-# terminal-close-out.md's board pass into the typed close-out transactions: 5 to 3. The 3
-# still-Bash skills keep it until Task 11.
-# docket-status/SKILL.md and docket-adr/SKILL.md have no Board site of their own. This is a
-# per-FILE count (grep -l), not a per-occurrence count — the facade string legitimately repeats
-# inside docket-new-change's SKILL.md. Widening the scan corpus to SCOPE3 (finding 2, above) adds
-# github-board-mirror.md and the three `*-template.md` files to the scan, but none of them carry
-# the facade call, so the count is unaffected.
+# terminal-close-out.md's board pass into the typed close-out transactions: 5 to 3; Task 11 then
+# migrated the last three status-writing skills (docket-new-change, docket-groom-next,
+# docket-auto-groom) onto the Go-v1 change transactions (`docket change create`/`groom`/`defer`/
+# `kill`), each rendering the inline board atomically in its own commit — 3 to 0. NO facade Board
+# pass survives in ANY skill.
+# NON-VACUITY: a bare "facade call absent everywhere" would read identically in a world where 0370
+# had already deleted every consumer. So floor the ABSENCE on the PRESENCE of the atomic-board
+# invariant ("no separate Board pass") in the three skills that carried the facade pass — the
+# guarantee relocated, not dropped (assert-detects-removal-not-replacement).
 assert "the in-scope corpus is non-empty (the sentinel actually scanned files)" \
   '[ "${#SCOPE3[@]}" -ge 8 ]'
-assert "the canonical Board-pass call is present in every rewired file (found $board_pass_files)" \
-  '[ "$board_pass_files" -eq 3 ]'
+assert "no facade Board-pass call survives in any skill (found $board_pass_files)" \
+  '[ "$board_pass_files" -eq 0 ]'
+assert "the atomic-board invariant is present where the facade pass was (found $atomic_board_files)" \
+  '[ "$atomic_board_files" -ge 3 ]'
 
 # ── change 0094: Step 1 acquires its candidate set from the digest's `ready` line ─────────────
 # specified-but-unreachable: a contract with a PRODUCER and a CONSUMER needs at least one assert

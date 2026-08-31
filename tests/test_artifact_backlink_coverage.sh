@@ -11,16 +11,19 @@ no(){ printf 'NOT OK - %s\n' "$1"; fail=1; }
 # (1) The renderer script exists + is executable.
 [ -x "$ROOT/scripts/render-artifact-backlink.sh" ] && ok "renderer script present + executable" || no "renderer script present + executable"
 
-# (2) Every skill that WRITES a spec artifact invokes the back-link stamp. Change 0369 migrated
-# these three from the legacy `docket.sh render-artifact-backlink` facade to the Go-v1
-# `docket artifact backlink` command (mirroring docket-implement-next's 0315 migration below);
-# the coverage is RELOCATED onto that spelling, never dropped (learnings:
-# restatement-accumulates-its-own-guards). The absence assert detects removal-not-replacement:
-# the retired facade spelling must be GONE (learnings: assert-detects-removal-not-replacement).
+# (2) Every skill that WRITES a spec artifact stamps the back-link. Change 0369 migrated these three
+# from the legacy `docket.sh render-artifact-backlink` facade to the Go-v1 `docket artifact backlink`
+# command; change 0377 Task 11 then ABSORBED that stamp into the atomic `docket change create` /
+# `docket change groom` transactions — the spec exit submits authored Markdown through
+# `docket change groom`, which writes the spec file AND stamps its reciprocal `docket:backlink` block
+# in the SAME metadata commit, so the standalone `docket artifact backlink` call is retired here too.
+# Coverage is RELOCATED onto the atomic groom transaction, never dropped (learnings:
+# restatement-accumulates-its-own-guards). The absence asserts detect removal-not-replacement: BOTH
+# retired spellings (the facade renderer AND the standalone Go backlink call) must be GONE.
 SPEC_SKILLS=( docket-new-change docket-groom-next docket-auto-groom )
 for s in "${SPEC_SKILLS[@]}"; do
   f="$ROOT/skills/$s/SKILL.md"
-  if grep -qF 'docket artifact backlink' "$f"; then ok "$s stamps the spec back-link (via docket artifact backlink)"; else no "$s stamps the spec back-link (via docket artifact backlink)"; fi
+  if grep -qF 'docket change groom' "$f"; then ok "$s stamps the spec back-link inside the atomic docket change groom transaction"; else no "$s stamps the spec back-link inside the atomic docket change groom transaction"; fi
   if grep -E -e 'docket\.sh[[:space:]]+render-artifact-backlink' "$f" >/dev/null; then no "$s retired the render-artifact-backlink facade spelling"; else ok "$s retired the render-artifact-backlink facade spelling"; fi
 done
 

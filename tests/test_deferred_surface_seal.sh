@@ -122,8 +122,12 @@ assert "floor: harvest deferral stated in the learnings reference" \
 assert "floor: publication deferral stated in the close-out reference" \
   'grep -qF "terminal publication is deferred from Go v1" "$REPO/skills/docket-convention/references/terminal-close-out.md"'
 # Supported-surface controls: the narrowing really permits what it claims to permit.
-assert "control: still-supported board pass survives in maintained prose" \
-  'grep -rqF -- "docket.sh docket-status --board-only" "$REPO/skills/"'
+# change 0377 Task 11: the `docket.sh docket-status --board-only` facade Board pass was fully
+# migrated out of maintained skills — the board now renders atomically inside the typed change
+# transactions. Re-pointed (mechanical) at the supported replacement that DOES survive in maintained
+# prose: the `docket change groom` transaction (which renders the inline board atomically).
+assert "control: still-supported typed board-writing transaction survives in maintained prose" \
+  'grep -rqF -- "docket change groom" "$REPO/skills/"'
 assert "control: supported Go closeout boundary survives" \
   'grep -qF "docket finalize closeout --id" "$REPO/skills/docket-convention/references/terminal-close-out.md"'
 assert "control: supported Go ADR transactions survive" \

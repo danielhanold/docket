@@ -9,12 +9,22 @@ ok(){ printf 'ok - %s\n' "$1"; }
 no(){ printf 'NOT OK - %s\n' "$1"; fail=1; }
 
 # docket-finalize-change is handled separately below (migrated to the Go-v1 sequencer, 0316).
+#
+# docket-new-change / docket-groom-next / docket-auto-groom migrated to the Go-v1 change
+# transactions (change 0377 Task 11): the record + spec writes go through `docket change create` /
+# `docket change groom`, which regenerate the per-change `## Artifacts` block ATOMICALLY in the same
+# metadata commit, so these skills no longer invoke the legacy facade renderer. Same treatment as
+# docket-status / docket-implement-next / docket-finalize-change below (guarantee relocated, not
+# dropped): assert the retired facade call is GONE, and floor it on the atomic `docket change groom`
+# transaction so it cannot go vacuously green (restatement-accumulates-its-own-guards;
+# assert-detects-removal-not-replacement).
 SKILLS=(
   docket-new-change docket-groom-next docket-auto-groom
 )
 for s in "${SKILLS[@]}"; do
   f="$ROOT/skills/$s/SKILL.md"
-  if grep -qF 'docket.sh render-change-links' "$f"; then ok "$s invokes render-change-links (via the docket.sh facade)"; else no "$s invokes render-change-links (via the docket.sh facade)"; fi
+  if grep -qF 'docket.sh render-change-links' "$f"; then no "$s no longer invokes the legacy render-change-links facade"; else ok "$s no longer invokes the legacy render-change-links facade"; fi
+  if grep -qF 'docket change groom' "$f"; then ok "$s regenerates the Artifacts block inside its change transactions (docket change groom)"; else no "$s regenerates the Artifacts block inside its change transactions (docket change groom)"; fi
 done
 
 # docket-status migrated to the Go-v1 sweep (change 0377 Task 9): the merge sweep archives through the

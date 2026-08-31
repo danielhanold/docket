@@ -53,11 +53,16 @@ for f in "$GATE_SRC" "$AGM"; do
     'grep -qF "docket run gate-before implement-next" "$f" && grep -qF "docket run gate-verdict" "$f"'
 done
 
-# --- Planning family: `render-artifact-backlink` -> `docket artifact backlink` -----------------
+# --- Planning family: `render-artifact-backlink` -> the atomic `docket change groom` transaction --
+# change 0377 Task 11: the new-change/grooming skills' spec exit migrated onto `docket change create`
+# / `docket change groom`, which stamp the spec's reciprocal `docket:backlink` block ATOMICALLY
+# inside the same metadata commit — so the skills no longer make a standalone `docket artifact
+# backlink` call. The guarantee relocated, not dropped: ban the legacy facade renderer and floor on
+# the `docket change groom` transaction that now owns the backlink stamp.
 for s in docket-new-change docket-auto-groom docket-groom-next; do
   f="$REPO/skills/$s/SKILL.md"
   assert "no legacy backlink call in $s" '! banned "$f" "render-artifact-backlink"'
-  assert "Go backlink verb present in $s (floor)" 'grep -qF "docket artifact backlink" "$f"'
+  assert "Go groom transaction present in $s (backlink-owning floor)" 'grep -qF "docket change groom" "$f"'
 done
 
 # --- Implementation family: digest -> `docket status --json` -----------------------------------
