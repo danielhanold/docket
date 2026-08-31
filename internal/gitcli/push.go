@@ -65,6 +65,7 @@ func (c *Client) PushLease(ctx context.Context, repo Repository, remote RemoteNa
 		dir:     repo.PrimaryWorktree,
 		args:    []string{"push", "--porcelain", lease, string(remote), refspec},
 		network: true,
+		write:   true,
 	})
 	if f != nil {
 		return PushOutcome{}, f
@@ -133,6 +134,7 @@ func (c *Client) PushCreateLease(ctx context.Context, repo Repository, remote Re
 		dir:     repo.PrimaryWorktree,
 		args:    []string{"push", "--porcelain", lease, string(remote), refspec},
 		network: true,
+		write:   true,
 	})
 	if f != nil {
 		return PushOutcome{}, f

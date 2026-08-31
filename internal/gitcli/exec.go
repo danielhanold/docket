@@ -28,6 +28,11 @@ type runRequest struct {
 	args    []string  // git argument vector, no leading "git"
 	stdin   []byte    // nil = no stdin
 	network bool      // selects the network vs local default timeout
+	// write selects the network write budget over the read budget; it is
+	// meaningful only when network is true (a local operation ignores it). A
+	// remote mutation — push, lease delete — sets it; every network read leaves
+	// it false.
+	write bool
 	// env is appended to the client's sanitized base environment for this one
 	// command; a duplicate name overrides the base value (last wins). It is the
 	// only per-command environment channel — used for the engine-clock commit
@@ -56,7 +61,14 @@ func (c *Client) run(ctx context.Context, req runRequest) (runResult, *Failure) 
 	// never extend past the caller's.
 	timeout := c.localTimeout
 	if req.network {
-		timeout = c.networkTimeout
+		// A network write (req.write) is bounded by the write budget; every other
+		// network operation is a read bounded by the read budget. Both default to
+		// networkTimeout, so an unsplit client is unchanged.
+		if req.write {
+			timeout = c.networkWriteTimeout
+		} else {
+			timeout = c.networkReadTimeout
+		}
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()

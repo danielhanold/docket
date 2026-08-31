@@ -95,6 +95,7 @@ func (c *Client) DeleteRemoteRefLease(ctx context.Context, repo Repository, remo
 		dir:     repo.PrimaryWorktree,
 		args:    []string{"push", "--porcelain", lease, string(remote), refspec},
 		network: true,
+		write:   true,
 	})
 	if f != nil {
 		return PushOutcome{}, f
