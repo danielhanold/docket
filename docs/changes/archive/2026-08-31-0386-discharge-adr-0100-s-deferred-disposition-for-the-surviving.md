@@ -2,7 +2,7 @@
 id: 386
 slug: 'discharge-adr-0100-s-deferred-disposition-for-the-surviving'
 title: 'Discharge ADR-0100''s deferred disposition for the surviving product runners'
-status: 'proposed'
+status: 'killed'
 priority: 'medium'
 type: 'chore'
 created: '2026-08-31'
@@ -43,3 +43,7 @@ Review ADR-0100's deferred disposition against the post-0370 reality (runners su
 ## Out of scope
 
 Deleting or rewriting the runner scripts themselves; any code change to runner behavior.
+
+## Why killed
+
+Premature / invalid premise. ADR-0100 (line 35, origin/docket) defers the disposition of ADRs 0067/0079/0080/0087/0088 until the runner facade is physically removed; change 0370 deliberately retained scripts/runners/{codex,cursor,opencode} as declared POSIX product. While the runners survive, those five ADRs remain correctly Accepted and there is nothing to discharge. Whatever future change removes the runners should disposition them at that point (standard ADR practice).
