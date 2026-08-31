@@ -59,38 +59,61 @@ import (
 //     mention with no `$` and no `=` — a comment, or a Go string literal that
 //     CLEARS the var to prove independence — is not a dependence and stays green.
 //
-// # Population — the executable surface, with categorical exclusions
+// # Population — the executable surface PLUS the always-loaded surface
 //
-// The seal scans repoguard.ExecutableSurface (shell scripts, executable-bit
-// files, and the scripts/ + skills/ command-markdown a harness runs verbatim),
-// which already prunes the immutable-history and frozen-corpus corpora
-// categorically (docs/, every testdata/ tree, internal/install/legacydata,
-// tests/fixtures — see repoguard.go). That population choice is itself the
-// categorical explanation for the ACCEPTED survivor idioms this guard must NOT
-// red, by LOCATION/OWNERSHIP rather than a per-file allowlist:
+// The seal scans TWO categorical populations, both already pruned of the
+// immutable-history and frozen-corpus corpora (docs/, every testdata/ tree,
+// internal/install/legacydata, tests/fixtures — see repoguard.go):
+//
+//   - repoguard.ExecutableSurface: shell scripts, executable-bit files, and the
+//     scripts/ + skills/ command-markdown a harness runs verbatim; and
+//   - repoguard.AlwaysLoadedSurface (Finding 1): the standing agent-INSTRUCTION
+//     surface a harness acts on unprompted — root AGENTS.md / CLAUDE.md and the
+//     agents/** and cursor-rules/** definition trees. These files TELL agents to
+//     run commands, so they are the highest-value place a retired route could be
+//     resurrected; an ExecutableSurface-only seal left them entirely unscanned,
+//     which was a real coverage gap (AGENTS.md is exactly where the frozen-oracle
+//     sentence was hand-removed). They are scanned through the same shape classes.
+//
+// That population choice is itself the categorical explanation for the ACCEPTED
+// survivor idioms this guard must NOT red, by LOCATION/OWNERSHIP rather than a
+// per-file allowlist:
 //
 //   - Go source (*.go) is compiled program text, not an executed script, so it
-//     is not executable surface. The retired tokens legitimately live there as
-//     DATA — the ban-lists in internal/harness/{dispatch,native_dispatch}_test.go
-//     and internal/reposeed/plan_test.go, the "the seam was retired" removal
+//     is neither executable surface nor always-loaded. The retired tokens
+//     legitimately live there as DATA — the ban-lists in
+//     internal/harness/{dispatch,native_dispatch}_test.go and
+//     internal/reposeed/plan_test.go, the "the seam was retired" removal
 //     comments in internal/app/repository_prepare.go and
 //     internal/cli/development_test_cmd.go, and the test fixtures in this
 //     package's own repoguard_test.go / test_source_hygiene_test.go. None are in
 //     population; none can red this seal.
-//   - Config YAML (.yml) is not executable surface either. The two frozen-pinned
-//     comment residuals live there and are byte-pinned to versioned fixtures that
-//     a re-cut would be needed to move (out of scope): root .docket.yml naming
-//     run-tests.sh in a comment (pinned by internal/config's self fixture) and
-//     agents/harness-defaults.yml naming scripts/lib/… in a comment (pinned to a
-//     v0.9.3 fixture). Both are out of population and stay green trivially.
+//   - Config YAML (.yml): most .yml is out of population, but agents/harness-defaults.yml
+//     IS scanned — it lives under agents/, so AlwaysLoadedSurface includes it. It
+//     stays GREEN not because it is out of population but because its lone
+//     scripts/lib/… reference sits in a stripped `#` header comment. That file is a
+//     LIVE shipped program-data file, NOT a mere frozen fixture: the built-in agent
+//     table in internal/config/defaults.go mirrors it (byte-pinned by
+//     TestBuiltinAgentsParityWithFrozenSidecar) and internal/assets/generate.go embeds
+//     it. Its header comment naming the deleted scripts/lib/harness-defaults.sh
+//     enforcer went STALE in this branch, but correcting the comment here reddens two
+//     byte-equality pins (the v0.9.3 frozen-sidecar parity AND the embedded-tree copy,
+//     verified empirically), so the prose fix is deferred to a fixture re-cut and left
+//     as a residual for follow-up. The other residual — root .docket.yml naming
+//     run-tests.sh in a comment — is genuinely out of population (not under agents/, no
+//     exec bit) and stays green trivially.
 //
 // # Markdown — fenced code is executable, prose is descriptive
 //
-// In a command-markdown file only a fenced code block is content a harness runs
-// verbatim; prose (including inline `code` spans) is descriptive. The seal scans
-// inside ``` / ~~~ fences and ignores prose, so a documented-removal sentence and
-// the surviving scripts/runners/*.md prose that names `runner-dispatch.sh`
-// descriptively are permitted, while a fenced `scripts/docket.sh` recipe is not.
+// In an on-disk markdown file (command-markdown under scripts/ + skills/, AND the
+// always-loaded AGENTS.md / CLAUDE.md / agents/*.md / cursor-rules/*) only a fenced
+// code block is scanned; prose (including inline `code` spans) is descriptive. The
+// seal scans inside ``` / ~~~ fences and ignores prose, so a documented-removal
+// sentence and the surviving scripts/runners/*.md prose that names
+// `runner-dispatch.sh` descriptively are permitted, while a fenced `scripts/docket.sh`
+// recipe is not. GENERATOR OUTPUT is the deliberate exception (scanGeneratedForRetired
+// scans prose too) — see the third structural blind spot below for why the on-disk
+// prose asymmetry is unavoidable rather than an oversight.
 //
 // # Structural blind spots (stated, per byte-pattern-guard-matches-a-spelling)
 //
@@ -98,11 +121,26 @@ import (
 //     substring anywhere on the reachable text (b=docket; e=sh; "$X/$b.$e") is
 //     invisible to a byte pattern. The variable-PREFIXED form with a literal tail
 //     IS caught; the fully-decomposed form is not.
-//   - .github/workflows/*.yml is not in ExecutableSurface, so a re-introduced
-//     `DOCKET_BASH_PATH=` export in a workflow step would not be seen here (that
-//     seam's producer was cleaned in Task 8 and is now a comment). The shell and
-//     command-markdown surface — where these shapes actually execute — is fully
-//     covered.
+//   - .github/workflows/*.yml is in neither ExecutableSurface nor AlwaysLoadedSurface,
+//     so a re-introduced `DOCKET_BASH_PATH=` export in a workflow step would not be
+//     seen here (that seam's producer was cleaned in Task 8 and is now a comment). The
+//     shell and command-markdown surface — where these shapes actually execute — is
+//     fully covered.
+//   - On-disk markdown is scanned FENCED-ONLY (Finding 3), so a facade route
+//     resurrected as an imperative PROSE instruction — "route through
+//     scripts/docket.sh before X" written as a sentence rather than a fenced recipe,
+//     in a skills/**/SKILL.md or the always-loaded surface — is invisible here. This
+//     is asymmetric with the generator-output scan, which flags prose because machine
+//     emission has NO legitimate descriptive mention of the retired tokens. Maintained
+//     prose does: this seal must keep the legitimate retirement sentences GREEN
+//     ("scripts/docket.sh is retired — never call it", "the old `scripts/docket.sh`
+//     facade is gone"), and NO false-positive-free SYNTACTIC shape separates an
+//     imperative invocation from a descriptive/retirement mention of the identical
+//     token — any discriminator reduces to an enumerated verb or negation-word list,
+//     the exact spelling-list fragility AGENTS.md forbids, and a false positive there
+//     REDDENS the build on legitimate documentation. The prose vector is therefore a
+//     stated blind spot, not scanned; testAbsenceNonVacuity's markdown-prose good
+//     idioms pin that prose stays unscanned in BOTH directions.
 //
 // # Fail-closed and the population floor
 //
@@ -256,8 +294,28 @@ func TestNoRetiredBashControlPlane(t *testing.T) {
 		t.Fatalf("population floor: executable surface collapsed to %d files (expected >= %d) — a broken walk passes every absence assert vacuously", len(pop), floor)
 	}
 
+	// Finding 1: the ALWAYS-LOADED agent-instruction surface (root AGENTS.md /
+	// CLAUDE.md, agents/**, cursor-rules/**) is not part of ExecutableSurface but is
+	// content every harness acts on unprompted — the highest-value place a retired
+	// route could be resurrected and told to agents (AGENTS.md is exactly where the
+	// frozen-oracle sentence was hand-removed). Scan it categorically through the
+	// SAME shape classes so the coverage is real, not claimed.
+	always := alwaysLoadedPop(t, root)
+	const alwaysFloor = 5
+	if len(always) < alwaysFloor {
+		t.Fatalf("always-loaded floor: the agent-instruction surface collapsed to %d files (expected >= %d) — a broken walk passes the always-loaded absence assert vacuously", len(always), alwaysFloor)
+	}
+	// Combine the two populations, deduped (a file could in principle carry an exec
+	// bit and thus appear in both), so every in-scope file is scanned exactly once.
+	scanSet := append([]string{}, pop...)
+	for _, rel := range always {
+		if !slices.Contains(scanSet, rel) {
+			scanSet = append(scanSet, rel)
+		}
+	}
+
 	var violations []string
-	for _, rel := range pop {
+	for _, rel := range scanSet {
 		// readMaintained fails closed on an unreadable file (acceptance 17).
 		for _, h := range scanContentForRetired(rel, readMaintained(t, root, rel)) {
 			violations = append(violations, fmt.Sprintf("%s:%d: %s: %s", h.rel, h.line, h.class, h.text))
@@ -465,6 +523,30 @@ func testAbsenceNonVacuity(t *testing.T) {
 		if got := scanContentForRetired(rel, g); len(got) != 0 {
 			t.Errorf("detector wrongly flagged an accepted survivor idiom [%s]: %q -> %+v", name, g, got)
 		}
+	}
+
+	// Finding 1: an always-loaded agent-instruction file (AGENTS.md and the
+	// agents/** / cursor-rules/** trees) is classified as markdown, so a FENCED
+	// facade recipe planted there is caught by the same shape classes — this is the
+	// unit witness that AlwaysLoadedSurface's markdown is scanned, not merely walked.
+	alwaysFenced := "standing instruction\n```bash\nscripts/docket.sh preflight\n```\ntail\n"
+	if got := scanContentForRetired("AGENTS.md", alwaysFenced); len(got) != 1 || got[0].line != 3 {
+		t.Errorf("always-loaded markdown fence scan missed the fenced facade command or misreported its line: %+v", got)
+	}
+
+	// Finding 3 (documented blind spot, option b): on-disk markdown is scanned
+	// FENCED-ONLY, so an IMPERATIVE prose invocation is deliberately NOT caught. No
+	// false-positive-free syntactic shape separates it from the legitimate retirement
+	// sentence above (both name the identical token), so the prose vector stays a
+	// stated blind spot rather than a spelling-list guard that reddens real docs. This
+	// asserts the gap in BOTH directions: the imperative prose is missed, and the SAME
+	// command inside a fence IS caught — proving the boundary is the fence, not the token.
+	imperativeProse := "route through `scripts/docket.sh` before running the gate\n"
+	if got := scanContentForRetired("skills/x/SKILL.md", imperativeProse); len(got) != 0 {
+		t.Errorf("Finding 3 blind spot changed: imperative prose is now scanned (%q -> %+v) — if intentional, re-verify it stays false-positive-free against legitimate retirement sentences and update the Structural blind spots doc", imperativeProse, got)
+	}
+	if got := scanContentForRetired("skills/x/SKILL.md", "```\n"+imperativeProse+"```\n"); len(got) == 0 {
+		t.Errorf("the same route inside a fence must still be caught, proving the boundary is the fence not the token: %q", imperativeProse)
 	}
 }
 
