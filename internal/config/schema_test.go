@@ -24,7 +24,16 @@ func TestRegistryPathSetMatchesV092(t *testing.T) {
 		"build.checkpoint",
 		"review.min_fix_severity", "review.max_fix_tasks",
 		"gate_observation_budget", "delegation_observation_budget",
-		"board_surfaces", "github_project", "terminal_publish", "auto_groom",
+		"board_surfaces",
+		// The board presentation block (change 0367) sits right after board_surfaces.
+		"board.section_order",
+		"board.sorting.in-progress.by", "board.sorting.in-progress.direction",
+		"board.sorting.built.by", "board.sorting.built.direction",
+		"board.sorting.blocked.by", "board.sorting.blocked.direction",
+		"board.sorting.groomed.by", "board.sorting.groomed.direction",
+		"board.sorting.proposed.by", "board.sorting.proposed.direction",
+		"board.sorting.deferred.by", "board.sorting.deferred.direction",
+		"github_project", "terminal_publish", "auto_groom",
 		"change_types", "auto_capture.enabled", "auto_capture.types",
 		"dummy_mode.enabled", "dummy_mode.persona", "dummy_mode.surfaces",
 		"agent_harnesses",
@@ -125,6 +134,13 @@ func TestRegistryDefaults(t *testing.T) {
 		"dummy_mode.persona":               "",
 		"dummy_mode.surfaces":              "all",
 	}
+	// The board presentation block (change 0367): the section-order list default
+	// and every per-section sort default, derived from BoardSectionTokens.
+	want["board.section_order"] = append([]string(nil), BoardSectionTokens...)
+	for _, s := range BoardSectionTokens {
+		want["board.sorting."+s+".by"] = "updated"
+		want["board.sorting."+s+".direction"] = "desc"
+	}
 	seen := make(map[string]bool, len(want))
 	for _, spec := range registry() {
 		expected, listed := want[spec.path]
@@ -155,6 +171,12 @@ func TestRegistryEnumRows(t *testing.T) {
 		"review.min_fix_severity":      {"minor", "important", "blocker"},
 		"runners.codex.sandbox":        {"workspace-write", "danger-full-access"},
 		"runners.opencode.permissions": {"ask", "auto-approve"},
+	}
+	// The board per-section sort leaves (change 0367) are enum-constrained: by
+	// over the sort fields, direction over the two directions.
+	for _, s := range BoardSectionTokens {
+		want["board.sorting."+s+".by"] = BoardSortFields
+		want["board.sorting."+s+".direction"] = BoardSortDirections
 	}
 	seen := make(map[string]bool, len(want))
 	for _, spec := range registry() {

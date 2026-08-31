@@ -44,7 +44,7 @@ type decodeCase struct {
 // checks the coverage in both directions against registry() itself, so a row
 // added to the schema without a case here reddens rather than going untested.
 func decodeAcceptanceCases() []decodeCase {
-	return []decodeCase{
+	cases := []decodeCase{
 		{row: "runtime.bash", path: "runtime.bash",
 			block: "runtime:\n  bash: /bin/bash\n", flow: "runtime: {bash: /bin/bash}\n",
 			obsolete: true},
@@ -175,6 +175,37 @@ func decodeAcceptanceCases() []decodeCase {
 			block: "runners:\n  codex:\n    shim_effort: high\n",
 			flow:  "runners: {codex: {shim_effort: high}}\n", value: "high"},
 	}
+
+	// The board presentation block (change 0367): one acceptance case per row,
+	// generated from BoardSectionTokens so a new section cannot ship without its
+	// decode coverage. section_order decodes to the token list; each sort leaf
+	// decodes to a valid enum member.
+	cases = append(cases, decodeCase{
+		row:   "board.section_order",
+		path:  "board.section_order",
+		block: "board:\n  section_order:\n    - in-progress\n    - built\n    - blocked\n    - groomed\n    - proposed\n    - deferred\n",
+		flow:  "board: {section_order: [in-progress, built, blocked, groomed, proposed, deferred]}\n",
+		value: []string{"in-progress", "built", "blocked", "groomed", "proposed", "deferred"},
+	})
+	for _, s := range BoardSectionTokens {
+		cases = append(cases,
+			decodeCase{
+				row:   "board.sorting." + s + ".by",
+				path:  "board.sorting." + s + ".by",
+				block: "board:\n  sorting:\n    " + s + ":\n      by: created\n",
+				flow:  "board: {sorting: {" + s + ": {by: created}}}\n",
+				value: "created",
+			},
+			decodeCase{
+				row:   "board.sorting." + s + ".direction",
+				path:  "board.sorting." + s + ".direction",
+				block: "board:\n  sorting:\n    " + s + ":\n      direction: asc\n",
+				flow:  "board: {sorting: {" + s + ": {direction: asc}}}\n",
+				value: "asc",
+			},
+		)
+	}
+	return cases
 }
 
 // TestDecodeEveryRegisteredPath decodes a minimal valid document per registry
