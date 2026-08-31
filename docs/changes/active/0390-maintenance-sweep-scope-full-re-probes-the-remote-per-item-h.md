@@ -46,15 +46,24 @@ The initial inventory, each sweep reload, and each dispatched operation currentl
 operational context. That repeats default-branch discovery and source/configuration setup as well
 as fetching metadata. Fresh metadata is necessary: another agent, or the sweep's own preceding
 closeout, can change the record before the next operation. The setup probes can instead be shared
-within one invocation while metadata is fetched afresh. The linked spec corrects the original
-call-count diagnosis and preserves that distinction.
+within one invocation while metadata is fetched afresh for actual operation attempts. Historical
+records with no possible cleanup effect should not trigger individual remote reads at all; shared
+metadata/source/ref inventory and local workspace inspection can assess them. Active PR discovery
+also needs batching instead of repeated repository resolution and individual PR queries. The
+linked spec corrects the original call-count diagnosis and preserves fresh mutation proofs.
 
 Git and GitHub clients also inherit five-minute network timeouts. A stalled context read, proof
 query, or write can therefore add a long wait independently of the redundant work.
 
 ## What changes
 
-- Resolve repository identity, configuration, and source revisions once for the sweep. Fetch
+- Resolve repository identity, configuration, and source revisions once for the sweep. Batch
+  active PR selection by exact number (25 unique PRs per request), and collect historical remote
+  branch heads in one shared read when needed. Assess all full-scope historical candidates from
+  shared metadata/source/ref snapshots and local workspace facts. Non-actionable records get
+  truthful no-work/retained/blocked/unknown entries without individual remote queries; missing
+  manifests are never labeled clean. Independent backlink repairs must remain discoverable.
+- For candidates that warrant a dispatched operation, fetch
   metadata once for each operation attempt and share that exact observation between the sweep's
   check, the operation, and its nested readers. Remove repeated setup probes and duplicate
   metadata refreshes. The initial metadata fetch already supplies every record for selection;
@@ -64,21 +73,24 @@ query, or write can therefore add a long wait independently of the redundant wor
   Standalone command defaults stay unchanged; the spec defines separate read/write budgets and
   prevents timeout multiplication inside adapter failure classification.
 - Verify reduced setup traffic through production wiring, real metadata-race detection, bounded
-  read failures, and measured before/after performance. Tests permit required metadata and
-  operation traffic; neither zero total network calls nor a total sweep deadline is promised.
+  read failures, and measured before/after performance. Adding non-actionable historical records
+  must not add remote calls. Tests permit batched discovery and required action-specific traffic;
+  neither zero total network calls nor a total sweep deadline is promised.
 
-The existing full/implementation worklists and mutation safety rules remain unchanged. Change
+Shared observations can justify doing nothing, never a mutation. Work appearing after a snapshot
+assessment is reconsidered next invocation; mandatory closeout suffixes always receive fresh
+checks. The existing full/implementation worklists and mutation safety rules remain unchanged. Change
 0389 is already done; ADR-0101 continues to govern scope selection. Design detail and acceptance
 criteria are in the linked spec.
 
 ## Out of scope
 
 - Changing scope membership, closeout/cleanup/reclaim eligibility, or their ownership and merge
-  proofs; eliminating metadata freshness checks or transaction compare-and-swap checks.
+  proofs; eliminating pre-dispatch metadata freshness or transaction compare-and-swap checks.
 - Changing package-wide Git/GitHub defaults or retry policy; adding a total sweep timeout, circuit
   breaker, streaming output, or automatic maintenance schedule. Sweep-specific read/write
   deadlines are explicitly in scope.
-- Skipping historical cleanup attempts through a new bulk no-work detector, or batching mutations.
+- Batching mutations. Batched discovery and non-mutating historical assessment are in scope.
 - Reworking the health-check pass, the separate test-suite runtime work, or general corpus
-  parsing costs beyond sharing one operation's observation.
+  parsing costs beyond sharing inventory and operation observations.
 - Implementing code or running a live mutating sweep as part of this re-grooming.
