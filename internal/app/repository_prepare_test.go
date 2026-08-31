@@ -205,6 +205,63 @@ func TestRepositoryPrepareForeignRefuses(t *testing.T) {
 	}
 }
 
+// TestRepositoryPrepareForeignRootRefusesAsForeign — a PROVEN foreign remote
+// docket root (RootForeign, readable evidence with no ownership proof) yields the
+// metadata-root-foreign refusal that sends the operator to a human.
+func TestRepositoryPrepareForeignRootRefusesAsForeign(t *testing.T) {
+	f := preparableFacts()
+	f.MetadataRoot = reposetup.RootForeign
+
+	v := prepareRoute(f, prepareSyncCurrent)
+	if v.disposition != PrepareDispositionRefused {
+		t.Fatalf("disposition = %q, want refused", v.disposition)
+	}
+	if v.state != reposetup.StateConflict {
+		t.Errorf("state = %q, want conflict", v.state)
+	}
+	if code := findingCode(t, v); code != "metadata-root-foreign" {
+		t.Errorf("finding code = %q, want metadata-root-foreign", code)
+	}
+}
+
+// TestRepositoryPrepareUnknownRootRefusesAsReachability — an UNREADABLE remote
+// docket root (RootUnknown, reachable while RemoteMetadata is proven present: the
+// ls-remote presence probe and the object fetch are independent) must NOT be
+// collapsed into the metadata-root-foreign "resolve it with a human" refusal. It
+// routes to a reachability refusal whose remedy says the branch could not be read,
+// mirroring reposetup.Classify (which reads RootUnknown as a generic conflict,
+// never foreign) and repository_check.go.
+func TestRepositoryPrepareUnknownRootRefusesAsReachability(t *testing.T) {
+	f := preparableFacts()
+	f.MetadataRoot = reposetup.RootUnknown // RemoteMetadata stays PresencePresent
+
+	v := prepareRoute(f, prepareSyncCurrent)
+	if v.disposition != PrepareDispositionRefused {
+		t.Fatalf("disposition = %q, want refused (fail-closed, no mutation)", v.disposition)
+	}
+	if v.action != prepareActionNone {
+		t.Errorf("action = %v, want none", v.action)
+	}
+	if v.state != reposetup.StateConflict {
+		t.Errorf("state = %q, want conflict (mirroring Classify's generic conflict for RootUnknown)", v.state)
+	}
+	code := findingCode(t, v)
+	if code == "metadata-root-foreign" {
+		t.Fatalf("RootUnknown must NOT yield metadata-root-foreign; an unreadable root is not a proven-foreign one")
+	}
+	if code != "metadata-root-unresolved" {
+		t.Errorf("finding code = %q, want metadata-root-unresolved", code)
+	}
+	// The remedy must point at reachability/retry, never at a human adjudication of
+	// a foreign branch.
+	if strings.Contains(v.finding.Remedy, "with a human") {
+		t.Errorf("remedy %q must not send the operator to a human; the branch could not be read", v.finding.Remedy)
+	}
+	if !strings.Contains(v.finding.Remedy, "reachable") {
+		t.Errorf("remedy %q must name reachability (retry / check connectivity)", v.finding.Remedy)
+	}
+}
+
 // TestRepositoryPrepareAmbiguousRegistrationRefuses — a present-but-unregistered
 // .docket worktree refuses with its own finding code.
 func TestRepositoryPrepareAmbiguousRegistrationRefuses(t *testing.T) {
