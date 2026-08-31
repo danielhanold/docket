@@ -57,7 +57,7 @@ func newMaintenanceSweepSubcommand(setResult func(app.OperationResult)) *cobra.C
 			if err != nil {
 				return err
 			}
-			setResult(app.MaintenanceSweep(c.Context(), deps, repoDir))
+			setResult(app.MaintenanceSweep(c.Context(), deps, repoDir, app.SweepScopeFull))
 			return nil
 		},
 	}
