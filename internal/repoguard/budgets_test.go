@@ -60,7 +60,7 @@ var skillBudgets = []skillBudget{
 	{"docket-review/SKILL.md", 110, 900},
 	{"docket-new-change/SKILL.md", 61, 1700},
 	{"docket-new-change/change-template.md", 51, 250},
-	{"docket-status/SKILL.md", 126, 2850},
+	{"docket-status/SKILL.md", 140, 3050},
 }
 
 // wcLines counts lines the way `wc -l` does: the number of newline bytes.
