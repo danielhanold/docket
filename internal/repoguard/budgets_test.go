@@ -53,7 +53,7 @@ var skillBudgets = []skillBudget{
 	{"docket-finalize-change/SKILL.md", 190, 4150},
 	{"docket-finalize-change/references/gate-failure.md", 115, 1300},
 	{"docket-groom-next/SKILL.md", 77, 1650},
-	{"docket-implement-next/SKILL.md", 180, 6500},
+	{"docket-implement-next/SKILL.md", 180, 6850},
 	{"docket-implement-next/references/edge-paths.md", 58, 800},
 	{"docket-implement-next/references/fix-loop.md", 185, 1900},
 	{"docket-implement-next/results-template.md", 25, 250},
