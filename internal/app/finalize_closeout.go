@@ -1128,22 +1128,15 @@ func (o closeoutBacklinkOp) Plan(ctx context.Context, st transaction.AttemptStat
 				// The merged artifact is not on the integration ref; nothing to patch.
 				continue
 			}
-			doc, err := document.Parse(original)
-			if err != nil {
-				return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("closeout backlink: parsing artifact %q: %w", p, err)
-			}
-			if _, ok := doc.Block(backlinkBlockName); !ok {
-				// No managed block to retarget; the operation never conjures one.
-				continue
-			}
-			var ps document.PatchSet
-			ps.ReplaceBlock(backlinkBlockName, tg.interior)
-			updated, err := doc.Apply(ps)
+			// The "would the terminal backlink block's bytes change" computation is
+			// the shared backlinkLegRetarget: a missing block is never conjured, and
+			// already-retargeted bytes are a no-op (the promised state).
+			updated, hasBlock, changed, err := backlinkLegRetarget(original, tg.interior)
 			if err != nil {
 				return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("closeout backlink: retargeting artifact %q: %w", p, err)
 			}
-			if string(updated) == string(original) {
-				continue // already points at the archive path: no-op (promised state)
+			if !hasBlock || !changed {
+				continue
 			}
 			files = append(files, transaction.FileMutation{Path: gitcli.RepoPath(p), Kind: transaction.MutationReplace, Bytes: updated})
 		}
@@ -1160,6 +1153,56 @@ func (o closeoutBacklinkOp) Plan(ctx context.Context, st transaction.AttemptStat
 		CommitSubject: fmt.Sprintf("change %04d terminal backlinks retargeted to archive", o.rootID),
 		Receipt:       receipt,
 	}, transaction.OperationResult{}, nil
+}
+
+// backlinkLegRetarget is the single source of the per-artifact "would the terminal
+// backlink block's bytes change" computation the terminal backlink legs share: the
+// cleanup transaction (cleanupBacklinkOp.Plan), the closeout follow-up leg
+// (closeoutBacklinkOp.Plan), and the maintenance sweep's snapshot assessment
+// (backlinkLegHasWork) all read it, so no copy of the byte comparison drifts. It
+// parses one artifact blob, retargets its docket:backlink block interior to
+// renderedInterior, and reports:
+//
+//   - present — whether the blob carries a managed docket:backlink block at all; a
+//     blob without one is never conjured a block, so present=false is "nothing to
+//     retarget", not an error;
+//   - changed — whether applying renderedInterior produces different bytes (false
+//     is the idempotent already-retargeted no-op keyed on the promised state);
+//   - updated — the retargeted bytes, valid only when present && changed.
+//
+// A parse or patch failure — malformed, unbalanced, or nested backlink markers, or
+// an unrenderable interior — is a hard error, NEVER a silent no-work
+// (learning probe-error-is-not-clean-absence): the assessment maps it to an
+// unresolved leg and the transactions to a refusal, so a broken block is never
+// mistaken for an already-clean one.
+func backlinkLegRetarget(blob []byte, renderedInterior string) (updated []byte, present, changed bool, err error) {
+	doc, err := document.Parse(blob)
+	if err != nil {
+		return nil, false, false, err
+	}
+	if _, ok := doc.Block(backlinkBlockName); !ok {
+		return nil, false, false, nil
+	}
+	var ps document.PatchSet
+	ps.ReplaceBlock(backlinkBlockName, renderedInterior)
+	out, err := doc.Apply(ps)
+	if err != nil {
+		return nil, true, false, err
+	}
+	return out, true, string(out) != string(blob), nil
+}
+
+// backlinkLegHasWork reports whether retargeting one artifact blob's
+// docket:backlink block to renderedInterior would change its bytes — the sweep
+// assessment's read of backlinkLegRetarget. A blob with no managed block is no
+// work; already-retargeted bytes are no work; a malformed/unbalanced block is an
+// error (an unresolved leg), never a false "no work".
+func backlinkLegHasWork(blob []byte, renderedInterior string) (bool, error) {
+	_, present, changed, err := backlinkLegRetarget(blob, renderedInterior)
+	if err != nil {
+		return false, err
+	}
+	return present && changed, nil
 }
 
 // --- shared helpers -------------------------------------------------------
