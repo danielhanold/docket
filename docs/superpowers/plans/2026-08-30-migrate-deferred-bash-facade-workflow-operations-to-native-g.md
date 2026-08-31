@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0377 — Migrate deferred Bash-facade workflow operations to native Go CLI verbs](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0377-migrate-deferred-bash-facade-workflow-operations-to-native-g.md)**
+> ↩ **[Change 0377 — Migrate deferred Bash-facade workflow operations to native Go CLI verbs](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-31-0377-migrate-deferred-bash-facade-workflow-operations-to-native-g.md)**
 <!-- docket:backlink:end -->
 # Migrate Deferred Bash-Facade Workflow Operations to Native Go CLI Verbs — Implementation Plan
 
