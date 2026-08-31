@@ -562,10 +562,10 @@ assert "wiring(finalize): no leftover by-hand pub-adr git block" '! grep -qE "gi
 STATUS="$REPO/skills/docket-status/SKILL.md"
 TCO="$REPO/skills/docket-convention/references/terminal-close-out.md"
 assert "wiring(status): sweep points at the terminal-close-out reference" 'grep -qF "terminal-close-out.md" "$STATUS"'
-# change 0369: the two DONE drivers (docket-finalize-change + the docket-status sweep) drive the
-# done-path archive/cleanup through the Go finalize transactions (`docket finalize closeout` /
-# `docket finalize cleanup`); the two KILL drivers keep the FROZEN `docket.sh archive-change
-# --outcome killed` leg (finalize closeout does not cover the killed outcome). Coverage is
+# change 0369 / 0377 Task 10: the two DONE drivers (docket-finalize-change + the docket-status sweep)
+# drive the done-path archive/cleanup through the Go finalize transactions (`docket finalize closeout`
+# / `docket finalize cleanup`); the two KILL drivers now archive through the typed `docket change kill`
+# transaction (Task 10 retired the frozen `docket.sh archive-change` kill leg). Coverage is
 # RELOCATED onto the Go spelling, never dropped (learnings: restatement-accumulates-its-own-guards);
 # the retired cleanup facade spelling must be GONE (learnings: assert-detects-removal-not-replacement).
 assert "wiring(close-out ref): sweep archives the done path via the Go closeout verb"     'grep -qF "docket finalize closeout --id" "$TCO"'
@@ -589,8 +589,15 @@ assert "wiring(status): sweep failure posture is log-and-continue (abandon the r
   'grep -qiE "abandon the remainder of (this|THIS) change" "$STATUS"'
 assert "wiring(status): sweep documents abort-and-report as a deliberate divergence, not its own posture" \
   'grep -qiE "deliberately divergent from .?docket-finalize-change" "$STATUS"'
-assert "wiring(close-out ref): proposed-kill invokes archive-change (via the docket.sh facade)"   'grep -q "docket.sh archive-change" "$TCO"'
-assert "wiring(close-out ref): reconcile-kill invokes archive-change (via the docket.sh facade)"     'grep -q "docket.sh archive-change" "$TCO"'
+# change 0377 Task 10: the killed-outcome leg migrated off the frozen `docket.sh archive-change`
+# onto the typed `docket change kill` transaction (atomic archive + artifact block + spec back-link +
+# board). Both kill drivers share this one leg in terminal-close-out.md. Coverage RELOCATED onto the
+# Go spelling, never dropped (restatement-accumulates-its-own-guards); the retired facade spelling
+# must be GONE (assert-detects-removal-not-replacement).
+assert "wiring(close-out ref): proposed-kill archives via the Go change-kill verb"   'grep -qF "docket change kill" "$TCO"'
+assert "wiring(close-out ref): reconcile-kill archives via the Go change-kill verb"  'grep -qF "docket change kill" "$TCO"'
+assert "wiring(close-out ref): retired archive-change facade spelling is gone from close-out" \
+  '! grep -E -e "docket\.sh[[:space:]]+archive-change" "$TCO"'
 assert "wiring(close-out ref): reconcile-kill cleans up via the Go cleanup verb" 'grep -qF "docket finalize cleanup --id" "$TCO"'
 
 # --- change 0372: terminal publication + deferral marking retired from maintained prose --
@@ -611,8 +618,8 @@ assert "0372: close-out states the marker deferral diagnostic (floor)" \
   'grep -Fq "publication-deferral marking is deferred from Go v1" <<<"$tco372"'
 assert "0372: close-out still drives the done path through Go closeout (floor)" \
   'grep -Fq "docket finalize closeout --id" <<<"$tco372"'
-assert "0372: the frozen killed-outcome archive leg survives (0369 carve-out untouched)" \
-  'grep -Fq "docket.sh archive-change" <<<"$tco372"'
+assert "0377 Task 10: the killed-outcome leg archives via the Go change-kill verb" \
+  'grep -Fq "docket change kill" <<<"$tco372"'
 
 # --- change 0064 / change 0372: the --enabled gate invariant now guards only the FROZEN scripts ---
 # The maintained skills-prose call sites are retired (0372), so find_ungated_terminal_publish_call_sites

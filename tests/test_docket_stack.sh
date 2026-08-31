@@ -546,28 +546,25 @@ assert "its --help prints its own header" '[ -n "$(grep -F stack-children.sh <<<
 
 # --- the gate that consumes it -------------------------------------------------------------------
 # The open-children gate and the child-PR retarget are PROSE — nothing else in the suite reads them,
-# and prose that names no oracle is what let the gate key on a rendered row. So: the reference
-# section that owns the gate must carry a fenced facade invocation of the op, and the required-flag
-# set is DERIVED from the script's own validation block, so a flag added there without reaching the
-# documented invocation reddens on arrival.
+# and prose that names no oracle is what let the gate key on a rendered row. RE-KEYED (0377 Task 10,
+# category (a)): the descendant op `docket.sh stack-children --open-only` is absorbed into
+# `docket context finalize`, whose candidate bundle carries the descendant relations
+# (`descendants`) and the open-child PR set (`open_child_prs`) — finalize_context.go. The gate
+# section must name that typed source and the OPEN subset it reads, so a gate keyed on the rendered
+# row (or a reverted facade invocation) reddens.
 STACKREF="$REPO/skills/docket-convention/references/stacked-changes.md"
 FINSK="$REPO/skills/docket-finalize-change/SKILL.md"
-kids_validation="$(grep -E 'die "missing --' "$KIDS")"
-KIDS_REQUIRED="$(grep -oE -e '--[a-z][a-z-]+' <<<"$kids_validation" | sort -u)"
-assert "the required-flag derivation found a plausible flag set" \
-  '[ "$(grep -c . <<<"$KIDS_REQUIRED")" -ge 2 ]'
 gate_section="$(awk '/^## Finalizing a parent that has open children/{s=1;next} s&&/^## /{exit} s' "$STACKREF")"
 assert "the reference's open-children gate section exists" '[ -n "${gate_section// /}" ]'
 # The fence literal lives in a SINGLE-quoted awk variable: no backtick may sit inside double quotes
 # in test source (change 0221, scripts/check-test-source-hygiene.sh).
 gate_block="$(awk -v f='```' 'index($0,f)==1{b=!b;next} b' <<<"$gate_section")"
-assert "the gate section carries a fenced facade invocation of the descendants op" \
-  'grep -qF "docket.sh stack-children" <<<"$gate_block"'
-for flag in $KIDS_REQUIRED; do
-  assert "the gate command names $flag" 'grep -qF -- "$flag" <<<"$gate_block"'
-done
-assert "the gate command asks for the OPEN subset, not the whole graph" \
-  'grep -qF -- "--open-only" <<<"$gate_block"'
+assert "the gate section carries a fenced invocation of the typed context bundle (not the bash facade)" \
+  'grep -qF "docket context finalize" <<<"$gate_block"'
+assert "the retired stack-children facade invocation is gone from the gate section" \
+  '! grep -qF "docket.sh stack-children" <<<"$gate_block"'
+assert "the gate reads the OPEN child subset from the typed bundle, not the whole graph" \
+  'grep -qF "open_child_prs" <<<"$gate_block" && grep -qF "descendants" <<<"$gate_block"'
 # Finalize's own body reaches descendants through the Go context bundle now, not the bash facade.
 # RE-KEYED (0316, category (a)): the descendant op `docket.sh stack-children` is absorbed into
 # `docket context finalize`, whose bundle carries the descendant relations and the open-child PR set

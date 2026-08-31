@@ -464,41 +464,25 @@ assert "the facade contract documents the op" \
 # facade asserts above. The sweep's own invoker (`sweep_stack_closeout`) is executable and is covered
 # by tests/test_docket_status_stack.sh; finalize's is PROSE, which nothing else in the suite reads.
 #
-# KEYED ON SHAPE, DERIVED, NOT ENUMERATED: the required flag set comes from stack-closeout.sh's own
-# whole-flag-set validation block, and the report vocabulary from its own header table. A flag or a
-# report line added to the script that the documented invocation never learns about reddens these
-# asserts on arrival, which a hand-listed copy here could not do.
+# RE-KEYED (0377 Task 10, category (a)): the standalone `docket.sh stack-closeout` op is absorbed
+# into the typed close-out — `docket finalize closeout`'s `root-archived` disposition archives the
+# root and every carried descendant in one transaction — reached by two invokers, the merge sweep
+# (`docket maintenance sweep`) and `docket-finalize-change`. The reference's close-out section must
+# name the typed owner, its root-carry disposition, and the sweep invoker, so a reverted facade
+# invocation or a gate keyed on the retired bash report vocabulary reddens.
 FIN="$REPO/skills/docket-finalize-change/SKILL.md"
 STACKREF="$REPO/skills/docket-convention/references/stacked-changes.md"
-# Required flags: the `missing --X` refusals plus the --terminal-publish value check. Optional flags
-# (--remote, --help) name themselves nowhere in that block, which is exactly the discriminator.
-closeout_validation="$(grep -E 'die "missing --|must be true or false' "$SCRIPT")"
-REQUIRED_FLAGS="$(grep -oE -e '--[a-z][a-z-]+' <<<"$closeout_validation" | sort -u)"
-# Report vocabulary: the `#   <token> <...>` rows of the script's own report table.
-REPORT_TOKENS="$(awk '/^#   [a-z][a-z-]+ </{print $2}' "$SCRIPT" | sort -u)"
-assert "the required-flag derivation found a plausible flag set" \
-  '[ "$(grep -c . <<<"$REQUIRED_FLAGS")" -ge 6 ]'
-assert "the report-vocabulary derivation found a plausible token set" \
-  '[ "$(grep -c . <<<"$REPORT_TOKENS")" -ge 4 ]'
-
-# The reference section that OWNS the invocation, whitespace-collapsed so a re-flow of the prose
+# The reference section that OWNS the close-out, whitespace-collapsed so a re-flow of the prose
 # cannot redden a phrase match (the section runs to the next `## ` heading or EOF).
 closeout_section="$(awk '/^## The stack close-out is idempotent/{s=1;next} s&&/^## /{exit} s' "$STACKREF")"
 closeout_flat="$(tr -s '[:space:]' ' ' <<<"$closeout_section")"
 assert "the reference's close-out section exists and is non-empty" '[ -n "${closeout_flat// /}" ]'
-# The fence literal is held in a SINGLE-quoted awk variable: no backtick may sit inside double
-# quotes in test source (change 0221, scripts/check-test-source-hygiene.sh).
-closeout_block="$(awk -v f='```' 'index($0,f)==1{b=!b;next} b' <<<"$closeout_section")"
-assert "the reference's close-out section carries a fenced facade invocation of the op" \
-  'grep -qF "docket.sh stack-closeout" <<<"$closeout_block"'
-for flag in $REQUIRED_FLAGS; do
-  assert "the reference's close-out command names $flag" \
-    'grep -qF -- "$flag" <<<"$closeout_block"'
-done
-for token in $REPORT_TOKENS; do
-  assert "the reference's close-out section names the report line $token" \
-    'grep -qF -- "$token" <<<"$closeout_flat"'
-done
+assert "the reference's close-out section names the typed closeout owner and its root-carry disposition" \
+  'grep -qF "docket finalize closeout" <<<"$closeout_flat" && grep -qF "root-archived" <<<"$closeout_flat"'
+assert "the reference's close-out section names the merge-sweep invoker (docket maintenance sweep)" \
+  'grep -qF "docket maintenance sweep" <<<"$closeout_flat"'
+assert "the retired stack-closeout facade invocation is gone from the close-out section" \
+  '! grep -qF "docket.sh stack-closeout" <<<"$closeout_flat"'
 
 # Finalize: RETIRED (0316, category (a)). The stack close-out was a separate `docket.sh stack-closeout`
 # facade call the finalize skill sequenced BETWEEN `docket.sh archive-change` and

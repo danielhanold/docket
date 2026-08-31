@@ -481,29 +481,19 @@ select_commit_refs(){
 REFS="$(find "$REPO"/skills -path '*/references/*.md' -type f | sort)"
 assert "B2c: reference files were found at all (extractor floor)" '[ -n "$REFS" ]'
 REF_SCOPE="$(select_commit_refs)"
-# COUNT FLOOR — without it the selector may silently degrade to matching nothing and the loop below
-# becomes a vacuous zero-iteration guard, which is this whole file's named failure mode.
-assert "B2c: the derivation selected reference files (selector floor)" '[ -n "$REF_SCOPE" ]'
-# RE-BASELINED (0316, category (a)): pre-0316 TWO references bound a shared-tree commit —
-# terminal-close-out.md (docket-status's sweep) and docket-finalize-change/references/gate-failure.md
-# (finalize's marker write). The Go-sequencer rewrite made finalize's marker write a `docket finalize
-# block` transaction, so gate-failure.md no longer instructs a hand commit on metadata_branch and
-# drops out of scope. One commit-instructing reference remains (terminal-close-out.md, for
-# docket-status's still-Bash sweep). Authority #2: Go transactions own committing.
-assert "B2c: the derivation yields exactly 1 commit-instructing reference (found $(grep -c . <<<"$REF_SCOPE"))" \
-  '[ "$(grep -c . <<<"$REF_SCOPE")" -eq 1 ]'
-
-covered_refs=0
-while IFS= read -r f; do
-  [ -n "$f" ] || continue
-  rel="${f#$REPO/}"
-  hay="$(flatten < "$f")"
-  covered_refs=$((covered_refs+1))
-  assert "B2c: $rel carries the marker at its commit instruction" \
-    'grep -qF -- "$MARKER" <<<"$hay"'
-done <<<"$REF_SCOPE"
-assert "B2c: every in-scope reference was actually checked (covered_refs=$covered_refs = 1)" \
-  '[ "$covered_refs" -eq 1 ]'
+# RE-BASELINED (0316 then 0377 Task 10, category (a)): pre-0316 TWO references bound a shared-tree
+# commit — terminal-close-out.md (docket-status's sweep) and
+# docket-finalize-change/references/gate-failure.md (finalize's marker write). 0316 made finalize's
+# marker write a `docket finalize block` transaction (2 -> 1). 0377 Task 10 migrated the terminal
+# close-out's last hand-commits — the kill-leg archive, the `## Artifacts` re-render, and the board
+# pass — onto the atomic Go transactions `docket finalize closeout` / `docket change kill` (Authority
+# #2: Go transactions own committing), so NO reference file instructs a shared-tree hand-commit any
+# more and the live population is now 0. The premise this loop covered is DELETED, not re-gated to a
+# vacuous green (learnings: test-premise-deleted-not-regated): the selector's non-vacuity is proven
+# by the SYNTHETIC controls below (forward.md / reverse.md ARE selected), never by a live witness, so
+# a 0 live count is safe and the coverage loop is retired with its population.
+assert "B2c: the derivation yields 0 commit-instructing references (all migrated to Go transactions; found $(grep -c . <<<"$REF_SCOPE"))" \
+  '[ "$(grep -c . <<<"$REF_SCOPE")" -eq 0 ]'
 
 # References that NAME `metadata_branch` but instruct no commit there must stay OUT: `learnings.md`
 # states where `promotion_state:` lives, `edge-paths.md` states what a PR back-link points AT.

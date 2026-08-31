@@ -21,8 +21,9 @@ destroys the path by which reachability was going to arrive.
 parent-side **Stacked children** row is derived at render time by `render-change-links.sh`, and no
 `stacked_children:` field exists. The parent id is never copied into `related:` or `depends_on:`.
 That row is a **human view, not an oracle**: it is regenerated when something writes the parent, so
-it can lag a child added later. Anything that decides — a gate, a report, a close-out — reads
-`docket.sh stack-children` instead.
+it can lag a child added later. Anything that decides — a gate, a report, a close-out — reads the
+typed descendant set from `docket context finalize` (its `descendants` and `open_child_prs`
+fields) instead.
 
 The key is **optional**, so every read of it uses the anchored `fm_field`, never `field` — in this
 repo a change body discussing `stacked_on:` is ordinary content, and an unanchored read of an absent
@@ -54,19 +55,21 @@ What it does **not** satisfy:
   depending on a `stacked-merged` change is still waiting, correctly: that code has not shipped.
 - **Close-out.** Nothing is archived, published, or cleaned up until the stack root lands.
 
-The merge sweep is the only producer of the state (`docket-status.sh`, report line
-`stacked-merged <id> <parent>`); `stack-closeout.sh` is the only consumer that takes a change out of
-it. Neither is restated here — `scripts/docket-status.md` and `scripts/stack-closeout.md` own them.
+The merge sweep (`docket maintenance sweep`) is the only producer of the state; the typed finalize
+close-out (`docket finalize closeout`'s `root-archived` disposition) is the only consumer that takes
+a change out of it, when the stack root reaches integration. Neither mechanism is restated here — see
+*The stack close-out is idempotent* below.
 
-## Resolving the base — `stack-base.sh`
+## Resolving the base — `docket context implementation` effective-base
 
-Every branch cut, PR base, and rebase target for a change goes through one resolver, invoked
-**unconditionally**: an unstacked change resolves to the integration branch at exit `0`, so no caller
-needs to know in advance whether a change is stacked.
+Every branch cut, PR base, and rebase target for a change resolves through one policy, applied
+**unconditionally**: an unstacked change resolves to the integration branch, so no caller needs to
+know in advance whether a change is stacked. The resolution is delivered as the typed
+**`effective_base`** field of `docket context implementation` (a `ContextBase`); `docket workspace
+prepare` applies the same domain policy internally — no skill runs a separate resolver.
 
 ```
-"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh stack-base \
-  --changes-dir <changes_dir> --id <id> --integration-branch <integration_branch>
+docket context implementation --id <id>   # → .effective_base: { kind, branch, source_change }
 ```
 
 The walk applies four rules, upward from the change:
@@ -84,18 +87,20 @@ The walk applies four rules, upward from the change:
 3. **A `killed` parent stops the walk.**
 4. **Anything else is invalid** — a missing parent, a cycle, or a parent branch with no remote ref.
 
-| Exit | Meaning | What you must do |
-|---|---|---|
-| `0` | Resolved; the branch name is the only thing on stdout. | Cut from it, open the PR against it, rebase onto it. |
-| `2` | Usage error. | Fix the invocation. |
-| `3` | The chain reaches a **killed** parent. | Stop and surface it. This is a **scoping decision** a human makes — see *When a parent is killed*. |
-| `4` | **Invalid resolution.** | Treat as a **data repair**: fix `stacked_on:`/`branch:`, or push the parent's branch. |
+`effective_base.kind` is a closed vocabulary; `branch` is meaningful **only** when `kind` is
+`resolved`, and `source_change` names the exact ancestor the walk stopped at:
 
-**Never fall back to the integration branch on `3` or `4`.** Both print nothing on stdout precisely
-so a caller cannot mistake a broken stack for a fine one; a silent fallback produces a branch nobody
-designed while every surface still reports it as stacked. The two codes are separate because the
-remedies are, and the board reports them as the separate `stack-parent-killed` and `stack-invalid`
-health checks.
+| `kind` | Meaning | What you must do |
+|---|---|---|
+| `resolved` | Resolved; `branch` carries the base branch name. | Cut from it, open the PR against it, rebase onto it. |
+| `parent-killed` | The chain reaches a **killed** parent (named by `source_change`). | Stop and surface it. This is a **scoping decision** a human makes — see *When a parent is killed*. |
+| `missing-parent` / `cycle` / `malformed-edge` / `branch-absent` | **Invalid resolution.** | Treat as a **data repair**: fix `stacked_on:`/`branch:`, or push the parent's branch. |
+
+**Never fall back to the integration branch on a `parent-killed` or an invalid `kind`.** Each carries
+an empty `branch` precisely so a caller cannot mistake a broken stack for a fine one; a silent
+fallback produces a branch nobody designed while every surface still reports it as stacked. The kinds
+are separate because the remedies are, and the board reports them as the separate
+`stack-parent-killed` and `stack-invalid` health checks.
 
 A change whose base does not resolve is **not build-ready**: the board reads
 *waiting on #A — stack base not built* and the digest token is `stack-base-unresolved`.
@@ -123,18 +128,20 @@ for no gain the gate does not already deliver.
 Before merging a change that has stacked children, resolve every child's state. **Get that child set
 from the scan, never from the parent's rendered `## Stacked children` row** — that row is a view
 regenerated when something writes the *parent*, so a child stacked on an already-`implemented`
-parent is simply absent from it. Run this **unconditionally**, as with `stack-base`: an unstacked
-change prints nothing.
+parent is simply absent from it. This set is delivered typed by `docket context finalize`, applied
+**unconditionally** — as with the effective-base resolution, an unstacked change's candidate simply
+carries an empty descendant set.
 
 ```
-"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh stack-children \
-  --changes-dir <changes_dir> --id <this change's id> --open-only
+docket context finalize --id <this change's id>
+#   → candidate.descendants[]   : { id, slug, status, pr_destination }, parents before children
+#   → candidate.open_child_prs[]: the OPEN child PR numbers based on this parent's branch
 ```
 
-Each line is `<padded id> <status> <pr-or-dash>`, parents before children. Empty stdout at exit `0`
-means no open children, so this section's gate does not fire. Exit `4` means the id names no change: a
-typo, never an all-clear. Drop `--open-only` for the whole graph, which is what step 3.5's close-out
-gate asks for.
+An empty `open_child_prs` means no open children, so this section's gate does not fire. An id naming
+no change is a typed refusal, never an all-clear. `descendants` carries the whole transitive graph
+(each child's lifecycle and PR destination), which is what step 3.5's close-out gate asks for;
+`open_child_prs` is the open subset the merge gate keys on.
 
 - **Children still open** (any status short of `stacked-merged` or `done`, with a PR whose base is
   this parent's branch):
@@ -171,45 +178,31 @@ a killed parent is a design decision, not a fallback.
   says is false — and deleting their branches would destroy the only copy of work a human may well
   want to re-parent.
 
-`stack-base.sh` exit `3` and the `stack-parent-killed` health check are how this state is surfaced;
-the flip itself is a human-directed edit, never an automatic sweep.
+An `effective_base.kind` of `parent-killed` and the `stack-parent-killed` health check are how this
+state is surfaced; the flip itself is a human-directed edit, never an automatic sweep.
 
 ## The stack close-out is idempotent
 
-When a stack **root** merges, `stack-closeout.sh` promotes each `stacked-merged` descendant through
-the shared terminal close-out to `done`, archived under the **root's** merge date, and regenerates
-the root's marker-bounded **Stack carried** table on the root's archived record.
+When a stack **root** merges, the typed close-out — `docket finalize closeout`'s **`root-archived`**
+disposition — archives the root and every carried `stacked-merged` descendant to `done` in **one
+transaction**, all under the **root's** merge date, and renders the root's marker-bounded **Stack
+carried** table on the root's archived record. One unproven descendant leaves the root recoverable
+with zero descendant writes (fail-closed).
 
-**Two invokers run this one op**, and neither substitutes for the other: the `docket-status` merge
-sweep, right after it sweeps a root to `done`; and `docket-finalize-change`, after its archive step
-and **before** the cleanup that deletes the root's branch. The sweep cannot cover for finalize — it
-only ever enumerates `active/` for a merged PR, and a root finalize has archived is never
-re-enumerated while a `stacked-merged` descendant has no merged PR of its own to find — so a
-close-out finalize skips is a stack stranded permanently. Gate on the root actually having
-descendants, so an unstacked change pays nothing: not a subprocess, not the fetch.
+**Two invokers reach this one transaction**, and neither substitutes for the other: the merge sweep
+(`docket maintenance sweep`), right after it sweeps a root to `done`; and `docket-finalize-change`,
+in its step-9 close-out. The sweep cannot cover for finalize — it only ever enumerates `active/` for
+a merged PR, and a root finalize has archived is never re-enumerated while a `stacked-merged`
+descendant has no merged PR of its own to find — so a close-out finalize skips strands a stack
+permanently. The transaction gates on the root actually carrying descendants, so an unstacked change
+pays nothing.
 
-```
-"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh stack-closeout \
-  --changes-dir <changes_dir> --root-id <root id> --date <the root's UTC merge date> \
-  --integration-branch <integration_branch> --metadata-branch <metadata_branch> \
-  --adrs-dir <adrs_dir> --terminal-publish <terminal_publish>
-```
+The archive date is the root's `mergedAt` in **UTC**, derived inside the transaction, never `now()`,
+so a re-run reuses the same descendant filenames. Terminal publication of stacked descendants is
+deferred from Go v1. Route on the typed `disposition`: `root-archived` (every descendant proven),
+`children-retarget-required` (one is not yet `stacked-merged`), or `contended`/`blocked`.
 
-Terminal publication of stacked descendants is deferred from Go v1 — the forwarded
-`--terminal-publish` value activates nothing.
-
-`--date` is the root's `mergedAt` in **UTC**, never `now()`: the pass is re-run, and a clock-derived
-date makes two runs disagree about the same descendant's archive filename. Key on the report lines —
-`promoted`, `promote-skipped`, `promote-failed`, `stack-carried`, `stack-carried-failed` — never on
-the exit code, and relay them verbatim. The posture at a failed line is **log and continue**: the
-root is already `done`, so stopping buys nothing and loses the rest of the close-out. Say so loudly
-and name the by-hand re-run of this same command, because once the root leaves `active/` no sweep
-picks it up again.
-
-It is safe to re-run, and re-running it is the designed recovery from a partial pass. The
-idempotency key is two-part and both parts are read from durable state: the descendant is **archived
-on the metadata branch** *and* carries **no outstanding `## Publish deferred` marker**. Archiving is
-the sequence's first step, so an archived-but-unpublished descendant is a *resumable* run, not a
-finished one — and the working tree's cleanliness is never the probe, because a half-finished run is
-exactly what leaves it dirty. A per-descendant failure never abandons its siblings. The full report
-vocabulary and failure reasons live in `scripts/stack-closeout.md`.
+Re-running it is the designed recovery from a partial pass: an `already` disposition replays a
+response-lost success as a keyed no-op, keyed on the descendant already being **archived on the
+metadata branch**. The atomic transaction never half-archives a descendant, so a re-run either
+completes the rest or returns `already`, and never abandons the proven siblings.

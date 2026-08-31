@@ -14,18 +14,24 @@ assert(){ if eval "$2"; then printf 'ok - %s\n' "$1"; else printf 'NOT OK - %s\n
 assert "board-refresh invariant present in the convention" \
   'grep -q "Board refresh on status writes" skills/docket-convention/SKILL.md'
 
-# B. docket-implement-next (change 0315): the claim/reconcile/mark-implemented transitions render the
-# inline board ATOMICALLY inside their own `docket change` transaction — no separate Board pass — so
-# only the non-transactional reconcile-kill path still runs the gated best-effort Board pass. The
-# board-refresh-on-transition guarantee is preserved, relocated onto the transaction render plus the
-# retained kill-path pass (learnings: restatement-accumulates-its-own-guards), never dropped.
-assert "implement-next names the best-effort board refresh (retained for the kill path)" \
-  'grep -q "Best-effort board refresh" skills/docket-implement-next/SKILL.md'
+# B. docket-implement-next (change 0315 + 0377 Task 10): the claim/reconcile/mark-implemented
+# transitions render the inline board ATOMICALLY inside their own `docket change` transaction — no
+# separate Board pass — and Task 10 migrated the reconcile-kill path onto `docket change kill`, which
+# ALSO renders the board atomically in its own transaction, so NO best-effort Board pass survives
+# anywhere in the skill. The board-refresh-on-transition guarantee is preserved, relocated onto the
+# transaction render (learnings: restatement-accumulates-its-own-guards; assert-detects-removal-not-
+# replacement), never dropped.
+assert "implement-next names the atomic board render section (no separate pass)" \
+  'grep -q "Atomic board rendering" skills/docket-implement-next/SKILL.md'
 # Mutation twin: strip the atomic inline-board render from the transitions and this reddens.
 assert "implement-next renders the inline board atomically inside its change transactions" \
   'grep -qiE "inline board[^.]{0,60}(atomic|metadata commit)|(atomic|metadata commit)[^.]{0,60}inline board" skills/docket-implement-next/SKILL.md'
-assert "implement-next retains the gated best-effort Board pass for the non-transactional kill path" \
-  '[ "$(grep -c "run the Board pass (best-effort" skills/docket-implement-next/SKILL.md)" -ge 1 ]'
+# Task 10: the reconcile-kill path renders the board atomically via `docket change kill` (floor on the
+# new Go verb so deleting it reddens); the retired best-effort facade pass must be GONE.
+assert "implement-next renders the reconcile-kill board atomically via docket change kill" \
+  'grep -qF "docket change kill" skills/docket-implement-next/SKILL.md'
+assert "implement-next no longer runs a separate best-effort Board pass" \
+  '! grep -q "run the Board pass (best-effort" skills/docket-implement-next/SKILL.md'
 
 # C. docket-new-change proposed-kill refreshes the board (must-land, not best-effort).
 assert "new-change proposed-kill refreshes board (must-land Board pass)" \
@@ -68,12 +74,13 @@ assert "convention names the exceptional-drift repair path (check + authorized m
   'grep -qF "docket repository check" skills/docket-convention/SKILL.md && grep -qF "docket repository migrate" skills/docket-convention/SKILL.md'
 
 # docket-finalize-change is NOT in this facade-caller loop as of 0316 — see the dedicated
-# absorption assertion after the loop.
+# absorption assertion after the loop. docket-implement-next left the loop as of 0377 Task 10: its
+# reconcile-kill board pass is now absorbed into the `docket change kill` transaction (asserted in
+# block B above).
 CALLERS=(
   skills/docket-new-change/SKILL.md
   skills/docket-groom-next/SKILL.md
   skills/docket-auto-groom/SKILL.md
-  skills/docket-implement-next/SKILL.md
 )
 
 for f in "${CALLERS[@]}"; do
