@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_app_repocheck.sh — Go integration shard (change 0352):
 # the read-only repository check service scenarios (fresh, needs-review→healthy,
 # every healthy postcondition, read-only invariance, unknown authority), behind

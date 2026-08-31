@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_githubcli_harness.sh — Go integration shard (change 0333):
 # the githubcli fake-gh protocol harness self-tests and client env-hygiene test
 # (real re-exec'd fake gh subprocesses), behind the `integration` build tag,

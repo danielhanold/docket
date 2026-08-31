@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_gitcli_history.sh — Go integration shard (change 0378):
 # the gitcli narrow history reads (HasSharedAncestry/ListHistoryTrees/TreeEntryIDs),
 # behind the `integration` build tag, prefix ^TestIntegrationHistory. Declarations

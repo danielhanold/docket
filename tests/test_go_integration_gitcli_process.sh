@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_gitcli_process.sh — Go integration shard (change 0333):
 # the gitcli process execution/timeout/diagnostics tests (fake-git helper-process
 # runs), behind the `integration` build tag, prefix ^TestIntegrationProcess.

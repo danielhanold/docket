@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_githubcli_probe.sh — Go integration shard (change 0333):
 # the githubcli PR discovery/probe reads (FindOpenPullRequestsByHead,
 # ViewPullRequest) and repository-identity discover tests, behind the

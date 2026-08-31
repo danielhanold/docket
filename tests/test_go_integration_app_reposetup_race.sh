@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_app_reposetup_race.sh — Go integration shard (change 0352):
 # the real-concurrency repository-setup tests (two goroutines racing RunRepositoryInit
 # for the create-only metadata root over one upstream, and a migration racing repeated

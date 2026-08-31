@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_githubcli_ensure.sh — Go integration shard (change 0333):
 # the githubcli PR ensure/comment lifecycle tests (idempotent probe->act->verify
 # through the protocol-faithful fake gh), behind the `integration` build tag,

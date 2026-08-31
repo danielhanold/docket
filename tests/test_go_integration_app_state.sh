@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_app_state.sh — Go integration shard (change 0333):
 # the finalize block/publish/interruption-matrix real-repository state tests, behind the `integration` build tag, prefix
 # ^TestIntegrationFinalizeState. Declarations only — execution and inspection live in

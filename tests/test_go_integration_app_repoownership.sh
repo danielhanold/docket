@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_app_repoownership.sh — Go integration shard (change 0378):
 # the shared metadata-root ownership verifier scenarios (topology and native
 # receipt proofs, plus the unknown mapping — the receiptless-nonempty legacy

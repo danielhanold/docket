@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: posix-install
 # tests/test_install_bootstrap.sh — run: bash tests/test_install_bootstrap.sh
 #
 # install.sh is a POSIX bootstrapper (change 0322): run from any CWD it resolves its own

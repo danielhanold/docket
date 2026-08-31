@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_app_repocontention.sh — Go integration shard (change 0352):
 # the sequential migration-contention tests (metadata-lease loss under a second-writer
 # docket advance, integration-lease loss rebuilt atop the fresh re-read, and a concurrent

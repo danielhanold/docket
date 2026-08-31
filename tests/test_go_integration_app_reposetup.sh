@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_app_reposetup.sh — Go integration shard (change 0352):
 # the repository init service + first-shard setup tests (init topology, repeat
 # convergence, refusals, gitignore parity, no-prompt), behind the `integration`

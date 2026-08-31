@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_gitcli_source.sh — Go integration shard (change 0333):
 # the gitcli ObjectSource batch/blob protocol tests (ListTree + ReadBlobs), behind
 # the `integration` build tag, prefix ^TestIntegrationSource. Declarations only —

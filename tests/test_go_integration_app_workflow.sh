@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_app_workflow.sh — Go integration shard (change 0333):
 # the real-repository workflow tests (planning, claim, attach, status, workspace, end-to-end), behind the `integration` build tag, prefix
 # ^TestIntegrationWorkflow. Declarations only — execution and inspection live in

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_finalize_e2e.sh — the hermetic finalize end-to-end matrix
 # (change 0316, Task 17).
 #

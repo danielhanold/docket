@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_app_repomigration.sh — Go integration shard (change 0352):
 # the `repository migrate` service — the authorized two-commit remote publication
 # sequence (exact copy/removal sets, byte-preserving legacy-key removal, receipts,
