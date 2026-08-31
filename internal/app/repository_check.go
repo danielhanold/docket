@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/reposetup"
 	"github.com/danielhanold/docket/internal/repository"
 )
@@ -91,13 +93,16 @@ func RunRepositoryCheck(ctx context.Context, d SetupDeps) RepositoryCheckResult 
 	// the base facts alone. Every augmentation probe is a bounded read that maps
 	// its own errors to the safe Unknown value, never to a false absence.
 	var fm []reposetup.RepairFinding
+	var corpusExtra []reposetup.Finding
 	if facts.RemoteMetadata.Presence == reposetup.PresencePresent {
 		augmentCheckFacts(ctx, d.Git, &facts, sc)
-		fm = gatherFrontmatterFindings(ctx, d.Git, sc)
+		corpus, rerr := readCheckCorpus(ctx, d.Git, sc)
+		fm, corpusExtra = checkCorpusOutcome(sc.cfg, corpus, rerr)
 	}
 
 	cls := reposetup.Classify(facts)
 	findings := reposetup.EvaluateHealth(cls, facts, fm)
+	findings = append(findings, corpusExtra...)
 	return newCheckResult(cls, facts, findings)
 }
 
@@ -398,19 +403,39 @@ func pendingReviewPaths(ctx context.Context, git *gitcli.Client, repo gitcli.Rep
 	return pending
 }
 
-// gatherFrontmatterFindings reads the metadata corpus from the remote docket tip
-// and returns report-only frontmatter findings: the closed mechanical-repair
-// roster from PlanRepairs per change record, plus any error-severity cross-record
-// corpus finding BuildSnapshot names. It never writes and never repairs. A read
-// error yields no findings — a check must not fabricate a repair.
-func gatherFrontmatterFindings(ctx context.Context, git *gitcli.Client, sc setupContext) []reposetup.RepairFinding {
+// checkCorpus is everything the report-only check reads from the pinned metadata
+// corpus: the classified records, the two whole-file derived views (board and
+// ADR index), and the link context the artifact-links renderer needs. A view's
+// present flag distinguishes an absent file (no drift possible) from an empty
+// one.
+type checkCorpus struct {
+	records  []corpusRecord
+	link     render.LinkContext
+	board    corpusFile
+	adrIndex corpusFile
+}
+
+// corpusFile is one whole-file derived view read from the corpus: its bytes and
+// whether it exists at all.
+type corpusFile struct {
+	present bool
+	bytes   []byte
+}
+
+// readCheckCorpus reads the metadata corpus from the remote docket tip: the
+// classified change/ADR/spec records, the inline board, the ADR index, and the
+// origin-derived link context. It never writes. A read error is RETURNED, never
+// swallowed into a clean absence — the caller surfaces it as an error finding so
+// the check never fabricates absence (learning probe-error-is-not-clean-absence).
+func readCheckCorpus(ctx context.Context, git *gitcli.Client, sc setupContext) (checkCorpus, error) {
+	var corpus checkCorpus
 	src, err := git.OpenObjectSource(ctx, sc.repo, gitcli.Revision{Commit: gitcli.ObjectID(sc.metadataTip)})
 	if err != nil {
-		return nil
+		return corpus, err
 	}
 	entries, err := src.ListTree(ctx, corpusPrefixes(sc.cfg))
 	if err != nil {
-		return nil
+		return corpus, err
 	}
 	type meta struct {
 		kind     repository.RecordKind
@@ -429,26 +454,255 @@ func gatherFrontmatterFindings(ctx context.Context, git *gitcli.Client, sc setup
 		paths = append(paths, e.Path)
 		metas = append(metas, meta{kind: kind, location: loc})
 	}
-	if len(paths) == 0 {
-		return nil
+	if len(paths) > 0 {
+		blobs, err := src.ReadBlobs(ctx, paths)
+		if err != nil {
+			return corpus, err
+		}
+		for i, br := range blobs {
+			if !br.Found {
+				continue
+			}
+			corpus.records = append(corpus.records, corpusRecord{
+				path:     string(br.Path),
+				bytes:    br.Blob.Bytes,
+				kind:     metas[i].kind,
+				location: metas[i].location,
+			})
+		}
 	}
-	blobs, err := src.ReadBlobs(ctx, paths)
+
+	// The two whole-file derived views. A ReadBlobs error is a corpus read
+	// failure; an absent file is a Found=false result, not an error.
+	viewBlobs, err := src.ReadBlobs(ctx, []gitcli.RepoPath{
+		gitcli.RepoPath(boardCorpusPath(sc.cfg)),
+		gitcli.RepoPath(adrIndexCorpusPath(sc.cfg)),
+	})
 	if err != nil {
+		return corpus, err
+	}
+	if len(viewBlobs) == 2 {
+		corpus.board = corpusFile{present: viewBlobs[0].Found, bytes: viewBlobs[0].Blob.Bytes}
+		corpus.adrIndex = corpusFile{present: viewBlobs[1].Found, bytes: viewBlobs[1].Blob.Bytes}
+	}
+
+	// The link context, derived from origin exactly as the authoritative writers
+	// derive it (link_context.go), so the artifact-links comparison renders the
+	// same bytes a mutation would have written. A RemoteURL failure is a read
+	// error, fail-closed.
+	remoteURL, uerr := git.RemoteURL(ctx, sc.repo, setupRemote())
+	if uerr != nil {
+		return corpus, uerr
+	}
+	// linkContextOf is the sole LinkContext constructor (link_context.go / the
+	// 0341 shape guard): route through it so RepoWebURL can never be silently
+	// dropped, exactly as the authoritative writers do.
+	corpus.link = linkContextOf(StatusPin{RepoWebURL: githubWebURL(remoteURL)})
+	return corpus, nil
+}
+
+// boardCorpusPath and adrIndexCorpusPath name the two whole-file derived views
+// in the corpus: the inline board under the changes directory and the ADR index
+// README under the ADR directory.
+func boardCorpusPath(cfg config.Effective) string {
+	return filepath.ToSlash(filepath.Join(cfg.ChangesDir.Value, "BOARD.md"))
+}
+
+func adrIndexCorpusPath(cfg config.Effective) string {
+	return filepath.ToSlash(filepath.Join(cfg.ADRsDir.Value, "README.md"))
+}
+
+// checkCorpusOutcome assembles the corpus-derived findings for the check. A
+// non-nil readErr surfaces as an error-severity corpus-unreadable finding — a
+// read failure is never fabricated into a clean absence — and no corpus records
+// are inspected. Otherwise it returns the frontmatter repair findings (fed
+// through EvaluateHealth) and the derived-view drift findings lifted to health
+// findings. It is pure so both branches are unit-testable without Git.
+func checkCorpusOutcome(cfg config.Effective, corpus checkCorpus, readErr error) ([]reposetup.RepairFinding, []reposetup.Finding) {
+	if readErr != nil {
+		return nil, []reposetup.Finding{corpusUnreadableFinding(readErr)}
+	}
+	fm := corpusFindings(cfg, corpus.records)
+	var extra []reposetup.Finding
+	for _, df := range derivedViewFindings(cfg, corpus) {
+		extra = append(extra, df.Finding())
+	}
+	return fm, extra
+}
+
+// corpusUnreadableFinding is the error-severity finding a corpus read failure
+// yields. The check reports the failure rather than a clean absence.
+func corpusUnreadableFinding(err error) reposetup.Finding {
+	return reposetup.Finding{
+		Code:     reposetup.CodeCorpusUnreadable,
+		Severity: reposetup.SeverityError,
+		Message:  "the metadata corpus could not be read: " + err.Error(),
+		Remedy:   "Ensure the remote docket branch is reachable and its objects are fetched, then re-run `docket repository check`.",
+	}
+}
+
+// derivedBytesDiffer is the ONE byte comparison behind all three derived views:
+// board, ADR index, and each record's artifact-links block are each rendered to
+// their canonical bytes and compared to the stored bytes through this helper.
+func derivedBytesDiffer(canonical, stored []byte) bool {
+	return !bytes.Equal(canonical, stored)
+}
+
+// derivedViewFindings compares each canonical derived view against its stored
+// bytes and returns the ordered drift findings: board first, then ADR index,
+// then each change record's artifact-links block. It renders every view from the
+// SAME candidate snapshot the corpus builds, through the canonical renderers, so
+// a difference is exactly the drift a mutation would have avoided. A snapshot
+// that cannot be built yields no derived findings (the frontmatter path already
+// surfaces the blocking errors).
+func derivedViewFindings(cfg config.Effective, corpus checkCorpus) []reposetup.DerivedFinding {
+	snap, ok := buildCorpusSnapshot(cfg, corpus.records)
+	if !ok {
 		return nil
 	}
-	recs := make([]corpusRecord, 0, len(blobs))
-	for i, br := range blobs {
-		if !br.Found {
+	var out []reposetup.DerivedFinding
+
+	if corpus.board.present {
+		if canonical, err := render.Board(render.BoardInput{Snapshot: snap}); err == nil {
+			if derivedBytesDiffer(canonical, corpus.board.bytes) {
+				out = append(out, reposetup.DerivedFinding{
+					View:       reposetup.DerivedViewBoard,
+					Code:       reposetup.CodeBoardStale,
+					Path:       boardCorpusPath(cfg),
+					Repairable: true,
+					Message:    "the inline board differs from the canonical render of the current metadata.",
+				})
+			}
+		}
+	}
+
+	if corpus.adrIndex.present {
+		if canonical, err := render.ADRIndex(snap); err == nil {
+			if derivedBytesDiffer(canonical, corpus.adrIndex.bytes) {
+				out = append(out, reposetup.DerivedFinding{
+					View:       reposetup.DerivedViewADRIndex,
+					Code:       reposetup.CodeADRIndexStale,
+					Path:       adrIndexCorpusPath(cfg),
+					Repairable: true,
+					Message:    "the ADR index differs from the canonical render of the current metadata.",
+				})
+			}
+		}
+	}
+
+	out = append(out, artifactLinkFindings(snap, corpus)...)
+	return out
+}
+
+// artifactLinkFindings compares each change record's managed artifact-links block
+// against the canonical render from snap. Records are visited in path order. A
+// record whose managed markers are unbalanced is a NON-repairable malformed
+// finding (the automatic repair must never touch an unbalanced block, per
+// AGENTS.md); a record whose block is stale or absent-but-required is a
+// repairable finding. A record that fails to parse for a non-marker reason is
+// left to the frontmatter path.
+func artifactLinkFindings(snap domain.Snapshot, corpus checkCorpus) []reposetup.DerivedFinding {
+	byPath := map[string]domain.Change{}
+	for _, c := range snap.Changes() {
+		byPath[c.Path()] = c
+	}
+	recs := append([]corpusRecord(nil), corpus.records...)
+	sort.Slice(recs, func(i, j int) bool { return recs[i].path < recs[j].path })
+
+	var out []reposetup.DerivedFinding
+	for _, rec := range recs {
+		if rec.kind != repository.KindChange {
 			continue
 		}
-		recs = append(recs, corpusRecord{
-			path:     string(br.Path),
-			bytes:    br.Blob.Bytes,
-			kind:     metas[i].kind,
-			location: metas[i].location,
+		doc, err := document.Parse(rec.bytes)
+		if err != nil {
+			if markerMalformed(err) {
+				out = append(out, reposetup.DerivedFinding{
+					View:       reposetup.DerivedViewArtifactLinks,
+					Code:       reposetup.CodeArtifactLinksMalformed,
+					Path:       rec.path,
+					Repairable: false,
+					Message:    "the managed artifact-links markers are unbalanced or malformed: " + err.Error(),
+				})
+			}
+			continue
+		}
+		change, ok := byPath[rec.path]
+		if !ok {
+			continue // not in the snapshot (e.g. dropped by validation); frontmatter path owns it
+		}
+		body, berr := render.ArtifactBlockContent(change, snap, corpus.link)
+		if berr != nil {
+			continue // an unresolvable ADR reference is a validation finding, not drift
+		}
+		if _, present := doc.Block("artifacts"); !present {
+			if body != "" {
+				out = append(out, reposetup.DerivedFinding{
+					View:       reposetup.DerivedViewArtifactLinks,
+					Code:       reposetup.CodeArtifactLinksMissing,
+					Path:       rec.path,
+					Repairable: true,
+					Message:    "the record carries artifacts but has no managed artifact-links block.",
+				})
+			}
+			continue
+		}
+		candidate, aerr := applyArtifactBlock(doc, body)
+		if aerr != nil {
+			continue
+		}
+		if derivedBytesDiffer(candidate, rec.bytes) {
+			out = append(out, reposetup.DerivedFinding{
+				View:       reposetup.DerivedViewArtifactLinks,
+				Code:       reposetup.CodeArtifactLinksStale,
+				Path:       rec.path,
+				Repairable: true,
+				Message:    "the managed artifact-links block differs from the canonical render.",
+			})
+		}
+	}
+	return out
+}
+
+// applyArtifactBlock rewrites the record's managed artifacts block to body
+// through document's own ReplaceBlock, returning the candidate record bytes — the
+// exact writer path the authoritative mutations use, so a byte comparison against
+// the stored record measures real drift.
+func applyArtifactBlock(doc document.Document, body string) ([]byte, error) {
+	var ps document.PatchSet
+	ps.ReplaceBlock("artifacts", body)
+	return doc.Apply(ps)
+}
+
+// markerMalformed reports whether a document parse error is a malformed/imbalanced
+// managed-marker error (as opposed to an undecodable frontmatter error).
+func markerMalformed(err error) bool {
+	var de *document.Error
+	if !errors.As(err, &de) {
+		return false
+	}
+	return de.Kind == document.KindMalformedMarker || de.Kind == document.KindMarkerImbalance
+}
+
+// buildCorpusSnapshot builds the domain snapshot from the decodable corpus
+// records, skipping any record whose frontmatter cannot be parsed (those are
+// named by the frontmatter path). ok is false when the whole-corpus build fails.
+func buildCorpusSnapshot(cfg config.Effective, recs []corpusRecord) (domain.Snapshot, bool) {
+	inputs := make([]repository.InputDocument, 0, len(recs))
+	for _, r := range recs {
+		doc, err := document.Parse(r.bytes)
+		if err != nil {
+			continue
+		}
+		inputs = append(inputs, repository.InputDocument{
+			Kind: r.kind, Location: r.location, Path: r.path, Document: doc,
 		})
 	}
-	return corpusFindings(sc.cfg, recs)
+	build, err := repository.BuildSnapshot(repository.BuildInput{Config: cfg, Documents: inputs})
+	if err != nil {
+		return domain.Snapshot{}, false
+	}
+	return build.Snapshot, true
 }
 
 // corpusRecord is one metadata record read for report-only validation.

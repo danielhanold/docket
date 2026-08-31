@@ -68,6 +68,7 @@ type RepositoryMigrateResult struct {
 	CopyPrefixes    []string                  `json:"copy_prefixes"`
 	RemovedPaths    []string                  `json:"removed_paths"`
 	Repairs         []reposetup.RepairFinding `json:"repairs,omitempty"`
+	RepairedViews   []string                  `json:"repaired_views,omitempty"`
 	PendingLocal    []string                  `json:"pending_local,omitempty"`
 	human           string
 }
@@ -136,7 +137,11 @@ func migratePhaseDispatch(ctx context.Context, d SetupDeps, o MigrateOptions, fa
 		return *refusal
 	}
 	if phase == phaseAlreadyMigrated {
-		return migrateNoOp(sc.sourceRevision)
+		// The topology is healthy. Migrate's second job is mechanical repair of
+		// deterministic derived-view drift (inline board, artifact-links blocks, ADR
+		// index) even on a healthy repository. When there is nothing repairable this
+		// stays the idempotent no-op.
+		return migrateHealthyRepair(ctx, d, o, sc)
 	}
 	if phase == phaseResumeLocal {
 		// The remote is fully migrated; only the local attachment is incomplete.
