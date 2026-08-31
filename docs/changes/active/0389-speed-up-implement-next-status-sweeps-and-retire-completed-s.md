@@ -13,7 +13,7 @@ related: [58, 310, 360, 384]
 discovered_from: [384]
 adrs: [12, 24]
 spec: 'docs/superpowers/specs/2026-08-31-speed-up-implement-next-status-sweeps-and-retire-completed-s-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-08-31-speed-up-implement-next-status-sweeps-and-retire-completed-s.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-08-31T17:54:05Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-31-speed-up-implement-next-status-sweeps-and-retire-completed-s-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-31-speed-up-implement-next-status-sweeps-and-retire-completed-s-design.md) |
+| Plan | [2026-08-31-speed-up-implement-next-status-sweeps-and-retire-completed-s.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-31-speed-up-implement-next-status-sweeps-and-retire-completed-s.md) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md) |
 <!-- docket:artifacts:end -->
 
