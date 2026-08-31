@@ -2,7 +2,7 @@
 id: 384
 slug: 'launch-compositional-docket-agents-in-coordinator-capable-ha'
 title: 'Launch compositional Docket agents in coordinator-capable harness contexts'
-status: 'proposed'
+status: 'in-progress'
 priority: 'critical'
 type: 'fix'
 created: '2026-08-31'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/launch-compositional-docket-agents-in-coordinator-capable-ha'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-31T16:14:19Z'
 ---
 
 ## Artifacts
