@@ -1,6 +1,6 @@
 # Backlog
 
-**389 changes** — 🟢 2 in progress · 🟡 65 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 234 done · 🗑️ 83 killed
+**389 changes** — 🟢 2 in progress · 🟡 65 proposed · ⚪ 4 deferred · ✅ 235 done · 🗑️ 83 killed
 
 ## 🟢 In progress (2)
 
@@ -88,12 +88,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0367](active/0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | `medium` | `feat` | [#259](https://github.com/danielhanold/docket/pull/259) |  |
-
 ```mermaid
 graph TD
   0007
@@ -152,7 +146,6 @@ graph TD
   0360
   0352 --> 0364
   0370 --> 0366
-  0370 --> 0367
   0368
   0373
   0370 --> 0374
@@ -176,13 +169,14 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (317)</summary>
+<details><summary>✅🗑️ Archive — done + killed (318)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0386](archive/2026-08-31-0386-discharge-adr-0100-s-deferred-disposition-for-the-surviving.md) | Discharge ADR-0100's deferred disposition for the surviving product runners | 2026-08-31 |
 | [0377](archive/2026-08-31-0377-migrate-deferred-bash-facade-workflow-operations-to-native-g.md) | Migrate deferred Bash-facade workflow operations to native Go CLI verbs | 2026-08-31 |
 | [0370](archive/2026-08-31-0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | 2026-08-31 |
+| [0367](archive/2026-08-31-0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | 2026-08-31 |
 | [0378](archive/2026-08-30-0378-metadata-root-classifier-rejects-multi-commit-docket-branch.md) | Shared metadata-root classifier misreads any multi-commit docket branch as foreign | 2026-08-30 |
 | [0372](archive/2026-08-30-0372-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume.md) | Retire deferred Go v1 workflow surfaces and seal the consumer cutover | 2026-08-30 |
 | [0371](archive/2026-08-30-0371-cut-generated-agent-invocation-over-to-native-host-dispatch.md) | Cut generated agent invocation over to native host dispatch | 2026-08-30 |
@@ -195,7 +189,6 @@ graph TD
 | [0352](archive/2026-08-28-0352-native-repository-initialization-and-health-check.md) | Native repository initialization, migration, and health checks | 2026-08-28 |
 | [0358](archive/2026-08-27-0358-treat-empty-review-decision-as-no-decision.md) | Treat empty-string reviewDecision as no-decision, not an invalid enum | 2026-08-27 |
 | [0357](archive/2026-08-27-0357-implementation-context-loads-remote-branch-facts.md) | Implementation context must load remote branch facts before judging stack base | 2026-08-27 |
-| [0356](archive/2026-08-27-0356-unquote-cursor-agent-wrapper-names.md) | Emit unquoted name: on Cursor agent wrappers | 2026-08-27 |
 | [0353](archive/2026-08-26-0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | 2026-08-26 |
 | [0294](archive/2026-08-26-0294-shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru.md) | Shrink AGENTS.md's always-loaded footprint: script-ify the run gate's caller procedure and de-duplicate the dispatch table | 2026-08-26 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
@@ -283,7 +276,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 101 done |
+| [2026-08](archive/) | 102 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
