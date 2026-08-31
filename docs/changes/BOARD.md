@@ -1,6 +1,6 @@
 # Backlog
 
-**387 changes** — 🟢 1 in progress · 🟡 66 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 233 done · 🗑️ 82 killed
+**388 changes** — 🟢 1 in progress · 🟡 67 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 233 done · 🗑️ 82 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [spec](../superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) | `feat/migrate-primary-clean-fast-forward` |
 
-## 🟡 Proposed (66)
+## 🟡 Proposed (67)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -78,6 +78,7 @@
 | [0385](active/0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | `medium` | `docs` | needs-brainstorm |
 | [0386](active/0386-discharge-adr-0100-s-deferred-disposition-for-the-surviving.md) | Discharge ADR-0100's deferred disposition for the surviving product runners | `medium` | `chore` | needs-brainstorm |
 | [0387](active/0387-re-cut-frozen-fixtures-to-clear-stale-retired-token-comments.md) | Re-cut frozen fixtures to clear stale retired-token comments in harness-defaults and .docket.yml | `low` | `chore` | needs-brainstorm |
+| [0388](active/0388-reimplement-post-merge-fast-forward-integration-branch-sync.md) | Reimplement post-merge fast-forward integration-branch sync as a native Go verb | `medium` | `feat` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -169,6 +170,7 @@ graph TD
   0385
   0386
   0387
+  0388
   0192:::done
   0211:::done
   0251:::done
