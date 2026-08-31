@@ -219,6 +219,45 @@ func hasExactEntry(entries []string, want string) bool {
 	return false
 }
 
+// TestRunSelectsReadVsWriteNetworkBudget proves runRequest.write chooses the
+// write budget and its absence chooses the read budget. With a short read budget
+// and a long write budget against a fake git that sleeps a fixed interval longer
+// than the read budget but shorter than the write budget, a read request must
+// time out while a write request survives. No wall-clock equality: the assert is
+// only which request timed out.
+func TestRunSelectsReadVsWriteNetworkBudget(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := append(os.Environ(), "GITCLI_HELPER_MODE=hold", "GITCLI_HELPER_HOLD_MS=200")
+	c, err := NewClient(WithExecutable(exe), WithBaseEnvironment(env),
+		WithLocalTimeout(5*time.Second),
+		WithNetworkReadTimeout(50*time.Millisecond),
+		WithNetworkWriteTimeout(5*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// A read request under the 50ms read budget cannot outlast the 200ms sleep.
+	_, f := c.run(t.Context(), runRequest{op: "test-read", args: []string{"read"}, network: true})
+	if f == nil {
+		t.Fatal("read request under the short read budget did not time out")
+	}
+	if f.Kind != KindTimedOut {
+		t.Fatalf("read request failure kind = %q, want %q", f.Kind, KindTimedOut)
+	}
+
+	// A write request under the 5s write budget survives the same 200ms sleep.
+	res, f := c.run(t.Context(), runRequest{op: "test-write", args: []string{"write"}, network: true, write: true})
+	if f != nil {
+		t.Fatalf("write request under the long write budget failed: %v", f)
+	}
+	if res.exitCode != 0 {
+		t.Fatalf("write request exit code = %d, want 0", res.exitCode)
+	}
+}
+
 // TestSanitizeDropsInboundControlCopies proves the removeGitEnv dedup case earns
 // its place: an inbound copy of every re-appended control is dropped, so
 // sanitizeEnvironment emits EXACTLY ONE entry for each control name carrying the

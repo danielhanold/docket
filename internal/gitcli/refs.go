@@ -79,9 +79,11 @@ func (c *Client) FetchBranch(ctx context.Context, repo Repository, remote Remote
 	// The fetch and the failure-classification probe that may follow it are two
 	// network processes serving one operation, so they share one network budget
 	// rather than each starting its own clock: an unreachable remote must cost a
-	// caller a single networkTimeout, not two back to back. Scoped to the pair —
-	// the local rev-parse below keeps its own local budget.
-	netCtx, cancelNet := context.WithTimeout(ctx, c.networkTimeout)
+	// caller a single network read budget, not two back to back. FetchBranch is a
+	// read, so the shared budget is networkReadTimeout — the pair still shares one
+	// budget, now the read budget. Scoped to the pair — the local rev-parse below
+	// keeps its own local budget.
+	netCtx, cancelNet := context.WithTimeout(ctx, c.networkReadTimeout)
 	defer cancelNet()
 	res, f := c.run(netCtx, runRequest{
 		op:      fetchBranchOp,
