@@ -1,3 +1,5 @@
+//go:build integration
+
 package app
 
 import (
@@ -103,7 +105,7 @@ func timeoutPinGit(t *testing.T, logPath string, readBudget time.Duration) *gitc
 	return client
 }
 
-// TestSweepInitialPinNetworkTimeoutIsBoundedExternalRefusal proves the sweep's
+// TestIntegrationSweepInitialPinNetworkTimeoutIsBoundedExternalRefusal proves the sweep's
 // initial pin, when its remote read wedges, returns a BOUNDED typed external
 // failure that retains the adapter's timeout kind — and dispatches nothing. With a
 // 200ms network read budget against a fake git that sleeps 30s on the pin's
@@ -113,7 +115,7 @@ func timeoutPinGit(t *testing.T, logPath string, readBudget time.Duration) *gitc
 //   - surface ResultExternalFailed / reload-independent ReasonStatusExternal whose
 //     message carries the adapter's "timed-out" kind, and
 //   - issue ZERO GitHub processes (the whole sweep refused before any dispatch).
-func TestSweepInitialPinNetworkTimeoutIsBoundedExternalRefusal(t *testing.T) {
+func TestIntegrationSweepInitialPinNetworkTimeoutIsBoundedExternalRefusal(t *testing.T) {
 	requireRealGit(t)
 	r := trafficRepo(t, "", map[string]string{
 		"docs/changes/active/0041-a.md": trafficDoneRecord(41, "a"),
