@@ -1,14 +1,19 @@
 # Backlog
 
-**389 changes** — 🟢 3 in progress · 🟣 21 groomed · 🟡 43 proposed · ⚪ 4 deferred · ✅ 235 done · 🗑️ 83 killed
+**389 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 21 groomed · 🟡 43 proposed · ⚪ 4 deferred · ✅ 235 done · 🗑️ 83 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0389](active/0389-speed-up-implement-next-status-sweeps-and-retire-completed-s.md) | Speed up implement-next status sweeps and retire completed status children | `high` | `fix` | [spec](../superpowers/specs/2026-08-31-speed-up-implement-next-status-sweeps-and-retire-completed-s-design.md) | `fix/speed-up-implement-next-status-sweeps-and-retire-completed-s` |
-| [0384](active/0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md) | Launch compositional Docket agents in coordinator-capable harness contexts | `critical` | `fix` | [spec](../superpowers/specs/2026-08-31-launch-compositional-docket-agents-in-coordinator-capable-ha-design.md) | `fix/launch-compositional-docket-agents-in-coordinator-capable-ha` |
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [spec](../superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) | `feat/migrate-primary-clean-fast-forward` |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0384](active/0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md) | Launch compositional Docket agents in coordinator-capable harness contexts | `critical` | `fix` | [#260](https://github.com/danielhanold/docket/pull/260) | awaiting merge |
 
 ## 🟣 Groomed (21)
 
