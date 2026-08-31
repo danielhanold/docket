@@ -21,7 +21,7 @@ branch: 'feat/configurable-rendered-board-sections-and-sorting'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-31T15:16:21Z'
+claimed_at: '2026-08-31T15:17:44Z'
 ---
 
 ## Artifacts
