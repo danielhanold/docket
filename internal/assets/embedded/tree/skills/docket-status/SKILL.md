@@ -15,7 +15,7 @@ agent: docket-status
 
 - You want to know what is done, next, or stuck — or you suspect a stale board, stale/broken links, or a cleared blocker.
 - A PR was merged via the GitHub button (not via `docket-finalize-change`) and the board is stale.
-- `docket-implement-next` calls this at step 0 as a self-cleaning safety net before selecting the next change.
+- `docket-implement-next` calls this at step 0 as its implementation-preflight recovery before selecting the next change.
 
 ## Convention (load first — blocking)
 
@@ -24,14 +24,15 @@ Invoke the `docket-convention` skill via the Skill tool first — unless already
 ## Mode choice
 
 - **The user only wants to *see* the backlog** (no explicit refresh requested, nothing merged recently that you know of) ⇒ run the write-free read alone: `docket status --json`. It never merges, archives, reclaims, or renders a board.
-- **Everything else** — an explicit refresh/cleanup request, `docket-implement-next`'s step-0 safety net, or a post-merge cleanup after a PR merged via the GitHub button ⇒ run `docket maintenance sweep --json` first (merge sweep + health checks + judgment lines + integration sync), then read the refreshed state with `docket status --json`.
+- **`docket-implement-next`'s step-0 implementation preflight** ⇒ run `docket maintenance sweep --scope implementation --json` first — current merged-work recovery (closeouts with their safe cleanup suffixes) plus reclaim gating, with independent historical cleanup retries deferred and counted in the envelope's `deferred_historical_cleanups` field — then read the refreshed state with `docket status --json`.
+- **An explicit refresh/cleanup request** — or a post-merge cleanup after a PR merged via the GitHub button ⇒ run `docket maintenance sweep --scope full --json` first (merge sweep + historical cleanup retries + health checks + judgment lines + integration sync), then read the refreshed state with `docket status --json`.
 
 ## Maintenance sweep — the merged-PR recovery mutation (only when asked)
 
 The **read is separate from the mutation.** The human `docket status` read stays read-only: it
 reports the backlog and never merges, archives, reclaims, or cleans up. When the caller explicitly
 asks to refresh or clean up — a post-merge cleanup, an out-of-band merge to recover, `docket-implement-next`'s
-step-0 safety net — run `docket maintenance sweep` **before** the read, then read the refreshed state.
+step-0 implementation preflight — run `docket maintenance sweep` (scope per *Mode choice*) **before** the read, then read the refreshed state.
 
 `docket maintenance sweep` pins an initial inventory, walks it in deterministic order, and reloads
 fresh authority before **every** mutation. It closes out each `implemented` change whose PR merged
@@ -44,13 +45,15 @@ unauthorized child, and never edits authored results; a destructive suffix never
 `unknown` prerequisite, and one item's failure never stops the independent items. Surface the
 per-item report; act only on the `blocked`/`failed`/`unknown` entries a human must see.
 
+`--scope` is a closed vocabulary. `full` — the default when omitted — is the whole worklist, including cleanup retries for every `done`/`stacked-merged` record. `implementation` is the implementation-startup preflight: it still schedules every current merged-implemented closeout, the cleanup suffix such a closeout carries in the same invocation, and the `reclaim.auto`-gated reclaims, but it does not enqueue an independent cleanup for a record that was already terminal at the pinned inventory. Those are reported as a deferred COUNT — a population deliberately not probed, never evidence anything is dirty or blocked; explicit full maintenance owns those retries, and a failed or interrupted suffix stays recoverable through `--scope full` or the targeted finalize cleanup.
+
 ## Run the pass
 
 On a **refresh/cleanup** pass, run the mutation first, then the read; on a **see-only** pass, run the read alone:
 
 ```
-docket maintenance sweep --json    # mutation: close out merged PRs, retry repairs, reclaim when armed
-docket status --json               # write-free read over the (now refreshed) state
+docket maintenance sweep --scope <full|implementation> --json   # mutation, scope per Mode choice
+docket status --json                                            # write-free read over the refreshed state
 ```
 
 Validate each protocol-v1 envelope and key on its typed **disposition**, never an exit code. The sweep emits one structured entry per item with a closed disposition (`applied` | `noop` | `contended` | `blocked` | `unknown` | `failed` | `skipped`), and the read returns the structured backlog plus any health findings. A `blocked` / `failed` / `unknown` sweep entry, or a read whose envelope carries an error disposition — a config-resolution failure, an unusable bootstrap verdict or metadata worktree, a bad argument — is a hard error: surface the diagnostic and stop rather than improvising a fix.
@@ -60,6 +63,16 @@ stop ends only the status role and you continue to your own next step; only an a
 assignment is this role ends its turn here.
 
 There is **no** separate board pass to key on: every board-authoritative typed mutation re-renders `BOARD.md` in the same metadata commit as the record it reflects, so the sweep leaves the board current and a plain `docket status` read writes nothing. The commands own the mechanics of what they sweep and check — see `scripts/docket-status.md` for the output-line shapes and failure postures. Surface the report to the user in human terms (what's on the board, what got swept, what health checks flagged) rather than pasting the raw line-oriented output. Health checks stay warn-only — do not auto-fix findings unless the user explicitly asks.
+
+## Completion barrier — observe the sweep to its terminal result
+
+Starting the sweep command is not finishing it. If the shell tool's foreground window expires and the harness moves the still-running sweep to the background, that is a liveness transition, not completion — and not a failed sweep. You stay responsible for that exact task: keep the task identity the harness returned and collect that task's terminal result through the harness's native observation/wait mechanism, and never start a second shell watcher, never poll the output file's size, never sleep-and-tail, never re-run the sweep, and never return a success report while the process remains unobserved. An output file turning nonempty, metadata commits appearing on `origin/docket`, elapsed time, or some separate command succeeding are not completion signals.
+
+Only the sweep's actual terminal protocol-v1 envelope completes the command. Validate it and every entry: `protocol_version` `1`, `operation` `maintenance.sweep`, a `scope` equal to the one you requested, and each entry's closed disposition. Retain the original structured output — a harness result handle or a task-local output artifact — and extract the compact summary plus any problem entries in one read/parse rather than reopening the full output repeatedly; stdout is the JSON document, and any progress diagnostics belong on a separate channel. Only after that terminal validation run the post-sweep `docket status --json` read. A read taken after a failed or unvalidated sweep is diagnostic only — label it as diagnostic; it can never authorize selection.
+
+The envelope's top-level `applied` means some work applied, never that every item succeeded. A `blocked`, `failed`, or `unknown` entry — or a `contended` entry on work this preflight required — is a failed preflight even under an `applied` envelope: surface it per *Read the report* below and stop, per the *Scope of this stop* rule above. Intentional policy skips (`reclaim-auto-disabled`) and genuine no-ops remain non-errors — never collapse arbitrary `skipped` reasons into success. On cancellation, request cancellation of the exact owned task where the harness supports it, then observe its termination; never broadly kill processes, abandon a watcher, or spawn a replacement sweep while the prior one may still run. If quiescence cannot be established, halt naming the exact live task identity and preserve its output — an explicit failure here beats claiming an orphan-free exit.
+
+When a caller dispatched this skill, the final report must name: the resolved scope, the sweep's terminal envelope result, every problem entry, where the original sweep and status outputs live, and the post-sweep metadata revision (`git -C <metadata worktree dir> rev-parse HEAD`). The prose re-summary is never a second authority — the caller verifies against the originals.
 
 ## Read the report — it is the only channel you need
 
@@ -105,7 +118,7 @@ When `board_surfaces` includes `inline`, `board-refresh.sh` (contract: `scripts/
 
 ### Merge sweep
 
-The bulk safety net: every `implemented` change whose PR has merged gets archived on `metadata_branch` and its branch cleaned up, chaining the same close-out sequence (`terminal-close-out.md`) `docket-finalize-change` uses. terminal publication is deferred from Go v1, so no terminal record is copied onto the `integration_branch`. Runs automatically at `docket-implement-next` step 0 and on any explicit refresh/cleanup `docket maintenance sweep` invocation.
+The bulk safety net: every `implemented` change whose PR has merged gets archived on `metadata_branch` and its branch cleaned up, chaining the same close-out sequence (`terminal-close-out.md`) `docket-finalize-change` uses. terminal publication is deferred from Go v1, so no terminal record is copied onto the `integration_branch`. Runs at `docket-implement-next` step 0 in implementation scope, and in full scope on any explicit refresh/cleanup invocation.
 
 The rebase-onto-base + re-run-tests gate lives in `docket-finalize-change`'s merge step and is **finalize-only** — the sweep only archives PRs that are already merged, it never merges, so the gate has nothing to act on here.
 
