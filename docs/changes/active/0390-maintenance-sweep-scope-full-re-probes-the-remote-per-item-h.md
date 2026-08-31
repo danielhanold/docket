@@ -35,12 +35,45 @@ reconciled: false
 
 ## Why
 
-`docket maintenance sweep --scope full` effectively hangs — it runs for many minutes with no streamed output and no observed completion (killed after 1m25s in testing), which makes the sweep's merge-closeout, historical cleanup, and health-check pass unusable and blocks docket-status's full maintenance path. Root cause is confirmed and is NOT a deadlock: bare `git fetch`/`ls-remote`/`ssh` to GitHub each return in ~0.5s. The sweep pins the operational context once at the top (maintenance.go:254), then RE-PINS it for every worklist item via sweepReloadVersion/sweepReloadPresent (maintenance.go:449,500,508) -> reader.PinContext -> loadOperationalContext -> gatherRepoFacts (repository_facts.go:210,225,242), and each re-pin re-runs three GitHub network round-trips (FetchBranch(default), FetchBranch(integration), ProbeRemoteBranch(metadata) ls-remote) whose answers were already known from the first pin. The dispatched op re-pins once more. With hundreds of terminal records swept under full scope, that is O(items x network round-trips) sequential GitHub calls. It is aggravated by gitcli defaultNetworkTimeout = 5 minutes (client.go:12), so a single stalled probe silently costs up to 5 minutes; a goroutine dump caught the process parked in exactly one such ProbeRemoteBranch read.
+`docket maintenance sweep --scope full` repeats repository setup work for every eligible
+historical record, making full maintenance slow and delaying docket-status's subsequent health
+report. An investigation stopped a sweep after 1m25s without completion; individual healthy remote
+commands took about 0.5s, and a goroutine dump showed a remote probe in flight. These observations
+support redundant network work as a contributor, not a measured completion time or proof that it
+is the only cost.
+
+The initial inventory, each sweep reload, and each dispatched operation currently pin the whole
+operational context. That repeats default-branch discovery and source/configuration setup as well
+as fetching metadata. Fresh metadata is necessary: another agent, or the sweep's own preceding
+closeout, can change the record before the next operation. The setup probes can instead be shared
+within one invocation while metadata is fetched afresh. The linked spec corrects the original
+call-count diagnosis and preserves that distinction.
+
+The reader also inherits a five-minute Git network timeout. A stalled context read can therefore
+add a long wait independently of the redundant work.
 
 ## What changes
 
-Two changes, both scoped to the sweep path. (1) Stop the per-item reload from re-probing the remote: reuse the remote branch facts already captured by the sweep's initial pin so the per-item fresh-authority reload re-reads only the metadata (change blob versions on origin/docket, which genuinely can move) and takes the remote tips as given via gatherRepoFacts's existing defaultTip/integrationTip short-circuit. Remote tips are the authority the reload does NOT protect, so reusing them preserves the fresh-authority guarantee the reload exists for. (2) Cap the sweep's per-op network timeout well below the 5-minute default so any genuine network stall fails fast and visibly instead of hanging. (1) removes the volume; (2) bounds any single stall.
+- Resolve repository identity, configuration, and source revisions once for the sweep. Give both
+  its reloads and its dispatched operations an explicit reader for that invocation which performs
+  a fresh metadata fetch on every pin, without repeating setup probes. Never reuse an old metadata
+  revision as fresh authority.
+- Set a 30-second network timeout on the sweep's separate read-only Git client, covering the
+  initial context read and later metadata reloads. Preserve the existing clients and deadlines for
+  mutation transactions, merge/reachability proofs, branch deletion, workspaces, and GitHub calls.
+- Verify reduced setup traffic through production wiring, real metadata-race detection, bounded
+  read failures, and measured before/after performance. Tests permit required metadata and
+  operation traffic; neither zero total network calls nor a total sweep deadline is promised.
+
+The existing full/implementation worklists and mutation safety rules remain unchanged. Change
+0389 is already done; ADR-0101 continues to govern scope selection. Design detail and acceptance
+criteria are in the linked spec.
 
 ## Out of scope
 
-Changing --scope implementation (ADR-0101 / change 389 already keeps historical cleanup off the implement-next startup hot path). The separate internal/app suite wall-clock work. The content of the health-check pass. Any change to what the sweep decides to close out, clean up, or reclaim — this is purely about how per-item fresh authority is reloaded and how long a network probe may block.
+- Changing scope membership, closeout/cleanup/reclaim eligibility, or their ownership and merge
+  proofs; eliminating metadata freshness checks or transaction compare-and-swap checks.
+- Changing package-wide Git/GitHub defaults, mutation deadlines, retry policy, or adding a total
+  sweep timeout, circuit breaker, streaming output, or automatic maintenance schedule.
+- Reworking the health-check pass, the separate test-suite runtime work, or corpus parsing costs.
+- Implementing code or running a live mutating sweep as part of this re-grooming.
