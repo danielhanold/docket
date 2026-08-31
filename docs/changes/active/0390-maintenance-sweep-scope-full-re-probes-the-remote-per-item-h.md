@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/maintenance-sweep-scope-full-re-probes-the-remote-per-item-h'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-31T21:05:51Z'
+reconciled: true
+claimed_at: '2026-08-31T21:08:12Z'
 ---
 
 ## Artifacts
@@ -95,3 +95,11 @@ criteria are in the linked spec.
 - Reworking the health-check pass, the separate test-suite runtime work, or general corpus
   parsing costs beyond sharing inventory and operation observations.
 - Implementing code or running a live mutating sweep as part of this re-grooming.
+
+## Reconcile log
+
+### 2026-08-31
+
+### 2026-08-31 — reconcile (docket-implement-next)
+
+Design confirmed current against `origin/main` at `c95e5189`, the exact source revision the spec targets. Verified in-tree: `maintenanceSweep` / `MaintenanceSweep` (internal/app/maintenance.go), `loadOperationalContext` and `gatherRepoFacts` (internal/app/operational_context.go, repository_facts.go), `sweepReloadVersion`, the `githubFinalizeProber` PR prober, and `ProbeRemoteBranch` all still present with the structure the spec describes. Dependency change 0389 is `done` (archived); ADR-0101's full/implementation worklists and deferral rules stand. Relations (related [389], discovered_from [389], adrs [101]) already correct — left untouched. Scope unchanged: batched PR selection (25/req GraphQL aliases), single shared remote-heads advertisement, local snapshot assessment of historical `done`/`stacked-merged` candidates without per-item remote reads, one shared metadata observation per dispatched operation attempt, and sweep-only 30s read / 60s write network deadlines. No obsolescence and no fundamental invalidation found; proceeding to plan + build.
