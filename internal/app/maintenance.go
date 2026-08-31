@@ -8,6 +8,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/domain"
+	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/workspace"
 )
@@ -19,10 +20,13 @@ import (
 // (Tasks 12-14). The sweep composes them — it invents no new lifecycle policy,
 // merges no open PR, overrides no approval, retargets no child, repairs no code,
 // and edits no authored artifact. It pins one inventory to decide the worklist,
-// processes items in a deterministic order, and reloads fresh authority before
-// EVERY mutation (the dispatched operation reloads again and acts atomically).
-// Per-item failures never stop independent items, and a destructive suffix for
-// one item never runs after an unknown prerequisite for that item.
+// processes items in a deterministic order, and prepares ONE fresh metadata
+// observation per dispatched operation attempt — one metadata fetch for the whole
+// operation attempt and zero repeated setup probes or nested-reader fetches —
+// which that attempt's presence check and its dispatched operation share (the
+// operation then acts atomically against that observation). Per-item failures
+// never stop independent items, and a destructive suffix for one item never runs
+// after an unknown prerequisite for that item.
 
 // OperationMaintenanceSweep is the operation key `maintenance sweep` records in
 // its result envelope.
@@ -95,25 +99,45 @@ const (
 )
 
 // sweepOps is the injection seam for the three verified operations the sweep
-// composes. Production wires each to the real Task 12-14 entry point over the
-// live seams; unit tests inject recording fakes so the orchestration — order,
-// per-item isolation, the unknown-prerequisite rule, reclaim gating, and the
-// fresh reload before every mutation — is proved without a real repository.
+// composes and the per-attempt metadata preparer they share. Production wires
+// each operation to the real Task 12-14 entry point over the live seams; unit
+// tests inject recording fakes so the orchestration — order, per-item isolation,
+// the unknown-prerequisite rule, reclaim gating, and the ONE shared observation
+// per operation attempt — is proved without a real repository.
 type sweepOps struct {
-	closeout func(ctx context.Context, id int) CloseoutResult
-	cleanup  func(ctx context.Context, id int) CleanupOpResult
-	reclaim  func(ctx context.Context, id int, version string) ChangeReclaimResult
+	// prepare produces the ONE fresh metadata observation an operation attempt
+	// shares between its presence check and its dispatched op. maintenanceSweep
+	// binds it once, after the initial pin succeeds, from prepareWith; the test
+	// seam may set it directly.
+	prepare func(ctx context.Context) (*sweepObservation, error)
+	// prepareWith is the production factory: maintenanceSweep invokes it EXACTLY
+	// once, after the initial pin succeeds, to derive the session-bound preparer
+	// whose Prepare each attempt calls. It carries no fresh fetch itself — the
+	// fetch rides Prepare. A nil factory leaves prepare untouched (a test that
+	// wires prepare directly).
+	prepareWith func(pin StatusPin) sweepPreparer
 	// probeFacts reads the finalize population's live PR facts for the pinned
 	// snapshot in one batched pass (replacing the old per-change probe), returning
 	// the facts map the domain selector bands over plus one finding per failed
 	// batch (silent omission is not success). Production wires it to
 	// sweepSelectPRFacts over deps.PRBatch; tests inject the seam directly.
 	probeFacts func(ctx context.Context, snap domain.Snapshot) (map[domain.ChangeID]domain.PRFacts, []StatusFinding)
+	// closeout/cleanup/reclaim each receive the attempt's shared observation so the
+	// dispatched operation reads the same fresh metadata the presence check saw,
+	// with zero additional metadata fetches (the bound reader serves the pin and
+	// corpus; operation-specific proofs stay live).
+	closeout func(ctx context.Context, id int, obs *sweepObservation) CloseoutResult
+	cleanup  func(ctx context.Context, id int, obs *sweepObservation) CleanupOpResult
+	reclaim  func(ctx context.Context, id int, version string, obs *sweepObservation) ChangeReclaimResult
 }
 
 // MaintenanceEntry is one item's structured outcome. Disposition is a closed
 // sweep token; Operation names the op key that produced it (empty for a
-// pre-dispatch skip). It leaks no authored artifact bytes.
+// pre-dispatch skip). It leaks no authored artifact bytes. The fresh-authority
+// contract behind every entry is now one metadata fetch for the whole operation
+// attempt and zero repeated setup probes or nested-reader fetches: the attempt's
+// presence decision and its dispatched operation observe one shared metadata
+// observation, never a per-check re-pin.
 type MaintenanceEntry struct {
 	ID          int    `json:"id"`
 	Kind        string `json:"kind"`
@@ -217,21 +241,50 @@ func MaintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, sc
 		wsErr = fmt.Errorf("no git client wired for the reclaim workspace")
 	}
 
+	// depsFor binds each operation attempt's deps to the attempt's shared metadata
+	// observation: the planning reader becomes a boundStatusReader that serves the
+	// observation's pin and corpus WITHOUT a re-pin or a re-read, so the dispatched
+	// operation and its nested readers (reclaim's WorkspaceInspect reads through
+	// deps.Planning.Reader) perform zero additional metadata fetches. deps.Planning
+	// .Reader is the initial-pinned production *gitStatusReader, so the bound
+	// reader's same-repository guard is active; operation-specific proofs
+	// (BranchFacts/ArtifactExists/ReadArtifact) still delegate to it and stay live.
+	depsFor := func(obs *sweepObservation) FinalizeDeps {
+		d := deps
+		p := d.Planning
+		p.Reader = newBoundStatusReader(obs, deps.Planning.Reader)
+		d.Planning = p
+		return d
+	}
+
 	ops := sweepOps{
-		closeout: func(ctx context.Context, id int) CloseoutResult {
+		// prepareWith derives the session from the initial pin, the shared git
+		// client, and the reader's already-discovered repository. It reruns none of
+		// the setup work; each Prepare is one metadata fetch plus one corpus read at
+		// that revision (sweepSession.Prepare).
+		prepareWith: func(pin StatusPin) sweepPreparer {
+			var repo gitcli.Repository
+			if pr, ok := deps.Planning.Reader.(pinnedRepository); ok {
+				if _, r, bound := pr.pinnedRepo(); bound {
+					repo = r
+				}
+			}
+			return newSweepSession(deps.Planning.Client, repo, pin)
+		},
+		closeout: func(ctx context.Context, id int, obs *sweepObservation) CloseoutResult {
 			// The safety-net sweep carries no authored notes.
-			return FinalizeCloseout(ctx, deps, repoDir, id, CloseoutNotes{})
+			return FinalizeCloseout(ctx, depsFor(obs), repoDir, id, CloseoutNotes{})
 		},
-		cleanup: func(ctx context.Context, id int) CleanupOpResult {
-			return FinalizeCleanup(ctx, deps, repoDir, id)
+		cleanup: func(ctx context.Context, id int, obs *sweepObservation) CleanupOpResult {
+			return FinalizeCleanup(ctx, depsFor(obs), repoDir, id)
 		},
-		reclaim: func(ctx context.Context, id int, version string) ChangeReclaimResult {
+		reclaim: func(ctx context.Context, id int, version string, obs *sweepObservation) ChangeReclaimResult {
 			if wsErr != nil {
 				return newChangeReclaimResult(ResultInternalError, ChangeReclaimResult{
 					ID: id, Findings: []StatusFinding{lifecycleFinding("workspace-service-unavailable", wsErr.Error())},
 				})
 			}
-			return ChangeReclaim(ctx, deps.Planning, wdeps, repoDir, ChangeReclaimRequest{ID: id, Version: version})
+			return ChangeReclaim(ctx, depsFor(obs).Planning, wdeps, repoDir, ChangeReclaimRequest{ID: id, Version: version})
 		},
 		probeFacts: func(ctx context.Context, snap domain.Snapshot) (map[domain.ChangeID]domain.PRFacts, []StatusFinding) {
 			// One shared GitHub identity, batched exact-number reads over the whole
@@ -243,8 +296,10 @@ func MaintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, sc
 }
 
 // maintenanceSweep is the orchestration under test. It pins one inventory,
-// derives the deterministic worklist, and processes each item — reloading fresh
-// authority before every mutation and dispatching through the injected ops.
+// derives the deterministic worklist, and processes each item — preparing ONE
+// fresh metadata observation per dispatched operation attempt (shared between the
+// attempt's presence check and its dispatched op) and dispatching through the
+// injected ops.
 func maintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, ops sweepOps, scope SweepScope) MaintenanceResult {
 	reader := deps.Planning.Reader
 
@@ -260,12 +315,20 @@ func maintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, op
 			fmt.Sprintf("unknown sweep scope %q: must be full or implementation", scope)), 0)
 	}
 
-	// One pinned inventory. This read decides the worklist; every mutation below
-	// reloads its own fresh authority (and the dispatched op reloads once more).
+	// One pinned inventory. This read decides the worklist; each dispatched
+	// operation attempt below prepares ONE fresh metadata observation it shares
+	// between its presence check and the dispatched op — no per-check re-pin.
 	pin, err := reader.PinContext(ctx, repoDir)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
 		return stamp(maintenanceRefusal(result, reason, err.Error()), 0)
+	}
+	// Bind the per-attempt preparer exactly once, now that the initial pin has
+	// succeeded (the production reader's repository is discovered, and the pin
+	// carries the invocation's captured configuration the session reuses). A test
+	// seam that wired prepare directly leaves prepareWith nil and is untouched.
+	if ops.prepareWith != nil {
+		ops.prepare = ops.prepareWith(pin).Prepare
 	}
 	// Capability preflight before any external effect: a deferred capability
 	// request refuses the whole sweep before it dispatches a single mutation.
@@ -299,11 +362,11 @@ func maintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, op
 	for _, it := range items {
 		switch it.kind {
 		case sweepKindCloseout:
-			entries = append(entries, sweepRunCloseout(ctx, reader, repoDir, eff, ops, it.id)...)
+			entries = append(entries, sweepRunCloseout(ctx, ops, it.id)...)
 		case sweepKindCleanup:
-			entries = append(entries, sweepRunCleanup(ctx, reader, repoDir, eff, ops, it.id))
+			entries = append(entries, sweepRunCleanup(ctx, ops, it.id))
 		case sweepKindReclaim:
-			entries = append(entries, sweepRunReclaim(ctx, reader, repoDir, eff, ops, it.id))
+			entries = append(entries, sweepRunReclaim(ctx, eff, ops, it.id))
 		}
 	}
 
@@ -420,23 +483,26 @@ func sweepWorklist(snap domain.Snapshot, queue []domain.FinalizeCandidate, eff c
 	return out, deferredHistorical
 }
 
-// sweepRunCloseout reloads fresh authority, dispatches the verified closeout,
-// and — only when the closeout SUCCEEDED (applied or a verified no-op) — reloads
-// again and runs the ownership-safe cleanup suffix. A closeout that is unknown,
-// contended, blocked, or failed withholds the destructive suffix entirely: the
-// suffix never runs after an unresolved prerequisite.
-func sweepRunCloseout(ctx context.Context, reader StatusReader, repoDir string, eff config.Effective, ops sweepOps, id int) []MaintenanceEntry {
+// sweepRunCloseout prepares ONE fresh metadata observation, dispatches the
+// verified closeout against it, and — only when the closeout SUCCEEDED (applied
+// or a verified no-op) — prepares AGAIN for the ownership-safe cleanup suffix (a
+// closeout may have moved paths or statuses, so the suffix never shares the
+// closeout's observation). A closeout that is unknown, contended, blocked, or
+// failed withholds the destructive suffix entirely: the suffix never runs after
+// an unresolved prerequisite.
+func sweepRunCloseout(ctx context.Context, ops sweepOps, id int) []MaintenanceEntry {
 	var out []MaintenanceEntry
 
-	present, refusal := sweepReloadPresent(ctx, reader, repoDir, eff, id)
-	if refusal != nil {
-		return []MaintenanceEntry{sweepEntry(id, sweepKindCloseout, SweepDispSkipped, "", refusal.reason, refusal.message)}
+	obs, err := ops.prepare(ctx)
+	if err != nil {
+		return []MaintenanceEntry{sweepEntry(id, sweepKindCloseout, SweepDispSkipped, "", ReasonSweepReloadFailed, err.Error())}
 	}
-	if !present {
+	if _, present := sweepObservedVersion(obs, id); !present {
+		// A successful fetch with a missing record is vanished, never a fetch failure.
 		return []MaintenanceEntry{sweepEntry(id, sweepKindCloseout, SweepDispSkipped, "", ReasonSweepItemVanished, "record absent or ambiguous on reload")}
 	}
 
-	res := ops.closeout(ctx, id)
+	res := ops.closeout(ctx, id, obs)
 	disp := sweepDispositionForResult(res.Env().Result)
 	out = append(out, MaintenanceEntry{
 		ID: id, Kind: sweepKindCloseout, Disposition: disp,
@@ -450,21 +516,22 @@ func sweepRunCloseout(ctx context.Context, reader StatusReader, repoDir string, 
 		return out
 	}
 
-	out = append(out, sweepRunCleanup(ctx, reader, repoDir, eff, ops, id))
+	out = append(out, sweepRunCleanup(ctx, ops, id))
 	return out
 }
 
-// sweepRunCleanup reloads fresh authority and dispatches the ownership-safe
-// cleanup for one terminal (or completed-stack) record.
-func sweepRunCleanup(ctx context.Context, reader StatusReader, repoDir string, eff config.Effective, ops sweepOps, id int) MaintenanceEntry {
-	present, refusal := sweepReloadPresent(ctx, reader, repoDir, eff, id)
-	if refusal != nil {
-		return sweepEntry(id, sweepKindCleanup, SweepDispSkipped, "", refusal.reason, refusal.message)
+// sweepRunCleanup prepares ONE fresh metadata observation and dispatches the
+// ownership-safe cleanup for one terminal (or completed-stack) record against it.
+func sweepRunCleanup(ctx context.Context, ops sweepOps, id int) MaintenanceEntry {
+	obs, err := ops.prepare(ctx)
+	if err != nil {
+		return sweepEntry(id, sweepKindCleanup, SweepDispSkipped, "", ReasonSweepReloadFailed, err.Error())
 	}
-	if !present {
+	if _, present := sweepObservedVersion(obs, id); !present {
+		// A successful fetch with a missing record is vanished, never a fetch failure.
 		return sweepEntry(id, sweepKindCleanup, SweepDispSkipped, "", ReasonSweepItemVanished, "record absent or ambiguous on reload")
 	}
-	res := ops.cleanup(ctx, id)
+	res := ops.cleanup(ctx, id, obs)
 	return MaintenanceEntry{
 		ID: id, Kind: sweepKindCleanup, Disposition: sweepDispositionForResult(res.Env().Result),
 		Operation: res.Env().Operation, Reason: res.Reason, Message: res.Message,
@@ -472,64 +539,44 @@ func sweepRunCleanup(ctx context.Context, reader StatusReader, repoDir string, e
 }
 
 // sweepRunReclaim gates the reclaim on reclaim.auto: when it is off the eligible
-// record is surfaced as skipped and nothing is dispatched or reloaded; when it
-// is on the sweep reloads fresh authority to pin the exact blob version and
-// dispatches the verified reclaim.
-func sweepRunReclaim(ctx context.Context, reader StatusReader, repoDir string, eff config.Effective, ops sweepOps, id int) MaintenanceEntry {
+// record is surfaced as skipped and nothing is prepared or dispatched; when it
+// is on the sweep prepares ONE fresh metadata observation to pin the exact blob
+// version and dispatches the verified reclaim against it.
+func sweepRunReclaim(ctx context.Context, eff config.Effective, ops sweepOps, id int) MaintenanceEntry {
 	if !eff.Reclaim.Auto.Value {
 		return sweepEntry(id, sweepKindReclaim, SweepDispSkipped, "", ReasonSweepReclaimAutoDisabled,
 			"reclaim.auto is false; run `docket change reclaim` explicitly")
 	}
-	version, present, refusal := sweepReloadVersion(ctx, reader, repoDir, eff, id)
-	if refusal != nil {
-		return sweepEntry(id, sweepKindReclaim, SweepDispSkipped, "", refusal.reason, refusal.message)
+	obs, err := ops.prepare(ctx)
+	if err != nil {
+		return sweepEntry(id, sweepKindReclaim, SweepDispSkipped, "", ReasonSweepReloadFailed, err.Error())
 	}
+	version, present := sweepObservedVersion(obs, id)
 	if !present {
+		// A successful fetch with a missing record is vanished, never a fetch failure.
 		return sweepEntry(id, sweepKindReclaim, SweepDispSkipped, "", ReasonSweepItemVanished, "record absent or ambiguous on reload")
 	}
 	if version == "" {
 		return sweepEntry(id, sweepKindReclaim, SweepDispSkipped, "", ReasonSweepReclaimVersionMissing, "reloaded record carried no blob version")
 	}
-	res := ops.reclaim(ctx, id, version)
+	res := ops.reclaim(ctx, id, version, obs)
 	return MaintenanceEntry{
 		ID: id, Kind: sweepKindReclaim, Disposition: sweepDispositionForResult(res.Env().Result),
 		Operation: res.Env().Operation, Reason: res.Reason, Message: res.Message,
 	}
 }
 
-// sweepReloadError carries a fresh-reload refusal: the record could not be read
-// (reload-failed) so the sweep dispatched nothing for this item.
-type sweepReloadError struct {
-	reason  string
-	message string
-}
-
-// sweepReloadPresent re-pins fresh authority and reports whether the change is
-// present and unambiguous on the reloaded snapshot. Re-pinning is the fresh
-// reload the spec requires before every mutation; it is why the item is
-// re-confirmed rather than trusted from the pinned inventory.
-func sweepReloadPresent(ctx context.Context, reader StatusReader, repoDir string, eff config.Effective, id int) (bool, *sweepReloadError) {
-	_, present, refusal := sweepReloadVersion(ctx, reader, repoDir, eff, id)
-	return present, refusal
-}
-
-// sweepReloadVersion re-pins fresh authority, rebuilds the snapshot, and returns
-// the reloaded record's exact blob version. present is false when the record is
-// absent or ambiguous now; a read/build failure returns a reload error.
-func sweepReloadVersion(ctx context.Context, reader StatusReader, repoDir string, eff config.Effective, id int) (string, bool, *sweepReloadError) {
-	fresh, err := reader.PinContext(ctx, repoDir)
-	if err != nil {
-		return "", false, &sweepReloadError{reason: ReasonSweepReloadFailed, message: err.Error()}
-	}
-	inv, refusal := sweepBuildSnapshot(ctx, reader, fresh, eff)
-	if refusal != nil {
-		return "", false, &sweepReloadError{reason: ReasonSweepReloadFailed, message: refusal.Message}
-	}
-	c, out := inv.snap.Change(domain.ChangeID(id))
+// sweepObservedVersion reads the record's presence and exact blob version from
+// one prepared observation — the shared authority the attempt already fetched,
+// never a fresh re-pin. present is false when the record is absent or ambiguous
+// in that observation; a successful fetch with a missing record is a vanished
+// item, distinct from a fetch failure (which surfaces from ops.prepare itself).
+func sweepObservedVersion(obs *sweepObservation, id int) (version string, present bool) {
+	c, out := obs.inv.snap.Change(domain.ChangeID(id))
 	if out != domain.LookupFound {
-		return "", false, nil
+		return "", false
 	}
-	return inv.versionByPath[c.Path()], true, nil
+	return obs.inv.versionByPath[c.Path()], true
 }
 
 // sweepEntry builds one MaintenanceEntry.

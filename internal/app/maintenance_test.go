@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -17,8 +18,9 @@ import (
 // they are injected fakes so the sweep's orchestration is proved in isolation:
 // the deterministic worklist, children-before-ancestors closeout order, the
 // per-item destructive-suffix rule, reclaim gating on reclaim.auto, item
-// isolation, the structured sorted report, and — the premium-risk property — a
-// fresh authority reload before EVERY dispatched mutation.
+// isolation, the structured sorted report, and — the premium-risk property — ONE
+// fresh metadata observation prepared per dispatched operation attempt, shared
+// between that attempt's presence check and its dispatched op.
 
 // --- recording ops seam ---------------------------------------------------
 
@@ -26,26 +28,68 @@ type sweepCall struct {
 	kind    string
 	id      int
 	version string
+	obs     *sweepObservation // the shared observation this dispatch received
 }
 
 // recordingSweepOps records every dispatch and answers from scripted results,
 // defaulting each op to an applied success so a test scripts only the outcomes
-// it cares about.
+// it cares about. It doubles as the injected sweepPreparer: each Prepare pins the
+// reload reader once and builds a fresh observation, so a test proves the sweep
+// prepares exactly one observation per attempt (the `prepared` slice, in order)
+// and that each dispatched op received that same observation (`sweepCall.obs`).
 type recordingSweepOps struct {
 	calls    []sweepCall
 	closeout map[int]CloseoutResult
 	cleanup  map[int]CleanupOpResult
 	reclaim  map[int]ChangeReclaimResult
+
+	// reader is the reload source Prepare pins/builds from (defaults to the
+	// inventory reader; a test may point it at a divergent corpus to script a
+	// vanished-on-reload record). base is the initial pin prepareWith supplied.
+	reader     StatusReader
+	base       StatusPin
+	prepareErr error               // when set, every Prepare fails (no observation)
+	prepared   []*sweepObservation // one entry per Prepare call, in call order
 }
 
-// seam builds the injected sweepOps, wiring probeFacts to a per-change probe over
-// the given prober so a test expresses live PR facts through the same
-// fakeFinalizeProber the finalize-context tests use. It reproduces the finalize
-// population predicate the batched production reader selects over, so the
-// orchestration tests stay decoupled from the batch transport (proved separately
-// in sweep_prfacts_test.go and TestSweepSelectionUsesBatchedFactsNotPerChangeProbe).
-func (r *recordingSweepOps) seam(prober FinalizePRProber) sweepOps {
+var _ sweepPreparer = (*recordingSweepOps)(nil)
+
+// Prepare mirrors the production session's shape for the orchestration tests: a
+// scriptable failure, otherwise one reload pin plus one snapshot build, returning
+// a NEW observation each call so distinct attempts hold distinct observations.
+func (r *recordingSweepOps) Prepare(ctx context.Context) (*sweepObservation, error) {
+	if r.prepareErr != nil {
+		return nil, r.prepareErr
+	}
+	fresh, err := r.reader.PinContext(ctx, "repo")
+	if err != nil {
+		return nil, err
+	}
+	inv, refusal := sweepBuildSnapshot(ctx, r.reader, fresh, r.base.Config.Effective)
+	if refusal != nil {
+		return nil, errors.New(refusal.Message)
+	}
+	obs := &sweepObservation{pin: fresh, inv: inv}
+	r.prepared = append(r.prepared, obs)
+	return obs, nil
+}
+
+// seam builds the injected sweepOps: it wires prepareWith to r itself (so the
+// orchestration sees the same one-observation-per-attempt binding production
+// uses), and probeFacts to a per-change probe over the given prober so a test
+// expresses live PR facts through the same fakeFinalizeProber the
+// finalize-context tests use. probeFacts reproduces the finalize population
+// predicate the batched production reader selects over, so the orchestration
+// tests stay decoupled from the batch transport (proved separately in
+// sweep_prfacts_test.go and TestSweepSelectionUsesBatchedFactsNotPerChangeProbe).
+// reader is the reload source Prepare threads its fresh authority through.
+func (r *recordingSweepOps) seam(reader StatusReader, prober FinalizePRProber) sweepOps {
+	r.reader = reader
 	return sweepOps{
+		prepareWith: func(pin StatusPin) sweepPreparer {
+			r.base = pin
+			return r
+		},
 		probeFacts: func(ctx context.Context, snap domain.Snapshot) (map[domain.ChangeID]domain.PRFacts, []StatusFinding) {
 			facts := make(map[domain.ChangeID]domain.PRFacts)
 			for _, c := range snap.Changes() {
@@ -57,28 +101,39 @@ func (r *recordingSweepOps) seam(prober FinalizePRProber) sweepOps {
 			}
 			return facts, nil
 		},
-		closeout: func(_ context.Context, id int) CloseoutResult {
-			r.calls = append(r.calls, sweepCall{kind: sweepKindCloseout, id: id})
+		closeout: func(_ context.Context, id int, obs *sweepObservation) CloseoutResult {
+			r.calls = append(r.calls, sweepCall{kind: sweepKindCloseout, id: id, obs: obs})
 			if res, ok := r.closeout[id]; ok {
 				return res
 			}
 			return newCloseoutResult(ResultApplied, CloseoutResult{ID: id, Disposition: CloseoutDispDoneArchived})
 		},
-		cleanup: func(_ context.Context, id int) CleanupOpResult {
-			r.calls = append(r.calls, sweepCall{kind: sweepKindCleanup, id: id})
+		cleanup: func(_ context.Context, id int, obs *sweepObservation) CleanupOpResult {
+			r.calls = append(r.calls, sweepCall{kind: sweepKindCleanup, id: id, obs: obs})
 			if res, ok := r.cleanup[id]; ok {
 				return res
 			}
 			return newCleanupResult(OperationFinalizeCleanup, ResultApplied, CleanupOpResult{ID: id, Disposition: CleanupDispCleaned})
 		},
-		reclaim: func(_ context.Context, id int, version string) ChangeReclaimResult {
-			r.calls = append(r.calls, sweepCall{kind: sweepKindReclaim, id: id, version: version})
+		reclaim: func(_ context.Context, id int, version string, obs *sweepObservation) ChangeReclaimResult {
+			r.calls = append(r.calls, sweepCall{kind: sweepKindReclaim, id: id, version: version, obs: obs})
 			if res, ok := r.reclaim[id]; ok {
 				return res
 			}
 			return newChangeReclaimResult(ResultApplied, ChangeReclaimResult{ID: id, Disposition: ReclaimDispReclaimed})
 		},
 	}
+}
+
+// obsFor returns the observation the recorded dispatch of (kind, id) received, or
+// nil when no such dispatch was recorded.
+func (r *recordingSweepOps) obsFor(kind string, id int) *sweepObservation {
+	for _, c := range r.calls {
+		if c.kind == kind && c.id == id {
+			return c.obs
+		}
+	}
+	return nil
 }
 
 func (r *recordingSweepOps) callIDs(kind string) []int {
@@ -172,7 +227,7 @@ func TestSweepFindsMergedImplemented(t *testing.T) {
 		32: newCloseoutResult(ResultApplied, CloseoutResult{ID: 32, Disposition: CloseoutDispStackedMerged}),
 	}}
 
-	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeFull)
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
 
 	if res.Result != ResultApplied {
 		t.Fatalf("result = %q, want applied; entries=%+v", res.Result, res.Entries)
@@ -217,7 +272,7 @@ func TestSweepRetriesSuffixes(t *testing.T) {
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{}}
 	ops := &recordingSweepOps{}
 
-	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeFull)
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
 
 	if !ops.called(sweepKindCleanup, 40) {
 		t.Errorf("completed stack 40 must have cleanup retried; calls=%v", ops.calls)
@@ -243,7 +298,7 @@ func TestSweepReclaimGatedOnAuto(t *testing.T) {
 	t.Run("auto true reclaims", func(t *testing.T) {
 		reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}
 		ops := &recordingSweepOps{}
-		maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeFull)
+		maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
 		if !ops.called(sweepKindReclaim, 50) {
 			t.Fatalf("auto reclaim must dispatch reclaim for 50; calls=%v", ops.calls)
 		}
@@ -252,7 +307,7 @@ func TestSweepReclaimGatedOnAuto(t *testing.T) {
 	t.Run("auto false skips with reason", func(t *testing.T) {
 		reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
 		ops := &recordingSweepOps{}
-		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeFull)
+		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
 		if ops.called(sweepKindReclaim, 50) {
 			t.Fatalf("reclaim.auto:false must NOT dispatch reclaim; calls=%v", ops.calls)
 		}
@@ -285,7 +340,7 @@ func TestSweepNeverEscalates(t *testing.T) {
 	}}
 	ops := &recordingSweepOps{}
 
-	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeFull)
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
 
 	if !ops.called(sweepKindCloseout, 60) {
 		t.Errorf("out-of-band-merged 60 must be recovered; calls=%v", ops.calls)
@@ -319,7 +374,7 @@ func TestSweepItemIsolation(t *testing.T) {
 		70: newCloseoutResult(ResultExternalFailed, CloseoutResult{ID: 70, Disposition: CloseoutDispUnknown}),
 	}}
 
-	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeFull)
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
 
 	// Isolation: 71's closeout still ran despite 70's unknown outcome.
 	if !ops.called(sweepKindCloseout, 71) {
@@ -360,7 +415,7 @@ func TestSweepStructuredReport(t *testing.T) {
 	}}
 	ops := &recordingSweepOps{}
 
-	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeFull)
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
 
 	if len(res.Entries) == 0 {
 		t.Fatal("a sweep that processed items must report entries")
@@ -382,13 +437,15 @@ func TestSweepStructuredReport(t *testing.T) {
 	}
 }
 
-// TestSweepReloadsBeforeMutation: the sweep pins one inventory, then reloads
-// fresh authority before every dispatched mutation — exactly one reload per
-// dispatch — and reloads for nothing it does not dispatch.
+// TestSweepReloadsBeforeMutation: the sweep pins one inventory, then prepares
+// fresh authority before every dispatched mutation — exactly one preparation per
+// dispatch — and prepares for nothing it does not dispatch. The recording
+// preparer pins the reload reader once per Prepare, so the reader's pin count
+// witnesses the one-preparation-per-dispatch property.
 func TestSweepReloadsBeforeMutation(t *testing.T) {
 	corpus := []StatusBlob{
 		finalizeBlob(90, "merged", "implemented", "high", prRefFor(90), ""),
-		sweepInProgressBlob(91, "stale"), // reclaim.auto false ⇒ skipped, no reload
+		sweepInProgressBlob(91, "stale"), // reclaim.auto false ⇒ skipped, no preparation
 	}
 	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
@@ -396,17 +453,209 @@ func TestSweepReloadsBeforeMutation(t *testing.T) {
 	}}
 	ops := &recordingSweepOps{}
 
-	maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeFull)
+	maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
 
 	// 90: closeout (applied) + cleanup suffix = 2 dispatches. 91: skipped, none.
 	dispatches := len(ops.calls)
 	if dispatches != 2 {
 		t.Fatalf("dispatches = %d, want 2 (closeout+suffix for 90); calls=%v", dispatches, ops.calls)
 	}
-	// One inventory pin + one fresh reload per dispatch.
+	// One preparation per dispatch, and none for the skipped reclaim.
+	if len(ops.prepared) != dispatches {
+		t.Fatalf("prepared %d observations, want %d (one per dispatch)", len(ops.prepared), dispatches)
+	}
+	// One inventory pin + one reload pin per preparation.
 	wantPins := 1 + dispatches
 	if reader.pinCount != wantPins {
-		t.Fatalf("reader pinned %d times, want %d (1 inventory + %d reloads)", reader.pinCount, wantPins, dispatches)
+		t.Fatalf("reader pinned %d times, want %d (1 inventory + %d preparations)", reader.pinCount, wantPins, dispatches)
+	}
+}
+
+// TestEachAttemptPreparesOnceAndSharesObservation: a single operation attempt
+// prepares exactly ONE fresh observation, and its presence check and its
+// dispatched op both read that same observation — never a second reload for the
+// presence decision. The closeout is contended so no cleanup suffix runs, leaving
+// exactly one attempt to inspect.
+func TestEachAttemptPreparesOnceAndSharesObservation(t *testing.T) {
+	corpus := []StatusBlob{finalizeBlob(30, "merged", "implemented", "high", prRefFor(30), "")}
+	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
+		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/merged"),
+	}}
+	ops := &recordingSweepOps{closeout: map[int]CloseoutResult{
+		30: newCloseoutResult(ResultContended, CloseoutResult{ID: 30, Disposition: CloseoutDispUnknown}),
+	}}
+
+	maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
+
+	if len(ops.prepared) != 1 {
+		t.Fatalf("prepared %d observations, want exactly 1 for the single closeout attempt", len(ops.prepared))
+	}
+	if got := ops.obsFor(sweepKindCloseout, 30); got != ops.prepared[0] {
+		t.Fatalf("closeout observed a different observation than the one prepared; presence and dispatch must share it")
+	}
+	// No extra reload pin was taken for the presence decision: one inventory pin
+	// plus the single preparation's pin.
+	if reader.pinCount != 1+len(ops.prepared) {
+		t.Fatalf("reader pinned %d times, want %d (no per-check re-pin)", reader.pinCount, 1+len(ops.prepared))
+	}
+}
+
+// TestCleanupSuffixPreparesAgain: a successful closeout and its ownership-safe
+// cleanup suffix are two SEPARATE attempts — two preparations returning distinct
+// observations — because the closeout may have moved paths or statuses the suffix
+// must observe freshly.
+func TestCleanupSuffixPreparesAgain(t *testing.T) {
+	corpus := []StatusBlob{finalizeBlob(30, "merged", "implemented", "high", prRefFor(30), "")}
+	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
+		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/merged"),
+	}}
+	ops := &recordingSweepOps{} // default applied closeout ⇒ the suffix runs
+
+	maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
+
+	if len(ops.prepared) != 2 {
+		t.Fatalf("prepared %d observations, want 2 (closeout attempt + cleanup suffix)", len(ops.prepared))
+	}
+	if ops.prepared[0] == ops.prepared[1] {
+		t.Fatalf("closeout and its cleanup suffix must not share one observation")
+	}
+	if co := ops.obsFor(sweepKindCloseout, 30); co != ops.prepared[0] {
+		t.Fatalf("closeout must observe the first preparation")
+	}
+	if cl := ops.obsFor(sweepKindCleanup, 30); cl != ops.prepared[1] {
+		t.Fatalf("cleanup suffix must observe its own second preparation")
+	}
+}
+
+// TestDisabledReclaimPreparesNothing: with reclaim.auto false the eligible record
+// is surfaced as skipped and NOTHING is prepared — the auto gate precedes any
+// metadata preparation.
+func TestDisabledReclaimPreparesNothing(t *testing.T) {
+	corpus := []StatusBlob{sweepInProgressBlob(50, "stale")}
+	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{}}
+	ops := &recordingSweepOps{}
+
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
+
+	if len(ops.prepared) != 0 {
+		t.Fatalf("reclaim.auto:false must prepare nothing; prepared=%d", len(ops.prepared))
+	}
+	if ops.called(sweepKindReclaim, 50) {
+		t.Fatalf("reclaim.auto:false must not dispatch reclaim")
+	}
+	var e *MaintenanceEntry
+	for i := range res.Entries {
+		if res.Entries[i].ID == 50 && res.Entries[i].Kind == sweepKindReclaim {
+			e = &res.Entries[i]
+		}
+	}
+	if e == nil || e.Disposition != SweepDispSkipped || e.Reason != ReasonSweepReclaimAutoDisabled {
+		t.Fatalf("want skipped/reclaim-auto-disabled entry, got %+v", e)
+	}
+}
+
+// TestPrepareFailureIsReloadFailedSkipNoDispatch: a failed metadata preparation
+// (the fetch could not be read) yields a skipped/reload-failed entry and
+// dispatches no operation for that item.
+func TestPrepareFailureIsReloadFailedSkipNoDispatch(t *testing.T) {
+	corpus := []StatusBlob{finalizeBlob(30, "merged", "implemented", "high", prRefFor(30), "")}
+	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
+		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/merged"),
+	}}
+	ops := &recordingSweepOps{}
+	ops.prepareErr = errors.New("metadata fetch failed")
+
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
+
+	if ops.called(sweepKindCloseout, 30) {
+		t.Fatalf("a failed preparation must dispatch no operation; calls=%v", ops.calls)
+	}
+	var e *MaintenanceEntry
+	for i := range res.Entries {
+		if res.Entries[i].ID == 30 && res.Entries[i].Kind == sweepKindCloseout {
+			e = &res.Entries[i]
+		}
+	}
+	if e == nil || e.Disposition != SweepDispSkipped || e.Reason != ReasonSweepReloadFailed {
+		t.Fatalf("want skipped/reload-failed entry, got %+v", e)
+	}
+}
+
+// TestVanishedOnObservationSkipsAfterThatPrepare: a preparation whose FETCH
+// succeeded but whose fresh snapshot no longer carries the record is an
+// item-vanished skip — never a fetch failure — and no retry fetch is taken. The
+// inventory carries the record (so it is enqueued); the reload observation is
+// built from a divergent reader whose corpus dropped it.
+func TestVanishedOnObservationSkipsAfterThatPrepare(t *testing.T) {
+	corpus := []StatusBlob{finalizeBlob(30, "merged", "implemented", "high", prRefFor(30), "")}
+	invReader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
+		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/merged"),
+	}}
+	reloadReader := &fakeReader{pin: sweepPin(t, false, 24), corpus: []StatusBlob{}}
+	ops := &recordingSweepOps{}
+
+	res := maintenanceSweep(context.Background(), sweepDeps(invReader, prober), "repo", ops.seam(reloadReader, prober), SweepScopeFull)
+
+	if ops.called(sweepKindCloseout, 30) {
+		t.Fatalf("a vanished record must dispatch no operation; calls=%v", ops.calls)
+	}
+	if len(ops.prepared) != 1 {
+		t.Fatalf("prepared %d observations, want exactly 1 (fetch succeeded, no retry)", len(ops.prepared))
+	}
+	if reloadReader.pinCount != 1 {
+		t.Fatalf("reload reader pinned %d times, want exactly 1 (no retry fetch)", reloadReader.pinCount)
+	}
+	var e *MaintenanceEntry
+	for i := range res.Entries {
+		if res.Entries[i].ID == 30 && res.Entries[i].Kind == sweepKindCloseout {
+			e = &res.Entries[i]
+		}
+	}
+	if e == nil || e.Disposition != SweepDispSkipped || e.Reason != ReasonSweepItemVanished {
+		t.Fatalf("want skipped/item-vanished entry, got %+v", e)
+	}
+}
+
+// TestReclaimVersionFromObservation: the exact blob version the reclaim is pinned
+// to comes from the SHARED observation the attempt prepared — obs.inv
+// .versionByPath[path] — not a separate re-pin.
+func TestReclaimVersionFromObservation(t *testing.T) {
+	corpus := []StatusBlob{sweepInProgressBlob(50, "stale")}
+	reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{}}
+	ops := &recordingSweepOps{}
+
+	maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
+
+	if len(ops.prepared) != 1 {
+		t.Fatalf("expected exactly one reclaim preparation, got %d", len(ops.prepared))
+	}
+	obs := ops.prepared[0]
+	c, out := obs.inv.snap.Change(domain.ChangeID(50))
+	if out != domain.LookupFound {
+		t.Fatalf("record 50 must be present in the observation")
+	}
+	want := obs.inv.versionByPath[c.Path()]
+	if want == "" {
+		t.Fatalf("observation carried no blob version for 50")
+	}
+	var got string
+	found := false
+	for _, cl := range ops.calls {
+		if cl.kind == sweepKindReclaim && cl.id == 50 {
+			got, found = cl.version, true
+		}
+	}
+	if !found {
+		t.Fatalf("reclaim was not dispatched for 50; calls=%v", ops.calls)
+	}
+	if got != want {
+		t.Fatalf("reclaim version = %q, want %q (from obs.inv.versionByPath)", got, want)
 	}
 }
 
@@ -430,7 +679,7 @@ func TestSweepImplementationScopeDefersHistorical(t *testing.T) {
 	t.Run("implementation defers historical, keeps closeout+suffix+reclaim", func(t *testing.T) {
 		reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}
 		ops := &recordingSweepOps{}
-		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeImplementation)
+		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeImplementation)
 
 		if !ops.called(sweepKindCloseout, 30) {
 			t.Errorf("current merged closeout must still dispatch; calls=%v", ops.calls)
@@ -462,7 +711,7 @@ func TestSweepImplementationScopeDefersHistorical(t *testing.T) {
 	t.Run("full retains historical retries and reports zero deferred", func(t *testing.T) {
 		reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}
 		ops := &recordingSweepOps{}
-		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeFull)
+		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(reader, prober), SweepScopeFull)
 		if !ops.called(sweepKindCleanup, 40) || !ops.called(sweepKindCleanup, 41) {
 			t.Errorf("full scope must retry historical cleanups; calls=%v", ops.calls)
 		}
@@ -478,7 +727,7 @@ func TestSweepImplementationScopeDefersHistorical(t *testing.T) {
 func TestSweepInvalidScopeRefusesBeforeAnyRead(t *testing.T) {
 	reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: nil}
 	ops := &recordingSweepOps{}
-	res := maintenanceSweep(context.Background(), sweepDeps(reader, &fakeFinalizeProber{}), "repo", ops.seam(&fakeFinalizeProber{}), SweepScope("bogus"))
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, &fakeFinalizeProber{}), "repo", ops.seam(reader, &fakeFinalizeProber{}), SweepScope("bogus"))
 	if res.Result != ResultInvalidInput || res.Reason != ReasonSweepScopeInvalid {
 		t.Fatalf("want invalid-input/sweep-scope-invalid, got %q/%q", res.Result, res.Reason)
 	}
@@ -571,7 +820,7 @@ func TestSweepSelectionUsesBatchedFactsNotPerChangeProbe(t *testing.T) {
 		Facts: map[int]domain.PRFacts{30: withHead(mergedFacts(30, "main"), "feat/merged")},
 	}}
 	ops := &recordingSweepOps{}
-	seam := ops.seam(cp)
+	seam := ops.seam(reader, cp)
 	seam.probeFacts = func(ctx context.Context, snap domain.Snapshot) (map[domain.ChangeID]domain.PRFacts, []StatusFinding) {
 		return sweepSelectPRFacts(ctx, batch, "repo", snap)
 	}
@@ -614,7 +863,7 @@ func TestSweepImplementationScopeDoesNotGrowWithHistory(t *testing.T) {
 		}}}
 		ops := &recordingSweepOps{}
 		deps := FinalizeDeps{Planning: PlanningDeps{Reader: cr, Clock: testClock()}, PRProber: cp}
-		res := maintenanceSweep(context.Background(), deps, "repo", ops.seam(cp), scope)
+		res := maintenanceSweep(context.Background(), deps, "repo", ops.seam(cr, cp), scope)
 		return counts{
 			cleanups: len(ops.callIDs(sweepKindCleanup)),
 			pins:     cr.pins,
