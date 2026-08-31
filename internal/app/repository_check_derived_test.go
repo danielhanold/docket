@@ -12,13 +12,22 @@ import (
 	"github.com/danielhanold/docket/internal/repository"
 )
 
-// derivedTestConfig is the minimal resolved config the derived-view comparison
-// reads: the changes and ADR directories.
+// derivedTestConfig is the resolved config the derived-view comparison reads: the
+// changes and ADR directories plus the built-in board presentation. Board
+// rendering now requires a non-empty presentation (change 0367), so the config
+// carries the resolved default Board — the same one boardPresentation lifts for a
+// repo with no board overrides.
 func derivedTestConfig() config.Effective {
-	return config.Effective{
+	eff := config.Effective{
 		ChangesDir: config.Value[string]{Value: "docs/changes"},
 		ADRsDir:    config.Value[string]{Value: "docs/adrs"},
 	}
+	snap, _, err := config.Resolve(nil, config.ResolveContext{DefaultBranch: "main"})
+	if err != nil {
+		panic("resolving default board presentation: " + err.Error())
+	}
+	eff.Board = snap.Effective.Board
+	return eff
 }
 
 // changeRecordBytes builds a change record with the given frontmatter body and a
@@ -77,7 +86,7 @@ func TestDerivedViewFindingsCleanCorpus(t *testing.T) {
 	rec := corpusRecord{path: path, bytes: canonical, kind: repository.KindChange, location: repository.LocationActive}
 
 	snap, _ := buildCorpusSnapshot(cfg, []corpusRecord{rec})
-	board, _ := render.Board(render.BoardInput{Snapshot: snap})
+	board, _ := render.Board(render.BoardInput{Snapshot: snap, Presentation: boardPresentation(cfg)})
 	adr, _ := render.ADRIndex(snap)
 
 	corpus := checkCorpus{

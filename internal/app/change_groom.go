@@ -457,7 +457,7 @@ func (o changeGroomOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 
 	if o.inline {
 		boardPath := path.Join(o.changesDir, "BOARD.md")
-		if err := includeBoard(ctx, st.Tree, boardPath, candidate, &files); err != nil {
+		if err := includeBoard(ctx, st.Tree, boardPath, candidate, boardPresentation(o.eff), &files); err != nil {
 			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change groom: %w", err)
 		}
 	}

@@ -94,7 +94,7 @@ func TestComposeDerivedRepairBoardBytes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("compose board: %v", err)
 	}
-	want, _ := render.Board(render.BoardInput{Snapshot: snap})
+	want, _ := render.Board(render.BoardInput{Snapshot: snap, Presentation: boardPresentation(cfg)})
 	if !bytes.Equal(got, want) {
 		t.Errorf("composed board != canonical render")
 	}

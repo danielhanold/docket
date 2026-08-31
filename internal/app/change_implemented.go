@@ -488,7 +488,7 @@ func (o changeImplementedOp) Plan(ctx context.Context, st transaction.AttemptSta
 	}
 	if o.inline {
 		boardPath := path.Join(o.changesDir, "BOARD.md")
-		if err := includeBoard(ctx, st.Tree, boardPath, candidate, &files); err != nil {
+		if err := includeBoard(ctx, st.Tree, boardPath, candidate, boardPresentation(o.eff), &files); err != nil {
 			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("mark-implemented: %w", err)
 		}
 	}

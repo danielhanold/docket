@@ -714,7 +714,7 @@ func (o finalizeBlockOp) Plan(ctx context.Context, st transaction.AttemptState) 
 	files := []transaction.FileMutation{
 		{Path: gitcli.RepoPath(c.Path()), Kind: transaction.MutationReplace, Bytes: edited},
 	}
-	files, err = planInlineBoard(ctx, st, snap, o.inline, o.changesDir, files)
+	files, err = planInlineBoard(ctx, st, snap, o.inline, o.changesDir, boardPresentation(o.eff), files)
 	if err != nil {
 		return transaction.MutationPlan{}, transaction.OperationResult{}, err
 	}
@@ -787,7 +787,7 @@ func (o finalizeClearBlockOp) Plan(ctx context.Context, st transaction.AttemptSt
 	files := []transaction.FileMutation{
 		{Path: gitcli.RepoPath(c.Path()), Kind: transaction.MutationReplace, Bytes: edited},
 	}
-	files, err = planInlineBoard(ctx, st, snap, o.inline, o.changesDir, files)
+	files, err = planInlineBoard(ctx, st, snap, o.inline, o.changesDir, boardPresentation(o.eff), files)
 	if err != nil {
 		return transaction.MutationPlan{}, transaction.OperationResult{}, err
 	}
@@ -824,12 +824,12 @@ func refuseBlock(code, msg string) (transaction.MutationPlan, transaction.Operat
 // inside the same transaction, so any board drift is corrected atomically with
 // the record edit (the engine refuses a declared path that is not an actual
 // change, so the mutation is declared only when it truly changes the tree).
-func planInlineBoard(ctx context.Context, st transaction.AttemptState, snap domain.Snapshot, inline bool, changesDir string, files []transaction.FileMutation) ([]transaction.FileMutation, error) {
+func planInlineBoard(ctx context.Context, st transaction.AttemptState, snap domain.Snapshot, inline bool, changesDir string, pres render.BoardPresentation, files []transaction.FileMutation) ([]transaction.FileMutation, error) {
 	if !inline {
 		return files, nil
 	}
 	boardPath := path.Join(changesDir, "BOARD.md")
-	if err := includeBoard(ctx, st.Tree, boardPath, snap, &files); err != nil {
+	if err := includeBoard(ctx, st.Tree, boardPath, snap, pres, &files); err != nil {
 		return nil, err
 	}
 	return files, nil

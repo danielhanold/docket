@@ -183,7 +183,7 @@ func executeDerivedRepair(ctx context.Context, git *gitcli.Client, sc setupConte
 func composeDerivedRepairBytes(sc setupContext, snap domain.Snapshot, corpus checkCorpus, recByPath map[string]corpusRecord, file string) ([]byte, error) {
 	switch file {
 	case boardCorpusPath(sc.cfg):
-		return renderCanonicalBoard(snap)
+		return renderCanonicalBoard(snap, boardPresentation(sc.cfg))
 	case adrIndexCorpusPath(sc.cfg):
 		return renderCanonicalADRIndex(snap)
 	}

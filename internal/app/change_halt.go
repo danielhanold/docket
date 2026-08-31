@@ -482,7 +482,7 @@ func (o changeHaltOp) Plan(ctx context.Context, st transaction.AttemptState) (tr
 	files := []transaction.FileMutation{
 		{Path: gitcli.RepoPath(c.Path()), Kind: transaction.MutationReplace, Bytes: edited},
 	}
-	files, err = planInlineBoard(ctx, st, snap, o.inline, o.changesDir, files)
+	files, err = planInlineBoard(ctx, st, snap, o.inline, o.changesDir, boardPresentation(o.eff), files)
 	if err != nil {
 		return transaction.MutationPlan{}, transaction.OperationResult{}, err
 	}
@@ -571,7 +571,7 @@ func (o resumeHaltedOp) Plan(ctx context.Context, st transaction.AttemptState) (
 	files := []transaction.FileMutation{
 		{Path: gitcli.RepoPath(c.Path()), Kind: transaction.MutationReplace, Bytes: finalBytes},
 	}
-	files, err = planInlineBoard(ctx, st, snap, o.inline, o.changesDir, files)
+	files, err = planInlineBoard(ctx, st, snap, o.inline, o.changesDir, boardPresentation(o.eff), files)
 	if err != nil {
 		return transaction.MutationPlan{}, transaction.OperationResult{}, err
 	}
