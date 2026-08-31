@@ -179,6 +179,22 @@ var proseContracts = []proseContract{
 	// tests/test_change_types.sh — the change template still ships a type placeholder.
 	{sentinel: "test_change_types", file: "skills/docket-new-change/change-template.md",
 		present: []string{"type:"}},
+	// change 0389 — implementation-scope sweep + the two completion barriers.
+	// docket-status owns the COMMAND barrier: a backgrounded sweep is observed
+	// to its terminal envelope, never declared done by proxy signals; and an
+	// applied envelope is never read as all-items-succeeded.
+	{sentinel: "change_0389_sweep_scope", file: "skills/docket-status/SKILL.md",
+		present: []string{"--scope implementation", "a liveness transition, not completion",
+			"never start a second shell watcher", "never that every item succeeded"}},
+	// docket-implement-next owns the AGENT barrier: terminal evidence for the
+	// requested scope, and a first-late terminal result is a violation.
+	{sentinel: "change_0389_sweep_scope", file: "skills/docket-implement-next/SKILL.md",
+		present: []string{"--scope implementation", "terminal sweep evidence for implementation scope",
+			"a contract violation, not a dismissable duplicate"}},
+	// The convention no longer implies a full historical sweep at startup, and
+	// the status dispatch contract is hybrid.
+	{sentinel: "change_0389_sweep_scope", file: "skills/docket-convention/SKILL.md",
+		present: []string{"no longer implies a full historical sweep"}},
 }
 
 // scanProse checks one file's content against a contract, returning a violation
