@@ -162,10 +162,10 @@ func TestPrepareObservesFreshMetadataTip(t *testing.T) {
 	if second.pin.MetadataRevision != newTip {
 		t.Fatalf("second observation revision = %q, want the advanced origin tip %q", second.pin.MetadataRevision, newTip)
 	}
-	if containsPath(first.blobs, "docs/changes/active/0002-beta.md") {
+	if blobsHavePath(first.blobs, "docs/changes/active/0002-beta.md") {
 		t.Fatal("first observation already carried the not-yet-written record")
 	}
-	if !containsPath(second.blobs, "docs/changes/active/0002-beta.md") {
+	if !blobsHavePath(second.blobs, "docs/changes/active/0002-beta.md") {
 		t.Fatalf("second observation missing the freshly written record\npaths: %v", pathsOf(second.blobs))
 	}
 }
@@ -274,9 +274,9 @@ func TestSessionRefusesDifferentRepository(t *testing.T) {
 	}
 }
 
-// containsPath reports whether blobs carry a record at the given repo-relative
+// blobsHavePath reports whether blobs carry a record at the given repo-relative
 // path.
-func containsPath(blobs []StatusBlob, p string) bool {
+func blobsHavePath(blobs []StatusBlob, p string) bool {
 	for _, b := range blobs {
 		if b.Path == p {
 			return true
