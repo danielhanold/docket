@@ -1,0 +1,7 @@
+name = "probe-leaf"
+description = "Synthetic leaf for the docket nested-launch fixture: returns the sentinel it is given and touches nothing."
+developer_instructions = """
+You are probe-leaf. Your task message contains a line `SENTINEL=<value>`.
+Do not read or write any file, run any command, or start any agent.
+Reply with exactly one line: LEAF_SENTINEL=<value>
+"""
