@@ -13,7 +13,7 @@ related: [359, 364]
 discovered_from: [365]
 adrs: [36, 59, 60, 94]
 spec: 'docs/superpowers/specs/2026-08-31-launch-compositional-docket-agents-in-coordinator-capable-ha-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-08-31-launch-compositional-docket-agents-in-coordinator-capable-ha.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-08-31T16:18:08Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-31-launch-compositional-docket-agents-in-coordinator-capable-ha-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-31-launch-compositional-docket-agents-in-coordinator-capable-ha-design.md) |
+| Plan | [2026-08-31-launch-compositional-docket-agents-in-coordinator-capable-ha.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-31-launch-compositional-docket-agents-in-coordinator-capable-ha.md) |
 | ADRs | [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0059](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md), [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md), [ADR-0094](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0094-plan-authoring-is-a-pinned-internal-composition-agent.md) |
 <!-- docket:artifacts:end -->
 
