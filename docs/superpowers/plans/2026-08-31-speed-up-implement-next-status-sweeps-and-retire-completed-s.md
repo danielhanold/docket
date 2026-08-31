@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0389 — Speed up implement-next status sweeps and retire completed status children](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0389-speed-up-implement-next-status-sweeps-and-retire-completed-s.md)**
+> ↩ **[Change 0389 — Speed up implement-next status sweeps and retire completed status children](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-31-0389-speed-up-implement-next-status-sweeps-and-retire-completed-s.md)**
 <!-- docket:backlink:end -->
 # Speed Up Implement-Next Status Sweeps and Retire Completed Status Children — Implementation Plan
 
