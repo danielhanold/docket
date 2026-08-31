@@ -31,6 +31,8 @@ Failure-classification traffic can add calls. `ReadCorpus` reads an immutable co
 `maintenanceSweep` pins the inventory once; `sweepReloadVersion` re-pins before dispatch; and
 `FinalizeCloseout`, `FinalizeCleanup`, or `ChangeReclaim` pins again. A successful closeout also
 has a separately reloaded cleanup suffix. Reclaims with `reclaim.auto` disabled do not reload.
+`ChangeReclaim` additionally reaches another `PinContext` through `WorkspaceInspect`; counting
+only the three top-level operations misses that nested reload.
 Historical cleanup candidates are `done` and `stacked-merged`, not `killed` records. These details
 must be reflected in both measurements and test fixtures.
 
@@ -42,9 +44,10 @@ must be reflected in both measurements and test fixtures.
   assumed. This design deliberately makes repository identity, default/integration branch names,
   initial source revisions, resolved configuration, and initial topology admission a snapshot for
   one invocation. Configuration or default-branch changes take effect on the next invocation.
-- Metadata is **not** part of the reusable snapshot. Every reload fetches the current remote
-  metadata branch. The sweep's own preceding mutations are visible in the same way as another
-  writer's mutations. A missing branch or failed fetch never falls back to a cached revision.
+- Metadata is **not** reusable across operation attempts. Fetch it once immediately before an
+  attempt, then share that exact pin, corpus, and blob versions with the operation and its nested
+  readers. The next attempt fetches anew, including cleanup after closeout. A missing branch or
+  failed fetch never falls back to a prior revision.
 - Existing per-operation GitHub, merge/reachability, branch-absence, ownership, workspace, and
   transaction proofs remain live. In particular, their direct integration-branch fetches must not
   be replaced with the initial source revision. Exact-version and exact-lease transaction checks
@@ -54,67 +57,118 @@ must be reflected in both measurements and test fixtures.
 
 ## Design
 
-### Explicit reader for one sweep
+### One shared metadata observation per operation attempt
 
 After the initial full pin succeeds and the existing capability preflight admits the sweep,
-derive an explicit immutable sweep session from the Git reader's discovered repository and that
-pin. It supplies a `StatusReader` for the remainder of this invocation. Keep ordinary
-`gitStatusReader.PinContext` semantics unchanged for standalone commands.
+derive an explicit sweep session from the Git reader's discovered repository and that pin. Its
+captured setup is immutable. Keep ordinary `gitStatusReader.PinContext` semantics unchanged for
+standalone commands.
 
-The session's `PinContext` performs one fresh `FetchBranch` of `refs/heads/docket`, then returns a
-new pin combining the captured setup/configuration with that fetch's exact metadata commit.
-`ReadCorpus` continues to read through that new pin. Do not rerun default-branch discovery,
+The session explicitly prepares each operation attempt with one fresh `FetchBranch` of
+`refs/heads/docket`, combining the captured setup/configuration with that fetch's exact metadata
+commit. It reads the corpus once at that revision and supplies an immutable observation containing
+the pin, corpus, and blob versions. Do not rerun default-branch discovery,
 default/integration setup fetches, or the topology-only metadata `ls-remote`. A supplied metadata
-tip must never stand in for this fetch. The session is bound to its original repository; it must
-not silently reuse facts if asked to operate on a different repository.
+tip from a previous attempt must never stand in for this fetch. The session is bound to its
+original repository; it must not silently reuse facts if asked to operate on a different repository.
 
-The observable successful-reload contract is **one metadata fetch and zero repeated setup
-probes**, not zero network calls. Preserve `FetchBranch`'s own bounded failure-classification
-behavior; a failing fetch may perform its existing diagnostic probe within the same network
+The sweep checks presence/ambiguity and obtains reclaim's expected version from this observation.
+Pass the same observation into the dispatched operation through an explicit reader bound to that
+attempt: its `PinContext` returns the supplied pin without fetching, and its `ReadCorpus` returns
+the same immutable corpus without rereading the remote or resolving mutable tracking refs. This
+also applies to nested readers such as `WorkspaceInspect` inside reclaim. The operation still runs
+its own capability and domain validations against these bytes. Do not add an implicit reader
+cache, a time-to-live, or a user-authored shortcut that can skip the preparation boundary.
+
+The successful preparation contract is **one metadata fetch for the whole operation attempt and
+zero repeated setup probes or nested-reader fetches**, not one call for each invocation of
+`PinContext` and not one total remote call per change. Preserve `FetchBranch`'s bounded
+failure-classification behavior; a failing fetch may perform its existing diagnostic probe within the same network
 budget. Do not add another metadata probe before the fetch.
 
-Thread the session into both the sweep helpers and the `Planning.Reader` used by every production
-operation closure in `MaintenanceSweep`. The closures are currently created outside
-`maintenanceSweep`; wrapping only the local `reader` would leave their full pins unchanged.
-Refactor that construction boundary so the closures and reload helpers receive the same session.
+Thread the prepared observation into both the sweep helpers and the `Planning.Reader` used by
+every production operation closure in `MaintenanceSweep`. The closures are currently created
+outside `maintenanceSweep`; wrapping only the local `reader` would leave their pins unchanged.
+Refactor that construction boundary so each closure receives the observation for its attempt.
 Retain the injected `sweepOps` orchestration test seam, but also exercise production wiring.
-Concrete helper/type names are implementation details; the explicit session, lifetime, and
-freshness contract are settled by this spec.
+Concrete helper/type names are implementation details; the preparation boundary, immutable
+observation, lifetime, and freshness contract are settled by this spec.
 
-Only reader plumbing changes in dispatched operations. Their mutation clients, services, and
-operation-specific proofs remain untouched. Keep both existing metadata reloads rather than
-removing one or substituting a transaction-only freshness check in this change. The initial pin's
-configuration is used consistently by both snapshot building and dispatched operations; there
-must not be a mixture of freshly resolved and captured configuration within this sweep.
+Discard the observation after its operation returns. A cleanup suffix must prepare again because
+closeout may have changed paths, statuses, and stack relationships. Never share an observation
+across two operations or changes. The initial pin's configuration is used consistently throughout
+the invocation; do not mix freshly resolved and captured configuration.
 
-### Bound context reads without changing mutation deadlines
+Preserve the existing metadata-race and skip decisions at the single preparation boundary. A
+later concurrent edit is handled by the existing transaction's fresh-base and exact-version checks
+where those apply. Cleanup's workspace/ref deletion is not one metadata transaction, so a fresh
+pre-operation observation and its live ownership/merge/ref proofs remain necessary under the
+current safety policy. This design removes the second observation immediately after the first;
+it does not claim atomic protection against every concurrent metadata edit throughout cleanup.
 
-Use a **separate read-only Git client** for the sweep's initial reader and its derived session,
-constructed with `gitcli.WithNetworkTimeout(30 * time.Second)`. This is a fixed internal policy
-for sweep context reads, not a new flag or configuration key. Its local-operation timeout remains
-the package default. The constructor may expose an internal test seam for shorter durations.
+### Call budget and what one fetch buys
 
-The CLI's sweep dependency construction must leave `Planning.Client`, its transaction engine,
-`CleanupGit`, the workspace service, and the GitHub client on their existing timeout policies.
-Only `Planning.Reader` and the session's metadata-fetch path use the short-timeout client. Do not
-replace the shared mutation client, change either package default, or carry a short context
-deadline from a read into the subsequent mutation. Standalone status/finalize/reclaim commands
-and repository setup commands keep their existing policies.
+The initial metadata fetch supplies **all changes** for inventory and selection. No per-record
+metadata fetch is necessary to enumerate or parse that inventory. After setup:
 
-Thirty seconds bounds each Git network adapter operation on the read client, not the full pin,
-item, or sweep. Keep `FetchBranch`'s shared budget for fetch and failure classification and allow
-the adapter's existing process-reaping overhead. A lower caller deadline still takes precedence.
-GitHub calls and mutation/proof traffic can still take longer; this change makes no promise that
-all stalls or the whole sweep are capped at thirty seconds.
+| Work | Metadata preparation fetches | Other remote traffic |
+|---|---:|---|
+| Record outside this invocation's worklist; disabled reclaim | 0 | None caused by metadata enumeration; existing PR selection queries are separate |
+| One cleanup or enabled reclaim attempt | 1 | Existing operation-specific proofs and any transactions/writes |
+| Closeout followed by its allowed cleanup suffix | 2 | Existing proofs and any transactions/writes for both operations |
+| Nested readers within an already prepared operation | 0 additional | Their existing non-metadata safety probes, if any |
+
+A vanished/ambiguous record or failed preparation skips dispatch after that preparation attempt;
+it must not retry the fetch through the operation. Transaction fetches and push reconciliation are
+additional intentional calls; they are not nested reader reloads and must not be removed to meet
+this budget. In particular, do not advertise this as one total GitHub request per change.
+
+Full scope still schedules a cleanup attempt for every `done`/`stacked-merged` candidate. It
+therefore still performs one metadata preparation fetch per historical cleanup attempt, even if
+the operation ultimately has nothing to change. Eliminating that remaining archive-dependent
+traffic needs a separate bulk no-work detector that accounts for remote refs, workspaces, and
+backlink repairs. Merely having fetched all records once does not prove those resources clean.
+
+### Sweep network deadlines
+
+Configure the sweep's Git/GitHub adapters with explicit budgets by operation purpose:
+
+- **Remote reads: 30 seconds.** Includes default-branch discovery, metadata/source fetches,
+  transaction base fetches, branch-presence/ancestry preparation, GitHub repository/PR discovery,
+  merged-state checks, and open-child queries.
+- **Remote writes: 60 seconds.** Includes metadata/integration pushes and lease-protected remote
+  branch deletion. A timeout is an uncertain result until the existing reconciliation establishes
+  otherwise; never assume the remote write did not happen.
+
+These are sweep-only constructor policies. Cover `Planning.Reader`, `Planning.Client`, its
+transaction engine, `CleanupGit`, workspace services, `PRProber`, and the GitHub client; leaving
+any reachable network path at the five-minute default fails the requirement. Add an explicit
+read/write distinction to adapter timeout selection where needed rather than setting one shared
+thirty-second timeout for every operation. Existing package defaults and standalone command
+policies remain unchanged, as do local-operation budgets. Internal duration injection is allowed
+for tests; no new user flag or configuration setting is required.
+
+The budget belongs to one top-level adapter operation, including its internal failure diagnosis
+or lost-response reconciliation. A fetch plus its classification probe shares the thirty-second
+budget; a push/delete plus its reconciliation shares the sixty-second budget. Child probes may
+use a smaller read budget but cannot extend the parent's remaining time. If time is exhausted,
+return the existing unknown/external-failure outcome and preserve recovery evidence; do not start
+fresh clocks or new write retries to manufacture a verdict.
+
+Allow the adapter's existing process-reaping overhead; a shorter caller deadline takes precedence.
+Scope each deadline to the adapter call and release it before the next independent operation.
+This is not a thirty/sixty-second deadline for an entire item or sweep. Many independent calls can
+still accumulate, and there is no new sweep-wide deadline or outage circuit breaker.
 
 ### Failure and reporting behavior
 
 - A network timeout returned by the initial full pin refuses the sweep before dispatch, using
   its existing typed external-failure result. The diagnostic must retain the adapter's timeout
   kind/message. Other initial failures retain their existing classifications.
-- A metadata fetch failure in a sweep helper produces the existing skipped `reload-failed` entry
-  and dispatches no operation for that item. A failure in the operation's own pin uses that
-  operation's existing refusal mapping; an unresolved closeout withholds cleanup.
+- A metadata preparation failure produces the existing skipped `reload-failed` entry and
+  dispatches no operation for that attempt. The prepared operation's reader performs no further
+  fetch that could fail independently. Other operation failures keep their existing mappings;
+  an unresolved closeout withholds cleanup.
 - A successful fetch followed by a missing or ambiguous record keeps the existing vanished/skip
   behavior. Do not confuse it with an unsuccessful fetch or an absent metadata branch.
 - Retain per-item result aggregation and continuation behavior. A mixed or all-failed sweep must
@@ -136,21 +190,24 @@ Drive multiple items, both scopes, equal and distinct default/integration branch
 reclaim, a disabled reclaim, and a successful closeout with its cleanup suffix. Assert that:
 
 - Full setup runs once per invocation, irrespective of historical population.
-- Each successful helper/operation pin after setup performs exactly one metadata fetch and reads
-  the returned revision. Disabled reclaim performs no reload.
-- The production closeout/cleanup/reclaim closures use the session, not the original full reader.
+- Each successful preparation performs exactly one metadata fetch. The helper, operation, and
+  nested readers all receive that revision and its corpus; they perform no duplicate fetches.
+  Disabled reclaim performs no preparation.
+- The production closeout/cleanup/reclaim closures use the prepared observation, not the original
+  full reader. Exercise reclaim's `WorkspaceInspect` path too; top-level fakes alone miss it.
 - Required operation-specific network calls still occur and use their existing safety gates.
 
-Mutation-test bypassing the session separately in a helper and in a production operation closure;
-both must make the traffic guard fail. Also cover a second invocation and another repository so
-reuse cannot escape its declared lifetime.
+Mutation-test bypassing the session in a helper, restoring an operation's redundant pin, and
+leaving a nested reader unbound; each must make the traffic guard fail. Also cover a second
+invocation and another repository so reuse cannot escape its declared lifetime.
 
 ### Selective blocked-probe regression
 
 Replace the old all-network-blocked completion test with a phase-aware fixture: allow initial
-setup, fresh metadata fetches, and required operation traffic to succeed; after setup, make only
-redundant setup probes fail or block under a short independent watchdog. Assert terminal return,
-the expected successful entries, and zero attempts at those forbidden probes. Merely returning
+setup, one preparation fetch per operation, and required operation traffic to succeed; after setup,
+make redundant setup probes and duplicate reader fetches fail or block under a short independent
+watchdog. Assert terminal return, the expected successful entries, and zero attempts at those
+forbidden probes. Merely returning
 after skipping the whole worklist is not a pass. Injecting a redundant probe must fail promptly,
 not hang the test.
 
@@ -161,9 +218,12 @@ with blocked required network access is not expected to complete its mutations s
 
 Advance the local origin from an independent writer without refreshing the sweep clone's tracking
 refs. Verify changed blob versions, vanished/moved records, and ambiguity are observed on the next
-reload. Cover movement between the helper pin and the operation pin, and verify the cleanup suffix
-sees a record archived by its preceding closeout. Race the subsequent transaction too, retaining
-the existing contention proof. Reusing the initial metadata revision must redden these tests.
+preparation. Assert that the helper, operation, and nested readers use the same observation even
+if a concurrent edit arrives afterward; the subsequent transaction must detect a conflicting
+edit using its existing checks. Verify the cleanup suffix takes a new observation and sees the
+record archived by its preceding closeout. Reusing a previous attempt's metadata revision must
+redden these tests. Retain deletion/ownership/merge proof tests: a shared observation cannot
+authorize cleanup after a moved ref, active workspace, or unknown probe.
 
 Advance default/integration source and configuration after setup: the invocation keeps its
 captured setup, the next invocation adopts the new configuration, and direct mutation/proof
@@ -172,26 +232,32 @@ stale-ref fallback or inferred absence is introduced.
 
 ### Timeout policy and safety
 
-Assert the resolved production reader policy is thirty seconds and is installed by the sweep
-command's real dependency builder. With a short injected duration, block initial and later
-metadata reads through a controlled Git executable; assert adapter timeout, bounded return with
-scheduling/reaping allowance, the operation result/entry mapping, and no forbidden mutation.
-Do not make tests wait thirty seconds or derive an exact wall-clock equality from one machine.
+Assert resolved production policies of thirty seconds for remote reads and sixty seconds for
+remote writes through the sweep command's real dependency builder. Derive the reachable network
+sites from source and verify each receives the correct policy, including nested workspace,
+transaction, cleanup, and GitHub paths. Standalone clients must retain their default policies.
 
-Prove isolation as well: the transaction, cleanup, workspace, and GitHub services retain their
-original clients/deadlines, standalone commands remain unchanged, and a mutation following a
-successful read does not inherit that read's cancelled deadline context. Where a network operation
-is intentionally left on the original policy, assert that boundary through resolved dependency
-state or a controlled executable rather than
-incurring the five-minute delay. Mutation-test removal of the short reader option and accidental
-use of that client for mutation work.
+Use short injected durations and controlled Git/GitHub executables to block initial and later
+metadata reads, a PR/proof read, a transaction fetch, and a push/delete. Assert bounded return with
+scheduling/reaping allowance, the existing result/entry mapping, and no forbidden follow-on
+mutation. Verify that internal diagnostic/reconciliation calls share the parent budget rather
+than multiplying it, and that a potentially applied timed-out write remains unknown/recoverable
+unless existing reconciliation proves its outcome. A successful read's cancelled deadline context
+must not leak into the following mutation.
+
+Mutation-test losing policy propagation at a nested dependency, restoring a duplicate reader
+fetch, and resetting the clock before a diagnostic probe. Test that read and write durations are
+distinct; a blanket thirty-second policy must fail. Do not wait thirty/sixty seconds in tests or
+assert wall-clock equality calibrated on one machine.
 
 ### Performance evidence and build gate
 
 Record before/after medians and categorized call counts on the same isolated representative
 multi-item workload, with equal synthetic network latency and identical operation outcomes. The
-candidate must reduce measured time on that controlled workload and reduce repeated pin traffic
-from the baseline four/five network calls to one successful metadata fetch. Compare the same
+candidate must reduce measured time on that controlled workload and reach the call-budget table:
+one metadata preparation fetch per operation attempt and no duplicate reader fetches, including
+nested readers. The original implementation performs at least two full pins per dispatched
+operation (eight/ten context-read network calls, plus any nested pins). Compare the same
 population and record remaining metadata, corpus, GitHub, and operation-proof costs separately;
 do not infer end-to-end improvement solely from the call-count assertion.
 
@@ -208,20 +274,26 @@ Run the complete build gate from the resolved `finalize.test_command` (currently
 
 - Reuse the initial metadata tip and perform no network reload: rejected because immutable Git
   blobs cannot reveal concurrent metadata changes or the sweep's own newly archived records.
-- Remove the sweep's reload and rely only on transaction contention: potentially less work, but
-  changes observation/skip behavior and needs a separate safety design. Retain current boundaries.
+- Keep a helper refresh and another operation/nested-reader refresh: rejected. One observation
+  prepared immediately before dispatch serves all of those readers and removes duplicate calls
+  while preserving the helper's presence/version checks.
+- Use only the initial inventory plus transaction contention: rejected for this change. Cleanup
+  performs destructive effects outside a metadata transaction, and its fresh metadata/ownership
+  checks cannot be replaced by a transaction it does not execute.
 - Keep full pins while adding only a timeout: bounds some stalls but leaves the repeated setup
   traffic. Changing `gatherRepoFacts`'s existing tip short-circuits alone also misses the caller's
   earlier fetches and default-branch discovery.
-- Shorten the shared sweep client or package defaults: rejected because it changes mutation and
-  proof deadlines. A separate reader client makes the selected boundary explicit and testable.
+- Apply a blanket thirty-second timeout or change package defaults: rejected. Sweep reads and
+  writes get distinct explicit budgets, with uncertain-write recovery preserved; unrelated
+  commands keep their current policies.
 - Hide a cache inside the ordinary reader: rejected in favor of an explicit session whose lifetime
   and invocation-level configuration snapshot are visible to callers.
 
 ## Out of scope
 
 Scope vocabulary/membership and ADR-0101; closeout/cleanup/reclaim policy or proof changes;
-eliminating freshness/CAS checks; GitHub or mutation timeout tuning; global defaults; retry policy,
+eliminating the single preparation boundary or transaction CAS checks; global defaults; retry policy,
 total deadlines, circuit breakers, streaming output, scheduling, or parallel execution; corpus
-parsing and unrelated suite runtime optimization; the subsequent health-check pass. This grooming
+parsing beyond reuse of one operation's observation and unrelated suite runtime optimization;
+bulk no-work detection or mutation batching; the subsequent health-check pass. This grooming
 authors metadata only and does not implement code or run live maintenance.

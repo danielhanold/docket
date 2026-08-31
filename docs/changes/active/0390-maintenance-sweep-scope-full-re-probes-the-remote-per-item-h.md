@@ -49,18 +49,20 @@ closeout, can change the record before the next operation. The setup probes can 
 within one invocation while metadata is fetched afresh. The linked spec corrects the original
 call-count diagnosis and preserves that distinction.
 
-The reader also inherits a five-minute Git network timeout. A stalled context read can therefore
-add a long wait independently of the redundant work.
+Git and GitHub clients also inherit five-minute network timeouts. A stalled context read, proof
+query, or write can therefore add a long wait independently of the redundant work.
 
 ## What changes
 
-- Resolve repository identity, configuration, and source revisions once for the sweep. Give both
-  its reloads and its dispatched operations an explicit reader for that invocation which performs
-  a fresh metadata fetch on every pin, without repeating setup probes. Never reuse an old metadata
-  revision as fresh authority.
-- Set a 30-second network timeout on the sweep's separate read-only Git client, covering the
-  initial context read and later metadata reloads. Preserve the existing clients and deadlines for
-  mutation transactions, merge/reachability proofs, branch deletion, workspaces, and GitHub calls.
+- Resolve repository identity, configuration, and source revisions once for the sweep. Fetch
+  metadata once for each operation attempt and share that exact observation between the sweep's
+  check, the operation, and its nested readers. Remove repeated setup probes and duplicate
+  metadata refreshes. The initial metadata fetch already supplies every record for selection;
+  the additional refreshes protect operations, not enumeration of individual records.
+- Bound every sweep Git/GitHub remote read to 30 seconds and remote write to 60 seconds, including
+  the transaction and cleanup paths. Preserve mutation proofs and uncertain-outcome handling.
+  Standalone command defaults stay unchanged; the spec defines separate read/write budgets and
+  prevents timeout multiplication inside adapter failure classification.
 - Verify reduced setup traffic through production wiring, real metadata-race detection, bounded
   read failures, and measured before/after performance. Tests permit required metadata and
   operation traffic; neither zero total network calls nor a total sweep deadline is promised.
@@ -73,7 +75,10 @@ criteria are in the linked spec.
 
 - Changing scope membership, closeout/cleanup/reclaim eligibility, or their ownership and merge
   proofs; eliminating metadata freshness checks or transaction compare-and-swap checks.
-- Changing package-wide Git/GitHub defaults, mutation deadlines, retry policy, or adding a total
-  sweep timeout, circuit breaker, streaming output, or automatic maintenance schedule.
-- Reworking the health-check pass, the separate test-suite runtime work, or corpus parsing costs.
+- Changing package-wide Git/GitHub defaults or retry policy; adding a total sweep timeout, circuit
+  breaker, streaming output, or automatic maintenance schedule. Sweep-specific read/write
+  deadlines are explicitly in scope.
+- Skipping historical cleanup attempts through a new bulk no-work detector, or batching mutations.
+- Reworking the health-check pass, the separate test-suite runtime work, or general corpus
+  parsing costs beyond sharing one operation's observation.
 - Implementing code or running a live mutating sweep as part of this re-grooming.
