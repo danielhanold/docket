@@ -971,3 +971,71 @@ func TestBoardProposedTrivialBuildReadyCell(t *testing.T) {
 		t.Fatalf("trivial build-ready cell missing:\n%s", out)
 	}
 }
+
+// permutedPresentation differs from the default on BOTH presentation axes: the
+// section order is reversed AND every section sorts id/asc instead of the
+// built-in updated/desc. It is the "the presentation genuinely changed" fixture
+// the mermaid-isolation test renders against.
+func permutedPresentation() render.BoardPresentation {
+	p := reversedPresentation()
+	for s := range p.Sorting {
+		p.Sorting[s] = render.BoardSort{By: render.BoardSortKeyID, Direction: render.BoardDirectionAsc}
+	}
+	return p
+}
+
+// mermaidSlice returns the fenced mermaid block of a rendered board — from the
+// opening "```mermaid" through its closing "```" fence, inclusive — or fails if
+// the block is malformed. The mermaid graph is the isolation target: its node
+// and edge order derive from the snapshot's ids and depends_on edges alone
+// (ascending id), never from the presentation.
+func mermaidSlice(t *testing.T, board []byte) []byte {
+	t.Helper()
+	const open = "```mermaid"
+	start := bytes.Index(board, []byte(open))
+	if start < 0 {
+		t.Fatalf("no mermaid block in rendered board:\n%s", board)
+	}
+	rest := board[start+len(open):]
+	end := bytes.Index(rest, []byte("```"))
+	if end < 0 {
+		t.Fatalf("mermaid block has no closing fence:\n%s", board)
+	}
+	return board[start : start+len(open)+end+len("```")]
+}
+
+// TestBoardMermaidBytesIdenticalAcrossPresentations pins that the Mermaid graph
+// is outside section order and per-section sorting (spec §Projection isolation:
+// "Mermaid graph node/edge order ... receive no board presentation input"). The
+// same fixture corpus is rendered under the default presentation and under a
+// presentation permuted on both axes (reversed order, id/asc everywhere); the
+// mermaid slices must be byte-identical even though the surrounding board is
+// not.
+func TestBoardMermaidBytesIdenticalAcrossPresentations(t *testing.T) {
+	snap := boardCorpusSnapshot(t)
+
+	def, err := render.Board(render.BoardInput{Snapshot: snap, Presentation: render.DefaultBoardPresentation()})
+	if err != nil {
+		t.Fatalf("default render: %v", err)
+	}
+	permuted, err := render.Board(render.BoardInput{Snapshot: snap, Presentation: permutedPresentation()})
+	if err != nil {
+		t.Fatalf("permuted render: %v", err)
+	}
+
+	// Non-vacuity: the permutation must actually change the board, or the mermaid
+	// equality below would prove nothing.
+	if bytes.Equal(def, permuted) {
+		t.Fatalf("permuted presentation produced a byte-identical board — the fixture does not exercise the presentation")
+	}
+
+	defMermaid := mermaidSlice(t, def)
+	permutedMermaid := mermaidSlice(t, permuted)
+	if len(bytes.TrimSpace(defMermaid)) == 0 {
+		t.Fatalf("mermaid slice is empty — the isolation assertion would be vacuous")
+	}
+	if !bytes.Equal(defMermaid, permutedMermaid) {
+		t.Fatalf("mermaid graph changed with the presentation:\n--- default ---\n%s\n--- permuted ---\n%s",
+			defMermaid, permutedMermaid)
+	}
+}
