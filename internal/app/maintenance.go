@@ -41,6 +41,20 @@ const (
 	sweepKindReclaim  = "reclaim"
 )
 
+// SweepScope is the closed maintenance-sweep scope vocabulary (change 0389).
+// full is the whole worklist — today's behavior, the default when the flag is
+// omitted. implementation is the implementation-startup preflight: current
+// merged-work closeouts (with their safe cleanup suffixes) and reclaim gating,
+// with independent cleanup retries for records that were ALREADY terminal at the
+// pinned inventory deferred to explicit full maintenance. The CLI resolves the
+// scope once; the app layer never re-derives it from anything else.
+type SweepScope string
+
+const (
+	SweepScopeFull           SweepScope = "full"
+	SweepScopeImplementation SweepScope = "implementation"
+)
+
 // The closed vocabulary of per-item sweep dispositions. applied/noop/contended/
 // blocked/unknown/failed map one dispatched operation's protocol result; skipped
 // is the sweep's own pre-dispatch decision (policy declined, item vanished on
@@ -75,6 +89,9 @@ const (
 	// ReasonSweepReclaimVersionMissing: the reloaded record carried no usable
 	// blob version to pin the exact-version reclaim; nothing was dispatched.
 	ReasonSweepReclaimVersionMissing = "reclaim-version-missing"
+	// ReasonSweepScopeInvalid: the typed scope was outside the closed
+	// vocabulary; the sweep read nothing and dispatched nothing.
+	ReasonSweepScopeInvalid = "sweep-scope-invalid"
 )
 
 // sweepOps is the injection seam for the three verified operations the sweep
@@ -108,15 +125,21 @@ type MaintenanceEntry struct {
 // capability) carries a stable reason and message and no partial entries.
 type MaintenanceResult struct {
 	Envelope
-	Entries  []MaintenanceEntry `json:"entries"`
-	Reason   string             `json:"reason,omitempty"`
-	Message  string             `json:"message,omitempty"`
-	Findings []StatusFinding    `json:"findings"`
+	Entries                    []MaintenanceEntry `json:"entries"`
+	Reason                     string             `json:"reason,omitempty"`
+	Message                    string             `json:"message,omitempty"`
+	Findings                   []StatusFinding    `json:"findings"`
+	Scope                      string             `json:"scope"`
+	DeferredHistoricalCleanups int                `json:"deferred_historical_cleanups"`
 }
 
 // HumanText renders a one-line summary naming the entry count and the mutated
 // count only — never an authored document body.
 func (r MaintenanceResult) HumanText() string {
+	op := r.Operation
+	if r.Scope != "" {
+		op = fmt.Sprintf("%s (scope %s)", r.Operation, r.Scope)
+	}
 	if r.Result == ResultApplied || r.Result == ResultNoOp {
 		applied := 0
 		for _, e := range r.Entries {
@@ -124,12 +147,18 @@ func (r MaintenanceResult) HumanText() string {
 				applied++
 			}
 		}
-		return fmt.Sprintf("%s: %d item(s), %d applied", r.Operation, len(r.Entries), applied)
+		out := fmt.Sprintf("%s: %d item(s), %d applied", op, len(r.Entries), applied)
+		if r.Scope == string(SweepScopeImplementation) {
+			// A count of candidates deliberately NOT probed — never a claim
+			// they are dirty or blocked; explicit full maintenance owns them.
+			out += fmt.Sprintf("; %d historical cleanup(s) deferred to `docket maintenance sweep --scope full`", r.DeferredHistoricalCleanups)
+		}
+		return out
 	}
 	if r.Reason != "" {
-		return fmt.Sprintf("%s: %s (%s)", r.Operation, r.Result, r.Reason)
+		return fmt.Sprintf("%s: %s (%s)", op, r.Result, r.Reason)
 	}
-	return fmt.Sprintf("%s: %s", r.Operation, r.Result)
+	return fmt.Sprintf("%s: %s", op, r.Result)
 }
 
 // newMaintenanceResult stamps the envelope and normalizes nil collections so the
@@ -163,7 +192,7 @@ type sweepWorkItem struct {
 // operations over one pinned inventory. It is the production entry point; the
 // CLI wires it, and it delegates to maintenanceSweep with real operation
 // closures over the live seams.
-func MaintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string) MaintenanceResult {
+func MaintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, scope SweepScope) MaintenanceResult {
 	// The reclaim leg needs a full workspace service (Prepare/Inspect/Publish);
 	// FinalizeDeps carries only the narrower finalize workspace seam, so build the
 	// reclaim workspace over the same git client the deps already hold. A build
@@ -199,34 +228,46 @@ func MaintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string) Ma
 			return ChangeReclaim(ctx, deps.Planning, wdeps, repoDir, ChangeReclaimRequest{ID: id, Version: version})
 		},
 	}
-	return maintenanceSweep(ctx, deps, repoDir, ops)
+	return maintenanceSweep(ctx, deps, repoDir, ops, scope)
 }
 
 // maintenanceSweep is the orchestration under test. It pins one inventory,
 // derives the deterministic worklist, and processes each item — reloading fresh
 // authority before every mutation and dispatching through the injected ops.
-func maintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, ops sweepOps) MaintenanceResult {
+func maintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, ops sweepOps, scope SweepScope) MaintenanceResult {
 	reader := deps.Planning.Reader
+
+	// The resolved scope is stamped onto every envelope this sweep returns —
+	// refusals and successes alike — so the caller always sees which scope ran.
+	stamp := func(r MaintenanceResult, deferred int) MaintenanceResult {
+		r.Scope = string(scope)
+		r.DeferredHistoricalCleanups = deferred
+		return r
+	}
+	if scope != SweepScopeFull && scope != SweepScopeImplementation {
+		return stamp(maintenanceRefusal(ResultInvalidInput, ReasonSweepScopeInvalid,
+			fmt.Sprintf("unknown sweep scope %q: must be full or implementation", scope)), 0)
+	}
 
 	// One pinned inventory. This read decides the worklist; every mutation below
 	// reloads its own fresh authority (and the dispatched op reloads once more).
 	pin, err := reader.PinContext(ctx, repoDir)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
-		return maintenanceRefusal(result, reason, err.Error())
+		return stamp(maintenanceRefusal(result, reason, err.Error()), 0)
 	}
 	// Capability preflight before any external effect: a deferred capability
 	// request refuses the whole sweep before it dispatches a single mutation.
 	if decision := config.PreflightMutation(&pin.Config); !decision.Allowed {
-		return maintenanceRefusal(ResultUnsupportedConfig, ReasonDeferredCapRequested,
+		return stamp(maintenanceRefusal(ResultUnsupportedConfig, ReasonDeferredCapRequested,
 			"configuration actively requests a deferred capability docket does not ship in this version ("+
-				joinPaths(blockerPaths(decision.Blockers))+"); withdraw it before any mutation")
+				joinPaths(blockerPaths(decision.Blockers))+"); withdraw it before any mutation"), 0)
 	}
 	eff := pin.Config.Effective
 
 	inv, refusal := sweepBuildSnapshot(ctx, reader, pin, eff)
 	if refusal != nil {
-		return *refusal
+		return stamp(*refusal, 0)
 	}
 
 	// Probe every finalize-population change's live PR facts (the same
@@ -243,7 +284,7 @@ func maintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, op
 	}
 	queue := domain.SelectFinalizeQueue(inv.snap, facts, finalizeBlockedMap(), nil)
 
-	items := sweepWorklist(inv.snap, queue, eff, deps.Planning.Clock.Now())
+	items, deferredHistorical := sweepWorklist(inv.snap, queue, eff, deps.Planning.Clock.Now(), scope)
 
 	entries := make([]MaintenanceEntry, 0, len(items))
 	for _, it := range items {
@@ -272,7 +313,7 @@ func maintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, op
 			break
 		}
 	}
-	return newMaintenanceResult(result, MaintenanceResult{Entries: entries})
+	return stamp(newMaintenanceResult(result, MaintenanceResult{Entries: entries}), deferredHistorical)
 }
 
 // sweepInventory is one authoritative read: the built snapshot plus the exact
@@ -310,7 +351,7 @@ func sweepBuildSnapshot(ctx context.Context, reader StatusReader, pin StatusPin,
 // cleanup items (done or stacked-merged records — archived changes and completed
 // stacks) by id; then reclaim items (in-progress records whose lease is strictly
 // expired) by id. The three status sets are disjoint, so no id is double-listed.
-func sweepWorklist(snap domain.Snapshot, queue []domain.FinalizeCandidate, eff config.Effective, now time.Time) []sweepWorkItem {
+func sweepWorklist(snap domain.Snapshot, queue []domain.FinalizeCandidate, eff config.Effective, now time.Time, scope SweepScope) (items []sweepWorkItem, deferredHistorical int) {
 	var closeouts []sweepWorkItem
 	for _, cand := range queue {
 		if cand.Band != sweepBandMergedRecovery {
@@ -344,6 +385,15 @@ func sweepWorklist(snap domain.Snapshot, queue []domain.FinalizeCandidate, eff c
 		}
 		switch {
 		case c.Status() == domain.StatusDone || c.Status() == domain.StatusStackedMerged:
+			// Implementation scope defers records that were already terminal at
+			// the pinned inventory: they are counted, never enqueued, so the
+			// worklist stays independent of the historical population. A record
+			// a closeout archives DURING this invocation is untouched by this
+			// filter — its cleanup rides sweepRunCloseout's suffix, not this list.
+			if scope == SweepScopeImplementation {
+				deferredHistorical++
+				continue
+			}
 			cleanups = append(cleanups, sweepWorkItem{id: int(c.ID()), kind: sweepKindCleanup})
 		case domain.EvaluateLease(c, now, ttl) == domain.LeaseExpired:
 			reclaims = append(reclaims, sweepWorkItem{id: int(c.ID()), kind: sweepKindReclaim})
@@ -356,7 +406,7 @@ func sweepWorklist(snap domain.Snapshot, queue []domain.FinalizeCandidate, eff c
 	out = append(out, closeouts...)
 	out = append(out, cleanups...)
 	out = append(out, reclaims...)
-	return out
+	return out, deferredHistorical
 }
 
 // sweepRunCloseout reloads fresh authority, dispatches the verified closeout,

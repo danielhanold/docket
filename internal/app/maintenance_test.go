@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/domain"
@@ -154,7 +155,7 @@ func TestSweepFindsMergedImplemented(t *testing.T) {
 		32: newCloseoutResult(ResultApplied, CloseoutResult{ID: 32, Disposition: CloseoutDispStackedMerged}),
 	}}
 
-	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam())
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeFull)
 
 	if res.Result != ResultApplied {
 		t.Fatalf("result = %q, want applied; entries=%+v", res.Result, res.Entries)
@@ -199,7 +200,7 @@ func TestSweepRetriesSuffixes(t *testing.T) {
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{}}
 	ops := &recordingSweepOps{}
 
-	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam())
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeFull)
 
 	if !ops.called(sweepKindCleanup, 40) {
 		t.Errorf("completed stack 40 must have cleanup retried; calls=%v", ops.calls)
@@ -225,7 +226,7 @@ func TestSweepReclaimGatedOnAuto(t *testing.T) {
 	t.Run("auto true reclaims", func(t *testing.T) {
 		reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}
 		ops := &recordingSweepOps{}
-		maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam())
+		maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeFull)
 		if !ops.called(sweepKindReclaim, 50) {
 			t.Fatalf("auto reclaim must dispatch reclaim for 50; calls=%v", ops.calls)
 		}
@@ -234,7 +235,7 @@ func TestSweepReclaimGatedOnAuto(t *testing.T) {
 	t.Run("auto false skips with reason", func(t *testing.T) {
 		reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
 		ops := &recordingSweepOps{}
-		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam())
+		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeFull)
 		if ops.called(sweepKindReclaim, 50) {
 			t.Fatalf("reclaim.auto:false must NOT dispatch reclaim; calls=%v", ops.calls)
 		}
@@ -267,7 +268,7 @@ func TestSweepNeverEscalates(t *testing.T) {
 	}}
 	ops := &recordingSweepOps{}
 
-	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam())
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeFull)
 
 	if !ops.called(sweepKindCloseout, 60) {
 		t.Errorf("out-of-band-merged 60 must be recovered; calls=%v", ops.calls)
@@ -301,7 +302,7 @@ func TestSweepItemIsolation(t *testing.T) {
 		70: newCloseoutResult(ResultExternalFailed, CloseoutResult{ID: 70, Disposition: CloseoutDispUnknown}),
 	}}
 
-	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam())
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeFull)
 
 	// Isolation: 71's closeout still ran despite 70's unknown outcome.
 	if !ops.called(sweepKindCloseout, 71) {
@@ -342,7 +343,7 @@ func TestSweepStructuredReport(t *testing.T) {
 	}}
 	ops := &recordingSweepOps{}
 
-	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam())
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeFull)
 
 	if len(res.Entries) == 0 {
 		t.Fatal("a sweep that processed items must report entries")
@@ -378,7 +379,7 @@ func TestSweepReloadsBeforeMutation(t *testing.T) {
 	}}
 	ops := &recordingSweepOps{}
 
-	maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam())
+	maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeFull)
 
 	// 90: closeout (applied) + cleanup suffix = 2 dispatches. 91: skipped, none.
 	dispatches := len(ops.calls)
@@ -389,5 +390,105 @@ func TestSweepReloadsBeforeMutation(t *testing.T) {
 	wantPins := 1 + dispatches
 	if reader.pinCount != wantPins {
 		t.Fatalf("reader pinned %d times, want %d (1 inventory + %d reloads)", reader.pinCount, wantPins, dispatches)
+	}
+}
+
+// TestSweepImplementationScopeDefersHistorical: implementation scope schedules
+// current merged-implemented closeouts (whose cleanup SUFFIX still runs) and
+// gated reclaims, but enqueues NO independent cleanup item for a record that was
+// already done/stacked-merged at the pinned inventory. Those are counted as a
+// scope summary, never rendered as per-item outcomes. Full scope on the same
+// corpus retains the historical retries.
+func TestSweepImplementationScopeDefersHistorical(t *testing.T) {
+	corpus := []StatusBlob{
+		finalizeBlob(30, "current", "implemented", "high", prRefFor(30), ""),
+		finalizeBlob(40, "completed", "stacked-merged", "high", prRefFor(40), ""),
+		finalizeBlob(41, "archived", "done", "high", prRefFor(41), ""),
+		sweepInProgressBlob(50, "stale"),
+	}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
+		prRefFor(30): withHead(mergedFacts(30, "main"), "feat/current"),
+	}}
+
+	t.Run("implementation defers historical, keeps closeout+suffix+reclaim", func(t *testing.T) {
+		reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}
+		ops := &recordingSweepOps{}
+		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeImplementation)
+
+		if !ops.called(sweepKindCloseout, 30) {
+			t.Errorf("current merged closeout must still dispatch; calls=%v", ops.calls)
+		}
+		if !ops.called(sweepKindCleanup, 30) {
+			t.Errorf("the closeout's cleanup SUFFIX must still run in implementation scope; calls=%v", ops.calls)
+		}
+		if !ops.called(sweepKindReclaim, 50) {
+			t.Errorf("reclaim gating must be preserved (auto=true dispatches); calls=%v", ops.calls)
+		}
+		for _, id := range []int{40, 41} {
+			if ops.called(sweepKindCleanup, id) {
+				t.Errorf("historical %d must NOT get an independent cleanup dispatch; calls=%v", id, ops.calls)
+			}
+			for _, e := range res.Entries {
+				if e.ID == id {
+					t.Errorf("historical %d must have no per-item entry, got %+v", id, e)
+				}
+			}
+		}
+		if res.Scope != "implementation" {
+			t.Errorf("scope = %q, want implementation", res.Scope)
+		}
+		if res.DeferredHistoricalCleanups != 2 {
+			t.Errorf("deferred_historical_cleanups = %d, want 2", res.DeferredHistoricalCleanups)
+		}
+	})
+
+	t.Run("full retains historical retries and reports zero deferred", func(t *testing.T) {
+		reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}
+		ops := &recordingSweepOps{}
+		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeFull)
+		if !ops.called(sweepKindCleanup, 40) || !ops.called(sweepKindCleanup, 41) {
+			t.Errorf("full scope must retry historical cleanups; calls=%v", ops.calls)
+		}
+		if res.Scope != "full" || res.DeferredHistoricalCleanups != 0 {
+			t.Errorf("scope=%q deferred=%d, want full/0", res.Scope, res.DeferredHistoricalCleanups)
+		}
+	})
+}
+
+// TestSweepInvalidScopeRefusesBeforeAnyRead: a typed scope outside the closed
+// vocabulary is a fail-closed input refusal that dispatches nothing and reads
+// nothing (defense in depth behind the CLI's own validation).
+func TestSweepInvalidScopeRefusesBeforeAnyRead(t *testing.T) {
+	reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: nil}
+	ops := &recordingSweepOps{}
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, &fakeFinalizeProber{}), "repo", ops.seam(), SweepScope("bogus"))
+	if res.Result != ResultInvalidInput || res.Reason != ReasonSweepScopeInvalid {
+		t.Fatalf("want invalid-input/sweep-scope-invalid, got %q/%q", res.Result, res.Reason)
+	}
+	if len(ops.calls) != 0 {
+		t.Fatalf("invalid scope must dispatch nothing; calls=%v", ops.calls)
+	}
+	if res.Scope != "bogus" {
+		t.Errorf("refusal must echo the rejected scope, got %q", res.Scope)
+	}
+}
+
+// TestSweepHumanTextNamesScopeAndDeferred: the human summary carries the
+// resolved scope on every path, and in implementation scope a clearly-labeled
+// deferred-count clause pointing at full maintenance.
+func TestSweepHumanTextNamesScopeAndDeferred(t *testing.T) {
+	r := newMaintenanceResult(ResultApplied, MaintenanceResult{Entries: []MaintenanceEntry{
+		{ID: 30, Kind: sweepKindCloseout, Disposition: SweepDispApplied},
+	}})
+	r.Scope = "implementation"
+	r.DeferredHistoricalCleanups = 234
+	got := r.HumanText()
+	if !strings.Contains(got, "scope implementation") || !strings.Contains(got, "234 historical cleanup(s) deferred") {
+		t.Errorf("summary must name scope and deferred count, got %q", got)
+	}
+	full := newMaintenanceResult(ResultNoOp, MaintenanceResult{})
+	full.Scope = "full"
+	if !strings.Contains(full.HumanText(), "scope full") {
+		t.Errorf("full-scope summary must name its scope, got %q", full.HumanText())
 	}
 }
