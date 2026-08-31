@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_race.sh — the whole-module data-race gate (change 0308), a single
 # `go test -race -count=1 ./...` run over the default (fast) corpus.
 #

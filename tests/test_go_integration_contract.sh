@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_contract.sh — the fail-closed completeness contract over
 # the Go integration partition (change 0333; generalized to structural discovery by
 # change 0362). Discovery is live and allowlist-free: the integration PACKAGES come

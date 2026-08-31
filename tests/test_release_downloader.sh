@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: posix-downloader
 # tests/test_release_downloader.sh — guards over the POSIX release downloader
 # internal/release/downloader/install.sh (change 0317).
 #
@@ -66,6 +67,20 @@ if hits="$(grep -nEw -e "$banned" "$SCRIPT")"; then
   printf '%s\n' "$hits" | sed 's/^/    /'
 else
   ok "no forbidden spelling (bash|python|perl|shasum|jq|eval) appears in install.sh"
+fi
+
+# --- (5) render.go embeds this downloader (the embed tie) ---------------------------------------
+# Relocated class-C invariant: this assertion previously lived in tests/test_release_package.sh
+# (SECTION H), a file whose surviving invariants are decomposed and whose body Task 8 deletes. The
+# downloader reaches users ONLY as render.go's embedded copy, so a dropped go:embed directive would
+# silently unship it — that makes the embed tie a downloader-product invariant, homed here.
+# SPELLING LIMIT: this greps render.go for the go:embed directive naming downloader/install.sh; it
+# does not compile the package (the Go build is the semantic proof that the embedded path resolves).
+RENDER="$REPO/internal/release/render.go"
+if [ -f "$RENDER" ] && grep -Eq '^//go:embed[[:space:]]+downloader/install\.sh' "$RENDER"; then
+  ok "internal/release/render.go embeds downloader/install.sh"
+else
+  nok "internal/release/render.go does not embed downloader/install.sh"
 fi
 
 # ================================================================================================

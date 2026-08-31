@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_app_merge.sh — Go integration shard (change 0333):
 # the finalize merge real-repository tests (method selection, admin gate, verification), behind the `integration` build tag, prefix
 # ^TestIntegrationFinalizeMerge. Declarations only — execution and inspection live in

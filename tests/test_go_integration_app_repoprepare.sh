@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_app_repoprepare.sh — Go integration shard (change 0377):
 # the shared Step-0 `repository prepare` service scenarios (a real multi-commit docket
 # chain classifies owned, worktree attachment to a healthy remote, the clean-behind

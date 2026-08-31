@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: posix-downloader
 # tests/test_release_downloader_refusals.sh — refusal and ownership guards over the POSIX release
 # downloader internal/release/downloader/install.sh (change 0317, Task 8).
 #

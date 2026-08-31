@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_app_rebase.sh — Go integration shard (change 0333):
 # the finalize rebase real-repository tests (gate outcomes, abort/continue, recovery), behind the `integration` build tag, prefix
 # ^TestIntegrationFinalizeRebase. Declarations only — execution and inspection live in

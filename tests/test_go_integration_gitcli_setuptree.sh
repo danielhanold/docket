@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_gitcli_setuptree.sh — Go integration shard (change 0352):
 # the gitcli setup-tree primitives (EmptyTreeOID/TreeOID/BuildTree/CommitTree/RootCommits
 # + DisableWorktreeHooks), behind the `integration` build tag, prefix

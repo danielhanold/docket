@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_app_cleanup.sh — Go integration shard (change 0333):
 # the finalize cleanup real-repository tests (branch/worktree deletion, backlink repair), behind the `integration` build tag, prefix
 # ^TestIntegrationFinalizeCleanup. Declarations only — execution and inspection live in

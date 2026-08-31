@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_app_reporecovery.sh — Go integration shard (change 0352):
 # migration interruption, response-loss, and partial-state recovery — the six spec
 # boundaries (before-seed-push leaves no remote, seed-push response lost + tampered

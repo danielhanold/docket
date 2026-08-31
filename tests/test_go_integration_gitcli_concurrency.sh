@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_gitcli_concurrency.sh — Go integration shard (change
 # 0333): the gitcli concurrency-bearing test (shared Client/ObjectSource under
 # concurrent readers), behind the `integration` build tag, prefix

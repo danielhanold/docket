@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_app_concurrency.sh — Go integration shard (change 0333):
 # the concurrency-bearing app tests (concurrent planning mutations and gate-retry CAS), behind the `integration` build tag, prefix
 # ^TestRaceIntegrationAppConcurrency, run in RACE mode. Declarations only — execution and inspection live in

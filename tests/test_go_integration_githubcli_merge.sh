@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_githubcli_merge.sh — Go integration shard (change 0333):
 # the githubcli merge, merge-method/branch-rule probe, and retarget behavior
 # tests (fake-gh `pr merge`/`pr view`/`api` subprocess runs), behind the

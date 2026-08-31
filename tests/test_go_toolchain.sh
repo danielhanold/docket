@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_toolchain.sh — the whole-suite Go gate (change 0304).
 #
 # Runs the four canonical Go checks from the spec's build contract: gofmt

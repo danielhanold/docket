@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_gitcli_repo.sh — Go integration shard (change 0333):
 # the gitcli repository/worktree operation tests, behind the `integration` build
 # tag, prefix ^TestIntegrationRepo. Declarations only — execution and inspection

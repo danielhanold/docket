@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_app_change.sh — Go integration shard (change 0333):
 # the change/adr/learning/evidence/run-gate real-repository operation tests, behind the `integration` build tag, prefix
 # ^TestIntegrationChange. Declarations only — execution and inspection live in

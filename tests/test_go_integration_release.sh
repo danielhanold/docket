@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_go_integration_release.sh — Go integration shard (change 0362): the
 # release packaging/archive real cross-build, subprocess, tar/gzip and filesystem
 # corpus, behind the `integration` build tag, prefix ^TestIntegrationRelease,
