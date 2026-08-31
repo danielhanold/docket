@@ -1,13 +1,12 @@
 # Backlog
 
-**389 changes** — 🟢 3 in progress · 🟡 65 proposed · ⚪ 4 deferred · ✅ 234 done · 🗑️ 83 killed
+**389 changes** — 🟢 2 in progress · 🟡 65 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 234 done · 🗑️ 83 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [spec](../superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) | `feat/migrate-primary-clean-fast-forward` |
-| [0367](active/0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | `medium` | `feat` | [spec](../superpowers/specs/2026-08-29-configurable-rendered-board-sections-and-sorting-design.md) | `feat/configurable-rendered-board-sections-and-sorting` |
 | [0384](active/0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md) | Launch compositional Docket agents in coordinator-capable harness contexts | `critical` | `fix` | [spec](../superpowers/specs/2026-08-31-launch-compositional-docket-agents-in-coordinator-capable-ha-design.md) | `fix/launch-compositional-docket-agents-in-coordinator-capable-ha` |
 
 ## 🟡 Proposed (65)
@@ -88,6 +87,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0367](active/0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | `medium` | `feat` | [#259](https://github.com/danielhanold/docket/pull/259) |  |
 
 ```mermaid
 graph TD

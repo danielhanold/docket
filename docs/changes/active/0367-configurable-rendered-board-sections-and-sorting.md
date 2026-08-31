@@ -2,7 +2,7 @@
 id: 367
 slug: 'configurable-rendered-board-sections-and-sorting'
 title: 'Configurable rendered-board sections and sorting'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'feat'
 created: '2026-08-29'
@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable:
 branch: 'feat/configurable-rendered-board-sections-and-sorting'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/259'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-31T15:28:11Z'
