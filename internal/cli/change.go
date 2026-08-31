@@ -508,6 +508,15 @@ func newPlanningDeps() (app.PlanningDeps, error) {
 	if err != nil {
 		return app.PlanningDeps{}, err
 	}
+	return newPlanningDepsOver(client)
+}
+
+// newPlanningDepsOver assembles the read-only planning seams over an already
+// constructed Git client, so a caller that must apply a non-default network
+// policy (the maintenance sweep's newSweepFinalizeDeps) builds the transaction
+// engine and status reader over the exact policy-carrying client instance rather
+// than a second default one. newPlanningDeps is the default-policy entry point.
+func newPlanningDepsOver(client *gitcli.Client) (app.PlanningDeps, error) {
 	clock := systemClock{}
 	engine, err := transaction.NewEngine(client, clock)
 	if err != nil {
