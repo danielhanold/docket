@@ -529,6 +529,7 @@ func newFinalizeDeps() (app.FinalizeDeps, error) {
 		GitHub:     ghClient,
 		Workspace:  ws,
 		PRProber:   app.NewGitHubFinalizeProber(ghClient),
+		PRBatch:    app.NewSweepPRBatchReader(ghClient),
 		Gate:       app.NewFinalizeGate(planning, app.WorkspaceDeps{Service: ws}),
 		CleanupGit: planning.Client,
 	}, nil
