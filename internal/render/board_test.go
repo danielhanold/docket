@@ -862,6 +862,101 @@ func TestBoardBuiltAndBlockedUnifiedCells(t *testing.T) {
 	}
 }
 
+// idAscPresentation is the default presentation with every section's sort
+// overridden to id ascending — a NON-default presentation used to prove the
+// archive footer is outside board.sorting.
+func idAscPresentation() render.BoardPresentation {
+	p := render.DefaultBoardPresentation()
+	for s := range p.Sorting {
+		p.Sorting[s] = render.BoardSort{By: render.BoardSortKeyID, Direction: render.BoardDirectionAsc}
+	}
+	return p
+}
+
+// archivedDone builds an archived done change whose filename carries the given
+// YYYY-MM-DD, exactly the shape the archive footer reads for its Merged date.
+func archivedDone(id int, ymd, slug, title string) domain.Change {
+	return domain.NewChange(domain.ChangeSpec{
+		ID: domain.ChangeID(id), Slug: slug, Title: title, Status: domain.StatusDone,
+		Location: domain.LocationArchive,
+		Path:     "docs/changes/archive/" + ymd + "-" + fmtID(id) + "-" + slug + ".md",
+	})
+}
+
+// TestBoardArchiveSameDayRowsSortIDDescending pins the archive footer's total
+// ordering: rows sort date-descending, and within a shared YYYY-MM-DD filename
+// date they tie-break id-descending. It renders under a NON-default presentation
+// (everything id asc) to prove the archive is outside board.sorting — its order
+// never reads the presentation.
+func TestBoardArchiveSameDayRowsSortIDDescending(t *testing.T) {
+	// Three done changes share 2026-08-31; one is on the earlier 2026-08-30.
+	a := archivedDone(12, "2026-08-31", "a", "A")
+	b := archivedDone(20, "2026-08-31", "b", "B")
+	c := archivedDone(5, "2026-08-31", "c", "C")
+	earlier := archivedDone(99, "2026-08-30", "z", "Z")
+
+	out := string(boardWith(t, idAscPresentation(), domain.BranchFacts{}, a, b, c, earlier))
+
+	i20 := strings.Index(out, "[0020](archive/")
+	i12 := strings.Index(out, "[0012](archive/")
+	i5 := strings.Index(out, "[0005](archive/")
+	i99 := strings.Index(out, "[0099](archive/")
+	for _, p := range []struct {
+		n string
+		i int
+	}{{"0020", i20}, {"0012", i12}, {"0005", i5}, {"0099", i99}} {
+		if p.i < 0 {
+			t.Fatalf("archive row %s missing:\n%s", p.n, out)
+		}
+	}
+	// Shared day (2026-08-31) first, id descending 20 > 12 > 5; then the earlier
+	// day's 99. The id-asc presentation must NOT reorder the archive.
+	if !(i20 < i12 && i12 < i5 && i5 < i99) {
+		t.Fatalf("archive order wrong: want 20<12<5<99, got 20=%d 12=%d 5=%d 99=%d\n%s", i20, i12, i5, i99, out)
+	}
+}
+
+// TestBoardArchiveIsAFixedFooter pins that the archive <details> block is a
+// fixed footer: even under a reversed section order it renders after the mermaid
+// fence, i.e. last, outside section order/sorting.
+func TestBoardArchiveIsAFixedFooter(t *testing.T) {
+	// An active change so the board renders real sections + mermaid, plus an
+	// archived terminal record so the footer exists.
+	active := domain.NewChange(proposedChange(1, "one", "One"))
+	done := archivedDone(9, "2026-08-31", "done", "Done")
+
+	out := string(boardWith(t, reversedPresentation(), domain.BranchFacts{}, active, done))
+
+	iMermaid := strings.Index(out, "```mermaid")
+	iArchive := strings.Index(out, "<details>")
+	if iMermaid < 0 || iArchive < 0 {
+		t.Fatalf("expected both a mermaid fence and an archive block:\n%s", out)
+	}
+	if iArchive < iMermaid {
+		t.Fatalf("archive footer not after mermaid fence: mermaid=%d archive=%d\n%s", iMermaid, iArchive, out)
+	}
+}
+
+// TestBoardRepeatRenderByteStable pins that rendering the full corpus fixture
+// twice under the same NON-default presentation is byte-identical — the
+// non-default presentation band TestBoardDeterministic (default path) does not
+// cover.
+func TestBoardRepeatRenderByteStable(t *testing.T) {
+	snap := boardCorpusSnapshot(t)
+	pres := idAscPresentation()
+	a, err := render.Board(render.BoardInput{Snapshot: snap, Presentation: pres})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := render.Board(render.BoardInput{Snapshot: snap, Presentation: pres})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(a, b) {
+		t.Fatalf("non-deterministic board under non-default presentation:\n%s\n---\n%s", a, b)
+	}
+}
+
 // TestBoardProposedTrivialBuildReadyCell pins that a trivial, spec-less
 // build-ready proposal renders "build-ready (trivial)" under Proposed (the only
 // build-ready row that reaches Proposed — spec-backed build-ready is Groomed).
