@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:3e75a18673ef7cd38bae3cdd413efa45617eeacaae5f7d319e12067853af8cdf",
+  "asset_set_id": "sha256:5b9bc3d12c76142a931379558974ff450ad3109c76c6639ed3e0f48e2866e145",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -273,8 +273,8 @@
       "path": "skills/docket-adr/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 9044,
-      "sha256": "fc9b25c36d913076da59f9d7bb31392bac1b61663fe8a3474df2d8b9a6bc2a7f"
+      "size": 9241,
+      "sha256": "af490d15c7b3e2fa8d94862b25bf30ea067cfe0a9fc0071023f84bb20eb41b40"
     },
     {
       "path": "skills/docket-adr/adr-template.md",
@@ -287,8 +287,8 @@
       "path": "skills/docket-auto-groom/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 10643,
-      "sha256": "3329d6b008801475c3a6b76535b646630f7823da7b8e7fe3cd45a5ff7248582d"
+      "size": 11635,
+      "sha256": "5ffdb49f02910ac86b23a5d2dd927d4265a76c7cecd3da10ddd7a05272f47428"
     },
     {
       "path": "skills/docket-brainstorm/SKILL.md",
@@ -350,8 +350,8 @@
       "path": "skills/docket-convention/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 52991,
-      "sha256": "00dcc395ee56bc8f858c9019f7faac63d2bae4f8ce07f11a9938e0556e445747"
+      "size": 53630,
+      "sha256": "e8e64acab09dadaf8cf331a7698f45526d6342f78f85503ed5d880c86315bc0d"
     },
     {
       "path": "skills/docket-convention/github-board-mirror.md",
@@ -385,22 +385,22 @@
       "path": "skills/docket-convention/references/stacked-changes.md",
       "role": "skill",
       "mode": 420,
-      "size": 13206,
-      "sha256": "2f816ad07a4d35fb0cc89673059d679cb9043b84cf467939dfa17b74f4c1c232"
+      "size": 13198,
+      "sha256": "4984b1db68f2e7e1deb0674d0ef6f2977b0f7a60facdc92049790a26a387cd70"
     },
     {
       "path": "skills/docket-convention/references/terminal-close-out.md",
       "role": "skill",
       "mode": 420,
-      "size": 11877,
-      "sha256": "b3c4aa9508c6c8f04139aa193fd9e3bd6be2b476a7da516f49b3c1c8ae89fe17"
+      "size": 11202,
+      "sha256": "c5cf66f57386a0bf62d74e2d18db33363337c8b6a10930f29dea32d86dcbc15b"
     },
     {
       "path": "skills/docket-finalize-change/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 26505,
-      "sha256": "3070fee5ab8e5f0d0cffd0127751b935c7612eac67ef5afffee74b90f8c28439"
+      "size": 26588,
+      "sha256": "b3d994f898fdcf7ae9d376246e42a111d61add88e02b458bf0037839fc97d9b9"
     },
     {
       "path": "skills/docket-finalize-change/references/gate-failure.md",
@@ -413,15 +413,15 @@
       "path": "skills/docket-groom-next/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 10345,
-      "sha256": "618669b73bc52f92e5d6ce428140449eb4167f4a88a0f2300062c247a736e5a4"
+      "size": 10924,
+      "sha256": "8a5a4a75f4812081476cc1b5d771b52b571ca3abea382a2e933d4f859fe7a016"
     },
     {
       "path": "skills/docket-implement-next/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 44823,
-      "sha256": "130d5eae0f92458adc44dbe8c668c339ae4446c8a05e7b23b1047b179fb00b84"
+      "size": 44703,
+      "sha256": "e661a751f2da736ae82dd44365653dcd166138dc733214ec2028ac4d47d92589"
     },
     {
       "path": "skills/docket-implement-next/references/edge-paths.md",
@@ -448,8 +448,8 @@
       "path": "skills/docket-new-change/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 10463,
-      "sha256": "2551da8cbe5540be1244f6eedd2f067536782c6dac57bf293d16e763e891e628"
+      "size": 11359,
+      "sha256": "c19dec061745e856b2af35bd88c04a05af1022fd8f93f9aae417aacc7b03d864"
     },
     {
       "path": "skills/docket-new-change/change-template.md",
@@ -469,8 +469,8 @@
       "path": "skills/docket-status/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 16259,
-      "sha256": "ce952dcb89f9085352d1ef28434f2691e007d96ea806d08aaf8eb429a19de4c5"
+      "size": 16321,
+      "sha256": "52705a6a48ef3f962d9cecc13f5e805a74dbc10930ac22aff7ad1a225f887942"
     }
   ]
 }
