@@ -79,6 +79,8 @@ After reconciliation proves no maintained caller remains, delete production and 
 
 Exact paths are derived from the merged tree. Mixed-responsibility files are split or rewritten so surviving responsibilities move to Go or the retained POSIX owner. Deletion never crosses into immutable history or frozen artifacts merely because their text matches.
 
+Concrete operator-material instances surfaced by change 0377's Bash-facade → Go cutover review: repository-root `README.md` carries two now-descriptive references to the retired route — its `DOCKET_BASH_PATH` mention and its `docket.sh runner-dispatch` mention — both of which become stale the moment the facade and runner are deleted. Retire both here (anchored by those two strings, not by line number, since the file moves).
+
 ## Assertion-level test classification
 
 Test files are not disposed by filename. Every substantive assertion is classified:
