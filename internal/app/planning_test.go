@@ -22,6 +22,14 @@ func planningTestConfig(surfaces []string) config.Effective {
 	eff.ChangeTypes.Value = []string{"feat", "fix", "chore", "docs"}
 	eff.Learnings.Enabled.Value = true
 	eff.BoardSurfaces.Value = surfaces
+	// Board rendering now requires a non-empty presentation (change 0367). A
+	// fixture op renders through boardPresentation(eff), so carry the resolved
+	// built-in Board — the presentation a repo with no board overrides gets.
+	snap, _, err := config.Resolve(nil, config.ResolveContext{DefaultBranch: "main"})
+	if err != nil {
+		panic("resolving default board presentation: " + err.Error())
+	}
+	eff.Board = snap.Effective.Board
 	return eff
 }
 

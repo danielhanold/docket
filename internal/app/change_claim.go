@@ -557,7 +557,7 @@ func (o changeClaimOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 		// render byte-identical to the committed board and correctly declare no
 		// board mutation.
 		boardPath := path.Join(o.changesDir, "BOARD.md")
-		if err := includeBoard(ctx, st.Tree, boardPath, candidate, &files); err != nil {
+		if err := includeBoard(ctx, st.Tree, boardPath, candidate, boardPresentation(o.eff), &files); err != nil {
 			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change claim: %w", err)
 		}
 	}

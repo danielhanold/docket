@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/render"
@@ -36,10 +37,33 @@ import (
 // adoption), so its board copy is a deliberate exception owned by
 // repository.prepare/migrate, not by these helpers.
 
-// renderCanonicalBoard renders snap through the one canonical board renderer.
-// This is the only call site of render.Board in internal/app.
-func renderCanonicalBoard(snap domain.Snapshot) ([]byte, error) {
-	return render.Board(render.BoardInput{Snapshot: snap})
+// boardPresentation is the ONE path from resolved configuration to renderer
+// options. Config has already validated and defaulted every leaf (change 0367),
+// so this is a pure type lift — it invents no defaults and can only mistranslate,
+// which TestBoardPresentationLiftsResolvedConfig pins. App code never inlines
+// render.DefaultBoardPresentation(): every board render flows the resolved
+// config's presentation through here, so a section-order or per-section-sort
+// override reaches the rendered board.
+func boardPresentation(eff config.Effective) render.BoardPresentation {
+	order := make([]render.BoardSection, 0, len(eff.Board.SectionOrder.Value))
+	for _, s := range eff.Board.SectionOrder.Value {
+		order = append(order, render.BoardSection(s))
+	}
+	sorting := make(map[render.BoardSection]render.BoardSort, len(eff.Board.Sorting))
+	for s, srt := range eff.Board.Sorting {
+		sorting[render.BoardSection(s)] = render.BoardSort{
+			By:        render.BoardSortKey(srt.By.Value),
+			Direction: render.BoardDirection(srt.Direction.Value),
+		}
+	}
+	return render.BoardPresentation{SectionOrder: order, Sorting: sorting}
+}
+
+// renderCanonicalBoard renders snap through the one canonical board renderer with
+// the caller's presentation policy (built via boardPresentation from the resolved
+// config). This is the only call site of render.Board in internal/app.
+func renderCanonicalBoard(snap domain.Snapshot, pres render.BoardPresentation) ([]byte, error) {
+	return render.Board(render.BoardInput{Snapshot: snap, Presentation: pres})
 }
 
 // renderCanonicalADRIndex renders snap through the one canonical ADR-index
@@ -68,8 +92,8 @@ func renderCanonicalADRIndex(snap domain.Snapshot) ([]byte, error) {
 // On a render or probe error the function returns the error and leaves files
 // unmodified — the append happens only after both the render and the probe
 // succeed, so there is never a partial append.
-func includeBoard(ctx context.Context, tree transaction.Tree, boardPath string, candidate domain.Snapshot, files *[]transaction.FileMutation) error {
-	boardBytes, err := renderCanonicalBoard(candidate)
+func includeBoard(ctx context.Context, tree transaction.Tree, boardPath string, candidate domain.Snapshot, pres render.BoardPresentation, files *[]transaction.FileMutation) error {
+	boardBytes, err := renderCanonicalBoard(candidate, pres)
 	if err != nil {
 		return fmt.Errorf("rendering board: %w", err)
 	}

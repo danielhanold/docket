@@ -563,7 +563,7 @@ func derivedViewFindings(cfg config.Effective, corpus checkCorpus) []reposetup.D
 	var out []reposetup.DerivedFinding
 
 	if corpus.board.present {
-		if canonical, err := renderCanonicalBoard(snap); err == nil {
+		if canonical, err := renderCanonicalBoard(snap, boardPresentation(cfg)); err == nil {
 			if derivedBytesDiffer(canonical, corpus.board.bytes) {
 				out = append(out, reposetup.DerivedFinding{
 					View:       reposetup.DerivedViewBoard,

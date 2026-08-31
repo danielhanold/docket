@@ -998,7 +998,7 @@ func (o closeoutArchiveOp) Plan(ctx context.Context, st transaction.AttemptState
 	// Phase D: one board over the final population.
 	if o.inline {
 		boardPath := path.Join(o.changesDir, "BOARD.md")
-		if err := includeBoard(ctx, st.Tree, boardPath, candidate, &files); err != nil {
+		if err := includeBoard(ctx, st.Tree, boardPath, candidate, boardPresentation(o.eff), &files); err != nil {
 			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("closeout: %w", err)
 		}
 	}
@@ -1084,7 +1084,7 @@ func (o closeoutStackedOp) Plan(ctx context.Context, st transaction.AttemptState
 			return transaction.MutationPlan{}, transaction.OperationResult{}, err
 		}
 		boardPath := path.Join(o.changesDir, "BOARD.md")
-		if err := includeBoard(ctx, st.Tree, boardPath, candidate, &files); err != nil {
+		if err := includeBoard(ctx, st.Tree, boardPath, candidate, boardPresentation(o.eff), &files); err != nil {
 			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("closeout stacked: %w", err)
 		}
 	}

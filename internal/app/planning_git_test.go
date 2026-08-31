@@ -237,7 +237,7 @@ func assertBoardMatchesCommitted(t *testing.T, origin, branch, repoDir string) {
 	if !ok {
 		t.Fatalf("BOARD.md absent on %s after a change operation", branch)
 	}
-	want, err := render.Board(render.BoardInput{Snapshot: committedCorpusSnapshot(t, repoDir)})
+	want, err := render.Board(render.BoardInput{Snapshot: committedCorpusSnapshot(t, repoDir), Presentation: render.DefaultBoardPresentation()})
 	if err != nil {
 		t.Fatalf("render board oracle: %v", err)
 	}
