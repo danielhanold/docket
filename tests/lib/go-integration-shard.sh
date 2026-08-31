@@ -28,8 +28,8 @@
 # label correspondence proved a race test is ASSIGNED to a race runner; this proves
 # the runner actually instruments). The value IS the literal `go test` argument:
 # `-race` for a race shard, the empty string for a normal one (no flag added). This
-# body carries no runner result-marker substring, so scripts/check-test-source-hygiene.sh
-# rule (a) does not census it as an assert-family definition.
+# body carries no runner result-marker substring, so the source-hygiene guard
+# (internal/repoguard) rule (a) does not census it as an assert-family definition.
 shard_race_flag(){
   if [ "$SHARD_MODE" = "race" ]; then printf '%s' '-race'; fi
 }
@@ -49,7 +49,7 @@ run_integration_shard(){
   # The assert below already prints the canonical failure marker and sets fail=1;
   # this diagnostic goes to stderr WITHOUT that marker prefix. A function body
   # that spells the failure marker (even in a comment) is censused as an
-  # assert-family definition by scripts/check-test-source-hygiene.sh rule (a) and
+  # assert-family definition by the source-hygiene guard (internal/repoguard) rule (a) and
   # then demanded to be byte-exact canonical, so neither the printf nor this
   # comment may carry it. return 1 unwinds to the runner's `exit "$fail"`, which
   # is 1 once the assert has reddened.

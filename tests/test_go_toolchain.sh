@@ -4,7 +4,7 @@
 #
 # Runs the four canonical Go checks from the spec's build contract: gofmt
 # cleanliness, go vet, go test, and the four-tuple CGO-off cross-build. This
-# file is the REAL producer wiring those checks into scripts/run-tests.sh via
+# file is the REAL producer wiring those checks into the suite runner via
 # the tests/test_*.sh discovery glob — not a documentation-only command.
 #
 # ONE OWNER FOR THE CROSS-BUILD. The four-tuple CGO-off sweep is expensive, so
@@ -27,11 +27,11 @@
 # absent rather than skipping — a skipped gate certifies nothing.
 #
 # The assert helper is the tree's canonical one byte for byte: rule (a) of
-# scripts/check-test-source-hygiene.sh is a byte-exact allowlist, and
-# scripts/run-tests.sh accounts results on the `ok - ` / `NOT OK - ` markers
+# the source-hygiene guard (internal/repoguard) is a byte-exact allowlist, and
+# the suite runner accounts results on the `ok - ` / `NOT OK - ` markers
 # it prints.
 #
-# CACHES. scripts/run-tests.sh gives every job a private HOME, so with
+# CACHES. The suite runner gives every job a private HOME, so with
 # GOMODCACHE/GOCACHE unset `go` finds neither a module cache nor a build cache
 # and re-downloads this module's requirements from the proxy and recompiles
 # cold on EVERY suite run — which puts a network dependency on the whole-suite

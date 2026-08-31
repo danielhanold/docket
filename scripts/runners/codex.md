@@ -5,8 +5,8 @@
 The first per-runner adapter of the cross-harness runner delegation framework (change 0079):
 delegates one docket agent's **whole run** to OpenAI Codex CLI via its non-interactive exec
 primitive, `codex exec`. Owns everything child-specific — preflight, prompt assembly, flag
-mapping, foreground execution, final-message relay. Invoked only by `runner-dispatch.sh`
-(behind `docket.sh runner-dispatch`), never directly by skills or shims.
+mapping, foreground execution, final-message relay. Invoked only by the runner
+dispatcher, never directly by skills or shims.
 
 ## Usage
 

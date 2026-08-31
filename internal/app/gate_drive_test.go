@@ -59,7 +59,7 @@ func TestServiceMapsEveryOutcomeIntoProtocolDoc(t *testing.T) {
 				Outcome:         tc.outcome,
 				RawRunDir:       tc.rawRunDir,
 			}}
-			svc := newGateDriveService(eng, 30*time.Minute, "scripts/run-tests.sh", "prov")
+			svc := newGateDriveService(eng, 30*time.Minute, "go test ./...", "prov")
 
 			got := svc.Advance("d1", "owner")
 			if got.Result != ResultApplied {
@@ -126,7 +126,7 @@ func TestServiceCommandFailureIsDistinctFromWorkflowResult(t *testing.T) {
 // caller — and shells the resolved command exactly as the finalize gate does.
 func TestServiceStartInjectsAuthoritativeConfig(t *testing.T) {
 	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.WAITING}}
-	svc := newGateDriveService(eng, 42*time.Minute, "scripts/run-tests.sh", "prov-token")
+	svc := newGateDriveService(eng, 42*time.Minute, "go test ./...", "prov-token")
 
 	got := svc.Start(GateDriveStartRequest{
 		RepoDir:             "/repo",
@@ -142,7 +142,7 @@ func TestServiceStartInjectsAuthoritativeConfig(t *testing.T) {
 	if !eng.startCalled {
 		t.Fatalf("Start must reach the engine")
 	}
-	wantArgv := []string{"/bin/sh", "-c", "scripts/run-tests.sh"}
+	wantArgv := []string{"/bin/sh", "-c", "go test ./..."}
 	if len(eng.lastStart.Command) != len(wantArgv) {
 		t.Fatalf("Start must shell the resolved command, got %v", eng.lastStart.Command)
 	}
@@ -188,7 +188,7 @@ func TestNewGateDriveServiceResolvesConfig(t *testing.T) {
 	eff := config.Effective{
 		GateObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}},
 	}
-	eff.Finalize.TestCommand = config.Value[string]{Value: "scripts/run-tests.sh", Provenance: config.Provenance{Layer: config.LayerRepository}}
+	eff.Finalize.TestCommand = config.Value[string]{Value: "go test ./...", Provenance: config.Provenance{Layer: config.LayerRepository}}
 
 	svc, res, reason := NewGateDriveService(t.TempDir(), "/usr/bin/true", eff)
 	if svc == nil {
@@ -197,7 +197,7 @@ func TestNewGateDriveServiceResolvesConfig(t *testing.T) {
 	if svc.budget != 30*time.Minute {
 		t.Fatalf("budget must resolve from gate_observation_budget minutes, got %v", svc.budget)
 	}
-	if svc.command != "scripts/run-tests.sh" {
+	if svc.command != "go test ./..." {
 		t.Fatalf("command must resolve from finalize.test_command, got %q", svc.command)
 	}
 	if svc.provenance == "" {

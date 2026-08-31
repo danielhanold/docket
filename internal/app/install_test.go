@@ -289,8 +289,8 @@ func TestPlannersPlanAndDetect(t *testing.T) {
 	// filepath.Clean, and not a bare t.TempDir(): t.TempDir() hands back
 	// $TMPDIR's spelling verbatim (os.TempDir strips trailing slashes and
 	// nothing else), so under a $TMPDIR carrying an interior "//" — which
-	// scripts/run-tests.sh produces, since macOS's default TMPDIR ends in "/"
-	// and the runner appends "/run-tests.XXXXXX" to it — the fake home is not
+	// the suite runner produces, since macOS's default TMPDIR ends in "/"
+	// and the runner appends a per-job temp subdir to it — the fake home is not
 	// lexically clean. Every planned path comes out of filepath.Join, which
 	// cleans, so the containment check below would compare a cleaned target
 	// against an uncleaned root and report every path as an escape. Cleaning
