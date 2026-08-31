@@ -156,6 +156,14 @@ func TestBuiltinEffectiveMatchesRegistryDefaults(t *testing.T) {
 		"board_surfaces":               eff.BoardSurfaces.Value,
 		"change_types":                 eff.ChangeTypes.Value,
 	}
+	// The board presentation block mirrors the registry the same way: the
+	// section-order list and every per-section sort leaf, keyed and walked by
+	// BoardSectionTokens so a new section cannot drift the two apart.
+	leaves["board.section_order"] = eff.Board.SectionOrder.Value
+	for _, s := range BoardSectionTokens {
+		leaves["board.sorting."+s+".by"] = eff.Board.Sorting[s].By.Value
+		leaves["board.sorting."+s+".direction"] = eff.Board.Sorting[s].Direction.Value
+	}
 
 	seen := make(map[string]bool, len(leaves))
 	for _, spec := range registry() {

@@ -50,7 +50,11 @@ import (
 // the file, matching what the retired Bash extraction saw.
 
 // activeKeyRe matches an active (uncommented) `key:` line, capturing indent and key.
-var activeKeyRe = regexp.MustCompile(`^([ \t]*)([A-Za-z_][A-Za-z0-9_]*)[ \t]*:`)
+// The key class admits an internal hyphen: change 0367's board.sorting.<section>
+// leaves are the first schema paths whose segments are hyphenated section tokens
+// (e.g. `in-progress`), and the extractor must qualify them exactly to check the
+// correspondence in both directions.
+var activeKeyRe = regexp.MustCompile(`^([ \t]*)([A-Za-z_][A-Za-z0-9_-]*)[ \t]*:`)
 
 // scopeTagRe / commentedKeyRe drive the commented block-opener discriminator: every
 // intentionally-commented top-level key in this file is the line IMMEDIATELY after

@@ -97,6 +97,89 @@ func effectiveLeaf(t *testing.T, eff Effective, path string) (any, Provenance, b
 
 func leaseTTL(n int) string { return fmt.Sprintf("reclaim:\n  lease_ttl: %d\n", n) }
 
+// TestResolveBoardDefaults pins the built-in board presentation: the canonical
+// six-token permutation, and one updated/desc sort per section, all
+// non-explicit built-in.
+func TestResolveBoardDefaults(t *testing.T) {
+	res := mustResolve(t, nil, mainCtx)
+	b := res.effective.Board
+	if got := b.SectionOrder.Value; !reflect.DeepEqual(got, BoardSectionTokens) {
+		t.Fatalf("default section_order = %v, want %v", got, BoardSectionTokens)
+	}
+	if b.SectionOrder.Explicit || b.SectionOrder.Provenance.Layer != LayerBuiltIn {
+		t.Fatalf("default section_order must be non-explicit built-in, got explicit=%v layer=%q",
+			b.SectionOrder.Explicit, b.SectionOrder.Provenance.Layer)
+	}
+	for _, s := range BoardSectionTokens {
+		srt, ok := b.Sorting[s]
+		if !ok {
+			t.Fatalf("missing default sorting for %s", s)
+		}
+		if srt.By.Value != "updated" || srt.Direction.Value != "desc" {
+			t.Errorf("%s default sort = %s %s, want updated desc", s, srt.By.Value, srt.Direction.Value)
+		}
+		if srt.By.Explicit || srt.By.Provenance.Layer != LayerBuiltIn {
+			t.Errorf("%s default by must be non-explicit built-in, got explicit=%v layer=%q",
+				s, srt.By.Explicit, srt.By.Provenance.Layer)
+		}
+		if srt.Direction.Explicit || srt.Direction.Provenance.Layer != LayerBuiltIn {
+			t.Errorf("%s default direction must be non-explicit built-in, got explicit=%v layer=%q",
+				s, srt.Direction.Explicit, srt.Direction.Provenance.Layer)
+		}
+	}
+}
+
+// TestResolveBoardLayeringAndPerLeafInheritance: a global sets built {by: id,
+// direction: asc}; a repository-local overrides ONLY built.direction. Each
+// sort leaf resolves independently, and every sibling section keeps its
+// built-in updated/desc.
+func TestResolveBoardLayeringAndPerLeafInheritance(t *testing.T) {
+	res := mustResolve(t, []Source{
+		srcG("board:\n  sorting:\n    built:\n      by: id\n      direction: asc\n"),
+		srcL("board:\n  sorting:\n    built:\n      direction: desc\n"),
+	}, mainCtx)
+	b := res.effective.Board
+
+	built := b.Sorting["built"]
+	if built.By.Value != "id" || built.By.Provenance.Layer != LayerGlobal || !built.By.Explicit {
+		t.Errorf("built.by = %+v, want id from the global layer (explicit)", built.By)
+	}
+	if built.Direction.Value != "desc" || built.Direction.Provenance.Layer != LayerRepositoryLocal || !built.Direction.Explicit {
+		t.Errorf("built.direction = %+v, want desc from the repository-local layer (explicit)", built.Direction)
+	}
+
+	for _, s := range BoardSectionTokens {
+		if s == "built" {
+			continue
+		}
+		srt := b.Sorting[s]
+		if srt.By.Value != "updated" || srt.By.Explicit || srt.By.Provenance.Layer != LayerBuiltIn {
+			t.Errorf("%s.by = %+v, want the untouched built-in updated", s, srt.By)
+		}
+		if srt.Direction.Value != "desc" || srt.Direction.Explicit || srt.Direction.Provenance.Layer != LayerBuiltIn {
+			t.Errorf("%s.direction = %+v, want the untouched built-in desc", s, srt.Direction)
+		}
+	}
+}
+
+// TestResolveBoardSectionOrderWholeListReplacement: a global declares one full
+// valid permutation, a repository declares a different full valid permutation;
+// the repository wins wholesale with repository provenance.
+func TestResolveBoardSectionOrderWholeListReplacement(t *testing.T) {
+	repoOrder := []string{"built", "in-progress", "blocked", "groomed", "proposed", "deferred"}
+	res := mustResolve(t, []Source{
+		srcG("board:\n  section_order: [deferred, proposed, groomed, blocked, built, in-progress]\n"),
+		srcR("board:\n  section_order: [built, in-progress, blocked, groomed, proposed, deferred]\n"),
+	}, mainCtx)
+	got := res.effective.Board.SectionOrder
+	if !reflect.DeepEqual(got.Value, repoOrder) {
+		t.Errorf("section_order = %v, want the repository permutation %v (a higher layer replaces the list whole)", got.Value, repoOrder)
+	}
+	if got.Provenance.Layer != LayerRepository || !got.Explicit {
+		t.Errorf("section_order provenance = %+v (explicit %v), want the repository layer", got.Provenance, got.Explicit)
+	}
+}
+
 func TestPrecedencePerLeaf(t *testing.T) {
 	cases := []struct {
 		name     string

@@ -110,6 +110,7 @@ type Effective struct {
 	Review            Review          `json:"review"`
 	GateObservation   Value[int]      `json:"gate_observation_budget"` // minutes
 	BoardSurfaces     Value[[]string] `json:"board_surfaces"`
+	Board             Board           `json:"board"`
 	ChangeTypes       Value[[]string] `json:"change_types"`
 	// AgentHarnesses is the repository's explicit parent-facing dispatch opt-in.
 	// Write authority for repository surfaces exists iff it is Explicit AND its
@@ -139,6 +140,19 @@ type Reclaim struct {
 type Review struct {
 	MinFixSeverity Value[string] `json:"min_fix_severity"` // minor|important|blocker
 	MaxFixTasks    Value[int]    `json:"max_fix_tasks"`
+}
+
+// Board is the rendered-board presentation policy: a complete section-order
+// permutation and one sort per section. Sorting is keyed by
+// BoardSectionTokens and always carries all six entries.
+type Board struct {
+	SectionOrder Value[[]string]      `json:"section_order"`
+	Sorting      map[string]BoardSort `json:"sorting"`
+}
+
+type BoardSort struct {
+	By        Value[string] `json:"by"`        // id | updated | created
+	Direction Value[string] `json:"direction"` // asc | desc
 }
 
 // AgentsTable: harness → agent short name → resolved model/effort.

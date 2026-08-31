@@ -129,6 +129,47 @@ var changeTypeToken = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 
 var reservedChangeTypes = []string{"all", "untyped"}
 
+// BoardSectionTokens is the closed, canonical-order vocabulary of the rendered
+// board's presentation sections (change 0367) — deliberately distinct from
+// lifecycle statuses. It is the built-in section_order and the key set every
+// Board.Sorting map carries.
+var BoardSectionTokens = []string{"in-progress", "built", "blocked", "groomed", "proposed", "deferred"}
+
+// BoardSortFields / BoardSortDirections are the closed enums a per-section sort
+// leaf accepts.
+var (
+	BoardSortFields     = []string{"id", "updated", "created"}
+	BoardSortDirections = []string{"asc", "desc"}
+)
+
+// boardRegistryRows is the board presentation block: the section_order list
+// plus one `by` and one `direction` row per section, generated from
+// BoardSectionTokens so the twelve sort rows cannot drift from the token set.
+// section_order carries only shape validation here (a list of non-empty
+// strings); the permutation rule (every token exactly once) is the decode
+// stage's warn-and-ignore surface, which a leafValidator cannot express.
+func boardRegistryRows() []pathSpec {
+	rows := []pathSpec{
+		{path: "board.section_order", kind: kindStringList,
+			def:   append([]string(nil), BoardSectionTokens...),
+			merge: mergeListReplace, scope: scopeAny, disp: dispSupported,
+			validate: listLeaf(listOpts{})},
+	}
+	for _, s := range BoardSectionTokens {
+		rows = append(rows,
+			pathSpec{path: "board.sorting." + s + ".by", kind: kindString,
+				enum: BoardSortFields, def: "updated",
+				merge: mergeScalar, scope: scopeAny, disp: dispSupported,
+				validate: enumLeaf(BoardSortFields...)},
+			pathSpec{path: "board.sorting." + s + ".direction", kind: kindString,
+				enum: BoardSortDirections, def: "desc",
+				merge: mergeScalar, scope: scopeAny, disp: dispSupported,
+				validate: enumLeaf(BoardSortDirections...)},
+		)
+	}
+	return rows
+}
+
 // registryTable is built once; registry() hands out the same slice, which
 // callers read and never mutate.
 var registryTable = buildRegistry()
@@ -140,7 +181,7 @@ func registry() []pathSpec { return registryTable }
 
 func buildRegistry() []pathSpec {
 	dirLeaf := stringLeaf(true, false, true)
-	return []pathSpec{
+	rows := []pathSpec{
 		// 1: the Bash runtime is gone; the setting is warned about wherever it
 		// appears and never resolved.
 		{path: "runtime.bash", kind: kindString, merge: mergeScalar, scope: scopeLocalOnly,
@@ -211,10 +252,19 @@ func buildRegistry() []pathSpec {
 		{path: "delegation_observation_budget", kind: kindInt, def: 60,
 			merge: mergeScalar, scope: scopeAny, disp: dispInert, validate: intLeaf(0)},
 
-		// 20-23: board, project, publish, groom.
+		// 20: board surface list.
 		{path: "board_surfaces", kind: kindStringList, def: []string{"inline"},
 			merge: mergeListReplace, scope: scopeAny, disp: dispSupportedOrDropped,
 			validate: listLeaf(listOpts{})},
+	}
+
+	// 21-33: the board presentation block (change 0367) sits right after
+	// board_surfaces — one section_order row and the twelve per-section sort
+	// rows generated from BoardSectionTokens.
+	rows = append(rows, boardRegistryRows()...)
+
+	// 34-...: project, publish, groom, and the remaining v0.9.2 rows.
+	rows = append(rows, []pathSpec{
 		{path: "github_project", kind: kindScalarOrMap, def: "auto",
 			merge: mergeScalar, scope: scopeRepoFenced, disp: dispInert,
 			validate: githubProjectLeaf()},
@@ -300,7 +350,9 @@ func buildRegistry() []pathSpec {
 			disp: dispInertCompanion, validate: stringLeaf(true, true, false)},
 		{path: "runners.*.shim_effort", kind: kindString, merge: mergeScalar, scope: scopeAny,
 			disp: dispInertCompanion, validate: stringLeaf(true, true, false)},
-	}
+	}...)
+
+	return rows
 }
 
 // githubProject is the parsed `github_project` value: the `auto` sentinel, or

@@ -46,12 +46,27 @@ func builtinEffective() Effective {
 		},
 		GateObservation: builtinValue(30),
 		BoardSurfaces:   builtinValue([]string{"inline"}),
+		Board: Board{
+			SectionOrder: builtinValue(append([]string(nil), BoardSectionTokens...)),
+			Sorting:      builtinBoardSorting(),
+		},
 		ChangeTypes:     builtinValue([]string{"chore", "docs", "feat", "fix", "refactor", "perf"}),
 		// No built-in default: an absent agent_harnesses is the touch-nothing
 		// state, so the built-in value is a nil list that stays non-explicit.
 		AgentHarnesses: builtinValue([]string(nil)),
 		Agents:         builtinAgents(),
 	}
+}
+
+// builtinBoardSorting is the built-in per-section sort table: every section
+// sorts updated desc, keyed by BoardSectionTokens. A fresh map is built per
+// call so a caller layering overrides can never write back into the defaults.
+func builtinBoardSorting() map[string]BoardSort {
+	m := make(map[string]BoardSort, len(BoardSectionTokens))
+	for _, s := range BoardSectionTokens {
+		m[s] = BoardSort{By: builtinValue("updated"), Direction: builtinValue("desc")}
+	}
+	return m
 }
 
 // agentDefault is one shipped model/effort pin, written the way
