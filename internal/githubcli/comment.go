@@ -124,6 +124,7 @@ func (c *Client) EnsureComment(ctx context.Context, repo Repository, number int,
 		},
 		stdin:   []byte(body),
 		network: true,
+		write:   true,
 	})
 	if mf != nil && mf.Stage == StageLaunch {
 		// gh never started; nothing was posted. Retain as unknown.

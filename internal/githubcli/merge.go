@@ -221,7 +221,7 @@ func (c *Client) MergePullRequest(ctx context.Context, repo Repository, number i
 	if admin {
 		args = append(args, "--admin")
 	}
-	res, mf := c.run(ctx, runRequest{op: mergeOp, args: args, network: true})
+	res, mf := c.run(ctx, runRequest{op: mergeOp, args: args, network: true, write: true})
 	if mf != nil {
 		if mf.Stage == StageLaunch {
 			// gh never started; nothing merged. Retain as unknown with no method.
