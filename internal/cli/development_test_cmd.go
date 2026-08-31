@@ -35,9 +35,9 @@ func runDevelopmentTest(ctx context.Context, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	// The env seams are shared with scripts/run-tests.sh so one setup drives both
-	// runners; the Go-runner-only seams (JOBS/BUDGETS/STATE/STRICT) are flags on
-	// the Bash side. An unset seam takes the branch-faithful default.
+	// The DOCKET_RUNTESTS_* env seams configure the Go runner (TESTS_DIR/BUDGETS
+	// select inputs; JOBS/STATE/STRICT tune the run). An unset seam takes the
+	// branch-faithful default.
 	testsDir := envOr("DOCKET_RUNTESTS_TESTS_DIR", filepath.Join(repoRoot, "tests"))
 	budgets := envOr("DOCKET_RUNTESTS_BUDGETS", filepath.Join(repoRoot, "tests", "runtime-budgets.tsv"))
 

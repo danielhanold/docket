@@ -1,8 +1,8 @@
 // This file owns the budget vocabulary: the per-target Mode, the default
 // ceiling, the runtime-budgets TSV loader, and the two integer-exact threshold
-// predicates plus the oracle's threshold rendering. The arithmetic is copied
-// verbatim from scripts/run-tests.sh so the Go runner and the Bash oracle reach
-// identical verdicts on identical measurements (screening secs*2 > ceil*5,
+// predicates plus the oracle's threshold rendering. The arithmetic was copied
+// verbatim from the former Bash oracle so the Go runner reaches the same
+// verdicts the oracle did on identical measurements (screening secs*2 > ceil*5,
 // authoritative solo secs*2 > ceil*3).
 package suiterunner
 

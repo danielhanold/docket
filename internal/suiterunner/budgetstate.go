@@ -1,5 +1,5 @@
 // This file owns the screen-then-confirm budget state machine (change 0318),
-// mirroring the Bash oracle's change-0251 machinery in scripts/run-tests.sh: a
+// mirroring the former Bash oracle's change-0251 machinery: a
 // contended parallel measurement is only a SCREENING observation, never an
 // authoritative breach; a five-overrun streak arms the first serial confirmation
 // and a ten-overrun recheck counter arms a periodic one; at most ONE scheduled

@@ -1,6 +1,6 @@
 // This file owns per-target isolation: the child's HOME/TMPDIR/git-config layout
-// and the exact environment overrides the Bash oracle's launch() exports
-// (scripts/run-tests.sh). A target runs against a synthetic git identity and no
+// and the exact environment overrides the former Bash oracle's launch()
+// exported. A target runs against a synthetic git identity and no
 // interactive prompts, in a private HOME/TMPDIR, so nothing it does touches the
 // developer's real home or blocks on a human.
 package suiterunner

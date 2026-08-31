@@ -2,8 +2,8 @@
 // runner publishes for every scheduled target, the atomic temp-beside-rename
 // write, and the strict read the aggregator later cross-checks against the
 // runner-observed truth. One file per target under <work>/stat, named by the
-// target's .sh-stripped stem — mirroring the Bash oracle's per-file stat record
-// (scripts/run-tests.sh launch()) so a human reads both with one set of eyes.
+// target's .sh-stripped stem — mirroring the former Bash oracle's per-file stat
+// record (its launch()) so a human reads both with one set of eyes.
 package suiterunner
 
 import (

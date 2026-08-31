@@ -563,11 +563,6 @@ board_surfaces: [inline]      # the github token is fenced here too — per-repo
 
 Its own path (and every file `sync-agents.sh` generates) is kept out of git by the managed docket `.gitignore` block (the `# docket:start` / `# docket:end` markers) the script owns — see **Tuning an agent's model & effort** below.
 
-The runtime resolver exports a valid setting as `DOCKET_BASH_PATH` in both shell and plain
-preflight output. Missing, relative, non-executable, unversionable, or Bash-3 paths fail closed
-with an install/upgrade diagnostic; Docket never accepts a bare `bash` command or searches PATH at
-resolver time.
-
 ### Coordination keys are per-repo-only
 
 Some keys write shared state, and a machine-scoped value for them would silently split the backlog across machines or mint external GitHub objects. These keys — `metadata_branch`, `integration_branch`, `changes_dir`, `adrs_dir`, `results_dir`, `github_project`, `terminal_publish`, and the `github` token of `board_surfaces` — are therefore **per-repo-only**: they are ignored with a loud warning when set globally **or** in a repo's `.docket.local.yml`. Set them in the repo's committed `.docket.yml` only.
