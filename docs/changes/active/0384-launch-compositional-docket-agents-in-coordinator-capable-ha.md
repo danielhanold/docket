@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/launch-compositional-docket-agents-in-coordinator-capable-ha'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-31T16:14:19Z'
+reconciled: true
+claimed_at: '2026-08-31T16:16:46Z'
 ---
 
 ## Artifacts
@@ -45,3 +45,16 @@ Separate workflow semantics from harness launch mechanics. Prototype the support
 ## Out of scope
 
 Changing existing agent topology, payload or return protocols, model or effort pins, worktree scopes, Tier-C authorization, or skill bindings; adding a parent-relay, generic-agent, shell-runner, or cross-harness fallback unless every accessible native coordinator launch is conclusively unavailable; and the separate run-gate continuation work tracked by change 0359.
+
+## Reconcile log
+
+### 2026-08-31
+
+### 2026-08-31 — reconcile (docket-implement-next)
+
+Reconciled against current reality before planning.
+
+- **Environment premise holds.** Codex CLI 0.151.0 is installed on this machine, `~/.codex/config.toml` sets `multi_agent = true`, a shared local app-server daemon backs `codex agents`, and every Docket agent wrapper is installed as a native TOML under `~/.codex/agents/` (docket-implement-next, docket-plan-writer, docket-build-*, etc.). The spec's premise — a registered-agent root that must reach a coordinator-capable launch — matches the live environment exactly, so no scope adjustment is warranted on those grounds.
+- **Cited code is current.** `internal/harness/codex/codex.go` still emits the change-0365 `codexDispatchBoundary` into every generated agent unconditionally (it is not an allowlist), and `renderAgent` places the recursion guard first and the dispatch boundary second. ADR-0036 (repository-owned parent routing, machine-local Codex wrappers), ADR-0059 (capability resolved, not inferred from a tool name), ADR-0060 (wrapper conforms to target-harness contract), and ADR-0094 (pinned plan-writer) are all still in force and unmodified. The harness adapter layer (`internal/harness/`, four adapters) and the `agents/docket-*.md` common inventory are the boundaries the design names.
+- **Related work unchanged.** Change 0359 (run-gate waiting/continuation) is untouched by this change. Change 0364 remains the failed live transcript with its durable `## Run halted` marker; it is not modified here and is resumed only after this fix merges and installs.
+- **Crux confirmed, not softened.** The acceptance evidence is a live, fresh-process Codex certification (root -> coordinator -> named leaf -> unique sentinel) across both supported entry paths; automated generator/adapter tests cannot substitute for it, and no production launch mechanism may be encoded until the disposable fixture proves it (Design section 1). This is reachable on this machine but is genuine live multi-process investigation of the Codex 0.151.0 app-server surface. Per the spec, a PR may be opened for review while any external limitation is clearly reported, but the change is not `done` without the successful nested sentinel or an approved redesign. No spec sections are still-mutable in a way that requires rewriting; relations (`related: [359, 364]`, `discovered_from: [365]`, `adrs: [36, 59, 60, 94]`) are accurate and left unchanged.
