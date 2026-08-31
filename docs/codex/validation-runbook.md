@@ -329,46 +329,69 @@ render — works end to end under a non-Claude harness.
 
 ## Phase 7 — Nested dispatch from both entry paths
 
-Change 0365's live certification. Phases 1–6 proved wrappers generate, load, and dispatch once;
-this phase proves a **registered parent agent can perform the nested dispatches its charter
-requires**, on both supported entry paths, without falsely concluding dispatch is unavailable
-from a nested tool inventory. Run it in the **disposable fixture repo** from Phase 1 — never the
-real docket backlog. Install the build under test first (Phase 1), then start a **fresh Codex
-process** (see `docs/codex/setup.md`, *Restart after (re)generating* — a conversation opened in
-an already-running process holds stale definitions and certifies nothing).
+Live certification that a **registered parent agent can perform the nested dispatches its charter
+requires**, on both supported entry paths, without falsely concluding dispatch is unavailable from
+a nested tool inventory. Phases 1–6 proved wrappers generate, load, and dispatch once; this phase
+proves the root → coordinator → named-leaf composition round-trips a sentinel. Drive it through the
+**committed two-role fixture** at
+[`docs/codex/fixtures/nested-launch/README.md`](fixtures/nested-launch/README.md) — a synthetic
+`probe-coordinator` and `probe-leaf` carrying **none** of docket's real workflow prose — rather than
+staging a live docket composition by hand; that README owns the install, the scratch-repo staging
+for entry path A, and the teardown. Run it in a **disposable fixture repo** — never the real docket
+backlog. Install the build under test first (Phase 1), then start a **fresh Codex process** (see
+`docs/codex/setup.md`, *Restart after (re)generating* — a conversation opened in an already-running
+process holds stale definitions and certifies nothing; each `codex exec` invocation is itself a
+fresh process, so a scripted probe satisfies this automatically).
 
-- [ ] 1. **Record the Codex version** (`codex --version`) in the results doc before any probe —
-  this certification is scoped to the exact version it ran on.
+- [ ] 1. **Record the Codex version** (`codex --version`) and the `multi_agent` setting in the
+  results doc before any probe — this certification is scoped to the exact version and
+  configuration it ran on (this fixture is proven on **codex-cli 0.151.0**, `multi_agent = true`).
 
-- [ ] 2. **Entry path A — prose.** In the fixture repo, issue a plain prose request the managed
-  dispatch block routes ("show me the docket status board") — that block lives in the committed
-  `AGENTS.md`. Expected: the request is delegated to the registered `docket-status` agent, and
-  that agent's own composition dispatches run as child agents.
+- [ ] 2. **The sentinel protocol.** Mint a **fresh uuid per run** (`uuidgen`) and pass it as
+  `SENTINEL=<uuid>`. A run passes **only** when the grandchild actually starts and the sentinel
+  round-trips: the leaf returns `LEAF_SENTINEL=<uuid>` and the coordinator returns
+  `COORDINATOR_CONSUMED=<same uuid>`. Because the coordinator is *told* the uuid, a bare
+  `COORDINATOR_CONSUMED=<uuid>` line is **not** proof on its own — corroborate it against the
+  session's own agent-start events per step 5.
 
-- [ ] 3. **Entry path B — direct invocation.** Start `@docket-implement-next` against a fixture
-  change staged as build-ready in the fixture repo. Expected: the run reaches Step 4 and
-  dispatches the registered `docket-plan-writer` (the exact dispatch the live 0361 run falsely
-  declared unavailable), then continues into build/review composition.
+- [ ] 3. **Entry path B — direct registered-agent invocation.** In a fresh Codex process, invoke
+  `probe-coordinator` directly with `SENTINEL=<fresh uuid>`. Expected: the coordinator starts
+  `probe-leaf` as a named child and returns `COORDINATOR_CONSUMED=<uuid>`.
 
-- [ ] 4. **Sample every composition family** across the two runs (and additional fixture
-  invocations as needed): implement-next composition (`docket-status`, `docket-plan-writer`,
-  `docket-adr`), profile-routed build (a `docket-build-*` profile agent), rung-routed review
-  (a `docket-review-*` agent), the auto-groom critic (`docket-auto-groom-critic`), and finalize's
-  resolver and repair (`docket-rebase-resolver`, `docket-integration-repair` — stage a fixture
-  conflict/red-suite if needed, or record them as attempted-dispatch evidence only). For each,
-  capture an **observable child-return sentinel**: a dispatch attempt **counts only when the
-  child actually starts and its expected return is consumed** by the parent — model narration
-  that a dispatch "happened" is not evidence.
+- [ ] 4. **Entry path A — repository managed-dispatch prose.** In the scratch fixture repo whose
+  `AGENTS.md` dispatch block routes to `probe-coordinator` (staged per the README), in a fresh root
+  Codex session, issue the plain-prose request that block routes, same sentinel protocol. Expected:
+  the same full round-trip.
 
-- [ ] 5. **Negative-evidence discipline.** If any run reports dispatch unavailable, that verdict
+- [ ] 5. **BINDING OBSERVATION PROTOCOL — adjudicate from the thread store, never the item
+  stream.** Judge pass/fail **only** from the Codex thread store
+  (`~/.codex/sessions/<date>/rollout-*.jsonl`: `session_meta.source.subagent.thread_spawn`,
+  `agent_role`, `agent_path`, `task_complete`) or the app-server `subAgentActivity` notification
+  stream — a real child thread and grandchild thread with registered `agent_role`s and both
+  `task_complete` sentinels. **Never** use the `codex exec --json` item stream as the pass/fail
+  oracle: on this build it **under-reports collaboration** — it shows a `collab_tool_call` `wait`
+  with empty `receiver_thread_ids`/`agents_states` and never itemizes `spawn_agent` while real
+  children run. That false negative is exactly what produced the baseline's "fabrication" verdict
+  and the earlier dispatch-unavailable halt; the thread store falsified it.
+
+- [ ] 6. **Negative-evidence discipline.** If any run reports dispatch unavailable, that verdict
   is valid **only** if the transcript contains the **direct rejection or an explicit policy
-  denial** of an actually-attempted dispatch. A verdict derived from inspecting a nested tool
-  inventory is the defect this change fixed — record it as a regression, not as an environment
-  finding.
+  denial** of an actually-attempted dispatch (ADR-0059). A verdict derived from inspecting a nested
+  tool inventory — or from the under-reporting item stream of step 5 — is the defect this change
+  fixed: record it as a regression, not as an environment finding.
 
-**Pass when:** both entry paths completed their nested dispatches with sentinel evidence for
-every composition family sampled (or a recorded direct rejection/policy denial for any that
-genuinely cannot run), and the Codex version is recorded in the results doc.
+- [ ] 7. **Record the failed-current / fixed-new comparison.** The failed-current reading judged
+  the run from the `codex exec --json` item stream and concluded no child started; the fixed-new
+  reading judges the same run from the thread store and finds the full chain. The delta is the
+  **observation protocol**, not a launch-shape change — capture both readings of one run in the
+  results doc so the oracle mutation (right oracle vs. wrong oracle) is on the record.
+
+**Pass when:** both entry paths completed the nested round-trip — a real child and grandchild in
+the thread store consuming the run's own freshly minted uuid inside `COORDINATOR_CONSUMED=` — the
+adjudication was made from the thread store (or `subAgentActivity`) and never the item stream, and
+the Codex version and `multi_agent` setting are recorded in the results doc. A recorded direct
+rejection or explicit policy denial of an actually-attempted dispatch is the only valid
+unavailable verdict.
 
 ## Pass criteria
 
