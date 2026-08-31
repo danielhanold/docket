@@ -22,7 +22,7 @@ branch: 'refactor/delete-the-frozen-bash-facade-and-legacy-test-surface'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-30T17:30:01Z'
+claimed_at: '2026-08-31T09:45:40Z'
 ---
 
 ## Artifacts
@@ -71,12 +71,6 @@ Reconciled against the merged 0369 -> 0371 -> 0372 consumer-cutover chain. Confi
 ### 2026-08-30
 
 Human-approved regroom in response to the Task 1 halt. Captured change 0377 as the critical predecessor that owns the missing native facade-operation verbs and retained workflow cutover. Change 0370 now depends on 0377, and its proposal/spec explicitly reserve that migration to 0377 while retaining 0370's deletion-only scope. This reconcile intentionally leaves the existing `## Run halted` record, plan reference, feature branch, and no-PR state intact; it does not resume or re-dispatch the run.
-
-## Run halted
-
-### 2026-08-30
-
-2026-08-30 — Autonomous implement-next run HALTED at Task 1 (shape-derived inventory), before any code was written (feature branch head e3068d6 carries only the plan commit; Task 1 committed nothing). The build's fail-closed classification pass found a material, load-bearing contradiction between this change's spec premise and the merged base it is built on, and I verified it directly from git before halting.
 
 ## What blocks the change
 
