@@ -92,6 +92,42 @@ func equalIDs(got, want []ChangeID) bool {
 	return true
 }
 
+// selectQueueSignature is a compile-time anchor: SelectQueue's whole input is
+// (Snapshot, BranchFacts, SelectionFilter) — snapshot and derived facts only,
+// no configuration of any kind. If a future edit threads board presentation (or
+// any config) into selection, its signature changes and this assignment stops
+// compiling, reddening the package before any assertion runs. This is the
+// domain half of the projection-isolation claim (change 0367): the autonomous
+// ready-queue cannot even NAME board.section_order / board.sorting, because
+// domain does not import the render or config packages that carry them.
+var selectQueueSignature func(Snapshot, BranchFacts, SelectionFilter) []Change = SelectQueue
+
+// TestSelectionUnchangedByBoardPresentation proves the autonomous selection
+// order is decided by selection's own key (priority, then created age, then
+// lowest id) and nothing a board presentation could reorder. The fixture is a
+// single priority band whose members tie on priority, so the ONLY thing
+// deciding their order is created-then-id — a key board.section_order and
+// board.sorting have no way to reach (SelectQueue takes no config; see
+// selectQueueSignature). id 5 arrives first and id 2 shares id 1's date, so a
+// board-driven or arrival-driven order would produce a different sequence; the
+// asserted queue is the selection key's alone.
+func TestSelectionUnchangedByBoardPresentation(t *testing.T) {
+	specs := []selSpec{
+		{id: 5, priority: PriorityHigh}, // undated → sorts last in band
+		{id: 3, priority: PriorityHigh, created: createdOn("2026-01-03")},
+		{id: 2, priority: PriorityHigh, created: createdOn("2026-01-01")}, // ties id 1's date
+		{id: 1, priority: PriorityHigh, created: createdOn("2026-01-01")},
+	}
+	got := ids(SelectQueue(selSnapshot(specs...), remotes(), SelectionFilter{}))
+	// created ascending, id tie-break within the shared date, undated last:
+	// 1 and 2 share 2026-01-01 (→ id 1 then 2), 3 is later, 5 is undated.
+	want := []ChangeID{1, 2, 3, 5}
+	if !equalIDs(got, want) {
+		t.Fatalf("SelectQueue order = %v; want %v — selection order must follow its own key, "+
+			"not board presentation or arrival order", got, want)
+	}
+}
+
 func TestSelectQueueOrdering(t *testing.T) {
 	tests := []struct {
 		name  string
