@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/danielhanold/docket/internal/document"
 	"github.com/danielhanold/docket/internal/domain"
@@ -376,5 +377,186 @@ func TestBoardStackedMergedSection(t *testing.T) {
 	}
 	if !strings.Contains(out, "| [#99](https://github.com/danielhanold/docket/pull/99) | merged into #0008 |") {
 		t.Fatalf("stacked-merged PR/Stack cells missing:\n%s", out)
+	}
+}
+
+// mustDate parses a YYYY-MM-DD test date into a present OptionalTime.
+func mustDate(t *testing.T, ymd string) domain.OptionalTime {
+	t.Helper()
+	tm, err := time.Parse("2006-01-02", ymd)
+	if err != nil {
+		t.Fatalf("parse test date %q: %v", ymd, err)
+	}
+	return domain.OptionalTime{State: domain.FieldPresent, Value: tm, Raw: ymd}
+}
+
+// datedChange builds a proposed active change carrying present updated/created
+// dates, for exercising the per-section comparator directly.
+func datedChange(t *testing.T, id int, updated, created string) domain.Change {
+	t.Helper()
+	spec := proposedChange(id, "s"+fmtID(id), "Change "+fmtID(id))
+	spec.Updated = mustDate(t, updated)
+	spec.Created = mustDate(t, created)
+	return domain.NewChange(spec)
+}
+
+// ids extracts the numeric ids of rows in slice order.
+func ids(rows []domain.Change) []int {
+	out := make([]int, len(rows))
+	for i, c := range rows {
+		out[i] = int(c.ID())
+	}
+	return out
+}
+
+func idsEqual(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// TestSortBoardSectionAllFieldsBothDirections pins the primary key for every
+// (field × direction) combination. The five fixtures are chosen so id-order,
+// updated-order and created-order are three DIFFERENT permutations — a
+// comparator reading the wrong field cannot pass by coincidence.
+func TestSortBoardSectionAllFieldsBothDirections(t *testing.T) {
+	// id : updated    : created
+	//  1 : 2026-01-05 : 2026-01-03
+	//  2 : 2026-01-01 : 2026-01-05
+	//  3 : 2026-01-04 : 2026-01-01
+	//  4 : 2026-01-02 : 2026-01-04
+	//  5 : 2026-01-03 : 2026-01-02
+	base := []domain.Change{
+		datedChange(t, 1, "2026-01-05", "2026-01-03"),
+		datedChange(t, 2, "2026-01-01", "2026-01-05"),
+		datedChange(t, 3, "2026-01-04", "2026-01-01"),
+		datedChange(t, 4, "2026-01-02", "2026-01-04"),
+		datedChange(t, 5, "2026-01-03", "2026-01-02"),
+	}
+	cases := []struct {
+		name string
+		by   render.BoardSortKey
+		dir  render.BoardDirection
+		want []int
+	}{
+		{"id asc", render.BoardSortKeyID, render.BoardDirectionAsc, []int{1, 2, 3, 4, 5}},
+		{"id desc", render.BoardSortKeyID, render.BoardDirectionDesc, []int{5, 4, 3, 2, 1}},
+		{"updated asc", render.BoardSortKeyUpdated, render.BoardDirectionAsc, []int{2, 4, 5, 3, 1}},
+		{"updated desc", render.BoardSortKeyUpdated, render.BoardDirectionDesc, []int{1, 3, 5, 4, 2}},
+		{"created asc", render.BoardSortKeyCreated, render.BoardDirectionAsc, []int{3, 5, 1, 4, 2}},
+		{"created desc", render.BoardSortKeyCreated, render.BoardDirectionDesc, []int{2, 4, 1, 5, 3}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rows := append([]domain.Change(nil), base...)
+			render.SortBoardSectionForTest(rows, render.BoardSort{By: tc.by, Direction: tc.dir})
+			if got := ids(rows); !idsEqual(got, tc.want) {
+				t.Fatalf("order = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestSortBoardSectionSameDateTiesFollowDirection pins the tie-break: rows
+// sharing the primary date order by numeric id in the SAME direction as the
+// primary sort.
+func TestSortBoardSectionSameDateTiesFollowDirection(t *testing.T) {
+	// ids 3 and 7 share 2026-08-30; id 5 is later.
+	rows := func() []domain.Change {
+		return []domain.Change{
+			datedChange(t, 3, "2026-08-30", "2026-01-01"),
+			datedChange(t, 7, "2026-08-30", "2026-01-01"),
+			datedChange(t, 5, "2026-08-31", "2026-01-01"),
+		}
+	}
+
+	desc := rows()
+	render.SortBoardSectionForTest(desc, render.BoardSort{By: render.BoardSortKeyUpdated, Direction: render.BoardDirectionDesc})
+	// desc: newest (id 5) first, then the tie band higher-id first.
+	if got := ids(desc); !idsEqual(got, []int{5, 7, 3}) {
+		t.Fatalf("desc tie order = %v, want [5 7 3]", got)
+	}
+
+	asc := rows()
+	render.SortBoardSectionForTest(asc, render.BoardSort{By: render.BoardSortKeyUpdated, Direction: render.BoardDirectionAsc})
+	// asc: the tie band lower-id first, then the later date.
+	if got := ids(asc); !idsEqual(got, []int{3, 7, 5}) {
+		t.Fatalf("asc tie order = %v, want [3 7 5]", got)
+	}
+}
+
+// TestSortBoardSectionUnknownDatesSortLast pins that rows with an absent or
+// malformed primary date land after every dated row in BOTH directions, and
+// among themselves order by id in the configured direction.
+func TestSortBoardSectionUnknownDatesSortLast(t *testing.T) {
+	// A dated row, plus one absent-date and one malformed-date row.
+	makeRows := func() []domain.Change {
+		dated := datedChange(t, 4, "2026-05-01", "2026-01-01")
+
+		absentSpec := proposedChange(2, "absent", "Absent")
+		absentSpec.Updated = domain.OptionalTime{State: domain.FieldAbsent}
+		absent := domain.NewChange(absentSpec)
+
+		malformedSpec := proposedChange(9, "malformed", "Malformed")
+		malformedSpec.Updated = domain.OptionalTime{State: domain.FieldMalformed, Raw: "not-a-date"}
+		malformed := domain.NewChange(malformedSpec)
+
+		// Deliberately not id-sorted on input.
+		return []domain.Change{malformed, dated, absent}
+	}
+
+	desc := makeRows()
+	render.SortBoardSectionForTest(desc, render.BoardSort{By: render.BoardSortKeyUpdated, Direction: render.BoardDirectionDesc})
+	// Dated row first; then unknowns by id descending (9 before 2).
+	if got := ids(desc); !idsEqual(got, []int{4, 9, 2}) {
+		t.Fatalf("desc unknown-date order = %v, want [4 9 2]", got)
+	}
+
+	asc := makeRows()
+	render.SortBoardSectionForTest(asc, render.BoardSort{By: render.BoardSortKeyUpdated, Direction: render.BoardDirectionAsc})
+	// Dated row STILL first (unknowns after valid dates regardless of
+	// direction); then unknowns by id ascending (2 before 9).
+	if got := ids(asc); !idsEqual(got, []int{4, 2, 9}) {
+		t.Fatalf("asc unknown-date order = %v, want [4 2 9]", got)
+	}
+}
+
+// TestSortBoardSectionIgnoresArrivalOrder pins that the comparator is total:
+// the output is identical no matter how the input slice arrives.
+func TestSortBoardSectionIgnoresArrivalOrder(t *testing.T) {
+	build := []domain.Change{
+		datedChange(t, 1, "2026-01-05", "2026-01-03"),
+		datedChange(t, 2, "2026-01-01", "2026-01-05"),
+		datedChange(t, 3, "2026-01-04", "2026-01-01"),
+		datedChange(t, 4, "2026-01-02", "2026-01-04"),
+		datedChange(t, 5, "2026-01-03", "2026-01-02"),
+	}
+	sort := render.BoardSort{By: render.BoardSortKeyUpdated, Direction: render.BoardDirectionDesc}
+
+	// Canonical order from the natural input.
+	canon := append([]domain.Change(nil), build...)
+	render.SortBoardSectionForTest(canon, sort)
+	want := ids(canon)
+
+	// Reversed and rotated inputs must yield the same output.
+	reversed := make([]domain.Change, len(build))
+	for i, c := range build {
+		reversed[len(build)-1-i] = c
+	}
+	render.SortBoardSectionForTest(reversed, sort)
+	if got := ids(reversed); !idsEqual(got, want) {
+		t.Fatalf("reversed input order = %v, want %v", got, want)
+	}
+
+	rotated := append(append([]domain.Change(nil), build[2:]...), build[:2]...)
+	render.SortBoardSectionForTest(rotated, sort)
+	if got := ids(rotated); !idsEqual(got, want) {
+		t.Fatalf("rotated input order = %v, want %v", got, want)
 	}
 }
