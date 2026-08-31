@@ -140,6 +140,147 @@ func boardFromFacts(t *testing.T, facts domain.BranchFacts, changes ...domain.Ch
 	return out
 }
 
+// TestBoardClassifyEveryBucket pins boardClassify's precedence: exactly one
+// rendered section per active change, including the two precedence edges
+// (finalize-blocked implemented → Blocked over Built; spec-backed build-ready →
+// Groomed while trivial-build-ready-without-spec stays Proposed).
+func TestBoardClassifyEveryBucket(t *testing.T) {
+	blocked := domain.NewChange(domain.ChangeSpec{
+		ID: 1, Slug: "blk", Title: "Blocked", Status: domain.StatusBlocked,
+		Location: domain.LocationActive, Path: "docs/changes/active/0001-blk.md",
+	})
+	finBlocked := domain.NewChange(domain.ChangeSpec{
+		ID: 2, Slug: "fin", Title: "Fin blocked", Status: domain.StatusImplemented,
+		HasFinalizeBlocked: true,
+		Location:           domain.LocationActive, Path: "docs/changes/active/0002-fin.md",
+	})
+	impl := domain.NewChange(domain.ChangeSpec{
+		ID: 3, Slug: "impl", Title: "Impl", Status: domain.StatusImplemented,
+		Location: domain.LocationActive, Path: "docs/changes/active/0003-impl.md",
+	})
+	stacked := domain.NewChange(domain.ChangeSpec{
+		ID: 4, Slug: "stk", Title: "Stacked", Status: domain.StatusStackedMerged,
+		Location: domain.LocationActive, Path: "docs/changes/active/0004-stk.md",
+	})
+	inprog := domain.NewChange(domain.ChangeSpec{
+		ID: 5, Slug: "wip", Title: "WIP", Status: domain.StatusInProgress,
+		Location: domain.LocationActive, Path: "docs/changes/active/0005-wip.md",
+	})
+
+	groomedSpec := proposedChange(6, "groomed", "Groomed")
+	groomedSpec.Spec = optString("docs/superpowers/specs/groomed-design.md")
+	groomed := domain.NewChange(groomedSpec)
+
+	// proposed + spec + unmet dependency → still proposed (readiness ≠ build-ready).
+	depTarget := domain.NewChange(proposedChange(100, "dep", "Dep"))
+	waiterSpec := proposedChange(7, "waiter", "Waiter")
+	waiterSpec.Spec = optString("docs/superpowers/specs/waiter-design.md")
+	waiterSpec.DependsOn = []domain.ChangeID{100}
+	waiter := domain.NewChange(waiterSpec)
+
+	// proposed + spec + unresolved stack base (zero Facts) → proposed.
+	parent := domain.NewChange(domain.ChangeSpec{
+		ID: 9, Slug: "parent", Title: "Parent", Status: domain.StatusInProgress,
+		Branch:   domain.OptionalString{State: domain.FieldPresent, Value: "feat/parent"},
+		Location: domain.LocationActive, Path: "docs/changes/active/0009-parent.md",
+	})
+	stackChildSpec := proposedChange(8, "child", "Child")
+	stackChildSpec.Spec = optString("docs/superpowers/specs/child-design.md")
+	stackChildSpec.StackedOn = domain.OptionalInt{State: domain.FieldPresent, Value: 9}
+	stackChild := domain.NewChange(stackChildSpec)
+
+	// proposed + trivial, no spec (build-ready) → proposed, because the groomed
+	// label means build-ready AND spec-backed.
+	trivialSpec := proposedChange(10, "triv", "Trivial")
+	trivialSpec.Trivial = true
+	trivial := domain.NewChange(trivialSpec)
+
+	needsBrainstorm := domain.NewChange(proposedChange(11, "needs", "Needs brainstorm"))
+
+	agBlockedSpec := proposedChange(12, "agb", "AG blocked")
+	agBlockedSpec.HasAutoGroomBlocked = true
+	agBlocked := domain.NewChange(agBlockedSpec)
+
+	deferred := domain.NewChange(domain.ChangeSpec{
+		ID: 13, Slug: "def", Title: "Deferred", Status: domain.StatusDeferred,
+		Location: domain.LocationActive, Path: "docs/changes/active/0013-def.md",
+	})
+
+	cases := []struct {
+		name   string
+		target domain.Change
+		extra  []domain.Change
+		want   render.BoardSection
+	}{
+		{"blocked lifecycle", blocked, nil, render.BoardSectionBlocked},
+		{"implemented finalize-blocked", finBlocked, nil, render.BoardSectionBlocked},
+		{"implemented healthy", impl, nil, render.BoardSectionBuilt},
+		{"stacked-merged", stacked, nil, render.BoardSectionBuilt},
+		{"in-progress", inprog, nil, render.BoardSectionInProgress},
+		{"proposed spec build-ready", groomed, nil, render.BoardSectionGroomed},
+		{"proposed spec unmet dependency", waiter, []domain.Change{depTarget}, render.BoardSectionProposed},
+		{"proposed spec unresolved stack base", stackChild, []domain.Change{parent}, render.BoardSectionProposed},
+		{"proposed trivial no spec", trivial, nil, render.BoardSectionProposed},
+		{"proposed needs-brainstorm", needsBrainstorm, nil, render.BoardSectionProposed},
+		{"proposed auto-groom-blocked", agBlocked, nil, render.BoardSectionProposed},
+		{"deferred lifecycle", deferred, nil, render.BoardSectionDeferred},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			changes := append([]domain.Change{tc.target}, tc.extra...)
+			snap := domain.NewSnapshot(domain.SnapshotSpec{Changes: changes})
+			got, err := render.BoardClassifyForTest(render.BoardInput{Snapshot: snap}, tc.target)
+			if err != nil {
+				t.Fatalf("classify: %v", err)
+			}
+			if got != tc.want {
+				t.Fatalf("classify = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestBoardClassifyNonActiveStatusErrors pins the fail-closed posture: a
+// terminal (archive) status has no rendered section and classify errors.
+func TestBoardClassifyNonActiveStatusErrors(t *testing.T) {
+	done := domain.NewChange(domain.ChangeSpec{
+		ID: 14, Slug: "done", Title: "Done", Status: domain.StatusDone,
+		Location: domain.LocationArchive, Path: "docs/changes/archive/2026-01-01-0014-done.md",
+	})
+	snap := domain.NewSnapshot(domain.SnapshotSpec{Changes: []domain.Change{done}})
+	if _, err := render.BoardClassifyForTest(render.BoardInput{Snapshot: snap}, done); err == nil {
+		t.Fatalf("expected error classifying a non-active status")
+	}
+}
+
+// TestBoardDefaultPresentation pins the built-in presentation: the default
+// permutation with updated desc on every section.
+func TestBoardDefaultPresentation(t *testing.T) {
+	p := render.DefaultBoardPresentation()
+	want := []render.BoardSection{
+		render.BoardSectionInProgress, render.BoardSectionBuilt, render.BoardSectionBlocked,
+		render.BoardSectionGroomed, render.BoardSectionProposed, render.BoardSectionDeferred,
+	}
+	if len(p.SectionOrder) != len(want) {
+		t.Fatalf("section order = %v, want %v", p.SectionOrder, want)
+	}
+	for i, s := range want {
+		if p.SectionOrder[i] != s {
+			t.Fatalf("section order[%d] = %q, want %q", i, p.SectionOrder[i], s)
+		}
+	}
+	for _, s := range want {
+		srt, ok := p.Sorting[s]
+		if !ok {
+			t.Fatalf("missing default sort for %q", s)
+		}
+		if srt.By != "updated" || srt.Direction != "desc" {
+			t.Fatalf("%q default sort = %q %q, want updated desc", s, srt.By, srt.Direction)
+		}
+	}
+}
+
 // TestBoardActiveSectionSortsByNumericID pins the section sort as NUMERIC
 // ascending, not string collation: id 10 must follow id 2, and unset
 // priority/type render deterministically (empty backticks / `untyped`) without
