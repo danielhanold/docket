@@ -38,8 +38,25 @@ type recordingSweepOps struct {
 	reclaim  map[int]ChangeReclaimResult
 }
 
-func (r *recordingSweepOps) seam() sweepOps {
+// seam builds the injected sweepOps, wiring probeFacts to a per-change probe over
+// the given prober so a test expresses live PR facts through the same
+// fakeFinalizeProber the finalize-context tests use. It reproduces the finalize
+// population predicate the batched production reader selects over, so the
+// orchestration tests stay decoupled from the batch transport (proved separately
+// in sweep_prfacts_test.go and TestSweepSelectionUsesBatchedFactsNotPerChangeProbe).
+func (r *recordingSweepOps) seam(prober FinalizePRProber) sweepOps {
 	return sweepOps{
+		probeFacts: func(ctx context.Context, snap domain.Snapshot) (map[domain.ChangeID]domain.PRFacts, []StatusFinding) {
+			facts := make(map[domain.ChangeID]domain.PRFacts)
+			for _, c := range snap.Changes() {
+				if !finalizeInPopulation(c) {
+					continue
+				}
+				f, _ := probeFinalizeFacts(ctx, prober, "repo", c)
+				facts[c.ID()] = f
+			}
+			return facts, nil
+		},
 		closeout: func(_ context.Context, id int) CloseoutResult {
 			r.calls = append(r.calls, sweepCall{kind: sweepKindCloseout, id: id})
 			if res, ok := r.closeout[id]; ok {
@@ -155,7 +172,7 @@ func TestSweepFindsMergedImplemented(t *testing.T) {
 		32: newCloseoutResult(ResultApplied, CloseoutResult{ID: 32, Disposition: CloseoutDispStackedMerged}),
 	}}
 
-	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeFull)
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeFull)
 
 	if res.Result != ResultApplied {
 		t.Fatalf("result = %q, want applied; entries=%+v", res.Result, res.Entries)
@@ -200,7 +217,7 @@ func TestSweepRetriesSuffixes(t *testing.T) {
 	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{}}
 	ops := &recordingSweepOps{}
 
-	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeFull)
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeFull)
 
 	if !ops.called(sweepKindCleanup, 40) {
 		t.Errorf("completed stack 40 must have cleanup retried; calls=%v", ops.calls)
@@ -226,7 +243,7 @@ func TestSweepReclaimGatedOnAuto(t *testing.T) {
 	t.Run("auto true reclaims", func(t *testing.T) {
 		reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}
 		ops := &recordingSweepOps{}
-		maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeFull)
+		maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeFull)
 		if !ops.called(sweepKindReclaim, 50) {
 			t.Fatalf("auto reclaim must dispatch reclaim for 50; calls=%v", ops.calls)
 		}
@@ -235,7 +252,7 @@ func TestSweepReclaimGatedOnAuto(t *testing.T) {
 	t.Run("auto false skips with reason", func(t *testing.T) {
 		reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
 		ops := &recordingSweepOps{}
-		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeFull)
+		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeFull)
 		if ops.called(sweepKindReclaim, 50) {
 			t.Fatalf("reclaim.auto:false must NOT dispatch reclaim; calls=%v", ops.calls)
 		}
@@ -268,7 +285,7 @@ func TestSweepNeverEscalates(t *testing.T) {
 	}}
 	ops := &recordingSweepOps{}
 
-	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeFull)
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeFull)
 
 	if !ops.called(sweepKindCloseout, 60) {
 		t.Errorf("out-of-band-merged 60 must be recovered; calls=%v", ops.calls)
@@ -302,7 +319,7 @@ func TestSweepItemIsolation(t *testing.T) {
 		70: newCloseoutResult(ResultExternalFailed, CloseoutResult{ID: 70, Disposition: CloseoutDispUnknown}),
 	}}
 
-	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeFull)
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeFull)
 
 	// Isolation: 71's closeout still ran despite 70's unknown outcome.
 	if !ops.called(sweepKindCloseout, 71) {
@@ -343,7 +360,7 @@ func TestSweepStructuredReport(t *testing.T) {
 	}}
 	ops := &recordingSweepOps{}
 
-	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeFull)
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeFull)
 
 	if len(res.Entries) == 0 {
 		t.Fatal("a sweep that processed items must report entries")
@@ -379,7 +396,7 @@ func TestSweepReloadsBeforeMutation(t *testing.T) {
 	}}
 	ops := &recordingSweepOps{}
 
-	maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeFull)
+	maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeFull)
 
 	// 90: closeout (applied) + cleanup suffix = 2 dispatches. 91: skipped, none.
 	dispatches := len(ops.calls)
@@ -413,7 +430,7 @@ func TestSweepImplementationScopeDefersHistorical(t *testing.T) {
 	t.Run("implementation defers historical, keeps closeout+suffix+reclaim", func(t *testing.T) {
 		reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}
 		ops := &recordingSweepOps{}
-		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeImplementation)
+		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeImplementation)
 
 		if !ops.called(sweepKindCloseout, 30) {
 			t.Errorf("current merged closeout must still dispatch; calls=%v", ops.calls)
@@ -445,7 +462,7 @@ func TestSweepImplementationScopeDefersHistorical(t *testing.T) {
 	t.Run("full retains historical retries and reports zero deferred", func(t *testing.T) {
 		reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: corpus}
 		ops := &recordingSweepOps{}
-		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(), SweepScopeFull)
+		res := maintenanceSweep(context.Background(), sweepDeps(reader, prober), "repo", ops.seam(prober), SweepScopeFull)
 		if !ops.called(sweepKindCleanup, 40) || !ops.called(sweepKindCleanup, 41) {
 			t.Errorf("full scope must retry historical cleanups; calls=%v", ops.calls)
 		}
@@ -461,7 +478,7 @@ func TestSweepImplementationScopeDefersHistorical(t *testing.T) {
 func TestSweepInvalidScopeRefusesBeforeAnyRead(t *testing.T) {
 	reader := &fakeReader{pin: sweepPin(t, true, 24), corpus: nil}
 	ops := &recordingSweepOps{}
-	res := maintenanceSweep(context.Background(), sweepDeps(reader, &fakeFinalizeProber{}), "repo", ops.seam(), SweepScope("bogus"))
+	res := maintenanceSweep(context.Background(), sweepDeps(reader, &fakeFinalizeProber{}), "repo", ops.seam(&fakeFinalizeProber{}), SweepScope("bogus"))
 	if res.Result != ResultInvalidInput || res.Reason != ReasonSweepScopeInvalid {
 		t.Fatalf("want invalid-input/sweep-scope-invalid, got %q/%q", res.Result, res.Reason)
 	}
@@ -538,6 +555,41 @@ func (c *countingProber) ProbePR(ctx context.Context, repoDir, prRef string) (do
 	return c.inner.ProbePR(ctx, repoDir, prRef)
 }
 
+// TestSweepSelectionUsesBatchedFactsNotPerChangeProbe: the sweep reads PR facts
+// through the batched probeFacts seam, never a per-change ProbePR. The injected
+// seam derives facts from a single batched read; the per-change prober wired into
+// deps must be consulted zero times, and the batched facts must still drive
+// selection (a merged PR becomes a closeout).
+func TestSweepSelectionUsesBatchedFactsNotPerChangeProbe(t *testing.T) {
+	corpus := []StatusBlob{
+		finalizeBlob(30, "merged", "implemented", "high", prRefFor(30), ""),
+	}
+	reader := &fakeReader{pin: sweepPin(t, false, 24), corpus: corpus}
+	// The per-change prober must NEVER be consulted by the sweep.
+	cp := &countingProber{inner: &fakeFinalizeProber{}}
+	batch := &fakeSweepBatchReader{result: SweepPRSetResult{
+		Facts: map[int]domain.PRFacts{30: withHead(mergedFacts(30, "main"), "feat/merged")},
+	}}
+	ops := &recordingSweepOps{}
+	seam := ops.seam(cp)
+	seam.probeFacts = func(ctx context.Context, snap domain.Snapshot) (map[domain.ChangeID]domain.PRFacts, []StatusFinding) {
+		return sweepSelectPRFacts(ctx, batch, "repo", snap)
+	}
+	deps := FinalizeDeps{Planning: PlanningDeps{Reader: reader, Clock: testClock()}, PRProber: cp}
+
+	maintenanceSweep(context.Background(), deps, "repo", seam, SweepScopeFull)
+
+	if cp.probes != 0 {
+		t.Errorf("sweep must not probe per change; ProbePR called %d times", cp.probes)
+	}
+	if batch.calls != 1 {
+		t.Errorf("batched reader called %d times, want exactly 1", batch.calls)
+	}
+	if !ops.called(sweepKindCloseout, 30) {
+		t.Errorf("batched merged facts must drive 30's closeout; calls=%v", ops.calls)
+	}
+}
+
 // TestSweepImplementationScopeDoesNotGrowWithHistory: growing ONLY the
 // historical done population 0 -> 300 -> 1000 must not change the cleanup
 // dispatch count, the per-item authority reload count, or the remote probe
@@ -562,7 +614,7 @@ func TestSweepImplementationScopeDoesNotGrowWithHistory(t *testing.T) {
 		}}}
 		ops := &recordingSweepOps{}
 		deps := FinalizeDeps{Planning: PlanningDeps{Reader: cr, Clock: testClock()}, PRProber: cp}
-		res := maintenanceSweep(context.Background(), deps, "repo", ops.seam(), scope)
+		res := maintenanceSweep(context.Background(), deps, "repo", ops.seam(cp), scope)
 		return counts{
 			cleanups: len(ops.callIDs(sweepKindCleanup)),
 			pins:     cr.pins,

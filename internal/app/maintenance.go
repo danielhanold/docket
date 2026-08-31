@@ -103,6 +103,12 @@ type sweepOps struct {
 	closeout func(ctx context.Context, id int) CloseoutResult
 	cleanup  func(ctx context.Context, id int) CleanupOpResult
 	reclaim  func(ctx context.Context, id int, version string) ChangeReclaimResult
+	// probeFacts reads the finalize population's live PR facts for the pinned
+	// snapshot in one batched pass (replacing the old per-change probe), returning
+	// the facts map the domain selector bands over plus one finding per failed
+	// batch (silent omission is not success). Production wires it to
+	// sweepSelectPRFacts over deps.PRBatch; tests inject the seam directly.
+	probeFacts func(ctx context.Context, snap domain.Snapshot) (map[domain.ChangeID]domain.PRFacts, []StatusFinding)
 }
 
 // MaintenanceEntry is one item's structured outcome. Disposition is a closed
@@ -227,6 +233,11 @@ func MaintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, sc
 			}
 			return ChangeReclaim(ctx, deps.Planning, wdeps, repoDir, ChangeReclaimRequest{ID: id, Version: version})
 		},
+		probeFacts: func(ctx context.Context, snap domain.Snapshot) (map[domain.ChangeID]domain.PRFacts, []StatusFinding) {
+			// One shared GitHub identity, batched exact-number reads over the whole
+			// finalize population — never a probe per change.
+			return sweepSelectPRFacts(ctx, deps.PRBatch, repoDir, snap)
+		},
 	}
 	return maintenanceSweep(ctx, deps, repoDir, ops, scope)
 }
@@ -270,17 +281,15 @@ func maintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, op
 		return stamp(*refusal, 0)
 	}
 
-	// Probe every finalize-population change's live PR facts (the same
-	// non-terminal, PR-bearing population `context finalize` reads), so the
-	// domain selector bands merged PRs into the merged-recovery closeout work. A
-	// probe error is unknown facts, never a clean absence.
-	facts := make(map[domain.ChangeID]domain.PRFacts)
-	for _, c := range inv.snap.Changes() {
-		if c.Status().Terminal() || !finalizeHasPRRef(c) {
-			continue
-		}
-		f, _ := probeFinalizeFacts(ctx, deps.PRProber, repoDir, c)
-		facts[c.ID()] = f
+	// Read every finalize-population change's live PR facts (the same
+	// non-terminal, PR-bearing population `context finalize` reads) in one batched
+	// pass over a shared GitHub identity, so the domain selector bands merged PRs
+	// into the merged-recovery closeout work. A failed batch is unknown facts —
+	// never a clean absence — surfaced as a finding rather than silently omitted.
+	var facts map[domain.ChangeID]domain.PRFacts
+	var factFindings []StatusFinding
+	if ops.probeFacts != nil {
+		facts, factFindings = ops.probeFacts(ctx, inv.snap)
 	}
 	queue := domain.SelectFinalizeQueue(inv.snap, facts, finalizeBlockedMap(), nil)
 
@@ -313,7 +322,9 @@ func maintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, op
 			break
 		}
 	}
-	return stamp(newMaintenanceResult(result, MaintenanceResult{Entries: entries}), deferredHistorical)
+	// Discovery diagnostics ride the result even when no operation was selected —
+	// silent omission is not success.
+	return stamp(newMaintenanceResult(result, MaintenanceResult{Entries: entries, Findings: factFindings}), deferredHistorical)
 }
 
 // sweepInventory is one authoritative read: the built snapshot plus the exact

@@ -127,6 +127,11 @@ type FinalizeDeps struct {
 	GitHub    FinalizeGitHub
 	Workspace FinalizeWorkspace
 	PRProber  FinalizePRProber
+	// PRBatch is the maintenance sweep's batched exact-number PR reader: it reads
+	// the whole finalize population's live PR facts over one shared GitHub identity
+	// in ≤25-number batches, replacing the per-change probe. Only the sweep
+	// (MaintenanceSweep) wires and reads it; every other operation leaves it nil.
+	PRBatch SweepPRBatchReader
 	// Gate is the local-gate composition seam finalize rebase drives after a
 	// completed rebase (Task 8): it launches the resolved suite in the feature
 	// workspace, observes it to a terminal within the observation budget, and maps
@@ -341,7 +346,7 @@ func ContextFinalize(ctx context.Context, deps FinalizeDeps, repoDir string, req
 		if len(allow) > 0 && !allow[c.ID()] {
 			continue
 		}
-		if c.Status().Terminal() || !finalizeHasPRRef(c) {
+		if !finalizeInPopulation(c) {
 			continue
 		}
 		f, unresolved := probeFinalizeFacts(ctx, deps.PRProber, repoDir, c)
@@ -390,7 +395,7 @@ func finalizeExplicitGuard(snap domain.Snapshot, id int, policy FinalizePolicy) 
 			fmt.Sprintf("change %04d has an unusable identity", id), policy, nil, nil)
 		return &r
 	}
-	if c.Status().Terminal() || !finalizeHasPRRef(c) {
+	if !finalizeInPopulation(c) {
 		r := newFinalizeContextResult(ResultInvalidState, ReasonFinalizeNotFinalizable,
 			fmt.Sprintf("change %04d is not in finalize's population (terminal or without a PR reference)", id), policy, nil, nil)
 		return &r
@@ -551,6 +556,15 @@ func finalizeBlockedMap() map[domain.ChangeID]bool { return map[domain.ChangeID]
 func finalizeHasPRRef(c domain.Change) bool {
 	pr := c.PR()
 	return pr.State == domain.FieldPresent && pr.Value != ""
+}
+
+// finalizeInPopulation reports whether c is in finalize's population: a
+// non-terminal change carrying a usable PR reference. It is the single predicate
+// `context finalize`, the explicit-id guard, and the maintenance sweep's batched
+// PR selection all key on, so the population can never drift between the readers
+// (learning duplicated-gate-copies-the-whole-predicate).
+func finalizeInPopulation(c domain.Change) bool {
+	return !c.Status().Terminal() && finalizeHasPRRef(c)
 }
 
 // allowlistIDs builds a membership set of change ids from a request allowlist,
@@ -739,4 +753,6 @@ var (
 	_ FinalizeWorkspace  = (*workspace.Service)(nil)
 	_ FinalizePRProber   = (*githubFinalizeProber)(nil)
 	_ FinalizeCleanupGit = (*gitcli.Client)(nil)
+	_ SweepPRBatchReader = (*sweepPRBatchReader)(nil)
+	_ sweepGitHub        = (*githubcli.Client)(nil)
 )
