@@ -1,7 +1,6 @@
 package app
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -829,25 +828,9 @@ func planInlineBoard(ctx context.Context, st transaction.AttemptState, snap doma
 	if !inline {
 		return files, nil
 	}
-	boardBytes, err := render.Board(render.BoardInput{Snapshot: snap})
-	if err != nil {
-		return nil, fmt.Errorf("rendering board: %w", err)
-	}
 	boardPath := path.Join(changesDir, "BOARD.md")
-	results, err := st.Tree.ReadBlobs(ctx, []gitcli.RepoPath{gitcli.RepoPath(boardPath)})
-	if err != nil {
-		return nil, fmt.Errorf("probing board path: %w", err)
-	}
-	existing := len(results) == 1 && results[0].Found
-	switch {
-	case !existing:
-		files = append(files, transaction.FileMutation{
-			Path: gitcli.RepoPath(boardPath), Kind: transaction.MutationCreate, Bytes: boardBytes,
-		})
-	case !bytes.Equal(results[0].Blob.Bytes, boardBytes):
-		files = append(files, transaction.FileMutation{
-			Path: gitcli.RepoPath(boardPath), Kind: transaction.MutationReplace, Bytes: boardBytes,
-		})
+	if err := includeBoard(ctx, st.Tree, boardPath, snap, &files); err != nil {
+		return nil, err
 	}
 	return files, nil
 }

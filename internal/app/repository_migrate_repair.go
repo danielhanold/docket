@@ -183,9 +183,9 @@ func executeDerivedRepair(ctx context.Context, git *gitcli.Client, sc setupConte
 func composeDerivedRepairBytes(sc setupContext, snap domain.Snapshot, corpus checkCorpus, recByPath map[string]corpusRecord, file string, repairable []reposetup.DerivedFinding) ([]byte, error) {
 	switch file {
 	case boardCorpusPath(sc.cfg):
-		return render.Board(render.BoardInput{Snapshot: snap})
+		return renderCanonicalBoard(snap)
 	case adrIndexCorpusPath(sc.cfg):
-		return render.ADRIndex(snap)
+		return renderCanonicalADRIndex(snap)
 	}
 	// An artifact-links record.
 	rec, ok := recByPath[file]

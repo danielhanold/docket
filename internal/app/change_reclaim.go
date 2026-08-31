@@ -524,18 +524,10 @@ func (o reclaimOp) Plan(ctx context.Context, st transaction.AttemptState) (trans
 	// the reclaimed CANDIDATE snapshot, not the before-state — a stale before-state
 	// render would recommit the pre-reclaim board.
 	if o.inline {
-		boardBytes, err := render.Board(render.BoardInput{Snapshot: candidate})
-		if err != nil {
-			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change reclaim: rendering board: %w", err)
-		}
 		boardPath := path.Join(o.changesDir, "BOARD.md")
-		kind, err := boardMutationKind(ctx, st.Tree, boardPath)
-		if err != nil {
-			return transaction.MutationPlan{}, transaction.OperationResult{}, err
+		if err := includeBoard(ctx, st.Tree, boardPath, candidate, &files); err != nil {
+			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change reclaim: %w", err)
 		}
-		files = append(files, transaction.FileMutation{
-			Path: gitcli.RepoPath(boardPath), Kind: kind, Bytes: boardBytes,
-		})
 	}
 
 	receipt, err := json.Marshal(changeReclaimReceipt{ID: o.id, Op: OperationChangeReclaim})

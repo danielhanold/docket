@@ -1,7 +1,6 @@
 package app
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -477,30 +476,12 @@ func (o changeReconcileOp) Plan(ctx context.Context, st transaction.AttemptState
 
 	// 6. Re-render the inline board when enabled.
 	if o.inline {
-		boardBytes, err := render.Board(render.BoardInput{Snapshot: candidate})
-		if err != nil {
-			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change reconcile: rendering board: %w", err)
-		}
+		// Reconcile edits no board-visible field, so includeBoard's
+		// declare-only-when-changed shape can render byte-identical to the
+		// committed board and correctly declare no board mutation.
 		boardPath := path.Join(o.changesDir, "BOARD.md")
-		results, err := st.Tree.ReadBlobs(ctx, []gitcli.RepoPath{gitcli.RepoPath(boardPath)})
-		if err != nil {
-			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change reconcile: probing board path: %w", err)
-		}
-		existing := len(results) == 1 && results[0].Found
-		// Reconcile edits no board-visible field and always runs after the claim
-		// that created the inline board, so its re-render can be byte-identical to
-		// the committed board. The engine's verify-delta refuses a declared path
-		// that is not an actual change ("a declared path is not an actual change"),
-		// so the board mutation is declared only when it truly changes the tree.
-		switch {
-		case !existing:
-			files = append(files, transaction.FileMutation{
-				Path: gitcli.RepoPath(boardPath), Kind: transaction.MutationCreate, Bytes: boardBytes,
-			})
-		case !bytes.Equal(results[0].Blob.Bytes, boardBytes):
-			files = append(files, transaction.FileMutation{
-				Path: gitcli.RepoPath(boardPath), Kind: transaction.MutationReplace, Bytes: boardBytes,
-			})
+		if err := includeBoard(ctx, st.Tree, boardPath, candidate, &files); err != nil {
+			return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("change reconcile: %w", err)
 		}
 	}
 

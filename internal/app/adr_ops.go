@@ -380,23 +380,12 @@ func (o adrRecordOp) Plan(ctx context.Context, st transaction.AttemptState) (tra
 		return transaction.MutationPlan{}, transaction.OperationResult{Refused: true, Findings: findings}, nil
 	}
 
-	indexBytes, err := render.ADRIndex(candidate)
-	if err != nil {
-		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("adr record: rendering index: %w", err)
-	}
 	indexPath := path.Join(o.adrsDir, "README.md")
-	indexExists, err := treeHasPath(ctx, st.Tree, indexPath)
-	if err != nil {
-		return transaction.MutationPlan{}, transaction.OperationResult{}, err
-	}
-	indexKind := transaction.MutationCreate
-	if indexExists {
-		indexKind = transaction.MutationReplace
-	}
-
 	files := []transaction.FileMutation{
 		{Path: gitcli.RepoPath(adrRelPath), Kind: transaction.MutationCreate, Bytes: adrBytes},
-		{Path: gitcli.RepoPath(indexPath), Kind: indexKind, Bytes: indexBytes},
+	}
+	if err := includeADRIndex(ctx, st.Tree, candidate, indexPath, &files); err != nil {
+		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("adr record: %w", err)
 	}
 
 	// Re-render the producing change's artifact block over the candidate and plan
@@ -915,24 +904,13 @@ func (o adrReplaceOp) Plan(ctx context.Context, st transaction.AttemptState) (tr
 		return transaction.MutationPlan{}, transaction.OperationResult{Refused: true, Findings: findings}, nil
 	}
 
-	indexBytes, err := render.ADRIndex(candidate)
-	if err != nil {
-		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("adr replace: rendering index: %w", err)
-	}
 	indexPath := path.Join(o.adrsDir, "README.md")
-	indexExists, err := treeHasPath(ctx, st.Tree, indexPath)
-	if err != nil {
-		return transaction.MutationPlan{}, transaction.OperationResult{}, err
-	}
-	indexKind := transaction.MutationCreate
-	if indexExists {
-		indexKind = transaction.MutationReplace
-	}
-
 	files := []transaction.FileMutation{
 		{Path: gitcli.RepoPath(adrRelPath), Kind: transaction.MutationCreate, Bytes: adrBytes},
 		{Path: gitcli.RepoPath(o.req.Target.Path), Kind: transaction.MutationReplace, Bytes: oldBytes},
-		{Path: gitcli.RepoPath(indexPath), Kind: indexKind, Bytes: indexBytes},
+	}
+	if err := includeADRIndex(ctx, st.Tree, candidate, indexPath, &files); err != nil {
+		return transaction.MutationPlan{}, transaction.OperationResult{}, fmt.Errorf("adr replace: %w", err)
 	}
 
 	// Re-render the producing change's artifact block over the candidate and plan
