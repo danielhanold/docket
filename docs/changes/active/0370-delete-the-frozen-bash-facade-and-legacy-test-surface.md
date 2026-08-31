@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: 'critical'
 type: 'refactor'
 created: '2026-08-29'
-updated: '2026-08-30'
+updated: '2026-08-31'
 depends_on: [372, 377]
 stacked_on:
 related: [318, 322, 326, 361, 366, 367, 369, 371, 372, 377]
@@ -22,7 +22,7 @@ branch: 'refactor/delete-the-frozen-bash-facade-and-legacy-test-surface'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-31T09:45:40Z'
+claimed_at: '2026-08-31T09:48:00Z'
 ---
 
 ## Artifacts
@@ -71,6 +71,19 @@ Reconciled against the merged 0369 -> 0371 -> 0372 consumer-cutover chain. Confi
 ### 2026-08-30
 
 Human-approved regroom in response to the Task 1 halt. Captured change 0377 as the critical predecessor that owns the missing native facade-operation verbs and retained workflow cutover. Change 0370 now depends on 0377, and its proposal/spec explicitly reserve that migration to 0377 while retaining 0370's deletion-only scope. This reconcile intentionally leaves the existing `## Run halted` record, plan reference, feature branch, and no-PR state intact; it does not resume or re-dispatch the run.
+
+### 2026-08-31
+
+### 2026-08-31
+
+Resume reconcile after the Task-1 halt cleared. The predecessor change 0377 (migrate deferred Bash-facade workflow operations to native Go) has merged: both depends_on entries (0372 and 0377) are now archived at status done. Verified directly against current origin/main (tip d010aa54, 15 commits ahead of the feature branch's former base b853e8c0):
+
+- The class-1 blocker that halted the prior run is resolved. 0377 completed the maintained-consumer cutover (`b9cfe4ea feat(0377): complete maintained-consumer cutover; drop DOCKET_SCRIPTS_DIR/DOCKET_BASH_PATH dependence`, plus the status/ADR/convention and implement-next/finalize/stack skill cutovers). `git grep` over `skills/` on origin/main finds no live facade invocation (`docket.sh preflight|board|render|adr|stack|docket-status`) and no `DOCKET_SCRIPTS_DIR` dependence: the retained workflow skills now reach every operation through native `docket` verbs (this run's own Step-0 used `docket repository prepare`). The spec's premise — 0372/0377 leave the facade frozen and unused by maintained consumers — now holds.
+- The facade surface the change deletes is still physically present on origin/main exactly as the plan assumes: `scripts/docket.sh`, `scripts/run-tests.sh`, the `scripts/lib/` runtime tree (docket-runtime.sh, docket-preflight.sh, docket-stack.sh, …), and `scripts/check-test-source-hygiene.sh` all resolve. The runner seam the change itself retires is intact: `internal/cli/development_test_cmd.go:70` still reads `DOCKET_BASH_PATH` (Task 6's disposition target, not a cutover blocker).
+
+Base-move note for the build: the feature branch (plan commit e3068d6) was cut from b853e8c0; current origin/main is d010aa54. The feature branch must be rebased onto current origin/main before building so the deletion runs against the post-0377 tree. The plan's Task 1 Step 1 pins the literal base SHA b853e8c0 — the build verifies the facade surface is present against the ACTUAL resolved base (origin/main d010aa54), not that literal SHA; the plan's own `moving-base` guidance and "counts are review context only" clause cover this. Surviving-tree counts shifted (~88 tracked under scripts/, ~173 non-fixture tests) but remain non-gating review context per the spec.
+
+No fundamental invalidation: the design's shape-derived, coverage-before-deletion, fail-closed-on-unknowns approach is intact and no maintained consumer has been removed out from under it. Relations (depends_on 372/377; related; adrs 14/29/30/33/36/74/99) remain accurate and are left untouched. Proceeding to plan-verify and build.
 
 ## What blocks the change
 
