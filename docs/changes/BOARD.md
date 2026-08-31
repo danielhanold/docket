@@ -1,6 +1,6 @@
 # Backlog
 
-**385 changes** — 🟢 1 in progress · 🟡 64 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 233 done · 🗑️ 82 killed
+**386 changes** — 🟢 1 in progress · 🟡 65 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 233 done · 🗑️ 82 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [spec](../superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) | `feat/migrate-primary-clean-fast-forward` |
 
-## 🟡 Proposed (64)
+## 🟡 Proposed (65)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -76,6 +76,7 @@
 | [0383](active/0383-remove-dead-metadata-fetch-diagnostic-append-augmentcheckfacts.md) | Remove or plumb the dead metadata-fetch diagnostic append in augmentCheckFacts | `low` | `fix` | needs-brainstorm |
 | [0384](active/0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md) | Launch compositional Docket agents in coordinator-capable harness contexts | `critical` | `fix` | build-ready |
 | [0385](active/0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | `medium` | `docs` | needs-brainstorm |
+| [0386](active/0386-discharge-adr-0100-s-deferred-disposition-for-the-surviving.md) | Discharge ADR-0100's deferred disposition for the surviving product runners | `medium` | `chore` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -165,6 +166,7 @@ graph TD
   0383
   0384
   0385
+  0386
   0192:::done
   0211:::done
   0251:::done
