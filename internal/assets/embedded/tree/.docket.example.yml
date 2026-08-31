@@ -257,6 +257,35 @@ delegation_observation_budget: 60
 #   dropped while the rest of the list is honored.
 board_surfaces: [inline]
 
+# board — (change 0367) how the rendered inline board presents the backlog. Presentation only:
+# lifecycle data, the digest, autonomous selection, and the GitHub mirror never read these.
+# section_order must list every section exactly once; a list with a missing, unknown, or duplicate
+# token is warned about and ignored as one value, letting a lower layer or the built-in order apply.
+# sorting.<section>.by is one of id | updated | created; .direction is asc | desc — each an
+# independent leaf that inherits on its own when invalid.
+# scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+board:
+  section_order: [in-progress, built, blocked, groomed, proposed, deferred]
+  sorting:
+    in-progress:
+      by: updated
+      direction: desc
+    built:
+      by: updated
+      direction: desc
+    blocked:
+      by: updated
+      direction: desc
+    groomed:
+      by: updated
+      direction: desc
+    proposed:
+      by: updated
+      direction: desc
+    deferred:
+      by: updated
+      direction: desc
+
 # github_project — the GitHub Projects v2 board intended to back the `github` board surface.
 # `auto` (default) means UNMINTED, i.e. no board configured — identical in effect to omitting the
 # key. The intended shape of an explicit value is:

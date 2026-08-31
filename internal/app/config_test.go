@@ -312,6 +312,63 @@ func TestHumanTextGrouping(t *testing.T) {
 	}
 }
 
+// TestHumanTextBoardPresentation pins the inspection surface for change 0367's
+// board block: the effective output carries one line for board.section_order
+// and two per section (by/direction), in canonical BoardSectionTokens order,
+// positioned right after board_surfaces. The Sorting map is never ranged
+// directly (map order is random) — the lines follow config.BoardSectionTokens.
+func TestHumanTextBoardPresentation(t *testing.T) {
+	text := DiagnosticConfig(sparseSources(), mainCtx(), false).HumanText()
+
+	lines := strings.Split(text, "\n")
+	indexOf := func(substr string) int {
+		for i, line := range lines {
+			if strings.Contains(line, substr) {
+				return i
+			}
+		}
+		return -1
+	}
+
+	// board.section_order renders the full built-in permutation as a list, and
+	// sits after board_surfaces.
+	surfaces := indexOf("board_surfaces = ")
+	if surfaces == -1 {
+		t.Fatalf("board_surfaces line missing:\n%s", text)
+	}
+	order := indexOf("board.section_order = [in-progress, built, blocked, groomed, proposed, deferred]  [built-in]")
+	if order == -1 {
+		t.Fatalf("board.section_order line missing or malformed:\n%s", text)
+	}
+	if order <= surfaces {
+		t.Errorf("board.section_order (%d) must follow board_surfaces (%d)", order, surfaces)
+	}
+
+	// One by/direction pair per section, in canonical order, each defaulting to
+	// updated desc from the built-in layer. Assert both presence and that the
+	// sections appear in config.BoardSectionTokens order.
+	prev := order
+	for _, s := range config.BoardSectionTokens {
+		byLine := indexOf("board.sorting." + s + ".by = updated  [built-in]")
+		dirLine := indexOf("board.sorting." + s + ".direction = desc  [built-in]")
+		if byLine == -1 {
+			t.Errorf("missing board.sorting.%s.by line:\n%s", s, text)
+		}
+		if dirLine == -1 {
+			t.Errorf("missing board.sorting.%s.direction line:\n%s", s, text)
+		}
+		if byLine != -1 && byLine <= prev {
+			t.Errorf("board.sorting.%s.by (%d) out of canonical order (prev %d)", s, byLine, prev)
+		}
+		if dirLine != -1 && dirLine <= byLine {
+			t.Errorf("board.sorting.%s.direction (%d) must follow its .by (%d)", s, dirLine, byLine)
+		}
+		if dirLine != -1 {
+			prev = dirLine
+		}
+	}
+}
+
 // TestHumanTextInvalid: on an invalid configuration the effective section is
 // replaced rather than rendered from a zero value.
 func TestHumanTextInvalid(t *testing.T) {

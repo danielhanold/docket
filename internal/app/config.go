@@ -254,8 +254,22 @@ func effectiveLines(eff *config.Effective) []effectiveLine {
 		leafLine("review.max_fix_tasks", strconv.Itoa(eff.Review.MaxFixTasks.Value), eff.Review.MaxFixTasks.Provenance),
 		leafLine("gate_observation_budget", strconv.Itoa(eff.GateObservation.Value), eff.GateObservation.Provenance),
 		leafLine("board_surfaces", listValue(eff.BoardSurfaces.Value), eff.BoardSurfaces.Provenance),
-		leafLine("change_types", listValue(eff.ChangeTypes.Value), eff.ChangeTypes.Provenance),
 	}
+	// board presentation (change 0367): the section permutation, then one sort
+	// per section. Iterate config.BoardSectionTokens — never range eff.Board.Sorting
+	// directly, whose map iteration order is random.
+	lines = append(lines, leafLine("board.section_order",
+		listValue(eff.Board.SectionOrder.Value), eff.Board.SectionOrder.Provenance))
+	for _, s := range config.BoardSectionTokens {
+		srt := eff.Board.Sorting[s]
+		lines = append(lines,
+			leafLine("board.sorting."+s+".by", textValue(srt.By.Value), srt.By.Provenance),
+			leafLine("board.sorting."+s+".direction", textValue(srt.Direction.Value), srt.Direction.Provenance),
+		)
+	}
+	lines = append(lines,
+		leafLine("change_types", listValue(eff.ChangeTypes.Value), eff.ChangeTypes.Provenance),
+	)
 	return append(lines, agentLines(eff.Agents)...)
 }
 
