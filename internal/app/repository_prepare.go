@@ -261,9 +261,26 @@ func prepareRoute(f reposetup.Facts, sync prepareSync) prepareVerdict {
 	}
 
 	// 4. Require the fixed Go-v1 docket-branch topology: the remote metadata branch
-	// must be a single parentless docket root. Anything else is foreign and refused
-	// without a local touch.
-	if f.MetadataRoot != reposetup.RootParentless {
+	// must be a single parentless docket root. The metadata root is a three-valued
+	// proof, and the two non-parentless values are NOT the same refusal. An
+	// UNREADABLE root (RootUnknown — reachable while RemoteMetadata.Presence is
+	// proven present, because the ls-remote presence probe and the object fetch are
+	// independent) is a reachability refusal: the branch could not be read, so it is
+	// never collapsed into foreign. Only a PROVEN foreign root (RootForeign,
+	// readable evidence with no ownership proof) is the "resolve it with a human"
+	// refusal. This mirrors reposetup.Classify — which guards `== RootForeign`
+	// positively and reads RootUnknown as a generic conflict (postconditions-unmet),
+	// never foreign — and repository_check.go's augmentCheckFacts, which feeds the
+	// same RootUnknown through that classifier. Both refuse without a local touch.
+	if f.MetadataRoot == reposetup.RootUnknown {
+		return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
+			Code:     "metadata-root-unresolved",
+			Severity: reposetup.SeverityError,
+			Message:  "The remote docket branch topology could not be read: its root ancestry is unproven.",
+			Remedy:   "Ensure the remote is reachable and the docket branch is fetchable, then run `docket repository check`.",
+		})
+	}
+	if f.MetadataRoot == reposetup.RootForeign {
 		return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
 			Code:     "metadata-root-foreign",
 			Severity: reposetup.SeverityError,
