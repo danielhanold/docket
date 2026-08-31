@@ -22,7 +22,7 @@ branch: 'fix/launch-compositional-docket-agents-in-coordinator-capable-ha'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-31T16:18:08Z'
+claimed_at: '2026-08-31T16:27:17Z'
 ---
 
 ## Artifacts
