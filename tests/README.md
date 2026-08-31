@@ -1,10 +1,31 @@
 # docket's test suite
 
-122 standalone Bash files, discovered by the `tests/test_*.sh` glob — so a new file self-registers
-with the runner. It does **not** self-register with the budget table: every file also needs a row in
-`tests/runtime-budgets.tsv`, which is a registry, or `tests/test_runtime_budgets.sh` fails. Each
-file is hermetic: `set -uo pipefail`, its own tmpdir fixtures, no
-ordering dependencies, runnable on its own as `bash tests/test_X.sh`.
+Standalone POSIX-shell files, discovered by the `tests/test_*.sh` glob at depth 1 — so a new file
+self-registers with the runner. It does **not** self-register with the budget table: every file
+also needs a row in `tests/runtime-budgets.tsv`, which is a registry. Each file is hermetic:
+`set -uo pipefail`, its own tmpdir fixtures, no ordering dependencies, runnable on its own as
+`bash tests/test_X.sh`.
+
+## Categories — every suite file must declare one
+
+Discovery is **category-declared and fail-closed** (change 0370). Every `tests/test_*.sh` file must
+carry, in its first **10 lines**, exactly one declaration line:
+
+```
+# docket-suite: go               # a wrapper that runs `go test` (the bulk of the suite)
+# docket-suite: posix-install    # the retained install.sh POSIX product suite
+# docket-suite: posix-downloader # the retained release-downloader POSIX product suite
+```
+
+The three tokens above are the whole vocabulary. The parser matches the line **exactly**
+(`^# docket-suite: (go|posix-install|posix-downloader)$`): a missing, malformed, unknown,
+below-line-10, or trailing-text declaration is a **discovery error naming the file** — never
+skipped, never assigned a generic or legacy category. There is no dormant compatibility branch: a
+file the runner cannot categorize aborts the run (exit `2`).
+
+The Go-native runner in `internal/suiterunner` is the whole and only test channel: the docket-owned
+product behaviour is proved by Go tests these `go`-category wrappers drive, and only two POSIX
+product surfaces (the installer and the release downloader) keep their own shell suites.
 
 ## Running it
 
@@ -15,25 +36,22 @@ what the merge gate runs (change 0318):
 go run ./cmd/docket development test    # the whole-suite, branch-faithful source gate
 ```
 
-`scripts/run-tests.sh` remains present as the frozen parity oracle and a focused-file tool; it is
-no longer the whole-suite gate:
-
-```
-scripts/run-tests.sh --verbose tests/test_docket_config.sh   # one file, full output
-scripts/run-tests.sh -j 1                                    # serial reference (the oracle)
-```
-
-`scripts/run-tests.md` is the contract for the frozen oracle. Budgets are enforced by a **screen-then-confirm** regime:
+Budgets are enforced by a **screen-then-confirm** regime:
 a parallel run over `ceiling * 5/2` records an advisory screening finding (`BUDGET WATCH:` /
-`PARALLEL-SENSITIVE:`), and only a solo measurement over `ceiling * 3/2` — from `-j 1`, or from a
-scheduled serial confirmation the runner triggers after repeated overruns — is an authoritative
-breach (`SERIAL CONFIRMED OVER BUDGET:`). A default run reports its findings loudly and still exits
-`0`. `--strict-budget` confirms every current candidate immediately and opts into the failing exit;
-`--no-budget-check` skips the comparison entirely, so nothing is measured or reported.
+`PARALLEL-SENSITIVE:`), and only a solo measurement over `ceiling * 3/2` — from a single-job run, or
+from a scheduled serial confirmation the runner triggers after repeated overruns — is an
+authoritative breach (`SERIAL CONFIRMED OVER BUDGET:`). A default run reports its findings loudly and
+still exits `0`. `DOCKET_RUNTESTS_STRICT=1` confirms every current candidate immediately and opts into
+the failing exit; `DOCKET_RUNTESTS_JOBS` sets the parallelism.
 
 Exit `0` green (including a green run that breached a budget), `1` a test failed, `3` green but at
 least one target produced no result at all — the run certified nothing about it, `4` a breach under
-`--strict-budget`, `2` usage error, `130`/`143` interrupted by `SIGINT`/`SIGTERM`.
+strict budget, `2` usage error / runner-internal fail-closed (unusable bash, missing or duplicate
+target, **undeclared or malformed suite category**), `130`/`143` interrupted by `SIGINT`/`SIGTERM`.
+
+Exit `5` — a source-hygiene preflight violation in the old topology — is **retired** (change 0370).
+Its still-meaningful invariant (see "Backticks in test source" below) is now a build-gate Go guard,
+not a per-run preflight.
 
 ## Where new tests go
 
@@ -117,23 +135,24 @@ evaluate them:
 
   Six files in the suite use this.
 
-**The enforcement.** `scripts/run-tests.sh` runs `scripts/check-test-source-hygiene.sh` over every
-target synchronously before the first job launches. A violation aborts the run with exit **5**,
-having executed **zero** test files — the point being that nothing dangerous runs before the check.
-The gate is fail-closed: a missing or unreadable checker refuses the run with exit `2` rather than
-skipping itself. The checker reports `file:line: CLASS`, with classes `NORMAL-BACKTICK`,
-`DQ-BACKTICK`, `HEREDOC-BACKTICK`, `EVAL-BACKTICK`, and `DEFN-DRIFT` (an assert-family definition
-that is not byte-exactly canonical). `tests/test_assert_hygiene.sh` is its regression test, driving
-committed fixtures under `tests/fixtures/hygiene/`; see `scripts/run-tests.md` for the exit-code
-contract.
+**The enforcement.** The invariant is a **build-gate Go guard**, not a per-run preflight (change
+0370, which retired the old exit-5 source-hygiene preflight along with the frozen Bash runner):
+`internal/repoguard`'s `TestNoExecutableBacktickInSuiteSource` scans every declared-category shell
+suite file (the surviving runner's admitted population) and fails on a backtick the shell would
+execute at source-read — a bare or backslash-escaped backtick in bare-code or double-quoted
+position, including the multi-line double-quoted 0212 shape. The guard's doc comment states what it
+deliberately does not model (single-quoted spans, command-substitution frames, quoted-delimiter
+heredocs) and why that is safe over the small, house-style surviving surface.
 
-**The limitation.** The preflight protects **suite runs only**. `bash tests/test_x.sh` run directly
-bypasses it entirely, so a violation you introduce is live in exactly the loop where you are most
-likely to run one file over and over. Run the file through `scripts/run-tests.sh` before you trust it.
+**The limitation.** Because it runs at the build gate over the maintained tree — not as a preflight
+inside each `docket development test` run — a violation is caught by the whole-suite gate and by
+`go test ./internal/repoguard/`, not at the moment you run one file directly. Run
+`go test ./internal/repoguard/ -run TestNoExecutableBacktickInSuiteSource` before you trust a new or
+edited shell suite file.
 
 ## Parallel-safety
 
-`scripts/run-tests.sh` gives every job its own `HOME`, `TMPDIR`, `XDG_CONFIG_HOME`, and git config
+The Go-native runner gives every job its own `HOME`, `TMPDIR`, `XDG_CONFIG_HOME`, and git config
 (with a synthetic identity), and pins git non-interactive. A test must not read the ambient `$HOME`,
 write global git config, use a fixed `/tmp/<name>` path, touch this repo's own worktrees, or reach
 the network. A file that genuinely must share the real tree carries `serial` in the budget table —

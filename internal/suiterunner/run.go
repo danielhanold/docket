@@ -3,18 +3,25 @@
 // budgets, sandbox/execution, scheduling, validation/aggregation, the
 // screen-then-confirm budget machinery, and signal handling) into the one
 // non-interactive whole-suite runner that backs `docket development test`
-// (change 0318). It mirrors scripts/run-tests.sh — the frozen Bash oracle — step
-// for step: the same discovery rule, the same source-hygiene preflight placed
-// BEFORE any target executes, the same budget classification and state machine,
-// and the same exit contract.
+// (change 0318; contracted to the final topology by change 0370). Discovery is
+// category-declared and fail-closed; the same budget classification and state
+// machine, and the same exit contract, follow.
 //
-// Exit contract (mirrors scripts/run-tests.sh, precedence 1 > 3 > 4 > 0): 0 all
-// passed (advisory breaches included); 1 a test failed; 2 usage error /
-// runner-internal fail-closed (unusable bash, missing/duplicate targets, bad env
-// value); 3 a scheduled target produced no valid result; 4 a strict-mode
-// confirmed/failed budget breach; 5 a source-hygiene violation (zero targets
-// executed); 130/143 interrupted by SIGINT/SIGTERM. Every internal uncertainty
-// fails closed to a non-zero, attributable exit — never a fabricated pass.
+// Exit contract (precedence 1 > 3 > 4 > 0): 0 all passed (advisory breaches
+// included); 1 a test failed; 2 usage error / runner-internal fail-closed
+// (unusable bash, missing/duplicate targets, undeclared/malformed suite category,
+// bad env value); 3 a scheduled target produced no valid result; 4 a strict-mode
+// confirmed/failed budget breach; 130/143 interrupted by SIGINT/SIGTERM. Every
+// internal uncertainty fails closed to a non-zero, attributable exit — never a
+// fabricated pass.
+//
+// EXIT 5 IS RETIRED (change 0370). It formerly signalled a source-hygiene
+// preflight violation, run by scripts/check-test-source-hygiene.sh before any
+// target executed. That preflight is gone: the surviving shell test surface is
+// small and house-style, and its still-meaningful invariant — no maintained
+// shell test source carries a backtick the shell would execute at source-read —
+// is now a Go guard (internal/repoguard TestNoExecutableBacktickInSuiteSource)
+// that runs at the build gate rather than as a per-run preflight.
 package suiterunner
 
 import (
@@ -61,10 +68,11 @@ func Run(ctx context.Context, cfg Config) int {
 	}
 
 	// Discover the corpus, join the budget table, and validate the WHOLE input
-	// set before anything runs. A discovery failure, an unreadable budget table,
-	// or a target-set violation (missing file, duplicate basename) is a
-	// fail-closed usage error (exit 2).
-	paths, err := Discover(cfg.TestsDir)
+	// set before anything runs. A discovery failure (including an undeclared or
+	// malformed suite category), an unreadable budget table, or a target-set
+	// violation (missing file, duplicate basename) is a fail-closed usage error
+	// (exit 2).
+	discovered, err := Discover(cfg.TestsDir)
 	if err != nil {
 		fmt.Fprintf(stderr, "development test: %v\n", err)
 		return 2
@@ -74,16 +82,10 @@ func Run(ctx context.Context, cfg Config) int {
 		fmt.Fprintf(stderr, "development test: cannot read budget table %q: %v\n", cfg.BudgetsPath, err)
 		return 2
 	}
-	targets, err := ResolveTargets(paths, budgets)
+	targets, err := ResolveTargets(discovered, budgets)
 	if err != nil {
 		fmt.Fprintf(stderr, "development test: %v\n", err)
 		return 2
-	}
-
-	// Source-hygiene preflight, placed HERE — after usage checks, before any
-	// target executes — so a violation aborts with zero test files run.
-	if code, ok := hygienePreflight(cfg, targets, stderr); !ok {
-		return code
 	}
 
 	// Runner-owned scratch: stat/, logs/, jobs/ live under it. A caller-supplied
@@ -230,54 +232,6 @@ func Run(ctx context.Context, cfg Config) int {
 		return InterruptExitCode(sig, didFire)
 	}
 	return ExitCode(tally, len(unknown), strictArmed)
-}
-
-// hygienePreflight runs `bash HygienePath -- targets...` before any target
-// executes, mirroring scripts/run-tests.sh's source-hygiene gate and its exact
-// diagnostics. It fails closed in both directions: a missing/unusable checker
-// refuses the run (exit 2, "the runner will not start"), a violation aborts with
-// zero files executed (exit 5), and a checker that could not complete is exit 2
-// — never a waved-through pass. ok=false means Run must return the given code.
-func hygienePreflight(cfg Config, targets []Target, stderr io.Writer) (int, bool) {
-	hp := cfg.HygienePath
-	if fi, err := os.Stat(hp); err != nil || fi.IsDir() {
-		fmt.Fprintf(stderr, "development test: source-hygiene checker missing or unreadable: %s\n", hp)
-		fmt.Fprintf(stderr, "development test: the preflight cannot certify these targets, so no test file is executed — restore scripts/check-test-source-hygiene.sh and re-run.\n")
-		return 2, false
-	}
-	// `--` so a target spelled with a leading dash reaches the checker as a path.
-	args := make([]string, 0, len(targets)+2)
-	args = append(args, hp, "--")
-	for _, t := range targets {
-		args = append(args, t.Path)
-	}
-	out, err := exec.Command(cfg.Bash, args...).CombinedOutput()
-	if err == nil {
-		return 0, true
-	}
-	ee, ok := err.(*exec.ExitError)
-	if !ok {
-		fmt.Fprintf(stderr, "development test: the source-hygiene preflight could not run: %v\n", err)
-		if len(out) > 0 {
-			fmt.Fprintf(stderr, "%s\n", out)
-		}
-		return 2, false
-	}
-	switch ee.ExitCode() {
-	case 1:
-		fmt.Fprintf(stderr, "development test: test-source hygiene violation — aborting with zero test files executed.\n")
-		if len(out) > 0 {
-			fmt.Fprintf(stderr, "%s\n", out)
-		}
-		fmt.Fprintf(stderr, "development test: each line above names a backtick the shell would EXECUTE while reading that file. See scripts/check-test-source-hygiene.md for the classes and the remedy.\n")
-		return 5, false
-	default:
-		fmt.Fprintf(stderr, "development test: the source-hygiene preflight did not complete (checker exit %d) — no test file is executed.\n", ee.ExitCode())
-		if len(out) > 0 {
-			fmt.Fprintf(stderr, "%s\n", out)
-		}
-		return 2, false
-	}
 }
 
 // observedSink collects onDone callbacks — which fire concurrently on the

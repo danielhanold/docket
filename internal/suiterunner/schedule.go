@@ -30,10 +30,9 @@ type Config struct {
 	Work     string   // runner-owned scratch root (stat/, logs/, jobs/ live under it); "" => os.MkdirTemp
 	ExtraEnv []string // extra env appended to every child (overrides sandbox defaults)
 
-	HygienePath string // RepoRoot/scripts/check-test-source-hygiene.sh — the fail-closed preflight
-	StatePath   string // default <git-common-dir>/docket/development-test-budget-state.tsv; DOCKET_RUNTESTS_STATE overrides
-	Strict      bool   // DOCKET_RUNTESTS_STRICT=1 — confirm every candidate and gate on a breach (exit 4)
-	Verbose     bool   // reserved false in 0318 (the command exposes no flags)
+	StatePath string // default <git-common-dir>/docket/development-test-budget-state.tsv; DOCKET_RUNTESTS_STATE overrides
+	Strict    bool   // DOCKET_RUNTESTS_STRICT=1 — confirm every candidate and gate on a breach (exit 4)
+	Verbose   bool   // reserved false in 0318 (the command exposes no flags)
 
 	// DurationsPath is the DOCKET_RUNTESTS_TEST_DURATIONS injection seam: a TSV
 	// `<base>.sh\t<parallel-secs>\t<solo-secs>` that replaces measured durations so
