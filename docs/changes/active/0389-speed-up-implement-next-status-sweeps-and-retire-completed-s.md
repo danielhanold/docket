@@ -2,7 +2,7 @@
 id: 389
 slug: 'speed-up-implement-next-status-sweeps-and-retire-completed-s'
 title: 'Speed up implement-next status sweeps and retire completed status children'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'fix'
 created: '2026-08-31'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/speed-up-implement-next-status-sweeps-and-retire-completed-s'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-08-31T17:49:53Z'
 ---
 
 ## Artifacts

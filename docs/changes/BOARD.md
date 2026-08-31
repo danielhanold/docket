@@ -1,19 +1,19 @@
 # Backlog
 
-**389 changes** — 🟢 2 in progress · 🟣 22 groomed · 🟡 43 proposed · ⚪ 4 deferred · ✅ 235 done · 🗑️ 83 killed
+**389 changes** — 🟢 3 in progress · 🟣 21 groomed · 🟡 43 proposed · ⚪ 4 deferred · ✅ 235 done · 🗑️ 83 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (3)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
+| [0389](active/0389-speed-up-implement-next-status-sweeps-and-retire-completed-s.md) | Speed up implement-next status sweeps and retire completed status children | `high` | `fix` | [spec](../superpowers/specs/2026-08-31-speed-up-implement-next-status-sweeps-and-retire-completed-s-design.md) | `fix/speed-up-implement-next-status-sweeps-and-retire-completed-s` |
 | [0384](active/0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md) | Launch compositional Docket agents in coordinator-capable harness contexts | `critical` | `fix` | [spec](../superpowers/specs/2026-08-31-launch-compositional-docket-agents-in-coordinator-capable-ha-design.md) | `fix/launch-compositional-docket-agents-in-coordinator-capable-ha` |
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [spec](../superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) | `feat/migrate-primary-clean-fast-forward` |
 
-## 🟣 Groomed (22)
+## 🟣 Groomed (21)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0389](active/0389-speed-up-implement-next-status-sweeps-and-retire-completed-s.md) | Speed up implement-next status sweeps and retire completed status children | `high` | `fix` | [spec](../superpowers/specs/2026-08-31-speed-up-implement-next-status-sweeps-and-retire-completed-s-design.md) |
 | [0374](active/0374-separate-build-and-finalize-test-configuration.md) | Separate build and finalize test configuration | `high` | `refactor` | [spec](../superpowers/specs/2026-08-30-separate-build-and-finalize-test-configuration-design.md) |
 | [0252](active/0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md) | Harden test fixtures and hermeticity into tests-lib | `high` | `chore` | [spec](../superpowers/specs/2026-08-07-harden-test-fixtures-and-hermeticity-into-tests-lib-design.md) |
 | [0359](active/0359-run-gate-gives-up-too-soon.md) | Run gate gives up too soon | `high` | `fix` | [spec](../superpowers/specs/2026-08-28-run-gate-gives-up-too-soon-design.md) |
