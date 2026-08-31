@@ -428,10 +428,18 @@ assert "convention names SKILL_ resolution vars" \
   'grep -qF "SKILL_BRAINSTORM" "$CONV" && grep -qF "SKILL_FINISH" "$CONV"'
 assert "convention documents the auto sentinel + degrade rule" \
   'grep -qiF "degrade to auto" "$CONV"'
-for s in docket-implement-next docket-status docket-new-change docket-groom-next \
-         docket-finalize-change docket-adr docket-auto-groom; do
+# change 0377 Task 9: docket-status and docket-adr migrated their Step-0 from the frozen
+# `docket.sh preflight` facade to the typed `docket repository prepare` command; the other five keep
+# preflight until Tasks 10-11. Each group keeps a positive floor keyed on its own Step-0 command, so a
+# deletion reddens (restatement-accumulates-its-own-guards).
+for s in docket-implement-next docket-new-change docket-groom-next \
+         docket-finalize-change docket-auto-groom; do
   f="$REPO/skills/$s/SKILL.md"
   assert "$s Step 0 runs docket.sh preflight (config resolution via the facade)" 'grep -qF "docket.sh preflight" "$f"'
+done
+for s in docket-status docket-adr; do
+  f="$REPO/skills/$s/SKILL.md"
+  assert "$s Step 0 runs docket repository prepare (typed config resolution)" 'grep -qF "docket repository prepare" "$f"'
 done
 assert "new-change brainstorm uses SKILL_BRAINSTORM" \
   'grep -qF "SKILL_BRAINSTORM" "$REPO/skills/docket-new-change/SKILL.md"'

@@ -11,12 +11,21 @@ no(){ printf 'NOT OK - %s\n' "$1"; fail=1; }
 # docket-finalize-change is handled separately below (migrated to the Go-v1 sequencer, 0316).
 SKILLS=(
   docket-new-change docket-groom-next docket-auto-groom
-  docket-status
 )
 for s in "${SKILLS[@]}"; do
   f="$ROOT/skills/$s/SKILL.md"
   if grep -qF 'docket.sh render-change-links' "$f"; then ok "$s invokes render-change-links (via the docket.sh facade)"; else no "$s invokes render-change-links (via the docket.sh facade)"; fi
 done
+
+# docket-status migrated to the Go-v1 sweep (change 0377 Task 9): the merge sweep archives through the
+# typed close-out, which regenerates the per-change `## Artifacts` block atomically in the same metadata
+# commit, so the sweep no longer invokes the legacy facade renderer. Same treatment as
+# docket-implement-next / docket-finalize-change below (guarantee relocated, not dropped): assert the
+# retired facade call is GONE, and floor it on the exceptional-drift repair path so it cannot go
+# vacuously green (restatement-accumulates-its-own-guards; assert-detects-removal-not-replacement).
+STATUS="$ROOT/skills/docket-status/SKILL.md"
+if grep -qF 'docket.sh render-change-links' "$STATUS"; then no "docket-status no longer invokes the legacy render-change-links facade"; else ok "docket-status no longer invokes the legacy render-change-links facade"; fi
+if grep -qF 'docket repository migrate' "$STATUS"; then ok "docket-status names the exceptional-drift artifact-links repair path"; else no "docket-status names the exceptional-drift artifact-links repair path"; fi
 
 # docket-implement-next migrated to the Go-v1 transaction path (change 0315): its field writes go
 # through `docket change` / attach / mark-implemented transactions that regenerate the per-change

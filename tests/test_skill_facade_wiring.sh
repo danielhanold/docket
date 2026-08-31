@@ -156,8 +156,11 @@ assert "Step-0 preamble runs preflight as its own call (unique anchor)" \
   '[ "$(grep -cF "as its own Bash call" "$CONV")" = "1" ]'
 assert "mid-run re-sync verb is defined once (unique anchor)" \
   '[ "$(grep -cF "push-retry CAS loops alike" "$CONV")" = "1" ]'
-assert "Step-0 instructs reading the printed block (unique anchor)" \
-  '[ "$(grep -cF "read the printed \`KEY=value\` block" "$CONV")" = "1" ]'
+# change 0377: Step-0 moved from the `docket.sh preflight` KEY=value block to the typed
+# `docket repository prepare --json` protocol-v1 envelope; anchor re-pointed to the envelope-validation
+# instruction (still exactly-once, still in the Step-0 preamble).
+assert "Step-0 instructs validating the typed prepare envelope (unique anchor)" \
+  '[ "$(grep -cF "validate the protocol-v1 envelope" "$CONV")" = "1" ]'
 
 # The harness-native recovery rule is shared convention, not a collection of per-skill
 # paraphrases. Extract only its named subsection so these assertions cannot be satisfied by
@@ -234,12 +237,15 @@ done
 # NON-VACUITY (LEARNINGS: a guard that parses nothing passes everything — assert the unit count the
 # extractor found, not just its verdict). The sweep above is only meaningful if the corpus is real
 # and the canonical Board-pass call is actually PRESENT where it belongs. Verified directly
-# (`grep -rlF 'docket.sh docket-status --board-only' skills/ | sort`) against 6 files: the 4
+# (`grep -rlF 'docket.sh docket-status --board-only' skills/ | sort`) against 5 files: the 4
 # still-Bash status-writing skills (docket-auto-groom, docket-groom-next, docket-implement-next,
-# docket-new-change) + the convention SKILL.md + terminal-close-out.md. Change 0316 rewrote
+# docket-new-change) + terminal-close-out.md. Change 0316 rewrote
 # docket-finalize-change into a Go-verb sequencer whose board refresh is absorbed into every
 # mutating transaction (Authority #2; see test_board_refresh_on_transition.sh's dedicated
-# assertion), so it no longer carries the facade call — the count dropped from 7 to 6.
+# assertion), so it no longer carries the facade call — the count dropped from 7 to 6; change 0377
+# Task 9 then rewrote the convention's Board-pass definition to the absorbed atomic model (board
+# renders inside the typed mutation, no separate pass), removing its facade call: 6 to 5. The 4
+# still-Bash skills + terminal-close-out.md keep it until Tasks 10-11.
 # docket-status/SKILL.md and docket-adr/SKILL.md have no Board site of their own. This is a
 # per-FILE count (grep -l), not a per-occurrence count — the facade string legitimately repeats
 # inside docket-new-change's SKILL.md. Widening the scan corpus to SCOPE3 (finding 2, above) adds
@@ -248,7 +254,7 @@ done
 assert "the in-scope corpus is non-empty (the sentinel actually scanned files)" \
   '[ "${#SCOPE3[@]}" -ge 8 ]'
 assert "the canonical Board-pass call is present in every rewired file (found $board_pass_files)" \
-  '[ "$board_pass_files" -eq 6 ]'
+  '[ "$board_pass_files" -eq 5 ]'
 
 # ── change 0094: Step 1 acquires its candidate set from the digest's `ready` line ─────────────
 # specified-but-unreachable: a contract with a PRODUCER and a CONSUMER needs at least one assert

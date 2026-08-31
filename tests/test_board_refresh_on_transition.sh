@@ -57,12 +57,15 @@ BOARD_PASS_CALL="docket.sh docket-status --board-only"
 assert "convention names board-refresh.sh (the gated inline writer)" \
   'grep -q "board-refresh.sh" skills/docket-convention/SKILL.md'
 
-# E2. The convention defines the ONE Board-pass call, and states the report-line contract that
-# replaced the hand-rolled diff check.
-assert "convention defines the single Board-pass facade call" \
-  "grep -qF \"$BOARD_PASS_CALL\" skills/docket-convention/SKILL.md"
-assert "convention states the stdout report-line contract (not an exit code)" \
-  'grep -qF "never on the exit code" skills/docket-convention/SKILL.md'
+# E2. change 0377: the convention no longer defines a board-pass facade call — board refresh is
+# ABSORBED into every board-authoritative typed mutation (the same absorption docket-finalize-change
+# already carries, asserted below). The 4 still-Bash status-writing skills keep the facade call until
+# Tasks 10-11 (asserted unchanged in the CALLERS loop). Guard re-pointed at the surviving substance:
+# the atomic-render invariant, and the exceptional-drift repair escape hatch that replaced the pass.
+assert "convention states the board renders atomically inside the typed mutation (no separate pass)" \
+  'grep -qiE "atomically inside its own metadata commit|no separate Board pass" skills/docket-convention/SKILL.md'
+assert "convention names the exceptional-drift repair path (check + authorized migrate)" \
+  'grep -qF "docket repository check" skills/docket-convention/SKILL.md && grep -qF "docket repository migrate" skills/docket-convention/SKILL.md'
 
 # docket-finalize-change is NOT in this facade-caller loop as of 0316 — see the dedicated
 # absorption assertion after the loop.

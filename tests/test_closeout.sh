@@ -575,8 +575,15 @@ assert "wiring(close-out ref): retired cleanup facade spelling is gone from clos
 # The sweep's per-change archive must NOT hand-roll the move any more (mirrors the finalize sentinel).
 assert "wiring(status): sweep has no leftover raw archive bash (git mv active/)" \
   '! grep -qE "git mv .*active/" "$STATUS"'
-assert "wiring(status): sweep names render-change-links (via the docket.sh facade) in the delegated archive flow" \
-  'grep -q "docket.sh render-change-links" "$STATUS"'
+# change 0377 Task 9: the sweep's per-change artifact-links render is absorbed into the typed close-out
+# (rendered atomically in the same metadata commit); the frozen `docket.sh render-change-links` follow-up
+# is retired from the status skill, replaced by the exceptional-drift repair path (`docket repository
+# check` surfaces `artifact-links-stale`; authorized `docket repository migrate` re-renders). Coverage
+# RELOCATED, never dropped (restatement-accumulates-its-own-guards; assert-detects-removal-not-replacement).
+assert "wiring(status): retired render-change-links facade is gone from the sweep prose" \
+  '! grep -qE -e "docket\.sh[[:space:]]+render-change-links" "$STATUS"'
+assert "wiring(status): sweep names the exceptional-drift repair path (authorized migrate)" \
+  'grep -qF "docket repository migrate" "$STATUS"'
 # The sweep's failure posture is log-and-continue (its own unique phrasing), NOT abort-and-report.
 assert "wiring(status): sweep failure posture is log-and-continue (abandon the remainder of this change)" \
   'grep -qiE "abandon the remainder of (this|THIS) change" "$STATUS"'

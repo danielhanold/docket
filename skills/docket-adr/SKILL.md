@@ -19,7 +19,7 @@ agent: docket-adr
 
 ## Convention (load first — blocking)
 
-Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *Step-0 preamble* (load the convention; `docket.sh preflight` as its own Bash call; read the printed `KEY=value` block; act on the verdict). Everything below uses its vocabulary without redefinition. All ADR reads and writes land in the metadata working tree on `metadata_branch`, pushed to its remote immediately.
+Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *Step-0 preamble* (load the convention; `docket repository prepare --repo-dir <dir> --json` as its own Bash call; validate the protocol-v1 envelope and carry its typed context forward as literals; act on the verdict). Everything below uses its vocabulary without redefinition. All ADR reads and writes land in the metadata working tree on `metadata_branch`, pushed to its remote immediately.
 
 ## Actions
 
@@ -77,18 +77,18 @@ In `main`-mode the metadata working tree *is* the integration branch, so writing
 
 Every ADR transaction (record / supersede / reverse) re-renders `<adrs_dir>/README.md` atomically inside its own commit, so there is **no follow-up index render** after an ADR operation — the index is current the instant the transaction lands.
 
-The standalone renderer survives only for **stale-index repair (no transaction in flight; no Go verb — frozen)** — regenerating a `README.md` that drifted out of band (a hand-edit, an interrupted legacy write) when no ADR transaction is running. Invoke the deterministic generator — never hand-render it:
+There is no standalone renderer to run by hand: the transactions own the render, and **out-of-band index drift** (a `README.md` that a hand-edit or an interrupted legacy write left stale when no ADR transaction is running) is surfaced and repaired through the typed derived-view path, never a hand-render:
 
 ```
-"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh render-adr-index --adrs-dir <metadata tree>/<adrs_dir> > <metadata tree>/<adrs_dir>/README.md
+docket repository check --json
 ```
 
-In `docket`-mode the metadata tree is `.docket/`, so: `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh render-adr-index --adrs-dir .docket/<adrs_dir> > .docket/<adrs_dir>/README.md` (contract: `scripts/render-adr-index.md` — the grouping, ordering, annotations, and determinism). Commit the regenerated index and push `origin/docket`. On a git conflict on the index, **re-run the script** rather than hand-merging (the regenerate-don't-3-way-merge rule).
-
-Validate the ledger by invoking the checker and surfacing each finding line:
+surfaces the drift as a structured finding (`adr-index-stale` when the bytes differ deterministically, `adr-index-malformed` when the markers are broken) — never a false "all clean" on a read error. A deterministic `adr-index-stale` finding is `Repairable`; regenerate the drifted index through the authorized mechanical repair:
 
 ```
-"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh adr-checks --adrs-dir <metadata tree>/<adrs_dir>
+docket repository migrate --repair-frontmatter
 ```
 
-It is warn-only — one finding per line; `--strict` exits 1 for a future CI gate. The checks it runs (numbering gaps, dangling `supersedes:`/`reverses:`/`relates_to:` links, status inconsistencies) and their output format are the contract `scripts/adr-checks.md`.
+Repair re-renders only the canonical derived bytes it owns (marker order and balance validated first — a malformed index refuses and leaves the file untouched) and never edits an authored ADR body. It re-proves the pinned revision before writing and commits on `metadata_branch`. On a git conflict on the index, re-run the repair rather than hand-merging (the regenerate-don't-3-way-merge rule).
+
+Validate the ledger the same way — `docket repository check` runs the ADR-ledger consistency findings (numbering gaps, dangling `supersedes:`/`reverses:`/`relates_to:` links, status inconsistencies) alongside the derived-view drift findings, each as one structured finding; a non-`Repairable` finding (illegal ADR evolution, a missing referenced record) is left for manual review.
