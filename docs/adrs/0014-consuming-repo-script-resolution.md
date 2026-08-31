@@ -2,7 +2,7 @@
 id: 14
 slug: consuming-repo-script-resolution
 title: Consuming-repo script resolution via `DOCKET_SCRIPTS_DIR`
-status: Accepted
+status: Deprecated
 date: 2026-06-21
 supersedes: []
 reverses: []
@@ -32,3 +32,16 @@ Introduce `DOCKET_SCRIPTS_DIR` — the absolute path to the docket clone's `scri
 **Costs:** A machine-level shell-profile write owned by `install.sh`; the settings-`env` reinforcement is Claude-Code-specific; the eval-site fail-loud is loud-but-not-fail-stop (mitigated by the agent-as-executor seeing the stderr remedy on every subagent shell initialization).
 
 **Relates to ADR-0012** (the docket-status script-vs-model boundary): the scripts are the deterministic layer the model defers to, and this change restores that layer's reachability from consuming repos.
+
+## Update — 2026-08-31 (change 0370): Deprecated — the mechanism this ADR governs no longer exists
+
+Change 0370 physically deleted the frozen Bash control plane: `scripts/docket.sh`, the wrapped
+helper scripts this decision made reachable, and the `DOCKET_SCRIPTS_DIR` transport itself. The
+maintained skills now reach every docket operation through the native `docket` binary on `PATH`
+(changes 0369/0371/0372/0377), so there is no consuming-repo script-resolution problem left to
+solve and no env var to inject. `internal/repoguard`'s absence guards now assert the retired env
+seam stays gone.
+
+Status is therefore **Deprecated**: the decision no longer applies to the live system. The body
+above is preserved unchanged as the record of why the env-var-over-vendoring choice was made while
+the Bash layer existed.

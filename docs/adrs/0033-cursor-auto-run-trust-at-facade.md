@@ -2,7 +2,7 @@
 id: 33
 slug: cursor-auto-run-trust-at-facade
 title: Cursor auto-run trust is granted at the facade, not per operation
-status: Accepted
+status: Deprecated
 date: 2026-07-14
 supersedes: []
 reverses: []
@@ -48,3 +48,17 @@ prefix-matches the literal command string and the short guarded forms are not
 prefixes of the canonical one, so all four spellings must be listed. docket
 never edits the user's Cursor config (ADR-0020) — the fragment is copy-paste,
 human-applied.
+
+## Update — 2026-08-31 (change 0370): Deprecated — there is no facade to grant trust at
+
+Change 0370 deleted `scripts/docket.sh`. The published Cursor `terminalAllowlist` fragment recorded
+by this decision allowlists four spellings of a program that no longer exists, so the trust boundary
+it draws — and the unprompted authorization of `terminal-publish`, `github-mirror`, and
+`cleanup-feature-branch` that the Consequences section priced in — no longer describes the live
+system. The agent-facing runtime is now the native `docket` binary on `PATH`.
+
+Status is therefore **Deprecated**. Granting trust at the boundary the code already draws, rather
+than enumerating per-operation entries, remains the sound approach for any future Cursor fragment;
+that boundary is simply a different program now. Note for maintainers: `docs/cursor/permissions.md`
+and `docs/cursor/permissions.example.json` still carry the retired `docket.sh` fragment and need a
+separate update — this ADR does not fix them.

@@ -2,7 +2,7 @@
 id: 30
 slug: facade-wiring-guard-discriminates-on-invocation-prefix
 title: The facade-wiring guard discriminates on the invocation prefix, not the bare presence of a `.sh` token
-status: Accepted
+status: Deprecated
 date: 2026-07-14
 supersedes: []
 reverses: []
@@ -98,3 +98,16 @@ sentence above that lists "the one convention-only `docket-config.sh
 --bootstrap` CREATE_ORPHAN carve-out" as a permitted invocation no longer holds
 after 0074: there is no permitted direct-helper invocation left; `docket.sh
 bootstrap` is the sanctioned spelling.
+
+## Update — 2026-08-31 (change 0370): Deprecated — both the guard and its subject are gone
+
+Change 0370 deleted `scripts/docket.sh`, the `DOCKET_SCRIPTS_DIR` transport that supplied this
+guard's discriminator, and `tests/test_skill_facade_wiring.sh` along with the rest of the legacy
+Bash test surface. There is no canonical facade spelling left to strip and no prefixed helper
+invocation left to sweep for; the maintained skills invoke the native `docket` binary directly.
+
+Status is therefore **Deprecated**. The narrow-reading principle the decision defended — a guard
+keys on invocation shape, never on the bare presence of a noun, so prose may describe mechanics it
+may not instruct — is a live house rule (`AGENTS.md`, *Guards and tests*) and is unaffected by this
+deprecation; what is retired is this ADR's specific `${DOCKET_SCRIPTS_DIR`-prefix discriminator and
+the guard implementing it. The equivalent absence sweeps now live in `internal/repoguard`.

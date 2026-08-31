@@ -2,7 +2,7 @@
 id: 29
 slug: docket-facade-routing-and-config-presentation
 title: docket facade — routing-boundary dispatch and model-ward config presentation
-status: Accepted
+status: Deprecated
 date: 2026-07-13
 supersedes: []
 reverses: []
@@ -71,3 +71,17 @@ record.
   literal interpolation and compose metadata paths from the absolute
   `METADATA_WORKTREE` plus the relative `*_DIR` subpaths. Cursor documentation is
   0073.
+
+## Update — 2026-08-31 (change 0370): Deprecated — the facade this ADR governs is deleted
+
+Change 0370 deleted `scripts/docket.sh` and its wrapped helpers outright. Every clause of the
+decision above is scoped to that program — its dispatch `case`, its `preflight` verb, its
+`--format plain` selection, and the `docket.md` subcommand table that served as the permission
+inventory — and none of them names anything a reader can now reach.
+
+Status is therefore **Deprecated**, not superseded: the two principles this decision actually
+defended — a finite, documented command surface, and nothing docket emits being `eval`'d or
+sourced by an agent — carried forward into the native `docket` CLI's typed verbs and protocol-v1
+JSON envelopes rather than being reversed. What is retired is the Bash realization, together with
+the caller-syncs-at-Step-0 consequence: `docket repository prepare` now performs that sync itself
+and returns a closed typed context.
