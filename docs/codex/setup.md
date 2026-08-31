@@ -127,6 +127,43 @@ conclude from such an inventory that dispatch is unavailable — only a failed d
 explicit policy denial establishes that. The harness-neutral statement of this rule lives in the
 docket-convention skill's *Dispatch-capability resolution* section.
 
+### The proven nested-launch mechanics (codex-cli 0.151.0, `multi_agent = true`)
+
+On this build, **both entry paths above reach a coordinator-capable session with the wrappers
+exactly as generated** — no wrapper-TOML capability key, no CLI flag, no config override, and no
+role-entry operation is required. Every claim in this passage is scoped to **codex-cli 0.151.0**
+with `multi_agent = true`, and traces to a fresh-process fixture run recorded in
+[`fixtures/nested-launch/decision.md`](fixtures/nested-launch/decision.md) and
+[`fixtures/nested-launch/certification.md`](fixtures/nested-launch/certification.md); on any other
+version or configuration it must be re-proven, never assumed.
+
+- **From a live session (either entry path):** the machine-neutral dispatch instruction docket
+  already renders — start the registered agent by name — is sufficient. In every passing run the
+  session realized it as the native collaboration tool call, verbatim:
+
+  ```
+  spawn_agent {"agent_type":"probe-coordinator","fork_turns":"all","message":"…","task_name":"…"}
+  wait_agent  {"timeout_ms":3600000}
+  ```
+
+  `agent_type` is the registered agent's `name` from `~/.codex/agents/<name>.toml`. The same call
+  works from the root thread **and** from inside an already-spawned registered-agent thread (a
+  depth-1 → depth-2 chain is proven), so a coordinator wrapper can itself launch its named children.
+
+- **From the app-server (the registered-agent production entry):** the v2 protocol —
+  `initialize` → `thread/start` (seeding the thread with the registered agent's
+  `developerInstructions`; `ThreadStartParams` carries no agent-name field, so the seeding is the
+  client-side mechanism) → `turn/start`. Driven non-interactively over `codex app-server` stdio,
+  the seeded coordinator thread spawned its named child, which spawned the named grandchild.
+
+The spawned thread runs **AS the registered definition**: its `developer_instructions` arrive
+verbatim as the thread's developer message (so the wrapper's skill preload and recursion guard are
+in force), and the definition's own `model` / `model_reasoning_effort` pins apply to the spawned
+thread — even under `fork_turns:"all"`. Only what the fixture actually passed is documented here;
+`codex exec --agent`, `codex exec run-agent`, `codex remote-control pair`, and the
+`codex app-server proxy` control socket were **attempted and rejected** on this build (see
+`decision.md` §"Rejected candidates") and are **not** supported launch paths.
+
 ## Restart after (re)generating
 
 Codex registers agent definitions **once, at process start**. After any install or sync that
