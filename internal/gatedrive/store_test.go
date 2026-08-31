@@ -25,7 +25,7 @@ func sampleRecord() driveRecord {
 		Ref:              "refs/heads/feat/x",
 		HeadOID:          "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
 		Fingerprint:      Fingerprint{Head: "deadbeef", Index: "i", Status: "s", Worktree: "w", Entries: 3},
-		Command:          []string{"scripts/run-tests.sh"},
+		Command:          []string{"go test ./..."},
 		Cwd:              "/wt/x",
 		ConfigProvenance: "config:finalize.test_command",
 		Budget:           30 * time.Minute,

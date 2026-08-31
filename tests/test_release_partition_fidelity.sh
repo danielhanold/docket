@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# docket-suite: go
 # tests/test_release_partition_fidelity.sh — the population floor of the 0362
 # release partition. The structural contract (tests/test_go_integration_contract.sh)
 # discovers packages from what EXISTS, so deleting internal/release's tagged files

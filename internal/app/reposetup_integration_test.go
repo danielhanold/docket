@@ -5,9 +5,7 @@ package app
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -277,25 +275,6 @@ func TestIntegrationRepoSetupInitRefusesDirtyPrimary(t *testing.T) {
 	}
 }
 
-// TestIntegrationRepoSetupGitignoreParity proves the Task 3 drift tie: the native
-// GitignoreBlock() is byte-identical to the bash lib emitter.
-func TestIntegrationRepoSetupGitignoreParity(t *testing.T) {
-	requireRealGit(t)
-	repoRoot := moduleRoot(t)
-	libPath := filepath.Join(repoRoot, "scripts", "lib", "docket-gitignore-block.sh")
-	if _, err := os.Stat(libPath); err != nil {
-		t.Fatalf("bash gitignore lib not found: %v", err)
-	}
-	cmd := exec.Command("bash", "-c", ". "+libPath+" && emit_docket_gitignore_block")
-	out, err := cmd.Output()
-	if err != nil {
-		t.Fatalf("bash emitter failed: %v", err)
-	}
-	if string(out) != string(reposetup.GitignoreBlock()) {
-		t.Errorf("gitignore parity mismatch:\nbash:\n%q\nnative:\n%q", out, reposetup.GitignoreBlock())
-	}
-}
-
 // TestIntegrationRepoSetupInitDoesNotPrompt proves init reads no stdin: it takes
 // no input reader and completes on a fresh repository with a closed stdin.
 func TestIntegrationRepoSetupInitDoesNotPrompt(t *testing.T) {
@@ -317,16 +296,4 @@ func mustReadFile(t *testing.T, path string) []byte {
 		t.Fatalf("read %s: %v", path, err)
 	}
 	return data
-}
-
-// moduleRoot returns the repository root (two directories up from this test file
-// in internal/app), resolved from the test's own source location so it is
-// independent of the working directory.
-func moduleRoot(t *testing.T) string {
-	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("cannot resolve caller for module root")
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
 }

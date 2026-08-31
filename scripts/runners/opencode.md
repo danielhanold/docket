@@ -5,8 +5,8 @@
 The third per-runner adapter of the cross-harness runner delegation framework (change 0079):
 delegates one docket agent's **whole run** to opencode via its non-interactive `opencode run`.
 Owns everything child-specific — permission gating, preflight, prompt assembly, flag mapping,
-foreground execution, relay. Invoked only by `runner-dispatch.sh` (behind
-`docket.sh runner-dispatch`), never directly by skills or shims.
+foreground execution, relay. Invoked only by the runner dispatcher, never
+directly by skills or shims.
 
 The shim's own frontmatter `model:`/`effort:` pin the PARENT-side relay agent, not this child — they
 come from `runners.<name>.shim_model` / `shim_effort` (defaults `inherit` / `low`) and must name

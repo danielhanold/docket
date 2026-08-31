@@ -1,7 +1,7 @@
 # Agent layer — configuring model/effort-pinned subagents
 
 > On-demand detail for the convention's *Agent layer* — read before configuring `agents:` / `agent_harnesses:` in any
-> config layer, or running/debugging `sync-agents.sh`. The runtime contract (which skills get wrappers, dispatch
+> config layer, or running/debugging the agent-wrapper install. The runtime contract (which skills get wrappers, dispatch
 > semantics, abort-and-report) stays in `SKILL.md`'s *Agent layer* stub; this file is the full configuration mechanics.
 >
 > **Install-time reconciliation is Go-owned (change 0351).** `docket development install` — reached through
@@ -14,14 +14,14 @@
 > has three states — *absent* keeps the shipped default (Claude only), writing no other harness's repo surfaces; a
 > *non-empty* list reconciles those harnesses; an *explicit empty* list (`agent_harnesses: []`) retires every
 > docket-owned repo surface the repo had. `--repo-dir <path>` targets another repository, a repeatable `--harness
-> <name>` scopes the run. `sync-agents.sh` remains the generator; the Go install drives it and owns the transaction.
+> <name>` scopes the run. The Go install is the wrapper generator and owns the transaction.
 > Restart the harness process after any run that changed a wrapper or parent surface — read at process start.
 
-Contents: [Layered config](#layered-config) · [Harness-first agents: blocks](#harness-first-agents-blocks) · [Generation scope: agent_harnesses](#generation-scope-agent_harnesses) · [Harness-portable model IDs](#harness-portable-model-ids) · [Always-full-set generation + the Cursor dispatch rule](#always-full-set-generation--the-cursor-dispatch-rule) · [sync-agents.sh runs + the --check gate](#sync-agentssh-runs--the---check-gate)
+Contents: [Layered config](#layered-config) · [Harness-first agents: blocks](#harness-first-agents-blocks) · [Generation scope: agent_harnesses](#generation-scope-agent_harnesses) · [Harness-portable model IDs](#harness-portable-model-ids) · [Always-full-set generation + the Cursor dispatch rule](#always-full-set-generation--the-cursor-dispatch-rule) · [Wrapper generation and the drift-check gate](#wrapper-generation-and-the-drift-check-gate)
 
 ## Layered config
 
-**Layered config (precedence: repo-local > repo-committed > global > built-in).** Frontmatter is static, so configurability is a **generator**, `sync-agents.sh`, resolving layers and writing agent files (generated copies it owns and overwrites, unlike `link-skills.sh`'s symlinks):
+**Layered config (precedence: repo-local > repo-committed > global > built-in).** Frontmatter is static, so configurability is a **generator** — the Go install — resolving layers and writing agent files (generated copies it owns and overwrites, unlike `link-skills.sh`'s symlinks):
 
 | Layer | Source | Generates |
 |---|---|---|
@@ -63,7 +63,7 @@ values those files carry) — a harness can appear in one list without the other
 a pair the shipped layer does not map ships **unpinned**, never carrying another harness's model ID.
 
 **The shipped layer.** `agents/harness-defaults.yml` is program data, not user config, and
-`scripts/lib/harness-defaults.sh` validates it before any wrapper is written: every entry nests under a **concrete**
+the harness-defaults validator validates it before any wrapper is written: every entry nests under a **concrete**
 harness (a neutral `default:` block is forbidden — the cross-harness leakage it exists to prevent), supplies **both**
 `model` and `effort`, and forbids `runner:`, since delegation is user policy, never a shipped default.
 `HD_SHIPPED_HARNESSES` names which harnesses carry a shipped block, and every one is COMPLETE: sparseness is which
@@ -86,14 +86,14 @@ harness, or a generic agent.
 
 `agent_harnesses` does **not** gate which harness keys any block may carry; it gates only which harness *directories*
 get generated files. The repo's own `agent_harnesses` — read from **either** `.docket.local.yml` or `.docket.yml`,
-whichever declares the key first (local wins, not a merge; a direct parse in `sync-agents.sh`, not `docket-config.sh`)
+whichever declares the key first (local wins, not a merge; a direct parse in the install, not the config resolver)
 — governs only the **per-repo** pass, never the global value: each listed harness `H` gets
 generated `<repo>/.<H>/agents/docket-*.md`; **default `[claude]`**; a Cursor repo sets `agent_harnesses: [claude,
 cursor]`. Explicit over present-directory auto-detection, so a stray `.cursor/` never silently mints generated files;
 an unknown token is warned-and-ignored. The user-level pass instead writes every harness `agents/` directory
 **present on disk** — unless the global `config.yml` sets `agent_harnesses:`, governing the user-level target list:
 creating listed dirs, skipping unlisted, and pruning docket-owned files from any de-listed known harness (never
-rmdir'ing the harness root; change 0050). The `sync-agents.sh --check` drift gate spans every generated per-harness
+rmdir'ing the harness root; change 0050). The `docket install check` drift gate spans every generated per-harness
 file.
 
 ## Harness-portable model IDs
@@ -104,10 +104,10 @@ Cursor model ID like `gpt-5.5-medium-fast` under Cursor). This unvalidated **pas
 non-Claude harnesses.
 
 **Per-harness wrapper shapes.** The generated wrapper is **not one uniform document** — each harness gets its own
-documented shape from its named emitter in `sync-agents.sh`. A harness with no named emitter falls to
+documented shape from its named emitter in the install. A harness with no named emitter falls to
 the generic `*)` branch, which emits **Claude's** shape: a best guess, not a supported mapping (change 0135; the
 Cursor defect shipped that way). Reaching it is not silent: generation prints a one-time WARN naming the harness as
-unverified, and `sync-agents.sh --check` reports the same token as a non-failing advisory, not a check failure.
+unverified, and `docket install check` reports the same token as a non-failing advisory, not a check failure.
 
 | harness | file | model | effort | skills |
 |---|---|---|---|---|
@@ -128,7 +128,7 @@ compose and a harness needs all of them; an entry naming no built-in is a typo w
 **opt-in**, by declaring an `agents:` block or a top-level `agent_harnesses:` key in **either** the committed
 `.docket.yml` or the `.docket.local.yml`; with neither, no per-repo wrappers generate and `--check` stays a no-op.
 The generated files are **gitignored, never committed** — regenerated from each machine's resolved config.
-`sync-agents.sh` maintains the marker-bounded `# docket:start` / `# docket:end` block in the repo's `.gitignore`
+The Go install maintains the marker-bounded `# docket:start` / `# docket:end` block in the repo's `.gitignore`
 covering every docket-owned path (plus `.docket.local.yml`), writing or repairing it the moment a repo opts in
 (or merely carries a `.docket.local.yml`) and printing a one-time notice to commit it; a repo with 0048-era
 committed copies gets a one-time migration on the next run (tracked copies deleted, local set regenerated, the
@@ -142,7 +142,7 @@ file to sync, inert in every other harness. **Fork-exclusion principle:** only s
 mid-run are forked, since a forked subagent has no channel back to the human (Claude Code withholds
 `AskUserQuestion` and similar); the two interactive skills stay inline, and `docket-finalize-change` stays
 unforked — its headless merge is gated by a permission classifier, a separate decision (see ADR-0043). The full
-set is generated into the harness, so the Cursor rule's dispatch targets resolve by construction. `sync-agents.sh`
+set is generated into the harness, so the Cursor rule's dispatch targets resolve by construction. The install
 prunes orphaned `docket-*` files (a removed built-in drops its wrapper; a de-listed harness drops its wrappers and
 dispatch rule), and `--check` spans the `.gitignore` block, the tracked-file check, and (advisory) content staleness
 for both.
@@ -155,15 +155,15 @@ docket's README (*Tuning agent models & effort*). Two mechanics belong here,
 governing how the wrappers compose: **a wrapper whose `skills:` preloads the very skill that forks into it does not
 recurse** (preload is content injection at startup; the fork fires on invocation — verified on Claude Code 2.1.207,
 closing the question ADR-0024 left open), and **skills and agents register at process start**, so after
-`sync-agents.sh` or a skill-frontmatter edit an already-open session still runs the old definitions.
+the install or a skill-frontmatter edit an already-open session still runs the old definitions.
 
 Identical-on-every-clone pinning is retired (a deliberate trade-off); team defaults still live in the committed `.docket.yml` `agents:` block, without CI-enforced pinning of the machine-local generated copies.
 
-## sync-agents.sh runs + the --check gate
+## Wrapper generation and the drift-check gate
 
-`sync-agents.sh` runs **on demand** (install time, and after editing any config layer) — the same mental model as
+The Go install runs **on demand** (install time, and after editing any config layer) — the same mental model as
 `link-skills.sh`; it does NOT hook session start (silently regenerating mid-session would be surprising, and per-repo
-files are gitignored, so no commit to race). The drift backstop is **`sync-agents.sh --check`**,
+files are gitignored, so no commit to race). The drift backstop is **`docket install check`**,
 a CI gate with three legs: (1) the managed docket `.gitignore` block is present and current, and (2) no generated
 agent or dispatch-rule file is tracked by git — both **CI-meaningful** (`rc != 0`); (3) whether the local files match
 what the resolved config would generate is `advisory:` output only — it never fails the build, since every machine

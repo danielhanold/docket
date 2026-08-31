@@ -30,13 +30,11 @@ const DispatchHeading = "## Docket agents — dispatch, don't run inline"
 // divergence was deliberate and was retired, not overlooked).
 //
 // Change 0371 made this Go emitter the single canonical dispatch policy and
-// appended the never-fall-back sentence. sync-agents.sh still carries a textual
-// twin of this preamble, but it is FROZEN (0370-owned) and intentionally lags
-// one sentence behind — that frozen mirror is deleted by change 0370, so it is
-// not amended to match here. The repo's own committed AGENTS.md dispatch block
-// is rendered by that frozen shell mirror — not from this constant — and pinned
-// to it by tests/test_sync_agents_run_gate.sh, so the committed AGENTS.md lags
-// this Go sentence too until change 0370 retires the frozen facade and guard.
+// appended the never-fall-back sentence. The frozen shell mirror (sync-agents.sh)
+// that once carried a textual twin of this preamble — and rendered the committed
+// AGENTS.md dispatch block from it — was deleted with the frozen facade by change
+// 0370, so this Go emitter is now the sole source and the committed AGENTS.md is
+// rendered from it.
 //
 // The machine-neutral rationale above still holds and Task 2's cross-surface
 // guards depend on the property it documents: this interior names NO harness, so

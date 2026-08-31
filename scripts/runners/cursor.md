@@ -5,7 +5,7 @@
 The per-runner adapter that delegates one docket agent's **whole run** to Cursor's CLI via its
 non-interactive print primitive, `cursor-agent -p`. Owns everything child-specific — preflight,
 prompt assembly, flag mapping, foreground execution, final-message relay. Invoked only by
-`runner-dispatch.sh` (behind `docket.sh runner-dispatch`), never directly by skills or shims.
+the runner dispatcher, never directly by skills or shims.
 
 ## Usage
 

@@ -20,9 +20,9 @@ func fixedHome(dir string) func() (string, error) {
 // cleanTempDir is t.TempDir() for the tests that compare a fake home against a
 // path the code under test built. t.TempDir() hands back $TMPDIR's spelling
 // verbatim (os.TempDir strips trailing slashes and nothing else), so a $TMPDIR
-// carrying an interior "//" — which is exactly what scripts/run-tests.sh
+// carrying an interior "//" — which is exactly what the suite runner
 // produces, since macOS's default TMPDIR ends in "/" and the runner appends
-// "/run-tests.XXXXXX" to it — yields a home that is not lexically clean.
+// a per-job temp subdir to it — yields a home that is not lexically clean.
 // ResolveRoots normalizes its home ("home = filepath.Clean(home)") and
 // filepath.Join cleans everything derived from it, so a test that compares a
 // resolved or joined path against the RAW spelling fails on the slashes alone.

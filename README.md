@@ -164,7 +164,7 @@ The canonical reference for every key is [`.docket.example.yml`](.docket.example
 
 See [Configuration](#configuration--docketyml-global-config-and-machine-local-overrides) for the layer model.
 
-The change data — `docs/changes/`, `docs/adrs/`, `docs/results/` — lives in each consuming project, not in the docket repo itself. To adopt docket in an *existing* repo, run `migrate-to-docket.sh` from inside that repo — a separate step from this machine install (see [Migration](#migration)).
+The change data — `docs/changes/`, `docs/adrs/`, `docs/results/` — lives in each consuming project, not in the docket repo itself. To adopt docket in an *existing* repo, run `docket repository migrate` from inside that repo — a separate step from this machine install (see [Migration](#migration)).
 
 ---
 
@@ -185,7 +185,7 @@ Pulling alone is **not** enough. Skills are symlinks, so those do update the mom
 - **Managed global config** in `~/.config/docket/config.yml` is back-filled non-destructively by the same run.
 - **Retired global dispatch blocks and reconciled repository surfaces** land on this run too — which is why the recursion-guarded wrappers you are pulling only take effect after it, in a freshly started harness process (clearing a conversation is not enough).
 
-Re-running it is **in addition to** anything the release notes call for, never a substitute. A release may also carry a per-repo step — a `migrate-to-docket.sh` run, a `.docket.yml` key to add, a remedy commit to land — and those are listed in the notes for that version. Do the machine-level `install.sh` first, then the per-repo steps.
+Re-running it is **in addition to** anything the release notes call for, never a substitute. A release may also carry a per-repo step — a `docket repository migrate` run, a `.docket.yml` key to add, a remedy commit to land — and those are listed in the notes for that version. Do the machine-level `install.sh` first, then the per-repo steps.
 
 ---
 
@@ -242,8 +242,10 @@ Configuration resolves **per key**, across up to four layers, with precedence **
 3. **Global** — the cross-repo `~/.config/docket/config.yml` (this machine, every repo).
 4. **Built-in** — docket's defaults.
 
-`runtime.bash` is the deliberate exception: it is machine identity, so resolution is
-**repo-local > global** and a committed value is warned-and-ignored.
+`runtime.bash` was the deliberate exception — machine identity, resolved **repo-local > global**
+with a committed value warned-and-ignored. The key is now **obsolete** (the frozen Bash runtime it
+named was retired) and is warned-and-ignored in every layer; the local-only resolution rule it
+illustrated still governs any future machine-identity key.
 
 Map-valued keys (`skills:`, `agents:`) merge field-by-field with the same precedence, so a global default and a repo override can each set different fields of the same map.
 
@@ -367,15 +369,16 @@ Then categorize the active backlog once. Archived changes are never reclassified
 path writes a type from here on, so the untyped set can only shrink.
 
 ```bash
-# 1. the exact inventory — --digest-only keeps this a WRITE-FREE read. A bare docket-status pass
-#    commits and pushes BOARD.md, sweeps merged changes, archives, and harvests before it prints
-#    the digest, which is not what you want from a command you are running to *look*.
-docket.sh docket-status --digest-only --type untyped
+# 1. the exact inventory — --digest-only keeps this a WRITE-FREE read. A bare docket status
+#    pass commits and pushes BOARD.md, sweeps merged changes, archives, and harvests before it
+#    prints the digest, which is not what you want from a command you are running to *look*.
+docket status --digest-only --type untyped
 
 # 2. an agent proposes a complete id -> type mapping; you approve it as one decision
 
-# 3. the deterministic helper validates and applies it — all files or none, and idempotent
-docket.sh backfill-change-types --changes-dir .docket/docs/changes --map 7=feat,8=feat,9=fix
+# 3. apply it by writing each change's `type:` frontmatter (all files or none, idempotent) — the
+#    one-time Bash backfill helper was retired with the frozen control plane; from here on every
+#    creation path writes a type, so the untyped set only shrinks.
 ```
 
 ### Speaking your language (`dummy_mode`)
@@ -503,9 +506,8 @@ Cross-repo defaults live in one optional user-level file: `${XDG_CONFIG_HOME:-~/
 
 ```yaml
 # ~/.config/docket/config.yml — optional; applies to every repo on this machine.
-# Same schema as .docket.yml; committed values normally win (runtime.bash is local-only).
-runtime:
-  bash: /opt/homebrew/bin/bash # managed by install.sh; an explicit valid value is preserved
+# Same schema as .docket.yml; a repo's committed .docket.yml normally wins per key.
+agent_harnesses: [claude, cursor]   # global-able: scopes the install's user-level wrapper pass
 skills:                      # rebind workflow roles for all your repos
   build: auto
 agents:                      # agent model/effort defaults (same agents: shape as .docket.yml)
@@ -524,7 +526,7 @@ dummy_mode:                  # persona-calibrated human-facing prose; off by def
 finalize:
   gate: local
 board_surfaces: [inline]     # the github token is per-repo-only and ignored here (see below)
-agent_harnesses: [claude]    # scopes sync-agents.sh's user-level pass ONLY (overrides
+agent_harnesses: [claude]    # scopes the install's user-level pass ONLY (overrides
                              # presence-on-disk detection); never the per-repo generation pass
 ```
 
@@ -561,7 +563,7 @@ dummy_mode:                   # persona-calibrated human-facing prose; off by de
 board_surfaces: [inline]      # the github token is fenced here too — per-repo-only
 ```
 
-Its own path (and every file `sync-agents.sh` generates) is kept out of git by the managed docket `.gitignore` block (the `# docket:start` / `# docket:end` markers) the script owns — see **Tuning an agent's model & effort** below.
+Its own path (and every file the Go install generates) is kept out of git by the managed docket `.gitignore` block (the `# docket:start` / `# docket:end` markers) the install owns — see **Tuning an agent's model & effort** below.
 
 ### Coordination keys are per-repo-only
 
@@ -569,12 +571,12 @@ Some keys write shared state, and a machine-scoped value for them would silently
 
 ### When a file is misplaced or malformed
 
-- A `~/.config/docket/.docket.yml` is never read — `docket-config.sh` (the per-skill runtime resolver every docket skill consults at startup) warns and points you at `config.yml`.
+- A `~/.config/docket/.docket.yml` is never read — the config resolver warns and points you at `config.yml`.
 - A malformed or unreadable `config.yml` (or `.docket.local.yml`) warns and falls back to built-ins **for that layer only** — the repo and its other layers are still honored, so a broken personal or machine file never bricks a repo.
 
 ### Migrating from `agents.yaml`
 
-The old single-purpose global file (`~/.config/docket/agents.yaml`) is migrated automatically: the next `sync-agents.sh` (or `install.sh`) run rewrites it under `agents:` in `config.yml` and renames the original to `agents.yaml.migrated`. Nothing reads the old file after migration.
+The old single-purpose global file (`~/.config/docket/agents.yaml`) is migrated automatically: the next `docket development install` (or `install.sh`) run rewrites it under `agents:` in `config.yml` and renames the original to `agents.yaml.migrated`. Nothing reads the old file after migration.
 
 ---
 
@@ -586,7 +588,7 @@ docket needs a durable, queryable source of truth for planning state — changes
 
 Two branches divide the work:
 
-- An orphan **`docket`** branch is the authoritative working surface for **all planning metadata**: change files (active + archive), `BOARD.md`, ADRs, and specs. It is a true orphan — sharing no history with your code, carrying no code — the same well-trodden pattern `gh-pages` uses. (There is no `git checkout --orphan` in the flow: `migrate-to-docket.sh` creates the branch with `git worktree add --orphan`, and a fresh repo's bootstrap builds it straight from git plumbing — `git mktree` + `git commit-tree` — with no working-tree checkout at all.) It is **always pushed**, so the whole backlog, board, specs, and ADRs are browsable and reviewable on the remote (GitHub) at all times. All planning churn — `proposed → in-progress → implemented`, board refreshes, reconcile edits, ADR writes — lands here and never touches your code history.
+- An orphan **`docket`** branch is the authoritative working surface for **all planning metadata**: change files (active + archive), `BOARD.md`, ADRs, and specs. It is a true orphan — sharing no history with your code, carrying no code — the same well-trodden pattern `gh-pages` uses. (There is no `git checkout --orphan` in the flow: `docket repository migrate` creates the branch with `git worktree add --orphan`, and a fresh repo's bootstrap builds it straight from git plumbing — `git mktree` + `git commit-tree` — with no working-tree checkout at all.) It is **always pushed**, so the whole backlog, board, specs, and ADRs are browsable and reviewable on the remote (GitHub) at all times. All planning churn — `proposed → in-progress → implemented`, board refreshes, reconcile edits, ADR writes — lands here and never touches your code history.
 - Your **integration branch** (`main`, or `develop` under GitFlow) stays code-only, except for **published terminal records** in a repo that opts in (see below). It holds code, the build artifacts that arrive with each PR (plan + results), and — only when `terminal_publish: true` — a copy of the archived change + spec + accepted ADRs once a change closes out.
 
 A change's `feat/<slug>` branch is always cut from `origin/<integration_branch>` — unless it declares `stacked_on:`, in which case it is cut from that parent change's unmerged branch and its PR targets the same (see `stacked-merged` above) — carries only plan + results + code, and never modifies docket metadata.
@@ -610,7 +612,7 @@ A repo that opts in with `terminal_publish: true` ends up with all five artifact
 
 The `integration_branch` knob says where code lands and where feature branches are cut from:
 
-- `auto` (the default, and what an absent key resolves to) follows the remote's default branch via `origin/HEAD`. If `origin/HEAD` can't be resolved, the per-skill runtime resolver (`docket-config.sh`) fails closed with a diagnostic rather than guessing a branch. (Only the one-time `migrate-to-docket.sh` bootstrap falls back to `main` in that case — and that runs once, before a repo is even migrated.)
+- `auto` (the default, and what an absent key resolves to) follows the remote's default branch via `origin/HEAD`. If `origin/HEAD` can't be resolved, the config resolver fails closed with a diagnostic rather than guessing a branch. (Only the one-time `docket repository migrate` bootstrap falls back to `main` in that case — and that runs once, before a repo is even migrated.)
 - `main` or `develop` is used verbatim.
 
 This makes docket work for trunk-based (`main`) and **GitFlow** (`develop`) projects alike. One caveat: `auto` follows the repo's *default* branch, so a GitFlow repo whose default branch is `main` but whose integration line is `develop` must set `integration_branch: develop` explicitly. Feature branches always cut from `origin/<integration_branch>` — the one exception being a change declaring `stacked_on:`, which cuts from its parent's branch instead.
@@ -717,23 +719,23 @@ The config **shape** — the `agents:` keys and how the model and effort are wri
 **2. Refresh the generated wrappers.** The resolved model and effort are baked into generated wrapper *copies* (not symlinks), so after editing any layer, regenerate them:
 
 ```bash
-bash sync-agents.sh        # or re-run install.sh, whose Go engine reconciles them for you
+docket development install  # regenerate the wrappers; or re-run install.sh, which drives the same Go engine
 ```
 
 - A **global** edit rewrites user-level wrappers into every **present** harness root (`~/.<harness>/agents/`, e.g. `~/.claude/agents/`, `~/.cursor/agents/`, `~/.codex/agents/`).
 - A **repo-committed or repo-local** edit rewrites that repo's per-repo wrappers for each harness in its (local-then-committed) `agent_harnesses:` list (default `[claude]`; e.g. `[claude, cursor]` for a repo that also drives Cursor).
 
-`sync-agents.sh` always writes **both** passes in one run — user-level wrappers into each targeted harness root AND (for opted-in repos) per-repo wrappers — and project wins over global at generation time, per the four-layer precedence above.
+The Go install always writes **both** passes in one run — user-level wrappers into each targeted harness root AND (for opted-in repos) per-repo wrappers — and project wins over global at generation time, per the four-layer precedence above.
 
-**Generated per-repo agent files are machine-local — gitignored, never committed.** Unlike a repo's committed `.docket.yml`, `<repo>/.<harness>/agents/docket-*.md` (and, for Cursor, `docket-dispatch.mdc`) are regenerated on every machine from that machine's own resolved config; they carry no team intent of their own — the committed `agents:` block is the artifact that does. A single marker-bounded `# docket` block in the repo's `.gitignore` covers every docket-owned path — the `.docket/` worktree, `.worktrees/`, `.claude/settings.local.json`, `.docket.local.yml`, and every generated agent file for every harness — not just the generated-agents subset. It is seeded by `migrate-to-docket.sh` (fresh migration) or `docket-config.sh --bootstrap` (fresh orphan-branch bootstrap), and self-healed by `sync-agents.sh` — which creates or repairs it the moment a repo opts in — declares an `agents:` block or an `agent_harnesses:` key, in either file, or merely carries a `.docket.local.yml` — and prints a loud one-time notice to **commit it once**. After that the block is invisible plumbing.
+**Generated per-repo agent files are machine-local — gitignored, never committed.** Unlike a repo's committed `.docket.yml`, `<repo>/.<harness>/agents/docket-*.md` (and, for Cursor, `docket-dispatch.mdc`) are regenerated on every machine from that machine's own resolved config; they carry no team intent of their own — the committed `agents:` block is the artifact that does. A single marker-bounded `# docket` block in the repo's `.gitignore` covers every docket-owned path — the `.docket/` worktree, `.worktrees/`, `.claude/settings.local.json`, `.docket.local.yml`, and every generated agent file for every harness — not just the generated-agents subset. It is seeded by `docket repository migrate` (fresh migration) or `docket repository prepare` (fresh orphan-branch bootstrap), and self-healed by the Go install — which creates or repairs it the moment a repo opts in — declares an `agents:` block or an `agent_harnesses:` key, in either file, or merely carries a `.docket.local.yml` — and prints a loud one-time notice to **commit it once**. After that the block is invisible plumbing.
 
-**3. Guard drift in CI.** `sync-agents.sh --check` is a four-part gate:
+**3. Guard drift in CI.** `docket install check` is a four-part gate:
 
 - The `.gitignore` `# docket` block is present and current, **and** no per-repo generated file is tracked by git — both are **CI-meaningful** (`rc != 0` fails the build; the second leg also catches a repo whose migration commit never happened).
 - A committed `.docket.yml` using the legacy bare-agent-key `agents:` shape (agent keys sitting directly under `agents:` instead of nested under `agents: default:`) also fails — **CI-meaningful** (`rc != 0`) — naming the offending keys and the reshape to `agents.default.<agent>` in its message.
-- Generated content drifting from the resolved config is **advisory only** (`rc` unaffected) — every clone regenerates its own copy at build time, so a stale local file is a nudge to re-run `sync-agents.sh`, not a CI failure.
+- Generated content drifting from the resolved config is **advisory only** (`rc` unaffected) — every clone regenerates its own copy at build time, so a stale local file is a nudge to re-run the install, not a CI failure.
 
-**Always the full set, plus a Cursor dispatch rule.** The per-repo layer writes the **full built-in agent set** for every harness in `agent_harnesses` (the `agents:` block only *overrides* model/effort — it never decides which agents exist). It is **opt-in**: a repo opts in by declaring an `agents:` block or an `agent_harnesses:` key, in **either** its committed `.docket.yml` or its local `.docket.local.yml`; a repo with neither key set in either file generates no per-repo wrappers and its `--check` stays a no-op. A repo listing `cursor` also gets a generated `.cursor/rules/docket-dispatch.mdc` that forces Cursor to dispatch docket agents instead of running them inline. `sync-agents.sh --check` covers both the generated agents and the dispatch rule. The model and effort each of those wrappers carries are resolved per field from your config layers over docket's shipped [`agents/harness-defaults.yml`](agents/harness-defaults.yml); a harness/agent pair with no entry in any layer is generated **unpinned**, so that harness applies its own default rather than inheriting another harness's model ID. For **Codex** — its `.codex/agents/*.toml` wrappers plus the committed `AGENTS.md` dispatch block, and why a *global* `agent_harnesses` does not generate them per-repo (the repo must opt in) — see [docs/codex/setup.md](docs/codex/setup.md) — both entry paths, a prose request routed by the committed `AGENTS.md` dispatch block and a direct `@docket-…` invocation, are supported and reach the identical registered wrapper; to validate the whole loop live, work through the [Codex live-validation runbook](docs/codex/validation-runbook.md). For **opencode** — its `.opencode/agents/*.md` definitions plus the same committed `AGENTS.md` dispatch block, which the two harnesses share — see [docs/opencode/setup.md](docs/opencode/setup.md).
+**Always the full set, plus a Cursor dispatch rule.** The per-repo layer writes the **full built-in agent set** for every harness in `agent_harnesses` (the `agents:` block only *overrides* model/effort — it never decides which agents exist). It is **opt-in**: a repo opts in by declaring an `agents:` block or an `agent_harnesses:` key, in **either** its committed `.docket.yml` or its local `.docket.local.yml`; a repo with neither key set in either file generates no per-repo wrappers and its `--check` stays a no-op. A repo listing `cursor` also gets a generated `.cursor/rules/docket-dispatch.mdc` that forces Cursor to dispatch docket agents instead of running them inline. `docket install check` covers both the generated agents and the dispatch rule. The model and effort each of those wrappers carries are resolved per field from your config layers over docket's shipped [`agents/harness-defaults.yml`](agents/harness-defaults.yml); a harness/agent pair with no entry in any layer is generated **unpinned**, so that harness applies its own default rather than inheriting another harness's model ID. For **Codex** — its `.codex/agents/*.toml` wrappers plus the committed `AGENTS.md` dispatch block, and why a *global* `agent_harnesses` does not generate them per-repo (the repo must opt in) — see [docs/codex/setup.md](docs/codex/setup.md) — both entry paths, a prose request routed by the committed `AGENTS.md` dispatch block and a direct `@docket-…` invocation, are supported and reach the identical registered wrapper; to validate the whole loop live, work through the [Codex live-validation runbook](docs/codex/validation-runbook.md). For **opencode** — its `.opencode/agents/*.md` definitions plus the same committed `AGENTS.md` dispatch block, which the two harnesses share — see [docs/opencode/setup.md](docs/opencode/setup.md).
 
 **Two mechanisms for one inline quirk.** Both Cursor and Claude Code run a *directly-invoked* skill — a human typing `/docket-status`, or the model auto-invoking it — inline at the session model, which silently defeats the wrapper's model/effort pin. They fix it differently: Cursor uses the generated `docket-dispatch.mdc` rule above; **Claude Code uses native `context: fork` + `agent: docket-<name>` frontmatter** committed in each forked skill's `SKILL.md`, which forks the invocation into the same pinned wrapper. That frontmatter is inert in every other harness (unknown keys are ignored), so one shared `SKILL.md` serves all of them, and it degrades to today's inline behavior on a Claude Code too old to know the field. **Fork-exclusion principle:** only skills that never need the human mid-run are forked — a forked subagent has no channel to the human (Claude Code withholds `AskUserQuestion`, `EnterPlanMode`, and similar from subagents). So the four headless-safe autonomous skills — `docket-status`, `docket-adr`, `docket-implement-next`, `docket-auto-groom` — carry the frontmatter; the two interactive brainstorm skills (`docket-new-change`, `docket-groom-next`) and `docket-finalize-change` (which retains real prompts — the multi-candidate batch confirmation and repair sign-off — so a headless drive is authorized by [naming ids](#closing-out-hands-free-with-loop) instead) do not.
 
@@ -746,7 +748,7 @@ bash sync-agents.sh        # or re-run install.sh, whose Go engine reconciles th
 
 Reach for **agent-dispatch when you want to watch a long run** — a build you intend to babysit — and **skill-invoke for everything else**. A forked run is not lost, only unobservable in the TUI: Claude Code still writes its full transcript to `~/.claude/projects/<project-slug>/<session-id>/subagents/agent-<id>.jsonl`. Treat that path as an **observed internal, not an interface** — it was accurate on Claude Code 2.1.207, it may move, and docket depends on it for nothing. Cursor users are always on the drillable path: the generated dispatch rule routes a direct invocation through a real `Task` dispatch.
 
-**Restart your session after changing an agent or a skill.** Skills and agents are **registered at process start**. After you run `sync-agents.sh`, or edit a skill's frontmatter, an already-open session keeps running the *old* definitions — so a freshly-added fork appears to do nothing, and a healthy pin looks broken. Restart the harness process (a new session — clearing the context is not enough) and re-invoke.
+**Restart your session after changing an agent or a skill.** Skills and agents are **registered at process start**. After you run the install, or edit a skill's frontmatter, an already-open session keeps running the *old* definitions — so a freshly-added fork appears to do nothing, and a healthy pin looks broken. Restart the harness process (a new session — clearing the context is not enough) and re-invoke.
 
 **The clone-identical guarantee is retired.** Before this change, committing the generated per-repo files meant an autonomous change built on the exact same model on every clone, by construction. Generation is now all-local, so that guarantee is gone — a deliberate trade, not an oversight: never having to reconcile a machine-generated file in a PR diff, at the cost of no CI-enforced pinning of the generated copies. Team defaults for a repo still live in its committed `.docket.yml` `agents:` block, by convention.
 
@@ -925,8 +927,8 @@ agent source carries `worktree-scope: feature` or `worktree-scope: metadata`, th
 bake the `--worktree` slot for the feature-scoped ones, and the dispatch facade refuses a
 feature-scoped delegation that names no worktree (or that names the main worktree).
 
-How it works: `sync-agents.sh` generates that agent's wrapper with a **shim body** — a
-**launch-then-observe** instruction over a single dispatch seam, `docket.sh runner-dispatch`. The
+How it works: the Go install generates that agent's wrapper with a **shim body** — a
+**launch-then-observe** instruction over a single host-native dispatch seam (change 0371). The
 launch call resolves the `runners.codex` knobs, starts `codex exec` (sandboxed, final-message relay
 via `--output-last-message`) **detached**, and returns a dispatch key immediately; the wrapper then
 makes bounded, short observe calls against that key until the run reports a terminal result. Two
@@ -949,7 +951,7 @@ Rules and limits:
 - **Generation is all-or-nothing.** Any bad `runner:` entry is detected before the first wrapper is
   written, and the run refuses rather than regenerating some wrappers and not others: one bad entry
   refreshes *zero* wrappers, and previously generated ones survive untouched. The diagnostic names
-  every offender in one pass, so the fix is a single edit and a re-run. `sync-agents.sh --check`
+  every offender in one pass, so the fix is a single edit and a re-run. `docket install check`
   reports the same failure without writing anything.
 - Delegation is never a policy bypass: do not delegate `docket-finalize-change` to sidestep
   merge-approval gates (see ADR-0043).
@@ -1043,7 +1045,7 @@ escape hatch when a sole maintainer deliberately forces past an unsatisfiable re
 
 ## Status
 
-**docket-mode is the supported default.** Planning metadata lives on the orphan `docket` branch via the `.docket/` worktree; terminal records stay there too unless the repo opts in to publishing them onto the integration branch; trunk-based and GitFlow layouts are both supported. Existing single-branch repos move over with `migrate-to-docket.sh`, and the bootstrap guard refuses to run against an un-migrated repo rather than touching your data.
+**docket-mode is the supported default.** Planning metadata lives on the orphan `docket` branch via the `.docket/` worktree; terminal records stay there too unless the repo opts in to publishing them onto the integration branch; trunk-based and GitFlow layouts are both supported. Existing single-branch repos move over with `docket repository migrate`, and the bootstrap guard refuses to run against an un-migrated repo rather than touching your data.
 
 `main`-mode remains a simple, fully-supported opt-out: pin `metadata_branch: main` (and `integration_branch: main`) to keep everything on one branch with exactly the original single-branch behavior.
 
@@ -1055,23 +1057,19 @@ Two one-time migrations, each relevant only when you bring an *existing* repo on
 
 ### Migrating an existing repo to docket-mode
 
-A repo that has been running in single-branch mode (everything on `main`) moves to docket-mode with a one-shot, idempotent script: **`migrate-to-docket.sh`** (it ships in this docket repo, alongside `link-skills.sh` and `sync-agents.sh`). The script operates on the git repo containing your **current directory** — so run it *from within the repo you want to migrate*, pointing at the script wherever docket is checked out:
+A repo that has been running in single-branch mode (everything on `main`) moves to docket-mode with a one-shot, idempotent command: **`docket repository migrate`**. It operates on the git repo containing your **current directory** — so run it *from within the repo you want to migrate*:
 
 ```bash
 cd <target-repo>
-bash /path/to/docket/migrate-to-docket.sh
+docket repository migrate
 ```
 
 It prints the resolved target repo and prompts for confirmation before changing anything; pass `--yes` (or `-y`) to skip the prompt in automation. It then creates the orphan `docket` branch seeded from your current planning directories, prunes the live planning surface (`active/` changes, the changes `README.md`, `BOARD.md`) off the integration branch while keeping terminal records and build artifacts there, and adds `.docket/` + `.worktrees/` to `.gitignore`. Re-running it converges from any partial state.
 
-Migration also grants one **local, per-repo** Claude Code permission: an allow-rule for a push to the integration branch (written to `.claude/settings.local.json`, which migration adds to `.gitignore`). This allow-rule is **historical compatibility** — it pre-authorized the terminal-record publish push the permission classifier once guarded on close-out, but **terminal publication is deferred from Go v1 — `docket finalize closeout` is the complete automated closeout boundary**, so `terminal_publish: true` no longer exercises it. The rule stays granted (narrowly, and only in this repo — force-pushes and pushes to other branches stay guarded) as a harmless remnant. Because `settings.local.json` is gitignored and per-user, anyone who later **clones** an already-migrated repo can grant themselves the same rule by running the helper standalone:
+Migration also grants one **local, per-repo** Claude Code permission: an allow-rule for a push to the integration branch (written to `.claude/settings.local.json`, which migration adds to `.gitignore`). This allow-rule is **historical compatibility** — it pre-authorized the terminal-record publish push the permission classifier once guarded on close-out, but **terminal publication is deferred from Go v1 — `docket finalize closeout` is the complete automated closeout boundary**, so `terminal_publish: true` no longer exercises it. The rule stays granted (narrowly, and only in this repo — force-pushes and pushes to other branches stay guarded) as a harmless remnant. Because `settings.local.json` is gitignored and per-user, a fresh **clone** simply won't carry the rule — and with terminal publication deferred it no longer needs one; the standalone Bash re-grant helper that once wrote it was retired with the frozen control plane.
 
-```bash
-bash /path/to/docket/scripts/ensure-claude-settings.sh
-```
-
-The skills will **not** migrate a repo for you. On first run against an un-migrated repo (metadata still on the integration branch, no `docket` branch yet), a **bootstrap guard** STOPs and points you at `migrate-to-docket.sh` rather than silently moving your data. The same guard detects a half-finished migration and points back to the script to complete it.
+The skills will **not** migrate a repo for you. On first run against an un-migrated repo (metadata still on the integration branch, no `docket` branch yet), a **bootstrap guard** STOPs and points you at `docket repository migrate` rather than silently moving your data. The same guard detects a half-finished migration and points back to it to complete the move.
 
 ### Migrating a pre-0051 repo
 
-Repos that predate change 0051 (change 0048 committed the per-repo agent files directly) get a one-time, automatic migration on the next `sync-agents.sh` run: it deletes the stale tracked copies from the working tree, writes the `.gitignore` block, regenerates the local set fresh, and prints the single remedy commit to run — `git rm -r --cached '.claude/agents/docket-*.md' … && git add .gitignore && git commit -m "…"` — so the repo converges in one commit per clone.
+Repos that predate change 0051 (change 0048 committed the per-repo agent files directly) get a one-time, automatic migration on the next `docket development install` run: it deletes the stale tracked copies from the working tree, writes the `.gitignore` block, regenerates the local set fresh, and prints the single remedy commit to run — `git rm -r --cached '.claude/agents/docket-*.md' … && git add .gitignore && git commit -m "…"` — so the repo converges in one commit per clone.

@@ -46,7 +46,7 @@ if [ -n "$BRIEF_FILE" ]; then
   [ -f "$BRIEF_FILE" ] && [ -r "$BRIEF_FILE" ] || die "--brief-file '$BRIEF_FILE' is not a readable file"
   [ -s "$BRIEF_FILE" ] || die "--brief-file '$BRIEF_FILE' is empty — a child launched with no task does not error, it improvises"
 fi
-[ -n "${DOCKET_REPO_ROOT:-}" ] || die "DOCKET_REPO_ROOT is not set (invoke via docket.sh runner-dispatch)"
+[ -n "${DOCKET_REPO_ROOT:-}" ] || die "DOCKET_REPO_ROOT is not set (the dispatcher must export it)"
 
 SRC="$AGENTS_SRC/docket-$AGENT.md"
 [ -f "$SRC" ] || die "no built-in agent source for '$AGENT' (expected $SRC)"

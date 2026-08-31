@@ -13,7 +13,7 @@ import (
 // pin: EvidenceRecord records THIS (the observed gate command), never a value
 // carried in the request. A 40-hex feature head every fixture agrees on.
 const (
-	testGateCommand   = "scripts/run-tests.sh"
+	testGateCommand   = "go test ./..."
 	evidenceHead      = "abcdef0000000000000000000000000000000000"
 	evidenceOtherHead = "0000000000000000000000000000000000abcdef"
 )

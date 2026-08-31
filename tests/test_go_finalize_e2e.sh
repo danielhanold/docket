@@ -25,11 +25,11 @@
 # absent rather than skipping — a skipped gate certifies nothing.
 #
 # The assert helper is the tree's canonical one byte for byte: rule (a) of
-# scripts/check-test-source-hygiene.sh is a byte-exact allowlist, and
-# scripts/run-tests.sh accounts results on the `ok - ` / `NOT OK - ` markers
+# the source-hygiene guard (internal/repoguard) is a byte-exact allowlist, and
+# the suite runner accounts results on the `ok - ` / `NOT OK - ` markers
 # it prints.
 #
-# CACHES. scripts/run-tests.sh gives every job a private HOME, so with
+# CACHES. The suite runner gives every job a private HOME, so with
 # GOMODCACHE/GOCACHE unset `go` finds neither a module cache nor a build cache
 # and recompiles cold — network-dependent — on every suite run. This file pins
 # both to `<git common dir>/docket-go-cache/{mod,build}` when the caller has not

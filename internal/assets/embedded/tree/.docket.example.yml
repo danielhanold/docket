@@ -37,7 +37,7 @@
 #       Behavioral only. Per-machine divergence is benign.
 #   # scope: local-only (.docket.local.yml or global config.yml; never committed)
 #       Identifies machine-specific tooling. A committed value is loudly warned-and-ignored.
-# The authoritative classification lives in scripts/docket-config.md; this file mirrors it.
+# The authoritative classification lives in docket's config schema (internal/config); this file mirrors it.
 #
 # ── THE STANDING RULE ──────────────────────────────────────────────────────────────────────
 # EVERY new config flag lands in THIS FILE — its value AND its documentation — in the SAME PR
@@ -61,7 +61,7 @@
 # ═══ Branch model & layout ═════════════════════════════════════════════════════════════════
 
 # metadata_branch — where planning metadata lives. `docket` (the default) puts the repo in
-# DOCKET-MODE (migrate an existing repo with migrate-to-docket.sh — change 0002): changes, the
+# DOCKET-MODE (migrate an existing repo with `docket repository migrate` — change 0002): changes, the
 # board, ADRs, and specs are the live surface on the `docket` branch, checked out into a
 # <repo>/.docket worktree, while the integration branch keeps code, build artifacts, and
 # published terminal records. `main` opts out to single-branch mode, where planning metadata
@@ -73,7 +73,7 @@ metadata_branch: docket
 # integration_branch — the branch code lands on, i.e. where PRs merge. `auto` (the default)
 # resolves to the repo's default branch, origin/HEAD; name a branch explicitly (`main`,
 # `develop`) to point docket at a different code line. In DOCKET-MODE the named ref must exist on
-# origin, or startup fails closed rather than guessing (docket-config.sh's Stage 3 bootstrap guard
+# origin, or startup fails closed rather than guessing (the config resolver's Stage 3 bootstrap guard
 # reads it via `g ls-tree "origin/$INTEGRATION_BRANCH"`, which dies on a non-zero exit rather than
 # reading it as ¬LIVE); in main-mode the resolver does not validate the ref.
 # scope: repo-only (coordination-fenced, ADR-0019)
@@ -266,7 +266,7 @@ board_surfaces: [inline]
 #   github_project from config: github-mirror.sh resolves its board only from --project /
 #   --auto-create-project, and docket-status.sh populates those only from its own CLI flags,
 #   which no skill passes. The key's sole live effect is the coordination-key fence
-#   (docket-config.sh's `for _fkey in metadata_branch integration_branch …` fence loop), which
+#   (the config resolver's coordination-key fence over metadata_branch, integration_branch, …), which
 #   warns-and-ignores it in the machine-scoped layers. Enabling
 #   `github` in board_surfaces therefore mirrors ISSUES only; no Projects v2 board is created or
 #   synced, and nothing is written back over `auto`. The scope tag below records where the key
@@ -354,14 +354,14 @@ dummy_mode:
 # agent_harnesses — which harnesses the PER-REPO agent pass generates wrapper files for.
 # Value default is [claude]. But PRESENCE in a repo file is itself the opt-in to per-repo wrapper
 # generation: a repo that adopts docket for change-tracking only, with neither this key nor
-# `agents:` set anywhere, generates no wrappers and keeps `sync-agents.sh --check` a no-op.
+# `agents:` set anywhere, generates no wrappers and keeps `docket install check` a no-op.
 # To enable another harness: add it here AND uncomment that harness's block under `agents:`,
 # then re-run install.sh. Model IDs pass through verbatim; unknown tokens are warned + dropped.
 # A KNOWN-but-unmapped harness token (no named emitter, e.g. `agents`, `kiro`, `windsurf`) is a
 # different case: it is warned and KEPT — its wrappers still generate, Claude-shaped and
-# unverified (ADR-0060) — and `sync-agents.sh --check` reports it as a non-failing advisory.
+# unverified (ADR-0060) — and `docket install check` reports it as a non-failing advisory.
 # A GLOBAL value (~/.config/docket/config.yml) means something different: it scopes
-# sync-agents.sh's USER-LEVEL pass only (which harnesses get ~/.claude/agents/docket-*.md, etc.)
+# the install's USER-LEVEL pass only (which harnesses get ~/.claude/agents/docket-*.md, etc.)
 # and never opts any repo into the per-repo generation pass above — that opt-in is presence in a
 # REPO file (this key or `agents:`, in .docket.yml or .docket.local.yml) and only that.
 # AT INSTALL TIME (change 0351) this same key is the EXPLICIT opt-in for a repository's
@@ -378,7 +378,7 @@ dummy_mode:
 # agent_harnesses: [claude]
 
 # agents — per-skill subagent model/effort (change 0016), harness-first (change 0046). Generated
-# into agent wrappers by sync-agents.sh. Keys are skill SHORT names nested under a reserved
+# into agent wrappers by the Go install. Keys are skill SHORT names nested under a reserved
 # `default:` (the harness-neutral fallback) and, optionally, per-harness override keys (e.g.
 # `cursor:`) that only need to list the fields that differ; resolution is field-by-field:
 # agents.<harness>.<agent> -> agents.default.<agent> -> shipped built-in
@@ -401,11 +401,11 @@ dummy_mode:
 # Configuring a skill here overrides its model/effort in the generated, machine-local
 # .<harness>/agents/docket-<skill>.md — which is regenerated for every built-in regardless (full
 # set; this block is OVERRIDE-ONLY, tuning model/effort and never deciding which agents exist),
-# gitignored via a managed .gitignore block, and never committed. Run `sync-agents.sh` after
-# editing, and `sync-agents.sh --check` in CI to catch a missing/stale .gitignore block or an
+# gitignored via a managed .gitignore block, and never committed. Run `docket development install` after
+# editing, and `docket install check` in CI to catch a missing/stale .gitignore block or an
 # accidentally-tracked generated file (content drift itself is advisory only — every clone
 # regenerates its own copy). A `cursor` harness additionally gets a generated
-# .cursor/rules/docket-dispatch.mdc dispatch rule; sync-agents.sh prunes orphaned docket-* files.
+# .cursor/rules/docket-dispatch.mdc dispatch rule; the install prunes orphaned docket-* files.
 # An entry may also carry a `runner:` key (e.g. `runner: codex`) alongside `model:`/`effort:` to
 # delegate that agent's whole run to a child harness with its own subscription, models, and
 # skills — see the `runners:` block below. A delegated entry MUST carry an explicit `model:`

@@ -36,7 +36,7 @@
 # is a red assert, not a silent pass.
 #
 # The assert helper is the tree's canonical one byte for byte (rule (a) of
-# scripts/check-test-source-hygiene.sh is a byte-exact allowlist).
+# the source-hygiene guard in internal/repoguard is a byte-exact allowlist).
 #
 # CACHES. Same location and reasoning as tests/test_go_toolchain.sh (see the CACHES
 # note in that file's header): <git common dir>/docket-go-cache/{mod,build}, shared
