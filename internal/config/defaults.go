@@ -50,7 +50,7 @@ func builtinEffective() Effective {
 			SectionOrder: builtinValue(append([]string(nil), BoardSectionTokens...)),
 			Sorting:      builtinBoardSorting(),
 		},
-		ChangeTypes:     builtinValue([]string{"chore", "docs", "feat", "fix", "refactor", "perf"}),
+		ChangeTypes: builtinValue([]string{"chore", "docs", "feat", "fix", "refactor", "perf"}),
 		// No built-in default: an absent agent_harnesses is the touch-nothing
 		// state, so the built-in value is a nil list that stays non-explicit.
 		AgentHarnesses: builtinValue([]string(nil)),
