@@ -2939,7 +2939,11 @@ assert "main-mode full run: no .docket metadata worktree created" '[ ! -d "$mm2_
 # skill-body wiring: the docket-status SKILL invokes the orchestrator script and no longer
 # inlines the full per-change sweep loop prose it now delegates to docket-status.sh.
 SKILL="$REPO/skills/docket-status/SKILL.md"
-assert "SKILL invokes the orchestrator (docket.sh docket-status)" 'grep -qF "docket.sh docket-status" "$SKILL"'
+# change 0377: the plain-status pass migrated from the frozen `docket.sh docket-status` orchestrator to
+# the native `docket maintenance sweep` (mutation) + `docket status --json` (write-free read). Positive
+# floor keyed on both new Go verbs so deleting either reddens (restatement-accumulates-its-own-guards).
+assert "SKILL runs the native sweep + read (docket maintenance sweep / docket status --json)" \
+  'grep -qF "docket maintenance sweep" "$SKILL" && grep -qF "docket status --json" "$SKILL"'
 assert "SKILL no longer inlines the sweep loop enumeration" \
   '! grep -qF "For each \`implemented\` change:" "$SKILL"'
 

@@ -135,7 +135,11 @@ assert "adr malformed-id silent on clean ledger" '! has_finding "$out" malformed
 rm -rf "$d"
 
 # ===== docket-adr wiring sentinel =====
-assert "docket-adr Index/validate invokes adr-checks (via the docket.sh facade)" 'grep -qF "docket.sh adr-checks" "$SKILL"'
+# change 0377 (Class D): the ADR-ledger checks migrated from the frozen `docket.sh adr-checks` facade
+# to the typed `docket repository check` findings (adr consistency + derived-view drift). The frozen
+# adr-checks.sh script is still exercised above against fixtures; only the SKILL wiring re-points.
+# Positive floor keyed on the new Go verb so deleting it reddens (restatement-accumulates-its-own-guards).
+assert "docket-adr Index/validate validates the ledger via docket repository check (Go findings)" 'grep -qF "docket repository check" "$SKILL"'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

@@ -175,7 +175,12 @@ bash "$SCRIPT" >/dev/null 2>&1; assert "missing --adrs-dir exits 2" '[ "$?" -eq 
 bash "$SCRIPT" --adrs-dir "$tmp/nope" >/dev/null 2>&1; assert "absent dir exits 2" '[ "$?" -eq 2 ]'
 
 # --- docket-adr wiring sentinels (the SKILL is code on the integration branch) ---
-assert "docket-adr Index/validate invokes render-adr-index (via the docket.sh facade)" 'grep -qF "docket.sh render-adr-index" "$SKILL"'
+# change 0377 (Class D): the stale-index repair escape hatch migrated from the frozen
+# `docket.sh render-adr-index` renderer to authorized `docket repository migrate` repair (surfaced by
+# `docket repository check`'s `adr-index-stale` finding). The frozen render-adr-index.sh script is
+# still exercised above against fixtures; only the SKILL wiring re-points. Positive floor keyed on the
+# new Go verb so deleting it reddens (restatement-accumulates-its-own-guards).
+assert "docket-adr Index/validate repairs out-of-band index drift via docket repository migrate" 'grep -qF "docket repository migrate" "$SKILL"'
 # change 0369 (Class D): Create/Supersede/Reverse drive the typed Go ADR transactions, which
 # re-render the index atomically — the standalone render follow-up is removed.
 assert "docket-adr records through the Go transaction" 'grep -qF "docket adr record --request -" "$SKILL"'

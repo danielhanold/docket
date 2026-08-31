@@ -9,7 +9,7 @@ agent: docket-status
 
 ## Overview
 
-`docket-status` gives you a queryable, up-to-date view of the backlog and keeps it clean. Four jobs: **report the backlog digest** (the `backlog <status> <count>` and `change <id> <status> <readiness> <slug>` lines, plus a trailing `ready [<id> …]` build-ready queue — emitted in *every* configuration, board or no board, and **the channel you write your summary from**), refresh docket state (rendering each enabled board surface), sweep any `implemented` change whose PR merged into the archive, and run health checks (stale claims, broken links, dependency stalls). On a full pass it also self-heals the learnings index and surfaces two needs-you advisories — see *Learnings* below. The change files are the source of truth; any board is generated output, never edited by hand. All of this is sequenced by the deterministic orchestrator (contract: `scripts/docket-status.md`; change 0058) as one 8-step pass — this skill invokes it, trusts its exit code, surfaces its report, and applies the handful of judgment calls the script deliberately leaves in-model.
+`docket-status` gives you a queryable, up-to-date view of the backlog and keeps it clean. Four jobs: **report the backlog digest** (the `backlog <status> <count>` and `change <id> <status> <readiness> <slug>` lines, plus a trailing `ready [<id> …]` build-ready queue — emitted in *every* configuration, board or no board, and **the channel you write your summary from**), refresh docket state (rendering each enabled board surface), sweep any `implemented` change whose PR merged into the archive, and run health checks (stale claims, broken links, dependency stalls). On a full pass it also self-heals the learnings index and surfaces two needs-you advisories — see *Learnings* below. The change files are the source of truth; any board is generated output, never edited by hand. All of this runs through the native `docket maintenance sweep` (the mutation) and `docket status` (the write-free read) commands — this skill invokes them, keys on their typed protocol-v1 dispositions, surfaces their report, and applies the handful of judgment calls the commands deliberately leave in-model. The per-line shapes and failure postures stay documented in `scripts/docket-status.md`.
 
 ## When to use
 
@@ -19,12 +19,12 @@ agent: docket-status
 
 ## Convention (load first — blocking)
 
-Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *Step-0 preamble*: `docket.sh preflight` as its own Bash call, reading the printed `KEY=value` block off stdout. `docket.sh docket-status` re-derives and re-checks the bootstrap gate + metadata working tree sync itself, but the block gives you `$DOCKET_SCRIPTS_DIR` and the other exported values for the rest of this skill. Everything below uses the convention's vocabulary without redefinition.
+Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *Step-0 preamble*: `docket repository prepare --repo-dir <dir> --json` as its own Bash call, validating the protocol-v1 envelope and carrying its typed context forward. Prepare enforces the bootstrap gate and syncs the metadata working tree fail-closed; its typed context gives you the resolved repo/branch/dir values the rest of this skill needs. Everything below uses the convention's vocabulary without redefinition.
 
 ## Mode choice
 
-- **The user only wants to *see* the backlog** (no explicit refresh requested, nothing merged recently that you know of) ⇒ run the board-only pass: `--board-only`.
-- **Everything else** — an explicit refresh/cleanup request, `docket-implement-next`'s step-0 safety net, or a post-merge cleanup after a PR merged via the GitHub button ⇒ run the full pass (no flag): board + merge sweep + health checks + judgment lines + learnings self-heal + integration sync.
+- **The user only wants to *see* the backlog** (no explicit refresh requested, nothing merged recently that you know of) ⇒ run the write-free read alone: `docket status --json`. It never merges, archives, reclaims, or renders a board.
+- **Everything else** — an explicit refresh/cleanup request, `docket-implement-next`'s step-0 safety net, or a post-merge cleanup after a PR merged via the GitHub button ⇒ run `docket maintenance sweep --json` first (merge sweep + health checks + judgment lines + integration sync), then read the refreshed state with `docket status --json`.
 
 ## Maintenance sweep — the merged-PR recovery mutation (only when asked)
 
@@ -44,19 +44,22 @@ unauthorized child, and never edits authored results; a destructive suffix never
 `unknown` prerequisite, and one item's failure never stops the independent items. Surface the
 per-item report; act only on the `blocked`/`failed`/`unknown` entries a human must see.
 
-## Run the orchestrator
+## Run the pass
+
+On a **refresh/cleanup** pass, run the mutation first, then the read; on a **see-only** pass, run the read alone:
 
 ```
-"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh docket-status [--board-only]
+docket maintenance sweep --json    # mutation: close out merged PRs, retry repairs, reclaim when armed
+docket status --json               # write-free read over the (now refreshed) state
 ```
 
-Trust its exit code for the pass as a whole: `0` is the pass completing (`board off`, `pass ok`, findings, `sweep-failed`, `sweep-skipped`, `orphan-pr-skipped`, `board *-failed`, `board inline blocked-wedged-tree`, and `judgment` lines on stdout are all normal outcomes, not errors); non-zero is a hard error — config export failure, an unusable `BOOTSTRAP` verdict or metadata worktree, a bad CLI argument, or a resolved `board_surfaces` that came back empty or with `none` combined with another surface (change 0071) — surface the stderr diagnostic and stop rather than improvising a fix. **The Board pass specifically is narrower than that**: key on its stdout report line, never its exit code alone (the convention's *Board refresh on status writes* is the single source of that contract). A pass that exits `0` but prints no `board …` line at all, or ends its Board pass on `board inline failed`, `board <token> unknown`, `board github failed`, `board inline changed push-failed`, or `board inline blocked-wedged-tree` (change 0247 — the shared metadata worktree has a rebase or merge in progress, so the board pass pushed nothing — and committed nothing when the pre-commit probe fired, though a wedge opening later may leave an unpushed local commit; **not** retryable, and clearing it is a human act), has ALSO failed at that step.
+Validate each protocol-v1 envelope and key on its typed **disposition**, never an exit code. The sweep emits one structured entry per item with a closed disposition (`applied` | `noop` | `contended` | `blocked` | `unknown` | `failed` | `skipped`), and the read returns the structured backlog plus any health findings. A `blocked` / `failed` / `unknown` sweep entry, or a read whose envelope carries an error disposition — a config-resolution failure, an unusable bootstrap verdict or metadata worktree, a bad argument — is a hard error: surface the diagnostic and stop rather than improvising a fix.
 
 **Scope of this stop:** if you invoked this skill yourself — the convention's Tier A path — this
 stop ends only the status role and you continue to your own next step; only an agent whose entire
 assignment is this role ends its turn here.
 
-The script owns the mechanics of what it renders, sweeps, and checks — see `scripts/docket-status.md` for the full 8-step sequence, its output-line shapes, and its failure postures. Surface its report to the user in human terms (what's on the board, what got swept, what health checks flagged) rather than pasting the raw line-oriented output. Health checks stay warn-only — do not auto-fix findings unless the user explicitly asks.
+There is **no** separate board pass to key on: every board-authoritative typed mutation re-renders `BOARD.md` in the same metadata commit as the record it reflects, so the sweep leaves the board current and a plain `docket status` read writes nothing. The commands own the mechanics of what they sweep and check — see `scripts/docket-status.md` for the output-line shapes and failure postures. Surface the report to the user in human terms (what's on the board, what got swept, what health checks flagged) rather than pasting the raw line-oriented output. Health checks stay warn-only — do not auto-fix findings unless the user explicitly asks.
 
 ## Read the report — it is the only channel you need
 
@@ -74,12 +77,12 @@ Two rules follow, and they are not optional:
 
 ## Judgment follow-ups (stay in-model — the script does not do these)
 
-Drive these off the report lines `docket.sh docket-status` emits; skip a category entirely if no matching line appeared.
+Drive these off the report lines `docket maintenance sweep` and `docket status` emit; skip a category entirely if no matching line appeared.
 
 - **`harvest <id> <path>` lines** — for each, note the id in the pass report — automated learnings harvest is deferred from Go v1 — record or update findings by editing `learnings/` files directly. The absence of a harvest is never a sweep failure, and the pass never fabricates an empty harvest result.
 - **`stacked-merged` / `promote-failed` / `stack-carried-failed` lines, or a `check stack-invalid` / `check stack-parent-killed` finding** — **read [`../docket-convention/references/stacked-changes.md`](../docket-convention/references/stacked-changes.md) now (blocking)** before explaining or acting on one: it owns what the state means, why nothing was archived, and which remedies are a human's rather than a retry's.
 - **`judgment blocked <id> <text>` lines** — re-examine that change's `blocked_by:` free text; flag to the user if the referenced issue/PR/event appears resolved. This is judgment, not a git probe — never scripted.
-- **`minted issue <id> <n>` / `minted project <owner> <n>` lines** — write the value back into the change file (`issue:`) or `.docket.yml` (`github_project: {owner, number}`) on `metadata_branch`, following normal push discipline (re-run `docket.sh preflight`, commit, push). **Stage by explicit path** — that tree is shared, so a bare `add -A` commits another agent's staged work under your message. <!-- docket:config-read-channel: write-back -->
+- **`minted issue <id> <n>` / `minted project <owner> <n>` lines** — write the value back into the change file (`issue:`) or `.docket.yml` (`github_project: {owner, number}`) on `metadata_branch`, following normal push discipline (re-run `docket repository prepare` to re-sync, commit, push). **Stage by explicit path** — that tree is shared, so a bare `add -A` commits another agent's staged work under your message. <!-- docket:config-read-channel: write-back -->
 - **`github` mirror reachability** — only when `board_surfaces` includes `github`: warn on a change carrying an `issue:` whose mirror looks unreachable. Best-effort visibility flag, like the other checks — never auto-fix.
 
 ## Final summary
@@ -102,11 +105,11 @@ When `board_surfaces` includes `inline`, `board-refresh.sh` (contract: `scripts/
 
 ### Merge sweep
 
-The bulk safety net: every `implemented` change whose PR has merged gets archived on `metadata_branch` and its branch cleaned up, chaining the same close-out sequence (`terminal-close-out.md`) `docket-finalize-change` uses. terminal publication is deferred from Go v1, so no terminal record is copied onto the `integration_branch`. Runs automatically at `docket-implement-next` step 0 and on any explicit non-`--board-only` `docket-status` invocation.
+The bulk safety net: every `implemented` change whose PR has merged gets archived on `metadata_branch` and its branch cleaned up, chaining the same close-out sequence (`terminal-close-out.md`) `docket-finalize-change` uses. terminal publication is deferred from Go v1, so no terminal record is copied onto the `integration_branch`. Runs automatically at `docket-implement-next` step 0 and on any explicit refresh/cleanup `docket maintenance sweep` invocation.
 
 The rebase-onto-base + re-run-tests gate lives in `docket-finalize-change`'s merge step and is **finalize-only** — the sweep only archives PRs that are already merged, it never merges, so the gate has nothing to act on here.
 
-**Sweep posture:** per-change failures **log the error and continue to the next change**. A failure before the archive step (`sync pull-failed`, `archive script-error`) or a `cleanup` failure retries cleanly next pass. A `sweep-failed` at `render-change-links` **does** abandon the remainder of this change's close-out, leaving its `## Artifacts` block stale, which no later sweep resumes (the sweep only scans `active/*.md`); the follow-up there is a manual re-render — `docket.sh render-change-links` on the archived file (that renderer is a frozen carve-out and stays). terminal publication is deferred from Go v1, so the sweep has **no publish leg**: it copies no terminal record onto the `integration_branch` and writes no `## Publish deferred` marker, though the `publish-deferred` health check below still surfaces any pre-existing marker on every later pass. Reason **`commit-failed`** or **`push-failed`** (step 6a, change 0075) — or **`blocked-wedged-tree`** (change 0247: the shared metadata worktree was mid-rebase/merge, so step 6a committed nothing) — is instead **report-and-continue**: the close-out already completed (`cleanup` ran; the pass still emits `swept`/`harvest`) — only the cosmetic `## Artifacts` block is stale, self-healing on the next pass. This is **deliberately divergent from `docket-finalize-change`'s** abort-and-report posture — the sequence is shared, the failure posture is not.
+**Sweep posture:** per-change failures **log the error and continue to the next change**. A failure before the archive step (`sync pull-failed`, `archive script-error`) or a `cleanup` failure retries cleanly next pass. A `sweep-failed` at the artifact-links render **does** abandon the remainder of this change's close-out, leaving its `## Artifacts` block stale, which no later sweep resumes (the sweep only scans `active/*.md`); the follow-up there is the exceptional-drift repair — `docket repository check` surfaces the `artifact-links-stale` finding and authorized `docket repository migrate` re-renders the block on the archived file. terminal publication is deferred from Go v1, so the sweep has **no publish leg**: it copies no terminal record onto the `integration_branch` and writes no `## Publish deferred` marker, though the `publish-deferred` health check below still surfaces any pre-existing marker on every later pass. Reason **`commit-failed`** or **`push-failed`** (step 6a, change 0075) — or **`blocked-wedged-tree`** (change 0247: the shared metadata worktree was mid-rebase/merge, so step 6a committed nothing) — is instead **report-and-continue**: the close-out already completed (`cleanup` ran; the pass still emits `swept`/`harvest`) — only the cosmetic `## Artifacts` block is stale, self-healing on the next pass. This is **deliberately divergent from `docket-finalize-change`'s** abort-and-report posture — the sequence is shared, the failure posture is not.
 
 ### Learnings
 
@@ -114,6 +117,6 @@ The rebase-onto-base + re-run-tests gate lives in `docket-finalize-change`'s mer
 
 ### Health checks
 
-Flag what the pass reports (do not auto-fix unless asked): mechanical, git-only, warn-only checks over stale claims, broken spec/plan/results links, and dependency stalls. This skill never runs the checker directly — it invokes `docket.sh docket-status`, which runs it. The closed check-id set and each check's meaning live where they are owned: the per-check sections of `scripts/board-checks.md`, and the `check <check-id>` report-line row in `scripts/docket-status.md`.
+Flag what the pass reports (do not auto-fix unless asked): mechanical, git-only, warn-only checks over stale claims, broken spec/plan/results links, and dependency stalls. This skill never runs the checker directly — it invokes `docket maintenance sweep` / `docket status`, which run it. The closed check-id set and each check's meaning live where they are owned: the per-check sections of `scripts/board-checks.md`, and the `check <check-id>` report-line row in `scripts/docket-status.md`.
 
 Two judgment checks stay in-model, on top of the script: `blocked_by:` re-examination and `github` mirror reachability (see *Judgment follow-ups* above) — both warn-only, never auto-fix.

@@ -344,8 +344,11 @@ assert "B1: the preamble names the bare-add spelling it forbids" \
 # forbids for exactly the reason visible in docket-adr: it already uses the variant "metadata tree"
 # more often than the canonical phrase, so an ordinary slim normalizing to its own house idiom would
 # silently drop it from coverage — a false green in the one channel this group exists to guard.
-# `docket.sh preflight` is a literal invoked command, immune to both reflow and rewording.
-IN_SCOPE="$(grep -l 'docket.sh preflight' "$REPO"/skills/*/SKILL.md 2>/dev/null \
+# `docket.sh preflight` / `docket repository prepare` is a literal invoked command, immune to both
+# reflow and rewording. change 0377 Task 9 migrated docket-status and docket-adr from the frozen
+# `docket.sh preflight` facade to the typed `docket repository prepare` Step-0 command; the derivation
+# matches EITHER Step-0 command so all seven operating skills stay in scope through the migration window.
+IN_SCOPE="$(grep -lE 'docket\.sh preflight|docket repository prepare' "$REPO"/skills/*/SKILL.md 2>/dev/null \
             | grep -v '/docket-convention/' | sort)"
 assert "B2: the derivation found in-scope skills (extractor floor)" '[ -n "$IN_SCOPE" ]'
 assert "B2: the derivation yields exactly 7 metadata-writing skills (found $(grep -c . <<<"$IN_SCOPE"))" \
