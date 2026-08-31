@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/speed-up-implement-next-status-sweeps-and-retire-completed-s'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-31T17:49:53Z'
+reconciled: true
+claimed_at: '2026-08-31T17:52:43Z'
 ---
 
 ## Artifacts
@@ -56,3 +56,9 @@ The user approved moving historical cleanup retries out of implementation startu
 - New agent topology, runner fallbacks, model/effort changes, generalized driver redesign, or skipping Step 0 for targeted runs.
 - Automatically repairing the unrelated plan/config findings from the original report.
 - Implementing code, running a live sweep, closing existing agents, or altering another implementation run during this grooming operation.
+
+## Reconcile log
+
+### 2026-08-31
+
+2026-08-31 — Reconciled at claim. Verified the diagnosis and design against current source: `internal/app/maintenance.go` `sweepWorklist` still enqueues an independent cleanup item for every `done`/`stacked-merged` record present at the pinned inventory (the archive-amplification the spec targets), while merged-implemented closeouts and their carried cleanup suffixes flow through `sweepRunCloseout`; `internal/cli/maintenance.go` `maintenance sweep` carries only `--repo-dir` and no scope flag. Both are the surfaces the spec names, unchanged since drafting. Related work confirmed non-blocking: #0384 (launch compositional agents in coordinator-capable harnesses) is still `in-progress` with no merged harness changes, so there is nothing landed to fold in — the part-5 harness-reconciliation clause resolves to keeping the waiting/retirement mechanics in the docket-status / docket-implement-next / convention role prose and touching no generated harness adapter unless investigation proves the prose cannot express them; #0360 (implement-next coordination-tax) is still `proposed`, related context not a dependency; #0058 and #0310 remain merged (done). ADR-0012 (script-vs-model boundary) and ADR-0024 (fork/dispatch completion) remain the governing decisions. Scope unchanged; live evidence of the early-return bug re-observed this very run when the Step-0 docket-status child returned before its ~30-minute full-scope sweep completed.
