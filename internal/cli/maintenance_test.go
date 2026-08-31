@@ -3,6 +3,10 @@ package cli
 import (
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/githubcli"
 )
 
 // TestMaintenanceSweepRegistered proves the subcommand is wired under the
@@ -75,6 +79,94 @@ func TestMaintenanceSweepScopeRefusedBeforeWork(t *testing.T) {
 		if !strings.Contains(out+errS, "scope") {
 			t.Errorf("scope %q: diagnostic must name the flag, got out=%q err=%q", bad, out, errS)
 		}
+	}
+}
+
+// TestSweepDepsCarrySweepNetworkPolicies proves the sweep-only dependency
+// builder resolves the non-default 30s read / 60s write network deadlines onto
+// its real Git and GitHub clients. It reads the RESOLVED accessor value, not the
+// argument (learnings: defaulted-param-hides-caller-wiring) — a dropped option
+// would leave the five-minute default here and pass a shallower argument check.
+func TestSweepDepsCarrySweepNetworkPolicies(t *testing.T) {
+	// Pin the policy's absolute values, then assert every seam resolves to them:
+	// the constants ARE the 30s/60s contract, so a later re-tune reddens here too.
+	if sweepNetworkReadTimeout != 30*time.Second {
+		t.Fatalf("sweepNetworkReadTimeout = %v, want 30s", sweepNetworkReadTimeout)
+	}
+	if sweepNetworkWriteTimeout != 60*time.Second {
+		t.Fatalf("sweepNetworkWriteTimeout = %v, want 60s", sweepNetworkWriteTimeout)
+	}
+	deps, err := newSweepFinalizeDeps()
+	if err != nil {
+		t.Fatalf("newSweepFinalizeDeps: %v", err)
+	}
+	if got := deps.Planning.Client.NetworkReadTimeout(); got != sweepNetworkReadTimeout {
+		t.Errorf("git read timeout = %v, want %v (30s)", got, sweepNetworkReadTimeout)
+	}
+	if got := deps.Planning.Client.NetworkWriteTimeout(); got != sweepNetworkWriteTimeout {
+		t.Errorf("git write timeout = %v, want %v (60s)", got, sweepNetworkWriteTimeout)
+	}
+	gh, ok := deps.GitHub.(*githubcli.Client)
+	if !ok {
+		t.Fatalf("deps.GitHub is %T, want *githubcli.Client", deps.GitHub)
+	}
+	if got := gh.NetworkReadTimeout(); got != sweepNetworkReadTimeout {
+		t.Errorf("github read timeout = %v, want %v (30s)", got, sweepNetworkReadTimeout)
+	}
+	if got := gh.NetworkWriteTimeout(); got != sweepNetworkWriteTimeout {
+		t.Errorf("github write timeout = %v, want %v (60s)", got, sweepNetworkWriteTimeout)
+	}
+}
+
+// TestSweepDepsShareOneClientAcrossNestedSeams proves no nested dependency
+// escapes the sweep network policy: the reachable Git seams (Planning.Client and
+// CleanupGit) are the SAME *gitcli.Client instance, and the GitHub seam is a
+// *githubcli.Client carrying the sweep deadlines. The remaining Git seams
+// (Engine, Reader, Workspace, Gate) and GitHub seams (PRProber, PRBatch) wrap
+// their client through unexported fields, so they are unreachable by pointer;
+// the single-client construction in newSweepFinalizeDeps threads that one policy
+// -carrying instance into all of them. The CleanupGit pointer check is the guard
+// the mutation probe reddens (build it from a second gitcli.NewClient()).
+func TestSweepDepsShareOneClientAcrossNestedSeams(t *testing.T) {
+	deps, err := newSweepFinalizeDeps()
+	if err != nil {
+		t.Fatalf("newSweepFinalizeDeps: %v", err)
+	}
+	cleanupGit, ok := deps.CleanupGit.(*gitcli.Client)
+	if !ok {
+		t.Fatalf("deps.CleanupGit is %T, want *gitcli.Client", deps.CleanupGit)
+	}
+	if cleanupGit != deps.Planning.Client {
+		t.Errorf("CleanupGit (%p) is not the same *gitcli.Client as Planning.Client (%p)", cleanupGit, deps.Planning.Client)
+	}
+	if _, ok := deps.GitHub.(*githubcli.Client); !ok {
+		t.Fatalf("deps.GitHub is %T, want *githubcli.Client", deps.GitHub)
+	}
+}
+
+// TestStandaloneDepsKeepDefaultPolicies proves the sweep-only deadlines never
+// leak into the standalone finalize subcommands: newFinalizeDeps clients report
+// the five-minute default on both budgets.
+func TestStandaloneDepsKeepDefaultPolicies(t *testing.T) {
+	deps, err := newFinalizeDeps()
+	if err != nil {
+		t.Fatalf("newFinalizeDeps: %v", err)
+	}
+	if got := deps.Planning.Client.NetworkReadTimeout(); got != 5*time.Minute {
+		t.Errorf("standalone git read timeout = %v, want 5m", got)
+	}
+	if got := deps.Planning.Client.NetworkWriteTimeout(); got != 5*time.Minute {
+		t.Errorf("standalone git write timeout = %v, want 5m", got)
+	}
+	gh, ok := deps.GitHub.(*githubcli.Client)
+	if !ok {
+		t.Fatalf("deps.GitHub is %T, want *githubcli.Client", deps.GitHub)
+	}
+	if got := gh.NetworkReadTimeout(); got != 5*time.Minute {
+		t.Errorf("standalone github read timeout = %v, want 5m", got)
+	}
+	if got := gh.NetworkWriteTimeout(); got != 5*time.Minute {
+		t.Errorf("standalone github write timeout = %v, want 5m", got)
 	}
 }
 

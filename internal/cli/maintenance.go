@@ -3,11 +3,54 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/danielhanold/docket/internal/app"
+	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/githubcli"
 )
+
+// sweepNetworkdeadlines: unlike the standalone finalize subcommands, which keep
+// gitcli/githubcli's five-minute default network budget, the maintenance sweep
+// probes the remote once per historical record and must not stall the whole pass
+// on one wedged connection. Healthy remote ops (ls-remote, a GraphQL PR batch,
+// an integration fetch) were measured at ~0.5s; 30s read and 60s write are
+// generous ceilings well above that, tight enough to fail a hung connection fast
+// yet loose enough never to clip a slow-but-live operation (learnings:
+// tolerance-constant-calibrated-on-one-machine — these are ceilings, not tuned
+// thresholds, so a slower machine stays comfortably under them). Sweep-only: no
+// other command carries these deadlines.
+const (
+	sweepNetworkReadTimeout  = 30 * time.Second
+	sweepNetworkWriteTimeout = 60 * time.Second
+)
+
+// newSweepFinalizeDeps assembles the finalize seams the maintenance sweep drives,
+// identical in shape to newFinalizeDeps but over Git and GitHub clients carrying
+// the sweep-only read/write network deadlines above. Both the top-level probes
+// and every nested reader (the transaction engine, status reader, workspace
+// service, PR prober, PR batch reader, gate, and CleanupGit) are built over these
+// exact two policy-carrying clients, so no reachable network path escapes onto a
+// second default client at the five-minute budget.
+func newSweepFinalizeDeps() (app.FinalizeDeps, error) {
+	gitClient, err := gitcli.NewClient(
+		gitcli.WithNetworkReadTimeout(sweepNetworkReadTimeout),
+		gitcli.WithNetworkWriteTimeout(sweepNetworkWriteTimeout),
+	)
+	if err != nil {
+		return app.FinalizeDeps{}, err
+	}
+	ghClient, err := githubcli.NewClient(
+		githubcli.WithNetworkReadTimeout(sweepNetworkReadTimeout),
+		githubcli.WithNetworkWriteTimeout(sweepNetworkWriteTimeout),
+	)
+	if err != nil {
+		return app.FinalizeDeps{}, err
+	}
+	return newFinalizeDepsOver(gitClient, ghClient)
+}
 
 // This file is the top-level `docket maintenance` command family: thin adapters
 // that read their flags, hand them to the matching internal/app maintenance
@@ -71,7 +114,7 @@ func newMaintenanceSweepSubcommand(setResult func(app.OperationResult)) *cobra.C
 			if err != nil {
 				return err
 			}
-			deps, err := newFinalizeDeps()
+			deps, err := newSweepFinalizeDeps()
 			if err != nil {
 				return err
 			}

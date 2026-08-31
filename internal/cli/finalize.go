@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/danielhanold/docket/internal/app"
+	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"github.com/danielhanold/docket/internal/workspace"
 )
@@ -512,7 +513,7 @@ func finalizeReportFlags(cmd *cobra.Command) {
 // client, the workspace service over the same git client, and the PR-facts
 // prober composed over the GitHub client.
 func newFinalizeDeps() (app.FinalizeDeps, error) {
-	planning, err := newPlanningDeps()
+	gitClient, err := gitcli.NewClient()
 	if err != nil {
 		return app.FinalizeDeps{}, err
 	}
@@ -520,7 +521,23 @@ func newFinalizeDeps() (app.FinalizeDeps, error) {
 	if err != nil {
 		return app.FinalizeDeps{}, err
 	}
-	ws, err := workspace.NewService(planning.Client)
+	return newFinalizeDepsOver(gitClient, ghClient)
+}
+
+// newFinalizeDepsOver assembles the finalize seams over already constructed Git
+// and GitHub clients, so both the standalone builder (newFinalizeDeps, default
+// policies) and the maintenance sweep's builder (newSweepFinalizeDeps, the
+// sweep-only deadlines) thread one policy-carrying client instance into every
+// seam. Every nested seam — the planning engine/reader, the workspace service,
+// the PR prober, the PR batch reader, the gate, and CleanupGit — is built over
+// these exact two clients, so no reachable network path escapes the caller's
+// network policy onto a second default client.
+func newFinalizeDepsOver(gitClient *gitcli.Client, ghClient *githubcli.Client) (app.FinalizeDeps, error) {
+	planning, err := newPlanningDepsOver(gitClient)
+	if err != nil {
+		return app.FinalizeDeps{}, err
+	}
+	ws, err := workspace.NewService(gitClient)
 	if err != nil {
 		return app.FinalizeDeps{}, err
 	}
@@ -531,6 +548,6 @@ func newFinalizeDeps() (app.FinalizeDeps, error) {
 		PRProber:   app.NewGitHubFinalizeProber(ghClient),
 		PRBatch:    app.NewSweepPRBatchReader(ghClient),
 		Gate:       app.NewFinalizeGate(planning, app.WorkspaceDeps{Service: ws}),
-		CleanupGit: planning.Client,
+		CleanupGit: gitClient,
 	}, nil
 }
