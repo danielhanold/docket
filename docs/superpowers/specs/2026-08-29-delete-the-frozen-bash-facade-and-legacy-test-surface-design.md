@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0370 — Delete the frozen Bash facade and legacy test surface](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md)**
+> ↩ **[Change 0370 — Delete the frozen Bash facade and legacy test surface](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-31-0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md)**
 <!-- docket:backlink:end -->
 
 # Delete the Frozen Bash Facade and Legacy Test Surface

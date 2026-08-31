@@ -2,7 +2,7 @@
 id: 370
 slug: 'delete-the-frozen-bash-facade-and-legacy-test-surface'
 title: 'Delete the frozen Bash facade and legacy test surface'
-status: 'implemented'
+status: 'done'
 priority: 'critical'
 type: 'refactor'
 created: '2026-08-29'
@@ -22,7 +22,7 @@ branch: 'refactor/delete-the-frozen-bash-facade-and-legacy-test-surface'
 pr: 'https://github.com/danielhanold/docket/pull/258'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-31T09:49:32Z'
+claimed_at:
 ---
 
 ## Artifacts
