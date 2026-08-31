@@ -343,6 +343,14 @@ backlog. Install the build under test first (Phase 1), then start a **fresh Code
 process holds stale definitions and certifies nothing; each `codex exec` invocation is itself a
 fresh process, so a scripted probe satisfies this automatically).
 
+**Why the synthetic probe suffices for the whole Docket composition family** (scoped to codex-cli
+0.151.0): `decision.md` proved the launch mechanism is **universal** — every registered agent is
+coordinator-capable through the same native `spawn_agent`-by-registered-name call, with no per-agent
+difference — so the synthetic coordinator → leaf chain generalizes to every real Docket agent, and
+`certification.md` additionally exercised a real registered `docket-status` composition edge. The
+production `docket-implement-next → docket-plan-writer` reconfirmation is the post-merge resume of
+change 0364; this runbook does not claim a real-agent grandchild run that was not performed.
+
 - [ ] 1. **Record the Codex version** (`codex --version`) and the `multi_agent` setting in the
   results doc before any probe — this certification is scoped to the exact version and
   configuration it ran on (this fixture is proven on **codex-cli 0.151.0**, `multi_agent = true`).

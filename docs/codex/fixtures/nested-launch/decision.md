@@ -64,7 +64,7 @@ Both entry paths, fresh process and fresh uuid per run, 2026-08-31, codex-cli 0.
 | B | direct registered-agent invocation (plain wording) | `ADFE682E-335D-498B-BA25-313AC7001086` | root `01a058ce-2c3b` → `probe-coordinator` `01a058ce-4be0` (depth 1) → `probe-leaf` `01a058ce-6392` (depth 2) | PASS — leaf `LEAF_SENTINEL=<uuid>`, coordinator and root `COORDINATOR_CONSUMED=<uuid>` |
 | A | repository managed-dispatch prose | `86AE7E2B-B4DE-41A5-A062-D8275719D105` | root `01a058ce-fc76` → `01a058cf-1a87` → `01a058cf-3506` | PASS — same full round-trip |
 | B′ | forced-attempt diagnostic | `0DB7601B-EC04-49B6-B7E1-991E97FC35D1` | root `01a058c3-dd9b` → `01a058c4-1614` → `01a058c4-32d1` | child+grandchild started AS registered roles; leaf sentinel completed |
-| app-server | `thread/start` seeded with the coordinator's registered instructions | `E5EF0B15-5EA8-4892-8AB7-0F72E5F80C42` | `01a058cf-a3fc` → `01a058cf-c6cc` → `01a058cf-e01f` | named child + grandchild started; leaf `LEAF_SENTINEL=<uuid>` streamed (driver exited before the root's final relay) |
+| app-server | `thread/start` seeded with the coordinator's registered instructions | `E5EF0B15-5EA8-4892-8AB7-0F72E5F80C42` | root (id not captured) → child `01a058cf-c6cc` → grandchild `01a058cf-e01f` | named child + grandchild started; leaf `LEAF_SENTINEL=<uuid>` streamed (driver exited before the root's final relay) |
 | pins | root → `probe-pinned` (scratch, `model=gpt-5.6-luna`, effort low) | `9E0A85AC-1CC8-4817-9DE3-AF1E71199552` | root `01a058d0-b93f` → `01a058d0-e336` | PASS — pins applied, `PINNED_SENTINEL=<uuid>` |
 
 Additionally, all four Task-1 baseline runs (`F5A82B5C…`, `145808AF…`, `3566DD06…`, `20275BC5…`)
