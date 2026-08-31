@@ -1,7 +1,7 @@
 // This file owns the pure aggregation core: it joins the COMPLETE scheduled set
 // against the durable stat directory, classifies every target, renders the
-// deterministic report byte-for-byte against the Bash oracle (scripts/run-tests.sh
-// "report" block), and maps the aggregate to the oracle's exit contract
+// deterministic report byte-for-byte against the former Bash oracle's
+// "report" block, and maps the aggregate to the oracle's exit contract
 // (precedence 1 > 3 > 4 > 0). Nothing here runs a child process — validation and
 // rendering are deterministic functions of the durable records plus the
 // runner-observed truth, which is exactly what makes this the package's
@@ -162,7 +162,7 @@ type Tally struct {
 // RenderReport writes the deterministic report to w and returns the tallies the
 // exit mapping needs. Rows are sorted by basename then path (byte order), so the
 // output is independent of completion order. The per-row format, the SUITE line,
-// and the FAILED:/NO RESULT:/OVER BUDGET: blocks match scripts/run-tests.sh
+// and the FAILED:/NO RESULT:/OVER BUDGET: blocks match the former Bash oracle
 // byte-for-byte (the parity contract); the INVALID/UNSCHEDULED blocks are the
 // Go runner's own additions for failure modes the oracle cannot represent.
 //
@@ -270,8 +270,8 @@ func RenderReport(w io.Writer, outcomes []TargetOutcome, unknown []string, wall 
 			// The strict arm: a strict-armed direct crossing on an otherwise-green
 			// run gates the run (exit 4), so a reader must NOT be handed "the tests
 			// all passed … (exit 0)" (ADR-0074, same reason the red branch leads).
-			// Byte-for-byte with the oracle's `BUDGET_STRICT=1` arm in
-			// scripts/run-tests.sh ("Strict: --strict-budget was given …").
+			// Byte-for-byte with the former Bash oracle's `BUDGET_STRICT=1`
+			// arm ("Strict: --strict-budget was given …").
 			fmt.Fprintf(w, "Strict: --strict-budget was given, so this breach fails the run (exit 4). The tests themselves passed.\n")
 		default:
 			fmt.Fprintf(w, "Advisory: the tests all passed, so this run does not fail on the breach (exit 0).\n")

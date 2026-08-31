@@ -5,7 +5,7 @@
 // resource) and MUST NOT overlap — the serial lane runs those one at a time,
 // strictly after the parallel lane has fully drained (wg.Wait). The parallel
 // lane caps in-flight work at cfg.Jobs via a buffered-semaphore goroutine pool,
-// mirroring the Bash oracle's `-j` bound (scripts/run-tests.sh).
+// mirroring the former Bash oracle's `-j` bound.
 package suiterunner
 
 import (

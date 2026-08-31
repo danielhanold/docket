@@ -8,8 +8,8 @@
 // target and every process it forks share one process group. Forwarding via
 // kill(-pgid) (procRegistry.Signal) reaches grandchildren a pid-by-pid handler
 // could not, preventing the orphaned test processes writing into a
-// being-deleted scratch dir that scripts/run-tests.sh's on_signal handler
-// documents as "a data-destroying operation".
+// being-deleted scratch dir that the former Bash oracle's on_signal handler
+// documented as "a data-destroying operation".
 package suiterunner
 
 import (

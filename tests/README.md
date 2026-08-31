@@ -66,7 +66,8 @@ serial cost plus a scheduling tail, so placement is a real decision:
    `test_harness_defaults*.sh`, and `test_docket_config*.sh` are already split this way; adding
    `_<topic>` to the family is cheap and keeps every part under its ceiling.
 3. **A brand-new file is for a brand-new subsystem** — a new script, a new surface. It needs a row
-   in `tests/runtime-budgets.tsv`, or `tests/test_runtime_budgets.sh` fails.
+   in `tests/runtime-budgets.tsv`, or the registry↔files correspondence guard
+   (`repoguard.TestRuntimeBudgetsCorrespondence`) fails.
 
 Topic is the usual guide, but not always the deciding one. In the `test_harness_defaults*.sh`
 family the cost is *per `hd_validate` sweep* and near-uniform per call (change 0227, Task 4), so an
@@ -74,12 +75,10 @@ added assertion's placement there should follow **whether it calls `hd_validate`
 it nominally belongs to: a non-validating assertion is nearly free in either shard, and a validating
 one costs the same wherever it lands.
 
-**Never grow a file past its budget and raise the number.** `tests/test_runtime_budgets.sh` checks
-row completeness (every test file has a row, and no row is orphaned), counts over-ceiling rows
-separately from it, counts `serial` pins, pins the table's **total** at `EXPECTED_TOTAL`, and
-asserts that the resolved `finalize.test_command` runs the runner and does not pass
-`--no-budget-check`. The total is what catches the quiet edit: a row moved from 35 to 60 breaks no
-ceiling and pins nothing serial, but it moves the sum, so it reddens on its own. If a file legitimately
+**Never grow a file past its budget and raise the number.** `repoguard.TestRuntimeBudgetsCorrespondence`
+checks row completeness — every test file has a row, no row is orphaned, and no row is malformed or
+duplicated. The Go runner (`internal/suiterunner`) evaluates each row's ceiling and `serial` pin at
+suite time and classifies over-budget files. If a file legitimately
 cannot be split, that is a decision to argue in the diff, not a number to bump. Two files were
 argued that way at change 0227; both have since been split:
 

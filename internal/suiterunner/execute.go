@@ -1,7 +1,7 @@
 // This file owns single-target child execution and the live-child registry.
 // ExecuteTarget runs one target under bash in its Sandbox, captures combined
-// output, counts the ok/NOT OK markers exactly as the oracle does
-// (scripts/run-tests.sh launch()), and atomically publishes the durable Result.
+// output, counts the ok/NOT OK markers exactly as the former Bash oracle's
+// launch() did, and atomically publishes the durable Result.
 // The child is placed in its own process group (Setpgid) and registered with a
 // procRegistry so the signal layer (Task 6) can reach the whole process tree —
 // exec.CommandContext is deliberately NOT used, because its ctx-kill reaches
@@ -21,8 +21,8 @@ import (
 	"time"
 )
 
-// reOK / reNotOK match the oracle's marker grammar per log line:
-// `^ok[[:space:]]*-` and `^NOT OK` (scripts/run-tests.sh launch()).
+// reOK / reNotOK match the former Bash oracle's marker grammar per log line:
+// `^ok[[:space:]]*-` and `^NOT OK` (its launch()).
 var (
 	reOK    = regexp.MustCompile(`^ok[[:space:]]*-`)
 	reNotOK = regexp.MustCompile(`^NOT OK`)
@@ -80,8 +80,8 @@ func (r *procRegistry) Snapshot() []int {
 // the GROUP, not the leader's pid, is the whole point of the Setpgid child layout
 // (see ExecuteTarget): a target and every process it forks share one process
 // group but have distinct pids, so kill(pid) would reach only the leader and
-// orphan its grandchildren — the exact data-destroying failure the Bash oracle's
-// on_signal handler (scripts/run-tests.sh) works around pid-by-pid. Each pgid is
+// orphan its grandchildren — the exact data-destroying failure the former Bash
+// oracle's on_signal handler worked around pid-by-pid. Each pgid is
 // re-guarded >0 even though Register already refuses non-positive values: passing
 // pgid<=0 to kill(-pgid) would address the caller's own group or a broad set of
 // processes, so the guard is load-bearing, not defensive dead code. A per-group

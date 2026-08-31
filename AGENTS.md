@@ -65,7 +65,7 @@ means), this file does not restate them.
   authoritative breach to act on — neither fails the run by default (a parallel wall-clock number is
   machine-dependent, so a real breach is confirmed serially; see `tests/README.md`), so nothing else
   will catch them for you. `tests/README.md` covers how to run the suite and where a new test belongs.
-  The Bash runner `scripts/run-tests.sh` stays present as the frozen parity oracle, not the gate.
+  The Go runner (`internal/suiterunner`) is the sole channel: there is no separate Bash oracle to run.
 
 ## Comments and cross-references
 
