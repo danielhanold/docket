@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'feat/configurable-rendered-board-sections-and-sorting'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-08-31T15:12:46Z'
+reconciled: true
+claimed_at: '2026-08-31T15:16:21Z'
 ---
 
 ## Artifacts
@@ -65,3 +65,7 @@ and any Bash renderer or Bash config work.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-31
+
+Reconciled against current `main`/`docket`. The spec's central assumption holds: change 0370's Go-only cutover is complete, `scripts/render-board.sh` is gone from the live tree, and `internal/render/board.go` (entry point `Board(BoardInput)`) is the sole inline-board authority. There is no `board:` config block today — the only board-related leaf is `board_surfaces` — so this change adds the block net-new. Section order and per-section sort are currently compile-time constants (`boardActiveStatuses`, `sortByID`); classification/readiness predicates (`domain.EvaluateReadiness`, `Change.HasFinalizeBlocked`, `domain.ResolveEffectiveBase`) already exist for the renderer to compose. The `finalize.*`/`review.*` fixed-nested config blocks plus the `change_types` string-list leaf are the templates for the new `board.section_order` + per-section `board.sorting.<section>.{by,direction}` leaves; config inspection (`internal/app/config.go` `effectiveLines`) and the canonical example (`.docket.example.yml`, embedded mirror) need the new leaves. Related changes 0318/0369/0371/0372/0370 are all archived and 0261 remains proposed (correctly out of scope). No scope change: the change proceeds as specified. Follow-up noted for deliberate capture (out of this change's scope): the `board.go` header comment and the embedded skill/docs prose (docket-status, docket-convention SKILL.md) still describe the now-absent `render-board.sh`/`board-refresh.sh` byte authority and should be refreshed in a separate docs change.
