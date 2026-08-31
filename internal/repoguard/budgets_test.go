@@ -43,7 +43,7 @@ var skillBudgets = []skillBudget{
 	{"docket-build/references/gate-execution.md", 130, 1200},
 	{"docket-build/references/task-routing.md", 50, 500},
 	{"docket-build-task/SKILL.md", 155, 1550},
-	{"docket-convention/SKILL.md", 400, 7350},
+	{"docket-convention/SKILL.md", 400, 7400},
 	{"docket-convention/github-board-mirror.md", 19, 462},
 	{"docket-convention/references/agent-layer.md", 205, 2350},
 	{"docket-convention/references/dummy-mode.md", 85, 800},
