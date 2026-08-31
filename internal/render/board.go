@@ -5,6 +5,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/danielhanold/docket/internal/domain"
 )
@@ -115,8 +116,19 @@ var boardSectionOrderDefault = []BoardSection{
 // BoardSortKey names the field a section sorts on: "id" | "updated" | "created".
 type BoardSortKey string
 
+const (
+	BoardSortKeyID      BoardSortKey = "id"
+	BoardSortKeyUpdated BoardSortKey = "updated"
+	BoardSortKeyCreated BoardSortKey = "created"
+)
+
 // BoardDirection names a sort direction: "asc" | "desc".
 type BoardDirection string
+
+const (
+	BoardDirectionAsc  BoardDirection = "asc"
+	BoardDirectionDesc BoardDirection = "desc"
+)
 
 // BoardSort is one section's sort policy.
 type BoardSort struct {
@@ -173,6 +185,67 @@ func boardClassify(in BoardInput, c domain.Change) (BoardSection, error) {
 		return BoardSectionDeferred, nil
 	}
 	return "", fmt.Errorf("render: board: change %04d has non-active status %q", int(c.ID()), c.Status())
+}
+
+// sortBoardSection orders rows in place per s. The comparator is total and
+// deterministic: the primary key is s.By in s.Direction; equal date values
+// tie-break on numeric ID in the SAME direction; rows with a missing, empty, or
+// malformed date sort after every valid-dated row regardless of direction, and
+// among themselves order by ID in the configured direction. Arrival order never
+// decides — the comparator is a strict weak ordering over a total key, so a
+// stable sort's fallback to input position is unreachable.
+func sortBoardSection(rows []domain.Change, s BoardSort) {
+	desc := s.Direction == BoardDirectionDesc
+	idLess := func(a, b domain.Change) bool {
+		if desc {
+			return a.ID() > b.ID()
+		}
+		return a.ID() < b.ID()
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		a, b := rows[i], rows[j]
+		if s.By == BoardSortKeyID {
+			return idLess(a, b)
+		}
+		at, aok := boardSortDate(a, s.By)
+		bt, bok := boardSortDate(b, s.By)
+		switch {
+		case aok && !bok:
+			return true // valid dates before unknown, regardless of direction
+		case !aok && bok:
+			return false
+		case !aok && !bok:
+			return idLess(a, b)
+		case at.Equal(bt):
+			return idLess(a, b)
+		case desc:
+			return at.After(bt)
+		default:
+			return at.Before(bt)
+		}
+	})
+}
+
+// boardSortDate extracts the change's date for key (updated or created); ok is
+// false for a missing, empty, or malformed field (State != FieldPresent), which
+// the comparator sorts after every valid date. A key that is neither updated
+// nor created (i.e. id, handled by the caller before this point) yields ok
+// false, so a mis-keyed call degrades to the unknown-date band rather than
+// silently reading a wrong field.
+func boardSortDate(c domain.Change, key BoardSortKey) (time.Time, bool) {
+	var ot domain.OptionalTime
+	switch key {
+	case BoardSortKeyUpdated:
+		ot = c.Updated()
+	case BoardSortKeyCreated:
+		ot = c.Created()
+	default:
+		return time.Time{}, false
+	}
+	if ot.State != domain.FieldPresent {
+		return time.Time{}, false
+	}
+	return ot.Value, true
 }
 
 // boardActiveStatuses is the active lifecycle group in the board's display
