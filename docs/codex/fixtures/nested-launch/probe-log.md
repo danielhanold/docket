@@ -185,3 +185,147 @@ launch works or fails. The failure is established by the executed runs above, no
   → expect `COORDINATOR_BLOCKED=` at the coordinator-to-child edge") should account for this: on
   this surface the honest failure signal is **the absence of a child thread / empty `agents_states`,
   with the sentinel fabricated**, not a literal `COORDINATOR_BLOCKED=` line.
+
+---
+
+## Task 2 — native-launch investigation (2026-08-31)
+
+Same scope stamp as the baseline: `codex --version` → `codex-cli 0.151.0`; `multi_agent  stable
+true` (`~/.codex/config.toml` `[features] multi_agent = true`); session banner `model: gpt-5.6-sol ·
+approval: never · sandbox: danger-full-access · reasoning effort: high`. All probes ran against a
+fresh scratch repo from `mktemp -d "${TMPDIR:-/tmp}/codex-nested-probe.XXXXXX"` with the README's
+`AGENTS.md` dispatch block; the probe TOMLs were installed beside the 17 `docket-*.toml` wrappers
+and removed at teardown (17 wrappers verified intact). Every `codex exec` invocation is its own
+fresh process. Nothing below claims any other Codex version or configuration behaves the same.
+
+### The decisive re-examination: the thread store falsifies the baseline's READING
+
+The baseline section above records what the `codex exec --json` event stream showed. Task 2
+re-examined the same four baseline runs against Codex's own thread store
+(`~/.codex/sessions/<date>/rollout-*.jsonl`), which records one file per thread with a
+`session_meta` header (`source.subagent.thread_spawn`, `agent_role`, `agent_path`,
+`parent_thread_id`, `depth`) and per-item `response_item`/`event_msg` records. Evidence grade:
+executed-run artifacts read after the fact.
+
+Every one of the four baseline runs actually PASSED at the thread level:
+
+| baseline run (uuid) | root thread | child (role, depth) | grandchild (role, depth) | leaf `task_complete` | coordinator `task_complete` |
+|---|---|---|---|---|---|
+| `F5A82B5C-…` (path B, plain text) | `01a058a9-8fb8` | `probe-coordinator`, 1 | `probe-leaf`, 2 | `LEAF_SENTINEL=F5A82B5C-…` | `COORDINATOR_CONSUMED=F5A82B5C-…` |
+| `145808AF-…` (path B, `--json`) | `01a058aa-8226` | `probe-coordinator`, 1 | `probe-leaf`, 2 | `LEAF_SENTINEL=145808AF-…` | `COORDINATOR_CONSUMED=145808AF-…` |
+| `3566DD06-…` (one-level probe) | `01a058ad-8b53` | `probe-leaf`, 1 | — (by design) | `LEAF_SENTINEL=3566DD06-…` | — |
+| `20275BC5-…` (path A, dispatch block) | `01a058ba-8c48` | `probe-coordinator`, 1 | `probe-leaf`, 2 | `LEAF_SENTINEL=20275BC5-…` | `COORDINATOR_CONSUMED=20275BC5-…` |
+
+The path-A root's own rollout contains the actual native call, verbatim
+(`response_item`/`function_call`, rollout `01a058ba-8c48`):
+
+```
+spawn_agent {"agent_type":"probe-coordinator","fork_turns":"all","message":"gAAAAABqlbDU…
+wait_agent {"timeout_ms":3600000}
+```
+
+and each spawned thread's `session_meta` carries the registered binding, e.g.:
+
+```
+"source": {"subagent": {"thread_spawn": {"parent_thread_id": "…", "depth": 1,
+  "agent_path": "/root/probe_coordinator", "agent_nickname": "…",
+  "agent_role": "probe-coordinator"}}}
+```
+
+So the baseline's "fabrication" verdict was an artifact of the OBSERVATION SURFACE, not of the
+launch: on this build the `codex exec --json` stream renders the collaboration activity as a single
+`collab_tool_call` item for `wait` whose `receiver_thread_ids`/`agents_states` serialize empty even
+while real children run, and it does not itemize `spawn_agent`/`wait_agent` function calls at all.
+(The baseline's recorded observations of that stream stand as written — what is corrected is the
+inference drawn from them.) **Observation rule for all future runs of this fixture: judge
+pass/fail from the thread store (or the app-server notification stream, below), never from the
+`codex exec --json` item stream.** The baseline's "single thread" claim was checkable by nothing in
+that stream; the rollouts were the checkable record all along.
+
+### Task-2 replication runs (executed, fresh process, fresh uuid each)
+
+1. **Diagnostic forced-attempt run** — uuid `0DB7601B-EC04-49B6-B7E1-991E97FC35D1`, root thread
+   `01a058c3-dd9b` (13:00). Root prompt demanded an explicit `spawn_agent` attempt with verbatim
+   error reporting. Result: root called `spawn_agent {"agent_type":"probe-coordinator",…}`; child
+   `01a058c4-1614` (role `probe-coordinator`, depth 1) called
+   `spawn_agent {"agent_type":"probe-leaf","fork_turns":"all","task_name":"probe_leaf",…}`;
+   grandchild `01a058c4-32d1` (role `probe-leaf`, depth 2) completed
+   `LEAF_SENTINEL=0DB7601B-…` at 13:00:53. The child thread's developer message is the registered
+   TOML's `developer_instructions` verbatim ("You are probe-coordinator. …"), and its header
+   records `multi_agent_version: v2`.
+2. **Entry path B, plain wording** (the baseline's own invocation, unmodified) — uuid
+   `ADFE682E-335D-498B-BA25-313AC7001086`, root `01a058ce-2c3b` (13:11). Full chain:
+   root spawned `agent_type probe-coordinator` → `01a058ce-4be0` spawned `agent_type probe-leaf` →
+   `01a058ce-6392` `task_complete LEAF_SENTINEL=ADFE682E-…`; coordinator
+   `task_complete COORDINATOR_CONSUMED=ADFE682E-…`; root final line
+   `COORDINATOR_CONSUMED=ADFE682E-335D-498B-BA25-313AC7001086`. **PASS.**
+3. **Entry path A, dispatch-block prose** (the README's invocation, unmodified) — uuid
+   `86AE7E2B-B4DE-41A5-A062-D8275719D105`, root `01a058ce-fc76` (13:12). Full chain as above;
+   root final line `COORDINATOR_CONSUMED=86AE7E2B-B4DE-41A5-A062-D8275719D105`. **PASS.**
+4. **App-server surface (the production/0364 entry surface), driven non-interactively** — uuid
+   `E5EF0B15-5EA8-4892-8AB7-0F72E5F80C42` (13:13). `codex app-server` (default `--listen stdio://`)
+   accepted a plain newline-framed JSON-RPC `initialize` → `thread/start` (thread seeded with
+   `developerInstructions` = probe-coordinator's registered text, `cwd` = scratch repo — the same
+   client-side seeding the registered-agent entry performs) → `turn/start` with `SENTINEL=<uuid>`.
+   The stream reported real named spawns honestly: `item/started` `subAgentActivity`
+   (`agentPath /root/probe_coordinator`, `agentThreadId 01a058cf-c6cc`), then from that child
+   `subAgentActivity` (`agentPath /root/probe_coordinator/probe_leaf`, `agentThreadId
+   01a058cf-e01f`), then the leaf's `agentMessage` `LEAF_SENTINEL=E5EF0B15-…` and its
+   `turn/completed`. The driver script exited on the leaf's `turn/completed` and terminated the
+   server before the root's final relay — the coordinator-to-child and child-to-grandchild edges
+   are the proven part of this run; the root's final line was not captured. Note the same `wait`
+   rendering artifact exists here (`collabAgentToolCall` `wait` with empty `receiverThreadIds`);
+   the `subAgentActivity` items are the honest signal on this surface. This overturns the
+   baseline's "not drivable non-interactively" note, which had attempted only the
+   `codex app-server proxy` route to the shared daemon's control socket.
+5. **Wrapper-pin composition probe** — a scratch `probe-pinned.toml` (NOT part of the committed
+   fixture) pinning `model = "gpt-5.6-luna"`, `model_reasoning_effort = "low"` under a
+   `gpt-5.6-sol · high` parent. uuid `9E0A85AC-1CC8-4817-9DE3-AF1E71199552` (13:14). Root spawned
+   `agent_type probe-pinned`; the child rollout `01a058d0-e336` records `thread_settings_applied
+   {"model":"gpt-5.6-luna", "reasoning_effort":…}` followed by a `turn_context` with
+   `model gpt-5.6-luna, effort low` — the registered definition's own pins were applied to the
+   spawned thread even with `fork_turns:"all"`, and the child completed
+   `PINNED_SENTINEL=9E0A85AC-…`. (The system text's "full-history forks inherit the parent model"
+   governs the spawner's explicit per-call overrides, not the registered agent's own settings.)
+
+### Surface enumeration and rejected candidates (each with its attempt or denial)
+
+Enumeration sources and grades: `codex --help` / `codex exec --help` / `codex agents --help` /
+`codex app-server --help` / `codex remote-control --help` (executed `--help` reads);
+`codex features list` (executed run: `multi_agent stable true`, `multi_agent_v2 stable false`,
+`remote_control removed false`); `codex app-server generate-json-schema` (executed schema
+generation — schema grade); `strings` over the installed binary (weakest grade — spelling
+candidates only, never behavior). Candidates surfaced and their dispositions:
+
+- **`codex exec` agent selector** — ATTEMPTED: `codex exec --agent probe-coordinator "hi"` →
+  `error: unexpected argument '--agent' found`; `codex exec run-agent probe-coordinator "hi"` →
+  `error: unexpected argument 'probe-coordinator' found`. No such selector on this build.
+- **`codex remote-control` pairing route** — ATTEMPTED: `codex remote-control pair --json` →
+  `Error: remoteControl/pairing/start failed: remote control pairing requires remote control to be
+  enabled` (explicit policy denial; the `remote_control` feature is `removed` on this build).
+  Not needed: the direct `codex app-server` stdio transport (run 4) already reaches the surface.
+- **Shared-daemon control socket via `codex app-server proxy`** — the baseline's executed
+  broken-pipe attempt stands (see above); superseded as a route by direct `codex app-server`
+  stdio, which works (run 4).
+- **Wrapper-TOML capability key / config override / `--enable multi_agent_v2` /
+  `[multi_agent]`-style `max_depth` config** — enumerated as spelling candidates (binary-strings
+  and schema grade: agent TOMLs are read by `codex_agent_roles::loader` and accept config-shaped
+  keys; a `MultiAgentV2ConfigToml` exists; `ThreadStartParams.config` accepts arbitrary keys).
+  NOT probed further and deliberately so: every pass above was achieved with NONE of them — the
+  fixture TOMLs carry only `name`/`description`/`developer_instructions` (plus pins in run 5), no
+  feature was flipped, and the runtime already reports `multi_agent_version: v2` in spawned-thread
+  headers. These spellings remain UNPROVEN and must not be documented as supported or required.
+- **Root-session role-entry operation** — no such operation was needed anywhere; no accessible
+  spelling for one was surfaced by the enumeration beyond `thread/start` seeding (run 4), which is
+  the registered-agent entry's own client-side mechanism and passed.
+
+### What Task 2 establishes
+
+On codex-cli 0.151.0 with `multi_agent = true`, the native launch that gives a REGISTERED
+coordinator working named-child dispatch is **already in force with no additional mechanism**: any
+thread (root, or a registered agent entered by seeding, or a spawned registered agent at depth 1)
+can start a registered agent by name through the collaboration tool call
+`spawn_agent {"agent_type":"<registered agent name>", …}`, the spawned thread runs AS that
+registered definition (developer_instructions verbatim, own model/effort pins applied,
+`agent_role`/`agent_path` recorded), and nesting to depth 2 works on both entry paths. See
+`decision.md` for the gate record.
