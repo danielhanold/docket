@@ -2,11 +2,11 @@
 id: 377
 slug: 'migrate-deferred-bash-facade-workflow-operations-to-native-g'
 title: 'Migrate deferred Bash-facade workflow operations to native Go CLI verbs'
-status: 'in-progress'
+status: 'implemented'
 priority: 'critical'
 type: 'refactor'
 created: '2026-08-30'
-updated: '2026-08-30'
+updated: '2026-08-31'
 depends_on: [372, 378]
 stacked_on:
 related: [318, 352, 363, 367, 369, 370, 371, 372, 378]
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'refactor/migrate-deferred-bash-facade-workflow-operations-to-native-g'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/257'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-30T23:40:49Z'
