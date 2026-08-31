@@ -180,6 +180,136 @@ func TestResolveBoardSectionOrderWholeListReplacement(t *testing.T) {
 	}
 }
 
+// TestResolveBoardInvalidSectionOrderFallsBack: a section_order that fails
+// shape validation, or whose token list is not a permutation of the six
+// (missing, unknown, or duplicate token), is warned about and dropped as one
+// value — so a lower valid layer's list wins and the snapshot stays valid.
+func TestResolveBoardInvalidSectionOrderFallsBack(t *testing.T) {
+	repoOrder := []string{"built", "in-progress", "blocked", "groomed", "proposed", "deferred"}
+	cases := []struct{ name, yaml string }{
+		{"missing token", "board:\n  section_order: [in-progress, built, blocked, groomed, proposed]\n"},
+		{"unknown token", "board:\n  section_order: [in-progress, built, blocked, groomed, proposed, bogus]\n"},
+		{"duplicate token", "board:\n  section_order: [in-progress, built, blocked, groomed, proposed, proposed]\n"},
+		{"not a list", "board:\n  section_order: everything\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := resolve([]Source{
+				srcR("board:\n  section_order: [built, in-progress, blocked, groomed, proposed, deferred]\n"),
+				srcL(tc.yaml),
+			}, mainCtx)
+			if err != nil {
+				t.Fatalf("resolve err = %v, want nil (warn-and-ignore keeps the snapshot valid); diags %v", err, diagSummary(res))
+			}
+			var warns []Diagnostic
+			for _, d := range res.diags {
+				if d.Path == "board.section_order" {
+					if d.Severity != SeverityWarning {
+						t.Errorf("board.section_order diag severity = %q, want warning: %+v", d.Severity, d)
+					}
+					warns = append(warns, d)
+				}
+			}
+			if len(warns) != 1 {
+				t.Fatalf("want exactly one board.section_order warning, got %v", diagSummary(res))
+			}
+			if warns[0].Provenance == nil || warns[0].Provenance.Layer != LayerRepositoryLocal || warns[0].Provenance.Source != ".docket.local.yml" {
+				t.Errorf("warning provenance = %+v, want the repository-local layer", warns[0].Provenance)
+			}
+			got := res.effective.Board.SectionOrder
+			if !reflect.DeepEqual(got.Value, repoOrder) {
+				t.Errorf("section_order = %v, want the repository layer's valid list %v (the lower valid layer won)", got.Value, repoOrder)
+			}
+			if got.Provenance.Layer != LayerRepository || !got.Explicit {
+				t.Errorf("section_order provenance = %+v (explicit %v), want the repository layer", got.Provenance, got.Explicit)
+			}
+		})
+	}
+}
+
+// TestResolveBoardInvalidSortLeafInheritsOnlyThatLeaf: an out-of-enum sort leaf
+// is warned about and dropped, so ONLY that leaf inherits the next valid
+// layer; its valid sibling leaf and every other section are untouched.
+func TestResolveBoardInvalidSortLeafInheritsOnlyThatLeaf(t *testing.T) {
+	res, err := resolve([]Source{
+		srcG("board:\n  sorting:\n    built:\n      by: id\n      direction: asc\n"),
+		srcL("board:\n  sorting:\n    built:\n      by: priority\n      direction: desc\n"),
+	}, mainCtx)
+	if err != nil {
+		t.Fatalf("resolve err = %v, want nil; diags %v", err, diagSummary(res))
+	}
+	built := res.effective.Board.Sorting["built"]
+	if built.By.Value != "id" || built.By.Provenance.Layer != LayerGlobal || !built.By.Explicit {
+		t.Errorf("built.by = %+v, want id from the global layer (the invalid repo-local leaf fell through)", built.By)
+	}
+	if built.Direction.Value != "desc" || built.Direction.Provenance.Layer != LayerRepositoryLocal || !built.Direction.Explicit {
+		t.Errorf("built.direction = %+v, want desc from the repository-local layer", built.Direction)
+	}
+	var warns []Diagnostic
+	for _, d := range res.diags {
+		if d.Path == "board.sorting.built.by" {
+			if d.Severity != SeverityWarning {
+				t.Errorf("built.by diag severity = %q, want warning", d.Severity)
+			}
+			warns = append(warns, d)
+		}
+	}
+	if len(warns) != 1 {
+		t.Fatalf("want exactly one board.sorting.built.by warning, got %v", diagSummary(res))
+	}
+	if warns[0].Provenance == nil || warns[0].Provenance.Layer != LayerRepositoryLocal {
+		t.Errorf("warning provenance = %+v, want the repository-local layer", warns[0].Provenance)
+	}
+	for _, s := range BoardSectionTokens {
+		if s == "built" {
+			continue
+		}
+		srt := res.effective.Board.Sorting[s]
+		if srt.By.Value != "updated" || srt.By.Explicit || srt.Direction.Value != "desc" || srt.Direction.Explicit {
+			t.Errorf("%s sort = %+v/%+v, want the untouched built-in updated desc", s, srt.By, srt.Direction)
+		}
+	}
+}
+
+// TestResolveBoardUnknownSortingSectionWarns: an unknown section under
+// board.sorting is the deliberate warn-and-ignore surface (unknown-key,
+// warning severity — the same family as an unknown skills role); the snapshot
+// stays valid and effective policy is unchanged.
+func TestResolveBoardUnknownSortingSectionWarns(t *testing.T) {
+	res, err := resolve([]Source{srcR("board:\n  sorting:\n    bogus:\n      by: id\n")}, mainCtx)
+	if err != nil {
+		t.Fatalf("resolve err = %v, want nil; diags %v", err, diagSummary(res))
+	}
+	warns := 0
+	for _, d := range res.diags {
+		if d.Path == "board.sorting.bogus" {
+			if d.Code != CodeUnknownKey || d.Severity != SeverityWarning {
+				t.Errorf("bogus section diag = %s/%s, want unknown-key warning", d.Code, d.Severity)
+			}
+			warns++
+		}
+	}
+	if warns != 1 {
+		t.Fatalf("want one warning on board.sorting.bogus, got %v", diagSummary(res))
+	}
+	if got := res.effective.Board.Sorting["built"]; got.By.Value != "updated" || got.By.Explicit {
+		t.Errorf("built sort = %+v; an unknown section must not alter effective policy", got)
+	}
+}
+
+// TestResolveBoardUnknownBoardKeyIsError: any other unknown key under board.
+// stays on the strict typo path — an error that invalidates the snapshot.
+func TestResolveBoardUnknownBoardKeyIsError(t *testing.T) {
+	res, err := resolve([]Source{srcR("board:\n  foo: 1\n")}, mainCtx)
+	if !errors.Is(err, ErrInvalidConfig) {
+		t.Fatalf("resolve err = %v, want ErrInvalidConfig", err)
+	}
+	bad := diagsWithCode(res, CodeUnknownKey)
+	if len(bad) != 1 || bad[0].Path != "board.foo" || bad[0].Severity != SeverityError {
+		t.Errorf("want one error unknown-key on board.foo, got %v", diagSummary(res))
+	}
+}
+
 func TestPrecedencePerLeaf(t *testing.T) {
 	cases := []struct {
 		name     string

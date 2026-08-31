@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -119,6 +120,16 @@ func (d *layerDecoder) decodeInterior(path string, segs []string, val *yaml.Node
 func (d *layerDecoder) decodeLeaf(path string, spec *pathSpec, key, val *yaml.Node) {
 	value, diags := spec.validate(d.src, path, val)
 	if len(diags) > 0 {
+		// The board presentation leaves (change 0367) are warn-and-drop, not
+		// error-and-invalidate: a bad section_order or sort leaf must let the
+		// next valid layer or the built-in win, never reject the snapshot. Every
+		// board.* leaf row shares the "board." path prefix (board_surfaces is a
+		// separate underscore-spelled row), so the shape is what selects them.
+		if isBoardLeaf(spec.path) {
+			for i := range diags {
+				diags[i].Severity = SeverityWarning
+			}
+		}
 		d.diags = append(d.diags, diags...)
 		return
 	}
@@ -156,6 +167,19 @@ func (d *layerDecoder) decodeLeaf(path string, spec *pathSpec, key, val *yaml.No
 		return
 	case "board_surfaces":
 		value = d.keepKnownSurfaces(path, val, value.([]string))
+	case "board.section_order":
+		// Shape validation passed (a list of non-empty strings); the permutation
+		// rule (every token exactly once) is the decode-stage warn-and-ignore
+		// surface a leafValidator cannot express. A list that is not a complete
+		// permutation is dropped as one value, with one warning, so a lower layer
+		// or the built-in order wins.
+		if offense, ok := boardSectionOrderPermutation(value.([]string)); !ok {
+			diag := leafDiag(d.src, path, CodeInvalidValue, val,
+				"section_order %s; the whole list is ignored and a lower layer or the built-in order applies", offense)
+			diag.Severity = SeverityWarning
+			d.diags = append(d.diags, diag)
+			return
+		}
 	}
 
 	d.leaves = append(d.leaves, leafDecl{
@@ -190,6 +214,39 @@ func (d *layerDecoder) keepKnownSurfaces(path string, val *yaml.Node, tokens []s
 	return kept
 }
 
+// isBoardLeaf reports whether spec.path is one of the board presentation leaf
+// rows (board.section_order or a board.sorting.<section>.{by,direction}) — the
+// change 0367 warn-and-drop family. It keys on the shared "board." dotted
+// prefix rather than an enumerated list, so a section added to
+// BoardSectionTokens joins the family automatically; board_surfaces is a
+// separate underscore-spelled row and is deliberately excluded.
+func isBoardLeaf(specPath string) bool {
+	return strings.HasPrefix(specPath, "board.")
+}
+
+// boardSectionOrderPermutation reports whether tokens is a complete permutation
+// of BoardSectionTokens, and names the first offense when not. The three
+// offenses — an unknown token, a repeated token, and a missing token — are the
+// spec's section_order failure contract.
+func boardSectionOrderPermutation(tokens []string) (offense string, ok bool) {
+	seen := make(map[string]bool, len(BoardSectionTokens))
+	for _, tok := range tokens {
+		if !inList(BoardSectionTokens, tok) {
+			return fmt.Sprintf("names unknown section %q", tok), false
+		}
+		if seen[tok] {
+			return fmt.Sprintf("lists %q more than once", tok), false
+		}
+		seen[tok] = true
+	}
+	for _, want := range BoardSectionTokens {
+		if !seen[want] {
+			return fmt.Sprintf("is missing section %q", want), false
+		}
+	}
+	return "", true
+}
+
 // pathMatch is what one concrete path is: a registry leaf, a section that may
 // be descended into, or unknown — where `warn` marks the deliberate v0.9.2
 // warn-and-ignore surfaces rather than the default error.
@@ -212,8 +269,16 @@ func matchPath(segs []string) pathMatch {
 		return matchRunnersPath(segs)
 	case "skills":
 		return matchSkillsPath(segs)
+	case "board":
+		return matchBoardPath(segs)
 	}
 
+	return matchRegistryPath(segs)
+}
+
+// matchRegistryPath is the static-table match: an exact registry row, else an
+// interior node if any row lives beneath this path, else unknown.
+func matchRegistryPath(segs []string) pathMatch {
 	path := strings.Join(segs, ".")
 	if spec := specByPath(path); spec != nil {
 		return pathMatch{spec: spec}
@@ -225,6 +290,19 @@ func matchPath(segs []string) pathMatch {
 		}
 	}
 	return pathMatch{}
+}
+
+// matchBoardPath resolves a concrete board.* path. Its one deviation from the
+// static table is board.sorting.<section>: an unknown section name is the
+// deliberate warn-and-ignore surface (change 0367 — the same family as an
+// unknown skills role), so it warns rather than erroring and is not descended
+// into. Every other board.* path — including an unknown key like board.foo —
+// resolves through the static table, keeping the strict typo policy.
+func matchBoardPath(segs []string) pathMatch {
+	if len(segs) == 3 && segs[1] == "sorting" && !inList(BoardSectionTokens, segs[2]) {
+		return pathMatch{warn: true}
+	}
+	return matchRegistryPath(segs)
 }
 
 func matchAgentsPath(segs []string) pathMatch {
