@@ -10,43 +10,55 @@ import (
 	"github.com/danielhanold/docket/internal/domain"
 )
 
-// Board — the inline BOARD.md surface contract.
+// Board — the inline BOARD.md surface contract (change 0367).
 //
-// This renderer reproduces scripts/render-board.sh's `--format markdown`
-// projection byte-for-byte. The script is the byte authority; the contract
-// below is inventoried from it (change 0022; status vocabulary change 0104;
-// stacked-changes readiness change 0298), and testdata/board/board.golden is a
-// frozen historical snapshot of the script's output over
-// testdata/board/corpus/ (see testdata/board/PROVENANCE.md). The golden is the
-// drift guard: the script dies at the 0316+ cutover, and this renderer must
-// keep emitting the same bytes afterward.
+// Board() renders the backlog as six configurable presentation groups whose
+// order and per-section sort come from the caller's BoardPresentation (built
+// from resolved configuration; the renderer invents no defaults and refuses an
+// invalid presentation — see BoardPresentation.validate). Each active change is
+// classified into exactly one rendered group by boardClassify — a mapping that
+// is deliberately NOT one-to-one with lifecycle status (finalize-blocked
+// implemented changes render Blocked; spec-backed build-ready proposals render
+// Groomed). testdata/board/board.golden is the byte-drift guard: it is the
+// reviewed canonical render of testdata/board/corpus/ under the DEFAULT
+// presentation (see testdata/board/PROVENANCE.md), re-founded at change 0367
+// when the default output changed by design. A diff there is a real change to
+// the board surface and must be re-blessed deliberately.
 //
 // Structure, in emission order:
 //
 //  1. "# Backlog\n\n".
 //  2. Counts line: "**<total> changes** — <seg>\n", where <total> is every
 //     change record (active + archive) and <seg> joins "<emoji> <n> <label>"
-//     with " · " over the lifecycle statuses in display order, skipping any
-//     with a zero count. Active-status counts come from active records; the
-//     two terminal statuses (done, killed) count archive records. The count
-//     label spells in-progress as "in progress" and every other status as its
-//     stored token.
-//  3. Active sections, one per active status in the fixed display order
-//     (in-progress, proposed, blocked, deferred, implemented, stacked-merged),
-//     each rendered only when non-empty:
-//     "\n## <emoji> <Title><suffix> (<n>)\n\n" then a status-specific table.
-//     The suffix is " — awaiting merge" for implemented, empty otherwise.
-//     Rows sort by ascending numeric id. Column layouts per status:
-//     in-progress:   # | Title | Priority | Type | Spec | Branch
-//     proposed:      # | Title | Priority | Type | Readiness
-//     blocked:       # | Title | Priority | Type | Blocked by
-//     deferred:      # | Title | Priority | Type
-//     implemented:   # | Title | Priority | Type | PR | Readiness
-//     stacked-merged:# | Title | Priority | Type | PR | Stack
+//     with " · ", iterating the configured section order over the six rendered
+//     groups (count = classified membership) then the terminal done/killed
+//     archive counts, skipping any group with a zero count. Group labels:
+//     in-progress→"in progress", built→"built", blocked→"blocked",
+//     groomed→"groomed", proposed→"proposed", deferred→"deferred";
+//     terminal labels are the stored "done"/"killed" tokens.
+//  3. Active sections, one per rendered group in the configured section order,
+//     each emitted only when non-empty:
+//     "\n## <emoji> <Title> (<n>)\n\n" then a group-specific table. Rows sort
+//     by the group's BoardSort (sortBoardSection). There is no heading suffix;
+//     the Built State column carries the awaiting-merge wording. Emoji/title
+//     per group: 🟢 In progress, 🔵 Built, 🔴 Blocked, 🟣 Groomed,
+//     🟡 Proposed, ⚪ Deferred. Column layouts per group:
+//     in-progress: # | Title | Priority | Type | Spec | Branch
+//     built:       # | Title | Priority | Type | PR | State
+//     blocked:     # | Title | Priority | Type | PR | Reason
+//     groomed:     # | Title | Priority | Type | Spec
+//     proposed:    # | Title | Priority | Type | Readiness
+//     deferred:    # | Title | Priority | Type
 //     Priority renders the stored spelling, Type the stored token or "untyped"
 //     when absent, both backtick-quoted. The Spec cell links "../"+the spec
-//     path with its leading "docs/" stripped. The Readiness cell (proposed):
-//     build-ready                                    → "build-ready"
+//     path with its leading "docs/" stripped. The Built State cell is
+//     "awaiting merge" for an implemented change and "merged into #<parent>"
+//     (zero-padded, "—" when no usable parent edge) for a stacked-merged
+//     change. The Blocked Reason cell is the stored blocked_by text for a
+//     lifecycle-blocked change and "finalize blocked — needs you" for a
+//     finalize-blocked implemented change; its PR cell comes from boardPRCell
+//     (empty when no pr:). The Proposed Readiness cell:
+//     build-ready                                    → "build-ready" / "build-ready (trivial)"
 //     needs-brainstorm                               → "needs-brainstorm"
 //     auto-groom-blocked                             → "auto-groom blocked — needs you"
 //     waiting-dependency                             → "⏳ waiting on #<dep> — not yet built"
@@ -54,15 +66,16 @@ import (
 //     stack-base-unresolved                          → "⏳ waiting on #<parent> — stack base not built"
 //     The waiting cell names the representative unmet dependency by its bare
 //     id; the stack cell names the change's immediate stacked_on parent,
-//     zero-padded. The implemented Readiness cell is "finalize blocked —
-//     needs you" when the record carries a "## Finalize blocked" section,
-//     empty otherwise.
+//     zero-padded. A build-ready proposal that reaches Proposed is necessarily
+//     trivial-without-spec (spec-backed build-ready is Groomed) and renders
+//     "build-ready (trivial)".
 //  4. A mermaid graph: "\n```mermaid\ngraph TD\n", then every active change in
 //     ascending id order — one "  <dep> --> <id>" edge per depends_on entry
 //     (padded), or a bare "  <id>" node when it has none — then every archived
 //     `done` change referenced by some active change's depends_on styled
 //     "  <id>:::done" (ascending id), and a "  classDef done …" line only when
-//     at least one such node was emitted, closed by "```\n".
+//     at least one such node was emitted, closed by "```\n". The mermaid graph
+//     is outside section order/sorting: it never reads the presentation.
 //  5. The archive <details> block, rendered only when at least one archived
 //     terminal record exists: a summary line concatenating the present
 //     terminal emoji and joining their labels with " + ", then a
@@ -70,10 +83,10 @@ import (
 //     then id-descending. Every killed row renders verbatim; `done` rows past
 //     the 15 most recent collapse into a trailing per-YYYY-MM "Older done
 //     (collapsed)" digest. The Merged date is the archive filename's leading
-//     YYYY-MM-DD.
+//     YYYY-MM-DD. The archive is a fixed footer, outside section order/sorting.
 //
-// Links are repo-relative from docs/changes/ (active/<file>, archive/<file>),
-// exactly as the script emits them; the board carries no web-URL variant.
+// Links are repo-relative from docs/changes/ (active/<file>, archive/<file>);
+// the board carries no web-URL variant.
 const boardArchiveRecent = 15
 
 // BoardInput is the complete input to the board renderer: the candidate
@@ -84,10 +97,10 @@ type BoardInput struct {
 	Snapshot domain.Snapshot
 	Facts    domain.BranchFacts
 	// Presentation is the typed section-order-and-sort policy the resolved
-	// config produces (change 0367). Board() does not yet consult it — Task 6
-	// rewires emission; classification and the comparator read it in the
-	// meantime. A caller building options fills it from config; the renderer
-	// invents no defaults.
+	// config produces (change 0367). Board() iterates it: the section order
+	// drives the counts line and section emission, and each section's BoardSort
+	// drives its row order. A caller building options fills it from config; the
+	// renderer invents no defaults and refuses an invalid presentation.
 	Presentation BoardPresentation
 }
 
@@ -151,9 +164,71 @@ func DefaultBoardPresentation() BoardPresentation {
 	order := append([]BoardSection(nil), boardSectionOrderDefault...)
 	sorting := make(map[BoardSection]BoardSort, len(order))
 	for _, s := range order {
-		sorting[s] = BoardSort{By: "updated", Direction: "desc"}
+		sorting[s] = BoardSort{By: BoardSortKeyUpdated, Direction: BoardDirectionDesc}
 	}
 	return BoardPresentation{SectionOrder: order, Sorting: sorting}
+}
+
+// validate reports whether p is a well-formed presentation: SectionOrder is a
+// complete permutation of the six rendered sections (each exactly once, none
+// unknown, none missing) and Sorting carries a valid sort (a known key and a
+// known direction) for every section. Config owns user-facing fallback; an
+// invalid presentation reaching the renderer is a docket wiring bug, reported
+// as an error so a caller that forgot to build options fails loudly instead of
+// silently rendering the built-in view. Every message names "presentation".
+func (p BoardPresentation) validate() error {
+	if len(p.SectionOrder) != len(boardSectionOrderDefault) {
+		return fmt.Errorf("render: board: presentation section order has %d entries, want %d",
+			len(p.SectionOrder), len(boardSectionOrderDefault))
+	}
+	seen := make(map[BoardSection]bool, len(boardSectionOrderDefault))
+	for _, s := range p.SectionOrder {
+		if !boardSectionKnown(s) {
+			return fmt.Errorf("render: board: presentation section order names unknown section %q", s)
+		}
+		if seen[s] {
+			return fmt.Errorf("render: board: presentation section order lists %q more than once", s)
+		}
+		seen[s] = true
+	}
+	for _, s := range boardSectionOrderDefault {
+		if !seen[s] {
+			return fmt.Errorf("render: board: presentation section order is missing section %q", s)
+		}
+	}
+	for _, s := range boardSectionOrderDefault {
+		srt, ok := p.Sorting[s]
+		if !ok {
+			return fmt.Errorf("render: board: presentation is missing a sort for section %q", s)
+		}
+		if !boardSortKeyValid(srt.By) {
+			return fmt.Errorf("render: board: presentation section %q has invalid sort key %q", s, srt.By)
+		}
+		if !boardDirectionValid(srt.Direction) {
+			return fmt.Errorf("render: board: presentation section %q has invalid sort direction %q", s, srt.Direction)
+		}
+	}
+	return nil
+}
+
+// boardSectionKnown reports whether s is one of the six rendered sections.
+func boardSectionKnown(s BoardSection) bool {
+	switch s {
+	case BoardSectionInProgress, BoardSectionBuilt, BoardSectionBlocked,
+		BoardSectionGroomed, BoardSectionProposed, BoardSectionDeferred:
+		return true
+	}
+	return false
+}
+
+// boardSortKeyValid reports whether k is one of the three sort fields.
+func boardSortKeyValid(k BoardSortKey) bool {
+	return k == BoardSortKeyID || k == BoardSortKeyUpdated || k == BoardSortKeyCreated
+}
+
+// boardDirectionValid reports whether d is one of the two sort directions.
+func boardDirectionValid(d BoardDirection) bool {
+	return d == BoardDirectionAsc || d == BoardDirectionDesc
 }
 
 // boardClassify maps one ACTIVE change to exactly one rendered section, per the
@@ -248,19 +323,16 @@ func boardSortDate(c domain.Change, key BoardSortKey) (time.Time, bool) {
 	return ot.Value, true
 }
 
-// boardActiveStatuses is the active lifecycle group in the board's display
-// order (mirrors DOCKET_STATUSES_ACTIVE in scripts/lib/docket-frontmatter.sh).
-var boardActiveStatuses = []domain.Status{
-	domain.StatusInProgress, domain.StatusProposed, domain.StatusBlocked,
-	domain.StatusDeferred, domain.StatusImplemented, domain.StatusStackedMerged,
-}
-
 // boardTerminalStatuses is the terminal group in display order (done, killed).
 var boardTerminalStatuses = []domain.Status{domain.StatusDone, domain.StatusKilled}
 
-// Board renders docs/changes/BOARD.md byte-for-byte per the contract above.
+// Board renders docs/changes/BOARD.md per the contract above.
 func Board(in BoardInput) ([]byte, error) {
-	activeByStatus := map[domain.Status][]domain.Change{}
+	if err := in.Presentation.validate(); err != nil {
+		return nil, err
+	}
+
+	bySection := map[BoardSection][]domain.Change{}
 	var activeAll []domain.Change
 	var archiveChanges []domain.Change
 	archiveCount := map[domain.Status]int{}
@@ -268,15 +340,16 @@ func Board(in BoardInput) ([]byte, error) {
 	for _, c := range in.Snapshot.Changes() {
 		switch c.Location() {
 		case domain.LocationActive:
-			activeByStatus[c.Status()] = append(activeByStatus[c.Status()], c)
+			sec, err := boardClassify(in, c)
+			if err != nil {
+				return nil, err
+			}
+			bySection[sec] = append(bySection[sec], c)
 			activeAll = append(activeAll, c)
 		case domain.LocationArchive:
 			archiveChanges = append(archiveChanges, c)
 			archiveCount[c.Status()]++
 		}
-	}
-	for s := range activeByStatus {
-		sortByID(activeByStatus[s])
 	}
 	sortByID(activeAll)
 
@@ -285,34 +358,35 @@ func Board(in BoardInput) ([]byte, error) {
 	var b strings.Builder
 	b.WriteString("# Backlog\n\n")
 
-	// --- counts line ---
+	// --- counts line: rendered groups in configured order, then archive ---
 	var seg []string
-	for _, s := range append(append([]domain.Status{}, boardActiveStatuses...), boardTerminalStatuses...) {
-		n := len(activeByStatus[s])
-		if isTerminalStatus(s) {
-			n = archiveCount[s]
-		}
+	for _, s := range in.Presentation.SectionOrder {
+		n := len(bySection[s])
 		if n == 0 {
 			continue
 		}
-		seg = append(seg, fmt.Sprintf("%s %d %s", boardEmoji(s), n, boardCountLabel(s)))
+		seg = append(seg, fmt.Sprintf("%s %d %s", boardSectionEmoji(s), n, boardSectionCountLabel(s)))
+	}
+	for _, s := range boardTerminalStatuses {
+		n := archiveCount[s]
+		if n == 0 {
+			continue
+		}
+		seg = append(seg, fmt.Sprintf("%s %d %s", boardEmoji(s), n, string(s)))
 	}
 	fmt.Fprintf(&b, "**%d changes** — %s\n", total, strings.Join(seg, " · "))
 
-	// --- active sections ---
-	for _, s := range boardActiveStatuses {
-		rows := activeByStatus[s]
+	// --- active sections in configured order ---
+	for _, s := range in.Presentation.SectionOrder {
+		rows := bySection[s]
 		if len(rows) == 0 {
 			continue
 		}
-		suffix := ""
-		if s == domain.StatusImplemented {
-			suffix = " — awaiting merge"
-		}
-		fmt.Fprintf(&b, "\n## %s %s%s (%d)\n\n", boardEmoji(s), boardSectionTitle(s), suffix, len(rows))
-		b.WriteString(boardTableHeader(s))
+		sortBoardSection(rows, in.Presentation.Sorting[s])
+		fmt.Fprintf(&b, "\n## %s %s (%d)\n\n", boardSectionEmoji(s), boardSectionHeading(s), len(rows))
+		b.WriteString(boardSectionTableHeader(s))
 		for _, c := range rows {
-			line, err := boardRow(in, s, c)
+			line, err := boardSectionRow(in, s, c)
 			if err != nil {
 				return nil, err
 			}
@@ -430,8 +504,11 @@ func Board(in BoardInput) ([]byte, error) {
 	return []byte(b.String()), nil
 }
 
-// boardRow renders one active change's table row for its section's layout.
-func boardRow(in BoardInput, s domain.Status, c domain.Change) (string, error) {
+// boardSectionRow renders one active change's table row for its rendered
+// section's layout. The change has already been classified into s by
+// boardClassify, so the section — not the raw lifecycle status — selects the
+// column shape and cell wording.
+func boardSectionRow(in BoardInput, s BoardSection, c domain.Change) (string, error) {
 	id := int(c.ID())
 	base := path.Base(c.Path())
 	title := c.Title()
@@ -439,30 +516,52 @@ func boardRow(in BoardInput, s domain.Status, c domain.Change) (string, error) {
 	ctype := boardTypeCell(c)
 
 	switch s {
-	case domain.StatusInProgress:
+	case BoardSectionInProgress:
 		return fmt.Sprintf("| [%04d](active/%s) | %s | `%s` | `%s` | [spec](%s) | `%s` |\n",
 			id, base, title, priority, ctype, boardSpecLink(c.Spec().Value), c.Branch().Value), nil
-	case domain.StatusProposed:
+	case BoardSectionBuilt:
+		return fmt.Sprintf("| [%04d](active/%s) | %s | `%s` | `%s` | %s | %s |\n",
+			id, base, title, priority, ctype, boardPRCell(c), boardBuiltStateCell(c)), nil
+	case BoardSectionBlocked:
+		return fmt.Sprintf("| [%04d](active/%s) | %s | `%s` | `%s` | %s | %s |\n",
+			id, base, title, priority, ctype, boardPRCell(c), boardBlockedReasonCell(c)), nil
+	case BoardSectionGroomed:
+		return fmt.Sprintf("| [%04d](active/%s) | %s | `%s` | `%s` | [spec](%s) |\n",
+			id, base, title, priority, ctype, boardSpecLink(c.Spec().Value)), nil
+	case BoardSectionProposed:
 		cell, err := boardReadinessCell(in, c)
 		if err != nil {
 			return "", err
 		}
 		return fmt.Sprintf("| [%04d](active/%s) | %s | `%s` | `%s` | %s |\n",
 			id, base, title, priority, ctype, cell), nil
-	case domain.StatusBlocked:
-		return fmt.Sprintf("| [%04d](active/%s) | %s | `%s` | `%s` | %s |\n",
-			id, base, title, priority, ctype, c.BlockedBy().Value), nil
-	case domain.StatusDeferred:
+	case BoardSectionDeferred:
 		return fmt.Sprintf("| [%04d](active/%s) | %s | `%s` | `%s` |\n",
 			id, base, title, priority, ctype), nil
-	case domain.StatusImplemented:
-		return fmt.Sprintf("| [%04d](active/%s) | %s | `%s` | `%s` | %s | %s |\n",
-			id, base, title, priority, ctype, boardPRCell(c), boardImplementedCell(c)), nil
-	case domain.StatusStackedMerged:
-		return fmt.Sprintf("| [%04d](active/%s) | %s | `%s` | `%s` | %s | %s |\n",
-			id, base, title, priority, ctype, boardPRCell(c), boardStackCell(c)), nil
 	}
-	return "", fmt.Errorf("render: board: change %04d has non-active status %q for row rendering", id, s)
+	return "", fmt.Errorf("render: board: change %04d has unknown section %q for row rendering", id, s)
+}
+
+// boardBuiltStateCell renders the Built State cell: a stacked-merged change
+// carries its "merged into #<parent>" edge (reusing boardStackCell); every
+// other Built row is a healthy implemented change awaiting merge (finalize-
+// blocked implemented changes classify Blocked, not Built).
+func boardBuiltStateCell(c domain.Change) string {
+	if c.Status() == domain.StatusStackedMerged {
+		return boardStackCell(c)
+	}
+	return "awaiting merge"
+}
+
+// boardBlockedReasonCell renders the Blocked Reason cell: a finalize-blocked
+// implemented change surfaces the call to action, and a lifecycle-blocked
+// change surfaces its stored blocked_by text. (The only implemented change that
+// reaches the Blocked section is finalize-blocked — boardClassify's precedence.)
+func boardBlockedReasonCell(c domain.Change) string {
+	if c.Status() == domain.StatusImplemented {
+		return "finalize blocked — needs you"
+	}
+	return c.BlockedBy().Value
 }
 
 // boardReadinessCell renders the proposed-section Readiness cell from the
@@ -471,6 +570,12 @@ func boardReadinessCell(in BoardInput, c domain.Change) (string, error) {
 	r := domain.EvaluateReadiness(in.Snapshot, c, in.Facts)
 	switch r.Kind {
 	case domain.ReadyBuildReady:
+		// The only build-ready row that reaches Proposed is trivial-without-spec
+		// (spec-backed build-ready is Groomed); mark it so the reader sees why it
+		// skipped grooming.
+		if c.Trivial() {
+			return "build-ready (trivial)", nil
+		}
 		return "build-ready", nil
 	case domain.ReadyNeedsBrainstorm:
 		return "needs-brainstorm", nil
@@ -496,15 +601,6 @@ func boardDepReason(reason domain.DependencyReason) string {
 		return "needs your merge"
 	}
 	return "not yet built"
-}
-
-// boardImplementedCell renders the implemented Readiness cell: a finalize-blocked
-// marker surfaces as a call to action, otherwise the cell is empty.
-func boardImplementedCell(c domain.Change) string {
-	if c.HasFinalizeBlocked() {
-		return "finalize blocked — needs you"
-	}
-	return ""
 }
 
 // boardStackCell renders the stacked-merged Stack cell: the parent whose branch
@@ -550,79 +646,93 @@ func boardTypeCell(c domain.Change) string {
 	return "untyped"
 }
 
-// boardTableHeader is the two-line Markdown table header for a status's section.
-func boardTableHeader(s domain.Status) string {
+// boardSectionTableHeader is the two-line Markdown table header for a rendered
+// section's layout.
+func boardSectionTableHeader(s BoardSection) string {
 	switch s {
-	case domain.StatusInProgress:
+	case BoardSectionInProgress:
 		return "| # | Title | Priority | Type | Spec | Branch |\n|---|-------|----------|------|------|--------|\n"
-	case domain.StatusProposed:
+	case BoardSectionBuilt:
+		return "| # | Title | Priority | Type | PR | State |\n|---|-------|----------|------|----|-------|\n"
+	case BoardSectionBlocked:
+		return "| # | Title | Priority | Type | PR | Reason |\n|---|-------|----------|------|----|--------|\n"
+	case BoardSectionGroomed:
+		return "| # | Title | Priority | Type | Spec |\n|---|-------|----------|------|------|\n"
+	case BoardSectionProposed:
 		return "| # | Title | Priority | Type | Readiness |\n|---|-------|----------|------|-----------|\n"
-	case domain.StatusBlocked:
-		return "| # | Title | Priority | Type | Blocked by |\n|---|-------|----------|------|------------|\n"
-	case domain.StatusDeferred:
+	case BoardSectionDeferred:
 		return "| # | Title | Priority | Type |\n|---|-------|----------|------|\n"
-	case domain.StatusImplemented:
-		return "| # | Title | Priority | Type | PR | Readiness |\n|---|-------|----------|------|----|-----------|\n"
-	case domain.StatusStackedMerged:
-		return "| # | Title | Priority | Type | PR | Stack |\n|---|-------|----------|------|----|-------|\n"
 	}
 	return ""
 }
 
-// boardEmoji is the lifecycle status's board emoji.
+// boardSectionEmoji is the rendered section's board emoji.
+func boardSectionEmoji(s BoardSection) string {
+	switch s {
+	case BoardSectionInProgress:
+		return "🟢"
+	case BoardSectionBuilt:
+		return "🔵"
+	case BoardSectionBlocked:
+		return "🔴"
+	case BoardSectionGroomed:
+		return "🟣"
+	case BoardSectionProposed:
+		return "🟡"
+	case BoardSectionDeferred:
+		return "⚪"
+	}
+	return ""
+}
+
+// boardSectionCountLabel is the rendered section's label in the counts line.
+func boardSectionCountLabel(s BoardSection) string {
+	switch s {
+	case BoardSectionInProgress:
+		return "in progress"
+	case BoardSectionBuilt:
+		return "built"
+	case BoardSectionBlocked:
+		return "blocked"
+	case BoardSectionGroomed:
+		return "groomed"
+	case BoardSectionProposed:
+		return "proposed"
+	case BoardSectionDeferred:
+		return "deferred"
+	}
+	return ""
+}
+
+// boardSectionHeading is the rendered section's heading title.
+func boardSectionHeading(s BoardSection) string {
+	switch s {
+	case BoardSectionInProgress:
+		return "In progress"
+	case BoardSectionBuilt:
+		return "Built"
+	case BoardSectionBlocked:
+		return "Blocked"
+	case BoardSectionGroomed:
+		return "Groomed"
+	case BoardSectionProposed:
+		return "Proposed"
+	case BoardSectionDeferred:
+		return "Deferred"
+	}
+	return ""
+}
+
+// boardEmoji is the terminal (archive) status's board emoji, used by the counts
+// line and the archive summary; the active groups use boardSectionEmoji.
 func boardEmoji(s domain.Status) string {
 	switch s {
-	case domain.StatusInProgress:
-		return "🟢"
-	case domain.StatusProposed:
-		return "🟡"
-	case domain.StatusBlocked:
-		return "🔴"
-	case domain.StatusDeferred:
-		return "⚪"
-	case domain.StatusImplemented:
-		return "🔵"
-	case domain.StatusStackedMerged:
-		return "🪆"
 	case domain.StatusDone:
 		return "✅"
 	case domain.StatusKilled:
 		return "🗑️"
 	}
 	return ""
-}
-
-// boardCountLabel is the status's label in the counts line: in-progress spells
-// as "in progress", every other status as its stored token.
-func boardCountLabel(s domain.Status) string {
-	if s == domain.StatusInProgress {
-		return "in progress"
-	}
-	return string(s)
-}
-
-// boardSectionTitle is the status's section heading title.
-func boardSectionTitle(s domain.Status) string {
-	switch s {
-	case domain.StatusInProgress:
-		return "In progress"
-	case domain.StatusProposed:
-		return "Proposed"
-	case domain.StatusBlocked:
-		return "Blocked"
-	case domain.StatusDeferred:
-		return "Deferred"
-	case domain.StatusImplemented:
-		return "Implemented"
-	case domain.StatusStackedMerged:
-		return "Stacked-merged"
-	}
-	return ""
-}
-
-// isTerminalStatus reports whether s is an archive-side terminal status.
-func isTerminalStatus(s domain.Status) bool {
-	return s == domain.StatusDone || s == domain.StatusKilled
 }
 
 // sortByID sorts changes in ascending numeric id order in place.

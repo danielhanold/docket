@@ -1,6 +1,6 @@
 # Backlog
 
-**9 changes** — 🟢 1 in progress · 🟡 3 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 1 implemented · ✅ 1 done · 🗑️ 1 killed
+**9 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 1 groomed · 🟡 2 proposed · ⚪ 1 deferred · ✅ 1 done · 🗑️ 1 killed
 
 ## 🟢 In progress (1)
 
@@ -8,31 +8,36 @@
 |---|-------|----------|------|------|--------|
 | [0001](active/0001-inline-board-in-progress.md) | Inline board work in progress | `high` | `feat` | [spec](../superpowers/specs/2026-08-01-inline-board-design.md) | `feat/inline-board` |
 
-## 🟡 Proposed (3)
+## 🔵 Built (1)
 
-| # | Title | Priority | Type | Readiness |
-|---|-------|----------|------|-----------|
-| [0002](active/0002-build-ready-change.md) | A build ready change | `critical` | `feat` | build-ready |
-| [0003](active/0003-needs-brainstorm-change.md) | A change needing a brainstorm | `medium` | `chore` | needs-brainstorm |
-| [0004](active/0004-waiting-on-dependency.md) | A change waiting on a dependency | `medium` | `feat` | ⏳ waiting on #3 — not yet built |
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0007](active/0007-implemented-change.md) | An implemented change awaiting merge | `high` | `feat` | [#57](https://github.com/danielhanold/docket/pull/57) | awaiting merge |
 
 ## 🔴 Blocked (1)
 
-| # | Title | Priority | Type | Blocked by |
-|---|-------|----------|------|------------|
-| [0005](active/0005-blocked-change.md) | A blocked change | `low` | `fix` | waiting on an upstream decision |
+| # | Title | Priority | Type | PR | Reason |
+|---|-------|----------|------|----|--------|
+| [0005](active/0005-blocked-change.md) | A blocked change | `low` | `fix` |  | waiting on an upstream decision |
+
+## 🟣 Groomed (1)
+
+| # | Title | Priority | Type | Spec |
+|---|-------|----------|------|------|
+| [0002](active/0002-build-ready-change.md) | A build ready change | `critical` | `feat` | [spec](../superpowers/specs/2026-08-02-build-ready-change-design.md) |
+
+## 🟡 Proposed (2)
+
+| # | Title | Priority | Type | Readiness |
+|---|-------|----------|------|-----------|
+| [0004](active/0004-waiting-on-dependency.md) | A change waiting on a dependency | `medium` | `feat` | ⏳ waiting on #3 — not yet built |
+| [0003](active/0003-needs-brainstorm-change.md) | A change needing a brainstorm | `medium` | `chore` | needs-brainstorm |
 
 ## ⚪ Deferred (1)
 
 | # | Title | Priority | Type |
 |---|-------|----------|------|
 | [0006](active/0006-deferred-change.md) | A deferred change | `low` | `docs` |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0007](active/0007-implemented-change.md) | An implemented change awaiting merge | `high` | `feat` | [#57](https://github.com/danielhanold/docket/pull/57) |  |
 
 ```mermaid
 graph TD

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -72,7 +73,7 @@ func TestBoardGolden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read golden: %v", err)
 	}
-	got, err := render.Board(render.BoardInput{Snapshot: boardCorpusSnapshot(t)})
+	got, err := render.Board(render.BoardInput{Snapshot: boardCorpusSnapshot(t), Presentation: render.DefaultBoardPresentation()})
 	if err != nil {
 		t.Fatalf("Board: %v", err)
 	}
@@ -83,11 +84,11 @@ func TestBoardGolden(t *testing.T) {
 
 func TestBoardDeterministic(t *testing.T) {
 	snap := boardCorpusSnapshot(t)
-	a, err := render.Board(render.BoardInput{Snapshot: snap})
+	a, err := render.Board(render.BoardInput{Snapshot: snap, Presentation: render.DefaultBoardPresentation()})
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := render.Board(render.BoardInput{Snapshot: snap})
+	b, err := render.Board(render.BoardInput{Snapshot: snap, Presentation: render.DefaultBoardPresentation()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,8 +134,15 @@ func boardFrom(t *testing.T, changes ...domain.Change) []byte {
 
 func boardFromFacts(t *testing.T, facts domain.BranchFacts, changes ...domain.Change) []byte {
 	t.Helper()
+	return boardWith(t, render.DefaultBoardPresentation(), facts, changes...)
+}
+
+// boardWith renders the given changes under an explicit presentation, so tests
+// can exercise non-default section orders and per-section sorts (change 0367).
+func boardWith(t *testing.T, pres render.BoardPresentation, facts domain.BranchFacts, changes ...domain.Change) []byte {
+	t.Helper()
 	snap := domain.NewSnapshot(domain.SnapshotSpec{Changes: changes})
-	out, err := render.Board(render.BoardInput{Snapshot: snap, Facts: facts})
+	out, err := render.Board(render.BoardInput{Snapshot: snap, Facts: facts, Presentation: pres})
 	if err != nil {
 		t.Fatalf("Board: %v", err)
 	}
@@ -282,19 +290,21 @@ func TestBoardDefaultPresentation(t *testing.T) {
 	}
 }
 
-// TestBoardActiveSectionSortsByNumericID pins the section sort as NUMERIC
-// ascending, not string collation: id 10 must follow id 2, and unset
-// priority/type render deterministically (empty backticks / `untyped`) without
-// perturbing that order.
-func TestBoardActiveSectionSortsByNumericID(t *testing.T) {
-	// id 10 has a stored priority/type; id 2 has neither.
+// TestBoardProposedDefaultSortAndEmptyCells re-targets the retired numeric-id
+// ordering test (change 0367): under the DEFAULT presentation a section sorts
+// updated desc with a numeric id-desc tie-break, so two undated needs-brainstorm
+// proposals render higher-id-first (id 10 before id 2 — numeric, not string
+// collation). It also pins that unset priority/type still render
+// deterministically (empty backticks / `untyped`) without perturbing that order.
+func TestBoardProposedDefaultSortAndEmptyCells(t *testing.T) {
+	// Both proposed with no spec (needs-brainstorm) and no dates: the
+	// updated-desc primary key is unknown for both, so the id-desc tie-break
+	// decides. id 10 has a stored priority/type; id 2 has neither.
 	two := proposedChange(2, "two", "Two")
-	two.Spec = optString("docs/superpowers/specs/two-design.md") // build-ready
 	ten := proposedChange(10, "ten", "Ten")
 	ten.Priority = domain.PriorityHigh
 	ten.RawPriority = "high"
 	ten.Type = "feat"
-	ten.Spec = optString("docs/superpowers/specs/ten-design.md")
 
 	out := string(boardFrom(t, domain.NewChange(ten), domain.NewChange(two)))
 
@@ -303,11 +313,12 @@ func TestBoardActiveSectionSortsByNumericID(t *testing.T) {
 	if i2 < 0 || i10 < 0 {
 		t.Fatalf("expected both rows present:\n%s", out)
 	}
-	if i2 > i10 {
-		t.Fatalf("numeric sort violated: id 2 rendered after id 10:\n%s", out)
+	// Default updated-desc, id-desc tie: id 10 renders before id 2.
+	if i10 > i2 {
+		t.Fatalf("default sort violated: id 10 rendered after id 2:\n%s", out)
 	}
 	// id 2 carries no priority and no type: empty backticks and `untyped`.
-	if !strings.Contains(out, "| [0002](active/0002-two.md) | Two | `` | `untyped` | build-ready |") {
+	if !strings.Contains(out, "| [0002](active/0002-two.md) | Two | `` | `untyped` | needs-brainstorm |") {
 		t.Fatalf("unset priority/type not rendered deterministically:\n%s", out)
 	}
 }
@@ -362,9 +373,11 @@ func TestBoardReadinessStackBaseUnresolved(t *testing.T) {
 	}
 }
 
-// TestBoardStackedMergedSection: the stacked-merged section header, emoji, and
-// Stack cell — a section the golden corpus does not exercise.
-func TestBoardStackedMergedSection(t *testing.T) {
+// TestBoardStackedMergedRendersUnderBuilt re-targets the retired stacked-merged
+// section test (change 0367): a stacked-merged change now classifies into the
+// unified Built section, and its State cell carries the padded "merged into
+// #NNNN" parent edge alongside its PR cell.
+func TestBoardStackedMergedRendersUnderBuilt(t *testing.T) {
 	c := domain.NewChange(domain.ChangeSpec{
 		ID: 11, Slug: "merged-child", Title: "Merged child", Status: domain.StatusStackedMerged,
 		StackedOn: domain.OptionalInt{State: domain.FieldPresent, Value: 8},
@@ -372,11 +385,11 @@ func TestBoardStackedMergedSection(t *testing.T) {
 		Location:  domain.LocationActive, Path: "docs/changes/active/0011-merged-child.md",
 	})
 	out := string(boardFrom(t, c))
-	if !strings.Contains(out, "## 🪆 Stacked-merged (1)") {
-		t.Fatalf("stacked-merged section header missing:\n%s", out)
+	if !strings.Contains(out, "## 🔵 Built (1)") {
+		t.Fatalf("Built section header missing:\n%s", out)
 	}
 	if !strings.Contains(out, "| [#99](https://github.com/danielhanold/docket/pull/99) | merged into #0008 |") {
-		t.Fatalf("stacked-merged PR/Stack cells missing:\n%s", out)
+		t.Fatalf("stacked-merged PR/State cells missing:\n%s", out)
 	}
 }
 
@@ -558,5 +571,308 @@ func TestSortBoardSectionIgnoresArrivalOrder(t *testing.T) {
 	render.SortBoardSectionForTest(rotated, sort)
 	if got := ids(rotated); !idsEqual(got, want) {
 		t.Fatalf("rotated input order = %v, want %v", got, want)
+	}
+}
+
+// reversedPresentation is the default presentation with its section order
+// reversed and its (complete, valid) sorting map preserved.
+func reversedPresentation() render.BoardPresentation {
+	p := render.DefaultBoardPresentation()
+	for i, j := 0, len(p.SectionOrder)-1; i < j; i, j = i+1, j-1 {
+		p.SectionOrder[i], p.SectionOrder[j] = p.SectionOrder[j], p.SectionOrder[i]
+	}
+	return p
+}
+
+// TestBoardRefusesInvalidPresentation pins that Board() fails loudly on an
+// incomplete or invalid presentation rather than silently filling defaults: an
+// invalid presentation is a docket wiring bug, not a user-facing fallback.
+func TestBoardRefusesInvalidPresentation(t *testing.T) {
+	c := domain.NewChange(proposedChange(1, "one", "One"))
+	snap := domain.NewSnapshot(domain.SnapshotSpec{Changes: []domain.Change{c}})
+
+	full := render.DefaultBoardPresentation()
+
+	// A five-token order (missing one section).
+	fiveToken := render.DefaultBoardPresentation()
+	fiveToken.SectionOrder = fiveToken.SectionOrder[:5]
+
+	// A duplicate token (six entries, one section twice, one missing).
+	dup := render.DefaultBoardPresentation()
+	dup.SectionOrder = []render.BoardSection{
+		render.BoardSectionInProgress, render.BoardSectionInProgress, render.BoardSectionBlocked,
+		render.BoardSectionGroomed, render.BoardSectionProposed, render.BoardSectionDeferred,
+	}
+
+	// A complete order but a missing sorting entry.
+	missingSort := render.DefaultBoardPresentation()
+	delete(missingSort.Sorting, render.BoardSectionProposed)
+
+	// A complete order and full map, but one sort carries a bad key.
+	badKey := render.DefaultBoardPresentation()
+	badKey.Sorting[render.BoardSectionProposed] = render.BoardSort{By: "priority", Direction: render.BoardDirectionDesc}
+
+	// An unknown section token in the order.
+	unknownTok := render.DefaultBoardPresentation()
+	unknownTok.SectionOrder[0] = render.BoardSection("bogus")
+
+	cases := []struct {
+		name string
+		pres render.BoardPresentation
+	}{
+		{"zero presentation", render.BoardPresentation{}},
+		{"five-token order", fiveToken},
+		{"duplicate token", dup},
+		{"unknown token", unknownTok},
+		{"missing sorting entry", missingSort},
+		{"bad sort key", badKey},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := render.Board(render.BoardInput{Snapshot: snap, Presentation: tc.pres})
+			if err == nil {
+				t.Fatalf("expected an error for %s", tc.name)
+			}
+			if !strings.Contains(err.Error(), "presentation") {
+				t.Fatalf("error %q does not mention \"presentation\"", err)
+			}
+		})
+	}
+
+	// Sanity: the full default presentation renders without error.
+	if _, err := render.Board(render.BoardInput{Snapshot: snap, Presentation: full}); err != nil {
+		t.Fatalf("valid presentation errored: %v", err)
+	}
+}
+
+// boardSectionBody returns the text of the section introduced by heading, up to
+// the next section heading or the mermaid fence, and whether the heading exists.
+func boardSectionBody(out, heading string) (string, bool) {
+	i := strings.Index(out, heading)
+	if i < 0 {
+		return "", false
+	}
+	rest := out[i+len(heading):]
+	end := len(rest)
+	if j := strings.Index(rest, "\n## "); j >= 0 && j < end {
+		end = j
+	}
+	if j := strings.Index(rest, "\n```mermaid"); j >= 0 && j < end {
+		end = j
+	}
+	return rest[:end], true
+}
+
+// TestBoardConfiguredSectionOrderAndOmission pins that Board() iterates the
+// configured section permutation (not the built-in order), that an empty group
+// emits no heading, and that the counts line lists the same groups in the same
+// order.
+func TestBoardConfiguredSectionOrderAndOmission(t *testing.T) {
+	// Members in only three of six groups: in-progress, proposed, deferred.
+	inprog := domain.NewChange(domain.ChangeSpec{
+		ID: 1, Slug: "wip", Title: "WIP", Status: domain.StatusInProgress,
+		Spec:     optString("docs/superpowers/specs/wip-design.md"),
+		Branch:   domain.OptionalString{State: domain.FieldPresent, Value: "feat/wip"},
+		Location: domain.LocationActive, Path: "docs/changes/active/0001-wip.md",
+	})
+	proposed := domain.NewChange(proposedChange(3, "brainstorm", "Needs brainstorm"))
+	deferred := domain.NewChange(domain.ChangeSpec{
+		ID: 6, Slug: "def", Title: "Deferred", Status: domain.StatusDeferred,
+		Location: domain.LocationActive, Path: "docs/changes/active/0006-def.md",
+	})
+
+	out := string(boardWith(t, reversedPresentation(), domain.BranchFacts{}, inprog, proposed, deferred))
+
+	// Present headings, in reversed (deferred → proposed → in-progress) order.
+	iDef := strings.Index(out, "## ⚪ Deferred (1)")
+	iProp := strings.Index(out, "## 🟡 Proposed (1)")
+	iWip := strings.Index(out, "## 🟢 In progress (1)")
+	if iDef < 0 || iProp < 0 || iWip < 0 {
+		t.Fatalf("expected all three headings present:\n%s", out)
+	}
+	if !(iDef < iProp && iProp < iWip) {
+		t.Fatalf("headings not in configured (reversed) order: def=%d prop=%d wip=%d\n%s", iDef, iProp, iWip, out)
+	}
+	// Absent groups emit no heading.
+	for _, absent := range []string{"## 🔵 Built", "## 🔴 Blocked", "## 🟣 Groomed"} {
+		if strings.Contains(out, absent) {
+			t.Fatalf("empty group emitted a heading %q:\n%s", absent, out)
+		}
+	}
+	// The counts line lists the same three groups in the same reversed order.
+	cDef := strings.Index(out, "⚪ 1 deferred")
+	cProp := strings.Index(out, "🟡 1 proposed")
+	cWip := strings.Index(out, "🟢 1 in progress")
+	if cDef < 0 || cProp < 0 || cWip < 0 {
+		t.Fatalf("counts line missing a group:\n%s", out)
+	}
+	if !(cDef < cProp && cProp < cWip) {
+		t.Fatalf("counts line not in configured order: def=%d prop=%d wip=%d\n%s", cDef, cProp, cWip, out)
+	}
+}
+
+// TestBoardCountSummaryParity pins that every counts-line segment's n equals the
+// row count of the matching section table (and, for done/killed, the archive
+// rows).
+func TestBoardCountSummaryParity(t *testing.T) {
+	inprog := domain.NewChange(domain.ChangeSpec{
+		ID: 1, Slug: "wip", Title: "WIP", Status: domain.StatusInProgress,
+		Spec:     optString("docs/superpowers/specs/wip-design.md"),
+		Branch:   domain.OptionalString{State: domain.FieldPresent, Value: "feat/wip"},
+		Location: domain.LocationActive, Path: "docs/changes/active/0001-wip.md",
+	})
+	built := domain.NewChange(domain.ChangeSpec{
+		ID: 7, Slug: "impl", Title: "Impl", Status: domain.StatusImplemented,
+		Location: domain.LocationActive, Path: "docs/changes/active/0007-impl.md",
+	})
+	blocked := domain.NewChange(domain.ChangeSpec{
+		ID: 5, Slug: "blk", Title: "Blocked", Status: domain.StatusBlocked,
+		BlockedBy: domain.OptionalString{State: domain.FieldPresent, Value: "upstream"},
+		Location:  domain.LocationActive, Path: "docs/changes/active/0005-blk.md",
+	})
+	groomedSpec := proposedChange(2, "groomed", "Groomed")
+	groomedSpec.Spec = optString("docs/superpowers/specs/groomed-design.md")
+	groomed := domain.NewChange(groomedSpec)
+	proposed := domain.NewChange(proposedChange(3, "brainstorm", "Needs brainstorm"))
+	deferred := domain.NewChange(domain.ChangeSpec{
+		ID: 6, Slug: "def", Title: "Deferred", Status: domain.StatusDeferred,
+		Location: domain.LocationActive, Path: "docs/changes/active/0006-def.md",
+	})
+	done := domain.NewChange(domain.ChangeSpec{
+		ID: 9, Slug: "done", Title: "Done", Status: domain.StatusDone,
+		Location: domain.LocationArchive, Path: "docs/changes/archive/2026-07-01-0009-done.md",
+	})
+	killed := domain.NewChange(domain.ChangeSpec{
+		ID: 10, Slug: "killed", Title: "Killed", Status: domain.StatusKilled,
+		Location: domain.LocationArchive, Path: "docs/changes/archive/2026-07-02-0010-killed.md",
+	})
+
+	out := string(boardWith(t, render.DefaultBoardPresentation(), domain.BranchFacts{},
+		inprog, built, blocked, groomed, proposed, deferred, done, killed))
+
+	// Parse the counts line (third line: "# Backlog", "", counts).
+	lines := strings.SplitN(out, "\n", 4)
+	if len(lines) < 3 {
+		t.Fatalf("output too short:\n%s", out)
+	}
+	countsLine := lines[2]
+	seg := countsLine
+	if k := strings.Index(seg, "— "); k >= 0 {
+		seg = seg[k+len("— "):]
+	}
+	counts := map[string]int{}
+	for _, s := range strings.Split(seg, " · ") {
+		f := strings.SplitN(s, " ", 3)
+		if len(f) < 3 {
+			t.Fatalf("malformed counts segment %q", s)
+		}
+		n, err := strconv.Atoi(f[1])
+		if err != nil {
+			t.Fatalf("counts segment %q has non-numeric n: %v", s, err)
+		}
+		counts[f[2]] = n
+	}
+
+	// Each active section: counts n == rows in the section table.
+	sections := []struct {
+		label, heading string
+	}{
+		{"in progress", "## 🟢 In progress ("},
+		{"built", "## 🔵 Built ("},
+		{"blocked", "## 🔴 Blocked ("},
+		{"groomed", "## 🟣 Groomed ("},
+		{"proposed", "## 🟡 Proposed ("},
+		{"deferred", "## ⚪ Deferred ("},
+	}
+	for _, s := range sections {
+		body, ok := boardSectionBody(out, s.heading)
+		if !ok {
+			t.Fatalf("section %q heading missing:\n%s", s.label, out)
+		}
+		rows := strings.Count(body, "\n| [")
+		if counts[s.label] != rows {
+			t.Fatalf("section %q: counts n=%d, table rows=%d", s.label, counts[s.label], rows)
+		}
+		if rows != 1 {
+			t.Fatalf("fixture expected 1 row in %q, got %d", s.label, rows)
+		}
+	}
+
+	// Archive terminal counts match the archive fixtures.
+	if counts["done"] != 1 {
+		t.Fatalf("done count = %d, want 1", counts["done"])
+	}
+	if counts["killed"] != 1 {
+		t.Fatalf("killed count = %d, want 1", counts["killed"])
+	}
+}
+
+// TestBoardBuiltAndBlockedUnifiedCells pins the unified Built and Blocked table
+// cells: Built carries "awaiting merge" or "merged into #NNNN"; Blocked carries
+// the stored blocked_by reason (with an empty PR cell when no pr:) or the
+// finalize-blocked call to action.
+func TestBoardBuiltAndBlockedUnifiedCells(t *testing.T) {
+	implHealthy := domain.NewChange(domain.ChangeSpec{
+		ID: 7, Slug: "impl", Title: "Impl", Status: domain.StatusImplemented,
+		PR:       domain.OptionalString{State: domain.FieldPresent, Value: "https://github.com/danielhanold/docket/pull/57"},
+		Location: domain.LocationActive, Path: "docs/changes/active/0007-impl.md",
+	})
+	stacked := domain.NewChange(domain.ChangeSpec{
+		ID: 8, Slug: "stk", Title: "Stacked", Status: domain.StatusStackedMerged,
+		StackedOn: domain.OptionalInt{State: domain.FieldPresent, Value: 3},
+		PR:        domain.OptionalString{State: domain.FieldPresent, Value: "https://github.com/danielhanold/docket/pull/58"},
+		Location:  domain.LocationActive, Path: "docs/changes/active/0008-stk.md",
+	})
+	blockedWithPR := domain.NewChange(domain.ChangeSpec{
+		ID: 5, Slug: "blk", Title: "Blocked with PR", Status: domain.StatusBlocked,
+		BlockedBy: domain.OptionalString{State: domain.FieldPresent, Value: "waiting on an upstream decision"},
+		PR:        domain.OptionalString{State: domain.FieldPresent, Value: "https://github.com/danielhanold/docket/pull/40"},
+		Location:  domain.LocationActive, Path: "docs/changes/active/0005-blk.md",
+	})
+	blockedNoPR := domain.NewChange(domain.ChangeSpec{
+		ID: 15, Slug: "blk2", Title: "Blocked no PR", Status: domain.StatusBlocked,
+		BlockedBy: domain.OptionalString{State: domain.FieldPresent, Value: "needs a decision"},
+		Location:  domain.LocationActive, Path: "docs/changes/active/0015-blk2.md",
+	})
+	finBlocked := domain.NewChange(domain.ChangeSpec{
+		ID: 16, Slug: "fin", Title: "Fin blocked", Status: domain.StatusImplemented,
+		HasFinalizeBlocked: true,
+		PR:                 domain.OptionalString{State: domain.FieldPresent, Value: "https://github.com/danielhanold/docket/pull/60"},
+		Location:           domain.LocationActive, Path: "docs/changes/active/0016-fin.md",
+	})
+
+	out := string(boardFrom(t, implHealthy, stacked, blockedWithPR, blockedNoPR, finBlocked))
+
+	wantSub := []string{
+		// Built: implemented healthy → PR link + awaiting merge.
+		"| [#57](https://github.com/danielhanold/docket/pull/57) | awaiting merge |",
+		// Built: stacked-merged → PR link + merged into padded parent.
+		"| [#58](https://github.com/danielhanold/docket/pull/58) | merged into #0003 |",
+		// Blocked: lifecycle-blocked with pr → PR link + reason text.
+		"| [#40](https://github.com/danielhanold/docket/pull/40) | waiting on an upstream decision |",
+		// Blocked: lifecycle-blocked without pr → empty PR cell + reason text.
+		"| `untyped` |  | needs a decision |",
+		// Blocked: implemented finalize-blocked → PR link + call to action.
+		"| [#60](https://github.com/danielhanold/docket/pull/60) | finalize blocked — needs you |",
+	}
+	for _, sub := range wantSub {
+		if !strings.Contains(out, sub) {
+			t.Fatalf("missing unified cell %q:\n%s", sub, out)
+		}
+	}
+}
+
+// TestBoardProposedTrivialBuildReadyCell pins that a trivial, spec-less
+// build-ready proposal renders "build-ready (trivial)" under Proposed (the only
+// build-ready row that reaches Proposed — spec-backed build-ready is Groomed).
+func TestBoardProposedTrivialBuildReadyCell(t *testing.T) {
+	spec := proposedChange(10, "triv", "Trivial")
+	spec.Trivial = true
+	out := string(boardFrom(t, domain.NewChange(spec)))
+	if !strings.Contains(out, "## 🟡 Proposed (1)") {
+		t.Fatalf("Proposed section missing:\n%s", out)
+	}
+	if !strings.Contains(out, "| build-ready (trivial) |") {
+		t.Fatalf("trivial build-ready cell missing:\n%s", out)
 	}
 }
