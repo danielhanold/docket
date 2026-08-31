@@ -4,6 +4,7 @@ package gitcli
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -192,6 +193,83 @@ func TestIntegrationRepoFetchFailureClassificationSharesOneNetworkBudget(t *test
 	limit := networkTimeout + networkTimeout/2 + 2*spawnCost
 	if elapsed >= limit {
 		t.Fatalf("fetch failure cost more than one network budget: elapsed %v, limit %v (spawn %v)", elapsed, limit, spawnCost)
+	}
+}
+
+// TestFetchFailureClassificationBoundByReadBudgetNotWrite is the read-budget
+// variant of TestIntegrationRepoFetchFailureClassificationSharesOneNetworkBudget:
+// with the network budget SPLIT into a short read budget and a far longer write
+// budget, the failed fetch and the ls-remote classification probe that follows it
+// are bounded by the READ budget. FetchBranch is a read, so its shared netCtx
+// (refs.go FetchBranch: "the shared budget is networkReadTimeout") draws from the
+// read budget and never touches the write budget. The fake burns most of the read
+// budget answering `fetch` non-zero, then hangs the probe; one shared read budget
+// caps the pair at ~readBudget end to end.
+//
+// This one test reddens under BOTH Task 11 Step 4 budget mutations, and the 2×
+// spawn-cost term cancels from the comparison so neither verdict is a
+// machine-speed assertion:
+//   - refs.go netCtx keyed on networkWriteTimeout instead of networkReadTimeout:
+//     the 20s write budget no longer bounds the pair, so the probe runs to its own
+//     read-length per-process budget (~2s) — elapsed ≈ 1.5s + 2s = 3.5s, past the
+//     ceiling. (Current shared-read: 1.5s + ~0.5s remaining ≈ 2s, under it.)
+//   - the probe handed a fresh clock rather than the part-spent shared netCtx: the
+//     probe regains a full read-length budget, same ~3.5s.
+func TestIntegrationRepoFetchFailureClassificationBoundByReadBudgetNotWrite(t *testing.T) {
+	const readBudget = 2 * time.Second
+	const writeBudget = 20 * time.Second
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := append(os.Environ(), "GITCLI_HELPER_MODE=fetchslowfail", "GITCLI_HELPER_FETCH_SLEEP_MS=1500")
+	c, err := NewClient(WithExecutable(exe), WithBaseEnvironment(env),
+		WithLocalTimeout(5*time.Second),
+		WithNetworkReadTimeout(readBudget),
+		WithNetworkWriteTimeout(writeBudget))
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := Repository{PrimaryWorktree: t.TempDir()}
+
+	// Calibrate one process spawn on this machine/toolchain (a race-instrumented
+	// binary re-execs far slower than a plain one); ResolveRef is exactly one spawn
+	// against this fake git and returns immediately (the canned stdout is not an
+	// object id), so it times the re-exec and nothing else.
+	spawnStart := time.Now()
+	if _, err := c.ResolveRef(context.Background(), repo, "refs/heads/main"); err == nil {
+		t.Fatal("calibration call unexpectedly succeeded")
+	}
+	spawnCost := time.Since(spawnStart)
+
+	start := time.Now()
+	_, err = c.FetchBranch(context.Background(), repo, "origin", "refs/heads/main")
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatal("expected a failure from the unreachable remote")
+	}
+	f, ok := AsFailure(err)
+	if !ok {
+		t.Fatalf("expected a *Failure, got %v", err)
+	}
+	// The shared read budget is exhausted by the fetch, so the probe cannot run
+	// and the operation surfaces as timed out.
+	if f.Kind != KindTimedOut {
+		t.Fatalf("kind = %q, want %q", f.Kind, KindTimedOut)
+	}
+	// Bounded by the READ budget: fetch spends ~1.5s of it, the probe times out on
+	// the ~0.5s that remains. A write-keyed netCtx (20s) or an un-shared probe
+	// would run a further full read-length per-process budget (~2s), past this
+	// line. The 2×spawnCost term appears in both the shared (~2s) and mutated
+	// (~3.5s) elapsed, so it cancels and the 3s-vs-3.5s split is what decides.
+	limit := readBudget + readBudget/2 + 2*spawnCost
+	if elapsed >= limit {
+		t.Fatalf("fetch+probe cost more than one shared READ budget: elapsed %v, limit %v (spawn %v)", elapsed, limit, spawnCost)
+	}
+	// And nowhere near the write budget — the read pair never drew from it.
+	if elapsed >= writeBudget {
+		t.Fatalf("fetch+probe reached into the write budget: elapsed %v, write budget %v", elapsed, writeBudget)
 	}
 }
 
