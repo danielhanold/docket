@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-design.md) |
-| Plan | [2026-08-07-aborted-run-step-7-seam.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-07-aborted-run-step-7-seam.md) |
-| Results | [2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-results.md) |
-| PR | [#171](https://github.com/danielhanold/docket/pull/171) |
+| Plan | [2026-08-07-aborted-run-step-7-seam.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-07-aborted-run-step-7-seam.md) |
+| Results | [2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-results.md) |
 | ADRs | [ADR-0072](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0072-leg-c-predicate-duplicated-by-value-across-two-scripts.md) |
 <!-- docket:artifacts:end -->
 

@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-31-reuse-test-git-fixtures-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-31-reuse-test-git-fixtures-design.md) |
-| Plan | [2026-07-31-reuse-test-git-fixtures.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-31-reuse-test-git-fixtures.md) |
-| Results | [2026-07-31-reuse-test-git-fixtures-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-31-reuse-test-git-fixtures-results.md) |
-| PR | [#141](https://github.com/danielhanold/docket/pull/141) |
+| Plan | [2026-07-31-reuse-test-git-fixtures.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-07-31-reuse-test-git-fixtures.md) |
+| Results | [2026-07-31-reuse-test-git-fixtures-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-07-31-reuse-test-git-fixtures-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -19,6 +19,14 @@ pr: https://github.com/danielhanold/docket/pull/32
 blocked_by:
 reconciled: true
 ---
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-06-17-finalize-rebase-retest-gate-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-17-finalize-rebase-retest-gate-design.md) |
+| Plan | [2026-06-17-finalize-rebase-retest-gate.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-06-17-finalize-rebase-retest-gate.md) |
+| Results | [2026-06-17-finalize-rebase-retest-gate-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-06-17-finalize-rebase-retest-gate-results.md) |
+| ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0010](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0010-finalize-merge-gate-split-agents.md) |
+<!-- docket:artifacts:end -->
 
 ## Why
 

@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-25-dispatch-capability-detection-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-25-dispatch-capability-detection-design.md) |
-| Plan | [2026-07-25-dispatch-capability-detection.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-25-dispatch-capability-detection.md) |
-| Results | [2026-07-25-dispatch-capability-detection-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-25-dispatch-capability-detection-results.md) |
-| PR | [#126](https://github.com/danielhanold/docket/pull/126) |
+| Plan | [2026-07-25-dispatch-capability-detection.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-07-25-dispatch-capability-detection.md) |
+| Results | [2026-07-25-dispatch-capability-detection-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-07-25-dispatch-capability-detection-results.md) |
 | ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0017](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0017-cursor-dispatch-rule-full-agent-set.md), [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0026](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0026-fork-dispatch-opacity-two-invocation-paths.md), [ADR-0059](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md) |
 <!-- docket:artifacts:end -->
 

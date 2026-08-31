@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-assert-executes-backticks-in-its-test-description-so-a-verba-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-assert-executes-backticks-in-its-test-description-so-a-verba-design.md) |
-| Plan | [2026-08-11-assert-backtick-source-hygiene.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-11-assert-backtick-source-hygiene.md) |
-| Results | [2026-08-11-assert-executes-backticks-in-its-test-description-so-a-verba-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-11-assert-executes-backticks-in-its-test-description-so-a-verba-results.md) |
-| PR | [#202](https://github.com/danielhanold/docket/pull/202) |
+| Plan | [2026-08-11-assert-backtick-source-hygiene.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-11-assert-backtick-source-hygiene.md) |
+| Results | [2026-08-11-assert-executes-backticks-in-its-test-description-so-a-verba-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-11-assert-executes-backticks-in-its-test-description-so-a-verba-results.md) |
 | ADRs | [ADR-0091](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0091-every-backtick-in-a-double-quoted-region-is-a-violation.md) |
 <!-- docket:artifacts:end -->
 

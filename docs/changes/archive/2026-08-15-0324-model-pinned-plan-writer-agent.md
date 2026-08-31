@@ -30,9 +30,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-15-model-pinned-plan-writer-agent-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-15-model-pinned-plan-writer-agent-design.md) |
-| Plan | [2026-08-15-model-pinned-plan-writer-agent.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-15-model-pinned-plan-writer-agent.md) |
-| Results | [2026-08-15-model-pinned-plan-writer-agent-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-15-model-pinned-plan-writer-agent-results.md) |
-| PR | [#209](https://github.com/danielhanold/docket/pull/209) |
+| Plan | [2026-08-15-model-pinned-plan-writer-agent.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-15-model-pinned-plan-writer-agent.md) |
+| Results | [2026-08-15-model-pinned-plan-writer-agent-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-15-model-pinned-plan-writer-agent-results.md) |
 | ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md), [ADR-0018](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0018-pluggable-skills-passthrough-degrade.md), [ADR-0044](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0044-autonomy-precedence-call-site-pre-specification.md), [ADR-0059](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md), [ADR-0064](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0064-shipped-agent-defaults-live-in-a-harness-indexed-sidecar.md), [ADR-0083](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0083-agent-worktree-scope-is-a-declared-frontmatter-fact.md), [ADR-0094](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0094-plan-authoring-is-a-pinned-internal-composition-agent.md) |
 <!-- docket:artifacts:end -->
 

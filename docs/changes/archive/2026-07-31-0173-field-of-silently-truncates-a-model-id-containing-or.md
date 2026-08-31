@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-31-field-of-silently-truncates-a-model-id-containing-or-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-31-field-of-silently-truncates-a-model-id-containing-or-design.md) |
-| Plan | [2026-07-31-field-of-value-class-truncation.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-31-field-of-value-class-truncation.md) |
-| Results | [2026-07-31-field-of-silently-truncates-a-model-id-containing-or-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-31-field-of-silently-truncates-a-model-id-containing-or-results.md) |
-| PR | [#142](https://github.com/danielhanold/docket/pull/142) |
+| Plan | [2026-07-31-field-of-value-class-truncation.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-07-31-field-of-value-class-truncation.md) |
+| Results | [2026-07-31-field-of-silently-truncates-a-model-id-containing-or-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-07-31-field-of-silently-truncates-a-model-id-containing-or-results.md) |
 | ADRs | [ADR-0065](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0065-bare-scalar-validation-needs-an-explicit-quote-leg.md) |
 <!-- docket:artifacts:end -->
 

@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-09-fence-runner-config-locality-at-the-main-worktree-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-fence-runner-config-locality-at-the-main-worktree-design.md) |
-| Plan | [2026-08-10-fence-runner-config-locality-at-the-main-worktree.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-10-fence-runner-config-locality-at-the-main-worktree.md) |
-| Results | [2026-08-10-fence-runner-config-locality-at-the-main-worktree-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-10-fence-runner-config-locality-at-the-main-worktree-results.md) |
-| PR | [#193](https://github.com/danielhanold/docket/pull/193) |
+| Plan | [2026-08-10-fence-runner-config-locality-at-the-main-worktree.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-10-fence-runner-config-locality-at-the-main-worktree.md) |
+| Results | [2026-08-10-fence-runner-config-locality-at-the-main-worktree-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-10-fence-runner-config-locality-at-the-main-worktree-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

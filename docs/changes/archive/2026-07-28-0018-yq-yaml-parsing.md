@@ -27,9 +27,8 @@ type: docs
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Plan | [2026-07-28-yq-yaml-parsing.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-28-yq-yaml-parsing.md) |
-| Results | [2026-07-28-yq-yaml-parsing-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-28-yq-yaml-parsing-results.md) |
-| PR | [#137](https://github.com/danielhanold/docket/pull/137) |
+| Plan | [2026-07-28-yq-yaml-parsing.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-07-28-yq-yaml-parsing.md) |
+| Results | [2026-07-28-yq-yaml-parsing-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-07-28-yq-yaml-parsing-results.md) |
 | ADRs | [ADR-0057](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0057-frontmatter-read-must-be-anchored-when-key-may-be-absent.md), [ADR-0058](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0058-two-tier-frontmatter-scalar-readers-field-vs-field-raw.md), [ADR-0062](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0062-in-repo-shell-yaml-readers-no-external-parser.md) |
 <!-- docket:artifacts:end -->
 

@@ -30,8 +30,7 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-23-stamp-build-identity-in-development-install-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-23-stamp-build-identity-in-development-install-design.md) |
-| Plan | [2026-08-23-stamp-build-identity-in-development-install.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-23-stamp-build-identity-in-development-install.md) |
-| PR | github.com/danielhanold/docket#233 |
+| Plan | [2026-08-23-stamp-build-identity-in-development-install.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-23-stamp-build-identity-in-development-install.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

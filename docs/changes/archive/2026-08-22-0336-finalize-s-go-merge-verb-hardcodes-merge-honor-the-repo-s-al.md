@@ -30,9 +30,8 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-21-finalize-effective-merge-method-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-21-finalize-effective-merge-method-design.md) |
-| Plan | [2026-08-21-finalize-effective-merge-method.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-21-finalize-effective-merge-method.md) |
-| Results | [2026-08-21-finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-21-finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al-results.md) |
-| PR | github.com/danielhanold/docket#227 |
+| Plan | [2026-08-21-finalize-effective-merge-method.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-21-finalize-effective-merge-method.md) |
+| Results | [2026-08-21-finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-21-finalize-s-go-merge-verb-hardcodes-merge-honor-the-repo-s-al-results.md) |
 | ADRs | [ADR-0010](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0010-finalize-merge-gate-split-agents.md), [ADR-0011](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0011-finalize-consent-model.md), [ADR-0043](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md) |
 <!-- docket:artifacts:end -->
 

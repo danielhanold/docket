@@ -28,8 +28,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-19-mirror-readiness-label-parity-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-19-mirror-readiness-label-parity-design.md) |
-| Plan | [2026-07-19-mirror-readiness-label-parity.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-19-mirror-readiness-label-parity.md) |
-| PR | [#105](https://github.com/danielhanold/docket/pull/105) |
+| Plan | [2026-07-19-mirror-readiness-label-parity.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-07-19-mirror-readiness-label-parity.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -30,9 +30,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-18-pre-go-mutation-configuration-contraction-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-18-pre-go-mutation-configuration-contraction-design.md) |
-| Plan | [2026-08-18-pre-go-mutation-configuration-contraction.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-18-pre-go-mutation-configuration-contraction.md) |
-| Results | [2026-08-18-pre-go-mutation-configuration-contraction-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-18-pre-go-mutation-configuration-contraction-results.md) |
-| PR | [#220](https://github.com/danielhanold/docket/pull/220) |
+| Plan | [2026-08-18-pre-go-mutation-configuration-contraction.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-18-pre-go-mutation-configuration-contraction.md) |
+| Results | [2026-08-18-pre-go-mutation-configuration-contraction-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-18-pre-go-mutation-configuration-contraction-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -30,8 +30,7 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-22-finalize-integration-backlink-corpus-scoping-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-22-finalize-integration-backlink-corpus-scoping-design.md) |
-| Plan | [2026-08-22-finalize-backlink-leg-corpus-scoping.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-22-finalize-backlink-leg-corpus-scoping.md) |
-| PR | github.com/danielhanold/docket#228 |
+| Plan | [2026-08-22-finalize-backlink-leg-corpus-scoping.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-22-finalize-backlink-leg-corpus-scoping.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

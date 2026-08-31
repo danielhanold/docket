@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-06-the-build-gate-contract-never-states-an-execution-posture-for-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-06-the-build-gate-contract-never-states-an-execution-posture-for-design.md) |
-| Plan | [2026-08-07-the-build-gate-contract-never-states-an-execution-posture-for.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-07-the-build-gate-contract-never-states-an-execution-posture-for.md) |
-| Results | [2026-08-07-the-build-gate-contract-never-states-an-execution-posture-for-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-07-the-build-gate-contract-never-states-an-execution-posture-for-results.md) |
-| PR | [#166](https://github.com/danielhanold/docket/pull/166) |
+| Plan | [2026-08-07-the-build-gate-contract-never-states-an-execution-posture-for.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-07-the-build-gate-contract-never-states-an-execution-posture-for.md) |
+| Results | [2026-08-07-the-build-gate-contract-never-states-an-execution-posture-for-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-07-the-build-gate-contract-never-states-an-execution-posture-for-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

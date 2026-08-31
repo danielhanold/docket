@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-05-aborted-run-built-but-not-delivered-leg-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-aborted-run-built-but-not-delivered-leg-design.md) |
-| Plan | [2026-08-05-aborted-run-built-but-not-delivered-leg-plan.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-05-aborted-run-built-but-not-delivered-leg-plan.md) |
-| Results | [2026-08-05-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-05-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com-results.md) |
-| PR | [#160](https://github.com/danielhanold/docket/pull/160) |
+| Plan | [2026-08-05-aborted-run-built-but-not-delivered-leg-plan.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-05-aborted-run-built-but-not-delivered-leg-plan.md) |
+| Results | [2026-08-05-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-05-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

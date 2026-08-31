@@ -29,9 +29,8 @@ type: fix
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-26-nested-key-scope-tags-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-26-nested-key-scope-tags-design.md) |
-| Plan | [2026-07-28-nested-key-scope-tags-plan.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-28-nested-key-scope-tags-plan.md) |
-| Results | [2026-07-28-nested-keys-scope-tags-in-docket-example-yml-are-unguarded-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-28-nested-keys-scope-tags-in-docket-example-yml-are-unguarded-results.md) |
-| PR | [#131](https://github.com/danielhanold/docket/pull/131) |
+| Plan | [2026-07-28-nested-key-scope-tags-plan.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-07-28-nested-key-scope-tags-plan.md) |
+| Results | [2026-07-28-nested-keys-scope-tags-in-docket-example-yml-are-unguarded-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-07-28-nested-keys-scope-tags-in-docket-example-yml-are-unguarded-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

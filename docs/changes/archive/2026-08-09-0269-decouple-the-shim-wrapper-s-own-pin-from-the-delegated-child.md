@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-08-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-08-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child-design.md) |
-| Plan | [2026-08-08-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-08-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child.md) |
-| Results | [2026-08-08-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-08-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child-results.md) |
-| PR | [#187](https://github.com/danielhanold/docket/pull/187) |
+| Plan | [2026-08-08-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-08-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child.md) |
+| Results | [2026-08-08-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-08-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child-results.md) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0038](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0038-runner-shim-wrapper-single-dispatch-chokepoint.md), [ADR-0067](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0067-runner-bearing-agent-requires-a-user-configured-model.md), [ADR-0079](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0079-shim-wrapper-frontmatter-pin-governs-the-parent-side-agent.md) |
 <!-- docket:artifacts:end -->
 

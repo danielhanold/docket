@@ -19,6 +19,14 @@ pr: https://github.com/danielhanold/docket/pull/38
 blocked_by:
 reconciled: true
 ---
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-06-19-config-resolution-script-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-19-config-resolution-script-design.md) |
+| Plan | [2026-06-19-config-resolution-script.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-06-19-config-resolution-script.md) |
+| Results | [2026-06-19-config-resolution-script-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-06-19-config-resolution-script-results.md) |
+| ADRs | [ADR-0002](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0002-docket-mode-default-and-bootstrap.md), [ADR-0007](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0007-github-board-mirror-boundary.md) |
+<!-- docket:artifacts:end -->
 
 ## Why
 

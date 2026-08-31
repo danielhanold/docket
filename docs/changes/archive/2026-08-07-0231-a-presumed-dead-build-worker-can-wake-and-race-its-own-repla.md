@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-design.md) |
-| Plan | [2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-plan.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-plan.md) |
-| Results | [2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-results.md) |
-| PR | [#170](https://github.com/danielhanold/docket/pull/170) |
+| Plan | [2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-plan.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-plan.md) |
+| Results | [2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

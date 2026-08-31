@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-design.md) |
-| Plan | [2026-08-07-writers-emit-unquoted-yaml-title-scalars.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-07-writers-emit-unquoted-yaml-title-scalars.md) |
-| Results | [2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-results.md) |
-| PR | [#172](https://github.com/danielhanold/docket/pull/172) |
+| Plan | [2026-08-07-writers-emit-unquoted-yaml-title-scalars.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-07-writers-emit-unquoted-yaml-title-scalars.md) |
+| Results | [2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-results.md) |
 | ADRs | [ADR-0071](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0071-writer-guarantees-yaml-validity-by-construction.md), [ADR-0073](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0073-scalar-quote-predicate-has-no-flow-collection-exemption.md) |
 <!-- docket:artifacts:end -->
 

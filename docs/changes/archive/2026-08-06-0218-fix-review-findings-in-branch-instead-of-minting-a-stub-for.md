@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-06-fix-review-findings-in-branch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-06-fix-review-findings-in-branch-design.md) |
-| Plan | [2026-08-06-fix-review-findings-in-branch.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-06-fix-review-findings-in-branch.md) |
-| Results | [2026-08-06-fix-review-findings-in-branch-instead-of-minting-a-stub-for-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-06-fix-review-findings-in-branch-instead-of-minting-a-stub-for-results.md) |
-| PR | [#162](https://github.com/danielhanold/docket/pull/162) |
+| Plan | [2026-08-06-fix-review-findings-in-branch.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-06-fix-review-findings-in-branch.md) |
+| Results | [2026-08-06-fix-review-findings-in-branch-instead-of-minting-a-stub-for-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-06-fix-review-findings-in-branch-instead-of-minting-a-stub-for-results.md) |
 | ADRs | [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md), [ADR-0070](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0070-fix-loop-profile-envelope-blocker-floor-and-max-ceiling.md) |
 <!-- docket:artifacts:end -->
 

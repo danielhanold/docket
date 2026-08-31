@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-02-skill-compression-round-three-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-02-skill-compression-round-three-design.md) |
-| Plan | [2026-08-03-skill-compression-round-three.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-03-skill-compression-round-three.md) |
-| Results | [2026-08-03-skill-compression-round-three-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-03-skill-compression-round-three-results.md) |
-| PR | [#155](https://github.com/danielhanold/docket/pull/155) |
+| Plan | [2026-08-03-skill-compression-round-three.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-03-skill-compression-round-three.md) |
+| Results | [2026-08-03-skill-compression-round-three-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-03-skill-compression-round-three-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

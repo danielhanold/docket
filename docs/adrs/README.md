@@ -16,7 +16,6 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0011](0011-finalize-consent-model.md) — Finalize consent model — ambiguity-only prompt + `require_pr_approval` policy gate (Accepted) ← change #21 · relates to ADR-0010
 - [ADR-0012](0012-docket-status-script-vs-model-boundary.md) — docket-status script-vs-model boundary for skill passes (Accepted) ← change #23 · relates to ADR-0007
 - [ADR-0013](0013-adr-0012-boundary-extends-to-docket-adr-surface.md) — ADR-0012's script-vs-model boundary extends to the docket-adr surface (Accepted) ← change #30 · relates to ADR-0012, ADR-0007, ADR-0002
-- [ADR-0014](0014-consuming-repo-script-resolution.md) — Consuming-repo script resolution via `DOCKET_SCRIPTS_DIR` (Accepted) ← change #34 · relates to ADR-0012
 - [ADR-0015](0015-harness-portable-agent-config.md) — Harness-portable agent model config — direct model IDs, per-repo generation to an explicit harness list (Accepted) ← change #45 · relates to ADR-0008, ADR-0001
 - [ADR-0016](0016-harness-first-agent-config.md) — Harness-first `agents:` config — per-harness model/effort with field-level default fallback (Accepted) ← change #46 · relates to ADR-0015, ADR-0008
 - [ADR-0018](0018-pluggable-skills-passthrough-degrade.md) — Pluggable workflow skills — unvalidated skill-name passthrough + degrade-to-auto (not abort) on a missing skill (Accepted) ← change #49 · relates to ADR-0015
@@ -29,11 +28,8 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0026](0026-fork-dispatch-opacity-two-invocation-paths.md) — Accept fork-dispatch opacity; document two invocation paths; add no tooling (Accepted) ← change #65 · relates to ADR-0008, ADR-0017, ADR-0020, ADR-0024
 - [ADR-0027](0027-terminal-publish-repo-scoped-script-gated.md) — terminal_publish — a per-repo coordination key, gated once inside the script (Accepted) ← change #64 · relates to ADR-0012, ADR-0019
 - [ADR-0028](0028-report-channel-is-not-a-board-surface.md) — A report channel is not a board surface — the backlog digest is ungated (Accepted) ← change #69 · relates to ADR-0012, ADR-0021
-- [ADR-0029](0029-docket-facade-routing-and-config-presentation.md) — docket facade — routing-boundary dispatch and model-ward config presentation (Accepted) ← change #68 · relates to ADR-0012
-- [ADR-0030](0030-facade-wiring-guard-discriminates-on-invocation-prefix.md) — The facade-wiring guard discriminates on the invocation prefix, not the bare presence of a `.sh` token (Accepted) ← change #72 · relates to ADR-0029
 - [ADR-0031](0031-complementary-board-write-guards-and-the-bound-of-source-scanning.md) — Two complementary board-write guards, and the bound of source-syntax scanning (Accepted) ← change #70
 - [ADR-0032](0032-positive-off-state-empty-is-a-wiring-bug.md) — A deliberate off-state is encoded positively — absence and emptiness are reserved for error (Accepted) ← change #71 · relates to ADR-0028, ADR-0030, ADR-0031
-- [ADR-0033](0033-cursor-auto-run-trust-at-facade.md) — Cursor auto-run trust is granted at the facade, not per operation (Accepted) ← change #73 · relates to ADR-0029, ADR-0020, ADR-0027
 - [ADR-0034](0034-repo-root-anchored-to-main-worktree.md) — docket scripts anchor the repo root to the main worktree, never the caller's CWD (Accepted) ← change #75 · relates to ADR-0068
 - [ADR-0035](0035-cleanup-teardown-fail-closed.md) — docket's feature-branch teardown is fail-closed, never half-destructive (Accepted) ← change #75 · relates to ADR-0034
 - [ADR-0036](0036-codex-agents-md-dispatch-block-committed-machine-neutral.md) — Codex AGENTS.md dispatch block is committed and machine-neutral (Accepted) ← change #77 · relates to ADR-0015, ADR-0017, ADR-0020
@@ -110,4 +106,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 
 ## Deprecated
 
-_None._
+- [ADR-0014](0014-consuming-repo-script-resolution.md) — Consuming-repo script resolution via `DOCKET_SCRIPTS_DIR` (Deprecated) ← change #34 · relates to ADR-0012
+- [ADR-0029](0029-docket-facade-routing-and-config-presentation.md) — docket facade — routing-boundary dispatch and model-ward config presentation (Deprecated) ← change #68 · relates to ADR-0012
+- [ADR-0030](0030-facade-wiring-guard-discriminates-on-invocation-prefix.md) — The facade-wiring guard discriminates on the invocation prefix, not the bare presence of a `.sh` token (Deprecated) ← change #72 · relates to ADR-0029
+- [ADR-0033](0033-cursor-auto-run-trust-at-facade.md) — Cursor auto-run trust is granted at the facade, not per operation (Deprecated) ← change #73 · relates to ADR-0029, ADR-0020, ADR-0027

@@ -19,6 +19,13 @@ pr: https://github.com/danielhanold/docket/pull/42
 blocked_by:
 reconciled: true
 ---
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-06-20-adr-status-check-verb-match-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-20-adr-status-check-verb-match-design.md) |
+| Plan | [2026-06-20-adr-status-check-verb-match.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-06-20-adr-status-check-verb-match.md) |
+| ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0013](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0013-adr-0012-boundary-extends-to-docket-adr-surface.md) |
+<!-- docket:artifacts:end -->
 
 ## Why
 

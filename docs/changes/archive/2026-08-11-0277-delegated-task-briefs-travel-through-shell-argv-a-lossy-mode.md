@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-09-delegated-brief-file-channel-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-09-delegated-brief-file-channel-design.md) |
-| Plan | [2026-08-10-delegated-brief-file-channel.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-10-delegated-brief-file-channel.md) |
-| Results | [2026-08-10-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-10-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode-results.md) |
-| PR | [#194](https://github.com/danielhanold/docket/pull/194) |
+| Plan | [2026-08-10-delegated-brief-file-channel.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-10-delegated-brief-file-channel.md) |
+| Results | [2026-08-10-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-10-delegated-task-briefs-travel-through-shell-argv-a-lossy-mode-results.md) |
 | ADRs | [ADR-0082](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0082-generated-shim-emits-brief-write-and-launch-as-one-harness-call.md) |
 <!-- docket:artifacts:end -->
 

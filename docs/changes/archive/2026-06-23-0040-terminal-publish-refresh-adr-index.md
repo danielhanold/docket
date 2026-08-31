@@ -26,9 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-06-23-terminal-publish-refresh-adr-index-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-23-terminal-publish-refresh-adr-index-design.md) |
-| Plan | [2026-06-23-terminal-publish-refresh-adr-index.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-23-terminal-publish-refresh-adr-index.md) |
-| Results | [2026-06-23-terminal-publish-refresh-adr-index-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-06-23-terminal-publish-refresh-adr-index-results.md) |
-| PR | [#50](https://github.com/danielhanold/docket/pull/50) |
+| Plan | [2026-06-23-terminal-publish-refresh-adr-index.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-06-23-terminal-publish-refresh-adr-index.md) |
+| Results | [2026-06-23-terminal-publish-refresh-adr-index-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-06-23-terminal-publish-refresh-adr-index-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

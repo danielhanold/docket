@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-30-cursor-profile-routed-build-support-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-30-cursor-profile-routed-build-support-design.md) |
-| Plan | [2026-07-31-cursor-profile-routed-build-support.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-31-cursor-profile-routed-build-support.md) |
-| Results | [2026-07-31-cursor-profile-routed-build-support-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-31-cursor-profile-routed-build-support-results.md) |
-| PR | [#140](https://github.com/danielhanold/docket/pull/140) |
+| Plan | [2026-07-31-cursor-profile-routed-build-support.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-07-31-cursor-profile-routed-build-support.md) |
+| Results | [2026-07-31-cursor-profile-routed-build-support-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-07-31-cursor-profile-routed-build-support-results.md) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md), [ADR-0048](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0048-docket-yml-example-invariants.md), [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md), [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md), [ADR-0064](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0064-shipped-agent-defaults-live-in-a-harness-indexed-sidecar.md) |
 <!-- docket:artifacts:end -->
 

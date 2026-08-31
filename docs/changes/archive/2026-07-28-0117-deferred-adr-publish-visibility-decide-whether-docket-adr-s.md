@@ -29,9 +29,8 @@ type: feat
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-21-unpublished-adr-check-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-21-unpublished-adr-check-design.md) |
-| Plan | [2026-07-27-unpublished-adr-check-plan.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-27-unpublished-adr-check-plan.md) |
-| Results | [2026-07-27-deferred-adr-publish-visibility-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-27-deferred-adr-publish-visibility-results.md) |
-| PR | [#129](https://github.com/danielhanold/docket/pull/129) |
+| Plan | [2026-07-27-unpublished-adr-check-plan.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-07-27-unpublished-adr-check-plan.md) |
+| Results | [2026-07-27-deferred-adr-publish-visibility-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-07-27-deferred-adr-publish-visibility-results.md) |
 | ADRs | [ADR-0051](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0051-publish-deferred-marker-not-branch-diff-detector.md), [ADR-0061](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0061-detect-vs-mark-a-missing-terminal-record.md) |
 <!-- docket:artifacts:end -->
 

@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-bsd-tool-default-sweep-templated-mktemp-and-non-interactive-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-bsd-tool-default-sweep-templated-mktemp-and-non-interactive-design.md) |
-| Plan | [2026-08-08-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-08-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md) |
-| Results | [2026-08-08-bsd-tool-default-sweep-templated-mktemp-and-non-interactive-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-08-bsd-tool-default-sweep-templated-mktemp-and-non-interactive-results.md) |
-| PR | [#180](https://github.com/danielhanold/docket/pull/180) |
+| Plan | [2026-08-08-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-08-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md) |
+| Results | [2026-08-08-bsd-tool-default-sweep-templated-mktemp-and-non-interactive-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-08-bsd-tool-default-sweep-templated-mktemp-and-non-interactive-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

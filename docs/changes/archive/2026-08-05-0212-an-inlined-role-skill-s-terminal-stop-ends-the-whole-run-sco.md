@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-05-inlined-role-terminal-stop-scoping-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-inlined-role-terminal-stop-scoping-design.md) |
-| Plan | [2026-08-05-inlined-role-terminal-stop-scoping.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-05-inlined-role-terminal-stop-scoping.md) |
-| Results | [2026-08-05-an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-05-an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco-results.md) |
-| PR | [#161](https://github.com/danielhanold/docket/pull/161) |
+| Plan | [2026-08-05-inlined-role-terminal-stop-scoping.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-05-inlined-role-terminal-stop-scoping.md) |
+| Results | [2026-08-05-an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-05-an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco-results.md) |
 | ADRs | [ADR-0069](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0069-mode-conditioned-clause-discriminates-on-provenance.md) |
 <!-- docket:artifacts:end -->
 

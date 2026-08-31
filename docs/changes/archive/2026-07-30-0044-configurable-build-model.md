@@ -27,9 +27,8 @@ type: feat
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-07-configurable-build-model-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-07-configurable-build-model-design.md) |
-| Plan | [2026-07-11-configurable-build-model.md](https://github.com/danielhanold/docket/pull/69) |
-| Results | [2026-07-11-configurable-build-model-results.md](https://github.com/danielhanold/docket/pull/69) |
-| PR | [#69](https://github.com/danielhanold/docket/pull/69) |
+| Plan | [2026-07-11-configurable-build-model.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-07-11-configurable-build-model.md) |
+| Results | [2026-07-11-configurable-build-model-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-07-11-configurable-build-model-results.md) |
 | ADRs | [ADR-0023](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0023-configurable-sdd-build-model.md) |
 <!-- docket:artifacts:end -->
 

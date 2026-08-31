@@ -26,8 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-08-retire-board-source-drift-check-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-08-retire-board-source-drift-check-design.md) |
-| Plan | [2026-07-08-retire-board-source-drift-check.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-08-retire-board-source-drift-check.md) |
-| PR | [#53](https://github.com/danielhanold/docket/pull/53) |
+| Plan | [2026-07-08-retire-board-source-drift-check.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-07-08-retire-board-source-drift-check.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

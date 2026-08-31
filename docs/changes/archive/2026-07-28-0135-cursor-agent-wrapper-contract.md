@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-26-cursor-agent-wrapper-contract-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-26-cursor-agent-wrapper-contract-design.md) |
-| Plan | [2026-07-27-cursor-agent-wrapper-contract.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-27-cursor-agent-wrapper-contract.md) |
-| Results | [2026-07-27-cursor-agent-wrapper-contract-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-27-cursor-agent-wrapper-contract-results.md) |
-| PR | [#127](https://github.com/danielhanold/docket/pull/127) |
+| Plan | [2026-07-27-cursor-agent-wrapper-contract.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-07-27-cursor-agent-wrapper-contract.md) |
+| Results | [2026-07-27-cursor-agent-wrapper-contract-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-07-27-cursor-agent-wrapper-contract-results.md) |
 | ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0059](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md), [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md) |
 <!-- docket:artifacts:end -->
 

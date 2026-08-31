@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin-design.md) |
-| Plan | [2026-08-08-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-08-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md) |
-| Results | [2026-08-08-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-08-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin-results.md) |
-| PR | [#185](https://github.com/danielhanold/docket/pull/185) |
+| Plan | [2026-08-08-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-08-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md) |
+| Results | [2026-08-08-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-08-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin-results.md) |
 | ADRs | [ADR-0077](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0077-orphan-effort-dropped-as-docket-policy-not-vendor-constraint.md) |
 <!-- docket:artifacts:end -->
 

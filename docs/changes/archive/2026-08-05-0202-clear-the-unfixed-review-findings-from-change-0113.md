@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-05-clear-the-unfixed-review-findings-from-change-0113-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-clear-the-unfixed-review-findings-from-change-0113-design.md) |
-| Plan | [2026-08-05-clear-the-unfixed-review-findings-from-change-0113.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-05-clear-the-unfixed-review-findings-from-change-0113.md) |
-| Results | [2026-08-05-clear-the-unfixed-review-findings-from-change-0113-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-05-clear-the-unfixed-review-findings-from-change-0113-results.md) |
-| PR | [#158](https://github.com/danielhanold/docket/pull/158) |
+| Plan | [2026-08-05-clear-the-unfixed-review-findings-from-change-0113.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-05-clear-the-unfixed-review-findings-from-change-0113.md) |
+| Results | [2026-08-05-clear-the-unfixed-review-findings-from-change-0113-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-05-clear-the-unfixed-review-findings-from-change-0113-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

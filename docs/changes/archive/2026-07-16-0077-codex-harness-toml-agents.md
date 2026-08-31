@@ -26,9 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-15-codex-harness-toml-agents-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-15-codex-harness-toml-agents-design.md) |
-| Plan | [2026-07-15-codex-harness-toml-agents.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-15-codex-harness-toml-agents.md) |
-| Results | [2026-07-15-codex-harness-toml-agents-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-15-codex-harness-toml-agents-results.md) |
-| PR | [#85](https://github.com/danielhanold/docket/pull/85) |
+| Plan | [2026-07-15-codex-harness-toml-agents.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-07-15-codex-harness-toml-agents.md) |
+| Results | [2026-07-15-codex-harness-toml-agents-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-07-15-codex-harness-toml-agents-results.md) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md) |
 <!-- docket:artifacts:end -->
 

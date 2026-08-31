@@ -30,8 +30,7 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-19-failed-transaction-diagnostics-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-19-failed-transaction-diagnostics-design.md) |
-| Plan | [2026-08-19-failed-transaction-diagnostics.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-19-failed-transaction-diagnostics.md) |
-| PR | github.com/danielhanold/docket#223 |
+| Plan | [2026-08-19-failed-transaction-diagnostics.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-19-failed-transaction-diagnostics.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

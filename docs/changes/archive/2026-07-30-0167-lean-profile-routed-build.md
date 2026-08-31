@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-30-lean-profile-routed-build-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-30-lean-profile-routed-build-design.md) |
-| Plan | [2026-07-30-lean-profile-routed-build.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-30-lean-profile-routed-build.md) |
-| Results | [2026-07-30-lean-profile-routed-build-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-30-lean-profile-routed-build-results.md) |
-| PR | [#139](https://github.com/danielhanold/docket/pull/139) |
+| Plan | [2026-07-30-lean-profile-routed-build.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-07-30-lean-profile-routed-build.md) |
+| Results | [2026-07-30-lean-profile-routed-build-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-07-30-lean-profile-routed-build-results.md) |
 | ADRs | [ADR-0023](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0023-configurable-sdd-build-model.md), [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md) |
 <!-- docket:artifacts:end -->
 

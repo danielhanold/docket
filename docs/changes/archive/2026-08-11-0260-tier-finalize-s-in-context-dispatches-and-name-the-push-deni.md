@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-design.md) |
-| Plan | [2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-denial.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-denial.md) |
-| Results | [2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-results.md) |
-| PR | [#198](https://github.com/danielhanold/docket/pull/198) |
+| Plan | [2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-denial.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-denial.md) |
+| Results | [2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-11-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-results.md) |
 | ADRs | [ADR-0086](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0086-in-context-gating-dispatch-carved-out-of-the-tier-taxonomy.md) |
 <!-- docket:artifacts:end -->
 

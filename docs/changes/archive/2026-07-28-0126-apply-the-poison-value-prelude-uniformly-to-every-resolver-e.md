@@ -29,9 +29,8 @@ type: chore
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-27-poison-prelude-uniformity-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-27-poison-prelude-uniformity-design.md) |
-| Plan | [2026-07-28-poison-prelude-uniformity.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-28-poison-prelude-uniformity.md) |
-| Results | [2026-07-28-apply-the-poison-value-prelude-uniformly-to-every-resolver-e-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-28-apply-the-poison-value-prelude-uniformly-to-every-resolver-e-results.md) |
-| PR | [#132](https://github.com/danielhanold/docket/pull/132) |
+| Plan | [2026-07-28-poison-prelude-uniformity.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-07-28-poison-prelude-uniformity.md) |
+| Results | [2026-07-28-apply-the-poison-value-prelude-uniformly-to-every-resolver-e-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-07-28-apply-the-poison-value-prelude-uniformly-to-every-resolver-e-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

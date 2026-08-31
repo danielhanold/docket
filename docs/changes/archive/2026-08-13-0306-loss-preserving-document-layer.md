@@ -30,9 +30,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-13-loss-preserving-document-layer-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-13-loss-preserving-document-layer-design.md) |
-| Plan | [2026-08-13-loss-preserving-document-layer.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-13-loss-preserving-document-layer.md) |
-| Results | [2026-08-13-loss-preserving-document-layer-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-13-loss-preserving-document-layer-results.md) |
-| PR | 206 |
+| Plan | [2026-08-13-loss-preserving-document-layer.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-13-loss-preserving-document-layer.md) |
+| Results | [2026-08-13-loss-preserving-document-layer-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-13-loss-preserving-document-layer-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-05-per-step-git-state-postcondition-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-per-step-git-state-postcondition-design.md) |
-| Plan | [2026-08-06-per-step-git-state-postcondition.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-06-per-step-git-state-postcondition.md) |
-| Results | [2026-08-06-define-the-per-step-git-state-postcondition-docket-implement-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-06-define-the-per-step-git-state-postcondition-docket-implement-results.md) |
-| PR | [#163](https://github.com/danielhanold/docket/pull/163) |
+| Plan | [2026-08-06-per-step-git-state-postcondition.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-06-per-step-git-state-postcondition.md) |
+| Results | [2026-08-06-define-the-per-step-git-state-postcondition-docket-implement-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-06-define-the-per-step-git-state-postcondition-docket-implement-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

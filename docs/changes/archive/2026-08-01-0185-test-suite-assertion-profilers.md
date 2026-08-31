@@ -26,9 +26,6 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
-| Artifact | Link |
-|---|---|
-| PR | [#146](https://github.com/danielhanold/docket/pull/146) |
 <!-- docket:artifacts:end -->
 
 ## Why

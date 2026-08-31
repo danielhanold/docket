@@ -27,9 +27,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-18-headless-finalize-driver-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-18-headless-finalize-driver-design.md) |
-| Plan | [2026-07-18-headless-finalize-driver-plan.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-18-headless-finalize-driver-plan.md) |
-| Results | [2026-07-18-headless-finalize-driver-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-18-headless-finalize-driver-results.md) |
-| PR | 103 |
+| Plan | [2026-07-18-headless-finalize-driver-plan.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-07-18-headless-finalize-driver-plan.md) |
+| Results | [2026-07-18-headless-finalize-driver-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-07-18-headless-finalize-driver-results.md) |
 | ADRs | [ADR-0043](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md) |
 <!-- docket:artifacts:end -->
 

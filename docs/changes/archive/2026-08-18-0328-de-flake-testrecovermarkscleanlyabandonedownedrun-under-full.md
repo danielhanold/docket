@@ -29,9 +29,8 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Plan | [2026-08-18-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-18-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full.md) |
-| Results | [2026-08-18-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-18-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full-results.md) |
-| PR | [#219](https://github.com/danielhanold/docket/pull/219) |
+| Plan | [2026-08-18-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-18-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full.md) |
+| Results | [2026-08-18-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-18-de-flake-testrecovermarkscleanlyabandonedownedrun-under-full-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-design.md) |
-| Plan | [2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-plan.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-plan.md) |
-| Results | [2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-results.md) |
-| PR | 153 |
+| Plan | [2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-plan.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-plan.md) |
+| Results | [2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

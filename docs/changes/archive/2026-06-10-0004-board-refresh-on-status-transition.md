@@ -18,6 +18,12 @@ pr: https://github.com/danielhanold/docket/pull/5
 blocked_by:
 reconciled: true
 ---
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-06-07-board-refresh-on-status-transition-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-07-board-refresh-on-status-transition-design.md) |
+| Plan | [2026-06-07-board-refresh-on-status-transition.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-06-07-board-refresh-on-status-transition.md) |
+<!-- docket:artifacts:end -->
 
 ## Why
 

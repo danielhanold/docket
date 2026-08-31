@@ -19,6 +19,14 @@ pr: https://github.com/danielhanold/docket/pull/37
 blocked_by:
 reconciled: true
 ---
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-06-18-script-sweep-and-health-checks-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-18-script-sweep-and-health-checks-design.md) |
+| Plan | [2026-06-19-script-sweep-and-health-checks.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-06-19-script-sweep-and-health-checks.md) |
+| Results | [2026-06-19-script-sweep-and-health-checks-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-06-19-script-sweep-and-health-checks-results.md) |
+| ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
+<!-- docket:artifacts:end -->
 
 ## Why
 

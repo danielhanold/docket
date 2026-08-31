@@ -30,8 +30,7 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-21-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-21-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board-design.md) |
-| Plan | [2026-08-22-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-22-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board.md) |
-| PR | github.com/danielhanold/docket#230 |
+| Plan | [2026-08-22-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-22-refresh-claim-fails-verify-delta-on-a-byte-unchanged-board.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

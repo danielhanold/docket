@@ -30,8 +30,7 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-21-terminal-closeout-notes-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-21-terminal-closeout-notes-design.md) |
-| Plan | [2026-08-21-terminal-closeout-notes.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-21-terminal-closeout-notes.md) |
-| PR | github.com/danielhanold/docket#225 |
+| Plan | [2026-08-21-terminal-closeout-notes.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-21-terminal-closeout-notes.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

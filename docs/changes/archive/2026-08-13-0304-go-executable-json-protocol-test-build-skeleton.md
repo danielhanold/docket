@@ -30,9 +30,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-13-go-executable-json-protocol-test-build-skeleton-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-13-go-executable-json-protocol-test-build-skeleton-design.md) |
-| Plan | [2026-08-13-go-executable-json-protocol-test-build-skeleton.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-13-go-executable-json-protocol-test-build-skeleton.md) |
-| Results | [2026-08-13-go-executable-json-protocol-test-build-skeleton-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-13-go-executable-json-protocol-test-build-skeleton-results.md) |
-| PR | [#204](https://github.com/danielhanold/docket/pull/204) |
+| Plan | [2026-08-13-go-executable-json-protocol-test-build-skeleton.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-13-go-executable-json-protocol-test-build-skeleton.md) |
+| Results | [2026-08-13-go-executable-json-protocol-test-build-skeleton-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-13-go-executable-json-protocol-test-build-skeleton-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

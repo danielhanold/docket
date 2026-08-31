@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-04-opencode-runner-adapter-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-04-opencode-runner-adapter-design.md) |
-| Plan | [2026-08-05-opencode-runner-adapter.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-05-opencode-runner-adapter.md) |
-| Results | [2026-08-05-opencode-runner-adapter-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-05-opencode-runner-adapter-results.md) |
-| PR | [#156](https://github.com/danielhanold/docket/pull/156) |
+| Plan | [2026-08-05-opencode-runner-adapter.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-05-opencode-runner-adapter.md) |
+| Results | [2026-08-05-opencode-runner-adapter-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-05-opencode-runner-adapter-results.md) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0037](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0037-runner-delegation-explicit-runner-field.md), [ADR-0038](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0038-runner-shim-wrapper-single-dispatch-chokepoint.md), [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md), [ADR-0067](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0067-runner-bearing-agent-requires-a-user-configured-model.md) |
 <!-- docket:artifacts:end -->
 

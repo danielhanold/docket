@@ -28,9 +28,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-06-parallel-test-suite-runner-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-06-parallel-test-suite-runner-design.md) |
-| Plan | [2026-08-07-parallel-test-suite-runner.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-07-parallel-test-suite-runner.md) |
-| Results | [2026-08-07-parallel-test-suite-runner-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-07-parallel-test-suite-runner-results.md) |
-| PR | [#165](https://github.com/danielhanold/docket/pull/165) |
+| Plan | [2026-08-07-parallel-test-suite-runner.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-07-parallel-test-suite-runner.md) |
+| Results | [2026-08-07-parallel-test-suite-runner-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-07-parallel-test-suite-runner-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

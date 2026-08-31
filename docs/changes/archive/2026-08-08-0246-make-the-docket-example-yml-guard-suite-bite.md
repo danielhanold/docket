@@ -29,9 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-make-the-docket-example-yml-guard-suite-bite-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-make-the-docket-example-yml-guard-suite-bite-design.md) |
-| Plan | [2026-08-08-make-the-docket-example-yml-guard-suite-bite.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-08-make-the-docket-example-yml-guard-suite-bite.md) |
-| Results | [2026-08-08-make-the-docket-example-yml-guard-suite-bite-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-08-make-the-docket-example-yml-guard-suite-bite-results.md) |
-| PR | [#179](https://github.com/danielhanold/docket/pull/179) |
+| Plan | [2026-08-08-make-the-docket-example-yml-guard-suite-bite.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-08-make-the-docket-example-yml-guard-suite-bite.md) |
+| Results | [2026-08-08-make-the-docket-example-yml-guard-suite-bite-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-08-08-make-the-docket-example-yml-guard-suite-bite-results.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
