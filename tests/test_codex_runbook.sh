@@ -95,12 +95,16 @@ done
 # ...and never at a fabricated `scripts/` path.
 if grep -qF -- 'scripts/sync-agents.sh' "$RUNBOOK"; then no "runbook cites fabricated scripts/sync-agents.sh"; else ok "runbook does not cite fabricated scripts/sync-agents.sh"; fi
 
-# --- Assertion 5: canonical facade spelling, DERIVED from the convention -----------------------
-# Phase 2 is the bash-under-sandbox smoke test; it must spell the facade the way the convention
-# does. Derive the token rather than retyping it, so the assert cannot drift from the contract.
-CANON="$(grep -oE '\$\{DOCKET_SCRIPTS_DIR:\?run docket/install\.sh\}' "$CONV")"
+# --- Assertion 5: canonical facade spelling, DERIVED from the frozen facade contract -----------
+# Phase 2 is the bash-under-sandbox smoke test; it must spell the facade the way its authoritative
+# contract does. Derive the token rather than retyping it, so the assert cannot drift from the
+# contract. change 0377 Task 11 retired the facade-reach section from the convention (skills now
+# reach native `docket <command>` verbs), so the canonical `${DOCKET_SCRIPTS_DIR:?…}/docket.sh`
+# spelling is now single-sourced from the FROZEN config-resolver contract (scripts/docket-config.md),
+# which still defines it for the frozen facade the codex sandbox smoke-tests.
+CANON="$(grep -oE '\$\{DOCKET_SCRIPTS_DIR:\?run docket/install\.sh\}' "$REPO/scripts/docket-config.md")"
 CANON="${CANON%%$'\n'*}"   # first match; no pipe-to-head (pipefail-safe)
-if [ -n "$CANON" ]; then ok "canonical facade token derivable from convention"; else no "canonical facade token derivable from convention"; fi
+if [ -n "$CANON" ]; then ok "canonical facade token derivable from the frozen config-resolver contract"; else no "canonical facade token derivable from the frozen config-resolver contract"; fi
 if [ -n "$CANON" ] && grep -qF -- "$CANON" "$RUNBOOK"; then ok "runbook carries canonical facade token"; else no "runbook carries canonical facade token"; fi
 # Full decorated canonical form (quotes around the expansion, `/docket.sh` outside them) — built
 # from the derived token, not retyped, so a coordinated mangle (e.g. the surrounding quotes

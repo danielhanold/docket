@@ -388,6 +388,18 @@ while IFS= read -r f; do
       'grep -qF -- "docket adr record --request" <<<"$hay"'
     continue
   fi
+  # RE-KEYED (0377 Task 11, same class as docket-adr above): docket-groom-next's four exits —
+  # spec/trivial via `docket change groom`, kill via `docket change kill`, defer via
+  # `docket change defer` — are all Go transactions that stage and commit by explicit path INSIDE
+  # the binary; the hand `git add`/commit its Step-5 Board pass used to carry (and with it the
+  # 'Stage by explicit path' marker) was deleted. The marker guarded a hand-authored commit and no
+  # longer applies, so — like docket-adr — assert instead that the groom outcome delegates
+  # committing to the Go verb, keyed on the invoked COMMAND STRING (immune to reflow/rewording).
+  if [ "$sk" = docket-groom-next ]; then
+    assert "B2: $sk commits the groom outcome via a Go transaction, not a hand commit" \
+      'grep -qF -- "docket change groom --repo-dir" <<<"$hay"'
+    continue
+  fi
   assert "B2: $sk carries the marker at its commit instruction" \
     'grep -qF -- "$MARKER" <<<"$hay"'
 done <<<"$IN_SCOPE"

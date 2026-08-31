@@ -419,8 +419,13 @@ CONV="$REPO/skills/docket-convention/SKILL.md"
 # still NAMES the resolver descriptively (Config section: `docket-config.sh --export`), which
 # ADR-0030 permits. Key on the noun, not the retired slash-prefixed invocation form.
 assert "convention names docket-config.sh (descriptively)" 'grep -qF -- "docket-config.sh" "$CONV"'
-assert "convention defines the DOCKET_SCRIPTS_DIR resolved form" \
-  'grep -qF "\${DOCKET_SCRIPTS_DIR:?run docket/install.sh}" "$CONV"'
+# change 0377 Task 11: the convention's facade-reach section (the resolved
+# `"${DOCKET_SCRIPTS_DIR:?…}"/docket.sh <op>` form) was retired — all skills reach native
+# `docket <command>` verbs directly, no facade, no DOCKET_SCRIPTS_DIR/DOCKET_BASH_PATH dependence.
+# Re-pointed (mechanical) at the surviving substance: the convention states operations are reached
+# natively without a shell facade.
+assert "convention reaches docket operations natively (no facade)" \
+  'grep -qF "never a shell facade" "$CONV"'
 assert "convention documents DOCKET_ namespacing" \
   'grep -qiF "DOCKET_-namespaced" "$CONV"'
 assert "convention documents the Skill layer" 'grep -qF "Skill layer" "$CONV"'
@@ -428,16 +433,12 @@ assert "convention names SKILL_ resolution vars" \
   'grep -qF "SKILL_BRAINSTORM" "$CONV" && grep -qF "SKILL_FINISH" "$CONV"'
 assert "convention documents the auto sentinel + degrade rule" \
   'grep -qiF "degrade to auto" "$CONV"'
-# change 0377 Tasks 9-10: docket-status + docket-adr (Task 9) and docket-implement-next +
-# docket-finalize-change (Task 10) migrated their Step-0 from the frozen `docket.sh preflight` facade
-# to the typed `docket repository prepare` command; the remaining three keep preflight until Task 11.
-# Each group keeps a positive floor keyed on its own Step-0 command, so a deletion reddens
-# (restatement-accumulates-its-own-guards).
-for s in docket-new-change docket-groom-next docket-auto-groom; do
-  f="$REPO/skills/$s/SKILL.md"
-  assert "$s Step 0 runs docket.sh preflight (config resolution via the facade)" 'grep -qF "docket.sh preflight" "$f"'
-done
-for s in docket-status docket-adr docket-implement-next docket-finalize-change; do
+# change 0377 Tasks 9-11: every operating skill migrated its Step-0 from the frozen
+# `docket.sh preflight` facade to the typed `docket repository prepare` command — docket-status +
+# docket-adr (Task 9), docket-implement-next + docket-finalize-change (Task 10), and the last three
+# grooming/producer skills (Task 11). Each keeps a positive floor keyed on its Step-0 command, so a
+# deletion reddens (restatement-accumulates-its-own-guards).
+for s in docket-status docket-adr docket-implement-next docket-finalize-change docket-new-change docket-groom-next docket-auto-groom; do
   f="$REPO/skills/$s/SKILL.md"
   assert "$s Step 0 runs docket repository prepare (typed config resolution)" 'grep -qF "docket repository prepare" "$f"'
 done

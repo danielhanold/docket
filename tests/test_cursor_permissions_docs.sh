@@ -26,10 +26,14 @@ if json_ok "$PERMS_JSON"; then ok "permissions.example.json parses"; else no "pe
 if json_ok "$SANDBOX_JSON"; then ok "sandbox.example.json parses"; else no "sandbox.example.json parses"; fi
 
 # --- Assertion 2: the fragment carries all four observed facade spellings ---------------------
-# Canonical guard token is DERIVED from the convention (authoritative), never retyped here.
-CANON="$(grep -oE '\$\{DOCKET_SCRIPTS_DIR:\?run docket/install\.sh\}' "$CONV")"
+# Canonical guard token is DERIVED from the frozen config-resolver contract (authoritative), never
+# retyped here. change 0377 Task 11 retired the facade-reach section from the convention (skills now
+# reach native `docket <command>` verbs), so the canonical `${DOCKET_SCRIPTS_DIR:?…}/docket.sh`
+# spelling is now single-sourced from scripts/docket-config.md, which still defines it for the frozen
+# facade the Cursor permission fragment allow-lists.
+CANON="$(grep -oE '\$\{DOCKET_SCRIPTS_DIR:\?run docket/install\.sh\}' "$REPO/scripts/docket-config.md")"
 CANON="${CANON%%$'\n'*}"   # first match; no pipe-to-head (pipefail-safe)
-if [ -n "$CANON" ]; then ok "canonical guard token derivable from convention"; else no "canonical guard token derivable from convention"; fi
+if [ -n "$CANON" ]; then ok "canonical guard token derivable from the frozen config-resolver contract"; else no "canonical guard token derivable from the frozen config-resolver contract"; fi
 if [ -n "$CANON" ] && grep -qF -- "$CANON" "$PERMS_JSON"; then ok "fragment carries canonical guarded spelling"; else no "fragment carries canonical guarded spelling"; fi
 # Full decorated canonical form (JSON-escaped quotes) — built from the derived token, not retyped.
 CANON_FULL='\"'"$CANON"'\"/docket.sh'
