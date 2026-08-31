@@ -13,7 +13,7 @@ related: [22, 261, 318, 369, 370, 371, 372]
 discovered_from: []
 adrs: [12, 52]
 spec: 'docs/superpowers/specs/2026-08-29-configurable-rendered-board-sections-and-sorting-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-08-31-configurable-rendered-board-sections-and-sorting.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-08-31T15:17:44Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-29-configurable-rendered-board-sections-and-sorting-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-29-configurable-rendered-board-sections-and-sorting-design.md) |
+| Plan | [2026-08-31-configurable-rendered-board-sections-and-sorting.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-31-configurable-rendered-board-sections-and-sorting.md) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md) |
 <!-- docket:artifacts:end -->
 
