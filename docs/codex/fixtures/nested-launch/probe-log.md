@@ -329,3 +329,101 @@ can start a registered agent by name through the collaboration tool call
 registered definition (developer_instructions verbatim, own model/effort pins applied,
 `agent_role`/`agent_path` recorded), and nesting to depth 2 works on both entry paths. See
 `decision.md` for the gate record.
+
+---
+
+## Task 6 — live fresh-process certification runs (2026-08-31)
+
+Scope stamp: `codex --version` → `codex-cli 0.151.0`; `codex features list` → `multi_agent stable
+true` (`multi_agent_v2 stable false`); session banner per run `model: gpt-5.6-sol · approval:
+never · sandbox: danger-full-access · reasoning effort: high`. The branch was installed first
+(`docket development install --source <worktree>`); the 17 regenerated `docket-*.toml` wrappers
+were verified **byte-identical** to the pre-install snapshot (`diff -r` clean — the branch makes
+no codex-renderer change, exactly as `decision.md` `mechanism: universal` requires), and
+`~/.codex/agents/docket-plan-writer.toml` carries the change-0365 `codexDispatchBoundary`
+sentence. The unchanged probe TOMLs were installed beside the wrappers with the README's
+clobber-guarded copy and removed at teardown (17 wrappers re-verified intact and byte-identical
+afterwards). All probes ran in scratch repos from `mktemp -d
+"${TMPDIR:-/tmp}/codex-nested-probe.XXXXXX"`; every `codex exec` is its own fresh process; per the
+Task-2 observation rule, pass/fail below is adjudicated **only** from the thread store
+(`~/.codex/sessions/2026/08/31/rollout-*.jsonl`), never from the `codex exec --json` item stream.
+
+### Fixed-new run, entry path B — direct registered-agent invocation
+
+- Fresh uuid `055FE80D-958D-4646-BD56-D75A7D7B8C80`; scratch repo cwd; the baseline's own
+  invocation, unmodified (`codex exec --json --skip-git-repo-check "You are a root orchestrator.
+  … Start the registered Codex agent named probe-coordinator …"`).
+- Thread store: root `01a058d8-d0f5` (`source: "exec"`) issued the native call, verbatim from its
+  rollout — `"name":"spawn_agent","namespace":"collaboration","arguments":"{\"agent_type\":
+  \"probe-coordinator\",\"fork_turns\":\"all\",…}"` — child `01a058d8-eca9` (`agent_role
+  probe-coordinator`, `agent_path /root/probe_coordinator`, depth 1) spawned grandchild
+  `01a058d9-05e6` (`agent_role probe-leaf`, `agent_path /root/probe_coordinator/probe_leaf`,
+  depth 2). Grandchild `task_complete` `LEAF_SENTINEL=055FE80D-958D-4646-BD56-D75A7D7B8C80`;
+  child `task_complete` `COORDINATOR_CONSUMED=055FE80D-958D-4646-BD56-D75A7D7B8C80`; root final
+  line the same. **PASS.**
+
+### Fixed-new run, entry path A — dispatch-block-routed prose
+
+- Fresh uuid `4D5355CD-D547-4B0B-91F6-725570BC783D`; scratch repo with the README's `AGENTS.md`
+  dispatch block; the README's invocation, unmodified (`codex exec --skip-git-repo-check
+  </dev/null "Run the nested-launch probe with SENTINEL=… Follow this repo's AGENTS.md dispatch
+  rule …"`).
+- Thread store: root `01a058d9-f9d5` → child `01a058da-2224` (`probe-coordinator`, depth 1) →
+  grandchild `01a058da-3c22` (`probe-leaf`, depth 2); grandchild `task_complete`
+  `LEAF_SENTINEL=4D5355CD-…`; child `task_complete` `COORDINATOR_CONSUMED=4D5355CD-…`; root final
+  line the same. **PASS.**
+
+### Mutation (a) — the observation-oracle mutation (reproduces the Task-1 false verdict)
+
+The path-B pass above was deliberately run under `--json` so the SAME run is readable through
+both oracles:
+
+- **Wrong oracle (`codex exec --json` item stream):** zero `spawn_agent` occurrences in the
+  entire stream; the only collaboration items are two `collab_tool_call` records for `wait` with
+  `"receiver_thread_ids":[]` and `"agents_states":{}` — the exact no-child / empty-states signal
+  the failed-current baseline read as fabrication.
+- **Right oracle (thread store):** the three real threads above, with `thread_spawn` metadata,
+  registered `agent_role`s, and both `task_complete` sentinels.
+
+Same run, contradictory readings — the wrong oracle reddens (reports no child) while the launch
+passes. This reproduces the change-0364/Task-1 failure shape and is the justification for the
+binding observation protocol.
+
+### Mutation (b) — change-0365 retention guard (renderer emission)
+
+In the worktree, with `internal/harness/codex/codex.go` first copied to a backup file (never
+`git checkout --` over uncommitted work): the `codexDispatchBoundary` term was deleted from
+`renderAgent`'s developer-instructions concatenation.
+`go test -count=1 ./internal/harness/codex/ -run TestCodexNestedDispatchBoundary` → **FAIL**, one
+missing-clause finding per clause per agent derived from the real inventory (e.g. `agent
+docket-status: rendered wrapper missing nested-dispatch clause "direct named-agent dispatch"`).
+`codex.go` restored from the backup copy; same command → **ok** (PASS); `git diff` clean. The
+guard reddens for the guarded thing and only that.
+
+The plan's original Step-3 mutation ("force the generator back to the old launch shape") is
+inapplicable under `mechanism: universal`: there is no Task-3 launch-shape emission to revert —
+the wrappers ARE the old shape, and it passes. The two mutations above are the honest
+substitutes: (a) reproduces the actual observed failure (a wrong observation surface), (b)
+proves the retained 0365 emission is still guarded.
+
+### Real Docket composition edge (scratch repo — the live backlog untouched)
+
+- Scratch repo docket-initialized against its own local bare origin (`docket repository init`,
+  `.gitignore` committed), with a `## Docket agents — dispatch, don't run inline` block naming
+  the registered `docket-*` roster. Prose request (fresh `codex exec` process): "Refresh the
+  docket board and report the backlog status … dispatch the registered docket-status agent and do
+  not do the work yourself."
+- Thread store: root `01a058db-fa0d` (`source: "exec"`, one `spawn_agent` call) → child
+  `01a058dc-282f` (`agent_role docket-status`, `agent_path /root/docket_status`, depth 1). The
+  child's developer message carries the installed wrapper's `codexDispatchBoundary` sentence
+  (grep count 1 in its rollout), and it executed the real workflow (`docket maintenance sweep
+  --json`, `docket status` invocations recorded in its rollout) against the scratch repo. Child
+  `task_complete` is the genuine status report ("Maintenance sweep: 0 item(s), 0 applied. …
+  default branch: main @ 10a91ef2cfd2 …" — the scratch repo's own head); the root's
+  `task_complete` carries the same report, consumed and relayed verbatim. **PASS** at spec §5's
+  bar: a named registered child started and its return was consumed.
+
+### Teardown
+
+`rm -f ~/.codex/agents/probe-*.toml`; scratch repos removed; 17 `docket-*.toml` wrappers
+re-verified present and byte-identical to the pre-session snapshot.
