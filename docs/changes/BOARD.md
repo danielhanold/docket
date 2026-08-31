@@ -1,6 +1,6 @@
 # Backlog
 
-**388 changes** — 🟢 3 in progress · 🟡 64 proposed · ⚪ 4 deferred · ✅ 234 done · 🗑️ 83 killed
+**389 changes** — 🟢 3 in progress · 🟡 65 proposed · ⚪ 4 deferred · ✅ 234 done · 🗑️ 83 killed
 
 ## 🟢 In progress (3)
 
@@ -10,7 +10,7 @@
 | [0367](active/0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | `medium` | `feat` | [spec](../superpowers/specs/2026-08-29-configurable-rendered-board-sections-and-sorting-design.md) | `feat/configurable-rendered-board-sections-and-sorting` |
 | [0384](active/0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md) | Launch compositional Docket agents in coordinator-capable harness contexts | `critical` | `fix` | [spec](../superpowers/specs/2026-08-31-launch-compositional-docket-agents-in-coordinator-capable-ha-design.md) | `fix/launch-compositional-docket-agents-in-coordinator-capable-ha` |
 
-## 🟡 Proposed (64)
+## 🟡 Proposed (65)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -78,6 +78,7 @@
 | [0385](active/0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | `medium` | `docs` | needs-brainstorm |
 | [0387](active/0387-re-cut-frozen-fixtures-to-clear-stale-retired-token-comments.md) | Re-cut frozen fixtures to clear stale retired-token comments in harness-defaults and .docket.yml | `low` | `chore` | needs-brainstorm |
 | [0388](active/0388-reimplement-post-merge-fast-forward-integration-branch-sync.md) | Reimplement post-merge fast-forward integration-branch sync as a native Go verb | `medium` | `feat` | needs-brainstorm |
+| [0389](active/0389-speed-up-implement-next-status-sweeps-and-retire-completed-s.md) | Speed up implement-next status sweeps and retire completed status children | `high` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -161,6 +162,7 @@ graph TD
   0385
   0387
   0388
+  0389
   0192:::done
   0211:::done
   0251:::done
