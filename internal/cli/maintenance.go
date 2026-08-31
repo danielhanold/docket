@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -41,14 +42,31 @@ func newMaintenanceCommand(setResult func(app.OperationResult)) *cobra.Command {
 // children before ancestors), retries terminal backlink repair and ownership-safe
 // cleanup for archived/done records and completed stacks, and reclaims expired
 // claims when reclaim.auto is on. It reloads fresh authority before every
-// mutation and reports every item as a structured entry. Only the target
-// directory rides on a flag; there is no authored request body.
+// mutation and reports every item as a structured entry. Two flags ride on it —
+// --repo-dir names the target directory and --scope selects the closed sweep
+// scope (full or implementation) — and there is no authored request body.
 func newMaintenanceSweepSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sweep",
 		Short: "Close out merged changes, retry terminal cleanup, and reclaim expired claims in one pass",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
+			// Scope resolves once, here, to a typed value — the app layer never
+			// re-derives it — and an unknown/empty value refuses before any
+			// repo, network, or mutation work is even wired.
+			scopeStr, err := c.Flags().GetString("scope")
+			if err != nil {
+				return err
+			}
+			var scope app.SweepScope
+			switch scopeStr {
+			case "full":
+				scope = app.SweepScopeFull
+			case "implementation":
+				scope = app.SweepScopeImplementation
+			default:
+				return fmt.Errorf("invalid --scope %q: must be full or implementation", scopeStr)
+			}
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
 				return err
@@ -57,10 +75,11 @@ func newMaintenanceSweepSubcommand(setResult func(app.OperationResult)) *cobra.C
 			if err != nil {
 				return err
 			}
-			setResult(app.MaintenanceSweep(c.Context(), deps, repoDir, app.SweepScopeFull))
+			setResult(app.MaintenanceSweep(c.Context(), deps, repoDir, scope))
 			return nil
 		},
 	}
 	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().String("scope", "full", "sweep scope: full (whole worklist, the default) or implementation (startup preflight; defers independent historical cleanup retries)")
 	return cmd
 }
