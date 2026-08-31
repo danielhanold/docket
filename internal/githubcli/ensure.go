@@ -338,6 +338,7 @@ func createRequest(req EnsurePullRequestRequest) runRequest {
 		},
 		stdin:   []byte(req.Body),
 		network: true,
+		write:   true,
 	}
 }
 
@@ -357,6 +358,7 @@ func editRequest(req EnsurePullRequestRequest, number int) runRequest {
 		},
 		stdin:   []byte(req.Body),
 		network: true,
+		write:   true,
 	}
 }
 

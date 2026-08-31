@@ -94,6 +94,7 @@ func (c *Client) RetargetPullRequest(ctx context.Context, repo Repository, numbe
 			"--base", newBase,
 		},
 		network: true,
+		write:   true,
 	})
 	if mf != nil && mf.Stage == StageLaunch {
 		// gh never started; nothing was mutated. Retain as unknown.

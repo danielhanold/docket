@@ -38,6 +38,14 @@ type Client struct {
 	env            []string
 	localTimeout   time.Duration
 	networkTimeout time.Duration
+	// networkReadTimeout and networkWriteTimeout split the network budget by
+	// direction: a network read (list/view probes and verification reprobes) is
+	// bounded by the read budget, a network write (pr create/edit/merge/comment)
+	// by the write budget. Both default to networkTimeout, so a client that never
+	// sets them is behaviorally identical to one carrying a single shared network
+	// budget.
+	networkReadTimeout  time.Duration
+	networkWriteTimeout time.Duration
 }
 
 // clientConfig accumulates option state before NewClient validates and freezes
@@ -46,7 +54,15 @@ type clientConfig struct {
 	executable     string
 	localTimeout   time.Duration
 	networkTimeout time.Duration
-	baseEnv        []string
+	// networkReadTimeout/networkWriteTimeout are only honored when their
+	// respective *Set flag is true; the flag distinguishes an explicit budget
+	// (validated > 0) from an absent one (inherit networkTimeout). A zero value
+	// with the flag set is an explicit non-positive budget and is rejected.
+	networkReadTimeout  time.Duration
+	networkWriteTimeout time.Duration
+	networkReadSet      bool
+	networkWriteSet     bool
+	baseEnv             []string
 }
 
 // Option configures a Client at construction.
@@ -68,6 +84,27 @@ func WithLocalTimeout(d time.Duration) Option {
 // must be > 0, else NewClient returns an invalid-input Failure.
 func WithNetworkTimeout(d time.Duration) Option {
 	return func(cfg *clientConfig) { cfg.networkTimeout = d }
+}
+
+// WithNetworkReadTimeout sets the deadline for network read operations (the
+// list/view probes and post-mutation verification reprobes). It must be > 0,
+// else NewClient returns an invalid-input Failure. Absent, the read budget
+// inherits networkTimeout.
+func WithNetworkReadTimeout(d time.Duration) Option {
+	return func(cfg *clientConfig) {
+		cfg.networkReadTimeout = d
+		cfg.networkReadSet = true
+	}
+}
+
+// WithNetworkWriteTimeout sets the deadline for network write operations (pr
+// create/edit/merge/comment mutations). It must be > 0, else NewClient returns
+// an invalid-input Failure. Absent, the write budget inherits networkTimeout.
+func WithNetworkWriteTimeout(d time.Duration) Option {
+	return func(cfg *clientConfig) {
+		cfg.networkWriteTimeout = d
+		cfg.networkWriteSet = true
+	}
 }
 
 // WithBaseEnvironment pins the base environment (tests: fully pinned
@@ -95,6 +132,22 @@ func NewClient(opts ...Option) (*Client, error) {
 	if cfg.networkTimeout <= 0 {
 		return nil, newFailure(newClientOp, StageValidate, KindInvalidInput, "network timeout must be positive", nil)
 	}
+	// Resolve the directional budgets: an unset budget inherits networkTimeout;
+	// an explicitly-set one is validated > 0, mirroring the base checks above.
+	networkReadTimeout := cfg.networkTimeout
+	if cfg.networkReadSet {
+		if cfg.networkReadTimeout <= 0 {
+			return nil, newFailure(newClientOp, StageValidate, KindInvalidInput, "network read timeout must be positive", nil)
+		}
+		networkReadTimeout = cfg.networkReadTimeout
+	}
+	networkWriteTimeout := cfg.networkTimeout
+	if cfg.networkWriteSet {
+		if cfg.networkWriteTimeout <= 0 {
+			return nil, newFailure(newClientOp, StageValidate, KindInvalidInput, "network write timeout must be positive", nil)
+		}
+		networkWriteTimeout = cfg.networkWriteTimeout
+	}
 	name := cfg.executable
 	if name == "" {
 		name = "gh"
@@ -108,12 +161,20 @@ func NewClient(opts ...Option) (*Client, error) {
 		return nil, newFailure(newClientOp, StageLaunch, KindExternal, "gh executable path not resolvable", err)
 	}
 	return &Client{
-		executable:     abs,
-		env:            sanitizeEnvironment(cfg.baseEnv),
-		localTimeout:   cfg.localTimeout,
-		networkTimeout: cfg.networkTimeout,
+		executable:          abs,
+		env:                 sanitizeEnvironment(cfg.baseEnv),
+		localTimeout:        cfg.localTimeout,
+		networkTimeout:      cfg.networkTimeout,
+		networkReadTimeout:  networkReadTimeout,
+		networkWriteTimeout: networkWriteTimeout,
 	}, nil
 }
+
+// NetworkReadTimeout reports the deadline applied to network read operations.
+func (c *Client) NetworkReadTimeout() time.Duration { return c.networkReadTimeout }
+
+// NetworkWriteTimeout reports the deadline applied to network write operations.
+func (c *Client) NetworkWriteTimeout() time.Duration { return c.networkWriteTimeout }
 
 // runRequest is the package-private execution seam every operation uses.
 type runRequest struct {
@@ -122,6 +183,11 @@ type runRequest struct {
 	args    []string // gh argument vector, no leading "gh"
 	stdin   []byte   // nil = no stdin; authored Markdown reaches gh here, never argv
 	network bool     // selects the network vs local default timeout
+	// write selects the network write budget over the read budget; it is
+	// meaningful only when network is true (a local operation ignores it). A
+	// remote mutation — pr create/edit/merge/comment — sets it; every network read
+	// (list/view probe, verification reprobe) leaves it false.
+	write bool
 }
 
 // runResult carries the captured output of one gh invocation. A non-zero exit is
@@ -141,7 +207,14 @@ type runResult struct {
 func (c *Client) run(ctx context.Context, req runRequest) (runResult, *Failure) {
 	timeout := c.localTimeout
 	if req.network {
-		timeout = c.networkTimeout
+		// A network write (req.write) is bounded by the write budget; every other
+		// network operation is a read bounded by the read budget. Both default to
+		// networkTimeout, so an unsplit client is unchanged.
+		if req.write {
+			timeout = c.networkWriteTimeout
+		} else {
+			timeout = c.networkReadTimeout
+		}
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
