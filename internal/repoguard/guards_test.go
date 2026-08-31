@@ -43,6 +43,17 @@ func execPop(t *testing.T, root string) []string {
 	return files
 }
 
+// alwaysLoadedPop returns the always-loaded agent-instruction population, failing
+// closed.
+func alwaysLoadedPop(t *testing.T, root string) []string {
+	t.Helper()
+	files, err := AlwaysLoadedSurface(root)
+	if err != nil {
+		t.Fatalf("AlwaysLoadedSurface: %v", err)
+	}
+	return files
+}
+
 // readMaintained reads a maintained file (rel slash path) fail-closed: a read
 // error is a guard failure, matching probe-error-is-not-clean-absence — an
 // unreadable file in the scanned surface is an error, not an absence of hits.

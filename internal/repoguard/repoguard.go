@@ -161,9 +161,11 @@ func MaintainedFiles(root string) ([]string, error) {
 // agent-executed-markdown-is-code): the always-loaded rule files AGENTS.md /
 // CLAUDE.md and the agent-definition trees agents/ and cursor-rules/ are ALSO an
 // agent-executed surface, but they are NOT folded in here — this function's
-// contract is the narrower scripts/+skills/ command surface. The absence guard
-// (change 0370, Gate 6) scans those always-loaded files explicitly rather than
-// through ExecutableSurface; a guard that needs them reads them by name.
+// contract is the narrower scripts/+skills/ command surface. A guard that needs
+// the always-loaded surface draws it from AlwaysLoadedSurface (below); the change
+// 0370 absence seal (repoguard.TestNoRetiredBashControlPlane) scans that surface
+// categorically IN ADDITION TO ExecutableSurface, so the always-loaded files are
+// covered by the same shape classes rather than left unscanned.
 func ExecutableSurface(root string) ([]string, error) {
 	all, err := MaintainedFiles(root)
 	if err != nil {
@@ -176,6 +178,51 @@ func ExecutableSurface(root string) ([]string, error) {
 		}
 	}
 	return out, nil
+}
+
+// AlwaysLoadedSurface returns the maintained files a harness loads as standing
+// AGENT INSTRUCTION — content it acts on unprompted rather than only when a recipe
+// is run — which is precisely the highest-value place a retired control plane could
+// be resurrected and told to agents. These are NOT part of ExecutableSurface (its
+// contract is the narrower scripts/+skills/ command surface), so a resurrection
+// seal that scanned only ExecutableSurface would miss them entirely:
+//
+//   - the root always-loaded rule files AGENTS.md and CLAUDE.md (CLAUDE.md is the
+//     symlink alias of AGENTS.md; both are returned when present);
+//   - the agent-definition trees agents/ and cursor-rules/, walked categorically at
+//     any depth (the generated wrapper .md files, cursor-rule .md/.mdc surfaces, and
+//     the shipped agents/harness-defaults.yml program-data file).
+//
+// The population is drawn from MaintainedFiles, so the categorical exclusions apply
+// here too and an unreadable directory fails closed. Content classification (a
+// markdown file's fenced-vs-prose rule, a config file's comment stripping) is the
+// scanning caller's job, exactly as for ExecutableSurface.
+func AlwaysLoadedSurface(root string) ([]string, error) {
+	all, err := MaintainedFiles(root)
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, rel := range all {
+		if isAlwaysLoadedSurface(rel) {
+			out = append(out, rel)
+		}
+	}
+	return out, nil
+}
+
+// isAlwaysLoadedSurface classifies one maintained file (rel is slash-relative to
+// root). See AlwaysLoadedSurface for the categories.
+func isAlwaysLoadedSurface(rel string) bool {
+	if rel == "AGENTS.md" || rel == "CLAUDE.md" {
+		return true
+	}
+	for _, d := range []string{"agents", "cursor-rules"} {
+		if rel == d || strings.HasPrefix(rel, d+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // isExecutableSurface classifies one maintained file (rel is slash-relative to
