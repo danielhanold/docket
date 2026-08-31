@@ -1,6 +1,6 @@
 # Backlog
 
-**389 changes** — 🟢 1 in progress · 🔵 2 built · 🟣 21 groomed · 🟡 43 proposed · ⚪ 4 deferred · ✅ 235 done · 🗑️ 83 killed
+**389 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 21 groomed · 🟡 43 proposed · ⚪ 4 deferred · ✅ 236 done · 🗑️ 83 killed
 
 ## 🟢 In progress (1)
 
@@ -8,11 +8,10 @@
 |---|-------|----------|------|------|--------|
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [spec](../superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) | `feat/migrate-primary-clean-fast-forward` |
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
-| [0389](active/0389-speed-up-implement-next-status-sweeps-and-retire-completed-s.md) | Speed up implement-next status sweeps and retire completed status children | `high` | `fix` | [#261](https://github.com/danielhanold/docket/pull/261) | awaiting merge |
 | [0384](active/0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md) | Launch compositional Docket agents in coordinator-capable harness contexts | `critical` | `fix` | [#260](https://github.com/danielhanold/docket/pull/260) | awaiting merge |
 
 ## 🟣 Groomed (21)
@@ -170,7 +169,6 @@ graph TD
   0385
   0387
   0388
-  0389
   0192:::done
   0211:::done
   0251:::done
@@ -179,10 +177,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (318)</summary>
+<details><summary>✅🗑️ Archive — done + killed (319)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0389](archive/2026-08-31-0389-speed-up-implement-next-status-sweeps-and-retire-completed-s.md) | Speed up implement-next status sweeps and retire completed status children | 2026-08-31 |
 | [0386](archive/2026-08-31-0386-discharge-adr-0100-s-deferred-disposition-for-the-surviving.md) | Discharge ADR-0100's deferred disposition for the surviving product runners | 2026-08-31 |
 | [0377](archive/2026-08-31-0377-migrate-deferred-bash-facade-workflow-operations-to-native-g.md) | Migrate deferred Bash-facade workflow operations to native Go CLI verbs | 2026-08-31 |
 | [0370](archive/2026-08-31-0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | 2026-08-31 |
@@ -198,7 +197,6 @@ graph TD
 | [0361](archive/2026-08-28-0361-release-candidate-source-gate-macos-runner.md) | Release-candidate source-gate green on a macOS runner | 2026-08-28 |
 | [0352](archive/2026-08-28-0352-native-repository-initialization-and-health-check.md) | Native repository initialization, migration, and health checks | 2026-08-28 |
 | [0358](archive/2026-08-27-0358-treat-empty-review-decision-as-no-decision.md) | Treat empty-string reviewDecision as no-decision, not an invalid enum | 2026-08-27 |
-| [0357](archive/2026-08-27-0357-implementation-context-loads-remote-branch-facts.md) | Implementation context must load remote branch facts before judging stack base | 2026-08-27 |
 | [0353](archive/2026-08-26-0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | 2026-08-26 |
 | [0294](archive/2026-08-26-0294-shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru.md) | Shrink AGENTS.md's always-loaded footprint: script-ify the run gate's caller procedure and de-duplicate the dispatch table | 2026-08-26 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
@@ -286,7 +284,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 102 done |
+| [2026-08](archive/) | 103 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
