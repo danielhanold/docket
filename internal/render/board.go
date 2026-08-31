@@ -82,6 +82,97 @@ const boardArchiveRecent = 15
 type BoardInput struct {
 	Snapshot domain.Snapshot
 	Facts    domain.BranchFacts
+	// Presentation is the typed section-order-and-sort policy the resolved
+	// config produces (change 0367). Board() does not yet consult it — Task 6
+	// rewires emission; classification and the comparator read it in the
+	// meantime. A caller building options fills it from config; the renderer
+	// invents no defaults.
+	Presentation BoardPresentation
+}
+
+// BoardSection is one rendered board group — a closed vocabulary deliberately
+// distinct from the lifecycle statuses a change carries (change 0367). A change
+// is classified into exactly one section; the mapping is not one-to-one with
+// status (finalize-blocked implemented changes render Blocked, spec-backed
+// build-ready proposals render Groomed).
+type BoardSection string
+
+const (
+	BoardSectionInProgress BoardSection = "in-progress"
+	BoardSectionBuilt      BoardSection = "built"
+	BoardSectionBlocked    BoardSection = "blocked"
+	BoardSectionGroomed    BoardSection = "groomed"
+	BoardSectionProposed   BoardSection = "proposed"
+	BoardSectionDeferred   BoardSection = "deferred"
+)
+
+// boardSectionOrderDefault is the built-in permutation, in display order.
+var boardSectionOrderDefault = []BoardSection{
+	BoardSectionInProgress, BoardSectionBuilt, BoardSectionBlocked,
+	BoardSectionGroomed, BoardSectionProposed, BoardSectionDeferred,
+}
+
+// BoardSortKey names the field a section sorts on: "id" | "updated" | "created".
+type BoardSortKey string
+
+// BoardDirection names a sort direction: "asc" | "desc".
+type BoardDirection string
+
+// BoardSort is one section's sort policy.
+type BoardSort struct {
+	By        BoardSortKey
+	Direction BoardDirection
+}
+
+// BoardPresentation is the typed presentation policy the resolved config
+// produces. Board() refuses an incomplete or invalid presentation — the
+// renderer never fills defaults, so a caller that forgot to build options
+// fails loudly instead of silently rendering the built-in view.
+type BoardPresentation struct {
+	SectionOrder []BoardSection
+	Sorting      map[BoardSection]BoardSort
+}
+
+// DefaultBoardPresentation returns the built-in presentation: the default
+// permutation, updated desc everywhere.
+func DefaultBoardPresentation() BoardPresentation {
+	order := append([]BoardSection(nil), boardSectionOrderDefault...)
+	sorting := make(map[BoardSection]BoardSort, len(order))
+	for _, s := range order {
+		sorting[s] = BoardSort{By: "updated", Direction: "desc"}
+	}
+	return BoardPresentation{SectionOrder: order, Sorting: sorting}
+}
+
+// boardClassify maps one ACTIVE change to exactly one rendered section, per the
+// spec's precedence: Blocked → In progress → Built → Groomed → Proposed →
+// Deferred. Pure; mutates nothing. A non-active (terminal) status is a caller
+// error — the board classifies only active records.
+func boardClassify(in BoardInput, c domain.Change) (BoardSection, error) {
+	switch c.Status() {
+	case domain.StatusBlocked:
+		return BoardSectionBlocked, nil
+	case domain.StatusInProgress:
+		return BoardSectionInProgress, nil
+	case domain.StatusImplemented:
+		if c.HasFinalizeBlocked() {
+			return BoardSectionBlocked, nil
+		}
+		return BoardSectionBuilt, nil
+	case domain.StatusStackedMerged:
+		return BoardSectionBuilt, nil
+	case domain.StatusProposed:
+		// Groomed means build-ready AND spec-backed: a trivial build-ready
+		// change with an empty spec stays Proposed.
+		if c.Spec().Value != "" &&
+			domain.EvaluateReadiness(in.Snapshot, c, in.Facts).Kind == domain.ReadyBuildReady {
+			return BoardSectionGroomed, nil
+		}
+		return BoardSectionProposed, nil
+	case domain.StatusDeferred:
+		return BoardSectionDeferred, nil
+	}
+	return "", fmt.Errorf("render: board: change %04d has non-active status %q", int(c.ID()), c.Status())
 }
 
 // boardActiveStatuses is the active lifecycle group in the board's display
