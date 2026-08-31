@@ -2,7 +2,7 @@
 id: 389
 slug: 'speed-up-implement-next-status-sweeps-and-retire-completed-s'
 title: 'Speed up implement-next status sweeps and retire completed status children'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'fix'
 created: '2026-08-31'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/speed-up-implement-next-status-sweeps-and-retire-completed-s'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/261'
 blocked_by:
 reconciled: true
 claimed_at: '2026-08-31T18:09:48Z'
