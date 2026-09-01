@@ -1,7 +1,9 @@
 package reposetup
 
 import (
+	"io/fs"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/config"
@@ -34,7 +36,7 @@ func initCfg() config.Effective {
 // the operation trailer on the root commit.
 func TestPlanInitFreshEffects(t *testing.T) {
 	const primary = "/home/user/repo"
-	plan, err := PlanInit(initCfg(), freshFacts(), primary)
+	plan, err := PlanInit(initCfg(), freshFacts(), mapTree{}, primary)
 	if err != nil {
 		t.Fatalf("PlanInit on fresh facts errored: %v", err)
 	}
@@ -66,23 +68,126 @@ func TestPlanInitFreshEffects(t *testing.T) {
 	}
 }
 
+// TestPlanInitDetectedSuiteRendersBothCommands proves a fresh init over a tree
+// carrying one Go suite renders a `.docket.yml` edit that sets build AND finalize
+// test_command to the detected command, and reports the detected outcome.
+func TestPlanInitDetectedSuiteRendersBothCommands(t *testing.T) {
+	tree := mapTree{"go.mod": "module x\n", "x_test.go": ""}
+	plan, err := PlanInit(initCfg(), freshFacts(), tree, "/home/user/repo")
+	if err != nil {
+		t.Fatalf("PlanInit errored: %v", err)
+	}
+	if plan.DocketYMLPath != ".docket.yml" {
+		t.Errorf("DocketYMLPath = %q, want .docket.yml", plan.DocketYMLPath)
+	}
+	if plan.TestDiscovery.Kind != DiscoveryDetected {
+		t.Fatalf("TestDiscovery.Kind = %q, want detected", plan.TestDiscovery.Kind)
+	}
+	got := string(plan.DocketYMLBytes)
+	// Both build and finalize carry the detected command as separate settings.
+	if strings.Count(got, "test_command: go test ./...") != 2 {
+		t.Errorf("DocketYMLBytes must set test_command on both build and finalize:\n%s", got)
+	}
+	if !strings.Contains(got, "build:") || !strings.Contains(got, "finalize:") {
+		t.Errorf("DocketYMLBytes missing a build/finalize block:\n%s", got)
+	}
+}
+
+// TestPlanInitNoSuiteRendersGateOff proves a fresh init over a tree with no
+// recognizable suite renders both gates as the quoted scalar "off" and writes no
+// fabricated command.
+func TestPlanInitNoSuiteRendersGateOff(t *testing.T) {
+	plan, err := PlanInit(initCfg(), freshFacts(), mapTree{}, "/home/user/repo")
+	if err != nil {
+		t.Fatalf("PlanInit errored: %v", err)
+	}
+	if plan.TestDiscovery.Kind != DiscoveryNone {
+		t.Fatalf("TestDiscovery.Kind = %q, want none", plan.TestDiscovery.Kind)
+	}
+	got := string(plan.DocketYMLBytes)
+	if strings.Count(got, `gate: "off"`) != 2 {
+		t.Errorf("both gates must be the quoted scalar \"off\":\n%s", got)
+	}
+	if strings.Contains(got, "test_command") {
+		t.Errorf("a none outcome must write no test_command:\n%s", got)
+	}
+}
+
+// TestPlanInitAmbiguousReportsCandidatesWithoutWriting proves an ambiguous tree
+// does NOT fail init and writes no config bytes — the candidates ride on the
+// TestDiscovery outcome for the caller to report.
+func TestPlanInitAmbiguousReportsCandidatesWithoutWriting(t *testing.T) {
+	tree := mapTree{"go.mod": "module x\n", "x_test.go": "", "Cargo.toml": "[package]\n"}
+	plan, err := PlanInit(initCfg(), freshFacts(), tree, "/home/user/repo")
+	if err != nil {
+		t.Fatalf("PlanInit must not fail on ambiguity: %v", err)
+	}
+	if plan.TestDiscovery.Kind != DiscoveryAmbiguous {
+		t.Fatalf("TestDiscovery.Kind = %q, want ambiguous", plan.TestDiscovery.Kind)
+	}
+	if plan.DocketYMLBytes != nil {
+		t.Errorf("ambiguous init must write no config bytes, got %q", plan.DocketYMLBytes)
+	}
+	if len(plan.TestDiscovery.Candidates) != 2 {
+		t.Errorf("ambiguous outcome must carry both candidates, got %+v", plan.TestDiscovery.Candidates)
+	}
+}
+
+// TestPlanInitAlreadyConfiguredWritesNothing proves that when build/finalize
+// already carry explicit commands, discovery short-circuits configured and no
+// edit is planned (DocketYMLBytes nil).
+func TestPlanInitAlreadyConfiguredWritesNothing(t *testing.T) {
+	cfg := initCfg()
+	cfg.Build.TestCommand = config.Value[string]{Value: "go test ./..."}
+	cfg.Finalize.TestCommand = config.Value[string]{Value: "make check"}
+	// panicTree proves the configured short-circuit never probes the worktree.
+	plan, err := PlanInit(cfg, freshFacts(), configuredInitTree{}, "/home/user/repo")
+	if err != nil {
+		t.Fatalf("PlanInit errored: %v", err)
+	}
+	if plan.TestDiscovery.Kind != DiscoveryConfigured {
+		t.Errorf("TestDiscovery.Kind = %q, want configured", plan.TestDiscovery.Kind)
+	}
+	if plan.DocketYMLBytes != nil {
+		t.Errorf("configured init must write no config bytes, got %q", plan.DocketYMLBytes)
+	}
+}
+
+// configuredInitTree returns fs.ErrNotExist for the .docket.yml probe (so PlanInit
+// reads no existing file) but panics on any OTHER probe — proving the configured
+// short-circuit reaches DiscoverTests without running a detector.
+type configuredInitTree struct{}
+
+func (configuredInitTree) Exists(string) (bool, error) {
+	panic("configured init must not probe (Exists)")
+}
+func (configuredInitTree) ReadFile(p string) ([]byte, error) {
+	if p == ".docket.yml" {
+		return nil, fs.ErrNotExist
+	}
+	panic("configured init must not probe (ReadFile)")
+}
+func (configuredInitTree) Glob(string) ([]string, error) {
+	panic("configured init must not probe (Glob)")
+}
+
 // TestPlanInitRejectsNonFresh proves PlanInit re-classifies defensively and
 // refuses any non-fresh input.
 func TestPlanInitRejectsNonFresh(t *testing.T) {
 	// Legacy: a live surface with no metadata branch.
 	legacy := freshFacts()
 	legacy.LiveSurface = PresencePresent
-	if _, err := PlanInit(initCfg(), legacy, "/home/user/repo"); err == nil {
+	if _, err := PlanInit(initCfg(), legacy, mapTree{}, "/home/user/repo"); err == nil {
 		t.Error("PlanInit accepted legacy facts")
 	}
 	// Unknown: an unproven required probe.
 	unknown := freshFacts()
 	unknown.RemoteConfigured = PresenceUnknown
-	if _, err := PlanInit(initCfg(), unknown, "/home/user/repo"); err == nil {
+	if _, err := PlanInit(initCfg(), unknown, mapTree{}, "/home/user/repo"); err == nil {
 		t.Error("PlanInit accepted unknown facts")
 	}
 	// Healthy topology already present.
-	if _, err := PlanInit(initCfg(), healthyFacts(), "/home/user/repo"); err == nil {
+	if _, err := PlanInit(initCfg(), healthyFacts(), mapTree{}, "/home/user/repo"); err == nil {
 		t.Error("PlanInit accepted healthy facts")
 	}
 }
@@ -100,7 +205,7 @@ func TestPlanInitSeedHarnessesOptIn(t *testing.T) {
 		Explicit:   true,
 		Provenance: config.Provenance{Layer: config.LayerRepository},
 	}
-	plan, err := PlanInit(explicitRepo, freshFacts(), "/home/user/repo")
+	plan, err := PlanInit(explicitRepo, freshFacts(), mapTree{}, "/home/user/repo")
 	if err != nil {
 		t.Fatalf("PlanInit errored: %v", err)
 	}
@@ -111,7 +216,7 @@ func TestPlanInitSeedHarnessesOptIn(t *testing.T) {
 	// Absent (non-explicit) → empty.
 	absentCfg := base
 	absentCfg.AgentHarnesses = config.Value[[]string]{Value: []string{"claude"}, Explicit: false}
-	planAbsent, err := PlanInit(absentCfg, freshFacts(), "/home/user/repo")
+	planAbsent, err := PlanInit(absentCfg, freshFacts(), mapTree{}, "/home/user/repo")
 	if err != nil {
 		t.Fatalf("PlanInit errored: %v", err)
 	}
@@ -126,7 +231,7 @@ func TestPlanInitSeedHarnessesOptIn(t *testing.T) {
 		Explicit:   true,
 		Provenance: config.Provenance{Layer: config.LayerGlobal},
 	}
-	planGlobal, err := PlanInit(globalCfg, freshFacts(), "/home/user/repo")
+	planGlobal, err := PlanInit(globalCfg, freshFacts(), mapTree{}, "/home/user/repo")
 	if err != nil {
 		t.Fatalf("PlanInit errored: %v", err)
 	}
@@ -141,7 +246,7 @@ func TestPlanInitSeedHarnessesOptIn(t *testing.T) {
 		Explicit:   true,
 		Provenance: config.Provenance{Layer: config.LayerRepositoryLocal},
 	}
-	planLocal, err := PlanInit(localCfg, freshFacts(), "/home/user/repo")
+	planLocal, err := PlanInit(localCfg, freshFacts(), mapTree{}, "/home/user/repo")
 	if err != nil {
 		t.Fatalf("PlanInit errored: %v", err)
 	}

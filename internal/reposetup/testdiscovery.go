@@ -88,6 +88,26 @@ func isConfiguredCommand(cmd string) bool {
 	return cmd != "" && cmd != "auto"
 }
 
+// AmbiguousTestDiscoveryError reports that setup-time test discovery matched more
+// than one suite family and cannot deterministically choose one. It carries the
+// matched candidates and renders a remedy naming the exact setup command, so a
+// caller (migrate) can surface it BEFORE any repository mutation rather than
+// guessing a command. Init tolerates ambiguity (it reports the candidates and
+// writes nothing); only migrate treats it as a typed refusal.
+type AmbiguousTestDiscoveryError struct {
+	Candidates []DetectedSuite
+}
+
+// Error names the ambiguous families and the exact remedy command.
+func (e *AmbiguousTestDiscoveryError) Error() string {
+	fams := make([]string, 0, len(e.Candidates))
+	for _, c := range e.Candidates {
+		fams = append(fams, c.Family)
+	}
+	return fmt.Sprintf("test discovery is ambiguous: multiple suite families match (%s); set build.test_command / finalize.test_command explicitly, then run `docket repository configure-tests`",
+		strings.Join(fams, ", "))
+}
+
 // detector pairs a family token with its pure detection function. The registry
 // slice below is the SINGLE owning place for the supported shapes and their
 // order; DiscoverTests iterates it in order, so family order in an ambiguous

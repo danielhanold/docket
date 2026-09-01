@@ -13,8 +13,33 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/danielhanold/docket/internal/config"
 	"go.yaml.in/yaml/v3"
 )
+
+// TestPolicyEdit is the shared setup-time computation that both PlanInit and the
+// app's init execution run: it discovers the suite over tree (using the resolved
+// build/finalize commands so an already-configured pair short-circuits without
+// probing), then renders the pending `.docket.yml` test-policy edit. existing is
+// the current `.docket.yml` bytes (nil when no file exists). edited is nil when
+// no write applies — configured, ambiguous, or the file already carries these
+// exact settings — so a caller writes only when it is non-nil. outcome carries
+// the discovery result (its candidates on ambiguity) for the caller to report.
+// A probe fault or a malformed existing file surfaces as an error with no edit.
+func TestPolicyEdit(cfg config.Effective, existing []byte, tree TestTree) (edited []byte, outcome DiscoveryOutcome, err error) {
+	outcome, err = DiscoverTests(tree, cfg.Build.TestCommand.Value, cfg.Finalize.TestCommand.Value)
+	if err != nil {
+		return nil, DiscoveryOutcome{}, err
+	}
+	rendered, changed, rerr := RenderTestConfigEdit(existing, outcome)
+	if rerr != nil {
+		return nil, DiscoveryOutcome{}, rerr
+	}
+	if changed {
+		edited = rendered
+	}
+	return edited, outcome, nil
+}
 
 // RenderTestConfigEdit produces the pending `.docket.yml` bytes for a discovery
 // outcome. existing == nil means no file exists (fresh init renders a minimal

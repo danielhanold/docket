@@ -180,8 +180,21 @@ func migratePhaseDispatch(ctx context.Context, d SetupDeps, o MigrateOptions, fa
 	if yerr != nil {
 		return migrateExternalFailure(reposetup.StateLegacy, "reading the committed .docket.yml", yerr)
 	}
-	plan, perr := reposetup.PlanMigration(sc.cfg, docketYML, sourceRevision, mr.repairable)
+	// The test-discovery tree reads the SAME pinned source revision the plan's
+	// ConfigBytes, the preview, and the commit all act on — decide-and-act on one
+	// copy (learning decide-and-act-on-the-same-copy).
+	srcTree, terr := d.Git.OpenObjectSource(ctx, sc.repo, gitcli.Revision{Commit: gitcli.ObjectID(sourceRevision)})
+	if terr != nil {
+		return migrateExternalFailure(reposetup.StateLegacy, "opening the pinned source tree for test discovery", terr)
+	}
+	plan, perr := reposetup.PlanMigration(sc.cfg, docketYML, newObjectSourceTree(ctx, srcTree), sourceRevision, mr.repairable)
 	if perr != nil {
+		// Ambiguous test discovery is a typed refusal surfaced BEFORE any remote
+		// mutation: the planner returns no plan, so no seed or prune is ever composed.
+		var amb *reposetup.AmbiguousTestDiscoveryError
+		if errors.As(perr, &amb) {
+			return migrateRefusal(reposetup.StateLegacy, amb.Error())
+		}
 		return migrateInternalFailure(reposetup.StateLegacy, "planning the migration", perr)
 	}
 	preview := migratePreviewText(sc, plan, mr, sourceRevision)
@@ -828,15 +841,12 @@ func composePruneOps(ctx context.Context, git *gitcli.Client, sc setupContext, s
 		return nil, nil, err
 	}
 
-	// The legacy metadata_branch key edit, byte-preserving, only when present.
-	if plan.ConfigEdit {
-		edited, changed, cerr := editedDocketYML(ctx, src)
-		if cerr != nil {
-			return nil, nil, cerr
-		}
-		if changed {
-			ops = append(ops, gitcli.TreeOp{PutBlob: &gitcli.PutBlobOp{Path: gitcli.RepoPath(".docket.yml"), Content: edited, Mode: blobMode}})
-		}
+	// The `.docket.yml` edit is the SINGLE authoritative copy the plan decided on:
+	// it folds the legacy metadata_branch removal AND the generated test policy.
+	// Committing plan.ConfigBytes verbatim is decide-and-act-on-the-same-copy —
+	// the exact bytes the preview showed land on the pruned integration branch.
+	if plan.ConfigBytes != nil {
+		ops = append(ops, gitcli.TreeOp{PutBlob: &gitcli.PutBlobOp{Path: gitcli.RepoPath(".docket.yml"), Content: plan.ConfigBytes, Mode: blobMode}})
 	}
 
 	// The managed .gitignore block, merged into any existing user content.
@@ -853,26 +863,6 @@ func composePruneOps(ctx context.Context, git *gitcli.Client, sc setupContext, s
 		}
 	}
 	return ops, removed, nil
-}
-
-// editedDocketYML reads .docket.yml from the source and removes the top-level
-// metadata_branch key byte-preserving. changed is false when the key is absent.
-func editedDocketYML(ctx context.Context, src gitcli.ObjectSource) ([]byte, bool, error) {
-	results, err := src.ReadBlobs(ctx, []gitcli.RepoPath{gitcli.RepoPath(".docket.yml")})
-	if err != nil {
-		return nil, false, err
-	}
-	if len(results) != 1 || !results[0].Found {
-		return nil, false, nil
-	}
-	edited, removed, eerr := reposetup.RemoveMetadataBranchKey(results[0].Blob.Bytes)
-	if eerr != nil {
-		return nil, false, eerr
-	}
-	if !removed {
-		return nil, false, nil
-	}
-	return edited, true, nil
 }
 
 // mergedGitignore reads the source .gitignore (if any) and returns its bytes with
@@ -979,6 +969,15 @@ func migratePreviewText(sc setupContext, plan reposetup.MigrationPlan, mr migrat
 	fmt.Fprintf(&b, "  copy set:    %s\n", strings.Join(plan.Copy.Prefixes, ", "))
 	fmt.Fprintf(&b, "  removal set: %s/, %s, %s\n", plan.Removal.ActiveDir, plan.Removal.BoardPath, plan.Removal.ReadmePath)
 	fmt.Fprintf(&b, "  config edit: %s\n", migrateConfigEditText(plan.ConfigEdit))
+	if plan.ConfigBytes != nil {
+		// The exact authorized `.docket.yml` bytes, verbatim: the human reviews the
+		// same copy the migration commits (decide-and-act-on-the-same-copy).
+		fmt.Fprintf(&b, "  .docket.yml (authorized bytes):\n")
+		b.WriteString(string(plan.ConfigBytes))
+		if !strings.HasSuffix(string(plan.ConfigBytes), "\n") {
+			b.WriteByte('\n')
+		}
+	}
 	if len(mr.repairable) == 0 && len(mr.diagnostics) == 0 {
 		fmt.Fprintf(&b, "  repairs:     none\n")
 	} else {

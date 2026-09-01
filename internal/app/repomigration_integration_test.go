@@ -226,9 +226,10 @@ func TestIntegrationRepoMigrationExactCopyAndRemovalSets(t *testing.T) {
 }
 
 // TestIntegrationRepoMigrationLegacyKeyRemovedBytePreserving proves the
-// .docket.yml on the pruned integration is the source bytes with ONLY the
+// .docket.yml on the pruned integration byte-preserves the source (only the
 // metadata_branch key line removed — every comment, key, and ordering byte
-// preserved.
+// preserved) and then folds in the generated test policy: the clean legacy tree
+// has no recognizable suite, so both gates are declared off (change 0374).
 func TestIntegrationRepoMigrationLegacyKeyRemovedBytePreserving(t *testing.T) {
 	r := newInitRepo(t, legacyDocketYML, cleanLegacyFiles())
 	r.runMigrate(t, MigrateOptions{Authorized: true})
@@ -237,12 +238,18 @@ func TestIntegrationRepoMigrationLegacyKeyRemovedBytePreserving(t *testing.T) {
 	if !ok {
 		t.Fatal(".docket.yml missing from the pruned integration")
 	}
-	want := strings.Replace(legacyDocketYML, "metadata_branch: docket   # removed by migration\n", "", 1)
-	if got != want {
-		t.Errorf(".docket.yml not byte-preserved.\n got: %q\nwant: %q", got, want)
+	// The metadata_branch removal is byte-preserving: the source with only that
+	// line gone is the exact prefix of the result.
+	wantPrefix := strings.Replace(legacyDocketYML, "metadata_branch: docket   # removed by migration\n", "", 1)
+	if !strings.HasPrefix(got, wantPrefix) {
+		t.Errorf(".docket.yml metadata removal not byte-preserved.\n got: %q\nwant prefix: %q", got, wantPrefix)
 	}
 	if strings.Contains(got, "metadata_branch") {
 		t.Errorf(".docket.yml still carries the metadata_branch key: %q", got)
+	}
+	// The folded-in test policy: no suite detected → both gates off.
+	if strings.Count(got, `gate: "off"`) != 2 {
+		t.Errorf(".docket.yml must declare both gates off for a no-suite legacy tree: %q", got)
 	}
 }
 
@@ -348,6 +355,34 @@ func TestIntegrationRepoMigrationNonRepairableFindingBlocksBeforeAnyWrite(t *tes
 	}
 	if after := r.originTip(t, "main"); after != sourceTip {
 		t.Errorf("a blocked migration moved integration from %s to %s", sourceTip, after)
+	}
+}
+
+// TestIntegrationRepoMigrationAmbiguousTestDiscoveryBlocksBeforeAnyWrite proves
+// an ambiguous test-suite discovery (two suite families in the source tree) is a
+// typed refusal surfaced BEFORE any remote mutation: the migration is invalid
+// state, names the remedy, and creates/moves neither remote branch.
+func TestIntegrationRepoMigrationAmbiguousTestDiscoveryBlocksBeforeAnyWrite(t *testing.T) {
+	files := cleanLegacyFiles()
+	// A Go module AND a Cargo manifest both match — discovery cannot choose one.
+	files["go.mod"] = "module example.com/x\n\ngo 1.22\n"
+	files["x_test.go"] = "package x\n"
+	files["Cargo.toml"] = "[package]\nname = \"x\"\n"
+	r := newInitRepo(t, legacyDocketYML, files)
+	sourceTip := r.originTip(t, "main")
+
+	res := r.runMigrate(t, MigrateOptions{Authorized: true, RepairAuthorized: true})
+	if res.Result != ResultInvalidState {
+		t.Fatalf("migrate = %q (%s), want invalid-state (ambiguous discovery)", res.Result, res.HumanText())
+	}
+	if !strings.Contains(res.HumanText(), "docket repository configure-tests") {
+		t.Errorf("ambiguous refusal %q must name the remedy", res.HumanText())
+	}
+	if r.remoteBranchExists(t, "docket") {
+		t.Error("an ambiguous-discovery refusal created the remote docket branch; nothing must be written")
+	}
+	if after := r.originTip(t, "main"); after != sourceTip {
+		t.Errorf("an ambiguous-discovery refusal moved integration from %s to %s", sourceTip, after)
 	}
 }
 

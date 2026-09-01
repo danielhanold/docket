@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/danielhanold/docket/internal/assets"
+	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/harness"
 	"github.com/danielhanold/docket/internal/install"
@@ -29,6 +30,10 @@ const initRootSubject = "docket: initialize metadata branch"
 // gitignoreRel is the repo-relative managed gitignore path the init edit writes
 // and names as a pending review path.
 const gitignoreRel = ".gitignore"
+
+// docketYMLRel is the repo-relative config path the generated test-policy edit
+// writes (init and migrate share it).
+const docketYMLRel = ".docket.yml"
 
 // RepositoryOpResult is the protocol-v1 document a repository mutation
 // (init/migrate) returns. RepositoryState carries the reposetup.State the
@@ -138,6 +143,20 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps) RepositoryOpResult {
 		pending = append(pending, surfacePending...)
 		wroteSurfaces = changed
 	}
+
+	// Test policy: discover the suite from the primary worktree and write the
+	// generated `.docket.yml` edit as another pending, UNSTAGED review path —
+	// exactly the managed-.gitignore posture. Generated config is human-gated, so
+	// init never stages it; an ambiguous outcome writes nothing and rides back as
+	// a note rather than failing init.
+	docketYMLPending, wroteDocketYML, discovery, derr := ensureTestPolicyConfig(sc.repo.PrimaryWorktree, sc.cfg)
+	if derr != nil {
+		return repositoryInternalFailure(OperationRepositoryInit, cls.State, "generating the test-policy config", derr)
+	}
+	if docketYMLPending != "" {
+		pending = append(pending, docketYMLPending)
+	}
+
 	pending = append(pending, debris.pending()...)
 	sort.Strings(pending)
 
@@ -146,7 +165,7 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps) RepositoryOpResult {
 	// one that created a remote branch, worktree, block, or surface reports
 	// applied. Both exit 0.
 	result := ResultNoOp
-	if createdRemote || createdWorktree || wroteGitignore || wroteSurfaces {
+	if createdRemote || createdWorktree || wroteGitignore || wroteSurfaces || wroteDocketYML {
 		result = ResultApplied
 	}
 
@@ -158,7 +177,55 @@ func RunRepositoryInit(ctx context.Context, d SetupDeps) RepositoryOpResult {
 	})
 	out.human = fmt.Sprintf("repository initialized (%s); review and commit the pending paths: %s",
 		reposetup.StateNeedsReview, strings.Join(pending, ", "))
+	if note := testDiscoveryNote(discovery); note != "" {
+		out.human += "\n" + note
+	}
 	return out
+}
+
+// ensureTestPolicyConfig discovers the suite from the primary worktree and, when
+// a write applies, writes the generated `.docket.yml` test policy UNSTAGED to the
+// working tree (the managed-.gitignore posture: generated config is human-gated,
+// never staged). It returns the pending review path ("" when nothing was
+// written), whether it changed the file, and the discovery outcome so the caller
+// can report an ambiguous result. A malformed existing config or a probe fault is
+// an error with the file untouched.
+func ensureTestPolicyConfig(primaryWorktree string, cfg config.Effective) (pendingPath string, wrote bool, outcome reposetup.DiscoveryOutcome, err error) {
+	tree := newOSTree(primaryWorktree)
+	docketYMLAbs := filepath.Join(primaryWorktree, docketYMLRel)
+	existing, rerr := os.ReadFile(docketYMLAbs)
+	if rerr != nil {
+		if !os.IsNotExist(rerr) {
+			return "", false, reposetup.DiscoveryOutcome{}, rerr
+		}
+		existing = nil
+	}
+	bytes, outcome, perr := reposetup.TestPolicyEdit(cfg, existing, tree)
+	if perr != nil {
+		return "", false, reposetup.DiscoveryOutcome{}, perr
+	}
+	if bytes == nil {
+		return "", false, outcome, nil
+	}
+	if werr := os.WriteFile(docketYMLAbs, bytes, 0o644); werr != nil {
+		return "", false, outcome, werr
+	}
+	return docketYMLRel, true, outcome, nil
+}
+
+// testDiscoveryNote renders the operator-facing note for an ambiguous test
+// discovery: it names the candidate families and the remedy so a human resolves
+// the choice. A non-ambiguous outcome has no note.
+func testDiscoveryNote(outcome reposetup.DiscoveryOutcome) string {
+	if outcome.Kind != reposetup.DiscoveryAmbiguous {
+		return ""
+	}
+	fams := make([]string, 0, len(outcome.Candidates))
+	for _, c := range outcome.Candidates {
+		fams = append(fams, c.Family)
+	}
+	return fmt.Sprintf("test discovery was ambiguous (%s); no test policy was written — run `docket repository configure-tests` to choose one",
+		strings.Join(fams, ", "))
 }
 
 // initGuard classifies once and returns the refusal for every state init must

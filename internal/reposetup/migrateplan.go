@@ -34,12 +34,33 @@ type MigrationPlan struct {
 	ConfigEdit   bool    // legacy metadata_branch key present in the committed .docket.yml bytes → one edit
 	SeedReceipt  Receipt // OpMigrateSeed: source revision + repair digest (+ copy digest later)
 	PruneReceipt Receipt // OpMigratePrune: source revision (+ metadata revision later)
+
+	// ConfigBytes is the EXACT `.docket.yml` bytes the migration commits onto the
+	// pruned integration branch — the single authoritative copy folding the legacy
+	// metadata_branch removal AND the generated test policy. nil means the file is
+	// unchanged. The preview shows these exact bytes and the execution commits
+	// exactly them (learning decide-and-act-on-the-same-copy).
+	ConfigBytes []byte
+	// TestDiscovery is the setup-time suite discovery outcome the config edit was
+	// rendered from (the preserve/copy result when a legacy finalize.test_command
+	// was carried into build).
+	TestDiscovery DiscoveryOutcome
 }
 
 // PlanMigration is pure: it names WHICH prefixes to copy and WHICH paths to
-// remove, and composes the receipts, from the configured directories and the
-// pinned integration source revision. It never reads disk and never computes
+// remove, composes the receipts, and decides the single `.docket.yml` edit —
+// all from the configured directories, the committed source bytes, and the
+// pinned source tree (read only through the TestTree seam). It never computes
 // the copy digest (that requires the composed tree the app layer builds).
+//
+// ConfigBytes is the ONE authoritative `.docket.yml` copy the execution commits,
+// folding the legacy metadata_branch removal (pass 1) and the generated test
+// policy (pass 2) so the preview and the commit act on the same bytes (learning
+// decide-and-act-on-the-same-copy). Pass 2 applies the preserve/copy rule (an
+// explicit legacy finalize.test_command carried into build.test_command) or
+// setup-time discovery over tree; an ambiguous discovery is a typed
+// AmbiguousTestDiscoveryError returning NO plan, so the app layer refuses before
+// any remote mutation.
 //
 // ConfigEdit keys on the legacy metadata_branch key being present in the
 // COMMITTED repository-layer .docket.yml raw bytes (docketYML — nil when the
@@ -52,18 +73,44 @@ type MigrationPlan struct {
 // because migration claims no authority over machine files. Bytes the editor
 // refuses to edit fail the plan, so an unremovable key can never be silently
 // left behind by an executed migration.
-func PlanMigration(cfg config.Effective, docketYML []byte, sourceRevision string, repairs []RepairFinding) (MigrationPlan, error) {
+func PlanMigration(cfg config.Effective, docketYML []byte, tree TestTree, sourceRevision string, repairs []RepairFinding) (MigrationPlan, error) {
 	if sourceRevision == "" {
 		return MigrationPlan{}, errors.New("reposetup: PlanMigration requires a pinned source revision")
 	}
+	// The `.docket.yml` edit is decided once, on the committed source bytes, and
+	// carried on the plan so the preview and the execution act on the SAME copy.
+	// Pass 1: remove the legacy metadata_branch key, byte-preserving.
 	configEdit := false
+	working := docketYML
 	if docketYML != nil {
-		_, removed, err := RemoveMetadataBranchKey(docketYML)
+		edited, removed, err := RemoveMetadataBranchKey(docketYML)
 		if err != nil {
 			return MigrationPlan{}, err
 		}
 		configEdit = removed
+		if removed {
+			working = edited
+		}
 	}
+	// Pass 2: the preserve/copy rule (an explicit legacy finalize.test_command is
+	// carried into build.test_command) OR setup-time discovery — ambiguity is a
+	// typed refusal the app layer surfaces BEFORE any remote mutation.
+	outcome, err := migrateTestOutcome(cfg, tree)
+	if err != nil {
+		return MigrationPlan{}, err
+	}
+	editedYML, changed, err := RenderTestConfigEdit(working, outcome)
+	if err != nil {
+		return MigrationPlan{}, err
+	}
+	var configBytes []byte
+	switch {
+	case changed:
+		configBytes = editedYML
+	case configEdit:
+		configBytes = working // only the metadata_branch removal changed the file
+	}
+
 	changes := cfg.ChangesDir.Value
 	return MigrationPlan{
 		Copy: CopySet{Prefixes: []string{changes, cfg.ADRsDir.Value, SpecsDir}},
@@ -72,7 +119,9 @@ func PlanMigration(cfg config.Effective, docketYML []byte, sourceRevision string
 			BoardPath:  path.Join(changes, "BOARD.md"),
 			ReadmePath: path.Join(changes, "README.md"),
 		},
-		ConfigEdit: configEdit,
+		ConfigEdit:    configEdit,
+		ConfigBytes:   configBytes,
+		TestDiscovery: outcome,
 		SeedReceipt: Receipt{
 			Operation:      OpMigrateSeed,
 			SourceRevision: sourceRevision,
@@ -83,4 +132,25 @@ func PlanMigration(cfg config.Effective, docketYML []byte, sourceRevision string
 			SourceRevision: sourceRevision,
 		},
 	}, nil
+}
+
+// migrateTestOutcome applies the migrate preserve/copy rule then discovery. An
+// explicit, non-legacy finalize.test_command short-circuits discovery and is
+// carried into build.test_command (a legacy repository configured only finalize);
+// otherwise discovery runs and an ambiguous match is a typed refusal naming the
+// candidates and the remedy. The preserve/copy rule runs BEFORE discovery so a
+// configured legacy command is never re-probed or overridden.
+func migrateTestOutcome(cfg config.Effective, tree TestTree) (DiscoveryOutcome, error) {
+	finalizeCmd := cfg.Finalize.TestCommand.Value
+	if isConfiguredCommand(finalizeCmd) {
+		return DiscoveryOutcome{Kind: DiscoveryDetected, Command: finalizeCmd}, nil
+	}
+	outcome, err := DiscoverTests(tree, cfg.Build.TestCommand.Value, finalizeCmd)
+	if err != nil {
+		return DiscoveryOutcome{}, err
+	}
+	if outcome.Kind == DiscoveryAmbiguous {
+		return DiscoveryOutcome{}, &AmbiguousTestDiscoveryError{Candidates: outcome.Candidates}
+	}
+	return outcome, nil
 }

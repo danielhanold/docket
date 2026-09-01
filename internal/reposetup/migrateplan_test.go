@@ -1,6 +1,8 @@
 package reposetup
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/config"
@@ -28,7 +30,7 @@ func contains(ss []string, want string) bool {
 // ADR dir, and the specs dir — whole prefixes, and nothing else. Plans,
 // results, and source paths never appear.
 func TestPlanMigrationCopySet(t *testing.T) {
-	plan, err := PlanMigration(migrateCfg(), nil, "cafebabe", nil)
+	plan, err := PlanMigration(migrateCfg(), nil, mapTree{}, "cafebabe", nil)
 	if err != nil {
 		t.Fatalf("PlanMigration errored: %v", err)
 	}
@@ -56,7 +58,7 @@ func TestPlanMigrationCopySet(t *testing.T) {
 // the board, and the managed README under the configured changes dir — and
 // never a plans/results/source path.
 func TestPlanMigrationRemovalSet(t *testing.T) {
-	plan, err := PlanMigration(migrateCfg(), nil, "cafebabe", nil)
+	plan, err := PlanMigration(migrateCfg(), nil, mapTree{}, "cafebabe", nil)
 	if err != nil {
 		t.Fatalf("PlanMigration errored: %v", err)
 	}
@@ -81,7 +83,7 @@ func TestPlanMigrationRemovalSet(t *testing.T) {
 func TestPlanMigrationRemovalHonorsChangesDir(t *testing.T) {
 	cfg := migrateCfg()
 	cfg.ChangesDir = config.Value[string]{Value: "work/changes"}
-	plan, err := PlanMigration(cfg, nil, "cafebabe", nil)
+	plan, err := PlanMigration(cfg, nil, mapTree{}, "cafebabe", nil)
 	if err != nil {
 		t.Fatalf("PlanMigration errored: %v", err)
 	}
@@ -97,7 +99,7 @@ func TestPlanMigrationRemovalHonorsChangesDir(t *testing.T) {
 // source revision, the correct versioned operations, and the repair digest on
 // the seed.
 func TestPlanMigrationReceipts(t *testing.T) {
-	plan, err := PlanMigration(migrateCfg(), nil, "cafebabe", nil)
+	plan, err := PlanMigration(migrateCfg(), nil, mapTree{}, "cafebabe", nil)
 	if err != nil {
 		t.Fatalf("PlanMigration errored: %v", err)
 	}
@@ -132,7 +134,7 @@ func TestPlanMigrationRepairDigestFlows(t *testing.T) {
 	repairs := []RepairFinding{
 		{Path: "docs/changes/active/0001.md", Field: "title", Code: RepairQuoteScalar, Repairable: true, Patch: []byte("patch")},
 	}
-	plan, err := PlanMigration(migrateCfg(), nil, "cafebabe", repairs)
+	plan, err := PlanMigration(migrateCfg(), nil, mapTree{}, "cafebabe", repairs)
 	if err != nil {
 		t.Fatalf("PlanMigration errored: %v", err)
 	}
@@ -152,7 +154,7 @@ func TestPlanMigrationRepairDigestFlows(t *testing.T) {
 func TestPlanMigrationConfigEdit(t *testing.T) {
 	// Legacy key present in the committed .docket.yml bytes.
 	present := []byte("metadata_branch: main\nintegration_branch: main\n")
-	plan, err := PlanMigration(migrateCfg(), present, "cafebabe", nil)
+	plan, err := PlanMigration(migrateCfg(), present, mapTree{}, "cafebabe", nil)
 	if err != nil {
 		t.Fatalf("PlanMigration errored: %v", err)
 	}
@@ -162,7 +164,7 @@ func TestPlanMigrationConfigEdit(t *testing.T) {
 
 	// Committed bytes without the key → no edit.
 	absent := []byte("integration_branch: main\n")
-	planAbsent, err := PlanMigration(migrateCfg(), absent, "cafebabe", nil)
+	planAbsent, err := PlanMigration(migrateCfg(), absent, mapTree{}, "cafebabe", nil)
 	if err != nil {
 		t.Fatalf("PlanMigration errored: %v", err)
 	}
@@ -173,7 +175,7 @@ func TestPlanMigrationConfigEdit(t *testing.T) {
 	// No committed .docket.yml at all (nil bytes) — the global-layer-only case:
 	// a machine-layer declaration is invisible to the committed bytes and
 	// migration claims no authority over machine files, so no edit is planned.
-	planGlobal, err := PlanMigration(migrateCfg(), nil, "cafebabe", nil)
+	planGlobal, err := PlanMigration(migrateCfg(), nil, mapTree{}, "cafebabe", nil)
 	if err != nil {
 		t.Fatalf("PlanMigration errored: %v", err)
 	}
@@ -183,15 +185,110 @@ func TestPlanMigrationConfigEdit(t *testing.T) {
 
 	// Bytes the editor refuses to edit fail the plan rather than silently
 	// skipping the edit.
-	if _, err := PlanMigration(migrateCfg(), []byte("{metadata_branch: main, a: b}"), "cafebabe", nil); err == nil {
+	if _, err := PlanMigration(migrateCfg(), []byte("{metadata_branch: main, a: b}"), mapTree{}, "cafebabe", nil); err == nil {
 		t.Error("PlanMigration accepted bytes the config editor refuses to edit")
+	}
+}
+
+// TestPlanMigrationPreserveCopiesFinalizeCommandIntoBuild proves the migrate
+// preserve/copy rule: an explicit legacy finalize.test_command is carried into
+// build.test_command in the generated ConfigBytes (discovery never runs), and
+// finalize's own command is left intact.
+func TestPlanMigrationPreserveCopiesFinalizeCommandIntoBuild(t *testing.T) {
+	cfg := migrateCfg()
+	cfg.Finalize.TestCommand = config.Value[string]{Value: "make check"}
+	committed := []byte("finalize:\n  test_command: make check\n")
+	// panicTree proves the preserve/copy rule short-circuits discovery: an
+	// explicit finalize command is copied without probing the source tree.
+	plan, err := PlanMigration(cfg, committed, panicTree{}, "cafebabe", nil)
+	if err != nil {
+		t.Fatalf("PlanMigration errored: %v", err)
+	}
+	got := string(plan.ConfigBytes)
+	if !strings.Contains(got, "build:") || !strings.Contains(got, "test_command: make check") {
+		t.Errorf("ConfigBytes must copy finalize.test_command into build:\n%s", got)
+	}
+	// build.test_command is make check too.
+	if strings.Count(got, "test_command: make check") != 2 {
+		t.Errorf("both build and finalize must carry `make check`:\n%s", got)
+	}
+	if !strings.Contains(got, "finalize:") {
+		t.Errorf("finalize block missing from ConfigBytes:\n%s", got)
+	}
+}
+
+// TestPlanMigrationAutoRunsDiscovery proves a legacy finalize.test_command of the
+// literal `auto` is treated as unconfigured, so discovery runs over the source
+// tree and a detected suite is written under both keys.
+func TestPlanMigrationAutoRunsDiscovery(t *testing.T) {
+	cfg := migrateCfg()
+	cfg.Finalize.TestCommand = config.Value[string]{Value: "auto"}
+	tree := mapTree{"go.mod": "module x\n", "x_test.go": ""}
+	plan, err := PlanMigration(cfg, nil, tree, "cafebabe", nil)
+	if err != nil {
+		t.Fatalf("PlanMigration errored: %v", err)
+	}
+	if plan.TestDiscovery.Kind != DiscoveryDetected {
+		t.Fatalf("TestDiscovery.Kind = %q, want detected (auto is unconfigured)", plan.TestDiscovery.Kind)
+	}
+	if strings.Count(string(plan.ConfigBytes), "test_command: go test ./...") != 2 {
+		t.Errorf("ConfigBytes must set the detected command on both keys:\n%s", plan.ConfigBytes)
+	}
+}
+
+// TestPlanMigrationAmbiguousRefusesWithNoPlan proves an ambiguous discovery
+// during migrate returns a typed AmbiguousTestDiscoveryError naming the
+// candidates and the remedy, and NO plan — so the app layer refuses before any
+// remote mutation.
+func TestPlanMigrationAmbiguousRefusesWithNoPlan(t *testing.T) {
+	tree := mapTree{"go.mod": "module x\n", "x_test.go": "", "Cargo.toml": "[package]\n"}
+	plan, err := PlanMigration(migrateCfg(), nil, tree, "cafebabe", nil)
+	if err == nil {
+		t.Fatal("ambiguous discovery must fail the plan")
+	}
+	var amb *AmbiguousTestDiscoveryError
+	if !errors.As(err, &amb) {
+		t.Fatalf("error = %T (%v), want *AmbiguousTestDiscoveryError", err, err)
+	}
+	if len(amb.Candidates) != 2 {
+		t.Errorf("typed error must name both candidates, got %+v", amb.Candidates)
+	}
+	if !strings.Contains(amb.Error(), "docket repository configure-tests") {
+		t.Errorf("remedy %q must name `docket repository configure-tests`", amb.Error())
+	}
+	// No plan is composed: ConfigBytes and the receipts are the zero value.
+	if plan.ConfigBytes != nil || plan.SeedReceipt.Operation != "" {
+		t.Errorf("ambiguous migrate must return no plan, got %+v", plan)
+	}
+}
+
+// TestPlanMigrationConfigBytesFoldsMetadataRemoval proves the generated
+// ConfigBytes fold BOTH the legacy metadata_branch removal and the test policy
+// into one authoritative copy: the metadata_branch key is gone and the test
+// policy is present, byte-preserving the surrounding comments/keys.
+func TestPlanMigrationConfigBytesFoldsMetadataRemoval(t *testing.T) {
+	committed := []byte("# legacy config\nmetadata_branch: docket\nintegration_branch: main\n")
+	plan, err := PlanMigration(migrateCfg(), committed, mapTree{}, "cafebabe", nil)
+	if err != nil {
+		t.Fatalf("PlanMigration errored: %v", err)
+	}
+	got := string(plan.ConfigBytes)
+	if strings.Contains(got, "metadata_branch") {
+		t.Errorf("ConfigBytes must drop the legacy metadata_branch key:\n%s", got)
+	}
+	if !strings.Contains(got, "integration_branch: main") || !strings.Contains(got, "# legacy config") {
+		t.Errorf("ConfigBytes must byte-preserve the surrounding keys/comments:\n%s", got)
+	}
+	// No suite in the empty tree → both gates off.
+	if strings.Count(got, `gate: "off"`) != 2 {
+		t.Errorf("ConfigBytes must declare both gates off for a no-suite tree:\n%s", got)
 	}
 }
 
 // TestPlanMigrationRequiresSourceRevision proves an empty pinned revision is
 // refused — the planner never fabricates a source.
 func TestPlanMigrationRequiresSourceRevision(t *testing.T) {
-	if _, err := PlanMigration(migrateCfg(), nil, "", nil); err == nil {
+	if _, err := PlanMigration(migrateCfg(), nil, mapTree{}, "", nil); err == nil {
 		t.Error("PlanMigration accepted an empty source revision")
 	}
 }
