@@ -6,11 +6,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
 
@@ -455,6 +457,58 @@ func TestIntegrationRepoMigrationPrimaryFastForwardsHealthy(t *testing.T) {
 	if strings.Contains(res.HumanText(), "pending local sync:") {
 		t.Errorf("healthy human result carries an empty pending line: %q", res.HumanText())
 	}
+}
+
+// TestIntegrationRepoMigrationPrimarySyncRefusesUnprovenWorktree proves a
+// primary fast-forward requires successful registration discovery: a failed
+// list or a list without the primary retains the established manual remedy.
+func TestIntegrationRepoMigrationPrimarySyncRefusesUnprovenWorktree(t *testing.T) {
+	r := newInitRepo(t, legacyDocketYML, cleanLegacyFiles())
+	repo := r.discoverRepo(t, newGitClient(t))
+	source := gitcli.ObjectID(runGit(t, r.invocation, "rev-parse", "HEAD"))
+	sc := setupContext{repo: repo, integrationBranch: "main"}
+	want := fmt.Sprintf("fast-forward your primary worktree to the migrated integration branch: `git -C %s merge --ff-only origin/main`", repo.PrimaryWorktree)
+
+	for _, tc := range []struct {
+		name string
+		body string
+	}{
+		{name: "list failure", body: "exit 1"},
+		{name: "primary absent", body: "exit 0"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			git := newPrimarySyncFaultGitClient(t, tc.body)
+			if got := migratePrimarySyncRemedy(context.Background(), git, sc, source, source); got != want {
+				t.Fatalf("migratePrimarySyncRemedy = %q, want exact manual remedy %q", got, want)
+			}
+		})
+	}
+}
+
+// newPrimarySyncFaultGitClient intercepts only worktree discovery. A successful
+// empty response is valid porcelain with no primary; all other operations use
+// the real Git executable, so an unintended fast-forward succeeds and reddens
+// TestIntegrationRepoMigrationPrimarySyncRefusesUnprovenWorktree.
+func newPrimarySyncFaultGitClient(t *testing.T, listResponse string) *gitcli.Client {
+	t.Helper()
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrapper := filepath.Join(t.TempDir(), "git")
+	script := "#!/bin/sh\n" +
+		"if [ \"$1\" = \"worktree\" ] && [ \"$2\" = \"list\" ]; then\n" +
+		"  " + listResponse + "\n" +
+		"fi\n" +
+		fmt.Sprintf("exec %q \"$@\"\n", realGit)
+	if err := os.WriteFile(wrapper, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	client, err := gitcli.NewClient(gitcli.WithExecutable(wrapper))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return client
 }
 
 // TestIntegrationRepoMigrationPrimaryDirtyAfterPublish proves a dirty primary
