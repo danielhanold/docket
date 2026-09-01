@@ -257,6 +257,8 @@ func EvidenceVerify(req EvidenceVerifyRequest) EvidenceOpResult {
 	switch verdict {
 	case evidence.VerdictVerified:
 		return base
+	case evidence.VerdictSkipped:
+		return base
 	case evidence.VerdictStale:
 		base.Result = ResultInvalidState
 		base.Reason = ReasonEvidenceStale
