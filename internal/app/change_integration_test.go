@@ -834,15 +834,15 @@ func TestIntegrationChangeEvidenceRecordRefusals(t *testing.T) {
 	}
 }
 
-// TestEvidenceRecordUnconfiguredGate: a passed run but no resolved
-// finalize.test_command has no observed gate command to record, so the
-// operation refuses (unsupported-config) rather than fabricate an empty command.
+// TestEvidenceRecordUnconfiguredGate: a local build gate with no resolved
+// build.test_command has no gate command to run or record, so the operation
+// refuses (unsupported-config) rather than fabricate an empty command.
 func TestIntegrationChangeEvidenceRecordUnconfiguredGate(t *testing.T) {
 	svc := &fakeWorkspaceService{
 		inspection: workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(evidenceHead)},
 	}
 	reader := &fakeReader{
-		pin:    mainPin(t), // built-in config: test_command resolves to unset ("")
+		pin:    mainPin(t), // built-in config: build.gate local, build.test_command unset ("")
 		corpus: []StatusBlob{inProgressChangeBlob(7, "widget", "v7", "")},
 	}
 	deps := workspaceDepsFor(t, reader)

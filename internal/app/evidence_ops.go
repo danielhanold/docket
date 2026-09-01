@@ -21,9 +21,14 @@ import (
 //     layer cannot read or parse — is its own typed failure, NEVER folded into
 //     the clean "vanished" absence (learning probe-error-is-not-clean-absence).
 //   - The recorded command is the OBSERVED gate command: the resolved
-//     finalize.test_command, read from authoritative config. There is no
+//     build.test_command, read from authoritative config. There is no
 //     agent-supplied command and no agent-supplied `passed` boolean in the
 //     request shapes — the terminal record and the config are the only inputs.
+//
+// EvidenceRecord is BUILD-owned (change 0374): it "validates against build
+// configuration" and "no longer re-resolves finalize.test_command". An explicit
+// build.gate: off mints truthful skipped evidence with no run observed; a local
+// build gate with no build.test_command is a typed setup refusal.
 
 // Operation names the two evidence operations record in their envelopes.
 const (
@@ -53,9 +58,12 @@ const (
 	// ReasonEvidenceHeadMismatch: the run passed, but the request head is not the
 	// current feature head, so recording it would certify the wrong commit.
 	ReasonEvidenceHeadMismatch = "head-mismatch"
-	// ReasonEvidenceUnconfiguredGate: no resolved finalize.test_command, so there
-	// is no observed gate command to record.
+	// ReasonEvidenceUnconfiguredGate: build.gate is local but build.test_command
+	// is unconfigured, so there is no gate command to run or record.
 	ReasonEvidenceUnconfiguredGate = "unconfigured-gate-command"
+	// ReasonEvidenceMissingRunDir: build.gate is local but the request named no
+	// run dir to observe. Only the local-gate path needs one; gate-off skips it.
+	ReasonEvidenceMissingRunDir = "missing-run-dir"
 	// ReasonEvidenceInvalidRecord: NewRecord rejected the assembled command/head
 	// — a defensive internal guard, not a caller-reachable path.
 	ReasonEvidenceInvalidRecord = "invalid-record"
@@ -106,6 +114,10 @@ func (r EvidenceOpResult) HumanText() string {
 		if r.Verdict != "" {
 			return r.Operation + ": " + r.Verdict + " (head " + shortCommit(r.Head) + ")"
 		}
+		if r.Command == "" {
+			// A skipped record carries no command; name its skip reason instead.
+			return r.Operation + ": recorded " + r.Outcome + " at " + shortCommit(r.Head) + " (" + r.Reason + ")"
+		}
 		return r.Operation + ": recorded " + r.Outcome + " at " + shortCommit(r.Head) + " (" + r.Command + ")"
 	}
 	if r.Verdict != "" {
@@ -122,13 +134,59 @@ func newEvidenceRefusal(opKey string, result Result, reason, message string, id 
 	return EvidenceOpResult{Envelope: NewEnvelope(opKey, result), ID: id, Reason: reason, Message: message}
 }
 
-// EvidenceRecord observes a gate run, requires a `passed` terminal at the
-// current feature head, and returns the immutable typed record plus its
-// canonical rendered block. It writes no second evidence store: the block
-// travels as bytes and becomes the durable record only after `pr publish`.
+// EvidenceRecord resolves the BUILD gate policy, then either mints truthful
+// skipped evidence (build.gate: off) or, for a local gate, requires a `passed`
+// terminal at the current feature head and records build.test_command. It
+// returns the immutable typed record plus its canonical rendered block. It
+// writes no second evidence store: the block travels as bytes and becomes the
+// durable record only after `pr publish`.
 func EvidenceRecord(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir string, req EvidenceRecordRequest) EvidenceOpResult {
-	// (1) Observe the run first — cheapest, and it gates everything downstream.
-	// A probe error is a distinct typed failure, never a clean absence.
+	// (1) Pin authoritative config FIRST — the build gate policy decides
+	// everything downstream, including whether a run is observed at all.
+	pin, err := deps.Reader.PinContext(ctx, repoDir)
+	if err != nil {
+		result, r := classifyStatusError(ctx, err)
+		return newEvidenceRefusal(OperationEvidenceRecord, result, r, err.Error(), req.ID)
+	}
+	build := pin.Config.Effective.Build
+
+	// (2) build.gate: off — an explicit no-gate policy. Mint truthful skipped
+	// evidence at the verified current feature head; observe no run.
+	if build.Gate.Value == "off" {
+		if refusal, ok := verifyFeatureHead(ctx, deps, wdeps, repoDir, req); !ok {
+			return refusal
+		}
+		rec, err := evidence.NewSkippedRecord(req.Head, deps.Clock.Now())
+		if err != nil {
+			return newEvidenceRefusal(OperationEvidenceRecord, ResultInvalidInput, ReasonEvidenceInvalidRecord, err.Error(), req.ID)
+		}
+		return EvidenceOpResult{
+			Envelope: NewEnvelope(OperationEvidenceRecord, ResultApplied),
+			ID:       req.ID,
+			Head:     rec.Head,
+			RanAt:    rec.RanAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+			Outcome:  string(rec.Result),
+			Reason:   rec.Reason,
+			Block:    evidence.Render(rec),
+		}
+	}
+
+	// (3) A local build gate records build.test_command — read from
+	// authoritative config, never the request, never finalize.test_command.
+	command := build.TestCommand.Value
+	if command == "" {
+		return newEvidenceRefusal(OperationEvidenceRecord, ResultUnsupportedConfig, ReasonEvidenceUnconfiguredGate,
+			"build.gate is local but build.test_command is unconfigured; run `docket repository configure-tests` and review the pending edit", req.ID)
+	}
+
+	// (4) A local gate must observe a real run dir.
+	if req.RunDir == "" {
+		return newEvidenceRefusal(OperationEvidenceRecord, ResultInvalidInput, ReasonEvidenceMissingRunDir,
+			"build.gate is local; --run must name the gate run directory to observe", req.ID)
+	}
+
+	// (5) Observe the run. A probe error is a distinct typed failure, never a
+	// clean absence (probe-error-is-not-clean-absence).
 	svc, res, reason := gateService()
 	if svc == nil {
 		return newEvidenceRefusal(OperationEvidenceRecord, res, reason, "cannot build the process service", req.ID)
@@ -143,33 +201,13 @@ func EvidenceRecord(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 			"the gate run is "+string(obs.State)+", not passed; no evidence is created", req.ID)
 	}
 
-	// (2) The recorded command is the OBSERVED gate command — the resolved
-	// finalize.test_command — read from authoritative config, never the request.
-	pin, err := deps.Reader.PinContext(ctx, repoDir)
-	if err != nil {
-		result, r := classifyStatusError(ctx, err)
-		return newEvidenceRefusal(OperationEvidenceRecord, result, r, err.Error(), req.ID)
-	}
-	command := pin.Config.Effective.Finalize.TestCommand.Value
-	if command == "" {
-		return newEvidenceRefusal(OperationEvidenceRecord, ResultUnsupportedConfig, ReasonEvidenceUnconfiguredGate,
-			"no resolved finalize.test_command; there is no observed gate command to record", req.ID)
+	// (6) The request head must be the CURRENT feature head — the same predicate
+	// the gate-off path enforces (shared: verifyFeatureHead).
+	if refusal, ok := verifyFeatureHead(ctx, deps, wdeps, repoDir, req); !ok {
+		return refusal
 	}
 
-	// (3) The request head must be the CURRENT feature head. The landed
-	// workspace service is the authority; a mismatch means a fix moved HEAD
-	// since the gate, so the run no longer certifies this commit.
-	insp := WorkspaceInspect(ctx, deps, wdeps, repoDir, WorkspaceIDRequest{ID: req.ID})
-	if insp.Result != ResultApplied {
-		// Propagate the workspace refusal verbatim under the evidence operation.
-		return newEvidenceRefusal(OperationEvidenceRecord, insp.Result, insp.Reason, insp.Message, req.ID)
-	}
-	if insp.Head != req.Head {
-		return newEvidenceRefusal(OperationEvidenceRecord, ResultInvalidState, ReasonEvidenceHeadMismatch,
-			"the request head is not the current feature head; the run no longer certifies this commit", req.ID)
-	}
-
-	// (4) Build the immutable record and render its canonical block.
+	// (7) Build the immutable green record and render its canonical block.
 	rec, err := evidence.NewRecord(command, req.Head, deps.Clock.Now())
 	if err != nil {
 		return newEvidenceRefusal(OperationEvidenceRecord, ResultInvalidInput, ReasonEvidenceInvalidRecord, err.Error(), req.ID)
@@ -183,6 +221,26 @@ func EvidenceRecord(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 		Outcome:  string(rec.Result),
 		Block:    evidence.Render(rec),
 	}
+}
+
+// verifyFeatureHead confirms req.Head is the CURRENT feature head via the landed
+// workspace service — the shared precondition of both the green record path and
+// the gate-off skipped path (change 0374). A mismatch means a fix moved HEAD
+// since the gate, so the run no longer certifies this commit. Extracting it
+// keeps the two callers from duplicating the predicate
+// (learning duplicated-gate-copies-the-whole-predicate). It returns a typed
+// refusal and false when the workspace cannot be inspected or the head moved.
+func verifyFeatureHead(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, repoDir string, req EvidenceRecordRequest) (EvidenceOpResult, bool) {
+	insp := WorkspaceInspect(ctx, deps, wdeps, repoDir, WorkspaceIDRequest{ID: req.ID})
+	if insp.Result != ResultApplied {
+		// Propagate the workspace refusal verbatim under the evidence operation.
+		return newEvidenceRefusal(OperationEvidenceRecord, insp.Result, insp.Reason, insp.Message, req.ID), false
+	}
+	if insp.Head != req.Head {
+		return newEvidenceRefusal(OperationEvidenceRecord, ResultInvalidState, ReasonEvidenceHeadMismatch,
+			"the request head is not the current feature head; the run no longer certifies this commit", req.ID), false
+	}
+	return EvidenceOpResult{}, true
 }
 
 // EvidenceVerify reparses the supplied evidence bytes and checks them against an
