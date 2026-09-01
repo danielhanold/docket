@@ -110,13 +110,17 @@ fixture repo and records the observed outcome.
 
 ## Two invocation paths — one contract
 
-Docket supports exactly two ways to start its work under Codex, and both are first-class — neither
-is a workaround, and neither requires flipping a workflow's `skills:` binding to `auto`:
+Docket supports two parent-facing request shapes under Codex. The managed dispatch contract selects
+the launch mechanism from the role's inventory posture; neither shape requires flipping a workflow's
+`skills:` binding to `auto`:
 
 1. **Prose, routed by the dispatch block.** A plain request ("refresh the docket board") is routed
-   by the repo's managed `AGENTS.md` dispatch block to the registered same-name `docket-*` agent.
-2. **Direct invocation.** `@docket-status` (or any `@docket-…` agent) starts that same registered
-   wrapper explicitly.
+   by the repo's managed `AGENTS.md` dispatch block. Ordinary roles use registered-agent dispatch;
+   a role whose source declares `launch: root-coordinator` is entered with `docket agent enter`,
+   preserving the caller's request and execution context.
+2. **Direct invocation.** `@docket-status` (or another ordinary-child role) starts that registered
+   wrapper explicitly. A `root-coordinator` marker is a hard boundary: invoke its workflow through
+   the managed prose route or call `docket agent enter` directly, never `@` child launch.
 
 Either way, the wrapper you land in may need to dispatch further docket agents — planning, build,
 review, grooming's critic, finalize's resolver and repair. Every generated Codex wrapper carries
@@ -127,17 +131,14 @@ conclude from such an inventory that dispatch is unavailable — only a failed d
 explicit policy denial establishes that. The harness-neutral statement of this rule lives in the
 docket-convention skill's *Dispatch-capability resolution* section.
 
-### The proven nested-launch mechanics (codex-cli 0.151.0, `multi_agent = true`)
+### The proven nested-launch mechanics
 
-On this build, **both entry paths above reach a coordinator-capable session with the wrappers
-exactly as generated** — no wrapper-TOML capability key, no CLI flag, no config override, and no
-role-entry operation is required. Every claim in this passage is scoped to **codex-cli 0.151.0**
-with `multi_agent = true`, and traces to a fresh-process fixture run recorded in
-[`fixtures/nested-launch/decision.md`](fixtures/nested-launch/decision.md) and
-[`fixtures/nested-launch/certification.md`](fixtures/nested-launch/certification.md); on any other
-version or configuration it must be re-proven, never assumed.
+Codex's nested launch mechanics differ by where the registered role starts. A host integration is
+not required to expose collaboration controls to every spawned child, so Docket records the
+required launch posture in the agent inventory instead of inferring capability from a wrapper file
+or Codex version.
 
-- **From a live session (either entry path):** the machine-neutral dispatch instruction docket
+- **Ordinary child roles:** the machine-neutral dispatch instruction docket
   already renders — start the registered agent by name — is sufficient. In every passing run the
   session realized it as the native collaboration tool call, verbatim:
 
@@ -147,14 +148,15 @@ version or configuration it must be re-proven, never assumed.
   ```
 
   `agent_type` is the registered agent's `name` from `~/.codex/agents/<name>.toml`. The same call
-  works from the root thread **and** from inside an already-spawned registered-agent thread (a
-  depth-1 → depth-2 chain is proven), so a coordinator wrapper can itself launch its named children.
+  can work from a root thread and from a child when that host grants collaboration controls. The
+  nested-launch fixture records that behavior for codex-cli 0.151.0; it is evidence about that
+  host/version combination, not Docket's authorization contract.
 
-- **From the app-server (the registered-agent production entry):** the v2 protocol —
+- **Coordinator roles:** `docket agent enter` uses the app-server v2 protocol —
   `initialize` → `thread/start` (seeding the thread with the registered agent's
   `developerInstructions`; `ThreadStartParams` carries no agent-name field, so the seeding is the
-  client-side mechanism) → `turn/start`. Driven non-interactively over `codex app-server` stdio,
-  the seeded coordinator thread spawned its named child, which spawned the named grandchild.
+  client-side mechanism) → `turn/start`. The resulting role is a root thread, so its required
+  named-agent dispatch remains available without granting delegation to every child role.
 
 The spawned thread runs **AS the registered definition**: its `developer_instructions` arrive
 verbatim as the thread's developer message (so the wrapper's skill preload and recursion guard are
@@ -163,6 +165,21 @@ thread — even under `fork_turns:"all"`. Only what the fixture actually passed 
 `codex exec --agent`, `codex exec run-agent`, `codex remote-control pair`, and the
 `codex app-server proxy` control socket were **attempted and rejected** on this build (see
 `decision.md` §"Rejected candidates") and are **not** supported launch paths.
+
+The command is closed and foreground-only:
+
+```
+docket agent enter \
+  --role docket-implement-next \
+  --request request.txt \
+  --cwd /absolute/repository/worktree \
+  --approval-policy never \
+  --sandbox workspace-write
+```
+
+It accepts only inventory roles marked `root-coordinator`, maps the same typed role contract used
+by TOML registration (instructions, skill preload, model, and effort), waits for the root turn's
+terminal event rather than a child's event, and prints the root role's final message.
 
 ## Restart after (re)generating
 

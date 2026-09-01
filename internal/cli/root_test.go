@@ -599,10 +599,10 @@ func captureTree(t *testing.T) *cobra.Command {
 }
 
 // TestAssetIndependentSetExact runs the correspondence both ways: every
-// command in the tree is registered as asset-independent (nothing ships a
-// gated command yet), and every registered name is a command that exists. A
-// one-way check would let a stale entry hide a command that quietly became
-// gated, or let a new command be gated by forgetfulness rather than by choice.
+// command in the tree is explicitly classified as asset-independent or
+// asset-dependent, and every registered name is a command that exists. A
+// one-way check would let a stale entry hide a command that quietly changed
+// classification, or let a new command be gated by forgetfulness.
 func TestAssetIndependentSetExact(t *testing.T) {
 	root := captureTree(t)
 
@@ -633,13 +633,21 @@ func TestAssetIndependentSetExact(t *testing.T) {
 	walk(root)
 
 	for key := range inTree {
-		if !assetIndependent[key] {
-			t.Errorf("command %q is not in the asset-independent set; register it or gate it deliberately", key)
+		if !assetIndependent[key] && !assetDependent[key] {
+			t.Errorf("command %q has no explicit asset-dependence classification", key)
 		}
 	}
 	for key := range assetIndependent {
 		if !inTree[key] {
 			t.Errorf("asset-independent set names %q, which is no command in the tree", key)
+		}
+		if assetDependent[key] {
+			t.Errorf("command %q is classified as both asset-independent and asset-dependent", key)
+		}
+	}
+	for key := range assetDependent {
+		if !inTree[key] {
+			t.Errorf("asset-dependent set names %q, which is no command in the tree", key)
 		}
 	}
 }

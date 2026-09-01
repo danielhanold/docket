@@ -17,7 +17,7 @@
 > <name>` scopes the run. The Go install is the wrapper generator and owns the transaction.
 > Restart the harness process after any run that changed a wrapper or parent surface — read at process start.
 
-Contents: [Layered config](#layered-config) · [Harness-first agents: blocks](#harness-first-agents-blocks) · [Generation scope: agent_harnesses](#generation-scope-agent_harnesses) · [Harness-portable model IDs](#harness-portable-model-ids) · [Always-full-set generation + the Cursor dispatch rule](#always-full-set-generation--the-cursor-dispatch-rule) · [Wrapper generation and the drift-check gate](#wrapper-generation-and-the-drift-check-gate)
+Contents: [Layered config](#layered-config) · [Harness-first agents: blocks](#harness-first-agents-blocks) · [Generation scope: agent_harnesses](#generation-scope-agent_harnesses) · [Harness-portable model IDs](#harness-portable-model-ids) · [Launch posture](#launch-posture) · [Always-full-set generation + the Cursor dispatch rule](#always-full-set-generation--the-cursor-dispatch-rule) · [Wrapper generation and the drift-check gate](#wrapper-generation-and-the-drift-check-gate)
 
 ## Layered config
 
@@ -119,6 +119,22 @@ unverified, and `docket install check` reports the same token as a non-failing a
 Cursor's frontmatter is `name`, `description`, `model`, `readonly`, `is_background` — no standalone `effort:` key and
 no `skills:` preload; docket emits the first three and leaves the rest at Cursor's defaults, which suit every docket
 agent. Under `model: inherit` a resolved effort has nowhere to attach and is dropped with a generation-time WARN.
+
+## Launch posture
+
+Agent-source frontmatter may declare `launch: root-coordinator`; absence means the closed default
+`child`. The posture describes a role's required entry capability, not a model setting and not a
+request to broaden every child's authority. Mark a role `root-coordinator` when its charter owns
+multi-agent sequencing and therefore requires native collaboration controls at entry. The inventory
+parser rejects unknown posture values, and correspondence tests derive the marked set from the
+role's same-name skill contract rather than maintaining a filename allowlist.
+
+Codex realizes `root-coordinator` through `docket agent enter`: the command resolves the same typed
+role contract used to generate its TOML registration, launches `codex app-server --stdio` directly,
+starts a root thread with the caller's absolute cwd, approval policy, and sandbox, and supplies the
+unchanged request as the root turn. It never falls back to `codex exec`, another harness, a shell
+relay, or an ordinary child launch. Other harnesses may ignore the posture until they implement a
+corresponding native entry path; the source remains harness-neutral.
 
 ## Always-full-set generation + the Cursor dispatch rule
 
