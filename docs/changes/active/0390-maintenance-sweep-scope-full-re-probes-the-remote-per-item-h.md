@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: 'critical'
 type: 'fix'
 created: '2026-08-31'
-updated: '2026-08-31'
+updated: '2026-09-01'
 depends_on: []
 stacked_on:
 related: [389]
@@ -22,7 +22,7 @@ branch: 'fix/maintenance-sweep-scope-full-re-probes-the-remote-per-item-h'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-31T21:21:54Z'
+claimed_at: '2026-09-01T00:17:57Z'
 ---
 
 ## Artifacts
