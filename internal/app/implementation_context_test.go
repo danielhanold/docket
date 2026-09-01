@@ -124,6 +124,51 @@ func TestContextImplementationSelectsByPolicy(t *testing.T) {
 	}
 }
 
+// TestContextImplementationWorkflowExposesBuildPolicy proves the implementation
+// context reports the BUILD role's own gate policy (build_gate/build_test_command
+// from eff.Build.*) and no longer carries a bare generic test_command key. The
+// discriminating fixture sets divergent build/finalize commands, so a workflow
+// reading the wrong pair cannot pass (change 0374 Touch point 3).
+func TestContextImplementationWorkflowExposesBuildPolicy(t *testing.T) {
+	pin := docketPin(t)
+	pin.Config.Effective.Build.Gate.Value = "local"
+	pin.Config.Effective.Build.TestCommand.Value = "go test ./build-only"
+	pin.Config.Effective.Finalize.TestCommand.Value = "make finalize-only"
+
+	specPath := "docs/changes/specs/spec-alpha.md"
+	corpus := []StatusBlob{
+		changeBlob(11, "alpha", "feat", "high", "spec: "+specPath+"\n"),
+	}
+	fake := &fakeReader{
+		pin:    pin,
+		corpus: corpus,
+		artifactData: map[string]StatusArtifact{
+			sourceMetadata + "|" + specPath: {Found: true, Version: "sa", Data: []byte("spec a\n")},
+		},
+	}
+
+	got := ContextImplementation(context.Background(), contextDeps(fake), "", ImplementationContextRequest{})
+	if got.Result != ResultApplied || got.Context == nil {
+		t.Fatalf("result=%q reason=%q message=%q", got.Result, got.Reason, got.Message)
+	}
+	w := got.Context.Workflow
+	if w.BuildGate != "local" {
+		t.Errorf("workflow.BuildGate = %q, want local", w.BuildGate)
+	}
+	if w.BuildTestCommand != "go test ./build-only" {
+		t.Errorf("workflow.BuildTestCommand = %q; the workflow must expose build.test_command, not finalize's", w.BuildTestCommand)
+	}
+	// The generic test_command key is retired: the workflow block carries the
+	// ownership-named build_gate/build_test_command keys and no bare test_command.
+	wire, _ := json.Marshal(w)
+	if !bytes.Contains(wire, []byte(`"build_gate"`)) || !bytes.Contains(wire, []byte(`"build_test_command"`)) {
+		t.Errorf("workflow JSON must carry build_gate/build_test_command: %s", wire)
+	}
+	if bytes.Contains(wire, []byte(`"test_command"`)) {
+		t.Errorf("workflow JSON must not carry a bare test_command key: %s", wire)
+	}
+}
+
 // TestContextImplementationExplicitID: an explicit id is returned even when it
 // is not first in the selection queue (attributed-retry support).
 func TestContextImplementationExplicitID(t *testing.T) {

@@ -231,10 +231,14 @@ type FinalizeCandidateReport struct {
 // reports: refs and the resolved gate/suite/approval/reclaim policy. Go v1
 // supports one metadata topology, so no mode-shaped field appears (change 0363).
 type FinalizePolicy struct {
-	IntegrationBranch    string `json:"integration_branch"`
-	Remote               string `json:"remote"`
-	Gate                 string `json:"gate"`
-	TestCommand          string `json:"test_command,omitempty"`
+	IntegrationBranch string `json:"integration_branch"`
+	Remote            string `json:"remote"`
+	// FinalizeGate/FinalizeTestCommand are finalize's OWN gate policy (change
+	// 0374): finalize reads finalize.gate/finalize.test_command, independent of
+	// the build role's pair. The generic gate/test_command keys are retired
+	// (spec Touch point 3).
+	FinalizeGate         string `json:"finalize_gate"`
+	FinalizeTestCommand  string `json:"finalize_test_command,omitempty"`
 	RequirePRApproval    bool   `json:"require_pr_approval"`
 	ReclaimAuto          bool   `json:"reclaim_auto"`
 	ReclaimLeaseTTLHours int    `json:"reclaim_lease_ttl_hours"`
@@ -539,8 +543,8 @@ func finalizePolicy(pin StatusPin) FinalizePolicy {
 	return FinalizePolicy{
 		IntegrationBranch:    pin.IntegrationBranch,
 		Remote:               string(originRemote),
-		Gate:                 eff.Finalize.Gate.Value,
-		TestCommand:          eff.Finalize.TestCommand.Value,
+		FinalizeGate:         eff.Finalize.Gate.Value,
+		FinalizeTestCommand:  eff.Finalize.TestCommand.Value,
 		RequirePRApproval:    eff.Finalize.RequirePRApproval.Value,
 		ReclaimAuto:          eff.Reclaim.Auto.Value,
 		ReclaimLeaseTTLHours: eff.Reclaim.LeaseTTL.Value,

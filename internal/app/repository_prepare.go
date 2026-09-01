@@ -61,6 +61,8 @@ import (
 //   - resolved changes / ADR / results dirs   → PrepareContext.{ChangesDir,AdrsDir,ResultsDir}
 //   - supported finalize/test configuration   → PrepareContext.Finalize (mirrors the
 //     supported config.Effective finalize fields)
+//   - supported build gate configuration       → PrepareContext.Build (mirrors the
+//     supported config.Effective build fields; independent of finalize — change 0374)
 //   - resolved workflow skill bindings        → PrepareContext.Skills
 //   - configuration diagnostics               → PrepareContext.ConfigDiagnostics
 
@@ -91,6 +93,17 @@ type PrepareFinalize struct {
 	Gate              string `json:"gate"`
 	TestCommand       string `json:"test_command"`
 	RequirePRApproval bool   `json:"require_pr_approval"`
+}
+
+// PrepareBuild mirrors exactly the supported config.Effective build fields
+// (change 0374) — the build role's OWN gate policy, resolved independently of
+// finalize. Like PrepareFinalize, it enumerates its leaves so a future build
+// field is a deliberate addition here, not a generic passthrough. The leaves
+// keep their bare names (gate/test_command) because the ownership is carried by
+// the enclosing `build` block.
+type PrepareBuild struct {
+	Gate        string `json:"gate"`
+	TestCommand string `json:"test_command"`
 }
 
 // PrepareSkills carries the resolved workflow skill-role bindings. In Go v1 the
@@ -128,6 +141,7 @@ type PrepareContext struct {
 	ResultsDir string `json:"results_dir"`
 
 	Finalize PrepareFinalize `json:"finalize"`
+	Build    PrepareBuild    `json:"build"`
 	Skills   PrepareSkills   `json:"skills"`
 
 	ConfigDiagnostics []string `json:"config_diagnostics,omitempty"`
@@ -437,6 +451,10 @@ func buildPrepareContext(cfg config.Effective, sc setupContext, f reposetup.Fact
 			Gate:              cfg.Finalize.Gate.Value,
 			TestCommand:       cfg.Finalize.TestCommand.Value,
 			RequirePRApproval: cfg.Finalize.RequirePRApproval.Value,
+		},
+		Build: PrepareBuild{
+			Gate:        cfg.Build.Gate.Value,
+			TestCommand: cfg.Build.TestCommand.Value,
 		},
 		// Skills roles are deferred capabilities in Go v1; a valid repository leaves
 		// them unset, so they resolve to their empty defaults today.
