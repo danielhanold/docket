@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0384 — Launch compositional Docket agents in coordinator-capable harness contexts](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md)**
+> ↩ **[Change 0384 — Launch compositional Docket agents in coordinator-capable harness contexts](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-01-0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md)**
 <!-- docket:backlink:end -->
 # Launch Compositional Docket Agents in Coordinator-Capable Harness Contexts — Implementation Plan
 
