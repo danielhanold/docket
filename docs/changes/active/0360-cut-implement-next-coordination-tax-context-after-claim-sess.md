@@ -3,10 +3,10 @@ id: 360
 slug: 'cut-implement-next-coordination-tax-context-after-claim-sess'
 title: 'Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives)'
 status: 'proposed'
-priority: 'medium'
+priority: 'high'
 type: 'feat'
 created: '2026-08-27'
-updated: '2026-08-31'
+updated: '2026-09-01'
 depends_on: []
 stacked_on:
 related: [315, 357, 313, 335, 324, 247, 294]
