@@ -932,24 +932,24 @@ func migratePrimarySyncRemedy(ctx context.Context, git *gitcli.Client, sc setupC
 	primary := sc.repo.PrimaryWorktree
 	branch := sc.integrationBranch
 	remote := string(setupRemote())
-	moved := false
-	if wts, err := git.ListWorktrees(ctx, sc.repo); err == nil {
-		for _, wt := range wts {
-			if filepath.Clean(wt.Path) != filepath.Clean(primary) {
-				continue
-			}
-			if string(wt.Head) != string(sourceOID) {
-				moved = true
-			}
+	manualRemedy := fmt.Sprintf("fast-forward your primary worktree to the migrated integration branch: `git -C %s merge --ff-only %s/%s`", primary, remote, branch)
+	wts, err := git.ListWorktrees(ctx, sc.repo)
+	if err != nil {
+		return manualRemedy
+	}
+	for _, wt := range wts {
+		if filepath.Clean(wt.Path) != filepath.Clean(primary) {
+			continue
 		}
+		if string(wt.Head) != string(sourceOID) {
+			return fmt.Sprintf("your local %s has moved past the migrated tip; reconcile it: `git -C %s pull --rebase %s %s`", branch, primary, remote, branch)
+		}
+		if _, err := git.FastForwardWorktree(ctx, primary, integrationTip); err == nil {
+			return ""
+		}
+		return manualRemedy
 	}
-	if moved {
-		return fmt.Sprintf("your local %s has moved past the migrated tip; reconcile it: `git -C %s pull --rebase %s %s`", branch, primary, remote, branch)
-	}
-	if _, err := git.FastForwardWorktree(ctx, primary, integrationTip); err == nil {
-		return ""
-	}
-	return fmt.Sprintf("fast-forward your primary worktree to the migrated integration branch: `git -C %s merge --ff-only %s/%s`", primary, remote, branch)
+	return manualRemedy
 }
 
 // sortedKeys returns the map keys sorted, for a deterministic op order.
