@@ -27,7 +27,7 @@ const (
 // as unknown; it is never folded into "none" and never into "off").
 type TestTree interface {
 	Exists(path string) (bool, error)
-	ReadFile(path string) ([]byte, error) // fs.ErrNotExist for absent
+	ReadFile(path string) ([]byte, error)  // fs.ErrNotExist for absent
 	Glob(pattern string) ([]string, error) // path.Match semantics, repo-root-relative
 }
 

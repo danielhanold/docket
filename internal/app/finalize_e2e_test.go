@@ -442,7 +442,7 @@ func buildE2ERepo(t *testing.T, m planRepoMode, records map[string]string) *gitR
 		t.Fatalf("unknown repository topology %q", m.name)
 	}
 	return newDocketModeRepo(t,
-		map[string]string{".docket.yml": "integration_branch: main\nfinalize:\n  test_command: 'exit 0'\n"},
+		map[string]string{".docket.yml": "integration_branch: main\nbuild:\n  test_command: 'exit 0'\nfinalize:\n  test_command: 'exit 0'\n"},
 		records)
 }
 
@@ -654,7 +654,7 @@ func TestE2EConflictAndRepair(t *testing.T) {
 	// lands `.repaired`) and push a conflicting `widget.go` onto the integration
 	// branch, so the rebase must stop on an add/add conflict.
 	commitToOriginDefault(t, s.repo.origin, ".docket.yml",
-		"metadata_branch: docket\nintegration_branch: main\nfinalize:\n  test_command: 'test -f .repaired'\n",
+		"metadata_branch: docket\nintegration_branch: main\nbuild:\n  test_command: 'exit 0'\nfinalize:\n  test_command: 'test -f .repaired'\n",
 		"marker-driven gate")
 	commitToOriginDefault(t, s.repo.origin, "widget.go", "package widget\n// upstream edit\n", "conflicting upstream change")
 
@@ -1285,7 +1285,7 @@ func reachInProgress(t *testing.T, docketBin, ghBin string) *e2eState {
 		groomPath(4, "gadget"): buildReadyChange(4, "gadget"),
 	}
 	repo := newWorkingRepo(t, mergeMaps(map[string]string{
-		".docket.yml": "reclaim:\n  lease_ttl: 1\n  auto: false\nfinalize:\n  test_command: 'exit 0'\n",
+		".docket.yml": "reclaim:\n  lease_ttl: 1\n  auto: false\nbuild:\n  test_command: 'exit 0'\nfinalize:\n  test_command: 'exit 0'\n",
 	}, records))
 
 	node := e2eNode(t, repo.invocation)
@@ -1363,7 +1363,7 @@ func TestE2EUnsupportedConfigFence(t *testing.T) {
 	deferred := "metadata_branch: " + m.branch + "\n" +
 		"finalize:\n  test_command: 'exit 0'\n  skip_results_only_delta: true\n" +
 		"auto_capture:\n  enabled: true\n" +
-		"build:\n  checkpoint: true\n" +
+		"build:\n  test_command: 'exit 0'\n  checkpoint: true\n" +
 		"terminal_publish: true\n" +
 		"agents:\n  claude:\n    adr:\n      model: claude-opus-5\n"
 	commitToOriginDefault(t, s.repo.origin, ".docket.yml", deferred, "request deferred capabilities")
