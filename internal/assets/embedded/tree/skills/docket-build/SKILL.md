@@ -190,8 +190,9 @@ disposition.
 - **A task's escalation allowance is exhausted** — an initial `max` worker requests escalation,
   or an escalated worker still cannot finish.
 - **A failed attempt left a commit** — name the stray SHA; do not escalate onto it.
-- **No suite is detectable** — no `FINALIZE_TEST_COMMAND` and nothing finalize's auto-detection
-  recognizes. Remedy: set `finalize.test_command`. Never convert this into a repair task.
+- **The build gate has no command** — `build_gate` is `local` but `build_test_command` is empty. A
+  configuration gap, not a red suite. Remedy: `docket repository configure-tests`. Never convert this
+  into a repair task.
 - **The observation budget is exhausted with no terminal gate result** — `GATE_OBSERVATION_BUDGET`
   ran out and no durable result artifact reports a terminal state. Fail closed: an unfinished run is
   not a failing suite, so never convert this into a repair task and never infer success.
@@ -201,25 +202,23 @@ disposition.
 
 ## The build gate
 
-Workers run focused tests only. After every plan task has committed, run the **whole suite once**,
-driving it through the native gate **driver** (`docket gate drive start` then `advance`) — never a
-raw observe loop. A worker's passed *task* gate does **not** substitute for this final full-suite
-gate: task gates cover only what each worker ran, and this is the one run that certifies the branch.
-On the final `PASSED`, the drive's raw run directory remains available to the existing evidence
-operation. Resolve the suite command:
+Workers run focused tests only. After every plan task has committed, apply this role's own gate
+policy. A worker's passed *task* gate does **not** substitute for this final full-suite gate: task
+gates cover only what each worker ran, and this is the one run that certifies the branch. On a final
+`PASSED`, the drive's raw run directory feeds the existing evidence operation. The policy arrives in
+the implementation context as `build_gate` and `build_test_command` — authoritative config the build
+role reads, never a command it invents:
 
-1. Use the already-resolved `FINALIZE_TEST_COMMAND` when it is non-empty.
-2. Otherwise reuse finalize's existing suite **auto-detection**.
-3. **Neither** — no `FINALIZE_TEST_COMMAND` *and* nothing the auto-detection recognizes — is a
-   **configuration gap, not a red suite**. A repo with no matching test files leaves the detection
-   glob literal and exits non-zero; reading that as RED would manufacture a repair task. Finalize
-   itself aborts here rather than repairing, and so do you: halt per *Halting conditions*, naming
-   `finalize.test_command` as the remedy.
-
-The command boundary is the one finalize already publishes — its `configured-bash-finalize` marker
-block in `skills/docket-finalize-change/SKILL.md` is the single source, and the awkward `finalize`
-namespace is deliberately kept rather than introducing a second, driftable test command. Do not
-copy that fragment into this file.
+1. **`build_gate: off`** — the repo declares no build test gate. Run **nothing**: mint truthful
+   **skipped** evidence via `docket evidence record` (no run dir) — `result: skipped` /
+   `reason: build-gate-off` at the current head — and proceed to review. Nothing to run or repair.
+2. **`build_gate: local`, non-empty `build_test_command`** — drive it through the native gate
+   **driver**: `docket gate drive start --owner build` then `docket gate drive advance` slices,
+   exactly as *Gate execution posture* describes. `--owner build` resolves the build-owned command
+   from config; the caller passes no suite argv.
+3. **`build_gate: local`, empty `build_test_command`** — a **configuration gap, not a red suite**:
+   nothing to run, no failure to repair, and reading an empty command as RED would manufacture a
+   repair task. Halt per *Halting conditions*, remedy `docket repository configure-tests`.
 
 The verdict is an **exit status, never output text**. A run is **green if and only if the resolved
 suite command exits zero**; any non-zero status is not green. A `PASS`/`FAIL` line, a summary count,
@@ -230,10 +229,9 @@ execution posture* requires: **completed successfully** means that artifact reco
 never red. Nor is every non-zero status red: a completed run whose recorded status the resolved
 runner defines as a **non-failure** outcome is a halt per *Halting conditions*, the same refusal the
 configuration gap gets — neither has a failure to repair. **Red** is a completed run that is neither
-green nor one of those halts. When the resolved command is a **loop over per-file commands** — the shape finalize's
-`configured-bash-finalize` block takes when `FINALIZE_TEST_COMMAND` is unset — the deciding status
-is the **aggregate** that block exits with, never any individual file's. This rule binds every
-full-suite run this role performs, including the repair worker's post-fix re-run below.
+green nor one of those halts. When the resolved command is a **loop over per-file commands**, the
+deciding status is the **aggregate** the loop exits with, never any individual file's. This rule
+binds every full-suite run this role performs, including the repair worker's post-fix re-run below.
 
 **Green** → the build is done. Emit the **build-evidence** record — a marker-bounded block carrying
 `command` (the exact full-suite command run), `result: green`, `head_sha` (the branch HEAD the run
@@ -248,10 +246,14 @@ ran_at:   <UTC ISO-8601>
 <!-- docket:build-evidence:end -->
 ```
 
+**`build_gate: off`** mints the **skipped** variant of the same marker-bounded block instead: drop
+`command` (nothing ran) and swap in `result: skipped` plus `reason: build-gate-off`, keeping
+`head_sha` and `ran_at`.
+
 The record certifies the branch so the review step need not re-run the suite; `docket-implement-next`
 Step 6 validates it and Step 7 writes it into the PR body, then runs the resolved `skills.review`
-role once over the whole branch. Only a green run mints a record: a red suite mints no evidence
-record at all, and enters the repair path below.
+role once over the whole branch. Only a green run — or an explicit `build_gate: off` — mints a
+record: a red suite mints no evidence record at all, and enters the repair path below.
 
 **Red** → the build **never invokes review**. Turn the failure into exactly one synthetic
 integration-repair task, run through the same worker contract on the ladder
