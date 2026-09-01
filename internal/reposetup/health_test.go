@@ -86,6 +86,63 @@ func TestTestConfigFindingMalformedCommittedBytesDoesNotPanic(t *testing.T) {
 	}
 }
 
+// TestConfigureTestsGapNoteFinalizeLocalEmptyWhileBuildConfigured is the
+// regression for the configure-tests dead-end: DiscoverTests short-circuits to
+// "configured" as soon as EITHER command is set, so a repo with build
+// configured and finalize `local` + empty command writes NOTHING — yet
+// TestConfigFinding keeps flagging the finalize gap under `docket repository
+// check`. The no-op path must name the specific gate and the by-hand
+// completion, not report a bare "already configured; nothing to write". The
+// note names finalize (and its key) and must NOT name build, whose explicit
+// command is intact.
+func TestConfigureTestsGapNoteFinalizeLocalEmptyWhileBuildConfigured(t *testing.T) {
+	cfg := buildTestPolicyCfg("local", "go test ./...", "local", "")
+	note := ConfigureTestsGapNote(cfg)
+	if note == "" {
+		t.Fatalf("a build-configured / finalize-local-empty pair must yield a gap note, got empty")
+	}
+	if !strings.Contains(note, "finalize.test_command") {
+		t.Errorf("note %q must name the specific unset key finalize.test_command", note)
+	}
+	if strings.Contains(note, "build.test_command") {
+		t.Errorf("note %q must not name build, whose explicit command is intact", note)
+	}
+	if !strings.Contains(note, "docket repository check") {
+		t.Errorf("note %q must tell the operator how to confirm completion (re-run check)", note)
+	}
+}
+
+// TestConfigureTestsGapNoteBuildLocalEmptyWhileFinalizeConfigured is the
+// symmetric twin: build local+empty while finalize is configured names build.
+func TestConfigureTestsGapNoteBuildLocalEmptyWhileFinalizeConfigured(t *testing.T) {
+	cfg := buildTestPolicyCfg("local", "", "local", "make check")
+	note := ConfigureTestsGapNote(cfg)
+	if !strings.Contains(note, "build.test_command") {
+		t.Errorf("note %q must name the specific unset key build.test_command", note)
+	}
+	if strings.Contains(note, "finalize.test_command") {
+		t.Errorf("note %q must not name finalize, whose explicit command is intact", note)
+	}
+}
+
+// TestConfigureTestsGapNoteFullyConfiguredIsEmpty proves the note is empty when
+// both local gates have commands: the fully-configured no-op is unchanged.
+func TestConfigureTestsGapNoteFullyConfiguredIsEmpty(t *testing.T) {
+	cfg := buildTestPolicyCfg("local", "go test ./...", "local", "make check")
+	if note := ConfigureTestsGapNote(cfg); note != "" {
+		t.Fatalf("a fully-configured pair must yield no gap note, got %q", note)
+	}
+}
+
+// TestConfigureTestsGapNoteGateOffIsEmpty proves an explicit off gate with no
+// command is a deliberate choice, not a gap: no note.
+func TestConfigureTestsGapNoteGateOffIsEmpty(t *testing.T) {
+	cfg := buildTestPolicyCfg("off", "", "off", "")
+	if note := ConfigureTestsGapNote(cfg); note != "" {
+		t.Fatalf("explicit off gates must yield no gap note, got %q", note)
+	}
+}
+
 // destructiveSubstrings are the command shapes a remedy must never print: a
 // conflict or dirty-worktree remedy names a human disposition, never a
 // destructive recovery. Keyed on shape, not an allowlist of exact spellings.

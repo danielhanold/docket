@@ -14,6 +14,7 @@ package reposetup
 // exact fixture state.
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/danielhanold/docket/internal/config"
@@ -246,6 +247,37 @@ func TestConfigFinding(cfg config.Effective, committedYML []byte) *Finding {
 // resolved command — the configuration gap a setup-time edit must close.
 func localGateNeedsCommand(gate, command string) bool {
 	return gate == "local" && command == ""
+}
+
+// ConfigureTestsGapNote names the per-gate configuration gap that
+// `docket repository configure-tests` cannot mechanically close, so its no-op
+// path can name the gate instead of a bare "already configured; nothing to
+// write". It shares localGateNeedsCommand with TestConfigFinding — the health
+// finding fires per-gate, but DiscoverTests short-circuits to "configured" as
+// soon as EITHER build.test_command or finalize.test_command is set, and
+// RenderTestConfigEdit then writes nothing. So a repo with one gate configured
+// and the other `gate: local` with an empty command is a dead end: configure-tests
+// reports "nothing to write" while `docket repository check` keeps flagging the
+// gap. configure-tests cannot fill it automatically — re-probing would clobber
+// the already-set command, and copying the other gate's command conflates two
+// independent settings — so it names the specific gate(s) and the by-hand
+// completion. It returns "" when no local gate is missing a command (the
+// fully-configured and gate-off cases are unchanged).
+func ConfigureTestsGapNote(cfg config.Effective) string {
+	var owners, keys []string
+	if localGateNeedsCommand(cfg.Build.Gate.Value, cfg.Build.TestCommand.Value) {
+		owners = append(owners, "build")
+		keys = append(keys, "`build.test_command`")
+	}
+	if localGateNeedsCommand(cfg.Finalize.Gate.Value, cfg.Finalize.TestCommand.Value) {
+		owners = append(owners, "finalize")
+		keys = append(keys, "`finalize.test_command`")
+	}
+	if len(owners) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("the %s gate is `local` with no command and discovery left it unset (the pair reads as configured because the other gate already has a command); set %s in .docket.yml by hand, then re-run `docket repository check`.",
+		strings.Join(owners, " and "), strings.Join(keys, " and "))
 }
 
 // committedDeclaresLegacyAuto reports whether the committed repository-layer
