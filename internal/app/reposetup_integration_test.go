@@ -208,6 +208,41 @@ func TestIntegrationRepoSetupRepeatInitConverges(t *testing.T) {
 	}
 }
 
+// TestIntegrationRepoSetupInitWritesTestPolicyUnstaged proves init discovers the
+// suite from the primary worktree and writes the generated .docket.yml test
+// policy as a pending, UNSTAGED review path — never staged (generated config is
+// human-gated). A Go module with a root test file is detected, so both build and
+// finalize carry `go test ./...`.
+func TestIntegrationRepoSetupInitWritesTestPolicyUnstaged(t *testing.T) {
+	r := newInitRepo(t, defaultSetupYML, map[string]string{
+		"go.mod":    "module example.com/x\n\ngo 1.22\n",
+		"x_test.go": "package x\n",
+	})
+	res := r.runInit(t)
+	if res.Result != ResultApplied {
+		t.Fatalf("init = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	if !contains(res.PendingPaths, ".docket.yml") {
+		t.Errorf("PendingPaths = %v, want it to name the generated .docket.yml", res.PendingPaths)
+	}
+
+	// The written config carries the detected command under BOTH keys.
+	got := string(mustReadFile(t, filepath.Join(r.invocation, ".docket.yml")))
+	if strings.Count(got, "test_command: go test ./...") != 2 {
+		t.Errorf(".docket.yml must set the detected command on build and finalize:\n%s", got)
+	}
+
+	// No git add: nothing is staged, and .docket.yml shows as an unstaged change.
+	staged := runGit(t, r.invocation, "diff", "--cached", "--name-only")
+	if strings.Contains(staged, ".docket.yml") {
+		t.Errorf("init staged .docket.yml (generated config must be human-gated, never staged); staged: %q", staged)
+	}
+	unstaged := runGit(t, r.invocation, "diff", "--name-only")
+	if !strings.Contains(unstaged, ".docket.yml") {
+		t.Errorf("init did not leave .docket.yml as an unstaged pending edit; unstaged: %q", unstaged)
+	}
+}
+
 // TestIntegrationRepoSetupInitRefusesLegacy proves a live planning surface on the
 // integration branch refuses init and points at migrate, leaving the remote
 // untouched.

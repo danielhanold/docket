@@ -2,12 +2,22 @@ package app
 
 import (
 	"encoding/json"
+	"io/fs"
 	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/reposetup"
 )
+
+// emptyTestTree is a reposetup.TestTree that reports every path absent. It stands
+// in wherever a unit test drives the migration planner without exercising suite
+// discovery: a no-suite tree yields the `none` outcome (both gates off).
+type emptyTestTree struct{}
+
+func (emptyTestTree) Exists(string) (bool, error)     { return false, nil }
+func (emptyTestTree) ReadFile(string) ([]byte, error) { return nil, fs.ErrNotExist }
+func (emptyTestTree) Glob(string) ([]string, error)   { return nil, nil }
 
 // effectiveForMigrateTest is the minimal resolved configuration the migration
 // planner and preview read: the configured changes/ADR directories and branch
@@ -104,6 +114,45 @@ func TestMigrateResultJSONFieldNames(t *testing.T) {
 	}
 }
 
+// TestMigratePreviewContainsConfigBytesVerbatim proves the confirmation preview
+// carries the EXACT authorized .docket.yml bytes the migration will commit, so a
+// human reviews the same copy the execution acts on
+// (decide-and-act-on-the-same-copy).
+func TestMigratePreviewContainsConfigBytesVerbatim(t *testing.T) {
+	sc := setupContext{cfg: effectiveForMigrateTest(), integrationBranch: "main"}
+	// A go suite in the pinned tree yields a detected policy written under both keys.
+	tree := goSuiteTree{}
+	plan, err := reposetup.PlanMigration(sc.cfg, nil, tree, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef", nil)
+	if err != nil {
+		t.Fatalf("PlanMigration: %v", err)
+	}
+	if plan.ConfigBytes == nil {
+		t.Fatal("expected generated ConfigBytes for a detected suite")
+	}
+	preview := migratePreviewText(sc, plan, migrationRepairs{}, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
+	if !strings.Contains(preview, string(plan.ConfigBytes)) {
+		t.Errorf("preview must contain the exact config bytes verbatim.\npreview:\n%s\nbytes:\n%s", preview, plan.ConfigBytes)
+	}
+}
+
+// goSuiteTree is a reposetup.TestTree presenting exactly a root Go module with a
+// root _test.go file — the go detector's shape — and nothing else.
+type goSuiteTree struct{}
+
+func (goSuiteTree) Exists(p string) (bool, error) { return p == "go.mod", nil }
+func (goSuiteTree) ReadFile(p string) ([]byte, error) {
+	if p == "go.mod" {
+		return []byte("module x\n"), nil
+	}
+	return nil, fs.ErrNotExist
+}
+func (goSuiteTree) Glob(pattern string) ([]string, error) {
+	if pattern == "*_test.go" {
+		return []string{"x_test.go"}, nil
+	}
+	return nil, nil
+}
+
 // TestMigrateContendedNamesBothRevisions proves the contended document names the
 // fresh integration tip and the pinned source it decided on.
 func TestMigrateContendedNamesBothRevisions(t *testing.T) {
@@ -128,7 +177,7 @@ func TestMigrateConfirmationRequiredPreviewCarriesPlan(t *testing.T) {
 		cfg:               effectiveForMigrateTest(),
 		integrationBranch: "main",
 	}
-	plan, err := reposetup.PlanMigration(sc.cfg, nil, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef", nil)
+	plan, err := reposetup.PlanMigration(sc.cfg, nil, emptyTestTree{}, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef", nil)
 	if err != nil {
 		t.Fatalf("PlanMigration: %v", err)
 	}
@@ -155,7 +204,7 @@ func TestMigrateConfirmationRequiredPreviewCarriesPlan(t *testing.T) {
 // --repair-frontmatter.
 func TestMigrateRepairAuthorizationRequiredNamesFlag(t *testing.T) {
 	sc := setupContext{cfg: effectiveForMigrateTest(), integrationBranch: "main"}
-	plan, err := reposetup.PlanMigration(sc.cfg, nil, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef", nil)
+	plan, err := reposetup.PlanMigration(sc.cfg, nil, emptyTestTree{}, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef", nil)
 	if err != nil {
 		t.Fatalf("PlanMigration: %v", err)
 	}

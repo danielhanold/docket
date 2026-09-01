@@ -47,16 +47,18 @@ func (r *initRepo) commitAndPushMain(t *testing.T, message string, paths ...stri
 }
 
 // newHealthyRepo builds a repository in the healthy state: init, then the pending
-// .gitignore edit committed and pushed. It asserts the base state classifies
-// healthy with exit 0 before returning, so a sub-case that breaks one conjunct is
-// measured against a proven-healthy baseline.
+// .gitignore and generated .docket.yml test-policy edits committed and pushed. It
+// asserts the base state classifies healthy with exit 0 before returning, so a
+// sub-case that breaks one conjunct is measured against a proven-healthy baseline.
 func newHealthyRepo(t *testing.T) *initRepo {
 	t.Helper()
 	r := newInitRepo(t, healthySetupYML, nil)
 	if res := r.runInit(t); res.Result != ResultApplied {
 		t.Fatalf("init for healthy fixture = %q (%s), want applied", res.Result, res.HumanText())
 	}
-	r.commitAndPushMain(t, "commit managed .gitignore", ".gitignore")
+	// Init leaves two pending, unstaged edits (the managed .gitignore and the
+	// generated .docket.yml test policy); commit both to reach the healthy state.
+	r.commitAndPushMain(t, "commit managed .gitignore and generated test policy", ".gitignore", ".docket.yml")
 
 	res := r.runCheck(t)
 	if res.RepositoryState != string(reposetup.StateHealthy) {
@@ -112,7 +114,7 @@ func TestIntegrationRepoCheckNeedsReviewAfterInit(t *testing.T) {
 		t.Errorf("post-init findings %+v must name the pending .gitignore path", afterInit.Findings)
 	}
 
-	r.commitAndPushMain(t, "commit managed .gitignore", ".gitignore")
+	r.commitAndPushMain(t, "commit managed .gitignore and generated test policy", ".gitignore", ".docket.yml")
 	afterCommit := r.runCheck(t)
 	if afterCommit.RepositoryState != string(reposetup.StateHealthy) {
 		t.Errorf("post-commit state = %q (%s), want healthy", afterCommit.RepositoryState, afterCommit.HumanText())

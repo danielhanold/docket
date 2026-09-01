@@ -329,12 +329,13 @@ func liveSurfacePresence(ctx context.Context, p setupProber, repo gitcli.Reposit
 
 // docketManagedWorktreePaths are the repo-relative working-tree paths docket's
 // own reconciliation writes and leaves unstaged for human review: the managed
-// .gitignore edit and the parent-facing dispatch surfaces. The clean preflight
-// ignores exactly these (and ignored paths), so a repeat init whose only
-// difference from clean is its own pending review edits is not read as a dirty
-// primary.
+// .gitignore edit, the generated .docket.yml test-policy edit (change 0374), and
+// the parent-facing dispatch surfaces. The clean preflight ignores exactly these
+// (and ignored paths), so a repeat init whose only difference from clean is its
+// own pending review edits is not read as a dirty primary.
 var docketManagedWorktreePaths = map[string]bool{
 	".gitignore":                        true,
+	".docket.yml":                       true,
 	"CLAUDE.md":                         true,
 	"AGENTS.md":                         true,
 	".cursor/rules/docket-dispatch.mdc": true,
