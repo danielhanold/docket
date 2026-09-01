@@ -56,9 +56,10 @@ means), this file does not restate them.
 - Never hand-list the sites of a literal or an operation you are gating — derive them from a
   whole-repo grep, then sort them into prose vs executable. Only the executable ones can violate a
   gate, and a docs-shaped reading skips right past them.
-- Run the whole suite at the build gate, never only the tests the spec enumerated. The suite command is
-  whatever `finalize.test_command` resolves to — read it there, never from a second copy — which is now
-  the Go-native `go run ./cmd/docket development test`, entered from source so the gate tests the exact
+- Run the whole suite at the build gate, never only the tests the spec enumerated. The BUILD gate's suite
+  command is whatever `build.test_command` resolves to and finalize's is whatever `finalize.test_command`
+  resolves to — read each from config, never from a second copy; in this repo both are the Go-native
+  `go run ./cmd/docket development test` today, entered from source so the gate tests the exact
   checkout under review. It runs the files in parallel with per-job isolation and measures each file
   against its wall-clock budget, and the budget clause lines keep their meanings: a `BUDGET WATCH:` /
   `PARALLEL-SENSITIVE:` line is a screening finding, and a `SERIAL CONFIRMED OVER BUDGET:` line is an
