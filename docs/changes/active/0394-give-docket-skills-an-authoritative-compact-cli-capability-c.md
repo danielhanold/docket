@@ -22,7 +22,7 @@ branch: 'feat/give-docket-skills-an-authoritative-compact-cli-capability-c'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-01T23:41:40Z'
+claimed_at: '2026-09-01T23:42:59Z'
 ---
 
 ## Artifacts
