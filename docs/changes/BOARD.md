@@ -1,6 +1,6 @@
 # Backlog
 
-**393 changes** — 🟢 1 in progress · 🟣 20 groomed · 🟡 46 proposed · ⚪ 4 deferred · ✅ 239 done · 🗑️ 83 killed
+**393 changes** — 🟢 1 in progress · 🟣 21 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 239 done · 🗑️ 83 killed
 
 ## 🟢 In progress (1)
 
@@ -8,10 +8,11 @@
 |---|-------|----------|------|------|--------|
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [spec](../superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) | `feat/migrate-primary-clean-fast-forward` |
 
-## 🟣 Groomed (20)
+## 🟣 Groomed (21)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [spec](../superpowers/specs/2026-09-01-enter-compositional-docket-roles-as-coordinator-capable-code-design.md) |
 | [0252](active/0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md) | Harden test fixtures and hermeticity into tests-lib | `high` | `chore` | [spec](../superpowers/specs/2026-08-07-harden-test-fixtures-and-hermeticity-into-tests-lib-design.md) |
 | [0359](active/0359-run-gate-gives-up-too-soon.md) | Run gate gives up too soon | `high` | `fix` | [spec](../superpowers/specs/2026-08-28-run-gate-gives-up-too-soon-design.md) |
 | [0264](active/0264-measure-the-claude-harness-s-forked-mode-gate-verdict-and-pi.md) | Measure the claude harness's forked-mode gate verdict and pin a surviving launch shape | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-claude-forked-mode-gate-verdict-design.md) |
@@ -33,11 +34,10 @@
 | [0172](active/0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md) | Normalize the banned producer-pipe shape across tests and helpers | `medium` | `chore` | [spec](../superpowers/specs/2026-08-07-normalize-the-banned-producer-pipe-shape-across-tests-and-he-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
-## 🟡 Proposed (46)
+## 🟡 Proposed (45)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | needs-brainstorm |
 | [0392](active/0392-installer-tolerant-config-read-break-the-schema-bump-bootstr.md) | Installer-tolerant config read: break the schema-bump bootstrap deadlock | `medium` | `fix` | needs-brainstorm |
 | [0391](active/0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | `medium` | `feat` | needs-brainstorm |
 | [0388](active/0388-reimplement-post-merge-fast-forward-integration-branch-sync.md) | Reimplement post-merge fast-forward integration-branch sync as a native Go verb | `medium` | `feat` | needs-brainstorm |
