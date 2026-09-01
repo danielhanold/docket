@@ -16,10 +16,11 @@ func TestAgentEnterCommandRegistered(t *testing.T) {
 			t.Errorf("agent enter: missing --%s flag", flag)
 		}
 	}
-	for _, key := range []string{"agent", "agent enter"} {
-		if !assetIndependent[key] {
-			t.Errorf("%q must resolve its role contract from embedded compatible assets", key)
-		}
+	if !assetIndependent["agent"] {
+		t.Error("the bare agent group must remain asset-independent")
+	}
+	if assetIndependent["agent enter"] || !assetDependent["agent enter"] {
+		t.Error("agent enter must be explicitly classified as requiring a compatible installed role registry")
 	}
 }
 
