@@ -214,7 +214,7 @@ func buildRegistry() []pathSpec {
 		{path: "finalize.gate", kind: kindString, enum: []string{"local", "ci", "both", "off"}, def: "local",
 			merge: mergeScalar, scope: scopeAny, disp: dispDeferredByValue,
 			validate: enumLeaf("local", "ci", "both", "off")},
-		{path: "finalize.test_command", kind: kindString, def: "auto",
+		{path: "finalize.test_command", kind: kindString, def: "",
 			merge: mergeScalar, scope: scopeAny, disp: dispSupported,
 			validate: stringLeaf(false, false, false)},
 		{path: "finalize.require_pr_approval", kind: kindBool, def: false,
@@ -234,9 +234,16 @@ func buildRegistry() []pathSpec {
 		{path: "reclaim.auto", kind: kindBool, def: false,
 			merge: mergeScalar, scope: scopeAny, disp: dispSupported, validate: boolLeaf()},
 
-		// 15: build.
+		// 15: build. The build role's own gate policy (change 0374): build.gate
+		// and build.test_command resolve independently of the finalize pair.
 		{path: "build.checkpoint", kind: kindBool, def: false,
 			merge: mergeScalar, scope: scopeAny, disp: dispDeferred, validate: boolLeaf()},
+		{path: "build.gate", kind: kindString, enum: []string{"local", "off"}, def: "local",
+			merge: mergeScalar, scope: scopeAny, disp: dispSupported,
+			validate: enumLeaf("local", "off")},
+		{path: "build.test_command", kind: kindString, def: "",
+			merge: mergeScalar, scope: scopeAny, disp: dispSupported,
+			validate: stringLeaf(false, false, false)},
 
 		// 16-17: review.
 		{path: "review.min_fix_severity", kind: kindString,

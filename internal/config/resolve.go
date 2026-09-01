@@ -266,6 +266,8 @@ func (r *resolution) assemble(byLayer map[LayerKind]map[string]leafDecl) (Effect
 	set(assign(&eff.Finalize.Gate, r.declared, "finalize.gate"))
 	set(assign(&eff.Finalize.TestCommand, r.declared, "finalize.test_command"))
 	set(assign(&eff.Finalize.RequirePRApproval, r.declared, "finalize.require_pr_approval"))
+	set(assign(&eff.Build.Gate, r.declared, "build.gate"))
+	set(assign(&eff.Build.TestCommand, r.declared, "build.test_command"))
 	set(assign(&eff.Learnings.Enabled, r.declared, "learnings.enabled"))
 	set(assign(&eff.Reclaim.LeaseTTL, r.declared, "reclaim.lease_ttl"))
 	set(assign(&eff.Reclaim.Auto, r.declared, "reclaim.auto"))
@@ -288,17 +290,21 @@ func (r *resolution) assemble(byLayer map[LayerKind]map[string]leafDecl) (Effect
 
 	eff.Agents = resolveAgents(byLayer)
 
-	// `auto` is how the built-in layer spells "no test command configured";
-	// a layer that repeats it means the same thing.
+	// `auto` is legacy input for BOTH test commands: it spells "unconfigured"
+	// and never survives resolution (spec: never a valid resolved gate command).
+	// A layer repeating it means the same thing as the empty default.
 	if eff.Finalize.TestCommand.Value == autoSentinel {
 		eff.Finalize.TestCommand.Value = ""
+	}
+	if eff.Build.TestCommand.Value == autoSentinel {
+		eff.Build.TestCommand.Value = ""
 	}
 	return eff, nil
 }
 
-// autoSentinel is the spelling both `auto`-valued settings use for "docket
-// decides": finalize.test_command resolves it to unset, integration_branch to
-// the resolution context's default branch.
+// autoSentinel is the spelling every `auto`-valued setting uses for "docket
+// decides": finalize.test_command and build.test_command resolve it to unset,
+// integration_branch to the resolution context's default branch.
 const autoSentinel = "auto"
 
 // boardSurfaceGitHub is the one board token carrying a coordination fence.

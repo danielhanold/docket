@@ -105,6 +105,7 @@ type Effective struct {
 	ADRsDir           Value[string]   `json:"adrs_dir"`
 	ResultsDir        Value[string]   `json:"results_dir"`
 	Finalize          Finalize        `json:"finalize"`
+	Build             Build           `json:"build"`
 	Learnings         Learnings       `json:"learnings"`
 	Reclaim           Reclaim         `json:"reclaim"`
 	Review            Review          `json:"review"`
@@ -124,8 +125,15 @@ type Effective struct {
 
 type Finalize struct {
 	Gate              Value[string] `json:"gate"`         // local|off (ci/both classify deferred-active)
-	TestCommand       Value[string] `json:"test_command"` // "" == unset (the `auto` sentinel resolved away)
+	TestCommand       Value[string] `json:"test_command"` // "" == unconfigured (legacy `auto` resolves away)
 	RequirePRApproval Value[bool]   `json:"require_pr_approval"`
+}
+
+// Build is the build role's OWN gate policy (change 0374). It resolves
+// independently of Finalize: neither command falls back to the other.
+type Build struct {
+	Gate        Value[string] `json:"gate"`         // local|off
+	TestCommand Value[string] `json:"test_command"` // "" == unconfigured (legacy `auto` resolves away)
 }
 
 type Learnings struct {

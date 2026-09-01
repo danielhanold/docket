@@ -784,6 +784,72 @@ func TestTestCommandAutoUnsets(t *testing.T) {
 	if got := res.effective.Finalize.TestCommand.Value; got != "make check" {
 		t.Errorf("test_command = %q, want %q", got, "make check")
 	}
+
+	// Build-side twin (change 0374): build.test_command spells UNSET with the
+	// same `auto` sentinel and masks the same way, on its own leaf.
+	res = mustResolve(t, []Source{srcR("build:\n  test_command: auto\n")}, mainCtx)
+	if got := res.effective.Build.TestCommand; got.Value != "" {
+		t.Errorf("build.test_command = %q, want \"\" (auto is the unset sentinel)", got.Value)
+	}
+}
+
+// TestBuildGateAndCommandResolveIndependently is the discriminating fixture
+// (change 0374): it sets BOTH pairs divergently, so a leaf reading the wrong
+// key cannot pass. Neither command falls back to the other.
+func TestBuildGateAndCommandResolveIndependently(t *testing.T) {
+	res := mustResolve(t, []Source{srcR(
+		"build:\n  gate: local\n  test_command: go test ./...\nfinalize:\n  test_command: make check\n")}, mainCtx)
+	if got := res.effective.Build.TestCommand.Value; got != "go test ./..." {
+		t.Errorf("build.test_command = %q, want %q", got, "go test ./...")
+	}
+	if got := res.effective.Finalize.TestCommand.Value; got != "make check" {
+		t.Errorf("finalize.test_command = %q, want %q", got, "make check")
+	}
+	if got := res.effective.Build.Gate.Value; got != "local" {
+		t.Errorf("build.gate = %q, want local", got)
+	}
+}
+
+// TestBuildCommandLegacyAutoResolvesUnset: `auto` is legacy input for BOTH
+// commands. It resolves to "" (unconfigured), keeps its declaring layer's
+// provenance, and masks a lower layer's explicit command exactly as
+// finalize.test_command's auto already does.
+func TestBuildCommandLegacyAutoResolvesUnset(t *testing.T) {
+	res := mustResolve(t, []Source{
+		srcG("build:\n  test_command: make global-suite\n"),
+		srcR("build:\n  test_command: auto\n"),
+	}, mainCtx)
+	got := res.effective.Build.TestCommand
+	if got.Value != "" {
+		t.Errorf("build.test_command = %q, want \"\" (auto is the unset sentinel)", got.Value)
+	}
+	if got.Provenance.Layer != LayerRepository {
+		t.Errorf("provenance layer = %v, want the repository layer that declared auto", got.Provenance.Layer)
+	}
+}
+
+// TestCommandsDefaultUnconfigured: both commands default to the empty
+// unconfigured state; both gates to local.
+func TestCommandsDefaultUnconfigured(t *testing.T) {
+	res := mustResolve(t, nil, mainCtx)
+	if v := res.effective.Build.TestCommand.Value; v != "" {
+		t.Errorf("default build.test_command = %q, want \"\"", v)
+	}
+	if v := res.effective.Finalize.TestCommand.Value; v != "" {
+		t.Errorf("default finalize.test_command = %q, want \"\"", v)
+	}
+	if v := res.effective.Build.Gate.Value; v != "local" {
+		t.Errorf("default build.gate = %q, want local", v)
+	}
+}
+
+// TestBuildGateRejectsUnknownValue: build.gate is local|off only — no ci/both
+// (finalize keeps its wider enum).
+func TestBuildGateRejectsUnknownValue(t *testing.T) {
+	_, err := resolve([]Source{srcR("build:\n  gate: ci\n")}, mainCtx)
+	if !errors.Is(err, ErrInvalidConfig) {
+		t.Fatalf("err = %v, want ErrInvalidConfig", err)
+	}
 }
 
 func TestAutoCaptureTypesSubset(t *testing.T) {
