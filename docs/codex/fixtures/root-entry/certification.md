@@ -1,8 +1,8 @@
 # Coordinator root-entry certification
 
-Date: 2026-09-01  
-Change: 0393  
-Host path: VS Code Codex  
+Date: 2026-09-01
+Change: 0393
+Host path: VS Code Codex
 Codex CLI: 0.152.0
 
 ## Production-path probe
