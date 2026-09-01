@@ -101,18 +101,28 @@ func RenderTestConfigEdit(existing []byte, out DiscoveryOutcome) (edited []byte,
 	return edited, true, nil
 }
 
-// kvPair is one leaf setting to ensure inside an owner block.
-type kvPair struct{ key, val string }
+// kvPair is one leaf setting to ensure inside an owner block. preserveExplicit
+// leaves an ALREADY-explicit, genuinely different value untouched (fill-if-missing
+// only) — set on gate so a legacy block that deliberately set finalize.gate to
+// off/ci/both is not clobbered to the generated default (spec: already-explicit
+// new-style settings are preserved). A value equal to the desired one but only
+// mis-quoted (bare `off` → `"off"`, AGENTS.md) is still normalized, since that
+// re-quote does not change the value.
+type kvPair struct {
+	key, val         string
+	preserveExplicit bool
+}
 
 // desiredPairs is the ordered set of leaf settings a detected/none outcome
 // writes into each of build and finalize. none writes gate only — never a
-// fabricated command.
+// fabricated command. gate is preserve-explicit: a missing gate is filled with
+// the generated default, but an explicit divergent gate is never overwritten.
 func desiredPairs(out DiscoveryOutcome) []kvPair {
 	switch out.Kind {
 	case DiscoveryDetected:
-		return []kvPair{{"gate", "local"}, {"test_command", out.Command}}
+		return []kvPair{{"gate", "local", true}, {"test_command", out.Command, false}}
 	case DiscoveryNone:
-		return []kvPair{{"gate", "off"}}
+		return []kvPair{{"gate", "off", true}}
 	}
 	return nil
 }
@@ -205,6 +215,13 @@ func planOwnerBlock(src []byte, starts []int, root *yaml.Node, owner string, pai
 			continue
 		}
 		if valueMatches(childVal, p.val) {
+			continue
+		}
+		// A preserve-explicit leaf (gate) whose existing value is a genuine,
+		// non-empty DIFFERENT value is left intact — only a missing (or null)
+		// gate is filled with the default. A same-value-but-mis-quoted leaf falls
+		// through to the re-quote splice below, since that does not change the value.
+		if p.preserveExplicit && childVal != nil && childVal.Value != "" && childVal.Value != p.val {
 			continue
 		}
 		// Replace the divergent leaf line(s) [keyLine, endLine] in place.

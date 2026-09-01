@@ -185,6 +185,36 @@ func TestPolicyEditDivergentExplicitPairShortCircuitsDiscovery(t *testing.T) {
 	}
 }
 
+// TestConfigEditPreservesExplicitNonLocalFinalizeGate is the regression guard for
+// the migrate/detected clobber: a detected outcome (the migrate copy path) writes
+// gate: local into BOTH owners, but a block whose gate is ALREADY explicitly set
+// to a non-local value (off/ci/both — a legacy repo that deliberately disabled or
+// retargeted the finalize gate) must keep that value. Only a MISSING gate is
+// filled with local; an explicit divergent gate is preserved (spec: already-explicit
+// new-style settings survive). TestConfigEditInsertsIntoExistingBlock starts from
+// gate: local, so it never exercised the rewrite path this guards.
+func TestConfigEditPreservesExplicitNonLocalFinalizeGate(t *testing.T) {
+	for _, gate := range []string{"off", "ci", "both"} {
+		t.Run(gate, func(t *testing.T) {
+			existing := []byte("build:\n  gate: local\n  test_command: make suite\n" +
+				"finalize:\n  gate: " + gate + "\n  test_command: make suite\n")
+			out, changed, err := RenderTestConfigEdit(existing, detectedOutcome("make suite"))
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			// build already carries the detected settings and finalize's only
+			// divergence is its explicit gate, which must be preserved — so the
+			// whole render is a no-op.
+			if changed {
+				t.Fatalf("an explicit finalize.gate %q must be preserved (no edit); got changed=true:\n%s", gate, out)
+			}
+			if !bytes.Equal(out, existing) {
+				t.Fatalf("explicit finalize.gate %q must survive byte-for-byte\n got: %q\nwant: %q", gate, out, existing)
+			}
+		})
+	}
+}
+
 func TestConfigEditConfiguredAndAmbiguousAreNoOps(t *testing.T) {
 	existing := []byte("integration_branch: main\n")
 	for _, kind := range []DiscoveryKind{DiscoveryConfigured, DiscoveryAmbiguous} {
