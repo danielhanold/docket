@@ -1078,7 +1078,9 @@ func (g *processFinalizeGate) buildDriveService(ctx context.Context, repoDir str
 	if err != nil {
 		return nil, false
 	}
-	svc, _, _ := NewGateDriveService(repo.CommonDir, exe, pin.Config.Effective)
+	// Finalize's gate is finalize-owned: it reads ONLY finalize.test_command
+	// (the guard above pins the same key), never build's.
+	svc, _, _ := NewFinalizeGateDriveService(repo.CommonDir, exe, pin.Config.Effective)
 	if svc == nil {
 		return nil, false
 	}

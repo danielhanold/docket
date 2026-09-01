@@ -268,14 +268,63 @@ func driveDoc(t *testing.T, doc map[string]any) map[string]any {
 	return d
 }
 
-// TestGateDriveStartRunsToPassed proves `gate drive start -- <argv>` composes the
-// same state machine as the app seam through the CLI: the argv after `--` is the
-// suite command, and a fast green command returns a doc carrying a drive id and
-// the PASSED outcome at exit 0.
-func TestGateDriveStartRunsToPassed(t *testing.T) {
-	wt := gateDriveRepo(t)
+// gateDriveConfiguredRepo builds a full main-mode docket topology — a bare file
+// origin, an invocation clone, and an orphan `docket` metadata branch — whose
+// committed `.docket.yml` carries configBody, and returns the invocation clone
+// path for use as --repo-dir. A drive resolves its suite command from this pinned
+// config (the default-branch blob, never operator argv), so a test proves owner
+// routing by the SIDE EFFECT of whichever command actually runs. It isolates the
+// global config layer to an empty XDG dir so a developer's own config cannot steer
+// resolution, and skips when git is absent. It mirrors root_test.go's
+// newStatusFixtureRepo topology.
+func gateDriveConfiguredRepo(t *testing.T, configBody string) string {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found on PATH")
+	}
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
 	root := gateTempDir(t)
-	out, errS, code := runCLI(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--", "/bin/echo", "hi")
+	origin := filepath.Join(root, "origin.git")
+	writer := filepath.Join(root, "writer")
+	invocation := filepath.Join(root, "invocation")
+
+	statusGit(t, root, "init", "--bare", "-b", "main", origin)
+	statusGit(t, root, "init", "-b", "main", writer)
+	statusGit(t, writer, "config", "user.name", "t")
+	statusGit(t, writer, "config", "user.email", "t@t")
+	statusGit(t, writer, "config", "commit.gpgsign", "false")
+
+	statusWriteFile(t, writer, ".docket.yml", configBody)
+	statusWriteFile(t, writer, "README.md", "readme\n")
+	statusGit(t, writer, "add", "-A")
+	statusGit(t, writer, "commit", "-q", "-m", "main content")
+	statusGit(t, writer, "remote", "add", "origin", origin)
+	statusGit(t, writer, "push", "-q", "-u", "origin", "main")
+
+	// Orphan `docket` metadata branch so PinContext's fixed metadata pin resolves
+	// (0363: the metadata branch is fixed at refs/heads/docket).
+	statusGit(t, writer, "checkout", "--orphan", "docket")
+	statusGit(t, writer, "rm", "-rf", ".")
+	statusWriteFile(t, writer, "docs/changes/BOARD.md", "# Board\n")
+	statusGit(t, writer, "add", "-A")
+	statusGit(t, writer, "commit", "-q", "-m", "docket: initialize metadata branch")
+	statusGit(t, writer, "push", "-q", "-u", "origin", "docket")
+	statusGit(t, writer, "checkout", "-q", "main")
+
+	statusGit(t, root, "clone", "-q", origin, invocation)
+	return invocation
+}
+
+// TestGateDriveStartRunsToPassed proves `gate drive start --owner build` composes
+// the same state machine as the app seam through the CLI: the suite command is the
+// resolved build.test_command from authoritative config (never operator argv), and
+// a fast green command returns a doc carrying a drive id and the PASSED outcome at
+// exit 0.
+func TestGateDriveStartRunsToPassed(t *testing.T) {
+	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\nbuild:\n  gate: local\n  test_command: /bin/echo hi\n")
+	root := gateTempDir(t)
+	out, errS, code := runCLI(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "build")
 	if code != 0 || errS != "" {
 		t.Fatalf("start: out=%q err=%q code=%d", out, errS, code)
 	}
@@ -292,14 +341,46 @@ func TestGateDriveStartRunsToPassed(t *testing.T) {
 	}
 }
 
+// TestGateDriveStartOwnerRoutesToOwnCommand is the DIVERGENT-COMMAND CLI test: the
+// repo's build and finalize test commands touch DIFFERENT marker files, so a
+// service that read the wrong owner's command cannot pass. `--owner build` must
+// launch build.test_command (its marker appears) and never finalize's (its marker
+// stays absent). Swapping the "build" branch of buildOwnedGateDriveService to the
+// finalize constructor reddens this test.
+func TestGateDriveStartOwnerRoutesToOwnCommand(t *testing.T) {
+	markers := t.TempDir()
+	buildMarker := filepath.Join(markers, "build-ran")
+	finalizeMarker := filepath.Join(markers, "finalize-ran")
+	cfg := "metadata_branch: main\n" +
+		"build:\n  gate: local\n  test_command: touch " + buildMarker + "\n" +
+		"finalize:\n  test_command: touch " + finalizeMarker + "\n"
+	wt := gateDriveConfiguredRepo(t, cfg)
+	root := gateTempDir(t)
+
+	out, errS, code := runCLI(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "build")
+	if errS != "" {
+		t.Fatalf("start: err=%q code=%d", errS, code)
+	}
+	doc := decodeOneJSON(t, out)
+	if got := driveDoc(t, doc)["outcome"]; got != "PASSED" {
+		t.Fatalf("start outcome=%v, want PASSED (build command must run green): %v", got, doc)
+	}
+	if _, err := os.Stat(buildMarker); err != nil {
+		t.Fatalf("--owner build must launch build.test_command; marker %q missing: %v", buildMarker, err)
+	}
+	if _, err := os.Stat(finalizeMarker); err == nil {
+		t.Fatalf("--owner build must NOT launch finalize.test_command; marker %q was created", finalizeMarker)
+	}
+}
+
 // TestGateDriveStartFailedIsNonZeroExit is the exit-code guard for the Task 9
 // residual risk: the shared envelope result is `applied` for a FAILED verdict, so
 // a CLI that keyed its exit on ExitCode(result) would report a red suite as
 // success (exit 0). The process exit MUST derive from the typed outcome instead.
 func TestGateDriveStartFailedIsNonZeroExit(t *testing.T) {
-	wt := gateDriveRepo(t)
+	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\nbuild:\n  gate: local\n  test_command: /usr/bin/false\n")
 	root := gateTempDir(t)
-	out, errS, code := runCLI(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--", "/usr/bin/false")
+	out, errS, code := runCLI(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "build")
 	if errS != "" {
 		t.Fatalf("start: err=%q", errS)
 	}
@@ -320,11 +401,12 @@ func TestGateDriveStartFailedIsNonZeroExit(t *testing.T) {
 // TestGateDriveAdvanceHandoffClaim proves advance resumes the same durable drive
 // and that handoff then claim transfer ownership: handoff mints a fresh single-use
 // token, and claim consumes it for a fresh owner generation, all keyed on opaque
-// drive/claim identifiers across separate short-lived CLI invocations.
+// drive/claim identifiers across separate short-lived CLI invocations. Advance,
+// handoff, and claim are commandless — they never resolve config.
 func TestGateDriveAdvanceHandoffClaim(t *testing.T) {
-	wt := gateDriveRepo(t)
+	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\nbuild:\n  gate: local\n  test_command: /bin/echo hi\n")
 	root := gateTempDir(t)
-	out, _, code := runCLI(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--", "/bin/echo", "hi")
+	out, _, code := runCLI(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "build")
 	if code != 0 {
 		t.Fatalf("start failed: %q", out)
 	}
@@ -370,54 +452,55 @@ func TestGateDriveAdvanceHandoffClaim(t *testing.T) {
 	}
 }
 
-// TestGateDriveStartRequiresDashBoundary proves an argument-parse failure is a
-// command failure — invalid-input, no workflow document — never a drive outcome,
-// and that no drive is launched before the boundary is enforced.
-func TestGateDriveStartRequiresDashBoundary(t *testing.T) {
+// TestGateDriveStartRequiresOwner proves `--owner` is required and closed:
+// omitting it is cobra's required-flag failure (invalid input, exit 2), and any
+// value other than build|finalize is a command failure — invalid-input, no
+// workflow document — with no drive launched, because the value is rejected before
+// any config resolution or engine call. The `-- <argv>` suite-command surface is
+// gone: no drive start ever accepts an operator command.
+func TestGateDriveStartRequiresOwner(t *testing.T) {
 	wt := gateDriveRepo(t)
 	root := gateTempDir(t)
+	// Omitting --owner: cobra's required-flag check fails before RunE, exit 2.
 	_, _, code := runCLI(t, "gate", "drive", "start", "--repo-dir", wt, "--run-root", root)
 	if code != 2 {
-		t.Fatalf("no dash: code=%d, want 2", code)
+		t.Fatalf("missing --owner: code=%d, want 2", code)
 	}
-	out, errS, code := runCLI(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root)
+	// An unknown owner value is a command failure: invalid-input, no drive doc.
+	out, errS, code := runCLI(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "bogus")
 	if code != 2 || errS != "" {
-		t.Fatalf("no dash json: err=%q code=%d", errS, code)
+		t.Fatalf("bogus owner json: err=%q code=%d", errS, code)
 	}
 	doc := decodeOneJSON(t, out)
 	if doc["result"] != "invalid-input" {
-		t.Fatalf("parse failure result=%v, want invalid-input", doc["result"])
+		t.Fatalf("bogus owner result=%v, want invalid-input", doc["result"])
 	}
 	if _, hasDrive := doc["drive"]; hasDrive {
-		t.Fatalf("a parse failure must not carry a workflow drive document: %v", doc)
-	}
-	// A positional word before `--` is rejected too.
-	_, _, code = runCLI(t, "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "before", "--", "/bin/echo")
-	if code != 2 {
-		t.Fatalf("positional-before-dash: code=%d, want 2", code)
+		t.Fatalf("a rejected owner must not carry a workflow drive document: %v", doc)
 	}
 }
 
-// TestGateDriveStartNoArgvLeak proves the protocol output never leaks the suite
-// argv (redaction): the drive document carries identity and outcome, never the
-// command words, in either JSON or human mode.
-func TestGateDriveStartNoArgvLeak(t *testing.T) {
-	wt := gateDriveRepo(t)
-	root := gateTempDir(t)
+// TestGateDriveStartNoCommandLeak proves the protocol output never leaks the
+// resolved suite command (redaction): the drive document carries identity and
+// outcome, never the command words, in either JSON or human mode — even though the
+// command now comes from authoritative config rather than operator argv.
+func TestGateDriveStartNoCommandLeak(t *testing.T) {
 	const secret = "SENTINEL_no_leak_TOKEN_98217"
-	out, _, code := runCLI(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--", "/bin/echo", secret)
+	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\nbuild:\n  gate: local\n  test_command: /bin/echo "+secret+"\n")
+	root := gateTempDir(t)
+	out, _, code := runCLI(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "build")
 	if code != 0 {
 		t.Fatalf("start failed: %q", out)
 	}
 	if strings.Contains(out, secret) {
-		t.Fatalf("suite argv leaked into protocol JSON: %q", out)
+		t.Fatalf("suite command leaked into protocol JSON: %q", out)
 	}
-	out, _, code = runCLI(t, "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--", "/bin/echo", secret)
+	out, _, code = runCLI(t, "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "build")
 	if code != 0 {
 		t.Fatalf("start (human) failed: %q", out)
 	}
 	if strings.Contains(out, secret) {
-		t.Fatalf("suite argv leaked into human output: %q", out)
+		t.Fatalf("suite command leaked into human output: %q", out)
 	}
 }
 

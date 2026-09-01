@@ -36,8 +36,9 @@ const (
 // outcome.
 type GateDriveResult struct {
 	Envelope
-	Drive  *gatedrive.DriveDoc `json:"drive,omitempty"`
-	Reason string              `json:"reason,omitempty"`
+	Drive   *gatedrive.DriveDoc `json:"drive,omitempty"`
+	Reason  string              `json:"reason,omitempty"`
+	Message string              `json:"message,omitempty"`
 }
 
 // driveEngine is the native gate-drive state machine this seam maps to the
@@ -60,6 +61,12 @@ type GateDriveService struct {
 	budget     time.Duration
 	command    string
 	provenance string
+	// owner names the policy that owns this drive's command ("build" or
+	// "finalize"), set by the owner constructors. It is used only to compose the
+	// unresolved-command refusal's human message; the commandless resumption path
+	// leaves it empty, and Start (the only operation that reads a command) is never
+	// reached on that path.
+	owner string
 }
 
 // GateDriveStartRequest is the caller-supplied identity and launch context for a
@@ -82,21 +89,49 @@ type GateDriveStartRequest struct {
 
 // newGateDriveService is the seam-injecting core constructor: it binds a drive
 // engine to the resolved budget/command/provenance. Production wiring composes
-// the real driver through NewGateDriveService; unit tests inject a fake engine.
+// the real driver through the owner constructors below; unit tests inject a fake
+// engine.
 func newGateDriveService(engine driveEngine, budget time.Duration, command, provenance string) *GateDriveService {
 	return &GateDriveService{engine: engine, budget: budget, command: command, provenance: provenance}
 }
 
-// NewGateDriveService composes the production in-process gate-drive seam. It
-// roots the durable drive store at the repository's Git common directory,
-// resolves the config-provenanced observation budget (gate_observation_budget, in
-// minutes) and suite command (finalize.test_command) from the effective
-// configuration — authoritative config, never agent input — and builds the native
-// driver over the real process supervisor, monotonic clock, and git seam. It never
-// shells out to docket's own CLI. A process-service resolution failure returns a
-// non-nil (result, reason) the caller surfaces directly; the reason is a fixed
-// safe string, never a host path.
-func NewGateDriveService(gitCommonDir, exePath string, eff config.Effective) (*GateDriveService, Result, string) {
+// Command selection is an explicit DOMAIN BOUNDARY, not a caller convenience: the
+// build role reads only build policy and finalize only finalize policy, and (spec)
+// "no agent or CLI caller may substitute an arbitrary command around authoritative
+// configuration". The two owner constructors below are the only production entry
+// points; each reads exactly one owner's test_command and records that owning key
+// in the persisted provenance. There is deliberately no owner-agnostic constructor
+// that takes a command — a Start command is always the resolved policy of a named
+// owner.
+
+// NewBuildGateDriveService composes the production gate-drive seam for the BUILD
+// role. It reads ONLY build.test_command (never finalize's) and the shared
+// observation budget, and names build.test_command in the persisted provenance.
+func NewBuildGateDriveService(gitCommonDir, exePath string, eff config.Effective) (*GateDriveService, Result, string) {
+	return newOwnedGateDriveService(gitCommonDir, exePath, eff, "build", eff.Build.TestCommand)
+}
+
+// NewFinalizeGateDriveService composes the production gate-drive seam for the
+// FINALIZE role. It reads ONLY finalize.test_command (never build's) and the
+// shared observation budget, and names finalize.test_command in the persisted
+// provenance — byte-identical to the pre-0374 single-owner provenance so a
+// finalize drive record is unchanged.
+func NewFinalizeGateDriveService(gitCommonDir, exePath string, eff config.Effective) (*GateDriveService, Result, string) {
+	return newOwnedGateDriveService(gitCommonDir, exePath, eff, "finalize", eff.Finalize.TestCommand)
+}
+
+// newOwnedGateDriveService is the shared private core the two owner constructors
+// delegate to. It roots the durable drive store at the repository's Git common
+// directory, resolves the config-provenanced observation budget
+// (gate_observation_budget, in minutes) and the OWNER'S OWN suite command from the
+// effective configuration — authoritative config, never agent input — and builds
+// the native driver over the real process supervisor, monotonic clock, and git
+// seam. It never shells out to docket's own CLI. owner ("build"|"finalize") is the
+// owning-key stem: the persisted provenance names <owner>.test_command and the
+// unresolved-command refusal names the owner. A process-service resolution failure
+// returns a non-nil (result, reason) the caller surfaces directly; the reason is a
+// fixed safe string, never a host path.
+func newOwnedGateDriveService(gitCommonDir, exePath string, eff config.Effective, owner string, command config.Value[string]) (*GateDriveService, Result, string) {
 	proc, err := process.NewService(exePath)
 	if err != nil {
 		r, reason := mapGateFailure(err)
@@ -105,16 +140,32 @@ func NewGateDriveService(gitCommonDir, exePath string, eff config.Effective) (*G
 	store := gatedrive.OpenStore(gitCommonDir)
 	engine := gatedrive.NewSystemDriver(store, proc)
 	budget := time.Duration(eff.GateObservation.Value) * time.Minute
-	command := eff.Finalize.TestCommand.Value
-	return newGateDriveService(engine, budget, command, gateDriveProvenance(eff)), "", ""
+	// Provenance emits layer identities only — never a value — so it is safe to
+	// persist in the drive record. The owning key is <owner>.test_command, derived
+	// from owner so the stem and the message can never drift apart.
+	prov := fmt.Sprintf("gate_observation_budget=%s;%s.test_command=%s",
+		eff.GateObservation.Provenance.Layer, owner, command.Provenance.Layer)
+	svc := newGateDriveService(engine, budget, command.Value, prov)
+	svc.owner = owner
+	return svc, "", ""
 }
 
-// gateDriveProvenance renders a bounded, safe provenance string naming the
-// configuration LAYERS the budget and command resolved from. It emits layer
-// identities only — never a value — so it is safe to persist in the drive record.
-func gateDriveProvenance(eff config.Effective) string {
-	return fmt.Sprintf("gate_observation_budget=%s;finalize.test_command=%s",
-		eff.GateObservation.Provenance.Layer, eff.Finalize.TestCommand.Provenance.Layer)
+// NewCommandlessGateDriveService composes the gate-drive seam for the RESUMPTION
+// operations (advance, handoff, claim), which never consult the suite command or
+// the observation budget — they resume a drive the durable store already owns. It
+// therefore resolves NO configuration: no owner, no command, no budget. Because
+// Start fails closed on an empty command, a caller can never smuggle an
+// unconfigured Start through this path; advance/handoff/claim stay
+// config-resolution-free, exactly as before the owner split.
+func NewCommandlessGateDriveService(gitCommonDir, exePath string) (*GateDriveService, Result, string) {
+	proc, err := process.NewService(exePath)
+	if err != nil {
+		r, reason := mapGateFailure(err)
+		return nil, r, reason
+	}
+	store := gatedrive.OpenStore(gitCommonDir)
+	engine := gatedrive.NewSystemDriver(store, proc)
+	return newGateDriveService(engine, 0, "", ""), "", ""
 }
 
 // Start begins a new drive over the resolved suite command and budget. An
@@ -122,7 +173,11 @@ func gateDriveProvenance(eff config.Effective) string {
 // failure before touching the engine — never a fabricated verdict.
 func (s *GateDriveService) Start(req GateDriveStartRequest) GateDriveResult {
 	if s.command == "" {
-		return GateDriveResult{Envelope: NewEnvelope(OperationGateDriveStart, ResultInvalidInput), Reason: "unresolved-command"}
+		return GateDriveResult{
+			Envelope: NewEnvelope(OperationGateDriveStart, ResultInvalidInput),
+			Reason:   "unresolved-command",
+			Message:  s.unresolvedCommandMessage(),
+		}
 	}
 	doc, err := s.engine.Start(gatedrive.StartRequest{
 		RepoDir:             req.RepoDir,
@@ -141,6 +196,19 @@ func (s *GateDriveService) Start(req GateDriveStartRequest) GateDriveResult {
 		IdempotentSuiteGate: req.IdempotentSuiteGate,
 	})
 	return mapDriveResult(OperationGateDriveStart, doc, err)
+}
+
+// unresolvedCommandMessage names the owner and the setup remedy for the
+// unresolved-command refusal. The reason TOKEN stays "unresolved-command"
+// (stable); only this human message carries the owner and the remedy. The owner is
+// always set on a service that can reach Start (an owner constructor); the "gate"
+// fallback covers the unreachable commandless path defensively.
+func (s *GateDriveService) unresolvedCommandMessage() string {
+	owner := s.owner
+	if owner == "" {
+		owner = "gate"
+	}
+	return fmt.Sprintf("no resolved %s test command; run docket repository configure-tests", owner)
 }
 
 // Advance resumes the current attempt of a drive through at most one slice.
@@ -228,6 +296,9 @@ func (r GateDriveResult) HumanText() string {
 	}
 	if r.Reason != "" {
 		lines = append(lines, "reason: "+r.Reason)
+	}
+	if r.Message != "" {
+		lines = append(lines, "message: "+r.Message)
 	}
 	return strings.Join(lines, "\n")
 }
