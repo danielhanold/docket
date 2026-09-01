@@ -21,7 +21,7 @@ branch: 'feat/migrate-primary-clean-fast-forward'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-30T19:29:18Z'
+claimed_at: '2026-09-01T10:32:16Z'
 ---
 
 ## Artifacts
@@ -90,12 +90,3 @@ Verified against current `main` after claiming:
 
 The scope, linked spec, dependency, related, and discovery relations remain accurate. No proposal or spec-section edits are required.
 
-## Run halted
-
-### 2026-08-30
-
-### 2026-08-30 — implement-next halted
-
-The run stopped before plan authoring for change 0364. Step 0 resolved `SKILL_PLAN=superpowers:writing-plans`, which requires the configured plan-writer dispatch under the Docket Tier C dispatch contract. This run has no named-agent dispatch mechanism on its active top-level tool surface, and no deferred or lazy dispatch surface was exposed for resolution. The configured value is not `auto`, so the inline fallback is not authorized.
-
-The change was claimed and reconciled against current `main`; the reconciled record and the clean feature workspace are preserved. No plan was authored, adopted, or committed, and no build or review was started. A human must provide or restore the required dispatch capability, then resume the exact halted change through `docket change resume-halted` with the required quiescence acknowledgement.
