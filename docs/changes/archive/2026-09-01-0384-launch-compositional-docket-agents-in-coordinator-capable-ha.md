@@ -2,11 +2,11 @@
 id: 384
 slug: 'launch-compositional-docket-agents-in-coordinator-capable-ha'
 title: 'Launch compositional Docket agents in coordinator-capable harness contexts'
-status: 'implemented'
+status: 'done'
 priority: 'critical'
 type: 'fix'
 created: '2026-08-31'
-updated: '2026-08-31'
+updated: '2026-09-01'
 depends_on: []
 stacked_on:
 related: [359, 364]
@@ -22,7 +22,7 @@ branch: 'fix/launch-compositional-docket-agents-in-coordinator-capable-ha'
 pr: 'https://github.com/danielhanold/docket/pull/260'
 blocked_by:
 reconciled: true
-claimed_at: '2026-08-31T16:27:17Z'
+claimed_at:
 ---
 
 ## Artifacts
