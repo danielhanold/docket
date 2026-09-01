@@ -1,12 +1,18 @@
 package app
 
 import (
-	"github.com/danielhanold/docket/internal/evidence"
+	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/danielhanold/docket/internal/config"
+	"github.com/danielhanold/docket/internal/evidence"
+	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/workspace"
 )
 
 // testGateCommand is the resolved finalize.test_command the evidence fixtures
@@ -19,16 +25,85 @@ const (
 )
 
 // evidencePin builds a main-mode pin whose resolved config carries a non-empty
-// finalize.test_command, so EvidenceRecord has an observed gate command to
-// record. mainPin already resolves the corpus directories WorkspaceInspect
-// reads; only the test command is overlaid.
+// build.test_command (a local build gate) AND a finalize.test_command, so
+// EvidenceRecord — which is build-owned (change 0374) — has an observed gate
+// command to record. mainPin already resolves the corpus directories
+// WorkspaceInspect reads; only the gate policy is overlaid.
 func evidencePin(t *testing.T) StatusPin {
 	t.Helper()
 	pin := mainPin(t)
 	eff := pin.Config.Effective
+	eff.Build.Gate.Value = "local"
+	eff.Build.TestCommand.Value = testGateCommand
 	eff.Finalize.TestCommand.Value = testGateCommand
 	pin.Config.Effective = eff
 	return pin
+}
+
+// evidencePinWithYAML overlays a repository-layer .docket.yml onto the evidence
+// pin, preserving mainPin's corpus directories. It is how the build-owned
+// EvidenceRecord fixtures declare divergent build/finalize gate policy.
+func evidencePinWithYAML(t *testing.T, yaml string) StatusPin {
+	t.Helper()
+	snap, _, err := config.Resolve(
+		[]config.Source{{Layer: config.LayerRepository, Name: ".docket.yml", Data: []byte(yaml)}},
+		config.ResolveContext{DefaultBranch: "main"})
+	if err != nil {
+		t.Fatalf("resolve config overlay: %v", err)
+	}
+	pin := mainPin(t)
+	eff := pin.Config.Effective
+	eff.Build = snap.Effective.Build
+	eff.Finalize = snap.Effective.Finalize
+	pin.Config.Effective = eff
+	return pin
+}
+
+// evidenceDepsWithConfig mirrors evidenceDeps but overlays a repository-layer
+// YAML config so a test can declare build.gate/build.test_command divergently.
+func evidenceDepsWithConfig(t *testing.T, svc *fakeWorkspaceService, yaml string) (PlanningDeps, WorkspaceDeps, string) {
+	t.Helper()
+	reader := &fakeReader{
+		pin:    evidencePinWithYAML(t, yaml),
+		corpus: []StatusBlob{inProgressChangeBlob(7, "widget", "v7", "")},
+	}
+	deps := workspaceDepsFor(t, reader)
+	repoDir := newWorkingRepo(t, nil).invocation
+	return deps, WorkspaceDeps{Service: svc}, repoDir
+}
+
+// currentFeatureHead is the head every evidence fixture's workspace inspection
+// reports; a request carrying it passes the head-equality precondition.
+func currentFeatureHead(t *testing.T) string {
+	t.Helper()
+	return evidenceHead
+}
+
+// readyWorkspace returns a fake workspace service inspecting to the current
+// feature head, so EvidenceRecord's head-equality check is satisfied.
+func readyWorkspace() *fakeWorkspaceService {
+	return &fakeWorkspaceService{
+		inspection: workspace.Inspection{Kind: workspace.StateReady, HeadCommit: gitcli.ObjectID(evidenceHead)},
+	}
+}
+
+// evidenceRecordWithConfig runs EvidenceRecord under the given repository YAML
+// overlay and request (no run is observed unless req.RunDir is set — the gate-off
+// and unconfigured paths never reach observation).
+func evidenceRecordWithConfig(t *testing.T, yaml string, req EvidenceRecordRequest) EvidenceOpResult {
+	t.Helper()
+	deps, wdeps, repoDir := evidenceDepsWithConfig(t, readyWorkspace(), yaml)
+	return EvidenceRecord(context.Background(), deps, wdeps, repoDir, req)
+}
+
+// evidenceRecordPassedRun runs EvidenceRecord over a real passed gate run dir
+// under the given repository YAML overlay, at the current feature head.
+func evidenceRecordPassedRun(t *testing.T, yaml string) EvidenceOpResult {
+	t.Helper()
+	deps, wdeps, repoDir := evidenceDepsWithConfig(t, readyWorkspace(), yaml)
+	runDir := passedRunDir(t)
+	return EvidenceRecord(context.Background(), deps, wdeps, repoDir,
+		EvidenceRecordRequest{ID: 7, RunDir: runDir, Head: evidenceHead})
 }
 
 // evidenceDeps wires the read-only planning seams over a fake reader that
@@ -134,6 +209,53 @@ func runningRunDir(t *testing.T) string {
 // --- record: a passed run at the matching head yields evidence ---------------
 
 // --- record: every non-passed / mismatched / probe-error path refuses --------
+
+// --- record: build-owned gate policy (change 0374) ---------------------------
+
+// TestEvidenceRecordBuildGateOffMintsSkipped: build.gate: off is an explicit
+// no-gate policy. No run is observed (RunDir empty), the head must still be the
+// current feature head, and the block is the truthful skipped record.
+func TestEvidenceRecordBuildGateOffMintsSkipped(t *testing.T) {
+	res := evidenceRecordWithConfig(t, "build:\n  gate: \"off\"\n",
+		EvidenceRecordRequest{ID: 7, Head: currentFeatureHead(t)})
+	if res.Result != ResultApplied {
+		t.Fatalf("result = %v (%s), want applied", res.Result, res.Reason)
+	}
+	if res.Outcome != "skipped" || !strings.Contains(res.Block, "build-gate-off") {
+		t.Errorf("outcome/block = %q/%q, want skipped/build-gate-off", res.Outcome, res.Block)
+	}
+	if res.Command != "" {
+		t.Errorf("a skipped record carries no command, got %q", res.Command)
+	}
+}
+
+// TestEvidenceRecordUnconfiguredBuildCommandIsTypedSetupRefusal: a local build
+// gate with no build.test_command is a typed setup refusal that names the
+// remedy command — never a fabricated empty command.
+func TestEvidenceRecordUnconfiguredBuildCommandIsTypedSetupRefusal(t *testing.T) {
+	res := evidenceRecordWithConfig(t, "build:\n  gate: local\n",
+		EvidenceRecordRequest{ID: 7, Head: currentFeatureHead(t), RunDir: t.TempDir()})
+	if res.Result != ResultUnsupportedConfig || res.Reason != ReasonEvidenceUnconfiguredGate {
+		t.Fatalf("result/reason = %v/%s, want unsupported-config/%s", res.Result, res.Reason, ReasonEvidenceUnconfiguredGate)
+	}
+	if !strings.Contains(res.Message, "docket repository configure-tests") {
+		t.Errorf("message %q must name the setup remedy", res.Message)
+	}
+}
+
+// TestEvidenceRecordRecordsBuildCommandNotFinalize: the divergent-command
+// fixture. EvidenceRecord is build-owned, so the recorded command is
+// build.test_command — swapping the source to finalize.test_command reddens
+// this test (the guard the divergent fixture exists for).
+func TestEvidenceRecordRecordsBuildCommandNotFinalize(t *testing.T) {
+	res := evidenceRecordPassedRun(t, "build:\n  gate: local\n  test_command: go test ./build-only\nfinalize:\n  test_command: make finalize-only\n")
+	if res.Result != ResultApplied {
+		t.Fatalf("result = %v (%s: %s), want applied", res.Result, res.Reason, res.Message)
+	}
+	if res.Command != "go test ./build-only" {
+		t.Errorf("recorded command = %q; evidence must record build.test_command", res.Command)
+	}
+}
 
 // --- verify: the head pin is the invalidate-on-fix property ------------------
 
