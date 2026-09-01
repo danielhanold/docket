@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/enter-compositional-docket-roles-as-coordinator-capable-code'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-01T11:42:44Z'
+reconciled: true
+claimed_at: '2026-09-01T13:28:27Z'
 ---
 
 ## Artifacts
@@ -80,3 +80,9 @@ This is not "the build is hard." It is a hard environmental blocker on a non-sev
 ## Recommended human action
 
 Run 393 in the environment where its deliverable lives and can be proven: a live VS Code-backed Codex host. Either implement it by hand there against the actual app-server protocol, or dispatch a Codex-hosted `docket-implement-next` run (once the very root-entry capability 393 delivers exists, or via the manual spike path used to select the design). Then resume this halted change by id through the resume path (`docket change resume-halted --acknowledge-quiescent`). No follow-up change needs minting; the design and spec stand as written.
+
+## Reconcile log
+
+### 2026-09-01
+
+Reconciled against main at 4e510f735d5bf249a17e7f91f58455889791271c and Codex CLI 0.152.0. The Go harness adapter is currently installation-only, so this change must add an explicit runtime entry boundary rather than overload wrapper rendering. The managed app-server control-socket proxy rejected a live initialize attempt with Broken pipe, while the already-spiked direct app-server protocol remains the supported root-thread route; implement the adapter over that native protocol and retain fail-closed rejection of codex exec, ordinary-child fallback, and typed relay. The pre-workspace resume command also misclassified an absent manifest/path/ref as a foreign active writer; the verified empty state is safe for this explicitly authorized inline continuation and is reported as separate follow-up work.
