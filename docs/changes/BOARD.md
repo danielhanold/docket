@@ -1,18 +1,18 @@
 # Backlog
 
-**390 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 21 groomed · 🟡 43 proposed · ⚪ 4 deferred · ✅ 236 done · 🗑️ 83 killed
+**390 changes** — 🟢 1 in progress · 🔵 2 built · 🟣 21 groomed · 🟡 43 proposed · ⚪ 4 deferred · ✅ 236 done · 🗑️ 83 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
-| [0390](active/0390-maintenance-sweep-scope-full-re-probes-the-remote-per-item-h.md) | maintenance sweep --scope full re-probes the remote per item, hanging the sweep | `critical` | `fix` | [spec](../superpowers/specs/2026-08-31-maintenance-sweep-scope-full-re-probes-the-remote-per-item-h-design.md) | `fix/maintenance-sweep-scope-full-re-probes-the-remote-per-item-h` |
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [spec](../superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) | `feat/migrate-primary-clean-fast-forward` |
 
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
+| [0390](active/0390-maintenance-sweep-scope-full-re-probes-the-remote-per-item-h.md) | maintenance sweep --scope full re-probes the remote per item, hanging the sweep | `critical` | `fix` | [#262](https://github.com/danielhanold/docket/pull/262) | awaiting merge |
 | [0384](active/0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md) | Launch compositional Docket agents in coordinator-capable harness contexts | `critical` | `fix` | [#260](https://github.com/danielhanold/docket/pull/260) | awaiting merge |
 
 ## 🟣 Groomed (21)
