@@ -147,6 +147,8 @@ func TestBuiltinEffectiveMatchesRegistryDefaults(t *testing.T) {
 		"finalize.gate":                eff.Finalize.Gate.Value,
 		"finalize.test_command":        eff.Finalize.TestCommand.Value,
 		"finalize.require_pr_approval": eff.Finalize.RequirePRApproval.Value,
+		"build.gate":                   eff.Build.Gate.Value,
+		"build.test_command":           eff.Build.TestCommand.Value,
 		"learnings.enabled":            eff.Learnings.Enabled.Value,
 		"reclaim.lease_ttl":            eff.Reclaim.LeaseTTL.Value,
 		"reclaim.auto":                 eff.Reclaim.Auto.Value,

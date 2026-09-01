@@ -184,6 +184,19 @@ build:
   # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
   checkpoint: false
 
+  # gate — whether docket-build certifies the finished branch with one whole-suite run.
+  # local (default): run build.test_command once after all plan tasks; a green run mints
+  # exact-head build evidence. "off": this repository declares it has no build test gate —
+  # truthful `skipped` evidence is recorded instead of running anything. Quote "off".
+  # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+  gate: local
+
+  # test_command — the suite the build gate runs. "" (default) is unconfigured: a local
+  # build gate refuses to run until you set it (remedy: `docket repository configure-tests`).
+  # Independent of finalize.test_command — the two may diverge.
+  # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+  test_command: ""
+
 
 # ═══ review — the docket-owned review role ═════════════════════════════════════════════════
 

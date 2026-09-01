@@ -32,8 +32,12 @@ func builtinEffective() Effective {
 		ResultsDir:        builtinValue("docs/results"),
 		Finalize: Finalize{
 			Gate:              builtinValue("local"),
-			TestCommand:       builtinValue("auto"),
+			TestCommand:       builtinValue(""),
 			RequirePRApproval: builtinValue(false),
+		},
+		Build: Build{
+			Gate:        builtinValue("local"),
+			TestCommand: builtinValue(""),
 		},
 		Learnings: Learnings{Enabled: builtinValue(true)},
 		Reclaim: Reclaim{

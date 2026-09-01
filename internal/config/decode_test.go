@@ -84,6 +84,11 @@ func decodeAcceptanceCases() []decodeCase {
 
 		{row: "build.checkpoint", path: "build.checkpoint",
 			block: "build:\n  checkpoint: true\n", flow: "build: {checkpoint: true}\n", value: true},
+		{row: "build.gate", path: "build.gate",
+			block: "build:\n  gate: off\n", flow: "build: {gate: off}\n", value: "off"},
+		{row: "build.test_command", path: "build.test_command",
+			block: "build:\n  test_command: \"go test ./...\"\n",
+			flow:  "build: {test_command: \"go test ./...\"}\n", value: "go test ./..."},
 
 		{row: "review.min_fix_severity", path: "review.min_fix_severity",
 			block: "review:\n  min_fix_severity: blocker\n",
