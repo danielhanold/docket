@@ -1,13 +1,18 @@
 # Backlog
 
-**393 changes** — 🟢 2 in progress · 🟣 19 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 239 done · 🗑️ 84 killed
+**393 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 19 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 239 done · 🗑️ 84 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
-| [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [spec](../superpowers/specs/2026-09-01-enter-compositional-docket-roles-as-coordinator-capable-code-design.md) | `fix/enter-compositional-docket-roles-as-coordinator-capable-code` |
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [spec](../superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) | `feat/migrate-primary-clean-fast-forward` |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
 ## 🟣 Groomed (19)
 

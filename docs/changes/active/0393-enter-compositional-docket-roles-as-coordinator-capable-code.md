@@ -2,7 +2,7 @@
 id: 393
 slug: 'enter-compositional-docket-roles-as-coordinator-capable-code'
 title: 'Enter compositional Docket roles as coordinator-capable Codex root threads'
-status: 'in-progress'
+status: 'implemented'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-01'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/enter-compositional-docket-roles-as-coordinator-capable-code'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/265'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-01T14:45:38Z'
