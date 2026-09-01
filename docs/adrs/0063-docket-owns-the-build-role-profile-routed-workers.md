@@ -2,7 +2,7 @@
 id: 63
 slug: docket-owns-the-build-role-profile-routed-workers
 title: Docket owns the build role — profile-routed workers, model and effort on named agents
-status: Accepted
+status: 'Superseded by ADR-0102'
 date: 2026-07-30
 supersedes: [23]
 reverses: []

@@ -54,7 +54,6 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0060](0060-generated-wrapper-conforms-to-target-harness-contract.md) — A generated wrapper conforms to its target harness's own documented contract (Accepted) ← change #135 · relates to ADR-0008, ADR-0015, ADR-0017, ADR-0059
 - [ADR-0061](0061-detect-vs-mark-a-missing-terminal-record.md) — Detect a missing terminal record where there is no marker seam; mark where the failure mode is a conscious human deferral (Accepted) ← change #117 · relates to ADR-0049, ADR-0051
 - [ADR-0062](0062-in-repo-shell-yaml-readers-no-external-parser.md) — YAML and frontmatter are parsed by in-repo shell readers — no external YAML parser (Accepted) ← change #18 · relates to ADR-0057, ADR-0058
-- [ADR-0063](0063-docket-owns-the-build-role-profile-routed-workers.md) — Docket owns the build role — profile-routed workers, model and effort on named agents (Accepted) ← change #167 → supersedes ADR-0023 · relates to ADR-0015, ADR-0016, ADR-0018, ADR-0059
 - [ADR-0064](0064-shipped-agent-defaults-live-in-a-harness-indexed-sidecar.md) — Shipped agent model/effort defaults live in a harness-indexed sidecar; wrapper templates carry no model floor (Accepted) ← change #168 → supersedes ADR-0048 · relates to ADR-0015, ADR-0016, ADR-0060, ADR-0063
 - [ADR-0065](0065-bare-scalar-validation-needs-an-explicit-quote-leg.md) — A bare-scalar validator needs an explicit quote leg — raw-vs-consumed comparison is a whitespace test, not a bare-scalar test (Accepted) ← change #173 · relates to ADR-0058, ADR-0015
 - [ADR-0066](0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md) — Docket owns the review role — read-only rungs, and the suite runs in the build gate (Accepted) ← change #170 · relates to ADR-0012, ADR-0024, ADR-0063
@@ -92,6 +91,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0099](0099-one-metadata-topology-for-go-v1.md) — One metadata topology for Go v1 (main-mode removed) (Accepted) ← change #363 → supersedes ADR-0002 · relates to ADR-0001, ADR-0052
 - [ADR-0100](0100-native-host-dispatch-is-authoritative-for-registered-docket.md) — Native host dispatch is authoritative for registered docket agents (Accepted) ← change #371 → supersedes ADR-0037 · relates to ADR-0036, ADR-0074
 - [ADR-0101](0101-maintenance-sweep-scope-defer-historical-cleanup-out-of-impl.md) — Maintenance sweep scope: defer historical cleanup out of implementation startup (Accepted) ← change #389 · relates to ADR-0012, ADR-0024
+- [ADR-0102](0102-build-and-finalize-own-independent-gate-and-test-command-con.md) — Build and finalize own independent gate and test-command configuration (Accepted) ← change #374 → supersedes ADR-0063 · relates to ADR-0074, ADR-0095, ADR-0099
 
 ## Superseded / Reversed
 
@@ -103,6 +103,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0039](0039-config-example-mirrors-wrapper-defaults.md) — config.yml.example is a documented mirror of the shipped wrapper defaults (Superseded by ADR-48) ← change #81
 - [ADR-0042](0042-auto-approve-consent-model.md) — Auto-approve consent model — a bot approval proves docket's pipeline signed off, not human review (Reversed by ADR-0043) ← change #62 · relates to ADR-0011
 - [ADR-0048](0048-docket-yml-example-invariants.md) — .docket.yml.example is a tested canonical config reference — mirror, fidelity, must-update (Superseded by ADR-64) ← change #101 → supersedes ADR-0039 · relates to ADR-0019
+- [ADR-0063](0063-docket-owns-the-build-role-profile-routed-workers.md) — Docket owns the build role — profile-routed workers, model and effort on named agents (Superseded by ADR-0102) ← change #167 → supersedes ADR-0023 · relates to ADR-0015, ADR-0016, ADR-0018, ADR-0059
 - [ADR-0081](0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md) — gate-run's detachment contract is narrowed per platform: own process group where no session primitive exists (Superseded by ADR-95) ← change #282 · relates to ADR-0080
 
 ## Deprecated

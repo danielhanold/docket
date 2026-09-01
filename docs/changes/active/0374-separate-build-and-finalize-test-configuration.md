@@ -11,7 +11,7 @@ depends_on: [370]
 stacked_on:
 related: [167, 316, 318, 352, 360, 370]
 discovered_from: []
-adrs: [63, 74, 95, 99]
+adrs: [63, 74, 95, 99, 102]
 spec: 'docs/superpowers/specs/2026-08-30-separate-build-and-finalize-test-configuration-design.md'
 plan: 'docs/superpowers/plans/2026-08-31-separate-build-and-finalize-test-configuration.md'
 results:
@@ -32,7 +32,7 @@ claimed_at: '2026-09-01T02:28:25Z'
 |---|---|
 | Spec | [2026-08-30-separate-build-and-finalize-test-configuration-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-30-separate-build-and-finalize-test-configuration-design.md) |
 | Plan | [2026-08-31-separate-build-and-finalize-test-configuration.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-08-31-separate-build-and-finalize-test-configuration.md) |
-| ADRs | [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md), [ADR-0074](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md) |
+| ADRs | [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md), [ADR-0074](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md), [ADR-0095](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md), [ADR-0099](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0099-one-metadata-topology-for-go-v1.md), [ADR-0102](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0102-build-and-finalize-own-independent-gate-and-test-command-con.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
