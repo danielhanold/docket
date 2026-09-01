@@ -13,7 +13,7 @@ related: [352]
 discovered_from: [352]
 adrs: []
 spec: docs/superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md
-plan:
+plan: 'docs/superpowers/plans/2026-09-01-migrate-primary-clean-fast-forward.md'
 results:
 trivial: false
 auto_groomable:
@@ -30,6 +30,7 @@ claimed_at: '2026-09-01T16:34:41Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-28-migrate-primary-clean-fast-forward-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) |
+| Plan | [2026-09-01-migrate-primary-clean-fast-forward.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-01-migrate-primary-clean-fast-forward.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
