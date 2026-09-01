@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0390 — maintenance sweep --scope full re-probes the remote per item, hanging the sweep](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0390-maintenance-sweep-scope-full-re-probes-the-remote-per-item-h.md)**
+> ↩ **[Change 0390 — maintenance sweep --scope full re-probes the remote per item, hanging the sweep](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-01-0390-maintenance-sweep-scope-full-re-probes-the-remote-per-item-h.md)**
 <!-- docket:backlink:end -->
 # Maintenance Sweep Batched Discovery, Shared Observations, and Network Deadlines — Implementation Plan
 
