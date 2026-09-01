@@ -1,6 +1,6 @@
 # Backlog
 
-**390 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 21 groomed · 🟡 43 proposed · ⚪ 4 deferred · ✅ 237 done · 🗑️ 83 killed
+**390 changes** — 🟢 1 in progress · 🔴 1 blocked · 🟣 21 groomed · 🟡 43 proposed · ⚪ 4 deferred · ✅ 237 done · 🗑️ 83 killed
 
 ## 🟢 In progress (1)
 
@@ -8,11 +8,11 @@
 |---|-------|----------|------|------|--------|
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [spec](../superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) | `feat/migrate-primary-clean-fast-forward` |
 
-## 🔵 Built (1)
+## 🔴 Blocked (1)
 
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0384](active/0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md) | Launch compositional Docket agents in coordinator-capable harness contexts | `critical` | `fix` | [#260](https://github.com/danielhanold/docket/pull/260) | awaiting merge |
+| # | Title | Priority | Type | PR | Reason |
+|---|-------|----------|------|----|--------|
+| [0384](active/0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md) | Launch compositional Docket agents in coordinator-capable harness contexts | `critical` | `fix` | [#260](https://github.com/danielhanold/docket/pull/260) | finalize blocked — needs you |
 
 ## 🟣 Groomed (21)
 
