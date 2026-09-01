@@ -30,9 +30,12 @@ auto_capture:                # parseable; capture itself is deferred from Go v1 
 board_surfaces: [inline]     # which derived board view(s) to render: inline (BOARD.md) and/or github; [] = none
 terminal_publish: false      # parseable; publication itself is deferred from Go v1 (activates nothing)
                              # terminal records stay on the metadata branch. Per-repo-only (coordination-key fenced)
+build:                       # build's OWN gate pair, independent of finalize
+  gate: local                # local (default) | off
+  test_command: ""           # "" = unconfigured; `docket repository configure-tests`
 finalize:                    # merge gate: rebase onto base + re-test before merge
   gate: local                # local (default, on) | ci | both | off  — off = pre-0015 (trust the PR's CI)
-  test_command:              # OPTIONAL; unset => finalize auto-detects the suite
+  test_command: ""           # "" = unconfigured; ditto (legacy `auto`)
   skip_results_only_delta: false  # arms the gate's docs-only post-gate skip. Per-repo-only (fenced)
 learnings:                   # the build-loop memory subsystem (change 0067)
   enabled: true              # default. false = whole subsystem off (read/write gate, never a purge)
@@ -53,7 +56,7 @@ skills:                      # pluggable workflow skills; unset key = the superp
 
 **Config layers.** Two more optional layers: a **user-level** `${XDG_CONFIG_HOME:-~/.config}/docket/config.yml` (full `.docket.yml` schema; every repo on this machine) and a **machine-local** `<repo>/.docket.local.yml` (gitignored; this repo, this machine only). Every key resolves **per-field**: **repo-local > repo-committed > global > built-in** (map-valued `skills:`/`agents:` merge field-by-field). **Coordination-key fence:** a key whose effect writes shared, non-re-derivable state (`metadata_branch`, `integration_branch`, `changes_dir`/`adrs_dir`/`results_dir`, `github_project`, `terminal_publish`, `finalize.skip_results_only_delta`, and `board_surfaces`' `github` token) is per-repo-only — set in either machine-scoped file it is loudly warned-and-ignored, never honored, never fatal (ADR-0019). Everything else is global-able. The per-key classification table and the misplaced/malformed-file postures are authoritative in docket's config schema (`internal/config`); the legacy `agents.yaml` auto-migration is owned by the Go install.
 
-This resolution — repair `origin/HEAD`, read `.docket.yml` authoritatively, apply every default, resolve `integration_branch` — is performed deterministically by the config resolver inside **`docket repository prepare`** (see the *Step-0 preamble*), which exports the resolved values to skill runtime.
+This resolution — repair `origin/HEAD`, read `.docket.yml`, apply defaults, resolve `integration_branch` — runs deterministically inside **`docket repository prepare`** (the *Step-0 preamble*), exporting the resolved values to skill runtime.
 
 **Reaching docket's operations.** Maintained skills reach every docket operation through the native `docket <command>` binary on `PATH` — the typed CLI verbs (`docket repository prepare`, `docket maintenance sweep`, `docket status`, `docket change …`, `docket context …`, `docket adr …`, `docket artifact backlink`, …) — never a shell facade, and never a `DOCKET_*` transport variable resolved into a command. The deterministic helper scripts this convention still names (for their frozen and `main`-mode contracts) live in the docket clone's `scripts/` directory, NOT in the consuming repo; read a script's co-located `scripts/<name>.md` contract for its internals. If the `docket` binary is missing from `PATH`, the install is broken — stop and fix it, never silently degrade to hand-worked operations. Every env var docket introduces is **DOCKET_-namespaced**.
 
