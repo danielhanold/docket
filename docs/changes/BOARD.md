@@ -1,18 +1,12 @@
 # Backlog
 
-**391 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 20 groomed · 🟡 44 proposed · ⚪ 4 deferred · ✅ 238 done · 🗑️ 83 killed
+**391 changes** — 🟢 1 in progress · 🟣 20 groomed · 🟡 44 proposed · ⚪ 4 deferred · ✅ 239 done · 🗑️ 83 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [spec](../superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) | `feat/migrate-primary-clean-fast-forward` |
-
-## 🔵 Built (1)
-
-| # | Title | Priority | Type | PR | State |
-|---|-------|----------|------|----|-------|
-| [0374](active/0374-separate-build-and-finalize-test-configuration.md) | Separate build and finalize test configuration | `high` | `refactor` | [#263](https://github.com/danielhanold/docket/pull/263) | awaiting merge |
 
 ## 🟣 Groomed (20)
 
@@ -43,7 +37,7 @@
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0391](active/0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | `medium` | `feat` | ⏳ waiting on #374 — needs your merge |
+| [0391](active/0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | `medium` | `feat` | needs-brainstorm |
 | [0388](active/0388-reimplement-post-merge-fast-forward-integration-branch-sync.md) | Reimplement post-merge fast-forward integration-branch sync as a native Go verb | `medium` | `feat` | needs-brainstorm |
 | [0387](active/0387-re-cut-frozen-fixtures-to-clear-stale-retired-token-comments.md) | Re-cut frozen fixtures to clear stale retired-token comments in harness-defaults and .docket.yml | `low` | `chore` | needs-brainstorm |
 | [0385](active/0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | `medium` | `docs` | needs-brainstorm |
@@ -157,7 +151,6 @@ graph TD
   0370 --> 0366
   0368
   0373
-  0370 --> 0374
   0375
   0376
   0379
@@ -174,15 +167,17 @@ graph TD
   0251:::done
   0352:::done
   0370:::done
+  0374:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (321)</summary>
+<details><summary>✅🗑️ Archive — done + killed (322)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0390](archive/2026-09-01-0390-maintenance-sweep-scope-full-re-probes-the-remote-per-item-h.md) | maintenance sweep --scope full re-probes the remote per item, hanging the sweep | 2026-09-01 |
 | [0384](archive/2026-09-01-0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md) | Launch compositional Docket agents in coordinator-capable harness contexts | 2026-09-01 |
+| [0374](archive/2026-09-01-0374-separate-build-and-finalize-test-configuration.md) | Separate build and finalize test configuration | 2026-09-01 |
 | [0389](archive/2026-08-31-0389-speed-up-implement-next-status-sweeps-and-retire-completed-s.md) | Speed up implement-next status sweeps and retire completed status children | 2026-08-31 |
 | [0386](archive/2026-08-31-0386-discharge-adr-0100-s-deferred-disposition-for-the-surviving.md) | Discharge ADR-0100's deferred disposition for the surviving product runners | 2026-08-31 |
 | [0377](archive/2026-08-31-0377-migrate-deferred-bash-facade-workflow-operations-to-native-g.md) | Migrate deferred Bash-facade workflow operations to native Go CLI verbs | 2026-08-31 |
@@ -196,7 +191,6 @@ graph TD
 | [0363](archive/2026-08-29-0363-remove-main-mode-compatibility-from-go-v1.md) | Remove main-mode compatibility from Go v1 | 2026-08-29 |
 | [0318](archive/2026-08-29-0318-config-contraction-self-hosting-and-hard-cutover.md) | Go-only source cutover | 2026-08-29 |
 | [0362](archive/2026-08-28-0362-partition-internal-release-to-clear-the-race-gate-timeout.md) | Partition internal/release integration tests to clear the race-gate per-package timeout | 2026-08-28 |
-| [0361](archive/2026-08-28-0361-release-candidate-source-gate-macos-runner.md) | Release-candidate source-gate green on a macOS runner | 2026-08-28 |
 | [0353](archive/2026-08-26-0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | 2026-08-26 |
 | [0294](archive/2026-08-26-0294-shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru.md) | Shrink AGENTS.md's always-loaded footprint: script-ify the run gate's caller procedure and de-duplicate the dispatch table | 2026-08-26 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
@@ -284,7 +278,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 105 done |
+| [2026-08](archive/) | 106 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 

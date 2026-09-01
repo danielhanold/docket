@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0374 — Separate build and finalize test configuration](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0374-separate-build-and-finalize-test-configuration.md)**
+> ↩ **[Change 0374 — Separate build and finalize test configuration](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-01-0374-separate-build-and-finalize-test-configuration.md)**
 <!-- docket:backlink:end -->
 
 # Separate build and finalize test configuration — design
