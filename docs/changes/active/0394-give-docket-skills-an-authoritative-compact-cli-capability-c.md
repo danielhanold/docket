@@ -12,7 +12,7 @@ stacked_on:
 related: [360, 369, 370, 371, 377]
 discovered_from: [360]
 adrs: [3, 20, 36]
-spec:
+spec: 'docs/superpowers/specs/2026-09-01-give-docket-skills-an-authoritative-compact-cli-capability-c-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-09-01-give-docket-skills-an-authoritative-compact-cli-capability-c-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-01-give-docket-skills-an-authoritative-compact-cli-capability-c-design.md) |
 | ADRs | [ADR-0003](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0003-convention-reference-loading.md), [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md) |
 <!-- docket:artifacts:end -->
 

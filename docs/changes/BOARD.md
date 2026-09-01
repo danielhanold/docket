@@ -1,6 +1,6 @@
 # Backlog
 
-**394 changes** — 🔵 2 built · 🟣 19 groomed · 🟡 46 proposed · ⚪ 4 deferred · ✅ 239 done · 🗑️ 84 killed
+**394 changes** — 🔵 2 built · 🟣 20 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 239 done · 🗑️ 84 killed
 
 ## 🔵 Built (2)
 
@@ -9,10 +9,11 @@
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [#266](https://github.com/danielhanold/docket/pull/266) | awaiting merge |
 
-## 🟣 Groomed (19)
+## 🟣 Groomed (20)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0394](active/0394-give-docket-skills-an-authoritative-compact-cli-capability-c.md) | Give Docket skills an authoritative compact CLI capability catalog | `high` | `feat` | [spec](../superpowers/specs/2026-09-01-give-docket-skills-an-authoritative-compact-cli-capability-c-design.md) |
 | [0359](active/0359-run-gate-gives-up-too-soon.md) | Run gate gives up too soon | `high` | `fix` | [spec](../superpowers/specs/2026-08-28-run-gate-gives-up-too-soon-design.md) |
 | [0264](active/0264-measure-the-claude-harness-s-forked-mode-gate-verdict-and-pi.md) | Measure the claude harness's forked-mode gate verdict and pin a surviving launch shape | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-claude-forked-mode-gate-verdict-design.md) |
 | [0261](active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | `high` | `feat` | [spec](../superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) |
@@ -33,11 +34,10 @@
 | [0172](active/0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md) | Normalize the banned producer-pipe shape across tests and helpers | `medium` | `chore` | [spec](../superpowers/specs/2026-08-07-normalize-the-banned-producer-pipe-shape-across-tests-and-he-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
-## 🟡 Proposed (46)
+## 🟡 Proposed (45)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0394](active/0394-give-docket-skills-an-authoritative-compact-cli-capability-c.md) | Give Docket skills an authoritative compact CLI capability catalog | `high` | `feat` | needs-brainstorm |
 | [0392](active/0392-installer-tolerant-config-read-break-the-schema-bump-bootstr.md) | Installer-tolerant config read: break the schema-bump bootstrap deadlock | `medium` | `fix` | needs-brainstorm |
 | [0391](active/0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | `medium` | `feat` | needs-brainstorm |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-brainstorm |
