@@ -403,6 +403,10 @@ func TestRepositoryPrepareContextFieldsTyped(t *testing.T) {
 	cfg.Finalize.Gate.Value = "local"
 	cfg.Finalize.TestCommand.Value = "go run ./cmd/docket development test"
 	cfg.Finalize.RequirePRApproval.Value = true
+	// Divergent build policy: the build block mirrors build.* independently, so a
+	// build command that differs from finalize's proves the two are not aliased.
+	cfg.Build.Gate.Value = "off"
+	cfg.Build.TestCommand.Value = "go test ./build-only"
 
 	sc := setupContext{
 		cfg:               cfg,
@@ -447,6 +451,10 @@ func TestRepositoryPrepareContextFieldsTyped(t *testing.T) {
 				TestCommand       string `json:"test_command"`
 				RequirePRApproval bool   `json:"require_pr_approval"`
 			} `json:"finalize"`
+			Build struct {
+				Gate        string `json:"gate"`
+				TestCommand string `json:"test_command"`
+			} `json:"build"`
 		} `json:"context"`
 	}
 	if err := json.Unmarshal(raw, &decoded); err != nil {
@@ -473,6 +481,9 @@ func TestRepositoryPrepareContextFieldsTyped(t *testing.T) {
 	}
 	if c.Finalize.TestCommand != "go run ./cmd/docket development test" || c.Finalize.Gate != "local" || !c.Finalize.RequirePRApproval {
 		t.Errorf("finalize not mirrored from config: %+v", c.Finalize)
+	}
+	if c.Build.TestCommand != "go test ./build-only" || c.Build.Gate != "off" {
+		t.Errorf("build not mirrored from config (independent of finalize): %+v", c.Build)
 	}
 	if c.OriginURL != "git@github.com:acme/widget.git" {
 		t.Errorf("origin_url = %q, want the resolved origin", c.OriginURL)

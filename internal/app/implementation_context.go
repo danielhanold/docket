@@ -126,9 +126,14 @@ type ContextHalt struct {
 // 0363).
 type ContextWorkflow struct {
 	IntegrationBranch string `json:"integration_branch"`
-	TestCommand       string `json:"test_command,omitempty"`
-	Remote            string `json:"remote"`
-	FeatureBranch     string `json:"feature_branch"`
+	// BuildGate/BuildTestCommand are the BUILD role's OWN gate policy (change
+	// 0374): the implementation workflow drives the build gate, so it reads
+	// build.gate/build.test_command — never finalize's. The generic test_command
+	// key is retired (spec Touch point 3).
+	BuildGate        string `json:"build_gate"`                   // local|off — the build role's own gate policy
+	BuildTestCommand string `json:"build_test_command,omitempty"` // "" == unconfigured (typed setup halt at the gate)
+	Remote           string `json:"remote"`
+	FeatureBranch    string `json:"feature_branch"`
 }
 
 // ImplementationContext is the internally consistent bundle. Every fact derives
@@ -307,7 +312,8 @@ func ContextImplementation(ctx context.Context, deps PlanningDeps, repoDir strin
 		ADRs:          acceptedADRs(snap),
 		Workflow: ContextWorkflow{
 			IntegrationBranch: pin.IntegrationBranch,
-			TestCommand:       eff.Finalize.TestCommand.Value,
+			BuildGate:         eff.Build.Gate.Value,
+			BuildTestCommand:  eff.Build.TestCommand.Value,
 			Remote:            string(originRemote),
 			// The context is produced BEFORE the claim, so no branch is recorded yet;
 			// this is the branch the imminent claim will mint and record, through the

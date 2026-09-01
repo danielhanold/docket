@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -90,6 +91,44 @@ func openFacts(number int, mergeable string, files, lines int) domain.PRFacts {
 }
 
 // --- tests ----------------------------------------------------------------
+
+// TestContextFinalizePolicyExposesFinalizeGate proves the finalize policy block
+// reports finalize's OWN gate policy under the ownership-named finalize_gate/
+// finalize_test_command keys (never a bare generic test_command), carrying
+// finalize's values and not the build role's (change 0374 Touch point 3). The
+// discriminating fixture sets divergent build/finalize commands.
+func TestContextFinalizePolicyExposesFinalizeGate(t *testing.T) {
+	pin := docketPin(t)
+	pin.Config.Effective.Finalize.Gate.Value = "local"
+	pin.Config.Effective.Finalize.TestCommand.Value = "make finalize-only"
+	pin.Config.Effective.Build.TestCommand.Value = "go test ./build-only"
+
+	corpus := []StatusBlob{
+		finalizeBlob(31, "beta", "implemented", "high", prRefFor(31), ""),
+	}
+	prober := &fakeFinalizeProber{facts: map[string]domain.PRFacts{
+		prRefFor(31): withHead(openFacts(31, "MERGEABLE", 2, 20), "feat/beta"),
+	}}
+	fake := &fakeReader{pin: pin, corpus: corpus}
+
+	got := ContextFinalize(context.Background(), finalizeDeps(fake, prober, &recordingEngine{}), "", FinalizeContextRequest{})
+	if got.Result != ResultApplied {
+		t.Fatalf("result=%q reason=%q message=%q", got.Result, got.Reason, got.Message)
+	}
+	if got.Policy.FinalizeGate != "local" {
+		t.Errorf("policy.FinalizeGate = %q, want local", got.Policy.FinalizeGate)
+	}
+	if got.Policy.FinalizeTestCommand != "make finalize-only" {
+		t.Errorf("policy.FinalizeTestCommand = %q; the policy must expose finalize.test_command, not build's", got.Policy.FinalizeTestCommand)
+	}
+	wire, _ := json.Marshal(got.Policy)
+	if !bytes.Contains(wire, []byte(`"finalize_gate"`)) || !bytes.Contains(wire, []byte(`"finalize_test_command"`)) {
+		t.Errorf("policy JSON must carry finalize_gate/finalize_test_command: %s", wire)
+	}
+	if bytes.Contains(wire, []byte(`"test_command"`)) {
+		t.Errorf("policy JSON must not carry a bare test_command key: %s", wire)
+	}
+}
 
 // TestContextFinalizeSelection: with no id the candidate order matches the
 // domain finalize queue — a merged PR surfaces first as merged-recovery, then
