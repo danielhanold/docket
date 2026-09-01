@@ -1,6 +1,6 @@
 # Backlog
 
-**392 changes** — 🟢 1 in progress · 🟣 20 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 239 done · 🗑️ 83 killed
+**393 changes** — 🟢 1 in progress · 🟣 20 groomed · 🟡 46 proposed · ⚪ 4 deferred · ✅ 239 done · 🗑️ 83 killed
 
 ## 🟢 In progress (1)
 
@@ -33,10 +33,11 @@
 | [0172](active/0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md) | Normalize the banned producer-pipe shape across tests and helpers | `medium` | `chore` | [spec](../superpowers/specs/2026-08-07-normalize-the-banned-producer-pipe-shape-across-tests-and-he-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
-## 🟡 Proposed (45)
+## 🟡 Proposed (46)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | needs-brainstorm |
 | [0392](active/0392-installer-tolerant-config-read-break-the-schema-bump-bootstr.md) | Installer-tolerant config read: break the schema-bump bootstrap deadlock | `medium` | `fix` | needs-brainstorm |
 | [0391](active/0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | `medium` | `feat` | needs-brainstorm |
 | [0388](active/0388-reimplement-post-merge-fast-forward-integration-branch-sync.md) | Reimplement post-merge fast-forward integration-branch sync as a native Go verb | `medium` | `feat` | needs-brainstorm |
@@ -164,6 +165,7 @@ graph TD
   0388
   0374 --> 0391
   0392
+  0393
   0192:::done
   0211:::done
   0251:::done
