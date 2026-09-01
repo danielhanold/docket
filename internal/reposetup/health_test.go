@@ -3,7 +3,88 @@ package reposetup
 import (
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/config"
 )
+
+// buildTestPolicyCfg builds a config.Effective whose build/finalize gate and
+// test-command leaves carry the given values, so the test-config health finding
+// can be exercised over each local gate independently.
+func buildTestPolicyCfg(buildGate, buildCmd, finalizeGate, finalizeCmd string) config.Effective {
+	var eff config.Effective
+	eff.Build.Gate = config.Value[string]{Value: buildGate}
+	eff.Build.TestCommand = config.Value[string]{Value: buildCmd}
+	eff.Finalize.Gate = config.Value[string]{Value: finalizeGate}
+	eff.Finalize.TestCommand = config.Value[string]{Value: finalizeCmd}
+	return eff
+}
+
+// TestTestConfigFindingBuildSideEmptyFires proves the finding keys on the BUILD
+// gate independently: a local build gate with an empty command fires even when
+// finalize is fully configured. This is the divergent fixture the Task 11
+// mutation targets — suppressing the build disjunct must redden this assert.
+func TestTestConfigFindingBuildSideEmptyFires(t *testing.T) {
+	cfg := buildTestPolicyCfg("local", "", "local", "make check")
+	f := TestConfigFinding(cfg, nil)
+	if f == nil {
+		t.Fatalf("a local build gate with an empty command must fire the test-config finding")
+	}
+	if f.Code != "test-config-missing" {
+		t.Errorf("finding code = %q, want test-config-missing", f.Code)
+	}
+	if !strings.Contains(f.Remedy, "docket repository configure-tests") {
+		t.Errorf("remedy %q must name `docket repository configure-tests`", f.Remedy)
+	}
+}
+
+// TestTestConfigFindingFinalizeSideEmptyFires is the independent twin: a local
+// finalize gate with an empty command fires even when build is configured.
+func TestTestConfigFindingFinalizeSideEmptyFires(t *testing.T) {
+	cfg := buildTestPolicyCfg("local", "go test ./...", "local", "")
+	if TestConfigFinding(cfg, nil) == nil {
+		t.Fatalf("a local finalize gate with an empty command must fire the test-config finding")
+	}
+}
+
+// TestTestConfigFindingBothConfiguredIsClean proves an explicitly configured
+// pair (local gate + command on both) yields no finding.
+func TestTestConfigFindingBothConfiguredIsClean(t *testing.T) {
+	cfg := buildTestPolicyCfg("local", "go test ./...", "local", "make check")
+	if f := TestConfigFinding(cfg, nil); f != nil {
+		t.Fatalf("fully-configured pair must yield no finding, got %+v", *f)
+	}
+}
+
+// TestTestConfigFindingGateOffIsClean proves an explicit build.gate/finalize.gate
+// of off with no command is a deliberate choice, not a gap: no finding.
+func TestTestConfigFindingGateOffIsClean(t *testing.T) {
+	cfg := buildTestPolicyCfg("off", "", "off", "")
+	if f := TestConfigFinding(cfg, nil); f != nil {
+		t.Fatalf("explicit off gates must yield no finding, got %+v", *f)
+	}
+}
+
+// TestTestConfigFindingLegacyAutoInCommittedBytesFires proves a still-declared
+// legacy `auto` in the committed repository bytes fires the finding even when the
+// resolved gates are off (so the empty-command disjuncts do not fire): the
+// committed-auto signal is independent.
+func TestTestConfigFindingLegacyAutoInCommittedBytesFires(t *testing.T) {
+	cfg := buildTestPolicyCfg("off", "", "off", "")
+	committed := []byte("finalize:\n  test_command: auto\n")
+	if f := TestConfigFinding(cfg, committed); f == nil {
+		t.Fatalf("a declared legacy `auto` in the committed bytes must fire the finding")
+	}
+}
+
+// TestTestConfigFindingMalformedCommittedBytesDoesNotPanic proves malformed
+// committed YAML is tolerated (it falls back to the resolved-config disjuncts,
+// never panics): with off gates and unparseable bytes there is no finding.
+func TestTestConfigFindingMalformedCommittedBytesDoesNotPanic(t *testing.T) {
+	cfg := buildTestPolicyCfg("off", "", "off", "")
+	if f := TestConfigFinding(cfg, []byte("this: : : not: yaml\n\t- broken")); f != nil {
+		t.Fatalf("malformed committed bytes with off gates must yield no finding, got %+v", *f)
+	}
+}
 
 // destructiveSubstrings are the command shapes a remedy must never print: a
 // conflict or dirty-worktree remedy names a human disposition, never a

@@ -94,16 +94,39 @@ func RunRepositoryCheck(ctx context.Context, d SetupDeps) RepositoryCheckResult 
 	// its own errors to the safe Unknown value, never to a false absence.
 	var fm []reposetup.RepairFinding
 	var corpusExtra []reposetup.Finding
+	var testConfig *reposetup.Finding
 	if facts.RemoteMetadata.Presence == reposetup.PresencePresent {
 		augmentCheckFacts(ctx, d.Git, &facts, sc)
 		corpus, rerr := readCheckCorpus(ctx, d.Git, sc)
 		fm, corpusExtra = checkCorpusOutcome(sc.cfg, corpus, rerr)
+		// A local build/finalize gate with no configured command (or a still-declared
+		// legacy `auto`) is a setup gap, not a topology fault: it surfaces here with
+		// the `docket repository configure-tests` remedy. Read the committed
+		// repository-layer `.docket.yml` bytes so the legacy-`auto` signal keys on
+		// exactly what the resolver read.
+		testConfig = reposetup.TestConfigFinding(sc.cfg, readCommittedDocketYML(sc.repo.PrimaryWorktree))
 	}
 
 	cls := reposetup.Classify(facts)
 	findings := reposetup.EvaluateHealth(cls, facts, fm)
 	findings = append(findings, corpusExtra...)
+	if testConfig != nil {
+		findings = append(findings, *testConfig)
+	}
 	return newCheckResult(cls, facts, findings)
+}
+
+// readCommittedDocketYML returns the primary worktree's `.docket.yml` bytes —
+// the repository-layer config the resolver reads — or nil when it is absent or
+// unreadable. The health finding tolerates nil (it then rests on the resolved
+// config alone), so an absent or transiently unreadable file is never an error
+// here.
+func readCommittedDocketYML(primaryWorktree string) []byte {
+	b, err := os.ReadFile(filepath.Join(primaryWorktree, docketYMLRel))
+	if err != nil {
+		return nil
+	}
+	return b
 }
 
 // newCheckResult stamps the envelope and human text for a computed check
