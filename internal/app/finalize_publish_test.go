@@ -185,3 +185,32 @@ func (f *publishFixture) openPRForPublish(head, body string) githubcli.PullReque
 // --- TestFinalizePublishRefusesForeignAttempt -----------------------------
 
 // --- TestFinalizePublishShapeAndEvidenceRefusals --------------------------
+
+// TestFinalizePublishAcceptsSkippedEvidence: a build.gate: off repository's
+// truthful skipped evidence certifying the exact rewritten head passes
+// FinalizePublish's evidence conjunct — the operation proceeds PAST it
+// (VerdictSkipped is accepted exactly as VerdictVerified). Reverting the
+// green-or-skipped acceptance would refuse here with ReasonPublishEvidenceUnverified,
+// so this pins the verify-site change. (PR-body weaving of a skipped block is a
+// separate concern: evidence.Upsert is green-only today, so the operation still
+// fails later at body assembly — see the change notes.)
+func TestFinalizePublishAcceptsSkippedEvidence(t *testing.T) {
+	requireRealGit(t)
+	f := setupPublishFixture(t, planRepoModes()[0])
+	// Land the push out of band so publish resumes only the PR update, exactly as
+	// the green after-push replay case does.
+	runGit(t, f.wp, "push", "--force", "-q", "origin", "HEAD:refs/heads/feat/"+f.slug)
+	if tip := f.remoteFeatureTip(t); tip != f.rewritten {
+		t.Fatalf("precondition: remote tip = %q, want the rewritten head", tip)
+	}
+	skipped, err := evidence.NewSkippedRecord(f.rewritten, time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("NewSkippedRecord: %v", err)
+	}
+	gh := &fakePublishGitHub{repo: retargetRepo(), pr: f.openPRForPublish(f.rewritten, authoredPRBody(t, f.origHead))}
+	res := FinalizePublish(context.Background(), f.publishDeps(gh), f.repo.invocation,
+		FinalizePublishRequest{ID: f.id, Attempt: f.attempt, Head: f.rewritten, EvidenceRecord: []byte(evidence.Render(skipped))})
+	if res.Reason == ReasonPublishEvidenceUnverified {
+		t.Fatalf("skipped evidence at the exact head was refused at the evidence conjunct: %q", res.Message)
+	}
+}

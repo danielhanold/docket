@@ -232,9 +232,9 @@ func FinalizePublish(ctx context.Context, deps FinalizeDeps, repoDir string, req
 		return publishRefusal(ResultInvalidInput, "", ReasonPublishEvidenceTooLarge,
 			fmt.Sprintf("the evidence record is %d bytes, over the %d-byte authored-input bound", len(req.EvidenceRecord), maxAuthoredMarkdownBytes), req.ID)
 	}
-	if verdict := evidence.Verify(req.EvidenceRecord, req.Head); verdict != evidence.VerdictVerified {
+	if verdict := evidence.Verify(req.EvidenceRecord, req.Head); verdict != evidence.VerdictVerified && verdict != evidence.VerdictSkipped {
 		return publishRefusal(ResultInvalidState, "", ReasonPublishEvidenceUnverified,
-			"the reparsed evidence does not verify green against the requested head ("+string(verdict)+")", req.ID)
+			"the reparsed evidence does not verify (green or skipped) against the requested head ("+string(verdict)+")", req.ID)
 	}
 	rec, err := evidence.Extract(req.EvidenceRecord)
 	if err != nil {

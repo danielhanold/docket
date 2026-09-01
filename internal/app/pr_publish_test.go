@@ -60,6 +60,18 @@ func prEvidenceBytes(t *testing.T, head string) []byte {
 	return []byte(evidence.Render(rec))
 }
 
+// prSkippedEvidenceBytes renders a truthful skipped (build-gate-off) evidence
+// block certifying head — the record a build.gate: off repository publishes in
+// place of a green run. Shared by the four green-or-skipped acceptance tests.
+func prSkippedEvidenceBytes(t *testing.T, head string) []byte {
+	t.Helper()
+	rec, err := evidence.NewSkippedRecord(head, time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("NewSkippedRecord: %v", err)
+	}
+	return []byte(evidence.Render(rec))
+}
+
 // prReader builds a fake reader over a single in-progress change 7 (slug widget).
 func prReader(t *testing.T) *fakeReader {
 	t.Helper()
@@ -116,4 +128,25 @@ func prSnapshotChange(t *testing.T, reader *fakeReader, id int) domain.Change {
 		t.Fatalf("change %d not found in snapshot (outcome %v)", id, out)
 	}
 	return c
+}
+
+// TestPRPublishAcceptsSkippedEvidenceAtExactHead: a build.gate: off repository's
+// truthful skipped evidence certifying the exact feature head passes PRPublish's
+// evidence conjunct — the operation proceeds PAST it (VerdictSkipped is accepted
+// exactly as VerdictVerified). Any later refusal is not the evidence conjunct;
+// reverting the green-or-skipped acceptance would refuse here with
+// ReasonPREvidenceUnverified, so this pins the verify-site change. (PR-body
+// weaving of a skipped block is a separate concern: evidence.Upsert is green-only
+// today, so the operation still fails later at body assembly — see the change
+// notes.)
+func TestPRPublishAcceptsSkippedEvidenceAtExactHead(t *testing.T) {
+	repoDir := newWorkingRepo(t, nil).invocation
+	reader := prReader(t)
+	gh := &fakeGitHub{repo: prRepo(), ensureRes: githubcli.EnsureResult{Disposition: githubcli.EnsureCreated, PR: prMatchPR("verified")}}
+	deps := workspaceDepsFor(t, reader)
+	res := PRPublish(context.Background(), deps, WorkspaceDeps{Service: readyService(prHead)}, GitHubDeps{Service: gh},
+		repoDir, PRPublishRequest{ID: 7, Head: prHead, Title: "Add widget", Body: "Authored prose.\n", EvidenceRecord: prSkippedEvidenceBytes(t, prHead)})
+	if res.Reason == ReasonPREvidenceUnverified {
+		t.Fatalf("skipped evidence at the exact head was refused at the evidence conjunct: %q", res.Message)
+	}
 }
