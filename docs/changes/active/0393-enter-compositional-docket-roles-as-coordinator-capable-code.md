@@ -22,7 +22,7 @@ branch: 'fix/enter-compositional-docket-roles-as-coordinator-capable-code'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-01T13:28:27Z'
+claimed_at: '2026-09-01T13:30:56Z'
 ---
 
 ## Artifacts
