@@ -21,7 +21,7 @@ branch: 'feat/migrate-primary-clean-fast-forward'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-01T10:44:24Z'
+claimed_at: '2026-09-01T16:21:09Z'
 ---
 
 ## Artifacts
@@ -90,14 +90,3 @@ Verified against current `main` after claiming:
 
 The scope, linked spec, dependency, related, and discovery relations remain accurate. No proposal or spec-section edits are required.
 
-## Run halted
-
-### 2026-09-01
-
-### 2026-09-01 — implement-next halted
-
-The resumed run stopped before plan authoring for change 0364. The authoritative resume seam found an empty `plan:` field, and the owned feature branch's latest commit (`b853e8c013eeb867eda488614dea7b9396a5d89a`) is not a clean single-file plan commit with a `Docket-Plan-Path:` trailer. The branch has no recoverable plan artifact, so the worker must not guess a plan path or dispatch a second plan implicitly.
-
-The resolved `skills.plan` value is `superpowers:writing-plans`, which is not `auto` and requires the configured plan-writer named-agent dispatch under Docket's Tier C dispatch contract. This worker's active top-level tool surface exposes no named-agent dispatch mechanism after capability search and a trivial dispatch attempt; no deferred or lazy named-agent dispatch surface was available to resolve. Inline plan fallback is therefore not authorized.
-
-The claim lease was refreshed before recording this halt. The owned workspace and feature branch are preserved; no plan, build, review, or PR was authored by this run.
