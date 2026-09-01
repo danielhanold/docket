@@ -2,7 +2,7 @@
 id: 393
 slug: 'enter-compositional-docket-roles-as-coordinator-capable-code'
 title: 'Enter compositional Docket roles as coordinator-capable Codex root threads'
-status: 'proposed'
+status: 'in-progress'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-01'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/enter-compositional-docket-roles-as-coordinator-capable-code'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-01T11:42:44Z'
 ---
 
 ## Artifacts
