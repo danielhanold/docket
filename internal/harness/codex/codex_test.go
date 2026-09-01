@@ -368,8 +368,12 @@ func TestCodexAgentMirrorsSource(t *testing.T) {
 		if !ok {
 			t.Fatalf("no rendered file for %s", s.Name)
 		}
-		if !strings.Contains(content, "description = \""+s.Description+"\"\n") {
-			t.Errorf("%s does not carry its source description", s.Name)
+		contract, err := RoleContractFor(in, s.Name)
+		if err != nil {
+			t.Fatalf("RoleContractFor(%s): %v", s.Name, err)
+		}
+		if !strings.Contains(content, "description = \""+contract.Description+"\"\n") {
+			t.Errorf("%s does not carry its role-contract description", s.Name)
 		}
 		preamble := "Before acting, load these docket skills from your linked Codex skills directory: " +
 			strings.Join(s.Skills, ", ") + "."
@@ -398,6 +402,56 @@ func TestCodexAgentMirrorsSource(t *testing.T) {
 			}
 			break
 		}
+	}
+}
+
+func TestRoleContractForSharesTheRegistrationSource(t *testing.T) {
+	in := fixtureInput(t)
+	in.Agents["codex"]["implement-next"] = config.AgentSetting{
+		Model:  config.Value[string]{Value: "gpt-contract"},
+		Effort: config.Value[string]{Value: "max"},
+	}
+	contract, err := RoleContractFor(in, "docket-implement-next")
+	if err != nil {
+		t.Fatalf("RoleContractFor: %v", err)
+	}
+	if contract.Name != "docket-implement-next" || contract.LaunchPosture != harness.LaunchRootCoordinator {
+		t.Fatalf("contract identity/posture = %+v", contract)
+	}
+	if contract.Model != "gpt-contract" || contract.Effort != "max" {
+		t.Fatalf("contract pins = (%q, %q)", contract.Model, contract.Effort)
+	}
+	for _, want := range []string{
+		harness.RecursionGuard("docket-implement-next"),
+		codexDispatchBoundary,
+		"Before acting, load these docket skills from your linked Codex skills directory: docket-implement-next, docket-convention.",
+		"Execute docket-implement-next to drain the next build-ready change.",
+	} {
+		if !strings.Contains(contract.DeveloperInstructions, want) {
+			t.Errorf("developer instructions do not contain %q", want)
+		}
+	}
+
+	// Registration is a projection of this exact contract. A second prose or
+	// pin resolver would let these two paths drift.
+	got := string(renderAgent(contract))
+	for _, want := range []string{
+		`name = "` + contract.Name + `"`,
+		`description = "` + contract.Description + `"`,
+		`model = "` + contract.Model + `"`,
+		`model_reasoning_effort = "` + contract.Effort + `"`,
+		"developer_instructions = \"\"\"\n" + escapeMultiline(contract.DeveloperInstructions) + "\n\"\"\"",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("rendered registration does not carry contract value %q", want)
+		}
+	}
+}
+
+func TestRoleContractForRejectsUnknownRole(t *testing.T) {
+	_, err := RoleContractFor(fixtureInput(t), "docket-no-such-role")
+	if err == nil || !strings.Contains(err.Error(), "docket-no-such-role") {
+		t.Fatalf("RoleContractFor unknown role error = %v", err)
 	}
 }
 

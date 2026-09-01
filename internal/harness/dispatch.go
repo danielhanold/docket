@@ -92,3 +92,14 @@ func DispatchInterior(runGate []byte) string {
 	b.WriteString(strings.TrimRight(string(runGate), "\n") + "\n")
 	return b.String()
 }
+
+// CodexRootEntryClause is appended only to repository AGENTS.md surfaces for
+// repos that opt into Codex. The role registry exposes the posture marker in
+// the coordinator's description; ordinary registered roles retain native
+// named-child launch.
+const CodexRootEntryClause = "### Codex root-coordinator entry\n\n" +
+	"A registered Docket role whose description begins `[docket launch: root-coordinator]` must be entered as a foreground root thread with `docket agent enter`, passing the user's request unchanged through `--request` and the active absolute cwd, approval policy, and sandbox through their corresponding flags. Wait for the command's final return and relay it as the dispatch result. Do not launch that role as an ordinary child, and do not substitute `codex exec`, another harness, a generic agent, or a parent relay. Registered roles without that marker continue through native named-agent child dispatch."
+
+func CodexDispatchInterior(runGate []byte) string {
+	return DispatchInterior(runGate) + "\n" + CodexRootEntryClause + "\n"
+}

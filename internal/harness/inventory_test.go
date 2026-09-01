@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -126,6 +127,53 @@ func TestParseInventoryFromEmbedded(t *testing.T) {
 	if len(bc.Skills) != 0 {
 		t.Errorf("brainstorm-consultant skills = %v, want none", bc.Skills)
 	}
+	if bc.LaunchPosture != LaunchChild {
+		t.Errorf("brainstorm-consultant launch posture = %q, want %q", bc.LaunchPosture, LaunchChild)
+	}
+}
+
+func TestInventoryLaunchPostureCorrespondsToDispatchOwningSkill(t *testing.T) {
+	c := embeddedCatalog(t)
+	sources, err := ParseInventory(c)
+	if err != nil {
+		t.Fatalf("ParseInventory: %v", err)
+	}
+
+	// The population comes from the executable skill contracts, never from a
+	// hand-maintained coordinator list. A dispatch edge has one stable syntactic
+	// shape: the verb and a registered docket-* role literal occur on one line.
+	// This gives both correspondence directions in one equality per source.
+	dispatchEdge := regexp.MustCompile(`(?i)\bdispatch[^\n]*` + "`docket-[^`]+`")
+	coordinators := 0
+	for _, s := range sources {
+		ownsDispatch := false
+		// A same-name preload is the role contract. Different-name preloads are
+		// shared worker/support contracts (notably docket-convention and the
+		// build/review shared roles), whose prose does not make this wrapper a
+		// coordinator.
+		for _, skill := range s.Skills {
+			if skill != s.Name {
+				continue
+			}
+			body, err := c.Bytes("skills/" + skill + "/SKILL.md")
+			if err != nil {
+				t.Fatalf("%s: reading skill %s: %v", s.Name, skill, err)
+			}
+			if dispatchEdge.Match(body) {
+				ownsDispatch = true
+			}
+			break
+		}
+		if ownsDispatch {
+			coordinators++
+		}
+		if got := s.LaunchPosture == LaunchRootCoordinator; got != ownsDispatch {
+			t.Errorf("%s posture = %q, dispatch-owning skill = %t", s.Name, s.LaunchPosture, ownsDispatch)
+		}
+	}
+	if coordinators == 0 {
+		t.Fatal("derived no dispatch-owning coordinators; correspondence guard is vacuous")
+	}
 }
 
 func TestParseInventoryDeterministic(t *testing.T) {
@@ -157,6 +205,7 @@ func TestParseInventoryRejects(t *testing.T) {
 		{"missing description", map[string]string{"agents/docket-alpha.md": "---\nname: docket-alpha\n---\nBody.\n"}, "description"},
 		{"name lacks prefix", map[string]string{"agents/alpha.md": "---\nname: alpha\ndescription: Alpha.\n---\nBody.\n"}, "docket-"},
 		{"name disagrees with filename", map[string]string{"agents/docket-beta.md": good}, "docket-beta.md"},
+		{"unknown launch posture", map[string]string{"agents/docket-alpha.md": "---\nname: docket-alpha\ndescription: Alpha.\nlaunch: sidecar\n---\nBody.\n"}, "launch"},
 		{"duplicate short name", map[string]string{
 			"agents/docket-alpha.md":   good,
 			"agents/x/docket-alpha.md": good,
@@ -186,7 +235,7 @@ func TestParseInventoryRejects(t *testing.T) {
 
 func TestParseInventoryAcceptsSynthetic(t *testing.T) {
 	c := syntheticCatalog(map[string]string{
-		"agents/docket-alpha.md": "---\nname: docket-alpha\ndescription: \"Alpha: does things.\"\nskills: [docket-build-task, docket-convention]\n---\nFirst line.\n\nSecond line.\n",
+		"agents/docket-alpha.md": "---\nname: docket-alpha\ndescription: \"Alpha: does things.\"\nskills: [docket-build-task, docket-convention]\nlaunch: root-coordinator\n---\nFirst line.\n\nSecond line.\n",
 		"agents/docket-zeta.md":  "---\nname: docket-zeta\ndescription: Zeta.\n---\nZeta body.\n",
 	}, assets.RoleAgentSource)
 
@@ -195,10 +244,10 @@ func TestParseInventoryAcceptsSynthetic(t *testing.T) {
 		t.Fatalf("ParseInventory: %v", err)
 	}
 	want := []AgentSource{
-		{ShortName: "alpha", Name: "docket-alpha", Description: "Alpha: does things.",
+		{ShortName: "alpha", Name: "docket-alpha", Description: "Alpha: does things.", LaunchPosture: LaunchRootCoordinator,
 			Skills: []string{"docket-build-task", "docket-convention"},
 			Body:   "First line.\n\nSecond line.\n"},
-		{ShortName: "zeta", Name: "docket-zeta", Description: "Zeta.", Body: "Zeta body.\n"},
+		{ShortName: "zeta", Name: "docket-zeta", Description: "Zeta.", LaunchPosture: LaunchChild, Body: "Zeta body.\n"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("ParseInventory = %#v, want %#v", got, want)
