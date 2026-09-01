@@ -510,7 +510,7 @@ func TestFixtureDocketSelf(t *testing.T) {
 	// .docket.yml changes; this test — and only this test — reads that tree. Change
 	// 0318 cut v0.9.6, moving finalize.test_command onto the Go-native source entry
 	// `go run ./cmd/docket development test` (the whole-suite gate cutover).
-	const docketSelfRoot = "../../testdata/repositories/v0.9.6"
+	const docketSelfRoot = "../../testdata/repositories/v0.9.7"
 
 	assertFrozenCopyMatchesLive(t,
 		filepath.Join(docketSelfRoot, "docket-self", "repo", ".docket.yml"),
