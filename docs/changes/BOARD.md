@@ -1,19 +1,19 @@
 # Backlog
 
-**393 changes** — 🟢 2 in progress · 🟣 20 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 239 done · 🗑️ 83 killed
+**393 changes** — 🟢 3 in progress · 🟣 19 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 239 done · 🗑️ 83 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (3)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [spec](../superpowers/specs/2026-09-01-enter-compositional-docket-roles-as-coordinator-capable-code-design.md) | `fix/enter-compositional-docket-roles-as-coordinator-capable-code` |
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [spec](../superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) | `feat/migrate-primary-clean-fast-forward` |
+| [0252](active/0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md) | Harden test fixtures and hermeticity into tests-lib | `high` | `chore` | [spec](../superpowers/specs/2026-08-07-harden-test-fixtures-and-hermeticity-into-tests-lib-design.md) | `chore/harden-test-fixtures-and-hermeticity-into-tests-lib` |
 
-## 🟣 Groomed (20)
+## 🟣 Groomed (19)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0252](active/0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md) | Harden test fixtures and hermeticity into tests-lib | `high` | `chore` | [spec](../superpowers/specs/2026-08-07-harden-test-fixtures-and-hermeticity-into-tests-lib-design.md) |
 | [0359](active/0359-run-gate-gives-up-too-soon.md) | Run gate gives up too soon | `high` | `fix` | [spec](../superpowers/specs/2026-08-28-run-gate-gives-up-too-soon-design.md) |
 | [0264](active/0264-measure-the-claude-harness-s-forked-mode-gate-verdict-and-pi.md) | Measure the claude harness's forked-mode gate verdict and pin a surviving launch shape | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-claude-forked-mode-gate-verdict-design.md) |
 | [0261](active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | `high` | `feat` | [spec](../superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) |
