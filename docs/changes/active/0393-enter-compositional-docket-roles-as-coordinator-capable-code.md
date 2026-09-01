@@ -22,7 +22,7 @@ branch: 'fix/enter-compositional-docket-roles-as-coordinator-capable-code'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-01T13:30:56Z'
+claimed_at: '2026-09-01T14:45:38Z'
 ---
 
 ## Artifacts
@@ -46,12 +46,6 @@ Add a Codex harness-native coordinator root-entry path for Docket roles that own
 ## Out of scope
 
 A generic process requirement for verification that could not have run before merge; granting broad collaboration controls to every spawned agent; a typed parent-relay protocol or approved-relay fallback; generic-agent, shell-runner, subprocess-session, or cross-harness substitutes; changing Docket's role topology, child payloads or receipts, Tier-C authorization, model or effort pins, skill bindings, worktree scopes, or the separate run-gate continuation behavior tracked by change 0359.
-
-## Run halted
-
-### 2026-09-01
-
-Halted at Step 3 (reconcile) — 2026-09-01 — by an autonomous docket-implement-next run executing in the Claude Code harness.
 
 ## Disposition
 
