@@ -622,7 +622,7 @@ func migrateExecute(ctx context.Context, git *gitcli.Client, hooks setupHooks, f
 		return migrateExternalFailure(reposetup.StateLegacy, "finishing the local attachment", err)
 	}
 
-	pendingLocal := migrateLocalFinish(ctx, git, facts, sc, docketRef, metadataTip, sourceOID)
+	pendingLocal := migrateLocalFinish(ctx, git, facts, sc, docketRef, metadataTip, sourceOID, pruneCommit)
 
 	return migrateApplied(sc, metadataTip, pruneCommit, sourceRevision, includedPrefixes, removedPaths, mr.repairable, pendingLocal)
 }
@@ -745,10 +745,10 @@ func migrateResumeLocal(ctx context.Context, git *gitcli.Client, hooks setupHook
 		return migrateExternalFailure(reposetup.StateHealthy, "finishing the local attachment", err)
 	}
 	metadataTip := gitcli.ObjectID(sc.metadataTip)
-	sourceOID := gitcli.ObjectID(sc.sourceRevision)
+	integrationTip := gitcli.ObjectID(sc.sourceRevision)
 	docketRef := gitcli.RefName(branchRefPrefix + reposetup.MetadataBranchName)
-	pendingLocal := migrateLocalFinish(ctx, git, facts, sc, docketRef, metadataTip, sourceOID)
-	return migrateApplied(sc, metadataTip, sourceOID, sc.sourceRevision, []string{}, []string{}, nil, pendingLocal)
+	pendingLocal := migrateLocalFinish(ctx, git, facts, sc, docketRef, metadataTip, integrationTip, integrationTip)
+	return migrateApplied(sc, metadataTip, integrationTip, sc.sourceRevision, []string{}, []string{}, nil, pendingLocal)
 }
 
 // mergeMigrateDebris folds a debris sweep's operator-facing report into a
@@ -899,11 +899,17 @@ func sourcePrefixExists(ctx context.Context, git *gitcli.Client, repo gitcli.Rep
 
 // migrateLocalFinish attaches the persistent .docket worktree at the seed tip,
 // disables its hooks, installs any authorized parent-facing surfaces, and returns
-// the pending local synchronization remedy for the primary worktree. The remote
-// migration is already durable, so a local step that cannot complete is reported
-// as pending_local, never rolled back onto the remote.
-func migrateLocalFinish(ctx context.Context, git *gitcli.Client, facts reposetup.Facts, sc setupContext, docketRef gitcli.RefName, metadataTip, sourceOID gitcli.ObjectID) []string {
+// pending local steps for the primary worktree. The remote migration is already
+// durable, so a local step that cannot complete is reported as pending_local,
+// never rolled back onto the remote.
+func migrateLocalFinish(ctx context.Context, git *gitcli.Client, facts reposetup.Facts, sc setupContext, docketRef gitcli.RefName, metadataTip, sourceOID, integrationTip gitcli.ObjectID) []string {
 	var pending []string
+	// Advance before attaching the nested metadata worktree: the primitive's
+	// all-path cleanliness check must judge the primary as it existed at the
+	// migration boundary, not the .docket worktree this finish creates.
+	if remedy := migratePrimarySyncRemedy(ctx, git, sc, sourceOID, integrationTip); remedy != "" {
+		pending = append(pending, remedy)
+	}
 	worktreePath := filepath.Join(sc.repo.PrimaryWorktree, docketWorktreeName)
 	if _, err := ensureMetadataWorktree(ctx, git, sc.repo, worktreePath, docketRef, metadataTip); err != nil {
 		pending = append(pending, "attach the .docket worktree: `docket repository check` then re-run `docket repository migrate` ("+err.Error()+")")
@@ -915,17 +921,14 @@ func migrateLocalFinish(ctx context.Context, git *gitcli.Client, facts reposetup
 			pending = append(pending, "review and install the authorized parent-facing surfaces: `docket install` ("+serr.Error()+")")
 		}
 	}
-	pending = append(pending, migratePrimarySyncRemedy(ctx, git, sc, sourceOID, metadataTip))
 	return pending
 }
 
-// migratePrimarySyncRemedy names the exact command that brings the local primary
-// in line with the migrated integration branch. The primary working-tree
-// fast-forward is not performed in place — a clean-fast-forward working-tree
-// primitive is intentionally outside this service's Git surface — so the remedy
-// is state-branched: a primary still at the pinned source is a plain
-// fast-forward; a primary that moved past it is a reconcile.
-func migratePrimarySyncRemedy(ctx context.Context, git *gitcli.Client, sc setupContext, sourceOID, metadataTip gitcli.ObjectID) string {
+// migratePrimarySyncRemedy returns an empty string only after clean local
+// synchronization. Every refusal remains pending_local, never a migration error:
+// a primary that moved past the pinned source gets the reconcile remedy, and any
+// clean-fast-forward failure gets the established fast-forward remedy.
+func migratePrimarySyncRemedy(ctx context.Context, git *gitcli.Client, sc setupContext, sourceOID, integrationTip gitcli.ObjectID) string {
 	primary := sc.repo.PrimaryWorktree
 	branch := sc.integrationBranch
 	remote := string(setupRemote())
@@ -942,6 +945,9 @@ func migratePrimarySyncRemedy(ctx context.Context, git *gitcli.Client, sc setupC
 	}
 	if moved {
 		return fmt.Sprintf("your local %s has moved past the migrated tip; reconcile it: `git -C %s pull --rebase %s %s`", branch, primary, remote, branch)
+	}
+	if _, err := git.FastForwardWorktree(ctx, primary, integrationTip); err == nil {
+		return ""
 	}
 	return fmt.Sprintf("fast-forward your primary worktree to the migrated integration branch: `git -C %s merge --ff-only %s/%s`", primary, remote, branch)
 }
@@ -1037,8 +1043,10 @@ func migrateApplied(sc setupContext, metadataTip, integrationTip gitcli.ObjectID
 		Repairs:         repairs,
 		PendingLocal:    pendingLocal,
 	})
-	out.human = fmt.Sprintf("repository migrated: metadata %s, integration %s\npending local sync: %s",
-		metadataTip, integrationTip, strings.Join(pendingLocal, "; "))
+	out.human = fmt.Sprintf("repository migrated: metadata %s, integration %s", metadataTip, integrationTip)
+	if len(pendingLocal) > 0 {
+		out.human += "\npending local sync: " + strings.Join(pendingLocal, "; ")
+	}
 	return out
 }
 
