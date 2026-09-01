@@ -5,6 +5,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -428,12 +429,76 @@ func TestIntegrationRepoMigrationMigrateIsIdempotent(t *testing.T) {
 	}
 }
 
+// TestIntegrationRepoMigrationPrimaryFastForwardsHealthy proves a clean primary
+// advances in place to the re-read migrated integration tip.
+func TestIntegrationRepoMigrationPrimaryFastForwardsHealthy(t *testing.T) {
+	r := newInitRepo(t, legacyDocketYML, cleanLegacyFiles())
+	before := runGit(t, r.invocation, "rev-parse", "HEAD")
+
+	res := r.runMigrate(t, MigrateOptions{Authorized: true})
+	if res.Result != ResultApplied {
+		t.Fatalf("migrate = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	want := r.originTip(t, "main")
+	if want == before {
+		t.Fatal("test setup did not publish a descendant integration commit")
+	}
+	if got := runGit(t, r.invocation, "rev-parse", "HEAD"); got != want {
+		t.Errorf("primary HEAD = %s, want migrated integration %s", got, want)
+	}
+	if res.RepositoryState != string(reposetup.StateHealthy) {
+		t.Errorf("RepositoryState = %q, want healthy", res.RepositoryState)
+	}
+	if len(res.PendingLocal) != 0 {
+		t.Errorf("PendingLocal = %v, want no primary-sync remedy", res.PendingLocal)
+	}
+	if strings.Contains(res.HumanText(), "pending local sync:") {
+		t.Errorf("healthy human result carries an empty pending line: %q", res.HumanText())
+	}
+}
+
+// TestIntegrationRepoMigrationPrimaryDirtyAfterPublish proves a dirty primary
+// remains untouched and retains the established fast-forward remedy.
+func TestIntegrationRepoMigrationPrimaryDirtyAfterPublish(t *testing.T) {
+	r := newInitRepo(t, legacyDocketYML, cleanLegacyFiles())
+	before := runGit(t, r.invocation, "rev-parse", "HEAD")
+	dirtyPath := filepath.Join(r.invocation, ".docket.yml")
+
+	hooks := setupHooks{beforeLocalFinish: func() error {
+		return os.WriteFile(dirtyPath, []byte("uncommitted bytes\n"), 0o644)
+	}}
+	res := r.runMigrateWithHooks(t, MigrateOptions{Authorized: true}, hooks)
+	if res.Result != ResultApplied {
+		t.Fatalf("migrate = %q (%s), want applied", res.Result, res.HumanText())
+	}
+	if res.RepositoryState != string(reposetup.StateNeedsReview) {
+		t.Errorf("RepositoryState = %q, want needs-review", res.RepositoryState)
+	}
+	if got := runGit(t, r.invocation, "rev-parse", "HEAD"); got != before {
+		t.Errorf("dirty primary HEAD = %s, want source %s", got, before)
+	}
+	got, err := os.ReadFile(dirtyPath)
+	if err != nil || string(got) != "uncommitted bytes\n" {
+		t.Fatalf("dirty bytes after migration = %q, %v", got, err)
+	}
+	primary, err := filepath.EvalSymlinks(r.invocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantRemedy := fmt.Sprintf("fast-forward your primary worktree to the migrated integration branch: `git -C %s merge --ff-only origin/main`", primary)
+	if len(res.PendingLocal) != 1 || res.PendingLocal[0] != wantRemedy {
+		t.Fatalf("PendingLocal = %v, want exact fast-forward remedy %q", res.PendingLocal, wantRemedy)
+	}
+}
+
 // TestIntegrationRepoMigrationLocalMovedAfterPublish proves that when the local
 // primary advances after the remote publication (via the test seam), the remote
 // migration is preserved, the result names a pending local synchronization
 // remedy, and a retry performs only local work (no remote change).
 func TestIntegrationRepoMigrationLocalMovedAfterPublish(t *testing.T) {
 	r := newInitRepo(t, legacyDocketYML, cleanLegacyFiles())
+	before := runGit(t, r.invocation, "rev-parse", "HEAD")
+	var localTip string
 
 	hooks := setupHooks{beforeLocalFinish: func() error {
 		// Advance the local primary between the remote publication and the local
@@ -442,6 +507,7 @@ func TestIntegrationRepoMigrationLocalMovedAfterPublish(t *testing.T) {
 		writeRepoFile(t, r.invocation, "local-only.txt", "advanced after publish\n")
 		runGit(t, r.invocation, "add", "--", "local-only.txt")
 		runGit(t, r.invocation, "commit", "-q", "-m", "local advance after publish")
+		localTip = runGit(t, r.invocation, "rev-parse", "HEAD")
 		return nil
 	}}
 
@@ -449,8 +515,22 @@ func TestIntegrationRepoMigrationLocalMovedAfterPublish(t *testing.T) {
 	if res.Result != ResultApplied {
 		t.Fatalf("migrate = %q (%s), want applied", res.Result, res.HumanText())
 	}
-	if len(res.PendingLocal) == 0 {
-		t.Fatal("a local-moved migration must name a pending local synchronization remedy")
+	if res.RepositoryState != string(reposetup.StateNeedsReview) {
+		t.Errorf("RepositoryState = %q, want needs-review", res.RepositoryState)
+	}
+	if localTip == before {
+		t.Fatal("test setup did not advance the local primary")
+	}
+	if got := runGit(t, r.invocation, "rev-parse", "HEAD"); got != localTip {
+		t.Errorf("local-only commit HEAD = %s, want %s", got, localTip)
+	}
+	primary, err := filepath.EvalSymlinks(r.invocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantMoved := fmt.Sprintf("your local main has moved past the migrated tip; reconcile it: `git -C %s pull --rebase origin main`", primary)
+	if len(res.PendingLocal) != 1 || res.PendingLocal[0] != wantMoved {
+		t.Fatalf("PendingLocal = %v, want exact pull-rebase remedy %q", res.PendingLocal, wantMoved)
 	}
 	metaTip := r.originTip(t, "docket")
 	intTip := r.originTip(t, "main")
