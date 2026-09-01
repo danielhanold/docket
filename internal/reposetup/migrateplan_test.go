@@ -217,6 +217,36 @@ func TestPlanMigrationPreserveCopiesFinalizeCommandIntoBuild(t *testing.T) {
 	}
 }
 
+// TestPlanMigrationPreservesExplicitDisabledFinalizeGate proves the migrate
+// preserve/copy path (a detected outcome) never re-enables a finalize gate the
+// legacy repo explicitly disabled: a committed finalize.gate off survives, while
+// finalize's own command is still copied into build. Regression for the
+// detected-path clobber that rewrote any non-local finalize gate to local,
+// violating "an explicit legacy finalize.test_command is preserved… retaining
+// behavior".
+func TestPlanMigrationPreservesExplicitDisabledFinalizeGate(t *testing.T) {
+	cfg := migrateCfg()
+	cfg.Finalize.TestCommand = config.Value[string]{Value: "make check"}
+	committed := []byte("finalize:\n  gate: off\n  test_command: make check\n")
+	// panicTree proves the preserve/copy rule short-circuits discovery.
+	plan, err := PlanMigration(cfg, committed, panicTree{}, "cafebabe", nil)
+	if err != nil {
+		t.Fatalf("PlanMigration errored: %v", err)
+	}
+	got := string(plan.ConfigBytes)
+	// The explicit finalize gate is preserved, NOT rewritten to local.
+	if !strings.Contains(got, "finalize:\n  gate: off\n") {
+		t.Errorf("migrate must preserve the explicit finalize.gate off, not clobber it to local:\n%s", got)
+	}
+	if strings.Contains(got, "finalize:\n  gate: local") {
+		t.Errorf("finalize.gate must NOT be rewritten to local:\n%s", got)
+	}
+	// build still receives the copied command under the default local gate.
+	if !strings.Contains(got, "build:\n  gate: local\n  test_command: make check\n") {
+		t.Errorf("build block must be filled with gate local + the copied command:\n%s", got)
+	}
+}
+
 // TestPlanMigrationAutoRunsDiscovery proves a legacy finalize.test_command of the
 // literal `auto` is treated as unconfigured, so discovery runs over the source
 // tree and a detected suite is written under both keys.
