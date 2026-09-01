@@ -55,9 +55,15 @@ func (errTree) Glob(string) ([]string, error)   { return nil, errProbe }
 // the configured short-circuit never touches the tree.
 type panicTree struct{}
 
-func (panicTree) Exists(string) (bool, error)     { panic("configured path must not probe the tree (Exists)") }
-func (panicTree) ReadFile(string) ([]byte, error) { panic("configured path must not probe the tree (ReadFile)") }
-func (panicTree) Glob(string) ([]string, error)   { panic("configured path must not probe the tree (Glob)") }
+func (panicTree) Exists(string) (bool, error) {
+	panic("configured path must not probe the tree (Exists)")
+}
+func (panicTree) ReadFile(string) ([]byte, error) {
+	panic("configured path must not probe the tree (ReadFile)")
+}
+func (panicTree) Glob(string) ([]string, error) {
+	panic("configured path must not probe the tree (Glob)")
+}
 
 func TestDiscoverConfiguredShortCircuitsWithoutProbing(t *testing.T) {
 	// Explicit, non-legacy commands on BOTH pairs: configured, and the tree is
