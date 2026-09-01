@@ -92,6 +92,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0100](0100-native-host-dispatch-is-authoritative-for-registered-docket.md) — Native host dispatch is authoritative for registered docket agents (Accepted) ← change #371 → supersedes ADR-0037 · relates to ADR-0036, ADR-0074
 - [ADR-0101](0101-maintenance-sweep-scope-defer-historical-cleanup-out-of-impl.md) — Maintenance sweep scope: defer historical cleanup out of implementation startup (Accepted) ← change #389 · relates to ADR-0012, ADR-0024
 - [ADR-0102](0102-build-and-finalize-own-independent-gate-and-test-command-con.md) — Build and finalize own independent gate and test-command configuration (Accepted) ← change #374 → supersedes ADR-0063 · relates to ADR-0074, ADR-0095, ADR-0099
+- [ADR-0103](0103-enter-codex-coordinator-roles-through-app-server-root-thread.md) — Enter Codex coordinator roles through app-server root threads (Accepted) ← change #393 · relates to ADR-0036, ADR-0059, ADR-0060, ADR-0094
 
 ## Superseded / Reversed
 
