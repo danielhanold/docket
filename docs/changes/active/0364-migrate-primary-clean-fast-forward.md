@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: medium
 type: feat
 created: 2026-08-28
-updated: '2026-08-30'
+updated: '2026-09-01'
 depends_on: [352]
 stacked_on:
 related: [352]
@@ -21,7 +21,7 @@ branch: 'feat/migrate-primary-clean-fast-forward'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-01T10:42:27Z'
+claimed_at: '2026-09-01T10:44:24Z'
 ---
 
 ## Artifacts
