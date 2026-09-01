@@ -2,7 +2,7 @@
 id: 390
 slug: 'maintenance-sweep-scope-full-re-probes-the-remote-per-item-h'
 title: 'maintenance sweep --scope full re-probes the remote per item, hanging the sweep'
-status: 'implemented'
+status: 'done'
 priority: 'critical'
 type: 'fix'
 created: '2026-08-31'
@@ -22,7 +22,7 @@ branch: 'fix/maintenance-sweep-scope-full-re-probes-the-remote-per-item-h'
 pr: 'https://github.com/danielhanold/docket/pull/262'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-01T00:17:57Z'
+claimed_at:
 ---
 
 ## Artifacts
