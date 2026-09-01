@@ -3,6 +3,8 @@ package cli
 import (
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/assets"
 )
 
 func TestAgentEnterCommandRegistered(t *testing.T) {
@@ -25,6 +27,9 @@ func TestAgentEnterCommandRegistered(t *testing.T) {
 }
 
 func TestAgentEnterRequiresClosedExecutionContext(t *testing.T) {
+	pinInstallEnv(t)
+	writeInstallState(t, assets.AssetProtocol)
+
 	if _, errS, code := runCLI(t, "agent", "enter"); code != 2 || !strings.Contains(errS, "required") {
 		t.Fatalf("missing flags: stderr=%q code=%d", errS, code)
 	}
