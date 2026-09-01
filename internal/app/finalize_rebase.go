@@ -43,8 +43,11 @@ import (
 //     Constraints: returned diagnostics redact report bodies) — only bounded,
 //     safe tokens (disposition, counts, the attempt) travel out.
 //   - The local suite is skipped ONLY when the rebase was a no-op and the PR body
-//     carries green evidence for the EXACT current head (gateDecision). Any other
-//     evidence head runs the full suite; the deferred results-only strict-ancestor
+//     carries green evidence for the EXACT current head AND the recorded command is
+//     byte-equal to the currently resolved finalize.test_command (gateDecision).
+//     Skipped (build-gate-off) build evidence never waives finalize; a differing or
+//     empty command runs the suite. Any other evidence head runs the full suite;
+//     the deferred results-only strict-ancestor
 //     exemption is NOT implemented. A passed run produces evidence only through the
 //     landed evidence-record path; a failed run is repair work; a run still live at
 //     budget, or signaled/stopped/vanished/malformed/unavailable, is a halt — never
@@ -70,7 +73,7 @@ const (
 
 // The closed gate-composition sub-outcomes reported in GateReport.
 const (
-	gateComposeSkipped = "skipped" // no-op rebase + exact-head green PR evidence
+	gateComposeSkipped = "skipped" // no-op rebase + exact-head green PR evidence whose command is byte-equal to the resolved finalize.test_command
 	gateComposeRan     = "ran"     // the full suite was launched and observed
 )
 
@@ -316,14 +319,22 @@ type FinalizeGate interface {
 // ---------------------------------------------------------------------------
 
 // gateDecision decides whether the local suite may be skipped after a completed
-// rebase. It skips ONLY when the rebase was a no-op AND the PR body carries green
-// evidence for the EXACT current head; the permit names that head. Any other
-// case — a real rewrite, a moved head, stale (different-head) evidence, or
-// absent/non-green evidence — runs the full suite. There is no strict-ancestor
-// exemption (spec: it is not implemented). The comparison is full-length string
-// equality; the caller normalizes both heads to lowercase.
-func gateDecision(noop bool, evidenceHead, currentHead string, evidenceGreen bool) (skip bool, permit string) {
-	if noop && evidenceGreen && evidenceHead != "" && evidenceHead == currentHead {
+// rebase. It skips ONLY when the rebase was a no-op AND the PR body carries GREEN
+// evidence for the EXACT current head AND the recorded command is byte-equal to
+// the currently resolved finalize.test_command (with both non-empty); the permit
+// names that head. Differing commands are different assertions even at the same
+// SHA, so a green record certifying another command runs the full suite; an
+// empty-vs-empty command is a vacuous match that must NOT skip; and skipped
+// (build-gate-off) build evidence — which reaches here with evidenceGreen false —
+// never waives finalize's local gate. Any other case — a real rewrite, a moved
+// head, stale (different-head) evidence, or absent/non-green evidence — runs the
+// full suite. There is no strict-ancestor exemption (spec: it is not
+// implemented). The comparisons are full-length string equality; the caller
+// normalizes both heads to lowercase.
+func gateDecision(noop bool, evidenceHead, currentHead string, evidenceGreen bool,
+	evidenceCommand, resolvedCommand string) (skip bool, permit string) {
+	if noop && evidenceGreen && evidenceHead != "" && evidenceHead == currentHead &&
+		evidenceCommand != "" && evidenceCommand == resolvedCommand {
 		return true, evidenceHead
 	}
 	return false, ""
@@ -795,7 +806,8 @@ func requireOwnedAttempt(ctx context.Context, deps FinalizeDeps, op string, rc *
 // ---------------------------------------------------------------------------
 
 // composeLocalGate decides skip-or-run after a completed rebase and maps the gate
-// outcome. It skips only on a no-op rebase with exact-head green PR evidence;
+// outcome. It skips only on a no-op rebase with exact-head green PR evidence whose
+// recorded command is byte-equal to the resolved finalize.test_command;
 // otherwise it runs the full suite through the gate seam. A passed run carries the
 // evidence block; a failed run is repair work (failed); a halt is retained
 // (blocked) — never a fabricated red.
@@ -807,8 +819,9 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 	}
 	currentHead := strings.ToLower(string(head))
 
-	evidenceHead, evidenceGreen := prBodyEvidence(pr)
-	skip, permit := gateDecision(noop, evidenceHead, currentHead, evidenceGreen)
+	evidenceHead, evidenceCommand, evidenceGreen := prBodyEvidence(pr)
+	resolvedCommand := resolvedFinalizeCommand(ctx, deps, repoDir)
+	skip, permit := gateDecision(noop, evidenceHead, currentHead, evidenceGreen, evidenceCommand, resolvedCommand)
 	base := FinalizeRebaseResult{
 		ID: id, Disposition: disposition, Head: string(head), OrigHead: string(origHead),
 		Base: rc.base.Branch, BaseHead: string(baseHead), Attempt: attempt,
@@ -867,18 +880,37 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 	}
 }
 
-// prBodyEvidence extracts the exact-head green-evidence facts from a PR body: the
-// certified head and whether a green record parses at all. A body with no block,
-// or one that does not parse, is not green.
-func prBodyEvidence(pr githubcli.PullRequest) (evidenceHead string, green bool) {
+// prBodyEvidence extracts the exact-head evidence facts from a PR body: the
+// certified head, the recorded command, and whether the record is GREEN (result
+// == evidence.ResultGreen). A skipped (build-gate-off) record parses but is not
+// green and carries no command, so it can never waive finalize's local gate
+// through gateDecision. A body with no block, or one that does not parse, is not
+// green.
+func prBodyEvidence(pr githubcli.PullRequest) (evidenceHead, evidenceCommand string, green bool) {
 	if pr.Body == "" {
-		return "", false
+		return "", "", false
 	}
 	rec, err := evidence.Extract([]byte(pr.Body))
 	if err != nil {
-		return "", false
+		return "", "", false
 	}
-	return rec.Head, true
+	return rec.Head, rec.Command, rec.Result == evidence.ResultGreen
+}
+
+// resolvedFinalizeCommand re-reads the authoritative finalize.test_command the
+// same way processFinalizeGate.buildDriveService pins it (deps.Planning.Reader
+// PinContext → pin.Config.Effective.Finalize.TestCommand.Value), so gateDecision
+// can require the PR-body evidence command to be byte-equal to the command
+// finalize would run now. Command selection is an explicit domain boundary; no
+// caller substitutes a command around authoritative configuration. A resolution
+// failure yields "" — gateDecision then never skips (the empty resolved command
+// fails the non-empty conjunct), so the suite runs, fail-closed.
+func resolvedFinalizeCommand(ctx context.Context, deps FinalizeDeps, repoDir string) string {
+	pin, err := deps.Planning.Reader.PinContext(ctx, repoDir)
+	if err != nil {
+		return ""
+	}
+	return pin.Config.Effective.Finalize.TestCommand.Value
 }
 
 // ---------------------------------------------------------------------------

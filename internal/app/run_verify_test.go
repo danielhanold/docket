@@ -258,3 +258,20 @@ func TestRunVerifyHaltedVerdict(t *testing.T) {
 		t.Errorf("result=%q, want a success-shaped verdict envelope", got.Result)
 	}
 }
+
+// TestRunVerifyAcceptsSkippedEvidenceAtExactHead: a build.gate: off repository's
+// PR carries a truthful skipped (build-gate-off) block at the exact feature head.
+// run verify's evidence postcondition accepts VerdictSkipped exactly as
+// VerdictVerified, so the run is complete. Mirrors TestIntegrationChangeRunVerifyComplete
+// with a skipped PR-body block substituted.
+func TestRunVerifyAcceptsSkippedEvidenceAtExactHead(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := f.deps(
+		rvRecord(rvPlanPath, rvResultsPath, rvRecordedPR(), "feat/"+rvSlug),
+		rvPR(f.head, string(prSkippedEvidenceBytes(t, f.head))),
+	)
+	res := RunVerify(context.Background(), deps, wdeps, gdeps, f.repo.invocation, RunVerifyRequest{ID: 3})
+	if res.Verdict != VerdictRunComplete {
+		t.Fatalf("verdict = %q, want %q — a skipped PR-body block at the exact head verifies (unmet %v)", res.Verdict, VerdictRunComplete, unmetReasons(res))
+	}
+}

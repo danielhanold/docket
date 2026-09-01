@@ -497,7 +497,7 @@ func FinalizeMerge(ctx context.Context, deps FinalizeDeps, repoDir string, req F
 		})
 	}
 
-	evHead, evGreen := prBodyEvidence(pr)
+	evHead, _, evGreen := prBodyEvidence(pr)
 	conj := mergeConjuncts(mergeConjunctInputs{
 		status:                   mc.change.Status(),
 		canonicalPRNumber:        canonicalN,

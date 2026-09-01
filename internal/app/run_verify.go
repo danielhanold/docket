@@ -409,7 +409,7 @@ func RunVerify(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 		case !recordedOK || recordedNum != pr.Number:
 			add(ReasonRunPRUnverified, "the open PR is not the one recorded on the change")
 		}
-		if v := evidence.Verify([]byte(pr.Body), head); v != evidence.VerdictVerified {
+		if v := evidence.Verify([]byte(pr.Body), head); v != evidence.VerdictVerified && v != evidence.VerdictSkipped {
 			add(ReasonRunEvidenceUnverified, string(v))
 		}
 	}

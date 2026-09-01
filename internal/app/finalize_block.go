@@ -439,7 +439,7 @@ func FinalizeClearBlock(ctx context.Context, deps FinalizeDeps, repoDir string, 
 			ReasonClearPRNotOpen, "there is not exactly one matching open pull request for the feature head; the marker stays", req.ID)
 	}
 	if eff.Finalize.Gate.Value != "off" {
-		evHead, evGreen := prBodyEvidence(prs[0])
+		evHead, _, evGreen := prBodyEvidence(prs[0])
 		if !evGreen || evHead != req.Head {
 			return blockRefusal(OperationFinalizeClearBlock, ResultBlocked, BlockDispRefused,
 				ReasonClearEvidenceUnverified, "the pull-request body evidence does not verify green for the exact current head; the marker stays", req.ID)

@@ -172,9 +172,9 @@ func PRPublish(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdep
 	// (3) Reparse the evidence bytes — never a prior command result — and require
 	// them to verify against the requested head: a missing, malformed, or
 	// stale-head record means the gate no longer certifies this commit.
-	if verdict := evidence.Verify(req.EvidenceRecord, req.Head); verdict != evidence.VerdictVerified {
+	if verdict := evidence.Verify(req.EvidenceRecord, req.Head); verdict != evidence.VerdictVerified && verdict != evidence.VerdictSkipped {
 		return prRefusal(ResultInvalidState, ReasonPREvidenceUnverified,
-			"the reparsed evidence does not verify against the requested head ("+string(verdict)+")", req.ID)
+			"the reparsed evidence does not verify (green or skipped) against the requested head ("+string(verdict)+")", req.ID)
 	}
 	rec, err := evidence.Extract(req.EvidenceRecord)
 	if err != nil {

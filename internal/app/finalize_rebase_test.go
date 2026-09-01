@@ -286,7 +286,9 @@ func TestGateDecision(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			skip, permit := gateDecision(tc.noop, tc.evidenceHead, tc.currentHead, tc.green)
+			// A matching, non-empty command isolates the head/no-op/green axes this
+			// table exercises; the command axis is TestGateDecisionRequiresCommandByteEquality's.
+			skip, permit := gateDecision(tc.noop, tc.evidenceHead, tc.currentHead, tc.green, "go test ./...", "go test ./...")
 			if skip != tc.wantSkip {
 				t.Fatalf("gateDecision skip = %v, want %v", skip, tc.wantSkip)
 			}
@@ -297,6 +299,68 @@ func TestGateDecision(t *testing.T) {
 				t.Fatalf("a run decision named a permit %q; want none", permit)
 			}
 		})
+	}
+}
+
+// TestGateDecisionRequiresCommandByteEquality pins the command axis of the
+// finalize suite-skip waiver: a no-op rebase with exact-head GREEN evidence
+// still runs the suite unless the recorded command is byte-equal to the
+// currently resolved finalize.test_command, and an empty-vs-empty command is a
+// vacuous match that must NOT skip. Skipped build evidence (green=false) never
+// waives finalize.
+func TestGateDecisionRequiresCommandByteEquality(t *testing.T) {
+	head := strings.Repeat("ab", 20)
+	cases := []struct {
+		name               string
+		green              bool
+		evCmd, resolvedCmd string
+		wantSkip           bool
+	}{
+		{"green same command skips", true, "go test ./...", "go test ./...", true},
+		{"green differing command runs the suite", true, "go test ./...", "make check", false},
+		{"green empty resolved command runs (never a vacuous match)", true, "", "", false},
+		{"skipped evidence never waives finalize", false, "", "go test ./...", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			skip, permit := gateDecision(true, head, head, c.green, c.evCmd, c.resolvedCmd)
+			if skip != c.wantSkip {
+				t.Errorf("skip = %v, want %v", skip, c.wantSkip)
+			}
+			if skip && permit != head {
+				t.Errorf("permit = %q, want the head", permit)
+			}
+		})
+	}
+}
+
+// TestPRBodyEvidenceReportsCommandAndGreenFlag proves prBodyEvidence surfaces
+// the recorded command and reports green ONLY for a green record — a skipped
+// (build-gate-off) block is not green and carries no command, so it can never
+// waive finalize's local gate through gateDecision.
+func TestPRBodyEvidenceReportsCommandAndGreenFlag(t *testing.T) {
+	head := strings.Repeat("ab", 20)
+	green, err := evidence.NewRecord("go test ./...", head, time.Now())
+	if err != nil {
+		t.Fatalf("NewRecord: %v", err)
+	}
+	h, cmd, isGreen := prBodyEvidence(githubcli.PullRequest{Body: evidence.Render(green)})
+	if !isGreen || cmd != "go test ./..." || h != head {
+		t.Errorf("green record: head/cmd/green = %q/%q/%v, want %q/%q/true", h, cmd, isGreen, head, "go test ./...")
+	}
+	skipped, err := evidence.NewSkippedRecord(head, time.Now())
+	if err != nil {
+		t.Fatalf("NewSkippedRecord: %v", err)
+	}
+	sh, scmd, sGreen := prBodyEvidence(githubcli.PullRequest{Body: evidence.Render(skipped)})
+	if sGreen {
+		t.Errorf("skipped record reported green; skipped evidence never waives finalize")
+	}
+	if scmd != "" {
+		t.Errorf("skipped command = %q, want empty", scmd)
+	}
+	if sh != head {
+		t.Errorf("skipped head = %q, want %q", sh, head)
 	}
 }
 

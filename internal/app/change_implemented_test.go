@@ -177,3 +177,27 @@ func firstStatusFindingCode(findings []StatusFinding) string {
 	}
 	return ""
 }
+
+// TestMarkImplementedAcceptsSkippedEvidence: a build.gate: off repository marks a
+// change implemented on truthful skipped evidence certifying the exact head. The
+// evidence conjunct accepts VerdictSkipped exactly as VerdictVerified; the happy
+// fixture is TestIntegrationChangeMarkImplementedAppliesEndToEnd with skipped
+// evidence substituted.
+func TestMarkImplementedAcceptsSkippedEvidence(t *testing.T) {
+	requireRealGit(t)
+	repo := newWorkingRepo(t, nil)
+	head := repo.writerAdvance(t, "feat/"+miSlug, map[string]string{"impl.go": "package impl\n"})
+	client := newGitClient(t)
+	pr := prRepo().Spec() + "#42"
+
+	deps, wdeps, gdeps, inv, req, _ := buildMI(t, client, repo.invocation, miKit{
+		reconciled: true, plan: miPlanPath(), version: miVersion, reqVersion: miVersion,
+		reqHead: head, localHead: head, evidence: prSkippedEvidenceBytes(t, head),
+		probePRs: []githubcli.PullRequest{happyPR(head)}, reqPR: pr,
+	})
+
+	res := ChangeMarkImplemented(context.Background(), deps, wdeps, gdeps, inv, req)
+	if res.Result != ResultApplied {
+		t.Fatalf("result = %q, want applied — skipped evidence at the exact head must certify implemented (findings %v)", res.Result, res.Findings)
+	}
+}
