@@ -2,11 +2,11 @@
 id: 374
 slug: 'separate-build-and-finalize-test-configuration'
 title: 'Separate build and finalize test configuration'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'refactor'
 created: '2026-08-30'
-updated: '2026-08-30'
+updated: '2026-09-01'
 depends_on: [370]
 stacked_on:
 related: [167, 316, 318, 352, 360, 370]
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'refactor/separate-build-and-finalize-test-configuration'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-01T02:08:24Z'
 ---
 
 ## Artifacts

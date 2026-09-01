@@ -1,18 +1,18 @@
 # Backlog
 
-**390 changes** — 🟢 1 in progress · 🟣 21 groomed · 🟡 43 proposed · ⚪ 4 deferred · ✅ 238 done · 🗑️ 83 killed
+**390 changes** — 🟢 2 in progress · 🟣 20 groomed · 🟡 43 proposed · ⚪ 4 deferred · ✅ 238 done · 🗑️ 83 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
+| [0374](active/0374-separate-build-and-finalize-test-configuration.md) | Separate build and finalize test configuration | `high` | `refactor` | [spec](../superpowers/specs/2026-08-30-separate-build-and-finalize-test-configuration-design.md) | `refactor/separate-build-and-finalize-test-configuration` |
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [spec](../superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) | `feat/migrate-primary-clean-fast-forward` |
 
-## 🟣 Groomed (21)
+## 🟣 Groomed (20)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0374](active/0374-separate-build-and-finalize-test-configuration.md) | Separate build and finalize test configuration | `high` | `refactor` | [spec](../superpowers/specs/2026-08-30-separate-build-and-finalize-test-configuration-design.md) |
 | [0252](active/0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md) | Harden test fixtures and hermeticity into tests-lib | `high` | `chore` | [spec](../superpowers/specs/2026-08-07-harden-test-fixtures-and-hermeticity-into-tests-lib-design.md) |
 | [0359](active/0359-run-gate-gives-up-too-soon.md) | Run gate gives up too soon | `high` | `fix` | [spec](../superpowers/specs/2026-08-28-run-gate-gives-up-too-soon-design.md) |
 | [0264](active/0264-measure-the-claude-harness-s-forked-mode-gate-verdict-and-pi.md) | Measure the claude harness's forked-mode gate verdict and pin a surviving launch shape | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-claude-forked-mode-gate-verdict-design.md) |
