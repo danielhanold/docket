@@ -1,21 +1,21 @@
 # Backlog
 
-**393 changes** — 🟢 3 in progress · 🟣 18 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 239 done · 🗑️ 84 killed
+**393 changes** — 🟢 2 in progress · 🟣 19 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 239 done · 🗑️ 84 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [spec](../superpowers/specs/2026-09-01-enter-compositional-docket-roles-as-coordinator-capable-code-design.md) | `fix/enter-compositional-docket-roles-as-coordinator-capable-code` |
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [spec](../superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) | `feat/migrate-primary-clean-fast-forward` |
-| [0261](active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | `high` | `feat` | [spec](../superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) | `feat/give-run-halted-a-board-surface-and-a-health-check-like-its` |
 
-## 🟣 Groomed (18)
+## 🟣 Groomed (19)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
 | [0359](active/0359-run-gate-gives-up-too-soon.md) | Run gate gives up too soon | `high` | `fix` | [spec](../superpowers/specs/2026-08-28-run-gate-gives-up-too-soon-design.md) |
 | [0264](active/0264-measure-the-claude-harness-s-forked-mode-gate-verdict-and-pi.md) | Measure the claude harness's forked-mode gate verdict and pin a surviving launch shape | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-claude-forked-mode-gate-verdict-design.md) |
+| [0261](active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | `high` | `feat` | [spec](../superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) |
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-slim-agents-md-to-an-effective-claude-md-design.md) |
 | [0279](active/0279-settle-the-walk-site-classifier-s-reachability-gap-and-re-la.md) | Settle the walk-site classifier's reachability gap and re-land 0258's reverted fixes | `medium` | `chore` | [spec](../superpowers/specs/2026-08-09-settle-the-walk-site-classifier-s-reachability-gap-and-re-la-design.md) |
 | [0273](active/0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md) | Put runtime budgets on a host-relative basis and re-seed the table | `high` | `refactor` | [spec](../superpowers/specs/2026-08-09-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the-design.md) |
