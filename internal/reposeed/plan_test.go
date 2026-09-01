@@ -283,11 +283,10 @@ func TestPlanNeverSkillOrAgent(t *testing.T) {
 	}
 }
 
-// TestPlanDispatchInteriorWordingConstraint pins the "No wording changes"
-// constraint: every managed block's interior is byte-identical to
-// harness.DispatchInterior(runGate) — the exact bytes the Task 3 adapters emit.
+// TestPlanDispatchInteriorWordingConstraint pins the harness split: Codex's
+// AGENTS.md carries its root-entry extension, while Claude's separate surface
+// stays byte-identical to the shared interior.
 func TestPlanDispatchInteriorWordingConstraint(t *testing.T) {
-	want := []byte(harness.DispatchInterior(runGate))
 	targets, _ := mustPlan(t, PlanInput{
 		WorktreeRoot:  worktreeRoot,
 		Harnesses:     []string{"claude", "codex"},
@@ -300,8 +299,12 @@ func TestPlanDispatchInteriorWordingConstraint(t *testing.T) {
 			continue
 		}
 		blocks++
+		want := []byte(harness.DispatchInterior(runGate))
+		if tg.Path == agentsMD() {
+			want = []byte(harness.CodexDispatchInterior(runGate))
+		}
 		if !bytes.Equal(tg.Content, want) {
-			t.Errorf("block %q interior != harness.DispatchInterior(runGate)", tg.Path)
+			t.Errorf("block %q carries the wrong harness interior", tg.Path)
 		}
 	}
 	if blocks != 2 {
