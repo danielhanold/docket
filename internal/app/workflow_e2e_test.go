@@ -50,10 +50,12 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string) {
 	recPath := groomPath(id, slug)
 	planPath := "docs/superpowers/plans/2026-08-17-widget-plan.md"
 
-	// A resolved finalize.test_command is required so evidence records a real
-	// observed gate command (the `auto` default resolves to unset). It is set in
-	// the config layer each mode reads: on main in main mode, on main (the
-	// integration branch) in docket mode.
+	// A resolved build.test_command is required so EvidenceRecord (build-owned
+	// since change 0374) records a real observed gate command rather than
+	// refusing with unconfigured-gate-command; finalize.test_command is set too
+	// so the finalize path stays configured. Both are set in the config layer
+	// each mode reads: on main in main mode, on main (the integration branch) in
+	// docket mode.
 	repo := buildConfiguredRepo(t, m, recPath, buildReadyChange(id, slug))
 	ctx := context.Background()
 
@@ -222,16 +224,16 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string) {
 		[]string{"change.attach-plan", "change.claim", "change.mark-implemented", "change.reconcile"})
 }
 
-// buildConfiguredRepo builds the docket-topology bare remote with a resolved
-// finalize.test_command in the repository config layer, plus the one
-// build-ready change record on the metadata branch.
+// buildConfiguredRepo builds the docket-topology bare remote with resolved
+// build.test_command and finalize.test_command in the repository config layer,
+// plus the one build-ready change record on the metadata branch.
 func buildConfiguredRepo(t *testing.T, m planRepoMode, recPath, record string) *gitRepo {
 	t.Helper()
 	if m.name != "docket" {
 		t.Fatalf("unknown repository topology %q", m.name)
 	}
 	return newDocketModeRepo(t,
-		map[string]string{".docket.yml": "integration_branch: main\nfinalize:\n  test_command: 'go test ./...'\n"},
+		map[string]string{".docket.yml": "integration_branch: main\nbuild:\n  test_command: 'go test ./...'\nfinalize:\n  test_command: 'go test ./...'\n"},
 		map[string]string{recPath: record})
 }
 

@@ -137,6 +137,54 @@ func TestConfigEditInsertsIntoExistingBlock(t *testing.T) {
 	}
 }
 
+// TestConfigEditDivergentExplicitPairSurvivesUntouched is change 0374's
+// own-thesis guard (Task 15): the build and finalize commands are owned
+// INDEPENDENTLY, so a file whose explicit build.test_command differs from its
+// finalize.test_command survives a re-run byte-for-byte. A configured outcome
+// (what an already-explicit pair resolves to) writes nothing — the renderer
+// never re-couples a deliberately divergent pair into one shared command.
+func TestConfigEditDivergentExplicitPairSurvivesUntouched(t *testing.T) {
+	existing := []byte("build:\n  gate: local\n  test_command: make build-suite\n" +
+		"finalize:\n  gate: local\n  test_command: make finalize-suite\n")
+	out, changed, err := RenderTestConfigEdit(existing, DiscoveryOutcome{Kind: DiscoveryConfigured})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if changed {
+		t.Fatalf("a configured divergent pair must produce no edit")
+	}
+	if !bytes.Equal(out, existing) {
+		t.Fatalf("divergent build/finalize commands must survive byte-for-byte\n got: %q\nwant: %q", out, existing)
+	}
+}
+
+// TestPolicyEditDivergentExplicitPairShortCircuitsDiscovery drives the same
+// independence claim through the full setup-time pipeline: an explicit divergent
+// pair short-circuits discovery (no probing) and yields NO pending edit even
+// when the tree WOULD detect a different command if it were probed. This is the
+// mutation-sensitive re-coupling guard — dropping the configured short-circuit
+// would let discovery detect `go test ./...` and rewrite BOTH divergent
+// commands to it.
+func TestPolicyEditDivergentExplicitPairShortCircuitsDiscovery(t *testing.T) {
+	cfg := buildTestPolicyCfg("local", "make build-suite", "local", "make finalize-suite")
+	existing := []byte("build:\n  gate: local\n  test_command: make build-suite\n" +
+		"finalize:\n  gate: local\n  test_command: make finalize-suite\n")
+	// A tree a probe would detect as `go test ./...` — so a non-nil edit proves
+	// discovery was NOT short-circuited.
+	tree := mapTree{"go.mod": "module x", "x_test.go": ""}
+
+	edited, outcome, err := TestPolicyEdit(cfg, existing, tree)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if outcome.Kind != DiscoveryConfigured {
+		t.Fatalf("outcome kind = %q, want configured (an explicit pair short-circuits discovery)", outcome.Kind)
+	}
+	if edited != nil {
+		t.Fatalf("a configured divergent pair must produce no pending edit; got:\n%s", edited)
+	}
+}
+
 func TestConfigEditConfiguredAndAmbiguousAreNoOps(t *testing.T) {
 	existing := []byte("integration_branch: main\n")
 	for _, kind := range []DiscoveryKind{DiscoveryConfigured, DiscoveryAmbiguous} {
