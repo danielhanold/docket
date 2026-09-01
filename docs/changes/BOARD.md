@@ -1,6 +1,6 @@
 # Backlog
 
-**393 changes** — 🔵 2 built · 🟣 19 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 239 done · 🗑️ 84 killed
+**394 changes** — 🔵 2 built · 🟣 19 groomed · 🟡 46 proposed · ⚪ 4 deferred · ✅ 239 done · 🗑️ 84 killed
 
 ## 🔵 Built (2)
 
@@ -33,18 +33,19 @@
 | [0172](active/0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md) | Normalize the banned producer-pipe shape across tests and helpers | `medium` | `chore` | [spec](../superpowers/specs/2026-08-07-normalize-the-banned-producer-pipe-shape-across-tests-and-he-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
-## 🟡 Proposed (45)
+## 🟡 Proposed (46)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0394](active/0394-give-docket-skills-an-authoritative-compact-cli-capability-c.md) | Give Docket skills an authoritative compact CLI capability catalog | `high` | `feat` | needs-brainstorm |
 | [0392](active/0392-installer-tolerant-config-read-break-the-schema-bump-bootstr.md) | Installer-tolerant config read: break the schema-bump bootstrap deadlock | `medium` | `fix` | needs-brainstorm |
 | [0391](active/0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | `medium` | `feat` | needs-brainstorm |
+| [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-brainstorm |
 | [0388](active/0388-reimplement-post-merge-fast-forward-integration-branch-sync.md) | Reimplement post-merge fast-forward integration-branch sync as a native Go verb | `medium` | `feat` | needs-brainstorm |
 | [0387](active/0387-re-cut-frozen-fixtures-to-clear-stale-retired-token-comments.md) | Re-cut frozen fixtures to clear stale retired-token comments in harness-defaults and .docket.yml | `low` | `chore` | needs-brainstorm |
 | [0385](active/0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | `medium` | `docs` | needs-brainstorm |
 | [0383](active/0383-remove-dead-metadata-fetch-diagnostic-append-augmentcheckfacts.md) | Remove or plumb the dead metadata-fetch diagnostic append in augmentCheckFacts | `low` | `fix` | needs-brainstorm |
 | [0382](active/0382-changecreaterequest-typed-auto-groomable-branch-prefix-scalars.md) | ChangeCreateRequest should accept typed auto_groomable / branch_prefix scalars | `medium` | `feat` | needs-brainstorm |
-| [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `medium` | `feat` | needs-brainstorm |
 | [0381](active/0381-stabilize-internal-process-observe-running-terminal-race-flake.md) | Stabilize internal/process TestObserveRunningThenTerminal parallel-load -race flake | `medium` | `fix` | needs-brainstorm |
 | [0380](active/0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | `medium` | `chore` | needs-brainstorm |
 | [0379](active/0379-reapply-sha256-source-revision-width-fix-isfullobjectid.md) | Re-apply the SHA-256 (64-hex) source-revision width fix to isFullObjectID | `medium` | `fix` | needs-brainstorm |
@@ -164,6 +165,7 @@ graph TD
   0374 --> 0391
   0392
   0393
+  0394
   0192:::done
   0211:::done
   0251:::done
