@@ -90,3 +90,12 @@ Verified against current `main` after claiming:
 
 The scope, linked spec, dependency, related, and discovery relations remain accurate. No proposal or spec-section edits are required.
 
+## Run halted
+
+### 2026-09-01
+
+### 2026-09-01 — implement-next halted
+
+The run stopped before plan authoring for change 0364. The resolved `skills.plan` value is `superpowers:writing-plans`, which is not `auto` and requires the configured plan-writer dispatch under Docket's Tier C dispatch contract. This worker's active top-level tool surface exposes no named-agent dispatch mechanism, and the available nested tool inventory is non-authoritative; no deferred or lazy named-agent dispatch surface was available to resolve. Inline plan fallback is therefore not authorized.
+
+The change was resumed with the required quiescence acknowledgement and its clean owned workspace is preserved. No plan was authored, adopted, or committed, and no build or review was started. A worker with the required named-agent dispatch capability must resume the exact halted change.
