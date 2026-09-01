@@ -31,43 +31,81 @@ func gateTempDir(t *testing.T) string {
 	return dir
 }
 
-// gateDriveRepo initializes a committed git worktree the driver can fingerprint,
-// mirroring the package-level helper for the built-binary path.
-func gateDriveRepo(t *testing.T) string {
+// gateSh runs one git subcommand in dir through the real git binary, failing on
+// any error. It is the built-binary package's local git helper (there is no
+// shared statusGit here).
+func gateSh(t *testing.T, dir string, args ...string) {
 	t.Helper()
-	dir := gateTempDir(t)
-	for _, args := range [][]string{
-		{"init", "-q", "-b", "main"},
-		{"config", "user.email", "t@t"},
-		{"config", "user.name", "t"},
-	} {
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
+	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, out)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "seed"), []byte("x\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	for _, args := range [][]string{{"add", "seed"}, {"commit", "-q", "-m", "seed"}} {
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
-	return dir
 }
 
-// TestGateDriveEndToEndThroughBuiltBinary drives `gate drive start -- <argv>`
-// through the true production re-exec: the built binary starts a detached
-// supervisor and advances one slice, returning the shared protocol document with
-// a drive id and the PASSED outcome.
-func TestGateDriveEndToEndThroughBuiltBinary(t *testing.T) {
-	wt := gateDriveRepo(t)
+// gateDriveConfiguredRepo builds a full main-mode docket topology — a bare file
+// origin, an invocation clone, and an orphan `docket` metadata branch — whose
+// committed `.docket.yml` carries configBody, and returns the invocation clone for
+// use as --repo-dir. The drive resolves its suite command from this pinned config
+// (never operator argv), which the built binary reads over origin. It isolates the
+// global config layer to an empty XDG dir so a developer's own config cannot steer
+// resolution, and skips when git is absent.
+func gateDriveConfiguredRepo(t *testing.T, configBody string) string {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found on PATH")
+	}
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
 	root := gateTempDir(t)
-	out, errS, code := run(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--", "/bin/echo", "hi")
+	origin := filepath.Join(root, "origin.git")
+	writer := filepath.Join(root, "writer")
+	invocation := filepath.Join(root, "invocation")
+
+	if err := os.MkdirAll(writer, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gateSh(t, root, "init", "--bare", "-b", "main", origin)
+	gateSh(t, root, "init", "-b", "main", writer)
+	gateSh(t, writer, "config", "user.name", "t")
+	gateSh(t, writer, "config", "user.email", "t@t")
+	gateSh(t, writer, "config", "commit.gpgsign", "false")
+
+	if err := os.WriteFile(filepath.Join(writer, ".docket.yml"), []byte(configBody), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(writer, "README.md"), []byte("readme\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gateSh(t, writer, "add", "-A")
+	gateSh(t, writer, "commit", "-q", "-m", "main content")
+	gateSh(t, writer, "remote", "add", "origin", origin)
+	gateSh(t, writer, "push", "-q", "-u", "origin", "main")
+
+	gateSh(t, writer, "checkout", "--orphan", "docket")
+	gateSh(t, writer, "rm", "-rf", ".")
+	if err := os.MkdirAll(filepath.Join(writer, "docs/changes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(writer, "docs/changes/BOARD.md"), []byte("# Board\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gateSh(t, writer, "add", "-A")
+	gateSh(t, writer, "commit", "-q", "-m", "docket: initialize metadata branch")
+	gateSh(t, writer, "push", "-q", "-u", "origin", "docket")
+	gateSh(t, writer, "checkout", "-q", "main")
+
+	gateSh(t, root, "clone", "-q", origin, invocation)
+	return invocation
+}
+
+// TestGateDriveEndToEndThroughBuiltBinary drives `gate drive start --owner build`
+// through the true production re-exec: the built binary resolves build.test_command
+// from authoritative config, starts a detached supervisor, and advances one slice,
+// returning the shared protocol document with a drive id and the PASSED outcome.
+func TestGateDriveEndToEndThroughBuiltBinary(t *testing.T) {
+	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\nbuild:\n  gate: local\n  test_command: /bin/echo hi\n")
+	root := gateTempDir(t)
+	out, errS, code := run(t, "--json", "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "build")
 	if code != 0 || errS != "" {
 		t.Fatalf("start: out=%q err=%q code=%d", out, errS, code)
 	}

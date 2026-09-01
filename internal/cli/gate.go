@@ -6,12 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/danielhanold/docket/internal/app"
-	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/gitcli"
 )
@@ -127,19 +125,14 @@ func newGateCommand(setResult func(app.OperationResult)) *cobra.Command {
 	return gateCmd
 }
 
-// gateDriveBudgetMinutes is the observation budget the CLI adapter binds when it
-// composes the gate-drive service. Finalize (the other adapter over the same
-// state machine) resolves the budget from authoritative config; the operator CLI
-// surface supplies its own command via the `-- <argv>` boundary and a fixed
-// budget, so a caller never smuggles either through the drive request itself.
-const gateDriveBudgetMinutes = 30
-
 // newGateDriveCommand builds the `gate drive` subcommand group: the high-level,
 // resumable, ownership-transferable driver over the same state machine the
 // internal/app seam composes. Every subcommand is a thin adapter — it reads its
-// opaque identifiers and the `-- <argv>` boundary, composes the service through
-// the app boundary, and lets the presenter own the outcome. No body here branches
-// on a drive's state.
+// opaque identifiers and (for `start`) the required `--owner`, composes the
+// service through the app boundary, and lets the presenter own the outcome. No
+// body here branches on a drive's state, and no body supplies a suite command:
+// `start` resolves the OWNER'S authoritative config (spec: "no agent or CLI caller
+// may substitute an arbitrary command around authoritative configuration").
 func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	driveCmd := &cobra.Command{
 		Use:   "drive",
@@ -154,33 +147,22 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	}
 
 	start := &cobra.Command{
-		Use:   "start --repo-dir <dir> --run-root <dir> -- <argv...>",
-		Short: "Start a drive over the suite command given after `--` and advance one slice",
-		// The suite argv arrives only after `--`; the flags before it are
-		// docket's, everything after is the suite command. Args is left arbitrary
-		// so Cobra collects the argv, and RunE enforces the boundary itself.
-		RunE: func(c *cobra.Command, args []string) error {
+		Use:   "start --repo-dir <dir> --run-root <dir> --owner build|finalize",
+		Short: "Start a drive over the named owner's resolved suite command and advance one slice",
+		// No suite command is accepted: the command is the resolved policy of the
+		// required --owner, read from authoritative config. Args is NoArgs — there
+		// is no `-- <argv>` boundary any more.
+		Args: cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
 				return err
 			}
-			// ArgsLenAtDash reports the count of positional words before `--`, or
-			// -1 when no `--` was present. The suite command must be introduced by
-			// `--` (dash >= 0), with no positional word before it (dash == 0) and
-			// at least one word after it. A boundary failure is a command failure,
-			// not a workflow outcome — no drive is launched before it holds.
-			dash := c.ArgsLenAtDash()
-			if dash < 0 {
-				return errors.New("gate drive start requires the suite command after a `--` separator")
+			owner, _ := c.Flags().GetString("owner")
+			if owner != "build" && owner != "finalize" {
+				return fmt.Errorf("gate drive start --owner must be build or finalize, got %q", owner)
 			}
-			if dash != 0 {
-				return errors.New("gate drive start takes no positional arguments before `--`; the suite command follows `--`")
-			}
-			argv := args[dash:]
-			if len(argv) == 0 {
-				return errors.New("gate drive start requires at least one command word after `--`")
-			}
-			svc, err := buildGateDriveService(c.Context(), repoDir, argv)
+			svc, err := buildOwnedGateDriveService(c.Context(), repoDir, owner)
 			if err != nil {
 				return err
 			}
@@ -214,6 +196,7 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	}
 	start.Flags().String("repo-dir", "", "repository worktree to fingerprint and run in (default: current directory)")
 	start.Flags().String("run-root", "", "absolute directory that holds raw run slots (required)")
+	start.Flags().String("owner", "", "which policy owns this drive: build or finalize (required)")
 	start.Flags().String("cwd", "", "working directory for the launched suite command (default: --repo-dir)")
 	start.Flags().String("change-id", "", "change id the drive certifies (recorded only)")
 	start.Flags().String("task-id", "", "task id the drive certifies (recorded only)")
@@ -223,6 +206,7 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	start.Flags().String("env-hash", "", "canonical launch-environment hash (recorded only)")
 	start.Flags().Bool("idempotent-suite-gate", false, "mark the gate idempotent, eligible for the single relaunch")
 	_ = start.MarkFlagRequired("run-root")
+	_ = start.MarkFlagRequired("owner")
 
 	advance := &cobra.Command{
 		Use:   "advance --drive-id <id> --owner-gen <gen>",
@@ -233,7 +217,7 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			svc, err := buildGateDriveService(c.Context(), repoDir, nil)
+			svc, err := buildCommandlessGateDriveService(c.Context(), repoDir)
 			if err != nil {
 				return err
 			}
@@ -258,7 +242,7 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			svc, err := buildGateDriveService(c.Context(), repoDir, nil)
+			svc, err := buildCommandlessGateDriveService(c.Context(), repoDir)
 			if err != nil {
 				return err
 			}
@@ -283,7 +267,7 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			svc, err := buildGateDriveService(c.Context(), repoDir, nil)
+			svc, err := buildCommandlessGateDriveService(c.Context(), repoDir)
 			if err != nil {
 				return err
 			}
@@ -303,14 +287,64 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	return driveCmd
 }
 
-// buildGateDriveService composes the in-process gate-drive seam for one CLI
-// invocation: it discovers the repository's Git common directory (the durable
-// drive store root), resolves this binary's path (the detached supervisor
-// re-exec target), and binds the operator-supplied command as the suite command.
-// It reaches the process supervisor only through the app boundary, never
-// internal/process directly. A discovery, executable, or service-construction
-// failure is a command failure surfaced as an argument error.
-func buildGateDriveService(ctx context.Context, repoDir string, command []string) (*app.GateDriveService, error) {
+// buildOwnedGateDriveService composes the in-process gate-drive seam for a
+// `gate drive start` invocation. It resolves AUTHORITATIVE pinned configuration
+// the same way the evidence commands do — the shared status reader's PinContext
+// over the default-branch config blob (never the working tree, never operator
+// argv) — then hands the effective config to the requested owner's constructor
+// (build or finalize), each of which reads only its own test_command. It reaches
+// the process supervisor only through the app boundary, never internal/process
+// directly. A discovery, config-resolution, executable, or service-construction
+// failure is a command failure surfaced as an argument error; an unconfigured
+// command for the owner surfaces later through Start's typed unresolved-command
+// refusal, not here.
+func buildOwnedGateDriveService(ctx context.Context, repoDir, owner string) (*app.GateDriveService, error) {
+	deps, err := newPlanningDeps()
+	if err != nil {
+		return nil, err
+	}
+	pin, err := deps.Reader.PinContext(ctx, repoDir)
+	if err != nil {
+		return nil, err
+	}
+	repo, err := deps.Client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
+	if err != nil {
+		return nil, err
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return nil, err
+	}
+	var (
+		svc    *app.GateDriveService
+		res    app.Result
+		reason string
+	)
+	switch owner {
+	case "build":
+		svc, res, reason = app.NewBuildGateDriveService(repo.CommonDir, exe, pin.Config.Effective)
+	case "finalize":
+		svc, res, reason = app.NewFinalizeGateDriveService(repo.CommonDir, exe, pin.Config.Effective)
+	default:
+		// The RunE value check gates this; a defensive guard keeps a future caller
+		// from constructing a service for an unrecognized owner.
+		return nil, fmt.Errorf("gate drive start --owner must be build or finalize, got %q", owner)
+	}
+	if svc == nil {
+		return nil, fmt.Errorf("gate drive service unavailable: %s (%s)", res, reason)
+	}
+	return svc, nil
+}
+
+// buildCommandlessGateDriveService composes the seam for the RESUMPTION operations
+// (advance, handoff, claim), which never consult the suite command or the
+// observation budget — they resume a drive the durable store already owns. It
+// discovers the repository's Git common directory (the durable drive store root)
+// and this binary's path (the detached supervisor re-exec target), then builds a
+// commandless service: no config is resolved, so these operations stay
+// config-resolution-free. It reaches the process supervisor only through the app
+// boundary, never internal/process directly.
+func buildCommandlessGateDriveService(ctx context.Context, repoDir string) (*app.GateDriveService, error) {
 	client, err := gitcli.NewClient()
 	if err != nil {
 		return nil, err
@@ -323,30 +357,11 @@ func buildGateDriveService(ctx context.Context, repoDir string, command []string
 	if err != nil {
 		return nil, err
 	}
-	svc, res, reason := app.NewGateDriveService(repo.CommonDir, exe, gateDriveEffective(command))
+	svc, res, reason := app.NewCommandlessGateDriveService(repo.CommonDir, exe)
 	if svc == nil {
 		return nil, fmt.Errorf("gate drive service unavailable: %s (%s)", res, reason)
 	}
 	return svc, nil
-}
-
-// gateDriveEffective builds the effective configuration the CLI adapter hands the
-// service. The operator's argv (joined into one shell command, launched exactly
-// as the finalize gate launches its resolved command via `/bin/sh -c`) is the
-// suite command; the budget is the fixed CLI-surface value. A nil command leaves
-// the suite command unset, which is correct for advance/handoff/claim, whose
-// service construction never consults it.
-func gateDriveEffective(command []string) config.Effective {
-	eff := config.Effective{
-		GateObservation: config.Value[int]{Value: gateDriveBudgetMinutes, Provenance: config.Provenance{Layer: config.LayerBuiltIn}},
-	}
-	if len(command) > 0 {
-		eff.Finalize.TestCommand = config.Value[string]{
-			Value:      strings.Join(command, " "),
-			Provenance: config.Provenance{Layer: config.LayerBuiltIn},
-		}
-	}
-	return eff
 }
 
 // gateDrivePresenter adapts app.GateDriveResult so the PROCESS EXIT STATUS derives

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -180,17 +181,17 @@ func TestServiceStartUnresolvedCommandIsCommandFailure(t *testing.T) {
 	}
 }
 
-// TestNewGateDriveServiceResolvesConfig proves the production constructor resolves
-// the config-provenanced observation budget (minutes) and suite command from the
-// effective configuration and roots the store at the given Git common dir without
-// shelling out.
-func TestNewGateDriveServiceResolvesConfig(t *testing.T) {
+// TestFinalizeConstructorResolvesConfig proves the finalize owner constructor
+// resolves the config-provenanced observation budget (minutes) and suite command
+// from the effective configuration and roots the store at the given Git common
+// dir without shelling out.
+func TestFinalizeConstructorResolvesConfig(t *testing.T) {
 	eff := config.Effective{
 		GateObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}},
 	}
 	eff.Finalize.TestCommand = config.Value[string]{Value: "go test ./...", Provenance: config.Provenance{Layer: config.LayerRepository}}
 
-	svc, res, reason := NewGateDriveService(t.TempDir(), "/usr/bin/true", eff)
+	svc, res, reason := NewFinalizeGateDriveService(t.TempDir(), "/usr/bin/true", eff)
 	if svc == nil {
 		t.Fatalf("production constructor must build a service: %s %s", res, reason)
 	}
@@ -202,6 +203,61 @@ func TestNewGateDriveServiceResolvesConfig(t *testing.T) {
 	}
 	if svc.provenance == "" {
 		t.Fatalf("the service must record a config provenance")
+	}
+}
+
+// TestOwnerConstructorsReadOnlyTheirOwnCommand is the divergent-command fixture
+// the spec's Testing section requires: build and finalize test commands DIFFER,
+// so a service reading the wrong key cannot pass. Each owner constructor must
+// read ONLY its own test_command and name its own owning path in the persisted
+// provenance.
+func TestOwnerConstructorsReadOnlyTheirOwnCommand(t *testing.T) {
+	eff := config.Effective{}
+	eff.GateObservation = config.Value[int]{Value: 5, Provenance: config.Provenance{Layer: config.LayerRepository}}
+	eff.Build.TestCommand = config.Value[string]{Value: "go test ./build-only",
+		Provenance: config.Provenance{Layer: config.LayerRepository}}
+	eff.Finalize.TestCommand = config.Value[string]{Value: "make finalize-only",
+		Provenance: config.Provenance{Layer: config.LayerGlobal}}
+
+	b, _, _ := NewBuildGateDriveService(t.TempDir(), "/bin/true", eff)
+	if b.command != "go test ./build-only" {
+		t.Errorf("build service command = %q; it must read only build.test_command", b.command)
+	}
+	if want := "gate_observation_budget=repository;build.test_command=repository"; !strings.HasSuffix(b.provenance, "build.test_command=repository") {
+		t.Errorf("build provenance = %q, want it to name build.test_command (e.g. %q)", b.provenance, want)
+	}
+
+	f, _, _ := NewFinalizeGateDriveService(t.TempDir(), "/bin/true", eff)
+	if f.command != "make finalize-only" {
+		t.Errorf("finalize service command = %q; it must read only finalize.test_command", f.command)
+	}
+	if !strings.Contains(f.provenance, "finalize.test_command=") {
+		t.Errorf("finalize provenance = %q, want it to name finalize.test_command", f.provenance)
+	}
+}
+
+// TestOwnerConstructorUnresolvedCommandNamesRemedy proves that an owner whose
+// own test_command is unconfigured fails Start closed with the stable
+// unresolved-command reason token AND a human message naming the owner and the
+// setup remedy — never a fabricated verdict, and never reaching the engine.
+func TestOwnerConstructorUnresolvedCommandNamesRemedy(t *testing.T) {
+	eff := config.Effective{}
+	eff.GateObservation = config.Value[int]{Value: 5, Provenance: config.Provenance{Layer: config.LayerRepository}}
+	// Build command left unconfigured; finalize is set to prove the build owner
+	// does not fall back to it.
+	eff.Finalize.TestCommand = config.Value[string]{Value: "make finalize-only",
+		Provenance: config.Provenance{Layer: config.LayerGlobal}}
+
+	b, _, _ := NewBuildGateDriveService(t.TempDir(), "/bin/true", eff)
+	got := b.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: "/repo"})
+	if got.Result == ResultApplied || got.Drive != nil {
+		t.Fatalf("an unresolved build command must be a command failure, got result=%s", got.Result)
+	}
+	if got.Reason != "unresolved-command" {
+		t.Errorf("reason token = %q, want the stable unresolved-command token", got.Reason)
+	}
+	if !strings.Contains(got.Message, "build") || !strings.Contains(got.Message, "docket repository configure-tests") {
+		t.Errorf("message %q must name the owner and the setup remedy", got.Message)
 	}
 }
 
