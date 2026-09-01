@@ -130,7 +130,12 @@ func TestIntegrationSweepInitialPinNetworkTimeoutIsBoundedExternalRefusal(t *tes
 	elapsed := time.Since(start)
 
 	// Bounded: the 200ms read deadline fired; the 30s fake sleep never elapsed.
-	if elapsed >= 5*time.Second {
+	// The ceiling is the fake sleep, not a one-machine-calibrated tolerance: a
+	// working budget returns in well under a second, a broken one waits the full
+	// 30s fake sleep. 20s is generous enough to survive parallel-suite CPU
+	// starvation (the full gate runs ~39 files in parallel) while still failing
+	// loudly if the read budget never fires and the fetch waits the 30s sleep.
+	if elapsed >= 20*time.Second {
 		t.Fatalf("sweep did not return bounded: elapsed %v (fake sleeps 30s; a 200ms read budget should have fired)", elapsed)
 	}
 	// A typed external-failure refusal that retains the adapter's timeout kind.
