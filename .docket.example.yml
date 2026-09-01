@@ -99,12 +99,13 @@ finalize:
   # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
   gate: local
 
-  # test_command — the suite the gate runs. `auto` (default) is the explicit spelling of UNSET:
-  # finalize auto-detects the suite. Set a real command only to override a wrong guess. The
-  # sentinel is resolved away before any consumer sees it — finalize would otherwise try to RUN
-  # `auto` as a shell command.
+  # test_command — the suite finalize's merge gate runs before it merges. "" (the default) means
+  # unconfigured: a local gate with no command halts with a typed remedy naming
+  # `docket repository configure-tests` (there is no runtime discovery). Set a real command to
+  # configure it. The legacy spelling `auto` is accepted only as migration input and means the same
+  # as "" (unconfigured); it is resolved away before any consumer sees it.
   # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
-  test_command: auto
+  test_command: ""
 
   # require_pr_approval — governs the AUTO-DETECT finalize path only. false (default): docket
   # merges an eligible implemented change without requiring a GitHub approval. true: the no-arg
