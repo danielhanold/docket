@@ -2,7 +2,7 @@
 id: 374
 slug: 'separate-build-and-finalize-test-configuration'
 title: 'Separate build and finalize test configuration'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'refactor'
 created: '2026-08-30'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'refactor/separate-build-and-finalize-test-configuration'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/263'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-01T02:28:25Z'

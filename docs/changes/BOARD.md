@@ -1,13 +1,18 @@
 # Backlog
 
-**390 changes** — 🟢 2 in progress · 🟣 20 groomed · 🟡 43 proposed · ⚪ 4 deferred · ✅ 238 done · 🗑️ 83 killed
+**390 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 20 groomed · 🟡 43 proposed · ⚪ 4 deferred · ✅ 238 done · 🗑️ 83 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
-| [0374](active/0374-separate-build-and-finalize-test-configuration.md) | Separate build and finalize test configuration | `high` | `refactor` | [spec](../superpowers/specs/2026-08-30-separate-build-and-finalize-test-configuration-design.md) | `refactor/separate-build-and-finalize-test-configuration` |
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [spec](../superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) | `feat/migrate-primary-clean-fast-forward` |
+
+## 🔵 Built (1)
+
+| # | Title | Priority | Type | PR | State |
+|---|-------|----------|------|----|-------|
+| [0374](active/0374-separate-build-and-finalize-test-configuration.md) | Separate build and finalize test configuration | `high` | `refactor` | [#263](https://github.com/danielhanold/docket/pull/263) | awaiting merge |
 
 ## 🟣 Groomed (20)
 
