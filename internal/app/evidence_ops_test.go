@@ -280,6 +280,24 @@ func TestEvidenceVerifyHeadPin(t *testing.T) {
 	}
 }
 
+// TestEvidenceVerifySkippedAtExactHead: a truthful skipped (build-gate-off)
+// record at the exact head verifies as applied — it must not be mistaken for
+// malformed input. This mirrors the four publication gates that accept
+// VerdictSkipped.
+func TestEvidenceVerifySkippedAtExactHead(t *testing.T) {
+	rec, err := evidence.NewSkippedRecord(evidenceHead, time.Now())
+	if err != nil {
+		t.Fatalf("NewSkippedRecord: %v", err)
+	}
+	block := []byte(evidence.Render(rec))
+
+	res := EvidenceVerify(EvidenceVerifyRequest{RecordFile: block, Head: evidenceHead})
+	if res.Result != ResultApplied || res.Verdict != string(evidence.VerdictSkipped) {
+		t.Fatalf("skipped at exact head: result=%q verdict=%q reason=%q, want applied/skipped",
+			res.Result, res.Verdict, res.Reason)
+	}
+}
+
 // TestEvidenceVerifyMissingAndMalformed: a body with no block is missing; a body
 // whose block does not parse is malformed — each a distinct non-applied verdict.
 func TestEvidenceVerifyMissingAndMalformed(t *testing.T) {
