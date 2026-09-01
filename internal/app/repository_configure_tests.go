@@ -75,6 +75,16 @@ func RunRepositoryConfigureTests(ctx context.Context, d SetupDeps) OperationResu
 	} else {
 		out.human = fmt.Sprintf("%s: %s (%s): the test policy is already configured; nothing to write",
 			OperationRepositoryConfigureTests, result, state)
+		// The configured short-circuit fires as soon as EITHER gate's command is
+		// set, so a repo with one gate configured and the other `gate: local` +
+		// empty command reaches this no-op while `docket repository check` still
+		// flags the gap. Name that gate and the by-hand completion instead of
+		// stranding the operator at a bare "nothing to write".
+		if discovery.Kind == reposetup.DiscoveryConfigured {
+			if gap := reposetup.ConfigureTestsGapNote(sc.cfg); gap != "" {
+				out.human += "\n" + gap
+			}
+		}
 	}
 	if note := testDiscoveryNote(discovery); note != "" {
 		out.human += "\n" + note
