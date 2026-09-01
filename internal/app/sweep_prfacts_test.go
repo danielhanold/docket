@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/domain"
@@ -177,6 +178,38 @@ func TestSweepPRSetFailedBatchIsUnknownPlusFinding(t *testing.T) {
 	}
 	if findings[0].Severity != string(domain.SeverityWarning) {
 		t.Errorf("finding severity = %q, want warning", findings[0].Severity)
+	}
+}
+
+// TestSweepPRSetUnparseableRefIsUnknownPlusFinding: a finalize-population change
+// whose PR ref is present but unparseable gets zero-value (unknown) facts — never
+// a fabricated absence — plus exactly one warning finding naming that change, so
+// the omission is surfaced rather than silent.
+func TestSweepPRSetUnparseableRefIsUnknownPlusFinding(t *testing.T) {
+	snap := sweepTestSnapshot(t, []StatusBlob{
+		finalizeBlob(80, "resolved", "implemented", "high", prRefFor(80), ""),
+		finalizeBlob(81, "unparseable", "implemented", "high", "not-a-pull-request-ref", ""),
+	})
+	resolved := domain.PRFacts{Number: "80", Version: "v80", State: "open", HeadBranch: "feat/resolved", HeadOID: "h80", BaseRef: "main"}
+	fake := &fakeSweepBatchReader{result: SweepPRSetResult{
+		Facts: map[int]domain.PRFacts{80: resolved},
+	}}
+	facts, findings := sweepSelectPRFacts(context.Background(), fake, "repo", snap)
+
+	if !reflect.DeepEqual(facts[80], resolved) {
+		t.Errorf("change 80 facts = %+v, want resolved %+v", facts[80], resolved)
+	}
+	if facts[81] != (domain.PRFacts{}) {
+		t.Errorf("change 81 (unparseable ref) facts = %+v, want zero-value unknown", facts[81])
+	}
+	if len(findings) != 1 {
+		t.Fatalf("want exactly one finding for the unparseable ref, got %d: %+v", len(findings), findings)
+	}
+	if findings[0].Severity != string(domain.SeverityWarning) {
+		t.Errorf("finding severity = %q, want warning", findings[0].Severity)
+	}
+	if !strings.Contains(findings[0].Message, "81") {
+		t.Errorf("finding message must name the unparseable change 81, got %q", findings[0].Message)
 	}
 }
 
