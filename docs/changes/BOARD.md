@@ -1,14 +1,13 @@
 # Backlog
 
-**393 changes** — 🟢 3 in progress · 🟣 19 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 239 done · 🗑️ 83 killed
+**393 changes** — 🟢 2 in progress · 🟣 19 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 239 done · 🗑️ 84 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [spec](../superpowers/specs/2026-09-01-enter-compositional-docket-roles-as-coordinator-capable-code-design.md) | `fix/enter-compositional-docket-roles-as-coordinator-capable-code` |
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [spec](../superpowers/specs/2026-08-28-migrate-primary-clean-fast-forward-design.md) | `feat/migrate-primary-clean-fast-forward` |
-| [0252](active/0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md) | Harden test fixtures and hermeticity into tests-lib | `high` | `chore` | [spec](../superpowers/specs/2026-08-07-harden-test-fixtures-and-hermeticity-into-tests-lib-design.md) | `chore/harden-test-fixtures-and-hermeticity-into-tests-lib` |
 
 ## 🟣 Groomed (19)
 
@@ -109,7 +108,6 @@ graph TD
   0192 --> 0195
   0211 --> 0222
   0248
-  0252
   0253
   0256
   0257
@@ -175,13 +173,14 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (322)</summary>
+<details><summary>✅🗑️ Archive — done + killed (323)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0390](archive/2026-09-01-0390-maintenance-sweep-scope-full-re-probes-the-remote-per-item-h.md) | maintenance sweep --scope full re-probes the remote per item, hanging the sweep | 2026-09-01 |
 | [0384](archive/2026-09-01-0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md) | Launch compositional Docket agents in coordinator-capable harness contexts | 2026-09-01 |
 | [0374](archive/2026-09-01-0374-separate-build-and-finalize-test-configuration.md) | Separate build and finalize test configuration | 2026-09-01 |
+| [0252](archive/2026-09-01-0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md) | Harden test fixtures and hermeticity into tests-lib | 2026-09-01 |
 | [0389](archive/2026-08-31-0389-speed-up-implement-next-status-sweeps-and-retire-completed-s.md) | Speed up implement-next status sweeps and retire completed status children | 2026-08-31 |
 | [0386](archive/2026-08-31-0386-discharge-adr-0100-s-deferred-disposition-for-the-surviving.md) | Discharge ADR-0100's deferred disposition for the surviving product runners | 2026-08-31 |
 | [0377](archive/2026-08-31-0377-migrate-deferred-bash-facade-workflow-operations-to-native-g.md) | Migrate deferred Bash-facade workflow operations to native Go CLI verbs | 2026-08-31 |

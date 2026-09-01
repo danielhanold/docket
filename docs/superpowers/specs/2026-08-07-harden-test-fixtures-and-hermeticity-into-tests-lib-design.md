@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0252 — Harden test fixtures and hermeticity into tests-lib](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md)**
+> ↩ **[Change 0252 — Harden test fixtures and hermeticity into tests-lib](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-01-0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md)**
 <!-- docket:backlink:end -->
 
 # Design: harden test fixtures and hermeticity into tests/lib (change 0252)

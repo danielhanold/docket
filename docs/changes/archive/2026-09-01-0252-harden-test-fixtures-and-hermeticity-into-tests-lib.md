@@ -2,7 +2,7 @@
 id: 252
 slug: harden-test-fixtures-and-hermeticity-into-tests-lib
 title: 'Harden test fixtures and hermeticity into tests-lib'
-status: 'in-progress'
+status: 'killed'
 priority: high
 type: chore
 created: 2026-08-07
@@ -16,11 +16,11 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch: 'chore/harden-test-fixtures-and-hermeticity-into-tests-lib'
+branch:
 pr:
 blocked_by:
 reconciled: false
-claimed_at: '2026-09-01T13:59:01Z'
+claimed_at:
 ---
 
 ## Artifacts
@@ -62,3 +62,7 @@ Settled design (see spec): a narrow, sourceable mechanics library `tests/lib/fix
 ### 2026-08-28
 
 2026-08-28 — Reconciled against current `main`/`docket`. Design is intact and unchanged; no fundamental invalidation. Verified: `tests/lib/` now has four sibling helpers (`bounded_arg_probe.sh`, `go-integration-shard.sh`, `runner_dispatch_detach_common.sh`, `sync_agents_common.sh`) — `fixture_lib.sh` is a clean new sibling, no collision. Sibling changes 222 (bash floor 4→4.4) and 253 (`flatten()` hoist) are both still `proposed`/unlanded → the `fx_defer_rm` trap ships the `${arr[@]+\"${arr[@]}\"}` empty-array guard exactly as the spec's 2026-08-09 amendment prescribes for the this-lands-first case, and the lib files stay separate (no `depends_on` added). Scope adjustment: the spec's fixture-builder file list and Deliverable-5 XDG-unset list are a 2026-08-07 snapshot; both are now stale, so the build derives both sets from a fresh whole-repo grep (house rule: never hand-list the sites of an operation you are gating). Confirmed drift folded into scope: (a) a ninth builder, `tests/test_docket_config_guards.sh`, with the eager file-scope sticky-`MKREPO_TEMPLATE` pattern — added to adoption; (b) the `unset XDG_CONFIG_HOME` set is 16 files now vs the spec's shorter list — swept per-reader at build. Relations left unchanged (related [253, 278(killed), 222]; discovered_from [243, 177, 182]; adrs []). No `depends_on`.
+
+## Why killed
+
+Reconcile against current origin/main found that the entire legacy Bash test and facade tree named by this change has been removed by the Go migration. The current integration branch retains only the Go integration helper, while this proposal has no scope for that replacement surface; implementing it as written would add a disconnected fixture library rather than harden existing targets. The change is obsolete and should be archived without minting follow-up work.
