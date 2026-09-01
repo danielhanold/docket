@@ -21,7 +21,7 @@ branch: 'feat/migrate-primary-clean-fast-forward'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-01T16:21:09Z'
+claimed_at: '2026-09-01T16:23:59Z'
 ---
 
 ## Artifacts
@@ -90,3 +90,11 @@ Verified against current `main` after claiming:
 
 The scope, linked spec, dependency, related, and discovery relations remain accurate. No proposal or spec-section edits are required.
 
+### 2026-09-01
+
+Verified against current origin/main at 4e510f735d5bf249a17e7f91f58455889791271c after resuming the halted run.
+
+- Dependency #352 remains archived as done, and related #363 is also done; the native repository migration service and its current migrate-local-finish seam remain present.
+- The proposed clean-fast-forward worktree primitive is still absent from internal/gitcli; IsAncestor and the established typed failure/newFailure patterns remain available for implementation.
+- migratePrimarySyncRemedy still leaves the not-moved path at the manual git merge --ff-only remedy and the moved path at the pull --rebase remedy; no other change has absorbed this scope.
+- Recent ADRs 0100–0103 concern native dispatch, scoped maintenance, independent gate configuration, and coordinator entry; none changes this implementation boundary. The scope, linked spec, and relations remain accurate, so no proposal or spec-section edits are required.
