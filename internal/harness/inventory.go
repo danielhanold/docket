@@ -17,12 +17,23 @@ import (
 // inventory rather than carrying a name list of its own, so adding an agent
 // source to the bundle propagates without touching adapter code.
 type AgentSource struct {
-	ShortName   string   // "build-standard"
-	Name        string   // "docket-build-standard"
-	Description string   //
-	Skills      []string // frontmatter `skills:` flow list; nil when the agent preloads none
-	Body        string   // markdown body after the frontmatter, verbatim
+	ShortName     string        // "build-standard"
+	Name          string        // "docket-build-standard"
+	Description   string        //
+	Skills        []string      // frontmatter `skills:` flow list; nil when the agent preloads none
+	LaunchPosture LaunchPosture // frontmatter `launch:`; absent means ordinary child
+	Body          string        // markdown body after the frontmatter, verbatim
 }
+
+// LaunchPosture is the closed, harness-neutral answer to how a registered role
+// enters a harness. Harnesses may ignore a posture they do not implement, but
+// an unknown value is a corrupt bundle rather than an extensible hint.
+type LaunchPosture string
+
+const (
+	LaunchChild           LaunchPosture = "child"
+	LaunchRootCoordinator LaunchPosture = "root-coordinator"
+)
 
 // agentFrontmatter is the decode target: the fields docket owns. Unknown keys
 // (`worktree-scope`, whatever a newer docket adds) decode away silently, which
@@ -31,6 +42,7 @@ type agentFrontmatter struct {
 	Name        string   `yaml:"name"`
 	Description string   `yaml:"description"`
 	Skills      []string `yaml:"skills"`
+	Launch      string   `yaml:"launch"`
 }
 
 // The prefix every agent definition's name carries. The short name is what the
@@ -89,16 +101,24 @@ func parseAgentSource(c assets.Catalog, p string) (AgentSource, error) {
 	if base := path.Base(p); base != fm.Name+".md" {
 		return AgentSource{}, fmt.Errorf("harness: agent source %s names %q, which disagrees with its filename %s", p, fm.Name, base)
 	}
+	posture := LaunchPosture(fm.Launch)
+	if posture == "" {
+		posture = LaunchChild
+	}
+	if posture != LaunchChild && posture != LaunchRootCoordinator {
+		return AgentSource{}, fmt.Errorf("harness: agent source %s declares unknown launch posture %q", p, fm.Launch)
+	}
 	text, err := bodyAfterFrontmatter(doc)
 	if err != nil {
 		return AgentSource{}, fmt.Errorf("harness: agent source %s: %w", p, err)
 	}
 	return AgentSource{
-		ShortName:   strings.TrimPrefix(fm.Name, agentNamePrefix),
-		Name:        fm.Name,
-		Description: fm.Description,
-		Skills:      fm.Skills,
-		Body:        text,
+		ShortName:     strings.TrimPrefix(fm.Name, agentNamePrefix),
+		Name:          fm.Name,
+		Description:   fm.Description,
+		Skills:        fm.Skills,
+		LaunchPosture: posture,
+		Body:          text,
 	}, nil
 }
 

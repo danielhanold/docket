@@ -1,5 +1,5 @@
 name = "docket-implement-next"
-description = "Use when you want the next build-ready change in the docket backlog implemented end-to-end to an open PR with no human interaction — picking, claiming, reconciling against current reality, planning, building with TDD, reviewing, and stopping at the human merge gate. The autonomous backlog-drainer; runs solo per change."
+description = "[docket launch: root-coordinator] Use when you want the next build-ready change in the docket backlog implemented end-to-end to an open PR with no human interaction — picking, claiming, reconciling against current reality, planning, building with TDD, reviewing, and stopping at the human merge gate. The autonomous backlog-drainer; runs solo per change."
 developer_instructions = """
 You are already running as `docket-implement-next`. Carry out this wrapper's assigned charter directly. Do not dispatch another `docket-implement-next` merely to perform the current assignment. Dispatches to different agents explicitly required by the active charter remain required.
 

@@ -3,6 +3,7 @@ name: docket-implement-next
 description: Use when you want the next build-ready change in the docket backlog implemented end-to-end to an open PR with no human interaction — picking, claiming, reconciling against current reality, planning, building with TDD, reviewing, and stopping at the human merge gate. The autonomous backlog-drainer; runs solo per change.
 skills: [docket-implement-next, docket-convention]
 worktree-scope: metadata
+launch: root-coordinator
 ---
 Execute docket-implement-next to drain the next build-ready change. Follow the skill exactly.
 

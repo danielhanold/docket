@@ -343,13 +343,11 @@ backlog. Install the build under test first (Phase 1), then start a **fresh Code
 process holds stale definitions and certifies nothing; each `codex exec` invocation is itself a
 fresh process, so a scripted probe satisfies this automatically).
 
-**Why the synthetic probe suffices for the whole Docket composition family** (scoped to codex-cli
-0.151.0): `decision.md` proved the launch mechanism is **universal** — every registered agent is
-coordinator-capable through the same native `spawn_agent`-by-registered-name call, with no per-agent
-difference — so the synthetic coordinator → leaf chain generalizes to every real Docket agent, and
-`certification.md` additionally exercised a real registered `docket-status` composition edge. The
-production `docket-implement-next → docket-plan-writer` reconfirmation is the post-merge resume of
-change 0364; this runbook does not claim a real-agent grandchild run that was not performed.
+The historical synthetic probe establishes only that its tested host/version exposed collaboration
+controls to its child. It does not establish a universal launch contract. For inventory roles marked
+`launch: root-coordinator`, certify Docket's supported entry directly with `docket agent enter` and
+exercise a real composition edge such as `docket-implement-next → docket-plan-writer`. Ordinary
+child roles may continue to use direct registered-agent invocation.
 
 - [ ] 1. **Record the Codex version** (`codex --version`) and the `multi_agent` setting in the
   results doc before any probe — this certification is scoped to the exact version and
@@ -362,9 +360,10 @@ change 0364; this runbook does not claim a real-agent grandchild run that was no
   `COORDINATOR_CONSUMED=<uuid>` line is **not** proof on its own — corroborate it against the
   session's own agent-start events per step 5.
 
-- [ ] 3. **Entry path B — direct registered-agent invocation.** In a fresh Codex process, invoke
-  `probe-coordinator` directly with `SENTINEL=<fresh uuid>`. Expected: the coordinator starts
-  `probe-leaf` as a named child and returns `COORDINATOR_CONSUMED=<uuid>`.
+- [ ] 3. **Coordinator root entry.** Put the unchanged probe request in a file, then run
+  `docket agent enter --role docket-implement-next --request <file> --cwd <absolute fixture path>
+  --approval-policy never --sandbox workspace-write`. Expected: the root coordinator starts the
+  requested registered leaf and returns the sentinel in its own final message.
 
 - [ ] 4. **Entry path A — repository managed-dispatch prose.** In the scratch fixture repo whose
   `AGENTS.md` dispatch block routes to `probe-coordinator` (staged per the README), in a fresh root
@@ -394,7 +393,7 @@ change 0364; this runbook does not claim a real-agent grandchild run that was no
   **observation protocol**, not a launch-shape change — capture both readings of one run in the
   results doc so the oracle mutation (right oracle vs. wrong oracle) is on the record.
 
-**Pass when:** both entry paths completed the nested round-trip — a real child and grandchild in
+**Pass when:** the coordinator root entry and the ordinary-role fixture completed the nested round-trip — a real child and grandchild in
 the thread store consuming the run's own freshly minted uuid inside `COORDINATOR_CONSUMED=` — the
 adjudication was made from the thread store (or `subAgentActivity`) and never the item stream, and
 the Codex version and `multi_agent` setting are recorded in the results doc. A recorded direct

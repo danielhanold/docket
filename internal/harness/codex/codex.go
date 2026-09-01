@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/harness"
 	"github.com/danielhanold/docket/internal/install"
 )
@@ -77,6 +78,19 @@ var ErrRender = errors.New("codex: cannot render")
 
 type adapter struct{}
 
+// RoleContract is the single typed Codex role representation consumed by both
+// ordinary TOML registration and coordinator root entry. Keeping instructions
+// and pins here prevents the runtime path from growing a second renderer.
+type RoleContract struct {
+	Name                  string
+	Description           string
+	LaunchPosture         harness.LaunchPosture
+	Model                 string
+	Effort                string
+	Skills                []string
+	DeveloperInstructions string
+}
+
 // New returns the Codex adapter.
 func New() harness.Adapter { return adapter{} }
 
@@ -125,17 +139,56 @@ func (adapter) Plan(in harness.PlanInput) ([]install.Target, error) {
 	}
 
 	for _, s := range sources {
-		model, effort := harness.ResolvedAgent(in.Agents, Name, s.ShortName)
+		contract := roleContract(s, in.Agents)
 		targets = append(targets, install.Target{
 			Path:    filepath.Join(root, agentsDir, s.Name+".toml"),
 			Kind:    install.KindFile,
-			Content: renderAgent(s, model, effort),
+			Content: renderAgent(contract),
 			Role:    roleAgent,
 		})
 	}
 
 	sort.Slice(targets, func(i, j int) bool { return targets[i].Path < targets[j].Path })
 	return targets, nil
+}
+
+// RoleContractFor resolves one named role from the same catalog and agent-pin
+// table Plan consumes. It performs no filesystem reads and returns an error for
+// an absent name rather than fabricating a generic role.
+func RoleContractFor(in harness.PlanInput, name string) (RoleContract, error) {
+	sources, err := harness.ParseInventory(in.Assets)
+	if err != nil {
+		return RoleContract{}, err
+	}
+	for _, s := range sources {
+		if s.Name == name {
+			return roleContract(s, in.Agents), nil
+		}
+	}
+	return RoleContract{}, fmt.Errorf("%w: agent inventory carries no role %q", ErrRender, name)
+}
+
+func roleContract(s harness.AgentSource, agents config.AgentsTable) RoleContract {
+	model, effort := harness.ResolvedAgent(agents, Name, s.ShortName)
+	body := trimBlankEdges(s.Body)
+	dev := body
+	if len(s.Skills) > 0 {
+		dev = fmt.Sprintf(skillsPreambleFormat, strings.Join(s.Skills, ", ")) + "\n\n" + body
+	}
+	dev = harness.RecursionGuard(s.Name) + "\n\n" + codexDispatchBoundary + "\n\n" + dev
+	description := s.Description
+	if s.LaunchPosture == harness.LaunchRootCoordinator {
+		description = "[docket launch: root-coordinator] " + description
+	}
+	return RoleContract{
+		Name:                  s.Name,
+		Description:           description,
+		LaunchPosture:         s.LaunchPosture,
+		Model:                 model,
+		Effort:                effort,
+		Skills:                append([]string(nil), s.Skills...),
+		DeveloperInstructions: dev,
+	}
 }
 
 // GlobalDispatchTarget is the user-global dispatch destination this adapter
@@ -172,24 +225,18 @@ func GlobalDispatchTarget(r install.UserRoots) install.Target {
 // shares (Codex has no `inherit` value of its own; Claude Code does, so that
 // adapter resolves through harness.ResolvedAgentRaw), so an unpinned field
 // simply omits its key and Codex applies its own default.
-func renderAgent(s harness.AgentSource, model, effort string) []byte {
+func renderAgent(contract RoleContract) []byte {
 	var b strings.Builder
-	b.WriteString("name = \"" + escapeBasic(s.Name) + "\"\n")
-	b.WriteString("description = \"" + escapeBasic(s.Description) + "\"\n")
+	b.WriteString("name = \"" + escapeBasic(contract.Name) + "\"\n")
+	b.WriteString("description = \"" + escapeBasic(contract.Description) + "\"\n")
 	// Model and effort are opaque vendor scalars (ADR-0015): docket keeps no
 	// allowlist and passes whatever resolved through, escaped but otherwise
 	// untouched.
-	if model != "" {
-		b.WriteString("model = \"" + escapeBasic(model) + "\"\n")
+	if contract.Model != "" {
+		b.WriteString("model = \"" + escapeBasic(contract.Model) + "\"\n")
 	}
-	if effort != "" {
-		b.WriteString("model_reasoning_effort = \"" + escapeBasic(effort) + "\"\n")
-	}
-
-	body := trimBlankEdges(s.Body)
-	dev := body
-	if len(s.Skills) > 0 {
-		dev = fmt.Sprintf(skillsPreambleFormat, strings.Join(s.Skills, ", ")) + "\n\n" + body
+	if contract.Effort != "" {
+		b.WriteString("model_reasoning_effort = \"" + escapeBasic(contract.Effort) + "\"\n")
 	}
 	// The self-recursion guard is the first paragraph of the instructions, at the
 	// one consistent position every renderer uses: immediately after the
@@ -200,8 +247,7 @@ func renderAgent(s harness.AgentSource, model, effort string) []byte {
 	// its cross-harness first-paragraph position, and the boundary sits ahead
 	// of the skills preamble and body so it reads as harness contract, not
 	// role prose.
-	dev = harness.RecursionGuard(s.Name) + "\n\n" + codexDispatchBoundary + "\n\n" + dev
-	b.WriteString("developer_instructions = \"\"\"\n" + escapeMultiline(dev) + "\n\"\"\"\n")
+	b.WriteString("developer_instructions = \"\"\"\n" + escapeMultiline(contract.DeveloperInstructions) + "\n\"\"\"\n")
 
 	return []byte(b.String())
 }

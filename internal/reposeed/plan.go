@@ -97,6 +97,10 @@ func Plan(in PlanInput) ([]install.Target, map[string][]string, error) {
 
 	root := filepath.Clean(in.WorktreeRoot)
 	interior := []byte(harness.DispatchInterior(in.RunGate))
+	codexInterior := interior
+	if selected[harnessCodex] {
+		codexInterior = []byte(harness.CodexDispatchInterior(in.RunGate))
+	}
 
 	var targets []install.Target
 	owners := map[string][]string{}
@@ -128,7 +132,7 @@ func Plan(in PlanInput) ([]install.Target, map[string][]string, error) {
 		if err := add(install.Target{
 			Path:       filepath.Join(root, agentsMDName),
 			Kind:       install.KindManagedBlock,
-			Content:    interior,
+			Content:    codexInterior,
 			BlockName:  dispatchBlockName,
 			Annotation: dispatchAnnotation,
 			Role:       roleDispatch,

@@ -104,6 +104,8 @@ var assetIndependent = map[string]bool{
 	"repository migrate":         true,
 	"repository prepare":         true,
 	"repository configure-tests": true,
+	"agent":                      true,
+	"agent enter":                true,
 	"diagnostic":                 true, // the group itself; it reports a missing command
 	"diagnostic runtime":         true,
 	"diagnostic config":          true,
