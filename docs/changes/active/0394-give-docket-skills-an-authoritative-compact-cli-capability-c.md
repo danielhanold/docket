@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'feat/give-docket-skills-an-authoritative-compact-cli-capability-c'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-01T23:38:43Z'
+reconciled: true
+claimed_at: '2026-09-01T23:41:40Z'
 ---
 
 ## Artifacts
@@ -45,3 +45,20 @@ Add one repository-independent, read-only capability bootstrap that returns the 
 ## Out of scope
 
 An MCP server or adapter; making MCP Docket's primary interface; complete request/result JSON-schema discovery owned by change 0360; workflow-policy redesign; new lifecycle operations unrelated to capability discovery; rewriting historical changes, specs, plans, results, or Accepted ADR prose.
+
+## Reconcile log
+
+### 2026-09-01
+
+### 2026-09-01 — reconcile (implement-next)
+
+Assessed the design against current `main`/`docket` reality; the proposal and spec hold unchanged, no scope adjustment needed.
+
+- Related predecessors 0369, 0370, 0371, 0377 are all `done` (archived): the frozen Bash facade is deleted, maintained consumers already run against the native `docket` Go binary, and generated agent invocation is on native host dispatch. This confirms the premise that the running Cobra tree is now the sole owner of which verbs exist, while installed skills still carry hand-authored spellings — exactly the gap this change closes.
+- Related change 0360 remains `proposed` and keeps its distinct scope: complete request/result JSON-schema discovery. This change stays strictly the verb/effect *invocation* catalog and does not touch schema discovery (acceptance criterion 9).
+- Verified `docket capabilities` does not yet exist (`unknown command "capabilities"`), so the new public leaf is genuinely net-new. The production Cobra root is assembled in `internal/cli/root.go` (`root.AddCommand(...)` at the tail of `run`), with per-group builders (`newChangeCommand`, `newContextCommand`, etc.) in `internal/cli/*.go`; effect + stable-operation-id metadata will be co-located on leaf registration there (typed annotations / equivalent structure the walker consumes), never a second command-name map.
+- Cited ADRs 0003 (convention reference-loading), 0020 (generated agent artifacts machine-local), 0036 (Codex AGENTS.md dispatch block committed, machine-neutral) remain Accepted and relevant to the workflow-consumption + generated-asset regeneration parts.
+
+No obsolescence, no fundamental invalidation. Proceeding to plan and build.
+
+Follow-up noted for deliberate human capture (not minted here): the docket-implement-next / docket-convention skill prose still describes some transactions with `--id`/`--version` flags (e.g. `docket change reconcile --id <id> --version <v>`) while the shipped binary takes `--input <request-file>` with id/version inside the JSON. That instruction-vs-binary drift is the very class this change's Step-0 migration targets; ensuring the migrated skill prose matches the real invocation shapes is in-scope for the skill-migration work here.
