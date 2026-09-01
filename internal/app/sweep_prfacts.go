@@ -222,5 +222,15 @@ func sweepSelectPRFacts(ctx context.Context, batch SweepPRBatchReader, repoDir s
 				len(fail.Numbers), fail.Numbers, fail.Message),
 		})
 	}
+	// An unparseable PR ref is unknown too — never closed/absent — so mirror the
+	// failed-batch finding rather than omit it silently.
+	if len(unparseable) > 0 {
+		findings = append(findings, StatusFinding{
+			Code:     "sweep-pr-facts-unresolved",
+			Severity: string(domain.SeverityWarning),
+			Message: fmt.Sprintf("pull-request ref(s) for %d change(s) could not be parsed (changes %v); treated as unknown",
+				len(unparseable), unparseable),
+		})
+	}
 	return facts, findings
 }

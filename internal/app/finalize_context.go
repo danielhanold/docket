@@ -129,8 +129,10 @@ type FinalizeDeps struct {
 	PRProber  FinalizePRProber
 	// PRBatch is the maintenance sweep's batched exact-number PR reader: it reads
 	// the whole finalize population's live PR facts over one shared GitHub identity
-	// in ≤25-number batches, replacing the per-change probe. Only the sweep
-	// (MaintenanceSweep) wires and reads it; every other operation leaves it nil.
+	// in ≤25-number batches, replacing the per-change probe. Every finalize
+	// builder (newFinalizeDepsOver) WIRES it unconditionally, so a standalone
+	// FinalizeDeps carries it too; only the sweep (MaintenanceSweep) READS it, so
+	// in every other operation it is populated but inert.
 	PRBatch SweepPRBatchReader
 	// Gate is the local-gate composition seam finalize rebase drives after a
 	// completed rebase (Task 8): it launches the resolved suite in the feature
