@@ -2,7 +2,7 @@
 id: 394
 slug: 'give-docket-skills-an-authoritative-compact-cli-capability-c'
 title: 'Give Docket skills an authoritative compact CLI capability catalog'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'feat'
 created: '2026-09-01'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'feat/give-docket-skills-an-authoritative-compact-cli-capability-c'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-01T23:38:43Z'
 ---
 
 ## Artifacts
