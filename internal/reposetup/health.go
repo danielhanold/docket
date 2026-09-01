@@ -13,7 +13,12 @@ package reposetup
 // and NEVER a destructive command. Each of these is pinned by a test in that
 // exact fixture state.
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/danielhanold/docket/internal/config"
+	"go.yaml.in/yaml/v3"
+)
 
 // Severity is a finding's disposition. It is a string so health JSON carries it
 // verbatim.
@@ -203,6 +208,66 @@ func findingFor(reason string, f Facts) Finding {
 			Remedy:   "Re-run `docket repository check` after investigating the repository state.",
 		}
 	}
+}
+
+// TestConfigMissingCode is the stable machine token for the test-policy health
+// finding: a local test gate cannot run because no command is configured (or a
+// legacy `auto` is still declared). Its remedy names `docket repository
+// configure-tests` — the setup-time upgrade path that generates the pending edit.
+const TestConfigMissingCode = "test-config-missing"
+
+// TestConfigFinding reports the test-policy configuration gap, or nil when the
+// resolved test policy is complete. It is CLOSED and keys on EACH local gate
+// independently: it fires when the resolved BUILD gate is `local` with an empty
+// command, OR the resolved FINALIZE gate is `local` with an empty command, OR
+// the committed repository bytes still declare the legacy `auto` spelling under
+// either `build.test_command` or `finalize.test_command`. The two local-gate
+// disjuncts are independent — a configured finalize command never masks an
+// unconfigured build one — so the build-side and finalize-side asserts each
+// redden their own mutation. committedYML may be nil (no file) or malformed (an
+// unparseable file is tolerated: the finding then rests on the resolved-config
+// disjuncts alone, never a panic).
+func TestConfigFinding(cfg config.Effective, committedYML []byte) *Finding {
+	fires := localGateNeedsCommand(cfg.Build.Gate.Value, cfg.Build.TestCommand.Value) ||
+		localGateNeedsCommand(cfg.Finalize.Gate.Value, cfg.Finalize.TestCommand.Value) ||
+		committedDeclaresLegacyAuto(committedYML)
+	if !fires {
+		return nil
+	}
+	return &Finding{
+		Code:     TestConfigMissingCode,
+		Severity: SeverityWarning,
+		Message:  "A local test gate has no configured command (or a legacy `auto` spelling is still declared); the gate cannot run until a command is set.",
+		Remedy:   "Run `docket repository configure-tests` to generate the pending test-policy edit, then review and commit it.",
+	}
+}
+
+// localGateNeedsCommand reports whether a gate owner is a local gate with no
+// resolved command — the configuration gap a setup-time edit must close.
+func localGateNeedsCommand(gate, command string) bool {
+	return gate == "local" && command == ""
+}
+
+// committedDeclaresLegacyAuto reports whether the committed repository-layer
+// bytes still spell the legacy `auto` sentinel under build.test_command or
+// finalize.test_command. Malformed YAML is not an error here (the resolved
+// config already carries the authoritative decision); it simply reports false.
+func committedDeclaresLegacyAuto(committedYML []byte) bool {
+	if len(committedYML) == 0 {
+		return false
+	}
+	var doc struct {
+		Build struct {
+			TestCommand string `yaml:"test_command"`
+		} `yaml:"build"`
+		Finalize struct {
+			TestCommand string `yaml:"test_command"`
+		} `yaml:"finalize"`
+	}
+	if err := yaml.Unmarshal(committedYML, &doc); err != nil {
+		return false
+	}
+	return doc.Build.TestCommand == "auto" || doc.Finalize.TestCommand == "auto"
 }
 
 // frontmatterFinding lifts one caller-gathered RepairFinding into a health

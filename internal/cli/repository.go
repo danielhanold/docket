@@ -41,6 +41,9 @@ var (
 	repositoryPrepareRunner = func(ctx context.Context, d app.SetupDeps, o app.PrepareOptions) app.OperationResult {
 		return app.RunRepositoryPrepare(ctx, d, o)
 	}
+	repositoryConfigureTestsRunner = func(ctx context.Context, d app.SetupDeps) app.OperationResult {
+		return app.RunRepositoryConfigureTests(ctx, d)
+	}
 )
 
 // repositoryConfirmInteractive reports whether migrate may prompt for
@@ -87,8 +90,13 @@ func newRepositoryCommand(setResult func(app.OperationResult)) *cobra.Command {
 			// prepare keeps its own PrepareOptions.RepoDir override empty here.
 			setResult(repositoryPrepareRunner(c.Context(), deps, app.PrepareOptions{}))
 		})
+	configureTestsCmd := repositorySubcommand("configure-tests",
+		"Generate the pending .docket.yml build/finalize test policy for an already-initialized repository",
+		func(c *cobra.Command, deps app.SetupDeps) {
+			setResult(repositoryConfigureTestsRunner(c.Context(), deps))
+		})
 
-	repositoryCmd.AddCommand(initCmd, checkCmd, migrateCmd, prepareCmd)
+	repositoryCmd.AddCommand(initCmd, checkCmd, migrateCmd, prepareCmd, configureTestsCmd)
 	return repositoryCmd
 }
 

@@ -9,11 +9,11 @@ import (
 )
 
 // TestRepositoryCommandsRegistered proves `docket repository` carries exactly the
-// four settled subcommands, each with a --repo-dir flag, and that the bare
+// settled subcommands, each with a --repo-dir flag, and that the bare
 // group and an unknown subcommand both fail rather than silently succeeding.
 func TestRepositoryCommandsRegistered(t *testing.T) {
 	root := captureTree(t)
-	for _, sub := range []string{"init", "check", "migrate", "prepare"} {
+	for _, sub := range []string{"init", "check", "migrate", "prepare", "configure-tests"} {
 		cmd, _, err := root.Find([]string{"repository", sub})
 		if err != nil || cmd == nil || cmd.Name() != sub {
 			t.Fatalf("repository %s not registered: cmd=%v err=%v", sub, cmd, err)
