@@ -105,7 +105,6 @@ var assetIndependent = map[string]bool{
 	"repository prepare":         true,
 	"repository configure-tests": true,
 	"agent":                      true,
-	"agent enter":                true,
 	"diagnostic":                 true, // the group itself; it reports a missing command
 	"diagnostic runtime":         true,
 	"diagnostic config":          true,
@@ -114,6 +113,14 @@ var assetIndependent = map[string]bool{
 	"development":                true,
 	"development install":        true,
 	"development test":           true, // the Go-native whole-suite runner reads this checkout, never installed assets (change 0318)
+}
+
+// assetDependent is the explicit complement for shipped commands that require
+// a compatible installation. Keeping this separate from the guard's default
+// fail-closed behavior distinguishes a deliberate dependency from a newly
+// added command that merely forgot its classification.
+var assetDependent = map[string]bool{
+	"agent enter": true,
 }
 
 // commandKey is a command's path with the root's own name stripped, which is
