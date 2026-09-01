@@ -24,6 +24,7 @@ const (
 const (
 	keyCommand = "command"
 	keyResult  = "result"
+	keyReason  = "reason"
 	keyHead    = "head_sha"
 	keyRanAt   = "ran_at"
 )
@@ -41,8 +42,17 @@ func Render(r Record) string {
 
 // interior renders the four field lines (LF-joined, no trailing newline) that
 // sit between the markers. It is shared by Render and the loss-preserving
-// replace path so both produce identical block contents.
+// replace path so both produce identical block contents. A green record renders
+// command/result/head_sha/ran_at — byte-identical to ADR-0066's original schema
+// so legacy blocks parse unchanged; a skipped record substitutes reason for
+// command, rendering result/reason/head_sha/ran_at.
 func interior(r Record) string {
+	if r.Result == ResultSkipped {
+		return field(keyResult, string(r.Result)) + "\n" +
+			field(keyReason, r.Reason) + "\n" +
+			field(keyHead, r.Head) + "\n" +
+			field(keyRanAt, r.RanAt.UTC().Format(time.RFC3339))
+	}
 	return field(keyCommand, r.Command) + "\n" +
 		field(keyResult, string(r.Result)) + "\n" +
 		field(keyHead, r.Head) + "\n" +
@@ -84,6 +94,10 @@ func Extract(body []byte) (Record, error) {
 }
 
 // parseInterior reads the bytes strictly between the two markers into a Record.
+// The required field set is keyed on the result value: a green block requires
+// command/result/head_sha/ran_at and forbids reason; a skipped block requires
+// result/reason/head_sha/ran_at and forbids command. Any other result value —
+// or a field mix that violates its result's shape — is a malformed error.
 func parseInterior(interior []byte) (Record, error) {
 	values := map[string]string{}
 	for _, raw := range strings.Split(string(interior), "\n") {
@@ -105,13 +119,30 @@ func parseInterior(interior []byte) (Record, error) {
 		}
 		values[key] = value
 	}
-	for _, key := range []string{keyCommand, keyResult, keyHead, keyRanAt} {
+	result, ok := values[keyResult]
+	if !ok {
+		return Record{}, fmt.Errorf("evidence: missing key %q", keyResult)
+	}
+	switch Result(result) {
+	case ResultGreen:
+		return parseGreenInterior(values)
+	case ResultSkipped:
+		return parseSkippedInterior(values)
+	default:
+		return Record{}, fmt.Errorf("evidence: result is %q, only %q or %q is valid", result, ResultGreen, ResultSkipped)
+	}
+}
+
+// parseGreenInterior parses the values of a result: green block: exactly
+// command/result/head_sha/ran_at, with no reason line.
+func parseGreenInterior(values map[string]string) (Record, error) {
+	if _, present := values[keyReason]; present {
+		return Record{}, fmt.Errorf("evidence: a green record carries no %q line", keyReason)
+	}
+	for _, key := range []string{keyCommand, keyHead, keyRanAt} {
 		if _, ok := values[key]; !ok {
 			return Record{}, fmt.Errorf("evidence: missing key %q", key)
 		}
-	}
-	if values[keyResult] != string(ResultGreen) {
-		return Record{}, fmt.Errorf("evidence: result is %q, only %q is valid", values[keyResult], ResultGreen)
 	}
 	ranAt, err := time.Parse(time.RFC3339, values[keyRanAt])
 	if err != nil {
@@ -120,10 +151,34 @@ func parseInterior(interior []byte) (Record, error) {
 	return NewRecord(values[keyCommand], values[keyHead], ranAt)
 }
 
-// knownKey reports whether key is one of the four schema keys.
+// parseSkippedInterior parses the values of a result: skipped block: exactly
+// result/reason/head_sha/ran_at, with no command line and reason pinned to
+// ReasonBuildGateOff.
+func parseSkippedInterior(values map[string]string) (Record, error) {
+	if _, present := values[keyCommand]; present {
+		return Record{}, fmt.Errorf("evidence: a skipped record carries no %q line", keyCommand)
+	}
+	for _, key := range []string{keyReason, keyHead, keyRanAt} {
+		if _, ok := values[key]; !ok {
+			return Record{}, fmt.Errorf("evidence: missing key %q", key)
+		}
+	}
+	if values[keyReason] != ReasonBuildGateOff {
+		return Record{}, fmt.Errorf("evidence: reason is %q, only %q is valid", values[keyReason], ReasonBuildGateOff)
+	}
+	ranAt, err := time.Parse(time.RFC3339, values[keyRanAt])
+	if err != nil {
+		return Record{}, fmt.Errorf("evidence: ran_at is not RFC3339: %w", err)
+	}
+	return NewSkippedRecord(values[keyHead], ranAt)
+}
+
+// knownKey reports whether key is one of the five schema keys (reason belongs to
+// skipped records; command to green records — parseInterior enforces which set a
+// given result value may carry).
 func knownKey(key string) bool {
 	switch key {
-	case keyCommand, keyResult, keyHead, keyRanAt:
+	case keyCommand, keyResult, keyReason, keyHead, keyRanAt:
 		return true
 	default:
 		return false
