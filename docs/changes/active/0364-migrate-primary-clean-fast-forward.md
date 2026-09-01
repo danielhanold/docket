@@ -2,7 +2,7 @@
 id: 364
 slug: migrate-primary-clean-fast-forward
 title: 'Advance the primary in place on migrate via a gitcli clean-fast-forward primitive'
-status: 'in-progress'
+status: 'implemented'
 priority: medium
 type: feat
 created: 2026-08-28
@@ -18,7 +18,7 @@ results:
 trivial: false
 auto_groomable:
 branch: 'feat/migrate-primary-clean-fast-forward'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/266'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-01T17:17:19Z'
