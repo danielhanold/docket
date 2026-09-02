@@ -96,6 +96,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0105](0105-finalize-s-local-gate-continuation-is-persisted-in-the-owned.md) — Finalize's local-gate continuation is persisted in the owned rebase receipt (Accepted) ← change #396 · relates to ADR-0098
 - [ADR-0106](0106-implementation-preflight-is-a-deterministic-operation-not-a.md) — Implementation preflight is a deterministic operation, not a composition dispatch (Accepted) ← change #397 · relates to ADR-0012, ADR-0024, ADR-0101
 - [ADR-0107](0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md) — Event-authorized parent takeover extends fingerprinted gate-drive ownership (Accepted) ← change #359 → supersedes ADR-0098 · relates to ADR-0024, ADR-0075, ADR-0095
+- [ADR-0108](0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) — Bound total Go test load at the runner and isolate real-process test temp dirs behind a shared fixture (Accepted) ← change #373
 
 ## Superseded / Reversed
 
