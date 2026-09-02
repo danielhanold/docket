@@ -21,7 +21,7 @@ branch: 'fix/run-gate-gives-up-too-soon'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-02T15:25:10Z'
+claimed_at: '2026-09-02T15:26:20Z'
 ---
 
 ## Artifacts
