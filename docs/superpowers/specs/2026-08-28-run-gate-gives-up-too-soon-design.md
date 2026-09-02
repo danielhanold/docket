@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0359 — Run gate gives up too soon](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0359-run-gate-gives-up-too-soon.md)**
+> ↩ **[Change 0359 — Run gate gives up too soon](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-02-0359-run-gate-gives-up-too-soon.md)**
 <!-- docket:backlink:end -->
 
 # Tracked test continuation and parent takeover

@@ -2,7 +2,7 @@
 id: 359
 slug: run-gate-gives-up-too-soon
 title: 'Run gate gives up too soon'
-status: 'implemented'
+status: 'done'
 priority: high
 type: fix
 created: 2026-08-27
@@ -21,7 +21,7 @@ branch: 'fix/run-gate-gives-up-too-soon'
 pr: 'https://github.com/danielhanold/docket/pull/270'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-02T15:45:38Z'
+claimed_at:
 ---
 
 ## Artifacts
