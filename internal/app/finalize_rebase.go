@@ -829,7 +829,14 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 
 	evidenceHead, evidenceCommand, evidenceGreen := prBodyEvidence(pr)
 	resolvedCommand := resolvedFinalizeCommand(ctx, deps, repoDir)
-	skip, permit := gateDecision(noop, evidenceHead, currentHead, evidenceGreen, evidenceCommand, resolvedCommand)
+	skip, permit := false, ""
+	if cont.DriveID == "" {
+		skip, permit = gateDecision(noop, evidenceHead, currentHead, evidenceGreen, evidenceCommand, resolvedCommand)
+	}
+	// A recorded live continuation means a drive is already running for this
+	// attempt: it must be advanced to a terminal, never skipped past — a skip
+	// here would strand the drive and wedge the receipt's pair (the pair is
+	// presence-encoded state; every transition out must clear it).
 	base := FinalizeRebaseResult{
 		ID: id, Disposition: disposition, Head: string(head), OrigHead: string(origHead),
 		Base: rc.base.Branch, BaseHead: string(baseHead), Attempt: attempt,
