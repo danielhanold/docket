@@ -81,11 +81,11 @@ func newPRCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	publish.Flags().Int("id", 0, "change id whose pull request to publish (required)")
-	publish.Flags().String("head", "", "exact published feature head the PR must certify (required)")
-	publish.Flags().String("body", "", "JSON request file with the authored PR title and body, or - for stdin (required)")
-	publish.Flags().String("evidence", "", "canonical build-evidence record file, or - for stdin (required)")
-	publish.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	publish.Flags().Int("id", 0, "change `id` whose pull request to publish (required)")
+	publish.Flags().String("head", "", "exact published feature head `ref` the PR must certify (required)")
+	publish.Flags().String("body", "", "JSON request `file` with the authored PR title and body, or - for stdin (required)")
+	publish.Flags().String("evidence", "", "canonical build-evidence record `file`, or - for stdin (required)")
+	publish.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = publish.MarkFlagRequired("id")
 	_ = publish.MarkFlagRequired("head")
 	_ = publish.MarkFlagRequired("body")

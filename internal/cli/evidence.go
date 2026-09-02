@@ -58,10 +58,10 @@ func newEvidenceCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	record.Flags().Int("id", 0, "change id the evidence belongs to (required)")
-	record.Flags().String("run", "", "absolute gate run directory to observe (required for a local build gate; ignored when build.gate is off)")
-	record.Flags().String("head", "", "exact feature head the evidence must certify (required)")
-	record.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	record.Flags().Int("id", 0, "change `id` the evidence belongs to (required)")
+	record.Flags().String("run", "", "absolute gate run `dir` to observe (required for a local build gate; ignored when build.gate is off)")
+	record.Flags().String("head", "", "exact feature head `ref` the evidence must certify (required)")
+	record.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = record.MarkFlagRequired("id")
 	_ = record.MarkFlagRequired("head")
 
@@ -81,8 +81,8 @@ func newEvidenceCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	verify.Flags().String("record", "", "evidence record file, or - to read the record bytes from stdin (required)")
-	verify.Flags().String("head", "", "exact head to verify the record against (required)")
+	verify.Flags().String("record", "", "evidence record `file`, or - to read the record bytes from stdin (required)")
+	verify.Flags().String("head", "", "exact head `ref` to verify the record against (required)")
 	_ = verify.MarkFlagRequired("record")
 	_ = verify.MarkFlagRequired("head")
 

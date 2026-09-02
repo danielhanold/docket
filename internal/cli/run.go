@@ -60,8 +60,8 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	verify.Flags().Int("id", 0, "change id whose run to verify (required)")
-	verify.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	verify.Flags().Int("id", 0, "change `id` whose run to verify (required)")
+	verify.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = verify.MarkFlagRequired("id")
 
 	// gate-before arms the implement-next run gate: it re-syncs, records the
@@ -90,7 +90,7 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	gateBefore.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	gateBefore.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 
 	// gate-verdict reports the run-gate verdict in one of two modes. In ATTRIBUTED
 	// mode (`gate-verdict <key>`) it loads the durable record armed by gate-before,
@@ -141,7 +141,7 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 		},
 	}
 	gateVerdict.Flags().Bool("unattributed", false, "observe-only mode: verify hint ids (or every in-progress id) and print gate-observe lines, holding no key and writing nothing")
-	gateVerdict.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	gateVerdict.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 
 	runCmd.AddCommand(verify, gateBefore, gateVerdict)
 	return runCmd

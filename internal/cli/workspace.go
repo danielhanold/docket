@@ -53,9 +53,9 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	prepare.Flags().Int("id", 0, "change id to prepare a workspace for (required)")
-	prepare.Flags().String("version", "", "exact record blob object id from the claim receipt (required)")
-	prepare.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	prepare.Flags().Int("id", 0, "change `id` to prepare a workspace for (required)")
+	prepare.Flags().String("version", "", "exact record blob object `id` from the claim receipt (required)")
+	prepare.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = prepare.MarkFlagRequired("id")
 	_ = prepare.MarkFlagRequired("version")
 
@@ -79,8 +79,8 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	inspect.Flags().Int("id", 0, "change id whose workspace to inspect (required)")
-	inspect.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	inspect.Flags().Int("id", 0, "change `id` whose workspace to inspect (required)")
+	inspect.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = inspect.MarkFlagRequired("id")
 
 	publish := &cobra.Command{
@@ -104,9 +104,9 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	publish.Flags().Int("id", 0, "change id whose workspace head to publish (required)")
-	publish.Flags().String("head", "", "exact local head the ready workspace must carry (required)")
-	publish.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	publish.Flags().Int("id", 0, "change `id` whose workspace head to publish (required)")
+	publish.Flags().String("head", "", "exact local head `ref` the ready workspace must carry (required)")
+	publish.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = publish.MarkFlagRequired("id")
 	_ = publish.MarkFlagRequired("head")
 

@@ -78,8 +78,8 @@ func newFinalizeCleanupSubcommand(setResult func(app.OperationResult)) *cobra.Co
 			return nil
 		},
 	}
-	cmd.Flags().Int("id", 0, "terminal change id to clean up (required)")
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().Int("id", 0, "terminal change `id` to clean up (required)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
 	return cmd
 }
@@ -133,9 +133,9 @@ func newFinalizeCloseoutSubcommand(setResult func(app.OperationResult)) *cobra.C
 			return nil
 		},
 	}
-	cmd.Flags().Int("id", 0, "change id to close out (required)")
-	cmd.Flags().String("input", "", "optional JSON request file with closeout notes (verification_outcomes, late_findings), or - for stdin")
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().Int("id", 0, "change `id` to close out (required)")
+	cmd.Flags().String("input", "", "optional JSON request `file` with closeout notes (verification_outcomes, late_findings), or - for stdin")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
 	return cmd
 }
@@ -196,14 +196,14 @@ func newFinalizeBlockSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 			return nil
 		},
 	}
-	cmd.Flags().Int("id", 0, "change id whose finalize attempt is blocked (required)")
-	cmd.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
-	cmd.Flags().Int("pr-number", 0, "pull-request number the owned comment is ensured on (required)")
-	cmd.Flags().String("attempt", "", "opaque owned attempt token keying the comment marker and marker idempotency (required)")
-	cmd.Flags().String("reason", "", "stable machine reason token for the block (required)")
-	cmd.Flags().String("head", "", "verified feature head recorded as a fact (required)")
-	cmd.Flags().String("input", "", "JSON request file with the authored report and remedy, or - for stdin (required)")
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().Int("id", 0, "change `id` whose finalize attempt is blocked (required)")
+	cmd.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
+	cmd.Flags().Int("pr-number", 0, "pull-request `n`umber the owned comment is ensured on (required)")
+	cmd.Flags().String("attempt", "", "opaque owned attempt `token` keying the comment marker and marker idempotency (required)")
+	cmd.Flags().String("reason", "", "stable machine reason `token` for the block (required)")
+	cmd.Flags().String("head", "", "verified feature head `ref` recorded as a fact (required)")
+	cmd.Flags().String("input", "", "JSON request `file` with the authored report and remedy, or - for stdin (required)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
 	_ = cmd.MarkFlagRequired("version")
 	_ = cmd.MarkFlagRequired("pr-number")
@@ -249,11 +249,11 @@ func newFinalizeClearBlockSubcommand(setResult func(app.OperationResult)) *cobra
 			return nil
 		},
 	}
-	cmd.Flags().Int("id", 0, "change id whose finalize-blocked marker to clear (required)")
-	cmd.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
-	cmd.Flags().String("head", "", "exact current feature head the reprobe must confirm (required)")
-	cmd.Flags().Int("pr-number", 0, "canonical pull-request number whose open state is reprobed (required)")
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().Int("id", 0, "change `id` whose finalize-blocked marker to clear (required)")
+	cmd.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
+	cmd.Flags().String("head", "", "exact current feature head `ref` the reprobe must confirm (required)")
+	cmd.Flags().Int("pr-number", 0, "canonical pull-request `n`umber whose open state is reprobed (required)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
 	_ = cmd.MarkFlagRequired("version")
 	_ = cmd.MarkFlagRequired("head")
@@ -301,11 +301,11 @@ func newFinalizeMergeSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 			return nil
 		},
 	}
-	cmd.Flags().Int("id", 0, "change id whose pull request to merge (required)")
-	cmd.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
-	cmd.Flags().String("head", "", "exact feature head the merge must match (required)")
+	cmd.Flags().Int("id", 0, "change `id` whose pull request to merge (required)")
+	cmd.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
+	cmd.Flags().String("head", "", "exact feature head `ref` the merge must match (required)")
 	cmd.Flags().Bool("admin", false, "request an admin-override merge (honored only on this attended, explicitly-named run)")
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
 	_ = cmd.MarkFlagRequired("version")
 	_ = cmd.MarkFlagRequired("head")
@@ -358,10 +358,10 @@ func newFinalizeRetargetChildrenSubcommand(setResult func(app.OperationResult)) 
 			return nil
 		},
 	}
-	cmd.Flags().Int("id", 0, "parent change id whose open children are retargeted (required)")
-	cmd.Flags().String("version", "", "exact parent record blob object id from the authoritative context read (required)")
-	cmd.Flags().String("input", "", "JSON request file with the authorized child set, or - for stdin (required)")
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().Int("id", 0, "parent change `id` whose open children are retargeted (required)")
+	cmd.Flags().String("version", "", "exact parent record blob object `id` from the authoritative context read (required)")
+	cmd.Flags().String("input", "", "JSON request `file` with the authorized child set, or - for stdin (required)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
 	_ = cmd.MarkFlagRequired("version")
 	_ = cmd.MarkFlagRequired("input")
@@ -398,10 +398,10 @@ func newFinalizeRebaseSubcommand(setResult func(app.OperationResult)) *cobra.Com
 			return nil
 		},
 	}
-	cmd.Flags().Int("id", 0, "implemented change id to rebase (required)")
-	cmd.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
-	cmd.Flags().String("head", "", "expected local feature head the rebase begins from (required)")
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().Int("id", 0, "implemented change `id` to rebase (required)")
+	cmd.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
+	cmd.Flags().String("head", "", "expected local feature head `ref` the rebase begins from (required)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
 	_ = cmd.MarkFlagRequired("version")
 	_ = cmd.MarkFlagRequired("head")
@@ -519,11 +519,11 @@ func newFinalizePublishSubcommand(setResult func(app.OperationResult)) *cobra.Co
 			return nil
 		},
 	}
-	cmd.Flags().Int("id", 0, "change id whose rewritten head to publish (required)")
-	cmd.Flags().String("attempt", "", "the owned rebase attempt token that authorizes the rewrite push (required)")
-	cmd.Flags().String("head", "", "exact rewritten feature head to publish and certify (required)")
-	cmd.Flags().String("evidence", "", "canonical build-evidence record file, or - for stdin (required)")
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().Int("id", 0, "change `id` whose rewritten head to publish (required)")
+	cmd.Flags().String("attempt", "", "the owned rebase attempt `token` that authorizes the rewrite push (required)")
+	cmd.Flags().String("head", "", "exact rewritten feature head `ref` to publish and certify (required)")
+	cmd.Flags().String("evidence", "", "canonical build-evidence record `file`, or - for stdin (required)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
 	_ = cmd.MarkFlagRequired("attempt")
 	_ = cmd.MarkFlagRequired("head")
@@ -535,10 +535,10 @@ func newFinalizePublishSubcommand(setResult func(app.OperationResult)) *cobra.Co
 // resolver-fed rebase subcommands take: id and attempt on flags, the authored
 // report in --input.
 func finalizeReportFlags(cmd *cobra.Command) {
-	cmd.Flags().Int("id", 0, "change id whose owned rebase is continued or aborted (required)")
-	cmd.Flags().String("attempt", "", "the owned rebase attempt token from the conflicted result (required)")
-	cmd.Flags().String("input", "", "JSON resolver report file, or - for stdin (required)")
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().Int("id", 0, "change `id` whose owned rebase is continued or aborted (required)")
+	cmd.Flags().String("attempt", "", "the owned rebase attempt `token` from the conflicted result (required)")
+	cmd.Flags().String("input", "", "JSON resolver report `file`, or - for stdin (required)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
 	_ = cmd.MarkFlagRequired("attempt")
 	_ = cmd.MarkFlagRequired("input")

@@ -9,6 +9,8 @@ package cli
 // test-local walker — so neither can hide the other's drift.
 
 import (
+	"encoding/json"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -174,4 +176,128 @@ func entryByID(entries []CapabilityEntry, id string) (CapabilityEntry, bool) {
 		}
 	}
 	return CapabilityEntry{}, false
+}
+
+// assertDirEmpty fails if dir holds any entry — the write-independence oracle:
+// the bootstrap must not create a config file, a state dir, or any scratch on
+// the paths it is pointed at.
+func assertDirEmpty(t *testing.T, dir string) {
+	t.Helper()
+	names, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("reading %q: %v", dir, err)
+	}
+	if len(names) != 0 {
+		var got []string
+		for _, n := range names {
+			got = append(got, n.Name())
+		}
+		t.Fatalf("directory %q is not empty after `capabilities --json`: %v — the bootstrap wrote to disk", dir, got)
+	}
+}
+
+// TestCapabilitiesIsRepositoryConfigAssetAndWriteIndependent proves the one
+// property the whole bootstrap rests on: `capabilities --json` answers with a
+// complete protocol document from an empty non-git working directory, with HOME
+// and XDG_STATE_HOME pointed at empty temp dirs (no installation, no global
+// config), and it writes nothing to any of them. If the runner resolved a git
+// client, loaded config, or resolved asset roots eagerly, one of these
+// assertions would redden — which is exactly why the capabilities RunE must
+// stay free of gitcli.NewClient, config.Load*, and install.ResolveRoots.
+func TestCapabilitiesIsRepositoryConfigAssetAndWriteIndependent(t *testing.T) {
+	dir := t.TempDir()
+	home := t.TempDir()
+	xdg := t.TempDir()
+	t.Chdir(dir)
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_STATE_HOME", xdg)
+
+	out, errS, code := runCLI(t, "capabilities", "--json")
+	if code != 0 || errS != "" {
+		t.Fatalf("capabilities did not answer cleanly from an empty non-git dir: out=%q err=%q code=%d", out, errS, code)
+	}
+
+	// A full document, not a partial one.
+	var doc struct {
+		ProtocolVersion   int               `json:"protocol_version"`
+		CapabilityVersion int               `json:"capability_version"`
+		Commands          []json.RawMessage `json:"commands"`
+	}
+	if err := json.Unmarshal([]byte(out), &doc); err != nil {
+		t.Fatalf("catalog is not valid JSON: %v\n%s", err, out)
+	}
+	if doc.ProtocolVersion != 1 || doc.CapabilityVersion != 1 {
+		t.Fatalf("versions: protocol=%d capability=%d", doc.ProtocolVersion, doc.CapabilityVersion)
+	}
+	if len(doc.Commands) == 0 {
+		t.Fatal("catalog carries no commands — the document is not full")
+	}
+
+	// Write-independence: every directory it was pointed at stays empty.
+	assertDirEmpty(t, dir)
+	assertDirEmpty(t, home)
+	assertDirEmpty(t, xdg)
+}
+
+// TestCapabilitiesPayloadWithinByteBudget is the gating oracle for compactness:
+// the emitted catalog must fit the 12288-byte (12 KB) design ceiling, and it
+// must carry no human help prose — the catalog is a machine bootstrap, not a
+// second copy of --help. Growth past the ceiling is a design event (spec:
+// Compactness boundary), never a truncation or per-skill-filter opportunity.
+func TestCapabilitiesPayloadWithinByteBudget(t *testing.T) {
+	out, errS, code := runCLI(t, "capabilities", "--json")
+	if code != 0 || errS != "" {
+		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
+	}
+	n := len(out)
+	t.Logf("capabilities payload: %d bytes (budget 12288)", n)
+	if n > 12*1024 {
+		t.Fatalf("catalog is %d bytes, over the 12KB design ceiling — growth is a design event (spec: Compactness boundary), not a truncation opportunity", n)
+	}
+	// Content-exclusion: no help-prose fields. The catalog names signatures and
+	// effects, never Short/Long/Example/Help text.
+	for _, banned := range []string{`"short"`, `"long"`, `"example"`, `"help"`} {
+		if strings.Contains(out, banned) {
+			t.Errorf("catalog carries help-prose field %s — the catalog must not restate --help", banned)
+		}
+	}
+}
+
+// TestRepresentativeSignatures pins the exact projected signature for a
+// deliberately varied handful of operations — a request-file leaf, a
+// multi-repeatable-flag read, two positional-tail shapes, and the
+// flags-then-`--`-argv launch. The strings below were MEASURED from the real
+// production tree and reviewed for faithfulness before pinning (never
+// predicted): they lock both the flag-projection rules (required/optional
+// ordering, repeatable `...`, backquoted value hints) and the positional-tail
+// composition (a bare `--` separator lands last; an ordinary tail leads). A
+// deliberate change to a flag's registration or usage hint must update the
+// pinned string here, in the open.
+func TestRepresentativeSignatures(t *testing.T) {
+	entries, err := collectCapabilities(productionRootForTest(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		// request-file leaf: required file, optional repo dir.
+		"change.reconcile": "--input <file> [--repo-dir <dir>]",
+		// repeatable filters, both sides of the optional repo dir, sorted.
+		"status": "[--priority <level>...] [--repo-dir <dir>] [--type <type>...]",
+		// pure positional tail, no flags.
+		"gate.observe": "<run-dir>",
+		// required flags then the bare `--` separator carrying the argv tail last.
+		"gate.launch": "--cwd <dir> --root <dir> -- <argv...>",
+		// positional alternation tail leading, optional flags trailing.
+		"run.gate-verdict": "<key> | [<id>...] [--repo-dir <dir>] [--unattributed]",
+	}
+	for id, wantSig := range want {
+		e, ok := entryByID(entries, id)
+		if !ok {
+			t.Errorf("representative operation %q is absent from the catalog", id)
+			continue
+		}
+		if e.Signature != wantSig {
+			t.Errorf("signature drift for %q:\n  got  %q\n  want %q", id, e.Signature, wantSig)
+		}
+	}
 }

@@ -228,12 +228,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 			return nil
 		},
 	}
-	statusCmd.Flags().String("repo-dir", "", "repository directory to read (default: current directory)")
-	statusCmd.Flags().StringArray("type", nil, "filter the displayed projection to a configured change type (repeatable)")
-	statusCmd.Flags().StringArray("priority", nil, "filter the displayed projection to a priority: critical, high, medium, or low (repeatable)")
+	statusCmd.Flags().String("repo-dir", "", "repository `dir` to read (default: current directory)")
+	statusCmd.Flags().StringArray("type", nil, "filter the displayed projection to a configured change `type` (repeatable)")
+	statusCmd.Flags().StringArray("priority", nil, "filter the displayed projection to a priority `level`: critical, high, medium, or low (repeatable)")
 
-	configCmd.Flags().String("repo-dir", "", "repository directory to inspect (required; used verbatim, no Git discovery)")
-	configCmd.Flags().String("default-branch", "", "default branch supplied to integration_branch: auto")
+	configCmd.Flags().String("repo-dir", "", "repository `dir` to inspect (required; used verbatim, no Git discovery)")
+	configCmd.Flags().String("default-branch", "", "default branch `name` supplied to integration_branch: auto")
 	configCmd.Flags().Bool("for-mutation", false, "run the mutation preflight (operation config.preflight)")
 	_ = configCmd.MarkFlagRequired("repo-dir")
 
@@ -259,9 +259,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 		},
 	}
 	installCmd.Flags().StringArray("harness", nil,
-		"harness to install into: claude, codex, cursor, or opencode (repeatable; default: detect)")
+		"harness `name` to install into: claude, codex, cursor, or opencode (repeatable; default: detect)")
 	installCmd.Flags().String("repo-dir", "",
-		"repository whose parent-facing dispatch surfaces are reconciled; default: the Git worktree containing the current directory; outside Git, machine-only")
+		"repository `dir` whose parent-facing dispatch surfaces are reconciled; default: the Git worktree containing the current directory; outside Git, machine-only")
 
 	installCheckCmd := &cobra.Command{
 		Use:         "check",
@@ -316,12 +316,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 			return nil
 		},
 	}
-	developmentInstallCmd.Flags().String("source", "", "docket checkout to install from (required)")
+	developmentInstallCmd.Flags().String("source", "", "docket checkout `dir` to install from (required)")
 	developmentInstallCmd.Flags().String("repo-dir", "",
-		"repository whose parent-facing dispatch surfaces are reconciled; default: the Git worktree containing the current directory; outside Git, machine-only")
-	developmentInstallCmd.Flags().String("bin-dir", "", "directory the built binary is installed into (default: XDG_BIN_HOME or ~/.local/bin)")
+		"repository `dir` whose parent-facing dispatch surfaces are reconciled; default: the Git worktree containing the current directory; outside Git, machine-only")
+	developmentInstallCmd.Flags().String("bin-dir", "", "`dir` the built binary is installed into (default: XDG_BIN_HOME or ~/.local/bin)")
 	developmentInstallCmd.Flags().StringArray("harness", nil,
-		"harness to install into: claude, codex, cursor, or opencode (repeatable; default: detect)")
+		"harness `name` to install into: claude, codex, cursor, or opencode (repeatable; default: detect)")
 	// The private continuation: the parent re-executes the candidate it just
 	// built with this flag so the candidate plans and applies rather than
 	// building yet another candidate. It is hidden because it is not a supported

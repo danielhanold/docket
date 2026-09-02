@@ -51,9 +51,9 @@ func newArtifactCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	backlink.Flags().String("repo-dir", "", "worktree directory the artifact lives in (default: current directory)")
-	backlink.Flags().String("artifact", "", "canonical repository-relative path of the artifact to stamp (required)")
-	backlink.Flags().String("change", "", "canonical repository-relative path of the change to point home to (required)")
+	backlink.Flags().String("repo-dir", "", "worktree `dir` the artifact lives in (default: current directory)")
+	backlink.Flags().String("artifact", "", "canonical repository-relative `path` of the artifact to stamp (required)")
+	backlink.Flags().String("change", "", "canonical repository-relative `path` of the change to point home to (required)")
 	_ = backlink.MarkFlagRequired("artifact")
 	_ = backlink.MarkFlagRequired("change")
 

@@ -125,7 +125,7 @@ func newMaintenanceSweepSubcommand(setResult func(app.OperationResult)) *cobra.C
 			return nil
 		},
 	}
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
-	cmd.Flags().String("scope", "full", "sweep scope: full (whole worklist, the default) or implementation (startup preflight; defers independent historical cleanup retries)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
+	cmd.Flags().String("scope", "full", "sweep scope `name`: full (whole worklist, the default) or implementation (startup preflight; defers independent historical cleanup retries)")
 	return cmd
 }

@@ -71,8 +71,8 @@ func newGateCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	launch.Flags().String("root", "", "absolute directory that holds run slots (required)")
-	launch.Flags().String("cwd", "", "absolute working directory for the launched command (required)")
+	launch.Flags().String("root", "", "absolute `dir` that holds run slots (required)")
+	launch.Flags().String("cwd", "", "absolute working `dir` for the launched command (required)")
 	_ = launch.MarkFlagRequired("root")
 	_ = launch.MarkFlagRequired("cwd")
 
@@ -100,7 +100,7 @@ func newGateCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	stop.Flags().String("reason", "", "human-supplied reason recorded with the stop intent")
+	stop.Flags().String("reason", "", "human-supplied reason `text` recorded with the stop intent")
 
 	recover := &cobra.Command{
 		Use:   "recover --root <dir>",
@@ -115,7 +115,7 @@ func newGateCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	recover.Flags().String("root", "", "absolute directory that holds run slots to scan (required)")
+	recover.Flags().String("root", "", "absolute `dir` that holds run slots to scan (required)")
 	_ = recover.MarkFlagRequired("root")
 
 	cleanup := &cobra.Command{
@@ -210,16 +210,16 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	start.Flags().String("repo-dir", "", "repository worktree to fingerprint and run in (default: current directory)")
-	start.Flags().String("run-root", "", "absolute directory that holds raw run slots (required)")
-	start.Flags().String("owner", "", "which policy owns this drive: build or finalize (required)")
-	start.Flags().String("cwd", "", "working directory for the launched suite command (default: --repo-dir)")
-	start.Flags().String("change-id", "", "change id the drive certifies (recorded only)")
-	start.Flags().String("task-id", "", "task id the drive certifies (recorded only)")
-	start.Flags().String("phase", "", "workflow phase the drive certifies (recorded only)")
-	start.Flags().String("branch", "", "branch recorded alongside the fingerprint")
-	start.Flags().String("ref", "", "ref recorded alongside the fingerprint")
-	start.Flags().String("env-hash", "", "canonical launch-environment hash (recorded only)")
+	start.Flags().String("repo-dir", "", "repository `dir` to fingerprint and run in (default: current directory)")
+	start.Flags().String("run-root", "", "absolute `dir` that holds raw run slots (required)")
+	start.Flags().String("owner", "", "which policy `role` owns this drive: build or finalize (required)")
+	start.Flags().String("cwd", "", "working `dir` for the launched suite command (default: --repo-dir)")
+	start.Flags().String("change-id", "", "change `id` the drive certifies (recorded only)")
+	start.Flags().String("task-id", "", "task `id` the drive certifies (recorded only)")
+	start.Flags().String("phase", "", "workflow phase `name` the drive certifies (recorded only)")
+	start.Flags().String("branch", "", "branch `name` recorded alongside the fingerprint")
+	start.Flags().String("ref", "", "`ref` recorded alongside the fingerprint")
+	start.Flags().String("env-hash", "", "canonical launch-environment `hash` (recorded only)")
 	start.Flags().Bool("idempotent-suite-gate", false, "mark the gate idempotent, eligible for the single relaunch")
 	_ = start.MarkFlagRequired("run-root")
 	_ = start.MarkFlagRequired("owner")
@@ -246,9 +246,9 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	advance.Flags().String("repo-dir", "", "repository worktree of the drive (default: current directory)")
-	advance.Flags().String("drive-id", "", "opaque drive id to resume (required)")
-	advance.Flags().String("owner-gen", "", "opaque owner generation proving ownership (required)")
+	advance.Flags().String("repo-dir", "", "repository `dir` of the drive (default: current directory)")
+	advance.Flags().String("drive-id", "", "opaque drive `id` to resume (required)")
+	advance.Flags().String("owner-gen", "", "opaque owner `gen`eration proving ownership (required)")
 	_ = advance.MarkFlagRequired("drive-id")
 	_ = advance.MarkFlagRequired("owner-gen")
 
@@ -274,9 +274,9 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	handoff.Flags().String("repo-dir", "", "repository worktree of the drive (default: current directory)")
-	handoff.Flags().String("drive-id", "", "opaque drive id to hand off (required)")
-	handoff.Flags().String("owner-gen", "", "opaque owner generation proving ownership (required)")
+	handoff.Flags().String("repo-dir", "", "repository `dir` of the drive (default: current directory)")
+	handoff.Flags().String("drive-id", "", "opaque drive `id` to hand off (required)")
+	handoff.Flags().String("owner-gen", "", "opaque owner `gen`eration proving ownership (required)")
 	_ = handoff.MarkFlagRequired("drive-id")
 	_ = handoff.MarkFlagRequired("owner-gen")
 
@@ -302,9 +302,9 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	claim.Flags().String("repo-dir", "", "repository worktree of the drive (default: current directory)")
-	claim.Flags().String("drive-id", "", "opaque drive id to claim (required)")
-	claim.Flags().String("handoff-id", "", "opaque single-use handoff token to consume (required)")
+	claim.Flags().String("repo-dir", "", "repository `dir` of the drive (default: current directory)")
+	claim.Flags().String("drive-id", "", "opaque drive `id` to claim (required)")
+	claim.Flags().String("handoff-id", "", "opaque single-use handoff `token` to consume (required)")
 	_ = claim.MarkFlagRequired("drive-id")
 	_ = claim.MarkFlagRequired("handoff-id")
 
