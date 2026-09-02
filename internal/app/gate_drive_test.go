@@ -17,10 +17,13 @@ import (
 // outcome mapping and its authoritative-config injection are tested without a
 // real driver, store, process supervisor, or repository.
 type fakeDriveEngine struct {
-	doc         gatedrive.DriveDoc
-	err         error
-	lastStart   gatedrive.StartRequest
-	startCalled bool
+	doc          gatedrive.DriveDoc
+	err          error
+	lastStart    gatedrive.StartRequest
+	startCalled  bool
+	grant        gatedrive.ScopeGrant
+	grantErr     error
+	lastScopeReq gatedrive.ScopeRequest
 }
 
 func (f *fakeDriveEngine) Start(r gatedrive.StartRequest) (gatedrive.DriveDoc, error) {
@@ -36,6 +39,13 @@ func (f *fakeDriveEngine) Handoff(id, ownerGen string) (gatedrive.DriveDoc, erro
 }
 func (f *fakeDriveEngine) Claim(id, handoffID string) (gatedrive.DriveDoc, error) {
 	return f.doc, f.err
+}
+func (f *fakeDriveEngine) Takeover(scopeID, parentCap, driveID string) (gatedrive.DriveDoc, error) {
+	return f.doc, f.err
+}
+func (f *fakeDriveEngine) PrepareScope(r gatedrive.ScopeRequest) (gatedrive.ScopeGrant, error) {
+	f.lastScopeReq = r
+	return f.grant, f.grantErr
 }
 
 // TestServiceMapsEveryOutcomeIntoProtocolDoc proves each of the four driver
@@ -351,5 +361,129 @@ func TestMapDriveHaltCauseKeysOnGatedriveConstants(t *testing.T) {
 		if got := mapDriveHaltCause(cause); got != want {
 			t.Fatalf("mapDriveHaltCause(%q) = %q, want %q", cause, got, want)
 		}
+	}
+}
+
+// --- Task 3: prepare-scope, takeover, and the task-intent owner ------------
+
+// TestPrepareScopeHumanTextRedactsCapabilities proves the grant travels in the
+// JSON document (all three fields) while the human text carries ONLY the scope
+// id — never either capability token.
+func TestPrepareScopeHumanTextRedactsCapabilities(t *testing.T) {
+	eng := &fakeDriveEngine{grant: gatedrive.ScopeGrant{
+		ScopeID:          "scope-123",
+		ChildCapability:  "childcapsecret",
+		ParentCapability: "parentcapsecret",
+	}}
+	svc := newGateDriveService(eng, 0, "", "")
+	got := svc.PrepareScope(gatedrive.ScopeRequest{ChangeID: "0359"})
+	if got.Result != ResultApplied {
+		t.Fatalf("prepare-scope result = %s, want applied", got.Result)
+	}
+	if got.Operation != OperationGateDrivePrepareScope {
+		t.Fatalf("operation = %q, want %q", got.Operation, OperationGateDrivePrepareScope)
+	}
+	if got.ScopeID != "scope-123" || got.ChildCapability != "childcapsecret" || got.ParentCapability != "parentcapsecret" {
+		t.Fatalf("JSON document must carry all three grant fields, got %+v", got)
+	}
+	if eng.lastScopeReq.ChangeID != "0359" {
+		t.Fatalf("PrepareScope must forward the request, got %+v", eng.lastScopeReq)
+	}
+	human := got.HumanText()
+	if !strings.Contains(human, "scope-123") {
+		t.Fatalf("human text must name the scope id, got %q", human)
+	}
+	if strings.Contains(human, "childcapsecret") || strings.Contains(human, "parentcapsecret") {
+		t.Fatalf("human text must NOT carry any capability, got %q", human)
+	}
+}
+
+// TestTaskServiceForcesNonIdempotent proves the task-intent owner forces
+// IdempotentSuiteGate false regardless of the request, passes the agent-supplied
+// argv through VERBATIM (no /bin/sh -c wrapping), and records the fixed task
+// provenance.
+func TestTaskServiceForcesNonIdempotent(t *testing.T) {
+	argv := []string{"go", "test", "-run", "Focus", "./internal/app/"}
+	svc, res, reason := NewTaskGateDriveService(t.TempDir(), "/bin/true", argv)
+	if svc == nil {
+		t.Fatalf("task constructor must build a service: %s %s", res, reason)
+	}
+	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.WAITING}}
+	svc.engine = eng
+	got := svc.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: "/repo", IdempotentSuiteGate: true})
+	if got.Result != ResultApplied {
+		t.Fatalf("a WAITING start is an applied operation, got %s", got.Result)
+	}
+	if eng.lastStart.IdempotentSuiteGate {
+		t.Fatalf("task-intent Start must force IdempotentSuiteGate false")
+	}
+	if len(eng.lastStart.Command) != len(argv) {
+		t.Fatalf("task argv must pass through verbatim, got %v", eng.lastStart.Command)
+	}
+	for i := range argv {
+		if eng.lastStart.Command[i] != argv[i] {
+			t.Fatalf("argv[%d] = %q, want %q", i, eng.lastStart.Command[i], argv[i])
+		}
+	}
+	if eng.lastStart.ConfigProvenance != "task.argv=agent-supplied" {
+		t.Fatalf("task provenance = %q, want task.argv=agent-supplied", eng.lastStart.ConfigProvenance)
+	}
+}
+
+// TestTaskServiceRequiresArgv proves an empty argv fails closed at construction
+// with ResultInvalidInput and the stable missing-argv reason — never a service
+// that could Start an empty command.
+func TestTaskServiceRequiresArgv(t *testing.T) {
+	svc, res, reason := NewTaskGateDriveService(t.TempDir(), "/bin/true", nil)
+	if svc != nil {
+		t.Fatalf("empty argv must not build a service")
+	}
+	if res != ResultInvalidInput {
+		t.Fatalf("empty argv result = %s, want invalid-input", res)
+	}
+	if reason != "missing-argv" {
+		t.Fatalf("reason = %q, want missing-argv", reason)
+	}
+}
+
+// TestStartForwardsScopeFields proves Start carries the scope-binding fields
+// (ScopeID, ChildCapability, GateContext) through to the engine unchanged.
+func TestStartForwardsScopeFields(t *testing.T) {
+	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.WAITING}}
+	svc := newGateDriveService(eng, 5*time.Minute, "go test ./...", "prov")
+	got := svc.Start(GateDriveStartRequest{
+		RepoDir:         "/repo",
+		Worktree:        "/repo",
+		ScopeID:         "sc-1",
+		ChildCapability: "childcap",
+		GateContext:     "ctx-token",
+	})
+	if got.Result != ResultApplied {
+		t.Fatalf("result = %s, want applied", got.Result)
+	}
+	if eng.lastStart.ScopeID != "sc-1" || eng.lastStart.ChildCapability != "childcap" || eng.lastStart.GateContext != "ctx-token" {
+		t.Fatalf("Start must forward the scope fields, got %+v", eng.lastStart)
+	}
+}
+
+// TestTakeoverMapsDoc proves Takeover delegates to the engine, carries a
+// successful document verbatim under the takeover operation name, and maps a
+// command failure through the shared mapDriveFailure classifier.
+func TestTakeoverMapsDoc(t *testing.T) {
+	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.PASSED, DriveID: "d1", Generation: "freshgen"}}
+	svc := newGateDriveService(eng, 0, "", "")
+	got := svc.Takeover("sc-1", "parentcap", "d1")
+	if got.Result != ResultApplied || got.Drive == nil || got.Drive.Outcome != gatedrive.PASSED {
+		t.Fatalf("takeover success must be an applied result carrying the doc, got %s", got.Result)
+	}
+	if got.Operation != OperationGateDriveTakeover {
+		t.Fatalf("operation = %q, want %q", got.Operation, OperationGateDriveTakeover)
+	}
+
+	bad := &fakeDriveEngine{err: &gatedrive.StoreError{Kind: gatedrive.ErrNotFound, Op: "resolve"}}
+	svc2 := newGateDriveService(bad, 0, "", "")
+	got2 := svc2.Takeover("sc-x", "parentcap", "dx")
+	if got2.Result != ResultInvalidInput || got2.Drive != nil || got2.Reason == "" {
+		t.Fatalf("takeover command failure must map like the other ops, got result=%s reason=%q", got2.Result, got2.Reason)
 	}
 }

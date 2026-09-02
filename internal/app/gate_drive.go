@@ -22,10 +22,12 @@ import (
 // Gate-drive operation names — the fixed protocol identifiers for the
 // slice-bounded gate-driver operations this seam exposes.
 const (
-	OperationGateDriveStart   = "gate.drive.start"
-	OperationGateDriveAdvance = "gate.drive.advance"
-	OperationGateDriveHandoff = "gate.drive.handoff"
-	OperationGateDriveClaim   = "gate.drive.claim"
+	OperationGateDriveStart        = "gate.drive.start"
+	OperationGateDriveAdvance      = "gate.drive.advance"
+	OperationGateDriveHandoff      = "gate.drive.handoff"
+	OperationGateDriveClaim        = "gate.drive.claim"
+	OperationGateDrivePrepareScope = "gate.drive.prepare-scope"
+	OperationGateDriveTakeover     = "gate.drive.takeover"
 )
 
 // GateDriveResult is the protocol document for the gate-drive operations. It
@@ -41,6 +43,33 @@ type GateDriveResult struct {
 	Message string              `json:"message,omitempty"`
 }
 
+// GateScopeResult is the protocol document for gate.drive.prepare-scope. It
+// carries the scope locator and the two SEPARATE opaque capabilities in JSON,
+// but its HumanText prints ONLY the scope id: the capabilities are authority and
+// travel exclusively in the protocol document, never in diagnostic prose (spec
+// "Capabilities and owner generations never appear in human text").
+type GateScopeResult struct {
+	Envelope
+	ScopeID          string `json:"scope_id,omitempty"`
+	ChildCapability  string `json:"child_capability,omitempty"`
+	ParentCapability string `json:"parent_capability,omitempty"`
+	Reason           string `json:"reason,omitempty"`
+}
+
+// HumanText renders GateScopeResult naming ONLY the scope id (and a bounded
+// reason on a command failure). The child and parent capabilities are
+// deliberately omitted — they are authority, carried only in the JSON document.
+func (r GateScopeResult) HumanText() string {
+	var lines []string
+	if r.ScopeID != "" {
+		lines = append(lines, "scope_id: "+r.ScopeID)
+	}
+	if r.Reason != "" {
+		lines = append(lines, "reason: "+r.Reason)
+	}
+	return strings.Join(lines, "\n")
+}
+
 // driveEngine is the native gate-drive state machine this seam maps to the
 // protocol. *gatedrive.Driver satisfies it; unit tests inject a fake engine to
 // prove the outcome mapping and the authoritative-config injection independent of
@@ -50,6 +79,8 @@ type driveEngine interface {
 	Advance(id, ownerGen string) (gatedrive.DriveDoc, error)
 	Handoff(id, ownerGen string) (gatedrive.DriveDoc, error)
 	Claim(id, handoffID string) (gatedrive.DriveDoc, error)
+	Takeover(scopeID, parentCap, driveID string) (gatedrive.DriveDoc, error)
+	PrepareScope(gatedrive.ScopeRequest) (gatedrive.ScopeGrant, error)
 }
 
 // GateDriveService is the in-process seam over the native gate driver. It owns
@@ -67,6 +98,14 @@ type GateDriveService struct {
 	// leaves it empty, and Start (the only operation that reads a command) is never
 	// reached on that path.
 	owner string
+	// taskIntent marks the TASK-INTENT owner (NewTaskGateDriveService): its Start
+	// uses the agent-supplied argv verbatim (no /bin/sh -c wrapping and no config
+	// command to resolve) and forces IdempotentSuiteGate false. argv holds that raw
+	// argv. Both are empty/false for the config-owned (build/finalize) and
+	// commandless services, which keep their existing command-argv and idempotency
+	// behavior.
+	taskIntent bool
+	argv       []string
 }
 
 // GateDriveStartRequest is the caller-supplied identity and launch context for a
@@ -85,6 +124,15 @@ type GateDriveStartRequest struct {
 	EnvHash             string
 	RunRoot             string
 	IdempotentSuiteGate bool
+	// Scope binding (change 0359): ScopeID + ChildCapability bind the new drive
+	// into a recovery scope the parent prepared, and GateContext is the raw outer
+	// child-context token linking a nested drive to the outer gate. All optional;
+	// empty means a scopeless drive (pre-0359 behavior). ChildCapability and
+	// GateContext are raw tokens the driver verifies/hashes and persists nowhere in
+	// the clear.
+	ScopeID         string
+	ChildCapability string
+	GateContext     string
 }
 
 // newGateDriveService is the seam-injecting core constructor: it binds a drive
@@ -168,16 +216,52 @@ func NewCommandlessGateDriveService(gitCommonDir, exePath string) (*GateDriveSer
 	return newGateDriveService(engine, 0, "", ""), "", ""
 }
 
+// NewTaskGateDriveService composes the gate-drive seam for TASK-INTENT
+// (focused/ad-hoc) drives: the workflow role declares the test intent and
+// supplies the argv EXPLICITLY, so there is no authoritative-config command to
+// resolve (the domain boundary moves to "which constructor", not away — the
+// build/finalize owner constructors still refuse caller argv). Its Start uses the
+// agent-supplied argv verbatim, NEVER sets IdempotentSuiteGate (forced false
+// regardless of the request), and records the fixed provenance
+// "task.argv=agent-supplied". An empty argv fails closed here so no service can
+// ever reach Start with an empty command.
+func NewTaskGateDriveService(gitCommonDir, exePath string, argv []string) (*GateDriveService, Result, string) {
+	if len(argv) == 0 {
+		return nil, ResultInvalidInput, "missing-argv"
+	}
+	proc, err := process.NewService(exePath)
+	if err != nil {
+		r, reason := mapGateFailure(err)
+		return nil, r, reason
+	}
+	store := gatedrive.OpenStore(gitCommonDir)
+	engine := gatedrive.NewSystemDriver(store, proc)
+	svc := newGateDriveService(engine, 0, "", "task.argv=agent-supplied")
+	svc.owner = "task"
+	svc.taskIntent = true
+	svc.argv = argv
+	return svc, "", ""
+}
+
 // Start begins a new drive over the resolved suite command and budget. An
 // unresolved suite command (config resolved to unset) fails closed as a command
 // failure before touching the engine — never a fabricated verdict.
 func (s *GateDriveService) Start(req GateDriveStartRequest) GateDriveResult {
-	if s.command == "" {
+	// The task-intent owner supplies its own argv, so the unresolved-command guard
+	// applies only to the config-owned services (which have no argv).
+	if !s.taskIntent && s.command == "" {
 		return GateDriveResult{
 			Envelope: NewEnvelope(OperationGateDriveStart, ResultInvalidInput),
 			Reason:   "unresolved-command",
 			Message:  s.unresolvedCommandMessage(),
 		}
+	}
+	// A task-intent drive is never idempotent-suite-gated: the agent runs a focused
+	// command, and no config command backs a suite-idempotency claim. The flag is
+	// forced false here regardless of what the caller requested.
+	idempotent := req.IdempotentSuiteGate
+	if s.taskIntent {
+		idempotent = false
 	}
 	doc, err := s.engine.Start(gatedrive.StartRequest{
 		RepoDir:             req.RepoDir,
@@ -193,7 +277,10 @@ func (s *GateDriveService) Start(req GateDriveStartRequest) GateDriveResult {
 		Budget:              s.budget,
 		EnvHash:             req.EnvHash,
 		RunRoot:             req.RunRoot,
-		IdempotentSuiteGate: req.IdempotentSuiteGate,
+		IdempotentSuiteGate: idempotent,
+		ScopeID:             req.ScopeID,
+		ChildCapability:     req.ChildCapability,
+		GateContext:         req.GateContext,
 	})
 	return mapDriveResult(OperationGateDriveStart, doc, err)
 }
@@ -231,10 +318,43 @@ func (s *GateDriveService) Claim(id, handoffID string) GateDriveResult {
 	return mapDriveResult(OperationGateDriveClaim, doc, err)
 }
 
+// PrepareScope mints a recovery scope for one parent/child dispatch boundary and
+// returns the grant. On success the JSON document carries all three grant fields
+// (scope id + child/parent capabilities); a command failure carries a bounded
+// safe reason and no grant. The two capabilities travel ONLY in the JSON
+// document — never in the human text (GateScopeResult.HumanText).
+func (s *GateDriveService) PrepareScope(req gatedrive.ScopeRequest) GateScopeResult {
+	grant, err := s.engine.PrepareScope(req)
+	if err != nil {
+		res, reason := mapDriveFailure(err)
+		return GateScopeResult{Envelope: NewEnvelope(OperationGateDrivePrepareScope, res), Reason: reason}
+	}
+	return GateScopeResult{
+		Envelope:         NewEnvelope(OperationGateDrivePrepareScope, ResultApplied),
+		ScopeID:          grant.ScopeID,
+		ChildCapability:  grant.ChildCapability,
+		ParentCapability: grant.ParentCapability,
+	}
+}
+
+// Takeover performs the event-authorized exceptional transfer of a scope-bound
+// drive to a fresh owner the parent mints. It delegates to the driver and maps
+// the outcome exactly like the other drive operations: a produced document
+// (including a HALTED refusal) is an applied result carrying the shared DriveDoc;
+// a command failure carries a bounded safe reason and no document.
+func (s *GateDriveService) Takeover(scopeID, parentCap, driveID string) GateDriveResult {
+	doc, err := s.engine.Takeover(scopeID, parentCap, driveID)
+	return mapDriveResult(OperationGateDriveTakeover, doc, err)
+}
+
 // commandArgv shells the resolved suite command exactly as the finalize gate does
 // (`/bin/sh -c <command>`), so the driver launches the identical process tree. An
 // empty command yields nil argv, but Start guards that before this is reached.
 func (s *GateDriveService) commandArgv() []string {
+	// A task-intent owner runs the agent-supplied argv verbatim — no shell wrapping.
+	if s.taskIntent {
+		return s.argv
+	}
 	if s.command == "" {
 		return nil
 	}
@@ -308,4 +428,5 @@ func (r GateDriveResult) HumanText() string {
 var (
 	_ driveEngine     = (*gatedrive.Driver)(nil)
 	_ OperationResult = GateDriveResult{}
+	_ OperationResult = GateScopeResult{}
 )
