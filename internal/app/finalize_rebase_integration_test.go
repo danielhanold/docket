@@ -259,11 +259,15 @@ func TestIntegrationFinalizeRebaseGateWaiting(t *testing.T) {
 		if rec.Attempt != res.Attempt {
 			t.Errorf("receipt attempt %q != result attempt %q", rec.Attempt, res.Attempt)
 		}
+		// With the gate pair cleared, every remaining (non-pair) field of the
+		// persisted receipt must match what the result advertised: the WAITING
+		// persist changed ONLY the pair, nothing else.
 		bare := rec
 		bare.GateDriveID, bare.GateOwnerGeneration = "", ""
-		want := bare
-		want.Attempt = rec.Attempt // every non-pair field must be byte-identical to a fresh receipt's
-		_ = want
+		if bare.OrigHead != res.OrigHead || bare.BaseHead != res.BaseHead || bare.Attempt != res.Attempt {
+			t.Errorf("WAITING persist altered a non-pair receipt field: receipt %+v vs result orig=%q base_head=%q attempt=%q",
+				bare, res.OrigHead, res.BaseHead, res.Attempt)
+		}
 	})
 
 	t.Run("resume-advances-same-drive-without-repeating-rebase-then-mints-on-passed", func(t *testing.T) {
