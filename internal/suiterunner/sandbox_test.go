@@ -54,6 +54,15 @@ func TestSandboxExportsGoTestConcurrency(t *testing.T) {
 	if !slices.Contains(env, "DOCKET_GO_TEST_CONCURRENCY=3") {
 		t.Fatal("sandbox did not export the cap")
 	}
+	// Under the gate the runner exports DOCKET_GO_TEST_CONCURRENCY into this
+	// very test process, and Sandbox returns os.Environ()+overrides — so the
+	// ambient value would leak into the result and mask whether Sandbox itself
+	// added one. Clear it so the cap-0 assertion measures Sandbox's own
+	// contribution, not what it inherited (change 0373).
+	if v, ok := os.LookupEnv("DOCKET_GO_TEST_CONCURRENCY"); ok {
+		os.Unsetenv("DOCKET_GO_TEST_CONCURRENCY")
+		t.Cleanup(func() { os.Setenv("DOCKET_GO_TEST_CONCURRENCY", v) })
+	}
 	env, err = Sandbox(testsupport.TempDir(t), 0)
 	if err != nil {
 		t.Fatal(err)
