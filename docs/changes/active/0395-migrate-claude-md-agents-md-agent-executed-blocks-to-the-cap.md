@@ -22,7 +22,7 @@ branch: 'refactor/migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-02T21:47:06Z'
+claimed_at: '2026-09-02T21:48:19Z'
 ---
 
 ## Artifacts
