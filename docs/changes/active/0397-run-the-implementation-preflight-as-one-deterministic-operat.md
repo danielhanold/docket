@@ -12,7 +12,7 @@ stacked_on:
 related: [389, 360, 17, 94]
 discovered_from: []
 adrs: [12, 24, 101, 47]
-spec:
+spec: 'docs/superpowers/specs/2026-09-02-run-the-implementation-preflight-as-one-deterministic-operat-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-09-02-run-the-implementation-preflight-as-one-deterministic-operat-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-02-run-the-implementation-preflight-as-one-deterministic-operat-design.md) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0101](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0101-maintenance-sweep-scope-defer-historical-cleanup-out-of-impl.md), [ADR-0047](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0047-digest-only-read-tier-skips-preflight.md) |
 <!-- docket:artifacts:end -->
 
