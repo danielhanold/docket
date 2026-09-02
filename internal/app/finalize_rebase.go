@@ -127,11 +127,6 @@ type FinalizeRebaseRequest struct {
 	ID      int    `json:"id"`
 	Version string `json:"version"`
 	Head    string `json:"head"`
-	// Continuation, when set, resumes the local-gate drive a prior slice returned
-	// as WAITING. The rebase itself is recovered idempotently from the owned
-	// receipt, so a re-entry never repeats a completed rewrite; only the local
-	// gate advances. It is empty on the first call.
-	Continuation GateContinuation `json:"continuation,omitempty"`
 }
 
 // ResolverReport is the versioned, bounded JSON envelope a conflict-resolver
@@ -555,25 +550,27 @@ func FinalizeRebase(ctx context.Context, deps FinalizeDeps, repoDir string, req 
 	if err != nil {
 		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseGitFailed, err.Error(), id)
 	}
-	return mapBegunRebase(ctx, deps, repoDir, op, rc, pr, baseHead, attempt, status, req.Continuation)
+	return mapBegunRebase(ctx, deps, repoDir, op, rc, pr, receipt, status)
 }
 
 // mapBegunRebase maps a completed BeginRebase/continue status to a result: a
 // conflict surfaces its paths for the resolver; a completed rebase composes the
-// local gate; a structural failure is retained.
-func mapBegunRebase(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, pr githubcli.PullRequest, baseHead gitcli.ObjectID, attempt string, status gitcli.RebaseStatus, cont GateContinuation) FinalizeRebaseResult {
+// local gate; a structural failure is retained. The attempt, base head, and orig
+// head all derive from the owned receipt (rec) the caller just wrote or recovered
+// — never re-read from rc.insp — so the fresh and recovery paths thread one value.
+func mapBegunRebase(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, pr githubcli.PullRequest, rec workspace.RebaseReceipt, status gitcli.RebaseStatus) FinalizeRebaseResult {
 	id := int(rc.change.ID())
 	switch status.Disposition {
 	case gitcli.RebaseConflicted:
 		return newRebaseResult(op, ResultApplied, FinalizeRebaseResult{
 			ID: id, Disposition: RebaseDispConflicted, Head: string(status.HeadOID),
-			OrigHead: string(rc.insp.HeadCommit), Base: rc.base.Branch, BaseHead: string(baseHead),
-			Attempt: attempt, UnmergedPaths: status.UnmergedPaths, Reason: ReasonRebaseConflicted,
+			OrigHead: rec.OrigHead, Base: rc.base.Branch, BaseHead: rec.BaseHead,
+			Attempt: rec.Attempt, UnmergedPaths: status.UnmergedPaths, Reason: ReasonRebaseConflicted,
 			Message: fmt.Sprintf("the rebase stopped at %d conflicted path(s); dispatch the resolver", len(status.UnmergedPaths)),
 		})
 	case gitcli.RebaseUnchanged, gitcli.RebaseRebased:
 		noop := status.Disposition == gitcli.RebaseUnchanged
-		return composeLocalGate(ctx, deps, repoDir, op, rc, pr, baseHead, attempt, rc.insp.HeadCommit, status.HeadOID, noop, cont)
+		return composeLocalGate(ctx, deps, repoDir, op, rc, pr, rec, status.HeadOID, noop)
 	case gitcli.RebaseInProgressForeign:
 		return rebaseRefusal(op, ResultBlocked, RebaseDispBlocked, ReasonRebaseForeignInProgress,
 			"a foreign rebase is in progress; retained, not adopted", id)
@@ -636,7 +633,10 @@ func recoverFromReceipt(ctx context.Context, deps FinalizeDeps, repoDir string, 
 			"an owned attempt exists but the workspace head does not descend the base; retained for abort", id)
 	}
 	noop := string(localHead) == rec.OrigHead
-	return composeLocalGate(ctx, deps, repoDir, op, rc, pr, baseHead, rec.Attempt, gitcli.ObjectID(rec.OrigHead), localHead, noop, req.Continuation)
+	// The receipt's pair may be set (a prior WAITING to resume) or empty (a crash
+	// before WAITING, or a cleared terminal); composeLocalGate derives the
+	// continuation from rec, so both are correct as-is.
+	return composeLocalGate(ctx, deps, repoDir, op, rc, pr, rec, localHead, noop)
 }
 
 // ---------------------------------------------------------------------------
@@ -707,27 +707,28 @@ func FinalizeRebaseContinue(ctx context.Context, deps FinalizeDeps, repoDir stri
 	if pr.Number == 0 {
 		pr = githubcli.PullRequest{}
 	}
-	baseHead := gitcli.ObjectID(rec.BaseHead)
-	return mapContinuedRebase(ctx, deps, repoDir, op, rc, pr, baseHead, rec.Attempt, gitcli.ObjectID(rec.OrigHead), status)
+	return mapContinuedRebase(ctx, deps, repoDir, op, rc, pr, rec, status)
 }
 
 // mapContinuedRebase maps a StageAndContinueRebase status: another conflict
-// surfaces its paths; a completed rebase composes the gate (never a no-op).
-func mapContinuedRebase(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, pr githubcli.PullRequest, baseHead gitcli.ObjectID, attempt string, origHead gitcli.ObjectID, status gitcli.RebaseStatus) FinalizeRebaseResult {
+// surfaces its paths; a completed rebase composes the gate (never a no-op). The
+// base head, attempt, and orig head derive from the owned receipt (rec).
+func mapContinuedRebase(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, pr githubcli.PullRequest, rec workspace.RebaseReceipt, status gitcli.RebaseStatus) FinalizeRebaseResult {
 	id := int(rc.change.ID())
 	switch status.Disposition {
 	case gitcli.RebaseConflicted:
 		return newRebaseResult(op, ResultApplied, FinalizeRebaseResult{
 			ID: id, Disposition: RebaseDispConflicted, Head: string(status.HeadOID),
-			Base: rc.base.Branch, BaseHead: string(baseHead), Attempt: attempt,
+			Base: rc.base.Branch, BaseHead: rec.BaseHead, Attempt: rec.Attempt,
 			UnmergedPaths: status.UnmergedPaths, Reason: ReasonRebaseConflicted,
 			Message: fmt.Sprintf("the rebase stopped at %d further conflicted path(s); dispatch the resolver", len(status.UnmergedPaths)),
 		})
 	case gitcli.RebaseUnchanged, gitcli.RebaseRebased:
-		// The rebase-continue path always starts a fresh gate drive; a WAITING slice
-		// is resumed by re-entering FinalizeRebase (which recovers from the receipt),
-		// not this operation, so no continuation is threaded here.
-		return composeLocalGate(ctx, deps, repoDir, op, rc, pr, baseHead, attempt, origHead, status.HeadOID, false, GateContinuation{})
+		// The rebase-continue path only runs on a mid-conflict receipt, so the pair is
+		// empty by construction and composeLocalGate starts a fresh drive; a WAITING
+		// slice is resumed by re-entering FinalizeRebase (which recovers from the
+		// receipt), not this operation.
+		return composeLocalGate(ctx, deps, repoDir, op, rc, pr, rec, status.HeadOID, false)
 	default: // RebaseInProgressForeign / RebaseFailed
 		return rebaseRefusal(op, ResultBlocked, RebaseDispFailed, ReasonRebaseGitFailed,
 			"the owned rebase-continue did not reach a resolvable state; retained for abort", id)
@@ -811,8 +812,15 @@ func requireOwnedAttempt(ctx context.Context, deps FinalizeDeps, op string, rc *
 // otherwise it runs the full suite through the gate seam. A passed run carries the
 // evidence block; a failed run is repair work (failed); a halt is retained
 // (blocked) — never a fabricated red.
-func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, pr githubcli.PullRequest, baseHead gitcli.ObjectID, attempt string, origHead, head gitcli.ObjectID, noop bool, cont GateContinuation) FinalizeRebaseResult {
+func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string, rc *rebaseContext, pr githubcli.PullRequest, rec workspace.RebaseReceipt, head gitcli.ObjectID, noop bool) FinalizeRebaseResult {
 	id := int(rc.change.ID())
+	// The attempt, base head, orig head, and gate continuation all derive from the
+	// owned receipt this composition runs under — the callers already guarantee they
+	// agree with the live rewrite (change 0396).
+	attempt := rec.Attempt
+	baseHead := gitcli.ObjectID(rec.BaseHead)
+	origHead := gitcli.ObjectID(rec.OrigHead)
+	cont := GateContinuation{DriveID: rec.GateDriveID, Generation: rec.GateOwnerGeneration}
 	disposition := RebaseDispRebased
 	if noop {
 		disposition = RebaseDispUnchanged
@@ -847,19 +855,38 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 		base.Gate = &GateReport{Compose: gateComposeRan, Outcome: string(FinalizeGateHalted), HaltCause: GateHaltUnavailable}
 		base.Reason = ReasonRebaseGateHalted
 		base.Message = "the local gate could not be established; retained, no red fabricated"
-		return newRebaseResult(op, ResultBlocked, base)
+		out := newRebaseResult(op, ResultBlocked, base)
+		clearGateContinuation(ctx, deps, rc, rec, &out)
+		return out
 	}
 	base.Gate = &GateReport{Compose: gateComposeRan, Outcome: string(gres.Outcome), RunDir: gres.RunDir}
 	switch gres.Outcome {
 	case FinalizeGatePassed:
 		base.Gate.Evidence = gres.Evidence
-		return newRebaseResult(op, ResultApplied, base)
+		out := newRebaseResult(op, ResultApplied, base)
+		clearGateContinuation(ctx, deps, rc, rec, &out)
+		return out
 	case FinalizeGateWaiting:
+		// Persist the continuation into the owned receipt so the WAITING re-entry is
+		// the identical finalize.rebase invocation: the recovery path reads the pair
+		// and advances the SAME drive (change 0396). The owner generation is
+		// receipt-private — it never enters the document.
+		c := gres.Continuation
+		updated := rec
+		updated.GateDriveID, updated.GateOwnerGeneration = c.DriveID, c.Generation
+		if werr := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, updated); werr != nil {
+			base.Disposition = RebaseDispBlocked
+			base.Gate.RunDir = ""
+			base.Reason = ReasonRebaseReceiptWrite
+			base.Message = fmt.Sprintf(
+				"the WAITING continuation could not be persisted to the rebase receipt (drive %s still running): %v",
+				c.DriveID, werr)
+			return newRebaseResult(op, ResultExternalFailed, base)
+		}
 		// A nonterminal slice: the suite is still running under the detached
 		// supervisor. Surface the opaque continuation so the caller re-enters this
 		// same phase and advances the SAME drive. Waiting mints no evidence and is
 		// not repair work; no run dir is exposed on a nonterminal outcome.
-		c := gres.Continuation
 		base.Disposition = RebaseDispWaiting
 		base.Gate.RunDir = ""
 		base.Gate.Continuation = &c
@@ -870,13 +897,36 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 		base.Disposition = RebaseDispFailed
 		base.Reason = ReasonRebaseGateFailed
 		base.Message = "the local suite failed at the rebased head; this is repair work"
-		return newRebaseResult(op, ResultGateFailed, base)
+		out := newRebaseResult(op, ResultGateFailed, base)
+		clearGateContinuation(ctx, deps, rc, rec, &out)
+		return out
 	default: // FinalizeGateHalted
 		base.Disposition = RebaseDispBlocked
 		base.Gate.HaltCause = gres.HaltCause
 		base.Reason = ReasonRebaseGateHalted
 		base.Message = "the local gate did not reach a decidable pass/fail; retained, no red fabricated"
-		return newRebaseResult(op, ResultBlocked, base)
+		out := newRebaseResult(op, ResultBlocked, base)
+		clearGateContinuation(ctx, deps, rc, rec, &out)
+		return out
+	}
+}
+
+// clearGateContinuation rewrites the receipt with the gate pair emptied after a
+// terminal gate outcome, so a dead continuation never wedges the receipt: the
+// driver's Advance on a terminal drive could never mint evidence again (its run
+// root is removed at the terminal). Best-effort by design: the outcome is already
+// mapped, so a clear failure is reported in the result message and does not change
+// the disposition — the next re-run's Advance on the terminal drive halts and the
+// clear is retried then.
+func clearGateContinuation(ctx context.Context, deps FinalizeDeps, rc *rebaseContext, rec workspace.RebaseReceipt, res *FinalizeRebaseResult) {
+	if rec.GateDriveID == "" && rec.GateOwnerGeneration == "" {
+		return
+	}
+	updated := rec
+	updated.GateDriveID, updated.GateOwnerGeneration = "", ""
+	if err := deps.Workspace.WriteRebaseReceipt(ctx, rc.metaDir, updated); err != nil {
+		res.Message = strings.TrimSpace(res.Message +
+			" (clearing the gate continuation from the rebase receipt failed: " + err.Error() + ")")
 	}
 }
 

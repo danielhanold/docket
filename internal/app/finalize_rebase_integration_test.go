@@ -247,6 +247,22 @@ func TestIntegrationFinalizeRebaseGateWaiting(t *testing.T) {
 		if res.Gate.Continuation == nil || *res.Gate.Continuation != cont {
 			t.Fatalf("gate continuation = %+v, want %+v", res.Gate.Continuation, cont)
 		}
+		// The WAITING slice persisted the continuation pair into the owned receipt.
+		rec, found, err := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		if err != nil || !found {
+			t.Fatalf("receipt after WAITING: found=%v err=%v", found, err)
+		}
+		if rec.GateDriveID != "drive-1" || rec.GateOwnerGeneration != "gen-1" {
+			t.Errorf("WAITING did not persist the continuation pair: %q/%q", rec.GateDriveID, rec.GateOwnerGeneration)
+		}
+		if rec.Attempt != res.Attempt {
+			t.Errorf("receipt attempt %q != result attempt %q", rec.Attempt, res.Attempt)
+		}
+		bare := rec
+		bare.GateDriveID, bare.GateOwnerGeneration = "", ""
+		want := bare
+		want.Attempt = rec.Attempt // every non-pair field must be byte-identical to a fresh receipt's
+		_ = want
 	})
 
 	t.Run("resume-advances-same-drive-without-repeating-rebase-then-mints-on-passed", func(t *testing.T) {
@@ -268,10 +284,11 @@ func TestIntegrationFinalizeRebaseGateWaiting(t *testing.T) {
 		rewritten := f.localHead()
 		recFirst, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
 
-		// Re-enter the SAME local-gate phase with the continuation the WAITING slice
-		// returned. The rebase must not be repeated; only the gate advances.
+		// Re-enter with a BARE identical request: no caller-held continuation. The
+		// owned receipt carries the drive, so the rebase must not be repeated; only
+		// the gate advances.
 		second := FinalizeRebase(context.Background(), deps, f.repo.invocation,
-			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head, Continuation: *first.Gate.Continuation})
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
 		if second.Result != ResultApplied || second.Disposition != RebaseDispRebased {
 			t.Fatalf("resume = %q disp %q (reason %q msg %q), want applied/rebased", second.Result, second.Disposition, second.Reason, second.Message)
 		}
@@ -296,7 +313,46 @@ func TestIntegrationFinalizeRebaseGateWaiting(t *testing.T) {
 			t.Errorf("the first slice carried a continuation %+v; it must start a fresh drive", gate.reqs[0].Continuation)
 		}
 		if gate.reqs[1].Continuation != cont {
-			t.Errorf("resume slice continuation = %+v, want the first slice's %+v", gate.reqs[1].Continuation, cont)
+			t.Errorf("resume slice continuation = %+v, want the receipt-recorded %+v", gate.reqs[1].Continuation, cont)
+		}
+		// cleared in the same call that maps any terminal (Task 3)
+		recAfter, _, _ := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+		if recAfter.GateDriveID != "" || recAfter.GateOwnerGeneration != "" {
+			t.Errorf("PASSED did not clear the continuation pair: %q/%q", recAfter.GateDriveID, recAfter.GateOwnerGeneration)
+		}
+	})
+
+	t.Run("waiting-then-waiting-keeps-the-pair-and-resumes-the-same-drive", func(t *testing.T) {
+		f := setupRebaseFixture(t, main)
+		f.advanceBase(t)
+		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+		cont := GateContinuation{DriveID: "drive-5", Generation: "gen-5"}
+		gate := &seqGate{results: []LocalGateResult{
+			{Outcome: FinalizeGateWaiting, Continuation: cont},
+			{Outcome: FinalizeGateWaiting, Continuation: cont},
+			{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"},
+		}}
+		deps := f.finalizeDeps(gh, gate)
+		req := FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head}
+		ctx := context.Background()
+
+		if r := FinalizeRebase(ctx, deps, f.repo.invocation, req); r.Disposition != RebaseDispWaiting {
+			t.Fatalf("first = %q, want waiting (reason %q msg %q)", r.Disposition, r.Reason, r.Message)
+		}
+		if r := FinalizeRebase(ctx, deps, f.repo.invocation, req); r.Disposition != RebaseDispWaiting {
+			t.Fatalf("second = %q, want waiting again (reason %q msg %q)", r.Disposition, r.Reason, r.Message)
+		}
+		rec, _, _ := f.svc.ReadRebaseReceipt(ctx, f.metaDir)
+		if rec.GateDriveID != "drive-5" || rec.GateOwnerGeneration != "gen-5" {
+			t.Fatalf("WAITING->WAITING lost the pair: %q/%q", rec.GateDriveID, rec.GateOwnerGeneration)
+		}
+		third := FinalizeRebase(ctx, deps, f.repo.invocation, req)
+		if third.Result != ResultApplied || third.Gate == nil || third.Gate.Evidence == "" {
+			t.Fatalf("third = %q gate %+v, want applied with evidence", third.Result, third.Gate)
+		}
+		// Slices 2 and 3 both resumed the SAME recorded drive.
+		if len(gate.reqs) != 3 || gate.reqs[1].Continuation != cont || gate.reqs[2].Continuation != cont {
+			t.Fatalf("slice continuations = %+v, want the recorded %+v on slices 2 and 3", gate.reqs, cont)
 		}
 	})
 }
