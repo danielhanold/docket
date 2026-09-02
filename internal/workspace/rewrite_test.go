@@ -88,6 +88,50 @@ func TestPublishRewriteLease(t *testing.T) {
 	}
 }
 
+// TestPublishRewriteLeaseWithGatePair proves publish still authorizes a rewrite
+// from a receipt that carries the gate-continuation pair: the on-disk receipt and
+// the caller's expected receipt are the same value, pair included, so the
+// equality gate holds (every field is a scalar string; the whole value compares).
+func TestPublishRewriteLeaseWithGatePair(t *testing.T) {
+	r := mainModeRepo(t)
+	svc, repo := r.newService(t)
+	tgt := freshTarget(t, 7)
+	prepareOK(t, svc, repo, tgt)
+	ws := wsPathOf(repo)
+	base := gitcli.ObjectID(gitOut(t, ws, "rev-parse", "HEAD"))
+	head1 := commitInWorkspace(t, ws, "feature.txt", "feature work\n")
+
+	// Establish the remote feature ref at head1.
+	if res, err := publishHead(t, svc, repo, tgt); err != nil || res.Disposition != PublishPublished {
+		t.Fatalf("seed publish = %q err=%v; want published", res.Disposition, err)
+	}
+
+	// Rewrite the local branch to a divergent new head.
+	newHead := rewriteWorkspaceHead(t, ws)
+	if newHead == head1 {
+		t.Fatalf("fixture: rewrite did not change the head")
+	}
+
+	dir := metaDirOf(repo, tgt)
+	rec := receiptFor(repo, tgt, head1, base, "attempt-01")
+	rec.GateDriveID = "drive-01"
+	rec.GateOwnerGeneration = "gen-01"
+	if err := svc.WriteRebaseReceipt(context.Background(), dir, rec); err != nil {
+		t.Fatalf("WriteRebaseReceipt: %v", err)
+	}
+
+	outcome, err := svc.PublishRewrite(context.Background(), RewriteRequest{Dir: dir, Receipt: rec, NewHead: string(newHead)})
+	if err != nil {
+		t.Fatalf("PublishRewrite: %v", err)
+	}
+	if outcome != RewritePublished {
+		t.Errorf("outcome = %q; want published", outcome)
+	}
+	if got, ok := originFeatCommit(t, r); !ok || got != newHead {
+		t.Errorf("origin feat ref = %q (ok=%v); want rewritten head %q", got, ok, newHead)
+	}
+}
+
 // TestPublishRewriteNoop proves the idempotency key is the remote state: a remote
 // already holding NewHead (a completed rewrite / adopted lost response) is a noop
 // with no push issued, even though the remote no longer sits at OrigRemoteHead.

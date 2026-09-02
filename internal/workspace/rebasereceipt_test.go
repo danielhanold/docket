@@ -107,3 +107,88 @@ func TestRebaseReceiptInvalidFieldsRefused(t *testing.T) {
 		t.Errorf("receipt present after refused write: found=%v err=%v; want cleanly absent", found, err)
 	}
 }
+
+// TestRebaseReceiptGatePair proves the optional gate-continuation pair:
+// both-set round-trips byte-identically alongside every other field, and a
+// half-set pair is refused on write AND on read (the same single gate both
+// channels pass through), never returned as valid.
+func TestRebaseReceiptGatePair(t *testing.T) {
+	svc := plainService(t)
+	ctx := context.Background()
+
+	t.Run("both-set-round-trips", func(t *testing.T) {
+		dir := t.TempDir()
+		r := sampleReceipt()
+		r.GateDriveID = "drive-01"
+		r.GateOwnerGeneration = "gen-01"
+		if err := svc.WriteRebaseReceipt(ctx, dir, r); err != nil {
+			t.Fatalf("WriteRebaseReceipt with gate pair: %v", err)
+		}
+		got, found, err := svc.ReadRebaseReceipt(ctx, dir)
+		if err != nil || !found {
+			t.Fatalf("ReadRebaseReceipt: found=%v err=%v", found, err)
+		}
+		if got != r {
+			t.Fatalf("round trip mutated the receipt:\n got %+v\nwant %+v", got, r)
+		}
+	})
+
+	t.Run("both-empty-round-trips-with-no-gate-keys", func(t *testing.T) {
+		dir := t.TempDir()
+		r := sampleReceipt() // pair empty
+		if err := svc.WriteRebaseReceipt(ctx, dir, r); err != nil {
+			t.Fatalf("WriteRebaseReceipt: %v", err)
+		}
+		// omitempty: an empty pair leaves no gate_* keys on disk.
+		raw, err := os.ReadFile(filepath.Join(dir, "rebase-receipt.json"))
+		if err != nil {
+			t.Fatalf("reading receipt file: %v", err)
+		}
+		if strings.Contains(string(raw), "gate_drive_id") || strings.Contains(string(raw), "gate_owner_generation") {
+			t.Errorf("empty pair serialized gate keys: %s", raw)
+		}
+	})
+
+	t.Run("half-set-refused-on-write", func(t *testing.T) {
+		for name, mut := range map[string]func(*RebaseReceipt){
+			"drive-only": func(r *RebaseReceipt) { r.GateDriveID = "drive-01" },
+			"gen-only":   func(r *RebaseReceipt) { r.GateOwnerGeneration = "gen-01" },
+		} {
+			t.Run(name, func(t *testing.T) {
+				dir := t.TempDir()
+				r := sampleReceipt()
+				mut(&r)
+				if err := svc.WriteRebaseReceipt(ctx, dir, r); err == nil {
+					t.Errorf("half-set gate pair written without refusal")
+				}
+				if _, found, err := svc.ReadRebaseReceipt(ctx, dir); err != nil || found {
+					t.Errorf("receipt present after refused write: found=%v err=%v", found, err)
+				}
+			})
+		}
+	})
+
+	t.Run("half-set-refused-on-read", func(t *testing.T) {
+		dir := t.TempDir()
+		r := sampleReceipt()
+		if err := svc.WriteRebaseReceipt(ctx, dir, r); err != nil {
+			t.Fatalf("WriteRebaseReceipt: %v", err)
+		}
+		// Corrupt on disk: inject a lone gate_drive_id key.
+		p := filepath.Join(dir, "rebase-receipt.json")
+		raw, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatalf("read: %v", err)
+		}
+		mutated := strings.Replace(string(raw), "\"attempt\":", "\"gate_drive_id\": \"drive-01\",\n  \"attempt\":", 1)
+		if mutated == string(raw) {
+			t.Fatalf("fixture mutation did not apply")
+		}
+		if err := os.WriteFile(p, []byte(mutated), 0o600); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+		if _, found, err := svc.ReadRebaseReceipt(ctx, dir); err == nil || found {
+			t.Errorf("half-set pair read back as valid: found=%v err=%v; want error", found, err)
+		}
+	})
+}
