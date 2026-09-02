@@ -1,12 +1,13 @@
 # Backlog
 
-**397 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 19 groomed · 🟡 44 proposed · ⚪ 4 deferred · ✅ 243 done · 🗑️ 84 killed
+**397 changes** — 🟢 3 in progress · 🔵 1 built · 🟣 18 groomed · 🟡 44 proposed · ⚪ 4 deferred · ✅ 243 done · 🗑️ 84 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (3)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0395](active/0395-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap.md) | Migrate CLAUDE.md/AGENTS.md agent-executed blocks to the capability-first idiom | `medium` | `refactor` | [spec](../superpowers/specs/2026-09-02-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap-design.md) | `refactor/migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap` |
+| [0373](active/0373-harden-integration-race-test-isolation-under-parallel-load.md) | Harden integration/race test isolation under parallel load | `high` | `chore` | [spec](../superpowers/specs/2026-09-02-harden-integration-race-test-isolation-under-parallel-load-design.md) | `chore/harden-integration-race-test-isolation-under-parallel-load` |
 | [0359](active/0359-run-gate-gives-up-too-soon.md) | Run gate gives up too soon | `high` | `fix` | [spec](../superpowers/specs/2026-08-28-run-gate-gives-up-too-soon-design.md) | `fix/run-gate-gives-up-too-soon` |
 
 ## 🔵 Built (1)
@@ -15,11 +16,10 @@
 |---|-------|----------|------|----|-------|
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
-## 🟣 Groomed (19)
+## 🟣 Groomed (18)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0373](active/0373-harden-integration-race-test-isolation-under-parallel-load.md) | Harden integration/race test isolation under parallel load | `high` | `chore` | [spec](../superpowers/specs/2026-09-02-harden-integration-race-test-isolation-under-parallel-load-design.md) |
 | [0264](active/0264-measure-the-claude-harness-s-forked-mode-gate-verdict-and-pi.md) | Measure the claude harness's forked-mode gate verdict and pin a surviving launch shape | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-claude-forked-mode-gate-verdict-design.md) |
 | [0261](active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | `high` | `feat` | [spec](../superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) |
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-slim-agents-md-to-an-effective-claude-md-design.md) |

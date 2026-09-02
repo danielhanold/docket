@@ -2,7 +2,7 @@
 id: 373
 slug: 'harden-integration-race-test-isolation-under-parallel-load'
 title: 'Harden integration/race test isolation under parallel load'
-status: 'proposed'
+status: 'in-progress'
 priority: high
 type: 'chore'
 created: '2026-08-30'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'chore/harden-integration-race-test-isolation-under-parallel-load'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-02T16:15:44Z'
 ---
 
 ## Artifacts
