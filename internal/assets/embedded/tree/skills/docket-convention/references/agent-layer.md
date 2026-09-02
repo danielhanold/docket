@@ -4,7 +4,7 @@
 > config layer, or running/debugging the agent-wrapper install. The runtime contract (which skills get wrappers, dispatch
 > semantics, abort-and-report) stays in `SKILL.md`'s *Agent layer* stub; this file is the full configuration mechanics.
 >
-> **Install-time reconciliation is Go-owned (change 0351).** `docket development install` — reached through
+> **Install-time reconciliation is Go-owned (change 0351).** The `development.install` operation — reached through
 > `install.sh`, a thin bootstrapper — builds a fresh binary and, in one journaled transaction, links the machine-global
 > skills, reconciles the machine-global agent wrappers, reconciles each repository's parent-facing dispatch surfaces
 > from that repo's **explicit** `agent_harnesses`, and **retires** the old global dispatch blocks earlier docket
@@ -93,7 +93,7 @@ cursor]`. Explicit over present-directory auto-detection, so a stray `.cursor/` 
 an unknown token is warned-and-ignored. The user-level pass instead writes every harness `agents/` directory
 **present on disk** — unless the global `config.yml` sets `agent_harnesses:`, governing the user-level target list:
 creating listed dirs, skipping unlisted, and pruning docket-owned files from any de-listed known harness (never
-rmdir'ing the harness root; change 0050). The `docket install check` drift gate spans every generated per-harness
+rmdir'ing the harness root; change 0050). The `install.check` operation drift gate spans every generated per-harness
 file.
 
 ## Harness-portable model IDs
@@ -107,7 +107,7 @@ non-Claude harnesses.
 documented shape from its named emitter in the install. A harness with no named emitter falls to
 the generic `*)` branch, which emits **Claude's** shape: a best guess, not a supported mapping (change 0135; the
 Cursor defect shipped that way). Reaching it is not silent: generation prints a one-time WARN naming the harness as
-unverified, and `docket install check` reports the same token as a non-failing advisory, not a check failure.
+unverified, and the `install.check` operation reports the same token as a non-failing advisory, not a check failure.
 
 | harness | file | model | effort | skills |
 |---|---|---|---|---|
@@ -163,7 +163,7 @@ Identical-on-every-clone pinning is retired (a deliberate trade-off); team defau
 
 The Go install runs **on demand** (install time, and after editing any config layer) — the same mental model as
 `link-skills.sh`; it does NOT hook session start (silently regenerating mid-session would be surprising, and per-repo
-files are gitignored, so no commit to race). The drift backstop is **`docket install check`**,
+files are gitignored, so no commit to race). The drift backstop is the **`install.check`** operation,
 a CI gate with three legs: (1) the managed docket `.gitignore` block is present and current, and (2) no generated
 agent or dispatch-rule file is tracked by git — both **CI-meaningful** (`rc != 0`); (3) whether the local files match
 what the resolved config would generate is `advisory:` output only — it never fails the build, since every machine

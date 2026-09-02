@@ -19,8 +19,8 @@ re-run the full reconcile pass if `reconciled` is still `false` (crash, interrup
 whenever `origin/<integration_branch>` has advanced since the last pass (idempotent,
 non-interactive).
 
-**A change carrying a `## Run halted` marker** — `run verify` reads it back as the closed
-`run-halted` verdict — resumes only through `docket change resume-halted --id <id>
+**A change carrying a `## Run halted` marker** — the `run.verify` operation reads it back as the closed
+`run-halted` verdict — resumes only through the `change.resume-halted` operation with `--id <id>
 --version <entity-version> --acknowledge-quiescent`, never a fresh claim or a hand-deleted section.
 The operation requires the exact marked record and the explicit acknowledgement that the prior
 worker is quiescent, reprobes the branch/workspace/live gate, refreshes the claim, and removes
