@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0397 — Run the implementation preflight as one deterministic operation instead of a docket-status dispatch, and drop status --json's corpus records by default](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0397-run-the-implementation-preflight-as-one-deterministic-operat.md)**
+> ↩ **[Change 0397 — Run the implementation preflight as one deterministic operation instead of a docket-status dispatch, and drop status --json's corpus records by default](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-02-0397-run-the-implementation-preflight-as-one-deterministic-operat.md)**
 <!-- docket:backlink:end -->
 
 # Implementation preflight as one deterministic operation — design

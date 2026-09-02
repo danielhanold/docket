@@ -2,7 +2,7 @@
 id: 397
 slug: 'run-the-implementation-preflight-as-one-deterministic-operat'
 title: 'Run the implementation preflight as one deterministic operation instead of a docket-status dispatch, and drop status --json''s corpus records by default'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'perf'
 created: '2026-09-02'
@@ -22,7 +22,7 @@ branch: 'perf/run-the-implementation-preflight-as-one-deterministic-operat'
 pr: 'https://github.com/danielhanold/docket/pull/269'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-02T12:08:09Z'
+claimed_at:
 ---
 
 ## Artifacts

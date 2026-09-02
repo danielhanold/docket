@@ -1,12 +1,11 @@
 # Backlog
 
-**397 changes** — 🔵 2 built · 🟣 20 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 242 done · 🗑️ 84 killed
+**397 changes** — 🔵 1 built · 🟣 20 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 243 done · 🗑️ 84 killed
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
-| [0397](active/0397-run-the-implementation-preflight-as-one-deterministic-operat.md) | Run the implementation preflight as one deterministic operation instead of a docket-status dispatch, and drop status --json's corpus records by default | `high` | `perf` | [#269](https://github.com/danielhanold/docket/pull/269) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
 ## 🟣 Groomed (20)
@@ -165,7 +164,6 @@ graph TD
   0392
   0393
   0394 --> 0395
-  0397
   0192:::done
   0211:::done
   0251:::done
@@ -175,10 +173,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (326)</summary>
+<details><summary>✅🗑️ Archive — done + killed (327)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0397](archive/2026-09-02-0397-run-the-implementation-preflight-as-one-deterministic-operat.md) | Run the implementation preflight as one deterministic operation instead of a docket-status dispatch, and drop status --json's corpus records by default | 2026-09-02 |
 | [0396](archive/2026-09-02-0396-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes.md) | finalize async gate WAITING has no CLI re-entry that resumes the same drive | 2026-09-02 |
 | [0394](archive/2026-09-02-0394-give-docket-skills-an-authoritative-compact-cli-capability-c.md) | Give Docket skills an authoritative compact CLI capability catalog | 2026-09-02 |
 | [0364](archive/2026-09-02-0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | 2026-09-02 |
@@ -195,7 +194,6 @@ graph TD
 | [0372](archive/2026-08-30-0372-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume.md) | Retire deferred Go v1 workflow surfaces and seal the consumer cutover | 2026-08-30 |
 | [0371](archive/2026-08-30-0371-cut-generated-agent-invocation-over-to-native-host-dispatch.md) | Cut generated agent invocation over to native host dispatch | 2026-08-30 |
 | [0369](archive/2026-08-30-0369-migrate-maintained-consumers-to-the-direct-go-cli.md) | Migrate retained lifecycle consumers to typed Go operations | 2026-08-30 |
-| [0365](archive/2026-08-29-0365-codex-nested-dispatch-capability-boundary.md) | Make nested Docket dispatch reliable for every Codex agent invocation | 2026-08-29 |
 | [0353](archive/2026-08-26-0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | 2026-08-26 |
 | [0294](archive/2026-08-26-0294-shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru.md) | Shrink AGENTS.md's always-loaded footprint: script-ify the run gate's caller procedure and de-duplicate the dispatch table | 2026-08-26 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
@@ -283,7 +281,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 109 done |
+| [2026-08](archive/) | 110 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
