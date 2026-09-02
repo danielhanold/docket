@@ -307,6 +307,9 @@ func TestRepresentativeSignatures(t *testing.T) {
 		// change 0359: gate-before gains --resume for explicit resume attribution;
 		// the target positional leads, the optional flags trail sorted.
 		"run.gate-before": "<target> [--repo-dir <dir>] [--resume <id>]",
+		// change 0359: gate-claim redeems a single-use continuation — the two
+		// positionals (key, continuation id) lead, the optional repo dir trails.
+		"run.gate-claim": "<key> <continuation-id> [--repo-dir <dir>]",
 		// change 0359: the config owners run their resolved suite command; the
 		// task-intent owner (--owner task) alone takes the focused argv after a bare
 		// `--` separator, which lands last.
