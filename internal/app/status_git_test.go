@@ -62,7 +62,13 @@ var (
 // 0373, package sighting 2). It mirrors testsupport.GitEnv but takes no
 // *testing.T: the direct oracles are shared by this package's PARALLEL e2e tests,
 // where t.Setenv would panic, so a per-command cmd.Env override on one shared,
-// deterministic, read-only config file is the parallel-safe seam. Git spawned
+// deterministic, read-only config file is the parallel-safe seam. The
+// os.MkdirTemp dir this creates is intentionally process-lifetime — one dir per
+// test process, never removed: the helper has no *testing.T, so t.Cleanup is
+// unavailable, and adding a TestMain to reap it is not worth the coupling. Under
+// the suite runner the per-job private TMPDIR is reaped wholesale, so the dir
+// does not survive the job; a bare `go test ./internal/app/` leaks exactly one
+// such dir per test process, which is accepted. Git spawned
 // through the product gitcli client scrubs GIT_CONFIG (sanitizeEnvironment), so
 // those housekeeping children are instead absorbed by the fixture's
 // drain-then-retry removal.
