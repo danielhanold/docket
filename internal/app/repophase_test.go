@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"path/filepath"
 	"sort"
@@ -27,7 +28,7 @@ import (
 func initGitRepo(t *testing.T, docketYML string) (root, gitDir string) {
 	t.Helper()
 	requireRealGit(t)
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	runGit(t, dir, "init", "-b", "main")
 	if docketYML != "" {
 		writeRepoFile(t, dir, ".docket.yml", docketYML)
@@ -77,7 +78,7 @@ func TestResolveRepoPhaseDiscoversFromRootAndNestedDir(t *testing.T) {
 
 func TestResolveRepoPhaseInvalidExplicitRepoDir(t *testing.T) {
 	git := newGitClient(t)
-	notARepo := t.TempDir()
+	notARepo := testsupport.TempDir(t)
 	_, _, err := ResolveRepoPhase(context.Background(), git, notARepo, nil, nil, nil)
 	if err == nil {
 		t.Fatalf("an explicit --repo-dir that is not a worktree must refuse")
@@ -90,7 +91,7 @@ func TestResolveRepoPhaseInvalidExplicitRepoDir(t *testing.T) {
 
 func TestResolveRepoPhaseOutsideGitIsMachineOnly(t *testing.T) {
 	git := newGitClient(t)
-	outside := t.TempDir()
+	outside := testsupport.TempDir(t)
 	t.Chdir(outside)
 	// Empty repoDir + cwd outside any Git working tree: no phase at all, and no
 	// error — the machine install proceeds and the not-authorized action prints.
@@ -134,7 +135,7 @@ func TestResolveRepoPhaseAbsentKeyNotAuthorized(t *testing.T) {
 func TestResolveRepoPhaseGlobalLayerNotAuthorized(t *testing.T) {
 	root, _ := initGitRepo(t, "metadata_branch: main\n")
 	// The declaration lives in the GLOBAL layer only.
-	xdg := t.TempDir()
+	xdg := testsupport.TempDir(t)
 	t.Setenv("XDG_CONFIG_HOME", xdg)
 	globalCfg := filepath.Join(xdg, "docket", "config.yml")
 	if err := os.MkdirAll(filepath.Dir(globalCfg), 0o755); err != nil {

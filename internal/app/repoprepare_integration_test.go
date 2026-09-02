@@ -3,6 +3,7 @@
 package app
 
 import (
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"path/filepath"
 	"strings"
@@ -91,7 +92,7 @@ func runPrepareAt(t *testing.T, dir string) RepositoryPrepareResult {
 // attach target: a healthy remote topology whose local metadata checkout is absent.
 func (r *initRepo) freshClone(t *testing.T) string {
 	t.Helper()
-	dir := filepath.Join(t.TempDir(), "prepare-clone")
+	dir := filepath.Join(testsupport.TempDir(t), "prepare-clone")
 	runGit(t, r.root, "clone", "-q", r.origin, dir)
 	gitIdentity(t, dir)
 	return dir
@@ -102,7 +103,7 @@ func (r *initRepo) freshClone(t *testing.T) string {
 // is how a clone's local metadata branch is made strictly behind the remote.
 func (r *initRepo) advanceRemoteDocket(t *testing.T, rel, content, msg string) string {
 	t.Helper()
-	w := filepath.Join(t.TempDir(), "docket-writer")
+	w := filepath.Join(testsupport.TempDir(t), "docket-writer")
 	runGit(t, r.root, "clone", "-q", r.origin, w)
 	gitIdentity(t, w)
 	runGit(t, w, "fetch", "-q", "origin", "docket")

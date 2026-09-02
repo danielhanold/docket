@@ -8,6 +8,7 @@ import (
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/repository/transaction"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"path/filepath"
 	"sort"
@@ -98,7 +99,7 @@ func planningDepsFor(t *testing.T, dir string) realNode {
 // identity, so each concurrent operation works against its own common dir.
 func cloneOrigin(t *testing.T, origin string) string {
 	t.Helper()
-	parent := t.TempDir()
+	parent := testsupport.TempDir(t)
 	dir := filepath.Join(parent, "clone")
 	runGit(t, parent, "clone", "-q", origin, dir)
 	gitIdentity(t, dir)

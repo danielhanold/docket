@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 	"github.com/danielhanold/docket/internal/process"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"strings"
 	"testing"
@@ -46,7 +47,7 @@ func TestGateLaunchInvalidInput(t *testing.T) {
 }
 
 func TestGateRecoverNormalizesEmptyEntries(t *testing.T) {
-	res := GateRecover(t.TempDir())
+	res := GateRecover(testsupport.TempDir(t))
 	if res.Result != ResultNoOp {
 		t.Fatalf("clean scan result %s", res.Result)
 	}

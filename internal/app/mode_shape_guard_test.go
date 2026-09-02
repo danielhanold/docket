@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/danielhanold/docket/internal/testsupport"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -103,21 +104,21 @@ func TestNoModeShapedProductionCode(t *testing.T) {
 // cannot redden is decoration (AGENTS.md).
 func TestModeShapeGuardIsFalsifiable(t *testing.T) {
 	// Arm (a): a struct field carrying a removed mode-shaped json key.
-	dirA := t.TempDir()
+	dirA := testsupport.TempDir(t)
 	writeGoFile(t, dirA, "a.go", "package p\n\ntype T struct {\n\tX string `json:\"metadata_mode\"`\n}\n")
 	if v, _ := scanModeShapeViolations(t, dirA); len(v) == 0 {
 		t.Errorf("guard did not detect a planted metadata_mode json field")
 	}
 
 	// Arm (b): a removed mode-selector identifier reintroduced.
-	dirB := t.TempDir()
+	dirB := testsupport.TempDir(t)
 	writeGoFile(t, dirB, "b.go", "package p\n\nconst metadataModeMain = \"main\"\n")
 	if v, _ := scanModeShapeViolations(t, dirB); len(v) == 0 {
 		t.Errorf("guard did not detect a planted metadataModeMain identifier")
 	}
 
 	// Arm (c): a repo_mode json field.
-	dirC := t.TempDir()
+	dirC := testsupport.TempDir(t)
 	writeGoFile(t, dirC, "c.go", "package p\n\ntype W struct {\n\tR string `json:\"repo_mode\"`\n}\n")
 	if v, _ := scanModeShapeViolations(t, dirC); len(v) == 0 {
 		t.Errorf("guard did not detect a planted repo_mode json field")
@@ -125,13 +126,13 @@ func TestModeShapeGuardIsFalsifiable(t *testing.T) {
 
 	// Floor: an empty tree visits zero files — the run-level TestNoModeShapedProductionCode
 	// fails on that, proving the walker is falsifiable.
-	dirEmpty := t.TempDir()
+	dirEmpty := testsupport.TempDir(t)
 	if _, visited := scanModeShapeViolations(t, dirEmpty); visited != 0 {
 		t.Errorf("empty tree reported %d visited files, want 0", visited)
 	}
 
 	// Control: a clean file trips nothing.
-	dirClean := t.TempDir()
+	dirClean := testsupport.TempDir(t)
 	writeGoFile(t, dirClean, "ok.go", "package p\n\ntype Ok struct {\n\tMeta string `json:\"metadata_revision\"`\n}\n")
 	if v, _ := scanModeShapeViolations(t, dirClean); len(v) != 0 {
 		t.Errorf("guard flagged a clean file: %v", v)

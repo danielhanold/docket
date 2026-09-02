@@ -5,6 +5,7 @@ package app
 import (
 	"context"
 	"errors"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -34,6 +35,9 @@ func gitEnvOut(t *testing.T, dir string, env []string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
 	cmd.Env = append(cmd.Environ(), env...)
+	if kv := backgroundOffGitEnv(); kv != "" {
+		cmd.Env = append(cmd.Env, kv)
+	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git -C %s %s: %v\n%s", dir, strings.Join(args, " "), err, out)
@@ -51,7 +55,7 @@ func gitEnvOut(t *testing.T, dir string, env []string, args ...string) string {
 // published seed commit id.
 func (r *initRepo) seedBashDocket(t *testing.T) string {
 	t.Helper()
-	idxDir := t.TempDir()
+	idxDir := testsupport.TempDir(t)
 	env := []string{"GIT_INDEX_FILE=" + filepath.Join(idxDir, "seed-index")}
 	gitEnvOut(t, r.writer, env, "read-tree", "--empty")
 	gitEnvOut(t, r.writer, env, "read-tree", "--prefix=docs/changes/", "main:docs/changes")
@@ -100,7 +104,7 @@ func (r *initRepo) discoverRepo(t *testing.T, client *gitcli.Client) gitcli.Repo
 // worktrees that carry the owned transient prefix. Base names are compared rather
 // than full paths because git reports a worktree path canonicalized against the
 // cwd it runs from (on macOS /var vs /private/var), so a full-path compare
-// against a t.TempDir() spelling is unreliable; the base names are invocation-
+// against a testsupport.TempDir(t) spelling is unreliable; the base names are invocation-
 // unique here.
 func (r *initRepo) ownedTempWorktrees(t *testing.T) []string {
 	t.Helper()

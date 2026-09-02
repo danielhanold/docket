@@ -5,6 +5,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -75,7 +76,7 @@ func trafficGit(t *testing.T, logPath, fault string) *gitcli.Client {
 	if err != nil {
 		t.Skipf("git not on PATH: %v", err)
 	}
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	wrapper := filepath.Join(dir, "git")
 	script := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> '" + logPath + "'\n"
 	if strings.TrimSpace(fault) != "" {
@@ -86,7 +87,7 @@ func trafficGit(t *testing.T, logPath, fault string) *gitcli.Client {
 		t.Fatal(err)
 	}
 	// Isolate the global docket config layer, exactly as newGitClient does.
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", testsupport.TempDir(t))
 	client, err := gitcli.NewClient(gitcli.WithExecutable(wrapper))
 	if err != nil {
 		t.Fatalf("gitcli.NewClient: %v", err)
@@ -103,7 +104,7 @@ func trafficGit(t *testing.T, logPath, fault string) *gitcli.Client {
 // the process is counted, no PR bands into closeout, and no mutation is dispatched.
 func trafficGH(t *testing.T, logPath string) *githubcli.Client {
 	t.Helper()
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	wrapper := filepath.Join(dir, "gh")
 	script := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> '" + logPath + "'\n" +
 		"case \"$1 $2\" in\n" +
@@ -269,8 +270,8 @@ func TestIntegrationSweepDiscoveryTrafficAccounting(t *testing.T) {
 		records[fmt.Sprintf("docs/changes/active/%04d-hist.md", id)] = trafficDoneRecord(id, fmt.Sprintf("hist%02d", id))
 	}
 	r := trafficRepo(t, "", records)
-	gitLog := filepath.Join(t.TempDir(), "git.log")
-	ghLog := filepath.Join(t.TempDir(), "gh.log")
+	gitLog := filepath.Join(testsupport.TempDir(t), "git.log")
+	ghLog := filepath.Join(testsupport.TempDir(t), "gh.log")
 	deps := trafficDeps(t, trafficGit(t, gitLog, ""), trafficGH(t, ghLog))
 
 	res := MaintenanceSweep(context.Background(), deps, r.invocation, SweepScopeFull)
@@ -343,8 +344,8 @@ func TestIntegrationSweepZeroPRsNoGitHubTraffic(t *testing.T) {
 		"docs/changes/active/0042-b.md": trafficDoneRecord(42, "b"),
 	}
 	r := trafficRepo(t, "", records)
-	ghLog := filepath.Join(t.TempDir(), "gh.log")
-	deps := trafficDeps(t, trafficGit(t, filepath.Join(t.TempDir(), "git.log"), ""), trafficGH(t, ghLog))
+	ghLog := filepath.Join(testsupport.TempDir(t), "gh.log")
+	deps := trafficDeps(t, trafficGit(t, filepath.Join(testsupport.TempDir(t), "git.log"), ""), trafficGH(t, ghLog))
 
 	res := MaintenanceSweep(context.Background(), deps, r.invocation, SweepScopeFull)
 
@@ -373,8 +374,8 @@ func TestIntegrationSweepBatchesPRRequestsOncePer25(t *testing.T) {
 				records[fmt.Sprintf("docs/changes/active/%04d-p.md", id)] = trafficImplementedOpen(id, fmt.Sprintf("p%03d", i))
 			}
 			r := trafficRepo(t, "", records)
-			ghLog := filepath.Join(t.TempDir(), "gh.log")
-			deps := trafficDeps(t, trafficGit(t, filepath.Join(t.TempDir(), "git.log"), ""), trafficGH(t, ghLog))
+			ghLog := filepath.Join(testsupport.TempDir(t), "gh.log")
+			deps := trafficDeps(t, trafficGit(t, filepath.Join(testsupport.TempDir(t), "git.log"), ""), trafficGH(t, ghLog))
 
 			MaintenanceSweep(context.Background(), deps, r.invocation, SweepScopeFull)
 
@@ -432,8 +433,8 @@ func TestIntegrationSweepAssessmentTrafficConstantAcrossHistory(t *testing.T) {
 			records[fmt.Sprintf("docs/changes/active/%04d-h.md", id)] = trafficDoneRecord(id, fmt.Sprintf("h%04d", i))
 		}
 		r := trafficRepo(t, "", records)
-		gitLog := filepath.Join(t.TempDir(), "git.log")
-		ghLog := filepath.Join(t.TempDir(), "gh.log")
+		gitLog := filepath.Join(testsupport.TempDir(t), "git.log")
+		ghLog := filepath.Join(testsupport.TempDir(t), "gh.log")
 		deps := trafficDeps(t, trafficGit(t, gitLog, ""), trafficGH(t, ghLog))
 		res := MaintenanceSweep(context.Background(), deps, r.invocation, SweepScopeFull)
 		return sweepRemoteCounts(t, gitLog, ghLog), res
@@ -475,8 +476,8 @@ func TestIntegrationSweepImplementationScopeInspectsNoDeferredResources(t *testi
 	}
 	build := func() (*gitRepo, string, string, FinalizeDeps) {
 		r := trafficRepo(t, "", records)
-		gitLog := filepath.Join(t.TempDir(), "git.log")
-		ghLog := filepath.Join(t.TempDir(), "gh.log")
+		gitLog := filepath.Join(testsupport.TempDir(t), "git.log")
+		ghLog := filepath.Join(testsupport.TempDir(t), "gh.log")
 		return r, gitLog, ghLog, trafficDeps(t, trafficGit(t, gitLog, ""), trafficGH(t, ghLog))
 	}
 
@@ -533,8 +534,8 @@ func TestIntegrationSweepDispatchedReclaimKeepsSetupOnce(t *testing.T) {
 		"docs/changes/active/0050-stale.md": lifecycleChange(50, "stale", "in-progress"),
 	}
 	r := trafficRepo(t, "integration_branch: main\nreclaim:\n  lease_ttl: 12\n  auto: true\n", records)
-	gitLog := filepath.Join(t.TempDir(), "git.log")
-	deps := trafficDeps(t, trafficGit(t, gitLog, ""), trafficGH(t, filepath.Join(t.TempDir(), "gh.log")))
+	gitLog := filepath.Join(testsupport.TempDir(t), "git.log")
+	deps := trafficDeps(t, trafficGit(t, gitLog, ""), trafficGH(t, filepath.Join(testsupport.TempDir(t), "gh.log")))
 
 	res := MaintenanceSweep(context.Background(), deps, r.invocation, SweepScopeFull)
 
@@ -578,10 +579,10 @@ func TestIntegrationSweepBlockedMetadataFetchRefusesNoMutation(t *testing.T) {
 	requireRealGit(t)
 	records := map[string]string{"docs/changes/active/0041-a.md": trafficDoneRecord(41, "a")}
 	r := trafficRepo(t, "", records)
-	gitLog := filepath.Join(t.TempDir(), "git.log")
+	gitLog := filepath.Join(testsupport.TempDir(t), "git.log")
 	// Fail-fast any fetch of the metadata branch.
 	fault := `case "$*" in *fetch*refs/heads/docket*) echo "metadata fetch blocked" >&2; exit 1;; esac`
-	deps := trafficDeps(t, trafficGit(t, gitLog, fault), trafficGH(t, filepath.Join(t.TempDir(), "gh.log")))
+	deps := trafficDeps(t, trafficGit(t, gitLog, fault), trafficGH(t, filepath.Join(testsupport.TempDir(t), "gh.log")))
 
 	done := make(chan MaintenanceResult, 1)
 	go func() {
@@ -613,10 +614,10 @@ func TestIntegrationSweepFailFastGuardStaysGreenUnderProduction(t *testing.T) {
 	requireRealGit(t)
 	records := map[string]string{"docs/changes/active/0041-a.md": trafficDoneRecord(41, "a")}
 	r := trafficRepo(t, "", records)
-	gitLog := filepath.Join(t.TempDir(), "git.log")
+	gitLog := filepath.Join(testsupport.TempDir(t), "git.log")
 	// A second `ls-remote --symref` (redundant setup probe) exits fast, non-zero.
 	fault := `case "$*" in *"ls-remote --symref"*) n=$(grep -c -- "ls-remote --symref" '` + gitLog + `'); if [ "$n" -gt 1 ]; then echo "redundant setup probe forbidden" >&2; exit 47; fi;; esac`
-	deps := trafficDeps(t, trafficGit(t, gitLog, fault), trafficGH(t, filepath.Join(t.TempDir(), "gh.log")))
+	deps := trafficDeps(t, trafficGit(t, gitLog, fault), trafficGH(t, filepath.Join(testsupport.TempDir(t), "gh.log")))
 
 	done := make(chan MaintenanceResult, 1)
 	go func() {
@@ -651,9 +652,9 @@ func TestIntegrationSweepUnknownRemoteAdvertisementIsNotCleanAbsence(t *testing.
 	requireRealGit(t)
 	records := map[string]string{"docs/changes/active/0041-a.md": trafficDoneRecord(41, "a")}
 	r := trafficRepo(t, "", records)
-	gitLog := filepath.Join(t.TempDir(), "git.log")
+	gitLog := filepath.Join(testsupport.TempDir(t), "git.log")
 	fault := `case "$*" in *"ls-remote --heads"*) echo "advertisement unavailable" >&2; exit 3;; esac`
-	deps := trafficDeps(t, trafficGit(t, gitLog, fault), trafficGH(t, filepath.Join(t.TempDir(), "gh.log")))
+	deps := trafficDeps(t, trafficGit(t, gitLog, fault), trafficGH(t, filepath.Join(testsupport.TempDir(t), "gh.log")))
 
 	res := MaintenanceSweep(context.Background(), deps, r.invocation, SweepScopeFull)
 
@@ -684,8 +685,8 @@ func TestIntegrationSweepSecondInvocationAndRepositoryReprobes(t *testing.T) {
 	rA := trafficRepo(t, "", recordsA)
 
 	run := func(r *gitRepo) remoteCounts {
-		gitLog := filepath.Join(t.TempDir(), "git.log")
-		ghLog := filepath.Join(t.TempDir(), "gh.log")
+		gitLog := filepath.Join(testsupport.TempDir(t), "git.log")
+		ghLog := filepath.Join(testsupport.TempDir(t), "gh.log")
 		deps := trafficDeps(t, trafficGit(t, gitLog, ""), trafficGH(t, ghLog))
 		MaintenanceSweep(context.Background(), deps, r.invocation, SweepScopeFull)
 		return sweepRemoteCounts(t, gitLog, ghLog)

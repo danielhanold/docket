@@ -14,6 +14,7 @@ import (
 	"github.com/danielhanold/docket/internal/render"
 	"github.com/danielhanold/docket/internal/repository"
 	"github.com/danielhanold/docket/internal/repository/transaction"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"github.com/danielhanold/docket/internal/workspace"
 	"os"
 	"path/filepath"
@@ -889,8 +890,8 @@ func TestIntegrationChangeEvidenceRecordUnreadableRunDir(t *testing.T) {
 }
 
 func TestIntegrationChangeGateLaunchObserveEndToEnd(t *testing.T) {
-	root := t.TempDir()
-	res := GateLaunch(root, t.TempDir(), []string{"/bin/echo", "hello"})
+	root := testsupport.TempDir(t)
+	res := GateLaunch(root, testsupport.TempDir(t), []string{"/bin/echo", "hello"})
 	if res.Operation != "gate.launch" {
 		t.Fatalf("operation %q", res.Operation)
 	}
@@ -1008,7 +1009,7 @@ func TestIntegrationChangeGateRecordLinkedWorktreeSameRecord(t *testing.T) {
 		t.Fatalf("MintGateRecord: %v", err)
 	}
 
-	wt := filepath.Join(t.TempDir(), "linked")
+	wt := filepath.Join(testsupport.TempDir(t), "linked")
 	runGit(t, repo, "worktree", "add", wt)
 
 	// The linked worktree shares the same git common dir, so the record minted
@@ -1035,7 +1036,7 @@ func TestIntegrationChangeGateRecordMalformedKey(t *testing.T) {
 	// Key validation MUST precede any filesystem or git touch: a malformed key
 	// against a path that is not even a git repo still returns malformed-key,
 	// never a git/IO error.
-	_, err := LoadGateRecord(filepath.Join(t.TempDir(), "not-a-repo"), "../escape")
+	_, err := LoadGateRecord(filepath.Join(testsupport.TempDir(t), "not-a-repo"), "../escape")
 	gse, ok := AsGateStoreError(err)
 	if !ok || gse.Kind != ErrGateMalformedKey {
 		t.Errorf("malformed key against non-repo = %v, want ErrGateMalformedKey (validated before fs)", err)
@@ -2280,7 +2281,7 @@ func TestIntegrationChangeReclaimUnreachableRemoteFailsClosed(t *testing.T) {
 	ver := blobVersionAt(t, repo.origin, "docket", recPath)
 	before, _ := originFile(t, repo.origin, "docket", recPath)
 	// Break the remote so no origin state can be authoritatively read or probed.
-	runGit(t, repo.invocation, "remote", "set-url", "origin", t.TempDir()+"/nonexistent.git")
+	runGit(t, repo.invocation, "remote", "set-url", "origin", testsupport.TempDir(t)+"/nonexistent.git")
 	res := ChangeReclaim(context.Background(), node.deps, reclaimClearWorkspace, node.dir,
 		ChangeReclaimRequest{ID: 3, Version: ver})
 	if res.Result == ResultApplied {

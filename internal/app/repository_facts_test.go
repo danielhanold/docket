@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"path/filepath"
 	"testing"
@@ -60,8 +61,8 @@ func (f *fakeSetupProber) ListWorktrees(ctx context.Context, repo gitcli.Reposit
 // worktree root.
 func setupProberRepoDir(t *testing.T, docketYML string) string {
 	t.Helper()
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", testsupport.TempDir(t))
+	root := testsupport.TempDir(t)
 	if err := os.WriteFile(filepath.Join(root, ".docket.yml"), []byte(docketYML), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +118,7 @@ func TestGatherSetupFactsRepositoryHarnessesAuthorize(t *testing.T) {
 // TestGatherSetupFactsGlobalHarnessesDoNotAuthorize proves a global-layer
 // agent_harnesses declaration resolves but never authorizes repository surfaces.
 func TestGatherSetupFactsGlobalHarnessesDoNotAuthorize(t *testing.T) {
-	xdg := t.TempDir()
+	xdg := testsupport.TempDir(t)
 	t.Setenv("XDG_CONFIG_HOME", xdg)
 	if err := os.MkdirAll(filepath.Join(xdg, "docket"), 0o755); err != nil {
 		t.Fatal(err)
@@ -125,7 +126,7 @@ func TestGatherSetupFactsGlobalHarnessesDoNotAuthorize(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(xdg, "docket", "config.yml"), []byte("agent_harnesses: [claude]\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	if err := os.WriteFile(filepath.Join(root, ".docket.yml"), []byte("metadata_branch: docket\nintegration_branch: main\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

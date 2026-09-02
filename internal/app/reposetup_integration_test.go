@@ -4,6 +4,7 @@ package app
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,7 +15,7 @@ import (
 
 // This is the real-Git init/setup integration shard (prefix
 // TestIntegrationRepoSetup). Each test builds its own bare upstream + clone under
-// t.TempDir() with an isolated global config layer (newGitClient's
+// testsupport.TempDir(t) with an isolated global config layer (newGitClient's
 // XDG_CONFIG_HOME seam), then drives RunRepositoryInit against the clone and
 // inspects the authoritative remote/worktree state with an independent git
 // oracle. The fixtures follow the established internal/app harness (runGit,
@@ -40,7 +41,7 @@ const defaultSetupYML = "metadata_branch: docket\nintegration_branch: main\n"
 func newInitRepo(t *testing.T, docketYML string, integrationFiles map[string]string) *initRepo {
 	t.Helper()
 	requireRealGit(t)
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	r := &initRepo{
 		root:       root,
 		origin:     filepath.Join(root, "origin.git"),
@@ -155,7 +156,7 @@ func TestIntegrationRepoSetupFreshInitCreatesTopology(t *testing.T) {
 // for an explicit repository-layer agent_harnesses declaration: the parent-facing
 // dispatch surface is written unstaged and the ownership record is published.
 func TestIntegrationRepoSetupFreshInitInstallsAuthorizedSurfaces(t *testing.T) {
-	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", testsupport.TempDir(t))
 	r := newInitRepo(t, defaultSetupYML+"agent_harnesses: [claude]\n", nil)
 	res := r.runInit(t)
 
