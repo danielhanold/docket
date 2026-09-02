@@ -406,7 +406,7 @@ func TestPrepareScopeHumanTextRedactsCapabilities(t *testing.T) {
 func TestTaskServiceForcesNonIdempotent(t *testing.T) {
 	argv := []string{"go", "test", "-run", "Focus", "./internal/app/"}
 	eff := config.Effective{GateObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
-	svc, res, reason := NewTaskGateDriveService(t.TempDir(), "/bin/true", eff, argv)
+	svc, res, reason := NewTaskGateDriveService(testsupport.TempDir(t), "/bin/true", eff, argv)
 	if svc == nil {
 		t.Fatalf("task constructor must build a service: %s %s", res, reason)
 	}
@@ -437,7 +437,7 @@ func TestTaskServiceForcesNonIdempotent(t *testing.T) {
 // that could Start an empty command.
 func TestTaskServiceRequiresArgv(t *testing.T) {
 	eff := config.Effective{GateObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
-	svc, res, reason := NewTaskGateDriveService(t.TempDir(), "/bin/true", eff, nil)
+	svc, res, reason := NewTaskGateDriveService(testsupport.TempDir(t), "/bin/true", eff, nil)
 	if svc != nil {
 		t.Fatalf("empty argv must not build a service")
 	}
@@ -461,7 +461,7 @@ func TestTaskServiceRequiresArgv(t *testing.T) {
 func TestTaskServiceResolvesObservationBudget(t *testing.T) {
 	argv := []string{"go", "test", "-run", "Focus", "./internal/app/"}
 	eff := config.Effective{GateObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
-	svc, res, reason := NewTaskGateDriveService(t.TempDir(), "/bin/true", eff, argv)
+	svc, res, reason := NewTaskGateDriveService(testsupport.TempDir(t), "/bin/true", eff, argv)
 	if svc == nil {
 		t.Fatalf("task constructor must build a service: %s %s", res, reason)
 	}

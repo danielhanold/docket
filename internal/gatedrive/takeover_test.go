@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/danielhanold/docket/internal/process"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // scopeReqFor builds a ScopeRequest whose identity matches a StartRequest, so a
@@ -538,7 +539,7 @@ func TestStartBindsScope(t *testing.T) {
 // matching change + gate-context hash that are nonterminal OR terminal-unconsumed,
 // excludes a terminal-consumed drive, and skips unreadable records.
 func TestFindScopeDriveIDs(t *testing.T) {
-	store := OpenStore(t.TempDir())
+	store := OpenStore(testsupport.TempDir(t))
 
 	// An empty store has no drive root at all: no candidates, no error.
 	if ids, err := store.FindScopeDriveIDs("0342", capHash("ctx")); err != nil || len(ids) != 0 {
