@@ -504,6 +504,146 @@ func TestGateDriveStartNoCommandLeak(t *testing.T) {
 	}
 }
 
+// TestGateDrivePrepareScopeGrantAndRedaction proves `gate drive prepare-scope`
+// composes the commandless store seam and returns the full grant in JSON — a
+// scope id and BOTH opaque capabilities — while its human text names ONLY the
+// scope id. The capabilities are authority: they travel in the protocol document
+// and never in diagnostic prose.
+func TestGateDrivePrepareScopeGrantAndRedaction(t *testing.T) {
+	wt := gateDriveRepo(t)
+	out, errS, code := runCLI(t, "--json", "gate", "drive", "prepare-scope",
+		"--repo-dir", wt, "--change-id", "359", "--task-id", "task-4",
+		"--phase", "build", "--branch", "fix/x", "--worktree", wt)
+	if code != 0 || errS != "" {
+		t.Fatalf("prepare-scope: out=%q err=%q code=%d", out, errS, code)
+	}
+	doc := decodeOneJSON(t, out)
+	if doc["operation"] != "gate.drive.prepare-scope" || doc["result"] != "applied" {
+		t.Fatalf("prepare-scope envelope: %v", doc)
+	}
+	scopeID, _ := doc["scope_id"].(string)
+	childCap, _ := doc["child_capability"].(string)
+	parentCap, _ := doc["parent_capability"].(string)
+	if scopeID == "" || childCap == "" || parentCap == "" {
+		t.Fatalf("prepare-scope JSON missing a grant field: %v", doc)
+	}
+	if childCap == parentCap {
+		t.Fatalf("child and parent capabilities must be distinct: %q", childCap)
+	}
+
+	// Human mode: the scope id appears, neither capability does.
+	human, errS, code := runCLI(t, "gate", "drive", "prepare-scope",
+		"--repo-dir", wt, "--change-id", "359", "--task-id", "task-4",
+		"--phase", "build", "--branch", "fix/x", "--worktree", wt)
+	if code != 0 || errS != "" {
+		t.Fatalf("prepare-scope human: out=%q err=%q code=%d", human, errS, code)
+	}
+	if !strings.Contains(human, "scope_id") {
+		t.Fatalf("human text must name the scope id: %q", human)
+	}
+	if strings.Contains(human, childCap) || strings.Contains(human, parentCap) {
+		t.Fatalf("human text leaked a capability: %q", human)
+	}
+}
+
+// TestGateDriveTakeoverWired proves the `gate drive takeover` leaf is registered
+// and reaches the app seam: it composes the commandless service and emits exactly
+// one gate.drive.takeover protocol document (its workflow outcome — a HALTED
+// refusal for a bogus scope — is the driver's concern, proved in gatedrive).
+func TestGateDriveTakeoverWired(t *testing.T) {
+	wt := gateDriveRepo(t)
+	out, errS, code := runCLI(t, "--json", "gate", "drive", "takeover",
+		"--repo-dir", wt, "--scope-id", "0123456789abcdef0123456789abcdef", "--parent-cap", "deadbeefdeadbeefdeadbeefdeadbeef")
+	if errS != "" {
+		t.Fatalf("takeover: err=%q code=%d", errS, code)
+	}
+	doc := decodeOneJSON(t, out)
+	if doc["operation"] != "gate.drive.takeover" {
+		t.Fatalf("takeover operation=%v, want gate.drive.takeover: %v", doc["operation"], doc)
+	}
+}
+
+// TestGateDriveTakeoverRequiresFlags proves --scope-id and --parent-cap are
+// required (cobra's required-flag failure, exit 2, before RunE).
+func TestGateDriveTakeoverRequiresFlags(t *testing.T) {
+	wt := gateDriveRepo(t)
+	_, _, code := runCLI(t, "gate", "drive", "takeover", "--repo-dir", wt, "--scope-id", "x")
+	if code != 2 {
+		t.Fatalf("missing --parent-cap: code=%d, want 2", code)
+	}
+	_, _, code = runCLI(t, "gate", "drive", "takeover", "--repo-dir", wt, "--parent-cap", "x")
+	if code != 2 {
+		t.Fatalf("missing --scope-id: code=%d, want 2", code)
+	}
+}
+
+// TestGateDriveStartOwnerTaskRunsArgv proves `--owner task` runs the agent-supplied
+// argv verbatim (no config resolution): a fast green command returns a drive doc
+// carrying a drive id and PASSED at exit 0.
+func TestGateDriveStartOwnerTaskRunsArgv(t *testing.T) {
+	wt := gateDriveRepo(t)
+	root := gateTempDir(t)
+	out, errS, code := runCLI(t, "--json", "gate", "drive", "start",
+		"--repo-dir", wt, "--run-root", root, "--owner", "task", "--", "/bin/echo", "hi")
+	if code != 0 || errS != "" {
+		t.Fatalf("task start: out=%q err=%q code=%d", out, errS, code)
+	}
+	d := driveDoc(t, decodeOneJSON(t, out))
+	if id, _ := d["drive_id"].(string); id == "" {
+		t.Fatalf("task start produced no drive id: %v", d)
+	}
+	if d["outcome"] != "PASSED" {
+		t.Fatalf("task start outcome=%v, want PASSED", d["outcome"])
+	}
+}
+
+// TestGateDriveStartOwnerTaskRequiresArgv proves `--owner task` without a `--`
+// argv boundary is an invalid-input command failure (exit 2) naming the `--`
+// contract, and never launches a drive.
+func TestGateDriveStartOwnerTaskRequiresArgv(t *testing.T) {
+	wt := gateDriveRepo(t)
+	root := gateTempDir(t)
+	_, errS, code := runCLI(t, "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "task")
+	if code != 2 {
+		t.Fatalf("task without argv: code=%d, want 2", code)
+	}
+	if !strings.Contains(errS, "--") {
+		t.Fatalf("task without argv: message does not name the -- contract: %q", errS)
+	}
+}
+
+// TestGateDriveStartBuildRejectsArgv proves `--owner build|finalize` still refuses
+// a `-- <argv>` boundary: the config owners run their resolved suite command, never
+// operator argv. Exit 2, no drive launched.
+func TestGateDriveStartBuildRejectsArgv(t *testing.T) {
+	wt := gateDriveRepo(t)
+	root := gateTempDir(t)
+	_, _, code := runCLI(t, "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "build", "--", "/bin/echo")
+	if code != 2 {
+		t.Fatalf("build with argv: code=%d, want 2", code)
+	}
+	_, _, code = runCLI(t, "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "finalize", "--", "/bin/echo")
+	if code != 2 {
+		t.Fatalf("finalize with argv: code=%d, want 2", code)
+	}
+}
+
+// TestGateDriveStartRejectsPositionalBeforeDash proves a positional word with no
+// `--` separator, or before one, is rejected (exit 2) — the argv only ever follows
+// a bare `--`.
+func TestGateDriveStartRejectsPositionalBeforeDash(t *testing.T) {
+	wt := gateDriveRepo(t)
+	root := gateTempDir(t)
+	_, _, code := runCLI(t, "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "task", "/bin/echo")
+	if code != 2 {
+		t.Fatalf("positional without dash: code=%d, want 2", code)
+	}
+	_, _, code = runCLI(t, "gate", "drive", "start", "--repo-dir", wt, "--run-root", root, "--owner", "task", "before", "--", "/bin/echo")
+	if code != 2 {
+		t.Fatalf("positional before dash: code=%d, want 2", code)
+	}
+}
+
 // TestCLIDoesNotImportProcess is the second half of the import-boundary check
 // (Task 1 owns the first): no internal/cli production file may import
 // internal/process. Same go/parser shape as the process-side guard, with a
