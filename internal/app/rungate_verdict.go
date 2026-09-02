@@ -42,6 +42,16 @@ import (
 // The O_EXCL create in ConsumeGateRetry grants at most one caller across any
 // number of concurrent verdicts, so two racing calls yield exactly one
 // gate-retry-once.
+//
+// CONTINUATION (change 0359). A tracked gate drive left live (or terminal but
+// unconsumed) is a CONTINUATION of the same attempt, not a stop: a RunVerify
+// run-waiting maps to a nonterminal gate-continue directly (gateContinueFromWaiting),
+// and a run-incomplete whose recovery scope still binds a tracked drive is taken
+// over (gateOuterContinuation) BEFORE the retry CAS is reached — so healthy work
+// never spends the retry. A continuation keeps the same key, records the
+// single-use continuation triple, and reports `gate-continue <key> run-waiting
+// <id> <continuation-id> <phase>` with Terminal false. Unsafe ownership
+// (ambiguous or halted takeover) earns neither retry nor continuation.
 
 // OperationRunGateVerdict is the operation key `run gate-verdict` records in its
 // envelope.
@@ -78,21 +88,34 @@ const gateReasonStoreError = "store-error"
 type RunGateVerdictResult struct {
 	Envelope
 	Key          string   `json:"key,omitempty"`
-	Decision     string   `json:"decision,omitempty"` // gate-done | gate-retry-once | gate-stop
+	Decision     string   `json:"decision,omitempty"` // gate-done | gate-retry-once | gate-stop | gate-continue
 	Outcome      string   `json:"outcome,omitempty"`  // run-* | no-attributable-claim | ambiguous-claims | gate-unavailable
 	AttributedID int      `json:"attributed_id,omitempty"`
 	Unmet        []string `json:"unmet,omitempty"`
 	HandoffID    string   `json:"handoff_id,omitempty"`
 	Phase        string   `json:"phase,omitempty"`
-	AmbiguousIDs []int    `json:"ambiguous_ids,omitempty"`
-	Reason       string   `json:"reason,omitempty"`
-	Terminal     bool     `json:"terminal"`
+	// ContinuationID is the single-use redemption token minted on a gate-continue
+	// decision (change 0359); it is the middle field of the continue line and the
+	// token a resumed controller presents to `run gate-claim`.
+	ContinuationID string `json:"continuation_id,omitempty"`
+	AmbiguousIDs   []int  `json:"ambiguous_ids,omitempty"`
+	Reason         string `json:"reason,omitempty"`
+	Terminal       bool   `json:"terminal"`
 }
 
 // HumanText renders the single attributed report line. The field layout after
 // `<decision> <key> <outcome>` is chosen by the outcome token.
 func (r RunGateVerdictResult) HumanText() string {
 	fields := []string{r.Decision, r.Key, r.Outcome}
+	// A gate-continue reuses the run-waiting outcome word but a DISTINCT field
+	// layout — [id, continuation-id, phase] — so it is keyed on the DECISION, not
+	// the outcome, and never falls into the outcome switch below (which would print
+	// the gate-stop run-waiting shape). The continuation id, not the opaque drive
+	// id, is what the parent redeems.
+	if r.Decision == GateDecisionContinue {
+		fields = append(fields, strconv.Itoa(r.AttributedID), r.ContinuationID, r.Phase)
+		return strings.Join(fields, " ")
+	}
 	switch r.Outcome {
 	case GateOutcomeNoAttributableClaim:
 		// no trailing fields
@@ -201,13 +224,24 @@ func RunGateVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 		return persistGateVerdict(repoDir, key, rec,
 			gateVerdictLine(key, GateDecisionStop, VerdictRunHalted, id, true, nil))
 	case VerdictRunWaiting:
-		return persistGateVerdict(repoDir, key, rec,
-			gateVerdictLine(key, GateDecisionStop, VerdictRunWaiting, id, true, func(r *RunGateVerdictResult) {
-				// Handoff id and phase pass through verbatim — never reformatted.
-				r.HandoffID = v.HandoffID
-				r.Phase = v.Phase
-			}))
+		// A cooperatively handed-off drive is a live continuation, not a stop: emit
+		// a NONTERMINAL gate-continue that keeps the key and spends no retry (change
+		// 0359). v.HandoffID is the opaque drive locator; its unclaimed handoff token
+		// is read through the continuation seam and persisted into the triple.
+		return gateContinueFromWaiting(wdeps.Continuation, repoDir, key, rec, id, v.HandoffID, v.Phase)
 	case VerdictRunIncomplete:
+		// OUTER TAKEOVER BEFORE ANY RETRY CONSUMPTION (order load-bearing, change
+		// 0359): a run-incomplete whose recovery scope still binds a tracked drive is
+		// HEALTHY work to continue, not a quiescent incomplete to spend the one retry
+		// on. Only a genuinely quiescent incomplete — no scope, or zero candidate
+		// drives — falls through to the retry CAS below. [ORDERING MUTATION: moving
+		// the ConsumeGateRetry call above this check spends the retry on a continuable
+		// run — see TestVerdictIncompleteWithTrackedDriveContinuesWithoutRetry.]
+		if rec.ScopeID != "" {
+			if res, handled := gateOuterContinuation(ctx, deps, wdeps, gdeps, repoDir, key, rec, id); handled {
+				return res
+			}
+		}
 		unmet := gateUnmetTokens(v)
 		// Consume the retry permit BEFORE choosing the report (a lost retry is the
 		// safe failure). The CAS return decides retry-once vs stop, so two
@@ -242,6 +276,102 @@ func RunGateVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 				r.Reason = GateReasonUnknownVerdict
 			}))
 	}
+}
+
+// gateContinueFromWaiting emits the nonterminal gate-continue for a RunVerify
+// run-waiting (a worker cooperatively handed off): it reads the drive's unclaimed
+// handoff token through the continuation seam and records the continuation triple.
+// A nil seam or an unreadable handoff fails CLOSED to a terminal gate-stop
+// gate-unavailable rather than emitting a continuation no controller can redeem —
+// the pre-0359 terminal shape is never resurrected (migration is atomic).
+func gateContinueFromWaiting(seam ContinuationSeam, repoDir, key string, rec GateRecord, id int, driveID, phase string) RunGateVerdictResult {
+	if seam == nil {
+		return gateStopUnavailable(repoDir, key, rec, id, ReasonGateContinuationUnavailable)
+	}
+	handoff, err := seam.ExistingHandoffToken(driveID)
+	if err != nil {
+		return gateStopUnavailable(repoDir, key, rec, id, ReasonGateContinuationUnavailable)
+	}
+	return emitContinue(repoDir, key, rec, id, driveID, handoff, phase)
+}
+
+// gateOuterContinuation handles a run-incomplete that carries a recovery scope: it
+// locates the tracked drive(s) nested under the outer scope and, for exactly one,
+// takes it over (event-authorized) and synthesizes a normal handoff, then re-runs
+// the UNCHANGED RunVerify predicate to certify the continuation. It returns
+// handled=false ONLY for the genuinely quiescent case (no seam wired, or zero
+// candidates), so the caller falls through to the ordinary retry path; every other
+// outcome — a certified continuation, or an unsafe/ambiguous/erred takeover — is a
+// terminal decision it returns with handled=true. Unsafe ownership never earns
+// retry OR continuation, and this whole path runs BEFORE the retry CAS.
+func gateOuterContinuation(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, gdeps GitHubDeps, repoDir, key string, rec GateRecord, id int) (RunGateVerdictResult, bool) {
+	seam := wdeps.Continuation
+	if seam == nil {
+		// No continuation seam wired: cannot recover a tracked drive; treat as
+		// quiescent and take the ordinary retry path (the pre-0359 behavior).
+		return RunGateVerdictResult{}, false
+	}
+	ids, err := seam.LocateOuterDrive(id, rec.ChildContextHash)
+	if err != nil {
+		return gateStopUnavailable(repoDir, key, rec, id, ReasonGateLocateFailed), true
+	}
+	switch len(ids) {
+	case 0:
+		// Genuinely quiescent: fall through to the retry CAS.
+		return RunGateVerdictResult{}, false
+	case 1:
+		handoff, halted, cause, terr := seam.TakeoverAndHandoff(rec.ScopeID, rec.ParentCap, ids[0])
+		if terr != nil {
+			return gateStopUnavailable(repoDir, key, rec, id, ReasonGateTakeoverError), true
+		}
+		if halted {
+			reason := cause
+			if reason == "" {
+				reason = ReasonGateTakeoverError
+			}
+			return gateStopUnavailable(repoDir, key, rec, id, reason), true
+		}
+		// The synthesized normal handoff must validate through the UNCHANGED
+		// run-waiting predicate: re-run RunVerify and require run-waiting.
+		v2 := RunVerify(ctx, deps, wdeps, gdeps, repoDir, RunVerifyRequest{ID: id})
+		if v2.Verdict != VerdictRunWaiting {
+			return gateStopUnavailable(repoDir, key, rec, id, ReasonGateContinuationUnverified), true
+		}
+		return emitContinue(repoDir, key, rec, id, v2.HandoffID, handoff, v2.Phase), true
+	default:
+		// More than one candidate for one outer scope is unsafe ownership.
+		return gateStopUnavailable(repoDir, key, rec, id, ReasonGateTakeoverAmbiguous), true
+	}
+}
+
+// emitContinue records the continuation triple onto rec and returns the
+// nonterminal gate-continue report line `gate-continue <key> run-waiting <id>
+// <continuation-id> <phase>`. It spends no retry — the retry mirror is untouched.
+// A continuation-id minting fault fails closed to a terminal gate-stop.
+func emitContinue(repoDir, key string, rec GateRecord, id int, driveID, handoff, phase string) RunGateVerdictResult {
+	cid, err := newContinuationID()
+	if err != nil {
+		return gateStopUnavailable(repoDir, key, rec, id, ReasonGateContinuationUnavailable)
+	}
+	rec.ContinuationID = cid
+	rec.ContinuationDrive = driveID
+	rec.ContinuationHandoff = handoff
+	return persistGateVerdict(repoDir, key, rec,
+		gateVerdictLine(key, GateDecisionContinue, VerdictRunWaiting, id, false, func(r *RunGateVerdictResult) {
+			r.HandoffID = driveID
+			r.Phase = phase
+			r.ContinuationID = cid
+		}))
+}
+
+// gateStopUnavailable builds a terminal gate-stop gate-unavailable report carrying
+// reason, and persists it. It never consumes the retry permit — a fail-closed stop
+// on the continuation path leaves the permit exactly as it found it.
+func gateStopUnavailable(repoDir, key string, rec GateRecord, id int, reason string) RunGateVerdictResult {
+	return persistGateVerdict(repoDir, key, rec,
+		gateVerdictLine(key, GateDecisionStop, GateOutcomeUnavailable, id, true, func(r *RunGateVerdictResult) {
+			r.Reason = reason
+		}))
 }
 
 // attributeGateClaim reads the current in-progress claim set fresh and applies the
@@ -381,8 +511,10 @@ func (r RunGateVerdictObserveResult) HumanText() string {
 // gateObserveLine renders ONE observe report line. Its leading token is always
 // the GateDecisionObserve literal, and the outcome word is one of the observe
 // outcome set (a RunVerify verdict, no-current-run, or gate-unavailable). It has
-// no knowledge of and no branch to GateDecisionRetryOnce — the structural
-// guarantee that --unattributed can never authorize a retry.
+// no knowledge of and no branch to GateDecisionRetryOnce OR GateDecisionContinue
+// — the structural guarantee that --unattributed can authorize neither a retry
+// (change 0334) nor a nonterminal continuation (change 0359). A run-waiting id
+// observed here renders the plain observe run-waiting line, never a gate-continue.
 func gateObserveLine(o GateObservation) string {
 	fields := []string{GateDecisionObserve, o.Outcome}
 	switch o.Outcome {
