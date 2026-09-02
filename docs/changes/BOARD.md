@@ -1,6 +1,12 @@
 # Backlog
 
-**396 changes** — 🔵 1 built · 🟣 21 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 241 done · 🗑️ 84 killed
+**396 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 20 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 241 done · 🗑️ 84 killed
+
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0396](active/0396-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes.md) | finalize async gate WAITING has no CLI re-entry that resumes the same drive | `high` | `fix` | [spec](../superpowers/specs/2026-09-02-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes-design.md) | `fix/finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes` |
 
 ## 🔵 Built (1)
 
@@ -8,11 +14,10 @@
 |---|-------|----------|------|----|-------|
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
-## 🟣 Groomed (21)
+## 🟣 Groomed (20)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0396](active/0396-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes.md) | finalize async gate WAITING has no CLI re-entry that resumes the same drive | `high` | `fix` | [spec](../superpowers/specs/2026-09-02-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes-design.md) |
 | [0395](active/0395-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap.md) | Migrate CLAUDE.md/AGENTS.md agent-executed blocks to the capability-first idiom | `medium` | `refactor` | [spec](../superpowers/specs/2026-09-02-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap-design.md) |
 | [0359](active/0359-run-gate-gives-up-too-soon.md) | Run gate gives up too soon | `high` | `fix` | [spec](../superpowers/specs/2026-08-28-run-gate-gives-up-too-soon-design.md) |
 | [0264](active/0264-measure-the-claude-harness-s-forked-mode-gate-verdict-and-pi.md) | Measure the claude harness's forked-mode gate verdict and pin a surviving launch shape | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-claude-forked-mode-gate-verdict-design.md) |
