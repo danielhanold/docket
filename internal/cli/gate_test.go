@@ -560,7 +560,7 @@ func TestGateDrivePrepareScopeGrantAndRedaction(t *testing.T) {
 // scopeIdentityMatch table and TestStartBindsScope), so this never weakens the
 // fail-closed check.
 func TestGateDriveScopeBoundStartRoundTrips(t *testing.T) {
-	wt := gateDriveRepo(t)
+	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\n")
 	root := gateTempDir(t)
 
 	// Prepare a task recovery scope for this worktree.
@@ -582,13 +582,12 @@ func TestGateDriveScopeBoundStartRoundTrips(t *testing.T) {
 	// a drive id — rather than fail scope-identity-mismatch → invalid-request. The
 	// BIND is the exact property the RepoIdentity fix delivers: the start cleared
 	// scopeIdentityMatch, launched, and got a drive id. The drive's terminal
-	// OUTCOME is deliberately NOT asserted here: a task-intent drive currently
-	// carries a zero observation budget, so a child caught running once HALTs
-	// deadline-expired instead of reaching PASSED (a SEPARATE task-intent-wiring
-	// defect, reported for a follow-up, not this task's subject). Both PASSED and
-	// that HALT are APPLIED results with a drive id, so keying on the bind keeps
-	// this regression deterministic while still failing hard on the old
-	// no-drive/invalid-request state.
+	// OUTCOME is deliberately NOT asserted here — this regression keys on the bind
+	// (an APPLIED result carrying a drive id), which fails hard on the old
+	// no-drive/invalid-request state regardless of whether the fast child reaches
+	// PASSED within the first slice. (The task-intent zero-budget defect that once
+	// forced a HALT here is fixed: the task owner now resolves the configured
+	// observation budget, so a still-running child WAITS rather than HALTing.)
 	out, errS, code = runCLI(t, "--json", "gate", "drive", "start",
 		"--repo-dir", wt, "--run-root", root, "--owner", "task",
 		"--scope-id", scopeID, "--child-cap", childCap,
@@ -642,10 +641,16 @@ func TestGateDriveTakeoverRequiresFlags(t *testing.T) {
 }
 
 // TestGateDriveStartOwnerTaskRunsArgv proves `--owner task` runs the agent-supplied
-// argv verbatim (no config resolution): a fast green command returns a drive doc
-// carrying a drive id and PASSED at exit 0.
+// argv verbatim (the COMMAND is not resolved from config), while the observation
+// BUDGET IS resolved from authoritative config (the configured repo below carries
+// the default gate_observation_budget): a fast green command returns a drive doc
+// carrying a drive id and PASSED at exit 0. It is deliberately NOT load-fragile:
+// with the resolved non-zero budget the slice polls the still-running child until
+// it exits (PASSED) instead of the pre-fix zero budget, which fixed the deadline
+// at start and HALTed deadline-expired the first time the child was observed
+// running under load (the Task-12 defect).
 func TestGateDriveStartOwnerTaskRunsArgv(t *testing.T) {
-	wt := gateDriveRepo(t)
+	wt := gateDriveConfiguredRepo(t, "metadata_branch: main\n")
 	root := gateTempDir(t)
 	out, errS, code := runCLI(t, "--json", "gate", "drive", "start",
 		"--repo-dir", wt, "--run-root", root, "--owner", "task", "--", "/bin/echo", "hi")

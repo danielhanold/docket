@@ -225,7 +225,16 @@ func NewCommandlessGateDriveService(gitCommonDir, exePath string) (*GateDriveSer
 // regardless of the request), and records the fixed provenance
 // "task.argv=agent-supplied". An empty argv fails closed here so no service can
 // ever reach Start with an empty command.
-func NewTaskGateDriveService(gitCommonDir, exePath string, argv []string) (*GateDriveService, Result, string) {
+//
+// The COMMAND is agent-supplied, but the observation BUDGET is not: like the
+// build/finalize owner constructors, this resolves the config-provenanced
+// gate_observation_budget (minutes) from the effective configuration. A zero
+// budget here would fix the deadline at start, so any focused test observed
+// running even once would HALT deadline-expired instead of WAITING for its result
+// — the exact defect Task 12 surfaced. The budget therefore always comes from
+// authoritative config (default 30 minutes), never a hardcoded zero; only the
+// command stays agent-supplied.
+func NewTaskGateDriveService(gitCommonDir, exePath string, eff config.Effective, argv []string) (*GateDriveService, Result, string) {
 	if len(argv) == 0 {
 		return nil, ResultInvalidInput, "missing-argv"
 	}
@@ -236,7 +245,8 @@ func NewTaskGateDriveService(gitCommonDir, exePath string, argv []string) (*Gate
 	}
 	store := gatedrive.OpenStore(gitCommonDir)
 	engine := gatedrive.NewSystemDriver(store, proc)
-	svc := newGateDriveService(engine, 0, "", "task.argv=agent-supplied")
+	budget := time.Duration(eff.GateObservation.Value) * time.Minute
+	svc := newGateDriveService(engine, budget, "", "task.argv=agent-supplied")
 	svc.owner = "task"
 	svc.taskIntent = true
 	svc.argv = argv

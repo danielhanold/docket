@@ -404,7 +404,8 @@ func TestPrepareScopeHumanTextRedactsCapabilities(t *testing.T) {
 // provenance.
 func TestTaskServiceForcesNonIdempotent(t *testing.T) {
 	argv := []string{"go", "test", "-run", "Focus", "./internal/app/"}
-	svc, res, reason := NewTaskGateDriveService(t.TempDir(), "/bin/true", argv)
+	eff := config.Effective{GateObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
+	svc, res, reason := NewTaskGateDriveService(t.TempDir(), "/bin/true", eff, argv)
 	if svc == nil {
 		t.Fatalf("task constructor must build a service: %s %s", res, reason)
 	}
@@ -434,7 +435,8 @@ func TestTaskServiceForcesNonIdempotent(t *testing.T) {
 // with ResultInvalidInput and the stable missing-argv reason — never a service
 // that could Start an empty command.
 func TestTaskServiceRequiresArgv(t *testing.T) {
-	svc, res, reason := NewTaskGateDriveService(t.TempDir(), "/bin/true", nil)
+	eff := config.Effective{GateObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
+	svc, res, reason := NewTaskGateDriveService(t.TempDir(), "/bin/true", eff, nil)
 	if svc != nil {
 		t.Fatalf("empty argv must not build a service")
 	}
@@ -443,6 +445,37 @@ func TestTaskServiceRequiresArgv(t *testing.T) {
 	}
 	if reason != "missing-argv" {
 		t.Fatalf("reason = %q, want missing-argv", reason)
+	}
+}
+
+// TestTaskServiceResolvesObservationBudget is the regression for the Task-12
+// defect: the task-intent constructor USED to hardcode a zero observation budget,
+// which fixed the drive's deadline at start so any focused test caught running
+// even once HALTed deadline-expired instead of WAITING for its result. The budget
+// must instead resolve from authoritative config (gate_observation_budget,
+// minutes) exactly as the build/finalize owner constructors do, so a running child
+// stays in-window. A zero budget would still yield an at-start deadline; a resolved
+// 30-minute default yields a deadline strictly after start, and Start must inject
+// that resolved budget into the engine request.
+func TestTaskServiceResolvesObservationBudget(t *testing.T) {
+	argv := []string{"go", "test", "-run", "Focus", "./internal/app/"}
+	eff := config.Effective{GateObservation: config.Value[int]{Value: 30, Provenance: config.Provenance{Layer: config.LayerRepository}}}
+	svc, res, reason := NewTaskGateDriveService(t.TempDir(), "/bin/true", eff, argv)
+	if svc == nil {
+		t.Fatalf("task constructor must build a service: %s %s", res, reason)
+	}
+	if svc.budget != 30*time.Minute {
+		t.Fatalf("task budget must resolve from gate_observation_budget minutes, got %v (a zero budget HALTs a running focused test)", svc.budget)
+	}
+	// The resolved budget must actually reach the engine's Start request — a budget
+	// held on the service but not injected would leave the drive at a zero deadline.
+	eng := &fakeDriveEngine{doc: gatedrive.DriveDoc{Outcome: gatedrive.WAITING}}
+	svc.engine = eng
+	if got := svc.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: "/repo"}); got.Result != ResultApplied {
+		t.Fatalf("a WAITING start is an applied operation, got %s", got.Result)
+	}
+	if eng.lastStart.Budget != 30*time.Minute {
+		t.Fatalf("task Start must inject the resolved non-zero budget, got %v", eng.lastStart.Budget)
 	}
 }
 
