@@ -1,13 +1,12 @@
 # Backlog
 
-**395 changes** — 🔵 2 built · 🟣 20 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 240 done · 🗑️ 84 killed
+**395 changes** — 🔵 1 built · 🟣 20 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 241 done · 🗑️ 84 killed
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
-| [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [#266](https://github.com/danielhanold/docket/pull/266) | awaiting merge |
 
 ## 🟣 Groomed (20)
 
@@ -148,7 +147,6 @@ graph TD
   0354
   0359
   0360
-  0352 --> 0364
   0370 --> 0366
   0368
   0373
@@ -169,18 +167,18 @@ graph TD
   0192:::done
   0211:::done
   0251:::done
-  0352:::done
   0370:::done
   0374:::done
   0394:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (324)</summary>
+<details><summary>✅🗑️ Archive — done + killed (325)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0394](archive/2026-09-02-0394-give-docket-skills-an-authoritative-compact-cli-capability-c.md) | Give Docket skills an authoritative compact CLI capability catalog | 2026-09-02 |
+| [0364](archive/2026-09-02-0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | 2026-09-02 |
 | [0390](archive/2026-09-01-0390-maintenance-sweep-scope-full-re-probes-the-remote-per-item-h.md) | maintenance sweep --scope full re-probes the remote per item, hanging the sweep | 2026-09-01 |
 | [0384](archive/2026-09-01-0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md) | Launch compositional Docket agents in coordinator-capable harness contexts | 2026-09-01 |
 | [0374](archive/2026-09-01-0374-separate-build-and-finalize-test-configuration.md) | Separate build and finalize test configuration | 2026-09-01 |
@@ -196,7 +194,6 @@ graph TD
 | [0369](archive/2026-08-30-0369-migrate-maintained-consumers-to-the-direct-go-cli.md) | Migrate retained lifecycle consumers to typed Go operations | 2026-08-30 |
 | [0365](archive/2026-08-29-0365-codex-nested-dispatch-capability-boundary.md) | Make nested Docket dispatch reliable for every Codex agent invocation | 2026-08-29 |
 | [0363](archive/2026-08-29-0363-remove-main-mode-compatibility-from-go-v1.md) | Remove main-mode compatibility from Go v1 | 2026-08-29 |
-| [0318](archive/2026-08-29-0318-config-contraction-self-hosting-and-hard-cutover.md) | Go-only source cutover | 2026-08-29 |
 | [0353](archive/2026-08-26-0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | 2026-08-26 |
 | [0294](archive/2026-08-26-0294-shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru.md) | Shrink AGENTS.md's always-loaded footprint: script-ify the run gate's caller procedure and de-duplicate the dispatch table | 2026-08-26 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
@@ -284,7 +281,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 107 done |
+| [2026-08](archive/) | 108 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
