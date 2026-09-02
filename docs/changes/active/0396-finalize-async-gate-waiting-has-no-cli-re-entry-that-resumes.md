@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-02T10:48:43Z'
+reconciled: true
+claimed_at: '2026-09-02T10:51:51Z'
 ---
 
 ## Artifacts
@@ -57,3 +57,9 @@ Persist the finalize local gate's continuation in the owned rebase receipt, so t
 - The two-agent resolver/repair flow, and build's gate.
 - Cleaning up run roots orphaned by earlier finalize runs.
 - The repair path's post-repair re-gate, which today uses raw `gate.launch`/`gate.observe` instead of the driver (at odds with ADR-0098) — discovered work, to be captured as its own change.
+
+## Reconcile log
+
+### 2026-09-02
+
+2026-09-02 — Reconciled against current reality. All symbols the spec relies on exist as described in internal/app/finalize_rebase.go (FinalizeRebaseRequest.Continuation, GateContinuation, composeLocalGate(...cont GateContinuation), recoverFromReceipt, mapContinuedRebase, newRebaseAttempt) and internal/workspace/rebasereceipt.go (RebaseReceipt, validateRebaseReceipt, WriteRebaseReceipt). ADR-0098 present. newRebaseAttempt mints `<stamp>-<baseHead[:12]>` (12 hex) — confirming the §6 attempt-token-truncation claim is NOT reproduced in the minting code; it stays unverified and is settled by a CLI round-trip test at build time (fix only if it reddens). The docket-finalize-change skill has no `waiting` route today (only an unrelated 'waiting for the safety-net sweep' phrase in its description) — the gap the spec fills. Related: 342/364 done, 375 (gate drive start idempotency) still proposed and correctly treated as a sidestepped sibling, not a dependency. No scope change; design holds as written. Discovered work to report (already flagged out-of-scope in the spec): the repair path's post-repair re-gate uses raw gate.launch/gate.observe instead of the driver, at odds with ADR-0098 — capture as its own change.
