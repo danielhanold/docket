@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0394 — Give Docket skills an authoritative compact CLI capability catalog](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0394-give-docket-skills-an-authoritative-compact-cli-capability-c.md)**
+> ↩ **[Change 0394 — Give Docket skills an authoritative compact CLI capability catalog](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-02-0394-give-docket-skills-an-authoritative-compact-cli-capability-c.md)**
 <!-- docket:backlink:end -->
 # Authoritative Compact CLI Capability Catalog Implementation Plan
 
