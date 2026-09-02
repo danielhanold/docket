@@ -36,12 +36,13 @@ const (
 )
 
 // RebaseReceipt is the owned rebase's effect record. Every field is a scalar
-// string so the whole value is comparable, letting a publishing run assert the
-// on-disk receipt is byte-for-byte the one it expects. RepoIdentity is the
-// repository's canonical common directory; ChangeID is the decimal change id;
-// OrigHead is the pre-rebase local head; OrigRemoteHead is the remote feature
-// head the rewrite lease is keyed to; BaseRef/BaseHead are the rebase target;
-// Attempt is an opaque token distinguishing one rewrite attempt from another.
+// string so the whole value is comparable, the gate pair included, letting a
+// publishing run assert the on-disk receipt is byte-for-byte the one it expects.
+// RepoIdentity is the repository's canonical common directory; ChangeID is the
+// decimal change id; OrigHead is the pre-rebase local head; OrigRemoteHead is the
+// remote feature head the rewrite lease is keyed to; BaseRef/BaseHead are the
+// rebase target; Attempt is an opaque token distinguishing one rewrite attempt
+// from another.
 type RebaseReceipt struct {
 	RepoIdentity   string `json:"repo_identity"`
 	ChangeID       string `json:"change_id"`
@@ -50,7 +51,16 @@ type RebaseReceipt struct {
 	BaseRef        string `json:"base_ref"`
 	BaseHead       string `json:"base_head"`
 	Attempt        string `json:"attempt"`
-	CreatedUTC     string `json:"created_utc"`
+	// GateDriveID / GateOwnerGeneration persist the finalize local gate's
+	// continuation across WAITING slices, so a bare re-entry of the identical
+	// finalize.rebase invocation advances the SAME drive (change 0396). The
+	// owner generation is receipt-private by design (ADR-0098: only the exact
+	// owner advances a drive); it never appears in any CLI document. The pair
+	// rule is both-empty (no live drive) or both-set (a WAITING drive to
+	// resume); a half-set pair is malformed on write and on read alike.
+	GateDriveID         string `json:"gate_drive_id,omitempty"`
+	GateOwnerGeneration string `json:"gate_owner_generation,omitempty"`
+	CreatedUTC          string `json:"created_utc"`
 }
 
 // validateRebaseReceipt rejects every malformed field so an invalid receipt is
@@ -80,6 +90,9 @@ func validateRebaseReceipt(r RebaseReceipt) error {
 	}
 	if r.Attempt == "" {
 		return fmt.Errorf("empty attempt token")
+	}
+	if (r.GateDriveID == "") != (r.GateOwnerGeneration == "") {
+		return fmt.Errorf("half-set gate continuation pair: drive id and owner generation must both be empty or both be set")
 	}
 	if _, err := time.Parse(time.RFC3339, r.CreatedUTC); err != nil {
 		return fmt.Errorf("invalid created_utc")
