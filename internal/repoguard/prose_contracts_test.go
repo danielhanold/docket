@@ -211,6 +211,16 @@ var proseContracts = []proseContract{
 	// the status dispatch contract is hybrid.
 	{sentinel: "change_0389_sweep_scope", file: "skills/docket-convention/SKILL.md",
 		present: []string{"no longer implies a full historical sweep"}},
+	// change 0397 — the retired step-0 dispatch must not reappear through the
+	// status/convention prose either. Each present phrase binds the surviving
+	// text to the inline operation; each absent phrase is the retired dispatch
+	// wording this change removed from that file.
+	{sentinel: "change_0397_preflight_op", file: "skills/docket-status/SKILL.md",
+		present: []string{"maintenance.preflight"},
+		absent:  []string{"step-0 implementation preflight** ⇒"}},
+	{sentinel: "change_0397_preflight_op", file: "skills/docket-convention/SKILL.md",
+		present: []string{"runs the `maintenance.preflight` operation inline"},
+		absent:  []string{"dispatches the `docket-status` subagent (step 0)"}},
 }
 
 // scanProse checks one file's content against a contract, returning a violation
