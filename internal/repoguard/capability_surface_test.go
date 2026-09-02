@@ -11,7 +11,8 @@ import (
 )
 
 // This guard enforces change 0394's central invariant on the MAINTAINED workflow
-// surfaces (skills/, agents/, cursor-rules/): agent-executed markdown is code
+// surfaces (skills/, agents/, cursor-rules/, and the repo-root AGENTS.md /
+// CLAUDE.md — change 0395): agent-executed markdown is code
 // (agent-executed-markdown-is-code), and the ONLY executable docket CLI spelling
 // it may hard-code is the capability bootstrap `docket capabilities --json`. Every
 // other executable invocation must be resolved from the catalog at runtime, so a
@@ -96,14 +97,22 @@ var capabilityExemptions = map[string]int{
 const capabilitySurfaceRemedy = "a new `docket <argv>` spelling on a workflow surface must be migrated to a catalog-resolved semantic operation — see docket-convention's Step-0 preamble"
 
 // capabilitySurfaceCorpus is the maintained workflow surface: every *.md under
-// skills/ and agents/, and every file under cursor-rules/ (agent-executed markdown
-// is code). Drawn from maintainedPop so the categorical exclusions and fail-closed
-// read discipline apply.
+// skills/ and agents/, every file under cursor-rules/, and the repo-root
+// instruction files AGENTS.md / CLAUDE.md (agent-executed markdown is code).
+// Drawn from maintainedPop so the categorical exclusions and fail-closed read
+// discipline apply.
 func capabilitySurfaceCorpus(t *testing.T, root string) []string {
 	t.Helper()
 	var out []string
 	for _, rel := range maintainedPop(t, root) {
 		switch {
+		case rel == "AGENTS.md" || rel == "CLAUDE.md":
+			// Change 0395: the repo-root instruction files are always-loaded
+			// agent-executed surface — both spellings are scanned even though
+			// CLAUDE.md is today a symlink to AGENTS.md, so the guard keeps
+			// covering both if the alias is ever replaced by a divergent
+			// regular file.
+			out = append(out, rel)
 		case underDir(rel, "cursor-rules"):
 			out = append(out, rel)
 		case (underDir(rel, "skills") || underDir(rel, "agents")) && hasExt(rel, ".md"):
@@ -192,6 +201,19 @@ func TestCapabilitySurface(t *testing.T) {
 	corpus := capabilitySurfaceCorpus(t, root)
 	if len(corpus) < 40 {
 		t.Fatalf("population floor: capability-surface corpus collapsed to %d files (expected >= 40)", len(corpus))
+	}
+
+	// Change 0395 scope extension: the repo-root instruction files must be IN
+	// the population, or the coverage this change added is silently gone (a
+	// removed corpus case, or a broken CLAUDE.md alias, must redden here).
+	inCorpus := map[string]bool{}
+	for _, rel := range corpus {
+		inCorpus[rel] = true
+	}
+	for _, want := range []string{"AGENTS.md", "CLAUDE.md"} {
+		if !inCorpus[want] {
+			t.Errorf("capability-surface corpus is missing the repo-root instruction file %s — the change-0395 scope extension regressed", want)
+		}
 	}
 
 	var violations []string
