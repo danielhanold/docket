@@ -167,6 +167,14 @@ func TestProductionEffectsCompleteAndClosed(t *testing.T) {
 	} else {
 		t.Errorf("status is not in the catalog")
 	}
+	// The preflight leaf declares exactly [metadata-write]: the spec pins the
+	// preflight's effect to the metadata mutation it exists to perform, narrower
+	// than maintenance.sweep's own union (change 0397).
+	if e, ok := entryByID(entries, "maintenance.preflight"); !ok {
+		t.Error("maintenance.preflight absent from the catalog")
+	} else if len(e.Effects) != 1 || e.Effects[0] != "metadata-write" {
+		t.Errorf("maintenance.preflight effects = %v, want [metadata-write]", e.Effects)
+	}
 }
 
 func entryByID(entries []CapabilityEntry, id string) (CapabilityEntry, bool) {
@@ -240,19 +248,22 @@ func TestCapabilitiesIsRepositoryConfigAssetAndWriteIndependent(t *testing.T) {
 }
 
 // TestCapabilitiesPayloadWithinByteBudget is the gating oracle for compactness:
-// the emitted catalog must fit the 12288-byte (12 KB) design ceiling, and it
+// the emitted catalog must fit the 13312-byte (13 KB) design ceiling, and it
 // must carry no human help prose — the catalog is a machine bootstrap, not a
 // second copy of --help. Growth past the ceiling is a design event (spec:
 // Compactness boundary), never a truncation or per-skill-filter opportunity.
+// The ceiling was raised one KB step (12 KB → 13 KB) for change 0397, whose spec
+// deliberately adds the `maintenance.preflight` operation to the catalog — the
+// conscious design event the guard exists to make visible, not a silent creep.
 func TestCapabilitiesPayloadWithinByteBudget(t *testing.T) {
 	out, errS, code := runCLI(t, "capabilities", "--json")
 	if code != 0 || errS != "" {
 		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
 	}
 	n := len(out)
-	t.Logf("capabilities payload: %d bytes (budget 12288)", n)
-	if n > 12*1024 {
-		t.Fatalf("catalog is %d bytes, over the 12KB design ceiling — growth is a design event (spec: Compactness boundary), not a truncation opportunity", n)
+	t.Logf("capabilities payload: %d bytes (budget 13312)", n)
+	if n > 13*1024 {
+		t.Fatalf("catalog is %d bytes, over the 13KB design ceiling — growth is a design event (spec: Compactness boundary), not a truncation opportunity", n)
 	}
 	// Content-exclusion: no help-prose fields. The catalog names signatures and
 	// effects, never Short/Long/Example/Help text.
@@ -282,9 +293,11 @@ func TestRepresentativeSignatures(t *testing.T) {
 		// request-file leaf: required file, optional repo dir.
 		"change.reconcile": "--input <file> [--repo-dir <dir>]",
 		// repeatable filters, both sides of the optional repo dir, sorted.
-		"status": "[--priority <level>...] [--repo-dir <dir>] [--type <type>...]",
+		"status": "[--priority <level>...] [--records] [--repo-dir <dir>] [--type <type>...]",
 		// pure positional tail, no flags.
 		"gate.observe": "<run-dir>",
+		// composition leaf: optional repo dir only (change 0397).
+		"maintenance.preflight": "[--repo-dir <dir>]",
 		// required flags then the bare `--` separator carrying the argv tail last.
 		"gate.launch": "--cwd <dir> --root <dir> -- <argv...>",
 		// positional alternation tail leading, optional flags trailing.

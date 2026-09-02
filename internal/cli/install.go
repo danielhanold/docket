@@ -99,6 +99,7 @@ var assetIndependent = map[string]bool{
 	"finalize cleanup":           true,
 	"maintenance":                true, // the group itself; it reports a missing command
 	"maintenance sweep":          true,
+	"maintenance preflight":      true,
 	"repository":                 true, // the group itself; it reports a missing command
 	"repository init":            true,
 	"repository check":           true,
