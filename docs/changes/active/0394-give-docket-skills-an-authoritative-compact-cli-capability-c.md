@@ -2,7 +2,7 @@
 id: 394
 slug: 'give-docket-skills-an-authoritative-compact-cli-capability-c'
 title: 'Give Docket skills an authoritative compact CLI capability catalog'
-status: 'in-progress'
+status: 'implemented'
 priority: 'high'
 type: 'feat'
 created: '2026-09-01'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'feat/give-docket-skills-an-authoritative-compact-cli-capability-c'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/267'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-01T23:55:59Z'
