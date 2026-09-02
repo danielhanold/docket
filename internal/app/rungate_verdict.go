@@ -199,6 +199,21 @@ func RunGateVerdict(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps,
 			// durable even if the delegation or the final save is interrupted.
 			rec.AttributedID = survivors[0]
 			_ = SaveGateRecord(repoDir, key, rec)
+			// Defense-in-depth (spec §3): a fresh run's outer scope begins unbound and
+			// binds ONCE to the one claim this conservative attribution rule accepts, so
+			// a later outer takeover's scopeIdentityMatch pins the change id instead of
+			// skipping the check on an empty scope field. This is the ONLY point a fresh
+			// run resolves a claim: a continuation enters with AttributedID already set
+			// and never reaches here (bind-once), and on `--resume` gate-before pre-binds
+			// the scope, so a redundant same-id bind is an idempotent no-op. The bind is
+			// best-effort — like the attribution mirror save above, it never gates the
+			// verdict (production is already protected by the attributed change id +
+			// context-hash filter and the verified parent capability). [MUTATION:
+			// dropping this call leaves the fresh-run scope unbound — see
+			// TestVerdictFreshRunBindsScopeChange.]
+			if rec.ScopeID != "" && wdeps.Continuation != nil {
+				_ = wdeps.Continuation.BindScopeChange(rec.ScopeID, survivors[0])
+			}
 		default:
 			return persistGateVerdict(repoDir, key, rec,
 				gateVerdictLine(key, GateDecisionStop, GateOutcomeAmbiguousClaims, 0, true, func(r *RunGateVerdictResult) {
