@@ -50,8 +50,8 @@ func newContextCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	implementation.Flags().String("repo-dir", "", "repository directory to read (default: current directory)")
-	implementation.Flags().Int("id", 0, "inspect this exact change id instead of applying the selection policy")
+	implementation.Flags().String("repo-dir", "", "repository `dir` to read (default: current directory)")
+	implementation.Flags().Int("id", 0, "inspect this exact change `id` instead of applying the selection policy")
 
 	finalize := &cobra.Command{
 		Use:         "finalize",
@@ -73,9 +73,9 @@ func newContextCommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	finalize.Flags().String("repo-dir", "", "repository directory to read (default: current directory)")
-	finalize.Flags().Int("id", 0, "inspect this exact change id instead of applying the selection policy")
-	finalize.Flags().IntSlice("allowlist", nil, "bound the finalize selection to these change ids (repeatable/comma-separated)")
+	finalize.Flags().String("repo-dir", "", "repository `dir` to read (default: current directory)")
+	finalize.Flags().Int("id", 0, "inspect this exact change `id` instead of applying the selection policy")
+	finalize.Flags().IntSlice("allowlist", nil, "bound the finalize selection to these change `id`s (repeatable/comma-separated)")
 
 	contextCmd.AddCommand(implementation, finalize)
 	return contextCmd

@@ -149,8 +149,8 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 			setResult(app.ChangeHalt(c.Context(), deps, repoDir, app.HaltRequest{ID: id, Version: version, Report: in.Report}))
 			return nil
 		}, EffectMetadataWrite)
-	halt.Flags().Int("id", 0, "in-progress change id to halt (required)")
-	halt.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
+	halt.Flags().Int("id", 0, "in-progress change `id` to halt (required)")
+	halt.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
 	_ = halt.MarkFlagRequired("id")
 	_ = halt.MarkFlagRequired("version")
 
@@ -212,14 +212,14 @@ func newRepairIdentitySubcommand(setResult func(app.OperationResult)) *cobra.Com
 			return nil
 		},
 	}
-	cmd.Flags().Int("id", 0, "change id whose recorded identity to repair (required)")
-	cmd.Flags().String("expect-version", "", "exact change-record version token from the finalize report (required)")
+	cmd.Flags().Int("id", 0, "change `id` whose recorded identity to repair (required)")
+	cmd.Flags().String("expect-version", "", "exact change-record version `token` from the finalize report (required)")
 	cmd.Flags().Bool("adopt-pr-head", false, "trust the PR: adopt the exact PR's reported head branch as branch:")
-	cmd.Flags().Int("expect-pr", 0, "the exact PR number the approved evidence showed (with --adopt-pr-head)")
-	cmd.Flags().String("expect-head", "", "the head branch the human approved (with --adopt-pr-head)")
-	cmd.Flags().String("adopt-pr", "", "trust the record: adopt this PR reference as pr: (with --expect-branch)")
-	cmd.Flags().String("expect-branch", "", "the recorded branch the human approved (with --adopt-pr)")
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().Int("expect-pr", 0, "the exact PR `n`umber the approved evidence showed (with --adopt-pr-head)")
+	cmd.Flags().String("expect-head", "", "the head branch `ref` the human approved (with --adopt-pr-head)")
+	cmd.Flags().String("adopt-pr", "", "trust the record: adopt this PR `ref`erence as pr: (with --expect-branch)")
+	cmd.Flags().String("expect-branch", "", "the recorded branch `name` the human approved (with --adopt-pr)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
 	_ = cmd.MarkFlagRequired("expect-version")
 	return cmd
@@ -265,10 +265,10 @@ func newResumeHaltedSubcommand(setResult func(app.OperationResult)) *cobra.Comma
 			return nil
 		},
 	}
-	cmd.Flags().Int("id", 0, "halted change id to resume (required)")
-	cmd.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
+	cmd.Flags().Int("id", 0, "halted change `id` to resume (required)")
+	cmd.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
 	cmd.Flags().Bool("acknowledge-quiescent", false, "explicit acknowledgement that the prior worker is quiescent (required to resume)")
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
 	_ = cmd.MarkFlagRequired("version")
 	return cmd
@@ -304,9 +304,9 @@ func newReclaimSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().Int("id", 0, "expired in-progress change id to reclaim (required)")
-	cmd.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().Int("id", 0, "expired in-progress change `id` to reclaim (required)")
+	cmd.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
 	_ = cmd.MarkFlagRequired("version")
 	return cmd
@@ -356,12 +356,12 @@ func newMarkImplementedSubcommand(setResult func(app.OperationResult)) *cobra.Co
 			return nil
 		},
 	}
-	cmd.Flags().Int("id", 0, "change id to mark implemented (required)")
-	cmd.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
-	cmd.Flags().String("head", "", "exact tested feature head the transition must certify (required)")
-	cmd.Flags().String("pr", "", "canonical PR reference returned by pr publish (required)")
-	cmd.Flags().String("evidence", "", "canonical build-evidence record file, or - for stdin (required)")
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().Int("id", 0, "change `id` to mark implemented (required)")
+	cmd.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
+	cmd.Flags().String("head", "", "exact tested feature head `ref` the transition must certify (required)")
+	cmd.Flags().String("pr", "", "canonical PR `ref`erence returned by pr publish (required)")
+	cmd.Flags().String("evidence", "", "canonical build-evidence record `file`, or - for stdin (required)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
 	_ = cmd.MarkFlagRequired("version")
 	_ = cmd.MarkFlagRequired("head")
@@ -398,11 +398,11 @@ func changeAttachSubcommand(verb, short string, run func(c *cobra.Command, deps 
 			return nil
 		},
 	}
-	cmd.Flags().Int("id", 0, "change id to attach the artifact to (required)")
-	cmd.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
-	cmd.Flags().String("path", "", "canonical repository-relative artifact path (required)")
-	cmd.Flags().String("commit", "", "exact feature commit the writer reported (required)")
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().Int("id", 0, "change `id` to attach the artifact to (required)")
+	cmd.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
+	cmd.Flags().String("path", "", "canonical repository-relative artifact `path` (required)")
+	cmd.Flags().String("commit", "", "exact feature commit `sha` the writer reported (required)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
 	_ = cmd.MarkFlagRequired("version")
 	_ = cmd.MarkFlagRequired("path")
@@ -433,8 +433,8 @@ func changeInputSubcommand(verb, short string, run func(c *cobra.Command, deps a
 			return run(c, deps, repoDir)
 		},
 	}
-	cmd.Flags().String("input", "", "JSON request file, or - to read the request from stdin (required)")
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().String("input", "", "JSON request `file`, or - to read the request from stdin (required)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("input")
 	return cmd
 }
@@ -472,9 +472,9 @@ func changeIDVersionSubcommand(verb, short string, run func(c *cobra.Command, de
 			return nil
 		},
 	}
-	cmd.Flags().Int("id", 0, "change id to operate on (required)")
-	cmd.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().Int("id", 0, "change `id` to operate on (required)")
+	cmd.Flags().String("version", "", "exact record blob object `id` from the authoritative context read (required)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("id")
 	_ = cmd.MarkFlagRequired("version")
 	return cmd
@@ -507,8 +507,8 @@ func changeSubcommand(group, verb, short string, run func(c *cobra.Command, deps
 			return run(c, deps, repoDir)
 		},
 	}
-	cmd.Flags().String("request", "", "JSON request file, or - to read the request from stdin (required)")
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().String("request", "", "JSON request `file`, or - to read the request from stdin (required)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	_ = cmd.MarkFlagRequired("request")
 	return cmd
 }

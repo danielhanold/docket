@@ -175,7 +175,7 @@ func newRepositoryMigrateCommand(setResult func(app.OperationResult)) *cobra.Com
 			return nil
 		},
 	}
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	cmd.Flags().Bool("yes", false, "authorize the migration without an interactive confirmation")
 	cmd.Flags().Bool("repair-frontmatter", false, "authorize the mechanical frontmatter repairs the plan lists")
 	return cmd
@@ -224,6 +224,6 @@ func repositorySubcommand(name, short string, run func(c *cobra.Command, deps ap
 			return nil
 		},
 	}
-	cmd.Flags().String("repo-dir", "", "repository directory to operate on (default: current directory)")
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 	return cmd
 }
