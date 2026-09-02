@@ -7,11 +7,13 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 func TestStopGracefulTermRecorded(t *testing.T) {
 	svc := newTestService(t)
-	out := launchHelper(t, svc, t.TempDir(), "sleep")
+	out := launchHelper(t, svc, testsupport.TempDir(t), "sleep")
 	res, err := svc.Stop(out.RunDir, "operator asked")
 	if err != nil {
 		t.Fatalf("Stop: %v", err)
@@ -32,7 +34,7 @@ func TestStopGracefulTermRecorded(t *testing.T) {
 
 func TestStopNoOpOnTerminalRun(t *testing.T) {
 	svc := newTestService(t)
-	out := launchHelper(t, svc, t.TempDir(), "exit", "7")
+	out := launchHelper(t, svc, testsupport.TempDir(t), "exit", "7")
 	observeUntilTerminal(t, svc, out.RunDir)
 	res, err := svc.Stop(out.RunDir, "late stop")
 	if err != nil {
@@ -51,8 +53,8 @@ func TestStopNoOpOnTerminalRun(t *testing.T) {
 func TestStopEscalatesTermIgnorer(t *testing.T) {
 	svc := newTestService(t)
 	svc.stopTermWait = 500 * time.Millisecond // test seam: shrink, don't sleep-tune
-	ready := filepath.Join(t.TempDir(), "ready")
-	out := launchHelper(t, svc, t.TempDir(), "ignore-term", ready)
+	ready := filepath.Join(testsupport.TempDir(t), "ready")
+	out := launchHelper(t, svc, testsupport.TempDir(t), "ignore-term", ready)
 	waitFor(t, "helper ready", 30*time.Second, func() bool {
 		_, err := os.Stat(ready)
 		return err == nil
@@ -77,7 +79,7 @@ func TestStopRefusesUnprovableOwnership(t *testing.T) {
 	// Fabricate an owned-looking run whose "supervisor" is a live process
 	// we started OURSELVES (so the pid exists and leads its own session)
 	// but which holds no live.lock.
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	id := "0123456789abcdef0123456789abcdef"
 	runDir := filepath.Join(root, id)
 	ensurePrivateDir(runDir)
@@ -133,8 +135,8 @@ func TestStopNeverWritesTerminal(t *testing.T) {
 	// and stop itself produced no terminal when stopped.json exists alone.
 	svc := newTestService(t)
 	svc.stopTermWait = 500 * time.Millisecond
-	ready := filepath.Join(t.TempDir(), "ready")
-	out := launchHelper(t, svc, t.TempDir(), "ignore-term", ready)
+	ready := filepath.Join(testsupport.TempDir(t), "ready")
+	out := launchHelper(t, svc, testsupport.TempDir(t), "ignore-term", ready)
 	waitFor(t, "helper ready", 30*time.Second, func() bool { _, err := os.Stat(ready); return err == nil })
 	res, err := svc.Stop(out.RunDir, "kill path")
 	if err != nil || res.State != StateStopped {

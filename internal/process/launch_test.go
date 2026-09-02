@@ -8,6 +8,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 func newTestService(t *testing.T) *Service {
@@ -25,22 +27,23 @@ func newTestService(t *testing.T) *Service {
 
 func launchHelper(t *testing.T, svc *Service, root string, mode string, extra ...string) *LaunchOutcome {
 	t.Helper()
-	out, err := svc.Launch(LaunchRequest{Root: root, Cwd: t.TempDir(), Argv: helperArgv(t, mode, extra...)})
+	out, err := svc.Launch(LaunchRequest{Root: root, Cwd: testsupport.TempDir(t), Argv: helperArgv(t, mode, extra...)})
 	if err != nil {
 		t.Fatalf("Launch: %v", err)
 	}
 	reapSupervisor(out.RunDir)
-	// Wait for the detached supervisor to quiesce before this test's t.TempDir()
-	// teardown removes the run dir out from under it — see quiesceRun. Registered
-	// after the root's own TempDir cleanup (the root is passed in, created
-	// earlier), so LIFO ordering runs this first, before the RemoveAll.
-	t.Cleanup(func() { quiesceRun(t, out.RunDir) })
+	// Wait for the detached supervisor to quiesce before this test's fixture
+	// dirs are removed out from under it — see quiesceRun. Registered as a
+	// testsupport.DrainOnCleanup drain, so the fixture's drain-before-removal
+	// contract runs this ahead of any removeAllTolerant pass — the ordering no
+	// longer rests on t.Cleanup LIFO reasoning.
+	testsupport.DrainOnCleanup(t, func() { quiesceRun(t, out.RunDir) })
 	return out
 }
 
 // quiesceRun waits for a launched run's detached supervisor to finish every
 // same-directory write and release live.lock, so a test can mutate the run dir
-// or let t.TempDir() teardown remove it with no race against the supervisor.
+// or let testsupport.TempDir(t) teardown remove it with no race against the supervisor.
 //
 // The supervisor keeps writing manifest/terminal/log records after a fast child
 // exits (supervisor.go step 8: terminal.json, then the phase="terminal" manifest
@@ -57,16 +60,17 @@ func launchHelper(t *testing.T, svc *Service, root string, mode string, extra ..
 // mid-write); a run that has already recorded a verdict is merely finishing its
 // post-terminal writes and is waited out, never signalled (a SIGKILL mid-write
 // could strand an atomic temp file, which is the very race this closes).
-// Best-effort under a generous deadline; a test-support helper only.
+// Best-effort under a generous deadline; a test-support helper only. The
+// bounded poll loop is testsupport.WaitQuiesced (30s deadline, 10ms step);
+// the domain probe below stays here because it reads unexported records.
 func quiesceRun(t *testing.T, runDir string) {
 	t.Helper()
 	lockPath := filepath.Join(runDir, liveLockFile)
 	killed := false
-	deadline := time.Now().Add(30 * time.Second)
-	for {
+	testsupport.WaitQuiesced(30*time.Second, 10*time.Millisecond, func() bool {
 		held, ans := probeFlock(lockPath)
 		if !held && ans == probeAbsent {
-			return // supervisor gone; the run dir will take no further writes
+			return true // supervisor gone; the run dir will take no further writes
 		}
 		if held && !killed {
 			term, _ := readTerminal(runDir)
@@ -80,11 +84,8 @@ func quiesceRun(t *testing.T, runDir string) {
 				}
 			}
 		}
-		if time.Now().After(deadline) {
-			return // best effort; teardown timing must not fail the test
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
+		return false
+	})
 }
 
 // reapSupervisor emulates init reaping the orphaned supervisor. In production
@@ -151,7 +152,7 @@ func killRun(t *testing.T, runDir string) {
 // after a live pid==pgid==sid supervisor exists, distinct from ours.
 func TestLaunchEstablishesAddressableSession(t *testing.T) {
 	svc := newTestService(t)
-	out := launchHelper(t, svc, t.TempDir(), "sleep")
+	out := launchHelper(t, svc, testsupport.TempDir(t), "sleep")
 	if out.State != StateRunning {
 		t.Fatalf("state = %v", out.State)
 	}
@@ -186,7 +187,7 @@ func TestLaunchEstablishesAddressableSession(t *testing.T) {
 // exits the moment it has published the run. Its process group is gone, yet
 // the gate (its own Setsid session) must still be live and addressable.
 func TestGateSurvivesLauncherExit(t *testing.T) {
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	exe, _ := os.Executable()
 	cmd := exec.Command(exe, "gate-test-helper", "launch", root)
 	outBytes, err := cmd.Output()
@@ -194,7 +195,7 @@ func TestGateSurvivesLauncherExit(t *testing.T) {
 		t.Fatalf("launcher subprocess: %v", err)
 	}
 	runDir := strings.TrimSpace(string(outBytes))
-	t.Cleanup(func() { quiesceRun(t, runDir) })
+	testsupport.DrainOnCleanup(t, func() { quiesceRun(t, runDir) })
 	// The launcher subprocess has fully exited (cmd.Output returned and reaped
 	// it); its process group is gone. The gate must still be live.
 	m, err := readManifest(runDir)
@@ -221,7 +222,7 @@ func TestGateSurvivesLauncherExit(t *testing.T) {
 // files; child stdin is at EOF.
 func TestLaunchStreamsAndStdin(t *testing.T) {
 	svc := newTestService(t)
-	out := launchHelper(t, svc, t.TempDir(), "emit", "OUT-BYTES", "ERR-BYTES")
+	out := launchHelper(t, svc, testsupport.TempDir(t), "emit", "OUT-BYTES", "ERR-BYTES")
 	if obs := observeUntilTerminal(t, svc, out.RunDir); obs.State != StatePassed {
 		t.Fatalf("emit helper: %v", obs.State)
 	}
@@ -234,7 +235,7 @@ func TestLaunchStreamsAndStdin(t *testing.T) {
 	if fi.Mode().Perm() != 0o600 {
 		t.Fatalf("stdout.log mode %o", fi.Mode().Perm())
 	}
-	out2 := launchHelper(t, svc, t.TempDir(), "read-stdin")
+	out2 := launchHelper(t, svc, testsupport.TempDir(t), "read-stdin")
 	if obs := observeUntilTerminal(t, svc, out2.RunDir); obs.State != StatePassed {
 		t.Fatalf("stdin not closed: %v", obs.State)
 	}
@@ -244,7 +245,7 @@ func TestLaunchStreamsAndStdin(t *testing.T) {
 // the inherited lock fd is closed (CLOEXEC).
 func TestLaunchStripsSupervisorEnv(t *testing.T) {
 	svc := newTestService(t)
-	out := launchHelper(t, svc, t.TempDir(), "env-check")
+	out := launchHelper(t, svc, testsupport.TempDir(t), "env-check")
 	if st := waitTerminalState(t, out.RunDir, false); st != StatePassed {
 		t.Fatalf("supervisor leaked env or fds into the child: %v", st)
 	}
@@ -255,12 +256,12 @@ func TestLaunchStripsSupervisorEnv(t *testing.T) {
 // it under observation.
 func TestLaunchFastExit(t *testing.T) {
 	svc := newTestService(t)
-	root := t.TempDir()
-	out, err := svc.Launch(LaunchRequest{Root: root, Cwd: t.TempDir(), Argv: helperArgv(t, "exit", "0")})
+	root := testsupport.TempDir(t)
+	out, err := svc.Launch(LaunchRequest{Root: root, Cwd: testsupport.TempDir(t), Argv: helperArgv(t, "exit", "0")})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { quiesceRun(t, out.RunDir) })
+	testsupport.DrainOnCleanup(t, func() { quiesceRun(t, out.RunDir) })
 	if out.State == StateRunning {
 		// Racing running->terminal is legal; observe must converge.
 		if obs := observeUntilTerminal(t, svc, out.RunDir); obs.State != StatePassed {
@@ -273,7 +274,7 @@ func TestLaunchFastExit(t *testing.T) {
 
 func TestLaunchRejectsBeforeCreating(t *testing.T) {
 	svc := newTestService(t)
-	root := filepath.Join(t.TempDir(), "root-not-yet")
+	root := filepath.Join(testsupport.TempDir(t), "root-not-yet")
 	_, err := svc.Launch(LaunchRequest{Root: root, Cwd: "relative", Argv: helperArgv(t, "sleep")})
 	if err == nil {
 		t.Fatal("invalid cwd accepted")
