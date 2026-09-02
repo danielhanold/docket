@@ -355,6 +355,109 @@ func TestIntegrationFinalizeRebaseGateWaiting(t *testing.T) {
 			t.Fatalf("slice continuations = %+v, want the recorded %+v on slices 2 and 3", gate.reqs, cont)
 		}
 	})
+
+	t.Run("failed-and-halted-terminals-clear-the-pair-next-run-starts-fresh", func(t *testing.T) {
+		for name, terminal := range map[string]LocalGateResult{
+			"failed": {Outcome: FinalizeGateFailed, RunDir: "/run/x"},
+			"halted": {Outcome: FinalizeGateHalted, HaltCause: GateHaltRunningAtBudget},
+		} {
+			t.Run(name, func(t *testing.T) {
+				f := setupRebaseFixture(t, main)
+				f.advanceBase(t)
+				gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+				cont := GateContinuation{DriveID: "drive-7", Generation: "gen-7"}
+				gate := &seqGate{results: []LocalGateResult{
+					{Outcome: FinalizeGateWaiting, Continuation: cont},
+					terminal,
+					{Outcome: FinalizeGateWaiting, Continuation: GateContinuation{DriveID: "drive-8", Generation: "gen-8"}},
+				}}
+				deps := f.finalizeDeps(gh, gate)
+				req := FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head}
+				ctx := context.Background()
+
+				if r := FinalizeRebase(ctx, deps, f.repo.invocation, req); r.Disposition != RebaseDispWaiting {
+					t.Fatalf("first = %q, want waiting", r.Disposition)
+				}
+				second := FinalizeRebase(ctx, deps, f.repo.invocation, req)
+				if name == "failed" && (second.Disposition != RebaseDispFailed || second.Reason != ReasonRebaseGateFailed) {
+					t.Fatalf("failed terminal = %q/%q, want failed/gate-failed", second.Disposition, second.Reason)
+				}
+				if name == "halted" && (second.Disposition != RebaseDispBlocked || second.Reason != ReasonRebaseGateHalted) {
+					t.Fatalf("halted terminal = %q/%q, want blocked/gate-halted", second.Disposition, second.Reason)
+				}
+				rec, _, _ := f.svc.ReadRebaseReceipt(ctx, f.metaDir)
+				if rec.GateDriveID != "" || rec.GateOwnerGeneration != "" {
+					t.Fatalf("%s terminal did not clear the pair: %q/%q", name, rec.GateDriveID, rec.GateOwnerGeneration)
+				}
+				// A halt keeps blocked (a human is needed) but does not wedge the
+				// receipt: the next deliberate re-run starts a FRESH drive.
+				if r := FinalizeRebase(ctx, deps, f.repo.invocation, req); r.Disposition != RebaseDispWaiting {
+					t.Fatalf("post-terminal re-run = %q, want a fresh waiting drive", r.Disposition)
+				}
+				if gate.reqs[2].Continuation != (GateContinuation{}) {
+					t.Fatalf("post-terminal slice carried %+v; a cleared pair must start a fresh drive", gate.reqs[2].Continuation)
+				}
+			})
+		}
+	})
+
+	t.Run("seam-error-clears-the-pair-too", func(t *testing.T) {
+		f := setupRebaseFixture(t, main)
+		f.advanceBase(t)
+		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+		gate := &seqGate{results: []LocalGateResult{
+			{Outcome: FinalizeGateWaiting, Continuation: GateContinuation{DriveID: "drive-2", Generation: "gen-2"}},
+		}}
+		deps := f.finalizeDeps(gh, gate)
+		req := FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head}
+		ctx := context.Background()
+		if r := FinalizeRebase(ctx, deps, f.repo.invocation, req); r.Disposition != RebaseDispWaiting {
+			t.Fatalf("first = %q, want waiting", r.Disposition)
+		}
+		// Swap in an erroring seam for the resume slice: an unrecoverable seam
+		// failure is a halt (unavailable) — a terminal for the recorded drive.
+		deps2 := f.finalizeDeps(gh, &fakeGate{err: errRebaseGateSeam})
+		second := FinalizeRebase(ctx, deps2, f.repo.invocation, req)
+		if second.Result != ResultBlocked || second.Gate == nil || second.Gate.HaltCause != GateHaltUnavailable {
+			t.Fatalf("seam error = %q gate %+v, want blocked/unavailable", second.Result, second.Gate)
+		}
+		rec, _, _ := f.svc.ReadRebaseReceipt(ctx, f.metaDir)
+		if rec.GateDriveID != "" || rec.GateOwnerGeneration != "" {
+			t.Errorf("seam-error halt did not clear the pair: %q/%q", rec.GateDriveID, rec.GateOwnerGeneration)
+		}
+	})
+
+	t.Run("recorded-live-continuation-overrides-the-evidence-skip", func(t *testing.T) {
+		// A pair recorded by a WAITING slice means a drive is LIVE for this
+		// attempt; goal 3 forbids leaving it dangling. Even if the PR body now
+		// carries exact-head green evidence (which would skip on a first call),
+		// the re-entry must ADVANCE the recorded drive, not skip past it —
+		// otherwise the pair encodes a state nothing transitions out of
+		// (learnings: presence-encoded-state).
+		f := setupRebaseFixture(t, main)
+		// No advanceBase: the rebase is a no-op, the skip's first conjunct.
+		cont := GateContinuation{DriveID: "drive-3", Generation: "gen-3"}
+		gate := &seqGate{results: []LocalGateResult{
+			{Outcome: FinalizeGateWaiting, Continuation: cont},
+			{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"},
+		}}
+		// First call: no PR evidence -> the suite runs -> WAITING records the pair.
+		ghNone := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+		req := FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head}
+		ctx := context.Background()
+		if r := FinalizeRebase(ctx, f.finalizeDeps(ghNone, gate), f.repo.invocation, req); r.Disposition != RebaseDispWaiting {
+			t.Fatalf("first = %q, want waiting", r.Disposition)
+		}
+		// Second call: the PR body NOW carries exact-head green evidence.
+		ghGreen := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, greenEvidenceFor(t, f.head))}}
+		second := FinalizeRebase(ctx, f.finalizeDeps(ghGreen, gate), f.repo.invocation, req)
+		if second.Gate == nil || second.Gate.Compose != "ran" {
+			t.Fatalf("re-entry with a recorded live drive skipped: gate %+v", second.Gate)
+		}
+		if len(gate.reqs) != 2 || gate.reqs[1].Continuation != cont {
+			t.Fatalf("re-entry did not advance the recorded drive: %+v", gate.reqs)
+		}
+	})
 }
 
 func TestIntegrationFinalizeRebaseHappyAndReceipt(t *testing.T) {
