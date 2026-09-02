@@ -50,8 +50,12 @@ import (
 
 // gateSchemaVersion is the on-disk record schema this store understands. A record
 // carrying any other version fails closed as a corrupt record — never a
-// best-effort migration.
-const gateSchemaVersion = 1
+// best-effort migration. Bumped to 2 for change 0359: the record grows the outer
+// recovery-scope binding (ScopeID/ParentCap/ChildContextHash) and the
+// continuation triple. A schema-1 record therefore fails closed here — an
+// in-flight pre-upgrade record halting after merge is correct fail-closed
+// behavior, never a silent migration.
+const gateSchemaVersion = 2
 
 // Retry permit states recorded in a GateRecord. The one-retry permit is unused
 // until ConsumeGateRetry spends it; the marker file, not this field, is the
@@ -97,6 +101,45 @@ type GateRecord struct {
 	Retry         string `json:"retry"`          // RetryUnused | RetryConsumed
 	Disposition   string `json:"disposition"`    // latest gate-* report line
 	Terminal      bool   `json:"terminal"`
+
+	// Outer recovery-scope binding (change 0359, schema v2). ScopeID names the
+	// recovery scope gate-before prepared for this dispatch boundary; ParentCap is
+	// the RAW parent capability the takeover path presents — persisted only in this
+	// 0600-private record and NEVER printed in HumanText, a report line, or the
+	// result JSON; ChildContextHash is the sha256 of the printed dispatch context
+	// (the outer scope's ChildCapability), matched against a nested drive's
+	// GateContextHash when the verdict path locates the outer drive.
+	ScopeID          string `json:"scope_id,omitempty"`
+	ParentCap        string `json:"parent_cap,omitempty"`
+	ChildContextHash string `json:"child_context_hash,omitempty"`
+
+	// Continuation triple (change 0359, schema v2). The three fields are ALL-EMPTY
+	// or ALL-SET: a partial triple is a corrupt record on read AND on write
+	// (gateContinuationTripleOK). ContinuationID is the single-use redemption token
+	// the verdict path mints; ContinuationDrive + ContinuationHandoff name the
+	// tracked drive and its unclaimed handoff a resumed controller claims.
+	ContinuationID      string `json:"continuation_id,omitempty"`
+	ContinuationDrive   string `json:"continuation_drive,omitempty"`
+	ContinuationHandoff string `json:"continuation_handoff,omitempty"`
+}
+
+// gateContinuationTripleOK reports whether rec's continuation triple is well
+// formed: the three Continuation* fields must be ALL-EMPTY or ALL-SET (0396's
+// pair rule extended to a triple). A partial triple is a corrupt record — the
+// store refuses it on both the read and the write boundary so a half-written
+// continuation can never be loaded or persisted.
+func gateContinuationTripleOK(rec GateRecord) bool {
+	set := 0
+	if rec.ContinuationID != "" {
+		set++
+	}
+	if rec.ContinuationDrive != "" {
+		set++
+	}
+	if rec.ContinuationHandoff != "" {
+		set++
+	}
+	return set == 0 || set == 3
 }
 
 // GateStoreErrorKind is the typed category of a GateStoreError. The caller (the
@@ -286,6 +329,12 @@ func LoadGateRecord(repoDir, key string) (GateRecord, error) {
 	if rec.Repo != common {
 		return GateRecord{}, gateErr(ErrGateWrongRepo, "load", nil)
 	}
+	// A partial continuation triple is a corrupt record: fail closed on read so a
+	// half-written continuation is never handed to the verdict path.
+	if !gateContinuationTripleOK(rec) {
+		return GateRecord{}, gateErr(ErrGateCorruptRecord, "load",
+			errors.New("partial continuation triple"))
+	}
 	// The marker is authority; reflect it into the readable mirror on read so a
 	// crash between the O_EXCL create and the JSON flip still reads as consumed.
 	if _, serr := os.Stat(filepath.Join(dir, gateRetryMarkerName)); serr == nil {
@@ -319,6 +368,11 @@ func SaveGateRecord(repoDir, key string, rec GateRecord) error {
 // replacement rule. os.CreateTemp is templated into the destination's own
 // directory so the rename is same-filesystem.
 func writeGateRecordAtomic(dir string, rec GateRecord) error {
+	// A partial continuation triple is a corrupt record: refuse to persist one so a
+	// half-written continuation never reaches disk.
+	if !gateContinuationTripleOK(rec) {
+		return gateErr(ErrGateCorruptRecord, "write", errors.New("partial continuation triple"))
+	}
 	buf, err := json.Marshal(rec)
 	if err != nil {
 		return gateErr(ErrGateIO, "write", err)

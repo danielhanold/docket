@@ -304,6 +304,9 @@ func TestRepresentativeSignatures(t *testing.T) {
 		"gate.launch": "--cwd <dir> --root <dir> -- <argv...>",
 		// positional alternation tail leading, optional flags trailing.
 		"run.gate-verdict": "<key> | [<id>...] [--repo-dir <dir>] [--unattributed]",
+		// change 0359: gate-before gains --resume for explicit resume attribution;
+		// the target positional leads, the optional flags trail sorted.
+		"run.gate-before": "<target> [--repo-dir <dir>] [--resume <id>]",
 		// change 0359: the config owners run their resolved suite command; the
 		// task-intent owner (--owner task) alone takes the focused argv after a bare
 		// `--` separator, which lands last.
