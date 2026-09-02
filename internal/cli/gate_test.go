@@ -546,6 +546,70 @@ func TestGateDrivePrepareScopeGrantAndRedaction(t *testing.T) {
 	}
 }
 
+// TestGateDriveScopeBoundStartRoundTrips proves the task-intent scope→start flow
+// round-trips in a worktree: `gate drive prepare-scope` then `gate drive start
+// --owner task --scope-id … --child-cap …` binds and runs a real drive, rather
+// than failing scope-identity-mismatch → invalid-request. It is the regression
+// guard for the RepoIdentity dimension the two sides compare: prepare-scope pins
+// the REPOSITORY identity (the Git common dir, shared across worktrees, as the
+// rest of docket records it) and the scope-bound start MUST resolve that same
+// dimension — never the worktree path — so a legitimate prepare→start round-trips.
+// The change/task/phase/branch/worktree dimensions are supplied to match the
+// scope, so RepoIdentity is the dimension actually under test. A genuine
+// cross-repo/cross-worktree start still fails closed (proved in gatedrive's
+// scopeIdentityMatch table and TestStartBindsScope), so this never weakens the
+// fail-closed check.
+func TestGateDriveScopeBoundStartRoundTrips(t *testing.T) {
+	wt := gateDriveRepo(t)
+	root := gateTempDir(t)
+
+	// Prepare a task recovery scope for this worktree.
+	out, errS, code := runCLI(t, "--json", "gate", "drive", "prepare-scope",
+		"--repo-dir", wt, "--change-id", "359", "--task-id", "task-12",
+		"--phase", "build", "--branch", "fix/x", "--worktree", wt)
+	if code != 0 || errS != "" {
+		t.Fatalf("prepare-scope: out=%q err=%q code=%d", out, errS, code)
+	}
+	grant := decodeOneJSON(t, out)
+	scopeID, _ := grant["scope_id"].(string)
+	childCap, _ := grant["child_capability"].(string)
+	if scopeID == "" || childCap == "" {
+		t.Fatalf("prepare-scope missing a grant field: %v", grant)
+	}
+
+	// A scope-bound task start over the SAME worktree, with every pinned identity
+	// dimension supplied to match the scope, must BIND — an APPLIED result carrying
+	// a drive id — rather than fail scope-identity-mismatch → invalid-request. The
+	// BIND is the exact property the RepoIdentity fix delivers: the start cleared
+	// scopeIdentityMatch, launched, and got a drive id. The drive's terminal
+	// OUTCOME is deliberately NOT asserted here: a task-intent drive currently
+	// carries a zero observation budget, so a child caught running once HALTs
+	// deadline-expired instead of reaching PASSED (a SEPARATE task-intent-wiring
+	// defect, reported for a follow-up, not this task's subject). Both PASSED and
+	// that HALT are APPLIED results with a drive id, so keying on the bind keeps
+	// this regression deterministic while still failing hard on the old
+	// no-drive/invalid-request state.
+	out, errS, code = runCLI(t, "--json", "gate", "drive", "start",
+		"--repo-dir", wt, "--run-root", root, "--owner", "task",
+		"--scope-id", scopeID, "--child-cap", childCap,
+		"--change-id", "359", "--task-id", "task-12", "--phase", "build",
+		"--branch", "fix/x", "--", "/bin/echo", "hi")
+	if errS != "" {
+		t.Fatalf("scope-bound task start wrote stderr: out=%q err=%q code=%d", out, errS, code)
+	}
+	doc := decodeOneJSON(t, out)
+	if doc["operation"] != "gate.drive.start" {
+		t.Fatalf("scope-bound start operation=%v: %v", doc["operation"], doc)
+	}
+	if doc["result"] != "applied" {
+		t.Fatalf("scope-bound start did not apply — a RepoIdentity-dimension mismatch surfaces as result=invalid-input reason=invalid-request with no drive: %v", doc)
+	}
+	d := driveDoc(t, doc)
+	if id, _ := d["drive_id"].(string); id == "" {
+		t.Fatalf("scope-bound start bound no drive id (the scope bind did not take): %v", d)
+	}
+}
+
 // TestGateDriveTakeoverWired proves the `gate drive takeover` leaf is registered
 // and reaches the app seam: it composes the commandless service and emits exactly
 // one gate.drive.takeover protocol document (its workflow outcome — a HALTED
