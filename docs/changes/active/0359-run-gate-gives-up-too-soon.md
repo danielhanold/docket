@@ -9,7 +9,7 @@ created: 2026-08-27
 updated: '2026-09-02'
 depends_on: []
 stacked_on:
-related: [237, 334, 342, 363]
+related: [237, 334, 342, 363, 396]
 discovered_from: [333]
 adrs: [24, 75, 95, 98]
 spec: docs/superpowers/specs/2026-08-28-run-gate-gives-up-too-soon-design.md
@@ -20,8 +20,8 @@ auto_groomable:
 branch: 'fix/run-gate-gives-up-too-soon'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-02T15:17:21Z'
+reconciled: true
+claimed_at: '2026-09-02T15:25:10Z'
 ---
 
 ## Artifacts
@@ -157,3 +157,22 @@ must provide.
   native process supervisor.
 
 ## Reconcile log
+
+### 2026-09-02
+
+### 2026-09-02 — reconcile (docket-implement-next)
+
+Confirmed the design holds against current `main` and is still needed; not invalidated, not obsolete.
+
+**Current-reality anchors (verified in code):**
+
+- Both target defects are still live. `internal/app/rungate_verdict.go` maps `VerdictRunWaiting` to a **terminal `gate-stop`** (the run-waiting to stop mapping section 5 must replace), and `attributeGateClaim` still binds only a claim whose `claimed_at >= DispatchEpoch`, so an explicit resume of an already-`in-progress` change yields `gate-done no-attributable-claim` (the section 6 resume-attribution gap). `gate-before` (`internal/app/rungate_before.go`) accepts only `target == "implement-next"` with no change-id/resume argument.
+- No `gate-continue` decision exists anywhere in the Go tree; the run-gate verdict vocabulary today is `gate-done`/`gate-retry-once`/`gate-stop`/`gate-observe`.
+- Change 0342 (done, ADR-0098) built the native gate driver foundation this change extends: `internal/gatedrive/{drive,driver}.go` with `Start/Advance/Handoff/Claim`, structured `WAITING`, fixed deadline, 30s slice, single relaunch, `OwnerGeneration` + single-use fingerprinted `HandoffGeneration`. There is **no** recovery-scope, parent/child opaque capability, or parent-takeover concept yet — sections 3/4 are net-new, including new `driveRecord`/store fields (schema-version bump) and a new driver operation + app/CLI seam.
+- ADR-0098 (`docs/adrs/0098-*.md`) is still `Accepted`, `supersedes: []`, unsuperseded — section 6's new superseding ADR is net-new.
+- The dispatch/gate-bracket contract is generated from the `run-gate.md` asset (`internal/assets/embedded/tree/cursor-rules/run-gate.md`, rendered by `internal/harness/dispatch.go`) into CLAUDE.md and the cursor rules; it currently maps `run-waiting` to a terminal stop and knows no `gate-continue`. Regenerating those surfaces is part of the work.
+- Task routing today is prediction-gated in `skills/docket-build-task/SKILL.md` (driver used only when a test may outlast a single foreground call) and WAITING handling is discretionary — section 1 (every test via the driver, no duration prediction / no command-spelling list) and section 2 (first `WAITING` always hands off to the controller) are net-new. The `internal/repoguard` boundary from 0342 guards raw-primitive composition, not 'a workflow ran a test directly instead of via the driver'; the new structural guard classifying workflow-shaped test sites is net-new.
+
+**Newly related:** added 396 to `related`. Change 0396 (done) added an adjacent finalize-side gate-continuation mechanism (rebase-receipt continuation pair, WAITING resume, clear-continuation-on-terminal, live-drive-overrides-evidence-skip). It is a distinct surface (finalize, not the implement-next run gate) but is directly relevant prior art for the continuation-id/continuation-pair persistence pattern section 5 introduces; the build should reuse its shape where it fits rather than diverge gratuitously.
+
+**Scope / verification-boundary decision (autonomous run):** the Docket-owned mechanism — recovery-scope persistence + parent/child capability separation + event-authorized parent takeover, the `gate-continue` verdict and continuation-id, facade-side outer takeover, `gate-before` resume attribution, every-test-through-driver routing, first-`WAITING` handoff, the new structural guard, the superseding ADR, and the regenerated authored-to-installed surfaces (CLAUDE.md / cursor rules / build skills) — is fully buildable and covered by unit, table-driven, race, injected-time/process-seam, and real-detached-child integration tests, and gated by the configured whole suite. The design's **four-harness real-world acceptance probes** (Claude Code 2.1.251, Cursor 3.17.21, Codex 0.150.1, OpenCode 1.18.23; the 7 scenarios in the four-harness contract) validate only that each harness supplies the three required facts (synchronous named dispatch, a direct-child return/stop event, and same-agent resume or explicit continuation dispatch). Those probes require driving four separately-installed harnesses and cannot be performed inside a single autonomous implement-next run, and their evidence must never be fabricated. They are therefore treated as a **required human merge-gate verification**: `skills/docket-build/references/gate-execution.md`'s harness-acceptance rows are left as an explicit pre-merge TODO for a human, and the PR body + results file document the four-harness re-probe as the outstanding gate before merge. This is a verification-boundary carve, not a scope reduction of the mechanism: all mechanism code and its Docket-owned automated tests are in scope and must be suite-green before the PR opens. This honors the migration's atomic-merge invariant — a human runs the harness probes and, only then, merges the single atomic PR.
