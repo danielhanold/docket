@@ -1,19 +1,19 @@
 # Backlog
 
-**395 changes** — 🔵 3 built · 🟣 19 groomed · 🟡 46 proposed · ⚪ 4 deferred · ✅ 239 done · 🗑️ 84 killed
+**395 changes** — 🔵 2 built · 🟣 20 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 240 done · 🗑️ 84 killed
 
-## 🔵 Built (3)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
-| [0394](active/0394-give-docket-skills-an-authoritative-compact-cli-capability-c.md) | Give Docket skills an authoritative compact CLI capability catalog | `high` | `feat` | [#267](https://github.com/danielhanold/docket/pull/267) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 | [0364](active/0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | `medium` | `feat` | [#266](https://github.com/danielhanold/docket/pull/266) | awaiting merge |
 
-## 🟣 Groomed (19)
+## 🟣 Groomed (20)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0395](active/0395-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap.md) | Migrate CLAUDE.md/AGENTS.md agent-executed blocks to the capability-first idiom | `medium` | `refactor` | [spec](../superpowers/specs/2026-09-02-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap-design.md) |
 | [0359](active/0359-run-gate-gives-up-too-soon.md) | Run gate gives up too soon | `high` | `fix` | [spec](../superpowers/specs/2026-08-28-run-gate-gives-up-too-soon-design.md) |
 | [0264](active/0264-measure-the-claude-harness-s-forked-mode-gate-verdict-and-pi.md) | Measure the claude harness's forked-mode gate verdict and pin a surviving launch shape | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-claude-forked-mode-gate-verdict-design.md) |
 | [0261](active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | `high` | `feat` | [spec](../superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) |
@@ -34,11 +34,10 @@
 | [0172](active/0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md) | Normalize the banned producer-pipe shape across tests and helpers | `medium` | `chore` | [spec](../superpowers/specs/2026-08-07-normalize-the-banned-producer-pipe-shape-across-tests-and-he-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
-## 🟡 Proposed (46)
+## 🟡 Proposed (45)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0395](active/0395-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap.md) | Migrate CLAUDE.md/AGENTS.md agent-executed blocks to the capability-first idiom | `medium` | `refactor` | ⏳ waiting on #394 — needs your merge |
 | [0392](active/0392-installer-tolerant-config-read-break-the-schema-bump-bootstr.md) | Installer-tolerant config read: break the schema-bump bootstrap deadlock | `medium` | `fix` | needs-brainstorm |
 | [0391](active/0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | `medium` | `feat` | needs-brainstorm |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-brainstorm |
@@ -166,7 +165,6 @@ graph TD
   0374 --> 0391
   0392
   0393
-  0394
   0394 --> 0395
   0192:::done
   0211:::done
@@ -174,13 +172,15 @@ graph TD
   0352:::done
   0370:::done
   0374:::done
+  0394:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (323)</summary>
+<details><summary>✅🗑️ Archive — done + killed (324)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0394](archive/2026-09-02-0394-give-docket-skills-an-authoritative-compact-cli-capability-c.md) | Give Docket skills an authoritative compact CLI capability catalog | 2026-09-02 |
 | [0390](archive/2026-09-01-0390-maintenance-sweep-scope-full-re-probes-the-remote-per-item-h.md) | maintenance sweep --scope full re-probes the remote per item, hanging the sweep | 2026-09-01 |
 | [0384](archive/2026-09-01-0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md) | Launch compositional Docket agents in coordinator-capable harness contexts | 2026-09-01 |
 | [0374](archive/2026-09-01-0374-separate-build-and-finalize-test-configuration.md) | Separate build and finalize test configuration | 2026-09-01 |
@@ -197,7 +197,6 @@ graph TD
 | [0365](archive/2026-08-29-0365-codex-nested-dispatch-capability-boundary.md) | Make nested Docket dispatch reliable for every Codex agent invocation | 2026-08-29 |
 | [0363](archive/2026-08-29-0363-remove-main-mode-compatibility-from-go-v1.md) | Remove main-mode compatibility from Go v1 | 2026-08-29 |
 | [0318](archive/2026-08-29-0318-config-contraction-self-hosting-and-hard-cutover.md) | Go-only source cutover | 2026-08-29 |
-| [0362](archive/2026-08-28-0362-partition-internal-release-to-clear-the-race-gate-timeout.md) | Partition internal/release integration tests to clear the race-gate per-package timeout | 2026-08-28 |
 | [0353](archive/2026-08-26-0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | 2026-08-26 |
 | [0294](archive/2026-08-26-0294-shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru.md) | Shrink AGENTS.md's always-loaded footprint: script-ify the run gate's caller procedure and de-duplicate the dispatch table | 2026-08-26 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
@@ -285,7 +284,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 106 done |
+| [2026-08](archive/) | 107 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
