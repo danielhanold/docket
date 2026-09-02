@@ -20,9 +20,11 @@ import "time"
 const ProtocolVersion = 1
 
 // driveSchemaVersion is the persisted driveRecord schema generation. The store
-// (Task 4) refuses an unknown schema version with a typed error rather than
-// best-effort migrating it, so this is bumped only on a real schema change.
-const driveSchemaVersion = 1
+// refuses an unknown schema version with a typed error rather than best-effort
+// migrating it, so this is bumped only on a real schema change. Bumped to 2 by
+// change 0359, which adds ScopeID + GateContextHash; a v1 record read by a v2
+// store fails closed as ErrUnknownSchema (never migrated).
+const driveSchemaVersion = 2
 
 // Outcome is the four-way typed result of a single slice-bounded driver call.
 // It is the sole vocabulary a workflow caller keys on; the raw process state is
@@ -189,4 +191,11 @@ type driveRecord struct {
 	// drive is offered for claim (Task 5). Exactly one owner at a time.
 	OwnerGeneration   string `json:"owner_generation"`
 	HandoffGeneration string `json:"handoff_generation,omitempty"`
+
+	// ScopeID links the drive to the recovery scope its owner was dispatched
+	// under; GateContextHash links every nested drive to the outer gate
+	// (sha256 of the outer child-context token). Both empty for scopeless
+	// drives (e.g. finalize's local gate). (schema v2, change 0359)
+	ScopeID         string `json:"scope_id,omitempty"`
+	GateContextHash string `json:"gate_context_hash,omitempty"`
 }
