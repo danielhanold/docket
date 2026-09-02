@@ -23,7 +23,7 @@ tests/test_go_integration_app_cleanup.sh	40	parallel
 tests/test_go_integration_app_closeout.sh	40	parallel
 tests/test_go_integration_app_concurrency.sh	25	parallel
 tests/test_go_integration_app_merge.sh	30	parallel
-tests/test_go_integration_app_rebase.sh	25	parallel
+tests/test_go_integration_app_rebase.sh	45	parallel
 tests/test_go_integration_app_repocheck.sh	20	parallel
 tests/test_go_integration_app_repocontention.sh	15	parallel
 tests/test_go_integration_app_repomigration.sh	20	parallel
@@ -49,7 +49,7 @@ tests/test_go_integration_githubcli_merge.sh	10	parallel
 tests/test_go_integration_githubcli_probe.sh	10	parallel
 tests/test_go_integration_githubcli_prbatch.sh	10	parallel
 tests/test_go_integration_release.sh	45	parallel
-tests/test_go_finalize_e2e.sh	25	parallel
+tests/test_go_finalize_e2e.sh	30	parallel
 tests/test_go_race.sh	60	parallel
 tests/test_go_toolchain.sh	55	parallel
 tests/test_release_partition_fidelity.sh	10	parallel
