@@ -94,11 +94,20 @@ if [ -z "${GOMODCACHE:-}" ] || [ -z "${GOCACHE:-}" ]; then
   fi
 fi
 
+# Change 0373: under the suite runner, DOCKET_GO_TEST_CONCURRENCY bounds this
+# child's share of the machine (go test package parallelism and runtime procs).
+# Absent (solo run), Go's defaults apply unchanged.
+go_conc_args=""
+if [ -n "${DOCKET_GO_TEST_CONCURRENCY:-}" ]; then
+  go_conc_args="-p ${DOCKET_GO_TEST_CONCURRENCY}"
+  export GOMAXPROCS="${DOCKET_GO_TEST_CONCURRENCY}"
+fi
+
 # The detector's verdict. A race is reported on stderr and turns the exit
 # non-zero, so the captured output is replayed on failure rather than
 # summarized — the WARNING block names the two conflicting stacks and is the
 # whole diagnostic.
-race_out="$(go test -race -count=1 ./... 2>&1)"
+race_out="$(go test -race $go_conc_args -count=1 ./... 2>&1)"
 race_rc=$?
 assert "go test -race -count=1 ./... (the whole module) passes" '[ "$race_rc" -eq 0 ] || { printf "%s\n" "$race_out" >&2; false; }'
 

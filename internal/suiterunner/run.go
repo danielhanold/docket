@@ -124,6 +124,12 @@ func Run(ctx context.Context, cfg Config) int {
 	fired, stop := InstallSignalHandling(cancel, reg, cfg.KillAfter)
 	defer stop()
 
+	// Bound total Go test load before the parallel lane launches (change 0373):
+	// each target's sandbox exports this cap as DOCKET_GO_TEST_CONCURRENCY, which
+	// the Go wrappers translate into `go test -p` / GOMAXPROCS, so -j targets in
+	// flight sum to ~mult*cpus concurrent Go test packages instead of jobs*cpus.
+	cfg.GoTestConcurrency = GoTestConcurrency(cfg.Jobs, runtime.NumCPU())
+
 	par, ser := Schedule(targets)
 	observed := newObservedSink()
 	start := time.Now()

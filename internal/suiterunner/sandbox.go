@@ -9,9 +9,43 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/danielhanold/docket/internal/gitbg"
 )
+
+// goLoadMultNum/goLoadMultDen bound the gate-wide Go package concurrency at or
+// under (mult × NumCPU) instead of (-j × NumCPU): with -j targets each running
+// Go tests capped at mult*cpus/jobs, the product stays near mult*cpus rather
+// than jobs*cpus, so the parallel lane cannot oversubscribe the machine with
+// Go test workers (change 0373).
+// PROVISIONAL 2/1 — Task 9 sweeps candidates on the reference machine, records
+// per-candidate wall clock, and pins the smallest multiplier that keeps every
+// Go budget row under its ceiling; the final value must carry that measurement
+// here (machine, -j, per-candidate table pointer).
+const (
+	goLoadMultNum = 2
+	goLoadMultDen = 1
+)
+
+// GoTestConcurrency derives the per-target cap the sandbox exports as
+// DOCKET_GO_TEST_CONCURRENCY: with -j targets in flight, a per-target cap of
+// mult*cpus/jobs bounds the product at mult*cpus concurrent Go test packages.
+// Floor 1 (a target always makes progress), ceiling cpus (never asking Go for
+// more package parallelism than the machine has cores).
+func GoTestConcurrency(jobs, cpus int) int {
+	if jobs < 1 {
+		jobs = 1
+	}
+	n := goLoadMultNum * cpus / (goLoadMultDen * jobs)
+	if n < 1 {
+		n = 1
+	}
+	if n > cpus {
+		n = cpus
+	}
+	return n
+}
 
 // GitBackgroundOff is the exported alias preserved for callers that still spell
 // the git-background-off config as suiterunner.GitBackgroundOff (internal/app's
@@ -34,8 +68,12 @@ const gitIdentityConfig = "[user]\n\tname = docket test\n\temail = test@docket.i
 // last, so exec (which honors the last value for a duplicated key) uses the
 // override. The override set is exactly launch()'s: private HOME/TMPDIR/
 // XDG_CONFIG_HOME, synthetic GIT_CONFIG_GLOBAL/SYSTEM, and the no-prompt/
-// no-pager/no-autoedit git knobs.
-func Sandbox(jobdir string) ([]string, error) {
+// no-pager/no-autoedit git knobs. When goTestConcurrency >= 1 it additionally
+// exports DOCKET_GO_TEST_CONCURRENCY (the Go wrappers translate it into
+// `go test -p` / GOMAXPROCS); a value of 0 omits the variable, so a solo run
+// (bare `go test`, `bash tests/test_X.sh`) sees Go's defaults unchanged
+// (change 0373).
+func Sandbox(jobdir string, goTestConcurrency int) ([]string, error) {
 	home := filepath.Join(jobdir, "home")
 	tmp := filepath.Join(jobdir, "tmp")
 	configHome := filepath.Join(home, ".config")
@@ -71,6 +109,9 @@ func Sandbox(jobdir string) ([]string, error) {
 		"GIT_PAGER=cat",
 		"PAGER=cat",
 		"GIT_MERGE_AUTOEDIT=no",
+	}
+	if goTestConcurrency >= 1 {
+		overrides = append(overrides, "DOCKET_GO_TEST_CONCURRENCY="+strconv.Itoa(goTestConcurrency))
 	}
 	return append(os.Environ(), overrides...), nil
 }

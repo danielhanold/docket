@@ -98,7 +98,7 @@ func TestSignalReachesProcessGroupIncludingGrandchildren(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		_, _ = ExecuteTarget(ctx, bashPath(t), tgt, work, reg, nil)
+		_, _ = ExecuteTarget(ctx, bashPath(t), tgt, work, reg, nil, 0)
 		close(done)
 	}()
 
@@ -149,7 +149,7 @@ func TestEscalationKillsIgnorers(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		_, _ = ExecuteTarget(ctx, bashPath(t), tgt, work, reg, nil)
+		_, _ = ExecuteTarget(ctx, bashPath(t), tgt, work, reg, nil, 0)
 		close(done)
 	}()
 

@@ -74,9 +74,18 @@ run_integration_shard(){
 
   race_flag="$(shard_race_flag)"
 
+  # Change 0373: under the suite runner, DOCKET_GO_TEST_CONCURRENCY bounds this
+  # child's share of the machine (go test package parallelism and runtime
+  # procs). Absent (solo run), Go's defaults apply unchanged.
+  go_conc_args=""
+  if [ -n "${DOCKET_GO_TEST_CONCURRENCY:-}" ]; then
+    go_conc_args="-p ${DOCKET_GO_TEST_CONCURRENCY}"
+    export GOMAXPROCS="${DOCKET_GO_TEST_CONCURRENCY}"
+  fi
+
   # The prefix must select at least one test — a renamed corpus must redden the
   # shard, never let it pass vacuously. -list compiles but does not execute.
-  listed="$(go test -tags integration -list "^${SHARD_PREFIX}" "$SHARD_PKG" 2>&1)"
+  listed="$(go test -tags integration $go_conc_args -list "^${SHARD_PREFIX}" "$SHARD_PKG" 2>&1)"
   listed_rc=$?
   declared="$(grep -c -E -e '^Test' <<<"$listed")"
   assert "prefix ^${SHARD_PREFIX} selects at least one tagged test in ${SHARD_PKG}" \
@@ -84,7 +93,7 @@ run_integration_shard(){
 
   # The shard itself. -v so per-test PASS markers can be counted against the
   # declared selection, catching a -run filter that silently narrowed.
-  test_out="$(go test -tags integration $race_flag -count=1 -run "^${SHARD_PREFIX}" -v "$SHARD_PKG" 2>&1)"
+  test_out="$(go test -tags integration $race_flag $go_conc_args -count=1 -run "^${SHARD_PREFIX}" -v "$SHARD_PKG" 2>&1)"
   test_rc=$?
   assert "go test -tags integration ${race_flag:+$race_flag }-run ^${SHARD_PREFIX} ${SHARD_PKG} passes" \
     '[ "$test_rc" -eq 0 ] || { printf "%s\n" "$test_out" >&2; false; }'
