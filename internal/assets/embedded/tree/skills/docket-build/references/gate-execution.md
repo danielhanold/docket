@@ -114,6 +114,46 @@ also kill an un-detached gate is unmeasured.
 
 **Verdict:** `supported` — standard launch shape only; un-detached behavior unmeasured
 
+## Change 0359 continuation/takeover acceptance — PENDING HUMAN RE-PROBE (pre-merge gate)
+
+The four-harness continuation/takeover acceptance probes for change 0359 were carved out of the
+autonomous build: they require driving four separately-installed harnesses and **must never be
+fabricated**. They are recorded here as a required pre-merge human verification. The measured verdict
+sections above are point-in-time records and are untouched by this gate.
+
+### Pending rows
+
+| Harness | Version | Paths to re-probe | Verdict |
+| --- | --- | --- | --- |
+| Claude Code | `2.1.251` | interactive AND forked/dispatched implement-next path | `unverified — 0359 re-probe pending (human, pre-merge)` |
+| Cursor | `3.17.21` | registered named-agent + continuation dispatch | `unverified — 0359 re-probe pending (human, pre-merge)` |
+| Codex | `0.150.1` | named dispatch, same-agent resume when available, fresh continuation fallback | `unverified — 0359 re-probe pending (human, pre-merge)` |
+| OpenCode | `1.18.23` | named dispatch + continuation dispatch | `unverified — 0359 re-probe pending (human, pre-merge)` |
+
+### The seven probe scenarios
+
+Each harness must be observed against all seven:
+
+1. a fast test that returns before 30 seconds;
+2. a test spanning the first slice, with deterministic worker-to-controller handoff;
+3. a worker that returns before handoff, followed by controller takeover of the same process;
+4. an implement-next controller that returns, followed by top-parent continuation of the same
+   process and same gate key;
+5. no duplicate process, no new task, and no retry consumption while the drive is active;
+6. terminal pass and terminal failure consumed by the correct resumed role;
+7. explicit resume of an already-in-progress change remaining attributable.
+
+### Standing rules
+
+- A verdict is version-scoped: re-probe when the version moves; never inherit a row on faith.
+- An interactive-only observation cannot stand in for a dispatched path.
+- A harness that cannot supply the direct-child return event or an explicit continuation is
+  unsupported on that path, and the gap is reported, never bridged with a timer.
+
+This section is the outstanding merge-gate verification for change 0359: a human runs these probes
+and records the evidence here before the PR merges. Do not merge on pending rows, and never write
+probe evidence that was not observed.
+
 ## Evidence
 
 How each verdict above was obtained — the probe design, the one-variable-per-run ladder, the
