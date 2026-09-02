@@ -807,12 +807,35 @@ func TestStatusReachesOperationJSON(t *testing.T) {
 		`"result":"applied"`,
 		`"changes":`,
 		`"ready":`,
-		`"records":`,
 		`"findings":`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("status document missing %s: %s", want, out)
 		}
+	}
+	// change 0397: the corpus inventory is opt-in — absent without --records.
+	if strings.Contains(out, `"records":`) {
+		t.Fatalf("records present without --records: %s", out)
+	}
+
+	// --records opts the inventory back in.
+	outR, errS, code := runCLI(t, "status", "--records", "--repo-dir", repo, "--json")
+	if code != 0 || errS != "" {
+		t.Fatalf("--records: out=%q err=%q code=%d", outR, errS, code)
+	}
+	if !strings.Contains(outR, `"records":`) {
+		t.Fatalf("--records did not restore the inventory: %s", outR)
+	}
+
+	// The human renderer never printed the records array (it prints the summary
+	// counts), so its output is byte-identical with and without --records.
+	humanPlain, _, codeP := runCLI(t, "status", "--repo-dir", repo)
+	humanRecords, _, codeR := runCLI(t, "status", "--records", "--repo-dir", repo)
+	if codeP != 0 || codeR != 0 {
+		t.Fatalf("human runs failed: plain=%d records=%d", codeP, codeR)
+	}
+	if humanPlain != humanRecords {
+		t.Fatalf("human output diverged with --records:\n--- plain ---\n%s\n--- records ---\n%s", humanPlain, humanRecords)
 	}
 }
 

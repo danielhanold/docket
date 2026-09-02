@@ -132,6 +132,75 @@ func adrBlob(id int, slug string) StatusBlob {
 
 // --- tests ----------------------------------------------------------------
 
+// TestStatusRecordsOptIn pins the change-0397 behavior flip: the corpus
+// artifact-integrity inventory is computed and marshaled only when
+// StatusOptions.IncludeRecords asks for it. Default: the field is nil and the
+// "records" key is absent. Opt-in: the field is populated with the identical
+// array, in the same order, and the key is present even when the corpus were
+// empty (a non-nil empty slice still marshals []).
+func TestStatusRecordsOptIn(t *testing.T) {
+	pin := docketPin(t)
+	corpus := []StatusBlob{
+		changeBlob(9, "nine", "feat", "high", "spec: docs/changes/specs/s9.md\n"),
+		changeBlob(3, "three", "fix", "low", "spec: docs/changes/specs/s3.md\n"),
+		adrBlob(71, "z-adr"),
+	}
+	newFake := func() *fakeReader {
+		return &fakeReader{
+			pin:    pin,
+			corpus: corpus,
+			facts:  domain.NewBranchFacts(nil),
+			artifacts: map[string]bool{
+				"metadata|docs/changes/specs/s9.md": true,
+				"metadata|docs/changes/specs/s3.md": true,
+			},
+		}
+	}
+
+	// Default: no records field, no "records" key.
+	res := Status(context.Background(), newFake(), StatusOptions{})
+	if res.Result != ResultApplied {
+		t.Fatalf("result = %q, want applied; message=%q", res.Result, res.Message)
+	}
+	if res.Records != nil {
+		t.Fatalf("records computed without IncludeRecords: %v", *res.Records)
+	}
+	b, err := json.Marshal(res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), `"records"`) {
+		t.Fatalf("records key present by default: %s", b)
+	}
+
+	// Opt-in: identical array, same order, key present.
+	res = Status(context.Background(), newFake(), StatusOptions{IncludeRecords: true})
+	if res.Records == nil {
+		t.Fatal("IncludeRecords did not populate records")
+	}
+	b, err = json.Marshal(res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `"records"`) {
+		t.Fatalf("records key absent with IncludeRecords: %s", b)
+	}
+
+	// Content equality with the array today's unconditional computation would
+	// have produced: changes by ascending id, then ADRs by id (corpusRecords'
+	// kind-then-identity order).
+	active := string(repository.LocationActive)
+	ledger := string(repository.LocationLedger)
+	want := []StatusRecord{
+		{Kind: "change", Identity: "0003", Location: active, Path: "docs/changes/active/0003-three.md", Version: "blobchange0003"},
+		{Kind: "change", Identity: "0009", Location: active, Path: "docs/changes/active/0009-nine.md", Version: "blobchange0009"},
+		{Kind: "adr", Identity: "0071", Location: ledger, Path: "docs/adrs/0071-z-adr.md", Version: "blobadr0071"},
+	}
+	if !reflect.DeepEqual(*res.Records, want) {
+		t.Fatalf("records content/order mismatch:\n got: %+v\nwant: %+v", *res.Records, want)
+	}
+}
+
 // TestStatusSourceDistinction is the artifact-source-distinction probe target:
 // the operation asks the metadata source for a spec and the integration source
 // for a plan, so the recorded source names diverge.
@@ -289,7 +358,7 @@ func TestStatusFailureMapping(t *testing.T) {
 			if got.Reason != tc.reason {
 				t.Errorf("reason = %q, want %q", got.Reason, tc.reason)
 			}
-			if len(got.Changes)+len(got.Ready)+len(got.Records) != 0 {
+			if len(got.Changes)+len(got.Ready) != 0 || got.Records != nil {
 				t.Errorf("failure carried report sections: %+v", got)
 			}
 			if got.Message == "" {
@@ -361,7 +430,7 @@ func TestStatusStableOrdering(t *testing.T) {
 		}
 	}
 
-	got := Status(context.Background(), newFake(), StatusOptions{})
+	got := Status(context.Background(), newFake(), StatusOptions{IncludeRecords: true})
 	var ids []int
 	for _, c := range got.Changes {
 		ids = append(ids, c.ID)
@@ -371,12 +440,12 @@ func TestStatusStableOrdering(t *testing.T) {
 	}
 	// records: changes (by id) then adrs (by id)
 	wantKinds := []string{"change", "change", "change", "adr", "adr"}
-	if len(got.Records) != len(wantKinds) {
-		t.Fatalf("record count = %d, want %d (%+v)", len(got.Records), len(wantKinds), got.Records)
+	if got.Records == nil || len(*got.Records) != len(wantKinds) {
+		t.Fatalf("record count = %v, want %d (%+v)", got.Records, len(wantKinds), got.Records)
 	}
 	for i, k := range wantKinds {
-		if got.Records[i].Kind != k {
-			t.Errorf("record[%d].Kind = %q, want %q", i, got.Records[i].Kind, k)
+		if (*got.Records)[i].Kind != k {
+			t.Errorf("record[%d].Kind = %q, want %q", i, (*got.Records)[i].Kind, k)
 		}
 	}
 
@@ -384,7 +453,7 @@ func TestStatusStableOrdering(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := json.Marshal(Status(context.Background(), newFake(), StatusOptions{}))
+	b, err := json.Marshal(Status(context.Background(), newFake(), StatusOptions{IncludeRecords: true}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -413,8 +482,12 @@ func TestStatusEmptyStatesExplicit(t *testing.T) {
 	if got.Summary.DisplayedChanges != 0 {
 		t.Errorf("zero-match filter displayed %d changes", got.Summary.DisplayedChanges)
 	}
-	if got.Ready == nil || got.Changes == nil || got.Records == nil || got.Findings == nil {
+	if got.Ready == nil || got.Changes == nil || got.Findings == nil {
 		t.Errorf("a collection was nil: %+v", got)
+	}
+	// Records are opt-in (change 0397): absent by default, even in the empty state.
+	if got.Records != nil {
+		t.Errorf("records computed without IncludeRecords: %+v", got.Records)
 	}
 	buf, _ := json.Marshal(got)
 	for _, want := range []string{`"ready":[]`, `"changes":[]`} {

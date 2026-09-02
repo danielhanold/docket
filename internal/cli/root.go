@@ -219,16 +219,18 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 			}
 			types, _ := c.Flags().GetStringArray("type")
 			priorities, _ := c.Flags().GetStringArray("priority")
+			includeRecords, _ := c.Flags().GetBool("records")
 			client, err := gitcli.NewClient()
 			if err != nil {
 				return err
 			}
 			result = app.Status(c.Context(), app.NewGitStatusReader(client),
-				app.StatusOptions{RepoDir: repoDir, Types: types, Priorities: priorities})
+				app.StatusOptions{RepoDir: repoDir, Types: types, Priorities: priorities, IncludeRecords: includeRecords})
 			return nil
 		},
 	}
 	statusCmd.Flags().String("repo-dir", "", "repository `dir` to read (default: current directory)")
+	statusCmd.Flags().Bool("records", false, "include the corpus artifact-integrity inventory (the records array) in --json output")
 	statusCmd.Flags().StringArray("type", nil, "filter the displayed projection to a configured change `type` (repeatable)")
 	statusCmd.Flags().StringArray("priority", nil, "filter the displayed projection to a priority `level`: critical, high, medium, or low (repeatable)")
 

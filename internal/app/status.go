@@ -51,6 +51,11 @@ type StatusOptions struct {
 	RepoDir    string   // invocation directory; "" = cwd
 	Types      []string // repeatable --type values (validated against configured change_types)
 	Priorities []string // repeatable --priority values (closed domain priority spellings)
+	// IncludeRecords opts in to the corpus artifact-integrity inventory
+	// (the records array). Off, the inventory is neither computed nor
+	// marshaled (change 0397: the 130 KB majority of the payload that no
+	// preflight, selection, or human read uses).
+	IncludeRecords bool
 }
 
 // StatusPin is everything the read was pinned against, resolved once by
@@ -194,8 +199,14 @@ func Status(ctx context.Context, reader StatusReader, opts StatusOptions) Status
 		artifactFindings = append(artifactFindings, f...)
 	}
 
-	// 7. Assemble records and findings in their fixed orders.
-	records := corpusRecords(snap, blobByPath)
+	// 7. Assemble findings in their fixed order; the records inventory is
+	//    computed only when opted in (change 0397). Off, records stays nil so
+	//    the key is absent — never an empty array.
+	var records *[]StatusRecord
+	if opts.IncludeRecords {
+		r := corpusRecords(snap, blobByPath)
+		records = &r
+	}
 	findings := assembleFindings(pin.ConfigDiags, parseFindings, build.Report, artifactFindings)
 
 	readyIDs := make([]int, 0, len(ready))
