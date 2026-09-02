@@ -89,11 +89,16 @@ type StatusFinding struct {
 // exactly one document with empty report arrays.
 type StatusResult struct {
 	Envelope
-	Context  StatusContext   `json:"context"`
-	Summary  StatusSummary   `json:"summary"`
-	Changes  []StatusChange  `json:"changes"`
-	Ready    []int           `json:"ready"`
-	Records  []StatusRecord  `json:"records"`
+	Context StatusContext  `json:"context"`
+	Summary StatusSummary  `json:"summary"`
+	Changes []StatusChange `json:"changes"`
+	Ready   []int          `json:"ready"`
+	// Records is the artifact-integrity inventory over the complete corpus.
+	// It is computed and marshaled only when StatusOptions.IncludeRecords asks
+	// for it (the --records flag): nil means "not requested" and the key is
+	// absent; a non-nil empty slice still marshals as []. Absence is the
+	// signal — never an empty array (change 0397).
+	Records  *[]StatusRecord `json:"records,omitempty"`
 	Findings []StatusFinding `json:"findings"`
 	// RepositoryState is populated only on the operational gate's typed refusal
 	// (change 0363): the classifier's stable repository state (e.g. "legacy"),
@@ -104,7 +109,10 @@ type StatusResult struct {
 }
 
 // NewStatusResult stamps the envelope and normalizes nil collections to empty
-// slices so the four arrays marshal as [] on every path, including failures.
+// slices so the three always-present arrays marshal as [] on every path,
+// including failures. Records is not among them (change 0397): it is an opt-in
+// pointer left nil unless StatusOptions.IncludeRecords requested it, so the key
+// is absent by default and a non-nil empty slice still marshals as [].
 func NewStatusResult(result Result, r StatusResult) StatusResult {
 	r.Envelope = NewEnvelope(OperationStatus, result)
 	if r.Changes == nil {
@@ -112,9 +120,6 @@ func NewStatusResult(result Result, r StatusResult) StatusResult {
 	}
 	if r.Ready == nil {
 		r.Ready = []int{}
-	}
-	if r.Records == nil {
-		r.Records = []StatusRecord{}
 	}
 	if r.Findings == nil {
 		r.Findings = []StatusFinding{}

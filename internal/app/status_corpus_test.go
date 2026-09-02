@@ -138,7 +138,9 @@ func TestStatusCorpusFrozenSemantics(t *testing.T) {
 	}
 	fake := &fakeReader{pin: pin, corpus: blobs, facts: domain.NewBranchFacts(nil)}
 
-	got := Status(context.Background(), fake, StatusOptions{})
+	// Opt into the corpus inventory (change 0397): this test's oracle is the
+	// frozen records array.
+	got := Status(context.Background(), fake, StatusOptions{IncludeRecords: true})
 	if got.Result != ResultApplied {
 		t.Fatalf("result = %q, want applied; message=%q", got.Result, got.Message)
 	}
@@ -207,11 +209,11 @@ func TestStatusCorpusFrozenSemantics(t *testing.T) {
 		{"adr", "0004", "ledger"},
 		{"adr", "0005", "ledger"},
 	}
-	if len(got.Records) != len(wantRecords) {
-		t.Fatalf("Records has %d entries, want %d: %+v", len(got.Records), len(wantRecords), got.Records)
+	if got.Records == nil || len(*got.Records) != len(wantRecords) {
+		t.Fatalf("Records has %v entries, want %d: %+v", got.Records, len(wantRecords), got.Records)
 	}
 	for i, want := range wantRecords {
-		r := got.Records[i]
+		r := (*got.Records)[i]
 		if r.Kind != want.kind || r.Identity != want.identity || r.Location != want.location {
 			t.Errorf("Records[%d] = {%s %s %s}, want {%s %s %s}",
 				i, r.Kind, r.Identity, r.Location, want.kind, want.identity, want.location)

@@ -75,15 +75,17 @@ func TestStatusDigestUnchangedByBoardPresentation(t *testing.T) {
 		}
 	}
 
-	def := Status(context.Background(), newFake(pin), StatusOptions{})
-	permuted := Status(context.Background(), newFake(permutedBoardPin(t, pin)), StatusOptions{})
+	// Opt into records (change 0397) so the inventory stays part of the digest
+	// the projection-isolation claim covers.
+	def := Status(context.Background(), newFake(pin), StatusOptions{IncludeRecords: true})
+	permuted := Status(context.Background(), newFake(permutedBoardPin(t, pin)), StatusOptions{IncludeRecords: true})
 
 	if def.Result != ResultApplied {
 		t.Fatalf("default digest not applied: %q (%s)", def.Result, def.Message)
 	}
 	// Non-vacuity: the digest must carry a populated body and a non-empty ready
 	// queue, or "deeply equal" would be trivially satisfied by two empty results.
-	if len(def.Changes) == 0 || len(def.Ready) == 0 || len(def.Records) == 0 {
+	if len(def.Changes) == 0 || len(def.Ready) == 0 || def.Records == nil || len(*def.Records) == 0 {
 		t.Fatalf("digest fixture is too thin to be a meaningful isolation check: %+v", def.Summary)
 	}
 	if !reflect.DeepEqual(def, permuted) {
@@ -99,10 +101,16 @@ func TestStatusResultEmptyCollectionsMarshalAsArrays(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(buf)
-	for _, want := range []string{`"changes":[]`, `"ready":[]`, `"records":[]`, `"findings":[]`} {
+	// records is no longer one of the always-[] arrays (change 0397): the three
+	// remaining arrays still marshal [], and a document with no requested
+	// inventory carries no "records" key at all.
+	for _, want := range []string{`"changes":[]`, `"ready":[]`, `"findings":[]`} {
 		if !strings.Contains(s, want) {
 			t.Errorf("marshalled document missing %s: %s", want, s)
 		}
+	}
+	if strings.Contains(s, `"records"`) {
+		t.Errorf("records key present without IncludeRecords: %s", s)
 	}
 	if strings.Contains(s, "null") {
 		t.Errorf("null leaked into protocol document: %s", s)
@@ -119,7 +127,7 @@ func TestStatusResultEnvelope(t *testing.T) {
 
 func TestStatusResultFailureShapeCarriesNoPartialReport(t *testing.T) {
 	r := NewStatusResult(ResultExternalFailed, StatusResult{Reason: "unreachable-ref", Message: "boom"})
-	if len(r.Changes)+len(r.Ready)+len(r.Records) != 0 {
+	if len(r.Changes)+len(r.Ready) != 0 || r.Records != nil {
 		t.Errorf("failure result carried report sections: %+v", r)
 	}
 }
