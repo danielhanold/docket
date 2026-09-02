@@ -121,17 +121,23 @@ type storedRecord struct {
 }
 
 // Store is a durable, owner-private collection of drive records rooted at the
-// v1 gate-drives directory under a repository's Git common dir. It holds no
+// v1 gate-drives directory under a repository's Git common dir. It also owns a
+// sibling gate-scopes root for recovery-scope records (scope.go). It holds no
 // mutable state, so one Store is safe for concurrent use across goroutines.
 type Store struct {
-	root string
+	root      string
+	scopeRoot string
 }
 
-// OpenStore returns a Store rooted at <gitCommonDir>/docket/gate-drives/v1. It
-// creates nothing; directories are minted lazily by NewDrive so an unused store
-// leaves no trace.
+// OpenStore returns a Store rooted at <gitCommonDir>/docket/gate-drives/v1 with
+// a sibling recovery-scope root at <gitCommonDir>/docket/gate-scopes/v1. It
+// creates nothing; directories are minted lazily by NewDrive/PrepareScope so an
+// unused store leaves no trace.
 func OpenStore(gitCommonDir string) *Store {
-	return &Store{root: filepath.Join(gitCommonDir, "docket", "gate-drives", "v1")}
+	return &Store{
+		root:      filepath.Join(gitCommonDir, "docket", "gate-drives", "v1"),
+		scopeRoot: filepath.Join(gitCommonDir, "docket", "gate-scopes", "v1"),
+	}
 }
 
 // NewDrive allocates an opaque high-entropy id and initial generation, stamps

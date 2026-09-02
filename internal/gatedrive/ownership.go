@@ -63,6 +63,22 @@ const (
 	// longer certify the original bytes, so the boundary is refused (the Task-6
 	// driver maps this to a stop-if-owned HALT, never red).
 	ErrFingerprintMismatch OwnershipErrorKind = "fingerprint-mismatch"
+	// ErrScopeCapabilityMismatch: a scope transition presented a capability whose
+	// hash does not match the scope's stored child (or parent) capability hash —
+	// an empty, wrong, or role-swapped token. It confers no scope authority.
+	ErrScopeCapabilityMismatch OwnershipErrorKind = "scope-capability-mismatch"
+	// ErrScopeSecondDrive: a bind was attempted on a scope that already binds a
+	// different live drive. One scope binds at most one live drive; a second is
+	// refused rather than overwriting the first (an idempotent re-bind of the
+	// same drive id is a no-op, not this error).
+	ErrScopeSecondDrive OwnershipErrorKind = "scope-second-live-drive"
+	// ErrScopeClosed: a transition was attempted on a scope already closed by a
+	// normal claim or an event-authorized takeover. A closed scope is terminal.
+	ErrScopeClosed OwnershipErrorKind = "scope-closed"
+	// ErrScopeIdentityMismatch: a scope's identity (its bound change, or an
+	// identity field a takeover re-verifies) no longer matches what the caller
+	// presented — e.g. rebinding a scope to a different change. Fail closed.
+	ErrScopeIdentityMismatch OwnershipErrorKind = "scope-identity-mismatch"
 )
 
 // OwnershipError is the ownership layer's typed failure. Like StoreError it

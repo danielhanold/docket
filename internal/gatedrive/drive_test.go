@@ -2,6 +2,8 @@ package gatedrive
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -99,5 +101,33 @@ func TestDriveRecordCarriesSchemaVersion(t *testing.T) {
 	}
 	if driveSchemaVersion < 1 {
 		t.Fatalf("schema version must be a positive generation, got %d", driveSchemaVersion)
+	}
+}
+
+// TestDriveSchemaV1FailsClosedUnderV2 proves the immediately-prior schema
+// generation is not migrated: a persisted v1 record read by the v2 store fails
+// closed with the typed unknown-schema error rather than being silently upgraded.
+func TestDriveSchemaV1FailsClosedUnderV2(t *testing.T) {
+	if driveSchemaVersion != 2 {
+		t.Fatalf("this fail-closed assertion is pinned to schema v2, got v%d", driveSchemaVersion)
+	}
+	s := OpenStore(t.TempDir())
+	id, _, err := s.NewDrive(sampleRecord())
+	if err != nil {
+		t.Fatalf("NewDrive: %v", err)
+	}
+	// Overwrite the record with an explicit v1 schema version — the prior schema.
+	rec := sampleRecord()
+	rec.SchemaVersion = 1
+	buf, err := json.Marshal(storedRecord{Generation: "x", Record: rec})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(s.root, id, recordFileName), buf, 0o600); err != nil {
+		t.Fatalf("overwrite: %v", err)
+	}
+	_, err = s.Load(id)
+	if se, ok := AsStoreError(err); !ok || se.Kind != ErrUnknownSchema {
+		t.Fatalf("a v1 record must fail closed as ErrUnknownSchema under v2, got %v", err)
 	}
 }
