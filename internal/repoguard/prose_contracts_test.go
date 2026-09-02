@@ -103,6 +103,18 @@ var proseContracts = []proseContract{
 	// tests/test_finalize_gate.sh — the two conflict/repair dispatch names.
 	{sentinel: "test_finalize_gate", file: "skills/docket-finalize-change/SKILL.md",
 		present: []string{"docket-rebase-resolver", "docket-integration-repair"}},
+	// change 0396 — the WAITING re-entry route: bound to re-running the identical
+	// finalize.rebase invocation, with the gate-drive-advance misuse named as the
+	// prohibition (the phrase is bound to its claim in one sentence, not floating;
+	// learnings: prose-guard-binds-phrase-to-claim).
+	{sentinel: "test_finalize_gate_waiting", file: "skills/docket-finalize-change/SKILL.md",
+		present: []string{
+			"`waiting` with `reason: gate-waiting`",
+			"Re-run the **identical** `finalize.rebase` invocation",
+			"Never re-enter through `gate drive advance`",
+		}},
+	{sentinel: "test_finalize_gate_waiting", file: "skills/docket-finalize-change/references/gate-failure.md",
+		present: []string{"A `waiting` (`reason: gate-waiting`) is not in this set"}},
 	// tests/test_groom_recap.sh — recap-then-groom Step 3.
 	{sentinel: "test_groom_recap", file: "skills/docket-groom-next/SKILL.md",
 		present: []string{"### Step 3 — Recap, then groom with the human"}},
