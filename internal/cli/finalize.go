@@ -60,6 +60,10 @@ func newFinalizeCleanupSubcommand(setResult func(app.OperationResult)) *cobra.Co
 		Use:   "cleanup",
 		Short: "Clean a terminal change's workspace and feature refs under exact ownership proof",
 		Args:  cobra.NoArgs,
+		// local-write (delete local ref + remove worktree), external-write
+		// (delete the remote feature ref under lease), metadata-write (the
+		// closeout-backlink transaction leg on the metadata branch).
+		Annotations: capability("finalize.cleanup", EffectLocalWrite, EffectExternalWrite, EffectMetadataWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -102,6 +106,10 @@ func newFinalizeCloseoutSubcommand(setResult func(app.OperationResult)) *cobra.C
 		Use:   "closeout",
 		Short: "Close out a merged change: mark done and archive, mark stacked-merged, or carry a stack root",
 		Args:  cobra.NoArgs,
+		// metadata-write only: archive relocation + backlink retarget are
+		// metadata-branch transactions; the PR/merge reprobes are read-only, and
+		// it pushes no feature ref.
+		Annotations: capability("finalize.closeout", EffectMetadataWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -152,6 +160,10 @@ func newFinalizeBlockSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 		Use:   "block",
 		Short: "Record a blocked finalize attempt: an owned PR comment then a durable marker",
 		Args:  cobra.NoArgs,
+		// external-write (the owned PR comment) + metadata-write (the durable
+		// "## Finalize blocked" marker upserted in an exact-version metadata-
+		// branch transaction — not local state).
+		Annotations: capability("finalize.block", EffectExternalWrite, EffectMetadataWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -211,6 +223,10 @@ func newFinalizeClearBlockSubcommand(setResult func(app.OperationResult)) *cobra
 		Use:   "clear-block",
 		Short: "Remove a finalize-blocked marker after reprobing head, remote ref, PR, and evidence",
 		Args:  cobra.NoArgs,
+		// metadata-write only: removes the "## Finalize blocked" marker in an
+		// exact-version metadata-branch transaction; the head/remote/PR/evidence
+		// reprobes are read-only.
+		Annotations: capability("finalize.clear-block", EffectMetadataWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -257,6 +273,9 @@ func newFinalizeMergeSubcommand(setResult func(app.OperationResult)) *cobra.Comm
 		Use:   "merge",
 		Short: "Merge a change's pull request at its expected head and verify it authoritatively",
 		Args:  cobra.NoArgs,
+		// external-write: merges the exact pull request on GitHub; it writes no
+		// metadata and requests no branch deletion.
+		Annotations: capability("finalize.merge", EffectExternalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -312,6 +331,9 @@ func newFinalizeRetargetChildrenSubcommand(setResult func(app.OperationResult)) 
 		Use:   "retarget-children",
 		Short: "Retarget each authorized open child PR onto the parent's effective base",
 		Args:  cobra.NoArgs,
+		// external-write: moves each authorized open child PR's base on GitHub;
+		// it opens no transaction and changes no metadata.
+		Annotations: capability("finalize.retarget-children", EffectExternalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -355,6 +377,9 @@ func newFinalizeRebaseSubcommand(setResult func(app.OperationResult)) *cobra.Com
 		Use:   "rebase",
 		Short: "Rebase a change's feature branch onto its effective base and run the local gate",
 		Args:  cobra.NoArgs,
+		// local-write (rebases the local feature branch, records the owned
+		// receipt/drive store) + process-control (composes the local suite gate).
+		Annotations: capability("finalize.rebase", EffectLocalWrite, EffectProcessControl),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -392,6 +417,10 @@ func newFinalizeRebaseContinueSubcommand(setResult func(app.OperationResult)) *c
 		Use:   "rebase-continue",
 		Short: "Continue an owned rebase from a verified conflict-resolver report",
 		Args:  cobra.NoArgs,
+		// local-write (stages the reported paths, continues the owned local
+		// rebase) + process-control (composes the local suite gate on
+		// completion) — the CORRECTED classification: the plan omitted the gate.
+		Annotations: capability("finalize.rebase-continue", EffectLocalWrite, EffectProcessControl),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -424,6 +453,9 @@ func newFinalizeRebaseAbortSubcommand(setResult func(app.OperationResult)) *cobr
 		Use:   "rebase-abort",
 		Short: "Abort an owned rebase and verify restoration to the recorded original head",
 		Args:  cobra.NoArgs,
+		// local-write: aborts the local rebase and clears the receipt/owned refs;
+		// it runs no suite and writes no remote or metadata.
+		Annotations: capability("finalize.rebase-abort", EffectLocalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -457,6 +489,10 @@ func newFinalizePublishSubcommand(setResult func(app.OperationResult)) *cobra.Co
 		Use:   "publish",
 		Short: "Publish a rebased feature head under its receipt lease and update the PR build-evidence block",
 		Args:  cobra.NoArgs,
+		// external-write only: force-with-lease pushes the rewritten feature head
+		// (remote ref) and converges the PR evidence block on GitHub; it opens no
+		// metadata transaction.
+		Annotations: capability("finalize.publish", EffectExternalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {

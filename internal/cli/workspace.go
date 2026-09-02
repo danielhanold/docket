@@ -33,9 +33,10 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 	}
 
 	prepare := &cobra.Command{
-		Use:   "prepare",
-		Short: "Prepare (or resume) the feature workspace for an in-progress change at an exact version",
-		Args:  cobra.NoArgs,
+		Use:         "prepare",
+		Short:       "Prepare (or resume) the feature workspace for an in-progress change at an exact version",
+		Args:        cobra.NoArgs,
+		Annotations: capability("workspace.prepare", EffectLocalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -59,9 +60,10 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 	_ = prepare.MarkFlagRequired("version")
 
 	inspect := &cobra.Command{
-		Use:   "inspect",
-		Short: "Classify a change's feature workspace state (read-only)",
-		Args:  cobra.NoArgs,
+		Use:         "inspect",
+		Short:       "Classify a change's feature workspace state (read-only)",
+		Args:        cobra.NoArgs,
+		Annotations: capability("workspace.inspect", EffectRead),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -82,9 +84,10 @@ func newWorkspaceCommand(setResult func(app.OperationResult)) *cobra.Command {
 	_ = inspect.MarkFlagRequired("id")
 
 	publish := &cobra.Command{
-		Use:   "publish",
-		Short: "Publish a change's ready workspace head to the remote feature ref",
-		Args:  cobra.NoArgs,
+		Use:         "publish",
+		Short:       "Publish a change's ready workspace head to the remote feature ref",
+		Args:        cobra.NoArgs,
+		Annotations: capability("workspace.publish", EffectExternalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {

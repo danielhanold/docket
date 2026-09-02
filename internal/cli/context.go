@@ -32,9 +32,10 @@ func newContextCommand(setResult func(app.OperationResult)) *cobra.Command {
 	}
 
 	implementation := &cobra.Command{
-		Use:   "implementation",
-		Short: "Assemble the authoritative implementation-context bundle (read-only)",
-		Args:  cobra.NoArgs,
+		Use:         "implementation",
+		Short:       "Assemble the authoritative implementation-context bundle (read-only)",
+		Args:        cobra.NoArgs,
+		Annotations: capability("context.implementation", EffectRead),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -53,9 +54,10 @@ func newContextCommand(setResult func(app.OperationResult)) *cobra.Command {
 	implementation.Flags().Int("id", 0, "inspect this exact change id instead of applying the selection policy")
 
 	finalize := &cobra.Command{
-		Use:   "finalize",
-		Short: "Assemble the authoritative finalize-context bundle (read-only)",
-		Args:  cobra.NoArgs,
+		Use:         "finalize",
+		Short:       "Assemble the authoritative finalize-context bundle (read-only)",
+		Args:        cobra.NoArgs,
+		Annotations: capability("context.finalize", EffectRead),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {

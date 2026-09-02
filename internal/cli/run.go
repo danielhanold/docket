@@ -37,9 +37,10 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	}
 
 	verify := &cobra.Command{
-		Use:   "verify",
-		Short: "Verify one change's implemented-run postconditions and report a closed verdict",
-		Args:  cobra.NoArgs,
+		Use:         "verify",
+		Short:       "Verify one change's implemented-run postconditions and report a closed verdict",
+		Args:        cobra.NoArgs,
+		Annotations: capability("run.verify", EffectRead),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -73,6 +74,9 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Use:   "gate-before <target>",
 		Short: "Arm the run gate for a dispatched workflow and print gate-armed <key>",
 		Args:  cobra.ExactArgs(1),
+		// local-write: mints the durable rungate record under the Git common
+		// dir; the re-sync is a read-only fetch.
+		Annotations: capability("run.gate-before", EffectLocalWrite),
 		RunE: func(c *cobra.Command, args []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -106,6 +110,10 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Use:   "gate-verdict <key> | --unattributed [<id>...]",
 		Short: "Report the run-gate verdict for a dispatched workflow (attributed or observe-only)",
 		Args:  cobra.ArbitraryArgs,
+		// local-write: writes only the durable rungate record and its O_EXCL retry
+		// marker. Attribution reads the already-landed in-progress claim set and
+		// binds it in the local record — it writes no metadata branch.
+		Annotations: capability("run.gate-verdict", EffectLocalWrite),
 		RunE: func(c *cobra.Command, args []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {

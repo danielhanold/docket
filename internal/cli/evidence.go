@@ -37,6 +37,10 @@ func newEvidenceCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Use:   "record",
 		Short: "Record build evidence from a passed gate run at the current feature head",
 		Args:  cobra.NoArgs,
+		// read: EvidenceRecord observes an existing gate terminal and returns the
+		// rendered evidence block as bytes — it writes no evidence store; the
+		// block becomes the durable record only later, at `pr publish`.
+		Annotations: capability("evidence.record", EffectRead),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -62,9 +66,10 @@ func newEvidenceCommand(setResult func(app.OperationResult)) *cobra.Command {
 	_ = record.MarkFlagRequired("head")
 
 	verify := &cobra.Command{
-		Use:   "verify",
-		Short: "Verify a build-evidence record's canonical bytes against an exact head (read-only)",
-		Args:  cobra.NoArgs,
+		Use:         "verify",
+		Short:       "Verify a build-evidence record's canonical bytes against an exact head (read-only)",
+		Args:        cobra.NoArgs,
+		Annotations: capability("evidence.verify", EffectRead),
 		RunE: func(c *cobra.Command, _ []string) error {
 			source, _ := c.Flags().GetString("record")
 			head, _ := c.Flags().GetString("head")

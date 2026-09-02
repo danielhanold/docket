@@ -34,7 +34,7 @@ func newLearningCommand(setResult func(app.OperationResult)) *cobra.Command {
 		},
 	}
 
-	record := changeSubcommand("record",
+	record := changeSubcommand("learning", "record",
 		"Record a new manual learning finding from a JSON request",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
 			var req app.LearningRecordRequest
@@ -43,9 +43,9 @@ func newLearningCommand(setResult func(app.OperationResult)) *cobra.Command {
 			}
 			setResult(app.LearningRecordOp(c.Context(), deps, repoDir, req))
 			return nil
-		})
+		}, EffectMetadataWrite)
 
-	update := changeSubcommand("update",
+	update := changeSubcommand("learning", "update",
 		"Update an existing manual learning finding from a JSON request",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
 			var req app.LearningUpdateRequest
@@ -54,7 +54,7 @@ func newLearningCommand(setResult func(app.OperationResult)) *cobra.Command {
 			}
 			setResult(app.LearningUpdate(c.Context(), deps, repoDir, req))
 			return nil
-		})
+		}, EffectMetadataWrite)
 
 	learningCmd.AddCommand(record, update)
 	return learningCmd

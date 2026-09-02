@@ -76,12 +76,19 @@ func newRepositoryCommand(setResult func(app.OperationResult)) *cobra.Command {
 		"Initialize the docket metadata branch and persistent .docket worktree",
 		func(c *cobra.Command, deps app.SetupDeps) {
 			setResult(repositoryInitRunner(c.Context(), deps))
-		})
+		},
+		// metadata-write (the parentless metadata root, published create-only to
+		// the metadata branch) + local-write (local branch, .docket worktree,
+		// managed .gitignore, dispatch surfaces). The metadata-branch publish is
+		// metadata-write, not external — external is only remote refs OUTSIDE the
+		// metadata branch.
+		EffectMetadataWrite, EffectLocalWrite)
 	checkCmd := repositorySubcommand("check",
 		"Report repository health with machine-readable findings (read-only)",
 		func(c *cobra.Command, deps app.SetupDeps) {
 			setResult(repositoryCheckRunner(c.Context(), deps))
-		})
+		},
+		EffectRead)
 	migrateCmd := newRepositoryMigrateCommand(setResult)
 	prepareCmd := repositorySubcommand("prepare",
 		"Prepare the repository for a workflow: pin topology and attach or fast-forward the .docket worktree (Step 0)",
@@ -89,12 +96,19 @@ func newRepositoryCommand(setResult func(app.OperationResult)) *cobra.Command {
 			// deps.RepoDir already carries the resolved --repo-dir; RunRepository
 			// prepare keeps its own PrepareOptions.RepoDir override empty here.
 			setResult(repositoryPrepareRunner(c.Context(), deps, app.PrepareOptions{}))
-		})
+		},
+		// local-write: attaches or fast-forwards the local .docket worktree and
+		// its local metadata ref; it authors no new metadata content and never
+		// pushes.
+		EffectLocalWrite)
 	configureTestsCmd := repositorySubcommand("configure-tests",
 		"Generate the pending .docket.yml build/finalize test policy for an already-initialized repository",
 		func(c *cobra.Command, deps app.SetupDeps) {
 			setResult(repositoryConfigureTestsRunner(c.Context(), deps))
-		})
+		},
+		// local-write: (re)generates the pending, unstaged .docket.yml edit —
+		// never commits, never stages.
+		EffectLocalWrite)
 
 	repositoryCmd.AddCommand(initCmd, checkCmd, migrateCmd, prepareCmd, configureTestsCmd)
 	return repositoryCmd
@@ -111,6 +125,10 @@ func newRepositoryMigrateCommand(setResult func(app.OperationResult)) *cobra.Com
 		Use:   "migrate",
 		Short: "Convert a legacy single-branch repository to the docket topology",
 		Args:  cobra.NoArgs,
+		// metadata-write (seed + prune commits published to the metadata branch)
+		// + local-write (local finish and .docket attachment). The metadata-
+		// branch publish is metadata-write, not external.
+		Annotations: capability("repository.migrate", EffectMetadataWrite, EffectLocalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -183,11 +201,16 @@ func repositoryReadYes(r io.Reader) bool {
 // them. Any pre-dispatch failure (an unresolvable working directory, an
 // unavailable Git client) is an argument-shaped error returned before the
 // operation runs.
-func repositorySubcommand(name, short string, run func(c *cobra.Command, deps app.SetupDeps)) *cobra.Command {
+// The capability id is the dotted command path "repository."+name; effects are
+// declared by each caller (the repository verbs differ — check reads, prepare
+// and configure-tests write locally, init writes metadata + local) rather than
+// looked up from a name inside the helper.
+func repositorySubcommand(name, short string, run func(c *cobra.Command, deps app.SetupDeps), effects ...Effect) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   name,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         name,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: capability("repository."+name, effects...),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {

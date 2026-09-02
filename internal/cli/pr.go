@@ -45,6 +45,10 @@ func newPRCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Use:   "publish",
 		Short: "Publish (create or adopt) the pull request for a published feature head with its build evidence",
 		Args:  cobra.NoArgs,
+		// external-write only: PRPublish weaves the backlink/evidence blocks into
+		// the PR body on GitHub; the change record's own `pr:` field is stamped
+		// later by `change mark-implemented`, not here.
+		Annotations: capability("pr.publish", EffectExternalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
