@@ -325,6 +325,15 @@ func gateOuterContinuation(ctx context.Context, deps PlanningDeps, wdeps Workspa
 			return gateStopUnavailable(repoDir, key, rec, id, ReasonGateTakeoverError), true
 		}
 		if halted {
+			// A halted takeover is fail-closed: gate-stop gate-unavailable, no retry
+			// spent (a human is needed). One halt cause is intentional and bounded:
+			// the outer recovery scope is single-use per gate ARMING (it is minted
+			// once by gate-before), so the FIRST accepted outer takeover closes it and
+			// a SECOND detached-crash takeover under the same key halts scope-closed
+			// here. That once-per-arming outer-takeover limit is by design — the human
+			// recovers by re-arming a fresh scope via `gate-before --resume`; see
+			// claimScopeForTakeover (internal/gatedrive/takeover.go) and the spec's §5
+			// continuation clause.
 			reason := cause
 			if reason == "" {
 				reason = ReasonGateTakeoverError
