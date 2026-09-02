@@ -2,7 +2,7 @@
 id: 373
 slug: 'harden-integration-race-test-isolation-under-parallel-load'
 title: 'Harden integration/race test isolation under parallel load'
-status: 'in-progress'
+status: 'implemented'
 priority: high
 type: 'chore'
 created: '2026-08-30'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'chore/harden-integration-race-test-isolation-under-parallel-load'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/271'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-02T16:29:55Z'

@@ -1,18 +1,18 @@
 # Backlog
 
-**397 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 18 groomed · 🟡 43 proposed · ⚪ 4 deferred · ✅ 244 done · 🗑️ 85 killed
+**397 changes** — 🟢 1 in progress · 🔵 2 built · 🟣 18 groomed · 🟡 43 proposed · ⚪ 4 deferred · ✅ 244 done · 🗑️ 85 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0395](active/0395-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap.md) | Migrate CLAUDE.md/AGENTS.md agent-executed blocks to the capability-first idiom | `medium` | `refactor` | [spec](../superpowers/specs/2026-09-02-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap-design.md) | `refactor/migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap` |
-| [0373](active/0373-harden-integration-race-test-isolation-under-parallel-load.md) | Harden integration/race test isolation under parallel load | `high` | `chore` | [spec](../superpowers/specs/2026-09-02-harden-integration-race-test-isolation-under-parallel-load-design.md) | `chore/harden-integration-race-test-isolation-under-parallel-load` |
 
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
+| [0373](active/0373-harden-integration-race-test-isolation-under-parallel-load.md) | Harden integration/race test isolation under parallel load | `high` | `chore` | [#271](https://github.com/danielhanold/docket/pull/271) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
 ## 🟣 Groomed (18)
