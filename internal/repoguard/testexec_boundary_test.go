@@ -31,9 +31,10 @@ import (
 //     the CONSUMER (the config struct), never a spelling list, is the derive-from-the-
 //     consumer rule.
 //
-// A site of either shape is a violation UNLESS it routes through `gate drive` — for
-// (a) anywhere in the same fenced block (the sanctioned task-owner recipe carries the
-// suite argv AFTER `-- ` on a `gate drive start` line), for (b) on the same line.
+// A site of either shape is a violation UNLESS it routes through `gate drive` on the
+// SAME line — the sanctioned task-owner recipe carries the suite argv AFTER `-- ` on a
+// `gate drive start` line, so a same-line excuse covers it, while a direct-suite
+// spelling that merely shares a fence with an unrelated driver line is still a defect.
 //
 // Residual risk, recorded not hidden (mirroring gatedriver_test.go's recorded
 // residual, per the byte-pattern-guard learning): the markdown detector only reads
@@ -158,10 +159,10 @@ func buildIdentityRe(exported []string) *regexp.Regexp {
 
 var gateDriveRe = regexp.MustCompile(`gate[[:space:]]+drive`)
 
-// scanWorkflowMD (a+b): fenced runnable recipes only. (a) is excused when the
-// enclosing fenced block routes through `gate drive` anywhere (the task-owner recipe
-// carries the suite argv after `-- ` on the driver line); (b) is excused on a
-// `gate drive` line.
+// scanWorkflowMD (a+b): fenced runnable recipes only. Both shapes are excused only on
+// a `gate drive` line — the task-owner recipe carries the suite argv after `-- ` on the
+// driver line, so a same-line excuse covers it, while a direct-suite spelling on any
+// other line in the fence is still flagged.
 func scanWorkflowMD(rel, content string, suiteRe, identityRe *regexp.Regexp) []string {
 	var v []string
 	lines := strings.Split(content, "\n")
@@ -171,16 +172,9 @@ func scanWorkflowMD(rel, content string, suiteRe, identityRe *regexp.Regexp) []s
 		if len(block) == 0 {
 			return
 		}
-		blockHasDrive := false
-		for _, i := range block {
-			if gateDriveRe.MatchString(lines[i]) {
-				blockHasDrive = true
-				break
-			}
-		}
 		for _, i := range block {
 			line := lines[i]
-			if suiteRe.MatchString(line) && !blockHasDrive {
+			if suiteRe.MatchString(line) && !gateDriveRe.MatchString(line) {
 				v = append(v, fmt.Sprintf("a\t%s:%d: direct docket suite channel in a fenced recipe not routed through gate drive", rel, i+1))
 			}
 			if identityRe.MatchString(line) && !gateDriveRe.MatchString(line) {
@@ -297,6 +291,13 @@ func TestExecBoundary(t *testing.T) {
 		taskOwner := "```bash\ndocket gate drive start --owner task --scope-id S --child-cap C --run-root .scratch -- go run ./cmd/docket development test\n```\n"
 		if got := scanWorkflowMD("skills/x/SKILL.md", taskOwner, suiteRe, identityRe); len(got) != 0 {
 			t.Errorf("task-owner driver recipe carrying suite argv wrongly flagged: %v", got)
+		}
+		// (a) line-level excuse, not block-level: a bare direct-suite spelling on its
+		// OWN line, sharing a fence with an unrelated `gate drive` line, is a violation.
+		// A block-level excuse would wrongly wave this through.
+		blockSharesFence := "```bash\ndocket gate drive start --owner task --run-root .scratch -- true\ndocket development test\n```\n"
+		if got := scanWorkflowMD("skills/x/SKILL.md", blockSharesFence, suiteRe, identityRe); len(got) == 0 {
+			t.Errorf("a: a bare `docket development test` sharing a fence with an unrelated driver line must still be flagged (line-level, not block-level, excuse)")
 		}
 		// Recorded residual: the SAME suite spelling in INLINE prose back-ticks (no
 		// fence) is NOT scanned — the documented evasion, asserted so the limitation
