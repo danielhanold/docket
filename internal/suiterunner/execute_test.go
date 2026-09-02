@@ -45,7 +45,7 @@ func TestSandboxIsolation(t *testing.T) {
 	}, "\n")+"\n")
 
 	reg := newProcRegistry()
-	res, err := ExecuteTarget(context.Background(), bashPath(t), tgt, work, reg, nil)
+	res, err := ExecuteTarget(context.Background(), bashPath(t), tgt, work, reg, nil, 0)
 	if err != nil {
 		t.Fatalf("ExecuteTarget: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestExecuteWritesDurableResultAtomically(t *testing.T) {
 	tgt := writeScript(t, scripts, "p", "echo 'ok - one'\necho 'ok - two'\n")
 
 	reg := newProcRegistry()
-	res, err := ExecuteTarget(context.Background(), bashPath(t), tgt, work, reg, nil)
+	res, err := ExecuteTarget(context.Background(), bashPath(t), tgt, work, reg, nil, 0)
 	if err != nil {
 		t.Fatalf("ExecuteTarget: %v", err)
 	}
@@ -122,7 +122,7 @@ func TestExecuteRecordsFailure(t *testing.T) {
 	tgt := writeScript(t, scripts, "fail", "echo 'NOT OK - broke'\nexit 1\n")
 
 	reg := newProcRegistry()
-	res, err := ExecuteTarget(context.Background(), bashPath(t), tgt, work, reg, nil)
+	res, err := ExecuteTarget(context.Background(), bashPath(t), tgt, work, reg, nil, 0)
 	if err != nil {
 		t.Fatalf("ExecuteTarget: %v", err)
 	}
@@ -159,7 +159,7 @@ func TestExecuteChildGetsOwnProcessGroup(t *testing.T) {
 	reg := newProcRegistry()
 	done := make(chan Result, 1)
 	go func() {
-		r, err := ExecuteTarget(context.Background(), bashPath(t), tgt, work, reg, nil)
+		r, err := ExecuteTarget(context.Background(), bashPath(t), tgt, work, reg, nil, 0)
 		if err != nil {
 			t.Errorf("ExecuteTarget: %v", err)
 		}

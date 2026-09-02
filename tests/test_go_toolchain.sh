@@ -89,6 +89,15 @@ if [ -z "${GOMODCACHE:-}" ] || [ -z "${GOCACHE:-}" ]; then
   fi
 fi
 
+# Change 0373: under the suite runner, DOCKET_GO_TEST_CONCURRENCY bounds this
+# child's share of the machine (go test package parallelism and runtime procs).
+# Absent (solo run), Go's defaults apply unchanged.
+go_conc_args=""
+if [ -n "${DOCKET_GO_TEST_CONCURRENCY:-}" ]; then
+  go_conc_args="-p ${DOCKET_GO_TEST_CONCURRENCY}"
+  export GOMAXPROCS="${DOCKET_GO_TEST_CONCURRENCY}"
+fi
+
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/docket-go-gate.XXXXXX")"
 trap 'rm -rf "$scratch"' EXIT
 results="$scratch/check-results"
@@ -132,7 +141,7 @@ assert "go vet ./... passes" '[ "$vet_rc" -eq 0 ] || { printf "%s\n" "$vet_out" 
 # Check 3: go test passes on the host. This is also where the four-tuple
 # CGO-off cross-build runs — TestCrossCompileApprovedTargets — so the sweep is
 # paid for exactly once per suite run.
-test_out="$(go test ./... 2>&1)"
+test_out="$(go test $go_conc_args ./... 2>&1)"
 test_rc=$?
 assert "go test ./... passes" '[ "$test_rc" -eq 0 ] || { printf "%s\n" "$test_out" >&2; false; }'
 

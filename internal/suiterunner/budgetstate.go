@@ -368,7 +368,12 @@ func (s *budgetState) soloConfirm(ctx context.Context, cfg Config, path string, 
 	base := filepath.Base(path)
 	t := Target{Path: path, Base: base, Ceiling: ceiling, Mode: ModeParallel}
 	soloWork := filepath.Join(cfg.Work, "solo")
-	res, err := ExecuteTarget(ctx, cfg.Bash, t, soloWork, newProcRegistry(), []string{"DOCKET_RUNTESTS_SOLO=1"})
+	// goTestConcurrency 0: a solo confirmation runs this target uncontended to
+	// measure it against its SOLO ceiling, which is seeded from a raw solo
+	// `bash tests/<file>.sh` run (Go defaults, DOCKET_GO_TEST_CONCURRENCY absent).
+	// Exporting the parallel-lane cap here would cap the very measurement it must
+	// reproduce, so the solo re-run keeps Go's defaults (change 0373).
+	res, err := ExecuteTarget(ctx, cfg.Bash, t, soloWork, newProcRegistry(), []string{"DOCKET_RUNTESTS_SOLO=1"}, 0)
 	if err != nil {
 		return 1, 0
 	}

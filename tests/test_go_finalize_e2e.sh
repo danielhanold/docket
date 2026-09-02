@@ -68,6 +68,15 @@ if [ -z "${GOMODCACHE:-}" ] || [ -z "${GOCACHE:-}" ]; then
   fi
 fi
 
+# Change 0373: under the suite runner, DOCKET_GO_TEST_CONCURRENCY bounds this
+# child's share of the machine (go test package parallelism and runtime procs).
+# Absent (solo run), Go's defaults apply unchanged.
+go_conc_args=""
+if [ -n "${DOCKET_GO_TEST_CONCURRENCY:-}" ]; then
+  go_conc_args="-p ${DOCKET_GO_TEST_CONCURRENCY}"
+  export GOMAXPROCS="${DOCKET_GO_TEST_CONCURRENCY}"
+fi
+
 e2e_file="$REPO/internal/app/finalize_e2e_test.go"
 
 # The plain Go gate must NOT also run this matrix: prove the file carries the
@@ -86,7 +95,7 @@ assert "go vet -tags e2e ./internal/app/ passes" '[ "$vet_rc" -eq 0 ] || { print
 # served a stale green (learning cached-runner-serves-a-mutated-tree). -v so the
 # per-test PASS markers can be counted, catching a vacuous `-run` filter that
 # matched nothing.
-test_out="$(go test -tags e2e -run "TestE2E" -count=1 -v ./internal/app/ 2>&1)"
+test_out="$(go test -tags e2e $go_conc_args -run "TestE2E" -count=1 -v ./internal/app/ 2>&1)"
 test_rc=$?
 assert "go test -tags e2e -run TestE2E ./internal/app/ passes" '[ "$test_rc" -eq 0 ] || { printf "%s\n" "$test_out" >&2; false; }'
 

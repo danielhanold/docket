@@ -105,8 +105,9 @@ func (r *procRegistry) Signal(sig syscall.Signal) {
 // runner-observed truth the aggregator later cross-checks against the durable
 // file. A non-nil error signals an infrastructure failure (could not stage the
 // sandbox, start bash, or publish the record) — a non-zero test exit is NOT an
-// error, it is carried in Result.RC.
-func ExecuteTarget(ctx context.Context, bash string, t Target, work string, reg *procRegistry, extraEnv []string) (Result, error) {
+// error, it is carried in Result.RC. goTestConcurrency is threaded to Sandbox,
+// which exports it as DOCKET_GO_TEST_CONCURRENCY when >= 1 (0 => Go defaults).
+func ExecuteTarget(ctx context.Context, bash string, t Target, work string, reg *procRegistry, extraEnv []string, goTestConcurrency int) (Result, error) {
 	stem := statStem(t.Base)
 	jobdir := filepath.Join(work, "jobs", stem)
 	logsDir := filepath.Join(work, "logs")
@@ -117,7 +118,7 @@ func ExecuteTarget(ctx context.Context, bash string, t Target, work string, reg 
 		}
 	}
 
-	env, err := Sandbox(jobdir)
+	env, err := Sandbox(jobdir, goTestConcurrency)
 	if err != nil {
 		return Result{}, fmt.Errorf("suiterunner: execute %s: %w", t.Base, err)
 	}

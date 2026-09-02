@@ -30,6 +30,12 @@ type Config struct {
 	Work     string   // runner-owned scratch root (stat/, logs/, jobs/ live under it); "" => os.MkdirTemp
 	ExtraEnv []string // extra env appended to every child (overrides sandbox defaults)
 
+	// GoTestConcurrency is the per-target Go test load cap (change 0373): run.go
+	// derives it as GoTestConcurrency(Jobs, runtime.NumCPU()) before the parallel
+	// lane launches, and Sandbox exports it as DOCKET_GO_TEST_CONCURRENCY so the
+	// Go wrappers translate it into `go test -p` / GOMAXPROCS. 0 => Go defaults.
+	GoTestConcurrency int
+
 	StatePath string // default <git-common-dir>/docket/development-test-budget-state.tsv; DOCKET_RUNTESTS_STATE overrides
 	Strict    bool   // DOCKET_RUNTESTS_STRICT=1 — confirm every candidate and gate on a breach (exit 4)
 	Verbose   bool   // reserved false in 0318 (the command exposes no flags)
@@ -91,7 +97,7 @@ func runLanes(ctx context.Context, cfg Config, par, ser []Target, reg *procRegis
 	// result and records the target as NoResult, failing closed rather than
 	// fabricating an observed pass.
 	runOne := func(t Target) {
-		res, err := ExecuteTarget(ctx, cfg.Bash, t, cfg.Work, reg, cfg.ExtraEnv)
+		res, err := ExecuteTarget(ctx, cfg.Bash, t, cfg.Work, reg, cfg.ExtraEnv, cfg.GoTestConcurrency)
 		if err == nil && onDone != nil {
 			onDone(t, res)
 		}
