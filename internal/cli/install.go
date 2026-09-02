@@ -68,6 +68,7 @@ var assetIndependent = map[string]bool{
 	"run verify":                 true,
 	"run gate-before":            true,
 	"run gate-verdict":           true,
+	"run gate-claim":             true,
 	"learning":                   true, // the group itself; it reports a missing command
 	"learning record":            true,
 	"learning update":            true,

@@ -164,7 +164,33 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	gateVerdict.Flags().Bool("unattributed", false, "observe-only mode: verify hint ids (or every in-progress id) and print gate-observe lines, holding no key and writing nothing")
 	gateVerdict.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
 
-	runCmd.AddCommand(verify, gateBefore, gateVerdict)
+	// gate-claim redeems the single-use continuation a gate-continue verdict
+	// recorded (change 0359): the resumed implement-next controller presents the
+	// durable key and the continuation id, and this leaf constant-time-compares the
+	// id, claims the recovered drive through the commandless drive service, and
+	// prints one report line (gate-claimed on success, gate-stop on a fail-closed
+	// refusal). The continuation seam is composed best-effort through the app
+	// boundary; an unresolvable store/supervisor leaves it nil and the claim fails
+	// closed to claim-unavailable.
+	gateClaim := &cobra.Command{
+		Use:   "gate-claim <key> <continuation-id>",
+		Short: "Redeem a single-use continuation for the resumed controller",
+		Args:  cobra.ExactArgs(2),
+		// local-write: consumes the recovered drive's handoff and clears the record's
+		// continuation triple on success; it launches no suite and controls no process.
+		Annotations: capability("run.gate-claim", EffectLocalWrite),
+		RunE: func(c *cobra.Command, args []string) error {
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
+			setResult(app.RunGateClaim(repoDir, args[0], args[1], newClaimSeam(c.Context(), repoDir)))
+			return nil
+		},
+	}
+	gateClaim.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
+
+	runCmd.AddCommand(verify, gateBefore, gateVerdict, gateClaim)
 	return runCmd
 }
 
@@ -208,6 +234,24 @@ func newContinuationSeam(ctx context.Context, repoDir string) app.ContinuationSe
 		return nil
 	}
 	seam, err := app.NewContinuationSeam(commonDir, exe)
+	if err != nil {
+		return nil
+	}
+	return seam
+}
+
+// newClaimSeam composes the production continuation-claim seam for repoDir,
+// rooting the durable drive store at the repository's Git common directory and
+// binding the native supervisor at this binary's path — through the app boundary,
+// so internal/cli never imports internal/process. Every resolution step is
+// best-effort: any failure returns a nil seam and gate-claim fails closed to
+// claim-unavailable without clearing the record's continuation triple.
+func newClaimSeam(ctx context.Context, repoDir string) app.ClaimSeam {
+	commonDir, exe, err := gateDriveRepoContext(ctx, repoDir)
+	if err != nil {
+		return nil
+	}
+	seam, err := app.NewClaimSeam(commonDir, exe)
 	if err != nil {
 		return nil
 	}

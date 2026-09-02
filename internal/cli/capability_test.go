@@ -218,6 +218,24 @@ func TestSignatureStartArgvBoundaryLandsLast(t *testing.T) {
 	}
 }
 
+func TestSignatureGateClaimPositionalPair(t *testing.T) {
+	// gate-claim shape (change 0359): two leading positionals (key, continuation
+	// id) taken from Use, then the optional repo-dir flag from pflag data. No bare
+	// `--`, so the positional tail leads and the flag trails.
+	claim := leaf("gate-claim <key> <continuation-id>", "run.gate-claim", EffectLocalWrite)
+	claim.Flags().String("repo-dir", "", "repository `dir` to operate on")
+	root := newTestRoot()
+	root.AddCommand(claim)
+	entries, err := collectCapabilities(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "<key> <continuation-id> [--repo-dir <dir>]"
+	if entries[0].Signature != want {
+		t.Fatalf("gate-claim signature = %q, want %q", entries[0].Signature, want)
+	}
+}
+
 func TestSignatureExcludesRootJSONFlag(t *testing.T) {
 	c := leaf("observe", "gate.observe", EffectRead)
 	c.Flags().String("run-dir", "", "supervisor `dir`")
