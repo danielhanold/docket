@@ -15,7 +15,6 @@ agent: docket-status
 
 - You want to know what is done, next, or stuck — or you suspect a stale board, stale/broken links, or a cleared blocker.
 - A PR was merged via the GitHub button (not via `docket-finalize-change`) and the board is stale.
-- `docket-implement-next` calls this at step 0 as its implementation-preflight recovery before selecting the next change.
 
 ## Convention (load first — blocking)
 
@@ -24,15 +23,14 @@ Invoke the `docket-convention` skill via the Skill tool first — unless already
 ## Mode choice
 
 - **The user only wants to *see* the backlog** (no explicit refresh requested, nothing merged recently that you know of) ⇒ run the write-free read alone: the `status` operation (resolve argv from the capability catalog) with `--json`. It never merges, archives, reclaims, or renders a board.
-- **`docket-implement-next`'s step-0 implementation preflight** ⇒ run the `maintenance.sweep` operation (resolve argv from the capability catalog) with `--scope implementation --json` first — current merged-work recovery (closeouts with their safe cleanup suffixes) plus reclaim gating, with independent historical cleanup retries deferred and counted in the envelope's `deferred_historical_cleanups` field — then read the refreshed state with the `status` operation and `--json`.
+- Implementation scope (`--scope implementation`) is the startup-preflight scope: current merged-work recovery plus reclaim gating, with independent historical cleanup retries deferred and counted in `deferred_historical_cleanups`. It is owned by the `maintenance.preflight` operation, which `docket-implement-next` runs inline at its Step 0 — not a mode of this skill. This skill's two modes are the see-only read and the explicit `--scope full` refresh/cleanup.
 - **An explicit refresh/cleanup request** — or a post-merge cleanup after a PR merged via the GitHub button ⇒ run the `maintenance.sweep` operation with `--scope full --json` first (merge sweep + historical cleanup retries + health checks + judgment lines + integration sync), then read the refreshed state with the `status` operation and `--json`.
 
 ## Maintenance sweep — the merged-PR recovery mutation (only when asked)
 
 The **read is separate from the mutation.** The human `status` read stays read-only: it
 reports the backlog and never merges, archives, reclaims, or cleans up. When the caller explicitly
-asks to refresh or clean up — a post-merge cleanup, an out-of-band merge to recover, `docket-implement-next`'s
-step-0 implementation preflight — run the `maintenance.sweep` operation (resolve argv from the capability catalog, scope per *Mode choice*) **before** the read, then read the refreshed state.
+asks to refresh or clean up — a post-merge cleanup, an out-of-band merge to recover — run the `maintenance.sweep` operation (resolve argv from the capability catalog, scope per *Mode choice*) **before** the read, then read the refreshed state.
 
 The `maintenance.sweep` operation pins an initial inventory, walks it in deterministic order, and reloads
 fresh authority before **every** mutation. It closes out each `implemented` change whose PR merged
@@ -118,7 +116,7 @@ When `board_surfaces` includes `inline`, `board-refresh.sh` (contract: `scripts/
 
 ### Merge sweep
 
-The bulk safety net: every `implemented` change whose PR has merged gets archived on `metadata_branch` and its branch cleaned up, chaining the same close-out sequence (`terminal-close-out.md`) `docket-finalize-change` uses. terminal publication is deferred from Go v1, so no terminal record is copied onto the `integration_branch`. Runs at `docket-implement-next` step 0 in implementation scope, and in full scope on any explicit refresh/cleanup invocation.
+The bulk safety net: every `implemented` change whose PR has merged gets archived on `metadata_branch` and its branch cleaned up, chaining the same close-out sequence (`terminal-close-out.md`) `docket-finalize-change` uses. terminal publication is deferred from Go v1, so no terminal record is copied onto the `integration_branch`. Runs inside the `maintenance.preflight` operation at implementation scope (`docket-implement-next` Step 0 runs that operation inline), and in full scope on any explicit refresh/cleanup invocation.
 
 The rebase-onto-base + re-run-tests gate lives in `docket-finalize-change`'s merge step and is **finalize-only** — the sweep only archives PRs that are already merged, it never merges, so the gate has nothing to act on here.
 
