@@ -244,6 +244,15 @@ The second form is a continuation dispatch, not `gate-retry-once`. It must claim
 before doing other work, must not launch a replacement test, and does not consume retry. The gate
 key remains active until implement-next reaches a true terminal disposition.
 
+One bound on automatic outer continuation is intentional and fail-closed: the outer recovery scope
+is single-use per gate arming. `gate-before` mints exactly one outer scope per arming, and the first
+accepted outer takeover closes it (the single-use open→closed claim that selects one winner under a
+race). A *second* detached crash within the same long run therefore finds the scope already closed:
+the takeover halts `scope-closed`, which maps to a terminal `gate-stop gate-unavailable` — no retry
+is spent, and a human re-arms a fresh scope via `gate-before --resume` to continue. So while a single
+detached-crash recovery is automatic and preserves the key, a second one within one arming is a
+deliberate fail-closed stop that needs a human re-arm, not an unbounded automatic continuation.
+
 Only a `run-incomplete` result with no valid tracked drive, no terminal result waiting to be
 consumed, and no recoverable continuation may consume the existing single retry. `gate-stop`
 remains appropriate for a second genuinely quiescent incomplete return, `run-halted`, or unsafe
