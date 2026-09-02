@@ -261,8 +261,12 @@ const (
 // the drive id and owner generation only: never an argv, an environment value, a
 // worktree diff, or a run dir. An empty DriveID means "no drive yet" — start one.
 type GateContinuation struct {
-	DriveID    string `json:"drive_id,omitempty"`
-	Generation string `json:"generation,omitempty"`
+	DriveID string `json:"drive_id,omitempty"`
+	// Generation never marshals: from change 0396 on, the owner generation is
+	// receipt-private (ADR-0098 — only the exact owner advances a drive), and
+	// exposing a second copy is what invited the `gate drive advance` misuse.
+	// The seam still carries it in-process; only the JSON projection narrows.
+	Generation string `json:"-"`
 }
 
 // The closed halt causes a halted gate carries. They are the exact non-pass/fail
