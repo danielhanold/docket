@@ -2,7 +2,7 @@
 id: 396
 slug: 'finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes'
 title: 'finalize async gate WAITING has no CLI re-entry that resumes the same drive'
-status: 'implemented'
+status: 'done'
 priority: 'high'
 type: 'fix'
 created: '2026-09-02'
@@ -22,7 +22,7 @@ branch: 'fix/finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes'
 pr: 'https://github.com/danielhanold/docket/pull/268'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-02T11:05:11Z'
+claimed_at:
 ---
 
 ## Artifacts

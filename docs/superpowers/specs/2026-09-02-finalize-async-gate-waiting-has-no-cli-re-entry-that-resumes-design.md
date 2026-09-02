@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0396 — finalize async gate WAITING has no CLI re-entry that resumes the same drive](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0396-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes.md)**
+> ↩ **[Change 0396 — finalize async gate WAITING has no CLI re-entry that resumes the same drive](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-02-0396-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes.md)**
 <!-- docket:backlink:end -->
 
 # Finalize gate WAITING resumes through the owned rebase receipt
