@@ -5,6 +5,7 @@ package gitcli
 import (
 	"bytes"
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -39,7 +40,7 @@ func TestIntegrationRepoCommitPathsExplicitSetTrailersHooksSigningAndDates(t *te
 	repo := mustDiscover(t, c, r.Invocation)
 
 	commit := ObjectID(gitOut(t, r.Invocation, "rev-parse", "HEAD"))
-	wt := filepath.Join(t.TempDir(), "txn")
+	wt := filepath.Join(testsupport.TempDir(t), "txn")
 	if err := c.AddDetachedWorktree(ctx, repo, wt, commit); err != nil {
 		t.Fatalf("AddDetachedWorktree: %v", err)
 	}
@@ -82,7 +83,7 @@ func TestIntegrationRepoCommitPathsExplicitSetTrailersHooksSigningAndDates(t *te
 			{Key: "Docket-Transaction-ID", Value: "abc123def456"},
 			{Key: "Docket-Operation", Value: "change.groom"},
 		},
-		HooksPath: t.TempDir(),
+		HooksPath: testsupport.TempDir(t),
 		When:      when,
 	}
 	got, err := c.CommitPaths(ctx, repo, req)
@@ -141,11 +142,11 @@ func TestIntegrationRepoCommitPathsMissingIdentityFails(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	gitOut(t, dir, "init", "-b", "main")
 	gitOut(t, dir, "config", "user.useConfigOnly", "true")
 
-	emptyHome := t.TempDir()
+	emptyHome := testsupport.TempDir(t)
 	c, err := NewClient(WithBaseEnvironment([]string{"HOME=" + emptyHome, "PATH=" + os.Getenv("PATH")}))
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
@@ -156,7 +157,7 @@ func TestIntegrationRepoCommitPathsMissingIdentityFails(t *testing.T) {
 		Dir:       dir,
 		Paths:     []RepoPath{"f.md"},
 		Subject:   "should fail",
-		HooksPath: t.TempDir(),
+		HooksPath: testsupport.TempDir(t),
 		When:      time.Unix(1600000000, 0).UTC(),
 	}
 	_, err = c.CommitPaths(ctx, Repository{PrimaryWorktree: dir}, req)

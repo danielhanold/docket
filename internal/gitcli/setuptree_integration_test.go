@@ -4,6 +4,7 @@ package gitcli
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"path/filepath"
 	"sort"
@@ -12,13 +13,13 @@ import (
 )
 
 // setupTreeRepo initializes a fresh non-bare repository with a deterministic
-// committer identity under t.TempDir() and returns its path plus the Repository
+// committer identity under testsupport.TempDir(t) and returns its path plus the Repository
 // the setup-tree primitives run against. No commits are made; callers that need
 // history add it themselves.
 func setupTreeRepo(t *testing.T) (string, Repository) {
 	t.Helper()
 	requireGit(t)
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	gitOut(t, dir, "init", "-b", "main")
 	configRepoIdentity(t, dir)
 	return dir, Repository{PrimaryWorktree: dir}
@@ -55,7 +56,7 @@ func TestIntegrationSetupTreeCommitTreeParentless(t *testing.T) {
 	if err := os.MkdirAll(hooks, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	marker := filepath.Join(t.TempDir(), "hook-ran")
+	marker := filepath.Join(testsupport.TempDir(t), "hook-ran")
 	hookBody := "#!/bin/sh\ntouch " + marker + "\nexit 1\n"
 	if err := os.WriteFile(filepath.Join(hooks, "pre-commit"), []byte(hookBody), 0o755); err != nil {
 		t.Fatal(err)
@@ -211,7 +212,7 @@ func TestIntegrationSetupTreeDisableWorktreeHooks(t *testing.T) {
 	gitOut(t, dir, "add", "-A")
 	gitOut(t, dir, "commit", "-q", "-m", "init")
 
-	wt := filepath.Join(t.TempDir(), "wt")
+	wt := filepath.Join(testsupport.TempDir(t), "wt")
 	gitOut(t, dir, "worktree", "add", "-q", "-b", "feat", wt, "main")
 
 	if err := c.DisableWorktreeHooks(ctx, wt); err != nil {

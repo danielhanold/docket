@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -358,7 +359,7 @@ func TestPruneLeavesMalformedAndForeignByteUntouched(t *testing.T) {
 				id := hexID("aaaa4")
 				p := mkOwnedDir(t, repo, id)
 				// A canonical common dir belonging to a different repository.
-				other := canonicalPath(t.TempDir())
+				other := canonicalPath(testsupport.TempDir(t))
 				m := baseValidManifest(id, other)
 				if err := writeManifestAtomic(p, m); err != nil {
 					t.Fatal(err)
@@ -389,7 +390,7 @@ func TestPruneLeavesMalformedAndForeignByteUntouched(t *testing.T) {
 				if err := ensureTransactionsRoot(root); err != nil {
 					t.Fatal(err)
 				}
-				foreign := t.TempDir()
+				foreign := testsupport.TempDir(t)
 				if err := os.WriteFile(filepath.Join(foreign, "secret"), []byte("do not touch\n"), 0o600); err != nil {
 					t.Fatal(err)
 				}
@@ -592,7 +593,7 @@ func TestPruneNeverGlobalPrunesOrTouchesUserCheckout(t *testing.T) {
 	eng, client, repo := recoveryEngine(t, r)
 
 	// A legitimate, unrelated linked worktree the user keeps around.
-	userWorktree := filepath.Join(t.TempDir(), "user-wt")
+	userWorktree := filepath.Join(testsupport.TempDir(t), "user-wt")
 	if err := client.AddDetachedWorktree(context.Background(), repo, userWorktree, targetTip(t, r)); err != nil {
 		t.Fatalf("add user worktree: %v", err)
 	}

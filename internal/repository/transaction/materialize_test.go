@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -50,7 +51,7 @@ func newMaterializeWorktree(t *testing.T) (*gitcli.Client, gitcli.Repository, st
 
 	head := gitcli.ObjectID(matGit(t, dir, "rev-parse", "HEAD"))
 
-	wt := filepath.Join(t.TempDir(), "wt")
+	wt := filepath.Join(testsupport.TempDir(t), "wt")
 	if err := client.AddDetachedWorktree(context.Background(), repo, wt, head); err != nil {
 		t.Fatalf("AddDetachedWorktree: %v", err)
 	}
@@ -312,7 +313,7 @@ func TestMaterializeRefusesSymlinkParentComponent(t *testing.T) {
 	t.Run("outside", func(t *testing.T) {
 		_, _, wt := newMaterializeWorktree(t)
 
-		outside := t.TempDir()
+		outside := testsupport.TempDir(t)
 		secret := filepath.Join(outside, "secret.md")
 		if err := os.WriteFile(secret, []byte("do not touch\n"), 0o644); err != nil {
 			t.Fatal(err)

@@ -3,6 +3,7 @@ package transaction
 import (
 	"context"
 	"fmt"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -30,7 +31,7 @@ import (
 // remote advance to the other.
 func freshClone(t *testing.T, client *gitcli.Client, r *testRepos, name string) (gitcli.Repository, string) {
 	t.Helper()
-	parent := t.TempDir()
+	parent := testsupport.TempDir(t)
 	dst := filepath.Join(parent, name)
 	hgitOut(t, parent, "clone", "-q", r.Origin, dst)
 	hconfigIdentity(t, dst)

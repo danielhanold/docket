@@ -5,6 +5,7 @@ package gitcli
 import (
 	"bytes"
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -42,7 +43,7 @@ func catFrame(oid, typ string, size int, payload string) string {
 // would emit. extraEnv carries additional helper controls (e.g. a spawn log).
 func scriptBlobSource(t *testing.T, lstree, catfile []byte, extraEnv ...string) *objectSource {
 	t.Helper()
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	lp := filepath.Join(dir, "lstree")
 	cp := filepath.Join(dir, "catfile")
 	if err := os.WriteFile(lp, lstree, 0o644); err != nil {
@@ -244,7 +245,7 @@ func TestIntegrationSourceReadBlobsMissingDuplicateEmpty(t *testing.T) {
 
 	// Empty input: no process may be spawned. A helper-backed source whose
 	// spawn log stays empty proves it.
-	spawnlog := filepath.Join(t.TempDir(), "spawns")
+	spawnlog := filepath.Join(testsupport.TempDir(t), "spawns")
 	hsrc := scriptBlobSource(t, nil, nil, "GITCLI_HELPER_SPAWNLOG="+spawnlog)
 	empty, err := hsrc.ReadBlobs(ctx, nil)
 	if err != nil {
@@ -304,7 +305,7 @@ func TestIntegrationSourceReadBlobsUsesOneBatchProcess(t *testing.T) {
 		catfile.WriteString(catFrame(oid, "blob", len(content), content))
 	}
 
-	spawnlog := filepath.Join(t.TempDir(), "spawns")
+	spawnlog := filepath.Join(testsupport.TempDir(t), "spawns")
 	src := scriptBlobSource(t, buildLsTreeZ(entries), catfile.Bytes(), "GITCLI_HELPER_SPAWNLOG="+spawnlog)
 
 	results, err := src.ReadBlobs(context.Background(), paths)
@@ -424,7 +425,7 @@ func TestIntegrationSourceReadBlobsResolvesFromRepositoryRoot(t *testing.T) {
 	var catfile bytes.Buffer
 	catfile.WriteString(catFrame(oid, "blob", 5, "hello"))
 
-	spawnlog := filepath.Join(t.TempDir(), "spawns")
+	spawnlog := filepath.Join(testsupport.TempDir(t), "spawns")
 	src := scriptBlobSource(t, buildLsTreeZ(entries), catfile.Bytes(), "GITCLI_HELPER_SPAWNLOG="+spawnlog)
 
 	if _, err := src.ReadBlobs(context.Background(), []RepoPath{"a.md"}); err != nil {

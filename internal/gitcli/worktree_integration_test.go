@@ -4,6 +4,7 @@ package gitcli
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"path/filepath"
 	"testing"
@@ -63,7 +64,7 @@ func TestIntegrationRepoAddDetachedWorktreeRegistersDetachedAndPreservesPrimary(
 	beforeIndex := string(rawGitOut(t, r.Invocation, "ls-files", "-s", "-z"))
 	beforeBranches := gitOut(t, r.Invocation, "for-each-ref", "--format=%(refname)", "refs/heads/")
 
-	wtPath := filepath.Join(t.TempDir(), "detached")
+	wtPath := filepath.Join(testsupport.TempDir(t), "detached")
 	if err := c.AddDetachedWorktree(ctx, repo, wtPath, commit); err != nil {
 		t.Fatalf("AddDetachedWorktree: %v", err)
 	}
@@ -114,7 +115,7 @@ func TestIntegrationRepoRemoveWorktreeForcesDirtyWorktreeAndRejectsUnregistered(
 	repo := mustDiscover(t, c, r.Invocation)
 
 	commit := ObjectID(gitOut(t, r.Invocation, "rev-parse", "HEAD"))
-	wtPath := filepath.Join(t.TempDir(), "detached")
+	wtPath := filepath.Join(testsupport.TempDir(t), "detached")
 	if err := c.AddDetachedWorktree(ctx, repo, wtPath, commit); err != nil {
 		t.Fatalf("AddDetachedWorktree: %v", err)
 	}
@@ -139,7 +140,7 @@ func TestIntegrationRepoRemoveWorktreeForcesDirtyWorktreeAndRejectsUnregistered(
 	}
 
 	// Removing an unregistered path returns a typed failure, not a panic.
-	err = c.RemoveWorktree(ctx, repo, filepath.Join(t.TempDir(), "never-registered"))
+	err = c.RemoveWorktree(ctx, repo, filepath.Join(testsupport.TempDir(t), "never-registered"))
 	if err == nil {
 		t.Fatal("RemoveWorktree on an unregistered path returned nil, want a failure")
 	}
@@ -173,7 +174,7 @@ func TestIntegrationRepoAddBranchWorktreeCreatesBranchAndRefusesReset(t *testing
 
 	c1 := ObjectID(gitOut(t, r.Invocation, "rev-parse", "HEAD"))
 	branch := RefName("refs/heads/feat/new-x")
-	wtPath := filepath.Join(t.TempDir(), "new-x")
+	wtPath := filepath.Join(testsupport.TempDir(t), "new-x")
 
 	if err := c.AddBranchWorktree(ctx, repo, wtPath, branch, c1); err != nil {
 		t.Fatalf("AddBranchWorktree: %v", err)
@@ -211,7 +212,7 @@ func TestIntegrationRepoAddBranchWorktreeCreatesBranchAndRefusesReset(t *testing
 		t.Fatal("test setup: c2 == c1")
 	}
 
-	wtPath2 := filepath.Join(t.TempDir(), "new-x-2")
+	wtPath2 := filepath.Join(testsupport.TempDir(t), "new-x-2")
 	err = c.AddBranchWorktree(ctx, repo, wtPath2, branch, c2)
 	if err == nil {
 		t.Fatal("AddBranchWorktree onto an existing branch returned nil, want command-failed")
@@ -242,7 +243,7 @@ func TestIntegrationRepoAddBranchWorktreeInvalidRequests(t *testing.T) {
 	repo := mustDiscover(t, c, r.Invocation)
 
 	commit := ObjectID(gitOut(t, r.Invocation, "rev-parse", "HEAD"))
-	absPath := filepath.Join(t.TempDir(), "wt")
+	absPath := filepath.Join(testsupport.TempDir(t), "wt")
 
 	cases := []struct {
 		name   string
@@ -285,7 +286,7 @@ func TestIntegrationRepoAttachBranchWorktreeAttachesExistingAndRejectsMissing(t 
 	gitOut(t, r.Invocation, "branch", "feat/attach-me", string(tip))
 
 	branch := RefName("refs/heads/feat/attach-me")
-	wtPath := filepath.Join(t.TempDir(), "attach-me")
+	wtPath := filepath.Join(testsupport.TempDir(t), "attach-me")
 	if err := c.AttachBranchWorktree(ctx, repo, wtPath, branch); err != nil {
 		t.Fatalf("AttachBranchWorktree: %v", err)
 	}
@@ -305,7 +306,7 @@ func TestIntegrationRepoAttachBranchWorktreeAttachesExistingAndRejectsMissing(t 
 	}
 
 	// A missing branch is command-failed, nothing created.
-	missPath := filepath.Join(t.TempDir(), "missing")
+	missPath := filepath.Join(testsupport.TempDir(t), "missing")
 	err = c.AttachBranchWorktree(ctx, repo, missPath, RefName("refs/heads/feat/does-not-exist"))
 	if err == nil {
 		t.Fatal("AttachBranchWorktree onto a missing branch returned nil, want command-failed")
@@ -341,7 +342,7 @@ func TestIntegrationRepoRemoveWorktreeCleanPreservesBranchAndRefusesDirty(t *tes
 		repo := mustDiscover(t, c, r.Invocation)
 		tip := ObjectID(gitOut(t, r.Invocation, "rev-parse", "HEAD"))
 		branch := RefName("refs/heads/feat/clean-x")
-		wtPath := filepath.Join(t.TempDir(), "clean-x")
+		wtPath := filepath.Join(testsupport.TempDir(t), "clean-x")
 		if err := c.AddBranchWorktree(ctx, repo, wtPath, branch, tip); err != nil {
 			t.Fatalf("AddBranchWorktree: %v", err)
 		}

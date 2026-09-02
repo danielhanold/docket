@@ -4,6 +4,7 @@ package gitcli
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"path/filepath"
 	"testing"
 )
@@ -22,7 +23,7 @@ func TestIntegrationRepoScanCommitTrailersGrammarNotSubstring(t *testing.T) {
 	repo := mustDiscover(t, c, r.Invocation)
 
 	base := ObjectID(gitOut(t, r.Invocation, "rev-parse", "HEAD"))
-	wt := filepath.Join(t.TempDir(), "hist")
+	wt := filepath.Join(testsupport.TempDir(t), "hist")
 	if err := c.AddDetachedWorktree(ctx, repo, wt, base); err != nil {
 		t.Fatalf("AddDetachedWorktree: %v", err)
 	}

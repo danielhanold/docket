@@ -4,16 +4,17 @@ package gitcli
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"testing"
 )
 
 // historyRepo initializes a fresh non-bare repository with a deterministic
-// committer identity under t.TempDir() and returns its path plus the Repository
+// committer identity under testsupport.TempDir(t) and returns its path plus the Repository
 // the history primitives run against. Callers add whatever history they need.
 func historyRepo(t *testing.T) (string, Repository) {
 	t.Helper()
 	requireGit(t)
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	gitOut(t, dir, "init", "-b", "main")
 	configRepoIdentity(t, dir)
 	return dir, Repository{PrimaryWorktree: dir}

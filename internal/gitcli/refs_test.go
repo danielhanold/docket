@@ -2,6 +2,7 @@ package gitcli
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"testing"
 )
 
@@ -14,7 +15,7 @@ import (
 func TestRefsValidationBlocksSmuggling(t *testing.T) {
 	c := helperClient(t, "dump")
 	ctx := context.Background()
-	repo := Repository{PrimaryWorktree: t.TempDir(), CommonDir: t.TempDir()}
+	repo := Repository{PrimaryWorktree: testsupport.TempDir(t), CommonDir: testsupport.TempDir(t)}
 
 	for _, br := range []RefName{"main", "-o", ":(top)x", "refs/tags/v1", "heads/main", "refs/heads/"} {
 		_, err := c.FetchBranch(ctx, repo, "origin", br)

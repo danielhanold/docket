@@ -4,6 +4,7 @@ package gitcli
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"path/filepath"
 	"testing"
@@ -84,7 +85,7 @@ func TestIntegrationRepoDiscoverWorktreeContainingIdentity(t *testing.T) {
 
 // TestIntegrationRepoDiscoverWorktreeThroughSymlink proves a path reached through an extra
 // symlink resolves to the same canonical identity as the real path. The fixture
-// lives under t.TempDir(), so on macOS this already exercises /tmp -> /private/tmp.
+// lives under testsupport.TempDir(t), so on macOS this already exercises /tmp -> /private/tmp.
 func TestIntegrationRepoDiscoverWorktreeThroughSymlink(t *testing.T) {
 	requireGit(t)
 	c := newRealClient(t)
@@ -96,7 +97,7 @@ func TestIntegrationRepoDiscoverWorktreeThroughSymlink(t *testing.T) {
 		t.Fatalf("DiscoverWorktree(direct) error: %v", err)
 	}
 
-	link := filepath.Join(t.TempDir(), "linktoroot")
+	link := filepath.Join(testsupport.TempDir(t), "linktoroot")
 	if err := os.Symlink(r.Invocation, link); err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +126,7 @@ func TestIntegrationRepoDiscoverWorktreeRejections(t *testing.T) {
 	_, err := c.DiscoverWorktree(ctx, DiscoverOptions{InvocationPath: ""})
 	assertKind(t, err, KindInvalidRequest)
 
-	_, err = c.DiscoverWorktree(ctx, DiscoverOptions{InvocationPath: t.TempDir()})
+	_, err = c.DiscoverWorktree(ctx, DiscoverOptions{InvocationPath: testsupport.TempDir(t)})
 	assertKind(t, err, KindInvalidRepository)
 
 	_, err = c.DiscoverWorktree(ctx, DiscoverOptions{InvocationPath: r.Origin})

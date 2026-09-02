@@ -2,8 +2,11 @@ package gitcli
 
 import (
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // Network sites gated by the read/write budget split (mechanical enumeration,
@@ -80,6 +83,28 @@ func requireGit(t *testing.T) {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not found on PATH")
+	}
+	useBackgroundOffGit(t)
+}
+
+// useBackgroundOffGit points the git children these tests spawn at a per-fixture
+// GIT_CONFIG_GLOBAL (testsupport.GitEnv) that disables auto-gc, auto-maintenance,
+// and fsmonitor. The direct oracle helpers (gitOut/gitTry/rawGitOut) inherit the
+// test-process environment, so this reaches them; without it a detached git
+// housekeeping child spawned by a fixture commit can outlive the test and keep
+// writing into a testsupport.TempDir, racing RemoveAll teardown to "directory
+// not empty" under parallel load (change 0373, sighting 3). Git spawned through
+// the product client scrubs GIT_CONFIG (sanitizeEnvironment), so its housekeeping
+// children are instead absorbed by the fixture's drain-then-retry removal. Set
+// process-wide via t.Setenv rather than appended to each cmd.Env because the
+// low-level helpers take no *testing.T; safe because gitcli runs no test in
+// parallel.
+func useBackgroundOffGit(t *testing.T) {
+	t.Helper()
+	for _, kv := range testsupport.GitEnv(t) {
+		if v, ok := strings.CutPrefix(kv, "GIT_CONFIG_GLOBAL="); ok {
+			t.Setenv("GIT_CONFIG_GLOBAL", v)
+		}
 	}
 }
 

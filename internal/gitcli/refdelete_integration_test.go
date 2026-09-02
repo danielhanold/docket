@@ -4,6 +4,7 @@ package gitcli
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"path/filepath"
 	"testing"
 )
@@ -66,7 +67,7 @@ func TestIntegrationRepoDeleteLocalBranchChecked(t *testing.T) {
 		r := newMainModeRepos(t)
 		repo := mustDiscover(t, c, r.Invocation)
 		tip := ObjectID(gitOut(t, r.Invocation, "rev-parse", "HEAD"))
-		wtPath := filepath.Join(t.TempDir(), "co")
+		wtPath := filepath.Join(testsupport.TempDir(t), "co")
 		if err := c.AddBranchWorktree(ctx, repo, wtPath, RefName("refs/heads/feat/co"), tip); err != nil {
 			t.Fatalf("AddBranchWorktree: %v", err)
 		}
@@ -166,7 +167,7 @@ func TestIntegrationRepoDeleteRemoteRefLease(t *testing.T) {
 		tip := ObjectID(gitOut(t, r.Invocation, "rev-parse", "HEAD"))
 		// A configured remote whose URL points at nothing: the push cannot reach
 		// it, and neither can the classification probe.
-		broken := filepath.Join(t.TempDir(), "does-not-exist.git")
+		broken := filepath.Join(testsupport.TempDir(t), "does-not-exist.git")
 		gitOut(t, r.Invocation, "remote", "add", "broken", broken)
 
 		out, err := c.DeleteRemoteRefLease(ctx, repo, "broken", RefName("refs/heads/feat/x"), tip)
