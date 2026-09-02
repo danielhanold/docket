@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'refactor/migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-02T15:17:09Z'
+reconciled: true
+claimed_at: '2026-09-02T15:22:11Z'
 ---
 
 ## Artifacts
@@ -45,3 +45,13 @@ Migrate the "Run gate" block to the run.gate-before / run.gate-verdict catalog i
 ## Out of scope
 
 Introducing new catalog leaves or changing the catalog protocol; migrating any surface not named here; JSON-schema/request-shape discovery (owned by change 0360); rewriting historical changes, specs, plans, results, or Accepted ADR prose.
+
+## Reconcile log
+
+### 2026-09-02
+
+2026-09-02 — Reconciled against current `main`/`docket`. Dependency 394 is `done` and ADR-0104 exists; the capability catalog exposes `run.gate-before`, `run.gate-verdict`, and `development.install` as the target semantic operations, so the intended idiom is live. No design change; two structural facts sharpen the Approach:
+
+1. The **"Run gate"** block in `CLAUDE.md`/`AGENTS.md` is NOT hand-authored prose — it sits inside the machine-managed `<!-- docket:dispatch:start … -->` block that `docket development install` reconciles into every parent instruction file from the bundled `cursor-rules/run-gate.md` asset (via `harness.DispatchInterior`). That embedded asset is ALREADY migrated (it byte-matches the migrated `cursor-rules/run-gate.md`); the committed `CLAUDE.md`/`AGENTS.md` dispatch blocks are merely stale because no install ran since 0394 migrated the asset. So this block is migrated by **regenerating the managed dispatch block** (matching the embedded interior), not by a prose hand-edit. Only the **"Rebuild the binary after a merge to main"** block is hand-authored prose outside the markers and is edited directly to drop the hard-coded `docket development install --source …` argv in favour of the catalog-resolved `development.install` idiom.
+
+2. Open Question #1 resolves clean: the repoguard `capabilitySurfaceCorpus` draws from `MaintainedFiles`, which already walks the whole tree, so `CLAUDE.md`/`AGENTS.md` at repo root are in `maintainedPop` — covering them needs only an added corpus case (repo-root basename match), no structural change to surface enumeration. The two files carry no `docket repository migrate|init|configure-tests` or `docket change create` exempt spellings, so the guard's exemption pins are unaffected; the only executable-position argv the guard-shape check would surface in these files are the two named blocks' spellings (`docket run gate-before`, `docket run gate-verdict`, `docket development install`) — no beyond-scope agent-executed argv (Open Question #2 resolves: `go run ./cmd/docket development test` at CLAUDE.md line ~62 is left-bounded by `/` and does not match the shape). Scope, goals, and acceptance criteria stand.
