@@ -75,6 +75,10 @@ Each maps to the **`halted`** disposition and leaves the **PR open** and the cha
 A `contended` from any operation is **not** in this set: it is a lost race the next `context.finalize`
 read resolves, a continue-able outcome the driver re-selects past, never `halted`.
 
+A `waiting` (`reason: gate-waiting`) is not in this set either: the suite is still running and the
+owned receipt carries the drive continuation — re-run the identical `finalize.rebase` invocation
+(never `gate drive advance`) until a terminal disposition.
+
 **Where the reason surfaces.** The subagent returns its diagnosis in-context; finalize relays it to
 the human (interactive) or the dispatching caller (autonomous), and the `finalize.block` operation records
 it durably — first as the owned **comment on the PR** (idempotent by the attempt marker, so a
