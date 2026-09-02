@@ -2,11 +2,11 @@
 id: 359
 slug: run-gate-gives-up-too-soon
 title: 'Run gate gives up too soon'
-status: proposed
+status: 'in-progress'
 priority: high
 type: fix
 created: 2026-08-27
-updated: 2026-08-28
+updated: '2026-09-02'
 depends_on: []
 stacked_on:
 related: [237, 334, 342, 363]
@@ -17,10 +17,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: 'fix/run-gate-gives-up-too-soon'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-02T15:17:21Z'
 ---
 
 ## Artifacts
