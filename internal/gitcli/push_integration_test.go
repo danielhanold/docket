@@ -4,6 +4,7 @@ package gitcli
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,7 +16,7 @@ import (
 // PushLease run against the primary worktree can push it.
 func detachedChildCommit(t *testing.T, c *Client, repo Repository, r *testRepos, parent ObjectID, rel, content string) ObjectID {
 	t.Helper()
-	wt := filepath.Join(t.TempDir(), "child")
+	wt := filepath.Join(testsupport.TempDir(t), "child")
 	if err := c.AddDetachedWorktree(context.Background(), repo, wt, parent); err != nil {
 		t.Fatalf("AddDetachedWorktree: %v", err)
 	}
@@ -250,7 +251,7 @@ func TestIntegrationRepoIsAncestorTruthTable(t *testing.T) {
 
 	base := ObjectID(gitOut(t, r.Invocation, "rev-parse", "HEAD"))
 	// Linear chain base -> c1 -> c2 in one detached worktree.
-	wt := filepath.Join(t.TempDir(), "chain")
+	wt := filepath.Join(testsupport.TempDir(t), "chain")
 	if err := c.AddDetachedWorktree(ctx, repo, wt, base); err != nil {
 		t.Fatalf("AddDetachedWorktree: %v", err)
 	}

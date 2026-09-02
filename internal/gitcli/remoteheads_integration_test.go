@@ -4,6 +4,7 @@ package gitcli
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"path/filepath"
 	"testing"
 )
@@ -55,7 +56,7 @@ func TestIntegrationListRemoteHeadsEmptyOriginIsEmptyMapNotError(t *testing.T) {
 	ctx := context.Background()
 	c := newRealClient(t)
 
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	origin := filepath.Join(root, "empty.git")
 	gitOut(t, root, "init", "--bare", "-b", "main", origin)
 	inv := filepath.Join(root, "inv")
@@ -82,7 +83,7 @@ func TestIntegrationListRemoteHeadsMalformedLineIsFailureNotPartial(t *testing.T
 	ctx := context.Background()
 	c := helperClient(t, "script",
 		"GITCLI_HELPER_STDOUT=deadbeef\trefs/heads/main\n")
-	repo := Repository{PrimaryWorktree: t.TempDir()}
+	repo := Repository{PrimaryWorktree: testsupport.TempDir(t)}
 
 	got, err := c.ListRemoteHeads(ctx, repo, "origin")
 	if got != nil {
@@ -99,7 +100,7 @@ func TestIntegrationListRemoteHeadsDuplicateRefIsFailure(t *testing.T) {
 	const oid = "1111111111111111111111111111111111111111"
 	c := helperClient(t, "script",
 		"GITCLI_HELPER_STDOUT="+oid+"\trefs/heads/main\n"+oid+"\trefs/heads/main\n")
-	repo := Repository{PrimaryWorktree: t.TempDir()}
+	repo := Repository{PrimaryWorktree: testsupport.TempDir(t)}
 
 	got, err := c.ListRemoteHeads(ctx, repo, "origin")
 	if got != nil {
@@ -116,7 +117,7 @@ func TestIntegrationListRemoteHeadsDuplicateRefIsFailure(t *testing.T) {
 func TestIntegrationListRemoteHeadsTransportFailureIsError(t *testing.T) {
 	ctx := context.Background()
 	c := helperClient(t, "exit", "GITCLI_HELPER_EXIT=128")
-	repo := Repository{PrimaryWorktree: t.TempDir()}
+	repo := Repository{PrimaryWorktree: testsupport.TempDir(t)}
 
 	got, err := c.ListRemoteHeads(ctx, repo, "origin")
 	if got != nil {

@@ -5,6 +5,7 @@ package gitcli
 import (
 	"bytes"
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -301,7 +302,7 @@ func TestIntegrationSourceListTreeMalformedOutput(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			dir := t.TempDir()
+			dir := testsupport.TempDir(t)
 			payloadFile := filepath.Join(dir, "payload")
 			if err := os.WriteFile(payloadFile, tc.payload, 0o644); err != nil {
 				t.Fatal(err)

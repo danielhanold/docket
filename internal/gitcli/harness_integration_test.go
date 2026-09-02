@@ -4,6 +4,7 @@ package gitcli
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,7 +16,7 @@ import (
 // topologies are produced — a plain "main mode" repo and a docket-style repo
 // with an orphan "docket" branch plus linked worktrees — each backed by a bare
 // file remote and an independent writer clone that advances the remote. All
-// paths live under t.TempDir(); builders return the raw t.TempDir() spelling
+// paths live under testsupport.TempDir(t); builders return the raw testsupport.TempDir(t) spelling
 // (never filepath.EvalSymlinks-canonicalized) so tests exercise the symlinked
 // /tmp -> /private/tmp case on macOS. Everything here is _test.go only and must
 // never be referenced by product code.
@@ -121,7 +122,7 @@ func branchExists(dir, branch string) bool {
 func newMainModeRepos(t *testing.T) *testRepos {
 	t.Helper()
 	requireGit(t)
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	r := &testRepos{
 		Origin:     filepath.Join(root, "origin.git"),
 		Writer:     filepath.Join(root, "writer"),
@@ -175,7 +176,7 @@ func newMainModeRepos(t *testing.T) *testRepos {
 func newDocketModeRepos(t *testing.T) *testRepos {
 	t.Helper()
 	requireGit(t)
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	r := &testRepos{
 		Origin:     filepath.Join(root, "origin.git"),
 		Writer:     filepath.Join(root, "writer"),

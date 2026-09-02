@@ -2,6 +2,7 @@ package gitcli
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"testing"
 )
 
@@ -11,7 +12,7 @@ func TestProbeRemoteBranchValidatesInput(t *testing.T) {
 	requireGit(t)
 	ctx := context.Background()
 	c := newRealClient(t)
-	repo := Repository{PrimaryWorktree: t.TempDir()}
+	repo := Repository{PrimaryWorktree: testsupport.TempDir(t)}
 
 	for _, rem := range []RemoteName{"", "-o", "or/igin"} {
 		_, err := c.ProbeRemoteBranch(ctx, repo, rem, "refs/heads/main")

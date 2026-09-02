@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,8 +19,8 @@ import (
 // repo whose target branch is an orphan refs/heads/docket with a linked .docket
 // worktree in the invocation clone. Each is backed by a bare file origin, an
 // independent writer clone that advances the origin, and the invocation clone the
-// engine discovers and operates. All paths live under t.TempDir(); builders
-// return the raw t.TempDir() spelling so the symlinked /tmp -> /private/tmp case
+// engine discovers and operates. All paths live under testsupport.TempDir(t); builders
+// return the raw testsupport.TempDir(t) spelling so the symlinked /tmp -> /private/tmp case
 // on macOS is exercised. core.quotePath=true is pinned so a developer's global
 // "false" cannot disarm a hostile-path proof. Everything here is _test.go only.
 
@@ -38,6 +39,28 @@ func requireGit(t *testing.T) {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not found on PATH")
+	}
+	useBackgroundOffGit(t)
+}
+
+// useBackgroundOffGit points the git children these tests spawn at a per-fixture
+// GIT_CONFIG_GLOBAL (testsupport.GitEnv) that disables auto-gc, auto-maintenance,
+// and fsmonitor. The direct oracle helpers (hgitOut/hgitTry, matGit, newTxnRepo's
+// run) inherit the test-process environment, so this reaches them; without it a
+// detached git housekeeping child spawned by a fixture commit can outlive the
+// test and keep writing into a testsupport.TempDir, racing RemoveAll teardown to
+// "directory not empty" under parallel load (change 0373, sighting 4:
+// TestKeyedCommitCarriesFiveTrailers/keyed). Git spawned through the product
+// gitcli client scrubs GIT_CONFIG, so its housekeeping children are instead
+// absorbed by the fixture's drain-then-retry removal. Set process-wide via
+// t.Setenv because the low-level helpers take no *testing.T; safe because this
+// package runs no test in parallel.
+func useBackgroundOffGit(t *testing.T) {
+	t.Helper()
+	for _, kv := range testsupport.GitEnv(t) {
+		if v, ok := strings.CutPrefix(kv, "GIT_CONFIG_GLOBAL="); ok {
+			t.Setenv("GIT_CONFIG_GLOBAL", v)
+		}
 	}
 }
 
@@ -165,7 +188,7 @@ func itoa(n int) string {
 func newMainModeRepos(t *testing.T) *testRepos {
 	t.Helper()
 	requireGit(t)
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	r := &testRepos{
 		Origin:     filepath.Join(root, "origin.git"),
 		Writer:     filepath.Join(root, "writer"),
@@ -202,7 +225,7 @@ func newMainModeRepos(t *testing.T) *testRepos {
 func newDocketModeRepos(t *testing.T) *testRepos {
 	t.Helper()
 	requireGit(t)
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	r := &testRepos{
 		Origin:     filepath.Join(root, "origin.git"),
 		Writer:     filepath.Join(root, "writer"),

@@ -5,6 +5,7 @@ package gitcli
 import (
 	"bytes"
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"strings"
 	"testing"
 	"time"
@@ -32,7 +33,7 @@ func TestIntegrationProcessSanitizeRemovesRedirectionClassesKeepsAuthSentinel(t 
 	}
 	sentinel := "GIT_SSH_COMMAND=ssh -o BatchMode=yes"
 	c := helperClient(t, "dump", append(append([]string{}, planted...), sentinel)...)
-	res, f := c.run(context.Background(), runRequest{op: "discover", dir: t.TempDir(), args: []string{"status"}})
+	res, f := c.run(context.Background(), runRequest{op: "discover", dir: testsupport.TempDir(t), args: []string{"status"}})
 	if f != nil {
 		t.Fatal(f)
 	}
@@ -61,7 +62,7 @@ func TestIntegrationProcessSanitizeRemovesRedirectionClassesKeepsAuthSentinel(t 
 func TestIntegrationProcessRunTimeoutKillsProcess(t *testing.T) {
 	c := helperClient(t, "block")
 	start := time.Now()
-	_, f := c.run(context.Background(), runRequest{op: "fetch-branch", dir: t.TempDir(), args: []string{"fetch"}})
+	_, f := c.run(context.Background(), runRequest{op: "fetch-branch", dir: testsupport.TempDir(t), args: []string{"fetch"}})
 	elapsed := time.Since(start)
 	if f == nil {
 		t.Fatal("expected timeout failure, got nil")
@@ -82,7 +83,7 @@ func TestIntegrationProcessRunCancelledKind(t *testing.T) {
 	defer cancel()
 	time.AfterFunc(100*time.Millisecond, cancel)
 	start := time.Now()
-	_, f := c.run(ctx, runRequest{op: "fetch-branch", dir: t.TempDir(), args: []string{"fetch"}})
+	_, f := c.run(ctx, runRequest{op: "fetch-branch", dir: testsupport.TempDir(t), args: []string{"fetch"}})
 	elapsed := time.Since(start)
 	if f == nil {
 		t.Fatal("expected cancellation failure, got nil")
@@ -100,7 +101,7 @@ func TestIntegrationProcessRunCancelledKind(t *testing.T) {
 // available in the runResult.
 func TestIntegrationProcessStderrExcerptBounded(t *testing.T) {
 	c := helperClient(t, "stderr", "GITCLI_HELPER_STDERR_BYTES=65536")
-	res, f := c.run(context.Background(), runRequest{op: "read-blobs", dir: t.TempDir(), args: []string{"cat-file"}})
+	res, f := c.run(context.Background(), runRequest{op: "read-blobs", dir: testsupport.TempDir(t), args: []string{"cat-file"}})
 	if f != nil {
 		t.Fatalf("unexpected failure: %v", f)
 	}
@@ -131,7 +132,7 @@ func TestIntegrationProcessNoEnvironmentInDiagnostics(t *testing.T) {
 		"SECRET_TOKEN="+envSecret,
 		"GITCLI_HELPER_STDERR_BYTES=65536",
 		"GITCLI_HELPER_STDERR_TEXT=hunter2")
-	res, f := c.run(context.Background(), runRequest{op: "read-blobs", dir: t.TempDir(), args: []string{"cat-file"}})
+	res, f := c.run(context.Background(), runRequest{op: "read-blobs", dir: testsupport.TempDir(t), args: []string{"cat-file"}})
 	if f != nil {
 		t.Fatalf("unexpected run failure: %v", f)
 	}
@@ -153,7 +154,7 @@ func TestIntegrationProcessNoEnvironmentInDiagnostics(t *testing.T) {
 	}
 	// run's own failure path (timeout) must also never embed the environment.
 	bc := helperClient(t, "block", "SECRET_TOKEN="+envSecret)
-	_, tf := bc.run(context.Background(), runRequest{op: "fetch-branch", dir: t.TempDir(), args: []string{"fetch"}})
+	_, tf := bc.run(context.Background(), runRequest{op: "fetch-branch", dir: testsupport.TempDir(t), args: []string{"fetch"}})
 	if tf == nil {
 		t.Fatal("expected timeout failure")
 	}
@@ -171,7 +172,7 @@ func TestIntegrationProcessNoRemoteURLInDiagnostics(t *testing.T) {
 	c := helperClient(t, "stderr",
 		"GITCLI_HELPER_STDERR_BYTES=65536",
 		"GITCLI_HELPER_STDERR_TEXT="+stderrText)
-	res, f := c.run(context.Background(), runRequest{op: "fetch-branch", dir: t.TempDir(), args: []string{"fetch"}})
+	res, f := c.run(context.Background(), runRequest{op: "fetch-branch", dir: testsupport.TempDir(t), args: []string{"fetch"}})
 	if f != nil {
 		t.Fatalf("unexpected run failure: %v", f)
 	}
@@ -195,7 +196,7 @@ func TestIntegrationProcessNoRemoteURLInDiagnostics(t *testing.T) {
 // declared ExitCode field permanently zero.
 func TestIntegrationProcessFailureCarriesChildExitCode(t *testing.T) {
 	c := helperClient(t, "exit", "GITCLI_HELPER_EXIT=7")
-	_, err := c.ResolveRef(context.Background(), Repository{PrimaryWorktree: t.TempDir()}, "refs/heads/main")
+	_, err := c.ResolveRef(context.Background(), Repository{PrimaryWorktree: testsupport.TempDir(t)}, "refs/heads/main")
 	f, ok := AsFailure(err)
 	if !ok {
 		t.Fatalf("expected a *Failure, got %v", err)
@@ -215,7 +216,7 @@ func TestIntegrationProcessFailureCarriesChildExitCode(t *testing.T) {
 func TestIntegrationProcessRunWaitDelayBoundsPipeHoldingGrandchild(t *testing.T) {
 	c := helperClient(t, "orphan", "GITCLI_HELPER_HOLD_MS=20000")
 	start := time.Now()
-	_, f := c.run(context.Background(), runRequest{op: "fetch-branch", dir: t.TempDir(), args: []string{"fetch"}})
+	_, f := c.run(context.Background(), runRequest{op: "fetch-branch", dir: testsupport.TempDir(t), args: []string{"fetch"}})
 	elapsed := time.Since(start)
 	if f == nil {
 		t.Fatal("expected timeout failure, got nil")

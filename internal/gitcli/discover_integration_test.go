@@ -4,6 +4,7 @@ package gitcli
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"path/filepath"
 	"testing"
@@ -53,7 +54,7 @@ func TestIntegrationRepoDiscoverCanonicalIdentityAcrossWorktrees(t *testing.T) {
 		wantPrimary := canon(t, r.Invocation)
 		wantCommon := canon(t, filepath.Join(wantPrimary, ".git"))
 
-		link := filepath.Join(t.TempDir(), "linktoprimary")
+		link := filepath.Join(testsupport.TempDir(t), "linktoprimary")
 		if err := os.Symlink(r.Invocation, link); err != nil {
 			t.Fatal(err)
 		}
@@ -76,7 +77,7 @@ func TestIntegrationRepoDiscoverCanonicalIdentityAcrossWorktrees(t *testing.T) {
 		if err := os.MkdirAll(nested, 0o755); err != nil {
 			t.Fatal(err)
 		}
-		link := filepath.Join(t.TempDir(), "linktoprimary")
+		link := filepath.Join(testsupport.TempDir(t), "linktoprimary")
 		if err := os.Symlink(r.Invocation, link); err != nil {
 			t.Fatal(err)
 		}
@@ -104,10 +105,10 @@ func TestIntegrationRepoDiscoverRejections(t *testing.T) {
 	_, err := c.Discover(ctx, DiscoverOptions{InvocationPath: ""})
 	assertKind(t, err, KindInvalidRequest)
 
-	_, err = c.Discover(ctx, DiscoverOptions{InvocationPath: filepath.Join(t.TempDir(), "does-not-exist")})
+	_, err = c.Discover(ctx, DiscoverOptions{InvocationPath: filepath.Join(testsupport.TempDir(t), "does-not-exist")})
 	assertKind(t, err, KindInvalidRepository)
 
-	_, err = c.Discover(ctx, DiscoverOptions{InvocationPath: t.TempDir()})
+	_, err = c.Discover(ctx, DiscoverOptions{InvocationPath: testsupport.TempDir(t)})
 	assertKind(t, err, KindInvalidRepository)
 
 	_, err = c.Discover(ctx, DiscoverOptions{InvocationPath: r.Origin})
@@ -119,7 +120,7 @@ func TestIntegrationRepoDiscoverRejections(t *testing.T) {
 // identity read is reported as invalid-output.
 func TestIntegrationRepoDiscoverInconsistentIdentityOutput(t *testing.T) {
 	c := helperClient(t, "script", "GITCLI_HELPER_STDOUT=bogus-single-line")
-	_, err := c.Discover(context.Background(), DiscoverOptions{InvocationPath: t.TempDir()})
+	_, err := c.Discover(context.Background(), DiscoverOptions{InvocationPath: testsupport.TempDir(t)})
 	assertKind(t, err, KindInvalidOutput)
 }
 

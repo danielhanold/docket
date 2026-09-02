@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,7 +24,7 @@ const fixedBase gitcli.ObjectID = "0123456789abcdef0123456789abcdef01234567"
 // txnTestClock is the pinned instant every candidate test stamps manifests with.
 var txnTestClock = fakeClock{t: time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)}
 
-// newTxnRepo builds a real, non-bare Git repository under t.TempDir(), makes one
+// newTxnRepo builds a real, non-bare Git repository under testsupport.TempDir(t), makes one
 // commit so HEAD exists, and resolves its canonical identity through the same
 // gitcli.Discover the engine uses. It returns the client (for ChangedPaths) and
 // the repository whose CommonDir roots the transactions tree. The test is
@@ -33,7 +34,8 @@ func newTxnRepo(t *testing.T) (*gitcli.Client, gitcli.Repository) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not found on PATH")
 	}
-	dir := t.TempDir()
+	useBackgroundOffGit(t)
+	dir := testsupport.TempDir(t)
 	run := func(args ...string) {
 		t.Helper()
 		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
@@ -260,7 +262,7 @@ func TestSetPhaseAtomicUnderConcurrentReads(t *testing.T) {
 // TestLiveLockExcludesSecondNonBlocking proves a second non-blocking acquire of
 // a held lock reports the would-block sentinel rather than silently succeeding.
 func TestLiveLockExcludesSecondNonBlocking(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "live.lock")
+	path := filepath.Join(testsupport.TempDir(t), "live.lock")
 	l1, err := acquireLock(path, false)
 	if err != nil {
 		t.Fatalf("first acquire: %v", err)
@@ -280,7 +282,7 @@ func TestLiveLockExcludesSecondNonBlocking(t *testing.T) {
 // TestRegistryLockMutualExclusion proves withRegistryLock serializes callers and
 // releases the lock once fn returns — coordinated by channels, never sleeps.
 func TestRegistryLockMutualExclusion(t *testing.T) {
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	registryPath := filepath.Join(root, "registry.lock")
 
 	entered := make(chan struct{})

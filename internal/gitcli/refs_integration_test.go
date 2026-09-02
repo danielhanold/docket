@@ -4,6 +4,7 @@ package gitcli
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"path/filepath"
 	"testing"
@@ -140,7 +141,7 @@ func TestIntegrationRepoRefsFailureKinds(t *testing.T) {
 	_, err = c.FetchBranch(ctx, repo, "origin", "refs/heads/absent-branch")
 	assertKind(t, err, KindRefUnavailable)
 
-	gitOut(t, r.Invocation, "remote", "add", "broken", filepath.Join(t.TempDir(), "no-such.git"))
+	gitOut(t, r.Invocation, "remote", "add", "broken", filepath.Join(testsupport.TempDir(t), "no-such.git"))
 	_, err = c.FetchBranch(ctx, repo, "broken", "refs/heads/main")
 	assertKind(t, err, KindCommandFailed)
 }
@@ -154,7 +155,7 @@ func TestIntegrationRepoRefsFailureKinds(t *testing.T) {
 func TestIntegrationRepoFetchFailureClassificationSharesOneNetworkBudget(t *testing.T) {
 	const networkTimeout = 2 * time.Second
 	c := helperClient(t, "fetchslowfail", "GITCLI_HELPER_FETCH_SLEEP_MS=1500")
-	repo := Repository{PrimaryWorktree: t.TempDir()}
+	repo := Repository{PrimaryWorktree: testsupport.TempDir(t)}
 
 	// Calibrate one process spawn on this machine and toolchain: a
 	// race-instrumented test binary re-execs far slower than a plain one, and
@@ -230,7 +231,7 @@ func TestIntegrationRepoFetchFailureClassificationBoundByReadBudgetNotWrite(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
-	repo := Repository{PrimaryWorktree: t.TempDir()}
+	repo := Repository{PrimaryWorktree: testsupport.TempDir(t)}
 
 	// Calibrate one process spawn on this machine/toolchain (a race-instrumented
 	// binary re-execs far slower than a plain one); ResolveRef is exactly one spawn
