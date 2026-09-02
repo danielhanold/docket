@@ -3,10 +3,10 @@ id: 373
 slug: 'harden-integration-race-test-isolation-under-parallel-load'
 title: 'Harden integration/race test isolation under parallel load'
 status: 'proposed'
-priority: 'medium'
+priority: high
 type: 'chore'
 created: '2026-08-30'
-updated: '2026-08-30'
+updated: '2026-09-02'
 depends_on: []
 stacked_on:
 related: []
