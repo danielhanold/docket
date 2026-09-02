@@ -94,9 +94,17 @@ type WorkspaceService interface {
 // caller that does not wire a receipt source; a nil reader simply means run
 // verify never derives the local run-waiting verdict and reports its ordinary
 // postcondition verdict instead.
+//
+// Continuation is the OPTIONAL drive-layer continuation seam consulted only by
+// `run gate-verdict` (change 0359): it locates a tracked drive under the
+// dispatch's outer recovery scope, performs the event-authorized outer takeover,
+// and reads a cooperative handoff token so the verdict can emit a nonterminal
+// gate-continue. A nil seam means the verdict path never continues a tracked
+// drive and takes the ordinary retry/stop path instead.
 type WorkspaceDeps struct {
-	Service WorkspaceService
-	Waiting WaitingReceiptReader
+	Service      WorkspaceService
+	Waiting      WaitingReceiptReader
+	Continuation ContinuationSeam
 }
 
 // WorkspaceOpResult is the protocol-v1 document the three workspace operations

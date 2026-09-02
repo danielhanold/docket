@@ -3168,22 +3168,26 @@ func TestIntegrationChangeRunGateVerdictRunUnclaimed(t *testing.T) {
 }
 
 // TestRunGateVerdictRunWaiting: a fully-agreeing local waiting receipt over an
-// in-progress change yields a terminal gate-stop run-waiting that passes the
-// opaque handoff id and phase through verbatim.
+// in-progress change yields a NONTERMINAL gate-continue (change 0359) that keeps
+// the key, spends no retry, and carries the minted continuation id and phase.
 func TestIntegrationChangeRunGateVerdictRunWaiting(t *testing.T) {
 	f := newRunVerifyFixture(t, true)
 	deps, wdeps, gdeps := rvWaitingDeps(t, f, fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true})
+	wdeps.Continuation = &fakeContinuationSeam{handoffToken: "h0token"}
 	key := gateMintArmed(t, f.repo.invocation, nil, 1)
 
 	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
-	if got, want := res.HumanText(), "gate-stop "+key+" run-waiting 3 d0opaque build"; got != want {
+	if res.ContinuationID == "" {
+		t.Fatalf("continuation id must be minted")
+	}
+	if got, want := res.HumanText(), "gate-continue "+key+" run-waiting 3 "+res.ContinuationID+" build"; got != want {
 		t.Fatalf("HumanText = %q, want %q", got, want)
 	}
-	if res.HandoffID != "d0opaque" || res.Phase != "build" {
-		t.Errorf("handoff/phase = %q/%q, want d0opaque/build (verbatim pass-through)", res.HandoffID, res.Phase)
+	if res.Phase != "build" {
+		t.Errorf("phase = %q, want build", res.Phase)
 	}
-	if !res.Terminal {
-		t.Errorf("run-waiting is terminal")
+	if res.Terminal {
+		t.Errorf("run-waiting is now a nonterminal continuation")
 	}
 }
 

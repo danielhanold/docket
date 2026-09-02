@@ -140,6 +140,11 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 				return err
 			}
 			wdeps.Waiting = newWaitingReader(c.Context(), repoDir)
+			// Wire the continuation seam so a tracked drive under this dispatch's
+			// recovery scope is continued (gate-continue) rather than stopped. It is
+			// additive: an unresolvable store/supervisor leaves it nil and the verdict
+			// takes the ordinary retry/stop path (change 0359).
+			wdeps.Continuation = newContinuationSeam(c.Context(), repoDir)
 			unattributed, _ := c.Flags().GetBool("unattributed")
 			if unattributed {
 				// Observe-only mode: the positionals are change-id hints (zero or
@@ -188,4 +193,23 @@ func newWaitingReader(ctx context.Context, repoDir string) app.WaitingReceiptRea
 		return nil
 	}
 	return reader
+}
+
+// newContinuationSeam composes the production continuation seam for repoDir,
+// rooting the durable drive store at the repository's Git common directory and
+// binding the native supervisor at this binary's path — through the app boundary,
+// so internal/cli never imports internal/process (gateDriveRepoContext resolves
+// both via gitcli + os.Executable). Every resolution step is best-effort: any
+// failure returns a nil seam and gate-verdict takes its ordinary retry/stop path
+// without continuing a tracked drive.
+func newContinuationSeam(ctx context.Context, repoDir string) app.ContinuationSeam {
+	commonDir, exe, err := gateDriveRepoContext(ctx, repoDir)
+	if err != nil {
+		return nil
+	}
+	seam, err := app.NewContinuationSeam(commonDir, exe)
+	if err != nil {
+		return nil
+	}
+	return seam
 }
