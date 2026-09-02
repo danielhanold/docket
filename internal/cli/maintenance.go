@@ -93,11 +93,15 @@ func newMaintenancePreflightSubcommand(setResult func(app.OperationResult)) *cob
 		Use:   "preflight",
 		Short: "Run the implementation-scope sweep plus a compact post-sweep read as one operation",
 		Args:  cobra.NoArgs,
-		// metadata-write: the spec pins the preflight's declared effect to the
-		// metadata mutation it exists to perform, narrower than maintenance.sweep's
-		// own union (spec 2026-09-02 §1: "cataloged as `maintenance.preflight` with
-		// effects `[metadata-write]` (it runs the sweep)").
-		Annotations: capability("maintenance.preflight", EffectMetadataWrite),
+		// metadata-write + local-write + external-write: the declared effects are
+		// the union the composed implementation-scope MaintenanceSweep may perform.
+		// Its closeout/cleanup leg (FinalizeCloseout -> cleanup) deletes local
+		// branches/worktrees (local-write) and deletes the merged remote branch and
+		// pushes archived metadata (external-write), on top of the metadata mutation
+		// (metadata-write). The catalog effects are a declared-superset-of-actual
+		// soundness contract, so preflight must declare the same union as the
+		// maintenance.sweep it composes; declared >= actual (change 0397 review).
+		Annotations: capability("maintenance.preflight", EffectMetadataWrite, EffectLocalWrite, EffectExternalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {

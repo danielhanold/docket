@@ -167,13 +167,15 @@ func TestProductionEffectsCompleteAndClosed(t *testing.T) {
 	} else {
 		t.Errorf("status is not in the catalog")
 	}
-	// The preflight leaf declares exactly [metadata-write]: the spec pins the
-	// preflight's effect to the metadata mutation it exists to perform, narrower
-	// than maintenance.sweep's own union (change 0397).
+	// The preflight leaf declares the full union its composed implementation-scope
+	// MaintenanceSweep may perform (metadata-write + local-write + external-write
+	// via its closeout/cleanup leg), matching maintenance.sweep; declared >=
+	// actual is the soundness contract (change 0397 review).
+	wantPreflightEffects := "external-write local-write metadata-write"
 	if e, ok := entryByID(entries, "maintenance.preflight"); !ok {
 		t.Error("maintenance.preflight absent from the catalog")
-	} else if len(e.Effects) != 1 || e.Effects[0] != "metadata-write" {
-		t.Errorf("maintenance.preflight effects = %v, want [metadata-write]", e.Effects)
+	} else if got := strings.Join(e.Effects, " "); got != wantPreflightEffects {
+		t.Errorf("maintenance.preflight effects = %v, want [%s]", e.Effects, wantPreflightEffects)
 	}
 }
 
