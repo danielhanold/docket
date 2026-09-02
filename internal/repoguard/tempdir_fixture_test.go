@@ -29,6 +29,18 @@ package repoguard
 // through an interface value or a helper that shadows the name; the
 // aliased-import check below closes the one cheap evasion (import
 // testsupport under another name and the receiver test goes vacuous).
+//
+// SCOPE (change 0373, explicit — see scanRoot below): this guard enforces
+// the fixture rule for the real-process packages under `internal/` ONLY.
+// Change 0373's derived, adopting package set was deliberately internal/-
+// scoped, so the walk root is internal/ and nothing else. Real-process test
+// packages under `cmd/` (e.g. cmd/docket/gate_cli_test.go, which spawns real
+// git into bare t.TempDir() dirs and carries its own private drain-then-retry
+// helper) are NOT yet covered — a known, deliberate limitation, deferred as
+// follow-up (cmd/ fixture adoption is out of scope for 0373). The scope is a
+// visible property of the test via the scanRoot const, not an accident of a
+// buried literal, so a later broadening is a deliberate edit to a named
+// constant, not a silent one.
 
 import (
 	"fmt"
@@ -43,6 +55,12 @@ import (
 	"strings"
 	"testing"
 )
+
+// scanRoot names change 0373's deliberate coverage boundary: the guard walks
+// only this module subtree (see the SCOPE note in the file header). Widening
+// coverage to another subtree (e.g. cmd/) is an explicit edit to this constant,
+// never an accident of a buried walk-root literal.
+const scanRoot = "internal"
 
 var execCallRe = regexp.MustCompile(`\bexec\.Command`)
 var tempDirCallRe = regexp.MustCompile(`\b([A-Za-z_][A-Za-z0-9_]*)\.TempDir\(`)
@@ -85,7 +103,7 @@ func TestRealProcessPackagesUseFixtureTempDir(t *testing.T) {
 		t.Fatal(err)
 	}
 	pkgs := map[string][]string{}
-	err = filepath.WalkDir(filepath.Join(root, "internal"), func(p string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(filepath.Join(root, scanRoot), func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(p, "_test.go") {
 			return err
 		}
@@ -96,7 +114,7 @@ func TestRealProcessPackagesUseFixtureTempDir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fixtureDir := filepath.Join(root, "internal", "testsupport")
+	fixtureDir := filepath.Join(root, scanRoot, "testsupport")
 	var realProc []string
 	for dir, files := range pkgs {
 		if dir == fixtureDir {
@@ -117,9 +135,10 @@ func TestRealProcessPackagesUseFixtureTempDir(t *testing.T) {
 	// Population floor (marker-scoped guards need one): the derivation must
 	// find the package whose supervisor tests motivated the fixture. An
 	// empty or process-less derivation means the grep shape rotted, and the
-	// guard would pass vacuously.
-	if !slices.Contains(realProc, filepath.Join(root, "internal", "process")) {
-		t.Fatalf("derivation lost internal/process — real-process set: %v", realProc)
+	// guard would pass vacuously. The floor is inside scanRoot by
+	// construction, keeping the internal/-only scope a visible property.
+	if !slices.Contains(realProc, filepath.Join(root, scanRoot, "process")) {
+		t.Fatalf("derivation lost %s/process — real-process set: %v", scanRoot, realProc)
 	}
 	var violations []string
 	for _, dir := range realProc {
