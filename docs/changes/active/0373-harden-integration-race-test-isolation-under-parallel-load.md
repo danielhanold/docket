@@ -14,7 +14,7 @@ discovered_from: [371, 397]
 adrs: [108]
 spec: 'docs/superpowers/specs/2026-09-02-harden-integration-race-test-isolation-under-parallel-load-design.md'
 plan: 'docs/superpowers/plans/2026-09-02-harden-integration-race-test-isolation-under-parallel-load.md'
-results:
+results: 'docs/results/2026-09-02-harden-integration-race-test-isolation-under-parallel-load-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-02T16:29:55Z'
 |---|---|
 | Spec | [2026-09-02-harden-integration-race-test-isolation-under-parallel-load-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-02-harden-integration-race-test-isolation-under-parallel-load-design.md) |
 | Plan | [2026-09-02-harden-integration-race-test-isolation-under-parallel-load.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-02-harden-integration-race-test-isolation-under-parallel-load.md) |
+| Results | [2026-09-02-harden-integration-race-test-isolation-under-parallel-load-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-09-02-harden-integration-race-test-isolation-under-parallel-load-results.md) |
 | ADRs | [ADR-0108](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) |
 <!-- docket:artifacts:end -->
 
