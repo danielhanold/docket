@@ -17,7 +17,7 @@ All metadata writes happen in the metadata working tree (`.docket/`), synced to 
 before the first read; every commit pushes immediately.
 
 1. **Archive on `docket` first.** The two terminal outcomes split here: `done` runs the Go
-   `finalize closeout` transaction; `killed` stays on the frozen Bash archiver (`finalize closeout`
+   `finalize.closeout` transaction; `killed` stays on the frozen Bash archiver (`finalize.closeout`
    does not cover the `killed` outcome — change 0369).
 
    **Done drivers** (`docket-finalize-change`'s close-out, the `docket-status` merge sweep) archive
@@ -26,7 +26,7 @@ before the first read; every commit pushes immediately.
    is computed or passed for it here:
 
    ```
-   docket finalize closeout --id <id> [--input <notes.json>]
+   finalize.closeout  --id <id> [--input <notes.json>]   # resolve argv from the capability catalog
    ```
 
    `--input` carries only the optional authored closeout notes (`verification_outcomes`,
@@ -43,7 +43,7 @@ before the first read; every commit pushes immediately.
    landed and are idempotent no-ops (a no-diff re-render is success).
 
    **Kill drivers** (`docket-implement-next`'s reconcile-kill, `docket-new-change`'s proposed-kill)
-   drive the typed `docket change kill` transaction. There is **no caller-supplied date**: it
+   drive the typed `change.kill` operation transaction. There is **no caller-supplied date**: it
    derives the UTC archive date from its own transaction clock **inside** the transaction (never a
    caller `now()`). Author the non-empty `## Why killed` section body and pin the exact record
    submitted for the kill — its `path` and opaque entity `version`, both from the caller's
@@ -52,7 +52,7 @@ before the first read; every commit pushes immediately.
    ```
    # request-file: { "change_id": <id>, "path": "<changes_dir>/active/<UTC-birth>-<id>-<slug>.md",
    #                 "version": "<entity-version>", "why_killed": "<why>" }
-   docket change kill --repo-dir .docket --input <request-file> --json
+   change.kill  --repo-dir .docket --input <request-file> --json   # resolve argv from the capability catalog
    ```
 
    Trust the typed outcome: `applied` ⇒ archived — an idempotent no-op if already archived,
@@ -60,7 +60,7 @@ before the first read; every commit pushes immediately.
    atomically owns the archive move, the refreshed `updated:` date, the spliced `## Why killed`
    section, the `## Artifacts` re-render, the retargeted spec back-link, and the inline board render
    — so the step-2 re-render and step-5 board pass below carry **nothing** for the kill path, exactly
-   as `finalize closeout` owns them for the done path. A wrong `version` or an illegal source status
+   as `finalize.closeout` owns them for the done path. A wrong `version` or an illegal source status
    returns a typed refusal that writes nothing (a lost CAS race is `contended`; see
    *Determinism invariant*).
 
@@ -70,12 +70,12 @@ before the first read; every commit pushes immediately.
    back-link — the spec's `docket:backlink` block included (change 0136) — retargeted to the
    now-**archived** change path, **in the same step-1 metadata commit** as the archive:
 
-   - On the **done** path the step-1 `docket finalize closeout` transaction owns this restamp
+   - On the **done** path the step-1 `finalize.closeout` operation transaction owns this restamp
      atomically (change 0369; proven by `internal/app/finalize_closeout_test.go`'s
      `TestCloseoutBacklinkLegDocketMode` and
      `internal/app/finalize_closeout_integration_test.go`'s
      `TestIntegrationFinalizeCloseoutBacklinkLegDocketMode`).
-   - On the **kill** path the step-1 `docket change kill` transaction owns it identically — it
+   - On the **kill** path the step-1 `change.kill` operation transaction owns it identically — it
      re-renders the `## Artifacts` block and retargets the linked spec's `docket:backlink` block in
      its one commit.
 
@@ -87,10 +87,10 @@ before the first read; every commit pushes immediately.
    never hand-edit the block.
 
 3. **Terminal publication (deferred).**
-   terminal publication is deferred from Go v1 — `docket finalize closeout` is the complete automated closeout boundary.
+   terminal publication is deferred from Go v1 — the `finalize.closeout` operation is the complete automated closeout boundary.
    publication-deferral marking is deferred from Go v1 — existing `publish-deferred` markers remain as historical evidence.
-   Step 1's supported Go metadata closeout — `docket finalize closeout` on the done path,
-   `docket change kill` on the kill path — is the whole automated closeout: no terminal record is
+   Step 1's supported Go metadata closeout — the `finalize.closeout` operation on the done path,
+   the `change.kill` operation on the kill path — is the whole automated closeout: no terminal record is
    copied onto the integration branch, and the `## Publish deferred` marker is never written. A request
    that specifically requires *published* terminal artifacts on the integration branch stops
    **before** claiming that outcome, even when the metadata transaction itself succeeded. Existing
@@ -101,7 +101,7 @@ before the first read; every commit pushes immediately.
 4. **Clean up the feature branch + worktree.**
 
    ```
-   docket finalize cleanup --id <id>
+   finalize.cleanup  --id <id>   # resolve argv from the capability catalog
    ```
 
    Trust the typed outcome. Ownership is proven **inside the transaction** (change 0369): only
@@ -114,8 +114,8 @@ before the first read; every commit pushes immediately.
    caller's posture.
 
 5. **Board refresh — owned atomically by step 1, no separate pass.** Both terminal transactions
-   render the inline `BOARD.md` **inside their own step-1 metadata commit** — `docket finalize
-   closeout` on the done path, `docket change kill` on the kill path — so **no separate Board pass
+   render the inline `BOARD.md` **inside their own step-1 metadata commit** — the `finalize.closeout`
+   operation on the done path, the `change.kill` operation on the kill path — so **no separate Board pass
    runs**, and no skill ever hand-renders the board or double-commits it. The step-1 transaction is
    the sole writer; a caller neither invokes a board renderer nor follows the typed mutation with a
    second board commit. `BOARD.md` is the live planning view and is never published to the
@@ -155,7 +155,7 @@ self-heals); other callers keep their own posture (abort-and-report).
 
 Two agents both driving the same terminal transition converge through the step-1 transaction's
 exact-version CAS: one applies and the other reads `contended` (a lost race), re-runs
-`docket repository prepare`, and re-reads authority rather than racing a second write. The archive
+the `repository.prepare` operation, and re-reads authority rather than racing a second write. The archive
 date is the transaction's own UTC clock (never a caller `now()`), so a replay after a lost response
 reuses the same dated filename. Every derived view (`## Artifacts` block, back-links, inline board)
 is regenerated deterministically inside that one commit — on a rebase conflict in generated content,

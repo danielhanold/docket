@@ -31,6 +31,13 @@ type skillBudget struct {
 // carried verbatim from the retired tests/test_skill_size_budgets.sh. To slim a
 // file, lower its numbers in the same diff; to add a skill file, add its row
 // (the completeness direction below reddens an unbudgeted file).
+//
+// The word ceilings for docket-convention/SKILL.md, docket-implement-next/SKILL.md,
+// and docket-convention/references/stacked-changes.md were re-baselined upward once
+// (change 0394) to hold the capability-catalog contract prose: the new Step-0
+// capability bootstrap and the catalog-resolved semantic-operation idiom that
+// replaced hard-coded `docket <argv>` spellings. The ratchet stays in force at the
+// new baselines — they catch any further regrowth.
 var skillBudgets = []skillBudget{
 	{"docket-adr/SKILL.md", 110, 1600},
 	{"docket-adr/adr-template.md", 26, 90},
@@ -43,17 +50,17 @@ var skillBudgets = []skillBudget{
 	{"docket-build/references/gate-execution.md", 130, 1200},
 	{"docket-build/references/task-routing.md", 50, 500},
 	{"docket-build-task/SKILL.md", 155, 1550},
-	{"docket-convention/SKILL.md", 400, 7400},
+	{"docket-convention/SKILL.md", 400, 7750},
 	{"docket-convention/github-board-mirror.md", 19, 462},
 	{"docket-convention/references/agent-layer.md", 205, 2350},
 	{"docket-convention/references/dummy-mode.md", 85, 800},
 	{"docket-convention/references/learnings.md", 84, 580},
-	{"docket-convention/references/stacked-changes.md", 215, 2050},
+	{"docket-convention/references/stacked-changes.md", 215, 2100},
 	{"docket-convention/references/terminal-close-out.md", 240, 2150},
 	{"docket-finalize-change/SKILL.md", 190, 4150},
 	{"docket-finalize-change/references/gate-failure.md", 115, 1300},
 	{"docket-groom-next/SKILL.md", 77, 1650},
-	{"docket-implement-next/SKILL.md", 180, 6850},
+	{"docket-implement-next/SKILL.md", 180, 6900},
 	{"docket-implement-next/references/edge-paths.md", 58, 800},
 	{"docket-implement-next/references/fix-loop.md", 185, 1900},
 	{"docket-implement-next/results-template.md", 25, 250},

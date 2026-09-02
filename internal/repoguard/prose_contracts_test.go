@@ -94,7 +94,7 @@ var proseContracts = []proseContract{
 		present: []string{"In plain terms"}},
 	// tests/test_finalize_closeout_notes.sh — the closeout-notes handoff contract.
 	{sentinel: "test_finalize_closeout_notes", file: "skills/docket-convention/SKILL.md",
-		present: []string{"Written solely by `docket finalize closeout`"}},
+		present: []string{"Written solely by the `finalize.closeout` operation"}},
 	{sentinel: "test_finalize_closeout_notes", file: "skills/docket-finalize-change/SKILL.md",
 		present: []string{"never pauses after merge"}},
 	// tests/test_finalize_disposition.sh — Go-owned selection + id allowlist.

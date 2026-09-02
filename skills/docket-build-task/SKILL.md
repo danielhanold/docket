@@ -64,8 +64,8 @@ and the capabilities it composes in
 [`../docket-build/references/gate-execution.md`](../docket-build/references/gate-execution.md); read
 both first. You are a dispatched worker with no resumption channel: **never yield to await the run**,
 never background the suite, never author a polling loop, never wait on a notification, and never call
-the raw `docket gate launch`/`observe`/`stop` verbs directly — they are primitives, not this role's
-workflow API. Drive it in short synchronous `docket gate drive start`/`advance` calls, each bounded
+the raw `gate.launch`/`observe`/`stop` operations directly — they are primitives, not this role's
+workflow API. Drive it in short synchronous `gate.drive.start`/`advance` operation calls, each bounded
 to one slice; keep the observation **finite**. Key on the typed disposition: `PASSED` is green,
 `FAILED` is a real red focused failure to fix, and `HALTED` is unsafe to continue — fail closed by
 returning `BLOCKED` with the driver's cause. When a slice ends `WAITING` and you must stop before a
@@ -124,7 +124,7 @@ self-invocation: only an agent whose entire assignment is this role ends its tur
 
 - **`COMPLETE`** — focused verification is green and exactly one task commit exists.
 - **`WAITING`** — a slice-bounded focused gate run is still live and you must stop before a terminal
-  disposition. Valid **only** when you have performed an explicit `docket gate drive handoff` and
+  disposition. Valid **only** when you have performed an explicit `gate.drive.handoff` operation and
   your return **names that handoff** — the drive id and single-use handoff token the controller
   `claim`s. A bare "still waiting" with no handoff token strands the drive and is not a valid return.
   `WAITING` is neither repair nor escalation, and never accompanies a commit.
