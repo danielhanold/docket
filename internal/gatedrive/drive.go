@@ -71,6 +71,14 @@ const (
 	// the running-at-budget analog; a consumer matches it as a PREFIX because a
 	// variant (deadline-expired-stop-unproven) extends it.
 	CauseDeadlineExpired = "deadline-expired"
+	// CauseTakeoverAmbiguous: an event-authorized takeover resolved MORE THAN ONE
+	// candidate drive for one scope — the recovery target is ambiguous, so it
+	// fails closed rather than guessing which live run to supersede. (change 0359)
+	CauseTakeoverAmbiguous = "takeover-ambiguous"
+	// CauseTakeoverNoCandidate: a takeover resolved ZERO candidate drives for a
+	// scope with no bound drive — there is no live or unconsumed work to recover,
+	// so it fails closed rather than transferring nothing. (change 0359)
+	CauseTakeoverNoCandidate = "takeover-no-candidate"
 )
 
 // DriveDoc is the protocol-v1 outcome document emitted by every driver
