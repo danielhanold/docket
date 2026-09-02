@@ -67,3 +67,16 @@ The 0371 and 0397 changes themselves (merged). Any product behavior change — t
 ### 2026-09-02
 
 2026-09-02 — Reconciled against the current tree (origin/docket d6f81c7 / origin/main 9793ec2). Both groomed root-cause hypotheses verified in place: (A) oversubscription — internal/suiterunner still launches every tests/test_*.sh target at -j = NumCPU and the three whole-module wrappers (tests/test_go_toolchain.sh, tests/test_go_race.sh, tests/test_go_finalize_e2e.sh) plus tests/lib/go-integration-shard.sh each run go test with no runner-imposed concurrency cap; internal/suiterunner/sandbox.go carries the HOME/TMPDIR/git overrides the cap will join. (B) t.TempDir() post-test writers — quiesceRun still lives as a one-test workaround in internal/process/launch_test.go, and 116 bare t.TempDir() call sites remain across the twelve real-process packages named in the spec. tests/runtime-budgets.tsv and internal/repoguard both present for the re-seed and the fail-closed guard. Design holds unchanged; no scope adjustment needed. Stub 381 (internal/process TestObserveRunningThenTerminal parallel-load -race flake) is exactly sighting 1 and is folded in here — killed as a duplicate in this same reconcile pass. Multiplier value and tolerance constant remain to be measured during the build per the spec.
+
+## Finalize blocked
+
+### 2026-09-02 — attempt 20260902T210724Z-55e682ed0857
+
+<!-- attempt:20260902T210724Z-55e682ed0857 -->
+
+- Reason: repair-needs-signoff
+- Head: cfc529efc4cf262ed6097847906dbd64a7e4d5fe
+- PR: #271
+- Comment: https://github.com/danielhanold/docket/pull/271#issuecomment-5516675596
+
+Remedy: Review the auto-authored repair commit cfc529ef (bare t.TempDir() -> testsupport.TempDir(t) at 21 sites in internal/app + internal/gatedrive test files, plus testsupport imports). If you approve it, re-run docket-finalize-change naming id 373 from an attended session so it can publish the repaired head and merge; naming the id overrides this block. If you object to the repair, adjust it on the branch before re-running.
