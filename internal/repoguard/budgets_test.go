@@ -141,7 +141,7 @@ func TestSkillSizeBudgets(t *testing.T) {
 const (
 	dispatchStart  = "docket:dispatch:start"
 	dispatchEnd    = "docket:dispatch:end"
-	dispatchBudget = 450  // NEW actual (352 at 0334, 369 at 0371, 419 now — 0371's never-fall-back sentence and 0394's catalog-idiom run gate landed in the committed block via change 0395's regeneration) rounded up to a multiple of 50.
+	dispatchBudget = 400  // NEW actual (352 at 0334, 369 now) rounded up to a multiple of 50.
 	dispatchOld    = 1156 // pre-0334 roster block; the ceiling must stay strictly below it.
 )
 
