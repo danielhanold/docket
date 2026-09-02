@@ -95,6 +95,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0103](0103-enter-codex-coordinator-roles-through-app-server-root-thread.md) — Enter Codex coordinator roles through app-server root threads (Accepted) ← change #393 · relates to ADR-0036, ADR-0059, ADR-0060, ADR-0094
 - [ADR-0104](0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md) — The capability catalog is the authoritative executable CLI surface (Accepted) ← change #394 · relates to ADR-0003, ADR-0020, ADR-0036
 - [ADR-0105](0105-finalize-s-local-gate-continuation-is-persisted-in-the-owned.md) — Finalize's local-gate continuation is persisted in the owned rebase receipt (Accepted) ← change #396 · relates to ADR-0098
+- [ADR-0106](0106-implementation-preflight-is-a-deterministic-operation-not-a.md) — Implementation preflight is a deterministic operation, not a composition dispatch (Accepted) ← change #397 · relates to ADR-0012, ADR-0024, ADR-0101
 
 ## Superseded / Reversed
 
