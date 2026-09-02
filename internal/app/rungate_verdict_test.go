@@ -183,6 +183,13 @@ type fakeContinuationSeam struct {
 	takeoverCause string
 	takeoverErr   error
 	onTakeover    func()
+	// bind* record the fresh-run defense-in-depth scope binding: the verdict path
+	// binds the outer scope to the one attributed claim when attribution first
+	// resolves it (spec §3), and never re-binds on a continuation.
+	bindCalls    int
+	bindScopeID  string
+	bindChangeID int
+	bindErr      error
 }
 
 func (s *fakeContinuationSeam) LocateOuterDrive(changeID int, childContextHash string) ([]string, error) {
@@ -204,6 +211,13 @@ func (s *fakeContinuationSeam) TakeoverAndHandoff(scopeID, parentCap, driveID st
 
 func (s *fakeContinuationSeam) ExistingHandoffToken(driveID string) (string, error) {
 	return s.handoffToken, s.existingErr
+}
+
+func (s *fakeContinuationSeam) BindScopeChange(scopeID string, changeID int) error {
+	s.bindCalls++
+	s.bindScopeID = scopeID
+	s.bindChangeID = changeID
+	return s.bindErr
 }
 
 // gatedWaitingReader is a stateful WaitingReceiptReader: it reports no waiting
@@ -445,6 +459,66 @@ func TestVerdictContinueNeverAuthorizesNewClaim(t *testing.T) {
 	}
 	if rec.AttributedID != 3 {
 		t.Errorf("record AttributedID = %d, want 3", rec.AttributedID)
+	}
+}
+
+// TestVerdictFreshRunBindsScopeChange: on a FRESH run (no pre-attributed id), when
+// attribution first resolves exactly one claim the verdict path binds that change
+// id into the outer recovery scope (spec §3 defense-in-depth) so a later outer
+// takeover's scopeIdentityMatch pins the change rather than skipping it on an empty
+// scope field. Mutation target: dropping the BindScopeChange call at the attribution
+// point reddens the bindCalls assertion below.
+func TestVerdictFreshRunBindsScopeChange(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := f.deps(
+		rvInProgressRecord(rvPlanPath, rvResultsPath, "feat/"+rvSlug),
+		rvPR(f.head, string(prEvidenceBytes(t, f.head))),
+	)
+	seam := &fakeContinuationSeam{} // no candidates: attribution runs, then the
+	// run-incomplete path finds zero tracked drives and takes the ordinary retry
+	// route — but the bind already fired at the attribution point.
+	wdeps.Continuation = seam
+	// A scoped, unattributed record: ScopeID present, AttributedID == 0 (fresh run).
+	key := gateMintArmedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1")
+
+	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if res.AttributedID != 3 {
+		t.Fatalf("AttributedID = %d, want 3 (fresh attribution resolved the sole claim)", res.AttributedID)
+	}
+	if seam.bindCalls != 1 {
+		t.Fatalf("BindScopeChange called %d times, want exactly 1 on a fresh-run attribution", seam.bindCalls)
+	}
+	if seam.bindScopeID != "scope-1" || seam.bindChangeID != 3 {
+		t.Errorf("bound (%q, %d), want (scope-1, 3)", seam.bindScopeID, seam.bindChangeID)
+	}
+}
+
+// TestVerdictContinuationDoesNotRebindScope: a continuation (an already-attributed
+// record — the state a second gate-verdict call reads) skips attribution entirely,
+// so it MUST NOT re-bind the outer scope's change id. This is the bind-once guard's
+// other half: the fresh run binds, a continuation never touches it.
+func TestVerdictContinuationDoesNotRebindScope(t *testing.T) {
+	f := newRunVerifyFixture(t, true)
+	deps, wdeps, gdeps := rvWaitingDeps(t, f, fakeWaitingReader{receipt: rvAgreeingReceipt(f.head), found: true})
+	seam := &fakeContinuationSeam{handoffToken: "h0token"}
+	wdeps.Continuation = seam
+	// Already attributed AND scoped: a continuation of the same attempt.
+	key := gateMintArmedScoped(t, f.repo.invocation, "scope-1", "pcap-1", "ctxhash-1")
+	rec, err := LoadGateRecord(f.repo.invocation, key)
+	if err != nil {
+		t.Fatalf("LoadGateRecord: %v", err)
+	}
+	rec.AttributedID = 3
+	if err := SaveGateRecord(f.repo.invocation, key, rec); err != nil {
+		t.Fatalf("SaveGateRecord: %v", err)
+	}
+
+	res := RunGateVerdict(context.Background(), deps, wdeps, gdeps, f.repo.invocation, key)
+	if res.Decision != GateDecisionContinue {
+		t.Fatalf("Decision = %q, want %q (a live continuation)", res.Decision, GateDecisionContinue)
+	}
+	if seam.bindCalls != 0 {
+		t.Fatalf("BindScopeChange called %d times on a continuation, want 0 (bind-once: never re-bind)", seam.bindCalls)
 	}
 }
 

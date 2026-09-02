@@ -83,6 +83,13 @@ type ContinuationSeam interface {
 	// already handed off cooperatively — nothing to take over). It fails typed when
 	// no unclaimed handoff exists.
 	ExistingHandoffToken(driveID string) (string, error)
+	// BindScopeChange binds the fresh outer recovery scope's change id exactly once
+	// when attribution first resolves a claim on a fresh run (spec §3 defense-in-depth
+	// — so a later outer takeover's scopeIdentityMatch pins the change id rather than
+	// skipping it on an empty scope field). Bind-once: an already-bound matching id is
+	// a no-op, a different id fails closed. A continuation (already-attributed record)
+	// never reaches this call, so it never re-binds.
+	BindScopeChange(scopeID string, changeID int) error
 }
 
 // gatedriveContinuationSeam is the production ContinuationSeam over the durable
@@ -114,6 +121,10 @@ func (s *gatedriveContinuationSeam) LocateOuterDrive(changeID int, childContextH
 
 func (s *gatedriveContinuationSeam) ExistingHandoffToken(driveID string) (string, error) {
 	return s.store.ContinuationHandle(driveID)
+}
+
+func (s *gatedriveContinuationSeam) BindScopeChange(scopeID string, changeID int) error {
+	return s.driver.BindScopeChange(scopeID, strconv.Itoa(changeID))
 }
 
 func (s *gatedriveContinuationSeam) TakeoverAndHandoff(scopeID, parentCap, driveID string) (string, bool, string, error) {

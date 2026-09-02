@@ -45,6 +45,18 @@ func (d *Driver) PrepareScope(req ScopeRequest) (ScopeGrant, error) {
 	return d.store.PrepareScope(req)
 }
 
+// BindScopeChange binds a fresh outer scope's change id exactly once, exposing the
+// store's bind-once transition (scope.go bindScopeChange) across the package
+// boundary so the application-layer verdict path can pin the attributed change id
+// when attribution first resolves a claim (spec §3 defense-in-depth). Bind-once
+// semantics carry through: an already-bound matching id is an idempotent no-op, a
+// different id fails closed with ErrScopeIdentityMismatch, and a closed scope
+// refuses the bind. Like PrepareScope, it is a thin delegation so a single composed
+// *Driver satisfies the application-layer engine seam. (change 0359)
+func (d *Driver) BindScopeChange(scopeID, changeID string) error {
+	return d.store.bindScopeChange(scopeID, changeID)
+}
+
 func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, error) {
 	scope, err := d.store.LoadScope(scopeID)
 	if err != nil {
