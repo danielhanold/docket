@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0395 — Migrate CLAUDE.md/AGENTS.md agent-executed blocks to the capability-first idiom](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0395-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap.md)**
+> ↩ **[Change 0395 — Migrate CLAUDE.md/AGENTS.md agent-executed blocks to the capability-first idiom](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-02-0395-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap.md)**
 <!-- docket:backlink:end -->
 # Migrate CLAUDE.md/AGENTS.md agent-executed blocks to the capability-first idiom — Implementation Plan
 
