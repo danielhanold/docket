@@ -37,6 +37,14 @@ package gatedrive
 // with, and the scope is closed. Any capability failure, ambiguity, identity
 // drift, outstanding handoff, expired deadline, or lost race returns a HALTED
 // document — never a launch, a stop, or a duplicated process.
+// PrepareScope mints a recovery scope through the driver's store, so a single
+// composed *Driver satisfies the application-layer engine seam (which prepares a
+// scope and then starts or takes over drives over the same driver). It is a thin
+// delegation to Store.PrepareScope (scope.go). (change 0359)
+func (d *Driver) PrepareScope(req ScopeRequest) (ScopeGrant, error) {
+	return d.store.PrepareScope(req)
+}
+
 func (d *Driver) Takeover(scopeID, parentCapability, driveID string) (DriveDoc, error) {
 	scope, err := d.store.LoadScope(scopeID)
 	if err != nil {
