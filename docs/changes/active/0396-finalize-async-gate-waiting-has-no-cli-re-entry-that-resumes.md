@@ -13,7 +13,7 @@ related: [342, 364, 375]
 discovered_from: [364]
 adrs: [98]
 spec: 'docs/superpowers/specs/2026-09-02-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-02-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-02T10:53:16Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-02-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-02-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes-design.md) |
+| Plan | [2026-09-02-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-02-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes.md) |
 | ADRs | [ADR-0098](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0098-structured-gate-waiting-and-ownership-handoff.md) |
 <!-- docket:artifacts:end -->
 
