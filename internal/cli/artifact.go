@@ -31,9 +31,10 @@ func newArtifactCommand(setResult func(app.OperationResult)) *cobra.Command {
 	}
 
 	backlink := &cobra.Command{
-		Use:   "backlink",
-		Short: "Stamp the managed backlink block onto an artifact, pointing home to its change",
-		Args:  cobra.NoArgs,
+		Use:         "backlink",
+		Short:       "Stamp the managed backlink block onto an artifact, pointing home to its change",
+		Args:        cobra.NoArgs,
+		Annotations: capability("artifact.backlink", EffectLocalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {

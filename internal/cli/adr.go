@@ -34,7 +34,7 @@ func newADRCommand(setResult func(app.OperationResult)) *cobra.Command {
 		},
 	}
 
-	record := changeSubcommand("record",
+	record := changeSubcommand("adr", "record",
 		"Record a new Accepted ADR from a JSON request",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
 			var req app.ADRRecordRequest
@@ -43,9 +43,9 @@ func newADRCommand(setResult func(app.OperationResult)) *cobra.Command {
 			}
 			setResult(app.ADRRecordOp(c.Context(), deps, repoDir, req))
 			return nil
-		})
+		}, EffectMetadataWrite)
 
-	supersede := changeSubcommand("supersede",
+	supersede := changeSubcommand("adr", "supersede",
 		"Supersede an Accepted ADR with a new one from a JSON request",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
 			var req app.ADRReplaceRequest
@@ -54,9 +54,9 @@ func newADRCommand(setResult func(app.OperationResult)) *cobra.Command {
 			}
 			setResult(app.ADRSupersede(c.Context(), deps, repoDir, req))
 			return nil
-		})
+		}, EffectMetadataWrite)
 
-	reverse := changeSubcommand("reverse",
+	reverse := changeSubcommand("adr", "reverse",
 		"Reverse an Accepted ADR with a new one from a JSON request",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
 			var req app.ADRReplaceRequest
@@ -65,7 +65,7 @@ func newADRCommand(setResult func(app.OperationResult)) *cobra.Command {
 			}
 			setResult(app.ADRReverse(c.Context(), deps, repoDir, req))
 			return nil
-		})
+		}, EffectMetadataWrite)
 
 	adrCmd.AddCommand(record, supersede, reverse)
 	return adrCmd

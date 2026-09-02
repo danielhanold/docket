@@ -42,7 +42,21 @@ var allEffects = map[Effect]bool{
 const (
 	capAnnotationID      = "docket.capability.id"
 	capAnnotationEffects = "docket.capability.effects"
+	// capAnnotationExclude marks a VISIBLE command as CLI machinery that is not
+	// a docket operation. The walker skips it exactly as it skips hidden
+	// commands, so the command never becomes a catalog entry and never trips the
+	// unclassified-leaf guard, while it stays visible to humans in `--help`.
+	// Cobra's built-in help command — the one visible, runnable leaf that is not
+	// a docket operation — is the sole production case; hidden machinery
+	// (completion) is already skipped by the Hidden branch and needs no marker.
+	capAnnotationExclude = "docket.capability.exclude"
 )
+
+// excludeFromCapabilityCatalog builds the annotation payload that marks a
+// visible command as non-operation CLI machinery (see capAnnotationExclude).
+func excludeFromCapabilityCatalog() map[string]string {
+	return map[string]string{capAnnotationExclude: "true"}
+}
 
 // capability builds the annotation payload a leaf registration attaches. It
 // is the ONLY sanctioned way to declare capability metadata, so the id and
@@ -86,6 +100,12 @@ func collectCapabilities(root *cobra.Command) ([]CapabilityEntry, error) {
 				if _, ok := child.Annotations[capAnnotationID]; ok {
 					return fmt.Errorf("capability metadata on hidden command %q", child.CommandPath())
 				}
+				continue
+			}
+			if child.Annotations[capAnnotationExclude] == "true" {
+				// Explicitly-marked CLI machinery (Cobra's help command): visible
+				// to humans, absent from the operation catalog. Skip listing and
+				// do not recurse.
 				continue
 			}
 			id, annotated := child.Annotations[capAnnotationID]

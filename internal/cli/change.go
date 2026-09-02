@@ -47,7 +47,7 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 		},
 	}
 
-	create := changeSubcommand("create",
+	create := changeSubcommand("change", "create",
 		"Create a new proposed change from a JSON request",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
 			var req app.ChangeCreateRequest
@@ -56,9 +56,9 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 			}
 			setResult(app.ChangeCreate(c.Context(), deps, repoDir, req))
 			return nil
-		})
+		}, EffectMetadataWrite)
 
-	groom := changeSubcommand("groom",
+	groom := changeSubcommand("change", "groom",
 		"Groom a proposed change to build-ready (spec or trivial) from a JSON request",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
 			var req app.ChangeGroomRequest
@@ -67,9 +67,9 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 			}
 			setResult(app.ChangeGroom(c.Context(), deps, repoDir, req))
 			return nil
-		})
+		}, EffectMetadataWrite)
 
-	block := changeSubcommand("block",
+	block := changeSubcommand("change", "block",
 		"Block a change, recording the reason, from a JSON request",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
 			var req app.ChangeBlockRequest
@@ -78,9 +78,9 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 			}
 			setResult(app.ChangeBlock(c.Context(), deps, repoDir, req))
 			return nil
-		})
+		}, EffectMetadataWrite)
 
-	deferCmd := changeSubcommand("defer",
+	deferCmd := changeSubcommand("change", "defer",
 		"Defer a change, recording why, from a JSON request",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
 			var req app.ChangeDeferRequest
@@ -89,9 +89,9 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 			}
 			setResult(app.ChangeDefer(c.Context(), deps, repoDir, req))
 			return nil
-		})
+		}, EffectMetadataWrite)
 
-	kill := changeSubcommand("kill",
+	kill := changeSubcommand("change", "kill",
 		"Kill a change, archiving it, from a JSON request",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error {
 			var req app.ChangeKillRequest
@@ -100,19 +100,19 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 			}
 			setResult(app.ChangeKill(c.Context(), deps, repoDir, req))
 			return nil
-		})
+		}, EffectMetadataWrite)
 
 	claim := changeIDVersionSubcommand("claim",
 		"Claim a build-ready change at an exact version, moving it to in-progress",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest) {
 			setResult(app.ChangeClaim(c.Context(), deps, repoDir, req))
-		})
+		}, EffectMetadataWrite)
 
 	refreshClaim := changeIDVersionSubcommand("refresh-claim",
 		"Re-stamp an in-progress change's claim lease at an exact version",
 		func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest) {
 			setResult(app.ChangeRefreshClaim(c.Context(), deps, repoDir, req))
-		})
+		}, EffectMetadataWrite)
 
 	reconcile := changeInputSubcommand("reconcile",
 		"Reconcile an in-progress change against current reality from a JSON request",
@@ -123,19 +123,19 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 			}
 			setResult(app.ChangeReconcile(c.Context(), deps, repoDir, req))
 			return nil
-		})
+		}, EffectMetadataWrite)
 
 	attachPlan := changeAttachSubcommand("attach-plan",
 		"Verify a written plan from Git and link it to an in-progress change",
 		func(c *cobra.Command, deps app.PlanningDeps, wdeps app.WorkspaceDeps, repoDir string, req app.ChangeAttachRequest) {
 			setResult(app.ChangeAttachPlan(c.Context(), deps, wdeps, repoDir, req))
-		})
+		}, EffectMetadataWrite)
 
 	attachResults := changeAttachSubcommand("attach-results",
 		"Verify an authored results record from Git and link it to an in-progress change",
 		func(c *cobra.Command, deps app.PlanningDeps, wdeps app.WorkspaceDeps, repoDir string, req app.ChangeAttachRequest) {
 			setResult(app.ChangeAttachResults(c.Context(), deps, wdeps, repoDir, req))
-		})
+		}, EffectMetadataWrite)
 
 	halt := changeInputSubcommand("halt",
 		"Record a bounded run-halted report on an in-progress change from a JSON request",
@@ -148,7 +148,7 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 			}
 			setResult(app.ChangeHalt(c.Context(), deps, repoDir, app.HaltRequest{ID: id, Version: version, Report: in.Report}))
 			return nil
-		})
+		}, EffectMetadataWrite)
 	halt.Flags().Int("id", 0, "in-progress change id to halt (required)")
 	halt.Flags().String("version", "", "exact record blob object id from the authoritative context read (required)")
 	_ = halt.MarkFlagRequired("id")
@@ -180,9 +180,10 @@ func newChangeCommand(setResult func(app.OperationResult)) *cobra.Command {
 // wiring the other terminal-half operations use.
 func newRepairIdentitySubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "repair-identity",
-		Short: "Repair a change's recorded identity at an exact version: adopt the PR's head as branch, or a PR reference as pr",
-		Args:  cobra.NoArgs,
+		Use:         "repair-identity",
+		Short:       "Repair a change's recorded identity at an exact version: adopt the PR's head as branch, or a PR reference as pr",
+		Args:        cobra.NoArgs,
+		Annotations: capability("change.repair-identity", EffectMetadataWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -240,9 +241,10 @@ type changeHaltInput struct {
 // the workspace service (to reprobe the owned checkout).
 func newResumeHaltedSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "resume-halted",
-		Short: "Recover a halted run: reprobe the workspace, refresh the claim, and remove the marker",
-		Args:  cobra.NoArgs,
+		Use:         "resume-halted",
+		Short:       "Recover a halted run: reprobe the workspace, refresh the claim, and remove the marker",
+		Args:        cobra.NoArgs,
+		Annotations: capability("change.resume-halted", EffectMetadataWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -280,9 +282,10 @@ func newResumeHaltedSubcommand(setResult func(app.OperationResult)) *cobra.Comma
 // live-gate probe.
 func newReclaimSubcommand(setResult func(app.OperationResult)) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "reclaim",
-		Short: "Return a strictly-expired, branchless, workspaceless in-progress claim to proposed",
-		Args:  cobra.NoArgs,
+		Use:         "reclaim",
+		Short:       "Return a strictly-expired, branchless, workspaceless in-progress claim to proposed",
+		Args:        cobra.NoArgs,
+		Annotations: capability("change.reclaim", EffectMetadataWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -321,6 +324,9 @@ func newMarkImplementedSubcommand(setResult func(app.OperationResult)) *cobra.Co
 		Use:   "mark-implemented",
 		Short: "Mark an in-progress change implemented after reprobing its head, evidence, and published PR",
 		Args:  cobra.NoArgs,
+		// metadata-write: applies the exact-version transaction recording the
+		// implemented transition; the head/evidence/PR reprobes are read-only.
+		Annotations: capability("change.mark-implemented", EffectMetadataWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -369,11 +375,12 @@ func newMarkImplementedSubcommand(setResult func(app.OperationResult)) *cobra.Co
 // Git and links it, so it takes scalar flags (Global Constraints: request files
 // are for authored Markdown, never these). It builds the workspace-backed deps
 // the attach operation needs to inspect the owned checkout.
-func changeAttachSubcommand(verb, short string, run func(c *cobra.Command, deps app.PlanningDeps, wdeps app.WorkspaceDeps, repoDir string, req app.ChangeAttachRequest)) *cobra.Command {
+func changeAttachSubcommand(verb, short string, run func(c *cobra.Command, deps app.PlanningDeps, wdeps app.WorkspaceDeps, repoDir string, req app.ChangeAttachRequest), effects ...Effect) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   verb,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         verb,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: capability("change."+verb, effects...),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -408,11 +415,12 @@ func changeAttachSubcommand(verb, short string, run func(c *cobra.Command, deps 
 // `-` for stdin). It mirrors changeSubcommand but names the flag --input, the
 // spelling the reconcile CLI uses; the decode goes through the same
 // exactly-one-document strict decoder.
-func changeInputSubcommand(verb, short string, run func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error) *cobra.Command {
+func changeInputSubcommand(verb, short string, run func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error, effects ...Effect) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   verb,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         verb,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: capability("change."+verb, effects...),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -443,11 +451,12 @@ func decodeInputFlag(c *cobra.Command, dst any) error {
 // carry no authored Markdown, so they take scalar flags (Global Constraints:
 // request files are for authored Markdown, never these). run receives the
 // resolved dependencies, repo directory, and decoded request.
-func changeIDVersionSubcommand(verb, short string, run func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest)) *cobra.Command {
+func changeIDVersionSubcommand(verb, short string, run func(c *cobra.Command, deps app.PlanningDeps, repoDir string, req app.ChangeClaimRequest), effects ...Effect) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   verb,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         verb,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: capability("change."+verb, effects...),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -476,11 +485,16 @@ func changeIDVersionSubcommand(verb, short string, run func(c *cobra.Command, de
 // it decodes the request and invokes the operation. Constructing PlanningDeps
 // here — after flag parsing, before decoding — keeps a Git-client failure
 // classified as an argument error, exactly like the request-decode failures.
-func changeSubcommand(verb, short string, run func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error) *cobra.Command {
+//
+// group is the command's parent group ("change", "learning", or "adr"); the
+// capability id is the dotted command path group+"."+verb, and the effects are
+// declared by the caller — never a name→effects lookup inside the helper.
+func changeSubcommand(group, verb, short string, run func(c *cobra.Command, deps app.PlanningDeps, repoDir string) error, effects ...Effect) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   verb,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         verb,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: capability(group+"."+verb, effects...),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {

@@ -116,6 +116,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	root.SetHelpCommand(&cobra.Command{
 		Use:   "help [command]",
 		Short: "Help about any command",
+		// Cobra machinery, not a docket operation: it stays visible to humans
+		// but is excluded from the capability catalog (the completion commands
+		// are hidden and already skipped without a marker).
+		Annotations: excludeFromCapabilityCatalog(),
 		RunE: func(c *cobra.Command, a []string) error {
 			if jsonMode() {
 				helpConflict = true
@@ -132,9 +136,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	})
 
 	versionCmd := &cobra.Command{
-		Use:   "version",
-		Short: "Report this binary's build identity",
-		Args:  cobra.NoArgs,
+		Use:         "version",
+		Short:       "Report this binary's build identity",
+		Args:        cobra.NoArgs,
+		Annotations: capability("version", EffectRead),
 		RunE: func(_ *cobra.Command, _ []string) error {
 			result = app.Version(info)
 			return nil
@@ -157,9 +162,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 		},
 	}
 	runtimeCmd := &cobra.Command{
-		Use:   "runtime",
-		Short: "Report the running Go toolchain and target tuple",
-		Args:  cobra.NoArgs,
+		Use:         "runtime",
+		Short:       "Report the running Go toolchain and target tuple",
+		Args:        cobra.NoArgs,
+		Annotations: capability("diagnostic.runtime", EffectRead),
 		RunE: func(_ *cobra.Command, _ []string) error {
 			result = app.DiagnosticRuntime(facts)
 			return nil
@@ -171,9 +177,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	// exit code — belongs to app.DiagnosticConfig, so this body has no branch
 	// on configuration content at all.
 	configCmd := &cobra.Command{
-		Use:   "config",
-		Short: "Inspect resolved configuration and its capability envelope",
-		Args:  cobra.NoArgs,
+		Use:         "config",
+		Short:       "Inspect resolved configuration and its capability envelope",
+		Args:        cobra.NoArgs,
+		Annotations: capability("diagnostic.config", EffectRead),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, _ := c.Flags().GetString("repo-dir")
 			defBranch, _ := c.Flags().GetString("default-branch")
@@ -196,9 +203,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	// change types outside the resolved change_types set — belongs to app.Status,
 	// which alone knows the closed sets, so this body branches on nothing.
 	statusCmd := &cobra.Command{
-		Use:   "status",
-		Short: "Report backlog status, readiness, selection, and repository health (read-only)",
-		Args:  cobra.NoArgs,
+		Use:         "status",
+		Short:       "Report backlog status, readiness, selection, and repository health (read-only)",
+		Args:        cobra.NoArgs,
+		Annotations: capability("status", EffectRead),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -229,9 +237,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	// presenter own the outcome. Every classification decision belongs to
 	// internal/app, so no body here branches on what the installer found.
 	installCmd := &cobra.Command{
-		Use:   "install",
-		Short: "Install docket's skills, agents, and dispatch material into your harnesses",
-		Args:  cobra.NoArgs,
+		Use:         "install",
+		Short:       "Install docket's skills, agents, and dispatch material into your harnesses",
+		Args:        cobra.NoArgs,
+		Annotations: capability("install", EffectLocalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			harnesses, _ := c.Flags().GetStringArray("harness")
 			repoDir, _ := c.Flags().GetString("repo-dir")
@@ -250,9 +259,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 		"repository whose parent-facing dispatch surfaces are reconciled; default: the Git worktree containing the current directory; outside Git, machine-only")
 
 	installCheckCmd := &cobra.Command{
-		Use:   "check",
-		Short: "Report whether this machine's installation is current (writes nothing)",
-		Args:  cobra.NoArgs,
+		Use:         "check",
+		Short:       "Report whether this machine's installation is current (writes nothing)",
+		Args:        cobra.NoArgs,
+		Annotations: capability("install.check", EffectRead),
 		RunE: func(c *cobra.Command, _ []string) error {
 			opts, refusal := installOptions(c.Context(), nil, "", false, info)
 			if refusal != nil {
@@ -273,9 +283,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 		},
 	}
 	developmentInstallCmd := &cobra.Command{
-		Use:   "install",
-		Short: "Install from a checkout, linking harnesses at the source tree",
-		Args:  cobra.NoArgs,
+		Use:         "install",
+		Short:       "Install from a checkout, linking harnesses at the source tree",
+		Args:        cobra.NoArgs,
+		Annotations: capability("development.install", EffectLocalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			harnesses, _ := c.Flags().GetStringArray("harness")
 			source, _ := c.Flags().GetString("source")
@@ -315,9 +326,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	_ = developmentInstallCmd.MarkFlagRequired("source")
 
 	developmentTestCmd := &cobra.Command{
-		Use:   "test",
-		Short: "Run the complete configured test suite from this checkout",
-		Args:  cobra.NoArgs,
+		Use:         "test",
+		Short:       "Run the complete configured test suite from this checkout",
+		Args:        cobra.NoArgs,
+		Annotations: capability("development.test", EffectProcessControl),
 		// Non-interactive whole-suite runner (change 0318). The report streams to
 		// this process's stdout/stderr and the exit code carries the verdict
 		// (documented beside "Exit contract" in internal/suiterunner/run.go), so

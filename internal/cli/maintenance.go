@@ -93,6 +93,9 @@ func newMaintenanceSweepSubcommand(setResult func(app.OperationResult)) *cobra.C
 		Use:   "sweep",
 		Short: "Close out merged changes, retry terminal cleanup, and reclaim expired claims in one pass",
 		Args:  cobra.NoArgs,
+		// metadata-write + local-write + external-write: composes closeout,
+		// cleanup, and reclaim and inherits the full union of their effects.
+		Annotations: capability("maintenance.sweep", EffectMetadataWrite, EffectLocalWrite, EffectExternalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			// Scope resolves once, here, to a typed value — the app layer never
 			// re-derives it — and an unknown/empty value refuses before any

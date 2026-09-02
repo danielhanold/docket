@@ -43,6 +43,9 @@ func newGateCommand(setResult func(app.OperationResult)) *cobra.Command {
 	launch := &cobra.Command{
 		Use:   "launch --root <dir> --cwd <dir> -- <argv...>",
 		Short: "Launch a supervised run, its command given after a -- separator",
+		// process-control + local-write: launches the supervised run and writes
+		// its run-slot directory and stdout/stderr logs.
+		Annotations: capability("gate.launch", EffectProcessControl, EffectLocalWrite),
 		// The command argv arrives only after `--`; the flags before it are
 		// docket's, everything after is the child's. Args is left arbitrary so
 		// Cobra collects the argv, and RunE enforces the boundary itself.
@@ -74,9 +77,10 @@ func newGateCommand(setResult func(app.OperationResult)) *cobra.Command {
 	_ = launch.MarkFlagRequired("cwd")
 
 	observe := &cobra.Command{
-		Use:   "observe <run-dir>",
-		Short: "Report a run's state (read-only)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "observe <run-dir>",
+		Short:       "Report a run's state (read-only)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: capability("gate.observe", EffectRead),
 		RunE: func(_ *cobra.Command, args []string) error {
 			setResult(app.GateObserve(args[0]))
 			return nil
@@ -87,6 +91,9 @@ func newGateCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Use:   "stop <run-dir>",
 		Short: "Stop a supervised run, recording the reason",
 		Args:  cobra.ExactArgs(1),
+		// local-write + process-control: drives the ownership-gated stop of the
+		// supervised run and records the stop intent/reason into the run slot.
+		Annotations: capability("gate.stop", EffectLocalWrite, EffectProcessControl),
 		RunE: func(c *cobra.Command, args []string) error {
 			reason, _ := c.Flags().GetString("reason")
 			setResult(app.GateStop(args[0], reason))
@@ -99,6 +106,9 @@ func newGateCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Use:   "recover --root <dir>",
 		Short: "Mark proved-abandoned owned runs under a root, retaining everything else",
 		Args:  cobra.NoArgs,
+		// local-write: writes an abandoned marker into each proved-abandoned run
+		// slot; it supervises no live process (the runs are already gone).
+		Annotations: capability("gate.recover", EffectLocalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			root, _ := c.Flags().GetString("root")
 			setResult(app.GateRecover(root))
@@ -112,6 +122,9 @@ func newGateCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Use:   "cleanup <run-dir>",
 		Short: "Remove one owned, terminal, reported run directory's logs, retaining every other run",
 		Args:  cobra.ExactArgs(1),
+		// local-write: removes one owned run directory's logs and leaves an owned
+		// tombstone receipt.
+		Annotations: capability("gate.cleanup", EffectLocalWrite),
 		RunE: func(c *cobra.Command, args []string) error {
 			// GateCleanup reads only the run directory; the FinalizeDeps parameter is
 			// present for signature parity with the other cleanup operation and is
@@ -149,6 +162,9 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	start := &cobra.Command{
 		Use:   "start --repo-dir <dir> --run-root <dir> --owner build|finalize",
 		Short: "Start a drive over the named owner's resolved suite command and advance one slice",
+		// process-control + local-write: launches the supervised suite via the
+		// process supervisor and writes the durable drive store.
+		Annotations: capability("gate.drive.start", EffectProcessControl, EffectLocalWrite),
 		// No suite command is accepted: the command is the resolved policy of the
 		// required --owner, read from authoritative config. Args is NoArgs — there
 		// is no `-- <argv>` boundary any more.
@@ -212,6 +228,9 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Use:   "advance --drive-id <id> --owner-gen <gen>",
 		Short: "Resume the current attempt of a drive through at most one slice",
 		Args:  cobra.NoArgs,
+		// process-control + local-write: runs/observes the supervised suite for
+		// at most one slice and updates the durable drive store.
+		Annotations: capability("gate.drive.advance", EffectProcessControl, EffectLocalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -237,6 +256,9 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Use:   "handoff --drive-id <id> --owner-gen <gen>",
 		Short: "Transfer a live drive to a fresh owner, minting a single-use handoff token",
 		Args:  cobra.NoArgs,
+		// local-write: mints the single-use handoff token in the durable drive
+		// store; it resumes no suite and controls no process.
+		Annotations: capability("gate.drive.handoff", EffectLocalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
@@ -262,6 +284,9 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 		Use:   "claim --drive-id <id> --handoff-id <token>",
 		Short: "Consume a single-use handoff token for a fresh owner generation",
 		Args:  cobra.NoArgs,
+		// local-write: consumes the handoff receipt and writes the fresh owner
+		// generation into the durable drive store.
+		Annotations: capability("gate.drive.claim", EffectLocalWrite),
 		RunE: func(c *cobra.Command, _ []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
