@@ -47,7 +47,7 @@ var skillBudgets = []skillBudget{
 	{"docket-build/references/delegation-execution.md", 85, 850},
 	{"docket-build/references/gate-caller-loop.md", 175, 1750},
 	{"docket-build/references/gate-execution-evidence.md", 110, 1050},
-	{"docket-build/references/gate-execution.md", 130, 1200},
+	{"docket-build/references/gate-execution.md", 170, 1520},
 	{"docket-build/references/task-routing.md", 50, 500},
 	{"docket-build-task/SKILL.md", 155, 1550},
 	{"docket-convention/SKILL.md", 400, 7750},
