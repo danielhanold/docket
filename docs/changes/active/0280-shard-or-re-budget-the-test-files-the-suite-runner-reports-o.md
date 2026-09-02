@@ -9,7 +9,7 @@ created: 2026-08-09
 updated: 2026-08-09
 depends_on: []
 related: []
-discovered_from: [276]
+discovered_from: [276, 397]
 adrs: []
 spec:
 plan:

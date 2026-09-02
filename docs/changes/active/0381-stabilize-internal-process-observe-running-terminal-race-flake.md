@@ -10,7 +10,7 @@ updated: '2026-08-30'
 depends_on: []
 stacked_on:
 related: []
-discovered_from: [378]
+discovered_from: [378, 397]
 adrs: []
 spec:
 plan:
