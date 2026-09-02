@@ -22,7 +22,7 @@ branch: 'chore/harden-integration-race-test-isolation-under-parallel-load'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-02T16:19:31Z'
+claimed_at: '2026-09-02T16:29:55Z'
 ---
 
 ## Artifacts
