@@ -198,11 +198,15 @@ var proseContracts = []proseContract{
 	{sentinel: "change_0389_sweep_scope", file: "skills/docket-status/SKILL.md",
 		present: []string{"--scope implementation", "a liveness transition, not completion",
 			"never start a second shell watcher", "never that every item succeeded"}},
-	// docket-implement-next owns the AGENT barrier: terminal evidence for the
-	// requested scope, and a first-late terminal result is a violation.
-	{sentinel: "change_0389_sweep_scope", file: "skills/docket-implement-next/SKILL.md",
-		present: []string{"--scope implementation", "terminal sweep evidence for implementation scope",
-			"a contract violation, not a dismissable duplicate"}},
+	// change 0397 — Step 0 is one inline deterministic operation. The absent
+	// phrases are the retired step-0 dispatch instruction and the completion
+	// barrier that only a child return needed; the present phrases bind the
+	// inline call to its two authoritative fields.
+	{sentinel: "change_0397_preflight_op", file: "skills/docket-implement-next/SKILL.md",
+		present: []string{"maintenance.preflight", "the envelope `result` and the Go-computed `preflight` verdict",
+			"as its own Bash call"},
+		absent: []string{"dispatch the `docket-status` subagent",
+			"terminal sweep evidence for implementation scope"}},
 	// The convention no longer implies a full historical sweep at startup, and
 	// the status dispatch contract is hybrid.
 	{sentinel: "change_0389_sweep_scope", file: "skills/docket-convention/SKILL.md",
