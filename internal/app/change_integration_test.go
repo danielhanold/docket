@@ -2649,8 +2649,9 @@ func TestIntegrationChangeResumeHalted(t *testing.T) {
 func TestIntegrationChangeRunGateBeforeArmsWithLoadableKey(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
-	res := RunGateBefore(context.Background(), deps, repo, "implement-next")
+	res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
 	if res.Result != ResultApplied {
 		t.Fatalf("result = %q, want %q (report lines exit 0)", res.Result, ResultApplied)
 	}
@@ -2660,7 +2661,7 @@ func TestIntegrationChangeRunGateBeforeArmsWithLoadableKey(t *testing.T) {
 	if !res.Armed || res.Key == "" {
 		t.Fatalf("Armed=%v Key=%q, want armed with a non-empty key", res.Armed, res.Key)
 	}
-	if got, want := res.HumanText(), "gate-armed "+res.Key; got != want {
+	if got, want := res.HumanText(), "gate-armed "+res.Key+" "+scopeGrantChild; got != want {
 		t.Errorf("HumanText = %q, want %q", got, want)
 	}
 
@@ -2691,8 +2692,9 @@ func TestIntegrationChangeRunGateBeforeArmsWithLoadableKey(t *testing.T) {
 func TestIntegrationChangeRunGateBeforeDispatchEpochAfterBeforeRead(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
-	res := RunGateBefore(context.Background(), deps, repo, "implement-next")
+	res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
 	if !res.Armed {
 		t.Fatalf("gate did not arm: %q", res.HumanText())
 	}
@@ -2713,8 +2715,9 @@ func TestIntegrationChangeRunGateBeforeDispatchEpochAfterBeforeRead(t *testing.T
 func TestIntegrationChangeRunGateBeforeEmptyBacklogArms(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, []StatusBlob{}, nil, nil), Clock: testClock()}
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
-	res := RunGateBefore(context.Background(), deps, repo, "implement-next")
+	res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
 	if !res.Armed {
 		t.Fatalf("empty backlog did not arm: %q", res.HumanText())
 	}
@@ -2732,8 +2735,9 @@ func TestIntegrationChangeRunGateBeforeEmptyBacklogArms(t *testing.T) {
 func TestIntegrationChangeRunGateBeforeInvalidTarget(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, gateBeforeCorpus(), nil, nil), Clock: testClock()}
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
-	res := RunGateBefore(context.Background(), deps, repo, "bogus-target")
+	res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "bogus-target", 0)
 	if res.Armed {
 		t.Fatalf("armed for an invalid target")
 	}
@@ -2750,8 +2754,9 @@ func TestIntegrationChangeRunGateBeforeInvalidTarget(t *testing.T) {
 func TestIntegrationChangeRunGateBeforeSyncFailure(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, nil, errors.New("fetch failed"), nil), Clock: testClock()}
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
-	res := RunGateBefore(context.Background(), deps, repo, "implement-next")
+	res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
 	if res.Armed {
 		t.Fatalf("armed despite a sync failure, want gate-unarmed")
 	}
@@ -2769,8 +2774,9 @@ func TestIntegrationChangeRunGateBeforeSyncFailure(t *testing.T) {
 func TestIntegrationChangeRunGateBeforeUnreadableChangesDir(t *testing.T) {
 	repo := newGateRepo(t)
 	deps := PlanningDeps{Reader: gateBeforeReader(t, nil, nil, errors.New("changes dir unreadable")), Clock: testClock()}
+	sp := &fakeScopePrep{grant: sampleScopeGrant()}
 
-	res := RunGateBefore(context.Background(), deps, repo, "implement-next")
+	res := RunGateBefore(context.Background(), deps, WorkspaceDeps{}, sp.deps(), repo, "implement-next", 0)
 	if res.Result != ResultApplied {
 		t.Fatalf("result = %q, want %q (gate-unarmed is a report line)", res.Result, ResultApplied)
 	}

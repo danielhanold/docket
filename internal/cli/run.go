@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/danielhanold/docket/internal/app"
+	"github.com/danielhanold/docket/internal/gatedrive"
 	"github.com/danielhanold/docket/internal/gitcli"
 )
 
@@ -72,25 +73,40 @@ func newRunCommand(setResult func(app.OperationResult)) *cobra.Command {
 	// read-only planning seams as verify.
 	gateBefore := &cobra.Command{
 		Use:   "gate-before <target>",
-		Short: "Arm the run gate for a dispatched workflow and print gate-armed <key>",
+		Short: "Arm the run gate for a dispatched workflow and print gate-armed <key> <dispatch-context>",
 		Args:  cobra.ExactArgs(1),
-		// local-write: mints the durable rungate record under the Git common
-		// dir; the re-sync is a read-only fetch.
+		// local-write: mints the durable rungate record AND the outer recovery-scope
+		// record under the Git common dir; the re-sync is a read-only fetch.
 		Annotations: capability("run.gate-before", EffectLocalWrite),
 		RunE: func(c *cobra.Command, args []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
 				return err
 			}
-			deps, _, _, err := newPRDeps()
+			deps, wdeps, _, err := newPRDeps()
 			if err != nil {
 				return err
 			}
-			setResult(app.RunGateBefore(c.Context(), deps, repoDir, args[0]))
+			resumeID, _ := c.Flags().GetInt("resume")
+			// Compose the production outer-scope preparation seam: mint the scope in
+			// the durable drive store rooted at the repository's Git common dir. The
+			// closure fills RepoIdentity from the resolved common dir; Branch/Worktree
+			// arrive already filled by RunGateBefore (from the resumed change's
+			// inspect when resuming, empty otherwise).
+			sdeps := app.GateScopeDeps{Prepare: func(req gatedrive.ScopeRequest) (gatedrive.ScopeGrant, error) {
+				commonDir, _, cerr := gateDriveRepoContext(c.Context(), repoDir)
+				if cerr != nil {
+					return gatedrive.ScopeGrant{}, cerr
+				}
+				req.RepoIdentity = commonDir
+				return gatedrive.OpenStore(commonDir).PrepareScope(req)
+			}}
+			setResult(app.RunGateBefore(c.Context(), deps, wdeps, sdeps, repoDir, args[0], resumeID))
 			return nil
 		},
 	}
 	gateBefore.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
+	gateBefore.Flags().Int("resume", 0, "resume an already-in-progress change by `id` (pre-binds attribution)")
 
 	// gate-verdict reports the run-gate verdict in one of two modes. In ATTRIBUTED
 	// mode (`gate-verdict <key>`) it loads the durable record armed by gate-before,
