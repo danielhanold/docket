@@ -9,10 +9,10 @@ created: '2026-08-30'
 updated: '2026-09-02'
 depends_on: []
 stacked_on:
-related: []
+related: [381, 333, 280, 296]
 discovered_from: [371, 397]
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-09-02-harden-integration-race-test-isolation-under-parallel-load-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-02-harden-integration-race-test-isolation-under-parallel-load-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-02-harden-integration-race-test-isolation-under-parallel-load-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -43,13 +46,15 @@ Change 0397's finalize gate (2026-09-02, PR #269) added a fourth sighting of the
 
 ## What changes
 
-Investigate and harden integration/race test isolation so the gate suite is deterministic under parallel execution — no unrelated test reds purely as an artifact of concurrent scheduling. Scope of the fix (per-test isolation, resource sandboxing, reduced shared state, or selective serialization of the offenders) is to be settled at brainstorm time.
+Settled design (2026-09-02 interactive grooming; detail in the linked spec):
+
+- Bound total gate load at the runner: `internal/suiterunner` exports one concurrency cap into each target's sandbox, and the Go wrappers (the shared `tests/lib/go-integration-shard.sh` helper plus the three whole-module wrappers) translate it into `go test -p` / `GOMAXPROCS`, so concurrent Go test packages stay at a measured small multiple of the CPU count instead of `-j × NumCPU`. Affected budget rows are re-seeded from post-fix measurements.
+- A shared real-process test fixture replaces bare `t.TempDir()` in every package whose tests spawn real git or supervisors: draining cleanup with bounded retry, git background work (auto gc, detached gc, auto maintenance, fsmonitor) disabled per fixture and in the runner sandbox, and a per-fixture process-registry root instead of the shared `$TMPDIR`.
+- A fail-closed, mutation-tested repoguard proves no real-process package calls bare `t.TempDir()`. No wrapper gets a `serial` pin.
+- Stub 381 is folded in; the reconcile pass kills it as a duplicate on claim.
+- Evidence: five consecutive green full-gate runs at one head, the measured multiplier, re-seeded rows, and the five known sightings as regression cases.
 
 ## Out of scope
 
-The 0371 change itself (already merged/implemented). Any product behavior change — this is test-infrastructure hardening only.
+The 0371 and 0397 changes themselves (merged). Any product behavior change — this is test-infrastructure hardening only. The budget registry mechanism beyond re-seeding affected rows. Sharding over-budget files (280, 296). Changing what any test asserts.
 
-## Open questions
-
-- Are the three observed offenders symptoms of one shared-resource root cause or three independent isolation gaps?
-- Should the fix be per-test isolation, or should specific tests be marked serial at the gate?

@@ -1,6 +1,6 @@
 # Backlog
 
-**397 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 18 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 243 done · 🗑️ 84 killed
+**397 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 19 groomed · 🟡 44 proposed · ⚪ 4 deferred · ✅ 243 done · 🗑️ 84 killed
 
 ## 🟢 In progress (2)
 
@@ -15,10 +15,11 @@
 |---|-------|----------|------|----|-------|
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
-## 🟣 Groomed (18)
+## 🟣 Groomed (19)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
+| [0373](active/0373-harden-integration-race-test-isolation-under-parallel-load.md) | Harden integration/race test isolation under parallel load | `high` | `chore` | [spec](../superpowers/specs/2026-09-02-harden-integration-race-test-isolation-under-parallel-load-design.md) |
 | [0264](active/0264-measure-the-claude-harness-s-forked-mode-gate-verdict-and-pi.md) | Measure the claude harness's forked-mode gate verdict and pin a surviving launch shape | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-claude-forked-mode-gate-verdict-design.md) |
 | [0261](active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | `high` | `feat` | [spec](../superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) |
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-slim-agents-md-to-an-effective-claude-md-design.md) |
@@ -38,7 +39,7 @@
 | [0172](active/0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md) | Normalize the banned producer-pipe shape across tests and helpers | `medium` | `chore` | [spec](../superpowers/specs/2026-08-07-normalize-the-banned-producer-pipe-shape-across-tests-and-he-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
-## 🟡 Proposed (45)
+## 🟡 Proposed (44)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -55,7 +56,6 @@
 | [0379](active/0379-reapply-sha256-source-revision-width-fix-isfullobjectid.md) | Re-apply the SHA-256 (64-hex) source-revision width fix to isFullObjectID | `medium` | `fix` | needs-brainstorm |
 | [0376](active/0376-gate-drive-start-human-output-omits-drive-id-generation.md) | `docket gate drive start` human-readable output omits drive_id/generation | `medium` | `fix` | needs-brainstorm |
 | [0375](active/0375-gate-drive-start-not-idempotent-spawns-concurrent-drive.md) | `docket gate drive start` is not idempotent — a re-run spawns a second concurrent drive | `medium` | `fix` | needs-brainstorm |
-| [0373](active/0373-harden-integration-race-test-isolation-under-parallel-load.md) | Harden integration/race test isolation under parallel load | `medium` | `chore` | needs-brainstorm |
 | [0366](active/0366-human-attended-v1-0-0-rc1-acceptance-and-publication.md) | Human-attended v1.0.0-rc1 acceptance and publication | `critical` | `chore` | needs-brainstorm |
 | [0368](active/0368-resume-halted-preallocation-recovery.md) | Recover a run halted before its workspace was allocated | `medium` | `fix` | needs-brainstorm |
 | [0354](active/0354-halt-report-authoring-writes-a-duplicate-run-halted-heading.md) | Halt-report authoring writes a duplicate Run halted heading, wedging docket change resume-halted | `high` | `fix` | needs-brainstorm |
