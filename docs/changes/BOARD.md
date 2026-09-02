@@ -1,6 +1,12 @@
 # Backlog
 
-**397 changes** — 🔵 1 built · 🟣 20 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 243 done · 🗑️ 84 killed
+**397 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 19 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 243 done · 🗑️ 84 killed
+
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0395](active/0395-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap.md) | Migrate CLAUDE.md/AGENTS.md agent-executed blocks to the capability-first idiom | `medium` | `refactor` | [spec](../superpowers/specs/2026-09-02-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap-design.md) | `refactor/migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap` |
 
 ## 🔵 Built (1)
 
@@ -8,11 +14,10 @@
 |---|-------|----------|------|----|-------|
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
-## 🟣 Groomed (20)
+## 🟣 Groomed (19)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0395](active/0395-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap.md) | Migrate CLAUDE.md/AGENTS.md agent-executed blocks to the capability-first idiom | `medium` | `refactor` | [spec](../superpowers/specs/2026-09-02-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap-design.md) |
 | [0359](active/0359-run-gate-gives-up-too-soon.md) | Run gate gives up too soon | `high` | `fix` | [spec](../superpowers/specs/2026-08-28-run-gate-gives-up-too-soon-design.md) |
 | [0264](active/0264-measure-the-claude-harness-s-forked-mode-gate-verdict-and-pi.md) | Measure the claude harness's forked-mode gate verdict and pin a surviving launch shape | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-claude-forked-mode-gate-verdict-design.md) |
 | [0261](active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | `high` | `feat` | [spec](../superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) |
