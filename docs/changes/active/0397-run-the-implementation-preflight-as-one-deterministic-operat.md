@@ -2,7 +2,7 @@
 id: 397
 slug: 'run-the-implementation-preflight-as-one-deterministic-operat'
 title: 'Run the implementation preflight as one deterministic operation instead of a docket-status dispatch, and drop status --json''s corpus records by default'
-status: 'proposed'
+status: 'in-progress'
 priority: 'high'
 type: 'perf'
 created: '2026-09-02'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'perf/run-the-implementation-preflight-as-one-deterministic-operat'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-02T11:52:51Z'
 ---
 
 ## Artifacts
