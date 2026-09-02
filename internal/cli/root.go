@@ -135,6 +135,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 		},
 	})
 
+	// The capability bootstrap: a repository-, config-, asset-, and
+	// network-independent read of the assembled tree itself. It is wired here so
+	// it is registered into the very root it walks.
+	capabilitiesCmd := newCapabilitiesCommand(info, func(r app.OperationResult) { result = r })
+
 	versionCmd := &cobra.Command{
 		Use:         "version",
 		Short:       "Report this binary's build identity",
@@ -362,7 +367,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	installCmd.AddCommand(installCheckCmd)
 	developmentCmd.AddCommand(developmentInstallCmd, developmentTestCmd)
 	diagnosticCmd.AddCommand(runtimeCmd, configCmd)
-	root.AddCommand(versionCmd, statusCmd, changeCmd, contextCmd, artifactCmd, workspaceCmd, evidenceCmd, prCmd, runCmd, learningCmd, adrCmd, gateCmd, finalizeCmd, maintenanceCmd, repositoryCmd, diagnosticCmd, installCmd, developmentCmd)
+	root.AddCommand(capabilitiesCmd, versionCmd, statusCmd, changeCmd, contextCmd, artifactCmd, workspaceCmd, evidenceCmd, prCmd, runCmd, learningCmd, adrCmd, gateCmd, finalizeCmd, maintenanceCmd, repositoryCmd, diagnosticCmd, installCmd, developmentCmd)
 	root.AddCommand(extra...)
 
 	// The asset-dependence guard. Everything docket ships today is registered

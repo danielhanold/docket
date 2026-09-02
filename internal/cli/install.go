@@ -31,6 +31,7 @@ import (
 var assetIndependent = map[string]bool{
 	"":                           true, // bare `docket`: reports a missing command
 	"help":                       true,
+	"capabilities":               true, // the capability bootstrap must answer before any installation exists
 	"version":                    true,
 	"status":                     true,
 	"change":                     true, // the group itself; it reports a missing command
