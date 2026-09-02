@@ -22,11 +22,17 @@ import (
 )
 
 // cleanupTolerance bounds the RemoveAll retry window.
-// PROVISIONAL: 5s pending Task 9's measurement under full-gate load; the
-// final value must carry its measurement (machine, -j level, longest
-// observed drain) in this comment. Too tight flakes; too loose only costs
-// wall clock on a genuine leak, which fails anyway.
-const cleanupTolerance = 5 * time.Second
+// MEASURED (change 0373, Task 9) on Darwin arm64, hw.ncpu=11, gate -j=11
+// (`development test` default = runtime.NumCPU()). Four full-gate runs were
+// instrumented (temporary retry-count logging in removeAllTolerant, since
+// removed): across all 18,796 fixture cleanups NOT ONE needed a retry — the
+// drain-before-removal wiring makes the first os.RemoveAll succeed every time,
+// so the retry window is a never-exercised safety net. The longest single
+// drain-to-removable interval observed under load was 945ms (heaviest sweep
+// candidate) and 391ms under the pinned candidate. 4s is >=4x the heaviest
+// observation and ~10x the pinned one, clearing the 2s floor. Too tight
+// flakes; too loose only costs wall clock on a genuine leak, which fails anyway.
+const cleanupTolerance = 4 * time.Second
 
 const cleanupStep = 10 * time.Millisecond
 

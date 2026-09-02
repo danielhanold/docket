@@ -19,10 +19,25 @@ import (
 // Go tests capped at mult*cpus/jobs, the product stays near mult*cpus rather
 // than jobs*cpus, so the parallel lane cannot oversubscribe the machine with
 // Go test workers (change 0373).
-// PROVISIONAL 2/1 — Task 9 sweeps candidates on the reference machine, records
-// per-candidate wall clock, and pins the smallest multiplier that keeps every
-// Go budget row under its ceiling; the final value must carry that measurement
-// here (machine, -j, per-candidate table pointer).
+// MEASURED (change 0373, Task 9) on Darwin arm64, hw.ncpu=11, gate -j=11
+// (`development test` default = runtime.NumCPU()). Each candidate ran one full
+// `go run ./cmd/docket development test`; per-target cap = GoTestConcurrency(11,11).
+// Candidate → cap → suite wall clock → BUDGET WATCH rows (measured > 2.5x ceiling):
+//
+//	1/1 → cap 1 → 288s → 4 rows   (whole-module race/toolchain crawl: 287s/192s)
+//	3/2 → cap 1 → 295s → 4 rows   (integer-division cap identical to 1/1 here)
+//	2/1 → cap 2 → 210s → 4 rows   (same watch set; race/toolchain 208s/161s)   <- PINNED
+//	3/1 → cap 3 → 191s → 6 rows   (oversubscription grows the watch set: +app_concurrency, +app_merge)
+//
+// No candidate kept every solo-seeded budget row under its ceiling under
+// parallel load (that is Task 10's re-seed; the over rows travel in the pinning
+// commit body and the change 0373 results file). 2/1 is the pick: it is the
+// largest multiplier that does NOT grow the screening watch set beyond the
+// cap-1 baseline while recovering the wall clock that cap 1 wastes leaving cores
+// idle behind the whole-module wrappers; cap 3 regresses isolation, which is the
+// mechanism this constant exists to protect. No candidate produced a
+// SERIAL CONFIRMED OVER BUDGET (the authoritative disqualifier). Full
+// per-candidate/per-row table: the change 0373 results file.
 const (
 	goLoadMultNum = 2
 	goLoadMultDen = 1
