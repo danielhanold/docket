@@ -63,7 +63,8 @@ import (
 // EXCLUSIONS. The population is drawn from maintainedPop, which already prunes the
 // categorical corpora (docs/ immutable history, any testdata/, tests/fixtures,
 // .worktrees, internal/install/legacydata). On top of that this guard scans ONLY
-// skills/**/*.md, agents/**/*.md, and every file under cursor-rules/. Excluded by
+// skills/**/*.md, agents/**/*.md, every file under cursor-rules/, and the repo-root
+// instruction files AGENTS.md / CLAUDE.md. Excluded by
 // that scoping, and called out here because the exclusion is load-bearing:
 //   - scripts/*.md are frozen script-layer CONTRACTS (documentation of the shell
 //     layer), not agent-executed workflow surfaces — out of scope.
