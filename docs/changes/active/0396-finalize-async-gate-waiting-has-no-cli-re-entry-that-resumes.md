@@ -22,7 +22,7 @@ branch: 'fix/finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-02T10:51:51Z'
+claimed_at: '2026-09-02T10:53:16Z'
 ---
 
 ## Artifacts
