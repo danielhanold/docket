@@ -139,6 +139,82 @@ func receiptOf(id string, rec driveRecord) DriveReceipt {
 	}
 }
 
+// FindScopeDriveIDs lists the drive ids for changeID whose GateContextHash equals
+// gateContextHash and whose LastOutcome is nonterminal OR terminal-unconsumed
+// (terminal with a still-set OwnerGeneration — a child that wrote a verdict then
+// died before the parent consumed it). A terminal-AND-consumed drive (owner
+// cleared) is excluded: there is nothing left to recover. A record that will not
+// load (unknown schema, corrupt, invalid id) is SKIPPED rather than failing the
+// scan — an unreadable record is not evidence of a recoverable drive. Only a real
+// filesystem fault reading the root is returned as an error. It is the outer
+// gate's candidate resolver: exactly one match authorizes an outer takeover
+// (takeover.go); zero or many fail closed upstream.
+func (s *Store) FindScopeDriveIDs(changeID, gateContextHash string) ([]string, error) {
+	entries, err := os.ReadDir(s.root)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			// No drive root at all: no candidates, never an error.
+			return nil, nil
+		}
+		return nil, storeErr(ErrIO, "find-scope-drives", err)
+	}
+	var ids []string
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		rec, lerr := s.Load(e.Name())
+		if lerr != nil {
+			// Unreadable/unknown/invalid record: skip it, never HALT the scan.
+			continue
+		}
+		if !changeIDsEqual(rec.ChangeID, changeID) {
+			continue
+		}
+		if rec.GateContextHash != gateContextHash {
+			continue
+		}
+		// Include a nonterminal (still live) drive, and a terminal drive whose owner
+		// generation is still set (a verdict written but not yet consumed). Exclude a
+		// terminal drive whose owner was cleared: it was already consumed.
+		if isTerminalOutcome(rec.LastOutcome) && rec.OwnerGeneration == "" {
+			continue
+		}
+		ids = append(ids, e.Name())
+	}
+	return ids, nil
+}
+
+// changeIDsEqual compares two change ids tolerantly: trimmed string equality, or
+// numeric equality when both parse as integers (so "0342" and "342" match, the
+// same normalization FindWaitingReceipt applies to a change id).
+func changeIDsEqual(a, b string) bool {
+	a, b = strings.TrimSpace(a), strings.TrimSpace(b)
+	if a == b {
+		return true
+	}
+	na, ea := strconv.Atoi(a)
+	nb, eb := strconv.Atoi(b)
+	return ea == nil && eb == nil && na == nb
+}
+
+// ContinuationHandle returns the CURRENT unclaimed handoff token of driveID, for
+// in-process facade use only (the outer gate synthesizes a normal handoff and
+// then reads it back to hand to the resumed controller). The token is NEVER
+// emitted in a document or human text. It fails with a typed ErrNoHandoffOffered
+// when the drive carries no unclaimed handoff (owner still set, or handoff
+// already consumed).
+func (s *Store) ContinuationHandle(driveID string) (string, error) {
+	rec, err := s.Load(driveID)
+	if err != nil {
+		return "", err
+	}
+	if rec.OwnerGeneration != "" || rec.HandoffGeneration == "" {
+		return "", ownershipErr(ErrNoHandoffOffered, "continuation-handle")
+	}
+	return rec.HandoffGeneration, nil
+}
+
 // ComputeLiveFingerprint recomputes the execution-identity fingerprint of the
 // worktree at path using the production git seam, so a read-only caller can prove
 // the live bytes still match a drive-start receipt. It follows no symlink and

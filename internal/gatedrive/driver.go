@@ -98,6 +98,18 @@ type StartRequest struct {
 	// IdempotentSuiteGate marks a gate the application contract designates
 	// idempotent; ONLY such a gate may earn the single relaunch.
 	IdempotentSuiteGate bool
+
+	// Recovery-scope linkage (all optional; empty = a scopeless drive, the
+	// pre-0359 behavior). ScopeID + ChildCapability bind this new drive into a
+	// recovery scope so a parent can take it over later (scope.go, takeover.go):
+	// Start verifies the capability and scope identity BEFORE launching, then
+	// binds the drive after it exists. ChildCapability is the RAW capability,
+	// verified against the scope's stored hash and persisted nowhere. GateContext
+	// is the RAW outer child-context token linking a nested drive to the outer
+	// gate; it is stored only as its sha256 hash (GateContextHash). (change 0359)
+	ScopeID         string
+	ChildCapability string
+	GateContext     string
 }
 
 // Driver is the gate-drive state machine. It holds no mutable per-drive state:
@@ -152,6 +164,30 @@ func (d *Driver) Start(req StartRequest) (DriveDoc, error) {
 		return DriveDoc{}, fmt.Errorf("gatedrive: start requires a non-negative budget")
 	}
 
+	// Scope pre-check BEFORE any launch: a bad capability, a closed scope, an
+	// identity that disagrees with the scope, or a scope that already binds a live
+	// drive is a command failure that never orphans a freshly launched run. The
+	// bindScopeDrive CAS after NewDrive is the authoritative single-drive gate;
+	// this pre-check only fails fast so proc.Launch is never reached on a rejection.
+	if req.ScopeID != "" {
+		scope, serr := d.store.LoadScope(req.ScopeID)
+		if serr != nil {
+			return DriveDoc{}, serr
+		}
+		if scope.Closed {
+			return DriveDoc{}, ownershipErr(ErrScopeClosed, "start")
+		}
+		if req.ChildCapability == "" || scope.ChildCapHash != capHash(req.ChildCapability) {
+			return DriveDoc{}, ownershipErr(ErrScopeCapabilityMismatch, "start")
+		}
+		if scope.BoundDriveID != "" {
+			return DriveDoc{}, ownershipErr(ErrScopeSecondDrive, "start")
+		}
+		if !scopeIdentityMatch(scope, req.RepoDir, req.Branch, req.Worktree, req.ChangeID, req.TaskID, req.Phase) {
+			return DriveDoc{}, ownershipErr(ErrScopeIdentityMismatch, "start")
+		}
+	}
+
 	fp, err := ComputeFingerprint(req.Worktree, d.git)
 	if err != nil {
 		return DriveDoc{}, fmt.Errorf("gatedrive: start fingerprint: %w", err)
@@ -188,6 +224,15 @@ func (d *Driver) Start(req StartRequest) (DriveDoc, error) {
 		Attempt:             1,
 		OwnerGeneration:     ownerGen,
 	}
+	// Stamp the recovery-scope linkage onto the record (both empty for a scopeless
+	// drive). ScopeID links the drive to the scope its owner was dispatched under;
+	// GateContextHash links a nested drive to the outer gate.
+	if req.ScopeID != "" {
+		rec.ScopeID = req.ScopeID
+	}
+	if req.GateContext != "" {
+		rec.GateContextHash = capHash(req.GateContext)
+	}
 
 	// Launch the first raw run, then persist the raw run identity. On a persist
 	// failure the freshly launched run would be orphaned, so stop it best-effort
@@ -203,6 +248,17 @@ func (d *Driver) Start(req StartRequest) (DriveDoc, error) {
 	if err != nil {
 		d.stopIfOwned(out.RunDir)
 		return DriveDoc{}, err
+	}
+
+	// Bind the drive into its recovery scope AFTER it exists. A bind failure (a
+	// concurrent Start won the single-drive slot, the scope closed, or the
+	// capability no longer matches) means this drive never existed for the
+	// workflow: stop its freshly launched run and surface the rejection.
+	if req.ScopeID != "" {
+		if berr := d.store.bindScopeDrive(req.ScopeID, req.ChildCapability, id); berr != nil {
+			d.stopIfOwned(out.RunDir)
+			return DriveDoc{}, berr
+		}
 	}
 
 	return d.driveAndPersist(id, ownerGen, rec)
@@ -303,6 +359,12 @@ func (d *Driver) Claim(id, handoffID string) (DriveDoc, error) {
 			return d.haltDoc(id, "", rec, string(oe.Kind)), nil
 		}
 		return DriveDoc{}, cerr
+	}
+	// A normal claim moves the nearest-owner chain up: if the drive was dispatched
+	// under a recovery scope, close it best-effort so a parent never later takes
+	// over a drive that was already handed off and claimed cooperatively.
+	if rec.ScopeID != "" {
+		_ = d.store.closeScope(rec.ScopeID)
 	}
 	cur, err := d.store.Load(id)
 	if err != nil {

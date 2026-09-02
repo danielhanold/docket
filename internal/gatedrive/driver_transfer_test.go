@@ -178,3 +178,35 @@ func TestDriverClaimFingerprintMismatchHalts(t *testing.T) {
 		t.Fatalf("a rejected claim must preserve the receipt, got %q", rec.HandoffGeneration)
 	}
 }
+
+// TestClaimClosesScope proves a normal Handoff+Claim of a scope-bound drive
+// closes the recovery scope: the nearest-owner chain moves up on the cooperative
+// transfer too, so a parent never later takes over a drive that was already
+// claimed.
+func TestClaimClosesScope(t *testing.T) {
+	clk := &fakeClock{now: startEpoch()}
+	proc := &fakeProc{} // stays running across slices
+	d, store := newTestDriver(t, clk, proc, stableGit())
+
+	grant, started := bindWaiting(t, d, store)
+
+	handoff, err := d.Handoff(started.DriveID, started.Generation)
+	if err != nil {
+		t.Fatalf("Handoff: %v", err)
+	}
+	claim, err := d.Claim(started.DriveID, handoff.Generation)
+	if err != nil {
+		t.Fatalf("Claim: %v", err)
+	}
+	if claim.Outcome == HALTED {
+		t.Fatalf("a clean claim must not HALT: %s", claim.Cause)
+	}
+
+	scope, err := store.LoadScope(grant.ScopeID)
+	if err != nil {
+		t.Fatalf("LoadScope: %v", err)
+	}
+	if !scope.Closed {
+		t.Fatalf("a cooperative claim of a scope-bound drive must close the scope")
+	}
+}
