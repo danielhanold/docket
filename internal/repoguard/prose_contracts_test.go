@@ -217,7 +217,7 @@ var proseContracts = []proseContract{
 	// wording this change removed from that file.
 	{sentinel: "change_0397_preflight_op", file: "skills/docket-status/SKILL.md",
 		present: []string{"maintenance.preflight"},
-		absent:  []string{"step-0 implementation preflight** ⇒"}},
+		absent:  []string{"calls this at step 0"}},
 	{sentinel: "change_0397_preflight_op", file: "skills/docket-convention/SKILL.md",
 		present: []string{"runs the `maintenance.preflight` operation inline"},
 		absent:  []string{"dispatches the `docket-status` subagent (step 0)"}},
