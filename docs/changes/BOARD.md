@@ -1,17 +1,12 @@
 # Backlog
 
-**398 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 18 groomed · 🟡 44 proposed · ⚪ 4 deferred · ✅ 245 done · 🗑️ 85 killed
+**398 changes** — 🔵 2 built · 🟣 18 groomed · 🟡 44 proposed · ⚪ 4 deferred · ✅ 245 done · 🗑️ 85 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0395](active/0395-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap.md) | Migrate CLAUDE.md/AGENTS.md agent-executed blocks to the capability-first idiom | `medium` | `refactor` | [spec](../superpowers/specs/2026-09-02-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap-design.md) | `refactor/migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap` |
-
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
+| [0395](active/0395-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap.md) | Migrate CLAUDE.md/AGENTS.md agent-executed blocks to the capability-first idiom | `medium` | `refactor` | [#272](https://github.com/danielhanold/docket/pull/272) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
 ## 🟣 Groomed (18)

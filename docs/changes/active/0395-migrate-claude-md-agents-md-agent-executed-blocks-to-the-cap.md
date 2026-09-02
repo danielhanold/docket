@@ -2,7 +2,7 @@
 id: 395
 slug: 'migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap'
 title: 'Migrate CLAUDE.md/AGENTS.md agent-executed blocks to the capability-first idiom'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'refactor'
 created: '2026-09-02'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'refactor/migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/272'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-02T21:48:19Z'
