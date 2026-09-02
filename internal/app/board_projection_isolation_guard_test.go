@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/danielhanold/docket/internal/testsupport"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -201,7 +202,7 @@ func TestProjectionIsolationGuardHoldsOverConsumingPackages(t *testing.T) {
 // guard that cannot redden is decoration (AGENTS.md).
 func TestProjectionIsolationGuardIsFalsifiable(t *testing.T) {
 	// Arm (a): the digest sorts change rows by the config board leaf.
-	dirA := t.TempDir()
+	dirA := testsupport.TempDir(t)
 	writeGoFile(t, dirA, "leak.go", "package p\n\n"+
 		"func assemble(eff config.Effective, rows []Change) {\n"+
 		"\tsort.Slice(rows, less(eff.Board.Sorting[\"proposed\"]))\n"+
@@ -211,7 +212,7 @@ func TestProjectionIsolationGuardIsFalsifiable(t *testing.T) {
 	}
 
 	// Arm (b): a consuming path names the render presentation type directly.
-	dirB := t.TempDir()
+	dirB := testsupport.TempDir(t)
 	writeGoFile(t, dirB, "leak.go", "package p\n\n"+
 		"func order(p render.BoardPresentation, rows []Change) {}\n")
 	if res := scanProjectionIsolation(t, dirB); len(res.violations) == 0 {
@@ -219,7 +220,7 @@ func TestProjectionIsolationGuardIsFalsifiable(t *testing.T) {
 	}
 
 	// Arm (c): a consuming path calls the lift outside an inclusion argument.
-	dirC := t.TempDir()
+	dirC := testsupport.TempDir(t)
 	writeGoFile(t, dirC, "leak.go", "package p\n\n"+
 		"func order(eff config.Effective, rows []Change) {\n"+
 		"\tpres := boardPresentation(eff)\n"+
@@ -231,7 +232,7 @@ func TestProjectionIsolationGuardIsFalsifiable(t *testing.T) {
 
 	// Control — a compliant op file: boardPresentation( is only ever an
 	// includeBoard argument, so it is allowed and counts toward the floor.
-	dirOK := t.TempDir()
+	dirOK := testsupport.TempDir(t)
 	writeGoFile(t, dirOK, "op.go", "package p\n\n"+
 		"func (o op) Plan() {\n"+
 		"\t_ = includeBoard(ctx, tree, boardPath, candidate, boardPresentation(o.eff), &files)\n"+
@@ -246,7 +247,7 @@ func TestProjectionIsolationGuardIsFalsifiable(t *testing.T) {
 
 	// Control — the lift owner: it alone reads the config board leaves and names
 	// the render presentation type, and is clean.
-	dirLift := t.TempDir()
+	dirLift := testsupport.TempDir(t)
 	writeGoFile(t, dirLift, "derived_views.go", "package p\n\n"+
 		"func boardPresentation(eff config.Effective) render.BoardPresentation {\n"+
 		"\t_ = eff.Board.SectionOrder.Value\n"+
@@ -258,7 +259,7 @@ func TestProjectionIsolationGuardIsFalsifiable(t *testing.T) {
 	}
 
 	// Control — the config-inspection surface: it displays the board leaves and is clean.
-	dirCfg := t.TempDir()
+	dirCfg := testsupport.TempDir(t)
 	writeGoFile(t, dirCfg, "config.go", "package p\n\n"+
 		"func lines(eff config.Effective) {\n"+
 		"\tleafLine(\"board.section_order\", listValue(eff.Board.SectionOrder.Value), eff.Board.SectionOrder.Provenance)\n"+
@@ -270,7 +271,7 @@ func TestProjectionIsolationGuardIsFalsifiable(t *testing.T) {
 	}
 
 	// Floor / non-vacuity — an empty tree finds no allowed anchor.
-	dirEmpty := t.TempDir()
+	dirEmpty := testsupport.TempDir(t)
 	if res := scanProjectionIsolation(t, dirEmpty); res.allowedBoardPres != 0 || res.visited != 0 {
 		t.Errorf("empty tree: allowedBoardPres=%d visited=%d, want 0/0", res.allowedBoardPres, res.visited)
 	}

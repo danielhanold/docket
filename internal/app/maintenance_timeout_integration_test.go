@@ -4,6 +4,7 @@ package app
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -80,7 +81,7 @@ func timeoutPinGit(t *testing.T, logPath string, readBudget time.Duration) *gitc
 	if err != nil {
 		t.Skipf("git not on PATH: %v", err)
 	}
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	wrapper := filepath.Join(dir, "git")
 	// The sleep is far longer than any budget or ceiling in the test, so if the
 	// deadline is NOT enforced the sweep would visibly hang past the ceiling
@@ -94,7 +95,7 @@ func timeoutPinGit(t *testing.T, logPath string, readBudget time.Duration) *gitc
 	if err := os.WriteFile(wrapper, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", testsupport.TempDir(t))
 	client, err := gitcli.NewClient(
 		gitcli.WithExecutable(wrapper),
 		gitcli.WithNetworkReadTimeout(readBudget),
@@ -120,8 +121,8 @@ func TestIntegrationSweepInitialPinNetworkTimeoutIsBoundedExternalRefusal(t *tes
 	r := trafficRepo(t, "", map[string]string{
 		"docs/changes/active/0041-a.md": trafficDoneRecord(41, "a"),
 	})
-	gitLog := filepath.Join(t.TempDir(), "git.log")
-	ghLog := filepath.Join(t.TempDir(), "gh.log")
+	gitLog := filepath.Join(testsupport.TempDir(t), "git.log")
+	ghLog := filepath.Join(testsupport.TempDir(t), "gh.log")
 	git := timeoutPinGit(t, gitLog, 200*time.Millisecond)
 	deps := trafficDeps(t, git, trafficGH(t, ghLog))
 

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/danielhanold/docket/internal/testsupport"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -379,7 +380,7 @@ func TestDerivedViewsGuardBoardOwnership(t *testing.T) {
 // cannot redden is decoration (AGENTS.md).
 func TestDerivedViewsGuardIsFalsifiable(t *testing.T) {
 	// Arm (a) — CHANGE-PATH shape without includeBoard: a mutator, not board-reaching.
-	dirA := t.TempDir()
+	dirA := testsupport.TempDir(t)
 	writeGoFile(t, dirA, "op.go", "package p\n\n"+
 		"func (o fakeOp) Plan() {\n"+
 		"\tfiles := []transaction.FileMutation{{Path: gitcli.RepoPath(c.Path()), Kind: transaction.MutationReplace, Bytes: b}}\n"+
@@ -394,7 +395,7 @@ func TestDerivedViewsGuardIsFalsifiable(t *testing.T) {
 	}
 
 	// Arm (b) — CANDIDATE shape (computed path + BuildSnapshot) without includeBoard.
-	dirB := t.TempDir()
+	dirB := testsupport.TempDir(t)
 	writeGoFile(t, dirB, "op.go", "package p\n\n"+
 		"func (o relocOp) Plan() {\n"+
 		"\tsnap, _ := repository.BuildSnapshot(in)\n"+
@@ -410,7 +411,7 @@ func TestDerivedViewsGuardIsFalsifiable(t *testing.T) {
 	}
 
 	// Control — a compliant op reaching includeBoard is in both sets (no violation).
-	dirOK := t.TempDir()
+	dirOK := testsupport.TempDir(t)
 	writeGoFile(t, dirOK, "op.go", "package p\n\n"+
 		"func (o okOp) Plan() {\n"+
 		"\tfiles := []transaction.FileMutation{{Path: gitcli.RepoPath(c.Path()), Kind: transaction.MutationReplace, Bytes: b}}\n"+
@@ -422,7 +423,7 @@ func TestDerivedViewsGuardIsFalsifiable(t *testing.T) {
 	}
 
 	// Control — an ADR-index-owning writer of a change path is excluded from CR.
-	dirADR := t.TempDir()
+	dirADR := testsupport.TempDir(t)
 	writeGoFile(t, dirADR, "op.go", "package p\n\n"+
 		"func (o adrOp) Plan() {\n"+
 		"\t_ = includeADRIndex(ctx, tree, candidate, indexPath, &files)\n"+
@@ -435,7 +436,7 @@ func TestDerivedViewsGuardIsFalsifiable(t *testing.T) {
 	}
 
 	// Floor / non-vacuity — an empty package has zero mutators, below any real floor.
-	dirEmpty := t.TempDir()
+	dirEmpty := testsupport.TempDir(t)
 	scanEmpty := scanDerivedViewsGuard(t, dirEmpty)
 	if len(scanEmpty.changeRecordMutators) != 0 {
 		t.Errorf("empty package reported %d change-record mutators, want 0", len(scanEmpty.changeRecordMutators))

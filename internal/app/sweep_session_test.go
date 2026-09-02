@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,14 +30,14 @@ func countingGitClient(t *testing.T, logPath string) *gitcli.Client {
 	if err != nil {
 		t.Skipf("git not on PATH: %v", err)
 	}
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	wrapper := filepath.Join(dir, "git")
 	script := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> '" + logPath + "'\nexec '" + realGit + "' \"$@\"\n"
 	if err := os.WriteFile(wrapper, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	// Isolate the global docket config layer, exactly as newGitClient does.
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", testsupport.TempDir(t))
 	client, err := gitcli.NewClient(gitcli.WithExecutable(wrapper))
 	if err != nil {
 		t.Fatalf("gitcli.NewClient: %v", err)
@@ -104,7 +105,7 @@ func TestPrepareIsOneMetadataFetchZeroSetupProbes(t *testing.T) {
 		"docs/changes/active/0001-alpha.md": changeRecord(1, "alpha", "Alpha"),
 	}
 	r := newDocketModeRepo(t, nil, records)
-	logPath := filepath.Join(t.TempDir(), "git.log")
+	logPath := filepath.Join(testsupport.TempDir(t), "git.log")
 	client := countingGitClient(t, logPath)
 	session, _ := sessionUnderTest(t, client, r.invocation)
 
@@ -197,7 +198,7 @@ func TestBoundReaderNeverFetches(t *testing.T) {
 		"docs/changes/active/0001-alpha.md": changeRecord(1, "alpha", "Alpha"),
 	}
 	r := newDocketModeRepo(t, nil, records)
-	logPath := filepath.Join(t.TempDir(), "git.log")
+	logPath := filepath.Join(testsupport.TempDir(t), "git.log")
 	client := countingGitClient(t, logPath)
 	session, live := sessionUnderTest(t, client, r.invocation)
 

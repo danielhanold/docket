@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"strings"
 	"testing"
@@ -201,7 +202,7 @@ func TestFinalizeConstructorResolvesConfig(t *testing.T) {
 	}
 	eff.Finalize.TestCommand = config.Value[string]{Value: "go test ./...", Provenance: config.Provenance{Layer: config.LayerRepository}}
 
-	svc, res, reason := NewFinalizeGateDriveService(t.TempDir(), "/usr/bin/true", eff)
+	svc, res, reason := NewFinalizeGateDriveService(testsupport.TempDir(t), "/usr/bin/true", eff)
 	if svc == nil {
 		t.Fatalf("production constructor must build a service: %s %s", res, reason)
 	}
@@ -229,7 +230,7 @@ func TestOwnerConstructorsReadOnlyTheirOwnCommand(t *testing.T) {
 	eff.Finalize.TestCommand = config.Value[string]{Value: "make finalize-only",
 		Provenance: config.Provenance{Layer: config.LayerGlobal}}
 
-	b, _, _ := NewBuildGateDriveService(t.TempDir(), "/bin/true", eff)
+	b, _, _ := NewBuildGateDriveService(testsupport.TempDir(t), "/bin/true", eff)
 	if b.command != "go test ./build-only" {
 		t.Errorf("build service command = %q; it must read only build.test_command", b.command)
 	}
@@ -237,7 +238,7 @@ func TestOwnerConstructorsReadOnlyTheirOwnCommand(t *testing.T) {
 		t.Errorf("build provenance = %q, want it to name build.test_command (e.g. %q)", b.provenance, want)
 	}
 
-	f, _, _ := NewFinalizeGateDriveService(t.TempDir(), "/bin/true", eff)
+	f, _, _ := NewFinalizeGateDriveService(testsupport.TempDir(t), "/bin/true", eff)
 	if f.command != "make finalize-only" {
 		t.Errorf("finalize service command = %q; it must read only finalize.test_command", f.command)
 	}
@@ -258,7 +259,7 @@ func TestOwnerConstructorUnresolvedCommandNamesRemedy(t *testing.T) {
 	eff.Finalize.TestCommand = config.Value[string]{Value: "make finalize-only",
 		Provenance: config.Provenance{Layer: config.LayerGlobal}}
 
-	b, _, _ := NewBuildGateDriveService(t.TempDir(), "/bin/true", eff)
+	b, _, _ := NewBuildGateDriveService(testsupport.TempDir(t), "/bin/true", eff)
 	got := b.Start(GateDriveStartRequest{RepoDir: "/repo", Worktree: "/repo"})
 	if got.Result == ResultApplied || got.Drive != nil {
 		t.Fatalf("an unresolved build command must be a command failure, got result=%s", got.Result)
@@ -277,7 +278,7 @@ func TestOwnerConstructorUnresolvedCommandNamesRemedy(t *testing.T) {
 // run root, so a test can assert whether mapDriveOutcome removed it.
 func runRootFixture(t *testing.T) string {
 	t.Helper()
-	d, err := os.MkdirTemp(t.TempDir(), "runroot-*")
+	d, err := os.MkdirTemp(testsupport.TempDir(t), "runroot-*")
 	if err != nil {
 		t.Fatalf("mktemp: %v", err)
 	}

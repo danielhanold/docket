@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"path/filepath"
 	"strings"
@@ -133,8 +134,8 @@ func passedRunDir(t *testing.T) string {
 // run reaches the wanted terminal state, returning the run dir.
 func runToTerminal(t *testing.T, argv []string, wantState string) string {
 	t.Helper()
-	root := t.TempDir()
-	res := GateLaunch(root, t.TempDir(), argv)
+	root := testsupport.TempDir(t)
+	res := GateLaunch(root, testsupport.TempDir(t), argv)
 	if res.RunDir == "" {
 		t.Fatalf("launch produced no run dir: result=%s reason=%s", res.Result, res.Reason)
 	}
@@ -146,7 +147,7 @@ func runToTerminal(t *testing.T, argv []string, wantState string) string {
 			// manifestFile phase-rewrite (a temp file inside the run dir) and
 			// "releases the lock LAST" (internal/process/supervisor.go). Return
 			// before that and the supervisor's temp-file write races the
-			// t.TempDir() RemoveAll, which fails with "directory not empty".
+			// fixture's RemoveAll teardown, which fails with "directory not empty".
 			// Wait for the lock to free so the run dir is quiescent at cleanup.
 			waitSupervisorGone(t, res.RunDir)
 			return res.RunDir
@@ -190,8 +191,8 @@ func waitSupervisorGone(t *testing.T, runDir string) {
 // running, registering a cleanup that stops it.
 func runningRunDir(t *testing.T) string {
 	t.Helper()
-	root := t.TempDir()
-	res := GateLaunch(root, t.TempDir(), []string{"/bin/sleep", "60"})
+	root := testsupport.TempDir(t)
+	res := GateLaunch(root, testsupport.TempDir(t), []string{"/bin/sleep", "60"})
 	if res.RunDir == "" {
 		t.Fatalf("launch produced no run dir: %s", res.Reason)
 	}
@@ -234,7 +235,7 @@ func TestEvidenceRecordBuildGateOffMintsSkipped(t *testing.T) {
 // remedy command — never a fabricated empty command.
 func TestEvidenceRecordUnconfiguredBuildCommandIsTypedSetupRefusal(t *testing.T) {
 	res := evidenceRecordWithConfig(t, "build:\n  gate: local\n",
-		EvidenceRecordRequest{ID: 7, Head: currentFeatureHead(t), RunDir: t.TempDir()})
+		EvidenceRecordRequest{ID: 7, Head: currentFeatureHead(t), RunDir: testsupport.TempDir(t)})
 	if res.Result != ResultUnsupportedConfig || res.Reason != ReasonEvidenceUnconfiguredGate {
 		t.Fatalf("result/reason = %v/%s, want unsupported-config/%s", res.Result, res.Reason, ReasonEvidenceUnconfiguredGate)
 	}

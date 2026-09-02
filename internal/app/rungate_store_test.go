@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/danielhanold/docket/internal/testsupport"
 	"testing"
 )
 
@@ -17,7 +18,7 @@ import (
 func newGateRepo(t *testing.T) string {
 	t.Helper()
 	requireRealGit(t)
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	runGit(t, dir, "init")
 	gitIdentity(t, dir)
 	writeRepoFile(t, dir, "seed.txt", "seed\n")

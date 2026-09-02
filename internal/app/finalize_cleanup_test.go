@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"github.com/danielhanold/docket/internal/workspace"
 	"os"
 	"path/filepath"
@@ -272,7 +273,7 @@ func TestGateCleanupRetention(t *testing.T) {
 	})
 
 	t.Run("foreign-dir-retained", func(t *testing.T) {
-		dir := t.TempDir()
+		dir := testsupport.TempDir(t)
 		res := GateCleanup(context.Background(), FinalizeDeps{}, dir)
 		if res.Disposition == CleanupDispCleaned {
 			t.Fatalf("a foreign directory must never be cleaned")
@@ -293,7 +294,7 @@ type gateRunSpec struct {
 // state-selecting records.
 func writeGateRun(t *testing.T, spec gateRunSpec) string {
 	t.Helper()
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	runID := strings.Repeat("a", 32)
 	dir := filepath.Join(root, runID)
 	if err := os.MkdirAll(dir, 0o755); err != nil {

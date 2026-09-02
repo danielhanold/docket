@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"path/filepath"
 	"strings"
@@ -63,7 +64,7 @@ func backlinkCorpus() []StatusBlob {
 func TestArtifactBacklinkRendersBlock(t *testing.T) {
 	pin := docketPin(t)
 	corpus := backlinkCorpus()
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	artifact := filepath.Join(root, "plan.md")
 	if err := os.WriteFile(artifact, []byte("# Plan\n\nAuthored body.\n"), 0o644); err != nil {
 		t.Fatalf("seed artifact: %v", err)
@@ -92,7 +93,7 @@ func TestArtifactBacklinkRendersBlock(t *testing.T) {
 func TestArtifactBacklinkIdempotent(t *testing.T) {
 	pin := docketPin(t)
 	corpus := backlinkCorpus()
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	artifact := filepath.Join(root, "plan.md")
 	if err := os.WriteFile(artifact, []byte("# Plan\n\nBody.\n"), 0o644); err != nil {
 		t.Fatalf("seed artifact: %v", err)
@@ -126,7 +127,7 @@ func TestArtifactBacklinkIdempotent(t *testing.T) {
 func TestArtifactBacklinkRefusesMalformedMarkers(t *testing.T) {
 	pin := docketPin(t)
 	corpus := backlinkCorpus()
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	artifact := filepath.Join(root, "plan.md")
 	// A start marker with no partner end marker: document.Parse must reject the
 	// whole population, and the operation must refuse without a write.
@@ -168,7 +169,7 @@ func TestArtifactBacklinkPathContainment(t *testing.T) {
 	corpus := backlinkCorpus()
 
 	t.Run("absolute", func(t *testing.T) {
-		root := t.TempDir()
+		root := testsupport.TempDir(t)
 		got := ArtifactBacklink(context.Background(), backlinkDeps(&fakeReader{pin: pin, corpus: corpus}), root,
 			ArtifactBacklinkRequest{ArtifactPath: "/etc/hosts", ChangePath: backlinkChangePath})
 		if got.Reason != ReasonBacklinkAbsolutePath {
@@ -177,7 +178,7 @@ func TestArtifactBacklinkPathContainment(t *testing.T) {
 	})
 
 	t.Run("dotdot-escape", func(t *testing.T) {
-		root := t.TempDir()
+		root := testsupport.TempDir(t)
 		got := ArtifactBacklink(context.Background(), backlinkDeps(&fakeReader{pin: pin, corpus: corpus}), root,
 			ArtifactBacklinkRequest{ArtifactPath: "../escape.md", ChangePath: backlinkChangePath})
 		if got.Reason != ReasonBacklinkPathEscape {
@@ -186,8 +187,8 @@ func TestArtifactBacklinkPathContainment(t *testing.T) {
 	})
 
 	t.Run("symlink-escape", func(t *testing.T) {
-		root := t.TempDir()
-		outside := filepath.Join(t.TempDir(), "target.md")
+		root := testsupport.TempDir(t)
+		outside := filepath.Join(testsupport.TempDir(t), "target.md")
 		if err := os.WriteFile(outside, []byte("SECRET — outside the repo\n"), 0o644); err != nil {
 			t.Fatalf("seed outside target: %v", err)
 		}
@@ -218,7 +219,7 @@ func TestArtifactBacklinkPathContainment(t *testing.T) {
 func TestArtifactBacklinkUnknownChange(t *testing.T) {
 	pin := docketPin(t)
 	corpus := backlinkCorpus()
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	artifact := filepath.Join(root, "plan.md")
 	if err := os.WriteFile(artifact, []byte("# Plan\n"), 0o644); err != nil {
 		t.Fatalf("seed artifact: %v", err)

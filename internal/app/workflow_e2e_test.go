@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"github.com/danielhanold/docket/internal/githubcli"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"github.com/danielhanold/docket/internal/workspace"
 	"os"
 	"os/exec"
@@ -137,7 +138,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string) {
 
 	// (8) Launch the real trivially-passing gate through the native supervisor and
 	// observe it to a passed terminal.
-	gateRoot := t.TempDir()
+	gateRoot := testsupport.TempDir(t)
 	launch := GateLaunch(gateRoot, wp, []string{passingGateScript(t)})
 	if launch.Result != ResultApplied || launch.RunDir == "" {
 		t.Fatalf("gate launch = %q (reason %q)", launch.Result, launch.Reason)
@@ -165,7 +166,7 @@ func runClaimToImplemented(t *testing.T, m planRepoMode, ghBin string) {
 
 	// The GitHub seam: a real githubcli.Client over the fake gh, told the exact
 	// published head so its created PR reports it as headRefOid.
-	stateFile := filepath.Join(t.TempDir(), "gh-state.json")
+	stateFile := filepath.Join(testsupport.TempDir(t), "gh-state.json")
 	ghEnv := append(os.Environ(),
 		"FAKE_GH_STATE="+stateFile,
 		"FAKE_GH_REPO_URL=https://github.com/acme/widget",
@@ -318,7 +319,7 @@ func pollGatePassed(t *testing.T, runDir string) {
 // absolute path.
 func passingGateScript(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	p := filepath.Join(dir, "gate.sh")
 	if err := os.WriteFile(p, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatalf("write gate script: %v", err)
@@ -336,7 +337,7 @@ func buildFakeGH(t *testing.T) string {
 	if err != nil {
 		goBin = filepath.Join(runtime.GOROOT(), "bin", "go")
 	}
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module fakegh\n\ngo 1.26\n"), 0o644); err != nil {
 		t.Fatalf("write fake gh go.mod: %v", err)
 	}

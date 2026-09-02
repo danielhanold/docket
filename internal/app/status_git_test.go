@@ -5,19 +5,22 @@ import (
 	"encoding/hex"
 	"errors"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/suiterunner"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 )
 
 // These are the Git-backed StatusReader integration tests. Each builds a real
 // temporary repository topology — a bare file origin, an independent writer
 // clone that advances the remote, and the invocation clone under test — with
-// t.TempDir() paths, then drives NewGitStatusReader over a real gitcli client.
+// testsupport.TempDir(t) paths, then drives NewGitStatusReader over a real gitcli client.
 // The harness is modelled on internal/gitcli/harness_test.go, whose builders
 // are unexported to that package, so the fixture is rebuilt here rather than
 // reused.
@@ -42,11 +45,59 @@ func runGit(t *testing.T, dir string, args ...string) string {
 	return strings.TrimSpace(out)
 }
 
+// bgOffGit memoizes a process-shared global git config that disables the
+// background maintenance/gc/fsmonitor mechanisms (suiterunner.GitBackgroundOff)
+// plus a synthetic identity.
+var (
+	bgOffGitOnce sync.Once
+	bgOffGitPath string
+	bgOffGitErr  error
+)
+
+// backgroundOffGitEnv returns the "GIT_CONFIG_GLOBAL=<path>" override that points
+// the direct-git oracles (tryGit and the file-local git helpers) at a config
+// carrying suiterunner.GitBackgroundOff, so a detached git housekeeping child
+// cannot outlive a test and keep writing into a testsupport.TempDir, racing its
+// drain-then-retry removal to "directory not empty" under parallel load (change
+// 0373, package sighting 2). It mirrors testsupport.GitEnv but takes no
+// *testing.T: the direct oracles are shared by this package's PARALLEL e2e tests,
+// where t.Setenv would panic, so a per-command cmd.Env override on one shared,
+// deterministic, read-only config file is the parallel-safe seam. Git spawned
+// through the product gitcli client scrubs GIT_CONFIG (sanitizeEnvironment), so
+// those housekeeping children are instead absorbed by the fixture's
+// drain-then-retry removal.
+func backgroundOffGitEnv() string {
+	bgOffGitOnce.Do(func() {
+		dir, err := os.MkdirTemp("", "docket-bgoff-git-*")
+		if err != nil {
+			bgOffGitErr = err
+			return
+		}
+		cfg := "[user]\n\tname = docket test\n\temail = test@docket.invalid\n[init]\n\tdefaultBranch = main\n" + suiterunner.GitBackgroundOff
+		p := filepath.Join(dir, "gitconfig")
+		if err := os.WriteFile(p, []byte(cfg), 0o644); err != nil {
+			bgOffGitErr = err
+			return
+		}
+		bgOffGitPath = p
+	})
+	if bgOffGitErr != nil {
+		// A tmp-write failure here is environmental, not a test signal; fall back
+		// to the inherited config rather than aborting from a helper with no t.
+		return ""
+	}
+	return "GIT_CONFIG_GLOBAL=" + bgOffGitPath
+}
+
 // tryGit runs git -C <dir> and returns raw stdout plus an error carrying the
 // captured stderr; it never touches testing.T so a caller can probe an expected
-// failure.
+// failure. Its git child runs under backgroundOffGitEnv so no detached
+// housekeeping process outlives the run to race fixture teardown.
 func tryGit(dir string, args ...string) (string, error) {
 	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	if kv := backgroundOffGitEnv(); kv != "" {
+		cmd.Env = append(os.Environ(), kv)
+	}
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -89,7 +140,7 @@ func writeRepoFile(t *testing.T, root, rel, content string) {
 // steer resolution.
 func newGitClient(t *testing.T) *gitcli.Client {
 	t.Helper()
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", testsupport.TempDir(t))
 	client, err := gitcli.NewClient()
 	if err != nil {
 		t.Fatalf("gitcli.NewClient: %v", err)
@@ -129,7 +180,7 @@ type gitRepo struct {
 func newLegacyRepo(t *testing.T, files map[string]string) *gitRepo {
 	t.Helper()
 	requireRealGit(t)
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	r := &gitRepo{
 		root:       root,
 		origin:     filepath.Join(root, "origin.git"),
@@ -193,7 +244,7 @@ func isMetadataSidePath(rel string) bool {
 func newDocketModeRepo(t *testing.T, mainFiles, docketRecords map[string]string) *gitRepo {
 	t.Helper()
 	requireRealGit(t)
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	r := &gitRepo{
 		root:       root,
 		origin:     filepath.Join(root, "origin.git"),

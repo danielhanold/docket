@@ -5,6 +5,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,7 +20,7 @@ import (
 // This is the real-Git migration integration shard (prefix
 // TestIntegrationRepoMigration). Each test scripts its own legacy single-branch
 // repository (a bare origin + a writer clone that seeds it + an invocation clone
-// migrate runs against) under t.TempDir(), drives RunRepositoryMigrate, and
+// migrate runs against) under testsupport.TempDir(t), drives RunRepositoryMigrate, and
 // inspects the authoritative remote docket and integration branches with an
 // independent git oracle. The fixtures reuse the established internal/app harness
 // (runGit, writeRepoFile, newGitClient, the initRepo shape from
@@ -495,7 +496,7 @@ func newPrimarySyncFaultGitClient(t *testing.T, listResponse string) *gitcli.Cli
 	if err != nil {
 		t.Fatal(err)
 	}
-	wrapper := filepath.Join(t.TempDir(), "git")
+	wrapper := filepath.Join(testsupport.TempDir(t), "git")
 	script := "#!/bin/sh\n" +
 		"if [ \"$1\" = \"worktree\" ] && [ \"$2\" = \"list\" ]; then\n" +
 		"  " + listResponse + "\n" +

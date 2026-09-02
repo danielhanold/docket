@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -40,7 +41,7 @@ type ownFixture struct {
 func newOwnFixture(t *testing.T) *ownFixture {
 	t.Helper()
 	requireRealGit(t)
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	runGit(t, dir, "init", "-q", "-b", "main")
 	gitIdentity(t, dir)
 	writeRepoFile(t, dir, "README.md", "readme\n")
@@ -65,6 +66,9 @@ func (f *ownFixture) emptyTree() string {
 func (f *ownFixture) gitStdin(stdin string, args ...string) string {
 	f.t.Helper()
 	cmd := exec.Command("git", append([]string{"-C", f.dir}, args...)...)
+	if kv := backgroundOffGitEnv(); kv != "" {
+		cmd.Env = append(cmd.Environ(), kv)
+	}
 	cmd.Stdin = strings.NewReader(stdin)
 	var out, errb strings.Builder
 	cmd.Stdout = &out
@@ -80,6 +84,9 @@ func (f *ownFixture) gitEnv(env []string, args ...string) string {
 	f.t.Helper()
 	cmd := exec.Command("git", append([]string{"-C", f.dir}, args...)...)
 	cmd.Env = append(cmd.Environ(), env...)
+	if kv := backgroundOffGitEnv(); kv != "" {
+		cmd.Env = append(cmd.Env, kv)
+	}
 	var out, errb strings.Builder
 	cmd.Stdout = &out
 	cmd.Stderr = &errb
@@ -93,7 +100,7 @@ func (f *ownFixture) gitEnv(env []string, args ...string) string {
 // index, returning its tree OID without touching the working index.
 func (f *ownFixture) mktree(files map[string]string) string {
 	f.t.Helper()
-	idx := filepath.Join(f.t.TempDir(), "index")
+	idx := filepath.Join(testsupport.TempDir(f.t), "index")
 	env := []string{"GIT_INDEX_FILE=" + idx}
 	for rel, content := range files {
 		blob := f.gitStdin(content, "hash-object", "-w", "-t", "blob", "--stdin")
@@ -427,7 +434,7 @@ func (f *ownFixture) treeExists(commit, path string) bool {
 // An absent prefix is skipped, never an error — matching BuildTree's caller.
 func (f *ownFixture) projectTree(commit string, prefixes []string) string {
 	f.t.Helper()
-	idx := filepath.Join(f.t.TempDir(), "index")
+	idx := filepath.Join(testsupport.TempDir(f.t), "index")
 	env := []string{"GIT_INDEX_FILE=" + idx}
 	for _, p := range prefixes {
 		if !f.treeExists(commit, p) {
@@ -441,7 +448,7 @@ func (f *ownFixture) projectTree(commit string, prefixes []string) string {
 // treePlusFile returns baseTree with one extra blob added at rel (mode 100644).
 func (f *ownFixture) treePlusFile(baseTree, rel, content string) string {
 	f.t.Helper()
-	idx := filepath.Join(f.t.TempDir(), "index")
+	idx := filepath.Join(testsupport.TempDir(f.t), "index")
 	env := []string{"GIT_INDEX_FILE=" + idx}
 	f.gitEnv(env, "read-tree", baseTree)
 	blob := f.gitStdin(content, "hash-object", "-w", "-t", "blob", "--stdin")
@@ -453,7 +460,7 @@ func (f *ownFixture) treePlusFile(baseTree, rel, content string) string {
 // its content (blob OID) unchanged.
 func (f *ownFixture) treeChmod(baseTree, rel, mode string) string {
 	f.t.Helper()
-	idx := filepath.Join(f.t.TempDir(), "index")
+	idx := filepath.Join(testsupport.TempDir(f.t), "index")
 	env := []string{"GIT_INDEX_FILE=" + idx}
 	f.gitEnv(env, "read-tree", baseTree)
 	blob := f.gitEnv(env, "rev-parse", baseTree+":"+rel)

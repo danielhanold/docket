@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 	"errors"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -286,20 +287,16 @@ func TestPlannersPlanAndDetect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("embedded catalog: %v", err)
 	}
-	// filepath.Clean, and not a bare t.TempDir(): t.TempDir() hands back
-	// $TMPDIR's spelling verbatim (os.TempDir strips trailing slashes and
-	// nothing else), so under a $TMPDIR carrying an interior "//" — which
-	// the suite runner produces, since macOS's default TMPDIR ends in "/"
-	// and the runner appends a per-job temp subdir to it — the fake home is not
-	// lexically clean. Every planned path comes out of filepath.Join, which
-	// cleans, so the containment check below would compare a cleaned target
-	// against an uncleaned root and report every path as an escape. Cleaning
-	// puts this fixture on production's footing: UserRoots is only ever built
-	// by install.ResolveRoots, whose Home is cleaned.
+	// filepath.Clean defensively: every planned path comes out of filepath.Join,
+	// which cleans, so a not-lexically-clean root (an interior "//" reaching the
+	// fixture from a $TMPDIR that carries one) would make the containment check
+	// below compare a cleaned target against an uncleaned root and report every
+	// path as an escape. Cleaning puts this fixture on production's footing:
+	// UserRoots is only ever built by install.ResolveRoots, whose Home is cleaned.
 	//
 	// NOT filepath.EvalSymlinks: on macOS /var is a symlink to /private/var, so
 	// resolving would move the root to a spelling the planners never produce.
-	home := filepath.Clean(t.TempDir())
+	home := filepath.Clean(testsupport.TempDir(t))
 	if err := os.MkdirAll(filepath.Join(home, ".claude"), 0o755); err != nil {
 		t.Fatal(err)
 	}

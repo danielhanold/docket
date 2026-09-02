@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/danielhanold/docket/internal/testsupport"
 	"io"
 	"os"
 	"os/exec"
@@ -180,7 +181,7 @@ func (s *e2eState) dk(t *testing.T, stdin string, args ...string) dkResult {
 // never argv interpolation).
 func (s *e2eState) writeInput(t *testing.T, name, body string) string {
 	t.Helper()
-	p := filepath.Join(t.TempDir(), name)
+	p := filepath.Join(testsupport.TempDir(t), name)
 	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
 		t.Fatalf("write input %s: %v", name, err)
 	}
@@ -333,8 +334,8 @@ func newImplEnv(t *testing.T, m planRepoMode, docketBin, ghBin string, records m
 	if err != nil {
 		t.Fatalf("workspace.NewService: %v", err)
 	}
-	stateFile := filepath.Join(t.TempDir(), "gh-state.json")
-	xdgHome := t.TempDir()
+	stateFile := filepath.Join(testsupport.TempDir(t), "gh-state.json")
+	xdgHome := testsupport.TempDir(t)
 	env := e2eEnv(stateFile, xdgHome, ghBin, repo.origin, "unused", "0000000000000000000000000000000000000000")
 	ghClient, err := githubcli.NewClient(githubcli.WithExecutable(ghBin), githubcli.WithBaseEnvironment(env))
 	if err != nil {
@@ -396,7 +397,7 @@ func (e *implEnv) implement(t *testing.T, id int, slug, planPath, title string) 
 	runGit(t, wp, "commit", "-q", "-m", "implement "+slug)
 	head := runGit(t, wp, "rev-parse", "HEAD")
 
-	gateRoot := t.TempDir()
+	gateRoot := testsupport.TempDir(t)
 	launch := GateLaunch(gateRoot, wp, []string{passingGateScript(t)})
 	if launch.Result != ResultApplied || launch.RunDir == "" {
 		t.Fatalf("gate launch id %d = %q (reason %q)", id, launch.Result, launch.Reason)
@@ -464,6 +465,14 @@ func e2eEnv(stateFile, xdgHome, ghBin, origin, headBranch, head string) []string
 		"FAKE_GH_HEAD_BRANCH="+headBranch,
 		"FAKE_GH_HEAD="+head,
 	)
+	// Point the subprocess's direct git children (notably the fake gh's real
+	// merge commit on the bare origin) at the background-off global config, so no
+	// detached housekeeping process outlives a test to race fixture teardown
+	// (change 0373). The docket binary's own git-through-gitcli scrubs
+	// GIT_CONFIG, so this is inert for it and load-bearing only for the fake gh.
+	if kv := backgroundOffGitEnv(); kv != "" {
+		env = append(env, kv)
+	}
 	return env
 }
 
@@ -711,7 +720,7 @@ func TestE2EConflictAndRepair(t *testing.T) {
 	runGit(t, s.wp, "commit", "-q", "-m", "repair: make the suite green")
 	repairHead := runGit(t, s.wp, "rev-parse", "HEAD")
 
-	gateRoot := t.TempDir()
+	gateRoot := testsupport.TempDir(t)
 	launch := GateLaunch(gateRoot, s.wp, []string{"/bin/sh", "-c", "test -f .repaired"})
 	if launch.Result != ResultApplied || launch.RunDir == "" {
 		t.Fatalf("repair gate launch = %q (reason %q)", launch.Result, launch.Reason)
@@ -1313,8 +1322,8 @@ func reachInProgress(t *testing.T, docketBin, ghBin string) *e2eState {
 		t.Fatalf("workspace prepare id 3 = %q (reason %q)", prep.Result, prep.Reason)
 	}
 
-	stateFile := filepath.Join(t.TempDir(), "gh-state.json")
-	xdgHome := t.TempDir()
+	stateFile := filepath.Join(testsupport.TempDir(t), "gh-state.json")
+	xdgHome := testsupport.TempDir(t)
 	env := e2eEnv(stateFile, xdgHome, ghBin, repo.origin, "unused", "0000000000000000000000000000000000000000")
 	return &e2eState{
 		repo: repo, mode: m, node: node, id: 3,
@@ -1429,7 +1438,7 @@ func TestE2EUnsupportedConfigFence(t *testing.T) {
 // default-branch blob observes it.
 func commitToOriginDefault(t *testing.T, origin, path, content, msg string) {
 	t.Helper()
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	clone := filepath.Join(dir, "cfg")
 	runGit(t, dir, "clone", "-q", origin, clone)
 	gitIdentity(t, clone)
