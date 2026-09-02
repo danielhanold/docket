@@ -38,6 +38,16 @@ import (
 // mechanism this constant exists to protect. No candidate produced a
 // SERIAL CONFIRMED OVER BUDGET (the authoritative disqualifier). Full
 // per-candidate/per-row table: the change 0373 results file.
+//
+// SCOPE: the DOCKET_GO_TEST_CONCURRENCY cap this multiplier derives is honored by
+// the heavy Go test wrappers only (tests/lib/go-integration-shard.sh and
+// tests/test_go_race.sh / test_go_toolchain.sh / test_go_finalize_e2e.sh). The
+// light `go`-invoking wrappers — the list/compile/install probes in
+// tests/test_go_integration_contract.sh, tests/test_install_bootstrap.sh, and
+// tests/test_release_partition_fidelity.sh — intentionally run at Go defaults:
+// their load is small and was present-and-uncapped during the M measurement
+// above, so the pinned 2/1 already accounts for it. "Bound total Go test load"
+// is therefore deliberately partial, not an oversight.
 const (
 	goLoadMultNum = 2
 	goLoadMultDen = 1
