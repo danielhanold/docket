@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // fileSHA256 hashes the whole file at path and returns lowercase hex — the
@@ -77,7 +79,7 @@ func writeGzTar(t *testing.T, path string, members func(tw *tar.Writer)) {
 }
 
 func TestIntegrationReleaseArchiveWriteDeterministic(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	bin := []byte("fake docket binary bytes\x00\x01\x02")
 	const epoch = 1700000000
 
@@ -103,7 +105,7 @@ func TestIntegrationReleaseArchiveWriteDeterministic(t *testing.T) {
 }
 
 func TestIntegrationReleaseArchiveWriteEpochEntersStream(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	bin := []byte("fake docket binary bytes")
 
 	p1 := filepath.Join(dir, "a.tar.gz")
@@ -122,7 +124,7 @@ func TestIntegrationReleaseArchiveWriteEpochEntersStream(t *testing.T) {
 }
 
 func TestIntegrationReleaseArchiveVerifyRoundTrip(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	bin := []byte("fake docket binary of a known length")
 	path := filepath.Join(dir, "docket_v1.2.3_linux_amd64.tar.gz")
 	if err := WriteArchive(path, bin, 1700000000); err != nil {
@@ -148,7 +150,7 @@ func TestIntegrationReleaseArchiveVerifyRoundTrip(t *testing.T) {
 // header fields that would otherwise leak the building host's identity, plus
 // the USTAR format selection.
 func TestIntegrationReleaseArchiveWriteNoHostLeakage(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	path := filepath.Join(dir, "docket.tar.gz")
 	if err := WriteArchive(path, []byte("bin"), 1700000000); err != nil {
 		t.Fatal(err)
@@ -176,7 +178,7 @@ func TestIntegrationReleaseArchiveWriteNoHostLeakage(t *testing.T) {
 // that names the offending member (learning guards-are-code — each guard has a
 // distinct, mutation-tested branch).
 func TestIntegrationReleaseArchiveVerifyRefusals(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 
 	cases := []struct {
 		name       string

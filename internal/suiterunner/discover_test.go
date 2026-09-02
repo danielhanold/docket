@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // writeExec creates an executable placeholder file at path, making any missing
@@ -43,7 +45,7 @@ func writeCategorized(t *testing.T, path, category string, hdrLine int, trailing
 }
 
 func TestDiscoverReturnsSortedDeclaredCategories(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	// Deliberately create out of order, one of each category, plus a non-matching
 	// file and a subdir member (both excluded by the maxdepth-1 test_*.sh rule).
 	writeCategorized(t, filepath.Join(dir, "test_b.sh"), "posix-install", 3, "")
@@ -73,7 +75,7 @@ func TestDiscoverReturnsSortedDeclaredCategories(t *testing.T) {
 }
 
 func TestDiscoverFailsClosedOnMissingDeclaration(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	writeCategorized(t, filepath.Join(dir, "test_good.sh"), "go", 2, "")
 	writeExec(t, filepath.Join(dir, "test_bad.sh")) // no declaration at all
 
@@ -93,7 +95,7 @@ func TestDiscoverFailsClosedOnMissingDeclaration(t *testing.T) {
 }
 
 func TestDiscoverFailsClosedOnUnknownCategory(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	writeCategorized(t, filepath.Join(dir, "test_unknown.sh"), "bash", 2, "") // not a real category
 
 	_, err := Discover(dir)
@@ -107,7 +109,7 @@ func TestDiscoverFailsClosedOnUnknownCategory(t *testing.T) {
 
 func TestDiscoverFailsClosedOnBelowLineTenAndTrailingText(t *testing.T) {
 	t.Run("below line 10", func(t *testing.T) {
-		dir := t.TempDir()
+		dir := testsupport.TempDir(t)
 		// A valid sibling so the only failure is the below-line-10 file.
 		writeCategorized(t, filepath.Join(dir, "test_ok.sh"), "go", 2, "")
 		writeCategorized(t, filepath.Join(dir, "test_late.sh"), "go", 11, "") // header on line 11
@@ -117,7 +119,7 @@ func TestDiscoverFailsClosedOnBelowLineTenAndTrailingText(t *testing.T) {
 		}
 	})
 	t.Run("trailing text", func(t *testing.T) {
-		dir := t.TempDir()
+		dir := testsupport.TempDir(t)
 		writeCategorized(t, filepath.Join(dir, "test_trail.sh"), "go", 2, " # nope") // trailing text
 		_, err := Discover(dir)
 		if err == nil || !strings.Contains(err.Error(), "test_trail.sh") {
@@ -128,12 +130,12 @@ func TestDiscoverFailsClosedOnBelowLineTenAndTrailingText(t *testing.T) {
 
 func TestDiscoverFailsClosed(t *testing.T) {
 	// Nonexistent directory is an error.
-	if _, err := Discover(filepath.Join(t.TempDir(), "does-not-exist")); err == nil {
+	if _, err := Discover(filepath.Join(testsupport.TempDir(t), "does-not-exist")); err == nil {
 		t.Fatal("Discover on a nonexistent dir returned nil error; want fail-closed")
 	}
 
 	// A readable directory with zero matches is an error, never an empty pass.
-	empty := t.TempDir()
+	empty := testsupport.TempDir(t)
 	writeExec(t, filepath.Join(empty, "helper.sh")) // present but non-matching
 	_, err := Discover(empty)
 	if err == nil {
@@ -145,7 +147,7 @@ func TestDiscoverFailsClosed(t *testing.T) {
 }
 
 func TestResolveTargetsRejectsDuplicateBasenamesAndMissingFilesTogether(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	pathA := filepath.Join(dir, "a", "test_x.sh")
 	pathB := filepath.Join(dir, "b", "test_x.sh")
 	writeCategorized(t, pathA, "go", 2, "")
@@ -171,7 +173,7 @@ func TestResolveTargetsRejectsDuplicateBasenamesAndMissingFilesTogether(t *testi
 }
 
 func TestResolveTargetsJoinsBudgetsAndCarriesCategory(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	pathA := filepath.Join(dir, "test_a.sh")
 	pathB := filepath.Join(dir, "test_b.sh")
 	writeCategorized(t, pathA, "posix-install", 2, "")

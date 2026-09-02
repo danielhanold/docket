@@ -3,6 +3,8 @@ package gatedrive
 import (
 	"sync"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // matchingFP is the fingerprint sampleRecord persists — the exact drive-start
@@ -22,7 +24,7 @@ func mismatchFP() Fingerprint {
 // the single-use receipt. It is the common fixture for the claim-side tests.
 func newHandedOffDrive(t *testing.T) (s *Store, id, oldOwner string, receipt handoffReceipt) {
 	t.Helper()
-	s = OpenStore(t.TempDir())
+	s = OpenStore(testsupport.TempDir(t))
 	rec := sampleRecord()
 	oldOwner = rec.OwnerGeneration // "owner-g0"
 	id, _, err := s.NewDrive(rec)
@@ -178,7 +180,7 @@ func TestRaceOneReceiptSingleWinner(t *testing.T) {
 // outstanding handoff cannot be claimed: seeing a running suite is not authority
 // to take it over.
 func TestPlainWaitingDriveCannotBeClaimed(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	rec := sampleRecord()
 	id, _, err := s.NewDrive(rec)
 	if err != nil {
@@ -238,7 +240,7 @@ func TestFingerprintMismatchAtClaimRejects(t *testing.T) {
 // TestHandoffRejectsNonOwner proves only the current owner can offer a handoff;
 // a stale or wrong generation acquires no authority to transfer the drive.
 func TestHandoffRejectsNonOwner(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	id, _, err := s.NewDrive(sampleRecord())
 	if err != nil {
 		t.Fatalf("NewDrive: %v", err)
@@ -263,7 +265,7 @@ func TestHandoffRejectsNonOwner(t *testing.T) {
 // is refused rather than transferring a drive whose pass could no longer certify
 // the original bytes.
 func TestHandoffRejectsFingerprintDrift(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	oldOwner := sampleRecord().OwnerGeneration
 	id, _, err := s.NewDrive(sampleRecord())
 	if err != nil {

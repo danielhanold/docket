@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // TestMaintenanceSweepRegistered proves the subcommand is wired under the
@@ -31,7 +32,7 @@ func TestMaintenanceSweepRegistered(t *testing.T) {
 // field, which proves the result reached the presenter. The app-layer
 // composition rules are already proven in internal/app; this is wiring only.
 func TestMaintenancePreflightCommandWiring(t *testing.T) {
-	out, _, _ := runCLI(t, "maintenance", "preflight", "--repo-dir", t.TempDir(), "--json")
+	out, _, _ := runCLI(t, "maintenance", "preflight", "--repo-dir", testsupport.TempDir(t), "--json")
 	if !strings.Contains(out, `"operation":"maintenance.preflight"`) {
 		t.Fatalf("preflight envelope missing: %s", out)
 	}
@@ -67,11 +68,11 @@ func TestMaintenanceSweepScopeFlag(t *testing.T) {
 		t.Fatalf("--scope must exist with default full, got %+v", f)
 	}
 
-	out, errS, _ := runCLI(t, "maintenance", "sweep", "--repo-dir", t.TempDir(), "--json")
+	out, errS, _ := runCLI(t, "maintenance", "sweep", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" || !strings.Contains(out, `"scope":"full"`) {
 		t.Errorf("omitted scope must resolve and echo full: out=%q err=%q", out, errS)
 	}
-	out, errS, _ = runCLI(t, "maintenance", "sweep", "--scope", "implementation", "--repo-dir", t.TempDir(), "--json")
+	out, errS, _ = runCLI(t, "maintenance", "sweep", "--scope", "implementation", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" || !strings.Contains(out, `"scope":"implementation"`) {
 		t.Errorf("explicit implementation must reach the operation and echo back: out=%q err=%q", out, errS)
 	}
@@ -82,7 +83,7 @@ func TestMaintenanceSweepScopeFlag(t *testing.T) {
 // document is ever produced.
 func TestMaintenanceSweepScopeRefusedBeforeWork(t *testing.T) {
 	for _, bad := range []string{"bogus", ""} {
-		out, errS, code := runCLI(t, "maintenance", "sweep", "--scope", bad, "--repo-dir", t.TempDir(), "--json")
+		out, errS, code := runCLI(t, "maintenance", "sweep", "--scope", bad, "--repo-dir", testsupport.TempDir(t), "--json")
 		if code == 0 {
 			t.Errorf("scope %q must fail, exit=0", bad)
 		}
@@ -201,7 +202,7 @@ func TestMaintenanceGroupMissingCommand(t *testing.T) {
 // it. A bare tempdir is no docket repo, so the operation fails past its pin — but
 // only after naming itself as maintenance.sweep.
 func TestMaintenanceSweepReachesOperation(t *testing.T) {
-	out, errS, _ := runCLI(t, "maintenance", "sweep", "--repo-dir", t.TempDir(), "--json")
+	out, errS, _ := runCLI(t, "maintenance", "sweep", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
 	}

@@ -4,10 +4,12 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 func TestSandboxGitConfigDisablesBackgroundWork(t *testing.T) {
-	jobdir := t.TempDir() // suiterunner is itself adopted in Task 6; leave for now
+	jobdir := testsupport.TempDir(t) // suiterunner is itself adopted in Task 6; leave for now
 	env, err := Sandbox(jobdir)
 	if err != nil {
 		t.Fatal(err)

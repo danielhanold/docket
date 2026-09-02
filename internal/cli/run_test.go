@@ -3,6 +3,8 @@ package cli
 import (
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // TestRunCommandsRegistered: the `run verify` subcommand is registered under the
@@ -31,7 +33,7 @@ func TestRunCommandsRegistered(t *testing.T) {
 // non-repository directory the operation refuses early, which is still one
 // well-formed document that names run.verify.
 func TestRunVerifyEmitsOneDocument(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	out, errS, _ := runCLI(t, "run", "verify", "--id", "7", "--repo-dir", dir, "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
@@ -50,7 +52,7 @@ func TestRunVerifyEmitsOneDocument(t *testing.T) {
 // TestRunVerifyHumanMode: without --json the presenter writes the result's
 // HumanText() and names the operation.
 func TestRunVerifyHumanMode(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	out, _, _ := runCLI(t, "run", "verify", "--id", "7", "--repo-dir", dir)
 	if !strings.Contains(out, "run.verify") && !strings.Contains(out, "run verify") {
 		t.Fatalf("human stdout did not carry the operation text: %q", out)

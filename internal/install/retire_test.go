@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // The retirement matrix (change 0351): for each historical global dispatch
@@ -108,7 +110,7 @@ func onlyConflict(t *testing.T, removals []TargetRecord, conflicts []Inspection,
 // --- managed-block matrix -----------------------------------------------------
 
 func TestRetireManagedBlockUnchangedPriorRecord(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	path := filepath.Join(home, ".claude", "CLAUDE.md")
 	interior := "compact routing rule\n"
 	writeFileOrDie(t, path, managedFile(interior))
@@ -125,7 +127,7 @@ func TestRetireManagedBlockUnchangedPriorRecord(t *testing.T) {
 }
 
 func TestRetireManagedBlockLegacyWithProsePreserved(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	roots := retireRoots(home)
 	path := filepath.Join(home, ".claude", "CLAUDE.md")
 	legacyInterior := "frozen legacy dispatch body\n"
@@ -158,7 +160,7 @@ func TestRetireManagedBlockLegacyWithProsePreserved(t *testing.T) {
 }
 
 func TestRetireManagedBlockEditedInteriorConflicts(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	path := filepath.Join(home, ".claude", "CLAUDE.md")
 	onDisk := managedFile("a user hand-edited this block\n")
 	writeFileOrDie(t, path, onDisk)
@@ -182,7 +184,7 @@ func TestRetireManagedBlockEditedInteriorConflicts(t *testing.T) {
 }
 
 func TestRetireManagedBlockMalformedMarkersConflict(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	path := filepath.Join(home, ".claude", "CLAUDE.md")
 	// A dangling start marker with no matching end: an unbounded range document
 	// Parse refuses, so retirement must refuse rather than consume to EOF.
@@ -200,7 +202,7 @@ func TestRetireManagedBlockMalformedMarkersConflict(t *testing.T) {
 }
 
 func TestRetireManagedBlockForeignKindConflict(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	path := filepath.Join(home, ".claude", "CLAUDE.md")
 	// A directory where the managed-block file belongs is a foreign kind.
 	if err := os.MkdirAll(path, 0o755); err != nil {
@@ -214,7 +216,7 @@ func TestRetireManagedBlockForeignKindConflict(t *testing.T) {
 }
 
 func TestRetireManagedBlockEscapingSymlinkConflict(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	path := filepath.Join(home, ".claude", "CLAUDE.md")
 	// A symlink where a managed-block file belongs. A block can never be installed
 	// through a link, so this is a conflict rather than a retirable block.
@@ -228,7 +230,7 @@ func TestRetireManagedBlockEscapingSymlinkConflict(t *testing.T) {
 }
 
 func TestRetireManagedBlockProbeErrorRefuses(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	parent := filepath.Join(home, ".claude")
 	path := filepath.Join(parent, "CLAUDE.md")
 	writeFileOrDie(t, path, managedFile("body\n"))
@@ -250,7 +252,7 @@ func TestRetireManagedBlockProbeErrorRefuses(t *testing.T) {
 }
 
 func TestRetireManagedBlockCleanlyAbsentNothing(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	path := filepath.Join(home, ".claude", "CLAUDE.md") // never created
 	removals, conflicts, err := PlanGlobalRetirements(retireRoots(home), []Target{mbTarget(path)}, nil, nil)
 	if err != nil || len(removals) != 0 || len(conflicts) != 0 {
@@ -259,7 +261,7 @@ func TestRetireManagedBlockCleanlyAbsentNothing(t *testing.T) {
 }
 
 func TestRetireManagedBlockAlreadyRetiredNothing(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	path := filepath.Join(home, ".claude", "CLAUDE.md")
 	// The file survives but the block is gone: a prior run already retired it.
 	writeFileOrDie(t, path, "# Notes\n\njust user prose, no block\n")
@@ -273,7 +275,7 @@ func TestRetireManagedBlockAlreadyRetiredNothing(t *testing.T) {
 // --- cursor whole-file matrix -------------------------------------------------
 
 func TestRetireCursorFilePriorRecord(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	path := filepath.Join(home, ".cursor", "rules", "docket-dispatch.mdc")
 	content := "---\nalwaysApply: true\n---\ndocket dispatch rule\n"
 	writeFileOrDie(t, path, content)
@@ -287,7 +289,7 @@ func TestRetireCursorFilePriorRecord(t *testing.T) {
 }
 
 func TestRetireCursorFileLegacyBytes(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	path := filepath.Join(home, ".cursor", "rules", "docket-dispatch.mdc")
 	content := "---\nalwaysApply: true\n---\nfrozen legacy cursor rule\n"
 	writeFileOrDie(t, path, content)
@@ -301,7 +303,7 @@ func TestRetireCursorFileLegacyBytes(t *testing.T) {
 }
 
 func TestRetireCursorFileEditedConflicts(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	path := filepath.Join(home, ".cursor", "rules", "docket-dispatch.mdc")
 	onDisk := "the user rewrote this rule\n"
 	writeFileOrDie(t, path, onDisk)
@@ -319,7 +321,7 @@ func TestRetireCursorFileEditedConflicts(t *testing.T) {
 }
 
 func TestRetireCursorFileForeignKindConflict(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	path := filepath.Join(home, ".cursor", "rules", "docket-dispatch.mdc")
 	if err := os.MkdirAll(path, 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
@@ -332,7 +334,7 @@ func TestRetireCursorFileForeignKindConflict(t *testing.T) {
 }
 
 func TestRetireCursorFileSymlinkConflict(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	path := filepath.Join(home, ".cursor", "rules", "docket-dispatch.mdc")
 	symlinkOrDie(t, filepath.Join(home, "elsewhere.mdc"), path)
 	removals, conflicts, err := PlanGlobalRetirements(retireRoots(home), []Target{fileTarget(path)}, nil, nil)
@@ -343,7 +345,7 @@ func TestRetireCursorFileSymlinkConflict(t *testing.T) {
 }
 
 func TestRetireCursorFileCleanlyAbsentNothing(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	path := filepath.Join(home, ".cursor", "rules", "docket-dispatch.mdc") // never created
 	removals, conflicts, err := PlanGlobalRetirements(retireRoots(home), []Target{fileTarget(path)}, nil, nil)
 	if err != nil || len(removals) != 0 || len(conflicts) != 0 {
@@ -374,7 +376,7 @@ func linkRecord(path, linkTarget, harness string) TargetRecord {
 }
 
 func TestRetireSharedLinkPriorRecord(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	agents := filepath.Join(home, "AGENTS.md")
 	writeFileOrDie(t, agents, "shared agents surface\n")
 	link := filepath.Join(home, "CLAUDE.md")
@@ -399,7 +401,7 @@ func TestRetireSharedLinkPriorRecord(t *testing.T) {
 }
 
 func TestRetireSharedLinkRetargetedConflicts(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	agents := filepath.Join(home, "AGENTS.md")
 	writeFileOrDie(t, agents, "shared agents surface\n")
 	// The user re-pointed CLAUDE.md at their own notes; it no longer matches the
@@ -425,7 +427,7 @@ func TestRetireSharedLinkRetargetedConflicts(t *testing.T) {
 }
 
 func TestRetireSharedLinkForeignKindConflict(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	agents := filepath.Join(home, "AGENTS.md")
 	link := filepath.Join(home, "CLAUDE.md")
 	// A regular file where the shared link belongs is a foreign kind — never
@@ -445,7 +447,7 @@ func TestRetireSharedLinkForeignKindConflict(t *testing.T) {
 }
 
 func TestRetireSharedLinkNoRecordConflicts(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	agents := filepath.Join(home, "AGENTS.md")
 	writeFileOrDie(t, agents, "shared agents surface\n")
 	link := filepath.Join(home, "CLAUDE.md")
@@ -466,7 +468,7 @@ func TestRetireSharedLinkNoRecordConflicts(t *testing.T) {
 // One refusal collects every conflict: several unprovable destinations in one
 // call all surface, so an operator remedies them in a single pass.
 func TestRetireCollectsAllConflicts(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	block := filepath.Join(home, ".claude", "CLAUDE.md")
 	writeFileOrDie(t, block, managedFile("edited\n"))
 	rule := filepath.Join(home, ".cursor", "rules", "docket-dispatch.mdc")

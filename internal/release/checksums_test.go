@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // sha256HexBytes is the independent oracle for the manifest's hash column.
@@ -55,7 +57,7 @@ func readManifestLines(t *testing.T, dir string) []string {
 // Feeding names in a deliberately non-sorted order must yield a manifest whose
 // filename column is sorted bytewise — the golden ordering property.
 func TestWriteChecksumsSortsBytewise(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	// Names chosen so lexical (bytewise) order differs from feed order.
 	names := []string{
 		"docket_v1.2.3_linux_arm64.tar.gz",
@@ -105,7 +107,7 @@ func TestWriteChecksumsSortsBytewise(t *testing.T) {
 // The separator is exactly two spaces and the hash is the real lowercase-hex
 // SHA-256 of the file — the sha256sum -c compatible format.
 func TestWriteChecksumsTwoSpaceFormat(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	content := []byte("deterministic-payload")
 	want := mkFile(t, dir, "install.sh", content)
 
@@ -128,7 +130,7 @@ func TestWriteChecksumsTwoSpaceFormat(t *testing.T) {
 
 // A name with no backing file must fail — WriteChecksums hashes real bytes.
 func TestWriteChecksumsMissingFileFails(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	mkFile(t, dir, "install.sh", []byte("x"))
 	err := WriteChecksums(dir, []string{"install.sh", "absent.tar.gz"})
 	if err == nil {
@@ -143,7 +145,7 @@ func TestWriteChecksumsMissingFileFails(t *testing.T) {
 
 // WriteChecksums output round-trips through ValidateChecksums.
 func TestValidateChecksumsAcceptsWrittenManifest(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	names := []string{"a.tar.gz", "b.tar.gz", "install.sh"}
 	for _, n := range names {
 		mkFile(t, dir, n, []byte("content-"+n))
@@ -161,7 +163,7 @@ func TestValidateChecksumsAcceptsWrittenManifest(t *testing.T) {
 // mutate the manifest to drive one failure mode each.
 func validFixture(t *testing.T) (dir string, names []string, hashes map[string]string) {
 	t.Helper()
-	dir = t.TempDir()
+	dir = testsupport.TempDir(t)
 	names = []string{"a.tar.gz", "b.tar.gz", "install.sh"}
 	hashes = map[string]string{}
 	for _, n := range names {
@@ -302,7 +304,7 @@ func TestValidateChecksumsSelfListing(t *testing.T) {
 // strict subset of the expected set; the missing name has NO on-disk mismatch
 // to trip the forward loop, so only the reverse check can catch it.
 func TestValidateChecksumsExpectedFileWithNoLine(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	expected := []string{"a.tar.gz", "b.tar.gz", "install.sh"}
 	h := map[string]string{}
 	for _, n := range expected {

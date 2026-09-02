@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/danielhanold/docket/internal/install"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // gitRun cans git output per subcommand (argv[1]) and records every probe the
@@ -49,7 +50,17 @@ func TestDevInstallRequiresGitRunner(t *testing.T) {
 }
 
 func TestDefaultGitRunner(t *testing.T) {
-	repo := t.TempDir()
+	// DefaultGitRunner spawns real git inheriting this process's env; point it
+	// at testsupport.GitEnv's background-off GIT_CONFIG_GLOBAL so a detached
+	// gc/maintenance/fsmonitor child cannot outlive the test and race the
+	// fixture's RemoveAll into "directory not empty" (change 0373). t.Setenv is
+	// safe here: this test does not run in parallel.
+	for _, kv := range testsupport.GitEnv(t) {
+		if v, ok := strings.CutPrefix(kv, "GIT_CONFIG_GLOBAL="); ok {
+			t.Setenv("GIT_CONFIG_GLOBAL", v)
+		}
+	}
+	repo := testsupport.TempDir(t)
 	init := [][]string{
 		{"git", "init", "-q"},
 		{"git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "--allow-empty", "-q", "-m", "x"},
@@ -68,7 +79,7 @@ func TestDefaultGitRunner(t *testing.T) {
 		t.Fatalf("rev-parse output = %q, want a bare 40-hex SHA line", out)
 	}
 
-	if _, err := install.DefaultGitRunner(t.TempDir(), []string{"git", "rev-parse", "HEAD"}); err == nil {
+	if _, err := install.DefaultGitRunner(testsupport.TempDir(t), []string{"git", "rev-parse", "HEAD"}); err == nil {
 		t.Fatal("rev-parse outside a repository must error, not succeed")
 	}
 	if _, err := install.DefaultGitRunner(repo, nil); err == nil {

@@ -19,6 +19,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // captureScript runs the v0.9.2 sync-agents.sh once per pin shape under a sandboxed HOME and copies
@@ -91,7 +93,7 @@ func TestCaptureLegacyCorpus(t *testing.T) {
 	cmd.Env = append(os.Environ(),
 		"V092="+v092,
 		"DEST="+dest,
-		"WORK="+t.TempDir(),
+		"WORK="+testsupport.TempDir(t),
 	)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("capture failed: %v\n%s", err, out)

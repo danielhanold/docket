@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // This file builds real temporary Git repositories for the workspace Prepare
@@ -18,8 +19,8 @@ import (
 // docket-style repo carrying an orphan "docket" branch plus a registered
 // `.docket/` worktree, one detached transaction-style worktree, and one sibling
 // feature worktree — each backed by a bare file remote plus an independent
-// writer clone that advances the remote. All paths live under t.TempDir(); the
-// builders return the raw t.TempDir() spelling (never filepath.EvalSymlinks-
+// writer clone that advances the remote. All paths live under testsupport.TempDir(t); the
+// builders return the raw testsupport.TempDir(t) spelling (never filepath.EvalSymlinks-
 // canonicalized) so the tests exercise the macOS /tmp -> /private/tmp symlinked
 // case Prepare must canonicalize through. Everything here is _test.go only and
 // is never referenced by product code.
@@ -45,6 +46,26 @@ func requireGit(t *testing.T) {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not found on PATH")
+	}
+}
+
+// useBackgroundOffGit points the git children these tests spawn at a per-fixture
+// GIT_CONFIG_GLOBAL (testsupport.GitEnv) that disables auto-gc, auto-maintenance,
+// and fsmonitor. The direct oracle helpers (gitOut/gitOutRaw/gitTry) inherit the
+// test-process environment, so this reaches them; without it a detached git
+// housekeeping child spawned by a fixture commit can outlive the test and keep
+// writing into a testsupport.TempDir, racing RemoveAll teardown to "directory
+// not empty" under parallel load (change 0373). Git spawned through the product
+// gitcli client scrubs GIT_CONFIG, so its housekeeping children are instead
+// absorbed by the fixture's drain-then-retry removal. Set process-wide via
+// t.Setenv because gitTry takes no *testing.T; safe because this package runs no
+// test in parallel. Call it from every repo builder before the first git spawn.
+func useBackgroundOffGit(t *testing.T) {
+	t.Helper()
+	for _, kv := range testsupport.GitEnv(t) {
+		if v, ok := strings.CutPrefix(kv, "GIT_CONFIG_GLOBAL="); ok {
+			t.Setenv("GIT_CONFIG_GLOBAL", v)
+		}
 	}
 }
 
@@ -129,7 +150,8 @@ func branchExists(dir, branch string) bool {
 func mainModeRepo(t *testing.T) *wsRepos {
 	t.Helper()
 	requireGit(t)
-	root := t.TempDir()
+	useBackgroundOffGit(t)
+	root := testsupport.TempDir(t)
 	r := &wsRepos{
 		Origin:  filepath.Join(root, "origin.git"),
 		Writer:  filepath.Join(root, "writer"),
@@ -165,7 +187,8 @@ func mainModeRepo(t *testing.T) *wsRepos {
 func docketModeRepo(t *testing.T) *wsRepos {
 	t.Helper()
 	requireGit(t)
-	root := t.TempDir()
+	useBackgroundOffGit(t)
+	root := testsupport.TempDir(t)
 	r := &wsRepos{
 		Origin:  filepath.Join(root, "origin.git"),
 		Writer:  filepath.Join(root, "writer"),

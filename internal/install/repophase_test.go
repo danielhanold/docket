@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/assets"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // These tests drive applyPlan directly with a repository phase — the one seam
@@ -26,7 +27,7 @@ type repoWorld struct {
 
 func newRepoWorld(t *testing.T) repoWorld {
 	t.Helper()
-	base := t.TempDir()
+	base := testsupport.TempDir(t)
 	home := filepath.Join(base, "home")
 	if err := os.MkdirAll(home, 0o755); err != nil {
 		t.Fatalf("MkdirAll(%s): %v", home, err)

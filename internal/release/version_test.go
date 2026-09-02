@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 func TestValidateVersionAccepts(t *testing.T) {
@@ -78,11 +80,11 @@ func TestArchiveNameAllTuples(t *testing.T) {
 func validInputs(t *testing.T) Inputs {
 	t.Helper()
 	return Inputs{
-		SourceRoot:  t.TempDir(),
+		SourceRoot:  testsupport.TempDir(t),
 		Version:     "v1.2.3",
 		Commit:      strings.Repeat("ab", 20), // 40 lowercase hex
 		SourceEpoch: 1700000000,
-		OutDir:      t.TempDir(),
+		OutDir:      testsupport.TempDir(t),
 	}
 }
 
@@ -159,7 +161,7 @@ func TestBuildDateIsUTCRFC3339(t *testing.T) {
 // Sanity: an absolute path that exists but is a file, not a dir, is not a
 // valid SourceRoot.
 func TestInputsValidateRejectsFileSourceRoot(t *testing.T) {
-	f, err := os.CreateTemp(t.TempDir(), "notadir.*")
+	f, err := os.CreateTemp(testsupport.TempDir(t), "notadir.*")
 	if err != nil {
 		t.Fatal(err)
 	}

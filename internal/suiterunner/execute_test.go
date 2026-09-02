@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // writeScript drops a test_<name>.sh fixture into dir and returns its Target.
@@ -33,8 +35,8 @@ func bashPath(t *testing.T) string {
 }
 
 func TestSandboxIsolation(t *testing.T) {
-	scripts := t.TempDir()
-	work := t.TempDir()
+	scripts := testsupport.TempDir(t)
+	work := testsupport.TempDir(t)
 	tgt := writeScript(t, scripts, "iso", strings.Join([]string{
 		`printf 'HOME=%s\n' "$HOME"`,
 		`printf 'TMPDIR=%s\n' "$TMPDIR"`,
@@ -59,7 +61,7 @@ func TestSandboxIsolation(t *testing.T) {
 
 	// The child's HOME/TMPDIR are built with filepath.Join in Sandbox/ExecuteTarget,
 	// which runs filepath.Clean and collapses any redundant slash. work comes from
-	// t.TempDir(), which inherits $TMPDIR verbatim — and macOS's $TMPDIR carries a
+	// testsupport.TempDir(t), which inherits $TMPDIR verbatim — and macOS's $TMPDIR carries a
 	// trailing slash, so under the Bash oracle's launch() nesting work can hold a
 	// "T//run-tests" double slash the child path never shows. Compare against the
 	// cleaned form so the isolation assertion tracks what Sandbox actually produces.
@@ -79,8 +81,8 @@ func TestSandboxIsolation(t *testing.T) {
 }
 
 func TestExecuteWritesDurableResultAtomically(t *testing.T) {
-	scripts := t.TempDir()
-	work := t.TempDir()
+	scripts := testsupport.TempDir(t)
+	work := testsupport.TempDir(t)
 	tgt := writeScript(t, scripts, "p", "echo 'ok - one'\necho 'ok - two'\n")
 
 	reg := newProcRegistry()
@@ -115,8 +117,8 @@ func TestExecuteWritesDurableResultAtomically(t *testing.T) {
 }
 
 func TestExecuteRecordsFailure(t *testing.T) {
-	scripts := t.TempDir()
-	work := t.TempDir()
+	scripts := testsupport.TempDir(t)
+	work := testsupport.TempDir(t)
 	tgt := writeScript(t, scripts, "fail", "echo 'NOT OK - broke'\nexit 1\n")
 
 	reg := newProcRegistry()
@@ -137,9 +139,9 @@ func TestExecuteRecordsFailure(t *testing.T) {
 }
 
 func TestExecuteChildGetsOwnProcessGroup(t *testing.T) {
-	scripts := t.TempDir()
-	work := t.TempDir()
-	gate := t.TempDir()
+	scripts := testsupport.TempDir(t)
+	work := testsupport.TempDir(t)
+	gate := testsupport.TempDir(t)
 	started := filepath.Join(gate, "started")
 	proceed := filepath.Join(gate, "proceed")
 

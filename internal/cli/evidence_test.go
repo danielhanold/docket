@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // TestEvidenceCommandsRegistered: the two `evidence` subcommands are registered
@@ -43,7 +45,7 @@ func TestEvidenceCommandsRegistered(t *testing.T) {
 // operation. A prose-only record file carries no block, which is still one
 // well-formed document.
 func TestEvidenceVerifyEmitsOneDocument(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	recordFile := filepath.Join(dir, "evidence.md")
 	if err := os.WriteFile(recordFile, []byte("# just prose\n"), 0o644); err != nil {
 		t.Fatalf("seed record: %v", err)
@@ -68,7 +70,7 @@ func TestEvidenceVerifyEmitsOneDocument(t *testing.T) {
 // and --head into app.EvidenceRecord; against a non-repository directory the
 // observe fails, still yielding one document naming the record operation.
 func TestEvidenceRecordRoutesFlags(t *testing.T) {
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	out, errS, _ := runCLI(t, "evidence", "record",
 		"--id", "7", "--run", filepath.Join(root, "run"), "--head", "abc", "--repo-dir", root, "--json")
 	if errS != "" {
@@ -93,7 +95,7 @@ func TestEvidenceRequiredFlags(t *testing.T) {
 // TestEvidenceVerifyHumanMode: without --json the presenter writes the result's
 // HumanText() to stdout and names the operation.
 func TestEvidenceVerifyHumanMode(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	recordFile := filepath.Join(dir, "evidence.md")
 	if err := os.WriteFile(recordFile, []byte("# prose\n"), 0o644); err != nil {
 		t.Fatalf("seed record: %v", err)

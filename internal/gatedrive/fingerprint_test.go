@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // newDirtyRepo seeds a temporary git repository with a committed regular file,
@@ -13,7 +15,7 @@ import (
 // resulting inequality isolates that dimension.
 func newDirtyRepo(t *testing.T) string {
 	t.Helper()
-	repo := t.TempDir()
+	repo := testsupport.TempDir(t)
 	gitInit(t, repo)
 	writeFile(t, repo, "x.sh", "echo hello\n")
 	writeFile(t, repo, "keep.txt", "keep\n")
@@ -33,6 +35,10 @@ func git(t *testing.T, repo string, args ...string) string {
 		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.com",
 		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.com",
 	)
+	// Also point at testsupport.GitEnv's background-off GIT_CONFIG_GLOBAL so a
+	// detached gc/maintenance/fsmonitor child cannot outlive the test and race
+	// the fixture's RemoveAll into "directory not empty" (change 0373).
+	cmd.Env = append(cmd.Env, testsupport.GitEnv(t)...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %v: %v\n%s", args, err, out)

@@ -16,6 +16,8 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // productionRootForTest returns the assembled production Cobra tree with the
@@ -215,9 +217,9 @@ func assertDirEmpty(t *testing.T, dir string) {
 // assertions would redden — which is exactly why the capabilities RunE must
 // stay free of gitcli.NewClient, config.Load*, and install.ResolveRoots.
 func TestCapabilitiesIsRepositoryConfigAssetAndWriteIndependent(t *testing.T) {
-	dir := t.TempDir()
-	home := t.TempDir()
-	xdg := t.TempDir()
+	dir := testsupport.TempDir(t)
+	home := testsupport.TempDir(t)
+	xdg := testsupport.TempDir(t)
 	t.Chdir(dir)
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_STATE_HOME", xdg)

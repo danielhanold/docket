@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // validManifest builds a fully valid manifest whose ID is the sha256 of its
@@ -34,7 +35,7 @@ func validManifest(commonDir string, ref gitcli.RefName) Manifest {
 
 // TestManifestRoundTrip proves a full manifest survives write→load byte-equal.
 func TestManifestRoundTrip(t *testing.T) {
-	commonDir := t.TempDir()
+	commonDir := testsupport.TempDir(t)
 	ref := gitcli.RefName("refs/heads/feat/fix-the-thing")
 	dir := workspaceDir(commonDir, ref)
 	want := validManifest(commonDir, ref)
@@ -106,7 +107,7 @@ func mustJSON(t *testing.T, m Manifest) []byte {
 // TestLoadManifestThreeOutcomes proves the (m, present, err) contract: clean
 // absence is (false, nil); every corruption is an error and NEVER (false, nil).
 func TestLoadManifestThreeOutcomes(t *testing.T) {
-	commonDir := t.TempDir()
+	commonDir := testsupport.TempDir(t)
 	ref := gitcli.RefName("refs/heads/feat/fix-the-thing")
 
 	// Absent directory and absent file both read as cleanly absent.
@@ -117,7 +118,7 @@ func TestLoadManifestThreeOutcomes(t *testing.T) {
 		}
 	})
 	t.Run("absent-file", func(t *testing.T) {
-		dir := t.TempDir() // exists but has no manifest
+		dir := testsupport.TempDir(t) // exists but has no manifest
 		_, present, err := loadManifest(dir)
 		if present || err != nil {
 			t.Fatalf("absent file: present=%v err=%v, want false/nil", present, err)
@@ -146,7 +147,7 @@ func TestLoadManifestThreeOutcomes(t *testing.T) {
 
 	for name, data := range corrupt {
 		t.Run(name, func(t *testing.T) {
-			dir := t.TempDir()
+			dir := testsupport.TempDir(t)
 			writeRaw(t, dir, data)
 			_, present, err := loadManifest(dir)
 			if err == nil {
@@ -160,7 +161,7 @@ func TestLoadManifestThreeOutcomes(t *testing.T) {
 
 	// An unreadable directory is an error, never clean absence.
 	t.Run("unreadable-dir", func(t *testing.T) {
-		commonDir := t.TempDir()
+		commonDir := testsupport.TempDir(t)
 		dir := workspaceDir(commonDir, ref)
 		if err := writeManifest(dir, validManifest(commonDir, ref)); err != nil {
 			t.Fatalf("writeManifest: %v", err)
@@ -181,7 +182,7 @@ func TestLoadManifestThreeOutcomes(t *testing.T) {
 
 // TestWriteManifestNoTempSurvives proves an atomic write leaves no *.tmp sibling.
 func TestWriteManifestNoTempSurvives(t *testing.T) {
-	commonDir := t.TempDir()
+	commonDir := testsupport.TempDir(t)
 	ref := gitcli.RefName("refs/heads/feat/fix-the-thing")
 	dir := workspaceDir(commonDir, ref)
 	if err := writeManifest(dir, validManifest(commonDir, ref)); err != nil {
@@ -208,7 +209,7 @@ func TestManifestModes(t *testing.T) {
 		old := syscall.Umask(um)
 		func() {
 			defer syscall.Umask(old)
-			commonDir := t.TempDir()
+			commonDir := testsupport.TempDir(t)
 			dir := workspaceDir(commonDir, ref)
 			if err := writeManifest(dir, validManifest(commonDir, ref)); err != nil {
 				t.Fatalf("umask %#o: writeManifest: %v", um, err)

@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // newRepoDirProbe builds a minimal command carrying the defaulted flag, mirroring
@@ -32,7 +34,7 @@ func TestResolveRepoDirExplicit(t *testing.T) {
 // TestResolveRepoDirDefaultsToCwd: an omitted flag resolves through the process
 // working directory — the invocation directory, not a Git-discovered root.
 func TestResolveRepoDirDefaultsToCwd(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	t.Chdir(dir)
 	got, err := resolveRepoDir(newRepoDirProbe())
 	if err != nil {
@@ -47,7 +49,7 @@ func TestResolveRepoDirDefaultsToCwd(t *testing.T) {
 // TestResolveRepoDirCwdFailure: when the current directory cannot be determined,
 // the resolver returns an argument error before any operation runs.
 func TestResolveRepoDirCwdFailure(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	t.Chdir(dir)
 	if err := os.Remove(dir); err != nil {
 		t.Skipf("cannot remove cwd on this platform: %v", err)
@@ -73,7 +75,7 @@ func TestResolveRepoDirCwdFailure(t *testing.T) {
 // value, not merely "some output appeared".
 func repoDirDefaultMatchesExplicit(t *testing.T, args ...string) {
 	t.Helper()
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	explicit, _, _ := runCLI(t, append(append([]string{}, args...), "--repo-dir", dir, "--json")...)
 	t.Chdir(dir)
 	defaulted, _, _ := runCLI(t, append(append([]string{}, args...), "--json")...)

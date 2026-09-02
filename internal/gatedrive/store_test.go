@@ -10,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // sampleRecord builds a driveRecord carrying at least one value in every field
@@ -46,7 +48,7 @@ func sampleRecord() driveRecord {
 // TestNewDriveRoundTrip persists a record and loads it back unchanged: the store
 // is a faithful, lossless round trip and stamps the current schema version.
 func TestNewDriveRoundTrip(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	rec := sampleRecord()
 	id, gen, err := s.NewDrive(rec)
 	if err != nil {
@@ -70,7 +72,7 @@ func TestNewDriveRoundTrip(t *testing.T) {
 // TestNewDriveIDsAreHighEntropyAndDistinct proves ids are opaque high-entropy
 // tokens, not a predictable sequence, and never collide across drives.
 func TestNewDriveIDsAreHighEntropyAndDistinct(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	seen := map[string]bool{}
 	for i := 0; i < 64; i++ {
 		id, _, err := s.NewDrive(sampleRecord())
@@ -90,7 +92,7 @@ func TestNewDriveIDsAreHighEntropyAndDistinct(t *testing.T) {
 // TestCASAdvancesGenerationOnMatch proves CAS applies the mutation and rotates
 // the generation only when the caller presents the current generation.
 func TestCASAdvancesGenerationOnMatch(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	id, g0, err := s.NewDrive(sampleRecord())
 	if err != nil {
 		t.Fatalf("NewDrive: %v", err)
@@ -124,7 +126,7 @@ func TestCASAdvancesGenerationOnMatch(t *testing.T) {
 // TestCASRejectsStaleGeneration proves a writer holding an outdated generation
 // is refused with the typed generation-mismatch error and changes nothing.
 func TestCASRejectsStaleGeneration(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	id, g0, err := s.NewDrive(sampleRecord())
 	if err != nil {
 		t.Fatalf("NewDrive: %v", err)
@@ -156,7 +158,7 @@ func TestCASRejectsStaleGeneration(t *testing.T) {
 // transition (an impossible transition halts, never a best-effort write): the
 // record and the generation are both unchanged and the error propagates.
 func TestCASMutateErrorAborts(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	id, g0, err := s.NewDrive(sampleRecord())
 	if err != nil {
 		t.Fatalf("NewDrive: %v", err)
@@ -187,7 +189,7 @@ func TestCASMutateErrorAborts(t *testing.T) {
 // Run under -race; the store shares no mutable Go state, and the flock plus the
 // persisted generation serialize the read-modify-write on disk.
 func TestConcurrentCASSingleWinner(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	id, g0, err := s.NewDrive(sampleRecord())
 	if err != nil {
 		t.Fatalf("NewDrive: %v", err)
@@ -234,7 +236,7 @@ func TestConcurrentCASSingleWinner(t *testing.T) {
 // version the store does not recognize fails closed with the typed unknown-schema
 // error rather than being best-effort migrated.
 func TestLoadUnknownSchemaVersionErrors(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	id, _, err := s.NewDrive(sampleRecord())
 	if err != nil {
 		t.Fatalf("NewDrive: %v", err)
@@ -266,7 +268,7 @@ func TestLoadUnknownSchemaVersionErrors(t *testing.T) {
 // TestTraversalIDRejected proves a user-supplied id carrying path traversal or
 // separators is rejected by validation before any path is constructed or touched.
 func TestTraversalIDRejected(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	for _, bad := range []string{
 		"../../etc/passwd",
 		"..",
@@ -299,13 +301,13 @@ func TestTraversalIDRejected(t *testing.T) {
 // to escape the private root: the store refuses it rather than following it to
 // the decoy record it points at.
 func TestSymlinkDriveDirRejected(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	if err := os.MkdirAll(s.root, 0o700); err != nil {
 		t.Fatalf("mkdir root: %v", err)
 	}
 	// A decoy drive dir OUTSIDE the root with a readable record. If the guard
 	// failed, Load would succeed against this instead of refusing.
-	decoy := t.TempDir()
+	decoy := testsupport.TempDir(t)
 	buf, err := json.Marshal(storedRecord{Generation: "g", Record: sampleRecord()})
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
@@ -330,7 +332,7 @@ func TestSymlinkDriveDirRejected(t *testing.T) {
 // and lock files are 0600 — owner-only, so the private runtime state cannot be
 // read by another user on a shared host.
 func TestOwnerPrivatePermissions(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	id, g0, err := s.NewDrive(sampleRecord())
 	if err != nil {
 		t.Fatalf("NewDrive: %v", err)
@@ -360,7 +362,7 @@ func TestOwnerPrivatePermissions(t *testing.T) {
 // TestLoadMissingDriveErrors proves an unknown id is a typed not-found, distinct
 // from an invalid id or a corrupt record.
 func TestLoadMissingDriveErrors(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	_, err := s.Load(strings.Repeat("b", 32))
 	if se, ok := AsStoreError(err); !ok || se.Kind != ErrNotFound {
 		t.Fatalf("missing drive must return ErrNotFound, got %v", err)

@@ -28,6 +28,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/process"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // newRepoDrive persists a drive whose drive-start execution identity is the REAL
@@ -43,7 +44,7 @@ func newRepoDrive(t *testing.T, repo string) (s *Store, id, owner string, startF
 	rec.HeadOID = startFP.Head
 	rec.Fingerprint = startFP
 	owner = rec.OwnerGeneration
-	s = OpenStore(t.TempDir())
+	s = OpenStore(testsupport.TempDir(t))
 	var err error
 	id, _, err = s.NewDrive(rec)
 	if err != nil {

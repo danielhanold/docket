@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // legacyHarnesses is the four shipped harnesses with a named v0.9.2 emitter —
@@ -490,7 +492,7 @@ func TestLegacyAdoption_ByteMutationRefused(t *testing.T) {
 	for _, c := range loadLegacyNativeCases(t) {
 		t.Run(c.label(), func(t *testing.T) {
 			legacy := NewLegacyReproducer(nativeInputs(c.shape))
-			root := t.TempDir()
+			root := testsupport.TempDir(t)
 			p := nativeAgentPath(root, c.harness, c.filename)
 			target := Target{Path: p, Kind: KindFile, Content: []byte(replacementRender), Role: roleAgent}
 
@@ -513,7 +515,7 @@ func TestLegacyAdoption_ByteMutationRefused(t *testing.T) {
 func TestLegacyAdoption_PinMutationRefused(t *testing.T) {
 	for _, c := range loadLegacyNativeCases(t) {
 		t.Run(c.label(), func(t *testing.T) {
-			root := t.TempDir()
+			root := testsupport.TempDir(t)
 			p := nativeAgentPath(root, c.harness, c.filename)
 			writeFileOrDie(t, p, string(c.golden))
 			target := Target{Path: p, Kind: KindFile, Content: []byte(replacementRender), Role: roleAgent}
@@ -556,7 +558,7 @@ func TestLegacyAdoption_PathMutationRefused(t *testing.T) {
 	for _, c := range loadLegacyNativeCases(t) {
 		t.Run(c.label(), func(t *testing.T) {
 			legacy := NewLegacyReproducer(nativeInputs(c.shape))
-			root := t.TempDir()
+			root := testsupport.TempDir(t)
 
 			good := nativeAgentPath(root, c.harness, c.filename)
 			writeFileOrDie(t, good, string(c.golden))
@@ -583,7 +585,7 @@ func TestLegacyAdoption_KindMutationRefused(t *testing.T) {
 	for _, c := range loadLegacyNativeCases(t) {
 		t.Run(c.label(), func(t *testing.T) {
 			legacy := NewLegacyReproducer(nativeInputs(c.shape))
-			root := t.TempDir()
+			root := testsupport.TempDir(t)
 			p := nativeAgentPath(root, c.harness, c.filename)
 			writeFileOrDie(t, p, string(c.golden))
 
@@ -625,14 +627,14 @@ func TestLegacyAdoption_DispatchBlockMutationsRefused(t *testing.T) {
 	}
 
 	t.Run("unmutated interior adopts", func(t *testing.T) {
-		root := t.TempDir()
+		root := testsupport.TempDir(t)
 		p := filepath.Join(root, "CLAUDE.md")
 		writeFileOrDie(t, p, managedFile(string(interior)))
 		assertAdopted(t, blockTarget(p, KindManagedBlock), legacy, "valid legacy block")
 	})
 
 	t.Run("byte: one interior byte changed is a conflict", func(t *testing.T) {
-		root := t.TempDir()
+		root := testsupport.TempDir(t)
 		p := filepath.Join(root, "CLAUDE.md")
 		mutated := flipOneByte(interior)
 		if bytes.Equal(mutated, interior) {
@@ -643,7 +645,7 @@ func TestLegacyAdoption_DispatchBlockMutationsRefused(t *testing.T) {
 	})
 
 	t.Run("marker: an unbalanced (dangling start) marker is managed-block-invalid", func(t *testing.T) {
-		root := t.TempDir()
+		root := testsupport.TempDir(t)
 		p := filepath.Join(root, "CLAUDE.md")
 		// The body IS the exact legacy interior: were the legacy check to run
 		// before marker validation this would be wrongly adopted. Marker validity
@@ -653,7 +655,7 @@ func TestLegacyAdoption_DispatchBlockMutationsRefused(t *testing.T) {
 	})
 
 	t.Run("marker: a malformed start keyword is managed-block-invalid", func(t *testing.T) {
-		root := t.TempDir()
+		root := testsupport.TempDir(t)
 		p := filepath.Join(root, "CLAUDE.md")
 		// `:begin` is not a valid docket marker keyword; with a lone valid `:end`
 		// the block is unbalanced, so it is refused before any legacy check.
@@ -662,7 +664,7 @@ func TestLegacyAdoption_DispatchBlockMutationsRefused(t *testing.T) {
 	})
 
 	t.Run("kind: a plain-file target where a managed block belongs is a conflict", func(t *testing.T) {
-		root := t.TempDir()
+		root := testsupport.TempDir(t)
 		p := filepath.Join(root, "CLAUDE.md")
 		writeFileOrDie(t, p, managedFile(string(interior)))
 		// Declaring KindFile makes the whole instruction file the artifact; the
@@ -682,7 +684,7 @@ func TestLegacyAdoption_CursorRuleMutationsRefused(t *testing.T) {
 		t.Fatalf("reading cursor dispatch golden: %v", err)
 	}
 	legacy := NewLegacyReproducer(LegacyInputs{Harnesses: append([]string(nil), legacyHarnesses...)})
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	good := filepath.Join(root, ".cursor", "rules", "docket-dispatch.mdc")
 	target := Target{Path: good, Kind: KindFile, Content: []byte(replacementRender), Role: "dispatch"}
 

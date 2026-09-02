@@ -13,6 +13,7 @@ import (
 	"github.com/danielhanold/docket/internal/assets"
 	"github.com/danielhanold/docket/internal/buildinfo"
 	"github.com/danielhanold/docket/internal/install"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // treeWalkCommand is the scratch command captureTree registers. It is
@@ -369,7 +370,7 @@ func TestHiddenCompletionCommandsRejected(t *testing.T) {
 // they would consult the developer's own ~/.config/docket/config.yml.
 func pinGlobalConfig(t *testing.T) {
 	t.Helper()
-	base := t.TempDir()
+	base := testsupport.TempDir(t)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(base, "xdg"))
 	t.Setenv("HOME", filepath.Join(base, "home"))
 }
@@ -391,7 +392,7 @@ func TestDiagnosticConfigRequiresRepoDir(t *testing.T) {
 // presenter renders its document — the wiring assertion this package owns.
 func TestDiagnosticConfigReachesOperation(t *testing.T) {
 	pinGlobalConfig(t)
-	out, errS, code := runCLI(t, "diagnostic", "config", "--repo-dir", t.TempDir(), "--default-branch", "main", "--json")
+	out, errS, code := runCLI(t, "diagnostic", "config", "--repo-dir", testsupport.TempDir(t), "--default-branch", "main", "--json")
 	if code != 0 || errS != "" {
 		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
 	}
@@ -400,7 +401,7 @@ func TestDiagnosticConfigReachesOperation(t *testing.T) {
 	}
 
 	// --for-mutation selects the other operation over the same repository.
-	out, errS, code = runCLI(t, "diagnostic", "config", "--repo-dir", t.TempDir(), "--default-branch", "main", "--for-mutation", "--json")
+	out, errS, code = runCLI(t, "diagnostic", "config", "--repo-dir", testsupport.TempDir(t), "--default-branch", "main", "--for-mutation", "--json")
 	if code != 0 || errS != "" {
 		t.Fatalf("for-mutation: out=%q err=%q code=%d", out, errS, code)
 	}
@@ -414,7 +415,7 @@ func TestDiagnosticConfigReachesOperation(t *testing.T) {
 // the developer's real home.
 func pinInstallEnv(t *testing.T) string {
 	t.Helper()
-	base := t.TempDir()
+	base := testsupport.TempDir(t)
 	home := filepath.Join(base, "home")
 	if err := os.MkdirAll(home, 0o755); err != nil {
 		t.Fatal(err)
@@ -492,7 +493,7 @@ func TestInstallRepoDirFlagRegistered(t *testing.T) {
 // mutation.
 func TestInstallInvalidRepoDir(t *testing.T) {
 	pinInstallEnv(t)
-	notARepo := t.TempDir()
+	notARepo := testsupport.TempDir(t)
 	out, errS, code := runCLI(t, "install", "--repo-dir", notARepo, "--json")
 	if code != 2 || errS != "" {
 		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
@@ -525,7 +526,7 @@ func TestInstallCheckWithoutInstallation(t *testing.T) {
 // so loading it would turn this into an invalid-input document.
 func TestInstallIgnoresRepositoryLayer(t *testing.T) {
 	pinInstallEnv(t)
-	cwd := t.TempDir()
+	cwd := testsupport.TempDir(t)
 	if err := os.WriteFile(filepath.Join(cwd, ".docket.yml"), []byte("metadata_branch: [not, a, string]\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -561,7 +562,7 @@ func TestDevelopmentInstallRequiresSource(t *testing.T) {
 
 func TestDevelopmentInstallWiresBothRunners(t *testing.T) {
 	pinInstallEnv(t)
-	bogus := filepath.Join(t.TempDir(), "not-a-checkout")
+	bogus := filepath.Join(testsupport.TempDir(t), "not-a-checkout")
 	out, errS, code := runCLI(t, "development", "install", "--source", bogus, "--json")
 	// invalid-input results exit 2 (the convention every other install/flag
 	// error test in this file asserts, e.g. TestVersionExtraArgsJSON).
@@ -673,6 +674,9 @@ func TestAssetDependentRefusal(t *testing.T) {
 func statusGit(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	// See gitCmd: background-off GIT_CONFIG_GLOBAL (testsupport.GitEnv) keeps a
+	// detached git housekeeping child from racing the fixture teardown (0373).
+	cmd.Env = append(os.Environ(), testsupport.GitEnv(t)...)
 	var errBuf bytes.Buffer
 	cmd.Stderr = &errBuf
 	if err := cmd.Run(); err != nil {
@@ -702,9 +706,9 @@ func newStatusFixtureRepo(t *testing.T) string {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not found on PATH")
 	}
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", testsupport.TempDir(t))
 
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	origin := filepath.Join(root, "origin.git")
 	writer := filepath.Join(root, "writer")
 	invocation := filepath.Join(root, "invocation")
@@ -768,8 +772,8 @@ func TestStatusOutsideRepository(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not found on PATH")
 	}
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	bare := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", testsupport.TempDir(t))
+	bare := testsupport.TempDir(t)
 
 	out, errS, code := runCLI(t, "status", "--repo-dir", bare, "--json")
 	if code != 2 || errS != "" {

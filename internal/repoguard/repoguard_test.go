@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"slices"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // writeFile creates parent dirs and writes a file inside a fixture tree.
@@ -24,7 +26,7 @@ func writeFile(t *testing.T, root, rel, content string) {
 // and returns its root.
 func fixtureTree(t *testing.T) string {
 	t.Helper()
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	writeFile(t, root, "go.mod", "module x\n")
 	// Included: ordinary maintained source across the surfaces guards care about.
 	writeFile(t, root, "install.sh", "#!/bin/sh\n")

@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/danielhanold/docket/internal/app"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // TestFinalizeRetargetChildrenRegistered proves the subcommand is wired under the
@@ -56,7 +57,7 @@ func TestFinalizeRetargetChildrenReachesOperation(t *testing.T) {
 	out, errS, _ := runCLIStdin(t, `{"children":[{"id":81,"pr_number":810,"pr_version":"cv810"}]}`,
 		"finalize", "retarget-children",
 		"--id", "80", "--version", "1234123412341234123412341234123412341234",
-		"--input", "-", "--repo-dir", t.TempDir(), "--json")
+		"--input", "-", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
 	}
@@ -184,7 +185,7 @@ func TestFinalizeRebaseFlagsRequired(t *testing.T) {
 func TestFinalizeRebaseReachesOperation(t *testing.T) {
 	out, errS, _ := runCLI(t, "finalize", "rebase",
 		"--id", "80", "--version", "1234123412341234123412341234123412341234",
-		"--head", "abcabcabcabcabcabcabcabcabcabcabcabcabca", "--repo-dir", t.TempDir(), "--json")
+		"--head", "abcabcabcabcabcabcabcabcabcabcabcabcabca", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
 	}
@@ -202,7 +203,7 @@ func TestFinalizeRebaseContinueReachesOperation(t *testing.T) {
 	out, errS, _ := runCLIStdin(t,
 		`{"change_id":80,"attempt":"a1","disposition":"resolved","conflicted_paths":["x.txt"]}`,
 		"finalize", "rebase-continue",
-		"--id", "80", "--attempt", "a1", "--input", "-", "--repo-dir", t.TempDir(), "--json")
+		"--id", "80", "--attempt", "a1", "--input", "-", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
 	}
@@ -262,7 +263,7 @@ func TestFinalizePublishReachesOperation(t *testing.T) {
 		"finalize", "publish",
 		"--id", "80", "--attempt", "a1",
 		"--head", "abcabcabcabcabcabcabcabcabcabcabcabcabca",
-		"--evidence", "-", "--repo-dir", t.TempDir(), "--json")
+		"--evidence", "-", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
 	}
@@ -324,7 +325,7 @@ func TestFinalizeMergeReachesOperation(t *testing.T) {
 	out, errS, _ := runCLI(t, "finalize", "merge",
 		"--id", "80", "--version", "1234123412341234123412341234123412341234",
 		"--head", "abcabcabcabcabcabcabcabcabcabcabcabcabca",
-		"--repo-dir", t.TempDir(), "--json")
+		"--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
 	}
@@ -368,7 +369,7 @@ func TestFinalizeBlockReachesOperation(t *testing.T) {
 	out, errS, _ := runCLIStdin(t, `{"remedy":"fix it"}`,
 		"finalize", "block", "--id", "3", "--version", "1234123412341234123412341234123412341234",
 		"--pr-number", "7", "--attempt", "att1", "--reason", "gate-repair-required",
-		"--head", "aaaa", "--input", "-", "--repo-dir", t.TempDir(), "--json")
+		"--head", "aaaa", "--input", "-", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
 	}
@@ -418,7 +419,7 @@ func TestFinalizeClearBlockRegistered(t *testing.T) {
 func TestFinalizeClearBlockReachesOperation(t *testing.T) {
 	out, errS, _ := runCLI(t, "finalize", "clear-block",
 		"--id", "3", "--version", "1234123412341234123412341234123412341234",
-		"--head", "aaaa", "--pr-number", "7", "--repo-dir", t.TempDir(), "--json")
+		"--head", "aaaa", "--pr-number", "7", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
 	}
@@ -474,7 +475,7 @@ func TestFinalizeCloseoutFlagsRequired(t *testing.T) {
 // TestFinalizeCloseoutReachesOperation proves the command decodes --id and reaches
 // the operation, which emits exactly one protocol-v1 document naming it.
 func TestFinalizeCloseoutReachesOperation(t *testing.T) {
-	out, errS, _ := runCLI(t, "finalize", "closeout", "--id", "80", "--repo-dir", t.TempDir(), "--json")
+	out, errS, _ := runCLI(t, "finalize", "closeout", "--id", "80", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
 	}

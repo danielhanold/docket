@@ -23,6 +23,7 @@ import (
 	"github.com/danielhanold/docket/internal/harness/cursor"
 	"github.com/danielhanold/docket/internal/harness/opencode"
 	"github.com/danielhanold/docket/internal/install"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // ---------------------------------------------------------------------------
@@ -42,7 +43,7 @@ type world struct {
 
 func newWorld(t *testing.T, harnessDirs ...string) *world {
 	t.Helper()
-	base := canonical(t, t.TempDir())
+	base := canonical(t, testsupport.TempDir(t))
 	home := filepath.Join(base, "home")
 	data := filepath.Join(base, "data")
 	mkdirAll(t, home)
@@ -939,7 +940,7 @@ func TestRepoLayerNeverLoaded(t *testing.T) {
 	// A repository configuration sitting in the working directory is not an
 	// input to this operation: the service takes a resolved snapshot, never a
 	// path, so there is nothing for a repo layer to reach.
-	repo := t.TempDir()
+	repo := testsupport.TempDir(t)
 	writeFile(t, filepath.Join(repo, ".docket.yml"), "agents:\n  claude:\n    build-standard:\n      model: sonnet-9\n")
 	t.Chdir(repo)
 

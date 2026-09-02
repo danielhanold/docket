@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // devFixture drops each name->body pair as a test_<name>.sh script into a fresh
@@ -15,7 +17,7 @@ import (
 // entirely synthetic, so nothing here touches the real corpus.
 func devFixture(t *testing.T, scripts map[string]string) string {
 	t.Helper()
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	for name, body := range scripts {
 		writeScript(t, dir, name, "# docket-suite: go\n"+body)
 	}
@@ -76,7 +78,7 @@ func TestRunNoResultExitsThree(t *testing.T) {
 		"a": "echo 'ok - a'\n",
 		"b": "echo 'ok - b'\n",
 	})
-	work := t.TempDir()
+	work := testsupport.TempDir(t)
 	statDir := filepath.Join(work, "stat")
 	if err := os.MkdirAll(statDir, 0o755); err != nil {
 		t.Fatal(err)

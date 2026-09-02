@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // Integration-test identity fixture. The commit is a syntactically valid
@@ -91,7 +93,7 @@ func TestIntegrationReleasePackageEndToEnd(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping four-tuple build integration in -short mode")
 	}
-	outDir := t.TempDir()
+	outDir := testsupport.TempDir(t)
 	in := itInputs(t, outDir)
 
 	if err := Package(in, "go"); err != nil {
@@ -171,7 +173,7 @@ func TestIntegrationReleasePackageEndToEnd(t *testing.T) {
 		t.Skipf("host tuple %s/%s is not in the approved set; identity is CI external truth", runtime.GOOS, runtime.GOARCH)
 	}
 	member := extractMember(t, hostArchive)
-	binPath := filepath.Join(t.TempDir(), "docket")
+	binPath := filepath.Join(testsupport.TempDir(t), "docket")
 	if err := os.WriteFile(binPath, member, 0o755); err != nil {
 		t.Fatalf("write extracted host binary: %v", err)
 	}
@@ -206,8 +208,8 @@ func TestIntegrationReleasePackageDeterministic(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping determinism double-build in -short mode")
 	}
-	dirA := t.TempDir()
-	dirB := t.TempDir()
+	dirA := testsupport.TempDir(t)
+	dirB := testsupport.TempDir(t)
 	if err := Package(itInputs(t, dirA), "go"); err != nil {
 		t.Fatalf("Package A: %v", err)
 	}
@@ -232,7 +234,7 @@ func TestIntegrationReleasePackageDeterministic(t *testing.T) {
 // so an existing artifact is never clobbered. Refusal happens before the four
 // cross-builds, so this test is fast even though it exercises Package.
 func TestIntegrationReleasePackageRefusesCollision(t *testing.T) {
-	outDir := t.TempDir()
+	outDir := testsupport.TempDir(t)
 	// Plant one of the target archive names.
 	collision := ArchiveName(itVersion, Tuples()[0])
 	if err := os.WriteFile(filepath.Join(outDir, collision), []byte("preexisting"), 0o644); err != nil {
@@ -262,7 +264,7 @@ func TestIntegrationReleasePackageRefusesCollision(t *testing.T) {
 // pins that the final gate bites on corruption; a full Package build is not
 // needed to exercise the guard function.
 func TestIntegrationReleasePackageBundleValidatesChecksums(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	names := []string{"a.tar.gz", "install.sh"}
 	for _, n := range names {
 		if err := os.WriteFile(filepath.Join(dir, n), []byte("body of "+n), 0o644); err != nil {
