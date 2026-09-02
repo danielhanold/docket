@@ -22,7 +22,7 @@ parent-side **Stacked children** row is derived at render time by `render-change
 `stacked_children:` field exists. The parent id is never copied into `related:` or `depends_on:`.
 That row is a **human view, not an oracle**: it is regenerated when something writes the parent, so
 it can lag a child added later. Anything that decides — a gate, a report, a close-out — reads the
-typed descendant set from `docket context finalize` (its `descendants` and `open_child_prs`
+typed descendant set from the `context.finalize` operation (its `descendants` and `open_child_prs`
 fields) instead.
 
 The key is **optional**, so every read of it uses the anchored `fm_field`, never `field` — in this
@@ -55,21 +55,21 @@ What it does **not** satisfy:
   depending on a `stacked-merged` change is still waiting, correctly: that code has not shipped.
 - **Close-out.** Nothing is archived, published, or cleaned up until the stack root lands.
 
-The merge sweep (`docket maintenance sweep`) is the only producer of the state; the typed finalize
-close-out (`docket finalize closeout`'s `root-archived` disposition) is the only consumer that takes
+The merge sweep (the `maintenance.sweep` operation) is the only producer of the state; the typed finalize
+close-out (the `finalize.closeout` operation's `root-archived` disposition) is the only consumer that takes
 a change out of it, when the stack root reaches integration. Neither mechanism is restated here — see
 *The stack close-out is idempotent* below.
 
-## Resolving the base — `docket context implementation` effective-base
+## Resolving the base — `context.implementation` effective-base
 
 Every branch cut, PR base, and rebase target for a change resolves through one policy, applied
 **unconditionally**: an unstacked change resolves to the integration branch, so no caller needs to
 know in advance whether a change is stacked. The resolution is delivered as the typed
-**`effective_base`** field of `docket context implementation` (a `ContextBase`); `docket workspace
-prepare` applies the same domain policy internally — no skill runs a separate resolver.
+**`effective_base`** field of the `context.implementation` operation (a `ContextBase`); the `workspace.prepare`
+operation applies the same domain policy internally — no skill runs a separate resolver.
 
 ```
-docket context implementation --id <id>   # → .effective_base: { kind, branch, source_change }
+context.implementation  --id <id>   # → .effective_base: { kind, branch, source_change }; resolve argv from the capability catalog
 ```
 
 The walk applies four rules, upward from the change:
@@ -128,12 +128,12 @@ for no gain the gate does not already deliver.
 Before merging a change that has stacked children, resolve every child's state. **Get that child set
 from the scan, never from the parent's rendered `## Stacked children` row** — that row is a view
 regenerated when something writes the *parent*, so a child stacked on an already-`implemented`
-parent is simply absent from it. This set is delivered typed by `docket context finalize`, applied
+parent is simply absent from it. This set is delivered typed by the `context.finalize` operation, applied
 **unconditionally** — as with the effective-base resolution, an unstacked change's candidate simply
 carries an empty descendant set.
 
 ```
-docket context finalize --id <this change's id>
+context.finalize  --id <this change's id>   # resolve argv from the capability catalog
 #   → candidate.descendants[]   : { id, slug, status, pr_destination }, parents before children
 #   → candidate.open_child_prs[]: the OPEN child PR numbers based on this parent's branch
 ```
@@ -183,14 +183,14 @@ state is surfaced; the flip itself is a human-directed edit, never an automatic 
 
 ## The stack close-out is idempotent
 
-When a stack **root** merges, the typed close-out — `docket finalize closeout`'s **`root-archived`**
+When a stack **root** merges, the typed close-out — the `finalize.closeout` operation's **`root-archived`**
 disposition — archives the root and every carried `stacked-merged` descendant to `done` in **one
 transaction**, all under the **root's** merge date, and renders the root's marker-bounded **Stack
 carried** table on the root's archived record. One unproven descendant leaves the root recoverable
 with zero descendant writes (fail-closed).
 
 **Two invokers reach this one transaction**, and neither substitutes for the other: the merge sweep
-(`docket maintenance sweep`), right after it sweeps a root to `done`; and `docket-finalize-change`,
+(the `maintenance.sweep` operation), right after it sweeps a root to `done`; and `docket-finalize-change`,
 in its step-9 close-out. The sweep cannot cover for finalize — it only ever enumerates `active/` for
 a merged PR, and a root finalize has archived is never re-enumerated while a `stacked-merged`
 descendant has no merged PR of its own to find — so a close-out finalize skips strands a stack

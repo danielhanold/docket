@@ -17,8 +17,8 @@ authors its own liveness check — the driver owns all of that.
 
 ## The driver's operations
 
-The high-level surface is the `docket gate drive` command group: `docket gate drive start`,
-`docket gate drive advance`, `docket gate drive handoff`, and `docket gate drive claim`. Each op is
+The high-level surface is the `gate.drive` operation group: `gate.drive.start`,
+`gate.drive.advance`, `gate.drive.handoff`, and `gate.drive.claim` (resolve each argv from the capability catalog). Each op is
 one short call that advances the same durable drive by **at most one slice** and returns the shared
 protocol-v1 outcome document (the same document the in-process app seam returns, never a re-flattened
 copy):
@@ -76,11 +76,11 @@ nobody holds.
 
 ## The raw verbs are primitive/operator APIs, not caller-loop verbs
 
-The five raw verbs — `docket gate launch`, `docket gate observe`, `docket gate stop`,
-`docket gate recover`, and `docket gate cleanup` — retain their narrow primitive meanings and remain
+The five raw verbs — `gate.launch`, `gate.observe`, `gate.stop`,
+`gate.recover`, and `gate.cleanup` — retain their narrow primitive meanings and remain
 callable by the **driver implementation, primitive-level tests, diagnostics, recovery, cleanup, and
 operator workflows**. They are **not** high-level workflow APIs. A workflow caller never composes
 them directly and never recreates the retired observe/sleep loop — every build task worker, the
 build controller's final gate, implement-next's evidence re-mint and re-gates, and finalize's local
-gate drive the gate through the `docket gate drive` operations above instead. The raw verbs are
+gate drive the gate through the `gate.drive` operations above instead. The raw verbs are
 documented as primitives in the operator-facing gate documentation, not here.

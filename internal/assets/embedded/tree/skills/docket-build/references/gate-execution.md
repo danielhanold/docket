@@ -38,7 +38,7 @@ result artifact — one discipline, three payoffs. It carries one non-obvious pr
 and recorded as evidence: the new session must be **fully established before the initiating
 call returns**, or the harness's teardown wins the race. That precondition was measured, not
 reasoned about; the measurement is in the evidence file linked at the end of this reference.
-Docket ships that mitigation as `docket gate launch`, implemented in `internal/process/launch.go`:
+Docket ships that mitigation as the `gate.launch` operation, implemented in `internal/process/launch.go`:
 it performs the detached launch, the durable unmerged streams, and the establishment handshake the
 precondition names, so a call site satisfies these capabilities by using it rather than by
 re-deriving a launch shape. **What its detachment delivers is uniform across every supported

@@ -19,7 +19,7 @@ agent: docket-adr
 
 ## Convention (load first — blocking)
 
-Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *Step-0 preamble* (load the convention; `docket repository prepare --repo-dir <dir> --json` as its own Bash call; validate the protocol-v1 envelope and carry its typed context forward as literals; act on the verdict). Everything below uses its vocabulary without redefinition. All ADR reads and writes land in the metadata working tree on `metadata_branch`, pushed to its remote immediately.
+Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *Step-0 preamble* (load the convention; run the capability bootstrap; run the `repository.prepare` operation with `--repo-dir <dir> --json` as its own Bash call; validate the protocol-v1 envelope and carry its typed context forward as literals; act on the verdict). Everything below uses its vocabulary without redefinition. All ADR reads and writes land in the metadata working tree on `metadata_branch`, pushed to its remote immediately.
 
 ## Actions
 
@@ -28,7 +28,7 @@ Invoke the `docket-convention` skill via the Skill tool first — unless already
 Build the ADR as a JSON request and hand it to the record transaction on stdin:
 
 ```
-docket adr record --request -
+adr.record  --request -   # resolve argv from the capability catalog
 ```
 
 The request object (`ADRRecordRequest`, decoded with `DisallowUnknownFields` — an unknown key is rejected) carries:
@@ -50,10 +50,10 @@ One validated transaction lands atomically, in a single metadata commit: the nex
 Never edit an `Accepted` ADR's body. To replace a decision, hand the replace transaction a JSON request on stdin:
 
 ```
-docket adr supersede --request -
+adr.supersede  --request -   # resolve argv from the capability catalog
 ```
 
-(or `docket adr reverse --request -` to reverse rather than supersede). The request object (`ADRReplaceRequest`, `DisallowUnknownFields`) carries:
+(or the `adr.reverse` operation with `--request -` to reverse rather than supersede). The request object (`ADRReplaceRequest`, `DisallowUnknownFields`) carries:
 
 - `request_id` — the caller-chosen idempotency key (the outer key governs; the `successor`'s own `request_id` is ignored).
 - `target` — the ADR being replaced, as `{id, path, version}`. The target must be `Accepted`, else the transaction refuses.
@@ -80,7 +80,7 @@ Every ADR transaction (record / supersede / reverse) re-renders `<adrs_dir>/READ
 There is no standalone renderer to run by hand: the transactions own the render, and **out-of-band index drift** (a `README.md` that a hand-edit or an interrupted legacy write left stale when no ADR transaction is running) is surfaced and repaired through the typed derived-view path, never a hand-render:
 
 ```
-docket repository check --json
+repository.check  --json   # resolve argv from the capability catalog
 ```
 
 surfaces the drift as a structured finding (`adr-index-stale` when the bytes differ deterministically, `adr-index-malformed` when the markers are broken) — never a false "all clean" on a read error. A deterministic `adr-index-stale` finding is `Repairable`; regenerate the drifted index through the authorized mechanical repair:
@@ -91,4 +91,4 @@ docket repository migrate --repair-frontmatter
 
 Repair re-renders only the canonical derived bytes it owns (marker order and balance validated first — a malformed index refuses and leaves the file untouched) and never edits an authored ADR body. It re-proves the pinned revision before writing and commits on `metadata_branch`. On a git conflict on the index, re-run the repair rather than hand-merging (the regenerate-don't-3-way-merge rule).
 
-Validate the ledger the same way — `docket repository check` runs the ADR-ledger consistency findings (numbering gaps, dangling `supersedes:`/`reverses:`/`relates_to:` links, status inconsistencies) alongside the derived-view drift findings, each as one structured finding; a non-`Repairable` finding (illegal ADR evolution, a missing referenced record) is left for manual review.
+Validate the ledger the same way — the `repository.check` operation runs the ADR-ledger consistency findings (numbering gaps, dangling `supersedes:`/`reverses:`/`relates_to:` links, status inconsistencies) alongside the derived-view drift findings, each as one structured finding; a non-`Repairable` finding (illegal ADR evolution, a missing referenced record) is left for manual review.
