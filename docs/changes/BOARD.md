@@ -1,6 +1,6 @@
 # Backlog
 
-**396 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 20 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 241 done · 🗑️ 84 killed
+**397 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 20 groomed · 🟡 46 proposed · ⚪ 4 deferred · ✅ 241 done · 🗑️ 84 killed
 
 ## 🟢 In progress (1)
 
@@ -39,10 +39,11 @@
 | [0172](active/0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md) | Normalize the banned producer-pipe shape across tests and helpers | `medium` | `chore` | [spec](../superpowers/specs/2026-08-07-normalize-the-banned-producer-pipe-shape-across-tests-and-he-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
-## 🟡 Proposed (45)
+## 🟡 Proposed (46)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0397](active/0397-run-the-implementation-preflight-as-one-deterministic-operat.md) | Run the implementation preflight as one deterministic operation instead of a docket-status dispatch, and drop status --json's corpus records by default | `high` | `perf` | needs-brainstorm |
 | [0392](active/0392-installer-tolerant-config-read-break-the-schema-bump-bootstr.md) | Installer-tolerant config read: break the schema-bump bootstrap deadlock | `medium` | `fix` | needs-brainstorm |
 | [0391](active/0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | `medium` | `feat` | needs-brainstorm |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-brainstorm |
@@ -171,6 +172,7 @@ graph TD
   0393
   0394 --> 0395
   0396
+  0397
   0192:::done
   0211:::done
   0251:::done
