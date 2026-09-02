@@ -216,6 +216,22 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 			if cwd == "" {
 				cwd = repoDir
 			}
+			// The drive's RepoDir is its REPOSITORY IDENTITY, recorded as
+			// RepoIdentity and compared by scopeIdentityMatch — it is NOT the
+			// fingerprinted worktree (that is Worktree, below). The repository
+			// identity is the Git common directory, shared across every linked
+			// worktree, which is exactly what `gate drive prepare-scope` pins as the
+			// scope's RepoIdentity (and how the rest of docket records a repo
+			// identity — see finalize's rebase receipt). Passing the worktree path
+			// here instead made a legitimate prepare-scope→scope-bound-start compare
+			// two different dimensions (common dir vs worktree), so it ALWAYS failed
+			// scope-identity-mismatch. Resolve the common dir so both sides pin the
+			// same dimension; a genuine cross-repo start still has a different common
+			// dir and still fails closed. (change 0359)
+			commonDir, _, err := gateDriveRepoContext(c.Context(), repoDir)
+			if err != nil {
+				return err
+			}
 			idempotent, _ := c.Flags().GetBool("idempotent-suite-gate")
 			changeID, _ := c.Flags().GetString("change-id")
 			taskID, _ := c.Flags().GetString("task-id")
@@ -227,7 +243,7 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 			childCap, _ := c.Flags().GetString("child-cap")
 			gateContext, _ := c.Flags().GetString("gate-context")
 			setResult(gateDrivePresenter{inner: svc.Start(app.GateDriveStartRequest{
-				RepoDir:             repoDir,
+				RepoDir:             commonDir,
 				Worktree:            repoDir,
 				ChangeID:            changeID,
 				TaskID:              taskID,
