@@ -1,18 +1,18 @@
 # Backlog
 
-**397 changes** — 🟢 2 in progress · 🔵 1 built · 🟣 20 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 241 done · 🗑️ 84 killed
+**397 changes** — 🟢 1 in progress · 🔵 2 built · 🟣 20 groomed · 🟡 45 proposed · ⚪ 4 deferred · ✅ 241 done · 🗑️ 84 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0397](active/0397-run-the-implementation-preflight-as-one-deterministic-operat.md) | Run the implementation preflight as one deterministic operation instead of a docket-status dispatch, and drop status --json's corpus records by default | `high` | `perf` | [spec](../superpowers/specs/2026-09-02-run-the-implementation-preflight-as-one-deterministic-operat-design.md) | `perf/run-the-implementation-preflight-as-one-deterministic-operat` |
-| [0396](active/0396-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes.md) | finalize async gate WAITING has no CLI re-entry that resumes the same drive | `high` | `fix` | [spec](../superpowers/specs/2026-09-02-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes-design.md) | `fix/finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes` |
 
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
+| [0396](active/0396-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes.md) | finalize async gate WAITING has no CLI re-entry that resumes the same drive | `high` | `fix` | [#268](https://github.com/danielhanold/docket/pull/268) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
 ## 🟣 Groomed (20)
