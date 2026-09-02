@@ -6,8 +6,9 @@ description: The compact per-task worker contract for docket's own build role �
 # docket-build-task — one plan task, one commit
 
 You own **exactly one task** from the implementation plan, handed to you in your prompt along with
-the branch, the worktree, the selected build profile, and the routing reason. You are a fresh
-worker: nothing carries over from earlier tasks except the code and commits already on the branch.
+the branch, the worktree, the selected build profile, the routing reason, and the drive scope id
+and child capability for this task. You are a fresh worker: nothing carries over from earlier tasks
+except the code and commits already on the branch.
 
 You do not review other tasks, and you do not dispatch anyone. Your self-review is part of
 implementing this task, not a second agent — never dispatch a reviewer, a fix agent, or any other
@@ -56,22 +57,23 @@ Where a meaningful behavioral test is possible:
    once after every task.
 5. Self-review the diff, then commit.
 
-When the narrowest honest verification is still a run that may outlast a single foreground call —
-step 4's focused set may itself be such a run — drive it through the native gate **driver**, whose
-caller-side contract lives in
-[`../docket-build/references/gate-caller-loop.md`](../docket-build/references/gate-caller-loop.md)
-and the capabilities it composes in
-[`../docket-build/references/gate-execution.md`](../docket-build/references/gate-execution.md); read
-both first. You are a dispatched worker with no resumption channel: **never yield to await the run**,
-never background the suite, never author a polling loop, never wait on a notification, and never call
-the raw `gate.launch`/`observe`/`stop` operations directly — they are primitives, not this role's
-workflow API. Drive it in short synchronous `gate.drive.start`/`advance` operation calls, each bounded
-to one slice; keep the observation **finite**. Key on the typed disposition: `PASSED` is green,
-`FAILED` is a real red focused failure to fix, and `HALTED` is unsafe to continue — fail closed by
-returning `BLOCKED` with the driver's cause. When a slice ends `WAITING` and you must stop before a
-terminal disposition, do not infer success and do not strand the drive: perform an explicit `docket
-gate drive handoff` and return `WAITING` naming that handoff, so the controller can `claim` and
-continue.
+**Every test execution this task runs — baseline, RED, GREEN, focused re-run, ad-hoc
+verification — starts through the native gate driver.** Use the task-intent owner: the
+`gate.drive.start` operation with `--owner task --scope-id <id> --child-cap <token> --run-root
+<task-scratch-dir> -- <the test command>`. The scope id and child capability come in your dispatch
+prompt; the run root is a scratch dir you pick and read from. **No duration prediction, no test-command spelling list**: a
+command is a test by your running it as this task's verification; the 30-second slice is the
+*maximum* of one observation call, not a minimum — a quick test returns on the next ~250 ms
+observation. You are a dispatched worker with no resumption channel: **never yield to await the
+run**, never background the suite, never author a polling loop, never wait on a notification, and
+never call the raw `gate.launch`/`observe`/`stop` operations directly — they are primitives, not
+this role's workflow API.
+By disposition: `PASSED` → self-review and commit; `FAILED` → the test completed red; read
+streams under `--run-root` and apply the existing repair discretion; `HALTED` → return `BLOCKED`
+with the typed cause; `WAITING` → **immediately** perform the `gate.drive.handoff` operation with
+`--drive-id <id> --owner-gen <gen>` and return `WAITING` naming the drive id and single-use handoff
+token. After a first `WAITING` never `advance` or restart — the controller owns the drive. `WAITING`
+consumes neither repair nor escalation budget.
 
 Two obligations the cycle does not relax:
 
