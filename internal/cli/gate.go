@@ -521,17 +521,31 @@ func buildCommandlessGateDriveService(ctx context.Context, repoDir string) (*app
 
 // buildTaskGateDriveService composes the seam for a `gate drive start --owner task`
 // invocation: the workflow role declares the test intent and supplies argv
-// EXPLICITLY, so there is no authoritative config to resolve. It discovers the
-// repository's Git common directory (the durable store root) and this binary's
-// path (the detached supervisor re-exec target), then hands the raw argv to the
-// task-intent constructor, which runs it verbatim and forces the gate
+// EXPLICITLY, so there is no authoritative config COMMAND to resolve. The
+// observation BUDGET, however, is resolved from authoritative config exactly the
+// way buildOwnedGateDriveService does it — the shared status reader's PinContext
+// over the default-branch config blob (never operator input) — so a task-intent
+// drive gets the configured gate_observation_budget (default 30 minutes) rather
+// than the zero budget that would HALT a still-running focused test at its very
+// first observation. It discovers the repository's Git common directory (the
+// durable store root) and this binary's path (the detached supervisor re-exec
+// target), then hands the raw argv and the resolved effective config to the
+// task-intent constructor, which runs the argv verbatim and forces the gate
 // non-idempotent. An empty argv is rejected upstream in RunE.
 func buildTaskGateDriveService(ctx context.Context, repoDir string, argv []string) (*app.GateDriveService, error) {
+	deps, err := newPlanningDeps()
+	if err != nil {
+		return nil, err
+	}
+	pin, err := deps.Reader.PinContext(ctx, repoDir)
+	if err != nil {
+		return nil, err
+	}
 	commonDir, exe, err := gateDriveRepoContext(ctx, repoDir)
 	if err != nil {
 		return nil, err
 	}
-	svc, res, reason := app.NewTaskGateDriveService(commonDir, exe, argv)
+	svc, res, reason := app.NewTaskGateDriveService(commonDir, exe, pin.Config.Effective, argv)
 	if svc == nil {
 		return nil, fmt.Errorf("gate drive service unavailable: %s (%s)", res, reason)
 	}
