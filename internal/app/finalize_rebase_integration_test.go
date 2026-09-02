@@ -4,6 +4,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/githubcli"
 	"strings"
@@ -458,6 +459,71 @@ func TestIntegrationFinalizeRebaseGateWaiting(t *testing.T) {
 			t.Fatalf("re-entry did not advance the recorded drive: %+v", gate.reqs)
 		}
 	})
+
+	t.Run("waiting-document-carries-drive-id-and-never-the-generation", func(t *testing.T) {
+		f := setupRebaseFixture(t, main)
+		f.advanceBase(t)
+		gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+		gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGateWaiting,
+			Continuation: GateContinuation{DriveID: "drive-4", Generation: "SECRET-gen-4"}}}
+		res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
+			FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+		if res.Disposition != RebaseDispWaiting {
+			t.Fatalf("disposition = %q, want waiting", res.Disposition)
+		}
+		// The same marshal internal/cli/presenter.go performs ("json.Marshal(r)").
+		buf, err := json.Marshal(res)
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		if !strings.Contains(string(buf), `"drive_id":"drive-4"`) {
+			t.Errorf("waiting document lost drive_id: %s", buf)
+		}
+		if strings.Contains(string(buf), "SECRET-gen-4") || strings.Contains(string(buf), `"generation"`) {
+			t.Errorf("the owner generation leaked into the CLI document: %s", buf)
+		}
+	})
+}
+
+// TestIntegrationFinalizeRebaseAttemptRoundTrip settles the stub's unverified
+// attempt-token-truncation claim (spec §6; learnings:
+// groomed-root-cause-is-a-hypothesis): the finalize.rebase JSON document's
+// `attempt` must equal the on-disk receipt's `attempt` byte for byte, through
+// the exact marshal internal/cli/presenter.go performs ("json.Marshal(r)").
+// newRebaseAttempt mints `<stamp>-<12 hex>`; if this test never reddens, the
+// claim did not reproduce and this test stands as the guard.
+func TestIntegrationFinalizeRebaseAttemptRoundTrip(t *testing.T) {
+	requireRealGit(t)
+	f := setupRebaseFixture(t, planRepoModes()[0])
+	f.advanceBase(t)
+	gh := &fakeRebaseGitHub{repo: retargetRepo(), prs: []githubcli.PullRequest{f.prForHead(f.head, "")}}
+	gate := &fakeGate{result: LocalGateResult{Outcome: FinalizeGatePassed, Evidence: greenEvidenceFor(t, f.head), RunDir: "/run/x"}}
+	res := FinalizeRebase(context.Background(), f.finalizeDeps(gh, gate), f.repo.invocation,
+		FinalizeRebaseRequest{ID: f.id, Version: f.version, Head: f.head})
+	if res.Result != ResultApplied {
+		t.Fatalf("rebase = %q (reason %q msg %q)", res.Result, res.Reason, res.Message)
+	}
+	buf, err := json.Marshal(res)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var doc struct {
+		Attempt string `json:"attempt"`
+	}
+	if err := json.Unmarshal(buf, &doc); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	rec, found, err := f.svc.ReadRebaseReceipt(context.Background(), f.metaDir)
+	if err != nil || !found {
+		t.Fatalf("receipt: found=%v err=%v", found, err)
+	}
+	if doc.Attempt != rec.Attempt {
+		t.Fatalf("document attempt %q != receipt attempt %q", doc.Attempt, rec.Attempt)
+	}
+	// The base suffix is the full 12 hex characters newRebaseAttempt mints.
+	if i := strings.LastIndex(doc.Attempt, "-"); i < 0 || len(doc.Attempt)-i-1 != 12 {
+		t.Fatalf("attempt %q does not carry a 12-character base suffix", doc.Attempt)
+	}
 }
 
 func TestIntegrationFinalizeRebaseHappyAndReceipt(t *testing.T) {

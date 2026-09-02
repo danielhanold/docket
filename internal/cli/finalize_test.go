@@ -131,6 +131,11 @@ func TestFinalizeRebaseRegistered(t *testing.T) {
 			t.Errorf("finalize rebase: missing --%s flag", flag)
 		}
 	}
+	for _, flag := range []string{"continuation", "drive-id", "owner-gen"} {
+		if cmd.Flags().Lookup(flag) != nil {
+			t.Errorf("finalize rebase grew a --%s flag; the WAITING re-entry is the identical invocation (change 0396)", flag)
+		}
+	}
 }
 
 // TestFinalizeRebaseResolverSubcommandsRegistered proves rebase-continue and
