@@ -304,6 +304,14 @@ func TestRepresentativeSignatures(t *testing.T) {
 		"gate.launch": "--cwd <dir> --root <dir> -- <argv...>",
 		// positional alternation tail leading, optional flags trailing.
 		"run.gate-verdict": "<key> | [<id>...] [--repo-dir <dir>] [--unattributed]",
+		// change 0359: the config owners run their resolved suite command; the
+		// task-intent owner (--owner task) alone takes the focused argv after a bare
+		// `--` separator, which lands last.
+		"gate.drive.start": "--owner <role> --run-root <dir> [--branch <name>] [--change-id <id>] [--child-cap <token>] [--cwd <dir>] [--env-hash <hash>] [--gate-context <token>] [--idempotent-suite-gate] [--phase <name>] [--ref <ref>] [--repo-dir <dir>] [--scope-id <id>] [--task-id <id>] -- <argv...>",
+		// change 0359: recovery-scope preparation (required identity flags) and the
+		// event-authorized parent takeover.
+		"gate.drive.prepare-scope": "--branch <name> --change-id <id> --phase <name> --task-id <id> --worktree <dir> [--gate-context <token>] [--repo-dir <dir>]",
+		"gate.drive.takeover":      "--parent-cap <token> --scope-id <id> [--drive-id <id>] [--repo-dir <dir>]",
 	}
 	for id, wantSig := range want {
 		e, ok := entryByID(entries, id)

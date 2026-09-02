@@ -160,25 +160,54 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	}
 
 	start := &cobra.Command{
-		Use:   "start --repo-dir <dir> --run-root <dir> --owner build|finalize",
-		Short: "Start a drive over the named owner's resolved suite command and advance one slice",
+		Use:   "start --repo-dir <dir> --run-root <dir> --owner build|finalize|task -- <argv...>",
+		Short: "Start a drive over the named owner's suite command and advance one slice",
 		// process-control + local-write: launches the supervised suite via the
 		// process supervisor and writes the durable drive store.
 		Annotations: capability("gate.drive.start", EffectProcessControl, EffectLocalWrite),
-		// No suite command is accepted: the command is the resolved policy of the
-		// required --owner, read from authoritative config. Args is NoArgs — there
-		// is no `-- <argv>` boundary any more.
-		Args: cobra.NoArgs,
-		RunE: func(c *cobra.Command, _ []string) error {
+		// The config owners (build|finalize) accept NO command — it is the resolved
+		// policy of the required --owner, read from authoritative config — so they
+		// reject any `-- <argv>`. The task-intent owner (--owner task) is the sole
+		// exception: it REQUIRES the focused command argv after a `--` separator, the
+		// same ArgsLenAtDash boundary `gate launch` enforces. Args is left arbitrary so
+		// Cobra collects the argv, and RunE enforces the per-owner boundary itself.
+		RunE: func(c *cobra.Command, args []string) error {
 			repoDir, err := resolveRepoDir(c)
 			if err != nil {
 				return err
 			}
-			owner, _ := c.Flags().GetString("owner")
-			if owner != "build" && owner != "finalize" {
-				return fmt.Errorf("gate drive start --owner must be build or finalize, got %q", owner)
+			// ArgsLenAtDash reports the count of positional words before `--`, or -1
+			// when no `--` was present. The child argv must be introduced by `--`
+			// (dash >= 0) with no positional word before it (dash == 0); a positional
+			// word anywhere else is rejected before any owner routing.
+			dash := c.ArgsLenAtDash()
+			var argv []string
+			switch {
+			case dash < 0:
+				if len(args) > 0 {
+					return errors.New("gate drive start takes no positional arguments; a task command argv follows a `--` separator")
+				}
+			case dash == 0:
+				argv = args[dash:]
+			default:
+				return errors.New("gate drive start takes no positional arguments before `--`; the command argv follows `--`")
 			}
-			svc, err := buildOwnedGateDriveService(c.Context(), repoDir, owner)
+			owner, _ := c.Flags().GetString("owner")
+			var svc *app.GateDriveService
+			switch owner {
+			case "build", "finalize":
+				if len(argv) > 0 {
+					return fmt.Errorf("gate drive start --owner %s takes no command argv after `--`; it runs the owner's configured suite command", owner)
+				}
+				svc, err = buildOwnedGateDriveService(c.Context(), repoDir, owner)
+			case "task":
+				if len(argv) == 0 {
+					return errors.New("gate drive start --owner task requires the command argv after a `--` separator")
+				}
+				svc, err = buildTaskGateDriveService(c.Context(), repoDir, argv)
+			default:
+				return fmt.Errorf("gate drive start --owner must be build, finalize, or task, got %q", owner)
+			}
 			if err != nil {
 				return err
 			}
@@ -194,6 +223,9 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 			branch, _ := c.Flags().GetString("branch")
 			ref, _ := c.Flags().GetString("ref")
 			envHash, _ := c.Flags().GetString("env-hash")
+			scopeID, _ := c.Flags().GetString("scope-id")
+			childCap, _ := c.Flags().GetString("child-cap")
+			gateContext, _ := c.Flags().GetString("gate-context")
 			setResult(gateDrivePresenter{inner: svc.Start(app.GateDriveStartRequest{
 				RepoDir:             repoDir,
 				Worktree:            repoDir,
@@ -206,13 +238,16 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 				EnvHash:             envHash,
 				RunRoot:             runRoot,
 				IdempotentSuiteGate: idempotent,
+				ScopeID:             scopeID,
+				ChildCapability:     childCap,
+				GateContext:         gateContext,
 			})})
 			return nil
 		},
 	}
 	start.Flags().String("repo-dir", "", "repository `dir` to fingerprint and run in (default: current directory)")
 	start.Flags().String("run-root", "", "absolute `dir` that holds raw run slots (required)")
-	start.Flags().String("owner", "", "which policy `role` owns this drive: build or finalize (required)")
+	start.Flags().String("owner", "", "which policy `role` owns this drive: build, finalize, or task (required)")
 	start.Flags().String("cwd", "", "working `dir` for the launched suite command (default: --repo-dir)")
 	start.Flags().String("change-id", "", "change `id` the drive certifies (recorded only)")
 	start.Flags().String("task-id", "", "task `id` the drive certifies (recorded only)")
@@ -220,6 +255,9 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	start.Flags().String("branch", "", "branch `name` recorded alongside the fingerprint")
 	start.Flags().String("ref", "", "`ref` recorded alongside the fingerprint")
 	start.Flags().String("env-hash", "", "canonical launch-environment `hash` (recorded only)")
+	start.Flags().String("scope-id", "", "recovery scope `id` to bind this drive into (from prepare-scope)")
+	start.Flags().String("child-cap", "", "child capability `token` authorizing the scope bind (from prepare-scope)")
+	start.Flags().String("gate-context", "", "outer child-context `token` linking this drive to the outer gate")
 	start.Flags().Bool("idempotent-suite-gate", false, "mark the gate idempotent, eligible for the single relaunch")
 	_ = start.MarkFlagRequired("run-root")
 	_ = start.MarkFlagRequired("owner")
@@ -308,7 +346,91 @@ func newGateDriveCommand(setResult func(app.OperationResult)) *cobra.Command {
 	_ = claim.MarkFlagRequired("drive-id")
 	_ = claim.MarkFlagRequired("handoff-id")
 
-	driveCmd.AddCommand(start, advance, handoff, claim)
+	prepareScope := &cobra.Command{
+		Use:   "prepare-scope --change-id <id> --task-id <id> --phase <name> --branch <name> --worktree <dir>",
+		Short: "Prepare a recovery scope for one parent/child dispatch boundary",
+		Args:  cobra.NoArgs,
+		// local-write: mints the scope record in the durable drive store; it
+		// launches no suite and controls no process.
+		Annotations: capability("gate.drive.prepare-scope", EffectLocalWrite),
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
+			// Prepare-scope needs only the durable store; it composes the commandless
+			// service (no config, no suite command) and roots the scope at the same
+			// Git common directory the drives use.
+			commonDir, exe, err := gateDriveRepoContext(c.Context(), repoDir)
+			if err != nil {
+				return err
+			}
+			svc, res, reason := app.NewCommandlessGateDriveService(commonDir, exe)
+			if svc == nil {
+				return fmt.Errorf("gate drive service unavailable: %s (%s)", res, reason)
+			}
+			changeID, _ := c.Flags().GetString("change-id")
+			taskID, _ := c.Flags().GetString("task-id")
+			phase, _ := c.Flags().GetString("phase")
+			branch, _ := c.Flags().GetString("branch")
+			worktree, _ := c.Flags().GetString("worktree")
+			gateContext, _ := c.Flags().GetString("gate-context")
+			setResult(svc.PrepareScope(gatedrive.ScopeRequest{
+				RepoIdentity: commonDir,
+				ChangeID:     changeID,
+				TaskID:       taskID,
+				Phase:        phase,
+				Branch:       branch,
+				Worktree:     worktree,
+				GateContext:  gateContext,
+			}))
+			return nil
+		},
+	}
+	prepareScope.Flags().String("repo-dir", "", "repository `dir` of the drive store (default: current directory)")
+	prepareScope.Flags().String("change-id", "", "change `id` the scope certifies (required)")
+	prepareScope.Flags().String("task-id", "", "task `id` the scope certifies (required)")
+	prepareScope.Flags().String("phase", "", "workflow phase `name` the scope certifies (required)")
+	prepareScope.Flags().String("branch", "", "branch `name` the scope binds (required)")
+	prepareScope.Flags().String("worktree", "", "worktree `dir` the scope binds (required)")
+	prepareScope.Flags().String("gate-context", "", "outer child-context `token` linking nested drives to the outer gate")
+	_ = prepareScope.MarkFlagRequired("change-id")
+	_ = prepareScope.MarkFlagRequired("task-id")
+	_ = prepareScope.MarkFlagRequired("phase")
+	_ = prepareScope.MarkFlagRequired("branch")
+	_ = prepareScope.MarkFlagRequired("worktree")
+
+	takeover := &cobra.Command{
+		Use:   "takeover --scope-id <id> --parent-cap <token>",
+		Short: "Take over a scope-bound drive whose child returned without handing off",
+		Args:  cobra.NoArgs,
+		// local-write: atomically supersedes the child owner generation in the
+		// durable drive store; it never launches, stops, or duplicates a process.
+		Annotations: capability("gate.drive.takeover", EffectLocalWrite),
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
+			svc, err := buildCommandlessGateDriveService(c.Context(), repoDir)
+			if err != nil {
+				return err
+			}
+			scopeID, _ := c.Flags().GetString("scope-id")
+			parentCap, _ := c.Flags().GetString("parent-cap")
+			driveID, _ := c.Flags().GetString("drive-id")
+			setResult(gateDrivePresenter{inner: svc.Takeover(scopeID, parentCap, driveID)})
+			return nil
+		},
+	}
+	takeover.Flags().String("repo-dir", "", "repository `dir` of the drive (default: current directory)")
+	takeover.Flags().String("scope-id", "", "recovery scope `id` to take over (required)")
+	takeover.Flags().String("parent-cap", "", "parent capability `token` authorizing the takeover (required)")
+	takeover.Flags().String("drive-id", "", "opaque drive `id` to take over (resolved from the scope when omitted)")
+	_ = takeover.MarkFlagRequired("scope-id")
+	_ = takeover.MarkFlagRequired("parent-cap")
+
+	driveCmd.AddCommand(start, advance, handoff, claim, prepareScope, takeover)
 	return driveCmd
 }
 
@@ -370,23 +492,54 @@ func buildOwnedGateDriveService(ctx context.Context, repoDir, owner string) (*ap
 // config-resolution-free. It reaches the process supervisor only through the app
 // boundary, never internal/process directly.
 func buildCommandlessGateDriveService(ctx context.Context, repoDir string) (*app.GateDriveService, error) {
-	client, err := gitcli.NewClient()
+	commonDir, exe, err := gateDriveRepoContext(ctx, repoDir)
 	if err != nil {
 		return nil, err
 	}
-	repo, err := client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
-	if err != nil {
-		return nil, err
-	}
-	exe, err := os.Executable()
-	if err != nil {
-		return nil, err
-	}
-	svc, res, reason := app.NewCommandlessGateDriveService(repo.CommonDir, exe)
+	svc, res, reason := app.NewCommandlessGateDriveService(commonDir, exe)
 	if svc == nil {
 		return nil, fmt.Errorf("gate drive service unavailable: %s (%s)", res, reason)
 	}
 	return svc, nil
+}
+
+// buildTaskGateDriveService composes the seam for a `gate drive start --owner task`
+// invocation: the workflow role declares the test intent and supplies argv
+// EXPLICITLY, so there is no authoritative config to resolve. It discovers the
+// repository's Git common directory (the durable store root) and this binary's
+// path (the detached supervisor re-exec target), then hands the raw argv to the
+// task-intent constructor, which runs it verbatim and forces the gate
+// non-idempotent. An empty argv is rejected upstream in RunE.
+func buildTaskGateDriveService(ctx context.Context, repoDir string, argv []string) (*app.GateDriveService, error) {
+	commonDir, exe, err := gateDriveRepoContext(ctx, repoDir)
+	if err != nil {
+		return nil, err
+	}
+	svc, res, reason := app.NewTaskGateDriveService(commonDir, exe, argv)
+	if svc == nil {
+		return nil, fmt.Errorf("gate drive service unavailable: %s (%s)", res, reason)
+	}
+	return svc, nil
+}
+
+// gateDriveRepoContext resolves the two inputs every commandless/task drive
+// composition needs from the repository: the Git common directory (the durable
+// drive store root) and this binary's path (the detached supervisor re-exec
+// target). It reaches Git only through gitcli, never internal/process.
+func gateDriveRepoContext(ctx context.Context, repoDir string) (commonDir, exe string, err error) {
+	client, err := gitcli.NewClient()
+	if err != nil {
+		return "", "", err
+	}
+	repo, err := client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
+	if err != nil {
+		return "", "", err
+	}
+	exe, err = os.Executable()
+	if err != nil {
+		return "", "", err
+	}
+	return repo.CommonDir, exe, nil
 }
 
 // gateDrivePresenter adapts app.GateDriveResult so the PROCESS EXIT STATUS derives

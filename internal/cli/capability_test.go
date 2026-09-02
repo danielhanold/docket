@@ -194,6 +194,30 @@ func TestSignaturePositionalTailStripsFlagRestatements(t *testing.T) {
 	}
 }
 
+func TestSignatureStartArgvBoundaryLandsLast(t *testing.T) {
+	// gate drive start shape (change 0359): required flags, optional flags, then a
+	// trailing bare `-- <argv...>` separator that the task-intent owner supplies.
+	// The bare `--` in Use makes the argv tail land last while the flags lead,
+	// exactly as `gate launch` composes.
+	start := leaf("start --repo-dir <dir> --run-root <dir> --owner build|finalize|task -- <argv...>",
+		"gate.drive.start", EffectProcessControl, EffectLocalWrite)
+	start.Flags().String("run-root", "", "run `dir`")
+	start.Flags().String("owner", "", "policy `role`")
+	start.Flags().String("scope-id", "", "scope `id`")
+	_ = start.MarkFlagRequired("run-root")
+	_ = start.MarkFlagRequired("owner")
+	root := newTestRoot()
+	root.AddCommand(start)
+	entries, err := collectCapabilities(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "--owner <role> --run-root <dir> [--scope-id <id>] -- <argv...>"
+	if entries[0].Signature != want {
+		t.Fatalf("start signature = %q, want %q", entries[0].Signature, want)
+	}
+}
+
 func TestSignatureExcludesRootJSONFlag(t *testing.T) {
 	c := leaf("observe", "gate.observe", EffectRead)
 	c.Flags().String("run-dir", "", "supervisor `dir`")
