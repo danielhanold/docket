@@ -13,7 +13,7 @@ related: [381, 333, 280, 296]
 discovered_from: [371, 397]
 adrs: []
 spec: 'docs/superpowers/specs/2026-09-02-harden-integration-race-test-isolation-under-parallel-load-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-02-harden-integration-race-test-isolation-under-parallel-load.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-02T16:19:31Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-02-harden-integration-race-test-isolation-under-parallel-load-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-02-harden-integration-race-test-isolation-under-parallel-load-design.md) |
+| Plan | [2026-09-02-harden-integration-race-test-isolation-under-parallel-load.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-02-harden-integration-race-test-isolation-under-parallel-load.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
