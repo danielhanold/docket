@@ -855,8 +855,13 @@ func composeLocalGate(ctx context.Context, deps FinalizeDeps, repoDir, op string
 	}
 
 	if deps.Gate == nil {
-		return rebaseRefusal(op, ResultInternalError, RebaseDispBlocked, ReasonRebaseGateHalted,
+		// Route this terminal through the same shape as the other exits so the
+		// receipt's gate pair is cleared here too: every transition out of the
+		// receipt-pair state clears it. (No-op clear when the pair is already empty.)
+		out := rebaseRefusal(op, ResultInternalError, RebaseDispBlocked, ReasonRebaseGateHalted,
 			"no local-gate seam is wired; cannot run the suite", id)
+		clearGateContinuation(ctx, deps, rc, rec, &out)
+		return out
 	}
 	gres, gerr := deps.Gate.RunLocalGate(ctx, LocalGateRequest{
 		RepoDir: repoDir, ID: id, WorkspaceDir: rc.wsDir, Head: string(head), Continuation: cont,
