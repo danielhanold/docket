@@ -2,11 +2,11 @@
 id: 381
 slug: 'stabilize-internal-process-observe-running-terminal-race-flake'
 title: 'Stabilize internal/process TestObserveRunningThenTerminal parallel-load -race flake'
-status: proposed
+status: 'killed'
 priority: medium
 type: fix
 created: '2026-08-30'
-updated: '2026-08-30'
+updated: '2026-09-02'
 depends_on: []
 stacked_on:
 related: []
@@ -58,3 +58,7 @@ timing assumptions — without weakening what it verifies.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+## Why killed
+
+Duplicate of change 373 (Harden integration/race test isolation under parallel load). 381's `internal/process` `TestObserveRunningThenTerminal` parallel-load `-race` flake is sighting 1 in 373's problem set, and 373's open question about a shared root cause resolves to yes: the flake is covered by 373's runner-level load bound (section 1) and shared real-process fixture (section 2). Folded into 373 and killed here during 373's reconcile pass so the fix is structural, not a per-test workaround.

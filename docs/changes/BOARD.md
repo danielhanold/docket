@@ -1,6 +1,6 @@
 # Backlog
 
-**397 changes** — 🟢 3 in progress · 🔵 1 built · 🟣 18 groomed · 🟡 44 proposed · ⚪ 4 deferred · ✅ 243 done · 🗑️ 84 killed
+**397 changes** — 🟢 3 in progress · 🔵 1 built · 🟣 18 groomed · 🟡 43 proposed · ⚪ 4 deferred · ✅ 243 done · 🗑️ 85 killed
 
 ## 🟢 In progress (3)
 
@@ -39,7 +39,7 @@
 | [0172](active/0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md) | Normalize the banned producer-pipe shape across tests and helpers | `medium` | `chore` | [spec](../superpowers/specs/2026-08-07-normalize-the-banned-producer-pipe-shape-across-tests-and-he-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
-## 🟡 Proposed (44)
+## 🟡 Proposed (43)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -51,7 +51,6 @@
 | [0385](active/0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | `medium` | `docs` | needs-brainstorm |
 | [0383](active/0383-remove-dead-metadata-fetch-diagnostic-append-augmentcheckfacts.md) | Remove or plumb the dead metadata-fetch diagnostic append in augmentCheckFacts | `low` | `fix` | needs-brainstorm |
 | [0382](active/0382-changecreaterequest-typed-auto-groomable-branch-prefix-scalars.md) | ChangeCreateRequest should accept typed auto_groomable / branch_prefix scalars | `medium` | `feat` | needs-brainstorm |
-| [0381](active/0381-stabilize-internal-process-observe-running-terminal-race-flake.md) | Stabilize internal/process TestObserveRunningThenTerminal parallel-load -race flake | `medium` | `fix` | needs-brainstorm |
 | [0380](active/0380-descendant-receipt-negative-fixture-root-anchored-trailer-read.md) | Add a descendant-receipt negative fixture pinning the root-anchored trailer read | `medium` | `chore` | needs-brainstorm |
 | [0379](active/0379-reapply-sha256-source-revision-width-fix-isfullobjectid.md) | Re-apply the SHA-256 (64-hex) source-revision width fix to isFullObjectID | `medium` | `fix` | needs-brainstorm |
 | [0376](active/0376-gate-drive-start-human-output-omits-drive-id-generation.md) | `docket gate drive start` human-readable output omits drive_id/generation | `medium` | `fix` | needs-brainstorm |
@@ -159,7 +158,6 @@ graph TD
   0376
   0379
   0380
-  0381
   0382
   0383
   0385
@@ -178,13 +176,14 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (327)</summary>
+<details><summary>✅🗑️ Archive — done + killed (328)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0397](archive/2026-09-02-0397-run-the-implementation-preflight-as-one-deterministic-operat.md) | Run the implementation preflight as one deterministic operation instead of a docket-status dispatch, and drop status --json's corpus records by default | 2026-09-02 |
 | [0396](archive/2026-09-02-0396-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes.md) | finalize async gate WAITING has no CLI re-entry that resumes the same drive | 2026-09-02 |
 | [0394](archive/2026-09-02-0394-give-docket-skills-an-authoritative-compact-cli-capability-c.md) | Give Docket skills an authoritative compact CLI capability catalog | 2026-09-02 |
+| [0381](archive/2026-09-02-0381-stabilize-internal-process-observe-running-terminal-race-flake.md) | Stabilize internal/process TestObserveRunningThenTerminal parallel-load -race flake | 2026-09-02 |
 | [0364](archive/2026-09-02-0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | 2026-09-02 |
 | [0390](archive/2026-09-01-0390-maintenance-sweep-scope-full-re-probes-the-remote-per-item-h.md) | maintenance sweep --scope full re-probes the remote per item, hanging the sweep | 2026-09-01 |
 | [0384](archive/2026-09-01-0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md) | Launch compositional Docket agents in coordinator-capable harness contexts | 2026-09-01 |
