@@ -72,46 +72,48 @@ Emit one concise routing line per task naming both the profile and its reason.
 
 ## Dispatching a task
 
-Dispatch the profile agent **by name**, foreground, one task at a time — later tasks build on
-earlier task commits and share the worktree, so workers are strictly sequential. Give the worker:
-the plan task text, the branch and worktree, the applicable repository instructions, the selected
-profile and routing reason, and the completion schema. Never dispatch a task reviewer, and
+**Before each worker dispatch, prepare its recovery scope:** run the `gate.drive.prepare-scope`
+operation with `--change-id <id> --task-id <task-N> --phase build --branch <branch> --worktree
+<worktree> --gate-context <dispatch-context>` (the dispatch context arrived in *your* prompt from
+the gated parent — pass its value through). Then dispatch the profile agent **by name**, foreground,
+one task at a time — later tasks build on earlier task commits and share the worktree, so workers
+are strictly sequential. Give the worker: the plan task text, the branch and worktree, the applicable
+repository instructions, the selected profile and routing reason, the **scope id and child
+capability only**, and the completion schema; the parent capability stays in your notes and never
+enters any prompt, log, or report. Never dispatch a task reviewer, and
 never dispatch two workers concurrently — that binds a controller who *believes the first worker
 is gone* exactly as it binds one dispatching deliberately. Never preload a review skill either —
-for a **named** agent the wrapper's own `skills:` frontmatter is the operative protection, so what
-this rule actually forbids is bolting a review skill or a review instruction onto the dispatch
-prompt.
+for a **named** agent the wrapper's own `skills:` frontmatter is the operative protection, so what it
+forbids is bolting a review skill or instruction onto the dispatch prompt.
 A worker reached through a runner delegation receives its worktree through the facade's
 `--worktree` flag, not through the prompt body alone.
 
 If profile dispatch is genuinely unavailable — established only per the convention's
-*Dispatch-capability resolution*, **never from a tool name** — this role is
-**Tier C, authorized-or-halt**: only an explicitly configured `skills.build: auto` authorizes
-inline execution. Selecting `docket-build` is not implicit authorization to discard its isolation
-or its model/effort contract, so halt per *Halting conditions* instead.
+*Dispatch-capability resolution*, **never from a tool name** — this role is **Tier C,
+authorized-or-halt**: only an explicitly configured `skills.build: auto` authorizes inline execution.
+Selecting `docket-build` is not implicit authorization to discard its isolation or its model/effort
+contract, so halt per *Halting conditions* instead.
 
-A profile agent that is **not registered on this machine** is the same authorized-or-halt
-condition, reached differently: the harness rejected a dispatch naming `docket-build-economy` — a
-concrete rejection of a named agent, never an inference about dispatch capability from a missing
-tool name, so the rule above stands unchanged. The cause is a stale install: `install.sh`
-generates the profile wrappers, and a harness registers them only at session start. Halt, naming
-a re-run of `install.sh` plus a fresh session as the remedy.
+A profile agent **not registered on this machine** is the same authorized-or-halt condition reached
+differently: the harness rejected a dispatch naming `docket-build-economy` — a concrete rejection of a
+named agent, never an inference from a missing tool name, so the rule above stands. The cause is a
+stale install (`install.sh` generates the wrappers; a harness registers them only at session start):
+halt, naming a re-run of `install.sh` plus a fresh session as the remedy.
 
 ## Reading a worker's return
 
-Valid outcomes are `COMPLETE`, `WAITING`, `NEEDS_ESCALATION`, and `BLOCKED`. A
-**missing or malformed outcome halts** the build. Never infer success from a child merely
-reporting that it finished: a child's completion report is unreliable in **both** directions, so
-every claim is settled against git state and never against the return's prose — a SHA-shaped string
-appearing somewhere in the text is not a commit.
+Valid outcomes are `COMPLETE`, `WAITING`, `NEEDS_ESCALATION`, and `BLOCKED`; a **missing or malformed
+outcome halts** the build. Never infer success from a child reporting it finished: a completion report
+is unreliable in **both** directions, so every claim is settled against git state, never the return's
+prose — a SHA-shaped string somewhere in the text is not a commit.
 
 **Malformed is wider than an unparsable token.** Before accepting a `COMPLETE`, verify the claimed
 commit: the SHA must resolve in this repository *and* be an ancestor of the branch tip
 (`git merge-base --is-ancestor <sha> HEAD`). A `COMPLETE` whose commit is absent, unresolvable, or
 not on this branch is a malformed return — halt per *Halting conditions*, and never re-dispatch the
-task to "fix" its own return. A `COMPLETE` must equally carry the focused verification result, and
-a task without a commit is not complete. A `NEEDS_ESCALATION` carrying no concrete reason is
-malformed the same way (see *Escalation*).
+task to "fix" its own return. A `COMPLETE` must equally carry the focused verification result, and a
+task without a commit is not complete; a `NEEDS_ESCALATION` with no concrete reason is malformed the
+same way (see *Escalation*).
 
 ## Task-level WAITING and the continuation
 
@@ -126,9 +128,18 @@ You are the nearest live owner while that worker is absent, so you **own the con
 `gate.drive.claim` operation on the named handoff and drive the same drive through short `gate.drive.advance`
 operation calls yourself to a terminal disposition — never a raw observe loop, background suite, or
 notification wait. When agent judgment is needed again, dispatch a fresh worker for the **same** task
-and worktree with an explicit continuation; a trusted `PASSED` is not re-driven because the
-transcript changed. Waiting consumes neither the task's repair allowance nor its one escalation. If
-you must unwind, hand off to your parent rather than stranding the drive.
+and worktree with an explicit continuation; a trusted `PASSED` is not re-driven for a changed
+transcript. Waiting consumes neither the task's repair allowance nor its one escalation. If you must
+unwind, hand off to your parent rather than stranding the drive.
+
+**Exceptional branch — a return with no valid handoff.** When the worker's dispatch returns
+**without** a valid handoff while its scope still binds a nonterminal (or terminal-unconsumed) drive,
+run the `gate.drive.takeover` operation with `--scope-id <id> --parent-cap <token>` — authorized by
+the return event you just observed, **never** a timer, heartbeat, or quiet log — then advance that
+same drive to a terminal disposition via `gate.drive.advance`. A takeover `HALTED` is a **halting
+condition** (unsafe ownership), never repair, escalation, or a fresh worker; a trusted terminal
+`PASSED` consumed after takeover is **not** re-run. Neither takeover nor `WAITING` consumes repair or
+escalation budget.
 
 ## Escalation
 
@@ -146,19 +157,18 @@ whose `standard` retry still cannot complete **halts** — it does not climb aga
 
 Escalate only on a concrete reason that the task is materially more complex or riskier than the
 assigned profile. An expected RED test, ordinary debugging, or a single failed test run is not an
-escalation condition; a worker returning `NEEDS_ESCALATION` without such a reason is a **malformed
-return**, and a malformed return halts — it is never a free escalation.
+escalation condition; a `NEEDS_ESCALATION` without such a reason is a **malformed return**, and a
+malformed return halts — never a free escalation.
 
 The stronger worker continues in the **same worktree** and must inspect and account for any
 uncommitted changes the weaker worker left — revise, never blindly discard. A successful
 escalation continues this run automatically.
 
-A failed attempt that left a **commit** — not merely a dirty tree — is different, and it is the
-one state that cancels the escalation. The worker was told never to commit on `NEEDS_ESCALATION` or
-`BLOCKED`, but a crashed or truncated one still can; the escalated worker is separately forbidden
-to rewrite earlier task commits, so it would inherit state it cannot clean up, and this task's
-exactly-one-commit accounting is already contaminated. **Do not escalate onto a stray commit** —
-halt per *Halting conditions*, naming the stray SHA so a human can inspect, keep, or drop it.
+A failed attempt that left a **commit** — not merely a dirty tree — is the one state that cancels
+the escalation: a crashed or truncated worker can commit despite the ban, and the escalated worker,
+forbidden to rewrite earlier task commits, would inherit state it cannot clean up while this task's
+exactly-one-commit accounting is already contaminated. **Do not escalate onto a stray commit** — halt
+per *Halting conditions*, naming the stray SHA so a human can inspect, keep, or drop it.
 
 ## Halting conditions
 
@@ -256,12 +266,11 @@ role once over the whole branch. Only a green run — or an explicit `build_gate
 record: a red suite mints no evidence record at all, and enters the repair path below.
 
 **Red** → the build **never invokes review**. Turn the failure into exactly one synthetic
-integration-repair task, run through the same worker contract on the ladder
-`premium -> max -> halt`. The repair worker diagnoses the cross-task failure, adds regression
-coverage where appropriate, fixes it, re-runs the full suite, and commits the repair. That ladder
-starts one rung above the default deliberately: repair is cross-task diagnosis, never routine work.
-There is no repeated repair/review loop; failure after the max repair path halts per
-*Halting conditions*.
+integration-repair task, run through the same worker contract on the ladder `premium -> max -> halt`.
+The repair worker diagnoses the cross-task failure, adds regression coverage where appropriate, fixes
+it, re-runs the full suite, and commits the repair. That ladder starts one rung above the default
+deliberately: repair is cross-task diagnosis, never routine work. There is no repeated repair/review
+loop; failure after the max repair path halts per *Halting conditions*.
 
 ### Gate execution posture
 
@@ -291,56 +300,48 @@ define the maximum duration of the build gate.
 6. If no terminal result artifact exists when the budget is exhausted, **fail closed** — halt per
    *Halting conditions*. Under a `0` budget that verdict is reached after the single observation
    clause 5 grants, never before it. Never infer success, and never turn it into a red suite: an
-   unfinished run
-   is not a failing one, so it must **not** mint an integration-repair task. Same refusal the
-   configuration-gap case above already gets.
+   unfinished run is not a failing one, so it must **not** mint an integration-repair task — the same
+   refusal the configuration-gap case above already gets.
 
 **The shipped implementation of clauses 1–6** is the native gate **driver** — the `gate.drive`
-operations (`start`, `advance`, `handoff`, `claim`), whose caller-side contract and
-disposition vocabulary live in `references/gate-caller-loop.md` (**read it now, blocking, before the
-gate**). Drive the suite through short synchronous `gate.drive.start` then `gate.drive.advance`
-operation calls; the driver composes the raw supervisor and owns the detached run, the durable drive
-record, artifact-based completion, and the fail-closed observation budget. **Reuse the driver
-operations rather than authoring a shell observe loop:** a hand-rolled sleep-and-parse over the
-`gate.observe` operation is exactly the drift that spun the 0337 gate until a human resumed it, and the driver
-retired it. The raw `gate.launch`/`observe`/`stop` operations are primitives the driver composes,
-not workflow APIs for this role — never call them directly and never re-derive a launch or poll shape
-from them.
+operations (`start`, `advance`, `handoff`, `claim`), whose caller-side contract and disposition
+vocabulary live in `references/gate-caller-loop.md` (**read it now, blocking, before the gate**).
+Drive the suite through short synchronous `gate.drive.start` then `gate.drive.advance` calls; the
+driver composes the raw supervisor and owns the detached run, durable drive record, artifact-based
+completion, and fail-closed budget. **Reuse the driver, never a shell observe loop** — a hand-rolled
+sleep-and-parse over `gate.observe` is the retired drift that once spun a gate until a human resumed
+it; the raw `gate.launch`/`observe`/`stop` operations are primitives, never this role's workflow API.
 
 **Keying on the disposition.** Key the wait on the typed disposition the driver returns
-(`WAITING`/`PASSED`/`FAILED`/`HALTED`), never on a success marker appearing in the log — a
-marker-keyed reading cannot tell *still running* from a process death, which is the one moment the
-wait exists for. `WAITING` is the only nonterminal disposition and the only one that advances again;
-`PASSED`/`FAILED`/`HALTED` are terminal. Only `FAILED` — the suite ran and went red — feeds repair. A
-process death, an identity drift, an uncertain ownership, a deadline expiry, or a malformed
-observation is `HALTED`, **not** a red suite and it **never** mints repair work. The one bounded
-relaunch of a proven-dead **idempotent** suite gate, under the original deadline, is the driver's own
-— the caller never relaunches, never stops a raw run by hand, and never composes the raw verbs to do
-so; a non-idempotent gate earns no relaunch at all.
+(`WAITING`/`PASSED`/`FAILED`/`HALTED`), never on a success marker in the log — a marker-keyed reading
+cannot tell *still running* from a process death, the one moment the wait exists for. `WAITING` is
+the only nonterminal disposition and the only one that advances again. Only `FAILED` — the suite ran
+and went red — feeds repair; a process death, identity drift, uncertain ownership, deadline expiry, or
+malformed observation is `HALTED`, **not** a red suite and it **never** mints repair work. The one
+bounded relaunch of a proven-dead **idempotent** suite gate, under the original deadline, is the
+driver's own — the caller never relaunches, stops a raw run, or composes the raw verbs; a
+non-idempotent gate earns no relaunch.
 
 **Abandoning a live drive.** A caller that must stop while the drive is still `WAITING` — budget
-exhausted, halt, or abort — performs an explicit `gate.drive.handoff` operation **before it reports** and
-returns the drive id, phase, and single-use handoff token, so the nearest live owner can `claim` and
-continue and no suite is stranded, backgrounded, or waited on through a notification. Every leg then
-halts per *Halting conditions*; the leg where the handoff itself is **unavailable** halts **loudly**,
-because that is the one leg where a human inherits a live drive.
+exhausted, halt, or abort — performs an explicit `gate.drive.handoff` operation **before it reports**,
+returning the drive id, phase, and single-use handoff token so the nearest live owner can `claim` and
+continue — no suite stranded, backgrounded, or notification-waited. Every leg then halts per *Halting
+conditions*; the leg where the handoff itself is **unavailable** halts **loudly**, the one leg where a
+human inherits a live drive.
 
 **The false-completion rule.** A caller-visible completion signal is never gate completion.
 Reciprocally, a **stale pre-yield report is not evidence of a crashed run**: an observer seeing a
-completion signal that carries pre-yield text resolves the run's state from git and from the durable
-artifact before concluding anything. *Reading a worker's return* states this for a worker's report;
-it holds for the gate.
+completion signal carrying pre-yield text resolves the run's state from git and the durable artifact
+before concluding. *Reading a worker's return* states this for a worker's report; it holds for the
+gate.
 
-**This does not relax the never-yield rule for dispatched subagents.** Two boundaries are in play: a
-**dispatched subagent** yielding control in violation of its execution contract, and an external
-**gate process** continuing independently while the responsible agent performs bounded observations
-of its durable result. Only the second is permitted here, and it is never permission for dispatched
-agents to yield across execution phases. Which branch of clause 4 applies is therefore settled by
-*who observes*, not by what is running: the yield belongs to a **top-level session agent** only, and
-on docket's own default path there is none — this role is invoked inside `docket-implement-next`
-Step 5, which is itself dispatched. Blocking observation is the norm here; the yield is the
-exception. Not hypothetical: dispatched build workers here have yielded to await a gate completion
-event and gone unresumed.
+**This does not relax the never-yield rule for dispatched subagents (clause 4).** An external **gate
+process** continuing while the responsible agent makes bounded observations of its durable result is
+permitted; a **dispatched subagent** yielding control across execution phases is not. Which branch
+applies is settled by *who observes*, not by what is running — the yield belongs to a **top-level
+session agent** only, and docket's default path has none: this role runs inside
+`docket-implement-next` Step 5, itself dispatched. Not hypothetical — dispatched build workers here
+have yielded to await a gate completion event and gone unresumed.
 
 Which capabilities a harness must have to host such a gate, and the measured verdict for each
 harness docket ships, are quarantined in
@@ -351,8 +352,8 @@ starting the gate.**
 
 This build performs **no per-task independent review** and **no final review of its own**. The
 worker's self-review is part of implementation, not a second agent or an adversarial gate. Docket's
-single independent whole-branch review remains `docket-implement-next` Step 6's `skills.review`
-role, which stays separately configurable.
+single independent whole-branch review remains `docket-implement-next` Step 6's `skills.review` role,
+separately configurable.
 
 ## Checkpointing
 
@@ -363,9 +364,9 @@ commits; keep only the compact in-context worker returns; write no `.superpowers
 files. A resumed run reconstructs progress conservatively from the plan, commits, code, and tests.
 
 **Plan checkboxes are not progress state.** Nobody ticks a plan's `- [ ]` boxes — not you, not a
-worker — so a half-ticked plan means nothing, and a resumed run reads commits, code, and tests,
-never checkbox marks. Treating a checkbox as evidence of a finished task is a misread docket has
-already been burned by.
+worker — so a half-ticked plan means nothing; a resumed run reads commits, code, and tests, never
+checkbox marks. Treating a checkbox as evidence of a finished task is a misread docket has been
+burned by.
 
 **`true`** — write a compact ledger to `.superpowers/docket-build/<change-id>/progress.md` (covered
 by the committed `.superpowers/` ignore rule) recording branch, plan path and blob hash, task
@@ -379,7 +380,6 @@ current branch — missing, stale, malformed, or contradictory state never marks
 Emit concise, stable lines and nothing more: task-to-profile selection and reason; escalation and
 reason; worker outcome and commit; focused verification; full-suite command and result; the
 build-evidence record on green; the terminal build disposition (**role-scoped** — a build
-disposition, never a run disposition). Write no verbose task artifact
-unless `BUILD_CHECKPOINT` is `true`.
-Material TDD exceptions and residual risks flow into the PR description or the results artifact,
-not into per-task files.
+disposition, never a run disposition). Write no verbose task artifact unless `BUILD_CHECKPOINT` is
+`true`; material TDD exceptions and residual risks flow into the PR description or the results
+artifact, not into per-task files.

@@ -18,17 +18,20 @@ authors its own liveness check — the driver owns all of that.
 ## The driver's operations
 
 The high-level surface is the `gate.drive` operation group: `gate.drive.start`,
-`gate.drive.advance`, `gate.drive.handoff`, and `gate.drive.claim` (resolve each argv from the capability catalog). Each op is
+`gate.drive.advance`, `gate.drive.handoff`, `gate.drive.claim`, `gate.drive.prepare-scope`, and
+`gate.drive.takeover` (resolve each argv from the capability catalog). Each op is
 one short call that advances the same durable drive by **at most one slice** and returns the shared
 protocol-v1 outcome document (the same document the in-process app seam returns, never a re-flattened
 copy):
 
 | Operation | What it does |
 |---|---|
-| `start` | Fingerprint the execution context, launch the first raw run through the supervisor, advance one slice, and return the drive id, owner generation, and disposition. |
+| `start` | Fingerprint the execution context, launch the first raw run through the supervisor, advance one slice, and return the drive id, owner generation, and disposition. Optional `--scope-id <id> --child-cap <token> --gate-context <token>` bind the new drive into a recovery scope. |
 | `advance` | Resume the current attempt of a drive (by opaque drive id + owner generation) through one more slice. |
 | `handoff` | Prove current ownership, revalidate repository + process identity, invalidate the current owner, and mint a **single-use** handoff token — the only way a departing owner transfers a live drive. |
 | `claim` | Recompute identity, consume a handoff token with a compare-and-swap, and return a **fresh** owner generation the claimant advances with. |
+| `prepare-scope` | `--change-id <id> --task-id <id> --phase <name> --branch <name> --worktree <dir> [--gate-context <token>]`: mint a recovery scope for one parent/child dispatch boundary with **separated** parent and child capabilities. The preparing parent keeps the parent capability; the child receives only the scope id and child capability. Effects: local-write. |
+| `takeover` | `--scope-id <id> --parent-cap <token> [--drive-id <id>]`: the event-authorized exceptional transfer — prove the parent capability and scope identity, atomically supersede the child's owner generation, and return a fresh generation. Effects: local-write. |
 
 Every op takes **opaque** drive and claim identifiers — never a PID, PGID, raw run-directory state,
 or deadline. `--json` emits the shared document; human text names identity and disposition only. An
@@ -73,6 +76,17 @@ A departing owner's structured report therefore names the drive id, the workflow
 opaque **handoff token** — the continuation the next owner claims. A bare "still waiting" with no
 handoff token is not a valid departure: the drive would be stranded with a live owner generation
 nobody holds.
+
+## Parent takeover — the event-authorized exception
+
+Normal `handoff` remains the **preferred** transfer. `takeover` exists only for a **direct child
+that returned without handing off** while its scope still binds a nonterminal (or terminal-unconsumed)
+drive. The parent proves its parent capability and the scope identity; the transition atomically
+**supersedes** the child's owner generation and mints a fresh one the parent advances with, so a
+stale child call thereafter fails **owner-superseded**. The authorization is the observed
+dispatch-return event the caller just saw — never a timer, heartbeat, or quiet log. Any ambiguity —
+two candidate drives, an outstanding unclaimed handoff (`claim` it instead), or identity drift —
+fails closed to `HALTED`, never a partial transfer.
 
 ## The raw verbs are primitive/operator APIs, not caller-loop verbs
 
