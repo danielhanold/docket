@@ -2,7 +2,7 @@
 id: 98
 slug: structured-gate-waiting-and-ownership-handoff
 title: "Gate waiting is structured, resumable, and ownership-handed-off"
-status: Accepted
+status: 'Superseded by ADR-0107'
 date: 2026-08-25
 supersedes: []
 reverses: []

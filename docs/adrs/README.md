@@ -87,7 +87,6 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0095](0095-native-supervisor-delivers-a-real-session-and-an-exact-terminal-record.md) — The native per-run supervisor delivers a genuine session and an exact terminal record on every supported platform (Accepted) ← change #314 → supersedes ADR-0081 · relates to ADR-0080, ADR-0087
 - [ADR-0096](0096-legacy-reproduction-uses-a-frozen-embedded-floor.md) — Legacy reproduction resolves pins from a frozen embedded v0.9.2 floor, not the live defaults table (Accepted) ← change #322
 - [ADR-0097](0097-pr-identity-is-verified-by-parsed-pr-number.md) — Manifest pr: stores the canonical URL; PR identity is verified by parsed number (Accepted) ← change #344
-- [ADR-0098](0098-structured-gate-waiting-and-ownership-handoff.md) — Gate waiting is structured, resumable, and ownership-handed-off (Accepted) ← change #342 · relates to ADR-0024, ADR-0095
 - [ADR-0099](0099-one-metadata-topology-for-go-v1.md) — One metadata topology for Go v1 (main-mode removed) (Accepted) ← change #363 → supersedes ADR-0002 · relates to ADR-0001, ADR-0052
 - [ADR-0100](0100-native-host-dispatch-is-authoritative-for-registered-docket.md) — Native host dispatch is authoritative for registered docket agents (Accepted) ← change #371 → supersedes ADR-0037 · relates to ADR-0036, ADR-0074
 - [ADR-0101](0101-maintenance-sweep-scope-defer-historical-cleanup-out-of-impl.md) — Maintenance sweep scope: defer historical cleanup out of implementation startup (Accepted) ← change #389 · relates to ADR-0012, ADR-0024
@@ -96,6 +95,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0104](0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md) — The capability catalog is the authoritative executable CLI surface (Accepted) ← change #394 · relates to ADR-0003, ADR-0020, ADR-0036
 - [ADR-0105](0105-finalize-s-local-gate-continuation-is-persisted-in-the-owned.md) — Finalize's local-gate continuation is persisted in the owned rebase receipt (Accepted) ← change #396 · relates to ADR-0098
 - [ADR-0106](0106-implementation-preflight-is-a-deterministic-operation-not-a.md) — Implementation preflight is a deterministic operation, not a composition dispatch (Accepted) ← change #397 · relates to ADR-0012, ADR-0024, ADR-0101
+- [ADR-0107](0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md) — Event-authorized parent takeover extends fingerprinted gate-drive ownership (Accepted) ← change #359 → supersedes ADR-0098 · relates to ADR-0024, ADR-0075, ADR-0095
 
 ## Superseded / Reversed
 
@@ -109,6 +109,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0048](0048-docket-yml-example-invariants.md) — .docket.yml.example is a tested canonical config reference — mirror, fidelity, must-update (Superseded by ADR-64) ← change #101 → supersedes ADR-0039 · relates to ADR-0019
 - [ADR-0063](0063-docket-owns-the-build-role-profile-routed-workers.md) — Docket owns the build role — profile-routed workers, model and effort on named agents (Superseded by ADR-0102) ← change #167 → supersedes ADR-0023 · relates to ADR-0015, ADR-0016, ADR-0018, ADR-0059
 - [ADR-0081](0081-gate-run-contract-narrowed-per-platform-process-group-where-no-session-primitive-exists.md) — gate-run's detachment contract is narrowed per platform: own process group where no session primitive exists (Superseded by ADR-95) ← change #282 · relates to ADR-0080
+- [ADR-0098](0098-structured-gate-waiting-and-ownership-handoff.md) — Gate waiting is structured, resumable, and ownership-handed-off (Superseded by ADR-0107) ← change #342 · relates to ADR-0024, ADR-0095
 
 ## Deprecated
 
