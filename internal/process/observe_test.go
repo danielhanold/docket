@@ -7,6 +7,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 func syscall_SIGKILL() syscall.Signal { return syscall.SIGKILL }
@@ -36,7 +38,7 @@ func observeUntilTerminal(t *testing.T, svc *Service, runDir string) *Observatio
 
 func TestObserveRunningThenTerminal(t *testing.T) {
 	svc := newTestService(t)
-	out := launchHelper(t, svc, t.TempDir(), "sleep")
+	out := launchHelper(t, svc, testsupport.TempDir(t), "sleep")
 	obs, err := svc.Observe(out.RunDir)
 	if err != nil || obs.State != StateRunning {
 		t.Fatalf("running observe: %+v, %v", obs, err)
@@ -60,7 +62,7 @@ func TestObserveRunningThenTerminal(t *testing.T) {
 func TestObserveExitStates(t *testing.T) {
 	svc := newTestService(t)
 	for code, want := range map[int]State{0: StatePassed, 7: StateFailed, 143: StateFailed} {
-		out := launchHelper(t, svc, t.TempDir(), "exit", strconv.Itoa(code))
+		out := launchHelper(t, svc, testsupport.TempDir(t), "exit", strconv.Itoa(code))
 		obs := observeUntilTerminal(t, svc, out.RunDir)
 		if obs.State != want {
 			t.Fatalf("exit %d observed %v, want %v", code, obs.State, want)
@@ -74,7 +76,7 @@ func TestObserveExitStates(t *testing.T) {
 // TestObserveNeverFabricatesFromMalformedState
 func TestObserveNeverFabricatesFromMalformedState(t *testing.T) {
 	svc := newTestService(t)
-	out := launchHelper(t, svc, t.TempDir(), "exit", "0")
+	out := launchHelper(t, svc, testsupport.TempDir(t), "exit", "0")
 	observeUntilTerminal(t, svc, out.RunDir)
 	if err := os.WriteFile(filepath.Join(out.RunDir, terminalFile), []byte("{broken"), 0o600); err != nil {
 		t.Fatal(err)
@@ -92,7 +94,7 @@ func TestObserveNeverFabricatesFromMalformedState(t *testing.T) {
 // directory is invalid state, not a report about some other run.
 func TestObserveTokenAgreement(t *testing.T) {
 	svc := newTestService(t)
-	out := launchHelper(t, svc, t.TempDir(), "exit", "0")
+	out := launchHelper(t, svc, testsupport.TempDir(t), "exit", "0")
 	observeUntilTerminal(t, svc, out.RunDir)
 	m, _ := readManifest(out.RunDir)
 	m.RunID = "00000000000000000000000000000000"
@@ -111,7 +113,7 @@ func TestObserveTokenAgreement(t *testing.T) {
 // post-probe re-read of terminal.json is removed.
 func TestObservePostProbeTerminalRaceWins(t *testing.T) {
 	svc := newTestService(t)
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	id := "0123456789abcdef0123456789abcdef"
 	runDir := filepath.Join(root, id)
 	if err := ensurePrivateDir(runDir); err != nil {

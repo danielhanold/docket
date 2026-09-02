@@ -111,7 +111,12 @@ func runTestHelper(args []string) int {
 		}
 		out, err := svc.Launch(LaunchRequest{
 			Root: args[1],
-			Cwd:  os.TempDir(),
+			// Cwd is the fixture-owned Root the caller passed (a
+			// testsupport.TempDir), never the shared os.TempDir(): this re-exec
+			// helper has no *testing.T of its own, and keeping the spawned
+			// supervisor's working dir under the fixture root keeps it out of
+			// any concurrent recover-scan of the real $TMPDIR (change 0373).
+			Cwd:  args[1],
 			Argv: []string{exe, "gate-test-helper", "sleep"},
 		})
 		if err != nil {

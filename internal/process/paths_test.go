@@ -5,20 +5,22 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 func TestValidateLaunchRequest(t *testing.T) {
-	cwd := t.TempDir()
-	ok := LaunchRequest{Root: t.TempDir(), Cwd: cwd, Argv: []string{"/bin/true"}}
+	cwd := testsupport.TempDir(t)
+	ok := LaunchRequest{Root: testsupport.TempDir(t), Cwd: cwd, Argv: []string{"/bin/true"}}
 	if err := validateLaunchRequest(ok); err != nil {
 		t.Fatalf("valid request rejected: %v", err)
 	}
 	cases := map[string]LaunchRequest{
 		"relative root": {Root: "rel", Cwd: cwd, Argv: []string{"x"}},
-		"relative cwd":  {Root: t.TempDir(), Cwd: "rel", Argv: []string{"x"}},
-		"missing cwd":   {Root: t.TempDir(), Cwd: filepath.Join(cwd, "absent"), Argv: []string{"x"}},
-		"empty argv":    {Root: t.TempDir(), Cwd: cwd, Argv: nil},
-		"empty argv0":   {Root: t.TempDir(), Cwd: cwd, Argv: []string{""}},
+		"relative cwd":  {Root: testsupport.TempDir(t), Cwd: "rel", Argv: []string{"x"}},
+		"missing cwd":   {Root: testsupport.TempDir(t), Cwd: filepath.Join(cwd, "absent"), Argv: []string{"x"}},
+		"empty argv":    {Root: testsupport.TempDir(t), Cwd: cwd, Argv: nil},
+		"empty argv0":   {Root: testsupport.TempDir(t), Cwd: cwd, Argv: []string{""}},
 	}
 	for name, req := range cases {
 		err := validateLaunchRequest(req)
@@ -33,7 +35,7 @@ func TestValidateLaunchRequest(t *testing.T) {
 }
 
 func TestResolveRunDirContainment(t *testing.T) {
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	id := "0123456789abcdef0123456789abcdef"
 	real := filepath.Join(root, id)
 	if err := os.Mkdir(real, 0o700); err != nil {
@@ -54,7 +56,7 @@ func TestResolveRunDirContainment(t *testing.T) {
 		t.Fatalf("symlink class = %v", err)
 	}
 	// A directory outside the root is refused even when its NAME looks right.
-	outside := filepath.Join(t.TempDir(), id)
+	outside := filepath.Join(testsupport.TempDir(t), id)
 	if err := os.Mkdir(outside, 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +76,7 @@ func TestResolveRunDirContainment(t *testing.T) {
 // physically must still match. TempDir already exercises this on darwin;
 // build the two spellings explicitly so the test bites on linux too.
 func TestResolveRunDirCanonicalisesRoot(t *testing.T) {
-	base := t.TempDir()
+	base := testsupport.TempDir(t)
 	physical := filepath.Join(base, "phys")
 	os.Mkdir(physical, 0o700)
 	alias := filepath.Join(base, "alias")

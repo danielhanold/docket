@@ -7,6 +7,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 func itoa(n int) string { return strconv.Itoa(n) }
@@ -14,7 +16,7 @@ func itoa(n int) string { return strconv.Itoa(n) }
 func launchAndWaitTerminal(t *testing.T, mode string, extra ...string) (*Service, *LaunchOutcome, *terminalRecord) {
 	t.Helper()
 	svc := newTestService(t)
-	out := launchHelper(t, svc, t.TempDir(), mode, extra...)
+	out := launchHelper(t, svc, testsupport.TempDir(t), mode, extra...)
 	var term *terminalRecord
 	waitFor(t, "terminal record", 30*time.Second, func() bool {
 		rec, err := readTerminal(out.RunDir)
@@ -41,7 +43,7 @@ func TestExactExitCodes(t *testing.T) {
 // kind=signal signal=15. No 128+signal heuristic anywhere.
 func TestSignalTermIsExactlySignal15(t *testing.T) {
 	svc := newTestService(t)
-	out := launchHelper(t, svc, t.TempDir(), "sleep")
+	out := launchHelper(t, svc, testsupport.TempDir(t), "sleep")
 	m, err := readManifest(out.RunDir)
 	if err != nil {
 		t.Fatal(err)
@@ -69,9 +71,9 @@ func TestSignalTermIsExactlySignal15(t *testing.T) {
 // failure.json, never a fabricated terminal record.
 func TestStartFailureIsDistinct(t *testing.T) {
 	svc := newTestService(t)
-	root := t.TempDir()
-	missing := filepath.Join(t.TempDir(), "no-such-binary")
-	_, err := svc.Launch(LaunchRequest{Root: root, Cwd: t.TempDir(), Argv: []string{missing}})
+	root := testsupport.TempDir(t)
+	missing := filepath.Join(testsupport.TempDir(t), "no-such-binary")
+	_, err := svc.Launch(LaunchRequest{Root: root, Cwd: testsupport.TempDir(t), Argv: []string{missing}})
 	if err == nil {
 		t.Fatal("unstartable command reported a usable handle")
 	}
@@ -89,7 +91,7 @@ func TestStartFailureIsDistinct(t *testing.T) {
 	if runDir == "" {
 		t.Fatal("no run dir retained for diagnosis")
 	}
-	t.Cleanup(func() { quiesceRun(t, runDir) })
+	testsupport.DrainOnCleanup(t, func() { quiesceRun(t, runDir) })
 	if rec, _ := readTerminal(runDir); rec != nil {
 		t.Fatalf("fabricated terminal record: %+v", rec)
 	}

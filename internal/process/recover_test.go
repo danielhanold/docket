@@ -8,6 +8,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // abandonedPreconditionUnmet reports why the run at runDir is not the clean
@@ -59,7 +61,7 @@ func TestRecoverMarksCleanlyAbandonedOwnedRun(t *testing.T) {
 	var out *LaunchOutcome
 	var m *manifestRecord
 	for attempt := 1; ; attempt++ {
-		root = t.TempDir()
+		root = testsupport.TempDir(t)
 		out = launchHelper(t, svc, root, "sleep")
 		var merr error
 		m, merr = readManifest(out.RunDir)
@@ -129,7 +131,7 @@ func TestRecoverMarksCleanlyAbandonedOwnedRun(t *testing.T) {
 // never falsely live.
 func TestRecoverDoesNotProbeLiveForZeroPGID(t *testing.T) {
 	svc := newTestService(t)
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	id := "abababababababababababababababab"
 	runDir := filepath.Join(root, id)
 	if err := os.Mkdir(runDir, 0o700); err != nil {
@@ -162,7 +164,7 @@ func TestRecoverDoesNotProbeLiveForZeroPGID(t *testing.T) {
 
 func TestRecoverRetainsLiveForeignAndInvalid(t *testing.T) {
 	svc := newTestService(t)
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	live := launchHelper(t, svc, root, "sleep")
 	// Foreign: a directory that is not run-id-shaped, with content.
 	foreign := filepath.Join(root, "not-docket")
@@ -224,7 +226,7 @@ func TestRecoverRetainsLiveForeignAndInvalid(t *testing.T) {
 // platform.
 func TestRecoverLeavesUnprovableGroupForInspection(t *testing.T) {
 	svc := newTestService(t)
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	out := launchHelper(t, svc, root, "sleep")
 	m, _ := readManifest(out.RunDir)
 	signalGroup(m.PGID, syscall.SIGKILL)

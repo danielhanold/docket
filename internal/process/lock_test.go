@@ -4,12 +4,14 @@ import (
 	"path/filepath"
 	"syscall"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 func syscall_Getpid() int { return syscall.Getpid() }
 
 func TestFlockLifecycle(t *testing.T) {
-	path := filepath.Join(t.TempDir(), liveLockFile)
+	path := filepath.Join(testsupport.TempDir(t), liveLockFile)
 	f, err := acquireFlock(path)
 	if err != nil {
 		t.Fatal(err)
@@ -27,7 +29,7 @@ func TestFlockLifecycle(t *testing.T) {
 		t.Fatalf("released lock probed %v %v", held, ans)
 	}
 	// A missing lock file is clean absence, not an error.
-	if held, ans := probeFlock(filepath.Join(t.TempDir(), "never")); held || ans != probeAbsent {
+	if held, ans := probeFlock(filepath.Join(testsupport.TempDir(t), "never")); held || ans != probeAbsent {
 		t.Fatalf("missing lock file probed %v %v", held, ans)
 	}
 }
@@ -38,7 +40,7 @@ func TestIdentityConjunctionRejectsOwnGroup(t *testing.T) {
 	self := syscall_Getpid()
 	pgid, _ := getPGID(self)
 	sid, _ := getSID(self)
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	f, err := acquireFlock(filepath.Join(dir, liveLockFile))
 	if err != nil {
 		t.Fatal(err)

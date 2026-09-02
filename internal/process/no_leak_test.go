@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // leakSentinel is a recognizable byte sequence carried through both the child's
@@ -74,12 +76,12 @@ func readRunFile(t *testing.T, runDir, name string) string {
 // `%v`), the classic regression the invariant guards against.
 func TestNoLeakStartFailureArgv(t *testing.T) {
 	svc := newTestService(t)
-	root := t.TempDir()
-	bogus := filepath.Join(t.TempDir(), leakSentinel+"-no-such-binary")
+	root := testsupport.TempDir(t)
+	bogus := filepath.Join(testsupport.TempDir(t), leakSentinel+"-no-such-binary")
 
 	_, err := svc.Launch(LaunchRequest{
 		Root: root,
-		Cwd:  t.TempDir(),
+		Cwd:  testsupport.TempDir(t),
 		Argv: []string{bogus, leakSentinel, "child-arg"},
 	})
 	if err == nil {
@@ -94,7 +96,7 @@ func TestNoLeakStartFailureArgv(t *testing.T) {
 
 	runDir := soleRunDir(t, root)
 	reapSupervisor(runDir)
-	t.Cleanup(func() { quiesceRun(t, runDir) })
+	testsupport.DrainOnCleanup(t, func() { quiesceRun(t, runDir) })
 
 	// The durable protocol record must be sentinel-free in its entirety.
 	assertNoSentinel(t, "failure.json", readRunFile(t, runDir, failureFile))
@@ -119,7 +121,7 @@ func TestNoLeakStartFailureArgv(t *testing.T) {
 // bounded argv0/argc, or if Observe folded child output into its verdict.
 func TestNoLeakChildOutputAndArgvTerminal(t *testing.T) {
 	svc := newTestService(t)
-	out := launchHelper(t, svc, t.TempDir(), "emit-exit", leakSentinel, leakSentinel, "7")
+	out := launchHelper(t, svc, testsupport.TempDir(t), "emit-exit", leakSentinel, leakSentinel, "7")
 
 	obs := observeUntilTerminal(t, svc, out.RunDir)
 	if obs.State != StateFailed {

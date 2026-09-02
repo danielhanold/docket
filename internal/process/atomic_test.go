@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"syscall"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // TestAtomicWriteModesUnderHostileUmask proves the documented 0700/0600
@@ -15,7 +17,7 @@ import (
 func TestAtomicWriteModesUnderHostileUmask(t *testing.T) {
 	old := syscall.Umask(0o077)
 	defer syscall.Umask(old)
-	dir := filepath.Join(t.TempDir(), "run")
+	dir := filepath.Join(testsupport.TempDir(t), "run")
 	if err := ensurePrivateDir(dir); err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +42,7 @@ func TestAtomicWriteModesUnderHostileUmask(t *testing.T) {
 // already yields 0700 under umask 077 — this one exercises the case that
 // makes the guard bite.
 func TestEnsurePrivateDirTightensExistingDir(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "run")
+	dir := filepath.Join(testsupport.TempDir(t), "run")
 	if err := os.Mkdir(dir, 0o777); err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +64,7 @@ func TestEnsurePrivateDirTightensExistingDir(t *testing.T) {
 // TestAtomicWriteNeverExposesPartialJSON hammers reads during repeated
 // replacement: every successful read must parse as complete JSON.
 func TestAtomicWriteNeverExposesPartialJSON(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	path := filepath.Join(dir, "r.json")
 	if err := writeAtomicJSON(path, map[string]string{"v": "seed"}); err != nil {
 		t.Fatal(err)
@@ -101,7 +103,7 @@ func TestAtomicWriteNeverExposesPartialJSON(t *testing.T) {
 // TestAtomicWriteLeavesNoTempFile — a completed write leaves exactly the
 // target in the directory.
 func TestAtomicWriteLeavesNoTempFile(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	if err := writeAtomicJSON(filepath.Join(dir, "only.json"), map[string]int{"a": 1}); err != nil {
 		t.Fatal(err)
 	}

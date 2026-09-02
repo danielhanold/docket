@@ -4,10 +4,12 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 func TestManifestRoundTrip(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	in := &manifestRecord{Schema: recordSchema, RunID: "aa", Token: "bb", Root: "/r",
 		RunDir: dir, SupervisorPID: 42, PGID: 42, SID: 42, Phase: "allocated",
 		Cwd: "/w", Argv0: "true", Argc: 1, CreatedAt: "2026-08-16T00:00:00Z", UpdatedAt: "2026-08-16T00:00:00Z"}
@@ -24,7 +26,7 @@ func TestManifestRoundTrip(t *testing.T) {
 }
 
 func TestTerminalRoundTrip(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	in := &terminalRecord{Schema: recordSchema, RunID: "aa", Kind: "signal", Signal: 15, RecordedAt: "x"}
 	if err := writeAtomicJSON(filepath.Join(dir, terminalFile), in); err != nil {
 		t.Fatal(err)
@@ -36,7 +38,7 @@ func TestTerminalRoundTrip(t *testing.T) {
 }
 
 func TestStopIntentRoundTrip(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	in := &stopIntentRecord{Schema: recordSchema, RunID: "aa", Reason: "operator stop", RecordedAt: "x"}
 	if err := writeAtomicJSON(filepath.Join(dir, stopIntentFile), in); err != nil {
 		t.Fatal(err)
@@ -48,7 +50,7 @@ func TestStopIntentRoundTrip(t *testing.T) {
 }
 
 func TestStoppedRoundTrip(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	in := &stoppedRecord{Schema: recordSchema, RunID: "aa", VerifiedAt: "x"}
 	if err := writeAtomicJSON(filepath.Join(dir, stoppedFile), in); err != nil {
 		t.Fatal(err)
@@ -60,7 +62,7 @@ func TestStoppedRoundTrip(t *testing.T) {
 }
 
 func TestAbandonedRoundTrip(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	in := &abandonedRecord{Schema: recordSchema, RunID: "aa", Cause: "vanished", RecordedAt: "x"}
 	if err := writeAtomicJSON(filepath.Join(dir, abandonedFile), in); err != nil {
 		t.Fatal(err)
@@ -72,7 +74,7 @@ func TestAbandonedRoundTrip(t *testing.T) {
 }
 
 func TestFailureRecordRoundTrip(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	in := &failureRecord{Schema: recordSchema, RunID: "aa", Stage: "start", Reason: "exec failed", RecordedAt: "x"}
 	if err := writeAtomicJSON(filepath.Join(dir, failureFile), in); err != nil {
 		t.Fatal(err)
@@ -86,7 +88,7 @@ func TestFailureRecordRoundTrip(t *testing.T) {
 // TestReadersThreeWayContract — absent is (nil, nil); malformed JSON and a
 // wrong schema are FailInvalidState; the three answers never collapse.
 func TestReadersThreeWayContract(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	if rec, err := readTerminal(dir); rec != nil || err != nil {
 		t.Fatalf("clean absence must be (nil, nil), got %v, %v", rec, err)
 	}

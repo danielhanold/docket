@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 func TestEnvWithout(t *testing.T) {
@@ -35,7 +37,7 @@ func TestSupervisorRequested(t *testing.T) {
 // and this test reddens.
 func TestSupervisorEstablishesBeforeRunning(t *testing.T) {
 	svc := newTestService(t)
-	out := launchHelper(t, svc, t.TempDir(), "sleep")
+	out := launchHelper(t, svc, testsupport.TempDir(t), "sleep")
 	defer killRun(t, out.RunDir)
 
 	logPath := filepath.Join(out.RunDir, supervisorLogFile)
