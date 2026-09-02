@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // TestDriveDocCarriesProtocolAndOutcome pins the emitted outcome document's
@@ -111,7 +113,7 @@ func TestDriveSchemaV1FailsClosedUnderV2(t *testing.T) {
 	if driveSchemaVersion != 2 {
 		t.Fatalf("this fail-closed assertion is pinned to schema v2, got v%d", driveSchemaVersion)
 	}
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	id, _, err := s.NewDrive(sampleRecord())
 	if err != nil {
 		t.Fatalf("NewDrive: %v", err)

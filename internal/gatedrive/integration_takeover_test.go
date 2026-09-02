@@ -29,6 +29,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // TestIntegrationFastCompletionReturnsImmediately proves a fast child that exits 0
@@ -39,8 +41,8 @@ import (
 func TestIntegrationFastCompletionReturnsImmediately(t *testing.T) {
 	skipUnlessSupported(t)
 	svc := mustService(t)
-	runRoot := filepath.Join(t.TempDir(), "runs")
-	store := OpenStore(t.TempDir())
+	runRoot := filepath.Join(testsupport.TempDir(t), "runs")
+	store := OpenStore(testsupport.TempDir(t))
 	reapSupervisors(t, runRoot)
 	t.Cleanup(func() { stopAllRuns(t, svc, runRoot) })
 
@@ -51,7 +53,7 @@ func TestIntegrationFastCompletionReturnsImmediately(t *testing.T) {
 	d.sleep = time.Sleep
 
 	start := time.Now()
-	doc, err := d.Start(intStartRequest(mustExe(t), runRoot, t.TempDir(), "pass-after", "0"))
+	doc, err := d.Start(intStartRequest(mustExe(t), runRoot, testsupport.TempDir(t), "pass-after", "0"))
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
@@ -80,14 +82,14 @@ func TestIntegrationSliceBoundIsProductionThirtySeconds(t *testing.T) {
 
 	skipUnlessSupported(t)
 	svc := mustService(t)
-	runRoot := filepath.Join(t.TempDir(), "runs")
-	store := OpenStore(t.TempDir())
+	runRoot := filepath.Join(testsupport.TempDir(t), "runs")
+	store := OpenStore(testsupport.TempDir(t))
 	reapSupervisors(t, runRoot)
 	t.Cleanup(func() { stopAllRuns(t, svc, runRoot) })
 	d := newIntDriver(store, svc) // injected short slice (intSlice)
 
 	start := time.Now()
-	doc, err := d.Start(intStartRequest(mustExe(t), runRoot, t.TempDir(), "sleep-forever", ""))
+	doc, err := d.Start(intStartRequest(mustExe(t), runRoot, testsupport.TempDir(t), "sleep-forever", ""))
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
@@ -110,15 +112,15 @@ func TestIntegrationSliceBoundIsProductionThirtySeconds(t *testing.T) {
 func TestIntegrationTakeoverKeepsRunIdentity(t *testing.T) {
 	skipUnlessSupported(t)
 	svc := mustService(t)
-	runRoot := filepath.Join(t.TempDir(), "runs")
-	store := OpenStore(t.TempDir())
+	runRoot := filepath.Join(testsupport.TempDir(t), "runs")
+	store := OpenStore(testsupport.TempDir(t))
 	reapSupervisors(t, runRoot)
 	t.Cleanup(func() { stopAllRuns(t, svc, runRoot) })
 	d := newIntDriver(store, svc)
 
 	// A real scope-bound start over a child that outlives several short slices and
 	// is still live when the takeover happens.
-	req := intStartRequest(mustExe(t), runRoot, t.TempDir(), "pass-after", "500")
+	req := intStartRequest(mustExe(t), runRoot, testsupport.TempDir(t), "pass-after", "500")
 	grant, err := store.PrepareScope(scopeReqFor(req, ""))
 	if err != nil {
 		t.Fatalf("PrepareScope: %v", err)
@@ -191,8 +193,8 @@ func TestIntegrationTakeoverKeepsRunIdentity(t *testing.T) {
 func TestIntegrationTerminalConsumedFromFreshProcess(t *testing.T) {
 	skipUnlessSupported(t)
 	svc := mustService(t)
-	gitCommon := t.TempDir()
-	runRoot := filepath.Join(t.TempDir(), "runs")
+	gitCommon := testsupport.TempDir(t)
+	runRoot := filepath.Join(testsupport.TempDir(t), "runs")
 	reapSupervisors(t, runRoot)
 	t.Cleanup(func() { stopAllRuns(t, svc, runRoot) })
 
@@ -200,7 +202,7 @@ func TestIntegrationTerminalConsumedFromFreshProcess(t *testing.T) {
 	// owner generation set, so the terminal is UNCONSUMED (no cooperative claim).
 	store1 := OpenStore(gitCommon)
 	d1 := newIntDriver(store1, svc)
-	req := intStartRequest(mustExe(t), runRoot, t.TempDir(), "pass-after", "300")
+	req := intStartRequest(mustExe(t), runRoot, testsupport.TempDir(t), "pass-after", "300")
 	grant, err := store1.PrepareScope(scopeReqFor(req, ""))
 	if err != nil {
 		t.Fatalf("PrepareScope: %v", err)

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // sampleScopeReq builds a ScopeRequest with a value in every field and a
@@ -58,7 +60,7 @@ func isStoreKind(err error, kind StoreErrorKind) bool {
 // 32 lowercase hex — and that the persisted record stores only sha256 hashes of
 // the two capabilities and of GateContext, never their raw values.
 func TestPrepareScopeMintsSeparatedCapabilities(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	req := sampleScopeReq()
 	grant, err := s.PrepareScope(req)
 	if err != nil {
@@ -128,7 +130,7 @@ func TestPrepareScopeMintsSeparatedCapabilities(t *testing.T) {
 // drive id; a different drive id, a wrong or empty capability, and a closed
 // scope each fail with a distinct typed error.
 func TestScopeBindOnce(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	grant, err := s.PrepareScope(sampleScopeReq())
 	if err != nil {
 		t.Fatalf("PrepareScope: %v", err)
@@ -179,7 +181,7 @@ func TestScopeBindOnce(t *testing.T) {
 // version and on a corrupt record (reusing the StoreError kinds), and that a
 // traversal-shaped scope id is rejected before any path is built.
 func TestScopeIdentityFailClosed(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 
 	// Unknown schema version.
 	unk, err := s.PrepareScope(sampleScopeReq())
@@ -222,7 +224,7 @@ func TestScopeIdentityFailClosed(t *testing.T) {
 // once: rebinding the same id is a no-op, a different id fails closed, and a
 // closed scope refuses the bind.
 func TestBindScopeChangeOnce(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	grant, err := s.PrepareScope(sampleScopeReq()) // ChangeID is empty
 	if err != nil {
 		t.Fatalf("PrepareScope: %v", err)
@@ -264,7 +266,7 @@ func TestBindScopeChangeOnce(t *testing.T) {
 // the typed ErrScopeSecondDrive rejection, never a physical-contention leak. Run
 // under -race.
 func TestScopeCASConcurrent(t *testing.T) {
-	s := OpenStore(t.TempDir())
+	s := OpenStore(testsupport.TempDir(t))
 	grant, err := s.PrepareScope(sampleScopeReq())
 	if err != nil {
 		t.Fatalf("PrepareScope: %v", err)
