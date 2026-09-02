@@ -215,6 +215,16 @@ func scopeIdentityMatch(scope scopeRecord, repo, branch, worktree, change, task,
 // idempotent, used by the cooperative claim path where a redundant close is fine),
 // this is the SINGLE-USE takeover gate: under a race exactly one caller wins the
 // open→closed transition, so exactly one takeover mints a fresh owner.
+//
+// Single-use is per-scope, and a scope is minted once per gate ARMING, so the
+// outer recovery scope grants at most ONE automatic outer takeover per arming:
+// the first accepted takeover closes it, and a second detached-crash takeover
+// under the same gate key then finds scope.Closed and HALTs scope-closed
+// (gateOuterContinuation maps that to a terminal gate-stop gate-unavailable, no
+// retry spent). This is intentional fail-closed behavior — a human recovers by
+// re-arming a fresh scope via `gate-before --resume` — not a bug; see the spec's
+// §5 continuation clause ("remains active until implement-next reaches a true
+// terminal disposition") for the documented bound.
 func (s *Store) claimScopeForTakeover(scopeID string) error {
 	return s.scopeCAS(scopeID, func(rec *scopeRecord) error {
 		if rec.Closed {
