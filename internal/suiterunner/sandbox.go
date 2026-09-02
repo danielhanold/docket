@@ -11,10 +11,20 @@ import (
 	"path/filepath"
 )
 
+// GitBackgroundOff disables every git mechanism that detaches a child which
+// can outlive the invoking command and keep writing into the repository —
+// the t.TempDir() "directory not empty" mechanism (change 0373). One source:
+// the runner sandbox appends it to the synthetic global config, and
+// internal/testsupport embeds it in each fixture's GIT_CONFIG_GLOBAL, so
+// gate runs and solo runs agree.
+const GitBackgroundOff = "[gc]\n\tauto = 0\n\tautoDetach = false\n[maintenance]\n\tauto = false\n[core]\n\tfsmonitor = false\n"
+
 // gitIdentityConfig is the synthetic global git config every target sees: a
 // present-but-fake identity (a test that commits must still be able to) and a
-// deterministic default branch. Byte-for-byte the oracle's launch() writes this.
-const gitIdentityConfig = "[user]\n\tname = docket test\n\temail = test@docket.invalid\n[init]\n\tdefaultBranch = main\n"
+// deterministic default branch, with change 0373's git-background-off knobs
+// appended. The identity core (through defaultBranch) is byte-for-byte what
+// the oracle's launch() wrote; GitBackgroundOff is the 0373 addition.
+const gitIdentityConfig = "[user]\n\tname = docket test\n\temail = test@docket.invalid\n[init]\n\tdefaultBranch = main\n" + GitBackgroundOff
 
 // Sandbox builds the isolated child environment for one target under jobdir and
 // creates the directories and git-config files it references. It returns the

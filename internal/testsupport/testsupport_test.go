@@ -3,8 +3,11 @@ package testsupport
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/danielhanold/docket/internal/suiterunner"
 )
 
 // A dir with a transient post-test writer must still be removed: simulate a
@@ -41,6 +44,23 @@ func TestDrainRunsBeforeRemoval(t *testing.T) {
 	}
 	if len(order) != 1 || order[0] != "drain" {
 		t.Fatalf("drain did not run before removal: %v", order)
+	}
+}
+
+func TestGitEnvPointsAtBackgroundOffConfig(t *testing.T) {
+	env := GitEnv(t)
+	if len(env) != 1 || !strings.HasPrefix(env[0], "GIT_CONFIG_GLOBAL=") {
+		t.Fatalf("GitEnv = %v", env)
+	}
+	b, err := os.ReadFile(strings.TrimPrefix(env[0], "GIT_CONFIG_GLOBAL="))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), suiterunner.GitBackgroundOff) {
+		t.Fatalf("fixture git config does not embed suiterunner.GitBackgroundOff:\n%s", b)
+	}
+	if !strings.Contains(string(b), "name = docket test") {
+		t.Fatalf("fixture git config lost the synthetic identity:\n%s", b)
 	}
 }
 
