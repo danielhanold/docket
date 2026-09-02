@@ -9,6 +9,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/assets"
 	"github.com/danielhanold/docket/internal/install"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // ---------------------------------------------------------------------------
@@ -21,7 +22,7 @@ import (
 // test controls byte for byte, not against the repo the tests happen to run in.
 func newSource(t *testing.T) string {
 	t.Helper()
-	dir := canonical(t, t.TempDir())
+	dir := canonical(t, testsupport.TempDir(t))
 	writeFile(t, filepath.Join(dir, "skills", "docket-toy", "SKILL.md"), "# toy skill\n")
 	writeFile(t, filepath.Join(dir, "agents", "docket-toy.md"), agentSource("v1"))
 	writeFile(t, filepath.Join(dir, "agents", "harness-defaults.yml"), "claude: {}\n")
@@ -431,12 +432,12 @@ func TestDevInstallMissingSource(t *testing.T) {
 	}{
 		{
 			name:   "absent",
-			mangle: func(t *testing.T) string { return filepath.Join(canonical(t, t.TempDir()), "nowhere") },
+			mangle: func(t *testing.T) string { return filepath.Join(canonical(t, testsupport.TempDir(t)), "nowhere") },
 		},
 		{
 			name: "not a directory",
 			mangle: func(t *testing.T) string {
-				p := filepath.Join(canonical(t, t.TempDir()), "file")
+				p := filepath.Join(canonical(t, testsupport.TempDir(t)), "file")
 				writeFile(t, p, "not a checkout\n")
 				return p
 			},
@@ -444,7 +445,7 @@ func TestDevInstallMissingSource(t *testing.T) {
 		{
 			name: "missing an allowed root",
 			mangle: func(t *testing.T) string {
-				dir := filepath.Join(canonical(t, t.TempDir()), "copy")
+				dir := filepath.Join(canonical(t, testsupport.TempDir(t)), "copy")
 				if err := os.CopyFS(dir, os.DirFS(good)); err != nil {
 					t.Fatalf("copy: %v", err)
 				}

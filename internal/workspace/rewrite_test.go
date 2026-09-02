@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // This file drives PublishRewrite: the narrow, receipt-scoped force-with-lease
@@ -238,7 +239,7 @@ func TestPublishRewriteRefusesWithoutReceipt(t *testing.T) {
 
 	// (b) Receipt present but its repo identity is a different repository.
 	wrongRepo := receiptFor(repo, tgt, head1, base, "attempt-01")
-	wrongRepo.RepoIdentity = filepath.Join(t.TempDir(), "other-common.git")
+	wrongRepo.RepoIdentity = filepath.Join(testsupport.TempDir(t), "other-common.git")
 	if err := svc.WriteRebaseReceipt(ctx, dir, wrongRepo); err != nil {
 		t.Fatalf("WriteRebaseReceipt(wrongRepo): %v", err)
 	}
@@ -292,7 +293,7 @@ func TestPublishRewriteUnknownRetains(t *testing.T) {
 	}
 
 	// Break the origin URL so the remote probe cannot establish the ref state.
-	gitOut(t, r.Primary, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "nonexistent.git"))
+	gitOut(t, r.Primary, "remote", "set-url", "origin", filepath.Join(testsupport.TempDir(t), "nonexistent.git"))
 
 	outcome, err := svc.PublishRewrite(context.Background(), RewriteRequest{Dir: dir, Receipt: rec, NewHead: string(newHead)})
 	if err != nil {

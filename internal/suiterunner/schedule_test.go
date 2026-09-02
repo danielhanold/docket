@@ -8,6 +8,8 @@ import (
 	"sort"
 	"sync"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // serialTarget writes a serial-mode fixture and returns its Target.
@@ -67,9 +69,9 @@ func TestSchedulePartitionAndOrder(t *testing.T) {
 // every target exits 0. Mutating the scheduler to run serial targets
 // concurrently makes the second mkdir fail on the held lock -> NOT OK -> rc 1.
 func TestSerialTargetsNeverOverlap(t *testing.T) {
-	scripts := t.TempDir()
-	work := t.TempDir()
-	overlap := t.TempDir()
+	scripts := testsupport.TempDir(t)
+	work := testsupport.TempDir(t)
+	overlap := testsupport.TempDir(t)
 
 	body := "" +
 		"mkdir \"$OVERLAP_DIR/lock\" || { echo 'NOT OK - overlap'; exit 1; }\n" +
@@ -105,9 +107,9 @@ func TestSerialTargetsNeverOverlap(t *testing.T) {
 // and 6 targets the live count never exceeds 2. A mutation that ignores the
 // semaphore bound launches all 6 at once -> count > 2 -> NOT OK -> rc 1.
 func TestParallelBoundIsRespected(t *testing.T) {
-	scripts := t.TempDir()
-	work := t.TempDir()
-	slots := t.TempDir()
+	scripts := testsupport.TempDir(t)
+	work := testsupport.TempDir(t)
+	slots := testsupport.TempDir(t)
 
 	var targets []Target
 	for i := 0; i < 6; i++ {
@@ -145,8 +147,8 @@ func TestParallelBoundIsRespected(t *testing.T) {
 // target's onDone cancels the context, so targets 2..4 never launch and no
 // durable result files exist for them.
 func TestCancelStopsScheduling(t *testing.T) {
-	scripts := t.TempDir()
-	work := t.TempDir()
+	scripts := testsupport.TempDir(t)
+	work := testsupport.TempDir(t)
 
 	var par []Target
 	for _, n := range []string{"c1", "c2", "c3", "c4"} {

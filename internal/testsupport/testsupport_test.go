@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/danielhanold/docket/internal/suiterunner"
+	"github.com/danielhanold/docket/internal/gitbg"
 )
 
 // A dir with a transient post-test writer must still be removed: simulate a
@@ -56,8 +56,8 @@ func TestGitEnvPointsAtBackgroundOffConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(b), suiterunner.GitBackgroundOff) {
-		t.Fatalf("fixture git config does not embed suiterunner.GitBackgroundOff:\n%s", b)
+	if !strings.Contains(string(b), gitbg.BackgroundOff) {
+		t.Fatalf("fixture git config does not embed gitbg.BackgroundOff:\n%s", b)
 	}
 	if !strings.Contains(string(b), "name = docket test") {
 		t.Fatalf("fixture git config lost the synthetic identity:\n%s", b)

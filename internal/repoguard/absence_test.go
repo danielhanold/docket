@@ -18,6 +18,7 @@ import (
 	"github.com/danielhanold/docket/internal/harness/cursor"
 	"github.com/danielhanold/docket/internal/harness/opencode"
 	"github.com/danielhanold/docket/internal/install"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // This file is the FINAL absence seal for change 0370 (Gate 6; acceptance 17,
@@ -359,7 +360,7 @@ func testGeneratorOutputAbsence(t *testing.T) {
 		},
 		Agents: crossAgentsTable(),
 	}
-	out := t.TempDir()
+	out := testsupport.TempDir(t)
 	written := 0
 	writeGen := func(relParts []string, content []byte) {
 		p := filepath.Join(append([]string{out}, relParts...)...)
@@ -402,7 +403,7 @@ func testGeneratorOutputAbsence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("assets.Generate: %v", err)
 	}
-	tree := filepath.Join(t.TempDir(), "embedded")
+	tree := filepath.Join(testsupport.TempDir(t), "embedded")
 	if err := assets.WriteTree(tree, m, payload); err != nil {
 		t.Fatalf("assets.WriteTree: %v", err)
 	}
@@ -556,7 +557,7 @@ func testAbsenceNonVacuity(t *testing.T) {
 // and asserts both that those files are absent from the scanned population and
 // that the guard is GREEN over what remains.
 func testAbsenceNegativeControls(t *testing.T) {
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	writeFile(t, root, "go.mod", "module x\n")
 
 	// Forbidden shapes, EVERY one inside an excluded corpus — must be ignored.

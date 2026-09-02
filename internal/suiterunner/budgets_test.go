@@ -4,10 +4,12 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 func TestLoadBudgetsParsesOracleFormat(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	path := filepath.Join(dir, "runtime-budgets.tsv")
 	// A comment line, a valid row, a malformed-seconds row, an unknown-mode row,
 	// and a final row WITHOUT a trailing newline (must still parse).
@@ -47,7 +49,7 @@ func TestLoadBudgetsParsesOracleFormat(t *testing.T) {
 }
 
 func TestLoadBudgetsMissingFileIsEmpty(t *testing.T) {
-	budgets, err := LoadBudgets(filepath.Join(t.TempDir(), "nope.tsv"))
+	budgets, err := LoadBudgets(filepath.Join(testsupport.TempDir(t), "nope.tsv"))
 	if err != nil {
 		t.Fatalf("LoadBudgets on a missing file returned error %v; want empty map, nil error", err)
 	}

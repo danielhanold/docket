@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/config"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // TestLegacyHarnessDefaultsFrozenCopy guards the embedded frozen floor against
@@ -129,7 +130,7 @@ func TestInspectAdoptsExactLegacyViaProductionInputs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("read corpus %s/%s: %v", harness, name, err)
 			}
-			dir := t.TempDir()
+			dir := testsupport.TempDir(t)
 			p := filepath.Join(dir, legacyAgentDirName[harness], "agents", name)
 			// Planned content deliberately differs from the on-disk legacy bytes, so
 			// the noop path is unreachable and the ONLY non-conflict verdict is proof

@@ -3,6 +3,8 @@ package cli
 import (
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // TestWorkspaceCommandsRegistered: the three `workspace` subcommands are
@@ -42,7 +44,7 @@ func TestWorkspaceCommandsRegistered(t *testing.T) {
 // operation. In a non-repository directory the pin fails, which is still one
 // well-formed document.
 func TestWorkspaceInspectEmitsOneDocument(t *testing.T) {
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	out, errS, code := runCLI(t, "workspace", "inspect", "--id", "3", "--repo-dir", root, "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q (code=%d)", errS, code)
@@ -62,7 +64,7 @@ func TestWorkspaceInspectEmitsOneDocument(t *testing.T) {
 // --version into app.WorkspacePrepare; against a non-repository directory the
 // pin fails, still yielding one document naming the prepare operation.
 func TestWorkspacePrepareRoutesFlags(t *testing.T) {
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	out, errS, _ := runCLI(t, "workspace", "prepare", "--id", "7", "--version", "abc", "--repo-dir", root, "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
@@ -86,7 +88,7 @@ func TestWorkspaceRequiredFlags(t *testing.T) {
 // TestWorkspaceInspectHumanMode: without --json the presenter writes the result's
 // HumanText() to stdout and names the operation.
 func TestWorkspaceInspectHumanMode(t *testing.T) {
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	out, _, _ := runCLI(t, "workspace", "inspect", "--id", "3", "--repo-dir", root)
 	if !strings.Contains(out, "workspace") {
 		t.Fatalf("human stdout did not carry the operation text: %q", out)

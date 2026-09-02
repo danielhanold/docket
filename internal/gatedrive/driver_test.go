@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/danielhanold/docket/internal/process"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // ---------------------------------------------------------------------------
@@ -97,7 +98,7 @@ const pollTick = time.Millisecond
 // running run reaches the slice bound after four polls and returns WAITING.
 func newTestDriver(t *testing.T, clk *fakeClock, proc *fakeProc, git GitSeam) (*Driver, *Store) {
 	t.Helper()
-	store := OpenStore(t.TempDir())
+	store := OpenStore(testsupport.TempDir(t))
 	d := NewDriver(store, clk, proc, git)
 	d.slice = 4 * pollTick
 	d.pollInterval = pollTick
@@ -824,7 +825,7 @@ func TestFreshDriverResumesFromDisk(t *testing.T) {
 			return obs(process.StatePassed, runDir), nil
 		},
 	}
-	store := OpenStore(t.TempDir())
+	store := OpenStore(testsupport.TempDir(t))
 
 	driverA := NewDriver(store, clk, proc, stableGit())
 	driverA.slice = 4 * pollTick

@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // writeStat drops a raw stat file body into dir under name; the tests control
@@ -41,7 +43,7 @@ func findOutcome(t *testing.T, outcomes []TargetOutcome, base string) TargetOutc
 // result all classify in a SINGLE call. Mutating ValidateResults to stop after
 // the first failure, or to skip a scheduled target, drops one of the three.
 func TestValidateCompletenessOverWholeSet(t *testing.T) {
-	statDir := t.TempDir()
+	statDir := testsupport.TempDir(t)
 	writeStat(t, statDir, "test_pass.json", validStat("test_pass.sh", 0, 3, 2, 0))
 	writeStat(t, statDir, "test_bad.json", `{"schema":1,"target":"test_bad.sh"`) // truncated
 	// test_gone: no file at all.
@@ -72,7 +74,7 @@ func TestValidateCompletenessOverWholeSet(t *testing.T) {
 // TestValidateWrongTargetIdentity — a file whose target field names a different
 // test than its filename is a mis-published record, not a pass.
 func TestValidateWrongTargetIdentity(t *testing.T) {
-	statDir := t.TempDir()
+	statDir := testsupport.TempDir(t)
 	writeStat(t, statDir, "test_a.json", validStat("test_b.sh", 0, 1, 1, 0))
 
 	outcomes, _ := ValidateResults([]Target{tgt("test_a.sh", 60, ModeParallel)}, nil, statDir, nil)
@@ -89,7 +91,7 @@ func TestValidateWrongTargetIdentity(t *testing.T) {
 // scheduled is surfaced (never silently ignored), and it certifies nothing:
 // ExitCode with unknown>0 is 3.
 func TestValidateUnknownAndUnscheduled(t *testing.T) {
-	statDir := t.TempDir()
+	statDir := testsupport.TempDir(t)
 	writeStat(t, statDir, "test_a.json", validStat("test_a.sh", 0, 1, 1, 0))
 	writeStat(t, statDir, "test_ghost.json", validStat("test_ghost.sh", 0, 1, 1, 0))
 
@@ -110,7 +112,7 @@ func TestValidateUnknownAndUnscheduled(t *testing.T) {
 // record means an atomic publish did not complete; the record's durability
 // cannot be shown, so the target is invalid, not passed.
 func TestValidateDuplicatePublication(t *testing.T) {
-	statDir := t.TempDir()
+	statDir := testsupport.TempDir(t)
 	writeStat(t, statDir, "test_p.json", validStat("test_p.sh", 0, 1, 1, 0))
 	writeStat(t, statDir, ".stat-xyz", `{"schema":1,"target":"test_p.sh"`) // orphaned temp
 
@@ -127,7 +129,7 @@ func TestValidateDuplicatePublication(t *testing.T) {
 // TestValidateObservationConflict — a nominal (rc=0) durable file cannot conceal
 // a runner-observed execution failure (rc=1); the disagreement is invalid.
 func TestValidateObservationConflict(t *testing.T) {
-	statDir := t.TempDir()
+	statDir := testsupport.TempDir(t)
 	writeStat(t, statDir, "test_c.json", validStat("test_c.sh", 0, 1, 1, 0))
 	observed := map[string]Result{"test_c.sh": {Schema: 1, Target: "test_c.sh", RC: 1}}
 

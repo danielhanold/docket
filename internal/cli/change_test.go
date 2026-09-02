@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // runCLIStdin is runCLI with caller-supplied stdin, so a `--request -` command
@@ -82,7 +84,7 @@ func TestChangeCommandsReachOperation(t *testing.T) {
 		{"kill", "change.kill"},
 	}
 	for _, c := range cases {
-		out, errS, code := runCLIStdin(t, `{}`, "change", c.sub, "--request", "-", "--repo-dir", t.TempDir(), "--json")
+		out, errS, code := runCLIStdin(t, `{}`, "change", c.sub, "--request", "-", "--repo-dir", testsupport.TempDir(t), "--json")
 		if errS != "" {
 			t.Fatalf("%s: unexpected stderr %q (code=%d)", c.sub, errS, code)
 		}
@@ -101,12 +103,12 @@ func TestChangeCommandsReachOperation(t *testing.T) {
 // TestChangeRequestFromFile proves the --request path form reads a JSON file
 // (not only stdin) and reaches the operation.
 func TestChangeRequestFromFile(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	reqPath := filepath.Join(dir, "req.json")
 	if err := os.WriteFile(reqPath, []byte(`{}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	out, errS, code := runCLI(t, "change", "create", "--request", reqPath, "--repo-dir", t.TempDir(), "--json")
+	out, errS, code := runCLI(t, "change", "create", "--request", reqPath, "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
 	}
@@ -118,7 +120,7 @@ func TestChangeRequestFromFile(t *testing.T) {
 // TestChangeRequestFileMissing proves an unreadable --request path is an
 // argument error (exit 2) rather than a panic or a half-formed document.
 func TestChangeRequestFileMissing(t *testing.T) {
-	_, errS, code := runCLI(t, "change", "create", "--request", filepath.Join(t.TempDir(), "nope.json"))
+	_, errS, code := runCLI(t, "change", "create", "--request", filepath.Join(testsupport.TempDir(t), "nope.json"))
 	if code != 2 {
 		t.Fatalf("err=%q code=%d", errS, code)
 	}
@@ -189,7 +191,7 @@ func TestChangeReconcileInputFlagRequired(t *testing.T) {
 // naming it. A `{}` body fails the up-front shape validation (missing version /
 // log entry), so this reaches the operation without a live repository.
 func TestChangeReconcileReachesOperation(t *testing.T) {
-	out, errS, code := runCLIStdin(t, `{}`, "change", "reconcile", "--input", "-", "--repo-dir", t.TempDir(), "--json")
+	out, errS, code := runCLIStdin(t, `{}`, "change", "reconcile", "--input", "-", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q (code=%d)", errS, code)
 	}
@@ -234,7 +236,7 @@ func TestChangeClaimCommandsReachOperation(t *testing.T) {
 	for _, c := range cases {
 		out, errS, code := runCLI(t, "change", c.sub,
 			"--id", "7", "--version", "1234123412341234123412341234123412341234",
-			"--repo-dir", t.TempDir(), "--json")
+			"--repo-dir", testsupport.TempDir(t), "--json")
 		_ = code
 		if errS != "" {
 			t.Fatalf("%s: unexpected stderr %q", c.sub, errS)
@@ -305,7 +307,7 @@ func TestChangeMarkImplementedFlagsRequired(t *testing.T) {
 // protocol-v1 document naming it. A prose-only evidence file does not verify,
 // which is still one well-formed document that names change.mark-implemented.
 func TestChangeMarkImplementedReachesOperation(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	evFile := filepath.Join(dir, "evidence.md")
 	if err := os.WriteFile(evFile, []byte("# just prose, no block\n"), 0o644); err != nil {
 		t.Fatalf("seed evidence: %v", err)
@@ -350,7 +352,7 @@ func TestChangeAttachCommandsReachOperation(t *testing.T) {
 		out, errS, _ := runCLI(t, "change", c.sub,
 			"--id", "7", "--version", "1234123412341234123412341234123412341234",
 			"--path", "docs/superpowers/plans/x.md", "--commit", "1234123412341234123412341234123412341234",
-			"--repo-dir", t.TempDir(), "--json")
+			"--repo-dir", testsupport.TempDir(t), "--json")
 		if errS != "" {
 			t.Fatalf("%s: unexpected stderr %q", c.sub, errS)
 		}
@@ -390,7 +392,7 @@ func TestChangeHaltRegistered(t *testing.T) {
 // live repository.
 func TestChangeHaltReachesOperation(t *testing.T) {
 	out, errS, _ := runCLIStdin(t, `{}`, "change", "halt",
-		"--id", "3", "--version", "1234123412341234123412341234123412341234", "--input", "-", "--repo-dir", t.TempDir(), "--json")
+		"--id", "3", "--version", "1234123412341234123412341234123412341234", "--input", "-", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
 	}
@@ -427,7 +429,7 @@ func TestChangeResumeHaltedRegistered(t *testing.T) {
 // live repository is consulted.
 func TestChangeResumeHaltedReachesOperation(t *testing.T) {
 	out, errS, _ := runCLI(t, "change", "resume-halted",
-		"--id", "3", "--version", "1234123412341234123412341234123412341234", "--repo-dir", t.TempDir(), "--json")
+		"--id", "3", "--version", "1234123412341234123412341234123412341234", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
 	}
@@ -477,7 +479,7 @@ func TestChangeReclaimFlagsRequired(t *testing.T) {
 // metadata is mutated.
 func TestChangeReclaimReachesOperation(t *testing.T) {
 	out, errS, _ := runCLI(t, "change", "reclaim",
-		"--id", "3", "--version", "1234123412341234123412341234123412341234", "--repo-dir", t.TempDir(), "--json")
+		"--id", "3", "--version", "1234123412341234123412341234123412341234", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q", errS)
 	}
@@ -525,7 +527,7 @@ func TestChangeRepairIdentityFlagsRequired(t *testing.T) {
 func TestChangeRepairIdentityReachesOperation(t *testing.T) {
 	out, errS, code := runCLI(t, "change", "repair-identity",
 		"--id", "3", "--expect-version", "1234123412341234123412341234123412341234",
-		"--repo-dir", t.TempDir(), "--json")
+		"--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q (code=%d)", errS, code)
 	}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/danielhanold/docket/internal/domain"
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // The Prepare tests exercise the fresh-allocation path against real temporary
@@ -430,8 +431,8 @@ func TestPrepareInvocationMatrix(t *testing.T) {
 	}
 	// A symlinked spelling of the primary path, in a separate temp root, so the
 	// invocation path differs from the canonical one by a real symlink hop (on top
-	// of the macOS /tmp -> /private/tmp hop t.TempDir() already provides).
-	linkParent := t.TempDir()
+	// of the macOS /tmp -> /private/tmp hop testsupport.TempDir(t) already provides).
+	linkParent := testsupport.TempDir(t)
 	link := filepath.Join(linkParent, "primary-link")
 	if err := os.Symlink(r.Primary, link); err != nil {
 		t.Fatal(err)
@@ -1084,7 +1085,7 @@ func TestPrepareProbeFailureCreatesNothing(t *testing.T) {
 // wrapper is invoked by absolute path, so PATH still resolves the real git.
 func writeFailingGit(t *testing.T, failSubcommand string) string {
 	t.Helper()
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	p := filepath.Join(dir, "git")
 	script := "#!/bin/sh\nif [ \"$1\" = \"" + failSubcommand + "\" ]; then\n  echo \"fake git: $1 disabled for test\" >&2\n  exit 1\nfi\nexec git \"$@\"\n"
 	if err := os.WriteFile(p, []byte(script), 0o755); err != nil {

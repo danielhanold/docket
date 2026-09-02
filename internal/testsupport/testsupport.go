@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/danielhanold/docket/internal/suiterunner"
+	"github.com/danielhanold/docket/internal/gitbg"
 )
 
 // cleanupTolerance bounds the RemoveAll retry window.
@@ -112,13 +112,12 @@ func removeAllTolerant(t testing.TB, dir string) {
 }
 
 // GitEnv returns the env override pointing spawned git processes at a
-// per-fixture global config: the synthetic identity plus
-// suiterunner.GitBackgroundOff. Pass it (appended last) to any exec'd
-// command that may run git.
+// per-fixture global config: the synthetic identity plus gitbg.BackgroundOff.
+// Pass it (appended last) to any exec'd command that may run git.
 func GitEnv(t testing.TB) []string {
 	t.Helper()
 	dir := TempDir(t)
-	cfg := "[user]\n\tname = docket test\n\temail = test@docket.invalid\n[init]\n\tdefaultBranch = main\n" + suiterunner.GitBackgroundOff
+	cfg := "[user]\n\tname = docket test\n\temail = test@docket.invalid\n[init]\n\tdefaultBranch = main\n" + gitbg.BackgroundOff
 	path := filepath.Join(dir, "gitconfig")
 	if err := os.WriteFile(path, []byte(cfg), 0o644); err != nil {
 		t.Fatalf("testsupport: write git config: %v", err)

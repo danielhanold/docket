@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // ctxKey renders a context key for the tests' fixed execution context (j8/c8,
@@ -26,7 +28,7 @@ func writeDurations(t *testing.T, rows [][3]string) string {
 	for _, r := range rows {
 		b.WriteString(r[0] + "\t" + r[1] + "\t" + r[2] + "\n")
 	}
-	p := filepath.Join(t.TempDir(), "durations.tsv")
+	p := filepath.Join(testsupport.TempDir(t), "durations.tsv")
 	if err := os.WriteFile(p, []byte(b.String()), 0o644); err != nil {
 		t.Fatalf("write durations: %v", err)
 	}
@@ -110,7 +112,7 @@ func TestSensitiveSinceCounterNeverResetsOnClean(t *testing.T) {
 // declare a breach from the contended measurement (skipping the confirmation)
 // reddens this.
 func TestConfirmationPrecedesAuthoritativeBreach(t *testing.T) {
-	scripts := t.TempDir()
+	scripts := testsupport.TempDir(t)
 	tgt := writeScript(t, scripts, "cpb", "echo 'ok - cpb'\n")
 	ceil := 10
 	key := ctxKey(tgt.Path, ceil)
@@ -125,7 +127,7 @@ func TestConfirmationPrecedesAuthoritativeBreach(t *testing.T) {
 	}
 	// Injected solo 20s over ceiling*3/2 = 15s -> a confirmed breach.
 	dur := writeDurations(t, [][3]string{{"test_cpb.sh", "30", "20"}})
-	cfg := Config{Bash: bashPath(t), Work: t.TempDir(), DurationsPath: dur}
+	cfg := Config{Bash: bashPath(t), Work: testsupport.TempDir(t), DurationsPath: dur}
 
 	var buf bytes.Buffer
 	s.ScheduleConfirmation(context.Background(), cfg, &buf)
@@ -145,7 +147,7 @@ func TestConfirmationPrecedesAuthoritativeBreach(t *testing.T) {
 }
 
 func TestFailedConfirmationClearsNothing(t *testing.T) {
-	scripts := t.TempDir()
+	scripts := testsupport.TempDir(t)
 	tgt := writeScript(t, scripts, "fcc", "echo 'NOT OK - boom'\nexit 2\n")
 	ceil := 10
 	key := ctxKey(tgt.Path, ceil)
@@ -157,7 +159,7 @@ func TestFailedConfirmationClearsNothing(t *testing.T) {
 	}
 	dueBefore := s.records[key].dueSeq
 	streakBefore := s.records[key].streak
-	cfg := Config{Bash: bashPath(t), Work: t.TempDir()}
+	cfg := Config{Bash: bashPath(t), Work: testsupport.TempDir(t)}
 
 	var buf bytes.Buffer
 	s.ScheduleConfirmation(context.Background(), cfg, &buf)
@@ -179,7 +181,7 @@ func TestFailedConfirmationClearsNothing(t *testing.T) {
 }
 
 func TestOnePerRunAndDeferredLines(t *testing.T) {
-	scripts := t.TempDir()
+	scripts := testsupport.TempDir(t)
 	t1 := writeScript(t, scripts, "one", "echo 'ok - one'\n")
 	t2 := writeScript(t, scripts, "two", "echo 'ok - two'\n")
 	ceil := 10
@@ -192,7 +194,7 @@ func TestOnePerRunAndDeferredLines(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		s.ApplyScreenObservations([]ScreenObs{o1, o2})
 	}
-	cfg := Config{Bash: bashPath(t), Work: t.TempDir()}
+	cfg := Config{Bash: bashPath(t), Work: testsupport.TempDir(t)}
 
 	var buf bytes.Buffer
 	s.ScheduleConfirmation(context.Background(), cfg, &buf)
@@ -240,7 +242,7 @@ func TestScreeningNeverAuthoritative(t *testing.T) {
 }
 
 func TestStrictConfirmsAllAndArms(t *testing.T) {
-	scripts := t.TempDir()
+	scripts := testsupport.TempDir(t)
 	a := writeScript(t, scripts, "sa", "echo 'ok - sa'\n")
 	b := writeScript(t, scripts, "sb", "echo 'ok - sb'\n")
 	ceil := 10
@@ -254,7 +256,7 @@ func TestStrictConfirmsAllAndArms(t *testing.T) {
 	}
 	// a breaches (solo 20 > 15), b clears (solo 1 <= 15).
 	dur := writeDurations(t, [][3]string{{"test_sa.sh", "30", "20"}, {"test_sb.sh", "30", "1"}})
-	cfg := Config{Bash: bashPath(t), Work: t.TempDir(), DurationsPath: dur}
+	cfg := Config{Bash: bashPath(t), Work: testsupport.TempDir(t), DurationsPath: dur}
 
 	var buf bytes.Buffer
 	armed := s.StrictConfirmCandidates(context.Background(), cfg, &buf)
@@ -282,7 +284,7 @@ func TestStoreFailOpen(t *testing.T) {
 	defer setLockTiming(2, time.Millisecond)()
 
 	t.Run("corrupt header discards state", func(t *testing.T) {
-		dir := t.TempDir()
+		dir := testsupport.TempDir(t)
 		path := filepath.Join(dir, "state.tsv")
 		if err := os.WriteFile(path, []byte("GARBAGE HEADER\njunk\tjunk\n"), 0o644); err != nil {
 			t.Fatal(err)
@@ -296,7 +298,7 @@ func TestStoreFailOpen(t *testing.T) {
 	})
 
 	t.Run("held lock yields no history and a warning", func(t *testing.T) {
-		dir := t.TempDir()
+		dir := testsupport.TempDir(t)
 		path := filepath.Join(dir, "state.tsv")
 		valid := "# docket-run-tests-budget-state v1\n# next_due_sequence 3\n" +
 			"k1\twatching\t2\t0\t100\t-\t60\t-\t-\ttests/test_x.sh\n"
@@ -322,7 +324,7 @@ func TestStoreFailOpen(t *testing.T) {
 		if os.Geteuid() == 0 {
 			t.Skip("root bypasses directory permissions")
 		}
-		ro := filepath.Join(t.TempDir(), "ro")
+		ro := filepath.Join(testsupport.TempDir(t), "ro")
 		if err := os.Mkdir(ro, 0o555); err != nil {
 			t.Fatal(err)
 		}
@@ -342,8 +344,13 @@ func TestStoreFailOpen(t *testing.T) {
 // never the Bash runner's run-tests-budget-state.tsv, so two writers never
 // corrupt one advisory file (change 0318).
 func TestStorePathIsNotTheBashRunners(t *testing.T) {
-	dir := t.TempDir()
-	if out, err := exec.Command("git", "-C", dir, "init").CombinedOutput(); err != nil {
+	dir := testsupport.TempDir(t)
+	cmd := exec.Command("git", "-C", dir, "init")
+	// Background-off GIT_CONFIG_GLOBAL (testsupport.GitEnv) so this init's git
+	// spawns no detached housekeeping child that races the fixture's RemoveAll
+	// into "directory not empty" under parallel load (change 0373).
+	cmd.Env = append(os.Environ(), testsupport.GitEnv(t)...)
+	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git init: %v: %s", err, out)
 	}
 	p, err := DefaultStatePath(dir)

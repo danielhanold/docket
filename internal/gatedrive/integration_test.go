@@ -50,6 +50,7 @@ import (
 	"time"
 
 	"github.com/danielhanold/docket/internal/process"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // TestMain routes the three re-exec roles of the gatedrive test binary. go test
@@ -467,15 +468,15 @@ func advanceUntilTerminal(t *testing.T, d *Driver, id, gen string) (DriveDoc, in
 func TestIntegrationDriverSlicesAcrossLiveChildThenPasses(t *testing.T) {
 	skipUnlessSupported(t)
 	svc := mustService(t)
-	runRoot := filepath.Join(t.TempDir(), "runs")
-	store := OpenStore(t.TempDir())
+	runRoot := filepath.Join(testsupport.TempDir(t), "runs")
+	store := OpenStore(testsupport.TempDir(t))
 	t.Cleanup(func() { stopAllRuns(t, svc, runRoot) })
 	reapSupervisors(t, runRoot)
 	d := newIntDriver(store, svc)
 
 	// A child that stays alive well past a handful of 40ms slices.
 	start := time.Now()
-	doc, err := d.Start(intStartRequest(mustExe(t), runRoot, t.TempDir(), "pass-after", "600"))
+	doc, err := d.Start(intStartRequest(mustExe(t), runRoot, testsupport.TempDir(t), "pass-after", "600"))
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
@@ -538,8 +539,8 @@ func TestIntegrationDriverSlicesAcrossLiveChildThenPasses(t *testing.T) {
 func TestIntegrationFreshProcessResumesAndChildSurvives(t *testing.T) {
 	skipUnlessSupported(t)
 	svc := mustService(t)
-	gitCommon := t.TempDir()
-	runRoot := filepath.Join(t.TempDir(), "runs")
+	gitCommon := testsupport.TempDir(t)
+	runRoot := filepath.Join(testsupport.TempDir(t), "runs")
 	t.Cleanup(func() { stopAllRuns(t, svc, runRoot) })
 	reapSupervisors(t, runRoot)
 
@@ -594,14 +595,14 @@ func TestIntegrationFreshProcessResumesAndChildSurvives(t *testing.T) {
 func TestIntegrationDeadlineExpiryStopsOwnedTree(t *testing.T) {
 	skipUnlessSupported(t)
 	svc := mustService(t)
-	runRoot := filepath.Join(t.TempDir(), "runs")
-	store := OpenStore(t.TempDir())
+	runRoot := filepath.Join(testsupport.TempDir(t), "runs")
+	store := OpenStore(testsupport.TempDir(t))
 	t.Cleanup(func() { stopAllRuns(t, svc, runRoot) })
 	reapSupervisors(t, runRoot)
 	d := newIntDriver(store, svc)
 
 	// A child that would otherwise run forever, so the stop is what ends it.
-	req := intStartRequest(mustExe(t), runRoot, t.TempDir(), "sleep-forever", "")
+	req := intStartRequest(mustExe(t), runRoot, testsupport.TempDir(t), "sleep-forever", "")
 	req.Budget = 0 // deadline == start: expired at the very first observation.
 
 	doc, err := d.Start(req)
@@ -637,14 +638,14 @@ func TestIntegrationDeadlineExpiryStopsOwnedTree(t *testing.T) {
 func TestIntegrationProcessDeathPermitsAtMostOneRelaunch(t *testing.T) {
 	skipUnlessSupported(t)
 	svc := mustService(t)
-	runRoot := filepath.Join(t.TempDir(), "runs")
-	store := OpenStore(t.TempDir())
+	runRoot := filepath.Join(testsupport.TempDir(t), "runs")
+	store := OpenStore(testsupport.TempDir(t))
 	t.Cleanup(func() { stopAllRuns(t, svc, runRoot) })
 	reapSupervisors(t, runRoot)
 	d := newIntDriver(store, svc)
 
 	// A child that lives long enough to establish "running", then SIGKILLs itself.
-	doc, err := d.Start(intStartRequest(mustExe(t), runRoot, t.TempDir(), "selfkill-after", "120"))
+	doc, err := d.Start(intStartRequest(mustExe(t), runRoot, testsupport.TempDir(t), "selfkill-after", "120"))
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}

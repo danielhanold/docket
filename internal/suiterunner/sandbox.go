@@ -9,22 +9,24 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/danielhanold/docket/internal/gitbg"
 )
 
-// GitBackgroundOff disables every git mechanism that detaches a child which
-// can outlive the invoking command and keep writing into the repository —
-// the t.TempDir() "directory not empty" mechanism (change 0373). One source:
-// the runner sandbox appends it to the synthetic global config, and
-// internal/testsupport embeds it in each fixture's GIT_CONFIG_GLOBAL, so
-// gate runs and solo runs agree.
-const GitBackgroundOff = "[gc]\n\tauto = 0\n\tautoDetach = false\n[maintenance]\n\tauto = false\n[core]\n\tfsmonitor = false\n"
+// GitBackgroundOff is the exported alias preserved for callers that still spell
+// the git-background-off config as suiterunner.GitBackgroundOff (internal/app's
+// status_git_test.go). Its single source is gitbg.BackgroundOff; the literal was
+// relocated to the dependency-free leaf internal/gitbg (change 0373) so that
+// internal/testsupport — imported from suiterunner's own test files — can share
+// it without forming an import cycle.
+const GitBackgroundOff = gitbg.BackgroundOff
 
 // gitIdentityConfig is the synthetic global git config every target sees: a
 // present-but-fake identity (a test that commits must still be able to) and a
 // deterministic default branch, with change 0373's git-background-off knobs
 // appended. The identity core (through defaultBranch) is byte-for-byte what
-// the oracle's launch() wrote; GitBackgroundOff is the 0373 addition.
-const gitIdentityConfig = "[user]\n\tname = docket test\n\temail = test@docket.invalid\n[init]\n\tdefaultBranch = main\n" + GitBackgroundOff
+// the oracle's launch() wrote; gitbg.BackgroundOff is the 0373 addition.
+const gitIdentityConfig = "[user]\n\tname = docket test\n\temail = test@docket.invalid\n[init]\n\tdefaultBranch = main\n" + gitbg.BackgroundOff
 
 // Sandbox builds the isolated child environment for one target under jobdir and
 // creates the directories and git-config files it references. It returns the

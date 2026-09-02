@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/danielhanold/docket/internal/process"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // racingProc is a thread-safe ProcessSeam purpose-built to reproduce the
@@ -125,7 +126,7 @@ func TestConcurrentSameOwnerAdvanceRelaunchesOnce(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			store := OpenStore(t.TempDir())
+			store := OpenStore(testsupport.TempDir(t))
 			id, ownerGen := seedDrive(t, store, seedRecord(t))
 
 			proc := newRacingProc(tc.newRunState)

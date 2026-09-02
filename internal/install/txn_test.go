@@ -10,6 +10,8 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // ---------------------------------------------------------------------------
@@ -204,7 +206,7 @@ type fixture struct {
 // no-op that must never become a step.
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
-	base := t.TempDir()
+	base := testsupport.TempDir(t)
 
 	home := filepath.Join(base, "home")
 	if err := os.MkdirAll(home, 0o755); err != nil {
@@ -1488,7 +1490,7 @@ func TestTxnModesAreUmaskProof(t *testing.T) {
 	oldMask := syscall.Umask(0o077)
 	defer syscall.Umask(oldMask)
 
-	base := t.TempDir()
+	base := testsupport.TempDir(t)
 	home := filepath.Join(base, "home")
 	if err := os.MkdirAll(home, 0o755); err != nil {
 		t.Fatalf("MkdirAll(%s): %v", home, err)

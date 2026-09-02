@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 func sampleState() *State {
@@ -45,7 +47,7 @@ func sampleState() *State {
 }
 
 func TestStateRoundTrip(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "state", "install.json")
+	path := filepath.Join(testsupport.TempDir(t), "state", "install.json")
 	want := sampleState()
 
 	if err := WriteStateAtomic(path, want); err != nil {
@@ -76,7 +78,7 @@ func TestStateRoundTrip(t *testing.T) {
 // Bytes on disk must be a function of the state's content only, so an
 // unchanged installation never rewrites a differently-ordered document.
 func TestWriteStateCanonicalOrder(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	ordered := sampleState()
 	shuffled := sampleState()
 	shuffled.Harnesses = []string{"codex", "claude"}
@@ -112,7 +114,7 @@ func TestWriteStateCanonicalOrder(t *testing.T) {
 }
 
 func TestLoadStateAbsent(t *testing.T) {
-	got, err := LoadState(filepath.Join(t.TempDir(), "state", "install.json"))
+	got, err := LoadState(filepath.Join(testsupport.TempDir(t), "state", "install.json"))
 	if err != nil {
 		t.Fatalf("LoadState(absent): unexpected error %v", err)
 	}
@@ -122,7 +124,7 @@ func TestLoadStateAbsent(t *testing.T) {
 }
 
 func TestLoadStateMalformed(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "install.json")
+	path := filepath.Join(testsupport.TempDir(t), "install.json")
 	if err := os.WriteFile(path, []byte("{not json"), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
@@ -132,7 +134,7 @@ func TestLoadStateMalformed(t *testing.T) {
 }
 
 func TestLoadStateUnknownFormatVersion(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "install.json")
+	path := filepath.Join(testsupport.TempDir(t), "install.json")
 	if err := os.WriteFile(path, []byte(`{"format_version":99}`), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
@@ -149,7 +151,7 @@ func TestLoadStateUnknownFormatVersion(t *testing.T) {
 // window between "temp written" and "rename done" is the only place torn state
 // could appear, so the rename seam is the failure injection point.
 func TestWriteStateAtomicNoTorn(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	path := filepath.Join(dir, "state", "install.json")
 
 	first := sampleState()

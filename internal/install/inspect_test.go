@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // digestOf is the test's own hash, deliberately independent of the
@@ -446,7 +448,7 @@ func TestInspectTarget(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			dir := t.TempDir()
+			dir := testsupport.TempDir(t)
 			target, prior := tc.setup(t, dir)
 
 			before := snapshotTree(t, dir)
@@ -527,7 +529,7 @@ func snapshotTree(t *testing.T, root string) string {
 }
 
 func TestInspectTargetRejectsInvalidTargets(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	cases := []struct {
 		name   string
 		target Target
@@ -558,7 +560,7 @@ func TestInspectTargetRejectsInvalidTargets(t *testing.T) {
 // The legacy seam is the third ownership proof: bytes docket's own frozen
 // renderer would have produced are provably docket's, even with no record.
 func TestLegacySeamReproducible(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	p := filepath.Join(dir, "agents", "docket-adr.md")
 	writeFileOrDie(t, p, "legacy wrapper bytes\n")
 
@@ -592,7 +594,7 @@ func TestLegacySeamReproducible(t *testing.T) {
 }
 
 func TestLegacySeamNonReproducible(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	p := filepath.Join(dir, "agents", "docket-adr.md")
 	writeFileOrDie(t, p, "legacy wrapper bytes with a user edit\n")
 
@@ -644,7 +646,7 @@ func TestInspectManagedBlockLegacyAdoption(t *testing.T) {
 	}
 
 	t.Run("exact legacy block with no prior record is adopted", func(t *testing.T) {
-		dir := t.TempDir()
+		dir := testsupport.TempDir(t)
 		p := filepath.Join(dir, "CLAUDE.md")
 		writeFileOrDie(t, p, managedFile(interior))
 		got, err := InspectTarget(dispatchTarget(p), nil, legacyStub)
@@ -660,7 +662,7 @@ func TestInspectManagedBlockLegacyAdoption(t *testing.T) {
 	})
 
 	t.Run("legacy block with one byte changed is a foreign-block conflict", func(t *testing.T) {
-		dir := t.TempDir()
+		dir := testsupport.TempDir(t)
 		p := filepath.Join(dir, "CLAUDE.md")
 		writeFileOrDie(t, p, managedFile("legacy dispatch interiorX\n"))
 		got, err := InspectTarget(dispatchTarget(p), nil, legacyStub)
@@ -676,7 +678,7 @@ func TestInspectManagedBlockLegacyAdoption(t *testing.T) {
 	})
 
 	t.Run("malformed markers short-circuit before the legacy check", func(t *testing.T) {
-		dir := t.TempDir()
+		dir := testsupport.TempDir(t)
 		p := filepath.Join(dir, "CLAUDE.md")
 		// A dangling start marker whose body IS the exact legacy interior: were
 		// the legacy check to run before marker validation, this would be wrongly
@@ -695,7 +697,7 @@ func TestInspectManagedBlockLegacyAdoption(t *testing.T) {
 	})
 
 	t.Run("nil legacy preserves the foreign-block conflict", func(t *testing.T) {
-		dir := t.TempDir()
+		dir := testsupport.TempDir(t)
 		p := filepath.Join(dir, "CLAUDE.md")
 		writeFileOrDie(t, p, managedFile(interior))
 		got, err := InspectTarget(dispatchTarget(p), nil, nil)
@@ -715,7 +717,7 @@ func TestInspectManagedBlockLegacyAdoption(t *testing.T) {
 // publishes after applying a target must be exactly what a later inspection
 // accepts as proof it owns that target.
 func TestRecordForRoundTrip(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 
 	fileTarget := Target{
 		Path:    filepath.Join(dir, "agents", "docket-adr.md"),
@@ -783,7 +785,7 @@ func TestRecordForRoundTrip(t *testing.T) {
 }
 
 func TestPruneCandidates(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 
 	kept := filepath.Join(dir, "agents", "kept.md")
 	writeFileOrDie(t, kept, "kept\n")

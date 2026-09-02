@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/danielhanold/docket/internal/app"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // TestMain routes the supervisor re-exec role of the cli test binary: a real
@@ -235,6 +236,11 @@ func gitCmd(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
+	// Point this directly-spawned git at testsupport.GitEnv's background-off
+	// GIT_CONFIG_GLOBAL so a detached gc/maintenance/fsmonitor child cannot
+	// outlive the test and race the fixture's RemoveAll into "directory not
+	// empty" under parallel load (change 0373).
+	cmd.Env = append(os.Environ(), testsupport.GitEnv(t)...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v\n%s", args, err, out)
 	}
@@ -282,7 +288,7 @@ func gateDriveConfiguredRepo(t *testing.T, configBody string) string {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not found on PATH")
 	}
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", testsupport.TempDir(t))
 
 	root := gateTempDir(t)
 	origin := filepath.Join(root, "origin.git")
@@ -348,7 +354,7 @@ func TestGateDriveStartRunsToPassed(t *testing.T) {
 // stays absent). Swapping the "build" branch of buildOwnedGateDriveService to the
 // finalize constructor reddens this test.
 func TestGateDriveStartOwnerRoutesToOwnCommand(t *testing.T) {
-	markers := t.TempDir()
+	markers := testsupport.TempDir(t)
 	buildMarker := filepath.Join(markers, "build-ran")
 	finalizeMarker := filepath.Join(markers, "finalize-ran")
 	cfg := "metadata_branch: main\n" +

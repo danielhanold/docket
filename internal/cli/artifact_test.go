@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // TestArtifactCommandsRegistered: `docket artifact backlink` is registered under
@@ -34,7 +36,7 @@ func TestArtifactCommandsRegistered(t *testing.T) {
 // operation. Against an existing artifact in a non-repository directory the pin
 // fails, which is still one well-formed document.
 func TestArtifactBacklinkEmitsOneDocument(t *testing.T) {
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	if err := os.WriteFile(filepath.Join(root, "plan.md"), []byte("# Plan\n"), 0o644); err != nil {
 		t.Fatalf("seed artifact: %v", err)
 	}
@@ -67,7 +69,7 @@ func TestArtifactBacklinkRequiredFlags(t *testing.T) {
 // TestArtifactBacklinkHumanMode: without --json the presenter writes the result's
 // HumanText() to stdout and names the operation.
 func TestArtifactBacklinkHumanMode(t *testing.T) {
-	root := t.TempDir()
+	root := testsupport.TempDir(t)
 	out, _, _ := runCLI(t, "artifact", "backlink",
 		"--artifact", "plan.md", "--change", "docs/changes/active/0315-claim.md", "--repo-dir", root)
 	if !strings.Contains(out, "artifact") {

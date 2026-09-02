@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // TestADRCommandsRegistered is the registration assertion: `docket adr` carries
@@ -69,7 +71,7 @@ func TestADRCommandsReachOperation(t *testing.T) {
 		{"reverse", "adr.reverse"},
 	}
 	for _, c := range cases {
-		out, errS, code := runCLIStdin(t, `{}`, "adr", c.sub, "--request", "-", "--repo-dir", t.TempDir(), "--json")
+		out, errS, code := runCLIStdin(t, `{}`, "adr", c.sub, "--request", "-", "--repo-dir", testsupport.TempDir(t), "--json")
 		if errS != "" {
 			t.Fatalf("%s: unexpected stderr %q (code=%d)", c.sub, errS, code)
 		}
@@ -88,12 +90,12 @@ func TestADRCommandsReachOperation(t *testing.T) {
 // TestADRRequestFromFile proves the --request path form reads a JSON file (not
 // only stdin) and reaches the operation.
 func TestADRRequestFromFile(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	reqPath := filepath.Join(dir, "req.json")
 	if err := os.WriteFile(reqPath, []byte(`{}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	out, errS, code := runCLI(t, "adr", "record", "--request", reqPath, "--repo-dir", t.TempDir(), "--json")
+	out, errS, code := runCLI(t, "adr", "record", "--request", reqPath, "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
 	}
@@ -105,7 +107,7 @@ func TestADRRequestFromFile(t *testing.T) {
 // TestADRRequestFileMissing proves an unreadable --request path is an argument
 // error (exit 2) rather than a panic or a half-formed document.
 func TestADRRequestFileMissing(t *testing.T) {
-	_, errS, code := runCLI(t, "adr", "record", "--request", filepath.Join(t.TempDir(), "nope.json"))
+	_, errS, code := runCLI(t, "adr", "record", "--request", filepath.Join(testsupport.TempDir(t), "nope.json"))
 	if code != 2 {
 		t.Fatalf("err=%q code=%d", errS, code)
 	}

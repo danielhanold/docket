@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // pidAlive reports whether pid still exists (signal 0 probes without delivering).
@@ -69,9 +71,9 @@ func readPidFile(t *testing.T, path string) int {
 // kill(+pgid) would signal only the group leader, leaving the grandchild alive
 // and this test red.
 func TestSignalReachesProcessGroupIncludingGrandchildren(t *testing.T) {
-	scripts := t.TempDir()
-	work := t.TempDir()
-	pids := t.TempDir()
+	scripts := testsupport.TempDir(t)
+	work := testsupport.TempDir(t)
+	pids := testsupport.TempDir(t)
 
 	// Grandchild (a plain background sleep, its own pid) writes grand.pid; the
 	// target (group leader) writes self.pid, signals readiness, then blocks. Both
@@ -127,9 +129,9 @@ func TestSignalReachesProcessGroupIncludingGrandchildren(t *testing.T) {
 // that traps and ignores SIGTERM still dies, via the escalation timer, and the
 // run does not hang for the full grace default.
 func TestEscalationKillsIgnorers(t *testing.T) {
-	scripts := t.TempDir()
-	work := t.TempDir()
-	pids := t.TempDir()
+	scripts := testsupport.TempDir(t)
+	work := testsupport.TempDir(t)
+	pids := testsupport.TempDir(t)
 
 	body := strings.Join([]string{
 		`trap '' TERM`,
@@ -180,9 +182,9 @@ func TestEscalationKillsIgnorers(t *testing.T) {
 // target 3 never launches, fired() reports SIGTERM, and the derived exit code is
 // 143 — never 0. (Run itself, which reads these same values, is built in Task 7.)
 func TestInterruptedRunCannotPass(t *testing.T) {
-	scripts := t.TempDir()
-	work := t.TempDir()
-	gate := t.TempDir()
+	scripts := testsupport.TempDir(t)
+	work := testsupport.TempDir(t)
+	gate := testsupport.TempDir(t)
 
 	// Byte-order names fix the launch order under Jobs=1: aaa, then bbb, then ccc.
 	t1 := writeScript(t, scripts, "aaa", "echo 'ok - one'\n")
@@ -248,9 +250,9 @@ func TestInterruptedRunCannotPass(t *testing.T) {
 // targets surface as never-launched with no result files, and the run's derived
 // exit code is non-zero.
 func TestInterruptBetweenSchedulingAndLaunch(t *testing.T) {
-	scripts := t.TempDir()
-	work := t.TempDir()
-	gate := t.TempDir()
+	scripts := testsupport.TempDir(t)
+	work := testsupport.TempDir(t)
+	gate := testsupport.TempDir(t)
 
 	t1 := writeScript(t, scripts, "aaa", strings.Join([]string{
 		`: > "` + filepath.Join(gate, "held") + `"`,

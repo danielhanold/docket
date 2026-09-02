@@ -3,6 +3,8 @@ package cli
 import (
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // TestContextCommandsRegistered: `docket context implementation` is registered
@@ -32,7 +34,7 @@ func TestContextCommandsRegistered(t *testing.T) {
 // the command reaches app.ContextImplementation, which — against a non-repository
 // directory — returns exactly one protocol-v1 document naming the operation.
 func TestContextImplementationReachesOperation(t *testing.T) {
-	out, errS, code := runCLI(t, "context", "implementation", "--repo-dir", t.TempDir(), "--json")
+	out, errS, code := runCLI(t, "context", "implementation", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q (code=%d)", errS, code)
 	}
@@ -51,7 +53,7 @@ func TestContextImplementationReachesOperation(t *testing.T) {
 // int flag), and the command still reaches the operation with exactly one
 // document.
 func TestContextImplementationRoutesID(t *testing.T) {
-	out, errS, code := runCLI(t, "context", "implementation", "--id", "7", "--repo-dir", t.TempDir(), "--json")
+	out, errS, code := runCLI(t, "context", "implementation", "--id", "7", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q (code=%d)", errS, code)
 	}
@@ -59,7 +61,7 @@ func TestContextImplementationRoutesID(t *testing.T) {
 		t.Fatalf("document did not name the operation: %q", out)
 	}
 	// A non-integer --id is an argument error (exit 2), proving the flag is typed.
-	_, errBad, codeBad := runCLI(t, "context", "implementation", "--id", "notanint", "--repo-dir", t.TempDir())
+	_, errBad, codeBad := runCLI(t, "context", "implementation", "--id", "notanint", "--repo-dir", testsupport.TempDir(t))
 	if codeBad != 2 || !strings.Contains(errBad, "id") {
 		t.Fatalf("non-integer --id not rejected as an argument error: err=%q code=%d", errBad, codeBad)
 	}
@@ -68,7 +70,7 @@ func TestContextImplementationRoutesID(t *testing.T) {
 // TestContextImplementationHumanMode: without --json the presenter writes the
 // result's HumanText() to stdout (not stderr) and names the operation.
 func TestContextImplementationHumanMode(t *testing.T) {
-	out, _, _ := runCLI(t, "context", "implementation", "--repo-dir", t.TempDir())
+	out, _, _ := runCLI(t, "context", "implementation", "--repo-dir", testsupport.TempDir(t))
 	if !strings.Contains(out, "context.implementation") {
 		t.Fatalf("human stdout did not carry the operation text: %q", out)
 	}
@@ -105,7 +107,7 @@ func TestContextFinalizeRegistered(t *testing.T) {
 // command reaches app.ContextFinalize, which — against a non-repository
 // directory — returns exactly one protocol-v1 document naming the operation.
 func TestContextFinalizeReachesOperation(t *testing.T) {
-	out, errS, code := runCLI(t, "context", "finalize", "--repo-dir", t.TempDir(), "--json")
+	out, errS, code := runCLI(t, "context", "finalize", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q (code=%d)", errS, code)
 	}
@@ -123,7 +125,7 @@ func TestContextFinalizeReachesOperation(t *testing.T) {
 // TestContextFinalizeRoutesFlags: --id and --allowlist are accepted and typed,
 // and the command still reaches the operation with exactly one document.
 func TestContextFinalizeRoutesFlags(t *testing.T) {
-	out, errS, code := runCLI(t, "context", "finalize", "--id", "7", "--allowlist", "7,8", "--repo-dir", t.TempDir(), "--json")
+	out, errS, code := runCLI(t, "context", "finalize", "--id", "7", "--allowlist", "7,8", "--repo-dir", testsupport.TempDir(t), "--json")
 	if errS != "" {
 		t.Fatalf("unexpected stderr %q (code=%d)", errS, code)
 	}
@@ -131,7 +133,7 @@ func TestContextFinalizeRoutesFlags(t *testing.T) {
 		t.Fatalf("document did not name the operation: %q", out)
 	}
 	// A non-integer --id is an argument error (exit 2), proving the flag is typed.
-	_, errBad, codeBad := runCLI(t, "context", "finalize", "--id", "notanint", "--repo-dir", t.TempDir())
+	_, errBad, codeBad := runCLI(t, "context", "finalize", "--id", "notanint", "--repo-dir", testsupport.TempDir(t))
 	if codeBad != 2 || !strings.Contains(errBad, "id") {
 		t.Fatalf("non-integer --id not rejected as an argument error: err=%q code=%d", errBad, codeBad)
 	}

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // plainService builds a real gitcli-backed Service with no repository. The
@@ -51,7 +52,7 @@ func sampleReceipt() RebaseReceipt {
 func TestRebaseReceiptRoundTrip(t *testing.T) {
 	svc := plainService(t)
 	ctx := context.Background()
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	r := sampleReceipt()
 
 	if err := svc.WriteRebaseReceipt(ctx, dir, r); err != nil {
@@ -95,7 +96,7 @@ func TestRebaseReceiptRoundTrip(t *testing.T) {
 func TestRebaseReceiptInvalidFieldsRefused(t *testing.T) {
 	svc := plainService(t)
 	ctx := context.Background()
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 
 	bad := sampleReceipt()
 	bad.OrigRemoteHead = "not-a-sha"
@@ -117,7 +118,7 @@ func TestRebaseReceiptGatePair(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("both-set-round-trips", func(t *testing.T) {
-		dir := t.TempDir()
+		dir := testsupport.TempDir(t)
 		r := sampleReceipt()
 		r.GateDriveID = "drive-01"
 		r.GateOwnerGeneration = "gen-01"
@@ -134,7 +135,7 @@ func TestRebaseReceiptGatePair(t *testing.T) {
 	})
 
 	t.Run("both-empty-round-trips-with-no-gate-keys", func(t *testing.T) {
-		dir := t.TempDir()
+		dir := testsupport.TempDir(t)
 		r := sampleReceipt() // pair empty
 		if err := svc.WriteRebaseReceipt(ctx, dir, r); err != nil {
 			t.Fatalf("WriteRebaseReceipt: %v", err)
@@ -155,7 +156,7 @@ func TestRebaseReceiptGatePair(t *testing.T) {
 			"gen-only":   func(r *RebaseReceipt) { r.GateOwnerGeneration = "gen-01" },
 		} {
 			t.Run(name, func(t *testing.T) {
-				dir := t.TempDir()
+				dir := testsupport.TempDir(t)
 				r := sampleReceipt()
 				mut(&r)
 				if err := svc.WriteRebaseReceipt(ctx, dir, r); err == nil {
@@ -169,7 +170,7 @@ func TestRebaseReceiptGatePair(t *testing.T) {
 	})
 
 	t.Run("half-set-refused-on-read", func(t *testing.T) {
-		dir := t.TempDir()
+		dir := testsupport.TempDir(t)
 		r := sampleReceipt()
 		if err := svc.WriteRebaseReceipt(ctx, dir, r); err != nil {
 			t.Fatalf("WriteRebaseReceipt: %v", err)

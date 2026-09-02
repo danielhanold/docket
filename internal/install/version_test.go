@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/assets"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // ---------------------------------------------------------------------------
@@ -100,7 +101,7 @@ func poisonedOpen(t *testing.T) func(string) ([]byte, error) {
 // keeps that true.
 func versionRoots(t *testing.T) UserRoots {
 	t.Helper()
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	roots, err := ResolveRoots(
 		func() (string, error) { return home, nil },
 		func(string) string { return "" },

@@ -5,10 +5,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 func TestWriteResultRoundTripsAtomically(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	want := Result{Schema: 1, Target: "test_x.sh", RC: 0, Seconds: 3, OK: 4, NotOK: 0}
 	if err := WriteResult(dir, want); err != nil {
 		t.Fatalf("WriteResult: %v", err)
@@ -40,7 +42,7 @@ func TestWriteResultRoundTripsAtomically(t *testing.T) {
 }
 
 func TestReadResultFailureModes(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 
 	write := func(name, body string) string {
 		p := filepath.Join(dir, name)

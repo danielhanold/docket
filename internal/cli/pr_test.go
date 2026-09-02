@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // TestPRCommandsRegistered: the `pr publish` subcommand is registered under the
@@ -34,7 +36,7 @@ func TestPRCommandsRegistered(t *testing.T) {
 // protocol-v1 document naming the operation. A prose-only evidence file does not
 // verify, which is still one well-formed document that names pr.publish.
 func TestPRPublishEmitsOneDocument(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	bodyFile := filepath.Join(dir, "body.json")
 	if err := os.WriteFile(bodyFile, []byte(`{"title":"Add widget","body":"Some prose.\n"}`), 0o644); err != nil {
 		t.Fatalf("seed body: %v", err)
@@ -67,7 +69,7 @@ func TestPRPublishEmitsOneDocument(t *testing.T) {
 // TestPRPublishHumanMode: without --json the presenter writes the result's
 // HumanText() and names the operation.
 func TestPRPublishHumanMode(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	bodyFile := filepath.Join(dir, "body.json")
 	if err := os.WriteFile(bodyFile, []byte(`{"title":"Add widget","body":"prose"}`), 0o644); err != nil {
 		t.Fatalf("seed body: %v", err)
@@ -87,7 +89,7 @@ func TestPRPublishHumanMode(t *testing.T) {
 // TestPRPublishRequiredFlags: publish requires --id, --head, --body, --evidence;
 // omitting one is an argument error (exit 2).
 func TestPRPublishRequiredFlags(t *testing.T) {
-	dir := t.TempDir()
+	dir := testsupport.TempDir(t)
 	bodyFile := filepath.Join(dir, "body.json")
 	_ = os.WriteFile(bodyFile, []byte(`{"title":"t","body":"b"}`), 0o644)
 	evFile := filepath.Join(dir, "ev.md")

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // The PublishHead tests drive the idempotent feature-branch publication flow
@@ -348,7 +349,7 @@ func TestPublishUnprobeableRemoteUnknown(t *testing.T) {
 	head := commitInWorkspace(t, ws, "feature.txt", "feature work\n")
 
 	// Break the remote URL: the name stays configured, but ls-remote/push fail.
-	gitOut(t, r.Primary, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "nonexistent.git"))
+	gitOut(t, r.Primary, "remote", "set-url", "origin", filepath.Join(testsupport.TempDir(t), "nonexistent.git"))
 
 	res, err := publishHead(t, svc, repo, tgt)
 	if err != nil {

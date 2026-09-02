@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // fakeEnv builds a getenv seam over a fixed map, so no test ever reads the
@@ -17,8 +19,8 @@ func fixedHome(dir string) func() (string, error) {
 	return func() (string, error) { return dir, nil }
 }
 
-// cleanTempDir is t.TempDir() for the tests that compare a fake home against a
-// path the code under test built. t.TempDir() hands back $TMPDIR's spelling
+// cleanTempDir is testsupport.TempDir(t) for the tests that compare a fake home against a
+// path the code under test built. testsupport.TempDir(t) hands back $TMPDIR's spelling
 // verbatim (os.TempDir strips trailing slashes and nothing else), so a $TMPDIR
 // carrying an interior "//" — which is exactly what the suite runner
 // produces, since macOS's default TMPDIR ends in "/" and the runner appends
@@ -34,14 +36,14 @@ func fixedHome(dir string) func() (string, error) {
 // test never produces and trade this mismatch for a worse one.
 func cleanTempDir(t *testing.T) string {
 	t.Helper()
-	return filepath.Clean(t.TempDir())
+	return filepath.Clean(testsupport.TempDir(t))
 }
 
 func TestResolveRootsXDG(t *testing.T) {
 	home := cleanTempDir(t)
-	xdgData := filepath.Join(t.TempDir(), "data")
-	xdgConfig := filepath.Join(t.TempDir(), "config")
-	xdgBin := filepath.Join(t.TempDir(), "bin")
+	xdgData := filepath.Join(testsupport.TempDir(t), "data")
+	xdgConfig := filepath.Join(testsupport.TempDir(t), "config")
+	xdgBin := filepath.Join(testsupport.TempDir(t), "bin")
 
 	cases := []struct {
 		name           string
@@ -170,7 +172,7 @@ func TestResolveRootsNoHome(t *testing.T) {
 }
 
 func TestResolveRootsExistingNonDirRoot(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	// Plant a regular file exactly where DataRoot would live.
 	if err := os.MkdirAll(filepath.Join(home, ".local", "share"), 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
@@ -190,7 +192,7 @@ func TestResolveRootsExistingNonDirRoot(t *testing.T) {
 }
 
 func TestResolveRootsMissingRootIsFine(t *testing.T) {
-	home := t.TempDir() // nothing under it yet
+	home := testsupport.TempDir(t) // nothing under it yet
 	roots, err := ResolveRoots(fixedHome(home), fakeEnv(nil))
 	if err != nil {
 		t.Fatalf("ResolveRoots: unexpected error for absent roots: %v", err)
@@ -201,7 +203,7 @@ func TestResolveRootsMissingRootIsFine(t *testing.T) {
 }
 
 func TestRootsDerivedPaths(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	roots, err := ResolveRoots(fixedHome(home), fakeEnv(nil))
 	if err != nil {
 		t.Fatalf("ResolveRoots: %v", err)
@@ -231,7 +233,7 @@ func TestRootsDerivedPaths(t *testing.T) {
 // attacker-irrelevant but still untrusted shape: sanitisation must keep the
 // result a single path segment no matter what arrives.
 func TestVersionDirSanitizesID(t *testing.T) {
-	home := t.TempDir()
+	home := testsupport.TempDir(t)
 	roots, err := ResolveRoots(fixedHome(home), fakeEnv(nil))
 	if err != nil {
 		t.Fatalf("ResolveRoots: %v", err)

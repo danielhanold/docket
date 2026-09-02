@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/danielhanold/docket/internal/gitcli"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // A file lock establishes no happens-before edge the Go race detector
@@ -61,7 +62,7 @@ func occupancy(t *testing.T, dir string, workers int) (maxInside int32, complete
 // serializes: with many contending goroutines, at most one is ever inside the
 // locked section, and all complete.
 func TestOperationLockMutualExclusion(t *testing.T) {
-	commonDir := t.TempDir()
+	commonDir := testsupport.TempDir(t)
 	dir := workspaceDir(commonDir, gitcli.RefName("refs/heads/feat/x"))
 
 	const workers = 8
@@ -79,7 +80,7 @@ func TestOperationLockMutualExclusion(t *testing.T) {
 // race-clean exclusion guard: if acquireOperationLock did not truly lock, the
 // probe would find the lock free while it is held.
 func TestTryOperationLock(t *testing.T) {
-	commonDir := t.TempDir()
+	commonDir := testsupport.TempDir(t)
 	dir := workspaceDir(commonDir, gitcli.RefName("refs/heads/feat/x"))
 
 	release, err := acquireOperationLock(dir)
@@ -118,7 +119,7 @@ func TestTryOperationLock(t *testing.T) {
 // its release event, so the guarded order log ends [holder-released,
 // waiter-acquired]. Coordination is channels only — no sleeps.
 func TestOperationLockOrdered(t *testing.T) {
-	commonDir := t.TempDir()
+	commonDir := testsupport.TempDir(t)
 	dir := workspaceDir(commonDir, gitcli.RefName("refs/heads/feat/x"))
 
 	var mu sync.Mutex
@@ -163,7 +164,7 @@ func TestOperationLockOrdered(t *testing.T) {
 // NOT serialize: the second lock is taken while the first is still held, without
 // deadlock.
 func TestOperationLockDifferentDirsIndependent(t *testing.T) {
-	commonDir := t.TempDir()
+	commonDir := testsupport.TempDir(t)
 	dirA := workspaceDir(commonDir, gitcli.RefName("refs/heads/feat/a"))
 	dirB := workspaceDir(commonDir, gitcli.RefName("refs/heads/feat/b"))
 
@@ -183,7 +184,7 @@ func TestOperationLockDifferentDirsIndependent(t *testing.T) {
 // exclusive and that releasing it unblocks a waiter: the waiter's blocked acquire
 // completes only after the holder releases.
 func TestRegistryLockReleaseUnblocks(t *testing.T) {
-	commonDir := t.TempDir()
+	commonDir := testsupport.TempDir(t)
 	root := workspacesRoot(commonDir)
 
 	rel1, err := acquireRegistryLock(root)
