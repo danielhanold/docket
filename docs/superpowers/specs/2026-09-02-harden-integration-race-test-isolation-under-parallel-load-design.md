@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0373 — Harden integration/race test isolation under parallel load](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0373-harden-integration-race-test-isolation-under-parallel-load.md)**
+> ↩ **[Change 0373 — Harden integration/race test isolation under parallel load](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-02-0373-harden-integration-race-test-isolation-under-parallel-load.md)**
 <!-- docket:backlink:end -->
 
 # Harden integration/race test isolation under parallel load — design

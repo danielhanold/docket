@@ -1,6 +1,6 @@
 # Backlog
 
-**397 changes** — 🟢 1 in progress · 🔵 1 built · 🔴 1 blocked · 🟣 18 groomed · 🟡 43 proposed · ⚪ 4 deferred · ✅ 244 done · 🗑️ 85 killed
+**397 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 18 groomed · 🟡 43 proposed · ⚪ 4 deferred · ✅ 245 done · 🗑️ 85 killed
 
 ## 🟢 In progress (1)
 
@@ -13,12 +13,6 @@
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
-
-## 🔴 Blocked (1)
-
-| # | Title | Priority | Type | PR | Reason |
-|---|-------|----------|------|----|--------|
-| [0373](active/0373-harden-integration-race-test-isolation-under-parallel-load.md) | Harden integration/race test isolation under parallel load | `high` | `chore` | [#271](https://github.com/danielhanold/docket/pull/271) | finalize blocked — needs you |
 
 ## 🟣 Groomed (18)
 
@@ -156,7 +150,6 @@ graph TD
   0360
   0370 --> 0366
   0368
-  0373
   0375
   0376
   0379
@@ -179,7 +172,7 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (329)</summary>
+<details><summary>✅🗑️ Archive — done + killed (330)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -187,6 +180,7 @@ graph TD
 | [0396](archive/2026-09-02-0396-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes.md) | finalize async gate WAITING has no CLI re-entry that resumes the same drive | 2026-09-02 |
 | [0394](archive/2026-09-02-0394-give-docket-skills-an-authoritative-compact-cli-capability-c.md) | Give Docket skills an authoritative compact CLI capability catalog | 2026-09-02 |
 | [0381](archive/2026-09-02-0381-stabilize-internal-process-observe-running-terminal-race-flake.md) | Stabilize internal/process TestObserveRunningThenTerminal parallel-load -race flake | 2026-09-02 |
+| [0373](archive/2026-09-02-0373-harden-integration-race-test-isolation-under-parallel-load.md) | Harden integration/race test isolation under parallel load | 2026-09-02 |
 | [0364](archive/2026-09-02-0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | 2026-09-02 |
 | [0359](archive/2026-09-02-0359-run-gate-gives-up-too-soon.md) | Run gate gives up too soon | 2026-09-02 |
 | [0390](archive/2026-09-01-0390-maintenance-sweep-scope-full-re-probes-the-remote-per-item-h.md) | maintenance sweep --scope full re-probes the remote per item, hanging the sweep | 2026-09-01 |
@@ -200,7 +194,6 @@ graph TD
 | [0367](archive/2026-08-31-0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | 2026-08-31 |
 | [0378](archive/2026-08-30-0378-metadata-root-classifier-rejects-multi-commit-docket-branch.md) | Shared metadata-root classifier misreads any multi-commit docket branch as foreign | 2026-08-30 |
 | [0372](archive/2026-08-30-0372-retire-deferred-go-v1-workflow-surfaces-and-seal-the-consume.md) | Retire deferred Go v1 workflow surfaces and seal the consumer cutover | 2026-08-30 |
-| [0371](archive/2026-08-30-0371-cut-generated-agent-invocation-over-to-native-host-dispatch.md) | Cut generated agent invocation over to native host dispatch | 2026-08-30 |
 | [0353](archive/2026-08-26-0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | 2026-08-26 |
 | [0294](archive/2026-08-26-0294-shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru.md) | Shrink AGENTS.md's always-loaded footprint: script-ify the run gate's caller procedure and de-duplicate the dispatch table | 2026-08-26 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
@@ -288,7 +281,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 111 done |
+| [2026-08](archive/) | 112 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
