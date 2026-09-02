@@ -122,9 +122,9 @@ bare "still waiting" with no handoff token is a **malformed return** and halts, 
 commitless `COMPLETE` does. `WAITING` is neither a completion nor a failure, and it is **never**
 permission to start another task in the shared worktree.
 
-You are the nearest live owner while that worker is absent, so you **own the continuation**: `docket
-gate drive claim` the named handoff and drive the same drive through short `docket gate drive
-advance` calls yourself to a terminal disposition — never a raw observe loop, background suite, or
+You are the nearest live owner while that worker is absent, so you **own the continuation**: run the
+`gate.drive.claim` operation on the named handoff and drive the same drive through short `gate.drive.advance`
+operation calls yourself to a terminal disposition — never a raw observe loop, background suite, or
 notification wait. When agent judgment is needed again, dispatch a fresh worker for the **same** task
 and worktree with an explicit continuation; a trusted `PASSED` is not re-driven because the
 transcript changed. Waiting consumes neither the task's repair allowance nor its one escalation. If
@@ -210,10 +210,10 @@ the implementation context as `build_gate` and `build_test_command` — authorit
 role reads, never a command it invents:
 
 1. **`build_gate: off`** — the repo declares no build test gate. Run **nothing**: mint truthful
-   **skipped** evidence via `docket evidence record` (no run dir) — `result: skipped` /
+   **skipped** evidence via the `evidence.record` operation (no run dir) — `result: skipped` /
    `reason: build-gate-off` at the current head — and proceed to review. Nothing to run or repair.
 2. **`build_gate: local`, non-empty `build_test_command`** — drive it through the native gate
-   **driver**: `docket gate drive start --owner build` then `docket gate drive advance` slices,
+   **driver**: the `gate.drive.start` operation with `--owner build` then `gate.drive.advance` operation slices,
    exactly as *Gate execution posture* describes. `--owner build` resolves the build-owned command
    from config; the caller passes no suite argv.
 3. **`build_gate: local`, empty `build_test_command`** — a **configuration gap, not a red suite**:
@@ -295,15 +295,15 @@ define the maximum duration of the build gate.
    is not a failing one, so it must **not** mint an integration-repair task. Same refusal the
    configuration-gap case above already gets.
 
-**The shipped implementation of clauses 1–6** is the native gate **driver** — the `docket gate
-drive` operations (`start`, `advance`, `handoff`, `claim`), whose caller-side contract and
+**The shipped implementation of clauses 1–6** is the native gate **driver** — the `gate.drive`
+operations (`start`, `advance`, `handoff`, `claim`), whose caller-side contract and
 disposition vocabulary live in `references/gate-caller-loop.md` (**read it now, blocking, before the
-gate**). Drive the suite through short synchronous `docket gate drive start` then `docket gate drive
-advance` calls; the driver composes the raw supervisor and owns the detached run, the durable drive
+gate**). Drive the suite through short synchronous `gate.drive.start` then `gate.drive.advance`
+operation calls; the driver composes the raw supervisor and owns the detached run, the durable drive
 record, artifact-based completion, and the fail-closed observation budget. **Reuse the driver
-operations rather than authoring a shell observe loop:** a hand-rolled sleep-and-parse over `docket
-gate observe` is exactly the drift that spun the 0337 gate until a human resumed it, and the driver
-retired it. The raw `docket gate launch`/`observe`/`stop` verbs are primitives the driver composes,
+operations rather than authoring a shell observe loop:** a hand-rolled sleep-and-parse over the
+`gate.observe` operation is exactly the drift that spun the 0337 gate until a human resumed it, and the driver
+retired it. The raw `gate.launch`/`observe`/`stop` operations are primitives the driver composes,
 not workflow APIs for this role — never call them directly and never re-derive a launch or poll shape
 from them.
 
@@ -319,7 +319,7 @@ relaunch of a proven-dead **idempotent** suite gate, under the original deadline
 so; a non-idempotent gate earns no relaunch at all.
 
 **Abandoning a live drive.** A caller that must stop while the drive is still `WAITING` — budget
-exhausted, halt, or abort — performs an explicit `docket gate drive handoff` **before it reports** and
+exhausted, halt, or abort — performs an explicit `gate.drive.handoff` operation **before it reports** and
 returns the drive id, phase, and single-use handoff token, so the nearest live owner can `claim` and
 continue and no suite is stranded, backgrounded, or waited on through a notification. Every leg then
 halts per *Halting conditions*; the leg where the handoff itself is **unavailable** halts **loudly**,
