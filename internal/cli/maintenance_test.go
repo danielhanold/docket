@@ -23,6 +23,23 @@ func TestMaintenanceSweepRegistered(t *testing.T) {
 	}
 }
 
+// TestMaintenancePreflightCommandWiring pins the WIRING of `maintenance
+// preflight`: the command exists, resolves --repo-dir, builds the sweep deps and
+// status reader, and returns app.MaintenancePreflight's result to the presenter.
+// A bare tempdir is no docket repo, so the composition fails past its pin — but
+// only after naming itself as maintenance.preflight and carrying the verdict
+// field, which proves the result reached the presenter. The app-layer
+// composition rules are already proven in internal/app; this is wiring only.
+func TestMaintenancePreflightCommandWiring(t *testing.T) {
+	out, _, _ := runCLI(t, "maintenance", "preflight", "--repo-dir", t.TempDir(), "--json")
+	if !strings.Contains(out, `"operation":"maintenance.preflight"`) {
+		t.Fatalf("preflight envelope missing: %s", out)
+	}
+	if !strings.Contains(out, `"preflight":`) {
+		t.Fatalf("verdict field missing: %s", out)
+	}
+}
+
 // TestMaintenanceSweepAssetIndependent guards the install.go registration: the
 // command reads the repository and drives Git/GitHub, never installed assets.
 func TestMaintenanceSweepAssetIndependent(t *testing.T) {

@@ -77,7 +77,46 @@ func newMaintenanceCommand(setResult func(app.OperationResult)) *cobra.Command {
 		},
 	}
 	maintenanceCmd.AddCommand(newMaintenanceSweepSubcommand(setResult))
+	maintenanceCmd.AddCommand(newMaintenancePreflightSubcommand(setResult))
 	return maintenanceCmd
+}
+
+// newMaintenancePreflightSubcommand builds `maintenance preflight`: the
+// implementation-scope sweep followed by the compact post-sweep status read
+// (no records, no changes), returned as one protocol-v1 envelope with the
+// Go-computed clean|problem verdict (change 0397). One process, one envelope —
+// the operation docket-implement-next's Step 0 runs inline instead of
+// dispatching the docket-status composition. Only --repo-dir rides on it: the
+// scope is pinned to implementation (the startup-preflight scope), not a flag.
+func newMaintenancePreflightSubcommand(setResult func(app.OperationResult)) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "preflight",
+		Short: "Run the implementation-scope sweep plus a compact post-sweep read as one operation",
+		Args:  cobra.NoArgs,
+		// metadata-write: the spec pins the preflight's declared effect to the
+		// metadata mutation it exists to perform, narrower than maintenance.sweep's
+		// own union (spec 2026-09-02 §1: "cataloged as `maintenance.preflight` with
+		// effects `[metadata-write]` (it runs the sweep)").
+		Annotations: capability("maintenance.preflight", EffectMetadataWrite),
+		RunE: func(c *cobra.Command, _ []string) error {
+			repoDir, err := resolveRepoDir(c)
+			if err != nil {
+				return err
+			}
+			deps, err := newSweepFinalizeDeps()
+			if err != nil {
+				return err
+			}
+			statusClient, err := gitcli.NewClient()
+			if err != nil {
+				return err
+			}
+			setResult(app.MaintenancePreflight(c.Context(), deps, app.NewGitStatusReader(statusClient), repoDir))
+			return nil
+		},
+	}
+	cmd.Flags().String("repo-dir", "", "repository `dir` to operate on (default: current directory)")
+	return cmd
 }
 
 // newMaintenanceSweepSubcommand builds `maintenance sweep`: one pinned inventory,
