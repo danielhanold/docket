@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0364 — Advance the primary in place on migrate via a gitcli clean-fast-forward primitive](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0364-migrate-primary-clean-fast-forward.md)**
+> ↩ **[Change 0364 — Advance the primary in place on migrate via a gitcli clean-fast-forward primitive](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-02-0364-migrate-primary-clean-fast-forward.md)**
 <!-- docket:backlink:end -->
 # Migrate Primary Clean Fast-Forward Implementation Plan
 
