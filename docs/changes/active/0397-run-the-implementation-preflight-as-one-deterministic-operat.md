@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'perf/run-the-implementation-preflight-as-one-deterministic-operat'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-02T11:52:51Z'
+reconciled: true
+claimed_at: '2026-09-02T11:55:45Z'
 ---
 
 ## Artifacts
@@ -57,3 +57,9 @@ Change 0389 (ADR-0101) made the sweep itself cheap with `--scope implementation`
 - Any of change 0360's post-claim items (context after claim, session-scoped sync, mutation receipts, reconcile no-op).
 - Slimming the `docket-convention` or `docket-implement-next` skill preload itself (change 0294 territory).
 - Model or effort changes in `agents/harness-defaults.yml`.
+
+## Reconcile log
+
+### 2026-09-02
+
+2026-09-02 — Reconciled against `main` at 78d42319 and `docket` at 209aeb31. Verified every spec assumption still holds in current code: no `maintenance.preflight` operation exists in `internal/` or `cmd/`; `docket status --json` computes `corpusRecords` unconditionally (`internal/app/status.go`) with no `IncludeRecords` option or `--records` flag; `docket-implement-next` Step 0 still dispatches the `docket-status` subagent; `maintenance.sweep --scope implementation` exists (used by this run's preflight) and ADR-0101 is Accepted. Related changes 389/360/17/94 and cited ADRs 12/24/101/47 remain accurate — no scope drift. No work done elsewhere to drop; scope unchanged. Building as specified: the new `maintenance.preflight` composition op, the `--records` opt-in for `status --json`, the Step-0 inline rewrite, prose follow-through, and a new ADR.
