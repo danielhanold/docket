@@ -1,17 +1,12 @@
 # Backlog
 
-**399 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 9 groomed · 🟡 25 proposed · ⚪ 5 deferred · ✅ 246 done · 🗑️ 112 killed
+**399 changes** — 🔵 2 built · 🟣 9 groomed · 🟡 25 proposed · ⚪ 5 deferred · ✅ 246 done · 🗑️ 112 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0399](active/0399-authoritative-machine-readable-request-result-schema-surface.md) | Authoritative machine-readable request/result schema surface | `critical` | `fix` | [spec](../superpowers/specs/2026-09-03-authoritative-machine-readable-request-result-schema-surface-design.md) | `fix/authoritative-machine-readable-request-result-schema-surface` |
-
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
+| [0399](active/0399-authoritative-machine-readable-request-result-schema-surface.md) | Authoritative machine-readable request/result schema surface | `critical` | `fix` | [#273](https://github.com/danielhanold/docket/pull/273) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
 ## 🟣 Groomed (9)
