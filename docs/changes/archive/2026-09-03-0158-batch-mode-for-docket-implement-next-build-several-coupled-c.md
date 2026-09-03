@@ -2,11 +2,11 @@
 id: 158
 slug: batch-mode-for-docket-implement-next-build-several-coupled-c
 title: Batch mode for docket-implement-next — build several coupled changes on one branch
-status: proposed
+status: 'killed'
 priority: low
 type: feat
 created: 2026-07-28
-updated: 2026-08-09
+updated: '2026-09-03'
 depends_on: []
 related: [8, 157]
 discovered_from: [157]
@@ -107,3 +107,7 @@ with the answers above.
 All of the above; nothing is settled. Worth an explicit early decision on whether the token saving is
 real and large enough to justify the machinery, measured against 0157's actual build — if the rollup
 turns out cheap to repeat by hand a few times a year, this should be killed rather than built.
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): human ruling at the 2026-09-02 backlog review: batch mode is not worth its cost; Go stacked changes cover coupled work on one line.
