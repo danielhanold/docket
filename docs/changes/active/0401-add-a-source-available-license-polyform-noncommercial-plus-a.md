@@ -12,7 +12,7 @@ stacked_on:
 related: []
 discovered_from: []
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-09-03-add-a-source-available-license-polyform-noncommercial-plus-a-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-03-add-a-source-available-license-polyform-noncommercial-plus-a-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-03-add-a-source-available-license-polyform-noncommercial-plus-a-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
