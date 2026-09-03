@@ -12,7 +12,7 @@ stacked_on:
 related: [392]
 discovered_from: []
 adrs: []
-spec:
+spec: 'docs/superpowers/specs/2026-09-03-surface-config-diagnostics-with-file-line-when-a-command-ref-design.md'
 plan:
 results:
 trivial: false
@@ -27,6 +27,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-09-03-surface-config-diagnostics-with-file-line-when-a-command-ref-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-03-surface-config-diagnostics-with-file-line-when-a-command-ref-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
