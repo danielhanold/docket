@@ -2,7 +2,7 @@
 id: 399
 slug: 'authoritative-machine-readable-request-result-schema-surface'
 title: 'Authoritative machine-readable request/result schema surface'
-status: 'implemented'
+status: 'done'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-03'
@@ -22,7 +22,7 @@ branch: 'fix/authoritative-machine-readable-request-result-schema-surface'
 pr: 'https://github.com/danielhanold/docket/pull/273'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-03T20:39:36Z'
+claimed_at:
 ---
 
 ## Artifacts

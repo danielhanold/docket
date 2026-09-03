@@ -1,12 +1,11 @@
 # Backlog
 
-**399 changes** — 🔵 2 built · 🟣 9 groomed · 🟡 25 proposed · ⚪ 5 deferred · ✅ 246 done · 🗑️ 112 killed
+**399 changes** — 🔵 1 built · 🟣 9 groomed · 🟡 25 proposed · ⚪ 5 deferred · ✅ 247 done · 🗑️ 112 killed
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
-| [0399](active/0399-authoritative-machine-readable-request-result-schema-surface.md) | Authoritative machine-readable request/result schema surface | `critical` | `fix` | [#273](https://github.com/danielhanold/docket/pull/273) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
 ## 🟣 Groomed (9)
@@ -105,17 +104,17 @@ graph TD
   0392
   0393
   0398
-  0399
   0192:::done
   0251:::done
   0370:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (358)</summary>
+<details><summary>✅🗑️ Archive — done + killed (359)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0399](archive/2026-09-03-0399-authoritative-machine-readable-request-result-schema-surface.md) | Authoritative machine-readable request/result schema surface | 2026-09-03 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0343](archive/2026-09-03-0343-harden-managed-block-renderers-against-marker-mentions-in-pr.md) | Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder) | 2026-09-03 |
 | [0321](archive/2026-09-03-0321-render-artifact-backlink-sh-eats-artifact-tails-on-marker-sh.md) | render-artifact-backlink.sh eats artifact tails on marker-shaped literals — anchor whole-line, validate balance, refuse | 2026-09-03 |
@@ -160,7 +159,6 @@ graph TD
 | [0377](archive/2026-08-31-0377-migrate-deferred-bash-facade-workflow-operations-to-native-g.md) | Migrate deferred Bash-facade workflow operations to native Go CLI verbs | 2026-08-31 |
 | [0370](archive/2026-08-31-0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | 2026-08-31 |
 | [0367](archive/2026-08-31-0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | 2026-08-31 |
-| [0378](archive/2026-08-30-0378-metadata-root-classifier-rejects-multi-commit-docket-branch.md) | Shared metadata-root classifier misreads any multi-commit docket branch as foreign | 2026-08-30 |
 | [0353](archive/2026-08-26-0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | 2026-08-26 |
 | [0294](archive/2026-08-26-0294-shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru.md) | Shrink AGENTS.md's always-loaded footprint: script-ify the run gate's caller procedure and de-duplicate the dispatch table | 2026-08-26 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
@@ -248,7 +246,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 113 done |
+| [2026-08](archive/) | 114 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
