@@ -76,6 +76,7 @@ escalate-to-human default everywhere.
   docket-source `agents/docket-rebase-resolver.md` matches the skill body, so the `.claude/` copy is
   stale — but the contradiction is worth resolving deliberately as part of deciding the cap
   semantics (bounded report-and-continue vs. resolver-drives-to-completion).
+- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target: the cap is still a skill literal (`skills/docket-finalize-change/SKILL.md`, `≤2 attempts`), and `docket-config.sh --export` is deleted. Put the knob in the Go config schema (`internal/config/schema.go` / `defaults.go`, a `finalize.*` field exported via `repository prepare`) and have `finalize rebase-continue --attempt` enforce it. The `.claude/agents` description-drift open question is likely stale (wrappers are generated from `agents/*.md`).
 
 ## Reconcile log
 
