@@ -13,19 +13,17 @@ import (
 // here so the spellings are settled once:
 //
 //	required            the field must be present/non-zero; a shape validator
-//	                    mints an error finding on its absence. (Shipped: change
-//	                    0399, Task 4.)
+//	                    mints an error finding on its absence.
 //	success-only        the field is populated only on a successful result.
-//	                    (Vocabulary reserved; consumed by change 0399, Task 6.)
 //	refusal-only        the field is populated only on a refusal/failure result.
-//	                    (Vocabulary reserved; consumed by change 0399, Task 6.)
 //	enum=<vocabulary>   the field's value is drawn from the named closed
-//	                    vocabulary (e.g. enum=priority). (Vocabulary reserved;
-//	                    consumed by change 0399, Task 6.)
+//	                    vocabulary (e.g. enum=priority).
 //
-// Options combine on one field: docket:"required,enum=priority". This task ships
-// and consumes only `required`; the other options are declared now so their
-// spellings do not churn when Task 6 ships them.
+// Options combine on one field: docket:"required,enum=priority". All four options
+// are now consumed: `required` by the request-shape validators (via
+// requiredJSONKeys), and success-only/refusal-only/enum= by reflectFields
+// (schema.go), which reads them into each field's Presence and Enum on the
+// emitted schema surface.
 
 // docketTagName is the struct-tag key the docket vocabulary lives under.
 const docketTagName = "docket"
