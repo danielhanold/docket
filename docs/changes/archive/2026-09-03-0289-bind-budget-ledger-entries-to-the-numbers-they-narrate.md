@@ -2,11 +2,11 @@
 id: 289
 slug: bind-budget-ledger-entries-to-the-numbers-they-narrate
 title: 'Bind budget-ledger entries to the numbers they narrate'
-status: proposed
+status: 'killed'
 priority: medium
 type: chore
 created: 2026-08-11
-updated: 2026-08-11
+updated: '2026-09-03'
 depends_on: []
 related: []
 discovered_from: [281]
@@ -62,3 +62,7 @@ these two files only because its own prose grew past their ceilings. Building a 
 guard there would expand a prose-contract fix into test-infrastructure work, and the guard needs its
 own design pass (what counts as "raised relative to the merge base" in a guard that cannot assume
 network access is the real question).
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): superseded by the Go migration — both ledger test files are deleted; skill size budgets are a Go table in internal/repoguard/budgets_test.go with a ratchet rule.
