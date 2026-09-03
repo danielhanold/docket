@@ -122,3 +122,8 @@ PM-altitude: make a solo `docket-implement-next` run cheap without weakening sha
 - Killing or reviving change 0294 (AGENTS.md footprint); cite it as related token-cost history only.
 - Fixing scp-qarch-deploy's committed `.docket.yml` (unset `test_command`) except as a dogfood case for auto-detect / evidence-from-PASSED. 0006 having `test_command` set is evidence the schema/context tax is independent of that dogfood.
 - Force-push, hook skip, or rewriting a human-reviewed PR body after the run. Preventing schema probes from *creating* the PR (validate/dry-run, refuse stub title/body) is in scope; using `gh pr edit` to recover from a probe is not the intended workflow.
+
+## Open questions
+
+- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Every enumerated defect still reproduces in Go source, but the umbrella is oversized. Split at groom into a stack: context-after-claim / receipt `version` chaining / evidence-from-PASSED plus `.docket.local.yml` visibility / gate argv + `exec-error` disposition / skill CLI-card + schema no-mutate. The results-only-delta leg leans on `finalize.skip_results_only_delta`, which is deferred from Go v1 — mark it waiting on that capability.
+
