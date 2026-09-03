@@ -2,11 +2,11 @@
 id: 288
 slug: namespace-the-remaining-un-namespaced-mock-seams-runners-dir
 title: 'Namespace the remaining un-namespaced mock seams (RUNNERS_DIR, GIT) repo-wide'
-status: proposed
+status: 'killed'
 priority: medium
 type: chore
 created: 2026-08-11
-updated: 2026-08-11
+updated: '2026-09-03'
 depends_on: []
 related: []
 discovered_from: [208]
@@ -38,3 +38,7 @@ reconciled: false
 **Boundary** — rename the un-namespaced seams docket owns, repo-wide, deriving the site list from a grep rather than a hand list; update each script's `# Mock seams:` header, its co-located `.md` contract, and every test that sets one. Accept a transition window that honors the old name with a deprecation warning if any is documented for external use. It leaves alone: seams docket does not own, and any variable a third-party tool defines.
 
 **Reason for deferral** — a repo-wide rename touching several scripts, their contracts, and their test fixtures is its own reviewable diff. Folding it into a delegation-gate branch would bury a mechanical sweep inside a behavioral change and make both harder to review.
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): superseded by the Go migration — RUNNERS_DIR and GIT were seams on the deleted runner-dispatch.sh; no un-namespaced dispatch seam remains.
