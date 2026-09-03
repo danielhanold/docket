@@ -2,11 +2,11 @@
 id: 287
 slug: make-docket-frontmatter-sh-usable-from-the-bootstrap-path-or
 title: 'Make docket-frontmatter.sh usable from the bootstrap path, or split a Bash 3.2-safe core out of it'
-status: proposed
+status: 'killed'
 priority: medium
 type: refactor
 created: 2026-08-11
-updated: 2026-08-11
+updated: '2026-09-03'
 depends_on: []
 related: []
 discovered_from: [208]
@@ -38,3 +38,7 @@ reconciled: false
 **Boundary** — the work is `docket-frontmatter.sh` plus whatever sourcing sites change, and a test that sources the lib under a real 3.2 interpreter so the property is guarded rather than remembered. It deliberately leaves alone: which scripts must be 3.2-safe (an existing, separate decision), and the runtime-routing design that gives most scripts `DOCKET_BASH_PATH`.
 
 **Reason for deferral** — 0208's branch is a delegation-gate hardening. Reworking a shared frontmatter library used across the repo, plus its interpreter-version test surface, is a different blast radius and would expand that branch well past its spec.
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): superseded by the Go migration — scripts/lib/docket-frontmatter.sh is deleted; frontmatter is read by internal/document, with no Bash-version constraint.
