@@ -2,11 +2,11 @@
 id: 300
 slug: close-the-single-backslash-word-boundary-gap-convert-the-56
 title: 'Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating'
-status: proposed
+status: 'killed'
 priority: medium
 type: fix
 created: 2026-08-12
-updated: 2026-08-12
+updated: '2026-09-03'
 depends_on: []
 related: []
 discovered_from: [298]
@@ -58,3 +58,7 @@ the already-gated two-backslash rule, and the ERE repetition-bound checks in the
 with stacking, and each converted site needs its own mutation re-check to prove the conversion did
 not silently widen or narrow it. Riding that on change 0298's branch would swamp a feature diff with
 unrelated churn and put its green suite at risk for no gain to the feature.
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): superseded by the Go migration — tests/test_grep_portability.sh and the 56 shell sites are deleted; Go regexp has no BSD word-boundary divergence.
