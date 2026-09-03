@@ -46,9 +46,9 @@ Finalize does not.
 
 Live failure, 2026-08-25, in a Git Flow consumer (`feature/…`, not `feat/…`):
 
-- Change 0001 recorded `branch: feature/keda-qarch-consumer-scaledobjects` and
-  `pr:` pointing at an **open** GitHub PR (head `feature/…`, base `feature/eks-consumers`).
-- Stack-base for that child correctly resolved to `feature/eks-consumers`.
+- Change 0001 recorded `branch: feature/keda-consumer-scaledobjects` and
+  `pr:` pointing at an **open** GitHub PR (head `feature/…`, base `feature/<stack-parent>`).
+- Stack-base for that child correctly resolved to `feature/<stack-parent>`.
 - `docket context finalize --id 1` skipped with **`pr-closed`**. Explicit `--id` cannot
   override that. No rebase, no merge.
 - GitHub still had the PR open. Finalize probed `FindOpenPullRequestsByHead(feat/<slug>)`,

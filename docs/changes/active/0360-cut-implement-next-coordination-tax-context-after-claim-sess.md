@@ -6,10 +6,10 @@ status: 'proposed'
 priority: 'high'
 type: 'feat'
 created: '2026-08-27'
-updated: '2026-09-01'
+updated: '2026-09-03'
 depends_on: []
 stacked_on:
-related: [315, 357, 313, 335, 324, 247, 294]
+related: [315, 357, 313, 335, 324, 247, 294, 399]
 discovered_from: []
 adrs: [3, 47, 20, 66, 92, 95]
 spec:
@@ -34,13 +34,13 @@ reconciled: false
 
 ## Why
 
-Observed live 2026-08-27 in PropertyBrands/scp-qarch-deploy while `docket-implement-next` built change 0003 (stacked on 0004, Cursor harness, Go CLI). The Helm work was two commits and a clean review. Most of the session tokens were spent on protocol narration: repeated `docket.sh preflight`, opaque blob-version CAS, a mandatory rewrite-style reconcile, skill/CLI schema archaeology, and gate/evidence config that the product already knew.
+Observed live 2026-08-27 in a downstream consumer repository (a Helm-chart deploy repo) while `docket-implement-next` built its change 0003 (stacked on 0004, Cursor harness, Go CLI). The Helm work was two commits and a clean review. Most of the session tokens were spent on protocol narration: repeated `docket.sh preflight`, opaque blob-version CAS, a mandatory rewrite-style reconcile, skill/CLI schema archaeology, and gate/evidence config that the product already knew.
 
-Reproduced 2026-08-31 on the same repo/stack/harness for change 0006 (chart `1.2.10` → `1.2.11`, PR 262). `finalize.test_command` **was set** to the helm-template `__main__` loop, so the 0003 gate/evidence/local-yml failures did **not** fire. The schema/context/receipt tax still did: the parent spent many turns on `--help`, `strings` on the `docket` binary for `json:"…"` tags, empty-object probes, and heading enumeration. Those probes were not read-only.
+Reproduced 2026-08-31 on the same repo/stack/harness for its change 0006 (a chart patch-version bump; one PR). `finalize.test_command` **was set** to the helm-template `__main__` loop, so the 0003 gate/evidence/local-yml failures did **not** fire. The schema/context/receipt tax still did: the parent spent many turns on `--help`, `strings` on the `docket` binary for `json:"…"` tags, empty-object probes, and heading enumeration. Those probes were not read-only.
 
 The concurrency story is real — shared `.docket/` metadata worktree, claim leases, fail-closed bootstrap — but a single claimed run is forced to re-prove the world on every seam as if a concurrent writer had just moved it. After claim, the advertised source of truth died: `docket context implementation --id 3` (and `--id 6`) returned `invalid-state` / `not-ready-not-proposed`, so the parent fell back to `docket status --json` plus opening the markdown. Reconcile still required a full replacement of `## Why` / `## What changes` / `## Out of scope` plus a dated log even though the spec blob, stack parent, and chart head were unchanged.
 
-CLI/skill drift made it worse. Implement-next still describes markdown `--input` and `reconcile --id --version --input`; the Go CLI has no `--id` on reconcile (id lives in JSON). `docket change reconcile --help` does not print the JSON schema; unknown-field errors do not list allowed keys. Finding *messages* teach the wrong key: empty `{}` said `change_id must be a positive change id` (`validateLifecycleShape`) while the JSON tag is `id` — the parent then sent `change_id` and hit unknown-field. Decode errors say `decoding --request JSON` for a flag named `--input`. Skill lists `depends_on` as if top-level; the request requires `relations: { depends_on, … }`. Skill says a "dated" reconcile-log entry; `appendReconcileLog` always prepends `### YYYY-MM-DD`, so including the heading doubled every log. The parent probed until `"## Why"` worked — and a well-formed-enough probe **applied** on `origin/docket` (Why became `x`, garbage log entries). `{title: "t", body: "b"}` **created** GitHub PR 262; a retry with the real body returned `contended`; the stub had to be fixed with `gh pr edit`. Blocking "read this now" files (auto-capture, dummy mode, gate-loop, stacked-changes, agent-layer) loaded even when those flags were off and the run was not installing wrappers. `repository prepare` exported `skills: {}`; the parent applied convention defaults by hand.
+CLI/skill drift made it worse. Implement-next still describes markdown `--input` and `reconcile --id --version --input`; the Go CLI has no `--id` on reconcile (id lives in JSON). `docket change reconcile --help` does not print the JSON schema; unknown-field errors do not list allowed keys. Finding *messages* teach the wrong key: empty `{}` said `change_id must be a positive change id` (`validateLifecycleShape`) while the JSON tag is `id` — the parent then sent `change_id` and hit unknown-field. Decode errors say `decoding --request JSON` for a flag named `--input`. Skill lists `depends_on` as if top-level; the request requires `relations: { depends_on, … }`. Skill says a "dated" reconcile-log entry; `appendReconcileLog` always prepends `### YYYY-MM-DD`, so including the heading doubled every log. The parent probed until `"## Why"` worked — and a well-formed-enough probe **applied** on `origin/docket` (Why became `x`, garbage log entries). `{title: "t", body: "b"}` **created** a real GitHub PR; a retry with the real body returned `contended`; the stub had to be fixed with `gh pr edit`. Blocking "read this now" files (auto-capture, dummy mode, gate-loop, stacked-changes, agent-layer) loaded even when those flags were off and the run was not installing wrappers. `repository prepare` exported `skills: {}`; the parent applied convention defaults by hand.
 
 Build-phase additions, 0003 run (`test_command` unset):
 
@@ -54,7 +54,7 @@ Build-phase additions, 0003 run (`test_command` unset):
 
 - Claim / reconcile / refresh-claim / attach returned `committed_revision` (commit SHA), not entity `version` (blob oid). The parent could not chain `--version` from the receipt and re-ran `docket status --json` after almost every write.
 - After a docs-only results commit, skill edge-paths call a stale evidence `head_sha` expected. `pr publish` refused `evidence-unverified (stale)` because evidence head ≠ published HEAD, forcing a third full-suite drive to remint.
-- Stacked review sizes: vs `master` 4227+/64, vs `feature/eks-consumers` 807+/85.
+- Stacked review sizes: vs the integration branch 4227+/64, vs the stack parent 807+/85.
 
 ADR-0047 already exists so `--digest-only` can skip preflight for selection, but implement-next still re-preflights around every metadata mutation and long dispatch. Change 0315 shipped the claim-to-implemented workflow; change 0357 taught implementation context to load remote branch facts *before* claim — it still does not serve `in-progress`. Change 0294 (killed) tried to shrink always-loaded AGENTS.md footprint for a related token-cost reason.
 
@@ -120,10 +120,10 @@ PM-altitude: make a solo `docket-implement-next` run cheap without weakening sha
 - Changing `finalize.gate: off` semantics in consuming repos.
 - Re-litigating ADR-0001 (metadata branch), ADR-0008 (agent layer), or ADR-0063 (profile-routed build) except where this change cites them as constraints.
 - Killing or reviving change 0294 (AGENTS.md footprint); cite it as related token-cost history only.
-- Fixing scp-qarch-deploy's committed `.docket.yml` (unset `test_command`) except as a dogfood case for auto-detect / evidence-from-PASSED. 0006 having `test_command` set is evidence the schema/context tax is independent of that dogfood.
+- Fixing the consumer repository's committed `.docket.yml` (unset `test_command`) except as a dogfood case for auto-detect / evidence-from-PASSED. 0006 having `test_command` set is evidence the schema/context tax is independent of that dogfood.
 - Force-push, hook skip, or rewriting a human-reviewed PR body after the run. Preventing schema probes from *creating* the PR (validate/dry-run, refuse stub title/body) is in scope; using `gh pr edit` to recover from a probe is not the intended workflow.
 
 ## Open questions
 
-- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Every enumerated defect still reproduces in Go source, but the umbrella is oversized. Split at groom into a stack: context-after-claim / receipt `version` chaining / evidence-from-PASSED plus `.docket.local.yml` visibility / gate argv + `exec-error` disposition / skill CLI-card + schema no-mutate. The results-only-delta leg leans on `finalize.skip_results_only_delta`, which is deferred from Go v1 — mark it waiting on that capability.
+- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Every enumerated defect still reproduces in Go source, but the umbrella is oversized. Split at groom into a stack: context-after-claim / receipt `version` chaining / evidence-from-PASSED plus `.docket.local.yml` visibility / gate argv + `exec-error` disposition. The **CLI schema** and **schema probes must not mutate** legs (and open question 6) are carved out to change 0399 (2026-09-03) — drop them here at groom rather than rebuild them; 0399 settles the probe posture as "no validate/dry-run flag". The results-only-delta leg leans on `finalize.skip_results_only_delta`, which is deferred from Go v1 — mark it waiting on that capability.
 

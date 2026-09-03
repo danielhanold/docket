@@ -40,7 +40,7 @@ claimed_at:
 
 A live stack parent (in-progress, `branch:` recorded, remote ref present) only resolves under domain rule 4 when that branch is **in facts**. With empty facts, `HasBranch` is always false, so the walk returns `branch-absent` and the child is `not-ready-stack-base-unresolved`. Claim never runs.
 
-Observed live 2026-08-26 in scp-qarch-deploy: child 0003 stacked on stack-root 0004 (`feature/eks-consumers` on origin). `docket-status` and `stack-base.sh` (both facts-backed) reported ready / resolved; `docket context implementation --id 3` refused. Status, workspace-prepare, and claim already call `reader.BranchFacts`. Only this pre-claim bundle skips it. No parent-status edit can both pass this gate and keep the child's base on the stack root: `done` or a fake `stacked-merged` would resolve to the integration branch.
+Observed live 2026-08-26 in a downstream consumer repository: child 0003 stacked on stack-root 0004 (the parent's feature branch on origin). `docket-status` and `stack-base.sh` (both facts-backed) reported ready / resolved; `docket context implementation --id 3` refused. Status, workspace-prepare, and claim already call `reader.BranchFacts`. Only this pre-claim bundle skips it. No parent-status edit can both pass this gate and keep the child's base on the stack root: `done` or a fake `stacked-merged` would resolve to the integration branch.
 
 ## What changes
 

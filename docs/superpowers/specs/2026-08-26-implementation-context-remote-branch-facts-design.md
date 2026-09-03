@@ -22,7 +22,7 @@ Given:
 
 both automatic selection and `docket context implementation --id <child id>` must return an applied context bundle. The bundle must report `build-ready`, `claim_eligible: true`, and an effective base resolved to the parent's recorded branch. The normal claim and workspace operations can then prepare the child's workspace from that branch, preserving the parent's unmerged work.
 
-This is specifically the scp-qarch-deploy failure that created change 0357: child 0003 was stacked on parent 0004, `feature/eks-consumers` existed on `origin`, status and stack-base resolution said ready, but implementation context refused before claim.
+This is specifically the downstream consumer-repository failure that created change 0357: child 0003 was stacked on parent 0004, the parent's feature branch existed on `origin`, status and stack-base resolution said ready, but implementation context refused before claim.
 
 ## Design
 
