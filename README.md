@@ -71,7 +71,7 @@ The stance: plans rot, so refresh them just-in-time and never trust a stale back
   backlog.
 
 Plan approval is deliberately **not** a human point: your checkpoint is the PR, where the plan,
-the diff, and the evidence arrive together. And docket ends at the merge — it does not deploy,
+the diff, and the evidence arrive together. And docket ends at the merge — it does not deploy to production,
 monitor production, or feed incidents back into the backlog.
 
 ## Install and the daily loop
