@@ -151,26 +151,26 @@ func ADRRecordOp(ctx context.Context, deps PlanningDeps, repoDir string, req ADR
 	pin, err := deps.Reader.PinContext(ctx, repoDir)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
-		return newADRResult(OperationADRRecord, result, ADRResult{Findings: []StatusFinding{adrFinding(reason, err.Error())}})
+		return newADRResult(OperationADRRecord, result, ADRResult{Findings: []StatusFinding{adrFinding(FindingCode(reason), err.Error())}})
 	}
 	eff := pin.Config.Effective
 
 	slug := slugifyTitle(req.Title)
 	if !domain.ValidSlugToken(slug) {
 		return newADRResult(OperationADRRecord, ResultInvalidInput, ADRResult{
-			Findings: []StatusFinding{adrFinding("invalid-slug", fmt.Sprintf("title %q does not yield a valid slug", req.Title))},
+			Findings: []StatusFinding{adrFinding(FCInvalidSlug, fmt.Sprintf("title %q does not yield a valid slug", req.Title))},
 		})
 	}
 
 	digest, err := canonicalDigest(OperationADRRecord, adrRecordSemanticPayload(req))
 	if err != nil {
-		return newADRResult(OperationADRRecord, ResultInternalError, ADRResult{Findings: []StatusFinding{adrFinding(ReasonStatusInternalError, err.Error())}})
+		return newADRResult(OperationADRRecord, ResultInternalError, ADRResult{Findings: []StatusFinding{adrFinding(FindingCode(ReasonStatusInternalError), err.Error())}})
 	}
 
 	repo, err := deps.Client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
 	if err != nil {
 		result, reason := classifyStatusError(ctx, classifyGitFailure(err))
-		return newADRResult(OperationADRRecord, result, ADRResult{Findings: []StatusFinding{adrFinding(reason, err.Error())}})
+		return newADRResult(OperationADRRecord, result, ADRResult{Findings: []StatusFinding{adrFinding(FindingCode(reason), err.Error())}})
 	}
 
 	op := adrRecordOp{
@@ -218,9 +218,11 @@ func ADRRecordOp(ctx context.Context, deps PlanningDeps, repoDir string, req ADR
 	return r
 }
 
-// adrFinding builds one error-severity request-shape finding.
-func adrFinding(code, msg string) StatusFinding {
-	return StatusFinding{Code: code, Severity: string(domain.SeverityError), Message: msg}
+// adrFinding builds one error-severity request-shape finding from a registry
+// FindingCode. TestNoInlineFindingCodeLiterals lists it among the finding
+// constructors, so a string-literal first argument reddens the minting guard.
+func adrFinding(code FindingCode, msg string) StatusFinding {
+	return StatusFinding{Code: string(code), Severity: string(domain.SeverityError), Message: msg}
 }
 
 // decodeADRRecordReceipt decodes a persisted or replayed receipt into its
@@ -242,7 +244,7 @@ func decodeADRRecordReceipt(b []byte) (adrRecordReceipt, bool) {
 func validateADRRecordShape(req ADRRecordRequest) []StatusFinding {
 	var findings []StatusFinding
 	if !validRequestID(req.RequestID) {
-		findings = append(findings, adrFinding("invalid-request_id", "request_id must be 8–128 ASCII characters matching ^[A-Za-z0-9][A-Za-z0-9._-]*$"))
+		findings = append(findings, adrFinding(FCInvalidRequestID, "request_id must be 8–128 ASCII characters matching ^[A-Za-z0-9][A-Za-z0-9._-]*$"))
 	}
 	return append(findings, validateADRContent(req)...)
 }
@@ -255,29 +257,33 @@ func validateADRRecordShape(req ADRRecordRequest) []StatusFinding {
 // governs).
 func validateADRContent(req ADRRecordRequest) []StatusFinding {
 	var findings []StatusFinding
-	add := func(code, msg string) {
+	addShape := func(code FindingCode, msg string) {
 		findings = append(findings, adrFinding(code, msg))
 	}
 
-	for _, f := range []struct{ name, val string }{
-		{"title", req.Title}, {"context", req.Context}, {"decision", req.Decision},
-		{"consequences", req.Consequences}, {"alternatives", req.Alternatives},
+	for _, f := range []struct {
+		name string
+		val  string
+		code FindingCode
+	}{
+		{"title", req.Title, FCEmptyTitle}, {"context", req.Context, FCEmptyContext}, {"decision", req.Decision, FCEmptyDecision},
+		{"consequences", req.Consequences, FCEmptyConsequences}, {"alternatives", req.Alternatives, FCEmptyAlternatives},
 	} {
 		if strings.TrimSpace(f.val) == "" {
-			add("empty-"+f.name, f.name+" must be non-empty")
+			addShape(f.code, f.name+" must be non-empty")
 		}
 	}
 	findings = append(findings, validateIDCollection("relates_to", req.RelatesTo, FCInvalidRelatesTo, FCDuplicateRelatesTo)...)
 
 	if req.Change != nil {
 		if req.Change.ID <= 0 {
-			add("invalid-change-id", "change.id must be a positive change id")
+			addShape(FCInvalidChangeDotID, "change.id must be a positive change id")
 		}
 		if strings.TrimSpace(req.Change.Path) == "" {
-			add("empty-change-path", "change.path must name the producing change's current canonical record path")
+			addShape(FCEmptyChangePath, "change.path must name the producing change's current canonical record path")
 		}
 		if strings.TrimSpace(req.Change.Version) == "" {
-			add("empty-change-version", "change.version must be the exact full blob object id of the producing change")
+			addShape(FCEmptyChangeVersion, "change.version must be the exact full blob object id of the producing change")
 		}
 	}
 	return findings
@@ -646,26 +652,26 @@ func adrReplace(ctx context.Context, deps PlanningDeps, repoDir, opKey string, r
 	pin, err := deps.Reader.PinContext(ctx, repoDir)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
-		return newADRResult(opKey, result, ADRResult{Findings: []StatusFinding{adrFinding(reason, err.Error())}})
+		return newADRResult(opKey, result, ADRResult{Findings: []StatusFinding{adrFinding(FindingCode(reason), err.Error())}})
 	}
 	eff := pin.Config.Effective
 
 	slug := slugifyTitle(req.Successor.Title)
 	if !domain.ValidSlugToken(slug) {
 		return newADRResult(opKey, ResultInvalidInput, ADRResult{
-			Findings: []StatusFinding{adrFinding("invalid-slug", fmt.Sprintf("successor title %q does not yield a valid slug", req.Successor.Title))},
+			Findings: []StatusFinding{adrFinding(FCInvalidSlug, fmt.Sprintf("successor title %q does not yield a valid slug", req.Successor.Title))},
 		})
 	}
 
 	digest, err := canonicalDigest(opKey, adrReplaceSemanticPayload(opKey, req))
 	if err != nil {
-		return newADRResult(opKey, ResultInternalError, ADRResult{Findings: []StatusFinding{adrFinding(ReasonStatusInternalError, err.Error())}})
+		return newADRResult(opKey, ResultInternalError, ADRResult{Findings: []StatusFinding{adrFinding(FindingCode(ReasonStatusInternalError), err.Error())}})
 	}
 
 	repo, err := deps.Client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
 	if err != nil {
 		result, reason := classifyStatusError(ctx, classifyGitFailure(err))
-		return newADRResult(opKey, result, ADRResult{Findings: []StatusFinding{adrFinding(reason, err.Error())}})
+		return newADRResult(opKey, result, ADRResult{Findings: []StatusFinding{adrFinding(FindingCode(reason), err.Error())}})
 	}
 
 	op := adrReplaceOp{
@@ -739,16 +745,16 @@ func adrReplaceRefusalKind(findings []domain.Finding) Result {
 func validateADRReplaceShape(req ADRReplaceRequest) []StatusFinding {
 	var findings []StatusFinding
 	if !validRequestID(req.RequestID) {
-		findings = append(findings, adrFinding("invalid-request_id", "request_id must be 8–128 ASCII characters matching ^[A-Za-z0-9][A-Za-z0-9._-]*$"))
+		findings = append(findings, adrFinding(FCInvalidRequestID, "request_id must be 8–128 ASCII characters matching ^[A-Za-z0-9][A-Za-z0-9._-]*$"))
 	}
 	if req.Target.ID <= 0 {
-		findings = append(findings, adrFinding("invalid-target-id", "target.id must be a positive ADR id"))
+		findings = append(findings, adrFinding(FCInvalidTargetID, "target.id must be a positive ADR id"))
 	}
 	if strings.TrimSpace(req.Target.Path) == "" {
-		findings = append(findings, adrFinding("empty-target-path", "target.path must name the target ADR's current canonical record path"))
+		findings = append(findings, adrFinding(FCEmptyTargetPath, "target.path must name the target ADR's current canonical record path"))
 	}
 	if strings.TrimSpace(req.Target.Version) == "" {
-		findings = append(findings, adrFinding("empty-target-version", "target.version must be the exact full blob object id of the Accepted target"))
+		findings = append(findings, adrFinding(FCEmptyTargetVersion, "target.version must be the exact full blob object id of the Accepted target"))
 	}
 	return append(findings, validateADRContent(req.Successor)...)
 }

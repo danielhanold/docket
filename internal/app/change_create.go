@@ -259,19 +259,23 @@ func changeCreateResultFromOutcome(res transaction.Result, execErr error) Change
 // collections (positive ids, no duplicate within a collection).
 func validateChangeCreateShape(req ChangeCreateRequest) []StatusFinding {
 	var findings []StatusFinding
-	add := func(code, msg string) {
-		findings = append(findings, StatusFinding{Code: code, Severity: string(domain.SeverityError), Message: msg})
+	addShape := func(code FindingCode, msg string) {
+		findings = append(findings, StatusFinding{Code: string(code), Severity: string(domain.SeverityError), Message: msg})
 	}
 
 	if !validRequestID(req.RequestID) {
-		add("invalid-request_id", "request_id must be 8–128 ASCII characters matching ^[A-Za-z0-9][A-Za-z0-9._-]*$")
+		addShape(FCInvalidRequestID, "request_id must be 8–128 ASCII characters matching ^[A-Za-z0-9][A-Za-z0-9._-]*$")
 	}
-	for _, f := range []struct{ name, val string }{
-		{"title", req.Title}, {"why", req.Why},
-		{"what_changes", req.WhatChanges}, {"out_of_scope", req.OutOfScope},
+	for _, f := range []struct {
+		name string
+		val  string
+		code FindingCode
+	}{
+		{"title", req.Title, FCEmptyTitle}, {"why", req.Why, FCEmptyWhy},
+		{"what_changes", req.WhatChanges, FCEmptyWhatChanges}, {"out_of_scope", req.OutOfScope, FCEmptyOutOfScope},
 	} {
 		if strings.TrimSpace(f.val) == "" {
-			add("empty-"+f.name, f.name+" must be non-empty")
+			addShape(f.code, f.name+" must be non-empty")
 		}
 	}
 	for _, coll := range []struct {
@@ -288,7 +292,7 @@ func validateChangeCreateShape(req ChangeCreateRequest) []StatusFinding {
 		findings = append(findings, validateIDCollection(coll.name, coll.ids, coll.invalid, coll.duplicate)...)
 	}
 	if req.StackedOn != nil && *req.StackedOn <= 0 {
-		add("invalid-stacked_on", "stacked_on must be a positive change id")
+		addShape(FCInvalidStackedOn, "stacked_on must be a positive change id")
 	}
 	return findings
 }

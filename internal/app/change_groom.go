@@ -219,33 +219,33 @@ func changeGroomResultFromOutcome(res transaction.Result, execErr error) ChangeG
 // and every section edit's shape.
 func validateChangeGroomShape(req ChangeGroomRequest) []StatusFinding {
 	var findings []StatusFinding
-	add := func(code, msg string) {
-		findings = append(findings, StatusFinding{Code: code, Severity: string(domain.SeverityError), Message: msg})
+	addShape := func(code FindingCode, msg string) {
+		findings = append(findings, StatusFinding{Code: string(code), Severity: string(domain.SeverityError), Message: msg})
 	}
 
 	if req.ChangeID <= 0 {
-		add("invalid-change_id", "change_id must be a positive change id")
+		addShape(FCInvalidChangeID, "change_id must be a positive change id")
 	}
 	if strings.TrimSpace(req.Path) == "" {
-		add("empty-path", "path must name the change's current canonical record path")
+		addShape(FCEmptyPath, "path must name the change's current canonical record path")
 	}
 	if strings.TrimSpace(req.Version) == "" {
-		add("empty-version", "version must be the exact full blob object id of the submitted record")
+		addShape(FCEmptyVersion, "version must be the exact full blob object id of the submitted record")
 	}
 
 	switch req.Outcome {
 	case GroomSpec:
 		if strings.TrimSpace(req.SpecMarkdown) == "" {
-			add("empty-spec_markdown", "spec_markdown must be non-empty for the spec outcome")
+			addShape(FCEmptySpecMarkdown, "spec_markdown must be non-empty for the spec outcome")
 		} else if _, perr := document.Parse([]byte(req.SpecMarkdown)); perr != nil {
-			add("invalid-spec_markdown", "spec_markdown must parse as a Markdown document: "+perr.Error())
+			addShape(FCInvalidSpecMarkdown, "spec_markdown must parse as a Markdown document: "+perr.Error())
 		}
 	case GroomTrivial:
 		if !hasAuthoredRationale(req.Sections) {
-			add("missing-rationale", "the trivial outcome requires a non-empty authored rationale among the section edits")
+			addShape(FCMissingRationale, "the trivial outcome requires a non-empty authored rationale among the section edits")
 		}
 	default:
-		add("invalid-outcome", fmt.Sprintf("outcome %q must be one of spec, trivial", req.Outcome))
+		addShape(FCInvalidOutcome, fmt.Sprintf("outcome %q must be one of spec, trivial", req.Outcome))
 	}
 
 	findings = append(findings, validateGroomSections(req.Sections)...)

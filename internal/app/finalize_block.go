@@ -584,21 +584,21 @@ func decodeBlockReceipt(b []byte) (blockReceipt, bool) {
 // `finalize block` that never reach the engine.
 func validateBlockShape(req BlockRequest) []StatusFinding {
 	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
-	add := func(code, msg string) { findings = append(findings, lifecycleFinding(FindingCode(code), msg)) }
+	addShape := func(code FindingCode, msg string) { findings = append(findings, lifecycleFinding(code, msg)) }
 	if req.PRNumber <= 0 {
-		add("invalid-pr_number", "pr_number must be a positive pull-request number")
+		addShape(FCInvalidPRNumber, "pr_number must be a positive pull-request number")
 	}
 	if !validAttemptToken(req.Attempt) {
-		add("invalid-attempt", "attempt must be a non-empty token of letters, digits, '.', '_', or '-'")
+		addShape(FCInvalidAttempt, "attempt must be a non-empty token of letters, digits, '.', '_', or '-'")
 	}
 	if strings.TrimSpace(req.Reason) == "" {
-		add("empty-reason", "reason must be a non-empty stable reason token")
+		addShape(FCEmptyReason, "reason must be a non-empty stable reason token")
 	}
 	if strings.TrimSpace(req.Head) == "" {
-		add("empty-head", "head must name the verified feature head")
+		addShape(FCEmptyHead, "head must name the verified feature head")
 	}
 	if strings.TrimSpace(req.Report) == "" {
-		add("empty-report", "report must be a non-empty authored bounded report")
+		addShape(FCEmptyReport, "report must be a non-empty authored bounded report")
 	}
 	boundAuthored(&findings, "report", req.Report)
 	boundAuthored(&findings, "remedy", req.Remedy)
@@ -609,12 +609,12 @@ func validateBlockShape(req BlockRequest) []StatusFinding {
 // `finalize clear-block`.
 func validateClearBlockShape(req ClearBlockRequest) []StatusFinding {
 	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
-	add := func(code, msg string) { findings = append(findings, lifecycleFinding(FindingCode(code), msg)) }
+	addShape := func(code FindingCode, msg string) { findings = append(findings, lifecycleFinding(code, msg)) }
 	if strings.TrimSpace(req.Head) == "" {
-		add("empty-head", "head must name the exact current feature head to reprobe")
+		addShape(FCEmptyHead, "head must name the exact current feature head to reprobe")
 	}
 	if req.PRNumber <= 0 {
-		add("invalid-pr_number", "pr_number must be a positive pull-request number")
+		addShape(FCInvalidPRNumber, "pr_number must be a positive pull-request number")
 	}
 	return findings
 }
