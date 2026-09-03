@@ -13,7 +13,7 @@ related: [360, 394]
 discovered_from: [394]
 adrs: [104]
 spec: 'docs/superpowers/specs/2026-09-03-authoritative-machine-readable-request-result-schema-surface-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-03-authoritative-machine-readable-request-result-schema-surface.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-03T17:48:28Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-03-authoritative-machine-readable-request-result-schema-surface-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-03-authoritative-machine-readable-request-result-schema-surface-design.md) |
+| Plan | [2026-09-03-authoritative-machine-readable-request-result-schema-surface.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-03-authoritative-machine-readable-request-result-schema-surface.md) |
 | ADRs | [ADR-0104](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0104-the-capability-catalog-is-the-authoritative-executable-cli-s.md) |
 <!-- docket:artifacts:end -->
 
