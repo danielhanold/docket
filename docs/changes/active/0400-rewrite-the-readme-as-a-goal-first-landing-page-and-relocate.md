@@ -2,7 +2,7 @@
 id: 400
 slug: 'rewrite-the-readme-as-a-goal-first-landing-page-and-relocate'
 title: 'Rewrite the README as a goal-first landing page and relocate its technical body to docs/'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'docs'
 created: '2026-09-03'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'docs/rewrite-the-readme-as-a-goal-first-landing-page-and-relocate'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-03T23:02:48Z'
 ---
 
 ## Artifacts
