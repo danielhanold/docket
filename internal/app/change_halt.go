@@ -422,7 +422,7 @@ func resumeQuiescenceRefusal(state string) (reason, message string) {
 // validateHaltShape runs the configuration-independent request checks for
 // `change halt`.
 func validateHaltShape(req HaltRequest) []StatusFinding {
-	findings := dropFindingCode(validateLifecycleShape(req.ID, "", req.Version), "empty-path")
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), "empty-path")
 	if strings.TrimSpace(req.Report) == "" {
 		findings = append(findings, lifecycleFinding("empty-report", "report must be a non-empty authored bounded halt report"))
 	}
@@ -433,7 +433,7 @@ func validateHaltShape(req HaltRequest) []StatusFinding {
 // validateResumeShape runs the configuration-independent request checks for
 // `change resume-halted`.
 func validateResumeShape(req ResumeRequest) []StatusFinding {
-	return dropFindingCode(validateLifecycleShape(req.ID, "", req.Version), "empty-path")
+	return dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), "empty-path")
 }
 
 // changeHaltOp is the SemanticOperation the engine drives for `change halt`. It

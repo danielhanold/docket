@@ -134,7 +134,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 
 	// (0) Request shape: a positive id, a non-empty version, a full-hex head, a
 	// non-empty PR reference, and non-empty evidence bytes.
-	findings := dropFindingCode(validateLifecycleShape(req.ID, "", req.Version), "empty-path")
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), "empty-path")
 	if !validFullOID(req.Head) {
 		findings = append(findings, lifecycleFinding(ReasonImplementedHeadInvalid, "head must be a full lowercase-hex object id"))
 	}

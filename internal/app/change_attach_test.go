@@ -131,7 +131,7 @@ func TestChangeAttachRejectsBadShape(t *testing.T) {
 		mut  func(*ChangeAttachRequest)
 		code string
 	}{
-		{"non-positive id", func(r *ChangeAttachRequest) { r.ID = 0 }, "invalid-change_id"},
+		{"non-positive id", func(r *ChangeAttachRequest) { r.ID = 0 }, "invalid-id"},
 		{"empty path", func(r *ChangeAttachRequest) { r.Path = "" }, "empty-path"},
 		{"empty version", func(r *ChangeAttachRequest) { r.Version = "" }, "empty-version"},
 		{"empty commit", func(r *ChangeAttachRequest) { r.Commit = " " }, "empty-commit"},

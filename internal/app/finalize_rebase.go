@@ -1063,7 +1063,7 @@ func newRebaseAttempt(deps FinalizeDeps, baseHead gitcli.ObjectID) string {
 // `finalize rebase`: a positive id, a non-empty pinned version, and a valid
 // full-length object id for the expected head.
 func validateRebaseShape(req FinalizeRebaseRequest) []StatusFinding {
-	findings := dropFindingCode(validateLifecycleShape(req.ID, "", req.Version), "empty-path")
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), "empty-path")
 	if !validFullObjectID(req.Head) {
 		findings = append(findings, lifecycleFinding("invalid-head",
 			"head must be a full 40- or 64-character lowercase hex object id"))

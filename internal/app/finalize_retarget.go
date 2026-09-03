@@ -386,7 +386,7 @@ func childBlocksNothing(s domain.Status) bool {
 // never reach any external seam: the pinned parent id/version, and each authorized
 // child's id/pr_number/pr_version, with no duplicate child ids.
 func validateRetargetShape(req RetargetChildrenRequest) []StatusFinding {
-	findings := dropFindingCode(validateLifecycleShape(req.ID, "", req.Version), "empty-path")
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), "empty-path")
 	seen := make(map[int]bool, len(req.Children))
 	for i, ch := range req.Children {
 		if ch.ID <= 0 {

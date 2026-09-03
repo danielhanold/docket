@@ -207,7 +207,7 @@ func changeAttach(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, r
 	opKey := attachOpKey(kind)
 
 	// (1) Request shape.
-	findings := validateLifecycleShape(req.ID, req.Path, req.Version)
+	findings := validateLifecycleShape("id", req.ID, req.Path, req.Version)
 	if strings.TrimSpace(req.Commit) == "" {
 		findings = append(findings, lifecycleFinding("empty-commit", "commit must be the exact feature commit the writer reported"))
 	}

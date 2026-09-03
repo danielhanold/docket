@@ -108,7 +108,7 @@ type changeLifecycleReceipt struct {
 // transaction (bad request shape, an empty reason, a github board surface)
 // returns without an engine call.
 func ChangeBlock(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeBlockRequest) ChangeLifecycleResult {
-	findings := validateLifecycleShape(req.ChangeID, req.Path, req.Version)
+	findings := validateLifecycleShape("change_id", req.ChangeID, req.Path, req.Version)
 	if strings.TrimSpace(req.Reason) == "" {
 		findings = append(findings, lifecycleFinding("empty-reason", "reason must be non-empty for a block"))
 	}
@@ -129,7 +129,7 @@ func ChangeBlock(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 // Every failure that predates the transaction (bad request shape, an empty
 // rationale, a github board surface) returns without an engine call.
 func ChangeDefer(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeDeferRequest) ChangeLifecycleResult {
-	findings := validateLifecycleShape(req.ChangeID, req.Path, req.Version)
+	findings := validateLifecycleShape("change_id", req.ChangeID, req.Path, req.Version)
 	if strings.TrimSpace(req.WhyDeferred) == "" {
 		findings = append(findings, lifecycleFinding("empty-why_deferred", "why_deferred must be a non-empty authored section body"))
 	}
@@ -228,11 +228,14 @@ func lifecycleResultFromOutcome(opKey string, res transaction.Result, execErr er
 }
 
 // validateLifecycleShape runs the pinned-entity request checks common to both
-// transitions: a positive change id and non-empty path and version.
-func validateLifecycleShape(id int, recPath, version string) []StatusFinding {
+// transitions: a positive change id and non-empty path and version. idKey is the
+// JSON key the caller's request actually decodes the id field under ("id" or
+// "change_id"), so the id-shape finding names the real key in both its code
+// ("invalid-"+idKey) and its message.
+func validateLifecycleShape(idKey string, id int, recPath, version string) []StatusFinding {
 	var findings []StatusFinding
 	if id <= 0 {
-		findings = append(findings, lifecycleFinding("invalid-change_id", "change_id must be a positive change id"))
+		findings = append(findings, lifecycleFinding("invalid-"+idKey, idKey+" must be a positive change id"))
 	}
 	if strings.TrimSpace(recPath) == "" {
 		findings = append(findings, lifecycleFinding("empty-path", "path must name the change's current canonical record path"))
