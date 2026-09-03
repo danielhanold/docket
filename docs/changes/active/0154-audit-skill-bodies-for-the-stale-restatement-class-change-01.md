@@ -95,3 +95,8 @@ duplication is report-only) under one decision rule, disposition preference stri
   section, or 0170's count pins.
 - `scripts/*.md` contract-to-contract duplication and the convention's `.docket.yml` schema
   snippet (verify + report only).
+
+## Open questions
+
+- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target: the named hits (scripts/*.md contracts, docket-status.md line cites, 0111/0145/0170 Bash guards) are deleted. Re-derive the hit list against the Go capability catalog (`docket capabilities`) and `internal/config`; docket-status still cites `board-refresh.sh` / `github-mirror.sh` / `render-board.sh`. Guard home is `internal/repoguard/prose_contracts_test.go`. Sweep the sunset `github` mirror / `issue:` prose while there.
+
