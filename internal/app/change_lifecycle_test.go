@@ -73,6 +73,20 @@ func validDeferRequest() ChangeDeferRequest {
 	}
 }
 
+// TestLifecycleShapeFindingNamesRealKey proves the id-shape finding carries the
+// JSON key the request actually decodes — "id" for reconcile-family requests,
+// "change_id" for block/defer/kill/groom — in both code and message.
+func TestLifecycleShapeFindingNamesRealKey(t *testing.T) {
+	got := validateLifecycleShape("id", 0, "p", "v")
+	if len(got) != 1 || got[0].Code != "invalid-id" || !strings.Contains(got[0].Message, "id must be") {
+		t.Errorf("id-keyed shape finding = %+v, want code invalid-id naming key id", got)
+	}
+	got = validateLifecycleShape("change_id", 0, "p", "v")
+	if len(got) != 1 || got[0].Code != "invalid-change_id" {
+		t.Errorf("change_id-keyed shape finding = %+v, want code invalid-change_id", got)
+	}
+}
+
 // --- request-shape validation (no engine call) ----------------------------
 
 func TestChangeBlockRejectsBadShapeWithoutEngineCall(t *testing.T) {

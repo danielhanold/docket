@@ -291,7 +291,7 @@ func decodeChangeReconcileReceipt(b []byte) (changeReconcileReceipt, bool) {
 // fence over the named proposal sections, the required reconcile-log entry, and
 // the authored-input size bound over every authored string.
 func validateChangeReconcileShape(req ChangeReconcileRequest) []StatusFinding {
-	findings := dropFindingCode(validateLifecycleShape(req.ID, "", req.Version), "empty-path")
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), "empty-path")
 	add := func(code, msg string) {
 		findings = append(findings, lifecycleFinding(code, msg))
 	}

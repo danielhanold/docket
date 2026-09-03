@@ -331,7 +331,7 @@ func TestChangeReconcileRejectsBadShapeWithoutEngineCall(t *testing.T) {
 		mut  func(*ChangeReconcileRequest)
 		code string
 	}{
-		{"non-positive id", func(r *ChangeReconcileRequest) { r.ID = 0 }, "invalid-change_id"},
+		{"non-positive id", func(r *ChangeReconcileRequest) { r.ID = 0 }, "invalid-id"},
 		{"empty version", func(r *ChangeReconcileRequest) { r.Version = "" }, "empty-version"},
 	}
 	for _, c := range cases {

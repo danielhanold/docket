@@ -141,7 +141,7 @@ type changeClaimReceipt struct {
 // (bad request shape, a github board surface, a facts-read failure) returns
 // without an engine call.
 func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeClaimRequest) ChangeClaimResult {
-	findings := validateLifecycleShape(req.ID, "", req.Version)
+	findings := validateLifecycleShape("id", req.ID, "", req.Version)
 	// The claim request carries no path; validateLifecycleShape flags an empty
 	// path, which is irrelevant here — drop that one finding.
 	findings = dropFindingCode(findings, "empty-path")
@@ -207,7 +207,7 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 // submitted version; a mismatch is `contended`, which stops the run rather than
 // overwriting a newer record.
 func ChangeRefreshClaim(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeClaimRequest) ChangeClaimResult {
-	findings := dropFindingCode(validateLifecycleShape(req.ID, "", req.Version), "empty-path")
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), "empty-path")
 	if len(findings) > 0 {
 		return newChangeClaimResult(OperationChangeRefreshClaim, ResultInvalidInput, ChangeClaimResult{Findings: findings})
 	}

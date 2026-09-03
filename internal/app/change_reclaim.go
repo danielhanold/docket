@@ -411,7 +411,7 @@ func decodeChangeReclaimReceipt(b []byte) (changeReclaimReceipt, bool) {
 // validateReclaimShape runs the configuration-independent request checks that
 // never reach the engine: the pinned-entity fields (id and version).
 func validateReclaimShape(req ChangeReclaimRequest) []StatusFinding {
-	return dropFindingCode(validateLifecycleShape(req.ID, "", req.Version), "empty-path")
+	return dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), "empty-path")
 }
 
 // reclaimOp is the SemanticOperation the engine drives per attempt. Every field

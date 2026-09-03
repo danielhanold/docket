@@ -105,7 +105,7 @@ type changeKillReceipt struct {
 // (bad request shape, an empty rationale, a github board surface) returns
 // without an engine call.
 func ChangeKill(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeKillRequest) ChangeKillResult {
-	findings := validateLifecycleShape(req.ChangeID, req.Path, req.Version)
+	findings := validateLifecycleShape("change_id", req.ChangeID, req.Path, req.Version)
 	if strings.TrimSpace(req.WhyKilled) == "" {
 		findings = append(findings, lifecycleFinding("empty-why_killed", "why_killed must be a non-empty authored section body"))
 	}
