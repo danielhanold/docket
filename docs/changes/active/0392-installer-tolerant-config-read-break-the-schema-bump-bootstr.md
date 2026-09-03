@@ -3,10 +3,10 @@ id: 392
 slug: 'installer-tolerant-config-read-break-the-schema-bump-bootstr'
 title: 'Installer-tolerant config read: break the schema-bump bootstrap deadlock'
 status: 'proposed'
-priority: 'medium'
+priority: high
 type: 'fix'
 created: '2026-09-01'
-updated: '2026-09-01'
+updated: '2026-09-02'
 depends_on: []
 stacked_on:
 related: []
