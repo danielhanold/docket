@@ -2,11 +2,11 @@
 id: 385
 slug: 'correct-cursor-permissions-docs-referencing-the-deleted-scri'
 title: 'Correct cursor permissions docs referencing the deleted scripts/docket.sh'
-status: 'proposed'
+status: 'killed'
 priority: 'medium'
 type: 'docs'
 created: '2026-08-31'
-updated: '2026-08-31'
+updated: '2026-09-03'
 depends_on: []
 stacked_on:
 related: []
@@ -40,3 +40,7 @@ Update docs/cursor/permissions.md and docs/cursor/permissions.example.json to re
 ## Out of scope
 
 Any change to the seal or to non-cursor permissions surfaces; behavior of the docket binary itself.
+
+## Why killed
+
+Absorbed by change 0402 (restructure the technical docs), which removes `docs/cursor/` entirely: its setup prose folds into the `Running on your harness` guide page and the example JSON moves to `docs/reference/harness/`, with the stale `scripts/docket.sh` allowlist entry replaced by the native `docket` binary invocation in the same rewrite. Fixing the page in place first would be work 0402 immediately discards. Decided with the human on 2026-09-03.
