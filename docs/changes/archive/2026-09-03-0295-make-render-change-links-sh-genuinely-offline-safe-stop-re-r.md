@@ -2,11 +2,11 @@
 id: 295
 slug: make-render-change-links-sh-genuinely-offline-safe-stop-re-r
 title: 'Make render-change-links.sh genuinely offline-safe — stop re-resolving config with a network fetch'
-status: proposed
+status: 'killed'
 priority: high
 type: fix
 created: 2026-08-11
-updated: 2026-08-11
+updated: '2026-09-03'
 depends_on: []
 related: []
 discovered_from: [118]
@@ -55,3 +55,7 @@ that genuinely need fresh origin state, the marker contract, and every close-out
 resolver's fetch behavior changes what every docket script does at startup, which is a far larger
 blast radius than the branch's intended scope and needs its own review. The 0118 spec names it as
 follow-up work explicitly (§4, "No renderer-fetch elimination and no push retry").
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): already fixed in Go — change-links and backlink rendering are pure functions in internal/render; the only fetch is the transaction engine's own base fetch.
