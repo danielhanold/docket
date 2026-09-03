@@ -122,6 +122,59 @@ func TestNoInlineFindingCodeLiterals(t *testing.T) {
 	}
 }
 
+// TestInvalidIDCodeByKeyCoversCallSiteKeys proves the id-shape lookup is closed
+// over the idKeys the shape validators actually pass. It scans the app package
+// source for validateLifecycleShape("<key>", …) calls, extracts the first string
+// literal from each, and asserts every one is a registered key of
+// invalidIDCodeByKey — so a future call site adding a new key without a map entry
+// reddens here instead of silently emitting the FCInvalidID fallback. It also
+// pins the fail-closed helper: known keys resolve to their concrete codes and an
+// absent key falls back to FCInvalidID (never Code:"").
+func TestInvalidIDCodeByKeyCoversCallSiteKeys(t *testing.T) {
+	call := regexp.MustCompile(`validateLifecycleShape\(\s*"([^"]*)"`)
+	root := appPackageDir(t)
+	keys := map[string]bool{}
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return err
+		}
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		for _, m := range call.FindAllStringSubmatch(string(b), -1) {
+			keys[m[1]] = true
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(keys) == 0 {
+		t.Fatal("found no validateLifecycleShape call sites to scan")
+	}
+	for k := range keys {
+		if _, ok := invalidIDCodeByKey[k]; !ok {
+			t.Errorf("validateLifecycleShape call site passes idKey %q with no invalidIDCodeByKey entry — the id-code lookup is not closed over it", k)
+		}
+	}
+
+	// Fail-closed helper: known keys resolve to concrete codes; an unknown key
+	// falls back to FCInvalidID rather than emitting an empty Code.
+	if got := invalidIDCode("id"); got != FCInvalidID {
+		t.Errorf(`invalidIDCode("id") = %q, want %q`, got, FCInvalidID)
+	}
+	if got := invalidIDCode("change_id"); got != FCInvalidChangeID {
+		t.Errorf(`invalidIDCode("change_id") = %q, want %q`, got, FCInvalidChangeID)
+	}
+	if got := invalidIDCode("no_such_key"); got != FCInvalidID {
+		t.Errorf(`invalidIDCode(unknown) = %q, want fail-closed fallback %q`, got, FCInvalidID)
+	}
+	if invalidIDCode("no_such_key") == "" {
+		t.Error("invalidIDCode(unknown) returned an empty FindingCode — the lookup is not fail-closed")
+	}
+}
+
 // TestFindingCodeRegistryIntegrity holds the AllFindingCodes vocabulary to its
 // invariants: non-empty, strictly ascending by token value (so a hand-added
 // entry lands in order), free of duplicates, and every token in the canonical

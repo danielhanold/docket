@@ -272,3 +272,18 @@ var invalidIDCodeByKey = map[string]FindingCode{
 	"id":        FCInvalidID,
 	"change_id": FCInvalidChangeID,
 }
+
+// invalidIDCode is the fail-closed lookup over invalidIDCodeByKey: it returns the
+// registered id-shape FindingCode for idKey, falling back to the generic
+// FCInvalidID for any key absent from the map rather than emitting an empty
+// Code:"". Every lifecycle caller passes one of the two mapped keys today, so the
+// fallback is unreachable in production; it exists so a future caller that adds a
+// new key still mints a real, registered finding code (fail-closed ethos, change
+// 0399 review). TestInvalidIDCodeByKeyCoversCallSiteKeys guards the closed key
+// set the shape validators actually use.
+func invalidIDCode(idKey string) FindingCode {
+	if code, ok := invalidIDCodeByKey[idKey]; ok {
+		return code
+	}
+	return FCInvalidID
+}

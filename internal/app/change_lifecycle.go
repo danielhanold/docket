@@ -230,12 +230,13 @@ func lifecycleResultFromOutcome(opKey string, res transaction.Result, execErr er
 // validateLifecycleShape runs the pinned-entity request checks common to both
 // transitions: a positive change id and non-empty path and version. idKey is the
 // JSON key the caller's request actually decodes the id field under ("id" or
-// "change_id"), so the id-shape finding names the real key in both its code
-// ("invalid-"+idKey) and its message.
+// "change_id"), so the id-shape finding names the real key in its message; its
+// code is the registered FindingCode invalidIDCode selects for that key by a
+// fail-closed lookup over invalidIDCodeByKey.
 func validateLifecycleShape(idKey string, id int, recPath, version string) []StatusFinding {
 	var findings []StatusFinding
 	if id <= 0 {
-		findings = append(findings, lifecycleFinding(invalidIDCodeByKey[idKey], idKey+" must be a positive change id"))
+		findings = append(findings, lifecycleFinding(invalidIDCode(idKey), idKey+" must be a positive change id"))
 	}
 	if strings.TrimSpace(recPath) == "" {
 		findings = append(findings, lifecycleFinding(FCEmptyPath, "path must name the change's current canonical record path"))
