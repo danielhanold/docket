@@ -55,6 +55,7 @@ capture. Exact wording/format to be settled during brainstorm.
 - Which fields does a caller actually need echoed (drive_id, generation, worktree, anything else)?
 - Should the guidance be to always pass `--json` for capture, with the text output as a human
   convenience — or should the text output itself be reliably parseable?
+- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Partially stale: `GateDriveResult.HumanText` already prints `drive_id`; the owner generation is omitted from human text by design (ownership credentials never appear in prose). Regroom toward the second open question: document `--json` as the capture channel in the gate-caller prose (`docket-build` references, `docket-implement-next` step 5), and check whether `drive_id` alone suffices once 0375 makes re-run safe.
 
 ## Reconcile log
 
