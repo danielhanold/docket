@@ -54,6 +54,10 @@ the file lean: only universally applicable, non-derivable rules belong there.
 - Adding new rules or new guards; this is a pruning pass only.
 - Changing the promotion mechanics or the learnings ledger itself.
 
+## Open questions
+
+- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-run the audit against the Go guards (`internal/repoguard`); decide the fate of the `## Shell` rules now that only `install.sh`, release-smoke, and the POSIX downloader suites are shell. The rebuild-after-merge and run-gate blocks are new since the spec.
+
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
