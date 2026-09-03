@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0253 — Settle and enforce the prose-anchored guard house pattern](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0253-settle-and-enforce-the-prose-anchored-guard-house-pattern.md)**
+> ↩ **[Change 0253 — Settle and enforce the prose-anchored guard house pattern](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-03-0253-settle-and-enforce-the-prose-anchored-guard-house-pattern.md)**
 <!-- docket:backlink:end -->
 
 # Design: settle and enforce the prose-anchored guard house pattern (0253)

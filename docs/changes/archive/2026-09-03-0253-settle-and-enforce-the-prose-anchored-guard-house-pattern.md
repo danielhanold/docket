@@ -2,11 +2,11 @@
 id: 253
 slug: settle-and-enforce-the-prose-anchored-guard-house-pattern
 title: 'Settle and enforce the prose-anchored guard house pattern'
-status: proposed
+status: 'killed'
 priority: medium
 type: chore
 created: 2026-08-07
-updated: 2026-08-07
+updated: '2026-09-03'
 depends_on: []
 related: [172, 247, 252, 260]
 discovered_from: [171, 233]
@@ -52,3 +52,7 @@ Settled by the linked design spec (groomed 2026-08-07, critic-gated):
 
 - The SIGPIPE producer-pipe sweep (#0172 — separate change, same hygiene family; textual collision on `test_docket_build.sh`/`test_docket_review.sh`, hence `related:`).
 - Guards over non-prose (code-shaped) anchors; loosening any guard's bite.
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): superseded by the Go migration — every population test file is deleted; Go RE2 prose guards in internal/repoguard have neither the stacked-gap nor BSD-255 hazards.
