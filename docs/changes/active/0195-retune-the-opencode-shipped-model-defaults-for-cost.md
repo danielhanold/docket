@@ -159,6 +159,7 @@ the linked spec's `## Assumptions`):
 5. **Live re-certification** — yes: carried as a build verify item, as a live dispatch of 0192's
    certification class (not merely `opencode debug agent`, which observes emission, not provider
    acceptance).
+- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target: the data retune stands; the block is now 17 rows (a `plan-writer` row was added) and the `HD_SHIPPED_HARNESSES` Bash guard is deleted. Regroom the mirrored surfaces (`.docket.example.yml` round-trip, the Go test pinning the block's completeness, the row count).
 
 ## Reconcile log
 
