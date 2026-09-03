@@ -77,7 +77,7 @@ var proseContracts = []proseContract{
 	// tests/test_consultant_brainstorm.sh — single-dispatch consultant flow (change 0056).
 	{sentinel: "test_consultant_brainstorm", file: "skills/docket-brainstorm/SKILL.md",
 		present: []string{"docket-brainstorm-consultant"}},
-	{sentinel: "test_consultant_brainstorm", file: "README.md",
+	{sentinel: "test_consultant_brainstorm", file: "docs/guide/README.md",
 		present: []string{"brainstorm: docket-brainstorm"}},
 	// tests/test_convention_extraction.sh — operating skills carry the load-first line
 	// and never copy the convention (the begin marker is a copy tell).
@@ -135,16 +135,18 @@ var proseContracts = []proseContract{
 	{sentinel: "test_role_skill_self_description", file: "skills/docket-convention/SKILL.md",
 		present: []string{"skills.<role>"}},
 	// tests/test_skill_fork_dispatch.sh — fork-dispatch README contract.
+	{sentinel: "test_skill_fork_dispatch", file: "docs/guide/README.md",
+		present: []string{"completed (forked execution)"}},
 	{sentinel: "test_skill_fork_dispatch", file: "README.md",
-		present: []string{"completed (forked execution)", "The right model for each step."}},
+		present: []string{"The right model for each step."}},
 	// tests/test_skill_handoff_precedence.sh — convention-clause half (site-scan half flagged).
 	{sentinel: "test_skill_handoff_precedence", file: "skills/docket-convention/SKILL.md",
 		present: []string{"never outranks", "DIRECTED to:"}},
 	// tests/test_readme_finalize_docs.sh — README finalize/auto-mode docs.
-	{sentinel: "test_readme_finalize_docs", file: "README.md",
+	{sentinel: "test_readme_finalize_docs", file: "docs/guide/README.md",
 		present: []string{"auto-mode classifier", "Fork-exclusion principle"}},
 	// tests/test_readme_skill_catalog.sh — count-free catalog heading, no stale anchor.
-	{sentinel: "test_readme_skill_catalog", file: "README.md",
+	{sentinel: "test_readme_skill_catalog", file: "docs/guide/README.md",
 		present: []string{"## Skills"}, absent: []string{"#the-eight-skills"}},
 	// tests/test_cursor_dispatch_rule.sh — cursor dispatch head contract.
 	{sentinel: "test_cursor_dispatch_rule", file: "cursor-rules/dispatch.head.md",
@@ -155,8 +157,8 @@ var proseContracts = []proseContract{
 	// tests/test_cursor_permissions_docs.sh — the guide exists and README links it.
 	{sentinel: "test_cursor_permissions_docs", file: "docs/cursor/permissions.md",
 		present: []string{"permissions"}},
-	{sentinel: "test_cursor_permissions_docs", file: "README.md",
-		present: []string{"](docs/cursor/permissions.md)"}},
+	{sentinel: "test_cursor_permissions_docs", file: "docs/guide/README.md",
+		present: []string{"](../cursor/permissions.md)"}},
 	// tests/test_codex_runbook.sh — codex runbook slug-derivation + no fabricated path.
 	{sentinel: "test_codex_runbook", file: "docs/codex/validation-runbook.md",
 		present: []string{"codex debug models"}, absent: []string{"scripts/sync-agents.sh"}},
@@ -186,11 +188,15 @@ var proseContracts = []proseContract{
 	{sentinel: "test_docket_example_yml", file: ".docket.example.yml",
 		present: []string{"board_surfaces", "agent_harnesses", "finalize:"}},
 	// tests/test_typed_changes_docs.sh — README typed-change vocabulary rule.
-	{sentinel: "test_typed_changes_docs", file: "README.md",
+	{sentinel: "test_typed_changes_docs", file: "docs/guide/README.md",
 		present: []string{"untyped set can only shrink"}},
 	// tests/test_change_types.sh — the change template still ships a type placeholder.
 	{sentinel: "test_change_types", file: "skills/docket-new-change/change-template.md",
 		present: []string{"type:"}},
+	// change 0400 — the goal-first landing page cannot silently lose its two
+	// load-bearing map links (the relocated technical guide and the comparison page).
+	{sentinel: "change_0400_readme_landing", file: "README.md",
+		present: []string{"](docs/guide/README.md)", "](docs/comparison/ai-native-sdlc-playbook.md)"}},
 	// change 0389 — implementation-scope sweep + the two completion barriers.
 	// docket-status owns the COMMAND barrier: a backgrounded sweep is observed
 	// to its terminal envelope, never declared done by proxy signals; and an
