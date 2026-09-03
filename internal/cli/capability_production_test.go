@@ -252,22 +252,28 @@ func TestCapabilitiesIsRepositoryConfigAssetAndWriteIndependent(t *testing.T) {
 }
 
 // TestCapabilitiesPayloadWithinByteBudget is the gating oracle for compactness:
-// the emitted catalog must fit the 13312-byte (13 KB) design ceiling, and it
+// the emitted catalog must fit the 14336-byte (14 KB) design ceiling, and it
 // must carry no human help prose — the catalog is a machine bootstrap, not a
 // second copy of --help. Growth past the ceiling is a design event (spec:
 // Compactness boundary), never a truncation or per-skill-filter opportunity.
 // The ceiling was raised one KB step (12 KB → 13 KB) for change 0397, whose spec
 // deliberately adds the `maintenance.preflight` operation to the catalog — the
 // conscious design event the guard exists to make visible, not a silent creep.
+// It was raised a second one KB step (13 KB → 14 KB) for change 0399, whose spec
+// deliberately adds the `schema` operation to the catalog — the identical
+// conscious design event. That entry is a one-line invocation stub like every
+// other catalog leaf; the schemas themselves are NOT inlined into the catalog
+// (they live in the separate `docket schema` op), so this step does not carry
+// schemas inline and is not the ceiling raise the spec's non-goal forbids.
 func TestCapabilitiesPayloadWithinByteBudget(t *testing.T) {
 	out, errS, code := runCLI(t, "capabilities", "--json")
 	if code != 0 || errS != "" {
 		t.Fatalf("out=%q err=%q code=%d", out, errS, code)
 	}
 	n := len(out)
-	t.Logf("capabilities payload: %d bytes (budget 13312)", n)
-	if n > 13*1024 {
-		t.Fatalf("catalog is %d bytes, over the 13KB design ceiling — growth is a design event (spec: Compactness boundary), not a truncation opportunity", n)
+	t.Logf("capabilities payload: %d bytes (budget 14336)", n)
+	if n > 14*1024 {
+		t.Fatalf("catalog is %d bytes, over the 14KB design ceiling — growth is a design event (spec: Compactness boundary), not a truncation opportunity", n)
 	}
 	// Content-exclusion: no help-prose fields. The catalog names signatures and
 	// effects, never Short/Long/Example/Help text.

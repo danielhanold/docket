@@ -1,6 +1,10 @@
 package app
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
 
 // OperationBinding joins one capabilities operation id to the live Go types its
 // handler decodes and returns. Request is nil for leaves that take no JSON body
@@ -122,18 +126,60 @@ type OperationSchema struct {
 // SchemaResult is the assembled schema document — itself a protocol-v1 result.
 // The envelope shape is emitted once (EnvelopeShape); each per-op Result excludes
 // the envelope's keys so the document does not restate them per operation.
+//
+// SchemaResult is deliberately NOT itself a schema binding: its own shape is
+// self-referential (FieldDescriptor nests []FieldDescriptor) and carries a
+// map[string]Vocabulary, so reflectDescriptor cannot describe it — the descriptor
+// reflector is for docket's request/result shapes, never for the descriptor
+// container that reports them. The schema op's own shape is pinned by
+// SchemaVersion instead, and the cli-side correspondence guard accounts for the
+// `schema` catalog entry as the sole self-referential no-binding exception.
 type SchemaResult struct {
 	Envelope
 	SchemaVersion int                   `json:"schema_version"`
 	EnvelopeShape TypeDescriptor        `json:"envelope"`
 	Operations    []OperationSchema     `json:"operations"`
 	Vocabularies  map[string]Vocabulary `json:"vocabularies"`
+	// Findings normalizes to [] on the success path; the unknown-operation
+	// refusal (SchemaUnknownOperation) carries a single FCUnknownOperation entry.
+	Findings []StatusFinding `json:"findings"`
 }
 
-// Env satisfies OperationResult via the embedded Envelope; HumanText renders a
-// one-line summary. The schema document is consumed as JSON, so HumanText is
-// intentionally terse.
-func (r SchemaResult) HumanText() string { return "schema" }
+// Env satisfies OperationResult via the embedded Envelope; HumanText renders the
+// compact default text form, mirroring CapabilitiesResult.HumanText: a versioned
+// header with the operation count, then one line per operation naming its
+// request and result field counts. The document is consumed as JSON, so the
+// human form is deliberately compact.
+func (r SchemaResult) HumanText() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "schema v%d — %d operations", r.SchemaVersion, len(r.Operations))
+	for _, op := range r.Operations {
+		reqN := 0
+		if op.Request != nil {
+			reqN = len(op.Request.Fields)
+		}
+		fmt.Fprintf(&b, "\n  %s  request:%d  result:%d", op.ID, reqN, len(op.Result.Fields))
+	}
+	return b.String()
+}
+
+// SchemaUnknownOperation is the fail-closed refusal for `schema --operation
+// <id>` when id names no bound operation: an invalid-input schema document
+// carrying a single FCUnknownOperation finding. The cli maps SchemaFor's
+// ok=false to this, so an unknown id reads with the same finding vocabulary a
+// machine consumer sees everywhere else, and exits 2 (ResultInvalidInput).
+func SchemaUnknownOperation(id string) SchemaResult {
+	return SchemaResult{
+		Envelope:      NewEnvelope("schema", ResultInvalidInput),
+		SchemaVersion: SchemaVersion,
+		Findings: []StatusFinding{{
+			Code:     string(FCUnknownOperation),
+			Severity: "error",
+			Field:    "operation",
+			Message:  fmt.Sprintf("no operation with id %q; consult `docket schema` for the bound ids", id),
+		}},
+	}
+}
 
 // Schema assembles the full schema document over every binding.
 func Schema(effects []string) (SchemaResult, error) {
@@ -200,5 +246,6 @@ func schemaFrom(bindings []OperationBinding, effects []string) (SchemaResult, er
 		EnvelopeShape: envDesc,
 		Operations:    ops,
 		Vocabularies:  SchemaVocabularies(effects),
+		Findings:      []StatusFinding{},
 	}, nil
 }
