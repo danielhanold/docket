@@ -36,8 +36,13 @@ type skillBudget struct {
 // and docket-convention/references/stacked-changes.md were re-baselined upward once
 // (change 0394) to hold the capability-catalog contract prose: the new Step-0
 // capability bootstrap and the catalog-resolved semantic-operation idiom that
-// replaced hard-coded `docket <argv>` spellings. The ratchet stays in force at the
-// new baselines — they catch any further regrowth.
+// replaced hard-coded `docket <argv>` spellings. Change 0399 re-baselined
+// docket-convention/SKILL.md upward once more (7750 -> 7800) to hold the
+// authoritative machine-readable request/result schema-surface contract prose — the
+// catalog-resolved `schema` operation and its fail-closed descriptor-driven body
+// construction; the mandated content cannot fit under 7750 even at minimum-faithful
+// phrasing. The ratchet stays in force at the new baselines — they catch any further
+// regrowth.
 var skillBudgets = []skillBudget{
 	{"docket-adr/SKILL.md", 110, 1600},
 	{"docket-adr/adr-template.md", 26, 90},
@@ -50,7 +55,7 @@ var skillBudgets = []skillBudget{
 	{"docket-build/references/gate-execution.md", 170, 1520},
 	{"docket-build/references/task-routing.md", 50, 500},
 	{"docket-build-task/SKILL.md", 155, 1550},
-	{"docket-convention/SKILL.md", 400, 7750},
+	{"docket-convention/SKILL.md", 400, 7800}, // 0399: +schema request/result contract prose (see note above)
 	{"docket-convention/github-board-mirror.md", 19, 462},
 	{"docket-convention/references/agent-layer.md", 205, 2350},
 	{"docket-convention/references/dummy-mode.md", 85, 800},
