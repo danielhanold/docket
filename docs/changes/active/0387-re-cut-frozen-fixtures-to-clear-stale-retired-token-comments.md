@@ -40,3 +40,8 @@ Coordinate a versioned re-cut of the frozen fixtures that pin agents/harness-def
 ## Out of scope
 
 Changing the resolved default values themselves; any behavior change to config resolution.
+
+## Open questions
+
+- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Regroom the `.docket.yml` half: no live-vs-frozen byte compare was found for it (only the `status-corpus` fixture), so its stale `migrate-to-docket.sh` comment may be fixable directly; only the `agents/harness-defaults.yml` sidecar (byte-pinned by `internal/config/defaults_test.go` against `testdata/repositories/v0.9.3/`) needs a versioned re-cut. The record's line-number anchors should be re-anchored on quoted clauses (ADR-0054).
+
