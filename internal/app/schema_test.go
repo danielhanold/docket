@@ -3,6 +3,8 @@ package app
 import (
 	"reflect"
 	"testing"
+
+	"github.com/danielhanold/docket/internal/config"
 )
 
 // descriptorKeys returns the top-level field keys of a descriptor in order.
@@ -171,5 +173,42 @@ func TestReflectDescriptorFailsClosedOnUndescribableMap(t *testing.T) {
 func TestReflectDescriptorRejectsNonStruct(t *testing.T) {
 	if _, err := reflectDescriptor(42); err == nil {
 		t.Fatal("reflectDescriptor(42) = nil error, want a non-struct error")
+	}
+}
+
+// TestReflectDescriptorByteSliceIsString proves a []byte field is described as a
+// single JSON string (its base64 wire form), not a repeated int — the shape the
+// EvidenceRecord/Source/Patch byte fields on several bound prototypes carry
+// (change 0399, Task 7).
+func TestReflectDescriptorByteSliceIsString(t *testing.T) {
+	type wrap struct {
+		Blob []byte `json:"blob"`
+	}
+	d := mustReflect(t, wrap{})
+	b := fieldByKey(t, d, "blob")
+	if b.Type != "string" || b.Repeated {
+		t.Errorf("[]byte field = %+v, want a non-repeated string", b)
+	}
+}
+
+// TestReflectDescriptorForeignStructIsOpaque proves a struct from another package
+// is described as an opaque object — the generator recurses into docket's own
+// request/result types but represents a foreign embedded type (config.Effective,
+// gatedrive.DriveDoc) as an opaque object rather than descending into its
+// internals. This is what keeps diagnostic.config's ConfigInspectionResult (which
+// embeds the whole config.Effective tree, maps-of-structs and all) describable
+// without loosening the map-shape fail-closed contract app types still rely on
+// (change 0399, Task 7).
+func TestReflectDescriptorForeignStructIsOpaque(t *testing.T) {
+	type wrap struct {
+		Sort config.BoardSort `json:"sort"`
+	}
+	d := mustReflect(t, wrap{})
+	sf := fieldByKey(t, d, "sort")
+	if sf.Type != "object" {
+		t.Errorf("foreign struct type = %q, want object", sf.Type)
+	}
+	if len(sf.Fields) != 0 {
+		t.Errorf("foreign struct must be opaque (no descended fields), got %v", descriptorKeys(TypeDescriptor{Fields: sf.Fields}))
 	}
 }
