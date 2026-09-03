@@ -1,6 +1,6 @@
 # Backlog
 
-**398 changes** — 🔵 1 built · 🟣 8 groomed · 🟡 27 proposed · ⚪ 4 deferred · ✅ 246 done · 🗑️ 112 killed
+**398 changes** — 🔵 1 built · 🟣 8 groomed · 🟡 26 proposed · ⚪ 5 deferred · ✅ 246 done · 🗑️ 112 killed
 
 ## 🔵 Built (1)
 
@@ -21,7 +21,7 @@
 | [0166](active/0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | `low` | `chore` | [spec](../superpowers/specs/2026-08-07-retune-the-interactive-skills-advisory-session-model-recomme-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
-## 🟡 Proposed (27)
+## 🟡 Proposed (26)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -47,16 +47,16 @@
 | [0327](active/0327-stack-closeout-must-prove-integration-reachability.md) | Stacked-merged close-out can stamp `done` after a stale-worktree rebase clobbers the child — prove reachability in git, not metadata | `high` | `fix` | needs-brainstorm |
 | [0323](active/0323-docket-uninstall-and-version-tree-collection-for-the-go-inst.md) | docket uninstall and version-tree collection for the Go installer | `medium` | `feat` | needs-brainstorm |
 | [0320](active/0320-guard-the-testdata-gitignore-negation.md) | Guard the testdata gitignore negation | `medium` | `chore` | needs-brainstorm |
-| [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0292](active/0292-shared-tested-mutation-probe-harness-take-the-landing-check.md) | Shared, tested mutation-probe harness — take the landing check out of each plan author's care | `high` | `feat` | needs-brainstorm |
 | [0291](active/0291-load-gate-failure-md-before-the-dispatch-verb-at-both-finali.md) | Load gate-failure.md before the dispatch verb at both finalize gate steps | `medium` | `refactor` | needs-brainstorm |
 | [0263](active/0263-guard-the-remaining-agents-md-shell-rules-across-scripts-tes.md) | Guard the remaining AGENTS.md Shell rules across scripts, tests, and agent-executed markdown | `medium` | `chore` | ⏳ waiting on #172 — not yet built |
 
-## ⚪ Deferred (4)
+## ⚪ Deferred (5)
 
 | # | Title | Priority | Type |
 |---|-------|----------|------|
+| [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |

@@ -2,11 +2,11 @@
 id: 302
 slug: mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d
 title: 'mint-stub dedup misses a general-form parent of a specific discovery'
-status: proposed
+status: 'deferred'
 priority: medium
 type: fix
 created: 2026-08-12
-updated: 2026-08-12
+updated: '2026-09-03'
 depends_on: []
 related: []
 discovered_from: [298]
@@ -51,3 +51,7 @@ become a model call inside a deterministic script (ADR-0012).
 **Reason for deferral** — the mint machinery is untouched by #0298's stacking work and shares no
 files with it; folding a dedup redesign into that branch would expand its scope past the stacking
 contract it exists to deliver.
+
+## Why deferred
+
+Backlog review 2026-09-02 (Bash→Go migration): the fix site is mint-stub's dedup predicate; automatic change capture / mint-stub is deferred from Go v1. The general-vs-specific title dedup problem survives the port and should revive with the Go auto-capture successor (ADR-0012 still applies: no model call inside a deterministic op).
