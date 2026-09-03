@@ -52,3 +52,8 @@ by #0300 — this change needs only that its own guard avoid that spelling, usin
 its `\b` guard was vacuous on BSD, `tests/test_grep_portability.sh` reddened the suite gate, and the
 gate's revert-and-record path removed the whole fix. Redoing it inside a merge close-out would mean
 re-running the gate on an approved branch for work outside that branch's scope.
+
+## Open questions
+
+- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target: the convention still reads `eight states` and `github-board-mirror.md` says `all eight`; the proposed shell-grep guard has no runner. Make it a Go test (e.g. in `internal/domain`, where the status set lives). `github-board-mirror.md` describes the sunset GitHub mirror, so that half may collapse to deleting the doc.
+
