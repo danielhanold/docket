@@ -2,11 +2,11 @@
 id: 280
 slug: shard-or-re-budget-the-test-files-the-suite-runner-reports-o
 title: 'Shard or re-budget the test files the suite runner reports OVER BUDGET'
-status: proposed
+status: 'killed'
 priority: medium
 type: chore
 created: 2026-08-09
-updated: 2026-08-09
+updated: '2026-09-03'
 depends_on: []
 related: []
 discovered_from: [276, 397]
@@ -56,3 +56,7 @@ the sharding requires. A ceiling that is raised rather than met must carry a wri
 **Reason for deferral** — 0276 ships a config knob and a convention section; sharding the
 harness-sync test family is unrelated work touching a dozen files it never otherwise reads, and
 folding it in would have made an already-large review diff unreviewable.
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): superseded by the Go migration — every named offender was a deleted Bash test; tests/runtime-budgets.tsv was re-seeded for the Go wrappers at change 0370.

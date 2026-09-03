@@ -1,6 +1,6 @@
 # Backlog
 
-**398 changes** — 🔵 1 built · 🟣 8 groomed · 🟡 41 proposed · ⚪ 4 deferred · ✅ 246 done · 🗑️ 98 killed
+**398 changes** — 🔵 1 built · 🟣 8 groomed · 🟡 40 proposed · ⚪ 4 deferred · ✅ 246 done · 🗑️ 99 killed
 
 ## 🔵 Built (1)
 
@@ -21,7 +21,7 @@
 | [0166](active/0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | `low` | `chore` | [spec](../superpowers/specs/2026-08-07-retune-the-interactive-skills-advisory-session-model-recomme-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
-## 🟡 Proposed (41)
+## 🟡 Proposed (40)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -64,7 +64,6 @@
 | [0289](active/0289-bind-budget-ledger-entries-to-the-numbers-they-narrate.md) | Bind budget-ledger entries to the numbers they narrate | `medium` | `chore` | needs-brainstorm |
 | [0288](active/0288-namespace-the-remaining-un-namespaced-mock-seams-runners-dir.md) | Namespace the remaining un-namespaced mock seams (RUNNERS_DIR, GIT) repo-wide | `medium` | `chore` | needs-brainstorm |
 | [0287](active/0287-make-docket-frontmatter-sh-usable-from-the-bootstrap-path-or.md) | Make docket-frontmatter.sh usable from the bootstrap path, or split a Bash 3.2-safe core out of it | `medium` | `refactor` | needs-brainstorm |
-| [0280](active/0280-shard-or-re-budget-the-test-files-the-suite-runner-reports-o.md) | Shard or re-budget the test files the suite runner reports OVER BUDGET | `medium` | `chore` | needs-brainstorm |
 | [0263](active/0263-guard-the-remaining-agents-md-shell-rules-across-scripts-tes.md) | Guard the remaining AGENTS.md Shell rules across scripts, tests, and agent-executed markdown | `medium` | `chore` | ⏳ waiting on #172 — not yet built |
 
 ## ⚪ Deferred (4)
@@ -90,7 +89,6 @@ graph TD
   0261
   0172 --> 0263
   0251 --> 0273
-  0280
   0283
   0287
   0288
@@ -139,10 +137,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (344)</summary>
+<details><summary>✅🗑️ Archive — done + killed (345)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0280](archive/2026-09-03-0280-shard-or-re-budget-the-test-files-the-suite-runner-reports-o.md) | Shard or re-budget the test files the suite runner reports OVER BUDGET | 2026-09-03 |
 | [0279](archive/2026-09-03-0279-settle-the-walk-site-classifier-s-reachability-gap-and-re-la.md) | Settle the walk-site classifier's reachability gap and re-land 0258's reverted fixes | 2026-09-03 |
 | [0272](archive/2026-09-03-0272-de-duplicate-the-gitignore-block-writer-s-second-copy-of-the.md) | De-duplicate the gitignore-block writer's second copy of the write orchestration | 2026-09-03 |
 | [0266](archive/2026-09-03-0266-deterministic-frontmatter-field-writer-no-skill-hand-rolls-a.md) | Deterministic frontmatter field writer — no skill hand-rolls a manifest edit | 2026-09-03 |
