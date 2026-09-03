@@ -2,11 +2,11 @@
 id: 296
 slug: shard-tests-test-docket-status-sh-its-runtime-row-is-at-the
 title: 'Shard tests/test_docket_status.sh — its runtime row is at the table''s hard 60s ceiling'
-status: proposed
+status: 'killed'
 priority: medium
 type: chore
 created: 2026-08-11
-updated: 2026-08-11
+updated: '2026-09-03'
 depends_on: []
 related: []
 discovered_from: [118]
@@ -60,3 +60,7 @@ cleanly past the changes already queued against this same file (#0268 and #0154 
 `tests/test_docket_status.sh`). Doing it inside 0118 — a close-out marking change — would both
 balloon that branch's scope far past its spec and guarantee a conflict for two queued changes. The
 shard belongs to a change that can take the whole file.
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): superseded by the Go migration — tests/test_docket_status.sh and scripts/docket-status.sh are deleted; sweep coverage lives in Go with its own budget rows.
