@@ -22,7 +22,7 @@ branch: 'fix/authoritative-machine-readable-request-result-schema-surface'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-03T18:00:59Z'
+claimed_at: '2026-09-03T20:39:36Z'
 ---
 
 ## Artifacts
