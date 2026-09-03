@@ -103,9 +103,9 @@ type StatusResult struct {
 	// RepositoryState is populated only on the operational gate's typed refusal
 	// (change 0363): the classifier's stable repository state (e.g. "legacy"),
 	// the same value `repository check` reports for the same facts.
-	RepositoryState string `json:"repository_state,omitempty"`
-	Reason          string `json:"reason,omitempty"` // failure results only
-	Message         string `json:"message,omitempty"`
+	RepositoryState string `json:"repository_state,omitempty" docket:"refusal-only"`
+	Reason          string `json:"reason,omitempty" docket:"refusal-only"` // failure results only
+	Message         string `json:"message,omitempty" docket:"refusal-only"`
 }
 
 // NewStatusResult stamps the envelope and normalizes nil collections to empty

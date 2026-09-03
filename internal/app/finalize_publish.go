@@ -146,7 +146,7 @@ type FinalizePublishRequest struct {
 type FinalizePublishResult struct {
 	Envelope
 	ID          int             `json:"id,omitempty"`
-	Disposition string          `json:"disposition,omitempty"`
+	Disposition string          `json:"disposition,omitempty" docket:"enum=publish_dispositions"`
 	Head        string          `json:"head,omitempty"`
 	Base        string          `json:"base,omitempty"`
 	Number      int             `json:"number,omitempty"`

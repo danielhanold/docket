@@ -19,6 +19,12 @@ const (
 	SectionRemove   SectionIntent = "remove"
 )
 
+// AllSectionIntents is the closed section-intent set, exported for the
+// request/result schema surface's section_intents vocabulary (change 0399).
+// Change 0399's AST completeness guard holds it in correspondence with the
+// SectionIntent const group above.
+var AllSectionIntents = []SectionIntent{SectionPreserve, SectionReplace, SectionRemove}
+
 // SectionEdit names one operation-owned top-level section by its exact heading
 // line (e.g. "## Why killed") and what to do with it. Markdown is the section
 // body WITHOUT the heading line; it must be empty unless Intent is replace.

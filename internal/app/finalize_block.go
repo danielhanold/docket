@@ -170,7 +170,7 @@ type ClearBlockRequest struct {
 type BlockResult struct {
 	Envelope
 	ID          int             `json:"id,omitempty"`
-	Disposition string          `json:"disposition,omitempty"`
+	Disposition string          `json:"disposition,omitempty" docket:"enum=block_dispositions"`
 	CommentURL  string          `json:"comment_url,omitempty"`
 	Revision    string          `json:"committed_revision,omitempty"`
 	Reason      string          `json:"reason,omitempty"`

@@ -125,7 +125,7 @@ type ChangeReclaimRequest struct {
 type ChangeReclaimResult struct {
 	Envelope
 	ID          int             `json:"id,omitempty"`
-	Disposition string          `json:"disposition,omitempty"`
+	Disposition string          `json:"disposition,omitempty" docket:"enum=reclaim_dispositions"`
 	Revision    string          `json:"committed_revision,omitempty"`
 	Reason      string          `json:"reason,omitempty"`
 	Message     string          `json:"message,omitempty"`

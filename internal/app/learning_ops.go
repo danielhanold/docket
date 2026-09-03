@@ -318,7 +318,7 @@ func validateLearningRecordShape(req LearningRecordRequest) []StatusFinding {
 	}
 
 	if !validRequestID(req.RequestID) {
-		add("invalid-request-id", "request_id must be 8–128 ASCII characters matching ^[A-Za-z0-9][A-Za-z0-9._-]*$")
+		add("invalid-request_id", "request_id must be 8–128 ASCII characters matching ^[A-Za-z0-9][A-Za-z0-9._-]*$")
 	}
 	if !domain.ValidSlugToken(req.Slug) {
 		add("invalid-slug", fmt.Sprintf("slug %q is not a valid record slug", req.Slug))

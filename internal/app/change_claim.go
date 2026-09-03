@@ -87,12 +87,12 @@ type claimDigestPayload struct {
 type ChangeClaimResult struct {
 	Envelope
 	ID          int             `json:"id,omitempty"`
-	Status      string          `json:"status,omitempty"`
+	Status      string          `json:"status,omitempty" docket:"success-only,enum=statuses"`
 	Branch      string          `json:"branch,omitempty"`
 	ClaimedAt   string          `json:"claimed_at,omitempty"`
 	Lease       string          `json:"lease,omitempty"`
 	Revision    string          `json:"committed_revision,omitempty"`
-	Disposition string          `json:"disposition,omitempty"`
+	Disposition string          `json:"disposition,omitempty" docket:"enum=claim_dispositions"`
 	Findings    []StatusFinding `json:"findings"`
 }
 

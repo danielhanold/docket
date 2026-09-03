@@ -31,6 +31,15 @@ const (
 	StatusKilled        Status = "killed"
 )
 
+// AllStatuses is the closed status set in lifecycle order, exported for the
+// request/result schema surface's statuses vocabulary (change 0399). ParseStatus
+// is the membership oracle; this slice is its enumerated form, and change 0399's
+// AST completeness guard holds the two in correspondence.
+var AllStatuses = []Status{
+	StatusProposed, StatusInProgress, StatusBlocked, StatusDeferred,
+	StatusImplemented, StatusStackedMerged, StatusDone, StatusKilled,
+}
+
 // ParseStatus reports whether s is a member of the closed status set,
 // returning the typed member when it is. Membership is exact: no case
 // folding, no trimming.
@@ -58,6 +67,14 @@ const (
 	PriorityMedium   Priority = "medium"
 	PriorityLow      Priority = "low"
 )
+
+// AllPriorities is the closed priority set in rank order, exported for the
+// request/result schema surface's priorities vocabulary (change 0399).
+// ParsePriority is the membership oracle; this slice is its enumerated form,
+// and change 0399's AST completeness guard holds the two in correspondence.
+var AllPriorities = []Priority{
+	PriorityCritical, PriorityHigh, PriorityMedium, PriorityLow,
+}
 
 // ParsePriority reports whether s is a member of the closed priority set,
 // returning the typed member when it is.
