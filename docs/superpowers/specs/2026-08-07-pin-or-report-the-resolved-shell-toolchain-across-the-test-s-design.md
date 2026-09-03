@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0150 — Pin or report the resolved shell toolchain across the test suite](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0150-pin-or-report-the-resolved-shell-toolchain-across-the-test-s.md)**
+> ↩ **[Change 0150 — Pin or report the resolved shell toolchain across the test suite](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-03-0150-pin-or-report-the-resolved-shell-toolchain-across-the-test-s.md)**
 <!-- docket:backlink:end -->
 
 # Toolchain report across the test suite — design (change 0150)

@@ -2,11 +2,11 @@
 id: 150
 slug: pin-or-report-the-resolved-shell-toolchain-across-the-test-s
 title: Pin or report the resolved shell toolchain across the test suite
-status: proposed
+status: 'killed'
 priority: low
 type: chore
 created: 2026-07-28
-updated: 2026-08-09
+updated: '2026-09-03'
 depends_on: []
 related: [151, 227]
 discovered_from: [130]
@@ -81,3 +81,6 @@ critic-confirmed sound.
 - Any pin (PATH or per-site) — settled above.
 - Mandating that all test files source the helper.
 
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): superseded by the Go migration — the tests/lib toolchain helper and scripts/run-tests.sh are deleted; shell-portability guards are Go tests in internal/repoguard.

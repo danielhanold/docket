@@ -1,6 +1,6 @@
 # Backlog
 
-**398 changes** — 🔵 1 built · 🟣 18 groomed · 🟡 44 proposed · ⚪ 4 deferred · ✅ 246 done · 🗑️ 85 killed
+**398 changes** — 🔵 1 built · 🟣 17 groomed · 🟡 44 proposed · ⚪ 4 deferred · ✅ 246 done · 🗑️ 86 killed
 
 ## 🔵 Built (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|----|-------|
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
-## 🟣 Groomed (18)
+## 🟣 Groomed (17)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
@@ -24,7 +24,6 @@
 | [0248](active/0248-role-self-description-enforce-the-positive-half-and-harden-t.md) | Role self-description: enforce the positive half and harden the guard | `low` | `chore` | [spec](../superpowers/specs/2026-08-07-role-self-description-enforce-the-positive-half-and-harden-t-design.md) |
 | [0195](active/0195-retune-the-opencode-shipped-model-defaults-for-cost.md) | Retune the opencode shipped model defaults for cost | `low` | `chore` | [spec](../superpowers/specs/2026-08-09-retune-the-opencode-shipped-model-defaults-for-cost-design.md) |
 | [0166](active/0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | `low` | `chore` | [spec](../superpowers/specs/2026-08-07-retune-the-interactive-skills-advisory-session-model-recomme-design.md) |
-| [0150](active/0150-pin-or-report-the-resolved-shell-toolchain-across-the-test-s.md) | Pin or report the resolved shell toolchain across the test suite | `low` | `chore` | [spec](../superpowers/specs/2026-08-07-pin-or-report-the-resolved-shell-toolchain-across-the-test-s-design.md) |
 | [0256](active/0256-config-reader-consolidation-one-extractor-or-a-recorded-adr.md) | Config-reader consolidation: one extractor or a recorded ADR | `medium` | `refactor` | [spec](../superpowers/specs/2026-08-07-config-reader-consolidation-one-extractor-or-a-recorded-adr-design.md) |
 | [0253](active/0253-settle-and-enforce-the-prose-anchored-guard-house-pattern.md) | Settle and enforce the prose-anchored guard house pattern | `medium` | `chore` | [spec](../superpowers/specs/2026-08-07-settle-and-enforce-the-prose-anchored-guard-house-pattern-design.md) |
 | [0222](active/0222-raise-docket-s-minimum-bash-from-4-to-4-4.md) | Raise docket's minimum Bash from 4+ to 4.4 | `medium` | `chore` | [spec](../superpowers/specs/2026-08-07-raise-docket-s-minimum-bash-from-4-to-4-4-design.md) |
@@ -95,7 +94,6 @@ graph TD
   0008
   0009
   0010
-  0150
   0154
   0158
   0160
@@ -166,10 +164,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (331)</summary>
+<details><summary>✅🗑️ Archive — done + killed (332)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0150](archive/2026-09-03-0150-pin-or-report-the-resolved-shell-toolchain-across-the-test-s.md) | Pin or report the resolved shell toolchain across the test suite | 2026-09-03 |
 | [0397](archive/2026-09-02-0397-run-the-implementation-preflight-as-one-deterministic-operat.md) | Run the implementation preflight as one deterministic operation instead of a docket-status dispatch, and drop status --json's corpus records by default | 2026-09-02 |
 | [0396](archive/2026-09-02-0396-finalize-async-gate-waiting-has-no-cli-re-entry-that-resumes.md) | finalize async gate WAITING has no CLI re-entry that resumes the same drive | 2026-09-02 |
 | [0395](archive/2026-09-02-0395-migrate-claude-md-agents-md-agent-executed-blocks-to-the-cap.md) | Migrate CLAUDE.md/AGENTS.md agent-executed blocks to the capability-first idiom | 2026-09-02 |
