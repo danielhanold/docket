@@ -79,3 +79,8 @@ Settled design (2026-08-09, auto-groom; detail in the linked spec):
 `verify-run`'s verdict vocabulary, the dispatch seam's exit contract, every existing
 `aborted-run` leg and floor (including its known 12h double-fire on a halted change — left
 deliberately), and the marker's write/remove lifecycle (0237 owns it).
+
+## Open questions
+
+- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target: `internal/render/board.go` still renders only the finalize-blocked and auto-groom-blocked needs-you cells; `## Run halted` is a live Go marker (`internal/repository/decode.go`, `internal/app/change_halt.go`). The named sites (`render-board.sh`, `board-checks.sh`, `BOARD_CHECK_IDS`, `lib/docket-frontmatter.sh`) are deleted; put the cell in `internal/render/board.go`, the predicate beside the `## Run halted` decode, and the stale check in the Go maintenance sweep.
+
