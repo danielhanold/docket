@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/authoritative-machine-readable-request-result-schema-surface'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-03T17:43:12Z'
+reconciled: true
+claimed_at: '2026-09-03T17:46:15Z'
 ---
 
 ## Artifacts
@@ -57,3 +57,17 @@ PM-altitude (design belongs in the linked spec): give docket ONE authoritative, 
 - An MCP server/adapter, or making MCP docket's primary agent interface (explicitly rejected by 0394).
 - New lifecycle operations unrelated to schema discovery.
 - Rewriting historical changes, specs, plans, results, or Accepted ADR prose.
+
+## Reconcile log
+
+### 2026-09-03
+
+Reconciled against the current `docket` tree at claim time. Every spec claim was re-verified firsthand and still holds:
+
+- No `docket schema` command exists yet (`docket capabilities` carries no request/result body schemas, by design).
+- `internal/app` today has exactly 35 `*Request` and 52 `*Result` structs (the spec's measured counts), confirming reflection scope.
+- `StatusFinding.Code` is an untyped `string`, minted inline at many call sites — no type to reflect, so the typed finding-code registry is still needed.
+- The two message-fix targets both reproduce: `validateLifecycleShape` (internal/app/change_lifecycle.go) reports `change_id must be a positive change id` (code `invalid-change_id`) even for lifecycle ops whose real JSON key is `id`; and the decode error at internal/cli/change.go:575 says `decoding --request JSON` while every JSON-taking command registers the flag as `--input`.
+- `change.groom` uses JSON key `change_id` while `change.create`/lifecycle ops use `id`; `relations` nesting and `spec_markdown` are non-obvious — confirming the acute source-reading gap the change closes.
+
+Scope, relations (related: 360, 394; discovered_from: 394; adrs: 104), and out-of-scope carve-outs (0360 stays open; not retired) remain correct. No rescope needed.
