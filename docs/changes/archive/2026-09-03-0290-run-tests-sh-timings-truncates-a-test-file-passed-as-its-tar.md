@@ -2,11 +2,11 @@
 id: 290
 slug: run-tests-sh-timings-truncates-a-test-file-passed-as-its-tar
 title: 'run-tests.sh --timings truncates a test file passed as its target'
-status: proposed
+status: 'killed'
 priority: high
 type: fix
 created: 2026-08-11
-updated: 2026-08-11
+updated: '2026-09-03'
 depends_on: []
 related: []
 discovered_from: [281]
@@ -60,3 +60,7 @@ as far as reporting whether the same shape exists elsewhere).
 **Reason for deferral** — 0281 was a prose-and-guard change to the auto-groom critic return channel
 with no script edits at all; fixing a runner's argument handling and adding a destructive-write
 guard would have expanded that branch past its stated scope, and its plan was already frozen.
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): already resolved in Go — scripts/run-tests.sh is deleted and the Go suite runner has no output-path argument to truncate.
