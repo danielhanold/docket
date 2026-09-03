@@ -135,3 +135,5 @@ with absolute-speed drift absorbed by the run-time canary rescale rather than en
 canary is measured fresh each run with no stored per-host state, so an ephemeral CI host
 calibrates itself; the clamp band bounds pathological readings. Couplings: `depends_on: [251]`
 (build order — this lands on 0251's confirm regime); no coupling to #0258 (different files).
+- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target: the budget regime lives in `internal/suiterunner` (budgets.go, aggregate.go) and `aggregate.go` still prints that the screening factor is calibrated to one machine. The spec's mechanics (`tests/lib/budget-canary.sh`, `run-tests.sh` exit codes, `tests/test_run_tests.sh`) and all eight measured files are deleted; re-measure against the Go wrapper rows in `tests/runtime-budgets.tsv`.
+
