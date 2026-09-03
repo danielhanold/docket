@@ -7,7 +7,7 @@ priority: medium
 type: chore
 created: 2026-08-08
 updated: 2026-08-09
-depends_on: [172]
+depends_on: []
 related: [262, 253]
 discovered_from: [254]
 adrs: []
@@ -112,3 +112,7 @@ All guards `/usr/bin/grep`-pinned, floored, mutation-tested, budgets-registered.
 - `docs/` in every walk (immutable point-in-time records).
 - The toolchain pin/report (#0150); the prose-anchor house pattern (#0253 — file collision on
   `test_docket_build.sh`/`test_docket_review.sh`, orderable either way, hence `related:`).
+
+## Open questions
+- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Narrow to two legs: the leading-`--` grep pattern and the awk `[^ ]` literal-space class, as additions to `internal/repoguard/shellshape_test.go`. The pipefail-markdown and word-boundary legs already landed there (TestPipeShapes, TestGrepPortability). `depends_on: [172]` cleared — 0172 was killed as already fixed in Go.
+
