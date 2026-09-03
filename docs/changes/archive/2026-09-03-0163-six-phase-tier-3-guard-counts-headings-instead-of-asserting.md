@@ -2,11 +2,11 @@
 id: 163
 slug: six-phase-tier-3-guard-counts-headings-instead-of-asserting
 title: Six-phase Tier 3 guard counts headings instead of asserting the phase set
-status: proposed
+status: 'killed'
 priority: low
 type: fix
 created: 2026-07-28
-updated: 2026-08-09
+updated: '2026-09-03'
 depends_on: []
 related: []
 discovered_from: [135]
@@ -51,3 +51,7 @@ is green today.
 
 Any change to the Tier 3 checklist's own content or phase count. If the checklist legitimately grows
 a seventh phase, the guard's expected set is updated with it — that is the guard working.
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): superseded by the Go migration — the flawed assert lived in the deleted tests/test_cursor_contract_docs.sh; the Go port has no phase-count predicate.
