@@ -131,10 +131,13 @@ const (
 // (read from the request file at the CLI boundary, never a prior command result),
 // reparsed here and required to certify Head.
 type FinalizePublishRequest struct {
-	ID             int    `docket:"required"`
-	Attempt        string `docket:"required"`
-	Head           string `docket:"required"`
-	EvidenceRecord []byte `docket:"required"`
+	ID      int    `json:"id" docket:"required"`
+	Attempt string `json:"attempt" docket:"required"`
+	Head    string `json:"head" docket:"required"`
+	// EvidenceRecord is read from the --evidence request file at the CLI boundary,
+	// never a JSON key of this request, so it is excluded from the emitted schema
+	// (mirroring EvidenceVerifyRequest.RecordFile).
+	EvidenceRecord []byte `json:"-" docket:"required"`
 }
 
 // FinalizePublishResult is the protocol-v1 document `finalize publish` returns. It

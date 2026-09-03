@@ -102,11 +102,14 @@ type GitHubDeps struct {
 // prose (decoded from the request file at the CLI boundary). EvidenceRecord is
 // the canonical build-evidence bytes, reparsed here — never a prior result.
 type PRPublishRequest struct {
-	ID             int
-	Head           string
-	Title          string
-	Body           string
-	EvidenceRecord []byte
+	ID    int    `json:"id"`
+	Head  string `json:"head"`
+	Title string `json:"title"`
+	Body  string `json:"body"`
+	// EvidenceRecord is read from the --evidence request file at the CLI boundary,
+	// never a JSON key of this request, so it is excluded from the emitted schema
+	// (mirroring EvidenceVerifyRequest.RecordFile).
+	EvidenceRecord []byte `json:"-"`
 }
 
 // PRPublishResult is the protocol-v1 document `pr publish` returns. It names the
