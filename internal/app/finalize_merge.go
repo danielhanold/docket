@@ -157,11 +157,11 @@ const (
 // true when a human explicitly named this change (an attended run), which
 // supplies the approval and finalize-blocked authorization.
 type FinalizeMergeRequest struct {
-	ID         int    `docket:"required"`
-	Version    string `docket:"required"`
-	Head       string `docket:"required"`
-	Admin      bool
-	ExplicitID bool
+	ID         int    `json:"id" docket:"required"`
+	Version    string `json:"version" docket:"required"`
+	Head       string `json:"head" docket:"required"`
+	Admin      bool   `json:"admin"`
+	ExplicitID bool   `json:"explicit_id"`
 }
 
 // VerifiedMerge is the authoritative post-merge evidence a successful merge (or

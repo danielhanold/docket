@@ -2,6 +2,7 @@ package app
 
 import (
 	"reflect"
+	"regexp"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/config"
@@ -153,6 +154,44 @@ func TestReflectDescriptorChangeCreateRequest(t *testing.T) {
 		if f.Required != wantRequired[f.Key] {
 			t.Errorf("%s required = %v, want %v", f.Key, f.Required, wantRequired[f.Key])
 		}
+	}
+}
+
+// TestFlagAssembledRequestsEmitSnakeCaseKeys locks the review-blocker fix for the
+// four flag-assembled request structs (MarkImplementedRequest,
+// FinalizePublishRequest, FinalizeMergeRequest, PRPublishRequest). These structs
+// are assembled from cobra flags and historically carried NO json tags, so
+// reflectFields fell back to the Go field name and the authoritative `docket
+// schema` surface emitted CAPITALIZED keys (ID, Version, Head, PR, Attempt,
+// EvidenceRecord, Admin, ExplicitID, Title, Body) — violating FieldDescriptor.Key's
+// "the REAL JSON key" contract and misleading a machine consumer into building a
+// wrong request shape. Assert every emitted top-level request key is lowercase
+// snake_case (no key carrying an uppercase rune) and spot-check the exact spellings
+// each request is built from.
+func TestFlagAssembledRequestsEmitSnakeCaseKeys(t *testing.T) {
+	upper := regexp.MustCompile(`[A-Z]`)
+	cases := []struct {
+		op        string
+		prototype any
+		want      []string
+	}{
+		{"change.mark-implemented", MarkImplementedRequest{}, []string{"id", "version", "head", "pr"}},
+		{"finalize.publish", FinalizePublishRequest{}, []string{"id", "attempt", "head"}},
+		{"finalize.merge", FinalizeMergeRequest{}, []string{"id", "version", "head", "admin", "explicit_id"}},
+		{"pr.publish", PRPublishRequest{}, []string{"id", "head", "title", "body"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.op, func(t *testing.T) {
+			d := mustReflect(t, tc.prototype)
+			for _, k := range descriptorKeys(d) {
+				if upper.MatchString(k) {
+					t.Errorf("request key %q is not lowercase snake_case — a Go field-name fallback", k)
+				}
+			}
+			for _, w := range tc.want {
+				fieldByKey(t, d, w) // fails the test if the expected snake_case key is absent
+			}
+		})
 	}
 }
 

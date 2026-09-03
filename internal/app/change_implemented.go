@@ -117,11 +117,14 @@ const (
 // PR is the canonical reference `pr publish` returned; EvidenceRecord is the
 // canonical build-evidence bytes, reparsed here — never a prior result.
 type MarkImplementedRequest struct {
-	ID             int    `docket:"required"`
-	Version        string `docket:"required"`
-	Head           string `docket:"required"`
-	PR             string `docket:"required"`
-	EvidenceRecord []byte `docket:"required"`
+	ID      int    `json:"id" docket:"required"`
+	Version string `json:"version" docket:"required"`
+	Head    string `json:"head" docket:"required"`
+	PR      string `json:"pr" docket:"required"`
+	// EvidenceRecord is read from the --evidence request file at the CLI boundary,
+	// never a JSON key of this request, so it is excluded from the emitted schema
+	// (mirroring EvidenceVerifyRequest.RecordFile).
+	EvidenceRecord []byte `json:"-" docket:"required"`
 }
 
 // ChangeMarkImplemented reprobes the five implemented-transition conjuncts from
