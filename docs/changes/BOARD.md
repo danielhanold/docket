@@ -1,6 +1,6 @@
 # Backlog
 
-**398 changes** — 🔵 1 built · 🟣 17 groomed · 🟡 41 proposed · ⚪ 4 deferred · ✅ 246 done · 🗑️ 89 killed
+**398 changes** — 🔵 1 built · 🟣 16 groomed · 🟡 41 proposed · ⚪ 4 deferred · ✅ 246 done · 🗑️ 90 killed
 
 ## 🔵 Built (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|----|-------|
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
-## 🟣 Groomed (17)
+## 🟣 Groomed (16)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
@@ -27,7 +27,6 @@
 | [0256](active/0256-config-reader-consolidation-one-extractor-or-a-recorded-adr.md) | Config-reader consolidation: one extractor or a recorded ADR | `medium` | `refactor` | [spec](../superpowers/specs/2026-08-07-config-reader-consolidation-one-extractor-or-a-recorded-adr-design.md) |
 | [0253](active/0253-settle-and-enforce-the-prose-anchored-guard-house-pattern.md) | Settle and enforce the prose-anchored guard house pattern | `medium` | `chore` | [spec](../superpowers/specs/2026-08-07-settle-and-enforce-the-prose-anchored-guard-house-pattern-design.md) |
 | [0222](active/0222-raise-docket-s-minimum-bash-from-4-to-4-4.md) | Raise docket's minimum Bash from 4+ to 4.4 | `medium` | `chore` | [spec](../superpowers/specs/2026-08-07-raise-docket-s-minimum-bash-from-4-to-4-4-design.md) |
-| [0172](active/0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md) | Normalize the banned producer-pipe shape across tests and helpers | `medium` | `chore` | [spec](../superpowers/specs/2026-08-07-normalize-the-banned-producer-pipe-shape-across-tests-and-he-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
 ## 🟡 Proposed (41)
@@ -93,7 +92,6 @@ graph TD
   0010
   0154
   0166
-  0172
   0192 --> 0195
   0211 --> 0222
   0248
@@ -158,10 +156,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (335)</summary>
+<details><summary>✅🗑️ Archive — done + killed (336)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0172](archive/2026-09-03-0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md) | Normalize the banned producer-pipe shape across tests and helpers | 2026-09-03 |
 | [0163](archive/2026-09-03-0163-six-phase-tier-3-guard-counts-headings-instead-of-asserting.md) | Six-phase Tier 3 guard counts headings instead of asserting the phase set | 2026-09-03 |
 | [0160](archive/2026-09-03-0160-a-committed-too-deep-runtime-bash-lost-its-machine-local-ign.md) | A committed too-deep runtime.bash lost its machine-local ignored advisory | 2026-09-03 |
 | [0158](archive/2026-09-03-0158-batch-mode-for-docket-implement-next-build-several-coupled-c.md) | Batch mode for docket-implement-next — build several coupled changes on one branch | 2026-09-03 |

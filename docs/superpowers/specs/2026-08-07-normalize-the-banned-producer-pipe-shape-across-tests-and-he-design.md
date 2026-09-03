@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0172 — Normalize the banned producer-pipe shape across tests and helpers](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md)**
+> ↩ **[Change 0172 — Normalize the banned producer-pipe shape across tests and helpers](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-03-0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md)**
 <!-- docket:backlink:end -->
 
 # Design: normalize the banned producer-pipe shape across tests and helpers (0172)

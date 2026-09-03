@@ -2,11 +2,11 @@
 id: 172
 slug: normalize-the-banned-producer-pipe-shape-across-tests-and-he
 title: Normalize the banned producer-pipe shape across tests and helpers
-status: proposed
+status: 'killed'
 priority: medium
 type: chore
 created: 2026-07-30
-updated: 2026-08-07
+updated: '2026-09-03'
 depends_on: []
 related: [253, 150]
 discovered_from: [167]
@@ -70,3 +70,7 @@ verdict-equivalence arguments, and batching order are in the linked spec.
 - The prose-anchor reflow-fragility cleanup, which is its own separate change (0253 — related; it
   touches two of the same test files, so the two changes collide textually but are orderable
   either way).
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): already fixed in Go — TestPipeShapes in internal/repoguard/shellshape_test.go guards the shape; every named site was a deleted Bash test.
