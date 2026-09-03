@@ -22,7 +22,7 @@ branch: 'docs/rewrite-the-readme-as-a-goal-first-landing-page-and-relocate'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-03T23:05:17Z'
+claimed_at: '2026-09-03T23:06:33Z'
 ---
 
 ## Artifacts
