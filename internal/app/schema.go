@@ -107,19 +107,40 @@ func reflectFields(t reflect.Type) ([]FieldDescriptor, error) {
 	return out, nil
 }
 
+// appPackagePath is the import path of package app, read from a known app type so
+// describeField can tell docket's own request/result structs (recurse into) from a
+// foreign embedded type (describe opaquely). See the reflect.Struct case below.
+var appPackagePath = reflect.TypeOf(Envelope{}).PkgPath()
+
 // describeField maps one Go type onto the shape half of a FieldDescriptor
 // (Type, Repeated, and any nested Fields). It is the kind switch: an int kind is
-// "int", a string kind "string", a bool "bool"; a slice or array sets Repeated
-// and describes its element; a pointer describes its element (a pointer is never
-// required-by-shape — required comes only from the docket tag); a struct is
-// "object" with nested Fields; a map[string]string is "map[string]string". Any
-// other map shape, or any other kind, fails closed with an error so the
+// "int", a string kind "string", a bool "bool"; a []byte (or [N]byte) is "string"
+// (its base64 JSON wire form), NOT a repeated int; any other slice or array sets
+// Repeated and describes its element; a pointer describes its element (a pointer is
+// never required-by-shape — required comes only from the docket tag); a
+// map[string]string is "map[string]string".
+//
+// A struct declared in package app is "object" with its nested Fields; a struct
+// from ANOTHER package (config.Effective, gatedrive.DriveDoc, time.Time) is an
+// opaque "object" with no descended Fields — the schema describes docket's own
+// request/result shapes, not foreign internals, and this boundary is what keeps a
+// result that embeds a deep foreign config tree (diagnostic.config's
+// ConfigInspectionResult, whose config.Effective carries maps of structs and
+// maps-of-maps) describable without loosening the fail-closed map contract app
+// types rely on (change 0399, Task 7).
+//
+// Any other map shape, or any other kind, fails closed with an error so the
 // generator never silently mis-describes a field.
 func describeField(t reflect.Type) (FieldDescriptor, error) {
 	switch t.Kind() {
 	case reflect.Pointer:
 		return describeField(t.Elem())
 	case reflect.Slice, reflect.Array:
+		// A byte slice/array marshals to a base64 JSON string, so it is a scalar
+		// "string" here, not a repeated element.
+		if t.Elem().Kind() == reflect.Uint8 {
+			return FieldDescriptor{Type: "string"}, nil
+		}
 		elem, err := describeField(t.Elem())
 		if err != nil {
 			return FieldDescriptor{}, err
@@ -133,6 +154,9 @@ func describeField(t reflect.Type) (FieldDescriptor, error) {
 	case reflect.Bool:
 		return FieldDescriptor{Type: "bool"}, nil
 	case reflect.Struct:
+		if t.PkgPath() != appPackagePath {
+			return FieldDescriptor{Type: "object"}, nil
+		}
 		fields, err := reflectFields(t)
 		if err != nil {
 			return FieldDescriptor{}, err

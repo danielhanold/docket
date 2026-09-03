@@ -82,6 +82,11 @@ const (
 	FCArtifactMissing                     FindingCode = "artifact-missing"
 	FCParseFailed                         FindingCode = "parse-failed"
 	FCSweepPRFactsUnresolved              FindingCode = "sweep-pr-facts-unresolved"
+
+	// Schema-surface request-shape finding (change 0399, Task 7): SchemaFor
+	// returns ok=false for an id absent from the operation-schema registry, and
+	// the cli maps that to ResultInvalidInput carrying this code.
+	FCUnknownOperation FindingCode = "unknown-operation"
 )
 
 // AllFindingCodes is the authoritative, sorted, deduplicated vocabulary of every
@@ -184,6 +189,7 @@ var AllFindingCodes = []FindingCode{
 	FCSweepPRFactsUnresolved,
 	FindingCode("unknown-adr"),
 	FindingCode("unknown-change"),
+	FCUnknownOperation,
 	FCUnknownPriority,
 	FCUnknownType,
 	FCWorkspaceServiceUnavailable,
