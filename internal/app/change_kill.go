@@ -51,10 +51,10 @@ const whyKilledHeading = "## Why killed"
 // authored ## Why killed section body. Authored text rides inside the string
 // fields and is never interpolated into any shell command.
 type ChangeKillRequest struct {
-	ChangeID  int    `json:"change_id"`
-	Path      string `json:"path"`
-	Version   string `json:"version"`
-	WhyKilled string `json:"why_killed"`
+	ChangeID  int    `json:"change_id" docket:"required"`
+	Path      string `json:"path" docket:"required"`
+	Version   string `json:"version" docket:"required"`
+	WhyKilled string `json:"why_killed" docket:"required"`
 }
 
 // ChangeKillResult is the protocol-v1 document `change kill` returns. It embeds

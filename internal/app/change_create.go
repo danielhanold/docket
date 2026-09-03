@@ -38,14 +38,14 @@ const OperationChangeCreate = "change.create"
 // interpolated into any shell command. The relationship collections are the
 // complete desired values for the new record.
 type ChangeCreateRequest struct {
-	RequestID string `json:"request_id"`
-	Title     string `json:"title"`
+	RequestID string `json:"request_id" docket:"required"`
+	Title     string `json:"title" docket:"required"`
 	Type      string `json:"type"`
 	Priority  string `json:"priority"`
 
-	Why         string `json:"why"`
-	WhatChanges string `json:"what_changes"`
-	OutOfScope  string `json:"out_of_scope"`
+	Why         string `json:"why" docket:"required"`
+	WhatChanges string `json:"what_changes" docket:"required"`
+	OutOfScope  string `json:"out_of_scope" docket:"required"`
 
 	DependsOn      []int `json:"depends_on"`
 	StackedOn      *int  `json:"stacked_on"`
@@ -264,7 +264,7 @@ func validateChangeCreateShape(req ChangeCreateRequest) []StatusFinding {
 	}
 
 	if !validRequestID(req.RequestID) {
-		add("invalid-request-id", "request_id must be 8–128 ASCII characters matching ^[A-Za-z0-9][A-Za-z0-9._-]*$")
+		add("invalid-request_id", "request_id must be 8–128 ASCII characters matching ^[A-Za-z0-9][A-Za-z0-9._-]*$")
 	}
 	for _, f := range []struct{ name, val string }{
 		{"title", req.Title}, {"why", req.Why},

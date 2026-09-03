@@ -84,12 +84,12 @@ type DesiredRelations struct {
 // is the required authored, dated-entry body. Authored Markdown rides inside the
 // string fields and is never interpolated into any shell command.
 type ChangeReconcileRequest struct {
-	ID                int               `json:"id"`
-	Version           string            `json:"version"`
+	ID                int               `json:"id" docket:"required"`
+	Version           string            `json:"version" docket:"required"`
 	Sections          map[string]string `json:"sections"`
 	SpecSections      map[string]string `json:"spec_sections"`
 	Relations         *DesiredRelations `json:"relations"`
-	ReconcileLogEntry string            `json:"reconcile_log_entry"`
+	ReconcileLogEntry string            `json:"reconcile_log_entry" docket:"required"`
 }
 
 // ChangeReconcileResult is the protocol-v1 document `change reconcile` returns.

@@ -92,7 +92,7 @@ func TestChangeCreateRejectsBadShapeWithoutEngineCall(t *testing.T) {
 		mut  func(*ChangeCreateRequest)
 		code string
 	}{
-		{"short request id", func(r *ChangeCreateRequest) { r.RequestID = "short" }, "invalid-request-id"},
+		{"short request id", func(r *ChangeCreateRequest) { r.RequestID = "short" }, "invalid-request_id"},
 		{"empty title", func(r *ChangeCreateRequest) { r.Title = "" }, "empty-title"},
 		{"blank why", func(r *ChangeCreateRequest) { r.Why = "   " }, "empty-why"},
 		{"empty what", func(r *ChangeCreateRequest) { r.WhatChanges = "" }, "empty-what_changes"},

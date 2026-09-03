@@ -128,10 +128,10 @@ var placeholderTokenRE = regexp.MustCompile(`\b(TBD|TODO|FIXME|TKTK|XXX|PLACEHOL
 // the change record (exact submitted blob); Path is the canonical repo-relative
 // artifact path; Commit is the exact feature commit the writer reported.
 type ChangeAttachRequest struct {
-	ID      int    `json:"id"`
-	Version string `json:"version"`
-	Path    string `json:"path"`
-	Commit  string `json:"commit"`
+	ID      int    `json:"id" docket:"required"`
+	Version string `json:"version" docket:"required"`
+	Path    string `json:"path" docket:"required"`
+	Commit  string `json:"commit" docket:"required"`
 }
 
 // attachDigestPayload is the idempotency digest payload: the promised state a

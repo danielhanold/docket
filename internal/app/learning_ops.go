@@ -46,13 +46,13 @@ const ReasonLearningsDisabled = "learnings-disabled"
 // authored section bodies. Authored text rides inside the string fields and is
 // never interpolated into any shell command.
 type LearningRecordRequest struct {
-	RequestID string   `json:"request_id"`
-	Slug      string   `json:"slug"`
-	Hook      string   `json:"hook"`
+	RequestID string   `json:"request_id" docket:"required"`
+	Slug      string   `json:"slug" docket:"required"`
+	Hook      string   `json:"hook" docket:"required"`
 	Topics    []string `json:"topics"`
 	Changes   []int    `json:"changes"`
-	Apply     string   `json:"apply"`
-	WarStory  string   `json:"war_story"`
+	Apply     string   `json:"apply" docket:"required"`
+	WarStory  string   `json:"war_story" docket:"required"`
 }
 
 // LearningUpdateRequest is the closed, caller-supplied request for one update.
@@ -62,8 +62,8 @@ type LearningRecordRequest struct {
 // whose planned bytes match the current record commits nothing (the engine's
 // no-op).
 type LearningUpdateRequest struct {
-	Path     string               `json:"path"`
-	Version  string               `json:"version"`
+	Path     string               `json:"path" docket:"required"`
+	Version  string               `json:"version" docket:"required"`
 	Hook     string               `json:"hook"`
 	Topics   []string             `json:"topics"`
 	Changes  []int                `json:"changes"`

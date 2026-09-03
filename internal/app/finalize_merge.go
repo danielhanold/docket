@@ -157,9 +157,9 @@ const (
 // true when a human explicitly named this change (an attended run), which
 // supplies the approval and finalize-blocked authorization.
 type FinalizeMergeRequest struct {
-	ID         int
-	Version    string
-	Head       string
+	ID         int    `docket:"required"`
+	Version    string `docket:"required"`
+	Head       string `docket:"required"`
 	Admin      bool
 	ExplicitID bool
 }

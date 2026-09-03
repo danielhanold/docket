@@ -94,9 +94,9 @@ const (
 // the marker. The authored report rides inside the JSON and never reaches a
 // shell or Git argument.
 type HaltRequest struct {
-	ID      int    `json:"id"`
-	Version string `json:"version"`
-	Report  string `json:"report"`
+	ID      int    `json:"id" docket:"required"`
+	Version string `json:"version" docket:"required"`
+	Report  string `json:"report" docket:"required"`
 }
 
 // ResumeRequest is the closed request for `change resume-halted`. ID and Version
@@ -104,8 +104,8 @@ type HaltRequest struct {
 // acknowledgement that the prior worker is quiescent — without it the operation
 // refuses before any effect.
 type ResumeRequest struct {
-	ID                   int    `json:"id"`
-	Version              string `json:"version"`
+	ID                   int    `json:"id" docket:"required"`
+	Version              string `json:"version" docket:"required"`
 	AcknowledgeQuiescent bool   `json:"acknowledge_quiescent"`
 }
 

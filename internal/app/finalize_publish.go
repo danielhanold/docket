@@ -131,10 +131,10 @@ const (
 // (read from the request file at the CLI boundary, never a prior command result),
 // reparsed here and required to certify Head.
 type FinalizePublishRequest struct {
-	ID             int
-	Attempt        string
-	Head           string
-	EvidenceRecord []byte
+	ID             int    `docket:"required"`
+	Attempt        string `docket:"required"`
+	Head           string `docket:"required"`
+	EvidenceRecord []byte `docket:"required"`
 }
 
 // FinalizePublishResult is the protocol-v1 document `finalize publish` returns. It

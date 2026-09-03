@@ -142,13 +142,13 @@ const (
 // authored bounded concrete remedy recorded in the marker. The authored strings
 // ride inside the JSON and never reach a shell or Git/gh argument.
 type BlockRequest struct {
-	ID       int    `json:"id"`
-	Version  string `json:"version"`
-	PRNumber int    `json:"pr_number"`
-	Attempt  string `json:"attempt"`
-	Reason   string `json:"reason"`
-	Head     string `json:"head"`
-	Report   string `json:"report"`
+	ID       int    `json:"id" docket:"required"`
+	Version  string `json:"version" docket:"required"`
+	PRNumber int    `json:"pr_number" docket:"required"`
+	Attempt  string `json:"attempt" docket:"required"`
+	Reason   string `json:"reason" docket:"required"`
+	Head     string `json:"head" docket:"required"`
+	Report   string `json:"report" docket:"required"`
 	Remedy   string `json:"remedy"`
 }
 
@@ -157,10 +157,10 @@ type BlockRequest struct {
 // the reprobe must confirm; PRNumber is the canonical PR whose open state is
 // reprobed.
 type ClearBlockRequest struct {
-	ID       int    `json:"id"`
-	Version  string `json:"version"`
-	Head     string `json:"head"`
-	PRNumber int    `json:"pr_number"`
+	ID       int    `json:"id" docket:"required"`
+	Version  string `json:"version" docket:"required"`
+	Head     string `json:"head" docket:"required"`
+	PRNumber int    `json:"pr_number" docket:"required"`
 }
 
 // BlockResult is the protocol-v1 document the block operations return. It names
