@@ -276,7 +276,7 @@ func validateGroomSections(sections []SectionEditRequest) []StatusFinding {
 	for _, s := range sections {
 		if !owned[s.Heading] {
 			findings = append(findings, StatusFinding{
-				Code: "invalid-section-heading", Severity: string(domain.SeverityError),
+				Code: string(FCInvalidSectionHeading), Severity: string(domain.SeverityError),
 				Message: fmt.Sprintf("section heading %q is not an owned change heading", s.Heading),
 			})
 			continue
@@ -285,7 +285,7 @@ func validateGroomSections(sections []SectionEditRequest) []StatusFinding {
 		case render.SectionPreserve, render.SectionRemove:
 			if s.Markdown != "" {
 				findings = append(findings, StatusFinding{
-					Code: "invalid-section-markdown", Severity: string(domain.SeverityError),
+					Code: string(FCInvalidSectionMarkdown), Severity: string(domain.SeverityError),
 					Message: fmt.Sprintf("intent %q for %q must carry empty markdown", s.Intent, s.Heading),
 				})
 			}
@@ -293,7 +293,7 @@ func validateGroomSections(sections []SectionEditRequest) []StatusFinding {
 			// Markdown may be non-empty.
 		default:
 			findings = append(findings, StatusFinding{
-				Code: "invalid-section-intent", Severity: string(domain.SeverityError),
+				Code: string(FCInvalidSectionIntent), Severity: string(domain.SeverityError),
 				Message: fmt.Sprintf("section intent %q must be one of preserve, replace, remove", s.Intent),
 			})
 		}

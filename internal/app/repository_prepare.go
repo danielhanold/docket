@@ -236,7 +236,7 @@ func prepareRoute(f reposetup.Facts, sync prepareSync) prepareVerdict {
 	// error, never a fabricated absence that could authorize an attach.
 	if u := prepareUnresolvedTopology(f); len(u) > 0 {
 		return prepareErrorVerdict(reposetup.Finding{
-			Code:     "prepare-topology-unresolved",
+			Code:     string(FCPrepareTopologyUnresolved),
 			Severity: reposetup.SeverityError,
 			Message:  "A required repository topology probe could not be resolved: " + strings.Join(u, ", ") + ".",
 			Remedy:   "Ensure the remote is configured and reachable, then run `docket repository check`.",
@@ -247,7 +247,7 @@ func prepareRoute(f reposetup.Facts, sync prepareSync) prepareVerdict {
 	// any topology decision — it is never overwritten or adopted.
 	if f.DocketWorktree.Foreign {
 		return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
-			Code:     "docket-dir-foreign",
+			Code:     string(FCDocketDirForeign),
 			Severity: reposetup.SeverityError,
 			Ref:      docketWorktreeName,
 			Message:  "The .docket path is a foreign directory or a conflicting worktree registration.",
@@ -260,14 +260,14 @@ func prepareRoute(f reposetup.Facts, sync prepareSync) prepareVerdict {
 	if f.RemoteMetadata.Presence == reposetup.PresenceAbsent {
 		if f.LiveSurface == reposetup.PresencePresent {
 			return prepareRefuseVerdict(reposetup.StateLegacy, reposetup.Finding{
-				Code:     "repository-legacy",
+				Code:     string(FCRepositoryLegacy),
 				Severity: reposetup.SeverityError,
 				Message:  "Legacy single-branch layout: a live planning surface exists without a docket metadata branch.",
 				Remedy:   "Run `docket repository migrate` to convert this repository to the docket metadata topology.",
 			})
 		}
 		return prepareRefuseVerdict(reposetup.StateFresh, reposetup.Finding{
-			Code:     "repository-fresh",
+			Code:     string(FCRepositoryFresh),
 			Severity: reposetup.SeverityError,
 			Message:  "Repository is not initialized: no docket metadata branch and no live surface.",
 			Remedy:   "Run `docket repository init` to create the docket metadata branch and worktree.",
@@ -288,7 +288,7 @@ func prepareRoute(f reposetup.Facts, sync prepareSync) prepareVerdict {
 	// same RootUnknown through that classifier. Both refuse without a local touch.
 	if f.MetadataRoot == reposetup.RootUnknown {
 		return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
-			Code:     "metadata-root-unresolved",
+			Code:     string(FCMetadataRootUnresolved),
 			Severity: reposetup.SeverityError,
 			Message:  "The remote docket branch topology could not be read: its root ancestry is unproven.",
 			Remedy:   "Ensure the remote is reachable and the docket branch is fetchable, then run `docket repository check`.",
@@ -296,7 +296,7 @@ func prepareRoute(f reposetup.Facts, sync prepareSync) prepareVerdict {
 	}
 	if f.MetadataRoot == reposetup.RootForeign {
 		return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
-			Code:     "metadata-root-foreign",
+			Code:     string(FCMetadataRootForeign),
 			Severity: reposetup.SeverityError,
 			Message:  "The remote docket branch is not a docket-created parentless orphan root.",
 			Remedy:   "Inspect the remote docket branch and resolve it manually with a human, then run `docket repository check`.",
@@ -306,7 +306,7 @@ func prepareRoute(f reposetup.Facts, sync prepareSync) prepareVerdict {
 	// unfinished migration, not a preparable repository.
 	if f.LiveSurface == reposetup.PresencePresent {
 		return prepareRefuseVerdict(reposetup.StatePartial, reposetup.Finding{
-			Code:     "migration-incomplete",
+			Code:     string(FCMigrationIncomplete),
 			Severity: reposetup.SeverityWarning,
 			Message:  "A migration seeded the metadata branch but did not finish pruning the integration surface.",
 			Remedy:   "The interrupted migration is safe to resume. Run `docket repository migrate`; it is idempotent.",
@@ -325,7 +325,7 @@ func prepareRoute(f reposetup.Facts, sync prepareSync) prepareVerdict {
 	// Present: it must be registered to this repository on the metadata branch.
 	if f.DocketWorktree.Registered != reposetup.PresencePresent {
 		return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
-			Code:     "docket-worktree-ambiguous-registration",
+			Code:     string(FCDocketWorktreeAmbiguousRegistration),
 			Severity: reposetup.SeverityError,
 			Ref:      docketWorktreeName,
 			Message:  "The .docket worktree is present but not provably registered to this repository on the metadata branch.",
@@ -338,7 +338,7 @@ func prepareRoute(f reposetup.Facts, sync prepareSync) prepareVerdict {
 	switch f.DocketWorktree.Clean {
 	case reposetup.PresenceAbsent:
 		return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
-			Code:     "metadata-worktree-dirty",
+			Code:     string(FCMetadataWorktreeDirty),
 			Severity: reposetup.SeverityError,
 			Ref:      docketWorktreeName,
 			Message:  "The .docket metadata worktree has uncommitted or untracked changes.",
@@ -358,14 +358,14 @@ func prepareRoute(f reposetup.Facts, sync prepareSync) prepareVerdict {
 		return prepareApplyVerdict(prepareActionFastForward, f.RemoteMetadata.Tip)
 	case prepareSyncAhead:
 		return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
-			Code:     "local-metadata-ahead",
+			Code:     string(FCLocalMetadataAhead),
 			Severity: reposetup.SeverityError,
 			Message:  "The local docket branch is ahead of the remote docket branch (it carries commits the remote does not).",
 			Remedy:   "Reconcile the local docket branch with the remote manually with a human before any repository operation.",
 		})
 	case prepareSyncDiverged:
 		return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
-			Code:     "local-metadata-diverged",
+			Code:     string(FCLocalMetadataDiverged),
 			Severity: reposetup.SeverityError,
 			Message:  "The local docket branch has diverged from the remote docket branch.",
 			Remedy:   "Reconcile the local and remote docket branches manually with a human before any repository operation.",
@@ -403,7 +403,7 @@ func prepareUnresolvedTopology(f reposetup.Facts) []string {
 // rather than guessing: an unproven local state never attaches or fast-forwards.
 func prepareLocalUnknownVerdict() prepareVerdict {
 	return prepareRefuseVerdict(reposetup.StateConflict, reposetup.Finding{
-		Code:     "prepare-local-state-unknown",
+		Code:     string(FCPrepareLocalStateUnknown),
 		Severity: reposetup.SeverityError,
 		Ref:      docketWorktreeName,
 		Message:  "The local .docket worktree or its synchronization with the remote metadata branch could not be resolved.",

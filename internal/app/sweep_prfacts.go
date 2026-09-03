@@ -216,7 +216,7 @@ func sweepSelectPRFacts(ctx context.Context, batch SweepPRBatchReader, repoDir s
 	var findings []StatusFinding
 	for _, fail := range res.Failures {
 		findings = append(findings, StatusFinding{
-			Code:     "sweep-pr-facts-unresolved",
+			Code:     string(FCSweepPRFactsUnresolved),
 			Severity: string(domain.SeverityWarning),
 			Message: fmt.Sprintf("pull-request facts for %d change(s) could not be resolved (PR %v): %s; treated as unknown",
 				len(fail.Numbers), fail.Numbers, fail.Message),
@@ -226,7 +226,7 @@ func sweepSelectPRFacts(ctx context.Context, batch SweepPRBatchReader, repoDir s
 	// failed-batch finding rather than omit it silently.
 	if len(unparseable) > 0 {
 		findings = append(findings, StatusFinding{
-			Code:     "sweep-pr-facts-unresolved",
+			Code:     string(FCSweepPRFactsUnresolved),
 			Severity: string(domain.SeverityWarning),
 			Message: fmt.Sprintf("pull-request ref(s) for %d change(s) could not be parsed (changes %v); treated as unknown",
 				len(unparseable), unparseable),

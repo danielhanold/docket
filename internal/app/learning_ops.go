@@ -330,7 +330,7 @@ func validateLearningRecordShape(req LearningRecordRequest) []StatusFinding {
 			add("empty-"+f.name, f.name+" must be non-empty")
 		}
 	}
-	findings = append(findings, validateIDCollection("changes", req.Changes)...)
+	findings = append(findings, validateIDCollection("changes", req.Changes, FCInvalidChanges, FCDuplicateChanges)...)
 	findings = append(findings, validateTopics(req.Topics)...)
 	return findings
 }
@@ -346,7 +346,7 @@ func validateLearningUpdateShape(req LearningUpdateRequest) []StatusFinding {
 		findings = append(findings, learningFinding("empty-version", "version must be the exact full blob object id of the submitted record"))
 	}
 	findings = append(findings, validateLearningSections(req.Sections)...)
-	findings = append(findings, validateIDCollection("changes", req.Changes)...)
+	findings = append(findings, validateIDCollection("changes", req.Changes, FCInvalidChanges, FCDuplicateChanges)...)
 	findings = append(findings, validateTopics(req.Topics)...)
 	return findings
 }

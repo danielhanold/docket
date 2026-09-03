@@ -110,7 +110,7 @@ type changeLifecycleReceipt struct {
 func ChangeBlock(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeBlockRequest) ChangeLifecycleResult {
 	findings := validateLifecycleShape("change_id", req.ChangeID, req.Path, req.Version)
 	if strings.TrimSpace(req.Reason) == "" {
-		findings = append(findings, lifecycleFinding("empty-reason", "reason must be non-empty for a block"))
+		findings = append(findings, lifecycleFinding(FCEmptyReason, "reason must be non-empty for a block"))
 	}
 	if len(findings) > 0 {
 		return newChangeLifecycleResult(OperationChangeBlock, ResultInvalidInput, ChangeLifecycleResult{Findings: findings})
@@ -131,7 +131,7 @@ func ChangeBlock(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 func ChangeDefer(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeDeferRequest) ChangeLifecycleResult {
 	findings := validateLifecycleShape("change_id", req.ChangeID, req.Path, req.Version)
 	if strings.TrimSpace(req.WhyDeferred) == "" {
-		findings = append(findings, lifecycleFinding("empty-why_deferred", "why_deferred must be a non-empty authored section body"))
+		findings = append(findings, lifecycleFinding(FCEmptyWhyDeferred, "why_deferred must be a non-empty authored section body"))
 	}
 	if len(findings) > 0 {
 		return newChangeLifecycleResult(OperationChangeDefer, ResultInvalidInput, ChangeLifecycleResult{Findings: findings})
@@ -159,7 +159,7 @@ func executeChangeLifecycle(ctx context.Context, deps PlanningDeps, repoDir, opK
 	pin, err := deps.Reader.PinContext(ctx, repoDir)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
-		return newChangeLifecycleResult(opKey, result, ChangeLifecycleResult{Findings: []StatusFinding{lifecycleFinding(reason, err.Error())}})
+		return newChangeLifecycleResult(opKey, result, ChangeLifecycleResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(reason), err.Error())}})
 	}
 	eff := pin.Config.Effective
 
@@ -168,16 +168,16 @@ func executeChangeLifecycle(ctx context.Context, deps PlanningDeps, repoDir, opK
 	inline, err := fenceBoardSurface(eff)
 	if err != nil {
 		if pe, ok := asPlanningError(err); ok {
-			return newChangeLifecycleResult(opKey, pe.Result, ChangeLifecycleResult{Findings: []StatusFinding{lifecycleFinding(pe.Reason, pe.Message)}})
+			return newChangeLifecycleResult(opKey, pe.Result, ChangeLifecycleResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(pe.Reason), pe.Message)}})
 		}
-		return newChangeLifecycleResult(opKey, ResultInternalError, ChangeLifecycleResult{Findings: []StatusFinding{lifecycleFinding(ReasonStatusInternalError, err.Error())}})
+		return newChangeLifecycleResult(opKey, ResultInternalError, ChangeLifecycleResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(ReasonStatusInternalError), err.Error())}})
 	}
 
 	// Discover the repository identity the transaction writes against.
 	repo, err := deps.Client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
 	if err != nil {
 		result, reason := classifyStatusError(ctx, classifyGitFailure(err))
-		return newChangeLifecycleResult(opKey, result, ChangeLifecycleResult{Findings: []StatusFinding{lifecycleFinding(reason, err.Error())}})
+		return newChangeLifecycleResult(opKey, result, ChangeLifecycleResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(reason), err.Error())}})
 	}
 
 	op := changeLifecycleOp{
@@ -235,20 +235,21 @@ func lifecycleResultFromOutcome(opKey string, res transaction.Result, execErr er
 func validateLifecycleShape(idKey string, id int, recPath, version string) []StatusFinding {
 	var findings []StatusFinding
 	if id <= 0 {
-		findings = append(findings, lifecycleFinding("invalid-"+idKey, idKey+" must be a positive change id"))
+		findings = append(findings, lifecycleFinding(invalidIDCodeByKey[idKey], idKey+" must be a positive change id"))
 	}
 	if strings.TrimSpace(recPath) == "" {
-		findings = append(findings, lifecycleFinding("empty-path", "path must name the change's current canonical record path"))
+		findings = append(findings, lifecycleFinding(FCEmptyPath, "path must name the change's current canonical record path"))
 	}
 	if strings.TrimSpace(version) == "" {
-		findings = append(findings, lifecycleFinding("empty-version", "version must be the exact full blob object id of the submitted record"))
+		findings = append(findings, lifecycleFinding(FCEmptyVersion, "version must be the exact full blob object id of the submitted record"))
 	}
 	return findings
 }
 
-// lifecycleFinding builds one error-severity request-shape finding.
-func lifecycleFinding(code, msg string) StatusFinding {
-	return StatusFinding{Code: code, Severity: string(domain.SeverityError), Message: msg}
+// lifecycleFinding builds one error-severity request-shape finding from a
+// registry-minted FindingCode.
+func lifecycleFinding(code FindingCode, msg string) StatusFinding {
+	return StatusFinding{Code: string(code), Severity: string(domain.SeverityError), Message: msg}
 }
 
 // decodeChangeLifecycleReceipt decodes a persisted receipt into its identity and
@@ -293,7 +294,7 @@ func (o changeLifecycleOp) Plan(ctx context.Context, st transaction.AttemptState
 
 	c, out := snap.Change(domain.ChangeID(o.changeID))
 	if out != domain.LookupFound {
-		return refuseLifecycle("not-found", fmt.Sprintf("change %04d is not present in the current corpus", o.changeID))
+		return refuseLifecycle(FCNotFound, fmt.Sprintf("change %04d is not present in the current corpus", o.changeID))
 	}
 
 	// Domain legality gate: the action decides whether the current status may take
@@ -306,14 +307,14 @@ func (o changeLifecycleOp) Plan(ctx context.Context, st transaction.AttemptState
 
 	src, ok := st.State.Sources[o.path]
 	if !ok {
-		return refuseLifecycle("path-mismatch",
+		return refuseLifecycle(FCPathMismatch,
 			fmt.Sprintf("no record source loaded at %q for change %04d", o.path, o.changeID))
 	}
 
 	// Splice the owned authored sections first, over the exact source bytes.
 	edited, err := render.ApplySectionEdits(src, render.ChangeOwnedHeadings, o.sections)
 	if err != nil {
-		return refuseLifecycle("section-edit-failed", err.Error())
+		return refuseLifecycle(FCSectionEditFailed, err.Error())
 	}
 
 	// First patch pass: the domain's owned lifecycle FieldChanges plus the
@@ -352,7 +353,7 @@ func (o changeLifecycleOp) Plan(ctx context.Context, st transaction.AttemptState
 
 	body, err := render.ArtifactBlockContent(gc, candidate, o.link)
 	if err != nil {
-		return refuseLifecycle("artifact-render-failed", err.Error())
+		return refuseLifecycle(FCArtifactRenderFailed, err.Error())
 	}
 	doc2, err := document.Parse(intermediate)
 	if err != nil {
@@ -408,11 +409,11 @@ func lifecycleFieldValue(to string) document.Value {
 
 // refuseLifecycle builds a refusing OperationResult carrying one state-shaped
 // finding — a helper for the Plan closure's internal-consistency refusals.
-func refuseLifecycle(code, msg string) (transaction.MutationPlan, transaction.OperationResult, error) {
+func refuseLifecycle(code FindingCode, msg string) (transaction.MutationPlan, transaction.OperationResult, error) {
 	return transaction.MutationPlan{}, transaction.OperationResult{
 		Refused: true,
 		Findings: []domain.Finding{{
-			Code:     code,
+			Code:     string(code),
 			Severity: domain.SeverityError,
 			Entity:   domain.EntityRef{Kind: domain.EntityChange},
 			Detail:   map[string]string{"message": msg},

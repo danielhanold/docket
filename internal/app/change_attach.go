@@ -209,7 +209,7 @@ func changeAttach(ctx context.Context, deps PlanningDeps, wdeps WorkspaceDeps, r
 	// (1) Request shape.
 	findings := validateLifecycleShape("id", req.ID, req.Path, req.Version)
 	if strings.TrimSpace(req.Commit) == "" {
-		findings = append(findings, lifecycleFinding("empty-commit", "commit must be the exact feature commit the writer reported"))
+		findings = append(findings, lifecycleFinding(FCEmptyCommit, "commit must be the exact feature commit the writer reported"))
 	}
 	if len(findings) > 0 {
 		return newAttachResult(opKey, ResultInvalidInput, ChangeAttachResult{Kind: kind, Findings: findings})
@@ -616,12 +616,12 @@ func (o changeAttachOp) Plan(ctx context.Context, st transaction.AttemptState) (
 		if out == domain.LookupAmbiguous {
 			reason = ReasonAttachAmbiguousID
 		}
-		return refuseLifecycle(reason, fmt.Sprintf("change %04d is not a single record in the current corpus", o.changeID))
+		return refuseLifecycle(FindingCode(reason), fmt.Sprintf("change %04d is not a single record in the current corpus", o.changeID))
 	}
 
 	src, ok := st.State.Sources[c.Path()]
 	if !ok {
-		return refuseLifecycle("path-mismatch",
+		return refuseLifecycle(FCPathMismatch,
 			fmt.Sprintf("no record source loaded at %q for change %04d", c.Path(), o.changeID))
 	}
 
@@ -652,7 +652,7 @@ func (o changeAttachOp) Plan(ctx context.Context, st transaction.AttemptState) (
 
 	body, err := render.ArtifactBlockContent(gc, candidate, o.link)
 	if err != nil {
-		return refuseLifecycle("artifact-render-failed", err.Error())
+		return refuseLifecycle(FCArtifactRenderFailed, err.Error())
 	}
 	doc2, err := document.Parse(intermediate)
 	if err != nil {

@@ -83,7 +83,7 @@ func (l backlinkArtifactLoader) ValidateEvolution(_, _ transaction.LoadedState) 
 // code normalization; the entity kind is empty because the artifact is not a
 // corpus record.
 func backlinkParseFinding(rel string, err error) domain.Finding {
-	code := "parse-failed"
+	code := string(FCParseFailed)
 	var de *document.Error
 	if errors.As(err, &de) {
 		code = string(de.Kind)

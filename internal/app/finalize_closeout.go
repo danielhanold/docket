@@ -241,7 +241,7 @@ type closeoutTarget struct {
 func FinalizeCloseout(ctx context.Context, deps FinalizeDeps, repoDir string, id int, notes CloseoutNotes) CloseoutResult {
 	if id <= 0 {
 		return newCloseoutResult(ResultInvalidInput, CloseoutResult{
-			ID: id, Findings: []StatusFinding{lifecycleFinding("invalid-id", "id must be a positive change id")},
+			ID: id, Findings: []StatusFinding{lifecycleFinding(FCInvalidID, "id must be a positive change id")},
 		})
 	}
 

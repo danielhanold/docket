@@ -386,24 +386,24 @@ func childBlocksNothing(s domain.Status) bool {
 // never reach any external seam: the pinned parent id/version, and each authorized
 // child's id/pr_number/pr_version, with no duplicate child ids.
 func validateRetargetShape(req RetargetChildrenRequest) []StatusFinding {
-	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), "empty-path")
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
 	seen := make(map[int]bool, len(req.Children))
 	for i, ch := range req.Children {
 		if ch.ID <= 0 {
-			findings = append(findings, lifecycleFinding("invalid-child_id",
+			findings = append(findings, lifecycleFinding(FCInvalidChildID,
 				fmt.Sprintf("children[%d].id must be a positive change id", i)))
 		}
 		if ch.PRNumber <= 0 {
-			findings = append(findings, lifecycleFinding("invalid-child_pr_number",
+			findings = append(findings, lifecycleFinding(FCInvalidChildPRNumber,
 				fmt.Sprintf("children[%d].pr_number must be a positive pull-request number", i)))
 		}
 		if ch.PRVersion == "" {
-			findings = append(findings, lifecycleFinding("empty-child_pr_version",
+			findings = append(findings, lifecycleFinding(FCEmptyChildPRVersion,
 				fmt.Sprintf("children[%d].pr_version must be the exact PR version from context finalize", i)))
 		}
 		if ch.ID > 0 {
 			if seen[ch.ID] {
-				findings = append(findings, lifecycleFinding("duplicate-child_id",
+				findings = append(findings, lifecycleFinding(FCDuplicateChildID,
 					fmt.Sprintf("children names change %04d more than once", ch.ID)))
 			}
 			seen[ch.ID] = true

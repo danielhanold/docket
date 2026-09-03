@@ -479,17 +479,17 @@ func mapPublishEnsureFailure(id int, head, rewrite string, err error) FinalizePu
 func validatePublishShape(req FinalizePublishRequest) []StatusFinding {
 	var findings []StatusFinding
 	if req.ID <= 0 {
-		findings = append(findings, lifecycleFinding("invalid-change_id", "change_id must be a positive change id"))
+		findings = append(findings, lifecycleFinding(FCInvalidChangeID, "change_id must be a positive change id"))
 	}
 	if strings.TrimSpace(req.Attempt) == "" {
-		findings = append(findings, lifecycleFinding("empty-attempt", "attempt must name the owned rebase attempt token"))
+		findings = append(findings, lifecycleFinding(FCEmptyAttempt, "attempt must name the owned rebase attempt token"))
 	}
 	if !validFullObjectID(req.Head) {
-		findings = append(findings, lifecycleFinding("invalid-head",
+		findings = append(findings, lifecycleFinding(FCInvalidHead,
 			"head must be a full 40- or 64-character lowercase hex object id"))
 	}
 	if len(req.EvidenceRecord) == 0 {
-		findings = append(findings, lifecycleFinding("empty-evidence", "evidence must carry the canonical build-evidence record bytes"))
+		findings = append(findings, lifecycleFinding(FCEmptyEvidence, "evidence must carry the canonical build-evidence record bytes"))
 	}
 	return findings
 }

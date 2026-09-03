@@ -186,7 +186,7 @@ func ChangeCreate(ctx context.Context, deps PlanningDeps, repoDir string, req Ch
 	if !domain.ValidSlugToken(slug) {
 		return newChangeCreateResult(ResultInvalidInput, ChangeCreateResult{
 			Findings: []StatusFinding{{
-				Code: "invalid-slug", Severity: string(domain.SeverityError),
+				Code: string(FCInvalidSlug), Severity: string(domain.SeverityError),
 				Message: fmt.Sprintf("title %q does not yield a valid slug", req.Title),
 			}},
 		})
@@ -275,13 +275,17 @@ func validateChangeCreateShape(req ChangeCreateRequest) []StatusFinding {
 		}
 	}
 	for _, coll := range []struct {
-		name string
-		ids  []int
+		name      string
+		ids       []int
+		invalid   FindingCode
+		duplicate FindingCode
 	}{
-		{"depends_on", req.DependsOn}, {"related", req.Related},
-		{"discovered_from", req.DiscoveredFrom}, {"adrs", req.ADRs},
+		{"depends_on", req.DependsOn, FCInvalidDependsOn, FCDuplicateDependsOn},
+		{"related", req.Related, FCInvalidRelated, FCDuplicateRelated},
+		{"discovered_from", req.DiscoveredFrom, FCInvalidDiscoveredFrom, FCDuplicateDiscoveredFrom},
+		{"adrs", req.ADRs, FCInvalidADRs, FCDuplicateADRs},
 	} {
-		findings = append(findings, validateIDCollection(coll.name, coll.ids)...)
+		findings = append(findings, validateIDCollection(coll.name, coll.ids, coll.invalid, coll.duplicate)...)
 	}
 	if req.StackedOn != nil && *req.StackedOn <= 0 {
 		add("invalid-stacked_on", "stacked_on must be a positive change id")
@@ -290,21 +294,23 @@ func validateChangeCreateShape(req ChangeCreateRequest) []StatusFinding {
 }
 
 // validateIDCollection reports positive-id and no-duplicate violations for one
-// relationship collection.
-func validateIDCollection(name string, ids []int) []StatusFinding {
+// relationship collection. The invalid/duplicate finding codes are the
+// per-collection registry constants the caller selects, so the code is never
+// composed from a literal at the mint site.
+func validateIDCollection(name string, ids []int, invalidCode, duplicateCode FindingCode) []StatusFinding {
 	var findings []StatusFinding
 	seen := make(map[int]bool, len(ids))
 	for _, id := range ids {
 		if id <= 0 {
 			findings = append(findings, StatusFinding{
-				Code: "invalid-" + name, Severity: string(domain.SeverityError),
+				Code: string(invalidCode), Severity: string(domain.SeverityError),
 				Message: fmt.Sprintf("%s contains a non-positive id %d", name, id),
 			})
 			continue
 		}
 		if seen[id] {
 			findings = append(findings, StatusFinding{
-				Code: "duplicate-" + name, Severity: string(domain.SeverityError),
+				Code: string(duplicateCode), Severity: string(domain.SeverityError),
 				Message: fmt.Sprintf("%s lists id %d more than once", name, id),
 			})
 			continue
@@ -321,14 +327,14 @@ func validateChangeCreateConfig(eff config.Effective, req ChangeCreateRequest) [
 	var findings []StatusFinding
 	if !containsString(eff.ChangeTypes.Value, req.Type) {
 		findings = append(findings, StatusFinding{
-			Code: "unknown-type", Severity: string(domain.SeverityError),
+			Code: string(FCUnknownType), Severity: string(domain.SeverityError),
 			Message: fmt.Sprintf("unknown change type %q; configured change_types are %s",
 				req.Type, strings.Join(eff.ChangeTypes.Value, ", ")),
 		})
 	}
 	if _, ok := domain.ParsePriority(req.Priority); !ok {
 		findings = append(findings, StatusFinding{
-			Code: "unknown-priority", Severity: string(domain.SeverityError),
+			Code: string(FCUnknownPriority), Severity: string(domain.SeverityError),
 			Message: fmt.Sprintf("unknown priority %q; valid values are critical, high, medium, low", req.Priority),
 		})
 	}
@@ -544,7 +550,7 @@ func validateChangeReferences(req ChangeCreateRequest, snap domain.Snapshot) []d
 		for _, id := range ids {
 			if _, out := snap.Change(domain.ChangeID(id)); out != domain.LookupFound {
 				findings = append(findings, domain.Finding{
-					Code:     "dangling-reference",
+					Code:     string(FCDanglingReference),
 					Severity: domain.SeverityError,
 					Entity:   domain.EntityRef{Kind: domain.EntityChange},
 					Field:    field,
@@ -562,7 +568,7 @@ func validateChangeReferences(req ChangeCreateRequest, snap domain.Snapshot) []d
 	for _, id := range req.ADRs {
 		if _, out := snap.ADR(domain.ADRID(id)); out != domain.LookupFound {
 			findings = append(findings, domain.Finding{
-				Code:     "dangling-reference",
+				Code:     string(FCDanglingReference),
 				Severity: domain.SeverityError,
 				Entity:   domain.EntityRef{Kind: domain.EntityChange},
 				Field:    "adrs",

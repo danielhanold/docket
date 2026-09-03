@@ -144,7 +144,7 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 	findings := validateLifecycleShape("id", req.ID, "", req.Version)
 	// The claim request carries no path; validateLifecycleShape flags an empty
 	// path, which is irrelevant here — drop that one finding.
-	findings = dropFindingCode(findings, "empty-path")
+	findings = dropFindingCode(findings, FCEmptyPath)
 	if len(findings) > 0 {
 		return newChangeClaimResult(OperationChangeClaim, ResultInvalidInput, ChangeClaimResult{Findings: findings})
 	}
@@ -169,7 +169,7 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 	digest, derr := canonicalDigest(OperationChangeClaim, claimDigestPayload{ID: req.ID, Version: req.Version})
 	if derr != nil {
 		return newChangeClaimResult(OperationChangeClaim, ResultInternalError,
-			ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(ReasonStatusInternalError, derr.Error())}})
+			ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(ReasonStatusInternalError), derr.Error())}})
 	}
 
 	op := changeClaimOp{
@@ -207,7 +207,7 @@ func ChangeClaim(ctx context.Context, deps PlanningDeps, repoDir string, req Cha
 // submitted version; a mismatch is `contended`, which stops the run rather than
 // overwriting a newer record.
 func ChangeRefreshClaim(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeClaimRequest) ChangeClaimResult {
-	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), "empty-path")
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
 	if len(findings) > 0 {
 		return newChangeClaimResult(OperationChangeRefreshClaim, ResultInvalidInput, ChangeClaimResult{Findings: findings})
 	}
@@ -261,7 +261,7 @@ func claimPreflight(ctx context.Context, deps PlanningDeps, repoDir, opKey strin
 	pin, err := deps.Reader.PinContext(ctx, repoDir)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
-		r := newChangeClaimResult(opKey, result, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(reason, err.Error())}})
+		r := newChangeClaimResult(opKey, result, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(reason), err.Error())}})
 		return pin, eff, false, repo, &r
 	}
 	eff = pin.Config.Effective
@@ -269,10 +269,10 @@ func claimPreflight(ctx context.Context, deps PlanningDeps, repoDir, opKey strin
 	inline, err = fenceBoardSurface(eff)
 	if err != nil {
 		if pe, ok := asPlanningError(err); ok {
-			r := newChangeClaimResult(opKey, pe.Result, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(pe.Reason, pe.Message)}})
+			r := newChangeClaimResult(opKey, pe.Result, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(pe.Reason), pe.Message)}})
 			return pin, eff, false, repo, &r
 		}
-		r := newChangeClaimResult(opKey, ResultInternalError, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(ReasonStatusInternalError, err.Error())}})
+		r := newChangeClaimResult(opKey, ResultInternalError, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(ReasonStatusInternalError), err.Error())}})
 		return pin, eff, false, repo, &r
 	}
 
@@ -293,7 +293,7 @@ func claimPreflight(ctx context.Context, deps PlanningDeps, repoDir, opKey strin
 	repo, err = deps.Client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
 	if err != nil {
 		result, reason := classifyStatusError(ctx, classifyGitFailure(err))
-		r := newChangeClaimResult(opKey, result, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(reason, err.Error())}})
+		r := newChangeClaimResult(opKey, result, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(reason), err.Error())}})
 		return pin, eff, false, repo, &r
 	}
 	return pin, eff, inline, repo, nil
@@ -310,13 +310,13 @@ func resolveClaimTarget(ctx context.Context, deps PlanningDeps, pin StatusPin, e
 	blobs, err := deps.Reader.ReadCorpus(ctx, pin)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
-		r := newChangeClaimResult(opKey, result, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(reason, err.Error())}})
+		r := newChangeClaimResult(opKey, result, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(reason), err.Error())}})
 		return "", domain.BranchFacts{}, &r
 	}
 	inputs, _ := parseCorpus(blobs)
 	build, err := repository.BuildSnapshot(repository.BuildInput{Config: eff, Documents: inputs})
 	if err != nil {
-		r := newChangeClaimResult(opKey, ResultInternalError, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(ReasonStatusInternalError, err.Error())}})
+		r := newChangeClaimResult(opKey, ResultInternalError, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(ReasonStatusInternalError), err.Error())}})
 		return "", domain.BranchFacts{}, &r
 	}
 	snap := build.Snapshot
@@ -331,7 +331,7 @@ func resolveClaimTarget(ctx context.Context, deps PlanningDeps, pin StatusPin, e
 		}
 		r := newChangeClaimResult(opKey, result, ChangeClaimResult{
 			Disposition: reason,
-			Findings:    []StatusFinding{lifecycleFinding(reason, msg)},
+			Findings:    []StatusFinding{lifecycleFinding(FindingCode(reason), msg)},
 		})
 		return "", domain.BranchFacts{}, &r
 	}
@@ -339,7 +339,7 @@ func resolveClaimTarget(ctx context.Context, deps PlanningDeps, pin StatusPin, e
 	facts, err := deps.Reader.BranchFacts(ctx, pin, stackBranches(snap))
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
-		r := newChangeClaimResult(opKey, result, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(reason, err.Error())}})
+		r := newChangeClaimResult(opKey, result, ChangeClaimResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(reason), err.Error())}})
 		return "", domain.BranchFacts{}, &r
 	}
 	return c.Path(), facts, nil
@@ -411,10 +411,10 @@ func firstFindingCode(findings []domain.Finding) string {
 }
 
 // dropFindingCode returns findings with every entry carrying code removed.
-func dropFindingCode(findings []StatusFinding, code string) []StatusFinding {
+func dropFindingCode(findings []StatusFinding, code FindingCode) []StatusFinding {
 	out := findings[:0]
 	for _, f := range findings {
-		if f.Code != code {
+		if f.Code != string(code) {
 			out = append(out, f)
 		}
 	}
@@ -466,7 +466,7 @@ func (o changeClaimOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 		if out == domain.LookupAmbiguous {
 			reason = "ambiguous-change"
 		}
-		return refuseLifecycle(reason, fmt.Sprintf("change %04d is not a single record in the current corpus", o.changeID))
+		return refuseLifecycle(FindingCode(reason), fmt.Sprintf("change %04d is not a single record in the current corpus", o.changeID))
 	}
 
 	var result domain.ActionResult
@@ -493,7 +493,7 @@ func (o changeClaimOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 
 	src, ok := st.State.Sources[c.Path()]
 	if !ok {
-		return refuseLifecycle("path-mismatch",
+		return refuseLifecycle(FCPathMismatch,
 			fmt.Sprintf("no record source loaded at %q for change %04d", c.Path(), o.changeID))
 	}
 
@@ -501,7 +501,7 @@ func (o changeClaimOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 	// halted section on a re-claimed record) over the exact source bytes.
 	edited, err := applyClaimRemovals(src, result.OwnedRemovals)
 	if err != nil {
-		return refuseLifecycle("section-edit-failed", err.Error())
+		return refuseLifecycle(FCSectionEditFailed, err.Error())
 	}
 
 	// First patch pass: the domain's owned claim FieldChanges plus the refreshed
@@ -534,7 +534,7 @@ func (o changeClaimOp) Plan(ctx context.Context, st transaction.AttemptState) (t
 
 	body, err := render.ArtifactBlockContent(gc, candidate, o.link)
 	if err != nil {
-		return refuseLifecycle("artifact-render-failed", err.Error())
+		return refuseLifecycle(FCArtifactRenderFailed, err.Error())
 	}
 	doc2, err := document.Parse(intermediate)
 	if err != nil {

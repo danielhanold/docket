@@ -298,7 +298,7 @@ func MaintenanceSweep(ctx context.Context, deps FinalizeDeps, repoDir string, sc
 		reclaim: func(ctx context.Context, id int, version string, obs *sweepObservation) ChangeReclaimResult {
 			if wsErr != nil {
 				return newChangeReclaimResult(ResultInternalError, ChangeReclaimResult{
-					ID: id, Findings: []StatusFinding{lifecycleFinding("workspace-service-unavailable", wsErr.Error())},
+					ID: id, Findings: []StatusFinding{lifecycleFinding(FCWorkspaceServiceUnavailable, wsErr.Error())},
 				})
 			}
 			return ChangeReclaim(ctx, depsFor(obs).Planning, wdeps, repoDir, ChangeReclaimRequest{ID: id, Version: version})

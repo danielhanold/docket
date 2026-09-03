@@ -182,7 +182,7 @@ func cleanupGit(deps FinalizeDeps) FinalizeCleanupGit {
 func FinalizeCleanup(ctx context.Context, deps FinalizeDeps, repoDir string, id int) CleanupOpResult {
 	if id <= 0 {
 		return newCleanupResult(OperationFinalizeCleanup, ResultInvalidInput, CleanupOpResult{
-			ID: id, Findings: []StatusFinding{lifecycleFinding("invalid-id", "id must be a positive change id")},
+			ID: id, Findings: []StatusFinding{lifecycleFinding(FCInvalidID, "id must be a positive change id")},
 		})
 	}
 

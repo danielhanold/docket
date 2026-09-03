@@ -150,22 +150,22 @@ func ChangeReconcile(ctx context.Context, deps PlanningDeps, repoDir string, req
 	pin, err := deps.Reader.PinContext(ctx, repoDir)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
-		return newChangeReconcileResult(result, ChangeReconcileResult{Findings: []StatusFinding{lifecycleFinding(reason, err.Error())}})
+		return newChangeReconcileResult(result, ChangeReconcileResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(reason), err.Error())}})
 	}
 	eff := pin.Config.Effective
 
 	inline, err := fenceBoardSurface(eff)
 	if err != nil {
 		if pe, ok := asPlanningError(err); ok {
-			return newChangeReconcileResult(pe.Result, ChangeReconcileResult{Findings: []StatusFinding{lifecycleFinding(pe.Reason, pe.Message)}})
+			return newChangeReconcileResult(pe.Result, ChangeReconcileResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(pe.Reason), pe.Message)}})
 		}
-		return newChangeReconcileResult(ResultInternalError, ChangeReconcileResult{Findings: []StatusFinding{lifecycleFinding(ReasonStatusInternalError, err.Error())}})
+		return newChangeReconcileResult(ResultInternalError, ChangeReconcileResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(ReasonStatusInternalError), err.Error())}})
 	}
 
 	repo, err := deps.Client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
 	if err != nil {
 		result, reason := classifyStatusError(ctx, classifyGitFailure(err))
-		return newChangeReconcileResult(result, ChangeReconcileResult{Findings: []StatusFinding{lifecycleFinding(reason, err.Error())}})
+		return newChangeReconcileResult(result, ChangeReconcileResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(reason), err.Error())}})
 	}
 
 	// Resolve the record's current canonical path from one corpus pre-read; the
@@ -213,13 +213,13 @@ func resolveReconcileTarget(ctx context.Context, deps PlanningDeps, pin StatusPi
 	blobs, err := deps.Reader.ReadCorpus(ctx, pin)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
-		r := newChangeReconcileResult(result, ChangeReconcileResult{Findings: []StatusFinding{lifecycleFinding(reason, err.Error())}})
+		r := newChangeReconcileResult(result, ChangeReconcileResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(reason), err.Error())}})
 		return "", &r
 	}
 	inputs, _ := parseCorpus(blobs)
 	build, err := repository.BuildSnapshot(repository.BuildInput{Config: eff, Documents: inputs})
 	if err != nil {
-		r := newChangeReconcileResult(ResultInternalError, ChangeReconcileResult{Findings: []StatusFinding{lifecycleFinding(ReasonStatusInternalError, err.Error())}})
+		r := newChangeReconcileResult(ResultInternalError, ChangeReconcileResult{Findings: []StatusFinding{lifecycleFinding(FindingCode(ReasonStatusInternalError), err.Error())}})
 		return "", &r
 	}
 	snap := build.Snapshot
@@ -234,7 +234,7 @@ func resolveReconcileTarget(ctx context.Context, deps PlanningDeps, pin StatusPi
 		}
 		r := newChangeReconcileResult(result, ChangeReconcileResult{
 			Disposition: reason,
-			Findings:    []StatusFinding{lifecycleFinding(reason, msg)},
+			Findings:    []StatusFinding{lifecycleFinding(FindingCode(reason), msg)},
 		})
 		return "", &r
 	}
@@ -291,9 +291,9 @@ func decodeChangeReconcileReceipt(b []byte) (changeReconcileReceipt, bool) {
 // fence over the named proposal sections, the required reconcile-log entry, and
 // the authored-input size bound over every authored string.
 func validateChangeReconcileShape(req ChangeReconcileRequest) []StatusFinding {
-	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), "empty-path")
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
 	add := func(code, msg string) {
-		findings = append(findings, lifecycleFinding(code, msg))
+		findings = append(findings, lifecycleFinding(FindingCode(code), msg))
 	}
 
 	// Owned-section fence: a named proposal section must be an owned change
@@ -332,7 +332,7 @@ func validateChangeReconcileShape(req ChangeReconcileRequest) []StatusFinding {
 // the authored-Markdown byte bound.
 func boundAuthored(findings *[]StatusFinding, label, body string) {
 	if len(body) > maxAuthoredMarkdownBytes {
-		*findings = append(*findings, lifecycleFinding("authored-input-too-large",
+		*findings = append(*findings, lifecycleFinding(FCAuthoredInputTooLarge,
 			fmt.Sprintf("%s is %d bytes, over the %d-byte authored-input bound", label, len(body), maxAuthoredMarkdownBytes)))
 	}
 }

@@ -583,8 +583,8 @@ func decodeBlockReceipt(b []byte) (blockReceipt, bool) {
 // validateBlockShape runs the configuration-independent request checks for
 // `finalize block` that never reach the engine.
 func validateBlockShape(req BlockRequest) []StatusFinding {
-	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), "empty-path")
-	add := func(code, msg string) { findings = append(findings, lifecycleFinding(code, msg)) }
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
+	add := func(code, msg string) { findings = append(findings, lifecycleFinding(FindingCode(code), msg)) }
 	if req.PRNumber <= 0 {
 		add("invalid-pr_number", "pr_number must be a positive pull-request number")
 	}
@@ -608,8 +608,8 @@ func validateBlockShape(req BlockRequest) []StatusFinding {
 // validateClearBlockShape runs the configuration-independent request checks for
 // `finalize clear-block`.
 func validateClearBlockShape(req ClearBlockRequest) []StatusFinding {
-	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), "empty-path")
-	add := func(code, msg string) { findings = append(findings, lifecycleFinding(code, msg)) }
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
+	add := func(code, msg string) { findings = append(findings, lifecycleFinding(FindingCode(code), msg)) }
 	if strings.TrimSpace(req.Head) == "" {
 		add("empty-head", "head must name the exact current feature head to reprobe")
 	}
