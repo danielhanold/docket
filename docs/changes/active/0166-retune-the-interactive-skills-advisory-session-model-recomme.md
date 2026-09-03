@@ -73,3 +73,8 @@ Surfaces: the two advisory paragraphs, plus the Task 6 test block. Nothing else 
 - Any mechanism for a skill to actually set the session model. The advisory is advisory.
 - Per-harness advisory literals for cursor/codex/opencode — a prose row-pointer only, so no new
   drift surfaces are minted.
+
+## Open questions
+
+- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target: the prose edits stand (skills still recommend `claude-sonnet-5` while `agents/harness-defaults.yml` ships opus for the consultant). The drift pin named in the spec (`tests/test_sync_agents_drift_docs.sh`, `hd_field`) is deleted; anchor it in `internal/repoguard/prose_contracts_test.go` or a test reading `agents/harness-defaults.yml`, and check `internal/config/defaults.go` for the Go-side model table.
+
