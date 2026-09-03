@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "asset_protocol": 1,
-  "asset_set_id": "sha256:7803620cc2806193c9b8aa19b89311a98286172d7fa0808d2c75224630adc498",
+  "asset_set_id": "sha256:aa94f1d3c7a079badc3916b769b9c7afa4e708606f16c5b78740abffa039f03d",
   "entries": [
     {
       "path": ".docket.example.yml",
@@ -350,8 +350,8 @@
       "path": "skills/docket-convention/SKILL.md",
       "role": "skill",
       "mode": 420,
-      "size": 56466,
-      "sha256": "40161500aa7489d776d62261066b514acf2c48477f7704a0e6d7ed240527cd26"
+      "size": 57115,
+      "sha256": "301edb8ce277a38b28203e7c3463c8e56515d2e12e9a88a77e62761badb0b8a8"
     },
     {
       "path": "skills/docket-convention/github-board-mirror.md",
