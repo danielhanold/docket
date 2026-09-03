@@ -2,11 +2,11 @@
 id: 343
 slug: harden-managed-block-renderers-against-marker-mentions-in-pr
 title: 'Harden managed-block renderers against marker mentions in prose/code (fence-aware block finder)'
-status: proposed
+status: 'killed'
 priority: medium
 type: fix
 created: 2026-08-24
-updated: 2026-08-24
+updated: '2026-09-03'
 depends_on: []
 stacked_on:
 related: []
@@ -43,3 +43,7 @@ Anchor the block finder in **both** the bash renderers (`render-artifact-backlin
 ## Out of scope
 
 The Go link-context web-URL derivation (shipped in 0341); redesigning the block format or markers; the one-time corpus heal (done in 0341).
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): already fixed in Go — internal/document/markers.go and internal/render/section.go are fence-aware; the board PR cell only links http-prefixed values.
