@@ -124,9 +124,9 @@ const (
 // Version pin the exact implemented record; Head is the expected local feature
 // head the rebase begins from (the authorization was computed against it).
 type FinalizeRebaseRequest struct {
-	ID      int    `json:"id"`
-	Version string `json:"version"`
-	Head    string `json:"head"`
+	ID      int    `json:"id" docket:"required"`
+	Version string `json:"version" docket:"required"`
+	Head    string `json:"head" docket:"required"`
 }
 
 // ResolverReport is the versioned, bounded JSON envelope a conflict-resolver

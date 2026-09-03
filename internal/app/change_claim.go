@@ -66,8 +66,8 @@ const (
 // refresh-claim. ID names the change; Version pins the exact submitted record
 // blob (the version the authoritative context read reported).
 type ChangeClaimRequest struct {
-	ID      int    `json:"id"`
-	Version string `json:"version"`
+	ID      int    `json:"id" docket:"required"`
+	Version string `json:"version" docket:"required"`
 }
 
 // claimDigestPayload is the semantic content of a claim request — everything

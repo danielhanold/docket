@@ -115,8 +115,8 @@ var reclaimActiveWorkspaceStates = map[string]bool{
 // ID and Version pin the exact submitted record; the reclaim generates its own
 // dated log entry, so there is no authored input.
 type ChangeReclaimRequest struct {
-	ID      int    `json:"id"`
-	Version string `json:"version"`
+	ID      int    `json:"id" docket:"required"`
+	Version string `json:"version" docket:"required"`
 }
 
 // ChangeReclaimResult is the protocol-v1 document `change reclaim` returns. It

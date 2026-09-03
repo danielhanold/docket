@@ -38,12 +38,12 @@ const OperationADRRecord = "adr.record"
 // non-reciprocal related-ADR references; Change, when set, names the producing
 // change the ADR is recorded against.
 type ADRRecordRequest struct {
-	RequestID    string `json:"request_id"`
-	Title        string `json:"title"`
-	Context      string `json:"context"`
-	Decision     string `json:"decision"`
-	Consequences string `json:"consequences"`
-	Alternatives string `json:"alternatives"`
+	RequestID    string `json:"request_id" docket:"required"`
+	Title        string `json:"title" docket:"required"`
+	Context      string `json:"context" docket:"required"`
+	Decision     string `json:"decision" docket:"required"`
+	Consequences string `json:"consequences" docket:"required"`
+	Alternatives string `json:"alternatives" docket:"required"`
 	RelatesTo    []int  `json:"relates_to"`
 
 	Change *ADRProducingChange `json:"change,omitempty"`
@@ -596,7 +596,7 @@ type ADRTarget struct {
 // carries the brand-new ADR's authored content and references (its own RequestID
 // is ignored — the outer key governs).
 type ADRReplaceRequest struct {
-	RequestID string           `json:"request_id"`
+	RequestID string           `json:"request_id" docket:"required"`
 	Target    ADRTarget        `json:"target"`
 	Successor ADRRecordRequest `json:"successor"`
 }

@@ -45,20 +45,20 @@ const whyDeferredHeading = "## Why deferred"
 // blocked_by reason the domain records. Authored text rides inside the string
 // fields and is never interpolated into any shell command.
 type ChangeBlockRequest struct {
-	ChangeID int    `json:"change_id"`
-	Path     string `json:"path"`
-	Version  string `json:"version"`
-	Reason   string `json:"reason"`
+	ChangeID int    `json:"change_id" docket:"required"`
+	Path     string `json:"path" docket:"required"`
+	Version  string `json:"version" docket:"required"`
+	Reason   string `json:"reason" docket:"required"`
 }
 
 // ChangeDeferRequest is the closed, caller-supplied request for one defer. Path
 // and Version pin the exact submitted record; WhyDeferred is the non-empty
 // authored ## Why deferred section body.
 type ChangeDeferRequest struct {
-	ChangeID    int    `json:"change_id"`
-	Path        string `json:"path"`
-	Version     string `json:"version"`
-	WhyDeferred string `json:"why_deferred"`
+	ChangeID    int    `json:"change_id" docket:"required"`
+	Path        string `json:"path" docket:"required"`
+	Version     string `json:"version" docket:"required"`
+	WhyDeferred string `json:"why_deferred" docket:"required"`
 }
 
 // ChangeLifecycleResult is the protocol-v1 document `change block` and

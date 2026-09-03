@@ -96,7 +96,7 @@ const (
 //
 // KNOWN GAPS (deferred, out of Task 3's stated census+ReasonStatus+domain
 // composition): codes minted through the change-create validateChangeCreateShape
-// add() closure (invalid-request-id, empty-{title,why,what_changes,out_of_scope},
+// add() closure (invalid-request_id, empty-{title,why,what_changes,out_of_scope},
 // invalid-stacked_on) and the app-local ReasonBacklink*/ReasonCloseout* reason
 // families are not enumerated here; they are not literal Code:/constructor mints
 // the shape guard reaches, and closing the vocabulary over them is Task 6's call.

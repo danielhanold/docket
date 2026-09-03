@@ -110,8 +110,8 @@ type AuthorizedChild struct {
 // the exact authorized set the human approved from the context read. The scalar
 // identities ride on flags; the authorized set rides in a bounded request file.
 type RetargetChildrenRequest struct {
-	ID       int               `json:"id"`
-	Version  string            `json:"version"`
+	ID       int               `json:"id" docket:"required"`
+	Version  string            `json:"version" docket:"required"`
 	Children []AuthorizedChild `json:"children"`
 }
 

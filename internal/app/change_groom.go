@@ -54,10 +54,10 @@ const specsDir = "docs/superpowers/specs"
 // empty collection clears the field). Authored Markdown rides inside the string
 // fields and is never interpolated into any shell command.
 type ChangeGroomRequest struct {
-	ChangeID int          `json:"change_id"`
-	Path     string       `json:"path"`    // current canonical record path
-	Version  string       `json:"version"` // exact full blob object id
-	Outcome  GroomOutcome `json:"outcome"`
+	ChangeID int          `json:"change_id" docket:"required"`
+	Path     string       `json:"path" docket:"required"`    // current canonical record path
+	Version  string       `json:"version" docket:"required"` // exact full blob object id
+	Outcome  GroomOutcome `json:"outcome" docket:"required"`
 
 	SpecMarkdown string               `json:"spec_markdown,omitempty"` // required for the spec outcome
 	Sections     []SectionEditRequest `json:"sections"`                // proposal-section edits

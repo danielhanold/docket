@@ -117,11 +117,11 @@ const (
 // PR is the canonical reference `pr publish` returned; EvidenceRecord is the
 // canonical build-evidence bytes, reparsed here — never a prior result.
 type MarkImplementedRequest struct {
-	ID             int
-	Version        string
-	Head           string
-	PR             string
-	EvidenceRecord []byte
+	ID             int    `docket:"required"`
+	Version        string `docket:"required"`
+	Head           string `docket:"required"`
+	PR             string `docket:"required"`
+	EvidenceRecord []byte `docket:"required"`
 }
 
 // ChangeMarkImplemented reprobes the five implemented-transition conjuncts from
