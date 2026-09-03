@@ -140,6 +140,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	// it is registered into the very root it walks.
 	capabilitiesCmd := newCapabilitiesCommand(info, func(r app.OperationResult) { result = r })
 
+	// The schema surface: a repository-, config-, git-, and network-independent
+	// read of the request/result payload schemas, wired here beside the
+	// capabilities bootstrap it mirrors.
+	schemaCmd := newSchemaCommand(func(r app.OperationResult) { result = r })
+
 	versionCmd := &cobra.Command{
 		Use:         "version",
 		Short:       "Report this binary's build identity",
@@ -369,7 +374,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, info buildinf
 	installCmd.AddCommand(installCheckCmd)
 	developmentCmd.AddCommand(developmentInstallCmd, developmentTestCmd)
 	diagnosticCmd.AddCommand(runtimeCmd, configCmd)
-	root.AddCommand(capabilitiesCmd, versionCmd, statusCmd, changeCmd, contextCmd, artifactCmd, workspaceCmd, evidenceCmd, prCmd, runCmd, learningCmd, adrCmd, gateCmd, finalizeCmd, maintenanceCmd, repositoryCmd, diagnosticCmd, installCmd, developmentCmd)
+	root.AddCommand(capabilitiesCmd, schemaCmd, versionCmd, statusCmd, changeCmd, contextCmd, artifactCmd, workspaceCmd, evidenceCmd, prCmd, runCmd, learningCmd, adrCmd, gateCmd, finalizeCmd, maintenanceCmd, repositoryCmd, diagnosticCmd, installCmd, developmentCmd)
 	root.AddCommand(extra...)
 
 	// The asset-dependence guard. Everything docket ships today is registered

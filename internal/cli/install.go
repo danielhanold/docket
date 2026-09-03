@@ -32,6 +32,7 @@ var assetIndependent = map[string]bool{
 	"":                           true, // bare `docket`: reports a missing command
 	"help":                       true,
 	"capabilities":               true, // the capability bootstrap must answer before any installation exists
+	"schema":                     true, // the schema surface is a pure read of the live Go types; no installed assets
 	"version":                    true,
 	"status":                     true,
 	"change":                     true, // the group itself; it reports a missing command

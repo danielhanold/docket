@@ -23,6 +23,19 @@ var noSchemaDocumentOps = map[string]bool{
 	"development.test": true,
 }
 
+// selfReferentialSchemaOps names catalog operations that DO emit a protocol-v1
+// document but carry no schema binding because their result is the schema
+// descriptor container itself. `schema`'s result (app.SchemaResult) is
+// self-referential — FieldDescriptor nests []FieldDescriptor and the document
+// carries a map[string]Vocabulary — so reflectDescriptor cannot describe it, and
+// binding it would fatally recurse in app.Schema. The schema op's own shape is
+// pinned by schema_version instead; every OTHER op it reports is bound normally.
+// This is a distinct, honest reason from noSchemaDocumentOps (which streams no
+// document at all), so it is a separate named set rather than a widened one.
+var selfReferentialSchemaOps = map[string]bool{
+	"schema": true,
+}
+
 // TestSchemaCatalogCorrespondence joins the capability catalog and the schema
 // registry on id, both ways: every catalog entry (bar a documented no-document op)
 // has a binding, every binding resolves to a catalog entry, and the counts equal.
@@ -47,12 +60,13 @@ func TestSchemaCatalogCorrespondence(t *testing.T) {
 		bound[b.ID] = true
 	}
 
-	// Reverse: every catalog entry except a documented no-document op is bound.
+	// Reverse: every catalog entry except a documented no-document op or the
+	// self-referential schema op is bound.
 	for _, e := range entries {
-		if bound[e.ID] || noSchemaDocumentOps[e.ID] {
+		if bound[e.ID] || noSchemaDocumentOps[e.ID] || selfReferentialSchemaOps[e.ID] {
 			continue
 		}
-		t.Errorf("catalog entry %q has no schema binding (and is not a documented no-document op)", e.ID)
+		t.Errorf("catalog entry %q has no schema binding (and is not a documented no-document or self-referential op)", e.ID)
 	}
 
 	// The named exceptions must be real catalog entries, so a stale name reddens.
@@ -61,11 +75,19 @@ func TestSchemaCatalogCorrespondence(t *testing.T) {
 			t.Errorf("noSchemaDocumentOps names %q, which is not a catalog entry — stale exception", id)
 		}
 	}
+	for id := range selfReferentialSchemaOps {
+		if !catalog[id] {
+			t.Errorf("selfReferentialSchemaOps names %q, which is not a catalog entry — stale exception", id)
+		}
+		if bound[id] {
+			t.Errorf("selfReferentialSchemaOps names %q, but it IS bound — remove the exception", id)
+		}
+	}
 
 	// Count closes the mirror: a new leaf without a binding, or a stale binding,
 	// breaks the equality even if the per-entry loops somehow miss it.
-	if len(bindings)+len(noSchemaDocumentOps) != len(entries) {
-		t.Errorf("bindings %d + no-document ops %d != catalog entries %d — a new leaf without a schema binding, or a stale binding",
-			len(bindings), len(noSchemaDocumentOps), len(entries))
+	if len(bindings)+len(noSchemaDocumentOps)+len(selfReferentialSchemaOps) != len(entries) {
+		t.Errorf("bindings %d + no-document ops %d + self-referential ops %d != catalog entries %d — a new leaf without a schema binding, or a stale binding",
+			len(bindings), len(noSchemaDocumentOps), len(selfReferentialSchemaOps), len(entries))
 	}
 }
