@@ -2,11 +2,11 @@
 id: 293
 slug: test-gate-run-stop-s-term-escalation-fixture-deadline-is-at
 title: 'test_gate_run_stop''s TERM-escalation fixture deadline is at exact parity with stop_run''s own TERM budget'
-status: proposed
+status: 'killed'
 priority: high
 type: fix
 created: 2026-08-11
-updated: 2026-08-11
+updated: '2026-09-03'
 depends_on: []
 related: []
 discovered_from: [284]
@@ -69,3 +69,7 @@ escalation, `gate-run.sh`'s semantics, the `barrier`/`wedge` hooks themselves, a
 `tests/test_gate_run_stop.sh` passing **unchanged** its own safety net: an edit to either file is
 the declared tell that its `gate-run.sh` refactor was not behaviour-preserving. Fixing this on that
 branch would remove the evidence that the refactor was safe, so it cannot ride 0284 at any price.
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): already fixed in Go — the Bash supervisor is deleted; internal/process uses an injected stopTermWait test seam, so no fixture/production parity exists.
