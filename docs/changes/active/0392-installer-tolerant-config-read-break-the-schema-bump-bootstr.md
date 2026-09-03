@@ -6,13 +6,13 @@ status: 'proposed'
 priority: high
 type: 'fix'
 created: '2026-09-01'
-updated: '2026-09-02'
+updated: '2026-09-03'
 depends_on: []
 stacked_on:
 related: []
 discovered_from: [374]
-adrs: [19]
-spec:
+adrs: [19, 102]
+spec: 'docs/superpowers/specs/2026-09-03-installer-tolerant-config-read-break-the-schema-bump-bootstr-design.md'
 plan:
 results:
 trivial: false
@@ -29,7 +29,8 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md) |
+| Spec | [2026-09-03-installer-tolerant-config-read-break-the-schema-bump-bootstr-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-03-installer-tolerant-config-read-break-the-schema-bump-bootstr-design.md) |
+| ADRs | [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0102](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0102-build-and-finalize-own-independent-gate-and-test-command-con.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -38,8 +39,8 @@ docket's config parser enforces a deliberate strict typo policy: an unrecognized
 
 ## What changes
 
-On the install/rebuild path ONLY, downgrade the forward-compat error class specifically — an unrecognized/unknown top-level key in the repository config layer — from a fatal `invalid configuration` error to a non-fatal warning, and proceed with defaults for the repository phase so `docket development install --source` always completes even when the installed binary predates the on-disk schema. The leniency is scoped narrowly: only the unknown-field class degrades; genuinely malformed YAML, wrong-typed values, and coordination-fence violations still fail the install unchanged. Every other command (status, finalize, prepare, …) keeps the strict typo policy fully intact — an old binary still refuses to OPERATE on an unknown field, it just can never be blocked from REBUILDING. The seam is the install repository phase's config read (internal/install repophase + its resolveRepo path); the install service already avoids the repo layer (internal/install/service.go:61), so this narrows to that one read. Tests: (1) a `.docket.yml` with an unknown top-level key + a schema-older binary → `development install` completes with a warning, not an error; (2) a malformed/mis-typed `.docket.yml` → install still fails.
+On the install path only, tolerate unknown configuration keys. `config.ResolveContext` gains a `TolerateUnknownKeys` flag that reclassifies the `unknown-key` diagnostic class — at any depth — from error to warning, with a remedy naming both causes (a newer docket than the one running, or a typo); the snapshot stays valid and the unknown subtree resolves to defaults. The flag is set at exactly one site, the CLI's shared `installOptions`, so `docket install`, `docket install check`, and `docket development install` all complete against a config written for a newer schema, and the development-install parent reaches the build-and-hand-off step instead of refusing. Malformed YAML, duplicate keys, wrong types, bad values, and the coordination fence stay fatal on the install path; every other command keeps the strict typo policy unchanged. The install reads stop discarding their diagnostics: warning-severity diagnostics surface in the install result (`warnings`) and as one human line each. One ADR records the decision; CLAUDE.md's schema-bump rebuild caveat is replaced by a one-line note.
 
 ## Out of scope
 
-General-parser forward-compatibility (making status/finalize/all commands tolerate a future top-level block) — deliberately rejected in brainstorm in favor of the narrow installer-only fix. Schema versioning (a `schema_version` field gating tolerance). Any change to the strict typo policy in normal (non-install) commands or to the existing curated warn-and-ignore surfaces (unknown skills.* roles, board.sorting.* sections).
+General-parser forward-compatibility for operating commands (status, finalize, prepare, and the rest) and schema versioning — rejected in brainstorm in favour of the narrow install-only fix. Any relaxation of the other invalid diagnostic classes or the coordination fence, on any path. A parent-side warning line for `development install` (the candidate prints the sole document). Changes to the existing curated warn-and-ignore surfaces (unknown `skills.*` roles, `board.sorting.*` sections).
