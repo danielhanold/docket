@@ -65,3 +65,8 @@ guard is a different kind of work in different files, and folding it in would ha
 whose whole scope was prose and sentinels. It also needs its own design pass: the harness's
 parameter surface is the entire question, and five recurrences give real evidence about what that
 surface has to cover.
+
+## Open questions
+
+- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target: the proposed home (`scripts/mutation-probe.sh` + `.md`, `grep -c` landing checks) is deleted and no Go successor exists. Options: a `docket development` subcommand that mutates / `go test`s / restores, or a prose template in the plan-writer / build-task guidance. The recurrence evidence is all Bash-era — re-check whether the class still fires on Go-native plans before building.
+
