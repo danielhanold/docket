@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0222 — Raise docket's minimum Bash from 4+ to 4.4](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0222-raise-docket-s-minimum-bash-from-4-to-4-4.md)**
+> ↩ **[Change 0222 — Raise docket's minimum Bash from 4+ to 4.4](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-03-0222-raise-docket-s-minimum-bash-from-4-to-4-4.md)**
 <!-- docket:backlink:end -->
 
 # Raise docket's minimum Bash from 4+ to 4.4 — design

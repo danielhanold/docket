@@ -2,11 +2,11 @@
 id: 222
 slug: raise-docket-s-minimum-bash-from-4-to-4-4
 title: Raise docket's minimum Bash from 4+ to 4.4
-status: proposed
+status: 'killed'
 priority: medium
 type: chore
 created: 2026-08-05
-updated: 2026-08-07
+updated: '2026-09-03'
 depends_on: [211]
 related: [150, 117, 200, 227]
 discovered_from: [211]
@@ -141,3 +141,7 @@ All resolved by the 2026-08-07 groom (details in the spec's Assumptions):
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): superseded by the Go migration — all five Bash floor-enforcement sites are deleted; the only remaining shell entrypoint is POSIX install.sh.
