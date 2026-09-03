@@ -76,6 +76,7 @@ Candidate directions to weigh at brainstorm time (not decided):
   integration branch), or also in main-mode where the single tree already carries the merge locally?
 - Should the merge-reachable assertion be a hard failure of the close-out, or a loud warning that
   still lets `done` stand (the merge itself already landed correctly)?
+- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target: the policy in AGENTS.md is unchanged and nothing in `skills/docket-finalize-change` or `internal/app/finalize_*.go` asserts merge-commit ancestry before the rebuild. Put the check in the Go finalize closeout (`finalize_closeout.go` already fetches the integration tip and has the merge commit) and/or `docket development install` (`internal/app/install.go`): assert the merge is an ancestor of the `--source` HEAD, or fast-forward the source tree first. The `docket.sh` facade aside is moot.
 
 ## Reconcile log
 
