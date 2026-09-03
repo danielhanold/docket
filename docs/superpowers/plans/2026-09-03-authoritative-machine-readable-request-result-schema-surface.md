@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0399 — Authoritative machine-readable request/result schema surface](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0399-authoritative-machine-readable-request-result-schema-surface.md)**
+> ↩ **[Change 0399 — Authoritative machine-readable request/result schema surface](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-03-0399-authoritative-machine-readable-request-result-schema-surface.md)**
 <!-- docket:backlink:end -->
 # Authoritative Machine-Readable Request/Result Schema Surface — Implementation Plan
 
