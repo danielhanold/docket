@@ -2,11 +2,11 @@
 id: 160
 slug: a-committed-too-deep-runtime-bash-lost-its-machine-local-ign
 title: A committed too-deep runtime.bash lost its machine-local ignored advisory
-status: proposed
+status: 'killed'
 priority: low
 type: fix
 created: 2026-07-28
-updated: 2026-08-09
+updated: '2026-09-03'
 depends_on: []
 related: []
 discovered_from: [157]
@@ -70,3 +70,7 @@ is removed again.
   (ADR-0019's coordination-key fence and the `runtime.bash` exception both stand).
 - Making a committed too-deep `runtime.bash` fatal in the way the local/global layers are. That is
   a posture change for the committed layer, and it would need its own justification.
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): superseded by the Go migration — the Bash runtime is sunset and internal/config already tombstones runtime.bash as obsolete.
