@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0272 — De-duplicate the gitignore-block writer's second copy of the write orchestration](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0272-de-duplicate-the-gitignore-block-writer-s-second-copy-of-the.md)**
+> ↩ **[Change 0272 — De-duplicate the gitignore-block writer's second copy of the write orchestration](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-03-0272-de-duplicate-the-gitignore-block-writer-s-second-copy-of-the.md)**
 <!-- docket:backlink:end -->
 
 # De-duplicate the gitignore-block writer's false-success — redirect-status keying (change 0272)

@@ -2,11 +2,11 @@
 id: 272
 slug: de-duplicate-the-gitignore-block-writer-s-second-copy-of-the
 title: 'De-duplicate the gitignore-block writer''s second copy of the write orchestration'
-status: proposed
+status: 'killed'
 priority: low
 type: fix
 created: 2026-08-08
-updated: 2026-08-09
+updated: '2026-09-03'
 depends_on: []
 related: []
 discovered_from: [242]
@@ -65,3 +65,7 @@ executable caller is the dispatch-surface writer it introduced. The `.gitignore`
 callers (including the two setup scripts), a different test file, and a different blast radius at
 first-run bootstrap; pulling it into a branch about the Claude run-completion gate would expand that
 branch's scope into setup-path behavior it otherwise never touches.
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): superseded by the Go migration — scripts/lib/docket-gitignore-block.sh is deleted; the Go EnsureGitignoreBlock returns write errors instead of a false success.
