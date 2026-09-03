@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0266 — Deterministic frontmatter field writer — no skill hand-rolls a manifest edit](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0266-deterministic-frontmatter-field-writer-no-skill-hand-rolls-a.md)**
+> ↩ **[Change 0266 — Deterministic frontmatter field writer — no skill hand-rolls a manifest edit](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-03-0266-deterministic-frontmatter-field-writer-no-skill-hand-rolls-a.md)**
 <!-- docket:backlink:end -->
 
 # Deterministic frontmatter field writer — design (change 0266)
