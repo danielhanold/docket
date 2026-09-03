@@ -12,7 +12,7 @@ stacked_on:
 related: [283, 385]
 discovered_from: []
 adrs: [53]
-spec:
+spec: 'docs/superpowers/specs/2026-09-03-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate-design.md'
 plan:
 results:
 trivial: false
@@ -29,6 +29,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-09-03-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-03-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate-design.md) |
 | ADRs | [ADR-0053](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0053-readme-yaml-fences-guarded-by-default-opt-out-marker-grammar.md) |
 <!-- docket:artifacts:end -->
 
