@@ -58,3 +58,8 @@ Coupling: `related: [253]` — 0253 rewrites prose-anchored guards in the same t
 
 - 0200's board-checks bundle (separate, larger, re-scoped).
 - Any new guard machinery beyond the anchoring fixes named; helper hoisting (0252); guard-pattern policy (0253); producer-pipe hygiene (0172).
+
+## Open questions
+
+- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Narrow to E2 (convention `unset key = the superpowers default shown`), E6 (gate-failure deadlock clause), E7 (AGENTS.md whitespace-class/read-back rule), E8 (bounded rationale-loss sweep). E1 is already fixed; E3/E4/E5 targeted deleted Bash tests.
+
