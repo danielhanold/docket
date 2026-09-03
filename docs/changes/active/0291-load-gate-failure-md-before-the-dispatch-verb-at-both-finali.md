@@ -57,3 +57,8 @@ there: no change to what is dispatched, when finalize dispatches it, or to `gate
 dispatch sentences, to avoid two marker sites to keep in agreement). Editing those exact sentences
 reopens a decision a human audited, and an autonomous run must not reverse an audited assumption
 inside a branch scoped to honour it. It also touches a file 0260 otherwise never modifies.
+
+## Open questions
+
+- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target to today's wording: the quoted `read references/gate-failure.md now (blocking)` clauses moved; the resolver loop and repair step now point at the carve-out section and the single read instruction sits at the abort. The ordering gap still holds. `tests/test_finalize_gate.sh` is deleted; any ordering guard belongs in `internal/repoguard/prose_contracts_test.go`.
+
