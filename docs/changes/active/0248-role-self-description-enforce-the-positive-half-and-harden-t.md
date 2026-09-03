@@ -54,3 +54,8 @@ All matcher shapes were empirically verified against the current tree under both
 
 - Softening the 0194 convention rule (rejected — enforce).
 - New role skills.
+
+## Open questions
+
+- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target: `skills/docket-review/SKILL.md` still has zero occurrences of `skills.review`, so the prose fix stands. The guard the spec hardens (`tests/test_role_skill_self_description.sh`, `claim_hits()`, `ROLE_SKILLS=`) is deleted; move the positive-half assert to `internal/repoguard/prose_contracts_test.go`, deriving role names from `internal/config`.
+
