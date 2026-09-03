@@ -215,6 +215,34 @@ func TestChangeReconcileUnknownFieldRejected(t *testing.T) {
 	}
 }
 
+// TestInputDecodeErrorNamesInputFlag proves a malformed --input body's error
+// names the flag the caller actually passed, never --request. The message
+// rides the JSON result document on stdout (--json mode), which is why the
+// assertion reads stdout rather than stderr.
+func TestInputDecodeErrorNamesInputFlag(t *testing.T) {
+	out, _, code := runCLIStdin(t, `{not json`, "change", "reconcile", "--input", "-", "--json")
+	if code != 2 {
+		t.Fatalf("exit = %d, want 2 (stdout %q)", code, out)
+	}
+	if !strings.Contains(out, "--input") || strings.Contains(out, "--request") {
+		t.Errorf("decode error must name --input and not --request: %q", out)
+	}
+}
+
+// TestUnknownFieldErrorListsAcceptedKeys proves an unknown-field refusal
+// teaches the caller the real key set instead of only naming the bad key.
+func TestUnknownFieldErrorListsAcceptedKeys(t *testing.T) {
+	out, _, code := runCLIStdin(t, `{"change_id":1}`, "change", "reconcile", "--input", "-", "--json")
+	if code != 2 {
+		t.Fatalf("exit = %d, want 2 (stdout %q)", code, out)
+	}
+	for _, key := range []string{"id", "version", "sections", "spec_sections", "relations", "reconcile_log_entry"} {
+		if !strings.Contains(out, key) {
+			t.Errorf("unknown-field error must list accepted key %q: %q", key, out)
+		}
+	}
+}
+
 // TestChangeClaimFlagsRequired proves --id and --version are required: omitting
 // them is an argument error (exit 2) before any operation runs.
 func TestChangeClaimFlagsRequired(t *testing.T) {

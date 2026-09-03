@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -443,7 +444,7 @@ func changeInputSubcommand(verb, short string, run func(c *cobra.Command, deps a
 // JSON document into dst, reusing decodeRequest's exactly-one-document rule.
 func decodeInputFlag(c *cobra.Command, dst any) error {
 	source, _ := c.Flags().GetString("input")
-	return decodeRequest(c.InOrStdin(), source, dst)
+	return decodeRequest(c.InOrStdin(), "--input", source, dst)
 }
 
 // changeIDVersionSubcommand builds one `change <verb>` command whose input is the
@@ -548,7 +549,7 @@ func newPlanningDepsOver(client *gitcli.Client) (app.PlanningDeps, error) {
 // one JSON document into dst.
 func decodeRequestFlag(c *cobra.Command, dst any) error {
 	source, _ := c.Flags().GetString("request")
-	return decodeRequest(c.InOrStdin(), source, dst)
+	return decodeRequest(c.InOrStdin(), "--request", source, dst)
 }
 
 // decodeRequest reads a closed JSON request from source — "-" for stdin, any
@@ -556,14 +557,14 @@ func decodeRequestFlag(c *cobra.Command, dst any) error {
 // unknown fields rejected. An unknown field, malformed JSON, trailing content,
 // or an unreadable path is an argument error the caller surfaces as invalid
 // input.
-func decodeRequest(stdin io.Reader, source string, dst any) error {
+func decodeRequest(stdin io.Reader, flagName, source string, dst any) error {
 	var r io.Reader
 	if source == "-" {
 		r = stdin
 	} else {
 		f, err := os.Open(source)
 		if err != nil {
-			return fmt.Errorf("reading --request %q: %w", source, err)
+			return fmt.Errorf("reading %s %q: %w", flagName, source, err)
 		}
 		defer f.Close()
 		r = f
@@ -572,11 +573,16 @@ func decodeRequest(stdin io.Reader, source string, dst any) error {
 	dec := json.NewDecoder(r)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
-		return fmt.Errorf("decoding --request JSON: %w", err)
+		// An unknown-field refusal names only the offending key; append the
+		// accepted key set so the caller learns the whole closed vocabulary.
+		if strings.Contains(err.Error(), "unknown field") {
+			return fmt.Errorf("decoding %s JSON: %w (accepted keys: %s)", flagName, err, strings.Join(requestJSONKeys(dst), ", "))
+		}
+		return fmt.Errorf("decoding %s JSON: %w", flagName, err)
 	}
 	// Exactly one document: a second decode must be the clean end of the stream.
 	if err := dec.Decode(&json.RawMessage{}); err != io.EOF {
-		return errors.New("--request must contain exactly one JSON document")
+		return fmt.Errorf("%s must contain exactly one JSON document", flagName)
 	}
 	return nil
 }
