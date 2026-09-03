@@ -1,6 +1,6 @@
 # Backlog
 
-**398 changes** — 🔵 1 built · 🟣 8 groomed · 🟡 33 proposed · ⚪ 4 deferred · ✅ 246 done · 🗑️ 106 killed
+**398 changes** — 🔵 1 built · 🟣 8 groomed · 🟡 32 proposed · ⚪ 4 deferred · ✅ 246 done · 🗑️ 107 killed
 
 ## 🔵 Built (1)
 
@@ -21,7 +21,7 @@
 | [0166](active/0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | `low` | `chore` | [spec](../superpowers/specs/2026-08-07-retune-the-interactive-skills-advisory-session-model-recomme-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
-## 🟡 Proposed (33)
+## 🟡 Proposed (32)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -54,7 +54,6 @@
 | [0302](active/0302-mint-stub-dedup-misses-a-general-form-parent-of-a-specific-d.md) | mint-stub dedup misses a general-form parent of a specific discovery | `medium` | `fix` | needs-brainstorm |
 | [0301](active/0301-the-convention-doc-s-lifecycle-cardinalities-are-hardcoded-p.md) | The convention doc's lifecycle cardinalities are hardcoded prose with no guard | `medium` | `docs` | needs-brainstorm |
 | [0300](active/0300-close-the-single-backslash-word-boundary-gap-convert-the-56.md) | Close the single-backslash word-boundary gap: convert the 56 sites and make the census gating | `medium` | `fix` | needs-brainstorm |
-| [0297](active/0297-relax-0212-s-sites-backtick-ban-now-that-the-hygiene-gate-en.md) | Relax 0212's SITES backtick ban now that the hygiene gate enforces it | `medium` | `refactor` | needs-brainstorm |
 | [0292](active/0292-shared-tested-mutation-probe-harness-take-the-landing-check.md) | Shared, tested mutation-probe harness — take the landing check out of each plan author's care | `high` | `feat` | needs-brainstorm |
 | [0291](active/0291-load-gate-failure-md-before-the-dispatch-verb-at-both-finali.md) | Load gate-failure.md before the dispatch verb at both finalize gate steps | `medium` | `refactor` | needs-brainstorm |
 | [0263](active/0263-guard-the-remaining-agents-md-shell-rules-across-scripts-tes.md) | Guard the remaining AGENTS.md Shell rules across scripts, tests, and agent-executed markdown | `medium` | `chore` | ⏳ waiting on #172 — not yet built |
@@ -85,7 +84,6 @@ graph TD
   0283
   0291
   0292
-  0297
   0300
   0301
   0302
@@ -123,10 +121,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (352)</summary>
+<details><summary>✅🗑️ Archive — done + killed (353)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0297](archive/2026-09-03-0297-relax-0212-s-sites-backtick-ban-now-that-the-hygiene-gate-en.md) | Relax 0212's SITES backtick ban now that the hygiene gate enforces it | 2026-09-03 |
 | [0296](archive/2026-09-03-0296-shard-tests-test-docket-status-sh-its-runtime-row-is-at-the.md) | Shard tests/test_docket_status.sh — its runtime row is at the table's hard 60s ceiling | 2026-09-03 |
 | [0295](archive/2026-09-03-0295-make-render-change-links-sh-genuinely-offline-safe-stop-re-r.md) | Make render-change-links.sh genuinely offline-safe — stop re-resolving config with a network fetch | 2026-09-03 |
 | [0293](archive/2026-09-03-0293-test-gate-run-stop-s-term-escalation-fixture-deadline-is-at.md) | test_gate_run_stop's TERM-escalation fixture deadline is at exact parity with stop_run's own TERM budget | 2026-09-03 |

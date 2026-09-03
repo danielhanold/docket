@@ -2,11 +2,11 @@
 id: 297
 slug: relax-0212-s-sites-backtick-ban-now-that-the-hygiene-gate-en
 title: 'Relax 0212''s SITES backtick ban now that the hygiene gate enforces it'
-status: proposed
+status: 'killed'
 priority: medium
 type: refactor
 created: 2026-08-11
-updated: 2026-08-11
+updated: '2026-09-03'
 depends_on: []
 related: []
 discovered_from: [221]
@@ -55,3 +55,7 @@ or what the guard asserts.
 comment"), and the relaxation is only safe *after* 0221's gate is merged and proven; folding it in
 would expand 0221's branch into the very file whose incident motivated it, mixing the enforcement
 with a relaxation that depends on it.
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): superseded by the Go migration — the SITES block lived in the deleted tests/test_inline_role_stop_scoping.sh and the Bash hygiene checker is gone with it.
