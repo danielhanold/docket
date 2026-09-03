@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'docs/rewrite-the-readme-as-a-goal-first-landing-page-and-relocate'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-03T23:02:48Z'
+reconciled: true
+claimed_at: '2026-09-03T23:05:17Z'
 ---
 
 ## Artifacts
@@ -56,3 +56,9 @@ The technical content the README carries today is still needed; it moves, unchan
 - Any change to skills, agents, the CLI, or `.docket.example.yml`; this change touches prose and the guard table only.
 - Fixing the documentation drift the comparison surfaced inside skill bodies (references to the retired Bash control-plane scripts) — a separate change.
 - New product features suggested by the comparison (PR-comment fix loop, policy skills, no-test-edits guard, production intake, metrics digest).
+
+## Reconcile log
+
+### 2026-09-03
+
+2026-09-03 — Reconciled at claim. The change was drafted and its spec settled earlier the same day, so current reality still matches it: README.md is 1,075 lines and mechanism-organised; ADR-0053 (the retired README YAML-fence guard) is cited unchanged; the six `internal/repoguard/prose_contracts_test.go` README rows named by the spec all exist with the exact `present`/`absent` phrases the spec's table pins (`test_consultant_brainstorm`, `test_skill_fork_dispatch`, `test_readme_finalize_docs`, `test_readme_skill_catalog`, `test_cursor_permissions_docs`, `test_typed_changes_docs`); and both related changes (283 slim-AGENTS.md, 385 cursor-permissions-docs) remain `proposed` and unmerged, so neither collides with this prose-and-guard move. No scope change, no new constraint, no dependency to fold in. Relations (`related: [283, 385]`, `adrs: [53]`) left as authored. Proceeding to plan and build as specified.
