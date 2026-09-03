@@ -101,6 +101,7 @@ Candidate mechanical checks (design owns which script vs skill, not this stub):
   or this ships in Bash first and 0316 inherits the contract.
 - Whether fetch-before-lease is a general finalize-gate rule (any feature branch) or only the
   stack-root path that can race a just-merged child.
+- **Backlog review 2026-09-02 (Bash→Go migration)** — still valid for Docket Go; needs regrooming against the Go tree. Re-target: Go closeout already proves the root's merge commit reachable from a fresh integration tip (`finalize_closeout.go`) and rebase fetches the remote head (`finalize_rebase.go`), but descendant carry in `internal/domain/stackcloseout.go` is still proven via merged-PR destinations, not git ancestry. Move to: refuse to rewrite a stack root whose stacked-merged children's merge commits are not ancestors of the head being rebased, and prove each descendant by ancestry at closeout. Drop the `stack-closeout.sh` open question.
 
 ## Reconcile log
 
