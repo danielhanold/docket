@@ -60,7 +60,7 @@ func newPRCommand(setResult func(app.OperationResult)) *cobra.Command {
 			evSource, _ := c.Flags().GetString("evidence")
 
 			var body prBodyRequest
-			if err := decodeRequest(c.InOrStdin(), bodySource, &body); err != nil {
+			if err := decodeRequest(c.InOrStdin(), "--body", bodySource, &body); err != nil {
 				return err
 			}
 			evidence, err := readRecordSource(c.InOrStdin(), evSource)
