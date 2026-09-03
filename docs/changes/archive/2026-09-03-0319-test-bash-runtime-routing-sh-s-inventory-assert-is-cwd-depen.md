@@ -2,11 +2,11 @@
 id: 319
 slug: test-bash-runtime-routing-sh-s-inventory-assert-is-cwd-depen
 title: 'test_bash_runtime_routing.sh''s inventory assert is cwd-dependent — relative rg globs resolve against the process cwd'
-status: proposed
+status: 'killed'
 priority: medium
 type: fix
 created: 2026-08-13
-updated: 2026-08-13
+updated: '2026-09-03'
 depends_on: []
 stacked_on:
 related: []
@@ -56,3 +56,7 @@ shape is found there by a repo-wide grep, which is the natural first step.
 **Reason for deferral** — 0304 established the Go executable skeleton and touched none of the Bash
 runtime-routing surface; repairing an unrelated pre-existing suite file would have expanded that
 branch's scope and mixed an incidental fix into a foundation-slice diff.
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): superseded by the Go migration — tests/test_bash_runtime_routing.sh and the routing mechanism it asserted are deleted.
