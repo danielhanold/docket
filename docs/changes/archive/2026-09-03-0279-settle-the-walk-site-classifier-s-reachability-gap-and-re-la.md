@@ -2,11 +2,11 @@
 id: 279
 slug: settle-the-walk-site-classifier-s-reachability-gap-and-re-la
 title: 'Settle the walk-site classifier''s reachability gap and re-land 0258''s reverted fixes'
-status: proposed
+status: 'killed'
 priority: medium
 type: chore
 created: 2026-08-09
-updated: 2026-08-09
+updated: '2026-09-03'
 depends_on: []
 related: [251]
 discovered_from: [258]
@@ -81,3 +81,7 @@ Groomed autonomously 2026-08-09 (critic-gated, two rounds); design detail in the
 - The runtime-budget regime for `tests/test_docket_config.sh` (#0251, `related:` — same test
   file; corpus-indifferent on both sides, whichever lands second rebases; no `depends_on`).
 - `find`-site glob handling (no false positive exists there today).
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): superseded by the Go migration — tests/test_skip_allowlist_invisibility.sh and tests/test_docket_config.sh are deleted; the skip gate it guarded is deferred from Go v1.

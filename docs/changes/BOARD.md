@@ -1,6 +1,6 @@
 # Backlog
 
-**398 changes** — 🔵 1 built · 🟣 9 groomed · 🟡 41 proposed · ⚪ 4 deferred · ✅ 246 done · 🗑️ 97 killed
+**398 changes** — 🔵 1 built · 🟣 8 groomed · 🟡 41 proposed · ⚪ 4 deferred · ✅ 246 done · 🗑️ 98 killed
 
 ## 🔵 Built (1)
 
@@ -8,13 +8,12 @@
 |---|-------|----------|------|----|-------|
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
-## 🟣 Groomed (9)
+## 🟣 Groomed (8)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
 | [0261](active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | `high` | `feat` | [spec](../superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) |
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-slim-agents-md-to-an-effective-claude-md-design.md) |
-| [0279](active/0279-settle-the-walk-site-classifier-s-reachability-gap-and-re-la.md) | Settle the walk-site classifier's reachability gap and re-land 0258's reverted fixes | `medium` | `chore` | [spec](../superpowers/specs/2026-08-09-settle-the-walk-site-classifier-s-reachability-gap-and-re-la-design.md) |
 | [0273](active/0273-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the.md) | Put runtime budgets on a host-relative basis and re-seed the table | `high` | `refactor` | [spec](../superpowers/specs/2026-08-09-put-runtime-budgets-on-a-host-relative-basis-and-re-seed-the-design.md) |
 | [0257](active/0257-clear-the-residual-review-findings-from-0193-and-0201.md) | Clear the residual review findings from 0193 and 0201 | `low` | `chore` | [spec](../superpowers/specs/2026-08-07-clear-the-residual-review-findings-from-0193-and-0201-design.md) |
 | [0248](active/0248-role-self-description-enforce-the-positive-half-and-harden-t.md) | Role self-description: enforce the positive half and harden the guard | `low` | `chore` | [spec](../superpowers/specs/2026-08-07-role-self-description-enforce-the-positive-half-and-harden-t-design.md) |
@@ -91,7 +90,6 @@ graph TD
   0261
   0172 --> 0263
   0251 --> 0273
-  0279
   0280
   0283
   0287
@@ -141,10 +139,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (343)</summary>
+<details><summary>✅🗑️ Archive — done + killed (344)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0279](archive/2026-09-03-0279-settle-the-walk-site-classifier-s-reachability-gap-and-re-la.md) | Settle the walk-site classifier's reachability gap and re-land 0258's reverted fixes | 2026-09-03 |
 | [0272](archive/2026-09-03-0272-de-duplicate-the-gitignore-block-writer-s-second-copy-of-the.md) | De-duplicate the gitignore-block writer's second copy of the write orchestration | 2026-09-03 |
 | [0266](archive/2026-09-03-0266-deterministic-frontmatter-field-writer-no-skill-hand-rolls-a.md) | Deterministic frontmatter field writer — no skill hand-rolls a manifest edit | 2026-09-03 |
 | [0265](archive/2026-09-03-0265-branch-the-adr-0065-quote-leg-diagnostic-so-it-stops-claimin.md) | Branch the ADR-0065 quote-leg diagnostic so it stops claiming a truncation that did not happen | 2026-09-03 |

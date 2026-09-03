@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0279 — Settle the walk-site classifier's reachability gap and re-land 0258's reverted fixes](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0279-settle-the-walk-site-classifier-s-reachability-gap-and-re-la.md)**
+> ↩ **[Change 0279 — Settle the walk-site classifier's reachability gap and re-land 0258's reverted fixes](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-03-0279-settle-the-walk-site-classifier-s-reachability-gap-and-re-la.md)**
 <!-- docket:backlink:end -->
 
 # Settle the walk-site classifier's reachability gap and re-land 0258's reverted fixes — design
