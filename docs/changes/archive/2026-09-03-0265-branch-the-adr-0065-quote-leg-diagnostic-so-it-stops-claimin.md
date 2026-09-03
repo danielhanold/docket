@@ -2,11 +2,11 @@
 id: 265
 slug: branch-the-adr-0065-quote-leg-diagnostic-so-it-stops-claimin
 title: 'Branch the ADR-0065 quote-leg diagnostic so it stops claiming a truncation that did not happen'
-status: proposed
+status: 'killed'
 priority: low
 type: fix
 created: 2026-08-08
-updated: 2026-08-09
+updated: '2026-09-03'
 depends_on: []
 related: [256, 267]
 discovered_from: [255]
@@ -78,3 +78,7 @@ Settled design in the linked spec (auto-groomed 2026-08-09; critic-gated, one re
 - Shared-helper extraction (that is #0256 — forward-linked in `related:`; the two new branched
   copies are recorded there for the consolidator).
 - Any ADR change — message text and a docs correction change no decision.
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): superseded by the Go migration — both legs edit sync-agents.sh / scripts/lib; the diagnostic string does not exist in Go.

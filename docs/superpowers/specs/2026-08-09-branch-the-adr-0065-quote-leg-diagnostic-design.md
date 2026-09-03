@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0265 — Branch the ADR-0065 quote-leg diagnostic so it stops claiming a truncation that did not happen](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0265-branch-the-adr-0065-quote-leg-diagnostic-so-it-stops-claimin.md)**
+> ↩ **[Change 0265 — Branch the ADR-0065 quote-leg diagnostic so it stops claiming a truncation that did not happen](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-03-0265-branch-the-adr-0065-quote-leg-diagnostic-so-it-stops-claimin.md)**
 <!-- docket:backlink:end -->
 
 # Branch the ADR-0065 quote-leg diagnostic — design
