@@ -45,12 +45,12 @@ func normalizeCloseoutNotes(n CloseoutNotes) (CloseoutNotes, []StatusFinding) {
 		for i, e := range entries {
 			t := strings.TrimSpace(e)
 			if t == "" {
-				findings = append(findings, lifecycleFinding("empty-note-entry",
+				findings = append(findings, lifecycleFinding(FCEmptyNoteEntry,
 					fmt.Sprintf("%s[%d] is empty after trimming; drop the entry or write one", label, i)))
 				continue
 			}
 			if reason := invalidNoteText(t); reason != "" {
-				findings = append(findings, lifecycleFinding("invalid-note-entry",
+				findings = append(findings, lifecycleFinding(FCInvalidNoteEntry,
 					fmt.Sprintf("%s[%d] %s", label, i, reason)))
 				continue
 			}

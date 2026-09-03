@@ -519,12 +519,12 @@ func (o changeRepairOp) Plan(ctx context.Context, st transaction.AttemptState) (
 
 	c, out := snap.Change(domain.ChangeID(o.changeID))
 	if out != domain.LookupFound {
-		return refuseLifecycle("not-found", fmt.Sprintf("change %04d is not present in the current corpus", o.changeID))
+		return refuseLifecycle(FCNotFound, fmt.Sprintf("change %04d is not present in the current corpus", o.changeID))
 	}
 
 	src, ok := st.State.Sources[c.Path()]
 	if !ok {
-		return refuseLifecycle("path-mismatch",
+		return refuseLifecycle(FCPathMismatch,
 			fmt.Sprintf("no record source loaded at %q for change %04d", c.Path(), o.changeID))
 	}
 
@@ -553,7 +553,7 @@ func (o changeRepairOp) Plan(ctx context.Context, st transaction.AttemptState) (
 
 	body, err := render.ArtifactBlockContent(gc, candidate, o.link)
 	if err != nil {
-		return refuseLifecycle("artifact-render-failed", err.Error())
+		return refuseLifecycle(FCArtifactRenderFailed, err.Error())
 	}
 	doc2, err := document.Parse(intermediate)
 	if err != nil {

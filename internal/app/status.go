@@ -343,7 +343,7 @@ func parseCorpus(blobs []StatusBlob) ([]repository.InputDocument, []StatusFindin
 
 // parseFinding normalizes a document.Parse failure into a StatusFinding.
 func parseFinding(b StatusBlob, err error) StatusFinding {
-	code := "parse-failed"
+	code := string(FCParseFailed)
 	var de *document.Error
 	if errors.As(err, &de) {
 		code = string(de.Kind)
@@ -493,7 +493,7 @@ func artifactChecks(ctx context.Context, reader StatusReader, pin StatusPin, c d
 		}
 		if !exists {
 			findings = append(findings, StatusFinding{
-				Code:     "artifact-missing",
+				Code:     string(FCArtifactMissing),
 				Severity: string(domain.SeverityError),
 				Entity:   string(domain.EntityChange),
 				Identity: changeIdentity(c.ID()),

@@ -134,15 +134,15 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 
 	// (0) Request shape: a positive id, a non-empty version, a full-hex head, a
 	// non-empty PR reference, and non-empty evidence bytes.
-	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), "empty-path")
+	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
 	if !validFullOID(req.Head) {
-		findings = append(findings, lifecycleFinding(ReasonImplementedHeadInvalid, "head must be a full lowercase-hex object id"))
+		findings = append(findings, lifecycleFinding(FindingCode(ReasonImplementedHeadInvalid), "head must be a full lowercase-hex object id"))
 	}
 	if strings.TrimSpace(req.PR) == "" {
-		findings = append(findings, lifecycleFinding("empty-pr", "pr must be the canonical PR reference from pr publish"))
+		findings = append(findings, lifecycleFinding(FCEmptyPR, "pr must be the canonical PR reference from pr publish"))
 	}
 	if len(req.EvidenceRecord) == 0 {
-		findings = append(findings, lifecycleFinding("empty-evidence", "evidence must be the canonical build-evidence record bytes"))
+		findings = append(findings, lifecycleFinding(FCEmptyEvidence, "evidence must be the canonical build-evidence record bytes"))
 	}
 	if len(findings) > 0 {
 		return newChangeLifecycleResult(op, ResultInvalidInput, ChangeLifecycleResult{ID: req.ID, Findings: findings})
@@ -322,7 +322,7 @@ func ChangeMarkImplemented(ctx context.Context, deps PlanningDeps, wdeps Workspa
 func implementedRefusal(result Result, reason, message string, id int) ChangeLifecycleResult {
 	return newChangeLifecycleResult(OperationChangeMarkImplemented, result, ChangeLifecycleResult{
 		ID:       id,
-		Findings: []StatusFinding{lifecycleFinding(reason, message)},
+		Findings: []StatusFinding{lifecycleFinding(FindingCode(reason), message)},
 	})
 }
 
@@ -423,7 +423,7 @@ func (o changeImplementedOp) Plan(ctx context.Context, st transaction.AttemptSta
 		if out == domain.LookupAmbiguous {
 			reason = ReasonImplementedAmbiguousID
 		}
-		return refuseLifecycle(reason, fmt.Sprintf("change %04d is not a single record in the current corpus", o.changeID))
+		return refuseLifecycle(FindingCode(reason), fmt.Sprintf("change %04d is not a single record in the current corpus", o.changeID))
 	}
 
 	// Domain legality gate re-run against fresh state: MarkImplemented re-checks
@@ -441,7 +441,7 @@ func (o changeImplementedOp) Plan(ctx context.Context, st transaction.AttemptSta
 
 	src, ok := st.State.Sources[c.Path()]
 	if !ok {
-		return refuseLifecycle("path-mismatch",
+		return refuseLifecycle(FCPathMismatch,
 			fmt.Sprintf("no record source loaded at %q for change %04d", c.Path(), o.changeID))
 	}
 
@@ -470,7 +470,7 @@ func (o changeImplementedOp) Plan(ctx context.Context, st transaction.AttemptSta
 
 	body, err := render.ArtifactBlockContent(gc, candidate, o.link)
 	if err != nil {
-		return refuseLifecycle("artifact-render-failed", err.Error())
+		return refuseLifecycle(FCArtifactRenderFailed, err.Error())
 	}
 	doc2, err := document.Parse(intermediate)
 	if err != nil {

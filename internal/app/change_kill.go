@@ -107,7 +107,7 @@ type changeKillReceipt struct {
 func ChangeKill(ctx context.Context, deps PlanningDeps, repoDir string, req ChangeKillRequest) ChangeKillResult {
 	findings := validateLifecycleShape("change_id", req.ChangeID, req.Path, req.Version)
 	if strings.TrimSpace(req.WhyKilled) == "" {
-		findings = append(findings, lifecycleFinding("empty-why_killed", "why_killed must be a non-empty authored section body"))
+		findings = append(findings, lifecycleFinding(FCEmptyWhyKilled, "why_killed must be a non-empty authored section body"))
 	}
 	if len(findings) > 0 {
 		return newChangeKillResult(ResultInvalidInput, ChangeKillResult{Findings: findings})
@@ -233,7 +233,7 @@ func (o changeKillOp) Plan(ctx context.Context, st transaction.AttemptState) (tr
 
 	c, out := snap.Change(domain.ChangeID(o.changeID))
 	if out != domain.LookupFound {
-		return refuseLifecycle("not-found", fmt.Sprintf("change %04d is not present in the current corpus", o.changeID))
+		return refuseLifecycle(FCNotFound, fmt.Sprintf("change %04d is not present in the current corpus", o.changeID))
 	}
 
 	// Domain legality gate: Kill decides whether the current status may take the
@@ -246,7 +246,7 @@ func (o changeKillOp) Plan(ctx context.Context, st transaction.AttemptState) (tr
 
 	src, ok := st.State.Sources[o.path]
 	if !ok {
-		return refuseLifecycle("path-mismatch",
+		return refuseLifecycle(FCPathMismatch,
 			fmt.Sprintf("no record source loaded at %q for change %04d", o.path, o.changeID))
 	}
 
@@ -256,7 +256,7 @@ func (o changeKillOp) Plan(ctx context.Context, st transaction.AttemptState) (tr
 		{Heading: whyKilledHeading, Intent: render.SectionReplace, Markdown: o.whyKilled},
 	})
 	if err != nil {
-		return refuseLifecycle("section-edit-failed", err.Error())
+		return refuseLifecycle(FCSectionEditFailed, err.Error())
 	}
 
 	// First patch pass: the domain's owned kill FieldChanges plus the refreshed
@@ -297,7 +297,7 @@ func (o changeKillOp) Plan(ctx context.Context, st transaction.AttemptState) (tr
 
 	body, err := render.ArtifactBlockContent(gc, candidate, o.link)
 	if err != nil {
-		return refuseLifecycle("artifact-render-failed", err.Error())
+		return refuseLifecycle(FCArtifactRenderFailed, err.Error())
 	}
 	doc2, err := document.Parse(intermediate)
 	if err != nil {

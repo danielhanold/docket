@@ -267,7 +267,7 @@ func validateADRContent(req ADRRecordRequest) []StatusFinding {
 			add("empty-"+f.name, f.name+" must be non-empty")
 		}
 	}
-	findings = append(findings, validateIDCollection("relates_to", req.RelatesTo)...)
+	findings = append(findings, validateIDCollection("relates_to", req.RelatesTo, FCInvalidRelatesTo, FCDuplicateRelatesTo)...)
 
 	if req.Change != nil {
 		if req.Change.ID <= 0 {

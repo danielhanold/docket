@@ -164,7 +164,7 @@ func (l planningLoader) ValidateEvolution(before, after transaction.LoadedState)
 // error-severity domain finding carrying the typed error's kind as its code —
 // the same normalization parseFinding applies in the status read.
 func planningParseFinding(kind repository.RecordKind, rel string, err error) domain.Finding {
-	code := "parse-failed"
+	code := string(FCParseFailed)
 	var de *document.Error
 	if errors.As(err, &de) {
 		code = string(de.Kind)
