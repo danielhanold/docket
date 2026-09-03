@@ -1,6 +1,6 @@
 # Backlog
 
-**398 changes** — 🔵 1 built · 🟣 13 groomed · 🟡 41 proposed · ⚪ 4 deferred · ✅ 246 done · 🗑️ 93 killed
+**398 changes** — 🔵 1 built · 🟣 12 groomed · 🟡 41 proposed · ⚪ 4 deferred · ✅ 246 done · 🗑️ 94 killed
 
 ## 🔵 Built (1)
 
@@ -8,11 +8,10 @@
 |---|-------|----------|------|----|-------|
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
-## 🟣 Groomed (13)
+## 🟣 Groomed (12)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
-| [0264](active/0264-measure-the-claude-harness-s-forked-mode-gate-verdict-and-pi.md) | Measure the claude harness's forked-mode gate verdict and pin a surviving launch shape | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-claude-forked-mode-gate-verdict-design.md) |
 | [0261](active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | `high` | `feat` | [spec](../superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) |
 | [0283](active/0283-slim-agents-md-to-an-effective-claude-md.md) | Slim AGENTS.md to an effective, lean always-in-context file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-09-slim-agents-md-to-an-effective-claude-md-design.md) |
 | [0279](active/0279-settle-the-walk-site-classifier-s-reachability-gap-and-re-la.md) | Settle the walk-site classifier's reachability gap and re-land 0258's reverted fixes | `medium` | `chore` | [spec](../superpowers/specs/2026-08-09-settle-the-walk-site-classifier-s-reachability-gap-and-re-la-design.md) |
@@ -94,7 +93,6 @@ graph TD
   0257
   0261
   0172 --> 0263
-  0264
   0265
   0266
   0272
@@ -149,10 +147,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (339)</summary>
+<details><summary>✅🗑️ Archive — done + killed (340)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0264](archive/2026-09-03-0264-measure-the-claude-harness-s-forked-mode-gate-verdict-and-pi.md) | Measure the claude harness's forked-mode gate verdict and pin a surviving launch shape | 2026-09-03 |
 | [0256](archive/2026-09-03-0256-config-reader-consolidation-one-extractor-or-a-recorded-adr.md) | Config-reader consolidation: one extractor or a recorded ADR | 2026-09-03 |
 | [0253](archive/2026-09-03-0253-settle-and-enforce-the-prose-anchored-guard-house-pattern.md) | Settle and enforce the prose-anchored guard house pattern | 2026-09-03 |
 | [0222](archive/2026-09-03-0222-raise-docket-s-minimum-bash-from-4-to-4-4.md) | Raise docket's minimum Bash from 4+ to 4.4 | 2026-09-03 |

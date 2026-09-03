@@ -2,11 +2,11 @@
 id: 264
 slug: measure-the-claude-harness-s-forked-mode-gate-verdict-and-pi
 title: 'Measure the claude harness''s forked-mode gate verdict and pin a surviving launch shape'
-status: proposed
+status: 'killed'
 priority: medium
 type: docs
 created: 2026-08-08
-updated: 2026-08-18
+updated: '2026-09-03'
 depends_on: []
 related: [315]
 discovered_from: [200]
@@ -86,3 +86,7 @@ observation-budget machinery.
 a harness's process-teardown behavior and rewriting a per-harness evidence table shares no file and
 no reasoning with it, and folding it in would expand the branch past the scope its spec, plan, and
 review were all conducted against.
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): already resolved in Go — the suite gate is driven by the native gate driver (docket gate drive), so no agent improvises a detach launch shape.

@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0264 — Measure the claude harness's forked-mode gate verdict and pin a surviving launch shape](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0264-measure-the-claude-harness-s-forked-mode-gate-verdict-and-pi.md)**
+> ↩ **[Change 0264 — Measure the claude harness's forked-mode gate verdict and pin a surviving launch shape](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-03-0264-measure-the-claude-harness-s-forked-mode-gate-verdict-and-pi.md)**
 <!-- docket:backlink:end -->
 
 # Measure the claude harness's forked-mode gate verdict and pin a surviving launch shape — design
