@@ -39,6 +39,15 @@ import (
 //     parse-failed (migrated to string(FCParseFailed)), the ReasonStatus* tokens,
 //     and the domain policy-reason tokens forwarded through fail.Reason.
 //
+//   Request-shape validator mints (change 0399, review): the change-create,
+//   adr.record, learning.record, change-groom, change-reconcile, and finalize
+//   block/clear-block validators mint through addShape closures / adrFinding /
+//   learningFinding, each now fed a registry FindingCode constant (never a
+//   literal). ctorLit lists those constructor names, so a literal-first argument
+//   reddens the guard; their concrete codes — including the enumerated
+//   empty-<field> expansions — are registered FindingCode constants folded into
+//   AllFindingCodes.
+//
 // Scope note: the scan roots at the internal/app package directory, not all of
 // internal/. The registry is a package-app value (FindingCode, with
 // FindingCode(ReasonStatusInternalError) folded in), and internal/app already
@@ -67,16 +76,22 @@ func appPackageDir(t *testing.T) string {
 // assert codes; they do not mint them), and the exclusion is bounded to that
 // suffix alone.
 //
-// The constructor pattern enumerates the constructor NAMES (a closed set this
-// package owns): lifecycleFinding and refuseLifecycle take a FindingCode /
-// message pair whose first argument was historically a literal. A NEW
-// finding-constructor with a literal-first code argument MUST be added to this
-// pattern. The Code: shape pattern is the backstop that catches a constructor
-// this list misses, because a new constructor's body must still build a
-// Finding/StatusFinding with a Code: field somewhere.
+// The constructor pattern enumerates the finding-constructor NAMES (a closed set
+// this package owns): lifecycleFinding, refuseLifecycle, the *Refusal helpers,
+// and the request-shape validators' addShape closures / adrFinding /
+// learningFinding all take a FindingCode / message pair whose first argument must
+// be a registry constant, never a literal. A NEW finding-constructor with a
+// literal-first code argument MUST be added to this pattern. Two shape backstops
+// catch a constructor this list misses: the Code: pattern (a new constructor's
+// body must still build a Finding/StatusFinding with a Code: field somewhere) and
+// the FindingCode("…") pattern (converting a string literal to the registry's own
+// type outside the registry is itself a rogue mint). Together they redden a
+// future addShape("rogue-code", …) or StatusFinding{Code: "rogue-code"} planted
+// in any non-registry, non-test file.
 func TestNoInlineFindingCodeLiterals(t *testing.T) {
 	codeLit := regexp.MustCompile(`Code:\s*"[^"]*"`)
-	ctorLit := regexp.MustCompile(`(?:lifecycleFinding|refuseLifecycle|attachRefusal|haltRefusal|implementedRefusal|reclaimSkip|repairRefusal|closeoutRefusal|mergeRefusal|maintenanceRefusal|prRefusal|backlinkRefusal)\(\s*"`)
+	convLit := regexp.MustCompile(`FindingCode\(\s*"`)
+	ctorLit := regexp.MustCompile(`(?:lifecycleFinding|refuseLifecycle|attachRefusal|haltRefusal|implementedRefusal|reclaimSkip|repairRefusal|closeoutRefusal|mergeRefusal|maintenanceRefusal|prRefusal|backlinkRefusal|addShape|adrFinding|learningFinding)\(\s*"`)
 	root := appPackageDir(t)
 	var violations []string
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
@@ -90,7 +105,9 @@ func TestNoInlineFindingCodeLiterals(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		for _, m := range append(codeLit.FindAllString(string(b), -1), ctorLit.FindAllString(string(b), -1)...) {
+		matches := append(codeLit.FindAllString(string(b), -1), ctorLit.FindAllString(string(b), -1)...)
+		matches = append(matches, convLit.FindAllString(string(b), -1)...)
+		for _, m := range matches {
 			violations = append(violations, filepath.Base(path)+": "+m)
 		}
 		return nil
@@ -130,6 +147,67 @@ func TestFindingCodeRegistryIntegrity(t *testing.T) {
 		}
 		if string(c) < string(prev) {
 			t.Errorf("AllFindingCodes is not sorted: %q (index %d) precedes %q (index %d)", prev, i-1, c, i)
+		}
+	}
+}
+
+// TestShapeValidatorCodesAreRegistered drives the request-shape validators with
+// empty/invalid requests and asserts every finding code they emit is a member of
+// AllFindingCodes — the closed finding_codes vocabulary the schema publishes.
+// This exercises the real addShape/adrFinding/learningFinding mint paths (change
+// 0399, review): a code minted but never registered would surface here, not only
+// in the syntactic guard. It also asserts a floor set of the newly-registered
+// concrete codes is actually reached, so a regression that stops emitting one is
+// visible.
+func TestShapeValidatorCodesAreRegistered(t *testing.T) {
+	registered := map[string]bool{}
+	for _, c := range AllFindingCodes {
+		registered[string(c)] = true
+	}
+
+	zero := 0
+	badChange := ADRProducingChange{ID: 0, Path: "", Version: ""}
+	adrContent := ADRRecordRequest{Change: &badChange} // authored fields empty + a bad producing change
+
+	var emitted []StatusFinding
+	emitted = append(emitted, validateChangeCreateShape(ChangeCreateRequest{StackedOn: &zero})...)
+	emitted = append(emitted, validateADRRecordShape(adrContent)...)
+	emitted = append(emitted, validateADRReplaceShape(ADRReplaceRequest{Target: ADRTarget{ID: 0}, Successor: adrContent})...)
+	emitted = append(emitted, validateLearningRecordShape(LearningRecordRequest{Topics: []string{""}})...)
+	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomSpec})...)
+	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomTrivial})...)
+	emitted = append(emitted, validateChangeGroomShape(ChangeGroomRequest{Outcome: GroomOutcome("bogus")})...)
+	emitted = append(emitted, validateChangeReconcileShape(ChangeReconcileRequest{
+		Sections:     map[string]string{"## Not Owned": "x"},
+		SpecSections: map[string]string{"not a heading": "x"},
+	})...)
+	emitted = append(emitted, validateBlockShape(BlockRequest{})...)
+	emitted = append(emitted, validateClearBlockShape(ClearBlockRequest{})...)
+
+	seen := map[string]bool{}
+	for _, f := range emitted {
+		seen[f.Code] = true
+		if !registered[f.Code] {
+			t.Errorf("shape validator emitted finding code %q that is absent from AllFindingCodes — the finding_codes vocabulary is not closed over it", f.Code)
+		}
+	}
+
+	// Floor set: concrete codes registered by this fix that these requests must
+	// reach. A miss means the mint path drifted from the registered constant.
+	floor := []FindingCode{
+		FCInvalidRequestID, FCInvalidStackedOn,
+		FCEmptyTitle, FCEmptyWhy, FCEmptyWhatChanges, FCEmptyOutOfScope,
+		FCEmptyContext, FCEmptyDecision, FCEmptyConsequences, FCEmptyAlternatives,
+		FCInvalidChangeDotID, FCEmptyChangePath, FCEmptyChangeVersion,
+		FCInvalidTargetID, FCEmptyTargetPath, FCEmptyTargetVersion,
+		FCEmptyHook, FCEmptyApply, FCEmptyWarStory, FCInvalidTopics,
+		FCEmptySpecMarkdown, FCMissingRationale, FCInvalidOutcome,
+		FCInvalidSpecSectionHeading, FCEmptyReconcileLogEntry,
+		FCInvalidPRNumber, FCInvalidAttempt, FCEmptyHead,
+	}
+	for _, c := range floor {
+		if !seen[string(c)] {
+			t.Errorf("expected shape validators to emit registered code %q, but none did", string(c))
 		}
 	}
 }

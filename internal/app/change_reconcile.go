@@ -292,8 +292,8 @@ func decodeChangeReconcileReceipt(b []byte) (changeReconcileReceipt, bool) {
 // the authored-input size bound over every authored string.
 func validateChangeReconcileShape(req ChangeReconcileRequest) []StatusFinding {
 	findings := dropFindingCode(validateLifecycleShape("id", req.ID, "", req.Version), FCEmptyPath)
-	add := func(code, msg string) {
-		findings = append(findings, lifecycleFinding(FindingCode(code), msg))
+	addShape := func(code FindingCode, msg string) {
+		findings = append(findings, lifecycleFinding(code, msg))
 	}
 
 	// Owned-section fence: a named proposal section must be an owned change
@@ -306,7 +306,7 @@ func validateChangeReconcileShape(req ChangeReconcileRequest) []StatusFinding {
 	}
 	for heading, body := range req.Sections {
 		if !owned[heading] {
-			add("invalid-section-heading", fmt.Sprintf("section heading %q is not an owned proposal heading", heading))
+			addShape(FCInvalidSectionHeading, fmt.Sprintf("section heading %q is not an owned proposal heading", heading))
 		}
 		boundAuthored(&findings, "section "+heading, body)
 	}
@@ -315,13 +315,13 @@ func validateChangeReconcileShape(req ChangeReconcileRequest) []StatusFinding {
 	// top-level heading, and each body is bounded.
 	for heading, body := range req.SpecSections {
 		if !strings.HasPrefix(heading, "## ") {
-			add("invalid-spec-section-heading", fmt.Sprintf("spec section heading %q must be a top-level '## ' heading", heading))
+			addShape(FCInvalidSpecSectionHeading, fmt.Sprintf("spec section heading %q must be a top-level '## ' heading", heading))
 		}
 		boundAuthored(&findings, "spec section "+heading, body)
 	}
 
 	if strings.TrimSpace(req.ReconcileLogEntry) == "" {
-		add("empty-reconcile_log_entry", "reconcile_log_entry must be a non-empty authored dated-entry body")
+		addShape(FCEmptyReconcileLogEntry, "reconcile_log_entry must be a non-empty authored dated-entry body")
 	}
 	boundAuthored(&findings, "reconcile_log_entry", req.ReconcileLogEntry)
 

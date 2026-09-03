@@ -169,7 +169,7 @@ func LearningRecordOp(ctx context.Context, deps PlanningDeps, repoDir string, re
 	pin, err := deps.Reader.PinContext(ctx, repoDir)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
-		return newLearningResult(OperationLearningRecord, result, LearningResult{Findings: []StatusFinding{learningFinding(reason, err.Error())}})
+		return newLearningResult(OperationLearningRecord, result, LearningResult{Findings: []StatusFinding{learningFinding(FindingCode(reason), err.Error())}})
 	}
 	eff := pin.Config.Effective
 
@@ -179,13 +179,13 @@ func LearningRecordOp(ctx context.Context, deps PlanningDeps, repoDir string, re
 
 	digest, err := canonicalDigest(OperationLearningRecord, learningRecordSemanticPayload(req))
 	if err != nil {
-		return newLearningResult(OperationLearningRecord, ResultInternalError, LearningResult{Findings: []StatusFinding{learningFinding(ReasonStatusInternalError, err.Error())}})
+		return newLearningResult(OperationLearningRecord, ResultInternalError, LearningResult{Findings: []StatusFinding{learningFinding(FindingCode(ReasonStatusInternalError), err.Error())}})
 	}
 
 	repo, err := deps.Client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
 	if err != nil {
 		result, reason := classifyStatusError(ctx, classifyGitFailure(err))
-		return newLearningResult(OperationLearningRecord, result, LearningResult{Findings: []StatusFinding{learningFinding(reason, err.Error())}})
+		return newLearningResult(OperationLearningRecord, result, LearningResult{Findings: []StatusFinding{learningFinding(FindingCode(reason), err.Error())}})
 	}
 
 	op := learningRecordOp{
@@ -233,7 +233,7 @@ func LearningUpdate(ctx context.Context, deps PlanningDeps, repoDir string, req 
 	pin, err := deps.Reader.PinContext(ctx, repoDir)
 	if err != nil {
 		result, reason := classifyStatusError(ctx, err)
-		return newLearningResult(OperationLearningUpdate, result, LearningResult{Findings: []StatusFinding{learningFinding(reason, err.Error())}})
+		return newLearningResult(OperationLearningUpdate, result, LearningResult{Findings: []StatusFinding{learningFinding(FindingCode(reason), err.Error())}})
 	}
 	eff := pin.Config.Effective
 
@@ -244,7 +244,7 @@ func LearningUpdate(ctx context.Context, deps PlanningDeps, repoDir string, req 
 	repo, err := deps.Client.Discover(ctx, gitcli.DiscoverOptions{InvocationPath: repoDir})
 	if err != nil {
 		result, reason := classifyStatusError(ctx, classifyGitFailure(err))
-		return newLearningResult(OperationLearningUpdate, result, LearningResult{Findings: []StatusFinding{learningFinding(reason, err.Error())}})
+		return newLearningResult(OperationLearningUpdate, result, LearningResult{Findings: []StatusFinding{learningFinding(FindingCode(reason), err.Error())}})
 	}
 
 	op := learningUpdateOp{
@@ -285,14 +285,16 @@ func LearningUpdate(ctx context.Context, deps PlanningDeps, repoDir string, req 
 // document, or reports an internal error for any other error.
 func learningPreflightRefusal(opKey string, err error) LearningResult {
 	if pe, ok := asPlanningError(err); ok {
-		return newLearningResult(opKey, pe.Result, LearningResult{Findings: []StatusFinding{learningFinding(pe.Reason, pe.Message)}})
+		return newLearningResult(opKey, pe.Result, LearningResult{Findings: []StatusFinding{learningFinding(FindingCode(pe.Reason), pe.Message)}})
 	}
-	return newLearningResult(opKey, ResultInternalError, LearningResult{Findings: []StatusFinding{learningFinding(ReasonStatusInternalError, err.Error())}})
+	return newLearningResult(opKey, ResultInternalError, LearningResult{Findings: []StatusFinding{learningFinding(FindingCode(ReasonStatusInternalError), err.Error())}})
 }
 
-// learningFinding builds one error-severity request-shape finding.
-func learningFinding(code, msg string) StatusFinding {
-	return StatusFinding{Code: code, Severity: string(domain.SeverityError), Message: msg}
+// learningFinding builds one error-severity request-shape finding from a
+// registry FindingCode. TestNoInlineFindingCodeLiterals lists it among the
+// finding constructors, so a string-literal first argument reddens the guard.
+func learningFinding(code FindingCode, msg string) StatusFinding {
+	return StatusFinding{Code: string(code), Severity: string(domain.SeverityError), Message: msg}
 }
 
 // decodeLearningReceipt decodes a persisted or replayed receipt into its
@@ -313,21 +315,25 @@ func decodeLearningReceipt(b []byte) (learningReceipt, bool) {
 // the collection shapes.
 func validateLearningRecordShape(req LearningRecordRequest) []StatusFinding {
 	var findings []StatusFinding
-	add := func(code, msg string) {
+	addShape := func(code FindingCode, msg string) {
 		findings = append(findings, learningFinding(code, msg))
 	}
 
 	if !validRequestID(req.RequestID) {
-		add("invalid-request_id", "request_id must be 8–128 ASCII characters matching ^[A-Za-z0-9][A-Za-z0-9._-]*$")
+		addShape(FCInvalidRequestID, "request_id must be 8–128 ASCII characters matching ^[A-Za-z0-9][A-Za-z0-9._-]*$")
 	}
 	if !domain.ValidSlugToken(req.Slug) {
-		add("invalid-slug", fmt.Sprintf("slug %q is not a valid record slug", req.Slug))
+		addShape(FCInvalidSlug, fmt.Sprintf("slug %q is not a valid record slug", req.Slug))
 	}
-	for _, f := range []struct{ name, val string }{
-		{"hook", req.Hook}, {"apply", req.Apply}, {"war_story", req.WarStory},
+	for _, f := range []struct {
+		name string
+		val  string
+		code FindingCode
+	}{
+		{"hook", req.Hook, FCEmptyHook}, {"apply", req.Apply, FCEmptyApply}, {"war_story", req.WarStory, FCEmptyWarStory},
 	} {
 		if strings.TrimSpace(f.val) == "" {
-			add("empty-"+f.name, f.name+" must be non-empty")
+			addShape(f.code, f.name+" must be non-empty")
 		}
 	}
 	findings = append(findings, validateIDCollection("changes", req.Changes, FCInvalidChanges, FCDuplicateChanges)...)
@@ -340,10 +346,10 @@ func validateLearningRecordShape(req LearningRecordRequest) []StatusFinding {
 func validateLearningUpdateShape(req LearningUpdateRequest) []StatusFinding {
 	var findings []StatusFinding
 	if strings.TrimSpace(req.Path) == "" {
-		findings = append(findings, learningFinding("empty-path", "path must name the finding's current canonical record path"))
+		findings = append(findings, learningFinding(FCEmptyPath, "path must name the finding's current canonical record path"))
 	}
 	if strings.TrimSpace(req.Version) == "" {
-		findings = append(findings, learningFinding("empty-version", "version must be the exact full blob object id of the submitted record"))
+		findings = append(findings, learningFinding(FCEmptyVersion, "version must be the exact full blob object id of the submitted record"))
 	}
 	findings = append(findings, validateLearningSections(req.Sections)...)
 	findings = append(findings, validateIDCollection("changes", req.Changes, FCInvalidChanges, FCDuplicateChanges)...)
@@ -356,7 +362,7 @@ func validateTopics(topics []string) []StatusFinding {
 	var findings []StatusFinding
 	for _, tpc := range topics {
 		if strings.TrimSpace(tpc) == "" {
-			findings = append(findings, learningFinding("invalid-topics", "topics must not contain a blank entry"))
+			findings = append(findings, learningFinding(FCInvalidTopics, "topics must not contain a blank entry"))
 		}
 	}
 	return findings
@@ -375,20 +381,20 @@ func validateLearningSections(sections []SectionEditRequest) []StatusFinding {
 	var findings []StatusFinding
 	for _, s := range sections {
 		if !owned[s.Heading] {
-			findings = append(findings, learningFinding("invalid-section-heading",
+			findings = append(findings, learningFinding(FCInvalidSectionHeading,
 				fmt.Sprintf("section heading %q is not an owned learning heading", s.Heading)))
 			continue
 		}
 		switch render.SectionIntent(s.Intent) {
 		case render.SectionPreserve, render.SectionRemove:
 			if s.Markdown != "" {
-				findings = append(findings, learningFinding("invalid-section-markdown",
+				findings = append(findings, learningFinding(FCInvalidSectionMarkdown,
 					fmt.Sprintf("intent %q for %q must carry empty markdown", s.Intent, s.Heading)))
 			}
 		case render.SectionReplace:
 			// Markdown may be non-empty.
 		default:
-			findings = append(findings, learningFinding("invalid-section-intent",
+			findings = append(findings, learningFinding(FCInvalidSectionIntent,
 				fmt.Sprintf("section intent %q must be one of preserve, replace, remove", s.Intent)))
 		}
 	}
