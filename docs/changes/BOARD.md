@@ -1,6 +1,6 @@
 # Backlog
 
-**402 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 11 groomed · 🟡 24 proposed · ⚪ 5 deferred · ✅ 247 done · 🗑️ 113 killed
+**403 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 11 groomed · 🟡 25 proposed · ⚪ 5 deferred · ✅ 247 done · 🗑️ 113 killed
 
 ## 🟢 In progress (1)
 
@@ -30,10 +30,11 @@
 | [0166](active/0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | `low` | `chore` | [spec](../superpowers/specs/2026-08-07-retune-the-interactive-skills-advisory-session-model-recomme-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
-## 🟡 Proposed (24)
+## 🟡 Proposed (25)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
+| [0403](active/0403-surface-config-diagnostics-with-file-line-when-a-command-ref.md) | Surface config diagnostics with file:line when a command refuses on invalid configuration | `medium` | `fix` | needs-brainstorm |
 | [0402](active/0402-restructure-the-technical-docs-into-goal-organised-guide-con.md) | Restructure the technical docs into goal-organised guide, concepts, and reference tiers | `medium` | `docs` | ⏳ waiting on #400 — not yet built |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-brainstorm |
 | [0398](active/0398-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md) | Extend the testsupport temp-dir fixture and repoguard to cmd/ real-process test packages | `medium` | `chore` | needs-brainstorm |
@@ -113,6 +114,7 @@ graph TD
   0400
   0401
   0400 --> 0402
+  0403
   0192:::done
   0251:::done
   0370:::done
