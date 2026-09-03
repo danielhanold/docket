@@ -2,7 +2,7 @@
 id: 399
 slug: 'authoritative-machine-readable-request-result-schema-surface'
 title: 'Authoritative machine-readable request/result schema surface'
-status: 'proposed'
+status: 'in-progress'
 priority: 'critical'
 type: 'fix'
 created: '2026-09-03'
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/authoritative-machine-readable-request-result-schema-surface'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-03T17:43:12Z'
 ---
 
 ## Artifacts
