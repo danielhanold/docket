@@ -2,11 +2,11 @@
 id: 391
 slug: 'carry-skipped-build-evidence-through-the-pr-publish-path'
 title: 'Carry skipped build-evidence through the PR publish path'
-status: 'proposed'
+status: 'killed'
 priority: 'medium'
 type: 'feat'
 created: '2026-09-01'
-updated: '2026-09-01'
+updated: '2026-09-03'
 depends_on: [374]
 stacked_on:
 related: [374]
@@ -40,3 +40,7 @@ Extend the PR-body build-evidence rendering and `docket pr publish` to carry a `
 ## Out of scope
 
 Any change to how skipped evidence is produced, recorded, or verified (already landed in 374); the four publication gates' acceptance of skipped records (already correct); non-PR surfaces.
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): already fixed in Go by change 0374 — internal/app/pr_publish.go accepts VerdictSkipped at exact head, covered by TestPRPublishAcceptsSkippedEvidenceAtExactHead.
