@@ -2,11 +2,11 @@
 id: 256
 slug: config-reader-consolidation-one-extractor-or-a-recorded-adr
 title: 'Config-reader consolidation: one extractor or a recorded ADR'
-status: proposed
+status: 'killed'
 priority: medium
 type: refactor
 created: 2026-08-07
-updated: 2026-08-07
+updated: '2026-09-03'
 depends_on: []
 related: [244, 255]
 discovered_from: [179, 165]
@@ -53,3 +53,7 @@ Grooming note: #0165's "standalone pre-install" claim lived in the killed stub, 
 - `docket-frontmatter.sh`'s `field`/`fm_field*` family — owned by #0244 (boundary checked: 0244's census guard patterns do not match `field_of*` call sites).
 - Changing any reader's accepted-value semantics (ADR-0065 validation posture stands); the validators' quote legs are #0255's territory (same file, disjoint functions — either merge order is fine).
 - Any vendor model allowlist (ADR-0015).
+
+## Why killed
+
+Backlog review 2026-09-02 (Bash→Go migration): already fixed in Go — every reader was Bash; internal/config is the single config resolver.

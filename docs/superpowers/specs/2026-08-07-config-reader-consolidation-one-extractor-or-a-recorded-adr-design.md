@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0256 — Config-reader consolidation: one extractor or a recorded ADR](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0256-config-reader-consolidation-one-extractor-or-a-recorded-adr.md)**
+> ↩ **[Change 0256 — Config-reader consolidation: one extractor or a recorded ADR](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-03-0256-config-reader-consolidation-one-extractor-or-a-recorded-adr.md)**
 <!-- docket:backlink:end -->
 
 # Config-reader consolidation: one extractor or a recorded ADR — design
