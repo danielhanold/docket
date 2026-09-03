@@ -242,7 +242,7 @@ func decodeADRRecordReceipt(b []byte) (adrRecordReceipt, bool) {
 func validateADRRecordShape(req ADRRecordRequest) []StatusFinding {
 	var findings []StatusFinding
 	if !validRequestID(req.RequestID) {
-		findings = append(findings, adrFinding("invalid-request-id", "request_id must be 8–128 ASCII characters matching ^[A-Za-z0-9][A-Za-z0-9._-]*$"))
+		findings = append(findings, adrFinding("invalid-request_id", "request_id must be 8–128 ASCII characters matching ^[A-Za-z0-9][A-Za-z0-9._-]*$"))
 	}
 	return append(findings, validateADRContent(req)...)
 }
@@ -739,7 +739,7 @@ func adrReplaceRefusalKind(findings []domain.Finding) Result {
 func validateADRReplaceShape(req ADRReplaceRequest) []StatusFinding {
 	var findings []StatusFinding
 	if !validRequestID(req.RequestID) {
-		findings = append(findings, adrFinding("invalid-request-id", "request_id must be 8–128 ASCII characters matching ^[A-Za-z0-9][A-Za-z0-9._-]*$"))
+		findings = append(findings, adrFinding("invalid-request_id", "request_id must be 8–128 ASCII characters matching ^[A-Za-z0-9][A-Za-z0-9._-]*$"))
 	}
 	if req.Target.ID <= 0 {
 		findings = append(findings, adrFinding("invalid-target-id", "target.id must be a positive ADR id"))

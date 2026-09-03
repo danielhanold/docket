@@ -38,7 +38,7 @@ func TestADRRecordRejectsBadShapeWithoutEngineCall(t *testing.T) {
 		mut  func(*ADRRecordRequest)
 		code string
 	}{
-		{"short request id", func(r *ADRRecordRequest) { r.RequestID = "short" }, "invalid-request-id"},
+		{"short request id", func(r *ADRRecordRequest) { r.RequestID = "short" }, "invalid-request_id"},
 		{"empty title", func(r *ADRRecordRequest) { r.Title = "" }, "empty-title"},
 		{"blank context", func(r *ADRRecordRequest) { r.Context = "  " }, "empty-context"},
 		{"empty decision", func(r *ADRRecordRequest) { r.Decision = "" }, "empty-decision"},
@@ -334,7 +334,7 @@ func TestADRSupersedeRejectsBadShapeWithoutEngineCall(t *testing.T) {
 		mut  func(*ADRReplaceRequest)
 		code string
 	}{
-		{"short outer request id", func(r *ADRReplaceRequest) { r.RequestID = "short" }, "invalid-request-id"},
+		{"short outer request id", func(r *ADRReplaceRequest) { r.RequestID = "short" }, "invalid-request_id"},
 		{"non-positive target id", func(r *ADRReplaceRequest) { r.Target.ID = 0 }, "invalid-target-id"},
 		{"empty target path", func(r *ADRReplaceRequest) { r.Target.Path = "" }, "empty-target-path"},
 		{"empty target version", func(r *ADRReplaceRequest) { r.Target.Version = "" }, "empty-target-version"},

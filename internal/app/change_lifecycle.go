@@ -67,10 +67,10 @@ type ChangeDeferRequest struct {
 // validation diagnostic (marshalled as [] never null).
 type ChangeLifecycleResult struct {
 	Envelope
-	ID       int             `json:"id,omitempty"`
-	Status   string          `json:"status,omitempty"` // resulting stored status
-	Revision string          `json:"committed_revision,omitempty"`
-	Findings []StatusFinding `json:"findings"`
+	ID       int             `json:"id,omitempty" docket:"success-only"`
+	Status   string          `json:"status,omitempty" docket:"success-only,enum=statuses"` // resulting stored status
+	Revision string          `json:"committed_revision,omitempty" docket:"success-only"`
+	Findings []StatusFinding `json:"findings"` // present on every path (marshalled as [] never null)
 }
 
 // HumanText renders the one-line human summary of a lifecycle outcome.

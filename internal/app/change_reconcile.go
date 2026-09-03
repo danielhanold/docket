@@ -100,7 +100,7 @@ type ChangeReconcileResult struct {
 	Envelope
 	ID          int             `json:"id,omitempty"`
 	Revision    string          `json:"committed_revision,omitempty"`
-	Disposition string          `json:"disposition,omitempty"`
+	Disposition string          `json:"disposition,omitempty" docket:"enum=reconcile_dispositions"`
 	Findings    []StatusFinding `json:"findings"`
 }
 

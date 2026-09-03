@@ -185,7 +185,7 @@ type VerifiedMerge struct {
 type FinalizeMergeResult struct {
 	Envelope
 	ID          int            `json:"id,omitempty"`
-	Disposition string         `json:"disposition,omitempty"`
+	Disposition string         `json:"disposition,omitempty" docket:"enum=merge_dispositions"`
 	Number      int            `json:"number,omitempty"`
 	Reference   string         `json:"reference,omitempty"`
 	Merge       *VerifiedMerge `json:"merge,omitempty"`

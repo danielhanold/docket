@@ -161,7 +161,7 @@ var closeoutBlockedHeadingSet = []string{finalizeBlockedSectionHeading}
 type CloseoutResult struct {
 	Envelope
 	ID          int             `json:"id,omitempty"`
-	Disposition string          `json:"disposition,omitempty"`
+	Disposition string          `json:"disposition,omitempty" docket:"enum=closeout_dispositions"`
 	ArchivePath string          `json:"archive_path,omitempty"`
 	CarriedIDs  []int           `json:"carried_ids,omitempty"`
 	Revision    string          `json:"committed_revision,omitempty"`

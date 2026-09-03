@@ -81,7 +81,7 @@ func TestLearningRecordRejectsBadShapeWithoutEngineCall(t *testing.T) {
 		mut  func(*LearningRecordRequest)
 		code string
 	}{
-		{"short request id", func(r *LearningRecordRequest) { r.RequestID = "short" }, "invalid-request-id"},
+		{"short request id", func(r *LearningRecordRequest) { r.RequestID = "short" }, "invalid-request_id"},
 		{"invalid slug", func(r *LearningRecordRequest) { r.Slug = "Bad Slug" }, "invalid-slug"},
 		{"empty hook", func(r *LearningRecordRequest) { r.Hook = "  " }, "empty-hook"},
 		{"empty apply", func(r *LearningRecordRequest) { r.Apply = "" }, "empty-apply"},

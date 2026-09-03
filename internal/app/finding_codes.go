@@ -97,9 +97,18 @@ const (
 // KNOWN GAPS (deferred, out of Task 3's stated census+ReasonStatus+domain
 // composition): codes minted through the change-create validateChangeCreateShape
 // add() closure (invalid-request_id, empty-{title,why,what_changes,out_of_scope},
-// invalid-stacked_on) and the app-local ReasonBacklink*/ReasonCloseout* reason
-// families are not enumerated here; they are not literal Code:/constructor mints
-// the shape guard reaches, and closing the vocabulary over them is Task 6's call.
+// invalid-stacked_on), the parallel adr_ops/learning_ops request-shape codes
+// (invalid-request_id, invalid-{target-id,topics}, empty-{target-path,
+// target-version,topics}, and the dynamically-composed empty-<field> keys), and
+// the app-local ReasonBacklink*/ReasonCloseout* reason families are not
+// enumerated here; they are not literal Code:/constructor mints the shape guard
+// reaches, and some are composed at runtime, so closing the vocabulary over them
+// is out of scope. Task 6 (change 0399) reconciled the request-id spelling: the
+// adr_ops/learning_ops literals now read invalid-request_id (underscore),
+// matching change_create, so the token is uniform across every site that mints
+// it. AllFindingCodes is authoritative for the const-backed vocabulary the AST
+// completeness guard covers; it is deliberately not exhaustive over these
+// add()-minted request-shape codes.
 var AllFindingCodes = []FindingCode{
 	FindingCode("adr-not-accepted"),
 	FindingCode("ambiguous-adr"),

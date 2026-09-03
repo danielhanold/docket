@@ -120,7 +120,7 @@ type CleanupOpResult struct {
 	Envelope
 	ID          int             `json:"id,omitempty"`
 	RunDir      string          `json:"run_dir,omitempty"`
-	Disposition string          `json:"disposition,omitempty"`
+	Disposition string          `json:"disposition,omitempty" docket:"enum=cleanup_dispositions"`
 	RemovedRefs []string        `json:"removed_refs,omitempty"`
 	Reason      string          `json:"reason,omitempty"`
 	Message     string          `json:"message,omitempty"`

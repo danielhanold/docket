@@ -40,8 +40,8 @@ const OperationChangeCreate = "change.create"
 type ChangeCreateRequest struct {
 	RequestID string `json:"request_id" docket:"required"`
 	Title     string `json:"title" docket:"required"`
-	Type      string `json:"type"`
-	Priority  string `json:"priority"`
+	Type      string `json:"type" docket:"enum=change_types"`
+	Priority  string `json:"priority" docket:"enum=priorities"`
 
 	Why         string `json:"why" docket:"required"`
 	WhatChanges string `json:"what_changes" docket:"required"`
