@@ -1011,3 +1011,105 @@ func TestResolveRejectsMisorderedSources(t *testing.T) {
 		})
 	}
 }
+
+// TestTolerateUnknownKeysDegradesToWarning holds the install path's tolerance
+// rule (change 0392): with the flag on, an unknown key — top-level or nested —
+// is a WARNING carrying the shared remedy, the snapshot stays valid, and the
+// unknown subtree resolves to defaults.
+func TestTolerateUnknownKeysDegradesToWarning(t *testing.T) {
+	rctx := ResolveContext{DefaultBranch: "main", TolerateUnknownKeys: true}
+	for name, yml := range map[string]string{
+		"top-level": "some_future_block:\n  enabled: true\n",
+		"nested":    "finalize:\n  some_new_field: 7\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			res := mustResolve(t, []Source{srcR(yml)}, rctx)
+			warns := diagsWithCode(res, CodeUnknownKey)
+			if len(warns) != 1 {
+				t.Fatalf("unknown-key diagnostics = %v, want exactly 1", diagSummary(res))
+			}
+			d := warns[0]
+			if d.Severity != SeverityWarning {
+				t.Errorf("severity = %s, want warning", d.Severity)
+			}
+			if d.Remedy != ToleratedUnknownKeyRemedy {
+				t.Errorf("remedy = %q, want the shared ToleratedUnknownKeyRemedy", d.Remedy)
+			}
+			if d.Message == "" {
+				t.Errorf("message was dropped; the reclassifier must keep it")
+			}
+			// The unknown subtree contributed no leaves: a known sibling leaf
+			// still resolves to its built-in default, non-explicit.
+			if _, _, explicit := effectiveLeaf(t, res.effective, "finalize.gate"); name == "nested" && explicit {
+				t.Errorf("finalize.gate became explicit; the unknown subtree must contribute nothing")
+			}
+		})
+	}
+}
+
+// TestTolerateUnknownKeysLeavesOtherClassesFatal proves the option changes
+// nothing for the other invalid classes.
+func TestTolerateUnknownKeysLeavesOtherClassesFatal(t *testing.T) {
+	rctx := ResolveContext{DefaultBranch: "main", TolerateUnknownKeys: true}
+	for name, yml := range map[string]string{
+		"invalid-yaml":  "board: [unclosed\n",
+		"duplicate-key": "learnings:\n  cap: 1\n  cap: 2\n",
+		"invalid-type":  "metadata_branch: [not, a, string]\n",
+		"invalid-value": "learnings:\n  cap: -1\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, _, err := Resolve([]Source{srcR(yml)}, rctx)
+			if !errors.Is(err, ErrInvalidConfig) {
+				t.Fatalf("err = %v, want ErrInvalidConfig — tolerance must not reach %s", err, name)
+			}
+		})
+	}
+}
+
+// TestUnknownKeyStrictWithoutTolerance is the mutation control for the option:
+// the reclassifier must be the ONLY thing that flips the verdict, so the zero
+// value keeps today's hard failure.
+func TestUnknownKeyStrictWithoutTolerance(t *testing.T) {
+	_, diags, err := Resolve([]Source{srcR("some_future_block: true\n")}, mainCtx)
+	if !errors.Is(err, ErrInvalidConfig) {
+		t.Fatalf("err = %v, want ErrInvalidConfig", err)
+	}
+	for _, d := range diags {
+		if d.Code == CodeUnknownKey && d.Severity != SeverityError {
+			t.Errorf("unknown-key severity = %s without tolerance, want error", d.Severity)
+		}
+		if d.Code == CodeUnknownKey && d.Remedy == ToleratedUnknownKeyRemedy {
+			t.Errorf("the tolerated remedy leaked into the strict path")
+		}
+	}
+}
+
+// TestTolerateUnknownKeysLeavesFenceIntact: a fenced KNOWN key keeps its
+// existing warn-and-ignore posture with the option on. Mirror the exact
+// layer/fixture of TestBoardGithubTokenMachineFence (a machine-layer
+// board_surfaces carrying the fenced github token), changing only the rctx.
+func TestTolerateUnknownKeysLeavesFenceIntact(t *testing.T) {
+	rctx := ResolveContext{DefaultBranch: "main", TolerateUnknownKeys: true}
+	res := mustResolve(t, []Source{srcL("board_surfaces: [inline, github]\n")}, rctx)
+	fenced := diagsWithCode(res, CodeFencedIgnored)
+	if len(fenced) != 1 || fenced[0].Severity != SeverityWarning {
+		t.Fatalf("fenced diagnostics = %v, want one fenced-setting-ignored warning", diagSummary(res))
+	}
+	if fenced[0].Remedy == ToleratedUnknownKeyRemedy {
+		t.Errorf("the fence's own remedy was overwritten")
+	}
+}
+
+// TestWarningsFilter pins the helper the install path reads its surfaced
+// diagnostics through.
+func TestWarningsFilter(t *testing.T) {
+	in := []Diagnostic{
+		{Code: CodeUnknownKey, Severity: SeverityWarning},
+		{Code: CodeInvalidValue, Severity: SeverityError},
+		{Code: "x", Severity: SeverityInfo},
+	}
+	out := Warnings(in)
+	if len(out) != 1 || out[0].Code != CodeUnknownKey {
+		t.Fatalf("Warnings = %v, want only the warning-severity diagnostic", out)
+	}
+}
