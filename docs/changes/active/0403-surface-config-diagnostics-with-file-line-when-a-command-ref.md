@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/surface-config-diagnostics-with-file-line-when-a-command-ref'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-04T01:07:59Z'
+reconciled: true
+claimed_at: '2026-09-04T01:10:09Z'
 ---
 
 ## Artifacts
@@ -44,3 +44,9 @@ Carry the resolver's diagnostics on the error at both resolve sites, and lift th
 ## Out of scope
 
 Relaxing any diagnostic's severity or tolerating unknown keys on any path (change 0392 owns install-path tolerance). New diagnostic classes. Changing any exit code or result vocabulary. A separate `diagnostics` array on the result documents — the existing `findings` shape is reused. Pointing the refusal at `docket diagnostic config` as the remedy: the diagnostics are embedded instead.
+
+## Reconcile log
+
+### 2026-09-04
+
+2026-09-04 — Reconciled against current main. Verified the spec's structural assumptions still hold in internal/app: RepoResolutionError (repophase.go) with Reason ReasonInvalidConfig at the two config.Resolve wrap sites in resolveSetupConfig (repository_facts.go); loadOperationalContext (operational_context.go) wrapping ErrStatusInvalidInput at its config.Resolve failure; and the five renderers (repository_check.go, repository_prepare.go, repository_init.go, repository_migrate.go, status.go) plus the diagnostic-config human renderer in config.go. config_diagnostics.go does not yet exist (a new file, as designed). Related change 0392 (install-path unknown-key tolerance) is a disjoint path and untouched here. No scope, dependency, or relation changes; design carried forward unchanged.
