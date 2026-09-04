@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0403 — Surface config diagnostics with file:line when a command refuses on invalid configuration](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0403-surface-config-diagnostics-with-file-line-when-a-command-ref.md)**
+> ↩ **[Change 0403 — Surface config diagnostics with file:line when a command refuses on invalid configuration](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-04-0403-surface-config-diagnostics-with-file-line-when-a-command-ref.md)**
 <!-- docket:backlink:end -->
 # Surface Config Diagnostics With file:line Implementation Plan
 
