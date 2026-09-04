@@ -15,6 +15,8 @@ Follow the daily loop, then read the page for the step you are on:
 
 ## Guide — how do I
 
+Index: [guide/README.md](guide/README.md)
+
 - [The daily loop](guide/daily-loop.md) — the handful of steps you run by name in a day of docket
   work, and which page covers each one in full.
 - [Capturing work that outlives the session](guide/capturing-work.md) — turn an idea into a tracked
@@ -48,6 +50,8 @@ Follow the daily loop, then read the page for the step you are on:
 
 ## Concepts — what is it and why
 
+Index: [concepts/README.md](concepts/README.md)
+
 - [Two branches and the metadata worktree](concepts/two-branches.md) — why planning and code share
   one repository but never the same branch.
 - [The change lifecycle as a state machine](concepts/change-lifecycle.md) — the states a unit of work
@@ -68,6 +72,8 @@ Follow the daily loop, then read the page for the step you are on:
   was made and what a build taught.
 
 ## Reference — exact fields and owners
+
+Index: [reference/README.md](reference/README.md)
 
 - [`cli.md`](reference/cli.md) — the `docket` commands by noun, each pointing at its `--help` and the
   capability catalog for the current verbs and flags.
