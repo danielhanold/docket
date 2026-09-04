@@ -2,11 +2,11 @@
 id: 392
 slug: 'installer-tolerant-config-read-break-the-schema-bump-bootstr'
 title: 'Installer-tolerant config read: break the schema-bump bootstrap deadlock'
-status: 'proposed'
+status: 'in-progress'
 priority: high
 type: 'fix'
 created: '2026-09-01'
-updated: '2026-09-03'
+updated: '2026-09-04'
 depends_on: []
 stacked_on:
 related: []
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'fix/installer-tolerant-config-read-break-the-schema-bump-bootstr'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-04T01:08:55Z'
 ---
 
 ## Artifacts
