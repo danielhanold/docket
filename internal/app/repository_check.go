@@ -52,18 +52,11 @@ func (r RepositoryCheckResult) HumanText() string {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "repository check: %s (%s)", r.Result, r.RepositoryState)
+	// One block per finding, through the shared per-finding renderer that
+	// appendConfigFindingBlock also calls, so the healthy and refusal blocks
+	// cannot drift (appendFindingBlock, change 0403).
 	for _, f := range r.Findings {
-		b.WriteString("\n")
-		fmt.Fprintf(&b, "- [%s] %s", f.Severity, f.Code)
-		if f.Ref != "" {
-			fmt.Fprintf(&b, " (%s)", f.Ref)
-		}
-		if f.Message != "" {
-			fmt.Fprintf(&b, "\n  %s", f.Message)
-		}
-		if f.Remedy != "" {
-			fmt.Fprintf(&b, "\n  remedy: %s", f.Remedy)
-		}
+		appendFindingBlock(&b, f)
 	}
 	return b.String()
 }
