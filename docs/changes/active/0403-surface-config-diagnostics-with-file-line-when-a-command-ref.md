@@ -13,7 +13,7 @@ related: [392]
 discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-09-03-surface-config-diagnostics-with-file-line-when-a-command-ref-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-03-surface-config-diagnostics-with-file-line-when-a-command-ref.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-04T01:11:43Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-03-surface-config-diagnostics-with-file-line-when-a-command-ref-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-03-surface-config-diagnostics-with-file-line-when-a-command-ref-design.md) |
+| Plan | [2026-09-03-surface-config-diagnostics-with-file-line-when-a-command-ref.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-03-surface-config-diagnostics-with-file-line-when-a-command-ref.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
