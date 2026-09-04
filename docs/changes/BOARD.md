@@ -1,19 +1,19 @@
 # Backlog
 
-**403 changes** — 🔵 2 built · 🟣 12 groomed · 🟡 24 proposed · ⚪ 5 deferred · ✅ 247 done · 🗑️ 113 killed
+**403 changes** — 🔵 1 built · 🟣 13 groomed · 🟡 23 proposed · ⚪ 5 deferred · ✅ 248 done · 🗑️ 113 killed
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
-| [0400](active/0400-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate.md) | Rewrite the README as a goal-first landing page and relocate its technical body to docs/ | `medium` | `docs` | [#274](https://github.com/danielhanold/docket/pull/274) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
-## 🟣 Groomed (12)
+## 🟣 Groomed (13)
 
 | # | Title | Priority | Type | Spec |
 |---|-------|----------|------|------|
 | [0403](active/0403-surface-config-diagnostics-with-file-line-when-a-command-ref.md) | Surface config diagnostics with file:line when a command refuses on invalid configuration | `medium` | `fix` | [spec](../superpowers/specs/2026-09-03-surface-config-diagnostics-with-file-line-when-a-command-ref-design.md) |
+| [0402](active/0402-restructure-the-technical-docs-into-goal-organised-guide-con.md) | Restructure the technical docs into goal-organised guide, concepts, and reference tiers | `medium` | `docs` | [spec](../superpowers/specs/2026-09-03-restructure-the-technical-docs-into-goal-organised-guide-con-design.md) |
 | [0401](active/0401-add-a-source-available-license-polyform-noncommercial-plus-a.md) | Add a source-available license: PolyForm Noncommercial plus an individual commercial exemption | `medium` | `docs` | [spec](../superpowers/specs/2026-09-03-add-a-source-available-license-polyform-noncommercial-plus-a-design.md) |
 | [0392](active/0392-installer-tolerant-config-read-break-the-schema-bump-bootstr.md) | Installer-tolerant config read: break the schema-bump bootstrap deadlock | `high` | `fix` | [spec](../superpowers/specs/2026-09-03-installer-tolerant-config-read-break-the-schema-bump-bootstr-design.md) |
 | [0261](active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | `high` | `feat` | [spec](../superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) |
@@ -26,11 +26,10 @@
 | [0166](active/0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | `low` | `chore` | [spec](../superpowers/specs/2026-08-07-retune-the-interactive-skills-advisory-session-model-recomme-design.md) |
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | [spec](../superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 
-## 🟡 Proposed (24)
+## 🟡 Proposed (23)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0402](active/0402-restructure-the-technical-docs-into-goal-organised-guide-con.md) | Restructure the technical docs into goal-organised guide, concepts, and reference tiers | `medium` | `docs` | ⏳ waiting on #400 — needs your merge |
 | [0360](active/0360-cut-implement-next-coordination-tax-context-after-claim-sess.md) | Cut implement-next coordination tax (context after claim, session-scoped sync, evidence from PASSED drives) | `high` | `feat` | needs-brainstorm |
 | [0398](active/0398-extend-the-testsupport-temp-dir-fixture-and-repoguard-to-cmd.md) | Extend the testsupport temp-dir fixture and repoguard to cmd/ real-process test packages | `medium` | `chore` | needs-brainstorm |
 | [0388](active/0388-reimplement-post-merge-fast-forward-integration-branch-sync.md) | Reimplement post-merge fast-forward integration-branch sync as a native Go verb | `medium` | `feat` | needs-brainstorm |
@@ -106,20 +105,21 @@ graph TD
   0392
   0393
   0398
-  0400
   0401
   0400 --> 0402
   0403
   0192:::done
   0251:::done
   0370:::done
+  0400:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (360)</summary>
+<details><summary>✅🗑️ Archive — done + killed (361)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0400](archive/2026-09-04-0400-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate.md) | Rewrite the README as a goal-first landing page and relocate its technical body to docs/ | 2026-09-04 |
 | [0399](archive/2026-09-03-0399-authoritative-machine-readable-request-result-schema-surface.md) | Authoritative machine-readable request/result schema surface | 2026-09-03 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0385](archive/2026-09-03-0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | 2026-09-03 |
@@ -165,7 +165,6 @@ graph TD
 | [0386](archive/2026-08-31-0386-discharge-adr-0100-s-deferred-disposition-for-the-surviving.md) | Discharge ADR-0100's deferred disposition for the surviving product runners | 2026-08-31 |
 | [0377](archive/2026-08-31-0377-migrate-deferred-bash-facade-workflow-operations-to-native-g.md) | Migrate deferred Bash-facade workflow operations to native Go CLI verbs | 2026-08-31 |
 | [0370](archive/2026-08-31-0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | 2026-08-31 |
-| [0367](archive/2026-08-31-0367-configurable-rendered-board-sections-and-sorting.md) | Configurable rendered-board sections and sorting | 2026-08-31 |
 | [0353](archive/2026-08-26-0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | 2026-08-26 |
 | [0294](archive/2026-08-26-0294-shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru.md) | Shrink AGENTS.md's always-loaded footprint: script-ify the run gate's caller procedure and de-duplicate the dispatch table | 2026-08-26 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
@@ -253,7 +252,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 114 done |
+| [2026-08](archive/) | 115 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
