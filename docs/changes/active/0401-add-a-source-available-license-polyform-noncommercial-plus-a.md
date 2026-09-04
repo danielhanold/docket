@@ -22,7 +22,7 @@ branch: 'docs/add-a-source-available-license-polyform-noncommercial-plus-a'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-04T01:15:48Z'
+claimed_at: '2026-09-04T01:23:36Z'
 ---
 
 ## Artifacts
