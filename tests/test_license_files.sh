@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 # docket-suite: go
-# tests/test_license_files.sh — the license-artifact guard (change 0401).
+# tests/test_license_files.sh — the license-artifact guard (change 0404,
+# superseding 0401's PolyForm guard).
 #
 # Drives internal/repoguard's TestLicenseFiles + TestLicenseReadmeSection:
-# LICENSE (PolyForm Noncommercial 1.0.0 identifier, Required Notice, pointer),
-# LICENSE-ADDITIONAL-PERMISSIONS.md (its three clause headings), and the
-# README License section (heading + links to both files). `go test -run` with
+# LICENSE (verbatim Apache License 2.0 — identifier, date line, and the
+# appendix's distinctive clause — with the PolyForm-era strings asserted
+# absent), NOTICE (the copyright line), CONTRIBUTING.md (the Signed-off-by
+# DCO trailer), the asserted ABSENCE of LICENSE-ADDITIONAL-PERMISSIONS.md at
+# the repo root, and the README License section (heading + links to LICENSE,
+# NOTICE, and CONTRIBUTING.md). `go test -run` with
 # a pattern that matches nothing exits 0, so this wrapper pins BOTH
 # `--- PASS:` lines: deleting or renaming either Go test reddens THIS file
 # even though `go test` would happily pass without it.
