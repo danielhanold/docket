@@ -1,19 +1,19 @@
 # Backlog
 
-**407 changes** — 🟢 2 in progress · 🔵 2 built · 🟣 9 groomed · 🟡 25 proposed · ⚪ 5 deferred · ✅ 251 done · 🗑️ 113 killed
+**407 changes** — 🟢 1 in progress · 🔵 3 built · 🟣 9 groomed · 🟡 25 proposed · ⚪ 5 deferred · ✅ 251 done · 🗑️ 113 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0404](active/0404-relicense-docket-under-the-apache-license-2-0.md) | Relicense docket under the Apache License 2.0 | `high` | `docs` | [spec](../superpowers/specs/2026-09-04-relicense-docket-under-the-apache-license-2-0-design.md) | `docs/relicense-docket-under-the-apache-license-2-0` |
-| [0261](active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | `high` | `feat` | [spec](../superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) | `feat/give-run-halted-a-board-surface-and-a-health-check-like-its` |
 
-## 🔵 Built (2)
+## 🔵 Built (3)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0402](active/0402-restructure-the-technical-docs-into-goal-organised-guide-con.md) | Restructure the technical docs into goal-organised guide, concepts, and reference tiers | `medium` | `docs` | [#278](https://github.com/danielhanold/docket/pull/278) | awaiting merge |
+| [0261](active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | `high` | `feat` | [#279](https://github.com/danielhanold/docket/pull/279) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
 ## 🟣 Groomed (9)

@@ -2,7 +2,7 @@
 id: 261
 slug: give-run-halted-a-board-surface-and-a-health-check-like-its
 title: 'Give ''## Run halted'' a board surface and a health check, like its two family members'
-status: 'in-progress'
+status: 'implemented'
 priority: high
 type: feat
 created: 2026-08-07
@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable: true
 branch: 'feat/give-run-halted-a-board-surface-and-a-health-check-like-its'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/279'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-04T17:37:14Z'
