@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0400 — Rewrite the README as a goal-first landing page and relocate its technical body to docs/](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0400-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate.md)**
+> ↩ **[Change 0400 — Rewrite the README as a goal-first landing page and relocate its technical body to docs/](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-04-0400-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate.md)**
 <!-- docket:backlink:end -->
 # Rewrite the README as a goal-first landing page — results
 Change: #400 · Branch: docs/rewrite-the-readme-as-a-goal-first-landing-page-and-relocate · PR: (see change record) · Plan: docs/superpowers/plans/2026-09-03-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate.md · ADRs: 53 (cited)
