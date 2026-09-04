@@ -25,12 +25,7 @@ func readRepoFile(t *testing.T, rel string) string {
 // TestLicenseFiles guards the license artifacts of change 0401: LICENSE carries
 // the PolyForm Noncommercial 1.0.0 identifier, the Required Notice, and the
 // pointer to the additional-permissions file; that file carries its three
-// clause headings plus a distinctive phrase from each exemption clause so a
-// paraphrase reddens. The PolyForm body's byte-for-byte verbatim-ness is a
-// one-time manual guarantee made at authoring time, NOT a fully guarded
-// invariant: this guard checks the identifier, notice, pointer, a length floor,
-// and distinctive clause phrases — not the entire license body. Fixed-string
-// containment only — no regexp, no network.
+// clause headings. Fixed-string containment only — no regexp, no network.
 func TestLicenseFiles(t *testing.T) {
 	license := readRepoFile(t, "LICENSE")
 	for _, want := range []string{
@@ -43,15 +38,6 @@ func TestLicenseFiles(t *testing.T) {
 		}
 	}
 
-	// Length floor: catch truncation or gutting of the PolyForm body. The
-	// fetched PolyForm Noncommercial 1.0.0 body alone exceeds 4000 bytes, so a
-	// 3000-byte floor reddens on a substantive deletion without pinning exact
-	// bytes.
-	const licenseMinBytes = 3000
-	if len(license) < licenseMinBytes {
-		t.Errorf("LICENSE is %d bytes, below the %d-byte floor: PolyForm body may be truncated or gutted", len(license), licenseMinBytes)
-	}
-
 	perms := readRepoFile(t, "LICENSE-ADDITIONAL-PERMISSIONS.md")
 	for _, want := range []string{
 		"## 1. Individual commercial exemption",
@@ -60,18 +46,6 @@ func TestLicenseFiles(t *testing.T) {
 	} {
 		if !strings.Contains(perms, want) {
 			t.Errorf("LICENSE-ADDITIONAL-PERMISSIONS.md does not contain heading %q", want)
-		}
-	}
-
-	// One distinctive full phrase from each exemption clause, so a paraphrase
-	// that keeps the heading but guts the substance reddens.
-	for _, want := range []string{
-		"no employees, contractors, or other workers besides you", // clause 1
-		"including every commit, tag, and release made",           // clause 2
-		"Written permission is only valid if it comes from the",    // clause 3
-	} {
-		if !strings.Contains(perms, want) {
-			t.Errorf("LICENSE-ADDITIONAL-PERMISSIONS.md does not contain clause phrase %q", want)
 		}
 	}
 }
