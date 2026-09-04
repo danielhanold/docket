@@ -2,7 +2,7 @@
 id: 401
 slug: 'add-a-source-available-license-polyform-noncommercial-plus-a'
 title: 'Add a source-available license: PolyForm Noncommercial plus an individual commercial exemption'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'docs'
 created: '2026-09-03'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'docs/add-a-source-available-license-polyform-noncommercial-plus-a'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/275'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-04T01:23:36Z'

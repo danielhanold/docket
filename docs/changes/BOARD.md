@@ -1,21 +1,21 @@
 # Backlog
 
-**403 changes** — 🟢 5 in progress · 🔵 1 built · 🟣 9 groomed · 🟡 22 proposed · ⚪ 5 deferred · ✅ 248 done · 🗑️ 113 killed
+**403 changes** — 🟢 4 in progress · 🔵 2 built · 🟣 9 groomed · 🟡 22 proposed · ⚪ 5 deferred · ✅ 248 done · 🗑️ 113 killed
 
-## 🟢 In progress (5)
+## 🟢 In progress (4)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0403](active/0403-surface-config-diagnostics-with-file-line-when-a-command-ref.md) | Surface config diagnostics with file:line when a command refuses on invalid configuration | `medium` | `fix` | [spec](../superpowers/specs/2026-09-03-surface-config-diagnostics-with-file-line-when-a-command-ref-design.md) | `fix/surface-config-diagnostics-with-file-line-when-a-command-ref` |
 | [0402](active/0402-restructure-the-technical-docs-into-goal-organised-guide-con.md) | Restructure the technical docs into goal-organised guide, concepts, and reference tiers | `medium` | `docs` | [spec](../superpowers/specs/2026-09-03-restructure-the-technical-docs-into-goal-organised-guide-con-design.md) | `docs/restructure-the-technical-docs-into-goal-organised-guide-con` |
-| [0401](active/0401-add-a-source-available-license-polyform-noncommercial-plus-a.md) | Add a source-available license: PolyForm Noncommercial plus an individual commercial exemption | `medium` | `docs` | [spec](../superpowers/specs/2026-09-03-add-a-source-available-license-polyform-noncommercial-plus-a-design.md) | `docs/add-a-source-available-license-polyform-noncommercial-plus-a` |
 | [0392](active/0392-installer-tolerant-config-read-break-the-schema-bump-bootstr.md) | Installer-tolerant config read: break the schema-bump bootstrap deadlock | `high` | `fix` | [spec](../superpowers/specs/2026-09-03-installer-tolerant-config-read-break-the-schema-bump-bootstr-design.md) | `fix/installer-tolerant-config-read-break-the-schema-bump-bootstr` |
 | [0261](active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | `high` | `feat` | [spec](../superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) | `feat/give-run-halted-a-board-surface-and-a-health-check-like-its` |
 
-## 🔵 Built (1)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
+| [0401](active/0401-add-a-source-available-license-polyform-noncommercial-plus-a.md) | Add a source-available license: PolyForm Noncommercial plus an individual commercial exemption | `medium` | `docs` | [#275](https://github.com/danielhanold/docket/pull/275) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
 ## 🟣 Groomed (9)
