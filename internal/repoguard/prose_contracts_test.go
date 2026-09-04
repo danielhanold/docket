@@ -199,9 +199,10 @@ var proseContracts = []proseContract{
 	{sentinel: "test_change_types", file: "skills/docket-new-change/change-template.md",
 		present: []string{"type:"}},
 	// change 0400 — the goal-first landing page cannot silently lose its two
-	// load-bearing map links (the relocated technical guide and the comparison page).
+	// load-bearing map links (the docs index — retargeted from the relocated
+	// guide by change 0402 — and the comparison page).
 	{sentinel: "change_0400_readme_landing", file: "README.md",
-		present: []string{"](docs/guide/README.md)", "](docs/comparison/ai-native-sdlc-playbook.md)"}},
+		present: []string{"](docs/README.md)", "](docs/comparison/ai-native-sdlc-playbook.md)"}},
 	// change 0389 — implementation-scope sweep + the two completion barriers.
 	// docket-status owns the COMMAND barrier: a backgrounded sweep is observed
 	// to its terminal envelope, never declared done by proxy signals; and an
