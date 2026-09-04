@@ -98,6 +98,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0107](0107-event-authorized-parent-takeover-extends-fingerprinted-gate.md) — Event-authorized parent takeover extends fingerprinted gate-drive ownership (Accepted) ← change #359 → supersedes ADR-0098 · relates to ADR-0024, ADR-0075, ADR-0095
 - [ADR-0108](0108-bound-total-go-test-load-at-the-runner-and-isolate-real-proc.md) — Bound total Go test load at the runner and isolate real-process test temp dirs behind a shared fixture (Accepted) ← change #373
 - [ADR-0109](0109-docket-schema-is-a-separate-reflected-payload-schema-surface.md) — `docket schema` is a separate reflected payload-schema surface with a fail-closed fidelity boundary (Accepted) ← change #399 · relates to ADR-0104
+- [ADR-0110](0110-install-path-configuration-reads-tolerate-unknown-keys-the-s.md) — Install-path configuration reads tolerate unknown keys; the strict typo policy binds operating commands only (Accepted) ← change #392 · relates to ADR-0019, ADR-0102
 
 ## Superseded / Reversed
 
