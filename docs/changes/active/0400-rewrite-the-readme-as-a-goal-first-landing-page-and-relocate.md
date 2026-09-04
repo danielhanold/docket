@@ -6,7 +6,7 @@ status: 'in-progress'
 priority: 'medium'
 type: 'docs'
 created: '2026-09-03'
-updated: '2026-09-03'
+updated: '2026-09-04'
 depends_on: []
 stacked_on:
 related: [283, 385]
@@ -14,7 +14,7 @@ discovered_from: []
 adrs: [53]
 spec: 'docs/superpowers/specs/2026-09-03-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate-design.md'
 plan: 'docs/superpowers/plans/2026-09-03-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate.md'
-results:
+results: 'docs/results/2026-09-03-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate-results.md'
 trivial: false
 auto_groomable:
 branch_prefix:
@@ -32,6 +32,7 @@ claimed_at: '2026-09-03T23:15:33Z'
 |---|---|
 | Spec | [2026-09-03-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-03-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate-design.md) |
 | Plan | [2026-09-03-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-03-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate.md) |
+| Results | [2026-09-03-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate-results.md](https://github.com/danielhanold/docket/blob/docket/docs/results/2026-09-03-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate-results.md) |
 | ADRs | [ADR-0053](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0053-readme-yaml-fences-guarded-by-default-opt-out-marker-grammar.md) |
 <!-- docket:artifacts:end -->
 
