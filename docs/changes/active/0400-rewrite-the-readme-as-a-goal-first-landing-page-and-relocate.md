@@ -2,7 +2,7 @@
 id: 400
 slug: 'rewrite-the-readme-as-a-goal-first-landing-page-and-relocate'
 title: 'Rewrite the README as a goal-first landing page and relocate its technical body to docs/'
-status: 'in-progress'
+status: 'implemented'
 priority: 'medium'
 type: 'docs'
 created: '2026-09-03'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'docs/rewrite-the-readme-as-a-goal-first-landing-page-and-relocate'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/274'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-03T23:15:33Z'
