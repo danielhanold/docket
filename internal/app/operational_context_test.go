@@ -3,10 +3,12 @@ package app
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/reposetup"
+	"github.com/danielhanold/docket/internal/testsupport"
 )
 
 // These are the shared operational-repository gate tests (change 0363 Task 3).
@@ -194,4 +196,60 @@ func TestFailClosedOrdering(t *testing.T) {
 			t.Fatalf("legacy refusal is not the typed error: %v", err)
 		}
 	})
+}
+
+// TestStatusInvalidConfigDiagnostics: an invalid committed .docket.yml still
+// refuses with reason invalid-input and today's message, and now carries the
+// resolver's findings — code, .docket.yml:<line> in the path slot — with the
+// refs in the human text (change 0403).
+func TestStatusInvalidConfigDiagnostics(t *testing.T) {
+	requireRealGit(t)
+	root := testsupport.TempDir(t)
+	origin := filepath.Join(root, "origin.git")
+	writer := filepath.Join(root, "writer")
+	invocation := filepath.Join(root, "invocation")
+	runGit(t, root, "init", "--bare", "-b", "main", origin)
+	runGit(t, root, "init", "-b", "main", writer)
+	gitIdentity(t, writer)
+	writeRepoFile(t, writer, ".docket.yml", invalidConfigYML)
+	writeRepoFile(t, writer, "README.md", "readme\n")
+	runGit(t, writer, "add", "-A")
+	runGit(t, writer, "commit", "-q", "-m", "invalid config")
+	runGit(t, writer, "remote", "add", "origin", origin)
+	runGit(t, writer, "push", "-q", "-u", "origin", "main")
+	runGit(t, root, "clone", "-q", origin, invocation)
+
+	res := Status(context.Background(), NewGitStatusReader(newGitClient(t)), StatusOptions{RepoDir: invocation})
+
+	if res.Reason != "invalid-input" {
+		t.Fatalf("reason = %q (message %q), want invalid-input", res.Reason, res.Message)
+	}
+	if !strings.Contains(res.Message, "invalid configuration") {
+		t.Errorf("message = %q, want it to keep today's invalid-configuration text", res.Message)
+	}
+	var errs []StatusFinding
+	for _, f := range res.Findings {
+		if f.Severity == "error" {
+			errs = append(errs, f)
+		}
+	}
+	if len(errs) != 3 {
+		t.Fatalf("error findings = %d (%+v), want 3", len(errs), res.Findings)
+	}
+	wantRefs := map[string]string{
+		"unknown-key":   ".docket.yml:2",
+		"invalid-type":  ".docket.yml:6",
+		"invalid-value": ".docket.yml:7",
+	}
+	for _, f := range errs {
+		if want, ok := wantRefs[f.Code]; !ok || f.Path != want {
+			t.Errorf("finding %q path = %q, want %q", f.Code, f.Path, wantRefs[f.Code])
+		}
+	}
+	human := res.HumanText()
+	for _, ref := range wantRefs {
+		if !strings.Contains(human, ref) {
+			t.Errorf("human text lacks ref %q:\n%s", ref, human)
+		}
+	}
 }
