@@ -2,7 +2,7 @@
 id: 392
 slug: 'installer-tolerant-config-read-break-the-schema-bump-bootstr'
 title: 'Installer-tolerant config read: break the schema-bump bootstrap deadlock'
-status: 'in-progress'
+status: 'implemented'
 priority: high
 type: 'fix'
 created: '2026-09-01'
@@ -19,7 +19,7 @@ trivial: false
 auto_groomable:
 branch_prefix:
 branch: 'fix/installer-tolerant-config-read-break-the-schema-bump-bootstr'
-pr:
+pr: 'https://github.com/danielhanold/docket/pull/276'
 blocked_by:
 reconciled: true
 claimed_at: '2026-09-04T01:22:39Z'
