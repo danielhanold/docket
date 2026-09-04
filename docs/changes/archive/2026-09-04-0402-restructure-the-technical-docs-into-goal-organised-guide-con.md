@@ -2,7 +2,7 @@
 id: 402
 slug: 'restructure-the-technical-docs-into-goal-organised-guide-con'
 title: 'Restructure the technical docs into goal-organised guide, concepts, and reference tiers'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'docs'
 created: '2026-09-03'
@@ -22,7 +22,7 @@ branch: 'docs/restructure-the-technical-docs-into-goal-organised-guide-con'
 pr: 'https://github.com/danielhanold/docket/pull/278'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-04T01:24:41Z'
+claimed_at:
 ---
 
 ## Artifacts

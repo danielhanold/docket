@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0402 — Restructure the technical docs into goal-organised guide, concepts, and reference tiers](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0402-restructure-the-technical-docs-into-goal-organised-guide-con.md)**
+> ↩ **[Change 0402 — Restructure the technical docs into goal-organised guide, concepts, and reference tiers](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-04-0402-restructure-the-technical-docs-into-goal-organised-guide-con.md)**
 <!-- docket:backlink:end -->
 
 # Restructure the technical docs into guide, concepts, and reference tiers — design

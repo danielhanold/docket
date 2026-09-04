@@ -1,18 +1,17 @@
 # Backlog
 
-**407 changes** — 🟢 1 in progress · 🔵 2 built · 🟣 9 groomed · 🟡 25 proposed · ⚪ 5 deferred · ✅ 252 done · 🗑️ 113 killed
+**407 changes** — 🟢 1 in progress · 🔵 1 built · 🟣 9 groomed · 🟡 25 proposed · ⚪ 5 deferred · ✅ 253 done · 🗑️ 113 killed
 
 ## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch | Readiness |
 |---|-------|----------|------|------|--------|-----------|
-| [0404](active/0404-relicense-docket-under-the-apache-license-2-0.md) | Relicense docket under the Apache License 2.0 | `high` | `docs` | [spec](../superpowers/specs/2026-09-04-relicense-docket-under-the-apache-license-2-0-design.md) | `docs/relicense-docket-under-the-apache-license-2-0` | run halted — needs you |
+| [0404](active/0404-relicense-docket-under-the-apache-license-2-0.md) | Relicense docket under the Apache License 2.0 | `high` | `docs` | [spec](../superpowers/specs/2026-09-04-relicense-docket-under-the-apache-license-2-0-design.md) | `docs/relicense-docket-under-the-apache-license-2-0` |  |
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
-| [0402](active/0402-restructure-the-technical-docs-into-goal-organised-guide-con.md) | Restructure the technical docs into goal-organised guide, concepts, and reference tiers | `medium` | `docs` | [#278](https://github.com/danielhanold/docket/pull/278) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
 ## 🟣 Groomed (9)
@@ -108,7 +107,6 @@ graph TD
   0388
   0393
   0398
-  0400 --> 0402
   0404
   0405
   0406
@@ -116,15 +114,15 @@ graph TD
   0192:::done
   0251:::done
   0370:::done
-  0400:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (365)</summary>
+<details><summary>✅🗑️ Archive — done + killed (366)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0403](archive/2026-09-04-0403-surface-config-diagnostics-with-file-line-when-a-command-ref.md) | Surface config diagnostics with file:line when a command refuses on invalid configuration | 2026-09-04 |
+| [0402](archive/2026-09-04-0402-restructure-the-technical-docs-into-goal-organised-guide-con.md) | Restructure the technical docs into goal-organised guide, concepts, and reference tiers | 2026-09-04 |
 | [0401](archive/2026-09-04-0401-add-a-source-available-license-polyform-noncommercial-plus-a.md) | Add a source-available license: PolyForm Noncommercial plus an individual commercial exemption | 2026-09-04 |
 | [0400](archive/2026-09-04-0400-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate.md) | Rewrite the README as a goal-first landing page and relocate its technical body to docs/ | 2026-09-04 |
 | [0392](archive/2026-09-04-0392-installer-tolerant-config-read-break-the-schema-bump-bootstr.md) | Installer-tolerant config read: break the schema-bump bootstrap deadlock | 2026-09-04 |
@@ -167,7 +165,6 @@ graph TD
 | [0364](archive/2026-09-02-0364-migrate-primary-clean-fast-forward.md) | Advance the primary in place on migrate via a gitcli clean-fast-forward primitive | 2026-09-02 |
 | [0359](archive/2026-09-02-0359-run-gate-gives-up-too-soon.md) | Run gate gives up too soon | 2026-09-02 |
 | [0390](archive/2026-09-01-0390-maintenance-sweep-scope-full-re-probes-the-remote-per-item-h.md) | maintenance sweep --scope full re-probes the remote per item, hanging the sweep | 2026-09-01 |
-| [0384](archive/2026-09-01-0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md) | Launch compositional Docket agents in coordinator-capable harness contexts | 2026-09-01 |
 | [0252](archive/2026-09-01-0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md) | Harden test fixtures and hermeticity into tests-lib | 2026-09-01 |
 | [0386](archive/2026-08-31-0386-discharge-adr-0100-s-deferred-disposition-for-the-surviving.md) | Discharge ADR-0100's deferred disposition for the surviving product runners | 2026-08-31 |
 | [0353](archive/2026-08-26-0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | 2026-08-26 |
@@ -257,7 +254,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-09](archive/) | 1 done |
+| [2026-09](archive/) | 2 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
