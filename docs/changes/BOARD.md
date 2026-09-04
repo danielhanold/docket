@@ -1,6 +1,6 @@
 # Backlog
 
-**403 changes** — 🟢 4 in progress · 🔵 2 built · 🟣 9 groomed · 🟡 22 proposed · ⚪ 5 deferred · ✅ 248 done · 🗑️ 113 killed
+**403 changes** — 🟢 4 in progress · 🔵 1 built · 🟣 9 groomed · 🟡 22 proposed · ⚪ 5 deferred · ✅ 249 done · 🗑️ 113 killed
 
 ## 🟢 In progress (4)
 
@@ -11,11 +11,10 @@
 | [0392](active/0392-installer-tolerant-config-read-break-the-schema-bump-bootstr.md) | Installer-tolerant config read: break the schema-bump bootstrap deadlock | `high` | `fix` | [spec](../superpowers/specs/2026-09-03-installer-tolerant-config-read-break-the-schema-bump-bootstr-design.md) | `fix/installer-tolerant-config-read-break-the-schema-bump-bootstr` |
 | [0261](active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | `high` | `feat` | [spec](../superpowers/specs/2026-08-09-give-run-halted-a-board-surface-and-a-health-check-like-its-design.md) | `feat/give-run-halted-a-board-surface-and-a-health-check-like-its` |
 
-## 🔵 Built (2)
+## 🔵 Built (1)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
-| [0401](active/0401-add-a-source-available-license-polyform-noncommercial-plus-a.md) | Add a source-available license: PolyForm Noncommercial plus an individual commercial exemption | `medium` | `docs` | [#275](https://github.com/danielhanold/docket/pull/275) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
 ## 🟣 Groomed (9)
@@ -110,7 +109,6 @@ graph TD
   0392
   0393
   0398
-  0401
   0400 --> 0402
   0403
   0192:::done
@@ -120,10 +118,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (361)</summary>
+<details><summary>✅🗑️ Archive — done + killed (362)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0401](archive/2026-09-04-0401-add-a-source-available-license-polyform-noncommercial-plus-a.md) | Add a source-available license: PolyForm Noncommercial plus an individual commercial exemption | 2026-09-04 |
 | [0400](archive/2026-09-04-0400-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate.md) | Rewrite the README as a goal-first landing page and relocate its technical body to docs/ | 2026-09-04 |
 | [0399](archive/2026-09-03-0399-authoritative-machine-readable-request-result-schema-surface.md) | Authoritative machine-readable request/result schema surface | 2026-09-03 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
@@ -169,7 +168,6 @@ graph TD
 | [0389](archive/2026-08-31-0389-speed-up-implement-next-status-sweeps-and-retire-completed-s.md) | Speed up implement-next status sweeps and retire completed status children | 2026-08-31 |
 | [0386](archive/2026-08-31-0386-discharge-adr-0100-s-deferred-disposition-for-the-surviving.md) | Discharge ADR-0100's deferred disposition for the surviving product runners | 2026-08-31 |
 | [0377](archive/2026-08-31-0377-migrate-deferred-bash-facade-workflow-operations-to-native-g.md) | Migrate deferred Bash-facade workflow operations to native Go CLI verbs | 2026-08-31 |
-| [0370](archive/2026-08-31-0370-delete-the-frozen-bash-facade-and-legacy-test-surface.md) | Delete the frozen Bash facade and legacy test surface | 2026-08-31 |
 | [0353](archive/2026-08-26-0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | 2026-08-26 |
 | [0294](archive/2026-08-26-0294-shrink-agents-md-s-always-loaded-footprint-script-ify-the-ru.md) | Shrink AGENTS.md's always-loaded footprint: script-ify the run gate's caller procedure and de-duplicate the dispatch table | 2026-08-26 |
 | [0303](archive/2026-08-12-0303-go-migration-program-record-and-bash-backlog-disposition.md) | Go migration program record and Bash-backlog disposition | 2026-08-12 |
@@ -257,7 +255,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 115 done |
+| [2026-08](archive/) | 116 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
