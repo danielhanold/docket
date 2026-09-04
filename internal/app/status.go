@@ -243,11 +243,19 @@ func statusFailure(ctx context.Context, pin StatusPin, err error) StatusResult {
 		})
 	}
 	result, reason := classifyStatusError(ctx, err)
-	return NewStatusResult(result, StatusResult{
+	out := StatusResult{
 		Context: contextFromPin(pin),
 		Reason:  reason,
 		Message: err.Error(),
-	})
+	}
+	// An invalid-configuration refusal carries the resolver's diagnostics:
+	// lift them into the findings array so the refusal names each defect's
+	// file:line (change 0403). Reason and Message are decided above, exactly
+	// as before, never by the lifted findings.
+	if diags := ConfigDiagnostics(err); len(diags) > 0 {
+		out.Findings = configDiagnosticStatusFindings(diags)
+	}
+	return NewStatusResult(result, out)
 }
 
 // refusalReason is the stable machine reason of an operational refusal: the
