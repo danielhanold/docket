@@ -182,6 +182,16 @@ func RequireCompatibleInstallation(roots install.UserRoots) error {
 // document these commands emit.
 const installDefaultBranch = "main"
 
+// installResolveContext is the resolution context every install-path config
+// read uses. TolerateUnknownKeys is set HERE and nowhere else: an install
+// operation is never blocked by configuration it does not understand — the
+// config may be written for a newer docket than the binary running the
+// installer (the schema-bump bootstrap deadlock, change 0392) — while every
+// operating command keeps the strict typo policy.
+func installResolveContext() config.ResolveContext {
+	return config.ResolveContext{DefaultBranch: installDefaultBranch, TolerateUnknownKeys: true}
+}
+
 // installOptions assembles what the three operations read. The MACHINE half is
 // strictly user-level: the home roots, this binary's embedded bundle, and the
 // GLOBAL configuration layer alone — a .docket.yml in whatever directory the user
@@ -207,35 +217,38 @@ func installOptions(ctx context.Context, harnesses []string, repoDir string, res
 	if err != nil {
 		return install.Options{}, &InstallRefusal{Reason: app.ReasonInvalidConfig, Err: err}
 	}
-	snapshot, _, err := config.Resolve(sources, config.ResolveContext{DefaultBranch: installDefaultBranch})
+	snapshot, diags, err := config.Resolve(sources, installResolveContext())
 	if err != nil {
 		return install.Options{}, &InstallRefusal{Reason: app.ReasonInvalidConfig, Err: err}
 	}
+	configWarnings := config.Warnings(diags)
 	agents := snapshot.Effective.Agents
 	digest, err := app.AgentDigest(agents, app.HarnessNames(harnesses))
 	if err != nil {
 		return install.Options{}, &InstallRefusal{Reason: install.ReasonInternal, Err: err}
 	}
 	opts := install.Options{
-		Roots:       roots,
-		Planners:    app.Planners(roots, agents),
-		Harnesses:   harnesses,
-		Catalog:     catalog,
-		Config:      snapshot,
-		Info:        info,
-		FS:          install.RealFS{},
-		AgentDigest: digest,
+		Roots:          roots,
+		Planners:       app.Planners(roots, agents),
+		Harnesses:      harnesses,
+		Catalog:        catalog,
+		Config:         snapshot,
+		Info:           info,
+		FS:             install.RealFS{},
+		AgentDigest:    digest,
+		ConfigWarnings: configWarnings,
 	}
 	if !resolveRepo {
 		return opts, nil
 	}
 
-	phase, _, refusal := resolveRepoPhase(ctx, opts, harnesses, repoDir)
+	phase, repoWarnings, refusal := resolveRepoPhase(ctx, opts, harnesses, repoDir)
 	if refusal != nil {
 		return install.Options{}, refusal
 	}
 	opts.RepoPhase = phase
 	opts.HarnessOptIns = repoOptIns(phase)
+	opts.ConfigWarnings = append(opts.ConfigWarnings, repoWarnings...)
 	return opts, nil
 }
 
@@ -253,7 +266,7 @@ func resolveRepoPhase(ctx context.Context, opts install.Options, harnesses []str
 		return nil, nil, &InstallRefusal{Reason: install.ReasonInvalidOptions, Err: err}
 	}
 	legacy := install.LegacyReproducerFor(opts, harnessNamesForLegacy(harnesses))
-	phase, _, warnings, err := app.ResolveRepoPhase(ctx, git, repoDir, harnesses, runGate, legacy, config.ResolveContext{DefaultBranch: installDefaultBranch})
+	phase, _, warnings, err := app.ResolveRepoPhase(ctx, git, repoDir, harnesses, runGate, legacy, installResolveContext())
 	if err != nil {
 		var re *app.RepoResolutionError
 		if errors.As(err, &re) {

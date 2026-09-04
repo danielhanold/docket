@@ -520,6 +520,68 @@ func TestInstallCheckWithoutInstallation(t *testing.T) {
 	}
 }
 
+// TestInstallCheckToleratesUnknownGlobalKey (change 0392): the wiring assert
+// for the GLOBAL install-path read. A global config written for a newer schema
+// must not abort install check — deleting TolerateUnknownKeys from
+// installOptions turns this into invalid-input/invalid-config and reddens it.
+func TestInstallCheckToleratesUnknownGlobalKey(t *testing.T) {
+	home := pinInstallEnv(t)
+	cfgDir := filepath.Join(home, ".config", "docket")
+	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cfgDir, "config.yml"), []byte("some_future_block: true\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, errS, code := runCLI(t, "install", "check", "--json")
+	if errS != "" {
+		t.Fatalf("stderr = %q", errS)
+	}
+	if strings.Contains(out, `"reason":"invalid-config"`) {
+		t.Fatalf("install check refused a newer-schema global config: %s", out)
+	}
+	// The unwritten machine still answers installation-required — the read
+	// completed and the operation ran.
+	if code != 1 || !strings.Contains(out, `"reason":"installation-required"`) {
+		t.Fatalf("out=%q code=%d, want the operation to complete to installation-required", out, code)
+	}
+	if !strings.Contains(out, `"warnings"`) || !strings.Contains(out, `"some_future_block"`) {
+		t.Fatalf("the tolerated key's warning is missing from the document: %s", out)
+	}
+}
+
+// TestInstallToleratesUnknownRepositoryKey: the wiring assert for the
+// REPOSITORY install-path read — install over a .docket.yml carrying an
+// unknown key completes (applied) and surfaces the warning, exercising the
+// same installOptions path development install's parent runs before its
+// build/hand-off step (spec Testing items 7 and 8).
+func TestInstallToleratesUnknownRepositoryKey(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not on PATH")
+	}
+	pinInstallEnv(t)
+	repo := testsupport.TempDir(t)
+	statusGit(t, repo, "init", "-b", "main")
+	if err := os.WriteFile(filepath.Join(repo, ".docket.yml"), []byte("agent_harnesses: [claude]\nsome_future_block: true\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, errS, code := runCLI(t, "install", "--repo-dir", repo, "--json")
+	if errS != "" {
+		t.Fatalf("stderr = %q", errS)
+	}
+	if strings.Contains(out, `"reason":"invalid-config"`) || code == 2 {
+		t.Fatalf("install refused a newer-schema repository config (code %d): %s", code, out)
+	}
+	if !strings.Contains(out, `"result":"applied"`) {
+		t.Fatalf("install did not complete: %s", out)
+	}
+	if !strings.Contains(out, `"warnings"`) || !strings.Contains(out, `"some_future_block"`) {
+		t.Fatalf("the repository read's warning is missing: %s", out)
+	}
+}
+
 // TestInstallIgnoresRepositoryLayer holds the spec's rule that installing is a
 // user-level operation: a .docket.yml in the current directory is not a layer
 // these commands have. The planted file is invalid enough to fail resolution,

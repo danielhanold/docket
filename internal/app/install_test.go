@@ -358,3 +358,59 @@ func TestAgentDigestIdentifiesTheTable(t *testing.T) {
 		t.Errorf("digest = %q, want a sha256: prefix", base)
 	}
 }
+
+// TestInstallResultCarriesConfigWarnings (change 0392): warning-severity
+// diagnostics from the install-path config reads reach the JSON document and
+// the human text, one line each, provenance included when present and omitted
+// when absent.
+func TestInstallResultCarriesConfigWarnings(t *testing.T) {
+	warns := []config.Diagnostic{
+		{
+			Code: config.CodeUnknownKey, Severity: config.SeverityWarning,
+			Path: "some_future_block", Message: "is not a docket configuration setting",
+			Remedy:     config.ToleratedUnknownKeyRemedy,
+			Provenance: &config.Provenance{Layer: config.LayerRepository, Source: ".docket.yml", Line: 3},
+		},
+		{
+			Code: config.CodeUnknownKey, Severity: config.SeverityWarning,
+			Path: "another", Message: "is ignored",
+		},
+	}
+	o := install.Options{ConfigWarnings: warns}
+	r := RunInstallCheck(o) // any Run* path works; check is the cheapest
+
+	if len(r.Warnings) != 2 {
+		t.Fatalf("Warnings = %v, want both diagnostics", r.Warnings)
+	}
+	data, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"warnings"`) {
+		t.Fatalf("JSON lacks warnings: %s", data)
+	}
+
+	text := r.HumanText()
+	if !strings.Contains(text, "warning: .docket.yml:3 some_future_block — is not a docket configuration setting ("+config.ToleratedUnknownKeyRemedy+")") {
+		t.Errorf("human text lacks the provenance-bearing warning line:\n%s", text)
+	}
+	if !strings.Contains(text, "warning: another — is ignored") {
+		t.Errorf("human text lacks the provenance-free warning line:\n%s", text)
+	}
+}
+
+// TestInstallResultNoWarningsOmitsField: an empty warning set marshals to no
+// warnings key and prints no warning line.
+func TestInstallResultNoWarningsOmitsField(t *testing.T) {
+	r := RunInstallCheck(install.Options{})
+	data, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), `"warnings"`) {
+		t.Fatalf("empty warnings must be omitted: %s", data)
+	}
+	if strings.Contains(r.HumanText(), "warning:") {
+		t.Fatalf("human text has a phantom warning line:\n%s", r.HumanText())
+	}
+}
