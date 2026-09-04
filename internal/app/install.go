@@ -46,6 +46,12 @@ type InstallResult struct {
 	RepoDir       string   `json:"repo_dir,omitempty"`
 	RepoHarnesses []string `json:"repo_harnesses,omitempty"`
 
+	// Warnings are the warning-severity configuration diagnostics from the
+	// install-path reads (change 0392): tolerated unknown keys, fenced
+	// settings, and the rest — everything is surfaced, because filtering would
+	// only hide information.
+	Warnings []config.Diagnostic `json:"warnings,omitempty"`
+
 	// relayed marks a development-install parent result whose candidate already
 	// printed the sole document to the shared stdout. It is unexported so it
 	// never enters the protocol: the presenter reads it through Relay and emits
@@ -70,18 +76,18 @@ const (
 
 // RunInstall performs a release installation.
 func RunInstall(o install.Options) InstallResult {
-	return withRepoReporting(NewInstallResult(OperationInstall, install.Install(o)), o.RepoPhase)
+	return withConfigWarnings(withRepoReporting(NewInstallResult(OperationInstall, install.Install(o)), o.RepoPhase), o.ConfigWarnings)
 }
 
 // RunInstallCheck reports on the installation without writing anything. Check is
 // a user-level, machine-only operation, so it carries no repository reporting.
 func RunInstallCheck(o install.Options) InstallResult {
-	return NewInstallResult(OperationInstallCheck, install.Check(o))
+	return withConfigWarnings(NewInstallResult(OperationInstallCheck, install.Check(o)), o.ConfigWarnings)
 }
 
 // RunDevelopmentInstall installs from a contributor's checkout.
 func RunDevelopmentInstall(o install.DevOptions) InstallResult {
-	return withRepoReporting(NewInstallResult(OperationDevelopmentInstall, install.DevelopmentInstall(o)), o.RepoPhase)
+	return withConfigWarnings(withRepoReporting(NewInstallResult(OperationDevelopmentInstall, install.DevelopmentInstall(o)), o.RepoPhase), o.ConfigWarnings)
 }
 
 // withRepoReporting stamps the scope-visibility fields from the reconciled
@@ -106,6 +112,14 @@ func withRepoReporting(r InstallResult, phase *install.RepoPhase) InstallResult 
 	}
 	sort.Strings(harnesses)
 	r.RepoHarnesses = harnesses
+	return r
+}
+
+// withConfigWarnings stamps the install-path config warnings onto the result
+// (change 0392), so the document says what the reads degraded rather than
+// discarding it.
+func withConfigWarnings(r InstallResult, warnings []config.Diagnostic) InstallResult {
+	r.Warnings = warnings
 	return r
 }
 
@@ -233,6 +247,17 @@ func (r InstallResult) HumanText() string {
 	}
 	if len(r.RepoHarnesses) > 0 {
 		fmt.Fprintf(&b, "repository harnesses: %s\n", strings.Join(r.RepoHarnesses, ", "))
+	}
+	for _, w := range r.Warnings {
+		b.WriteString("warning: ")
+		if w.Provenance != nil {
+			fmt.Fprintf(&b, "%s:%d ", w.Provenance.Source, w.Provenance.Line)
+		}
+		fmt.Fprintf(&b, "%s — %s", w.Path, w.Message)
+		if w.Remedy != "" {
+			fmt.Fprintf(&b, " (%s)", w.Remedy)
+		}
+		b.WriteString("\n")
 	}
 	if r.Reason != "" {
 		fmt.Fprintf(&b, "reason: %s\n", r.Reason)

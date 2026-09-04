@@ -76,6 +76,11 @@ type Options struct {
 	// carries Authorized==false when no repository opt-in licenses a write; either
 	// way applyPlan touches no repository destination. Check never consumes it.
 	RepoPhase *RepoPhase
+	// ConfigWarnings are the warning-severity diagnostics the install-path
+	// config reads produced (change 0392). The service ignores them; the app
+	// layer surfaces them in the result document so a tolerated unknown key —
+	// or any other warning — is never silently dropped.
+	ConfigWarnings []config.Diagnostic
 }
 
 // Action is one thing an operation did, or would have to do.
