@@ -1100,6 +1100,30 @@ func TestTolerateUnknownKeysLeavesFenceIntact(t *testing.T) {
 	}
 }
 
+// TestTolerateUnknownKeysLeavesWarnSurfacesIntact: the two deliberate v0.9.2
+// warn-and-ignore surfaces — an unknown skills role and an unknown board token —
+// already emit CodeUnknownKey at SeverityWarning with their OWN messages and
+// remedies. tolerateUnknownKeys keys on SeverityError precisely so it never
+// touches them; with the flag on, each must keep its warning severity and must
+// NOT be overwritten with ToleratedUnknownKeyRemedy. This REDDENS if the
+// `&& diags[i].Severity == SeverityError` sub-condition is removed.
+func TestTolerateUnknownKeysLeavesWarnSurfacesIntact(t *testing.T) {
+	rctx := ResolveContext{DefaultBranch: "main", TolerateUnknownKeys: true}
+	res := mustResolve(t, []Source{srcR("skills:\n  deploy: x\nboard_surfaces: [inline, trello]\n")}, rctx)
+	warns := diagsWithCode(res, CodeUnknownKey)
+	if len(warns) != 2 {
+		t.Fatalf("unknown-key diagnostics = %v, want the two warn-and-ignore surfaces", diagSummary(res))
+	}
+	for _, d := range warns {
+		if d.Severity != SeverityWarning {
+			t.Errorf("%s severity = %s, want warning (tolerance must not touch it)", d.Path, d.Severity)
+		}
+		if d.Remedy == ToleratedUnknownKeyRemedy {
+			t.Errorf("%s remedy overwritten with the tolerated remedy; its own remedy must survive", d.Path)
+		}
+	}
+}
+
 // TestWarningsFilter pins the helper the install path reads its surfaced
 // diagnostics through.
 func TestWarningsFilter(t *testing.T) {
