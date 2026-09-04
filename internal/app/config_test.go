@@ -668,3 +668,28 @@ func TestDiagnosticConfigInternalError(t *testing.T) {
 		t.Error("effective is present on a failure document")
 	}
 }
+
+// TestDiagnosticConfigStaysStrictOnUnknownKeys (change 0392): the install
+// path's tolerance must not leak into the operating commands' strict verdict —
+// diagnostic config over a newer-schema layer still reports invalid
+// configuration, so a human can always see the strict reading on demand.
+func TestDiagnosticConfigStaysStrictOnUnknownKeys(t *testing.T) {
+	sources := []config.Source{{Layer: config.LayerRepository, Name: ".docket.yml", Data: []byte("some_future_block: true\n")}}
+	got := DiagnosticConfig(sources, mainCtx(), false)
+
+	if got.Result != ResultInvalidInput {
+		t.Fatalf("result = %q, want %q — diagnostic config tolerated an unknown key: %+v", got.Result, ResultInvalidInput, got)
+	}
+	if got.Reason != ReasonInvalidConfig {
+		t.Errorf("reason = %q, want %q", got.Reason, ReasonInvalidConfig)
+	}
+	found := false
+	for _, d := range got.Diagnostics {
+		if d.Code == config.CodeUnknownKey && d.Severity == config.SeverityError {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("diagnostics = %v, want an unknown-key ERROR", got.Diagnostics)
+	}
+}
