@@ -28,9 +28,14 @@ import (
 // failure classifies under, so the CLI boundary presents it through exactly the
 // same install-reason table as the service's own refusals rather than a second
 // opinion.
+//
+// Diagnostics carries the resolver's per-defect diagnostics when Reason is
+// ReasonInvalidConfig and config.Resolve itself produced them; nil otherwise
+// (a source-loading failure has no resolver diagnostics).
 type RepoResolutionError struct {
-	Reason string
-	Err    error
+	Reason      string
+	Err         error
+	Diagnostics []config.Diagnostic
 }
 
 func (e *RepoResolutionError) Error() string { return e.Err.Error() }

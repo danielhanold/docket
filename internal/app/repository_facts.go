@@ -286,9 +286,9 @@ func resolveSetupConfig(primaryWorktree, defaultBranch string) (config.Effective
 	if err != nil {
 		return config.Effective{}, &RepoResolutionError{Reason: ReasonInvalidConfig, Err: err}
 	}
-	snap, _, err := config.Resolve(sources, config.ResolveContext{DefaultBranch: defaultBranch})
+	snap, diags, err := config.Resolve(sources, config.ResolveContext{DefaultBranch: defaultBranch})
 	if err != nil {
-		return config.Effective{}, &RepoResolutionError{Reason: ReasonInvalidConfig, Err: err}
+		return config.Effective{}, &RepoResolutionError{Reason: ReasonInvalidConfig, Err: err, Diagnostics: diags}
 	}
 	return snap.Effective, nil
 }
