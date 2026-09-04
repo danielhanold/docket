@@ -2,7 +2,7 @@
 id: 403
 slug: 'surface-config-diagnostics-with-file-line-when-a-command-ref'
 title: 'Surface config diagnostics with file:line when a command refuses on invalid configuration'
-status: 'implemented'
+status: 'done'
 priority: 'medium'
 type: 'fix'
 created: '2026-09-03'
@@ -22,7 +22,7 @@ branch: 'fix/surface-config-diagnostics-with-file-line-when-a-command-ref'
 pr: 'https://github.com/danielhanold/docket/pull/277'
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-04T02:30:20Z'
+claimed_at:
 ---
 
 ## Artifacts
