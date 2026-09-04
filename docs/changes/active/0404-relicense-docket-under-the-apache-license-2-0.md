@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'docs/relicense-docket-under-the-apache-license-2-0'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-04T17:39:29Z'
+reconciled: true
+claimed_at: '2026-09-04T17:45:02Z'
 ---
 
 ## Artifacts
@@ -53,3 +53,9 @@ docket ships under PolyForm Noncommercial 1.0.0 plus a bespoke additional-permis
 - Trademark registration or a separate trademark policy document; the README sentence is the whole of it.
 - Any change to docket's behavior, the installer, or the skills it ships; this is a documentation-and-guard change.
 - A new ADR: the decision is recorded in this change's `## Why` and spec, matching how 0401 recorded the previous license.
+
+## Reconcile log
+
+### 2026-09-04
+
+2026-09-04: Reconciled against origin/main. Confirmed change 0401 is merged and current: LICENSE carries PolyForm Noncommercial 1.0.0 with the Required Notice and the pointer to LICENSE-ADDITIONAL-PERMISSIONS.md; that file exists at the repo root; the README ## License section (lines 123-139) links to both PolyForm files; and internal/repoguard/license_test.go + tests/test_license_files.sh target the PolyForm artifacts. All of the spec's premises hold exactly, so the plan is unchanged: replace LICENSE with verbatim Apache 2.0, add NOTICE and CONTRIBUTING.md, delete LICENSE-ADDITIONAL-PERMISSIONS.md, rewrite the README License section, and retarget the guard test + wrapper header. No scope change, no new dependencies, no ADR (decision recorded in ## Why and the spec, matching 0401).
