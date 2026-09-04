@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0401 — Add a source-available license: PolyForm Noncommercial plus an individual commercial exemption](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0401-add-a-source-available-license-polyform-noncommercial-plus-a.md)**
+> ↩ **[Change 0401 — Add a source-available license: PolyForm Noncommercial plus an individual commercial exemption](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-04-0401-add-a-source-available-license-polyform-noncommercial-plus-a.md)**
 <!-- docket:backlink:end -->
 # Source-available license (PolyForm Noncommercial + individual exemption) — results
 Change: #401 · Branch: docs/add-a-source-available-license-polyform-noncommercial-plus-a · PR: <pending> · Plan: docs/superpowers/plans/2026-09-03-add-a-source-available-license-polyform-noncommercial-plus-a.md · ADRs: none
