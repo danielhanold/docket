@@ -99,13 +99,24 @@ The daily loop, one skill per step
 
 ## Documentation map
 
-- **[Documentation](docs/README.md)** — the three-tier docs: the [guide](docs/guide/README.md)
-  (how do I, one goal per page), [concepts](docs/concepts/README.md) (what each piece is and why),
-  and [reference](docs/reference/README.md) (exact fields, keys, and owners).
+Start at **[the documentation index](docs/README.md)** — it lays out every section below and a
+start-here path through them.
+
+- **[Install and configure](docs/install/README.md)** — get docket onto your machine, decide where
+  each setting lives, and set up your harness (one page each for Claude Code, Cursor, Codex, and
+  opencode).
+- **[Guide](docs/guide/README.md)** — how do I do the thing: one goal per page, end to end, each
+  titled by the docket component it is about.
+- **[Concepts](docs/concepts/README.md)** — what each piece is and why it is shaped the way it is,
+  linking the decisions behind it.
+- **[Reference](docs/reference/README.md)** — exact fields, keys, verbs, and outcomes, each
+  pointing at the surface that owns the current value; includes the
+  [harness runbooks and examples](docs/reference/harness/README.md).
+
+Beyond the four sections:
+
 - **[How docket maps to the six-stage model](docs/comparison/ai-native-sdlc-playbook.md)** —
   the dated stage-by-stage comparison this page's framing rests on.
-- **Harness setup** — [Install and configure](docs/install/README.md), one page per harness, and
-  the [harness runbooks and examples](docs/reference/harness/README.md).
 - **[Configuration reference](.docket.example.yml)** — every key, its default, and its scope.
 - **[ADR index](docs/adrs/README.md)** — the immutable decision ledger.
 - **[Test suite](tests/README.md)** — how docket's own suite runs and where a new test
