@@ -20,7 +20,7 @@ branch: 'feat/give-run-halted-a-board-surface-and-a-health-check-like-its'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-04T01:17:11Z'
+claimed_at: '2026-09-04T17:37:14Z'
 ---
 
 ## Artifacts
