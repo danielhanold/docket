@@ -1,6 +1,6 @@
 # Backlog
 
-**407 changes** — 🟢 1 in progress · 🔵 3 built · 🟣 9 groomed · 🟡 25 proposed · ⚪ 5 deferred · ✅ 251 done · 🗑️ 113 killed
+**407 changes** — 🟢 1 in progress · 🔵 2 built · 🟣 9 groomed · 🟡 25 proposed · ⚪ 5 deferred · ✅ 252 done · 🗑️ 113 killed
 
 ## 🟢 In progress (1)
 
@@ -8,12 +8,11 @@
 |---|-------|----------|------|------|--------|
 | [0404](active/0404-relicense-docket-under-the-apache-license-2-0.md) | Relicense docket under the Apache License 2.0 | `high` | `docs` | [spec](../superpowers/specs/2026-09-04-relicense-docket-under-the-apache-license-2-0-design.md) | `docs/relicense-docket-under-the-apache-license-2-0` |
 
-## 🔵 Built (3)
+## 🔵 Built (2)
 
 | # | Title | Priority | Type | PR | State |
 |---|-------|----------|------|----|-------|
 | [0402](active/0402-restructure-the-technical-docs-into-goal-organised-guide-con.md) | Restructure the technical docs into goal-organised guide, concepts, and reference tiers | `medium` | `docs` | [#278](https://github.com/danielhanold/docket/pull/278) | awaiting merge |
-| [0261](active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | `high` | `feat` | [#279](https://github.com/danielhanold/docket/pull/279) | awaiting merge |
 | [0393](active/0393-enter-compositional-docket-roles-as-coordinator-capable-code.md) | Enter compositional Docket roles as coordinator-capable Codex root threads | `critical` | `fix` | [#265](https://github.com/danielhanold/docket/pull/265) | awaiting merge |
 
 ## 🟣 Groomed (9)
@@ -81,7 +80,6 @@ graph TD
   0192 --> 0195
   0248
   0257
-  0261
   0263
   0251 --> 0273
   0283
@@ -122,7 +120,7 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (364)</summary>
+<details><summary>✅🗑️ Archive — done + killed (365)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -130,6 +128,7 @@ graph TD
 | [0401](archive/2026-09-04-0401-add-a-source-available-license-polyform-noncommercial-plus-a.md) | Add a source-available license: PolyForm Noncommercial plus an individual commercial exemption | 2026-09-04 |
 | [0400](archive/2026-09-04-0400-rewrite-the-readme-as-a-goal-first-landing-page-and-relocate.md) | Rewrite the README as a goal-first landing page and relocate its technical body to docs/ | 2026-09-04 |
 | [0392](archive/2026-09-04-0392-installer-tolerant-config-read-break-the-schema-bump-bootstr.md) | Installer-tolerant config read: break the schema-bump bootstrap deadlock | 2026-09-04 |
+| [0261](archive/2026-09-04-0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md) | Give '## Run halted' a board surface and a health check, like its two family members | 2026-09-04 |
 | [0399](archive/2026-09-03-0399-authoritative-machine-readable-request-result-schema-surface.md) | Authoritative machine-readable request/result schema surface | 2026-09-03 |
 | [0391](archive/2026-09-03-0391-carry-skipped-build-evidence-through-the-pr-publish-path.md) | Carry skipped build-evidence through the PR publish path | 2026-09-03 |
 | [0385](archive/2026-09-03-0385-correct-cursor-permissions-docs-referencing-the-deleted-scri.md) | Correct cursor permissions docs referencing the deleted scripts/docket.sh | 2026-09-03 |
@@ -169,7 +168,6 @@ graph TD
 | [0359](archive/2026-09-02-0359-run-gate-gives-up-too-soon.md) | Run gate gives up too soon | 2026-09-02 |
 | [0390](archive/2026-09-01-0390-maintenance-sweep-scope-full-re-probes-the-remote-per-item-h.md) | maintenance sweep --scope full re-probes the remote per item, hanging the sweep | 2026-09-01 |
 | [0384](archive/2026-09-01-0384-launch-compositional-docket-agents-in-coordinator-capable-ha.md) | Launch compositional Docket agents in coordinator-capable harness contexts | 2026-09-01 |
-| [0374](archive/2026-09-01-0374-separate-build-and-finalize-test-configuration.md) | Separate build and finalize test configuration | 2026-09-01 |
 | [0252](archive/2026-09-01-0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md) | Harden test fixtures and hermeticity into tests-lib | 2026-09-01 |
 | [0386](archive/2026-08-31-0386-discharge-adr-0100-s-deferred-disposition-for-the-surviving.md) | Discharge ADR-0100's deferred disposition for the surviving product runners | 2026-08-31 |
 | [0353](archive/2026-08-26-0353-dispatched-docket-implement-next-subagent-cannot-reach-agent.md) | Dispatched docket-implement-next subagent cannot reach agent-only workers, halting every non-trivial change at Step 4 | 2026-08-26 |
@@ -259,6 +257,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
+| [2026-09](archive/) | 1 done |
 | [2026-08](archive/) | 118 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
