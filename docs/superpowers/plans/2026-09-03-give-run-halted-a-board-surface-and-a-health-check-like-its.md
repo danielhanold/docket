@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0261 — Give '## Run halted' a board surface and a health check, like its two family members](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md)**
+> ↩ **[Change 0261 — Give '## Run halted' a board surface and a health check, like its two family members](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-09-04-0261-give-run-halted-a-board-surface-and-a-health-check-like-its.md)**
 <!-- docket:backlink:end -->
 # Run-halted board Readiness cell — Implementation Plan
 
