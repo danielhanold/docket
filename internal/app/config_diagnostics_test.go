@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/danielhanold/docket/internal/config"
@@ -116,6 +117,57 @@ func TestConfigDiagnosticStatusFindingsMapping(t *testing.T) {
 	}
 	if got[1].Severity != "notice" { // normalizeSeverity: info → notice, per the DTO contract
 		t.Errorf("info severity projected as %q, want notice", got[1].Severity)
+	}
+}
+
+// The status projection is a status document, so it must never leak a
+// host-absolute global-config path: for a global-layer diagnostic the ref is
+// suppressed (mirroring status.go's healthy-path configFinding, which
+// deliberately drops the provenance source). The repository family carries no
+// such prohibition, so a repository-layer diagnostic keeps its .docket.yml:<line>
+// ref in both projections.
+func TestConfigDiagnosticStatusFindingsSuppressesGlobalRef(t *testing.T) {
+	globalDiag := config.Diagnostic{
+		Code: "obsolete-setting", Severity: config.SeverityError, Path: "runtime.bash",
+		Message:    "ignored",
+		Provenance: &config.Provenance{Layer: config.LayerGlobal, Source: "/Users/x/.config/docket/config.yml", Line: 3},
+	}
+	repoDiag := config.Diagnostic{
+		Code: "unknown-key", Severity: config.SeverityError, Path: "bogus_key",
+		Message:    "is not a docket configuration setting",
+		Provenance: &config.Provenance{Layer: config.LayerRepository, Source: ".docket.yml", Line: 2},
+	}
+
+	got := configDiagnosticStatusFindings([]config.Diagnostic{globalDiag, repoDiag})
+	if len(got) != 2 {
+		t.Fatalf("len = %d, want 2", len(got))
+	}
+
+	// Global-layer finding: no field carries the host-absolute source string.
+	g := got[0]
+	if g.Path != "" {
+		t.Errorf("global-layer status finding Path = %q, want empty (ref suppressed)", g.Path)
+	}
+	for name, field := range map[string]string{"Path": g.Path, "Message": g.Message, "Remedy": g.Remedy, "Field": g.Field} {
+		if strings.Contains(field, "/Users/x/.config/docket/config.yml") {
+			t.Errorf("global-layer status finding %s = %q leaks the host-absolute source", name, field)
+		}
+	}
+	// The setting key path still rides in the message (healthy-path treatment).
+	if g.Message != "runtime.bash: ignored" {
+		t.Errorf("global-layer message = %q, want %q", g.Message, "runtime.bash: ignored")
+	}
+
+	// Repository-layer finding keeps its ref.
+	if got[1].Path != ".docket.yml:2" {
+		t.Errorf("repository-layer status finding Path = %q, want %q", got[1].Path, ".docket.yml:2")
+	}
+
+	// The repository-family projection is unchanged: the global-layer diagnostic
+	// still carries its ref there (the repository path prohibition does not apply).
+	repoFam := configDiagnosticFindings([]config.Diagnostic{globalDiag})
+	if len(repoFam) != 1 || repoFam[0].Ref != "/Users/x/.config/docket/config.yml:3" {
+		t.Errorf("repository-family projection Ref = %+v, want the source:line ref (unchanged)", repoFam)
 	}
 }
 
