@@ -22,7 +22,7 @@ branch: 'fix/installer-tolerant-config-read-break-the-schema-bump-bootstr'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-04T01:13:33Z'
+claimed_at: '2026-09-04T01:22:39Z'
 ---
 
 ## Artifacts
