@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'docs/restructure-the-technical-docs-into-goal-organised-guide-con'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-04T01:09:10Z'
+reconciled: true
+claimed_at: '2026-09-04T01:12:12Z'
 ---
 
 ## Artifacts
@@ -59,3 +59,9 @@ Sorting pages by audience would rot: pages with one reader get no pressure to st
 - Rewording ADRs, archived changes, results files, specs, or `docs/release/`; those are point-in-time records.
 - Editing skill bodies or `.docket.example.yml`; documentation drift inside skills is a separate change.
 - A mechanical voice or glossary guard.
+
+## Reconcile log
+
+### 2026-09-04
+
+2026-09-04 — Reconciled against current `origin/main`. Change 400 is done and archived (2026-09-04); `docs/guide/README.md` (1068 lines) is present as the relocated body, and `docs/cursor/`, `docs/codex/`, `docs/opencode/` all exist as the move sources. Change 385 is already killed/archived (2026-09-03), so its correction is absorbed here as the spec anticipated. `docs/README.md`, `docs/concepts/`, `docs/reference/` do not yet exist. Enumerated the `internal/repoguard/prose_contracts_test.go` rows to repoint: sentinels test_consultant_brainstorm, test_skill_fork_dispatch, test_readme_finalize_docs, test_readme_skill_catalog, test_typed_changes_docs (all on docs/guide/README.md), test_cursor_contract_docs (docs/cursor/validation.md), test_cursor_permissions_docs (docs/cursor/permissions.md + the guide README link row), and test_codex_runbook (docs/codex/validation-runbook.md); the change_0400_readme_landing row on README.md asserts `](docs/guide/README.md)` — since this change removes that file and retargets README.md's documentation-map link to `docs/README.md` (acceptance criterion 3: every README.md link must resolve), that row's present-phrase is repointed to `](docs/README.md)` in the same commit, per the spec's never-drop-a-row principle; README.md's other content stays 400's. No scope change; design holds intact.
