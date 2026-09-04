@@ -21,8 +21,8 @@ branch_prefix:
 branch: 'fix/installer-tolerant-config-read-break-the-schema-bump-bootstr'
 pr:
 blocked_by:
-reconciled: false
-claimed_at: '2026-09-04T01:08:55Z'
+reconciled: true
+claimed_at: '2026-09-04T01:11:46Z'
 ---
 
 ## Artifacts
@@ -45,3 +45,9 @@ On the install path only, tolerate unknown configuration keys. `config.ResolveCo
 ## Out of scope
 
 General-parser forward-compatibility for operating commands (status, finalize, prepare, and the rest) and schema versioning — rejected in brainstorm in favour of the narrow install-only fix. Any relaxation of the other invalid diagnostic classes or the coordination fence, on any path. A parent-side warning line for `development install` (the candidate prints the sole document). Changes to the existing curated warn-and-ignore surfaces (unknown `skills.*` roles, `board.sorting.*` sections).
+
+## Reconcile log
+
+### 2026-09-04
+
+2026-09-04: Reconciled against current main. All spec touchpoints verified present and unchanged: config.ResolveContext (internal/config/config.go:27), invalidClass/CodeUnknownKey (internal/config/resolve.go:35-36), ResolveRepoPhase (internal/app/repophase.go:57), installOptions (internal/cli/install.go:197), InstallResult/NewInstallResult/withRepoReporting (internal/app/install.go). No general-parser forward-compat has landed in the interim, so the narrow install-only design still holds. depends_on empty; adrs [19,102] and discovered_from [374] remain accurate. No scope change; proceeding to plan and build.
