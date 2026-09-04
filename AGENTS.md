@@ -85,12 +85,10 @@ means), this file does not restate them.
 - Whenever a PR is successfully merged into `main`, rebuild the `docket` binary so the installed
   tool matches source: resolve the `development.install` operation from the capability catalog and
   run it with `--source /Users/homer/dev/docket`.
-- When the merged change **extends the `.docket.yml` schema** (a new field or block), the still-installed
-  pre-schema binary rejects *all* config reads with `invalid configuration` — which deadlocks the
-  `development.install` operation itself, since the installer reads config at startup. Break the
-  deadlock by rebuilding out-of-band with `go build`/`go run` (not the installed `docket`) and
-  swapping the binary in, then run the tracked `development.install` reinstall with `--source`. Until
-  parsing is forward-compatible, this rebuild rule is load-bearing for any schema-extending change.
+- A merged change that **extends the `.docket.yml` schema** no longer blocks this: since change
+  0392 the install path tolerates unknown configuration keys (surfaced as warnings), so the tracked
+  `development.install` reinstall works directly with the pre-schema binary — no out-of-band
+  `go build` recovery is needed.
 
 <!-- docket:dispatch:start (managed by docket — do not hand-edit) -->
 ## Docket agents — dispatch, don't run inline
