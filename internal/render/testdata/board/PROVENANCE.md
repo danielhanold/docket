@@ -38,7 +38,11 @@ follow the default section order; rows sort `updated desc` within each section.
 
 Sections and rows:
 
-- **In progress** — id 1, with a `spec:` (Spec cell) and a `branch:` (Branch cell).
+- **In progress** — two Readiness bands, sorted `updated desc`:
+  - id 1 (updated 2026-08-10), with a `spec:` (Spec cell), a `branch:` (Branch
+    cell), and no `## Run halted` section (empty Readiness cell);
+  - id 8 (updated 2026-08-09), carrying the bare `## Run halted` body section:
+    the `run halted — needs you` Readiness cell (change 0261).
 - **Built** — id 7, an `implemented` change with no `## Finalize blocked`
   section: PR cell from a full PR URL and the `awaiting merge` State cell.
 - **Blocked** — id 5, a lifecycle-`blocked` change: empty PR cell (no `pr:`) and
@@ -64,6 +68,8 @@ Mermaid graph (outside section order/sorting — the presentation never reaches 
 Bands and surfaces the corpus deliberately does **not** cover — unit-tested
 directly instead:
 
+- the dated `## Run halted — <date>` variant NOT lighting the Readiness cell
+  (whole-line decode contract — `TestBoardRunHaltedWholeLineContract`);
 - the classification precedence edges (finalize-blocked implemented → Blocked;
   spec-backed build-ready → Groomed vs trivial-without-spec → Proposed);
 - the Blocked `finalize blocked — needs you` Reason cell;
