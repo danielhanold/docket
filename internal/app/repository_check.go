@@ -808,5 +808,13 @@ func checkGatherFailure(err error) RepositoryCheckResult {
 		RepositoryState: string(reposetup.StateUnknown),
 	}
 	out.human = fmt.Sprintf("repository check: %s: %s", result, err.Error())
+	// An invalid configuration carries the resolver's own diagnostics: lift
+	// them into findings and append the shared block, so the refusal names
+	// each defect's .docket.yml:<line> (change 0403). The result and exit are
+	// unchanged — decided above by the error, never by the findings.
+	if rre != nil && len(rre.Diagnostics) > 0 {
+		out.Findings = configDiagnosticFindings(rre.Diagnostics)
+		out.human = appendConfigFindingBlock(out.human, out.Findings)
+	}
 	return out
 }
