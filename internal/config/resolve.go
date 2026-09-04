@@ -98,6 +98,9 @@ func resolve(sources []Source, rctx ResolveContext) (*resolution, error) {
 		res.diags = append(res.diags, decodeDiags...)
 		res.allDecls = append(res.allDecls, leaves...)
 	}
+	if rctx.TolerateUnknownKeys {
+		tolerateUnknownKeys(res.diags)
+	}
 	if res.hasInvalid() {
 		return res.done(), ErrInvalidConfig
 	}
@@ -150,6 +153,25 @@ func (r *resolution) hasInvalid() bool {
 		}
 	}
 	return false
+}
+
+// ToleratedUnknownKeyRemedy is the remedy every tolerated unknown-key warning
+// carries. One constant so tests and presenters share the exact sentence; it
+// names both causes because the resolver cannot tell them apart.
+const ToleratedUnknownKeyRemedy = "the key may belong to a newer docket than the one running (rebuild or upgrade docket), or it may be a typo (fix or remove it)"
+
+// tolerateUnknownKeys degrades every unknown-key ERROR to a warning carrying
+// the shared remedy (change 0392). It keys on severity so the two deliberate
+// warn-and-ignore surfaces — already warnings, with their own messages — pass
+// through untouched, and it never touches any other code, so the invalid
+// classes and the coordination fence keep their posture.
+func tolerateUnknownKeys(diags []Diagnostic) {
+	for i := range diags {
+		if diags[i].Code == CodeUnknownKey && diags[i].Severity == SeverityError {
+			diags[i].Severity = SeverityWarning
+			diags[i].Remedy = ToleratedUnknownKeyRemedy
+		}
+	}
 }
 
 // checkSourceOrder enforces the caller's half of the contract. A violation is

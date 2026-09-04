@@ -26,6 +26,12 @@ type Source struct {
 // ResolveContext supplies facts resolution cannot derive from the layers.
 type ResolveContext struct {
 	DefaultBranch string // consumed only when integration_branch resolves to "auto"
+	// TolerateUnknownKeys reclassifies every unknown-key ERROR diagnostic as a
+	// WARNING so an unrecognized setting cannot invalidate the snapshot. It
+	// exists for the install path alone: an installer must never be blocked by
+	// a configuration written for a newer docket than the one running.
+	// Operating commands never set it.
+	TolerateUnknownKeys bool
 }
 
 type Provenance struct {
@@ -78,6 +84,18 @@ type Diagnostic struct {
 	Provenance     *Provenance    `json:"provenance,omitempty"`
 	Message        string         `json:"message"`
 	Remedy         string         `json:"remedy,omitempty"`
+}
+
+// Warnings filters diagnostics to the warning-severity ones. The install path
+// surfaces exactly this subset in its result document (change 0392).
+func Warnings(diags []Diagnostic) []Diagnostic {
+	var out []Diagnostic
+	for _, d := range diags {
+		if d.Severity == SeverityWarning {
+			out = append(out, d)
+		}
+	}
+	return out
 }
 
 // Diagnostic codes — the closed set. Snapshot validity keys on invalidClass.
