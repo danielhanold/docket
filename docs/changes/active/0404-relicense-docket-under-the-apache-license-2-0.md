@@ -22,7 +22,7 @@ branch: 'docs/relicense-docket-under-the-apache-license-2-0'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-04T17:47:08Z'
+claimed_at: '2026-09-04T17:54:03Z'
 ---
 
 ## Artifacts
