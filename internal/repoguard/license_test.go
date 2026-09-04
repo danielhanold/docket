@@ -1,6 +1,8 @@
 package repoguard
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,44 +24,67 @@ func readRepoFile(t *testing.T, rel string) string {
 	return string(b)
 }
 
-// TestLicenseFiles guards the license artifacts of change 0401: LICENSE carries
-// the PolyForm Noncommercial 1.0.0 identifier, the Required Notice, and the
-// pointer to the additional-permissions file; that file carries its three
-// clause headings. Fixed-string containment only — no regexp, no network.
+// TestLicenseFiles guards the license artifacts of change 0404: LICENSE is the
+// verbatim Apache License 2.0 (identifier, date line, and the appendix's
+// distinctive boilerplate clause, which pins the complete text) and carries no
+// trace of the retired PolyForm license; NOTICE carries the copyright line
+// Apache section 4(d) obliges redistributors to preserve; the retired
+// additional-permissions file is absent; CONTRIBUTING.md adopts the DCO
+// trailer. Fixed-string containment only — no regexp, no network.
 func TestLicenseFiles(t *testing.T) {
 	license := readRepoFile(t, "LICENSE")
 	for _, want := range []string{
-		"PolyForm Noncommercial License 1.0.0",
-		"Required Notice: Copyright Daniel Hanold",
-		"LICENSE-ADDITIONAL-PERMISSIONS.md",
+		"Apache License",
+		"Version 2.0, January 2004",
+		`Licensed under the Apache License, Version 2.0 (the "License");`,
 	} {
 		if !strings.Contains(license, want) {
 			t.Errorf("LICENSE does not contain %q", want)
 		}
 	}
-
-	perms := readRepoFile(t, "LICENSE-ADDITIONAL-PERMISSIONS.md")
-	for _, want := range []string{
-		"## 1. Individual commercial exemption",
-		"## 2. Scope over the repository history",
-		"## 3. Obtaining a commercial license",
+	for _, banned := range []string{
+		"PolyForm",
+		"LICENSE-ADDITIONAL-PERMISSIONS.md",
 	} {
-		if !strings.Contains(perms, want) {
-			t.Errorf("LICENSE-ADDITIONAL-PERMISSIONS.md does not contain heading %q", want)
+		if strings.Contains(license, banned) {
+			t.Errorf("LICENSE still contains %q — the PolyForm-era content must be gone", banned)
 		}
+	}
+
+	notice := readRepoFile(t, "NOTICE")
+	if want := "Copyright 2026 Daniel Hanold"; !strings.Contains(notice, want) {
+		t.Errorf("NOTICE does not contain %q", want)
+	}
+
+	root, err := Root()
+	if err != nil {
+		t.Fatalf("resolving repo root: %v", err)
+	}
+	_, err = os.Stat(filepath.Join(root, "LICENSE-ADDITIONAL-PERMISSIONS.md"))
+	switch {
+	case err == nil:
+		t.Errorf("LICENSE-ADDITIONAL-PERMISSIONS.md still exists at the repo root; change 0404 deletes it")
+	case !errors.Is(err, fs.ErrNotExist):
+		t.Fatalf("stat LICENSE-ADDITIONAL-PERMISSIONS.md: %v", err)
+	}
+
+	contributing := readRepoFile(t, "CONTRIBUTING.md")
+	if want := "Signed-off-by"; !strings.Contains(contributing, want) {
+		t.Errorf("CONTRIBUTING.md does not contain %q", want)
 	}
 }
 
 // TestLicenseReadmeSection guards the README's License section: the heading is
-// present and the section links to both license files (change 0401). The link
-// targets are matched as markdown link destinations, so a rewrite that keeps
-// the words but drops the links reddens.
+// present and the section links to LICENSE, NOTICE, and CONTRIBUTING.md
+// (change 0404). The link targets are matched as markdown link destinations,
+// so a rewrite that keeps the words but drops the links reddens.
 func TestLicenseReadmeSection(t *testing.T) {
 	readme := readRepoFile(t, "README.md")
 	for _, want := range []string{
 		"## License",
 		"](LICENSE)",
-		"](LICENSE-ADDITIONAL-PERMISSIONS.md)",
+		"](NOTICE)",
+		"](CONTRIBUTING.md)",
 	} {
 		if !strings.Contains(readme, want) {
 			t.Errorf("README.md does not contain %q", want)
