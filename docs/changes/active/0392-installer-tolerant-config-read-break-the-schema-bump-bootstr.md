@@ -13,7 +13,7 @@ related: []
 discovered_from: [374]
 adrs: [19, 102]
 spec: 'docs/superpowers/specs/2026-09-03-installer-tolerant-config-read-break-the-schema-bump-bootstr-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-03-installer-tolerant-config-read-break-the-schema-bump-bootstr.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-04T01:13:33Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-03-installer-tolerant-config-read-break-the-schema-bump-bootstr-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-03-installer-tolerant-config-read-break-the-schema-bump-bootstr-design.md) |
+| Plan | [2026-09-03-installer-tolerant-config-read-break-the-schema-bump-bootstr.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-03-installer-tolerant-config-read-break-the-schema-bump-bootstr.md) |
 | ADRs | [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0102](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0102-build-and-finalize-own-independent-gate-and-test-command-con.md) |
 <!-- docket:artifacts:end -->
 
