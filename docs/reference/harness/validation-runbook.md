@@ -1,7 +1,8 @@
 # Codex CLI live-validation runbook
 
-This is the live-execution counterpart to `docs/codex/setup.md`. That doc covers *static*
-Codex setup — opt-in scopes, model pinning, restart-after-regenerating. This runbook is the
+This is the live-execution counterpart to the Codex section of the harness guide page,
+`../../guide/running-on-your-harness.md`. That page covers *static* Codex setup — opt-in scopes,
+model pinning, and its *Restart after (re)generating* step. This runbook is the
 checklist a human runs, by hand, inside a real Codex CLI session, to confirm the whole docket
 loop actually works there: skills load, scripts run under Codex's own sandbox, generated
 agents are visible, dispatch is honored, model/effort pins reach the spawned agent, and a
@@ -225,8 +226,9 @@ fresh shell of Phase 1 step 1** — that is the only way `DOCKET_SCRIPTS_DIR` re
   Expected: the skill's convention step loads, and its bash reaches the helper scripts through
   the facade — `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh preflight` — executing
   under **Codex's own sandbox** (not Claude Code's). This is the bash-compatibility smoke test:
-  Cursor needed a dedicated sandbox/permissions guide at exactly this step — see
-  `docs/cursor/permissions.md` for the shape that guide took there.
+  Cursor needed a dedicated sandbox/permissions guide at exactly this step — see the Cursor
+  section of the harness guide page, `../../guide/running-on-your-harness.md`, for the shape that
+  guidance took there.
 
 - [ ] 3. Record verbatim: every approval prompt, sandbox denial, or path/permission error, and
   what (if anything) had to be allowed to get past it. That transcript is the raw material for
@@ -252,8 +254,9 @@ Precondition: Phase 1 step 6 showed every wrapper carrying your pinned slug. If 
 ## Phase 4 — Dispatch honored
 
 - [ ] 1. **Restart the Codex session first.** Codex registers agents at process start, so a
-  session that has been open since before Phase 1 holds stale definitions — see
-  `docs/codex/setup.md`'s *Restart after (re)generating* section. Restart from the same fresh
+  session that has been open since before Phase 1 holds stale definitions — see the
+  *Restart after (re)generating* section of the Codex part of the harness guide page,
+  `../../guide/running-on-your-harness.md`. Restart from the same fresh
   shell, so `DOCKET_SCRIPTS_DIR` is still inherited.
 
 - [ ] 2. Directly invoke a skill with a pinned wrapper — `docket-status` — the same way you did
@@ -334,12 +337,13 @@ requires**, on both supported entry paths, without falsely concluding dispatch i
 a nested tool inventory. Phases 1–6 proved wrappers generate, load, and dispatch once; this phase
 proves the root → coordinator → named-leaf composition round-trips a sentinel. Drive it through the
 **committed two-role fixture** at
-[`docs/codex/fixtures/nested-launch/README.md`](fixtures/nested-launch/README.md) — a synthetic
+[`docs/reference/harness/fixtures/nested-launch/README.md`](fixtures/nested-launch/README.md) — a synthetic
 `probe-coordinator` and `probe-leaf` carrying **none** of docket's real workflow prose — rather than
 staging a live docket composition by hand; that README owns the install, the scratch-repo staging
 for entry path A, and the teardown. Run it in a **disposable fixture repo** — never the real docket
 backlog. Install the build under test first (Phase 1), then start a **fresh Codex process** (see
-`docs/codex/setup.md`, *Restart after (re)generating* — a conversation opened in an already-running
+the *Restart after (re)generating* section of the Codex part of the harness guide page,
+`../../guide/running-on-your-harness.md` — a conversation opened in an already-running
 process holds stale definitions and certifies nothing; each `codex exec` invocation is itself a
 fresh process, so a scripted probe satisfies this automatically).
 
