@@ -13,7 +13,7 @@ related: []
 discovered_from: []
 adrs: []
 spec: 'docs/superpowers/specs/2026-09-03-add-a-source-available-license-polyform-noncommercial-plus-a-design.md'
-plan:
+plan: 'docs/superpowers/plans/2026-09-03-add-a-source-available-license-polyform-noncommercial-plus-a.md'
 results:
 trivial: false
 auto_groomable:
@@ -31,6 +31,7 @@ claimed_at: '2026-09-04T01:15:48Z'
 | Artifact | Link |
 |---|---|
 | Spec | [2026-09-03-add-a-source-available-license-polyform-noncommercial-plus-a-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-09-03-add-a-source-available-license-polyform-noncommercial-plus-a-design.md) |
+| Plan | [2026-09-03-add-a-source-available-license-polyform-noncommercial-plus-a.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/plans/2026-09-03-add-a-source-available-license-polyform-noncommercial-plus-a.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
