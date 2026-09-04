@@ -24,12 +24,6 @@ import (
 // removals, and the record bytes to publish. internal/install never learns that
 // reposeed or gitcli exist.
 
-// repoConfigBranch is the default branch supplied when resolving the repository
-// configuration. Only agent_harnesses is read from the resolved snapshot, and it
-// depends on no branch, so the value only has to let integration_branch: auto
-// resolve — it steers nothing this assembler reads.
-const repoConfigBranch = "main"
-
 // RepoResolutionError carries the stable machine reason a repository resolution
 // failure classifies under, so the CLI boundary presents it through exactly the
 // same install-reason table as the service's own refusals rather than a second
@@ -54,13 +48,19 @@ func (e *RepoResolutionError) Unwrap() error { return e.Err }
 // current directory outside any Git tree — returns (nil, "", nil); an
 // authorized repository returns a full phase; and everything unresolvable
 // returns a *RepoResolutionError carrying the reason the CLI classifies on.
-func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, harnessScope []string, runGate []byte, legacy install.LegacyReproducer) (*install.RepoPhase, string, error) {
+//
+// rctx is the resolution context the caller owns — the CLI's install path
+// passes a tolerant one (change 0392); this assembler carries no
+// install-specific knowledge of why. The third return is the warning-severity
+// diagnostics from the repository resolve, for the install result to surface;
+// it is nil on the machine-only and error paths.
+func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, harnessScope []string, runGate []byte, legacy install.LegacyReproducer, rctx config.ResolveContext) (*install.RepoPhase, string, []config.Diagnostic, error) {
 	explicit := strings.TrimSpace(repoDir) != ""
 	invocation := repoDir
 	if !explicit {
 		wd, err := os.Getwd()
 		if err != nil {
-			return nil, "", &RepoResolutionError{Reason: install.ReasonInvalidRepoDir,
+			return nil, "", nil, &RepoResolutionError{Reason: install.ReasonInvalidRepoDir,
 				Err: fmt.Errorf("--repo-dir omitted and the current directory could not be determined: %w", err)}
 		}
 		invocation = wd
@@ -69,12 +69,12 @@ func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, h
 	wt, err := git.DiscoverWorktree(ctx, gitcli.DiscoverOptions{InvocationPath: invocation})
 	if err != nil {
 		if explicit {
-			return nil, "", &RepoResolutionError{Reason: install.ReasonInvalidRepoDir,
+			return nil, "", nil, &RepoResolutionError{Reason: install.ReasonInvalidRepoDir,
 				Err: fmt.Errorf("--repo-dir %q is not a Git working tree: %w", repoDir, err)}
 		}
 		// An omitted --repo-dir outside any Git tree is not a failure: the machine
 		// install proceeds and the not-authorized action prints.
-		return nil, "", nil
+		return nil, "", nil, nil
 	}
 	root, gitDir := wt.Root, wt.GitDir
 	recordPath := reposeed.RecordPath(gitDir)
@@ -84,12 +84,13 @@ func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, h
 	// repository-declared opt-in from a global one that must never grant authority.
 	sources, err := config.LoadFilesystemSources(config.FSOptions{RepoDir: root})
 	if err != nil {
-		return nil, "", &RepoResolutionError{Reason: ReasonInvalidConfig, Err: err}
+		return nil, "", nil, &RepoResolutionError{Reason: ReasonInvalidConfig, Err: err}
 	}
-	snap, _, err := config.Resolve(sources, config.ResolveContext{DefaultBranch: repoConfigBranch})
+	snap, diags, err := config.Resolve(sources, rctx)
 	if err != nil {
-		return nil, "", &RepoResolutionError{Reason: ReasonInvalidConfig, Err: err}
+		return nil, "", nil, &RepoResolutionError{Reason: ReasonInvalidConfig, Err: err}
 	}
+	warnings := config.Warnings(diags)
 
 	ah := snap.Effective.AgentHarnesses
 	// The write-authority guard (change 0351): agent_harnesses grants repository
@@ -98,7 +99,7 @@ func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, h
 	// resolves but never authorizes.
 	authorized := ah.Explicit && isRepositoryLayer(ah.Provenance.Layer)
 	if !authorized {
-		return &install.RepoPhase{Authorized: false, Worktree: root, RecordPath: recordPath}, root, nil
+		return &install.RepoPhase{Authorized: false, Worktree: root, RecordPath: recordPath}, root, warnings, nil
 	}
 
 	optIns := append([]string(nil), ah.Value...)
@@ -112,12 +113,12 @@ func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, h
 		ClaudeMDState: classifyClaudeMD(root),
 	})
 	if err != nil {
-		return nil, "", &RepoResolutionError{Reason: ReasonInvalidConfig, Err: err}
+		return nil, "", nil, &RepoResolutionError{Reason: ReasonInvalidConfig, Err: err}
 	}
 
 	prior, err := reposeed.LoadRecord(recordPath)
 	if err != nil {
-		return nil, "", &RepoResolutionError{Reason: install.ReasonStateInvalid, Err: err}
+		return nil, "", nil, &RepoResolutionError{Reason: install.ReasonStateInvalid, Err: err}
 	}
 	var priorState *install.State
 	if prior != nil {
@@ -126,12 +127,12 @@ func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, h
 
 	recordBytes, err := composeRecordBytes(targets, owners, prior, root, optIns)
 	if err != nil {
-		return nil, "", &RepoResolutionError{Reason: install.ReasonInternal, Err: err}
+		return nil, "", nil, &RepoResolutionError{Reason: install.ReasonInternal, Err: err}
 	}
 
 	removals, err := computeRemovals(prior, root, optIns, inScope, priorState, legacy)
 	if err != nil {
-		return nil, "", err
+		return nil, "", nil, err
 	}
 
 	return &install.RepoPhase{
@@ -143,7 +144,7 @@ func ResolveRepoPhase(ctx context.Context, git *gitcli.Client, repoDir string, h
 		RecordPath:  recordPath,
 		RecordBytes: recordBytes,
 		Worktree:    root,
-	}, root, nil
+	}, root, warnings, nil
 }
 
 // isRepositoryLayer mirrors config's own write-authority predicate: only the

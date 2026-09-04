@@ -230,7 +230,7 @@ func installOptions(ctx context.Context, harnesses []string, repoDir string, res
 		return opts, nil
 	}
 
-	phase, refusal := resolveRepoPhase(ctx, opts, harnesses, repoDir)
+	phase, _, refusal := resolveRepoPhase(ctx, opts, harnesses, repoDir)
 	if refusal != nil {
 		return install.Options{}, refusal
 	}
@@ -243,25 +243,25 @@ func installOptions(ctx context.Context, harnesses []string, repoDir string, res
 // run-gate payload rides from the same embedded bundle the machine plan renders
 // from, and the legacy reproducer is the same frozen one the machine transaction
 // inspects against, so machine and repository agree on what "unchanged" means.
-func resolveRepoPhase(ctx context.Context, opts install.Options, harnesses []string, repoDir string) (*install.RepoPhase, *InstallRefusal) {
+func resolveRepoPhase(ctx context.Context, opts install.Options, harnesses []string, repoDir string) (*install.RepoPhase, []config.Diagnostic, *InstallRefusal) {
 	runGate, err := harness.RunGate(opts.Catalog)
 	if err != nil {
-		return nil, &InstallRefusal{Reason: install.ReasonAssetManifestInvalid, Err: err}
+		return nil, nil, &InstallRefusal{Reason: install.ReasonAssetManifestInvalid, Err: err}
 	}
 	git, err := gitcli.NewClient()
 	if err != nil {
-		return nil, &InstallRefusal{Reason: install.ReasonInvalidOptions, Err: err}
+		return nil, nil, &InstallRefusal{Reason: install.ReasonInvalidOptions, Err: err}
 	}
 	legacy := install.LegacyReproducerFor(opts, harnessNamesForLegacy(harnesses))
-	phase, _, err := app.ResolveRepoPhase(ctx, git, repoDir, harnesses, runGate, legacy)
+	phase, _, warnings, err := app.ResolveRepoPhase(ctx, git, repoDir, harnesses, runGate, legacy, config.ResolveContext{DefaultBranch: installDefaultBranch})
 	if err != nil {
 		var re *app.RepoResolutionError
 		if errors.As(err, &re) {
-			return nil, &InstallRefusal{Reason: re.Reason, Err: re.Err}
+			return nil, nil, &InstallRefusal{Reason: re.Reason, Err: re.Err}
 		}
-		return nil, &InstallRefusal{Reason: install.ReasonInternal, Err: err}
+		return nil, nil, &InstallRefusal{Reason: install.ReasonInternal, Err: err}
 	}
-	return phase, nil
+	return phase, warnings, nil
 }
 
 // harnessNamesForLegacy is the harness set the repository legacy reproducer must
