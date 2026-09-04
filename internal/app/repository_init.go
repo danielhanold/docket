@@ -409,7 +409,7 @@ func installAuthorizedSurfaces(ctx context.Context, git *gitcli.Client, primaryW
 	if err != nil {
 		return nil, false, err
 	}
-	phase, _, err := ResolveRepoPhase(ctx, git, primaryWorktree, nil, runGate, nil)
+	phase, _, _, err := ResolveRepoPhase(ctx, git, primaryWorktree, nil, runGate, nil, config.ResolveContext{DefaultBranch: "main"})
 	if err != nil {
 		return nil, false, err
 	}

@@ -10,6 +10,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/danielhanold/docket/internal/config"
 	"github.com/danielhanold/docket/internal/gitcli"
 	"github.com/danielhanold/docket/internal/install"
 	"github.com/danielhanold/docket/internal/reposeed"
@@ -60,7 +61,7 @@ func TestResolveRepoPhaseDiscoversFromRootAndNestedDir(t *testing.T) {
 	git := newGitClient(t)
 
 	for _, dir := range []string{root, nested} {
-		phase, gotRoot, err := ResolveRepoPhase(context.Background(), git, dir, nil, []byte("gate\n"), nil)
+		phase, gotRoot, _, err := ResolveRepoPhase(context.Background(), git, dir, nil, []byte("gate\n"), nil, config.ResolveContext{DefaultBranch: "main"})
 		if err != nil {
 			t.Fatalf("ResolveRepoPhase(%s): %v", dir, err)
 		}
@@ -79,7 +80,7 @@ func TestResolveRepoPhaseDiscoversFromRootAndNestedDir(t *testing.T) {
 func TestResolveRepoPhaseInvalidExplicitRepoDir(t *testing.T) {
 	git := newGitClient(t)
 	notARepo := testsupport.TempDir(t)
-	_, _, err := ResolveRepoPhase(context.Background(), git, notARepo, nil, nil, nil)
+	_, _, _, err := ResolveRepoPhase(context.Background(), git, notARepo, nil, nil, nil, config.ResolveContext{DefaultBranch: "main"})
 	if err == nil {
 		t.Fatalf("an explicit --repo-dir that is not a worktree must refuse")
 	}
@@ -95,7 +96,7 @@ func TestResolveRepoPhaseOutsideGitIsMachineOnly(t *testing.T) {
 	t.Chdir(outside)
 	// Empty repoDir + cwd outside any Git working tree: no phase at all, and no
 	// error — the machine install proceeds and the not-authorized action prints.
-	phase, root, err := ResolveRepoPhase(context.Background(), git, "", nil, nil, nil)
+	phase, root, _, err := ResolveRepoPhase(context.Background(), git, "", nil, nil, nil, config.ResolveContext{DefaultBranch: "main"})
 	if err != nil {
 		t.Fatalf("machine-only resolution errored: %v", err)
 	}
@@ -107,7 +108,7 @@ func TestResolveRepoPhaseOutsideGitIsMachineOnly(t *testing.T) {
 func TestResolveRepoPhaseAbsentKeyNotAuthorized(t *testing.T) {
 	root, gitDir := initGitRepo(t, "metadata_branch: main\n")
 	git := newGitClient(t)
-	phase, gotRoot, err := ResolveRepoPhase(context.Background(), git, root, nil, nil, nil)
+	phase, gotRoot, _, err := ResolveRepoPhase(context.Background(), git, root, nil, nil, nil, config.ResolveContext{DefaultBranch: "main"})
 	if err != nil {
 		t.Fatalf("ResolveRepoPhase: %v", err)
 	}
@@ -149,7 +150,7 @@ func TestResolveRepoPhaseGlobalLayerNotAuthorized(t *testing.T) {
 		t.Fatalf("gitcli.NewClient: %v", err)
 	}
 
-	phase, _, err := ResolveRepoPhase(context.Background(), git, root, nil, nil, nil)
+	phase, _, _, err := ResolveRepoPhase(context.Background(), git, root, nil, nil, nil, config.ResolveContext{DefaultBranch: "main"})
 	if err != nil {
 		t.Fatalf("ResolveRepoPhase: %v", err)
 	}
@@ -161,7 +162,7 @@ func TestResolveRepoPhaseGlobalLayerNotAuthorized(t *testing.T) {
 func TestResolveRepoPhaseAgentsTableAloneNotAuthorized(t *testing.T) {
 	root, _ := initGitRepo(t, "agents:\n  claude:\n    build-standard:\n      model: opus\n")
 	git := newGitClient(t)
-	phase, _, err := ResolveRepoPhase(context.Background(), git, root, nil, nil, nil)
+	phase, _, _, err := ResolveRepoPhase(context.Background(), git, root, nil, nil, nil, config.ResolveContext{DefaultBranch: "main"})
 	if err != nil {
 		t.Fatalf("ResolveRepoPhase: %v", err)
 	}
@@ -200,7 +201,7 @@ func TestResolveRepoPhaseScopedHarnessCarriesUnrelatedRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	phase, _, err := ResolveRepoPhase(context.Background(), git, root, []string{"codex"}, []byte("gate\n"), nil)
+	phase, _, _, err := ResolveRepoPhase(context.Background(), git, root, []string{"codex"}, []byte("gate\n"), nil, config.ResolveContext{DefaultBranch: "main"})
 	if err != nil {
 		t.Fatalf("ResolveRepoPhase: %v", err)
 	}
@@ -274,7 +275,7 @@ func TestResolveRepoPhaseRetiresDroppedClaudeLink(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	phase, _, err := ResolveRepoPhase(context.Background(), git, root, nil, []byte("gate\n"), nil)
+	phase, _, _, err := ResolveRepoPhase(context.Background(), git, root, nil, []byte("gate\n"), nil, config.ResolveContext{DefaultBranch: "main"})
 	if err != nil {
 		t.Fatalf("ResolveRepoPhase hard-failed on the dropped symlink: %v", err)
 	}
@@ -296,5 +297,41 @@ func TestResolveRepoPhaseRetiresDroppedClaudeLink(t *testing.T) {
 	}
 	if rem.Harness != "claude" {
 		t.Errorf("removal harness = %q, want claude", rem.Harness)
+	}
+}
+
+// TestResolveRepoPhaseToleratesUnknownKeys (change 0392): with a tolerant
+// context, a .docket.yml carrying an unknown key plus an explicit
+// agent_harnesses still yields an authorized phase, and the unknown-key
+// warning comes back for the install result to surface. The strict control —
+// today's ReasonInvalidConfig refusal — pins that the CLI's context, not this
+// assembler, owns the decision.
+func TestResolveRepoPhaseToleratesUnknownKeys(t *testing.T) {
+	root, _ := initGitRepo(t, "agent_harnesses: [claude]\nsome_future_block: true\n")
+	git := newGitClient(t)
+
+	tolerant := config.ResolveContext{DefaultBranch: "main", TolerateUnknownKeys: true}
+	phase, gotRoot, warnings, err := ResolveRepoPhase(context.Background(), git, root, nil, []byte("gate\n"), nil, tolerant)
+	if err != nil {
+		t.Fatalf("tolerant ResolveRepoPhase: %v", err)
+	}
+	if phase == nil || !phase.Authorized || gotRoot != root {
+		t.Fatalf("phase = %+v root = %q, want an authorized phase at %q", phase, gotRoot, root)
+	}
+	found := false
+	for _, w := range warnings {
+		if w.Code == config.CodeUnknownKey && w.Severity == config.SeverityWarning {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("warnings = %v, want the tolerated unknown-key warning", warnings)
+	}
+
+	strict := config.ResolveContext{DefaultBranch: "main"}
+	_, _, _, err = ResolveRepoPhase(context.Background(), git, root, nil, []byte("gate\n"), nil, strict)
+	var re *RepoResolutionError
+	if !errors.As(err, &re) || re.Reason != ReasonInvalidConfig {
+		t.Fatalf("strict err = %v, want RepoResolutionError with %q", err, ReasonInvalidConfig)
 	}
 }
