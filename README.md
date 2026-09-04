@@ -3,7 +3,8 @@
 docket keeps a backlog of planned work as plain markdown files inside your repo and ships
 agent skills that drain that backlog to open pull requests. It is a repository-level
 implementation of the Plan, Design, Build, Test, and Deploy stages of Anthropic's
-[AI-Native SDLC Playbook](https://claude.com/blog/the-ai-native-sdlc-playbook) — git-native,
+[AI-Native SDLC Playbook](https://claude.com/blog/the-ai-native-sdlc-playbook)
+([stage-by-stage comparison](docs/comparison/ai-native-sdlc-playbook.md)) — git-native,
 harness-neutral, with the human at the merge. Each unit of work is a **change**: one markdown
 file, roughly one pull request's worth of work, that moves through a fixed lifecycle from idea
 to archived record — coordinated entirely through git, with no service, no database, and no
@@ -112,15 +113,6 @@ start-here path through them.
 - **[Reference](docs/reference/README.md)** — exact fields, keys, verbs, and outcomes, each
   pointing at the surface that owns the current value; includes the
   [harness runbooks and examples](docs/reference/harness/README.md).
-
-Beyond the four sections:
-
-- **[How docket maps to the six-stage model](docs/comparison/ai-native-sdlc-playbook.md)** —
-  the dated stage-by-stage comparison this page's framing rests on.
-- **[Configuration reference](.docket.example.yml)** — every key, its default, and its scope.
-- **[ADR index](docs/adrs/README.md)** — the immutable decision ledger.
-- **[Test suite](tests/README.md)** — how docket's own suite runs and where a new test
-  belongs.
 
 ## Status
 
