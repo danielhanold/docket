@@ -99,6 +99,14 @@ func configDiagnosticFindings(diags []config.Diagnostic) []reposetup.Finding {
 // shape. Severity goes through normalizeSeverity (info → notice) to honor the
 // StatusFinding severity vocabulary; the ref rides in Path, the locator slot
 // the human renderer already prints.
+//
+// A global-layer diagnostic's ref is suppressed here, mirroring status.go's
+// healthy-path configFinding, whose standing rationale is that "a global config
+// path is host-absolute and the protocol context forbids one." The setting key
+// path (d.Path) is not host-absolute and stays in the message, exactly as the
+// healthy path keeps it in Field. This suppression is the status projection's
+// alone: the repository family (configDiagnosticFindings) carries no such
+// prohibition and keeps its ref.
 func configDiagnosticStatusFindings(diags []config.Diagnostic) []StatusFinding {
 	if len(diags) == 0 {
 		return nil
@@ -106,10 +114,14 @@ func configDiagnosticStatusFindings(diags []config.Diagnostic) []StatusFinding {
 	out := make([]StatusFinding, 0, len(diags))
 	for _, d := range diags {
 		p := configDiagnosticParts(d)
+		ref := p.ref
+		if d.Provenance != nil && d.Provenance.Layer == config.LayerGlobal {
+			ref = ""
+		}
 		out = append(out, StatusFinding{
 			Code:     p.code,
 			Severity: normalizeSeverity(p.severity),
-			Path:     p.ref,
+			Path:     ref,
 			Message:  p.message,
 			Remedy:   p.remedy,
 		})
