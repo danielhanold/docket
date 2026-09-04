@@ -22,7 +22,7 @@ branch: 'fix/surface-config-diagnostics-with-file-line-when-a-command-ref'
 pr:
 blocked_by:
 reconciled: true
-claimed_at: '2026-09-04T01:11:43Z'
+claimed_at: '2026-09-04T01:22:28Z'
 ---
 
 ## Artifacts
