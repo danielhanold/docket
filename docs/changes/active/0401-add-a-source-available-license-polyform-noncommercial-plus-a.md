@@ -2,11 +2,11 @@
 id: 401
 slug: 'add-a-source-available-license-polyform-noncommercial-plus-a'
 title: 'Add a source-available license: PolyForm Noncommercial plus an individual commercial exemption'
-status: 'proposed'
+status: 'in-progress'
 priority: 'medium'
 type: 'docs'
 created: '2026-09-03'
-updated: '2026-09-03'
+updated: '2026-09-04'
 depends_on: []
 stacked_on:
 related: []
@@ -18,10 +18,11 @@ results:
 trivial: false
 auto_groomable:
 branch_prefix:
-branch:
+branch: 'docs/add-a-source-available-license-polyform-noncommercial-plus-a'
 pr:
 blocked_by:
 reconciled: false
+claimed_at: '2026-09-04T01:08:36Z'
 ---
 
 ## Artifacts
