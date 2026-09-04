@@ -40,7 +40,7 @@ import (
 // # docs/ is read by path, not through MaintainedFiles
 //
 // MaintainedFiles categorically excludes docs/ as immutable point-in-time history,
-// but docs/cursor/ and docs/codex/ are ACTIVE operator documentation an agent
+// but docs/reference/harness/ is ACTIVE operator documentation an agent
 // executes. This guard reads every contract file directly by path, fail-closed (a
 // moved/renamed file is a read error and fails the test), so the docs/ exclusion
 // does not blind it to those surfaces.
@@ -151,16 +151,19 @@ var proseContracts = []proseContract{
 	// tests/test_cursor_dispatch_rule.sh — cursor dispatch head contract.
 	{sentinel: "test_cursor_dispatch_rule", file: "cursor-rules/dispatch.head.md",
 		present: []string{"## Required dispatch pattern", "run the skill inline"}},
-	// tests/test_cursor_contract_docs.sh — cursor validation merge-gate obligation.
-	{sentinel: "test_cursor_contract_docs", file: "docs/cursor/validation.md",
+	// tests/test_cursor_contract_docs.sh — cursor validation merge-gate obligation
+	// (moved to the harness reference by change 0402).
+	{sentinel: "test_cursor_contract_docs", file: "docs/reference/harness/validation.md",
 		present: []string{"## The merge-gate obligation"}},
-	// tests/test_cursor_permissions_docs.sh — the guide exists and README links it.
-	{sentinel: "test_cursor_permissions_docs", file: "docs/cursor/permissions.md",
-		present: []string{"permissions"}},
-	{sentinel: "test_cursor_permissions_docs", file: "docs/guide/README.md",
-		present: []string{"](../cursor/permissions.md)"}},
-	// tests/test_codex_runbook.sh — codex runbook slug-derivation + no fabricated path.
-	{sentinel: "test_codex_runbook", file: "docs/codex/validation-runbook.md",
+	// tests/test_cursor_permissions_docs.sh — the permissions guidance survives on the
+	// harness guide page, which must link the example JSONs in the harness reference.
+	// Change 0402 folded docs/cursor/permissions.md into the guide page, so this
+	// sentinel's two rows collapse to one file; both invariants are kept as phrases.
+	{sentinel: "test_cursor_permissions_docs", file: "docs/guide/running-on-your-harness.md",
+		present: []string{"permissions.example.json", "](../reference/harness/"}},
+	// tests/test_codex_runbook.sh — codex runbook slug-derivation + no fabricated path
+	// (moved to the harness reference by change 0402).
+	{sentinel: "test_codex_runbook", file: "docs/reference/harness/validation-runbook.md",
 		present: []string{"codex debug models"}, absent: []string{"scripts/sync-agents.sh"}},
 	// tests/test_docket_build.sh — the per-task worker contract.
 	{sentinel: "test_docket_build", file: "skills/docket-build-task/SKILL.md",

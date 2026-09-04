@@ -160,6 +160,6 @@ Tier 3 necessarily runs **after** the PR opens — it needs the branch's generat
 IDE. A green hermetic suite therefore does not clear the human merge gate on its own.
 
 The PR body for any change touching the Cursor wrapper contract **must state that Cursor IDE
-validation is pending and name this checklist** (`docs/cursor/validation.md`), so the human at the
+validation is pending and name this checklist** (`docs/reference/harness/validation.md`), so the human at the
 merge gate knows what has not been verified yet. Merging on a green suite alone is exactly how the
 wrapper defect this runbook exists to prevent shipped in the first place.
