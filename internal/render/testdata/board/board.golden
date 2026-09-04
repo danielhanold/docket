@@ -4,9 +4,9 @@
 
 ## 🟢 In progress (1)
 
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0001](active/0001-inline-board-in-progress.md) | Inline board work in progress | `high` | `feat` | [spec](../superpowers/specs/2026-08-01-inline-board-design.md) | `feat/inline-board` |
+| # | Title | Priority | Type | Spec | Branch | Readiness |
+|---|-------|----------|------|------|--------|-----------|
+| [0001](active/0001-inline-board-in-progress.md) | Inline board work in progress | `high` | `feat` | [spec](../superpowers/specs/2026-08-01-inline-board-design.md) | `feat/inline-board` |  |
 
 ## 🔵 Built (1)
 

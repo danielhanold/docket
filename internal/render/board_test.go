@@ -352,6 +352,103 @@ func TestBoardReadinessAutoGroomBlocked(t *testing.T) {
 	}
 }
 
+// TestBoardInProgressReadinessRunHalted: an in-progress change carrying the
+// "## Run halted" marker surfaces the human call to action in the trailing
+// Readiness cell; a healthy in-progress row renders the cell empty.
+func TestBoardInProgressReadinessRunHalted(t *testing.T) {
+	halted := domain.NewChange(domain.ChangeSpec{
+		ID: 12, Slug: "halted", Title: "Halted run", Status: domain.StatusInProgress,
+		Branch:       domain.OptionalString{State: domain.FieldPresent, Value: "feat/halted"},
+		Spec:         optString("docs/superpowers/specs/halted-design.md"),
+		HasRunHalted: true,
+		Location:     domain.LocationActive, Path: "docs/changes/active/0012-halted.md",
+	})
+	running := domain.NewChange(domain.ChangeSpec{
+		ID: 13, Slug: "running", Title: "Running fine", Status: domain.StatusInProgress,
+		Branch:   domain.OptionalString{State: domain.FieldPresent, Value: "feat/running"},
+		Spec:     optString("docs/superpowers/specs/running-design.md"),
+		Location: domain.LocationActive, Path: "docs/changes/active/0013-running.md",
+	})
+	out := string(boardFrom(t, halted, running))
+	if !strings.Contains(out, "| # | Title | Priority | Type | Spec | Branch | Readiness |") {
+		t.Fatalf("In progress header missing trailing Readiness column:\n%s", out)
+	}
+	if !strings.Contains(out, "| `feat/halted` | run halted — needs you |") {
+		t.Fatalf("run-halted Readiness cell not rendered:\n%s", out)
+	}
+	if !strings.Contains(out, "| `feat/running` |  |") {
+		t.Fatalf("healthy in-progress row must render an empty Readiness cell:\n%s", out)
+	}
+}
+
+// TestBoardRunHaltedWholeLineContract: the cell keys on the decode layer's
+// whole-line "## Run halted" heading match (0237's bare-heading contract) — a
+// dated variant ("## Run halted — 2026-…") must NOT light the cell. Renders
+// through document.Parse + repository.BuildSnapshot (the boardCorpusSnapshot
+// path) so the real parse pipeline, not a hand-set spec flag, drives the cell.
+func TestBoardRunHaltedWholeLineContract(t *testing.T) {
+	source := func(id int, slug, heading string) string {
+		return "---\n" +
+			"id: " + strconv.Itoa(id) + "\n" +
+			"slug: " + slug + "\n" +
+			"title: " + slug + "\n" +
+			"status: in-progress\n" +
+			"priority: high\n" +
+			"type: feat\n" +
+			"created: 2026-08-01\n" +
+			"updated: 2026-08-0" + strconv.Itoa(id) + "\n" +
+			"depends_on: []\n" +
+			"related: []\n" +
+			"discovered_from: []\n" +
+			"adrs: []\n" +
+			"spec: docs/superpowers/specs/" + slug + "-design.md\n" +
+			"plan:\n" +
+			"results:\n" +
+			"trivial: false\n" +
+			"auto_groomable:\n" +
+			"branch: feat/" + slug + "\n" +
+			"pr:\n" +
+			"blocked_by:\n" +
+			"reconciled: true\n" +
+			"---\n\n## Why\n\nBody.\n\n" + heading + "\n\nSection body.\n"
+	}
+	var docs []repository.InputDocument
+	for _, f := range []struct {
+		id      int
+		slug    string
+		heading string
+	}{
+		{1, "bare", "## Run halted"},
+		{2, "dated", "## Run halted — 2026-08-14"},
+	} {
+		doc, err := document.Parse([]byte(source(f.id, f.slug, f.heading)))
+		if err != nil {
+			t.Fatalf("parse fixture %s: %v", f.slug, err)
+		}
+		docs = append(docs, repository.InputDocument{
+			Kind:     repository.KindChange,
+			Location: domain.LocationActive,
+			Path:     "docs/changes/active/000" + strconv.Itoa(f.id) + "-" + f.slug + ".md",
+			Document: doc,
+		})
+	}
+	build, err := repository.BuildSnapshot(repository.BuildInput{Documents: docs})
+	if err != nil {
+		t.Fatalf("BuildSnapshot: %v", err)
+	}
+	out, err := render.Board(render.BoardInput{Snapshot: build.Snapshot, Presentation: render.DefaultBoardPresentation()})
+	if err != nil {
+		t.Fatalf("Board: %v", err)
+	}
+	s := string(out)
+	if !strings.Contains(s, "| `feat/bare` | run halted — needs you |") {
+		t.Fatalf("bare heading did not light the Readiness cell:\n%s", s)
+	}
+	if !strings.Contains(s, "| `feat/dated` |  |") {
+		t.Fatalf("dated heading variant must render an empty Readiness cell:\n%s", s)
+	}
+}
+
 // TestBoardReadinessStackBaseUnresolved: a build-ready-but-for-its-stack change
 // whose parent branch is absent from the facts reports the padded immediate
 // parent, not the ancestor the resolver stopped at.
